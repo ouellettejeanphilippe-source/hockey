@@ -255,7 +255,7 @@ export function miniAvecVariante(p, rar) {
 async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   const decs = decisionsDeLaPartie();
   const mods = modsDesPacks(decs, j);
-  const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE - 1;
+  const pitie = G.bonus === 'ROGUE' && packsSansHolo(decs) >= PITIE;
   const { cartes, reglage } = await tirerPackJoueurs(cle, n, params, mods, pitie);
   const avant = new Set(lireMeta().collection || []);
   const vendus = [];
@@ -300,7 +300,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
       const g = groupeDe(x.p);
       const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', getPlayerKey(x.p), x.rar, x.num || 0));
       return {
-        // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec l'éclat d'une holo).
+        // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec son éclat propre).
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
@@ -422,7 +422,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   ouvrirInventaire({
     ...(page || {}),
     titre: 'Ton inventaire', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
-    partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, jour: j, rogue }) : [],
+    partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
     patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: MAX_PATRONS,
@@ -452,7 +452,7 @@ export function cartesAJouer(j) {
   if (!Lg) return 0;
   const rogue = G.bonus === 'ROGUE';
   const meta = rogue ? lireMeta() : null;
-  return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, jour: j, rogue }).length
+  return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }).length
     + (meta ? Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0) : 0);
 }
 /*
@@ -993,6 +993,18 @@ export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
     const finale = !!(S && S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A.isPlayer || s.B.isPlayer)));
     direJalons(payerJalons({ ...faitsDeLaSaison(), rondes, coupe: !!coupe, finale }));
     modsAuCartable();
+    // V2 · Item 4 : à la fin d'une run (gagnée ou perdue), rembourser les packs scellés non ouverts.
+    const sortRun = sortDeLaRun();
+    if (sortRun === 'gagnee' || sortRun === 'finie') {
+      const scelles = packsScelles(decisionsDeLaPartie());
+      const aRembourser = scelles.filter(d => d.achat.prix > 0);
+      if (aRembourser.length) {
+        const decsSeries = G.ligue.decisionsSeries || (G.ligue.decisionsSeries = []);
+        for (const d of aRembourser) decsSeries.push({ jour: 0, gain: d.achat.prix, rembourse: d.palier });
+        const nb = aRembourser.length;
+        setTimeout(() => toast(`Pack${nb > 1 ? 's' : ''} scellé${nb > 1 ? 's' : ''} non ouvert${nb > 1 ? 's' : ''} : ${nb} remboursé${nb > 1 ? 's' : ''}.`), 1800);
+      }
+    }
   }
   saveGame();
   majRunRogue();
@@ -1304,7 +1316,16 @@ async function choisirNouvelleEquipe(saison) {
   const meta = lireMeta();
   const dejaLa = [...gardes, ...classeurtires];
   const draftes = await drafterJoueurs(meta, dejaLa, saison);
+  // V2 · Item 2 : la recrue repêchée garde la variante montrée à l'écran (carte de base).
+  for (const p of draftes) G.variantes.cartes[getPlayerKey(p)] = 'commune';
   const pris = [...dejaLa, ...draftes];
+  // V2 · Item 1 : combler les cases vides avec des plombiers si le draft a été passé.
+  const manque = { F: COMPOSITION_DEPART.F, D: COMPOSITION_DEPART.D, G: COMPOSITION_DEPART.G };
+  for (const p of pris) { const g = groupeDe(p); if (g in manque) manque[g] = Math.max(0, manque[g] - 1); }
+  if (Object.values(manque).some(n => n > 0)) {
+    const ligue = await plombiersDeLaLigue(meta, pris);
+    for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
+  }
   const roster = placerDevant(autoRoster(pris), gardes);
   await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, classeurtires, draftes, roster));
 }

@@ -450,7 +450,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       if (genre === 'defense') {
         const mots = e.special === 'etouffee' ? com.defense(contexte) : com.bloque(contexte);
         ligne(`arret defense ${autre(e.cote) === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(autre(e.cote)).tag, 13)}
-          <span><b class="live-jeu-mot">🧱 DÉFENSE</b> ${mots}</span>`, couleurs(autre(e.cote)));
+          <span><b class="live-jeu-mot">❄️ DÉFENSE</b> ${mots}</span>`, couleurs(autre(e.cote)));
       } else if (genre === 'danger') {
         const mots = e.special === 'reussie' ? com.sequence(contexte) : com.arret(contexte);
         ligne(`arret danger ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(equipe(autre(e.cote)).tag, 13)}

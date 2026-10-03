@@ -220,7 +220,7 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`${['zéro', 'un', 'deux', 'trois', 'quatre'][GARDIEN_SUITE_LIBRE]} départs de suite ; au ${['', 'deuxième', 'troisième', 'quatrième', 'cinquième'][GARDIEN_SUITE_LIBRE]}, il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${nombre(GARDIEN_USURE * 100)} %`, 'la fatigue des gardiens'],
     [ANNONCE_GROS === 1 ? 'annoncé la veille' : `annoncé ${ANNONCE_GROS} journées d'avance`, 'l\'annonce du gros match'],
     [`<strong>main de ${TAILLE_MAIN} cartes</strong> et tu as <strong>${ENERGIE_MAIN} d'élan</strong>`, 'la main'],
-    [`à partir du ${MATCH_ADVERSE_FORT}e match et dès la troisième ronde des séries, il a ${energieAdverse({ jour: 186 })} d'élan`, 'l\'élan adverse'],
+    [`à partir du ${MATCH_ADVERSE_FORT}e match et dès la troisième ronde des séries, il a ${energieAdverse({ nMatch: MATCH_ADVERSE_FORT })} d'élan`, 'l\'élan adverse'],
     [`précision +${pct(PREP_JUSTE.finition)} % et buts contre −${pct(PREP_JUSTE.defense)} %`, 'la préparation juste'],
     [`précision −${pct(PREP_RATEE.finition)} % et buts contre +${pct(PREP_RATEE.defense)} %`, 'la préparation ratée'],
     [`commence avec ${DECK_DEPART.length} cartes`, 'le deck de départ'],

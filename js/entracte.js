@@ -148,8 +148,8 @@ const rangSur = (teams, t, valeur, basMieux = false) => {
 
 /**
  * LES CARTONS DE LA SAISON. Tout sort des compteurs du moteur : la fiche et
- * le classement, les tirs et la finition, le travail des gardiens, l'arc de
- * la saison par tranches de dix matchs, les soirs marquants, l'infirmerie.
+ * le classement, les tirs et la finition, le travail des gardiens, les soirs
+ * marquants. Les tranches et l'infirmerie vivent dans les onglets du bilan.
  */
 export function cartesDeSaison({ you, teams, rang, ctx }) {
   const J = you.journal || [];
@@ -217,34 +217,11 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: 'Tirs vus', v: tirsContre },
     ])) : null;
 
-  /* 5. L'ARC DE LA SAISON — dix matchs à la fois, comme un relevé de compte. */
-  const tranches = [];
-  for (let i = 0; i < J.length; i += 10) {
-    const bloc = J.slice(i, i + 10);
-    const v = bloc.filter(m => m.win).length;
-    const dp = bloc.filter(m => !m.win && m.ot).length;
-    const bp = bloc.reduce((s, m) => s + m.gf, 0), bc = bloc.reduce((s, m) => s + m.ga, 0);
-    tranches.push([`${i + 1}-${i + bloc.length}`, `${v}-${bloc.length - v - dp}-${dp}`, `${bp}-${bc}`, signe(bp - bc)]);
-  }
-  let cur = 0, best = 0, curP = 0, pire = 0;
-  for (const m of J) {
-    if (m.win) { cur++; curP = 0; best = Math.max(best, cur); }
-    else { curP++; cur = 0; pire = Math.max(pire, curP); }
-  }
-  const ot = J.filter(m => m.ot).length;
-  const c5 = carte('Le fil de l\'année', 'Par tranches de dix',
-    tableau(['Matchs', 'V-D-DP', 'BP-BC', 'Diff'], tranches)
-    + liste([
-      { k: 'Plus longue séquence', v: `${best} victoire${best > 1 ? 's' : ''}` },
-      { k: 'Plus long creux', v: `${pire} défaite${pire > 1 ? 's' : ''}` },
-      { k: 'Prolongations', v: `${ot} match${ot > 1 ? 's' : ''} · ${J.filter(m => m.ot && m.win).length} gagné${J.filter(m => m.ot && m.win).length > 1 ? 's' : ''}` },
-    ]));
-
-  /* 6. LES SOIRS — le meilleur, le pire, et les chiffres qui les encadrent. */
+  /* 5. LES SOIRS — le meilleur, le pire, et les chiffres qui les encadrent. */
   const plusBelle = J.reduce((a, m) => (!a || m.gf - m.ga > a.gf - a.ga ? m : a), null);
   const pireSoir = J.reduce((a, m) => (!a || m.ga - m.gf > a.ga - a.gf ? m : a), null);
   const nom = t => (ctx && ctx.teamShort ? ctx.teamShort(t) : (t && t.name) || '');
-  const c6 = carte('Les soirs', 'À retenir',
+  const c5 = carte('Les soirs', 'À retenir',
     liste([
       plusBelle ? { k: `Plus belle soirée · match ${plusBelle.n}`, v: `${plusBelle.gf}-${plusBelle.ga} c. ${nom(plusBelle.adv)}`, ton: 'bon' } : null,
       pireSoir ? { k: `Soir à oublier · match ${pireSoir.n}`, v: `${pireSoir.ga}-${pireSoir.gf} c. ${nom(pireSoir.adv)}`, ton: 'mauvais' } : null,
@@ -256,19 +233,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: 'Buts en 3 périodes', v: `${Math.max(...J.map(m => m.gf))} max` },
     ]));
 
-  /* 7. L'INFIRMERIE — ce que la saison a coûté. */
-  const bless = (you.injuriesLog || []).slice().sort((a, b) => b.games - a.games);
-  const c7 = carte('Santé', 'L\'infirmerie',
-    grille([
-      { k: 'Blessures', v: bless.length },
-      { k: 'Matchs ratés', v: bless.reduce((s, b) => s + b.games, 0) },
-      { k: 'Alignement complet', v: `${J.length - new Set(bless.map(b => b.at)).size} soirs` },
-    ])
-    + (bless.length
-      ? tableau(['Absences', 'À partir du', 'Matchs'], bless.slice(0, 5).map(b => [nomLie(ctx, b.player, nomCourt(b.player.n)), `match ${b.at}`, b.games]))
-      : '<div class="ent-vide">Pas une seule blessure de toute la saison. Ça n\'arrive à peu près jamais.</div>'));
-
-  return [c1, c2, c3, c4, c5, c6, c7].filter(Boolean);
+  return [c1, c2, c3, c4, c5].filter(Boolean);
 }
 
 /**

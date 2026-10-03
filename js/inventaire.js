@@ -30,14 +30,14 @@ import { esc, money as M } from './util.js';
 const $ = id => document.getElementById(id);
 
 /* Les paliers de la saison donnent un pack mixte gratuit (S79) : ses cartes de saison, jamais un permanent. */
-const PALIERS_PACK = [20, 40, 60];
+const PALIERS_PACK = [9, 18, 26];
 
 /*
  * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
  * et des paliers atteints, moins celles jouées (\`joue.ref\`) et vendues
  * (\`vend.refs\`). \`rogue\` : les permanents sont partis au méta à l'ouverture.
  */
-export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = false } = {}) {
+export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue = false } = {}) {
   const items = [];
   const achats = decisions.filter(d => d && d.achat && d.achat.sorte === 'cartes');
   for (const d of achats) (d.achat.cartes || []).forEach((id, t) => {
@@ -49,10 +49,10 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, jour = 0, rogue = 
   // S80 : une amélioration ou une édition de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
   for (const p of PALIERS_PACK) {
-    if (jour < p) continue;
+    if (nMatch < p) continue;
     tirerCartesPack('mixte', graine, `palier${p}`).forEach((id, t) => {
       if (!BANQUE[id] || BANQUE[id].vie === 'permanent') return;
-      items.push({ ref: `p${p}:${t}`, id, source: `Main de la journée ${p}` });
+      items.push({ ref: `p${p}:${t}`, id, source: `Main du match ${p}` });
     });
   }
   const parties = new Set();
@@ -83,7 +83,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
   const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);
   const R = RARETES[c.rarete] || { gemme: '◆', nom: c.rarete };
   const forme = etiquetteBanque(id);
-  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} élan` : c.cat === 'evenement' ? `${c.duree} journées`
+  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} élan` : c.cat === 'evenement' ? `${c.duree} match${c.duree === 1 ? '' : 's'}`
     : c.cat === 'saison' ? 'Toute la saison' : c.cat === 'joueur' ? 'Un joueur' : (CIBLES[c.cible] || CATEGORIES[c.cat].un);
   const v = vie || c.vie;
   return `<div class="bq-carte bq-${c.cat} tc-${c.rarete}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">
@@ -137,7 +137,7 @@ export function ouvrirInventaire(ctx) {
       corps = `<p class="inv-mot">Ce que tes packs de la partie ont donné. <b>${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}</b> Jouer une carte, c'est une décision : elle vaut à partir d'aujourd'hui.${ctx.mode === 'rogue' ? ' <b>À la fin de la saison, ta poche expire.</b> Ce qui te suit : les modifs posées sur un joueur restent sur sa carte, d\'une run à l\'autre ; à la saison suivante de la run, ton deck, tes patrons engagés et tes cartes permanentes.' : ''}</p>
                 ${filtres(cats)}
         <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (journées ${PALIERS_PACK.join(', ')}).`)}</div>`;
+          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}</div>`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));
