@@ -9,7 +9,7 @@
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
 import { effetCarte, poserSoirGrand } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
-import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
+import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason } from './ratings.js';
 import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
@@ -457,15 +457,13 @@ export function getPositionPenalty(player, slot) {
   if (!slot || slot.scratch || slot.group === 'ANY') return 0;
   if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
 
-  const sec = getSecondaryPosition(player);
-
   if (player.p === 'D' || player.p === 'LD' || player.p === 'RD') {
     if (slot.group !== 'D' && slot.group !== 'LD' && slot.group !== 'RD') return 999;
     const np = (player.np === 'RD' || player.np === 'R' || player.p === 'RD') ? 'RD' : 'LD';
     const role = slot.role; // 'DG' (LD) or 'DD' (RD)
     const targetSide = role === 'DG' ? 'LD' : 'RD';
     // « Joue partout » (S78, l'atelier) : les deux côtés.
-    if (np === targetSide || sec === targetSide || player._partout) return 0;
+    if (np === targetSide || player._partout) return 0;
     return 2; // Off-side D (-2)
   }
   if (slot.group !== 'F') return 999;
@@ -477,16 +475,10 @@ export function getPositionPenalty(player, slot) {
     (role === 'AG' && (np === 'L' || np === 'AG')) ||
     (role === 'AD' && (np === 'R' || np === 'AD'));
 
-  const isSecMatch = sec && (
-    (role === 'C' && sec === 'C') ||
-    (role === 'AG' && (sec === 'L' || sec === 'AG')) ||
-    (role === 'AD' && (sec === 'R' || sec === 'AD'))
-  );
-
   // « Joue partout » (S78, l'atelier) : centre et ailes.
-  if (isPrimaryMatch || isSecMatch || player._partout) return 0;
+  if (isPrimaryMatch || player._partout) return 0;
 
-  if (np === 'C' || sec === 'C') {
+  if (np === 'C') {
     return 3; // Center playing wing (-3)
   }
   if (role === 'C') {
@@ -1212,8 +1204,7 @@ export const ROULEMENTS = {
   },
 };
 
-/** Le plan et le roulement d'une équipe, avec leur valeur par défaut. */
-export const planDe = t => PLANS[(t && t.plan) || 'equilibre'] ? ((t && t.plan) || 'equilibre') : 'equilibre';
+/** Le roulement d'une équipe, avec sa valeur par défaut. */
 export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t && t.roulement) || 'quatre') : 'quatre';
 
 /*

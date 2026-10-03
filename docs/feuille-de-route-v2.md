@@ -48,7 +48,7 @@ Un mot par idée et une icône par sens, partout ; ce qui ne sert plus s'en va. 
 - [ ] **Supprimer · Le vestige du plan de match.** Le banc dit « avec ces trios, ce plan et cette glace » et remplit un plan que le moteur ne lit plus ; des écouteurs sans bouton. — `js/banc.js:96, 554, 564` — preuve : `check_mort`
 - [ ] **Supprimer · Les factions disparues.** Le bureau annonce que « les partisans montent / les médias s'acharnent » : ces factions ont été retirées en S72. — `js/saison.js:2003` — preuve : `check_clarte`
 - [ ] **Supprimer · Ce que le bilan dit deux fois.** L'infirmerie et les tranches de 10 matchs apparaissent deux fois. — `js/bilan.js:785, js/entracte.js:261` — preuve : `smoke`
-- [ ] **Supprimer · Le poste secondaire inventé.** Aucune donnée ne porte le second poste : 40 % viennent d'un hachage de l'id, et ce poste inventé annule des pénalités, ouvre le loto et élargit la zone. Le lire dans les vraies stats, ou le retirer. — `js/ratings.js:660-684` — preuve : `check_ratings`
+- [x] **Supprimer · Le poste secondaire inventé.** Aucune donnée ne porte le second poste : 40 % viennent d'un hachage de l'id, et ce poste inventé annule des pénalités, ouvre le loto et élargit la zone. Le lire dans les vraies stats, ou le retirer. — `js/ratings.js:660-684` — preuve : `check_ratings`
 - [ ] **Supprimer · Les commentaires qui disent le contraire du code.** « Le Rogue ne repêche jamais », « le Phénomène en dernier », « Autre année » qui garde le club, MOTEUR.md encore à 6 % et −15 %. — `js/cartable.js:10, js/alignement.js:361, MOTEUR.md:368` — preuve : `relecture`
 
 ## V2.2 — Ce que tu vois, c'est ce qui joue

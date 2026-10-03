@@ -30,7 +30,7 @@ import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
-import { getSecondaryPosition, getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
+import { getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
 import { actionsDisponibles, demarrerActions, photoDeFond } from './actions.js';
@@ -859,14 +859,7 @@ export function positionLabel(p) {
   else if (p.np === 'R' || p.np === 'AD') primary = 'AD';
   else if (p.np === 'L' || p.np === 'AG') primary = 'AG';
 
-  const sec = getSecondaryPosition(p);
-  if (!sec) return primary;
-  let secLabel = sec;
-  if (sec === 'LD') secLabel = 'DG';
-  if (sec === 'RD') secLabel = 'DD';
-  if (sec === 'L') secLabel = 'AG';
-  if (sec === 'R') secLabel = 'AD';
-  return `${primary} / ${secLabel}`;
+  return primary;
 }
 
 /*

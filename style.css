@@ -3470,7 +3470,6 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .ent-table td + td, .ent-table th + th { padding-left: var(--esp-3); }
 .ent-table .heros { color: var(--or); font-weight: 800; }
 .ent-table tbody tr:last-child td { border-bottom: 0; }
-.ent-vide { font-size: var(--t-2); line-height: 1.45; color: var(--encre-3); }
 /* Les trois étoiles : le rang en or, le nom en condensée, sa ligne à droite. */
 .ent-etoiles { display: flex; flex-direction: column; }
 .ent-etoile { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px var(--esp-2); align-items: baseline; min-height: 48px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); }
