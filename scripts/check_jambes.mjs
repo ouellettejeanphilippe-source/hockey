@@ -206,12 +206,16 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   jouerJournee(LA); jouerJournee(LB);
   const pA = toiA.jourLignes[r + 1].energie[cle], pB = toiB.jourLignes[r + 1].energie[cle];
   exiger('un repos remonte les jambes le lendemain', pB > pA && pB >= snap[cle], `${snap[cle]} ce matin → ${pB} reposé, ${pA} s'il joue`);
-  // La ligue A (mesure lancée, aucune décision) contre une troisième jumelle jamais mesurée.
+  // La ligue A (mesurée toutes les sept journées, aucune décision) contre une troisième jumelle jamais mesurée.
   const C = club(), LC = creerLigue(C, 82, { graine: 'suivi' });
   while (LC.jour < r + 1) jouerJournee(LC);
-  for (let k = 0; k < 10; k++) { jouerJournee(LA); jouerJournee(LC); }
+  let mesures = 1;
+  while (LA.jour < 100) {
+    if (LA.jour % 7 === 0) { usureDuSoir(toiA); jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: LA.jour, propositions: [{ jour: LA.jour, roulement: 'profond' }, { jour: LA.jour, cases }] }); mesures++; }
+    jouerJournee(LA); jouerJournee(LC);
+  }
   const sig = L => L.teams.map(t => `${t.W}-${t.L}-${t.OTL}-${t.GF}-${t.GA}`).join('|');
-  exiger('la mesure ne touche à rien : la saison mesurée joue la suite au but près', sig(LA) === sig(LC), `${LA.jour} journées`);
+  exiger('la mesure ne touche à rien : la saison mesurée joue la suite au but près', sig(LA) === sig(LC), `${mesures} mesures, ${LA.jour} journées`);
 }
 
 const P = paires('pousse'), Rr = paires('roule');
