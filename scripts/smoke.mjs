@@ -2809,8 +2809,10 @@ if (enabled) {
     else if (d.some((x, i) => x + r[i] !== tot[i])) errors.push(`domicile ${d.join('-')} et route ${r.join('-')} ne font pas la fiche ${score.trim()}`);
     else {
       await page.click('#resultHost .bl-sauts [data-bl-saut="rythme"]');
-      await page.waitForTimeout(500);
-      const vu = await page.$eval('#resultHost [data-bl="rythme"]', e => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; });
+      // Le saut défile en douceur : sa durée suit la distance et la machine (500 ms ne suffisaient pas en CI, graine pgui2c).
+      // On attend que le chapitre arrive, jusqu'à 3 s, plutôt qu'un délai fixe.
+      const vu = await page.waitForFunction(() => { const e = document.querySelector('#resultHost [data-bl="rythme"]'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; },
+        null, { timeout: 3000 }).then(() => true).catch(() => false);
       if (!vu) errors.push('le chapitre « Rythme » ne vient pas en haut quand on le touche');
       console.log(`   le bilan par chapitres : ${ch.join(' · ')} · domicile ${d.join('-')}, route ${r.join('-')} · ${tuiles.length} chiffres`);
       await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
