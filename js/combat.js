@@ -208,7 +208,7 @@ export const CARTES_MATCH = {
   piege: { nom: 'Le piège tendu', ico: '🕸️', cout: 1, rarete: 'rare', genre: 'tactique',
     texte: 'On leur laisse croire que ça marche.', piege: { finition: 1.05, defense: 0.95 } },
   // Les combos : ce que les autres cartes de la main font monter.
-  elan: { nom: 'L\'élan', ico: '🌊', cout: 1, rarete: 'peu', genre: 'attaque',
+  elan: { nom: 'La lancée', ico: '🌊', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Une vague, puis une autre, puis une autre.', parGenre: { genre: 'attaque', effet: { volume: 1.03 } } },
   forteresse: { nom: 'La forteresse', ico: '🏰', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Chaque planche de la bande est un mur.', parGenre: { genre: 'defense', effet: { defense: 0.97 } } },

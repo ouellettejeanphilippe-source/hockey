@@ -7802,7 +7802,7 @@ export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
   nemesis: { ico: '😤', nom: 'Rivalité', mot: 'il t\'a déjà battu deux fois' },
 };
-export const ELAN = { nom: 'L\'élan', ico: '🔥', finition: 1.03, duree: 3 };
+export const ELAN = { nom: 'La lancée', ico: '🔥', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
 /*
  * LE GROS MATCH, repéré AVANT d'être joué (S70) : le moteur doit savoir
