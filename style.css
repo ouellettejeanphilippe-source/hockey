@@ -2277,7 +2277,9 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-zone.ok { color: var(--bon); }
 .cell-zone.sous { color: var(--mauvais); }
 .cell-zone.dessus { color: var(--or); }
+/* Quatre traits ne tiennent pas dans une case étroite : leurs icônes passent à la ligne au lieu de déborder. */
 .cell-trait { font-size: var(--t-2); line-height: 1.2; color: var(--or); }
+.slot-tags.cell-l2 > .cell-trait { flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 /* Rangée 3 : le chiffre clé, gras, à droite. */
 .cell-l3 { display: flex; justify-content: flex-end; min-width: 0; }
 .cell-prod { margin-left: auto; font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre); white-space: nowrap; }
