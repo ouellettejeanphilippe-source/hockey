@@ -631,7 +631,7 @@ export const LINE_ZONES = {
     { level: 1, label: 'Top 4 · 1re ou 2e paire',    short: '1re-2e paire', mini: 'P1-2', idealUnits: [0, 1] },
     { level: 2, label: '2e paire, tient la 3e',      short: '2e paire',     mini: 'P2',   idealUnits: [1, 2] },
     { level: 3, label: '3e paire, peut tenir la 2e', short: '3e paire',     mini: 'P3',   idealUnits: [1, 2] },
-    { level: 4, label: 'Profondeur · 3e paire',      short: 'Réserve D',    mini: 'rés.', idealUnits: [2] },
+    { level: 4, label: 'Profondeur · 3e paire',      short: 'Profondeur D', mini: 'P4',   idealUnits: [2] },
   ],
   G: [
     { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1',  idealUnits: [0] },
