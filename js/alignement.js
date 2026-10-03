@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, money, pct3 } from './util.js';
-import { badgesDe, PALIERS, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
+import { badgesDe, PALIERS, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
@@ -345,6 +345,19 @@ function slotEl(s) {
       } else {
         const src = G.selectedSlot;
         const a = G.roster[src], b = G.roster[s.i];
+        // Refuser un déplacement qui viole le groupe de poste (D vers F, G vers D…)
+        if (a && !fits(a, s)) {
+          G.selectedSlot = null;
+          toast(`${a.n} ne peut pas jouer à ce poste.`, 'bad');
+          render();
+          return;
+        }
+        if (b && SLOTS[src] && !fits(b, SLOTS[src])) {
+          G.selectedSlot = null;
+          toast(`${b.n} ne peut pas jouer à ce poste.`, 'bad');
+          render();
+          return;
+        }
         if (a) G.roster[s.i] = a; else delete G.roster[s.i];
         if (b) G.roster[src] = b; else delete G.roster[src];
         // RANGER NE RECOMPOSE PAS LA MAIN (S71) : si le déplacement remplit la
@@ -468,7 +481,7 @@ function lineEl(title, slots, group, unit, cls = '') {
   const fermBtn = wrap.querySelector('.line-ferm');
   if (fermBtn) fermBtn.onclick = ev => {
     ev.stopPropagation();
-    G.banc.fermeture = fermetureCourante() === unit ? null : unit;
+    G.banc.fermeture = fermetureCourante() === unit ? 'auto' : unit;
     render();
   };
   const row = document.createElement('div');

@@ -15,7 +15,7 @@ import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, 
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
-import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
+import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, maxForPick, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
@@ -339,7 +339,8 @@ export function showPlayerModal(p, opts = {}) {
        <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}</details>`;
 
-  const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : `Signer · ${slot.role}`;
+  const risky = !already && !over && !!slot && p.$ > maxForPick();
+  const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : risky ? 'Signer · bloque la fin' : `Signer · ${slot.role}`;
   const destNote = already ? ''
     : !slot ? `<div class="dash-note dash-bad">Toutes les cases compatibles sont prises. Déplace un joueur ou vise une autre position.</div>`
     : over ? `<div class="dash-note dash-bad">${money(p.$)} pour ${money(rem)} restants.</div>`
@@ -443,13 +444,19 @@ export function showPlayerModal(p, opts = {}) {
           <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
           ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">La saison du club ${ico('i-ext')}</a>` : ''}
         </div>
-        ${apres || apercu ? '' : `<button class="btn go" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
+        ${apres || apercu ? '' : `<button class="btn go${risky ? ' risque' : ''}" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
       </div>
     </div>`;
 
   const btn = $('modalSignBtn');
   if (btn) {
     btn.onclick = () => {
+      // Deux touchers pour une signature qui bloque la fin : le premier dit ce qu'il restera, le second signe.
+      if (btn.classList.contains('risque') && btn.dataset.confirme !== '1') {
+        btn.dataset.confirme = '1';
+        btn.textContent = `Confirmer ? ${money(capLeft() - p.$)} pour ${slotsLeft() - 1} case${slotsLeft() - 1 > 1 ? 's' : ''}`;
+        return;
+      }
       closeModal('hockeyCardModal');
       signPlayer(p);
     };

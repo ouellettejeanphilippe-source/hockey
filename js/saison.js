@@ -3287,9 +3287,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mR = msgs.find(m => m.genre === 'retour');
     const remettre = actions.querySelector('.hub-retour-remettre');
     if (remettre && mR) remettre.onclick = () => {
-      const { avant, cases, id } = mR.rv, j = jour;
+      const { cases, id } = mR.rv, j = jour;
       boite.traites.add(id); quitter();
-      onDecision({ jour, palier: id, cases, fermeture: avant.fermeture ?? 'auto', ...(avant.lignes ? { lignes: avant.lignes } : {}) }, j);
+      onDecision({ jour, palier: id, cases }, j);
     };
     const garderR = actions.querySelector('.hub-retour-garder');
     if (garderR && mR) garderR.onclick = () => { boite.traites.add(mR.id); boite.ouvert = null; dessiner(); };
@@ -3737,7 +3737,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       filet: { ...filetDuSoir(you), choix: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.filet) || {}).filet || 'auto' },
       adv: { nom: ctx.teamShort(boss), lignes: lignesDe(boss, boss.roster) },
       depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
-      match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'haute', ad: 0 },
+      match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'normale', ad: 0 },
       // LES TOTAUX DU SOIR (1.0, C5) : les effets du match précédent tombent, ceux de ce match-ci s'ajoutent.
       totaux: (match, lignes) => {
         const aVenir = decsSerie.filter(d => d.ronde === ronde && d.match_no === k && !d.entracte && !d.match && !d.lignes);
