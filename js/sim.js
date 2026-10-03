@@ -6884,18 +6884,25 @@ export function jouerMatchSeries(S) {
   const jouer = () => {
     const r = S.ronde, k = S.k;
     const photo = photoStats(S.equipes);
-    // Les décisions de séries de ta formation pour ce match (trios, lignes,
-    // consigne, ajustement entre deux rounds) : avant le match, dés neufs.
-    // LES DÉS DU SOIR (1.0, oct.) : tirés quand il se joue, gardés pour la reprise (voir `deDuJour`).
-    if (S.des) grainerHasard(`${S.graine}:po:${r}:${k}:${S.des[`${r}:${k}`] || (S.des[`${r}:${k}`] = nouvelleGraine())}`);
+    // LES DÉS DU SOIR (1.0, oct.) : un dé par soir, gardé pour la reprise.
+    // S90 : chaque série obtient sa propre graine dérivée de `s.i` — l'ordre dans
+    // `S.courante` n'influe plus sur les résultats (réparation reprise de séries).
+    const seedSoir = S.des
+      ? (S.des[`${r}:${k}`] || (S.des[`${r}:${k}`] = nouvelleGraine()))
+      : null;
+    const toiSeries = S.toi
+      ? S.courante.find(s => s.wA < 4 && s.wB < 4 && (s.A === S.toi || s.B === S.toi))
+      : null;
     if (S.toi) {
       S.toi.effetsSerie = [];
       // Devant le filet (C4) : le choix vaut pour UN match ; le suivant repart de la rotation.
       S.toi._filetMatch = null;
+      if (seedSoir) grainerHasard(`${S.graine}:po:${r}:${k}:${toiSeries ? toiSeries.i : 0}:${seedSoir}`);
       for (const d of S.decisions) if (d.ronde === r && d.match_no === k) appliquerDecisionSerie(S.toi, d, S.graine);
     }
     for (const s of S.courante) {
       if (s.wA === 4 || s.wB === 4) continue;
+      if (seedSoir && s !== toiSeries) grainerHasard(`${S.graine}:po:${r}:${k}:${s.i}:${seedSoir}`);
       const feuille = feuilleVierge();
       // TA SÉRIE (S70) : chaque match est mis en scène, et l'adversaire garde
       // le plan qui a gagné ou en change après une défaite.
