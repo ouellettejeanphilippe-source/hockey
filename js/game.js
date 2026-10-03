@@ -1583,9 +1583,10 @@ const PAGES_DE = {
   // LE CLUB EN SOUS-ONGLETS (1.0, R2). JP : *ajouter des sous-onglets dans les pages comme l'accueil, avec les infos,
   // au lieu de tout avoir*. En saison : le match, la boîte de réception, la saison (le proprio, l'infirmerie, ta route,
   // ton histoire, tes matchs). « Ma fiche » vivait sous Ligue › Calendrier ; elle est la page Saison du Club.
-  club: () => ['match', ...['boite', 'saison'].filter(p => voletPour(p))],
-  // LES JAMBES (1.0) : en saison, la courbe de chacun et de quoi les ménager (js/saison.js, `voletJambes`).
-  effectif: () => ['alignement', ...(voletPour('jambes') ? ['jambes'] : [])],
+  // LES JAMBES (1.0) : en saison, la courbe de chacun et de quoi les ménager (js/saison.js, `voletJambes`). Au Club,
+  // parce que l'Effectif ouvre « derrière le banc » et ferme l'écran de saison.
+  club: () => ['match', ...['boite', 'saison', 'jambes'].filter(p => voletPour(p))],
+  effectif: () => ['alignement'],
   marche: () => [auVestiaire() ? 'repechage' : 'marche'],
   // En saison, le calendrier n'a pas de volet (« Ma fiche » est la page Saison du Club) : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), 'meneurs', 'equipes'],

@@ -74,7 +74,7 @@ const _wait = page.waitForSelector.bind(page);
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', jambes: 'effectif', repechage: 'marche', marche: 'marche',
+  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', jambes: 'club', repechage: 'marche', marche: 'marche',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
 };
 const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
@@ -147,11 +147,11 @@ async function eprouverCoquille() {
     await page.waitForTimeout(250);
     if (await page.$('#hubModal .hub-page')) errors.push('Échap ne referme pas la page du dépistage');
   }
-  // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison — la boîte de réception ne s'empile plus sous l'affiche.
+  // LES SOUS-ONGLETS DU CLUB (1.0, R2) : Match, Boîte, Saison, Jambes — la boîte de réception ne s'empile plus sous l'affiche.
   await page.click('#navbar .navtab[data-section="club"]');
   await page.waitForTimeout(200);
   const sousClub = await page.$$eval('#sousNav:not([hidden]) .soustab', e => e.map(x => x.dataset.page).join(','));
-  if (sousClub !== 'match,boite,saison') errors.push(`en saison, le Club n'a pas ses trois sous-onglets : « ${sousClub} »`);
+  if (sousClub !== 'match,boite,saison,jambes') errors.push(`en saison, le Club n'a pas ses quatre sous-onglets : « ${sousClub} »`);
   else {
     await page.click('#sousNav .soustab[data-page="saison"]');
     await page.waitForTimeout(300);
@@ -1592,7 +1592,7 @@ console.log(`3. #mainBtn actif : ${enabled}`);
    un match en direct (pause, statistiques, reprise, fin), puis on passe à la
    fin et au bilan. */
 /*
- * LES JAMBES (1.0, le suivi des jambes), une fois, en pleine saison. Effectif › Jambes : ta formation, les
+ * LES JAMBES (1.0, le suivi des jambes), une fois, en pleine saison. Club › Jambes : ta formation, les
  * plus usés d'abord, chacun avec sa courbe ; puis les ménagements, chacun avec ce qu'il rend en jambes,
  * mesuré par le moteur. Le plus usé mis en réserve a plus de jambes le lendemain matin — sans dépendre
  * du tirage : un joueur qui ne joue pas rattrape chaque jour une part de ce qui lui manque.
@@ -1601,7 +1601,7 @@ let jambesVues = false;
 async function eprouverJambes() {
   jambesVues = true;
   await aller('jambes');
-  try { await _wait('#hubModal .jb-liste .jb-j', { timeout: 10000 }); } catch { errors.push('Effectif › Jambes : aucune liste'); await aller('match'); return; }
+  try { await _wait('#hubModal .jb-liste .jb-j', { timeout: 10000 }); } catch { errors.push('Club › Jambes : aucune liste'); await aller('match'); return; }
   const liste = await page.$$eval('#hubModal .jb-j', rs => rs.map(r => Number(r.querySelector('.jambes b')?.textContent)));
   if (liste.some((x, i) => i && x < liste[i - 1])) errors.push(`Jambes : la liste ne part pas des plus usés (${liste.slice(0, 6).join(', ')}…)`);
   if (!(await page.$('#hubModal .jb-j .courbe-jambes svg path.courbe-trait'))) errors.push('Jambes : aucune courbe');

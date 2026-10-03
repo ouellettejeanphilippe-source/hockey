@@ -2335,7 +2335,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // la saison — le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
     { cle: 'boite', ico: 'i-boite', titre: 'Boîte', page: 'boite' },
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
-    // LES JAMBES (1.0) : sous l'Effectif de la coquille, à côté de l'alignement.
+    // LES JAMBES (1.0) : un sous-onglet du Club, comme la boîte et la saison.
     { cle: 'jambes', ico: 'i-jambes', titre: 'Jambes', page: 'jambes' },
   ], cle => {
     if (cle === 'boite') return '';
