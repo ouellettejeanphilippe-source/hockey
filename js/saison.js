@@ -2249,7 +2249,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (!sub) continue;
       const cases = photoAlignement(you.roster);
       [cases[r.s.i], cases[sub.i]] = [cases[sub.i], cases[r.s.i]];
-      out.push({ titre: `${ctx.esc(r.p.n)} en réserve`, mot: `${ctx.esc(you.roster[sub.i].n)} prend sa case ; il y reste tant que tu ne le remets pas.`, qui: [getPlayerKey(r.p)], a: 'à lui', d: { jour, cases } });
+      out.push({ titre: `${ctx.esc(r.p.n)} en réserve`, mot: `${ctx.esc(you.roster[sub.i].n)} prend sa case ; il y reste tant que tu ne le remets pas.`, qui: [getPlayerKey(r.p)], a: 'à lui', d: { jour, palier: `jb:${jour}:${getPlayerKey(r.p)}`, cases } });
     }
     const lignesSoir = prisPour(soir, 'lignes'), matchSoir = prisPour(soir, 'match');
     if (!matchSoir || matchSoir.importance !== 'basse') {
