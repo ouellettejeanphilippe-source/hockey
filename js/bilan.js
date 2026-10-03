@@ -617,7 +617,7 @@ function rythmeHtml(you, calendrier) {
   const belle = M.filter(x => x.issue === 'W').sort((a, b) => ecart(b) - ecart(a) || b.pour - a.pour)[0];
   const pire = M.filter(x => x.issue !== 'W').sort((a, b) => ecart(a) - ecart(b) || b.contre - a.contre)[0];
   const faits = [
-    ['🔥 Plus longue séquence de victoires', `${sV} match${sV > 1 ? 's' : ''}`],
+    ['📈 Plus longue séquence de victoires', `${sV} match${sV > 1 ? 's' : ''}`],
     ['✅ Plus longue séquence avec un point', `${sP} match${sP > 1 ? 's' : ''}`],
     ['🧊 Plus longue séquence sans victoire', `${sD} match${sD > 1 ? 's' : ''}`],
     ['🔟 Les dix derniers', fiche3(dix)],

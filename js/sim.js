@@ -9,7 +9,7 @@
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
 import { effetCarte, poserSoirGrand } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
-import { getLineZone, seasonGames, seasonLancers, getSecondaryPosition, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
+import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason } from './ratings.js';
 import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
@@ -457,15 +457,13 @@ export function getPositionPenalty(player, slot) {
   if (!slot || slot.scratch || slot.group === 'ANY') return 0;
   if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
 
-  const sec = getSecondaryPosition(player);
-
   if (player.p === 'D' || player.p === 'LD' || player.p === 'RD') {
     if (slot.group !== 'D' && slot.group !== 'LD' && slot.group !== 'RD') return 999;
     const np = (player.np === 'RD' || player.np === 'R' || player.p === 'RD') ? 'RD' : 'LD';
     const role = slot.role; // 'DG' (LD) or 'DD' (RD)
     const targetSide = role === 'DG' ? 'LD' : 'RD';
     // « Joue partout » (S78, l'atelier) : les deux côtés.
-    if (np === targetSide || sec === targetSide || player._partout) return 0;
+    if (np === targetSide || player._partout) return 0;
     return 2; // Off-side D (-2)
   }
   if (slot.group !== 'F') return 999;
@@ -477,16 +475,10 @@ export function getPositionPenalty(player, slot) {
     (role === 'AG' && (np === 'L' || np === 'AG')) ||
     (role === 'AD' && (np === 'R' || np === 'AD'));
 
-  const isSecMatch = sec && (
-    (role === 'C' && sec === 'C') ||
-    (role === 'AG' && (sec === 'L' || sec === 'AG')) ||
-    (role === 'AD' && (sec === 'R' || sec === 'AD'))
-  );
-
   // « Joue partout » (S78, l'atelier) : centre et ailes.
-  if (isPrimaryMatch || isSecMatch || player._partout) return 0;
+  if (isPrimaryMatch || player._partout) return 0;
 
-  if (np === 'C' || sec === 'C') {
+  if (np === 'C') {
     return 3; // Center playing wing (-3)
   }
   if (role === 'C') {
@@ -1205,15 +1197,14 @@ export const ROULEMENTS = {
     robustesse: -0.9, blessure: 1.30,
   },
   profond: {
-    nom: 'Banc profond', ico: '🛡️',
+    nom: 'Banc profond', ico: '🔋',
     bon: 'Des jambes fraîches, et moins de blessures', prix: 'Tes meilleurs jouent moins',
     F: [0.92, 0.97, 1.05, 1.16], D: [0.94, 1.00, 1.11],
     robustesse: 0.9, blessure: 0.82,
   },
 };
 
-/** Le plan et le roulement d'une équipe, avec leur valeur par défaut. */
-export const planDe = t => PLANS[(t && t.plan) || 'equilibre'] ? ((t && t.plan) || 'equilibre') : 'equilibre';
+/** Le roulement d'une équipe, avec sa valeur par défaut. */
 export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t && t.roulement) || 'quatre') : 'quatre';
 
 /*
@@ -2897,7 +2888,7 @@ export const SEQUENCES = {
     ],
   },
   victoires: {
-    ico: '🔥', titre: 'Quatre victoires de suite', seuil: 4,
+    ico: '📈', titre: 'Quatre victoires de suite', seuil: 4,
     recit: 'Tout roule. Ton premier trio ne rate plus rien.',
     options: [
       { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.3 },
@@ -2933,7 +2924,7 @@ export const OBJECTIFS = {
     mesure: m => m.reduce((a, x) => a + x.contre, 0), cible: 58, sens: -1, unite: 'buts contre' },
   attaque: { ico: '🎯', nom: 'Marque 64 buts ou plus en 20 matchs', court: '64 BP ou plus',
     mesure: m => m.reduce((a, x) => a + x.pour, 0), cible: 64, sens: 1, unite: 'buts pour' },
-  sequence: { ico: '🔥', nom: 'Aligne 4 victoires de suite', court: '4 victoires de suite',
+  sequence: { ico: '📈', nom: 'Aligne 4 victoires de suite', court: '4 victoires de suite',
     mesure: m => { let b = 0, c = 0; for (const x of m) { c = x.v ? c + 1 : 0; b = Math.max(b, c); } return b; }, cible: 4, sens: 1, unite: 'de suite' },
   vedette: { ico: '⭐', nom: 'Un de tes joueurs fait 21 points en 20 matchs', court: 'Un joueur à 21 points',
     mesure: m => { const pts = new Map(); for (const x of m) for (const b of x.buts || []) for (const p of [b.marqueur, ...(b.passeurs || [])]) if (p) pts.set(p, (pts.get(p) || 0) + 1); return Math.max(0, ...pts.values()); }, cible: 21, sens: 1, unite: 'points' },
@@ -7353,6 +7344,7 @@ export const AVANT_GROS = {
       { cle: 'auxiliaire', nom: 'Le reposer : l\'auxiliaire prend le gros match', bon: '{nom} est frais pour la suite', prix: 'Ton auxiliaire dans un gros match', action: { gardienAux: 1 } },
     ] },
   ancien: { ico: '🧳', titre: 'Le retour de l\'ancien',
+    faits: c => c && c.advRoster && c.advRoster.some(k => c.anciensJoueurs && c.anciensJoueurs.has(k)) ? {} : null,
     recit: 'Un joueur que tu as laissé partir joue chez eux. Il a dit qu\'il « avait quelque chose à prouver ».',
     options: [
       { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1, discipline: 1.1 },
@@ -7379,10 +7371,11 @@ export const AVANT_GROS = {
     ] },
 };
 
-/* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`). */
-export function avantDuGros(graine, cle, deja = []) {
-  const cles = Object.keys(AVANT_GROS).filter(c => !deja.includes(c));
-  const pool = cles.length ? cles : Object.keys(AVANT_GROS);
+/* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`).
+ * `contexte` est un objet passé à `faits(c)` pour filtrer les événements dont la condition ne tient pas. */
+export function avantDuGros(graine, cle, deja = [], contexte = null) {
+  const cles = Object.keys(AVANT_GROS).filter(c => !deja.includes(c) && (!AVANT_GROS[c].faits || (contexte && AVANT_GROS[c].faits(contexte))));
+  const pool = cles.length ? cles : Object.keys(AVANT_GROS).filter(c => !deja.includes(c));
   return pool[Math.floor(hacherMise(graine, 'avant', cle) * pool.length)];
 }
 
@@ -7516,11 +7509,13 @@ function poserGros(toi, adv, gros) {
   toi._advGros = adv;
   // LEUR MAIN SE TIRE D'ABORD (S76) : tes cartes peuvent la lire (« La riposte »).
   if (OPTIONS_COMBAT.adverses && gros.cleMain != null) {
-    gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain, energieAdverse({ jour: gros.jour || 0, serie: !!gros.serie, ronde: gros.ronde || 0 }));
+    gros.cartesAdv = mainAdverse(gros.graineMain, gros.cleMain, energieAdverse({ nMatch: matchsEntre(toi, 0, (gros.jour || 0) + 1), serie: !!gros.serie, ronde: gros.ronde || 0 }));
   }
   const fxToi = gros.cartes && Array.isArray(gros.cartes.jouees) ? poserCartes(toi, adv, gros) : null;
   poserPreparation(toi, adv, gros, fxToi);
   gros.contre = !!gros.prepJuste || !!gros.lu || planEstContre(gros.plan, toi._lignesMatch || lignesDe(toi, toi.roster), adDeLEquipe(toi));
+  // Plan contré : les réglages de leurs lignes tombent, peu importe la cause.
+  if (gros.contre) adv._lignesMatch = null;
   // LEUR MAIN (S74, js/combat.js) : connue d'avance, jouée ici — sauf si ta main l'annule.
   if (gros.cartesAdv) {
     const annulee = !!(gros.cartes && (gros.cartes.jouees || []).some(c => CARTES_MATCH[c] && CARTES_MATCH[c].annule));
@@ -7798,7 +7793,7 @@ export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
   nemesis: { ico: '😤', nom: 'Rivalité', mot: 'il t\'a déjà battu deux fois' },
 };
-export const ELAN = { nom: 'L\'élan', ico: '🔥', finition: 1.03, duree: 3 };
+export const ELAN = { nom: 'La lancée', ico: '⬆️', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
 /*
  * LE GROS MATCH, repéré AVANT d'être joué (S70) : le moteur doit savoir

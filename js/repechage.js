@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP, matchsEntre } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
@@ -288,7 +288,7 @@ function cartesAPoserSur(p) {
   const j = jourDuHub();
   const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
   const piles = new Map();
-  for (const x of pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: L.graine, jour: j, rogue: G.bonus === 'ROGUE' })) {
+  for (const x of pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: L.graine, nMatch: matchsEntre(L.you, 0, j), rogue: G.bonus === 'ROGUE' })) {
     const c = BANQUE[x.id];
     if (!c || c.cat !== 'joueur' || etatPourPoser(c.cle, p, sl, { jour: j }).non) continue;
     if (!piles.has(x.id)) piles.set(x.id, []);
@@ -724,7 +724,7 @@ async function vestiaireAuHasard(deja) {
  *
  * En VESTIAIRE (le jeu d'origine) : une saison et une équipe au hasard ;
  * `newSeason` et `newTeam` disent ce qu'une relance garde — « autre année »
- * change la saison et l'équipe, « autre équipe » garde la saison. Le club
+ * change la saison mais garde l'équipe, « autre équipe » change l'équipe mais garde la saison. Le club
  * doit avoir au moins un joueur plaçable ; le budget, c'est aux relances et
  * à la bande de secours de s'en occuper, comme avant.
  *

@@ -112,7 +112,7 @@ export const PACKS_JOUEURS = {
   ere20: { famille: 'ere', nom: 'Pack années 2020', ico: '🛰️', tier: 'argent', prix: 22, decennie: 2020, texte: 'Quatre joueurs des années 2020.' },
   sniper: { famille: 'skill', nom: 'Pack Francs-tireurs', ico: '🎯', tier: 'argent', prix: 28, skill: 'sniper', texte: 'Quatre marqueurs : le quart du haut aux buts par match de leur saison.' },
   passeur: { famille: 'skill', nom: 'Pack Passeurs', ico: '🪄', tier: 'argent', prix: 28, skill: 'passeur', texte: 'Quatre passeurs : le quart du haut aux passes par match.' },
-  defensif: { famille: 'skill', nom: 'Pack Défensif', ico: '🛡️', tier: 'argent', prix: 25, skill: 'defensif', texte: 'Quatre joueurs au meilleur différentiel de leur saison.' },
+  defensif: { famille: 'skill', nom: 'Pack Défensif', ico: '❄️', tier: 'argent', prix: 25, skill: 'defensif', texte: 'Quatre joueurs au meilleur différentiel de leur saison.' },
   dur: { famille: 'skill', nom: 'Pack Durs à cuire', ico: '🥊', tier: 'argent', prix: 22, skill: 'dur', texte: 'Quatre durs : le quart du haut aux minutes de punition.' },
   gardien: { famille: 'skill', nom: 'Pack Gardiens', ico: '🥅', tier: 'argent', prix: 30, skill: 'gardien', texte: 'Quatre gardiens partants au meilleur pourcentage d\'arrêts de leur saison.' },
   recrue: { famille: 'skill', nom: 'Pack Recrues', ico: '🐣', tier: 'argent', prix: 22, skill: 'recrue', texte: 'Quatre joueurs à leur contrat d\'entrée.' },

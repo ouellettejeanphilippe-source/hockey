@@ -411,7 +411,7 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
   if (consigne == null && forces) {
     const gL = tiers(forces.lui && forces.lui.gardien), aM = tiers(forces.moi && forces.moi.attaque);
     const aL = tiers(forces.lui && forces.lui.attaque), dM = tiers(forces.moi && forces.moi.defense);
-    const ad = gL != null && aM != null && gL >= 2 / 3 && aM <= 0.5 ? 2 : aL != null && dM != null && aL <= 1 / 3 && dM >= 0.5 ? -2 : 0;
+    const ad = gL != null && aM != null && gL >= 2 / 3 && aM <= 0.5 ? 1 : aL != null && dM != null && aL <= 1 / 3 && dM >= 0.5 ? -1 : 0;
     if (ad) {
       const match = { importance: 'normale', ad };
       out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡️ Consigne : défense',

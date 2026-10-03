@@ -51,7 +51,7 @@ export const MAX_PATRONS = 3;
 export const ROLES = {
   chef: { nom: 'Entraîneur-chef', ico: '🧑‍💼' },
   attaque: { nom: 'Adjoint à l\'attaque', ico: '🎯' },
-  defense: { nom: 'Adjoint à la défensive', ico: '🛡️' },
+  defense: { nom: 'Adjoint à la défensive', ico: '❄️' },
   gardiens: { nom: 'Entraîneur des gardiens', ico: '🥅' },
   physique: { nom: 'Préparateur physique', ico: '🏋️' },
   soins: { nom: 'Soins', ico: '🩺' },

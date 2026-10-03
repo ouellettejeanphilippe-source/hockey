@@ -25,7 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, originesDe, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
-import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, coutDe, mainDeLAdjoint } from '../js/combat.js';
+import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, MATCH_ADVERSE_FORT, coutDe, mainDeLAdjoint } from '../js/combat.js';
 import { carteDe } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -278,7 +278,7 @@ console.log('\n  Le deck de match (S74)\n');
     const cout = m => m.reduce((a, c) => a + CARTES_MATCH[c].cout, 0);
     let c3 = 0, c4 = 0;
     for (let g = 0; g < 200; g++) { c3 += cout(mainAdverse(`e${g}`, 'j1', 3)); c4 += cout(mainAdverse(`e${g}`, 'j1', 4)); }
-    exiger('l\'adversaire joue plus fort en fin de course', energieAdverse({ jour: 10 }) === 3 && energieAdverse({ jour: 140 }) === 4
+    exiger('l\'adversaire joue plus fort en fin de course', energieAdverse({ nMatch: 10 }) === 3 && energieAdverse({ nMatch: MATCH_ADVERSE_FORT }) === 4
       && energieAdverse({ serie: true, ronde: 0 }) === 3 && energieAdverse({ serie: true, ronde: 2 }) === 4 && c4 > c3 * 1.25,
       `énergie dépensée : ${(c3 / 200).toFixed(2)} à trois, ${(c4 / 200).toFixed(2)} à quatre`);
   }

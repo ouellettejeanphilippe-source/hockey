@@ -51,7 +51,7 @@ export const IDENTITES = {
   rapides: { ico: '⚡', nom: 'Les patineurs', rarete: 'commune',
     texte: 'Plus de jambes : des petits rapides qui lancent de partout.',
     score: profil('energie', 'manieur') },
-  defensive: { ico: '🧱', nom: 'La brigade défensive', rarete: 'peu',
+  defensive: { ico: '❄️', nom: 'La brigade défensive', rarete: 'peu',
     texte: 'Plus de joueurs de devoir : des avants défensifs, des défenseurs purs. On gagne 2-1.',
     score: profil(['deuxsens', 'checker'], 'defensif') },
   artistes: { ico: '🎨', nom: 'Les artistes', rarete: 'peu',

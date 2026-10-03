@@ -631,7 +631,7 @@ export const LINE_ZONES = {
     { level: 1, label: 'Top 4 · 1re ou 2e paire',    short: '1re-2e paire', mini: 'P1-2', idealUnits: [0, 1] },
     { level: 2, label: '2e paire, tient la 3e',      short: '2e paire',     mini: 'P2',   idealUnits: [1, 2] },
     { level: 3, label: '3e paire, peut tenir la 2e', short: '3e paire',     mini: 'P3',   idealUnits: [1, 2] },
-    { level: 4, label: 'Profondeur · 3e paire',      short: 'Réserve D',    mini: 'rés.', idealUnits: [2] },
+    { level: 4, label: 'Profondeur · 3e paire',      short: 'Profondeur D', mini: 'P4',   idealUnits: [2] },
   ],
   G: [
     { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1',  idealUnits: [0] },
@@ -650,38 +650,6 @@ function zoneLevelFor(pos, v) {
  * Zone de trio d'un joueur. Lit p.lz (posé par finalizeSeason) ; sinon
  * déduit de la cote globale passée en `v` (getHiddenRatings(p).v).
  */
-function hashString(str) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) hash = (hash * 31 + str.charCodeAt(i)) | 0;
-  return Math.abs(hash);
-}
-
-/** Position secondaire (polyvalence) d'un joueur. */
-export function getSecondaryPosition(p) {
-  if (!p || p.p === 'G') return null;
-  if (p.secP !== undefined) return p.secP;
-  const num = p.id || hashString(p.n || '');
-  if (p.p === 'D') {
-    // Défenseurs : ~40 % peuvent jouer des deux côtés
-    if (num % 5 < 2) {
-      const primary = (p.np === 'RD' || p.np === 'R' || p.p === 'RD') ? 'RD' : 'LD';
-      return primary === 'RD' ? 'LD' : 'RD';
-    }
-    return null;
-  }
-  // Attaquants
-  const np = p.np || 'C';
-  if (np === 'C') {
-    if (num % 5 < 2) return (num % 2 === 0) ? 'AG' : 'AD';
-  } else if (np === 'L' || np === 'AG') {
-    if (p.fo != null && p.fo >= 0.45) return 'C';
-    if (num % 5 < 2) return 'AD';
-  } else if (np === 'R' || np === 'AD') {
-    if (p.fo != null && p.fo >= 0.45) return 'C';
-    if (num % 5 < 2) return 'AG';
-  }
-  return null;
-}
 
 export function getLineZone(p, v = null) {
   if (!p) return LINE_ZONES.F[0];
@@ -694,18 +662,6 @@ export function getLineZone(p, v = null) {
   // 1. Étoiles (Stars)
   if (rating >= (pos === 'G' ? 80 : 78)) return { ...ZONES_ETOILE[pos], idealUnits: [0] };
 
-  // 2. Joueurs hyper versatiles
-  const sec = getSecondaryPosition(p);
-  if (sec) {
-    if (pos === 'F') {
-      if (rating >= 56) return { level: 2, label: 'Top 9 · 1er au 3e trio', short: '1er-3e trio', mini: 'T1-3', idealUnits: [0, 1, 2] };
-      return { level: 3, label: 'Bottom 9 · 2e au 4e trio', short: '2e-4e trio', mini: 'T2-4', idealUnits: [1, 2, 3] };
-    }
-    if (pos === 'D') {
-      if (rating >= 63) return { level: 2, label: 'Top 6 D · 1re à 3e paire', short: '1re-3e paire', mini: 'P1-3', idealUnits: [0, 1, 2] };
-      return { level: 3, label: 'Bottom 4 · 2e ou 3e paire', short: '2e-3e paire', mini: 'P2-3', idealUnits: [1, 2] };
-    }
-  }
 
   // 3. Zones standard
   const zones = LINE_ZONES[pos];
