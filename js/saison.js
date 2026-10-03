@@ -1020,7 +1020,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const p = mb ? { j: mb.jour } : null;
     if (!mb || decs.some(d => d.jour === p.j && d.avant)) return null;
     const deja = decs.filter(d => d.avant && d.jour < p.j).map(d => d.avant.cle);
-    return { p, mb, cle: avantDuGros(graine, p.j, deja) };
+    const anciensJoueurs = new Set(decs.filter(d => (d.equipe == null || d.equipe === 0) && d.cases).flatMap(d => Object.values(d.cases)));
+    for (const p of Object.values(you.roster)) if (p) anciensJoueurs.delete(getPlayerKey(p));
+    const advRoster = Object.values(mb.adv.roster || {}).filter(Boolean).map(getPlayerKey);
+    return { p, mb, cle: avantDuGros(graine, p.j, deja, { anciensJoueurs, advRoster }) };
   }
   let entracteDemande = false;
 
@@ -1058,9 +1061,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'élan, pour ce match seulement.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
       stats: statsAvantGros(ctx, you, adv, t => ({ n: gpDe(t), ...fiche.get(t) })),
-      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) }), echelle: echelleTardive({ jour: mo.p.j }) }),
-      // S80 : l'échelle du soir — ce qui vise l'adversaire grandit avec la saison.
-      echelle: echelleTardive({ jour: mo.p.j }),
+      contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) }), echelle: you && you.courbe ? echelleTardive({ jour: mo.p.j }) : 1 }),
+      // S80 : l'échelle du soir — hors Rogue, le moteur joue à ×1 (echelleDuGros).
+      echelle: you && you.courbe ? echelleTardive({ jour: mo.p.j }) : 1,
       equipe: you, main, pioche, deck, couleurs: ctx.band(adv.tag),
       onJouer: (jouees, enMain, _aj, prep) => { const j = jour; quitter(); onDecision({ jour: mo.p.j, main: { jouees, enMain }, prep }, j); },
     });
@@ -2999,7 +3002,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const spec0 = onDecision ? choixForce() : null;
     const spec = spec0 && !spec0.ouvrir ? { ...spec0, base: baseDuClub() } : spec0;
     if (spec) {
-      out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: true, de: spec.de, sujet: titreDuChoix(spec), spec,
+      const remis = spec.fermable && boite.remis === spec.titre;
+      out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: !remis, de: spec.de, sujet: titreDuChoix(spec), spec,
         corps: `<div class="hub-msg-mot">${ctx.esc(String(spec.recit || '').replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : 'ton joueur').replace(/\{noms\}/g, (spec.joueurs || []).map(x => x.n).join(', ') || 'tes joueurs'))}</div>
           <button type="button" class="btn gold hub-choix-rouvrir" data-defaut>Ouvrir : ${ctx.esc(titreDuChoix(spec))}</button>` });
     }
@@ -3786,8 +3790,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         recit: `${resultatPrecedent(s, k)}${k === 0 ? '' : etat === 'derriere' ? 'Ta formation tire de l\'arrière. ' : etat === 'devant' ? 'Ta formation mène la série. ' : 'La série est à égalité. '}${suiteDuPlan(s)} Prépare-toi pour une piste${dejaAjuste ? '' : ', choisis ton ajustement'}, puis joue tes cartes.`,
         depistage: pl ? pl.depistage : null, planReel: pl ? pl.plan : null, nomAdv: ctx.teamShort(boss),
         stats: statsAvantGros(ctx, you, boss, t => saisonFeuilles.get(t) || null),
-        contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }), echelle: echelleTardive({ serie: true, ronde }) }),
-        echelle: echelleTardive({ serie: true, ronde }),
+        contexte: mainAdverseHtml(mainAdverse(graine, `po${ronde}:${k}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }), echelle: you && you.courbe ? echelleTardive({ serie: true, ronde }) : 1 }),
+        echelle: you && you.courbe ? echelleTardive({ serie: true, ronde }) : 1,
         ajustements: offres ? offres.map(c => ({ cle: c, ...AJUSTEMENTS[c] })) : null,
         equipe: you, main, pioche, deck, onAdjoint: parLAdjoint, couleurs: ctx.band(boss.tag),
         onJouer: (jouees, enMain, ajustement, prep) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain }, prep })),

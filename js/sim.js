@@ -7353,6 +7353,7 @@ export const AVANT_GROS = {
       { cle: 'auxiliaire', nom: 'Le reposer : l\'auxiliaire prend le gros match', bon: '{nom} est frais pour la suite', prix: 'Ton auxiliaire dans un gros match', action: { gardienAux: 1 } },
     ] },
   ancien: { ico: '🧳', titre: 'Le retour de l\'ancien',
+    faits: c => c && c.advRoster && c.advRoster.some(k => c.anciensJoueurs && c.anciensJoueurs.has(k)) ? {} : null,
     recit: 'Un joueur que tu as laissé partir joue chez eux. Il a dit qu\'il « avait quelque chose à prouver ».',
     options: [
       { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1, discipline: 1.1 },
@@ -7379,10 +7380,11 @@ export const AVANT_GROS = {
     ] },
 };
 
-/* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`). */
-export function avantDuGros(graine, cle, deja = []) {
-  const cles = Object.keys(AVANT_GROS).filter(c => !deja.includes(c));
-  const pool = cles.length ? cles : Object.keys(AVANT_GROS);
+/* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`).
+ * `contexte` est un objet passé à `faits(c)` pour filtrer les événements dont la condition ne tient pas. */
+export function avantDuGros(graine, cle, deja = [], contexte = null) {
+  const cles = Object.keys(AVANT_GROS).filter(c => !deja.includes(c) && (!AVANT_GROS[c].faits || (contexte && AVANT_GROS[c].faits(contexte))));
+  const pool = cles.length ? cles : Object.keys(AVANT_GROS).filter(c => !deja.includes(c));
   return pool[Math.floor(hacherMise(graine, 'avant', cle) * pool.length)];
 }
 
@@ -7521,6 +7523,8 @@ function poserGros(toi, adv, gros) {
   const fxToi = gros.cartes && Array.isArray(gros.cartes.jouees) ? poserCartes(toi, adv, gros) : null;
   poserPreparation(toi, adv, gros, fxToi);
   gros.contre = !!gros.prepJuste || !!gros.lu || planEstContre(gros.plan, toi._lignesMatch || lignesDe(toi, toi.roster), adDeLEquipe(toi));
+  // Plan contré : les réglages de leurs lignes tombent, peu importe la cause.
+  if (gros.contre) adv._lignesMatch = null;
   // LEUR MAIN (S74, js/combat.js) : connue d'avance, jouée ici — sauf si ta main l'annule.
   if (gros.cartesAdv) {
     const annulee = !!(gros.cartes && (gros.cartes.jouees || []).some(c => CARTES_MATCH[c] && CARTES_MATCH[c].annule));
