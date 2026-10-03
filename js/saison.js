@@ -46,6 +46,8 @@ import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
+import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
+import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe } from './vie-gm.js';
@@ -273,6 +275,7 @@ function onglets(barre, volet, liste, rendre) {
     // porte `data-compte` roule depuis sa valeur d'hier — les tuiles du
     // portail, d'une journée à l'autre.
     animerComptes(volet);
+    brancherEntractes(volet);
   };
   const sheet = volet.closest('.hub-sheet');
   const pageDe = cle => (liste.find(o => o.cle === cle) || {}).page || null;
@@ -2280,6 +2283,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }).join('');
     return `${tete}<div class="hub-titre">Les ménager</div><div class="hub-note">Au matin de la journée ${m.horizon + 1}, avec et sans le choix : tes matchs d'ici là rejoués ${MESURES_JAMBES} fois par le moteur.</div><div class="jb-props">${props}</div>`;
   }
+  // TON STYLE (docs/impact-des-choix.md, §6.1) : tes derniers matchs contre la ligue, lus sur les feuilles révélées.
+  const styleHtml = () => {
+    const vus = matchsJoues(calendrier.slice(0, jour));
+    const p = profilDuClub(vus, you), l = profilDeLigue(vus, you);
+    return deckDeCartons(cartesDeStyle({ profil: p, ligue: l, style: motDeStyle(p, l) }), { cle: 'style' });
+  };
   const voletFiche = () => {
     if (!miens.length) return `${routeFiche()}${calendrierFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
@@ -2290,7 +2299,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `${routeFiche()}${calendrierFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${routeFiche()}${calendrierFiche()}${styleHtml()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*

@@ -23,7 +23,8 @@
  */
 
 import { SLOTS } from './sim.js';
-import { virgule, signe, pct3, pmMatch } from './util.js';
+import { virgule, signe, pct3, pmMatch, cap } from './util.js';
+import { dire } from './profil-style.js';
 
 /* ---------- les briques d'une carte ---------- */
 
@@ -312,4 +313,24 @@ export function cartesDeMatch({ f, A, B, ctx }) {
       ['Arrêts', f.arrets.A || 0, f.arrets.B || 0],
     ]));
   return [c1, c2].filter(Boolean);
+}
+
+/**
+ * LE PROFIL DE STYLE DE TON CLUB (js/profil-style.js) : tes derniers matchs
+ * contre la ligue, en chiffres de match. Un premier carton pour les tirs et les
+ * buts, un second pour le rythme et le contact ; le mot de style est le titre,
+ * et il vient des écarts, pas d'une cote. Les mises en échec sont des coups
+ * attendus, la feuille ne les compte pas un à un : le carton le dit.
+ */
+export function cartesDeStyle({ profil, ligue, style }) {
+  if (!profil || !ligue || !style) return [];
+  const stat = (k, cle, d = 1) => ({ k, v: dire(profil[cle], d), sub: `ligue ${dire(ligue[cle], d)}` });
+  const c1 = carte(`Ton style · ${profil.n} derniers matchs`, style.mots.length ? cap(style.mots.join(' · ')) : 'Dans la moyenne',
+    grille([stat('Tirs pour', 'tirsPour'), stat('Tirs contre', 'tirsContre'), stat('Buts pour', 'butsPour', 2), stat('Buts contre', 'butsContre', 2)])
+    + (style.note ? `<p class="ent-note">${e(style.note)}</p>` : ''));
+  const coups = profil.coups != null && ligue.coups != null;
+  const c2 = carte(`Ton style · ${profil.n} derniers matchs`, 'Rythme et contact',
+    grille([stat('Tirs en tout', 'rythme'), stat('Punitions', 'punitions'), ...(coups ? [stat('Mises en échec', 'coups', 0)] : [])])
+    + (coups ? '<p class="ent-note">Les mises en échec sont estimées par le moteur, pas comptées une à une.</p>' : ''));
+  return [c1, c2];
 }

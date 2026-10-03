@@ -1963,7 +1963,7 @@ const BAGARRE_PAR_PIM = 0.55, MELEE_BASE = 0.5, COUP_MARQUANT_PART = 0.12, BAGAR
 export const ELAN_BAGARRE = 1.06, ELAN_BAGARRE_PERDU = 0.94, ELAN_DUREE = 10, BAGARRE_MINUTES = 5, MELEE_MINUTES = 2;
 export const COUP_MARQUANT_JAMBES = 2, BLESSURE_SONNE = 1.5, BLESSURE_BAGARRE_PERDUE = 3;
 /* Les coups qu'un alignement donne par match, attendus (la même formule qu'`encaisserCoups`). */
-function coupsAttendus(profil) {
+export function coupsAttendus(profil) {
   let total = 0;
   if (!profil || !profil.unites) return 0;
   for (const g of ['F', 'D']) for (const u of profil.unites[g]) {
@@ -4486,6 +4486,18 @@ function choisirUnite(unites) {
   return unites[unites.length - 1];
 }
 
+/*
+ * LES LANCERS ATTENDUS d'un côté sur tout le match à cinq contre cinq, avant la part de forces égales :
+ * le seul endroit qui dit combien un club tire. Le moteur le joue (`jouerCote`) et l'écran le lit
+ * (js/impact.js) — c'est ce qui rend le chiffre annoncé égal à celui qui est joué.
+ */
+export function attenduDeCote(off, def) {
+  return LANCERS_BASE
+    * (off.pression / REF.pression)
+    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION)
+    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef));
+}
+
 /**
  * Un côté du match : l'attaque de `off` tire sur le gardien de `def`.
  *
@@ -4511,10 +4523,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
    *   qualite     facteur sur la finition
    */
   const mode = st?.mode || 'FE';
-  const attenduBase = LANCERS_BASE
-    * (off.pression / REF.pression)
-    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION)
-    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef));
+  const attenduBase = attenduDeCote(off, def);
   const attendu = st?.lancers != null ? st.lancers : attenduBase * (st?.part ?? 1) * (st ? FE_TIRS : 1);
   const lancers = st?.lancers != null ? poisson(attendu) : Math.max(st?.plancher ?? 6, poisson(attendu));
   const unitesOff = st?.unitesOff !== undefined ? st.unitesOff : off.unites;
@@ -4661,6 +4670,8 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         * (vedette && tireur === vedette ? ombre : 1),
       0.005, PCT_TIR_MAX);
 
+    // LA LECTURE (js/impact.js, `pMoyenDuLancer`) : la chance moyenne d'un lancer, sans tirer le but — le tirage ne bouge donc pas avec `p`.
+    if (st?.espP) { st.espP.s += p; st.espP.n++; continue; }
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
     if (journal) journal.tirs[cote][periodeDe(instant)]++;
     // Chaque lancer entre au journal avec son tireur et son gardien : c'est
@@ -5385,6 +5396,55 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
   gfA += jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A', { ...fe }, ronde);
   gfB += jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B', { ...fe }, ronde);
   return { gfA, gfB };
+}
+
+/*
+ * LA LECTURE DU SOIR (js/impact.js). Ce que le moteur ferait de CE club CE soir, lu sans rien jouer : les
+ * deux profils exactement comme `playGame` les pose, et la chance moyenne d'un lancer dans chaque situation
+ * (forces égales, avantage, désavantage), des deux côtés. `jouerCote` fait le calcul de chaque lancer — c'est
+ * lui qu'on interroge, pas une copie — sous un hasard à part, en sommant `p` au lieu de tirer le but : le
+ * tirage ne dépend plus de `p`, donc deux lectures (avec et sans un effet) se comparent sans bruit.
+ * Sans adversaire, le soir se lit contre un club moyen (le profil de référence de la ligue).
+ * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
+ */
+export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+  return avecAVenir(team, aVenir, () => {
+    const avait = '_effetMatch' in team, sauve = team._effetMatch;
+    if (effets.length) team._effetMatch = [...(sauve || []), ...effets];
+    try {
+      const lu = lineup || activeLineup(team);
+      const A = profilMatch(team, lu, adv);
+      A.rob = teamStrength(team, lu).rob; A.domicile = true;
+      let B, gB = null;
+      if (adv) {
+        const lb = activeLineup(adv);
+        B = profilMatch(adv, lb, team);
+        B.rob = teamStrength(adv, lb).rob; B.domicile = false;
+        gB = pickGoalie(lb, adv.games, adv);
+      } else B = { pression: REF.pression, zDef: REF.zDef, fgDefaut: REF.fg, discipline: 1, occasions: null, patineurs: [] };
+      const gA = pickGoalie(lu, team.games, team);
+      const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
+      const lire = (off, def, g, mode) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n });
+      const p = { pour: {}, contre: {} };
+      for (const mode of ['FE', 'AN', 'DN']) {
+        p.pour[mode] = lire(A, B, gB, mode);
+        p.contre[mode] = lire(B, A, gA, mode);
+      }
+      return { A, B, occasions, p };
+    } finally {
+      if (avait) team._effetMatch = sauve; else delete team._effetMatch;
+    }
+  });
+}
+/* La chance moyenne d'un lancer de `off` sur le gardien de `def`, dans une situation. `mode` : FE, AN (off a l'avantage) ou DN (off est puni). */
+function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n }) {
+  const espP = { s: 0, n: 0 };
+  const st = mode === 'FE' ? { mode, lancers: n, fenetres: [], espP }
+    : mode === 'AN' ? { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE, espP }
+      : { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.desavantage, unitesDef: def.avantage, qualite: DN_QUALITE, espP };
+  avecHasardIsole('lecture', () => jouerCote(off, def, gardien, 1, heavy, null, series, null, 'A', st, ronde));
+  return espP.n ? espP.s / espP.n : 0;
 }
 
 function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {

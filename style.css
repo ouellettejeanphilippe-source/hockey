@@ -3397,6 +3397,9 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .sommaire { font-size: var(--t-2); }
 .som-ot { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .som-lignes { margin-bottom: var(--esp-4); border-top: 1px solid var(--filet); }
+.som-build { margin-bottom: var(--esp-4); }
+.som-build p { margin: var(--esp-2) 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.som-build .ent-liste > div { min-height: 36px; }
 .som-plateau { margin-bottom: var(--esp-4); }
 .som-plateau p { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-plateau .som-plateau-titre { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre); }
@@ -3463,6 +3466,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .ent-stat.or b { color: var(--or); }
 .ent-stat.bon b { color: var(--bon); }
 .ent-stat.mauvais b { color: var(--mauvais); }
+/* Une ligne sous les chiffres d'un carton : ce qu'ils disent, ou ce que la feuille ne compte pas. */
+.ent-note { margin: 0; font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* Une liste étiquette → valeur. */
 .ent-liste { display: flex; flex-direction: column; }
 .ent-liste > div { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-3); min-height: 40px; padding: var(--esp-2) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); }
