@@ -15,8 +15,8 @@ import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, 
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
-import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, maxForPick, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
-import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
+import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
+import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
    Hexagone (seulement si le brouillard est levé)
