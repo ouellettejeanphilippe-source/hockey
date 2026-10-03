@@ -2817,7 +2817,15 @@ if (enabled) {
       // On attend que le chapitre arrive, jusqu'à 3 s, plutôt qu'un délai fixe.
       const vu = await page.waitForFunction(() => { const e = document.querySelector('#resultHost [data-bl="rythme"]'); if (!e) return false; const r = e.getBoundingClientRect(); return r.top >= 0 && r.top < innerHeight / 2; },
         null, { timeout: 3000 }).then(() => true).catch(() => false);
-      if (!vu) errors.push('le chapitre « Rythme » ne vient pas en haut quand on le touche');
+      if (!vu) {
+        // De quoi comprendre : où le chapitre s'arrête, et ce qui défile (au bout ou non).
+        const ou = await page.evaluate(() => {
+          const e = document.querySelector('#resultHost [data-bl="rythme"]'), r = e && e.getBoundingClientRect();
+          let sc = e && e.parentElement; while (sc && !(['auto', 'scroll'].includes(getComputedStyle(sc).overflowY) && sc.scrollHeight > sc.clientHeight + 1)) sc = sc.parentElement;
+          return `chapitre ${r ? Math.round(r.top) : '—'} sur ${innerHeight} ; défile : ${sc ? `${sc.id || sc.className} ${Math.round(sc.scrollTop)}/${sc.scrollHeight - sc.clientHeight}` : 'la page ' + Math.round(scrollY)}`;
+        });
+        errors.push(`le chapitre « Rythme » ne vient pas en haut quand on le touche (${ou})`);
+      }
       console.log(`   le bilan par chapitres : ${ch.join(' · ')} · domicile ${d.join('-')}, route ${r.join('-')} · ${tuiles.length} chiffres`);
       await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
     }

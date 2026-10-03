@@ -858,7 +858,11 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   brancherEntractes($('resultHost'));
   $('resultHost').querySelectorAll('[data-bl-saut]').forEach(b => { b.onclick = () => {
     const cible = $('resultHost').querySelector(`[data-bl="${b.dataset.blSaut}"]`);
-    if (cible) cible.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    if (!cible) return;
+    cible.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    // Ce qui arrive en retard au-dessus (un portrait, une fiche de la ligue) pousse le chapitre pendant le saut :
+    // le saut fini, on rattrape d'un coup s'il n'est plus en haut (CI, graine dgj6wu : la machine lente l'y laissait en bas).
+    setTimeout(() => { const r = cible.getBoundingClientRect(); if (r.top < -2 || r.top > innerHeight / 3) cible.scrollIntoView({ block: 'start' }); }, 900);
   }; });
   // LA FICHE SE COMPTE (S77) : la saison se révèle en 400 ms, du zéro à la
   // fiche finale, le rang du dernier au sien. Le texte du DOM est déjà le
