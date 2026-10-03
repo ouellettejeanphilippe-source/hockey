@@ -393,5 +393,50 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
     'deux saisons neuves de la même graine ne jouent pas les mêmes matchs');
 }
 
+/*
+ * UN JOUEUR CONNU REPART À ZÉRO MATCH (1.0, oct.). Un joueur sorti de l'alignement revient par une
+ * décision datée d'avant : le moteur le retrouve parmi les connus. Il gardait les `sim*` de la saison
+ * jouée avant la reprise, et `effetCarte` lit `simGP` (la recrue qui progresse après 41 matchs) : deux
+ * reprises de la même partie ne rejouaient pas le même passé (le smoke, graine 7, un match vu en
+ * direct qui changeait au bilan). Le même joueur, une fois avec 60 matchs au compteur, une fois avec
+ * aucun : la saison doit se jouer pareil.
+ */
+{
+  const avec = () => equipesNeuves();
+  // Un avant d'un vrai vestiaire qui n'est pas de la ligue.
+  let x = null;
+  const autre = generateur('check_graine:connu');
+  for (let k = 0; k < 200 && !x; k++) {
+    const f = saisons[Math.floor(autre() * saisons.length)];
+    const shard = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8'));
+    const tags = [...new Set(shard.players.map(p => p.t))];
+    const tag = tags[Math.floor(autre() * tags.length)];
+    if (vus.has(`${shard.season}|${tag}`)) continue;
+    let unites; try { unites = equipeReelle(shard.season, tag); } catch { continue; }
+    const q = unites.flat().find(p => p.p !== 'G' && !['D', 'LD', 'RD'].includes(p.p));
+    if (q) x = { ...q };
+  }
+  if (!x) dire(false, 'un joueur hors des alignements, pour la reprise');
+  else {
+    registerHiddenRatings(x);
+    x._carte = { bonus: [], recrue: true };
+    connaitre(x);
+    let auDepart = null;
+    const jouer = simGP => {
+      const teams = avec(); teams[0].isPlayer = true;
+      const d0 = { jour: 0, cases: photoAlignement(teams[0].roster) };
+      const cases = { ...d0.cases, [SLOTS.find(s => s.group === 'F' && !s.scratch).i]: getPlayerKey(x) };
+      x.simGP = simGP; x.simG = 9;
+      const L = creerLigue(teams, 82, { graine: 'connus', decisions: [d0, { jour: 3, cases }] });
+      auDepart = [x.simGP, x.simG];
+      jouerJusqua(L, 30);
+      return texteDe(L.calendrier.slice(0, 30));
+    };
+    const a = jouer(60), depuis60 = auDepart, b = jouer(0);
+    dire(depuis60[0] === 0 && depuis60[1] === 0, `un joueur connu repart à zéro match à la création de la ligue (${depuis60.join(' matchs, ')} buts)`);
+    dire(a === b, 'un joueur connu qui revient par une décision : la saison se rejoue pareil');
+  }
+}
+
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');
 process.exit(echecs ? 1 : 0);
