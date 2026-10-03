@@ -2304,6 +2304,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pal-3 { --pal: var(--or); }
 .pal-4 { --pal: var(--platine); }
 i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
+/* Les icônes de badge se teintent de leur palier : la présentation texte, jamais l'emoji en couleur. */
+i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .puce.badge, b.badge { color: var(--pal); }
 /* Le verso est clair : l'argent et les autres paliers se foncent vers l'encre de la carte pour rester lisibles. */
 .fc-verso .pal-1 { --pal: color-mix(in srgb, var(--bronze) 50%, var(--v-encre)); }
@@ -2686,7 +2688,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
-.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-band) 0%, color-mix(in srgb, var(--a-band) 70%, var(--a-stripe)) 22%, color-mix(in srgb, var(--b-band) 70%, var(--b-stripe)) 78%, var(--b-band) 100%); }
+.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-band) 0%, var(--a-band) 30%, var(--a-stripe) 47%, var(--b-stripe) 53%, var(--b-band) 70%, var(--b-band) 100%); }
 /* Le duel en un seul dégradé : les couleurs du premier club fondent vers celles du second, le VS au milieu.
    La seconde couleur de chaque club donne l'orange aux NHL Stars, dont l'aplat est noir. */
 .hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); color: var(--eq-ink); }
@@ -3397,6 +3399,10 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-decide { margin-bottom: var(--esp-4); }
 .som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--esp-3); align-items: center; min-height: 48px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); }
+/* Le pointage en couleurs d'équipe : chaque ligne prend l'aplat et la seconde couleur de son club. */
+.som-ligne-eq { padding-inline: var(--esp-3); background: linear-gradient(100deg, var(--eq-band) 45%, color-mix(in srgb, var(--eq-stripe) 80%, var(--eq-band))); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
+.som-ligne-eq :is(span, b, .lien-equipe) { color: inherit; }
+.som-ligne-eq span:nth-child(3) { color: inherit; opacity: 0.8; }
 .som-ligne span:nth-child(2) { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .som-ligne span:nth-child(3) { min-width: 54px; text-align: right; font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
 .som-per { margin-bottom: var(--esp-4); }

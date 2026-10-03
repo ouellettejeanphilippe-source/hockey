@@ -24,7 +24,6 @@
  * {j} le joueur puni, {inf} l'infraction, {per} la période.
  */
 import { GESTES, SOLO, SEQUENCE, FIN, profil, nomCourt } from './recit.js';
-import { HUMOUR } from './commentaire-humour.js';
 
 /* ---------- les arrêts dangereux ---------- */
 export const CRI_ARRET = [
@@ -324,21 +323,6 @@ export const COULEUR_FIN = {
   // Pas « la prolongation » : la phrase d'avant vient de la nommer (S74, l'agent de test).
   prolongation: ['La mort subite a tranché.', 'Il a fallu du temps supplémentaire.', 'Un seul but de plus, et tout était dit.'],
 };
-
-/* ---------- l'humour de la production : des pièces de plus dans les mêmes banques ---------- */
-{
-  const BANQUES = { CRI_ARRET, ACTIONS_TIREUR, ISSUE_GARDIEN, CHUTE_ARRET, CHUTE_ARRETS_NOMBREUX, CHUTE_ARRET_SERRE, CHUTE_ARRET_POUSSE,
-    CHUTE_VEDETTE, CHUTE_BLANCHISSAGE, ACTION_SEQUENCE, CRI_DEFENSE, ACTION_DEFENSE, CHUTE_DEFENSE, ACTION_BLOQUE, CHUTE_BLOQUE, ACTIONS_TIR,
-    ISSUE_TIR, CRI_BUT, APPUI_SOLO, APPUI_SEQUENCE, CONTEXTE_BUT, INFRACTIONS, PHRASE_PUNITION, PHRASE_PUNITION_EQUIPE, PHRASE_AVANTAGE,
-    COULEUR_PUNITION, COULEUR_PUNITION_TARD, RETOUR_PUNITION, RETOUR_EQUIPE, COULEUR_RETOUR, PHRASE_COUP, COULEUR_COUP, PHRASE_BAGARRE,
-    ISSUE_BAGARRE, COULEUR_BAGARRE, PHRASE_MELEE, COULEUR_MELEE, FIN_PERIODE, COULEUR_PERIODE, DEBUT, COULEUR_DEBUT, FIN_MATCH, COULEUR_FIN };
-  for (const [nom, ajout] of Object.entries(HUMOUR)) {
-    const cible = BANQUES[nom];
-    if (Array.isArray(ajout)) cible.push(...ajout);
-    else for (const [k, liste] of Object.entries(ajout)) cible[k].push(...liste);
-  }
-  ACTION_TIREUR.push(...HUMOUR.ACTIONS_TIREUR.map(([t]) => t));
-}
 
 /* ---------- la mécanique ---------- */
 function hacher(s) {

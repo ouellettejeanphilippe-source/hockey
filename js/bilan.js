@@ -1209,7 +1209,15 @@ function sommaireDeSaison(jour, k) {
   const m = cal && cal[jour] && cal[jour][k];
   if (!m || !m.feuille) return;
   const avant = compterFeuilles(cal.slice(0, jour).flat().map(x => x.feuille));
-  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: porteeRevele('saison'), avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière' });
+  // La fiche du club suivi (ou de A) après ce match : les feuilles jusqu'à ce jour, lues sur leur vainqueur.
+  const suivi = m.B.isPlayer ? m.B : m.A;
+  const fiche = { v: 0, d: 0, pr: 0 };
+  for (const x of cal.slice(0, jour + 1).flat()) {
+    if (!x || !x.feuille || (x.A !== suivi && x.B !== suivi)) continue;
+    const gagne = x.feuille.vainqueur === (x.A === suivi ? 'A' : 'B');
+    if (gagne) fiche.v++; else if (x.feuille.ot) fiche.pr++; else fiche.d++;
+  }
+  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: porteeRevele('saison'), avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière', fiche });
 }
 
 // Tout ce qui porte `data-sommaire` ouvre un sommaire : « saison|jour|k »
@@ -1252,7 +1260,7 @@ export function cleDeSommaire(feuille) {
  * dire « (12e) » après le marqueur et chaque passeur — le rang du but ou de
  * la passe dans la saison ou dans les séries, comme au tableau indicateur.
  */
-function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '' }) {
+function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null }) {
   const tirsA = tirsTotal(f, 'A'), tirsB = tirsTotal(f, 'B');
   const compte = new Map();
   const rang = (p, cle) => { const c = avant.get(p); const k = `${cle}|${getPlayerKey(p)}`; compte.set(k, (compte.get(k) || 0) + 1); return (c ? c[cle] : 0) + compte.get(k); };
@@ -1355,11 +1363,11 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   const corps = `
     ${deck(cartesDeMatch({ f, A, B, ctx: { teamShort, fiche: (p, t, html) => lienJoueur(p, t, mode, html) } }), { cle: 'match' })}
     <div class="som-lignes">
-      <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
-      <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
+      <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(A.tag))}"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
+      <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(B.tag))}"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
-    ${(pm => (pm.lignes.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le plateau d'après-match</span></div><p class="som-plateau-titre">${esc(pm.titre)}</p>${pm.lignes.map(x => `<p>${esc(x)}</p>`).join('')}</div>` : ''))(
-      apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A' }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
+    ${(pm => (pm.sections.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le récit du match</span></div><p class="som-plateau-titre">${esc(pm.titre)}</p>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</div>` : ''))(
+      apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
     ${(d => (d.length ? `<div class="som-decide"><div class="som-per-head"><span>Ce qui a décidé</span></div><ul>${d.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''))(ceQuiADecide(f, teamShort(A), teamShort(B)))}
     ${parPeriode}
     <div class="som-per">

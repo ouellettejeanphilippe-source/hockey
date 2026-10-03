@@ -6,7 +6,7 @@
 
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, estD as isD, money, pct3 } from './util.js';
+import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie } from './gerant.js';
@@ -174,7 +174,7 @@ function slotTags(p, zoneEcartTag, penTag) {
    * s'il en a un, le second : lus dans ses vraies stats, jamais une cote.
    */
   const [pp, r2] = badgesDe(p);
-  const roles = pp ? `<span class="slot-roles" title="${esc(motDuBadge(pp))}${r2 ? ` · second badge : ${esc(motDuBadge(r2))}` : ''}"><i class="badge pal-${pp.palier}">${pp.ico}</i>${r2 ? `<i class="badge pal-${r2.palier}">${r2.ico}</i>` : ''}</span>` : '';
+  const roles = pp ? `<span class="slot-roles" title="${esc(motDuBadge(pp))}${r2 ? ` · second badge : ${esc(motDuBadge(r2))}` : ''}"><i class="badge pal-${pp.palier}">${glyphe(pp.ico)}</i>${r2 ? `<i class="badge pal-${r2.palier}">${glyphe(r2.ico)}</i>` : ''}</span>` : '';
   // Les icônes, serrées, sans cadre : la case est étroite. Le survol donne le mot.
   const icones = getTraits(p).map(t => TRAITS[t.cle]);
   const compact = icones.length
@@ -202,7 +202,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   // SON SECOND BADGE AUSSI (1.0, R3) : il rend la moitié du sien. Pas de mots dans la case : une icône
   // teintée de son palier et son carré dessous ; le mot est dans l'infobulle et dans la fiche.
   const role = pp
-    ? `<span class="slot-roles cell-role" title="${esc(titreDuBadge(pp))}${r2 ? ` · ${esc(titreDuBadge(r2))}` : ''}"><span class="cell-badge"><i class="badge pal-${pp.palier}">${pp.ico}</i>${r2 ? `<i class="badge pal-${r2.palier}">${r2.ico}</i>` : ''}</span></span>`
+    ? `<span class="slot-roles cell-role" title="${esc(titreDuBadge(pp))}${r2 ? ` · ${esc(titreDuBadge(r2))}` : ''}"><span class="cell-badge"><i class="badge pal-${pp.palier}">${glyphe(pp.ico)}</i>${r2 ? `<i class="badge pal-${r2.palier}">${glyphe(r2.ico)}</i>` : ''}</span></span>`
     : a ? `<span class="slot-roles cell-role" title="${esc(a.desc)}"><span class="cell-badge"><span>${a.icon}</span></span></span>` : '';
   const zone = zoneTag(p, true);
   const marque = ecart === 'sous' ? `<span class="cell-zone sous" title="${esc(ZONE_SOUS_TITLE)}">▼</span>`
