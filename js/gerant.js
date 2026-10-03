@@ -36,7 +36,7 @@ import {
 import { POIDS_TRIO } from './ratings.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
 import { jouerSon } from './sons.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
@@ -74,6 +74,8 @@ export function puces(mots) {
  * plus tard, un geste réel qui il touche et ce qui lui arrive.
  */
 const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+/* Les faces gagnantes d'un dé, les plus hautes : « sur 4, 5 ou 6 ». Jamais une cote. */
+const facesMot = k => { const f = Array.from({ length: k }, (_, i) => 7 - k + i); return `sur ${f.length > 1 ? `${f.slice(0, -1).join(', ')} ou ${f[f.length - 1]}` : `un ${f[0]}`}`; };
 function motsDAction(a, noms = '') {
   if (!a) return [];
   const qui = noms || 'le joueur visé';
@@ -91,9 +93,8 @@ function motsDeCarte(o, noms = '') {
   if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
   if (o.enjeu) out.push({ txt: '⚖️ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
   if (o.pari) {
-    const p = Math.round(o.pari.chance * 100);
     const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsDEffet(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
-    out.push({ txt: `🎲 ${p} % : ${issue(o.pari.gagne)}`, bon: true });
+    out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${issue(o.pari.gagne)}`, bon: true });
     out.push({ txt: `🎲 sinon : ${issue(o.pari.perd)}`, bon: false });
   }
   if (o.ensuite) {
@@ -336,7 +337,14 @@ export function ouvrirChoix(spec) {
   };
   fermerChoixCourant = fermer;
   // UNE VUE À LIRE (S74, « Mon deck ») : les cartes ne se prennent pas.
-  m.querySelectorAll('[data-choix]').forEach(b => { if (spec.lecture) { b.classList.add('lecture'); return; } b.onclick = () => { fermer(true); spec.onChoix(b.dataset.choix); }; });
+  m.querySelectorAll('[data-choix]').forEach(b => {
+    if (spec.lecture) { b.classList.add('lecture'); return; }
+    const o = spec.options.find(x => String(x.cle) === b.dataset.choix);
+    b.onclick = () => {
+      if (o && o.pari && typeof spec.lancer === 'function') { sceneDuDe(m, spec, o, sub, fermer); return; }
+      fermer(true); spec.onChoix(b.dataset.choix);
+    };
+  });
   // LA CARTE D'UN JOUEUR OFFERT se touche pour voir sa fiche (`apercu` de l'option), sans le choisir (S78).
   const apercus = new Map(spec.options.filter(o => typeof o.apercu === 'function').map(o => [String(o.cle), o.apercu]));
   m.querySelectorAll('[data-apercu] .tcj-carte').forEach(el => {
@@ -351,6 +359,72 @@ export function ouvrirChoix(spec) {
   const premier = m.querySelector(paquet ? '.paquet' : '.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
+}
+
+/*
+ * LE LANCER DE DÉ (1.0, oct.). JP : *courbe de bâton, faire modal avec lancé de dé et réponse, pas juste
+ * dans boîte*. Une réponse risquée (un `pari`) ne se ferme pas d'un toucher : la fenêtre montre le dé et
+ * ce qu'il faut (« sur 4, 5 ou 6 »), et « Lancer le dé » (Entrée) prend la décision. C'est à ce moment-là
+ * que `spec.lancer(cle)` tire le sel de la décision et rend ce que le moteur en fera (`deDuPari`, js/sim.js) :
+ * la face, et si ça passe. Le dé roule sur une suite de faces fixe — aucun hasard d'écran — et s'arrête
+ * sur cette face-là. Une fois lancé, la décision est prise : « Continuer », le ✕ ou Échap la
+ * remettent au moteur, jamais une autre réponse.
+ */
+const DE_PAS = [55, 55, 60, 70, 85, 105, 130, 165, 210];   // ms entre deux faces : le dé ralentit
+const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
+const deHtml = face => `<span class="de" data-face="${face}" aria-hidden="true">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => `<i${PIPS[face].includes(i) ? ' class="on"' : ''}></i>`).join('')}</span>`;
+function sceneDuDe(m, spec, o, sub, fermer) {
+  const faces = facesDuPari(o.pari.chance);
+  const corps = m.querySelector('.choix-corps');
+  if (!corps) return;
+  corps.innerHTML = `<div class="de-scene">
+    <div class="de-choix">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</div>
+    <div class="de-besoin">🎲 Ça passe ${facesMot(faces)}</div>
+    <div class="de-table">${deHtml(6)}</div>
+    <div class="de-verdict" role="status" aria-live="polite"></div>
+    <span class="choix-puces de-issue"></span>
+    <div class="de-boutons">
+      <button type="button" class="btn de-autre">Autre réponse</button>
+      <button type="button" class="btn go de-lancer">Lancer le dé</button>
+    </div>
+  </div>`;
+  const table = corps.querySelector('.de-table'), verdict = corps.querySelector('.de-verdict');
+  let v = null, fini = false;
+  const valider = () => { if (fini || !v) return; fini = true; fermer(true); v.valider(); };
+  const poser = face => { table.innerHTML = deHtml(face); };
+  const montrer = () => {
+    const de = table.querySelector('.de');
+    de.classList.add('pose', v.gagne ? 'gagne' : 'perd');
+    const { duree, action, ...canaux } = v.effet || {};
+    const mots = [...motsDEffet(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action)];
+    verdict.innerHTML = `<b>${v.face}</b> — ${v.gagne ? 'ça passe !' : 'raté.'}`;
+    verdict.classList.add(v.gagne ? 'gagne' : 'perd');
+    corps.querySelector('.de-issue').innerHTML = puces(mots.length ? mots : [{ txt: 'Rien ne change', bon: null }]);
+    jouerSon(v.gagne ? 'recompense' : 'rate');
+    const b = corps.querySelector('.de-lancer');
+    b.textContent = 'Continuer'; b.disabled = false; b.classList.add('de-suite');
+    b.onclick = valider;
+    b.focus({ preventScroll: true });
+  };
+  corps.querySelector('.de-autre').onclick = () => ouvrirChoix(spec);
+  const lancer = corps.querySelector('.de-lancer');
+  lancer.onclick = () => {
+    v = spec.lancer(o.cle);
+    if (!v) { fermer(true); spec.onChoix(o.cle); return; }
+    lancer.disabled = true;
+    corps.querySelector('.de-autre').remove();
+    // Lancé, la décision est prise : le ✕ et Échap la remettent au moteur.
+    const croix = m.querySelector('.choix-fermer');
+    if (croix) croix.onclick = valider;
+    if (mouvementCalme()) { poser(v.face); montrer(); return; }
+    jouerSon('de');
+    // La suite de faces part de la face tirée et y revient : elle ne dépend que du résultat.
+    const suite = DE_PAS.map((_, i) => ((v.face + DE_PAS.length - 1 - i) % 6) + 1);
+    let t = 0;
+    suite.forEach((f, i) => { t += DE_PAS[i]; setTimeout(() => { if (!fini && m.contains(table)) { poser(f); table.firstChild.classList.add('roule'); } }, t); });
+    setTimeout(() => { if (!fini && m.contains(table)) { poser(v.face); montrer(); } }, t + 260);
+  };
+  lancer.focus({ preventScroll: true });
 }
 
 /*

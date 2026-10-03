@@ -2581,7 +2581,7 @@ export const MOMENTS = {
       { cle: 'purger', nom: 'Purger la suspension sans faire de vagues', bon: 'La ligue te laisse tranquille', prix: '{nom} manque deux matchs, un réserviste joue',
         action: { absents: 2 }, discipline: 0.9, duree: 6 },
       { cle: 'defendre', nom: 'Contester en public', bon: 'Si la ligue recule, {nom} joue et la ville explose de joie', prix: 'Sinon, il manque quatre matchs',
-        pari: { chance: 0.4, gagne: { finition: 1.06, duree: 6 }, perd: { action: { absents: 4 } } } },
+        pari: { chance: 2 / 6, gagne: { finition: 1.06, duree: 6 }, perd: { action: { absents: 4 } } } },
     ],
   },
   malarchuk: {
@@ -2617,7 +2617,7 @@ export const MOMENTS = {
     recit: '{nom} est convaincu qu\'il peut marquer dans le filet désert. Il sort jouer la rondelle à chaque occasion.',
     options: [
       { cle: 'laisser', nom: 'Le laisser essayer', bon: 'Une chance sur trois : il marque et l\'équipe s\'envole', prix: 'Sinon, il se fait prendre hors de son filet',
-        pari: { chance: 0.35, gagne: { finition: 1.08, duree: 6 }, perd: { defense: 1.05, duree: 4 } } },
+        pari: { chance: 2 / 6, gagne: { finition: 1.08, duree: 6 }, perd: { defense: 1.05, duree: 4 } } },
       { cle: 'filet', nom: 'Qu\'il reste dans son filet', bon: 'Un gardien concentré', defense: 0.97, duree: 5 },
     ],
   },
@@ -2636,7 +2636,7 @@ export const MOMENTS = {
     options: [
       { cle: 'menager', nom: 'Le protocole, quatre matchs', bon: 'Aucun risque', prix: '{nom} manque quatre matchs, un réserviste joue', action: { absents: 4 } },
       { cle: 'jouer', nom: 'Le croire', bon: 'Deux fois sur trois, il a raison', prix: 'Sinon, il manque dix matchs',
-        pari: { chance: 0.67, gagne: {}, perd: { action: { absents: 10 } } } },
+        pari: { chance: 4 / 6, gagne: {}, perd: { action: { absents: 10 } } } },
     ],
   },
   tortorella: {
@@ -2781,8 +2781,8 @@ export const MOMENTS = {
     ico: '🎭', titre: 'L\'embellissement', irl: null, regle: true,
     recit: 'Ton ailier sait tomber. Un mot de trop après le contact, et l\'arbitre lève le bras. La ligue, elle, regarde les reprises.',
     options: [
-      { cle: 'plonger', nom: 'Le laisser vendre le contact', bon: 'Deux fois sur cinq, la punition tombe de ton côté', prix: 'Le reste du temps, c\'est toi qu\'on siffle',
-        pari: { chance: 0.4, gagne: { finition: 1.05, duree: 5 }, perd: { discipline: 1.25, duree: 8 } }, trou: true },
+      { cle: 'plonger', nom: 'Le laisser vendre le contact', bon: 'Sur un 5 ou un 6, la punition tombe de ton côté', prix: 'Le reste du temps, c\'est toi qu\'on siffle',
+        pari: { chance: 2 / 6, gagne: { finition: 1.05, duree: 5 }, perd: { discipline: 1.25, duree: 8 } }, trou: true },
       { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre', discipline: 0.9, duree: 6 },
     ],
   },
@@ -7697,7 +7697,19 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
  * choix — sans toucher au hasard de la saison — donc l'écran le dit dès le
  * choix, et c'est exactement ce que le moteur fera.
  */
-const pariGagne = (graine, jour, cle, chance) => hacherMise(graine, 'pari', jour, cle) < chance;
+/*
+ * LE DÉ D'UN PARI (1.0, oct.). JP : *faire modal avec lancé de dé et réponse, pas juste dans boîte*. Un pari
+ * se joue sur un dé à six faces : ses faces gagnantes sont les plus hautes (la chance en sixièmes,
+ * `facesDuPari`), et la face sort de la même mise qui tranche le pari — la graine, le jour, le choix et
+ * le sel tiré à la décision. L'écran ne tire rien : il montre cette face-là. Une chance qui tombe juste
+ * en sixièmes (toutes, depuis) tranche exactement comme avant.
+ */
+export const facesDuPari = chance => Math.max(1, Math.min(5, Math.round(chance * 6)));
+function deDuPari(graine, jour, cle, chance) {
+  const faces = facesDuPari(chance), face = 6 - Math.floor(hacherMise(graine, 'pari', jour, cle) * 6);
+  return { face, faces, gagne: face > 6 - faces };
+}
+const pariGagne = (graine, jour, cle, chance) => deDuPari(graine, jour, cle, chance).gagne;
 // Le sel de la décision (1.0, oct.) : tiré au moment du choix, le pari n'est pas écrit dans la graine d'avance.
 const cleDuPari = d => `${d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`}${d.sel ? `:${d.sel}` : ''}`;
 export function pariDeDecision(d, graine, team = null) {
@@ -7705,9 +7717,9 @@ export function pariDeDecision(d, graine, team = null) {
   const fam = d.moment ? (d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle]) : d.avant ? AVANT_GROS[d.avant.cle] : null;
   const o = fam && fam.options.find(x => x.cle === (d.moment ? d.moment.choix : d.avant.choix));
   if (!o || !o.pari) return null;
-  const gagne = pariGagne(graine, d.jour, cleDuPari(d), o.pari.chance);
+  const { face, faces, gagne } = deDuPari(graine, d.jour, cleDuPari(d), o.pari.chance);
   const effet = gagne ? o.pari.gagne : o.pari.perd;
-  return { jour: d.jour, titre: fam.titre, choix: o.nom, gagne, effet, fin: apresMatchs(team, d.jour, effet.duree || DUREE_MOMENT) };
+  return { jour: d.jour, titre: fam.titre, choix: o.nom, gagne, face, faces, effet, fin: apresMatchs(team, d.jour, effet.duree || DUREE_MOMENT) };
 }
 
 /*

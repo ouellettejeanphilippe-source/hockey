@@ -144,6 +144,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * règle tout comme un joueur pressé : le sommaire se ferme, un choix prend
  * sa première option, un message bloquant sa réponse par défaut.
  */
+const des = [];   // les dés lancés pendant la run
 async function regler() {
   for (let i = 0; i < 30; i++) {
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau ».
@@ -164,6 +165,20 @@ async function regler() {
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-confirmer')) {
       await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue;
+    }
+    /*
+     * LE LANCER DE DÉ (1.0, oct.) : une réponse risquée ouvre le dé. Entrée lance ; le dé tombe sur la face
+     * que le moteur a tranchée, et la face dit le verdict (« sur 4, 5 ou 6 »), quelle qu'elle soit.
+     */
+    if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) {
+      const besoin = ((await page.textContent('#choixModal .de-besoin')) || '').trim(), k = (besoin.match(/\d/g) || []).length;
+      await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter');
+      const pose = await page.waitForSelector('#choixModal .de.pose', { timeout: 6000 }).catch(() => null);
+      const de = pose ? await pose.evaluate(d => ({ face: Number(d.dataset.face), gagne: d.classList.contains('gagne') })) : null;
+      if (!de) erreurs.push(`le dé ne tombe pas (${besoin})`);
+      else if (de.gagne !== (de.face > 6 - k)) erreurs.push(`le dé montre ${de.face} pour « ${besoin} » et dit ${de.gagne ? 'ça passe' : 'raté'}`);
+      else des.push(`${de.face} ${de.gagne ? '✓' : '✗'}`);
+      await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(600); continue;
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
@@ -706,6 +721,7 @@ const tete = await page.textContent('.tete-nom');
 console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
+console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);

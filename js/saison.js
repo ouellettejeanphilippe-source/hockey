@@ -33,7 +33,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, usureDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT } from './sim.js';
+  ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -2882,6 +2882,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Chaque choix est une décision : elle entre dans la liste, et la saison
     // se rejoue depuis aujourd'hui, avec des dés neufs.
     const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
+    /*
+     * LE DÉ D'UNE RÉPONSE RISQUÉE (1.0, oct.) : un événement s'ouvre en fenêtre, et une réponse qui porte
+     * un pari se joue au dé (js/gerant.js, `sceneDuDe`). Le sel de la décision se tire au lancer ; le dé
+     * montre ce que le moteur en fera (`pariDeDecision`, la même mise), et « Continuer » prend la décision.
+     * « Plus tard » le laisse dans la boîte, sans le rouvrir de lui-même (`boite.remis`).
+     */
+    const auDe = (d, prendre) => {
+      const x = pariDeDecision(d, graine, you);
+      return x ? { face: x.face, faces: x.faces, gagne: x.gagne, effet: x.effet, valider: () => prendre(d) } : null;
+    };
+    const plusTard = { fermable: true, motFermer: 'Plus tard', onFerme: () => { boite.remis = boite.remisPour; } };
     if (vo) {
       const o = OBJECTIFS[vo.d.objectif.cle];
       return vo.e.reussi
@@ -2918,9 +2929,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const s = SEQUENCES[sq.cle];
       const EN_LETTRES = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit', 'Neuf', 'Dix'];
       const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
-      return { de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(),
+      const dSq = cle => ({ jour, palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } });
+      return { de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(), ...plusTard,
         options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
-        onChoix: cle => decider({ palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } }) };
+        lancer: cle => auDe({ ...dSq(cle), sel: nouvelleGraine() }, decider),
+        onChoix: cle => decider(dSq(cle)) };
     }
     if (dl) {
       const m = MOMENTS[dl.cle];
@@ -2932,11 +2945,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix — celui des faits d'abord.
       const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
       const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
-      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue,
+      const dDl = cle => ({ jour, palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } });
+      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
         contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
-        onChoix: cle => decider({ palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } }) };
+        lancer: cle => auDe({ ...dDl(cle), sel: nouvelleGraine() }, decider),
+        onChoix: cle => decider(dDl(cle)) };
     }
     if (av) {
       // L'AVANT-MATCH (S70) : daté du soir du match, pas d'aujourd'hui.
@@ -2949,7 +2964,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return { de: DE.coach, ico: A.ico, titre: A.titre, irl: A.irl, genre: 'evenement', regle: !!A.regle, joueurs: ciblesA, ouDe: ctx.ouJoue, couleurs: ctx.band(advG.tag),
         recit: A.recit,
         contexte: `${dejaEnJeu(ciblesA)}<p class="choix-avant">Avant le combat · ${quand} contre ${ctx.esc(ctx.teamShort(advG))}</p>${depistageHtml(pistesDuRapport(av.mb.depistage), { nomAdv: ctx.teamShort(advG) })}`,
-        options: A.options.map(o => ({ ...o, duree: 1 })),
+        options: A.options.map(o => ({ ...o, duree: 1 })), ...plusTard,
+        lancer: cle => auDe({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) }, sel: nouvelleGraine() }, d => { const j = jour; quitter(); onDecision(d, j); }),
         onChoix: cle => { const j = jour; quitter(); onDecision({ jour: av.p.j, avant: { cle: av.cle, choix: cle, joueurs: ciblesA.map(getPlayerKey) } }, j); } };
     }
     if (rc) {
@@ -3147,7 +3163,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const spec = (msgs.find(m => m.genre === 'choix') || {}).spec || null;
     const pal = (msgs.find(m => m.genre === 'palier') || {}).pal;
     if (!retenir) {
-      if (spec && !choixOuvert()) { if (spec.ouvrir) spec.ouvrir(); else ouvrirChoix(spec); }
+      // Un événement remis à plus tard attend dans la boîte : « Ouvrir » le rouvre, pas le prochain rendu.
+      boite.remisPour = spec ? spec.titre : null;
+      if (spec && !choixOuvert() && boite.remis !== spec.titre) { if (spec.ouvrir) spec.ouvrir(); else ouvrirChoix(spec); }
       else if (!spec && pal !== undefined && !palProposes.has(pal) && !choixOuvert()) { palProposes.add(pal); ouvrirMain(pal); }
     }
     // LE MESSAGE OUVERT : celui qu'on a touché, sinon le premier à traiter. Les autres, pliés.

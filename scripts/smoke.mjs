@@ -63,7 +63,7 @@ let toastVu = false;           // le premier toast d'une signature, mesuré une 
  * jamais serait un choix qui ne s'affiche jamais.
  */
 const choixVus = new Map();
-const parisPris = [], parisDits = [];   // les paris pris, et ce que la boîte en a dit
+const parisPris = [], parisDits = [], desLances = [];   // les paris pris, ce que la boîte en a dit, les dés lancés
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
@@ -567,12 +567,41 @@ async function repondreAuxChoix() {
     // UN PARI SE TRANCHE AU CHOIX : la boîte dit tout de suite comment il a tourné.
     const pari = /Pari/.test(await opt.$eval('.choix-forme', e => e.textContent).catch(() => ''));
     await opt.click();
+    /*
+     * LE LANCER DE DÉ (1.0, oct.). Une réponse risquée ouvre le dé : ce qu'il faut (« sur 4, 5 ou 6 »),
+     * Entrée lance, le dé tombe. Ce qui se vérifie ne dépend pas de la face tirée : la face dit le
+     * verdict, et la boîte, qui lit le moteur (`pariDeDecision` sur la décision sauvée), dit le même.
+     */
+    let de = null;
+    if (pari) {
+      try { await _wait('#choixModal:not([hidden]) .de-scene .de-lancer', { timeout: 5000 }); } catch { errors.push(`« ${titre} » : la réponse risquée n'ouvre pas le dé`); }
+      if (await page.$('#choixModal:not([hidden]) .de-lancer')) {
+        const besoin = ((await page.textContent('#choixModal .de-besoin')) || '').trim();
+        const k = (besoin.match(/\d/g) || []).length;
+        if (!/sur (un \d|(\d, )*\d ou \d)$/.test(besoin) || /%/.test(besoin)) errors.push(`le dé de « ${titre} » ne dit pas ses faces : « ${besoin} »`);
+        await page.focus('#choixModal .de-lancer');
+        await page.keyboard.press('Enter');
+        try { await _wait('#choixModal .de.pose', { timeout: 6000 }); } catch { errors.push(`le dé de « ${titre} » ne tombe pas`); }
+        de = await page.evaluate(() => {
+          const d = document.querySelector('#choixModal .de.pose');
+          return d ? { face: Number(d.dataset.face), gagne: d.classList.contains('gagne'), verdict: (document.querySelector('#choixModal .de-verdict') || {}).textContent || '' } : null;
+        });
+        if (de && de.gagne !== (de.face > 6 - k)) errors.push(`le dé de « ${titre} » montre ${de.face} pour ${besoin}, et dit ${de.gagne ? 'ça passe' : 'raté'}`);
+        if (de && !(de.face >= 1 && de.face <= 6)) errors.push(`le dé de « ${titre} » montre une face impossible : ${de.face}`);
+        if (de) desLances.push(`${titre} : ${de.face} ${de.gagne ? '✓' : '✗'}`);
+        await _click('#choixModal .de-suite');
+      }
+    }
     await ecranPret();
     await page.waitForTimeout(350);
     if (pari) {
       parisPris.push(titre);
       const mot = await page.$eval('#hubModal .hub-msg[data-msg="pari"] .hub-msg-sujet', e => e.textContent.trim()).catch(() => '');
       if (mot) parisDits.push(mot);
+      if (de && mot && /a payé/.test(mot) !== de.gagne) errors.push(`le dé de « ${titre} » dit ${de.gagne ? 'ça passe' : 'raté'}, la boîte (le moteur) dit « ${mot} »`);
+      // La boîte se vide : l'événement réglé n'attend plus.
+      const reste = await page.$$eval('#hubModal .hub-choix-rouvrir', (els, t) => els.some(e => e.textContent.includes(t)), titre).catch(() => false);
+      if (de && reste) errors.push(`« ${titre} » réglé au dé attend encore dans la boîte`);
     }
   }
 }
@@ -3536,6 +3565,8 @@ console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') 
 console.log(`   sommaires de journée lus : ${sommairesVus} · paliers joués en passant : ${paliersJoues.join(' · ') || 'aucun'}`);
 if (parisPris.length && !parisDits.length) errors.push(`${parisPris.length} pari(s) pris (${parisPris.slice(0, 3).join(' · ')}), et la boîte n'a jamais dit comment il a tourné`);
 else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length} pris, la boîte en dit ${parisDits.length} — « ${parisDits[0]} »`);
+if (parisPris.length && !desLances.length) errors.push(`${parisPris.length} pari(s) pris, et aucun dé lancé`);
+else if (desLances.length) console.log(`   dés lancés : ${desLances.length} — ${desLances.slice(0, 4).join(' · ')}`);
 if (!sommairesVus) errors.push('aucun sommaire de journée après « Journée suivante », alors que ton club a joué');
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
 console.log(`   identités de départ prises : ${identitesVues.join(' · ') || 'aucune'}`);

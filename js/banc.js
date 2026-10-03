@@ -211,7 +211,8 @@ async function deciderSaison(d, depuis) {
   const allume = (d.joue || d.recompense !== undefined) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
   if (allume) d = { ...d, ...allume };
   const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || (!!d.garde && !d.mutation));
-  decisions.push(deckSeul ? { ...d } : { ...d, sel: nouvelleGraine() });
+  // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
+  decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (d.ballottage || d.plafond || d.patron || d.achat) renderCap();

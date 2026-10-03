@@ -904,6 +904,27 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option-mut { font-size: var(--t-2); color: var(--encre-2); line-height: 1.35; font-style: italic; }
 .choix-option-non { font-size: var(--t-1); color: var(--encre-3); }
 .choix-plus-tard { align-self: center; }
+/* LE LANCER DE DÉ (1.0, oct.) : la réponse risquée, ce qu'il faut, le dé qui roule et tombe, le verdict. */
+.de-scene { display: grid; justify-items: center; gap: var(--esp-3); padding: var(--esp-3) 0; text-align: center; }
+.de-choix { font: 800 var(--t-4)/1.15 var(--display); color: var(--encre); }
+.de-besoin { font: 700 var(--t-3)/1.2 var(--display); letter-spacing: 0.04em; color: var(--or); }
+.de-table { display: grid; place-items: center; width: 132px; height: 132px; }
+.de { display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); gap: 6px; width: 96px; height: 96px; padding: 14px; border-radius: var(--r-2); background: var(--encre); box-shadow: 0 8px 0 var(--encre-3); }
+.de i { border-radius: 50%; }
+.de i.on { background: var(--noir); }
+.de.roule { animation: de-roule 0.2s ease-out; }
+.de.pose { animation: de-pose 0.32s cubic-bezier(.2, 1.6, .4, 1); }
+.de.pose.gagne { box-shadow: 0 8px 0 var(--encre-3), 0 0 0 4px var(--bon), 0 0 28px var(--bon); }
+.de.pose.perd { box-shadow: 0 8px 0 var(--encre-3), 0 0 0 4px var(--live), 0 0 28px var(--live); }
+@keyframes de-roule { from { transform: rotate(-24deg) translateY(-14px) scale(.92); } to { transform: none; } }
+@keyframes de-pose { from { transform: scale(1.25); } to { transform: none; } }
+.de-verdict { min-height: 1.4em; font: 800 var(--t-4)/1.2 var(--display); }
+.de-verdict b { font-size: 1.3em; }
+.de-verdict.gagne { color: var(--bon); }
+.de-verdict.perd { color: var(--live); }
+.de-issue { justify-content: center; }
+.de-boutons { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-2); }
+.de-boutons .btn { min-height: 44px; min-width: 140px; }
 @media (min-width: 1000px) {
   .choix-modal { align-items: center; padding: var(--esp-5); }
   .choix-sheet { height: auto; max-height: calc(100dvh - 48px); border-radius: var(--r-2); background: var(--fond-1); border: 1px solid var(--filet); box-shadow: var(--ombre); overflow: hidden; }
