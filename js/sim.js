@@ -18,6 +18,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne } from './util.js';
 import { coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
+import { MOMENTS_VIE } from './vie-gm.js';
 
 export const CAP = 95_500_000;
 /*
@@ -2852,6 +2853,7 @@ export const MOMENTS = {
       { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent', prix: 'Un peu moins de lancers', blessure: 0.85, volume: 0.98, duree: 6 },
     ],
   },
+  ...MOMENTS_VIE,
 };
 
 export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];

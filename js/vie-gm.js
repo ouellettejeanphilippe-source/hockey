@@ -32,11 +32,10 @@ function graine(str) {
   return (h >>> 0) / 4294967296;
 }
 
-export const MOMENTS_DE_SAISON = ['camp', 'octobre', 'decembre', 'echeance', 'mars', 'series', 'elimination', 'coupe'];
-export const ETATS_DE_L_EQUIPE = ['sequence', 'panne', 'plafond', 'blesses'];
+const MOMENTS_DE_SAISON = ['camp', 'octobre', 'decembre', 'echeance', 'mars', 'series', 'elimination', 'coupe'];
 
 /** Qui écrit : l'icône et le nom que la boîte affiche (`m.de`). */
-export const EXPEDITEURS = {
+const EXPEDITEURS = {
   pr: { ico: '🏢', nom: 'Le propriétaire' },
   fi: { ico: '🧾', nom: 'Le directeur des finances' },
   ad: { ico: '🎯', nom: 'Ton adjoint' },
@@ -53,7 +52,7 @@ const TOUS = MOMENTS_DE_SAISON.join(' ');
 const mots = s => (s === 'tous' ? TOUS : s).split(' ').filter(Boolean);
 
 /** Remplit les gabarits {eq} et {autre} ; un gabarit sans valeur reste vide. */
-export function remplir(texte, c = {}) {
+function remplir(texte, c = {}) {
   return String(texte).replace(/\{(\w+)\}/g, (_, k) => (c[k] != null ? c[k] : ''));
 }
 
@@ -359,7 +358,7 @@ const COURRIELS_BRUTS = [
 
 const parDe = {};
 /** Les courriels : { id, de, quand: [moments], etat: [états] | [], sujet, corps }. */
-export const COURRIELS = COURRIELS_BRUTS.map(([de, quand, etat, sujet, corps]) => {
+const COURRIELS = COURRIELS_BRUTS.map(([de, quand, etat, sujet, corps]) => {
   parDe[de] = (parDe[de] || 0) + 1;
   return { id: `${de}${parDe[de]}`, de, quand: mots(quand), etat: etat ? etat.split(' ') : [], sujet, corps };
 });
@@ -766,7 +765,7 @@ const DILEMMES_BRUTS = {
 };
 
 /** Les dilemmes : { cle: { ico, titre, irl, recit, quand: [moments], etat: [états], cible?, options } }. */
-export const DILEMMES = Object.fromEntries(Object.entries(DILEMMES_BRUTS).map(([cle, d]) => {
+const DILEMMES = Object.fromEntries(Object.entries(DILEMMES_BRUTS).map(([cle, d]) => {
   const { quand, etat, ...reste } = d;
   return [cle, { irl: null, ...reste, quand: mots(quand), etat: etat ? etat.split(' ') : [] }];
 }));
@@ -1045,8 +1044,7 @@ const ECHANGES_BRUTS = [
 ];
 
 /** Les échanges : { id, quand, ouverture, question, reponse } — `quand` est l'une des six occasions. */
-export const ECHANGES = ECHANGES_BRUTS.map(([quand, ouverture, question, reponse], i) => ({ id: `e${i + 1}`, quand, ouverture, question, reponse }));
-export const OCCASIONS_DU_COACH = ['victoire', 'defaite', 'raclee', 'serieDefaites', 'blanchissage', 'derniereChance'];
+const ECHANGES = ECHANGES_BRUTS.map(([quand, ouverture, question, reponse], i) => ({ id: `e${i + 1}`, quand, ouverture, question, reponse }));
 
 /* ======================================================================
    LES TIRAGES — purs, sans `hasard()` : même contexte, même graine, même pièce.
@@ -1087,22 +1085,22 @@ export function courrielsDe(contexte, graineDuJeu, n = 2) {
 }
 
 /**
- * Le dilemme du jour : une entrée de `DILEMMES` (la forme de `MOMENTS`) et sa clé, ou null.
- * contexte : { moment, etat: [], deja: [clés] }. Les gabarits {nom}, {n} et {m} restent à remplir
- * par l'écran, comme pour les dilemmes de js/sim.js.
+ * Les dilemmes sont des entrées de `MOMENTS` (js/sim.js) : `momentDuJour` les tire parmi les autres aux
+ * journées des moments, et `faits` ne les laisse sortir que quand leur moment de saison et leur état d'équipe
+ * sont vrais. `c` est ce que `faitsAvant` (js/saison.js) lit sur tes matchs : la journée `J` sur `N`, la
+ * série de victoires `serieV` et la série de défaites `serieD`. L'état « plafond » et « blessés » ne se lisent
+ * pas encore : un dilemme qui ne dit que cela ne sort pas.
  */
-export function dilemmeDe(contexte, graineDuJeu) {
-  const c = contexte || {};
-  const pool = Object.entries(DILEMMES)
-    .filter(([cle, d]) => d.quand.includes(c.moment) && sontLa(d.etat, c) && !dejaVu(c, cle))
-    .map(([cle, d]) => ({ cle, d, k: rang(graineDuJeu, c, cle) + priorite(d, c) }))
-    .sort((a, b) => a.k - b.k);
-  return pool.length ? { cle: pool[0].cle, ...pool[0].d } : null;
-}
+const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'decembre', f >= 0.45 && f < 0.72 && 'echeance', f >= 0.6 && 'mars'].filter(Boolean);
+const etatVrai = (e, c) => (e === 'sequence' ? c.serieV >= 3 : e === 'panne' ? c.serieD >= 3 : false);
+export const MOMENTS_VIE = Object.fromEntries(Object.entries(DILEMMES).map(([cle, d]) => {
+  const { quand, etat, ...entree } = d;
+  return [`vie_${cle}`, { ...entree, faits: c => (c.N > 0 && momentsOuverts(c.J / c.N).some(m => quand.includes(m)) && (!etat.length || etat.some(e => etatVrai(e, c))) ? {} : null) }];
+}));
 
 /**
  * L'échange d'après-match : { id, ouverture, question, reponse } (gabarits remplis), ou null.
- * contexte : { occasion, eq, autre, deja: [ids] } — `occasion` est l'une de `OCCASIONS_DU_COACH`.
+ * contexte : { occasion, eq, autre, deja: [ids] } — `occasion` : victoire, defaite, raclee, serieDefaites, blanchissage ou derniereChance.
  */
 export function echangeDe(contexte, graineDuJeu) {
   const c = contexte || {};
