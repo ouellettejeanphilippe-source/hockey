@@ -109,3 +109,11 @@ Les ajouts de la refonte, étape 4 : un joueur monte de palier, un trio s'assort
 - [ ] **Ajouter · Les événements de chaque coach.** Le blanchissage de la Tortue, la bagarre générale du Rhino, la vedette qui veut plus de glace du Showman… en fenêtre, au dé. — `js/sim.js (MOMENTS)` — preuve : `check_choix`
 - [ ] **Ajouter · Les paquets suivent les voies.** Paquet du coach, paquet de badges, paquet de combat, paquet mystère. — `js/packs.js` — preuve : `check_packs`
 - [ ] **Ajouter · La difficulté se choisit.** Au départ de la run : un mandat du proprio plus dur contre plus d'écussons, comme la Chaleur de Hades. — `js/rogue.js (MANDATS)` — preuve : `check_rogue`
+
+## Pour reprendre
+
+- **Où on en est (3 oct.).** La refonte de `docs/refonte-systeme.md` a fait son étape 1 : les badges à paliers (Bronze → Platine), dans le moteur et à l'écran (docs/decisions.md, « Les badges à paliers »). Rien de cette feuille n'est encore coché. Tout est sur la branche `ccr-341c8eb7-deny7e`, PR #134.
+- **La suite proposée.** V2.0 d'abord (réparer), puis V2.1 (une langue), puis l'étape 2 de la refonte (V2.3 : les systèmes lisent les badges).
+- **Les réponses de JP** sur le coach, les adjoints, les gardiens, monter un palier et la difficulté : `docs/refonte-systeme.md`, § 10.
+- **Le détail de chaque mécanique et de chaque accroc** : `docs/carte-des-rouages.md` (la carte complète, en Markdown).
+- **Avant de pousser**, comme toujours : `node scripts/tout.mjs`, puis `SMOKE_GRAINE=7 node scripts/smoke.mjs`, puis `essai_rogue.mjs` si le Rogue est touché ; un seul navigateur à la fois.

@@ -4,6 +4,7 @@
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
 - `refonte-systeme.md` — la refonte des cartes, des badges et des coachs : l'idée, les étapes, et les réponses de JP.
+- `carte-des-rouages.md` — toutes les mécaniques et leurs liens, vues du bord du joueur, et les 118 accrocs (lus dans le code le 3 oct.).
 - `feuille-de-route-v2.md` — la V2 en six jalons et 56 items (réparer, supprimer, améliorer, attacher ensemble, ajouter), tirés de la carte des rouages.
 - `plan-historique.md` — « Fait » et les trois « À faire » de PLAN.md d'avant 1.0.
 - `journal/` — le journal par sprint : les sections S78 à S80 de CLAUDE.md et PLAN.md, et les rangées du journal de PLAN.md classées par le sprint qu'elles nomment (`avant-S78.md` : celles qui n'en nomment aucun).
