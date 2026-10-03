@@ -2309,7 +2309,7 @@ async function traverserSaison(etiquette, reprise = false) {
         else {
           await _click(`#choixModal .tc[data-choix="${deck}"]`);
           // L'amélioration (S80) va droit à l'inventaire : pas de deuxième choix, le hub revient.
-          await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case), #hubModal .hub-jour', { timeout: 120000 });
+          await _wait('#choixModal:not([hidden]) :is(.choix-option, .aln-case), #hubModal .hub-jour, #hubModal .hub-traiter', { timeout: 120000 });
           await page.waitForTimeout(300);
           const ouvert = !!(await page.$('#choixModal:not([hidden]) .choix-sheet'));
           const suite = ouvert ? ((await page.textContent('#choixModal .choix-titre')) || '').trim() : 'gardée dans l\'inventaire';
