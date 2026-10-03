@@ -4844,7 +4844,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
-    injuriesLog: [],         // { player, games, at }
+    injuriesLog: [],         // { player, games, at, jour, avant (la photo des cases ce soir-là) }
     journal: [],             // un match par entrée : { n, adv, gf, ga, ot, win } — de quoi raconter la saison
     luck: gauss() * LUCK_SEASON,   // retirée sous la graine par simulateLeague
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, games: 0,
@@ -5099,7 +5099,8 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
-      team.injuriesLog.push({ player: p, games: n, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null });
+      // `avant` : l'alignement du soir où il s'est blessé (sa case d'avant, pour son retour — `retourDuBlesse`, js/ballottage.js). Aucun hasard.
+      team.injuriesLog.push({ player: p, games: n, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null, avant: photoAlignement(team.roster) });
       if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, instant: instantDeBlessure(feuille, p, team) });
     }
   }

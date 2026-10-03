@@ -72,7 +72,7 @@ const versMarche = async quoi => {
   await page.click(`#pageMarcheCorps [data-marche="${quoi}"]`);
 };
 const erreurs = [];
-page.on('pageerror', e => erreurs.push(e.message));
+page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.message); });
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
 const choix = async (sel = '.choix-option:not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 /*
@@ -550,7 +550,7 @@ let posee = null, nomModif = '';
   if (!nModifs) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
   let permis = 0, grises = 0;
   for (let k = 0; k < nModifs && !permis; k++) {
-    if (!(await page.$('#pageMarche .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+    if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
     const jouer = (await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])'))[k];
     if (!jouer) break;
     nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.bq-nom') || {}).textContent || '').trim());
@@ -585,7 +585,7 @@ let posee = null, nomModif = '';
     console.log(`7a. « ${nomModif} » posée au verso de ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
   }
 }
-if (!(await page.$('#pageMarche .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
 /*
  * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
  * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
@@ -596,19 +596,19 @@ if (!(await page.$('#pageMarche .hub-page[data-genre="cartes"]'))) { await versM
 const avantJouees = (await decisions()).filter(x => x.joue).length;
 let jouee = false, essais = 0;
 for (; essais < 5 && !jouee; essais++) {
-  if (!(await page.$('#pageMarche .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
   const boutons = await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-carte:not(.bq-joueur) .inv-jouer:not([disabled])');
   if (!boutons[essais]) break;
   await boutons[essais].click();
   await page.waitForTimeout(600);
   await regler();
-  await page.waitForSelector(BUREAU, { timeout: 120000 }).catch(() => {});
+  await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 120000 }).catch(() => {});
   d = await decisions();
   jouee = d.filter(x => x.joue).length > avantJouees;
   // REVENIR OÙ L'ON ÉTAIT (1.0, oct.) : une carte jouée rouvre « Tes cartes », pas le bureau.
-  if (jouee && !(await page.$('#pageMarche .hub-page[data-genre="cartes"]'))) erreurs.push('une carte jouée ramène au bureau au lieu de « Tes cartes »');
+  if (jouee && !(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) erreurs.push('une carte jouée ramène au bureau au lieu de « Tes cartes », au Marché');
 }
-if (await page.$('#pageMarche .hub-page[data-genre="cartes"]')) await page.click('#pageMarche .hub-page-retour');
+if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')) await page.click('#pageMarche .hub-page-retour');
 d = await decisions();
 console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
 // Une modif posée au verso (7a) est déjà une carte jouée : le Rogue paie moins (S80), et l'inventaire
@@ -682,7 +682,10 @@ for (let i = 0; i < 200; i++) {
   const j = await page.$('#hubModal .hub-jour');
   if (j && await j.isVisible()) { await j.click(); await page.waitForTimeout(400); }
 }
-await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first().waitFor({ timeout: 120000 });
+await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first().waitFor({ timeout: 120000 }).catch(async e => {
+  console.log('DIAG', await page.evaluate(() => ({ sec: document.body.dataset.section, page: document.body.dataset.page, hub: (document.getElementById('hubModal').innerText || '').slice(0, 600), choix: (document.getElementById('choixModal') || {}).hidden })));
+  throw e;
+});
 // Ce qui reste à régler avant le bilan (un palier, un sommaire).
 await regler();
 // Prendre le dernier palier peut mener tout droit au bilan : on ne touche « Voir le bilan » que s'il est là.
