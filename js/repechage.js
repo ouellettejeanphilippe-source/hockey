@@ -724,7 +724,7 @@ async function vestiaireAuHasard(deja) {
  *
  * En VESTIAIRE (le jeu d'origine) : une saison et une équipe au hasard ;
  * `newSeason` et `newTeam` disent ce qu'une relance garde — « autre année »
- * change la saison et l'équipe, « autre équipe » garde la saison. Le club
+ * change la saison mais garde l'équipe, « autre équipe » change l'équipe mais garde la saison. Le club
  * doit avoir au moins un joueur plaçable ; le budget, c'est aux relances et
  * à la bande de secours de s'en occuper, comme avant.
  *

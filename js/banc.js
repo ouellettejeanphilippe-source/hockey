@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { compterFeuilles, planDe, roulementDe, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, badgesDe, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { compterFeuilles, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, badgesDe, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -86,14 +86,13 @@ function ouvrirBanc(jour) {
   const derniere = (L.decisions || [])[L.decisions.length - 1] || {};
   /*
    * LES RÉGLAGES EN VIGUEUR SE LISENT SUR L'ÉQUIPE, jamais sur la dernière
-   * décision : celle-ci peut être une CARTE, qui ne porte ni fermeture, ni
-   * plan, ni roulement — et le banc remettrait alors tout à « auto » en
+   * décision : celle-ci peut être une CARTE, qui ne porte ni fermeture ni
+   * roulement — et le banc remettrait alors tout à « auto » en
    * écrivant sa décision, donc effacerait un choix en silence.
    */
   G.banc = {
     jour, compte, blesses, remplace, monte, prochain, fiche, N: L.calendrier.length,
     fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
-    plan: planDe(L.you), roulement: roulementDe(L.you),
     // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
     lignes: lignesDe(L.you, G.roster),
     chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
@@ -551,24 +550,11 @@ export function renderBanc() {
       <div class="banc-ligne"><b>Chaque ligne joue un système</b> : il demande un rôle par case, et le fit plafonne la chimie. La chimie monte en jouant ensemble et ne se perd pas ; un nouveau venu bâtit son entente avec ses coéquipiers. Une ligne soudée joue son système plus souvent.</div>
       <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
     </details>
-    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios, ce plan et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
+    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
   // MES LIGNES, derrière le banc (S68) : elles se règlent sous chaque trio
   // depuis S78 (`rangeeStrategie`, en fenêtre depuis 1.0), et partent avec la décision du banc au
   // « Retour au match ».
-  /*
-   * UN SEUL ÉCOUTEUR, DÉLÉGUÉ, et il est reposé à chaque rendu parce que
-   * `innerHTML` vient de jeter les anciens boutons : brancher chaque bouton
-   * un par un en laisserait un derrière au premier réglage qu'on ajoute.
-   */
-  host.querySelectorAll('.banc-seg-btn').forEach(btn => {
-    btn.onclick = () => {
-      const champ = btn.dataset.champ;
-      if (!G.banc || G.banc[champ] === btn.dataset.cle) return;
-      G.banc[champ] = btn.dataset.cle;
-      renderBanc();
-    };
-  });
 }
 
 /*

@@ -300,7 +300,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
       const g = groupeDe(x.p);
       const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', getPlayerKey(x.p), x.rar, x.num || 0));
       return {
-        // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec l'éclat d'une holo).
+        // S80 : son niveau ordonne aussi le retournement (le Phénomène en dernier, avec son éclat propre).
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
         art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
         carteJoueur: miniAvecVariante(x.p, x.rar),
