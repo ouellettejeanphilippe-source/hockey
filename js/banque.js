@@ -33,6 +33,7 @@ import { CARTES, MUTATIONS, motsDEffet, motsDeMutation, EDITIONS_REGLEMENT, TACT
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
+import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME } from './coachs.js';
 
 export const CATEGORIES = {
@@ -301,6 +302,7 @@ export const EVENEMENTS = {
   etoiles: { nom: 'La semaine du match des étoiles', ico: '🤩', rarete: 'peu', duree: 5, texte: 'Tes vedettes reviennent de la fête avec un trophée et des cernes.', effet: { F: [1.1, 1.03, 0.97, 0.9], finition: 1.02, energie: 1.04 } },
   policiers: { nom: 'Le retour des policiers', ico: '👮', rarete: 'peu', duree: 8, texte: 'Deux durs rappelés du club-école : plus personne ne touche aux vedettes.', effet: { robustesse: 0.7, discipline: 1.1 } },
   code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.88, robustesse: -0.2 } },
+  ...EVENEMENTS_VIE,
 };
 
 /* ---------- LES CONSOMMABLES : une utilisation ---------- */
