@@ -2107,7 +2107,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
     let run = 0, sens = null, debut = 0;
-    const fermerRun = () => { if (run >= 5) ev.push({ j: debut, t: sens ? `🔥 ${run} victoires de suite` : `🥶 ${run} défaites de suite` }); };
+    const fermerRun = () => { if (run >= 5) ev.push({ j: debut, t: sens ? `📈 ${run} victoires de suite` : `🥶 ${run} défaites de suite` }); };
     for (const { j, m } of miens) { const v = gagne(m, you); if (v === sens) run++; else { fermerRun(); sens = v; run = 1; debut = j; } }
     fermerRun();
     if (!ev.length) return '';

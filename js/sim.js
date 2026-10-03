@@ -1197,7 +1197,7 @@ export const ROULEMENTS = {
     robustesse: -0.9, blessure: 1.30,
   },
   profond: {
-    nom: 'Banc profond', ico: '🛡️',
+    nom: 'Banc profond', ico: '🔋',
     bon: 'Des jambes fraîches, et moins de blessures', prix: 'Tes meilleurs jouent moins',
     F: [0.92, 0.97, 1.05, 1.16], D: [0.94, 1.00, 1.11],
     robustesse: 0.9, blessure: 0.82,
@@ -2888,7 +2888,7 @@ export const SEQUENCES = {
     ],
   },
   victoires: {
-    ico: '🔥', titre: 'Quatre victoires de suite', seuil: 4,
+    ico: '📈', titre: 'Quatre victoires de suite', seuil: 4,
     recit: 'Tout roule. Ton premier trio ne rate plus rien.',
     options: [
       { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.3 },
@@ -2924,7 +2924,7 @@ export const OBJECTIFS = {
     mesure: m => m.reduce((a, x) => a + x.contre, 0), cible: 58, sens: -1, unite: 'buts contre' },
   attaque: { ico: '🎯', nom: 'Marque 64 buts ou plus en 20 matchs', court: '64 BP ou plus',
     mesure: m => m.reduce((a, x) => a + x.pour, 0), cible: 64, sens: 1, unite: 'buts pour' },
-  sequence: { ico: '🔥', nom: 'Aligne 4 victoires de suite', court: '4 victoires de suite',
+  sequence: { ico: '📈', nom: 'Aligne 4 victoires de suite', court: '4 victoires de suite',
     mesure: m => { let b = 0, c = 0; for (const x of m) { c = x.v ? c + 1 : 0; b = Math.max(b, c); } return b; }, cible: 4, sens: 1, unite: 'de suite' },
   vedette: { ico: '⭐', nom: 'Un de tes joueurs fait 21 points en 20 matchs', court: 'Un joueur à 21 points',
     mesure: m => { const pts = new Map(); for (const x of m) for (const b of x.buts || []) for (const p of [b.marqueur, ...(b.passeurs || [])]) if (p) pts.set(p, (pts.get(p) || 0) + 1); return Math.max(0, ...pts.values()); }, cible: 21, sens: 1, unite: 'points' },
@@ -7793,7 +7793,7 @@ export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
   nemesis: { ico: '😤', nom: 'Rivalité', mot: 'il t\'a déjà battu deux fois' },
 };
-export const ELAN = { nom: 'La lancée', ico: '🔥', finition: 1.03, duree: 3 };
+export const ELAN = { nom: 'La lancée', ico: '⬆️', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
 /*
  * LE GROS MATCH, repéré AVANT d'être joué (S70) : le moteur doit savoir

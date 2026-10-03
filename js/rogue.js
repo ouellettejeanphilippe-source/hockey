@@ -84,7 +84,7 @@ export const DEBLOCAGES = {
   // S80 : le barème d'une run (`baremeRogue`) — 5 🪙 par victoire sans commanditaire.
   commanditaire1: { ico: '📺', nom: 'Un commanditaire', prix: 60, texte: '+3 🪙 par victoire : 8 au lieu de 5, à chaque saison de la run.' },
   commanditaire2: { ico: '📺', nom: 'Le commanditaire principal', prix: 150, requis: 'commanditaire1', texte: '+2 🪙 de plus par victoire : 10.' },
-  packDefenseurs: { ico: '🛡️', nom: 'Le pack Défensif', prix: 35, texte: 'La boutique vend le pack Défensif : quatre joueurs au meilleur différentiel de leur saison.' },
+  packDefenseurs: { ico: '❄️', nom: 'Le pack Défensif', prix: 35, texte: 'La boutique vend le pack Défensif : quatre joueurs au meilleur différentiel de leur saison.' },
   packGardiens: { ico: '🥅', nom: 'Le pack Gardiens', prix: 50, texte: 'La boutique vend le pack Gardiens : quatre partants au meilleur pourcentage d\'arrêts.' },
   packAnnees80: { ico: '📼', nom: 'Le pack années 80', prix: 60, texte: 'La boutique vend le pack des années 80, l\'époque des 400 buts par saison.' },
   packVedettes: { ico: '🌟', nom: 'Les packs Étoiles et Légendes', prix: 150, texte: 'La boutique vend les packs Étoiles et Légendes : les meilleurs de leur saison.' },
