@@ -1838,7 +1838,7 @@ export function bilanAgressivite(agr, ph) {
  * séries. Déterministe : la même graine rejoue la même saison.
  */
 export const PALIERS = [null,
-  { cle: 'bronze', nom: 'Bronze' }, { cle: 'argent', nom: 'Argent' }, { cle: 'or', nom: 'Or' }, { cle: 'platine', nom: 'Platine' }];
+  { cle: 'bronze', nom: 'Bronze', ico: '●' }, { cle: 'argent', nom: 'Argent', ico: '●' }, { cle: 'or', nom: 'Or', ico: '●' }, { cle: 'platine', nom: 'Platine', ico: '●' }];
 export const SEUILS_PALIER = { F: [78, 92, 98], D: [76, 89, 98] };
 const BADGE_SECOND_MIN = 60;
 const BADGE_LIGUE = {

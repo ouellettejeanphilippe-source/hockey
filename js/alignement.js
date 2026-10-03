@@ -199,7 +199,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   const [pp, r2] = badgesDe(p);
   const a = pp || p.p !== 'G' ? null : getArchetype(p, getHiddenRatings(p));
   // Le badge ET son palier (refonte 1) : un bagarreur Platine se lit comme tel, même à « Soutien ».
-  const mot = pp ? PALIERS[pp.palier].nom : '';
+  const mot = pp ? PALIERS[pp.palier].ico : '';
   // SON SECOND BADGE AUSSI (1.0, R3) : il rend la moitié du sien, la case le dit.
   const second = r2 ? `<span class="cell-role-2 badge pal-${r2.palier}" title="${esc(titreDuBadge(r2))}">${r2.ico} ${esc(r2.court || r2.nom)}</span>` : '';
   const role = pp

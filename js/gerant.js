@@ -169,7 +169,7 @@ export function sesRolesHtml(p) {
   const badges = new Map(badgesDe(p).map(b => [b.cle, b]));
   return `<div class="ses-roles">${liste.map(([k, x]) => {
     const R = PROFILS[g][k], b = badges.get(k);
-    if (b) return `<span class="ses-role premier pal-${b.palier}" title="${esc(titreDuBadge(b))}">${R.ico} ${esc(R.nom)} <b>${PALIERS[b.palier].nom}</b></span>`;
+    if (b) return `<span class="ses-role premier pal-${b.palier}" title="${esc(titreDuBadge(b))}">${R.ico} ${esc(R.nom)} <b class="pal-${b.palier}">${PALIERS[b.palier].ico}</b></span>`;
     return `<span class="ses-role${x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${motDuFit(x)}</b></span>`;
   }).join('')}</div>`;
 }
