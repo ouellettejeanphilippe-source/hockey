@@ -143,14 +143,6 @@ export function saisonDesFeuilles(calendrier) {
   }
   return out;
 }
-/*
- * LA PAGE OÙ L'ON ÉTAIT (1.0, oct.). JP : *quand j'utilise une carte ou
- * qqchose de même, me ramener où j'étais, pas à l'accueil du club, ça gosse
- * revenir faire d'autres cartes*. Une décision prise depuis « Tes cartes » ou
- * la boutique ferme l'écran de saison, qui se rouvre avec elle ; il rouvre
- * alors la même page. Le temps de la page seulement.
- */
-let ROUVRIR = null;
 function boiteDe(graine) {
   const k = String(graine);
   if (!BOITES.has(k)) BOITES.set(k, { lus: new Set(), archives: new Set(), traites: new Set(), ouvert: null });
@@ -211,12 +203,13 @@ function coquille(label) {
   if (sheet) sheet.setAttribute('aria-label', label);
   /*
    * LES PAGES DU CLUB (1.0, R3). JP : *j'hais le nouveau club ; au lieu de modals, faire des pages pour chaque, et
-   * les icônes sont un lien*. Le dépistage, la préparation, le sommaire, tes cartes et la boutique ne s'ouvrent plus
+   * les icônes sont un lien*. Le dépistage, la préparation et le sommaire ne s'ouvrent plus
    * en fenêtre par-dessus le bureau : chacun est une PAGE de la feuille, avec « ‹ » pour revenir au bureau. La page
    * vit à côté de l'affiche et du volet (`.hub-page`, montrée par `data-page` sur la feuille) : elle survit aux
    * rendus de l'affiche, et se referme d'elle-même quand la saison repart (`quitter`) ou qu'une autre page s'ouvre.
-   * Un écran qui rend dans une fenêtre (js/gerant.js, js/magasin.js, js/inventaire.js) rend dans son corps :
-   * `dans` et `fermer` lui disent où, et comment se refermer.
+   * Un écran qui rend dans une fenêtre (js/gerant.js) rend dans son corps :
+   * `dans` et `fermer` lui disent où, et comment se refermer. La boutique et « Tes cartes » n'en sont PAS : elles vivent
+   * au Marché (js/game.js), jamais dans cette feuille.
    */
   let pageOuverte = null;
   const fermerPage = (silencieux = false) => {
@@ -225,8 +218,6 @@ function coquille(label) {
     pageOuverte = null;
     el.remove();
     if (sheet) delete sheet.dataset.page;
-    // La coquille (js/game.js) sait quelle page du Club s'ouvre ou se ferme : la boutique est au Marché.
-    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre: null, de: el.dataset.genre, silencieux } }));
     if (!silencieux && onFerme) onFerme();
     return true;
   };
@@ -247,7 +238,6 @@ function coquille(label) {
     sheet.dataset.page = genre;
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
-    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre } }));
     el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermerPage(); });
     return el.querySelector('.hub-page-corps');
   };
@@ -2363,15 +2353,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return voletJournee();
   });
   /*
-   * LE MARCHÉ (1.0, R1 ; v2) : la boutique du jour et tes cartes, de la section Marché de la coquille — leur
-   * seule porte depuis que la rangée de liens du bureau est partie. Chacune dans sa page du Club (1.0, R3) :
-   * `dans` dit où rendre, `fermer` comment revenir au bureau ; ses décisions passent par le même chemin.
+   * LE MARCHÉ (1.0, R1 ; v2) : la boutique du jour et tes cartes vivent dans la section Marché de la coquille
+   * (js/game.js), JAMAIS dans la feuille du Club. Ici, seulement ce que le Marché demande à l'écran de saison :
+   * `page` = { dans, fermer } dit où rendre ; les décisions (un achat, une carte jouée) passent par le même
+   * chemin que toutes les autres, et le Marché se redessine seul quand l'écran se rouvre.
    */
-  const decideDuMarche = page => d => { const j = jour; ROUVRIR = page; quitter(); onDecision(d, j); };
-  if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, decideDuMarche('cartes'),
-    { dans: ui.ouvrirPage({ genre: 'cartes', ico: '🎒', titre: 'Tes cartes', sousTitre: ctx.boutique ? `🪙 ${ctx.boutique.jetons(jour)} jetons` : '' }), fermer: () => ui.fermerPage(true) });
-  if (onDecision && ctx.boutique) tabs.hub.boutique = () => ctx.boutique.ouvrir(jour, decideDuMarche('boutique'),
-    { dans: ui.ouvrirPage({ genre: 'boutique', ico: '🛒', titre: 'La boutique', sousTitre: `🪙 ${ctx.boutique.jetons(jour)} jetons` }), fermer: () => ui.fermerPage(true) });
+  const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
+  if (onDecision && ctx.inventaire) tabs.hub.cartes = page => ctx.inventaire.ouvrir(jour, decideDuMarche, page);
+  if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
+  // UN JOUEUR À SIGNER (un pack ouvert, personne de signé) se traite au Marché : le Marché demande s'il y en a un, et le rouvre.
+  if (onDecision && ctx.boutique && ctx.boutique.rouvrir) {
+    const enAttente = () => messagesCourants().find(m => m.genre === 'pack') || null;
+    tabs.hub.signature = () => !!enAttente();
+    tabs.hub.signer = () => { const m = enAttente(); if (m) ctx.boutique.rouvrir(m.achat, jour, decideDuMarche); };
+  }
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*
@@ -2743,8 +2738,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       /*
        * PLUS DE RANGÉE DE LIENS (v2). JP : *enlever les boutons qui se dédoublent dans l'accueil club*. Chaque
        * lien de l'ancienne rangée (1.0, R3) avait déjà sa porte : le dépistage et la préparation sont les étapes
-       * 1 et 2 du soir, la boîte un sous-onglet du Club, le classement et les meneurs la Ligue, tes cartes et la
-       * boutique le Marché (son badge compte les cartes à jouer). L'affiche garde les étapes, hier, le prochain match.
+       * 1 et 2 du soir, la boîte un sous-onglet du Club, le classement et les meneurs la Ligue. Le badge du
+       * Marché compte les cartes à jouer. L'affiche garde les étapes, hier, le prochain match.
        */
       /*
        * LA JOURNÉE EN DEUX (1.0, R3). JP : *séparer le résumé du dernier match et le prochain match, quitte à
@@ -3021,24 +3016,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * ne choisit pas n'est pas une pige (voir S54 et `smoke.mjs`).
      */
     /*
-     * UN PACK OUVERT, PERSONNE DE SIGNÉ (1.0, J1-B) : l'achat est enregistré
-     * (`k:n`), la signature manque (`k:n:signe`) — la page a été rechargée en
-     * plein choix. Le même tirage se rouvre ; rien n'est retiré ni repayé.
+     * UNE SIGNATURE QUI ATTEND (1.0, J1-B ; oct.) : un pack ouvert, personne de signé — l'achat est enregistré
+     * (`k:n`), la signature manque (`k:n:signe`). JP : *rien de la boutique dans club/accueil*. Le Club nomme
+     * ce qui bloque (un pack ouvert attend ta signature) sans rendre la boutique : son bouton mène au Marché, où l'offre se rouvre (le même
+     * tirage ; rien n'est retiré ni repayé). Elle bloque toujours la journée suivante, comme tout message à traiter,
+     * mais attend jusqu'à la fin de la journée : on gère son équipe d'abord (JP : *permettre jusqu'à la fin de la journée
+     * de choisir le joueur*).
      */
     const packOuvert = onDecision && ctx.boutique && ctx.boutique.rouvrir
       ? decs.find(d => d && d.achat && d.achat.sorte === 'joueurs' && !d.achat.scelle && typeof d.palier === 'string' && /^k:\d+$/.test(d.palier) && !pris.has(`${d.palier}:signe`)) || null
       : null;
     if (packOuvert) {
-      /*
-       * JUSQU'À LA FIN DE LA JOURNÉE (1.0, oct.). JP : *permettre jusqu'à la fin
-       * de la journée de choisir le joueur (mettre dans boîte), pour permettre
-       * gestion de l'équipe*. Refermer le pack ne passe plus : l'offre attend
-       * ici, on gère son équipe, et seule la journée suivante exige un choix.
-       */
-      out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert : signe un joueur, ou passe', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
-        corps: `<div class="hub-msg-mot">Ses cartes sont au classeur. L'offre t'attend jusqu'à la fin de la journée : gère ton équipe, puis signe un joueur ou passe.</div>
+      out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert attend ta signature', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
+        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. Gère ton équipe d'abord : seule la journée suivante exige un choix.</div>
           <div class="hub-alerte-choix">
-            <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Voir les joueurs</button>
+            <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Aller au Marché</button>
             <button type="button" class="btn hub-pack-passer">Ne signer personne</button>
           </div>` });
     }
@@ -3274,7 +3266,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');
     const rouvrirPack = actions.querySelector('.hub-pack-rouvrir');
-    if (rouvrirPack && mPack) rouvrirPack.onclick = () => ctx.boutique.rouvrir(mPack.achat, jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    // La signature se traite au Marché (js/game.js écoute `cap82:marche` : il y va, et rouvre l'offre).
+    if (rouvrirPack && mPack) rouvrirPack.onclick = () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { signer: true } }));
     const passerPack = actions.querySelector('.hub-pack-passer');
     if (passerPack && mPack) passerPack.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: mPack.palierSigne, signe: false }, j); };
     // LE BALLOTTAGE, en plein écran : trois joueurs en CARTES (S76), ou garder son réserviste.
@@ -3472,8 +3465,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   document.body.style.overflow = 'hidden';
   dessiner();
   tabs.montrer('journee');
-  // Revenir où l'on était : la page d'où la décision est partie, par-dessus le bureau.
-  if (ROUVRIR) { const page = ROUVRIR; ROUVRIR = null; if (tabs.hub[page]) tabs.hub[page](); }
   // LA TROISIÈME PÉRIODE (S70) : le choix de l'entracte vient d'être pris.
   if (suiteEntracte) {
     const se = suiteEntracte, p = prochain();

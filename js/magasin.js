@@ -45,7 +45,7 @@ function niveauxHtml(cle, mods = {}) {
       ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ouvre les Étoiles et les Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
 }
 export function ouvrirMagasin(ctx) {
-  // Dans une page du Club (1.0, R3 : `ctx.dans`, `ctx.fermer`) ou dans sa fenêtre.
+  // Dans une page du Marché (`ctx.dans`, `ctx.fermer`, js/game.js) ou dans sa fenêtre.
   const m = ctx.dans || $('magasinModal');
   if (!m) return;
   const rabaisDe = cle => (ctx.mods.rabais || 1) * (ctx.duJour && ctx.duJour.pack === cle ? ctx.duJour.rabais : 1);
@@ -211,7 +211,8 @@ export function ouvrirMagasin(ctx) {
     d.querySelector('.pk-acheter').onclick = () => { if (!peut) return; fermer(true); ctx.acheterClub(o.cle, o.prix); };
   };
   const fermer = (silencieux = false) => {
-    if (ctx.dans) { if (ctx.fermer) ctx.fermer(); }
+    // Dans une page, seul un geste de fermeture la ferme : un achat laisse la boutique en place (js/game.js, `remplirMarche`).
+    if (ctx.dans) { if (ctx.fermer && !silencieux) ctx.fermer(); }
     else { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); }
     if (!silencieux && ctx.onFerme) ctx.onFerme();
   };

@@ -57,7 +57,7 @@ export function renderJetons() {
   const lignes = [...pl.lignes.map(l => `${l.nom} ${l.montant > 0 ? '+' : '−'}${money(Math.abs(l.montant))}`),
     ...[...pl.facteurs].map(([k, f]) => `${(signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien'} : ${Math.round(f * 100)} % de son salaire`),
     ...[...pl.ltir].map(k => `${(signes().find(p => getPlayerKey(p) === k) || {}).n || 'Un ancien'} : blessé à long terme${pl.blesses.has(k) ? ' (hors plafond)' : ''}`)];
-  g.title = `Plafond de la run : ${money(pl.cap)}${lignes.length ? ` — ${lignes.join(' · ')}` : ''}. Masse : ${money(used)}. Jetons : ${jetonsRogue()} 🪙 (la boutique du bureau vend des packs).`;
+  g.title = `Plafond de la run : ${money(pl.cap)}${lignes.length ? ` — ${lignes.join(' · ')}` : ''}. Masse : ${money(used)}. Jetons : ${jetonsRogue()} 🪙.`;
   $('capFill').style.width = Math.min(100, Math.max(0, (used / pl.cap) * 100)) + '%';
   $('capFill').classList.toggle('over', rem < 0);
   $('capFill').classList.toggle('tight', rem >= 0 && rem < 3_000_000);
@@ -159,7 +159,7 @@ function packsOuvertsBoutique(j = 0) {
     return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » au vestiaire des déblocages`];
   }));
 }
-export function ouvrirBoutique(j, decider, page = null) {
+export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
   const n = decs.filter(d => d.achat || d.rogue).length;
   ouvrirMagasin({
@@ -178,7 +178,7 @@ export function ouvrirBoutique(j, decider, page = null) {
       const P = PACKS_TOUS[cle];
       if (scelle) {
         decider({ jour: j, palier: `k:${n}`, achat: { pack: cle, n, prix, sorte: P.sorte, params, scelle: true } });
-        toast(`${P.ico} ${P.nom} : scellé, il t'attend dans la boutique (« Tes packs »).`);
+        toast(`${P.ico} ${P.nom} : scellé, à ouvrir quand tu veux.`);
         return;
       }
       const suite = P.sorte === 'cartes' ? ouvrirPackCartes(cle, prix, j, n, decider, params) : ouvrirPackJoueurs(cle, prix, params, j, n, decider);
@@ -328,7 +328,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
       // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
       quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onChoix: signer, onFerme: offrir });
     },
-    // « Plus tard » : rien ne s'écrit, l'offre reste dans la boîte (`packOuvert`, js/saison.js).
+    // « Plus tard » : rien ne s'écrit, l'offre attend au Marché et dans la boîte (`packOuvert`, js/saison.js).
     onFerme: () => {},
   });
   offrir();
@@ -842,7 +842,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null) {
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
-  toast(`${motDuVestiaire(V)}${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1).mot}. Lance la saison quand tu veux : la boutique t'attend au bureau.`);
+  toast(`${motDuVestiaire(V)}${noms.length ? `, avec ${noms.join(', ')}` : ''}. Le proprio veut : ${mandatDe(1).mot}. Lance la saison quand tu veux.`);
 }
 /*
  * LE PLAFOND D'UNE SAISON DE LA RUN : 82 M$, plus ce que le vestiaire a
