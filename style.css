@@ -2682,11 +2682,11 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
-.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
-/* Le chandail en dégradé : la couleur du club fond vers sa seconde couleur, côté glace. C'est elle qui donne
-   l'orange aux NHL Stars, dont l'aplat est noir. */
-.hub-eq { --degrade: var(--eq-band) 38%, color-mix(in srgb, var(--eq-stripe) 78%, var(--eq-band)) 100%; display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); background: linear-gradient(100deg, var(--degrade)); color: var(--eq-ink); }
-.hub-eq.b { align-items: flex-end; text-align: right; background: linear-gradient(-100deg, var(--degrade)); }
+.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-band) 0%, color-mix(in srgb, var(--a-band) 70%, var(--a-stripe)) 22%, color-mix(in srgb, var(--b-band) 70%, var(--b-stripe)) 78%, var(--b-band) 100%); }
+/* Le duel en un seul dégradé : les couleurs du premier club fondent vers celles du second, le VS au milieu.
+   La seconde couleur de chaque club donne l'orange aux NHL Stars, dont l'aplat est noir. */
+.hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); color: var(--eq-ink); }
+.hub-eq.b { align-items: flex-end; text-align: right; }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
 .hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2700,7 +2700,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .forme-p.v { color: var(--bon); }
 .forme-p.d { color: var(--mauvais); }
 .forme-p.dp { color: var(--attention); }
-.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: radial-gradient(closest-side, var(--noir) 55%, transparent); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
+.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: radial-gradient(closest-side, color-mix(in srgb, var(--noir) 55%, transparent), transparent); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
 .hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
