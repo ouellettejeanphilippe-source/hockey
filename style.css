@@ -2293,10 +2293,9 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-role { flex: 1 1 auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; min-width: 0; font-size: var(--t-3); line-height: 1; white-space: nowrap; overflow: hidden; }
 .cell-role > span { flex: 0 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Son second rôle, s'il en a un (1.0, R3) : plus petit, après le premier. */
-.cell-role-2 { flex: 0 1 auto; min-width: 0; font: 600 var(--t-1)/1.1 var(--display); color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Le palier suit le nom de son badge (« Sniper »), avant le second badge.
    Le badge et son nom ne se séparent pas au retour à la ligne. */
-.cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 4px; min-width: 0; }
+.cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-width: 0; }
 /* LE PALIER D'UN BADGE (refonte 1) : barre colorée sous l'icône via currentColor du pal-*. */
 .cell-badge > i.badge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: none; color: var(--pal); }
 .cell-badge > i.badge::after { content: ""; width: 8px; height: 8px; background: var(--pal); box-shadow: 0 0 0 1px color-mix(in srgb, var(--noir) 45%, transparent); }
@@ -2698,14 +2697,14 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-eq-nom .lien-equipe { color: inherit; max-width: 100%; }
 .hub-eq-fiche { max-width: 100%; margin-top: var(--esp-1); font: 700 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* La forme : cinq lettres colorées sur une bande sombre, lisibles sur n'importe quel club. */
-.hub-eq-forme { align-self: stretch; margin: var(--esp-2) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-3)); padding: var(--esp-1) var(--esp-3); background: color-mix(in srgb, var(--noir) 45%, transparent); }
+.hub-eq-forme { align-self: stretch; margin: auto calc(-1 * var(--esp-3)) calc(-1 * var(--esp-3)); padding: var(--esp-2) var(--esp-3) var(--esp-1); background: color-mix(in srgb, var(--noir) 45%, transparent); }
 .forme { display: inline-flex; gap: var(--esp-2); }
 .hub-eq.b .forme { justify-content: flex-end; }
 .forme-p { flex: none; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .forme-p.v { color: var(--bon); }
 .forme-p.d { color: var(--mauvais); }
 .forme-p.dp { color: var(--attention); }
-.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: radial-gradient(closest-side, color-mix(in srgb, var(--noir) 55%, transparent), transparent); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
+.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: linear-gradient(to top, color-mix(in srgb, var(--noir) 45%, transparent) calc(var(--esp-2) + var(--esp-1) + 1.2 * var(--t-2)), transparent 0); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
 .hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
