@@ -46,6 +46,8 @@ import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
+import { panelDe } from './panel-tv.js';
+import { momentDeSaison, courrielsDe, echangeDe } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -944,8 +946,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const { m } of recents) for (const b of (m.feuille ? m.feuille.buts : [])) if (b.cote === coteDe(m) && b.marqueur) butsRecents.set(b.marqueur, (butsRecents.get(b.marqueur) || 0) + 1);
     const habilles = g => SLOTS.filter(s => !s.scratch && s.group === g).map(s => you.roster[s.i]).filter(Boolean);
     const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
+    let serieD = 0;
+    for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m, you); i--) serieD++;
     return {
-      J, dernier, serieV, recents: recents.length,
+      J, N, dernier, serieV, serieD, recents: recents.length,
       joueurs: habilles('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
       veteransD: habilles('D').filter(p => age(p) >= 33).sort((a, b) => age(b) - age(a)),
     };
@@ -1838,11 +1842,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
       corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
     }
+    const seq = sequenceDe(you);
+    const panel = panelDe({ eq: ctx.teamShort(you), jour, nbJours: calendrier.length, sequence: seq === '—' ? undefined : seq, rang: rangDe(you), nbEquipes: teams.length }, `${graine}|${jour}`);
     const une = uneDuJour();
+    if (panel.repliques[0]) une.push(`${panel.repliques[0].nom}, ${panel.repliques[0].titre} : ${panel.repliques[0].t}`);
     if (une.length) corps += `<ul class="passage-une">${une.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul>`;
     // Le fil des autres résultats du soir, deux fois de suite pour qu'il défile sans couture.
     const autres = matchs.filter(m => m.A !== you && m.B !== you)
-      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('');
+      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('') + panel.manchettes.map(x => `<span class="passage-score">${ctx.esc(x)}</span>`).join('');
     const el = document.createElement('div');
     el.className = 'passage';
     el.setAttribute('aria-hidden', 'true');
@@ -2750,7 +2757,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
       const affiche = `<div class="hub-match-titre">Match ${miens.length + 1} · ${quand} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
-        <div class="hub-face">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
+        <div class="hub-face" style="--a-band:${ctx.band(p.m.A.tag).bg};--a-stripe:${ctx.band(p.m.A.tag).stripe};--b-band:${ctx.band(p.m.B.tag).bg};--b-stripe:${ctx.band(p.m.B.tag).stripe}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         ${forcesHtml(adv)}
         <div class="hub-match-note">${dernierMot}</div>
         ${totauxHtml}
@@ -3157,6 +3164,28 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (nRap >= RAPPORT_CHAQUE) {
       out.push({ id: `r:${nRap}`, genre: 'rapport', de: DE.depisteur, sujet: `Rapport après ${nRap} matchs : forces et faiblesses`,
         corps: `${rapportHtml()}${onBanc ? '<button class="btn hub-rap-banc">Revoir mes lignes</button>' : ''}` });
+    }
+    /*
+     * LA VIE DU DG (js/vie-gm.js) : un courriel aux deux jours, qui ne bloque rien, et le point de presse du
+     * dernier match. Le tirage se lit sur la graine et la journée ; un courriel déjà lu un autre jour ne revient pas.
+     */
+    if (miens.length) {
+      const seq = sequenceDe(you), nSeq = Number(seq.slice(1));
+      const p = prochain(), adv = p ? (p.m.A === you ? p.m.B : p.m.A) : null;
+      const vu = [...boite.lus].filter(id => /^v:\d+:/.test(id) && Number(id.split(':')[1]) < jour).map(id => id.split(':').slice(2).join(':'));
+      const c = { moment: momentDeSaison(jour, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja: vu };
+      if (jour % 2 === 0) {
+        for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
+          out.push({ id: `v:${jour}:${x.id}`, genre: 'courriel', bloque: false, de: x.de, sujet: x.sujet, corps: `<div class="hub-msg-mot">${ctx.esc(x.corps)}</div>` });
+        }
+      }
+      const dm = miens[miens.length - 1].m, pour = dm.A === you ? dm.gfA : dm.gfB, contre = dm.A === you ? dm.gfB : dm.gfA;
+      const occasion = nSeq >= 3 && seq[0] === 'D' ? 'serieDefaites' : contre === 0 ? 'blanchissage' : contre - pour >= 4 ? 'raclee' : pour > contre ? 'victoire' : 'defaite';
+      const e = echangeDe({ occasion, eq: c.eq, autre: c.autre }, `${graine}|${miens.length}`);
+      if (e) {
+        out.push({ id: `v:p:${miens.length}`, genre: 'courriel', bloque: false, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match : le point de presse',
+          corps: `<div class="hub-msg-mot">${ctx.esc(e.ouverture)}</div><div class="hub-msg-mot">« ${ctx.esc(e.question)} »</div><div class="hub-msg-mot">${ctx.esc(e.reponse)}</div>` });
+      }
     }
     return out.filter(m => m.bloque || !boite.archives.has(m.id));
   }

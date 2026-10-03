@@ -1763,7 +1763,7 @@ async function traverserSaison(etiquette, reprise = false) {
     const teteAvantBanc = apres;
     // L'onglet Alignement mène derrière le banc (S78 : le bouton « Le banc » faisait doublon).
     await aller('alignement');
-    await page.waitForSelector('#bancPanel:not([hidden])', { timeout: 5000 });
+    await page.waitForSelector('#bancPanel:not([hidden])', { timeout: 5000, state: 'attached' });
     await page.waitForTimeout(300);
     /*
      * C'EST L'ÉCRAN QUE JP A SIGNALÉ, et le garde-fou est posé dessus.
@@ -1772,9 +1772,8 @@ async function traverserSaison(etiquette, reprise = false) {
      * grandissait à 1497 px sous une fenêtre de 844, coupé sans défilement.
      */
     await toutEstAtteignable('derrière le banc');
-    const banc = (await page.textContent('#bancPanel')).replace(/\s+/g, ' ').trim();
-    const ficheBanc = (banc.match(/(\d+-\d+-\d+)/) || [])[1];
-    if (!ficheBanc || !teteAvantBanc.includes(ficheBanc)) errors.push(`le banc ne dit pas la fiche de l'écran de saison : « ${banc.slice(0, 80)} »`);
+    // Le banc ne porte plus de texte : la journée et la fiche sont dans l'en-tête du club.
+    if ((await page.textContent('#bancPanel')).replace(/\s+/g, ' ').trim() !== 'Retour au match') errors.push('le banc porte du texte : seuls les joueurs et « Retour au match » restent');
     // LA CASE LISIBLE (S78) : la ligne de faits a sa classe, `.slot-faits` —
     // la case n'a plus qu'une ligne de méta, on ne la cherche plus par rang.
     const metas = await page.$$eval('.slot', els => els.filter(e => e.querySelector('.slot-name')).map(e => e.querySelector('.slot-faits')?.textContent.trim() || ''));

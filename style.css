@@ -2226,7 +2226,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* ---- La case : le bandeau du club, le nom, le rôle et son mot, le niveau et la zone, le chiffre clé, les jambes ---- */
 .slot {
   position: relative; display: flex; flex-direction: column; min-height: 106px;
-  border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--slot-fond, var(--fond-2));
+  border: 1px solid var(--filet); border-radius: var(--r-1); background: linear-gradient(100deg, color-mix(in srgb, var(--slot-band, transparent) 34%, var(--fond-2)), var(--slot-fond, var(--fond-2)) 78%);
   overflow: hidden; cursor: pointer;
   transition: border-color var(--t-vite), transform var(--t-vite), background var(--t-vite);
 }
@@ -2261,7 +2261,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Le bandeau du club : le poste, l'écusson, le salaire, aux couleurs posées en ligne par js/. */
 .slot-band {
   display: flex; align-items: center; gap: var(--esp-1); min-height: 24px; padding: 2px var(--esp-2);
-  background: var(--slot-band, var(--club)); color: var(--slot-ink, var(--club-encre)); box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--club-2));
+  background: linear-gradient(160deg, var(--slot-band, var(--club)), color-mix(in srgb, var(--slot-band, var(--club)) 72%, var(--slot-stripe, var(--club-2)))); color: var(--slot-ink, var(--club-encre)); box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--club-2));
   font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; overflow: hidden;
 }
 .slot-band.off { background: var(--fond-3); color: var(--encre-2); box-shadow: inset 0 -2px 0 var(--filet); }
@@ -2348,32 +2348,7 @@ i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
 #game.banc #paneRoster { display: flex; flex-direction: column; overflow-y: auto; }
 #game.banc #paneRoster .roster { flex: 0 0 auto; min-height: auto; overflow: visible; }
 #game.banc #bancRetour { display: none; }
-.banc { margin-bottom: var(--esp-3); padding: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-left: 3px solid var(--or); }
-.banc-tete { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-3); }
-.banc-titre { font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.banc-jour { margin-left: var(--esp-2); font: 600 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
-.banc-fiche { font: 800 var(--t-5)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
-.banc-ligne { margin-top: var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
-.banc-reste { color: var(--encre-3); font-variant-numeric: tabular-nums; }
-.banc-ereintant { color: var(--or); font-weight: 700; }
-.banc-aide b { color: var(--encre); }
-/* Le pourquoi se déplie : un résumé de 44 px, la flèche tourne. */
-.banc-plus { margin-top: var(--esp-1); }
-.banc-plus > summary { display: inline-flex; align-items: center; gap: var(--esp-2); min-height: 44px; list-style: none; cursor: pointer; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-.banc-plus > summary::-webkit-details-marker { display: none; }
-.banc-plus > summary::after { content: '▾'; transition: transform var(--t-vite); }
-.banc-plus[open] > summary::after { transform: rotate(180deg); }
-.banc-plus > summary:hover { color: var(--or); }
-.banc-plus .banc-ligne { margin-top: 2px; }
-.banc-effets .gl-sec-titre { display: none; }
-.ef-boite { max-height: 50vh; overflow: auto; margin-top: var(--esp-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
-.ef-table { border-collapse: collapse; font-size: var(--t-1); white-space: nowrap; }
-.ef-table th { position: sticky; top: 0; background: var(--fond-1); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); text-align: left; padding: var(--esp-1) var(--esp-2); }
-.ef-table td { padding: var(--esp-1) var(--esp-2); border-top: 1px solid var(--filet-2); vertical-align: middle; }
-.ef-table .ef-n { text-align: right; font-variant-numeric: tabular-nums; }
-.ef-table .ef-case { color: var(--encre-3); }
-.ef-table .ef-nom span { display: block; color: var(--encre-3); font-size: var(--t-1); }
-.banc-effets .gl-effets { margin: var(--esp-1) 0 0; border-top: 0; padding-top: 0; }
+.banc { margin-bottom: var(--esp-3); }
 .banc-retour { width: 100%; margin-top: var(--esp-3); }
 
 /* ---- La fenêtre du système et « Préparer le match » (#lignesModal .gl-sheet) ---- */
@@ -2707,11 +2682,11 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
-.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; }
-/* Les bandes du chandail : deux rayures de la seconde couleur au bord du bandeau, côté glace. C'est elles qui donnent
-   l'orange aux NHL Stars, dont l'aplat est noir. */
-.hub-eq { --rayures: var(--eq-band) 0 calc(100% - 46px), var(--eq-stripe) calc(100% - 46px) calc(100% - 38px), var(--eq-band) calc(100% - 38px) calc(100% - 30px), var(--eq-stripe) calc(100% - 30px) calc(100% - 22px), var(--eq-band) calc(100% - 22px); display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); background: linear-gradient(100deg, var(--rayures)); color: var(--eq-ink); }
-.hub-eq.b { align-items: flex-end; text-align: right; background: linear-gradient(-80deg, var(--rayures)); }
+.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-band) 0%, color-mix(in srgb, var(--a-band) 70%, var(--a-stripe)) 22%, color-mix(in srgb, var(--b-band) 70%, var(--b-stripe)) 78%, var(--b-band) 100%); }
+/* Le duel en un seul dégradé : les couleurs du premier club fondent vers celles du second, le VS au milieu.
+   La seconde couleur de chaque club donne l'orange aux NHL Stars, dont l'aplat est noir. */
+.hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); color: var(--eq-ink); }
+.hub-eq.b { align-items: flex-end; text-align: right; }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
 .hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2725,7 +2700,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .forme-p.v { color: var(--bon); }
 .forme-p.d { color: var(--mauvais); }
 .forme-p.dp { color: var(--attention); }
-.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: var(--noir); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
+.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); background: radial-gradient(closest-side, color-mix(in srgb, var(--noir) 55%, transparent), transparent); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
 .hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
@@ -3412,6 +3387,9 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .sommaire { font-size: var(--t-2); }
 .som-ot { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .som-lignes { margin-bottom: var(--esp-4); border-top: 1px solid var(--filet); }
+.som-plateau { margin-bottom: var(--esp-4); }
+.som-plateau p { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.som-plateau .som-plateau-titre { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre); }
 .som-decide { margin-bottom: var(--esp-4); }
 .som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--esp-3); align-items: center; min-height: 48px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); }
@@ -4174,6 +4152,7 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .series-row > span:last-child { min-width: 28px; text-align: right; font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .series-row.win > span:last-child { color: var(--or); }
 .serie-recit { padding: var(--esp-2) var(--esp-3) 0; border-top: 1px solid var(--filet-2); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.serie-bulletin { margin: 0; padding: var(--esp-1) var(--esp-3) 0; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-3); }
 .serie-games { display: flex; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); overflow-x: auto; scroll-snap-type: x proximity; scrollbar-width: thin; }
 
 /* ---- Une carte de match : le bandeau dit ce qu'on regarde (or : décisif, rose : prolongation) ---- */

@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { compterFeuilles, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, badgesDe, MUTATIONS, systemeDe, SLOTS, getPersonKey, effetsEnCours, soirEreintant, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { compterFeuilles, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -12,14 +12,13 @@ import { CARTES_MATCH } from './combat.js';
 import { BANQUE, palierAllume, coachsActifs } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs } from './ballottage.js';
-import { money, esc, pct3 } from './util.js';
+import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
-import { effetsHtml } from './gerant.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
-import { $, G, MODE, positionLabel, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
-import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, pastilleNiveau, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
+import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
+import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
 import { bloqueParLePlafond, cartesAJouer, finDeSaisonRogue, jetonsRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
@@ -485,72 +484,17 @@ async function choisirCarte(palier, jour, cle, depuis = jour) {
   toast(`${CARTES[cle].ico} ${CARTES[cle].nom} : pour le reste de la saison.`);
 }
 
-/*
- * L'EFFECTIF À CE JOUR (1.0, oct.). JP : *plus d'information dans page
- * lineup* — les stats de la saison à ce jour, le salaire et le niveau, le
- * rôle et la position. Les cases restent lisibles d'un coup d'oeil ; le
- * détail se déplie ici, une rangée par joueur, dans l'ordre de l'alignement.
- * Rien que des vraies stats (les feuilles RÉVÉLÉES, `G.banc.compte`) et des
- * rangs : jamais une cote.
+/**
+ * Le panneau du banc : rien que le retour. Le texte d'en-tête (la journée, la fiche, le prochain match,
+ * l'infirmerie, l'aide) a été retiré : l'alignement garde les joueurs, et l'en-tête du club dit déjà la journée et la fiche.
  */
-function effectifHtml(b) {
-  const pct = (a, n) => (n ? pct3(a / n) : '—');
-  const rangee = (s, p) => {
-    const c = b.compte.get(p) || {};
-    const pp = p.p === 'G' ? null : badgesDe(p)[0];
-    const bl = b.blesses.has(p) ? ` <span class="banc-reste">🩹 ${b.blesses.get(p)}</span>` : '';
-    const tete = `<td class="ef-case">${esc(slotShort(s))}</td><td class="ef-nom"><b>${esc(p.n)}</b>${bl}<span>${esc(positionLabel(p))} · ${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : esc(p.t)}</span></td><td>${pastilleNiveau(p)}</td><td class="ef-n">${money(capHitDuJour(p))}</td>`;
-    if (p.p === 'G') return `<tr>${tete}<td class="ef-n">${c.gp || 0}</td><td class="ef-n" colspan="2">${c.w || 0}-${c.l || 0}</td><td class="ef-n" colspan="2">${pct(c.sv || 0, c.sa || 0)}</td><td class="ef-n" colspan="2">${c.gp ? ((c.ga || 0) / c.gp).toFixed(2).replace('.', ',') : '—'}</td></tr>`;
-    return `<tr>${tete}<td class="ef-n">${c.gp || 0}</td><td class="ef-n">${c.g || 0}</td><td class="ef-n">${c.a || 0}</td><td class="ef-n">${c.pts || 0}</td><td class="ef-n">${(c.pm || 0) > 0 ? '+' : ''}${c.pm || 0}</td><td class="ef-n">${c.sh || 0}</td><td class="ef-n">${c.pim || 0}</td></tr>`;
-  };
-  const rangees = SLOTS.filter(s => G.roster[s.i]).map(s => rangee(s, G.roster[s.i])).join('');
-  return `<details class="banc-plus banc-effectif"><summary>L'effectif à ce jour</summary>
-    <div class="ef-boite"><table class="ef-table">
-      <thead><tr><th>Case</th><th>Joueur</th><th>Niveau</th><th>Salaire</th><th title="Matchs joués">PJ</th><th>B</th><th>A</th><th>PTS</th><th>+/-</th><th title="Lancers">L</th><th title="Minutes de punition">PUN</th></tr></thead>
-      <tbody>${rangees}</tbody>
-    </table></div>
-    <div class="banc-ligne banc-aide">Un gardien : PJ, V-D, % d'arrêts et moyenne.</div>
-  </details>`;
-}
-
-/** Le panneau du banc : la journée, la fiche, le prochain match, les blessés, la consigne. */
 export function renderBanc() {
   const host = $('bancPanel');
   if (!host) return;
   const b = G.banc;
   host.hidden = !b;
   if (!b) return;
-  const L = G.ligue;
-  const adv = b.prochain ? L.teams.find(t => t === b.prochain.adv) || b.prochain.adv : null;
-  const blesses = [...b.blesses].map(([p, reste]) => `${esc(p.n)} <span class="banc-reste">${reste} match${reste > 1 ? 's' : ''}</span>`);
-  /*
-   * UN ÉCRAN, PAS DEUX (S78). « Tes lignes » et son bouton « Mes lignes »
-   * répétaient en icônes ce que chaque trio dit maintenant sous ses cases, et
-   * « pour l'instant, le 3e trio » répétait le 🔒 Fermeture du trio. Ce qui
-   * reste ici est ce que l'alignement ne dit pas : la journée, la fiche, le
-   * prochain match, l'infirmerie — et ce qui joue sur ta formation, replié,
-   * qui vivait dans la modale « Mes lignes » (JP, S72 : *les bonus et malus
-   * devraient être avec les stratégies*).
-   */
-  const toi = L && (L.teams || []).find(t => t.isPlayer);
-  const fx = toi ? { ...effetsEnCours(toi, b.jour), cartes: (L.decisions || []).filter(d => d.carte && d.jour <= b.jour).map(d => d.carte) } : null;
-  const nbFx = fx ? (fx.effets || []).length + (fx.trous || []).length + fx.cartes.length + (fx.absents || []).length + (fx.gardienAux ? 1 : 0) : 0;
-  const effets = nbFx ? `<details class="banc-plus banc-effets"><summary>Ce qui joue sur ta formation · ${nbFx}</summary>${effetsHtml(fx)}</details>` : '';
-  host.innerHTML = `
-    <div class="banc-tete">
-      <div class="banc-titre">Derrière le banc <span class="banc-jour">journée ${b.jour} sur ${b.N}</span></div>
-      <div class="banc-fiche" title="Ta fiche à ce jour : victoires, défaites, défaites en prolongation">${b.fiche.W}-${b.fiche.L}-${b.fiche.OTL}</div>
-    </div>
-    ${adv ? `<div class="banc-ligne">Prochain match · ${b.prochain.j === b.jour ? 'ce soir' : b.prochain.j === b.jour + 1 ? 'demain' : `dans ${b.prochain.j - b.jour} jours`} · ${getTeamLogoHtml(adv.tag, 16)} ${esc(teamLabel(adv))}${soirEreintant(b.prochain.j, L.you, adv) ? ' <span class="banc-ereintant" title="Un dos-à-dos est éreintant : la finition suit l\'écart de robustesse entre les deux clubs. Habille tes joueurs les plus robustes.">🥵 dos-à-dos</span>' : ''}</div>` : ''}
-    <div class="banc-ligne">${blesses.length ? `🩹 ${blesses.join(' · ')}` : 'Personne à l\'infirmerie.'}</div>
-    <div class="banc-ligne banc-aide">Déplace ou permute : le fit suit les joueurs. 🔒 : ton <b>trio de fermeture</b>.</div>
-    ${effets}
-    ${effectifHtml(b)}
-    <details class="banc-plus"><summary>Les lignes et le trio de fermeture</summary>
-      <div class="banc-ligne"><b>Chaque ligne joue un système</b> : il demande un rôle par case, et le fit plafonne la chimie. La chimie monte en jouant ensemble et ne se perd pas ; un nouveau venu bâtit son entente avec ses coéquipiers. Une ligne soudée joue son système plus souvent.</div>
-      <div class="banc-ligne"><b>Le trio de fermeture</b> prendra le premier trio adverse, surtout à domicile, où le dernier changement est à toi. Son blocage est celui de ses trois joueurs : désigner un trio ordinaire, c'est l'envoyer se faire marquer dessus.${b.fermeture === 'auto' ? ' Par défaut c\'est le 3e trio, comme chaque club de la ligue.' : ''}</div>
-    </details>
-    <button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
+  host.innerHTML = `<button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
   $('bancRetour').onclick = reprendreSaison;
   // MES LIGNES, derrière le banc (S68) : elles se règlent sous chaque trio
   // depuis S78 (`rangeeStrategie`, en fenêtre depuis 1.0), et partent avec la décision du banc au

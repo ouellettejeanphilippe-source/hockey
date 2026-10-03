@@ -13,6 +13,8 @@
 import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   ROULEMENTS, roulementDe } from './sim.js';
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide } from './recit.js';
+import { apresMatch } from './apres-match.js';
+import { panelDe } from './panel-tv.js';
 import { deck, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
 import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { nomDuClub, courtDuClub } from './club.js';
@@ -1178,9 +1180,13 @@ function serieHtml(s) {
   const rangee = (t, w, vain) => `<div class="series-row ${vain ? 'win' : 'lose'}">
     ${teamCell(t, 15)}<span>${w}</span></div>`;
   const matchs = s.feuilles.map((f, i) => matchCardHtml(s, f, i)).join('');
+  // Mené 3-1 puis gagnant : la feuille dit la série après chaque match, vue du club A.
+  const mene31 = s.feuilles.some(f => f.serie === (gagne ? '1-3' : '3-1'));
+  const { bulletin } = panelDe({ serie: { meneur: nomV, retard: nomP, wM: Math.max(s.wA, s.wB), wR: Math.min(s.wA, s.wB), joues: s.feuilles.length, ot: !!s.feuilles[s.feuilles.length - 1].ot, fini: true, remonte31: mene31 } }, `${s.i}|${nomV}|${nomP}`);
   return `<div class="series ${s.A.isPlayer || s.B.isPlayer ? 'you' : ''}" id="serie-${s.i}">
     ${rangee(s.A, s.wA, gagne)}${rangee(s.B, s.wB, !gagne)}
     <div class="serie-recit">${esc(recitDeSerie(Math.max(s.wA, s.wB), Math.min(s.wA, s.wB), nomV, nomP, s.feuilles))}</div>
+    ${bulletin ? `<div class="serie-bulletin">${esc(bulletin)}</div>` : ''}
     <div class="serie-games">${matchs}</div>
   </div>`;
 }
@@ -1352,6 +1358,8 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-ligne"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
+    ${(pm => (pm.lignes.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le plateau d'après-match</span></div><p class="som-plateau-titre">${esc(pm.titre)}</p>${pm.lignes.map(x => `<p>${esc(x)}</p>`).join('')}</div>` : ''))(
+      apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A' }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
     ${(d => (d.length ? `<div class="som-decide"><div class="som-per-head"><span>Ce qui a décidé</span></div><ul>${d.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''))(ceQuiADecide(f, teamShort(A), teamShort(B)))}
     ${parPeriode}
     <div class="som-per">
