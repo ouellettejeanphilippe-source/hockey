@@ -5581,6 +5581,8 @@ function appliquerAlignement(team, d) {
     // Un joueur libéré au ballottage n'est plus dans l'alignement courant,
     // mais la décision 0 le nomme encore : on le retrouve parmi les connus.
     const p = parCle.get(cle) || CONNUS.get(cle);
+    // Un connu qui entre en cours de saison (un pack signé) n'a pas encore de matchs : à zéro, comme une reprise le mettrait.
+    if (p && !parCle.has(cle) && p.simGP == null) initSimStats(p);
     if (p) team.roster[i] = p;
   }
 }

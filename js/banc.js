@@ -19,7 +19,7 @@ import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, positionLabel, alignementAuCartable, applyTeamColors, buildOpponents, capHitDuJour, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
-import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, pastilleNiveau, poserCartes, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
+import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, pastilleNiveau, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
 import { bloqueParLePlafond, cartesAJouer, finDeSaisonRogue, jetonsRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
@@ -235,8 +235,9 @@ async function continuerSaison(decisions, depuis, mot) {
   const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
   if (M && jourMin >= M.jour) {
     L.decisions = M.decisions = decisions;
-    // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79).
+    // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79), avec sa carte.
     poserAlignementDuJour(M);
+    poserCartesArrivees(decisions);
     G.done = true;
     ouvrirEcranSaison(depuis);
     saveGame();

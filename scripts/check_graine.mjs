@@ -435,6 +435,16 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
     const a = jouer(60), depuis60 = auDepart, b = jouer(0);
     dire(depuis60[0] === 0 && depuis60[1] === 0, `un joueur connu repart à zéro match à la création de la ligue (${depuis60.join(' matchs, ')} buts)`);
     dire(a === b, 'un joueur connu qui revient par une décision : la saison se rejoue pareil');
+    // Un joueur connu APRÈS la création de la ligue (un pack signé en saison) entre à zéro match, et les compte.
+    const teams = avec(); teams[0].isPlayer = true;
+    const d0 = { jour: 0, cases: photoAlignement(teams[0].roster) };
+    const L = creerLigue(teams, 82, { graine: 'connu-tard', decisions: [d0] });
+    jouerJusqua(L, 5);
+    const y = { ...x }; delete y.simGP; delete y.simG; y.n = `${x.n} (signé)`;
+    connaitre(y);
+    L.decisions.push({ jour: 5, cases: { ...d0.cases, [SLOTS.find(s => s.group === 'F' && !s.scratch).i]: getPlayerKey(y) } });
+    jouerJusqua(L, 25);
+    dire(Number.isFinite(y.simGP) && y.simGP > 0, `un joueur signé en saison compte ses matchs (${y.simGP})`);
   }
 }
 
