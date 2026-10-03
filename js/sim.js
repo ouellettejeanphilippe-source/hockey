@@ -5838,6 +5838,13 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
      */
     for (const p of CONNUS.values()) {
       if (!p) continue;
+      /*
+       * SES MATCHS AUSSI (1.0, oct.). Un joueur sorti de l'alignement (remplacé par une signature)
+       * revient par une décision datée d'avant : il gardait les `sim*` de la saison jouée avant la
+       * reprise, et `effetCarte` lit `simGP` (la recrue qui progresse après 41 matchs). Deux reprises
+       * de la même partie lui donnaient le bonus à des soirs différents — le passé bougeait (smoke, graine 7).
+       */
+      initSimStats(p);
       p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
       delete p._maitrise; delete p._adapt; delete p._situ;
       delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri;
