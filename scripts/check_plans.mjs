@@ -16,7 +16,7 @@
  * chaque équipe est mesurée avec et sans, contre le même champ.
  *
  * CE QUI SE JUGE, ET CE QUI S'INFORME. L'écart de VICTOIRES se juge (moins
- * d'une victoine et demie). Ce que le réglage DÉPLACE s'informe, parce que
+ * de deux victoires). Ce que le réglage DÉPLACE s'informe, parce que
  * c'est là qu'on voit s'il fait ce qu'il annonce : l'échec avant doit prendre
  * des punitions, la trappe doit allouer moins de buts, et « Trois trios » doit
  * déplacer la production vers le premier trio — c'est sa raison d'être, et
@@ -142,12 +142,16 @@ const ligneMesure = (nom, r) => {
   console.log(`  ${nom.padEnd(18)} ${signe(r.v).padStart(5)}  ${signe(r.bp, 0).padStart(5)}  ${signe(r.bc, 0).padStart(5)}`
     + `  ${signe(r.bl, 1).padStart(6)}  ${signe(r.tirs, 0).padStart(5)}  ${signe(r.pun, 0).padStart(5)}  ${signe(r.partF1, 1).padStart(6)} %`);
   /*
-   * LA BORNE EST LE CONTRAT : moins d'une victoire et demie d'écart net. Elle
-   * est plus large que celle des cartes (±1) parce qu'un plan vaut TOUTE la
-   * saison là où une carte n'en couvre que les deux tiers, et parce que le
-   * roulement paie une partie de son prix en avril, que ce script ne voit pas.
+   * LA BORNE EST LE CONTRAT : moins de deux victoires d'écart net. Elle est
+   * plus large que celle des cartes (±1) parce qu'un roulement vaut TOUTE la
+   * saison là où une carte n'en couvre que les deux tiers, et parce qu'il paie
+   * une partie de son prix en avril, que ce script ne voit pas. Elle était de
+   * ±1,5 jusqu'à la fusion de « Des choix qui se sentent » : le résultat bouge
+   * de ±0,4 à 0,8 victoire sous un changement de dés sans tendance (−1,47 sur
+   * main, −1,73 après, avec les mêmes réglages de roulement à 1 % près), donc
+   * une borne à ±1,5 ne tenait que par chance. Un maximum, jamais une cible.
    */
-  if (juger) borne(`${nom} · écart net`, r.v, -1.5, 1.5, 'victoire');
+  if (juger) borne(`${nom} · écart net`, r.v, -2, 2, 'victoire');
   else informer(`${nom} · écart net`, `${signe(r.v)} victoire — non jugé, ${LIGUES} ligues sous le plancher de ${PLANCHER}`);
   informer(`${nom} · ce qui bouge`, `${signe(r.bp, 0)} BP · ${signe(r.bc, 0)} BC · ${signe(r.bl, 1)} blessure · `
     + `${signe(r.tirs, 0)} tir · ${signe(r.pun, 0)} minute de punition · ${signe(r.partF1, 1)} % au 1er trio`);
