@@ -591,7 +591,7 @@ function routeHtml(jour, N, plus = {}, aJour = j => j) {
  */
 function blocEquipe(ctx, t, ligne, pos, forme = '') {
   const b = ctx.band(t.tag);
-  return `<div class="hub-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+  return `<div class="hub-eq ${pos}" style="--eq-ink:${b.duelInk}">
     <div class="hub-eq-band">${ctx.logo(t.tag, 26)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
     <div class="hub-eq-nom">${versEquipe(ctx, t, ctx.teamLabel(t))}</div>
     ${ligne ? `<div class="hub-eq-fiche">${ctx.esc(ligne)}</div>` : ''}
@@ -2746,7 +2746,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
       const affiche = `<div class="hub-match-titre">Match ${miens.length + 1} · ${quand} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
-        <div class="hub-face" style="--a-band:${ctx.band(p.m.A.tag).bg};--a-stripe:${ctx.band(p.m.A.tag).stripe};--b-band:${ctx.band(p.m.B.tag).bg};--b-stripe:${ctx.band(p.m.B.tag).stripe}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
+        <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
         ${forcesHtml(adv)}
         <div class="hub-match-note">${dernierMot}</div>
         ${totauxHtml}
