@@ -183,7 +183,9 @@ const N_LIGNES = 800;
 export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   if (!team) return [];
   const a = lire(team, lineup, adv, { lignes, n: N_LIGNES }), b = lire(team, lineup, adv, { lignes: contre, n: N_LIGNES });
-  return lignesDe(differences(a, b));
+  const d = differences(a, b), out = lignesDe(d);
+  if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure par match`, bon: d.usure < 0, cle: 'jambes' });
+  return out;
 }
 const surLigne = (lignes, u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : l));
 /** Un système sur la ligne `u` (`groupe` F : le trio, D : la paire), contre aucun système sur cette ligne : ce qu'il fait à CE club CE soir. */
@@ -199,16 +201,20 @@ export function agressiviteEnChiffres(team, lineup, adv, lignes, u, agr) {
 /* ---- le club qu'on lit ---- */
 
 let CLUB = null;
-/** Le club dont on lit les effets (g le lui donne) : `() => ({ team, lineup, adv })`, ou rien hors partie. */
+/** Le club dont on lit les effets (game.js le lui donne) : `() => ({ team, lineup, adv })`, ou `null` hors partie. */
 export function poserClubLu(f) { CLUB = f; }
+/** Le club lu en ce moment : `{ team, lineup, adv }`, ou `null`. */
+export const clubLu = () => (CLUB && CLUB()) || null;
 /**
  * Un effet dit pour le club courant, avec ses autres mots (le changement de carte, la durée) : le remplaçant
- * de `motsDEffet` partout où un joueur lit ce qu'un choix fait au match. Sans club, les mots d'avant.
- * `cadre` : { part, par } — une 3e période seulement, dite « en 3e ».
+ * de `motsDEffet` partout où un joueur lit ce qu'un choix fait au match. Sans club — ou si la lecture est
+ * impossible (un alignement trop vide au repêchage) —, les mots d'avant.
+ * `cadre` : { part, par, eux } — une 3e période seulement (« en 3e »), ou l'effet que l'adversaire reçoit.
  */
 export function motsEnChiffres(effet, duree = null, cadre = null) {
-  const c = CLUB && CLUB();
+  const c = clubLu();
   if (!c || !c.team || !effet) return motsDEffet(effet, duree);
-  const chiffres = effetEnChiffres(effet, c.team, c.lineup || null, c.adv || null, { duree, ...(cadre || {}) });
+  let chiffres;
+  try { chiffres = effetEnChiffres(effet, c.team, c.lineup || null, c.adv || null, { duree, ...(cadre || {}) }); } catch { return motsDEffet(effet, duree); }
   return [...chiffres, ...(effet.mutation ? motsDEffet({ mutation: effet.mutation }) : []), ...(duree ? motsDEffet({}, duree) : [])];
 }

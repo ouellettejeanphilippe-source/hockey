@@ -44,6 +44,7 @@ import { brancherInclinaison } from './cartes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
 import { MT, chargerTable } from './charge-table.js';
 import { ouvrirChoix, titreDuBadge, motDuBadge } from './gerant.js';
+import { poserClubLu } from './impact.js';
 import { hubActif, voletPour, surCoquille } from './coquille.js';
 import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';
@@ -2545,6 +2546,19 @@ async function demarrerPartie(r = {}) {
   render();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+/*
+ * LE CLUB QU'ON LIT (js/impact.js) : tout effet qu'un joueur lit à l'écran se dit en chiffres de match pour SON club.
+ * En saison, c'est le club de la ligue ; au repêchage, un club provisoire fait de l'alignement du moment.
+ */
+let clubProvisoire = null;
+poserClubLu(() => {
+  const toi = G.ligue && G.ligue.you;
+  if (toi) return { team: toi };
+  if (!Object.values(G.roster).some(Boolean)) return null;
+  if (!clubProvisoire || clubProvisoire.roster !== G.roster) clubProvisoire = createTeam(nomDuClub(), 'YOU', G.roster, { isPlayer: true });
+  return { team: clubProvisoire };
+});
 
 // `dev` : de quoi dresser une planche de cartes dans un script de capture (scripts/planche_cartes.mjs), rien de plus.
 window.cap82 = { G, cacheClear, simulate, portraitAbsent, dev: { playerCardEl, carteMiniHtml, getShard } };

@@ -10,8 +10,8 @@
  * — et trois familles neuves : les PATRONS (le personnel, des reliques), les
  * ÉVÉNEMENTS d'équipe et les CONSOMMABLES. Chaque carte a un identifiant
  * (\`cat:cle\`), une catégorie, une rareté, une durée de vie, et sa RÈGLE en
- * chiffres (\`reglesDe\`) : « Précision +3 % », « Blessures −35 % », jamais
- * « un peu ».
+ * chiffres de match (\`reglesDe\`) : « ≈ +0,2 but marqué par match », « ≈ −2 blessures
+ * par saison », jamais un pourcentage, jamais « un peu ».
  *
  * RIEN DE NEUF DANS LE MOTEUR, OU PRESQUE. Une carte jouée est une DÉCISION
  * (\`payloadDe\`) faite des champs que \`appliquerDecision\` connaît déjà :
@@ -29,7 +29,8 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, motsDEffet, motsDeMutation, EDITIONS_REGLEMENT, TACTIQUES } from './sim.js';
+import { CARTES, MUTATIONS, motsDeMutation, EDITIONS_REGLEMENT, TACTIQUES } from './sim.js';
+import { motsEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
@@ -576,7 +577,7 @@ export const momentDe = id => { const c = BANQUE[id]; return c && (c.rarete === 
 
 /*
  * LA RÈGLE EN CHIFFRES d'une carte : des mots \`{ txt, bon }\`, les mêmes que
- * partout (\`motsDEffet\`, \`motsDeMutation\`). Les cartes de match ont la leur
+ * partout (\`motsEnChiffres\`, \`motsDeMutation\`). Les cartes de match ont la leur
  * (\`optionDeCarteMatch\`, js/gerant.js) : l'écran la lit là.
  */
 export function reglesDe(id) {
@@ -584,7 +585,7 @@ export function reglesDe(id) {
   if (!c) return [];
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    const out = [...motsDEffet(P.effet || {})];
+    const out = [...motsEnChiffres(P.effet || {})];
     const e = P.econ || {};
     if (e.rabais) out.push({ txt: `Packs ${Math.round((e.rabais - 1) * 100)} %`, bon: true });
     if (e.jetonsVictoire) out.push({ txt: `+${e.jetonsVictoire} 🪙 par victoire`, bon: true });
@@ -592,14 +593,14 @@ export function reglesDe(id) {
     if (e.carteExtra) out.push({ txt: `Packs de joueurs : +${e.carteExtra} carte`, bon: true });
     if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
     if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });
-    if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsDEffet(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
+    if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsEnChiffres(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));
     out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
     return out;
   }
   if (c.cat === 'evenement') {
     const E = EVENEMENTS[c.cle];
-    const out = motsDEffet(E.effet || {}, E.duree);
+    const out = motsEnChiffres(E.effet || {}, E.duree);
     if (E.gestes) out.unshift(...motsDesGestes(E.gestes));
     if (E.gain) out.unshift({ txt: `+${E.gain} 🪙`, bon: true });
     if (E.echelle) out.push(motDEchelle(E.echelle, c.coach));
@@ -609,7 +610,7 @@ export function reglesDe(id) {
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     const out = [...motsDesGestes(C.gestes || {})];
-    if (C.effet) out.push(...motsDEffet(C.effet, C.duree));
+    if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
     if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
     if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
     if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true }, { txt: '🔗 Carte de trio : forte au début de la saison, elle plafonne (une ligne apprend son système en jouant)', bon: null });
@@ -627,33 +628,29 @@ export function reglesDe(id) {
     if (C.cout) out.push({ txt: `−${C.cout} 🪙`, bon: false });
     return out;
   }
-  if (c.cat === 'saison') return motsDEffet(CARTES[c.cle]);
+  if (c.cat === 'saison') return motsEnChiffres(CARTES[c.cle]);
   return [];
 }
 /*
- * UN PAS, EN MOTS : « Tirs +0,4 % », « Robustesse +0,15 ». Un pas s'AJOUTE à
- * l'effet (js/banque.js `grandi`) : ce n'est pas un multiplicateur, et il est
- * trop petit pour l'arrondi de `motsDEffet` — on garde son libellé (lu sur un
- * effet témoin) et on écrit le nombre à la main.
+ * UN PAS, EN MOTS. Un pas s'AJOUTE à l'effet (js/banque.js `grandi`) : ce qu'une carte de coach gagne avec chaque
+ * carte jouée, ou chaque joueur habillé, est trop petit pour se lire seul. On dit donc où elle arrive à son
+ * plafond, en chiffres de match : « jusqu'à ≈ +0,6 tir par match avec 10 cartes du Frelon jouées ».
  */
-const decimale = x => String(Math.round(x * 100) / 100).replace('.', ',');
-function motsDuPas(par = {}) {
-  return Object.entries(par).map(([k, v]) => {
-    const libelle = ((motsDEffet({ [k]: k === 'robustesse' ? 1 : 1.1 })[0] || {}).txt || k).replace(/\s*[+−±].*$/, '');
-    return k === 'robustesse' ? `${libelle} ${v >= 0 ? '+' : '−'}${decimale(Math.abs(v))}` : `${libelle} ${v >= 0 ? '+' : '−'}${decimale(Math.abs(v) * 100)} %`;
-  });
+function auPlafond(par = {}, max) {
+  const e = Object.fromEntries(Object.entries(par).map(([k, v]) => [k, k === 'robustesse' ? v * max : 1 + v * max]));
+  return motsEnChiffres(e).filter(m => m.cle !== 'rien').map(m => m.txt);
 }
-/* « Tirs +0,4 % par carte 🐝 du Frelon jouée (au plus 10) » : ce qu'une carte de coach gagne en grandissant. */
+/* « jusqu'à ≈ +0,6 tir par match avec 10 cartes 🐝 du Frelon jouées » : ce qu'une carte de coach gagne en grandissant. */
 function motDEchelle(E, coach) {
   const Ec = COACHS[coach] || { ico: '', nom: '' };
-  const pas = [...motsDuPas(E.par), ...(E.gain ? [`+${E.gain} 🪙`] : [])].join(', ');
-  return { txt: `${pas} par carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
+  const pas = [...auPlafond(E.par, E.max), ...(E.gain ? [`+${E.gain} 🪙 par carte`] : [])].join(', ');
+  return { txt: pas ? `Jusqu'à ${pas} avec ${E.max} cartes ${Ec.ico} ${Ec.de} jouées` : `Grandit avec chaque carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
 }
-/* « Précision +0,8 % par joueur de l'Aigle habillé (au plus 5) » : ce qu'une carte gagne de tes joueurs. */
+/* « jusqu'à ≈ +0,1 but marqué par match avec 5 joueurs de l'Aigle habillés » : ce qu'une carte gagne de tes joueurs. */
 function motDeJoueurs(J, coach) {
   const Ec = COACHS[coach] || { de: '' };
-  const pas = motsDuPas(J.par).join(', ');
-  return { txt: `${pas} par joueur ${Ec.de} habillé (au plus ${J.max})`, bon: true };
+  const pas = auPlafond(J.par, J.max).join(', ');
+  return { txt: pas ? `Jusqu'à ${pas} avec ${J.max} joueurs ${Ec.de} habillés` : `Grandit avec chaque joueur ${Ec.de} habillé (au plus ${J.max})`, bon: true };
 }
 function motsDesGestes(g) {
   const out = [];
@@ -824,7 +821,7 @@ export function reglesDePalier(cle, palier) {
   if (!P) return [];
   const { cle: _c, palier: _p, nom: _n, ico: _i, econ, ...canaux } = P;
   void _c; void _p; void _n; void _i;
-  const out = [...motsDEffet(canaux)];
+  const out = [...motsEnChiffres(canaux)];
   if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
