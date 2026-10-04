@@ -27,14 +27,14 @@
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
   profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motsDeMutation, motCourbe, chimieMax,
+  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite,
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
-import { motsEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres } from './impact.js';
+import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
@@ -298,7 +298,7 @@ export function ouvrirChoix(spec) {
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({
@@ -810,7 +810,7 @@ function effetsHtml(e) {
     const M = MUTATIONS[t.cle];
     if (!M) continue;
     const qui = t.p && t.p.n ? ` <small>· ${esc(t.p.n)}</small>` : '';
-    regle.push(ligne(`${M.ico} ${esc(M.nom)}${qui}`, motsDeMutation(t.cle), '<span class="puce neutre duree">la saison</span>'));
+    regle.push(ligne(`${M.ico} ${esc(M.nom)}${qui}`, motsDeMutationEnChiffres(t.cle, t.p, { deja: true }), '<span class="puce neutre duree">la saison</span>'));
   }
   for (const c of e.cartes || []) if (CARTES[c]) reste.push(ligne(`${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small>`, motsEnChiffres(canauxDe(CARTES[c])), '<span class="puce neutre duree">la saison</span>'));
   for (const a of e.absents || []) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">👥 ${esc(a.p.n)} <small>· au vestiaire</small></span><span class="choix-puces"><span class="puce neutre duree">${plur(a.reste, 'match')}</span></span></div>`);

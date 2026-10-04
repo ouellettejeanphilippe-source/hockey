@@ -59,7 +59,7 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || {}).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}` : '-'));
   return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
     team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, adv && [adv.name, adv.games],
-    opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null], opts.nu, opts.n, opts.series]);
+    opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null], opts.nu, opts.n, opts.series]);
 }
 function lire(team, lu, adv, opts) {
   const k = cle(team, lu, adv, opts), maintenant = Date.now(), vu = MEMOIRE.get(k);
@@ -205,13 +205,14 @@ export function agressiviteEnChiffres(team, lineup, adv, lignes, u, agr) {
  * choisirait. Le reste de ses mots (les rôles, le placement) ne sont pas des pourcentages : ils restent.
  */
 const CANAUX_MUTATION = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets', 'ombre', 'abri'];
-export function motsDeMutationEnChiffres(cle, joueur = null) {
+export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = {}) {
   const base = motsDeMutation(cle), M = MUTATIONS[cle], c = clubLu();
   if (!c || !c.team || !M || !CANAUX_MUTATION.some(k => M[k])) return base;
   let d;
   try {
-    const sans = lire(c.team, c.lineup || null, c.adv || null, { n: N_EFFET });
-    d = differences(lire(c.team, c.lineup || null, c.adv || null, { mutation: { cle, joueur }, n: N_EFFET }), sans);
+    // Une modif à poser : le soir avec elle contre sans. Une modif déjà posée (`deja`) : le soir tel qu'il est contre le même soir sans elle.
+    const L = o => lire(c.team, c.lineup || null, c.adv || null, { ...o, n: N_EFFET });
+    d = deja ? differences(L({}), L({ mutation: { cle, joueur, retirer: true } })) : differences(L({ mutation: { cle, joueur } }), L({}));
   } catch { return base; }
   const out = lignesDe(d);
   if (M.blessure) {

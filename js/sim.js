@@ -5480,13 +5480,26 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
  * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
  */
 const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte'];
-function poserMutationLue(team, lineup, { cle, joueur = null }) {
+function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false }) {
   const lu = lineup || activeLineup(team);
   const p = joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && sl.group === 'F' && sl.unit === 0 && sl.role === 'C').i];
   if (!p) return null;
   const photo = CHAMPS_MUTATION.map(k => [k, k in p, p[k] && typeof p[k] === 'object' ? (Array.isArray(p[k]) ? [...p[k]] : { ...p[k] }) : p[k]]);
   const mutations = team.mutations, avaitMutations = 'mutations' in team, nb = mutations ? mutations.length : 0;
-  appliquerMutation(team, p, cle, 0, 'lecture');
+  if (retirer) {
+    // Une modif déjà posée : on la retire le temps de la lecture (ses facteurs se divisent, ses profils se soustraient).
+    const M = MUTATIONS[cle];
+    if (M) {
+      const dans = M.source === 'amelioration' ? p._amel : p._mut;
+      for (const c of CANAUX_MUT) if (M[c] && dans && dans[c]) dans[c] /= M[c];
+      for (const [k, d] of Object.entries(M.profils || {})) if (p._mutProfils && k in p._mutProfils) p._mutProfils[k] -= d;
+      if (M.partout) delete p._partout;
+      if (M.enBas) delete p._enBas;
+      if (M.cran && p._cran) p._cran = Math.max(0, p._cran - M.cran);
+      if (M.ombre) delete p._ombre;
+      if (M.abri) delete p._abri;
+    }
+  } else appliquerMutation(team, p, cle, 0, 'lecture');
   return () => {
     for (const [k, avait, v] of photo) { if (avait) p[k] = v; else delete p[k]; }
     if (avaitMutations) { team.mutations = mutations; mutations.length = nb; } else delete team.mutations;

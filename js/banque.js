@@ -29,8 +29,8 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, motsDeMutation, EDITIONS_REGLEMENT, TACTIQUES } from './sim.js';
-import { motsEnChiffres } from './impact.js';
+import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, TACTIQUES } from './sim.js';
+import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
 import { money } from './util.js';
@@ -577,7 +577,7 @@ export const momentDe = id => { const c = BANQUE[id]; return c && (c.rarete === 
 
 /*
  * LA RÈGLE EN CHIFFRES d'une carte : des mots \`{ txt, bon }\`, les mêmes que
- * partout (\`motsEnChiffres\`, \`motsDeMutation\`). Les cartes de match ont la leur
+ * partout (\`motsEnChiffres\`, \`motsDeMutationEnChiffres\`). Les cartes de match ont la leur
  * (\`optionDeCarteMatch\`, js/gerant.js) : l'écran la lit là.
  */
 export function reglesDe(id) {
@@ -606,7 +606,7 @@ export function reglesDe(id) {
     if (E.echelle) out.push(motDEchelle(E.echelle, c.coach));
     return out;
   }
-  if (c.cat === 'joueur') return motsDeMutation(c.cle);
+  if (c.cat === 'joueur') return motsDeMutationEnChiffres(c.cle);
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     const out = [...motsDesGestes(C.gestes || {})];
