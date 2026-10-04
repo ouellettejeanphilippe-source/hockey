@@ -25,8 +25,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, playGame, feuilleVierge,
-  grainerHasard, activeLineup, profilMatch, coupsAttendus, CARTES } from '../js/sim.js';
-import { chiffresDuSoir, effetEnChiffres, motsDuSoir, systemeEnChiffres, agressiviteEnChiffres, motsEnChiffres, poserClubLu } from '../js/impact.js';
+  grainerHasard, activeLineup, profilMatch, coupsAttendus, CARTES, MUTATIONS } from '../js/sim.js';
+import { chiffresDuSoir, effetEnChiffres, motsDuSoir, systemeEnChiffres, agressiviteEnChiffres, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
+import { BANQUE, reglesDe } from '../js/banque.js';
+import { CARTES_MATCH } from '../js/combat.js';
+import { optionDeCarteMatch } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -172,6 +175,34 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   const sys = systemeEnChiffres(A, null, null, L, 0, 'F', 'echec');
   informer('un système de trio, à l\'écran', sys.map(m => m.txt).join(' · ') || '—');
   exiger('un système se dit en matchs', sys.every(m => !m.txt.includes('%')), sys.map(m => m.txt).join(' | '));
+}
+
+/* 3b. Tout ce que le joueur lit, pour un club : la banque entière et les cartes de match. Rien ne plante, rien ne dit un pourcentage d'effet. */
+{
+  const [A] = ligue(21, 1);
+  poserClubLu(() => ({ team: A }));
+  const t0 = Date.now();
+  // Ce qui reste en pourcentage n'est pas un effet de match : un prix, une chance de pari, un rabais, une maîtrise de système, un salaire.
+  const AUTRE = /Packs|Plafond|salaire|🪙|aîtrise|holo|🎲|de viser juste/;
+  const fautes = [];
+  let lues = 0;
+  for (const id of Object.keys(BANQUE)) {
+    try { for (const m of reglesDe(id)) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${id} : ${m.txt}`); } } catch (e) { fautes.push(`${id} : ${e.message}`); }
+  }
+  for (const k of Object.keys(CARTES_MATCH)) {
+    try { for (const m of optionDeCarteMatch(k).mots) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${k} : ${m.txt}`); } } catch (e) { fautes.push(`${k} : ${e.message}`); }
+  }
+  for (const k of Object.keys(MUTATIONS)) {
+    try { for (const m of motsDeMutationEnChiffres(k)) { lues++; if (/%/.test(m.txt)) fautes.push(`modif ${k} : ${m.txt}`); } } catch (e) { fautes.push(`modif ${k} : ${e.message}`); }
+  }
+  poserClubLu(null);
+  const champs = () => JSON.stringify([Object.values(A.roster).map(p => p && [p._mut, p._amel, p._mutProfils, p._mutCles, p._partout, p._cran, p._enBas, p._ombre, p._abri, p._carte]), A.mutations]);
+  const avant = champs();
+  poserClubLu(() => ({ team: A }));
+  for (const k of Object.keys(MUTATIONS)) { motsDeMutationEnChiffres(k); motsDeMutationEnChiffres(k, null, { deja: true }); }
+  poserClubLu(null);
+  exiger('lire une modif la pose le temps de la lecture, puis rend chaque joueur tel quel', champs() === avant, `${Object.keys(MUTATIONS).length} modifs lues deux fois`);
+  exiger('la banque, les cartes de match et les modifs, lues pour un club : aucun pourcentage d\'effet, aucune erreur', fautes.length === 0, fautes.slice(0, 4).join(' · ') || `${lues} lignes en ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 }
 
 /* 4. Lire ne change rien. */

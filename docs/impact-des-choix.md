@@ -537,3 +537,12 @@ node ../fmt.mjs ta | node ../fmt.mjs td   # les réglages comparés
 ```
 
 Variables du prototype : `TEMPO=1` allume le modèle, `TAU`, `KAPPA`, `KO` ses trois exposants, `SVR` et `SDR` ses constantes de centrage (`node protorun/probe.mjs` les remesure). `SEEDS=1000,1001,1002` règle les ligues. Le diff complet du prototype est de 21 lignes dans `proto/js/sim.js` (`diff js/sim.js proto/js/sim.js`).
+
+---
+
+## 10. Où en est le plan (étapes 0 et 1, faites)
+
+- **Étape 0** : `scripts/check_impact.mjs` (douze secondes) : la base de la ligue (28,2 tirs, 3,03 buts, 3,8 punitions, 22 mises en échec), le témoin exactement à zéro sur chaque colonne du profil, une carte mesurée en paires contre sa lecture. `COMPLET=1` : le tableau de chaque choix, en `informer`.
+- **Étape 1** : `js/impact.js`. `attenduDeCote` est sorti de `jouerCote` (le moteur et l'écran appellent la même fonction), et `lectureDuMatch` (js/sim.js) interroge `jouerCote` lui-même sous un hasard à part, en sommant la chance du lancer au lieu de tirer le but : le tirage ne dépend plus de `p`, donc deux lectures se comparent sans bruit. Le moteur ne bouge pas d'un dé (empreinte de deux ligues, 82 jours, avant et après : identique). `scripts/check_chiffres.mjs` (une minute) : les 48 niveaux du soir contre des milliers de vrais matchs, la différence de neuf effets contre l'écart mesuré en paires, la forme des mots, et lire ne change pas une journée.
+- **Ce qui se dit en chiffres de match** : les effets de canaux (cartes de saison, patrons, événements, dilemmes, consommables, coachs, consigne, cartes de match, leurs effets sur eux), les systèmes et l'agressivité (le soir joué avec ou sans), les synergies (`plein`), les modifs de joueur (posées le temps de la lecture), le total du soir, les conseils du dépistage. Une blessure se dit en blessures par saison (ou sur la durée du choix), l'usure en jambes par match, les minutes de trio en minutes de glace.
+- **Ce qui garde son pourcentage**, parce que ce n'est pas un effet de match : les prix et les rabais des packs, le plafond salarial, les chances (un pari, un dépistage, « viser juste »), la maîtrise d'un système, les variantes de carte (+3 %, +5 % : un bonus par joueur, sous le dixième de tir) et les situations du vestiaire (un effet par joueur).

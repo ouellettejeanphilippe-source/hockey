@@ -2091,8 +2091,8 @@ async function traverserSaison(etiquette, reprise = false) {
         const puces = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
         // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.
         if (!(await page.$('#hubModal .hub-page[data-genre="preparer"] .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
-        // En chiffres de match (js/impact.js) : « ≈ +0,2 but marqué par match », jamais un pourcentage.
-        if (!puces.some(t => /^≈ [+−][\d,]+ but marqué par match$/.test(t)) || puces.some(t => /%/.test(t))) errors.push(`l'importance haute ne dit pas son effet en chiffres de match : ${puces.join(' · ')}`);
+        // En chiffres de match (js/impact.js) : « ≈ +0,2 but marqué par match » ou « ≈ 1 but de plus tous les 25 matchs », jamais un pourcentage.
+        if (!puces.some(t => /^≈ ([+−][\d,]+|1) (but|tirs?)\b/.test(t)) || puces.some(t => /%/.test(t))) errors.push(`l'importance haute ne dit pas son effet en chiffres de match : ${puces.join(' · ')}`);
         // LES TOTAUX (C5) en tête, dits une fois, et recalculés quand la consigne change.
         const lireTot = () => page.$eval('#hubModal .hub-page[data-genre="preparer"] .gl-totaux-l', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
         const totAvant = await lireTot();

@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, motsDEffet, motsDeMutation, MUTATIONS } from './sim.js';
+import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS } from './sim.js';
 import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -56,17 +56,22 @@ const MEMOIRE = new Map();
 const VIE_MS = 2000, MEMOIRE_MAX = 80;
 function cle(team, lu, adv, opts) {
   const J = x => JSON.stringify(x, (k, v) => (v === Infinity ? 'inf' : v === -Infinity ? '-inf' : v));
-  const joueurs = Object.values(lu || {}).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}` : '-'));
-  return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
-    team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, adv && [adv.name, adv.games],
-    opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null], opts.nu, opts.n, opts.series]);
+  const joueurs = Object.values(lu || activeLineup(team)).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}` : '-'));
+  try {
+    return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
+      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games],
+      opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
+      opts.nu, opts.n, opts.series]);
+  } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
 }
 function lire(team, lu, adv, opts) {
-  const k = cle(team, lu, adv, opts), maintenant = Date.now(), vu = MEMOIRE.get(k);
+  const k = cle(team, lu, adv, opts), maintenant = Date.now(), vu = k === null ? null : MEMOIRE.get(k);
   if (vu && maintenant - vu.t < VIE_MS) return vu.m;
   const m = moyennes(lectureDuMatch(team, lu, adv, opts));
-  if (MEMOIRE.size >= MEMOIRE_MAX) MEMOIRE.delete(MEMOIRE.keys().next().value);
-  MEMOIRE.set(k, { t: maintenant, m });
+  if (k !== null) {
+    if (MEMOIRE.size >= MEMOIRE_MAX) MEMOIRE.delete(MEMOIRE.keys().next().value);
+    MEMOIRE.set(k, { t: maintenant, m });
+  }
   return m;
 }
 
@@ -149,8 +154,10 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
     if (Math.abs(n) >= 0.1) out.push({ txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${duree ? `sur ${duree} match${duree > 1 ? 's' : ''}` : 'par saison'}`, bon: n < 0, cle: 'blessure' });
     else out.push({ txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
   }
-  if (e.energie != null && !eux) {
-    if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure ${par}`, bon: d.usure < 0, cle: 'jambes' });
+  if (e.energie != null) {
+    // Les jambes d'un club qu'on ne voit pas (eux) : l'usure d'un club comme le tien, sous le même effet.
+    const usure = eux ? lire(team, lineup, adv, { effets: [{ energie: e.energie }], n: N_EFFET }).usure - sans.usure : d.usure;
+    if (Math.abs(usure) >= 0.1) out.push({ txt: `≈ ${signeDe(usure)}${nb(usure, 1)} ${mot(usure, 'jambe', 'jambes')} d'usure ${par}`, bon: usure < 0, cle: 'jambes' });
     else out.push({ txt: 'jambes : à peine perceptible', bon: null, cle: 'rien' });
   }
   for (const g of ['F', 'D']) if (!eux && Array.isArray(e[g])) e[g].forEach((m, i) => {
@@ -180,7 +187,7 @@ export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
  * jouer les deux versions, sous les mêmes dés (l'action spéciale d'un système se lit par son espérance,
  * pas par un dé : la différence n'est pas du bruit).
  */
-const N_LIGNES = 800;
+const N_LIGNES = 500;
 /** La différence de deux jeux de lignes (quatre `{ tac, tacD, agr, sec }`), en mots de match. */
 export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   if (!team) return [];

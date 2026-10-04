@@ -18,10 +18,10 @@ import { fileURLToPath } from 'node:url';
 
 const ICI = path.dirname(fileURLToPath(import.meta.url));
 // Mesurés sous quinze secondes chacun (1.0, 29 septembre 2026) : deck 8 s, identité 2 s, atelier 4 s,
-// dépistage 11 s, totaux 5 s, blessures 11 s. check_coquille, check_clarte et check_mort ont leur propre étape dans la CI.
+// dépistage 11 s, totaux 5 s, blessures 11 s, impact 11 s. check_coquille, check_clarte et check_mort ont leur propre étape dans la CI.
 // Trop lents pour cette liste, et lancés à part : check_packs 18 s, check_gardiens 23 s, check_combat 29 s,
-// check_jambes 65 s, check_graine 116 s (sa propre étape), check_banque 12 minutes.
-const RAPIDES = ['check_deck', 'check_identite', 'check_atelier', 'check_pronostic', 'check_totaux', 'check_profil', 'check_sauvegardes', 'check_choix', 'check_calendrier', 'check_blessures'];
+// check_jambes 65 s, check_chiffres 55 s, check_graine 116 s (sa propre étape), check_banque 12 minutes.
+const RAPIDES = ['check_deck', 'check_identite', 'check_atelier', 'check_pronostic', 'check_totaux', 'check_profil', 'check_sauvegardes', 'check_choix', 'check_calendrier', 'check_blessures', 'check_impact'];
 const liste = process.argv.slice(2).length ? process.argv.slice(2) : RAPIDES;
 let echecs = 0;
 for (const nom of liste) {

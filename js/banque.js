@@ -638,7 +638,8 @@ export function reglesDe(id) {
  */
 function auPlafond(par = {}, max) {
   const e = Object.fromEntries(Object.entries(par).map(([k, v]) => [k, k === 'robustesse' ? v * max : 1 + v * max]));
-  return motsEnChiffres(e).filter(m => m.cle !== 'rien').map(m => m.txt);
+  // Les deux chiffres qui comptent : on laisse de côté les tirs accordés, simple conséquence d'un volume.
+  return motsEnChiffres(e).filter(m => m.cle !== 'rien' && m.cle !== 'tir accordé').slice(0, 2).map(m => m.txt);
 }
 /* « jusqu'à ≈ +0,6 tir par match avec 10 cartes 🐝 du Frelon jouées » : ce qu'une carte de coach gagne en grandissant. */
 function motDEchelle(E, coach) {
