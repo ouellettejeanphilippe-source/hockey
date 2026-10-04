@@ -2300,17 +2300,15 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Le palier suit le nom de son badge (« Sniper »), avant le second badge.
    Le badge et son nom ne se séparent pas au retour à la ligne. */
 .cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-width: 0; }
-/* LE PALIER D'UN BADGE (refonte 1) : barre colorée sous l'icône via currentColor du pal-*. */
-.cell-badge > i.badge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: none; color: var(--pal); }
-.cell-badge > i.badge::after { content: ""; width: 8px; height: 8px; background: var(--pal); box-shadow: 0 0 0 1px color-mix(in srgb, var(--noir) 45%, transparent); }
 .pal-1 { --pal: var(--bronze); }
 .pal-2 { --pal: var(--argent); }
 .pal-3 { --pal: var(--or); }
 .pal-4 { --pal: var(--platine); }
-i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
+/* Le palier d'un badge : l'icône elle-même porte sa couleur, rien dessous. */
+i.badge { font-style: normal; }
 /* Les icônes de badge se teintent de leur palier : la présentation texte, jamais l'emoji en couleur. */
 i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
-.puce.badge, b.badge { color: var(--pal); }
+i.badge, .puce.badge, b.badge { color: var(--pal); }
 /* Le verso est clair : l'argent et les autres paliers se foncent vers l'encre de la carte pour rester lisibles. */
 .fc-verso .pal-1 { --pal: color-mix(in srgb, var(--bronze) 50%, var(--v-encre)); }
 .fc-verso .pal-2 { --pal: color-mix(in srgb, var(--argent) 40%, var(--v-encre)); }
