@@ -683,7 +683,7 @@ for (let i = 0; i < 200; i++) {
   if (j && await j.isVisible()) { await j.click(); await page.waitForTimeout(400); }
 }
 await page.locator('#hubModal .hub-suite:visible, .result .score:visible').first().waitFor({ timeout: 120000 }).catch(async e => {
-  console.log('DIAG', await page.evaluate(() => ({ sec: document.body.dataset.section, page: document.body.dataset.page, hub: (document.getElementById('hubModal').innerText || '').slice(0, 600), choix: (document.getElementById('choixModal') || {}).hidden })));
+  console.log('DIAG', await page.evaluate(() => ({ sec: document.body.dataset.section, page: document.body.dataset.page, choix: (document.getElementById('choixModal') || {}).hidden, choixTxt: ((document.getElementById('choixModal') || {}).innerText || '').slice(0, 300), boutons: [...document.querySelectorAll('#hubModal button')].filter(b => b.offsetParent).map(b => b.className.split(' ').pop() + ':' + b.textContent.trim().slice(0, 25)) })));
   throw e;
 });
 // Ce qui reste à régler avant le bilan (un palier, un sommaire).

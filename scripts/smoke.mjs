@@ -2371,10 +2371,10 @@ async function traverserSaison(etiquette, reprise = false) {
           if (dDeck.length && dDeck[0].garde) {
             await _click('#navbar .navtab[data-section="marche"]');
             await _click('#pageMarcheCorps [data-marche="cartes"]');
-            await _wait('#hubModal .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
-            if (!(await page.$(`#hubModal .hub-page[data-genre="cartes"] .bq-carte[data-id="${dDeck[0].garde}"] .inv-jouer`))) errors.push(`la carte « ${dDeck[0].garde} » gardée au palier n'est pas dans l'inventaire`);
+            await _wait('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
+            if (!(await page.$(`#pageMarche .hub-page[data-genre="cartes"] .bq-carte[data-id="${dDeck[0].garde}"] .inv-jouer`))) errors.push(`la carte « ${dDeck[0].garde} » gardée au palier n'est pas dans l'inventaire`);
             else console.log(`   « ${dDeck[0].garde} » attend dans l'inventaire`);
-            await _click('#hubModal .hub-page[data-genre="cartes"] .hub-page-retour');
+            await _click('#pageMarche .hub-page[data-genre="cartes"] .hub-page-retour');
             await page.waitForTimeout(300);
             // Fermée, la page des cartes ramène au Marché (1.0, oct.) ; le parcours retourne au Club.
             if ((await page.evaluate(() => document.body.dataset.section)) !== 'marche') errors.push('« Tes cartes » fermée ne ramène pas au Marché');
