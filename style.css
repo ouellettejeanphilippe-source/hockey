@@ -2692,9 +2692,9 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
-.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-band) 0%, var(--a-band) 30%, var(--a-stripe) 47%, var(--b-stripe) 53%, var(--b-band) 70%, var(--b-band) 100%); }
-/* Le duel en un seul dégradé : les couleurs du premier club fondent vers celles du second, le VS au milieu.
-   La seconde couleur de chaque club donne l'orange aux NHL Stars, dont l'aplat est noir. */
+.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-duel) 0%, var(--a-duel) 35%, var(--b-duel) 65%, var(--b-duel) 100%); }
+/* Le duel en un seul dégradé : une couleur par club (`duel`, js/logos.js), qui fond dans celle de l'autre au VS.
+   L'aplat du club s'il se voit sur le noir ; sinon sa couleur vive (l'orange des NHL Stars, dont l'aplat est noir). */
 .hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); color: var(--eq-ink); }
 .hub-eq.b { align-items: flex-end; text-align: right; }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }

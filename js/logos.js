@@ -321,9 +321,14 @@ export function getTeamBand(teamCode) {
   const seconde = c.secondary && c.secondary.toLowerCase() !== bg.toLowerCase()
     ? c.secondary : (c.accent || ink);
   const plaque = separe(seconde, bg) ? seconde : ink;
+  /*
+   * LA COULEUR DU CLUB DANS UN DUEL : UNE SEULE. JP : *une couleur par équipe dans le dégradé*. L'aplat,
+   * s'il se voit sur le noir du décor ; sinon la couleur du bouton (l'orange des NHL Stars, dont l'aplat est noir).
+   */
+  const duel = contrast(bg, FOND_PAGE) >= VISIBLE ? bg : bouton;
   return {
     bg, ink, stripe, stripeInk: inkFor(stripe), bouton, boutonInk: inkFor(bouton),
-    plaque, plaqueInk: inkFor(plaque),
+    plaque, plaqueInk: inkFor(plaque), duel, duelInk: inkFor(duel),
   };
 }
 
