@@ -732,10 +732,12 @@ async function finirDirect(etiquette) {
     if (manque.length || tableau.cols !== 4) errors.push(`${etiquette} : le tableau de l'entracte n'a pas ${manque.join(', ') || 'ses quatre colonnes'} (${tableau.rangs.join(', ')} · ${tableau.cols} colonnes)`);
     if (tableau.deborde > 1) errors.push(`${etiquette} : le tableau de l'entracte déborde de ${tableau.deborde} px`);
   }
-  // LE POURCENTAGE EN QUANTITÉ (1.0, oct.) : une puce de tirs, de précision, de buts contre ou de punitions dit ce qu'elle vaut en 3e.
-  const chiffrees = await page.$$eval('#choixModal .choix-option .puce', l => l.map(e => e.textContent.trim()).filter(t => /^(Tirs|Précision|Buts contre|Punitions) [+−]/.test(t)));
-  if (chiffrees.length && !chiffrees.some(t => /≈ [+−][\d,]+ .+ en 3e$/.test(t))) errors.push(`${etiquette} : les puces de l'entracte ne disent pas leur quantité (${chiffrees.join(' · ')})`);
-  else if (chiffrees.length) console.log(`   ${etiquette}, l'entracte en quantités : ${chiffrees.filter(t => /≈/.test(t)).slice(0, 2).join(' · ')}`);
+  // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : une puce de tirs, de buts, de punitions ou de mises en échec dit ce qu'elle vaut en 3e — jamais un « % ».
+  const puces3e = await page.$$eval('#choixModal .choix-option .puce', l => l.map(e => e.textContent.trim()));
+  const chiffrees = puces3e.filter(t => /^≈ [+−][\d,]+ (tirs?|buts?|punitions?|mises? en échec)/.test(t));
+  if (puces3e.some(t => /%/.test(t))) errors.push(`${etiquette} : une puce de l'entracte dit encore un pourcentage (${puces3e.filter(t => /%/.test(t)).join(' · ')})`);
+  if (chiffrees.length && !chiffrees.every(t => /en 3e$/.test(t))) errors.push(`${etiquette} : les puces de l'entracte ne disent pas « en 3e » (${chiffrees.join(' · ')})`);
+  else if (chiffrees.length) console.log(`   ${etiquette}, l'entracte en chiffres de match : ${chiffrees.slice(0, 2).join(' · ')}`);
   await _click('#choixModal .choix-option');
   await _wait('#liveModal .live-pause, #liveModal .live-suite', { timeout: 120000 });
   /*
@@ -2089,14 +2091,14 @@ async function traverserSaison(etiquette, reprise = false) {
         const puces = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] [data-importance="haute"] .puce', e => e.map(x => x.textContent.trim()));
         // TOUT ENSEMBLE (S72) : « Ce qui joue sur ta formation » est dans le même écran que les lignes.
         if (!(await page.$('#hubModal .hub-page[data-genre="preparer"] .gl-effets'))) errors.push('« Préparer le match » ne montre pas ce qui joue sur ta formation');
-        // En chiffres depuis S76 : « Précision +3 % », plus des flèches.
-        if (!puces.some(t => /Précision [+−]\d+ %/.test(t))) errors.push(`l'importance haute ne dit pas son effet : ${puces.join(' · ')}`);
+        // En chiffres de match (js/impact.js) : « ≈ +0,2 but marqué par match », jamais un pourcentage.
+        if (!puces.some(t => /^≈ [+−][\d,]+ but marqué par match$/.test(t)) || puces.some(t => /%/.test(t))) errors.push(`l'importance haute ne dit pas son effet en chiffres de match : ${puces.join(' · ')}`);
         // LES TOTAUX (C5) en tête, dits une fois, et recalculés quand la consigne change.
         const lireTot = () => page.$eval('#hubModal .hub-page[data-genre="preparer"] .gl-totaux-l', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
         const totAvant = await lireTot();
-        const multiplient = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Les effets se multiplient entre eux.').length);
+        const multiplient = await page.$$eval('#hubModal .hub-page[data-genre="preparer"] .gl-totaux .gl-mot', e => e.filter(x => x.textContent.trim() === 'Ton build, contre le même alignement sans aucun effet.').length);
         if (!/^Ce soir :/.test(totAvant)) errors.push(`« Préparer le match » ne dit pas les totaux du soir : « ${totAvant} »`);
-        if (multiplient !== 1) errors.push(`« Les effets se multiplient entre eux. » paraît ${multiplient} fois dans « Préparer le match »`);
+        if (multiplient !== 1) errors.push(`« Ton build, contre le même alignement sans aucun effet. » paraît ${multiplient} fois dans « Préparer le match »`);
         // L'ADVERSAIRE D'ABORD, UN SEUL RÉGLAGE (1.0, J2-11) : « En face » avant la consigne, et plus de curseur attaque / défense.
         const ordre = await page.evaluate(() => {
           const a = document.querySelector('#hubModal .hub-page[data-genre="preparer"] .gl-adv-tete'), c = document.querySelector('#hubModal .hub-page[data-genre="preparer"] .gl-consigne');

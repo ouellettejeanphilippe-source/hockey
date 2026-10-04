@@ -169,7 +169,9 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
 export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return [];
   const avec = lire(team, lineup, adv, { aVenir, n: N_EFFET }), sans = lire(team, lineup, adv, { aVenir, nu: true, n: N_EFFET });
-  return lignesDe(differences(avec, sans));
+  const d = differences(avec, sans), mots = lignesDe(d);
+  // Des effets qui jouent, trop petits pour une feuille : on le dit plutôt que de taire.
+  return mots.length || ![d.tirsPour, d.tirsContre, d.butsPour, d.butsContre, d.punitions].some(x => Math.abs(x) > 1e-9) ? mots : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
 }
 
 /*
