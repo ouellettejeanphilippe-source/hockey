@@ -298,7 +298,7 @@ export function ouvrirChoix(spec) {
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.base)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({

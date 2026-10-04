@@ -31,10 +31,11 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, usureDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
+import { motsDuSoir, motsEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -83,11 +84,13 @@ function tableEntracte(ctx, nomMoi, nomLui, lignes) {
 /*
  * CE QUE LES CHOIX TOUCHENT, AVEC LEURS MOTS (1.0, oct.). JP : *les stats pour
  * décider à la mi-match, je parle de celles influencées par les choix, genre
- * précision*. Une rangée par puce d'un geste d'entracte (`motsDEffet`) :
+ * précision*. Une rangée par puce d'un geste d'entracte :
  * Tirs, Précision, Buts contre, Punitions, et la robustesse en mises en échec.
  * Ce soir (deux périodes) et la saison par match, des deux côtés.
  * `saison(c)` : { n, GF, GA, SF, PKO, CO } du club, ou null.
  */
+/* Ce qu'une précision de plus ou de moins vaut en buts, pour ton club. */
+const ditFinition = x => motsEnChiffres({ finition: x.finition }).filter(m => m.cle !== 'rien').map(m => m.txt).join(', ') || 'à peine perceptible';
 function lignesEntracte(f, cMoi, cLui, saison) {
   const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
   const buts = c => f.buts.filter(b => b.instant < 40 && b.cote === c).length;
@@ -885,7 +888,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     you.jourCourant = j;
     try { return fn(aVenir); } finally { you.jourCourant = jc; }
   };
-  const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => totauxDuSoir(you, null, null, aVenir));
+  const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => motsDuSoir(you, null, null, aVenir));
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
   const momentsAvant = J => decs.filter(d => d.moment && d.moment.famille === 'moment'
     && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
@@ -2688,7 +2691,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div>` : '';
       const grosDepistage = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-dep">
         ${onDecision ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) }) }) : ''}
-        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, précision ${flechesDe(ELAN.finition)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, précision ${flechesDe(SONNE.finition)} · ${SONNE.duree} matchs`, bon: false }])}</div>
+        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, ${ditFinition(ELAN)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, ${ditFinition(SONNE)} · ${SONNE.duree} matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
       </div>` : '';
       /*
@@ -2707,7 +2710,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
-      const totJ = motsDesTotaux(totauxDuMatch(p.j));
+      const totJ = totauxDuMatch(p.j);
       const totauxHtml = `<div class="hub-totaux" title="Les effets se multiplient entre eux. Le détail est dans « Préparer le match »."><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${totJ.length ? puces(totJ) : '<span class="puce neutre">aucun effet</span>'}</span></div>`;
       // Les quatre étapes du soir : où on en est, et hier soir en premier tant qu'on ne l'a pas passé.
       const kHier = jour > 0 ? indexMien(jour - 1) : -1;
@@ -2810,7 +2813,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
         match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
         grosMatch: !!mb,
-        totaux: (match, lignes) => motsDesTotaux(totauxDuMatch(p.j, { match, lignes })),
+        totaux: (match, lignes) => totauxDuMatch(p.j, { match, lignes }),
         usure: (match, lignes) => auSoirDu(p.j, { match, lignes }, aVenir => usureDuSoir(you, aVenir)),
         // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
         filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
@@ -2985,15 +2988,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * ouvert, la blessure qui court, le choix qui attend). Seuls « lu »,
    * « archivé » et « réglé sans décision » se retiennent (`boite`).
    */
-  /* Tes vraies moyennes par match (trois matchs et plus) : ce qu'un pourcentage vaut en quantité (`base`, js/gerant.js). */
-  const baseDuClub = (part = 1, par = 'par match') => {
-    const n = gpDe(you), F = fiche.get(you);
-    return n >= 3 ? { volume: F.SF / n, finition: F.GF / n, defense: F.GA / n, discipline: F.PKO / n, part, par } : null;
-  };
+  /* La part du match qu'un choix touche (une 3e période : le tiers) et comment la dire : les chiffres de match de js/impact.js (`cadre`, js/gerant.js). */
+  const cadreDuMatch = (part = 1, par = 'par match') => ({ part, par });
   function messagesCourants() {
     const out = [];
     const spec0 = onDecision ? choixForce() : null;
-    const spec = spec0 && !spec0.ouvrir ? { ...spec0, base: baseDuClub() } : spec0;
+    const spec = spec0 && !spec0.ouvrir ? { ...spec0, cadre: cadreDuMatch() } : spec0;
     if (spec) {
       const remis = spec.fermable && boite.remis === spec.titre;
       out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: !remis, de: spec.de, sujet: titreDuChoix(spec), spec,
@@ -3378,7 +3378,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag), base: baseDuClub(1 / 3, 'en 3e'),
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag), cadre: cadreDuMatch(1 / 3, 'en 3e'),
       recit: etat === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etat === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3641,7 +3641,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
    */
   // La saison de chaque club, lue sur ses feuilles : l'entracte la compare au match.
   const saisonFeuilles = saisonDesFeuilles(saison && saison.calendrier);
-  const baseSerie = (part, par) => { const F = saisonFeuilles.get(you); return F && F.n ? { volume: F.SF / F.n, finition: F.GF / F.n, defense: F.GA / F.n, discipline: F.PKO / F.n, part, par } : null; };
+  const cadreSerie = (part, par) => ({ part, par });
   const planDuMatch = s => (s && s.plans && !complete(s) ? s.plans[revele.get(s)] || null : null);
   /*
    * CE QUE LE DERNIER MATCH DIT DU PROCHAIN (S76) — sans le dévoiler : le plan
@@ -3699,7 +3699,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag), base: baseSerie(1 / 3, 'en 3e'),
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag), cadre: cadreSerie(1 / 3, 'en 3e'),
       recit: etatM === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etatM === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3766,7 +3766,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         aVenir.push({ match, lignes });
         const es = you.effetsSerie, jc = you.jourCourant;
         you.effetsSerie = []; you.jourCourant = Infinity;
-        try { return motsDesTotaux(totauxDuSoir(you, null, null, aVenir)); } finally { you.effetsSerie = es; you.jourCourant = jc; }
+        try { return motsDuSoir(you, null, null, aVenir); } finally { you.effetsSerie = es; you.jourCourant = jc; }
       },
       motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
       onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
