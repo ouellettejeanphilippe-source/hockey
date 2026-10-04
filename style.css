@@ -3403,6 +3403,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-plateau { margin-bottom: var(--esp-4); }
 .som-plateau p { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-plateau .som-plateau-titre { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre); }
+.som-detail { margin-top: var(--esp-3); }
+.som-detail > summary { font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre-2); cursor: pointer; }
 .som-decide { margin-bottom: var(--esp-4); }
 .som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--esp-3); align-items: center; min-height: 48px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); }

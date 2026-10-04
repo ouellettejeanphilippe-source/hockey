@@ -1625,44 +1625,44 @@ export const TACTIQUES = {
     nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes',
     slots: { AG: 'power', C: 'energie', AD: 'checker' },
     mot: 'Deux avants vont chercher la rondelle dans leur zone : on la récupère haut.',
-    gain: { volume: 1.141 }, prix: { discipline: 1.183, energie: 1.082 },
+    gain: { volume: 1.115 }, prix: { discipline: 1.153, energie: 1.074 },
   },
   courtes: {
     nom: 'Cycle et possession', ico: '🌀', bat: 'bleue',
     slots: { AG: 'power', C: 'passeur', AD: 'passeur' },
     mot: 'On garde la rondelle le long des bandes et on attend la bonne passe.',
-    gain: { finition: 1.089 }, prix: { volume: 0.943 },
+    gain: { finition: 1.075 }, prix: { volume: 0.953 },
   },
   bleue: {
     nom: 'Volume de tirs', ico: '🌧️', bat: 'defensive',
     slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
     mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
-    gain: { volume: 1.157 }, prix: { finition: 0.954 },
+    gain: { volume: 1.129 }, prix: { finition: 0.96 },
   },
   defensive: {
     nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre',
     slots: { AG: 'deuxsens', C: 'deuxsens', AD: 'checker' },
     mot: 'On bouche la zone neutre : rien ne passe au centre.',
-    gain: { defense: 0.848, discipline: 0.917 }, prix: { volume: 0.939 },
+    gain: { defense: 0.878, discipline: 0.948 }, prix: { volume: 0.943 },
   },
   contre: {
     nom: 'Contre-attaque', ico: '🏹', bat: 'echec',
     slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
     mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
-    gain: { finition: 1.104 }, prix: { defense: 1.058 },
+    gain: { finition: 1.088 }, prix: { defense: 1.048 },
   },
   derriere: {
     // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
     nom: 'Jeu d\'enclave', ico: '🧲', bat: null,
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
-    gain: { finition: 1.058, volume: 1.058 }, prix: { discipline: 1.104 },
+    gain: { finition: 1.048, volume: 1.048 }, prix: { discipline: 1.088 },
   },
   energie: {
     nom: 'Trio de plombiers', ico: '🧰', bat: null,
     slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
     mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
-    gain: { defense: 0.92, physique: 1.5 }, prix: { discipline: 1.164, energie: 1.102 },
+    gain: { defense: 0.939, physique: 1.5 }, prix: { discipline: 1.148, energie: 1.094 },
   },
 };
 export const SYSTEMES_D = {
@@ -1674,31 +1674,31 @@ export const SYSTEMES_D = {
     nom: 'Rester à la maison', ico: '🏠', bat: 'contre',
     slots: { DG: 'defensif', DD: 'defensif' },
     mot: 'Les deux défenseurs restent derrière la rondelle : aucune échappée.',
-    gain: { defense: 0.885 }, prix: { volume: 0.825 },
+    gain: { defense: 0.905 }, prix: { volume: 0.845 },
   },
   activer: {
     nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes',
     slots: { DG: 'offensif', DD: 'offensif' },
     mot: 'Les défenseurs montent et se joignent à l\'attaque, de la bleue au cercle.',
-    gain: { volume: 1.256, finition: 1.046 }, prix: { defense: 1.078 },
+    gain: { volume: 1.214, finition: 1.04 }, prix: { defense: 1.068 },
   },
   relance: {
     nom: 'Relance rapide', ico: '💨', bat: 'echec',
     slots: { DG: 'manieur', DD: 'manieur' },
     mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
-    gain: { volume: 1.143, defense: 0.947 }, prix: { energie: 1.062 },
+    gain: { volume: 1.109, defense: 0.959 }, prix: { energie: 1.054 },
   },
   rude: {
     nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere',
     slots: { DG: 'physique', DD: 'physique' },
     mot: 'Personne ne reste devant le filet : on sort les gros de l\'enclave.',
-    gain: { defense: 0.911, physique: 1.5 }, prix: { discipline: 1.155 },
+    gain: { defense: 0.925, physique: 1.5 }, prix: { discipline: 1.135 },
   },
   equilibre: {
     nom: 'Jeu à deux sens', ico: '🌗', bat: null,
     slots: { DG: 'deuxsens', DD: 'deuxsens' },
     mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
-    gain: { defense: 0.959, volume: 1.041 }, prix: {},
+    gain: { defense: 0.963, volume: 1.037 }, prix: {},
   },
 };
 /* Un système, d'où qu'il vienne (un trio ou une paire), et son groupe. */
@@ -5495,7 +5495,9 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
 const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte'];
 function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false }) {
   const lu = lineup || activeLineup(team);
-  const p = joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && sl.group === 'F' && sl.unit === 0 && sl.role === 'C').i];
+  // Une carte de gardien se lit sur le partant : posée sur un patineur, ses arrêts ne changeraient rien (« à peine perceptible »).
+  const gardien = !!(MUTATIONS[cle] && MUTATIONS[cle].gardien);
+  const p = joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && (gardien ? sl.group === 'G' && sl.unit === 0 : sl.group === 'F' && sl.unit === 0 && sl.role === 'C')).i];
   if (!p) return null;
   const photo = CHAMPS_MUTATION.map(k => [k, k in p, p[k] && typeof p[k] === 'object' ? (Array.isArray(p[k]) ? [...p[k]] : { ...p[k] }) : p[k]]);
   const mutations = team.mutations, avaitMutations = 'mutations' in team, nb = mutations ? mutations.length : 0;
