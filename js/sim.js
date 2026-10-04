@@ -5410,18 +5410,23 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
  * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, nu = false, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
   return avecAVenir(team, aVenir, () => {
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
     const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
-    if (adv && effetsAdv.length) adv._effetMatch = [...(sauveAdv || []), ...effetsAdv];
     const lignesAvant = team.lignes, lignesMatch = team._lignesMatch, avaitL = 'lignes' in team, avaitM = '_lignesMatch' in team;
-    if (effets.length) team._effetMatch = [...(sauve || []), ...effets];
-    // `lignes` : les quatre lignes (système, agressivité, glace) à jouer à la place des tiennes — un système ou une agressivité qu'on essaie.
-    if (lignes) { team.lignes = lignes.map(l => ({ ...l })); team._lignesMatch = null; }
-    // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
-    if (nu) { team.cartes = []; team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
+    const echelle = ECHELLE_SOIR;
+    let posee = null;
     try {
+      if (adv && effetsAdv.length) adv._effetMatch = [...(sauveAdv || []), ...effetsAdv];
+      if (effets.length) team._effetMatch = [...(sauve || []), ...effets];
+      // `lignes` : les quatre lignes (système, agressivité, glace) à jouer à la place des tiennes — un système ou une agressivité qu'on essaie.
+      if (lignes) { team.lignes = lignes.map(l => ({ ...l })); team._lignesMatch = null; }
+      // `mutation` : un changement de carte posé le temps de la lecture sur un joueur (`joueur`, ou celui que la carte vise).
+      ECHELLE_SOIR = 1;
+      posee = mutation ? poserMutationLue(team, lineup, mutation) : null;
+      // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
+      if (nu) { team.cartes = []; team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
       const A = profilMatch(team, lu, adv);
       A.rob = teamStrength(team, lu).rob; A.domicile = true;
@@ -5453,7 +5458,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
       const dissuasion = Math.exp(-DISSUASION * robZ(A));
       const habilles = Object.values(lu).filter(Boolean);
-      const blessures = habilles.reduce((a, q) => a + injuryChance(q, heavy), 0) * dissuasion * effetsDeSaison(team).blessure;
+      const blessures = habilles.reduce((a, q) => a + injuryChance(q, heavy) * mutDe(q, 'blessure'), 0) * dissuasion * effetsDeSaison(team).blessure;
       const couts = coutsDuSoir(team, lu);
       const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
       return { A, B, occasions, p, blessures, usure };
@@ -5464,8 +5469,28 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
         if (avaitL) team.lignes = lignesAvant; else delete team.lignes;
         if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;
       }
+      ECHELLE_SOIR = echelle;
+      if (posee) { posee(); MEMO_MATCH++; }
     }
   });
+}
+/*
+ * UN CHANGEMENT DE CARTE POSÉ POUR LA LECTURE : le joueur d'abord (celui qu'on donne, sinon celui que la carte vise,
+ * sinon le centre du premier trio), puis une photo de ses champs de mutation pour les lui rendre tels quels.
+ * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
+ */
+const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte'];
+function poserMutationLue(team, lineup, { cle, joueur = null }) {
+  const lu = lineup || activeLineup(team);
+  const p = joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && sl.group === 'F' && sl.unit === 0 && sl.role === 'C').i];
+  if (!p) return null;
+  const photo = CHAMPS_MUTATION.map(k => [k, k in p, p[k] && typeof p[k] === 'object' ? (Array.isArray(p[k]) ? [...p[k]] : { ...p[k] }) : p[k]]);
+  const mutations = team.mutations, avaitMutations = 'mutations' in team, nb = mutations ? mutations.length : 0;
+  appliquerMutation(team, p, cle, 0, 'lecture');
+  return () => {
+    for (const [k, avait, v] of photo) { if (avait) p[k] = v; else delete p[k]; }
+    if (avaitMutations) { team.mutations = mutations; mutations.length = nb; } else delete team.mutations;
+  };
 }
 /* La chance moyenne d'un lancer de `off` sur le gardien de `def`, dans une situation. `mode` : FE, AN (off a l'avantage) ou DN (off est puni). */
 function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n }) {

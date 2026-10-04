@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, motsDEffet } from './sim.js';
+import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, motsDEffet, motsDeMutation, MUTATIONS } from './sim.js';
 import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -59,7 +59,7 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || {}).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}` : '-'));
   return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
     team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, adv && [adv.name, adv.games],
-    opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.nu, opts.n, opts.series]);
+    opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null], opts.nu, opts.n, opts.series]);
 }
 function lire(team, lu, adv, opts) {
   const k = cle(team, lu, adv, opts), maintenant = Date.now(), vu = MEMOIRE.get(k);
@@ -196,6 +196,30 @@ export function systemeEnChiffres(team, lineup, adv, lignes, u, groupe, cle) {
 /** Une agressivité sur la ligne `u`, contre la moyenne : des mises en échec, des punitions, des tirs. */
 export function agressiviteEnChiffres(team, lineup, adv, lignes, u, agr) {
   return lignesEnChiffres(team, lineup, adv, surLigne(lignes, u, { agr }), surLigne(lignes, u, { agr: 1 }));
+}
+
+
+/*
+ * UN CHANGEMENT DE CARTE, EN CHIFFRES : le moteur le pose sur un joueur le temps de la lecture. Une carte qui ne
+ * vise personne (« libre ») se lit sur un joueur du premier trio ; celle qui vise un profil, sur le joueur qu'elle
+ * choisirait. Le reste de ses mots (les rôles, le placement) ne sont pas des pourcentages : ils restent.
+ */
+const CANAUX_MUTATION = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets', 'ombre', 'abri'];
+export function motsDeMutationEnChiffres(cle, joueur = null) {
+  const base = motsDeMutation(cle), M = MUTATIONS[cle], c = clubLu();
+  if (!c || !c.team || !M || !CANAUX_MUTATION.some(k => M[k])) return base;
+  let d;
+  try {
+    const sans = lire(c.team, c.lineup || null, c.adv || null, { n: N_EFFET });
+    d = differences(lire(c.team, c.lineup || null, c.adv || null, { mutation: { cle, joueur }, n: N_EFFET }), sans);
+  } catch { return base; }
+  const out = lignesDe(d);
+  if (M.blessure) {
+    const n = d.blessures * 82;
+    out.push(Math.abs(n) >= 0.1 ? { txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} par saison`, bon: n < 0, cle: 'blessure' } : { txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
+  }
+  const qui = joueur ? [] : [{ txt: M.cible === 'libre' ? 'sur un joueur du 1er trio' : 'sur le joueur visé', bon: null, duree: true }];
+  return [...(out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...qui, ...base.filter(m => !m.txt.includes(' %'))];
 }
 
 /* ---- le club qu'on lit ---- */

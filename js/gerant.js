@@ -1216,7 +1216,11 @@ function regleDeCarte(C) {
   const txt = e => motsEnChiffres(e).map(m => m.txt).join(', ');
   // Ce qui s'ajoute à chaque carte (jouée, ou dans une main) : le chiffre de match d'un pas, dit « par carte … ».
   const parCarte = (e, quand) => { const m = motsEnChiffres(e, null, { par: quand }).filter(x => x.cle !== 'rien'); return m.length ? m.map(x => x.txt).join(', ') : `à peine perceptible ${quand}`; };
-  if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
+  if (C.plein) {
+    // Une synergie : sa condition, puis ce qu'elle rapporte à son maximum, en chiffres de match pour ton club.
+    const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
+    out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
+  } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
   out.push(...motsEnChiffres(C.effet || null));
   for (const m of motsEnChiffres(C.adv || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
