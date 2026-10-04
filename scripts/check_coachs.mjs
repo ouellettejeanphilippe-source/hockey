@@ -26,7 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
-import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, EVENEMENTS, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, JOUEURS_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
@@ -160,7 +160,9 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const AV = PATRONS.att_volume, pas = AV.echelle.par.volume;
   exiger('un adjoint de coach grandit avec les cartes de son coach, jusqu\'à son plafond', p0 === AV.effet.volume && Math.abs(p5 - (p0 + 5 * pas)) < 1e-9 && Math.abs(p30 - (p0 + AV.echelle.max * pas)) < 1e-9, `tirs ×${p0} → ×${p5} (5 cartes) → ×${p30} (30, plafonné à 10)`);
   const e8 = payloadDe('evenement:bunker', { build: { tortue: 8 } }).effet.defense;
-  exiger('un événement de coach aussi, et une autre couleur ne compte pas', Math.abs(e8 - 0.948) < 1e-9 && payloadDe('evenement:bunker', { build: { essaim: 8 } }).effet.defense === 0.98, `buts contre ×${e8} avec huit cartes de la Tortue`);
+  // Les valeurs viennent de l'événement lui-même : une règle recopiée est une règle qui ment tôt ou tard.
+  const BK = EVENEMENTS.bunker, base = BK.effet.defense, attendu8 = base + Math.min(8, BK.echelle.max) * BK.echelle.par.defense;
+  exiger('un événement de coach aussi, et une autre couleur ne compte pas', Math.abs(e8 - attendu8) < 1e-9 && payloadDe('evenement:bunker', { build: { essaim: 8 } }).effet.defense === base, `buts contre ×${e8} avec huit cartes de la Tortue (base ×${base})`);
   const g = payloadDe('evenement:commanditaires', { build: { banque: 4 } }).gain;
   exiger('les jetons d\'un événement du Comptable grandissent', g === 8 + 3 * 4, `+${g} 🪙 avec quatre cartes`);
 }
