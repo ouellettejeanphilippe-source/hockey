@@ -3,7 +3,7 @@
  *
  * JP : *plus fort, ça veut pas dire plus gagner ; ça doit être clair que le build a un impact pour vrai.* On ne
  * le sait qu'en lisant ce que chaque choix fait AU MATCH — des tirs, des buts, des punitions, des mises en échec —
- * et pas seulement aux victoires, où une carte honnête (moins d'une victoire, `check_cartes`) est invisible. Ce
+ * et pas seulement aux victoires, où une carte honnête (un net borné par sa rareté, `check_cartes`) pouvait rester invisible. Ce
  * script lit le profil du match de la feuille (`t.journal[i].feuille`, déjà produite par le moteur) d'un club
  * traité, contre des adversaires NON traités, EN PAIRES : la même ligue de 32 vraies équipes jouée sous la même
  * graine sans rien, puis avec l'effet aux équipes de rang pair (puis impair). Chaque équipe se compare à elle-même.
@@ -163,7 +163,7 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
   }
   informer('« La chasse », mesurée en paires', ligneDe(r));
   informer('« La chasse », lue par l\'écran (moyenne des équipes traitées)', `tirs ${sg(lu.tir)} / ${sg(lu.tirContre)}`);
-  borne('« La chasse » change le rythme : des tirs de plus, mesurés', r.tp, 0.8, 2.6, ' tirs');
+  borne('« La chasse » change le rythme : des tirs de plus, mesurés', r.tp, 1.4, 3.4, ' tirs');
   // La lecture tient ce que la mesure trouve, à son bruit près (la lecture arrondit au dixième de tir).
   exiger('la lecture de l\'écran suit la mesure en paires', Math.abs(lu.tir - r.tp) <= 0.6, `${sg(lu.tir)} annoncés, ${sg(r.tp)} mesurés`);
 }

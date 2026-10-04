@@ -18,8 +18,10 @@
  * Les infractions des punitions, que la feuille ne détaille pas, se tirent
  * d'une banque d'infractions mineures de deux minutes.
  *
- * Le retour : { titre, lignes[], sections[{ titre, lignes[] }] }. `lignes` est
- * la même suite que `sections`, à plat. Au plus 25 lignes ; quand il y en a
+ * Le retour : { titre, resume[], lignes[], sections[{ titre, lignes[] }] }.
+ * `resume` (5 à 8 lignes, comme un segment de télé sportive : manchette, tournant,
+ * étoiles, à noter, contexte) est ce que l'écran montre ; `sections` est le fil
+ * complet, pour un tiroir. `lignes` est `sections` à plat. Au plus 25 lignes ; quand il y en a
  * trop, les détails les moins utiles tombent d'abord (coups, mêlées, incidents).
  *
  * `ctx` (tout est facultatif) : { eq, autre, cote ('A' par défaut : le côté de
@@ -101,7 +103,7 @@ const INC_BLESSURE = [
   "{j} retombe sur l'épaule après avoir sauté pour éviter un tir, un saut qui n'était pas nécessaire",
   "{j} s'étire pour attraper une rondelle en l'air, la rate et rattrape la glace avec le menton",
   "{j} entre dans le poteau à pleine vitesse, et le poteau n'a pas bougé",
-  "{j} prend le patin d'un adversaire dans le mollet pendant une mêlée devant le filet",
+  "{j} prend le patin d'un adversaire dans le mollet dans un amas de joueurs devant le filet",
   "{j} reçoit le bâton d'un coéquipier en pleine bouche pendant un échange devant le banc",
   "{j} se coince un doigt dans le gant d'un adversaire et ne le récupère pas intact",
   "{j} se fait frapper par un tir de son propre défenseur, à moins de trois mètres",
@@ -219,7 +221,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
   const gf = { A: f.gfA ?? buts.filter(b => b.cote === 'A').length, B: f.gfB ?? buts.filter(b => b.cote === 'B').length };
   const ot = f.ot === true || f.prolongation === true || buts.some(b => b.instant >= 60);
   const titre = `${nm[nous]} ${gf[nous]}, ${nm[eux]} ${gf[eux]}${ot ? ' (prolongation)' : ''}`;
-  const vide = { titre, lignes: [], sections: [] };
+  const vide = { titre, resume: [], lignes: [], sections: [] };
   if (gf.A === gf.B) return vide;
 
   const W = gf.A > gf.B ? 'A' : 'B';
@@ -278,7 +280,10 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     if (!texte || dit.has(texte)) return;
     dit.add(texte);
     lignes.push({ section, texte, p, n: lignes.length });
+    return texte;
   };
+  // Ce que le résumé court reprend du détail, au fil de sa construction.
+  const R = { tirs: null, contexte: null, gardiens: [], an: null, anPoids: 0, blessures: [], bagarre: null, punition: null, coup: null, melee: null, etoiles: null, butLigne: null };
 
   /* ===== LE MATCH ===== */
   {
@@ -289,11 +294,11 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
 
     const tA = somme(f.tirs && f.tirs.A), tB = somme(f.tirs && f.tirs.B);
     if (tA || tB) {
-      if (tA === tB) ajouter('Le match', piger(TIRS_EGAUX, 'tirs', { a: tA }), 3);
+      if (tA === tB) R.tirs = ajouter('Le match', piger(TIRS_EGAUX, 'tirs', { a: tA }), 3);
       else {
         const X = tA > tB ? 'A' : 'B';
         const banqueTirs = X === W ? TIRS_DOMINE : TIRS_DOMINE_PERDU;
-        ajouter('Le match', piger(banqueTirs, 'tirs', { X: nm[X], a: Math.max(tA, tB), b: Math.min(tA, tB) }), 3);
+        R.tirs = ajouter('Le match', piger(banqueTirs, 'tirs', { X: nm[X], a: Math.max(tA, tB), b: Math.min(tA, tB) }), 3);
       }
     }
     if (creux >= 2) ajouter('Le match', piger(REMONTEE, 'remontee', { W: nm[W], L: nm[L], n: creux }), 4);
@@ -313,10 +318,11 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       } else {
         phrase = wL === 3 ? `${nm[W]} évite l'élimination : ${nm[L]} mène la série ${wL}-${wW}.` : `${nm[W]} réduit l'écart : ${nm[L]} mène la série ${wL}-${wW}.`;
       }
-      ajouter('Le match', `Match ${n} de la série. ${phrase}`, 1);
+      R.contexte = ajouter('Le match', `Match ${n} de la série. ${phrase}`, 1);
     }
     if (ctx.fiche && Number.isFinite(ctx.fiche.v) && Number.isFinite(ctx.fiche.d) && Number.isFinite(ctx.fiche.pr)) {
-      ajouter('Le match', `Après ce match, ${nm[nous]} affiche une fiche de ${ctx.fiche.v}-${ctx.fiche.d}-${ctx.fiche.pr}.`, 2);
+      const fiche = ajouter('Le match', `Après ce match, ${nm[nous]} affiche une fiche de ${ctx.fiche.v}-${ctx.fiche.d}-${ctx.fiche.pr}.`, 2);
+      if (!R.contexte) R.contexte = fiche;
     }
   }
 
@@ -334,7 +340,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const t = x.apres[x.T], o = x.apres[x.O];
       return t >= o ? `${t}-${o}` : `${o}-${t}`;
     };
-    const butLigne = x => {
+    const butLigne = R.butLigne = x => {
       const but = x.but, cle = `but|${but.instant}|${x.i}`;
       const vals = { T: nm[x.T], s: scoreDe(x) };
       const dT = x.avant[x.T] - x.avant[x.O];
@@ -403,7 +409,8 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     const perdu3 = c === W ? false : gf[W] - gf[L] >= 3;
     if (alloues > 0 && part >= 0.93 && recus >= 25 && !perdu3) texte += unique(GARDIEN_SOLIDE, `gardienq|${c}`, vals);
     else if (alloues >= 4 && part < 0.88) texte += unique(GARDIEN_DUR, `gardienq|${c}`, vals);
-    ajouter('Les gardiens', texte, 3);
+    const poids = alloues === 0 ? 8 : part >= 0.93 && recus >= 25 ? 7 : alloues >= 4 && part < 0.88 ? 5 : 2;
+    R.gardiens.push({ texte: ajouter('Les gardiens', texte, 3), poids });
   }
 
   /* ===== LES UNITÉS SPÉCIALES ===== */
@@ -421,7 +428,11 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     }
     const inf = ['A', 'B'].filter(c => dn(c) > 0).map(c => `${nm[c]} ${dn(c)}`);
     if (inf.length) phrases.push(`Buts en infériorité numérique : ${inf.join(', ')}.`);
-    if (phrases.length) ajouter('Unités spéciales', phrases.join(' '), 4);
+    if (phrases.length) {
+      R.an = ajouter('Unités spéciales', phrases.join(' '), 4);
+      // Le jeu de puissance a fait la différence : un club a marqué à cinq contre quatre et pas l'autre, dans un match serré.
+      R.anPoids = buteAN('A') !== buteAN('B') && gf[W] - gf[L] <= 2 ? 6 : 2;
+    }
   }
 
   /* ===== LES INCIDENTS : choisis d'abord, racontés là où ils remplacent la ligne plate ===== */
@@ -477,7 +488,8 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const quand = quandLong(e.instant, `bq|${e.instant}`);
       const duo = `${nomDe(e.joueur)} (${nm.A}) et ${nomDe(e.cible)} (${nm.B})`;
       const issue = e.gagnant ? `${nm[e.gagnant]} l'emporte` : "aucun gagnant n'est désigné";
-      ajouter('Discipline', `${cap(quand)}, bagarre entre ${duo} : ${issue}, ${e.minutes} minutes chacun.`, 5);
+      const plate = ajouter('Discipline', `${cap(quand)}, bagarre entre ${duo} : ${issue}, ${e.minutes} minutes chacun.`, 5);
+      if (!R.bagarre) R.bagarre = plate;
     }
     for (const e of melees) {
       if (e === incident.melee) continue;
@@ -500,17 +512,17 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       if (alea(`bless|${i}|chance`) < CHANCE.blessure) {
         const cause = rempl(choisir(INC_BLESSURE, `bless|${i}|inc`), vals);
         const fin = matchs ? ` ${rempl(pige(ABSENCE, `bless|${i}|abs`), vals)}` : '';
-        ajouter('Incidents', `${cap(quand)}, ${cause}.${fin}`, 2);
+        R.blessures.push({ matchs, texte: ajouter('Incidents', `${cap(quand)}, ${cause}.${fin}`, 2) });
       } else if (matchs) {
-        ajouter('Incidents', cap(rempl(pige(BLESSE_SANS_CAUSE, `bless|${i}|s`), vals)), 2);
+        R.blessures.push({ matchs, texte: ajouter('Incidents', cap(rempl(pige(BLESSE_SANS_CAUSE, `bless|${i}|s`), vals)), 2) });
       } else {
-        ajouter('Incidents', `${vals.j} (${vals.T}) a quitté le match sur une blessure, ${quand}.`, 2);
+        R.blessures.push({ matchs, texte: ajouter('Incidents', `${vals.j} (${vals.T}) a quitté le match sur une blessure, ${quand}.`, 2) });
       }
     });
     if (incident.punition) {
       const p = incident.punition;
       const cause = rempl(choisir(INC_PUNITION, 'inc|punition'), { j: nomDe(p.joueur) });
-      ajouter('Incidents', `${cap(quandLong(p.instant, 'inc|punition|q'))}, ${cause}. ${p.minutes || 2} minutes de punition pour ${nm[p.cote]}.`, 7);
+      R.punition = ajouter('Incidents', `${cap(quandLong(p.instant, 'inc|punition|q'))}, ${cause}. ${p.minutes || 2} minutes de punition pour ${nm[p.cote]}.`, 7);
     }
     if (incident.bagarre) {
       const e = incident.bagarre;
@@ -518,15 +530,15 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const perdant = e.gagnant ? (e.gagnant === 'A' ? e.cible : e.joueur) : null;
       const cause = gagnant ? rempl(choisir(INC_BAGARRE, 'inc|bagarre'), { w: nomDe(gagnant), l: nomDe(perdant) })
         : rempl(choisir(INC_BAGARRE_NUL, 'inc|bagarre'), { a: nomDe(e.joueur), b: nomDe(e.cible) });
-      ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|bagarre|q'))}, bagarre : ${cause}. ${e.minutes} minutes chacun.`, 6);
+      R.bagarre = ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|bagarre|q'))}, bagarre : ${cause}. ${e.minutes} minutes chacun.`, 6);
     }
     if (incident.melee) {
       const e = incident.melee;
-      ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|melee|q'))}, mêlée : ${rempl(choisir(INC_MELEE, 'inc|melee'), { a: nomDe(e.joueur), b: nomDe(e.cible) })}. ${e.minutes} minutes chacun.`, 8);
+      R.melee = ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|melee|q'))}, mêlée : ${rempl(choisir(INC_MELEE, 'inc|melee'), { a: nomDe(e.joueur), b: nomDe(e.cible) })}. ${e.minutes} minutes chacun.`, 8);
     }
     if (incident.coup) {
       const e = incident.coup;
-      ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|coup|q'))}, ${rempl(choisir(INC_COUP, 'inc|coup'), { j: nomDe(e.joueur), c: nomDe(e.cible) })}.`, 9);
+      R.coup = ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|coup|q'))}, ${rempl(choisir(INC_COUP, 'inc|coup'), { j: nomDe(e.joueur), c: nomDe(e.cible) })}.`, 9);
     }
   }
 
@@ -540,6 +552,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     }
     const candidats = [...prod.values()].map(x => ({
       c: x.c, nom: nomDe(x.p), score: 3 * x.g + 1.5 * x.a,
+      court: [x.g ? `${x.g}B` : '', x.a ? `${x.a}A` : ''].filter(Boolean).join(' '),
       desc: [x.g ? pl(x.g, 'but') : '', x.a ? pl(x.a, 'passe') : ''].filter(Boolean).join(', '),
     }));
     for (const c of ['A', 'B']) {
@@ -549,7 +562,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       if (!recus) continue;
       const part = arrets / recus;
       const score = alloues === 0 ? 4 : part >= 0.92 && recus >= 20 ? (part - 0.9) * 50 : 0;
-      if (score > 0) candidats.push({ c, nom: nomDe(g), score, desc: alloues === 0 ? `blanchissage, ${pl(arrets, 'arrêt')}` : `${pl(arrets, 'arrêt')} sur ${pl(recus, 'tir')}` });
+      if (score > 0) candidats.push({ c, nom: nomDe(g), score, court: alloues === 0 ? `${pl(arrets, 'arrêt')}, blanchissage` : pl(arrets, 'arrêt'), desc: alloues === 0 ? `blanchissage, ${pl(arrets, 'arrêt')}` : `${pl(arrets, 'arrêt')} sur ${pl(recus, 'tir')}` });
     }
     const etoiles = candidats.filter(x => x.score >= 1)
       .sort((x, y) => y.score - x.score || (y.c === W) - (x.c === W) || x.nom.localeCompare(y.nom, 'fr')).slice(0, 3);
@@ -557,7 +570,52 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const liste = etoiles.map((x, i) => `${i + 1}. ${x.nom} (${nm[x.c]}) : ${x.desc}`).join(' ; ');
       const entree = etoiles.length === 3 ? pige(ETOILES_ENTREE, 'etoiles') : etoiles.length === 2 ? 'Les deux étoiles' : 'La première étoile';
       ajouter('Les étoiles', `${entree} : ${liste}.`, 0);
+      R.etoiles = `Étoiles : ${etoiles.map((x, i) => `${i + 1}. ${x.nom} ${x.court}`).join(' · ')}`;
     }
+  }
+
+  /* ===== LE RÉSUMÉ COURT, comme un segment de télé sportive : manchette, tournant, étoiles, à noter, contexte ===== */
+  function resumeCourt() {
+    const sortie = [];
+    const dire = t => { const l = t && liss(t); if (l && !sortie.includes(l)) sortie.push(l); };
+    const s = `${gf[W]}-${gf[L]}`;
+    const gagnantBut = gagnantFil ? gagnantFil.but : null;
+    const m = gagnantBut ? nomDe(gagnantBut.marqueur) : '';
+    // La manchette : le résultat et l'histoire du match.
+    const parMarqueur = new Map();
+    for (const x of fil) if (x.T === W) parMarqueur.set(x.but.marqueur, (parMarqueur.get(x.but.marqueur) || 0) + 1);
+    const [vedette, nVedette] = [...parMarqueur.entries()].sort((x, y) => y[1] - x[1])[0] || [null, 0];
+    const parPer = [1, 2, 3].map(per => ({ per, n: fil.filter(x => x.T === W && periodeDe(x.but.instant) === per).length })).sort((x, y) => y.n - x.n)[0];
+    const gW = W === 'A' ? f.gardienA : f.gardienB;
+    const vals = { W: nm[W], L: nm[L], s, m, n: creux };
+    let manchette;
+    if (ot && m) manchette = piger(["{W} l'emporte {s} en prolongation grâce à {m}", '{m} donne la victoire à {W}, {s} en prolongation contre {L}'], 'm|ot', vals);
+    else if (creux >= 2) manchette = piger(['{W} renverse la vapeur et bat {L} {s}', "{W} comble un retard de {n} buts et l'emporte {s}"], 'm|creux', vals);
+    else if (parPer && parPer.n >= 3) manchette = `${parPer.n} buts en ${NOM_PERIODE[parPer.per]} : ${nm[W]} l'emporte ${s} contre ${nm[L]}`;
+    else if (gf[L] === 0 && gW && gW.n) manchette = piger(['{G} ferme la porte : {W} blanchit {L} {s}', '{W} blanchit {L} {s}, {G} repousse tous les tirs'], 'm|bl', { ...vals, G: nomDe(gW) });
+    else if (nVedette >= 2) manchette = `${nm[W]} bat ${nm[L]} ${s} grâce au ${nVedette === 2 ? 'doublé' : 'tour du chapeau'} de ${nomDe(vedette)}`;
+    else manchette = piger(['{W} bat {L} {s} grâce à {m}', "{W} s'impose {s} face à {L} avec un but décisif de {m}"], 'm|n', vals);
+    dire(`${manchette}.`);
+    // Le tournant : ce qui a décidé le match, par importance.
+    const tournant = [];
+    if (gagnantFil && R.butLigne) tournant.push({ poids: 10, texte: R.butLigne(gagnantFil) });
+    const bascule = fil.filter(x => x !== gagnantFil && x.T === W && x.avant[W] <= x.avant[L] && x.avant.A + x.avant.B > 0).pop();
+    if (bascule && R.butLigne) tournant.push({ poids: 6, texte: R.butLigne(bascule) });
+    for (const g of R.gardiens) tournant.push({ poids: g.poids, texte: g.texte });
+    if (R.an) tournant.push({ poids: R.anPoids, texte: R.an });
+    if (R.tirs) tournant.push({ poids: 1, texte: R.tirs });
+    tournant.sort((x, y) => y.poids - x.poids);
+    for (const t of tournant.slice(0, 3)) dire(t.texte);
+    dire(R.etoiles);
+    // À noter : un seul fait, le plus marquant, et seulement s'il a eu lieu.
+    const blesse = R.blessures.slice().sort((x, y) => y.matchs - x.matchs)[0];
+    const plusPunis = ['A', 'B'].map(c => ({ c, n: penalites.filter(p => p.cote === c).length })).sort((x, y) => y.n - x.n)[0];
+    if (blesse) dire(blesse.texte);
+    else if (R.bagarre) dire(R.bagarre);
+    else if (plusPunis && plusPunis.n >= 5) dire(`${nm[plusPunis.c]} a écopé de ${plusPunis.n} punitions, contre ${penalites.length - plusPunis.n} pour ${nm[plusPunis.c === 'A' ? 'B' : 'A']}.`);
+    else dire(R.punition || R.melee || R.coup);
+    dire(R.contexte);
+    return sortie;
   }
 
   /* ----- le plafond : les détails les moins utiles tombent d'abord ----- */
@@ -573,5 +631,5 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     if (!s) { s = { titre: x.section, lignes: [] }; sections.push(s); }
     s.lignes.push(x.texte);
   }
-  return { titre, lignes: sections.flatMap(s => s.lignes), sections };
+  return { titre, resume: resumeCourt(), lignes: sections.flatMap(s => s.lignes), sections };
 }

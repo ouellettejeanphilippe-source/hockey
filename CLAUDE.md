@@ -118,6 +118,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Le direct, le sommaire et le bilan disent les mêmes buts, au caractère près — smoke.
 - Aucune cote neuve, aucune mécanique neuve : une carte, un trait, un effet passent par les canaux existants — `check_combat` (chaque carte jouable est lue par le moteur), `check_traits`.
 - On mesure une carte EN PAIRES, sinon on ne mesure rien — `check_cartes`.
+- Une carte change la FORME du match, pas sa force : le net en victoires est borné par la rareté (commune ±1, peu commune ±1,5, rare ±2,5, légendaire ±4 : un maximum, jamais une cible), une rare ou une légendaire se VOIT dans la feuille (±2 tirs, ±0,3 but des deux clubs, ±0,5 punition, ±4 mises en échec ou ±3 blessures), et le style ne se paie pas en force : au plus 0,5 V par seuil franchi — `check_cartes`.
 - Les gros matchs portent leur plan, leur contre et leur pointage après deux périodes — `check_gros`.
 - Le robot « premier Signer » ne gagne pas la Coupe — `check_robot`.
 

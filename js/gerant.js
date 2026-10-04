@@ -167,6 +167,15 @@ const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(
 /* Les canaux d'effet d'un objet : ce que motsEnChiffres sait dire. */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
+/*
+ * CE QU'UNE RÉPONSE FAIT, EN MOTS DE MATCH (courriels et points de presse, js/vie-gm.js) : les chiffres de ses
+ * canaux sur la durée, le changement de carte d'un joueur nommé, ses gestes, son pari. Les mêmes mots que les
+ * options d'un dilemme (`ouvrirChoix`).
+ */
+export function motsDeReponse(o, { joueur = null, noms = '' } = {}) {
+  const { duree, mutation, ...canaux } = o;
+  return [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? duree : null), ...(mutation ? motsDeMutationEnChiffres(mutation, joueur) : []), ...motsDeCarte(o, noms)];
+}
 /* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
 const CANAUX_FORME = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse'];
 const CARTES_REGLEMENT = new Set(['sixGlace', 'courbeIllegale', 'paragraphe', 'filetDesert', 'retardement']);

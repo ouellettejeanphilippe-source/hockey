@@ -228,7 +228,7 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
     const n = d.blessures * 82;
     out.push(Math.abs(n) >= 0.1 ? { txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} par saison`, bon: n < 0, cle: 'blessure' } : { txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
   }
-  const qui = joueur ? [] : [{ txt: M.cible === 'libre' ? 'sur un joueur du 1er trio' : 'sur le joueur visé', bon: null, duree: true }];
+  const qui = joueur ? [] : [{ txt: M.gardien ? 'sur le gardien partant' : M.cible === 'libre' ? 'sur un joueur du 1er trio' : 'sur le joueur visé', bon: null, duree: true }];
   return [...(out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...qui, ...base.filter(m => !m.txt.includes(' %'))];
 }
 

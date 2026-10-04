@@ -104,7 +104,7 @@ export const CARTES_MATCH = {
   conge: { nom: 'Matinée de congé', ico: '😴', cout: 1, rarete: 'commune', genre: 'tactique',
     texte: 'Pas de patin ce matin, les jambes reposent.', energieTous: 15 },
   prudence: { nom: 'Jouer de prudence', ico: '🔒', cout: 0, rarete: 'commune', genre: 'defense',
-    texte: 'On ne force rien.', effet: { defense: 0.97, finition: 0.97 } },
+    texte: 'On ne force rien.', effet: { defense: 0.95, finition: 0.97 } },
   provoquer: { nom: 'Les provoquer', ico: '😈', cout: 1, rarete: 'commune', genre: 'tactique',
     texte: 'Un mot de trop après chaque sifflet : ils vont au banc des punitions.', adv: { discipline: 1.25 } },
   quatrieme: { nom: 'Le trio de plombiers', ico: '🔋', cout: 0, rarete: 'commune', genre: 'tactique',
@@ -116,7 +116,7 @@ export const CARTES_MATCH = {
   blitz: { nom: 'Le blitz', ico: '⚡', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Tout de suite, tout le monde : on veut les sortir du match avant qu\'ils y entrent.', effet: { volume: 1.12, energie: 1.12 } },
   presse: { nom: 'La conférence de presse', ico: '🎤', cout: 1, rarete: 'commune', genre: 'tactique',
-    texte: 'Tu as dit ce qu\'il fallait dire la veille : ils jouent crispés.', adv: { discipline: 1.12, finition: 0.98 } },
+    texte: 'Tu as dit ce qu\'il fallait dire la veille : ils jouent crispés.', adv: { discipline: 1.2, finition: 0.97 } },
 
   // ---- peu communes ----
   doublePresence: { nom: 'Double présence', ico: '🔥', cout: 1, rarete: 'peu', genre: 'attaque',
@@ -161,7 +161,7 @@ export const CARTES_MATCH = {
   adrenaline: { nom: 'Adrénaline', ico: '💉', cout: 0, rarete: 'peu', genre: 'tactique',
     texte: 'Le cœur bat dans les oreilles dès l\'hymne national.', energiePlus: 1, effet: { energie: 1.08 } },
   fermeture: { nom: 'La paire de fermeture', ico: '🔐', cout: 1, rarete: 'peu', genre: 'defense',
-    texte: 'Ta première paire joue la moitié du match.', effet: { D: [1.25, 1, 0.8], defense: 0.97 } },
+    texte: 'Ta première paire joue la moitié du match.', effet: { D: [1.25, 1, 0.8], defense: 0.95 } },
   barrage: { nom: 'Le barrage', ico: '🚧', cout: 2, rarete: 'peu', genre: 'defense',
     texte: 'Cinq joueurs entre la rondelle et ton filet, toute la soirée.', effet: { defense: 0.9, volume: 0.92, energie: 1.05 } },
   zamboni: { nom: 'La glace molle', ico: '🧽', cout: 0, rarete: 'peu', genre: 'tactique',
@@ -179,7 +179,7 @@ export const CARTES_MATCH = {
   chapeau: { nom: 'Le soir du tour du chapeau', ico: '🎩', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Les chapeaux vont pleuvoir.', effet: { finition: 1.1, discipline: 1.1 } },
   coach: { nom: 'Le coach dans leur tête', ico: '🎙️', cout: 2, rarete: 'rare', genre: 'tactique',
-    texte: 'Leur plan tombe, et ils perdent leur calme.', lire: true, adv: { discipline: 1.15 } },
+    texte: 'Leur plan tombe, et ils perdent leur calme.', lire: true, adv: { discipline: 1.3 } },
   preparation: { nom: 'Préparation totale', ico: '📋', cout: 1, rarete: 'rare', genre: 'tactique',
     texte: 'Chaque scénario a sa page dans le cahier.', pioche: 3 },
   espion: { nom: 'Leur cahier de jeux', ico: '🕵️', cout: 2, rarete: 'rare', genre: 'tactique',
@@ -223,7 +223,7 @@ export const CARTES_MATCH = {
   contreAttaque: { nom: 'La contre-attaque', ico: '🏹', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Ils se replient ? On passe par-dessus.', selonLeurMain: { genre: 'defense', effet: { volume: 1.04 } } },
   systemeDef: { nom: 'Le système défensif', ico: '📐', cout: 1, rarete: 'peu', genre: 'tactique',
-    texte: 'Tout le monde sait où se placer.', rabais: 'defense', effet: { defense: 0.98 } },
+    texte: 'Tout le monde sait où se placer.', rabais: 'defense', effet: { defense: 0.96 } },
   lecture: { nom: 'La lecture du jeu', ico: '👀', cout: 0, rarete: 'commune', genre: 'tactique',
     texte: 'Un coup d\'œil au banc d\'en face.', pioche: 1 },
   // ÉPUISÉES : fortes, une seule fois dans la course.
@@ -254,7 +254,7 @@ export const CARTES_MATCH = {
   feuSacre: { nom: 'Le feu sacré', ico: '🔥', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Ce soir, ils jouent comme en avril.', effet: { finition: 1.08, volume: 1.05, energie: 1.1 } },
   nuitMagique: { nom: 'La nuit magique', ico: '🌌', cout: 2, rarete: 'legendaire', genre: 'tactique', epuise: true,
-    texte: 'Tout le monde s\'en souviendra encore dans trente ans.', effet: { finition: 1.06, defense: 0.95, energie: 0.95 } },
+    texte: 'Tout le monde s\'en souviendra encore dans trente ans.', effet: { finition: 1.07, defense: 0.93, energie: 0.95 } },
 
   /*
    * CONTOURNER LE RÈGLEMENT. Les mêmes canaux, un prix à chaque trou :
@@ -267,7 +267,7 @@ export const CARTES_MATCH = {
     texte: 'Le tir tombe. L\'arbitre a un gabarit dans la poche.',
     pari: { chance: 0.5, gagne: { finition: 1.08 }, perd: { discipline: 1.22 } } },
   paragraphe: { nom: 'Le paragraphe oublié', ico: '📖', cout: 1, rarete: 'peu', genre: 'tactique',
-    texte: 'Ce jeu n\'est dans aucun livre. Tes cartes d\'attaque coûtent moins cher.', rabais: 'attaque', effet: { volume: 1.02 } },
+    texte: 'Ce jeu n\'est dans aucun livre. Tes cartes d\'attaque coûtent moins cher.', rabais: 'attaque', effet: { volume: 1.04 } },
   filetDesert: { nom: 'Le filet désert', ico: '🚪', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Le sixième attaquant sort trop tôt, et il reste sorti.', effet: { volume: 1.08, finition: 1.04, defense: 1.08 } },
   retardement: { nom: 'Retarder le jeu', ico: '🕐', cout: 1, rarete: 'peu', genre: 'defense',

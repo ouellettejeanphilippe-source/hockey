@@ -1389,7 +1389,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(B.tag))}"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
     ${buildDuSoirHtml(f, A, B, jour)}
-    ${(pm => (pm.sections.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le récit du match</span></div><p class="som-plateau-titre">${esc(pm.titre)}</p>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</div>` : ''))(
+    ${(pm => (pm.resume.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le résumé du match</span></div><p class="som-plateau-titre">${esc(pm.resume[0])}</p>${pm.resume.slice(1).map(x => `<p>${esc(x)}</p>`).join('')}<details class="som-detail"><summary>Le fil complet du match</summary>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</details></div>` : ''))(
       apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
     ${(d => (d.length ? `<div class="som-decide"><div class="som-per-head"><span>Ce qui a décidé</span></div><ul>${d.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''))(ceQuiADecide(f, teamShort(A), teamShort(B)))}
     ${parPeriode}
