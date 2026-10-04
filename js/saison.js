@@ -586,16 +586,16 @@ function routeHtml(jour, N, plus = {}, aJour = j => j) {
 }
 
 /*
- * Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche,
- * et sa forme (S79). Ta fiche vit dans l'en-tête : ton bloc ne la répète pas.
+ * Le bloc d'une équipe dans la carte du prochain match : écusson, nom, fiche.
+ * Ta fiche vit dans l'en-tête : ton bloc ne la répète pas. La forme (S79) est
+ * une bande sous les deux clubs (`.hub-face-forme`), pas un morceau de chacun.
  */
-function blocEquipe(ctx, t, ligne, pos, forme = '') {
+function blocEquipe(ctx, t, ligne, pos) {
   const b = ctx.band(t.tag);
-  return `<div class="hub-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+  return `<div class="hub-eq ${pos}" style="--eq-ink:${b.duelInk}">
     <div class="hub-eq-band">${ctx.logo(t.tag, 26)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
     <div class="hub-eq-nom">${versEquipe(ctx, t, ctx.teamLabel(t))}</div>
     ${ligne ? `<div class="hub-eq-fiche">${ctx.esc(ligne)}</div>` : ''}
-    ${forme ? `<div class="hub-eq-forme">${forme}</div>` : ''}
   </div>`;
 }
 
@@ -1858,7 +1858,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const gagneA = m.gfA > m.gfB;
     const cote = (t, buts, pos, g) => {
       const b = ctx.band(t.tag);
-      return `<div class="live-eq ${pos}${g ? '' : ' perdant'}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+      return `<div class="live-eq ${pos}${g ? '' : ' perdant'}" style="--eq-ink:${b.duelInk}">
         <div class="live-eq-band">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
         <div class="live-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
         <div class="live-eq-buts">${buts}</div>
@@ -1885,7 +1885,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `${tete}<div class="live-but-ligne but-eq" style="${varsEquipe(ctx.band(t.tag))}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
     }).join('') : '';
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
-    return `<div class="live-board hub-board"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
+    return `<div class="live-board hub-board" style="--a-duel:${ctx.band(m.A.tag).duel};--b-duel:${ctx.band(m.B.tag).duel}"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
       <div class="live-horloge"><span class="live-per">FINAL</span><span class="live-temps">${m.ot ? 'PROL.' : '—'}</span><span class="live-tirs">${gagne(m, you) ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}${m.feuille ? ` · tirs ${tirsTotal(m.feuille, 'A')} – ${tirsTotal(m.feuille, 'B')}` : ''}</span></div>
       ${cote(m.B, m.gfB, 'b', !gagneA)}
       ${buts ? `<div class="live-buteurs">${buts}</div>` : ''}</div>`;
@@ -2745,8 +2745,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       matinCourant = matin;
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
+      const formeA = formeHtml(p.m.A), formeB = formeHtml(p.m.B);
       const affiche = `<div class="hub-match-titre">Match ${miens.length + 1} · ${quand} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
-        <div class="hub-face" style="--a-band:${ctx.band(p.m.A.tag).bg};--a-stripe:${ctx.band(p.m.A.tag).stripe};--b-band:${ctx.band(p.m.B.tag).bg};--b-stripe:${ctx.band(p.m.B.tag).stripe}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a', formeHtml(p.m.A))}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b', formeHtml(p.m.B))}</div>
+        <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>
         ${forcesHtml(adv)}
         <div class="hub-match-note">${dernierMot}</div>
         ${totauxHtml}

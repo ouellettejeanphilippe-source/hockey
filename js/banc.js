@@ -186,7 +186,20 @@ async function subirCarte(at, jour, cle) {
  * remplaçant celle du même palier, ou le plan du même soir), et la saison se
  * rejoue de la graine depuis la journée où on est.
  */
-async function deciderSaison(d, depuis) {
+/*
+ * UNE DÉCISION À LA FOIS. Une décision datée d'une journée déjà jouée rejoue la saison sous le voile, en
+ * plusieurs secondes : un pack acheté là, puis signé avant la fin du calcul, faisait partir la signature d'une
+ * liste qui n'avait pas encore l'achat — la dernière des deux à finir effaçait l'autre, et la boîte redemandait
+ * la signature d'un pack déjà signé (JP : *les packs s'ouvrent en double, sur le coup et dans la boîte*).
+ * Chaque décision attend que la précédente ait fini.
+ */
+let decisionEnCours = Promise.resolve();
+function deciderSaison(d, depuis) {
+  const suite = decisionEnCours.then(() => deciderMaintenant(d, depuis));
+  decisionEnCours = suite.catch(() => {});
+  return suite;
+}
+async function deciderMaintenant(d, depuis) {
   if (!G.ligue) return;
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
