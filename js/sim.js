@@ -960,11 +960,24 @@ export const PART_UNITE = {
  * ASSURANCE, elle coupe la saison où ton premier centre rate vingt matchs.
  * Elle se paie en conséquence — presque rien.
  *
- * CE QU'UNE CARTE DOIT FAIRE : changer la FORME de ta saison, pas sa force.
- * Chacune vise moins d'une victoire d'écart net ; ce qui bouge, ce sont les
- * buts marqués et alloués, l'infirmerie, et ce qui reste en séries. Les six
- * forment TROIS PAIRES OPPOSÉES — finition contre défensive, volume contre
- * blessures, volume contre robustesse — pour qu'aucune n'en double une autre.
+ * CE QU'UNE CARTE DOIT FAIRE : changer la FORME de ton match, pas sa force.
+ * Ce qui bouge, ce sont les tirs, les buts marqués et alloués, les punitions,
+ * l'infirmerie, et ce qui reste en séries. Les six premières forment TROIS
+ * PAIRES OPPOSÉES — finition contre défensive, volume contre blessures,
+ * volume contre robustesse — pour qu'aucune n'en double une autre.
+ *
+ * LES AMPLITUDES D'AUJOURD'HUI (1.0, étape 3 de docs/impact-des-choix.md) sont
+ * celles qui se VOIENT. Les anciennes (3 à 5 % du match) gardaient chaque carte
+ * sous une victoire et la rendaient invisible dans la feuille : JP, *plus fort,
+ * ça veut pas dire plus gagner ; ça doit être clair que le build a un impact
+ * pour vrai*. Chaque carte a gardé son prix — le bonus et le malus ont monté
+ * ensemble, d'un facteur d'environ 1,5 à 2 — et le net en victoires reste celui
+ * du style, pas de la force : `check_cartes.mjs` le borne par la RARETÉ (commune
+ * ±1, peu commune ±1,5, rare ±2,5, légendaire ±4, un maximum et jamais une
+ * cible), exige qu'une rare se voie dans la feuille (±2 tirs, ±0,3 but des deux
+ * clubs, ±0,5 punition, ±3 blessures) et ne laisse pas plus de 0,5 V par seuil
+ * franchi. Les chiffres du tableau plus bas sont ceux d'avant : le tableau
+ * d'aujourd'hui est la sortie du script.
  *
  * MESURÉ AU RÉGLAGE RETENU (`node scripts/check_cartes.mjs`, 12 ligues) :
  *
@@ -1011,15 +1024,15 @@ export const CARTES = {
   // DOUBLÉES (−0,90). Il fallait les doubler : à ×1,45 la carte était gratuite.
   roulement: {
     nom: 'Roulement court', ico: '🔁',
-    bon: 'Tes meilleurs jouent plus : plus de lancers', prix: 'Ils se blessent deux fois plus',
+    bon: 'Tes meilleurs jouent plus : plus de lancers', prix: 'Ils se blessent bien plus souvent',
     volume: 1.10, blessure: 2.60,
   },
   // l'assurance. Le bonus ne vaut rien en victoires et tout en tranquillité ;
   // le prix est donc d'un pour cent de lancers, et pas davantage.
   infirmerie: {
     nom: "L'infirmerie", ico: '🏥',
-    bon: 'Deux fois moins de blessures : ta saison ne déraille pas', prix: 'Un peu moins de lancers',
-    blessure: 0.35, volume: 0.985,
+    bon: 'Plus de trois fois moins de blessures : ta saison ne déraille pas', prix: 'Moins de lancers',
+    blessure: 0.28, volume: 0.985,
   },
   // volume contre robustesse. Ce que les vétérans achètent se paie surtout en
   // AVRIL, et la mesure de saison ne le voit pas : la carte est donc réglée
@@ -1028,7 +1041,7 @@ export const CARTES = {
   veterans: {
     nom: 'Les vétérans', ico: '🧭',
     bon: 'Plus robuste, moins de punitions : les soirs éreintants et les séries', prix: 'Moins de lancers',
-    robustesse: 0.8, discipline: 0.80, volume: 0.93,
+    robustesse: 0.6, discipline: 0.80, volume: 0.92,
   },
   // l'inverse, et le même déséquilibre à l'envers : un départ canon payé en
   // avril (+0,90 contre −0,80, plus ce que les séries prendront).
@@ -1048,7 +1061,7 @@ export const CARTES = {
    */
   sangfroid: {
     nom: 'Le sang-froid', ico: '🧊',
-    bon: 'Tu prends moins de punitions', prix: 'Un peu moins de lancers',
+    bon: 'Tu prends moins de punitions', prix: 'Moins de lancers',
     discipline: 0.75, volume: 0.93,
   },
   vague: {
@@ -1064,7 +1077,7 @@ export const CARTES = {
   chasse: {
     nom: 'La chasse', ico: '🏒',
     bon: 'Tu lances de partout', prix: 'De moins bonnes occasions',
-    volume: 1.10, finition: 0.93,
+    volume: 1.11, finition: 0.915,
   },
   /*
    * HUIT DE PLUS (S74b). À dix, la main du palier (un effet parmi trois
@@ -1077,37 +1090,37 @@ export const CARTES = {
     nom: 'Le système du New Jersey', ico: '🧱',
     bon: 'Presque rien ne passe', prix: 'Tu lances beaucoup moins',
     // S80 : 0,955 et 0,92 se mesuraient à −0,8 victoire (−1,03 sur 12 ligues, hors de ±1) : recentrée.
-    defense: 0.925, volume: 0.91,
+    defense: 0.92, volume: 0.90,
   },
   ouvert: {
     nom: 'Le jeu ouvert', ico: '🏃',
     bon: 'Tu lances de partout, tout le temps', prix: 'Tu laisses des trous derrière',
-    volume: 1.10, defense: 1.065,
+    volume: 1.11, defense: 1.07,
   },
   ecole: {
     nom: 'L\'école de tir', ico: '🎯',
     bon: 'Chaque lancer est meilleur', prix: 'Tu en prends moins',
-    finition: 1.09, volume: 0.91,
+    finition: 1.10, volume: 0.89,
   },
   durs: {
     nom: 'Les durs à cuire', ico: '🦍',
     bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des mains moins fines, et des punitions',
-    robustesse: 1.8, discipline: 1.25, finition: 0.97,
+    robustesse: 1.8, discipline: 1.25, finition: 0.96,
   },
   physio: {
     nom: 'Le préparateur physique', ico: '🏋️',
-    bon: 'Moins de blessures', prix: 'Des pratiques moins intenses : un peu moins de lancers',
-    blessure: 0.5, volume: 0.96,
+    bon: 'Moins de blessures', prix: 'Des pratiques moins intenses : moins de lancers',
+    blessure: 0.35, volume: 0.955,
   },
   gardiens: {
     nom: 'Le coach des gardiens', ico: '🥅',
     bon: 'Tu alloues moins de buts', prix: 'Tout le monde recule : moins de lancers',
-    defense: 0.93, volume: 0.925,
+    defense: 0.92, volume: 0.92,
   },
   montent: {
     nom: 'Les défenseurs montent', ico: '🚀',
     bon: 'Ton attaque a cinq joueurs', prix: 'Et ta défense en a trois',
-    finition: 1.08, volume: 1.04, defense: 1.07,
+    finition: 1.06, volume: 1.03, defense: 1.07,
   },
   fougue: {
     nom: 'La fougue', ico: '🔥',
@@ -1612,44 +1625,44 @@ export const TACTIQUES = {
     nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes',
     slots: { AG: 'power', C: 'energie', AD: 'checker' },
     mot: 'Deux avants vont chercher la rondelle dans leur zone : on la récupère haut.',
-    gain: { volume: 1.07 }, prix: { discipline: 1.10, energie: 1.06 },
+    gain: { volume: 1.141 }, prix: { discipline: 1.183, energie: 1.082 },
   },
   courtes: {
     nom: 'Cycle et possession', ico: '🌀', bat: 'bleue',
     slots: { AG: 'power', C: 'passeur', AD: 'passeur' },
     mot: 'On garde la rondelle le long des bandes et on attend la bonne passe.',
-    gain: { finition: 1.05 }, prix: { volume: 0.97 },
+    gain: { finition: 1.089 }, prix: { volume: 0.943 },
   },
   bleue: {
     nom: 'Volume de tirs', ico: '🌧️', bat: 'defensive',
     slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
     mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
-    gain: { volume: 1.08 }, prix: { finition: 0.97 },
+    gain: { volume: 1.157 }, prix: { finition: 0.954 },
   },
   defensive: {
     nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre',
     slots: { AG: 'deuxsens', C: 'deuxsens', AD: 'checker' },
     mot: 'On bouche la zone neutre : rien ne passe au centre.',
-    gain: { defense: 0.93 }, prix: { volume: 0.95 },
+    gain: { defense: 0.848, discipline: 0.917 }, prix: { volume: 0.939 },
   },
   contre: {
     nom: 'Contre-attaque', ico: '🏹', bat: 'echec',
     slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
     mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
-    gain: { finition: 1.06 }, prix: { defense: 1.03 },
+    gain: { finition: 1.104 }, prix: { defense: 1.058 },
   },
   derriere: {
     // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
     nom: 'Jeu d\'enclave', ico: '🧲', bat: null,
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
-    gain: { finition: 1.03, volume: 1.03 }, prix: { discipline: 1.06 },
+    gain: { finition: 1.058, volume: 1.058 }, prix: { discipline: 1.104 },
   },
   energie: {
     nom: 'Trio de plombiers', ico: '🧰', bat: null,
     slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
     mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
-    gain: { defense: 0.97, physique: 1.5 }, prix: { discipline: 1.12, energie: 1.08 },
+    gain: { defense: 0.92, physique: 1.5 }, prix: { discipline: 1.164, energie: 1.102 },
   },
 };
 export const SYSTEMES_D = {
@@ -1661,31 +1674,31 @@ export const SYSTEMES_D = {
     nom: 'Rester à la maison', ico: '🏠', bat: 'contre',
     slots: { DG: 'defensif', DD: 'defensif' },
     mot: 'Les deux défenseurs restent derrière la rondelle : aucune échappée.',
-    gain: { defense: 0.94 }, prix: { volume: 0.88 },
+    gain: { defense: 0.885 }, prix: { volume: 0.825 },
   },
   activer: {
     nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes',
     slots: { DG: 'offensif', DD: 'offensif' },
     mot: 'Les défenseurs montent et se joignent à l\'attaque, de la bleue au cercle.',
-    gain: { volume: 1.14, finition: 1.03 }, prix: { defense: 1.05 },
+    gain: { volume: 1.256, finition: 1.046 }, prix: { defense: 1.078 },
   },
   relance: {
     nom: 'Relance rapide', ico: '💨', bat: 'echec',
     slots: { DG: 'manieur', DD: 'manieur' },
     mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
-    gain: { volume: 1.05, defense: 0.98 }, prix: { energie: 1.04 },
+    gain: { volume: 1.143, defense: 0.947 }, prix: { energie: 1.062 },
   },
   rude: {
     nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere',
     slots: { DG: 'physique', DD: 'physique' },
     mot: 'Personne ne reste devant le filet : on sort les gros de l\'enclave.',
-    gain: { defense: 0.95, physique: 1.5 }, prix: { discipline: 1.10 },
+    gain: { defense: 0.911, physique: 1.5 }, prix: { discipline: 1.155 },
   },
   equilibre: {
     nom: 'Jeu à deux sens', ico: '🌗', bat: null,
     slots: { DG: 'deuxsens', DD: 'deuxsens' },
     mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
-    gain: { defense: 0.97, volume: 1.03 }, prix: {},
+    gain: { defense: 0.959, volume: 1.041 }, prix: {},
   },
 };
 /* Un système, d'où qu'il vienne (un trio ou une paire), et son groupe. */
@@ -2571,8 +2584,8 @@ export const MOMENTS = {
     // S80 : ton dernier match, chez toi, avec au moins un but.
     faits: c => (c.dernier && c.dernier.domicile && c.dernier.pour >= 1 ? {} : null),
     options: [
-      { cle: 'tradition', nom: 'En faire une tradition', bon: 'La foule pousse, ça rentre', finition: 1.05, duree: 6 },
-      { cle: 'calme', nom: 'Remercier la foule, garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.88, duree: 6 },
+      { cle: 'tradition', nom: 'En faire une tradition', bon: 'La foule pousse, ça rentre', finition: 1.088, duree: 6 },
+      { cle: 'calme', nom: 'Remercier la foule, garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.81, duree: 6 },
     ],
   },
   rats: {
@@ -2582,8 +2595,8 @@ export const MOMENTS = {
     faits: c => { const x = c.dernier && c.dernier.buteurs.filter(b => b.avant && b.buts >= 2).sort((a, b) => b.buts - a.buts)[0]; return x ? { joueur: x.p, n: x.buts } : null; },
     options: [
       { cle: 'mascotte', nom: 'Adopter la mascotte', bon: 'Si le rat porte chance, ça rentre de partout', prix: 'Sinon, la glace est jonchée de rats et l\'arbitre perd patience',
-        pari: { chance: 0.5, gagne: { finition: 1.1, duree: 6 }, perd: { discipline: 1.25, duree: 6 } } },
-      { cle: 'serieux', nom: 'Rester sérieux', bon: 'Une défensive concentrée', defense: 0.96, duree: 6 },
+        pari: { chance: 0.5, gagne: { finition: 1.125, duree: 6 }, perd: { discipline: 1.288, duree: 6 } } },
+      { cle: 'serieux', nom: 'Rester sérieux', bon: 'Une défensive concentrée', defense: 0.92, duree: 6 },
     ],
   },
   dernier: {
@@ -2593,9 +2606,9 @@ export const MOMENTS = {
     faits: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 ? { joueur: c.dernier.gardien, n: c.dernier.contre } : null),
     options: [
       { cle: 'reposer', nom: 'Le reposer trois matchs', bon: 'Ton auxiliaire prend le filet, {nom} revient la tête froide', prix: 'Trois matchs sans ton partant',
-        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.96 } },
+        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } },
       { cle: 'soutenir', nom: 'Le renvoyer dans la mêlée', bon: 'Il veut se venger', prix: 'S\'il craque encore, ça coule',
-        pari: { chance: 0.5, gagne: { defense: 0.92, duree: 5 }, perd: { defense: 1.08, duree: 5 } } },
+        pari: { chance: 0.5, gagne: { defense: 0.89, duree: 5 }, perd: { defense: 1.11, duree: 5 } } },
     ],
   },
   tropdejoueurs: {
@@ -2604,8 +2617,8 @@ export const MOMENTS = {
     // S80 : une punition à toi dans les cinq dernières minutes de ton dernier match.
     faits: c => (c.dernier && c.dernier.punitionsTard >= 1 ? {} : null),
     options: [
-      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Plus de fautes bêtes', prix: 'Des présences plus longues, moins de jus', discipline: 0.85, volume: 0.95 },
-      { cle: 'rythme', nom: 'Garder le rythme rapide', bon: 'Des jambes fraîches, plus de lancers', prix: 'Ça va se reproduire', volume: 1.06, discipline: 1.15 },
+      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Plus de fautes bêtes', prix: 'Des présences plus longues, moins de jus', discipline: 0.788, volume: 0.913 },
+      { cle: 'rythme', nom: 'Garder le rythme rapide', bon: 'Des jambes fraîches, plus de lancers', prix: 'Ça va se reproduire', volume: 1.095, discipline: 1.213 },
     ],
   },
   zamboni: {
@@ -2613,8 +2626,8 @@ export const MOMENTS = {
     recit: 'Le gardien d\'urgence de l\'aréna, le conducteur de la surfaceuse, 42 ans, a gagné un match dans la LNH. {nom} dit qu\'il pourrait prendre une soirée de congé, lui aussi.',
     options: [
       { cle: 'conge', nom: 'Donner deux matchs de congé à {nom}', bon: 'Il revient reposé', prix: 'Deux matchs avec l\'auxiliaire',
-        action: { gardienAux: 2 }, ensuite: { apres: 2, duree: 10, defense: 0.97 } },
-      { cle: 'legende', nom: 'Inviter le conducteur au vestiaire', bon: 'Le vestiaire rit, la pression tombe', finition: 1.04, duree: 5 },
+        action: { gardienAux: 2 }, ensuite: { apres: 2, duree: 10, defense: 0.94 } },
+      { cle: 'legende', nom: 'Inviter le conducteur au vestiaire', bon: 'Le vestiaire rit, la pression tombe', finition: 1.08, duree: 5 },
     ],
   },
   richard: {
@@ -2622,9 +2635,9 @@ export const MOMENTS = {
     recit: '{nom} écope d\'une suspension que la ville juge injuste. Des partisans promettent de descendre dans la rue.',
     options: [
       { cle: 'purger', nom: 'Purger la suspension sans faire de vagues', bon: 'La ligue te laisse tranquille', prix: '{nom} manque deux matchs, un réserviste joue',
-        action: { absents: 2 }, discipline: 0.9, duree: 6 },
+        action: { absents: 2 }, discipline: 0.825, duree: 6 },
       { cle: 'defendre', nom: 'Contester en public', bon: 'Si la ligue recule, {nom} joue et la ville explose de joie', prix: 'Sinon, il manque quatre matchs',
-        pari: { chance: 2 / 6, gagne: { finition: 1.06, duree: 6 }, perd: { action: { absents: 4 } } } },
+        pari: { chance: 2 / 6, gagne: { finition: 1.095, duree: 6 }, perd: { action: { absents: 4 } } } },
     ],
   },
   malarchuk: {
@@ -2635,14 +2648,14 @@ export const MOMENTS = {
     options: [
       { cle: 'temps', nom: 'Lui donner tout le temps qu\'il faut', bon: 'Il revient quand il est prêt', prix: 'Cinq matchs avec l\'auxiliaire',
         action: { absents: 5 } },
-      { cle: 'pourlui', nom: 'Jouer pour lui', bon: 'Tout le monde se donne', prix: 'On joue sur les nerfs : ça fait mal', finition: 1.04, blessure: 1.4, duree: 6 },
+      { cle: 'pourlui', nom: 'Jouer pour lui', bon: 'Tout le monde se donne', prix: 'On joue sur les nerfs : ça fait mal', finition: 1.08, blessure: 1.5, duree: 6 },
     ],
   },
   lemieux: {
     ico: '💪', titre: 'Le traitement du matin', irl: 'Pittsburgh, 1993', cible: 'vedette',
     recit: '{nom} termine sa dernière séance de radiothérapie ce matin. Il veut jouer ce soir.',
     options: [
-      { cle: 'jouer', nom: 'Il joue', bon: 'Le vestiaire est galvanisé', prix: '{nom} joue épuisé', action: { energie: -35 }, finition: 1.06, duree: 3 },
+      { cle: 'jouer', nom: 'Il joue', bon: 'Le vestiaire est galvanisé', prix: '{nom} joue épuisé', action: { energie: -35 }, finition: 1.095, duree: 3 },
       { cle: 'menager', nom: 'Deux matchs de repos', bon: '{nom} revient frais', prix: 'Deux matchs sans lui, un réserviste joue', action: { absents: 2 } },
     ],
   },
@@ -2650,9 +2663,9 @@ export const MOMENTS = {
     ico: '📞', titre: 'Les rumeurs d\'échange', irl: 'Edmonton, 1988', cible: 'vedette',
     recit: 'Un journaliste annonce que {nom} va être échangé à Los Angeles. Il n\'en sait rien.',
     options: [
-      { cle: 'dementir', nom: 'Démentir tout de suite', bon: '{nom} respire', defense: 0.96, duree: 6 },
+      { cle: 'dementir', nom: 'Démentir tout de suite', bon: '{nom} respire', defense: 0.92, duree: 6 },
       { cle: 'planer', nom: 'Laisser planer le doute', bon: 'S\'il se sent menacé, il se défonce', prix: 'S\'il se sent trahi, il boude',
-        pari: { chance: 0.5, gagne: { volume: 1.08, duree: 8 }, perd: { finition: 0.94, duree: 8 } } },
+        pari: { chance: 0.5, gagne: { volume: 1.11, duree: 8 }, perd: { finition: 0.905, duree: 8 } } },
     ],
   },
   hextall: {
@@ -2660,17 +2673,17 @@ export const MOMENTS = {
     recit: '{nom} est convaincu qu\'il peut marquer dans le filet désert. Il sort jouer la rondelle à chaque occasion.',
     options: [
       { cle: 'laisser', nom: 'Le laisser essayer', bon: 'Une chance sur trois : il marque et l\'équipe s\'envole', prix: 'Sinon, il se fait prendre hors de son filet',
-        pari: { chance: 2 / 6, gagne: { finition: 1.08, duree: 6 }, perd: { defense: 1.05, duree: 4 } } },
-      { cle: 'filet', nom: 'Qu\'il reste dans son filet', bon: 'Un gardien concentré', defense: 0.97, duree: 5 },
+        pari: { chance: 2 / 6, gagne: { finition: 1.11, duree: 6 }, perd: { defense: 1.088, duree: 4 } } },
+      { cle: 'filet', nom: 'Qu\'il reste dans son filet', bon: 'Un gardien concentré', defense: 0.94, duree: 5 },
     ],
   },
   avery: {
     ico: '🎭', titre: 'L\'agitateur', irl: 'New York, 2008', cible: 'dur',
     recit: '{nom} se plante devant le gardien adverse, dos au jeu, et agite son bâton devant son masque. La ligue écrit une règle le lendemain.',
     options: [
-      { cle: 'laisser', nom: 'Le laisser faire', bon: 'Il les rend fous', prix: 'L\'arbitre le guette', finition: 1.06, discipline: 1.3 },
+      { cle: 'laisser', nom: 'Le laisser faire', bon: 'Il les rend fous', prix: 'L\'arbitre le guette', finition: 1.095, discipline: 1.3 },
       { cle: 'galerie', nom: 'Deux matchs sur la galerie de presse', bon: 'Le message passe : discipline', prix: '{nom} regarde de là-haut, un réserviste joue',
-        action: { absents: 2 }, discipline: 0.85, duree: 6 },
+        action: { absents: 2 }, discipline: 0.788, duree: 6 },
     ],
   },
   commotion: {
@@ -2687,8 +2700,8 @@ export const MOMENTS = {
     recit: 'Ton entraîneur insulte un journaliste en direct et promet que « ça va changer ». La vidéo fait le tour du continent.',
     options: [
       { cle: 'appuyer', nom: 'L\'appuyer', bon: 'Si le vestiaire embarque, ça brasse', prix: 'Sinon, ça dégénère en punitions',
-        pari: { chance: 0.5, gagne: { volume: 1.08, duree: 8 }, perd: { discipline: 1.25, duree: 8 } } },
-      { cle: 'recadrer', nom: 'Le recadrer', bon: 'On revient au système', prix: 'Moins d\'intensité', defense: 0.95, volume: 0.95 },
+        pari: { chance: 0.5, gagne: { volume: 1.11, duree: 8 }, perd: { discipline: 1.288, duree: 8 } } },
+      { cle: 'recadrer', nom: 'Le recadrer', bon: 'On revient au système', prix: 'Moins d\'intensité', defense: 0.913, volume: 0.913 },
     ],
   },
   tempete: {
@@ -2696,7 +2709,7 @@ export const MOMENTS = {
     recit: 'Deux mètres de neige. L\'avion ne décolle pas, et le match est dans deux jours à l\'autre bout du continent. Les deux options font mal : laquelle moins ?',
     options: [
       { cle: 'autobus', nom: 'Vingt heures d\'autobus', prix: 'Toute l\'équipe arrive épuisée', action: { energieTous: -15 } },
-      { cle: 'attendre', nom: 'Attendre l\'avion à l\'hôtel', prix: 'On arrive le matin du match, sans réchauffement', finition: 0.95, volume: 0.95, duree: 3 },
+      { cle: 'attendre', nom: 'Attendre l\'avion à l\'hôtel', prix: 'On arrive le matin du match, sans réchauffement', finition: 0.913, volume: 0.913, duree: 3 },
     ],
   },
   barbe: {
@@ -2705,15 +2718,15 @@ export const MOMENTS = {
     // S80 : une vraie séquence de trois victoires ou plus.
     faits: c => (c.serieV >= 3 ? { n: c.serieV } : null),
     options: [
-      { cle: 'pousser', nom: 'Laisser pousser', bon: 'Dans cinq matchs, la barbe fait peur à tout le monde', ensuite: { apres: 5, duree: 10, finition: 1.04 } },
-      { cle: 'raser', nom: 'Raser tout le monde ce soir', bon: 'Un vestiaire propre et motivé', finition: 1.03, duree: 5 },
+      { cle: 'pousser', nom: 'Laisser pousser', bon: 'Dans cinq matchs, la barbe fait peur à tout le monde', ensuite: { apres: 5, duree: 10, finition: 1.08 } },
+      { cle: 'raser', nom: 'Raser tout le monde ce soir', bon: 'Un vestiaire propre et motivé', finition: 1.06, duree: 5 },
     ],
   },
   film: {
     ico: '🎬', titre: 'Un film dans ton aréna', irl: null,
     recit: 'Un studio veut tourner une comédie de hockey dans ton aréna. Les caméras suivraient l\'équipe pendant dix jours.',
     options: [
-      { cle: 'accepter', nom: 'Accepter', bon: 'Des gars qui se prennent pour des vedettes : ils lancent de partout', prix: 'Des pratiques écourtées', volume: 1.06, energie: 1.12, duree: 8 },
+      { cle: 'accepter', nom: 'Accepter', bon: 'Des gars qui se prennent pour des vedettes : ils lancent de partout', prix: 'Des pratiques écourtées', volume: 1.095, energie: 1.192, duree: 8 },
       { cle: 'refuser', nom: 'Refuser', bon: 'Rien ne change', rien: true },
     ],
   },
@@ -2728,17 +2741,17 @@ export const MOMENTS = {
     },
     options: [
       { cle: 'ancien', nom: 'Ressortir ses vieux bâtons', bon: 'Si c\'était bien le bâton, ça rentre', prix: 'Sinon, rien ne change et il le sait',
-        pari: { chance: 0.5, gagne: { finition: 1.08, duree: 8 }, perd: { finition: 0.97, duree: 4 } } },
-      { cle: 'travail', nom: 'Le travail, pas la magie', bon: 'On lance plus', volume: 1.04, duree: 6 },
+        pari: { chance: 0.5, gagne: { finition: 1.11, duree: 8 }, perd: { finition: 0.94, duree: 4 } } },
+      { cle: 'travail', nom: 'Le travail, pas la magie', bon: 'On lance plus', volume: 1.08, duree: 6 },
     ],
   },
   poutine: {
     ico: '🍟', titre: 'La poutine d\'après-match', irl: null,
     recit: 'Un restaurateur offre la poutine à vie à l\'équipe. Les gars y vont tous les soirs.',
     options: [
-      { cle: 'fete', nom: 'Laisser faire', bon: 'Le moral est au plafond', prix: 'Les jambes, moins', finition: 1.05, energie: 1.12, duree: 8 },
+      { cle: 'fete', nom: 'Laisser faire', bon: 'Le moral est au plafond', prix: 'Les jambes, moins', finition: 1.088, energie: 1.192, duree: 8 },
       { cle: 'diete', nom: 'Diète de séries dès maintenant', bon: 'Dans cinq matchs, des jambes neuves', prix: 'D\'ici là, ça grogne',
-        finition: 0.97, duree: 5, ensuite: { apres: 5, duree: 12, energie: 0.85 } },
+        finition: 0.94, duree: 5, ensuite: { apres: 5, duree: 12, energie: 0.76 } },
     ],
   },
   /*
@@ -2752,8 +2765,8 @@ export const MOMENTS = {
     // S80 : à la mi-saison seulement, quand la pause arrive vraiment.
     faits: c => (c.J >= 38 && c.J <= 55 ? {} : null),
     options: [
-      { cle: 'gun', nom: 'Envoyer {nom} tirer du gun', mutation: 'tir_gun', bon: 'Ton plombier apprend à viser', prix: 'Trois jours sans repos pour les autres', blessure: 1.15 },
-      { cle: 'repos', nom: 'Repos pour tout le monde', bon: 'Des jambes neuves', blessure: 0.6 },
+      { cle: 'gun', nom: 'Envoyer {nom} tirer du gun', mutation: 'tir_gun', bon: 'Ton plombier apprend à viser', prix: 'Trois jours sans repos pour les autres', blessure: 1.24 },
+      { cle: 'repos', nom: 'Repos pour tout le monde', bon: 'Des jambes neuves', blessure: 0.5 },
     ],
   },
   lame: {
@@ -2761,7 +2774,7 @@ export const MOMENTS = {
     recit: 'Le fabricant arrête le modèle de lame de {nom}. Rien d\'autre ne lui convient : il ne sent plus sa rondelle.',
     options: [
       { cle: 'defensif', nom: 'En faire un joueur défensif', mutation: 'lame', bon: 'Il devient fiable sans la rondelle', prix: 'Ton meilleur tireur ne marquera plus' },
-      { cle: 'marche', nom: 'Chercher la lame au marché noir', bon: 'Il reste lui-même', prix: 'Des lames refaites à la main : ça casse', finition: 0.95 },
+      { cle: 'marche', nom: 'Chercher la lame au marché noir', bon: 'Il reste lui-même', prix: 'Des lames refaites à la main : ça casse', finition: 0.913 },
     ],
   },
   patinage: {
@@ -2769,7 +2782,7 @@ export const MOMENTS = {
     recit: 'Une ancienne patineuse olympique offre ses services pour la saison. Elle ne prend qu\'un élève : {nom}.',
     options: [
       { cle: 'oui', nom: 'Oui, pour {nom}', mutation: 'patin', bon: 'Il arrivera avant la rondelle' },
-      { cle: 'non', nom: 'Non : l\'argent va à la physio', bon: 'Des jambes neuves pour tout le monde', energie: 0.92, duree: 6 },
+      { cle: 'non', nom: 'Non : l\'argent va à la physio', bon: 'Des jambes neuves pour tout le monde', energie: 0.872, duree: 6 },
     ],
   },
   cassettes: {
@@ -2777,7 +2790,7 @@ export const MOMENTS = {
     recit: '{nom} a trouvé une boîte de vieilles cassettes dans le sous-sol de l\'aréna. Il veut passer ses soirées à les étudier.',
     options: [
       { cle: 'etudier', nom: 'Qu\'il étudie', mutation: 'video', bon: 'Il verra le jeu une passe d\'avance', prix: 'Il tirera moins lui-même' },
-      { cle: 'dormir', nom: 'Qu\'il dorme', bon: 'Frais pour le prochain match', volume: 1.03 },
+      { cle: 'dormir', nom: 'Qu\'il dorme', bon: 'Frais pour le prochain match', volume: 1.06 },
     ],
   },
   pointe: {
@@ -2785,7 +2798,7 @@ export const MOMENTS = {
     recit: '{nom} demande sa chance à la ligne bleue en avantage numérique. Il jure qu\'il a un canon.',
     options: [
       { cle: 'chance', nom: 'Lui donner la pointe', mutation: 'pointe', bon: 'Un défenseur qui décoche' },
-      { cle: 'attendre', nom: 'Qu\'il attende son tour', bon: 'Il travaille sa défensive en attendant', defense: 0.97, duree: 6 },
+      { cle: 'attendre', nom: 'Qu\'il attende son tour', bon: 'Il travaille sa défensive en attendant', defense: 0.94, duree: 6 },
     ],
   },
   ecole: {
@@ -2808,16 +2821,16 @@ export const MOMENTS = {
     recit: 'Le préposé à l\'équipement te tend un bâton. La courbe dépasse le gabarit, « juste assez pour que le tir tombe ».',
     options: [
       { cle: 'laisser', nom: 'Laisser la courbe', bon: 'Une chance sur deux : le tir trompe', prix: 'Sinon, l\'arbitre sort le gabarit',
-        pari: { chance: 0.5, gagne: { finition: 1.06, duree: 6 }, perd: { discipline: 1.22, duree: 6 } }, trou: true },
-      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions bêtes', prix: 'Des lancers plus honnêtes, donc moins dangereux', discipline: 0.9, volume: 0.97, duree: 6 },
+        pari: { chance: 0.5, gagne: { finition: 1.095, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
+      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions bêtes', prix: 'Des lancers plus honnêtes, donc moins dangereux', discipline: 0.825, volume: 0.94, duree: 6 },
     ],
   },
   trapeze: {
     ico: '🥅', titre: 'Hors du trapèze', irl: 'Martin Brodeur, avant la règle de 2005', cible: 'gardien', regle: true,
     recit: '{nom} joue la rondelle partout derrière le filet. La règle qui l\'en empêchera n\'est pas encore écrite — ou tu fais comme si.',
     options: [
-      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent', prix: 'Il se fait prendre, et l\'arbitre s\'en mêle', defense: 0.96, discipline: 1.12, duree: 6, trou: true },
-      { cle: 'filet', nom: 'Le garder dans la peinture', bon: 'Un gardien à sa place', defense: 0.985, duree: 5 },
+      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent', prix: 'Il se fait prendre, et l\'arbitre s\'en mêle', defense: 0.92, discipline: 1.19, duree: 6, trou: true },
+      { cle: 'filet', nom: 'Le garder dans la peinture', bon: 'Un gardien à sa place', defense: 0.96, duree: 5 },
     ],
   },
   embellir: {
@@ -2825,32 +2838,32 @@ export const MOMENTS = {
     recit: 'Ton ailier sait tomber. Un mot de trop après le contact, et l\'arbitre lève le bras. La ligue, elle, regarde les reprises.',
     options: [
       { cle: 'plonger', nom: 'Le laisser vendre le contact', bon: 'Sur un 5 ou un 6, la punition tombe de ton côté', prix: 'Le reste du temps, c\'est toi qu\'on siffle',
-        pari: { chance: 2 / 6, gagne: { finition: 1.05, duree: 5 }, perd: { discipline: 1.25, duree: 8 } }, trou: true },
-      { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre', discipline: 0.9, duree: 6 },
+        pari: { chance: 2 / 6, gagne: { finition: 1.088, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
+      { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre', discipline: 0.825, duree: 6 },
     ],
   },
   desert: {
     ico: '🚪', titre: 'Le gardien sort trop tôt', irl: null, regle: true,
     recit: 'Il reste dix minutes. Le banc veut déjà le sixième attaquant. Ce n\'est pas le moment, et tout le monde le sait.',
     options: [
-      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps', prix: 'Le filet est vide bien trop tôt', volume: 1.06, defense: 1.06, duree: 4, trou: true },
-      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'On ne donne pas le filet', defense: 0.985, duree: 4 },
+      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps', prix: 'Le filet est vide bien trop tôt', volume: 1.095, defense: 1.095, duree: 4, trou: true },
+      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'On ne donne pas le filet', defense: 0.96, duree: 4 },
     ],
   },
   mort: {
     ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005', regle: true,
     recit: 'Tes vétérans veulent le hockey d\'avant : accrocher dans les coins, retenir le bâton, tuer le jeu au centre. La ligue a écrit une règle contre ça.',
     options: [
-      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe', prix: 'Tu ne tires plus, et les punitions s\'accumulent', defense: 0.95, volume: 0.95, discipline: 1.12, duree: 8, trou: true },
-      { cle: 'aujourd', nom: 'Jouer le hockey d\'aujourd\'hui', bon: 'De l\'espace, des lancers', prix: 'Des trous derrière', volume: 1.04, defense: 1.03, duree: 6 },
+      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe', prix: 'Tu ne tires plus, et les punitions s\'accumulent', defense: 0.913, volume: 0.913, discipline: 1.19, duree: 8, trou: true },
+      { cle: 'aujourd', nom: 'Jouer le hockey d\'aujourd\'hui', bon: 'De l\'espace, des lancers', prix: 'Des trous derrière', volume: 1.08, defense: 1.06, duree: 6 },
     ],
   },
   minutes: {
     ico: '⏱️', titre: 'La paire qui ne descend plus', irl: null, regle: true,
     recit: 'Le règlement ne limite pas les minutes. Ton adjoint, lui, dit que vingt-huit minutes par défenseur, c\'est déjà trop.',
     options: [
-      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.2, energie: 1.08, duree: 6, trou: true },
-      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent', prix: 'Un peu moins de lancers', blessure: 0.85, volume: 0.98, duree: 6 },
+      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
+      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent', prix: 'Un peu moins de lancers', blessure: 0.76, volume: 0.96, duree: 6 },
     ],
   },
   ...MOMENTS_VIE,
@@ -2883,21 +2896,21 @@ export const SEQUENCES = {
     ico: '📉', titre: 'Trois défaites de suite', seuil: 3,
     recit: 'Le vestiaire est à plat. Les journalistes demandent si ton poste est menacé.',
     options: [
-      { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.06 },
-      { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.95 },
+      { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.095 },
+      { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.913 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
-        pari: { chance: 0.5, gagne: { robustesse: 1.3, duree: 8 }, perd: { blessure: 1.35, duree: 8 } } },
-      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.9, discipline: 1.18, blessure: 1.15, trou: true },
+        pari: { chance: 0.5, gagne: { robustesse: 1.95, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
+      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.875, discipline: 1.235, blessure: 1.24, trou: true },
     ],
   },
   victoires: {
     ico: '📈', titre: 'Quatre victoires de suite', seuil: 4,
     recit: 'Tout roule. Ton premier trio ne rate plus rien.',
     options: [
-      { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.3 },
-      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.96 },
-      { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.8 },
-      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.12, blessure: 1.2, trou: true },
+      { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.48 },
+      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.92 },
+      { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.68 },
+      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.19, blessure: 1.32, trou: true },
     ],
   },
 };
@@ -6565,15 +6578,15 @@ export const colonnesProfil = p => ({ L: lancersBrut(p), T: tirBrut(p), P: passe
 export const MUTATIONS = {
   // ---- les améliorations du deck (S73) : un cadeau, au joueur de ton choix ----
   affute: { nom: 'Le tir affûté', ico: '🎯', cible: 'libre', source: 'amelioration',
-    quoi: 'Des heures au filet après les pratiques : il marque plus.', profils: { sniper: 12, offensif: 10 }, finition: 1.08 },
+    quoi: 'Des heures au filet après les pratiques : il marque plus.', profils: { sniper: 12, offensif: 10 }, finition: 1.176 },
   moteur: { nom: 'Le moteur', ico: '⚡', cible: 'libre', source: 'amelioration',
-    quoi: 'Un été de cardio : il lance plus, et plus longtemps.', profils: { energie: 10 }, lancers: 1.07 },
+    quoi: 'Un été de cardio : il lance plus, et plus longtemps.', profils: { energie: 10 }, lancers: 1.154 },
   mur: { nom: 'Le mur', ico: '🧱', cible: 'libre', source: 'amelioration',
-    quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { deuxsens: 12, defensif: 12 }, defense: 0.94 },
+    quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { deuxsens: 12, defensif: 12 }, defense: 0.898 },
   vision: { nom: 'La vision', ico: '🪄', cible: 'libre', source: 'amelioration',
-    quoi: 'Il trouve des passes que personne ne voit.', profils: { passeur: 12, manieur: 10 }, creation: 1.08 },
+    quoi: 'Il trouve des passes que personne ne voit.', profils: { passeur: 12, manieur: 10 }, creation: 1.176 },
   coach: { nom: 'Le coach des gardiens', ico: '🧤', cible: 'libre', source: 'amelioration', gardien: true,
-    quoi: 'Un été avec le coach des gardiens : il place mieux ses jambières.', arrets: 0.95 },
+    quoi: 'Un été avec le coach des gardiens : il place mieux ses jambières.', arrets: 0.925 },
   /*
    * ---- L'ATELIER (S78) : éditer un joueur ----
    * JP : *ajouter cartes pour éditer joueur, genre ajouter position, changer
@@ -6585,9 +6598,9 @@ export const MUTATIONS = {
     quoi: 'Il apprend les autres postes de son groupe : plus aucune pénalité hors position (centre ou ailes ; les deux côtés en défense).' },
   cran: { nom: 'Monte d\'un cran', ico: '⏫', cible: 'libre', source: 'atelier', cran: 1,
     quoi: 'Il rend à 100 % une ligne plus haut : un trio (ou une paire) de plus où il est à sa place.' },
-  enBas: { nom: 'Joue en bas', ico: '⏬', cible: 'libre', source: 'atelier', enBas: true, lancers: 0.96,
+  enBas: { nom: 'Joue en bas', ico: '⏬', cible: 'libre', source: 'atelier', enBas: true, lancers: 0.928,
     quoi: 'Un franc-tireur de premier trio qui rend au quatrième : la pénalité de joueur trop bas ne le touche plus, là seulement. Un cran plus haut, elle mord encore. Il lance un peu moins.' },
-  chasse: { nom: 'La chasse à la vedette', ico: '👤', cible: 'libre', source: 'atelier', ombre: 0.86, lancers: 0.97,
+  chasse: { nom: 'La chasse à la vedette', ico: '👤', cible: 'libre', source: 'atelier', ombre: 0.86, lancers: 0.946,
     quoi: 'Tant qu\'il est habillé, il colle à leur meilleur joueur, même quand son trio n\'est pas sur la glace. Ce joueur-là marque moins. Lui lance un peu moins.' },
   physio: { nom: 'Le physio', ico: '🩺', cible: 'libre', source: 'atelier', physio: true,
     quoi: 'Le physio et le psy s\'en occupent : tous ses malus de carte disparaissent (un genou qui grince, une confiance ébranlée, un tir perdu).' },
@@ -6596,25 +6609,25 @@ export const MUTATIONS = {
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
-    profils: { sniper: 25, power: -5 }, finition: 1.10, lancers: 1.04 },
+    profils: { sniper: 25, power: -5 }, finition: 1.22, lancers: 1.088 },
   lame: { nom: 'Converti en défensif', ico: '🧊', cible: 'franc', source: 'choix',
     quoi: 'Sa lame ne se fabrique plus : il ne sent plus sa rondelle, et on en fait un joueur défensif.',
-    profils: { deuxsens: 15, checker: 15, sniper: -20 }, finition: 0.88, defense: 0.95 },
+    profils: { deuxsens: 15, checker: 15, sniper: -20 }, finition: 0.85, defense: 0.915 },
   gym: { nom: 'Dix livres de muscle', ico: '🦍', cible: 'rapide', source: 'choix',
     quoi: 'Un été au gym : plus lourd, plus solide, un peu moins vif.',
-    profils: { power: 25, energie: -15 }, blessure: 0.85, lancers: 0.97 },
+    profils: { power: 25, energie: -15 }, blessure: 0.7, lancers: 0.934 },
   patin: { nom: 'École de patinage', ico: '⚡', cible: 'lent', source: 'choix',
     quoi: 'Un entraîneur de patinage l\'a pris en main : il arrive avant la rondelle.',
-    profils: { energie: 25 }, lancers: 1.06 },
+    profils: { energie: 25 }, lancers: 1.132 },
   video: { nom: 'Les cassettes de Gretzky', ico: '🪄', cible: 'passeur', source: 'choix',
     quoi: 'Il étudie les vieilles cassettes : il voit le jeu une passe d\'avance.',
-    profils: { passeur: 25 }, creation: 1.10, finition: 0.97 },
+    profils: { passeur: 25 }, creation: 1.22, finition: 0.934 },
   pointe: { nom: 'La pointe de l\'avantage', ico: '💣', cible: 'pointe', source: 'choix',
     quoi: 'On lui donne la ligne bleue : il décoche à la moindre ouverture.',
-    profils: { offensif: 25 }, lancers: 1.08 },
+    profils: { offensif: 25 }, lancers: 1.176 },
   dur: { nom: 'L\'école du vétéran', ico: '🧱', cible: 'mou', source: 'choix',
     quoi: 'Un vétéran lui apprend à défendre : il ne monte plus, il bloque.',
-    profils: { defensif: 25, offensif: -10 }, defense: 0.94, creation: 0.95 },
+    profils: { defensif: 25, offensif: -10 }, defense: 0.898, creation: 0.89 },
   // ---- par accident ----
   prudent: { nom: 'Joue prudent', ico: '🤕', cible: 'hasard', source: 'accident',
     quoi: 'Depuis sa commotion, il évite les contacts.',
@@ -6645,25 +6658,25 @@ export const MUTATIONS = {
    * contrats : ce qu'une signature change chez lui, avec son prix. Même
    * contrat que les améliorations : un joueur, quelques pour cent.
    */
-  style_sniper: { nom: 'Style : franc-tireur', ico: '🎯', cible: 'libre', source: 'style', quoi: 'Il ne cherche plus la passe : il cherche le coin.', profils: { sniper: 15 }, finition: 1.05 },
-  style_faiseur: { nom: 'Style : faiseur de jeu', ico: '🪄', cible: 'libre', source: 'style', quoi: 'Il voit trois jeux d\'avance.', profils: { passeur: 15, manieur: 12 }, creation: 1.06 },
-  style_ancre: { nom: 'Style : ancre', ico: '⚓', cible: 'libre', source: 'style', quoi: 'Il ne quitte plus sa zone.', profils: { defensif: 15, checker: 12 }, defense: 0.97 },
-  style_locomotive: { nom: 'Style : locomotive', ico: '🚂', cible: 'libre', source: 'style', quoi: 'Il part avant la rondelle et arrive avant tout le monde.', profils: { energie: 12 }, lancers: 1.05 },
-  style_chasseur: { nom: 'Style : chasseur', ico: '🐺', cible: 'libre', source: 'style', quoi: 'Il écrase le porteur et repart avec la rondelle.', profils: { power: 10, physique: 10 }, lancers: 1.03, finition: 1.02 },
-  style_architecte: { nom: 'Style : architecte', ico: '📐', cible: 'libre', source: 'style', quoi: 'Chaque présence est un plan dessiné au tableau.', profils: { passeur: 12, manieur: 12 }, creation: 1.05, finition: 1.02 },
-  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡️', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15, deuxsens: 10 }, defense: 0.96 },
-  style_canonnier: { nom: 'Style : canonnier', ico: '💣', cible: 'libre', source: 'style', quoi: 'Il décoche de la ligne bleue à chaque remise.', profils: { offensif: 15 }, lancers: 1.06 },
-  style_buteur: { nom: 'Style : buteur né', ico: '👑', cible: 'libre', source: 'style', quoi: 'Il sent le but comme d\'autres sentent la pluie.', profils: { sniper: 20 }, finition: 1.07, lancers: 1.02 },
-  style_pieuvre: { nom: 'Style : pieuvre', ico: '🐙', cible: 'libre', source: 'style', gardien: true, quoi: 'Des bras et des jambières partout dans le demi-cercle.', arrets: 0.97, blessure: 0.9 },
-  masque_neuf: { nom: 'Le masque neuf', ico: '🎭', cible: 'libre', source: 'style', gardien: true, quoi: 'Un masque peint à ses couleurs : il se sent invincible.', arrets: 0.98 },
-  baton_neuf: { nom: 'Le bâton neuf', ico: '🏒', cible: 'libre', source: 'style', quoi: 'La bonne courbe, enfin.', profils: { sniper: 5 }, finition: 1.03 },
-  contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.04, lancers: 1.03, blessure: 1.1 },
-  contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋️', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.85, finition: 0.99 },
-  contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.05, creation: 1.03, blessure: 1.15 },
-  contrat_leader: { nom: 'Le « C » cousu', ico: '©️', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.03, defense: 0.98 },
-  style_courbe: { nom: 'Style : la courbe', ico: '📏', cible: 'libre', source: 'style', quoi: 'La courbe que le gabarit n\'aime pas : le lancer trompe, il passe moins.', profils: { sniper: 10, passeur: -6 }, finition: 1.04, creation: 0.98 },
-  style_accrocheur: { nom: 'Style : l\'accrocheur', ico: '🪝', cible: 'libre', source: 'style', quoi: 'Il retient le bâton dans les coins, comme avant la règle. Moins de jeux, moins de lancers.', profils: { checker: 10, defensif: 8 }, defense: 0.97, lancers: 0.97 },
-  style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.96,
+  style_sniper: { nom: 'Style : franc-tireur', ico: '🎯', cible: 'libre', source: 'style', quoi: 'Il ne cherche plus la passe : il cherche le coin.', profils: { sniper: 15 }, finition: 1.11 },
+  style_faiseur: { nom: 'Style : faiseur de jeu', ico: '🪄', cible: 'libre', source: 'style', quoi: 'Il voit trois jeux d\'avance.', profils: { passeur: 15, manieur: 12 }, creation: 1.132 },
+  style_ancre: { nom: 'Style : ancre', ico: '⚓', cible: 'libre', source: 'style', quoi: 'Il ne quitte plus sa zone.', profils: { defensif: 15, checker: 12 }, defense: 0.949 },
+  style_locomotive: { nom: 'Style : locomotive', ico: '🚂', cible: 'libre', source: 'style', quoi: 'Il part avant la rondelle et arrive avant tout le monde.', profils: { energie: 12 }, lancers: 1.11 },
+  style_chasseur: { nom: 'Style : chasseur', ico: '🐺', cible: 'libre', source: 'style', quoi: 'Il écrase le porteur et repart avec la rondelle.', profils: { power: 10, physique: 10 }, lancers: 1.066, finition: 1.044 },
+  style_architecte: { nom: 'Style : architecte', ico: '📐', cible: 'libre', source: 'style', quoi: 'Chaque présence est un plan dessiné au tableau.', profils: { passeur: 12, manieur: 12 }, creation: 1.09, finition: 1.036 },
+  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡️', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15, deuxsens: 10 }, defense: 0.94 },
+  style_canonnier: { nom: 'Style : canonnier', ico: '💣', cible: 'libre', source: 'style', quoi: 'Il décoche de la ligne bleue à chaque remise.', profils: { offensif: 15 }, lancers: 1.108 },
+  style_buteur: { nom: 'Style : buteur né', ico: '👑', cible: 'libre', source: 'style', quoi: 'Il sent le but comme d\'autres sentent la pluie.', profils: { sniper: 20 }, finition: 1.112, lancers: 1.032 },
+  style_pieuvre: { nom: 'Style : pieuvre', ico: '🐙', cible: 'libre', source: 'style', gardien: true, quoi: 'Des bras et des jambières partout dans le demi-cercle.', arrets: 0.955, blessure: 0.8 },
+  masque_neuf: { nom: 'Le masque neuf', ico: '🎭', cible: 'libre', source: 'style', gardien: true, quoi: 'Un masque peint à ses couleurs : il se sent invincible.', arrets: 0.964 },
+  baton_neuf: { nom: 'Le bâton neuf', ico: '🏒', cible: 'libre', source: 'style', quoi: 'La bonne courbe, enfin.', profils: { sniper: 5 }, finition: 1.075 },
+  contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
+  contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋️', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
+  contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.09, creation: 1.054, blessure: 1.3 },
+  contrat_leader: { nom: 'Le « C » cousu', ico: '©️', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
+  style_courbe: { nom: 'Style : la courbe', ico: '📏', cible: 'libre', source: 'style', quoi: 'La courbe que le gabarit n\'aime pas : le lancer trompe, il passe moins.', profils: { sniper: 10, passeur: -6 }, finition: 1.088, creation: 0.956 },
+  style_accrocheur: { nom: 'Style : l\'accrocheur', ico: '🪝', cible: 'libre', source: 'style', quoi: 'Il retient le bâton dans les coins, comme avant la règle. Moins de jeux, moins de lancers.', profils: { checker: 10, defensif: 8 }, defense: 0.949, lancers: 0.934 },
+  style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.928,
     quoi: 'Leur paire ne le trouve pas : la moitié de leur étouffement ne compte pas sur ses lancers. Il joue seul, alors il crée moins.' },
   ...MODIFS_VIE,
 };
@@ -7425,15 +7438,15 @@ export const AVANT_GROS = {
     irl: 'Mark Messier, 1994 : il garantit une victoire au 6e match contre les Devils, puis marque trois buts en troisième.',
     recit: 'Les journalistes entourent ton capitaine. Ils attendent une phrase pour la une.',
     options: [
-      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit, et une victoire vaudra double', prix: 'Une défaite aussi', finition: 1.05, enjeu: true },
-      { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', defense: 0.98 },
+      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit, et une victoire vaudra double', prix: 'Une défaite aussi', finition: 1.088, enjeu: true },
+      { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', defense: 0.96 },
     ] },
   mots: { ico: '🗣️', titre: 'La guerre des mots',
     irl: 'Patrick Roy à Jeremy Roenick, 1996 : « Je ne l\'entends pas, j\'ai mes deux bagues de la Coupe dans les oreilles. »',
     recit: 'Leur entraîneur a dit en point de presse que ta formation « ne ferait pas les séries dans la Ligue américaine ».',
     options: [
-      { cle: 'repliquer', nom: 'Répliquer au micro', bon: 'Les gars sont piqués au vif', prix: 'Ils vont jouer sur les nerfs', finition: 1.03, discipline: 1.15 },
-      { cle: 'glace', nom: 'Laisser parler la glace', bon: 'Tête froide', discipline: 0.85 },
+      { cle: 'repliquer', nom: 'Répliquer au micro', bon: 'Les gars sont piqués au vif', prix: 'Ils vont jouer sur les nerfs', finition: 1.06, discipline: 1.213 },
+      { cle: 'glace', nom: 'Laisser parler la glace', bon: 'Tête froide', discipline: 0.788 },
     ] },
   virus: { ico: '🦠', titre: 'Le virus dans le vestiaire', cible: 'trois',
     recit: '{noms} ont passé la nuit malades. Le soigneur dit qu\'ils peuvent jouer, « à peu près ». Aucun bon choix : lequel fait le moins mal ?',
@@ -7444,63 +7457,63 @@ export const AVANT_GROS = {
   samedi: { ico: '📺', titre: 'Le match du samedi soir',
     recit: 'Le pays au complet regarde. Le réseau veut du spectacle.',
     options: [
-      { cle: 'show', nom: 'Donner le show', bon: 'Du spectacle pour la télé', prix: 'On se découvre', volume: 1.05, defense: 1.04 },
-      { cle: 'propre', nom: 'Jouer ton hockey', bon: 'Le plan de match, rien d\'autre', defense: 0.98 },
+      { cle: 'show', nom: 'Donner le show', bon: 'Du spectacle pour la télé', prix: 'On se découvre', volume: 1.088, defense: 1.08 },
+      { cle: 'propre', nom: 'Jouer ton hockey', bon: 'Le plan de match, rien d\'autre', defense: 0.96 },
     ] },
   gloria: { ico: '🎶', titre: 'La chanson du vestiaire',
     irl: 'Les Blues de 2019 adoptent « Gloria » dans un bar de Philadelphie, alors derniers de la ligue ; ils gagnent la Coupe.',
     recit: 'Quelques joueurs ont trouvé une vieille chanson dans un bar la veille. Ils veulent la faire jouer après chaque victoire.',
     options: [
       { cle: 'chanson', nom: 'Adopter la chanson', bon: 'Une victoire ce soir lancerait une vraie séquence', prix: 'Une défaite, et elle devient une blague', enjeu: true },
-      { cle: 'couvre', nom: 'Couvre-feu à 22 h', bon: 'Tout le monde est reposé', energie: 0.85 },
+      { cle: 'couvre', nom: 'Couvre-feu à 22 h', bon: 'Tout le monde est reposé', energie: 0.76 },
     ] },
   pieuvre: { ico: '🐙', titre: 'La pieuvre sur la glace',
     irl: 'Détroit, 1952 : les frères Cusimano lancent une pieuvre sur la glace — huit tentacules, huit victoires pour la Coupe.',
     recit: 'Les partisans ont prévu quelque chose. Deux façons d\'en profiter.',
     options: [
-      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', finition: 1.03 },
-      { cle: 'calme', nom: 'Garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.9 },
+      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', finition: 1.06 },
+      { cle: 'calme', nom: 'Garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.825 },
     ] },
   rat: { ico: '🐀', titre: 'Le rat du vestiaire',
     irl: 'Floride, 1995 : Scott Mellanby tue un rat d\'un coup de bâton dans le vestiaire, marque deux buts — le « rat trick » — et les partisans en lancent des centaines en plastique.',
     recit: 'Un rat a traversé le vestiaire pendant la réunion d\'avant-match. Ton ailier l\'a expédié d\'un tir du poignet.',
     options: [
       { cle: 'folie', nom: 'En faire un porte-bonheur', bon: 'Si le rat porte chance, ça lance de partout', prix: 'Sinon, des rats en plastique partout et un arbitre à bout',
-        pari: { chance: 0.5, gagne: { volume: 1.08, duree: 1 }, perd: { discipline: 1.2, duree: 1 } } },
-      { cle: 'sobre', nom: 'On passe à autre chose', bon: 'Tête froide', discipline: 0.92 },
+        pari: { chance: 0.5, gagne: { volume: 1.11, duree: 1 }, perd: { discipline: 1.25, duree: 1 } } },
+      { cle: 'sobre', nom: 'On passe à autre chose', bon: 'Tête froide', discipline: 0.84 },
     ] },
   poteaux: { ico: '🥅', titre: 'Le gardien parle à ses poteaux', cible: 'gardien',
     irl: 'Patrick Roy parlait à ses poteaux pendant les matchs ; il disait qu\'ils étaient ses amis.',
     recit: '{nom} a ses rituels. Ce soir, le soigneur veut les couper pour son aine.',
     options: [
-      { cle: 'rituels', nom: 'Laisser ses rituels', bon: 'Il est dans sa bulle', prix: 'Son aine souffre : jambes −20 jusqu\'à sa prochaine soirée de congé', defense: 0.96, action: { energie: -20 } },
+      { cle: 'rituels', nom: 'Laisser ses rituels', bon: 'Il est dans sa bulle', prix: 'Son aine souffre : jambes −20 jusqu\'à sa prochaine soirée de congé', defense: 0.92, action: { energie: -20 } },
       { cle: 'auxiliaire', nom: 'Le reposer : l\'auxiliaire prend le gros match', bon: '{nom} est frais pour la suite', prix: 'Ton auxiliaire dans un gros match', action: { gardienAux: 1 } },
     ] },
   ancien: { ico: '🧳', titre: 'Le retour de l\'ancien',
     faits: c => c && c.advRoster && c.advRoster.some(k => c.anciensJoueurs && c.anciensJoueurs.has(k)) ? {} : null,
     recit: 'Un joueur que tu as laissé partir joue chez eux. Il a dit qu\'il « avait quelque chose à prouver ».',
     options: [
-      { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1, discipline: 1.1 },
-      { cle: 'ignorer', nom: 'L\'ignorer', bon: 'On joue notre match', defense: 0.97 },
+      { cle: 'cibler', nom: 'Le cibler', bon: 'On lui fait payer son départ', prix: 'L\'arbitre le voit venir', robustesse: 1.5, discipline: 1.175 },
+      { cle: 'ignorer', nom: 'L\'ignorer', bon: 'On joue notre match', defense: 0.94 },
     ] },
   gabarit: { ico: '📏', titre: 'Le gabarit dans le vestiaire', regle: true,
     irl: 'Depuis 1990, les arbitres peuvent mesurer la courbe d\'un bâton.',
     recit: 'Quelqu\'un a laissé un gabarit sur le banc. Tes meilleurs bâtons ne passeraient pas.',
     options: [
-      { cle: 'garder', nom: 'Garder les courbes', bon: 'Le tir tombe', prix: 'S\'ils mesurent, les punitions tombent aussi', finition: 1.04, discipline: 1.15, trou: true },
-      { cle: 'changer', nom: 'Changer les bâtons', bon: 'Rien à mesurer', discipline: 0.92 },
+      { cle: 'garder', nom: 'Garder les courbes', bon: 'Le tir tombe', prix: 'S\'ils mesurent, les punitions tombent aussi', finition: 1.08, discipline: 1.213, trou: true },
+      { cle: 'changer', nom: 'Changer les bâtons', bon: 'Rien à mesurer', discipline: 0.84 },
     ] },
   desert: { ico: '🚪', titre: 'Le plan du filet désert', regle: true,
     recit: 'Ton adjoint a écrit un jeu : le gardien sort à la moitié de la troisième, pas à la dernière minute.',
     options: [
-      { cle: 'tot', nom: 'Le sortir tôt', bon: 'Un attaquant de plus quand ça compte', prix: 'Le filet est vide longtemps', volume: 1.05, defense: 1.06, trou: true },
-      { cle: 'tard', nom: 'À la dernière minute, comme tout le monde', bon: 'On ne donne pas le match', defense: 0.98 },
+      { cle: 'tot', nom: 'Le sortir tôt', bon: 'Un attaquant de plus quand ça compte', prix: 'Le filet est vide longtemps', volume: 1.088, defense: 1.095, trou: true },
+      { cle: 'tard', nom: 'À la dernière minute, comme tout le monde', bon: 'On ne donne pas le match', defense: 0.96 },
     ] },
   sifflet: { ico: '🦓', titre: 'Cet arbitre laisse jouer', regle: true,
     recit: 'Le rapport est clair : celui de ce soir a le sifflet dans la poche. Tes vétérans veulent en profiter.',
     options: [
-      { cle: 'profiter', nom: 'Accrocher, retenir, bloquer', bon: 'Les jeux meurent dans les coins', prix: 'S\'il change d\'idée, ça coûte cher', defense: 0.95, discipline: 1.12, trou: true },
-      { cle: 'propre', nom: 'Jouer propre quand même', bon: 'La tête froide', discipline: 0.9 },
+      { cle: 'profiter', nom: 'Accrocher, retenir, bloquer', bon: 'Les jeux meurent dans les coins', prix: 'S\'il change d\'idée, ça coûte cher', defense: 0.913, discipline: 1.19, trou: true },
+      { cle: 'propre', nom: 'Jouer propre quand même', bon: 'La tête froide', discipline: 0.825 },
     ] },
 };
 

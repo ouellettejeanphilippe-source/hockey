@@ -50,6 +50,7 @@
  *
  *   node scripts/check_cartes.mjs
  *   LIGUES=18 node scripts/check_cartes.mjs
+ *   CARTES=chasse,cadenas node scripts/check_cartes.mjs     seulement celles-là (après un réglage)
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -111,14 +112,15 @@ const punitions = t => SLOTS.reduce((a, s) => a + ((t.roster[s.i] && t.roster[s.
 
 /*
  * LE PROFIL DU MATCH d'une équipe, par match, lu de la feuille (`t.journal[i].feuille`, déjà produite par le
- * moteur) — seulement contre les adversaires de l'autre parité, ceux qui n'ont pas la carte au passage qu'on lit.
+ * moteur) — seulement contre les adversaires de l'autre parité, ceux qui n'ont pas la carte au passage qu'on lit, et
+ * seulement depuis le jour où la carte est prise.
  */
 function profil(teams, i) {
   const t = teams[i], idx = new Map(teams.map((x, k) => [x, k]));
   const a = { n: 0, tp: 0, tc: 0, bp: 0, bc: 0, pun: 0, hp: 0 };
   for (const j of t.journal) {
     const f = j.feuille;
-    if (!f || !f.A || idx.get(j.adv) % 2 === i % 2) continue;
+    if (!f || !f.A || j.n <= JOUR || idx.get(j.adv) % 2 === i % 2) continue;
     const c = f.A === t ? 'A' : 'B', o = c === 'A' ? 'B' : 'A';
     a.n++; a.tp += tirsTotal(f, c); a.tc += tirsTotal(f, o); a.bp += j.gf; a.bc += j.ga;
     a.pun += f.punitions.filter(p => p.cote === c).length; a.hp += f.coups[c];
@@ -183,20 +185,33 @@ exiger('une carte prise ne reparaît pas dans une main', !repete, repete || `${4
 exiger('la même graine offre la même main', mainDeCartes(7, 40).join() === mainDeCartes(7, 40).join(),
   mainDeCartes(7, 40).join(' · '));
 
-console.log(`\n  carte              ΔV      ΔBP     ΔBC   Δbless.   Δpun`);
-for (const cle of toutes) {
-  const r = paires(cle);
-  console.log(`  ${CARTES[cle].nom.padEnd(16)} ${signe(r.v).padStart(5)}  ${signe(r.bp, 0).padStart(5)}  ${signe(r.bc, 0).padStart(5)}  ${signe(r.bl, 1).padStart(6)}  ${signe(r.pun, 0).padStart(5)}`);
+/*
+ * LES SEUILS DE VISIBILITÉ, par match (la blessure, par saison) : ce qu'un joueur lit dans la feuille sans
+ * se forcer. `D` est le déplacement : chaque écart divisé par son seuil, additionnés.
+ */
+const SEUIL = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
+const MAX_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
+const abs = Math.abs;
+const deplacement = r => abs(r.p.tp + r.p.tc) / SEUIL.tirs + (abs(r.p.bp) + abs(r.p.bc)) / SEUIL.buts + abs(r.p.pun) / SEUIL.punitions + abs(r.p.hp) / SEUIL.coups + abs(r.bl) / SEUIL.blessures;
+const visible = r => abs(r.p.tp) >= SEUIL.tirs || abs(r.p.tc) >= SEUIL.tirs || abs(r.p.tp + r.p.tc) >= SEUIL.tirs
+  || abs(r.p.bp) + abs(r.p.bc) >= SEUIL.buts || abs(r.p.pun) >= SEUIL.punitions || abs(r.p.hp) >= SEUIL.coups || abs(r.bl) >= SEUIL.blessures;
+exiger('chaque carte de saison a une rareté que la règle connaît', toutes.every(cle => MAX_V[(BANQUE[`saison:${cle}`] || {}).rarete]), toutes.map(cle => `${cle} ${(BANQUE[`saison:${cle}`] || {}).rarete}`).join(' · '));
+
+console.log(`\n  carte                       tirs pour/contre  rythme    buts pour/contre  punitions  coups  bless.      ΔV`);
+for (const cle of toutes.filter(c => !process.env.CARTES || process.env.CARTES.split(',').includes(c))) {
+  const r = paires(cle), rar = BANQUE[`saison:${cle}`].rarete, D = deplacement(r), p = r.p;
+  console.log(`  ${CARTES[cle].nom.padEnd(26)} ${signe(p.tp).padStart(5)} /${signe(p.tc).padStart(5)}   ${signe(p.tp + p.tc).padStart(5)}      ${signe(p.bp, 2).padStart(5)} /${signe(p.bc, 2).padStart(5)}    ${signe(p.pun, 2).padStart(5)}   ${signe(p.hp).padStart(5)}  ${signe(r.bl).padStart(5)}  ${signe(r.v).padStart(5)}  (${rar}, déplacement ${D.toFixed(1)})`);
   /*
-   * LA BORNE EST LE CONTRAT DE CONCEPTION, pas un intervalle inventé : moins
-   * d'une victoire d'écart net. Elle est large exprès — à douze ligues la
-   * lecture vaut ±0,3 — et un garde-fou qui crie pour du bruit se fait
-   * désactiver. Ce qu'elle attrape est une carte devenue un cadeau ou un
-   * piège : le canal défensif à lui seul valait +8,3 victoires.
+   * LES BORNES SONT LE CONTRAT DE CONCEPTION, pas des intervalles inventés. Elles sont larges exprès — à douze
+   * ligues la lecture vaut ±0,3, et une demi-victoire d'incertitude de plus d'une lecture à l'autre — et un
+   * garde-fou qui crie pour du bruit se fait désactiver. Ce qu'elles attrapent : une carte devenue un cadeau ou
+   * un piège (le canal défensif à lui seul valait +8,3 victoires), ou une rare qui ne se voit pas.
    */
-  if (juger) borne(`${CARTES[cle].nom} · écart net`, r.v, -1, 1, 'victoire');
-  else informer(`${CARTES[cle].nom} · écart net`, `${signe(r.v)} victoire — non jugé, ${LIGUES} ligues sous le plancher de ${PLANCHER}`);
-  informer(`${CARTES[cle].nom} · ce qui bouge`, `${signe(r.bp, 0)} BP · ${signe(r.bc, 0)} BC · ${signe(r.bl, 1)} blessure · ${signe(r.pun, 0)} minute de punition`);
+  if (juger) {
+    borne(`${CARTES[cle].nom} · écart net (${rar})`, r.v, -MAX_V[rar], MAX_V[rar], 'victoire');
+    if (rar === 'rare' || rar === 'legendaire') exiger(`${CARTES[cle].nom} · se voit dans la feuille`, visible(r), `${signe(p.tp)} tir pour · ${signe(p.tc)} contre · buts ${signe(p.bp, 2)} / ${signe(p.bc, 2)} · ${signe(p.pun, 2)} punition · ${signe(r.bl)} blessure`);
+    borne(`${CARTES[cle].nom} · victoires par seuil franchi`, abs(r.v) / Math.max(1, D), 0, 0.5, ' V');
+  } else informer(`${CARTES[cle].nom} · écart net`, `${signe(r.v)} victoire — non jugé, ${LIGUES} ligues sous le plancher de ${PLANCHER}`);
 }
 
 verdict('Les cartes de saison');

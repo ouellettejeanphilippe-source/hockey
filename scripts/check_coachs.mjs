@@ -26,7 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
-import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, JOUEURS_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
@@ -142,7 +142,8 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   exiger('sa confiance joue plus fort par joueur de sa couleur habillé', Math.abs((avec[canal] ?? 0) - attendu) < 1e-9 && Math.abs(avec[canal] - (canal === 'robustesse' ? 0 : 1)) > Math.abs(sans[canal] - (canal === 'robustesse' ? 0 : 1)),
     `${COACHS[k].nom} III, ${n[k]} joueurs : ${canal} ${sans[canal].toFixed(3)} sans eux → ${avec[canal].toFixed(3)} (×${(1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, n[k])).toFixed(1)} de l'écart)`);
   const c5 = payloadDe('consommable:cleCoin', { joueurs: { rapaces: 9 } }).effet.finition, c0 = payloadDe('consommable:cleCoin', {}).effet.finition;
-  exiger('une carte de vestiaire grandit avec les joueurs de sa couleur, jusqu\'à son plafond', c0 === 1.01 && Math.abs(c5 - 1.05) < 1e-9, `précision ×${c0} sans joueur → ×${c5} (neuf joueurs, plafonné à cinq)`);
+  const CC = CONSOMMABLES.cleCoin;
+  exiger('une carte de vestiaire grandit avec les joueurs de sa couleur, jusqu\'à son plafond', c0 === CC.effet.finition && Math.abs(c5 - (c0 + CC.parJoueur.par.finition * CC.parJoueur.max)) < 1e-9, `précision ×${c0} sans joueur → ×${c5} (neuf joueurs, plafonné à cinq)`);
   // L'écran lit les pas en chiffres de match pour TON club (js/impact.js) : « jusqu'à ≈ +0,6 tir par match avec 10 cartes ».
   poserClubLu(() => ({ team: t }));
   const pas = Object.keys(BANQUE).flatMap(id => reglesDe(id).filter(m => /^Jusqu'à |^Grandit avec chaque /.test(m.txt)).map(m => `${id} : ${m.txt}`));
@@ -156,7 +157,8 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const p0 = payloadDe('patron:att_volume', { patrons: [], build: {} }).patron.volume;
   const p5 = payloadDe('patron:att_volume', { patrons: [], build: { essaim: 5 } }).patron.volume;
   const p30 = payloadDe('patron:att_volume', { patrons: [], build: { essaim: 30 } }).patron.volume;
-  exiger('un adjoint de coach grandit avec les cartes de son coach, jusqu\'à son plafond', p0 === 1.01 && Math.abs(p5 - 1.03) < 1e-9 && Math.abs(p30 - 1.05) < 1e-9, `tirs ×${p0} → ×${p5} (5 cartes) → ×${p30} (30, plafonné à 10)`);
+  const AV = PATRONS.att_volume, pas = AV.echelle.par.volume;
+  exiger('un adjoint de coach grandit avec les cartes de son coach, jusqu\'à son plafond', p0 === AV.effet.volume && Math.abs(p5 - (p0 + 5 * pas)) < 1e-9 && Math.abs(p30 - (p0 + AV.echelle.max * pas)) < 1e-9, `tirs ×${p0} → ×${p5} (5 cartes) → ×${p30} (30, plafonné à 10)`);
   const e8 = payloadDe('evenement:bunker', { build: { tortue: 8 } }).effet.defense;
   exiger('un événement de coach aussi, et une autre couleur ne compte pas', Math.abs(e8 - 0.948) < 1e-9 && payloadDe('evenement:bunker', { build: { essaim: 8 } }).effet.defense === 0.98, `buts contre ×${e8} avec huit cartes de la Tortue`);
   const g = payloadDe('evenement:commanditaires', { build: { banque: 4 } }).gain;

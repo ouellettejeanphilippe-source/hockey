@@ -344,7 +344,7 @@ node scripts/check_tireurs.mjs       # tireurs sans zones ~53, alignement parfai
 node scripts/check_traits.mjs        # les traits restent rares et se voient
 ESSAIS=4 LIGUES=4 node scripts/check_builds.mjs   # les bâtis défensif et robuste mènent quelque part
 LIGUES=8 node scripts/check_pm.mjs   # le +/- par rang d'unité, l'écart du haut au bas, les jumeaux
-node scripts/check_cartes.mjs        # chaque carte de saison vaut moins d'une victoire
+node scripts/check_cartes.mjs        # le net de chaque carte de saison est borné par sa rareté, une rare se voit dans la feuille
 node scripts/check_plans.mjs         # chaque plan de match et chaque roulement valent moins d'une victoire et demie
 LIGUES=8 node scripts/check_moments.mjs   # dilemmes, séquences, factions, consigne du match, changements de carte, objectifs
 LIGUES=6 node scripts/check_tactiques.mjs # les lignes à la HockeyArena : fit, tactiques, agressivité, glace (S68)
