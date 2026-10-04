@@ -44,7 +44,7 @@ function moyennes(L) {
     tirsPour, tirsContre, rythme: tirsPour + tirsContre,
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
-    punitions: nContre, minutesDesavantage: nContre * wB.long, minutesAvantage: nPour * wA.long,
+    punitions: nContre, punitionsEux: nPour, minutesDesavantage: nContre * wB.long, minutesAvantage: nPour * wA.long,
     coups: coupsAttendus(A),
     blessures: L.blessures, usure: L.usure,
     glaceF: glace('F'), glaceD: glace('D'),
@@ -59,7 +59,7 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || {}).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}` : '-'));
   return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
     team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, adv && [adv.name, adv.games],
-    opts.aVenir, opts.effets, opts.nu, opts.n, opts.series]);
+    opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.nu, opts.n, opts.series]);
 }
 function lire(team, lu, adv, opts) {
   const k = cle(team, lu, adv, opts), maintenant = Date.now(), vu = MEMOIRE.get(k);
@@ -98,6 +98,7 @@ function lignesDe(d, par = 'par match') {
     if (a < SEUILS.rare) return;
     const bon = marque ? x > 0 : x < 0;
     if (a < SEUILS.buts) {
+      if (par !== 'par match') return;
       const n = Math.round(1 / a);
       out.push({ txt: marque ? `≈ 1 but ${x > 0 ? 'de plus' : 'de moins'} marqué tous les ${n} matchs` : `≈ 1 but accordé ${x > 0 ? 'de plus' : 'de moins'} tous les ${n} matchs`, bon, cle: marque ? 'but' : 'butContre' });
       return;
@@ -125,7 +126,7 @@ const surLaPart = (d, part) => (part === 1 ? d : { ...d, tirsPour: d.tirsPour * 
  * matchs) : une blessure se dit alors sur cette durée plutôt que sur la saison.
  * → [{ txt: '≈ +2,1 tirs par match', bon: true, cle: 'tir' }, …] ; vide quand l'effet n'a aucun canal de match.
  */
-export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree = null, part = 1, par = 'par match' } = {}) {
+export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree = null, part = 1, par = 'par match', eux = false } = {}) {
   if (!effet) return [];
   const e = {};
   for (const k of [...CANAUX_MATCH, 'blessure', 'energie', 'F', 'D']) {
@@ -134,23 +135,25 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
     e[k] = v;
   }
   if (!Object.keys(e).length) return [];
-  const sans = lire(team, lineup, adv, { n: N_EFFET }), avec = lire(team, lineup, adv, { effets: [e], n: N_EFFET });
-  const d = differences(avec, sans);
+  const sans = lire(team, lineup, adv, { n: N_EFFET }), avec = lire(team, lineup, adv, eux ? { effetsAdv: [e], n: N_EFFET } : { effets: [e], n: N_EFFET });
+  let d = differences(avec, sans);
+  // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
+  if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, punitions: d.punitionsEux, coups: 0 };
   const out = [];
   if (CANAUX_MATCH.some(k => k in e)) {
     const l = lignesDe(surLaPart(d, part), par);
     out.push(...(l.length ? l : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]));
   }
-  if (e.blessure != null) {
+  if (e.blessure != null && !eux) {
     const sur = duree || 82, n = d.blessures * sur;
     if (Math.abs(n) >= 0.1) out.push({ txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${duree ? `sur ${duree} match${duree > 1 ? 's' : ''}` : 'par saison'}`, bon: n < 0, cle: 'blessure' });
     else out.push({ txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
   }
-  if (e.energie != null) {
+  if (e.energie != null && !eux) {
     if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure ${par}`, bon: d.usure < 0, cle: 'jambes' });
     else out.push({ txt: 'jambes : à peine perceptible', bon: null, cle: 'rien' });
   }
-  for (const g of ['F', 'D']) if (Array.isArray(e[g])) e[g].forEach((m, i) => {
+  for (const g of ['F', 'D']) if (!eux && Array.isArray(e[g])) e[g].forEach((m, i) => {
     if (m === 1) return;
     const x = d[g === 'F' ? 'glaceF' : 'glaceD'][i];
     out.push({ txt: Math.abs(x) >= SEUILS.minutes ? `${RANGS[g][i]} : ≈ ${signeDe(x)}${nb(x, 1)} min de glace ${par}` : `${RANGS[g][i]} : glace presque inchangée`, bon: null, cle: 'glace' });
@@ -172,10 +175,10 @@ export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
 /*
  * UN RÉGLAGE DE LIGNES, EN CHIFFRES : le soir joué avec ces lignes contre le même soir joué avec les
  * autres. Le système, l'agressivité et la glace jouent ligne par ligne dans le moteur ; on lui fait
- * jouer les deux versions. Pas de dés partagés quand un système tire sa « action spéciale » : on lit
- * plus de lancers (N_LIGNES) pour que la différence ne soit pas du bruit.
+ * jouer les deux versions, sous les mêmes dés (l'action spéciale d'un système se lit par son espérance,
+ * pas par un dé : la différence n'est pas du bruit).
  */
-const N_LIGNES = 2400;
+const N_LIGNES = 800;
 /** La différence de deux jeux de lignes (quatre `{ tac, tacD, agr, sec }`), en mots de match. */
 export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   if (!team) return [];

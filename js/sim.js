@@ -4653,20 +4653,22 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
      * une chance, selon sa chimie, de jouer SON jeu — et ce lancer entre plus.
      * Si le trio qui défend joue la tactique qui la contre, elle est étouffée.
      */
-    let special = null;
+    let special = null, attenteSpec = 1;
     if (mode === 'FE' && trioOff && trioOff.tactique && trioOff.tactique !== 'hourra'
-      && hasard() < SPEC_BASE * (trioOff.chimie || 0) / 100) {
+      && (st?.espP || hasard() < SPEC_BASE * (trioOff.chimie || 0) / 100)) {
       // S79 : le trio qui défend OU sa paire peut jouer le système qui l'étouffe.
       const T = dTrio && dTrio.tactique && TACTIQUES[dTrio.tactique];
       const D = dPaire && dPaire.tactique && SYSTEMES_D[dPaire.tactique];
       special = (T && T.bat === trioOff.tactique) || (D && D.bat === trioOff.tactique) ? 'etouffee' : 'reussie';
+      // LA LECTURE (js/impact.js) ne tire pas ce dé : elle prend son espérance, la chance de l'action × ce qu'elle rapporte.
+      if (st?.espP) { attenteSpec = 1 + SPEC_BASE * (trioOff.chimie || 0) / 100 * (special === 'reussie' ? SPEC_MULT - 1 : 0); special = null; }
     }
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
         * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance * devantFilet * elanDe(off, instant)
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1)
-        * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1)
+        * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1) * attenteSpec
         * (vedette && tireur === vedette ? ombre : 1),
       0.005, PCT_TIR_MAX);
 
@@ -5408,9 +5410,11 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
  * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], lignes = null, nu = false, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, nu = false, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
   return avecAVenir(team, aVenir, () => {
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
+    const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
+    if (adv && effetsAdv.length) adv._effetMatch = [...(sauveAdv || []), ...effetsAdv];
     const lignesAvant = team.lignes, lignesMatch = team._lignesMatch, avaitL = 'lignes' in team, avaitM = '_lignesMatch' in team;
     if (effets.length) team._effetMatch = [...(sauve || []), ...effets];
     // `lignes` : les quatre lignes (système, agressivité, glace) à jouer à la place des tiennes — un système ou une agressivité qu'on essaie.
@@ -5427,7 +5431,17 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
         B = profilMatch(adv, lb, team);
         B.rob = teamStrength(adv, lb).rob; B.domicile = false;
         gB = pickGoalie(lb, adv.games, adv);
-      } else B = { pression: REF.pression, zDef: REF.zDef, fgDefaut: REF.fg, discipline: 1, occasions: null, patineurs: [] };
+      } else {
+        B = { pression: REF.pression, zDef: REF.zDef, fgDefaut: REF.fg, discipline: 1, occasions: null, patineurs: [], rob: MOY_ROB_EQUIPE, traitRob: 0 };
+        // Un effet sur eux, posé sur le club de référence comme `profilMatch` le pose (mêmes bornes).
+        for (const e of effetsAdv) {
+          if (e.volume) B.pression = borne(REF.pression * e.volume, 0.40, REF.pression * PRESSION_MAX);
+          if (e.finition) B.finitionFacteur = Math.min(FINITION_MAX, e.finition);
+          if (e.defense) B.traitDef = e.defense;
+          if (e.discipline) B.discipline = borne(e.discipline, DISCIPLINE_MIN, DISCIPLINE_MAX);
+          if (e.robustesse) B.traitRob = e.robustesse;
+        }
+      }
       const gA = pickGoalie(lu, team.games, team);
       const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
       const lire = (off, def, g, mode) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n });
@@ -5445,6 +5459,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       return { A, B, occasions, p, blessures, usure };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
+      if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
       if (lignes) {
         if (avaitL) team.lignes = lignesAvant; else delete team.lignes;
         if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;

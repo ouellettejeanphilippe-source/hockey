@@ -114,9 +114,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
     ['Précision +10 %', { finition: 1.10 }], ['Punitions +30 %', { discipline: 1.30 }], ['Punitions −30 %', { discipline: 0.70 }],
     ['Robustesse +1', { robustesse: 1 }], ['4e trio +30 %', { F: [1, 1, 1, 1.3] }],
   ];
-  const sans = joues(A, B, MATCHS, 'paires');
-  const brut = chiffresDuSoir(A, null, B);
-  void brut;
+  const sans = joues(A, B, MATCHS, 'paires'), zs = [];
   for (const [nom, e] of EFFETS) {
     A._effetMatch = [e];
     const avec = joues(A, B, MATCHS, 'paires');
@@ -128,15 +126,20 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
       delete A._effetMatch;
       return Object.fromEntries(CLES.map(k => [k, av[k] - base[k]]));
     })();
-    // Les canaux ne se lisent pas tous dans la feuille : on juge ce que le moteur compte.
-    const ecart = k => avec[k].m - sans[k].m;
-    for (const [k, tol] of [['tirsPour', 0.15], ['tirsContre', 0.15], ['butsPour', 0.08], ['butsContre', 0.08], ['punitions', 0.12]]) {
-      exiger(`${nom} · ${k}`, Math.abs(lu[k] - ecart(k)) <= tol, `annoncé ${f2(lu[k])}, mesuré en paires ${f2(ecart(k))} (± ${tol})`);
+    // Deux échantillons indépendants (les dés se désynchronisent dès que `p` change) : l'écart se juge à son bruit.
+    for (const [k, plancher] of [['tirsPour', 0.05], ['tirsContre', 0.05], ['butsPour', 0.02], ['butsContre', 0.02], ['punitions', 0.05]]) {
+      const se = Math.hypot(avec[k].se, sans[k].se), ecart = avec[k].m - sans[k].m, tol = 3.5 * se + plancher;
+      zs.push((lu[k] - ecart) / se);
+      exiger(`${nom} · ${k}`, Math.abs(lu[k] - ecart) <= tol, `annoncé ${f2(lu[k])}, mesuré en paires ${f2(ecart)} (± ${f2(se)} de bruit)`);
     }
     // Ce que l'écran dit, mot pour mot.
     const mots = effetEnChiffres(e, A, null, B).map(m => m.txt);
     informer(`${nom}, à l'écran`, mots.join(' · ') || '—');
   }
+  // Pris ensemble, les écarts sont du bruit : centrés sur zéro, d'un écart type d'environ un.
+  const m = moy(zs), rms = Math.sqrt(moy(zs.map(z => z * z)));
+  borne('les écarts annoncé − mesuré sont centrés (moyenne en écarts types)', m, -0.6, 0.6);
+  borne('… et ne sont que du bruit (écart type des écarts)', rms, 0, 1.5);
 }
 
 /* 3. La forme des mots. */
