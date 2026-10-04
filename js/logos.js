@@ -278,6 +278,7 @@ function saturer(rgb, f) {
  */
 const FOND_PAGE = '#0a0b0e';
 const VISIBLE = 2.4;   // contraste minimal contre le fond pour qu'un trait existe
+const NOIR_DU_DECOR = 1.1; // sous ce contraste, un aplat est du noir : le décor l'avale
 
 export function getTeamBand(teamCode) {
   const c = TEAM_COLORS[teamCode];
@@ -322,10 +323,11 @@ export function getTeamBand(teamCode) {
     ? c.secondary : (c.accent || ink);
   const plaque = separe(seconde, bg) ? seconde : ink;
   /*
-   * LA COULEUR DU CLUB DANS UN DUEL : UNE SEULE. JP : *une couleur par équipe dans le dégradé*. L'aplat,
-   * s'il se voit sur le noir du décor ; sinon la couleur du bouton (l'orange des NHL Stars, dont l'aplat est noir).
+   * LA COULEUR DU CLUB DANS UN DUEL : UNE SEULE, LA PRINCIPALE. JP : *une couleur par équipe dans le dégradé* ;
+   * *utiliser la couleur principale de l'équipe*. Le marine de Toronto, le bordeaux de Phoenix restent les leurs ;
+   * seul un aplat noir, qui disparaîtrait dans le décor, cède à la couleur du bouton (l'orange des NHL Stars).
    */
-  const duel = contrast(bg, FOND_PAGE) >= VISIBLE ? bg : bouton;
+  const duel = contrast(bg, FOND_PAGE) >= NOIR_DU_DECOR ? bg : bouton;
   return {
     bg, ink, stripe, stripeInk: inkFor(stripe), bouton, boutonInk: inkFor(bouton),
     plaque, plaqueInk: inkFor(plaque), duel, duelInk: inkFor(duel),

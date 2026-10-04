@@ -3244,11 +3244,10 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .live-eq {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "band buts" "nom buts";
   min-width: 0; overflow: hidden;
-  /* Les rayures du chandail, comme sur l'affiche du bureau, côté glace. */
-  background: linear-gradient(100deg, var(--eq-band) 0 calc(100% - 46px), var(--eq-stripe) calc(100% - 46px) calc(100% - 38px), var(--eq-band) calc(100% - 38px) calc(100% - 30px), var(--eq-stripe) calc(100% - 30px) calc(100% - 22px), var(--eq-band) calc(100% - 22px)); color: var(--eq-ink);
-  box-shadow: inset 0 -4px 0 var(--eq-stripe);
+  /* Comme l'affiche du bureau : une couleur par club (`duel`, js/logos.js), qui fond dans l'autre à l'horloge. */
+  background: var(--a-duel); color: var(--eq-ink);
 }
-.live-eq.b { background: linear-gradient(-80deg, var(--eq-band) 0 calc(100% - 46px), var(--eq-stripe) calc(100% - 46px) calc(100% - 38px), var(--eq-band) calc(100% - 38px) calc(100% - 30px), var(--eq-stripe) calc(100% - 30px) calc(100% - 22px), var(--eq-band) calc(100% - 22px)); }
+.live-eq.b { background: var(--b-duel); }
 .live-eq.b { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "buts band" "buts nom"; }
 .live-eq-band { grid-area: band; display: flex; align-items: center; gap: var(--esp-2); min-width: 0; padding: var(--esp-2) var(--esp-3) 0; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .live-eq-band > span { overflow: hidden; text-overflow: ellipsis; }
@@ -3263,6 +3262,8 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .live-eq-buts.flash { animation: butFlash 1.2s var(--e-sortie); }
 @keyframes butFlash { 0% { color: var(--or); transform: scale(1.7); text-shadow: 0 0 24px var(--or); } 25% { transform: scale(0.92); } 45% { transform: scale(1.12); } 100% { color: inherit; transform: none; text-shadow: none; } }
 .live-horloge { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 88px; padding: var(--esp-2); text-align: center; background: var(--fond-1); }
+/* Entre les deux clubs, le dégradé de l'un à l'autre, assombri pour que l'horloge se lise. */
+.live-board:not(:has(> .live-horloge:only-child)) .live-horloge { background: linear-gradient(color-mix(in srgb, var(--noir) 55%, transparent), color-mix(in srgb, var(--noir) 55%, transparent)), linear-gradient(90deg, var(--a-duel), var(--b-duel)); }
 .live-per { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
 .live-temps { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .live-tirs { font: 600 var(--t-1)/1.25 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; }

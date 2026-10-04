@@ -307,12 +307,13 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   function dessinerBoard(gA, gB, h) {
     const cote = (t, buts, pos) => {
       const b = ctx.band(t.tag);
-      return `<div class="live-eq ${pos}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+      return `<div class="live-eq ${pos}" style="--eq-ink:${b.duelInk}">
         <div class="live-eq-band">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
         <div class="live-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
         <div class="live-eq-buts" data-cote="${pos === 'a' ? 'A' : 'B'}"><b>${buts}</b></div>
       </div>`;
     };
+    board.style.cssText = `--a-duel:${ctx.band(A.tag).duel};--b-duel:${ctx.band(B.tag).duel}`;
     board.innerHTML = `${cote(A, gA, 'a')}
       <div class="live-horloge"><span class="live-per">${h.per}</span><span class="live-temps">${h.temps}</span><span class="live-tirs">${h.tirs}</span><span class="live-situation">${h.situation || ''}</span></div>
       ${cote(B, gB, 'b')}`;

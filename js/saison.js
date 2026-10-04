@@ -1858,7 +1858,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const gagneA = m.gfA > m.gfB;
     const cote = (t, buts, pos, g) => {
       const b = ctx.band(t.tag);
-      return `<div class="live-eq ${pos}${g ? '' : ' perdant'}" style="--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}">
+      return `<div class="live-eq ${pos}${g ? '' : ' perdant'}" style="--eq-ink:${b.duelInk}">
         <div class="live-eq-band">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span></div>
         <div class="live-eq-nom">${ctx.esc(ctx.teamLabel(t))}</div>
         <div class="live-eq-buts">${buts}</div>
@@ -1885,7 +1885,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `${tete}<div class="live-but-ligne but-eq" style="${varsEquipe(ctx.band(t.tag))}"><span class="live-tps">${tempsRestant(b.instant)}</span>${ctx.logo(t.tag, 13)}<span><b>${ctx.esc(nom(b.marqueur))}</b> <span class="live-xe">(${ord(rang(b.marqueur, 'g'))} but)</span>${aides ? `, ${aides}` : ''}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}${b.gagnant && m.ot ? ' · en prolongation' : ''}</span></div>`;
     }).join('') : '';
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
-    return `<div class="live-board hub-board"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
+    return `<div class="live-board hub-board" style="--a-duel:${ctx.band(m.A.tag).duel};--b-duel:${ctx.band(m.B.tag).duel}"${somm}>${cote(m.A, m.gfA, 'a', gagneA)}
       <div class="live-horloge"><span class="live-per">FINAL</span><span class="live-temps">${m.ot ? 'PROL.' : '—'}</span><span class="live-tirs">${gagne(m, you) ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}${m.feuille ? ` · tirs ${tirsTotal(m.feuille, 'A')} – ${tirsTotal(m.feuille, 'B')}` : ''}</span></div>
       ${cote(m.B, m.gfB, 'b', !gagneA)}
       ${buts ? `<div class="live-buteurs">${buts}</div>` : ''}</div>`;
