@@ -18,7 +18,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne } from './util.js';
 import { coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
-import { MOMENTS_VIE } from './vie-gm.js';
+import { MOMENTS_VIE, REPONSES_VIE } from './vie-gm.js';
 
 export const CAP = 95_500_000;
 /*
@@ -2869,6 +2869,13 @@ export const MOMENTS = {
   ...MOMENTS_VIE,
 };
 
+/*
+ * LA FAMILLE D'UNE DÉCISION DE MOMENT : un dilemme (`moment`), une séquence, ou la réponse à un courriel ou
+ * à un point de presse (`vie`, js/vie-gm.js). Les trois ont la même forme { ico, titre, options } et passent
+ * par les mêmes fonctions : `effetDeMoment`, `appliquerGestes`, `pariDeDecision`.
+ */
+export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : MOMENTS[m.cle]);
+
 export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];
 /* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
 /*
@@ -2998,7 +3005,7 @@ export function effetDeMoment(d, team = null) {
   }
   const m = d.moment;
   if (!m) return null;
-  const fam = m.famille === 'sequence' ? SEQUENCES[m.cle] : MOMENTS[m.cle];
+  const fam = familleDeMoment(m);
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
@@ -5657,7 +5664,7 @@ function appliquerDecision(team, d, graine = 0) {
   // UN CHANGEMENT DE CARTE PAR CHOIX (S68) : direct, ou porté par l'option
   // d'un dilemme. Le joueur visé est nommé dans la décision.
   const mut = d.mutation || (d.moment && d.moment.joueur && (() => {
-    const fam = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
+    const fam = familleDeMoment(d.moment);
     const o = fam && fam.options.find(x => x.cle === d.moment.choix);
     return o && o.mutation ? { cle: o.mutation, joueur: d.moment.joueur } : null;
   })());
@@ -5678,7 +5685,7 @@ function appliquerDecision(team, d, graine = 0) {
    * direct d'une décision (le verdict d'un objectif raté).
    */
   if (d.moment) {
-    const fam = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
+    const fam = familleDeMoment(d.moment);
     const o = fam && fam.options.find(x => x.cle === d.moment.choix);
     if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, cleDuPari(d), fam.titre);
   }
@@ -7911,7 +7918,7 @@ const pariGagne = (graine, jour, cle, chance) => deDuPari(graine, jour, cle, cha
 const cleDuPari = d => `${d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`}${d.sel ? `:${d.sel}` : ''}`;
 export function pariDeDecision(d, graine, team = null) {
   if (!d || !Number.isFinite(d.jour)) return null;
-  const fam = d.moment ? (d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle]) : d.avant ? AVANT_GROS[d.avant.cle] : null;
+  const fam = d.moment ? familleDeMoment(d.moment) : d.avant ? AVANT_GROS[d.avant.cle] : null;
   const o = fam && fam.options.find(x => x.cle === (d.moment ? d.moment.choix : d.avant.choix));
   if (!o || !o.pari) return null;
   const { face, faces, gagne } = deDuPari(graine, d.jour, cleDuPari(d), o.pari.chance);
