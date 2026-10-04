@@ -8,6 +8,8 @@
  *              messages qui ne bloquent rien, étiquetés par MOMENT de la saison
  *              et, au besoin, par ÉTAT de l'équipe. Un courriel d'état (en
  *              séquence, en panne…) ne se dit que quand l'état est vrai.
+ *              Chacun (et chaque échange) offre des RÉPONSES qui jouent sur le
+ *              match, payées d'un prix : `REPONSES_VIE`, plus bas.
  *   DILEMMES   des choix forcés dans le MÊME format que `MOMENTS` (js/sim.js) :
  *              une option porte ses canaux (finition, volume, defense,
  *              discipline, blessure, energie, F, D), sa durée en matchs, ou un
@@ -1045,6 +1047,218 @@ const ECHANGES_BRUTS = [
 
 /** Les échanges : { id, quand, ouverture, question, reponse } — `quand` est l'une des six occasions. */
 const ECHANGES = ECHANGES_BRUTS.map(([quand, ouverture, question, reponse], i) => ({ id: `e${i + 1}`, quand, ouverture, question, reponse }));
+
+/* ======================================================================
+   LES RÉPONSES : un courriel et un point de presse ne sont plus de la couleur.
+   Chacun offre deux ou trois façons de répondre, dans la forme des options des
+   dilemmes (`o`, plus haut) : les mêmes canaux, la même durée en matchs, un
+   `pari`, un `ensuite`, une `action`, une `mutation` sur un joueur NOMMÉ
+   (`cible`, {nom} dans le texte). Rien de neuf pour le moteur : une réponse
+   prise est une décision `{ moment: { famille: 'vie', cle, choix } }` que
+   `effetDeMoment`, `appliquerGestes` et `pariDeDecision` (js/sim.js) lisent
+   comme celle d'un dilemme. « Archiver » ne fait rien. Chaque réponse paie
+   son effet d'un prix, et l'effet suit le métier de l'expéditeur : le
+   propriétaire (finition, discipline), les finances (rythme et jambes, jamais
+   de jetons ni de plafond), l'adjoint (les minutes), l'agent (UN joueur), le
+   physio (blessures, jambes), le préposé (jambes, discipline), les
+   communications et la ligue (discipline), le partisan et le maire (lancers).
+   Les amplitudes sont celles des dilemmes voisins (js/sim.js, MOMENTS).
+   Deux paquets par expéditeur ; l'un ou l'autre selon le numéro du courriel.
+   ====================================================================== */
+const PAQUETS_COURRIEL = {
+  pr: [
+    { options: [
+      o('raison', 'Lui donner raison', 'Il se sent écouté : le vestiaire joue pour lui', 'Il s\'ingère : les punitions suivent', { finition: 1.08, discipline: 1.19, duree: 5 }),
+      o('plan', 'Lui remettre un plan en trois points', 'Un vestiaire en ordre, moins de punitions', 'Un plan trop pensé : moins de lancers', { discipline: 0.84, volume: 0.93, duree: 5 }),
+    ] },
+    { options: [
+      o('rassurer', 'Le rassurer par écrit', 'Une défensive qui ne prend aucun risque', 'Un vestiaire qui se retient devant le but', { defense: 0.93, finition: 0.95, duree: 5 }),
+      o('audace', 'Lui répondre qu\'on joue à l\'audace', 'Des lancers et des buts', 'Des trous derrière', { volume: 1.07, finition: 1.04, defense: 1.08, duree: 5 }),
+    ] },
+  ],
+  fi: [
+    { options: [
+      o('couper', 'Couper dans les dépenses', 'Un vestiaire sobre : moins de punitions', 'Moins de rondelles à l\'entraînement : moins de lancers', { discipline: 0.86, volume: 0.93, duree: 5 }),
+      o('approuver', 'Approuver la dépense', 'Du matériel neuf : plus de lancers', 'Les voyages coûtent des jambes', { volume: 1.08, energie: 1.1, duree: 5 }),
+    ] },
+    { options: [
+      o('reviser', 'Réviser le budget des voyages', 'Des vols plus doux : les jambes sont préservées', 'Des cabines serrées : les têtes chauffent', { energie: 0.88, discipline: 1.12, duree: 5 }),
+      o('garder', 'Garder le budget tel quel', 'Une défensive qui compte chaque sou', 'Moins de lancers', { defense: 0.94, volume: 0.95, duree: 5 }),
+    ] },
+  ],
+  ad: [
+    { options: [
+      o('premier', 'Charger le premier trio', 'Ton premier trio joue davantage', 'Il s\'use, et le 4e rouille', { F: [1.12, 1.02, 0.97, 0.85], blessure: 1.2, duree: 5 }),
+      o('quatre', 'Faire rouler les quatre trios', 'Les corps se reposent et le 4e trio goûte à la glace', 'Tes vedettes jouent moins', { F: [0.92, 1, 1.03, 1.12], blessure: 0.8, duree: 5 }),
+    ] },
+    { options: [
+      o('paire', 'Allonger la première paire', 'Ta première paire joue davantage', 'Elle finit à plat', { D: [1.15, 1, 0.82], energie: 1.08, duree: 5 }),
+      o('troisieme', 'Donner du temps à la 3e paire', 'La première paire retrouve ses jambes', 'Moins de talent sur la glace : moins de lancers', { D: [0.92, 1, 1.15], energie: 0.92, volume: 0.96, duree: 5 }),
+    ] },
+  ],
+  ag: [
+    { cible: 'vedette', options: [
+      o('annee', 'Lui dire que c\'est son année', '{nom} joue pour son prochain contrat', 'Il force, et il se blesse plus souvent', { mutation: 'contrat_annee' }),
+      o('conge', 'Lui donner un soir de congé', '{nom} revient frais et content', 'Un match sans lui : un réserviste joue', { action: { absents: 1 }, ensuite: { apres: 1, duree: 4, finition: 1.06 } }),
+    ] },
+    { cible: 'vedette', options: [
+      o('prolonge', 'Lui parler de prolongation', '{nom} est rassuré pour des années : il se ménage', 'Un peu moins fougueux devant le but', { mutation: 'contrat_prolonge' }),
+      o('capitaine', 'Lui promettre le « C »', '{nom} porte l\'équipe sur son dos', 'Les vétérans bougonnent : plus de punitions', { mutation: 'contrat_leader', discipline: 1.12, duree: 5 }),
+    ] },
+  ],
+  ph: [
+    { options: [
+      o('etirements', 'Imposer ses étirements', 'Moins de blessures', 'Des échauffements longs : moins de lancers', { blessure: 0.78, volume: 0.95, duree: 6 }),
+      o('conge', 'Accorder une journée de congé à tout le monde', 'Toute l\'équipe retrouve ses jambes', 'Un entraînement perdu : moins de précision', { action: { energieTous: 12 }, finition: 0.96, duree: 4 }),
+    ] },
+    { options: [
+      o('hydrater', 'Hydrater tout le monde', 'Des jambes fraîches', 'Des pauses à répétition : le rythme tombe', { energie: 0.88, volume: 0.95, duree: 5 }),
+      o('laisser', 'Laisser chacun gérer son corps', 'Un jeu libre : plus de lancers', 'Des corps mal préparés : plus de blessures', { volume: 1.07, blessure: 1.25, duree: 5 }),
+    ] },
+  ],
+  eq: [
+    { options: [
+      o('commander', 'Commander ce qu\'il demande', 'Du matériel neuf : moins d\'usure des jambes', 'Un vestiaire qui rôde : plus de punitions', { energie: 0.9, discipline: 1.12, duree: 5 }),
+      o('enqueter', 'Faire enquêter le vestiaire', 'Un vestiaire à l\'ordre : moins de punitions', 'Des joueurs soupçonnés : moins de précision', { discipline: 0.88, finition: 0.96, duree: 3 }),
+    ] },
+    { options: [
+      o('racheter', 'Tout racheter neuf', 'Des patins et des gants frais : les jambes sont préservées', 'Le vestiaire manque de matériel : moins de lancers', { energie: 0.88, volume: 0.95, duree: 5 }),
+      o('rafistoler', 'Rafistoler avec ce qu\'on a', 'Le vestiaire se serre les coudes : moins de punitions', 'Du vieux matériel : les jambes paient', { discipline: 0.88, energie: 1.1, duree: 5 }),
+    ] },
+  ],
+  co: [
+    { options: [
+      o('parler', 'Laisser parler les joueurs', 'La confiance se voit au tir', 'Un mot de trop et les punitions montent', { finition: 1.07, discipline: 1.18, duree: 5 }),
+      o('verrouiller', 'Tout passer par les communications', 'Un vestiaire muet : moins de punitions', 'Des joueurs sur la défensive : moins de lancers', { discipline: 0.84, volume: 0.94, duree: 5 }),
+    ] },
+    { options: [
+      o('sobre', 'Un message sobre', 'Un vestiaire calme : moins de punitions', 'Un vestiaire qui se retient : moins de précision', { discipline: 0.88, finition: 0.96, duree: 5 }),
+      o('bruit', 'Un message qui fait du bruit', 'La foule s\'enflamme : plus de lancers', 'Les adversaires s\'énervent, nous aussi : plus de punitions', { volume: 1.07, discipline: 1.15, duree: 5 }),
+    ] },
+  ],
+  li: [
+    { options: [
+      o('lettre', 'Se conformer à la lettre', 'Rien à reprocher aux joueurs : moins de punitions', 'Tout est mesuré : moins de lancers', { discipline: 0.84, volume: 0.94, duree: 5 }),
+      o('contester', 'Contester par écrit', 'Le vestiaire se sent défendu', 'Les arbitres nous ont à l\'œil : plus de punitions', { finition: 1.06, discipline: 1.2, duree: 5 }),
+    ] },
+    { options: [
+      o('briefer', 'Briefer les joueurs sur le règlement', 'Des joueurs au courant : moins de punitions', 'Ils y pensent trop : des trous derrière', { discipline: 0.86, defense: 1.05, duree: 5 }),
+      o('fermer', 'Fermer les yeux', 'Un jeu sans complexe : plus de lancers', 'Les arbitres sifflent plus', { volume: 1.06, discipline: 1.15, duree: 5 }),
+    ] },
+  ],
+  pa: [
+    { options: [
+      o('repondre', 'Lui répondre en personne', 'La foule le sait : ça lance', 'Une distraction : des trous derrière', { volume: 1.07, defense: 1.05, duree: 5 }),
+      o('billets', 'Lui envoyer deux billets', 'Un partisan heureux, un vestiaire confiant', 'Ça se sait : le vestiaire jalouse', { finition: 1.06, discipline: 1.12, duree: 5 }),
+    ] },
+    { options: [
+      o('victoire', 'Lui promettre une victoire', 'S\'il y croit, ça rentre', 'Sinon, la pression se paie derrière',
+        { pari: { chance: 3 / 6, gagne: { finition: 1.09, duree: 5 }, perd: { defense: 1.09, duree: 5 } } }),
+      o('merci', 'Le remercier sobrement', 'Une défensive concentrée', 'Moins de panache devant le but', { defense: 0.94, volume: 0.95, duree: 5 }),
+    ] },
+  ],
+  ma: [
+    { options: [
+      o('ceremonie', 'Y aller en grande pompe', 'La ville pousse : plus de lancers', 'Des jambes lourdes de protocole', { volume: 1.07, energie: 1.1, duree: 5 }),
+      o('excuser', 'S\'excuser poliment', 'Des jambes au repos', 'Une foule déçue : moins de précision', { energie: 0.9, finition: 0.96, duree: 5 }),
+    ] },
+    { options: [
+      o('accepter', 'Accepter le geste', 'La ville est derrière nous : plus de lancers', 'Le vestiaire se disperse : plus de punitions', { volume: 1.06, discipline: 1.12, duree: 5 }),
+      o('decliner', 'Décliner : on a un match', 'Une concentration totale', 'Un maire vexé et une foule plus froide', { defense: 0.94, volume: 0.95, duree: 5 }),
+    ] },
+  ],
+};
+
+/* Des courriels qui appellent leur propre réponse : le paquet leur est écrit, ou l'autre paquet de l'expéditeur est forcé. */
+const REPONSES_SUR_MESURE = {
+  ph7: { options: [
+    o('plan', 'Suivre son plan de récupération', 'Toute l\'équipe retrouve ses jambes', 'Des entraînements allégés : moins de précision', { action: { energieTous: 15 }, finition: 0.95, duree: 4 }),
+    o('serrer', 'Serrer les dents jusqu\'aux séries', 'Un vestiaire qui s\'endurcit', 'Les corps paient : plus de blessures', { finition: 1.06, blessure: 1.25, energie: 1.08, duree: 5 }),
+  ] },
+  ad7: { options: [
+    o('tableau', 'Suivre son tableau vert', 'Les premiers trios se ménagent', 'Moins de talent sur la glace : moins de lancers', { F: [0.93, 1.02, 1.04, 1.04], blessure: 0.82, volume: 0.96, duree: 5 }),
+    o('serrer', 'Serrer la vis aux premiers trios', 'Tes meilleurs jouent plus', 'Ils s\'usent', { F: [1.12, 1.02, 0.97, 0.88], energie: 1.08, duree: 5 }),
+  ] },
+  ag2: { cible: 'vedette', options: [
+    o('glace', 'Lui donner plus de glace', '{nom} joue plus et il le sait', 'Les autres trios jouent moins', { F: [1.1, 1.02, 0.96, 0.9], energie: 1.08, duree: 5 }),
+    o('patience', 'Lui demander de la patience', '{nom} veut le prouver : plus de précision', 'Il force les mises en échec : plus de punitions', { finition: 1.05, discipline: 1.15, duree: 5 }),
+  ] },
+};
+const PAQUET_FORCE = { ag4: 1 };
+
+const PAQUETS_ECHANGE = {
+  victoire: [
+    { cible: 'vedette', options: [
+      o('sobre', 'Rester sobre', 'On ne s\'emballe pas : la défense reste en place', 'Moins de panache devant le but', { defense: 0.94, finition: 0.96, duree: 4 }),
+      o('feliciter', 'Féliciter {nom} devant tout le monde', 'Il joue avec des ailes', 'Les autres le remarquent : plus de punitions', { finition: 1.07, discipline: 1.12, duree: 4 }),
+    ] },
+    { options: [
+      o('meche', 'Allumer la mèche', 'Le vestiaire en veut plus : plus de lancers', 'On laisse des trous derrière', { volume: 1.07, defense: 1.06, duree: 4 }),
+      o('humble', 'Remercier l\'adversaire', 'Un vestiaire humble : moins de punitions', 'Moins d\'urgence devant le filet', { discipline: 0.86, volume: 0.95, duree: 4 }),
+    ] },
+  ],
+  defaite: [
+    { options: [
+      o('assumer', 'Prendre la faute sur toi', 'Le vestiaire est protégé : moins de punitions', 'Moins de mordant devant le but', { discipline: 0.86, finition: 0.96, duree: 5 }),
+      o('pointer', 'Pointer le manque d\'effort', 'Une réaction : plus de lancers', 'Des joueurs vexés : plus de punitions', { volume: 1.07, discipline: 1.15, duree: 5 }),
+    ] },
+    { options: [
+      o('suite', 'Parler de la suite', 'On regarde devant : la défense se resserre', 'Moins de lancers', { defense: 0.93, volume: 0.95, duree: 5 }),
+      o('arbitres', 'Blâmer les arbitres', 'Le vestiaire se sent défendu : ça lance', 'Les arbitres s\'en souviennent : plus de punitions', { finition: 1.06, discipline: 1.18, duree: 5 }),
+    ] },
+  ],
+  raclee: [
+    { options: [
+      o('page', 'Tourner la page', 'Un vestiaire qui oublie vite : plus de précision', 'Une défensive laxiste', { finition: 1.05, defense: 1.06, duree: 5 }),
+      o('colere', 'Piquer une colère publique', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', { volume: 1.08, discipline: 1.18, duree: 5 }),
+      o('punition', 'Imposer une pratique de punition', 'La défense se resserre', 'Toute l\'équipe arrive sur les jambes', { defense: 0.92, action: { energieTous: -10 }, duree: 5 }),
+    ] },
+    { options: [
+      o('rire', 'En rire', 'Un vestiaire détendu : plus de lancers', 'Un peu de relâchement derrière', { volume: 1.06, defense: 1.06, duree: 5 }),
+      o('serieux', 'En parler sérieusement', 'Une défensive qui se resserre', 'Des joueurs crispés devant le but', { defense: 0.93, finition: 0.95, duree: 5 }),
+    ] },
+  ],
+  serieDefaites: [
+    { options: [
+      o('proteger', 'Protéger le vestiaire', 'Des joueurs soutenus : moins de punitions', 'Moins de pression : moins de lancers', { discipline: 0.85, volume: 0.94, duree: 5 }),
+      o('changements', 'Annoncer des changements', 'Le bas de l\'alignement joue plus : le choc', 'Ton premier trio joue moins', { F: [0.92, 1.04, 1.06, 1.03], volume: 1.06, duree: 5 }),
+    ] },
+    { options: [
+      o('confiance', 'Dire que tu as confiance', 'La confiance revient au tir', 'Les trous derrière ne se bouchent pas', { finition: 1.07, defense: 1.06, duree: 5 }),
+      o('verite', 'Dire la vérité en face', 'Une défensive qui se resserre', 'Un vestiaire tendu : plus de punitions', { defense: 0.92, discipline: 1.15, duree: 5 }),
+    ] },
+  ],
+  blanchissage: [
+    { cible: 'gardien', options: [
+      o('feliciter', 'Féliciter {nom}', 'Il se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', { defense: 0.93, discipline: 1.12, duree: 5 }),
+      o('defenseurs', 'Remercier ceux qui bloquent les tirs', 'Ils se jettent devant chaque tir', 'Ils s\'usent et se blessent', { defense: 0.94, blessure: 1.2, duree: 5 }),
+    ] },
+    { cible: 'gardien', options: [
+      o('repos', 'Donner un soir de repos à {nom}', '{nom} revient reposé et motivé', 'Un match avec ton auxiliaire', { action: { gardienAux: 1 }, ensuite: { apres: 1, duree: 5, defense: 0.94 } }),
+      o('sobre', 'Rester sobre : un blanchissage, ça arrive', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', { defense: 0.95, finition: 0.96, duree: 5 }),
+    ] },
+  ],
+  derniereChance: [
+    { options: [
+      o('tout', 'Tout miser sur ce soir', 'Les joueurs lancent de partout', 'Les jambes paient', { finition: 1.08, volume: 1.04, energie: 1.14, duree: 3 }),
+      o('calme', 'Garder son calme', 'Une défensive solide', 'Moins de lancers', { defense: 0.93, volume: 0.95, duree: 3 }),
+    ] },
+    { options: [
+      o('histoire', 'Parler de l\'histoire du club', 'Un vestiaire qui joue pour quelque chose', 'Un peu trop de gravité : moins de lancers', { finition: 1.06, volume: 0.95, duree: 3 }),
+      o('risque', 'Dire qu\'on prend tous les risques', 'On attaque : plus de lancers', 'Des trous derrière', { volume: 1.08, defense: 1.08, duree: 3 }),
+    ] },
+  ],
+};
+
+/** Toutes les réponses, par id de courriel (`eq4`) ou d'échange (`e17`) : { ico, titre, cible?, options } — la forme d'un dilemme. */
+export const REPONSES_VIE = Object.fromEntries([
+  ...COURRIELS.map(x => {
+    const paquets = PAQUETS_COURRIEL[x.de];
+    const p = REPONSES_SUR_MESURE[x.id] || paquets[PAQUET_FORCE[x.id] ?? Number(x.id.replace(/\D/g, '')) % 2];
+    return [x.id, { ico: EXPEDITEURS[x.de].ico, titre: remplir(x.sujet), ...p }];
+  }),
+  ...ECHANGES.map(e => [e.id, { ico: '🎤', titre: 'Le point de presse', ...PAQUETS_ECHANGE[e.quand][Number(e.id.slice(1)) % 2] }]),
+]);
 
 /* ======================================================================
    LES TIRAGES — purs, sans `hasard()` : même contexte, même graine, même pièce.

@@ -32,7 +32,7 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
+  familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { motsDuSoir, motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
@@ -40,7 +40,7 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, jambesHtml, courbeJambes, courbeJambesHtml, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeReponse, jambesHtml, courbeJambes, courbeJambesHtml, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -51,7 +51,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -2058,7 +2058,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       else if (d.recompense && CARTES_MATCH[d.recompense] && typeof d.palier === 'string') ev.push({ j: d.jour, t: `🎁 Nouvelle carte dans ton deck : ${CARTES_MATCH[d.recompense].ico} <b>${ctx.esc(CARTES_MATCH[d.recompense].nom)}</b>` });
       else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.carte && CARTES[d.carte] ? `🏆 Objectif atteint — le proprio paie : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
       else if (d.moment) {
-        const cat = d.moment.famille === 'sequence' ? SEQUENCES[d.moment.cle] : MOMENTS[d.moment.cle];
+        const cat = familleDeMoment(d.moment);
         if (!cat) continue;
         const o = (cat.options || []).find(x => x.cle === d.moment.choix);
         const titre = String(cat.titre).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'un joueur');
@@ -2990,6 +2990,36 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   /* La part du match qu'un choix touche (une 3e période : le tiers) et comment la dire : les chiffres de match de js/impact.js (`cadre`, js/gerant.js). */
   const cadreDuMatch = (part = 1, par = 'par match') => ({ part, par });
+  /*
+   * LES RÉPONSES D'UN COURRIEL OU D'UN POINT DE PRESSE (js/vie-gm.js, `REPONSES_VIE`). Rien ne bloque : on
+   * répond, ou on archive. Une réponse est une DÉCISION du jour (`famille: 'vie'`) : la saison se rejoue avec
+   * elle, et le palier `vie:…` ne la laisse prendre qu'une fois. Chaque réponse dit en chiffres de match ce qu'elle
+   * fait et ce qu'elle coûte (les mots des dilemmes, `motsDeReponse`) ; ouvert seulement, pour ne lire que ce qu'on voit.
+   * Un joueur nommé (`cible`) est celui de ton alignement ce jour-là (`ciblesDe`).
+   */
+  const reponsesVie = (cle, palier, ouvert) => {
+    const fam = REPONSES_VIE[cle];
+    if (!fam) return { html: '', cibles: [] };
+    const cibles = fam.cible ? ciblesDe(you, fam.cible, graine, jour) : [];
+    const sub = t => ctx.esc(String(t).replace(/\{nom\}/g, cibles.length ? cibles[0].n : 'ton joueur'));
+    const mots = o => puces(motsDeReponse(o, { joueur: cibles[0] || null, noms: cibles.length ? cibles[0].n : '' }).map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, cibles.length ? cibles[0].n : 'ton joueur') })));
+    const prise = decs.find(d => d.palier === palier && d.moment && d.moment.famille === 'vie');
+    if (prise) {
+      const o = fam.options.find(x => x.cle === prise.moment.choix);
+      return { cibles, html: o ? `<div class="vie-fait">Ta réponse : <b>${sub(o.nom)}</b></div>${ouvert ? `<div class="choix-puces">${mots(o)}</div>` : ''}` : '' };
+    }
+    if (!ouvert) return { cibles, html: '' };
+    return { cibles, html: `<div class="vie-reps">${fam.options.map(o => {
+      const sansJoueur = fam.cible && !cibles.length && (o.mutation || (o.action && (o.action.absents || o.action.energie)));
+      return `<button type="button" class="vie-rep" data-rep="${ctx.esc(o.cle)}"${sansJoueur ? ' disabled' : ''}>
+        <span class="vie-rep-nom">${sub(o.nom)}</span>
+        <span class="choix-puces">${mots(o)}</span>
+        <span class="vie-rep-bon">+ ${sub(o.bon)}</span>
+        <span class="vie-rep-prix">− ${sub(o.prix)}</span>
+        ${sansJoueur ? '<span class="vie-rep-non">Personne dans ton alignement pour ça</span>' : ''}
+      </button>`;
+    }).join('')}</div>` };
+  };
   function messagesCourants() {
     const out = [];
     const spec0 = onDecision ? choixForce() : null;
@@ -3167,15 +3197,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const c = { moment: momentDeSaison(jour, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja: vu };
       if (jour % 2 === 0) {
         for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
-          out.push({ id: `v:${jour}:${x.id}`, genre: 'courriel', bloque: false, de: x.de, sujet: x.sujet, corps: `<div class="hub-msg-mot">${ctx.esc(x.corps)}</div>` });
+          const id = `v:${jour}:${x.id}`, r = reponsesVie(x.id, `vie:${jour}:${x.id}`, boite.ouvert === id);
+          out.push({ id, genre: 'courriel', bloque: false, de: x.de, sujet: x.sujet, vie: { cle: x.id, palier: `vie:${jour}:${x.id}`, cibles: r.cibles }, corps: `<div class="hub-msg-mot">${ctx.esc(x.corps)}</div>${r.html}` });
         }
       }
       const dm = miens[miens.length - 1].m, pour = dm.A === you ? dm.gfA : dm.gfB, contre = dm.A === you ? dm.gfB : dm.gfA;
       const occasion = nSeq >= 3 && seq[0] === 'D' ? 'serieDefaites' : contre === 0 ? 'blanchissage' : contre - pour >= 4 ? 'raclee' : pour > contre ? 'victoire' : 'defaite';
       const e = echangeDe({ occasion, eq: c.eq, autre: c.autre }, `${graine}|${miens.length}`);
       if (e) {
-        out.push({ id: `v:p:${miens.length}`, genre: 'courriel', bloque: false, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match : le point de presse',
-          corps: `<div class="hub-msg-mot">${ctx.esc(e.ouverture)}</div><div class="hub-msg-mot">« ${ctx.esc(e.question)} »</div><div class="hub-msg-mot">${ctx.esc(e.reponse)}</div>` });
+        const id = `v:p:${miens.length}`, r = reponsesVie(e.id, `vie:p:${miens.length}`, boite.ouvert === id);
+        out.push({ id, genre: 'courriel', bloque: false, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match : le point de presse', vie: { cle: e.id, palier: `vie:p:${miens.length}`, cibles: r.cibles },
+          corps: `<div class="hub-msg-mot">${ctx.esc(e.ouverture)}</div><div class="hub-msg-mot">« ${ctx.esc(e.question)} »</div><div class="hub-msg-mot">${ctx.esc(e.reponse)}</div>${r.html}` });
       }
     }
     return out.filter(m => m.bloque || !boite.archives.has(m.id));
@@ -3244,6 +3276,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const id = b.closest('.hub-msg').dataset.id;
         boite.ouvert = ouvert === id ? false : id;
         redessinerBoite();
+      };
+    });
+    // Une réponse prise : une décision du jour, avec son joueur nommé et, s'il y a pari, son sel (le dé se joue à la décision).
+    actions.querySelectorAll('.vie-rep').forEach(b => {
+      b.onclick = () => {
+        const m = msgs.find(x => x.id === b.closest('.hub-msg').dataset.id);
+        if (!m || !m.vie || decs.some(d => d.palier === m.vie.palier)) return;
+        const o = REPONSES_VIE[m.vie.cle].options.find(x => x.cle === b.dataset.rep);
+        const [cible] = m.vie.cibles;
+        const d = { jour, palier: m.vie.palier, moment: { famille: 'vie', cle: m.vie.cle, choix: o.cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: m.vie.cibles.map(getPlayerKey) }, ...(o.pari ? { sel: nouvelleGraine() } : {}) };
+        quitter();
+        onDecision(d, jour);
       };
     });
     actions.querySelectorAll('.hub-msg-archiver').forEach(b => {

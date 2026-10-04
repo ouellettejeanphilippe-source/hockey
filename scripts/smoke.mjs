@@ -1674,6 +1674,38 @@ async function eprouverJambes() {
   else console.log(`   les jambes : ${liste.length} joueurs, ${props.length} ménagements mesurés · ${nom} en réserve : ${avant} → ${apres} le lendemain`);
   await aller('match');
 }
+/*
+ * LE COURRIER RÉPOND (1.0, oct.). JP : *ça doit influencer des stats de joueur, joueurs ou équipe.* Le point de presse
+ * (ou le courriel du jour) offre deux ou trois réponses, chacune dite en chiffres de match avec son prix, sans « % » ;
+ * en prendre une est une décision : le message montre ce qui a été choisi et n'offre plus rien. « Archiver » ne fait rien.
+ */
+let courrierVu = false;
+async function eprouverCourrier() {
+  courrierVu = true;
+  await versLaBoite();
+  const msg = '#hubModal .hub-msg[data-msg="courriel"]';
+  const el = await page.$(msg);
+  if (!el) return;
+  if (!(await page.$(`${msg}.ouvert`))) { await page.click(`${msg} .hub-msg-tete`); await page.waitForTimeout(300); }
+  const reps = await page.$$eval(`${msg}.ouvert .vie-rep`, bs => bs.map(b => ({ txt: b.textContent.replace(/\s+/g, ' ').trim(), dis: b.disabled, deborde: b.scrollWidth > b.clientWidth + 1 })));
+  if (reps.length < 2 || reps.length > 3) { errors.push(`le courrier offre ${reps.length} réponse(s), pas deux ou trois`); return; }
+  if (reps.some(r => /%/.test(r.txt))) errors.push(`le courrier dit un « % » : « ${reps.find(r => /%/.test(r.txt)).txt.slice(0, 80)} »`);
+  if (reps.some(r => !/≈|match|jambes|\u{1F465}|\u{1F3B2}|\u{23F3}|carte/u.test(r.txt))) errors.push('le courrier : une réponse ne dit rien en chiffres de match');
+  if (reps.some(r => r.deborde)) errors.push('le courrier : une réponse déborde à 390 px');
+  const boite = await page.$eval('#hubModal .hub-boite', b => b.scrollWidth <= b.clientWidth + 1);
+  if (!boite) errors.push('le courrier : la boîte déborde à 390 px');
+  const n0 = await page.$$eval(msg, e => e.length);
+  const choisie = reps.findIndex(r => !r.dis);
+  await page.click(`${msg}.ouvert .vie-rep:nth-child(${choisie + 1})`);
+  await page.waitForTimeout(300);
+  await ecranPret(60000);
+  await versLaBoite();
+  if (!(await page.$(`${msg}.ouvert`)) && (await page.$(msg))) { await page.click(`${msg} .hub-msg-tete`); await page.waitForTimeout(250); }
+  const fait = await page.$(`${msg} .vie-fait`), encore = await page.$(`${msg} .vie-rep`);
+  const n1 = await page.$$eval(msg, e => e.length);
+  if (!fait || encore) errors.push(`le courrier : après la réponse, ${fait ? '' : 'rien ne dit ce qui a été choisi'}${encore ? ' les réponses sont encore offertes' : ''}`);
+  else console.log(`   le courrier : ${n0} message(s), ${reps.length} réponses en chiffres de match, « ${(await page.textContent(`${msg} .vie-fait`)).replace(/\s+/g, ' ').trim()} » (${n1} message(s) après)`);
+}
 async function traverserSaison(etiquette, reprise = false) {
   await page.waitForSelector('#hubModal .hub-jour', { timeout: 60000 });
   /*
@@ -1712,6 +1744,7 @@ async function traverserSaison(etiquette, reprise = false) {
     else if (!som) console.log('   un match ordinaire : pas de plein écran, le résultat monte au bureau');
   }
   if (!jambesVues) await eprouverJambes();
+  if (!courrierVu) await eprouverCourrier();
   const jour = (await page.textContent('#hubModal .hub-head')).replace(/\s+/g, ' ').trim();
   if (!coquilleVue) { await repondreAuxChoix(); await eprouverCoquille(); }
 
