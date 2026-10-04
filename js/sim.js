@@ -999,27 +999,27 @@ export const CARTES = {
   bloc: {
     nom: 'Bloc de départ', ico: '🚀',
     bon: 'Ton attaque finit mieux', prix: 'Tu encaisses davantage',
-    finition: 1.08, defense: 1.07,
+    finition: 1.12, defense: 1.10,
   },
   // l'inverse : 6 % de buts alloués (+1,44) payés par 5,5 % de finition.
   cadenas: {
     nom: 'Le cadenas', ico: '🔒',
     bon: 'Tu alloues moins de buts', prix: 'Ton attaque finit moins bien',
-    defense: 0.94, finition: 0.935,
+    defense: 0.915, finition: 0.90,
   },
   // volume contre blessures : 5 % de lancers (+0,90) payés par des blessures
   // DOUBLÉES (−0,90). Il fallait les doubler : à ×1,45 la carte était gratuite.
   roulement: {
     nom: 'Roulement court', ico: '🔁',
     bon: 'Tes meilleurs jouent plus : plus de lancers', prix: 'Ils se blessent deux fois plus',
-    volume: 1.035, blessure: 2.00,
+    volume: 1.10, blessure: 2.60,
   },
   // l'assurance. Le bonus ne vaut rien en victoires et tout en tranquillité ;
   // le prix est donc d'un pour cent de lancers, et pas davantage.
   infirmerie: {
     nom: "L'infirmerie", ico: '🏥',
     bon: 'Deux fois moins de blessures : ta saison ne déraille pas', prix: 'Un peu moins de lancers',
-    blessure: 0.45, volume: 0.99,
+    blessure: 0.35, volume: 0.985,
   },
   // volume contre robustesse. Ce que les vétérans achètent se paie surtout en
   // AVRIL, et la mesure de saison ne le voit pas : la carte est donc réglée
@@ -1027,15 +1027,15 @@ export const CARTES = {
   // reste.
   veterans: {
     nom: 'Les vétérans', ico: '🧭',
-    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Un peu moins de lancers',
-    robustesse: 1.0, volume: 0.965,
+    bon: 'Plus robuste, moins de punitions : les soirs éreintants et les séries', prix: 'Moins de lancers',
+    robustesse: 0.8, discipline: 0.80, volume: 0.93,
   },
   // l'inverse, et le même déséquilibre à l'envers : un départ canon payé en
   // avril (+0,90 contre −0,80, plus ce que les séries prendront).
   jeunesse: {
     nom: 'La jeunesse', ico: '⚡',
     bon: 'Des jambes fraîches : plus de lancers, et on s\'use moins', prix: 'Moins robuste quand ça brasse',
-    volume: 1.04, robustesse: -1.0, energie: 0.85,
+    volume: 1.10, robustesse: -1.5, energie: 0.85,
   },
   /*
    * QUATRE CARTES DE PLUS (S62), et la variété était la raison : JP voulait
@@ -1049,22 +1049,22 @@ export const CARTES = {
   sangfroid: {
     nom: 'Le sang-froid', ico: '🧊',
     bon: 'Tu prends moins de punitions', prix: 'Un peu moins de lancers',
-    discipline: 0.85, volume: 0.965,
+    discipline: 0.75, volume: 0.93,
   },
   vague: {
     nom: 'La vague', ico: '🌊',
     bon: "L'attaque s'emballe : ça rentre plus souvent", prix: 'Le rythme se paie à l\'infirmerie',
-    finition: 1.03, volume: 1.005, blessure: 2.20,
+    finition: 1.06, volume: 1.01, blessure: 2.60,
   },
   grandjeu: {
     nom: 'Le grand jeu', ico: '🎲',
     bon: 'Des matchs fous : tu marques beaucoup', prix: 'Et tu encaisses beaucoup',
-    finition: 1.10, defense: 1.10,
+    finition: 1.13, defense: 1.13,
   },
   chasse: {
     nom: 'La chasse', ico: '🏒',
     bon: 'Tu lances de partout', prix: 'De moins bonnes occasions',
-    volume: 1.07, finition: 0.965,
+    volume: 1.10, finition: 0.93,
   },
   /*
    * HUIT DE PLUS (S74b). À dix, la main du palier (un effet parmi trois
@@ -1077,42 +1077,42 @@ export const CARTES = {
     nom: 'Le système du New Jersey', ico: '🧱',
     bon: 'Presque rien ne passe', prix: 'Tu lances beaucoup moins',
     // S80 : 0,955 et 0,92 se mesuraient à −0,8 victoire (−1,03 sur 12 ligues, hors de ±1) : recentrée.
-    defense: 0.945, volume: 0.935,
+    defense: 0.925, volume: 0.91,
   },
   ouvert: {
     nom: 'Le jeu ouvert', ico: '🏃',
     bon: 'Tu lances de partout, tout le temps', prix: 'Tu laisses des trous derrière',
-    volume: 1.06, defense: 1.034,
+    volume: 1.10, defense: 1.065,
   },
   ecole: {
     nom: 'L\'école de tir', ico: '🎯',
     bon: 'Chaque lancer est meilleur', prix: 'Tu en prends moins',
-    finition: 1.05, volume: 0.95,
+    finition: 1.09, volume: 0.91,
   },
   durs: {
     nom: 'Les durs à cuire', ico: '🦍',
-    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des mains moins fines',
-    robustesse: 1.0, finition: 0.97,
+    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des mains moins fines, et des punitions',
+    robustesse: 1.8, discipline: 1.25, finition: 0.97,
   },
   physio: {
     nom: 'Le préparateur physique', ico: '🏋️',
     bon: 'Moins de blessures', prix: 'Des pratiques moins intenses : un peu moins de lancers',
-    blessure: 0.6, volume: 0.985,
+    blessure: 0.5, volume: 0.96,
   },
   gardiens: {
     nom: 'Le coach des gardiens', ico: '🥅',
     bon: 'Tu alloues moins de buts', prix: 'Tout le monde recule : moins de lancers',
-    defense: 0.97, volume: 0.95,
+    defense: 0.93, volume: 0.925,
   },
   montent: {
     nom: 'Les défenseurs montent', ico: '🚀',
     bon: 'Ton attaque a cinq joueurs', prix: 'Et ta défense en a trois',
-    finition: 1.04, volume: 1.02, defense: 1.035,
+    finition: 1.08, volume: 1.04, defense: 1.07,
   },
   fougue: {
     nom: 'La fougue', ico: '🔥',
     bon: 'Ça pousse fort : plus de lancers, et ça rentre', prix: 'Des punitions bêtes',
-    finition: 1.03, volume: 1.03, discipline: 1.25,
+    finition: 1.05, volume: 1.05, discipline: 1.30,
   },
 };
 
