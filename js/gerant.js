@@ -27,13 +27,14 @@
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
   profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motsDEffet, motsDeMutation, motCourbe, chimieMax,
+  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
-  physiqueDe, physiqueLigne, bilanAgressivite, flechesDe,
+  physiqueDe, physiqueLigne, bilanAgressivite,
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
 import { POIDS_TRIO } from './ratings.js';
+import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
@@ -46,25 +47,6 @@ const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
-/*
- * LE POURCENTAGE EN QUANTITÉ (1.0, oct.). JP : *« Tirs +7 % », c'est tough gager... le chiffre en haut est
- * en quantité moyenne*. Avec les vraies moyennes du club (`base` : tirs, buts, buts contre, punitions par
- * match, et la part du match qui reste), une puce dit aussi ce que son pourcentage vaut : « Tirs +7 %
- * ≈ +2,1 tirs par match ». La précision joue sur les buts ; la quantité est l'effet seul, toutes choses égales.
- */
-const QUANTITES = [['Tirs ', 'volume', 'tir', 'tirs'], ['Précision ', 'finition', 'but', 'buts'], ['Buts contre ', 'defense', 'but contre', 'buts contre'], ['Punitions ', 'discipline', 'punition', 'punitions']];
-function avecQuantite(m, canaux, base) {
-  if (!base || !canaux) return m;
-  for (const [debut, canal, un, plusieurs] of QUANTITES) {
-    if (!String(m.txt).startsWith(debut) || !canaux[canal] || !base[canal]) continue;
-    const q = (canaux[canal] - 1) * base[canal] * (base.part || 1);
-    if (Math.abs(q) < 0.005) return m;
-    // Un petit effet se dit au centième : « ≈ −0,02 but » est la vérité, pas un zéro.
-    const n = Math.abs(q).toFixed(Math.abs(q) < 0.1 ? 2 : 1).replace('.', ',');
-    return { ...m, txt: `${m.txt} ≈ ${q > 0 ? '+' : '−'}${n} ${Math.abs(q) >= 2 ? plusieurs : un} ${base.par || 'par match'}` };
-  }
-  return m;
-}
 export function puces(mots) {
   return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}">${esc(m.txt)}</span>`).join('');
 }
@@ -94,13 +76,13 @@ function motsDeCarte(o, noms = '') {
   if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
   if (o.enjeu) out.push({ txt: '⚖️ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
   if (o.pari) {
-    const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsDEffet(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
+    const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
     out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${issue(o.pari.gagne)}`, bon: true });
     out.push({ txt: `🎲 sinon : ${issue(o.pari.perd)}`, bon: false });
   }
   if (o.ensuite) {
     const { apres, duree, ...c } = o.ensuite;
-    out.push({ txt: `⏳ Dans ${plur(apres || 0, 'match')} : ${motsDEffet(c, duree).map(x => x.txt).join(', ')}`, bon: true });
+    out.push({ txt: `⏳ Dans ${plur(apres || 0, 'match')} : ${motsEnChiffres(c, duree).map(x => x.txt).join(', ')}`, bon: true });
   }
   if (o.rien) out.push({ txt: 'Rien ne change', bon: null });
   return out;
@@ -111,12 +93,19 @@ function motsDeCarte(o, noms = '') {
  * ce qu'il règle sur ses lignes, ce que ce système fait, ce qui le contre, et
  * si tes lignes le contrent.
  */
+/* Ce que leur système fait à LEUR match, en chiffres : sur deux de leurs lignes (≈ 65 % de la glace), à plein fit. Les mots disent ce qui leur arrive. */
+const PART_DE_DEUX_LIGNES = 0.65;
+function motsDuSystemeAdverse(T) {
+  const e = {};
+  for (const m of effetsDeSysteme(T, 75)) if (['volume', 'finition', 'defense', 'discipline'].includes(m.canal)) e[m.canal] = 1 + (m.v - 1) * PART_DE_DEUX_LIGNES;
+  return motsEnChiffres(e, null, { eux: true }).filter(m => m.cle !== 'rien');
+}
 export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJuste } = {}) {
   const P = PLANS_ADV[cle];
   if (!P) return '';
   // Le plan est un réglage de lignes (S72) : ce qu'il règle, et ce que ce système fait.
   const T = P.tac ? TACTIQUES[P.tac] : null;
-  const mots = T ? effetsDeSysteme(T, 75).map(m => ({ txt: `${nomAdv} : ${m.txt}`, bon: !m.bon })) : [];
+  const mots = T ? motsDuSystemeAdverse(T).map(m => ({ txt: `${nomAdv} : ${m.txt}`, bon: m.bon == null ? null : !m.bon })) : [];
   return `<div class="plan-adv${contre ? ' contre' : ''}">
     <div class="plan-adv-t">${P.ico} Leur plan : <b>${esc(P.nom)}</b>${suite ? ` <small>${esc(suite)}</small>` : ''}</div>
     <div class="plan-adv-mot">${esc(P.mot)} <b>${esc(majuscule(reglageDuPlan(cle)))}</b>.</div>
@@ -175,7 +164,7 @@ export function sesRolesHtml(p) {
 }
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
 const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
-/* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */
+/* Les canaux d'effet d'un objet : ce que motsEnChiffres sait dire. */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
 /* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
@@ -309,7 +298,7 @@ export function ouvrirChoix(spec) {
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
       <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
-        const mots = [...(o.rien ? [] : motsDEffet(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null).map(m => avecQuantite(m, canaux, spec.base))), ...(o.mutation ? motsDeMutation(o.mutation) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+        const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
         // EN CARTES (S73) : le même choix, dans le costume d'une carte à collectionner. La forme tient dans le type, le visage ne bouge pas.
         if (spec.cartes) return carteHtml({
@@ -408,7 +397,7 @@ function sceneDuDe(m, spec, o, sub, fermer) {
     const de = table.querySelector('.de');
     de.classList.add('pose', v.gagne ? 'gagne' : 'perd');
     const { duree, action, ...canaux } = v.effet || {};
-    const mots = [...motsDEffet(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action)];
+    const mots = [...motsEnChiffres(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action)];
     verdict.innerHTML = `<b>${v.face}</b> — ${v.gagne ? 'ça passe !' : 'raté.'}`;
     verdict.classList.add(v.gagne ? 'gagne' : 'perd');
     corps.querySelector('.de-issue').innerHTML = puces(mots.length ? mots : [{ txt: 'Rien ne change', bon: null }]);
@@ -709,7 +698,16 @@ const nomSys = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.i
  * chiffres, au prorata du fit), qui il étouffe et qui l'étouffe, ce qu'il
  * demande à chaque poste — et ce qu'il y a en face.
  */
-function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
+/* L'agressivité d'une ligne et le système d'une unité, en chiffres de match pour TON club : le moteur joue les deux versions (js/impact.js). */
+function chiffresAgressivite(lineup, lignes, u, agr) {
+  const c = clubLu();
+  return c && c.team ? agressiviteEnChiffres(c.team, lineup, c.adv || null, lignes, u, agr) : [];
+}
+function chiffresSysteme(lineup, lignes, u, groupe, cle) {
+  const c = clubLu();
+  return c && c.team ? systemeEnChiffres(c.team, lineup, c.adv || null, lignes, u, groupe, cle) : [];
+}
+function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const attr = D ? 'tacd' : 'tac';
@@ -742,11 +740,12 @@ function systemesHtml({ lineup, u, groupe, l, adv = null, advNom = '', chimieDe 
     const f = X.slots && !incomplete ? fitUnite(lineup, groupe, u, k) : null;
     return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}${aF && X.bat === aF ? ` — contre ${selonDepistage ? 'leur plan probable, selon le dépistage' : 'leur système'}` : ''}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? (incomplete && X.slots ? 'à compléter' : 'rien à assortir') : motFit(f)}</span>${f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
   }).join('');
-  const effets = effetsDeSysteme(S, fit);
+  const effets = lignes && S.slots ? chiffresSysteme(lineup, lignes, u, groupe, cle) : [];
   const etouffe = S.bat ? (D ? ` Étouffe l'action spéciale d'un trio en ${nomSys(S.bat)}.` : ` Étouffe ${nomSys(S.bat)}.`) : '';
   const cT = !D && S.slots ? contreDe(cle) : null, cD = !D && S.slots ? contreDeD(cle) : null;
   const parQui = cT || cD ? ` Étouffé par ${[cT && `un trio en ${nomSys(cT)}`, cD && `une paire en ${nomSys(cD)}`].filter(Boolean).join(' ou ')}.` : '';
-  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${effets.length ? `<span class="choix-puces">${puces(effets)}<span class="puce neutre" title="Le gain d'un système suit le fit de ses joueurs : rien au mauvais fit, tout sur mesure. Son prix se paie toujours.">gain à ${Math.round(100 * echelleFit(fit))} %</span></span>` : ''}</div>`;
+  const motGain = f => (echelleFit(f) >= 1 ? 'gain complet' : echelleFit(f) <= 0 ? 'aucun gain' : 'gain partiel');
+  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets.length ? effets : [{ txt: 'à peine perceptible', bon: null }])}<span class="puce neutre" title="Le gain d'un système suit le fit de ses joueurs : rien au mauvais fit, tout sur mesure. Son prix se paie toujours.">${motGain(fit)}</span></span>` : ''}</div>`;
   // Ce qu'il demande, poste par poste : le rôle, et si le joueur de la case l'a.
   const js = joueursDeLigne(lineup, u);
   // Les rôles tels qu'il les joue : ses ailes dans le sens où elles rendent le mieux (`rolesDuSysteme`).
@@ -802,7 +801,7 @@ function effetsHtml(e) {
   const regle = [];
   const reste = [];
   for (const x of e.effets || []) {
-    const mots = motsDEffet(canauxDe(x));
+    const mots = motsEnChiffres(canauxDe(x), x.reste).filter(m => !m.duree);
     if (!mots.length) continue;
     const nom = `${x.ico ? `${x.ico} ` : ''}${esc(x.nom || 'Effet')}${x.choix ? ` <small>· ${esc(x.choix)}</small>` : ''}`;
     (x.regle ? regle : reste).push(ligne(nom, mots, `<span class="puce neutre duree">${plur(x.reste, 'match')}</span>`));
@@ -811,9 +810,9 @@ function effetsHtml(e) {
     const M = MUTATIONS[t.cle];
     if (!M) continue;
     const qui = t.p && t.p.n ? ` <small>· ${esc(t.p.n)}</small>` : '';
-    regle.push(ligne(`${M.ico} ${esc(M.nom)}${qui}`, motsDeMutation(t.cle), '<span class="puce neutre duree">la saison</span>'));
+    regle.push(ligne(`${M.ico} ${esc(M.nom)}${qui}`, motsDeMutationEnChiffres(t.cle, t.p, { deja: true }), '<span class="puce neutre duree">la saison</span>'));
   }
-  for (const c of e.cartes || []) if (CARTES[c]) reste.push(ligne(`${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small>`, motsDEffet(canauxDe(CARTES[c])), '<span class="puce neutre duree">la saison</span>'));
+  for (const c of e.cartes || []) if (CARTES[c]) reste.push(ligne(`${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small>`, motsEnChiffres(canauxDe(CARTES[c])), '<span class="puce neutre duree">la saison</span>'));
   for (const a of e.absents || []) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">👥 ${esc(a.p.n)} <small>· au vestiaire</small></span><span class="choix-puces"><span class="puce neutre duree">${plur(a.reste, 'match')}</span></span></div>`);
   if (e.gardienAux) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">🧤 L'auxiliaire au filet</span><span class="choix-puces"><span class="puce neutre duree">${plur(e.gardienAux, 'match')}</span></span></div>`);
   const corps = `${regle.length ? `<div class="gl-k">Le règlement contourné</div>${regle.join('')}` : ''}${reste.join('')}`;
@@ -908,18 +907,18 @@ export function ouvrirLignes(spec) {
     const consigne = match ? `<section class="gl-consigne">
       <div class="gl-sec-titre">Consigne du match</div>
       <div class="gl-seg gl-seg-court">${Object.entries(IMPORTANCES).map(([k, I]) => `<button type="button" class="gl-seg-btn${match.importance === k ? ' on' : ''}" data-importance="${k}">
-        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsDEffet(effetConsigne(k)).filter(x => !/±0 %/.test(x.txt)))}</span></button>`).join('')}</div>
+        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsEnChiffres(effetConsigne(k)).filter(x => x.cle !== 'rien'))}</span></button>`).join('')}</div>
       <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small>${spec.grosMatch && match.importance !== 'haute' ? ' <span class="choix-puces"><span class="puce neutre" title="Un gros match : la consigne Haute joue plus fort, au prix des jambes et des blessures. Elle se choisit.">🌡️ Haute conseillée</span></span>' : ''}</div>
     </section>` : '';
     /*
      * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
-     * passé sous les bornes du moteur (`totauxDuSoir`, js/sim.js) — la
+     * lu dans le moteur (`motsDuSoir`, js/impact.js) — la
      * consigne qu'on règle ici comprise, recalculée à chaque toucher.
      */
     const tot = spec.totaux ? spec.totaux(match, brouillon) : null;
     const totauxHtml = tot ? `<section class="gl-totaux">
       <div class="gl-totaux-l"><b>Ce soir :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucun effet</span>'}</span></div>
-      <div class="gl-mot">Les effets se multiplient entre eux.</div>
+      <div class="gl-mot">Ton build, contre le même alignement sans aucun effet.</div>
     </section>` : '';
     /*
      * L'ADVERSAIRE D'ABORD (1.0, J2-11). Tout ce qui se règle ici se règle
@@ -964,7 +963,7 @@ export function ouvrirLignes(spec) {
     const choixDe = groupe => {
       const id = identiteUnite(spec.lineup, groupe, u);
       const titre = `<div class="gl-sec-titre">Système ${groupe === 'D' ? 'de la paire' : 'du trio'}${id ? ` · <span class="ln-id">${id.ico} ${esc(id.nom)}</span>` : ''}</div>`;
-      return titre + systemesHtml({ lineup: spec.lineup, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
+      return titre + systemesHtml({ lineup: spec.lineup, lignes: brouillon, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
         chimieDe: app ? k => chimieDe(u, { ...l, [groupe === 'D' ? 'tacD' : 'tac']: k }) : null });
     };
     const detail = `<section class="gl-ligne">
@@ -981,10 +980,7 @@ export function ouvrirLignes(spec) {
       <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
         const b = bilanAgressivite(i, ph);
         const verdict = i === 1 ? { txt: 'Par défaut', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
-        const effets = i === 1 ? [] : [
-          { txt: `Défense ${flechesDe(1 + b.defense)}`, bon: b.defense > 0 },
-          { txt: `Punitions ${flechesDe(1 + b.punitions, [0.1, 0.3])}`, bon: b.punitions < 0 },
-          ...motsDEffet({ energie: A.energie })];
+        const effets = i === 1 ? [] : chiffresAgressivite(spec.lineup, brouillon, u, i);
         return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
         <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...effets])}</span></button>`;
       }).join('')}</div>
@@ -1094,7 +1090,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
-  const choix = systemesHtml({ lineup: spec.lineup, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
+  const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
     chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
   if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie, agressivité et glace : avec le ${NOMS_TRIO[u]}.</div>` };
 
@@ -1105,11 +1101,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     const verdict = i === 1 ? 'par défaut' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre';
     return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b><small>${verdict}</small></button>`;
   }).join('');
-  const bAgr = bilanAgressivite(l.agr, ph);
-  const effetsAgr = l.agr === 1 ? [] : [
-    { txt: `Défense ${flechesDe(1 + bAgr.defense)}`, bon: bAgr.defense > 0 },
-    { txt: `Punitions ${flechesDe(1 + bAgr.punitions, [0.1, 0.3])}`, bon: bAgr.punitions < 0 },
-    ...motsDEffet({ energie: AGRESSIVITES[l.agr].energie })];
+  const effetsAgr = l.agr === 1 ? [] : chiffresAgressivite(spec.lineup, spec.lignes, u, l.agr);
   const avecPaire = u < 3 && !(l.tac === 'hourra' && l.tacD === 'hourra');
   const corps = `
     ${choix}
@@ -1193,7 +1185,7 @@ export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = fal
       ? `<button type="button" class="dep-piste${on ? ' on' : ''}${x.ecarte ? ' ecarte' : ''}" data-plan="${x.plan}"${x.ecarte ? ' disabled' : ''}>${corps}<span class="dep-prep">${x.ecarte ? 'Écarté' : on ? '🎯 Préparé' : 'Me préparer'}</span></button>`
       : `<div class="dep-piste${x.ecarte ? ' ecarte' : ''}">${corps}</div>`;
   };
-  const txt = e => motsDEffet(e).map(m => m.txt).join(' · ');
+  const txt = e => motsEnChiffres(e).map(m => m.txt).join(' · ');
   const juste = `Leur plan tombe · ${txt(PREP_JUSTE)}${fx && fx.piege ? ` · et ${txt(fx.piege)} (le piège)` : ''}`;
   const rate = fx && fx.improvise ? `pas de malus, et ${txt(fx.improvise)} (l'improvisation)` : txt(PREP_RATEE);
   return `<div class="depistage${choisir ? ' choisir' : ''}">
@@ -1216,13 +1208,21 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
  * qui t'aide, en rouge ce qui coûte. `regle` n'est écrite à la main que pour
  * une carte qui lit ta formation.
  */
+/* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
+const EN_3E = { part: 1 / 3, par: 'en 3e' };
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
-  const txt = e => motsDEffet(e).map(m => m.txt).join(', ');
-  if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
-  out.push(...motsDEffet(C.effet || null));
-  for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  const txt = e => motsEnChiffres(e).map(m => m.txt).join(', ');
+  // Ce qui s'ajoute à chaque carte (jouée, ou dans une main) : le chiffre de match d'un pas, dit « par carte … ».
+  const parCarte = (e, quand) => { const m = motsEnChiffres(e, null, { par: quand }).filter(x => x.cle !== 'rien'); return m.length ? m.map(x => x.txt).join(', ') : `à peine perceptible ${quand}`; };
+  if (C.plein) {
+    // Une synergie : sa condition, puis ce qu'elle rapporte à son maximum, en chiffres de match pour ton club.
+    const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
+    out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
+  } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
+  out.push(...motsEnChiffres(C.effet || null));
+  for (const m of motsEnChiffres(C.adv || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
    * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
    * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;
@@ -1242,17 +1242,17 @@ function regleDeCarte(C) {
   if (C.planB) out.push({ txt: '🎯 Tu te prépares pour 2 plans', bon: true });
   if (C.improvise) out.push({ txt: `Si ta préparation rate : pas de malus, et ${txt(C.improvise)}`, bon: true });
   if (C.piege) out.push({ txt: `Si ta préparation vise juste : ${txt(C.piege)} de plus`, bon: true });
-  if (C.parGenre) out.push({ txt: `${txt(C.parGenre.effet)} par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`, bon: true });
-  if (C.selonLeurMain) out.push({ txt: `${txt(C.selonLeurMain.effet)} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`, bon: true });
+  if (C.parGenre) out.push({ txt: parCarte(C.parGenre.effet, `par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`), bon: true });
+  if (C.selonLeurMain) out.push({ txt: parCarte(C.selonLeurMain.effet, `par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`), bon: true });
   if (C.siVide) out.push({ txt: `Si tu dépenses tout ton élan : ${txt(C.siVide)}`, bon: true });
   // 1.0 (J1-G) : un effet conditionnel au pointage après deux périodes — la carte dit sa condition.
   if (C.apres40) {
-    for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
-    for (const m of motsDEffet(C.apres40.sinon || null)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
+    for (const m of motsEnChiffres(C.apres40.siMene || null, null, EN_3E)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
+    for (const m of motsEnChiffres(C.apres40.sinon || null, null, EN_3E)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
   }
   if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
   if (C.pari) out.push({ txt: `🎲 ${Math.round(C.pari.chance * 100)} % : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
-  if (C.enMain) for (const m of motsDEffet(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
+  if (C.enMain) for (const m of motsEnChiffres(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
   if (C.injouable) out.push({ txt: 'Injouable', bon: false });
   if (C.epuise) out.push({ txt: '⌛ Épuisée : elle quitte ton deck après ce match', bon: null });
   return out;
@@ -1263,14 +1263,14 @@ const motsDeCarteMatch = regleDeCarte;
 function motsDeCarteAdverse(C, echelle = 1) {
   if (!C) return [];
   const out = [];
-  for (const m of motsDEffet(C.effet || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  for (const m of motsEnChiffres(C.effet || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
-  for (const m of motsDEffet(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
+  for (const m of motsEnChiffres(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
-  if (C.apres40) for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
-  if (C.parGenre) for (const m of motsDEffet(C.parGenre.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent`, bon: m.bon == null ? null : !m.bon });
-  if (C.selonLeurMain) for (const m of motsDEffet(C.selonLeurMain.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues`, bon: m.bon == null ? null : !m.bon });
+  if (C.parGenre) for (const m of motsEnChiffres(C.parGenre.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  if (C.selonLeurMain) for (const m of motsEnChiffres(C.selonLeurMain.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.energieTous) out.push({ txt: `Leurs patineurs : jambes +${C.energieTous}`, bon: false });
   return out;
 }
@@ -1354,8 +1354,8 @@ export function ouvrirMainDeMatch(spec) {
     // L'échelle du soir (S80) : ce que le moteur jouera, les cartes qui visent l'adversaire comprises.
     const echelle = spec.echelle || 1;
     const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu', { echelle });
-    const mots = [...motsDEffet(combiner(fx.effets))];
-    for (const x2 of motsDEffet(combiner(fx.adv))) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
+    const mots = [...motsEnChiffres(combiner(fx.effets))];
+    for (const x2 of motsEnChiffres(combiner(fx.adv), null, { eux: true })) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
     if (fx.adv.length && echelle > 1) mots.push({ txt: `📈 Ce soir, ce qui vise l'adversaire vaut ×${String(Math.round(echelle * 100) / 100).replace('.', ',')}`, bon: true });
     if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
     if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
@@ -1380,7 +1380,7 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.contexte || ''}
         ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
-          const mots = [...motsDEffet(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>

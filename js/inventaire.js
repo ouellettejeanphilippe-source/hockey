@@ -106,7 +106,7 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
  *         jouer(item), vendre(item), onFerme() }
  */
 export function ouvrirInventaire(ctx) {
-  // Dans une page du Club (1.0, R3 : `ctx.dans`, `ctx.fermer`) ou dans sa fenêtre.
+  // Dans une page du Marché (`ctx.dans`, `ctx.fermer`, js/game.js) ou dans sa fenêtre.
   const m = ctx.dans || $('inventaireModal');
   if (!m) return;
   const onglets = [
@@ -214,7 +214,8 @@ export function ouvrirInventaire(ctx) {
     m.querySelectorAll('.inv-jouer-meta').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'meta', id: b.dataset.id }); }; });
   };
   const fermer = (silencieux = false) => {
-    if (ctx.dans) { if (ctx.fermer) ctx.fermer(); }
+    // Dans une page, seul un geste de fermeture la ferme : une carte jouée laisse « Tes cartes » en place (js/game.js, `remplirMarche`).
+    if (ctx.dans) { if (ctx.fermer && !silencieux) ctx.fermer(); }
     else { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); }
     if (!silencieux && ctx.onFerme) ctx.onFerme();
   };

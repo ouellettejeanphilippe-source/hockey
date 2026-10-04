@@ -54,10 +54,12 @@ export const CICATRICES_MAX = 2;
  * LES MATHS SE LISENT (S76). JP : *les cartes manquent de variété, aussi,
  * faudrait des maths plus claires sur les effets, comme dans un vrai
  * deckbuilder*. `texte` n'est plus que l'ambiance ; la RÈGLE, chiffrée, se
- * déduit des champs (`regleDeCarte`) — « Tirs +6 % », « Pige 2 cartes »,
- * « Eux : punitions +25 % » — et `regle` ne s'écrit à la main que pour une
- * carte conditionnelle. Et de nouvelles MÉCANIQUES, pas seulement de
- * nouveaux pourcentages :
+ * déduit des champs (`regleDeCarte`) — « ≈ +1,2 tir par match », « Pige 2
+ * cartes », « Eux : ≈ +0,9 punition par match » (js/impact.js) — et `regle`
+ * ne s'écrit à la main que pour une carte conditionnelle ; `quand` et `plein`
+ * (la condition, et l'effet à son maximum) la disent en chiffres de match
+ * (`check_combat` prouve que `plein` est celui de `regle`). Et de nouvelles
+ * MÉCANIQUES, pas seulement de nouveaux pourcentages :
  *   `apres40`       (1.0) un effet posé à la troisième période seulement, selon le
  *                   pointage après deux : `siMene` quand on mène, `sinon` autrement ;
  *   `ecarte`        le dépistage écarte N plans qu'ils ne joueront pas ;
@@ -127,28 +129,28 @@ export const CARTES_MATCH = {
   avantage: { nom: 'L\'avantage numérique en or', ico: '💥', cout: 2, rarete: 'peu', genre: 'attaque',
     texte: 'Le jeu de puissance répété toute la semaine.', effet: { finition: 1.07 } },
   systeme: { nom: 'Le système maison', ico: '📘', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Tout le monde connaît sa case les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme' },
+    texte: 'Tout le monde connaît sa case les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', quand: 'Si deux de tes lignes jouent le même système', plein: { finition: 1.06 }, seuil: true },
   gachettes: { nom: 'Les gâchettes', ico: '🎯', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par sniper dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes' },
+    texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par sniper dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes', quand: 'Par sniper dans tes deux premiers trios', plein: { finition: 1.06 } },
   murBleu: { nom: 'Le mur bleu', ico: '🧱', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur 🛑 Défensif habillé (jusqu\'à −6 %).', synergie: 'mur' },
+    texte: 'Trois défenseurs qui ne montent jamais.', regle: 'Buts contre −2 % par défenseur 🛑 Défensif habillé (jusqu\'à −6 %).', synergie: 'mur', quand: 'Par défenseur 🛑 Défensif habillé', plein: { defense: 0.94 } },
   jambes: { nom: 'Les jambes', ico: '⚡', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Ça part en contre-attaque avant la ligne rouge.', regle: 'Tirs +2 % par plombier 🪠 habillé (jusqu\'à +8 %).', synergie: 'jambes' },
+    texte: 'Ça part en contre-attaque avant la ligne rouge.', regle: 'Tirs +2 % par plombier 🪠 habillé (jusqu\'à +8 %).', synergie: 'jambes', quand: 'Par plombier 🪠 habillé', plein: { volume: 1.08 } },
   // LES CARTES D'ORIGINE (1.0) : JP, *des cartes qui activent bonus s'il même équipe*. Elles lisent d'où viennent tes joueurs
   // (js/sim.js `originesDe`) ; l'alignement montre la puce d'une unité qui les déclenche. `origine` : l'adversaire ne les joue
   // pas — une vraie équipe est tout entière d'un club et d'une saison, elle les aurait toutes au maximum.
   coequipiers: { nom: 'Les vrais coéquipiers', ico: '👬', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Ils ont gagné ensemble pour vrai : ils savent où l\'autre sera.', regle: 'Précision +2 % par paire de vrais coéquipiers (même club, même saison) dans tes deux premiers trios et tes deux premières paires (jusqu\'à +6 %).', synergie: 'coequipiers' },
+    texte: 'Ils ont gagné ensemble pour vrai : ils savent où l\'autre sera.', regle: 'Précision +2 % par paire de vrais coéquipiers (même club, même saison) dans tes deux premiers trios et tes deux premières paires (jusqu\'à +6 %).', synergie: 'coequipiers', quand: 'Par paire de vrais coéquipiers (même club, même saison) dans tes deux premiers trios et tes deux premières paires', plein: { finition: 1.06 } },
   famille: { nom: 'La même famille', ico: '🎽', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Le même chandail, d\'une génération à l\'autre.', regle: 'Buts contre −2 % par joueur habillé de ta franchise la plus nombreuse, à partir du troisième (jusqu\'à −6 %).', synergie: 'famille' },
+    texte: 'Le même chandail, d\'une génération à l\'autre.', regle: 'Buts contre −2 % par joueur habillé de ta franchise la plus nombreuse, à partir du troisième (jusqu\'à −6 %).', synergie: 'famille', quand: 'Par joueur habillé de ta franchise la plus nombreuse, à partir du troisième', plein: { defense: 0.94 } },
   decennie: { nom: 'La décennie', ico: '🕰️', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Ils ont appris le même hockey.', regle: 'Tirs +2 % par trio dont les trois joueurs sont de la même décennie (jusqu\'à +8 %).', synergie: 'decennie' },
+    texte: 'Ils ont appris le même hockey.', regle: 'Tirs +2 % par trio dont les trois joueurs sont de la même décennie (jusqu\'à +8 %).', synergie: 'decennie', quand: 'Par trio dont les trois joueurs sont de la même décennie', plein: { volume: 1.08 } },
   vieilleGarde: { nom: 'La vieille garde', ico: '🪖', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Ils ont tout vu, et ils ne paniquent plus.', regle: 'Buts contre −1 % par joueur habillé de 31 ans et plus (jusqu\'à −6 %).', synergie: 'vieilleGarde' },
+    texte: 'Ils ont tout vu, et ils ne paniquent plus.', regle: 'Buts contre −1 % par joueur habillé de 31 ans et plus (jusqu\'à −6 %).', synergie: 'vieilleGarde', quand: 'Par joueur habillé de 31 ans et plus', plein: { defense: 0.94 } },
   releve: { nom: 'La relève', ico: '🔰', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Des jambes de vingt ans.', regle: 'Tirs +1 % par joueur habillé de 23 ans et moins (jusqu\'à +8 %).', synergie: 'releve' },
+    texte: 'Des jambes de vingt ans.', regle: 'Tirs +1 % par joueur habillé de 23 ans et moins (jusqu\'à +8 %).', synergie: 'releve', quand: 'Par joueur habillé de 23 ans et moins', plein: { volume: 1.08 } },
   ligneOrigine: { nom: 'La ligne d\'origine', ico: '🧩', cout: 1, rarete: 'rare', genre: 'synergie', origine: true,
-    texte: 'La ligne telle qu\'elle a joué, remontée d\'un bloc.', regle: 'Tirs +4 % et précision +2 % par ligne d\'origine — un trio ou une paire d\'un même club, la même saison (jusqu\'à deux lignes).', synergie: 'ligneOrigine' },
+    texte: 'La ligne telle qu\'elle a joué, remontée d\'un bloc.', regle: 'Tirs +4 % et précision +2 % par ligne d\'origine — un trio ou une paire d\'un même club, la même saison (jusqu\'à deux lignes).', synergie: 'ligneOrigine', quand: 'Par ligne d\'origine — un trio ou une paire d\'un même club, la même saison', plein: { volume: 1.08, finition: 1.04 } },
   des: { nom: 'Coup de dés', ico: '🎲', cout: 0, rarete: 'peu', genre: 'tactique',
     texte: 'Une soirée où tout rentre, ou une soirée où rien ne tient.',
     pari: { chance: 0.5, gagne: { finition: 1.1 }, perd: { defense: 1.08 } } },
@@ -191,9 +193,9 @@ export const CARTES_MATCH = {
   butEnOr: { nom: 'Le but en or', ico: '🥇', cout: 3, rarete: 'legendaire', genre: 'attaque',
     texte: 'Le genre de soirée qui finit sur une affiche dans une chambre d\'enfant.', effet: { finition: 1.12, defense: 0.92 } },
   dynastie: { nom: 'La dynastie', ico: '👑', cout: 2, rarete: 'legendaire', genre: 'synergie',
-    texte: 'Tes lignes jouent leur système les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', annule: true },
+    texte: 'Tes lignes jouent leur système les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', annule: true, quand: 'Si deux de tes lignes jouent le même système', plein: { finition: 1.06 }, seuil: true },
   dynastieClub: { nom: 'La dynastie de club', ico: '🏛️', cout: 2, rarete: 'legendaire', genre: 'synergie', origine: true,
-    texte: 'Les bannières au plafond, et leurs noms dessus.', regle: 'Si 5 joueurs habillés ou plus viennent de la même franchise : précision +6 % et buts contre −4 %.', synergie: 'dynastieClub' },
+    texte: 'Les bannières au plafond, et leurs noms dessus.', regle: 'Si 5 joueurs habillés ou plus viennent de la même franchise : précision +6 % et buts contre −4 %.', synergie: 'dynastieClub', quand: 'Si 5 joueurs habillés ou plus viennent de la même franchise', plein: { finition: 1.06, defense: 0.96 }, seuil: true },
   ferveur: { nom: 'La ferveur', ico: '📣', cout: 1, rarete: 'rare', genre: 'attaque',
     texte: 'L\'aréna tremble dès la mise au jeu.', effet: { finition: 1.05, volume: 1.05, energie: 1.1 } },
 

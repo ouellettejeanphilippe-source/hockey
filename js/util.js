@@ -81,3 +81,6 @@ export function hache(...parts) {
   h ^= h >>> 13; h = Math.imul(h, 2246822507) >>> 0; h ^= h >>> 16;
   return (h >>> 0) / 4294967296;
 }
+
+/** Une icône en présentation texte (sans l'emoji en couleur) : elle se teinte de la couleur de son palier. */
+export const glyphe = ico => String(ico ?? '').replace(/\uFE0F/g, '\uFE0E');

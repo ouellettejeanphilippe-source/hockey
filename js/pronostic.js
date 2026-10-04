@@ -29,9 +29,10 @@
 import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF,
   poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR,
   TACTIQUES, SYSTEMES_D, AGRESSIVITES, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD, meilleureAgressivite,
-  bilanAgressivite, physiqueLigne, effetsDeSysteme, effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
+  effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
   SEC_MIN, SPEC_BASE, SPEC_MULT } from './sim.js';
 import { virgule } from './util.js';
+import { clubLu, systemeEnChiffres, lignesEnChiffres, motsEnChiffres } from './impact.js';
 
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
@@ -272,8 +273,8 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
  * Chaque conseil porte la décision que l'écran applique d'un toucher
  * (`lignes`, `fermeture` ou `match`) — une décision comme une autre, qui
  * se rejoue — et ses chiffres sont ceux du moteur : ce que le système fait à
- * CE fit (`effetsDeSysteme`), ce que l'agressivité rend à CETTE carrure
- * (`bilanAgressivite`), la chance d'action spéciale (`SPEC_BASE` × chimie)
+ * CE fit et ce que l'agressivité rend à CETTE carrure (les deux versions des lignes
+ * jouées par le moteur, en chiffres de match : js/impact.js), la chance d'action spéciale (`SPEC_BASE` × chimie)
  * et ce qu'elle vaut (`SPEC_MULT`), l'énergie du matin.
  *
  * POURQUOI PAS « +3 POINTS DE VICTOIRE » ? Mesuré en S79 : un réglage d'une
@@ -292,7 +293,6 @@ const RANG_PAIRE = ['1re paire', '2e paire', '3e paire'];
 const RANG_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
 const nomSysteme = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${S.nom}` : ''; };
 const motFit = f => (f >= 70 ? 'sur mesure' : f >= 55 ? 'bon fit' : f >= 40 ? 'fit moyen' : 'mauvais fit');
-const pctE = v => `${v >= 1 ? '+' : '−'}${Math.round(Math.abs(v - 1) * 100)} %`;
 export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null, forces = null, consigne = null }) {
   const out = [];
   const avec = (u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : { ...l }));
@@ -300,7 +300,9 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
   const nomUnite = (g, u) => (g === 'D' ? RANG_PAIRE[u] : RANG_TRIO[u]);
   const idDe = (L, g, u) => { const id = L && identiteUnite(L, g, u); return id ? id.nom : ''; };
   const touche = new Set();   // une unité, un conseil
-  const chiffresSys = (g, u, k) => effetsDeSysteme((g === 'D' ? SYSTEMES_D : TACTIQUES)[k], fitDe(g, u, k)).map(({ txt, bon }) => ({ txt, bon }));
+  // Les chiffres d'un conseil sont ceux du moteur, en matchs, pour TON club : il joue les deux versions des lignes (js/impact.js).
+  const club = clubLu();
+  const chiffresSys = (g, u, k) => (club && club.team ? systemeEnChiffres(club.team, lineup, null, lignes, u, g, k) : []);
 
   if (adv && adv.lignes) {
     // LEUR SYSTÈME PRINCIPAL : leurs trois premiers trios, pondérés 3-2-1.
@@ -387,12 +389,9 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
       titre: changees.map(u => `${RANG_LIGNE[u]} ${AGRESSIVITES[mieux[u]].ico} ${AGRESSIVITES[mieux[u]].nom.toLowerCase()}`).join(' · '),
       pourquoi: 'L\'agressivité qui paie pour la carrure de chaque ligne : le jeu physique rapporte aux lignes costaudes et coûte des punitions aux légères.',
       // Ce que ça change, ligne par ligne, par rapport à son agressivité d'aujourd'hui.
-      chiffres: changees.slice(0, 2).map(u => {
-        const ph = physiqueLigne(lineup, u);
-        const b = bilanAgressivite(mieux[u], ph), a = bilanAgressivite(lignes[u].agr ?? 1, ph);
-        const dB = Math.round((a.defense - b.defense) * 100), dP = Math.round((b.punitions - a.punitions) * 100);
-        const sg = x => `${x > 0 ? '+' : '−'}${Math.abs(x)} %`;
-        return { txt: `${RANG_LIGNE[u]} : ${[dB ? `buts contre ${sg(dB)}` : '', dP ? `punitions ${sg(dP)}` : ''].filter(Boolean).join(', ') || 'presque rien'}`, bon: b.net > a.net };
+      chiffres: changees.slice(0, 2).flatMap(u => {
+        const mots = club && club.team ? lignesEnChiffres(club.team, lineup, null, avec(u, { agr: mieux[u] }), lignes) : [];
+        return mots.length ? mots.map(m => ({ ...m, txt: `${RANG_LIGNE[u]} : ${m.txt}` })) : [{ txt: `${RANG_LIGNE[u]} : presque rien`, bon: null }];
       }) });
   }
   // LA GLACE : un des deux premiers trios usé (sous 88 de jambes ce matin : il rend déjà moins).
@@ -417,7 +416,7 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
       out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡️ Consigne : défense',
         pourquoi: ad > 0 ? `Leur gardien de ce soir est ${forces.lui.gardien.rang}e de la ligue, ton attaque ${forces.moi.attaque.rang}${forces.moi.attaque.rang === 1 ? 're' : 'e'} : force-le.`
           : `Leur attaque est ${forces.lui.attaque.rang}${forces.lui.attaque.rang === 1 ? 're' : 'e'} de la ligue, ta défense ${forces.moi.defense.rang}e : ferme le jeu.`,
-        chiffres: (e => [{ txt: `Précision ${pctE(e.finition)}`, bon: e.finition > 1 }, { txt: `Buts contre ${pctE(e.defense)}`, bon: e.defense < 1 }])(effetDeMoment({ jour: 0, match })) });
+        chiffres: motsEnChiffres(effetDeMoment({ jour: 0, match })).filter(m => m.cle !== 'rien') });
     }
   }
   return out;

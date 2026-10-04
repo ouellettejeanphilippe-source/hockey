@@ -1,66 +1,34 @@
 /**
- * LE PLATEAU D'APRÈS-MATCH.
+ * LE RÉCIT D'APRÈS-MATCH.
  *
- * Comme à la télé : l'animateur résume la soirée, sérieux et pince-sans-rire.
- * Le format est celui d'un vrai bulletin sportif (une accroche, le fait, une
- * analyse, une chute) ; l'humour vient du sérieux avec lequel on traite le
- * banal du hockey. Jamais de gag annoncé, jamais de point d'exclamation.
+ * Un résumé de match comme à la télé : sobre, précis, détaillé. Le fil du match
+ * période par période, les gardiens, les unités spéciales, la discipline, les
+ * incidents, les étoiles. Le ton du commentateur est plat ; ce qui peut être
+ * drôle, ce sont les incidents eux-mêmes (une rondelle reçue là où ça fait
+ * mal), jamais la façon de les dire.
  *
- * LA RÈGLE DE CE FICHIER (la même que js/recit.js) : il ne décide de RIEN.
- * Le moteur a joué le match ; ici on lit la feuille et on met des mots dessus.
- * Une pièce est ÉTIQUETÉE par la situation qui la rend vraie, et ne se dit que
- * si toutes ses étiquettes sont vraies sur CETTE feuille : une phrase drôle qui
- * serait fausse est pire qu'une phrase plate. Aucun chiffre n'est écrit en dur :
- * ceux qu'on lit viennent de la feuille, par les gabarits.
+ * LA RÈGLE DE CE FICHIER (la même que js/recit.js) : il ne décide de RIEN. Le
+ * moteur a joué le match ; ici on lit la feuille et on met des mots dessus.
+ * Chaque nombre, chaque nom et chaque instant vient de la feuille, jamais d'un
+ * texte écrit à la main. Un incident ne s'attache qu'à un événement réel de la
+ * feuille (blessure, punition, coup, bagarre, mêlée), au joueur de cet
+ * événement : il n'invente ni but, ni punition, ni blessure. Que l'incident
+ * soit raconté ou non, c'est le hasard déterministe : la même feuille, le même
+ * contexte et la même graine redonnent exactement le même texte.
+ * Les infractions des punitions, que la feuille ne détaille pas, se tirent
+ * d'une banque d'infractions mineures de deux minutes.
  *
- * Quatre banques en pièces à assembler, `[texte, étiquettes]` :
- *   OUVERTURE  l'accroche de l'animateur
- *   CONSTAT    le fait du match
- *   ANALYSE    ce que le plateau en conclut
- *   CHUTE      la dernière phrase
- * Les étiquettes sont séparées par une espace, `!` nie ; aucune étiquette =
- * vraie toujours. Elles viennent de `situationDe` :
+ * Le retour : { titre, lignes[], sections[{ titre, lignes[] }] }. `lignes` est
+ * la même suite que `sections`, à plat. Au plus 25 lignes ; quand il y en a
+ * trop, les détails les moins utiles tombent d'abord (coups, mêlées, incidents).
  *
- *   issue      V D · OT (but en prolongation) · barrage (tirs de barrage) ·
- *              BL (on a blanchi l'autre) BLsubi · remontee (victoire après
- *              un retard d'au moins deux buts) gaspille (défaite après une
- *              avance d'au moins deux buts) · assur (but d'assurance de notre
- *              côté) assurAdv · raclee (victoire d'au moins quatre buts)
- *              raclSubie · un (écart d'un but) · desert (défaite d'un but, le
- *              gardien sorti pour un attaquant de plus : ctx.filetDesert) ·
- *              egalite3 (égalité brisée dans les cinq dernières minutes de la
- *              3e) · tardif (but gagnant dans les dix dernières minutes) ·
- *              gagnantAN (le but gagnant est sur l'avantage numérique)
- *   gardien    g35 (le nôtre, 35 arrêts et plus) adv35 (le leur) · gmauvais
- *              advmauvais (quatre buts alloués et moins de ,880)
- *   unités     anMoi anAdv (un but en avantage numérique) · anRate (trois
- *              avantages ou plus, aucun but) · dnParfait (trois désavantages ou
- *              plus, aucun but accordé) · dnBut dnButAdv (un but en infériorité)
- *   punitions  punMoi punAdv (quatre et plus) · sansPun (aucune, des deux
- *              côtés) · propre (aucune chez nous, au moins une chez eux)
- *   bagarre    bag (au moins une) · bagMoi bagAdv (on l'a gagnée / ils l'ont
- *              gagnée) · bagNul (aucune n'a de gagnant)
- *   séquence   premiere (ctx.sequence : première victoire après {n} défaites)
- *              derniere (la dernière victoire d'une séquence de {n})
- *   série      serie · m1 à m7 (le numéro du match) · meneSerie tireDerriere
- *              egaleSerie · passes sortis · balai balaiSubi · sursis
- *   saison     rs (saison régulière) · course elimine premier vengeance
- *              (ctx.saison, ctx.vengeance)
- *
- * Les gabarits : {eq} notre équipe, {autre} l'autre, {s} le pointage (le
- * vainqueur d'abord : 4-2), {m} le marqueur du but gagnant (ou celui du doublé
- * d'une pièce qui n'en parle pas autrement), {g} le gardien dont parle l'étiquette
- * (g35 et gmauvais : le nôtre ; adv35 et advmauvais : le leur), {n} le nombre
- * de l'unique étiquette qui en porte un, {per} la période du but gagnant,
- * {ser} la série après le match (3-1, de notre côté). Un gabarit qui ne peut
- * pas se résoudre retire la pièce.
- *
- * Le tirage est DÉTERMINISTE : la même feuille, le même contexte et la même
- * graine redonnent le même texte, et aucune pièce ne se répète dans un texte.
+ * `ctx` (tout est facultatif) : { eq, autre, cote ('A' par défaut : le côté de
+ * `eq`), fiche: { v, d, pr } la fiche de `eq` après ce match }. La série se
+ * lit sur la feuille (`serie`, de la forme « 3-1 » du point de vue de A).
  */
 
-import { nomCourt } from './recit.js';
-import { cap } from './util.js';
+import { nomCourt, tempsRestant, NOM_PERIODE } from './recit.js';
+import { cap, pct3 } from './util.js';
 
 /* ---------- le tirage déterministe (la même mécanique que js/recit.js) ---------- */
 function graine(str) {
@@ -69,868 +37,541 @@ function graine(str) {
   return (h >>> 0) / 4294967296;
 }
 
-/* ---------- OUVERTURE : l'accroche de l'animateur ---------- */
-const OUVERTURE = [
-  // Toujours vraies.
-  ["Bonsoir. Voici ce qu'il faut retenir de la soirée de {eq}.", ""],
-  ["Mesdames et messieurs, bonsoir. Le dossier {eq} contre {autre} est sur la table.", ""],
-  ["Bonsoir et bienvenue. Nous passons au match de {eq}, sans autre préambule.", ""],
-  ["Merci de rester avec nous. Le plateau revient sur la rencontre entre {eq} et {autre}.", ""],
-  ["Les faits d'abord, les opinions ensuite : {eq} affrontait {autre}.", ""],
-  ["Le plateau est en place et les statistiques sont devant nous. {eq} contre {autre}.", ""],
-  ["Bonsoir. Nous reprenons le match depuis le début, comme le veut la tradition.", ""],
-  ["Bienvenue à ce bilan de soirée. On commence par {eq}, parce qu'il faut bien commencer par quelqu'un.", ""],
-  ["Bonsoir. Notre régie me confirme que le match est bel et bien terminé. Nous pouvons donc en parler.", ""],
-  ["Bonsoir. J'ai relu la feuille de pointage plusieurs fois ; elle dit toujours la même chose.", ""],
-  ["Bonsoir. La feuille de match est officielle, ce qui nous évite beaucoup de débats.", ""],
-  ["Bonsoir. Prenez place : il y a des chiffres à lire et nous allons les lire.", ""],
-  ["Bonsoir. Un match de hockey s'est tenu ce soir, et {eq} y était.", ""],
-  ["Nous ouvrons le dossier du soir : {eq} contre {autre}, pièces à l'appui.", ""],
-  ["Bonsoir. Le jury d'analystes est réuni, café à la main, pour {eq} et {autre}.", ""],
-  ["Bonsoir. Au sommaire : un pointage, des arrêts et une conclusion que nous prendrons au sérieux.", ""],
-  ["Bonsoir. Le hockey a eu lieu, {eq} y a participé, et le plateau a pris des notes.", ""],
-  ["Bonsoir. Les faits sont rassemblés ; il ne reste qu'à les dire avec un air grave.", ""],
-  ["Bonsoir. Nous allons procéder par ordre : le pointage, les faits, puis les conséquences.", ""],
-  ["Bonsoir. La soirée de {eq} mérite qu'on s'y attarde, ne serait-ce que pour la forme.", ""],
-  ["Bonsoir. Je vous demanderais un instant de calme pour la lecture du résumé.", ""],
-  ["Bonsoir. Voici le résumé, tel qu'établi par des gens qui ont regardé le match jusqu'au bout.", ""],
-  ["Bonsoir. Le match de {eq} est terminé ; l'analyse, elle, commence à peine.", ""],
-  ["Bonsoir. Rien de ce que vous entendrez ne figure à l'horaire de la soirée, sauf le match.", ""],
-  ["Bonsoir. Nos recherchistes ont travaillé sur {eq} et {autre} jusqu'à la dernière minute, au sens propre.", ""],
-  ["Bonsoir. On ne présente plus {eq} ; on présente le résumé de son match.", ""],
-  ["Bonsoir. Nous avons les images, les chiffres et un tableau blanc. Commençons.", ""],
-  ["Bonsoir. Le moment est venu de dire ce qui s'est passé entre {eq} et {autre}.", ""],
-  ["Bonsoir. Un résumé de match, c'est un acte de foi appuyé sur des statistiques.", ""],
-  ["Bonsoir. Aucun commentaire ne sera fait avant d'avoir regardé la feuille.", ""],
-  // Victoire / défaite.
-  ["Bonsoir. Bonne soirée pour {eq}, et nous le dirons sans exagérer.", "V"],
-  ["Bonsoir. {eq} a gagné. Nous allons expliquer comment, mais le plus important est dit.", "V"],
-  ["Bonsoir. Deux points de plus au classement de {eq}, et un sourire discret dans l'entourage.", "V rs"],
-  ["Bonsoir. Du côté de {eq}, on rentre avec la victoire. Le trajet sera agréable.", "V"],
-  ["Bonsoir. {eq} l'emporte contre {autre}. Le plateau reste calme, c'est une consigne.", "V"],
-  ["Bonsoir. Le vestiaire de {eq} a de bonnes raisons de sourire ce soir ; il le fera avec retenue.", "V"],
-  ["Bonsoir. {eq} s'est imposé. Nous n'en dirons pas plus avant d'avoir les chiffres.", "V"],
-  ["Bonsoir. Soirée satisfaisante pour {eq}, au sens que lui donne le règlement.", "V"],
-  ["Bonsoir. Victoire de {eq} : un résultat que nous accueillons avec un enthousiasme mesuré.", "V"],
-  ["Bonsoir. {eq} a gagné. {autre}, lui, a pris note.", "V"],
-  ["Bonsoir. Le résultat du jour : {eq} {s}. Le reste n'est que commentaire.", "V !barrage"],
-  ["Bonsoir. Les gens de {eq} peuvent dormir tranquilles ; ils l'ont mérité, selon la feuille.", "V"],
-  ["Bonsoir. Soirée sans histoire pour {eq}, si l'on exclut la victoire.", "V"],
-  ["Bonsoir. {eq} a obtenu ce qu'il était venu chercher. Ce n'est pas si fréquent.", "V"],
-  ["Bonsoir. Le plateau est unanime : {eq} a gagné. C'est la seule unanimité de la soirée.", "V"],
-  ["Bonsoir. Soirée difficile pour {eq}. Nous allons la décrire avec tout le tact que permet un pointage.", "D"],
-  ["Bonsoir. {eq} s'est incliné. Le plateau observe une minute de réflexion, sans minuterie.", "D"],
-  ["Bonsoir. Défaite de {eq} contre {autre}. Commençons par les faits, qui sont têtus.", "D"],
-  ["Bonsoir. Le résultat n'est pas celui que {eq} avait prévu à son horaire.", "D"],
-  ["Bonsoir. {autre} a pris la mesure de {eq} ce soir. Voyons comment.", "D"],
-  ["Bonsoir. Soirée à oublier chez {eq}, mais nous la raconterons quand même : c'est notre travail.", "D"],
-  ["Bonsoir. Mauvaise nouvelle du côté de {eq}, confirmée par la feuille officielle.", "D"],
-  ["Bonsoir. {eq} perd. Nous avons vérifié plusieurs fois, parce que personne ne voulait y croire.", "D"],
-  ["Bonsoir. Le pointage est défavorable à {eq}. Les causes sont multiples et nous les listerons.", "D"],
-  ["Bonsoir. Soirée instructive pour {eq}, au sens où l'on apprend surtout de ses défaites.", "D"],
-  ["Bonsoir. {eq} s'incline face à {autre}, {s}. Nous allons procéder avec délicatesse.", "D !barrage"],
-  ["Bonsoir. Les partisans de {eq} sont invités à respirer profondément avant la suite.", "D"],
-  ["Bonsoir. Le dossier {eq} comporte ce soir une pièce défavorable : le pointage.", "D"],
-  ["Bonsoir. Nous avons de moins bonnes nouvelles pour {eq}. Elles sont toutefois bien documentées.", "D"],
-  // Prolongation et tirs de barrage.
-  ["Bonsoir. Il a fallu une prolongation pour départager {eq} et {autre}, et nous allons en parler longuement.", "OT"],
-  ["Bonsoir. Le règlement prévoit du temps supplémentaire, et ce soir il s'est avéré utile.", "OT"],
-  ["Bonsoir. L'horaire prévoyait soixante minutes. {eq} et {autre} ont jugé que ce n'était pas assez.", "OT"],
-  ["Bonsoir. Égalité au terme de la troisième période, donc prolongation. Nous remercions les spectateurs de leur patience.", "OT"],
-  ["Bonsoir. Une rencontre qui a refusé de se terminer à l'heure : prolongation entre {eq} et {autre}.", "OT"],
-  ["Bonsoir. Il a fallu une prolongation pour en arriver là. Nos recherchistes dorment moins, mais ne se plaignent pas.", "OT"],
-  ["Bonsoir. {eq} a gagné en prolongation, ce qui est parfaitement permis par le règlement.", "OT V"],
-  ["Bonsoir. {eq} s'incline en prolongation. Il a tout de même quitté la glace avec un point.", "OT D rs"],
-  ["Bonsoir. {eq} s'incline en prolongation, un genre de défaite qui laisse le temps d'y penser.", "OT D"],
-  ["Bonsoir. Rien n'a pu départager {eq} et {autre} sur la glace : il a fallu les tirs de barrage.", "barrage"],
-  ["Bonsoir. La soirée s'est terminée aux tirs de barrage, que le règlement tolère et que le sérieux déconseille.", "barrage"],
-  ["Bonsoir. Tirs de barrage : un exercice où l'on a toujours raison après coup.", "barrage"],
-  ["Bonsoir. {eq} a gagné aux tirs de barrage. Le tableau blanc n'avait rien prévu de tel.", "barrage V"],
-  ["Bonsoir. {eq} perd aux tirs de barrage, c'est-à-dire en tête à tête, sans témoins ni excuses.", "barrage D"],
-  // Les grands scénarios.
-  ["Bonsoir. Un blanchissage, et nous le prononçons avec la solennité qui lui est due.", "BL"],
-  ["Bonsoir. {eq} a blanchi {autre}. Ce n'est pas un gros mot, mais ça en a le poids.", "BL"],
-  ["Bonsoir. {eq} n'a pas marqué ce soir. Nous disposons de nombreux témoins.", "BLsubi"],
-  ["Bonsoir. Pas un seul but pour {eq}. Le plateau a vérifié, la rondelle n'est pas restée dans un coin.", "BLsubi"],
-  ["Bonsoir. Ce ne fut pas serré. {eq} a gagné largement, et nous ne chercherons pas de nuance.", "raclee"],
-  ["Bonsoir. Soirée à sens unique pour {eq}, et ce sens était le bon.", "raclee"],
-  ["Bonsoir. Le pointage de {eq} ce soir demande une certaine préparation psychologique. Respirez.", "raclSubie"],
-  ["Bonsoir. Un de ces matchs où l'on se demande s'il n'y avait pas un autre événement ailleurs dans l'édifice.", "raclSubie"],
-  ["Bonsoir. {eq} a gagné après avoir été mené par au moins deux buts. Nous y reviendrons avec le sérieux requis.", "remontee"],
-  ["Bonsoir. Il y avait un retard à rattraper, et {eq} s'en est chargé. Voici le dossier.", "remontee"],
-  ["Bonsoir. {eq} menait par au moins deux buts. Cette phrase, vous allez le constater, ne finit pas bien.", "gaspille"],
-  ["Bonsoir. Une avance de deux buts ne tient pas toujours. Le cas de {eq} ce soir sera étudié.", "gaspille"],
-  ["Bonsoir. {eq} s'est assuré la victoire en fin de match. Un but d'assurance est une police comme une autre.", "assur"],
-  ["Bonsoir. {autre} a ajouté un but d'assurance tard dans le match. C'est ce qu'on appelle une résiliation de contrat.", "assurAdv"],
-  ["Bonsoir. L'égalité tenait encore tard en troisième période. Elle a cédé, comme toutes les égalités.", "egalite3"],
-  ["Bonsoir. Tout s'est joué dans les dernières minutes de la troisième période. Nous détaillons.", "egalite3"],
-  ["Bonsoir. Un seul but d'écart, et pas beaucoup de marge pour les commentaires.", "un !OT"],
-  ["Bonsoir. {eq} a gagné par un seul but. Les mathématiciens du plateau y voient une victoire complète.", "un !OT V"],
-  ["Bonsoir. {eq} a perdu par un seul but. Les mathématiciens du plateau y voient une défaite complète.", "un !OT D"],
-  ["Bonsoir. {eq} a sorti son gardien pour un attaquant de plus, et le dossier le dit sans détour.", "desert"],
-  ["Bonsoir. Un filet désert, un but d'écart : voici un résumé qui se lit à voix basse.", "desert"],
-  // Le gardien.
-  ["Bonsoir. Notre premier mot ira à {g}, qui a vu beaucoup de rondelles ce soir.", "g35"],
-  ["Bonsoir. {g} a travaillé tard ce soir, et nous tenons à le souligner.", "g35"],
-  ["Bonsoir. Soirée occupée devant le filet de {eq} : {g} a effectué {n} arrêts.", "g35"],
-  ["Bonsoir. Le gardien adverse, {g}, a retenu l'attention de tout le plateau.", "adv35"],
-  ["Bonsoir. {g} s'est dressé devant {eq} avec une constance que nous qualifierons d'inconfortable.", "adv35"],
-  ["Bonsoir. Notre gardien, {g}, a connu une soirée que son agent ne mentionnera pas.", "gmauvais"],
-  ["Bonsoir. Le dossier de {g} sera court ce soir, et pas très flatteur.", "gmauvais"],
-  ["Bonsoir. Le gardien adverse, {g}, a connu une soirée difficile. Nous en parlerons avec égards.", "advmauvais"],
-  ["Bonsoir. {eq} a trouvé la faille chez {g}, et le plateau en prend acte.", "advmauvais"],
-  // Les unités spéciales, les punitions, les gants.
-  ["Bonsoir. Le jeu de puissance de {eq} a parlé, et il a dit des choses utiles.", "anMoi"],
-  ["Bonsoir. {autre} a profité d'un avantage numérique contre {eq}. C'est une politesse que nous ne souhaitons à personne.", "anAdv"],
-  ["Bonsoir. {eq} a eu de nombreux avantages numériques et n'en a rien fait. Nous allons y revenir.", "anRate"],
-  ["Bonsoir. {eq} a passé beaucoup de temps en désavantage numérique et n'a rien accordé. Soirée remarquable, en quelque sorte.", "dnParfait"],
-  ["Bonsoir. {eq} a marqué en infériorité numérique, ce qui est à la fois permis et rare.", "dnBut"],
-  ["Bonsoir. {autre} a marqué en infériorité numérique contre {eq}. Nous sommes sous le choc, de façon professionnelle.", "dnButAdv"],
-  ["Bonsoir. {eq} a passé beaucoup de temps au cachot ce soir. Nous avons les chiffres.", "punMoi"],
-  ["Bonsoir. {autre} a passé la soirée à écouter les arbitres. Nous avons les chiffres.", "punAdv"],
-  ["Bonsoir. Aucune punition ce soir. Les arbitres ont eu une soirée tranquille ; nous aussi.", "sansPun"],
-  ["Bonsoir. {eq} n'a écopé d'aucune punition. La discipline, comme on dit, ça existe.", "propre"],
-  ["Bonsoir. Il y a eu bagarre ce soir, et nous devons le mentionner pour l'intégrité du dossier.", "bag"],
-  ["Bonsoir. Quelques gants ont été lancés. Le plateau a eu une pensée pour la buanderie.", "bag"],
-  // Les séquences.
-  ["Bonsoir. {eq} met fin à une séquence de {n} défaites. Nous ne dirons pas à quel point on l'attendait.", "premiere V"],
-  ["Bonsoir. La séquence de {n} défaites de {eq} s'arrête ici. Le calendrier en prend note.", "premiere V"],
-  ["Bonsoir. {eq} signe sa {n}e victoire de suite, dernière d'une séquence. Nous reviendrons sur le moment.", "derniere V"],
-  // Les séries.
-  ["Bonsoir. Premier match de la série : on y lit déjà des signes, comme dans le marc de café.", "m1"],
-  ["Bonsoir. Deuxième match de la série. Les tendances sont encore fragiles, mais le plateau en a quand même vu.", "m2"],
-  ["Bonsoir. Troisième match de la série. La série prend sa forme, et nous aussi.", "m3"],
-  ["Bonsoir. Quatrième match de la série. Les calculs deviennent sérieux, ce qui n'est pas peu dire.", "m4"],
-  ["Bonsoir. Cinquième match. À ce stade, chaque but est annoncé avec une voix plus grave.", "m5"],
-  ["Bonsoir. Sixième match. Le calendrier se resserre et les cafés se multiplient.", "m6"],
-  ["Bonsoir. Septième match. Je demande à tous les téléphones de rester éteints.", "m7"],
-  ["Bonsoir. {eq} remporte la série. Nous le disons sans trembler.", "passes"],
-  ["Bonsoir. La saison de {eq} se termine ici. Nous ne ferons pas de discours.", "sortis"],
-  ["Bonsoir. Un balayage. Nous prononçons ce mot avec le respect que lui accordent les statisticiens.", "balai V"],
-  ["Bonsoir. {eq} vient de se faire balayer. Le plateau s'abstient de tout commentaire sur le balai.", "balaiSubi"],
-  ["Bonsoir. {eq} reste en vie, ce qui est le minimum syndical d'une série.", "sursis"],
-  ["Bonsoir. La série est égale, ce qui est la définition même d'une série.", "egaleSerie"],
-  ["Bonsoir. {eq} mène la série. Rien n'est joué, mais quelque chose est inscrit.", "meneSerie"],
-  ["Bonsoir. {eq} tire de l'arrière dans la série. Nous restons sur la glace, symboliquement.", "tireDerriere"],
-  // La saison.
-  ["Bonsoir. Dans la course aux séries, chaque match de {eq} est un petit référendum.", "course"],
-  ["Bonsoir. {eq} est en pleine course aux séries, et le plateau s'est habillé en conséquence.", "course"],
-  ["Bonsoir. {eq} jouait ce soir sans enjeu mathématique, mais avec toute sa dignité.", "elimine"],
-  ["Bonsoir. {eq} est éliminé des séries, ce qui n'empêche pas la rondelle d'être mise au jeu.", "elimine"],
-  ["Bonsoir. {eq}, premier au classement, jouait ce soir avec un certain poids sur les épaules.", "premier"],
-  ["Bonsoir. Au sommet du classement, {eq} a joué ce soir. Rien de moins, rien de plus.", "premier"],
-  ["Bonsoir. Un joueur de {eq} affrontait son ancien club ce soir. Le dossier est classé « sensible ».", "vengeance"],
-  ["Bonsoir. Un ancien du club d'en face portait le chandail de {eq}. Les retrouvailles furent cordiales, jusqu'à la mise au jeu.", "vengeance"],
+const MAX_LIGNES = 25;
+const MAX_BUTS_UN_PAR_UN = 7;
+const MAX_INCIDENTS = 5;
+const CHANCE = { blessure: 0.8, punition: 0.14, coup: 0.12, bagarre: 0.45, melee: 0.3 };
+
+/* ---------- les banques de phrases du récit (assemblées, jamais des chiffres écrits) ---------- */
+
+const ENTREE_NORMALE = ['{W} bat {L} {s}.', "{W} l'emporte {s} contre {L}.", "{L} s'incline {s} devant {W}.", '{W} signe une victoire de {s} aux dépens de {L}.'];
+const ENTREE_NETTE = ["{W} l'emporte nettement, {s}, contre {L}.", '{W} bat {L} {s} dans un match à sens unique.', "{L} s'incline lourdement, {s}, devant {W}."];
+const ENTREE_BLANCHI = ['{W} blanchit {L} {s}.', "{W} l'emporte {s} et ne laisse aucun but à {L}.", 'Blanchissage : {W} gagne {s} contre {L}.'];
+const ENTREE_PROLONGATION = ['{W} bat {L} {s} en prolongation.', "{W} l'emporte {s} en prolongation contre {L}.", 'Il a fallu la prolongation : {W} gagne {s} contre {L}.'];
+
+const TIRS_DOMINE = ['{X} a dominé aux tirs, {a}-{b}.', "{X} a tiré {a} fois contre {b} pour l'autre club.", 'Aux tirs, {X} a eu le dessus, {a}-{b}.'];
+const TIRS_DOMINE_PERDU = ['{X} a pourtant dominé aux tirs, {a}-{b}.', "{X} a lancé davantage, {a}-{b}, sans que cela se traduise au pointage.", 'Aux tirs, {X} menait {a}-{b}, et ce n\'est pas ce qui a décidé.'];
+const TIRS_EGAUX = ['Les deux clubs ont tiré {a} fois chacun.', 'Autant de tirs de chaque côté : {a}.'];
+
+const REMONTEE = ["{W} a comblé un retard de {n} buts pour l'emporter.", "{W} tirait de l'arrière de {n} buts avant de renverser la situation.", "{L} avait pourtant mené de {n} buts."];
+
+const VERBES_OUVRE = ['ouvre la marque pour {T}', 'inscrit le premier but du match, pour {T}', 'donne les devants à {T}'];
+const VERBES_AVANCE = ["donne l'avance à {T}, {s}", 'met {T} en avant, {s}', 'place {T} en tête, {s}'];
+const VERBES_EGALISE = ['égalise pour {T}, {s}', 'ramène les deux clubs à égalité, {s}', "redonne l'égalité à {T}, {s}"];
+const VERBES_REDUIT = ["réduit l'écart à {s}", 'marque pour {T} et réduit l\'écart à {s}', 'ramène {T} dans le match, {s}'];
+const VERBES_ALLONGE = ["porte l'avance de {T} à {s}", "creuse l'écart pour {T}, {s}", 'ajoute un but pour {T}, {s}'];
+const VERBES_PROLONGATION = ['inscrit le but gagnant en prolongation et donne la victoire à {T}', 'met fin au match en prolongation, le but gagnant pour {T}', 'règle le sort du match en prolongation, un but gagnant pour {T}'];
+const DOUBLE = ['Son deuxième but du match.', 'Il en est à deux buts dans ce match.', "C'est son deuxième de la soirée."];
+const CHAPEAU = ['Il complète un tour du chapeau.', 'Troisième but du match pour lui : le tour du chapeau.'];
+const MARQUE_GAGNANT = ["C'est le but gagnant.", 'Ce but est le gagnant.', 'Il s\'agit du but gagnant.'];
+const MARQUE_ASSURANCE = ["Un but d'assurance.", "Ce but d'assurance ferme la porte."];
+const GARDIEN_BATTU = ['aux dépens de {G}', 'battant {G}', 'devant {G}'];
+const PASSE_UNE = ['sur une passe de {a}', 'avec l\'aide de {a}'];
+const PASSE_DEUX = ['sur des passes de {a} et {b}', 'aidé de {a} et {b}', 'avec {a} et {b} aux passes'];
+const SANS_AIDE = ['sans aide', 'en solo'];
+
+const GARDIEN_BLANCHI = ["{G} ({T}) a blanchi l'adversaire : {n} arrêts.", '{G} ({T}) signe un blanchissage avec {n} arrêts.', 'Blanchissage pour {G} ({T}), qui a repoussé les {n} tirs.'];
+const GARDIEN_NORMAL = ['{G} ({T}) a repoussé {n} des {t} tirs ({pct}).', '{G} ({T}) : {n} arrêts sur {t} tirs, pour {pct}.', '{G} ({T}) a fait {n} arrêts sur {t} tirs ({pct}).'];
+const GARDIEN_SOLIDE = ['Il a gardé son équipe dans le match.', 'Sa solidité a gardé {T} dans le match.'];
+const GARDIEN_DUR = ['Une soirée difficile devant le filet.', 'Il n\'a pas trouvé son rythme ce soir.'];
+
+const INFRACTIONS = ['accrochage', 'obstruction', 'bâton élevé', 'rudesse', 'croc-en-jambe', 'retenue', 'double échec', 'conduite antisportive', 'retard de jeu', 'mise en échec avec le coude'];
+
+const ETOILES_ENTREE = ['Les trois étoiles du match', 'Les étoiles de la soirée', 'Trois étoiles'];
+
+/* ---------- les incidents : une phrase de reportage par événement réel de la feuille ---------- */
+// {j} le joueur de l'événement ; {c} sa cible (un coup) ; {w} le gagnant et {l} le perdant d'une bagarre ; {a} et {b} les deux joueurs.
+
+const INC_BLESSURE = [
+  "{j} se prend une rondelle en plein dans les bijoux de famille et plie en deux sur la glace",
+  "{j} bloque un tir avec les gosses, une décision qu'il regrette sur-le-champ",
+  "{j} reçoit un lancer frappé là où le protecteur ne protège pas assez",
+  "{j} met son patin dans la mauvaise direction et le genou suit un peu plus loin que prévu",
+  "{j} est fauché par son propre coéquipier, qui visait pourtant un joueur adverse",
+  "{j} percute son propre gardien devant le filet et ressort de la collision en moins bon état que lui",
+  "{j} casse son bâton au pire moment, tombe de tout son long et atterrit sur le poignet",
+  "{j} perd un lacet en pleine accélération et termine sa course dans la bande",
+  "{j} reçoit un bout de bâton en plein visage quand un adversaire casse le sien",
+  "{j} glisse en sautant par-dessus la bande et atterrit sur le dos, devant son propre banc",
+  "{j} se coince la main dans la porte du banc, un détail que les statistiques ne retiendront pas",
+  "{j} reçoit une rondelle sur le pied, au seul endroit que le patin ne couvre pas",
+  "{j} s'enfarge dans son propre bâton et file tête première vers la bande",
+  "{j} reçoit un tir de la pointe directement sur l'orteil",
+  "{j} se fait écraser la jambe entre la bande et un joueur de deux cent vingt livres",
+  "{j} retombe sur l'épaule après avoir sauté pour éviter un tir, un saut qui n'était pas nécessaire",
+  "{j} s'étire pour attraper une rondelle en l'air, la rate et rattrape la glace avec le menton",
+  "{j} entre dans le poteau à pleine vitesse, et le poteau n'a pas bougé",
+  "{j} prend le patin d'un adversaire dans le mollet pendant une mêlée devant le filet",
+  "{j} reçoit le bâton d'un coéquipier en pleine bouche pendant un échange devant le banc",
+  "{j} se coince un doigt dans le gant d'un adversaire et ne le récupère pas intact",
+  "{j} se fait frapper par un tir de son propre défenseur, à moins de trois mètres",
+  "{j} reçoit une rondelle dans la gorge et quitte la glace en toussant",
+  "{j} saute sur la glace sans attacher sa jugulaire, et la rondelle trouve la mâchoire",
+  "{j} se fait tirer le chandail par un adversaire, tourne sur lui-même et retombe sur le genou",
+  "{j} prend le bout d'un patin dans la cheville lors d'un jeu à la bande",
+  "{j} recule sans regarder et rentre dans l'arbitre, qui s'en sort mieux que lui",
+  "{j} fonce dans la bande à pleine vitesse après avoir raté sa mise en échec",
+  "{j} ressent un claquement derrière la cuisse en démarrant et termine son virage au ralenti",
+  "{j} reçoit un tir en plein sur la main, celle qui tenait le bâton",
+  "{j} se fait casser le nez par un dégagement raté de son propre club",
 ];
 
-/* ---------- CONSTAT : le fait du match ---------- */
-const CONSTAT = [
-  // Le pointage.
-  ["{eq} l'emporte {s} contre {autre}.", "V !barrage"],
-  ["{eq} a battu {autre} par la marque de {s}.", "V !barrage"],
-  ["Le pointage final est de {s} en faveur de {eq}.", "V !barrage"],
-  ["La feuille de match est claire : {eq} {s}.", "V !barrage"],
-  ["{autre} n'a pas trouvé la solution : {eq} gagne {s}.", "V !barrage"],
-  ["Au terme du match, {eq} s'en tire avec la victoire, {s}.", "V !barrage"],
-  ["Résultat officiel : victoire de {eq}, {s}.", "V !barrage"],
-  ["{autre} a battu {eq} {s}.", "D !barrage"],
-  ["Le pointage final est de {s} en faveur de {autre}.", "D !barrage"],
-  ["La feuille de match est claire : {autre} {s}.", "D !barrage"],
-  ["{eq} n'a pas trouvé la solution : {autre} gagne {s}.", "D !barrage"],
-  ["Au terme du match, {autre} s'en tire avec la victoire, {s}.", "D !barrage"],
-  ["Résultat officiel : défaite de {eq}, {s}.", "D !barrage"],
-  ["{eq} a perdu contre {autre}, {s}. Le dossier est complet.", "D !barrage"],
-  ["{eq} et {autre} se sont affrontés ; le pointage final est de {s}.", "!barrage"],
-  // Le but gagnant.
-  ["Le but gagnant, marqué par {m} en {per}, a donné la victoire à {eq}.", "V"],
-  ["C'est {m} qui a fait pencher la balance pour {eq}, en {per}.", "V"],
-  ["{m} a inscrit le but gagnant de {eq} en {per}.", "V"],
-  ["Le but qui a décidé du match porte la signature de {m}, pour {eq}.", "V"],
-  ["Le but gagnant porte la signature de {m}, de {autre}, en {per}.", "D"],
-  ["{m} a marqué le but gagnant pour {autre}, en {per}.", "D"],
-  ["C'est {m} qui a fait pencher la balance, du côté de {autre}, en {per}.", "D"],
-  ["Le but qui a décidé du match est celui de {m}, de {autre}.", "D"],
-  // La prolongation et les tirs de barrage.
-  ["{m} a donné la victoire à {eq} en prolongation, {s}.", "OT V"],
-  ["{eq} l'emporte {s} grâce à un but de {m} en prolongation.", "OT V"],
-  ["Il a fallu une prolongation, et {m} y a mis fin pour {eq}.", "OT V"],
-  ["{m} a réglé la question en prolongation : {eq} {s}.", "OT V"],
-  ["{m} a marqué en prolongation pour {autre}, qui l'emporte {s}.", "OT D"],
-  ["{eq} s'incline {s} en prolongation, sur un but de {m}.", "OT D"],
-  ["La prolongation a été fatale à {eq} : {m} a marqué pour {autre}.", "OT D"],
-  ["Une prolongation, un but de {m}, et {autre} repart avec la victoire {s}.", "OT D"],
-  ["{eq} et {autre} étaient à égalité {s} après le temps réglementaire. Il a fallu départager, et {eq} a gagné aux tirs de barrage.", "barrage V"],
-  ["{eq} a remporté les tirs de barrage, après une égalité de {s}.", "barrage V"],
-  ["{eq} et {autre} étaient à égalité {s} après le temps réglementaire. Il a fallu départager, et {autre} a gagné aux tirs de barrage.", "barrage D"],
-  ["{eq} a perdu les tirs de barrage, après une égalité de {s}.", "barrage D"],
-  // Les blanchissages.
-  ["{eq} blanchit {autre} {s}.", "BL"],
-  ["{autre} n'a pas marqué : {eq} gagne {s}.", "BL"],
-  ["Blanchissage pour {eq}, qui ne laisse rien à {autre}. Pointage de {s}.", "BL"],
-  ["{autre} blanchit {eq} {s}.", "BLsubi"],
-  ["{eq} n'a pas marqué : {autre} gagne {s}.", "BLsubi"],
-  ["Blanchissage pour {autre}, qui ne laisse rien à {eq}. Pointage de {s}.", "BLsubi"],
-  // Les remontées, les avances gaspillées, les assurances.
-  ["{eq} a effacé un retard d'au moins deux buts pour gagner {s}.", "remontee"],
-  ["{eq} tirait de l'arrière par au moins deux buts, et a quand même gagné {s}.", "remontee"],
-  ["La remontée est de {eq} : un retard d'au moins deux buts, puis la victoire {s}.", "remontee"],
-  ["{eq} menait par au moins deux buts, et a perdu {s}.", "gaspille"],
-  ["{autre} a effacé un retard d'au moins deux buts pour battre {eq} {s}.", "gaspille"],
-  ["{eq} avait deux buts d'avance, au moins, puis le match a changé de propriétaire : {autre} gagne {s}.", "gaspille"],
-  ["{eq} a scellé la victoire en fin de match avec un but d'assurance.", "assur"],
-  ["Un but d'assurance de {eq} tard dans la rencontre a réglé le dossier.", "assur"],
-  ["{autre} a scellé le match tard dans la rencontre avec un but d'assurance.", "assurAdv"],
-  ["Un but d'assurance de {autre} en fin de match a fermé la porte à {eq}.", "assurAdv"],
-  // Les écarts.
-  ["{eq} l'emporte par au moins quatre buts, {s}.", "raclee"],
-  ["Victoire par au moins quatre buts pour {eq} : {s}.", "raclee"],
-  ["{eq} a battu {autre} {s}. L'écart est d'au moins quatre buts.", "raclee"],
-  ["{eq} perd par au moins quatre buts, {s}.", "raclSubie"],
-  ["Défaite par au moins quatre buts pour {eq} : {s}.", "raclSubie"],
-  ["{autre} a battu {eq} {s}. L'écart est d'au moins quatre buts.", "raclSubie"],
-  ["Un seul but a séparé {eq} et {autre} : {s}, en faveur de {eq}.", "un V !OT !barrage"],
-  ["Un seul but a séparé {eq} et {autre} : {s}, en faveur de {autre}.", "un D !OT !barrage"],
-  ["{eq} a joué la fin de match sans gardien pour ajouter un attaquant, et s'incline {s}.", "desert"],
-  ["{eq} a sorti son gardien en fin de match. Le pointage final est de {s}, pour {autre}.", "desert"],
-  ["L'égalité a tenu jusque tard en troisième période : {m} l'a brisée pour {eq}, {s}.", "egalite3 V"],
-  ["Égalité brisée dans les dernières minutes de la troisième : {m} marque pour {eq}.", "egalite3 V"],
-  ["{m} a brisé l'égalité tard en troisième période pour {autre}, qui gagne {s}.", "egalite3 D"],
-  ["Dans les dernières minutes de la troisième, {m} a brisé l'égalité du côté de {autre}.", "egalite3 D"],
-  ["Le but gagnant est venu tard, dans les dix dernières minutes, de {m}.", "tardif"],
-  ["Rien n'était réglé avant les dix dernières minutes, où {m} a marqué le but gagnant.", "tardif"],
-  ["Le but gagnant, celui de {m}, est arrivé sur l'avantage numérique.", "gagnantAN"],
-  ["{m} a profité d'une punition adverse pour inscrire le but gagnant.", "gagnantAN"],
-  // Les gardiens.
-  ["{g} a repoussé {n} tirs pour {eq}.", "g35"],
-  ["{g} a bloqué {n} tirs ce soir.", "g35"],
-  ["Devant le filet de {eq}, {g} a effectué {n} arrêts.", "g35"],
-  ["{n} arrêts pour {g}, qui a vu passer beaucoup de rondelles.", "g35"],
-  ["{g}, de {autre}, a bloqué {n} tirs.", "adv35"],
-  ["{eq} a lancé, lancé, et {g} a bloqué : {n} arrêts.", "adv35"],
-  ["Devant le filet de {autre}, {g} a effectué {n} arrêts.", "adv35"],
-  ["{n} arrêts pour {g}, de l'autre côté de la patinoire.", "adv35"],
-  ["{g} a accordé {n} buts, ce qui ne figurera pas à son dossier de vedette.", "gmauvais"],
-  ["Le filet de {eq} a cédé {n} fois, et {g} était dedans.", "gmauvais"],
-  ["{g} a alloué {n} buts à {autre}.", "gmauvais"],
-  ["{g}, de {autre}, a accordé {n} buts à {eq}.", "advmauvais"],
-  ["Le filet de {autre} a cédé {n} fois, et {g} était dedans.", "advmauvais"],
-  ["{eq} a marqué {n} fois contre {g}.", "advmauvais"],
-  // Les unités spéciales.
-  ["{eq} a marqué en avantage numérique.", "anMoi"],
-  ["Le jeu de puissance de {eq} a inscrit au moins un but.", "anMoi"],
-  ["{autre} a marqué en avantage numérique contre {eq}.", "anAdv"],
-  ["Le jeu de puissance de {autre} a inscrit au moins un but.", "anAdv"],
-  ["{eq} a profité de {n} avantages numériques sans marquer.", "anRate"],
-  ["Le jeu de puissance de {eq} a eu {n} occasions et zéro but.", "anRate"],
-  ["{eq} a purgé {n} punitions sans accorder un seul but en désavantage.", "dnParfait"],
-  ["Avec {n} punitions à purger, {eq} n'a pas cédé en désavantage numérique.", "dnParfait"],
-  ["{eq} a marqué en infériorité numérique.", "dnBut"],
-  ["{autre} a marqué en infériorité numérique contre {eq}.", "dnButAdv"],
-  // Les punitions.
-  ["{eq} a écopé de {n} punitions.", "punMoi"],
-  ["L'arbitre a sifflé {eq} à {n} reprises.", "punMoi"],
-  ["{autre} a écopé de {n} punitions.", "punAdv"],
-  ["L'arbitre a sifflé {autre} à {n} reprises.", "punAdv"],
-  ["Aucune punition n'a été décernée pendant le match.", "sansPun"],
-  ["Le carnet de l'arbitre est resté vide : aucune punition des deux côtés.", "sansPun"],
-  ["{eq} n'a écopé d'aucune punition.", "propre"],
-  ["Aucun joueur de {eq} n'a pris le chemin du banc des punitions.", "propre"],
-  // Les bagarres.
-  ["Bagarres inscrites à la feuille de match pour la soirée : {n}.", "bag"],
-  ["Le nombre de bagarres de la soirée, selon la feuille : {n}.", "bag"],
-  ["Un joueur de {eq} a eu le dessus dans une bagarre.", "bagMoi"],
-  ["Une bagarre s'est soldée en faveur de {eq}, de l'avis de la feuille.", "bagMoi"],
-  ["Un joueur de {autre} a eu le dessus dans une bagarre contre {eq}.", "bagAdv"],
-  ["Une bagarre s'est soldée en faveur de {autre}, de l'avis de la feuille.", "bagAdv"],
-  ["Une bagarre a eu lieu, sans gagnant désigné.", "bagNul"],
-  ["La bagarre de la soirée s'est terminée sans décision claire.", "bagNul"],
-  // Les séquences.
-  ["{eq} met fin à une séquence de {n} défaites.", "premiere V"],
-  ["La séquence de {n} défaites de {eq} est terminée.", "premiere V"],
-  ["{eq} remporte sa première victoire après {n} défaites.", "premiere V"],
-  ["Cette victoire de {eq} est la dernière d'une séquence de {n} gains.", "derniere V"],
-  ["{eq} termine ici une séquence de {n} victoires.", "derniere V"],
-  // Les séries.
-  ["Dans la série, {eq} et {autre} en sont maintenant à {ser}.", "serie"],
-  ["La série est rendue à {ser} du point de vue de {eq}.", "serie"],
-  ["{eq} mène la série {ser}.", "meneSerie"],
-  ["{eq} est devant dans la série : {ser}.", "meneSerie"],
-  ["{eq} tire de l'arrière dans la série, {ser}.", "tireDerriere"],
-  ["La série penche du côté de {autre}, {ser} du point de vue de {eq}.", "tireDerriere"],
-  ["La série est égale, {ser}.", "egaleSerie"],
-  ["{eq} et {autre} sont à égalité dans la série, {ser}.", "egaleSerie"],
-  ["{eq} gagne la série {ser}.", "passes"],
-  ["{eq} termine la série {ser} : quatre victoires, ce qui est le nombre requis.", "passes"],
-  ["{eq} perd la série {ser} et est éliminé.", "sortis"],
-  ["La série se termine {ser} pour {eq}, qui est éliminé.", "sortis"],
-  ["{eq} balaie {autre}, quatre matchs à zéro.", "balai"],
-  ["{autre} balaie {eq}, quatre matchs à zéro.", "balaiSubi"],
-  ["{eq} évite l'élimination et reste en vie, {ser}.", "sursis"],
-  ["{eq} gagne ce match pour rester dans la série : {ser}.", "sursis"],
-  ["Ce match marque le premier de la série entre {eq} et {autre}.", "m1"],
-  ["Deuxième match de la série entre {eq} et {autre}.", "m2"],
-  ["Troisième match de la série entre {eq} et {autre}.", "m3"],
-  ["Quatrième match de la série entre {eq} et {autre}.", "m4"],
-  ["Cinquième match de la série entre {eq} et {autre}.", "m5"],
-  ["Sixième match de la série entre {eq} et {autre}.", "m6"],
-  ["Septième et dernier match de la série entre {eq} et {autre}.", "m7"],
-  // La saison.
-  ["{eq} reste dans la course aux séries avec ce résultat.", "course V"],
-  ["{eq} voit la course aux séries se compliquer avec ce résultat.", "course D"],
-  ["{eq} est mathématiquement éliminé des séries et jouait ce match pour l'honneur.", "elimine"],
-  ["{eq} occupe le premier rang au classement et jouait ce match en conséquence.", "premier"],
-  ["Un joueur de {eq} a retrouvé son ancien club ce soir, et {eq} a gagné {s}.", "vengeance V !barrage"],
-  ["Un joueur de {eq} a retrouvé son ancien club ce soir, et {autre} a gagné {s}.", "vengeance D !barrage"],
-  ["Pour un joueur de {eq}, c'était un match contre son ancien club.", "vengeance"],
+const INC_PUNITION = [
+  "{j} accroche un adversaire qui n'allait nulle part, et l'arbitre le remarque avant tout le monde",
+  "{j} fait trébucher un joueur adverse qui patinait seul, sous les yeux des deux arbitres",
+  "{j} jette son bâton en direction de la rondelle, qui était trop loin pour qu'il l'atteigne",
+  "{j} dégage la rondelle par-dessus la baie vitrée, sans que personne l'ait demandé",
+  "{j} retient le chandail d'un adversaire à deux mains, en le regardant dans les yeux",
+  "{j} s'écroule au moindre contact, et l'arbitre siffle la simulation",
+  "{j} lève son bâton trop haut en voulant s'étirer et accroche le casque de l'adversaire",
+  "{j} donne un coup de bâton sur les jambes d'un adversaire, en se croyant à l'abri des regards",
+  "{j} frappe un joueur par derrière près de la bande, à dix pieds de l'arbitre",
+  "{j} s'attaque à un adversaire après le sifflet, ce qui n'était plus nécessaire",
+  "{j} entre dans le gardien adverse comme s'il ne l'avait pas vu, et l'arbitre refuse d'y croire",
+  "{j} conteste un appel de l'arbitre en gesticulant, ce qui lui vaut une punition de conduite antisportive",
+  "{j} met la main sur la rondelle dans le cercle, un geste qui n'était prévu dans aucun système",
+  "{j} agrippe le bâton d'un adversaire et ne le lâche pas, même quand l'arbitre le lui demande",
+  "{j} fait un croc-en-jambe à un adversaire qui lui tournait le dos",
+  "{j} donne un coup de coude à la tête d'un adversaire, sans le faire exprès, selon ses dires",
+  "{j} obstrue un adversaire qui n'avait pas la rondelle, et ça se voyait depuis les gradins",
+  "{j} fait voler son bâton jusqu'au banc adverse après un jeu qui ne lui plaisait pas",
+  "{j} ne comprend pas ce qui lui vaut deux minutes, et l'arbitre le lui explique avec les doigts",
+  "{j} termine son geste dans les jambes d'un adversaire en voulant s'étirer à la bande",
+  "{j} projette un défenseur dans la bande avec un peu trop de conviction",
+  "{j} remet le casque d'un adversaire en place, un peu trop fermement",
+  "{j} s'acharne sur un adversaire déjà couché sur la glace, sous le regard de l'arbitre",
+  "{j} bloque la route d'un adversaire en patinant dans la mauvaise direction, volontairement selon l'arbitre",
 ];
 
-/* ---------- ANALYSE : ce que le plateau en conclut ---------- */
-const ANALYSE = [
-  ["Un résultat de {s} ne se discute pas ; il se commente, ce que nous allons faire.", "!barrage"],
-  ["Le plateau n'a pas de théorie du complot à offrir : le pointage est de {s}, et il est exact.", "!barrage"],
-  // Gardiens.
-  ["{g} a fait la différence : {n} arrêts, et personne n'a pu lui reprocher quoi que ce soit.", "g35 V"],
-  ["{g} a tout donné avec {n} arrêts ; ça n'a pas suffi, et c'est regrettable.", "g35 D"],
-  ["Sans {g}, le pointage aurait eu une tout autre allure. Nous n'osons pas y penser.", "g35"],
-  ["{n} arrêts : un gardien qui travaille autant mérite au moins une bouteille d'eau.", "g35"],
-  ["Le gardien {g} s'est occupé de tout ce qui se présentait. Les défenseurs, eux, ont regardé.", "g35"],
-  ["À {n} arrêts, {g} a été le meilleur joueur de {eq} ce soir, selon une méthode qui n'a rien de scientifique.", "g35"],
-  ["{g} a vu beaucoup de tirs. Dans les circonstances, il a réagi avec calme et efficacité.", "g35"],
-  ["{eq} a lancé sans relâche, mais {g} a bloqué {n} tirs. La note est claire.", "adv35"],
-  ["{g} a gagné son duel contre {eq}, qui lui a pourtant donné du travail.", "adv35"],
-  ["Avec {n} arrêts, {g} a donné à {autre} des raisons de croire au match.", "adv35"],
-  ["Il y a une leçon dans tout ça : un gardien hot, c'est un gardien hot. Nous n'ajouterons rien.", "adv35"],
-  ["{g} n'a pas eu la soirée qu'il espérait, avec {n} buts accordés, et le plateau ne peut qu'en prendre acte.", "gmauvais"],
-  ["Quand un gardien accorde {n} buts, il y a rarement un seul coupable. Il y en a plusieurs, et {g} est le plus visible.", "gmauvais"],
-  ["{g} a eu une mauvaise soirée. Il en aura d'autres, de bonnes, nous le souhaitons.", "gmauvais"],
-  ["Le plateau a peu de choses à dire sur {g} ce soir, et c'est mieux ainsi.", "gmauvais"],
-  ["{eq} a su trouver la faille : {n} buts contre {g}. Ce n'est pas un hasard, ou alors c'est un hasard répété.", "advmauvais V"],
-  ["{g} a eu une mauvaise soirée. {eq} en est l'une des causes, et c'est tout à son honneur.", "advmauvais"],
-  ["Contre {g}, {eq} a su se montrer efficace. Nous parlons ici de {n} buts, ce qui est une façon d'être efficace.", "advmauvais"],
-  // Remontées, avances, assurances.
-  ["Une remontée de cette ampleur ne s'improvise pas : elle s'improvise, mais avec beaucoup de conviction.", "remontee"],
-  ["Mené par au moins deux buts, {eq} a gardé son calme. Ce détail est rare et mérite un paragraphe.", "remontee"],
-  ["Le plateau a longtemps cru que le match était réglé. Le plateau avait tort, et le dit sans gêne.", "remontee"],
-  ["Une remontée, c'est un match en deux parties, et {eq} a bien choisi laquelle gagner.", "remontee"],
-  ["Une avance de deux buts, au moins, est un atout. Elle devient un fardeau quand elle disparaît.", "gaspille"],
-  ["{eq} a pris les devants avec tout ce qu'il fallait. Il a ensuite perdu une partie de ce qu'il fallait.", "gaspille"],
-  ["Quand on mène par deux buts, il y a deux écoles : celle qui protège et celle qui continue. {eq} a fait un choix, et nous en connaissons le résultat.", "gaspille"],
-  ["Le but d'assurance a joué son rôle, qui est de rassurer. Il a rassuré {eq}, et beaucoup de monde dans l'immeuble.", "assur"],
-  ["Un but d'assurance, c'est le moment où le match cesse d'être une question pour devenir une formalité.", "assur"],
-  ["{autre} a ajouté un but d'assurance, et le doute a quitté l'immeuble en même temps que les spectateurs pressés.", "assurAdv"],
-  ["Ce but d'assurance a retiré à {eq} l'une de ses rares occasions de se mettre à espérer.", "assurAdv"],
-  // Écarts.
-  ["Quand l'écart est d'au moins quatre buts, il n'y a plus d'analyse ; il y a un constat.", "raclee"],
-  ["Personne ne pourra dire que {eq} a gagné de justesse. Ce serait inexact.", "raclee"],
-  ["Une victoire aussi nette invite à la prudence, ce qui n'est pas dans le tempérament du plateau, mais nous nous y efforçons.", "raclee"],
-  ["{eq} n'a laissé aucune place au débat, et le plateau, privé de débat, a rempli le temps comme il l'a pu.", "raclee"],
-  ["Un écart d'au moins quatre buts se décrit mal. Disons qu'il s'est présenté avec insistance.", "raclSubie"],
-  ["Le plateau n'a pas de remède pour un tel écart. Il a une couverture, qu'il offre à {eq}.", "raclSubie"],
-  ["Dans un match comme celui-là, la seule chose à faire est de passer au suivant. C'est exactement ce que fera {eq}.", "raclSubie"],
-  ["On peut toujours chercher des causes à un écart pareil. On en trouve plusieurs, et elles sont toutes inconfortables.", "raclSubie"],
-  ["Un seul but d'écart : le genre de match qui tourne sur un détail, et le détail est en général une rondelle.", "un !OT"],
-  ["Un but d'écart, c'est trop peu pour parler de domination et trop pour parler de hasard.", "un !OT"],
-  ["La victoire de {eq} s'est jouée sur un fil, et le fil a tenu.", "un !OT V"],
-  ["La défaite de {eq} s'est jouée sur un fil, et le fil a cassé.", "un !OT D"],
-  ["Un but de plus, un but de moins : voilà ce qui fait la différence entre un résumé joyeux et un résumé prudent.", "un !OT"],
-  ["Un match de cette étroitesse se gagne sur un détail. Le détail s'appelle {m}.", "un !OT"],
-  ["Le plateau reconnaît que {eq} aurait pu gagner. Le plateau reconnaît aussi qu'il n'a pas gagné.", "un !OT D"],
-  ["Retirer le gardien pour un attaquant de plus est un pari, et {eq} l'a pris. Les paris, comme les matchs, ont une conclusion.", "desert"],
-  ["Sortir le gardien est une décision courageuse qui, parfois, se termine comme une décision courageuse.", "desert"],
-  ["Le filet désert est le dernier recours du hockey. {eq} y a eu recours, et la feuille en fait foi.", "desert"],
-  ["{eq} a misé sur un attaquant de plus. Le plateau respecte le pari et déplore le résultat.", "desert"],
-  // Fins de match.
-  ["Une égalité brisée aussi tard est la forme la plus pure du hockey : tout est simple jusqu'à ce que ça ne le soit plus.", "egalite3"],
-  ["{m} a choisi son moment. Il l'a choisi tard, comme tout le monde dans cette industrie.", "egalite3"],
-  ["Tard en troisième, l'égalité est un état de grâce. {m} l'a rompu, et personne ne lui en tiendra rigueur, sauf {autre}.", "egalite3"],
-  ["Quand on brise l'égalité tard dans la troisième période, on ne laisse plus beaucoup de temps aux commentaires du banc.", "egalite3"],
-  ["Un but gagnant dans les dernières minutes laisse peu de temps pour répondre. Il laisse tout le temps pour en parler.", "tardif"],
-  ["Un but tardif, ça change l'ambiance. Il ne change pas le pointage de façon rétroactive, mais il le déclare avec force.", "tardif"],
-  ["Le but de {m} est venu tard, et c'est lui qui a mis le plateau d'accord.", "tardif"],
-  ["Gagner sur l'avantage numérique, c'est gagner grâce à la générosité de l'adversaire. Nous ne le disons pas méchamment.", "gagnantAN"],
-  ["Le but gagnant est venu d'une punition. C'est un cas d'école, que nous enseignerons en septembre.", "gagnantAN"],
-  ["Il faut du talent pour marquer le but gagnant. Il faut aussi une punition adverse, et {eq} l'a su.", "gagnantAN V"],
-  ["Une punition au mauvais moment : voilà ce qui a coûté ce but à {eq}.", "gagnantAN D"],
-  // Prolongation et tirs de barrage.
-  ["La prolongation est un exercice de tension où chaque mise au jeu est une question de santé publique.", "OT"],
-  ["Le temps supplémentaire n'a duré que le temps d'un but, mais il a duré tout de même.", "OT"],
-  ["Il y a deux façons de gagner une prolongation : la patience et {m}. Dans ce cas-ci, ce fut {m}.", "OT"],
-  ["{eq} a su garder la tête froide en prolongation, ce qui est un exploit en soi, surtout en prolongation.", "OT V"],
-  ["{eq} a perdu sa concentration pour la durée d'un but, et c'était l'unique but qui comptait.", "OT D"],
-  ["Après soixante minutes sans décision, la prolongation a décidé en moins de temps qu'il n'en faut pour commenter.", "OT"],
-  ["Les tirs de barrage n'ont pas de logique. Ils ont un vainqueur, ce qui est mieux que de la logique.", "barrage"],
-  ["Les tirs de barrage sont un spectacle où le talent se retrouve seul avec sa conscience.", "barrage"],
-  ["Un tir de barrage ne se prépare pas. Il se prépare, en réalité, mais personne ne s'en vante.", "barrage"],
-  ["Le temps réglementaire n'a pas suffi, et le plateau en a conclu que ce match n'avait pas de plan B, sauf celui-ci.", "barrage"],
-  // Unités spéciales.
-  ["Le jeu de puissance de {eq} a été efficace ce soir. Les chiffres sont là, et ils sont très polis.", "anMoi"],
-  ["Un but en avantage numérique, c'est la preuve qu'une punition adverse peut être une bonne nouvelle.", "anMoi"],
-  ["{eq} a su tirer parti d'une punition adverse. C'est un art, et il se pratique en général avec une rondelle.", "anMoi"],
-  ["{autre} a su tirer parti d'une punition de {eq}. Ce n'est pas un talent méprisable, mais il aurait pu rester inutilisé.", "anAdv"],
-  ["Une punition de {eq}, un but de {autre} : la logique du hockey en trois mots.", "anAdv"],
-  ["{eq} a eu des occasions en jeu de puissance, et n'a pas marqué. On parle ici de {n} avantages numériques sans conséquence.", "anRate"],
-  ["{n} avantages numériques sans but, c'est une statistique qu'on cite surtout quand on cherche une explication.", "anRate"],
-  ["Le jeu de puissance de {eq} a eu les occasions, mais il en a fait un usage discret.", "anRate"],
-  ["Avec {n} punitions à purger, {eq} s'est défendu avec discipline. Le mot « discipline » est ici employé à contresens.", "dnParfait"],
-  ["{eq} a su tenir le fort chaque fois qu'il a joué en infériorité numérique. {n} fois, pour être précis.", "dnParfait"],
-  ["Le désavantage numérique de {eq} a connu une soirée parfaite, et il en parlera pendant des semaines dans les corridors.", "dnParfait"],
-  ["Marquer en infériorité numérique est un geste d'une impolitesse élégante. {eq} s'est offert ce plaisir.", "dnBut"],
-  ["Un but en infériorité, ça change la physionomie d'un match, et surtout l'humeur de l'entraîneur adverse.", "dnBut"],
-  ["Accorder un but en infériorité numérique est une expérience que {eq} préfère ne pas répéter.", "dnButAdv"],
-  ["{autre} a marqué à court d'un joueur, ce qui est plutôt le contraire de ce que le règlement prévoyait.", "dnButAdv"],
-  // Punitions.
-  ["{n} punitions, c'est beaucoup. Un joueur qui en prend autant est un joueur qui est occupé.", "punMoi"],
-  ["Un match avec {n} punitions de {eq}, c'est un match où l'arbitre a eu un rôle de premier plan.", "punMoi"],
-  ["Le banc des punitions de {eq} était bien fréquenté ce soir, avec {n} visites au dossier.", "punMoi"],
-  ["{eq} a pris {n} punitions et l'a appris à ses dépens.", "punMoi"],
-  ["{autre} a pris {n} punitions, et {eq} en a retiré une certaine satisfaction, que nous ne jugerons pas.", "punAdv"],
-  ["Quand l'adversaire prend {n} punitions, l'avantage numérique devient un mode de vie.", "punAdv"],
-  ["{autre} a pris {n} punitions, ce qui est un bon indicateur d'une soirée dans laquelle on n'a pas tout contrôlé.", "punAdv"],
-  ["Un match sans punition est un match propre. Un match propre est un match où les arbitres ont eu le temps de lire.", "sansPun"],
-  ["Aucune punition : le sifflet n'a servi qu'à arrêter le jeu, et c'est un progrès.", "sansPun"],
-  ["La discipline de {eq} a été exemplaire. Le plateau a vérifié : aucune punition à son nom.", "propre"],
-  ["{eq} n'a pris aucune punition. C'est sans doute le résultat d'un long travail, ou d'une soirée tranquille.", "propre"],
-  // Bagarres.
-  ["Une bagarre, c'est un bref échange d'opinions que les règlements encadrent en minutes de punition.", "bag"],
-  ["Il y a eu bagarre. Le plateau y voit un signe que les deux équipes tenaient à leurs opinions.", "bag"],
-  ["La bagarre a eu lieu, et le hockey a repris sa forme ordinaire quelques instants plus tard.", "bag"],
-  ["Une bagarre dans le match ne change pas le pointage. Elle change le ton, ce qui est un autre genre de pointage.", "bag"],
-  ["Un joueur de {eq} a gagné sa bagarre. Nous le disons sans commentaire, mais avec une certaine fierté contenue.", "bagMoi"],
-  ["{eq} a eu le dessus dans une bagarre, ce qui n'est pas inscrit au pointage mais figure bien au vestiaire.", "bagMoi"],
-  ["{autre} a eu le dessus dans une bagarre. La feuille de match le note avec neutralité, comme il se doit.", "bagAdv"],
-  ["Un joueur de {eq} a perdu sa bagarre. Il a, dit-on, bien tenu ses gants.", "bagAdv"],
-  ["La bagarre s'est terminée sans gagnant. C'est la forme la plus diplomatique de ce sport.", "bagNul"],
-  ["Une bagarre sans gagnant ne laisse que des punitions. C'est un résultat très équitable.", "bagNul"],
-  // Séquences.
-  ["Après {n} défaites de suite, une victoire est une rareté qu'on ne peut que respecter.", "premiere V"],
-  ["Mettre fin à une séquence de {n} défaites est le genre de geste que les équipes aiment faire discrètement.", "premiere V"],
-  ["{eq} sort enfin de sa séquence de {n} défaites. Le plateau lui ouvre la porte, poliment.", "premiere V"],
-  ["Une séquence de {n} victoires, c'est un sujet de conversation. Cette victoire en est la dernière au dossier.", "derniere V"],
-  // Séries.
-  ["Un premier match de série ne décide rien, mais il donne le ton, comme une première note.", "m1"],
-  ["Après un premier match, une série n'a pas encore de personnalité. Elle a toutefois un pointage.", "m1"],
-  ["Le deuxième match d'une série est celui qui commence à compter pour les statistiques.", "m2"],
-  ["À deux matchs, une série devient une tendance, et une tendance devient une opinion de chroniqueur.", "m2"],
-  ["Au troisième match, on commence à comprendre ce que l'adversaire a dans la tête.", "m3"],
-  ["Le troisième match est celui où les équipes se mettent à se connaître, avec les inconvénients que cela comporte.", "m3"],
-  ["Au quatrième match, une série cesse d'être une hypothèse. Elle devient une réalité, aussi petite soit-elle.", "m4"],
-  ["Le quatrième match est celui qui sépare ceux qui espèrent de ceux qui calculent.", "m4"],
-  ["Au cinquième match, la série n'a plus de secret. Elle a, par contre, beaucoup de tension.", "m5"],
-  ["Au cinquième match, les entraîneurs commencent à parler en phrases très courtes.", "m5"],
-  ["Au sixième match, une équipe peut terminer sa série. L'autre peut la prolonger. C'est le genre de moment qui fait vendre du café.", "m6"],
-  ["Le sixième match est un match où chacun fait semblant de ne pas compter les victoires.", "m6"],
-  ["Au septième match, il n'y a plus de stratégie. Il y a un pointage, et il est final.", "m7"],
-  ["Un septième match est un événement où le hockey se débarrasse de tout ce qui n'est pas essentiel.", "m7"],
-  ["{eq} mène la série. L'avance est mince, mais elle a l'avantage d'exister.", "meneSerie"],
-  ["Mener une série, c'est avoir l'avantage et les nerfs qui vont avec.", "meneSerie"],
-  ["{eq} tire de l'arrière. Dans une série, c'est une situation qui a l'avantage de n'être pas permanente.", "tireDerriere"],
-  ["Tirer de l'arrière dans une série oblige à regarder devant. C'est généralement une bonne chose.", "tireDerriere"],
-  ["La série est égale, et le plateau est donc dans une situation neutre. Il s'en accommode très bien.", "egaleSerie"],
-  ["Une série égale est le meilleur argument en faveur du match suivant.", "egaleSerie"],
-  ["{eq} remporte la série. Le plateau a hâte de voir la suite, ou plutôt de ne pas la voir trop tôt.", "passes"],
-  ["Gagner une série est l'objectif de toute équipe de séries, et {eq} l'a atteint avec méthode.", "passes"],
-  ["La saison de {eq} se termine ici. Elle aura eu le mérite d'exister, et de durer.", "sortis"],
-  ["Être éliminé est un événement que le règlement a prévu, que l'humeur n'a jamais accepté.", "sortis"],
-  ["Un balayage est une victoire dont la plus grande qualité est qu'elle laisse du temps libre à la suite.", "balai"],
-  ["Balayer une série, c'est une façon de dire à l'adversaire qu'il peut rentrer chez lui dès maintenant.", "balai"],
-  ["Se faire balayer est une expérience complète, au sens où aucun détail n'est omis.", "balaiSubi"],
-  ["{eq} a survécu, et le plateau, qui ne sait pas voir sans conclure, y voit déjà un signe.", "sursis"],
-  ["Un sursis, c'est une victoire dont on ne peut pas se vanter longtemps, mais qui permet de se préparer au prochain match.", "sursis"],
-  // Saison.
-  ["Dans la course aux séries, une victoire est un point, une défaite est un autre, et le plateau est tenu de les compter tous.", "course"],
-  ["La course aux séries est un exercice où chaque match prend une importance qu'il ne méritait pas la veille.", "course"],
-  ["Chaque point compte dans cette course. Les analystes du plateau comptent également, pour leur part, le café.", "course"],
-  ["Éliminé, {eq} joue maintenant pour le principe. Le principe, en hockey, est un sujet de discussion très répandu.", "elimine"],
-  ["Une équipe éliminée peut encore gagner un match. Elle n'y gagne rien, sauf le droit d'en parler.", "elimine"],
-  ["{eq} joue sans pression, ce qui est un état que le sport professionnel connaît mal.", "elimine"],
-  ["Être premier au classement, c'est être regardé. {eq} a été regardé, et il a répondu avec la rigueur qu'on lui connaît.", "premier"],
-  ["Au premier rang, chaque match devient une démonstration. {eq} en a donné une, avec le pointage en pièce jointe.", "premier"],
-  ["Le premier du classement est celui qu'on veut battre, et c'est ce qui rend la tâche intéressante.", "premier"],
-  ["Affronter son ancien club est un exercice de contenance. {eq} l'a fait avec ce qu'il avait sous la main.", "vengeance"],
-  ["Un ancien joueur contre son club d'origine, c'est un classique du hockey, au même titre que le café refroidi.", "vengeance"],
-  ["Les retrouvailles avec un ancien club ont toujours une part de politesse et une part de mise en échec.", "vengeance"],
-  // Pointage et issue, sans contexte rare.
-  ["Le plateau n'a trouvé qu'une explication à cette victoire : {eq} a marqué plus de buts que {autre}.", "V"],
-  ["Le plateau n'a trouvé qu'une explication à cette défaite : {autre} a marqué plus de buts que {eq}.", "D"],
-  ["Gagner un match, c'est marquer plus que l'autre. {eq} a respecté cette règle avec beaucoup de rigueur.", "V"],
-  ["Perdre un match, c'est marquer moins que l'autre. {eq} a respecté cette règle, à son corps défendant.", "D"],
-  ["La victoire de {eq} est le fruit d'un travail d'équipe, ce qui est une manière élégante de ne désigner personne.", "V"],
-  ["La défaite de {eq} est le fruit d'un travail d'équipe, ce qui est une manière élégante de ne désigner personne.", "D"],
-  ["Une victoire n'est jamais un accident, sauf quand elle en est un. Celle de {eq} était, de l'avis du plateau, méritée.", "V"],
-  ["Le plateau a longuement cherché la clé de ce match. Elle se trouve sur la feuille, à la ligne du pointage.", ""],
-  ["Le moment charnière de ce match, c'est le but de {m} en {per}.", "V"],
-  ["Le moment charnière de ce match, c'est le but de {m}, de {autre}, en {per}.", "D"],
-  ["Les statistiques sont un guide, pas une vérité. Cela dit, le pointage de {s} est une vérité.", "!barrage"],
-  ["Les chiffres ne mentent pas. Ils ne disent pas tout non plus, mais ils sont très fiables sur le pointage de {s}.", "!barrage"],
-  ["L'analyse est sans appel : le match s'est terminé quand il s'est terminé, et pas avant.", ""],
-  ["Les analystes se sont réunis une fois le match terminé, ce qui est une méthode qui a fait ses preuves.", ""],
-  ["Aucun trait de génie n'est à signaler. Il y a du travail, de la rigueur, et une rondelle dans le filet adverse.", "V"],
-  ["Rien dans ce match n'était écrit d'avance, sinon l'heure du début.", ""],
-  ["Un résumé n'est pas une explication. C'est une façon d'organiser les faits pour qu'ils aient l'air d'en être une.", ""],
-  ["Le plateau tient à rappeler qu'il n'a aucune influence sur les résultats, malgré les nombreux efforts de ses analystes.", ""],
-  ["Il serait imprudent de tirer des conclusions d'un seul match. Nous en tirons quand même, comme tout le monde.", ""],
-  ["Un seul match ne fait pas une saison. Il en fait une partie, cependant, et c'est la partie dont nous parlons.", "rs"],
-  ["Chaque match de saison compte, dans un compte que personne ne tient en direct, mais que tout le monde consulte en avril.", "rs"],
-  ["Dans une série, chaque match est un chapitre. Celui-ci en était un, et il est maintenant fermé.", "serie"],
-  ["Une série est un livre, et ce match en est une page. Les pages précédentes sont consultables au vestiaire.", "serie"],
-  ["Au hockey, les séries sont un sport à part : on y retrouve les mêmes joueurs, avec plus de sérieux et moins de sommeil.", "serie"],
+const INC_COUP = [
+  "{j} écrase {c} contre la bande, et le bruit se rend jusqu'au banc adverse",
+  "{c} cherche encore la rondelle après la mise en échec de {j}, qui est pourtant déjà à l'autre bout de la patinoire",
+  "{c} fait connaissance avec la baie vitrée, présenté par {j}",
+  "{j} projette {c} dans la bande avec une telle force que les gradins s'en ressentent",
+  "{c} revient au banc en marchant de côté après le contact avec {j}",
+  "{j} frappe {c} à pleine vitesse, et {c} regarde ce côté de la patinoire avec méfiance",
+  "{c} vole sur trois mètres avant d'atterrir, après un contact avec {j}",
+  "{j} passe son épaule dans {c}, et le casque de {c} termine sa course à la ligne bleue",
+  "{c} voit des étoiles pendant quelques secondes après la mise en échec de {j}",
+  "{j} ramasse {c} à la ligne rouge, et la rondelle est la dernière chose à laquelle {c} pense",
+  "{c} perd son bâton, son équilibre et une partie de sa dignité sur la mise en échec de {j}",
+  "{c} se retrouve assis sur la glace, face à la bande, après avoir croisé {j}",
+  "{j} plaque {c} si fort sur la bande que le chandail y laisse une marque",
+  "{c} ramasse son casque, ses gants et ses idées après le passage de {j}",
 ];
 
-/* ---------- CHUTE : la dernière phrase ---------- */
-const CHUTE = [
-  // Toujours vraies.
-  ["Ce fut le résumé. Il n'engage que ceux qui l'ont écouté.", ""],
-  ["Voilà pour le résumé. Le hockey, lui, reprendra comme prévu.", ""],
-  ["C'est tout pour ce soir. Les statistiques seront conservées, au cas où.", ""],
-  ["Nous vous remercions de votre attention et de votre indulgence.", ""],
-  ["C'est ce qui s'est passé. Nous n'avons rien inventé, ce qui est rare dans notre métier.", ""],
-  ["Tel est le bilan. Bonne nuit, et surtout, bon sommeil.", ""],
-  ["Voilà qui conclut ce bulletin. Le plateau rend l'antenne, et les chaises restent en place.", ""],
-  ["Nous reviendrons au prochain match, sauf imprévu majeur.", ""],
-  ["Ce fut la soirée. Merci d'avoir été là, ou d'avoir fait semblant.", ""],
-  ["Le dossier est clos. Il pourra toutefois être rouvert au prochain match.", ""],
-  ["Ainsi se termine le résumé. Le café, lui, est froid depuis un moment.", ""],
-  ["Rien de plus à ajouter, sinon que le hockey est un sport, et que ce soir, c'en était un.", ""],
-  ["C'est ce que nous retenons. Le reste appartient aux souvenirs et aux archives.", ""],
-  ["Le plateau lève la séance. Nous serons de retour avec de nouveaux faits.", ""],
-  ["Bref, il y a eu un match. Nous l'avons vu. Nous l'avons résumé. Nous l'avons trouvé sérieux.", ""],
-  ["Voilà. La rondelle est maintenant dans les archives, et c'est là qu'elle sera le mieux.", ""],
-  ["Notre conclusion est simple, et personne ne pourra nous la reprocher : il y a eu un match.", ""],
-  ["Merci à notre régie, qui n'a rien dit de toute la soirée et qui continuera.", ""],
-  ["C'est ainsi que se termine le bulletin. Aucune question ne sera acceptée, sauf celles qui ont déjà des réponses.", ""],
-  ["Bonne fin de soirée à tous. Le hockey n'attend personne, surtout pas le prochain match.", ""],
-  ["Voilà le bilan. Il est exact, ce qui est son principal mérite.", ""],
-  ["Le plateau vous souhaite une bonne soirée, sans aucune garantie sur la suite du calendrier.", ""],
-  ["Fin du bulletin. Les analystes retournent à leurs tableaux.", ""],
-  ["Le hockey reprend bientôt, et le plateau aussi.", ""],
-  // Victoire et défaite.
-  ["{eq} a gagné, et le plateau en conclut que c'était le but.", "V"],
-  ["Une victoire est une victoire. Nous avons consulté plusieurs sources, qui s'accordent toutes sur ce point.", "V"],
-  ["Le vestiaire de {eq} sera de bonne humeur. Nous n'y étions pas, mais nous le croyons volontiers.", "V"],
-  ["{eq} rentre avec deux points dans le sac et le sentiment du devoir accompli.", "V rs"],
-  ["Une soirée tranquille pour {eq}, et une victoire dans la poche. C'est un bon format.", "V"],
-  ["Dans le vestiaire de {eq}, on dit que le travail a payé. Le plateau n'a pas vérifié, mais il n'a aucune raison d'en douter.", "V"],
-  ["{eq} a gagné. On s'en souviendra jusqu'au prochain match.", "V"],
-  ["Pour {eq}, une victoire de plus à inscrire au tableau. Le tableau, lui, n'a fait aucun commentaire.", "V"],
-  ["{eq} a perdu. Le plateau n'ose pas dire que c'est le pire résultat possible, car il y en a de pires.", "D"],
-  ["Une défaite n'est qu'une victoire qui a manqué de précision.", "D"],
-  ["Dans le vestiaire de {eq}, on parle de « points à corriger ». Il y en a, effectivement, au moins un : le pointage.", "D"],
-  ["{eq} rentre bredouille. Le trajet, selon nos sources, sera silencieux.", "D"],
-  ["{eq} reviendra, et nous serons là pour le dire, ce qui est une forme de soutien.", "D"],
-  ["Le plateau offre à {eq} ses condoléances, sous forme de statistiques.", "D"],
-  ["Une défaite, ça se digère. Il suffit d'un bon repas et de beaucoup de temps.", "D"],
-  ["Le prochain match offrira une occasion de corriger le tir. Pour l'instant, la rondelle est ailleurs.", "D"],
-  // Les grands scénarios.
-  ["Un blanchissage. Dans la langue du hockey, c'est un compliment ; dans la langue des attaquants adverses, c'est un souvenir.", "BL"],
-  ["{eq} n'a rien accordé. Le plateau n'a rien à ajouter non plus.", "BL"],
-  ["Zéro but pour {autre}. Le chiffre est modeste, mais il pèse.", "BL"],
-  ["Pas de but pour {eq}. Le plateau ne s'attarde pas, par égard pour les attaquants.", "BLsubi"],
-  ["Un zéro au tableau, c'est une expérience que même les meilleurs ont connue. Nous le disons pour consoler.", "BLsubi"],
-  ["La victoire de {eq} est nette, et le plateau n'y trouve rien à redire, malgré ses efforts.", "raclee"],
-  ["Après une telle soirée, {eq} est autorisé à sourire largement. Le plateau y consent.", "raclee"],
-  ["Certains soirs, le hockey est simple. Ce soir, il l'était, et {eq} s'en est bien tiré.", "raclee"],
-  ["Certains soirs, le hockey est simple. Ce soir, il l'était, mais pas pour {eq}.", "raclSubie"],
-  ["Après une telle soirée, le plateau suggère à {eq} de dormir. C'est le seul conseil, et il est sincère.", "raclSubie"],
-  ["Le plateau n'a pas d'autre commentaire sur cet écart, sinon qu'il était grand.", "raclSubie"],
-  ["Une remontée comme celle-là se raconte longtemps, avec des détails de plus chaque fois.", "remontee"],
-  ["{eq} a remonté la pente, ce qui est une expression de montagne appliquée à un sport de glace.", "remontee"],
-  ["Mené par deux buts, au moins, et vainqueur au bout du compte : les chroniqueurs auront du travail.", "remontee"],
-  ["Avoir deux buts d'avance, au moins, et perdre quand même : le plateau a vu pire, mais il ne s'en souvient plus.", "gaspille"],
-  ["Une avance ne vaut que ce qu'on en fait. {eq} en a fait ce que nous venons de dire.", "gaspille"],
-  ["Le plateau offre à {eq} un conseil gratuit : quand on mène par deux buts, il faut continuer à jouer. C'est tout.", "gaspille"],
-  ["Un but d'assurance de {eq}, et la soirée s'est terminée sans autre suspense.", "assur"],
-  ["{eq} s'est assuré de ne rien laisser au hasard dans les dernières minutes, ce qui est un luxe.", "assur"],
-  ["Un but d'assurance de {autre} a mis fin à la soirée pour {eq}, un peu plus tôt que prévu.", "assurAdv"],
-  ["La victoire s'est jouée sur un but, et le plateau tient à lui rendre hommage : un but, c'est parfois tout ce qu'il faut.", "un !OT V"],
-  ["Une défaite par un but, c'est la défaite des gens qui ont essayé. Nous y voyons un certain mérite.", "un !OT D"],
-  ["Un but de moins, et nous aurions parlé d'autre chose. Un but de plus, et nous aurions parlé de la même chose, plus longtemps.", "un !OT"],
-  ["Le gardien en moins, {eq} a joué son va-tout. Le plateau n'a pas de critique : il a de l'admiration, un peu décontenancée.", "desert"],
-  ["Sortir son gardien est un pari. Le plateau ne juge pas : il mesure.", "desert"],
-  ["Un filet désert, un but de retard, et un résultat qui n'a surpris personne, surtout pas le filet.", "desert"],
-  ["Tard en troisième, {m} a brisé l'égalité. Nous ne dirons rien de plus, de peur d'allonger inutilement la soirée.", "egalite3"],
-  ["Une égalité qui dure jusqu'à la fin de la troisième est une égalité qui mérite le respect. Celle-ci a tenu.", "egalite3"],
-  ["Le but de {m} a mis fin à une longue égalité. Les égalités, comme les bonnes choses, ont une fin.", "egalite3"],
-  ["Le but gagnant est venu tard. Le plateau, qui aime l'ordre, l'aurait préféré tôt, mais s'en accommode.", "tardif"],
-  ["Gagner tard est une qualité. {m} la possède, et le plateau le note dans un petit carnet.", "tardif"],
-  ["Le but gagnant est arrivé sur une punition adverse. Le hockey, c'est aussi savoir attendre son avantage.", "gagnantAN"],
-  // Prolongation et barrage.
-  ["Une prolongation, c'est du temps gagné. Pour quelqu'un, évidemment.", "OT"],
-  ["Soixante minutes n'ont pas suffi. Nous ne ferons pas de commentaire sur la durée du bulletin.", "OT"],
-  ["Une prolongation termine bien un match, ou mal, selon le côté du banc où l'on se trouve.", "OT"],
-  ["{eq} a gagné en prolongation. C'est un genre de victoire qui se savoure lentement, comme un thé.", "OT V"],
-  ["{eq} perd en prolongation, avec en poche un point que le plateau qualifie de consolation arithmétique.", "OT D rs"],
-  ["{eq} perd en prolongation. La nuit sera longue, et la prolongation aussi, dans les souvenirs.", "OT D"],
-  ["Les tirs de barrage ont tranché, ce qui est exactement leur fonction, et ils s'en sont bien acquittés.", "barrage"],
-  ["Il a fallu en arriver aux tirs de barrage. Le plateau remercie les spectateurs d'avoir tenu leur place.", "barrage"],
-  ["Un match qui se termine aux tirs de barrage est un match qui a pris un chemin de traverse.", "barrage"],
-  // Gardiens.
-  ["{g} mérite une soirée de repos. Il en aura peut-être une, si le calendrier est généreux.", "g35"],
-  ["À {n} arrêts, {g} a mérité qu'on lui tape sur les jambières, et c'est exactement ce que fera le plateau.", "g35"],
-  ["Si on devait choisir un joueur du match, ce serait {g}. Nous n'avons pas de vote, mais nous avons des opinions.", "g35 V"],
-  ["Le gardien a tout donné. Le reste de l'équipe, apparemment, a fait ce qu'il a pu.", "g35 D"],
-  ["{g} a tenu, et c'est précisément ce qu'on attend de lui. {n} arrêts, ça se remarque.", "g35"],
-  ["{g} a été solide. Le plateau lui tire son chapeau, dans la limite de ses moyens.", "adv35"],
-  ["{g} a bloqué {n} tirs de {eq}. Le mur a gagné.", "adv35 D"],
-  ["{eq} a lancé beaucoup, et {g} a bloqué beaucoup. C'est la loi des grands nombres, appliquée au hockey.", "adv35"],
-  ["{g} a eu un soir de ceux qu'on préfère oublier. Il y a des soirs comme ça, et nous lui souhaitons de ne pas en avoir un autre trop vite.", "gmauvais"],
-  ["Le plateau offre à {g} une pensée sincère et une soirée tranquille, dès qu'il y en aura une.", "gmauvais"],
-  ["{g} était dans le filet. Il y est resté, ce qui est déjà un mérite.", "gmauvais"],
-  ["{g} n'a pas connu une soirée mémorable, et le plateau se promet d'en parler le moins possible.", "advmauvais"],
-  ["{eq} a su exploiter {g}, et le plateau salue cet effort de précision.", "advmauvais V"],
-  // Unités spéciales, punitions.
-  ["Le jeu de puissance a parlé. Les arbitres, eux, ont bien fait leur travail, ce qui est rarement remarqué.", "anMoi"],
-  ["{eq} a profité de l'avantage numérique. C'est à ça qu'il sert, ont dit nos experts.", "anMoi"],
-  ["{autre} a profité de l'avantage numérique. Il en avait le droit, et il l'a utilisé.", "anAdv"],
-  ["Un avantage numérique inutilisé est un souvenir. {eq} en a plusieurs à raconter.", "anRate"],
-  ["Une soirée d'avantages numériques qui n'ont mené à rien. Le plateau n'ajoute rien, par respect.", "anRate"],
-  ["Tenir le fort en désavantage numérique, c'est exactement ce que {eq} a fait, avec la ténacité d'un locataire.", "dnParfait"],
-  ["Un but en infériorité est une impolitesse élégante. Nous la saluons.", "dnBut"],
-  ["Un but en infériorité numérique contre {eq} est un cadeau dont personne ne voulait.", "dnButAdv"],
-  ["L'arbitre a eu beaucoup à dire à {eq}. {eq} a écouté, et recommencé.", "punMoi"],
-  ["L'arbitre a eu beaucoup à dire à {autre}, et {eq} en a tiré ses conclusions, que nous ne commenterons pas.", "punAdv"],
-  ["Une soirée sans punition est une soirée où chacun a respecté les consignes. Nous ne voulons pas jeter un froid, mais c'est exceptionnel.", "sansPun"],
-  ["{eq} a joué proprement. Le plateau, qui avait des gants blancs, n'a pas eu à s'en servir.", "propre"],
-  // Bagarres.
-  ["Les gants sont tombés, puis ramassés. Le plateau y voit une forme de savoir-vivre.", "bag"],
-  ["Une bagarre est une conversation animée. Celle-ci a été brève, et sans suite.", "bag"],
-  ["Après la bagarre, le hockey a repris. C'est ce qui s'appelle la résilience.", "bag"],
-  ["Un joueur de {eq} a remporté sa bagarre. Aucune médaille n'est prévue, mais le vestiaire en parlera.", "bagMoi"],
-  ["Un joueur de {eq} a perdu sa bagarre. Aucune médaille n'est prévue non plus, et c'est dommage.", "bagAdv"],
-  ["Une bagarre sans gagnant est une bagarre diplomatique. Le plateau en recommande davantage.", "bagNul"],
-  // Séquences.
-  ["La séquence est terminée. Le plateau tient à saluer ceux qui l'avaient pressentie, s'il y en a.", "premiere V"],
-  ["{eq} a retrouvé le chemin de la victoire, sans passer par les raccourcis habituels.", "premiere V"],
-  ["{eq} a remporté sa première victoire après {n} défaites. Nous n'avons pas d'adjectif à la hauteur.", "premiere V"],
-  ["La séquence de {eq} se termine ici. Ce n'est pas la fin du monde, mais c'est la fin de la séquence.", "derniere V"],
-  ["Une séquence de {n} victoires se termine. Le plateau lui rend un hommage sincère.", "derniere V"],
-  // Séries.
-  ["Un premier match, un premier pointage. La suite appartient aux prochains jours.", "m1"],
-  ["Deux matchs, une tendance. Le plateau suit ça avec attention, et un café.", "m2"],
-  ["Trois matchs, une série qui prend forme. Il reste du temps, mais pas autant qu'au début.", "m3"],
-  ["Quatre matchs : la série est maintenant un sujet sérieux, et le plateau le traite comme tel.", "m4"],
-  ["Cinq matchs. À partir d'ici, chaque victoire se compte à voix basse.", "m5"],
-  ["Six matchs. Il reste un match, peut-être. Nous ne le disons pas trop fort.", "m6"],
-  ["Sept matchs. Le règlement n'en prévoit pas un huitième, et le plateau s'en félicite.", "m7"],
-  ["{eq} remporte la série. Le plateau en prend acte, car il n'a pas le choix.", "passes"],
-  ["La saison de {eq} se termine ici. Le plateau garde le silence, ce qui est son plus grand compliment.", "sortis"],
-  ["Un balayage. Le plateau n'en demandait pas tant, et il en a eu quatre.", "balai"],
-  ["{eq} sort de la série par la porte arrière, et le plateau n'ose pas dire que c'est la porte des balais.", "balaiSubi"],
-  ["Un sursis, c'est un match de plus, et c'est tout ce qui compte pour {eq}.", "sursis"],
-  ["La série continue, et le plateau aussi, avec une certaine fierté d'être indispensable.", "serie"],
-  ["La série est égale, et le plateau se promet de ne rien en conclure avant le prochain match.", "egaleSerie"],
-  ["{eq} mène la série. Le plateau a hâte de voir si cela durera, et il compte bien être là pour en parler.", "meneSerie"],
-  ["{eq} tire de l'arrière, mais les séries sont longues, et il y a des remontées dans l'histoire de ce sport.", "tireDerriere"],
-  // Saison.
-  ["La course aux séries continue. Le plateau, qui a une carrière de comptable, s'en réjouit.", "course"],
-  ["Chaque point compte dans la course aux séries. Le plateau vérifie ses calculs, par prudence.", "course"],
-  ["{eq} est éliminé, mais il a gagné quelque chose : la sérénité, et un peu de temps libre.", "elimine V"],
-  ["{eq} est éliminé. Le plateau tient tout de même à saluer son sens du devoir.", "elimine"],
-  ["{eq} est premier au classement. Le plateau n'a rien à ajouter, par respect pour le poids du titre.", "premier"],
-  ["Au premier rang, chaque match est un test. {eq} l'a passé ou l'a raté, selon le pointage : voir plus haut.", "premier"],
-  ["Les retrouvailles d'un joueur avec son ancien club ont eu lieu. Le plateau note l'absence de tout incident diplomatique.", "vengeance"],
-  ["Il y avait une histoire personnelle dans ce match, et elle est maintenant rangée aux archives.", "vengeance"],
+const INC_BAGARRE = [
+  "{w} et {l} laissent tomber les gants ; {w} en sort avec le dernier mot et {l} avec un œil à surveiller",
+  "{w} décoche trois coups avant que {l} ait fini d'enlever son gant",
+  "{l} perd son casque, son bâton et la bagarre, dans cet ordre, contre {w}",
+  "{w} tient {l} par le chandail et le laisse retomber sur la glace, au grand plaisir de son banc",
+  "{l} termine à genoux sur la glace après un solide crochet de {w}",
+  "{w} sort de la bagarre avec les jointures écorchées, {l} avec le chandail déchiré",
+  "{w} retourne le chandail de {l} par-dessus sa tête, et {l} ne voit plus rien du reste",
+  "{w} gagne par décision des deux juges, qui avaient une bonne vue de {l} par terre",
+  "{w} aide {l} à se relever, non par bonté, mais pour lui montrer le chemin du banc",
+  "{w} enchaîne un crochet et un uppercut, et {l} enchaîne un retour au banc",
+  "{l} perd l'équilibre en lançant un coup dans le vide, et {w} n'a plus qu'à finir le travail",
+  "{w} gagne le combat, et {l} gagne le droit de se faire raconter la suite par ses coéquipiers",
 ];
 
-/* ---------- la situation : tout ce que la feuille permet d'affirmer ---------- */
-const N_TAGS = ['g35', 'adv35', 'gmauvais', 'advmauvais', 'punMoi', 'punAdv', 'anRate', 'dnParfait', 'bag', 'premiere', 'derniere'];
-const COMMUNES = new Set(['V', 'D', 'rs', 'serie', '!OT', '!barrage']);
-const PERIODE = { 1: '1re période', 2: '2e période', 3: '3e période' };
-const NUM_SERIE = [null, 'm1', 'm2', 'm3', 'm4', 'm5', 'm6', 'm7'];
+const INC_BAGARRE_NUL = [
+  "{a} et {b} s'agrippent par le chandail pendant une minute complète, sans qu'un seul coup parte vraiment",
+  "{a} et {b} laissent tomber les gants, se regardent, et restent debout jusqu'à l'arrivée des juges",
+  "{a} et {b} tournent en rond au centre de la glace, sans rien de plus à déclarer",
+  "{a} et {b} perdent leur casque en même temps, ce qui n'a rien réglé",
+  "{a} et {b} s'échangent quelques coups de moulinet qui ne touchent que l'air",
+  "{a} et {b} tombent ensemble sur la glace, et les juges concluent à l'absence de gagnant",
+  "{a} et {b} se lancent des coups dans les épaules, les gants et le vide, et personne n'en sort gagnant",
+  "{a} et {b} se font séparer avant d'avoir décidé qui avait raison",
+];
 
-const compte = (liste, f) => liste.reduce((n, x) => n + (f(x) ? 1 : 0), 0);
+const INC_MELEE = [
+  "{a} et {b} se retrouvent au fond d'une pile de joueurs, et personne ne sait trop comment",
+  "{a} et {b} se poussent devant le filet pendant que quatre autres joueurs tentent de comprendre pourquoi",
+  "{a} et {b} échangent des politesses à la ligne bleue, les mains plus occupées que les mots",
+  "{a} et {b} sont les derniers à comprendre que le jeu est arrêté",
+  "{a} et {b} se poussent à la hauteur du banc, et le banc se lève par solidarité",
+  "{a} et {b} s'accrochent au sifflet et ne se lâchent plus avant l'arrivée des juges",
+];
+
+const ABSENCE = ['Il manquera {n} {matchs}.', 'Absence prévue : {n} {matchs}.', 'Il sera absent {n} {matchs}.'];
+const BLESSE_SANS_CAUSE = ['{j} ({T}) a quitté le match, {quand}. Il manquera {n} {matchs}.', 'Blessure à {j} ({T}), {quand} : absence prévue de {n} {matchs}.'];
+
+/* ---------- les petits outils ---------- */
+const pl = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 const periodeDe = instant => (instant >= 60 ? 4 : Math.min(3, Math.floor(instant / 20) + 1));
+const nomDe = p => (p && p.n ? nomCourt(p.n) : 'un joueur');
+const ordinal = n => ['', 'premier', 'deuxième', 'troisième', 'quatrième', 'cinquième'][n] || `${n}e`;
+const rempl = (texte, vals) => texte.replace(/\{(\w+)\}/g, (_, k) => (vals[k] == null ? `{${k}}` : String(vals[k])));
+const somme = t => (t || []).reduce((x, y) => x + y, 0);
+const tirsPeriode = (f, c, per) => (f.tirs && f.tirs[c] ? f.tirs[c][per] || 0 : 0);
 
 /**
- * Ce que la feuille permet d'affirmer, du point de vue de `ctx.cote` ('A' par
- * défaut). `ctx` : { eq, autre, cote, serie, saison, sequence, vengeance,
- * filetDesert, fusillade } — tout ce que la feuille ne sait pas, l'appelant le
- * dit ou le tait, et une étiquette que le contexte ne soutient pas reste fausse.
- * Retourne null si le match n'a pas de vainqueur lisible.
+ * Le récit d'après-match : { titre, lignes[], sections[] }. Pure : même feuille,
+ * même contexte, même graine = même texte. `ctx` : voir le haut du fichier.
  */
-function situationDe(f, ctx = {}) {
+export function apresMatch(f, ctx = {}, graineDuMatch = '') {
   const nous = ctx.cote === 'B' ? 'B' : 'A';
   const eux = nous === 'A' ? 'B' : 'A';
+  const nm = { [nous]: ctx.eq || 'le club', [eux]: ctx.autre || "l'adversaire" };
   const buts = (f.buts || []).slice().sort((x, y) => x.instant - y.instant);
-  const gf = { A: f.gfA ?? compte(buts, b => b.cote === 'A'), B: f.gfB ?? compte(buts, b => b.cote === 'B') };
-  const fus = f.fusillade || ctx.fusillade || null;
-  let vainqueur = gf.A > gf.B ? 'A' : gf.B > gf.A ? 'B' : null;
-  const barrage = !vainqueur && !!fus && fus.A !== fus.B;
-  if (barrage) vainqueur = fus.A > fus.B ? 'A' : 'B';
-  if (!vainqueur) return null;
-  const perdant = vainqueur === 'A' ? 'B' : 'A';
-  const V = vainqueur === nous;
-  const ot = !barrage && (f.ot === true || f.prolongation === true);
-  const ecart = Math.abs(gf.A - gf.B);
-  const tags = new Set([V ? 'V' : 'D']);
-  const vals = { eq: ctx.eq || 'le club', autre: ctx.autre || "l'adversaire", n: {} };
-  const ajoute = t => tags.add(t);
+  const gf = { A: f.gfA ?? buts.filter(b => b.cote === 'A').length, B: f.gfB ?? buts.filter(b => b.cote === 'B').length };
+  const ot = f.ot === true || f.prolongation === true || buts.some(b => b.instant >= 60);
+  const titre = `${nm[nous]} ${gf[nous]}, ${nm[eux]} ${gf[eux]}${ot ? ' (prolongation)' : ''}`;
+  const vide = { titre, lignes: [], sections: [] };
+  if (gf.A === gf.B) return vide;
 
-  vals.s = `${Math.max(gf.A, gf.B)}-${Math.min(gf.A, gf.B)}`;
-  if (ot) ajoute('OT');
-  if (barrage) ajoute('barrage');
-  if (gf[eux] === 0 && V) ajoute('BL');
-  if (gf[nous] === 0 && !V) ajoute('BLsubi');
-  if (ecart === 1 && !barrage) ajoute('un');
-  if (ecart >= 4 && !barrage) ajoute(V ? 'raclee' : 'raclSubie');
-  if (ctx.filetDesert && !V && ecart === 1 && !ot && !barrage) ajoute('desert');
+  const W = gf.A > gf.B ? 'A' : 'B';
+  const L = W === 'A' ? 'B' : 'A';
+  const seed = `${graineDuMatch}|${nous}|${nm.A}|${nm.B}|${gf.A}-${gf.B}|${buts.length}`;
+  const alea = cle => graine(`${seed}|${cle}`);
+  const pige = (liste, cle) => liste[Math.floor(alea(cle) * liste.length) % liste.length];
+  const piger = (liste, cle, vals) => rempl(pige(liste, cle), vals);
+  const penalites = f.punitions || [];
+  const physique = f.physique || [];
 
-  // Le fil du match : les écarts par où le pointage est passé, le but gagnant.
-  let a = 0, b = 0, creuxMax = 0, avanceMax = 0, gagnant = null, avantGagnant = null, nV = 0;
-  for (const but of buts) {
+  // Le fil du pointage, but par but.
+  const compteMarqueur = new Map();
+  const nGagnant = gf[L] + 1;
+  let vusW = 0, a = 0, b = 0, creux = 0;
+  const fil = buts.map((but, i) => {
+    const T = but.cote, O = T === 'A' ? 'B' : 'A';
     const avant = { A: a, B: b };
-    if (but.cote === 'A') a++; else b++;
-    const pourNous = nous === 'A' ? a : b, pourEux = nous === 'A' ? b : a;
-    creuxMax = Math.max(creuxMax, pourEux - pourNous);
-    avanceMax = Math.max(avanceMax, pourNous - pourEux);
-    if (!barrage && but.cote === vainqueur && ++nV === gf[perdant] + 1) { gagnant = but; avantGagnant = avant; }
-  }
-  if (!barrage && V && creuxMax >= 2) ajoute('remontee');
-  if (!barrage && !V && avanceMax >= 2) ajoute('gaspille');
-
-  const dernier = buts[buts.length - 1];
-  if (!barrage && dernier && dernier.cote === vainqueur && dernier.instant >= 50 && dernier.instant < 60 && ecart >= 2) ajoute(V ? 'assur' : 'assurAdv');
-  if (gagnant) {
-    const marqueur = gagnant.marqueur && gagnant.marqueur.n ? nomCourt(gagnant.marqueur.n) : null;
-    if (marqueur) vals.m = marqueur;
-    vals.per = gagnant.instant >= 60 ? 'prolongation' : PERIODE[periodeDe(gagnant.instant)];
-    if (!ot && ecart === 1 && gagnant.instant >= 55 && gagnant.instant < 60 && avantGagnant && avantGagnant.A === avantGagnant.B) ajoute('egalite3');
-    if (!ot && gagnant.instant >= 50 && gagnant.instant < 60) ajoute('tardif');
-    if (gagnant.an) ajoute('gagnantAN');
-  }
-
-  // Les gardiens : les tirs reçus, moins les buts, donnent les arrêts (la règle de ceQuiADecide).
-  const tirsDe = c => (f.tirs && f.tirs[c] ? f.tirs[c].reduce((x, y) => x + y, 0) : 0);
-  const gard = { A: f.gardienA, B: f.gardienB };
-  for (const [c, moi] of [[nous, true], [eux, false]]) {
-    const g = gard[c];
-    if (!g || !g.n) continue;
-    const recus = tirsDe(c === 'A' ? 'B' : 'A'), alloues = compte(buts, x => x.cote !== c), arrets = recus - alloues;
-    if (recus < 1) continue;
-    if (arrets >= 35) { ajoute(moi ? 'g35' : 'adv35'); vals.n[moi ? 'g35' : 'adv35'] = arrets; }
-    if (alloues >= 4 && arrets / recus < 0.88) { ajoute(moi ? 'gmauvais' : 'advmauvais'); vals.n[moi ? 'gmauvais' : 'advmauvais'] = alloues; }
-    vals[moi ? 'gNous' : 'gEux'] = nomCourt(g.n);
-  }
-
-  // Les unités spéciales et les punitions.
-  const punitions = f.punitions || [];
-  const punNous = compte(punitions, p => p.cote === nous), punEux = compte(punitions, p => p.cote === eux);
-  const anNous = compte(buts, x => x.cote === nous && x.an), anEux = compte(buts, x => x.cote === eux && x.an);
-  if (anNous >= 1) ajoute('anMoi');
-  if (anEux >= 1) ajoute('anAdv');
-  if (punEux >= 3 && anNous === 0) { ajoute('anRate'); vals.n.anRate = punEux; }
-  if (punNous >= 3 && anEux === 0) { ajoute('dnParfait'); vals.n.dnParfait = punNous; }
-  if (compte(buts, x => x.cote === nous && x.dn) >= 1) ajoute('dnBut');
-  if (compte(buts, x => x.cote === eux && x.dn) >= 1) ajoute('dnButAdv');
-  if (punNous >= 4) { ajoute('punMoi'); vals.n.punMoi = punNous; }
-  if (punEux >= 4) { ajoute('punAdv'); vals.n.punAdv = punEux; }
-  if (punNous === 0 && punEux === 0) ajoute('sansPun');
-  if (punNous === 0 && punEux > 0) ajoute('propre');
-
-  // Les bagarres.
-  const bagarres = (f.physique || []).filter(e => e.type === 'bagarre');
-  if (bagarres.length) {
-    ajoute('bag'); vals.n.bag = bagarres.length;
-    if (bagarres.some(e => e.gagnant === nous)) ajoute('bagMoi');
-    if (bagarres.some(e => e.gagnant === eux)) ajoute('bagAdv');
-    if (bagarres.every(e => !e.gagnant)) ajoute('bagNul');
-  }
-
-  // Les séquences, la série, la saison : ce que le contexte affirme.
-  const seq = ctx.sequence;
-  if (seq && V && seq.n >= 2 && (seq.genre === 'premiere' || seq.genre === 'derniere')) { ajoute(seq.genre); vals.n[seq.genre] = seq.n; }
-  const ser = /^(\d+)-(\d+)$/.exec(f.serie || '');
-  const numero = (ctx.serie && ctx.serie.numero) || (ser ? f.numero : null);
-  if (ser || ctx.serie) ajoute('serie'); else ajoute('rs');
-  if (numero >= 1 && numero <= 7) ajoute(NUM_SERIE[numero]);
-  if (ser) {
-    const wA = Number(ser[1]), wB = Number(ser[2]);
-    const n = nous === 'A' ? wA : wB, e = nous === 'A' ? wB : wA;
-    vals.ser = `${n}-${e}`;
-    if (n === 4) ajoute('passes');
-    if (e === 4) ajoute('sortis');
-    if (n === 4 && e === 0) ajoute('balai');
-    if (e === 4 && n === 0) ajoute('balaiSubi');
-    if (V && e === 3 && n < 4) ajoute('sursis');
-    if (n === e) ajoute('egaleSerie');
-    else if (n > e && n < 4) ajoute('meneSerie');
-    else if (e > n && e < 4) ajoute('tireDerriere');
-  }
-  if (!tags.has('serie') && ctx.saison && ['course', 'elimine', 'premier'].includes(ctx.saison)) ajoute(ctx.saison);
-  if (ctx.vengeance) ajoute('vengeance');
-  return { tags, vals };
-}
-
-/* ---------- l'assemblage ---------- */
-
-/** Une pièce, rendue pour cette situation ; null si une étiquette est fausse ou un gabarit sans valeur. */
-function pieceTexte(piece, sit) {
-  const [texte, etiquettes] = piece;
-  const liste = etiquettes ? etiquettes.split(' ') : [];
-  for (const t of liste) {
-    const nie = t[0] === '!';
-    if (sit.tags.has(nie ? t.slice(1) : t) === nie) return null;
-  }
-  let echec = false;
-  const rendu = texte.replace(/\{(\w+)\}/g, (_, cle) => {
-    let v;
-    if (cle === 'n') { const t = N_TAGS.find(x => liste.includes(x)); v = t ? sit.vals.n[t] : null; }
-    else if (cle === 'g') { v = liste.some(x => x === 'g35' || x === 'gmauvais') ? sit.vals.gNous : liste.some(x => x === 'adv35' || x === 'advmauvais') ? sit.vals.gEux : null; }
-    else v = sit.vals[cle];
-    if (v == null) { echec = true; return ''; }
-    return String(v);
+    if (T === 'A') a++; else b++;
+    const apres = { A: a, B: b };
+    creux = Math.max(creux, apres[L] - apres[W]);
+    if (T === W) vusW++;
+    const n = (compteMarqueur.get(but.marqueur) || 0) + 1;
+    compteMarqueur.set(but.marqueur, n);
+    return { but, i, T, O, avant, apres, nth: n, gagnant: T === W && vusW === nGagnant };
   });
-  return echec ? null : cap(rendu);
-}
+  const dernier = fil[fil.length - 1];
+  const gagnantFil = fil.find(x => x.gagnant) || null;
+  const assurance = dernier && dernier !== gagnantFil && dernier.T === W && dernier.but.instant >= 50 && dernier.but.instant < 60 && gf[W] - gf[L] >= 2 ? dernier : null;
 
-/** Le poids d'une pièce : une situation rare qui est vraie pèse plus qu'une phrase toujours vraie. */
-const poidsDe = piece => 1 + 6 * Math.min(2, (piece[1] ? piece[1].split(' ') : []).filter(t => !COMMUNES.has(t)).length);
+  /* ----- les phrases de temps ----- */
+  const quandCourt = (instant, cle) => (alea(cle) < 0.5 ? `avec ${tempsRestant(instant)} à jouer` : `à ${tempsRestant(instant)} de la fin`);
+  const quandLong = (instant, cle) => {
+    const per = periodeDe(instant), t = tempsRestant(instant), g = alea(cle) < 0.5;
+    if (per === 4) return g ? `en prolongation, avec ${t} à jouer` : `en prolongation, à ${t} de la fin`;
+    return g ? `avec ${t} à jouer en ${NOM_PERIODE[per]}` : `à ${t} de la fin de la ${NOM_PERIODE[per]}`;
+  };
 
-function piger(banque, sit, seed, nom, dejaDit, ecarte) {
-  const eligibles = [];
-  for (const piece of banque) {
-    const texte = pieceTexte(piece, sit);
-    if (!texte || dejaDit.has(texte) || (ecarte && ecarte(piece))) continue;
-    eligibles.push({ piece, texte, poids: poidsDe(piece) });
-  }
-  if (!eligibles.length) return null;
-  const total = eligibles.reduce((s, x) => s + x.poids, 0);
-  let r = graine(`${seed}|${nom}`) * total;
-  for (const x of eligibles) { r -= x.poids; if (r < 0) { dejaDit.add(x.texte); return x; } }
-  const x = eligibles[eligibles.length - 1];
-  dejaDit.add(x.texte);
-  return x;
-}
-
-/** La première étiquette rare d'une pièce : son thème, pour ne pas dire deux fois la même chose. */
-const themeDe = piece => (piece[1] ? piece[1].split(' ') : []).find(t => !COMMUNES.has(t)) || '';
-
-/**
- * Le plateau d'après-match : { titre, lignes[] }. Pure : même feuille, même
- * contexte, même graine = même texte. `ctx` : voir `situationDe`.
- */
-export function apresMatch(feuille, ctx = {}, graineDuMatch = '') {
-  const sit = situationDe(feuille, ctx);
-  const eq = ctx.eq || 'le club', autre = ctx.autre || "l'adversaire";
-  const nous = ctx.cote === 'B' ? 'B' : 'A';
-  const gfNous = feuille.gfA !== undefined ? (nous === 'A' ? feuille.gfA : feuille.gfB) : (feuille.buts || []).filter(x => x.cote === nous).length;
-  const gfEux = feuille.gfA !== undefined ? (nous === 'A' ? feuille.gfB : feuille.gfA) : (feuille.buts || []).filter(x => x.cote !== nous).length;
-  const titre = `${eq} ${gfNous}, ${autre} ${gfEux}`
-    + (sit && sit.tags.has('barrage') ? ' (tirs de barrage)' : sit && sit.tags.has('OT') ? ' (prolongation)' : '');
-  if (!sit) return { titre, lignes: [] };
-
-  const seed = `${graineDuMatch}|${nous}|${eq}|${autre}|${feuille.gfA}-${feuille.gfB}|${(feuille.buts || []).length}`;
-  const dejaDit = new Set();
+  // Une pièce qui ne se dit qu'une fois dans le texte : le même qualificatif ne revient pas sur deux lignes.
+  const qDits = new Set();
+  const unique = (banque, cle, vals) => {
+    const i = Math.floor(alea(cle) * banque.length);
+    for (let k = 0; k < banque.length; k++) {
+      const t = rempl(banque[(i + k) % banque.length], vals);
+      if (!qDits.has(t)) { qDits.add(t); return ` ${t}`; }
+    }
+    return '';
+  };
+  /* ----- les lignes, par section, avec leur priorité de retrait (haut = tombe d'abord) ----- */
   const lignes = [];
-  const ouv = piger(OUVERTURE, sit, seed, 'ouverture', dejaDit);
-  if (ouv) lignes.push(ouv.texte);
-  const con = piger(CONSTAT, sit, seed, 'constat', dejaDit);
-  if (con) lignes.push(con.texte);
-  const an1 = piger(ANALYSE, sit, seed, 'analyse1', dejaDit);
-  if (an1) lignes.push(an1.texte);
-  const th = an1 ? themeDe(an1.piece) : '';
-  const an2 = piger(ANALYSE, sit, seed, 'analyse2', dejaDit, p => themeDe(p) === th);
-  if (an2) lignes.push(an2.texte);
-  const chu = piger(CHUTE, sit, seed, 'chute', dejaDit);
-  if (chu) lignes.push(chu.texte);
-  return { titre, lignes };
+  const dit = new Set();
+  // L'élision d'un nom propre (« de Angotti » → « d'Angotti ») et le point d'un « Jr. » en fin de phrase.
+  const liss = t => t.replace(/\.\.(?!\.)/g, '.').replace(/\bde (?=[AEIOUYÉÈ])/g, "d'");
+  const ajouter = (section, brut, p = 0) => {
+    const texte = brut && liss(brut);
+    if (!texte || dit.has(texte)) return;
+    dit.add(texte);
+    lignes.push({ section, texte, p, n: lignes.length });
+  };
+
+  /* ===== LE MATCH ===== */
+  {
+    const s = `${gf[W]}-${gf[L]}`;
+    const ecart = gf[W] - gf[L];
+    const banque = ot ? ENTREE_PROLONGATION : gf[L] === 0 ? ENTREE_BLANCHI : ecart >= 4 ? ENTREE_NETTE : ENTREE_NORMALE;
+    ajouter('Le match', piger(banque, 'entree', { W: nm[W], L: nm[L], s }), 0);
+
+    const tA = somme(f.tirs && f.tirs.A), tB = somme(f.tirs && f.tirs.B);
+    if (tA || tB) {
+      if (tA === tB) ajouter('Le match', piger(TIRS_EGAUX, 'tirs', { a: tA }), 3);
+      else {
+        const X = tA > tB ? 'A' : 'B';
+        const banqueTirs = X === W ? TIRS_DOMINE : TIRS_DOMINE_PERDU;
+        ajouter('Le match', piger(banqueTirs, 'tirs', { X: nm[X], a: Math.max(tA, tB), b: Math.min(tA, tB) }), 3);
+      }
+    }
+    if (creux >= 2) ajouter('Le match', piger(REMONTEE, 'remontee', { W: nm[W], L: nm[L], n: creux }), 4);
+
+    const ser = /^(\d+)-(\d+)$/.exec(f.serie || '');
+    if (ser) {
+      const w = { A: Number(ser[1]), B: Number(ser[2]) };
+      const n = w.A + w.B, wW = w[W], wL = w[L];
+      let phrase;
+      if (wW === 4) {
+        phrase = wL === 0 ? pige([`${nm[W]} balaie ${nm[L]} 4-0 et remporte la série.`, `Balayage : ${nm[W]} gagne la série 4-0 contre ${nm[L]}.`], 'serie')
+          : pige([`${nm[W]} remporte la série ${wW}-${wL} contre ${nm[L]}.`, `${nm[W]} élimine ${nm[L]}, ${wW}-${wL} dans la série.`], 'serie');
+      } else if (wW === wL) {
+        phrase = wW === 3 ? `La série est égale ${wW}-${wL} : un septième match décidera de tout.` : `La série est égale ${wW}-${wL}.`;
+      } else if (wW > wL) {
+        phrase = wW === 3 ? `${nm[W]} mène la série ${wW}-${wL} et n'est plus qu'à une victoire de l'emporter.` : `${nm[W]} mène la série ${wW}-${wL}.`;
+      } else {
+        phrase = wL === 3 ? `${nm[W]} évite l'élimination : ${nm[L]} mène la série ${wL}-${wW}.` : `${nm[W]} réduit l'écart : ${nm[L]} mène la série ${wL}-${wW}.`;
+      }
+      ajouter('Le match', `Match ${n} de la série. ${phrase}`, 1);
+    }
+    if (ctx.fiche && Number.isFinite(ctx.fiche.v) && Number.isFinite(ctx.fiche.d) && Number.isFinite(ctx.fiche.pr)) {
+      ajouter('Le match', `Après ce match, ${nm[nous]} affiche une fiche de ${ctx.fiche.v}-${ctx.fiche.d}-${ctx.fiche.pr}.`, 2);
+    }
+  }
+
+  /* ===== LE FIL PÉRIODE PAR PÉRIODE ===== */
+  {
+    const compact = buts.length > MAX_BUTS_UN_PAR_UN;
+    const sitDe = x => (x.but.an ? ', en avantage numérique,' : x.but.dn ? ', en infériorité numérique,' : '');
+    const passesDe = but => {
+      const ps = (but.passeurs || []).map(nomDe);
+      if (ps.length >= 2) return rempl(pige(PASSE_DEUX, `passes|${but.instant}`), { a: ps[0], b: ps[1] });
+      if (ps.length === 1) return rempl(pige(PASSE_UNE, `passes|${but.instant}`), { a: ps[0] });
+      return pige(SANS_AIDE, `passes|${but.instant}`);
+    };
+    const scoreDe = x => {
+      const t = x.apres[x.T], o = x.apres[x.O];
+      return t >= o ? `${t}-${o}` : `${o}-${t}`;
+    };
+    const butLigne = x => {
+      const but = x.but, cle = `but|${but.instant}|${x.i}`;
+      const vals = { T: nm[x.T], s: scoreDe(x) };
+      const dT = x.avant[x.T] - x.avant[x.O];
+      const total = x.avant.A + x.avant.B;
+      const prol = but.instant >= 60;
+      const banque = prol ? VERBES_PROLONGATION : total === 0 ? VERBES_OUVRE : dT === 0 ? VERBES_AVANCE : dT === -1 ? VERBES_EGALISE : dT < -1 ? VERBES_REDUIT : VERBES_ALLONGE;
+      const verbe = rempl(pige(banque, `${cle}|v`), vals);
+      let texte = `${nomDe(but.marqueur)}${sitDe(x)} ${verbe}, ${passesDe(but)}`;
+      if (but.gardien && but.gardien.n && alea(`${cle}|g`) < 0.45) texte += `, ${rempl(pige(GARDIEN_BATTU, `${cle}|gb`), { G: nomDe(but.gardien) })}`;
+      texte = `${cap(quandCourt(but.instant, `${cle}|q`))}, ${texte}.`;
+      if (x.nth === 2) texte += unique(DOUBLE, `${cle}|n`, {});
+      else if (x.nth === 3) texte += unique(CHAPEAU, `${cle}|n`, {});
+      else if (x.nth > 3) texte += ` Son ${ordinal(x.nth)} but du match.`;
+      if (x.gagnant && !prol) texte += ` ${pige(MARQUE_GAGNANT, `${cle}|w`)}`;
+      if (x === assurance) texte += ` ${pige(MARQUE_ASSURANCE, `${cle}|a`)}`;
+      return texte;
+    };
+    const butCompact = x => {
+      const but = x.but;
+      const ps = (but.passeurs || []).map(nomDe);
+      const aide = ps.length ? `passes de ${ps.join(' et ')}` : 'sans aide';
+      const sit = but.an ? ', avantage numérique' : but.dn ? ', infériorité numérique' : '';
+      const rang = x.nth > 1 ? `, ${x.nth}e but du match` : '';
+      return `${tempsRestant(but.instant)} ${nomDe(but.marqueur)} (${nm[x.T]}${sit}, ${aide}), score ${scoreDe(x)}${rang}${x.gagnant ? `, but gagnant${but.instant >= 60 ? ' en prolongation' : ''}` : ''}`;
+    };
+    const etat = (A, B) => (A === B ? `Égalité ${A}-${B}` : `${nm[A > B ? 'A' : 'B']} mène ${Math.max(A, B)}-${Math.min(A, B)}`);
+
+    for (const per of [1, 2, 3, 4]) {
+      const section = NOM_PERIODE[per];
+      const duPeriode = fil.filter(x => periodeDe(x.but.instant) === per);
+      if (per === 4 && !duPeriode.length) continue;
+      if (compact && duPeriode.length) {
+        for (let k = 0; k < duPeriode.length; k += 2) {
+          const lot = duPeriode.slice(k, k + 2);
+          ajouter(section, `${lot.length > 1 ? 'Buts' : 'But'} : ${lot.map(butCompact).join(' ; ')}.`, 0);
+        }
+      } else {
+        for (const x of duPeriode) ajouter(section, butLigne(x), 0);
+      }
+      if (per === 4) continue;
+      const tA = tirsPeriode(f, 'A', per), tB = tirsPeriode(f, 'B', per);
+      const fin = duPeriode.length ? duPeriode[duPeriode.length - 1].apres : (() => {
+        const avant = fil.filter(x => periodeDe(x.but.instant) < per);
+        return avant.length ? avant[avant.length - 1].apres : { A: 0, B: 0 };
+      })();
+      const tirs = duPeriode.length ? `Tirs de la ${NOM_PERIODE[per]} : ${nm.A} ${tA}, ${nm.B} ${tB}.`
+        : `Aucun but en ${NOM_PERIODE[per]} : ${nm.A} ${pl(tA, 'tir')}, ${nm.B} ${pl(tB, 'tir')}.`;
+      let pointage = '';
+      if (per < 3) pointage = ` ${etat(fin.A, fin.B)} après la ${NOM_PERIODE[per]}.`;
+      else if (ot) pointage = ` Égalité ${fin.A}-${fin.B} : le match se rend en prolongation.`;
+      ajouter(section, `${tirs}${pointage}`, 1);
+    }
+  }
+
+  /* ===== LES GARDIENS ===== */
+  for (const c of ['A', 'B']) {
+    const g = c === 'A' ? f.gardienA : f.gardienB;
+    if (!g || !g.n || !f.arrets) continue;
+    const arrets = f.arrets[c] || 0;
+    const alloues = buts.filter(x => x.cote !== c).length;
+    const recus = arrets + alloues;
+    const vals = { G: nomDe(g), T: nm[c], n: arrets, t: recus, pct: recus ? pct3(arrets / recus) : '' };
+    if (!recus) { ajouter('Les gardiens', `${vals.G} (${vals.T}) n'a affronté aucun tir.`, 3); continue; }
+    let texte = piger(alloues === 0 ? GARDIEN_BLANCHI : GARDIEN_NORMAL, `gardien|${c}`, vals);
+    const part = arrets / recus;
+    const perdu3 = c === W ? false : gf[W] - gf[L] >= 3;
+    if (alloues > 0 && part >= 0.93 && recus >= 25 && !perdu3) texte += unique(GARDIEN_SOLIDE, `gardienq|${c}`, vals);
+    else if (alloues >= 4 && part < 0.88) texte += unique(GARDIEN_DUR, `gardienq|${c}`, vals);
+    ajouter('Les gardiens', texte, 3);
+  }
+
+  /* ===== LES UNITÉS SPÉCIALES ===== */
+  {
+    const occ = c => penalites.filter(p => p.cote !== c).length;
+    const buteAN = c => buts.filter(x => x.cote === c && x.an).length;
+    const dn = c => buts.filter(x => x.cote === c && x.dn).length;
+    const equipes = ['A', 'B'].filter(c => occ(c) > 0);
+    const phrases = [];
+    if (equipes.length) {
+      const [p, q] = equipes;
+      const lie = pige([0, 1], 'an|forme');
+      if (lie === 0) phrases.push(`${pige(['Avantage numérique', 'Jeu de puissance'], 'an')} : ${equipes.map(c => `${nm[c]} ${buteAN(c)} en ${occ(c)}`).join(', ')}.`);
+      else phrases.push(`${nm[p]} a converti ${buteAN(p)} de ses ${occ(p)} avantage${occ(p) > 1 ? 's' : ''} numérique${occ(p) > 1 ? 's' : ''}${q ? `, ${nm[q]} ${buteAN(q)} de ses ${occ(q)}` : ''}.`);
+    }
+    const inf = ['A', 'B'].filter(c => dn(c) > 0).map(c => `${nm[c]} ${dn(c)}`);
+    if (inf.length) phrases.push(`Buts en infériorité numérique : ${inf.join(', ')}.`);
+    if (phrases.length) ajouter('Unités spéciales', phrases.join(' '), 4);
+  }
+
+  /* ===== LES INCIDENTS : choisis d'abord, racontés là où ils remplacent la ligne plate ===== */
+  const utilises = new Set();
+  const choisir = (banque, cle) => {
+    const i = Math.floor(alea(cle) * banque.length);
+    for (let k = 0; k < banque.length; k++) {
+      const t = banque[(i + k) % banque.length];
+      if (!utilises.has(t)) { utilises.add(t); return t; }
+    }
+    return banque[i];
+  };
+  const incident = { punition: null, coup: null, bagarre: null, melee: null };
+  // Un tirage par genre et par match, puis un événement parmi ceux du genre : les incidents ne viennent pas à tous les matchs.
+  const premier = (liste, type) => (liste.length && alea(`inc|${type}`) < CHANCE[type] ? Math.floor(alea(`inc|${type}|i`) * liste.length) : -1);
+  const iP = premier(penalites, 'punition');
+  if (iP >= 0) incident.punition = penalites[iP];
+  const coups = physique.filter(e => e.type === 'coup');
+  const iC = premier(coups, 'coup');
+  if (iC >= 0) incident.coup = coups[iC];
+  const bagarres = physique.filter(e => e.type === 'bagarre');
+  const iB = premier(bagarres, 'bagarre');
+  if (iB >= 0) incident.bagarre = bagarres[iB];
+  const melees = physique.filter(e => e.type === 'melee');
+  const iM = premier(melees, 'melee');
+  if (iM >= 0) incident.melee = melees[iM];
+  // Plafond : les blessures d'abord (elles sont toujours écrites), puis les autres selon l'ordre du jeu.
+  const blessures = (f.blessures || []).filter(x => x.joueur);
+  let place = Math.max(0, MAX_INCIDENTS - blessures.length);
+  for (const k of ['bagarre', 'punition', 'melee', 'coup']) {
+    if (!incident[k]) continue;
+    if (place > 0) place--; else incident[k] = null;
+  }
+
+  /* ===== LA DISCIPLINE : les faits, et seulement ce que la feuille dit ===== */
+  {
+    if (!penalites.length) ajouter('Discipline', pige(["Aucune punition n'a été décernée.", 'Match sans punition.'], 'sanspun'), 3);
+    for (const c of ['A', 'B']) {
+      const siennes = penalites.filter(p => p.cote === c).sort((x, y) => x.instant - y.instant);
+      if (!siennes.length) continue;
+      const details = siennes.filter(p => p !== incident.punition).slice(0, 3).map((p, i) => {
+        const infra = pige(INFRACTIONS, `infra|${c}|${p.instant}|${i}`);
+        return `${nomDe(p.joueur)} (${infra}, ${quandLong(p.instant, `pq|${c}|${p.instant}`)})`;
+      });
+      const reste = siennes.filter(p => p !== incident.punition).length - details.length;
+      const minutes = new Set(siennes.map(p => p.minutes || 2));
+      const genre = minutes.size === 1 ? ` de ${[...minutes][0]} minutes` : '';
+      const entete = `${nm[c]} a écopé de ${pl(siennes.length, 'punition')}${genre}`;
+      ajouter('Discipline', details.length ? `${entete} : ${details.join(' ; ')}${reste > 0 ? ` et ${pl(reste, 'autre')}` : ''}.` : `${entete}.`, 5);
+    }
+    for (const e of bagarres) {
+      if (e === incident.bagarre) continue;
+      const quand = quandLong(e.instant, `bq|${e.instant}`);
+      const duo = `${nomDe(e.joueur)} (${nm.A}) et ${nomDe(e.cible)} (${nm.B})`;
+      const issue = e.gagnant ? `${nm[e.gagnant]} l'emporte` : "aucun gagnant n'est désigné";
+      ajouter('Discipline', `${cap(quand)}, bagarre entre ${duo} : ${issue}, ${e.minutes} minutes chacun.`, 5);
+    }
+    for (const e of melees) {
+      if (e === incident.melee) continue;
+      ajouter('Discipline', `${cap(quandLong(e.instant, `mq|${e.instant}`))}, mêlée entre ${nomDe(e.joueur)} (${nm.A}) et ${nomDe(e.cible)} (${nm.B}) : ${e.minutes} minutes chacun.`, 8);
+    }
+    const coupsPlats = coups.filter(e => e !== incident.coup).sort((x, y) => x.instant - y.instant).slice(0, 3);
+    if (coupsPlats.length) {
+      const liste = coupsPlats.map(e => `${nomDe(e.joueur)} sur ${nomDe(e.cible)} (${quandLong(e.instant, `cq|${e.instant}`)})`).join(' ; ');
+      ajouter('Discipline', `Mises en échec marquantes : ${liste}.`, 9);
+    }
+  }
+
+  /* ===== LES INCIDENTS RACONTÉS ===== */
+  {
+    // Chaque blessure de la feuille a sa ligne ; la cause, elle, se raconte ou non.
+    blessures.forEach((x, i) => {
+      const quand = quandLong(x.instant, `bless|${i}|q`);
+      const matchs = Number.isFinite(x.matchs) && x.matchs > 0 ? x.matchs : 0;
+      const vals = { j: nomDe(x.joueur), T: nm[x.cote], n: matchs, matchs: matchs > 1 ? 'matchs' : 'match', quand };
+      if (alea(`bless|${i}|chance`) < CHANCE.blessure) {
+        const cause = rempl(choisir(INC_BLESSURE, `bless|${i}|inc`), vals);
+        const fin = matchs ? ` ${rempl(pige(ABSENCE, `bless|${i}|abs`), vals)}` : '';
+        ajouter('Incidents', `${cap(quand)}, ${cause}.${fin}`, 2);
+      } else if (matchs) {
+        ajouter('Incidents', cap(rempl(pige(BLESSE_SANS_CAUSE, `bless|${i}|s`), vals)), 2);
+      } else {
+        ajouter('Incidents', `${vals.j} (${vals.T}) a quitté le match sur une blessure, ${quand}.`, 2);
+      }
+    });
+    if (incident.punition) {
+      const p = incident.punition;
+      const cause = rempl(choisir(INC_PUNITION, 'inc|punition'), { j: nomDe(p.joueur) });
+      ajouter('Incidents', `${cap(quandLong(p.instant, 'inc|punition|q'))}, ${cause}. ${p.minutes || 2} minutes de punition pour ${nm[p.cote]}.`, 7);
+    }
+    if (incident.bagarre) {
+      const e = incident.bagarre;
+      const gagnant = e.gagnant ? (e.gagnant === 'A' ? e.joueur : e.cible) : null;
+      const perdant = e.gagnant ? (e.gagnant === 'A' ? e.cible : e.joueur) : null;
+      const cause = gagnant ? rempl(choisir(INC_BAGARRE, 'inc|bagarre'), { w: nomDe(gagnant), l: nomDe(perdant) })
+        : rempl(choisir(INC_BAGARRE_NUL, 'inc|bagarre'), { a: nomDe(e.joueur), b: nomDe(e.cible) });
+      ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|bagarre|q'))}, bagarre : ${cause}. ${e.minutes} minutes chacun.`, 6);
+    }
+    if (incident.melee) {
+      const e = incident.melee;
+      ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|melee|q'))}, mêlée : ${rempl(choisir(INC_MELEE, 'inc|melee'), { a: nomDe(e.joueur), b: nomDe(e.cible) })}. ${e.minutes} minutes chacun.`, 8);
+    }
+    if (incident.coup) {
+      const e = incident.coup;
+      ajouter('Incidents', `${cap(quandLong(e.instant, 'inc|coup|q'))}, ${rempl(choisir(INC_COUP, 'inc|coup'), { j: nomDe(e.joueur), c: nomDe(e.cible) })}.`, 9);
+    }
+  }
+
+  /* ===== LES ÉTOILES ===== */
+  {
+    const prod = new Map();
+    const de = (p, c) => { if (!prod.has(p)) prod.set(p, { p, c, g: 0, a: 0 }); return prod.get(p); };
+    for (const but of buts) {
+      if (but.marqueur) de(but.marqueur, but.cote).g++;
+      for (const p of but.passeurs || []) de(p, but.cote).a++;
+    }
+    const candidats = [...prod.values()].map(x => ({
+      c: x.c, nom: nomDe(x.p), score: 3 * x.g + 1.5 * x.a,
+      desc: [x.g ? pl(x.g, 'but') : '', x.a ? pl(x.a, 'passe') : ''].filter(Boolean).join(', '),
+    }));
+    for (const c of ['A', 'B']) {
+      const g = c === 'A' ? f.gardienA : f.gardienB;
+      if (!g || !g.n || !f.arrets) continue;
+      const arrets = f.arrets[c] || 0, alloues = buts.filter(x => x.cote !== c).length, recus = arrets + alloues;
+      if (!recus) continue;
+      const part = arrets / recus;
+      const score = alloues === 0 ? 4 : part >= 0.92 && recus >= 20 ? (part - 0.9) * 50 : 0;
+      if (score > 0) candidats.push({ c, nom: nomDe(g), score, desc: alloues === 0 ? `blanchissage, ${pl(arrets, 'arrêt')}` : `${pl(arrets, 'arrêt')} sur ${pl(recus, 'tir')}` });
+    }
+    const etoiles = candidats.filter(x => x.score >= 1)
+      .sort((x, y) => y.score - x.score || (y.c === W) - (x.c === W) || x.nom.localeCompare(y.nom, 'fr')).slice(0, 3);
+    if (etoiles.length) {
+      const liste = etoiles.map((x, i) => `${i + 1}. ${x.nom} (${nm[x.c]}) : ${x.desc}`).join(' ; ');
+      const entree = etoiles.length === 3 ? pige(ETOILES_ENTREE, 'etoiles') : etoiles.length === 2 ? 'Les deux étoiles' : 'La première étoile';
+      ajouter('Les étoiles', `${entree} : ${liste}.`, 0);
+    }
+  }
+
+  /* ----- le plafond : les détails les moins utiles tombent d'abord ----- */
+  let gardees = lignes.slice();
+  while (gardees.length > MAX_LIGNES) {
+    const pire = gardees.reduce((m, x) => (x.p > m.p || (x.p === m.p && x.n > m.n) ? x : m), gardees[0]);
+    if (pire.p === 0) break;
+    gardees = gardees.filter(x => x !== pire);
+  }
+  const sections = [];
+  for (const x of gardees) {
+    let s = sections.find(y => y.titre === x.section);
+    if (!s) { s = { titre: x.section, lignes: [] }; sections.push(s); }
+    s.lignes.push(x.texte);
+  }
+  return { titre, lignes: sections.flatMap(s => s.lignes), sections };
 }

@@ -6,8 +6,9 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, motsDeMutation, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP, matchsEntre } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP, matchsEntre } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
+import { motsDeMutationEnChiffres } from './impact.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
@@ -184,9 +185,9 @@ function modsDuJoueur(p) {
 export const clesDesMods = p => (modsDuJoueur(p) || []).map(m => m.cle);
 const estDansMonAlignement = p => !!p && Object.values(G.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p));
 /* Une modif, en petite carte couchée : son icône, son nom, d'où elle vient et quand, son effet en chiffres. */
-function modHtml(cle, jour, { efface = false, classe = '' } = {}) {
+function modHtml(cle, jour, { efface = false, classe = '', joueur = null } = {}) {
   const M = MUTATIONS[cle];
-  const effets = motsDeMutation(cle).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
+  const effets = motsDeMutationEnChiffres(cle, joueur, { deja: !efface }).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
   return `<div class="fc-mod src-${M.source}${efface ? ' efface' : ''}${classe ? ` ${classe}` : ''}" title="${esc(M.quoi)}">
       <span class="fc-mod-ico" aria-hidden="true">${M.ico}</span>
       <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(M.nom)}</b><small>${esc(SOURCE_MOD[M.source] || 'Carte')} · J${jour + 1}${efface ? ' · effacé par le physio' : ''}</small></span>
@@ -220,13 +221,13 @@ export function sectionMods(p, attente = null) {
   const physio = Math.max(-1, ...posees.filter(x => x.cle === 'physio').map(x => x.jour), ...mods.filter(m => m.cle === 'physio').map(m => m.jour));
   const efface = (cle, jour) => jour < physio && mutationNuit(cle);
   const n = Math.max(casesDAmelioration(varianteApres(varianteJoueur(p), posees)), posees.length);
-  const cases = posees.map(x => modHtml(x.cle, x.jour, { efface: efface(x.cle, x.jour), classe: 'fc-case pleine' }));
+  const cases = posees.map(x => modHtml(x.cle, x.jour, { efface: efface(x.cle, x.jour), classe: 'fc-case pleine', joueur: p }));
   const plus = !attente && peutPoserEnSaison() && cartesAPoserSur(p).length > 0;
   for (let i = posees.length; i < n; i++) {
     const premiere = i === posees.length;
     if (premiere && attente) {
       const M = MUTATIONS[attente.cle];
-      const effets = motsDeMutation(attente.cle).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
+      const effets = motsDeMutationEnChiffres(attente.cle, p).map(x => `<span class="${x.bon ? 'bon' : 'prix'}">${esc(x.txt)}</span>`).join('');
       cases.push(`<button type="button" class="fc-case fc-poser src-${M.source}" data-poser>
         <span class="fc-mod-ico" aria-hidden="true">${M.ico}</span>
         <span class="fc-mod-txt"><span class="fc-mod-tete"><b>${esc(M.nom)}</b><small>${esc(attente.mot || 'En main')}</small></span>
@@ -240,7 +241,7 @@ export function sectionMods(p, attente = null) {
   return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte holo ou or. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
     <div class="fc-mods fc-cases">${cases.join('')}</div>${plein}
     ${arrives.length || situ.length ? `<div class="fc-sec">Ce qui lui est arrivé</div>
-    <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour) })).join('')}${situ.join('')}</div>` : ''}`;
+    <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour), joueur: p })).join('')}${situ.join('')}</div>` : ''}`;
 }
 /*
  * LE VESTIAIRE AU VERSO (1.0, oct.). JP : *est-ce que le verso d'une carte

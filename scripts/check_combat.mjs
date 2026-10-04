@@ -191,6 +191,24 @@ console.log('\n  Le deck de match (S74)\n');
   exiger('la main adverse ne pige jamais une carte d\'origine', vues === 0, `${vues} sur 400 mains`);
 }
 
+/* ---------- 3c. l'écran dit les synergies en chiffres de match (`quand`, `plein`) : `plein` est le maximum de leur règle écrite ---------- */
+{
+  const CANAL = { 'précision': 'finition', 'tirs': 'volume', 'buts contre': 'defense' };
+  const synergies = Object.entries(CARTES_MATCH).filter(([k, C]) => C.synergie && !k.endsWith('+'));
+  const fautes = [];
+  for (const [k, C] of synergies) {
+    const jusqua = C.regle.match(/jusqu'à ([+−])(\d+) %/), jetons = [...C.regle.matchAll(/(précision|tirs|buts contre) ([+−])(\d+) %/gi)];
+    const valeur = (signe, n) => 1 + (signe === '+' ? 1 : -1) * Number(n) / 100;
+    const attendu = jusqua ? { [CANAL[jetons[0][1].toLowerCase()]]: valeur(jusqua[1], jusqua[2]) }
+      : Object.fromEntries(jetons.map(m => [CANAL[m[1].toLowerCase()], 1 + (valeur(m[2], m[3]) - 1) * (/par ligne d'origine/.test(C.regle) ? 2 : 1)]));
+    const dit = C.plein || {};
+    if (!C.quand) fautes.push(`${k} : pas de condition (quand)`);
+    if (JSON.stringify(Object.keys(attendu).sort()) !== JSON.stringify(Object.keys(dit).sort()) || Object.keys(attendu).some(c => Math.abs(attendu[c] - dit[c]) > 1e-9)) fautes.push(`${k} : plein ${JSON.stringify(dit)} au lieu de ${JSON.stringify(attendu)} (règle « ${C.regle} »)`);
+    if (!C.regle.includes('jusqu\'à') && !C.seuil && !/par ligne d'origine/.test(C.regle)) fautes.push(`${k} : une règle sans « jusqu'à » est tout ou rien (seuil)`);
+  }
+  exiger('chaque synergie se dit en chiffres de match : son maximum (`plein`) est celui de sa règle écrite', fautes.length === 0, fautes.join(' · ') || `${synergies.length} cartes`);
+}
+
 /* ---------- 4, 5, 6. dans les feuilles ---------- */
 {
   const graine = 'combat';

@@ -30,6 +30,7 @@ import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeC
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, JOUEURS_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
+import { poserClubLu } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -142,8 +143,12 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
     `${COACHS[k].nom} III, ${n[k]} joueurs : ${canal} ${sans[canal].toFixed(3)} sans eux → ${avec[canal].toFixed(3)} (×${(1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, n[k])).toFixed(1)} de l'écart)`);
   const c5 = payloadDe('consommable:cleCoin', { joueurs: { rapaces: 9 } }).effet.finition, c0 = payloadDe('consommable:cleCoin', {}).effet.finition;
   exiger('une carte de vestiaire grandit avec les joueurs de sa couleur, jusqu\'à son plafond', c0 === 1.01 && Math.abs(c5 - 1.05) < 1e-9, `précision ×${c0} sans joueur → ×${c5} (neuf joueurs, plafonné à cinq)`);
-  const mauvais = Object.keys(BANQUE).flatMap(id => reglesDe(id).filter(m => / par (carte|joueur) /.test(m.txt) && /100 %|−9\d %/.test(m.txt)).map(m => `${id} : ${m.txt}`));
-  exiger('un pas se lit comme un pas (« +0,4 % par carte », jamais « −100 % »)', !mauvais.length, mauvais.slice(0, 3).join(' · ') || 'tous');
+  // L'écran lit les pas en chiffres de match pour TON club (js/impact.js) : « jusqu'à ≈ +0,6 tir par match avec 10 cartes ».
+  poserClubLu(() => ({ team: t }));
+  const pas = Object.keys(BANQUE).flatMap(id => reglesDe(id).filter(m => /^Jusqu'à |^Grandit avec chaque /.test(m.txt)).map(m => `${id} : ${m.txt}`));
+  const mauvais = pas.filter(x => /%/.test(x) || /≈ [+−]\d{2,}[,\d]* (tirs?|buts?)/.test(x) || /≈ −(?:[5-9]|\d{2,})[,\d]* (tirs?|buts?)/.test(x));
+  poserClubLu(null);
+  exiger('un pas se lit comme un pas, en chiffres de match (« jusqu\'à ≈ +0,6 tir par match avec 10 cartes »), jamais un « % »', pas.length > 0 && !mauvais.length, mauvais.slice(0, 3).join(' · ') || `${pas.length} cartes · ${(pas[0] || '').slice(0, 120)}`);
 }
 
 /* 3. Le scaling. */

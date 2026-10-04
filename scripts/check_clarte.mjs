@@ -170,6 +170,9 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   const texte = brut.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const mots = texte.split(' ').filter(w => /[\p{L}\d]/u.test(w)).length;
   borne('la page des règles est courte', mots, 300, 1800, 'mots');
+  // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : un effet se lit en tirs et en buts par match ; la page le dit, et ne le dit plus en « Tirs +8 % ».
+  exiger('la page dit qu\'un effet se lit en chiffres de match, par match', /chiffres de match/.test(texte) && /par match/.test(texte), 'chiffres de match · par match');
+  exiger('la page ne lit plus un effet en pourcentage (« Tirs +8 % »)', !/(Tirs|Précision|Buts contre) [+−]\d+ ?%/.test(texte), 'plus de « Tirs +8 % »');
   const partis = [[/archétype/i, 'l\'archétype'], [/un match sur six/i, '« un match sur six »'], [/PENCHANT/, 'le PENCHANT'], [/franc-tireur|fabricant de jeu/i, 'les profils de S68'],
     [/chimie de trio/i, 'la chimie de trio de S72'], [/Trio d'énergie/i, 'le Trio d\'énergie']];
   const encore = partis.filter(([re]) => re.test(texte)).map(([, nom]) => nom);

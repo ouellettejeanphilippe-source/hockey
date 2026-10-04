@@ -1963,7 +1963,7 @@ const BAGARRE_PAR_PIM = 0.55, MELEE_BASE = 0.5, COUP_MARQUANT_PART = 0.12, BAGAR
 export const ELAN_BAGARRE = 1.06, ELAN_BAGARRE_PERDU = 0.94, ELAN_DUREE = 10, BAGARRE_MINUTES = 5, MELEE_MINUTES = 2;
 export const COUP_MARQUANT_JAMBES = 2, BLESSURE_SONNE = 1.5, BLESSURE_BAGARRE_PERDUE = 3;
 /* Les coups qu'un alignement donne par match, attendus (la même formule qu'`encaisserCoups`). */
-function coupsAttendus(profil) {
+export function coupsAttendus(profil) {
   let total = 0;
   if (!profil || !profil.unites) return 0;
   for (const g of ['F', 'D']) for (const u of profil.unites[g]) {
@@ -4486,6 +4486,18 @@ function choisirUnite(unites) {
   return unites[unites.length - 1];
 }
 
+/*
+ * LES LANCERS ATTENDUS d'un côté sur tout le match à cinq contre cinq, avant la part de forces égales :
+ * le seul endroit qui dit combien un club tire. Le moteur le joue (`jouerCote`) et l'écran le lit
+ * (js/impact.js) — c'est ce qui rend le chiffre annoncé égal à celui qui est joué.
+ */
+export function attenduDeCote(off, def) {
+  return LANCERS_BASE
+    * (off.pression / REF.pression)
+    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION)
+    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef));
+}
+
 /**
  * Un côté du match : l'attaque de `off` tire sur le gardien de `def`.
  *
@@ -4511,10 +4523,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
    *   qualite     facteur sur la finition
    */
   const mode = st?.mode || 'FE';
-  const attenduBase = LANCERS_BASE
-    * (off.pression / REF.pression)
-    * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION)
-    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef));
+  const attenduBase = attenduDeCote(off, def);
   const attendu = st?.lancers != null ? st.lancers : attenduBase * (st?.part ?? 1) * (st ? FE_TIRS : 1);
   const lancers = st?.lancers != null ? poisson(attendu) : Math.max(st?.plancher ?? 6, poisson(attendu));
   const unitesOff = st?.unitesOff !== undefined ? st.unitesOff : off.unites;
@@ -4644,23 +4653,27 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
      * une chance, selon sa chimie, de jouer SON jeu — et ce lancer entre plus.
      * Si le trio qui défend joue la tactique qui la contre, elle est étouffée.
      */
-    let special = null;
+    let special = null, attenteSpec = 1;
     if (mode === 'FE' && trioOff && trioOff.tactique && trioOff.tactique !== 'hourra'
-      && hasard() < SPEC_BASE * (trioOff.chimie || 0) / 100) {
+      && (st?.espP || hasard() < SPEC_BASE * (trioOff.chimie || 0) / 100)) {
       // S79 : le trio qui défend OU sa paire peut jouer le système qui l'étouffe.
       const T = dTrio && dTrio.tactique && TACTIQUES[dTrio.tactique];
       const D = dPaire && dPaire.tactique && SYSTEMES_D[dPaire.tactique];
       special = (T && T.bat === trioOff.tactique) || (D && D.bat === trioOff.tactique) ? 'etouffee' : 'reussie';
+      // LA LECTURE (js/impact.js) ne tire pas ce dé : elle prend son espérance, la chance de l'action × ce qu'elle rapporte.
+      if (st?.espP) { attenteSpec = 1 + SPEC_BASE * (trioOff.chimie || 0) / 100 * (special === 'reussie' ? SPEC_MULT - 1 : 0); special = null; }
     }
     const p = borne(
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
         * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance * devantFilet * elanDe(off, instant)
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1)
-        * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1)
+        * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1) * attenteSpec
         * (vedette && tireur === vedette ? ombre : 1),
       0.005, PCT_TIR_MAX);
 
+    // LA LECTURE (js/impact.js, `pMoyenDuLancer`) : la chance moyenne d'un lancer, sans tirer le but — le tirage ne bouge donc pas avec `p`.
+    if (st?.espP) { st.espP.s += p; st.espP.n++; continue; }
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
     if (journal) journal.tirs[cote][periodeDe(instant)]++;
     // Chaque lancer entre au journal avec son tireur et son gardien : c'est
@@ -4844,7 +4857,7 @@ export function createTeam(name, tag, roster, opts = {}) {
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
-    injuriesLog: [],         // { player, games, at }
+    injuriesLog: [],         // { player, games, at, jour, avant (la photo des cases ce soir-là) }
     journal: [],             // un match par entrée : { n, adv, gf, ga, ot, win } — de quoi raconter la saison
     luck: gauss() * LUCK_SEASON,   // retirée sous la graine par simulateLeague
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0, games: 0,
@@ -5099,7 +5112,8 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
       const n = injuryLength();
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
-      team.injuriesLog.push({ player: p, games: n, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null });
+      // `avant` : l'alignement du soir où il s'est blessé (sa case d'avant, pour son retour — `retourDuBlesse`, js/ballottage.js). Aucun hasard.
+      team.injuriesLog.push({ player: p, games: n, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null, avant: photoAlignement(team.roster) });
       if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, instant: instantDeBlessure(feuille, p, team) });
     }
   }
@@ -5384,6 +5398,121 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
   gfA += jouerCote(pA, pB, gB, chanceA, heavy, track, series, journal, 'A', { ...fe }, ronde);
   gfB += jouerCote(pB, pA, gA, chanceB, heavy, track, series, journal, 'B', { ...fe }, ronde);
   return { gfA, gfB };
+}
+
+/*
+ * LA LECTURE DU SOIR (js/impact.js). Ce que le moteur ferait de CE club CE soir, lu sans rien jouer : les
+ * deux profils exactement comme `playGame` les pose, et la chance moyenne d'un lancer dans chaque situation
+ * (forces égales, avantage, désavantage), des deux côtés. `jouerCote` fait le calcul de chaque lancer — c'est
+ * lui qu'on interroge, pas une copie — sous un hasard à part, en sommant `p` au lieu de tirer le but : le
+ * tirage ne dépend plus de `p`, donc deux lectures (avec et sans un effet) se comparent sans bruit.
+ * Sans adversaire, le soir se lit contre un club moyen (le profil de référence de la ligue).
+ * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
+ */
+export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+  return avecAVenir(team, aVenir, () => {
+    const avait = '_effetMatch' in team, sauve = team._effetMatch;
+    const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
+    const lignesAvant = team.lignes, lignesMatch = team._lignesMatch, avaitL = 'lignes' in team, avaitM = '_lignesMatch' in team;
+    const echelle = ECHELLE_SOIR;
+    let posee = null;
+    try {
+      if (adv && effetsAdv.length) adv._effetMatch = [...(sauveAdv || []), ...effetsAdv];
+      if (effets.length) team._effetMatch = [...(sauve || []), ...effets];
+      // `lignes` : les quatre lignes (système, agressivité, glace) à jouer à la place des tiennes — un système ou une agressivité qu'on essaie.
+      if (lignes) { team.lignes = lignes.map(l => ({ ...l })); team._lignesMatch = null; }
+      // `mutation` : un changement de carte posé le temps de la lecture sur un joueur (`joueur`, ou celui que la carte vise).
+      ECHELLE_SOIR = 1;
+      posee = mutation ? poserMutationLue(team, lineup, mutation) : null;
+      // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
+      if (nu) { team.cartes = []; team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
+      const lu = lineup || activeLineup(team);
+      const A = profilMatch(team, lu, adv);
+      A.rob = teamStrength(team, lu).rob; A.domicile = true;
+      let B, gB = null;
+      if (adv) {
+        const lb = activeLineup(adv);
+        B = profilMatch(adv, lb, team);
+        B.rob = teamStrength(adv, lb).rob; B.domicile = false;
+        gB = pickGoalie(lb, adv.games, adv);
+      } else {
+        B = { pression: REF.pression, zDef: REF.zDef, fgDefaut: REF.fg, discipline: 1, occasions: null, patineurs: [], rob: MOY_ROB_EQUIPE, traitRob: 0 };
+        // Un effet sur eux, posé sur le club de référence comme `profilMatch` le pose (mêmes bornes).
+        for (const e of effetsAdv) {
+          if (e.volume) B.pression = borne(REF.pression * e.volume, 0.40, REF.pression * PRESSION_MAX);
+          if (e.finition) B.finitionFacteur = Math.min(FINITION_MAX, e.finition);
+          if (e.defense) B.traitDef = e.defense;
+          if (e.discipline) B.discipline = borne(e.discipline, DISCIPLINE_MIN, DISCIPLINE_MAX);
+          if (e.robustesse) B.traitRob = e.robustesse;
+        }
+      }
+      const gA = pickGoalie(lu, team.games, team);
+      const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
+      const lire = (off, def, g, mode) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n });
+      const p = { pour: {}, contre: {} };
+      for (const mode of ['FE', 'AN', 'DN']) {
+        p.pour[mode] = lire(A, B, gB, mode);
+        p.contre[mode] = lire(B, A, gA, mode);
+      }
+      // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
+      const dissuasion = Math.exp(-DISSUASION * robZ(A));
+      const habilles = Object.values(lu).filter(Boolean);
+      const blessures = habilles.reduce((a, q) => a + injuryChance(q, heavy) * mutDe(q, 'blessure'), 0) * dissuasion * effetsDeSaison(team).blessure;
+      const couts = coutsDuSoir(team, lu);
+      const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
+      return { A, B, occasions, p, blessures, usure };
+    } finally {
+      if (avait) team._effetMatch = sauve; else delete team._effetMatch;
+      if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
+      if (lignes) {
+        if (avaitL) team.lignes = lignesAvant; else delete team.lignes;
+        if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;
+      }
+      ECHELLE_SOIR = echelle;
+      if (posee) { posee(); MEMO_MATCH++; }
+    }
+  });
+}
+/*
+ * UN CHANGEMENT DE CARTE POSÉ POUR LA LECTURE : le joueur d'abord (celui qu'on donne, sinon celui que la carte vise,
+ * sinon le centre du premier trio), puis une photo de ses champs de mutation pour les lui rendre tels quels.
+ * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
+ */
+const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte'];
+function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false }) {
+  const lu = lineup || activeLineup(team);
+  const p = joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && sl.group === 'F' && sl.unit === 0 && sl.role === 'C').i];
+  if (!p) return null;
+  const photo = CHAMPS_MUTATION.map(k => [k, k in p, p[k] && typeof p[k] === 'object' ? (Array.isArray(p[k]) ? [...p[k]] : { ...p[k] }) : p[k]]);
+  const mutations = team.mutations, avaitMutations = 'mutations' in team, nb = mutations ? mutations.length : 0;
+  if (retirer) {
+    // Une modif déjà posée : on la retire le temps de la lecture (ses facteurs se divisent, ses profils se soustraient).
+    const M = MUTATIONS[cle];
+    if (M) {
+      const dans = M.source === 'amelioration' ? p._amel : p._mut;
+      for (const c of CANAUX_MUT) if (M[c] && dans && dans[c]) dans[c] /= M[c];
+      for (const [k, d] of Object.entries(M.profils || {})) if (p._mutProfils && k in p._mutProfils) p._mutProfils[k] -= d;
+      if (M.partout) delete p._partout;
+      if (M.enBas) delete p._enBas;
+      if (M.cran && p._cran) p._cran = Math.max(0, p._cran - M.cran);
+      if (M.ombre) delete p._ombre;
+      if (M.abri) delete p._abri;
+    }
+  } else appliquerMutation(team, p, cle, 0, 'lecture');
+  return () => {
+    for (const [k, avait, v] of photo) { if (avait) p[k] = v; else delete p[k]; }
+    if (avaitMutations) { team.mutations = mutations; mutations.length = nb; } else delete team.mutations;
+  };
+}
+/* La chance moyenne d'un lancer de `off` sur le gardien de `def`, dans une situation. `mode` : FE, AN (off a l'avantage) ou DN (off est puni). */
+function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n }) {
+  const espP = { s: 0, n: 0 };
+  const st = mode === 'FE' ? { mode, lancers: n, fenetres: [], espP }
+    : mode === 'AN' ? { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE, espP }
+      : { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.desavantage, unitesDef: def.avantage, qualite: DN_QUALITE, espP };
+  avecHasardIsole('lecture', () => jouerCote(off, def, gardien, 1, heavy, null, series, null, 'A', st, ronde));
+  return espP.n ? espP.s / espP.n : 0;
 }
 
 function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {

@@ -5,7 +5,7 @@
 
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, money, pct3, ord, pmMatch } from './util.js';
+import { esc, glyphe, money, pct3, ord, pmMatch } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
@@ -72,7 +72,7 @@ function surLaGlaceHtml(p) {
   for (const b of badgesDe(p)) {
     const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * b.palier / (b.second ? 8 : 4);
     const raison = raisonDuBadge(b);
-    lignes.push(li(`<b class="badge pal-${b.palier}">${b.ico} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' (son second badge)' : ''}.` : '.'}`));
+    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' (son second badge)' : ''}.` : '.'}`));
   }
   const c = carrureDe(p);
   if (c) {

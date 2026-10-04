@@ -20,7 +20,7 @@ import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
-import { bloqueParLePlafond, cartesAJouer, finDeSaisonRogue, jetonsRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
+import { bloqueParLePlafond, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -208,7 +208,8 @@ async function deciderSaison(d, depuis) {
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
   const allume = (d.joue || d.recompense !== undefined) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
   if (allume) d = { ...d, ...allume };
-  const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || (!!d.garde && !d.mutation));
+  // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
+  const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
   decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
@@ -692,17 +693,17 @@ function ouvrirEcranSaison(depuis = 0) {
         // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
         // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), ...o }),
-        // LE MODE ROGUE (S77) : les jetons à ce jour, et la boutique.
-        rogue: G.bonus === 'ROGUE' ? { jetons: j => jetonsRogue(j), boutique: (j, decider) => ouvrirBoutique(j, decider),
+        // LE MODE ROGUE (S77) : la run, pour le Club — rien de la boutique (elle est au Marché).
+        rogue: G.bonus === 'ROGUE' ? {
           // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
           // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
           mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
-        // Chacune s'ouvre dans une page du Club (1.0, R3) : `page` = { dans, fermer }.
-        boutique: { jetons: j => jetonsRogue(j), ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
-        inventaire: { compte: j => cartesAJouer(j), ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page) },
+        // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
+        boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
+        inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page) },
         // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
         coachs: j => ({ actifs: coachsActifs(G.ligue ? G.ligue.decisions || [] : [], j + 1), tien: (G.bonus === 'ROGUE' && G.rogue && G.rogue.coach) || null }),
       },

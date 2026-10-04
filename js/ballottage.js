@@ -144,3 +144,123 @@ export function quiGlisse(roster, A, B, ouverte = () => true) {
   const R = SLOTS.find(R => reserve(R) && roster[R.i] && fits(roster[R.i], A));
   return R ? [[q, R], [roster[R.i], A]] : null;
 }
+
+/*
+ * LA BLESSURE ET SON RETOUR, en fonctions PURES (1.0, oct.). JP : *ça bloque
+ * même après correction, et lors du retour, ça fucke l'alignement complet*.
+ * Deux fautes, une cause : l'écran retenait en mémoire ce qu'il avait déjà
+ * « traité » au lieu de le LIRE sur l'alignement. Ici, tout se déduit de
+ * trois choses — l'effectif d'aujourd'hui, le journal des blessures du moteur
+ * et les matchs joués — donc une page rechargée dit la même chose.
+ *
+ *   — une blessure BLOQUE tant qu'un patineur blessé occupe une case habillée
+ *     qu'un réserviste en santé ou un rappel peut combler ; dès que la case est
+ *     comblée (par n'importe quel chemin), elle ne bloque plus, pour de bon ;
+ *   — un retour ne remet JAMAIS l'alignement d'avant : il rend sa case au
+ *     blessé, renvoie son suppléant d'où il venait, et ne touche à personne
+ *     d'autre.
+ */
+export const BLESSURE_MOMENT = 4;        // à partir de ce nombre de matchs d'absence, la blessure se règle derrière le banc
+export const RETOUR_FENETRE = 3;         // matchs après son retour pendant lesquels on propose de le remettre à sa place
+
+export const caseHabillee = (roster, p) => SLOTS.find(sl => !sl.scratch && roster[sl.i] === p) || null;
+
+/* Les réservistes en santé qui peuvent jouer la case `sl`. */
+const reservistesPour = (roster, injured, sl) => SLOTS.filter(x => x.scratch && roster[x.i] && !injured.has(roster[x.i]) && fits(roster[x.i], sl))
+  .map(x => ({ sl: x, p: roster[x.i] }));
+
+/*
+ * Où en est une blessure : la case habillée du blessé (`sl`), les réservistes
+ * qui peuvent la jouer, et `forcer` — ça bloque. Il faut une case habillée à
+ * combler et de quoi la combler (un réserviste en santé, ou `rappel` : le
+ * ballottage offre quelqu'un). Un gardien n'est jamais forcé : l'auxiliaire
+ * prend le filet de lui-même. Un blessé déjà en réserve n'a pas de case.
+ */
+export function etatDeBlessure({ roster, injured, b, rappel = false }) {
+  const sl = caseHabillee(roster, b.player);
+  const reserves = sl ? reservistesPour(roster, injured, sl) : [];
+  // `rappel` : un booléen, ou une fonction qu'on n'appelle que si aucun réserviste ne comble (le ballottage coûte).
+  return { b, sl, reserves, forcer: !!sl && sl.group !== 'G' && (reserves.length > 0 || !!(typeof rappel === 'function' ? rappel(b) : rappel)) };
+}
+
+/*
+ * La blessure qui s'impose : celle d'un patineur habillé qui court encore, la
+ * plus longue de celles qu'on peut combler (`peutRappeler(b)` : le ballottage
+ * offre quelqu'un), sinon la plus longue tout court — celle-là se dit, elle ne
+ * bloque pas.
+ */
+export function blessureOuverte({ roster, injured, journal, joues, peutRappeler = () => false }) {
+  const h = (journal || [])
+    .filter(b => b.at <= joues && b.at + b.games > joues && b.games >= BLESSURE_MOMENT && b.player.p !== 'G')
+    .sort((x, y) => y.games - x.games)
+    .filter(b => caseHabillee(roster, b.player));
+  const etat = b => etatDeBlessure({ roster, injured, b, rappel: peutRappeler });
+  for (const b of h) { const x = etat(b); if (x.forcer) return x; }
+  return h[0] ? etat(h[0]) : null;
+}
+
+/*
+ * L'alignement est-il valide ? Rend la liste de ce qui cloche : une clé en
+ * double, un joueur inconnu ou à une case qu'il ne joue pas, un joueur perdu
+ * en route (`attendu` : ses clés), une case habillée vide (si `pleine`).
+ */
+export function problemesDAlignement(cases, parCle, { attendu = null, pleine = true } = {}) {
+  const out = [], vus = new Set();
+  for (const [i, k] of Object.entries(cases)) {
+    const sl = SLOTS[Number(i)], p = parCle.get(k);
+    if (!sl) out.push(`case ${i} inconnue`);
+    else if (!p) out.push(`${k} inconnu`);
+    else if (!fits(p, sl)) out.push(`${p.n} ne joue pas ${sl.role}`);
+    if (vus.has(k)) out.push(`${k} en double`);
+    vus.add(k);
+  }
+  if (attendu) for (const k of attendu) if (!vus.has(k)) out.push(`${k} perdu`);
+  if (pleine) for (const sl of SLOTS) if (!sl.scratch && !sl.extra && !cases[sl.i]) out.push(`case ${sl.role} vide`);
+  return out;
+}
+
+/*
+ * LE RETOUR MINIMAL. Le blessé `b.player` revient et n'est plus habillé alors
+ * qu'il l'était (`b.avant`, la photo du soir de sa blessure). On lui rend SA
+ * case ; celui qui l'occupe — le suppléant — retourne là d'où il venait si la
+ * case est encore libre ou si c'est celle que le blessé quitte, sinon à celle
+ * que le blessé quitte, sinon à une réserve libre. Si sa case ne se rend pas,
+ * une autre case habillée de son groupe, dans le même trio ou la même paire
+ * d'abord. Tout le reste ne bouge pas : au plus deux déplacements.
+ *
+ * Rend `{ cases, mouvements: [{ p, de, vers }] }` (`cases` : l'alignement
+ * complet, comme une décision le porte), ou null s'il n'y a rien à rendre ou
+ * si aucun déplacement ne laisse un alignement valide.
+ */
+export function retourDuBlesse({ roster, injured, b }) {
+  const B = b && b.player;
+  if (!B || !b.avant || injured.has(B)) return null;
+  const sB = SLOTS.find(s => roster[s.i] === B);
+  if (!sB || !sB.scratch) return null;              // parti depuis, ou déjà habillé
+  const parCle = new Map(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), p]));
+  const iDe = (cle, avant) => { const i = Object.keys(avant).find(k => avant[k] === cle); return i === undefined ? null : SLOTS[Number(i)] || null; };
+  const T = iDe(getPlayerKey(B), b.avant);
+  if (!T || T.scratch) return null;                 // il n'était pas habillé : rien à lui rendre
+  const attendu = [...parCle.keys()];
+  const cibles = [T, ...SLOTS.filter(s => !s.scratch && s.i !== T.i && s.group === T.group && fits(B, s))
+    .sort((x, y) => (x.unit === T.unit ? 0 : 1) - (y.unit === T.unit ? 0 : 1))];
+  for (const t of cibles) {
+    const X = roster[t.i] || null;
+    if (X === B) return null;
+    const o = X ? iDe(getPlayerKey(X), b.avant) : null;
+    const libres = SLOTS.filter(s => s.scratch && !roster[s.i] && s.i !== sB.i);
+    const dests = X ? [o && o.i !== t.i && (o.i === sB.i || !roster[o.i]) ? o : null, sB, ...libres].filter(s => s && fits(X, s)) : [null];
+    for (const d of dests) {
+      const cases = {};
+      for (const [i, p] of Object.entries(roster)) if (p) cases[i] = getPlayerKey(p);
+      delete cases[sB.i];
+      cases[t.i] = getPlayerKey(B);
+      if (X) cases[d.i] = getPlayerKey(X);
+      if (problemesDAlignement(cases, parCle, { attendu, pleine: false }).length) continue;
+      // Une case habillée remplie avant le retour l'est encore après.
+      if (SLOTS.some(s => !s.scratch && roster[s.i] && !cases[s.i])) continue;
+      return { cases, mouvements: [{ p: B, de: sB, vers: t }, ...(X ? [{ p: X, de: t, vers: d }] : [])] };
+    }
+  }
+  return null;
+}

@@ -28,13 +28,15 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
+  lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto, flechesDe,
-  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, totauxDuSoir, usureDuSoir, motsDesTotaux, motsDEffet, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
+  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
+  activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
+import { motsDuSoir, motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
+import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
@@ -45,6 +47,8 @@ import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
+import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
+import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe } from './vie-gm.js';
@@ -80,11 +84,13 @@ function tableEntracte(ctx, nomMoi, nomLui, lignes) {
 /*
  * CE QUE LES CHOIX TOUCHENT, AVEC LEURS MOTS (1.0, oct.). JP : *les stats pour
  * décider à la mi-match, je parle de celles influencées par les choix, genre
- * précision*. Une rangée par puce d'un geste d'entracte (`motsDEffet`) :
+ * précision*. Une rangée par puce d'un geste d'entracte :
  * Tirs, Précision, Buts contre, Punitions, et la robustesse en mises en échec.
  * Ce soir (deux périodes) et la saison par match, des deux côtés.
  * `saison(c)` : { n, GF, GA, SF, PKO, CO } du club, ou null.
  */
+/* Ce qu'une précision de plus ou de moins vaut en buts, pour ton club. */
+const ditFinition = x => motsEnChiffres({ finition: x.finition }).filter(m => m.cle !== 'rien').map(m => m.txt).join(', ') || 'à peine perceptible';
 function lignesEntracte(f, cMoi, cLui, saison) {
   const tirs = c => ((f.tirs[c] || [])[1] || 0) + ((f.tirs[c] || [])[2] || 0);
   const buts = c => f.buts.filter(b => b.instant < 40 && b.cote === c).length;
@@ -143,17 +149,9 @@ export function saisonDesFeuilles(calendrier) {
   }
   return out;
 }
-/*
- * LA PAGE OÙ L'ON ÉTAIT (1.0, oct.). JP : *quand j'utilise une carte ou
- * qqchose de même, me ramener où j'étais, pas à l'accueil du club, ça gosse
- * revenir faire d'autres cartes*. Une décision prise depuis « Tes cartes » ou
- * la boutique ferme l'écran de saison, qui se rouvre avec elle ; il rouvre
- * alors la même page. Le temps de la page seulement.
- */
-let ROUVRIR = null;
 function boiteDe(graine) {
   const k = String(graine);
-  if (!BOITES.has(k)) BOITES.set(k, { lus: new Set(), archives: new Set(), traites: new Set(), ouvert: null });
+  if (!BOITES.has(k)) BOITES.set(k, { lus: new Set(), archives: new Set(), ouvert: null });
   return BOITES.get(k);
 }
 /* Les pronostics déjà calculés (js/pronostic.js) : une même journée ne se rejoue pas deux fois. */
@@ -211,12 +209,13 @@ function coquille(label) {
   if (sheet) sheet.setAttribute('aria-label', label);
   /*
    * LES PAGES DU CLUB (1.0, R3). JP : *j'hais le nouveau club ; au lieu de modals, faire des pages pour chaque, et
-   * les icônes sont un lien*. Le dépistage, la préparation, le sommaire, tes cartes et la boutique ne s'ouvrent plus
+   * les icônes sont un lien*. Le dépistage, la préparation et le sommaire ne s'ouvrent plus
    * en fenêtre par-dessus le bureau : chacun est une PAGE de la feuille, avec « ‹ » pour revenir au bureau. La page
    * vit à côté de l'affiche et du volet (`.hub-page`, montrée par `data-page` sur la feuille) : elle survit aux
    * rendus de l'affiche, et se referme d'elle-même quand la saison repart (`quitter`) ou qu'une autre page s'ouvre.
-   * Un écran qui rend dans une fenêtre (js/gerant.js, js/magasin.js, js/inventaire.js) rend dans son corps :
-   * `dans` et `fermer` lui disent où, et comment se refermer.
+   * Un écran qui rend dans une fenêtre (js/gerant.js) rend dans son corps :
+   * `dans` et `fermer` lui disent où, et comment se refermer. La boutique et « Tes cartes » n'en sont PAS : elles vivent
+   * au Marché (js/game.js), jamais dans cette feuille.
    */
   let pageOuverte = null;
   const fermerPage = (silencieux = false) => {
@@ -225,8 +224,6 @@ function coquille(label) {
     pageOuverte = null;
     el.remove();
     if (sheet) delete sheet.dataset.page;
-    // La coquille (js/game.js) sait quelle page du Club s'ouvre ou se ferme : la boutique est au Marché.
-    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre: null, de: el.dataset.genre, silencieux } }));
     if (!silencieux && onFerme) onFerme();
     return true;
   };
@@ -247,7 +244,6 @@ function coquille(label) {
     sheet.dataset.page = genre;
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
-    document.dispatchEvent(new CustomEvent('cap82:page', { detail: { genre } }));
     el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermerPage(); });
     return el.querySelector('.hub-page-corps');
   };
@@ -282,6 +278,7 @@ function onglets(barre, volet, liste, rendre) {
     // porte `data-compte` roule depuis sa valeur d'hier — les tuiles du
     // portail, d'une journée à l'autre.
     animerComptes(volet);
+    brancherEntractes(volet);
   };
   const sheet = volet.closest('.hub-sheet');
   const pageDe = cle => (liste.find(o => o.cle === cle) || {}).page || null;
@@ -868,8 +865,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   let trou = null;
   const carteDuTrou = t => mainDeCartes(graine, 1000 + t.at, dejaPrises)[0] || null;
 
-  const BLESSURE_MOMENT = 4;
-
   /*
    * LES MOMENTS (S66). Tout ce qui est déjà décidé se lit dans `decisions` —
    * il n'y a pas d'autre état, et une reprise retrouve exactement les mêmes
@@ -893,7 +888,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     you.jourCourant = j;
     try { return fn(aVenir); } finally { you.jourCourant = jc; }
   };
-  const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => totauxDuSoir(you, null, null, aVenir));
+  const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => motsDuSoir(you, null, null, aVenir));
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
   const momentsAvant = J => decs.filter(d => d.moment && d.moment.famille === 'moment'
     && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
@@ -1098,7 +1093,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const remplacant = p => {
     const s = SLOTS.find(x => you.roster[x.i] === p);
-    if (!s || s.scratch) return 'il était réserviste';
+    if (!s || s.scratch) return 'en réserve';
     const libre = SLOTS.filter(x => x.scratch)
       .map(x => you.roster[x.i])
       .find(r => r && !you.injured.has(r) && (s.group === 'G' ? r.p === 'G' : s.group === 'D' ? r.p === 'D' : r.p === 'F'));
@@ -1107,58 +1102,35 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /*
    * LE RETOUR D'UN BLESSÉ. JP : *quand un joueur est descendu dans
    * l'alignement ou remonté, genre blessure, […] demander si revert lorsque le
-   * joueur revient. Sinon, c'est chiant*. Si tu as remanié derrière le banc
-   * pendant son absence, son retour propose l'alignement d'AVANT sa blessure :
-   * une décision de plus, ou rien. Sans remaniement, rien à demander — il
-   * reprend sa case de lui-même (`activeLineup`).
+   * joueur revient. Sinon, c'est chiant* — puis : *lors du retour, ça fucke
+   * l'alignement complet*. Le retour ne rejoue donc JAMAIS la photo d'avant sa
+   * blessure : `retourDuBlesse` (js/ballottage.js) rend sa case au blessé,
+   * renvoie son suppléant d'où il venait, et ne touche à personne d'autre.
+   * Rien à demander s'il est déjà habillé (il reprend sa case de lui-même,
+   * `activeLineup`). C'est une information avec un choix : elle ne bloque
+   * jamais « Journée suivante ».
    *
-   * L'alignement d'avant se pose sur ton effectif d'AUJOURD'HUI : un joueur
-   * parti depuis (le ballottage, un relâché) n'y revient pas, et celui qui est
-   * arrivé garde sa case, ou en prend une libre de son groupe.
+   * Tout se lit sur l'effectif d'aujourd'hui et sur les décisions : « Remettre »
+   * et « Garder » sont deux décisions du même palier (`rv:…`), donc une page
+   * rechargée ne repose pas la question.
    */
-  const RETOUR_FENETRE = 3;          // matchs après son retour pendant lesquels on le demande
   function retourOuvert() {
     if (!onDecision) return null;
     const joues = miens.length;
     for (const b of [...(you.injuriesLog || [])].sort((x, y) => y.at - x.at)) {
       const fin = b.at + b.games;      // le dernier match qu'il manque
-      if (fin > joues || joues - fin > RETOUR_FENETRE || !miens[b.at - 1]) continue;
-      const cle = getPlayerKey(b.player), id = `rv:${b.at}:${cle}`;
-      if (pris.has(id) || boiteDe(graine).traites.has(id)) continue;
-      if (!SLOTS.some(sl => you.roster[sl.i] === b.player)) continue;   // parti depuis
-      const jInj = miens[b.at - 1].j;
-      // Un remaniement (le banc, un réserviste monté, un rappel) depuis sa blessure.
-      if (!decs.some(d => d.cases && d.jour > jInj && d.jour <= jour)) continue;
-      const avant = decs.filter(d => d.cases && d.jour <= jInj).pop();
-      if (!avant) continue;
-      const cases = alignementRepose(avant.cases);
-      if (!cases) continue;
-      const maintenant = photoAlignement(you.roster);
-      const changes = SLOTS.filter(sl => !sl.scratch && cases[sl.i] !== maintenant[sl.i] && cases[sl.i]);
-      if (!changes.length) continue;
-      return { b, id, avant, cases, changes };
+      if (fin > joues || joues - fin > RETOUR_FENETRE) continue;
+      const id = `rv:${b.at}:${getPlayerKey(b.player)}`;
+      if (pris.has(id)) continue;
+      const r = retourDuBlesse({ roster: you.roster, injured: you.injured, b });
+      if (r) return { b, id, ...r };
     }
     return null;
   }
-  function alignementRepose(casesAvant) {
-    const ici = new Map(Object.values(you.roster).filter(Boolean).map(p => [getPlayerKey(p), p]));
-    const out = {};
-    for (const [i, k] of Object.entries(casesAvant)) if (ici.has(k)) out[i] = k;
-    const places = new Set(Object.values(out));
-    const maintenant = photoAlignement(you.roster);
-    for (const [i, k] of Object.entries(maintenant)) if (!places.has(k) && !(i in out)) { out[i] = k; places.add(k); }
-    for (const [k, p] of ici) {
-      if (places.has(k)) continue;
-      // Une case habillée d'abord : laisser un trou dans un trio pour remplir une réserve vidait la case 0 (smoke, graine 3).
-      const sl = SLOTS.filter(x => !(x.i in out) && fits(p, x)).sort((a, b) => (a.scratch - b.scratch) || ((a.extra || 0) - (b.extra || 0)))[0];
-      if (!sl) return null;
-      out[sl.i] = k; places.add(k);
-    }
-    // Un alignement qui laisse une case habillée vide n'est pas un retour : on ne l'offre pas.
-    return SLOTS.some(x => !x.scratch && !x.extra && !(x.i in out) && maintenant[x.i]) ? null : out;
-  }
   let alerte = null;                 // la blessure à annoncer, ou null
   const vues = new Set();            // les entrées du journal déjà annoncées
+  const retoursVus = new Set();      // les retours déjà dits : l'avance ne s'arrête qu'une fois dessus
+  const retourNeuf = () => { const r = retourOuvert(); return !!r && !retoursVus.has(r.id); };
 
   /* Les blessures survenues jusqu'ici et jamais annoncées, la plus longue en tête. */
   function blessuresNeuves() {
@@ -1195,10 +1167,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourOuvert())) { arrete = true; break; }
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf())) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
+    const rvu = retourOuvert();
+    if (rvu) retoursVus.add(rvu.id);
     const neuves = blessuresNeuves();
     alerte = blessureOuverte() || (neuves.length ? neuves[0] : null);
     for (const b of neuves) vues.add(b);
@@ -1249,18 +1223,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * prend sa case, le blessé descend en réserve) ou remanier derrière le banc.
    * Rien n'est retenu : la blessure est réglée quand l'alignement le dit.
    */
-  function caseHabillee(p) { return SLOTS.find(sl => !sl.scratch && you.roster[sl.i] === p) || null; }
+  /*
+   * LA BLESSURE QUI S'IMPOSE, lue sur l'alignement (`blessureOuverte`, js/ballottage.js) : elle ne
+   * dépend d'aucune mémoire de l'écran, donc ni d'un clic « traité » perdu au rechargement ni d'un
+   * banc ouvert par un autre chemin. Un rappel du ballottage compte comme un remède.
+   */
+  function rappelPossible(b) {
+    const bal = ctx.ballottage && !pris.has(`b:${b.at}:${getPlayerKey(b.player)}`) ? ctx.ballottage(b.player, b.at) : null;
+    return !!(bal && bal.candidats.length);
+  }
   function blessureOuverte() {
     if (!onDecision) return null;
-    // Le même critère que le message : un patineur habillé (un gardien se règle de lui-même).
-    const joues = miens.length;
-    return (you.injuriesLog || [])
-      .filter(b => b.at <= joues && b.at + b.games > joues && b.games >= BLESSURE_MOMENT && b.player.p !== 'G' && caseHabillee(b.player))
-      .sort((x, y) => y.games - x.games)[0] || null;
+    const x = blessureAFaire({ roster: you.roster, injured: you.injured, journal: you.injuriesLog, joues: miens.length, peutRappeler: rappelPossible });
+    return x ? x.b : null;
   }
-  /* Les réservistes en santé qui peuvent jouer la case du blessé. */
-  const reservistesPour = sl => SLOTS.filter(x => x.scratch && you.roster[x.i] && !you.injured.has(you.roster[x.i]) && fits(you.roster[x.i], sl))
-    .map(x => ({ sl: x, p: you.roster[x.i] }));
   /* L'alignement où le blessé et un autre échangent leurs cases. */
   const echange = (a, b) => { const c = photoAlignement(you.roster), k = c[a]; c[a] = c[b]; c[b] = k; return c; };
 
@@ -2310,6 +2286,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }).join('');
     return `${tete}<div class="hub-titre">Les ménager</div><div class="hub-note">Au matin de la journée ${m.horizon + 1}, avec et sans le choix : tes matchs d'ici là rejoués ${MESURES_JAMBES} fois par le moteur.</div><div class="jb-props">${props}</div>`;
   }
+  // TON STYLE (docs/impact-des-choix.md, §6.1) : tes derniers matchs contre la ligue, lus sur les feuilles révélées.
+  const styleHtml = () => {
+    const vus = matchsJoues(calendrier.slice(0, jour));
+    const p = profilDuClub(vus, you), l = profilDeLigue(vus, you);
+    return deckDeCartons(cartesDeStyle({ profil: p, ligue: l, style: motDeStyle(p, l) }), { cle: 'style' });
+  };
   const voletFiche = () => {
     if (!miens.length) return `${routeFiche()}${calendrierFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
@@ -2320,7 +2302,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `${routeFiche()}${calendrierFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${styleHtml()}${routeFiche()}${calendrierFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*
@@ -2363,15 +2345,22 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return voletJournee();
   });
   /*
-   * LE MARCHÉ (1.0, R1 ; v2) : la boutique du jour et tes cartes, de la section Marché de la coquille — leur
-   * seule porte depuis que la rangée de liens du bureau est partie. Chacune dans sa page du Club (1.0, R3) :
-   * `dans` dit où rendre, `fermer` comment revenir au bureau ; ses décisions passent par le même chemin.
+   * LE MARCHÉ (1.0, R1 ; v2) : la boutique du jour et tes cartes vivent dans la section Marché de la coquille
+   * (js/game.js), JAMAIS dans la feuille du Club. Ici, seulement ce que le Marché demande à l'écran de saison :
+   * `page` = { dans, fermer } dit où rendre ; les décisions (un achat, une carte jouée) passent par le même
+   * chemin que toutes les autres, et le Marché se redessine seul quand l'écran se rouvre.
    */
-  const decideDuMarche = page => d => { const j = jour; ROUVRIR = page; quitter(); onDecision(d, j); };
-  if (onDecision && ctx.inventaire) tabs.hub.cartes = () => ctx.inventaire.ouvrir(jour, decideDuMarche('cartes'),
-    { dans: ui.ouvrirPage({ genre: 'cartes', ico: '🎒', titre: 'Tes cartes', sousTitre: ctx.boutique ? `🪙 ${ctx.boutique.jetons(jour)} jetons` : '' }), fermer: () => ui.fermerPage(true) });
-  if (onDecision && ctx.boutique) tabs.hub.boutique = () => ctx.boutique.ouvrir(jour, decideDuMarche('boutique'),
-    { dans: ui.ouvrirPage({ genre: 'boutique', ico: '🛒', titre: 'La boutique', sousTitre: `🪙 ${ctx.boutique.jetons(jour)} jetons` }), fermer: () => ui.fermerPage(true) });
+  let boitePrete = false;
+  const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
+  if (onDecision && ctx.inventaire) tabs.hub.cartes = page => ctx.inventaire.ouvrir(jour, decideDuMarche, page);
+  if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
+  // UN JOUEUR À SIGNER (un pack ouvert, personne de signé) se traite au Marché : le Marché demande s'il y en a un, et le rouvre.
+  if (onDecision && ctx.boutique && ctx.boutique.rouvrir) {
+    // Pas avant que l'écran soit dessiné : la boîte lit des constantes que l'ouverture n'a pas encore posées.
+    const enAttente = () => (boitePrete ? messagesCourants().find(m => m.genre === 'pack') || null : null);
+    tabs.hub.signature = () => !!enAttente();
+    tabs.hub.signer = () => { const m = enAttente(); if (m) ctx.boutique.rouvrir(m.achat, jour, decideDuMarche); };
+  }
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
   /*
@@ -2507,7 +2496,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sorte === 'atelier') {
       ouvrirChoix({ ...suite, ico: '🛠️', titre: 'L\'atelier',
         recit: 'Trois éditions : touche celle que tu gardes. Elle va dans ton inventaire, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
-        options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutation(k) })),
+        options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutationEnChiffres(k) })),
         onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
       return;
     }
@@ -2702,7 +2691,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div>` : '';
       const grosDepistage = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-dep">
         ${onDecision ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) }) }) : ''}
-        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, précision ${flechesDe(ELAN.finition)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, précision ${flechesDe(SONNE.finition)} · ${SONNE.duree} matchs`, bon: false }])}</div>
+        <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, ${ditFinition(ELAN)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, ${ditFinition(SONNE)} · ${SONNE.duree} matchs`, bon: false }])}</div>
         ${onDecision ? '<div class="hub-gros-note">🎬 Au deuxième entracte, un choix t\'attend.</div>' : ''}
       </div>` : '';
       /*
@@ -2721,7 +2710,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
-      const totJ = motsDesTotaux(totauxDuMatch(p.j));
+      const totJ = totauxDuMatch(p.j);
       const totauxHtml = `<div class="hub-totaux" title="Les effets se multiplient entre eux. Le détail est dans « Préparer le match »."><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${totJ.length ? puces(totJ) : '<span class="puce neutre">aucun effet</span>'}</span></div>`;
       // Les quatre étapes du soir : où on en est, et hier soir en premier tant qu'on ne l'a pas passé.
       const kHier = jour > 0 ? indexMien(jour - 1) : -1;
@@ -2743,8 +2732,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       /*
        * PLUS DE RANGÉE DE LIENS (v2). JP : *enlever les boutons qui se dédoublent dans l'accueil club*. Chaque
        * lien de l'ancienne rangée (1.0, R3) avait déjà sa porte : le dépistage et la préparation sont les étapes
-       * 1 et 2 du soir, la boîte un sous-onglet du Club, le classement et les meneurs la Ligue, tes cartes et la
-       * boutique le Marché (son badge compte les cartes à jouer). L'affiche garde les étapes, hier, le prochain match.
+       * 1 et 2 du soir, la boîte un sous-onglet du Club, le classement et les meneurs la Ligue. Le badge du
+       * Marché compte les cartes à jouer. L'affiche garde les étapes, hier, le prochain match.
        */
       /*
        * LA JOURNÉE EN DEUX (1.0, R3). JP : *séparer le résumé du dernier match et le prochain match, quitte à
@@ -2824,7 +2813,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
         match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
         grosMatch: !!mb,
-        totaux: (match, lignes) => motsDesTotaux(totauxDuMatch(p.j, { match, lignes })),
+        totaux: (match, lignes) => totauxDuMatch(p.j, { match, lignes }),
         usure: (match, lignes) => auSoirDu(p.j, { match, lignes }, aVenir => usureDuSoir(you, aVenir)),
         // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
         filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
@@ -2999,15 +2988,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * ouvert, la blessure qui court, le choix qui attend). Seuls « lu »,
    * « archivé » et « réglé sans décision » se retiennent (`boite`).
    */
-  /* Tes vraies moyennes par match (trois matchs et plus) : ce qu'un pourcentage vaut en quantité (`base`, js/gerant.js). */
-  const baseDuClub = (part = 1, par = 'par match') => {
-    const n = gpDe(you), F = fiche.get(you);
-    return n >= 3 ? { volume: F.SF / n, finition: F.GF / n, defense: F.GA / n, discipline: F.PKO / n, part, par } : null;
-  };
+  /* La part du match qu'un choix touche (une 3e période : le tiers) et comment la dire : les chiffres de match de js/impact.js (`cadre`, js/gerant.js). */
+  const cadreDuMatch = (part = 1, par = 'par match') => ({ part, par });
   function messagesCourants() {
     const out = [];
     const spec0 = onDecision ? choixForce() : null;
-    const spec = spec0 && !spec0.ouvrir ? { ...spec0, base: baseDuClub() } : spec0;
+    const spec = spec0 && !spec0.ouvrir ? { ...spec0, cadre: cadreDuMatch() } : spec0;
     if (spec) {
       const remis = spec.fermable && boite.remis === spec.titre;
       out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: !remis, de: spec.de, sujet: titreDuChoix(spec), spec,
@@ -3021,24 +3007,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * ne choisit pas n'est pas une pige (voir S54 et `smoke.mjs`).
      */
     /*
-     * UN PACK OUVERT, PERSONNE DE SIGNÉ (1.0, J1-B) : l'achat est enregistré
-     * (`k:n`), la signature manque (`k:n:signe`) — la page a été rechargée en
-     * plein choix. Le même tirage se rouvre ; rien n'est retiré ni repayé.
+     * UNE SIGNATURE QUI ATTEND (1.0, J1-B ; oct.) : un pack ouvert, personne de signé — l'achat est enregistré
+     * (`k:n`), la signature manque (`k:n:signe`). JP : *rien de la boutique dans club/accueil*. Le Club nomme
+     * ce qui bloque (un pack ouvert attend ta signature) sans rendre la boutique : son bouton mène au Marché, où l'offre se rouvre (le même
+     * tirage ; rien n'est retiré ni repayé). Elle bloque toujours la journée suivante, comme tout message à traiter,
+     * mais attend jusqu'à la fin de la journée : on gère son équipe d'abord (JP : *permettre jusqu'à la fin de la journée
+     * de choisir le joueur*).
      */
     const packOuvert = onDecision && ctx.boutique && ctx.boutique.rouvrir
       ? decs.find(d => d && d.achat && d.achat.sorte === 'joueurs' && !d.achat.scelle && typeof d.palier === 'string' && /^k:\d+$/.test(d.palier) && !pris.has(`${d.palier}:signe`)) || null
       : null;
     if (packOuvert) {
-      /*
-       * JUSQU'À LA FIN DE LA JOURNÉE (1.0, oct.). JP : *permettre jusqu'à la fin
-       * de la journée de choisir le joueur (mettre dans boîte), pour permettre
-       * gestion de l'équipe*. Refermer le pack ne passe plus : l'offre attend
-       * ici, on gère son équipe, et seule la journée suivante exige un choix.
-       */
-      out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert : signe un joueur, ou passe', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
-        corps: `<div class="hub-msg-mot">Ses cartes sont au classeur. L'offre t'attend jusqu'à la fin de la journée : gère ton équipe, puis signe un joueur ou passe.</div>
+      out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert attend ta signature', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
+        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. Gère ton équipe d'abord : seule la journée suivante exige un choix.</div>
           <div class="hub-alerte-choix">
-            <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Voir les joueurs</button>
+            <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Aller au Marché</button>
             <button type="button" class="btn hub-pack-passer">Ne signer personne</button>
           </div>` });
     }
@@ -3069,45 +3052,53 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     /*
      * LA BLESSURE ET SON BALLOTTAGE, en un seul message (JP : *y'avait aussi
-     * un ballottage, c'est beaucoup pour un écran*). Trois réponses, et il en
-     * faut une : réclamer quelqu'un au ballottage, remanier derrière le banc,
-     * ou garder l'alignement — le réserviste monte, c'est un choix aussi.
+     * un ballottage, c'est beaucoup pour un écran*). Trois réponses : monter
+     * un réserviste, réclamer quelqu'un au ballottage, remanier derrière le
+     * banc. Le message BLOQUE tant que le blessé occupe une case habillée qu'on
+     * peut combler — et SEULEMENT alors : c'est l'alignement qui le dit, jamais
+     * un « traité » retenu en mémoire (JP : *ça bloque même après correction*).
+     * Un blessé en réserve, un gardien, une case sans remède : on le dit, ça
+     * s'archive.
      */
     if (alerte) {
+      // Le blessé qui s'impose passe devant une annonce plus vieille (le même ordre que l'avance).
+      alerte = blessureOuverte() || alerte;
       const idB = `b:${alerte.at}:${getPlayerKey(alerte.player)}`;
       const palierB = idB;
-      const bal = onDecision && ctx.ballottage && !pris.has(palierB) ? ctx.ballottage(alerte.player, alerte.at) : null;
       const n = restantDe(alerte);
-      // Habillé : il faut décider (rien ne se garde). Réserviste : on le dit, et ça se range.
-      const sl = onDecision ? caseHabillee(alerte.player) : null;
-      const reserves = sl ? reservistesPour(sl) : [];
-      // Seulement s'il y a de quoi combler : un réserviste ou un rappel. Un gardien n'est jamais forcé
-      // (l'auxiliaire prend le filet de lui-même, `gardiensDuSoir`) ; sans remède, l'ancien message.
-      const forcer = !!sl && sl.group !== 'G' && (reserves.length > 0 || !!(bal && bal.candidats.length));
-      const defaut = forcer ? (reserves.length ? 'reserve' : 'rappel') : 'garder';
+      const sl = onDecision ? caseHabillee(you.roster, alerte.player) : null;
+      const bal = sl && ctx.ballottage && !pris.has(palierB) ? ctx.ballottage(alerte.player, alerte.at) : null;
+      // `etatDeBlessure` (js/ballottage.js) : le même verdict que l'avance. Un gardien n'est jamais forcé (`gardiensDuSoir`).
+      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) });
+      const reserves = sl ? etat.reserves : [];
+      const forcer = !!sl && etat.forcer;
+      const defaut = forcer ? (reserves.length ? 'reserve' : 'rappel') : 'banc';
       const d = k => (k === defaut ? ' data-defaut' : '');
-      out.push({ id: idB, genre: 'blessure', bloque: !!onDecision && (forcer || !boite.traites.has(idB)), de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB, sl, reserves,
+      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB, sl, reserves,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
           <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${caseDe(alerte.player) ? ` · ${ctx.esc(caseDe(alerte.player))}` : ''}${forcer ? ' · il sort de ton alignement : qui joue sa case ?' : ` · ${ctx.esc(remplacant(alerte.player))}`}</div>
           <div class="hub-alerte-choix">
             ${reserves.length ? `<button type="button" class="btn${defaut === 'reserve' ? ' gold' : ''} hub-alerte-reserve"${d('reserve')}>🪑 Monter un réserviste</button>` : ''}
             ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir"${d('rappel')}>📋 Rappel : ${bal.candidats.length} joueurs</button>` : ''}
-            ${onBanc ? `<button class="btn${forcer ? '' : ' gold'} hub-alerte-banc"${d('banc')}>Remanier derrière le banc</button>` : ''}
-            ${onDecision && !forcer && !boite.traites.has(idB) ? '<button type="button" class="btn hub-alerte-garder" data-defaut>Garder mon alignement</button>' : ''}
+            ${onBanc && sl ? `<button class="btn${forcer ? '' : ' gold'} hub-alerte-banc"${d('banc')}>Remanier derrière le banc</button>` : ''}
           </div>
         </div>` });
     }
+    /*
+     * LE RETOUR : qui revient, d'où il part et où il va, qui lui cède sa case
+     * et où celui-là retourne — deux lignes, rien d'autre ne bouge. Une
+     * information avec un choix, jamais un blocage.
+     */
     const rv = retourOuvert();
     if (rv) {
-      const nomDe = k => { const p = Object.values(you.roster).find(x => x && getPlayerKey(x) === k); return p ? p.n : ''; };
-      out.push({ id: rv.id, genre: 'retour', bloque: true, de: DE.coach, sujet: `${rv.b.player.n} revient : l'alignement d'avant ?`, rv,
+      const court = sl => (ctx.slotShort ? ctx.slotShort(sl) : sl.role);
+      out.push({ id: rv.id, genre: 'retour', bloque: false, de: DE.coach, sujet: `${rv.b.player.n} revient : le remettre à sa place ?`, rv,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🩹 ${ctx.esc(rv.b.player.n)} revient au jeu</div>
-          <div class="hub-alerte-note">Tu as remanié pendant son absence. Avant sa blessure :</div>
-          <div class="hub-mouvements">${rv.changes.map(sl => `<div class="hub-mv">${ctx.esc(nomDe(rv.cases[sl.i]))} : ${ctx.esc(ctx.slotShort ? ctx.slotShort(sl) : sl.role)}</div>`).join('')}</div>
+          <div class="hub-mouvements">${rv.mouvements.map(m => `<div class="hub-mv">${ctx.esc(m.p.n)} : ${ctx.esc(court(m.de))} → ${ctx.esc(court(m.vers))}</div>`).join('')}</div>
           <div class="hub-alerte-choix">
-            <button type="button" class="btn gold hub-retour-remettre" data-defaut>Remettre comme avant</button>
+            <button type="button" class="btn gold hub-retour-remettre" data-defaut>Le remettre à sa place</button>
             <button type="button" class="btn hub-retour-garder">Garder l'alignement actuel</button>
           </div>
         </div>` });
@@ -3118,7 +3109,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         corps: `<div class="hub-situ hub-accident" role="status">
           <div class="hub-situ-tete">${MUTATIONS[accident.cle].ico} Sa carte change : ${ctx.esc(accident.p.n)}</div>
           <div class="hub-situ-quoi">${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>
-          <div class="choix-puces">${puces(motsDeMutation(accident.cle))}</div>
+          <div class="choix-puces">${puces(motsDeMutationEnChiffres(accident.cle, accident.p, { deja: true }))}</div>
         </div>` });
     }
     // LES SITUATIONS : deux hommes nommés, le porté d'abord — c'est lui qui appelle une décision.
@@ -3157,7 +3148,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const { duree: _d, action: _a, ...canaux } = x.effet;
       out.push({ id: `pari:${x.jour}:${x.titre}`, genre: 'pari', de: DE.coach, sujet: `${x.titre} : ${x.gagne ? 'le pari a payé' : 'le pari a mal tourné'}`,
         corps: `<div class="hub-msg-mot">🎲 ${ctx.esc(x.choix)} — ${x.gagne ? 'ça a payé' : 'ça a mal tourné'}.</div>
-          <div class="choix-puces">${puces(motsDEffet(canaux, matchsEntre(you, Math.max(jour, x.jour), x.fin)))}</div>` });
+          <div class="choix-puces">${puces(motsEnChiffres(canaux, matchsEntre(you, Math.max(jour, x.jour), x.fin)))}</div>` });
     }
     // LE RAPPORT DU DÉPISTEUR, tous les dix matchs, jusqu'au suivant.
     const nRap = Math.floor(miens.length / RAPPORT_CHAQUE) * RAPPORT_CHAQUE;
@@ -3274,7 +3265,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');
     const rouvrirPack = actions.querySelector('.hub-pack-rouvrir');
-    if (rouvrirPack && mPack) rouvrirPack.onclick = () => ctx.boutique.rouvrir(mPack.achat, jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    // La signature se traite au Marché (js/game.js écoute `cap82:marche` : il y va, et rouvre l'offre).
+    if (rouvrirPack && mPack) rouvrirPack.onclick = () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { signer: true } }));
     const passerPack = actions.querySelector('.hub-pack-passer');
     if (passerPack && mPack) passerPack.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: mPack.palierSigne, signe: false }, j); };
     // LE BALLOTTAGE, en plein écran : trois joueurs en CARTES (S76), ou garder son réserviste.
@@ -3290,7 +3282,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // Le rappelé entre en réserve (case `i`) puis échange avec le blessé : il joue sa case, le blessé descend.
         // Placé par toi (`cases`, l'étape deux de l'échange) ; sinon il prend la case du blessé, qui descend en réserve.
         const decide = ({ i, sort, cases: placees }) => {
-          boite.traites.add(mB.id);
           let cases = placees;
           if (!cases && mB.sl && SLOTS[i] && SLOTS[i].scratch && c && c.p && fits(c.p, mB.sl)) {
             cases = photoAlignement(you.roster);
@@ -3315,19 +3306,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       }),
       onChoix: k => { const j = jour; quitter(); onDecision({ jour, palier: mB.palierB, cases: echange(mB.sl.i, Number(k)) }, j); },
     });
-    const garder = actions.querySelector('.hub-alerte-garder');
-    if (garder && mB) garder.onclick = () => { boite.traites.add(mB.id); boite.ouvert = null; dessiner(); };
     const mR = msgs.find(m => m.genre === 'retour');
     const remettre = actions.querySelector('.hub-retour-remettre');
     if (remettre && mR) remettre.onclick = () => {
       const { cases, id } = mR.rv, j = jour;
-      boite.traites.add(id); quitter();
+      quitter();
       onDecision({ jour, palier: id, cases }, j);
     };
     const garderR = actions.querySelector('.hub-retour-garder');
-    if (garderR && mR) garderR.onclick = () => { boite.traites.add(mR.id); boite.ouvert = null; dessiner(); };
+    // « Garder » est une décision du même palier : la page rechargée ne repose pas la question.
+    if (garderR && mR) garderR.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: mR.id, retour: 'garde' }, j); };
     const alBanc = actions.querySelector('.hub-alerte-banc');
-    if (alBanc) alBanc.onclick = () => { if (mB) boite.traites.add(mB.id); quitter(); onBanc(jour); };
+    if (alBanc) alBanc.onclick = () => { quitter(); onBanc(jour); };
     for (const sel of ['.hub-situ-banc', '.hub-rap-banc']) {
       const b = actions.querySelector(sel);
       if (b) b.onclick = () => { quitter(); onBanc(jour); };
@@ -3388,7 +3378,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${planAdverseHtml(mb.plan, mb.contre, { nomAdv: ctx.teamShort(adv), prepJuste: mb.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag), base: baseDuClub(1 / 3, 'en 3e'),
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag), cadre: cadreDuMatch(1 / 3, 'en 3e'),
       recit: etat === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etat === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3471,9 +3461,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   modal.style.display = 'flex';
   document.body.style.overflow = 'hidden';
   dessiner();
+  boitePrete = true;
   tabs.montrer('journee');
-  // Revenir où l'on était : la page d'où la décision est partie, par-dessus le bureau.
-  if (ROUVRIR) { const page = ROUVRIR; ROUVRIR = null; if (tabs.hub[page]) tabs.hub[page](); }
   // LA TROISIÈME PÉRIODE (S70) : le choix de l'entracte vient d'être pris.
   if (suiteEntracte) {
     const se = suiteEntracte, p = prochain();
@@ -3652,7 +3641,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
    */
   // La saison de chaque club, lue sur ses feuilles : l'entracte la compare au match.
   const saisonFeuilles = saisonDesFeuilles(saison && saison.calendrier);
-  const baseSerie = (part, par) => { const F = saisonFeuilles.get(you); return F && F.n ? { volume: F.SF / F.n, finition: F.GF / F.n, defense: F.GA / F.n, discipline: F.PKO / F.n, part, par } : null; };
+  const cadreSerie = (part, par) => ({ part, par });
   const planDuMatch = s => (s && s.plans && !complete(s) ? s.plans[revele.get(s)] || null : null);
   /*
    * CE QUE LE DERNIER MATCH DIT DU PROCHAIN (S76) — sans le dévoiler : le plan
@@ -3710,7 +3699,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       ${planAdverseHtml(pl.plan, pl.contre, { nomAdv: ctx.teamShort(boss), prepJuste: pl.prepJuste ?? null })}
     </div>`;
     ouvrirChoix({
-      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag), base: baseSerie(1 / 3, 'en 3e'),
+      ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag), cadre: cadreSerie(1 / 3, 'en 3e'),
       recit: etatM === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etatM === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
@@ -3777,7 +3766,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         aVenir.push({ match, lignes });
         const es = you.effetsSerie, jc = you.jourCourant;
         you.effetsSerie = []; you.jourCourant = Infinity;
-        try { return motsDesTotaux(totauxDuSoir(you, null, null, aVenir)); } finally { you.effetsSerie = es; you.jourCourant = jc; }
+        try { return motsDuSoir(you, null, null, aVenir); } finally { you.effetsSerie = es; you.jourCourant = jc; }
       },
       motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
       onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
