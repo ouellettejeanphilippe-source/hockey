@@ -1115,7 +1115,7 @@ export const CARTES = {
   gardiens: {
     nom: 'Le coach des gardiens', ico: '🥅',
     bon: 'Tu alloues moins de buts', prix: 'Tout le monde recule : moins de lancers',
-    defense: 0.92, volume: 0.92,
+    defense: 0.935, volume: 0.92,
   },
   montent: {
     nom: 'Les défenseurs montent', ico: '🚀',
@@ -1625,44 +1625,44 @@ export const TACTIQUES = {
     nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes',
     slots: { AG: 'power', C: 'energie', AD: 'checker' },
     mot: 'Deux avants vont chercher la rondelle dans leur zone : on la récupère haut.',
-    gain: { volume: 1.115 }, prix: { discipline: 1.153, energie: 1.074 },
+    gain: { volume: 1.141 }, prix: { discipline: 1.183, energie: 1.082 },
   },
   courtes: {
     nom: 'Cycle et possession', ico: '🌀', bat: 'bleue',
     slots: { AG: 'power', C: 'passeur', AD: 'passeur' },
     mot: 'On garde la rondelle le long des bandes et on attend la bonne passe.',
-    gain: { finition: 1.075 }, prix: { volume: 0.953 },
+    gain: { finition: 1.089 }, prix: { volume: 0.943 },
   },
   bleue: {
     nom: 'Volume de tirs', ico: '🌧️', bat: 'defensive',
     slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
     mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
-    gain: { volume: 1.129 }, prix: { finition: 0.96 },
+    gain: { volume: 1.157 }, prix: { finition: 0.954 },
   },
   defensive: {
     nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre',
     slots: { AG: 'deuxsens', C: 'deuxsens', AD: 'checker' },
     mot: 'On bouche la zone neutre : rien ne passe au centre.',
-    gain: { defense: 0.878, discipline: 0.948 }, prix: { volume: 0.943 },
+    gain: { defense: 0.848, discipline: 0.917 }, prix: { volume: 0.939 },
   },
   contre: {
     nom: 'Contre-attaque', ico: '🏹', bat: 'echec',
     slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
     mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
-    gain: { finition: 1.088 }, prix: { defense: 1.048 },
+    gain: { finition: 1.104 }, prix: { defense: 1.058 },
   },
   derriere: {
     // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
     nom: 'Jeu d\'enclave', ico: '🧲', bat: null,
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
-    gain: { finition: 1.048, volume: 1.048 }, prix: { discipline: 1.088 },
+    gain: { finition: 1.058, volume: 1.058 }, prix: { discipline: 1.104 },
   },
   energie: {
     nom: 'Trio de plombiers', ico: '🧰', bat: null,
     slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
     mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
-    gain: { defense: 0.939, physique: 1.5 }, prix: { discipline: 1.148, energie: 1.094 },
+    gain: { defense: 0.92, physique: 1.5 }, prix: { discipline: 1.164, energie: 1.102 },
   },
 };
 export const SYSTEMES_D = {
@@ -1674,31 +1674,31 @@ export const SYSTEMES_D = {
     nom: 'Rester à la maison', ico: '🏠', bat: 'contre',
     slots: { DG: 'defensif', DD: 'defensif' },
     mot: 'Les deux défenseurs restent derrière la rondelle : aucune échappée.',
-    gain: { defense: 0.905 }, prix: { volume: 0.845 },
+    gain: { defense: 0.885 }, prix: { volume: 0.825 },
   },
   activer: {
     nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes',
     slots: { DG: 'offensif', DD: 'offensif' },
     mot: 'Les défenseurs montent et se joignent à l\'attaque, de la bleue au cercle.',
-    gain: { volume: 1.214, finition: 1.04 }, prix: { defense: 1.068 },
+    gain: { volume: 1.256, finition: 1.046 }, prix: { defense: 1.078 },
   },
   relance: {
     nom: 'Relance rapide', ico: '💨', bat: 'echec',
     slots: { DG: 'manieur', DD: 'manieur' },
     mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
-    gain: { volume: 1.109, defense: 0.959 }, prix: { energie: 1.054 },
+    gain: { volume: 1.143, defense: 0.947 }, prix: { energie: 1.062 },
   },
   rude: {
     nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere',
     slots: { DG: 'physique', DD: 'physique' },
     mot: 'Personne ne reste devant le filet : on sort les gros de l\'enclave.',
-    gain: { defense: 0.925, physique: 1.5 }, prix: { discipline: 1.135 },
+    gain: { defense: 0.911, physique: 1.5 }, prix: { discipline: 1.155 },
   },
   equilibre: {
     nom: 'Jeu à deux sens', ico: '🌗', bat: null,
     slots: { DG: 'deuxsens', DD: 'deuxsens' },
     mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
-    gain: { defense: 0.963, volume: 1.037 }, prix: {},
+    gain: { defense: 0.959, volume: 1.041 }, prix: {},
   },
 };
 /* Un système, d'où qu'il vienne (un trio ou une paire), et son groupe. */
