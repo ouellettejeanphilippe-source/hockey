@@ -653,7 +653,7 @@ const DILEMMES_BRUTS = {
   coulisses_series: { ico: '🎬', titre: 'Les coulisses des séries', quand: 'series',
     recit: 'Un réseau demande à installer une caméra dans le couloir qui mène à la glace. Le couloir est étroit, et l\'étroit, dit un vétéran, « porte conseil ».',
     options: [
-      o('accepter', 'Accepter la caméra', 'Les joueurs se sentent regardés et se défoncent', 'Une pression qui ouvre la porte aux punitions', { finition: 1.08, discipline: 1.19, duree: 3 }),
+      o('accepter', 'Accepter la caméra', 'Les joueurs se sentent regardés et se défoncent', 'Une pression qui ouvre la porte aux punitions', { finition: 1.07, discipline: 1.22, duree: 3 }),
       o('refuser', 'Refuser la caméra', 'Un couloir calme, une équipe disciplinée', 'Un vestiaire sans éclat qui lance moins', { discipline: 0.825, volume: 0.92, duree: 3 }),
     ] },
   hymne_series: { ico: '🎼', titre: 'L\'hymne en séries', quand: 'series',
