@@ -3828,7 +3828,8 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .deck-mini.maudite { --tc-bord: var(--live); }
 /* Leur main : les intentions de l'adversaire, sous son plan. */
 .main-adverse { display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
-.main-adverse-cartes { display: flex; flex-wrap: wrap; gap: var(--esp-2); }
+.main-adverse-cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--esp-2); }
+.main-adverse-carte .choix-puces { display: flex; flex-direction: column; gap: 2px; }
 .main-adverse-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border-left: 3px solid var(--tc-bord); font-size: var(--t-2); }
 .main-adverse-carte b { font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; }
 .main-adverse-fort { color: var(--live); text-transform: none; letter-spacing: 0.02em; }
