@@ -912,7 +912,7 @@ export function ouvrirLignes(spec) {
     </section>` : '';
     /*
      * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
-     * passé sous les bornes du moteur (`totauxDuSoir`, js/sim.js) — la
+     * lu dans le moteur (`motsDuSoir`, js/impact.js) — la
      * consigne qu'on règle ici comprise, recalculée à chaque toucher.
      */
     const tot = spec.totaux ? spec.totaux(match, brouillon) : null;

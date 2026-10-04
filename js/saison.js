@@ -3148,7 +3148,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const { duree: _d, action: _a, ...canaux } = x.effet;
       out.push({ id: `pari:${x.jour}:${x.titre}`, genre: 'pari', de: DE.coach, sujet: `${x.titre} : ${x.gagne ? 'le pari a payé' : 'le pari a mal tourné'}`,
         corps: `<div class="hub-msg-mot">🎲 ${ctx.esc(x.choix)} — ${x.gagne ? 'ça a payé' : 'ça a mal tourné'}.</div>
-          <div class="choix-puces">${puces(motsDEffet(canaux, matchsEntre(you, Math.max(jour, x.jour), x.fin)))}</div>` });
+          <div class="choix-puces">${puces(motsEnChiffres(canaux, matchsEntre(you, Math.max(jour, x.jour), x.fin)))}</div>` });
     }
     // LE RAPPORT DU DÉPISTEUR, tous les dix matchs, jusqu'au suivant.
     const nRap = Math.floor(miens.length / RAPPORT_CHAQUE) * RAPPORT_CHAQUE;
