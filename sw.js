@@ -48,7 +48,7 @@ const FICHIERS = [
   'js/game.js', 'js/sim.js', 'js/ratings.js', 'js/data.js', 'js/logos.js',
   'js/traits.js', 'js/recit.js', 'js/direct.js', 'js/bilan.js',
   'js/entracte.js',
-  'js/profil-style.js',
+  'js/profil-style.js', 'js/impact.js',
   'js/equipes.js', 'js/saison.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/identites.js', 'js/combat.js', 'js/album.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/situations.js', 'js/pile.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/evenements-vie.js', 'js/cartes-vie.js', 'js/apres-match.js', 'js/panel-tv.js', 'js/vie-gm.js', 'js/coachs.js', 'js/club.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
