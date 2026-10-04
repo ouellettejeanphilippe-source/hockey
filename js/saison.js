@@ -2231,10 +2231,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const soir = p0.j, out = [];
     const habilles = rangs.filter(r => !r.s.scratch && r.p.p !== 'G' && !(you.injured && you.injured.has(r.p)));
     const libres = SLOTS.filter(s => s.scratch && you.roster[s.i] && !(you.injured && you.injured.has(you.roster[s.i])));
-    // Le plus usé, en réserve : un réserviste en santé qui peut jouer sa case la prend.
-    for (const r of habilles.slice(0, 2)) {
+    // Le plus usé qui a un remplaçant, en réserve : un réserviste en santé qui peut jouer sa case la prend.
+    // On descend la liste (les plus usés d'abord) jusqu'à deux propositions : les deux premiers peuvent n'avoir personne pour les remplacer.
+    let nReserves = 0;
+    for (const r of habilles) {
+      if (nReserves >= 2) break;
       const sub = libres.find(s => fits(you.roster[s.i], r.s) && fits(r.p, s));
       if (!sub) continue;
+      nReserves++;
       const cases = photoAlignement(you.roster);
       [cases[r.s.i], cases[sub.i]] = [cases[sub.i], cases[r.s.i]];
       out.push({ titre: `${ctx.esc(r.p.n)} en réserve`, mot: `${ctx.esc(you.roster[sub.i].n)} prend sa case ; il y reste tant que tu ne le remets pas.`, qui: [getPlayerKey(r.p)], a: 'à lui', d: { jour, palier: `jb:${jour}:${getPlayerKey(r.p)}`, cases } });
