@@ -2600,7 +2600,6 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   .hub-volet .hub-etat-l { font-size: var(--t-1); }
   .hub-match-titre { padding: var(--esp-1) var(--esp-3); }
   .hub-eq { padding: var(--esp-2) var(--esp-3); }
-  .hub-eq-forme { margin: var(--esp-1) calc(-1 * var(--esp-3)) calc(-1 * var(--esp-2)); }
   .soir-etape { min-height: 36px; }
   .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: 0; margin-bottom: var(--esp-2); }
   .hub-barre .hub-jour, .hub-barre .hub-suite { min-height: 48px; font-size: var(--t-3); }
@@ -2702,17 +2701,15 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-eq-nom .lien-equipe { color: inherit; max-width: 100%; }
 .hub-eq-fiche { max-width: 100%; margin-top: var(--esp-1); font: 700 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* La forme : cinq lettres colorées sur une bande sombre, lisibles sur n'importe quel club. */
-.hub-eq-forme { align-self: stretch; margin: auto calc(-1 * var(--esp-3)) calc(-1 * var(--esp-3)); padding: var(--esp-2) var(--esp-3) var(--esp-1); background: color-mix(in srgb, var(--noir) 45%, transparent); }
+/* La forme : cinq lettres colorées sur UNE bande sombre sous les deux clubs, lisibles sur n'importe quelle couleur ;
+   un club qui n'a pas encore joué laisse son côté vide, la bande reste entière. */
+.hub-face-forme { grid-column: 1 / -1; display: flex; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-1) var(--esp-3); background: color-mix(in srgb, var(--noir) 45%, transparent); }
 .forme { display: inline-flex; gap: var(--esp-2); }
-.hub-eq.b .forme { justify-content: flex-end; }
 .forme-p { flex: none; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); }
 .forme-p.v { color: var(--bon); }
 .forme-p.d { color: var(--mauvais); }
 .forme-p.dp { color: var(--attention); }
-.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 0 12px color-mix(in srgb, var(--or) 50%, transparent); }
-/* La bande de la forme passe sous le VS seulement quand elle existe : sans elle, il resterait un carré seul. */
-.hub-face:has(.hub-eq-forme) .hub-vs { background: linear-gradient(to top, color-mix(in srgb, var(--noir) 45%, transparent) calc(var(--esp-2) + var(--esp-1) + 1.2 * var(--t-2)), transparent 0); }
+.hub-vs { align-self: stretch; display: grid; place-items: center; padding: 0 var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; font-style: italic; color: var(--or); text-shadow: 0 1px 3px color-mix(in srgb, var(--noir) 85%, transparent), 0 0 12px color-mix(in srgb, var(--noir) 60%, transparent); }
 .hub-forces { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-forces table { width: 100%; border-collapse: collapse; table-layout: fixed; font: 700 var(--t-2)/1.3 var(--display); font-variant-numeric: tabular-nums; }
 .hub-forces caption { caption-side: top; padding-bottom: var(--esp-1); text-align: left; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
