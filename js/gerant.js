@@ -164,7 +164,7 @@ export function sesRolesHtml(p) {
 }
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
 const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
-/* Les canaux d'effet d'un objet : ce que motsDEffet sait dire. */
+/* Les canaux d'effet d'un objet : ce que motsEnChiffres sait dire. */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
 /* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
@@ -1185,7 +1185,7 @@ export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = fal
       ? `<button type="button" class="dep-piste${on ? ' on' : ''}${x.ecarte ? ' ecarte' : ''}" data-plan="${x.plan}"${x.ecarte ? ' disabled' : ''}>${corps}<span class="dep-prep">${x.ecarte ? 'Écarté' : on ? '🎯 Préparé' : 'Me préparer'}</span></button>`
       : `<div class="dep-piste${x.ecarte ? ' ecarte' : ''}">${corps}</div>`;
   };
-  const txt = e => motsDEffet(e).map(m => m.txt).join(' · ');
+  const txt = e => motsEnChiffres(e).map(m => m.txt).join(' · ');
   const juste = `Leur plan tombe · ${txt(PREP_JUSTE)}${fx && fx.piege ? ` · et ${txt(fx.piege)} (le piège)` : ''}`;
   const rate = fx && fx.improvise ? `pas de malus, et ${txt(fx.improvise)} (l'improvisation)` : txt(PREP_RATEE);
   return `<div class="depistage${choisir ? ' choisir' : ''}">
@@ -1208,13 +1208,17 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
  * qui t'aide, en rouge ce qui coûte. `regle` n'est écrite à la main que pour
  * une carte qui lit ta formation.
  */
+/* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
+const EN_3E = { part: 1 / 3, par: 'en 3e' };
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
-  const txt = e => motsDEffet(e).map(m => m.txt).join(', ');
+  const txt = e => motsEnChiffres(e).map(m => m.txt).join(', ');
+  // Ce qui s'ajoute à chaque carte (jouée, ou dans une main) : le chiffre de match d'un pas, dit « par carte … ».
+  const parCarte = (e, quand) => { const m = motsEnChiffres(e, null, { par: quand }).filter(x => x.cle !== 'rien'); return m.length ? m.map(x => x.txt).join(', ') : `à peine perceptible ${quand}`; };
   if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
-  out.push(...motsDEffet(C.effet || null));
-  for (const m of motsDEffet(C.adv || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  out.push(...motsEnChiffres(C.effet || null));
+  for (const m of motsEnChiffres(C.adv || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
    * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
    * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;
@@ -1234,17 +1238,17 @@ function regleDeCarte(C) {
   if (C.planB) out.push({ txt: '🎯 Tu te prépares pour 2 plans', bon: true });
   if (C.improvise) out.push({ txt: `Si ta préparation rate : pas de malus, et ${txt(C.improvise)}`, bon: true });
   if (C.piege) out.push({ txt: `Si ta préparation vise juste : ${txt(C.piege)} de plus`, bon: true });
-  if (C.parGenre) out.push({ txt: `${txt(C.parGenre.effet)} par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`, bon: true });
-  if (C.selonLeurMain) out.push({ txt: `${txt(C.selonLeurMain.effet)} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`, bon: true });
+  if (C.parGenre) out.push({ txt: parCarte(C.parGenre.effet, `par carte ${DE_GENRE[C.parGenre.genre] || ''} jouée ce match`), bon: true });
+  if (C.selonLeurMain) out.push({ txt: parCarte(C.selonLeurMain.effet, `par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} dans leur main`), bon: true });
   if (C.siVide) out.push({ txt: `Si tu dépenses tout ton élan : ${txt(C.siVide)}`, bon: true });
   // 1.0 (J1-G) : un effet conditionnel au pointage après deux périodes — la carte dit sa condition.
   if (C.apres40) {
-    for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
-    for (const m of motsDEffet(C.apres40.sinon || null)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
+    for (const m of motsEnChiffres(C.apres40.siMene || null, null, EN_3E)) out.push({ ...m, txt: `Si tu mènes après deux périodes : ${m.txt}` });
+    for (const m of motsEnChiffres(C.apres40.sinon || null, null, EN_3E)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
   }
   if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
   if (C.pari) out.push({ txt: `🎲 ${Math.round(C.pari.chance * 100)} % : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
-  if (C.enMain) for (const m of motsDEffet(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
+  if (C.enMain) for (const m of motsEnChiffres(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
   if (C.injouable) out.push({ txt: 'Injouable', bon: false });
   if (C.epuise) out.push({ txt: '⌛ Épuisée : elle quitte ton deck après ce match', bon: null });
   return out;
@@ -1255,14 +1259,14 @@ const motsDeCarteMatch = regleDeCarte;
 function motsDeCarteAdverse(C, echelle = 1) {
   if (!C) return [];
   const out = [];
-  for (const m of motsDEffet(C.effet || null)) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  for (const m of motsEnChiffres(C.effet || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
-  for (const m of motsDEffet(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
+  for (const m of motsEnChiffres(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
-  if (C.apres40) for (const m of motsDEffet(C.apres40.siMene || null)) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
-  if (C.parGenre) for (const m of motsDEffet(C.parGenre.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent`, bon: m.bon == null ? null : !m.bon });
-  if (C.selonLeurMain) for (const m of motsDEffet(C.selonLeurMain.effet)) out.push({ txt: `Eux : ${m.txt} par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues`, bon: m.bon == null ? null : !m.bon });
+  if (C.parGenre) for (const m of motsEnChiffres(C.parGenre.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  if (C.selonLeurMain) for (const m of motsEnChiffres(C.selonLeurMain.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.selonLeurMain.genre] || ''} que TU joues` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.energieTous) out.push({ txt: `Leurs patineurs : jambes +${C.energieTous}`, bon: false });
   return out;
 }
@@ -1346,8 +1350,8 @@ export function ouvrirMainDeMatch(spec) {
     // L'échelle du soir (S80) : ce que le moteur jouera, les cartes qui visent l'adversaire comprises.
     const echelle = spec.echelle || 1;
     const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu', { echelle });
-    const mots = [...motsDEffet(combiner(fx.effets))];
-    for (const x2 of motsDEffet(combiner(fx.adv))) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
+    const mots = [...motsEnChiffres(combiner(fx.effets))];
+    for (const x2 of motsEnChiffres(combiner(fx.adv), null, { eux: true })) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
     if (fx.adv.length && echelle > 1) mots.push({ txt: `📈 Ce soir, ce qui vise l'adversaire vaut ×${String(Math.round(echelle * 100) / 100).replace('.', ',')}`, bon: true });
     if (fx.lire) mots.push({ txt: 'Leur plan tombe', bon: true });
     if (fx.annule) mots.push({ txt: 'Leur main ne fait rien', bon: true });
@@ -1372,7 +1376,7 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.contexte || ''}
         ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
-          const mots = [...motsDEffet(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
