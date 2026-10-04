@@ -2300,14 +2300,14 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Le palier suit le nom de son badge (« Sniper »), avant le second badge.
    Le badge et son nom ne se séparent pas au retour à la ligne. */
 .cell-badge { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0 8px; min-width: 0; }
-/* LE PALIER D'UN BADGE (refonte 1) : barre colorée sous l'icône via currentColor du pal-*. */
-.cell-badge > i.badge { display: inline-flex; flex-direction: column; align-items: center; gap: 2px; border-bottom: none; color: var(--pal); }
-.cell-badge > i.badge::after { content: ""; width: 8px; height: 8px; background: var(--pal); box-shadow: 0 0 0 1px color-mix(in srgb, var(--noir) 45%, transparent); }
 .pal-1 { --pal: var(--bronze); }
 .pal-2 { --pal: var(--argent); }
 .pal-3 { --pal: var(--or); }
 .pal-4 { --pal: var(--platine); }
-i.badge { font-style: normal; border-bottom: 2px solid var(--pal); }
+/* Le palier d'un badge : l'icône elle-même porte sa couleur, rien dessous (ni carré, ni trait).
+   Android dessine certaines icônes en emoji couleur malgré la présentation texte (la clé, le yin-yang) :
+   le glyphe transparent et son ombre pleine aux couleurs du palier les teintent quand même. */
+i.badge { font-style: normal; color: transparent; text-shadow: 0 0 0 var(--pal); }
 /* Les icônes de badge se teintent de leur palier : la présentation texte, jamais l'emoji en couleur. */
 i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .puce.badge, b.badge { color: var(--pal); }
