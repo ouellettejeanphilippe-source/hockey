@@ -8,6 +8,7 @@ import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP, matchsEntre } from './sim.js';
 import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
+import { motsDeMutationEnChiffres } from './impact.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';

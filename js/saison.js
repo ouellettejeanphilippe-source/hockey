@@ -28,14 +28,14 @@ import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, CARTES, PALI
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS, motsDeMutation,
+  lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE, ANNONCE_GROS,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
   activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
-import { motsDuSoir, motsEnChiffres } from './impact.js';
+import { motsDuSoir, motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -2496,7 +2496,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sorte === 'atelier') {
       ouvrirChoix({ ...suite, ico: '🛠️', titre: 'L\'atelier',
         recit: 'Trois éditions : touche celle que tu gardes. Elle va dans ton inventaire, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
-        options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutation(k) })),
+        options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutationEnChiffres(k) })),
         onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
       return;
     }
@@ -3109,7 +3109,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         corps: `<div class="hub-situ hub-accident" role="status">
           <div class="hub-situ-tete">${MUTATIONS[accident.cle].ico} Sa carte change : ${ctx.esc(accident.p.n)}</div>
           <div class="hub-situ-quoi">${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>
-          <div class="choix-puces">${puces(motsDeMutation(accident.cle))}</div>
+          <div class="choix-puces">${puces(motsDeMutationEnChiffres(accident.cle, accident.p, { deja: true }))}</div>
         </div>` });
     }
     // LES SITUATIONS : deux hommes nommés, le porté d'abord — c'est lui qui appelle une décision.

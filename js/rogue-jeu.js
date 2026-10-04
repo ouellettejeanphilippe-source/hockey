@@ -7,9 +7,10 @@
 
 import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, motsDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS } from './coachs.js';
+import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -570,7 +571,7 @@ function poserUneModif(item, j, decider, retour) {
   // Poser ferme l'alignement en silence (`fermer`) : la décision part, et l'inventaire ne se rouvre pas.
   const fermer = ouvrirAlignement({
     ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour',
-    contexte: `<div class="choix-puces">${puces(motsDeMutation(c.cle))}</div>`,
+    contexte: `<div class="choix-puces">${puces(motsDeMutationEnChiffres(c.cle))}</div>`,
     aide: 'Touche un joueur pour voir son verso.',
     rangees,
     onApercu: k => {
