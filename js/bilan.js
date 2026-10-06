@@ -1037,8 +1037,9 @@ export function ouvrirEcranSeries(depuis = null) {
     graine: S.graine, decisions: S.decisions,
     // LE DECK DE MATCH (S74) se déduit aussi des décisions de la saison.
     decisionsSaison: (G.ligue && G.ligue.decisions) || [],
-    onDecision: deciderSerie || null,
-    onBanc: bancSerie || null,
+    // Les cartes, les plans et le banc des séries sont au Rogue ; la saison de base ne fait que jouer ses matchs.
+    onDecision: G.bonus === 'ROGUE' ? deciderSerie || null : null,
+    onBanc: G.bonus === 'ROGUE' ? bancSerie || null : null,
     onRevele: etat => { G.seriesVues = etat; saveGame(); },
     // Le tableau dessiné, on y va : il était en bas d'un bilan de 8 800 px (S74, l'agent de test).
     onTermine: () => {

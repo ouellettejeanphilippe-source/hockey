@@ -23,7 +23,7 @@ const MAX_PARTIES = 24;
 
 /* Les trois familles de parties, telles que le menu les range. */
 export const GENRES = {
-  saison: { ico: '🏒', nom: 'La saison', mot: '82 matchs, puis les séries' },
+  saison: { ico: '🏒', nom: 'Le 82-0', mot: 'Le repêchage, 82 matchs d\'un coup, les séries match par match' },
   table: { ico: '🎲', nom: 'Sur table', mot: 'Le plateau, pièce par pièce' },
   rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Une run. Des packs. Le proprio.' },
 };

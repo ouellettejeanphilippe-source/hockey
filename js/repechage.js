@@ -79,7 +79,8 @@ function graineVariantes() {
   return G.variantes.graine;
 }
 export function varianteJoueur(p) {
-  if (!p) return 'commune';
+  // LE 82-0 CLASSIQUE, C'EST JUSTE LES JOUEURS (oct.) : aucune variante, aucun bonus de carte.
+  if (!p || G.bonus === 'SAISON') return 'commune';
   // La carte posée pour la saison dit la vérité, lustre compris (l'atelier).
   if (p._carte && p._carte.rar) return p._carte.rar;
   const cle = getPlayerKey(p);
@@ -640,6 +641,7 @@ export function poserCartes(decisions = []) {
   const avant = new Map([...CARTES_POSEES].map(p => [getPlayerKey(p), p]));
   for (const p of CARTES_POSEES) delete p._carte;
   CARTES_POSEES.clear();
+  if (G.bonus === 'SAISON') return;
   for (const p of nommesPar(decisions, avant)) { p._carte = carteJoueur(p); CARTES_POSEES.add(p); }
 }
 /* Ton alignement, et tous ceux qu'une décision nomme (un ballottage porte la variante du réclamé). */
@@ -669,6 +671,7 @@ function nommesPar(decisions, avant = new Map()) {
  * à lui seul : reposer toutes les cartes effacerait un lustre que le moteur a déjà posé en saison.
  */
 export function poserCartesArrivees(decisions = []) {
+  if (G.bonus === 'SAISON') return;
   const posees = new Set([...CARTES_POSEES].map(getPlayerKey));
   for (const p of nommesPar(decisions)) {
     if (posees.has(getPlayerKey(p))) continue;
