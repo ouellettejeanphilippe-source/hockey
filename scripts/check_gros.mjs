@@ -84,7 +84,8 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
     const { calendrier } = simulateLeague(teams, 82, { graine: `plan-${L}`, decisions: [] });
     for (const mb of teams[0].minisBoss || []) {
       const P = PLANS_ADV[mb.plan];
-      if (!P || !P.tac) continue;
+      // Un plan contré est abandonné (`poserGros`) : ses lignes rejouent la saison, c'est voulu.
+      if (!P || !P.tac || mb.contre) continue;
       const m = calendrier[mb.jour].find(x => x.A === teams[0] || x.B === teams[0]);
       const coteAdv = m.A === teams[0] ? 'B' : 'A';
       const tirs = m.feuille.lancers.filter(l => l.cote === coteAdv && (l.ligne === 0 || l.ligne === 1) && l.mode === 'FE');

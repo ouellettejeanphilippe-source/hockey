@@ -1219,6 +1219,12 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
  */
 /* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
 const EN_3E = { part: 1 / 3, par: 'en 3e' };
+/*
+ * UNE CARTE DE MATCH DURE UN SOIR (1.0, le tempo) : « 1 but de moins tous les 16 matchs » n'y veut rien dire, et
+ * depuis que le style se lit des deux côtés (tirs pour ET contre) ces lignes faisaient passer la carte sous les
+ * boutons. Elles tombent quand la carte dit déjà autre chose ; seules, elles restent.
+ */
+const unSoir = mots => { const autres = mots.filter(m => !/ tous les \d+ matchs/.test(m.txt)); return autres.length ? autres : mots; };
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
@@ -1230,8 +1236,8 @@ function regleDeCarte(C) {
     const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
     out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
   } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
-  out.push(...motsEnChiffres(C.effet || null));
-  for (const m of motsEnChiffres(C.adv || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  out.push(...unSoir(motsEnChiffres(C.effet || null)));
+  for (const m of unSoir(motsEnChiffres(C.adv || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
    * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
    * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;
@@ -1272,9 +1278,9 @@ const motsDeCarteMatch = regleDeCarte;
 function motsDeCarteAdverse(C, echelle = 1) {
   if (!C) return [];
   const out = [];
-  for (const m of motsEnChiffres(C.effet || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  for (const m of unSoir(motsEnChiffres(C.effet || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
-  for (const m of motsEnChiffres(grandirEffet(C.adv || null, echelle))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
+  for (const m of unSoir(motsEnChiffres(grandirEffet(C.adv || null, echelle)))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
   if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
