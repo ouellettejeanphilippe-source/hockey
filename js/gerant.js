@@ -335,12 +335,15 @@ export function ouvrirChoix(spec) {
       ${(spec.cartes || spec.genre) && spec.fermable ? `<button type="button" class="btn choix-plus-tard">${esc(spec.motFermer || 'Plus tard')}</button>` : ''}
     </div>
   </div>`;
+  const FETE = spec.cartes || spec.genre === 'recompense' || spec.genre === 'main' || spec.genre === 'entracte' || spec.genre === 'coupe';
+  m.classList.toggle('feuille', !FETE);
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
   // Un paquet se tait tant qu'il est scellé : ses sons sont ceux de l'ouverture.
   if (spec.cartes && !spec.lecture && !paquet) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
   const fermer = (silencieux = false) => {
     m.hidden = true; m.innerHTML = '';
+    m.classList.remove('feuille');
     document.body.classList.remove('choix-ouvert');
     fermerChoixCourant = null;
     if (!silencieux && spec.onFerme) spec.onFerme();
