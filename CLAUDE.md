@@ -2,7 +2,7 @@
 
 ## Le projet en une phrase
 
-Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs.
+Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, les cartes, la boutique, la run), **Sur table** et l'exhibition.
 
 Hébergé sur GitHub Pages. Aucun backend, aucune dépendance npm, aucun framework.
 
@@ -184,8 +184,8 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 1. La page démarre, `#game` devient visible
 2. Auto-draft conscient du budget : à chaque tour il lit le plafond restant, calcule ce qu'il peut mettre sur ce choix sans passer sous le plancher pour les cases suivantes, et signe, parmi les cartes qui tiennent dans ce budget, celle dont la destination ne porte aucun avertissement et dont le chiffre clé est le plus grand (voir S64 : prendre la première rendait une équipe de .500 et faisait du passage des séries une loterie). Sinon il relance (passer, autre équipe, autre année) ; en dernier recours il clique `#freeCapBtn`, le bouton de la bande de secours qui retire le plus gros contrat
 3. `#mainBtn` devient actif
-4. Cliquer : l'écran de saison s'ouvre (`#hubModal`) — « Journée suivante » (`.hub-jour`), l'onglet des meneurs, « Regarder le match » (`.hub-regarder`, le direct dans `#liveModal` : pause, statistiques, `.live-fin`, `.live-suite` pour continuer), « Passer à la fin » (`.hub-fin`), « Voir le bilan » (`.hub-suite`) ; puis `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan
-5. « Rejouer la saison » (`#replayBtn`) rejoue le même alignement contre les mêmes clubs, puis l'historique (`.lb-replay`) relit un alignement et repart une saison — le même parcours d'écran de saison à chaque fois
+4. Cliquer : le 82-0 va droit au bilan (aucun `#hubModal .hub-jour`), `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan — sans « Préparer le match », deck ni banc (le jour à jour s'éprouve en Rogue : `essai_rogue.mjs`)
+5. « Rejouer la saison » (`#replayBtn`) rejoue le même alignement contre les mêmes clubs, puis l'historique (`.lb-replay`) relit un alignement et repart une saison — droit au bilan à chaque fois
 6. Le même parcours en tirage Loto (`#rrL` relance quand rien ne tient dans le budget)
 7. Zéro erreur console (les portraits refusés ne sont demandés qu'une fois : `PORTRAITS_ABSENTS`)
 

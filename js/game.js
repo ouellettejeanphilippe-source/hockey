@@ -1357,7 +1357,7 @@ function setupEvents() {
         saveOpts(); saveGame(); syncOptionsUI(); render();
         toast(b.bonus === 'TABLE'
           ? 'Sur table : ton alignement ira jouer un tournoi de six clubs sur un plateau.'
-          : 'La saison : 82 matchs et les séries.');
+          : 'Le 82-0 : 82 matchs d\'un coup, puis les séries.');
         return;
       }
       demarrageEnCours = true;
@@ -1368,7 +1368,8 @@ function setupEvents() {
         // d'une partie neuve, la roulette à l'écran suffit.
         const effacee = !G.done && signes().length > 0;
         // L'identité se choisit AVANT la roulette, par-dessus cet écran.
-        const choix = await choisirIdentite();
+        // Le 82-0 classique, c'est juste les joueurs : pas de carte d'identité (elle reste à Sur table).
+        const choix = b.bonus === 'TABLE' ? await choisirIdentite() : null;
         await demarrerPartie({ ...b, identite: choix });
         closeModal('partieModal');
         if (auHasard.length || effacee) toast(`${auHasard.length ? `🎲 Le hasard a choisi ${auHasard.join(' et ')}. ` : ''}${MODES[b.mode].nom}${b.epoque ? ` · ${b.epoque}` : ''}${b.repechage === 'FRANCHISE' && FRANCHISES[b.franchise] ? ` · ${FRANCHISES[b.franchise].nom}` : ''} : la roulette repart à zéro.`);
@@ -1926,7 +1927,7 @@ function remplirMarche() {
   const enSaison = !!(hub && hub.boutique);
   const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
   host.innerHTML = `${signatureHtml(hub)}<div class="marche">
-    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : 'Elle ouvre pendant la saison, entre deux journées.')}
+    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : G.bonus === 'ROGUE' ? 'Elle ouvre pendant la saison, entre deux journées.' : 'Au mode Rogue.')}
     ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et ton classeur, à lire')}
     ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Le vestiaire des déblocages', `${lireMeta().ecussons || 0} écussons à dépenser`) : ''}
   </div>`;

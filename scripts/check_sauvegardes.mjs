@@ -53,6 +53,6 @@ exiger('un refus n\'écrit rien', lireIndex().parties.length === avant && [...me
 // Le genre vient de la partie, pas de l'en-tête du fichier.
 const menteur = importer(JSON.stringify({ format: 'cap82-partie', genre: 'table', titre: '  ', partie: { ...partie, bonus: 'SAISON', tirage: [{ season: '1993-94', team: 'MTL' }] } }));
 const pm = lireIndex().parties.find(x => x.id === menteur);
-exiger('le genre se relit dans la partie, le titre vide prend celui du genre', pm && pm.genre === 'saison' && pm.titre === 'La saison', pm ? `${pm.genre} · ${pm.titre}` : 'absente');
+exiger('le genre se relit dans la partie, le titre vide prend celui du genre', pm && pm.genre === 'saison' && pm.titre === 'Le 82-0', pm ? `${pm.genre} · ${pm.titre}` : 'absente');
 
 verdict('Le fichier transférable');

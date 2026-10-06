@@ -670,7 +670,10 @@ function ouvrirEcranSaison(depuis = 0) {
   const decisions = L.decisions;
   // Une saison reprise APRÈS sa dernière journée va droit au bilan : rouvrir
   // l'écran sur « journée 82 sur 82 » ferait relire un écran déjà fini.
-  if (calendrier.length && depuis < calendrier.length) {
+  // LA SAISON DE BASE SE JOUE D'UN COUP (oct.). JP : *le mode saison, c'est le mode 82-0 comme les sites
+  // du genre* : les 82 matchs filent au bilan, puis les séries match par match. Le jour à jour, la boîte,
+  // les gros matchs, les cartes et le banc en saison, c'est le Rogue.
+  if (G.bonus === 'ROGUE' && calendrier.length && depuis < calendrier.length) {
     ouvrirSaison({
       calendrier, teams, you, enSeries: nombreEnSeries(teams.length), epoque: G.epoque,
       // LA LIGUE EN MÉMOIRE (S79) : l'écran joue chaque journée au moment de la révéler.
