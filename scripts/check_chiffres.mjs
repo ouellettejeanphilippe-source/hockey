@@ -192,9 +192,23 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   for (const k of Object.keys(CARTES_MATCH)) {
     try { for (const m of optionDeCarteMatch(k).mots) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${k} : ${m.txt}`); } } catch (e) { fautes.push(`${k} : ${e.message}`); }
   }
+  // JP : *« +25 déf », ça veut rien dire.* Un rôle se dit par le badge qu'il gagne ou perd, jamais en points de profil.
+  const POINTS = /\p{Extended_Pictographic}\S* [\p{L}' -]+ [+−]\d+$/u;
+  const muettes = [], aLui = [];
   for (const k of Object.keys(MUTATIONS)) {
-    try { for (const m of motsDeMutationEnChiffres(k)) { lues++; if (/%/.test(m.txt)) fautes.push(`modif ${k} : ${m.txt}`); } } catch (e) { fautes.push(`modif ${k} : ${e.message}`); }
+    try {
+      const mots = motsDeMutationEnChiffres(k);
+      for (const m of mots) { lues++; if (/%/.test(m.txt) || POINTS.test(m.txt)) fautes.push(`modif ${k} : ${m.txt}`); }
+      if (mots.some(m => m.cle === 'lui')) aLui.push(k);
+      const M = MUTATIONS[k];
+      // Les cartes d'appoint gardées subtiles exprès (±2 à 3 %, le quota de neutres de check_coachs) peuvent rester sous le seuil.
+      const fort = ['finition', 'lancers', 'defense', 'arrets'].some(c => M[c] && Math.abs(M[c] - 1) >= 0.03);
+      if (fort && mots.every(m => m.cle === 'rien' || m.duree || m.cle === 'badge' || m.cle === 'role' || m.bon === null)) muettes.push(k);
+    } catch (e) { fautes.push(`modif ${k} : ${e.message}`); }
   }
+  // Une modif touche UN joueur : elle se dit à lui (ses buts, ses tirs) et à ton club sur la saison, pas en dixièmes de but par match.
+  exiger('une modif qui change la précision ou les tirs se dit au joueur : ses buts ou ses tirs sur la saison', ['affute', 'tir_gun', 'lame', 'style_sniper'].every(k => aLui.includes(k)), `${aLui.length} modifs disent leur joueur`);
+  exiger('une modif de tir, de défense ou d\'arrêts se voit (aucune « à peine perceptible »), celles des gardiens comprises', muettes.length === 0, muettes.join(', ') || 'toutes visibles');
   poserClubLu(null);
   const champs = () => JSON.stringify([Object.values(A.roster).map(p => p && [p._mut, p._amel, p._mutProfils, p._mutCles, p._partout, p._cran, p._enBas, p._ombre, p._abri, p._carte]), A.mutations]);
   const avant = champs();

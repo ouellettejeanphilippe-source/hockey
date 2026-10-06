@@ -1041,14 +1041,16 @@ export const CARTES = {
   veterans: {
     nom: 'Les vétérans', ico: '🧭',
     bon: 'Plus robuste, moins de punitions : les soirs éreintants et les séries', prix: 'Moins de lancers',
-    robustesse: 0.6, discipline: 0.80, volume: 0.92,
+    // 1.0, le tempo : la lenteur coûte moins (l'adversaire tire moins aussi) — la robustesse redescend (0,6 → 0,3).
+    robustesse: 0.3, discipline: 0.80, volume: 0.92,
   },
   // l'inverse, et le même déséquilibre à l'envers : un départ canon payé en
   // avril (+0,90 contre −0,80, plus ce que les séries prendront).
   jeunesse: {
     nom: 'La jeunesse', ico: '⚡',
     bon: 'Des jambes fraîches : plus de lancers, et on s\'use moins', prix: 'Moins robuste quand ça brasse',
-    volume: 1.10, robustesse: -1.5, energie: 0.85,
+    // 1.0, le tempo : la vitesse rapporte moins (l'adversaire tire plus aussi) — le prix en robustesse baisse (−1,5 → −0,9).
+    volume: 1.10, robustesse: -0.9, energie: 0.85,
   },
   /*
    * QUATRE CARTES DE PLUS (S62), et la variété était la raison : JP voulait
@@ -4067,7 +4069,7 @@ export function profilMatch(team, lineup, adv = null) {
   // LES LIGNES À LA HOCKEYARENA (S68) : chaque unité joue la tactique et
   // l'agressivité de SA ligne (le trio u et la paire u forment la ligne u).
   const lignes = lignesDe(team, lineup);
-  let discTac = 0, discAgr = 0, robTac = 0, sP = 0;
+  let discTac = 0, discAgr = 0, robTac = 0, sP = 0, defStyle = 0;
   for (const g of ['F', 'D']) unites[g].forEach((x, u) => {
     // S79 : le trio joue le système d'avants de sa ligne, la paire celui de défenseurs,
     // et chacun en tire ce que son FIT lui permet (`canalSysteme`).
@@ -4080,6 +4082,7 @@ export function profilMatch(team, lineup, adv = null) {
     const eff = rendementPhysique(ph);
     x.ligne = u; x.tactique = cle; x.fit = fit; x.agr = l.agr;
     x.chimie = chimieSoir[u];
+    x.poidsJ = x.poids;   // LE TEMPO : la pression des joueurs seuls, avant le système (voir attenduDeCote)
     x.poids *= c('volume');
     x.qualite *= c('finition');
     // LES BADGES (voir PALIERS) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe — chaque joueur le sien.
@@ -4090,15 +4093,18 @@ export function profilMatch(team, lineup, adv = null) {
       x.etouffe = 1 - EFFET_ROLE.defensif * maitriseUnite(x.joueurs, 'defensif') - EFFET_ROLE.physique * maitriseUnite(x.joueurs, 'physique');
       x.intimide = 1;
       x.poids *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
+      x.poidsJ *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
     }
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
     // que le réglage par défaut ne déplace pas la ligue.
     x.defTac = c('defense') * (1 - A.def * eff);
+    defStyle += x.presence * x.defTac;
     discTac += x.presence * c('discipline');
     discAgr += x.presence * A.pun * coutPhysique(ph);
     robTac += x.presence * (1.5 * (A.physique - 0.4) + 0.3 * (c('physique') - 1)) * eff;
     sP += x.presence;
   });
+  defStyle = sP ? defStyle / sP : 1;
   discTac = sP ? discTac / sP : 1; discAgr = sP ? discAgr / sP : 0; robTac = sP ? robTac / sP : 0;
 
   // Le trio de fermeture de cet alignement : désigné, ou le 3e trio
@@ -4106,8 +4112,10 @@ export function profilMatch(team, lineup, adv = null) {
   const ferm = team && team.fermeture !== 'auto' && team.fermeture !== undefined ? team.fermeture : fermetureAuto(unites.F);
   for (const u of unites.F) u.fermeture = ferm != null && u.rang === ferm;
 
-  const somme = (g) => unites[g].reduce((a, x) => a + x.poids, 0);
+  const somme = (g, k = 'poids') => unites[g].reduce((a, x) => a + x[k], 0);
   const pression = (1 - PART_LANCERS_D) * somme('F') + PART_LANCERS_D * somme('D');
+  const pressionJ = (1 - PART_LANCERS_D) * somme('F', 'poidsJ') + PART_LANCERS_D * somme('D', 'poidsJ');
+  for (const g of ['F', 'D']) for (const x of unites[g]) delete x.poidsJ;
 
   const coteDef = 0.5 * (
     presences.F.reduce((a, w, u) => a + w * unites.F[u].coteDef, 0) +
@@ -4175,6 +4183,10 @@ export function profilMatch(team, lineup, adv = null) {
     // se contourne pas avec une carte).
     pression: borne(pression * cartes.volume, 0.40, REF.pression * PRESSION_MAX),
     pressionBrute: pression,
+    // LE TEMPO (voir attenduDeCote) : ce que les joueurs poussent seuls, et le style qui ralentit ou ouvre le jeu.
+    pressionJ,
+    styleVol: pressionJ > 0 ? pression / pressionJ * cartes.volume / REF_STYLE_VOL : 1,
+    styleDef: defStyle * cartes.defense / REF_STYLE_DEF,
     finEquipe, creaEquipe,
     finitionFacteur: Math.min(FINITION_MAX / finEquipe, cartes.finition),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
@@ -4515,7 +4527,34 @@ export function attenduDeCote(off, def) {
   return LANCERS_BASE
     * (off.pression / REF.pression)
     * Math.pow(Math.max(0.3, def.pression / REF.pression), -ALPHA_POSSESSION)
-    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef));
+    * (1 - K_VOLUME_DEF * ((def.zDef ?? REF.zDef) - REF.zDef))
+    * tempoDe(def, off);
+}
+
+/*
+ * LE TEMPO (docs/impact-des-choix.md §4, étape 4). JP : *si je fais juste des choix défensifs, ça doit être un
+ * match défensif.* Le moteur ne le faisait pas : une carte lente coupait SES tirs et en donnait un peu à
+ * l'adversaire (la possession), une carte défensive changeait la chance d'un but mais pas un tir. Le style d'un
+ * club ferme (ou ouvre) maintenant le jeu DES DEUX CÔTÉS : les tirs de `off` suivent le volume de style de `def`
+ * (`styleVol`, ce que ses systèmes et ses cartes font de la pression de ses joueurs), sa défensive de style
+ * (`styleDef`, les systèmes, l'agressivité, les cartes), et — moins fort, pour que le style reste symétrique —
+ * la défensive de style de `off` lui-même (un club qui se replie tire moins). Aucune cote neuve : ce sont des
+ * quantités que `profilMatch` calculait déjà. Centrées sur le style moyen d'une ligue de base (`REF_STYLE_VOL`,
+ * `REF_STYLE_DEF` : les systèmes automatiques donnent un style à tous), donc à style moyen tout vaut 1 et la
+ * ligue ne bouge pas. Les exposants sont des MAXIMUMS DE SYMÉTRIE, pas de force : à 1, le défensif payait deux
+ * fois (moins de buts ET moins de tirs, +3 V mesurés) ; à 0,5 un club tout défensif tire ~25 et en prend ~25,
+ * un club tout offensif ~33 et ~32, et les victoires restent dans le bruit. Le cinq contre cinq seulement :
+ * l'avantage numérique a ses propres lancers.
+ */
+const TAU = Number(ENV_MESURE.TAU ?? 0.3);
+const KAPPA = Number(ENV_MESURE.KAPPA ?? 0.5);
+const KAPPA_OWN = Number(ENV_MESURE.KAPPA_OWN ?? 0.5);
+const REF_STYLE_VOL = Number(ENV_MESURE.REF_STYLE_VOL ?? 1.03);
+const REF_STYLE_DEF = Number(ENV_MESURE.REF_STYLE_DEF ?? 0.962);
+const STYLE_BORNES = [0.6, 1.6];
+function tempoDe(def, off) {
+  const s = x => borne(x ?? 1, STYLE_BORNES[0], STYLE_BORNES[1]);
+  return Math.pow(s(def.styleVol), TAU) * Math.pow(s(def.styleDef), KAPPA) * Math.pow(s(off.styleDef), KAPPA_OWN);
 }
 
 /**
@@ -4693,7 +4732,12 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       0.005, PCT_TIR_MAX);
 
     // LA LECTURE (js/impact.js, `pMoyenDuLancer`) : la chance moyenne d'un lancer, sans tirer le but — le tirage ne bouge donc pas avec `p`.
-    if (st?.espP) { st.espP.s += p; st.espP.n++; continue; }
+    if (st?.espP) {
+      st.espP.s += p; st.espP.n++;
+      // Par tireur : ses lancers et ses buts attendus dans la lecture (ce qu'une modif de joueur change À LUI).
+      if (st.espP.joueurs && tireur) { const k = getPlayerKey(tireur), j = st.espP.joueurs.get(k) || { t: 0, b: 0 }; j.t++; j.b += p; st.espP.joueurs.set(k, j); }
+      continue;
+    }
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
     if (journal) journal.tirs[cote][periodeDe(instant)]++;
     // Chaque lancer entre au journal avec son tireur et son gardien : c'est
@@ -5444,7 +5488,8 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       if (lignes) { team.lignes = lignes.map(l => ({ ...l })); team._lignesMatch = null; }
       // `mutation` : un changement de carte posé le temps de la lecture sur un joueur (`joueur`, ou celui que la carte vise).
       ECHELLE_SOIR = 1;
-      posee = mutation ? poserMutationLue(team, lineup, mutation) : null;
+      // `rien` : la modif n'est pas posée, mais son joueur est lu (le même gardien devant le filet des deux côtés d'une différence).
+      posee = mutation && !mutation.rien ? poserMutationLue(team, lineup, mutation) : null;
       // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
       if (nu) { team.cartes = []; team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
@@ -5467,12 +5512,17 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
           if (e.robustesse) B.traitRob = e.robustesse;
         }
       }
-      const gA = pickGoalie(lu, team.games, team);
+      // Une carte de gardien se lit avec SON gardien devant le filet ; sa part des départs dit combien de soirs elle joue.
+      const gMut = mutation && MUTATIONS[mutation.cle] && MUTATIONS[mutation.cle].gardien ? joueurDeMutation(team, lineup, mutation.cle, mutation.joueur) : null;
+      const gA = gMut || pickGoalie(lu, team.games, team);
+      let partDuFilet = 1;
+      if (gMut) { const [st, bk] = gardiensDuSoir(lu), aux = bk ? partAuxiliaire(st, bk) : 0; partDuFilet = gMut === st ? 1 - aux : aux; }
       const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
-      const lire = (off, def, g, mode) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n });
-      const p = { pour: {}, contre: {} };
+      const lire = (off, def, g, mode, joueurs = null) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n, joueurs });
+      const p = { pour: {}, contre: {} }, joueurs = {};
       for (const mode of ['FE', 'AN', 'DN']) {
-        p.pour[mode] = lire(A, B, gB, mode);
+        joueurs[mode] = new Map();
+        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode]);
         p.contre[mode] = lire(B, A, gA, mode);
       }
       // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
@@ -5481,7 +5531,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       const blessures = habilles.reduce((a, q) => a + injuryChance(q, heavy) * mutDe(q, 'blessure'), 0) * dissuasion * effetsDeSaison(team).blessure;
       const couts = coutsDuSoir(team, lu);
       const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
-      return { A, B, occasions, p, blessures, usure };
+      return { A, B, occasions, p, joueurs, partDuFilet, blessures, usure };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
       if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
@@ -5500,11 +5550,15 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
  * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
  */
 const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte'];
-function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false }) {
+/* Le joueur qu'une modif lue vise : celui qu'on donne, sinon celui que la carte vise, sinon le partant (une carte de gardien) ou le centre du premier trio. */
+export function joueurDeMutation(team, lineup, cle, joueur = null) {
   const lu = lineup || activeLineup(team);
   // Une carte de gardien se lit sur le partant : posée sur un patineur, ses arrêts ne changeraient rien (« à peine perceptible »).
   const gardien = !!(MUTATIONS[cle] && MUTATIONS[cle].gardien);
-  const p = joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && (gardien ? sl.group === 'G' && sl.unit === 0 : sl.group === 'F' && sl.unit === 0 && sl.role === 'C')).i];
+  return joueur || cibleMutation(team, cle) || lu[SLOTS.find(sl => !sl.scratch && (gardien ? sl.group === 'G' && sl.unit === 0 : sl.group === 'F' && sl.unit === 0 && sl.role === 'C')).i] || null;
+}
+function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false }) {
+  const p = joueurDeMutation(team, lineup, cle, joueur);
   if (!p) return null;
   const photo = CHAMPS_MUTATION.map(k => [k, k in p, p[k] && typeof p[k] === 'object' ? (Array.isArray(p[k]) ? [...p[k]] : { ...p[k] }) : p[k]]);
   const mutations = team.mutations, avaitMutations = 'mutations' in team, nb = mutations ? mutations.length : 0;
@@ -5528,12 +5582,14 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
   };
 }
 /* La chance moyenne d'un lancer de `off` sur le gardien de `def`, dans une situation. `mode` : FE, AN (off a l'avantage) ou DN (off est puni). */
-function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n }) {
-  const espP = { s: 0, n: 0 };
+function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joueurs = null }) {
+  const espP = { s: 0, n: 0, joueurs };
   const st = mode === 'FE' ? { mode, lancers: n, fenetres: [], espP }
     : mode === 'AN' ? { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE, espP }
       : { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.desavantage, unitesDef: def.avantage, qualite: DN_QUALITE, espP };
   avecHasardIsole('lecture', () => jouerCote(off, def, gardien, 1, heavy, null, series, null, 'A', st, ronde));
+  // Par tireur, en parts des lancers lus : sa part des tirs, et sa part des buts attendus.
+  if (joueurs && espP.n) for (const j of joueurs.values()) { j.t /= espP.n; j.b /= espP.n; }
   return espP.n ? espP.s / espP.n : 0;
 }
 
@@ -6796,15 +6852,40 @@ export function motsDeMutation(cle) {
   if (M.abri) out.push({ txt: `Il ignore ${Math.round(M.abri * 100)} % de leur étouffement`, bon: true });
   if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
   if (M.lustre) out.push({ txt: 'Sa carte : une variante de plus', bon: true });
+  // Ses rôles bougent : le SENS, jamais les points (un « Défensif +25 » ne dit rien). Le badge qu'il y gagne se lit dans `badgesDeMutation`.
   for (const [k, d] of Object.entries(M.profils || {})) {
     const P = PROFILS.F[k] || PROFILS.D[k];
-    if (P) out.push({ txt: `${P.ico} ${P.nom} ${d > 0 ? '+' : '−'}${Math.abs(Math.round(d))}`, bon: d > 0 });
+    if (P) out.push({ txt: `${d > 0 ? 'Plus' : 'Moins'} ${P.ico} ${P.nom.toLowerCase()}`, bon: d > 0, cle: 'role' });
   }
   // LES DEUX COURBES (S80, `echelleTardive`) : l'amélioration grandit ; le style et l'atelier font fitter un trio, tout de suite.
   const courbe = M.source === 'amelioration' ? motCourbe() : null;
   if (courbe) out.push(courbe);
   else if (M.source !== 'amelioration' && (M.source === 'style' || M.partout || M.cran || M.enBas)) out.push({ txt: '🔗 Carte de trio : tout de suite, puis elle plafonne', bon: null });
   return out;
+}
+
+/*
+ * CE QU'UNE MODIF FAIT À SES BADGES : ses badges avant et après, ses rôles déplacés le temps de la lecture. Pur :
+ * le joueur est rendu tel quel. `[]` si la modif ne touche aucun rôle, ou si le joueur n'en a pas (un gardien).
+ */
+export function badgesDeMutation(p, cle, { deja = false } = {}) {
+  const M = MUTATIONS[cle];
+  if (!p || p.p === 'G' || !M || !M.profils) return [];
+  const avait = '_mutProfils' in p, sauve = p._mutProfils;
+  // Déjà posée (`deja`) : ses badges d'aujourd'hui contre les mêmes sans elle.
+  const deplace = sens => { p._mutProfils = { ...(sauve || {}) }; for (const [k, d] of Object.entries(M.profils)) p._mutProfils[k] = (p._mutProfils[k] || 0) + sens * d; return badgesDe(p); };
+  const ici = badgesDe(p), ailleurs = deplace(deja ? -1 : 1);
+  if (avait) p._mutProfils = sauve; else delete p._mutProfils;
+  const avant = deja ? ailleurs : ici, apres = deja ? ici : ailleurs;
+  const nom = b => `${b.ico} ${b.nom} ${PALIERS[b.palier].nom}`;
+  const out = [];
+  for (const b of apres) {
+    const a = avant.find(x => x.cle === b.cle);
+    if (!a) out.push({ txt: `Devient ${nom(b)}`, bon: true, cle: 'badge' });
+    else if (a.palier !== b.palier) out.push({ txt: `${b.ico} ${b.nom} : ${PALIERS[a.palier].nom} → ${PALIERS[b.palier].nom}`, bon: b.palier > a.palier, cle: 'badge' });
+  }
+  for (const a of avant) if (!apres.some(b => b.cle === a.cle)) out.push({ txt: `Perd ${nom(a)}`, bon: false, cle: 'badge' });
+  return out.length ? out : [{ txt: 'Ses badges ne changent pas', bon: null, cle: 'badge' }];
 }
 
 /*
@@ -7556,56 +7637,63 @@ function effetAvant(d) {
  * graine et du match. Chacun paie quelque part : en buts contre, en
  * punitions, en blessures, ou en JAMBES pour les matchs qui suivent — le bon
  * choix dépend du soir, de ton club et de ton calendrier, plus du pointage.
+ *
+ * DEUX FOIS PLUS FRANCS (1.0, le tempo). JP : *les choix à l'entracte ont aucun
+ * impact sur le style de jeu*. Une 3e période, c'est neuf tirs par club : à
+ * ±10 %, un geste en déplaçait un, et rien ne se voyait. Chaque écart au 1
+ * est doublé, prix compris (ce qui garde les prix et les dominances que
+ * `check_choix` et `check_gros` exigent) : « Fermer la porte » coupe le
+ * jeu des deux côtés, « Tout pour l'attaque » l'ouvre.
  */
 export const ENTRACTES = {
   garder: { ico: '🧊', nom: 'Garder le cap', bon: 'On ne change rien', prix: 'Rien de neuf non plus' },
   // Mené.
-  attaque: { ico: '🎲', nom: 'Tout pour l\'attaque', si: ['derriere'], bon: 'Tout le monde monte', prix: 'Ton gardien est seul', volume: 1.18, defense: 1.15 },
-  gardien: { ico: '🧤', nom: 'Envoyer l\'auxiliaire', si: ['derriere'], bon: 'Ton auxiliaire prend le filet pour la troisième', prix: 'Le partant rentre au vestiaire', changeGardien: true, defense: 0.96 },
-  pointe: { ico: '🪜', nom: 'Les défenseurs montent', si: ['derriere'], bon: 'Cinq joueurs en attaque', prix: 'Des échappées contre', volume: 1.12, defense: 1.1 },
-  vedettes: { ico: '✌️', nom: 'Deux trios, pas plus', si: ['derriere'], bon: 'Tes meilleurs sur la glace', prix: 'Ils finissent à plat, et demain aussi', F: [1.35, 1.25, 0.7, 0.5], finition: 1.02, energie: 1.12 },
-  rage: { ico: '😤', nom: 'Revenir à coups d\'épaule', si: ['derriere'], bon: 'Le jeu robuste tourne pour toi', prix: 'Des punitions', robustesse: 0.8, finition: 1.02, discipline: 1.25 },
-  jeunes: { ico: '🪁', nom: 'Laisser jouer le 4e trio', si: ['derriere'], bon: 'Tes vedettes gardent leurs jambes pour demain', prix: 'Tu laisses filer celui-ci', F: [0.8, 0.9, 1.1, 1.5], energie: 0.88, finition: 0.98 },
+  attaque: { ico: '🎲', nom: 'Tout pour l\'attaque', si: ['derriere'], bon: 'Tout le monde monte', prix: 'Ton gardien est seul', volume: 1.36, defense: 1.3 },
+  gardien: { ico: '🧤', nom: 'Envoyer l\'auxiliaire', si: ['derriere'], bon: 'Ton auxiliaire prend le filet pour la troisième', prix: 'Le partant rentre au vestiaire', changeGardien: true, defense: 0.92 },
+  pointe: { ico: '🪜', nom: 'Les défenseurs montent', si: ['derriere'], bon: 'Cinq joueurs en attaque', prix: 'Des échappées contre', volume: 1.24, defense: 1.2 },
+  vedettes: { ico: '✌️', nom: 'Deux trios, pas plus', si: ['derriere'], bon: 'Tes meilleurs sur la glace', prix: 'Ils finissent à plat, et demain aussi', F: [1.35, 1.25, 0.7, 0.5], finition: 1.04, energie: 1.24 },
+  rage: { ico: '😤', nom: 'Revenir à coups d\'épaule', si: ['derriere'], bon: 'Le jeu robuste tourne pour toi', prix: 'Des punitions', robustesse: 1.6, finition: 1.04, discipline: 1.5 },
+  jeunes: { ico: '🪁', nom: 'Laisser jouer le 4e trio', si: ['derriere'], bon: 'Tes vedettes gardent leurs jambes pour demain', prix: 'Tu laisses filer celui-ci', F: [0.8, 0.9, 1.1, 1.5], energie: 0.76, finition: 0.96 },
   // Mené ou à égalité.
-  patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.06, volume: 0.92 },
-  pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.14, finition: 0.95, defense: 1.03 },
-  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.15, defense: 1.07, energie: 1.08 },
-  discours: { ico: '🗣️', nom: 'Le coach élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.03, discipline: 1.1 },
+  patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.12, volume: 0.84 },
+  pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.28, finition: 0.9, defense: 1.06 },
+  meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.3, defense: 1.14, energie: 1.16 },
+  discours: { ico: '🗣️', nom: 'Le coach élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.06, discipline: 1.2 },
   // À égalité.
-  prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.9, volume: 0.9 },
-  doubler: { ico: '🔥', nom: 'Doubler le 1er trio', si: ['egal'], bon: 'Ton meilleur trio sur la glace', prix: 'Il va finir à plat', F: [1.4, 1, 0.85, 0.75], energie: 1.1 },
-  premier: { ico: '🛸', nom: 'Le premier but gagne', si: ['egal'], bon: 'On attaque en vagues', prix: 'La porte s\'entrouvre', volume: 1.1, finition: 1.02, defense: 1.06 },
-  rouler: { ico: '♻️', nom: 'Rouler quatre trios', si: ['egal', 'devant'], bon: 'Des jambes fraîches à chaque présence', prix: 'Ton 4e trio joue les grosses minutes', F: [0.9, 0.95, 1.05, 1.15], energie: 0.9, finition: 0.98 },
+  prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.8, volume: 0.8 },
+  doubler: { ico: '🔥', nom: 'Doubler le 1er trio', si: ['egal'], bon: 'Ton meilleur trio sur la glace', prix: 'Il va finir à plat', F: [1.4, 1, 0.85, 0.75], energie: 1.2 },
+  premier: { ico: '🛸', nom: 'Le premier but gagne', si: ['egal'], bon: 'On attaque en vagues', prix: 'La porte s\'entrouvre', volume: 1.2, finition: 1.04, defense: 1.12 },
+  rouler: { ico: '♻️', nom: 'Rouler quatre trios', si: ['egal', 'devant'], bon: 'Des jambes fraîches à chaque présence', prix: 'Ton 4e trio joue les grosses minutes', F: [0.9, 0.95, 1.05, 1.15], energie: 0.8, finition: 0.96 },
   // À égalité ou devant.
-  paire: { ico: '🦔', nom: 'La 1re paire tout le temps', si: ['egal', 'devant'], bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.4, 1, 0.6], defense: 0.94, energie: 1.1 },
-  bloquer: { ico: '🧯', nom: 'Bloquer tous les tirs', si: ['egal', 'devant'], bon: 'Rien ne se rend au filet', prix: 'Des rondelles dans les chevilles', defense: 0.9, blessure: 1.4 },
+  paire: { ico: '🦔', nom: 'La 1re paire tout le temps', si: ['egal', 'devant'], bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.4, 1, 0.6], defense: 0.88, energie: 1.2 },
+  bloquer: { ico: '🧯', nom: 'Bloquer tous les tirs', si: ['egal', 'devant'], bon: 'Rien ne se rend au filet', prix: 'Des rondelles dans les chevilles', defense: 0.8, blessure: 1.8 },
   // Devant.
-  porte: { ico: '🧱', nom: 'Fermer la porte', si: ['devant'], bon: 'Tout le monde en zone neutre', prix: "On n'attaque plus", defense: 0.85, volume: 0.85 },
-  tueur: { ico: '🦬', nom: 'Aller chercher le but qui tue', si: ['devant'], bon: 'Enterrer le match', prix: 'Un contre peut tout relancer', volume: 1.08, finition: 1.03, defense: 1.06 },
-  repos: { ico: '🛋️', nom: 'Reposer les vedettes', si: ['devant'], bon: 'Leurs jambes pour demain', prix: 'Les plombiers protègent l\'avance', F: [0.7, 0.9, 1.15, 1.3], energie: 0.88, defense: 1.04 },
-  rondelle: { ico: '🪀', nom: 'Garder la rondelle', si: ['devant'], bon: 'Ils ne l\'ont pas, ils ne marquent pas', prix: 'Moins de tirs, des jambes en moins', volume: 0.95, defense: 0.93, energie: 1.05 },
-  payer: { ico: '🔨', nom: 'Faire payer chaque mise en échec', si: ['devant'], bon: 'Ils hésitent à venir', prix: 'Des punitions', robustesse: 0.8, defense: 0.97, discipline: 1.25 },
-  contre: { ico: '💨', nom: 'Contre-attaquer en vitesse', si: ['devant'], bon: 'Leurs défenseurs montés, des surnombres', prix: 'Ça ouvre des deux côtés', volume: 1.05, finition: 1.04, defense: 1.05 },
+  porte: { ico: '🧱', nom: 'Fermer la porte', si: ['devant'], bon: 'Tout le monde en zone neutre', prix: "On n'attaque plus", defense: 0.7, volume: 0.7 },
+  tueur: { ico: '🦬', nom: 'Aller chercher le but qui tue', si: ['devant'], bon: 'Enterrer le match', prix: 'Un contre peut tout relancer', volume: 1.16, finition: 1.06, defense: 1.12 },
+  repos: { ico: '🛋️', nom: 'Reposer les vedettes', si: ['devant'], bon: 'Leurs jambes pour demain', prix: 'Les plombiers protègent l\'avance', F: [0.7, 0.9, 1.15, 1.3], energie: 0.76, defense: 1.08 },
+  rondelle: { ico: '🪀', nom: 'Garder la rondelle', si: ['devant'], bon: 'Ils ne l\'ont pas, ils ne marquent pas', prix: 'Moins de tirs, des jambes en moins', volume: 0.9, defense: 0.86, energie: 1.1 },
+  payer: { ico: '🔨', nom: 'Faire payer chaque mise en échec', si: ['devant'], bon: 'Ils hésitent à venir', prix: 'Des punitions', robustesse: 1.6, defense: 0.94, discipline: 1.5 },
+  contre: { ico: '💨', nom: 'Contre-attaquer en vitesse', si: ['devant'], bon: 'Leurs défenseurs montés, des surnombres', prix: 'Ça ouvre des deux côtés', volume: 1.1, finition: 1.08, defense: 1.1 },
 };
 /* Les gestes d'entracte qu'un pointage peut tirer. */
 export const entractesDu = etat => Object.keys(ENTRACTES).filter(c => (ENTRACTES[c].si || []).includes(etat));
 export const INCIDENTS = {
   boite: { ico: '🤕', titre: 'Leur vedette boite en retournant au banc',
-    option: { cle: 'cibler', ico: '🎯', nom: 'Aller jouer de son côté', bon: 'Il ne suit plus', prix: "L'arbitre voit tout", volume: 1.06, discipline: 1.25 } },
+    option: { cle: 'cibler', ico: '🎯', nom: 'Aller jouer de son côté', bon: 'Il ne suit plus', prix: "L'arbitre voit tout", volume: 1.12, discipline: 1.5 } },
   brasse: { ico: '🥊', titre: 'Ça a brassé à la sirène',
-    option: { cle: 'dur', ico: '🥊', nom: 'Envoyer ton dur au premier engagement', bon: 'Le banc se lève', prix: 'Cinq minutes au cachot', robustesse: 1.5, finition: 1.02, discipline: 1.2 } },
+    option: { cle: 'dur', ico: '🥊', nom: 'Envoyer ton dur au premier engagement', bon: 'Le banc se lève', prix: 'Cinq minutes au cachot', robustesse: 3, finition: 1.04, discipline: 1.4 } },
   ebranle: { ico: '😵‍💫', titre: 'Leur gardien a l\'air ébranlé',
-    option: { cle: 'lancer', ico: '🏹', nom: 'Lancer de partout', bon: 'Il faut le tester', prix: 'Des tirs de nulle part', volume: 1.12, finition: 0.96 } },
+    option: { cle: 'lancer', ico: '🏹', nom: 'Lancer de partout', bon: 'Il faut le tester', prix: 'Des tirs de nulle part', volume: 1.24, finition: 0.92 } },
   foule: { ico: '📣', titre: 'La foule est en feu',
-    option: { cle: 'foule', ico: '📣', nom: 'Surfer sur la foule', bon: "L'amphithéâtre pousse", prix: "On s'emballe", finition: 1.04, discipline: 1.1 } },
+    option: { cle: 'foule', ico: '📣', nom: 'Surfer sur la foule', bon: "L'amphithéâtre pousse", prix: "On s'emballe", finition: 1.08, discipline: 1.2 } },
   glace: { ico: '🧊', titre: 'La glace est molle, la rondelle roule',
-    option: { cle: 'simple', ico: '🧹', nom: 'Jeu simple : au filet et au rebond', bon: 'La rondelle au filet', prix: 'Rien de joli', volume: 1.05, finition: 0.98 } },
+    option: { cle: 'simple', ico: '🧹', nom: 'Jeu simple : au filet et au rebond', bon: 'La rondelle au filet', prix: 'Rien de joli', volume: 1.1, finition: 0.96 } },
   arbitre: { ico: '🦓', titre: 'L\'arbitre a avalé son sifflet',
-    option: { cle: 'accrocher', ico: '🪝', nom: 'En profiter : accrocher, retenir', bon: 'Tout passe', prix: 'Si ça tourne, ça tourne mal', defense: 0.93, discipline: 0.9 } },
+    option: { cle: 'accrocher', ico: '🪝', nom: 'En profiter : accrocher, retenir', bon: 'Tout passe', prix: 'Si ça tourne, ça tourne mal', defense: 0.86, discipline: 0.8 } },
   paire: { ico: '🚑', titre: 'Un de tes défenseurs est resté au vestiaire',
-    option: { cle: 'cinq', ico: '🔄', nom: 'Doubler la 1re paire', bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.35, 1, 0.65], energie: 1.1 } },
+    option: { cle: 'cinq', ico: '🔄', nom: 'Doubler la 1re paire', bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.35, 1, 0.65], energie: 1.2 } },
   gabarit: { ico: '📏', titre: 'L\'arbitre a sorti son gabarit',
-    option: { cle: 'courbes', ico: '🏒', nom: 'Garder les courbes quand même', bon: 'Le tir reste vicieux', prix: 'Une punition s\'il mesure le bon bâton', finition: 1.04, discipline: 1.22 } },
+    option: { cle: 'courbes', ico: '🏒', nom: 'Garder les courbes quand même', bon: 'Le tir reste vicieux', prix: 'Une punition s\'il mesure le bon bâton', finition: 1.08, discipline: 1.44 } },
 };
 /* L'incident de l'entracte : pur, de la graine et du match. */
 function incidentDuMatch(graine, cle) {

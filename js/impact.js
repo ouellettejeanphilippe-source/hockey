@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS } from './sim.js';
+import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation } from './sim.js';
 import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -40,7 +40,17 @@ function moyennes(L) {
     const u = (A.unites && A.unites[g]) || [], s = u.reduce((a, x) => a + x.presence, 0) || 1;
     return u.map(x => 60 * x.presence / s);
   };
+  // Chaque tireur de ton club, par match : sa part des lancers lus, et la chance de chacun (FE, avantage, désavantage).
+  const joueurs = new Map();
+  for (const [mode, tirs] of [['FE', feA], ['AN', nPour * wA.tirs], ['DN', dnA]]) {
+    for (const [k, j] of L.joueurs[mode]) {
+      const x = joueurs.get(k) || { tirs: 0, buts: 0 };
+      x.tirs += tirs * j.t; x.buts += tirs * j.b;
+      joueurs.set(k, x);
+    }
+  }
   return {
+    joueurs, partDuFilet: L.partDuFilet,
     tirsPour, tirsContre, rythme: tirsPour + tirsContre,
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
@@ -60,7 +70,7 @@ function cle(team, lu, adv, opts) {
   try {
     return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
       team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games],
-      opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
+      opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
       opts.nu, opts.n, opts.series]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
 }
@@ -121,7 +131,7 @@ function lignesDe(d, par = 'par match') {
 
 /* Les canaux dont le match se lit dans la feuille. Les autres (blessure, jambes, glace) ont leur unité à eux. */
 const CANAUX_MATCH = ['volume', 'finition', 'defense', 'discipline', 'robustesse'];
-const differences = (a, b) => Object.fromEntries(Object.keys(a).map(k => [k, Array.isArray(a[k]) ? a[k].map((x, i) => x - b[k][i]) : a[k] - b[k]]));
+const differences = (a, b) => Object.fromEntries(Object.keys(a).filter(k => k !== 'joueurs').map(k => [k, Array.isArray(a[k]) ? a[k].map((x, i) => x - b[k][i]) : a[k] - b[k]]));
 /* Le cadre d'une lecture : la part du match qui reste (une 3e période : 1/3) et comment la dire (« en 3e »). */
 const surLaPart = (d, part) => (part === 1 ? d : { ...d, tirsPour: d.tirsPour * part, tirsContre: d.tirsContre * part, butsPour: d.butsPour * part, butsContre: d.butsContre * part, punitions: d.punitions * part, coups: d.coups * part });
 
@@ -209,27 +219,53 @@ export function agressiviteEnChiffres(team, lineup, adv, lignes, u, agr) {
 
 
 /*
- * UN CHANGEMENT DE CARTE, EN CHIFFRES : le moteur le pose sur un joueur le temps de la lecture. Une carte qui ne
- * vise personne (« libre ») se lit sur un joueur du premier trio ; celle qui vise un profil, sur le joueur qu'elle
- * choisirait. Le reste de ses mots (les rôles, le placement) ne sont pas des pourcentages : ils restent.
+ * UN CHANGEMENT DE CARTE, EN CHIFFRES. JP : *les events de modifications de joueur, « +25 déf », ça veut rien
+ * dire.* Une modif touche UN joueur : au niveau du club, un joueur sur vingt ne fait qu'un dixième de but par
+ * match, et le dire par match la rendait invisible. On la dit donc d'abord À LUI — ses buts et ses tirs d'ici la
+ * fin de la saison, lus dans le moteur (ses lancers et leur chance, `lectureDuMatch`) —, puis à ton club sur la
+ * même durée, puis ce qu'il devient (ses badges, `badgesDeMutation`), jamais en points de profil. Le moteur la
+ * pose sur le joueur le temps de la lecture ; une carte qui ne vise personne (« libre ») se lit sur un joueur du
+ * premier trio, celle qui vise un profil sur le joueur qu'elle choisirait.
  */
 const CANAUX_MUTATION = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets', 'ombre', 'abri'];
+const N_MUTATION = 2000;   // un joueur tire un lancer sur vingt : il en faut plus pour lire les siens
+const auMatch = x => (Math.abs(x) >= 9.5 ? String(Math.round(Math.abs(x))) : virgule(Math.abs(x).toFixed(1)));
 export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = {}) {
-  const base = motsDeMutation(cle), M = MUTATIONS[cle], c = clubLu();
-  if (!c || !c.team || !M || !CANAUX_MUTATION.some(k => M[k])) return base;
-  let d;
+  const base = motsDeMutation(cle).filter(m => m.cle !== 'role' && !m.txt.includes(' %')), M = MUTATIONS[cle], c = clubLu();
+  if (!c || !c.team || !M) return motsDeMutation(cle);
+  const p = joueurDeMutation(c.team, c.lineup || null, cle, joueur);
+  const badges = p ? badgesDeMutation(p, cle, { deja }) : [];
+  if (!CANAUX_MUTATION.some(k => M[k])) return [...badges, ...base];
+  let avec, sans;
   try {
     // Une modif à poser : le soir avec elle contre sans. Une modif déjà posée (`deja`) : le soir tel qu'il est contre le même soir sans elle.
-    const L = o => lire(c.team, c.lineup || null, c.adv || null, { ...o, n: N_EFFET });
-    d = deja ? differences(L({}), L({ mutation: { cle, joueur, retirer: true } })) : differences(L({ mutation: { cle, joueur } }), L({}));
-  } catch { return base; }
-  const out = lignesDe(d);
-  if (M.blessure) {
-    const n = d.blessures * 82;
-    out.push(Math.abs(n) >= 0.1 ? { txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} par saison`, bon: n < 0, cle: 'blessure' } : { txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
+    const L = o => lire(c.team, c.lineup || null, c.adv || null, { ...o, n: N_MUTATION });
+    const tel = { mutation: { cle, joueur, rien: true } };   // le même joueur lu, sans rien poser (le gardien qu'elle vise devant le filet)
+    if (deja) { avec = L(tel); sans = L({ mutation: { cle, joueur, retirer: true } }); } else { avec = L({ mutation: { cle, joueur } }); sans = L(tel); }
+  } catch { return motsDeMutation(cle); }
+  const d = differences(avec, sans);
+  const reste = Math.max(1, 82 - (c.team.games || 0)), quand = reste >= 82 ? 'sur la saison' : `d'ici la fin (${reste} matchs)`;
+  const out = [];
+  // À LUI : ses buts et ses tirs (un patineur), ou les buts que son filet accorde (un gardien : ceux du club, c'est lui).
+  if (p && p.p !== 'G') {
+    const k = getPlayerKey(p), a = avec.joueurs.get(k) || { tirs: 0, buts: 0 }, b = sans.joueurs.get(k) || { tirs: 0, buts: 0 };
+    const db = (a.buts - b.buts) * reste, dt = (a.tirs - b.tirs) * reste;
+    const bits = [];
+    if (Math.abs(db) >= 0.5) bits.push(`${signeDe(db)}${auMatch(db)} ${mot(db, 'but', 'buts')}`);
+    if (Math.abs(dt) >= 3) bits.push(`${signeDe(dt)}${auMatch(dt)} tirs`);
+    if (bits.length) out.push({ txt: `${p.n} : ≈ ${bits.join(', ')} ${quand}`, bon: (Math.abs(db) >= 0.5 ? db : dt) > 0, cle: 'lui' });
   }
-  const qui = joueur ? [] : [{ txt: M.gardien ? 'sur le gardien partant' : M.cible === 'libre' ? 'sur un joueur du 1er trio' : 'sur le joueur visé', bon: null, duree: true }];
-  return [...(out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...qui, ...base.filter(m => !m.txt.includes(' %'))];
+  // À TON CLUB, sur la même durée : les buts marqués et accordés (ce que sa création, sa défense ou ses arrêts rapportent aux autres aussi).
+  // Une carte de gardien ne joue que les soirs où il garde le filet.
+  const bp = d.butsPour * reste, bc = d.butsContre * reste * (M.gardien ? avec.partDuFilet : 1);
+  if (Math.abs(bp) >= 0.5) out.push({ txt: `Ton club : ≈ ${signeDe(bp)}${auMatch(bp)} ${mot(bp, 'but marqué', 'buts marqués')} ${quand}`, bon: bp > 0, cle: 'but' });
+  if (Math.abs(bc) >= 0.5) out.push({ txt: `Ton club : ≈ ${signeDe(bc)}${auMatch(bc)} ${mot(bc, 'but accordé', 'buts accordés')} ${quand}`, bon: bc < 0, cle: 'butContre' });
+  if (M.blessure) {
+    const n = d.blessures * reste;
+    out.push(Math.abs(n) >= 0.1 ? { txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${quand}`, bon: n < 0, cle: 'blessure' } : { txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
+  }
+  const qui = joueur || !p ? [] : [{ txt: M.gardien ? `sur ${p.n}, le partant` : `sur ${p.n}`, bon: null, duree: true }];
+  return [...(out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...badges, ...qui, ...base];
 }
 
 /* ---- le club qu'on lit ---- */

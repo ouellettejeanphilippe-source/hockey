@@ -241,7 +241,8 @@ console.log('\n  Le deck de match (S74)\n');
     const compte = x => {
       const fe = (x[0].journal.find(y => y.feuille && y.feuille.cartes) || {}).feuille;
       const adv = x.find(t => t.name === m.adv.name) || m.adv;
-      const deLui = fe ? fe.lancers.filter(l => l.tireur && Object.values(adv.roster).includes(l.tireur) && l.tac) : [];
+      // Les deux premières lignes seulement : ce sont elles que le plan règle (PLANS_ADV) ; les autres jouent la saison de toute façon.
+      const deLui = fe ? fe.lancers.filter(l => l.tireur && Object.values(adv.roster).includes(l.tireur) && l.tac && (l.ligne === 0 || l.ligne === 1)) : [];
       return { n: deLui.length, plan: deLui.filter(l => l.tac === tacPlan).length };
     };
     if (!tacPlan) informer('le coach dans leur tête', `plan ${m.plan} sans tactique de ligne à faire tomber`);
