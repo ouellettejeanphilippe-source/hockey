@@ -561,7 +561,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn.go.hub-flottant:active:not(:disabled) { transform: translateX(-50%) translateY(2px) scale(0.96); }
 @media (min-width: 1200px) { .hub-flottant { display: none; } }
 
-/* ---- Le toast : en bas, au-dessus de la barre d'action (rien d'écrit en haut de l'écran, 1.0, R3) ---- */
+/* ---- Le toast : au bureau en bas, au téléphone en bande sous l'en-tête (1.0, R4) ---- */
 .toast {
   position: fixed; left: 50%; z-index: 80; transform: translate(-50%, 24px) scale(0.9);
   bottom: calc(var(--navbar-h) + var(--actionbar-h) + var(--esp-3) + var(--safe-bas));
@@ -575,8 +575,10 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .toast.warn { border-left-color: var(--or); }
 .toast.bad { border-left-color: var(--mauvais); }
 @media (max-width: 1199.98px) {
-  .toast { left: var(--esp-3); right: var(--esp-3); max-width: none; transform: translateY(6px); text-align: left; }
+  .toast { left: 0; right: 0; bottom: auto; top: var(--topbar-h); max-width: none; border-radius: 0; border-left: 0; border-bottom: 2px solid var(--club-vif); transform: translateY(-6px); text-align: left; }
   .toast.on { transform: none; }
+  .toast.warn { border-bottom-color: var(--or); }
+  .toast.bad { border-bottom-color: var(--mauvais); }
 }
 
 /* ---- Le chargement et le voile ---- */
@@ -956,8 +958,13 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .de-issue { justify-content: center; }
 .de-boutons { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-2); }
 .de-boutons .btn { min-height: 44px; min-width: 140px; }
+/* R2 : les décisions en feuille — un panneau en bas au téléphone, centré au bureau */
+.choix-modal.feuille { align-items: flex-end; }
+.choix-modal.feuille .choix-sheet { height: auto; max-height: 80dvh; border-radius: var(--r-2) var(--r-2) 0 0; background: var(--fond-1); animation: feuille-entre 380ms var(--e-ressort); }
 @media (min-width: 1000px) {
   .choix-modal { align-items: center; padding: var(--esp-5); }
+  .choix-modal.feuille { align-items: center; }
+  .choix-modal.feuille .choix-sheet { border-radius: var(--r-2); max-width: 560px; }
   .choix-sheet { height: auto; max-height: calc(100dvh - 48px); border-radius: var(--r-2); background: var(--fond-1); border: 1px solid var(--filet); box-shadow: var(--ombre); overflow: hidden; }
   .choix-option { background: var(--fond-2); }
 }
