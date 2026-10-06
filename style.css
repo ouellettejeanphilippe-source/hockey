@@ -1564,11 +1564,11 @@ button.marche-tuile:active { transform: scale(0.98); }
    d'aronde qui mord la photo, l'écusson dans un médaillon.
    --------------------------------------------------------------- */
 .cs-vintage {
-  --c-fond: radial-gradient(125% 95% at 50% 40%, transparent 58%, rgba(120, 88, 38, 0.2)), radial-gradient(circle at 30% 40%, rgba(110, 80, 30, 0.11) 0 0.7px, transparent 1.1px) 0 0 / 4px 4px, linear-gradient(#f1e7cf, #e8dcbf);
+  --c-fond: radial-gradient(125% 95% at 50% 40%, transparent 58%, rgba(120, 88, 38, 0.3)), radial-gradient(circle at 30% 40%, rgba(110, 80, 30, 0.15) 0 0.8px, transparent 1.2px) 0 0 / 4px 4px, linear-gradient(135deg, #f3eed8 0%, #e8dcbf 60%, #dfcdab 100%);
   --c-encre: #2b2216;
 }
-.cs-vintage .carton-photo { inset: 5.5cqw 5.5cqw auto; height: 95cqw; border-radius: 7cqw; background: radial-gradient(90% 55% at 50% 0%, color-mix(in srgb, white 65%, #c7d2d8), transparent 70%), linear-gradient(#c7d2d8, #8fa1ab); box-shadow: 0 0 0 1.3cqw var(--band), 0 0 0 2.1cqw #efe5cc, 0 0 0 2.6cqw var(--stripe); }
-.cs-vintage .carton-nom {
+.cs-vintage .carton-photo { inset: 5.5cqw 5.5cqw auto; height: 95cqw; border-radius: 7cqw; background: radial-gradient(90% 55% at 50% 0%, color-mix(in srgb, white 65%, #c7d2d8), transparent 70%), linear-gradient(#c7d2d8, #8fa1ab); box-shadow: 0 0 0 1.3cqw var(--band), 0 0 0 2.1cqw #efe5cc, 0 0 0 2.6cqw var(--stripe), 0 2cqw 4cqw rgba(0, 0, 0, 0.4); }
+.cs-vintage .carton-nom { font-family: "Georgia", "Times New Roman", serif;
   --nom-l: 60cqw; left: 0; width: 80cqw; top: 94cqw; height: 26cqw; padding: 0 12cqw 0 6cqw;
   background: linear-gradient(transparent 86%, rgba(0, 0, 0, 0.22) 86%), var(--band); color: var(--ink);
   clip-path: polygon(0 0, 100% 0, 88% 50%, 100% 100%, 0 100%);
@@ -1581,13 +1581,13 @@ button.marche-tuile:active { transform: scale(0.98); }
    carrée au filet noir, la BANDE DU NOM en biais entre les rayures du club,
    l'écusson dans le blanc du coin.
    --------------------------------------------------------------- */
-.cs-retro { --c-fond: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.025) 0 0.6px, transparent 1px) 0 0 / 3px 3px, linear-gradient(170deg, #ffffff, #efede6); --c-encre: #1b1b1b; }
-.cs-retro .carton-photo { inset: 6cqw 6cqw auto; height: 92cqw; background: radial-gradient(90% 50% at 50% 0%, color-mix(in srgb, white 70%, #b5c0c7), transparent 68%), linear-gradient(#b5c0c7, #83939d); box-shadow: 0 0 0 0.5cqw #1b1b1b; }
+.cs-retro { --c-fond: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.04) 0 0.8px, transparent 1px) 0 0 / 3px 3px, linear-gradient(170deg, #ffffff 0%, #f4f2eb 40%, #e6e2d6 100%); --c-encre: #1b1b1b; }
+.cs-retro .carton-photo { inset: 6cqw 6cqw auto; height: 92cqw; background: radial-gradient(90% 50% at 50% 0%, color-mix(in srgb, white 70%, #b5c0c7), transparent 68%), linear-gradient(#b5c0c7, #83939d); box-shadow: 0 0 0 0.5cqw #1b1b1b, inset 0 0 2cqw rgba(0, 0, 0, 0.5); }
 .cs-retro .carton-nom {
   --nom-l: 70cqw; left: -8cqw; right: -8cqw; top: 93cqw; height: 20cqw; padding: 0 16cqw 0 15cqw; transform: rotate(-7deg);
   background: var(--band); color: var(--ink); box-shadow: 0 -0.9cqw 0 #ffffff, 0 -2.9cqw 0 var(--stripe), 0 0.9cqw 0 #ffffff, 0 2.2cqw 0 var(--stripe);
 }
-.cs-retro .carton-nom .lname { font-style: italic; }
+.cs-retro .carton-nom .lname { font-style: italic; text-shadow: 0.2cqw 0.2cqw 0 rgba(0,0,0,0.3); font-family: "Arial Black", "Impact", sans-serif; }
 .cs-retro .carton-club-nom { display: none; }
 .cs-retro .carton-club { right: 6cqw; bottom: 5.5cqw; width: 17cqw; height: 17cqw; }
 .cs-retro .carton-imprime { left: 6cqw; bottom: 7cqw; flex-direction: column; align-items: flex-start; gap: 1.2cqw; color: #444; }
@@ -1597,7 +1597,7 @@ button.marche-tuile:active { transform: scale(0.98); }
    noir mat et sa grille de lampes, la photo cernée d'AMPOULES, le nom en
    points lumineux ambrés dans son panneau, l'écusson au bout.
    --------------------------------------------------------------- */
-.cs-tableau { --c-fond: radial-gradient(circle, rgba(255, 170, 60, 0.07) 30%, transparent 36%) 0 0 / 5px 5px, linear-gradient(#1a1b1f, #0b0b0d); --c-encre: #ffb13b; }
+.cs-tableau { --c-fond: radial-gradient(circle, rgba(255, 170, 60, 0.1) 30%, transparent 36%) 0 0 / 5px 5px, linear-gradient(135deg, #222329 0%, #1a1b1f 40%, #08080a 100%); --c-encre: #ffb13b; }
 .cs-tableau .carton-photo { inset: 8cqw 8cqw auto; height: 84cqw; border-radius: 2cqw; background: radial-gradient(90% 80% at 50% 25%, #2c3440, #0e1217); }
 .cs-tableau .carton-deco::before {
   inset: 5cqw 5cqw auto; height: 90cqw; border-radius: 3.4cqw; padding: 2.5cqw; box-sizing: border-box;
@@ -1607,12 +1607,12 @@ button.marche-tuile:active { transform: scale(0.98); }
 }
 .cs-tableau .carton-nom {
   --nom-l: 60cqw; --nom-max: 11cqw; left: 5cqw; right: 5cqw; top: 100cqw; height: 25cqw; padding: 0 23cqw 0 4cqw;
-  background: #050506; border-radius: 2cqw; box-shadow: inset 0 0 0 0.5cqw #2c2c31, inset 0 0 0 1.2cqw #050506, inset 0 0 0 1.5cqw #1d1d21;
+  background: #050506; border-radius: 2cqw; box-shadow: inset 0 0 0 0.5cqw #2c2c31, inset 0 0 0 1.2cqw #050506, inset 0 0 0 1.5cqw #1d1d21, inset 0 2cqw 4cqw rgba(0,0,0,0.8), 0 1cqw 3cqw rgba(0,0,0,0.6);
 }
 .cs-tableau .carton-nom .fname { color: #ff5a3c; opacity: 1; }
 .cs-tableau .carton-nom .lname {
   color: transparent; background: radial-gradient(circle, #ffc25a 52%, transparent 58%) 0 0 / 0.125em 0.125em;
-  -webkit-background-clip: text; background-clip: text; text-shadow: 0 0 0.12em rgba(255, 150, 30, 0.35); letter-spacing: 0.04em;
+  -webkit-background-clip: text; background-clip: text; text-shadow: 0 0 0.2em rgba(255, 150, 30, 0.8), 0 0 0.4em rgba(255, 100, 0, 0.6); letter-spacing: 0.04em;
 }
 .cs-tableau .carton-club-nom { color: #d8d2c4; }
 .cs-tableau .carton-club { right: 8.5cqw; top: 104.5cqw; width: 16cqw; height: 16cqw; }
@@ -1623,16 +1623,16 @@ button.marche-tuile:active { transform: scale(0.98); }
    COLONNE DE TUILES aux couleurs du club, le nom qui y monte à la
    VERTICALE, la photo haute à côté, l'écusson au pied de la colonne.
    --------------------------------------------------------------- */
-.cs-mosaique { --c-fond: linear-gradient(160deg, color-mix(in srgb, var(--fonce) 80%, #fff 6%), var(--fonce)); --c-encre: #ffffff; }
+.cs-mosaique { --c-fond: linear-gradient(160deg, color-mix(in srgb, var(--fonce) 75%, #fff 12%) 0%, var(--fonce) 50%, color-mix(in srgb, var(--fonce) 90%, #000 10%) 100%); --c-encre: #ffffff; }
 .cs-mosaique::before {
   inset: 0 auto 0 0; width: 25cqw;
   background:
     linear-gradient(45deg, color-mix(in srgb, var(--band) 72%, #000) 25%, transparent 25% 75%, color-mix(in srgb, var(--band) 72%, #000) 75%) 0 0 / 7cqw 7cqw,
     linear-gradient(45deg, var(--stripe) 25%, transparent 25% 75%, var(--stripe) 75%) 3.5cqw 3.5cqw / 7cqw 7cqw,
     var(--band);
-  box-shadow: inset -1cqw 0 0 #ffffff, inset -1.8cqw 0 0 var(--fonce);
+  box-shadow: inset -1cqw 0 0 #ffffff, inset -1.8cqw 0 0 var(--fonce), 1cqw 0 2cqw rgba(0, 0, 0, 0.4);
 }
-.cs-mosaique .carton-photo { inset: 5cqw 5cqw 24cqw 30cqw; background: radial-gradient(100% 80% at 50% 20%, color-mix(in srgb, var(--vive) 50%, #1a2230), #0c1016); box-shadow: 0 0 0 0.7cqw #ffffff; }
+.cs-mosaique .carton-photo { inset: 5cqw 5cqw 24cqw 30cqw; background: radial-gradient(100% 80% at 50% 20%, color-mix(in srgb, var(--vive) 50%, #1a2230), #0c1016); box-shadow: 0 0 0 0.7cqw #ffffff, 0 1cqw 3cqw rgba(0, 0, 0, 0.6); }
 .cs-mosaique .carton-photo > img.visage { inset: auto; left: calc(50% - 55.5cqw); bottom: 0; width: 111cqw; height: 111cqw; }
 .cs-mosaique .carton-nom {
   --nom-l: 88cqw; --nom-max: 14cqw; left: 0; top: 140cqw; width: 116cqw; height: 25cqw; padding: 0 4cqw 0 26cqw;
@@ -1649,15 +1649,15 @@ button.marche-tuile:active { transform: scale(0.98); }
    --------------------------------------------------------------- */
 .cs-filet {
   --c-fond:
-    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.2) 0 1px, transparent 1px 9px),
-    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.2) 0 1px, transparent 1px 9px),
-    radial-gradient(110% 70% at 50% 30%, color-mix(in srgb, var(--band) 80%, #fff 8%), var(--fonce) 80%);
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.25) 0 1.5px, transparent 1.5px 10px),
+    repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.25) 0 1.5px, transparent 1.5px 10px),
+    radial-gradient(110% 70% at 50% 30%, color-mix(in srgb, var(--band) 85%, #fff 12%), var(--fonce) 85%);
   --c-encre: #ffffff;
 }
 .cs-filet .carton-photo { inset: auto 7cqw 22cqw; height: 92cqw; }
 .cs-filet .carton-deco::before {
   left: 5cqw; right: 5cqw; top: 9cqw; height: 104cqw; border: 2.6cqw solid #d9262f; border-bottom: 0; border-radius: 2.2cqw 2.2cqw 0 0;
-  box-shadow: inset 0.7cqw 0.7cqw 0 rgba(255, 255, 255, 0.28), 0.5cqw 0.8cqw 0 rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0.7cqw 0.7cqw 0 rgba(255, 255, 255, 0.28), inset -0.5cqw -0.5cqw 0 rgba(0,0,0,0.4), 0.5cqw 0.8cqw 0 rgba(0, 0, 0, 0.4), 0 2cqw 4cqw rgba(0, 0, 0, 0.5);
 }
 .cs-filet .carton-deco::after { left: 0; right: 0; bottom: 0; height: 44cqw; background: linear-gradient(transparent, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.82)); }
 .cs-filet .carton-nom { --nom-l: 64cqw; --nom-max: 13cqw; left: 6cqw; right: 26cqw; bottom: 11cqw; }
@@ -1674,17 +1674,17 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cs-chrome {
   --c-fond:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.045) 1px 2px),
-    linear-gradient(135deg, #eceff2 0%, #9aa3ad 26%, #f6f8fa 45%, #86909b 68%, #d9dee3 100%);
+    linear-gradient(135deg, #f2f5f8 0%, #aab4be 22%, #ffffff 45%, #929ba6 65%, #e1e6ec 100%);
   --c-encre: #1b2129;
 }
-.cs-chrome .carton-photo { inset: 7cqw 7cqw auto; height: 90cqw; border-radius: 4cqw; background: radial-gradient(85% 70% at 50% 28%, color-mix(in srgb, var(--vive) 75%, #fff 8%), var(--fonce) 72%, #05070a); box-shadow: 0 0 0 0.9cqw #58626c, 0 0 0 1.6cqw #f5f7f9, 0 0 0 2.2cqw #77818b; }
+.cs-chrome .carton-photo { inset: 7cqw 7cqw auto; height: 90cqw; border-radius: 4cqw; background: radial-gradient(85% 70% at 50% 28%, color-mix(in srgb, var(--vive) 75%, #fff 8%), var(--fonce) 72%, #05070a); box-shadow: 0 0 0 0.9cqw #58626c, 0 0 0 1.6cqw #f5f7f9, 0 0 0 2.2cqw #77818b, inset 0 2cqw 3cqw -1cqw rgba(255, 255, 255, 0.8), 0 2cqw 5cqw rgba(0, 0, 0, 0.5); }
 .cs-chrome .carton-deco::before { inset: 7cqw 7cqw auto; height: 90cqw; border-radius: 4cqw; box-shadow: inset 0 0 0 0.6cqw rgba(0, 0, 0, 0.4), inset 0 1.6cqw 1.4cqw -1.2cqw rgba(255, 255, 255, 0.45); }
 .cs-chrome .carton-nom {
   --nom-l: 52cqw; --nom-max: 11.5cqw; left: 17cqw; right: 6cqw; top: 101cqw; height: 20cqw; padding: 0 6cqw 0 13cqw;
   border-radius: 10cqw; background: linear-gradient(#262d36, #0c1015); box-shadow: 0 0 0 0.8cqw #d3d9df, 0 0 0 1.3cqw #69737d, inset 0 1.2cqw 1cqw -0.8cqw rgba(255, 255, 255, 0.22);
 }
 .cs-chrome .carton-nom .fname { color: color-mix(in srgb, var(--vive) 65%, #fff); opacity: 1; }
-.cs-chrome .carton-nom .lname { color: transparent; background: linear-gradient(180deg, #ffffff 0%, #d5dbe1 46%, #7e8995 54%, #eef2f5 100%); -webkit-background-clip: text; background-clip: text; }
+.cs-chrome .carton-nom .lname { color: transparent; background: linear-gradient(180deg, #ffffff 0%, #d5dbe1 46%, #7e8995 54%, #eef2f5 100%); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0.2cqw 0.1cqw rgba(0,0,0,0.5)); }
 .cs-chrome .carton-club-nom { display: none; }
 .cs-chrome .carton-club { left: 4cqw; top: 99cqw; width: 24cqw; height: 24cqw; padding: 4cqw; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffff, #b9c1c9 45%, #7a848e 75%, #cdd3d9); box-shadow: 0 0 0 0.6cqw #5e6872, 0 1cqw 1.4cqw rgba(0, 0, 0, 0.35); }
 .cs-chrome .carton-imprime { left: 7cqw; right: 7cqw; bottom: 4.6cqw; justify-content: center; color: #39424c; }
@@ -1703,7 +1703,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cs-ecusson .carton-photo { inset: auto 0 30cqw; height: 100cqw; -webkit-mask-image: linear-gradient(#000 82%, transparent); mask-image: linear-gradient(#000 82%, transparent); }
 .cs-ecusson.action-plein .carton-photo { inset: 0; height: auto; -webkit-mask-image: none; mask-image: none; }
 .cs-ecusson .carton-deco::after { left: 0; right: 0; bottom: 0; height: 48cqw; background: linear-gradient(transparent, color-mix(in srgb, var(--band) 70%, #000) 55%); }
-.cs-ecusson .carton-nom { --nom-l: 70cqw; --nom-max: 15cqw; --prenom: 5.2cqw; left: 6cqw; right: 24cqw; bottom: 12cqw; }
+.cs-ecusson .carton-nom { text-shadow: 0 0.1cqw 0.2cqw rgba(0,0,0,0.6);  --nom-l: 70cqw; --nom-max: 15cqw; --prenom: 5.2cqw; left: 6cqw; right: 24cqw; bottom: 12cqw; }
 .cs-ecusson .carton-nom::before { content: ''; display: block; width: 20cqw; height: 0.9cqw; margin-bottom: 2.2cqw; background: var(--stripe); }
 .cs-ecusson .carton-nom .fname { font-weight: 600; letter-spacing: 0.24em; }
 .cs-ecusson .carton-club { right: 6cqw; bottom: 12.5cqw; width: 15cqw; height: 15cqw; }
@@ -1732,7 +1732,7 @@ button.marche-tuile:active { transform: scale(0.98); }
   background: linear-gradient(90deg, transparent 0 22cqw, var(--stripe) 22cqw 23.4cqw, transparent 23.4cqw 24.4cqw, var(--band) 24.4cqw), var(--band);
   clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%);
 }
-.cs-glace .carton-club { left: 6cqw; top: 101cqw; width: 22cqw; height: 22cqw; padding: 3.2cqw; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 1cqw var(--band), 0 0.8cqw 1.4cqw rgba(0, 0, 0, 0.25); }
+.cs-glace .carton-club { left: 6cqw; top: 101cqw; width: 22cqw; height: 22cqw; padding: 3.2cqw; border-radius: 50%; background: #ffffff; box-shadow: 0 0 0 1cqw var(--band), 0 0.8cqw 1.4cqw rgba(0, 0, 0, 0.25), inset 0 0.5cqw 1cqw rgba(0, 0, 0, 0.2); }
 .cs-glace .carton-imprime { left: 7cqw; right: 7cqw; bottom: 5cqw; justify-content: space-between; color: #395067; }
 
 /* ---------------------------------------------------------------
@@ -1766,7 +1766,7 @@ button.marche-tuile:active { transform: scale(0.98); }
   clip-path: polygon(0 0, 100% 0, 88% 100%, 0 100%);
 }
 .cs-arena .carton-nom .fname { color: color-mix(in srgb, var(--band) 70%, #000); opacity: 1; }
-.cs-arena .carton-club { right: 3cqw; top: 104cqw; width: 22cqw; height: 20cqw; padding: 2.6cqw 3.6cqw; background: var(--band); clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%); }
+.cs-arena .carton-club { filter: drop-shadow(0 0 1cqw rgba(255, 255, 255, 0.4));  right: 3cqw; top: 104cqw; width: 22cqw; height: 20cqw; padding: 2.6cqw 3.6cqw; background: var(--band); clip-path: polygon(18% 0, 100% 0, 100% 100%, 0 100%); }
 .cs-arena .carton-imprime { left: 6cqw; right: 6cqw; bottom: 5.4cqw; justify-content: space-between; color: rgba(255, 255, 255, 0.6); }
 
 /* ---------------------------------------------------------------
@@ -1775,7 +1775,7 @@ button.marche-tuile:active { transform: scale(0.98); }
    CHAUD entre deux filets, le nom espacé au centre.
    --------------------------------------------------------------- */
 .cs-signature {
-  --c-fond: repeating-linear-gradient(45deg, rgba(60, 40, 10, 0.022) 0 1px, transparent 1px 3px), repeating-linear-gradient(-45deg, rgba(60, 40, 10, 0.022) 0 1px, transparent 1px 3px), linear-gradient(160deg, #fcfaf5, #eee7da);
+  --c-fond: repeating-linear-gradient(45deg, rgba(60, 40, 10, 0.03) 0 1px, transparent 1px 3px), repeating-linear-gradient(-45deg, rgba(60, 40, 10, 0.03) 0 1px, transparent 1px 3px), linear-gradient(160deg, #fdfbf5 0%, #f4eee2 50%, #e6dcc7 100%);
   --c-encre: #1d1a16;
 }
 .cs-signature .carton-photo { inset: 8cqw 8cqw auto; height: 84cqw; background: linear-gradient(180deg, color-mix(in srgb, var(--band) 16%, #f3efe7), color-mix(in srgb, var(--band) 42%, #e3ddd0)); box-shadow: 0 0 0 0.4cqw #b89b5e; }
@@ -1784,7 +1784,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cs-signature .carton-club :is(img, svg) { visibility: hidden; }
 .cs-signature .carton-nom { --nom-l: 80cqw; --nom-max: 9.6cqw; --prenom: 3.9cqw; left: 8cqw; right: 8cqw; top: 106cqw; align-items: center; text-align: center; }
 .cs-signature .carton-nom .fname { letter-spacing: 0.34em; color: #8a7a5c; opacity: 1; }
-.cs-signature .carton-nom .lname { font-weight: 700; letter-spacing: 0.1em; }
+.cs-signature .carton-nom .lname { font-weight: 800; letter-spacing: 0.12em; text-shadow: 0 0.2cqw 0.4cqw rgba(0,0,0,0.3); font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif; }
 .cs-signature .carton-club-nom { color: #8a7a5c; }
 .cs-signature .carton-imprime { left: 8cqw; right: 8cqw; bottom: 4.6cqw; justify-content: center; color: #8a7a5c; }
 
@@ -1798,30 +1798,30 @@ button.marche-tuile:active { transform: scale(0.98); }
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0 1px, transparent 1px 3px),
     linear-gradient(118deg, rgba(90, 200, 255, 0) 12%, rgba(120, 220, 255, 0.6) 28%, rgba(255, 190, 250, 0.5) 38%, rgba(255, 245, 190, 0.55) 46%, rgba(90, 200, 255, 0) 62%, rgba(140, 255, 220, 0.45) 78%, rgba(90, 200, 255, 0) 90%) var(--mx) var(--my) / 250% 250%;
-  mix-blend-mode: var(--fini-mode, soft-light); opacity: var(--fini-o, 0.9);
+  mix-blend-mode: var(--fini-mode, color-dodge); opacity: var(--fini-o, 0.85); filter: contrast(1.1);
 }
 /* HOLO · la feuille prismatique : le réseau strié et l'arc-en-ciel qui court sous le doigt. */
 .carton.tc-rare .carton-fini {
   background:
     repeating-linear-gradient(24deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 2.6px),
     repeating-linear-gradient(112deg, #ff5a7a 0px, #ffb45a 16px, #fff36b 32px, #6bffb0 48px, #5ad8ff 64px, #8a7bff 80px, #ff6be0 96px, #ff5a7a 112px) var(--mx) var(--my) / 300% 300%;
-  mix-blend-mode: var(--fini-mode, soft-light); opacity: var(--fini-o, 0.75);
+  mix-blend-mode: var(--fini-mode, color-dodge); opacity: var(--fini-o, 0.9); filter: saturate(1.2);
 }
 /* OR · le métal brossé et ses paillettes. */
 .carton.tc-legendaire .carton-fini {
   background:
     repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.14) 0 0.5px, rgba(0, 0, 0, 0.08) 0.5px 1.2px, transparent 1.2px 2px),
     linear-gradient(118deg, #7a5410 0%, #d9ac3e 16%, #fff1b8 26%, #caa04a 38%, #8a6212 50%, #f1cf6c 62%, #fff6d6 70%, #b8860b 82%, #6b4a0c 100%) var(--mx) var(--my) / 260% 260%;
-  mix-blend-mode: var(--fini-mode, soft-light); opacity: var(--fini-o, 0.85);
+  mix-blend-mode: var(--fini-mode, overlay); opacity: var(--fini-o, 0.95); filter: contrast(1.15);
 }
 /* Sur un carton clair (le crème, le blanc, la glace, le nacre), la parallèle TEINTE plutôt que d'éclairer. */
-:is(.cs-vintage, .cs-retro, .cs-glace, .cs-signature, .cs-chrome) { --fini-mode: multiply; --fini-o: 0.42; }
+:is(.cs-vintage, .cs-retro, .cs-glace, .cs-signature, .cs-chrome) { --fini-mode: multiply; --fini-o: 0.6; }
 .cs-chrome.tc-peu { --fini-mode: overlay; --fini-o: 0.8; }
 /* Le filet d'une brillante : l'argent de la parallèle, l'arc-en-ciel de la holo, l'or — tout autour du carton.
    Il se pose sur un ENFANT du carton : une longueur en `cqw` posée sur le carton lui-même se lirait dans le conteneur d'au-dessus. */
-.carton:is(.tc-peu, .tc-rare, .tc-legendaire) .carton-deco { border-radius: inherit; box-shadow: inset 0 0 0 1.4cqw var(--para), inset 0 0 0 1.8cqw rgba(0, 0, 0, 0.25); }
-.carton.tc-peu { --para: #c9dbe6; }
-.carton.tc-rare { --para: #d9c8ff; }
+.carton:is(.tc-peu, .tc-rare, .tc-legendaire) .carton-deco { border-radius: inherit; box-shadow: inset 0 0 0 1.4cqw var(--para), inset 0 0 0 1.8cqw rgba(0, 0, 0, 0.25), inset 0 0 4cqw rgba(255, 255, 255, 0.1); }
+.carton.tc-peu { --para: #c9dbe6; filter: drop-shadow(0 0 0.5cqw rgba(200, 220, 255, 0.4)); }
+.carton.tc-rare { --para: #d9c8ff; filter: drop-shadow(0 0 0.6cqw rgba(220, 200, 255, 0.5)); }
 
 /* LA RELIQUE (la holo) : un carré de chandail aux couleurs du club, tissé, cousu dans sa fenêtre. */
 .carton-relique {
@@ -1840,6 +1840,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 /* L'OR : le carton DÉCOUPÉ (deux encoches de rondelle au flanc), le nom doré à chaud, la signature, le tirage.
    Le nom doré prend son ombre par `filter` : un `text-shadow` se peindrait PAR-DESSUS l'or découpé dans les lettres, et le ternirait. */
 .carton.tc-legendaire {
+  filter: drop-shadow(0 0 0.8cqw rgba(255, 200, 100, 0.6));
   --para: #e7c25c;
   -webkit-mask: radial-gradient(7.8% 2.9% at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat, radial-gradient(7.8% 2.9% at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
   mask: radial-gradient(7.8% 2.9% at 0 50%, transparent 96%, #000) left / 51% 100% no-repeat, radial-gradient(7.8% 2.9% at 100% 50%, transparent 96%, #000) right / 51% 100% no-repeat;
@@ -1982,16 +1983,16 @@ button.marche-tuile:active { transform: scale(0.98); }
   padding: var(--esp-3); border-radius: var(--r-2); overflow: hidden; background: var(--v-fond); color: var(--v-encre);
   box-shadow: inset 0 0 0 1.5px var(--para, rgba(255, 255, 255, 0.12)), 0 10px 28px rgba(0, 0, 0, 0.55);
 }
-.fc-verso.cs-vintage { --v-fond: radial-gradient(circle at 30% 40%, rgba(110, 80, 30, 0.1) 0 0.7px, transparent 1.1px) 0 0 / 4px 4px, #e9dfc6; --v-encre: #2b2216; --v-encre-2: #6a5a40; --v-prix: #9b2a22; }
-.fc-verso.cs-retro { --v-fond: radial-gradient(circle, rgba(0, 0, 0, 0.05) 0 0.6px, transparent 1px) 0 0 / 3px 3px, #d8d4ca; --v-encre: #1f1f1f; --v-encre-2: #5a5750; --v-prix: #1e3a86; }
-.fc-verso.cs-tableau { --v-fond: radial-gradient(circle, rgba(255, 170, 60, 0.06) 30%, transparent 36%) 0 0 / 5px 5px, #0d0d0f; --v-encre: #f1e6d0; --v-encre-2: #b08a4c; --v-prix: #ffb13b; }
+.fc-verso.cs-vintage { --v-fond: radial-gradient(circle at 30% 40%, rgba(110, 80, 30, 0.15) 0 0.8px, transparent 1.2px) 0 0 / 4px 4px, linear-gradient(135deg, #f3eed8 0%, #e8dcbf 60%, #dfcdab 100%); --v-encre: #2b2216; --v-encre-2: #6a5a40; --v-prix: #9b2a22; }
+.fc-verso.cs-retro { --v-fond: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.04) 0 0.8px, transparent 1px) 0 0 / 3px 3px, linear-gradient(170deg, #ffffff 0%, #f4f2eb 40%, #e6e2d6 100%); --v-encre: #1f1f1f; --v-encre-2: #5a5750; --v-prix: #1e3a86; }
+.fc-verso.cs-tableau { --v-fond: radial-gradient(circle, rgba(255, 170, 60, 0.1) 30%, transparent 36%) 0 0 / 5px 5px, linear-gradient(135deg, #222329 0%, #1a1b1f 40%, #08080a 100%); --v-encre: #f1e6d0; --v-encre-2: #b08a4c; --v-prix: #ffb13b; }
 .fc-verso.cs-mosaique { --v-fond: linear-gradient(160deg, color-mix(in srgb, var(--team-fond, #151b26) 85%, #fff 6%), var(--team-fond, #151b26)); }
 .fc-verso.cs-filet { --v-fond: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 9px), repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.07) 0 1px, transparent 1px 9px), var(--team-fond, #151b26); }
-.fc-verso.cs-chrome { --v-fond: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.04) 1px 2px), linear-gradient(135deg, #e7eaed, #b3bbc3 45%, #dfe3e7); --v-encre: #1b2129; --v-encre-2: #4c5660; --v-prix: #0d5a82; }
+.fc-verso.cs-chrome { --v-fond: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 1px, rgba(0, 0, 0, 0.04) 1px 2px), linear-gradient(135deg, #f2f5f8 0%, #aab4be 22%, #ffffff 45%, #929ba6 65%, #e1e6ec 100%); --v-encre: #1b2129; --v-encre-2: #4c5660; --v-prix: #0d5a82; }
 .fc-verso.cs-ecusson { --v-fond: radial-gradient(120% 85% at 72% 26%, color-mix(in srgb, var(--team-band, #243044) 70%, #000), color-mix(in srgb, var(--team-band, #243044) 45%, #000)); }
 .fc-verso.cs-glace { --v-fond: repeating-linear-gradient(-21deg, rgba(255, 255, 255, 0.6) 0 1px, transparent 1px 13px), linear-gradient(172deg, #f3f7fa, #d8e2ea); --v-encre: #0f2239; --v-encre-2: #45596d; --v-prix: #b3202a; }
 .fc-verso.cs-arena { --v-fond: radial-gradient(95% 50% at 50% 100%, color-mix(in srgb, var(--team-line, #3a4a66) 30%, transparent), transparent 72%), linear-gradient(#070a0f, #0e141d); }
-.fc-verso.cs-signature { --v-fond: repeating-linear-gradient(45deg, rgba(60, 40, 10, 0.025) 0 1px, transparent 1px 3px), linear-gradient(160deg, #faf7f0, #ebe3d4); --v-encre: #1d1a16; --v-encre-2: #7a6b50; --v-prix: #8a6212; }
+.fc-verso.cs-signature { --v-fond: repeating-linear-gradient(45deg, rgba(60, 40, 10, 0.03) 0 1px, transparent 1px 3px), linear-gradient(160deg, #fdfbf5 0%, #f4eee2 50%, #e6dcc7 100%); --v-encre: #1d1a16; --v-encre-2: #7a6b50; --v-prix: #8a6212; }
 .fc-verso.tc-peu { --para: #7ec8e6; }
 .fc-verso.tc-rare { --para: #b79cff; }
 .fc-verso.tc-legendaire { --para: #e7c25c; }
