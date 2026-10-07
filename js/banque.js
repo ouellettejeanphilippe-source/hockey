@@ -29,17 +29,17 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, TACTIQUES } from './sim.js';
+import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus } from './combat.js';
-import { money } from './util.js';
+import { money, hache } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME } from './coachs.js';
 
 export const CATEGORIES = {
-  patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Trois postes au plus, un par rôle.' },
+  patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
   evenement: { ico: '📰', nom: 'Événements', un: 'Événement', mot: 'Ce qui arrive à ton équipe : quelques journées, un bonus et son prix.' },
   joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, une clause, une amélioration ou une édition : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
   consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Une utilisation : un soin, des jambes, le filet, les minutes, des jetons, le deck, ou un trou dans le règlement.' },
@@ -50,7 +50,7 @@ export const CATEGORIES = {
 export const ORDRE_CATEGORIES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match', 'saison'];
 
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
-export const MAX_PATRONS = 3;
+
 export const ROLES = {
   chef: { nom: 'Entraîneur-chef', ico: '🧑‍💼' },
   attaque: { nom: 'Adjoint à l\'attaque', ico: '🎯' },
@@ -117,6 +117,9 @@ export const PATRONS = {
     econ: { jetonsVictoire: 2 } },
   dir_magnat: { role: 'direction', nom: 'Le magnat', ico: '🎩', rarete: 'legendaire', texte: 'Il a acheté l\'équipe pour la gagner.',
     effet: { finition: 1.042, defense: 1.021 }, econ: { jetonsVictoire: 3, rabais: 0.9 } },
+  // V2.3 : le Comptable n'est plus un coach de départ ; il est un patron, à côté de n'importe quel coach.
+  dir_comptable: { role: 'direction', nom: 'Le comptable', ico: '🏦', rarete: 'commune', texte: 'Chaque jeton, chaque dollar du plafond.',
+    econ: { rabais: 0.92 } },
   dir_flexible: { role: 'direction', nom: 'Le DG du plafond flexible', ico: '🧮', rarete: 'rare', texte: 'Il connaît chaque clause de la convention collective.',
     econ: { plafond: 0.05 } },
   /*
@@ -475,6 +478,19 @@ function construire() {
 }
 export const BANQUE = construire();
 export const carteBanque = id => BANQUE[id] || null;
+/*
+ * LES DEUX PATRONS IMPOSÉS AU DÉPART D'UNE RUN (V2.3) : des passifs neutres, utiles à tous — un patron sans couleur
+ * de coach, ou de celle du Comptable (l'argent) —, tirés de la graine de la run parmi les raretés que le prestige
+ * ouvre (js/rogue.js `PRESTIGES`), deux rôles différents. Rend leurs id de banque.
+ */
+export const PATRONS_IMPOSES = 2;
+export function patronsDeDepart(graine, raretes) {
+  const out = [];
+  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && raretes.includes(c.rarete))
+    .sort((a, b) => hache(graine, 'patron', a.id) - hache(graine, 'patron', b.id));
+  for (const c of pool) if (out.length < PATRONS_IMPOSES && !out.some(x => BANQUE[x].role === c.role)) out.push(c.id);
+  return out;
+}
 /* Un canal d'équipe, du bon côté : buts contre, punitions, blessures et usure descendent. */
 const canalBon = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
 const bitsDEffet = e => {
@@ -706,7 +722,7 @@ function grandi(X, coach, build = {}, joueurs = {}) {
   if (n) { ajouter(E.par, n); gain += (E.gain || 0) * n; }
   // v2 : ses JOUEURS — ceux de la couleur de la carte, habillés quand on la joue.
   const J = X.parJoueur;
-  const nj = J ? Math.min(J.max || Infinity, (joueurs && joueurs[X.coach || coach]) || 0) : 0;
+  const nj = J ? Math.min(J.max || Infinity, ((joueurs && joueurs[X.coach || coach]) || {}).joueurs || 0) : 0;
   if (nj) ajouter(J.par, nj);
   return { effet, gain, n, nj };
 }
@@ -826,7 +842,7 @@ export function reglesDePalier(cle, palier) {
   if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
-  const sys = palier === 2 && COACHS[cle].systeme && TACTIQUES[COACHS[cle].systeme];
-  if (sys) out.push({ txt: `Tes avants apprennent ${sys.ico} ${sys.nom} (+${Math.round(GAIN_SYSTEME * 100)} % de maîtrise)`, bon: true });
+  const sys = palier === 2 && COACHS[cle].systeme && systemeDe(COACHS[cle].systeme);
+  if (sys) out.push({ txt: `Tes ${sys.groupe === 'D' ? 'défenseurs' : 'avants'} apprennent ${sys.ico} ${sys.nom} (+${Math.round(GAIN_SYSTEME * 100)} % de maîtrise), et le jouent chacun un cran plus haut (Bronze → Argent…)`, bon: true });
   return out;
 }

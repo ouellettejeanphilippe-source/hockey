@@ -1886,6 +1886,24 @@ JP : *simplifier traits, positions et rôles, genre sniper bronze argent or plat
 
 **Deux mesures rendues justes en chemin.** `check_chimie` jugeait « s'adapter un soir ne défait pas la chimie » sur la chimie du jour de chaque saison : elle mesurait surtout les blessures. Sur la graine « chimie », une ligne cassée dans la saison ajustée (51,8 contre 36,3) faisait à elle seule l'écart moyen de 3,2 points, au-dessus de la borne de 3 — et la lecture d'avant les badges était déjà à 2,9. À alignement égal (la chimie que la mémoire de chaque saison donne à la formation de départ), l'ajustement coûte 0,2 point : c'est ce que la règle dit, et c'est ce que l'épreuve lit maintenant. La même exécution fait repasser « chimie 100 contre 0 », rouge avant les badges (4,9 %) : 10,2 %. Et `essai_rogue`, qui n'est pas semé, a une fois attendu 30 s un clic sur « À régler » invisible ; il ne se reproduit pas, mais l'épreuve dit maintenant ce qu'elle voit (les boutons visibles, une capture) au lieu d'expirer à l'aveugle.
 
+### Tout se parle (V2.3, oct.)
+
+L'étape 2 et une partie de l'étape 3 de la refonte (docs/refonte-systeme.md § 9, docs/feuille-de-route-v2.md V2.3).
+
+**Les systèmes lisent les badges** (`fitDeCase`, js/sim.js). Le score de style à part (`stylesDe`, `talentDe`) est parti : une case vaut `FIT_BASE` + `FIT_PAR_PALIER` × les paliers du badge demandé (le second rend la moitié, le mauvais la base). 52 et 12 : la seule droite qui garde le fit moyen de la ligue (63) et met un trio de trois Platine à 100 ; une base plus basse aurait vidé le plafond de chimie (`chimieMax`). Les égalités (une unité sans le badge d'aucun système les lit tous à 52) faisaient retomber l'IA sur le premier système de la liste, le plus faible : elle départage maintenant par l'affinité de ses joueurs aux rôles demandés (`rangSystemes`, la même lecture de leurs vraies stats que le badge), qui ne rend rien de plus. Mesuré : mal assortir coûte −3,1 V, le 2e système −1,5 V (check_tactiques).
+
+**Le coach aime son système** : à sa confiance II, le système de sa couleur joue un palier plus haut sur les cases de son badge (`bonusDuCoach`) ; chaque coach apprend un système qui demande ses joueurs. **La confiance se compte en paliers** (`JOUEUR_COACH` par palier habillé, plus de plafond à cinq). **Le dépisteur recrute sa couleur** (js/packs.js).
+
+**Les gardiens ont un badge** (`badgeGardien`) : Mur, Acrobate, Constant, De fer, lus dans leurs vraies stats ; le palier, l'écart de son % d'arrêts à sa ligue (De fer : sa part des matchs, sinon aucun n'aurait passé l'Argent). Chacun joue dans un canal que son % d'arrêts ne porte pas (forces égales, désavantage, séries, départs de suite), centré sur la ligue. La preuve lit le moteur sans dés, avec et sans le badge (molette `BADGE_G`) : ce que la fiche annonce, au dix-millième.
+
+**Une seule robustesse** : le moteur lisait la cote cachée `r` (blessures, coups d'avant 2005, robustesse d'équipe) et l'écran la carrure 🪨 (`physiqueDe`). Il lit maintenant la carrure : corrélées à 0,77, les blessures de la ligue passent de ×1,045 à ×1,048, et deux constantes (49,0 ± 2,75) gardent à la robustesse d'équipe son écart réduit sur les 1 366 vraies équipes. La fiche dit ses blessures.
+
+**Le roulement** se choisit dans « Préparer le match », avec ce qu'il rend et coûte ; la glace, les totaux et l'usure du soir le suivent (check_jambes).
+
+**Coach et patrons au prestige** (Rogue) : trois coachs au Club de garage, un de plus par rang, les huit voies à la Dynastie ; deux postes de patron au départ, quatre au plus ; deux patrons imposés, neutres, tirés de la graine. Le Comptable n'est plus un coach de départ : c'est un patron. À l'écran, le mot reste « patron » (celui que le jeu dit déjà).
+
+**Pas fini : `check_voies`.** Voir docs/feuille-de-route-v2.md, « Pour reprendre ».
+
 ### Le dernier du classement ne passe plus sous le bouton flottant (1.0, oct.)
 
 Trouvé par la CI (graine 5eh43r) : au téléphone, hors de l'onglet Match, « Journée suivante ▶ » flotte 52 px au-dessus de la barre (`.hub-flottant`), mais le volet du bureau ne réservait sous sa dernière rangée que `--esp-4`. Un club au bas du classement, défilé au bout, avait sa rangée cachée de 37 px — un défaut qui ne se voit que selon le rang, d'où la graine. Le volet réserve maintenant la hauteur du bouton (`--flottant-h`, un jeton de la source, lu par les deux). Reproduit sur la graine avant le correctif (37 px), vert après.

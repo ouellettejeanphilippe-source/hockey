@@ -10,13 +10,13 @@ import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepen
 import { effetCarte, poserSoirGrand } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
-         POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason } from './ratings.js';
+         POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason, archetypeKey } from './ratings.js';
 import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne } from './util.js';
-import { coachDesRoles, porteParSesJoueurs } from './coachs.js';
+import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
 import { MOMENTS_VIE, REPONSES_VIE } from './vie-gm.js';
 
@@ -614,8 +614,9 @@ export function penaliteAffichee(player, slot) {
 /* Le mot de la pénalité : « −3 », ou « −1,2 · s'adapte (9 m.) » une fois l'adaptation commencée. */
 export const motPenalite = a => (a.pen <= 0 ? '' : a.matchs > 0 ? `−${String(a.pen).replace('.', ',')} · s'adapte (${a.matchs} m.)` : `−${a.base}`);
 const effStat = (player, slot, key) => {
-  const r = getHiddenRatings(player);
-  return Math.max(25, r[key] - penaliteAdaptee(player, slot));
+  // La robustesse est sa carrure (V2.3), sur l'échelle des cotes : 50 au joueur moyen, 12 par écart réduit.
+  const x = key === 'r' ? 50 + 12 * zPhysique(player) : getHiddenRatings(player)[key];
+  return Math.max(25, x - penaliteAdaptee(player, slot));
 };
 
 /* ======================================================================
@@ -1187,14 +1188,19 @@ export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t
  * habillé ce soir. Un seul endroit la calcule : les effets de la saison, les
  * minutes et l'usure lisent tous `coachsJoues`.
  */
-export const coachDuJoueur = p => (!p || p.p === 'G' ? null : coachDesRoles(profilsDe(p), estD(p) ? 'D' : 'F'));
+export const coachDuJoueur = p => (!p ? null : p.p === 'G' ? ((badgeGardien(p) || {}).coach || null) : coachDesRoles(profilsDe(p), estD(p) ? 'D' : 'F'));
+/* Les habillés de chaque couleur, ce soir : { coach: { joueurs, paliers } }. */
 export function joueursDesCoachs(team) {
   const n = {};
   for (const s of SLOTS) {
     if (s.scratch) continue;
     const p = team && team.roster && team.roster[s.i];
     const c = p && !(team.injured && team.injured.has(p)) ? coachDuJoueur(p) : null;
-    if (c) n[c] = (n[c] || 0) + 1;
+    if (!c) continue;
+    const x = n[c] = n[c] || { joueurs: 0, paliers: 0 };
+    x.joueurs++;
+    // LA CONFIANCE SE COMPTE EN PALIERS (V2.3) : un Platine porte le coach comme quatre Bronze.
+    x.paliers += ((p.p === 'G' ? badgeGardien(p) : badgesDe(p)[0]) || {}).palier || 1;
   }
   return n;
 }
@@ -1202,7 +1208,7 @@ function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;
   const n = joueursDesCoachs(team);
-  return cs.map(c => porteParSesJoueurs(c, n[c.cle]));
+  return cs.map(c => porteParSesJoueurs(c, (n[c.cle] || {}).paliers || 0));
 }
 
 /**
@@ -1416,43 +1422,6 @@ export function rolesBruts(p) {
     deuxsens: melange([[0.45, md], [0.35, zPT], [0.2, zTOI]]) + t('NORRIS', 'BIDIR'),
   };
   return brut;
-}
-/* Le talent d'un joueur dans SA saison : l'écart réduit de ses points par match, à son poste (0 sans référence). */
-export function talentDe(p) {
-  if (!p || p.p === 'G') return 0;
-  const gp = Math.max(1, p.gp || 1);
-  return zSaison(p, estD(p) ? 'D' : 'F', 'ptpg', (p.pt ?? ((p.g || 0) + (p.a || 0))) / gp) ?? 0;
-}
-/*
- * LE STYLE, À TALENT ÉGAL (1.0, oct.). JP : *pour les chimies de stratégie, je pense pas que ça doit
- * être plus haut si plus de talent, ça devient un double bonus*. Mesuré : le score d'un rôle offensif
- * suit les points par match (0,83 à 0,90 de corrélation) — un trio de vedettes avait le meilleur fit
- * ET le plus haut plafond de chimie, en plus de ses cotes. Le FIT d'un système se lit maintenant au
- * style : chaque rôle perd la part qui suit le talent (`PENTE_TALENT`, la pente de chaque rôle sur le
- * talent chez les réguliers, scripts/fit_calibre.mjs). Le rôle à l'écran (élite, bon) reste ce qu'il
- * vaut ; seul l'assortiment d'un système (le fit, donc la chimie) se lit à talent égal.
- */
-const PENTE_TALENT = {
-  F: { sniper: 0.818, passeur: 0.859, deuxsens: 0.612, power: 0.229, checker: -0.156, energie: -0.089, bagarreur: -0.133 },
-  D: { defensif: -0.034, offensif: 0.919, manieur: 0.925, physique: -0.17, deuxsens: 0.693 },
-};
-const STYLES_CACHE = new WeakMap();
-function stylesBase(p) {
-  if (!p || p.p === 'G') return null;
-  if (STYLES_CACHE.has(p)) return STYLES_CACHE.get(p);
-  const g = estD(p) ? 'D' : 'F', brut = rolesBruts(p), dec = DECALAGE_ROLES[g], t = talentDe(p);
-  const out = {};
-  for (const [k, sc] of Object.entries(brut)) out[k] = Math.round(100 / (1 + Math.exp(-1.4 * borne(sc - PENTE_TALENT[g][k] * t + (dec[k] || 0), -3, 3))));
-  STYLES_CACHE.set(p, out);
-  return out;
-}
-/* Le style d'un joueur, ses changements de carte compris : ce qu'un système lit pour assortir. */
-export function stylesDe(p) {
-  const base = stylesBase(p);
-  if (!base || !p._mutProfils) return base;
-  const out = { ...base };
-  for (const [k, d] of Object.entries(p._mutProfils)) if (k in out) out[k] = Math.max(1, Math.min(99, out[k] + d));
-  return out;
 }
 /*
  * LE DÉCALAGE DE CHAQUE RÔLE (scripts/roles_calibre.mjs) : sans lui, les
@@ -1755,6 +1724,15 @@ function physiqueBrut(p) {
   const x = 0.8 * cz(p.mr) + 0.6 * (gb - 1) + colosse;
   return 1 / (1 + Math.exp(-1.4 * borne(x, -3, 3)));
 }
+/*
+ * UNE SEULE ROBUSTESSE (V2.3) : la carrure 🪨 que la fiche montre est celle que le moteur lit — le physique en
+ * écart réduit (`zPhysique`, 0 au joueur moyen). Il remplace la cote cachée `r` dans les blessures et les coups
+ * d'avant 2005 : corrélés à 0,77, et la ligue ne bouge pas (blessures ×1,045 avec `r`, ×1,048 avec la carrure,
+ * mesuré sur 37 501 patineurs).
+ */
+const zPhysique = p => { const ph = physiqueDe(p); return Math.log(ph / (1 - ph)) / 1.4; };
+/* Ses blessures, selon sa carrure : un costaud se blesse moins, un léger plus (la fiche le dit). */
+export const blessureDuPhysique = p => Math.exp(-ROB_BLESSURE * zPhysique(p));
 const rendementPhysique = ph => borne(1 + 4 * (ph - 0.5), 0.2, 2);
 const coutPhysique = ph => borne(1 - 4 * (ph - 0.5), 0.2, 2);
 /* Le physique moyen d'une unité (un trio, une paire) ou d'une ligne entière. */
@@ -1840,7 +1818,17 @@ export const palierDe = (g, x) => { const S = SEUILS_PALIER[g]; return x >= S[2]
  * BADGE_SECOND_MIN — chacun `{ cle, palier, second, nom, ico, mot, … }`. Les
  * mutations de carte (`_mutProfils`) déplacent le score, donc le palier.
  */
+const BADGES_CACHE = new WeakMap();
 export function badgesDe(p) {
+  // Les systèmes lisent les badges à chaque case (V2.3) : sans changement de carte, un joueur garde les siens.
+  if (p && !p._mutProfils && BADGES_CACHE.has(p)) return BADGES_CACHE.get(p);
+  const out = badgesCalcules(p);
+  if (p && !p._mutProfils && typeof p === 'object') BADGES_CACHE.set(p, out);
+  return out;
+}
+function badgesCalcules(p) {
+  // Un gardien a son badge à lui (V2.3) : son style et son palier, lus dans ses vraies stats (`badgeGardien`).
+  if (p && p.p === 'G') { const b = badgeGardien(p); return b ? [b] : []; }
   const pr = profilsDe(p);
   if (!pr) return [];
   const g = estD(p) ? 'D' : 'F';
@@ -1874,11 +1862,11 @@ export function maitrise(p, role) {
 }
 /* Les badges d'une unité s'ADDITIONNENT : chaque joueur rend le sien pendant ses présences. */
 const maitriseUnite = (joueurs, role) => joueurs.reduce((a, p) => a + maitrise(p, role), 0);
-/* Les mises en échec d'un joueur par match : comptées dès 2005-06, estimées de sa robustesse avant. */
+/* Les mises en échec d'un joueur par match : comptées dès 2005-06, estimées de sa carrure avant. */
 function coupsDe(p) {
   if (!p || p.p === 'G') return 0;
   if (p.ht != null) return p.ht;
-  return COUP_MOYEN * Math.exp(0.5 * (getHiddenRatings(p).r - 50) / 12);
+  return COUP_MOYEN * Math.exp(0.5 * zPhysique(p));
 }
 /* Ce qu'un coup reçu coûte à ce joueur, en jambes : un costaud encaisse, un léger accuse. */
 /* Ce qu'un coup reçu coûte aux jambes de CE joueur : continu, de 0,6 (physique 1) à 1,8 (physique 0) ; la fiche dit le sien. */
@@ -2095,10 +2083,33 @@ export function rolesDuSysteme(lineup, groupe, u, cle) {
 function fitRoles(lineup, u, slots) {
   const js = joueursDeLigne(lineup, u);
   let n = 0;
-  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += ((stylesDe(p) || {})[prof] ?? 0); }
+  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += fitDeCase(p, prof); }
   return n;
 }
-export function fitUnite(lineup, groupe, u, cle) {
+/*
+ * LES SYSTÈMES LISENT LES BADGES (V2.3, l'étape 2 de la refonte, docs/refonte-systeme.md § 4). Une case demande
+ * un badge : le bon rend son palier (Bronze 1 à Platine 4), le second badge la moitié, le mauvais rien. Le fit
+ * d'une case vaut FIT_BASE + FIT_PAR_PALIER × ses paliers : « Sniper Or » est ce que le système lit, plus un
+ * score de style à part. Les deux constantes gardent la ligue où elle était (mesuré sur 120 vrais clubs : le
+ * meilleur système d'un trio de l'IA vaut 63,0 en moyenne, 62,9 avant), et un trio de trois Platine du bon
+ * badge joue son système à 100. `bonus` : des paliers de plus par case (le système de la couleur du coach).
+ */
+export const FIT_BASE = 52, FIT_PAR_PALIER = 12;
+function paliersPour(p, role) {
+  const b = badgesDe(p).find(x => x.cle === role);
+  return b ? (b.second ? b.palier / 2 : b.palier) : 0;
+}
+export const fitDeCase = (p, role, bonus = 0) => Math.min(100, FIT_BASE + FIT_PAR_PALIER * (paliersPour(p, role) + (paliersPour(p, role) > 0 ? bonus : 0)));
+/*
+ * LE COACH AIME SON SYSTÈME (V2.3, docs/refonte-systeme.md § 4) : à sa confiance II, le système de sa couleur
+ * (`COACHS[cle].systeme`) joue comme si chaque case avait un palier de plus — une case qui porte le bon badge.
+ */
+export const PALIER_DU_COACH = 1;
+export function bonusDuCoach(team, cle) {
+  const cs = (team && team.coachs) || [];
+  return cs.some(c => c.palier >= 2 && COACHS[c.cle] && COACHS[c.cle].systeme === cle) ? PALIER_DU_COACH : 0;
+}
+export function fitUnite(lineup, groupe, u, cle, bonus = 0) {
   const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
   if (!S || !S.slots || !lineup) return 0;
   const js = joueursDeLigne(lineup, u);
@@ -2109,8 +2120,7 @@ export function fitUnite(lineup, groupe, u, cle) {
     // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
     // juge pas — elle comptait pour 0 et tout trio vide lisait « Mauvais fit ».
     if (p === null) return null;
-    const pr = stylesDe(p);
-    fits.push(pr && pr[prof] != null ? pr[prof] : 0);
+    fits.push(fitDeCase(p, prof, bonus));
   }
   return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
 }
@@ -2118,28 +2128,32 @@ export function fitUnite(lineup, groupe, u, cle) {
 export function fitLigne(lineup, u, cle) {
   return SYSTEMES_D[cle] && !TACTIQUES[cle] ? fitUnite(lineup, 'D', u, cle) : fitUnite(lineup, 'F', u, cle);
 }
-/* Le système où une unité a le meilleur fit : ce que joue un club de l'IA. */
-export function meilleureTactique(lineup, u) {
-  let best = 'hourra', f = -1;
-  for (const k of Object.keys(TACTIQUES)) {
-    if (k === 'hourra') continue;
-    const v = fitUnite(lineup, 'F', u, k);
-    if (v == null) return 'hourra';       // unité incomplète : aucun système ne se choisit
-    if (v > f) { f = v; best = k; }
-  }
-  return best;
+/*
+ * Le système où une unité a le meilleur fit : ce que joue un club de l'IA. À ÉGALITÉ (V2.3 : une unité sans
+ * le badge d'aucun système les lit tous à la base), le système dont ses joueurs sont le plus près des rôles
+ * demandés (`profilsDe`, la même lecture de ses vraies stats que le badge) : il ne rend rien de plus, mais
+ * le choix ne retombe plus sur le premier de la liste.
+ */
+function affiniteUnite(lineup, groupe, u, cle) {
+  const js = joueursDeLigne(lineup, u);
+  let t = 0;
+  for (const [role, prof] of Object.entries(rolesDuSysteme(lineup, groupe, u, cle))) t += (js[role] && (profilsDe(js[role]) || {})[prof]) || 0;
+  return t;
 }
-export function meilleurSystemeD(lineup, u) {
-  if (pairDeLigne(u) == null) return 'hourra';
-  let best = 'hourra', f = -1;
-  for (const k of Object.keys(SYSTEMES_D)) {
-    if (k === 'hourra') continue;
-    const v = fitUnite(lineup, 'D', u, k);
-    if (v == null) return 'hourra';
-    if (v > f) { f = v; best = k; }
+/* Les systèmes d'une unité, du meilleur fit au pire, l'affinité départageant les égalités ; null si l'unité est incomplète. */
+export function rangSystemes(lineup, groupe, u) {
+  const cles = Object.keys(groupe === 'D' ? SYSTEMES_D : TACTIQUES).filter(k => k !== 'hourra');
+  const lus = [];
+  for (const k of cles) {
+    const v = fitUnite(lineup, groupe, u, k);
+    if (v == null) return null;
+    lus.push([k, v, affiniteUnite(lineup, groupe, u, k)]);
   }
-  return best;
+  return lus.sort((a, b) => b[1] - a[1] || b[2] - a[2]).map(x => x[0]);
 }
+const meilleurSysteme = (lineup, groupe, u) => { const r = rangSystemes(lineup, groupe, u); return r ? r[0] : 'hourra'; };
+export const meilleureTactique = (lineup, u) => meilleurSysteme(lineup, 'F', u);
+export const meilleurSystemeD = (lineup, u) => (pairDeLigne(u) == null ? 'hourra' : meilleurSysteme(lineup, 'D', u));
 /*
  * LES LIGNES D'UNE ÉQUIPE : { tac, agr, sec } × 4. Un club de l'IA joue la
  * tactique où chaque ligne a le meilleur fit, agressivité moyenne, glace par
@@ -3529,7 +3543,7 @@ const K_VOLUME_DEF = 0.012;
  *      ronde (1,0 au premier tour, 1,75 en finale). C'est ce que MOTEUR.md
  *      5.5 annonçait — « l'usure s'accumule sur quatre rondes » — et que rien
  *      ne faisait.
- *   3. Les BLESSURES lisent `r` : un joueur robuste se blesse moins, un
+ *   3. Les BLESSURES lisent sa carrure (V2.3, `r` avant) : un joueur robuste se blesse moins, un
  *      joueur fragile plus (ROB_BLESSURE par écart-type de joueur), en plus
  *      des matchs joués réels qui portaient déjà sa fragilité.
  *
@@ -3564,8 +3578,13 @@ const ROB_SERIES = 0.15;
 const ROB_BLESSURE = 0.35;
 export const ROB_ORDINAIRE = 0.35;
 export const DISSUASION = 0.2;
-const MOY_ROB_EQUIPE = 48.1;
-const ECART_ROB_EQUIPE = 2.4;
+/*
+ * V2.3 : la robustesse d'un joueur est sa carrure (`zPhysique`, la même que la fiche montre), plus la cote `r`.
+ * Sur les 1 366 vraies équipes alignées, l'ancienne lisait 47,6 ± 2,5 et la carrure 48,4 ± 2,9 ; les deux
+ * constantes gardent à la ligue l'écart réduit qu'elle avait (−0,22 ± 1,05), donc ses blessures et ses séries.
+ */
+const MOY_ROB_EQUIPE = 49.0;
+const ECART_ROB_EQUIPE = 2.75;
 // Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
 const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE + (t.traitRob || 0), -3, 3) : 0);
 
@@ -3838,9 +3857,66 @@ function facteurGardien(g) {
  * soir (« Devant le filet ce soir ») une décision qui se rejoue.
  */
 export const GARDIEN_SUITE_LIBRE = 3, GARDIEN_JAMBES_PAS = 5, GARDIEN_USURE = 0.01, GARDIEN_JAMBES_MIN = 40;
+/*
+ * LES GARDIENS ONT UN BADGE (V2.3, docs/refonte-systeme.md § 10). Son STYLE, lu dans ses vraies stats
+ * (`archetypeKey` : le % d'arrêts, la charge de travail, les départs), et un PALIER, son écart au % d'arrêts
+ * de la ligue de sa saison (SEUILS_PALIER_G : Bronze sous le 60e centile des gardiens de quinze départs,
+ * Argent au 60e, Or au 85e, Platine au 96e — la même échelle que les patineurs) ; De fer, sa part des matchs. Le style ne se lisait que
+ * sur table ; la saison le lit enfin, chacun dans un canal que son % d'arrêts ne porte pas :
+ *   🏔️ Mur        les lancers à forces égales (EFFET_GARDIEN.mur)
+ *   🤸 Acrobate   les lancers quand son club est en désavantage numérique
+ *   🧍 Constant   les lancers des séries
+ *   🦾 De fer     ses jambes : un départ de suite de plus sans s'user à l'Or, deux au Platine
+ * CENTRÉ sur la ligue comme les badges des patineurs (`BADGE_LIGUE_G`, la moyenne des départs de chaque
+ * style, mesurée sur 3 062 saisons de gardien) : la ligue n'accorde pas un but de plus. Et une COULEUR que
+ * le coach compte : le Mur à la Tortue, l'Acrobate à l'Abbé (il tue les punitions), le Constant au Rhino
+ * (jusqu'en avril), De fer au Doc (les jambes).
+ */
+export const BADGES_G = {
+  mur: { nom: 'Mur', ico: '🏔️', mot: 'son % d\'arrêts, grand et sur un vrai échantillon', coach: 'tortue' },
+  acrobate: { nom: 'Acrobate', ico: '🤸', mot: 'son % d\'arrêts sous une grosse charge de lancers', coach: 'choeur' },
+  constant: { nom: 'Constant', ico: '🧍', mot: 'son % d\'arrêts, sans charge ni écart extrême', coach: 'rhinos' },
+  fer: { nom: 'De fer', ico: '🦾', mot: 'ses départs : il joue tous les soirs', coach: 'souffle' },
+};
+const STYLE_DU_GARDIEN = { WALL: 'mur', ACROBAT: 'acrobate', HYBRID_G: 'constant', WORKHORSE: 'fer' };
+const SEUILS_PALIER_G = [0.008, 0.018, 0.027];
+export const EFFET_GARDIEN = { mur: 0.06, acrobate: 0.10, constant: 0.08 };
+const BADGE_LIGUE_G = { mur: 0.204, acrobate: 0.012, constant: 0.145 };
+/* De fer se lit dans ce qui le fait : sa part des matchs de sa saison (les mêmes centiles, sur les 327 gardiens De fer). */
+const SEUILS_PALIER_FER = [0.77, 0.83, 0.90];
+export function badgeGardien(g) {
+  if (!g || g.p !== 'G' || (g.gp || 0) < 15) return null;
+  const cle = STYLE_DU_GARDIEN[archetypeKey(g)];
+  if (!cle) return null;
+  const svLigue = 1 - seasonLancers(g.s)[1] / 100;
+  const [e, S] = cle === 'fer' ? [g.gp / seasonGames(g.s), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
+  const palier = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
+  return { cle, palier, second: false, gardien: true, ...BADGES_G[cle] };
+}
+/* Ce que son badge fait à ses arrêts dans une situation (`mode` : FE, AN, DN ; `series`) : un facteur sur les buts accordés, centré sur la ligue.
+ * La molette `BADGE_G=0` le retire, pour la PREUVE seulement (`check_gardiens` : la même ligue, mêmes dés, avec et sans). */
+const BADGE_G_MESURE = Number(ENV_MESURE.BADGE_G ?? 1);
+function facteurBadgeGardien(g, mode, series) {
+  if (!BADGE_G_MESURE) return 1;
+  const b = badgeGardien(g);
+  const val = k => (b && b.cle === k ? b.palier / 4 : 0) - BADGE_LIGUE_G[k];
+  let f = 1;
+  if (mode === 'FE') f *= 1 - EFFET_GARDIEN.mur * val('mur');
+  // 'AN' : le club qui tire a l'avantage — le gardien tue une punition.
+  if (mode === 'AN') f *= 1 - EFFET_GARDIEN.acrobate * val('acrobate');
+  if (series) f *= 1 - EFFET_GARDIEN.constant * val('constant');
+  return f;
+}
+/* Ce que son badge lui rend, NET de la ligue, dans le canal du badge (la fiche le dit) : une part des buts accordés en moins. */
+export function netBadgeGardien(g) {
+  const b = badgeGardien(g);
+  return b && EFFET_GARDIEN[b.cle] ? EFFET_GARDIEN[b.cle] * (b.palier / 4 - BADGE_LIGUE_G[b.cle]) : 0;
+}
+/* Les départs de suite qu'un gardien joue sans s'user : De fer en joue un de plus à l'Or, deux au Platine. */
+export const suiteLibreDe = g => { const b = badgeGardien(g); return GARDIEN_SUITE_LIBRE + (b && b.cle === 'fer' ? Math.max(0, b.palier - 2) : 0); };
 export function jambesGardien(g) {
   if (!g) return 100;
-  const pas = Math.max(0, (g._suite || 0) - (GARDIEN_SUITE_LIBRE - 1));
+  const pas = Math.max(0, (g._suite || 0) - (suiteLibreDe(g) - 1));
   return Math.max(GARDIEN_JAMBES_MIN, 100 - GARDIEN_JAMBES_PAS * pas - (g._aine || 0));
 }
 export const usureGardien = g => 1 + GARDIEN_USURE * (100 - jambesGardien(g)) / GARDIEN_JAMBES_PAS;
@@ -4067,7 +4143,7 @@ export function profilMatch(team, lineup, adv = null) {
     const l = lignes[u], A = AGRESSIVITES[l.agr];
     const cle = g === 'D' ? l.tacD : l.tac;
     const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle) ?? 0) : 0;
+    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle, bonusDuCoach(team, cle)) ?? 0) : 0;
     const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
@@ -4609,7 +4685,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   // et davantage en séries, où l'usure s'accumule de ronde en ronde (voir K_ROB).
   const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : ROB_ORDINAIRE;
   const facteurRob = Math.exp(K_ROB * intensite * (robZ(off) - robZ(def)));
-  const fg = (gardien ? facteurGardien(gardien) : (def.fgDefaut ?? 1.20))
+  const fg = (gardien ? facteurGardien(gardien) * facteurBadgeGardien(gardien, st ? st.mode : 'FE', series) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series) * situDe(gardien, 'gardien');
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
   const traits = (def.traitDef ?? 1) * (off.traitAtt ?? 1)
@@ -4893,7 +4969,7 @@ export const BLESSURE_EREINTANT = 1.5;
 const BLESSURE_BASE = 0.0015, BLESSURE_FRAGILE = 0.015;
 /*
  * LA FRAGILITÉ (V2.2) : combien de fois plus il se blesse qu'un joueur qui a joué toute sa vraie saison — la
- * part de ses matchs joués, rien d'autre (ni sa robustesse, qui est une cote). La carte et la fiche le disent
+ * part de ses matchs joués, rien d'autre (sa carrure se dit à part). La carte et la fiche le disent
  * dès le double : un joueur de 20 matchs sur 82 se blesse près de sept fois plus.
  */
 export const FRAGILE_DES = 2;
@@ -4903,8 +4979,8 @@ function injuryChance(p, heavy = false) {
   let pr = BLESSURE_BASE + BLESSURE_FRAGILE * frail * frail;
   if (p.p === 'G') pr *= 0.5;
   if (heavy) pr *= BLESSURE_EREINTANT;
-  // Un joueur robuste se blesse moins (r est à 50 ± 12 par joueur).
-  pr *= Math.exp(-ROB_BLESSURE * (getHiddenRatings(p).r - 50) / 12);
+  // Un joueur costaud se blesse moins : sa carrure, la même que la fiche montre (V2.3).
+  pr *= blessureDuPhysique(p);
   return pr;
 }
 

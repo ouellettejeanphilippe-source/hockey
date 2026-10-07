@@ -77,16 +77,16 @@ Chaque chiffre à l'écran est celui du moteur, et chaque effet qui compte se vo
 
 Brancher les mécaniques qui devraient se parler : les étapes 2 et 3 de la refonte. Le badge devient la langue du système, du coach et de ses adjoints.
 
-**Fini quand** check_voies : chaque voie de coach bâtie au complet vaut +6 à +8 V, à ±1 V des autres, au-dessus d'une équipe mélangée ; check_ratings et check_robot tiennent.
+**Pas encore fini** : les huit items sont faits, `check_voies` mesure et rougit (voir « Pour reprendre »). **Fini quand** check_voies : chaque voie de coach bâtie au complet vaut +6 à +8 V, à ±1 V des autres, au-dessus d'une équipe mélangée ; check_ratings et check_robot tiennent.
 
-- [ ] **Attacher ensemble · Les systèmes lisent les badges.** Une case demande un badge ; le bon rend son palier, le second la moitié, le mauvais rien. Fini le score de style à part : « Sniper Or » est ce que le système lit. — `js/sim.js (fitUnite, stylesDe)` — preuve : `check_tactiques, check_chimie`
-- [ ] **Attacher ensemble · Le coach aime son système.** Le système de sa couleur joue comme si chaque case avait un palier de plus ; la confiance II apprend un système qui demande SES joueurs (aujourd'hui l'Aigle des snipers apprend un système de power forwards). — `js/coachs.js, js/sim.js` — preuve : `check_coachs`
-- [ ] **Attacher ensemble · Le dépisteur recrute la couleur de son coach.** Le Frelon recrute aujourd'hui des joueurs du Doc et de l'Abbé. — `js/packs.js:316` — preuve : `check_coachs`
-- [ ] **Attacher ensemble · La confiance se compte en paliers.** Un Platine compte pour quatre, sans plafond à cinq joueurs. — `js/coachs.js:81` — preuve : `check_coachs`
-- [ ] **Attacher ensemble · Les gardiens ont un badge.** Un badge à palier lu dans ses vraies stats (le Mur, l'Acrobate…), avec une couleur que le coach compte ; le style devient ce badge, et la saison le lit enfin. — `js/sim.js, js/ratings.js` — preuve : `check_gardiens`
-- [ ] **Attacher ensemble · Coach et adjoints, au prestige.** Rogue seulement. Trois coachs ouverts au départ, un de plus par rang ; deux adjoints imposés, des passifs neutres ; le prestige ouvre d'autres adjoints et des places. Le Comptable devient un adjoint. — `js/rogue.js, js/banque.js, js/coachs.js` — preuve : `check_rogue, essai_rogue`
-- [ ] **Attacher ensemble · La robustesse se voit là où elle joue.** Le moteur lit une cote cachée de robustesse ; la seule mesure visible, la carrure 🪨, en lit une autre. Une seule mesure, montrée. — `js/sim.js:3563, 1777` — preuve : `check_ratings`
-- [ ] **Attacher ensemble · Le roulement devient une vraie décision.** Il ne s'atteint que par « Les ménager », présenté par son prix ; ses effets n'entrent ni dans les totaux ni dans la glace affichée. — `js/saison.js:2261` — preuve : `check_jambes`
+- [x] **Attacher ensemble · Les systèmes lisent les badges.** Une case demande un badge ; le bon rend son palier, le second la moitié, le mauvais rien. Fini le score de style à part : « Sniper Or » est ce que le système lit. — `js/sim.js (fitUnite, stylesDe)` — preuve : `check_tactiques, check_chimie`
+- [x] **Attacher ensemble · Le coach aime son système.** Le système de sa couleur joue comme si chaque case avait un palier de plus ; la confiance II apprend un système qui demande SES joueurs (aujourd'hui l'Aigle des snipers apprend un système de power forwards). — `js/coachs.js, js/sim.js` — preuve : `check_coachs`
+- [x] **Attacher ensemble · Le dépisteur recrute la couleur de son coach.** Le Frelon recrute aujourd'hui des joueurs du Doc et de l'Abbé. — `js/packs.js:316` — preuve : `check_coachs`
+- [x] **Attacher ensemble · La confiance se compte en paliers.** Un Platine compte pour quatre, sans plafond à cinq joueurs. — `js/coachs.js:81` — preuve : `check_coachs`
+- [x] **Attacher ensemble · Les gardiens ont un badge.** Un badge à palier lu dans ses vraies stats (le Mur, l'Acrobate…), avec une couleur que le coach compte ; le style devient ce badge, et la saison le lit enfin. — `js/sim.js, js/ratings.js` — preuve : `check_gardiens`
+- [x] **Attacher ensemble · Coach et adjoints, au prestige.** Rogue seulement. Trois coachs ouverts au départ, un de plus par rang ; deux adjoints imposés, des passifs neutres ; le prestige ouvre d'autres adjoints et des places. Le Comptable devient un adjoint. — `js/rogue.js, js/banque.js, js/coachs.js` — preuve : `check_rogue, essai_rogue`
+- [x] **Attacher ensemble · La robustesse se voit là où elle joue.** Le moteur lit une cote cachée de robustesse ; la seule mesure visible, la carrure 🪨, en lit une autre. Une seule mesure, montrée. — `js/sim.js:3563, 1777` — preuve : `check_ratings`
+- [x] **Attacher ensemble · Le roulement devient une vraie décision.** Il ne s'atteint que par « Les ménager », présenté par son prix ; ses effets n'entrent ni dans les totaux ni dans la glace affichée. — `js/saison.js:2261` — preuve : `check_jambes`
 
 ## V2.4 — Monter et s'assortir
 
@@ -112,7 +112,8 @@ Les ajouts de la refonte, étape 4 : un joueur monte de palier, un trio s'assort
 
 ## Pour reprendre
 
-- **Où on en est (3 oct.).** La refonte de `docs/refonte-systeme.md` a fait son étape 1 : les badges à paliers (Bronze → Platine), dans le moteur et à l'écran (docs/decisions.md, « Les badges à paliers »). V2.0 finie (15/15) — branche `ccr-6170d59a-31b8nb`. La suite : V2.1 (une langue).
+- **Où on en est (7 oct.).** V2.1 et V2.2 finies ; V2.3 : les huit items faits (docs/decisions.md, « Tout se parle »), mais `check_voies` n'est pas vert. Mesuré à quatre ligues, la voie bâtie au complet va de −1,3 V (le Doc) à +18,8 V (le Frelon), et l'équipe mélangée à la III vaut déjà +2 à +6 V. Deux causes lues : (1) une couleur n'habille pas la même part d'un club (la Tortue et le Rhino 100 %, l'Abbé 39 % : aucun rôle d'avant n'est le sien) ; (2) `porteParSesJoueurs` multiplie l'effet du coach par 1 + 0,06 × paliers sans plafond, donc un club tout d'une couleur triple l'effet — le Frelon s'emballe sur le volume, le Rhino, le Doc et le Contremaître descendent (leurs canaux coûtent ce qu'ils rendent, et leurs joueurs bâtis jouent hors de leur zone). La suite : un plafond au multiplicateur, la carte des couleurs à revoir avec JP (un rôle d'avant à l'Abbé ?), puis la recalibration coach par coach.
+- **Avant (3 oct.).** La refonte de `docs/refonte-systeme.md` a fait son étape 1 : les badges à paliers (Bronze → Platine), dans le moteur et à l'écran (docs/decisions.md, « Les badges à paliers »). V2.0 finie (15/15) — branche `ccr-6170d59a-31b8nb`. La suite : V2.1 (une langue).
 - **La suite proposée.** V2.0 d'abord (réparer), puis V2.1 (une langue), puis l'étape 2 de la refonte (V2.3 : les systèmes lisent les badges).
 - **Les réponses de JP** sur le coach, les adjoints, les gardiens, monter un palier et la difficulté : `docs/refonte-systeme.md`, § 10.
 - **Le détail de chaque mécanique et de chaque accroc** : `docs/carte-des-rouages.md` (la carte complète, en Markdown).

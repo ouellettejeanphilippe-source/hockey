@@ -5,11 +5,11 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie } from './rogue.js';
+import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
-import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, MAX_PATRONS, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
-import { COACHS, ORDRE_COACHS, SEUILS } from './coachs.js';
+import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
+import { COACHS, ORDRE_COACHS, VOIES, SEUILS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -427,7 +427,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
-    patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: MAX_PATRONS,
+    patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: postesDePatron((G.rogue && G.rogue.prestige) || 0),
     deck: enSaison ? deckDe(Lg.decisions || []) : [],
     ...(enSaison ? { build: buildDe(decs, j + 1), coachsActifs: coachsActifs(decs, j + 1), coachRun: (rogue && G.rogue && G.rogue.coach) || null, joueurs: joueursDesCoachs(Lg.you) } : {}),
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
@@ -484,10 +484,10 @@ function jouerCarte(item, j, decider, page = null) {
     onChoix: choisir, onFerme: retour,
   });
   if (c.cat === 'patron') {
-    const actifs = patronsActifs(decs, j + 1);
-    if (!actifs.some(x => x.role === c.role) && actifs.length >= MAX_PATRONS) {
+    const actifs = patronsActifs(decs, j + 1), postes = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+    if (!actifs.some(x => x.role === c.role) && actifs.length >= postes) {
       ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
-        recit: `${MAX_PATRONS} postes au plus. ${c.nom} prend la place de qui ?`,
+        recit: `${postes} postes au plus (le prestige en ouvre d'autres). ${c.nom} prend la place de qui ?`,
         options: actifs.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
         onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build, joueurs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(p); },
         onFerme: retour });
@@ -732,18 +732,22 @@ export async function ouvrirRogue() {
   await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(gardes, tires, coach));
 }
 /*
- * TON COACH (v2, js/coachs.js) — le personnage de Slay the Spire. Trois coachs
- * tirés de la graine du classeur (recharger redonne les mêmes trois), un à
- * prendre : sa philosophie part avec trois cartes au compteur, sa confiance I
- * allumée dès le premier soir. Les autres coachs restent à prendre en jouant.
+ * TON COACH (v2, js/coachs.js) — le personnage de Slay the Spire. Les coachs
+ * que le prestige du club a ouverts (V2.3 : trois au Club de garage, les huit
+ * à la Dynastie, js/rogue.js `coachsOuverts`), un à prendre : sa philosophie
+ * part avec trois cartes au compteur, sa confiance I allumée dès le premier
+ * soir. Les autres coachs restent à prendre en jouant. Et les deux patrons
+ * imposés de la run, tirés de la même graine (`patronsDeLaRun`).
  */
+const patronsDeLaRun = meta => patronsDeDepart(graineDuClasseur(), PRESTIGES[rangDePrestige(meta)].raretes);
 function choisirCoach() {
-  const g = graineDuClasseur();
-  const trois = ORDRE_COACHS.slice().sort((a, b) => hache(g, 'coach', a) - hache(g, 'coach', b)).slice(0, 3);
+  const meta = lireMeta(), rang = rangDePrestige(meta), ouverts = coachsOuverts(rang);
+  const pats = patronsDeLaRun(meta).map(id => BANQUE[id]);
+  const plus = ouverts.length < VOIES.length ? ` ${PRESTIGES[rang].nom} : ${ouverts.length} coachs sur ${VOIES.length} ; le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: `Il part avec sa confiance I. Chaque carte de sa couleur la fait monter : II à ${SEUILS[1]} cartes, III à ${SEUILS[2]}. Les autres coachs aussi, si tu joues leurs cartes.`,
-    options: trois.map(k => {
+    recit: `Il part avec sa confiance I. Chaque carte de sa couleur la fait monter : II à ${SEUILS[1]} cartes, III à ${SEUILS[2]}. Les autres coachs aussi, si tu joues leurs cartes.${plus} Tes patrons de départ : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    options: ouverts.map(k => {
       const C = COACHS[k];
       return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
         mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: `${idsDuCoach(k).length} cartes de sa couleur` };
@@ -819,6 +823,8 @@ async function demarrerRogue(gardes = [], tires = [], coach = null) {
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');
+  // V2.3 : les deux patrons imposés, tirés avant que la run prenne son numéro (la graine du choix du coach).
+  const patrons = patronsDeLaRun(meta);
   const V = await vestiaireDeDepart(meta, [...gardes, ...tires.map(x => x.p)]);
   G.roster = V.roster;
   // Tes cartes gardent leur variante : c'est TA carte, pas une neuve.
@@ -834,7 +840,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null) {
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta),
     // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
     // et le prestige du club, FIXÉ pour la run (js/rogue.js `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta),
+    ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta), patrons,
     classeur: { mode: D.mode, n: D.n, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],

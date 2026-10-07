@@ -7,7 +7,7 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES } from './sim.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { sesRolesHtml, barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
@@ -61,6 +61,12 @@ const EFFETS_GLACE = {
   energie: x => `il garde ses jambes : son match lui coûte ${pctMot(x)} de moins`,
   offensif: x => `il lance de la pointe : sa paire tire ${pctMot(x)} de plus`,
 };
+const EFFETS_GLACE_G = {
+  mur: x => `à forces égales, il accorde ${pctMot(x)} de buts de moins`,
+  acrobate: x => `quand son club tue une punition, il accorde ${pctMot(x)} de buts de moins`,
+  constant: x => `en séries, il accorde ${pctMot(x)} de buts de moins`,
+  fer: (x, n) => (n > 3 ? `il enchaîne ${n} départs avant de s'user, au lieu de trois` : 'il joue tous les soirs ; à l\'Or, il enchaîne un départ de plus avant de s\'user'),
+};
 function surLaGlaceHtml(p) {
   if (surTable()) return '';
   const li = (txt, cls = '') => `<li${cls ? ` class="${cls}"` : ''}>${txt}</li>`;
@@ -69,8 +75,11 @@ function surLaGlaceHtml(p) {
   const fr = fragiliteDe(p);
   if (fr >= FRAGILE_DES) lignes.push(li(`Il n'a joué que ${p.gp || 0} matchs sur ${seasonGames(p.s)} dans sa vraie saison : il se blesse environ ${Math.round(fr)} fois plus qu'un joueur qui les a tous joués.`, 'prix'));
   if (p.p === 'G') {
-    lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer ; son style dit comment il les fait.'));
-    lignes.push(li('Il garde ses jambes trois départs de suite ; au quatrième, elles baissent et il accorde plus.'));
+    // SON BADGE (V2.3) : le canal que son % d'arrêts ne porte pas, avec le chiffre net que le moteur joue (`netBadgeGardien`).
+    const b = badgesDe(p)[0], x = netBadgeGardien(p), n = suiteLibreDe(p);
+    lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer.'));
+    if (b && EFFETS_GLACE_G[b.cle]) lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}</b> : ${esc(EFFETS_GLACE_G[b.cle](x, n))}.`));
+    lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
   }
   for (const b of badgesDe(p)) {
@@ -89,7 +98,9 @@ function surLaGlaceHtml(p) {
   if (c) {
     // SON coût, pas l'extrême de sa carrure (V2.2) : le moteur le lit en continu sur son physique (`coutDuCoup`).
     const cout = coutDuCoup(p).toFixed(2).replace('.', ',');
-    lignes.push(li(c.ico === '🪨' ? `<b>${c.ico} ${c.mot}</b> : un coup reçu ne lui coûte que ${cout} jambe (${String(COUP_JAMBES).replace('.', ',')} à un joueur moyen), et le jeu physique de sa ligne rapporte.` : `<b>${c.ico} ${c.mot}</b> : un coup reçu lui coûte ${cout} jambes (${String(COUP_JAMBES).replace('.', ',')} à un joueur moyen), et sa ligne prend des punitions en rentre-dedans.`, c.ico === '🪨' ? 'bon' : 'prix'));
+    // SES BLESSURES AUSSI (V2.3) : le moteur les lit sur cette même carrure (`blessureDuPhysique`).
+    const bl = Math.round(Math.abs(blessureDuPhysique(p) - 1) * 100);
+    lignes.push(li(c.ico === '🪨' ? `<b>${c.ico} ${c.mot}</b> : un coup reçu ne lui coûte que ${cout} jambe (${String(COUP_JAMBES).replace('.', ',')} à un joueur moyen), il se blesse ${bl} % moins, et le jeu physique de sa ligne rapporte.` : `<b>${c.ico} ${c.mot}</b> : un coup reçu lui coûte ${cout} jambes (${String(COUP_JAMBES).replace('.', ',')} à un joueur moyen), il se blesse ${bl} % plus, et sa ligne prend des punitions en rentre-dedans.`, c.ico === '🪨' ? 'bon' : 'prix'));
   }
   return lignes.length ? `<ul class="glace">${lignes.join('')}</ul>` : '';
 }

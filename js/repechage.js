@@ -400,7 +400,7 @@ function ficheCourte(q) {
   return q.p === 'G' ? `${st.gp} PJ · ${q.sv ?? '—'} %arr (vraie saison)` : `${st.gp} PJ · ${st.g}-${st.a}-${st.pt} (vraie saison)`;
 }
 function colonneEchange(q, mot, sl = null) {
-  const pp = q.p === 'G' ? null : badgesDe(q)[0];
+  const pp = badgesDe(q)[0];
   return `<div class="ech-col"><div class="ech-mot">${esc(mot)}</div><b>${esc(q.n)}</b>
     <span>${esc(positionLabel(q))}${sl ? ` · ${esc(ligneDe(sl))}` : ''}</span>
     <span>${pastilleNiveau(q)}${pp ? ` <i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : ''}</span>

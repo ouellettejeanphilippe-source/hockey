@@ -882,6 +882,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     you.jourCourant = j;
     try { return fn(aVenir); } finally { you.jourCourant = jc; }
   };
+  // Le roulement d'avant ce soir (la dernière décision qui le porte, sinon celui par défaut) et celui qui joue ce soir.
+  const roulementDuSoir = j => {
+    const dernier = x => (decs.filter(d => d.roulement && ROULEMENTS[d.roulement] && x(d)).sort((a, b) => a.jour - b.jour).pop() || {}).roulement;
+    const avant = dernier(d => d.jour < j) || roulementDe(null);
+    return { avant, choix: dernier(d => d.jour <= j) || avant };
+  };
   const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => motsDuSoir(you, null, null, aVenir));
   const partsDuSoirDu = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => alignementDuSoir(you, null, null, aVenir));
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
@@ -2838,16 +2844,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
         match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
         grosMatch: !!mb,
-        totaux: (match, lignes) => totauxDuMatch(p.j, { match, lignes }),
-        alignement: (match, lignes) => partsDuSoirDu(p.j, { match, lignes }),
+        roulement: roulementDuSoir(p.j),
+        totaux: (match, lignes, r) => totauxDuMatch(p.j, { match, lignes, ...r }),
+        alignement: (match, lignes, r) => partsDuSoirDu(p.j, { match, lignes, ...r }),
         // LA GLACE DU SOIR (V2.2) : la part que le moteur joue, sur ses minutes à forces égales.
-        glace: (match, lignes) => auSoirDu(p.j, { match, lignes }, aVenir => { const fe = chiffresDuSoir(you, null, null, aVenir).minutesFE; return glaceDesLignes(you, aVenir).F.map(x => x * fe); }),
-        usure: (match, lignes) => auSoirDu(p.j, { match, lignes }, aVenir => usureDuSoir(you, aVenir)),
+        glace: (match, lignes, r) => auSoirDu(p.j, { match, lignes, ...r }, aVenir => { const fe = chiffresDuSoir(you, null, null, aVenir).minutesFE; return glaceDesLignes(you, aVenir).F.map(x => x * fe); }),
+        usure: (match, lignes, r) => auSoirDu(p.j, { match, lignes, ...r }, aVenir => usureDuSoir(you, aVenir)),
         // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
         filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
         motAppliquer: 'Appliquer — la saison reprend ici',
         onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
-        onAppliquer: (lignes, match, filet) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}) }, j); },
+        onAppliquer: (lignes, match, filet, r) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}), ...r }, j); },
       }); }; });
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les ${ctx.esc(you.name)} ne jouent plus d'ici la fin de la saison.</div></div>`;

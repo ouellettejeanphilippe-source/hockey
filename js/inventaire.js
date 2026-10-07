@@ -21,7 +21,7 @@
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach } from './banque.js';
-import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, JOUEURS_MAX } from './coachs.js';
+import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
@@ -174,7 +174,7 @@ export function ouvrirInventaire(ctx) {
             <div class="inv-coach-mot">${esc(C.mot)}${k === ctx.coachRun ? ` Son dépisteur recrute ${esc(C.recrute)}.` : ''}</div>
             <div class="inv-coach-jauge" aria-label="${n} carte${n > 1 ? 's' : ''} sur ${cible}"><i style="width:${Math.min(100, Math.round((n / SEUILS[SEUILS.length - 1]) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / SEUILS[SEUILS.length - 1]) * 100)}%"${n >= x ? ' class="fait"' : ''}></em>`).join('')}</div>
             <div class="inv-coach-compte">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · encore ${manque} pour ${ROMAINS[pal + 1]}` : ' · confiance au sommet'} · ${idsDuCoach(k).length} cartes de sa couleur</div>
-            ${k !== 'banque' ? `<div class="inv-coach-compte">${(ctx.joueurs || {})[k] || 0} joueur${((ctx.joueurs || {})[k] || 0) > 1 ? 's' : ''} de sa couleur habillé${((ctx.joueurs || {})[k] || 0) > 1 ? 's' : ''}${pal && (ctx.joueurs || {})[k] ? ` : sa confiance joue ×${String(Math.round((1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, ctx.joueurs[k])) * 10) / 10).replace('.', ',')}` : ''}</div>` : ''}
+            ${k !== 'banque' ? (() => { const J = (ctx.joueurs || {})[k] || { joueurs: 0, paliers: 0 }; return `<div class="inv-coach-compte">${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur habillé${J.joueurs > 1 ? 's' : ''}, ${J.paliers} palier${J.paliers > 1 ? 's' : ''}${pal && J.paliers ? ` : sa confiance joue ×${String(Math.round((1 + JOUEUR_COACH * J.paliers) * 10) / 10).replace('.', ',')}` : ''}</div>`; })() : ''}
             ${pal ? `<div class="inv-coach-regle"><span>Joue :</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
             ${manque ? `<div class="inv-coach-regle suite"><span>${ROMAINS[pal + 1]} :</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
           </div>`;

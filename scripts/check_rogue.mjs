@@ -37,13 +37,15 @@ import { availableParallelism } from 'node:os';
 import {
   SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
   echelleTardive, grandirEffet, effetsDesCartes, appliquerMutation, simulerGrosMatch, MUTATIONS, MAITRISE_PAS, ENTENTE_STAGE,
-  lignesDe, chimieLigne, apprentissageDe, joueursDeLigne,
+  lignesDe, chimieLigne, apprentissageDe, joueursDeLigne, JOURS_PAR_MATCH,
 } from '../js/sim.js';
 import { deckDe, DECK_DEPART } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli,
-  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe,
+  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron,
 } from '../js/rogue.js';
+import { BANQUE, PATRONS_IMPOSES, patronsDeDepart } from '../js/banque.js';
+import { VOIES } from '../js/coachs.js';
 import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
 import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
 
@@ -200,7 +202,9 @@ if (!isMainThread) {
     const L = activeLineup(t);
     exiger('un joueur dans une case de réserve de plus monte quand un habillé se blesse', Object.values(L).includes(extra) && !Object.values(L).includes(blesse), extra.n);
   }
-  const e0 = echelleTardive({ jour: 0 }), e40 = echelleTardive({ jour: 40 }), e81 = echelleTardive({ jour: 81 });
+  // Le calendrier se compte en JOURNÉES (JOURS_PAR_MATCH par match) : la mi-saison et le dernier soir aussi.
+  const DERNIER = Math.round(82 * JOURS_PAR_MATCH) - 1;
+  const e0 = echelleTardive({ jour: 0 }), e40 = echelleTardive({ jour: DERNIER / 2 }), e81 = echelleTardive({ jour: DERNIER });
   const eS = [0, 1, 2, 3].map(r => echelleTardive({ serie: true, ronde: r }));
   exiger('l\'échelle de la fin de partie : ×0,5 au premier soir, ×1 à la mi-saison, ×1,5 au dernier, ×2 en finale', e0 === 0.5 && Math.abs(e81 - 1.5) < 1e-9 && eS[3] === 2 && Math.abs(e40 - 1) < 0.01,
     `jour 1 ×${e0.toFixed(2)} · jour 41 ×${e40.toFixed(2)} · jour 82 ×${e81.toFixed(2)} · séries ${eS.map(x => `×${x.toFixed(2)}`).join(' ')}`);
@@ -233,7 +237,7 @@ if (!isMainThread) {
     const cles = ['1985-86_EDM_1', '2001-02_DET_2', '1970-71_BOS_3', '2019-20_TBL_4'];
     const a = tirageDuClasseur(cles, 'g:3'), b = tirageDuClasseur(cles.slice().reverse(), 'g:3'), c = tirageDuClasseur(cles, 'g:4');
     exiger('le tirage du classeur est pur : la même graine donne le même ordre, quel que soit l\'ordre du cartable', a.join() === b.join() && a.length === 4, `${a.join(' ')} · une autre run : ${c.join(' ')}`);
-    exiger('le budget du classeur : 25 M$ sans déblocage, le plafond débloqué le monte', budgetDuClasseur({ deblocages: [] }) === 25_000_000 && budgetDuClasseur({ deblocages: ['plafond1', 'plafond2'] }) === 32_000_000, '25 M$ · 32 M$');
+    exiger('le budget du classeur : 25 M$ sans déblocage, le plafond débloqué le monte', budgetDuClasseur({ deblocages: [] }) === 25_000_000 && budgetDuClasseur({ deblocages: ['plafond1', 'plafond2'], ecussonsAVie: 0 }) === 32_000_000, '25 M$ · 32 M$');
     exiger('les cases de réserve de plus se débloquent une à une', reservesDeLaRun({ deblocages: [] }) === 0 && reservesDeLaRun({ deblocages: ['banc1'] }) === 1 && reservesDeLaRun({ deblocages: ['banc1', 'banc2'] }) === 2 && DEBLOCAGES.banc2.requis === 'banc1', '0 · 1 · 2');
     exiger('le barème d\'une run : 5 🪙 par victoire, 8 et 10 avec les commanditaires', baremeRogue({ deblocages: [] }).victoire === 5 && baremeRogue({ deblocages: ['commanditaire1'] }).victoire === 8 && baremeRogue({ deblocages: ['commanditaire1', 'commanditaire2'] }).victoire === 10, '5 · 8 · 10');
     // 1.0 (J1-C) : la prime de série se verse — `resultatsRogue` (js/game.js) renvoie enfin `series`, que `jetonsDe` lit.
@@ -243,6 +247,23 @@ if (!isMainThread) {
     // donc le numéro d'achat suivant ne bouge pas et la dépense est comptée même sans signature.
     const achats = [{ jour: 3, palier: 'k:0', achat: { pack: 'j:hasard_bronze', n: 0, prix: 12, sorte: 'joueurs' } }, { jour: 3, palier: 'k:0:signe', ballottage: { i: 20, entre: 'x', sort: null } }];
     exiger('un pack acheté puis signé fait UNE dépense et UN numéro d\'achat', achats.filter(d => d.achat).length === 1 && jetonsDe({}, achats.reduce((a, d) => a + ((d.achat || {}).prix || 0), 0), 40, JETONS) === 28, '40 − 12 = 28 🪙');
+  }
+  /*
+   * V2.3 — LE COACH ET SES PATRONS, AU PRESTIGE : trois coachs au Club de garage, un de plus par rang, les huit à la
+   * Dynastie (le Comptable n'en est plus un : c'est un patron) ; deux postes de patron au départ, plus au prestige ;
+   * deux patrons imposés, neutres (sans couleur de coach, ou celle de l'argent), deux rôles, des raretés ouvertes.
+   */
+  {
+    const n = PRESTIGES.map((_, r) => coachsOuverts(r).length), postes = PRESTIGES.map((_, r) => postesDePatron(r));
+    exiger('les coachs ouverts : trois au départ, un de plus par rang, les huit voies à la Dynastie', n[0] === 3 && n.every((x, i) => i === 0 || x > n[i - 1]) && n[n.length - 1] === VOIES.length && !VOIES.includes('banque'), n.join(' · '));
+    exiger('les postes de patron : deux au départ, jamais moins en montant', postes[0] === 2 && postes.every((x, i) => i === 0 || x >= postes[i - 1]) && postes[postes.length - 1] > 2, postes.join(' · '));
+    const tirages = [];
+    for (let r = 0; r < PRESTIGES.length; r++) for (let k = 0; k < 40; k++) tirages.push([r, patronsDeDepart(`essai:${k}`, PRESTIGES[r].raretes)]);
+    const faux = tirages.filter(([r, ids]) => ids.length !== PATRONS_IMPOSES || new Set(ids.map(id => BANQUE[id].role)).size !== ids.length
+      || ids.some(id => (BANQUE[id].coach && BANQUE[id].coach !== 'banque') || !PRESTIGES[r].raretes.includes(BANQUE[id].rarete)));
+    exiger('deux patrons imposés, neutres, de deux rôles, aux raretés que le rang ouvre', !faux.length, faux.length ? faux[0][1].join(' ') : `${tirages.length} tirages`);
+    exiger('le même départ tire les mêmes patrons', patronsDeDepart('essai:7', PRESTIGES[0].raretes).join() === patronsDeDepart('essai:7', PRESTIGES[0].raretes).join());
+    exiger('le Comptable est un patron qu\'un départ peut imposer', tirages.some(([, ids]) => ids.includes('patron:dir_comptable')), `${tirages.filter(([, ids]) => ids.includes('patron:dir_comptable')).length} tirages sur ${tirages.length}`);
   }
   exiger('le mandat du proprio monte de saison en saison', MANDATS.every((m, i) => i === 0 || m.rondes > MANDATS[i - 1].rondes) && mandatDe(1).rondes === 0 && mandatDe(9).rondes === MANDATS[MANDATS.length - 1].rondes
     && mandatRempli(1, { series: true, rondes: 0 }) && !mandatRempli(2, { series: true, rondes: 0 }) && mandatRempli(2, { series: true, rondes: 1 }) && !mandatRempli(1, { series: false }),

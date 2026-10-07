@@ -30,6 +30,7 @@
  * packs. Seul le méta est un état, et il ne touche pas au moteur.
  */
 import { hache } from './util.js';
+import { VOIES } from './coachs.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -160,13 +161,22 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  * départ de la run (`G.rogue.prestige`) : un rang gagné en cours de route
  * sert la run suivante, et une run reprise retrouve les mêmes packs.
  */
+/*
+ * V2.3 — LE COACH ET SES PATRONS, AU PRESTIGE. JP : *au début, t'as genre 3 coachs seulement, et 2 adjoints
+ * possibles, pis ça augmente selon les runs*. Chaque rang ouvre `coachs` coachs au choix du départ (les huit
+ * voies, dans l'ordre de `VOIES`), `postes` postes de patron, et les raretés (`raretes`) d'où se tirent les
+ * deux patrons imposés au départ — des passifs neutres, utiles à tous (js/banque.js `patronsDeDepart`).
+ */
 export const PRESTIGES = [
-  { nom: 'Club de garage', min: 0, etoile: 0.4, phenomene: 0, classeur: 0, texte: 'Les vedettes ne décrochent pas le téléphone.' },
-  { nom: 'Club de quartier', min: 120, etoile: 0.7, phenomene: 0.3, classeur: 3_000_000, texte: 'On commence à parler de toi au dépanneur.' },
-  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1, phenomene: 0.7, classeur: 6_000_000, texte: 'Les agents rappellent.' },
-  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.15, phenomene: 1, classeur: 10_000_000, texte: 'Les joueurs autonomes regardent ton club en premier.' },
-  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.3, classeur: 15_000_000, texte: 'Tout le monde veut jouer pour toi.' },
+  { nom: 'Club de garage', min: 0, etoile: 0.4, phenomene: 0, classeur: 0, coachs: 3, postes: 2, raretes: ['commune'], texte: 'Les vedettes ne décrochent pas le téléphone.' },
+  { nom: 'Club de quartier', min: 120, etoile: 0.7, phenomene: 0.3, classeur: 3_000_000, coachs: 4, postes: 2, raretes: ['commune', 'peu'], texte: 'On commence à parler de toi au dépanneur.' },
+  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1, phenomene: 0.7, classeur: 6_000_000, coachs: 5, postes: 3, raretes: ['commune', 'peu'], texte: 'Les agents rappellent.' },
+  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.15, phenomene: 1, classeur: 10_000_000, coachs: 6, postes: 3, raretes: ['commune', 'peu', 'rare'], texte: 'Les joueurs autonomes regardent ton club en premier.' },
+  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.3, classeur: 15_000_000, coachs: 8, postes: 4, raretes: ['commune', 'peu', 'rare'], texte: 'Tout le monde veut jouer pour toi.' },
 ];
+/* Les coachs qu'une run de ce rang peut choisir, et ses postes de patron. */
+export const coachsOuverts = rang => VOIES.slice(0, (PRESTIGES[rang] || PRESTIGES[0]).coachs);
+export const postesDePatron = rang => (PRESTIGES[rang] || PRESTIGES[0]).postes;
 /* Les écussons gagnés à vie : le compte, ou — pour un méta d'avant la v2 — ce qu'on a, plus ce qu'on a dépensé au vestiaire. */
 export const ecussonsAVie = m => (m.ecussonsAVie != null ? m.ecussonsAVie
   : (m.ecussons || 0) + (m.deblocages || []).reduce((a, k) => a + ((DEBLOCAGES[k] && DEBLOCAGES[k].prix) || 0), 0));

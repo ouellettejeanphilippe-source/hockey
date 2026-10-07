@@ -27,7 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
   energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH,
-  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir } from '../js/sim.js';
+  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir, glaceDesLignes, ROULEMENTS } from '../js/sim.js';
 import { jambesAVenir } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
@@ -231,7 +231,25 @@ try {
   ligne('poussé, jambes sans effet', sans.pousse);
 } catch (e) { console.log('  (le fils sans jambes n\'a pas tourné : ' + e.message.split('\n')[0] + ')'); }
 
+// 4. LE ROULEMENT, UNE VRAIE DÉCISION (V2.3) : choisi pour ce soir dans « Préparer le match », la glace et l'usure
+// que l'écran montre le suivent — ce sont les mêmes fonctions que le moteur joue (`glaceDesLignes`, `usureDuSoir`).
+const roul = {};
+{
+  const t = ligue(7100, 2)[0];
+  const glace = r => glaceDesLignes(t, r ? [{ jour: 0, roulement: r }] : []).F;
+  const usure1 = r => { const u = usureDuSoir(t, r ? [{ jour: 0, roulement: r }] : []), L = activeLineup(t);
+    const k = SLOTS.filter(x => x.group === 'F' && x.unit === 0 && !x.scratch).map(x => getPlayerKey(L[x.i]));
+    return k.reduce((a, x) => a + (u[x] || 0), 0) / k.length; };
+  for (const r of Object.keys(ROULEMENTS)) roul[r] = { g: glace(r), u: usure1(r) };
+  const q = roul.quatre, tr = roul.trois, pr = roul.profond;
+  console.log(`  glace des trios · quatre ${q.g.map(x => x.toFixed(3)).join(' ')} · trois ${tr.g.map(x => x.toFixed(3)).join(' ')} · profond ${pr.g.map(x => x.toFixed(3)).join(' ')}`);
+  console.log(`  usure du 1er trio ce soir · quatre ${q.u.toFixed(2)} · trois ${tr.u.toFixed(2)} · profond ${pr.u.toFixed(2)}`);
+}
+
 console.log('');
+exiger('« Trois trios » : le 1er trio a plus de glace, le 4e moins', roul.trois.g[0] > roul.quatre.g[0] && roul.trois.g[3] < roul.quatre.g[3], `${roul.trois.g[0].toFixed(3)} / ${roul.trois.g[3].toFixed(3)}`);
+exiger('« Banc profond » : l\'inverse', roul.profond.g[0] < roul.quatre.g[0] && roul.profond.g[3] > roul.quatre.g[3], `${roul.profond.g[0].toFixed(3)} / ${roul.profond.g[3].toFixed(3)}`);
+exiger('l\'usure du 1er trio suit sa glace', roul.trois.u > roul.quatre.u && roul.profond.u < roul.quatre.u, `${roul.trois.u.toFixed(2)} · ${roul.quatre.u.toFixed(2)} · ${roul.profond.u.toFixed(2)}`);
 // 89 : le vrai calendrier (1.0, oct.) mêle des dos-à-dos et des congés ; sa moyenne des matins de match tombe à 89,7 contre 90,0 avant.
 borne('jambes du matin, 1er trio par défaut', P.l1t, 89, 96);
 borne('jambes du matin, 1er trio poussé', P.l1, 75, 86);
