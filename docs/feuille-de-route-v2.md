@@ -113,6 +113,7 @@ Les ajouts de la refonte, étape 4 : un joueur monte de palier, un trio s'assort
 
 ## Pour reprendre
 
+- **La V3 (7 oct.).** JP : *le jeu se joue tout seul, je n'ai pas d'impact, et il ne raconte pas d'histoire.* Le diagnostic en chiffres et le plan, `docs/refonte-v3.md` : moins de choix et chacun pèse, ce que ton choix a changé (le contrefactuel), le fil de la saison (les arcs des joueurs), des messages qui comptent, des cartes qui se gèrent, le chaos du Rogue. La V2.4 restante s'y fond.
 - **Où on en est (7 oct.).** V2.1, V2.2 et V2.3 finies (docs/decisions.md, « Tout se parle » et « Les voies des coachs »). La suite : V2.4, qui commence par le prix des rôles (ci-dessous).
 - **Le prix des rôles (trouvé par `check_voies`).** À salaire égal et chacun dans sa zone, une équipe bâtie de la couleur du Frelon (power forwards, défenseurs offensifs) vaut +9,6 V, de l'Aigle +2,2, de l'Abbé +0,8, de la Tortue −2,6, du Showman −4,9, du Contremaître −10,0, du Doc −11,4, du Rhino −13,8 — sans coach. Un coach ne peut pas compenser 23 V sans valoir +20 V : c'est le prix d'un rôle (le salaire contre ce que le moteur en tire), pas la voie. `check_voies` le dit (« composition ») ; V2.4 l'a en item.
 - **Avant (3 oct.).** La refonte de `docs/refonte-systeme.md` a fait son étape 1 : les badges à paliers (Bronze → Platine), dans le moteur et à l'écran (docs/decisions.md, « Les badges à paliers »). V2.0 finie (15/15) — branche `ccr-6170d59a-31b8nb`. La suite : V2.1 (une langue).
