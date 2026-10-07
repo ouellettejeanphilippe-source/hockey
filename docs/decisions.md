@@ -2026,3 +2026,11 @@ Le bureau du Rogue se fermait pour de bon, une run sur deux ou trois, en fin de 
 
 Décidé : une reprise (`opts.reprise`) passe toujours — la saison en cours se rejoue avec l'alignement qu'elle a, comme le fait déjà une décision d'aujourd'hui, qui rouvre l'écran sans rien rejouer. Une décision qui échoue l'écrit en console (le smoke et essai_rogue la voient) et rouvre l'écran sur la ligue en mémoire.
 
+## Les paliers d'un badge ont leurs propres couleurs (7 oct. 2026)
+
+JP : *or pis bronze sont trop similaires, surtout page alignement*. Le palier Or empruntait l'or du sens (`--or`, #d7b171, un sable) : sur une icône de 14 px, il touchait le bronze (#c98b5a) ; et les palettes repeignent `--or` (bleu pâle en « glace », collé à l'argent). Décidé : l'or d'un badge a son jeton, `--or-palier` (#ffd23a, un jaune franc), le bronze devient un cuivre foncé (#b5693a), et aucune palette ne touche aux paliers. L'or du sens reste celui de l'interface. Écarté : un contour ou une forme par palier — le palier se dit en mot et se voit en couleur (CLAUDE.md), une seule teinte par palier suffit si elles s'écartent.
+
+## Un achat se numérote au clic (7 oct. 2026)
+
+JP : *encore des doublons de packs achetés*. Au Marché, la boutique vit dans une page, et sa fiche de pack restait ouverte après « Acheter » ; le numéro d'achat (la graine du tirage, la décision `k:n`) se prenait à l'ouverture de la boutique, et un pack de joueurs charge ses saisons avant d'écrire son achat. Un second toucher rouvrait donc le même pack : le même tirage, montré deux fois, et une décision qui remplaçait l'autre. Décidé : la fiche part avec l'achat ; le numéro se prend au clic et compte les achats encore en vol ; un seul tirage à la fois ; les jetons se recomptent au clic. Preuve : `scripts/essai_achat.mjs`, les saisons ralenties à quatre secondes comme sur un téléphone (l'ancien code y échoue deux fois).
+

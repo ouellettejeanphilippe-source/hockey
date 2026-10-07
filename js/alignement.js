@@ -589,8 +589,9 @@ export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
   host.innerHTML = '';
-  // Le bouton d'alignement ne sert qu'à une équipe qu'on règle encore (ni sur table, ni la saison jouée).
-  if (!surTable() && !G.done && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
+  // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
+  // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
+  if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);

@@ -160,9 +160,31 @@ function packsOuvertsBoutique(j = 0) {
     return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » aux déblocages`];
   }));
 }
+/*
+ * LE NUMÉRO D'UN ACHAT SE PREND AU CLIC (oct.). JP : *encore des doublons de packs achetés*. Il se prenait à
+ * l'ouverture de la boutique ; or un pack de joueurs charge ses saisons AVANT d'écrire son achat, et la boutique
+ * restait cliquable pendant ce temps : un second achat reprenait le même numéro — le même tirage, la même décision
+ * `k:n`, qui remplaçait la première. Le numéro compte donc aussi les achats encore en vol, et un seul tirage se
+ * fait à la fois.
+ */
+let dernierAchat = { graine: null, n: -1 };
+function numeroDAchat() {
+  const pris = decisionsDeLaPartie().filter(d => d.achat || d.rogue).length;
+  const graine = G.ligue ? G.ligue.graine : null;
+  const n = dernierAchat.graine === graine ? Math.max(pris, dernierAchat.n + 1) : pris;
+  dernierAchat = { graine, n };
+  return n;
+}
+let tirageEnCours = false;
+function unTirageALaFois(f) {
+  if (tirageEnCours) { toast('Un pack s\'ouvre déjà : un instant.'); return; }
+  tirageEnCours = true;
+  Promise.resolve().then(f)
+    .catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'))
+    .finally(() => { tirageEnCours = false; });
+}
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
-  const n = decs.filter(d => d.achat || d.rogue).length;
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(j),
@@ -177,19 +199,23 @@ export function ouvrirBoutique(j, decider, page) {
     coachs: ORDRE_COACHS.map(k => ({ cle: k, nom: `${COACHS[k].ico} ${COACHS[k].nom}` })), coachRun: (G.rogue && G.rogue.coach) || null,
     acheter: (cle, { prix, params, scelle = false }) => {
       const P = PACKS_TOUS[cle];
+      // Les jetons se recomptent au clic : une boutique restée ouverte montre ceux d'avant le dernier achat.
+      if (prix > jetonsRogue(j)) { toast(`Il te manque ${prix - jetonsRogue(j)} 🪙.`, 'bad'); return; }
       if (scelle) {
+        const n = numeroDAchat();
         decider({ jour: j, palier: `k:${n}`, achat: { pack: cle, n, prix, sorte: P.sorte, params, scelle: true } });
         toast(`${P.ico} ${P.nom} : scellé, à ouvrir quand tu veux.`);
         return;
       }
-      const suite = P.sorte === 'cartes' ? ouvrirPackCartes(cle, prix, j, n, decider, params) : ouvrirPackJoueurs(cle, prix, params, j, n, decider);
-      Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
+      unTirageALaFois(() => { const n = numeroDAchat(); return P.sorte === 'cartes' ? ouvrirPackCartes(cle, prix, j, n, decider, params) : ouvrirPackJoueurs(cle, prix, params, j, n, decider); });
     },
     // LES PACKS SCELLÉS : payés, à ouvrir quand on veut — le tirage se fait à l'ouverture, au numéro d'achat suivant.
     /* TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, payés en jetons comme un pack — par une
        décision d'achat (`sorte: 'club'`), que la partie rejoue et que `jetonsRogue` compte. Le méta le garde. */
     club: offresDuClub(),
     acheterClub: (cle, prix) => {
+      if (prix > jetonsRogue(j)) { toast(`Il te manque ${prix - jetonsRogue(j)} 🪙.`, 'bad'); return; }
+      const n = numeroDAchat();
       decider({ jour: j, palier: `k:${n}`, achat: { club: cle, n, prix, sorte: 'club' } });
       prendre(cle);
       clubChange();
@@ -200,8 +226,7 @@ export function ouvrirBoutique(j, decider, page) {
       const d = packsScelles(decs).find(x => x.palier === palier);
       if (!d || (PACKS_TOUS[d.achat.pack].sorte === 'joueurs' && apresDateLimite(j))) return;
       const { pack, params } = d.achat;
-      const suite = PACKS_TOUS[pack].sorte === 'cartes' ? ouvrirPackCartes(pack, 0, j, n, decider, params || {}, palier) : ouvrirPackJoueurs(pack, 0, params || {}, j, n, decider, palier);
-      Promise.resolve(suite).catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'));
+      unTirageALaFois(() => { const n = numeroDAchat(); return PACKS_TOUS[pack].sorte === 'cartes' ? ouvrirPackCartes(pack, 0, j, n, decider, params || {}, palier) : ouvrirPackJoueurs(pack, 0, params || {}, j, n, decider, palier); });
     },
   });
 }

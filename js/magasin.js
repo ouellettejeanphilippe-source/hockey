@@ -184,6 +184,9 @@ export function ouvrirMagasin(ctx) {
       if (!peut) return;
       const v = d.querySelector('#pkParam');
       const params = P.choix ? { [P.choix]: v && v.value ? v.value : null } : {};
+      // La fiche part avec l'achat : dans une page, `fermer` laisse la boutique en place, et un « Acheter » resté
+      // sous le doigt rachetait le même pack (oct., JP : *encore des doublons de packs achetés*).
+      d.remove();
       fermer(true);
       ctx.acheter(cle, { prix, params, scelle });
     };
@@ -208,7 +211,7 @@ export function ouvrirMagasin(ctx) {
     </div>`;
     m.querySelector('.choix-sheet').appendChild(d);
     d.querySelector('.pk-retour').onclick = () => d.remove();
-    d.querySelector('.pk-acheter').onclick = () => { if (!peut) return; fermer(true); ctx.acheterClub(o.cle, o.prix); };
+    d.querySelector('.pk-acheter').onclick = () => { if (!peut) return; d.remove(); fermer(true); ctx.acheterClub(o.cle, o.prix); };
   };
   const fermer = (silencieux = false) => {
     // Dans une page, seul un geste de fermeture la ferme : un achat laisse la boutique en place (js/game.js, `remplirMarche`).
