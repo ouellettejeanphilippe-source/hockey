@@ -44,14 +44,14 @@ import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeRepo
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
-import { tempsRestant, NOM_PERIODE, recitDeBut } from './recit.js';
+import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -944,8 +944,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
     let serieD = 0;
     for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m, you); i--) serieD++;
+    // Les punitions de chacun sur ses derniers matchs (V3) : la plus courte fenêtre de deux à quatre matchs qui en compte trois.
+    const punis = [];
+    for (const p of habilles('F').concat(habilles('D'))) {
+      const siens = avant.filter(({ m }) => (m.feuille?.alignes?.[coteDe(m)] || []).includes(p));
+      for (let n = 2; n <= 4 && n <= siens.length; n++) {
+        const k = siens.slice(-n).reduce((s, { m }) => s + (m.feuille.punitions || []).filter(x => x.cote === coteDe(m) && x.joueur === p).length, 0);
+        if (k >= PUNITIONS_SERMON) { punis.push({ p, n: k, m: n }); break; }
+      }
+    }
+    punis.sort((a, b) => b.n / b.m - a.n / a.m);
     return {
-      J, N, dernier, serieV, serieD, recents: recents.length,
+      J, N, dernier, serieV, serieD, recents: recents.length, punis,
       joueurs: habilles('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
       veteransD: habilles('D').filter(p => age(p) >= 33).sort((a, b) => age(b) - age(a)),
     };
@@ -1979,6 +1989,23 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // Le soir d'un match lu au bureau (J2-8), son résultat passe devant l'état de la saison.
   // L'état de la saison (le proprio, la run, l'infirmerie) vit dans l'onglet Saison depuis 1.0 (R2) : la journée ne le redit pas.
   const voletJournee = () => voletJourneeSeul();
+  /*
+   * LA UNE (V3.2). Le fil de ta saison qui a bougé hier soir — la course aux
+   * 50 buts, le Cheechoo, la disette — en une phrase, et le but qui l'a fait
+   * bouger dit par le commentateur. Lu dans les feuilles déjà jouées
+   * (`filsDeSaison`, js/recit.js), jamais inventé : `check_fils`.
+   */
+  let filsLus = null;
+  const filsAuJour = () => {
+    if (!filsLus || filsLus.jour !== jour) filsLus = { jour, r: filsDeSaison(calendrier, you, jour) };
+    return filsLus.r;
+  };
+  const uneHtml = () => {
+    const e = filsAuJour().journal.at(-1);
+    if (!e || e.j !== jour - 1) return '';
+    const a = e.fils[0];
+    return `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.texte)}</b>${a.but && a.but.marqueur ? `<span class="hub-une-but">${ctx.esc(recitDeBut(a.but))}</span>` : ''}</div>`;
+  };
   const voletJourneeSeul = () => {
     if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
@@ -1990,7 +2017,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mien = k >= 0 ? (dansAffiche ? '' : resultatHier({ j, k, m: matchs[k] })) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : '';   // un congé hier (le vrai calendrier en a un sur deux) : rien à dire, l'affiche dit quand vient le match
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
     const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour ${mbHier.duree || SONNE.duree} matchs${mbHier.raison === 'nemesis' ? cicatriceMot('doute') : ''}`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
-    return `${mbMot}${mien}${portailHtml()}`;
+    return `${uneHtml()}${mbMot}${mien}${portailHtml()}`;
   };
 
   /*
@@ -2089,6 +2116,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const Ao = Av && Av.options.find(o => o.cle === mb.avant.choix);
       ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Combat contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · événement : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
     }
+    // Les fils qui ont fait la une, quand ils pèsent (V3.2) : la course, le Cheechoo, le jalon, le duo.
+    for (const e of filsAuJour().journal) if (e.fils[0].poids >= FIL_MARQUANT) ev.push({ j: e.j, t: `<b>${ctx.esc(e.fils[0].texte)}</b>` });
     // Les séquences marquantes : cinq victoires de suite ou plus, cinq défaites.
     let run = 0, sens = null, debut = 0;
     const fermerRun = () => { if (run >= 5) ev.push({ j: debut, t: sens ? `📈 ${run} victoires de suite` : `🥶 ${run} défaites de suite` }); };

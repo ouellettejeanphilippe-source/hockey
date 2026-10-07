@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, MOMENTS, SEQUENCES, MUTATIONS, effetDeMoment, pariDeDecision, ciblesDe, getPlayerKey, SLOTS } from '../js/sim.js';
 import { effetEnChiffres } from '../js/impact.js';
-import { courrielsDe, echangeDe, REPONSES_VIE } from '../js/vie-gm.js';
+import { courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON } from '../js/vie-gm.js';
 import { formeDe } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -223,5 +223,16 @@ exiger('la modif de l\'agent se pose sur la vedette, une fois', annees.length ==
 exiger('le congé de l\'agent met la vedette au vestiaire', absents.includes(cleVedette), vedette.n);
 exiger('le repos du gardien appelle l\'auxiliaire', (t.gardienAux || 0) > 0, gardien.n);
 exiger('le pari est tiré une seule fois', (t.paris || []).length === 1, `${(t.paris || []).length} pari`);
+
+// LE FAIT QU'UN DILEMME AFFIRME (V3) : « La mise au point » ne sort que si le joueur a vraiment été puni, et dit ses vrais chiffres.
+{
+  const sermon = MOMENTS.vie_dur_sermon, joueur = { n: 'Adam Foote', p: 'D' };
+  const base = { J: 20, N: 82, serieV: 0, serieD: 0 };
+  const sans = sermon.faits({ ...base, punis: [] });
+  const avec = sermon.faits({ ...base, punis: [{ p: joueur, n: PUNITIONS_SERMON, m: 2 }] });
+  exiger('« La mise au point » ne sort pas sans les punitions', sans === null, String(sans));
+  exiger('« La mise au point » nomme le joueur puni et ses vrais chiffres', avec && avec.joueur === joueur && avec.n === PUNITIONS_SERMON && avec.m === 2
+    && /\{n\} punitions en \{m\} matchs/.test(sermon.recit), avec ? `${avec.n} en ${avec.m}` : 'rien');
+}
 
 verdict('Courriels et points de presse');
