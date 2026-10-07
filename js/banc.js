@@ -9,7 +9,7 @@ import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
-import { BANQUE, palierAllume, coachsActifs } from './banque.js';
+import { BANQUE, palierAllume, coachsActifs, payloadDe } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs } from './ballottage.js';
 import { money, esc } from './util.js';
@@ -267,7 +267,7 @@ async function continuerSaison(decisions, depuis, mot) {
  * (deux images d'animation : le calcul bloque le fil, et un voile posé juste
  * avant ne serait jamais dessiné).
  */
-function voile(on, mot = 'On rejoue la saison avec ton choix…') {
+function voile(on, mot = 'La saison reprend avec ton choix…') {
   let v = $('voile');
   if (!v) {
     v = document.createElement('div');
@@ -313,7 +313,7 @@ function confirmerDecision(d) {
   if (d.coach && COACHS[d.coach.cle]) {
     const C = COACHS[d.coach.cle];
     const sys = d.maitrise && systemeDe(d.maitrise.tac);
-    mot = `${mot ? `${mot} ` : ''}${C.ico} Le vestiaire croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
+    mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
   }
   if (mot) toast(mot);
 }
@@ -477,7 +477,7 @@ export async function deciderSerie(d) {
   }
   G.done = false;
   renderMain();
-  await sousVoile('On rejoue les séries avec ton choix…', async () => {
+  await sousVoile('Les séries reprennent avec ton choix…', async () => {
     await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
     reprendreSeries(vues);
   });
@@ -585,7 +585,10 @@ export async function runSeason(opts = {}) {
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
       // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois cartes au compteur, sa confiance I allumée — à la première saison d'une run.
       ...(G.bonus === 'ROGUE' && G.rogue && COACHS[G.rogue.coach] && !(G.rogue.saison > 1)
-        ? [{ jour: 0, coachsDeBase: { [G.rogue.coach]: SEUILS[0] }, coach: effetDePalier(G.rogue.coach, 1), rogue: { depart: true } }] : [])];
+        ? [{ jour: 0, coachsDeBase: { [G.rogue.coach]: SEUILS[0] }, coach: effetDePalier(G.rogue.coach, 1), rogue: { depart: true } }] : []),
+      // SES DEUX PATRONS IMPOSÉS (V2.3, js/banque.js `patronsDeDepart`) : en poste dès le premier soir, et pour la run (le report les garde).
+      ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.patrons) && !(G.rogue.saison > 1)
+        ? G.rogue.patrons.map(id => payloadDe(id)).filter(Boolean).map(p => ({ jour: 0, ...p, rogue: { depart: true } })) : [])];
   // Tes cartes brillantes jouent (S78) ; personne d'autre n'en porte.
   poserCartes(decisions);
   /*

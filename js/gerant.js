@@ -25,19 +25,18 @@
  */
 
 import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
-  profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax,
+  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
+  profilsDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite, enFaceDe, FERMETURE_DEFAUT,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite,
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { POIDS_TRIO } from './ratings.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
+import { ROULEMENTS, effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
@@ -122,8 +121,12 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
  * garde ses deux ou trois vrais rôles, avec un mot pour le niveau, et sa
  * carrure quand elle compte (le jeu physique en dépend).
  */
-/* Le mot de l'ASSORTIMENT d'un joueur à ce qu'un système demande (`stylesDe`) — pas un badge. */
-const motDuFit = x => (x >= 85 ? 'élite' : x >= 70 ? 'très bon' : x >= 55 ? 'bon' : x >= 40 ? 'correct' : 'faible');
+/* Le mot d'un rôle qu'il n'a pas en badge (sa fiche, « Ses rôles ») : ce que son score dans ce rôle vaut. */
+/* Ce que la case lit d'un joueur (V2.3) : son badge de ce rôle, à son palier, ou la base. */
+const motDuFit = (p, role) => {
+  const b = p && badgesDe(p).find(x => x.cle === role);
+  return !b ? 'pas ce badge : la case ne rend que la base' : b.second ? `son second badge, ${motDuBadge(b)} : la moitié` : `son badge, ${motDuBadge(b)}`;
+};
 export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
 /*
  * UN BADGE, EN MOTS (refonte 1) : son icône, son nom, son palier — « 🎯 Sniper
@@ -132,7 +135,7 @@ export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { 
  */
 export const motDuBadge = b => `${b.nom} ${PALIERS[b.palier].nom}`;
 export const raisonDuBadge = b => (b.trait && TRAITS[b.trait] ? TRAITS[b.trait].short : '');
-export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, comparé aux joueurs de son poste, toutes saisons${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}`;
+export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, ${b.gardien ? 'comparé aux gardiens de sa saison' : 'comparé aux joueurs de son poste, toutes saisons'}${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}. Il dit CE QU'IL FAIT au match ; sa zone dit où.`;
 function rolesDe(p) {
   const bs = badgesDe(p);
   if (!bs.length) return '';
@@ -144,22 +147,21 @@ function rolesDe(p) {
 export const barresProfils = rolesDe;
 /*
  * SES RÔLES, TOUS (1.0, C2). JP : *variété de build, complexe mais clair*. Un
- * système demande des rôles ; le joueur en a un, et une maîtrise de chacun
- * des autres qui décide DÉJÀ du fit (`fitUnite` lit son score dans le rôle
- * demandé, pas son rôle affiché). On la montre, en mots, du meilleur au moins
- * bon — jamais un chiffre (aucune cote dans le DOM).
+ * système demande des rôles ; le joueur a ses badges, et c'est eux que la
+ * case lit (V2.3, `fitDeCase`) : les autres rôles se rangent du plus près au
+ * plus loin, sans mot, puisqu'ils ne rendent que la base.
  */
 export function sesRolesHtml(p) {
   const pr = p && p.p !== 'G' ? profilsDe(p) : null;
   if (!pr) return '';
   const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
   const liste = Object.entries(pr).filter(([k]) => PROFILS[g][k]).sort((a, b) => b[1] - a[1]);
-  // Ses badges d'abord, à leur palier ; les autres rôles disent ce qu'un système qui les demande en tirerait.
+  // Ses badges d'abord, à leur palier ; les autres rôles, du plus près au plus loin, ne rendent que la base (V2.3).
   const badges = new Map(badgesDe(p).map(b => [b.cle, b]));
-  return `<div class="ses-roles">${liste.map(([k, x]) => {
+  return `<div class="ses-roles">${liste.map(([k]) => {
     const R = PROFILS[g][k], b = badges.get(k);
     if (b) return `<span class="ses-role premier pal-${b.palier}" title="${esc(titreDuBadge(b))}">${R.ico} ${esc(R.nom)} <b>${PALIERS[b.palier].nom}</b></span>`;
-    return `<span class="ses-role${x < 40 ? ' faible' : ''}" title="${esc(R.nom)} — lu dans ${esc(R.mot)}">${R.ico} ${esc(R.nom)} <b>${motDuFit(x)}</b></span>`;
+    return `<span class="ses-role faible" title="${esc(R.nom)} — pas son badge : un système qui le demande ne rend que la base à sa case.">${R.ico} ${esc(R.nom)}</span>`;
   }).join('')}</div>`;
 }
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
@@ -652,11 +654,15 @@ function pointsDeBande(m) {
 let pastilleNiveau = () => '';
 export const brancherPastilleNiveau = f => { pastilleNiveau = f; };
 /* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Celles d'un gardien se comptent en départs de suite (C4). */
-export function jambesHtml(e) {
+export function jambesHtml(e, { gardien = false } = {}) {
   const v = Math.round(e);
   const N = niveauJambes(v);
   const effet = Math.round((facteurEnergie({ energie: v }) - 1) * 1000) / 10;
-  return `<span class="jambes jambes-${N.cle}" title="Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
+  // UN GARDIEN N'A PAS LA RÈGLE DES PATINEURS (V2.2) : ses jambes tombent par départs de suite, et lui coûtent des buts accordés.
+  const titre = gardien
+    ? `Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Un gardien les garde ${GARDIEN_SUITE_LIBRE} départs de suite ; ensuite il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${String(GARDIEN_USURE * 100).replace('.', ',')} % de buts accordés en plus.`
+    : `Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus.`;
+  return `<span class="jambes jambes-${N.cle}" title="${titre}"><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
 }
 
 /*
@@ -688,16 +694,24 @@ export function courbeJambesHtml(v, { large = false } = {}) {
    ====================================================================== */
 const NOMS_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
 const ROLES = ['AG', 'C', 'AD', 'DG', 'DD'];
-/* Les minutes à forces égales qu'une ligne jouera, ses secondes appliquées. */
-function minutes(lignes) {
-  const w = POIDS_TRIO.map((x, u) => x * lignes[u].sec / SEC_DEFAUT);
+/*
+ * LA GLACE DE CHAQUE TRIO À FORCES ÉGALES (V2.2, les bons chiffres). La part est celle que le moteur joue
+ * (`PART_UNITE`, pas `POIDS_TRIO` qui compte aussi les avantages), les secondes de chaque ligne appliquées.
+ * Avec `glace` (« Préparer le match ») : les minutes du soir, roulement, moments et coachs compris, sur les
+ * minutes à forces égales que le moteur lit. Sans club (avant la saison) : la part, en pour cent.
+ */
+function glaceDe(lignes, glace = null) {
+  if (glace) return { mins: glace(lignes), pct: null };
+  const w = PART_UNITE.F.map((x, u) => x * lignes[u].sec / SEC_DEFAUT);
   const s = w.reduce((a, b) => a + b, 0) || 1;
-  return w.map(x => x / s * 60);
+  return { mins: null, pct: w.map(x => x / s * 100) };
 }
 const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
+const glaceMot = (g, u, court = false) => (g.mins ? `≈ ${mmss(g.mins[u])}${court ? ' de glace' : ' à forces égales'}` : `${Math.round(g.pct[u])} %${court ? ' de la glace' : ' de la glace à forces égales'}`);
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
 const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
-const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= 20 ? 'correcte' : 'naissante');
+// Sous le pivot (CHIMIE_PIVOT), une chimie coûte au lieu de rapporter : le mot le dit (V2.2, les coûts cachés).
+const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= CHIMIE_PIVOT ? 'correcte' : 'naissante, elle coûte');
 /* L'entente et la maîtrise, de 0 à 1, en mots (S73). */
 const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
@@ -719,7 +733,7 @@ function chiffresSysteme(lineup, lignes, u, groupe, cle) {
   const c = clubLu();
   return c && c.team ? systemeEnChiffres(c.team, lineup, c.adv || null, lignes, u, groupe, cle) : [];
 }
-function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
+function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false, advFermeture = FERMETURE_DEFAUT }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const attr = D ? 'tacd' : 'tac';
@@ -734,7 +748,11 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
   const fM = SYS[meilleur] && SYS[meilleur].slots ? (fitUnite(lineup, groupe, u, meilleur) ?? 0) : 0;
   const conseil = !incomplete && meilleur !== cle && fM >= fit + 10
     ? `<div class="ln-conseil">💡 ${D ? 'Cette paire' : 'Ce trio'} irait mieux en <button type="button" class="ln-conseil-btn" data-${attr}="${meilleur}">${nomSys(meilleur)}</button> <small>${motFit(fM).toLowerCase()}</small></div>` : '';
-  // En face : le trio adverse de même rang, et sa paire.
+  // EN FACE (V2.2) : le trio adverse que le moteur envoie vraiment — celui de même rang, et leur fermeture
+  // contre ton 1er trio (ou leur 1er contre ta fermeture) une présence sur PLAN_FERMETURE (`enFaceDe`).
+  const croises = !D && adv ? enFaceDe(u, advFermeture != null && adv.length > advFermeture ? advFermeture : null) : [{ rang: u, part: 1 }];
+  const autre = croises[1] && adv && adv[croises[1].rang];
+  const aAutre = autre && TACTIQUES[autre.tac] && TACTIQUES[autre.tac].slots ? autre.tac : null;
   const a = adv && adv[u];
   const aF = a && TACTIQUES[a.tac] && TACTIQUES[a.tac].slots ? a.tac : null;
   const aD = a && u < 3 && SYSTEMES_D[a.tacD] && SYSTEMES_D[a.tacD].slots ? a.tacD : null;
@@ -743,7 +761,7 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
     const menace = TACTIQUES[aF].bat === cle || (aD && SYSTEMES_D[aD].bat === cle);
     const pour = contreDe(aF);
     // Un gros match (J1-N) : ces lignes sont celles du plan le plus probable du dépistage, et l'écran le dit.
-    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}</div>`;
+    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : ${aAutre ? `${Math.round(croises[0].part * 100)} % du temps ` : ''}<b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}${aAutre ? `<br><small>${Math.round(croises[1].part * 100)} % du temps, ${croises[1].rang === 0 ? 'leur 1er trio' : `leur trio de fermeture (le ${croises[1].rang + 1}e)`} : <b>${nomSys(aAutre)}</b>${S.bat === aAutre ? ' · <span class="ok">✓ tu l\'étouffes</span>' : contreDe(aAutre) ? ` · l'étouffer : <b>${nomSys(contreDe(aAutre))}</b>` : ''}</small>` : ''}</div>`;
   } else if (aF) {
     const pour = contreDeD(aF);
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
@@ -757,7 +775,7 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
   const cT = !D && S.slots ? contreDe(cle) : null, cD = !D && S.slots ? contreDeD(cle) : null;
   const parQui = cT || cD ? ` Étouffé par ${[cT && `un trio en ${nomSys(cT)}`, cD && `une paire en ${nomSys(cD)}`].filter(Boolean).join(' ou ')}.` : '';
   const motGain = f => (echelleFit(f) >= 1 ? 'gain complet' : echelleFit(f) <= 0 ? 'aucun gain' : 'gain partiel');
-  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets.length ? effets : [{ txt: 'à peine perceptible', bon: null }])}<span class="puce neutre" title="Le gain d'un système suit le fit de ses joueurs : rien au mauvais fit, tout sur mesure. Son prix se paie toujours.">${motGain(fit)}</span></span>` : ''}</div>`;
+  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets.length ? effets : [{ txt: 'à peine perceptible', bon: null }])}<span class="puce neutre" title="Le gain d'un système suit les badges qu'il demande : la moitié sans eux, tout quand chacun a le sien en Argent, un quart de plus au-delà. Son prix se paie toujours.">${motGain(fit)}</span></span>` : ''}</div>`;
   // Ce qu'il demande, poste par poste : le rôle, et si le joueur de la case l'a.
   const js = joueursDeLigne(lineup, u);
   // Les rôles tels qu'il les joue : ses ailes dans le sens où elles rendent le mieux (`rolesDuSysteme`).
@@ -765,9 +783,10 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
   const inverse = roles && S.slots && roles.AG !== S.slots.AG;
   const demande = roles ? (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => r in js && roles[r]).map(r => {
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
-    const fr = p ? ((stylesDe(p) || {})[prof] ?? 0) : null;   // l'assortiment se lit au style, à talent égal (`stylesDe`)
-    const marque = fr == null ? '' : fr >= 60 ? '✓' : fr < 40 ? '✗' : '≈';
-    return `<span class="ln-dem${fr == null ? '' : fr >= 60 ? ' fit-bon' : fr < 40 ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${motDuFit(fr)}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
+    // V2.3 : la case lit le BADGE — le bon rend son palier, le second la moitié, le mauvais la base (`fitDeCase`).
+    const b = p ? badgesDe(p).find(x => x.cle === prof) : null;
+    const marque = !p ? '' : !b ? '✗' : b.second ? '≈' : '✓';
+    return `<span class="ln-dem${marque === '✓' ? ' fit-bon' : marque === '✗' ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${esc(motDuFit(p, prof))}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
   return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
 }
@@ -849,6 +868,15 @@ export function ouvrirLignes(spec) {
   const effetConsigne = k => effetDeMoment({ jour: 0, match: { importance: k, ad: AD_DE_CONSIGNE[k] ?? 0 } });
   let ouverte = 0;
   /*
+   * LE ROULEMENT, UNE VRAIE DÉCISION (V2.3). Il ne s'atteignait que par « Les ménager », présenté par son prix.
+   * Ici, à côté de la glace qu'il déplace : ses trois choix, ce que chacun rend et coûte, et les minutes, les
+   * totaux et l'usure du soir recalculés avec lui (`spec.roulement` : { avant, choix } — celui d'avant ce soir
+   * et celui qui joue ce soir ; la saison seulement). La décision du soir le porte dès qu'il diffère d'avant :
+   * elle remplace celle du même soir, qui le portait peut-être.
+   */
+  let roulement = spec.roulement ? spec.roulement.choix : null;
+  const avecRoul = () => (roulement && roulement !== spec.roulement.avant ? { roulement } : {});
+  /*
    * DEVANT LE FILET CE SOIR (1.0, C4). JP : *je comprends pas la gestion des
    * gardiens*. Le partant et l'auxiliaire, leurs jambes et leur % d'arrêts de
    * leur vraie saison ; la rotation du club est choisie d'office, toucher
@@ -880,21 +908,21 @@ export function ouvrirLignes(spec) {
     const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
     const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
     const voulu = R ? R[role] : null;
-    const pr = p && stylesDe(p);   // l'assortiment au système, à talent égal
     const pp = p && badgesDe(p)[0];
     const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
-    const fitRole = voulu && pr ? pr[voulu] : null;
+    // V2.3 : la case lit son badge de ce rôle — ✓ le badge, ≈ le second, ✗ la base.
+    const bVoulu = voulu && p ? badgesDe(p).find(b => b.cle === voulu) : null;
     const c = p ? carrureDe(p) : null;
-    const marque = fitRole == null ? '' : fitRole >= 60 ? '✓' : fitRole < 40 ? '✗' : '≈';
+    const marque = !voulu || !p ? '' : !bVoulu ? '✗' : bVoulu.second ? '≈' : '✓';
     // TOUT CE QUI JOUE SUR LE TRIO, ICI (S72) : sa zone (le rang de ligne où
     // il rend) et sa position (mauvaise aile, centre à l'aile).
     const place = p ? placementDe(p, role, u) : null;
-    return `<div class="gl-j${fitRole != null ? (fitRole >= 60 ? ' fit-bon' : fitRole < 40 ? ' fit-mauvais' : '') : ''}">
+    return `<div class="gl-j${marque === '✓' ? ' fit-bon' : marque === '✗' ? ' fit-mauvais' : ''}">
       <span class="gl-j-role">${role}</span>
       <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}${place ? place.html : ''}</span>
       <span class="gl-j-prof" title="${pp ? `${esc(titreDuBadge(pp))}${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> <small>${esc(pp.nom)}</small>` : ''}</span>
       <span class="gl-j-niv">${p ? pastilleNiveau(p) : ''}</span>
-      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y est ${motDuFit(fitRole ?? 0)}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
+      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y joue ${esc(motDuFit(p, voulu))}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
       ${p ? jambesHtml(e) : '<span class="jambes"></span>'}
       ${usureHtml(p)}
       ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}
@@ -902,8 +930,8 @@ export function ouvrirLignes(spec) {
   };
 
   function dessiner() {
-    const mins = minutes(brouillon);
-    usureSoir = spec.usure ? spec.usure(match, brouillon) : null;
+    const mins = glaceDe(brouillon, spec.glace ? lignes => spec.glace(match, lignes, avecRoul()) : null);
+    usureSoir = spec.usure ? spec.usure(match, brouillon, avecRoul()) : null;
     const tete = `<div class="choix-tete">
       <span class="choix-ico">🏒</span>
       <div class="choix-titres"><div class="choix-titre">${esc(spec.titre || 'Mes lignes')}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
@@ -922,15 +950,25 @@ export function ouvrirLignes(spec) {
         <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsEnChiffres(effetConsigne(k)).filter(x => x.cle !== 'rien'))}</span></button>`).join('')}</div>
       <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small>${spec.grosMatch && match.importance !== 'haute' ? ' <span class="choix-puces"><span class="puce neutre" title="Un gros match : la consigne Haute joue plus fort, au prix des jambes et des blessures. Elle se choisit.">🌡️ Haute conseillée</span></span>' : ''}</div>
     </section>` : '';
+    const pctR = x => `${x > 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)} %`;
+    const roulHtml = roulement ? `<section class="gl-roulement">
+      <div class="gl-sec-titre">Le roulement · toute l'équipe, dès ce soir</div>
+      <div class="gl-seg gl-seg-court">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="gl-seg-btn${roulement === k ? ' on' : ''}" data-roulement="${k}" aria-pressed="${roulement === k}">
+        <b>${R.ico} ${esc(R.nom)}</b><span class="choix-puces">${puces([{ txt: R.bon, bon: true }, ...(k === 'quatre' ? [] : [{ txt: R.prix, bon: false }]), ...(R.blessure ? [{ txt: `Blessures ${pctR(R.blessure)}`, bon: R.blessure < 1 }] : [])])}</span></button>`).join('')}</div>
+      <div class="gl-mot">Il déplace la glace d'un trio à l'autre ; les minutes des onglets le suivent.</div>
+    </section>` : '';
     /*
      * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
      * lu dans le moteur (`motsDuSoir`, js/impact.js) — la
      * consigne qu'on règle ici comprise, recalculée à chaque toucher.
      */
-    const tot = spec.totaux ? spec.totaux(match, brouillon) : null;
+    const tot = spec.totaux ? spec.totaux(match, brouillon, avecRoul()) : null;
+    // TON ALIGNEMENT (V2.2) : ce que tes systèmes, tes badges, ta chimie et tes jambes rapportent ce soir, chacun contre le neutre.
+    const al = spec.alignement ? spec.alignement(match, brouillon, avecRoul()) : [];
     const totauxHtml = tot ? `<section class="gl-totaux">
-      <div class="gl-totaux-l"><b>Ce soir :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucun effet</span>'}</span></div>
-      <div class="gl-mot">Ton build, contre le même alignement sans aucun effet.</div>
+      <div class="gl-totaux-l"><b>Tes effets :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucune carte ni consigne</span>'}</span></div>
+      ${al.length ? `<div class="gl-totaux-l"><b>Ton alignement :</b> <span class="choix-puces">${puces(al)}</span></div>` : ''}
+      <div class="gl-mot">Chacun contre le même soir sans lui.</div>
     </section>` : '';
     /*
      * L'ADVERSAIRE D'ABORD (1.0, J2-11). Tout ce qui se règle ici se règle
@@ -952,7 +990,7 @@ export function ouvrirLignes(spec) {
       return `<button type="button" class="gl-seg-btn gl-gardien${filet === qui ? ' on' : ''}" data-filet="${qui}" aria-pressed="${filet === qui}">
         <b>🥅 ${g ? esc(g.n) : 'Le rappel du club-école'}</b>
         <span class="gl-gardien-l"><small>${qui === 'partant' ? 'Partant' : 'Auxiliaire'}${estRot ? ' · la rotation' : ''}</small><small title="Son % d'arrêts de sa vraie saison">${svTxt(g)} d'arrêts</small></span>
-        ${jambesHtml(e)}</button>`;
+        ${jambesHtml(e, { gardien: true })}</button>`;
     };
     const filetHtml = F0 ? `<section class="gl-filet">
       <div class="gl-sec-titre">Devant le filet ce soir</div>
@@ -962,7 +1000,7 @@ export function ouvrirLignes(spec) {
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
       return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
-        <b>${n}</b><span>${T.ico}${D ? ` ${D.ico}` : ''} ${esc(T.nom)}</span><small>chimie ${motChimie(chimieDe(u, brouillon[u]))} · ${mmss(mins[u])}</small></button>`;
+        <b>${n}</b><span>${T.ico}${D ? ` ${D.ico}` : ''} ${esc(T.nom)}</span><small>chimie ${motChimie(chimieDe(u, brouillon[u]))} · ${glaceMot(mins, u, true)}</small></button>`;
     }).join('')}</div>`;
     const u = ouverte, l = brouillon[u];
     const sansSysteme = l.tac === 'hourra' && (u > 2 || l.tacD === 'hourra');
@@ -991,18 +1029,20 @@ export function ouvrirLignes(spec) {
       <div class="gl-mot">🪨 Le physique paie aux costauds ; 🪶 les légers prennent des punitions.</div>
       <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
         const b = bilanAgressivite(i, ph);
-        const verdict = i === 1 ? { txt: 'Par défaut', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
+        // V2.2 : la Moyenne est la RÉFÉRENCE des chiffres ; « par défaut », c'est ce que joue une ligne jamais réglée (`meilleureAgressivite`).
+        const verdict = i === 1 ? { txt: 'La référence', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
+        const defaut = i === meilleureAgressivite(spec.lineup, u) ? [{ txt: 'Par défaut', bon: null }] : [];
         const effets = i === 1 ? [] : chiffresAgressivite(spec.lineup, brouillon, u, i);
         return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
-        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...effets])}</span></button>`;
+        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...defaut, ...effets])}</span></button>`;
       }).join('')}</div>
-      <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
+      <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
       <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
-      <div class="choix-corps">${advTete}${totauxHtml}${effetsHtml(spec.effets)}${consigne}${filetHtml}${onglets}${detail}</div>
+      <div class="choix-corps">${advTete}${totauxHtml}${effetsHtml(spec.effets)}${consigne}${roulHtml}${filetHtml}${onglets}${detail}</div>
       <div class="gl-pied">
         ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
         <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>
@@ -1018,9 +1058,10 @@ export function ouvrirLignes(spec) {
     const s = m.querySelector('.gl-sec');
     if (s) s.onchange = () => { brouillon[ouverte].sec = Number(s.value); dessiner(); };
     m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; match.ad = AD_DE_CONSIGNE[match.importance] ?? 0; dessiner(); }; });
+    m.querySelectorAll('[data-roulement]').forEach(b => { b.onclick = () => { roulement = b.dataset.roulement; dessiner(); }; });
     m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
     m.querySelector('.gl-annuler').onclick = fermer;
-    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match, filetSortie()); };
+    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match, filetSortie(), avecRoul()); };
     const bb = m.querySelector('.gl-banc');
     if (bb) bb.onclick = () => { fermer(); spec.onBanc(); };
   }
@@ -1085,7 +1126,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const S = SYS[cle];
   // La chimie est celle de la LIGNE (trio et paire) : elle s'écrit sous le trio.
   const chimie = patch => (app ? chimieLigne(app, spec.lineup, u, { ...l, ...patch }) : (spec.chimie || [])[u] || 0);
-  const mins = minutes(spec.lignes);
+  const mins = glaceDe(spec.lignes, spec.glace || null);
   const fitBrut = S.slots ? fitUnite(spec.lineup, groupe, u, cle) : 0;
   // UNITÉ INCOMPLÈTE (1.0, J1-I) : ni fit, ni chimie, ni système — « À
   // compléter ». Un trio vide lisait « Échec avant 2-1-2 · Mauvais fit ».
@@ -1098,8 +1139,8 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   // la saison, elle est « naissante » pour les quatre, et le dire quatre fois
   // n'apprend rien.
   const sommaire = incomplete
-    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b>${D ? '' : `<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`
-    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b>${D ? '' : `<span>${glaceMot(mins, u, true)}</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`
+    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${glaceMot(mins, u, true)}</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
   const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
@@ -1110,7 +1151,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
   const agr = AGRESSIVITES.map((A, i) => {
     const b = bilanAgressivite(i, ph);
-    const verdict = i === 1 ? 'par défaut' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre';
+    const verdict = `${i === 1 ? 'la référence' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre'}${i === meilleureAgressivite(spec.lineup, u) ? ' · par défaut' : ''}`;
     return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b><small>${verdict}</small></button>`;
   }).join('');
   const effetsAgr = l.agr === 1 ? [] : chiffresAgressivite(spec.lineup, spec.lignes, u, l.agr);
@@ -1121,7 +1162,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     <div class="gl-sec-titre">Agressivité · ${carrure}</div>
     <div class="gl-seg gl-seg-court ln-agr">${agr}</div>
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
-    <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
+    <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
     <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
     <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>`;
   return { sommaire, corps };
@@ -1269,7 +1310,7 @@ function regleDeCarte(C) {
     for (const m of motsEnChiffres(C.apres40.sinon || null, null, EN_3E)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
   }
   if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
-  if (C.pari) out.push({ txt: `🎲 ${Math.round(C.pari.chance * 100)} % : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
+  if (C.pari) out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(C.pari.chance)))} : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
   if (C.enMain) for (const m of motsEnChiffres(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
   if (C.injouable) out.push({ txt: 'Injouable', bon: false });
   if (C.epuise) out.push({ txt: '⌛ Épuisée : elle quitte ton deck après ce match', bon: null });
@@ -1284,7 +1325,7 @@ function motsDeCarteAdverse(C, echelle = 1) {
   for (const m of unSoir(motsEnChiffres(C.effet || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
   for (const m of unSoir(motsEnChiffres(grandirEffet(C.adv || null, echelle)))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
-  if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
+  if (C.pari) out.push({ txt: `🎲 Leur pari, ${facesMot(facesDuPari(C.pari.chance))}`, bon: null });
   if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
   if (C.parGenre) for (const m of motsEnChiffres(C.parGenre.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
@@ -1398,7 +1439,7 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.contexte || ''}
         ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
-          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${motsEnChiffres(o.pari.gagne).map(x => x.txt).join(', ') || 'rien'}`, bon: true }, { txt: `🎲 sinon : ${motsEnChiffres(o.pari.perd).map(x => x.txt).join(', ') || 'rien'}`, bon: false }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>

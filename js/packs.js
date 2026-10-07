@@ -62,7 +62,7 @@
 import { hache } from './util.js';
 import { BANQUE, idsDe, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS } from './coachs.js';
-import { getPlayerKey, getPersonKey } from './sim.js';
+import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
@@ -316,21 +316,17 @@ const ESSAIS_NIVEAU = 8;
 /*
  * LE DÉPISTEUR DU COACH (v2). Le coach de la run oriente le recrutement : à
  * niveau égal, un pack de joueurs tire DEUX candidats et garde celui qui
- * colle le mieux à sa philosophie — le « meilleur de deux » de l'identité de
- * départ (js/identites.js), lu dans les vraies stats, jamais dans une cote.
- * Le Frelon attire des patineurs qui lancent, la Tortue des joueurs de devoir.
+ * colle le mieux à sa philosophie, lu dans les vraies stats, jamais dans une
+ * cote. V2.3 : ce qui colle, c'est SA COULEUR (`coachDuJoueur`) — l'Aigle
+ * recrute des snipers, la Tortue des two-way et des défensifs —, au plus haut
+ * palier d'abord ; le Comptable, qui n'a pas de joueurs, des aubaines.
  * Le niveau ne change pas : c'est le style qui penche, pas la qualité.
  */
-const RECRUE_DU_COACH = {
-  essaim: IDENTITES.rapides.score, rapaces: IDENTITES.francs.score, tortue: IDENTITES.defensive.score,
-  rhinos: IDENTITES.costauds.score, souffle: IDENTITES.jeunesse.score, profondeur: IDENTITES.aubaines.score,
-  etoiles: IDENTITES.artistes.score, banque: IDENTITES.aubaines.score,
-  // L'Abbé : peu de minutes de punition par match (un gardien reste neutre).
-  choeur: p => (p.p === 'G' ? 0.5 : 1 - Math.min(1, ((p.pim || 0) / Math.max(1, p.gp || 1)) / 1.5)),
-};
+const scoreDeCouleur = coach => p => (coachDuJoueur(p) === coach ? 1 + ((badgesDe(p)[0] || {}).palier || 0) : 0);
+const recrueDuCoach = coach => (coach === 'banque' ? IDENTITES.aubaines.score : COACHS[coach] ? scoreDeCouleur(coach) : null);
 function recrue(pool, coach, graine, ...parts) {
   const a = pool[Math.floor(hache(graine, 'pack-joueur', ...parts) * pool.length)];
-  const score = RECRUE_DU_COACH[coach];
+  const score = recrueDuCoach(coach);
   if (!score || pool.length < 2) return a;
   const b = pool[Math.floor(hache(graine, 'pack-joueur-coach', ...parts) * pool.length)];
   return score(b) > score(a) ? b : a;
@@ -454,6 +450,18 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
     if (m.length) out[out.length - 1] = m[Math.floor(hache(graine, 'pack-maudite-carte', cleCourte, n) * m.length)];
   }
   return out;
+}
+/*
+ * LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète). Une carte compte au dénominateur si un pack
+ * peut la donner : sa famille est dans un pack de cartes, et une malédiction seulement si c'est la taxe que le
+ * Pack Contrats cache (`maudite`). Les cartes de saison et les autres malédictions ne sortent d'aucun pack :
+ * elles se gagnent en jouant, et la banque les montre à part.
+ */
+export function sortDUnPack(id) {
+  const c = BANQUE[id];
+  if (!c) return false;
+  if (c.rarete === 'maudite') return c.cat === 'plafond' && Object.values(PACKS_CARTES).some(P => P.maudite && P.cats.includes('plafond'));
+  return Object.values(PACKS_CARTES).some(P => P.cats.includes(c.cat));
 }
 /* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
 export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);

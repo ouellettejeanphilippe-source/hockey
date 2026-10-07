@@ -5,9 +5,9 @@
 
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, glyphe, money, pct3, ord, pmMatch } from './util.js';
-import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, COUP_ABSORBE } from './sim.js';
+import { esc, estD, glyphe, money, pct3, ord, pmMatch } from './util.js';
+import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { sesRolesHtml, barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
@@ -15,6 +15,7 @@ import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, 
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
+import { LEGENDES, legendesDe } from './cartable.js';
 import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
@@ -42,11 +43,11 @@ function ficheTable(p) {
 /*
  * SUR LA GLACE (1.0, les badges en refonte 1). JP : *pas nécessairement une cote, mais quelque chose qui me dit comment
  * le joueur va jouer et impacter le jeu* ; puis *mets juste pas de stats*. Des mots, tirés de ce que le moteur fera de
- * lui : l'effet de chacun de ses badges À SON PALIER, avec le chiffre du moteur (EFFET_ROLE × palier / 4, la moitié
- * pour un second badge), et ce qu'un coup lui coûte selon sa carrure (COUP_JAMBES, COUP_ABSORBE). Les mots du moteur,
+ * lui : l'effet de chacun de ses badges À SON PALIER, avec le chiffre NET que le moteur joue (V2.2) : EFFET_ROLE × son
+ * badge moins le badge moyen de la ligue (`maitrise`) — un Checker Platine étouffe 7,6 %, pas 8 —, et ce qu'un coup lui coûte selon sa carrure (`coutDuCoup`, son physique). Les mots du moteur,
  * jamais ses cotes, et aucune statistique de plus.
  */
-const pctMot = x => `${Math.round(x * 100)} %`;
+const pctMot = x => `${String(Math.round(x * 1000) / 10).replace('.', ',')} %`;
 const EFFETS_GLACE = {
   sniper: x => `en avantage numérique, c'est lui qui tire — ${(1 + x).toFixed(1).replace('.', ',')} fois plus souvent`,
   passeur: () => 'il fait jouer son trio : sa chimie monte plus haut dans son système',
@@ -60,24 +61,46 @@ const EFFETS_GLACE = {
   energie: x => `il garde ses jambes : son match lui coûte ${pctMot(x)} de moins`,
   offensif: x => `il lance de la pointe : sa paire tire ${pctMot(x)} de plus`,
 };
+const EFFETS_GLACE_G = {
+  mur: x => `à forces égales, il accorde ${pctMot(x)} de buts de moins`,
+  acrobate: x => `quand son club tue une punition, il accorde ${pctMot(x)} de buts de moins`,
+  constant: x => `en séries, il accorde ${pctMot(x)} de buts de moins`,
+  fer: (x, n) => (n > 3 ? `il enchaîne ${n} départs avant de s'user, au lieu de trois` : 'il joue tous les soirs ; à l\'Or, il enchaîne un départ de plus avant de s\'user'),
+};
 function surLaGlaceHtml(p) {
   if (surTable()) return '';
   const li = (txt, cls = '') => `<li${cls ? ` class="${cls}"` : ''}>${txt}</li>`;
   const lignes = [];
+  // FRAGILE (V2.2) : ce que sa vraie saison a de matchs manqués pèse sur ses blessures — le moteur le lit, la fiche le dit.
+  const fr = fragiliteDe(p);
+  if (fr >= FRAGILE_DES) lignes.push(li(`Il n'a joué que ${p.gp || 0} matchs sur ${seasonGames(p.s)} dans sa vraie saison : il se blesse environ ${Math.round(fr)} fois plus qu'un joueur qui les a tous joués.`, 'prix'));
   if (p.p === 'G') {
-    lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer ; son style dit comment il les fait.'));
-    lignes.push(li('Il garde ses jambes trois départs de suite ; au quatrième, elles baissent et il accorde plus.'));
+    // SON BADGE (V2.3) : le canal que son % d'arrêts ne porte pas, avec le chiffre net que le moteur joue (`netBadgeGardien`).
+    const b = badgesDe(p)[0], x = netBadgeGardien(p), n = suiteLibreDe(p);
+    lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer.'));
+    if (b && EFFETS_GLACE_G[b.cle]) lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}</b> : ${esc(EFFETS_GLACE_G[b.cle](x, n))}.`));
+    lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
   }
   for (const b of badgesDe(p)) {
-    const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * b.palier / (b.second ? 8 : 4);
+    const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * maitrise(p, b.cle);
     const raison = raisonDuBadge(b);
     lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' (son second badge)' : ''}.` : '.'}`));
   }
+  // SANS BADGE QUI DÉFEND (V2.2) : le moteur centre chaque badge sur la ligue, donc un joueur qui n'en a pas tire son unité
+  // un peu sous zéro. Ça se dit, avec le chiffre net, plutôt que de se cacher.
+  const defR = estD(p) ? ['defensif', 'physique'] : ['checker', 'deuxsens'];
+  if (!badgesDe(p).some(b => defR.includes(b.cle))) {
+    const net = defR.reduce((a, r) => a + (EFFET_ROLE[r] || 0) * maitrise(p, r), 0);
+    if (net < -0.0005) lignes.push(li(`Sans badge qui défend, il est un peu sous le joueur moyen : les lancers adverses passent ${pctMot(-net)} mieux pendant ses présences.`, 'prix'));
+  }
   const c = carrureDe(p);
   if (c) {
-    const cout = x => (COUP_JAMBES * x).toFixed(1).replace('.', ',');
-    lignes.push(li(c.ico === '🪨' ? `<b>${c.ico} ${c.mot}</b> : un coup reçu ne lui coûte que ${cout(1 - COUP_ABSORBE)} jambe, et le jeu physique de sa ligne rapporte.` : `<b>${c.ico} ${c.mot}</b> : un coup reçu lui coûte ${cout(1 + COUP_ABSORBE)} jambes, et sa ligne prend des punitions en rentre-dedans.`, c.ico === '🪨' ? 'bon' : 'prix'));
+    // SON coût, pas l'extrême de sa carrure (V2.2) : le moteur le lit en continu sur son physique (`coutDuCoup`).
+    const cout = coutDuCoup(p).toFixed(2).replace('.', ',');
+    // SES BLESSURES AUSSI (V2.3) : le moteur les lit sur cette même carrure (`blessureDuPhysique`).
+    const bl = Math.round(Math.abs(blessureDuPhysique(p) - 1) * 100);
+    lignes.push(li(c.ico === '🪨' ? `<b>${c.ico} ${c.mot}</b> : un coup reçu ne lui coûte que ${cout} jambe (${String(COUP_JAMBES).replace('.', ',')} à un joueur moyen), il se blesse ${bl} % moins, et le jeu physique de sa ligne rapporte.` : `<b>${c.ico} ${c.mot}</b> : un coup reçu lui coûte ${cout} jambes (${String(COUP_JAMBES).replace('.', ',')} à un joueur moyen), il se blesse ${bl} % plus, et sa ligne prend des punitions en rentre-dedans.`, c.ico === '🪨' ? 'bon' : 'prix'));
   }
   return lignes.length ? `<ul class="glace">${lignes.join('')}</ul>` : '';
 }
@@ -354,7 +377,10 @@ export function showPlayerModal(p, opts = {}) {
   // SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, qui décide du fit dans un système, à un toucher.
   // LE PROFIL EN CRANS (1.0) : d'un coup d'oeil, où il se range dans sa saison sur ce que le moteur lit — avant ses rôles.
   const glace = surLaGlaceHtml(p);
-  const profil = glace ? `<div class="section-label">Sur la glace</div>${glace}` : '';
+  // GRAVÉ SUR SA CARTE (V2.2) : les moments légendaires d'une run se relisent ici, pas seulement dans un toast.
+  const legendes = surTable() ? [] : legendesDe(getPlayerKey(p));
+  const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
+  const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
   const sesRoles = p.p === 'G' || surTable() ? '' : `<div class="section-label">Ses rôles</div>${sesRolesHtml(p)}`;
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';

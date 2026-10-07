@@ -19,16 +19,17 @@
  *   5. le moteur : une confiance entre dans `team.coachs`, dans les effets de
  *      la saison et les minutes des trios, et la saison se rejoue ;
  *   6. l'équilibre, EN PAIRES : la confiance I vaut un patron commun, la III
- *      un légendaire — jamais un piège, jamais la saison à elle seule.
+ *      sur un vrai club moins que sur l'équipe bâtie pour elle (check_voies) —
+ *      jamais un piège.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, systemeDe, bonusDuCoach, fitUnite, activeLineup, coachDuJoueur, PALIER_DU_COACH } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, EVENEMENTS, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
-import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, JOUEURS_MAX } from '../js/coachs.js';
-import { tirerCartesPack, coachDuPack, niveauxDuPack } from '../js/packs.js';
+import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
+import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
 import { poserClubLu } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -132,16 +133,23 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
     coachDesRoles({ sniper: 80, passeur: 60 }, 'F') === 'rapaces' && coachDesRoles({ sniper: ROLE_BON - 1 }, 'F') === null && coachDesRoles({ defensif: 70, offensif: 40 }, 'D') === 'tortue', 'sniper 80 → Aigle · sniper 54 → aucune · défensif 70 → Tortue');
   const t = ligue(79, 2)[0];
   const n = joueursDesCoachs(t);
-  const total = Object.values(n).reduce((a, b) => a + b, 0);
-  informer('les couleurs d\'une vraie équipe', `${t.name || ''} : ${Object.entries(n).map(([k, v]) => `${COACHS[k].ico} ${v}`).join(' · ')} (${total} joueurs de couleur sur 20 habillés)`);
+  const total = Object.values(n).reduce((a, b) => a + b.joueurs, 0);
+  informer('les couleurs d\'une vraie équipe', `${t.name || ''} : ${Object.entries(n).map(([k, v]) => `${COACHS[k].ico} ${v.joueurs} (${v.paliers} paliers)`).join(' · ')} (${total} joueurs de couleur sur 20 habillés)`);
   exiger('une vraie équipe a des joueurs de plusieurs couleurs', Object.keys(n).length >= 3 && total >= 8, `${Object.keys(n).length} couleurs, ${total} joueurs`);
-  const k = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+  const k = Object.keys(n).sort((a, b) => n[b].paliers - n[a].paliers)[0];
   const avec = effetsDeSaison({ ...t, coachs: [effetDePalier(k, 3)] }), sans = effetsDeSaison({ ...t, roster: {}, coachs: [effetDePalier(k, 3)] });
   const canal = Object.keys(COACHS[k].paliers[2]).find(c => ['finition', 'defense', 'volume', 'discipline', 'blessure'].includes(c)) || 'robustesse';
-  const attendu = porteParSesJoueurs(effetDePalier(k, 3), n[k])[canal];
-  exiger('sa confiance joue plus fort par joueur de sa couleur habillé', Math.abs((avec[canal] ?? 0) - attendu) < 1e-9 && Math.abs(avec[canal] - (canal === 'robustesse' ? 0 : 1)) > Math.abs(sans[canal] - (canal === 'robustesse' ? 0 : 1)),
-    `${COACHS[k].nom} III, ${n[k]} joueurs : ${canal} ${sans[canal].toFixed(3)} sans eux → ${avec[canal].toFixed(3)} (×${(1 + JOUEUR_COACH * Math.min(JOUEURS_MAX, n[k])).toFixed(1)} de l'écart)`);
-  const c5 = payloadDe('consommable:cleCoin', { joueurs: { rapaces: 9 } }).effet.finition, c0 = payloadDe('consommable:cleCoin', {}).effet.finition;
+  const attendu = porteParSesJoueurs(effetDePalier(k, 3), n[k].paliers)[canal];
+  exiger('sa confiance joue plus fort par PALIER de sa couleur habillé (V2.3)', Math.abs((avec[canal] ?? 0) - attendu) < 1e-9 && Math.abs(avec[canal] - (canal === 'robustesse' ? 0 : 1)) > Math.abs(sans[canal] - (canal === 'robustesse' ? 0 : 1)),
+    `${COACHS[k].nom} III, ${n[k].joueurs} joueurs, ${n[k].paliers} paliers : ${canal} ${sans[canal].toFixed(3)} sans eux → ${avec[canal].toFixed(3)} (×${(1 + JOUEUR_COACH * n[k].paliers).toFixed(2)} de l'écart)`);
+  const un = porteParSesJoueurs(effetDePalier(k, 3), 1), quatre = porteParSesJoueurs(effetDePalier(k, 3), 4), vingt = porteParSesJoueurs(effetDePalier(k, 3), 20);
+  // L'écart d'un canal à 1, en puissance (V2.3 : ×0,88 porté deux fois vaut ×0,77) ; la robustesse, une somme, en produit.
+  const ec = x => (canal === 'robustesse' ? x[canal] : Math.log(x[canal]));
+  const cap = porteParSesJoueurs(effetDePalier(k, 3), PALIERS_COACH_MAX), trop = porteParSesJoueurs(effetDePalier(k, 3), 3 * PALIERS_COACH_MAX);
+  exiger(`un Platine compte pour quatre Bronze, jusqu'à ${PALIERS_COACH_MAX} paliers`, Math.abs(ec(quatre) / ec(un) - (1 + 4 * JOUEUR_COACH) / (1 + JOUEUR_COACH)) < 1e-9
+    && Math.abs(ec(vingt)) > Math.abs(ec(quatre)) * 1.5 && ec(trop) === ec(cap),
+    `1, 4, 20 et ${3 * PALIERS_COACH_MAX} paliers : ${[un, quatre, vingt, trop].map(x => x[canal].toFixed(3)).join(' · ')}`);
+  const c5 = payloadDe('consommable:cleCoin', { joueurs: { rapaces: { joueurs: 9, paliers: 20 } } }).effet.finition, c0 = payloadDe('consommable:cleCoin', {}).effet.finition;
   const CC = CONSOMMABLES.cleCoin;
   exiger('une carte de vestiaire grandit avec les joueurs de sa couleur, jusqu\'à son plafond', c0 === CC.effet.finition && Math.abs(c5 - (c0 + CC.parJoueur.par.finition * CC.parJoueur.max)) < 1e-9, `précision ×${c0} sans joueur → ×${c5} (neuf joueurs, plafonné à cinq)`);
   // L'écran lit les pas en chiffres de match pour TON club (js/impact.js) : « jusqu'à ≈ +0,6 tir par match avec 10 cartes ».
@@ -193,8 +201,8 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const e = effetsDeSaison(moi);
   // Portée par ses joueurs habillés ce soir-là (2d) : la Tortue par ses joueurs de devoir, le Showman par ses passeurs.
   const nj = joueursDesCoachs(moi);
-  const d0 = porteParSesJoueurs(effetDePalier('tortue', 3), nj.tortue).defense, f0 = porteParSesJoueurs(effetDePalier('etoiles', 3), nj.etoiles).finition;
-  exiger('une confiance joue pour la saison', (moi.coachs || []).length === 2 && Math.abs(e.defense - d0) < 1e-9 && Math.abs(e.finition - f0) < 1e-9, `buts contre ×${e.defense.toFixed(3)} · précision ×${e.finition.toFixed(3)} (${nj.tortue || 0} et ${nj.etoiles || 0} joueurs de leur couleur)`);
+  const d0 = porteParSesJoueurs(effetDePalier('tortue', 3), (nj.tortue || {}).paliers).defense, f0 = porteParSesJoueurs(effetDePalier('etoiles', 3), (nj.etoiles || {}).paliers).finition;
+  exiger('une confiance joue pour la saison', (moi.coachs || []).length === 2 && Math.abs(e.defense - d0) < 1e-9 && Math.abs(e.finition - f0) < 1e-9, `buts contre ×${e.defense.toFixed(3)} · précision ×${e.finition.toFixed(3)} (${(nj.tortue || {}).paliers || 0} et ${(nj.etoiles || {}).paliers || 0} paliers de leur couleur)`);
   const parts = partsDuRoulement(POIDS_TRIO, 'F', moi), sans = partsDuRoulement(POIDS_TRIO, 'F', { ...moi, coachs: [] });
   exiger('le Showman donne plus de glace au premier trio', parts[0] > sans[0] && parts[3] < sans[3], `1er trio ${sans[0].toFixed(3)} → ${parts[0].toFixed(3)}`);
   const a = ligue(79, 16), b = ligue(79, 16);
@@ -228,12 +236,60 @@ if (LIGUES > 0) {
     const v3 = paires(equipe => [{ jour: 0, equipe, coach: effetDePalier(k, 3) }]);
     I.push(v1); III.push(v3);
     console.log(`  ${COACHS[k].ico} ${COACHS[k].nom.padEnd(16)} I ${signe(v1)} V · III ${signe(v3)} V`);
-    if (v1 < -0.8 || v1 > 1.8 || v3 < -0.5 || v3 > 4) hors.push(`${COACHS[k].nom} ${signe(v1)}/${signe(v3)}`);
+    if (v1 < -0.8 || v1 > 2.2 || v3 < -0.5 || v3 > 6) hors.push(`${COACHS[k].nom} ${signe(v1)}/${signe(v3)}`);
   }
-  exiger('aucune confiance n\'est un piège ni la saison à elle seule (I : −0,8 à +1,8 · III : −0,5 à +4)', !hors.length, hors.join(' · ') || `${I.length} coachs`);
-  borne('en moyenne, la confiance I vaut un patron commun', moy(I), -0.2, 1.2, ' V');
-  borne('en moyenne, la confiance III vaut un légendaire et un peu plus', moy(III), 0.6, 3, ' V');
+  /*
+   * V2.3 (check_voies) : un vrai club porte un à huit paliers de chaque couleur, donc sa III tombe entre la III
+   * sans joueurs (≈ +2 V) et la III sur une équipe bâtie pour elle (+6 à +8 V) — jamais au-dessus de celle-ci.
+   */
+  exiger('aucune confiance n\'est un piège ni la voie à elle seule (I : −0,8 à +2,2 · III : −0,5 à +6)', !hors.length, hors.join(' · ') || `${I.length} coachs`);
+  borne('en moyenne, la confiance I vaut un patron commun', moy(I), -0.2, 1.5, ' V');
+  borne('en moyenne, la confiance III sur un vrai club, sous ce qu\'elle vaut sur son équipe', moy(III), 1, 5.5, ' V');
   exiger('la III vaut plus que la I, en moyenne', moy(III) > moy(I), `${signe(moy(I))} → ${signe(moy(III))} V`);
+}
+
+/*
+ * TOUT SE PARLE (V2.3). Le système d'un coach DEMANDE ses joueurs (des cases de sa couleur), il le joue un
+ * palier plus haut à sa confiance II (`bonusDuCoach`), et son dépisteur recrute sa couleur.
+ */
+{
+  const mal = ORDRE_COACHS.filter(k => k !== 'banque').filter(k => {
+    const S = systemeDe(COACHS[k].systeme);
+    return !S || !Object.values(S.slots).some(r => COACH_DU_ROLE[S.groupe][r] === k);
+  });
+  exiger('le système de chaque coach demande des joueurs de sa couleur', mal.length === 0,
+    mal.map(k => COACHS[k].nom).join(', ') || ORDRE_COACHS.filter(k => COACHS[k].systeme).map(k => `${COACHS[k].ico} ${systemeDe(COACHS[k].systeme).ico}`).join(' · '));
+  const t = ligue(79, 2)[0], lu = activeLineup(t);
+  const k = 'rapaces', sys = COACHS[k].systeme;
+  const avec = { ...t, coachs: [effetDePalier(k, 2)] }, avecI = { ...t, coachs: [effetDePalier(k, 1)] };
+  exiger('à sa confiance II, son système joue un palier plus haut (une case du bon badge)', bonusDuCoach(avec, sys) === PALIER_DU_COACH && bonusDuCoach(avecI, sys) === 0 && bonusDuCoach(avec, 'defensive') === 0,
+    `${COACHS[k].nom} II : ${systemeDe(sys).nom} +${PALIER_DU_COACH} palier`);
+  const f0 = [0, 1, 2, 3].map(u => fitUnite(lu, 'F', u, sys)), f1 = [0, 1, 2, 3].map(u => fitUnite(lu, 'F', u, sys, 1));
+  exiger('… et le fit monte là où le badge est là', f1.every((x, u) => x >= f0[u]) && f1.some((x, u) => x > f0[u]), `${f0.join('/')} → ${f1.join('/')}`);
+}
+{
+  // Le dépisteur : sur 60 packs de joueurs, le coach de la run en tire plus de sa couleur qu'un club sans coach.
+  const saisons = fs.readdirSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'seasons')).filter(f => f.endsWith('.json')).map(f => f.replace('.json', ''));
+  const C = new Map();
+  const shard = s => {
+    if (!C.has(s)) {
+      const d = JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'data', 'seasons', `${s}.json`), 'utf8'));
+      const byTeam = {};
+      for (const p of d.players) { registerHiddenRatings(p); (byTeam[p.t] = byTeam[p.t] || []).push(p); }
+      C.set(s, { players: d.players, byTeam });
+    }
+    return C.get(s);
+  };
+  const part = async coach => {
+    let n = 0, de = 0;
+    for (let i = 0; i < 60; i++) {
+      const { cartes } = await tirerJoueursDuPack('j:hasard_argent', { graine: `depisteur-${i}`, n: i, mods: coach ? { coach } : {}, saisons: saisons.slice(20, 50), shard: async s => shard(s) });
+      for (const x of cartes) { n++; if (coachDuJoueur(x.p) === 'rapaces') de++; }
+    }
+    return de / Math.max(1, n);
+  };
+  const sans = await part(null), avec = await part('rapaces');
+  exiger('le dépisteur de l\'Aigle recrute plus de joueurs de sa couleur', avec > sans + 0.03, `${Math.round(sans * 100)} % sans coach → ${Math.round(avec * 100)} % avec l'Aigle`);
 }
 
 verdict('Les coachs');

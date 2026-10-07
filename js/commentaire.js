@@ -71,7 +71,7 @@ export const ACTIONS_TIREUR = [
   ['{t} surgit de derrière le filet', 'F derriere'], ['{t} reçoit une remise de derrière la ligne des buts', 'F derriere'],
   ['{t} conclut un jeu de passes en triangle', 'F courtes'], ['{t} vole la rondelle en échec avant et lance', 'F echec'],
   ['{t} récupère la rondelle sur la bande grâce à l\'échec avant', 'F echec'], ['{t} jaillit en contre-attaque', 'F rapide contre defensive'],
-  ['{t} relance en contre après un revirement', 'F defensive'],
+  ['{t} repart en contre après un revirement', 'F defensive'],
   // Les unités spéciales.
   ['{t} décoche sur l\'avantage numérique', 'AN'], ['La rondelle circule sur le jeu de puissance, {t} lance du cercle', 'F AN'],
   ['{t} s\'échappe en désavantage numérique', 'F DN'], ['{t} intercepte une passe en désavantage et fonce', 'F DN'],

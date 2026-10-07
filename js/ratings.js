@@ -32,7 +32,7 @@ const CAP_REF = 95_500_000;
  *   pour que le prorata vers 2026 reflète ce que payait vraiment le marché.
  * Avant 1989-90 : estimation, les salaires n'étaient pas publiés.
  */
-export const SEASON_ERA_CAP = {
+const SEASON_ERA_CAP = {
   '1970-71': 850_000,   '1971-72': 950_000,   '1972-73': 1_050_000, '1973-74': 1_150_000,
   '1974-75': 1_300_000, '1975-76': 1_450_000, '1976-77': 1_600_000, '1977-78': 1_750_000,
   '1978-79': 1_900_000, '1979-80': 2_100_000, '1980-81': 2_400_000, '1981-82': 2_700_000,
@@ -463,7 +463,7 @@ export const ARCHETYPES = {
   SKILLED_FWD:   { label: 'Attaquant offensif',        short: 'Offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
   CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🏃', desc: 'Profondeur et ardeur au travail' },
   // Défenseurs
-  OFF_D:         { label: 'Défenseur offensif',        short: 'Offensif',        icon: '🚀', desc: 'Relance, tir frappé et avantage numérique' },
+  OFF_D:         { label: 'Défenseur offensif',        short: 'Offensif',        icon: '🚀', desc: 'Première passe, tir frappé et avantage numérique' },
   DEF_D:         { label: 'Défenseur physique',        short: 'Physique',        icon: '🛡️', desc: 'Jeu physique et protection du territoire' },
   STAY_D:        { label: 'Défenseur défensif',        short: 'Défensif',        icon: '🔒', desc: 'Sécurité et désavantage numérique' },
   TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },

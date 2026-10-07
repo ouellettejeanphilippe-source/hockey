@@ -6,7 +6,7 @@
  * de carte, clickables, etc, avec stats de la saison en cours et saisons
  * réelles comme vraie carte. Je veux collectionner.*
  *
- * L'onglet Vestiaire devient le cartable dès que la saison commence (le
+ * La section Collection montre le cartable dès que la saison commence (le
  * repêchage garde son bassin tant qu'on bâtit ; le Rogue repêche entre les saisons) :
  *   - TON ÉQUIPE : les cartes de ton alignement, avec leur saison en cours (les
  *     journées RÉVÉLÉES, jamais la fin de l'année) et leur vraie saison ;
@@ -131,6 +131,15 @@ export const modsDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).mods 
  * une fois par type et par saison de run. La carte le porte d'une run à
  * l'autre ; l'écran en tient compte à l'affichage.
  */
+/* Les moments légendaires : leur icône, leur nom et leur récit (le toast du soir, puis la fiche les relit — V2.2). */
+export const LEGENDES = {
+  mur: { ico: '🗿', nom: 'Le Mur', recit: m => `${m.extra} arrêts, victoire arrachée` },
+  jeuBlanc: { ico: '🔒', nom: 'Le jeu blanc', recit: () => 'la porte était fermée' },
+  chapeau: { ico: '🎩', nom: 'Le Chapeau', recit: m => `${m.extra} buts dans un match` },
+  grandMatch: { ico: '⭐', nom: 'Le grand soir', recit: m => `${m.extra} points dans un match` },
+};
+/* Ce qui est gravé sur la carte d'un joueur-saison : [{ type, saison }]. */
+export const legendesDe = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).legendes || []).filter(l => LEGENDES[l.type]);
 export function ajouterLegendesAuCartable(moments = [], saison = 0) {
   if (!moments.length) return;
   const c = lireCartable();

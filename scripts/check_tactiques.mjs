@@ -21,9 +21,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitLigne, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne, stylesDe, talentDe,
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne, badgesDe, fitDeCase, FIT_BASE, FIT_PAR_PALIER, rangSystemes,
   meilleureTactique, meilleurSystemeD, identiteUnite, fitDeLigne, chimieLigne } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { estD } from '../js/util.js';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -34,6 +35,23 @@ const juger = LIGUES >= 6;
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
 const eq = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
+/*
+ * LE CYCLE EST FERMÉ (V2.2). La règle dit que chaque système en étouffe un autre : chaque système de trio
+ * étouffe exactement un trio et l'est par exactement un (un cycle qui passe par les sept), et chaque système
+ * de paire étouffe un système de trio. Avant, l'enclave, les plombiers et le jeu à deux sens n'étouffaient
+ * rien, et le Trio de plombiers ne pouvait jamais être étouffé.
+ */
+{
+  const trios = Object.keys(TACTIQUES).filter(k => k !== 'hourra'), paires = Object.keys(SYSTEMES_D).filter(k => k !== 'hourra');
+  const etouffe = Object.fromEntries(trios.map(k => [k, TACTIQUES[k].bat]));
+  const parCombien = Object.fromEntries(trios.map(k => [k, trios.filter(x => etouffe[x] === k).length]));
+  let k = trios[0], vus = new Set();
+  while (k && !vus.has(k)) { vus.add(k); k = etouffe[k]; }
+  exiger('chaque système de trio en étouffe un, et un seul l\'étouffe', trios.every(t => trios.includes(etouffe[t]) && parCombien[t] === 1),
+    trios.filter(t => !trios.includes(etouffe[t]) || parCombien[t] !== 1).map(t => `${TACTIQUES[t].nom} : étouffe ${etouffe[t] || 'rien'}, étouffé ${parCombien[t]} fois`).join(' · ') || 'un pour un');
+  exiger('le cycle des trios passe par les sept', vus.size === trios.length && k === trios[0], [...vus].map(t => TACTIQUES[t].ico).join(' → '));
+  exiger('chaque système de paire étouffe un système de trio', paires.every(d => trios.includes(SYSTEMES_D[d].bat)), paires.map(d => `${SYSTEMES_D[d].ico} → ${TACTIQUES[SYSTEMES_D[d].bat] ? TACTIQUES[SYSTEMES_D[d].bat].ico : '∅'}`).join(' · '));
+}
 function ligue(seed) {
   let x = seed; const rnd = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   const out = [], vus = new Set();
@@ -53,7 +71,9 @@ function ligue(seed) {
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 const CLES = Object.keys(TACTIQUES).filter(k => k !== 'hourra');
-const pire = (team, u) => { const L = activeLineup(team); return CLES.slice().sort((a, b) => fitLigne(L, u, a) - fitLigne(L, u, b))[0]; };
+// Le rang de l'IA (V2.3) : le fit, puis l'affinité qui départage les unités sans le badge d'aucun système.
+const rangDe = (team, g, u) => rangSystemes(activeLineup(team), g, u);
+const pire = (team, u) => { const r = rangDe(team, 'F', u); return r ? r[r.length - 1] : undefined; };
 
 /*
  * `temoin` (S72) : ce que jouent les équipes SANS la décision. Par défaut,
@@ -124,7 +144,7 @@ const parite = paires(moyenne); dire('moyenne partout (vs défaut)', parite);
  * même joué par les mauvais.
  */
 const CLES_D = Object.keys(SYSTEMES_D).filter(k => k !== 'hourra');
-const pireD = (team, u) => { const L = activeLineup(team); return CLES_D.slice().sort((a, b) => fitUnite(L, 'D', u, a) - fitUnite(L, 'D', u, b))[0]; };
+const pireD = (team, u) => { const r = rangDe(team, 'D', u); return r ? r[r.length - 1] : undefined; };
 const malD = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, tacD: u < 3 ? pireD(t, u) : undefined, agr: 1, sec: 60 }))); dire('paires mal assorties', malD);
 const LIG_DOM = Math.max(2, Math.round(LIGUES / 2));
 const forces = [];
@@ -135,7 +155,7 @@ for (const k of CLES_D) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: 
  * moins bien assorti) coûte, mais nettement moins que dans son pire. Le gain
  * d'un système suit le fit (`echelleFit`) et la chimie aussi (`chimieMax`).
  */
-const rangF = (team, u, i) => { const L = activeLineup(team); return CLES.slice().sort((a, b) => fitLigne(L, u, b) - fitLigne(L, u, a))[i]; };
+const rangF = (team, u, i) => { const r = rangDe(team, 'F', u); return r ? r[i] : undefined; };
 const second = paires(t => [0, 1, 2, 3].map(u => ({ tac: rangF(t, u, 1), agr: 1, sec: 60 }))); dire('chaque trio dans son 2e système', second);
 informer('buts sur action spéciale', `${(100 * mal.spec).toFixed(1)} % des buts de la ligue`);
 informer('actions étouffées par un contre', `${mal.etouf.toFixed(0)} par ligue`);
@@ -196,21 +216,22 @@ if (juger) {
 }
 
 /*
- * LE FIT À TALENT ÉGAL (1.0, oct.). JP : *ça devient un double bonus*. Le
- * style qu'un système lit ne suit plus le talent : sur les réguliers de
- * trente saisons, aucun rôle ne corrèle à plus de 0,1 avec les points par
- * match (les rôles affichés, eux, y montaient à 0,9).
+ * LES SYSTÈMES LISENT LES BADGES (V2.3). Une case demande un badge : le bon rend son palier, le second la moitié,
+ * le mauvais rien (FIT_BASE). Un trio de trois Platine du bon badge joue son système à 100.
  */
 {
-  const t = [], S = {};
-  for (const f of SAISONS.slice(10, 40)) for (const p of shard(f).players) {
-    if (p.p === 'G' || (p.gp || 0) < 40) continue;
-    const st = stylesDe(p); t.push(talentDe(p));
-    for (const k in st) (S[k] = S[k] || []).push([t.length - 1, st[k]]);
+  let platine = null, sansBadge = null, second = null;
+  for (const f of SAISONS.slice(20, 50)) for (const p of shard(f).players) {
+    if (p.p === 'G' || estD(p)) continue;
+    registerHiddenRatings(p);
+    const [b1, b2] = badgesDe(p);
+    if (!platine && b1 && b1.palier === 4) platine = { p, role: b1.cle };
+    if (!second && b2) second = { p, role: b2.cle, palier: b2.palier };
+    if (!sansBadge && b1 && b1.cle !== 'sniper' && !(b2 && b2.cle === 'sniper')) sansBadge = p;
   }
-  const corr = l => { const a = l.map(([i]) => t[i]), b = l.map(([, v]) => v), n = a.length, ma = a.reduce((x, y) => x + y) / n, mb = b.reduce((x, y) => x + y) / n; let c = 0, va = 0, vb = 0; for (let i = 0; i < n; i++) { c += (a[i] - ma) * (b[i] - mb); va += (a[i] - ma) ** 2; vb += (b[i] - mb) ** 2; } return c / Math.sqrt(va * vb); };
-  const pire = Object.entries(S).map(([k, l]) => [k, corr(l)]).sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))[0];
-  exiger('le style d\'un rôle ne suit pas le talent (le fit à talent égal)', Math.abs(pire[1]) < 0.1, `le plus lié : ${pire[0]} ${pire[1].toFixed(2)}`);
+  exiger('un Platine du bon badge rend 100 à sa case', fitDeCase(platine.p, platine.role) === 100, `${platine.p.n} (${platine.role})`);
+  exiger('le second badge rend la moitié de son palier', fitDeCase(second.p, second.role) === FIT_BASE + FIT_PAR_PALIER * second.palier / 2, `${second.p.n} : ${fitDeCase(second.p, second.role)}`);
+  exiger('le mauvais badge ne rend rien de plus que la base', fitDeCase(sansBadge, 'sniper') === FIT_BASE, `${sansBadge.n} au poste de sniper : ${FIT_BASE}`);
 }
 
 verdict('Les lignes à la HockeyArena');

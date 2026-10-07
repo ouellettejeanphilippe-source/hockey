@@ -72,15 +72,15 @@ export function albumHtml(historique, ctx) {
       <span><b>${A.parties}</b> partie${A.parties > 1 ? 's' : ''}</span>
       <span><b>${A.coupes}</b> Coupe${A.coupes > 1 ? 's' : ''} 🏆</span>
       <span><b>${eues}</b> / ${toutes.length} cartes de match</span>
-      <span><b>${A.joueurs.size}</b> joueurs au cartable</span>
+      <span><b>${A.joueurs.size}</b> joueurs ont porté tes couleurs</span>
     </div>
     <div class="album-barre" aria-hidden="true"><i style="width:${Math.round(eues / toutes.length * 100)}%"></i></div>
     <h3>Tes cartes de match</h3>
-    <p class="album-note">Une carte compte quand elle finit une saison dans ton deck. Celles qui manquent se gagnent dans les gros matchs et les séries.</p>
+    <p class="album-note">Une carte compte quand elle finit une saison dans ton deck. Celles qui manquent se gagnent dans les gros matchs, les séries et les packs de cartes du Rogue.</p>
     <div class="album-cartes">${cartes}</div>
     <h3>Tes identités</h3>
     <div class="album-ids">${ids}</div>
-    <h3>Ton cartable</h3>
+    <h3>Ceux qui ont porté tes couleurs</h3>
     ${champions.length ? `<p class="album-note">🏆 Ceux qui ont soulevé la Coupe avec toi.</p><div class="album-joueurs">${champions.map(joueur).join('')}</div>` : ''}
     ${js.length ? `<p class="album-note">${champions.length ? 'Et tous les autres' : 'Tous ceux qui ont porté tes couleurs'}, les plus fidèles d'abord.</p><div class="album-joueurs">${js.filter(j => !j.coupes).slice(0, 120).map(joueur).join('')}</div>` : '<div class="empty-msg">Joue une saison : tes 23 joueurs entreront au cartable.</div>'}
   </div>`;

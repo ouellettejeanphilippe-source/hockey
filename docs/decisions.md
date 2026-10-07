@@ -1886,6 +1886,36 @@ JP : *simplifier traits, positions et rôles, genre sniper bronze argent or plat
 
 **Deux mesures rendues justes en chemin.** `check_chimie` jugeait « s'adapter un soir ne défait pas la chimie » sur la chimie du jour de chaque saison : elle mesurait surtout les blessures. Sur la graine « chimie », une ligne cassée dans la saison ajustée (51,8 contre 36,3) faisait à elle seule l'écart moyen de 3,2 points, au-dessus de la borne de 3 — et la lecture d'avant les badges était déjà à 2,9. À alignement égal (la chimie que la mémoire de chaque saison donne à la formation de départ), l'ajustement coûte 0,2 point : c'est ce que la règle dit, et c'est ce que l'épreuve lit maintenant. La même exécution fait repasser « chimie 100 contre 0 », rouge avant les badges (4,9 %) : 10,2 %. Et `essai_rogue`, qui n'est pas semé, a une fois attendu 30 s un clic sur « À régler » invisible ; il ne se reproduit pas, mais l'épreuve dit maintenant ce qu'elle voit (les boutons visibles, une capture) au lieu d'expirer à l'aveugle.
 
+### Tout se parle (V2.3, oct.)
+
+L'étape 2 et une partie de l'étape 3 de la refonte (docs/refonte-systeme.md § 9, docs/feuille-de-route-v2.md V2.3).
+
+**Les systèmes lisent les badges** (`fitDeCase`, js/sim.js). Le score de style à part (`stylesDe`, `talentDe`) est parti : une case vaut `FIT_BASE` + `FIT_PAR_PALIER` × les paliers du badge demandé (le second rend la moitié, le mauvais la base). 52 et 12 : la seule droite qui garde le fit moyen de la ligue (63) et met un trio de trois Platine à 100 ; une base plus basse aurait vidé le plafond de chimie (`chimieMax`). Les égalités (une unité sans le badge d'aucun système les lit tous à 52) faisaient retomber l'IA sur le premier système de la liste, le plus faible : elle départage maintenant par l'affinité de ses joueurs aux rôles demandés (`rangSystemes`, la même lecture de leurs vraies stats que le badge), qui ne rend rien de plus. Mesuré : mal assortir coûte −3,1 V, le 2e système −1,5 V (check_tactiques).
+
+**Le coach aime son système** : à sa confiance II, le système de sa couleur joue un palier plus haut sur les cases de son badge (`bonusDuCoach`) ; chaque coach apprend un système qui demande ses joueurs. **La confiance se compte en paliers** (`JOUEUR_COACH` par palier habillé, plus de plafond à cinq). **Le dépisteur recrute sa couleur** (js/packs.js).
+
+**Les gardiens ont un badge** (`badgeGardien`) : Mur, Acrobate, Constant, De fer, lus dans leurs vraies stats ; le palier, l'écart de son % d'arrêts à sa ligue (De fer : sa part des matchs, sinon aucun n'aurait passé l'Argent). Chacun joue dans un canal que son % d'arrêts ne porte pas (forces égales, désavantage, séries, départs de suite), centré sur la ligue. La preuve lit le moteur sans dés, avec et sans le badge (molette `BADGE_G`) : ce que la fiche annonce, au dix-millième.
+
+**Une seule robustesse** : le moteur lisait la cote cachée `r` (blessures, coups d'avant 2005, robustesse d'équipe) et l'écran la carrure 🪨 (`physiqueDe`). Il lit maintenant la carrure : corrélées à 0,77, les blessures de la ligue passent de ×1,045 à ×1,048, et deux constantes (49,0 ± 2,75) gardent à la robustesse d'équipe son écart réduit sur les 1 366 vraies équipes. La fiche dit ses blessures.
+
+**Le roulement** se choisit dans « Préparer le match », avec ce qu'il rend et coûte ; la glace, les totaux et l'usure du soir le suivent (check_jambes).
+
+**Coach et patrons au prestige** (Rogue) : trois coachs au Club de garage, un de plus par rang, les huit voies à la Dynastie ; deux postes de patron au départ, quatre au plus ; deux patrons imposés, neutres, tirés de la graine. Le Comptable n'est plus un coach de départ : c'est un patron. À l'écran, le mot reste « patron » (celui que le jeu dit déjà).
+
+### Les voies des coachs (V2.3, oct.)
+
+Le budget du § 8 de la refonte : un coach à sa III, sur une équipe bâtie pour lui, vaut +6 à +8 V ; les voies à ±1 V l'une de l'autre ; et chacune vaut plus sur son équipe que sur une équipe mélangée. `scripts/check_voies.mjs` le mesure en paires.
+
+**Une équipe bâtie** : le même club, chaque case reprise par le joueur de la couleur du coach qui y est CHEZ LUI (sa position et sa zone : un plombier ne prend pas la place d'un joueur de premier trio) et dont le salaire est le plus proche (ce que le Rogue paie). Bâtir sur la valeur cachée, sans la zone, mettait des bagarreurs au premier trio : la voie mesurait leur maladresse, pas le coach.
+
+**Ce qui est jugé : le coach sur son équipe**, contre la même équipe sans lui. La composition (l'équipe bâtie contre le club, sans coach) se dit à côté : à salaire égal, 23 V séparent la couleur du Frelon (+9,6 V) de celle du Rhino (−13,8 V). Aucun coach ne compense ça sans valoir +20 V ; c'est le prix des rôles, en V2.4.
+
+**Mesuré d'abord** (le moteur de S94) : de −1,3 à +18,8 V. Trois causes. (1) `porteParSesJoueurs` multipliait l'écart du coach par 1 + 0,06 × paliers, sans plafond : un club tout d'une couleur triplait le Frelon, et les blessures du Doc (×0,44 portées trois fois) passaient sous zéro. (2) Les plafonds : des snipers sont déjà à FINITION_MAX, des durs à la borne de la robustesse, et la discipline de l'Abbé sous son plancher (0,5) dès la III — sa voie bâtie et l'équipe mélangée valaient pareil. (3) Des coachs trop forts ou trop faibles, l'un contre l'autre.
+
+**Ce qui change.** `JOUEUR_COACH` passe à 0,10 par palier, compté jusqu'à 24 (`PALIERS_COACH_MAX`), et chaque canal s'amplifie EN PUISSANCE (×0,88 porté deux fois vaut ×0,77 : il reste positif). La III relève le plafond du canal que sa voie vise, pour son club seulement (`plafondsDe`) : l'Aigle la finition (+0,15), le Frelon la pression (+0,15), le Rhino la borne de la robustesse (+3,2), l'Abbé abaisse le plancher de la discipline (−0,15) ; la règle de la III le dit (« Plafond de précision relevé »). Puis chaque coach recalibré, en sept tours de mesure.
+
+**Mesuré ensuite**, à quatre ligues : sur son équipe, la Tortue +6,6, le Frelon +6,6, le Rhino +7,0, l'Aigle +6,8, le Doc +6,9, l'Abbé +6,5, le Contremaître +6,6, le Showman +6,4 V (±0,3 V entre les voies) ; sur l'équipe mélangée, de +1,8 à +5,2 V. Sur un vrai club, la III vaut donc entre les deux, et `check_coachs` le borne ainsi. Le Doc a appris une chose : ses jambes et ses blessures saturent (×0,58 porté 2,8 fois, c'est presque rien), le pousser plus le faisait baisser ; un peu de volume l'a remonté. `VERSION_MOTEUR` S95.
+
 ### Le dernier du classement ne passe plus sous le bouton flottant (1.0, oct.)
 
 Trouvé par la CI (graine 5eh43r) : au téléphone, hors de l'onglet Match, « Journée suivante ▶ » flotte 52 px au-dessus de la barre (`.hub-flottant`), mais le volet du bureau ne réservait sous sa dernière rangée que `--esp-4`. Un club au bas du classement, défilé au bout, avait sa rangée cachée de 37 px — un défaut qui ne se voit que selon le rang, d'où la graine. Le volet réserve maintenant la hauteur du bouton (`--flottant-h`, un jeton de la source, lu par les deux). Reproduit sur la graine avant le correctif (37 px), vert après.

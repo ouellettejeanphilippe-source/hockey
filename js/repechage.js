@@ -6,8 +6,8 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, CAP, matchsEntre } from './sim.js';
-import { mesuresDeSaison, SEASON_ERA_CAP, getEraSalary, ageAtSeason } from './ratings.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, matchsEntre } from './sim.js';
+import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
@@ -21,7 +21,7 @@ import { ajouterAuCartable } from './cartable.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { scoreIdentite, IDENTITES } from './identites.js';
 import { codeDeFranchise, saisonsDeFranchise, FRANCHISES } from './franchises.js';
-import { $, DEFUNCT, G, MIN_SAL, MODE, SEUIL_IDENTITE, TEAMFULL, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, agesAvailable, applyTeamColors, candidats, capHitDuJour, capLeft, chiffreCle, capUsed, caseCourante, caseOuverte, closeModal, displayStats, enRepechage, epoqueDuTirage, formatName, franchiseDuTirage, headshotHtml, ico, identite, isPicked, majNavbar, maxForPick, montrerPage, nextNeed, openSlots, poserEchelle, positionClass, positionLabel, quiEst, render, rnd, roleTag, saisonDeFranchise, saveGame, saveOpts, scoreDeLaMain, scoreDuVestiaire, signes, slotsLeft, toast, totalCases, vestiaire, zoneEcart, zoneTag } from './game.js';
+import { $, DEFUNCT, G, MIN_SAL, MODE, SEUIL_IDENTITE, TEAMFULL, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, agesAvailable, applyTeamColors, candidats, capHitDuJour, capLeft, chiffreCle, capUsed, caseCourante, caseOuverte, closeModal, displayStats, enRepechage, epoqueDuTirage, formatName, franchiseDuTirage, headshotHtml, ico, identite, isPicked, majNavbar, maxForPick, montrerPage, nextNeed, openSlots, poserEchelle, positionClass, positionLabel, quiEst, render, rnd, roleTag, saisonDeFranchise, saveGame, saveOpts, scoreDeLaMain, scoreDuVestiaire, signes, slotsLeft, toast, totalCases, vestiaire, zoneEcart, zoneTag, fragileTag, plafondDeJauge } from './game.js';
 import { ballottageVu, groupeDe } from './banc.js';
 import { quiGlisse } from './ballottage.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
@@ -47,6 +47,9 @@ async function chargerRecrues() {
   return RECRUES;
 }
 const estRecrue = p => !!(p && p.rk);
+/* Le tri aux points par match divise par vingt matchs au moins (V2.2) : un joueur de cinq matchs chanceux ne mène plus la liste. */
+const PPG_MATCHS_MIN = 20;
+
 export async function getShard(label) {
   if (G.shards.has(label)) return G.shards.get(label);
   const shard = await loadSeason(label);
@@ -125,7 +128,8 @@ export function pastilleNiveau(p) {
   // Moins de matchs qu'un régulier (js/niveaux.js) : pas de rang, et la pastille le dit.
   if (n < 0) return p && p.s && G.shards.get(p.s) ? '<span class="niv niv-partiel" title="Trop peu de matchs dans sa saison pour un rang parmi les réguliers">Peu joué</span>' : '';
   const N = NIVEAUX[n];
-  return `<span class="niv niv-${N.cle}" title="${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
+  // TROIS VERDICTS, TROIS USAGES (V2.2) : le niveau dit SA SAISON (sa rareté, les packs), il ne joue pas au match.
+  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste. Il dit sa saison et sa rareté ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
 }
 brancherPastilleNiveau(pastilleNiveau);
 /*
@@ -175,7 +179,7 @@ export function carteMiniHtml(p) {
  * journée 55 ne se lit pas à la journée 20. Sans saison (le repêchage), rien :
  * un joueur n'a pas encore de carte jouée sur lui.
  */
-const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', style: 'Style', contrat: 'Contrat', choix: 'Nouveau rôle', accident: 'Le hasard' };
+const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', style: 'Style', contrat: 'Clause', choix: 'Nouveau rôle', accident: 'Le hasard' };
 function modsDuJoueur(p) {
   const t = G.ligue && G.ligue.you;
   if (!p || !t || !Array.isArray(t.mutations)) return null;
@@ -396,7 +400,7 @@ function ficheCourte(q) {
   return q.p === 'G' ? `${st.gp} PJ · ${q.sv ?? '—'} %arr (vraie saison)` : `${st.gp} PJ · ${st.g}-${st.a}-${st.pt} (vraie saison)`;
 }
 function colonneEchange(q, mot, sl = null) {
-  const pp = q.p === 'G' ? null : badgesDe(q)[0];
+  const pp = badgesDe(q)[0];
   return `<div class="ech-col"><div class="ech-mot">${esc(mot)}</div><b>${esc(q.n)}</b>
     <span>${esc(positionLabel(q))}${sl ? ` · ${esc(ligneDe(sl))}` : ''}</span>
     <span>${pastilleNiveau(q)}${pp ? ` <i class="badge pal-${pp.palier}">${pp.ico}</i> ${esc(pp.court || pp.nom)}` : ''}</span>
@@ -832,7 +836,9 @@ export function renderCap() {
   const used = capUsed(), rem = capLeft(), left = slotsLeft();
   const isEra = G.salaryMode === 'ERA';
   const season = vestiaire()?.season || '2025-26';
-  const eraCap = SEASON_ERA_CAP[season] || CAP;
+  // LA MÊME JAUGE PARTOUT (V2.2) : le plafond qu'on joue (effectif : les cartes 💵 le tordent), et en valeur
+  // d'époque, ce même plafond converti — le restant et le maximum dans les mêmes dollars, même en Express.
+  const cap = plafondDeJauge();
 
   const amt = $('capAmt');
   amt.textContent = isEra ? money(getEraSalary(rem, season)) : money(rem);
@@ -842,12 +848,12 @@ export function renderCap() {
   amt.classList.toggle('over', rem < 0);
   amt.classList.toggle('tight', rem >= 0 && tight);
 
-  $('capMaxLbl').textContent = isEra ? `/ ${money(eraCap)} (${season})` : `/ ${money(MODE().cap)}`;
+  $('capMaxLbl').textContent = isEra ? `/ ${money(getEraSalary(cap, season))} (${season})` : `/ ${money(cap)}`;
   // Le `title` était écrit en dur à 95,5 M$ dans le HTML : il mentait en Express.
-  $('capGauge').title = `Plafond salarial de ${money(MODE().cap)} (valeur 2026)`;
+  $('capGauge').title = `Plafond salarial de ${money(cap)} (valeur 2026)${cap !== MODE().cap ? ` — ${money(MODE().cap)} de base, tordu par tes cartes 💵` : ''}`;
 
   const fill = $('capFill');
-  fill.style.width = Math.min(100, Math.max(0, (used / MODE().cap) * 100)) + '%';
+  fill.style.width = Math.min(100, Math.max(0, (used / cap) * 100)) + '%';
   fill.classList.toggle('over', rem < 0);
   fill.classList.toggle('tight', rem >= 0 && tight);
 
@@ -956,7 +962,7 @@ export function renderSpin() {
       </div>
       ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
       <div class="rerolls">
-        <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
+        <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Garder l\'équipe, changer de saison'}">
           <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season}</span></button>
         <button id="rrT" class="reroll" ${G.left.team && need && !franchiseDuTirage() ? '' : 'disabled'} title="${franchiseDuTirage() ? `Le repêchage est fixé à la franchise : ${esc(FRANCHISES[G.franchise].nom)}` : 'Garder la saison, changer d\'équipe'}">
           <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team}</span></button>
@@ -1144,12 +1150,14 @@ function poolFiltered() {
     list = list.filter(p => p.n.toLowerCase().includes(q));
   }
 
+  // « Signables » a UNE définition (V2.2) : une case libre leur va et leur salaire tient dans le budget du choix (`compteSignables`).
   if (G.onlyFit) {
-    const rem = capLeft();
-    list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= rem);
+    const maxPick = maxForPick();
+    list = list.filter(p => !isPicked(p) && openSlots(p).length && p.$ <= maxPick);
   }
 
   const key = p => (surTable() ? p.$ : p.p === 'G' ? (p.sv ?? 0) : (p.pt ?? 0));
+  const ppgTri = p => { const st = displayStats(p); return st.ppg == null ? -1 : st.pt / Math.max(st.gp, PPG_MATCHS_MIN); };
   // Sur table, un axe du plateau ; le gardien se range sur son AR quel que
   // soit l'axe demandé, puisqu'il n'en a qu'un.
   const axe = k => p => tableStats(p)[p.p === 'G' ? 'AR' : k];
@@ -1157,7 +1165,8 @@ function poolFiltered() {
   const cmp = {
     TI: parAxe('TI'), MA: parAxe('MA'), FO: parAxe('FO'), DE: parAxe('DE'), PA: parAxe('PA'), SO: parAxe('SO'),
     PTS: (a, b) => key(b) - key(a) || b.$ - a.$,
-    PPG: (a, b) => (displayStats(b).ppg ?? -1) - (displayStats(a).ppg ?? -1) || key(b) - key(a),
+    // V2.2 : un joueur de vingt matchs ne passe plus devant sur trois soirs chanceux — ses points se divisent par vingt matchs au moins.
+    PPG: (a, b) => ppgTri(b) - ppgTri(a) || key(b) - key(a),
     SAL: (a, b) => b.$ - a.$ || key(b) - key(a),
     VAL: (a, b) => valuePerM(b) - valuePerM(a),
     PM: (a, b) => (b.pm ?? 0) - (a.pm ?? 0) || key(b) - key(a),
@@ -1263,7 +1272,7 @@ export function playerCardEl(p) {
   // clé, et le gabarit, le tir et l'habileté à la place de l'archétype, des
   // mesures et de la zone — ce que le plateau lit, rien de ce qu'il ignore.
   const cle = surTable() ? `<span class="pcard-axes">${axesTableHtml(p)}</span>` : `<span class="pcard-big" title="Son chiffre clé : ${esc(motCle)}"><b>${bigVal}</b><span>${bigUnit}</span></span>`;
-  const mid = `<div class="tags">${surTable() ? tagsTableHtml(p) : [identiteTag(p), roleTag(p), zoneTag(p)].filter(Boolean).join('')}</div>`;
+  const mid = `<div class="tags">${surTable() ? tagsTableHtml(p) : [identiteTag(p), roleTag(p), zoneTag(p), fragileTag(p)].filter(Boolean).join('')}</div>`;
 
   let dest;
   if (already) {

@@ -1305,6 +1305,16 @@ console.log(`2. ${signed}/23 signés`);
 // la plus chargée.
 console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM, ${await toutEstAtteignable('vestiaire plein')} hors de portée`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
+// LE GARDIEN DIT SA PART DES DÉPARTS (V2.2) : la case de chaque gardien habillé, dans l'Effectif.
+{
+  const avant = await page.evaluate(() => document.body.dataset.section);
+  await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
+  await page.waitForTimeout(400);
+  const deps = await page.$$eval('.slot .cell-departs', e => e.map(x => x.textContent.trim()));
+  if (deps.length < 2) errors.push(`les cases des gardiens ne disent pas leur part des départs (${deps.length} sur 2)`);
+  else console.log(`   les gardiens : ${deps.join(' · ')}`);
+  if (avant && avant !== 'effectif') { await page.click(`#navbar .navtab[data-section="${avant}"]`).catch(() => {}); await page.waitForTimeout(300); }
+}
 
 /*
  * L'ÉCRAN DES ÉQUIPES. JP : *faciliter de voir les équipes, leurs rosters,
@@ -2084,7 +2094,7 @@ if (enabled) {
   await saisonDunCoup('rejouée');
   console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
 
-  // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
+  // L'historique garde l'alignement : « Reprendre l'alignement » relit les 23 joueurs et
   // repart une saison.
   await aller('historique');
   await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });
@@ -2272,6 +2282,13 @@ const expTotal = await lireTotal();
 if (expTotal !== 6) errors.push(`l'Express devrait offrir six cases, le compteur en annonce ${expTotal}`);
 const expCap = parseM(await page.textContent('#capAmt'));
 if (expCap > 40) errors.push(`le plafond de l'Express devrait être sous 34 M$, la jauge annonce ${expCap}`);
+// LA MÊME JAUGE PARTOUT (V2.2) : le maximum affiché et le « % du plafond » d'une carte se lisent sur 34 M$, pas sur 95,5.
+{
+  const max = parseM(await page.textContent('#capMaxLbl'));
+  if (Math.abs(max - 34) > 0.6) errors.push(`la jauge de l'Express se lit sur ${max} M$ au lieu de 34`);
+  const pct = await page.$$eval('.pcard', cs => cs.map(c => (c.textContent.match(/(\d+,\d) % du plafond/) || [])[1]).filter(Boolean)[0] || null).catch(() => null);
+  console.log(`   la jauge de l'Express : / ${max} M$${pct ? ` · une carte : ${pct} % du plafond` : ''}`);
+}
 const { signed: expSigned } = await drafter('express');
 // Les dix-sept autres cases viennent du renfort : l'alignement doit être
 // COMPLET même si le joueur n'en a comblé que six.

@@ -31,13 +31,13 @@ import {
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
   PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
-  BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES,
+  BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
 import { BONUS } from '../js/rarete.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
-import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT } from '../js/combat.js';
+import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
 import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
@@ -116,6 +116,82 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
 }
 
 /*
+ * ---------- 2c. LES MOTS RÉSERVÉS (V2.1, une langue) ----------
+ * Un mot par idée : chaque mot réservé garde UN sens, et ses anciens sens ne
+ * reviennent plus à l'écran (CLAUDE.md, « Le vocabulaire »). Chaque entrée :
+ * le mot, la tournure qui le réemploierait, un témoin fautif et un témoin juste
+ * (la contre-épreuve : le motif attrape ce qu'il vise, rien de plus).
+ */
+const MOTS_RESERVES = [
+  ['vestiaire', 'la pièce et l\'équipe ; pas les déblocages ni l\'effectif d\'une run', /vestiaire des déblocages|\bTon vestiaire\b|vestiaire croit (à|au)|dépense-les au vestiaire|onglet Vestiaire/i,
+    'Le vestiaire des déblocages', 'Le vestiaire est galvanisé'],
+  ['classeur', 'le tirage du cartable au départ d\'une run ; pas la banque des cartes de jeu', /^Le classeur$|vont à ton classeur|vestiaire tiré de ton classeur/,
+    'Le classeur', 'Le départ du classeur'],
+  ['plombier', 'le rôle 🪠 ; les faibles du départ sont des bouche-trous', /(équipe|bande|rassemble tes|place pour tes) (de )?plombiers|plombiers? (de la ligue|de départ|sont là|moins pires)|rejoin(t|dent) tes plombiers|avec des plombiers/i,
+    'Une équipe de plombiers, 🪙 40', 'Tirs +2 % par plombier 🪠 habillé'],
+  ['relance', 'le dé qu\'on relance ; pas la sortie de zone ni la passe du gardien', /Paire de relance|Relance rapide|Moins de relance|relance (la rondelle|en contre|du gardien|à un coéquipier)|qui relancent|gardien relance|la relance ou la gèle|pour la relance/i,
+    '💨 Relance rapide', 'Tu peux relancer (2 relances)'],
+  ['rejouer', 'les mêmes clubs, d\'autres dés ; pas l\'historique ni la reprise d\'une décision', /On rejoue (la saison|les séries)|mêmes 31 clubs|^Rejouer$/,
+    'On rejoue la saison avec ton choix…', 'Rejouer la saison'],
+  ['coach', 'la philosophie ; la personne est l\'entraîneur', /\b(le|un|du|sans le|invite le) coach (des gardiens|élève|pète|sort|dans leur|paie|a parlé|laisse|qui promet|concentré)|cris du coach|selon le coach/i,
+    'Le coach des gardiens', 'Le coach de sa couleur'],
+  ['rivalité', 'le club le plus croisé en gros match ; celui qui t\'a battu deux fois est ta bête noire', /^Rivalité$|ta némésis|ta rivale\b/i,
+    'La défaite contre ta rivale', 'Ta rivalité : MTL'],
+  ['trophée', 'ce que le bilan décerne ; ce que le joueur porte est un trait', /Un trophée<\/strong>, rarement/i,
+    '<strong>Un trophée</strong>, rarement', 'Les trophées de la saison'],
+  ['Basse', 'la consigne ; l\'agressivité dit Prudente', /agressivité (🕊️ )?basse|🕊️ basse/i,
+    '(🕊️ basse, ⚖️ moyenne)', 'la consigne 😌 Basse'],
+  ['médailles', 'la monnaie des déblocages ; l\'écusson est un logo', /\d+ écussons|écussons (à dépenser|pour ta saison|pour tes séries|de découverte|gagnés)|Tes écussons/i,
+    '🏅 +12 écussons pour ta saison', 'Le nom, les couleurs et l\'écusson'],
+  ['contrat', 'une carte de masse salariale ; la modif de joueur est une clause', /Un style, un contrat|une modif de contrat/i,
+    'Un style, un contrat, une amélioration', 'Pack Contrats'],
+];
+{
+  const temoinsFaux = MOTS_RESERVES.filter(([, , re, faux, bon]) => !re.test(faux) || re.test(bon)).map(([m]) => m);
+  exiger('les motifs des mots réservés attrapent ce qu\'ils visent', temoinsFaux.length === 0, temoinsFaux.join(' · ') || `${MOTS_RESERVES.length} mots, chacun son témoin`);
+  const prose = [];
+  for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
+    for (const { s, ligne } of chainesDe(lire(`js/${f}`), { lignes: true })) prose.push({ ou: `js/${f}:${ligne}`, t: s.trim() });
+  }
+  const html = lire('index.html').replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)[\s\S]*?<\/\1>/g, '');
+  html.split('\n').forEach((l, k) => prose.push({ ou: `index.html:${k + 1}`, t: l.trim() }));
+  // Ce qui est parti ne se promet plus : les factions de S72 (partisans, médias) et la garantie « qui vaut double ».
+  const partis = prose.filter(x => /partisans montent|médias s'acharnent|vaudra double/i.test(x.t)).map(x => `${x.ou} « ${x.t.slice(0, 50)} »`);
+  exiger('l\'écran ne promet plus ce qui est parti (les factions, la victoire qui vaut double)', partis.length === 0, partis.slice(0, 3).join(' · ') || 'rien de parti');
+  for (const [mot, sens, re] of MOTS_RESERVES) {
+    const vus = prose.filter(x => re.test(x.t)).map(x => `${x.ou} « ${x.t.slice(0, 50)} »`);
+    exiger(`« ${mot} » n'a qu'un sens : ${sens}`, vus.length === 0, vus.slice(0, 3).join(' · ') || 'aucun réemploi');
+  }
+}
+
+/*
+ * ---------- 2d. LES BONS CHIFFRES (V2.2) ----------
+ * Ce que l'écran dit des zones, de la carrure, de la glace et des jambes est
+ * calculé depuis la constante que le moteur joue, jamais recopié : le malus
+ * au-dessus de sa zone (ZONE_PEN_DESSUS × crans^ZONE_PUISSANCE), le coût d'un
+ * coup pour CE joueur (`coutDuCoup`), la glace sur PART_UNITE (pas POIDS_TRIO,
+ * qui compte aussi les avantages), le conseil de jambes sur ENERGIE_REF, et
+ * l'infobulle d'un gardien sur la règle des gardiens.
+ */
+{
+  const src = f => lire(`js/${f}`);
+  const sans = (f, re) => !re.test(src(f));
+  const faits = [
+    ['le malus au-dessus de sa zone vient de ZONE_PEN_DESSUS et ZONE_PUISSANCE', /ZONE_DESSUS_TITLE = `[^`]*malusDessus\(1\)/.test(src('game.js')) && /ZONE_PEN_DESSUS \* n \*\* ZONE_PUISSANCE/.test(src('game.js')) && sans('game.js', /−3 par cran/)],
+    ['la fiche dit le coût d\'un coup pour CE joueur (`coutDuCoup`)', /coutDuCoup\(p\)/.test(src('fiche.js')) && sans('fiche.js', /1 - COUP_ABSORBE|1 \+ COUP_ABSORBE/)],
+    ['la glace de « Préparer le match » se lit sur PART_UNITE', /PART_UNITE\.F/.test(src('gerant.js')) && sans('gerant.js', /POIDS_TRIO\.map/)],
+    ['le conseil de glace dit la ligne ordinaire du moteur (ENERGIE_REF)', /Sous \$\{ENERGIE_REF\}/.test(src('pronostic.js')) && sans('pronostic.js', /Sous 90|moy >= 88/)],
+    ['la fiche dit l\'effet NET d\'un badge (`maitrise`, centré sur la ligue), pas le brut', /\(EFFET_ROLE\[b\.cle\] \|\| 0\) \* maitrise\(p, b\.cle\)/.test(src('fiche.js')) && sans('fiche.js', /b\.palier \/ \(b\.second/)],
+    ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
+    ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
+    ['« par défaut » est ce que joue une ligne jamais réglée (`meilleureAgressivite`), la Moyenne la référence', /i === meilleureAgressivite\(spec\.lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /i === 1 \? \{ txt: 'Par défaut'|i === 1 \? 'par défaut'/)],
+    ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison et sa rareté/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
+    ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('gerant.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
+  ];
+  for (const [nom, ok] of faits) exiger(nom, ok);
+}
+
+/*
  * ---------- 2b. le gel des chaînes (1.0, J5) ----------
  * Une seule forme par sorte de nombre, et la typographie du jeu : l'argent à
  * la québécoise (« 95,5 M$ », jamais « $95.5M »), les ordinaux « 1er, 2e »
@@ -169,7 +245,14 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   const brut = html.slice(a, b).replace(/<!--[\s\S]*?-->/g, ' ');
   const texte = brut.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const mots = texte.split(' ').filter(w => /[\p{L}\d]/u.test(w)).length;
-  borne('la page des règles est courte', mots, 300, 1800, 'mots');
+  // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
+  // de série, l'adjoint, les huit sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
+  borne('la page des règles est courte', mots, 300, 2100, 'mots');
+  const taisait = [[/avantage numérique<\/strong> se règle seul/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
+    [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
+    [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
+  const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
+  exiger('la page dit ce qu\'elle taisait (V2.2)', encoreTu.length === 0, encoreTu.join(' · ') || `${taisait.length} sujets dits`);
   // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : un effet se lit en tirs et en buts par match ; la page le dit, et ne le dit plus en « Tirs +8 % ».
   exiger('la page dit qu\'un effet se lit en chiffres de match, par match', /chiffres de match/.test(texte) && /par match/.test(texte), 'chiffres de match · par match');
   exiger('la page ne lit plus un effet en pourcentage (« Tirs +8 % »)', !/(Tirs|Précision|Buts contre) [+−]\d+ ?%/.test(texte), 'plus de « Tirs +8 % »');
@@ -210,10 +293,10 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`(${nombre(1 + EFFET_ROLE.sniper)} fois plus)`, 'le sniper'],
     [`(sa paire +${nombre(EFFET_ROLE.offensif * 100)} %)`, 'le défenseur offensif'],
     [`(comme ${nombre(BADGE_CHIMIE)} points de fit)`, 'le passeur et le manieur'],
-    [`Chaque coup reçu coûte ${nombre(COUP_JAMBES)} jambes à un joueur moyen : ${nombre(COUP_JAMBES * (1 - COUP_ABSORBE))} à un costaud 🪨, ${nombre(COUP_JAMBES * (1 + COUP_ABSORBE))} à un léger 🪶.`, 'les coups'],
+    [`Chaque coup reçu coûte ${nombre(COUP_JAMBES)} jambes à un joueur moyen, de ${nombre(COUP_JAMBES * (1 - COUP_ABSORBE))} au plus costaud 🪨 à ${nombre(COUP_JAMBES * (1 + COUP_ABSORBE))} au plus léger 🪶 : la fiche dit le sien.`, 'les coups'],
     // Le jeu physique en événements (1.0).
     [`le frappé perd ${nombre(COUP_MARQUANT_JAMBES)} jambes sur-le-champ et se blesse ${nombre(BLESSURE_SONNE)} fois plus ce soir`, 'le coup marquant'],
-    [`${BAGARRE_MINUTES} minutes chacun, hors de leurs unités pendant ce temps ; le club du vainqueur gagne ${nombre(Math.round((ELAN_BAGARRE - 1) * 100))} % de finition pendant ${ELAN_DUREE} minutes, le perdant en perd ${nombre(Math.round((1 - ELAN_BAGARRE_PERDU) * 100))} %, et le battu se blesse ${nombre(BLESSURE_BAGARRE_PERDUE)} fois plus ce soir`, 'la bagarre'],
+    [`${BAGARRE_MINUTES} minutes et ${BAGARRE_JAMBES} jambes chacun, hors de leurs unités pendant ce temps ; le club du vainqueur gagne ${nombre(Math.round((ELAN_BAGARRE - 1) * 100))} % de finition pendant ${ELAN_DUREE} minutes, le perdant en perd ${nombre(Math.round((1 - ELAN_BAGARRE_PERDU) * 100))} %, et le battu se blesse ${nombre(BLESSURE_BAGARRE_PERDUE)} fois plus ce soir`, 'la bagarre'],
     [`${MELEE_MINUTES} minutes qui s'annulent`, 'la mêlée'],
     [`à ${ENERGIE_REF}, il rend sa moyenne ; chaque point de moins lui coûte ${nombre(ENERGIE_EFFET)} %`, 'l\'effet des jambes'],
     [`Frais (${NIVEAUX_JAMBES[0].min} et plus), Correct (${NIVEAUX_JAMBES[1].min}), Lourd (${NIVEAUX_JAMBES[2].min}), Vidé`, 'les niveaux de fatigue'],
@@ -228,7 +311,8 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [`précision −${pct(PREP_RATEE.finition)} % et buts contre +${pct(PREP_RATEE.defense)} %`, 'la préparation ratée'],
     [`commence avec ${DECK_DEPART.length} cartes`, 'le deck de départ'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
-    [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs`, 'l\'objectif raté'],
+    [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs, et la distraction entre dans ton deck`, 'l\'objectif raté'],
+    [`une blessure de ${BLESSURE_TRAINEE} matchs glisse une malédiction dans le deck, ${['zéro', 'un', 'deux', 'trois'][CICATRICES_MAX]} au plus`, 'les cicatrices'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
     [`de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, 'le rappel au ballottage'],
     [`Après ton ${DATE_LIMITE_MATCH}e match, la date limite des échanges`, 'la date limite'],
@@ -239,7 +323,9 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
-    [`À ${SEUILS.slice(0, -1).join(', ')} et ${SEUILS[SEUILS.length - 1]} cartes jouées d'un coach, le vestiaire croit à lui pour la saison`, 'les seuils de la confiance'],
+    [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
+    [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 8 ? 'un effet pour la saison, un vrai joueur, une amélioration à poser au verso d\'une carte, un nouveau rôle, un stage de système, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
+    [`À ${SEUILS.slice(0, -1).join(', ')} et ${SEUILS[SEUILS.length - 1]} cartes jouées d'un coach, l'équipe croit à lui pour la saison`, 'les seuils de la confiance'],
   ];
   // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
   const src = lire('js/rogue.js');

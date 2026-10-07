@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts } from './sim.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
@@ -211,10 +211,15 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   // TOUS SES TRAITS (1.0, R3), pas le premier seul : chacun joue dans le moteur (js/traits.js), chacun se voit.
   const traits = getTraits(p).map(x => TRAITS[x.cle]).filter(Boolean);
   const trophee = traits.length ? `<span class="cell-trait" title="${esc(traits.map(t => t.short || t.nom || '').join(' · '))}">${traits.map(t => t.icon).join('')}</span>` : '';
-  const jambes = G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100) : '';
+  const jambes = G.banc ? jambesHtml(G.banc.energie[getPlayerKey(p)] ?? 100, { gardien: p.p === 'G' }) : '';
+  // SA PART DES DÉPARTS (V2.2) : la rotation suit les vrais matchs joués des deux gardiens ; la case le dit.
+  const departs = s.group === 'G' && !s.scratch ? (() => {
+    const d = partDesDeparts(G.roster), part = s.unit === 0 ? d.partant : d.aux;
+    return part > 0 ? `<span class="cell-departs" title="La rotation lui donne cette part des départs : sa vraie saison (${p.gp || 0} matchs) contre celle de l'autre gardien.">${Math.round(part * 82)} départs</span>` : '';
+  })() : '';
   // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
   return `<div class="cell-l1">${role}</div>
-        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${blesseTag}${marque}${zone}${penTag}${trophee}</div>
+        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
         <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${esc(G.banc ? ficheDuJour(p) : main)}</span>${!G.banc && p.p !== 'G' && chiffreCle(p).u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : ''}</div>
         ${jambes}`;
 }
@@ -326,8 +331,8 @@ function slotEl(s) {
   } else if (G.bonus === 'ROGUE' && s.extra && !caseOuverte(s)) {
     // UNE CASE DE RÉSERVE À DÉBLOQUER (S80) : visible, grisée, et elle dit où la débloquer.
     el.classList.add('verrou');
-    el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Au vestiaire des déblocages</div>`;
-    el.onclick = () => toast('Cette case de réserve se débloque au vestiaire des déblocages, dans le menu (ou par un jalon).');
+    el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Aux déblocages</div>`;
+    el.onclick = () => toast('Cette case de réserve se débloque aux déblocages, dans le menu (ou par un jalon).');
     return el;
   } else if (G.bonus === 'ROGUE' && s.scratch) {
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">Case libre</div>`;
@@ -370,7 +375,7 @@ function slotEl(s) {
       G.selectedSlot = s.i;
       toast('Touche une autre case pour déplacer ou permuter.');
     } else if (G.bonus === 'ROGUE') {
-      // Le Rogue n'a pas de vestiaire où piger (S80) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
+      // En saison, le Rogue n'a pas de vestiaire où piger (son repêchage vient entre deux saisons) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
       toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
       return;
     } else {

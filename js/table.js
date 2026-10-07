@@ -1559,7 +1559,7 @@ export const TRAJETS = {
   passe:        { mot: 'passe', max: Infinity },
   fond:         { mot: 'au fond', max: Infinity },
   interception: { mot: 'interception', max: Infinity },
-  relance:      { mot: 'relance du gardien', max: PORTEE_RELANCE },
+  relance:      { mot: 'remise du gardien', max: PORTEE_RELANCE },
   tir:          { mot: 'tir', max: Infinity },
   arret:        { mot: 'arrêt', max: 0 },                // du fond du filet à la mitaine : la même case
   arrache:      { mot: 'arrachée', max: 1 },             // mise en échec, harponnage : le bâton collé la prend
@@ -2487,12 +2487,12 @@ export function appliquerTir(m, piece, jet) {
    */
   const relais = relaisDe(m, advG);
   if (batons(m, advG.eq, advG.r, advG.c) > 0 || !relais) {
-    dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)} et la gèle ${relais ? 'sous la pression' : '— personne de libre pour la relance'}.`, 'arret');
+    dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)} et la gèle ${relais ? 'sous la pression' : '— personne de libre pour la remise'}.`, 'arret');
     arretDeJeu(m, 'Gelée par le gardien', pointDeFond(m, advG.eq, piece.c));
     return false;
   }
   dire(m, `${nomDe(advG)} bloque le tir de ${nomDe(piece)} et garde la rondelle.`, 'arret');
-  revirement(m, `Le gardien la relancera.`);
+  revirement(m, `Le gardien la remettra en jeu.`);
   return false;
 }
 
@@ -3153,7 +3153,7 @@ function sortieDeZone(m) {
     || eq.pieces.filter(x => !x.etourdi).sort((a, b) => dist(p, a) - dist(p, b))[0];
   if (!relais) return;
   donner(m, relais, true, 'relance');
-  dire(m, `${nomDe(p)} relance la rondelle à ${nomDe(relais)}.`, 'relance');
+  dire(m, `${nomDe(p)} remet la rondelle à ${nomDe(relais)}.`, 'relance');
 }
 
 function finirMatch(m) {
@@ -4280,7 +4280,7 @@ export function reglesDuPlateau() {
       rangees: [
         ['Patiner', 'MA c. DE', 'aussi loin que son PA le permet ; sans dé, sauf pour quitter ou rejoindre un adversaire collé avec la rondelle', 'la rondelle tombe, libre'],
         ['Passer', 'MA c. DE', 'à un coéquipier : plus c\'est loin et couvert, plus c\'est dur. Le receveur peut tirer tout de suite. Ou AU FOND, de la zone neutre : la rondelle file dans un coin, libre', 'un bâton sur la ligne l\'intercepte'],
-        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Chaque rangée de recul, plus dur ; près et au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la relance ou la gèle — ou elle rebondit devant lui'],
+        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Chaque rangée de recul, plus dur ; près et au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la remet ou la gèle — ou elle rebondit devant lui'],
         ['Reprendre', 'TI c. AR', `un patineur collé au retour le tire tout de suite, à −${-REPRISE_MOD}, une action de plus — une fois par tir`, 'le gardien l\'arrête'],
         ['Dévier', 'TI c. AR', `un tir de loin passe par un coéquipier dans l\'enclave, sur sa trajectoire : −${-DEVIATION_MOD}, mais de près ; le but est à lui`, 'le gardien l\'arrête'],
         ['Feinter', 'MA c. DE', 'le porteur déjoue un défenseur collé, qui reste hors jeu jusqu\'à la fin du tour', 'la rondelle tombe, libre'],
@@ -4295,7 +4295,7 @@ export function reglesDuPlateau() {
         'Une rondelle libre (cerclée d\'or) est à qui met le pied dessus, sans dé.',
         `Hors-jeu : si un coéquipier attend dans la zone offensive (fanion ⚑) quand la rondelle y entre, c'est un sifflet. Celui qui porte la rondelle n'est jamais hors-jeu.`,
         'De ta propre zone, pas de passe au fond : ce serait un dégagement refusé (sifflet, mise au jeu chez toi). On passe, ou on patine.',
-        `Un rebond reste près de ce qui l'a fait (${RAYON_REBOND} cases au plus). Le gardien relance à un coéquipier libre, ou la gèle.`,
+        `Un rebond reste près de ce qui l'a fait (${RAYON_REBOND} cases au plus). Le gardien la remet à un coéquipier libre, ou la gèle.`,
       ],
     },
     {

@@ -119,7 +119,7 @@ export function ouvrirMagasin(ctx) {
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
-        <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton classeur (un doublon se revend, sauf si tu le signes). Un pack de cartes : toutes vont dans ton inventaire.</p>
+        <p class="pk-mot">Tes résultats rapportent des jetons. Un pack de joueurs : tu en signes un, les autres vont à ton cartable (un doublon se revend, sauf si tu le signes). Un pack de cartes : toutes vont dans ton inventaire.</p>
         ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
         ${garantie}
         ${plafond}
@@ -199,7 +199,7 @@ export function ouvrirMagasin(ctx) {
     d.className = 'pk-fiche';
     d.innerHTML = `<div class="pk-fiche-carte pk-club">
       <div class="club-porte"><span class="club-ecu" aria-hidden="true">${o.apercu}</span><b>${esc(o.nom)}</b></div>
-      <p class="pk-fiche-texte">${esc(o.rayon)} de ton club : à toi pour toutes tes parties, porté tout de suite, et changé quand tu veux au vestiaire. Ça ne change rien au jeu.</p>
+      <p class="pk-fiche-texte">${esc(o.rayon)} de ton club : à toi pour toutes tes parties, porté tout de suite, et changé quand tu veux aux déblocages. Ça ne change rien au jeu.</p>
       ${o.verrou ? `<p class="pk-verrou">🔒 ${esc(o.verrou)}</p>` : ''}
       <div class="pk-fiche-actions">
         <button type="button" class="btn pk-retour">Retour</button>

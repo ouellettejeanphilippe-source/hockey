@@ -20,7 +20,7 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur } from './sim.js';
+import { REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES } from './sim.js';
 import { COACHS, JOUEUR_COACH } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
@@ -30,7 +30,7 @@ import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
-import { getEraFactor, getEraSalary, getLineZone, getArchetype } from './ratings.js';
+import { getEraFactor, getEraSalary, getLineZone, getArchetype, seasonGames } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
 import { actionsDisponibles, demarrerActions, photoDeFond } from './actions.js';
@@ -66,7 +66,9 @@ export const rnd = a => a[Math.floor(Math.random() * a.length)];
 /** Salaire plancher de la LNH dans le barème du jeu : sert au calcul du budget restant. */
 export const MIN_SAL = 775_000;
 
-const pctCap = n => (n / CAP * 100).toFixed(1) + ' %';
+/* LA MÊME JAUGE PARTOUT (V2.2) : « x % du plafond » se lit sur le plafond qu'on joue (`plafondDeJauge`), jamais sur 95,5 M$ en Express ou en Rogue. */
+export const plafondDeJauge = () => { const c = plafondEffectif().cap; return c > 0 && c < 1e11 ? c : MODE().cap; };
+const pctCap = n => (n / plafondDeJauge() * 100).toFixed(1).replace('.', ',') + ' %';
 
 export const TEAMFULL = {
   QUE: 'Nordiques de Québec', HFD: 'Whalers de Hartford', MNS: 'North Stars du Minnesota',
@@ -399,7 +401,9 @@ export function zoneEcart(p, s) {
 }
 
 export const ZONE_SOUS_TITLE = 'Sous sa zone : ici, son talent est gaspillé et toute l\'unité porte un malus proportionnel à ce qu\'on perd. Vise une autre case dans l\'alignement ou déplace quelqu\'un.';
-export const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tient la case faute de mieux.';
+// Les chiffres du moteur (`malusZoneJoueur`, js/sim.js) : ZONE_PEN_DESSUS × crans^ZONE_PUISSANCE (V2.2, les bons chiffres).
+const malusDessus = n => String(Math.round(ZONE_PEN_DESSUS * n ** ZONE_PUISSANCE * 10) / 10).replace('.', ',');
+export const ZONE_DESSUS_TITLE = `Au-dessus de sa zone : −${malusDessus(1)} à un cran, −${malusDessus(2)} à deux, −${malusDessus(3)} à trois. Il tient la case faute de mieux.`;
 
 export const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
 
@@ -540,7 +544,7 @@ export const maxForPick = () => capLeft() - Math.max(0, slotsLeft() - 1) * MIN_S
  * partie en cours se rejoue autrement, journées déjà vues comprises. On ne
  * peut pas l'empêcher sans garder deux moteurs ; on peut le DIRE.
  */
-const VERSION_MOTEUR = 'S92';  // S92 : le tempo — le style d'un club ferme ou ouvre le jeu des deux côtés (tempoDe), la possession ne lit que les joueurs. S91 : les badges à paliers — chaque joueur rend son badge par joueur (Bronze à Platine), le passeur et le manieur montent la chimie. S90 : chaque journée tire ses dés à son matin, et la sauvegarde les garde (`deDuJour`) ; un pari se tranche au sel du choix. S89 : le fit d'un système se lit au style, à talent égal (PENTE_TALENT). S88 : un gros match date ses blessures dans la troisième période (le choix de l'entracte ne réécrit plus les deux premières). S87 : les ailes d'un système s'assortissent (AG et AD dans le sens où les ailiers rendent le mieux). S86 : la force et le style des clubs se mesurent après la remise à zéro des joueurs (la reprise rendait un autre passé). S85 : le partant blessé, l'auxiliaire prend le filet (le rappel ne joue plus tous les soirs). S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
+const VERSION_MOTEUR = 'S95';  // S95 : les voies des coachs recalibrées (V2.3, check_voies : JOUEUR_COACH 0,10 jusqu'à 24 paliers, en puissance ; la III relève le plafond de sa voie) et la robustesse lue sur la carrure. S94 : les systèmes lisent les badges (V2.3, fitDeCase). S93 : le cycle des systèmes fermé (V2.2) — l'enclave, les plombiers et le jeu à deux sens étouffent enfin quelqu'un. S92 : le tempo — le style d'un club ferme ou ouvre le jeu des deux côtés (tempoDe), la possession ne lit que les joueurs. S91 : les badges à paliers — chaque joueur rend son badge par joueur (Bronze à Platine), le passeur et le manieur montent la chimie. S90 : chaque journée tire ses dés à son matin, et la sauvegarde les garde (`deDuJour`) ; un pari se tranche au sel du choix. S89 : le fit d'un système se lit au style, à talent égal (PENTE_TALENT). S88 : un gros match date ses blessures dans la troisième période (le choix de l'entracte ne réécrit plus les deux premières). S87 : les ailes d'un système s'assortissent (AG et AD dans le sens où les ailiers rendent le mieux). S86 : la force et le style des clubs se mesurent après la remise à zéro des joueurs (la reprise rendait un autre passé). S85 : le partant blessé, l'auxiliaire prend le filet (le rappel ne joue plus tous les soirs). S84 : le vrai calendrier (82 matchs en 186 jours, des congés, des dos-à-dos ; la récupération par jour, les durées en matchs, les événements la veille). S83 : le gros match s'annonce la veille (ANNONCE_GROS = 1). S82 : la carte du New Jersey recentrée (0,945 · 0,935). S81 : le gros match s'annonce deux journées d'avance, et son avant-match arrive à l'annonce (S80 : le pesé pèse plus ; un soir de gros match, ni situation, ni accident, ni dilemme)
 export function saveGame() {
   try {
     // S77 : la partie ACTIVE de l'index (js/sauvegardes.js), avec son résumé pour le menu.
@@ -975,7 +979,7 @@ export function agesAvailable() {
 /* SA COULEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé — ses cartes et la confiance de ce coach comptent sur lui. */
 export function coachTag(p) {
   const C = COACHS[coachDuJoueur(p)];
-  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : il porte la confiance de ce coach (+${Math.round(JOUEUR_COACH * 100)} % par joueur habillé) et fait grandir ses cartes de vestiaire.">${C.ico} ${esc(C.nom)}</span>` : '';
+  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : il porte la confiance de ce coach (+${Math.round(JOUEUR_COACH * 100)} % s'il est Bronze, +${Math.round(JOUEUR_COACH * 400)} % Platine, habillé) et fait grandir les cartes de sa couleur.">${C.ico} ${esc(C.nom)}</span>` : '';
 }
 export function zoneTag(p, mini = false) {
   const v = getHiddenRatings(p).v;
@@ -996,7 +1000,7 @@ export function zoneTag(p, mini = false) {
   }
   const enBas = p.p !== 'G' && p._enBas;
   const titreBas = enBas ? ` Le ${isD(p) ? '3e paire' : '4e trio'} ne le punit plus.` : '';
-  return `<span class="tag tag-zone lz${z.level}" title="${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}.${titreBas} Rend à 100 % sur les ${unit} ${where}.">${esc(court)}</span>`;
+  return `<span class="tag tag-zone lz${z.level}" title="Zone : ${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}.${titreBas} Rend à 100 % sur les ${unit} ${where}. Elle dit OÙ il joue ; son badge dit ce qu'il y fait.">${esc(court)}</span>`;
 }
 
 
@@ -1007,6 +1011,14 @@ export function zoneTag(p, mini = false) {
  * maintenant ce qu'il est — son meilleur rôle, en mots — et où il rend. Le
  * reste vit dans la fiche, à un toucher.
  */
+/* FRAGILE (V2.2) : il a manqué assez de sa vraie saison pour se blesser au moins deux fois plus (`fragiliteDe`, js/sim.js). */
+export function fragileTag(p) {
+  if (!p || G.bonus === 'TABLE') return '';
+  const x = fragiliteDe(p);
+  if (x < FRAGILE_DES) return '';
+  const n = Math.round(x);
+  return `<span class="tag tag-fragile" title="${p.gp || 0} matchs sur ${seasonGames(p.s)} dans sa vraie saison : il se blesse environ ${n} fois plus qu'un joueur qui les a tous joués.">Fragile ×${n}</span>`;
+}
 export function roleTag(p) {
   const marques = clesDesMods(p).map(k => MUTATIONS[k] ? `<span class="tag tag-mut" title="${esc(MUTATIONS[k].nom)} — ${esc(MUTATIONS[k].quoi)}">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
   const [pp, r2] = badgesDe(p);
@@ -1027,7 +1039,8 @@ export function roleTag(p) {
 function traitTagList(p, full = false) {
   return getTraits(p).map(t => {
     const meta = TRAITS[t.cle];
-    const niveau = t.niveau === 0 ? 'Lauréat' : 'Finaliste';
+    // Une réputation n'est pas un vote : ni lauréat ni finaliste (V2.1).
+    const niveau = meta.reputation ? 'Réputation' : t.niveau === 0 ? 'Lauréat' : 'Finaliste';
     const txt = full ? ` ${esc(meta.label)}${t.niveau ? ' (finaliste)' : ''}` : '';
     return `<span class="tag tag-trait${t.niveau ? ' est-finaliste' : ''}"`
       + ` title="${esc(meta.short)} ${esc(p.s)} — ${niveau}. ${esc(meta.desc)}.">`
@@ -1577,7 +1590,7 @@ const SECTIONS = [
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
   { cle: 'collection', ico: 'i-cartes', titre: 'Collection' },
 ];
-/* Le vestiaire (ou le loto) tant qu'on repêche. Le Rogue bâtit par packs : il ne repêche jamais. */
+/* Le vestiaire (ou le loto) tant qu'on repêche. En saison, le Rogue bâtit par packs ; son repêchage vient entre deux saisons. */
 const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
 /* Les pages de chaque section, dans l'ordre de ses onglets internes. */
 const PAGES_DE = {
@@ -1928,8 +1941,8 @@ function remplirMarche() {
   const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
   host.innerHTML = `${signatureHtml(hub)}<div class="marche">
     ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : G.bonus === 'ROGUE' ? 'Elle ouvre pendant la saison, entre deux journées.' : 'Au mode Rogue.')}
-    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et ton classeur, à lire')}
-    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Le vestiaire des déblocages', `${lireMeta().ecussons || 0} écussons à dépenser`) : ''}
+    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et la banque des cartes, à lire')}
+    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Les déblocages', `${lireMeta().ecussons || 0} médailles à dépenser`) : ''}
   </div>`;
   brancherSignature(host, hub);
   host.querySelectorAll('[data-marche]').forEach(b => {
@@ -2273,7 +2286,7 @@ function showLeaderboard() {
         <div>${i.rank ? `${i.rank === 1 ? '1er' : `${i.rank}e`} de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
         <div>${format ? `${esc(format)} · ` : ''}Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
-        ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
+        ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Reprendre l'alignement</button>` : ''}
       </div>
     </div>`;
   }).join('');

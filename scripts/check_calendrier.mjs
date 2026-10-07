@@ -93,4 +93,18 @@ for (let d = 0; d < L.calendrier.length; d++) for (const m of L.calendrier[d]) {
 }
 exiger('le soir éreintant est un dos-à-dos d\'un des deux clubs', ecartesSoir === 0, `${soirs} soirs sur ${total} matchs (${Math.round(100 * soirs / total)} %)`);
 
+/*
+ * LE CALENDRIER NE PROMET QUE CE QUI ARRIVE (V2.2). La route et le calendrier lisent une seule liste
+ * (`marquesDeSaison`, js/saison.js) : un événement et une situation à venir sont « possibles » (en sourdine),
+ * jamais promis ; le passé ne marque que ce qui est arrivé ; le verdict du proprio et les accidents y sont.
+ */
+{
+  const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'saison.js'), 'utf8');
+  const bloc = (src.match(/const marquesDeSaison = \(\) => \{[\s\S]*?\n  \};/) || [''])[0];
+  exiger('la route et le calendrier lisent la même liste', !!bloc && /routeHtml\(jour, N, marquesDeSaison\(\)\)/.test(src) && /for \(const x of marquesDeSaison\(\)\)/.test(src));
+  exiger('un événement et une situation à venir sont « possibles », jamais promis', /un événement possible[^']*', 'bas', true\)/.test(bloc) && /peut-être quelque chose', 'bas', true\)/.test(bloc));
+  exiger('le passé ne marque que ce qui est arrivé (les décisions prises, les situations vécues)', /d\.moment\.famille === 'moment'/.test(bloc) && /you\.situations/.test(bloc));
+  exiger('le verdict du proprio et les accidents sont sur la route', /le verdict du proprio/.test(bloc) && /source === 'accident'/.test(bloc));
+}
+
 verdict();

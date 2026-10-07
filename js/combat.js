@@ -39,6 +39,8 @@ export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
 /* Les cicatrices (le doute, une blessure qui traîne) qu'un deck porte au plus, en même temps (1.0). */
 export const CICATRICES_MAX = 2;
+/* Une blessure de ce nombre de matchs et plus laisse une cicatrice au deck (« Une blessure qui traîne »). */
+export const BLESSURE_TRAINEE = 15;
 
 /*
  * Les cartes. `cout` en énergie ; `effet` : les canaux de CE match pour ta
@@ -178,7 +180,7 @@ export const CARTES_MATCH = {
     texte: 'Le genre de soirée qu\'on raconte trente ans plus tard.', effet: { defense: 0.88 } },
   chapeau: { nom: 'Le soir du tour du chapeau', ico: '🎩', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Les chapeaux vont pleuvoir.', effet: { finition: 1.1, discipline: 1.1 } },
-  coach: { nom: 'Le coach dans leur tête', ico: '🎙️', cout: 2, rarete: 'rare', genre: 'tactique',
+  coach: { nom: 'L\'entraîneur dans leur tête', ico: '🎙️', cout: 2, rarete: 'rare', genre: 'tactique',
     texte: 'Leur plan tombe, et ils perdent leur calme.', lire: true, adv: { discipline: 1.3 } },
   preparation: { nom: 'Préparation totale', ico: '📋', cout: 1, rarete: 'rare', genre: 'tactique',
     texte: 'Chaque scénario a sa page dans le cahier.', pioche: 3 },
@@ -241,8 +243,8 @@ export const CARTES_MATCH = {
     texte: 'Personne ne reste planté devant ton gardien.', effet: { defense: 0.96, robustesse: 1.1 } },
   tirRebond: { nom: 'Le tir pour le rebond', ico: '🔄', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'On lance bas, sur les jambières, et on arrive.', effet: { finition: 1.02, volume: 1.04 } },
-  gardienRelance: { nom: 'Le gardien relance', ico: '🥏', cout: 1, rarete: 'peu', genre: 'defense',
-    texte: 'Il arrête la rondelle derrière le filet et relance tout de suite.', effet: { defense: 0.95, energie: 0.97 } },
+  gardienRelance: { nom: 'Le gardien repart l\'attaque', ico: '🥏', cout: 1, rarete: 'peu', genre: 'defense',
+    texte: 'Il arrête la rondelle derrière le filet et repart l\'attaque tout de suite.', effet: { defense: 0.95, energie: 0.97 } },
   cinqPuissance: { nom: 'Le cinq de puissance', ico: '⚡', cout: 2, rarete: 'peu', genre: 'attaque',
     texte: 'Tes cinq meilleurs, en avantage comme à forces égales.', effet: { finition: 1.06, volume: 1.04 } },
   tempsArret: { nom: 'Le temps d\'arrêt', ico: '⏸️', cout: 0, rarete: 'peu', genre: 'tactique', epuise: true,
@@ -303,7 +305,7 @@ export const CARTES_MATCH = {
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
     texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },
   doute: { nom: 'Le doute', ico: '🌧️', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
-    texte: 'La défaite contre ta rivale te trotte dans la tête.', enMain: { finition: 0.97 } },
+    texte: 'La défaite contre ta bête noire te trotte dans la tête.', enMain: { finition: 0.97 } },
   trainee: { nom: 'Une blessure qui traîne', ico: '🩹', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
     texte: 'Il joue quand même, mais il boite.', enMain: { energie: 1.05 } },
 };
@@ -347,7 +349,8 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (C.apres40) P.apres40 = { siMene: canauxPlus(C.apres40.siMene), sinon: canauxPlus(C.apres40.sinon) };
     if (C.pioche) P.pioche = C.pioche + 1;
     if (C.energieTous) P.energieTous = C.energieTous + 10;
-    if (C.pari) P.pari = { ...C.pari, chance: Math.min(0.8, C.pari.chance + 0.15) };
+    // Une face de plus au dé (V2.2, un seul dé) : « sur 4, 5 ou 6 » devient « sur 3, 4, 5 ou 6 ».
+    if (C.pari) P.pari = { ...C.pari, chance: Math.min(5 / 6, C.pari.chance + 1 / 6) };
     if (C.energiePlus && !C.effet) P.energiePlus = C.energiePlus + 1;
     // S76 : les mécaniques neuves s'améliorent comme les autres — moitié plus.
     if (C.ecarte) P.ecarte = C.ecarte + 1;

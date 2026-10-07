@@ -43,7 +43,7 @@ export const IDENTITES = {
     texte: 'La roulette sort plus souvent des gâchettes : des avants qui marquent, des défenseurs qui décochent de la bleue.',
     score: profil('sniper', 'offensif') },
   passeurs: { ico: '🪄', nom: 'Les passeurs', rarete: 'commune',
-    texte: 'Plus de fabricants de jeu : des centres qui voient tout, des défenseurs qui relancent.',
+    texte: 'Plus de fabricants de jeu : des centres qui voient tout, des défenseurs qui sortent la rondelle.',
     score: profil('passeur', 'manieur') },
   costauds: { ico: '🦍', nom: 'La grosse équipe', rarete: 'commune',
     texte: 'Plus de joueurs lourds et robustes : ça cogne, ça tient les soirs éreintants et les séries.',
