@@ -349,7 +349,8 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (C.apres40) P.apres40 = { siMene: canauxPlus(C.apres40.siMene), sinon: canauxPlus(C.apres40.sinon) };
     if (C.pioche) P.pioche = C.pioche + 1;
     if (C.energieTous) P.energieTous = C.energieTous + 10;
-    if (C.pari) P.pari = { ...C.pari, chance: Math.min(0.8, C.pari.chance + 0.15) };
+    // Une face de plus au dé (V2.2, un seul dé) : « sur 4, 5 ou 6 » devient « sur 3, 4, 5 ou 6 ».
+    if (C.pari) P.pari = { ...C.pari, chance: Math.min(5 / 6, C.pari.chance + 1 / 6) };
     if (C.energiePlus && !C.effet) P.energiePlus = C.energiePlus + 1;
     // S76 : les mécaniques neuves s'améliorent comme les autres — moitié plus.
     if (C.ecarte) P.ecarte = C.ecarte + 1;

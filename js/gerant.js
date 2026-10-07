@@ -27,7 +27,7 @@
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
   profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax,
+  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite, enFaceDe, FERMETURE_DEFAUT,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite,
@@ -131,7 +131,7 @@ export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { 
  */
 export const motDuBadge = b => `${b.nom} ${PALIERS[b.palier].nom}`;
 export const raisonDuBadge = b => (b.trait && TRAITS[b.trait] ? TRAITS[b.trait].short : '');
-export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, comparé aux joueurs de son poste, toutes saisons${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}`;
+export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, comparé aux joueurs de son poste, toutes saisons${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}. Il dit CE QU'IL FAIT au match ; sa zone dit où.`;
 function rolesDe(p) {
   const bs = badgesDe(p);
   if (!bs.length) return '';
@@ -730,7 +730,7 @@ function chiffresSysteme(lineup, lignes, u, groupe, cle) {
   const c = clubLu();
   return c && c.team ? systemeEnChiffres(c.team, lineup, c.adv || null, lignes, u, groupe, cle) : [];
 }
-function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
+function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false, advFermeture = FERMETURE_DEFAUT }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const attr = D ? 'tacd' : 'tac';
@@ -745,7 +745,11 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
   const fM = SYS[meilleur] && SYS[meilleur].slots ? (fitUnite(lineup, groupe, u, meilleur) ?? 0) : 0;
   const conseil = !incomplete && meilleur !== cle && fM >= fit + 10
     ? `<div class="ln-conseil">💡 ${D ? 'Cette paire' : 'Ce trio'} irait mieux en <button type="button" class="ln-conseil-btn" data-${attr}="${meilleur}">${nomSys(meilleur)}</button> <small>${motFit(fM).toLowerCase()}</small></div>` : '';
-  // En face : le trio adverse de même rang, et sa paire.
+  // EN FACE (V2.2) : le trio adverse que le moteur envoie vraiment — celui de même rang, et leur fermeture
+  // contre ton 1er trio (ou leur 1er contre ta fermeture) une présence sur PLAN_FERMETURE (`enFaceDe`).
+  const croises = !D && adv ? enFaceDe(u, advFermeture != null && adv.length > advFermeture ? advFermeture : null) : [{ rang: u, part: 1 }];
+  const autre = croises[1] && adv && adv[croises[1].rang];
+  const aAutre = autre && TACTIQUES[autre.tac] && TACTIQUES[autre.tac].slots ? autre.tac : null;
   const a = adv && adv[u];
   const aF = a && TACTIQUES[a.tac] && TACTIQUES[a.tac].slots ? a.tac : null;
   const aD = a && u < 3 && SYSTEMES_D[a.tacD] && SYSTEMES_D[a.tacD].slots ? a.tacD : null;
@@ -754,7 +758,7 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
     const menace = TACTIQUES[aF].bat === cle || (aD && SYSTEMES_D[aD].bat === cle);
     const pour = contreDe(aF);
     // Un gros match (J1-N) : ces lignes sont celles du plan le plus probable du dépistage, et l'écran le dit.
-    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}</div>`;
+    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : ${aAutre ? `${Math.round(croises[0].part * 100)} % du temps ` : ''}<b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}${aAutre ? `<br><small>${Math.round(croises[1].part * 100)} % du temps, ${croises[1].rang === 0 ? 'leur 1er trio' : `leur trio de fermeture (le ${croises[1].rang + 1}e)`} : <b>${nomSys(aAutre)}</b>${S.bat === aAutre ? ' · <span class="ok">✓ tu l\'étouffes</span>' : contreDe(aAutre) ? ` · l'étouffer : <b>${nomSys(contreDe(aAutre))}</b>` : ''}</small>` : ''}</div>`;
   } else if (aF) {
     const pour = contreDeD(aF);
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
@@ -1005,10 +1009,12 @@ export function ouvrirLignes(spec) {
       <div class="gl-mot">🪨 Le physique paie aux costauds ; 🪶 les légers prennent des punitions.</div>
       <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
         const b = bilanAgressivite(i, ph);
-        const verdict = i === 1 ? { txt: 'Par défaut', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
+        // V2.2 : la Moyenne est la RÉFÉRENCE des chiffres ; « par défaut », c'est ce que joue une ligne jamais réglée (`meilleureAgressivite`).
+        const verdict = i === 1 ? { txt: 'La référence', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
+        const defaut = i === meilleureAgressivite(spec.lineup, u) ? [{ txt: 'Par défaut', bon: null }] : [];
         const effets = i === 1 ? [] : chiffresAgressivite(spec.lineup, brouillon, u, i);
         return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
-        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...effets])}</span></button>`;
+        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...defaut, ...effets])}</span></button>`;
       }).join('')}</div>
       <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
@@ -1124,7 +1130,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
   const agr = AGRESSIVITES.map((A, i) => {
     const b = bilanAgressivite(i, ph);
-    const verdict = i === 1 ? 'par défaut' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre';
+    const verdict = `${i === 1 ? 'la référence' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre'}${i === meilleureAgressivite(spec.lineup, u) ? ' · par défaut' : ''}`;
     return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b><small>${verdict}</small></button>`;
   }).join('');
   const effetsAgr = l.agr === 1 ? [] : chiffresAgressivite(spec.lineup, spec.lignes, u, l.agr);
@@ -1283,7 +1289,7 @@ function regleDeCarte(C) {
     for (const m of motsEnChiffres(C.apres40.sinon || null, null, EN_3E)) out.push({ ...m, txt: `Sinon : ${m.txt}` });
   }
   if (C.rabais) out.push({ txt: `Tes cartes ${DE_GENRE[C.rabais] || ''} coûtent 1 de moins ce match`, bon: true });
-  if (C.pari) out.push({ txt: `🎲 ${Math.round(C.pari.chance * 100)} % : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
+  if (C.pari) out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(C.pari.chance)))} : ${txt(C.pari.gagne)} — sinon : ${txt(C.pari.perd)}`, bon: null });
   if (C.enMain) for (const m of motsEnChiffres(C.enMain)) out.push({ ...m, txt: `Dans ta main : ${m.txt}` });
   if (C.injouable) out.push({ txt: 'Injouable', bon: false });
   if (C.epuise) out.push({ txt: '⌛ Épuisée : elle quitte ton deck après ce match', bon: null });
@@ -1298,7 +1304,7 @@ function motsDeCarteAdverse(C, echelle = 1) {
   for (const m of unSoir(motsEnChiffres(C.effet || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
   for (const m of unSoir(motsEnChiffres(grandirEffet(C.adv || null, echelle)))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
-  if (C.pari) out.push({ txt: '🎲 Leur pari', bon: null });
+  if (C.pari) out.push({ txt: `🎲 Leur pari, ${facesMot(facesDuPari(C.pari.chance))}`, bon: null });
   if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });
   if (C.parGenre) for (const m of motsEnChiffres(C.parGenre.effet, null, { eux: true, par: `par carte ${DE_GENRE[C.parGenre.genre] || ''} qu'ils jouent` }).filter(x => x.cle !== 'rien')) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
@@ -1412,7 +1418,7 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.contexte || ''}
         ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
-          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: '🎲 Pari', bon: null }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${motsEnChiffres(o.pari.gagne).map(x => x.txt).join(', ') || 'rien'}`, bon: true }, { txt: `🎲 sinon : ${motsEnChiffres(o.pari.perd).map(x => x.txt).join(', ') || 'rien'}`, bon: false }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>

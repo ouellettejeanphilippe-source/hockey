@@ -1579,8 +1579,11 @@ function profilPrincipal(p) {
  * le jeu robuste rapporte les soirs éreintants et en séries).
  * Et chacun ÉTOUFFE un système du trio adverse (`bat`) : l'action spéciale
  * de ce trio-là ne passe pas pendant ses présences. Le cycle des trios est
- * fermé (échec avant → cycle → volume → trappe → contre-attaque → échec
- * avant) ; chaque système de paire étouffe aussi un système de trio.
+ * fermé et passe par les sept (V2.2 : trois n'étouffaient rien, et le Trio de
+ * plombiers ne pouvait pas être étouffé) : échec avant → cycle → volume →
+ * trappe → contre-attaque → enclave → plombiers → échec avant. Chacun en
+ * étouffe un et l'est par un. Chaque système de paire étouffe aussi un
+ * système de trio (`check_tactiques` exige les deux).
  */
 export const TACTIQUES = {
   hourra: {
@@ -1612,20 +1615,20 @@ export const TACTIQUES = {
     gain: { defense: 0.848, discipline: 0.917 }, prix: { volume: 0.939 },
   },
   contre: {
-    nom: 'Contre-attaque', ico: '🏹', bat: 'echec',
+    nom: 'Contre-attaque', ico: '🏹', bat: 'derriere',
     slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
     mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
     gain: { finition: 1.104 }, prix: { defense: 1.058 },
   },
   derriere: {
     // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
-    nom: 'Jeu d\'enclave', ico: '🧲', bat: null,
+    nom: 'Jeu d\'enclave', ico: '🧲', bat: 'energie',
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
     gain: { finition: 1.058, volume: 1.058 }, prix: { discipline: 1.104 },
   },
   energie: {
-    nom: 'Trio de plombiers', ico: '🧰', bat: null,
+    nom: 'Trio de plombiers', ico: '🧰', bat: 'echec',
     slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
     mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
     gain: { defense: 0.92, physique: 1.5 }, prix: { discipline: 1.164, energie: 1.102 },
@@ -1661,7 +1664,7 @@ export const SYSTEMES_D = {
     gain: { defense: 0.911, physique: 1.5 }, prix: { discipline: 1.155 },
   },
   equilibre: {
-    nom: 'Jeu à deux sens', ico: '🌗', bat: null,
+    nom: 'Jeu à deux sens', ico: '🌗', bat: 'bleue',
     slots: { DG: 'deuxsens', DD: 'deuxsens' },
     mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
     gain: { defense: 0.959, volume: 1.041 }, prix: {},
@@ -1960,10 +1963,13 @@ const scoreBagarreur = p => ((profilsDe(p) || {}).bagarreur || 0) / 100;
 const auCachot = (profil, p, instant) => !!(profil.cachot && profil.cachot.some(c => c.joueur === p && instant >= c.t0 && instant < c.t1));
 /* L'élan d'un club à cet instant : ce qu'une bagarre gagnée (ou perdue) fait à sa finition. */
 const elanDe = (profil, instant) => (profil.elan ? profil.elan.reduce((a, e) => (instant >= e.t0 && instant < e.t1 ? a * e.mult : a), 1) : 1);
-function tirerPhysique(pA, pB, T0, T1, journal, track) {
-  const frac = (T1 - T0) / 60;
-  const pats = { A: pA.patineurs || [], B: pB.patineurs || [] };
-  if (!pats.A.length || !pats.B.length) return;
+/*
+ * LE PHYSIQUE ATTENDU D'UN MATCH ENTIER (V2.2, l'agressivité dit tout) : les bagarres et les mêlées qu'on attend
+ * de ces deux profils — la formule de `tirerPhysique`, sans tirer. L'écran en dit ce qu'une agressivité change.
+ */
+function physiqueAttendu(pA, pB) {
+  const pats = { A: (pA && pA.patineurs) || [], B: (pB && pB.patineurs) || [] };
+  if (!pats.A.length || !pats.B.length) return null;
   const tous = [...pats.A, ...pats.B];
   // Les punitions de l'époque : la base de `punitionsRel` (par match, par joueur), moyennée sur les deux clubs.
   const pimBase = tous.reduce((a, p) => a + (seasonLancers(p.s)[7] || 0.9), 0) / tous.length;
@@ -1973,6 +1979,13 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
   };
   const agr = (agrDe(pA) + agrDe(pB)) / 2;
   const bag = { A: Math.max(...pats.A.map(scoreBagarreur)), B: Math.max(...pats.B.map(scoreBagarreur)) };
+  return { pats, pimBase, agr, bag, bagarres: BAGARRE_PAR_PIM * pimBase * (0.5 + 0.7 * (bag.A + bag.B)) * agr, melees: MELEE_BASE * (pimBase / 0.9) * agr };
+}
+function tirerPhysique(pA, pB, T0, T1, journal, track) {
+  const frac = (T1 - T0) / 60;
+  const X = physiqueAttendu(pA, pB);
+  if (!X) return;
+  const { pats, bag } = X;
   const instant = () => T0 + hasard() * (T1 - T0);
   const noter = e => { if (journal) journal.physique.push(e); };
   pA.cachot = pA.cachot || []; pB.cachot = pB.cachot || []; pA.elan = pA.elan || []; pB.elan = pB.elan || [];
@@ -1993,7 +2006,7 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
     }
   }
   // Les bagarres.
-  const nBag = poisson(BAGARRE_PAR_PIM * pimBase * (0.5 + 0.7 * (bag.A + bag.B)) * agr * frac);
+  const nBag = poisson(X.bagarres * frac);
   // Une bagarre par joueur par soir : la deuxième, c'est l'expulsion, donc le club envoie quelqu'un d'autre.
   const dejaBattus = new Set();
   for (let k = 0; k < nBag; k++) {
@@ -2018,7 +2031,7 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
     noter({ type: 'bagarre', cote: 'A', instant: t, joueur: a, cible: b, gagnant, minutes: BAGARRE_MINUTES });
   }
   // Les mêlées : deux minutes qui s'annulent.
-  const nMel = poisson(MELEE_BASE * (pimBase / 0.9) * agr * frac);
+  const nMel = poisson(X.melees * frac);
   for (let k = 0; k < nMel; k++) {
     const t = instant();
     const a = weightedPick(pats.A, p => 0.5 * scoreBagarreur(p) + physiqueDe(p));
@@ -4271,7 +4284,7 @@ const APPARIEMENT_PROPRE = 5.0;
  * MESURE (check_pm.mjs) ; le navigateur n'a pas de `process` et prend les
  * valeurs écrites ici.
  */
-const FERMETURE_DEFAUT = 2;   // le 3e trio
+export const FERMETURE_DEFAUT = 2;   // le 3e trio
 const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
 /*
  * LA FORCE DU PLAN. Un plan STRICT (la cible du premier trio adverse est la
@@ -4408,6 +4421,17 @@ const RYTHME_PLANCHER = Number(ENV_MESURE.RYTHME_PLANCHER ?? 1);
  * trio (la première paire joue avec le premier trio — c'est ce qui lui
  * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
  */
+/*
+ * QUI TON TRIO CROISE (V2.2, « En face » vise la bonne unité) : par le plan d'appariement, ton trio `u` croise le
+ * trio adverse de son rang, sauf PLAN_FERMETURE des présences où le plan l'envoie ailleurs — ton 1er contre leur
+ * fermeture, ta fermeture… contre leur 1er. Rend [{ rang, part }], la part la plus grosse d'abord. `fermRang` :
+ * le rang de leur trio de fermeture (null : aucun plan).
+ */
+export function enFaceDe(u, fermRang) {
+  if (fermRang == null) return [{ rang: u, part: 1 }];
+  const duPlan = u === 0 ? fermRang : u === fermRang ? 0 : u;
+  return duPlan === u ? [{ rang: u, part: 1 }] : [{ rang: u, part: 1 - PLAN_FERMETURE }, { rang: duPlan, part: PLAN_FERMETURE }];
+}
 function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence', plan = false) {
   if (!unites.length) return unites[0];
   const nDef = unites.length;
@@ -4865,9 +4889,18 @@ function gpShare(p) {
 /** Probabilité de blessure à un match donné. */
 /* Un soir éreintant (un dos-à-dos) : chacun se blesse plus. L'écran le dit (le 🥵 du prochain match). */
 export const BLESSURE_EREINTANT = 1.5;
+/* Le risque d'un soir : un plancher, et ce que la saison réelle a de matchs manqués (au carré). */
+const BLESSURE_BASE = 0.0015, BLESSURE_FRAGILE = 0.015;
+/*
+ * LA FRAGILITÉ (V2.2) : combien de fois plus il se blesse qu'un joueur qui a joué toute sa vraie saison — la
+ * part de ses matchs joués, rien d'autre (ni sa robustesse, qui est une cote). La carte et la fiche le disent
+ * dès le double : un joueur de 20 matchs sur 82 se blesse près de sept fois plus.
+ */
+export const FRAGILE_DES = 2;
+export const fragiliteDe = p => { const f = 1 - gpShare(p); return (BLESSURE_BASE + BLESSURE_FRAGILE * f * f) / BLESSURE_BASE; };
 function injuryChance(p, heavy = false) {
   const frail = 1 - gpShare(p);
-  let pr = 0.0015 + 0.015 * frail * frail;
+  let pr = BLESSURE_BASE + BLESSURE_FRAGILE * frail * frail;
   if (p.p === 'G') pr *= 0.5;
   if (heavy) pr *= BLESSURE_EREINTANT;
   // Un joueur robuste se blesse moins (r est à 50 ± 12 par joueur).
@@ -5027,6 +5060,17 @@ function gardiensDuSoir(lineup) {
   return starter ? [starter, backup] : [backup, null];
 }
 
+/*
+ * LA PART DES DÉPARTS (V2.2, le gardien dit sa part) : ce que la rotation donnera à chacun des deux gardiens
+ * habillés sur une saison — sa vraie part des matchs joués contre celle de l'autre, bornée (`partAuxiliaire`).
+ * Sans auxiliaire, le rappel prend PART_SANS_AUX. Rend { partant, aux } en parts de 1.
+ */
+export function partDesDeparts(lineup) {
+  const [starter, backup] = gardiensDuSoir(lineup);
+  if (!starter) return { partant: 0, aux: 0 };
+  const aux = backup ? partAuxiliaire(starter, backup) : PART_SANS_AUX;
+  return { partant: 1 - aux, aux: backup ? aux : 0 };
+}
 /* Qui la rotation du club enverrait ce soir, sans aucun choix imposé (pour l'écran). */
 function gardienDeRotation(lineup, gameIdx, team = null) {
   const [starter, backup] = gardiensDuSoir(lineup);
@@ -5513,7 +5557,9 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       const blessures = habilles.reduce((a, q) => a + injuryChance(q, heavy) * mutDe(q, 'blessure'), 0) * dissuasion * effetsDeSaison(team).blessure;
       const couts = coutsDuSoir(team, lu);
       const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
-      return { A, B, occasions, p, joueurs, partDuFilet, blessures, usure };
+      // Les bagarres attendues (V2.2) : contre un club moyen, on lit le match contre son propre reflet.
+      const phys = physiqueAttendu(A, adv ? B : A);
+      return { A, B, occasions, p, joueurs, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
       if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
@@ -7282,9 +7328,9 @@ export function appliquerDecisionSerie(team, d, graine) {
     team.effetsSerie.push({ source: 'ajustement', nom, ico, ...canaux });
     if (gardienAux) team._gardienAuxMatch = true;
     if (pari) {
-      const gagne = hacherMise(graine, 'pari-serie', d.ronde, d.match_no, d.sel || '') < pari.chance;
+      const { gagne, face } = deDeMise(hacherMise(graine, 'pari-serie', d.ronde, d.match_no, d.sel || ''), pari.chance);
       team.effetsSerie.push({ source: 'pari', nom, ico, ...(gagne ? pari.gagne : pari.perd) });
-      (team.paris = team.paris || []).push({ ronde: d.ronde, match_no: d.match_no, titre: nom, gagne });
+      (team.paris = team.paris || []).push({ ronde: d.ronde, match_no: d.match_no, titre: nom, gagne, face });
     }
   }
   // LA MAIN DU MATCH (S74) : posée avec le gros match, juste avant la mise au jeu.
@@ -7874,9 +7920,9 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
     }
     if (C.siVide && energieDepensee(jouees) <= 0) out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...C.siVide });
     if (C.pari) {
-      const gagne = hacherMise(cle, 'carte', i, c) < C.pari.chance;
+      const { gagne, face } = deDeMise(hacherMise(cle, 'carte', i, c), C.pari.chance);
       out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...(gagne ? C.pari.gagne : C.pari.perd) });
-      out.paris.push({ cle: c, gagne });
+      out.paris.push({ cle: c, gagne, face });
     }
   });
   // Une malédiction restée dans la main coûte, elle aussi.
@@ -7961,8 +8007,8 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
   gestes(o.action, jour);
   if (o.ensuite) effet(o.ensuite, apresMatchs(team, jour, o.ensuite.apres || 0), 'ensuite');
   if (o.pari) {
-    const gagne = pariGagne(graine, jour, cleTirage, o.pari.chance);
-    (team.paris = team.paris || []).push({ jour, titre, choix: o.nom, gagne });
+    const { gagne, face } = deDuPari(graine, jour, cleTirage, o.pari.chance);
+    (team.paris = team.paris || []).push({ jour, titre, choix: o.nom, gagne, face });
     effet(gagne ? o.pari.gagne : o.pari.perd, jour, 'pari');
   }
 }
@@ -7981,11 +8027,16 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
  * en sixièmes (toutes, depuis) tranche exactement comme avant.
  */
 export const facesDuPari = chance => Math.max(1, Math.min(5, Math.round(chance * 6)));
-function deDuPari(graine, jour, cle, chance) {
-  const faces = facesDuPari(chance), face = 6 - Math.floor(hacherMise(graine, 'pari', jour, cle) * 6);
+/*
+ * UN SEUL DÉ (V2.2). Tout pari — un dilemme, un avant-match, une carte de match, un ajustement de série — se
+ * tranche par la face d'un dé à six faces tirée d'une mise hachée `h` (0 à 1) : il passe sur les `faces` plus
+ * hautes. Pour une chance de k/6, c'est exactement `h < chance` ; l'écran dit la même chose partout (« sur 4, 5 ou 6 »).
+ */
+export function deDeMise(h, chance) {
+  const faces = facesDuPari(chance), face = 6 - Math.floor(h * 6);
   return { face, faces, gagne: face > 6 - faces };
 }
-const pariGagne = (graine, jour, cle, chance) => deDuPari(graine, jour, cle, chance).gagne;
+const deDuPari = (graine, jour, cle, chance) => deDeMise(hacherMise(graine, 'pari', jour, cle), chance);
 // Le sel de la décision (1.0, oct.) : tiré au moment du choix, le pari n'est pas écrit dans la graine d'avance.
 const cleDuPari = d => `${d.moment ? `${d.moment.cle}:${d.moment.choix}` : `avant:${d.avant.cle}:${d.avant.choix}`}${d.sel ? `:${d.sel}` : ''}`;
 export function pariDeDecision(d, graine, team = null) {

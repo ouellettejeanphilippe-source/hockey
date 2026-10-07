@@ -571,21 +571,12 @@ function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, car
  * vestiaire). Sur le filet, le combat — le match important. L'événement
  * d'avant (le rat, la pieuvre) n'est pas le combat : il a son propre jour.
  */
-function routeHtml(jour, N, plus = {}, aJour = j => j) {
+function routeHtml(jour, N, marques = []) {
   const pos = j => `${(100 * Math.min(Math.max(j, 0), N) / N).toFixed(1)}%`;
   // Deux rangées, et les combats sur la ligne. Sur 82 journées dans 350 px,
-  // une rangée seule les empilait.
-  const marque = (j, ico, titre, rang) => `<span class="hub-route-m ${rang}${j < jour ? ' passe' : ''}" style="left:${pos(j)}" title="Journée ${j} · ${titre}">${ico}</span>`;
-  const marques = [
-    // Les dates se disent en matchs du club (1.0, oct.) : `aJour` les pose au jour où elles tombent.
-    ...JOURS_OBJECTIFS.map(j => marque(aJour(j), '🏢', 'le proprio fixe un objectif', 'haut')),
-    ...PALIERS_CARTES.map(j => marque(aJour(j), '🃏', 'une carte à prendre', 'haut')),
-    ...JOURS_MOMENTS.map(j => marque(aJour(j), '❓', 'un événement', 'bas')),
-    ...JOURS_SITUATIONS.map(j => marque(aJour(j), '💬', 'le vestiaire vit quelque chose', 'bas')),
-    ...(plus.evenements || []).map(e => marque(e.j, '❓', e.titre, 'bas')),
-    ...(plus.combats || []).map(c => marque(c.j, '⚔️', c.titre, 'chemin')),
-  ].join('');
-  return `<div class="hub-route" aria-hidden="true"><span class="hub-route-fait" style="width:${pos(jour)}"></span>${marques}<span class="hub-route-ici" style="left:${pos(jour)}"></span></div>`;
+  // une rangée seule les empilait. Ce qui peut ne pas venir (`possible`) se montre en sourdine.
+  const html = marques.map(m => `<span class="hub-route-m ${m.rang}${m.j < jour ? ' passe' : ''}${m.possible ? ' possible' : ''}" style="left:${pos(m.j)}" title="Journée ${m.j + 1} · ${m.titre}">${m.ico}</span>`).join('');
+  return `<div class="hub-route" aria-hidden="true"><span class="hub-route-fait" style="width:${pos(jour)}"></span>${html}<span class="hub-route-ici" style="left:${pos(jour)}"></span></div>`;
 }
 
 /*
@@ -2118,6 +2109,35 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * (choisi, ou encore à choisir) se pose dessous, au jour de l'annonce —
    * pas le soir du match.
    */
+  /*
+   * LE CALENDRIER NE PROMET QUE CE QUI ARRIVE (V2.2). Une seule liste de marques pour la route et le calendrier.
+   * Le PASSÉ dit ce qui est arrivé, au jour où c'est arrivé : l'événement pris, la situation du vestiaire, le
+   * verdict du proprio, l'accident. L'AVENIR distingue ce qui est sûr (le proprio, la main, le verdict d'un
+   * objectif choisi, un combat annoncé) de ce qui peut ne pas venir (`possible`) : un événement ne se tire que si
+   * ses faits sont vrais, une situation peut être reportée.
+   */
+  const marquesDeSaison = () => {
+    const out = [];
+    const m = (j, ico, titre, rang, possible = false) => { if (j != null && j >= 0 && j < N) out.push({ j, ico, titre, rang, possible }); };
+    const futur = j => j >= jour;
+    JOURS_OBJECTIFS.forEach(k => m(jEv(k), '🏢', 'le proprio fixe un objectif', 'haut'));
+    PALIERS_CARTES.forEach(k => m(jEv(k), '🃏', 'une carte à prendre', 'haut'));
+    // Le verdict du proprio : joué, au jour de sa décision ; à venir, au bout des MATCHS_OBJECTIF de chaque objectif.
+    for (const d of decs) if (typeof d.palier === 'string' && d.palier.startsWith('v:')) m(d.jour, '🏢', 'le verdict du proprio', 'haut');
+    JOURS_OBJECTIFS.forEach(k => { const j = jEv(k + MATCHS_OBJECTIF); if (futur(j) && !decs.some(d => d.palier === `v:${k}`)) m(j, '🏢', 'le verdict du proprio', 'haut'); });
+    // Les événements : pris, au jour de la décision ; à venir, possibles.
+    for (const d of decs) if (d.moment && d.moment.famille === 'moment' && typeof d.palier === 'string' && d.palier.startsWith('m:')) m(d.jour, '❓', `un événement : ${(MOMENTS[d.moment.cle] || {}).titre || 'tranché'}`, 'bas');
+    JOURS_MOMENTS.forEach(k => { const j = jEv(k); if (futur(j) && !decs.some(d => d.palier === `m:${k}`)) m(j, '❓', 'un événement possible, si ses faits sont vrais', 'bas', true); });
+    // Le vestiaire : les situations vécues ; à venir, possibles (une situation peut être reportée).
+    for (const x of you.situations || []) if (x.jour < jour) m(x.jour, '💬', 'le vestiaire a vécu quelque chose', 'bas');
+    JOURS_SITUATIONS.forEach(k => { const j = jEv(k); if (futur(j)) m(j, '💬', 'le vestiaire vivra peut-être quelque chose', 'bas', true); });
+    // Les accidents : ils ne se prévoient pas ; joués, ils se marquent.
+    for (const x of you.mutations || []) if (x && x.jour < jour && MUTATIONS[x.cle] && MUTATIONS[x.cle].source === 'accident') m(x.jour, MUTATIONS[x.cle].ico, `un accident : ${MUTATIONS[x.cle].nom}`, 'bas');
+    const plus = routePlus();
+    plus.evenements.forEach(e => m(e.j, '❓', e.titre, 'bas'));
+    plus.combats.forEach(c => m(c.j, '⚔️', c.titre, 'chemin'));
+    return out;
+  };
   const routePlus = () => {
     const combats = new Map();
     const evenements = [];
@@ -2159,14 +2179,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const calendrierFiche = () => {
     const marques = new Map();
-    const pose = (j, ico, titre) => { if (j == null || j < 0 || j >= N) return; if (!marques.has(j)) marques.set(j, []); marques.get(j).push([ico, titre]); };
-    JOURS_OBJECTIFS.forEach(k => pose(jEv(k), '🏢', 'le proprio fixe un objectif'));
-    PALIERS_CARTES.forEach(k => pose(jEv(k), '🃏', 'une carte à prendre'));
-    JOURS_MOMENTS.forEach(k => pose(jEv(k), '❓', 'un événement'));
-    JOURS_SITUATIONS.forEach(k => pose(jEv(k), '💬', 'le vestiaire vit quelque chose'));
-    const plus = routePlus();
-    plus.evenements.forEach(e => pose(e.j, '❓', e.titre));
-    plus.combats.forEach(c => pose(c.j, '⚔️', c.titre));
+    for (const x of marquesDeSaison()) { if (!marques.has(x.j)) marques.set(x.j, []); marques.get(x.j).push([x.ico, x.titre]); }
     const cellule = j => {
       const k = indexMien(j), m = k >= 0 ? calendrier[j][k] : null, joue = j < jour;
       const ev = marques.get(j) || [];
@@ -2185,8 +2198,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (let d = 0; d < N; d += 7) semaines += `<div class="calj-sem"><span class="calj-s">S${d / 7 + 1}</span>${Array.from({ length: 7 }, (_, i) => (d + i < N ? cellule(d + i) : '<span></span>')).join('')}</div>`;
     return `<div class="hub-titre">Le calendrier · journée ${jour} sur ${N}</div><div class="calj-grille">${semaines}</div>`;
   };
-  const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, routePlus(), jEv)}
-    <div class="hub-route-legende">🏢 le proprio fixe un objectif · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire</div>`;
+  const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, marquesDeSaison())}
+    <div class="hub-route-legende">🏢 le proprio · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire · en sourdine : peut-être</div>`;
   /*
    * LA PRÉVISION DU MOTEUR (1.0, oct.). JP : *pas un ov qui décide tout, mais
    * un genre de prévision de ce que l'équipe doit faire donner, ou un joueur,

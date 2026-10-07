@@ -22,7 +22,7 @@
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, JOUEURS_MAX } from './coachs.js';
-import { tirerCartesPack } from './packs.js';
+import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch } from './gerant.js';
 import { esc, money as M } from './util.js';
@@ -115,7 +115,7 @@ export function ouvrirInventaire(ctx) {
     ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
     // v2 : tes coachs — ce que tes cartes jouées font croire au vestiaire (js/coachs.js).
     ...(ctx.build ? [['coachs', 'Tes coachs', (ctx.coachsActifs || []).length]] : []),
-    ['classeur', 'La banque', `${ctx.possedees.size}/${Object.keys(BANQUE).length}`],
+    ['classeur', 'La banque', `${[...ctx.possedees].filter(sortDUnPack).length}/${Object.keys(BANQUE).filter(sortDUnPack).length}`],
   ];
   if (!etat.onglet || !onglets.some(o => o[0] === etat.onglet)) etat.onglet = onglets[0][0];
   const dessiner = () => {
@@ -181,8 +181,10 @@ export function ouvrirInventaire(ctx) {
         }).join('')}</div>`;
     } else {
       const ids = Object.keys(BANQUE).filter(garde).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
-      const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => ctx.possedees.has(id)).length, idsDe(c).length]);
-      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length} cartes. Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
+      // Le dénominateur ne compte que ce qu'un pack peut donner (V2.2) ; le reste se gagne en jouant.
+      const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => sortDUnPack(id) && ctx.possedees.has(id)).length, idsDe(c).filter(sortDUnPack).length]).filter(([, , n]) => n > 0);
+      const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id)).length;
+      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length - horsPack} cartes à tirer des packs, et ${horsPack} qui se gagnent en jouant (les cartes de saison, les malédictions). Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
         <div class="inv-progres">${par.map(([c, a, n]) => `<span class="inv-prog"><b>${CATEGORIES[c].ico} ${a}/${n}</b> ${esc(CATEGORIES[c].nom)}</span>`).join('')}</div>
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;

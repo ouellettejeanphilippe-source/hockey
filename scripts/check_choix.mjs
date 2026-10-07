@@ -11,7 +11,9 @@
  *   2. une option qui ne fait QUE coûter (« Moindre mal », sans rien d'autre).
  * La forme est celle de l'écran (`formeDe`, js/gerant.js).
  */
-import { MOMENTS, SEQUENCES, AVANT_GROS, JOURS_MOMENTS, ENTRACTES, entractesDu, pariDeDecision, facesDuPari } from '../js/sim.js';
+import { MOMENTS, SEQUENCES, AVANT_GROS, JOURS_MOMENTS, ENTRACTES, entractesDu, pariDeDecision, facesDuPari, deDeMise, AJUSTEMENTS } from '../js/sim.js';
+import { CARTES_MATCH } from '../js/combat.js';
+import fs from 'node:fs';
 import { brancherMoments } from '../js/situations.js';
 import { REPONSES_VIE } from '../js/vie-gm.js';
 import { formeDe } from '../js/gerant.js';
@@ -100,5 +102,21 @@ informer('paris d’événement', `${paris.length}, sur ${[...new Set(paris.map(
 exiger('chaque pari a sa chance en sixièmes (des faces de dé)', !pasEnSixiemes.length, pasEnSixiemes.map(x => `${x.titre} : ${x.o.pari.chance}`).join(' · '));
 exiger('le dé montre le verdict du moteur, et le même sel le redonne', !fautesDe.length, fautesDe.join(' · '));
 exiger('sur mille sels, la part gagnante tombe sur ses faces', ecartMax < 0.05, `écart max ${ecartMax.toFixed(3)}`);
+
+/*
+ * UN SEUL DÉ (V2.2). Une carte de match, un ajustement de série, un dilemme : chaque pari se tranche par la face
+ * d'un dé (`deDeMise`) et se dit en faces (« sur 4, 5 ou 6 »), jamais en « 🎲 50 % » ni en « 🎲 Pari » muet. Pour
+ * une chance de k/6, la face tombe exactement comme l'ancienne mise (`h < chance`) : rien ne bouge en dessous.
+ */
+{
+  const paris = [...Object.values(CARTES_MATCH).filter(C => C.pari).map(C => C.pari.chance), ...Object.values(AJUSTEMENTS).filter(A => A.pari).map(A => A.pari.chance)];
+  const surDes = paris.every(c => Math.abs(c * 6 - Math.round(c * 6)) < 1e-9);
+  exiger('chaque pari de carte et d\'ajustement tombe sur des faces entières', surDes, `${paris.length} paris`);
+  let accord = 0;
+  for (let k = 0; k < 1000; k++) { const h = (k + 0.5) / 1000; if (deDeMise(h, 0.5).gagne === (h < 0.5) && deDeMise(h, 2 / 6).gagne === (h < 2 / 6)) accord++; }
+  exiger('la face du dé tombe comme la mise : rien ne bouge pour une chance de k/6', accord === 1000, `${accord}/1000`);
+  const g = fs.readFileSync(new URL('../js/gerant.js', import.meta.url), 'utf8');
+  exiger('l\'écran dit tout pari en faces, jamais en « 🎲 50 % » ni en « 🎲 Pari » muet', !/🎲 \$\{Math\.round\(C\.pari\.chance \* 100\)\} %/.test(g) && !/'🎲 Pari'/.test(g) && (g.match(/facesMot\(facesDuPari\(/g) || []).length >= 4);
+}
 
 verdict();

@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation } from './sim.js';
+import { lectureDuMatch, attenduDeCote, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation } from './sim.js';
 import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -55,7 +55,7 @@ function moyennes(L) {
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
     punitions: nContre, punitionsEux: nPour, minutesDesavantage: nContre * wB.long, minutesAvantage: nPour * wA.long,
-    coups: coupsAttendus(A),
+    coups: coupsAttendus(A), bagarres: L.bagarres,
     blessures: L.blessures, usure: L.usure,
     glaceF: glace('F'), glaceD: glace('D'),
     // Les minutes à forces égales du soir (ni avantage ni désavantage) : la glace de « Préparer le match » s'y lit.
@@ -127,7 +127,7 @@ function lignesDe(d, par = 'par match') {
   buts(d.butsPour, true);
   buts(d.butsContre, false);
   if (Math.abs(d.punitions) >= SEUILS.punitions) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: null, cle: 'punition' });
-  if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(d.coups, 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
+  if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(Math.round(d.coups), 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
   return out;
 }
 
@@ -238,6 +238,11 @@ export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   const a = lire(team, lineup, adv, { lignes, n: N_LIGNES }), b = lire(team, lineup, adv, { lignes: contre, n: N_LIGNES });
   const d = differences(a, b), out = lignesDe(d);
   if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure par match`, bon: d.usure < 0, cle: 'jambes' });
+  // CE QUE LE JEU PHYSIQUE FAIT DE PLUS (V2.2) : les jambes que tes coups ôtent à l'adversaire, et les bagarres.
+  const otees = d.coups * COUP_JAMBES;
+  if (Math.abs(otees) >= 0.5) out.push({ txt: `≈ ${signeDe(otees)}${nb(otees, 1)} jambes ôtées à l'adversaire par match`, bon: otees > 0, cle: 'coupsJambes' });
+  const bag = d.bagarres * 10;
+  if (Math.abs(bag) >= 0.05) out.push({ txt: `≈ ${signeDe(bag)}${nb(bag, 1)} ${mot(bag, 'bagarre', 'bagarres')} par 10 matchs`, bon: null, cle: 'bagarre' });
   return out;
 }
 const surLigne = (lignes, u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : l));

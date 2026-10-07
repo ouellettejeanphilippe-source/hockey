@@ -183,6 +183,9 @@ const MOTS_RESERVES = [
     ['le conseil de glace dit la ligne ordinaire du moteur (ENERGIE_REF)', /Sous \$\{ENERGIE_REF\}/.test(src('pronostic.js')) && sans('pronostic.js', /Sous 90|moy >= 88/)],
     ['la fiche dit l\'effet NET d\'un badge (`maitrise`, centré sur la ligue), pas le brut', /\(EFFET_ROLE\[b\.cle\] \|\| 0\) \* maitrise\(p, b\.cle\)/.test(src('fiche.js')) && sans('fiche.js', /b\.palier \/ \(b\.second/)],
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
+    ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
+    ['« par défaut » est ce que joue une ligne jamais réglée (`meilleureAgressivite`), la Moyenne la référence', /i === meilleureAgressivite\(spec\.lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /i === 1 \? \{ txt: 'Par défaut'|i === 1 \? 'par défaut'/)],
+    ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison et sa rareté/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
     ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('gerant.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
   for (const [nom, ok] of faits) exiger(nom, ok);

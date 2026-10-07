@@ -16,7 +16,7 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie } from './inventaire.js';
-import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable } from './cartable.js';
+import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, puces, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -925,13 +925,8 @@ function detecterLegendaires() {
   return moments;
 }
 function afficherLegendaires(moments) {
-  const RECITS = {
-    mur: m => `🧱 ${m.nom} — ${m.extra} arrêts, victoire arrachée. Le Mur.`,
-    jeuBlanc: m => `🔒 ${m.nom} — jeu blanc. La porte était fermée.`,
-    chapeau: m => `🎩 ${m.nom} — ${m.extra} buts dans un match. Le Chapeau.`,
-    grandMatch: m => `⭐ ${m.nom} — ${m.extra} points dans un match. Grand soir.`,
-  };
-  moments.forEach((m, i) => { const r = RECITS[m.type]?.(m); if (r) setTimeout(() => toast(r), 4200 + i * 1500); });
+  // Les mêmes mots que la fiche relit (`LEGENDES`, js/cartable.js) : gravé ce soir, relu demain.
+  moments.forEach((m, i) => { const L = LEGENDES[m.type]; if (L) setTimeout(() => toast(`${L.ico} ${m.nom} — ${L.recit(m)}. ${L.nom}, gravé sur sa carte.`), 4200 + i * 1500); });
 }
 /* Les niveaux différents de ton équipe (Soutien à Phénomène), lus dans les saisons déjà chargées. */
 function niveauxDeLEquipe() {

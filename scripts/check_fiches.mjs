@@ -28,6 +28,8 @@ import { fileURLToPath } from 'node:url';
 import { ficheDeClub, ligneDeClub, tauxDeClub } from '../js/equipes.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { conseilDuBilan } from '../js/recit.js';
+import { fragiliteDe, FRAGILE_DES } from '../js/sim.js';
+import { seasonGames } from '../js/ratings.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS = path.join(ROOT, 'data', 'seasons');
@@ -151,5 +153,21 @@ borne('le taux de victoires médian d\'un club', taux[Math.floor(taux.length / 2
 informer('clubs', `${n} sur ${liste.length} saisons`);
 informer('fiches partielles', `${lisibles.length - complets.length} (${(100 * (lisibles.length - complets.length) / n).toFixed(0)} %) — un gardien échangé, hors du total`);
 informer('fiches illisibles', clubs.filter(c => c.f.V == null).map(c => `${c.tag} ${c.s}`).join(', ') || 'aucune');
+
+/*
+ * LA FRAGILITÉ SE DIT (V2.2). Un joueur qui a manqué sa vraie saison se blesse plus (js/sim.js, `injuryChance`) ;
+ * la carte et la fiche le disent dès le double (`fragileTag`, `fragiliteDe`). Un joueur de toute la saison : ×1 ;
+ * de vingt matchs sur 82 : près de sept fois ; et le tri aux points par match ne le met plus en tête.
+ */
+{
+  const s82 = '2023-24';
+  const plein = fragiliteDe({ s: s82, gp: seasonGames(s82) }), vingt = fragiliteDe({ s: s82, gp: 20 }), soixante = fragiliteDe({ s: s82, gp: 60 });
+  exiger('la fragilité suit les matchs manqués : ×1 pour une saison pleine, croissante à mesure qu\'il en manque', plein === 1 && vingt > soixante && soixante > plein,
+    `82 matchs ×${plein.toFixed(1)} · 60 ×${soixante.toFixed(1)} · 20 ×${vingt.toFixed(1)}`);
+  exiger('un joueur de vingt matchs est dit fragile', vingt >= FRAGILE_DES && vingt > 6, `×${vingt.toFixed(1)}`);
+  const src = f => fs.readFileSync(path.join(ROOT, 'js', f), 'utf8');
+  exiger('la carte et la fiche le disent', /fragileTag\(p\)/.test(src('repechage.js')) && /fragiliteDe\(p\)/.test(src('fiche.js')));
+  exiger('le tri aux points par match divise par vingt matchs au moins', /PPG: \(a, b\) => ppgTri\(b\) - ppgTri\(a\)/.test(src('repechage.js')) && /const PPG_MATCHS_MIN = 20;/.test(src('repechage.js')));
+}
 
 verdict('La fiche reconstituée d\'un club');

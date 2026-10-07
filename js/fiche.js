@@ -6,8 +6,8 @@
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch } from './util.js';
-import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise } from './sim.js';
+import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { sesRolesHtml, barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
@@ -15,6 +15,7 @@ import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, 
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
+import { LEGENDES, legendesDe } from './cartable.js';
 import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
@@ -64,6 +65,9 @@ function surLaGlaceHtml(p) {
   if (surTable()) return '';
   const li = (txt, cls = '') => `<li${cls ? ` class="${cls}"` : ''}>${txt}</li>`;
   const lignes = [];
+  // FRAGILE (V2.2) : ce que sa vraie saison a de matchs manqués pèse sur ses blessures — le moteur le lit, la fiche le dit.
+  const fr = fragiliteDe(p);
+  if (fr >= FRAGILE_DES) lignes.push(li(`Il n'a joué que ${p.gp || 0} matchs sur ${seasonGames(p.s)} dans sa vraie saison : il se blesse environ ${Math.round(fr)} fois plus qu'un joueur qui les a tous joués.`, 'prix'));
   if (p.p === 'G') {
     lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer ; son style dit comment il les fait.'));
     lignes.push(li('Il garde ses jambes trois départs de suite ; au quatrième, elles baissent et il accorde plus.'));
@@ -362,7 +366,10 @@ export function showPlayerModal(p, opts = {}) {
   // SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, qui décide du fit dans un système, à un toucher.
   // LE PROFIL EN CRANS (1.0) : d'un coup d'oeil, où il se range dans sa saison sur ce que le moteur lit — avant ses rôles.
   const glace = surLaGlaceHtml(p);
-  const profil = glace ? `<div class="section-label">Sur la glace</div>${glace}` : '';
+  // GRAVÉ SUR SA CARTE (V2.2) : les moments légendaires d'une run se relisent ici, pas seulement dans un toast.
+  const legendes = surTable() ? [] : legendesDe(getPlayerKey(p));
+  const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
+  const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
   const sesRoles = p.p === 'G' || surTable() ? '' : `<div class="section-label">Ses rôles</div>${sesRolesHtml(p)}`;
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';

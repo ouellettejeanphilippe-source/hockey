@@ -34,7 +34,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack } from '../js/packs.js';
+import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, sortDUnPack } from '../js/packs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
@@ -348,4 +348,20 @@ for (const k of ['j:etoiles', 'j:legendes']) {
 
 for (const l of lignesTaux) informer('mesuré (affiché)', l);
 informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
+/*
+ * LA BANQUE SE COMPLÈTE (V2.2). Son dénominateur ne compte que ce qu'un pack peut donner (`sortDUnPack`) : chaque
+ * carte tirée d'un pack en est, et aucune carte « hors pack » (les cartes de saison, les malédictions qui ne sont
+ * pas la taxe du Pack Contrats) n'en sort jamais, sur des milliers d'ouvertures.
+ */
+{
+  const tirees = new Set();
+  for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 400; n++) for (const id of tirerCartesPack(cle, `banque-${cle}`, n)) tirees.add(id);
+  const horsPackTirees = [...tirees].filter(id => !sortDUnPack(id));
+  exiger('aucune carte « hors pack » ne sort d\'un pack', horsPackTirees.length === 0, horsPackTirees.slice(0, 5).join(', ') || `${tirees.size} cartes différentes tirées`);
+  const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
+  exiger('les cartes de saison ne comptent pas au dénominateur', horsPack.some(id => BANQUE[id].cat === 'saison') && Object.keys(BANQUE).filter(id => BANQUE[id].cat === 'saison').every(id => !sortDUnPack(id)), `${horsPack.length} cartes se gagnent en jouant`);
+  const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
+  informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (400 ouvertures par pack)`);
+}
+
 verdict('Les packs selon le niveau des joueurs');

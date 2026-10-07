@@ -57,7 +57,7 @@ informer('la feuille', `${(Buffer.byteLength(src) / 1024).toFixed(0)} Ko · ${rs
  */
 const PLAFOND_TAILLES_PX = Number(process.env.PLAFOND_TAILLES_PX ?? 6);
 const PLAFOND_RAYONS_PX = Number(process.env.PLAFOND_RAYONS_PX ?? 1);
-const PLAFOND_COULEURS = Number(process.env.PLAFOND_COULEURS ?? 342);
+const PLAFOND_COULEURS = Number(process.env.PLAFOND_COULEURS ?? 319);
 const horsJetons = src.replace(/:root[^{]*\{[^}]*\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
 const taillesPx = (horsJetons.match(/font(?:-size)?:[^;]*?\b\d+(?:\.\d+)?px/g) || []).length;
 const rayonsPx = (horsJetons.match(/border-radius:[^;]*?\b\d+(?:\.\d+)?px/g) || []).filter(x => !/50%/.test(x)).length;

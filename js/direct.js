@@ -362,7 +362,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.
   const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
   if (cartesDuSoir.length) {
-    const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} ${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
+    const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} 🎲 ${p.face ? `${p.face} : ` : ''}${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
     const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
     ligne('debut cartes', `🃏 <b>Tu joues</b> ${cartesDuSoir.map(c => `${CARTES_MATCH[c].ico} ${ctx.esc(CARTES_MATCH[c].nom)}`).join(' · ')}${suite.length ? ` — ${suite.join(', ')}` : ''}.`);
   }

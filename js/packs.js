@@ -455,6 +455,18 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
   }
   return out;
 }
+/*
+ * LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète). Une carte compte au dénominateur si un pack
+ * peut la donner : sa famille est dans un pack de cartes, et une malédiction seulement si c'est la taxe que le
+ * Pack Contrats cache (`maudite`). Les cartes de saison et les autres malédictions ne sortent d'aucun pack :
+ * elles se gagnent en jouant, et la banque les montre à part.
+ */
+export function sortDUnPack(id) {
+  const c = BANQUE[id];
+  if (!c) return false;
+  if (c.rarete === 'maudite') return c.cat === 'plafond' && Object.values(PACKS_CARTES).some(P => P.maudite && P.cats.includes('plafond'));
+  return Object.values(PACKS_CARTES).some(P => P.cats.includes(c.cat));
+}
 /* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
 export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);
 /*

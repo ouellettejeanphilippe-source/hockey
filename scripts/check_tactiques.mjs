@@ -34,6 +34,23 @@ const juger = LIGUES >= 6;
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
 const eq = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
+/*
+ * LE CYCLE EST FERMÉ (V2.2). La règle dit que chaque système en étouffe un autre : chaque système de trio
+ * étouffe exactement un trio et l'est par exactement un (un cycle qui passe par les sept), et chaque système
+ * de paire étouffe un système de trio. Avant, l'enclave, les plombiers et le jeu à deux sens n'étouffaient
+ * rien, et le Trio de plombiers ne pouvait jamais être étouffé.
+ */
+{
+  const trios = Object.keys(TACTIQUES).filter(k => k !== 'hourra'), paires = Object.keys(SYSTEMES_D).filter(k => k !== 'hourra');
+  const etouffe = Object.fromEntries(trios.map(k => [k, TACTIQUES[k].bat]));
+  const parCombien = Object.fromEntries(trios.map(k => [k, trios.filter(x => etouffe[x] === k).length]));
+  let k = trios[0], vus = new Set();
+  while (k && !vus.has(k)) { vus.add(k); k = etouffe[k]; }
+  exiger('chaque système de trio en étouffe un, et un seul l\'étouffe', trios.every(t => trios.includes(etouffe[t]) && parCombien[t] === 1),
+    trios.filter(t => !trios.includes(etouffe[t]) || parCombien[t] !== 1).map(t => `${TACTIQUES[t].nom} : étouffe ${etouffe[t] || 'rien'}, étouffé ${parCombien[t]} fois`).join(' · ') || 'un pour un');
+  exiger('le cycle des trios passe par les sept', vus.size === trios.length && k === trios[0], [...vus].map(t => TACTIQUES[t].ico).join(' → '));
+  exiger('chaque système de paire étouffe un système de trio', paires.every(d => trios.includes(SYSTEMES_D[d].bat)), paires.map(d => `${SYSTEMES_D[d].ico} → ${TACTIQUES[SYSTEMES_D[d].bat] ? TACTIQUES[SYSTEMES_D[d].bat].ico : '∅'}`).join(' · '));
+}
 function ligue(seed) {
   let x = seed; const rnd = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   const out = [], vus = new Set();
