@@ -616,9 +616,9 @@ async function ouvrirPacksDeDepart(roster) {
         const g = groupeDe(p);
         return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
           art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p) }),
-          carteJoueur: carteMiniHtml(p), motChoix: suite, apercu: () => apercuJoueur(p) };
+          // Un pack de départ ne se choisit pas, il se montre : la carte se touche pour sa fiche, le bas mène au pack suivant.
+          carteJoueur: carteMiniHtml(p), vue: true, apercu: () => apercuJoueur(p) };
       }),
-      onChoix: () => resolve(),
       onFerme: () => resolve(),
     }));
   }

@@ -2019,3 +2019,10 @@ JP : *le mode 82-0, c'est juste les joueurs. La saison est simulée d'un coup, m
 - **Les séries se regardent.** `ouvrirEcranSeries` (js/bilan.js) ne passe `onDecision` et `onBanc` qu'en Rogue : au 82-0, pas de main de cartes, pas de « Préparer le match », pas d'ajustement, pas de banc — « Match suivant », le direct et le tableau.
 - **Aucune carte.** Au 82-0, `varianteJoueur` rend toujours « commune » et `poserCartes` ne pose rien (js/repechage.js) : pas de brillante, pas de bonus de carte. L'identité de départ ne s'offre plus qu'à Sur table. La tuile Boutique du Marché le dit : « Au mode Rogue. »
 - **Ce qui le prouve.** Le smoke traverse le 82-0 : « Lancer la saison » mène au bilan sans `#hubModal .hub-jour`, 23 rangées ; les séries n'offrent ni `.hub-preparer`, ni `.hub-deck`, ni `.hub-banc-serie` ; aucune carte d'identité. Le jour à jour (le bureau, la boîte, les jambes, le courrier, les gros matchs) est éprouvé en Rogue par `essai_rogue.mjs` ; les parties du smoke qui le traversaient au 82-0 sont retirées.
+
+## Une reprise de saison n'est jamais refusée (7 oct. 2026)
+
+Le bureau du Rogue se fermait pour de bon, une run sur deux ou trois, en fin de saison : la page vide « Rien à lire ici pour l'instant », et « Au club » ne menait nulle part. Une décision datée d'une journée déjà jouée (l'entracte d'un gros match, une modif posée au verso d'une carte) ferme l'écran de saison et rejoue la ligue jusqu'à aujourd'hui (`continuerSaison`, js/banc.js). `runSeason` gardait ses refus d'une saison neuve — une case vide, le plafond dépassé — et rendait la main sans rien rouvrir dès qu'une case de l'alignement était vide (un blessé, un relâché en Rogue). La décision avalait aussi ses erreurs (`decisionEnCours.catch(() => {})`).
+
+Décidé : une reprise (`opts.reprise`) passe toujours — la saison en cours se rejoue avec l'alignement qu'elle a, comme le fait déjà une décision d'aujourd'hui, qui rouvre l'écran sans rien rejouer. Une décision qui échoue l'écrit en console (le smoke et essai_rogue la voient) et rouvre l'écran sur la ligue en mémoire.
+
