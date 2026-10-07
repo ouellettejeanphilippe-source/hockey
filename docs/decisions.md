@@ -1916,6 +1916,10 @@ Le budget du § 8 de la refonte : un coach à sa III, sur une équipe bâtie pou
 
 **Mesuré ensuite**, à quatre ligues : sur son équipe, la Tortue +6,6, le Frelon +6,6, le Rhino +7,0, l'Aigle +6,8, le Doc +6,9, l'Abbé +6,5, le Contremaître +6,6, le Showman +6,4 V (±0,3 V entre les voies) ; sur l'équipe mélangée, de +1,8 à +5,2 V. Sur un vrai club, la III vaut donc entre les deux, et `check_coachs` le borne ainsi. Le Doc a appris une chose : ses jambes et ses blessures saturent (×0,58 porté 2,8 fois, c'est presque rien), le pousser plus le faisait baisser ; un peu de volume l'a remonté. `VERSION_MOTEUR` S95.
 
+### Les packs de départ (oct.)
+
+JP : *première fois que le mode commence, ouvrir des packs qui forment l'équipe de base*. La première run (le cartable vide) tirait ses bouche-trous en silence ; elle les sort maintenant de trois packs qu'on ouvre (`ouvrirPacksDeDepart`, js/rogue-jeu.js) — les attaquants, les défenseurs, les gardiens —, avec le paquet qui se déchire des packs de la boutique. Chaque carte va à l'effectif ET au cartable : la run suivante tire son classeur de ces cartes-là. Les joueurs ne changent pas (le 10e au 30e centile de production, `plombiersDeLaLigue`), pour que la première run commence aussi faible ; mais ils se tirent de la graine du classeur au lieu de `Math.random` : recharger la page devant les packs redonne les mêmes cartes, comme le classeur. Preuve : `scripts/essai_depart.mjs` (un navigateur, un méta vide).
+
 ### Le dernier du classement ne passe plus sous le bouton flottant (1.0, oct.)
 
 Trouvé par la CI (graine 5eh43r) : au téléphone, hors de l'onglet Match, « Journée suivante ▶ » flotte 52 px au-dessus de la barre (`.hub-flottant`), mais le volet du bureau ne réservait sous sa dernière rangée que `--esp-4`. Un club au bas du classement, défilé au bout, avait sa rangée cachée de 37 px — un défaut qui ne se voit que selon le rang, d'où la graine. Le volet réserve maintenant la hauteur du bouton (`--flottant-h`, un jeton de la source, lu par les deux). Reproduit sur la graine avant le correctif (37 px), vert après.

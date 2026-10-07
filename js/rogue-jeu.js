@@ -592,14 +592,41 @@ async function joueurDeCle(cle) {
  * saisons tirées au hasard — des réguliers, pas des rappelés d'un match (du
  * 10e au 30e centile de production). Le déblocage « Des plombiers moins pires »
  * les prend un cran plus haut (30e au 50e). `autoRoster` les range, et
- * les joueurs gardés de la dernière run passent devant.
+ * les joueurs gardés de la dernière run passent devant (`placerDevant`).
  */
-async function plombiers(meta, gardes = []) {
-  return placerDevant(autoRoster([...gardes, ...await plombiersDeLaLigue(meta, gardes)]), gardes);
+/*
+ * TES PACKS DE DÉPART (oct.). JP : *première fois que le mode commence, ouvrir des packs qui forment l'équipe de
+ * base*. Ton cartable vide, ta première run ne tire plus ses bouche-trous en silence : ils sortent de trois packs
+ * que tu ouvres — les attaquants, les défenseurs, les gardiens —, et chaque carte va à ton effectif ET à ton
+ * cartable (la run suivante tirera son classeur de là). Les mêmes joueurs qu'avant (`plombiersDeLaLigue`), tirés
+ * de la graine du classeur : recharger la page devant les packs redonne les mêmes cartes.
+ */
+const PACKS_DE_DEPART = [{ g: 'F', nom: 'Les attaquants' }, { g: 'D', nom: 'Les défenseurs' }, { g: 'G', nom: 'Les gardiens' }];
+async function ouvrirPacksDeDepart(roster) {
+  const joueurs = Object.values(roster).filter(Boolean);
+  ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
+  ajouterAuCartable(joueurs.map(p => ({ cle: getPlayerKey(p), rar: 'commune' })));
+  const packs = PACKS_DE_DEPART.map(P => ({ ...P, cartes: joueurs.filter(p => groupeDe(p) === P.g) })).filter(P => P.cartes.length);
+  for (const [i, P] of packs.entries()) {
+    const suite = i < packs.length - 1 ? 'Pack suivant' : 'À la run';
+    await new Promise(resolve => ouvrirChoix({
+      ico: '🥉', titre: `Pack de départ · ${P.nom}`, cartes: true, genre: 'recompense', fermable: true, motFermer: suite,
+      recit: i === 0 ? `Ta première run : ton équipe sort de ${packs.length} packs. Chaque carte est à toi, dans ton effectif et à ton cartable.` : `${P.cartes.length} de plus pour ton effectif.`,
+      options: P.cartes.map(p => {
+        const g = groupeDe(p);
+        return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
+          art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p) }),
+          carteJoueur: carteMiniHtml(p), motChoix: suite, apercu: () => apercuJoueur(p) };
+      }),
+      onChoix: () => resolve(),
+      onFerme: () => resolve(),
+    }));
+  }
 }
-async function plombiersDeLaLigue(meta, gardes = []) {
-  const saisons = state.index.seasons.slice(), choisies = [];
-  while (choisies.length < 8 && saisons.length) choisies.push(saisons.splice(Math.floor(Math.random() * saisons.length), 1)[0]);
+async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()) {
+  // Tirés de la graine de la run (oct.) : recharger la page devant les packs de départ redonne les mêmes joueurs.
+  const ordre = (liste, ...k) => liste.slice().sort((a, b) => hache(graine, 'plombiers', ...k, String(a)) - hache(graine, 'plombiers', ...k, String(b)));
+  const choisies = ordre(state.index.seasons, 'saison').slice(0, 8);
   const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
   // Mesuré : le fond absolu (0-20 %) faisait 6 à 12 points, une run perdue d'avance ; 10-30 % en fait 12 à 33.
   const [bas, haut] = aDebloque(meta, 'plombiersPlus') ? [0.3, 0.5] : [0.1, 0.3];
@@ -612,7 +639,8 @@ async function plombiersDeLaLigue(meta, gardes = []) {
         .sort((a, b) => prod(a) - prod(b));
       const tranche = reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut)));
       const n = g === 'F' ? 3 : g === 'D' ? 2 : 1;
-      for (let i = 0; i < n && tranche.length; i++) pool.push(tranche.splice(Math.floor(Math.random() * tranche.length), 1)[0]);
+      const cles = ordre(tranche.map(getPlayerKey), s, g).slice(0, n);
+      pool.push(...tranche.filter(p => cles.includes(getPlayerKey(p))));
     }
   }
   return pool;
@@ -628,7 +656,7 @@ async function plombiersDeLaLigue(meta, gardes = []) {
 async function vestiaireDeDepart(meta, fixes = [], { saison = 1, rang = rangDePrestige(meta), exclus = new Set(), graine = graineDuClasseur() } = {}) {
   const c = lireCartable();
   const cles = Object.keys(c.joueurs).filter(k => !exclus.has(k));
-  if (!cles.length) return { roster: await plombiers(meta, fixes), quota: null, tires: [] };
+  if (!cles.length) return { roster: placerDevant(autoRoster([...fixes, ...await plombiersDeLaLigue(meta, fixes, graine)]), fixes), quota: null, tires: [] };
   const quota = soutiensDuDepart(rang, saison);
   const decrire = async p => ({ cle: getPlayerKey(p), p, groupe: groupeDe(p), niveau: niveauDe(p, (await getShard(p.s)).players), r: (c.joueurs[getPlayerKey(p)] || {}).r || 0 });
   const fixesDecrits = await Promise.all(fixes.map(decrire));
@@ -654,7 +682,7 @@ async function vestiaireDeDepart(meta, fixes = [], { saison = 1, rang = rangDePr
   const pris = [...fixes, ...tires.map(x => x.p)];
   // Les trous : des plombiers de la ligue, le nombre qu'il faut à chaque poste.
   if (Object.values(manque).some(n => n > 0)) {
-    const ligue = await plombiersDeLaLigue(meta, pris);
+    const ligue = await plombiersDeLaLigue(meta, pris, graine);
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
   }
   return { roster: placerDevant(autoRoster(pris), fixes), quota, tires, nFixes: fixes.length };
@@ -707,7 +735,7 @@ export async function ouvrirRogue() {
     // 1.0 (R5) : deux phrases ; le reste se lit dans « Règles », section « Le mode Rogue ».
     recit: `Une équipe de bouche-trous, 🪙 ${jetonsDeDepart(meta)} jetons, plusieurs saisons. Chaque saison, le proprio en veut plus. Le but : la Coupe Stanley, la victoire de la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
-      bon: [nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
+      bon: [nCartable ? '' : `🥉 ta première run : ton équipe sort de ${PACKS_DE_DEPART.length} packs de départ`, nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
         nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
@@ -729,7 +757,11 @@ export async function ouvrirRogue() {
     }
   }
   const tires = await choisirDuClasseur(gardes);
-  await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(gardes, tires, coach));
+  // Ton cartable est vide (ta première run) : ton équipe sort de tes packs de départ.
+  const premiere = !nCartable && !gardes.length
+    ? await sousVoile('On scelle tes packs de départ…', async () => placerDevant(autoRoster(await plombiersDeLaLigue(meta)), [])) : null;
+  if (premiere) await ouvrirPacksDeDepart(premiere);
+  await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(gardes, tires, coach, premiere));
 }
 /*
  * TON COACH (v2, js/coachs.js) — le personnage de Slay the Spire. Les coachs
@@ -808,7 +840,7 @@ function motDuVestiaire(V) {
   const ligue = Object.values(V.roster).filter(Boolean).length - V.tires.length - V.nFixes;
   return `Ton effectif : ${s} ${NIVEAUX[0].nom}${r ? ` et ${r} ${NIVEAUX[1].nom}${r > 1 ? 's' : ''}` : ''} de ton cartable${ligue > 0 ? `, ${ligue} bouche-trou${ligue > 1 ? 's' : ''} de la ligue` : ''}`;
 }
-async function demarrerRogue(gardes = [], tires = [], coach = null) {
+async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = null) {
   const meta = lireMeta();
   const D = departDuClasseur(meta);
   G.bonus = 'ROGUE';
@@ -825,7 +857,8 @@ async function demarrerRogue(gardes = [], tires = [], coach = null) {
   $('game').classList.remove('bilan');
   // V2.3 : les deux patrons imposés, tirés avant que la run prenne son numéro (la graine du choix du coach).
   const patrons = patronsDeLaRun(meta);
-  const V = await vestiaireDeDepart(meta, [...gardes, ...tires.map(x => x.p)]);
+  // Ta première run : l'équipe de tes packs de départ, telle quelle.
+  const V = premiere ? { roster: premiere, quota: null, tires: [] } : await vestiaireDeDepart(meta, [...gardes, ...tires.map(x => x.p)]);
   G.roster = V.roster;
   // Tes cartes gardent leur variante : c'est TA carte, pas une neuve.
   for (const x of V.tires) G.variantes.cartes[x.cle] = meilleureVariante(lireCartable().joueurs[x.cle]);
@@ -1326,7 +1359,7 @@ async function choisirNouvelleEquipe(saison) {
   const manque = { F: COMPOSITION_DEPART.F, D: COMPOSITION_DEPART.D, G: COMPOSITION_DEPART.G };
   for (const p of pris) { const g = groupeDe(p); if (g in manque) manque[g] = Math.max(0, manque[g] - 1); }
   if (Object.values(manque).some(n => n > 0)) {
-    const ligue = await plombiersDeLaLigue(meta, pris);
+    const ligue = await plombiersDeLaLigue(meta, pris, graine);
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
   }
   const roster = placerDevant(autoRoster(pris), gardes);
