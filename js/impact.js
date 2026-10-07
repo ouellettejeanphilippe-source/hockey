@@ -58,6 +58,8 @@ function moyennes(L) {
     coups: coupsAttendus(A),
     blessures: L.blessures, usure: L.usure,
     glaceF: glace('F'), glaceD: glace('D'),
+    // Les minutes à forces égales du soir (ni avantage ni désavantage) : la glace de « Préparer le match » s'y lit.
+    minutesFE: 60 * part,
   };
 }
 
@@ -71,7 +73,7 @@ function cle(team, lu, adv, opts) {
     return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
       team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
-      opts.nu, opts.n, opts.series]);
+      opts.nu, opts.neutre, opts.n, opts.series]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
 }
 function lire(team, lu, adv, opts) {
@@ -186,9 +188,41 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
 export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return [];
   const avec = lire(team, lineup, adv, { aVenir, n: N_EFFET }), sans = lire(team, lineup, adv, { aVenir, nu: true, n: N_EFFET });
-  const d = differences(avec, sans), mots = lignesDe(d);
+  const d = differences(avec, sans), mots = [...lignesDe(d), ...horsFeuille(d)];
   // Des effets qui jouent, trop petits pour une feuille : on le dit plutôt que de taire.
-  return mots.length || ![d.tirsPour, d.tirsContre, d.butsPour, d.butsContre, d.punitions].some(x => Math.abs(x) > 1e-9) ? mots : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
+  return mots.length || ![d.tirsPour, d.tirsContre, d.butsPour, d.butsContre, d.punitions, d.blessures, d.usure].some(x => Math.abs(x) > 1e-9) ? mots : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
+}
+/*
+ * CE QUE LA FEUILLE NE DIT PAS (V2.2) : les blessures et l'usure des jambes jouent aussi ce soir (la consigne
+ * Haute, un roulement, un dos-à-dos). Les blessures se disent sur dix matchs — un soir en compte une sur cinquante.
+ */
+function horsFeuille(d) {
+  const out = [];
+  const b = d.blessures * 10;
+  if (Math.abs(b) >= 0.05) out.push({ txt: `≈ ${signeDe(b)}${nb(b, 1)} ${mot(b, 'blessure', 'blessures')} par 10 matchs`, bon: b < 0, cle: 'blessure' });
+  if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure par match`, bon: d.usure < 0, cle: 'jambes' });
+  return out;
+}
+
+/*
+ * CE QUE TON ALIGNEMENT FAIT CE SOIR (V2.2, les totaux du soir disent tout). Les effets ne sont pas tout : tes
+ * systèmes, tes badges, la chimie de tes lignes et leurs jambes jouent aussi, et une affiche qui disait « aucun
+ * effet » un soir chargé mentait par omission. Chacun se lit par différence (`neutre`, js/sim.js) : le soir tel
+ * quel contre le même soir où cette part est au neutre. Un nombre par part, l'écart de buts par match — ce que
+ * la part rapporte (ou coûte) au pointage.
+ */
+export const PARTS_DU_SOIR = [
+  ['systemes', 'Systèmes'], ['badges', 'Badges'], ['chimie', 'Chimie'], ['jambes', 'Jambes'],
+];
+export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
+  if (!team) return [];
+  const tel = lire(team, lineup, adv, { aVenir, n: N_EFFET });
+  return PARTS_DU_SOIR.map(([k, nom]) => {
+    const sans = lire(team, lineup, adv, { aVenir, neutre: { [k]: true }, n: N_EFFET });
+    const ecart = (tel.butsPour - tel.butsContre) - (sans.butsPour - sans.butsContre);
+    const txt = Math.abs(ecart) >= 0.01 ? `${nom} ≈ ${signeDe(ecart)}${nb(ecart, 2)} but net par match` : `${nom} : rien ce soir`;
+    return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart };
+  });
 }
 
 /*

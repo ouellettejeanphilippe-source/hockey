@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV } from './sim.js';
+import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { CARTES_MATCH } from './combat.js';
@@ -534,7 +534,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const gagnant = g ? (g === 'A' ? a : b) : null, perdant = g ? (g === 'A' ? b : a) : null;
       ligne(`bagarre${g ? ` ${g === 'A' ? 'a' : 'b'}` : ''}${g && equipe(g).isPlayer ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(A.tag, 13)}${ctx.logo(B.tag, 13)}
         <span><b class="live-bag-mot">BAGARRE</b> ${com.bagarre({ j: `<b>${nomLie(a, 'A')}</b>`, c: `<b>${nomLie(b, 'B')}</b>`, g: gagnant ? `<b>${nomLie(gagnant, g)}</b>` : null, p: perdant ? nomLie(perdant, autre(g)) : null,
-          eq: g ? ctx.esc(ctx.teamShort(equipe(g))) : null, autre: g ? ctx.esc(ctx.teamShort(equipe(autre(g)))) : null })} <span class="live-micro">${e.minutes} min chacun.</span></span>`, g ? couleurs(g) : undefined);
+          eq: g ? ctx.esc(ctx.teamShort(equipe(g))) : null, autre: g ? ctx.esc(ctx.teamShort(equipe(autre(g)))) : null })} <span class="live-micro">${e.minutes} min et ${BAGARRE_JAMBES} jambes chacun${g ? ` ; ${ctx.esc(ctx.teamShort(equipe(g)))} finit mieux pendant ${ELAN_DUREE} min` : ''}.</span></span>`, g ? couleurs(g) : undefined);
       son('periode');
       return 1200;
     }

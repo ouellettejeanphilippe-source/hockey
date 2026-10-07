@@ -25,7 +25,7 @@
  */
 
 import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT,
+  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
   profilsDe, stylesDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
@@ -33,11 +33,10 @@ import {
   physiqueDe, physiqueLigne, bilanAgressivite,
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { POIDS_TRIO } from './ratings.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE } from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
@@ -652,11 +651,15 @@ function pointsDeBande(m) {
 let pastilleNiveau = () => '';
 export const brancherPastilleNiveau = f => { pastilleNiveau = f; };
 /* Les jambes d'un joueur (sa fatigue, sur 100), en chiffre et en barre. Celles d'un gardien se comptent en départs de suite (C4). */
-export function jambesHtml(e) {
+export function jambesHtml(e, { gardien = false } = {}) {
   const v = Math.round(e);
   const N = niveauJambes(v);
   const effet = Math.round((facteurEnergie({ energie: v }) - 1) * 1000) / 10;
-  return `<span class="jambes jambes-${N.cle}" title="Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus."><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
+  // UN GARDIEN N'A PAS LA RÈGLE DES PATINEURS (V2.2) : ses jambes tombent par départs de suite, et lui coûtent des buts accordés.
+  const titre = gardien
+    ? `Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Un gardien les garde ${GARDIEN_SUITE_LIBRE} départs de suite ; ensuite il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${String(GARDIEN_USURE * 100).replace('.', ',')} % de buts accordés en plus.`
+    : `Ses jambes ce matin, sur 100 : ${N.nom.toLowerCase()}. Chaque point sous ${ENERGIE_REF} lui coûte ${String(ENERGIE_EFFET).replace('.', ',')} % de lancers, de finition et de création, chaque point au-dessus lui en rend autant (ce matin : ${effet > 0 ? '+' : ''}${String(effet).replace('.', ',')} %) ; sous ${ENERGIE_BLESSURE}, il se blesse plus.`;
+  return `<span class="jambes jambes-${N.cle}" title="${titre}"><span class="jambes-k">Jambes</span><b>${v}</b><i><span style="width:${v}%" class="${N.cle}"></span></i><em class="jambes-mot">${N.nom}</em></span>`;
 }
 
 /*
@@ -688,16 +691,24 @@ export function courbeJambesHtml(v, { large = false } = {}) {
    ====================================================================== */
 const NOMS_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
 const ROLES = ['AG', 'C', 'AD', 'DG', 'DD'];
-/* Les minutes à forces égales qu'une ligne jouera, ses secondes appliquées. */
-function minutes(lignes) {
-  const w = POIDS_TRIO.map((x, u) => x * lignes[u].sec / SEC_DEFAUT);
+/*
+ * LA GLACE DE CHAQUE TRIO À FORCES ÉGALES (V2.2, les bons chiffres). La part est celle que le moteur joue
+ * (`PART_UNITE`, pas `POIDS_TRIO` qui compte aussi les avantages), les secondes de chaque ligne appliquées.
+ * Avec `glace` (« Préparer le match ») : les minutes du soir, roulement, moments et coachs compris, sur les
+ * minutes à forces égales que le moteur lit. Sans club (avant la saison) : la part, en pour cent.
+ */
+function glaceDe(lignes, glace = null) {
+  if (glace) return { mins: glace(lignes), pct: null };
+  const w = PART_UNITE.F.map((x, u) => x * lignes[u].sec / SEC_DEFAUT);
   const s = w.reduce((a, b) => a + b, 0) || 1;
-  return w.map(x => x / s * 60);
+  return { mins: null, pct: w.map(x => x / s * 100) };
 }
 const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
+const glaceMot = (g, u, court = false) => (g.mins ? `≈ ${mmss(g.mins[u])}${court ? ' de glace' : ' à forces égales'}` : `${Math.round(g.pct[u])} %${court ? ' de la glace' : ' de la glace à forces égales'}`);
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
 const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
-const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= 20 ? 'correcte' : 'naissante');
+// Sous le pivot (CHIMIE_PIVOT), une chimie coûte au lieu de rapporter : le mot le dit (V2.2, les coûts cachés).
+const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= CHIMIE_PIVOT ? 'correcte' : 'naissante, elle coûte');
 /* L'entente et la maîtrise, de 0 à 1, en mots (S73). */
 const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
@@ -902,7 +913,7 @@ export function ouvrirLignes(spec) {
   };
 
   function dessiner() {
-    const mins = minutes(brouillon);
+    const mins = glaceDe(brouillon, spec.glace ? lignes => spec.glace(match, lignes) : null);
     usureSoir = spec.usure ? spec.usure(match, brouillon) : null;
     const tete = `<div class="choix-tete">
       <span class="choix-ico">🏒</span>
@@ -928,9 +939,12 @@ export function ouvrirLignes(spec) {
      * consigne qu'on règle ici comprise, recalculée à chaque toucher.
      */
     const tot = spec.totaux ? spec.totaux(match, brouillon) : null;
+    // TON ALIGNEMENT (V2.2) : ce que tes systèmes, tes badges, ta chimie et tes jambes rapportent ce soir, chacun contre le neutre.
+    const al = spec.alignement ? spec.alignement(match, brouillon) : [];
     const totauxHtml = tot ? `<section class="gl-totaux">
-      <div class="gl-totaux-l"><b>Ce soir :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucun effet</span>'}</span></div>
-      <div class="gl-mot">Ton build, contre le même alignement sans aucun effet.</div>
+      <div class="gl-totaux-l"><b>Tes effets :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucune carte ni consigne</span>'}</span></div>
+      ${al.length ? `<div class="gl-totaux-l"><b>Ton alignement :</b> <span class="choix-puces">${puces(al)}</span></div>` : ''}
+      <div class="gl-mot">Chacun contre le même soir sans lui.</div>
     </section>` : '';
     /*
      * L'ADVERSAIRE D'ABORD (1.0, J2-11). Tout ce qui se règle ici se règle
@@ -952,7 +966,7 @@ export function ouvrirLignes(spec) {
       return `<button type="button" class="gl-seg-btn gl-gardien${filet === qui ? ' on' : ''}" data-filet="${qui}" aria-pressed="${filet === qui}">
         <b>🥅 ${g ? esc(g.n) : 'Le rappel du club-école'}</b>
         <span class="gl-gardien-l"><small>${qui === 'partant' ? 'Partant' : 'Auxiliaire'}${estRot ? ' · la rotation' : ''}</small><small title="Son % d'arrêts de sa vraie saison">${svTxt(g)} d'arrêts</small></span>
-        ${jambesHtml(e)}</button>`;
+        ${jambesHtml(e, { gardien: true })}</button>`;
     };
     const filetHtml = F0 ? `<section class="gl-filet">
       <div class="gl-sec-titre">Devant le filet ce soir</div>
@@ -962,7 +976,7 @@ export function ouvrirLignes(spec) {
     const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
       const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
       return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
-        <b>${n}</b><span>${T.ico}${D ? ` ${D.ico}` : ''} ${esc(T.nom)}</span><small>chimie ${motChimie(chimieDe(u, brouillon[u]))} · ${mmss(mins[u])}</small></button>`;
+        <b>${n}</b><span>${T.ico}${D ? ` ${D.ico}` : ''} ${esc(T.nom)}</span><small>chimie ${motChimie(chimieDe(u, brouillon[u]))} · ${glaceMot(mins, u, true)}</small></button>`;
     }).join('')}</div>`;
     const u = ouverte, l = brouillon[u];
     const sansSysteme = l.tac === 'hourra' && (u > 2 || l.tacD === 'hourra');
@@ -996,7 +1010,7 @@ export function ouvrirLignes(spec) {
         return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
         <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...effets])}</span></button>`;
       }).join('')}</div>
-      <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
+      <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
       <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
       <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>
     </section>`;
@@ -1085,7 +1099,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const S = SYS[cle];
   // La chimie est celle de la LIGNE (trio et paire) : elle s'écrit sous le trio.
   const chimie = patch => (app ? chimieLigne(app, spec.lineup, u, { ...l, ...patch }) : (spec.chimie || [])[u] || 0);
-  const mins = minutes(spec.lignes);
+  const mins = glaceDe(spec.lignes, spec.glace || null);
   const fitBrut = S.slots ? fitUnite(spec.lineup, groupe, u, cle) : 0;
   // UNITÉ INCOMPLÈTE (1.0, J1-I) : ni fit, ni chimie, ni système — « À
   // compléter ». Un trio vide lisait « Échec avant 2-1-2 · Mauvais fit ».
@@ -1098,8 +1112,8 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   // la saison, elle est « naissante » pour les quatre, et le dire quatre fois
   // n'apprend rien.
   const sommaire = incomplete
-    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b>${D ? '' : `<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`
-    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${mmss(mins[u])} de glace</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b>${D ? '' : `<span>${glaceMot(mins, u, true)}</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`
+    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${glaceMot(mins, u, true)}</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
   const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
@@ -1121,7 +1135,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     <div class="gl-sec-titre">Agressivité · ${carrure}</div>
     <div class="gl-seg gl-seg-court ln-agr">${agr}</div>
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
-    <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ≈ ${mmss(mins[u])} à forces égales</div>
+    <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
     <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
     <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>`;
   return { sommaire, corps };

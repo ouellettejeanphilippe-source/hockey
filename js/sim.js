@@ -184,7 +184,7 @@ const lireListe = (cle, defaut) => {
  * n'est pas le juge de la monotonie.
  */
 const ZONE_PEN_SOUS = 0.40;   // fraction de l'excédent de cote, par joueur mal placé
-const ZONE_PEN_DESSUS = Number(ENV_MESURE.ZONE_PEN_DESSUS ?? 1.5);
+export const ZONE_PEN_DESSUS = Number(ENV_MESURE.ZONE_PEN_DESSUS ?? 1.5);
 export const ZONE_PEN_MAX = 70;      // plafond par unité
 
 /*
@@ -236,7 +236,7 @@ export const ZONE_PEN_MAX = 70;      // plafond par unité
  */
 // 1.0 · J1-L : un cran passe de 0,45 à 0,55 — le prix du nombre adouci (ZONE_NOMBRE_UN), mesuré sur mock_zones.
 export const ZONE_ECHELLE = lireListe('ZONE_ECHELLE', [0, 0.55, 1.30, 1.90]);
-const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
+export const ZONE_PUISSANCE = Number(ENV_MESURE.ZONE_PUISSANCE ?? 2);
 export const ZONE_NOMBRE = lireListe('ZONE_NOMBRE', [1, 1, 1.6, 2.2]);
 // Le nombre ne multiplie que si un joueur de l'unité est à ce nombre de crans ou plus (1.0 · J1-L).
 const ZONE_NOMBRE_DES = Number(ENV_MESURE.ZONE_NOMBRE_DES ?? 2);
@@ -1239,6 +1239,14 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
  * présence) : les deux suivent le même roulement, sinon le quatrième trio
  * tirerait moins tout en défendant autant.
  */
+/*
+ * LA GLACE À FORCES ÉGALES D'UN SOIR (V2.2, les bons chiffres) : la part de chaque trio et de chaque paire telle
+ * que le moteur la joue (`PART_UNITE`, le roulement, les moments, les patrons, les coachs, les secondes de chaque
+ * ligne), avec les décisions du soir posées. « Préparer le match » la multiplie par les minutes à forces égales.
+ */
+export function glaceDesLignes(team, aVenir = []) {
+  return avecAVenir(team, aVenir, () => ({ F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) }));
+}
 export function partsDuRoulement(base, group, team) {
   const r = ROULEMENTS[roulementDe(team)];
   const mult = ((r && r[group]) || base.map(() => 1)).slice();
@@ -1857,7 +1865,7 @@ function valeurBadge(p, role) {
 }
 /* Un badge, centré sur la ligue (0 = le badge moyen) : ce que le moteur lit. */
 export function maitrise(p, role) {
-  if (!p || p.p === 'G') return 0;
+  if (!p || p.p === 'G' || neutrePour(p, 'badges')) return 0;
   const g = estD(p) ? 'D' : 'F';
   return valeurBadge(p, role) - (BADGE_LIGUE[g][role] || 0);
 }
@@ -1870,7 +1878,8 @@ function coupsDe(p) {
   return COUP_MOYEN * Math.exp(0.5 * (getHiddenRatings(p).r - 50) / 12);
 }
 /* Ce qu'un coup reçu coûte à ce joueur, en jambes : un costaud encaisse, un léger accuse. */
-const coutDuCoup = p => COUP_JAMBES * (1 + COUP_ABSORBE * (1 - 2 * physiqueDe(p)));
+/* Ce qu'un coup reçu coûte aux jambes de CE joueur : continu, de 0,6 (physique 1) à 1,8 (physique 0) ; la fiche dit le sien. */
+export const coutDuCoup = p => COUP_JAMBES * (1 + COUP_ABSORBE * (1 - 2 * physiqueDe(p)));
 /*
  * Les coups d'un alignement tombent sur l'autre. `frappeur` et `frappe` sont
  * les profils de match (`profilMatch`) : leurs unités portent la présence, le
@@ -1930,7 +1939,9 @@ function encaisserCoups(frappeur, frappe) {
  * pas, l'élan est symétrique), tout dans le match — un club qui pilonne use
  * l'autre, un bagarreur gagné vaut dix minutes de finition.
  */
-const BAGARRE_PAR_PIM = 0.55, MELEE_BASE = 0.5, COUP_MARQUANT_PART = 0.12, BAGARRE_JAMBES = 8;
+const BAGARRE_PAR_PIM = 0.55, MELEE_BASE = 0.5, COUP_MARQUANT_PART = 0.12;
+/* Ce qu'une bagarre coûte aux jambes de chaque combattant : le fil du direct et les règles le disent. */
+export const BAGARRE_JAMBES = 8;
 export const ELAN_BAGARRE = 1.06, ELAN_BAGARRE_PERDU = 0.94, ELAN_DUREE = 10, BAGARRE_MINUTES = 5, MELEE_MINUTES = 2;
 export const COUP_MARQUANT_JAMBES = 2, BLESSURE_SONNE = 1.5, BLESSURE_BAGARRE_PERDUE = 3;
 /* Les coups qu'un alignement donne par match, attendus (la même formule qu'`encaisserCoups`). */
@@ -2150,13 +2161,24 @@ export function meilleureAgressivite(lineup, u) {
  */
 let MEMO_MATCH = 0;
 const MEMO_LIGNES = new WeakMap();
+/*
+ * LA LECTURE NEUTRE (V2.2, les totaux du soir disent tout). Le temps d'une lecture (`lectureDuMatch`,
+ * option `neutre`) — jamais pendant un match joué —, une part de ce que TON alignement apporte est remise
+ * au neutre : les badges au badge moyen de la ligue (`maitrise` rend 0), la chimie au pivot (aucun bonus),
+ * les jambes à la référence, chaque ligne sans système. L'adversaire reste tel quel. La différence avec la
+ * lecture telle quelle dit ce que chacune rapporte ou coûte ce soir (js/impact.js, `alignementDuSoir`).
+ */
+let NEUTRE = null;
+const neutreDe = (team, quoi) => !!(NEUTRE && NEUTRE[quoi] && NEUTRE.team === team);
+const neutrePour = (p, quoi) => !!(NEUTRE && NEUTRE[quoi] && NEUTRE.joueurs.has(p));
 export function lignesDe(team, lineup, { duSoir = true } = {}) {
-  if (duSoir && team && team._lignesMatch) return team._lignesMatch.map(l => ({ ...l }));
+  const rendre = out => out.map(l => (neutreDe(team, 'systemes') ? { ...l, tac: 'hourra', tacD: 'hourra' } : { ...l }));
+  if (duSoir && team && team._lignesMatch) return rendre(team._lignesMatch);
   const memo = lineup && team ? MEMO_LIGNES.get(lineup) : null;
-  if (memo && memo.match === MEMO_MATCH && memo.team === team && memo.lignes === team.lignes) return memo.out.map(l => ({ ...l }));
+  if (memo && memo.match === MEMO_MATCH && memo.team === team && memo.lignes === team.lignes) return rendre(memo.out);
   const out = lignesCalculees(team, lineup);
   if (lineup && team && typeof lineup === 'object') MEMO_LIGNES.set(lineup, { match: MEMO_MATCH, team, lignes: team.lignes, out });
-  return out.map(l => ({ ...l }));
+  return rendre(out);
 }
 function lignesCalculees(team, lineup) {
   const L = (team && team.lignes) || [];
@@ -2370,7 +2392,7 @@ export const NIVEAUX_JAMBES = [
 ];
 export const niveauJambes = e => NIVEAUX_JAMBES.find(n => e >= n.min) || NIVEAUX_JAMBES[NIVEAUX_JAMBES.length - 1];
 export const energieDe = p => (p && Number.isFinite(p.energie) ? p.energie : 100);
-export const facteurEnergie = p => 1 - ENERGIE_EFFET * (ENERGIE_REF - energieDe(p)) / 100;
+export const facteurEnergie = p => (neutrePour(p, 'jambes') ? 1 : 1 - ENERGIE_EFFET * (ENERGIE_REF - energieDe(p)) / 100);
 /* Rendre des jambes : jusqu'à 100, et le surplus en réserve pour le prochain match. */
 export function rendreJambes(p, n) {
   if (!p || !n) return;
@@ -2995,7 +3017,7 @@ export const PALIERS_CARTES = [20, 40, 60];
 export const SORTES_DECK = {
   effet: { ico: '🃏', nom: 'Carte d\'effet', mot: 'Un effet pour le reste de la saison' },
   recrue: { ico: '🎟️', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
-  amelioration: { ico: '⬆️', nom: 'Amélioration', mot: 'Un de tes joueurs s\'améliore pour de bon' },
+  amelioration: { ico: '⬆️', nom: 'Amélioration', mot: 'Une amélioration à poser au verso d\'un de tes joueurs' },
   profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de rôle' },
   strategie: { ico: '📘', nom: 'Stage de système', mot: 'Ta formation apprend un système d\'un coup' },
   // LE MÉNAGE (S74) : une carte de moins dans le deck de match (js/combat.js) — l'autre moitié d'un deckbuilder.
@@ -3956,7 +3978,7 @@ export function profilMatch(team, lineup, adv = null) {
     for (let u = 0; u < poids.length; u++) {
       const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
       const syn = getUnitSynergy(lineup, group, u);
-      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusChimie(CHIMIE_FORCEE != null && team.isPlayer ? CHIMIE_FORCEE : chimieSoir[u])) / SYN_ECHELLE));
+      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusChimie(neutreDe(team, 'chimie') ? CHIMIE_PIVOT : CHIMIE_FORCEE != null && team.isPlayer ? CHIMIE_FORCEE : chimieSoir[u])) / SYN_ECHELLE));
       const volume = Math.min(VOLUME_UNITE_MAX,
         slots.reduce((a, s) => a + lancersFE(lineup[s.i], membresAN), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
@@ -4808,7 +4830,8 @@ const REPLACEMENT = 40;     // cote d'un rappel de la ligue mineure
  * +3,6 victoires (c'était +6,1 %).
  */
 const CHIMIE_BONUS = Number(ENV_MESURE.CHIMIE_BONUS ?? 6.5);
-const CHIMIE_PIVOT = Number(ENV_MESURE.CHIMIE_PIVOT ?? 26);
+/* Sous le pivot, la chimie COÛTE (un bonus négatif) : l'écran le dit (« naissante, elle coûte », js/gerant.js). */
+export const CHIMIE_PIVOT = Number(ENV_MESURE.CHIMIE_PIVOT ?? 26);
 // MESURE seulement (check_chimie) : la chimie du bonus de ta formation, forcée. Le navigateur n'a pas de process : null.
 export const CHIMIE_FORCEE = ENV_MESURE.CHIMIE_FORCEE == null ? null : Number(ENV_MESURE.CHIMIE_FORCEE);
 export const bonusChimie = c => CHIMIE_BONUS * (c - CHIMIE_PIVOT) / 100;
@@ -4840,11 +4863,13 @@ function gpShare(p) {
 }
 
 /** Probabilité de blessure à un match donné. */
+/* Un soir éreintant (un dos-à-dos) : chacun se blesse plus. L'écran le dit (le 🥵 du prochain match). */
+export const BLESSURE_EREINTANT = 1.5;
 function injuryChance(p, heavy = false) {
   const frail = 1 - gpShare(p);
   let pr = 0.0015 + 0.015 * frail * frail;
   if (p.p === 'G') pr *= 0.5;
-  if (heavy) pr *= 1.5;
+  if (heavy) pr *= BLESSURE_EREINTANT;
   // Un joueur robuste se blesse moins (r est à 50 ± 12 par joueur).
   pr *= Math.exp(-ROB_BLESSURE * (getHiddenRatings(p).r - 50) / 12);
   return pr;
@@ -5429,7 +5454,7 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
  * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
   return avecAVenir(team, aVenir, () => {
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
     const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
@@ -5448,6 +5473,8 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
       if (nu) { team.cartes = []; team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
+      // `neutre` : { badges, chimie, jambes, systemes } remis au neutre pour TON club (ses habillés), toute la lecture durant.
+      if (neutre) { NEUTRE = { ...neutre, team, joueurs: new Set(Object.values(lu).filter(Boolean)) }; MEMO_MATCH++; }
       const A = profilMatch(team, lu, adv);
       A.rob = teamStrength(team, lu).rob; A.domicile = true;
       let B, gB = null;
@@ -5495,6 +5522,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
         if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;
       }
       ECHELLE_SOIR = echelle;
+      if (NEUTRE) { NEUTRE = null; MEMO_MATCH++; }
       if (posee) { posee(); MEMO_MATCH++; }
     }
   });

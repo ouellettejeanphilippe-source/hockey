@@ -30,7 +30,7 @@ import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIF
   poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR,
   TACTIQUES, SYSTEMES_D, AGRESSIVITES, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD, meilleureAgressivite,
   effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
-  SEC_MIN, SPEC_BASE, SPEC_MULT } from './sim.js';
+  SEC_MIN, SPEC_BASE, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET } from './sim.js';
 import { virgule } from './util.js';
 import { clubLu, systemeEnChiffres, lignesEnChiffres, motsEnChiffres } from './impact.js';
 
@@ -114,6 +114,9 @@ function remettre(c) {
  * (comme au calendrier). Rend les fréquences brutes ; l'écran en tire les
  * mots. `n` = 300 donne ±3 points sur les chances de victoire.
  */
+/* Le conseil de glace attend qu'un trio soit à six points sous la ligne ordinaire (ENERGIE_REF) : 3 % de moins, ça vaut quinze secondes. */
+const JAMBES_CONSEIL = ENERGIE_REF - 6;
+
 export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, graine = 'pronostic' }) {
   const ctx = t => ({ jourMatch, jourRevele, joues: matchsAvant(calendrier, t, jourMatch), connus: matchsAvant(calendrier, t, jourRevele) });
   const cA = copieDuJour(A, ctx(A)), cB = copieDuJour(B, ctx(B));
@@ -394,14 +397,15 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
         return mots.length ? mots.map(m => ({ ...m, txt: `${RANG_LIGNE[u]} : ${m.txt}` })) : [{ txt: `${RANG_LIGNE[u]} : presque rien`, bon: null }];
       }) });
   }
-  // LA GLACE : un des deux premiers trios usé (sous 88 de jambes ce matin : il rend déjà moins).
+  // LA GLACE : un des deux premiers trios usé — sous ENERGIE_REF, chaque point de jambes coûte (`facteurEnergie`) ;
+  // le conseil attend qu'il en manque assez pour que quinze secondes de moins vaillent la peine (JAMBES_CONSEIL).
   for (const u of [0, 1]) {
     const js = Object.entries(joueursDeLigne(lineup, u)).filter(([r, p]) => p && r !== 'DG' && r !== 'DD').map(([, p]) => energie[getPlayerKey(p)]).filter(Number.isFinite);
     const moy = js.length ? js.reduce((a, x) => a + x, 0) / js.length : 100;
-    if (moy >= 88 || lignes[u].sec <= SEC_MIN) continue;
+    if (moy >= JAMBES_CONSEIL || lignes[u].sec <= SEC_MIN) continue;
     const sec = Math.max(SEC_MIN, lignes[u].sec - 15);
     out.push({ genre: 'glace', lignes: avec(u, { sec }), titre: `Ton ${RANG_TRIO[u]} : ${sec} s par présence`,
-      pourquoi: `Il est usé : ${Math.round(moy)} de jambes (sur 100) ce matin. Sous 90, un joueur rend un peu moins à chaque point ; moins de glace ce soir, c'est plus de jambes au prochain.`,
+      pourquoi: `Il est usé : ${Math.round(moy)} de jambes (sur 100) ce matin. Sous ${ENERGIE_REF}, un joueur rend ${String(ENERGIE_EFFET).replace('.', ',')} % de moins par point ; moins de glace ce soir, c'est plus de jambes au prochain.`,
       chiffres: [{ txt: `Jambes ${Math.round(moy)}`, bon: false }] });
     break;
   }

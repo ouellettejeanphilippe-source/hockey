@@ -310,7 +310,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
         walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
         // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
         texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
-          // v2 : sa couleur — il porte la confiance de ce coach et fait grandir ses cartes de vestiaire.
+          // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
           COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
         // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
         // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.

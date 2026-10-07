@@ -20,7 +20,7 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur } from './sim.js';
+import { CAP, REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE } from './sim.js';
 import { COACHS, JOUEUR_COACH } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
@@ -399,7 +399,9 @@ export function zoneEcart(p, s) {
 }
 
 export const ZONE_SOUS_TITLE = 'Sous sa zone : ici, son talent est gaspillé et toute l\'unité porte un malus proportionnel à ce qu\'on perd. Vise une autre case dans l\'alignement ou déplace quelqu\'un.';
-export const ZONE_DESSUS_TITLE = 'Au-dessus de sa zone : −3 par cran, léger. Il tient la case faute de mieux.';
+// Les chiffres du moteur (`malusZoneJoueur`, js/sim.js) : ZONE_PEN_DESSUS × crans^ZONE_PUISSANCE (V2.2, les bons chiffres).
+const malusDessus = n => String(Math.round(ZONE_PEN_DESSUS * n ** ZONE_PUISSANCE * 10) / 10).replace('.', ',');
+export const ZONE_DESSUS_TITLE = `Au-dessus de sa zone : −${malusDessus(1)} à un cran, −${malusDessus(2)} à deux, −${malusDessus(3)} à trois. Il tient la case faute de mieux.`;
 
 export const nextNeed = () => casesActives().find(s => !G.roster[s.i]) || null;
 

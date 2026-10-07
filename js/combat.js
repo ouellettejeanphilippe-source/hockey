@@ -39,6 +39,8 @@ export const ENERGIE_MAIN = 3;
 export const TAILLE_MAIN = 5;
 /* Les cicatrices (le doute, une blessure qui traîne) qu'un deck porte au plus, en même temps (1.0). */
 export const CICATRICES_MAX = 2;
+/* Une blessure de ce nombre de matchs et plus laisse une cicatrice au deck (« Une blessure qui traîne »). */
+export const BLESSURE_TRAINEE = 15;
 
 /*
  * Les cartes. `cout` en énergie ; `effet` : les canaux de CE match pour ta
