@@ -318,33 +318,81 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  * le portrait, comme les vraies séries d'avant la photo d'action.
  */
 export const SERIES = {
-  vintage: { nom: 'Vintage 70' },
-  retro: { nom: 'Rétro 80' },
-  tableau: { nom: 'Tableau', action: 'fenetre' },
-  mosaique: { nom: 'Mosaïque', action: 'fenetre' },
-  filet: { nom: 'Filet', action: 'fenetre' },
-  chrome: { nom: 'Chrome', action: 'fenetre' },
-  ecusson: { nom: 'Écusson', action: 'plein' },
-  glace: { nom: 'Glace', action: 'fenetre' },
-  arena: { nom: 'Aréna', action: 'plein' },
-  signature: { nom: 'Signature', action: 'fenetre' },
+  s1970: { nom: '1970' },
+  s1971: { nom: '1971' },
+  s1972: { nom: '1972' },
+  s1973: { nom: '1973' },
+  s1974: { nom: '1974' },
+  s1975: { nom: '1975' },
+  s1976: { nom: '1976' },
+  s1977: { nom: '1977' },
+  s1978: { nom: '1978' },
+  s1979: { nom: '1979' },
+  s1980: { nom: '1980' },
+  s1981: { nom: '1981' },
+  s1982: { nom: '1982' },
+  s1983: { nom: '1983' },
+  s1984: { nom: '1984' },
+  s1985: { nom: '1985' },
+  s1986: { nom: '1986', action: 'fenetre' },
+  s1987: { nom: '1987', action: 'fenetre' },
+  s1988: { nom: '1988', action: 'fenetre' },
+  s1989: { nom: '1989', action: 'fenetre' },
+  s1990: { nom: '1990', action: 'fenetre' },
+  s1991: { nom: '1991', action: 'fenetre' },
+  s1992: { nom: '1992', action: 'fenetre' },
+  s1993: { nom: '1993', action: 'fenetre' },
+  s1994: { nom: '1994', action: 'fenetre' },
+  s1995: { nom: '1995', action: 'fenetre' },
+  s1996: { nom: '1996', action: 'fenetre' },
+  s1997: { nom: '1997', action: 'fenetre' },
+  s1998: { nom: '1998', action: 'fenetre' },
+  s1999: { nom: '1999', action: 'fenetre' },
+  s2000: { nom: '2000', action: 'fenetre' },
+  s2001: { nom: '2001', action: 'fenetre' },
+  s2002: { nom: '2002', action: 'fenetre' },
+  s2003: { nom: '2003', action: 'plein' },
+  s2004: { nom: '2004', action: 'plein' },
+  s2005: { nom: '2005', action: 'plein' },
+  s2006: { nom: '2006', action: 'plein' },
+  s2007: { nom: '2007', action: 'plein' },
+  s2008: { nom: '2008', action: 'fenetre' },
+  s2009: { nom: '2009', action: 'fenetre' },
+  s2010: { nom: '2010', action: 'fenetre' },
+  s2011: { nom: '2011', action: 'fenetre' },
+  s2012: { nom: '2012', action: 'fenetre' },
+  s2013: { nom: '2013', action: 'plein' },
+  s2014: { nom: '2014', action: 'plein' },
+  s2015: { nom: '2015', action: 'plein' },
+  s2016: { nom: '2016', action: 'plein' },
+  s2017: { nom: '2017', action: 'plein' },
+  s2018: { nom: '2018', action: 'plein' },
+  s2019: { nom: '2019', action: 'fenetre' },
+  s2020: { nom: '2020', action: 'fenetre' },
+  s2021: { nom: '2021', action: 'fenetre' },
+  s2022: { nom: '2022', action: 'fenetre' },
+  s2023: { nom: '2023', action: 'fenetre' },
+  s2024: { nom: '2024', action: 'fenetre' },
+  s2025: { nom: '2025', action: 'fenetre' },
 };
-/* La première saison de chaque série : une saison prend la série de la dernière qui l'a commencée. */
-const DEBUTS = [
-  ['1970-71', 'vintage'], ['1978-79', 'retro'], ['1986-87', 'tableau'], ['1991-92', 'mosaique'], ['1995-96', 'filet'],
-  ['1999-00', 'chrome'], ['2003-04', 'ecusson'], ['2008-09', 'glace'], ['2013-14', 'arena'], ['2019-20', 'signature'],
-];
+/* La série est déterminée par la saison (ex: "1970-71" -> s1970) */
 export function serieDe(saison) {
   const s = String(saison || '');
-  let serie = DEBUTS[0][1];
-  for (const [debut, cle] of DEBUTS) if (s >= debut) serie = cle;
-  return serie;
+  const annee = parseInt(s.slice(0, 4), 10);
+  if (!isNaN(annee) && annee >= 1970 && annee <= 2025) {
+    return 's' + annee;
+  }
+  return 's2025';
 }
 /* L'année imprimée, dans le style de sa série : « '77-78 » sur un carton
    des années 70-80 (le millésime), « 1993-94 » ensuite. */
 export function anneeDeCarte(saison) {
   const s = String(saison || '');
-  return ['vintage', 'retro'].includes(serieDe(s)) ? `'${s.slice(2)}` : s;
+  const annee = parseInt(s.slice(0, 4), 10);
+  if (annee >= 1970 && annee <= 1985) {
+    return `'${s.slice(2)}`;
+  }
+  return s;
 }
 /*
  * LA PHOTO D'ACTION. Le contrat : l'adresse d'une image au format carte
