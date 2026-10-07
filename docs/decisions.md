@@ -1902,7 +1902,19 @@ L'étape 2 et une partie de l'étape 3 de la refonte (docs/refonte-systeme.md §
 
 **Coach et patrons au prestige** (Rogue) : trois coachs au Club de garage, un de plus par rang, les huit voies à la Dynastie ; deux postes de patron au départ, quatre au plus ; deux patrons imposés, neutres, tirés de la graine. Le Comptable n'est plus un coach de départ : c'est un patron. À l'écran, le mot reste « patron » (celui que le jeu dit déjà).
 
-**Pas fini : `check_voies`.** Voir docs/feuille-de-route-v2.md, « Pour reprendre ».
+### Les voies des coachs (V2.3, oct.)
+
+Le budget du § 8 de la refonte : un coach à sa III, sur une équipe bâtie pour lui, vaut +6 à +8 V ; les voies à ±1 V l'une de l'autre ; et chacune vaut plus sur son équipe que sur une équipe mélangée. `scripts/check_voies.mjs` le mesure en paires.
+
+**Une équipe bâtie** : le même club, chaque case reprise par le joueur de la couleur du coach qui y est CHEZ LUI (sa position et sa zone : un plombier ne prend pas la place d'un joueur de premier trio) et dont le salaire est le plus proche (ce que le Rogue paie). Bâtir sur la valeur cachée, sans la zone, mettait des bagarreurs au premier trio : la voie mesurait leur maladresse, pas le coach.
+
+**Ce qui est jugé : le coach sur son équipe**, contre la même équipe sans lui. La composition (l'équipe bâtie contre le club, sans coach) se dit à côté : à salaire égal, 23 V séparent la couleur du Frelon (+9,6 V) de celle du Rhino (−13,8 V). Aucun coach ne compense ça sans valoir +20 V ; c'est le prix des rôles, en V2.4.
+
+**Mesuré d'abord** (le moteur de S94) : de −1,3 à +18,8 V. Trois causes. (1) `porteParSesJoueurs` multipliait l'écart du coach par 1 + 0,06 × paliers, sans plafond : un club tout d'une couleur triplait le Frelon, et les blessures du Doc (×0,44 portées trois fois) passaient sous zéro. (2) Les plafonds : des snipers sont déjà à FINITION_MAX, des durs à la borne de la robustesse, et la discipline de l'Abbé sous son plancher (0,5) dès la III — sa voie bâtie et l'équipe mélangée valaient pareil. (3) Des coachs trop forts ou trop faibles, l'un contre l'autre.
+
+**Ce qui change.** `JOUEUR_COACH` passe à 0,10 par palier, compté jusqu'à 24 (`PALIERS_COACH_MAX`), et chaque canal s'amplifie EN PUISSANCE (×0,88 porté deux fois vaut ×0,77 : il reste positif). La III relève le plafond du canal que sa voie vise, pour son club seulement (`plafondsDe`) : l'Aigle la finition (+0,15), le Frelon la pression (+0,15), le Rhino la borne de la robustesse (+3,2), l'Abbé abaisse le plancher de la discipline (−0,15) ; la règle de la III le dit (« Plafond de précision relevé »). Puis chaque coach recalibré, en sept tours de mesure.
+
+**Mesuré ensuite**, à quatre ligues : sur son équipe, la Tortue +6,6, le Frelon +6,6, le Rhino +7,0, l'Aigle +6,8, le Doc +6,9, l'Abbé +6,5, le Contremaître +6,6, le Showman +6,4 V (±0,3 V entre les voies) ; sur l'équipe mélangée, de +1,8 à +5,2 V. Sur un vrai club, la III vaut donc entre les deux, et `check_coachs` le borne ainsi. Le Doc a appris une chose : ses jambes et ses blessures saturent (×0,58 porté 2,8 fois, c'est presque rien), le pousser plus le faisait baisser ; un peu de volume l'a remonté. `VERSION_MOTEUR` S95.
 
 ### Le dernier du classement ne passe plus sous le bouton flottant (1.0, oct.)
 

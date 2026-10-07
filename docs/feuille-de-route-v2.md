@@ -77,7 +77,7 @@ Chaque chiffre à l'écran est celui du moteur, et chaque effet qui compte se vo
 
 Brancher les mécaniques qui devraient se parler : les étapes 2 et 3 de la refonte. Le badge devient la langue du système, du coach et de ses adjoints.
 
-**Pas encore fini** : les huit items sont faits, `check_voies` mesure et rougit (voir « Pour reprendre »). **Fini quand** check_voies : chaque voie de coach bâtie au complet vaut +6 à +8 V, à ±1 V des autres, au-dessus d'une équipe mélangée ; check_ratings et check_robot tiennent.
+**Fait (7 oct.)** : `check_voies` vert à quatre ligues — chaque coach à sa III vaut +6 à +8 V sur l'équipe bâtie pour lui, à ±1 V des autres, et plus que sur une équipe mélangée. Ce qu'il juge : le COACH sur son équipe ; la composition (le prix des rôles à salaire égal) se dit à côté et part en V2.4. **Fini quand** check_voies : chaque voie de coach bâtie au complet vaut +6 à +8 V, à ±1 V des autres, au-dessus d'une équipe mélangée ; check_ratings et check_robot tiennent.
 
 - [x] **Attacher ensemble · Les systèmes lisent les badges.** Une case demande un badge ; le bon rend son palier, le second la moitié, le mauvais rien. Fini le score de style à part : « Sniper Or » est ce que le système lit. — `js/sim.js (fitUnite, stylesDe)` — preuve : `check_tactiques, check_chimie`
 - [x] **Attacher ensemble · Le coach aime son système.** Le système de sa couleur joue comme si chaque case avait un palier de plus ; la confiance II apprend un système qui demande SES joueurs (aujourd'hui l'Aigle des snipers apprend un système de power forwards). — `js/coachs.js, js/sim.js` — preuve : `check_coachs`
@@ -98,6 +98,7 @@ Les ajouts de la refonte, étape 4 : un joueur monte de palier, un trio s'assort
 - [ ] **Ajouter · Monter un palier : la variante.** Holo ou Or : la carte commence un palier plus haut, au lieu d'un bonus de 3 à 5 % sur un canal tiré au hasard. — `js/rarete.js` — preuve : `check_cartes`
 - [ ] **Ajouter · Monter un palier : le mentor de trio.** Une modif de trio : ses compagnons de ligne montent d'un palier tant qu'il joue avec eux. — `js/banque.js, js/sim.js` — preuve : `check_cartes`
 - [ ] **Ajouter · Les cartes en cinq types.** Joueur, Modif, Staff, Tactique, Coup. La carte de saison et l'événement (un bonus et son prix, ne différant que par leur durée) se fondent. — `js/banque.js, js/combat.js` — preuve : `check_banque`
+- [ ] **Équilibrer · Le prix des rôles.** À salaire égal, une équipe de power forwards vaut 23 V de plus qu'une équipe de bagarreurs (check_voies, la composition). Le salaire d'un rôle, ou ce que le moteur tire d'un rôle, à rapprocher : un bagarreur coûte ce qu'il rend. — `js/ratings.js, js/sim.js` — preuve : `check_voies` (la composition à ±3 V), `check_ratings`
 - [ ] **Ajouter · Une carte dit ce qu'elle vaut.** « +3 buts projetés », mesuré par le moteur comme la prévision, au lieu de pourcentages à additionner. — `js/pronostic.js` — preuve : `check_cartes`
 
 ## V2.5 — Chaque coach son histoire
@@ -112,7 +113,8 @@ Les ajouts de la refonte, étape 4 : un joueur monte de palier, un trio s'assort
 
 ## Pour reprendre
 
-- **Où on en est (7 oct.).** V2.1 et V2.2 finies ; V2.3 : les huit items faits (docs/decisions.md, « Tout se parle »), mais `check_voies` n'est pas vert. Mesuré à quatre ligues, la voie bâtie au complet va de −1,3 V (le Doc) à +18,8 V (le Frelon), et l'équipe mélangée à la III vaut déjà +2 à +6 V. Deux causes lues : (1) une couleur n'habille pas la même part d'un club (la Tortue et le Rhino 100 %, l'Abbé 39 % : aucun rôle d'avant n'est le sien) ; (2) `porteParSesJoueurs` multiplie l'effet du coach par 1 + 0,06 × paliers sans plafond, donc un club tout d'une couleur triple l'effet — le Frelon s'emballe sur le volume, le Rhino, le Doc et le Contremaître descendent (leurs canaux coûtent ce qu'ils rendent, et leurs joueurs bâtis jouent hors de leur zone). La suite : un plafond au multiplicateur, la carte des couleurs à revoir avec JP (un rôle d'avant à l'Abbé ?), puis la recalibration coach par coach.
+- **Où on en est (7 oct.).** V2.1, V2.2 et V2.3 finies (docs/decisions.md, « Tout se parle » et « Les voies des coachs »). La suite : V2.4, qui commence par le prix des rôles (ci-dessous).
+- **Le prix des rôles (trouvé par `check_voies`).** À salaire égal et chacun dans sa zone, une équipe bâtie de la couleur du Frelon (power forwards, défenseurs offensifs) vaut +9,6 V, de l'Aigle +2,2, de l'Abbé +0,8, de la Tortue −2,6, du Showman −4,9, du Contremaître −10,0, du Doc −11,4, du Rhino −13,8 — sans coach. Un coach ne peut pas compenser 23 V sans valoir +20 V : c'est le prix d'un rôle (le salaire contre ce que le moteur en tire), pas la voie. `check_voies` le dit (« composition ») ; V2.4 l'a en item.
 - **Avant (3 oct.).** La refonte de `docs/refonte-systeme.md` a fait son étape 1 : les badges à paliers (Bronze → Platine), dans le moteur et à l'écran (docs/decisions.md, « Les badges à paliers »). V2.0 finie (15/15) — branche `ccr-6170d59a-31b8nb`. La suite : V2.1 (une langue).
 - **La suite proposée.** V2.0 d'abord (réparer), puis V2.1 (une langue), puis l'étape 2 de la refonte (V2.3 : les systèmes lisent les badges).
 - **Les réponses de JP** sur le coach, les adjoints, les gardiens, monter un palier et la difficulté : `docs/refonte-systeme.md`, § 10.

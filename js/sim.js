@@ -1204,6 +1204,17 @@ export function joueursDesCoachs(team) {
   }
   return n;
 }
+/*
+ * LES PLAFONDS QU'UNE VOIE RELÈVE (V2.3, docs/refonte-systeme.md § 8) : à sa confiance III, un coach relève le
+ * plafond du canal qu'il vise, pour son club seulement — l'Aigle la finition (FINITION_MAX), le Frelon la pression
+ * (PRESSION_MAX), le Rhino la robustesse (la borne de `robZ`), l'Abbé le plancher de la discipline (DISCIPLINE_MIN). Sinon une équipe bâtie pour lui s'y cogne et ne
+ * sent plus rien : des snipers sont déjà au plafond de la finition.
+ */
+function plafondsDe(team) {
+  const out = { finition: 0, pression: 0, robustesse: 0, discipline: 0 };
+  for (const c of (team && team.coachs) || []) for (const [k, v] of Object.entries(c.plafonds || {})) out[k] = Math.max(out[k], v);
+  return out;
+}
 function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;
@@ -3586,7 +3597,7 @@ export const DISSUASION = 0.2;
 const MOY_ROB_EQUIPE = 49.0;
 const ECART_ROB_EQUIPE = 2.75;
 // Les colosses (js/traits.js) ajoutent leur poids, en écarts-types, dans leurs grosses saisons.
-const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE + (t.traitRob || 0), -3, 3) : 0);
+const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_ROB_EQUIPE + (t.traitRob || 0), -3, 3 + ((t.plafonds && t.plafonds.robustesse) || 0)) : 0);
 
 /** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
 const MOY_DEF_EQUIPE = 57.6;
@@ -4223,7 +4234,7 @@ export function profilMatch(team, lineup, adv = null) {
   const finEquipe = sL ? sLC / sL : 1;
 
   const patineurs = habilles.filter(p => p.p !== 'G');
-  const cartes = effetsDeSaison(team, adv, lineup);
+  const cartes = effetsDeSaison(team, adv, lineup), plafonds = plafondsDe(team);
   // L'indiscipline de l'alignement SANS les effets (C5) : `totauxDuSoir` en tire ce que les effets y changent, bornes comprises.
   const disciplineBase = patineurs.length
     ? discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr : 1;
@@ -4237,7 +4248,7 @@ export function profilMatch(team, lineup, adv = null) {
     // L'indiscipline : combien cet alignement prend de punitions. Le plan de
     // match entre ICI — un échec avant lourd se paie à l'arbitre.
     discipline: patineurs.length
-      ? borne(cartes.discipline * disciplineBase, DISCIPLINE_MIN, DISCIPLINE_MAX)
+      ? borne(cartes.discipline * disciplineBase, DISCIPLINE_MIN - plafonds.discipline, DISCIPLINE_MAX)
       : cartes.discipline,
     disciplineBase, cartes,
     annee: anneeDe(habilles),
@@ -4248,14 +4259,15 @@ export function profilMatch(team, lineup, adv = null) {
     // facteurs sur des quantités que le profil porte déjà. `pression` reste
     // sous sa borne, `finitionFacteur` sous la sienne (le plafond du jeu ne
     // se contourne pas avec une carte).
-    pression: borne(pression * cartes.volume, 0.40, REF.pression * PRESSION_MAX),
+    pression: borne(pression * cartes.volume, 0.40, REF.pression * (PRESSION_MAX + plafonds.pression)),
+    plafonds,
     pressionBrute: pression,
     // LE TEMPO (voir attenduDeCote) : ce que les joueurs poussent seuls, et le style qui ralentit ou ouvre le jeu.
     pressionJ,
     styleVol: pressionJ > 0 ? pression / pressionJ * cartes.volume / REF_STYLE_VOL : 1,
     styleDef: defStyle * cartes.defense / REF_STYLE_DEF,
     finEquipe, creaEquipe,
-    finitionFacteur: Math.min(FINITION_MAX / finEquipe, cartes.finition),
+    finitionFacteur: Math.min((FINITION_MAX + plafonds.finition) / finEquipe, cartes.finition),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles) * cartes.defense,
     traitRob: bonusRobustesseEquipe(habilles) + cartes.robustesse + robTac,
@@ -7125,8 +7137,8 @@ function totauxBruts(team, lineup, adv) {
   const lu = lineup || activeLineup(team);
   const P = profilMatch(team, lu, adv);
   const c = P.cartes;
-  const pMax = REF.pression * PRESSION_MAX;
-  const fMax = FINITION_MAX / P.finEquipe;
+  const pMax = REF.pression * (PRESSION_MAX + P.plafonds.pression);
+  const fMax = (FINITION_MAX + P.plafonds.finition) / P.finEquipe;
   const dSans = borne(P.disciplineBase, DISCIPLINE_MIN, DISCIPLINE_MAX);
   return {
     volume: P.pression / borne(P.pressionBrute, 0.40, pMax),
