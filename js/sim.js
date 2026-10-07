@@ -1115,7 +1115,7 @@ export const CARTES = {
     blessure: 0.35, volume: 0.955,
   },
   gardiens: {
-    nom: 'Le coach des gardiens', ico: '🥅',
+    nom: 'L\'entraîneur des gardiens', ico: '🥅',
     bon: 'Tu alloues moins de buts', prix: 'Tout le monde recule : moins de lancers',
     defense: 0.935, volume: 0.92,
   },
@@ -1132,66 +1132,22 @@ export const CARTES = {
 };
 
 /* =====================================================================
-   LE PLAN DE MATCH ET LE ROULEMENT — deux décisions qu'on porte toute
-   la saison, et qu'on change quand on veut derrière le banc
+   LE ROULEMENT — une décision qu'on porte toute la saison, et qu'on
+   change quand on veut derrière le banc
 
    JP : *plus d'opportunités pour jouer avec les lignes, joueurs,
-   stratégie*. Les cartes de saison (S54) sont des curseurs qu'on PIGE à
-   trois paliers ; les situations (S56) ARRIVENT. Il manquait ce qu'un
-   entraîneur DÉCIDE et assume tous les soirs : un style de jeu, et
-   comment il distribue ses minutes.
+   stratégie*. Le ROULEMENT touche la seule quantité que rien d'autre ne
+   touchait : LA PART DE GLACE DE CHAQUE UNITÉ. C'est ce qui fait du
+   quatrième trio une décision au lieu d'un remplissage. (Le plan de match
+   qui l'accompagnait a quitté le moteur en S68 : les systèmes de chaque
+   ligne l'ont remplacé ; V2.1 en a retiré le vestige.)
 
-   AUCUNE MÉCANIQUE NEUVE, la règle des cartes : chaque plan n'est qu'un
-   facteur sur une quantité que `profilMatch` porte déjà — le volume de
-   lancers, la finition, la défensive, la robustesse, l'indiscipline et
-   le risque de blessure. Le ROULEMENT, lui, touche la seule quantité que
-   rien d'autre ne touchait : LA PART DE GLACE DE CHAQUE UNITÉ. C'est ce
-   qui fait du quatrième trio une décision au lieu d'un remplissage.
-
-   ET LES DEUX SE REJOUENT. Ce sont des décisions (`{ jour, plan }`,
-   `{ jour, roulement }`), elles vivent dans la sauvegarde avec le reste
-   et la saison se rejoue de la graine avec elles — `check_graine.mjs`
-   l'exige. La décision 0 les porte aussi, sinon un plan choisi au jour 40
-   vaudrait pour les 40 journées d'avant à la reprise.
+   ET IL SE REJOUE. C'est une décision (`{ jour, roulement }`) qui vit dans
+   la sauvegarde avec le reste, et la saison se rejoue de la graine avec
+   elle — `check_graine.mjs` l'exige. La décision 0 la porte aussi, sinon
+   un roulement choisi au jour 40 vaudrait pour les 40 journées d'avant à
+   la reprise.
    ===================================================================== */
-/*
- * LES CINQ PLANS, et le prix de chacun est mesuré EN PAIRES par
- * `scripts/check_plans.mjs` (la même ligue deux fois sous la même graine, le
- * plan aux équipes de rang pair puis aux impaires) : voir CLAUDE.md pour le
- * tableau. Aucun ne doit valoir plus d'une victoire et demie — un plan est un
- * STYLE, pas un cadeau, et le jeu se gagne avec l'alignement.
- */
-const PLANS = {
-  equilibre: {
-    nom: 'Équilibré', ico: '⚖️',
-    bon: 'Rien à payer', prix: 'Rien à gagner',
-  },
-  echec: {
-    nom: 'Échec avant', ico: '🔥',
-    bon: 'Tu récupères haut : plus de lancers', prix: 'Plus de punitions et plus de blessures',
-    volume: 1.06, discipline: 1.15, blessure: 1.20,
-    apt: 'echec', gain: ['volume'],
-  },
-  trappe: {
-    nom: 'La trappe', ico: '🧊',
-    bon: 'Tu alloues moins de buts', prix: 'Tu tires moins',
-    defense: 0.955, volume: 0.955,
-    apt: 'trappe', gain: ['defense'],
-  },
-  surnombre: {
-    nom: 'Tout en attaque', ico: '🎯',
-    bon: 'Ton attaque finit mieux', prix: 'Tu laisses le champ libre',
-    finition: 1.05, defense: 1.055,
-    apt: 'surnombre', gain: ['finition'],
-  },
-  corps: {
-    nom: 'Jouer le corps', ico: '🧱',
-    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des punitions, et moins de finesse',
-    robustesse: 1.2, discipline: 1.10, finition: 0.985,
-    apt: 'corps', gain: ['robustesse'],
-  },
-};
-
 /*
  * LE ROULEMENT : où passent les minutes.
  *
@@ -1520,7 +1476,7 @@ function profilsBase(p) {
  */
 const UNITE_PAR_ROLE = {
   F: { sniper: 'Trio de snipers', passeur: 'Trio de passeurs', deuxsens: 'Trio two-way', power: 'Trio de power forwards', checker: 'Trio de checkers', energie: 'Trio de plombiers', bagarreur: 'Trio de durs' },
-  D: { defensif: 'Paire défensive', offensif: 'Paire offensive', manieur: 'Paire de relance', physique: 'Paire physique', deuxsens: 'Paire two-way' },
+  D: { defensif: 'Paire défensive', offensif: 'Paire offensive', manieur: 'Paire de manieurs', physique: 'Paire physique', deuxsens: 'Paire two-way' },
 };
 export function identiteUnite(lineup, groupe, u) {
   const js = SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
@@ -1685,7 +1641,7 @@ export const SYSTEMES_D = {
     gain: { volume: 1.256, finition: 1.046 }, prix: { defense: 1.078 },
   },
   relance: {
-    nom: 'Relance rapide', ico: '💨', bat: 'echec',
+    nom: 'Sortie rapide', ico: '💨', bat: 'echec',
     slots: { DG: 'manieur', DD: 'manieur' },
     mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
     gain: { volume: 1.143, defense: 0.947 }, prix: { energie: 1.062 },
@@ -1746,9 +1702,9 @@ export function effetsDeSysteme(S, fit) {
  * légère, c'est l'inverse.
  */
 export const AGRESSIVITES = [
-  { nom: 'Basse', ico: '🕊️', energie: 0.98, physique: 0.0, def: -0.04, pun: -0.15 },
+  { nom: 'Prudente', ico: '🕊️', energie: 0.98, physique: 0.0, def: -0.04, pun: -0.15 },
   { nom: 'Moyenne', ico: '⚖️', energie: 1.00, physique: 0.4, def: 0, pun: 0 },
-  { nom: 'Haute', ico: '💥', energie: 1.04, physique: 0.7, def: 0.035, pun: 0.15 },
+  { nom: 'Musclée', ico: '💥', energie: 1.04, physique: 0.7, def: 0.035, pun: 0.15 },
   { nom: 'Rentre-dedans', ico: '🪓', energie: 1.09, physique: 0.9, def: 0.07, pun: 0.30 },
 ];
 export const SEC_DEFAUT = 60, SEC_MIN = 30, SEC_MAX = 90;
@@ -2698,7 +2654,7 @@ export const MOMENTS = {
     ],
   },
   tortorella: {
-    ico: '🎙️', titre: 'Le coach pète une coche', irl: 'Inspiré de plusieurs points de presse',
+    ico: '🎙️', titre: 'L\'entraîneur pète une coche', irl: 'Inspiré de plusieurs points de presse',
     recit: 'Ton entraîneur insulte un journaliste en direct et promet que « ça va changer ». La vidéo fait le tour du continent.',
     options: [
       { cle: 'appuyer', nom: 'L\'appuyer', bon: 'Si le vestiaire embarque, ça brasse', prix: 'Sinon, ça dégénère en punitions',
@@ -2809,7 +2765,7 @@ export const MOMENTS = {
     // S80 : tu as vraiment un défenseur de 33 ans ou plus.
     faits: c => (c.veteransD.length ? { vieux: c.veteransD[0].n } : null),
     options: [
-      { cle: 'oui', nom: 'Qu\'il lui apprenne à défendre', mutation: 'dur', bon: '{nom} ne montera plus, il bloquera', prix: 'Moins de relance' },
+      { cle: 'oui', nom: 'Qu\'il lui apprenne à défendre', mutation: 'dur', bon: '{nom} ne montera plus, il bloquera', prix: 'Moins de premières passes' },
       { cle: 'non', nom: '{nom} garde son style', bon: 'Rien ne change', rien: true },
     ],
   },
@@ -4916,7 +4872,6 @@ export function createTeam(name, tag, roster, opts = {}) {
     isPlayer: !!opts.isPlayer,
     season: opts.season || null,
     fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_DEFAUT)
-    plan: opts.plan || 'equilibre',        // le plan de match (voir PLANS)
     roulement: opts.roulement || 'quatre', // la distribution des minutes (voir ROULEMENTS)
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
@@ -5715,7 +5670,6 @@ function appliquerDecision(team, d, graine = 0) {
   // elle a été prise et vaut pour le reste de la saison.
   if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
-  if ('plan' in d && PLANS[d.plan]) team.plan = d.plan;
   if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
   // UN CHANGEMENT DE CARTE PAR CHOIX (S68) : direct, ou porté par l'option
   // d'un dilemme. Le joueur visé est nommé dans la décision.
@@ -6650,8 +6604,8 @@ export const MUTATIONS = {
     quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { deuxsens: 12, defensif: 12 }, defense: 0.898 },
   vision: { nom: 'La vision', ico: '🪄', cible: 'libre', source: 'amelioration',
     quoi: 'Il trouve des passes que personne ne voit.', profils: { passeur: 12, manieur: 10 }, creation: 1.176 },
-  coach: { nom: 'Le coach des gardiens', ico: '🧤', cible: 'libre', source: 'amelioration', gardien: true,
-    quoi: 'Un été avec le coach des gardiens : il place mieux ses jambières.', arrets: 0.925 },
+  coach: { nom: 'L\'entraîneur des gardiens', ico: '🧤', cible: 'libre', source: 'amelioration', gardien: true,
+    quoi: 'Un été avec l\'entraîneur des gardiens : il place mieux ses jambières.', arrets: 0.925 },
   /*
    * ---- L'ATELIER (S78) : éditer un joueur ----
    * JP : *ajouter cartes pour éditer joueur, genre ajouter position, changer
@@ -7528,7 +7482,7 @@ export const AVANT_GROS = {
     irl: 'Mark Messier, 1994 : il garantit une victoire au 6e match contre les Devils, puis marque trois buts en troisième.',
     recit: 'Les journalistes entourent ton capitaine. Ils attendent une phrase pour la une.',
     options: [
-      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit, et une victoire vaudra double', prix: 'Une défaite aussi', finition: 1.088, enjeu: true },
+      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit : gagné, la lancée dure deux fois plus', prix: 'Perdu, on reste sonnés deux fois plus', finition: 1.088, enjeu: true },
       { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', defense: 0.96 },
     ] },
   mots: { ico: '🗣️', titre: 'La guerre des mots',
@@ -7610,8 +7564,10 @@ export const AVANT_GROS = {
 /* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`).
  * `contexte` est un objet passé à `faits(c)` pour filtrer les événements dont la condition ne tient pas. */
 export function avantDuGros(graine, cle, deja = [], contexte = null) {
-  const cles = Object.keys(AVANT_GROS).filter(c => !deja.includes(c) && (!AVANT_GROS[c].faits || (contexte && AVANT_GROS[c].faits(contexte))));
-  const pool = cles.length ? cles : Object.keys(AVANT_GROS).filter(c => !deja.includes(c));
+  const tous = Object.keys(AVANT_GROS), libres = tous.filter(c => !deja.includes(c));
+  const cles = libres.filter(c => !AVANT_GROS[c].faits || (contexte && AVANT_GROS[c].faits(contexte)));
+  // Les douze joués (une longue saison de Rogue en annonce plus) : on refait le tour, jamais deux fois le même de suite.
+  const pool = cles.length ? cles : libres.length ? libres : tous.filter(c => c !== deja[deja.length - 1]);
   return pool[Math.floor(hacherMise(graine, 'avant', cle) * pool.length)];
 }
 
@@ -7658,7 +7614,7 @@ export const ENTRACTES = {
   patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.12, volume: 0.84 },
   pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.28, finition: 0.9, defense: 1.06 },
   meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.3, defense: 1.14, energie: 1.16 },
-  discours: { ico: '🗣️', nom: 'Le coach élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.06, discipline: 1.2 },
+  discours: { ico: '🗣️', nom: 'L\'entraîneur élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.06, discipline: 1.2 },
   // À égalité.
   prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.8, volume: 0.8 },
   doubler: { ico: '🔥', nom: 'Doubler le 1er trio', si: ['egal'], bon: 'Ton meilleur trio sur la glace', prix: 'Il va finir à plat', F: [1.4, 1, 0.85, 0.75], energie: 1.2 },
@@ -7669,7 +7625,7 @@ export const ENTRACTES = {
   bloquer: { ico: '🧯', nom: 'Bloquer tous les tirs', si: ['egal', 'devant'], bon: 'Rien ne se rend au filet', prix: 'Des rondelles dans les chevilles', defense: 0.8, blessure: 1.8 },
   // Devant.
   porte: { ico: '🧱', nom: 'Fermer la porte', si: ['devant'], bon: 'Tout le monde en zone neutre', prix: "On n'attaque plus", defense: 0.7, volume: 0.7 },
-  tueur: { ico: '🦬', nom: 'Aller chercher le but qui tue', si: ['devant'], bon: 'Enterrer le match', prix: 'Un contre peut tout relancer', volume: 1.16, finition: 1.06, defense: 1.12 },
+  tueur: { ico: '🦬', nom: 'Aller chercher le but qui tue', si: ['devant'], bon: 'Enterrer le match', prix: 'Un contre peut tout renverser', volume: 1.16, finition: 1.06, defense: 1.12 },
   repos: { ico: '🛋️', nom: 'Reposer les vedettes', si: ['devant'], bon: 'Leurs jambes pour demain', prix: 'Les plombiers protègent l\'avance', F: [0.7, 0.9, 1.15, 1.3], energie: 0.76, defense: 1.08 },
   rondelle: { ico: '🪀', nom: 'Garder la rondelle', si: ['devant'], bon: 'Ils ne l\'ont pas, ils ne marquent pas', prix: 'Moins de tirs, des jambes en moins', volume: 0.9, defense: 0.86, energie: 1.1 },
   payer: { ico: '🔨', nom: 'Faire payer chaque mise en échec', si: ['devant'], bon: 'Ils hésitent à venir', prix: 'Des punitions', robustesse: 1.6, defense: 0.94, discipline: 1.5 },
@@ -8034,7 +7990,7 @@ export function effetsEnCours(team, jour) {
 
 export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
-  nemesis: { ico: '😤', nom: 'Rivalité', mot: 'il t\'a déjà battu deux fois' },
+  nemesis: { ico: '😤', nom: 'Bête noire', mot: 'il t\'a déjà battu deux fois' },
 };
 export const ELAN = { nom: 'La lancée', ico: '⬆️', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
@@ -8083,7 +8039,7 @@ function grosMatchApres(toi, m, r, gros) {
   const o = A && A.options.find(x => x.cle === gros.avant.choix);
   const duree = E.duree * (o && o.enjeu ? 2 : 1);
   (toi.effets = toi.effets || []).push({ debut: r + 1, fin: apresMatchs(toi, r + 1, duree), source: 'miniboss', nom: E.nom, ico: E.ico, finition: E.finition });
-  (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, gagne, plan: gros.plan, contre: gros.contre,
+  (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, gagne, duree, plan: gros.plan, contre: gros.contre,
     depistage: gros.depistage || null, preparation: gros.preparation || [], prepJuste: gros.prepJuste ?? null,
     avant: gros.avant, entracte: gros.entracte || null, apres40: gros.apres40 || null, cartes: gros.cartesJouees || null });
 }

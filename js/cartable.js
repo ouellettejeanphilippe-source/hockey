@@ -6,7 +6,7 @@
  * de carte, clickables, etc, avec stats de la saison en cours et saisons
  * réelles comme vraie carte. Je veux collectionner.*
  *
- * L'onglet Vestiaire devient le cartable dès que la saison commence (le
+ * La section Collection montre le cartable dès que la saison commence (le
  * repêchage garde son bassin tant qu'on bâtit ; le Rogue repêche entre les saisons) :
  *   - TON ÉQUIPE : les cartes de ton alignement, avec leur saison en cours (les
  *     journées RÉVÉLÉES, jamais la fin de l'année) et leur vraie saison ;

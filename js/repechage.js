@@ -175,7 +175,7 @@ export function carteMiniHtml(p) {
  * journée 55 ne se lit pas à la journée 20. Sans saison (le repêchage), rien :
  * un joueur n'a pas encore de carte jouée sur lui.
  */
-const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', style: 'Style', contrat: 'Contrat', choix: 'Nouveau rôle', accident: 'Le hasard' };
+const SOURCE_MOD = { atelier: 'L\'atelier', amelioration: 'Amélioration', style: 'Style', contrat: 'Clause', choix: 'Nouveau rôle', accident: 'Le hasard' };
 function modsDuJoueur(p) {
   const t = G.ligue && G.ligue.you;
   if (!p || !t || !Array.isArray(t.mutations)) return null;
@@ -956,7 +956,7 @@ export function renderSpin() {
       </div>
       ${instruction ? `<div class="spin-instruction">${instruction}</div>` : ''}
       <div class="rerolls">
-        <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Retirer une autre saison au hasard'}">
+        <button id="rrS" class="reroll" ${G.left.season && need && !epoqueDuTirage() ? '' : 'disabled'} title="${epoqueDuTirage() ? `Le repêchage est fixé à ${esc(G.epoque)} : pas d'autre année` : 'Garder l\'équipe, changer de saison'}">
           <span class="rr-lbl">${ico('i-dice')}Autre année</span><span class="rr-count">${G.left.season}</span></button>
         <button id="rrT" class="reroll" ${G.left.team && need && !franchiseDuTirage() ? '' : 'disabled'} title="${franchiseDuTirage() ? `Le repêchage est fixé à la franchise : ${esc(FRANCHISES[G.franchise].nom)}` : 'Garder la saison, changer d\'équipe'}">
           <span class="rr-lbl">${ico('i-swap')}Autre équipe</span><span class="rr-count">${G.left.team}</span></button>

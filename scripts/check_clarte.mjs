@@ -116,6 +116,55 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
 }
 
 /*
+ * ---------- 2c. LES MOTS RÉSERVÉS (V2.1, une langue) ----------
+ * Un mot par idée : chaque mot réservé garde UN sens, et ses anciens sens ne
+ * reviennent plus à l'écran (CLAUDE.md, « Le vocabulaire »). Chaque entrée :
+ * le mot, la tournure qui le réemploierait, un témoin fautif et un témoin juste
+ * (la contre-épreuve : le motif attrape ce qu'il vise, rien de plus).
+ */
+const MOTS_RESERVES = [
+  ['vestiaire', 'la pièce et l\'équipe ; pas les déblocages ni l\'effectif d\'une run', /vestiaire des déblocages|\bTon vestiaire\b|vestiaire croit (à|au)|dépense-les au vestiaire|onglet Vestiaire/i,
+    'Le vestiaire des déblocages', 'Le vestiaire est galvanisé'],
+  ['classeur', 'le tirage du cartable au départ d\'une run ; pas la banque des cartes de jeu', /^Le classeur$|vont à ton classeur|vestiaire tiré de ton classeur/,
+    'Le classeur', 'Le départ du classeur'],
+  ['plombier', 'le rôle 🪠 ; les faibles du départ sont des bouche-trous', /(équipe|bande|rassemble tes|place pour tes) (de )?plombiers|plombiers? (de la ligue|de départ|sont là|moins pires)|rejoin(t|dent) tes plombiers|avec des plombiers/i,
+    'Une équipe de plombiers, 🪙 40', 'Tirs +2 % par plombier 🪠 habillé'],
+  ['relance', 'le dé qu\'on relance ; pas la sortie de zone ni la passe du gardien', /Paire de relance|Relance rapide|Moins de relance|relance (la rondelle|en contre|du gardien|à un coéquipier)|qui relancent|gardien relance|la relance ou la gèle|pour la relance/i,
+    '💨 Relance rapide', 'Tu peux relancer (2 relances)'],
+  ['rejouer', 'les mêmes clubs, d\'autres dés ; pas l\'historique ni la reprise d\'une décision', /On rejoue (la saison|les séries)|mêmes 31 clubs|^Rejouer$/,
+    'On rejoue la saison avec ton choix…', 'Rejouer la saison'],
+  ['coach', 'la philosophie ; la personne est l\'entraîneur', /\b(le|un|du|sans le|invite le) coach (des gardiens|élève|pète|sort|dans leur|paie|a parlé|laisse|qui promet|concentré)|cris du coach|selon le coach/i,
+    'Le coach des gardiens', 'Le coach de sa couleur'],
+  ['rivalité', 'le club le plus croisé en gros match ; celui qui t\'a battu deux fois est ta bête noire', /^Rivalité$|ta némésis|ta rivale\b/i,
+    'La défaite contre ta rivale', 'Ta rivalité : MTL'],
+  ['trophée', 'ce que le bilan décerne ; ce que le joueur porte est un trait', /Un trophée<\/strong>, rarement/i,
+    '<strong>Un trophée</strong>, rarement', 'Les trophées de la saison'],
+  ['Basse', 'la consigne ; l\'agressivité dit Prudente', /agressivité (🕊️ )?basse|🕊️ basse/i,
+    '(🕊️ basse, ⚖️ moyenne)', 'la consigne 😌 Basse'],
+  ['médailles', 'la monnaie des déblocages ; l\'écusson est un logo', /\d+ écussons|écussons (à dépenser|pour ta saison|pour tes séries|de découverte|gagnés)|Tes écussons/i,
+    '🏅 +12 écussons pour ta saison', 'Le nom, les couleurs et l\'écusson'],
+  ['contrat', 'une carte de masse salariale ; la modif de joueur est une clause', /Un style, un contrat|une modif de contrat/i,
+    'Un style, un contrat, une amélioration', 'Pack Contrats'],
+];
+{
+  const temoinsFaux = MOTS_RESERVES.filter(([, , re, faux, bon]) => !re.test(faux) || re.test(bon)).map(([m]) => m);
+  exiger('les motifs des mots réservés attrapent ce qu\'ils visent', temoinsFaux.length === 0, temoinsFaux.join(' · ') || `${MOTS_RESERVES.length} mots, chacun son témoin`);
+  const prose = [];
+  for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
+    for (const { s, ligne } of chainesDe(lire(`js/${f}`), { lignes: true })) prose.push({ ou: `js/${f}:${ligne}`, t: s.trim() });
+  }
+  const html = lire('index.html').replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)[\s\S]*?<\/\1>/g, '');
+  html.split('\n').forEach((l, k) => prose.push({ ou: `index.html:${k + 1}`, t: l.trim() }));
+  // Ce qui est parti ne se promet plus : les factions de S72 (partisans, médias) et la garantie « qui vaut double ».
+  const partis = prose.filter(x => /partisans montent|médias s'acharnent|vaudra double/i.test(x.t)).map(x => `${x.ou} « ${x.t.slice(0, 50)} »`);
+  exiger('l\'écran ne promet plus ce qui est parti (les factions, la victoire qui vaut double)', partis.length === 0, partis.slice(0, 3).join(' · ') || 'rien de parti');
+  for (const [mot, sens, re] of MOTS_RESERVES) {
+    const vus = prose.filter(x => re.test(x.t)).map(x => `${x.ou} « ${x.t.slice(0, 50)} »`);
+    exiger(`« ${mot} » n'a qu'un sens : ${sens}`, vus.length === 0, vus.slice(0, 3).join(' · ') || 'aucun réemploi');
+  }
+}
+
+/*
  * ---------- 2b. le gel des chaînes (1.0, J5) ----------
  * Une seule forme par sorte de nombre, et la typographie du jeu : l'argent à
  * la québécoise (« 95,5 M$ », jamais « $95.5M »), les ordinaux « 1er, 2e »
@@ -239,7 +288,7 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
-    [`À ${SEUILS.slice(0, -1).join(', ')} et ${SEUILS[SEUILS.length - 1]} cartes jouées d'un coach, le vestiaire croit à lui pour la saison`, 'les seuils de la confiance'],
+    [`À ${SEUILS.slice(0, -1).join(', ')} et ${SEUILS[SEUILS.length - 1]} cartes jouées d'un coach, l'équipe croit à lui pour la saison`, 'les seuils de la confiance'],
   ];
   // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
   const src = lire('js/rogue.js');

@@ -130,7 +130,7 @@ La référence est « sans système » parce que l'IA, par défaut, choisit déj
 | **Trappe 1-3-1** | **0,0** | 0,0 | **0,0** | +0,18 | **−0,05** | 0 | 0 | +1,4 |
 | Rester à la maison (paire) | **−0,8** | 0 | −0,8 | −0,08 | −0,07 | 0 | 0 | −0,2 |
 | Activer les défenseurs (paire) | +0,3 | −0,2 | +0,1 | +0,05 | −0,02 | −0,09 | 0 | +0,4 |
-| Relance rapide (paire) | +0,3 | 0 | +0,3 | +0,05 | −0,05 | −0,04 | 0 | +0,6 |
+| Sortie rapide (paire) | +0,3 | 0 | +0,3 | +0,05 | −0,05 | −0,04 | 0 | +0,6 |
 | Nettoyer l'enclave (paire) | −0,1 | −0,2 | −0,2 | 0 | −0,01 | **+0,21** | 0 | 0 |
 
 - **Le « Trappe 1-3-1 » ne change rien de visible** : 0 tir, −0,05 but contre. Il porte `defense 0.93, volume 0.95` mais le gain est mis à l'échelle du fit de la ligne (`echelleFit`) et se dilue sur la présence ; ce qui reste est un −0,05 but, que la feuille ne montre pas. C'est LE système défensif du jeu.

@@ -326,8 +326,8 @@ function slotEl(s) {
   } else if (G.bonus === 'ROGUE' && s.extra && !caseOuverte(s)) {
     // UNE CASE DE RÉSERVE À DÉBLOQUER (S80) : visible, grisée, et elle dit où la débloquer.
     el.classList.add('verrou');
-    el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Au vestiaire des déblocages</div>`;
-    el.onclick = () => toast('Cette case de réserve se débloque au vestiaire des déblocages, dans le menu (ou par un jalon).');
+    el.innerHTML = `<div class="slot-role">🔒 ${esc(s.role)}</div><div class="slot-sub">Aux déblocages</div>`;
+    el.onclick = () => toast('Cette case de réserve se débloque aux déblocages, dans le menu (ou par un jalon).');
     return el;
   } else if (G.bonus === 'ROGUE' && s.scratch) {
     el.innerHTML = `<div class="slot-role">${esc(s.role)}</div><div class="slot-sub">Case libre</div>`;
@@ -370,7 +370,7 @@ function slotEl(s) {
       G.selectedSlot = s.i;
       toast('Touche une autre case pour déplacer ou permuter.');
     } else if (G.bonus === 'ROGUE') {
-      // Le Rogue n'a pas de vestiaire où piger (S80) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
+      // En saison, le Rogue n'a pas de vestiaire où piger (son repêchage vient entre deux saisons) : une case libre se remplit à la boutique, ou en y déplaçant un joueur.
       toast('Case libre : un joueur signé à la boutique pourra y entrer sans que personne sorte. Tu peux aussi y déplacer un joueur.');
       return;
     } else {

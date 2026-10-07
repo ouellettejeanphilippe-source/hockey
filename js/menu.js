@@ -150,7 +150,7 @@ function dessiner(m) {
 
   const liensRogue = ctx.enJeu && active && active.genre === 'rogue' && ctx.rogue
     ? [ctx.rogue.inventaire ? '<button type="button" class="menu-lien" data-menu="inventaire">Inventaire</button>' : '',
-      ctx.rogue.vestiaire ? '<button type="button" class="menu-lien" data-menu="vestiaire">Vestiaire</button>' : ''].join('')
+      ctx.rogue.vestiaire ? '<button type="button" class="menu-lien" data-menu="vestiaire">Déblocages</button>' : ''].join('')
     : '';
 
   if (ctx.enJeu) {

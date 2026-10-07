@@ -367,11 +367,11 @@ Trois chantiers dans `js/sim.js`, sous `MAITRISE_LIGUE` et `ENERGIE_REF` :
   moyenne des 29 000 réguliers (`MAITRISE_LIGUE`, mesurée) pour que la ligue
   ne bouge pas. Un canal par rôle, celui que ses stats ne portent pas :
   checker, two-way, défensif, physique ÉTOUFFENT la qualité des lancers
-  adverses pendant leurs présences (`EFFET_ROLE` 8 / 4 % par joueur du palier
-  maîtrise) ; le bagarreur INTIMIDE le trio en face (6 %) ; le power forward
-  tient DEVANT LE FILET (finition des coéquipiers +5 %) ; le plombier garde
-  ses JAMBES (`EFFET_ROLE.energie` = 0,4 × maîtrise : −8 % Bronze, −22 % Or,
-  −38 % Platine) ; le sniper TIRE EN AVANTAGE NUMÉRIQUE (jusqu'à ×2 dans le choix
+  adverses pendant leurs présences (`EFFET_ROLE` 8 / 4 % au Platine, par
+  joueur) ; le bagarreur INTIMIDE le trio en face (6 %) ; le power forward
+  tient DEVANT LE FILET (finition des coéquipiers +8 %) ; le plombier garde
+  ses JAMBES (`EFFET_ROLE.energie` = 0,4 au Platine : −10 % Bronze, −20 %
+  Argent, −30 % Or, −40 % Platine) ; le sniper TIRE EN AVANTAGE NUMÉRIQUE (jusqu'à ×2 dans le choix
   du tireur) ; le défenseur offensif lance DE LA POINTE (volume +5 %) ;
   passeur et manieur créent, déjà lu dans `passesRel`.
 - **Les coups coûtent des jambes** (`encaisserCoups`) : les mises en échec

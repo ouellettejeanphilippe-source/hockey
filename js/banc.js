@@ -267,7 +267,7 @@ async function continuerSaison(decisions, depuis, mot) {
  * (deux images d'animation : le calcul bloque le fil, et un voile posé juste
  * avant ne serait jamais dessiné).
  */
-function voile(on, mot = 'On rejoue la saison avec ton choix…') {
+function voile(on, mot = 'La saison reprend avec ton choix…') {
   let v = $('voile');
   if (!v) {
     v = document.createElement('div');
@@ -313,7 +313,7 @@ function confirmerDecision(d) {
   if (d.coach && COACHS[d.coach.cle]) {
     const C = COACHS[d.coach.cle];
     const sys = d.maitrise && systemeDe(d.maitrise.tac);
-    mot = `${mot ? `${mot} ` : ''}${C.ico} Le vestiaire croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
+    mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
   }
   if (mot) toast(mot);
 }
@@ -477,7 +477,7 @@ export async function deciderSerie(d) {
   }
   G.done = false;
   renderMain();
-  await sousVoile('On rejoue les séries avec ton choix…', async () => {
+  await sousVoile('Les séries reprennent avec ton choix…', async () => {
     await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
     reprendreSeries(vues);
   });

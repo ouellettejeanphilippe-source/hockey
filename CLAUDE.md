@@ -143,7 +143,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
 - Moins de mots, et surtout pas les évidents : une ligne à l'écran, le détail chiffré dans la page des règles, dont chaque chiffre vient d'une constante — `check_clarte`.
-- Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son nom, ses couleurs et son écusson s'achètent en jetons à la boutique, comme les packs, et se portent au vestiaire (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
+- Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son nom, ses couleurs et son écusson s'achètent en jetons à la boutique, comme les packs, et se portent aux déblocages (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 
 **Le code et les tests**
@@ -167,10 +167,20 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
 - **couleur** : le coach d'une carte, ou d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon ». Une carte sans couleur est **neutre**.
-- **confiance** : I, II, III — le vestiaire croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
-- **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — écussons gagnés à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
+- **confiance** : I, II, III — l'équipe croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
+- **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — médailles 🏅 gagnées à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
 - **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
-- **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers.
+- **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers. Les joueurs faibles du départ d'une run sont des **bouche-trous**, pas des plombiers.
+- **vestiaire** : la pièce, et l'équipe qui y vit (« le vestiaire est galvanisé ») ; au repêchage, le vestiaire d'une vraie équipe où l'on pige. Ce que les médailles achètent, ce sont **les déblocages** ; l'équipe d'une run, c'est **ton effectif**.
+- **cartable** : tes cartes de joueur, d'une partie à l'autre. **classeur** : le tirage de ton cartable au départ d'une run (« Le départ du classeur »). La **banque** : toutes les cartes de jeu. Un **doublon** est un joueur déjà à ton cartable.
+- **médailles** 🏅 : la monnaie des déblocages ; **jetons** 🪙 : celle de la boutique. L'**écusson** est un logo, jamais une monnaie.
+- **coach** : seulement la philosophie ; la personne derrière le banc est **l'entraîneur** (« L'entraîneur des gardiens »).
+- **relance** : seulement le dé qu'on relance (la roulette, la relance d'équipe sur table) ; la sortie de zone se dit « sortie », la passe du gardien « remise ».
+- **rejouer** : les mêmes clubs, d'autres dés (« Rejouer la saison ») ; l'historique « reprend l'alignement », une décision « reprend la saison ».
+- **rival** : un club à deux rangs ou moins ; la **bête noire** 😤 : celui qui t'a battu deux fois ; **ta rivalité** : le club le plus croisé en gros match.
+- **trait** : ce qu'un vote ou une réputation donne au joueur (🛡️ Selke, ⚡ vitesse) ; un **trophée** se décerne au bilan, sur les colonnes.
+- **consigne** : 😌 Basse, 🎚️ Normale, 🌡️ Haute ; **agressivité** : 🕊️ Prudente, ⚖️ Moyenne, 💥 Musclée, 🪓 Rentre-dedans.
+- **contrat** : une carte de masse salariale (💵) ; une modif de joueur qui touche son contrat est une **clause**.
 - **usure des jambes** : ce qu'un match coûte aux jambes (la puce « Usure des jambes +12 % »).
 - « énergie » n'est plus un mot de l'écran (il voulait dire cinq choses) — `check_clarte`. Les clés du code (`energie`, `ENERGIE_MAIN`) restent, pour ne pas casser les sauvegardes.
 - **Une icône = un sens** dans les étiquettes qu'on voit en jouant : rôles, systèmes, trophées, bonus de carte, styles de gardien, carrure, agressivité, consigne — `check_clarte`. Avant d'ajouter une icône, cherche-la dans `js/`.

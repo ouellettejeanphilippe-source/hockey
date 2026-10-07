@@ -975,7 +975,7 @@ export function agesAvailable() {
 /* SA COULEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé — ses cartes et la confiance de ce coach comptent sur lui. */
 export function coachTag(p) {
   const C = COACHS[coachDuJoueur(p)];
-  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : il porte la confiance de ce coach (+${Math.round(JOUEUR_COACH * 100)} % par joueur habillé) et fait grandir ses cartes de vestiaire.">${C.ico} ${esc(C.nom)}</span>` : '';
+  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : il porte la confiance de ce coach (+${Math.round(JOUEUR_COACH * 100)} % par joueur habillé) et fait grandir les cartes de sa couleur.">${C.ico} ${esc(C.nom)}</span>` : '';
 }
 export function zoneTag(p, mini = false) {
   const v = getHiddenRatings(p).v;
@@ -1027,7 +1027,8 @@ export function roleTag(p) {
 function traitTagList(p, full = false) {
   return getTraits(p).map(t => {
     const meta = TRAITS[t.cle];
-    const niveau = t.niveau === 0 ? 'Lauréat' : 'Finaliste';
+    // Une réputation n'est pas un vote : ni lauréat ni finaliste (V2.1).
+    const niveau = meta.reputation ? 'Réputation' : t.niveau === 0 ? 'Lauréat' : 'Finaliste';
     const txt = full ? ` ${esc(meta.label)}${t.niveau ? ' (finaliste)' : ''}` : '';
     return `<span class="tag tag-trait${t.niveau ? ' est-finaliste' : ''}"`
       + ` title="${esc(meta.short)} ${esc(p.s)} — ${niveau}. ${esc(meta.desc)}.">`
@@ -1577,7 +1578,7 @@ const SECTIONS = [
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
   { cle: 'collection', ico: 'i-cartes', titre: 'Collection' },
 ];
-/* Le vestiaire (ou le loto) tant qu'on repêche. Le Rogue bâtit par packs : il ne repêche jamais. */
+/* Le vestiaire (ou le loto) tant qu'on repêche. En saison, le Rogue bâtit par packs ; son repêchage vient entre deux saisons. */
 const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
 /* Les pages de chaque section, dans l'ordre de ses onglets internes. */
 const PAGES_DE = {
@@ -1928,8 +1929,8 @@ function remplirMarche() {
   const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
   host.innerHTML = `${signatureHtml(hub)}<div class="marche">
     ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : G.bonus === 'ROGUE' ? 'Elle ouvre pendant la saison, entre deux journées.' : 'Au mode Rogue.')}
-    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et ton classeur, à lire')}
-    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Le vestiaire des déblocages', `${lireMeta().ecussons || 0} écussons à dépenser`) : ''}
+    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et la banque des cartes, à lire')}
+    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Les déblocages', `${lireMeta().ecussons || 0} médailles à dépenser`) : ''}
   </div>`;
   brancherSignature(host, hub);
   host.querySelectorAll('[data-marche]').forEach(b => {
@@ -2273,7 +2274,7 @@ function showLeaderboard() {
         <div>${i.rank ? `${i.rank === 1 ? '1er' : `${i.rank}e`} de ${i.nTeams}` : ''}${i.epoque ? ` · saison ${esc(i.epoque)}` : ''}</div>
         <div>${format ? `${esc(format)} · ` : ''}Masse : ${money(i.capUsed)}</div>
         <div>${esc(i.date)}</div>
-        ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Rejouer</button>` : ''}
+        ${Array.isArray(i.alignement) ? `<button class="btn small lb-replay" data-idx="${idx}" title="Relire ces 23 joueurs et jouer une nouvelle saison">${ico('i-dice')}Reprendre l'alignement</button>` : ''}
       </div>
     </div>`;
   }).join('');

@@ -2084,7 +2084,7 @@ if (enabled) {
   await saisonDunCoup('rejouée');
   console.log(`   rejouée : fiche ${(await page.textContent('.result .score')).trim()}`);
 
-  // L'historique garde l'alignement : « Rejouer » relit les 23 joueurs et
+  // L'historique garde l'alignement : « Reprendre l'alignement » relit les 23 joueurs et
   // repart une saison.
   await aller('historique');
   await page.waitForSelector('#pageHistorique:not([hidden])', { timeout: 10000 });

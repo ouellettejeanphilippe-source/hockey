@@ -15,7 +15,7 @@ export const EVENEMENTS_VIE = {
   jeuxVideo: { nom: 'Le tournoi de jeux vidéo', ico: '🕹️', rarete: 'peu', duree: 6, texte: 'Les défenseurs ont gagné, ce qui ne s\'explique pas.', effet: { volume: 1.083, energie: 1.165 } },
   chandailEnvers: { nom: 'Le chandail à l\'envers', ico: '🧥', rarete: 'peu', duree: 6, texte: 'Un rituel d\'avant-match, adopté par le vestiaire après deux victoires.', effet: { finition: 1.112, discipline: 1.225 } },
   barbier: { nom: 'Le barbier de la maison', ico: '💈', rarete: 'commune', duree: 5, texte: 'Une coupe à l\'équipe, et dix minutes de silence respectueux.', effet: { volume: 0.962, discipline: 0.737 } },
-  tempsMort: { nom: 'Le temps mort inutile', ico: '⏲️', rarete: 'commune', duree: 4, texte: 'Le coach a parlé quarante secondes. Le message n\'est pas parvenu.', effet: { volume: 0.925, finition: 1.037 } },
+  tempsMort: { nom: 'Le temps mort inutile', ico: '⏲️', rarete: 'commune', duree: 4, texte: 'L\'entraîneur a parlé quarante secondes. Le message n\'est pas parvenu.', effet: { volume: 0.925, finition: 1.037 } },
   recrueSeau: { nom: 'La recrue et le seau', ico: '🥄', rarete: 'commune', duree: 5, texte: 'Elle porte le sac de rondelles, et elle ne s\'en plaint pas.', effet: { discipline: 0.85, energie: 1.112 } },
   rondeJoueurs: { nom: 'La réunion des joueurs', ico: '🫂', rarete: 'peu', duree: 6, texte: 'Sans le personnel d\'entraîneurs. Le compte rendu fait six lignes.', effet: { finition: 1.112, defense: 0.925, blessure: 1.65 } },
 
@@ -65,14 +65,14 @@ export const EVENEMENTS_VIE = {
   tournoiNeige: { nom: 'La route enneigée', ico: '🛣️', rarete: 'commune', duree: 4, texte: 'Le chauffeur a dit « ça va bien aller » pendant deux cents kilomètres.', effet: { discipline: 0.865, energie: 1.225 } },
   frontiere: { nom: 'La fouille à la frontière', ico: '🛂', rarete: 'commune', duree: 3, texte: 'Un douanier compte les bâtons, un par un, avec application.', effet: { finition: 1.06, energie: 1.24 } },
   hotelPiscine: { nom: 'L\'hôtel avec piscine', ico: '🏊', rarete: 'peu', duree: 5, texte: 'Quarante-cinq minutes de longueurs, le matin du match.', effet: { blessure: 0.5, energie: 0.775 } },
-  fuseaux: { nom: 'Les fuseaux horaires', ico: '🌐', rarete: 'peu', duree: 6, texte: 'La collation de dix heures se prend à sept heures, selon le coach.', effet: { finition: 1.075, energie: 1.225 } },
+  fuseaux: { nom: 'Les fuseaux horaires', ico: '🌐', rarete: 'peu', duree: 6, texte: 'La collation de dix heures se prend à sept heures, selon l\'entraîneur.', effet: { finition: 1.075, energie: 1.225 } },
 
   // ---- La météo ----
   verglas: { nom: 'La pluie verglaçante', ico: '🚗', rarete: 'commune', duree: 3, texte: 'Le stationnement est une patinoire. Les joueurs y glissent avec aisance.', effet: { discipline: 0.865, energie: 1.225 } },
   brouillardGlace: { nom: 'Le brouillard sur la glace', ico: '🌫️', rarete: 'commune', duree: 3, texte: 'On voit mal la rondelle, mais on la sent.', effet: { volume: 0.888, defense: 0.925 } },
   panneCourant: { nom: 'La panne de courant', ico: '🔌', rarete: 'commune', duree: 3, texte: 'Une demi-heure de pénombre, puis le match reprend comme si de rien n\'était.', effet: { finition: 0.962, discipline: 0.85 } },
   poudrerie: { nom: 'La poudrerie', ico: '🌬️', rarete: 'peu', duree: 4, texte: 'Les estrades sont à moitié vides ; les présents sont d\'une loyauté exemplaire.', effet: { volume: 1.083, energie: 1.165 } },
-  douxMatin: { nom: 'Le doux matin de février', ico: '🌤️', rarete: 'peu', duree: 5, texte: 'Quinze degrés. Le coach laisse le chandail à la maison.', effet: { finition: 1.06, energie: 0.7 } },
+  douxMatin: { nom: 'Le doux matin de février', ico: '🌤️', rarete: 'peu', duree: 5, texte: 'Quinze degrés. L\'entraîneur laisse le chandail à la maison.', effet: { finition: 1.06, energie: 0.7 } },
 
   // ---- Les blessures et le soigneur ----
   physioNouveau: { nom: 'Le physio recruté', ico: '🧑‍⚕️', rarete: 'peu', duree: 8, texte: 'Une moyenne de retour au jeu de dix-neuf jours, selon son propre rapport.', effet: { blessure: 0.513, energie: 0.925 } },
@@ -107,7 +107,7 @@ export const EVENEMENTS_VIE = {
   volAnnule: { nom: 'Le vol annulé', ico: '🚫', rarete: 'peu', duree: 4, texte: 'Une nuit sur les chaises de l\'aéroport.', effet: { energie: 1.3, discipline: 0.85 } },
   casseTeteVestiaire: { nom: 'Le casse-tête du vestiaire', ico: '🧩', rarete: 'commune', duree: 10, texte: 'Mille pièces. Ça prend toute l\'attention entre les périodes.', effet: { discipline: 0.75, finition: 0.95 } },
   vieuxRival: { nom: 'Le retour du vieux rival', ico: '🦹', rarete: 'peu', duree: 5, texte: 'Ils ont signé notre ancien bourreau. Le sang bout.', effet: { robustesse: 1.6, discipline: 1.35, finition: 1.05 } },
-  microCache: { nom: 'Le micro caché', ico: '🎤', rarete: 'maudite', duree: 7, texte: 'Un journaliste a enregistré les cris du coach.', effet: { finition: 0.88, discipline: 1.25 } },
+  microCache: { nom: 'Le micro caché', ico: '🎤', rarete: 'maudite', duree: 7, texte: 'Un journaliste a enregistré les cris de l\'entraîneur.', effet: { finition: 0.88, discipline: 1.25 } },
   soireeRetro: { nom: 'La soirée rétro', ico: '📻', rarete: 'commune', duree: 4, texte: 'Chandails en laine, pantalons longs, on a trop chaud.', effet: { energie: 1.15, defense: 0.95 } },
   erreurHymne: { nom: 'L\'erreur dans l\'hymne', ico: '🎶', rarete: 'commune', duree: 3, texte: 'Le chanteur a oublié les paroles, le public a fini pour lui.', effet: { finition: 1.05, discipline: 0.9 } },
   coupureCourant: { nom: 'La coupure pendant les tirs', ico: '💡', rarete: 'peu', duree: 3, texte: 'Le match s\'est fini à la lueur des téléphones.', effet: { volume: 0.9, defense: 0.9 } },

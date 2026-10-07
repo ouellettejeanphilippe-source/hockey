@@ -1674,7 +1674,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const b of (you.injuriesLog || []).filter(b => b.at > avant.joues && b.at <= miens.length)) blocs.push(`<div class="som-l prix">🚑 ${ctx.esc(b.player.n)} blessé : ${b.games} match${b.games > 1 ? 's' : ''}</div>`);
     for (const x of mouvements(avant.joues, miens.length).slice(0, 4)) blocs.push(`<div class="som-l">🔁 ${ctx.esc(x.txt)}</div>`);
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
-      blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.gagne ? ELAN.duree : SONNE.duree} matchs</div>`);
+      blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs</div>`);
     }
     retenir = true;
     // UNE PAGE DU CLUB (1.0, R3), plus un plein écran. UN SEUL BOUTON (JP : *jamais dédoubler information*) :
@@ -1988,7 +1988,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const dansAffiche = k >= 0 && !soirPasse && jour < N && !!prochain();
     const mien = k >= 0 ? (dansAffiche ? '' : resultatHier({ j, k, m: matchs[k] })) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : '';   // un congé hier (le vrai calendrier en a un sur deux) : rien à dire, l'affiche dit quand vient le match
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
-    const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour trois matchs` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour trois matchs`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
+    const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour ${mbHier.duree || SONNE.duree} matchs`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
     return `${mbMot}${mien}${portailHtml()}`;
   };
 
@@ -2587,7 +2587,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (co && (co.actifs.length || co.tien)) {
       const liste = [...co.actifs].sort((a, b) => (b.cle === co.tien) - (a.cle === co.tien) || b.palier - a.palier)
         .map(x => `${COACHS[x.cle] ? COACHS[x.cle].ico : ''} ${ctx.esc(COACHS[x.cle] ? COACHS[x.cle].nom : x.cle)} <b>${ROMAINS[x.palier] || ''}</b>`);
-      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="Chaque carte jouée compte pour le coach de sa couleur ; à ${SEUILS.join(', ')} cartes, le vestiaire croit à lui">
+      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="Chaque carte jouée compte pour le coach de sa couleur ; à ${SEUILS.join(', ')} cartes, l'équipe croit à lui">
         <span class="hub-etat-k">📋 Tes coachs</span>
         <span class="hub-etat-v">${liste.join(' · ') || 'personne encore'}</span>
       </div>`);

@@ -42,7 +42,7 @@ const GROUPES = [['tout', 'Toutes'], ['F', 'Avants'], ['D', 'Défenseurs'], ['G'
 const TEXTES_CLASSEUR = ctx => ({
   ico: '📒', titre: 'Le départ du classeur',
   irl: `Run ${ctx.run} · ${ctx.n} carte${ctx.n > 1 ? 's' : ''} · ${NOM_MODE[ctx.mode]}`,
-  recit: `${MOTS[ctx.mode](ctx.n)} ${ctx.n === 1 && ctx.mode === 'hasard' ? 'Prise, elle rejoint tes plombiers ; laissée, elle reste au cartable.' : 'Celles que tu prends rejoignent tes plombiers ; les autres restent au cartable.'}`,
+  recit: `${MOTS[ctx.mode](ctx.n)} ${ctx.n === 1 && ctx.mode === 'hasard' ? 'Prise, elle rejoint tes bouche-trous ; laissée, elle reste au cartable.' : 'Celles que tu prends rejoignent tes bouche-trous ; les autres restent au cartable.'}`,
   budget: '📒 Budget du classeur',
   plein: `Tu as déjà ${ctx.n === 1 ? 'ta carte' : `tes ${ctx.n} cartes`}`,
   partir: n => (n ? `Commencer la run · ${n} carte${n > 1 ? 's' : ''} du classeur` : 'Commencer la run sans carte du classeur'),
@@ -93,7 +93,7 @@ export function ouvrirDepartClasseur(ctx) {
         <div class="inv-plafond dp-budget${depense > ctx.budget ? ' over' : ''}">
           <div class="inv-pl-tete"><span>${esc(T.budget)}</span><b>${ctx.money(depense)} / ${ctx.money(ctx.budget)}</b></div>
           <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((depense / Math.max(1, ctx.budget)) * 100))}%"></i></div>
-          <span class="inv-pl-rien">Ensemble, leurs salaires tiennent sous le plafond de la run, avec la place pour tes plombiers.</span>
+          <span class="inv-pl-rien">Ensemble, leurs salaires tiennent sous le plafond de la run, avec la place pour tes bouche-trous.</span>
         </div>
         ${ctx.mode === 'choix' ? `<div class="inv-filtres" role="group" aria-label="Position">${GROUPES.map(([g, nom]) => `<button type="button" class="inv-filtre${etat.groupe === g ? ' on' : ''}" data-groupe="${g}">${esc(nom)} <span>${g === 'tout' ? liste.length : liste.filter(x => ctx.groupe(x.p) === g).length}</span></button>`).join('')}</div>
           <input type="search" class="dp-cherche" placeholder="Chercher un nom" value="${esc(etat.cherche)}" aria-label="Chercher un joueur">` : ''}

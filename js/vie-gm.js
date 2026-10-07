@@ -489,10 +489,10 @@ const DILEMMES_BRUTS = {
       o('apprivoiser', 'Les apprivoiser en pratique', 'Moins de bobos, des corps préservés', 'Un départ prudent, moins de tir', { blessure: 0.808, finition: 0.94, duree: 6 }),
     ] },
   radio: { ico: '📻', titre: 'L\'entrevue à la radio', quand: 'decembre mars',
-    recit: 'Une radio locale invite le coach à son émission du matin, entre la météo et la circulation. Le service des communications y voit « un rendez-vous naturel ».',
+    recit: 'Une radio locale invite l\'entraîneur à son émission du matin, entre la météo et la circulation. Le service des communications y voit « un rendez-vous naturel ».',
     options: [
       o('accepter', 'Y aller', 'Le vestiaire se sent soutenu et lance plus', 'Un matin entier perdu en préparation', { volume: 1.08, energie: 1.08, duree: 4 }),
-      o('decliner', 'Décliner poliment', 'Un coach concentré sur sa semaine, une défense serrée', 'Une radio fâchée qui s\'en souvient', { defense: 0.94, discipline: 1.1, duree: 4 }),
+      o('decliner', 'Décliner poliment', 'Un entraîneur concentré sur sa semaine, une défense serrée', 'Une radio fâchée qui s\'en souvient', { defense: 0.94, discipline: 1.1, duree: 4 }),
     ] },
   tempete_mars: { ico: '🌨️', titre: 'La dernière tempête', quand: 'mars series',
     recit: 'Une tempête de fin de saison ferme l\'autoroute devant l\'aréna. La pratique est maintenue, à condition que les joueurs arrivent.',
@@ -571,7 +571,7 @@ const DILEMMES_BRUTS = {
       o('courte', 'Dix minutes, pas plus', 'Un message simple, on lance sans se poser de questions', 'Des erreurs qui reviennent', { volume: 1.088, defense: 1.06, duree: 5 }),
     ] },
   reunion_joueurs: { ico: '🪑', titre: 'La réunion des joueurs', quand: 'octobre decembre echeance mars series', etat: 'panne',
-    recit: 'Les joueurs se sont réunis sans le coach, dans le local du fond. Ils en sortent avec un document de deux lignes, dont la deuxième est illisible.',
+    recit: 'Les joueurs se sont réunis sans l\'entraîneur, dans le local du fond. Ils en sortent avec un document de deux lignes, dont la deuxième est illisible.',
     options: [
       o('ecouter', 'Écouter leur plan', 'Un vestiaire responsable, moins de punitions', 'Un plan que personne ne comprend : moins de lancers', { discipline: 0.825, volume: 0.92, duree: 5 }),
       o('imposer', 'Imposer le tien', 'Le système revient, la défense suit', 'Un vestiaire qui grince un peu', { defense: 0.913, finition: 0.94, duree: 5 }),
@@ -626,7 +626,7 @@ const DILEMMES_BRUTS = {
   visite_medecin: { ico: '🧑‍⚕️', titre: 'La visite du spécialiste', quand: 'decembre echeance mars series', etat: 'blesses',
     recit: 'Un spécialiste de passage offre d\'examiner tous les blessés en une journée. Il demande, en retour, qu\'on reconnaisse sa méthode devant les médias.',
     options: [
-      o('accepter', 'Accepter son offre', 'Un diagnostic net, moins de rechutes', 'Un coach qui promet, devant la presse, plus qu\'il ne sait : le vestiaire est tendu', { blessure: 0.808, discipline: 1.16, duree: 8 }),
+      o('accepter', 'Accepter son offre', 'Un diagnostic net, moins de rechutes', 'Un entraîneur qui promet, devant la presse, plus qu\'il ne sait : le vestiaire est tendu', { blessure: 0.808, discipline: 1.16, duree: 8 }),
       o('refuser', 'Faire confiance au physio', 'Un groupe soudé, moins de punitions', 'Des rechutes possibles', { discipline: 0.84, blessure: 1.16, duree: 8 }),
     ] },
   retour_precipite: { ico: '⏩', titre: 'Le retour précipité', quand: 'mars series', etat: 'blesses', cible: 'vedette',

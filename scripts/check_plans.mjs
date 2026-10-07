@@ -160,8 +160,8 @@ const ligneMesure = (nom, r) => {
 /*
  * LES PLANS DE MATCH ONT QUITTÉ LE MOTEUR EN S68 (00431d4, « le poste de
  * gérant ») : les systèmes de chaque ligne les ont remplacés, et c'est
- * `check_tactiques.mjs` qui les mesure. `PLANS` ne reste que pour relire les
- * vieilles sauvegardes ; aucun écran n'en offre plus. Les mesurer ici lisait
+ * `check_tactiques.mjs` qui les mesure. `PLANS` est parti du moteur (V2.1) :
+ * une vieille décision `{ plan }` ne fait plus rien. Les mesurer ici lisait
  * +0 exact à chaque fois — trois épreuves rouges sur une mécanique qui
  * n'existe plus (S79). Il reste le roulement, qui décide toujours de la glace.
  */

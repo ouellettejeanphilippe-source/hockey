@@ -115,7 +115,7 @@ export function ouvrirInventaire(ctx) {
     ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
     // v2 : tes coachs — ce que tes cartes jouées font croire au vestiaire (js/coachs.js).
     ...(ctx.build ? [['coachs', 'Tes coachs', (ctx.coachsActifs || []).length]] : []),
-    ['classeur', 'Le classeur', `${ctx.possedees.size}/${Object.keys(BANQUE).length}`],
+    ['classeur', 'La banque', `${ctx.possedees.size}/${Object.keys(BANQUE).length}`],
   ];
   if (!etat.onglet || !onglets.some(o => o[0] === etat.onglet)) etat.onglet = onglets[0][0];
   const dessiner = () => {
@@ -165,7 +165,7 @@ export function ouvrirInventaire(ctx) {
        */
       const allumes = new Map((ctx.coachsActifs || []).map(x => [x.cle, x.palier]));
       const ordre = ORDRE_COACHS.slice().sort((a, b) => (b === ctx.coachRun) - (a === ctx.coachRun) || (ctx.build[b] || 0) - (ctx.build[a] || 0));
-      corps = `<p class="inv-mot">Chaque carte jouée compte pour le coach de sa couleur. À ${SEUILS.join(', ')} cartes, le vestiaire croit à lui (${ROMAINS.slice(1).join(', ')}) : sa philosophie joue pour le reste de la saison, séries comprises. Chaque joueur de sa couleur habillé la fait jouer ${Math.round(JOUEUR_COACH * 100)} % plus fort (jusqu'à ${JOUEURS_MAX}).${ctx.mode === 'rogue' ? ' Le compte suit ta run d\'une saison à l\'autre.' : ''}</p>
+      corps = `<p class="inv-mot">Chaque carte jouée compte pour le coach de sa couleur. À ${SEUILS.join(', ')} cartes, l'équipe croit à lui (${ROMAINS.slice(1).join(', ')}) : sa philosophie joue pour le reste de la saison, séries comprises. Chaque joueur de sa couleur habillé la fait jouer ${Math.round(JOUEUR_COACH * 100)} % plus fort (jusqu'à ${JOUEURS_MAX}).${ctx.mode === 'rogue' ? ' Le compte suit ta run d\'une saison à l\'autre.' : ''}</p>
         <div class="inv-coachs">${ordre.map(k => {
           const C = COACHS[k], n = ctx.build[k] || 0, pal = Math.max(palierDe(n), allumes.get(k) || 0), manque = avantProchain(n);
           const cible = SEUILS[Math.min(pal, SEUILS.length - 1)];
@@ -182,7 +182,7 @@ export function ouvrirInventaire(ctx) {
     } else {
       const ids = Object.keys(BANQUE).filter(garde).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
       const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => ctx.possedees.has(id)).length, idsDe(c).length]);
-      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length} cartes. Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (l'onglet Vestiaire).` : ''}</p>
+      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length} cartes. Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
         <div class="inv-progres">${par.map(([c, a, n]) => `<span class="inv-prog"><b>${CATEGORIES[c].ico} ${a}/${n}</b> ${esc(CATEGORIES[c].nom)}</span>`).join('')}</div>
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;
