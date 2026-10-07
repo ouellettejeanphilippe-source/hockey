@@ -34,7 +34,6 @@ import {
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK,
 } from '../js/sim.js';
 import { TRAITS } from '../js/traits.js';
-import { BONUS } from '../js/rarete.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
@@ -64,7 +63,6 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   for (const [k, T] of Object.entries(TACTIQUES)) noter(T.ico, k === 'hourra' ? 'aucun système' : `système ${T.nom}`, 'système');
   for (const [k, S] of Object.entries(SYSTEMES_D)) noter(S.ico, k === 'hourra' ? 'aucun système' : `système ${S.nom}`, 'système');
   for (const T of Object.values(TRAITS)) noter(T.icon, `trophée ${T.label}`, 'trait');
-  for (const B of Object.values(BONUS)) noter(B.ico, `bonus ${B.nom}`, 'bonus de carte');
   for (const k of ['WALL', 'ACROBAT', 'WORKHORSE', 'HYBRID_G']) noter(ARCHETYPES[k].icon, `gardien ${ARCHETYPES[k].label}`, 'style de gardien');
   for (const A of AGRESSIVITES) noter(A.ico, `agressivité ${A.nom}`, 'agressivité');
   for (const I of Object.values(IMPORTANCES)) noter(I.ico, `consigne ${I.nom}`, 'consigne');
@@ -79,8 +77,8 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
   const doublons = [...sens].filter(([, m]) => m.size > 1).map(([ico, m]) => `${ico} = ${[...m.keys()].join(' / ')}`);
   informer('icônes lues', `${sens.size} icônes dans 10 familles`);
   exiger('une icône = un sens', doublons.length === 0, doublons.join(' · ') || 'aucun doublon');
-  exiger('« Défensif » ne nomme qu\'un rôle', Object.values(BONUS).every(B => B.nom !== 'Défensif') && ARCHETYPES.WALL.label !== TRAITS.VEZINA.label,
-    'le bonus de carte s\'appelle Étanche ; le gardien-mur ne s\'appelle plus « Gardien d\'élite » (le trophée Vézina)');
+  exiger('« Défensif » ne nomme qu\'un rôle', ARCHETYPES.WALL.label !== TRAITS.VEZINA.label,
+    'le gardien-mur ne s\'appelle plus « Gardien d\'élite » (le trophée Vézina) ; la variante d\'une carte monte un palier (V2.4), elle n\'a plus de bonus à nommer');
   exiger('« Régulier » ne nomme qu\'un niveau', ARCHETYPES.HYBRID_G.label.indexOf('régulier') < 0 && ARCHETYPES.HYBRID_G.short !== 'Régulier', ARCHETYPES.HYBRID_G.label);
 }
 

@@ -300,7 +300,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
     recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l'offre attend dans ta boîte jusqu'à la fin de la journée.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
     options: cartes.map(x => {
       const g = groupeDe(x.p);
-      const bonus = traitsDeCarte(carteDe(x.rar, g === 'G', getPlayerKey(x.p), x.rar, x.num || 0));
+      const bonus = traitsDeCarte(carteDe(x.rar), g === 'G');
       return {
         // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
         cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),

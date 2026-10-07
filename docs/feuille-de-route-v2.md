@@ -94,9 +94,9 @@ Les ajouts de la refonte, étape 4 : un joueur monte de palier, un trio s'assort
 
 **Fini quand** check_cartes (en paires) : une carte isolée jusqu'à ±2 V, dite en vrais chiffres ; la variante sert le joueur ; check_combat lit chaque carte.
 
-- [ ] **Ajouter · Monter un palier : la carte d'entraînement.** Une modif qui monte un badge d'un palier, comme une planète de Balatro monte une main. — `js/banque.js` — preuve : `check_cartes`
-- [ ] **Ajouter · Monter un palier : la variante.** Holo ou Or : la carte commence un palier plus haut, au lieu d'un bonus de 3 à 5 % sur un canal tiré au hasard. — `js/rarete.js` — preuve : `check_cartes`
-- [ ] **Ajouter · Monter un palier : le mentor de trio.** Une modif de trio : ses compagnons de ligne montent d'un palier tant qu'il joue avec eux. — `js/banque.js, js/sim.js` — preuve : `check_cartes`
+- [x] **Ajouter · Monter un palier : la carte d'entraînement.** Une modif qui monte un badge d'un palier, comme une planète de Balatro monte une main. — `js/banque.js` — preuve : `check_atelier`, `check_paliers`
+- [x] **Ajouter · Monter un palier : la variante.** Holo ou Or : la carte commence un palier plus haut, au lieu d'un bonus de 3 à 5 % sur un canal tiré au hasard. — `js/rarete.js` — preuve : `check_cartes`
+- [x] **Ajouter · Monter un palier : le mentor de trio.** Une modif de trio : ses compagnons de ligne montent d'un palier tant qu'il joue avec eux. — `js/banque.js, js/sim.js` — preuve : `check_cartes`
 - [ ] **Ajouter · Les cartes en cinq types.** Joueur, Modif, Staff, Tactique, Coup. La carte de saison et l'événement (un bonus et son prix, ne différant que par leur durée) se fondent. — `js/banque.js, js/combat.js` — preuve : `check_banque`
 - [ ] **Équilibrer · Le prix des rôles.** À salaire égal, une équipe de power forwards vaut 23 V de plus qu'une équipe de bagarreurs (check_voies, la composition). Le salaire d'un rôle, ou ce que le moteur tire d'un rôle, à rapprocher : un bagarreur coûte ce qu'il rend. — `js/ratings.js, js/sim.js` — preuve : `check_voies` (la composition à ±3 V), `check_ratings`
 - [ ] **Ajouter · Une carte dit ce qu'elle vaut.** « +3 buts projetés », mesuré par le moteur comme la prévision, au lieu de pourcentages à additionner. — `js/pronostic.js` — preuve : `check_cartes`

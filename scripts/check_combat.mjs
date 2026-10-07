@@ -111,12 +111,9 @@ console.log('\n  Le deck de match (S74)\n');
     const T = CARTES_MATCH.tueur;
     exiger('« L\'instinct du tueur » ne joue que si on mène après deux périodes, et n\'a plus de malus caché',
       T.apres40 && T.apres40.siMene.finition > 1 && !Object.keys(T.apres40.sinon).length && !T.effet, JSON.stringify(T.apres40));
-    // Le bonus d'une carte de joueur appartient à la carte (sa clé, sa variante, son numéro), pas à la graine de la partie.
-    const a = carteDe('rare', false, '1991_BUF_8448208', 'rare', 0), b = carteDe('rare', false, '1991_BUF_8448208', 'rare', 0);
-    const n1 = carteDe('legendaire', false, '1991_BUF_8448208', 'legendaire', 1), n2 = carteDe('legendaire', false, '1991_BUF_8448208', 'legendaire', 2);
-    exiger('la même carte a le même dos d\'une run à l\'autre ; deux ors numérotées différentes ont des bonus différents',
-      JSON.stringify(a) === JSON.stringify(b) && a.bonus.length === 1 && JSON.stringify(n1) !== JSON.stringify(n2) && n1.bonus.length === 2,
-      `${a.bonus.map(x => x.cle).join('+')} · nº1 ${n1.bonus.map(x => x.cle).join('+')} · nº2 ${n2.bonus.map(x => x.cle).join('+')}`);
+    // V2.4 : la carte d'un joueur n'est que sa variante — elle monte ses badges (js/sim.js `badgesDe`), aucun bonus tiré au hasard.
+    exiger('la carte d\'un joueur n\'est que sa variante, sans bonus tiré au hasard', JSON.stringify(carteDe('rare')) === JSON.stringify({ rar: 'rare' })
+      && !('bonus' in carteDe('legendaire')) && carteDe('nimporte').rar === 'commune', JSON.stringify(carteDe('legendaire')));
   }
 }
 

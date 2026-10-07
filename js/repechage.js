@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, matchsEntre } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
@@ -92,19 +92,16 @@ export function varianteJoueur(p) {
 export const rareteJoueur = varianteJoueur;
 /*
  * La carte d'un joueur : sa variante, ses bonus, et la recrue qui progresse.
- * 1.0 (J1-G) : les bonus appartiennent à LA CARTE — la clé du joueur, sa
- * variante et son numéro — plus à la graine de la partie. Une holo de
- * Mogilny a les mêmes bonus dans toutes les runs ; deux ors numérotées
- * différentes ont des bonus différents. Le cartable n'a rien de plus à garder.
+ * V2.4 : la variante monte ses badges (js/rarete.js `VARIANTE_PALIERS`) ;
+ * plus aucun bonus tiré au hasard, donc rien d'autre à garder que la variante.
  */
 function carteJoueur(p) {
-  const cle = getPlayerKey(p);
-  const c = carteDe(varianteJoueur(p), groupeDe(p) === 'G', cle, varianteJoueur(p), (G.variantes.numeros || {})[cle] || 0);
+  const c = carteDe(varianteJoueur(p));
   if (p.elc) c.recrue = true;
   return c;
 }
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
-export const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p)) : []);
+export const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
 /* Le lustre de l'atelier (S78) : la variante que la carte prend (voir `etatPourPoser`). */
 const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
 /*
@@ -612,6 +609,14 @@ export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue
     return { note: sl && getPositionPenalty(q, sl) > 0 ? 'hors position ici' : place };
   }
   if (cle === 'cran') return { note: sl && zoneEcart(q, sl) === 'dessus' ? 'au-dessus de sa zone' : place };
+  // V2.4 : l'été de travail monte son premier badge (au-delà de Platine, le second) ; rien à monter, rien à poser.
+  if (cle === 'entrainement') {
+    const bs = badgesDe(q);
+    if (!bs.length) return { non: 'aucun badge à monter' };
+    if (bs.every(b => b.palier >= 4)) return { non: 'déjà Platine' };
+    const b = bs[0].palier < 4 ? bs[0] : bs[1];
+    return { note: `${b.ico} ${b.nom} ${PALIERS[b.palier].nom} → ${PALIERS[b.palier + 1].nom}` };
+  }
   if (cle === 'physio') {
     // Les malus depuis le dernier passage du physio (arrivé, ou déjà posé).
     const siens = ((you && you.mutations) || []).filter(m => m.joueur === k && m.jour < jour);
@@ -622,9 +627,9 @@ export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue
   if (cle === 'lustre') {
     const r = varianteApres(varianteJoueur(q), posees), n = VARIANTE_SUIVANTE[r];
     if (!n) return { non: 'sa carte est déjà en or' };
-    const carte = carteDe(n, g, k, n, (G.variantes.numeros || {})[k] || 0);
-    return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte: { rar: carte.rar, bonus: carte.bonus } },
-      mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte).map(b => `${b.ico} ${b.nom}`).join(' + ')}` };
+    const carte = carteDe(n);
+    return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte },
+      mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte, g).map(b => b.mot).join(' ')}` };
   }
   return { note: place };
 }
