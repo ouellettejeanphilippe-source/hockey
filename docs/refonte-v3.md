@@ -49,9 +49,9 @@ Chaque item porte son fichier et sa preuve, comme la V2.
 - **L'enjeu avant.** Chaque choix forcé dit ce qu'il risque en chiffres de match (la couche d'impact, V2.2), et rien d'autre. — `js/gerant.js` — preuve : `check_chiffres`
 
 ### V3.2 — Le fil de la saison
-- **Les arcs.** Le jeu repère, dans les feuilles déjà jouées, ce qui mérite d'être raconté : la course (« sur un rythme de 52 buts »), la séquence et la disette, la recrue, le changement de contexte (« 14 buts en 18 matchs depuis qu'il joue avec Thornton »), le jalon, le retour de blessure. Tous les modes : c'est de la lecture, pas du moteur. — `js/recit.js` (nouveau `fils`) — preuve : `check_fils` (chaque arc cite des feuilles réelles ; aucun arc inventé)
-- **La une.** Le bureau ouvre sur la une du jour (le fil qui a bougé), qui reste dans un journal de la saison ; le bilan devient l'histoire de la saison, par fils. — `js/saison.js, js/bilan.js` — preuve : smoke
-- **Le commentateur sans qu'on le demande.** « Journée suivante » montre le moment du soir (le but qui fait avancer un fil), deux phrases du commentateur, et on passe. — `js/saison.js, js/commentaire.js` — preuve : smoke
+- [x] **Les arcs.** Le jeu repère, dans les feuilles déjà jouées, ce qui mérite d'être raconté : la course (« sur un rythme de 52 buts »), la séquence et la disette, la recrue, le changement de contexte (« 14 buts en 18 matchs depuis qu'il joue avec Thornton »), le jalon, le retour de blessure. Tous les modes : c'est de la lecture, pas du moteur. — `js/recit.js` (nouveau `fils`) — preuve : `check_fils` (chaque arc cite des feuilles réelles ; aucun arc inventé)
+- [x] **La une.** Le bureau ouvre sur la une du jour (le fil qui a bougé), qui reste dans un journal de la saison ; le bilan devient l'histoire de la saison, par fils. — `js/saison.js, js/bilan.js` — preuve : smoke
+- [ ] **Le commentateur sans qu'on le demande.** « Journée suivante » montre le moment du soir (le but qui fait avancer un fil), deux phrases du commentateur, et on passe. — `js/saison.js, js/commentaire.js` — preuve : smoke
 
 ### V3.3 — Des messages qui comptent
 - **Peu, et qui reviennent.** Une dizaine de messages par saison au lieu de 175, chacun attaché à un fil (le joueur en feu qui veut plus de glace, la recrue qui doute, la vedette en disette) ; la réponse pèse (un but, une victoire, un rôle) et revient plus tard dans le fil. — `js/vie-gm.js, js/saison.js` — preuve : `check_vie` (chaque message pèse au moins ce qu'une carte commune peut peser ; chaque réponse a un rappel)
@@ -70,6 +70,11 @@ Chaque item porte son fichier et sa preuve, comme la V2.
 ### V3.6 — Le chaos du Rogue
 - **Les feux et les disettes.** Rarement, un joueur de ta run sort de sa vraie saison — vers le haut (un Cheechoo) ou vers le bas — dans les bornes de ce que la LNH a vu (la queue de la distribution des % de tir) ; jamais dans le 82-0. — `js/sim.js` — preuve : `check_parts` (le 82-0 inchangé), `check_rogue` (la courbe des runs pas plus facile)
 - **La difficulté se choisit** (V2.5) : la Chaleur de Hades, un mandat plus dur contre plus de médailles. — `js/rogue.js` — preuve : `check_rogue`
+
+## 4 bis. Fait
+
+- **V3.2, les arcs et la une** (7 oct.) : `filsDeSaison` (js/recit.js) lit tes feuilles jouées, match après match, et rend huit sortes de fils — la course (un rythme de 40 buts ou 100 points), le jalon, la séquence et sa fin, la disette d'un vrai marqueur et sa fin, le feu (le Cheechoo : 1,6 fois son vrai rythme), le duo (60 % de ses buts sur la passe du même joueur), la recrue, le retour. Un fil qui dure ne revient qu'à un nouveau cran. Le bureau ouvre sur **la une** (le fil le plus lourd d'hier soir, et le but qui l'a fait bouger, dit par `recitDeBut`) ; « Ton histoire » garde ceux qui pèsent (`FIL_MARQUANT`) ; le bilan a sa section « Histoire » (les six plus lourds, où chacun a fini). Aucune ligne du moteur ne bouge. Preuve : `check_fils` (6 s, dans `tout.mjs`) — chaque chiffre se recompte sur les seules feuilles citées, rien ne lit l'avenir ; une saison de 32 clubs : environ 54 fils qui bougent par club, la une un soir sur trois environ.
+- **Un dilemme dit un fait vrai** (JP, 7 oct. : *faudrait que ça soit vrai qu'il a eu trois pénalités en deux matchs*) : un dilemme de js/vie-gm.js peut porter une `preuve` ; « La mise au point » ne sort que si un joueur a vraiment pris trois punitions sur ses deux à quatre derniers matchs, et dit lesquelles (« {n} punitions en {m} matchs »). Preuve : `check_vie`.
 
 ## 5. L'ordre proposé
 
