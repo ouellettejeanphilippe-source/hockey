@@ -84,6 +84,38 @@ await dechirer();
 await page.click('#choixModal:not([hidden]) .choix-plus-tard').catch(() => {});
 await page.waitForTimeout(1500);
 
+/*
+ * SIGNÉ, IL QUITTE LA BOÎTE (oct.). JP : *j'achète un pack, je choisis, pis y a encore un pack dans la boîte*.
+ * Les deux packs attendent leur signature ; chacun se signe comme le joueur le fait — « Aller au Marché » du
+ * message (l'événement `cap82:marche`), le paquet, « Signer », qui sort, où il joue —, et la boîte se vide.
+ */
+const enAttente = () => page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => d.achat && d.achat.sorte === 'joueurs' && !d.achat.scelle)
+  .filter(d => !(window.cap82.G.ligue.decisions || []).some(x => x.palier === `${d.palier}:signe`)).length);
+const attendaient = await enAttente();
+const signes = [];
+for (let k = 0; k < 2; k++) {
+  await page.evaluate(() => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { signer: true } })));
+  await page.waitForSelector('#choixModal:not([hidden]) .tcj-signer', { timeout: 60000 }).catch(() => {});
+  await dechirer();
+  const b = await page.$('#choixModal:not([hidden]) .tcj-signer');
+  if (!b) break;
+  await b.click();
+  // Qui sort, puis où il joue : la première case permise, et « Continuer » / « Confirmer ».
+  for (let i = 0; i < 4 && /qui sort|Où joue/.test(await titre()); i++) {
+    const c = await page.$('#choixModal:not([hidden]) .aln-case:not([disabled])');
+    if (c) await c.click();
+    await page.waitForTimeout(300);
+    const ok = await page.$('#choixModal:not([hidden]) .aln-confirmer:not([disabled])');
+    if (ok) await ok.click();
+    await page.waitForTimeout(1200);
+  }
+  signes.push(await page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => /:signe$/.test(d.palier || '') && d.ballottage).length));
+}
+await page.waitForTimeout(1500);
+const resteBoite = await page.evaluate(() => !!document.querySelector('#hubModal [data-msg="pack"]'));
+const resteMarche = await page.evaluate(() => !!document.querySelector('.marche-signer'));
+const restent = await enAttente();
+
 // DERRIÈRE LE BANC, en pleine saison, « Aligner au mieux » est là (JP : *le bouton de ligne automatique n'est pas
 // toujours là ?* — il se cachait dès la saison lancée, c'est-à-dire là où l'alignement se règle en Rogue).
 await page.click('#navbar .navtab[data-section="effectif"]');
@@ -100,6 +132,9 @@ informer('achats enregistrés', achats.join(' · '));
 exiger('« Acheter » ferme la fiche du pack', !ficheRestee);
 exiger('un second toucher n\'ouvre pas le même pack', !second);
 exiger('deux achats, deux numéros', achats.length === 2 && new Set(achats).size === 2, achats.join(', '));
+informer('packs à signer', `${attendaient} avant · ${restent} après · signatures ${signes.join(' → ')}`);
+exiger('les deux packs attendaient leur signature', attendaient === 2, `${attendaient}`);
+exiger('signés, ils quittent la boîte et le Marché', restent === 0 && !resteBoite && !resteMarche, `${restent} en attente · boîte ${resteBoite} · Marché ${resteMarche}`);
 exiger('derrière le banc, en pleine saison, « Aligner au mieux » est là', auBanc);
 exiger('il règle les lignes du banc (elles partent au « Retour au match »)', lignesAuBanc);
 exiger('zéro erreur de page', !erreurs.length, erreurs.slice(0, 2).join(' · '));
