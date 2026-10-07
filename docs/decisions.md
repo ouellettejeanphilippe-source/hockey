@@ -1916,6 +1916,10 @@ Le budget du § 8 de la refonte : un coach à sa III, sur une équipe bâtie pou
 
 **Mesuré ensuite**, à quatre ligues : sur son équipe, la Tortue +6,6, le Frelon +6,6, le Rhino +7,0, l'Aigle +6,8, le Doc +6,9, l'Abbé +6,5, le Contremaître +6,6, le Showman +6,4 V (±0,3 V entre les voies) ; sur l'équipe mélangée, de +1,8 à +5,2 V. Sur un vrai club, la III vaut donc entre les deux, et `check_coachs` le borne ainsi. Le Doc a appris une chose : ses jambes et ses blessures saturent (×0,58 porté 2,8 fois, c'est presque rien), le pousser plus le faisait baisser ; un peu de volume l'a remonté. `VERSION_MOTEUR` S95.
 
+### Les packs de départ (oct.)
+
+JP : *première fois que le mode commence, ouvrir des packs qui forment l'équipe de base*. La première run (le cartable vide) tirait ses bouche-trous en silence ; elle les sort maintenant de trois packs qu'on ouvre (`ouvrirPacksDeDepart`, js/rogue-jeu.js) — les attaquants, les défenseurs, les gardiens —, avec le paquet qui se déchire des packs de la boutique. Chaque carte va à l'effectif ET au cartable : la run suivante tire son classeur de ces cartes-là. Les joueurs ne changent pas (le 10e au 30e centile de production, `plombiersDeLaLigue`), pour que la première run commence aussi faible ; mais ils se tirent de la graine du classeur au lieu de `Math.random` : recharger la page devant les packs redonne les mêmes cartes, comme le classeur. Preuve : `scripts/essai_depart.mjs` (un navigateur, un méta vide).
+
 ### Le dernier du classement ne passe plus sous le bouton flottant (1.0, oct.)
 
 Trouvé par la CI (graine 5eh43r) : au téléphone, hors de l'onglet Match, « Journée suivante ▶ » flotte 52 px au-dessus de la barre (`.hub-flottant`), mais le volet du bureau ne réservait sous sa dernière rangée que `--esp-4`. Un club au bas du classement, défilé au bout, avait sa rangée cachée de 37 px — un défaut qui ne se voit que selon le rang, d'où la graine. Le volet réserve maintenant la hauteur du bouton (`--flottant-h`, un jeton de la source, lu par les deux). Reproduit sur la graine avant le correctif (37 px), vert après.
@@ -2015,3 +2019,10 @@ JP : *le mode 82-0, c'est juste les joueurs. La saison est simulée d'un coup, m
 - **Les séries se regardent.** `ouvrirEcranSeries` (js/bilan.js) ne passe `onDecision` et `onBanc` qu'en Rogue : au 82-0, pas de main de cartes, pas de « Préparer le match », pas d'ajustement, pas de banc — « Match suivant », le direct et le tableau.
 - **Aucune carte.** Au 82-0, `varianteJoueur` rend toujours « commune » et `poserCartes` ne pose rien (js/repechage.js) : pas de brillante, pas de bonus de carte. L'identité de départ ne s'offre plus qu'à Sur table. La tuile Boutique du Marché le dit : « Au mode Rogue. »
 - **Ce qui le prouve.** Le smoke traverse le 82-0 : « Lancer la saison » mène au bilan sans `#hubModal .hub-jour`, 23 rangées ; les séries n'offrent ni `.hub-preparer`, ni `.hub-deck`, ni `.hub-banc-serie` ; aucune carte d'identité. Le jour à jour (le bureau, la boîte, les jambes, le courrier, les gros matchs) est éprouvé en Rogue par `essai_rogue.mjs` ; les parties du smoke qui le traversaient au 82-0 sont retirées.
+
+## Une reprise de saison n'est jamais refusée (7 oct. 2026)
+
+Le bureau du Rogue se fermait pour de bon, une run sur deux ou trois, en fin de saison : la page vide « Rien à lire ici pour l'instant », et « Au club » ne menait nulle part. Une décision datée d'une journée déjà jouée (l'entracte d'un gros match, une modif posée au verso d'une carte) ferme l'écran de saison et rejoue la ligue jusqu'à aujourd'hui (`continuerSaison`, js/banc.js). `runSeason` gardait ses refus d'une saison neuve — une case vide, le plafond dépassé — et rendait la main sans rien rouvrir dès qu'une case de l'alignement était vide (un blessé, un relâché en Rogue). La décision avalait aussi ses erreurs (`decisionEnCours.catch(() => {})`).
+
+Décidé : une reprise (`opts.reprise`) passe toujours — la saison en cours se rejoue avec l'alignement qu'elle a, comme le fait déjà une décision d'aujourd'hui, qui rouvre l'écran sans rien rejouer. Une décision qui échoue l'écrit en console (le smoke et essai_rogue la voient) et rouvre l'écran sur la ligue en mémoire.
+

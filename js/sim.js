@@ -7,7 +7,7 @@
  */
 
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
-import { effetCarte, poserSoirGrand } from './rarete.js';
+import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason, archetypeKey } from './ratings.js';
@@ -1830,11 +1830,24 @@ export const palierDe = (g, x) => { const S = SEUILS_PALIER[g]; return x >= S[2]
  * mutations de carte (`_mutProfils`) déplacent le score, donc le palier.
  */
 const BADGES_CACHE = new WeakMap();
+/*
+ * MONTER UN PALIER (V2.4, docs/refonte-systeme.md § 10) : trois façons, et aucune « en jouant ». La carte
+ * d'entraînement (`_palier`, une modif) monte son premier badge ; la variante de sa carte (`_carte`, posée sur TES
+ * joueurs seulement, js/rarete.js `VARIANTE_PALIERS`) — parallèle le second, holo le premier, or les deux ; le
+ * mentor de trio (`_palierTrio`, posé au début de chaque match sur ses compagnons de ligne) leur premier. Ce qui
+ * passe Platine monte l'autre badge. Rend [premier, second].
+ */
+const paliersEnPlus = p => {
+  const [a, b] = VARIANTE_PALIERS[(p._carte && p._carte.rar) || 'commune'] || [0, 0];
+  return [a + (p._palier || 0) + (p._palierTrio || 0), b];
+};
+const monteBadge = p => !!(p && (p._palier || p._palierTrio || (p._carte && p._carte.rar && p._carte.rar !== 'commune')));
 export function badgesDe(p) {
   // Les systèmes lisent les badges à chaque case (V2.3) : sans changement de carte, un joueur garde les siens.
-  if (p && !p._mutProfils && BADGES_CACHE.has(p)) return BADGES_CACHE.get(p);
+  const fixe = p && !p._mutProfils && !monteBadge(p);
+  if (fixe && BADGES_CACHE.has(p)) return BADGES_CACHE.get(p);
   const out = badgesCalcules(p);
-  if (p && !p._mutProfils && typeof p === 'object') BADGES_CACHE.set(p, out);
+  if (fixe && typeof p === 'object') BADGES_CACHE.set(p, out);
   return out;
 }
 function badgesCalcules(p) {
@@ -1846,8 +1859,19 @@ function badgesCalcules(p) {
   const traits = getTraits(p).map(t => t.cle);
   const raison = k => traits.find(t => (TRAITS_DU_BADGE[g][k] || []).includes(t)) || null;
   const [a, b] = Object.entries(pr).sort((x, y) => y[1] - x[1]);
-  const out = [{ cle: a[0], palier: palierDe(g, a[1]), second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] }];
-  if (b && b[1] >= BADGE_SECOND_MIN) out.push({ cle: b[0], palier: palierDe(g, b[1]), second: true, trait: raison(b[0]), ...PROFILS[g][b[0]] });
+  const second = b && b[1] >= BADGE_SECOND_MIN;
+  let [p1, p2] = [palierDe(g, a[1]), second ? palierDe(g, b[1]) : 0];
+  if (monteBadge(p)) {
+    const [x, y] = paliersEnPlus(p);
+    if (!second) p1 = Math.min(4, p1 + x + y);
+    else {
+      p1 += x; p2 += y;
+      if (p1 > 4) { p2 += p1 - 4; p1 = 4; }
+      if (p2 > 4) { p1 = Math.min(4, p1 + p2 - 4); p2 = 4; }
+    }
+  }
+  const out = [{ cle: a[0], palier: p1, second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] }];
+  if (second) out.push({ cle: b[0], palier: p2, second: true, trait: raison(b[0]), ...PROFILS[g][b[0]] });
   return out;
 }
 /* Les traits qui MONTENT un badge (ceux que `rolesBruts` ajoute au score) : la raison de son palier, « Sniper Or · Tir ». */
@@ -1856,14 +1880,11 @@ const TRAITS_DU_BADGE = {
   D: { defensif: ['NORRIS'], offensif: ['TIR'], manieur: ['CREATEUR', 'VITESSE'], physique: ['COLOSSE'], deuxsens: ['NORRIS', 'BIDIR'] },
 };
 /* La valeur d'un joueur dans un badge : palier / 4 en premier, la moitié en second, 0 sans. */
+/* Ce que son badge de ce rôle rend : son palier sur quatre, la moitié pour le second — ce que `badgesDe` montre (V2.4 : paliers montés compris). */
 function valeurBadge(p, role) {
-  const pr = profilsDe(p);
-  if (!pr || pr[role] == null) return 0;
-  const tri = Object.entries(pr).sort((x, y) => y[1] - x[1]);
-  const g = estD(p) ? 'D' : 'F';
-  if (tri[0][0] === role) return palierDe(g, tri[0][1]) / 4;
-  if (tri[1] && tri[1][0] === role && tri[1][1] >= BADGE_SECOND_MIN) return palierDe(g, tri[1][1]) / 8;
-  return 0;
+  if (!p || p.p === 'G') return 0;
+  const b = badgesDe(p).find(x => x.cle === role);
+  return b ? b.palier / (b.second ? 8 : 4) : 0;
 }
 /* Un badge, centré sur la ligue (0 = le badge moyen) : ce que le moteur lit. */
 export function maitrise(p, role) {
@@ -3901,7 +3922,9 @@ export function badgeGardien(g) {
   if (!cle) return null;
   const svLigue = 1 - seasonLancers(g.s)[1] / 100;
   const [e, S] = cle === 'fer' ? [g.gp / seasonGames(g.s), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
-  const palier = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
+  const brut = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
+  // Monter un palier (V2.4) : la variante de sa carte (un, deux ou trois) et la carte d'entraînement.
+  const palier = Math.min(4, brut + (VARIANTE_PALIERS_G[(g._carte && g._carte.rar) || 'commune'] || 0) + (g._palier || 0));
   return { cle, palier, second: false, gardien: true, ...BADGES_G[cle] };
 }
 /* Ce que son badge fait à ses arrêts dans une situation (`mode` : FE, AN, DN ; `series`) : un facteur sur les buts accordés, centré sur la ligue.
@@ -4061,7 +4084,22 @@ const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p))
  * traîne le malus de zone de l'unité. « Joue en bas » efface ce malus au
  * dernier rang seulement ; ses minutes, elles, ne bougent pas.
  */
+/*
+ * LE MENTOR DE TRIO (V2.4) : un joueur qui porte la carte « Le mentor » monte d'un palier le premier badge de ses
+ * compagnons de ligne (son trio et la paire de sa ligne), tant qu'ils jouent avec lui. Posé au début de chaque
+ * match, sur l'alignement qui joue.
+ */
+function poserMentors(lineup) {
+  const tous = Object.values(lineup || {}).filter(Boolean);
+  for (const p of tous) if (p._palierTrio) delete p._palierTrio;
+  if (!tous.some(p => p._mentor)) return;
+  for (let u = 0; u < 4; u++) {
+    const js = Object.values(joueursDeLigne(lineup, u)).filter(Boolean);
+    if (js.some(p => p._mentor)) for (const p of js) if (!p._mentor) p._palierTrio = 1;
+  }
+}
 export function profilMatch(team, lineup, adv = null) {
+  poserMentors(lineup);
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
   const speciales = unitesSpeciales(habilles);
   const membresAN = speciales.avantage.partAN;
@@ -5331,8 +5369,6 @@ function noterTrous(team, lineup) {
    soir éreintant un dos-à-dos. Ailleurs (le tournoi, l'exhibition), un match sur quatre, comme avant. */
 export function playGame(A, B, gameIdx, track = true, series = false, journal = null, ronde = 0, cedule = false) {
   MEMO_MATCH++;
-  // Le soir d'une carte « Clutch » (S78) : les séries et tes gros matchs.
-  poserSoirGrand(series || !!(A._gros || B._gros));
   // L'échelle de la fin de partie (S80) : en saison, la journée ; en séries, la ronde.
   ECHELLE_SOIR = !(A.courbe || B.courbe) ? 1 : series ? echelleTardive({ serie: true, ronde }) : echelleTardive({ jour: gameIdx });
   const heavy = cedule && !series ? soirEreintant(gameIdx, A, B) : soirEreintant(gameIdx);
@@ -5666,7 +5702,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
  * sinon le centre du premier trio), puis une photo de ses champs de mutation pour les lui rendre tels quels.
  * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
  */
-const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte'];
+const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte', '_palier', '_mentor'];
 /* Le joueur qu'une modif lue vise : celui qu'on donne, sinon celui que la carte vise, sinon le partant (une carte de gardien) ou le centre du premier trio. */
 export function joueurDeMutation(team, lineup, cle, joueur = null) {
   const lu = lineup || activeLineup(team);
@@ -5689,6 +5725,8 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
       if (M.partout) delete p._partout;
       if (M.enBas) delete p._enBas;
       if (M.cran && p._cran) p._cran = Math.max(0, p._cran - M.cran);
+      if (M.palier && p._palier) p._palier = Math.max(0, p._palier - M.palier);
+      if (M.mentor) delete p._mentor;
       if (M.ombre) delete p._ombre;
       if (M.abri) delete p._abri;
     }
@@ -6192,7 +6230,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
@@ -6216,7 +6254,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       initSimStats(p);
       p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
       delete p._maitrise; delete p._adapt; delete p._situ;
-      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri;
+      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio;
     }
     /*
      * LA FORCE APRÈS LA REMISE À ZÉRO (1.0, oct.). Elle se mesurait au début
@@ -6621,7 +6659,7 @@ export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
 const ORDRE_AUTO = CASES_DE_BASE.slice().sort((a, b) => cleAuto(a) - cleAuto(b));
 function cleAuto(s) { return s.i + (s.group === 'F' && !s.scratch && s.role === 'C' ? -1.5 : 0); }
 
-export function autoRoster(pool, exclude = new Set()) {
+export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRatings(p).v) {
   const avail = pool.filter(p => !exclude.has(getPersonKey(p)));
   const roster = {};
   const used = new Set();
@@ -6629,12 +6667,52 @@ export function autoRoster(pool, exclude = new Set()) {
     let best = null, bestScore = -Infinity;
     for (const p of avail) {
       if (used.has(getPersonKey(p)) || !fits(p, s)) continue;
-      const score = getHiddenRatings(p).v - getPositionPenalty(p, s);
+      const score = mesure(p) - getPositionPenalty(p, s);
       if (score > bestScore) { best = p; bestScore = score; }
     }
     if (best) { roster[s.i] = best; used.add(getPersonKey(best)); }
   }
   return roster;
+}
+
+/*
+ * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
+ * gossage ; plusieurs best : défensive, offensive*. Les trios, comme l'IA se les fait (`autoRoster`), mesurés selon
+ * le style : la valeur, ou la valeur et l'attaque, ou la valeur et la défense (un gardien, sa valeur). Les systèmes,
+ * comme l'IA les choisit (`rangSystemes` : le fit, puis l'affinité) — penchés vers l'attaque ou la défense quand le
+ * style le demande : parmi ceux à TOLERANCE_STYLE de fit du meilleur, celui qui rend le plus du côté voulu, son prix
+ * compté.
+ * Les cotes restent dans le moteur : l'écran ne voit que l'alignement qu'elles font.
+ */
+const TOLERANCE_STYLE = 8;
+// Le net d'un système sur un canal : son gain ET son prix (la contre-attaque rapporte en finition, coûte en défense).
+const net = (S, c) => Math.log(((S.gain && S.gain[c]) || 1) * ((S.prix && S.prix[c]) || 1));
+const STYLES_ALIGNEMENT = {
+  equilibre: { nom: 'Le meilleur', joueur: r => r.v, systeme: () => 0 },
+  offensif: { nom: 'Offensif', joueur: r => 0.5 * r.v + 0.5 * r.o, systeme: S => net(S, 'volume') + net(S, 'finition') },
+  defensif: { nom: 'Défensif', joueur: r => 0.5 * r.v + 0.5 * r.d, systeme: S => -net(S, 'defense') },
+};
+/* Les trios d'un style : `autoRoster` sur ces joueurs, mesurés comme le style le veut. */
+export function trioAuMieux(joueurs, style = 'equilibre') {
+  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
+  return autoRoster(joueurs, new Set(), p => (p.p === 'G' ? getHiddenRatings(p).v : St.joueur(getHiddenRatings(p))));
+}
+/* Les systèmes d'un style, ligne par ligne ; l'agressivité et la glace par défaut (celles de l'IA). */
+export function lignesAuMieux(lineup, style = 'equilibre') {
+  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
+  const choisir = (groupe, u, defaut) => {
+    const rang = rangSystemes(lineup, groupe, u);
+    if (!rang) return defaut;
+    const T = groupe === 'D' ? SYSTEMES_D : TACTIQUES, fit0 = fitUnite(lineup, groupe, u, rang[0]);
+    let best = rang[0], s0 = St.systeme(T[rang[0]]);
+    for (const k of rang.slice(1)) {
+      if (fitUnite(lineup, groupe, u, k) < fit0 - TOLERANCE_STYLE) break;
+      const x = St.systeme(T[k]);
+      if (x > s0 + 1e-9) { best = k; s0 = x; }
+    }
+    return best;
+  };
+  return lignesCalculees(null, lineup).map((l, u) => ({ ...l, tac: choisir('F', u, l.tac), tacD: pairDeLigne(u) == null ? l.tacD : choisir('D', u, l.tacD) }));
 }
 
 /*
@@ -6786,7 +6864,12 @@ export const MUTATIONS = {
   physio: { nom: 'Le physio', ico: '🩺', cible: 'libre', source: 'atelier', physio: true,
     quoi: 'Le physio et le psy s\'en occupent : tous ses malus de carte disparaissent (un genou qui grince, une confiance ébranlée, un tir perdu).' },
   lustre: { nom: 'Le lustre', ico: '✨', cible: 'libre', source: 'atelier', lustre: true,
-    quoi: 'Sa carte monte d\'une variante — base, parallèle, holo, or — et gagne le bonus tiré au hasard qui vient avec.' },
+    quoi: 'Sa carte monte d\'une variante — base, parallèle, holo, or — et ses badges montent avec elle.' },
+  // V2.4 — MONTER UN PALIER : la carte d'entraînement (la planète de Balatro) et le mentor de trio.
+  entrainement: { nom: 'L\'été de travail', ico: '🧗', cible: 'libre', source: 'atelier', palier: 1,
+    quoi: 'Un été à travailler ce qu\'il fait de mieux : son badge monte au suivant (Bronze → Argent → Or → Platine).' },
+  mentorTrio: { nom: 'Le mentor', ico: '🦉', cible: 'libre', source: 'atelier', mentor: true,
+    quoi: 'Il prend ses compagnons de ligne sous son aile : tant qu\'ils jouent avec lui, leur badge monte au suivant.' },
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
@@ -6874,7 +6957,7 @@ export const mutationNuit = k => {
   const M = MUTATIONS[k];
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
-const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre', 'enBas', 'chasse'];
+const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre', 'enBas', 'chasse', 'entrainement', 'mentorTrio'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -6913,6 +6996,8 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   if (!M || !p) return;
   if (M.partout) p._partout = true;
   if (M.cran) p._cran = (p._cran || 0) + M.cran;
+  if (M.palier) p._palier = (p._palier || 0) + M.palier;
+  if (M.mentor) p._mentor = true;
   if (M.enBas) p._enBas = true;
   if (M.ombre) p._ombre = Math.min(p._ombre || 1, M.ombre);
   if (M.abri) p._abri = Math.max(p._abri || 0, M.abri);

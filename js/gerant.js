@@ -319,7 +319,7 @@ export function ouvrirChoix(spec) {
           pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
-          joueurHtml: o.carteJoueur || '', motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
+          joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
         });
         const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>

@@ -195,8 +195,13 @@ async function subirCarte(at, jour, cle) {
  */
 let decisionEnCours = Promise.resolve();
 function deciderSaison(d, depuis) {
-  const suite = decisionEnCours.then(() => deciderMaintenant(d, depuis));
-  decisionEnCours = suite.catch(() => {});
+  const suite = decisionEnCours.then(() => deciderMaintenant(d, depuis)).catch(e => {
+    // L'écran de saison s'est fermé pour décider : une erreur ne le laisse pas fermé pour de bon (oct. : le bureau
+    // disparaissait, « Au club » ne menait plus nulle part). On le dit, et l'écran se rouvre sur la ligue en mémoire.
+    console.error(e);
+    if (G.ligue && G.ligue.moteur) { G.done = true; ouvrirEcranSaison(depuis); }
+  });
+  decisionEnCours = suite;
   return suite;
 }
 async function deciderMaintenant(d, depuis) {
@@ -532,7 +537,9 @@ export function reprendreSeries(vues) {
 
 export async function runSeason(opts = {}) {
   if (G.banc && !opts.adversaires) { await reprendreSaison(); return; }
-  if (slotsLeft() > 0 || G.done || (capLeft() < 0 && !opts.adversaires)) return;
+  // UNE REPRISE N'EST JAMAIS REFUSÉE (oct.) : la saison en cours se rejoue avec l'alignement qu'elle a, case vide
+  // comprise (un blessé, un relâché) — le refus laissait l'écran de saison fermé pour de bon, sur une page vide.
+  if (!opts.reprise && (slotsLeft() > 0 || G.done || (capLeft() < 0 && !opts.adversaires))) return;
   if (!opts.reprise) alignementAuCartable();
   // SUR TABLE : le même alignement, un autre jeu. On n'entre jamais dans
   // simulateLeague ici — le tournoi a son propre moteur, celui du plateau.

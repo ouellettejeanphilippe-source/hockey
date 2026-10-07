@@ -11,10 +11,14 @@
  *   2. « Monte d'un cran » ajoute l'unité au-dessus de sa zone ;
  *   3. « Le physio » efface les malus (un accident disparaît de la carte,
  *      un changement mêlé garde son bonus) ;
- *   4. « Le lustre » pose la carte suivante, et son bonus joue ;
+ *   4. « Le lustre » pose la carte suivante, et ses badges montent avec elle ;
+ *   4b. MONTER UN PALIER (V2.4) : l'été de travail monte le premier badge
+ *      (au-delà de Platine, le second) ; la variante monte le sien —
+ *      parallèle le second, holo le premier, or les deux, un gardien de un à
+ *      trois ; ce que le moteur joue (`maitrise`) suit le badge montré ; le
+ *      mentor monte ses compagnons de ligne, et eux seulement ;
  *   5. le coach des gardiens accorde moins de buts ;
- *   6. une variante tire toujours la même carte, et une or porte deux
- *      bonus différents ;
+ *   6. une variante tire toujours la même carte ;
  *   7. une saison avec une édition se rejoue au but près, et la remise à
  *      zéro efface les éditions d'une saison à l'autre.
  */
@@ -24,9 +28,9 @@ import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, getPositionPenalty,
   appliquerMutation, unitesIdeales, getHiddenRatings, facteurGardienDe, MUTATIONS, mutationNuit, editionsDuJour, mainDuDeck,
-  malusZoneUnite, getUnitSynergy,
+  malusZoneUnite, getUnitSynergy, badgesDe, maitrise, profilMatch, activeLineup, joueursDeLigne,
 } from '../js/sim.js';
-import { carteDe, varianteTiree, COTES_VARIANTES, effetCarte, traitsDeCarte } from '../js/rarete.js';
+import { carteDe, varianteTiree, COTES_VARIANTES, traitsDeCarte, VARIANTE_PALIERS } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -115,16 +119,54 @@ exiger('« Le physio » efface les malus et garde les bonus', blesse._mut.lancer
   `lancers ${avantPhysio.lancers.toFixed(2)}→${blesse._mut.lancers}, finition ${avantPhysio.finition.toFixed(2)}→${blesse._mut.finition}, défense ${blesse._mut.defense} gardée`);
 exiger('un accident nuit, une amélioration non', mutationNuit('genou') && mutationNuit('lame') && !mutationNuit('affute') && !mutationNuit('coach'), '');
 
-// 4. Le lustre.
+// 4. Le lustre : la carte suivante, et ses badges montent avec elle.
 const lustre = avants[0].p;
-lustre._carte = carteDe('commune', false, 'g', getPlayerKey(lustre));
-const suivante = carteDe('peu', false, 'g', getPlayerKey(lustre));
-appliquerMutation(toi, lustre, 'lustre', 9, 'choix', { carte: suivante });
-const canal = { finition: 'finition', lancers: 'lancers', creation: 'creation', defense: 'defense', solide: 'blessure', clutch: 'clutch', polyvalent: 'horsPosition' }[suivante.bonus[0].cle];
-const eff = canal === 'clutch' ? 1.06 : effetCarte(lustre, canal);
-exiger('« Le lustre » pose la carte suivante, et son bonus joue', lustre._carte.rar === 'peu' && eff !== 1,
-  `${lustre.n} : base → parallèle, ${traitsDeCarte(lustre._carte).map(b => `${b.ico} ${b.nom}`).join(' ')} (×${eff.toFixed(3)})`);
+lustre._carte = carteDe('commune');
+const avantLustre = badgesDe(lustre).map(b => b.palier);
+appliquerMutation(toi, lustre, 'lustre', 9, 'choix', { carte: carteDe('peu') });
+const apresLustre = badgesDe(lustre).map(b => b.palier);
+exiger('« Le lustre » pose la carte suivante, et ses badges montent avec elle', lustre._carte.rar === 'peu'
+  && apresLustre.reduce((a, x) => a + x, 0) === Math.min(4 * apresLustre.length, avantLustre.reduce((a, x) => a + x, 0) + 1),
+  `${lustre.n} : base → parallèle, ${avantLustre.join('/')} → ${apresLustre.join('/')} · « ${traitsDeCarte(lustre._carte).map(b => b.mot).join(' ')} »`);
 delete lustre._carte;
+
+// 4b. Monter un palier (V2.4).
+{
+  const somme = p => badgesDe(p).reduce((a, b) => a + b.palier, 0);
+  const deux = avants.map(x => x.p).find(p => badgesDe(p).length === 2 && badgesDe(p).every(b => b.palier <= 2));
+  if (deux) {
+    const [p1, p2] = badgesDe(deux).map(b => b.palier), role = badgesDe(deux)[0].cle, m0 = maitrise(deux, role);
+    appliquerMutation(toi, deux, 'entrainement', 12, 'choix');
+    const [q1, q2] = badgesDe(deux).map(b => b.palier);
+    exiger('l\'été de travail monte son premier badge, et le moteur le joue', q1 === p1 + 1 && q2 === p2 && maitrise(deux, role) > m0,
+      `${deux.n} : ${p1}/${p2} → ${q1}/${q2}, maîtrise ${m0.toFixed(3)} → ${maitrise(deux, role).toFixed(3)}`);
+    deux._palier = 3 + (4 - p1);   // assez pour passer Platine : le reste monte le second
+    const [r1, r2] = badgesDe(deux).map(b => b.palier);
+    exiger('au-delà de Platine, le palier de trop monte le second badge', r1 === 4 && r2 > p2, `${r1}/${r2}`);
+    delete deux._palier;
+    const lu = {};
+    for (const r of ['peu', 'rare', 'legendaire']) { deux._carte = carteDe(r); lu[r] = badgesDe(deux).map(b => b.palier); }
+    delete deux._carte;
+    exiger('la variante sert le joueur : parallèle le second badge, holo le premier, or les deux',
+      ['peu', 'rare', 'legendaire'].every(r => lu[r][0] === p1 + VARIANTE_PALIERS[r][0] && lu[r][1] === p2 + VARIANTE_PALIERS[r][1]),
+      Object.entries(lu).map(([r, x]) => `${r} ${x.join('/')}`).join(' · '));
+  }
+  const gard = toi.roster[SLOTS.find(s => s.group === 'G').i], g0 = badgesDe(gard)[0];
+  if (g0 && g0.palier === 1) {
+    gard._carte = carteDe('legendaire');
+    exiger('un gardien en or monte son badge de trois', badgesDe(gard)[0].palier === 4, `${g0.nom} ${g0.palier} → ${badgesDe(gard)[0].palier}`);
+    delete gard._carte;
+  }
+  // Le mentor : sa ligne monte, les autres non.
+  const lu = activeLineup(toi), [l0, l1] = [0, 1].map(u => Object.values(joueursDeLigne(lu, u)).filter(Boolean));
+  const avantL = [l0, l1].map(js => js.map(somme));
+  appliquerMutation(toi, l0[0], 'mentorTrio', 13, 'choix');
+  profilMatch(toi, lu);
+  const apresL = [l0, l1].map(js => js.map(somme));
+  exiger('le mentor monte ses compagnons de ligne, et eux seulement', l0.slice(1).every((p, i) => apresL[0][i + 1] > avantL[0][i + 1] || badgesDe(p).every(b => b.palier >= 4))
+    && apresL[1].every((x, i) => x === avantL[1][i]) && apresL[0][0] === avantL[0][0],
+    `ligne 1 ${avantL[0].join(',')} → ${apresL[0].join(',')} · ligne 2 inchangée`);
+}
 
 // 5. Le coach des gardiens.
 const g = toi.roster[SLOTS.find(s => s.group === 'G').i];
@@ -139,9 +181,8 @@ const tirees = cles.map(k => varianteTiree(COTES_VARIANTES, 'graine', k));
 const part = r => tirees.filter(x => x === r).length / tirees.length;
 informer('variantes tirées', `base ${(part('commune') * 100).toFixed(0)} % · parallèle ${(part('peu') * 100).toFixed(0)} % · holo ${(part('rare') * 100).toFixed(1)} % · or ${(part('legendaire') * 100).toFixed(1)} %`);
 exiger('les variantes suivent leurs cotes (75 / 17 / 6 / 2)', Math.abs(part('commune') - 0.75) < 0.03 && Math.abs(part('peu') - 0.17) < 0.03 && Math.abs(part('rare') - 0.06) < 0.02, '');
-const ors = cles.slice(0, 300).map(k => carteDe('legendaire', false, 'graine', k));
-exiger('une or porte deux bonus différents, et la même carte d\'un tirage à l\'autre', ors.every(c => c.bonus.length === 2 && c.bonus[0].cle !== c.bonus[1].cle)
-  && JSON.stringify(carteDe('rare', true, 'x', 'k')) === JSON.stringify(carteDe('rare', true, 'x', 'k')), '');
+exiger('une variante est la même carte d\'un tirage à l\'autre', varianteTiree(COTES_VARIANTES, 'graine', cles[7]) === varianteTiree(COTES_VARIANTES, 'graine', cles[7])
+  && JSON.stringify(carteDe('rare')) === JSON.stringify(carteDe('rare')), '');
 exiger('l\'atelier offre trois éditions différentes, pures', new Set(editionsDuJour('g', 20)).size === 3 && JSON.stringify(editionsDuJour('g', 20)) === JSON.stringify(editionsDuJour('g', 20)), editionsDuJour('g', 20).join(' · '));
 let vus = 0;
 for (let k = 0; k < 400; k++) if (mainDuDeck(`atelier${k}`, 20, []).some(c => c.sorte === 'atelier')) vus++;

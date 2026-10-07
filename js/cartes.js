@@ -151,7 +151,7 @@ export function carteHtml(c) {
     <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
     ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
     ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
-    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
+    ${c.vue ? '' : c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
   </div>`;
   const genre = DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '';
   const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
