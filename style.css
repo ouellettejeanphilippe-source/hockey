@@ -2352,6 +2352,8 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* ---- La rangée « Système » au pied d'un trio ou d'une paire : une ligne de 44 px, « Régler › » en or ---- */
 .ln-strat { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: 0 var(--esp-3); border: 0; border-top: 1px solid var(--filet); background: none; color: var(--encre-2); text-align: left; font: 600 var(--t-2)/1.2 var(--display); cursor: pointer; transition: background var(--t-vite); }
 .ln-strat:hover { background: var(--fond-2); }
+/* Aligner au mieux (oct.) : un bouton au-dessus des trios, pleine largeur sur mobile. */
+.ln-auto { width: 100%; min-height: 44px; margin: 0 0 var(--esp-2); }
 .ln-som-k { flex: none; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .ln-som-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; }
 .ln-som-detail b { color: var(--encre); font: 800 var(--t-2)/1.2 var(--display); }

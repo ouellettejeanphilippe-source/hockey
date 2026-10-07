@@ -6659,7 +6659,7 @@ export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
 const ORDRE_AUTO = CASES_DE_BASE.slice().sort((a, b) => cleAuto(a) - cleAuto(b));
 function cleAuto(s) { return s.i + (s.group === 'F' && !s.scratch && s.role === 'C' ? -1.5 : 0); }
 
-export function autoRoster(pool, exclude = new Set()) {
+export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRatings(p).v) {
   const avail = pool.filter(p => !exclude.has(getPersonKey(p)));
   const roster = {};
   const used = new Set();
@@ -6667,12 +6667,52 @@ export function autoRoster(pool, exclude = new Set()) {
     let best = null, bestScore = -Infinity;
     for (const p of avail) {
       if (used.has(getPersonKey(p)) || !fits(p, s)) continue;
-      const score = getHiddenRatings(p).v - getPositionPenalty(p, s);
+      const score = mesure(p) - getPositionPenalty(p, s);
       if (score > bestScore) { best = p; bestScore = score; }
     }
     if (best) { roster[s.i] = best; used.add(getPersonKey(best)); }
   }
   return roster;
+}
+
+/*
+ * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
+ * gossage ; plusieurs best : défensive, offensive*. Les trios, comme l'IA se les fait (`autoRoster`), mesurés selon
+ * le style : la valeur, ou la valeur et l'attaque, ou la valeur et la défense (un gardien, sa valeur). Les systèmes,
+ * comme l'IA les choisit (`rangSystemes` : le fit, puis l'affinité) — penchés vers l'attaque ou la défense quand le
+ * style le demande : parmi ceux à TOLERANCE_STYLE de fit du meilleur, celui qui rend le plus du côté voulu, son prix
+ * compté.
+ * Les cotes restent dans le moteur : l'écran ne voit que l'alignement qu'elles font.
+ */
+const TOLERANCE_STYLE = 8;
+// Le net d'un système sur un canal : son gain ET son prix (la contre-attaque rapporte en finition, coûte en défense).
+const net = (S, c) => Math.log(((S.gain && S.gain[c]) || 1) * ((S.prix && S.prix[c]) || 1));
+const STYLES_ALIGNEMENT = {
+  equilibre: { nom: 'Le meilleur', joueur: r => r.v, systeme: () => 0 },
+  offensif: { nom: 'Offensif', joueur: r => 0.5 * r.v + 0.5 * r.o, systeme: S => net(S, 'volume') + net(S, 'finition') },
+  defensif: { nom: 'Défensif', joueur: r => 0.5 * r.v + 0.5 * r.d, systeme: S => -net(S, 'defense') },
+};
+/* Les trios d'un style : `autoRoster` sur ces joueurs, mesurés comme le style le veut. */
+export function trioAuMieux(joueurs, style = 'equilibre') {
+  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
+  return autoRoster(joueurs, new Set(), p => (p.p === 'G' ? getHiddenRatings(p).v : St.joueur(getHiddenRatings(p))));
+}
+/* Les systèmes d'un style, ligne par ligne ; l'agressivité et la glace par défaut (celles de l'IA). */
+export function lignesAuMieux(lineup, style = 'equilibre') {
+  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
+  const choisir = (groupe, u, defaut) => {
+    const rang = rangSystemes(lineup, groupe, u);
+    if (!rang) return defaut;
+    const T = groupe === 'D' ? SYSTEMES_D : TACTIQUES, fit0 = fitUnite(lineup, groupe, u, rang[0]);
+    let best = rang[0], s0 = St.systeme(T[rang[0]]);
+    for (const k of rang.slice(1)) {
+      if (fitUnite(lineup, groupe, u, k) < fit0 - TOLERANCE_STYLE) break;
+      const x = St.systeme(T[k]);
+      if (x > s0 + 1e-9) { best = k; s0 = x; }
+    }
+    return best;
+  };
+  return lignesCalculees(null, lineup).map((l, u) => ({ ...l, tac: choisir('F', u, l.tac), tacD: pairDeLigne(u) == null ? l.tacD : choisir('D', u, l.tacD) }));
 }
 
 /*

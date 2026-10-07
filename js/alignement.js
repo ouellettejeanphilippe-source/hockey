@@ -7,9 +7,9 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, trioAuMieux, lignesAuMieux } from './sim.js';
 import { getArchetype } from './ratings.js';
-import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie } from './gerant.js';
+import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
@@ -536,10 +536,61 @@ function ouvrirReglage(unit, groupe) {
   });
 }
 
+/*
+ * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
+ * gossage ; plusieurs best : défensive, offensive*. Un bouton, une fenêtre : le meilleur alignement (trios et
+ * systèmes), penché vers l'attaque ou la défense, ou seulement les trios, ou seulement les systèmes (js/sim.js
+ * `trioAuMieux`, `lignesAuMieux` : ce que l'IA se ferait). Derrière le banc, un blessé reste en réserve, et rien
+ * ne joue avant « Retour au match ».
+ */
+const AU_MIEUX = [
+  { cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Tes meilleurs joueurs en haut, et le système qui va à chaque ligne.' },
+  { cle: 'offensif', ico: '⚔️', nom: 'Offensif', sous: 'Tes marqueurs en haut, et les systèmes qui tirent.' },
+  { cle: 'defensif', ico: '🛡️', nom: 'Défensif', sous: 'Tes défensifs en haut, et les systèmes qui ferment.' },
+  { cle: 'trios', ico: '👥', nom: 'Seulement les trios', sous: 'Les meilleurs à chaque case ; tes systèmes ne bougent pas.' },
+  { cle: 'systemes', ico: '📋', nom: 'Seulement les systèmes', sous: 'Le système qui va à chaque ligne ; tes joueurs ne bougent pas.' },
+];
+function alignerAuMieux(cle) {
+  const style = cle === 'trios' || cle === 'systemes' ? 'equilibre' : cle;
+  if (cle !== 'systemes') {
+    const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);
+    const blesse = p => !!(G.banc && G.banc.blesses && G.banc.blesses.has(p));
+    const roster = trioAuMieux(tous.filter(p => !blesse(p)), style);
+    // Les autres (blessés, surplus) vont en réserve, dans les cases ouvertes ; sans place pour tous, rien ne bouge.
+    const places = new Set(Object.values(roster));
+    const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
+    if (reste.length > libres.length) { toast('Pas assez de cases de réserve pour réaligner : rien n\'a bougé.', 'bad'); return; }
+    reste.forEach((p, k) => { roster[libres[k].i] = p; });
+    G.roster = roster;
+  }
+  if (cle !== 'trios') {
+    const lignes = lignesAuMieux(G.roster, style);
+    if (G.banc) G.banc.lignes = lignes; else G.lignes = lignes;
+  } else if (!G.banc) G.lignes = null;   // de nouveaux trios, les systèmes que l'IA leur ferait
+  saveGame();
+  render();
+  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ' Il joue au « Retour au match ».' : ''}`);
+}
+function boutonAuMieux() {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'btn ln-auto';
+  b.innerHTML = '🤖 Aligner au mieux';
+  b.onclick = () => ouvrirChoix({
+    ico: '🤖', titre: 'Aligner au mieux', fermable: true, motFermer: 'Retour',
+    recit: 'Ce que l\'IA se ferait avec tes joueurs. Tu peux tout retoucher après.',
+    options: AU_MIEUX.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: x.sous })),
+    onChoix: alignerAuMieux,
+  });
+  return b;
+}
+
 export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
   host.innerHTML = '';
+  // Le bouton d'alignement ne sert qu'à une équipe qu'on règle encore (ni sur table, ni la saison jouée).
+  if (!surTable() && !G.done && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);
