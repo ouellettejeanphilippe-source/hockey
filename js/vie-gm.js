@@ -27,6 +27,8 @@
  *           · plafond (la marge est mince) · blesses (l'infirmerie est pleine)
  */
 
+import { nomCourt } from './recit.js';
+
 /** Hachage stable d'une chaîne (le même que js/recit.js), pour tirer sans hasard vivant. */
 function graine(str) {
   let h = 2166136261;
@@ -36,9 +38,17 @@ function graine(str) {
 
 const MOMENTS_DE_SAISON = ['camp', 'octobre', 'decembre', 'echeance', 'mars', 'series', 'elimination', 'coupe'];
 
-/** Qui écrit : l'icône et le nom que la boîte affiche (`m.de`). */
-const EXPEDITEURS = {
-  pr: { ico: '🏢', nom: 'Le propriétaire' },
+/**
+ * QUI ÉCRIT : l'icône et le nom que la boîte affiche (`m.de`). Une seule distribution pour toute la boîte
+ * (V3, JP : *les messages sont des trucs du proprio, coach, joueurs, partisans, analystes*) : les courriels,
+ * les choix forcés (js/saison.js) et les fils de la saison (`messageDuFil`) parlent par ces voix-là.
+ */
+export const EXPEDITEURS = {
+  pr: { ico: '🏢', nom: 'Le proprio' },
+  en: { ico: '🧑‍🏫', nom: 'L\'entraîneur' },
+  an: { ico: '📺', nom: 'L\'analyste à la télé' },
+  pt: { ico: '📣', nom: 'Les partisans' },
+  ca: { ico: '🎖️', nom: 'Le capitaine' },
   fi: { ico: '🧾', nom: 'Le directeur des finances' },
   ad: { ico: '🎯', nom: 'Ton adjoint' },
   ag: { ico: '🤝', nom: 'Un agent de joueur' },
@@ -1338,4 +1348,32 @@ export function echangeDe(contexte, graineDuJeu) {
   if (!pool.length) return null;
   const e = pool[0].e;
   return { id: e.id, ouverture: remplir(e.ouverture, c), question: remplir(e.question, c), reponse: remplir(e.reponse, c) };
+}
+
+/*
+ * LES FILS DE LA SAISON, DITS PAR QUELQU'UN (V3.3). Le fil qui a fait la une hier soir (`filsDeSaison`,
+ * js/recit.js) arrive dans la boîte d'une voix qui a une raison d'en parler : la course et le duo, l'analyste ;
+ * le Cheechoo et la séquence, les partisans ; le jalon, le proprio ; la disette, l'entraîneur, puis le joueur
+ * lui-même quand elle finit ; la recrue, le capitaine ; le retour, le physio. Le FAIT est celui du fil, au
+ * caractère près (check_fils le recompte) ; la voix ajoute une opinion, jamais un chiffre.
+ */
+const VOIX_DES_FILS = {
+  course: { de: 'an', mots: ['À ce rythme-là, on va parler de {nom} toute l\'année.', 'Les gardiens de la ligue commencent à voir {nom} dans leur soupe.', 'Je l\'ai dit en ondes : surveillez {nom}.'] },
+  feu: { de: 'pt', mots: ['On scande son nom dans les gradins. Personne n\'avait vu ça venir.', 'Les gradins se lèvent dès qu\'il saute sur la glace.', 'Un joueur de soutien qui fait lever la foule : on ne s\'en lasse pas.'] },
+  jalon: { de: 'pr', mots: ['Mes félicitations à {nom}. Ce genre de soir fait vendre des billets.', 'Transmettez mes félicitations au vestiaire, et à {nom} en premier.'] },
+  sequence: { de: 'pt', mots: ['Les gradins attendent {nom} à chaque présence.', 'On compte avec lui, un match à la fois.'], fin: { de: 'an', mots: ['Toutes les séquences finissent un jour. Ce qui compte, c\'est la prochaine.', 'Belle séquence. Reste à voir s\'il repart tout de suite.'] } },
+  disette: { de: 'en', mots: ['Je le garde où il est. Les rondelles vont finir par rentrer.', 'Il travaille. Je ne change rien pour l\'instant, mais je regarde.', 'Ce n\'est pas la volonté qui manque. C\'est la rondelle qui ne veut pas.'], fin: { de: 'joueur', mots: ['Enfin. Je dormais mal.', 'Ça fait du bien. Merci aux gars de m\'avoir attendu.', 'Je ne comptais plus. Les journalistes, eux, comptaient.'] } },
+  duo: { de: 'an', mots: ['Ces deux-là se trouvent les yeux fermés.', '{passeur} lui met la rondelle sur la palette ; il n\'a qu\'à finir.', 'Séparer {nom} et {passeur} ? Je ne m\'y risquerais pas.'] },
+  recrue: { de: 'ca', mots: ['Le petit n\'a pas peur de la glace. On l\'aime bien.', 'Il pose des questions et il écoute les réponses. Ça paraît.', 'Il joue comme s\'il avait dix ans dans la ligue.'] },
+  retour: { de: 'ph', mots: ['Le corps a tenu. On le surveille encore quelques jours.', 'Il a fait tout ce qu\'on lui demandait pendant son absence. Ça paie.'] },
+};
+
+/** Le message d'un fil : { de, sujet, mot } — `sujet` est le fait du fil, `mot` ce qu'en dit sa voix. */
+export function messageDuFil(a) {
+  const v0 = VOIX_DES_FILS[a.sorte];
+  const v = a.fini && v0.fin ? v0.fin : v0;
+  const de = v.de === 'joueur' ? { ico: '🏒', nom: a.joueur.n } : EXPEDITEURS[v.de];
+  const mot = v.mots[Math.floor(graine(`${a.texte}|${a.jour}`) * v.mots.length) % v.mots.length]
+    .replace(/\{nom\}/g, nomCourt(a.joueur.n)).replace(/\{passeur\}/g, a.passeur ? nomCourt(a.passeur.n) : '');
+  return { de, sujet: a.texte, mot };
 }

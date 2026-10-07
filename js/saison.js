@@ -51,7 +51,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -2903,11 +2903,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     rendreActions(messagesCourants(), p);
   }
 
+  // Les voix de la boîte : une seule distribution avec les courriels et les fils (EXPEDITEURS, js/vie-gm.js).
   const DE = {
     medecin: { ico: '🩺', nom: 'Le médecin' },
     dg: { ico: '📋', nom: 'Le DG' },
-    proprio: { ico: '🏢', nom: 'Le proprio' },
-    coach: { ico: '🧑‍🏫', nom: 'L\'entraîneur' },
+    proprio: EXPEDITEURS.pr,
+    coach: EXPEDITEURS.en,
     depisteur: { ico: '🔎', nom: 'Le dépisteur' },
   };
 
@@ -3259,7 +3260,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const p = prochain(), adv = p ? (p.m.A === you ? p.m.B : p.m.A) : null;
       const vu = [...boite.lus].filter(id => /^v:\d+:/.test(id) && Number(id.split(':')[1]) < jour).map(id => id.split(':').slice(2).join(':'));
       const c = { moment: momentDeSaison(jour, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja: vu };
-      if (jour % 2 === 0) {
+      /*
+       * LE FIL D'HIER SOIR, DIT PAR SA VOIX (V3.3) : l'analyste, les partisans, le proprio, l'entraîneur, le
+       * capitaine, le physio ou le joueur lui-même. Un soir où un fil bouge, il prend la place du courriel :
+       * ce qui arrive vraiment passe avant ce qu'on tire au hasard.
+       */
+      const fe = filsAuJour().journal.at(-1);
+      const fil = fe && fe.j === jour - 1 ? fe.fils[0] : null;
+      if (fil) {
+        const x = messageDuFil(fil);
+        out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet, corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>` });
+      } else if (jour % 2 === 0) {
         for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
           const id = `v:${jour}:${x.id}`, r = reponsesVie(x.id, `vie:${jour}:${x.id}`, boite.ouvert === id);
           out.push({ id, genre: 'courriel', bloque: false, de: x.de, sujet: x.sujet, vie: { cle: x.id, palier: `vie:${jour}:${x.id}`, cibles: r.cibles }, corps: `<div class="hub-msg-mot">${ctx.esc(x.corps)}</div>${r.html}` });
