@@ -2759,6 +2759,9 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-gros-note, .hub-gros-detail { font-size: var(--t-1); line-height: 1.4; margin-top: var(--esp-1); color: var(--encre-2); }
 .hub-gros-dep { display: flex; flex-direction: column; gap: var(--esp-2); }
 .hub-gros .choix-puces { margin-top: var(--esp-1); }
+.hub-une { display: grid; gap: var(--esp-1); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
+.hub-une-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
+.hub-une-but { color: var(--encre-2); font-style: italic; }
 .hub-miniboss { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .hub-miniboss.gagne { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, transparent); }
 .recit-detail { display: block; margin-top: 2px; font-size: var(--t-1); color: var(--encre-3); }

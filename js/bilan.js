@@ -12,7 +12,7 @@
 
 import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
   ROULEMENTS, roulementDe } from './sim.js';
-import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { apresMatch } from './apres-match.js';
 import { panelDe } from './panel-tv.js';
 import { deck, liste, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
@@ -306,7 +306,7 @@ function calendrierHtml(calendrier, jour) {
  * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
  * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
-const BILAN_SAUTS = [['resume', 'Résumé'], ['chiffres', 'Chiffres'], ['rythme', 'Rythme'], ['forces', 'Forces'], ['cartes', 'Cartes'], ['vestiaire', 'Vestiaire']];
+const BILAN_SAUTS = [['resume', 'Résumé'], ['histoire', 'Histoire'], ['chiffres', 'Chiffres'], ['rythme', 'Rythme'], ['forces', 'Forces'], ['cartes', 'Cartes'], ['vestiaire', 'Vestiaire']];
 const ONGLETS_BILAN = [
   { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
   { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
@@ -746,6 +746,18 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>`
     : '';
 
+  /*
+   * L'HISTOIRE DE TA SAISON, PAR FILS (V3.2) : où chaque fil a fini — la
+   * course, le Cheechoo, le duo, le jalon —, lu dans tes feuilles
+   * (`filsDeSaison`, js/recit.js ; check_fils). Les six plus lourds.
+   */
+  const fils = filsDeSaison(calendrier, you).fils.filter(a => a.poids >= FIL_MARQUANT).slice(0, 6);
+  const histoire = fils.length
+    ? `<div class="result-section" data-bl="histoire"><h3>L'histoire de ta saison</h3>
+        <ul class="inj-list">${fils.map(a => `<li>${esc(a.texte)}</li>`).join('')}</ul>
+      </div>`
+    : '';
+
   const injuries = you.injuriesLog && you.injuriesLog.length
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${lienJoueur(i.player, you, 'saison', esc(i.player.n))}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
@@ -781,6 +793,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   // Le volet Bilan se lit par chapitres, et une barre collée en haut y saute (comme les rangées de l'alignement).
   const sections = {
     resume: `<div data-bl="resume"><div class="note">${note}</div>${cartons ? `<div class="result-section"><h3>Le rapport de saison</h3>${cartons}</div>` : ''}</div>`,
+    histoire,
     chiffres: chiffresHtml(you, calendrier),
     rythme: rythmeHtml(you, calendrier),
     forces: forcesHtml(you, calendrier).replace('<div class="result-section">', '<div class="result-section" data-bl="forces">'),

@@ -252,3 +252,162 @@ export function ceQuiADecide(f, nomA, nomB) {
   if (gagnant && gagnant.marqueur) lignes.push(`Le but gagnant : ${gagnant.marqueur.n}, ${gagnant.instant >= 60 ? 'en prolongation' : `en ${NOM_PERIODE[Math.floor(gagnant.instant / 20) + 1]}`}.`);
   return lignes;
 }
+
+/*
+ * LES FILS DE LA SAISON (V3.2). JP : *il ne raconte pas vraiment d'histoire*,
+ * *une saison bizarre où un joueur de troisième trio est en feu, comme les 56
+ * buts de Cheechoo*. Le moteur fait déjà naître ces saisons-là (la chance au
+ * tir, le passeur qui fait mieux finir son trio) ; personne ne les disait.
+ * Ici, on les repère, match après match, dans les feuilles DÉJÀ JOUÉES de ton
+ * club, et rien d'autre : un fil cite les feuilles qui le prouvent (`preuves`,
+ * des `{ j, k }` du calendrier), ne regarde jamais une journée à venir, et ne
+ * lit aucune cote — que des buts, des passes, des matchs habillés, et la
+ * vraie saison du joueur (`p.g`, `p.gp`), qui est une vraie statistique.
+ * `check_fils` recompte chaque chiffre dit à partir de ses seules preuves.
+ *
+ * Les sortes, et le seuil qui les fait naître (`FILS`) :
+ *   course    un rythme de 40 buts ou de 100 points, après 20 matchs
+ *   jalon     30, 40, 50, 60 buts ; 60, 80, 100 points
+ *   sequence  un point dans six matchs de suite, ou plus ; sa fin, à huit
+ *   disette   un marqueur (0,3 but par match dans sa vraie saison)
+ *             sans but depuis douze matchs ; la fin de la disette
+ *   feu       le Cheechoo : 8 buts et plus, à 1,6 fois son vrai rythme
+ *   duo       60 % de ses buts (au moins 7 sur 10) sur la passe du même joueur
+ *   recrue    une vraie recrue (`p.rk`) à 0,6 point par match, après 10 matchs
+ *   retour    un point dès son retour, après 5 matchs ou plus d'absence
+ *
+ * Le rendu : `journal`, journée par journée, les fils qui ont BOUGÉ ce
+ * soir-là (le plus lourd d'abord : la une) ; `fils`, l'état final de chaque
+ * fil, pour le bilan.
+ */
+export const FILS = {
+  course: { buts: 40, points: 100, matchs: 20 },
+  jalon: { buts: [30, 40, 50, 60], points: [60, 80, 100] },
+  sequence: { min: 6, fin: 8 },
+  disette: { min: 12, vrai: 0.3 },
+  feu: { buts: 8, matchs: 15, facteur: 1.6, plancher: 0.12 },
+  duo: { buts: 10, passes: 7, part: 0.6 },
+  recrue: { matchs: 10, rythme: 0.6 },
+  retour: { absence: 5 },
+};
+
+/** Le poids d'un fil qui entre dans ton histoire et au bilan : la course, le Cheechoo, le jalon, le duo, une longue séquence. */
+export const FIL_MARQUANT = 5;
+
+const oublier = (e, sorte) => { for (const c of [...e.crans]) if (c.startsWith(`${sorte}:`)) e.crans.delete(c); };
+const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+
+export function filsDeSaison(calendrier, you, jusqua = Infinity) {
+  const etat = new Map();
+  const de = p => {
+    let e = etat.get(p);
+    if (!e) {
+      e = { p, gp: 0, g: 0, a: 0, pts: 0, joues: [], serie: [], sansBut: [], absent: 0, passes: new Map(), jalons: new Set(), crans: new Set() };
+      etat.set(p, e);
+    }
+    return e;
+  };
+  const journal = [], fils = new Map();
+  const fin = Math.min(jusqua, (calendrier || []).length);
+  for (let j = 0; j < fin; j++) {
+    const k = (calendrier[j] || []).findIndex(m => m && (m.A === you || m.B === you));
+    if (k < 0) continue;
+    const m = calendrier[j][k], f = m.feuille;
+    if (!f || !f.alignes) continue;
+    const cote = m.A === you ? 'A' : 'B', ref = { j, k };
+    const habilles = f.alignes[cote] || [];
+    const bougent = [];
+    // Un fil qui dure ne refait la une qu'à un nouveau cran (`cran`) : le cinquième but d'une course, pas chacun.
+    const pose = (arc, persiste = true, cran = null) => {
+      const e = etat.get(arc.joueur);
+      if (cran == null || !e.crans.has(`${arc.sorte}:${cran}`)) bougent.push(arc);
+      if (cran != null) e.crans.add(`${arc.sorte}:${cran}`);
+      if (persiste) {
+        const cle = `${arc.sorte}|${arc.joueur.n}`;
+        const avant = fils.get(cle);
+        if (!avant || arc.sorte !== 'sequence' || arc.n >= avant.n) fils.set(cle, arc);
+      }
+    };
+    // Les absents de ce soir : ceux qu'on a déjà vus, et qui ne sont pas habillés.
+    const ce = new Set(habilles);
+    for (const e of etat.values()) if (!ce.has(e.p)) e.absent++;
+    for (const p of habilles) {
+      const e = de(p);
+      const sesButs = f.buts.filter(b => b.cote === cote && b.marqueur === p);
+      const sesPasses = f.buts.filter(b => b.cote === cote && (b.passeurs || []).includes(p));
+      const avantG = e.g, avantPts = e.pts, revient = e.gp > 0 && e.absent >= FILS.retour.absence ? e.absent : 0;
+      e.gp++; e.g += sesButs.length; e.a += sesPasses.length; e.pts += sesButs.length + sesPasses.length; e.absent = 0;
+      e.joues.push(ref);
+      const nc = nomCourt(p.n), but = sesButs[sesButs.length - 1] || null, point = sesButs.length + sesPasses.length > 0;
+      const arc = (sorte, texte, poids, preuves, extra = {}) => ({ sorte, joueur: p, texte, poids, jour: j, preuves, but, ...extra });
+      for (const b of sesButs) for (const a of b.passeurs || []) e.passes.set(a, (e.passes.get(a) || []).concat([ref]));
+      // LE JALON
+      for (const s of FILS.jalon.buts) if (avantG < s && e.g >= s && !e.jalons.has(`g${s}`)) {
+        e.jalons.add(`g${s}`);
+        pose(arc('jalon', `${nc} atteint les ${s} buts, en ${e.gp} matchs.`, 4 + s / 10, e.joues.slice(), { seuil: s, unite: 'buts', n: e.gp }));
+      }
+      for (const s of FILS.jalon.points) if (avantPts < s && e.pts >= s && !e.jalons.has(`p${s}`)) {
+        e.jalons.add(`p${s}`);
+        pose(arc('jalon', `${nc} atteint les ${s} points, en ${e.gp} matchs.`, 3 + s / 25, e.joues.slice(), { seuil: s, unite: 'points', n: e.gp }));
+      }
+      // LA SÉQUENCE, et sa fin
+      if (point) {
+        e.serie.push(ref);
+        if (e.serie.length >= FILS.sequence.min) pose(arc('sequence', `${nc} : un point dans ${e.serie.length} matchs de suite.`, 2 + e.serie.length / 3, e.serie.slice(), { n: e.serie.length }), true, Math.floor(e.serie.length / 2));
+      } else {
+        if (e.serie.length >= FILS.sequence.fin) pose(arc('sequence', `La séquence de ${nc} s'arrête à ${e.serie.length} matchs.`, 1.5, e.serie.concat([ref]), { n: e.serie.length, fini: true }), false);
+        e.serie = [];
+        oublier(e, 'sequence');
+      }
+      // LA DISETTE d'un vrai marqueur, et sa fin
+      const marqueur = (p.gp || 0) >= 20 && (p.g || 0) / p.gp >= FILS.disette.vrai;
+      if (sesButs.length) {
+        if (marqueur && e.sansBut.length >= FILS.disette.min) fils.delete(`disette|${p.n}`);
+        if (marqueur && e.sansBut.length >= FILS.disette.min) pose(arc('disette', `${nc} brise une disette de ${e.sansBut.length} matchs.`, 3 + e.sansBut.length / 6, e.sansBut.concat([ref]), { n: e.sansBut.length, fini: true }), false);
+        e.sansBut = [];
+        oublier(e, 'disette');
+      } else {
+        e.sansBut.push(ref);
+        if (marqueur && e.sansBut.length >= FILS.disette.min) pose(arc('disette', `${nc} n'a pas marqué depuis ${e.sansBut.length} matchs.`, 1 + e.sansBut.length / 8, e.sansBut.slice(), { n: e.sansBut.length }), true, Math.floor(e.sansBut.length / 4));
+      }
+      if (sesButs.length) {
+        // LE FEU : le Cheechoo, plus loin que sa vraie saison
+        const vrai = (p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0;
+        if (e.gp >= FILS.feu.matchs && e.g >= FILS.feu.buts && e.g / e.gp >= FILS.feu.facteur * Math.max(vrai, FILS.feu.plancher)) {
+          pose(arc('feu', `${nc} : ${pluriel(e.g, 'but')} en ${e.gp} matchs ; sa vraie saison, ${pluriel(p.g || 0, 'but')} en ${p.gp || 0}.`, 5 + e.g / 5, e.joues.slice(), { g: e.g, n: e.gp }), true, Math.floor(e.g / 4));
+        }
+        // LA COURSE aux buts
+        if (e.gp >= FILS.course.matchs) {
+          const r = Math.round(e.g / e.gp * 82);
+          if (r >= FILS.course.buts) pose(arc('course', `${nc} : ${pluriel(e.g, 'but')} en ${e.gp} matchs, sur un rythme de ${r}.`, 3 + r / 10, e.joues.slice(), { g: e.g, n: e.gp, rythme: r }), true, Math.floor(e.g / 5));
+        }
+        // LE DUO : le passeur qui fait la saison du marqueur
+        let meilleur = null;
+        for (const [a, refs] of e.passes) if (!meilleur || refs.length > meilleur[1].length) meilleur = [a, refs];
+        if (meilleur && e.g >= FILS.duo.buts && meilleur[1].length >= FILS.duo.passes && meilleur[1].length / e.g >= FILS.duo.part
+          && sesButs.some(b => (b.passeurs || []).includes(meilleur[0]))) {
+          const k2 = meilleur[1].length;
+          pose(arc('duo', `${nc} : ${k2} de ses ${e.g} buts sur une passe de ${nomCourt(meilleur[0].n)}.`, 3 + k2 / 3, [...new Set(meilleur[1])], { passeur: meilleur[0], n: k2, g: e.g }), true, Math.floor(k2 / 4));
+        }
+      }
+      if (point && !(e.gp >= FILS.course.matchs && Math.round(e.g / e.gp * 82) >= FILS.course.buts)) {
+        // La course aux points, quand celle des buts ne la dit pas déjà
+        if (e.gp >= FILS.course.matchs) {
+          const r = Math.round(e.pts / e.gp * 82);
+          if (r >= FILS.course.points) pose(arc('course', `${nc} : ${pluriel(e.pts, 'point')} en ${e.gp} matchs, sur un rythme de ${r}.`, 3 + r / 25, e.joues.slice(), { pts: e.pts, n: e.gp, rythme: r }), true, `p${Math.floor(e.pts / 10)}`);
+        }
+      }
+      // LA RECRUE
+      if (point && p.rk && e.gp >= FILS.recrue.matchs && e.pts / e.gp >= FILS.recrue.rythme) {
+        pose(arc('recrue', `La recrue ${nc} : ${pluriel(e.pts, 'point')} en ${e.gp} matchs.`, 2.5 + e.pts / 10, e.joues.slice(), { pts: e.pts, n: e.gp }), true, Math.floor(e.pts / 10));
+      }
+      // LE RETOUR
+      if (revient && point) {
+        pose(arc('retour', `De retour après ${revient} matchs, ${nc} ${sesButs.length ? 'marque' : 'obtient un point'} dès son premier soir.`, 2.5, [ref], { n: revient }), false);
+      }
+    }
+    if (bougent.length) journal.push({ j, k, fils: bougent.sort((x, y) => y.poids - x.poids) });
+  }
+  return { journal, fils: [...fils.values()].sort((x, y) => y.poids - x.poids) };
+}
+

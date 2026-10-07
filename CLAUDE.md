@@ -145,6 +145,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Moins de mots, et surtout pas les évidents : une ligne à l'écran, le détail chiffré dans la page des règles, dont chaque chiffre vient d'une constante — `check_clarte`.
 - Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son nom, ses couleurs et son écusson s'achètent en jetons à la boutique, comme les packs, et se portent aux déblocages (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
+- Ce qu'un texte affirme d'un match (un rythme, une disette, trois punitions en deux matchs) est arrivé dans les feuilles déjà jouées, et il dit les vrais chiffres — `check_fils`, `check_vie`.
 
 **Le code et les tests**
 - Modules ES natifs, pas de build step, aucune dépendance npm.
@@ -210,6 +211,8 @@ Depuis la v2 : `node scripts/check_coachs.mjs` (dix minutes : la couleur des car
 Depuis la V2.3 : `node scripts/check_voies.mjs` (quarante minutes ; `VOIES=tortue,essaim` en partage le travail entre processus ; `LIGUES=0` en CI) — chaque coach à sa III, sur une équipe bâtie pour lui, vaut +6 à +8 V, à ±1 V des autres, plus que sur une équipe mélangée ; la composition (le prix des rôles à salaire égal) se dit à côté.
 
 L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scripts/check_chiffres.mjs` (une minute : ce que l'écran annonce égale ce que le moteur joue, en paires) et `node scripts/check_impact.mjs` (douze secondes : la base de la ligue, le témoin à zéro ; `COMPLET=1` le tableau de chaque choix).
+
+Depuis la V3 : `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
 
 Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 

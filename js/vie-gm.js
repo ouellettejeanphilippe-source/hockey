@@ -518,8 +518,8 @@ const DILEMMES_BRUTS = {
       o('accepter', 'Accepter le tournage', 'Il se sent regardé et se défonce', 'Des soirées écourtées, des jambes qui paient', { finition: 1.088, energie: 1.128, duree: 6 }),
       o('refuser', 'Refuser le tournage', 'Une routine préservée, des jambes fraîches', 'Une vedette un peu boudeuse', { energie: 0.872, finition: 0.94, duree: 6 }),
     ] },
-  dur_sermon: { ico: '🗨️', titre: 'La mise au point avec {nom}', quand: 'octobre decembre mars', cible: 'dur',
-    recit: '{nom} a reçu trois punitions mineures en deux matchs, dont une pour « enthousiasme ». L\'arbitre lui a demandé de modérer ses gestes, par écrit.',
+  dur_sermon: { ico: '🗨️', titre: 'La mise au point avec {nom}', quand: 'octobre decembre mars', cible: 'dur', preuve: 'punitions',
+    recit: '{nom} a reçu {n} punitions en {m} matchs. L\'arbitre lui a demandé de modérer ses gestes, par écrit.',
     options: [
       o('galerie', 'Un match à la galerie de presse', 'Le message passe : moins de punitions', '{nom} regarde de là-haut, un réserviste joue', { action: { absents: 1 }, discipline: 0.825, duree: 6 }),
       o('confiance', 'Lui faire confiance', 'Il joue avec fougue et l\'équipe suit', 'L\'arbitre le guette encore', { finition: 1.08, discipline: 1.19, duree: 5 }),
@@ -1307,9 +1307,23 @@ export function courrielsDe(contexte, graineDuJeu, n = 2) {
  */
 const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'decembre', f >= 0.45 && f < 0.72 && 'echeance', f >= 0.6 && 'mars'].filter(Boolean);
 const etatVrai = (e, c) => (e === 'sequence' ? c.serieV >= 3 : e === 'panne' ? c.serieD >= 3 : false);
+/*
+ * LE FAIT QU'UN DILEMME AFFIRME (V3). JP : *faudrait que ça soit vrai qu'il a eu trois pénalités en deux
+ * matchs*. Un dilemme qui dit un chiffre de match (`preuve`) ne sort que si ce chiffre est arrivé, lu sur
+ * tes feuilles d'avant (`faitsAvant`, js/saison.js), et il nomme le vrai joueur et les vrais chiffres.
+ */
+export const PUNITIONS_SERMON = 3;
+const PREUVES = {
+  // Le joueur puni au moins trois fois sur ses deux à quatre derniers matchs : {n} punitions en {m} matchs.
+  punitions: c => {
+    const x = (c.punis || []).find(y => y.n >= PUNITIONS_SERMON);
+    return x ? { joueur: x.p, n: x.n, m: x.m } : null;
+  },
+};
 export const MOMENTS_VIE = Object.fromEntries(Object.entries(DILEMMES).map(([cle, d]) => {
-  const { quand, etat, ...entree } = d;
-  return [`vie_${cle}`, { ...entree, faits: c => (c.N > 0 && momentsOuverts(c.J / c.N).some(m => quand.includes(m)) && (!etat.length || etat.some(e => etatVrai(e, c))) ? {} : null) }];
+  const { quand, etat, preuve, ...entree } = d;
+  return [`vie_${cle}`, { ...entree, faits: c => (c.N > 0 && momentsOuverts(c.J / c.N).some(m => quand.includes(m)) && (!etat.length || etat.some(e => etatVrai(e, c)))
+    ? (preuve ? PREUVES[preuve](c) : {}) : null) }];
 }));
 
 /**
