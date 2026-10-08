@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, glaceDesLignes, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
+import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, glaceDesLignes, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -2001,6 +2001,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!filsLus || filsLus.jour !== jour) filsLus = { jour, r: filsDeSaison(calendrier, you, jour) };
     return filsLus.r;
   };
+  // Ses buts soir par soir dans tes matchs joués, ses soirs habillés : ce que le moteur lit pour la lancée et le doute.
+  const lanceeAuJour = p => {
+    const r = [];
+    for (const { m } of miens) {
+      const cote = m.A === you ? 'A' : 'B';
+      if (m.feuille && (m.feuille.alignes?.[cote] || []).includes(p)) r.push(m.feuille.buts.filter(b => b.cote === cote && b.marqueur === p).length);
+    }
+    return lanceeDe(p, r.slice(-LANCEE.doute.matchs));
+  };
   const uneHtml = () => {
     const e = filsAuJour().journal.at(-1);
     if (!e || e.j !== jour - 1) return '';
@@ -3272,8 +3281,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const x = messageDuFil(fil);
         // LA PRIME DU FIL (V3.6, Rogue) : le soir où il naît, sa voix paie en jetons (`primesDesFils`, js/rogue.js).
         const prime = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour.get(fe.j) : null;
+        // LA LANCÉE ET LE DOUTE (V3.6, Rogue) : ce que ses soirs d'avant font de lui au prochain match (`lanceeDe`, js/sim.js).
+        const etat = ctx.rogue ? lanceeAuJour(fil.joueur) : null;
+        const puces = [prime ? `<span class="puce bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span>` : '',
+          etat === 'lancee' ? '<span class="puce bon">Sur sa lancée : il finit mieux tant qu\'il marque</span>' : '',
+          etat === 'doute' ? '<span class="puce prix">Il doute : il finit moins bien tant qu\'il ne marque pas</span>' : ''].join('');
         out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet,
-          corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>${prime ? `<div class="choix-puces"><span class="puce bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span></div>` : ''}` });
+          corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>${puces ? `<div class="choix-puces">${puces}</div>` : ''}` });
       } else if (jour % 2 === 0) {
         for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
           const id = `v:${jour}:${x.id}`, r = reponsesVie(x.id, `vie:${jour}:${x.id}`, boite.ouvert === id);

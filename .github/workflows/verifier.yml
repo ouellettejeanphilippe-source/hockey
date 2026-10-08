@@ -46,6 +46,8 @@ name: Vérifier
 #   check_coachs    les coachs (v2) : chaque carte a sa couleur, la confiance
 #                   s'allume à 3, 6 et 9 cartes, le moteur la joue, et la
 #                   saison se rejoue avec elle
+#   check_lancee    la lancée et le doute du Rogue (V3.6) : absents du 82-0,
+#                   la même graine rejoue, et l'effet se voit dans les buts
 #   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
 #                   et une carte sans photo qui garde son portrait
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
@@ -88,6 +90,9 @@ jobs:
 
       - name: Le ballottage se rejoue
         run: node scripts/check_ballottage.mjs
+
+      - name: La lancée et le doute du Rogue
+        run: node scripts/check_lancee.mjs
 
       - name: Les gros matchs mis en scène
         run: LIGUES=4 node scripts/check_gros.mjs
