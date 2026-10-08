@@ -7,7 +7,7 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique } from './sim.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { sesRolesHtml, barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
@@ -61,12 +61,33 @@ const EFFETS_GLACE = {
   energie: x => `il garde ses jambes : son match lui coûte ${pctMot(x)} de moins`,
   offensif: x => `il lance de la pointe : sa paire tire ${pctMot(x)} de plus`,
 };
+/* Un net négatif se dit aussi : un Bronze est sous le badge moyen de la ligue. */
+const moinsPlus = x => (x >= 0 ? `${pctMot(x)} de buts de moins` : `${pctMot(-x)} de buts de plus`);
 const EFFETS_GLACE_G = {
-  mur: x => `à forces égales, il accorde ${pctMot(x)} de buts de moins`,
-  acrobate: x => `quand son club tue une punition, il accorde ${pctMot(x)} de buts de moins`,
-  constant: x => `en séries, il accorde ${pctMot(x)} de buts de moins`,
-  fer: (x, n) => (n > 3 ? `il enchaîne ${n} départs avant de s'user, au lieu de trois` : 'il joue tous les soirs ; à l\'Or, il enchaîne un départ de plus avant de s\'user'),
+  mur: g => `à forces égales, il accorde ${moinsPlus(netBadgeGardien(g))}`,
+  acrobate: g => `un soir moyen, il accorde ${moinsPlus(netBadgeGardien(g))} ; le soir où on le bombarde (deux fois les lancers), ${moinsPlus(netBadgeGardien(g, { charge: 2 }))}`,
+  constant: g => `chaque soir, il accorde ${moinsPlus(netBadgeGardien(g))} ; en séries, ${moinsPlus(netBadgeGardien(g, { series: true }))}`,
+  fer: (g, n) => (n > 3 ? `il enchaîne ${n} départs avant de s'user, au lieu de trois` : 'il joue tous les soirs ; à l\'Or, il enchaîne un départ de plus avant de s\'user'),
 };
+/*
+ * UN PALIER GAGNÉ REND DU TALENT (oct., js/sim.js `EFFET_PALIER`) : la variante de sa carte, la carte d'entraînement
+ * ou le mentor lui ont monté son badge, et ça se joue dans le canal du badge — la fiche dit ce que ça lui donne.
+ */
+const MOTS_GAGNES = {
+  finition: x => `il finit ${pctMot(x)} mieux`,
+  creation: x => `il fait ${pctMot(x)} plus de jeux`,
+  lancers: x => `il lance ${pctMot(x)} plus`,
+  defense: x => `les lancers adverses passent ${pctMot(x)} moins pendant ses présences`,
+  arrets: x => `il accorde ${pctMot(x)} de buts de moins sur chaque lancer`,
+};
+function lignesGagnees(p, li) {
+  const gagnes = paliersGagnes(p);
+  return badgesDe(p).filter(b => b.gagne > 0).map(b => {
+    const k = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle], n = b.gagne * (b.second ? 0.5 : 1);
+    const mot = MOTS_GAGNES[k] && gagnes[k] ? ` : ${esc(MOTS_GAGNES[k](Math.min(0.5, EFFET_PALIER[k] * n)))}` : '';
+    return li(`<b>${glyphe(b.ico)} ${esc(b.nom)} monté : ${PALIERS[b.palier - b.gagne].nom} → ${PALIERS[b.palier].nom}</b>${mot}.`, 'bon');
+  });
+}
 function surLaGlaceHtml(p) {
   if (surTable()) return '';
   const li = (txt, cls = '') => `<li${cls ? ` class="${cls}"` : ''}>${txt}</li>`;
@@ -76,9 +97,10 @@ function surLaGlaceHtml(p) {
   if (fr >= FRAGILE_DES) lignes.push(li(`Il n'a joué que ${p.gp || 0} matchs sur ${seasonGames(p.s)} dans sa vraie saison : il se blesse environ ${Math.round(fr)} fois plus qu'un joueur qui les a tous joués.`, 'prix'));
   if (p.p === 'G') {
     // SON BADGE (V2.3) : le canal que son % d'arrêts ne porte pas, avec le chiffre net que le moteur joue (`netBadgeGardien`).
-    const b = badgesDe(p)[0], x = netBadgeGardien(p), n = suiteLibreDe(p);
+    const b = badgesDe(p)[0], n = suiteLibreDe(p);
     lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer.'));
-    if (b && EFFETS_GLACE_G[b.cle]) lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}</b> : ${esc(EFFETS_GLACE_G[b.cle](x, n))}.`));
+    if (b && EFFETS_GLACE_G[b.cle]) lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}</b> : ${esc(EFFETS_GLACE_G[b.cle](p, n))}.`));
+    lignes.push(...lignesGagnees(p, li));
     lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
   }
@@ -87,6 +109,7 @@ function surLaGlaceHtml(p) {
     const raison = raisonDuBadge(b);
     lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' (son second badge)' : ''}.` : '.'}`));
   }
+  lignes.push(...lignesGagnees(p, li));
   // SANS BADGE QUI DÉFEND (V2.2) : le moteur centre chaque badge sur la ligue, donc un joueur qui n'en a pas tire son unité
   // un peu sous zéro. Ça se dit, avec le chiffre net, plutôt que de se cacher.
   const defR = estD(p) ? ['defensif', 'physique'] : ['checker', 'deuxsens'];
