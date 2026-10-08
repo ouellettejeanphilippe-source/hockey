@@ -2034,6 +2034,11 @@ JP : *or pis bronze sont trop similaires, surtout page alignement*. Le palier Or
 
 JP : *encore des doublons de packs achetés*. Au Marché, la boutique vit dans une page, et sa fiche de pack restait ouverte après « Acheter » ; le numéro d'achat (la graine du tirage, la décision `k:n`) se prenait à l'ouverture de la boutique, et un pack de joueurs charge ses saisons avant d'écrire son achat. Un second toucher rouvrait donc le même pack : le même tirage, montré deux fois, et une décision qui remplaçait l'autre. Décidé : la fiche part avec l'achat ; le numéro se prend au clic et compte les achats encore en vol ; un seul tirage à la fois ; les jetons se recomptent au clic. Preuve : `scripts/essai_achat.mjs`, les saisons ralenties à quatre secondes comme sur un téléphone (l'ancien code y échoue deux fois).
 
+
+## La reprise rejoue le même passé, clubs de l'IA compris (8 oct. 2026)
+
+Un choix d'entracte porte sur un soir déjà joué pour être montré, donc la ligue se reconstruit du jour 0. Les clubs de l'IA s'y réalignaient (`trioAuMieux`) en partant de l'alignement déjà placé et des jambes de la saison jouée : 34 clubs sur 220 en sortaient avec un autre alignement. Le passé changeait donc, et le gros match aussi (1–1 à l'entracte, 0–2 au final). Ils s'alignent maintenant après la remise à zéro, depuis leurs joueurs triés par clé. On a écarté l'idée de sauver l'alignement de l'IA dans la partie : la sauvegarde ne garde que des clés, et le même effectif doit donner le même alignement, d'où qu'il vienne. `check_graine` (5 bis).
+
 ## Un badge compte : ce que les stats de base ne disent pas, et le palier gagné (8 oct. 2026)
 
 JP : *je comprends qu'un gardien bronze avec un pourcentage d'arrêt de 890 va goaler mieux si or ? C'est pas juste décoratif ?* ; puis *c'est cave de pas faire une différence. Même chose pour toutes les positions… En gros, c'est ce qui ne se voit pas juste dans les stats de base.*
@@ -2050,3 +2055,6 @@ JP : *je comprends qu'un gardien bronze avec un pourcentage d'arrêt de 890 va g
 
 **À l'écran.** La fiche dit le badge monté (« 🤸 Acrobate monté : Bronze → Or : il accorde 4 % de buts de moins sur chaque lancer ») ; la page des règles dit chaque chiffre depuis `EFFET_ROLE` et `EFFET_PALIER` (`check_clarte`). `VERSION_MOTEUR` passe à S101 : une saison en cours se rejoue.
 
+## L'alignement de l'écran est celui du moteur (8 oct. 2026)
+
+JP : *des fois, le joueur pigé d'un pack s'ajoute pas*. En pleine saison, `G.roster` est l'objet même que le moteur aligne (`appliquerAlignement` le réécrit en place). « Aligner au mieux » lui substituait un objet neuf. Une signature suivante entrait donc dans l'alignement du moteur et pas dans celui de l'écran ; la photo du banc d'après le retirait du moteur aussi. Règle : on ne remplace jamais `G.roster` pendant une saison, on le réécrit en place. `essai_packs` le garde.

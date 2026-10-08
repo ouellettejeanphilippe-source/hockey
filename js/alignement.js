@@ -569,7 +569,14 @@ function alignerAuMieux(cle) {
     const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
     if (reste.length > libres.length) { toast('Pas assez de cases de réserve pour réaligner : rien n\'a bougé.', 'bad'); return; }
     reste.forEach((p, k) => { roster[libres[k].i] = p; });
-    G.roster = roster;
+    /*
+     * EN PLACE, JAMAIS UN OBJET NEUF (V4.4). JP : *des fois, le joueur pigé d'un pack s'ajoute pas*. En pleine saison,
+     * `G.roster` est l'objet même que le moteur aligne (`appliquerAlignement`). Le remplacer détachait l'écran du
+     * moteur : la signature suivante entrait dans l'alignement du moteur, pas dans celui qu'on voit, et la photo du
+     * banc d'après l'en retirait pour de bon.
+     */
+    for (const k of Object.keys(G.roster)) delete G.roster[k];
+    Object.assign(G.roster, roster);
   }
   if (cle !== 'trios') {
     const lignes = lignesAuMieux(G.roster, style);

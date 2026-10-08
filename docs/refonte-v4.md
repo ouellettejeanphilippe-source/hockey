@@ -70,6 +70,20 @@ JP : *ça pioche x cartes, pis tu choisis ce que tu joues pour la semaine, ce qu
 - Les coachs pigent leurs cartes : le tirage d'une carte de la couleur d'un coach auquel l'équipe croit est élevé à la puissance 1 + sa confiance (I, II, III), donc elle sort plus souvent ; sa case dit l'icône du coach et la confiance. Au jeu, elle grandit déjà avec ses cartes jouées (`grandi`, js/banque.js).
 - « Ta poche déborde » et ses quatre places sont partis : la main les remplace.
 
+## 3 quater. Fait (V4.4, 8 oct.) — le tour, c'est la semaine
+
+JP : *ya un bug avec le système par semaine, les gros matchs ont pas le bon score, c'est pas clair les piges, ya encore des courriels qu'on voit pas. L'idée est bonne, mais le « tour » du joueur est pas encore efficace, clair, ludique* ; puis *on dirait que le système fucke toujours car il tente de simuler à l'avance, pourquoi ?*
+
+Mesuré d'abord, dans de vraies runs à 390 px (un script qui joue semaine par semaine et note chaque écran) :
+- **Le gros match changeait de pointage.** 1–1 au deuxième entracte, 0–2 au final ; 0–2 à l'entracte, « 1–4 après deux périodes » au bilan. L'entracte joue le soir pour le montrer, le choix porte donc sur une journée déjà jouée et la ligue se reconstruit du jour 0 (`continuerSaison`). Ce rejeu ne redonnait pas le passé : `trioAuMieux` réalignait les clubs de l'IA depuis leur alignement déjà placé et avec les jambes de la saison jouée (la remise à zéro venait après), et 34 clubs sur 220 en sortaient autrement. Dès la journée 0, des matchs entre clubs de l'IA finissaient autrement. Correctif : l'IA s'aligne après la remise à zéro, depuis ses joueurs triés par clé (`creerLigue`, js/sim.js). Seule la 3e période du gros match bouge maintenant. Preuve : `check_graine` (5 bis), qui échoue sans le correctif. `VERSION_MOTEUR` S102.
+- **Une semaine, quatre passages au bureau.** La carte qui change, le vestiaire, le courriel, le pack gratuit et la main complétée en route arrêtaient chacun « Semaine suivante », et chaque arrêt redemandait « Aujourd'hui › ». Maintenant, ce qui se LIT attend la fin de la semaine, dans la boîte. Ce qui se DÉCIDE avant le prochain match l'arrête encore : un blessé à remplacer, un choix forcé, l'avant-match, la main et l'entracte d'un gros match, le retour d'un blessé (`arretDeSemaine`). Le matin d'hier (« Aujourd'hui › ») a disparu : le bureau s'ouvre sur le prochain match, et l'étape Résultat rouvre hier.
+- **La main bloque au lundi.** Elle bloque au début de la semaine seulement. Une carte reçue en route se joue de la main sans arrêter la semaine.
+- **Le sommaire dit toute la semaine** (`boite.semaine`) : ses matchs d'avant un arrêt compris, et ses nouvelles. Ce sont les fils de chaque soir, avec leur voix et leur prime en jetons. Avant, la une ne disait que le fil d'hier. En route, aucun sommaire, sauf le soir d'un gros match.
+- **Des messages qu'on ne voyait pas.** Une avance ne gardait que la dernière situation et le dernier accident ; ils vivent maintenant dans `boite.infos` jusqu'à « Compris ». La blessure et la case vide croisées en route restent aussi. Le pack gratuit restait trois matchs : une semaine en compte quatre. Le passage télé (3,5 s) couvrait la boîte ; il ne s'affiche plus quand un message attend, ni sur un sommaire.
+- **Les piges se lisent.** Chaque case de la main dit ce que sa carte donne (en vert), ce qu'elle coûte (en rouge) et sa durée. La main dit dans quoi elle pige : « Pigées dans ta poche (9 cartes). Joue-en 2 ; les autres y retournent. »
+
+Preuves : `check_graine`, `check_au_mieux`, `tout.mjs`, `smoke`, `essai_rogue`.
+
 ## 4. L'ordre proposé
 
 1. **A (la semaine)** : c'est le plus gros gain de rythme, sans toucher l'équilibre.

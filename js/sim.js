@@ -6328,6 +6328,14 @@ export function matchsEntre(t, a, b) {
   return js.filter(j => j >= a && j < b).length;
 }
 
+/* Un joueur au premier matin d'une ligue : ses matchs, ses jambes, tout ce qu'une saison jouée lui a posé. */
+function remettreAZero(p) {
+  initSimStats(p);
+  p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
+  delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
+  delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
+}
+
 export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
@@ -6336,8 +6344,16 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
    * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
    * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
    * Aucun dé : la même ligue rebâtie se réaligne pareil.
+   *
+   * LES MÊMES JOUEURS, DANS LE MÊME ORDRE (V4.4). `trioAuMieux` grimpe d'échange en échange depuis l'ordre qu'on lui
+   * donne : une reprise en mémoire lui repassait l'alignement qu'il avait déjà rendu, il en rendait parfois un autre
+   * (34 clubs sur 220), et TOUT le passé se rejouait autrement — le gros match changeait de pointage entre le
+   * deuxième entracte et la fin (JP : *les gros matchs ont pas le bon score*). Il part maintenant des joueurs triés
+   * par clé, remis à zéro d'abord (il lit leurs jambes et leur saison) : le même effectif donne le même alignement,
+   * d'où qu'il vienne (check_graine).
    */
-  for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean));
+  for (const t of teams) if (!t.isPlayer) for (const p of Object.values(t.roster)) if (p) remettreAZero(p);
+  for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean).sort((a, b) => (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)));
   const L = {
     teams, games, graine, decisions,
     // LES DÉS DE CHAQUE JOURNÉE (1.0, oct.), { matins, soirs }, voir `deDuJour`. Absents (un script de mesure), la graine décide de tout.
@@ -6409,10 +6425,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
        * reprise, et `effetCarte` lit `simGP` (la recrue qui progresse après 41 matchs). Deux reprises
        * de la même partie lui donnaient le bonus à des soirs différents — le passé bougeait (smoke, graine 7).
        */
-      initSimStats(p);
-      p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
-      delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
-      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
+      remettreAZero(p);
     }
     /*
      * LA FORCE APRÈS LA REMISE À ZÉRO (1.0, oct.). Elle se mesurait au début
