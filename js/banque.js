@@ -32,7 +32,7 @@
 import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
-import { CARTES_MATCH, estPlus } from './combat.js';
+import { CARTES_MATCH, estPlus, cartesDeMatchDuPack } from './combat.js';
 import { money, hache } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
@@ -815,7 +815,13 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
 export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
 export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
 /* La carte qu'une décision fait jouer : l'inventaire, le personnel, le deck (`joue.id`), ou la carte d'un gros match (`recompense`). */
-const carteJouee = d => (d.joue && d.joue.id ? d.joue.id : d.recompense ? `match:${String(d.recompense).replace(/\+$/, '')}` : null);
+/* Les cartes qu'une décision fait jouer : la carte jouée, la récompense de match, et (oct.) les cartes de match d'un pack, qui vont droit au deck.
+ * Une carte de match « Au deck » d'une partie d'avant oct. est déjà comptée par son pack. */
+const cartesJouees = d => [
+  ...(d.joue && d.joue.id && !(d.recompense && d.joue.src === 'partie') ? [d.joue.id] : []),
+  ...(d.recompense && !(d.joue && d.joue.src === 'partie') ? [`match:${String(d.recompense).replace(/\+$/, '')}`] : []),
+  ...cartesDeMatchDuPack(d).map(k => `match:${k}`),
+];
 /*
  * LE COMPTE DE CHAQUE COACH à une journée (`jusqua` exclue), pur : le report
  * d'une run (`coachsDeBase` : la saison d'avant, et le coach choisi au
@@ -826,9 +832,7 @@ export function buildDe(decisions = [], jusqua = Infinity) {
   for (const d of decisions) {
     if (!d || (d.jour || 0) >= jusqua) continue;
     if (d.coachsDeBase) for (const [k, v] of Object.entries(d.coachsDeBase)) if (k in n) n[k] += v || 0;
-    const id = carteJouee(d);
-    const e = id && coachDeCarte(id);
-    if (e) n[e]++;
+    for (const id of cartesJouees(d)) { const e = coachDeCarte(id); if (e) n[e]++; }
   }
   return n;
 }
@@ -849,13 +853,13 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
  * celle-ci.
  */
 export function palierAllume(decisions = [], d) {
-  const id = d && carteJouee(d);
-  const e = id && coachDeCarte(id);
+  // Le premier coach dont les cartes de cette décision (un pack en porte plusieurs) font franchir un seuil.
+  const ajout = {};
+  for (const id of d ? cartesJouees(d) : []) { const k = coachDeCarte(id); if (k) ajout[k] = (ajout[k] || 0) + 1; }
+  const build = buildDe(decisions);
+  const e = Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > Math.max(palierDe(build[k]), ...coachsActifs(decisions).filter(x => x.cle === k).map(x => x.palier)));
   if (!e) return null;
-  const avant = buildDe(decisions)[e];
-  const deja = Math.max(palierDe(avant), ...coachsActifs(decisions).filter(x => x.cle === e).map(x => x.palier));
-  const p = palierDe(avant + 1);
-  if (p <= deja) return null;
+  const p = palierDe(build[e] + ajout[e]);
   // La confiance II fait apprendre son système à tes avants (le stage de système, une décision `maitrise`).
   const sys = p === 2 && COACHS[e].systeme;
   return { coach: effetDePalier(e, p), ...(sys ? { maitrise: { tac: sys, gain: GAIN_SYSTEME } } : {}) };

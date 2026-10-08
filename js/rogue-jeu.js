@@ -428,8 +428,8 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Dans ma poche',
     recit: (rogue
-      ? `Le personnel reste d'une run à l'autre ; le reste va dans ta poche : ${MAIN_SEMAINE} de ses cartes sortent en main chaque semaine.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Tout va dans ta poche.')
+      ? `Le personnel reste d'une run à l'autre, les cartes de match vont droit à ton deck ; le reste va dans ta poche : ${MAIN_SEMAINE} de ses cartes sortent en main chaque semaine.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      : 'Les cartes de match vont droit à ton deck ; le reste va dans ta poche.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
       ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],
@@ -531,7 +531,7 @@ export function ouvrirCarteDeLaPoche(item, j, decider) {
   const fermer = ouvrirChoix({
     ico: item.ico, titre: item.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'La garder',
     options: [{ ...optionDeBanque(item.id), cle: 'jouer', ...(non ? { desactive: non } : {}) }],
-    contexte: `<div class="poche-boutons"><button type="button" class="btn gold poche-jouer"${non ? ' disabled' : ''}>${non ? esc(non) : BANQUE[item.id].cat === 'match' ? 'Au deck' : 'Jouer'}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
+    contexte: `<div class="poche-boutons"><button type="button" class="btn gold poche-jouer"${non ? ' disabled' : ''}>${non ? esc(non) : 'Jouer'}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
     onChoix: jouer,
     onFerme: rien,
   });

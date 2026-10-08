@@ -374,6 +374,10 @@ export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 
  * (celles prises avant ce jour-là) ; `serie` ajoute les récompenses de séries
  * gagnées avant la ronde `ronde`.
  */
+/* Les cartes de match d'un pack acheté (`achat.cartes`, des ids `match:cle`), moins celles revendues à l'ouverture. */
+export const cartesDeMatchDuPack = d => (d && d.achat && d.achat.sorte === 'cartes'
+  ? (d.achat.cartes || []).filter((id, t) => typeof id === 'string' && id.startsWith('match:') && !(d.achat.vendus || []).includes(t)).map(id => id.slice(6)).filter(k => CARTES_MATCH[k])
+  : []);
 export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {
   // LA SAISON SUIVANTE D'UNE RUN ROGUE (S80) : le deck repart de celui de la fin de la saison d'avant (`deckDeBase`).
   const base = decisions.find(d => d && Array.isArray(d.deckDeBase));
@@ -385,7 +389,10 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
   // plus bas. Le retrait vise une carte qui est dans le deck à ce moment-là.
   const retraits = [];
   for (const d of saison) {
-    if (d.recompense && CARTES_MATCH[d.recompense]) deck.push(d.recompense);
+    // Une carte de match envoyée « Au deck » depuis la poche (une partie d'avant oct.) : elle y entre déjà par son pack, plus bas.
+    if (d.recompense && CARTES_MATCH[d.recompense] && !(d.joue && d.joue.src === 'partie')) deck.push(d.recompense);
+    // LES CARTES DE MATCH D'UN PACK (oct.) : elles vont droit au deck à l'ouverture, jamais dans la poche de la semaine.
+    for (const cle of cartesDeMatchDuPack(d)) deck.push(cle);
     if (d.retrait && CARTES_MATCH[d.retrait]) retraits.push(d.retrait);
     // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck devient sa version « + ».
     if (d.aiguise && CARTES_MATCH[`${d.aiguise}+`]) { const i = deck.indexOf(d.aiguise); if (i >= 0) deck[i] = `${d.aiguise}+`; }
