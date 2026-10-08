@@ -46,9 +46,35 @@ const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
-export function puces(mots) {
-  return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}">${esc(m.txt)}</span>`).join('');
+export function puces(mots, detail = () => false) {
+  return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}${detail(m) ? ' detail' : ''}">${esc(m.txt)}</span>`).join('');
 }
+/*
+ * UN CHIFFRE À LA FOIS (V3, JP : *ya trop de stats dans les choix et cartes, trop d'information en même temps à
+ * l'écran*). Une option montre d'abord ce qu'elle fait en mots (+ bon, − prix), ses gestes réels et sa durée, et
+ * au plus DEUX chiffres de match : ce qu'elle rapporte et ce qu'elle coûte, en buts quand elle en change ; une
+ * CARTE, aucun : sa face se lit en mots. Les autres chiffres (« ≈ … ») restent
+ * dans la page, en `.detail`, et se déplient d'un toucher pour tout le choix (« Les chiffres », `chiffresOuverts`).
+ * Rien ne disparaît : ce que le moteur joue reste écrit, on choisit seulement quand le lire.
+ */
+const estChiffre = m => /^≈ /.test(String(m.txt || ''));
+function detailDe(mots) {
+  const chiffres = mots.filter(estChiffre);
+  const buts = m => m.cle === 'but' || m.cle === 'butContre';
+  const meilleur = sens => chiffres.find(m => m.bon === sens && buts(m)) || chiffres.find(m => m.bon === sens) || null;
+  // Un chiffre pour et un contre, au plus : ce que l'option rapporte et ce qu'elle coûte, en buts d'abord.
+  const tete = [meilleur(true), meilleur(false)].filter(Boolean);
+  if (!tete.length && chiffres[0]) tete.push(chiffres[0]);
+  const garde = new Set(tete.map(m => `${m.cle}|${m.txt}`));
+  return m => estChiffre(m) && !garde.has(`${m.cle}|${m.txt}`);
+}
+/** Des puces au bref : les chiffres de trop pliés, comme dans les options d'un choix. */
+export const pucesEnBref = mots => puces(mots, detailDe(mots || []));
+let CHIFFRES_OUVERTS = null;
+const chiffresOuverts = () => {
+  if (CHIFFRES_OUVERTS === null) { try { CHIFFRES_OUVERTS = localStorage.getItem('cap82.chiffres') === '1'; } catch { CHIFFRES_OUVERTS = false; } }
+  return CHIFFRES_OUVERTS;
+};
 /*
  * CE QU'UNE CARTE FAIT, EN PUCES (S72). JP : *varie les cartes* ; *faut le
  * faire pour vrai*. Un cadeau n'a que du vert, un moindre mal que du rouge ;
@@ -296,7 +322,7 @@ export function ouvrirChoix(spec) {
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Combat' };
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
   const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
-  m.innerHTML = `<div class="choix-sheet${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet${chiffresOuverts() ? ' chiffres' : ''}${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
       <div class="choix-titres">${badge}<div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
@@ -316,12 +342,14 @@ export function ouvrirChoix(spec) {
           cle: esc(o.cle), rarete: o.rarete, i, ico: o.ico, nomHtml: sub(o.nom), typeHtml: esc(typeAvecForme(o.type || '', forme)),
           artHtml: o.art || '', texteHtml: o.texte ? sub(o.texte) : (o.mutation ? esc(MUTATIONS[o.mutation].quoi) : ''),
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
-          pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
+          // UNE CARTE SE LIT EN MOTS (V3, JP : *les cartes doivent être plus claires, quitte à pas mettre de stats*) :
+          // sa face dit ce qu'elle fait (+ bon, − prix) ; ses chiffres de match attendent « Les chiffres ».
+          pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), estChiffre) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
         });
-        const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
+        const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
           ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
           <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
@@ -334,6 +362,7 @@ export function ouvrirChoix(spec) {
           ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
         </button>`;
       }).join('')}</div>
+      <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
       ${(spec.cartes || spec.genre) && spec.fermable ? `<button type="button" class="btn choix-plus-tard">${esc(spec.motFermer || 'Plus tard')}</button>` : ''}
     </div>
   </div>`;
@@ -351,6 +380,17 @@ export function ouvrirChoix(spec) {
     if (!silencieux && spec.onFerme) spec.onFerme();
   };
   fermerChoixCourant = fermer;
+  // LES CHIFFRES (V3) : le bouton ne paraît que s'il y a des chiffres pliés, et le choix se retient d'un choix à l'autre.
+  const btnChiffres = m.querySelector('.choix-chiffres');
+  if (btnChiffres && m.querySelector('.puce.detail')) {
+    btnChiffres.hidden = false;
+    btnChiffres.onclick = () => {
+      CHIFFRES_OUVERTS = !chiffresOuverts();
+      try { localStorage.setItem('cap82.chiffres', CHIFFRES_OUVERTS ? '1' : '0'); } catch { /* le choix vaut pour la session */ }
+      m.querySelector('.choix-sheet').classList.toggle('chiffres', CHIFFRES_OUVERTS);
+      btnChiffres.setAttribute('aria-pressed', String(CHIFFRES_OUVERTS));
+    };
+  }
   // UNE VUE À LIRE (S74, « Mon deck ») : les cartes ne se prennent pas.
   m.querySelectorAll('[data-choix]').forEach(b => {
     if (spec.lecture) { b.classList.add('lecture'); return; }

@@ -761,6 +761,8 @@ input[type="range"] { accent-color: var(--or); }
 .puce.prix { color: var(--live); }
 .puce.neutre { color: var(--encre-2); }
 .puce.duree { color: var(--encre-3); }
+/* Un chiffre à la fois (V3) : les chiffres de trop se plient ; « Les chiffres » les déplie pour tout le choix. */
+.choix-sheet:not(.chiffres) .puce.detail { display: none; }
 .pm-pos { color: var(--bon); font-weight: 800; }
 .pm-neg { color: var(--mauvais); font-weight: 800; }
 /* Le niveau (Soutien → Phénomène) : la seule capsule pleine, parce qu'elle est un rang. */
@@ -889,6 +891,8 @@ img.visage.brut { object-position: 50% 12%; }
 body.choix-ouvert { overflow: hidden; }
 body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet { display: flex; flex-direction: column; width: 100%; max-width: 980px; height: 100%; max-height: 100dvh; background: var(--noir); }
+.choix-chiffres { align-self: center; margin-top: var(--esp-2); padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: 999px; background: transparent; color: var(--encre-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.choix-chiffres[aria-pressed="true"] { border-color: var(--or); color: var(--or); }
 .choix-tete { flex: none; display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); box-shadow: inset 0 3px 0 var(--or); }
 .choix-ico { line-height: 1; font-size: var(--t-5); color: var(--or); }
 .choix-titres { flex: 1; min-width: 0; }
