@@ -7,7 +7,8 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, trioAuMieux, lignesAuMieux } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux } from './sim.js';
+import { alignementAuMieux } from './impact.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
@@ -545,11 +546,13 @@ function ouvrirReglage(unit, groupe) {
  * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
  * gossage ; plusieurs best : défensive, offensive*. Un bouton, une fenêtre : le meilleur alignement (trios et
  * systèmes), penché vers l'attaque ou la défense, ou seulement les trios, ou seulement les systèmes (js/sim.js
- * `trioAuMieux`, `lignesAuMieux` : ce que l'IA se ferait). Derrière le banc, un blessé reste en réserve, et rien
+ * `lignesAuMieux` ; js/impact.js `alignementAuMieux`). JP : *considérer positions, stratégie, etc.* : les trios
+ * lisent le poste et le côté, la zone de chacun, les minutes de la ligne et le système qu'elle jouera, et le moteur
+ * tranche sur les buts d'un soir ; jamais pire que l'alignement de l'IA. Derrière le banc, un blessé reste en réserve, et rien
  * ne joue avant « Retour au match ».
  */
 const AU_MIEUX = [
-  { cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Tes meilleurs joueurs en haut, et le système qui va à chaque ligne.' },
+  { cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Chacun à son poste et dans sa zone, des trios qui jouent un système ensemble.' },
   { cle: 'offensif', ico: '⚔️', nom: 'Offensif', sous: 'Tes marqueurs en haut, et les systèmes qui tirent.' },
   { cle: 'defensif', ico: '🛡️', nom: 'Défensif', sous: 'Tes défensifs en haut, et les systèmes qui ferment.' },
   { cle: 'trios', ico: '👥', nom: 'Seulement les trios', sous: 'Les meilleurs à chaque case ; tes systèmes ne bougent pas.' },
@@ -560,7 +563,7 @@ function alignerAuMieux(cle) {
   if (cle !== 'systemes') {
     const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);
     const blesse = p => !!(G.banc && G.banc.blesses && G.banc.blesses.has(p));
-    const roster = trioAuMieux(tous.filter(p => !blesse(p)), style);
+    const roster = alignementAuMieux(tous.filter(p => !blesse(p)), style);
     // Les autres (blessés, surplus) vont en réserve, dans les cases ouvertes ; sans place pour tous, rien ne bouge.
     const places = new Set(Object.values(roster));
     const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
@@ -583,7 +586,7 @@ function boutonAuMieux() {
   b.innerHTML = '🤖 Aligner au mieux';
   b.onclick = () => ouvrirChoix({
     ico: '🤖', titre: 'Aligner au mieux', fermable: true, motFermer: 'Retour',
-    recit: 'Ce que l\'IA se ferait avec tes joueurs. Tu peux tout retoucher après.',
+    recit: 'Poste, côté, zone et système, pesés ensemble. Tu peux tout retoucher après.',
     options: AU_MIEUX.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: x.sous })),
     onChoix: alignerAuMieux,
   });
