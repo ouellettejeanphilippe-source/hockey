@@ -3285,6 +3285,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const etat = ctx.rogue ? lanceeAuJour(fil.joueur) : null;
         const puces = [prime ? `<span class="puce bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span>` : '',
           etat === 'lancee' ? '<span class="puce bon">Sur sa lancée : il finit mieux tant qu\'il marque</span>' : '',
+          etat === 'vive' ? '<span class="puce bon">☄️ Sur une lancée vive : il finit beaucoup mieux tant qu\'il marque</span>' : '',
           etat === 'doute' ? '<span class="puce prix">Il doute : il finit moins bien tant qu\'il ne marque pas</span>' : ''].join('');
         out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet,
           corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>${puces ? `<div class="choix-puces">${puces}</div>` : ''}` });

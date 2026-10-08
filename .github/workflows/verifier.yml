@@ -50,6 +50,9 @@ name: Vérifier
 #                   hors d'eux, sous la borne de leur rareté sur une saison
 #   check_lancee    la lancée et le doute du Rogue (V3.6) : absents du 82-0,
 #                   la même graine rejoue, et l'effet se voit dans les buts
+#   check_combo     le feu qui s'entretient (V3.6), en paires : chaque pièce
+#                   seule sous la borne d'une rare, le combo plus que ses
+#                   pièces, le build complet qui casse le jeu, rien au 82-0
 #   check_actions   les photos d'action (1.0) : la liste, le recadrage 5:7,
 #                   et une carte sans photo qui garde son portrait
 #   smoke           le parcours complet à 390 px dans Chromium : vestiaire,
@@ -98,6 +101,9 @@ jobs:
 
       - name: Les cartes d'un moment, en paires
         run: node scripts/check_si.mjs
+
+      - name: Le feu qui s'entretient, en paires
+        run: node scripts/check_combo.mjs
 
       - name: Les gros matchs mis en scène
         run: LIGUES=4 node scripts/check_gros.mjs

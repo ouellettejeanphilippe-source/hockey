@@ -3376,19 +3376,78 @@ function situDe(p, champ) {
 export const LANCEE = {
   matchs: 6, buts: 4, facteur: 1.5, lancee: { finition: 1.15, lancers: 1.05 },
   doute: { matchs: 10, vrai: 0.3, finition: 0.85 },
+  /*
+   * LE FEU QUI S'ENTRETIENT (V3.6, le premier combo du Rogue). Trois modifs de joueur (`feu`, MUTATIONS) et un
+   * patron (`jetonsLancee`, js/banque.js) jouent sur la lancée, chacune faible seule : l'ÉTINCELLE l'allume à
+   * `etincelle.buts` buts en six matchs, sans exiger 1,5 fois son rythme, et elle brûle plus fort (`vive`) ; la BRAISE la garde allumée `braise.fenetre`
+   * matchs après son déclenchement, tant qu'il marque au moins une fois en `braise.sans` matchs ; la TRAÎNÉE DE
+   * POUDRE la prend d'un compagnon de ligne qui l'a (`poserLancees`). `check_combo` les mesure, seules et ensemble.
+   */
+  etincelle: { buts: 3, facteur: 1 },
+  // La lancée VIVE : celle d'un joueur qui porte l'étincelle, et celle qu'il passe à sa ligne par la poudre.
+  vive: { finition: 1.25, lancers: 1.08 },
+  braise: { fenetre: 4, sans: 3 },
 };
-/** 'lancee', 'doute' ou null : `recents`, ses buts match par match (le plus récent à la fin), ses soirs habillés. */
+/* La lancée se déclenche-t-elle sur les six matchs qui finissent à `fin` (exclu) ? */
+function lanceeSur(recents, fin, vrai, etincelle) {
+  if (fin < LANCEE.matchs) return false;
+  const six = recents.slice(fin - LANCEE.matchs, fin);
+  const buts = six.reduce((a, x) => a + x, 0);
+  const R = etincelle ? LANCEE.etincelle : LANCEE;
+  return buts >= Math.max(R.buts, R.facteur * vrai * LANCEE.matchs);
+}
+/** 'lancee', 'vive' (l'étincelle), 'doute' ou null : `recents`, ses buts match par match (le plus récent à la fin), ses soirs habillés. */
 export function lanceeDe(p, recents) {
   if (!p || p.p === 'G' || !recents || !recents.length) return null;
   const vrai = (p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0;
-  const six = recents.slice(-LANCEE.matchs);
-  const buts = six.reduce((a, x) => a + x, 0);
-  if (six.length === LANCEE.matchs && buts >= Math.max(LANCEE.buts, LANCEE.facteur * vrai * LANCEE.matchs)) return 'lancee';
+  const feu = p._feu || [];
+  const etincelle = feu.includes('etincelle'), allumee = etincelle ? 'vive' : 'lancee';
+  const n = recents.length;
+  if (lanceeSur(recents, n, vrai, etincelle)) return allumee;
+  // La braise : une lancée allumée dans les derniers matchs tient tant qu'il marque une fois en trois.
+  if (feu.includes('braise') && recents.slice(-LANCEE.braise.sans).some(x => x > 0)) {
+    for (let k = 1; k <= LANCEE.braise.fenetre; k++) if (lanceeSur(recents, n - k, vrai, etincelle)) return allumee;
+  }
   const dix = recents.slice(-LANCEE.doute.matchs);
   if (dix.length === LANCEE.doute.matchs && vrai >= LANCEE.doute.vrai && dix.every(x => x === 0)) return 'doute';
   return null;
 }
 const lanceeFacteur = (p, champ) => (p && p._lancee && p._lancee[champ]) || 1;
+/*
+ * La lancée de chacun au début d'un match, et la traînée de poudre : un joueur qui la porte prend la lancée d'un
+ * compagnon de ligne (son trio, la paire de sa ligne) qui l'a par ses propres buts. Elle ne se propage pas plus
+ * loin : celui qui la prend ne la donne pas. Rend les joueurs sur leur lancée (la feuille les garde).
+ */
+function lanceesDeLigne(lineup) {
+  const tous = Object.values(lineup || {}).filter(Boolean);
+  const etat = new Map(tous.map(p => [p, lanceeDe(p, p._recents)]));
+  if (tous.some(p => p._feu && p._feu.includes('poudre'))) {
+    for (let u = 0; u < 4; u++) {
+      const js = Object.values(joueursDeLigne(lineup, u)).filter(Boolean);
+      // La plus forte des lancées allumées de la ligne : une vive se passe vive.
+      const feu = js.some(p => etat.get(p) === 'vive') ? 'vive' : js.some(p => etat.get(p) === 'lancee') ? 'lancee' : null;
+      if (!feu) continue;
+      for (const p of js) if (p.p !== 'G' && p._feu && p._feu.includes('poudre') && !estLancee(etat.get(p))) etat.set(p, feu);
+    }
+  }
+  return etat;
+}
+/* La lancée de chacun au prochain match d'un club Rogue, sur l'alignement de ce soir (le banc la montre) ; vide au 82-0. */
+export function lanceesDuSoir(team, lineup) {
+  const out = new Map();
+  if (!team || !team.courbe) return out;
+  for (const [p, c] of lanceesDeLigne(lineup)) if (c) out.set(p, c);
+  return out;
+}
+/* Sur sa lancée, vive ou non. */
+const estLancee = c => c === 'lancee' || c === 'vive';
+function poserLancees(T, Lx) {
+  const etat = T.courbe ? lanceesDeLigne(Lx) : null;
+  for (const p of Object.values(Lx)) if (p) {
+    const c = etat ? etat.get(p) : null;
+    p._lancee = c ? LANCEE[c] : null;
+  }
+}
 
 /*
  * Le mélangeur des situations : PUR, comme celui des cartes. Même graine,
@@ -5405,11 +5464,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // LE MOMENT DU SOIR (V3.4) : ce qu'une modif d'un moment (`si`) lit — qui reçoit, qui voyage, les séries.
   for (const [Lx, chez] of [[LA, true], [LB, false]]) for (const p of Object.values(Lx)) if (p) p._soir = { domicile: chez, visiteur: !chez, series: !!series };
   // LA LANCÉE ET LE DOUTE (V3.6) : une ligue Rogue (`courbe`) les lit sur les feuilles d'avant de chacun.
-  for (const [T, Lx] of [[A, LA], [B, LB]]) for (const p of Object.values(Lx)) {
-    if (!p) continue;
-    const c = T.courbe ? lanceeDe(p, p._recents) : null;
-    p._lancee = c ? LANCEE[c] : null;
-  }
+  for (const [T, Lx] of [[A, LA], [B, LB]]) poserLancees(T, Lx);
   // LE JOURNAL DES CASES VIDES. `activeLineup` promeut le premier réserviste
   // compatible ; quand il n'y en a plus, la case reste vide et le moteur y met
   // un joueur de remplacement. C'est l'ÉVÉNEMENT que l'écran de saison
@@ -5519,6 +5574,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
         B: Object.values(LB).filter(p => p && p.p !== 'G'),
       },
     });
+    // LES JOUEURS SUR LEUR LANCÉE CE SOIR (V3.6), dans une ligue Rogue : ce que le vendeur de chandails paie.
+    if (A.courbe || B.courbe) journal.lancees = { A: Object.values(LA).filter(p => p && p._lancee && p._lancee !== LANCEE.doute), B: Object.values(LB).filter(p => p && p._lancee && p._lancee !== LANCEE.doute) };
     journal.buts.sort((x, y) => x.instant - y.instant);
   }
   const winA = gfA > gfB;
@@ -5745,7 +5802,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
  * sinon le centre du premier trio), puis une photo de ses champs de mutation pour les lui rendre tels quels.
  * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
  */
-const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte', '_palier', '_mentor', '_si', '_soir'];
+const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte', '_palier', '_mentor', '_si', '_soir', '_feu'];
 /* Le joueur qu'une modif lue vise : celui qu'on donne, sinon celui que la carte vise, sinon le partant (une carte de gardien) ou le centre du premier trio. */
 export function joueurDeMutation(team, lineup, cle, joueur = null) {
   const lu = lineup || activeLineup(team);
@@ -5771,6 +5828,7 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
       if (M.cran && p._cran) p._cran = Math.max(0, p._cran - M.cran);
       if (M.palier && p._palier) p._palier = Math.max(0, p._palier - M.palier);
       if (M.mentor) delete p._mentor;
+      if (M.feu && p._feu) p._feu = p._feu.filter(x => x !== M.feu);
       if (M.ombre) delete p._ombre;
       if (M.abri) delete p._abri;
     }
@@ -6276,7 +6334,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
@@ -6300,7 +6358,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       initSimStats(p);
       p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
       delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
-      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir;
+      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
     }
     /*
      * LA FORCE APRÈS LA REMISE À ZÉRO (1.0, oct.). Elle se mesurait au début
@@ -6935,6 +6993,17 @@ export const MUTATIONS = {
     quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.2, finition: 1.25 },
   printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
     quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
+  /*
+   * V3.6 — LE FEU QUI S'ENTRETIENT, le premier combo du Rogue (`LANCEE`, `lanceesDeLigne`). Faibles seules : la
+   * lancée ne touche qu'un joueur sur vingt, un soir sur vingt. Ensemble, sur un trio qui marque, et avec le vendeur
+   * de chandails (js/banque.js) : le feu prend, tient, se propage et paie.
+   */
+  etincelle: { nom: 'L\'étincelle', ico: '☄️', cible: 'libre', source: 'atelier', feu: 'etincelle',
+    quoi: 'Sa lancée part plus vite et brûle plus fort : trois buts en six matchs l\'allument, quel que soit son rythme.' },
+  braise: { nom: 'La braise', ico: '🪔', cible: 'libre', source: 'atelier', feu: 'braise',
+    quoi: 'Sa lancée ne s\'éteint pas : allumée, elle tient tant qu\'il marque une fois en trois matchs.' },
+  poudre: { nom: 'La traînée de poudre', ico: '💫', cible: 'libre', source: 'atelier', feu: 'poudre',
+    quoi: 'Il prend feu avec sa ligne : quand un compagnon de ligne est sur sa lancée, il l\'est aussi.' },
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
@@ -7063,6 +7132,7 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   if (M.cran) p._cran = (p._cran || 0) + M.cran;
   if (M.palier) p._palier = (p._palier || 0) + M.palier;
   if (M.mentor) p._mentor = true;
+  if (M.feu && !(p._feu || []).includes(M.feu)) p._feu = [...(p._feu || []), M.feu];
   if (M.enBas) p._enBas = true;
   if (M.ombre) p._ombre = Math.min(p._ombre || 1, M.ombre);
   if (M.abri) p._abri = Math.max(p._abri || 0, M.abri);
@@ -7119,6 +7189,10 @@ export function motsDeMutation(cle) {
   if (M.abri) out.push({ txt: `Il ignore ${Math.round(M.abri * 100)} % de leur étouffement`, bon: true });
   if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
   if (M.lustre) out.push({ txt: 'Sa carte : une variante de plus', bon: true });
+  // Le feu qui s'entretient (V3.6) : ce que la carte fait à sa lancée, en mots ; les chiffres sont dans les règles.
+  if (M.feu === 'etincelle') out.push({ txt: 'Sa lancée s\'allume plus vite, et brûle plus fort', bon: true });
+  if (M.feu === 'braise') out.push({ txt: 'Sa lancée tient tant qu\'il marque', bon: true });
+  if (M.feu === 'poudre') out.push({ txt: 'La lancée d\'un compagnon de ligne le gagne', bon: true });
   // Ses rôles bougent : le SENS, jamais les points (un « Défensif +25 » ne dit rien). Le badge qu'il y gagne se lit dans `badgesDeMutation`.
   for (const [k, d] of Object.entries(M.profils || {})) {
     const P = PROFILS.F[k] || PROFILS.D[k];

@@ -127,6 +127,31 @@
   --relief: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 28px -14px rgba(0, 0, 0, 0.95);
   --reflet: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   --or-pale: #fff6dc;
+  /* LES MÉTAUX DES CARTES (V3) : le chrome de la peu commune, le prisme de la rare, la feuille d'or de la légendaire. */
+  --metal-argent: linear-gradient(128deg, #66788a 0%, #e8f1f9 18%, #8aa0b4 36%, #f7fbff 54%, #7a8c9f 74%, #d4e2ee 100%);
+  --prisme: #ff8fb8, #ffd46e, #a2f0a8, #7fd8ff, #b79cff, #ff8fb8;
+  --prisme-voile: rgba(255, 143, 184, 0.16) 34%, rgba(127, 216, 255, 0.18) 48%, rgba(162, 240, 168, 0.14) 60%;
+  --or-stops: #9a6b12 0%, #f3d27a 22%, #fff4c9 34%, #c89528 50%, #f7dd8c 68%, #a4761a 100%;
+  --or-lettres: linear-gradient(100deg, #c89528 0%, #f3d27a 30%, #fff4c9 45%, #e2b34a 60%, #f7dd8c 100%);
+  --or-bandeau: linear-gradient(180deg, #241a0a, #0f0b05);
+  --or-vif: #f3d27a;
+  --or-filet: rgba(255, 228, 160, 0.32);
+  --or-lueur: rgba(255, 196, 80, 0.55);
+  --or-rayon: rgba(255, 214, 120, 0.2);
+  --gemme-argent: linear-gradient(160deg, #2c3540, #10151b);
+  --gemme-argent-bord: #b9c8d6;
+  --gemme-prisme: linear-gradient(160deg, #2a2236, #120e18);
+  --gemme-prisme-bord: #c9b5ff;
+  --gemme-or: linear-gradient(160deg, #f7dd8c, #a4761a);
+  --gemme-or-encre: #1b1305;
+  --reflet-blanc: rgba(255, 255, 255, 0.28);
+  /* Les familles de la banque (V3) : la couleur de leur bannière et son encre. */
+  --fam-patron: #c9a5e8; --fam-patron-encre: #1d1426;
+  --fam-evenement: #e8dfc8; --fam-evenement-encre: #1f1a10;
+  --fam-joueur: #63d2c6; --fam-joueur-encre: #08201d;
+  --fam-consommable: #f0a868; --fam-consommable-encre: #241306;
+  --fam-plafond: #9ad59a; --fam-plafond-encre: #0b1f0d;
+  --fam-saison: #9fb2ff; --fam-saison-encre: #10173a;
   --relief-haut: var(--reflet), 0 0 0 1px color-mix(in srgb, var(--club-vif) 45%, transparent), 0 16px 36px -14px color-mix(in srgb, var(--club-vif) 45%, transparent);
   --lueur-club: 0 0 0 1px color-mix(in srgb, var(--club-vif) 55%, transparent), 0 6px 18px -8px color-mix(in srgb, var(--club-vif) 70%, transparent);
   --lueur-bon: 0 10px 28px -10px color-mix(in srgb, var(--bon) 70%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.35);
@@ -742,6 +767,9 @@ input[type="range"] { accent-color: var(--or); }
 .tag-fragile { color: var(--mauvais); }
 .tag-pen { color: var(--mauvais); }
 .tag-zone-up { color: var(--attention); }
+/* La lancée (V3.6) : le feu en orange, le doute en gris. */
+.tag-lancee { color: var(--attention); font-weight: 800; }
+.tag-doute { color: var(--encre-3); }
 .tag-mut { color: var(--violet); }
 /* La zone est la seule capsule : quatre paliers, une échelle qui se compare d'une carte à l'autre. */
 .tag-zone { padding: 1px 6px; border-radius: var(--r-1); color: var(--sur-choisi); background: var(--zone-clair); }
@@ -3605,28 +3633,72 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-option-visage > svg { position: absolute; inset: 2px; width: calc(100% - 4px); height: calc(100% - 4px); }
 .choix-option-visage:has(> svg) { background: transparent; }
 
-/* ---- La carte de match (.tc) : un liseré de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
+/* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
 :is(.tc, .deck-mini, .main-adverse-carte).tc-commune { --tc-bord: var(--filet); }
 :is(.tc, .deck-mini, .main-adverse-carte).tc-peu { --tc-bord: var(--bleu); }
 :is(.tc, .deck-mini, .main-adverse-carte).tc-rare { --tc-bord: var(--choisi); }
 :is(.tc, .deck-mini, .main-adverse-carte).tc-legendaire { --tc-bord: var(--or); }
 /* Le genre : une couleur et son encre, dérivées des jetons ; sans genre (un événement, une modif, une identité), l'or. */
-.tc { --tc-genre: var(--or); --tc-genre-encre: var(--encre-sur-or); }
-.tc.tc-g-attaque { --tc-genre: var(--mauvais); --tc-genre-encre: color-mix(in srgb, var(--mauvais) 18%, var(--noir)); }
-.tc.tc-g-defense { --tc-genre: var(--bleu); --tc-genre-encre: color-mix(in srgb, var(--bleu) 18%, var(--noir)); }
-.tc.tc-g-tactique { --tc-genre: var(--bon); --tc-genre-encre: color-mix(in srgb, var(--bon) 18%, var(--noir)); }
-.tc.tc-g-synergie { --tc-genre: var(--violet); --tc-genre-encre: color-mix(in srgb, var(--violet) 18%, var(--noir)); }
-.tc.tc-g-malediction { --tc-genre: var(--live); --tc-genre-encre: var(--encre); }
+.tc {
+  --tc-genre: var(--or); --tc-genre-encre: var(--encre-sur-or);
+  --tc-trame: color-mix(in srgb, var(--tc-accent, var(--tc-genre)) 15%, transparent);
+  --tc-motif: repeating-conic-gradient(from 0deg at 50% 62%, var(--tc-trame) 0deg 5deg, transparent 5deg 15deg);
+}
+/*
+ * LE MOTIF DE L'ILLUSTRATION (V3, JP : *le look des cartes plus variés pour une expérience premium*) : chaque
+ * genre a sa trame, sous le dessin — l'attaque file en lignes de vitesse, la défense est un grillage, la
+ * tactique un tableau quadrillé, la synergie des ondes, la malédiction une glace hachurée ; sans genre (un
+ * événement, une modif, un patron), un soleil. Une carte se reconnaît de loin, avant qu'on lise un mot.
+ */
+.tc.tc-g-attaque { --tc-genre: var(--mauvais); --tc-genre-encre: color-mix(in srgb, var(--mauvais) 18%, var(--noir)); --tc-motif: repeating-linear-gradient(112deg, transparent 0 13px, var(--tc-trame) 13px 15px, transparent 15px 22px, var(--tc-trame) 22px 23px); }
+.tc.tc-g-defense { --tc-genre: var(--bleu); --tc-genre-encre: color-mix(in srgb, var(--bleu) 18%, var(--noir)); --tc-motif: repeating-linear-gradient(60deg, transparent 0 9px, var(--tc-trame) 9px 10px), repeating-linear-gradient(-60deg, transparent 0 9px, var(--tc-trame) 9px 10px); }
+.tc.tc-g-tactique { --tc-genre: var(--bon); --tc-genre-encre: color-mix(in srgb, var(--bon) 18%, var(--noir)); --tc-motif: linear-gradient(var(--tc-trame) 1px, transparent 1px) 0 0 / 12px 12px, linear-gradient(90deg, var(--tc-trame) 1px, transparent 1px) 0 0 / 12px 12px; }
+.tc.tc-g-synergie { --tc-genre: var(--violet); --tc-genre-encre: color-mix(in srgb, var(--violet) 18%, var(--noir)); --tc-motif: repeating-radial-gradient(circle at 50% 55%, transparent 0 9px, var(--tc-trame) 9px 10.5px); }
+.tc.tc-g-malediction { --tc-genre: var(--live); --tc-genre-encre: var(--encre); --tc-motif: repeating-linear-gradient(45deg, transparent 0 5px, var(--tc-trame) 5px 6px), repeating-linear-gradient(-38deg, transparent 0 11px, var(--tc-trame) 11px 12px); }
+/*
+ * LES CARTES DE LA BANQUE (V3) ont le costume de leur catégorie (js/cartes.js `FAMILLES`) : le patron, un complet
+ * rayé ; l'événement, le papier journal tramé ; la modif de joueur, l'hélice d'un brin ; le consommable, des
+ * bulles ; le contrat, la guilloche d'un billet ; la carte de saison, le calendrier.
+ */
+.tc.tc-f-patron { --tc-genre: var(--fam-patron); --tc-genre-encre: var(--fam-patron-encre); --tc-motif: repeating-linear-gradient(90deg, transparent 0 9px, var(--tc-trame) 9px 10px); }
+.tc.tc-f-evenement { --tc-genre: var(--fam-evenement); --tc-genre-encre: var(--fam-evenement-encre); --tc-motif: radial-gradient(circle, var(--tc-trame) 1.1px, transparent 1.6px) 0 0 / 6px 6px; }
+.tc.tc-f-joueur { --tc-genre: var(--fam-joueur); --tc-genre-encre: var(--fam-joueur-encre); --tc-motif: repeating-linear-gradient(28deg, transparent 0 8px, var(--tc-trame) 8px 9.5px), repeating-linear-gradient(-28deg, transparent 0 8px, var(--tc-trame) 8px 9.5px); }
+.tc.tc-f-consommable { --tc-genre: var(--fam-consommable); --tc-genre-encre: var(--fam-consommable-encre); --tc-motif: radial-gradient(circle at 30% 40%, var(--tc-trame) 0 5px, transparent 5.5px) 0 0 / 26px 22px, radial-gradient(circle at 70% 70%, var(--tc-trame) 0 3px, transparent 3.5px) 0 0 / 18px 18px; }
+.tc.tc-f-plafond { --tc-genre: var(--fam-plafond); --tc-genre-encre: var(--fam-plafond-encre); --tc-motif: repeating-radial-gradient(ellipse 60% 40% at 50% 50%, transparent 0 5px, var(--tc-trame) 5px 6px); }
+.tc.tc-f-saison { --tc-genre: var(--fam-saison); --tc-genre-encre: var(--fam-saison-encre); --tc-motif: linear-gradient(var(--tc-trame) 1px, transparent 1px) 0 0 / 100% 16px, linear-gradient(90deg, var(--tc-trame) 1px, transparent 1px) 0 0 / 18px 100%; }
+/* L'icône d'une carte de la banque, sur un médaillon : la grosse émoji tient lieu de dessin. */
+.tc:is(.tc-f-patron, .tc-f-evenement, .tc-f-joueur, .tc-f-consommable, .tc-f-plafond, .tc-f-saison) .tc-art-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; font-size: var(--t-5); font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--tc-genre) 35%, var(--fond-3)), var(--noir) 75%); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tc-genre) 70%, transparent), 0 0 18px color-mix(in srgb, var(--tc-genre) 40%, transparent); }
 .choix-option.tc {
   position: relative; display: block; padding: 0; min-height: 0; text-align: left; isolation: isolate; container-type: inline-size;
   transition: transform var(--t-vite), border-color var(--t-vite), opacity var(--t-vite), --rx var(--t-lent) var(--e-ressort), --ry var(--t-lent) var(--e-ressort), --lueur var(--t-lent);
 }
 .choix-option.tc:not(.tc-joueur) {
-  overflow: hidden; border: 2px solid var(--tc-bord); border-radius: var(--r-2);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--encre) 6%, var(--fond-2)), var(--fond-1) 22%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 14%, transparent);
+  --tc-metal: linear-gradient(var(--tc-bord), var(--tc-bord));
+  overflow: hidden; border: 2px solid transparent; border-radius: var(--r-2);
+  background:
+    var(--tc-grain, linear-gradient(transparent, transparent)) padding-box,
+    linear-gradient(180deg, color-mix(in srgb, var(--encre) 6%, var(--fond-2)), var(--fond-1) 22%) padding-box,
+    var(--tc-metal) border-box;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 14%, transparent), 0 10px 22px -14px color-mix(in srgb, var(--tc-bord) 70%, transparent);
 }
-.choix-option.tc:hover:not([disabled]):not(.lecture), .choix-option.tc:focus-visible { transform: translateY(-4px); border-color: var(--choisi); outline: none; }
+/*
+ * LE MÉTAL DE LA RARETÉ (V3) : le cadre EST la rareté, comme sur une vraie carte d'insert. La commune est un
+ * carton mat au grain fin ; la peu commune un chrome brossé ; la rare un prisme holographique qui tourne quand
+ * on penche la carte (`--ry`, js/cartes.js) ; la légendaire une feuille d'or, plus épaisse, qui rayonne.
+ */
+.choix-option.tc.tc-commune:not(.tc-joueur) { --tc-grain: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--encre) 6%, transparent) 0.6px, transparent 1.1px) 0 0 / 4px 4px; }
+.choix-option.tc.tc-peu:not(.tc-joueur) { --tc-metal: var(--metal-argent); }
+.choix-option.tc.tc-rare:not(.tc-joueur) {
+  border-width: 3px;
+  --tc-metal: conic-gradient(from calc(var(--ry, 0deg) * 8 + 30deg), var(--prisme));
+}
+.choix-option.tc.tc-legendaire:not(.tc-joueur) {
+  border-width: 4px;
+  --tc-metal: linear-gradient(calc(100deg + var(--ry, 0deg) * 4), var(--or-stops));
+  box-shadow: inset 0 0 0 1px var(--or-filet), 0 0 24px -6px var(--or-lueur), 0 12px 26px -14px var(--or-lueur);
+}
+.choix-option.tc:hover:not([disabled]):not(.lecture) { transform: translateY(-4px); }
+.choix-option.tc:focus-visible { transform: translateY(-4px); outline: 2px solid var(--choisi); outline-offset: 2px; }
 .choix-option.tc:active:not([disabled]):not(.lecture) { transform: translateY(-2px) scale(0.985); }
 .choix-option.tc:is([disabled], [aria-disabled="true"]) { opacity: 0.45; cursor: not-allowed; }
 .choix-option.tc.lecture { cursor: default; }
@@ -3656,6 +3728,11 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc-tete:not(:has(> .tc-coin)) { padding-left: var(--esp-3); }
 .tc-nom { font: 800 clamp(var(--t-1), 9cqw, var(--t-4))/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; overflow-wrap: anywhere; }
 .choix-option.tc.plus .tc-tete { border-bottom: 3px solid var(--or); }
+/* La légendaire : une bannière noire aux lettres d'or, son genre en filet dessous. */
+.choix-option.tc.tc-legendaire .tc-tete { background: var(--or-bandeau); box-shadow: inset 0 -3px 0 var(--tc-genre), inset 0 1px 0 var(--or-filet); }
+.choix-option.tc.tc-legendaire .tc-nom { color: transparent; background: var(--or-lettres); -webkit-background-clip: text; background-clip: text; }
+/* La rare : un reflet prismatique couche la bannière. */
+.choix-option.tc.tc-rare .tc-tete { background-image: linear-gradient(105deg, transparent 30%, var(--reflet-blanc) 45%, transparent 60%); }
 /* La gemme du coût : un hexagone sombre dans le coin de la bannière ; l'élan se lit avant le nom. */
 .tc-coin {
   position: absolute; top: 4px; left: var(--esp-2); z-index: 3; display: grid; place-items: center; width: 32px; height: 36px;
@@ -3664,14 +3741,18 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--encre) 30%, transparent);
 }
 .tc-coin s { font-size: var(--t-1); opacity: 0.6; margin-right: 1px; }
+.tc-peu .tc-coin { background: var(--gemme-argent); box-shadow: inset 0 0 0 2px var(--gemme-argent-bord); }
+.tc-rare .tc-coin { background: var(--gemme-prisme); box-shadow: inset 0 0 0 2px var(--gemme-prisme-bord); }
+.tc-legendaire .tc-coin { background: var(--gemme-or); color: var(--gemme-or-encre); box-shadow: inset 0 1px 0 var(--or-filet); }
 .tc-art {
   --tc-accent: var(--tc-genre);
   flex: none; position: relative; display: grid; place-items: center; height: 110px; margin: 0 var(--esp-2); border-radius: var(--r-1); overflow: hidden;
   color: var(--encre);
   background:
+    var(--tc-motif),
     radial-gradient(80% 55% at 50% 118%, color-mix(in srgb, var(--tc-accent) 50%, transparent), transparent 62%),
     linear-gradient(180deg, color-mix(in srgb, var(--tc-accent) 24%, var(--fond-3)), color-mix(in srgb, var(--noir) 55%, var(--fond-3)));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-accent) 48%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-accent) 48%, transparent), inset 0 -18px 24px -18px color-mix(in srgb, var(--noir) 80%, transparent);
 }
 /* Une carte qu'on tient (pas la rangée serrée du bureau) : la fenêtre est une patinoire. */
 @container (min-width: 200px) {
@@ -3680,12 +3761,20 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
       linear-gradient(color-mix(in srgb, var(--tc-accent) 70%, transparent), color-mix(in srgb, var(--tc-accent) 70%, transparent)) center 22% / 78% 1px no-repeat,
       linear-gradient(color-mix(in srgb, var(--tc-accent) 70%, transparent), color-mix(in srgb, var(--tc-accent) 70%, transparent)) center 78% / 70% 1px no-repeat,
       radial-gradient(circle at 50% 50%, transparent 16%, color-mix(in srgb, var(--tc-accent) 55%, transparent) 17.2% 19.2%, transparent 20.4%),
+      var(--tc-motif),
       radial-gradient(80% 55% at 50% 118%, color-mix(in srgb, var(--tc-accent) 40%, transparent), transparent 64%),
       linear-gradient(180deg, color-mix(in srgb, var(--tc-accent) 16%, var(--fond-3)), color-mix(in srgb, var(--noir) 58%, var(--fond-3)));
   }
 }
 .tc-art > .cj-art { position: absolute; inset: 0; }
-.tc-dessin { width: min(72px, 44cqw); height: auto; max-height: 86%; overflow: visible; }
+.tc-dessin { width: min(72px, 44cqw); height: auto; max-height: 86%; overflow: visible; filter: drop-shadow(0 0 7px color-mix(in srgb, var(--tc-accent) 45%, transparent)) drop-shadow(0 3px 2px color-mix(in srgb, var(--noir) 70%, transparent)); }
+/* La rare : une feuille prismatique sur l'illustration, qui suit le doigt. La légendaire : un soleil d'or derrière le dessin, et plus de place pour lui. */
+.choix-option.tc.tc-rare .tc-art::before, .choix-option.tc.tc-legendaire .tc-art::before { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
+.choix-option.tc.tc-rare .tc-art::before { background: linear-gradient(calc(120deg + var(--ry, 0deg) * 6), transparent 20%, var(--prisme-voile), transparent 76%); }
+.choix-option.tc.tc-legendaire .tc-art::before { background: repeating-conic-gradient(from calc(var(--ry, 0deg) * 4) at 50% 58%, var(--or-rayon) 0deg 6deg, transparent 6deg 16deg); -webkit-mask: radial-gradient(circle at 50% 58%, black 20%, transparent 72%); mask: radial-gradient(circle at 50% 58%, black 20%, transparent 72%); }
+/* Plus faible que les rangées serrées plus bas (la main, les trois cartes au téléphone), qui gardent leur hauteur. */
+.tc-legendaire .tc-art { --tc-accent: var(--or-vif); height: 128px; }
+.tc-legendaire .tc-dessin { width: min(86px, 50cqw); }
 .tc-dessin .a { fill: var(--tc-accent); stroke: none; opacity: 0.9; }
 .tc-dessin .s { stroke: var(--tc-accent); }
 .tc-dessin .f { stroke-width: 1.2; opacity: 0.7; }
@@ -4632,21 +4721,26 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
   position: relative; display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; padding: var(--esp-3);
   border: 1px solid var(--filet); border-left: 3px solid var(--bq-a); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); color: var(--encre);
 }
-.bq-patron { --bq-a: var(--or); }
-.bq-evenement { --bq-a: var(--attention); }
-.bq-joueur { --bq-a: var(--bleu); }
-.bq-consommable { --bq-a: var(--bon); }
-.bq-plafond { --bq-a: var(--bon); }
+/* La couleur de sa famille, la même que sa carte en grand (style.css, « LES CARTES DE LA BANQUE »). */
+.bq-patron { --bq-a: var(--fam-patron); }
+.bq-evenement { --bq-a: var(--fam-evenement); }
+.bq-joueur { --bq-a: var(--fam-joueur); }
+.bq-consommable { --bq-a: var(--fam-consommable); }
+.bq-plafond { --bq-a: var(--fam-plafond); }
 .bq-match { --bq-a: var(--live); }
-.bq-saison { --bq-a: var(--violet); }
+.bq-saison { --bq-a: var(--fam-saison); }
+/* Le métal de sa rareté en filet au haut de la carte : le chrome, le prisme, l'or. */
+.bq-carte:is(.tc-peu, .tc-rare, .tc-legendaire)::before { content: ''; position: absolute; top: -1px; left: var(--esp-2); right: var(--esp-2); height: 3px; border-radius: 0 0 var(--r-1) var(--r-1); background: var(--metal-argent); }
+.bq-carte.tc-rare::before { background: linear-gradient(90deg, var(--prisme)); }
 .bq-carte.tc-rare { border-color: var(--encre-2); border-left-color: var(--bq-a); }
-.bq-carte.tc-legendaire { border-color: var(--or); border-left-color: var(--bq-a); }
+.bq-carte.tc-legendaire::before { background: linear-gradient(90deg, var(--or-stops)); }
+.bq-carte.tc-legendaire { border-color: var(--or); border-left-color: var(--bq-a); box-shadow: var(--relief), 0 0 18px -8px var(--or-lueur); }
 .bq-carte.pas-a-moi { --bq-a: var(--encre-3); opacity: 0.4; }
 .bq-tete { display: flex; align-items: center; gap: var(--esp-2); }
 .bq-ico { flex: none; font-size: var(--t-4); line-height: 1; color: var(--bq-a); }
 .bq-nom { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
 .bq-compte { flex: none; font: 800 var(--t-2)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
-.bq-sous { display: flex; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.bq-sous { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--esp-2); min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .bq-coach { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .bq-regle { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .bq-cache { font-size: var(--t-1); color: var(--encre-3); font-style: italic; }

@@ -57,7 +57,8 @@ export function puces(mots, detail = () => false) {
  * dans la page, en `.detail`, et se déplient d'un toucher pour tout le choix (« Les chiffres », `chiffresOuverts`).
  * Rien ne disparaît : ce que le moteur joue reste écrit, on choisit seulement quand le lire.
  */
-const estChiffre = m => /^≈ /.test(String(m.txt || ''));
+// Un chiffre de match, en tête (« ≈ +0,2 but ») ou après son sujet (« Ton club : ≈ +1,5 but marqué »).
+const estChiffre = m => /(^|: )≈ /.test(String(m.txt || ''));
 function detailDe(mots) {
   const chiffres = mots.filter(estChiffre);
   const buts = m => m.cle === 'but' || m.cle === 'butContre';
@@ -88,7 +89,7 @@ function enMots(m) {
   return M ? M[moins ? 1 : 0] : null;
 }
 /* Les mots d'une carte : chaque chiffre dit aussi en mots (une fois chacun), le chiffre gardé pour « Les chiffres ». */
-function enMotsEtChiffres(mots) {
+export function enMotsEtChiffres(mots) {
   const vus = new Set(), out = [];
   for (const m of mots) {
     if (!estChiffre(m) && m.cle !== 'lui' && m.cle !== 'glace') { out.push(m); continue; }
@@ -99,10 +100,16 @@ function enMotsEtChiffres(mots) {
   return out;
 }
 let CHIFFRES_OUVERTS = null;
-const chiffresOuverts = () => {
+export const chiffresOuverts = () => {
   if (CHIFFRES_OUVERTS === null) { try { CHIFFRES_OUVERTS = localStorage.getItem('cap82.chiffres') === '1'; } catch { CHIFFRES_OUVERTS = false; } }
   return CHIFFRES_OUVERTS;
 };
+/* « Les chiffres » : ouvrir ou plier, retenu d'un choix à l'autre (et dans « Tes cartes », js/inventaire.js). */
+export function basculerChiffres() {
+  CHIFFRES_OUVERTS = !chiffresOuverts();
+  try { localStorage.setItem('cap82.chiffres', CHIFFRES_OUVERTS ? '1' : '0'); } catch { /* le choix vaut pour la session */ }
+  return CHIFFRES_OUVERTS;
+}
 /*
  * CE QU'UNE CARTE FAIT, EN PUCES (S72). JP : *varie les cartes* ; *faut le
  * faire pour vrai*. Un cadeau n'a que du vert, un moindre mal que du rouge ;
@@ -375,7 +382,7 @@ export function ouvrirChoix(spec) {
           pucesHtml: puces(enMotsEtChiffres(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))), m => !!m.chiffre) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
-          joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
+          joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
         });
         const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
@@ -413,8 +420,7 @@ export function ouvrirChoix(spec) {
   if (btnChiffres && m.querySelector('.puce.detail')) {
     btnChiffres.hidden = false;
     btnChiffres.onclick = () => {
-      CHIFFRES_OUVERTS = !chiffresOuverts();
-      try { localStorage.setItem('cap82.chiffres', CHIFFRES_OUVERTS ? '1' : '0'); } catch { /* le choix vaut pour la session */ }
+      basculerChiffres();
       m.querySelector('.choix-sheet').classList.toggle('chiffres', CHIFFRES_OUVERTS);
       btnChiffres.setAttribute('aria-pressed', String(CHIFFRES_OUVERTS));
     };
@@ -1306,13 +1312,18 @@ export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = fal
       ? `<button type="button" class="dep-piste${on ? ' on' : ''}${x.ecarte ? ' ecarte' : ''}" data-plan="${x.plan}"${x.ecarte ? ' disabled' : ''}>${corps}<span class="dep-prep">${x.ecarte ? 'Écarté' : on ? '🎯 Préparé' : 'Me préparer'}</span></button>`
       : `<div class="dep-piste${x.ecarte ? ' ecarte' : ''}">${corps}</div>`;
   };
-  const txt = e => motsEnChiffres(e).map(m => m.txt).join(' · ');
-  const juste = `Leur plan tombe · ${txt(PREP_JUSTE)}${fx && fx.piege ? ` · et ${txt(fx.piege)} (le piège)` : ''}`;
-  const rate = fx && fx.improvise ? `pas de malus, et ${txt(fx.improvise)} (l'improvisation)` : txt(PREP_RATEE);
+  // EN MOTS D'ABORD (V3) : ce que la préparation fait se dit en mots ; ses chiffres de match attendent « Les chiffres ».
+  const lu = e => enMotsEtChiffres(motsEnChiffres(e));
+  const mots = e => lu(e).filter(m => m.enMots).map(m => m.txt.charAt(0).toLowerCase() + m.txt.slice(1)).join(', ');
+  const chiffres = e => lu(e).filter(m => m.chiffre).map(m => m.txt).join(' · ');
+  const juste = `leur plan tombe${mots(PREP_JUSTE) ? ` : ${mots(PREP_JUSTE)}` : ''}${fx && fx.piege ? `, et le piège : ${mots(fx.piege)}` : ''}`;
+  const justeN = [chiffres(PREP_JUSTE), fx && fx.piege ? chiffres(fx.piege) : ''].filter(Boolean).join(' · ');
+  const rate = fx && fx.improvise ? `pas de malus, et l'improvisation : ${mots(fx.improvise)}` : mots(PREP_RATEE);
+  const rateN = chiffres(fx && fx.improvise ? fx.improvise : PREP_RATEE);
   return `<div class="depistage${choisir ? ' choisir' : ''}">
     <div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>
     <div class="dep-pistes">${pistes.map(ligne).join('')}</div>
-    ${choisir ? `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span><span class="puce prix">💥 Rate : ${esc(rate)}</span><span class="puce neutre">Sans préparation : rien ne change</span></div>` : ''}
+    ${choisir ? `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span>${justeN ? `<span class="puce bon detail">${esc(justeN)}</span>` : ''}<span class="puce prix">💥 Rate : ${esc(rate)}</span>${rateN ? `<span class="puce prix detail">${esc(rateN)}</span>` : ''}<span class="puce neutre">Sans préparation : rien ne change</span></div>` : ''}
   </div>`;
 }
 
@@ -1496,7 +1507,7 @@ export function ouvrirMainDeMatch(spec) {
     for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
     const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
-    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+    m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">⚔️</span>
         <div class="choix-titres"><div class="choix-badge">Combat</div><div class="choix-titre">${esc(spec.titre)}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
@@ -1525,6 +1536,7 @@ export function ouvrirMainDeMatch(spec) {
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
           <button type="button" class="btn main-deck">${voirDeck ? 'Cacher mon deck' : `Mon deck · ${deck.length}`}</button>
+          ${spec.depistage ? `<button type="button" class="btn main-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
           ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il joue tes mains et garde le cap aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
         </div>
         ${voirDeck ? `<div class="deck-grille">${deck.map(c => `<span class="deck-mini tc-${CARTES_MATCH[c].maudite ? 'commune' : CARTES_MATCH[c].rarete}${CARTES_MATCH[c].maudite ? ' maudite' : ''}" title="${esc(CARTES_MATCH[c].texte)}"><b>${CARTES_MATCH[c].injouable ? '✕' : CARTES_MATCH[c].cout}</b>${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : ''}
@@ -1566,6 +1578,9 @@ export function ouvrirMainDeMatch(spec) {
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
     m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
+    // LES CHIFFRES (V3) : la préparation se lit en mots ; ses chiffres se déplient, comme dans un choix.
+    const bc = m.querySelector('.main-chiffres');
+    if (bc) bc.onclick = () => { const o = basculerChiffres(); m.querySelector('.choix-sheet').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
     const adj = m.querySelector('.main-adjoint');
     if (adj) adj.onclick = () => { fermer(true); spec.onAdjoint(); };
     // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.

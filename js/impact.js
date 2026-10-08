@@ -274,6 +274,11 @@ const MATCHS_DE_SERIES_LUS = 20;
 export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = {}) {
   const base = motsDeMutation(cle).filter(m => m.cle !== 'role' && !m.txt.includes(' %')), M = MUTATIONS[cle], c = clubLu();
   if (!c || !c.team || !M) return motsDeMutation(cle);
+  // Le joueur nommé, tel que le club lu le porte : la carte de l'écran peut être une autre copie du même joueur-saison.
+  if (joueur) {
+    const k = getPlayerKey(joueur);
+    joueur = [...Object.values(c.lineup || activeLineup(c.team)), ...Object.values(c.team.roster || {})].find(q => q && getPlayerKey(q) === k) || joueur;
+  }
   const p = joueurDeMutation(c.team, c.lineup || null, cle, joueur);
   const badges = p ? badgesDeMutation(p, cle, { deja }) : [];
   if (!CANAUX_MUTATION.some(k => M[k])) return [...badges, ...base];

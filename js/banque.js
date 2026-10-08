@@ -115,6 +115,9 @@ export const PATRONS = {
     econ: { rabais: 0.85 } },
   dir_proprio: { role: 'direction', nom: 'Le proprio généreux', ico: '💼', rarete: 'rare', texte: 'Une victoire, une enveloppe.',
     econ: { jetonsVictoire: 2 } },
+  // V3.6 — le feu qui paie : la quatrième pièce du combo de la lancée (`LANCEE`, js/sim.js).
+  dir_chandails: { role: 'direction', nom: 'Le vendeur de chandails', ico: '🛍️', rarete: 'rare', texte: 'Un joueur en feu, et les chandails partent par boîtes.',
+    econ: { jetonsLancee: 1 } },
   dir_magnat: { role: 'direction', nom: 'Le magnat', ico: '🎩', rarete: 'legendaire', texte: 'Il a acheté l\'équipe pour la gagner.',
     effet: { finition: 1.042, defense: 1.021 }, econ: { jetonsVictoire: 3, rabais: 0.9 } },
   // V2.3 : le Comptable n'est plus un coach de départ ; il est un patron, à côté de n'importe quel coach.
@@ -400,7 +403,7 @@ const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat'];
 const RARETE_MOD = {
   affute: 'peu', moteur: 'peu', mur: 'peu', vision: 'peu', coach: 'peu',
   partout: 'rare', cran: 'rare', physio: 'peu', lustre: 'legendaire', enBas: 'rare', chasse: 'rare', entrainement: 'peu', mentorTrio: 'rare',
-  domicile: 'peu', route: 'peu', printemps: 'rare',
+  domicile: 'peu', route: 'peu', printemps: 'rare', etincelle: 'rare', braise: 'rare', poudre: 'rare',
   style_sniper: 'peu', style_faiseur: 'peu', style_ancre: 'peu', style_locomotive: 'peu', style_chasseur: 'peu',
   style_architecte: 'rare', style_sentinelle: 'rare', style_canonnier: 'rare', style_buteur: 'legendaire', style_pieuvre: 'rare',
   masque_neuf: 'commune', baton_neuf: 'commune', contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
@@ -616,7 +619,8 @@ export const momentDe = id => { const c = BANQUE[id]; return c && (c.rarete === 
  * partout (\`motsEnChiffres\`, \`motsDeMutationEnChiffres\`). Les cartes de match ont la leur
  * (\`optionDeCarteMatch\`, js/gerant.js) : l'écran la lit là.
  */
-export function reglesDe(id) {
+/* `joueur` : le joueur qui la recevra (le verso d'une carte) — une modif se lit alors sur lui, pas sur sa cible par défaut. */
+export function reglesDe(id, { joueur = null } = {}) {
   const c = carteBanque(id);
   if (!c) return [];
   if (c.cat === 'patron') {
@@ -625,6 +629,7 @@ export function reglesDe(id) {
     const e = P.econ || {};
     if (e.rabais) out.push({ txt: `Packs ${Math.round((e.rabais - 1) * 100)} %`, bon: true });
     if (e.jetonsVictoire) out.push({ txt: `+${e.jetonsVictoire} 🪙 par victoire`, bon: true });
+    if (e.jetonsLancee) out.push({ txt: `+${e.jetonsLancee} 🪙 par joueur sur sa lancée, chaque soir`, bon: true });
     if (e.holo) out.push({ txt: `Packs de joueurs : holo ou mieux +${Math.round((e.holo - 1) * 100)} %`, bon: true });
     if (e.carteExtra) out.push({ txt: `Packs de joueurs : +${e.carteExtra} carte`, bon: true });
     if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
@@ -642,7 +647,7 @@ export function reglesDe(id) {
     if (E.echelle) out.push(motDEchelle(E.echelle, c.coach));
     return out;
   }
-  if (c.cat === 'joueur') return motsDeMutationEnChiffres(c.cle);
+  if (c.cat === 'joueur') return motsDeMutationEnChiffres(c.cle, joueur);
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     const out = [...motsDesGestes(C.gestes || {})];
@@ -714,7 +719,7 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
 }
 /* Ce que les patrons engagés changent à la boutique (la décision d'engagement porte \`econ\`). */
 export function modificateurs(decisions = [], jusqua = Infinity) {
-  const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false, jetonsVictoire: [] };
+  const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false, jetonsVictoire: [], jetonsLancee: [] };
   // v2 : un coach qui a la confiance du vestiaire change la boutique comme un patron (le Comptable).
   for (const p of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
     const e = p.econ || {};
@@ -723,6 +728,7 @@ export function modificateurs(decisions = [], jusqua = Infinity) {
     if (e.carteExtra) m.carteExtra += e.carteExtra;
     if (e.sansBase) m.sansBase = true;
     if (e.jetonsVictoire) m.jetonsVictoire.push({ depuis: p.jour || 0, n: e.jetonsVictoire, cle: p.cle });
+    if (e.jetonsLancee) m.jetonsLancee.push({ depuis: p.jour || 0, n: e.jetonsLancee, cle: p.cle });
   }
   return m;
 }

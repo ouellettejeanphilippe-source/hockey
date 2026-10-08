@@ -110,6 +110,8 @@ const DESSIN_DE = {
   tirRebond: 'rondelle', gardienRelance: 'masque', cinqPuissance: 'eclair', tempsArret: 'chrono', coupGenie: 'ampoule',
   rideauFer: 'mur', feuSacre: 'flamme', nuitMagique: 'lune', distraction: 'journal', doute: 'nuage', trainee: 'croix',
 };
+/* Les catégories de la banque qui ont leur costume (js/banque.js `CATEGORIES`). */
+const FAMILLES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'saison'];
 const DESSIN_DU_GENRE = { attaque: 'rondelle', defense: 'bouclier', tactique: 'tableau', synergie: 'lien', malediction: 'nuage' };
 function dessinHtml(cle, genre) {
   const d = DESSINS[DESSIN_DE[String(cle).replace(/\+$/, '')]] || DESSINS[DESSIN_DU_GENRE[genre]];
@@ -134,6 +136,9 @@ function dessinHtml(cle, genre) {
  *       dans le retournement), meilleure (la dernière retournée, qui éclate),
  *       joueurHtml (S78 : une CARTE MINI de joueur, qui remplace le cadre
  *       d'« insert » — le choix d'un joueur se voit en carte de joueur),
+ *       famille (V3 : une carte de la BANQUE — patron, événement, modif,
+ *       consommable, contrat, carte de saison — a la bannière et la trame de
+ *       sa catégorie, comme une carte de match celles de son genre),
  *       genreCarte, dessin (1.0 : une carte de MATCH — son genre donne le fond
  *       de l'illustration et la couleur de sa bannière, sa clé son dessin) }
  */
@@ -154,8 +159,9 @@ export function carteHtml(c) {
     ${c.vue ? '' : c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
   </div>`;
   const genre = DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '';
+  const famille = !genre && FAMILLES.includes(c.famille) ? c.famille : '';
   const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
-  return `<button type="button" class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
+  return `<button type="button" class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
     ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <span class="tc-cadre">

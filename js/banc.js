@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { compterFeuilles, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, compterFeuilles, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -97,6 +97,8 @@ function ouvrirBanc(jour) {
     chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
     apprentissage: ((L.you.jourLignes || [])[jour] || {}).apprentissage || null,
+    // LA LANCÉE (V3.6, Rogue) : qui la porte au prochain match, sur l'alignement de ce soir — la case le dit.
+    lancees: lanceesDuSoir(L.you, ce_soir),
   };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
