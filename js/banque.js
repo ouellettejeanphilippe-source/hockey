@@ -215,9 +215,11 @@ export const CONTRATS = {
 export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) {
   const lignes = [];
   let cap = base;
-  const facteurs = new Map(), ltir = new Set();
+  const facteurs = new Map(), ltir = new Set(), ecole = new Set();
   for (const d of [...decisions].filter(Boolean).sort((a, b) => (a.jour || 0) - (b.jour || 0))) {
     if ((d.jour || 0) >= jusqua) continue;
+    // Le rappel du club-école (js/ballottage.js, `rappelDuClubEcole`) ne compte pas au plafond.
+    if (d.ballottage && d.ballottage.ecole && d.ballottage.entre) ecole.add(d.ballottage.entre);
     const p = d.plafond;
     if (p) {
       if (p.espace) { cap += p.espace; lignes.push({ nom: p.nom || 'Espace', montant: p.espace }); }
@@ -234,7 +236,7 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
     const pct = (x.econ && x.econ.plafond) || 0;
     if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: x.nom, montant: m }); }
   }
-  return { cap, lignes, facteurs, ltir };
+  return { cap, lignes, facteurs, ltir, ecole };
 }
 
 /* ---------- LES ÉVÉNEMENTS D'ÉQUIPE : quelques journées ---------- */

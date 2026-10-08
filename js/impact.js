@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation } from './sim.js';
 import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -93,6 +93,44 @@ function lire(team, lu, adv, opts) {
  */
 export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
   return lire(team, lineup, adv, { aVenir, n: N_BASE });
+}
+
+/*
+ * ALIGNER AU MIEUX, JUGÉ PAR LE MOTEUR (oct.). JP : *aligner au mieux considéré positions, stratégie, etc.* La
+ * lecture rapide (`trioAuMieux`, js/sim.js) propose ; le moteur tranche, sur les buts pour et contre d'un soir contre
+ * un club moyen (`lectureDuMatch`, ce que `check_chiffres` prouve égal au jeu), chaque alignement avec les systèmes
+ * de son style (`lignesAuMieux`). L'alignement de l'IA (`autoRoster`) est toujours candidat : le bouton ne fait jamais
+ * pire qu'elle. Puis, quelques tours, les échanges les plus prometteurs (`echangesProposes`), gardés si le moteur les
+ * voit meilleurs. Le style pèse les buts : l'offensif compte plus ceux qu'on marque, le défensif ceux qu'on évite.
+ */
+const POIDS_STYLE = { equilibre: [1, 1], offensif: [1.5, 0.5], defensif: [0.5, 1.5] };
+const TOURS_AU_MIEUX = 3, ECHANGES_LUS = 10;
+export function alignementAuMieux(joueurs, style = 'equilibre') {
+  const [wP, wC] = POIDS_STYLE[style] || POIDS_STYLE.equilibre;
+  const saison = (joueurs.find(p => p && p.s) || {}).s;
+  // Sous un hasard à part : le club lu tire sa chance de saison, et la saison en cours ne doit pas bouger d'un dé.
+  const lu = R => avecHasardIsole('au mieux', () => {
+    const T = createTeam('Au mieux', 'MOI', R, { season: saison });
+    T.lignes = lignesAuMieux(R, style);
+    const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
+    return wP * m.butsPour - wC * m.butsContre;
+  });
+  let best = null, score = -Infinity;
+  for (const R of [trioAuMieux(joueurs, style), autoRoster(joueurs)]) {
+    const v = lu(R);
+    if (v > score + 1e-9) { best = R; score = v; }
+  }
+  for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
+    let mieux = false;
+    for (const [sa, sb] of echangesProposes(best, style, ECHANGES_LUS)) {
+      const R = { ...best };
+      [R[sa.i], R[sb.i]] = [R[sb.i], R[sa.i]];
+      const v = lu(R);
+      if (v > score + 1e-9) { best = R; score = v; mieux = true; }
+    }
+    if (!mieux) break;
+  }
+  return best;
 }
 
 /* ---- les mots ---- */

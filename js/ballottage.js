@@ -125,6 +125,41 @@ export function candidatsBallottage({ shards, ligue, blesse, budget, at, graine 
 }
 
 /*
+ * LE RAPPEL DU CLUB-ÉCOLE (oct.). JP : *des cartes de remplissage pour les rappels, pour que le jeu ne casse pas s'il
+ * est impossible de remplacer un joueur* ; *ça doit ajouter un « mauvais » joueur : tout doit être réel dans le
+ * système, si on le dit au joueur*. Le ballottage peut n'offrir personne, ou personne que le plafond et les jetons
+ * laissent signer. Le club-école, lui, a toujours quelqu'un : un VRAI joueur des saisons de la ligue, d'un club qui
+ * n'y est pas, monté quelques matchs dans sa saison (RAPPEL_MATCHS) — le plus faible producteur de son groupe (à
+ * égalité, celui qui a le plus joué), un bouche-trou, pas un renfort. Gratuit et hors plafond (le contrôleur le dit à `plafondDe`, js/banque.js). Le même à
+ * chaque appel (la graine et le match départagent les égalités). Pas de gardien : l'auxiliaire prend le filet.
+ */
+export function rappelDuClubEcole({ shards, ligue, blesse, at, graine = ligue && ligue.graine }) {
+  if (!ligue || !blesse || !Array.isArray(ligue.cles) || !shards) return null;
+  const g = groupeDe(blesse);
+  if (g === 'G') return null;
+  const dansLaLigue = new Set();
+  for (const t of ligue.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const clubs = new Set(ligue.cles);
+  const h = str => { let x = ((Number(graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
+  let best = null, bestMesure = Infinity;
+  for (const s of new Set(ligue.cles.map(c => String(c).split('|')[0]))) {
+    const e = shards.get(s);
+    if (!e) continue;
+    for (const [tag, joueurs] of Object.entries(e.byTeam || {})) {
+      if (clubs.has(`${s}|${tag}`)) continue;
+      for (const p of joueurs) {
+        if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1] || !(p.$ > 0) || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
+        // À production égale (souvent zéro point), celui qui a joué le plus : un mauvais joueur éprouvé, pas un fragile.
+        const m = productionRelative(p, shards);
+        const egal = Math.abs(m - bestMesure) <= 1e-12;
+        if (m < bestMesure - 1e-12 || (egal && (p.gp > best.gp || (p.gp === best.gp && h(getPlayerKey(p)) < h(getPlayerKey(best)))))) { best = p; bestMesure = m; }
+      }
+    }
+  }
+  return best;
+}
+
+/*
  * OÙ VA CELUI QUI CÈDE SA CASE (1.0, oct.). JP : *ça me permet pas de le
  * mettre dans l'alignement* — Oleksiak sortait d'une réserve de défenseur,
  * et Kessel ne pouvait prendre aucune case d'attaquant : leur joueur devait

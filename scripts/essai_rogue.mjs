@@ -185,9 +185,8 @@ let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
-    // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau ».
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]')) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
-    // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on montre tout.
+    // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on montre tout. Elle passe devant le
+    // sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
     if (pq && await pq.isVisible()) {
       await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300);
@@ -195,6 +194,8 @@ async function regler() {
       await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {});
       continue;
     }
+    // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
     if (await page.$('#choixModal:not([hidden]) .main-jouer')) {
       // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
       if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
