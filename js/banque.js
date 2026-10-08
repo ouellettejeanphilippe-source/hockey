@@ -310,6 +310,25 @@ export const EVENEMENTS = {
   code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.65, robustesse: -0.5 } },
   ...EVENEMENTS_VIE,
 };
+/*
+ * UN ÉVÉNEMENT SE SENT, DES DEUX CÔTÉS (V3.4). JP : *tu scores plus, mais l'adversaire aussi ; ton gardien arrête
+ * plus, mais plus de rebonds, donc plus de tirs* ; *pas nécessairement ça, mais dans ce sens-là*. Mesuré avant
+ * (scripts/check_evenements.mjs) : un événement changeait 0,18 but marqué et 0,08 accordé par match en médiane,
+ * sur six matchs — moins d'un but en tout, qu'on ne sentait pas. L'écart de chaque canal est donc multiplié
+ * (`AMPLEUR_EVENEMENT`), le gain ET son prix : la feuille change vraiment, et l'échange reste un échange. Les
+ * canaux qui s'additionnent (la robustesse) et la glace des trios gardent leur valeur ; rien ne passe sous la
+ * moitié ni au-dessus du double (`BORNES_EVENEMENT`).
+ */
+export const AMPLEUR_EVENEMENT = 2;
+const BORNES_EVENEMENT = [0.5, 2];
+const AMPLIFIES = ['volume', 'finition', 'defense', 'discipline', 'energie', 'blessure'];
+for (const E of Object.values(EVENEMENTS)) {
+  if (!E.effet) continue;
+  for (const k of AMPLIFIES) if (typeof E.effet[k] === 'number') {
+    const v = 1 + (E.effet[k] - 1) * AMPLEUR_EVENEMENT;
+    E.effet[k] = Math.round(Math.min(BORNES_EVENEMENT[1], Math.max(BORNES_EVENEMENT[0], v)) * 10000) / 10000;
+  }
+}
 
 /* ---------- LES CONSOMMABLES : une utilisation ---------- */
 /*

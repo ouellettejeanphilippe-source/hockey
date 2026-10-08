@@ -763,6 +763,7 @@ input[type="range"] { accent-color: var(--or); }
 .puce.duree { color: var(--encre-3); }
 /* Un chiffre à la fois (V3) : les chiffres de trop se plient ; « Les chiffres » les déplie pour tout le choix. */
 .choix-sheet:not(.chiffres) .puce.detail { display: none; }
+.choix-sheet.chiffres .puce.en-mots { display: none; }
 .pm-pos { color: var(--bon); font-weight: 800; }
 .pm-neg { color: var(--mauvais); font-weight: 800; }
 /* Le niveau (Soutien → Phénomène) : la seule capsule pleine, parce qu'elle est un rang. */

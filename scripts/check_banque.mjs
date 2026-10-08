@@ -4,6 +4,10 @@
  *
  *   node scripts/check_banque.mjs            (LIGUES=4 par défaut)
  *   LIGUES=8 node scripts/check_banque.mjs   (une lecture plus fine)
+ *   FAMILLES=evenements PART=1/4 node scripts/check_banque.mjs
+ *       (l'équilibre d'une seule famille, et le quart de ses cartes : quatre
+ *       processus en parallèle font les 160 événements en un quart du temps ;
+ *       la moyenne d'une famille ne se juge alors que sur la liste entière)
  *
  * Vérifie :
  *   1. le registre : plus de 150 cartes, sept familles, une règle chiffrée
@@ -40,6 +44,9 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 const LIGUES = Number(process.env.LIGUES ?? 4);
+const FAMILLES = (process.env.FAMILLES || 'patrons,evenements').split(',');
+const [PART_K, PART_N] = (process.env.PART || '1/1').split('/').map(Number);
+const maPart = (cles) => cles.filter((_, i) => i % PART_N === PART_K - 1);
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
 const eq = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
@@ -184,7 +191,7 @@ console.log(`\n  ${LIGUES} ligues × 32 équipes, en paires\n`);
 const hors = [];
 const lignes = [];
 const vp = [];
-for (const cle of Object.keys(PATRONS)) {
+for (const cle of FAMILLES.includes('patrons') ? maPart(Object.keys(PATRONS)) : []) {
   if (!PATRONS[cle].effet) continue;   // les patrons de la boutique (dépistage, direction) ne jouent pas sur la glace
   const v = paires(equipe => [{ jour: 0, equipe, ...payloadDe(`patron:${cle}`, { patrons: [] }) }]);
   lignes.push(`patron ${PATRONS[cle].nom} ${signe(v)} V`);
@@ -193,12 +200,16 @@ for (const cle of Object.keys(PATRONS)) {
 }
 const moyP = moy(vp);
 for (const l of lignes) console.log(`  ${l}`);
-exiger('aucun patron n\'est un cadeau ni un piège (−1,5 à +3 victoires)', !hors.length, hors.join(' · ') || `${lignes.length} patrons`);
-exiger('en moyenne, un patron vaut de 0 à +1,5 victoire', moyP >= 0 && moyP <= 1.5, `${signe(moyP)} V`);
+const entier = PART_N === 1;
+if (FAMILLES.includes('patrons')) {
+  exiger('aucun patron n\'est un cadeau ni un piège (−1,5 à +3 victoires)', !hors.length, hors.join(' · ') || `${lignes.length} patrons`);
+  if (entier) exiger('en moyenne, un patron vaut de 0 à +1,5 victoire', moyP >= 0 && moyP <= 1.5, `${signe(moyP)} V`);
+  else informer(`moyenne des patrons, part ${PART_K}/${PART_N}`, `${signe(moyP)} V sur ${vp.length}`);
+}
 const horsE = [];
 const lignesE = [];
 const ve = [];
-for (const cle of Object.keys(EVENEMENTS)) {
+for (const cle of FAMILLES.includes('evenements') ? maPart(Object.keys(EVENEMENTS)) : []) {
   const v = paires(equipe => [{ jour: 20, equipe, ...payloadDe(`evenement:${cle}`) }]);
   lignesE.push(`événement ${EVENEMENTS[cle].nom} ${signe(v)} V`);
   ve.push(v);
@@ -206,7 +217,10 @@ for (const cle of Object.keys(EVENEMENTS)) {
 }
 const moyE = moy(ve);
 for (const l of lignesE) console.log(`  ${l}`);
-exiger('aucun événement n\'est un cadeau ni un piège (±2,5 victoires)', !horsE.length, horsE.join(' · ') || `${lignesE.length} événements`);
-exiger('en moyenne, un événement est un échange (±0,6 victoire)', Math.abs(moyE) <= 0.6, `${signe(moyE)} V`);
+if (FAMILLES.includes('evenements')) {
+  exiger('aucun événement n\'est un cadeau ni un piège (±2,5 victoires)', !horsE.length, horsE.join(' · ') || `${lignesE.length} événements`);
+  if (entier) exiger('en moyenne, un événement est un échange (±0,6 victoire)', Math.abs(moyE) <= 0.6, `${signe(moyE)} V`);
+  else informer(`moyenne des événements, part ${PART_K}/${PART_N}`, `${signe(moyE)} V sur ${ve.length} (somme ${signe(moyE * ve.length)})`);
+}
 
 verdict();

@@ -47,13 +47,13 @@ const $ = id => document.getElementById(id);
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
 export function puces(mots, detail = () => false) {
-  return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}${detail(m) ? ' detail' : ''}">${esc(m.txt)}</span>`).join('');
+  return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}${m.enMots ? ' en-mots' : ''}${detail(m) ? ' detail' : ''}">${esc(m.txt)}</span>`).join('');
 }
 /*
  * UN CHIFFRE À LA FOIS (V3, JP : *ya trop de stats dans les choix et cartes, trop d'information en même temps à
  * l'écran*). Une option montre d'abord ce qu'elle fait en mots (+ bon, − prix), ses gestes réels et sa durée, et
  * au plus DEUX chiffres de match : ce qu'elle rapporte et ce qu'elle coûte, en buts quand elle en change ; une
- * CARTE, aucun : sa face se lit en mots. Les autres chiffres (« ≈ … ») restent
+ * CARTE, aucun : sa face dit ses chiffres en mots (`enMots`). Les autres chiffres (« ≈ … ») restent
  * dans la page, en `.detail`, et se déplient d'un toucher pour tout le choix (« Les chiffres », `chiffresOuverts`).
  * Rien ne disparaît : ce que le moteur joue reste écrit, on choisit seulement quand le lire.
  */
@@ -70,6 +70,34 @@ function detailDe(mots) {
 }
 /** Des puces au bref : les chiffres de trop pliés, comme dans les options d'un choix. */
 export const pucesEnBref = mots => puces(mots, detailDe(mots || []));
+/*
+ * UN CHIFFRE DIT EN MOTS (V3.4) : la face d'une carte dit ce qu'elle fait sans nombre (« Tu marques plus »,
+ * « L'adversaire tire moins ») ; « Les chiffres » rend les nombres exacts à la place des mots.
+ */
+const MOTS_DU_CHIFFRE = {
+  but: ['Tu marques plus', 'Tu marques moins'], butContre: ['Tu accordes plus de buts', 'Tu accordes moins de buts'],
+  tir: ['Tu tires plus', 'Tu tires moins'], 'tir accordé': ['L\'adversaire tire plus', 'L\'adversaire tire moins'],
+  punition: ['Plus de punitions', 'Moins de punitions'], coup: ['Plus de mises en échec', 'Moins de mises en échec'],
+  blessure: ['Plus de blessures', 'Moins de blessures'], jambes: ['Les jambes s\'usent plus', 'Les jambes s\'usent moins'],
+};
+function enMots(m) {
+  const t = String(m.txt || ''), moins = /≈ −|de moins/.test(t);
+  if (m.cle === 'glace') { const qui = t.split(' : ')[0]; return /presque inchangée/.test(t) ? null : `${qui} : ${moins ? 'moins' : 'plus'} de glace`; }
+  if (m.cle === 'lui') return `${t.split(' : ')[0]} : ${moins ? 'moins' : 'plus'} de buts`;
+  const M = MOTS_DU_CHIFFRE[m.cle];
+  return M ? M[moins ? 1 : 0] : null;
+}
+/* Les mots d'une carte : chaque chiffre dit aussi en mots (une fois chacun), le chiffre gardé pour « Les chiffres ». */
+function enMotsEtChiffres(mots) {
+  const vus = new Set(), out = [];
+  for (const m of mots) {
+    if (!estChiffre(m) && m.cle !== 'lui' && m.cle !== 'glace') { out.push(m); continue; }
+    const txt = enMots(m);
+    if (txt && !vus.has(txt)) { vus.add(txt); out.push({ txt, bon: m.bon, enMots: true }); }
+    out.push({ ...m, chiffre: true });
+  }
+  return out;
+}
 let CHIFFRES_OUVERTS = null;
 const chiffresOuverts = () => {
   if (CHIFFRES_OUVERTS === null) { try { CHIFFRES_OUVERTS = localStorage.getItem('cap82.chiffres') === '1'; } catch { CHIFFRES_OUVERTS = false; } }
@@ -344,7 +372,7 @@ export function ouvrirChoix(spec) {
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           // UNE CARTE SE LIT EN MOTS (V3, JP : *les cartes doivent être plus claires, quitte à pas mettre de stats*) :
           // sa face dit ce qu'elle fait (+ bon, − prix) ; ses chiffres de match attendent « Les chiffres ».
-          pucesHtml: puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), estChiffre) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
+          pucesHtml: puces(enMotsEtChiffres(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))), m => !!m.chiffre) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin,
