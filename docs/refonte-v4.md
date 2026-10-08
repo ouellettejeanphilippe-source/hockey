@@ -53,6 +53,13 @@ Le soir : l'adversaire, **un** fait qui décide (« leur gardien arrête ,920 ; 
 ### E. La poche en séries
 La poche devient jouable en séries (aujourd'hui en lecture seule) ; ce qui reste à la fin de la saison se vend tout seul au prix de vente.
 
+## 3 bis. Fait (V4.2, 8 oct. — JP : *teste ça, on va voir*)
+
+- **A, la semaine.** « Semaine suivante » joue jusqu'à la fin de la semaine du calendrier (`SEMAINE`, sept jours, environ trois matchs) et s'arrête avant sur tout ce qui demande le joueur ; le sommaire dit la semaine (« Semaine 1 · 2-1-0 »). « Un jour » reste offert. Mesuré dans une run à 390 px : 30 passages au bureau mènent au match 18, contre le match 10 au jour le jour. « Jusqu'à la prochaine décision » est parti : la semaine le remplace.
+- **C, un choix pèse.** L'écart de chaque canal des options (dilemmes, séquences, avant-match, réponses à la presse et aux courriels, leurs paris et leurs suites) est multiplié par `AMPLEUR_CHOIX` (2,5), borné entre × 0,5 et × 2, une fois à la source (js/sim.js). « Donner la glace au bas de l'alignement » passe de « 1 but tous les 20 matchs » à « +0,15 but par match » sur huit matchs. `VERSION_MOTEUR` S99. `check_robot` : 0 Coupe sur 40, 40 % en séries (inchangé) ; `check_gros` vert.
+- **D, le bureau court.** L'affiche d'un soir garde le match, une phrase d'avantage, le dos-à-dos en quatre mots et la poche ; le tableau des forces, « ce qui devrait décider », les totaux du soir et les effets en cours vont au dépistage. Environ 200 mots → 60.
+- Reste : **B** (trois sortes de cartes) et **E** (la poche en séries, qui demande au moteur des séries de lire les cartes de la poche).
+
 ## 4. L'ordre proposé
 
 1. **A (la semaine)** : c'est le plus gros gain de rythme, sans toucher l'équilibre.

@@ -295,20 +295,20 @@ if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat d
   if (versSaison) { await page.click('#sousNav .soustab[data-page="match"]'); await page.waitForTimeout(200); }
 }
 /*
- * « JUSQU'À LA PROCHAINE DÉCISION » (S79) remplace « +10 jours » : elle joue
- * les journées une à une et s'arrête sur ce qui demande le joueur. On attend
- * qu'elle ait fini (le bouton se réactive).
+ * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
+ * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
+ * réactive).
  */
 async function prochaineDecision() {
-  const p = await page.$('#hubModal .hub-prochaine');
+  const p = await page.$('#hubModal .hub-jour');
   if (!p || !(await p.isVisible()) || await p.isDisabled()) return false;
   await p.click();
-  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-prochaine[disabled]'), null, { timeout: 120000 }).catch(() => {});
+  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-jour[disabled]'), null, { timeout: 120000 }).catch(() => {});
   await page.waitForTimeout(300);
   return true;
 }
-// Avancer un peu pour gagner des jetons
-for (let i = 0; i < 3; i++) {
+// Avancer un peu pour gagner des jetons (des semaines : V4)
+for (let i = 0; i < 8; i++) {
   await regler();
   await prochaineDecision();
 }

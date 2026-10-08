@@ -140,7 +140,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Mobile d'abord : rien ne déborde à 390 px, tout ce qu'on touche est atteignable — smoke `sansDebordement`, `toutEstAtteignable`.
 - Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; cinq sections (Club, Effectif, Marché, Ligue, Collection), les mêmes dans le même ordre dans tous les modes — smoke.
 - Un seul retour, un niveau à la fois (js/pile.js) ; rien de sélectionnable, aucun lien souligné ; l'anneau du focus en mode clavier ou manette seulement — smoke.
-- La boîte de réception bloque « Journée suivante » tant qu'un message est à traiter.
+- La boîte de réception ne contient que ce qui se règle, et elle bloque « Semaine suivante » et « Un jour » tant qu'un message est à traiter (docs/refonte-v4.md).
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
