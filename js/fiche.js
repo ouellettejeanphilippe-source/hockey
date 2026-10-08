@@ -5,7 +5,7 @@
 
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
-import { esc, estD, glyphe, money, pct3, ord, pmMatch } from './util.js';
+import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
@@ -73,18 +73,26 @@ const EFFETS_GLACE_G = {
  * UN PALIER GAGNÉ REND DU TALENT (oct., js/sim.js `EFFET_PALIER`) : la variante de sa carte, la carte d'entraînement
  * ou le mentor lui ont monté son badge, et ça se joue dans le canal du badge — la fiche dit ce que ça lui donne.
  */
+/* Une vraie stat d'abord (JP : *au lieu de dire 14 %, passé de 10 % à 11,4 %*) : sa saison, puis ce qu'elle devient. */
+const pct1 = x => `${(x * 100).toFixed(1).replace('.', ',')} %`;
 const MOTS_GAGNES = {
-  finition: x => `il finit ${pctMot(x)} mieux`,
+  finition: (x, p) => (p.sh > 0 ? `son % de tir passe de ${pct1(p.g / p.sh)} à ${pct1(p.g / p.sh * (1 + x))}` : `il finit ${pctMot(x)} mieux`),
   creation: x => `il fait ${pctMot(x)} plus de jeux`,
-  lancers: x => `il lance ${pctMot(x)} plus`,
+  lancers: (x, p) => (p.sh > 0 && p.gp > 0 ? `il passe de ${virgule((p.sh / p.gp).toFixed(1))} à ${virgule((p.sh / p.gp * (1 + x)).toFixed(1))} lancers par match` : `il lance ${pctMot(x)} plus`),
   defense: x => `les lancers adverses passent ${pctMot(x)} moins pendant ses présences`,
-  arrets: x => `il accorde ${pctMot(x)} de buts de moins sur chaque lancer`,
+  // Le gardien : son badge naturel contre son badge monté (`netBadgeGardien`, un soir moyen à forces égales), et les arrêts gagnés.
+  arrets: (x, p) => {
+    if (!(p.sv > 0)) return `il accorde ${pctMot(x)} de buts de moins sur chaque lancer`;
+    const nat = { ...p, _carte: null, _palier: 0 };
+    const buts = (1 - p.sv) * (1 - x) * (1 - netBadgeGardien(p)) / (1 - netBadgeGardien(nat));
+    return `son % d'arrêts joue comme ${pct3(1 - buts)} au lieu de ${pct3(p.sv)}`;
+  },
 };
 function lignesGagnees(p, li) {
   const gagnes = paliersGagnes(p);
   return badgesDe(p).filter(b => b.gagne > 0).map(b => {
     const k = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle], n = b.gagne * (b.second ? 0.5 : 1);
-    const mot = MOTS_GAGNES[k] && gagnes[k] ? ` : ${esc(MOTS_GAGNES[k](Math.min(0.5, EFFET_PALIER[k] * n)))}` : '';
+    const mot = MOTS_GAGNES[k] && gagnes[k] ? ` : ${esc(MOTS_GAGNES[k](Math.min(0.5, EFFET_PALIER[k] * n), p))}` : '';
     return li(`<b>${glyphe(b.ico)} ${esc(b.nom)} monté : ${PALIERS[b.palier - b.gagne].nom} → ${PALIERS[b.palier].nom}</b>${mot}.`, 'bon');
   });
 }
