@@ -20,17 +20,25 @@
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
-import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach } from './banque.js';
+import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach, coachsActifs } from './banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch, enMotsEtChiffres, chiffresOuverts, basculerChiffres } from './gerant.js';
-import { esc, money as M } from './util.js';
+import { esc, hache, money as M } from './util.js';
 
 const $ = id => document.getElementById(id);
 
 /* Les paliers de la saison donnent un pack mixte gratuit (S79) : ses cartes de saison, jamais un permanent. */
-const PALIERS_PACK = [9, 18, 26];
+export const PALIERS_PACK = [9, 18, 26];
+/*
+ * LA MAIN DE LA SEMAINE (V4.3). JP : *ça pioche x cartes, pis tu choisis ce que tu joues pour la semaine, ce qui
+ * force à les jouer ou pas les jouer consciemment, tout en gardant de bâtir un deck de bonnes cartes pour de bonnes
+ * pioches*. La poche est ta pile : chaque semaine (`SEMAINE` jours), `MAIN_SEMAINE` de ses cartes sortent en main,
+ * et tu en joues `JOUEES_SEMAINE` au plus ; les autres retournent dans la poche. Acheter ajoute des cartes à la
+ * pile, vendre l'amincit : une poche de bonnes cartes pige de bonnes mains.
+ */
+export const SEMAINE = 7, MAIN_SEMAINE = 4, JOUEES_SEMAINE = 2;
 
 /*
  * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
@@ -61,6 +69,38 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
     if (d && d.vend && Array.isArray(d.vend.refs)) d.vend.refs.forEach(r => parties.add(r));
   }
   return items.filter(x => !parties.has(x.ref));
+}
+
+/*
+ * LA MAIN DE LA SEMAINE, pure. Elle se pige dans la poche du premier jour de la semaine, dans l'ordre que la graine
+ * donne à chaque carte (`hache`) ; une carte reçue en cours de semaine complète une main qui n'est pas pleine, sans
+ * déplacer celles déjà là. Une carte jouée ou vendue cette semaine reste dans la main, marquée. `nMatchDebut` et
+ * `nMatch` : les matchs joués au premier jour et aujourd'hui (les packs gratuits des paliers).
+ * Rend { w, debut, fin, main: [{ ref, id, jouee, vendue }], reste, reglee }.
+ */
+export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDebut = 0, nMatch = 0, rogue = false } = {}) {
+  const w = Math.floor(jour / SEMAINE), debut = w * SEMAINE, fin = debut + SEMAINE;
+  const avant = decisions.filter(d => d && (d.jour ?? 0) < debut);
+  const pile = pocheDeLaPartie({ decisions: avant, graine, nMatch: nMatchDebut, rogue });
+  /*
+   * LES COACHS PIGENT LEURS CARTES (V4.3). JP : *ce système justifie encore plus les coachs*. Une carte de la couleur
+   * d'un coach auquel l'équipe croit sort plus souvent en main : son tirage (0 à 1) est élevé à la puissance 1 + sa
+   * confiance (I, II, III), donc tiré plus tôt. Au jeu, elle grandit déjà avec ses cartes jouées (`grandi`, js/banque.js).
+   */
+  const confiance = new Map(coachsActifs(decisions, debut).map(c => [c.cle, c.palier]));
+  const tirage = x => hache(graine, 'main', w, x.ref) ** (1 + (confiance.get(BANQUE[x.id].coach) || 0));
+  const tiree = pile.map(x => ({ x, k: tirage(x) })).sort((a, b) => a.k - b.k).map(o => o.x);
+  const deja = new Set(pile.map(x => x.ref));
+  // Reçues cette semaine : sans retirer ce qu'on y a joué ou vendu, pour qu'une place ne se libère pas d'elle-même.
+  const recues = pocheDeLaPartie({ decisions: decisions.filter(d => d && ((d.jour ?? 0) < debut || ((d.jour ?? 0) < fin && !d.joue && !d.vend))), graine, nMatch, rogue })
+    .filter(x => !deja.has(x.ref));
+  const cette = decisions.filter(d => d && (d.jour ?? 0) >= debut && (d.jour ?? 0) < fin);
+  const jouees = new Set(cette.filter(d => d.joue && d.joue.src === 'partie').map(d => d.joue.ref));
+  const vendues = new Set(cette.flatMap(d => (d.vend && Array.isArray(d.vend.refs) ? d.vend.refs : [])));
+  // Une carte jouée ou vendue cette semaine n'est plus dans la poche d'aujourd'hui : on la garde dans la main, marquée.
+  const main = [...tiree, ...recues].slice(0, MAIN_SEMAINE).map(x => ({ ...x, jouee: jouees.has(x.ref), vendue: vendues.has(x.ref), confiance: confiance.get(BANQUE[x.id].coach) || 0 }));
+  const nJouees = main.filter(x => x.jouee).length;
+  return { w, debut, fin, main, reste: Math.max(0, JOUEES_SEMAINE - nJouees), reglee: decisions.some(d => d && d.palier === `main:${w}`) };
 }
 
 /* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */
@@ -134,10 +174,15 @@ export function ouvrirInventaire(ctx) {
       for (const x of ctx.partie) { if (!piles.has(x.id)) piles.set(x.id, []); piles.get(x.id).push(x); }
       const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
-      corps = `<p class="inv-mot"><b>${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}</b>${ctx.mode === 'rogue' ? ' <b>Ta poche expire à la fin de la saison</b> ; une modif posée reste sur sa carte.' : ''}</p>
+      // V4.3 : en Rogue, une carte ne se joue que de ta main de la semaine (`ctx.nonJouable` dit pourquoi pas).
+      const nonJouable = ref => (ctx.nonJouable ? ctx.nonJouable(ref) : '');
+      corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Chaque semaine, ${MAIN_SEMAINE} cartes de ta poche en main ; tu en joues ${JOUEES_SEMAINE}. Elle expire à la fin de la saison.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
                 ${filtres(cats)}
-        <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}</div>`;
+        <div class="inv-grille">${cartes.map(([id, pile]) => {
+          const x = pile.find(c => !nonJouable(c.ref)) || pile[0], non = nonJouable(x.ref);
+          return carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
+          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${ctx.peutJouer && !non ? '' : ' disabled'}>${non ? esc(non) : BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
+        }).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}</div>`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));

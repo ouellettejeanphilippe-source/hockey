@@ -3,6 +3,7 @@
 - `decisions.md` — les « Règles fermes » de S1 à S80, mot pour mot, un titre par décision, et « L'interface premium » (S77).
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
+- `refonte-v4.md` — la V4 : la boîte où tout se règle, la poche de quatre places au bureau, et les plus gros changements proposés (la semaine, trois sortes de cartes, un choix qui vaut un but).
 - `refonte-systeme.md` — la refonte des cartes, des badges et des coachs : l'idée, les étapes, et les réponses de JP.
 - `carte-des-rouages.md` — toutes les mécaniques et leurs liens, vues du bord du joueur, et les 118 accrocs (lus dans le code le 3 oct.).
 - `feuille-de-route-v2.md` — la V2 en six jalons et 56 items (réparer, supprimer, améliorer, attacher ensemble, ajouter), tirés de la carte des rouages.

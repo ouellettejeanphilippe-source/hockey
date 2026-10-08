@@ -7948,6 +7948,30 @@ export const AVANT_GROS = {
     ] },
 };
 
+/*
+ * V4 — UN CHOIX, AU MOINS UN BUT. JP : *je clique n'importe quoi parce qu'ils n'ont aucun poids* ; *teste ça*.
+ * Mesuré avant (docs/impact-des-choix.md) : une option de dilemme valait 0,04 V en médiane, et se lisait
+ * « ≈ 1 but de plus tous les 20 matchs » — moins d'un demi-but sur sa durée. L'écart de chaque canal d'une
+ * option (dilemme, séquence, avant-match, réponse à la presse ou à un courriel, son pari, sa suite) est
+ * multiplié une fois, à la source, comme les événements (`AMPLEUR_EVENEMENT`, js/banque.js) : le gain ET son
+ * prix, bornés entre × 0,5 et × 2. Une option partagée par plusieurs familles (les paquets de réponses) ne
+ * s'amplifie qu'une fois.
+ */
+const AMPLEUR_CHOIX = 2.5;
+{
+  const vus = new Set();
+  const amplifier = e => {
+    if (!e || typeof e !== 'object' || vus.has(e)) return;
+    vus.add(e);
+    for (const k of ['volume', 'finition', 'defense', 'discipline', 'energie', 'blessure']) if (typeof e[k] === 'number') {
+      e[k] = Math.round(Math.min(2, Math.max(0.5, 1 + (e[k] - 1) * AMPLEUR_CHOIX)) * 10000) / 10000;
+    }
+  };
+  for (const fam of [...Object.values(MOMENTS), ...Object.values(SEQUENCES), ...Object.values(AVANT_GROS), ...Object.values(REPONSES_VIE)]) {
+    for (const o of (fam && fam.options) || []) { amplifier(o); amplifier(o.ensuite); if (o.pari) { amplifier(o.pari.gagne); amplifier(o.pari.perd); } }
+  }
+}
+
 /* L'événement d'avant un gros match : pur, et jamais deux fois le même dans une partie (`deja`).
  * `contexte` est un objet passé à `faits(c)` pour filtrer les événements dont la condition ne tient pas. */
 export function avantDuGros(graine, cle, deja = [], contexte = null) {

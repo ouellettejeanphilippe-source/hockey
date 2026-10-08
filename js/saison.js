@@ -40,6 +40,7 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
+import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeReponse, jambesHtml, courbeJambes, courbeJambesHtml, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
@@ -796,6 +797,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const jEv = k => jourEvenement(you, k);
   const palierOuvert = () => (onCarte ? PALIERS_CARTES.find(j => jour >= jEv(j) && !prises.has(j)) : undefined);
   const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
+  const packsVus = new Set();        // V4 : les packs gratuits (matchs 9, 18, 26) qui ont déjà arrêté l'avance
   /*
    * LES PALIERS DÉJÀ PROPOSÉS À CE PASSAGE (S74). La main s'ouvrait seulement
    * quand un clic s'arrêtait sur le palier ; un choix forcé tombé le même jour
@@ -1069,7 +1071,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const adv = mo.mb.adv;
     ouvrirMainDeMatch({
       titre: 'Avant le match', sousTitre: `Journée ${mo.p.j + 1} · contre ${ctx.teamShort(adv)}`,
-      recit: 'Le dépistage dit ce qu\'ils vont probablement jouer : prépare-toi pour une piste, puis joue tes cartes — cinq cartes, trois d\'élan, pour ce match seulement.',
+      recit: 'Prépare-toi pour une de leurs pistes, puis joue tes cartes.',
       depistage: mo.mb.depistage, planReel: mo.mb.plan, nomAdv: ctx.teamShort(adv),
       stats: statsAvantGros(ctx, you, adv, t => ({ n: gpDe(t), ...fiche.get(t) })),
       contexte: mainAdverseHtml(mainAdverse(graine, `j${mo.p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, mo.p.j + 1) }), echelle: you && you.courbe ? echelleTardive({ jour: mo.p.j }) : 1 }),
@@ -1143,6 +1145,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const vues = new Set();            // les entrées du journal déjà annoncées
   const retoursVus = new Set();      // les retours déjà dits : l'avance ne s'arrête qu'une fois dessus
   const retourNeuf = () => { const r = retourOuvert(); return !!r && !retoursVus.has(r.id); };
+  /*
+   * LA VIE DU DG (V4). Avant : un courriel aux deux jours qui disparaissait le lendemain, un point de presse après
+   * chaque match — 175 messages qu'on survolait, et qu'une avance de plusieurs jours sautait sans les écrire. Après :
+   * un message tous les `VIE_CHAQUE` matchs, tiré du soir où il tombe, qui attend ta réponse. Le point de presse
+   * quand le soir le demande (la raclée, le blanchissage, trois défaites), sinon le courriel d'une voix.
+   */
+  const VIE_CHAQUE = 8;
+  const vieOuverte = () => {
+    const k = Math.floor(miens.length / VIE_CHAQUE), palier = `vie:m${k}`;
+    if (!onDecision || k < 1 || pris.has(palier)) return null;
+    const x = miens[k * VIE_CHAQUE - 1], dm = x.m;
+    const pour = dm.A === you ? dm.gfA : dm.gfB, contre = dm.A === you ? dm.gfB : dm.gfA;
+    const seq = sequenceDe(you), nSeq = Number(seq.slice(1));
+    const p = prochain(), adv = p ? (p.m.A === you ? p.m.B : p.m.A) : null;
+    const deja = decs.filter(d => d.moment && d.moment.famille === 'vie').map(d => d.moment.cle);
+    const c = { moment: momentDeSaison(x.j, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja };
+    const occasion = nSeq >= 3 && seq[0] === 'D' ? 'serieDefaites' : contre === 0 ? 'blanchissage' : contre - pour >= 4 ? 'raclee' : null;
+    const e = occasion ? echangeDe({ ...c, occasion }, `${graine}|vie|${k}`) : null;
+    if (e) return { palier, cle: e.id, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match, les micros',
+      corps: `<div class="hub-msg-mot">« ${ctx.esc(e.question)} »</div>` };
+    const [m] = courrielsDe(c, `${graine}|vie|${k}`, 1);
+    return m ? { palier, cle: m.id, de: m.de, sujet: m.sujet, corps: `<div class="hub-msg-mot">${ctx.esc(m.corps)}</div>` } : null;
+  };
 
   /* Les blessures survenues jusqu'ici et jamais annoncées, la plus longue en tête. */
   function blessuresNeuves() {
@@ -1179,10 +1204,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf())) { arrete = true; break; }
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf() || vieOuverte() || mainOuverteSemaine() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
+    for (const x of PALIERS_PACK) if (miens.length >= x) packsVus.add(x);
     const rvu = retourOuvert();
     if (rvu) retoursVus.add(rvu.id);
     const neuves = blessuresNeuves();
@@ -1461,16 +1487,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pour = liste('moi'), contre = liste('lui');
     const phrase = !pour.length && !contre.length ? 'Deux clubs de même force : aucun écart qui compte.'
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
-    return `<div class="hub-forces">
+    // V4 — LE BUREAU EN TROIS LIGNES : l'affiche ne garde que la phrase ; le tableau et les duels vont au dépistage.
+    return { mot: `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`, detail: `<div class="hub-forces">
       <table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
         <tbody>
           <tr><th scope="row">${ctx.esc(nomMoi)}</th>${axes.map((x, i) => cell(x, 'moi', i)).join('')}</tr>
           <tr><th scope="row">${ctx.esc(nomLui)}</th>${axes.map((x, i) => cell(x, 'lui', i)).join('')}</tr>
         </tbody></table>
-      <div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>
       ${decideHtml(axes, nomMoi, nomLui)}
-    </div>`;
+    </div>` };
   }
   /* Le pari d'où vient un effet (`team.paris`, noté au tirage) : son jour et son titre. */
   const pariDe = e => (you.paris || []).find(x => x.jour === e.debut && x.titre === e.nom) || null;
@@ -1568,6 +1594,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * marqué à forces égales, qui est chaud et qui ne produit plus.
    */
   const RAPPORT_CHAQUE = 10;
+  // V4 : il vit à la Saison, plié, plutôt que dans la boîte comme un message de plus à ouvrir.
+  const rapportPlie = () => {
+    const n = Math.floor(miens.length / RAPPORT_CHAQUE) * RAPPORT_CHAQUE;
+    return n ? `<details class="hub-plie"><summary>📋 Le rapport du dépisteur · ${n} matchs</summary>${rapportHtml()}</details>` : '';
+  };
   function rapportHtml() {
     const forces = [], faiblesses = [];
     for (const k of Object.keys(MESURES)) {
@@ -1668,7 +1699,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pour = nouveaux.reduce((a, x) => a + (x.m.A === you ? x.m.gfA : x.m.gfB), 0), contre = nouveaux.reduce((a, x) => a + (x.m.A === you ? x.m.gfB : x.m.gfA), 0);
     const un = nouveaux.length === 1 ? nouveaux[0] : null;
     const titre = un ? `Journée ${un.j + 1} · ${gagne(un.m, you) ? 'Victoire' : un.m.ot ? 'Défaite en prolongation' : 'Défaite'} ${scoreDe(un.j, un.m)}`
-      : `${nouveaux.length} matchs · ${W}-${L}-${OTL}`;
+      : `Semaine ${Math.ceil(jour / SEMAINE)} · ${W}-${L}-${OTL}`;
     const bouge = avant.rang - rang;
     const blocs = [];
     if (un) blocs.push(scoreboard(un));
@@ -1715,22 +1746,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * jamais après. Le bouton dit où on en est (« J24 … J31 ») : le fil rend la
    * main au navigateur entre deux paquets de journées.
    */
+  /*
+   * V4 — LA SEMAINE, PAS LA JOURNÉE. JP : *teste ça*. 186 touchers pour 82 matchs, c'était trop : « Semaine
+   * suivante » joue jusqu'à la fin de la semaine du calendrier (`SEMAINE` jours, trois matchs environ), une
+   * journée à la fois et révélée, et s'arrête AVANT la fin sur tout ce qui demande le joueur (la boîte, un gros
+   * match, son entracte). Le moteur ne change pas : la ligue se joue toujours au jour le jour (check_graine).
+   * « Un jour » reste offert, pour qui veut la journée seule.
+   */
   let enRoute = false;
-  async function avancerJusquaDecision() {
+  async function avancerSemaine() {
     if (enRoute || jour >= N) return;
     enRoute = true;
     const avant = { jour, joues: miens.length, rang: rangDe(you) };
     retenir = true;
-    const depart = jour;
-    const bouton = actions.querySelector('.hub-prochaine');
+    const depart = jour, fin = Math.min(N, (Math.floor(jour / SEMAINE) + 1) * SEMAINE);
+    const bouton = actions.querySelector('.hub-jour');
     for (const b of actions.querySelectorAll('button')) b.disabled = true;
     let t0 = performance.now();
     // Les messages À LIRE croisés en route (la situation du jour 46, la carte
     // qui change) : chaque `avancer(1)` les remet à zéro, on garde le dernier.
     let situ = null, acc = null;
     try {
-      while (jour < N) {
-        const arrete = avancer(1, true, false);
+      while (jour < fin) {
+        const arrete = avancer(1, true);
         situ = situation || situ; acc = accident || acc;
         if (arrete) break;
         if (performance.now() - t0 > 50) {
@@ -1743,6 +1781,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     situation = situ; accident = acc;
     dernierAvance = { joues0: avant.joues };
     boite.ouvert = null;
+    // Plusieurs matchs : le sommaire de la semaine les dit tous, le bureau passe droit au prochain match.
+    soirPasse = miens.length - avant.joues > 1;
     dessiner();
     passage(avant);
     tabs.suivre('journee');
@@ -2013,9 +2053,36 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const uneHtml = () => {
     const e = filsAuJour().journal.at(-1);
     if (!e || e.j !== jour - 1) return '';
-    const a = e.fils[0];
-    return `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.texte)}</b>${a.but && a.but.marqueur ? `<span class="hub-une-but">${ctx.esc(recitDeBut(a.but))}</span>` : ''}</div>`;
+    const a = e.fils[0], x = messageDuFil(a);
+    // V4 : la voix du fil, sa prime (Rogue) et la lancée — avant, un courriel qui disparaissait le lendemain.
+    const prime = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour.get(e.j) : null;
+    const etat = ctx.rogue ? lanceeAuJour(a.joueur) : null;
+    const mots = [prime ? { txt: `${prime.mot} : +${prime.jetons} 🪙`, bon: true } : null,
+      etat === 'lancee' ? { txt: 'Sur sa lancée', bon: true } : etat === 'vive' ? { txt: '☄️ Lancée vive', bon: true } : etat === 'doute' ? { txt: 'Il doute', bon: false } : null].filter(Boolean);
+    return `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.texte)}</b>${a.but && a.but.marqueur ? `<span class="hub-une-but">${ctx.esc(recitDeBut(a.but))}</span>` : ''}
+      <span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots)}</span>` : ''}</div>`;
   };
+  /*
+   * V4.3 — TA MAIN DE LA SEMAINE, AU BUREAU, sous le match du soir (js/inventaire.js, `mainDeLaSemaine`) : les
+   * `MAIN_SEMAINE` cartes de ta poche que la semaine a pigées, et combien tu peux encore en jouer. Toucher une carte la
+   * montre en grand, pour la jouer ou la vendre (js/rogue-jeu.js). Une carte jouée reste là, éteinte, jusqu'à lundi.
+   */
+  const mainDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.main ? ctx.inventaire.main(jour) : null);
+  const casesDeLaMain = m => `<div class="hub-poche-rang">${m.main.map(it => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.jouee || it.vendue ? ' jouee' : ''}" data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.jouee ? '✓' : it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}</span>${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}</button>`).join('')}</div>`;
+  const mainHtml = () => {
+    const m = mainDuBureau();
+    if (!m) return '';
+    // Vide, elle tient en une ligne.
+    return `<section class="hub-poche" aria-label="Ta main de la semaine"><div class="hub-poche-t">🃏 Ta main · semaine ${m.w + 1} ${m.main.length ? `<b>${m.reste} à jouer</b>` : '<b>poche vide</b>'}</div>${m.main.length ? casesDeLaMain(m) : ''}</section>`;
+  };
+  const brancherMain = el => el.querySelectorAll('.hub-poche-case[data-ref]').forEach(b => {
+    b.onclick = () => {
+      const it = ((mainDuBureau() || {}).main || []).find(x => x.ref === b.dataset.ref);
+      if (it) ctx.inventaire.carte(it, jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    };
+  });
+  /* La main d'une semaine qui attend ta décision : des cartes à jouer, et rien de réglé encore. */
+  const mainOuverteSemaine = () => { const m = mainDuBureau(); return m && m.main.length && m.reste && !m.reglee ? m : null; };
   const voletJourneeSeul = () => {
     if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
@@ -2400,7 +2467,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   ], cle => {
     if (cle === 'boite') return '';
     if (cle === 'jambes') return voletJambes();
-    if (cle === 'saison') return etatHtml() + previsionHtml() + voletFiche();
+    if (cle === 'saison') return etatHtml() + rapportPlie() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
@@ -2767,10 +2834,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * vraies probabilités*. Il se calcule au toucher (300 matchs du moteur),
        * pas à chaque journée qui passe.
        */
-      const depistage = `<details class="hub-depistage"${boite.depOuvert === p.j ? ' open' : ''}>
-        <summary><span>🔎 Le dépistage</span><small>chances, forces comparées, quoi faire ce soir</small></summary>
-        <div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc" data-dep="${p.j}">${boite.depOuvert === p.j ? depistageMatchHtml(p) : ''}</div></div>
-      </details>`;
       // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans « Préparer le match ».
       const ecJ = effetsEnCours(you, p.j);
       const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
@@ -2781,6 +2844,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const alJ = partsDuSoirDu(p.j), netAl = alJ.reduce((a, x) => a + x.ecart, 0);
       const puceAl = { txt: `Ton alignement ≈ ${netAl >= 0 ? '+' : '−'}${String(Math.abs(netAl).toFixed(2)).replace('.', ',')} but net par match`, bon: Math.abs(netAl) >= 0.01 ? netAl > 0 : null };
       const totauxHtml = `<div class="hub-totaux" title="${ctx.esc(`Tes effets se multiplient entre eux. Ton alignement : ${alJ.map(x => x.txt).join(' · ')}. Le détail est dans « Préparer le match ».`)}"><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${puces([...totJ, puceAl])}</span></div>`;
+      const forces = forcesHtml(adv);
+      const detailDuSoir = `${forces.detail}${totauxHtml}${enJeuHtml}<div class="hub-match-note">${dernierMot}</div>`;
+      const depistage = `<details class="hub-depistage"${boite.depOuvert === p.j ? ' open' : ''}>
+        <summary><span>🔎 Le dépistage</span><small>chances, forces comparées, quoi faire ce soir</small></summary>
+        <div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc" data-dep="${p.j}">${boite.depOuvert === p.j ? depistageMatchHtml(p) : ''}</div></div>
+      </details>`;
       // Les quatre étapes du soir : où on en est, et hier soir en premier tant qu'on ne l'a pas passé.
       const kHier = jour > 0 ? indexMien(jour - 1) : -1;
       const hierMatch = kHier >= 0 && calendrier[jour - 1][kHier].gfA != null ? { j: jour - 1, k: kHier, m: calendrier[jour - 1][kHier] } : null;
@@ -2817,16 +2886,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const formeA = formeHtml(p.m.A), formeB = formeHtml(p.m.B);
       const affiche = `<div class="hub-match-titre">Match ${miens.length + 1} · ${quand} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
         <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>
-        ${forcesHtml(adv)}
-        <div class="hub-match-note">${dernierMot}</div>
-        ${totauxHtml}
-        ${enJeuHtml}
-        ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} — la robustesse pèse, blessures ×${String(BLESSURE_EREINTANT).replace('.', ',')}${dosADos(you, p.j) ? `, tes jambes récupèrent ${Math.round(ENERGIE_RECUP_JOUR * 100)} % au lieu de ${Math.round(ENERGIE_RECUP * 100)} %` : ''}</div>` : ''}`;
+        ${forces.mot}
+        ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
       carte.innerHTML = `${matin ? '' : miniBoss}<div class="hub-match${matin ? ' matin' : ''}">
         ${soirHtml(etape, faits, p.j > jour)}
         ${matin ? resultatHtml : affiche}
         ${matin ? '' : `${depistage}${planSoir}`}
-      </div>`;
+      </div>${mainHtml()}`;
+      brancherMain(carte);
       // Du matin au soir : « Aujourd'hui » dans la barre, ou un lien qui parle du prochain match (le dépistage, la préparation).
       const auSoir = () => { if (!(hierMatch && !soirPasse)) return false; soirPasse = true; dessiner(); return true; };
       // Le dépistage : une page sous 1200 px, déplié dans l'affiche au bureau.
@@ -2834,7 +2901,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         boite.apercuVu = p.j;
         if (matchMedia('(max-width: 1199.98px)').matches) {
           const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`,
-            html: `<div class="hub-dep-corps">${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>` });
+            html: `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>` });
           brancherConseils(corps);
           // Un conseil appliqué ferme la page avant de rejouer la saison depuis ce soir.
           corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { ui.fermerPage(true); if (f) f.call(b, e); }; });
@@ -3047,7 +3114,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (rc) {
       // LA RÉCOMPENSE D'UNE VICTOIRE (S74) : une carte parmi trois, ou passer.
       return { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Victoire dans le gros match contre ${ctx.teamLabel(rc.adv)} ! Touche une carte pour l'ajouter à ton deck — ou passe : un deck mince pige plus souvent ses meilleures cartes.`,
+        recit: `Victoire contre ${ctx.teamLabel(rc.adv)} ! Une carte pour ton deck, ou passe : un deck mince pige plus souvent ses meilleures.`,
         options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
         onChoix: k => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: k }, j); },
         onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
@@ -3084,9 +3151,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return { cibles, html: o ? `<div class="vie-fait">Ta réponse : <b>${sub(o.nom)}</b></div>${ouvert ? `<div class="choix-puces">${mots(o)}</div>` : ''}` : '' };
     }
     if (!ouvert) return { cibles, html: '' };
-    return { cibles, html: `<div class="vie-reps">${fam.options.map(o => {
+    return { cibles, html: `<div class="vie-reps">${fam.options.map((o, i) => {
       const sansJoueur = fam.cible && !cibles.length && (o.mutation || (o.action && (o.action.absents || o.action.energie)));
-      return `<button type="button" class="vie-rep" data-rep="${ctx.esc(o.cle)}"${sansJoueur ? ' disabled' : ''}>
+      return `<button type="button" class="vie-rep" data-rep="${ctx.esc(o.cle)}"${sansJoueur ? ' disabled' : i ? '' : ' data-defaut'}>
         <span class="vie-rep-nom">${sub(o.nom)}</span>
         <span class="choix-puces">${mots(o)}</span>
         <span class="vie-rep-bon">+ ${sub(o.bon)}</span>
@@ -3100,8 +3167,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const spec0 = onDecision ? choixForce() : null;
     const spec = spec0 && !spec0.ouvrir ? { ...spec0, cadre: cadreDuMatch() } : spec0;
     if (spec) {
-      const remis = spec.fermable && boite.remis === spec.titre;
-      out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: !remis, de: spec.de, sujet: titreDuChoix(spec), spec,
+      // V4 : « Plus tard » ferme la fenêtre, jamais le blocage — un dilemme remis ne cache plus l'avant-match ni la main d'un gros match.
+      out.push({ id: `c:${spec.titre}`, genre: 'choix', bloque: true, de: spec.de, sujet: titreDuChoix(spec), spec,
         corps: `<div class="hub-msg-mot">${ctx.esc(String(spec.recit || '').replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : 'ton joueur').replace(/\{noms\}/g, (spec.joueurs || []).map(x => x.n).join(', ') || 'tes joueurs'))}</div>
           <button type="button" class="btn gold hub-choix-rouvrir" data-defaut>Ouvrir : ${ctx.esc(titreDuChoix(spec))}</button>` });
     }
@@ -3124,11 +3191,32 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : null;
     if (packOuvert) {
       out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert attend ta signature', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
-        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. Gère ton équipe d'abord : seule la journée suivante exige un choix.</div>
+        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. Gère ton équipe d'abord : seule la suite exige un choix.</div>
           <div class="hub-alerte-choix">
             <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Aller au Marché</button>
             <button type="button" class="btn hub-pack-passer">Ne signer personne</button>
           </div>` });
+    }
+    /*
+     * V4 — LE PACK GRATUIT S'ANNONCE (matchs 9, 18, 26). Avant, ses cartes tombaient en silence dans la poche.
+     * V4.3 — LA MAIN DE LA SEMAINE bloque : tu joues tes cartes (au plus `JOUEES_SEMAINE`), ou tu dis que c'est réglé.
+     */
+    const poche = onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.poche ? ctx.inventaire.poche(jour) : null;
+    if (poche) {
+      const pg = PALIERS_PACK.filter(x => miens.length >= x && miens.length - x < 3).at(-1);
+      const venus = pg ? poche.filter(x => x.ref.startsWith(`p${pg}:`)) : [];
+      if (venus.length && !boite.archives.has(`pg:${pg}`)) {
+        out.push({ id: `pg:${pg}`, genre: 'pack-gratuit', bloque: true, de: DE.dg, sujet: `Le pack du match ${pg} : ${venus.length} cartes dans ta poche`,
+          corps: `<div class="hub-poche-venus">${venus.map(x => `<span class="puce neutre">${x.ico} ${ctx.esc(x.nom)}</span>`).join('')}</div>
+            <button type="button" class="btn gold hub-compris" data-defaut>Compris</button>` });
+      }
+    }
+    const mSem = mainOuverteSemaine();
+    if (mSem) {
+      const nJ = JOUEES_SEMAINE - mSem.reste;
+      out.push({ id: `main:${mSem.w}`, genre: 'main-semaine', bloque: true, de: DE.coach, sujet: `Ta main de la semaine : joue jusqu'à ${mSem.reste} carte${mSem.reste > 1 ? 's' : ''}`, mSem,
+        corps: `${casesDeLaMain(mSem)}
+          <button type="button" class="btn gold hub-main-reglee" data-defaut>${nJ ? 'C\'est réglé' : 'Ne rien jouer cette semaine'}</button>` });
     }
     const cTrou = trou ? carteDuTrou(trou) : null;
     if (trou && cTrou && onTrou) {
@@ -3152,7 +3240,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         corps: `<div class="hub-cartes hub-main" role="group" aria-label="Une main de trois cartes">
           <div class="hub-dos-rang">${mainDuDeck(graine, pal, dejaPrises).map(c => `<span class="hub-dos tc-${RARETE_SORTE[c.sorte]}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>
           <button type="button" class="btn gold hub-main-ouvrir" data-defaut>Voir les cartes</button>
-          <div class="hub-cartes-note">Tu en gardes une pour le reste de la saison. La journée suivante attend ton choix.</div>
+          <div class="hub-cartes-note">Tu en gardes une pour le reste de la saison.</div>
         </div>` });
     }
     /*
@@ -3198,7 +3286,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const rv = retourOuvert();
     if (rv) {
       const court = sl => (ctx.slotShort ? ctx.slotShort(sl) : sl.role);
-      out.push({ id: rv.id, genre: 'retour', bloque: false, de: DE.coach, sujet: `${rv.b.player.n} revient : le remettre à sa place ?`, rv,
+      out.push({ id: rv.id, genre: 'retour', bloque: true, de: DE.coach, sujet: `${rv.b.player.n} revient : le remettre à sa place ?`, rv,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🩹 ${ctx.esc(rv.b.player.n)} revient au jeu</div>
           <div class="hub-mouvements">${rv.mouvements.map(m => `<div class="hub-mv">${ctx.esc(m.p.n)} : ${ctx.esc(court(m.de))} → ${ctx.esc(court(m.vers))}</div>`).join('')}</div>
@@ -3208,101 +3296,53 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           </div>
         </div>` });
     }
-    // LA CARTE QUI CHANGE (S68) : rien à cliquer, la réponse est l'alignement.
+    /*
+     * V4 — CE QUI ARRIVE À TES JOUEURS SE RÈGLE, ÇA NE SE SURVOLE PAS. JP : *ya encore des events dans la boîte
+     * qu'on voit pas*. La carte qui change, le vestiaire et les mouvements de ton alignement bloquent la journée
+     * suivante jusqu'à « Compris » : un toucher, mais un toucher qu'on ne peut pas sauter.
+     */
+    const compris = '<button type="button" class="btn gold hub-compris" data-defaut>Compris</button>';
+    const info = (id, x) => { if (!boite.archives.has(id)) out.push({ id, bloque: true, ...x }); };
+    // LA CARTE QUI CHANGE (S68).
     if (accident && MUTATIONS[accident.cle]) {
-      out.push({ id: `a:${accident.jour}:${getPlayerKey(accident.p)}`, genre: 'accident', de: DE.coach, sujet: `Sa carte change : ${accident.p.n}`,
+      info(`a:${accident.jour}:${getPlayerKey(accident.p)}`, { genre: 'accident', de: DE.coach, sujet: `Sa carte change : ${accident.p.n}`,
         corps: `<div class="hub-situ hub-accident" role="status">
-          <div class="hub-situ-tete">${MUTATIONS[accident.cle].ico} Sa carte change : ${ctx.esc(accident.p.n)}</div>
-          <div class="hub-situ-quoi">${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>
+          <div class="hub-situ-quoi">${MUTATIONS[accident.cle].ico} ${ctx.esc(MUTATIONS[accident.cle].nom)} — ${ctx.esc(MUTATIONS[accident.cle].quoi)}</div>
           <div class="choix-puces">${puces(motsDeMutationEnChiffres(accident.cle, accident.p, { deja: true }))}</div>
+          ${compris}
         </div>` });
     }
-    // LES SITUATIONS : deux hommes nommés, le porté d'abord — c'est lui qui appelle une décision.
+    // LES SITUATIONS : deux hommes nommés, le porté d'abord.
     if (situation) {
-      out.push({ id: `s:${situation.jour}`, genre: 'situation', de: DE.coach, sujet: `Dans le vestiaire : ${situation.porte.p.n} et ${situation.pese.p.n}`,
+      info(`s:${situation.jour}`, { genre: 'situation', de: DE.coach, sujet: `Dans le vestiaire : ${situation.porte.p.n} et ${situation.pese.p.n}`,
         corps: `<div class="hub-situ" role="status">
-          <div class="hub-situ-tete">Dans le vestiaire</div>
           <div class="hub-situ-rang">${[['porte', situation.porte], ['pese', situation.pese]].map(([sens, b]) => {
             const c = SITUATIONS[b.cle];
             return `<div class="hub-situ-bout hub-situ-${sens}">
               <span class="hub-situ-nom">${c.ico} ${ctx.esc(b.p.n)}</span>
               <span class="hub-situ-quoi">${ctx.esc(c.nom)} — ${ctx.esc(c.quoi.toLowerCase())}</span>
-              <span class="hub-situ-mot">${ctx.esc(c.mot)}</span>
             </div>`;
           }).join('')}</div>
-          ${onBanc ? '<button class="btn hub-situ-banc">Revoir mon alignement</button>' : ''}
+          <div class="hub-alerte-choix">${compris}${onBanc ? '<button class="btn hub-situ-banc">Revoir mon alignement</button>' : ''}</div>
         </div>` });
     }
-    // QUI A CHANGÉ DE PLACE à la dernière avance (JP : *je dois le voir*).
-    if (dernierAvance && miens.length > dernierAvance.joues0) {
+    // QUI A CHANGÉ DE PLACE à la dernière avance (JP : *je dois le voir*) — sauf si la blessure qui l'explique est déjà là.
+    if (dernierAvance && miens.length > dernierAvance.joues0 && !out.some(m => m.genre === 'blessure')) {
       const mv = mouvements(dernierAvance.joues0, miens.length);
-      if (mv.length) out.push({ id: `mv:${miens.length}:${mv.length}`, genre: 'mouvements', de: DE.coach,
+      if (mv.length) info(`mv:${miens.length}:${mv.length}`, { genre: 'mouvements', de: DE.coach,
         sujet: mv.length === 1 ? mv[0].txt : `${mv.length} changements dans ton alignement`,
-        corps: `<div class="hub-mouvements">${mv.map(x => `<div class="hub-mv">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`).join('')}
-          <div class="hub-msg-note">Le moteur monte le premier réserviste qui peut jouer la case. ${onBanc ? 'Tu peux tout remanier derrière le banc (onglet Alignement).' : ''}</div></div>` });
+        corps: `<div class="hub-mouvements">${mv.map(x => `<div class="hub-mv">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`).join('')}</div>
+          <div class="hub-alerte-choix">${compris}${onBanc ? '<button class="btn hub-situ-banc">Revoir mon alignement</button>' : ''}</div>` });
     }
     /*
-     * LE PARI TRANCHÉ. JP : *j'ai pris le 50/50 et j'ai aucune idée du
-     * résultat*. Le moteur l'applique quand la journée se joue, mais son
-     * tirage est pur (`pariDeDecision`, js/sim.js) : le message le dit dès
-     * le choix, avec ce qu'il fait, tant que son effet court.
+     * LA VIE DU DG (V4) : un message tous les huit matchs, plus un aux deux jours. Le point de presse si le soir
+     * le demande (une raclée, un blanchissage, trois défaites), sinon un courriel. Il BLOQUE jusqu'à ta réponse,
+     * et il ne disparaît pas le lendemain : sa réponse est une décision (`vie:m…`), lue même après une avance.
      */
-    for (const d of decs) {
-      const x = pariDeDecision(d, graine, you);
-      if (!x || jour >= x.fin) continue;
-      const { duree: _d, action: _a, ...canaux } = x.effet;
-      out.push({ id: `pari:${x.jour}:${x.titre}`, genre: 'pari', de: DE.coach, sujet: `${x.titre} : ${x.gagne ? 'le pari a payé' : 'le pari a mal tourné'}`,
-        corps: `<div class="hub-msg-mot">🎲 ${ctx.esc(x.choix)} — ${x.gagne ? 'ça a payé' : 'ça a mal tourné'}.</div>
-          <div class="choix-puces">${puces(motsEnChiffres(canaux, matchsEntre(you, Math.max(jour, x.jour), x.fin)))}</div>` });
-    }
-    // LE RAPPORT DU DÉPISTEUR, tous les dix matchs, jusqu'au suivant.
-    const nRap = Math.floor(miens.length / RAPPORT_CHAQUE) * RAPPORT_CHAQUE;
-    if (nRap >= RAPPORT_CHAQUE) {
-      out.push({ id: `r:${nRap}`, genre: 'rapport', de: DE.depisteur, sujet: `Rapport après ${nRap} matchs : forces et faiblesses`,
-        corps: `${rapportHtml()}${onBanc ? '<button class="btn hub-rap-banc">Revoir mes lignes</button>' : ''}` });
-    }
-    /*
-     * LA VIE DU DG (js/vie-gm.js) : un courriel aux deux jours, qui ne bloque rien, et le point de presse du
-     * dernier match. Le tirage se lit sur la graine et la journée ; un courriel déjà lu un autre jour ne revient pas.
-     */
-    if (miens.length) {
-      const seq = sequenceDe(you), nSeq = Number(seq.slice(1));
-      const p = prochain(), adv = p ? (p.m.A === you ? p.m.B : p.m.A) : null;
-      const vu = [...boite.lus].filter(id => /^v:\d+:/.test(id) && Number(id.split(':')[1]) < jour).map(id => id.split(':').slice(2).join(':'));
-      const c = { moment: momentDeSaison(jour, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja: vu };
-      /*
-       * LE FIL D'HIER SOIR, DIT PAR SA VOIX (V3.3) : l'analyste, les partisans, le proprio, l'entraîneur, le
-       * capitaine, le physio ou le joueur lui-même. Un soir où un fil bouge, il prend la place du courriel :
-       * ce qui arrive vraiment passe avant ce qu'on tire au hasard.
-       */
-      const fe = filsAuJour().journal.at(-1);
-      const fil = fe && fe.j === jour - 1 ? fe.fils[0] : null;
-      if (fil) {
-        const x = messageDuFil(fil);
-        // LA PRIME DU FIL (V3.6, Rogue) : le soir où il naît, sa voix paie en jetons (`primesDesFils`, js/rogue.js).
-        const prime = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour.get(fe.j) : null;
-        // LA LANCÉE ET LE DOUTE (V3.6, Rogue) : ce que ses soirs d'avant font de lui au prochain match (`lanceeDe`, js/sim.js).
-        const etat = ctx.rogue ? lanceeAuJour(fil.joueur) : null;
-        const puces = [prime ? `<span class="puce bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span>` : '',
-          etat === 'lancee' ? '<span class="puce bon">Sur sa lancée : il finit mieux tant qu\'il marque</span>' : '',
-          etat === 'vive' ? '<span class="puce bon">☄️ Sur une lancée vive : il finit beaucoup mieux tant qu\'il marque</span>' : '',
-          etat === 'doute' ? '<span class="puce prix">Il doute : il finit moins bien tant qu\'il ne marque pas</span>' : ''].join('');
-        out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet,
-          corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>${puces ? `<div class="choix-puces">${puces}</div>` : ''}` });
-      } else if (jour % 2 === 0) {
-        for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
-          const id = `v:${jour}:${x.id}`, r = reponsesVie(x.id, `vie:${jour}:${x.id}`, boite.ouvert === id);
-          out.push({ id, genre: 'courriel', bloque: false, de: x.de, sujet: x.sujet, vie: { cle: x.id, palier: `vie:${jour}:${x.id}`, cibles: r.cibles }, corps: `<div class="hub-msg-mot">${ctx.esc(x.corps)}</div>${r.html}` });
-        }
-      }
-      const dm = miens[miens.length - 1].m, pour = dm.A === you ? dm.gfA : dm.gfB, contre = dm.A === you ? dm.gfB : dm.gfA;
-      const occasion = nSeq >= 3 && seq[0] === 'D' ? 'serieDefaites' : contre === 0 ? 'blanchissage' : contre - pour >= 4 ? 'raclee' : pour > contre ? 'victoire' : 'defaite';
-      const e = echangeDe({ occasion, eq: c.eq, autre: c.autre }, `${graine}|${miens.length}`);
-      if (e) {
-        const id = `v:p:${miens.length}`, r = reponsesVie(e.id, `vie:p:${miens.length}`, boite.ouvert === id);
-        out.push({ id, genre: 'courriel', bloque: false, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match : le point de presse', vie: { cle: e.id, palier: `vie:p:${miens.length}`, cibles: r.cibles },
-          corps: `<div class="hub-msg-mot">${ctx.esc(e.ouverture)}</div><div class="hub-msg-mot">« ${ctx.esc(e.question)} »</div><div class="hub-msg-mot">${ctx.esc(e.reponse)}</div>${r.html}` });
-      }
+    const vie = vieOuverte();
+    if (vie) {
+      const r = reponsesVie(vie.cle, vie.palier, true);
+      out.push({ id: vie.palier, genre: 'courriel', bloque: true, de: vie.de, sujet: vie.sujet, vie: { cle: vie.cle, palier: vie.palier, cibles: r.cibles }, corps: `${vie.corps}${r.html}` });
     }
     return out.filter(m => m.bloque || !boite.archives.has(m.id));
   }
@@ -3323,9 +3363,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // LE MESSAGE OUVERT : celui qu'on a touché, sinon le premier à traiter. Les autres, pliés.
     const ouvert = boite.ouvert && msgs.some(m => m.id === boite.ouvert) ? boite.ouvert
       : boite.ouvert === false ? null : (premier ? premier.id : null);
-    for (const m of msgs) if (m.id === ouvert && !m.bloque) boite.lus.add(m.id);
-    const nonLus = msgs.filter(m => !m.bloque && !boite.lus.has(m.id)).length;
-    const compteur = [bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '', nonLus ? `<b class="non-lus">${nonLus} non lu${nonLus > 1 ? 's' : ''}</b>` : ''].filter(Boolean).join('') || '<span class="a-jour">À jour</span>';
+    // V4 : tout ce qui est dans la boîte se règle ; la pastille de la Boîte le compte, au téléphone (style.css, .soustab[data-page="boite"]).
+    document.body.dataset.aTraiter = String(bloquants.length);
+    const compteur = bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '<span class="a-jour">À jour</span>';
     // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien — sauf sur son propre
     // sous-onglet (1.0, R2), où sa bande de tête dit « À jour » plutôt qu'un écran noir (style.css, .hub-boite.vide).
     // Pliée au téléphone tant que rien ne bloque et qu'on ne l'a pas dépliée (style.css, .hub-boite.pliee).
@@ -3333,14 +3373,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const boiteHtml = `<section class="hub-boite${pliee ? ' pliee' : ''}${msgs.length ? '' : ' vide'}" aria-label="Boîte de réception">
       <div class="hub-boite-tete" role="button" tabindex="0"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
-        const o = m.id === ouvert, lu = boite.lus.has(m.id);
-        return `<article class="hub-msg${o ? ' ouvert' : ''}${m.bloque ? ' bloque' : ''}${!m.bloque && !lu ? ' non-lu' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
+        const o = m.id === ouvert;
+        return `<article class="hub-msg${o ? ' ouvert' : ''}${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
           <button type="button" class="hub-msg-tete" aria-expanded="${o}">
             <span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>
             <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span></span>
-            <span class="hub-msg-etat">${m.bloque ? 'À traiter' : lu ? '' : 'Nouveau'}</span>
+            <span class="hub-msg-etat">${m.bloque ? 'À traiter' : ''}</span>
           </button>
-          <div class="hub-msg-corps">${m.corps}${m.bloque ? '' : '<button type="button" class="btn hub-msg-archiver">Archiver</button>'}</div>
+          <div class="hub-msg-corps">${m.corps}</div>
         </article>`;
       }).join('')}</div>` : ''}
     </section>`;
@@ -3352,13 +3392,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ? '<button class="btn go hub-jour hub-vers-soir" title="Du résultat d\'hier au match d\'aujourd\'hui">Aujourd\'hui ›</button>'
         // UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas de saut de jour*. Un jour de
         // congé se passe comme les autres : les résultats de la ligue, le classement du jour.
-        : '<button class="btn go hub-jour" title="Une journée de plus : tous les résultats, le classement du jour">Journée suivante</button>';
+        : `<button class="btn go hub-jour" title="Jusqu'à la fin de la semaine ; tout ce qui demande une décision l'arrête avant">Semaine suivante</button>`;
     // « Le banc » a quitté la rangée : l'onglet Alignement de la barre fait la même chose (JP : jamais deux fois la même chose).
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; la boîte à part.
     actions.innerHTML = `<div class="hub-barre">${primaire}
       <div class="hub-actions-rang">
       ${p && p.j === jour && !premier ? '<button class="btn gold hub-regarder" title="Ton match de ce soir, lancer par lancer">Regarder</button>' : ''}
-      ${premier ? '' : '<button class="btn hub-prochaine" title="Jouer les journées une à une, jusqu\'à la première qui demande une décision">Jusqu\'à la prochaine décision</button>'}
+      ${premier || matinCourant ? '' : '<button class="btn hub-un-jour" title="Une seule journée">Un jour</button>'}
       </div></div>
       ${boiteHtml}`;
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
@@ -3384,9 +3424,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onDecision(d, jour);
       };
     });
-    actions.querySelectorAll('.hub-msg-archiver').forEach(b => {
-      b.onclick = () => { const id = b.closest('.hub-msg').dataset.id; boite.archives.add(id); boite.lus.add(id); boite.ouvert = null; redessinerBoite(); };
+    actions.querySelectorAll('.hub-compris').forEach(b => {
+      b.onclick = () => {
+        const id = b.closest('.hub-msg').dataset.id;
+        boite.archives.add(id); boite.lus.add(id); boite.ouvert = null;
+        // La boîte vidée, on revient au match : une Boîte « À jour » n'a rien à montrer.
+        if (bloquants.length <= 1 && tabs.courant() === 'boite') tabs.montrer('journee');
+        redessinerBoite();
+      };
     });
+    brancherMain(actions);
+    const mM = msgs.find(m => m.genre === 'main-semaine');
+    actions.querySelectorAll('.hub-main-reglee').forEach(b => { b.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: `main:${mM.mSem.w}` }, j); }; });
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter) traiter.onclick = () => {
       if (premier.genre === 'choix') { (premier.spec.ouvrir ? premier.spec.ouvrir() : ouvrirChoix(premier.spec)); return; }
@@ -3456,10 +3505,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (garderR && mR) garderR.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: mR.id, retour: 'garde' }, j); };
     const alBanc = actions.querySelector('.hub-alerte-banc');
     if (alBanc) alBanc.onclick = () => { quitter(); onBanc(jour); };
-    for (const sel of ['.hub-situ-banc', '.hub-rap-banc']) {
-      const b = actions.querySelector(sel);
-      if (b) b.onclick = () => { quitter(); onBanc(jour); };
-    }
+    actions.querySelectorAll('.hub-situ-banc').forEach(b => { b.onclick = () => { quitter(); onBanc(jour); }; });
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();
     const prendre = actions.querySelector('.hub-trou-prendre');
@@ -3468,9 +3514,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const voirMain = actions.querySelector('.hub-main-ouvrir');
     if (voirMain && pal !== undefined) voirMain.onclick = () => ouvrirMain(pal);
     boutonFlottant(actions, termine);
-    const bj = actions.querySelector('.hub-jour'), bp = actions.querySelector('.hub-prochaine');
-    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => avancerPuisResumer(1);
-    if (bp) bp.onclick = () => { avancerJusquaDecision(); };
+    const bj = actions.querySelector('.hub-jour'), b1 = actions.querySelector('.hub-un-jour');
+    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => { avancerSemaine(); };
+    if (b1) b1.onclick = () => avancerPuisResumer(1);
   }
 
   /*

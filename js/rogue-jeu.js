@@ -15,7 +15,7 @@ import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirer
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie } from './inventaire.js';
+import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, MAIN_SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
@@ -426,10 +426,10 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   if (rogue) recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
   ajouterCollection({ cartes: ids });
   ouvrirChoix({
-    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Tout ranger',
+    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Dans ma poche',
     recit: (rogue
-      ? `Tout va dans ton inventaire : le personnel et les consommables permanents y restent d'une run à l'autre, le reste vaut pour cette saison.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Tout va dans ton inventaire : joue chaque carte quand tu veux, du bureau (🎒).')
+      ? `Le personnel reste d'une run à l'autre ; le reste va dans ta poche : ${MAIN_SEMAINE} de ses cartes sortent en main chaque semaine.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      : 'Tout va dans ta poche.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
       ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],
@@ -474,6 +474,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider, page),
+    ...(rogue && enSaison ? { nonJouable: ref => horsDeLaMain(ref, j) } : {}),
     vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
   });
 }
@@ -488,6 +489,48 @@ function plafondPourInventaire(j) {
       ...[...pl.facteurs].map(([k, f]) => ({ nom: `${nom(k)} : ${Math.round(f * 100)} % de son salaire`, joueur: true })),
       ...[...pl.ltir].map(k => ({ nom: `${nom(k)} : blessé à long terme${pl.blesses.has(k) ? ', hors du plafond' : ', revenu au jeu'}`, joueur: true }))],
   };
+}
+/*
+ * V4.3 — LA MAIN DE LA SEMAINE AU BUREAU (js/inventaire.js, `mainDeLaSemaine`). JP : *ça pioche x cartes, pis tu
+ * choisis ce que tu joues pour la semaine*. Les cartes de la poche ne dorment plus au fond du Marché : chaque
+ * semaine, `MAIN_SEMAINE` d'entre elles sortent au bureau, et tu en joues `JOUEES_SEMAINE` au plus. Une carte se
+ * touche, se joue ou se vend de là ; vendre amincit la poche, pour de meilleures mains.
+ */
+export function mainDuJour(j) {
+  const Lg = G.ligue;
+  if (!Lg) return null;
+  const debut = Math.floor(j / SEMAINE) * SEMAINE;
+  const m = mainDeLaSemaine({ decisions: decisionsDeLaPartie(), graine: Lg.graine, jour: j, nMatchDebut: matchsEntre(Lg.you, 0, debut), nMatch: matchsEntre(Lg.you, 0, j), rogue: G.bonus === 'ROGUE' });
+  return { ...m, main: m.main.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null })) };
+}
+/* Toute la poche du jour (le pack gratuit s'annonce avec ses cartes). */
+export function pocheDuJour(j) {
+  const Lg = G.ligue;
+  if (!Lg) return [];
+  return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue: G.bonus === 'ROGUE' })
+    .map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom }));
+}
+/* Pourquoi une carte de la poche ne se joue pas aujourd'hui (rien : elle se joue). */
+function horsDeLaMain(ref, j) {
+  const m = mainDuJour(j);
+  if (!m) return '';
+  const x = m.main.find(c => c.ref === ref);
+  return !x ? 'Pas dans ta main cette semaine' : x.jouee || x.vendue ? 'Déjà jouée' : !m.reste ? `${JOUEES_SEMAINE} cartes jouées cette semaine` : '';
+}
+/* Une carte de la main, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
+export function ouvrirCarteDeLaPoche(item, j, decider) {
+  const v = valeurDe(item.id), rien = () => {}, non = horsDeLaMain(item.ref, j);
+  const jouer = () => { if (!non) jouerCarte({ src: 'partie', ref: item.ref, id: item.id }, j, decider, null, rien); };
+  const fermer = ouvrirChoix({
+    ico: item.ico, titre: item.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'La garder',
+    options: [{ ...optionDeBanque(item.id), cle: 'jouer', ...(non ? { desactive: non } : {}) }],
+    contexte: `<div class="poche-boutons"><button type="button" class="btn gold poche-jouer"${non ? ' disabled' : ''}>${non ? esc(non) : BANQUE[item.id].cat === 'match' ? 'Au deck' : 'Jouer'}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
+    onChoix: jouer,
+    onFerme: rien,
+  });
+  const bj = document.querySelector('#choixModal .poche-jouer'), bv = document.querySelector('#choixModal .poche-vendre');
+  if (bj) bj.onclick = () => { fermer(); jouer(); };
+  if (bv) bv.onclick = () => { fermer(); decider({ jour: j, vend: { refs: [item.ref], jetons: v } }); };
 }
 /* Le nombre de cartes à jouer, pour le bouton du hub. */
 export function cartesAJouer(j) {
@@ -504,7 +547,7 @@ export function cartesAJouer(j) {
  * datée d'aujourd'hui (`joue` dit d'où elle sort, pour la poche). Un
  * consommable permanent quitte le méta à ce moment-là.
  */
-function jouerCarte(item, j, decider, page = null) {
+function jouerCarte(item, j, decider, page = null, auRetour = null) {
   const c = BANQUE[item.id];
   if (!c || !decider) return;
   const Lg = G.ligue, decs = decisionsDeLaPartie(), you = Lg.you;
@@ -512,7 +555,7 @@ function jouerCarte(item, j, decider, page = null) {
   // v2 : une carte de coach grandit avec les cartes de son coach déjà jouées (js/banque.js `grandi`).
   const build = buildDe(decs, j + 1), joueurs = joueursDesCoachs(you);
   // « Retour » revient dans la page d'où l'on venait (« Tes cartes ») ; sans elle, l'inventaire flottait par-dessus le Marché.
-  const retour = () => ouvrirInventaireJeu(j, decider, page && page.dans && page.dans.isConnected ? page : null);
+  const retour = auRetour || (() => ouvrirInventaireJeu(j, decider, page && page.dans && page.dans.isConnected ? page : null));
   const ecrire = payload => {
     if (!payload) return;
     if (item.src === 'meta') retirerDuMeta(item.id);
@@ -652,7 +695,7 @@ async function ouvrirPacksDeDepart(roster) {
     const suite = i < packs.length - 1 ? 'Pack suivant' : 'À la run';
     await new Promise(resolve => ouvrirChoix({
       ico: '🥉', titre: `Pack de départ · ${P.nom}`, cartes: true, genre: 'recompense', fermable: true, motFermer: suite,
-      recit: i === 0 ? `Ta première run : ton équipe sort de ${packs.length} packs. Chaque carte est à toi, dans ton effectif et à ton cartable.` : `${P.cartes.length} de plus pour ton effectif.`,
+      recit: i === 0 ? `Ton équipe sort de ${packs.length} packs. Chaque carte va à ton effectif et à ton cartable.` : `${P.cartes.length} de plus.`,
       options: P.cartes.map(p => {
         const g = groupeDe(p);
         return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
@@ -774,7 +817,7 @@ export async function ouvrirRogue() {
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant',
     // 1.0 (R5) : deux phrases ; le reste se lit dans « Règles », section « Le mode Rogue ».
-    recit: `Une équipe de bouche-trous, 🪙 ${jetonsDeDepart(meta)} jetons, plusieurs saisons. Chaque saison, le proprio en veut plus. Le but : la Coupe Stanley, la victoire de la run.`,
+    recit: `Des bouche-trous et 🪙 ${jetonsDeDepart(meta)} jetons. Chaque saison, le proprio en veut plus ; la Coupe finit la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? '' : `🥉 ta première run : ton équipe sort de ${PACKS_DE_DEPART.length} packs de départ`, nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
         nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
@@ -816,10 +859,10 @@ const patronsDeLaRun = meta => patronsDeDepart(graineDuClasseur(), PRESTIGES[ran
 function choisirCoach() {
   const meta = lireMeta(), rang = rangDePrestige(meta), ouverts = coachsOuverts(rang);
   const pats = patronsDeLaRun(meta).map(id => BANQUE[id]);
-  const plus = ouverts.length < VOIES.length ? ` ${PRESTIGES[rang].nom} : ${ouverts.length} coachs sur ${VOIES.length} ; le prestige ouvre les autres.` : '';
+  const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: `Il part avec sa confiance I. Chaque carte de sa couleur la fait monter : II à ${SEUILS[1]} cartes, III à ${SEUILS[2]}. Les autres coachs aussi, si tu joues leurs cartes.${plus} Tes patrons de départ : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: ouverts.map(k => {
       const C = COACHS[k];
       return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,

@@ -16,7 +16,7 @@ import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction,
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
-import { pocheDeLaPartie } from './inventaire.js';
+import { pocheDeLaPartie, mainDeLaSemaine, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable } from './cartable.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { scoreIdentite, IDENTITES } from './identites.js';
@@ -291,7 +291,12 @@ function cartesAPoserSur(p) {
   const j = jourDuHub();
   const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
   const piles = new Map();
+  // V4.3 : en Rogue, seulement les cartes de ta main de la semaine qui se jouent encore (js/inventaire.js).
+  const debut = Math.floor(j / SEMAINE) * SEMAINE;
+  const m = G.bonus === 'ROGUE' ? mainDeLaSemaine({ decisions: decisionsDeLaPartie(), graine: L.graine, jour: j, nMatchDebut: matchsEntre(L.you, 0, debut), nMatch: matchsEntre(L.you, 0, j), rogue: true }) : null;
+  const enMain = m ? new Set(m.reste ? m.main.filter(x => !x.jouee && !x.vendue).map(x => x.ref) : []) : null;
   for (const x of pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: L.graine, nMatch: matchsEntre(L.you, 0, j), rogue: G.bonus === 'ROGUE' })) {
+    if (enMain && !enMain.has(x.ref)) continue;
     const c = BANQUE[x.id];
     if (!c || c.cat !== 'joueur' || etatPourPoser(c.cle, p, sl, { jour: j }).non) continue;
     if (!piles.has(x.id)) piles.set(x.id, []);

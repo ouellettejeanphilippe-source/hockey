@@ -112,7 +112,7 @@ const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
 console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
 if (offerts.length !== COACHS_ATTENDUS || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s) (le prestige en ouvre ${COACHS_ATTENDUS}), ou ne dit pas sa confiance I`);
-if (!/Tes patrons de départ/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas les patrons imposés');
+if (!/Tes patrons :/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas les patrons imposés');
 await choix();
 /*
  * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
@@ -181,6 +181,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * sa première option, un message bloquant sa réponse par défaut.
  */
 const des = [], evenementsDe = [];
+let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
@@ -199,6 +200,10 @@ async function regler() {
       if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
       await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue;
     }
+    /*
+     * UNE CARTE DE LA MAIN, EN GRAND (V4.3) : « Jouer » ou « Vendre ». Le joueur pressé vend, ce qui amincit la poche.
+     */
+    if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); pocheVendues++; await page.waitForTimeout(500); continue; }
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
@@ -289,20 +294,20 @@ if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat d
   if (versSaison) { await page.click('#sousNav .soustab[data-page="match"]'); await page.waitForTimeout(200); }
 }
 /*
- * « JUSQU'À LA PROCHAINE DÉCISION » (S79) remplace « +10 jours » : elle joue
- * les journées une à une et s'arrête sur ce qui demande le joueur. On attend
- * qu'elle ait fini (le bouton se réactive).
+ * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
+ * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
+ * réactive).
  */
 async function prochaineDecision() {
-  const p = await page.$('#hubModal .hub-prochaine');
+  const p = await page.$('#hubModal .hub-jour');
   if (!p || !(await p.isVisible()) || await p.isDisabled()) return false;
   await p.click();
-  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-prochaine[disabled]'), null, { timeout: 120000 }).catch(() => {});
+  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-jour[disabled]'), null, { timeout: 120000 }).catch(() => {});
   await page.waitForTimeout(300);
   return true;
 }
-// Avancer un peu pour gagner des jetons
-for (let i = 0; i < 3; i++) {
+// Avancer un peu pour gagner des jetons (des semaines : V4)
+for (let i = 0; i < 8; i++) {
   await regler();
   await prochaineDecision();
 }
@@ -529,6 +534,19 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
   await auBureau();
   await regler();
+}
+/*
+ * LA MAIN DE LA SEMAINE AU BUREAU (V4.3) : après les packs de cartes, quatre cartes de la poche au plus se voient
+ * sous le match ; on en joue deux par semaine au plus.
+ */
+{
+  await auBureau();
+  const mt = await page.$('#sousNav .soustab[data-page="match"]');
+  if (mt && await mt.isVisible()) { await mt.click(); await page.waitForTimeout(300); }
+  const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
+  console.log(`10a. la main de la semaine au bureau : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas au bureau');
+  else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
 }
 /*
  * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE
