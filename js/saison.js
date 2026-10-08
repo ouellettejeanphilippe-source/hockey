@@ -1267,8 +1267,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * banc ouvert par un autre chemin. Un rappel du ballottage compte comme un remède.
    */
   function rappelPossible(b) {
-    const bal = ctx.ballottage && !pris.has(`b:${b.at}:${getPlayerKey(b.player)}`) ? ctx.ballottage(b.player, b.at) : null;
-    return !!(bal && bal.candidats.length);
+    if (pris.has(`b:${b.at}:${getPlayerKey(b.player)}`)) return false;
+    const bal = ctx.ballottage ? ctx.ballottage(b.player, b.at) : null;
+    // Le club-école a toujours quelqu'un (oct.) : la case se comble, donc elle se règle.
+    return !!(bal && bal.candidats.length) || !!(ctx.rappelEcole && ctx.rappelEcole(b.player, b.at));
   }
   function blessureOuverte() {
     if (!onDecision) return null;
@@ -3261,19 +3263,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const n = restantDe(alerte);
       const sl = onDecision ? caseHabillee(you.roster, alerte.player) : null;
       const bal = sl && ctx.ballottage && !pris.has(palierB) ? ctx.ballottage(alerte.player, alerte.at) : null;
+      const ecole = sl && ctx.rappelEcole && !pris.has(palierB) ? ctx.rappelEcole(alerte.player, alerte.at) : null;
       // `etatDeBlessure` (js/ballottage.js) : le même verdict que l'avance. Un gardien n'est jamais forcé (`gardiensDuSoir`).
-      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) });
+      const etat = etatDeBlessure({ roster: you.roster, injured: you.injured, b: alerte, rappel: !!(bal && bal.candidats.length) || !!ecole });
       const reserves = sl ? etat.reserves : [];
       const forcer = !!sl && etat.forcer;
       const defaut = forcer ? (reserves.length ? 'reserve' : 'rappel') : 'banc';
       const d = k => (k === defaut ? ' data-defaut' : '');
-      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, palierB, sl, reserves,
+      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB, sl, reserves,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
           <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${alerte.games >= BLESSURE_TRAINEE ? ctx.esc(cicatriceMot('trainee')) : ''}${caseDe(alerte.player) ? ` · ${ctx.esc(caseDe(alerte.player))}` : ''}${forcer ? ' · il sort de ton alignement : qui joue sa case ?' : ` · ${ctx.esc(remplacant(alerte.player))}`}</div>
           <div class="hub-alerte-choix">
             ${reserves.length ? `<button type="button" class="btn${defaut === 'reserve' ? ' gold' : ''} hub-alerte-reserve"${d('reserve')}>🪑 Monter un réserviste</button>` : ''}
             ${bal && bal.candidats.length ? `<button type="button" class="btn hub-ballottage-ouvrir"${d('rappel')}>📋 Rappel : ${bal.candidats.length} joueurs</button>` : ''}
+            ${ecole && !reserves.length ? `<button type="button" class="btn hub-alerte-ecole">📟 Club-école : ${ctx.esc(ecole.p.n)}</button>` : ''}
             ${onBanc && sl ? `<button class="btn${forcer ? '' : ' gold'} hub-alerte-banc"${d('banc')}>Remanier derrière le banc</button>` : ''}
           </div>
         </div>` });
@@ -3493,6 +3497,30 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       }),
       onChoix: k => { const j = jour; quitter(); onDecision({ jour, palier: mB.palierB, cases: echange(mB.sl.i, Number(k)) }, j); },
     });
+    /*
+     * LE RAPPEL DU CLUB-ÉCOLE (oct.). JP : *des cartes de remplissage pour les rappels, pour que le jeu ne casse pas
+     * s'il est impossible de remplacer un joueur* ; *tout doit être réel dans le système*. Sans réserviste qui joue
+     * la case, le ballottage était la seule sortie — et quand le plafond ou les jetons refusaient chacun de ses trois
+     * joueurs, le message bloquait la semaine pour de bon. Le club-école a toujours un vrai joueur, faible, gratuit et
+     * hors plafond (`rappelDuClubEcole`, js/ballottage.js) : il entre comme un réclamé du ballottage — sa case de
+     * réserve, puis celle du blessé —, et le plafond ne bloque aucune sortie (`ecole`, js/banque.js `plafondDe`).
+     */
+    const ecoleBtn = actions.querySelector('.hub-alerte-ecole');
+    if (ecoleBtn && mB && mB.ecole) ecoleBtn.onclick = () => {
+      const E = mB.ecole;
+      const decide = ({ i, sort, cases: placees }) => {
+        let cases = placees;
+        if (!cases && mB.sl && SLOTS[i] && SLOTS[i].scratch && fits(E.p, mB.sl)) {
+          cases = photoAlignement(you.roster);
+          cases[i] = getPlayerKey(alerte.player); cases[mB.sl.i] = E.cle;
+        }
+        const j = jour;
+        quitter();
+        onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: E.cle, sort, ecole: true }, ...(cases ? { cases } : {}) }, j);
+      };
+      if (ctx.quiSort) ctx.quiSort(E.p, { roster: you.roster, genre: 'ballottage', bloque: () => '', horsPlafond: true, onChoix: decide, onFerme: () => {} });
+      else decide({ i: E.i, sort: E.sort });
+    };
     const mR = msgs.find(m => m.genre === 'retour');
     const remettre = actions.querySelector('.hub-retour-remettre');
     if (remettre && mR) remettre.onclick = () => {

@@ -27,7 +27,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, jouerJournee, poserAlignementDuJour, getPlayerKey, connaitre, photoAlignement, fits, activeLineup } from '../js/sim.js';
-import { BLESSURE_MOMENT, etatDeBlessure, blessureOuverte, retourDuBlesse, problemesDAlignement } from '../js/ballottage.js';
+import { BLESSURE_MOMENT, etatDeBlessure, blessureOuverte, retourDuBlesse, problemesDAlignement, rappelDuClubEcole, productionDe } from '../js/ballottage.js';
+import { plafondDe } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -54,7 +55,8 @@ const POOL = shard(SAISONS[3]).players.filter(x => x.gp > 40);
 function ligue() {
   return BRUT.map((b, n) => {
     const p = b.joueurs.map(x => ({ ...x })); p.forEach(registerHiddenRatings);
-    const t = createTeam(`${b.tag} ${b.season}`, b.tag, autoRoster(p), { season: b.season });
+    // La première est la tienne : les décisions l'alignent, un club de l'IA se réaligne seul (`creerLigue`).
+    const t = createTeam(`${b.tag} ${b.season}`, b.tag, autoRoster(p), { season: b.season, isPlayer: n === 0 });
     for (const [role, est] of [['Réserve F', EST_F], ['Réserve D', EST_D]]) {
       const sl = SLOTS.find(x => x.role === role);
       const c = { ...POOL.filter(est)[n] };
@@ -70,6 +72,29 @@ for (const g of ['F', 'D']) {
   const p = { ...shard(SAISONS[5]).players.find(x => x.gp > 40 && (g === 'D' ? EST_D(x) : EST_F(x))) };
   registerHiddenRatings(p); rappeles[g] = p;
 }
+
+/*
+ * LE RAPPEL DU CLUB-ÉCOLE (oct.), par groupe : le vrai joueur que l'écran offre quand rien d'autre ne comble
+ * (`rappelDuClubEcole`, js/ballottage.js), tiré des saisons de la ligue, d'un club qui n'y est pas.
+ */
+const SHARDS = new Map();
+for (const b of BRUT) if (!SHARDS.has(b.season)) {
+  const players = shard(`${b.season}.json`).players, byTeam = {};
+  for (const x of players) (byTeam[x.t] = byTeam[x.t] || []).push(x);
+  SHARDS.set(b.season, { players, byTeam });
+}
+const LIGUE_ECOLE = { cles: BRUT.map(b => `${b.season}|${b.tag}`), teams: [], graine: 7 };
+const ecoles = {};
+for (const g of ['F', 'D']) {
+  const blesse = BRUT[0].joueurs.find(x => (g === 'D' ? EST_D(x) : EST_F(x)) && x.gp > 60);
+  const p = rappelDuClubEcole({ shards: SHARDS, ligue: LIGUE_ECOLE, blesse, at: 1 });
+  ecoles[g] = p ? { ...p } : null;
+  if (ecoles[g]) registerHiddenRatings(ecoles[g]);
+  exiger(`le club-école a toujours un ${g === 'D' ? 'défenseur' : 'attaquant'} : un vrai joueur, monté quelques matchs, d'un club hors de la ligue`,
+    !!p && (g === 'D' ? EST_D(p) : EST_F(p)) && p.gp >= 5 && p.gp <= 30 && !LIGUE_ECOLE.cles.includes(`${p.s}|${p.t}`) && productionDe(p) < productionDe(blesse),
+    p ? `${p.n} (${p.t} ${p.s}, ${p.gp} matchs, ${(productionDe(p)).toFixed(2)} pt/m contre ${productionDe(blesse).toFixed(2)})` : 'personne');
+}
+exiger('le rappel du club-école est le même à chaque appel', getPlayerKey(rappelDuClubEcole({ shards: SHARDS, ligue: LIGUE_ECOLE, blesse: BRUT[0].joueurs.find(x => EST_F(x) && x.gp > 60), at: 1 })) === getPlayerKey(ecoles.F), '');
 
 const cle = getPlayerKey;
 const parCle = roster => new Map(Object.values(roster).filter(Boolean).map(p => [cle(p), p]));
@@ -126,6 +151,14 @@ const CHEMINS = {
     cases[R.i] = S.cle; cases[S.sl.i] = cle(rap);
     return { cases, palier: `b:${S.at}:${S.cle}`, ballottage: { i: R.i, entre: cle(rap), sort } };
   },
+  // Le club-école (oct.) : le même chemin que le ballottage, un vrai joueur faible, hors plafond.
+  ecole: (S, toi) => {
+    const g = /D$/.test(S.b.player.p) ? 'D' : 'F', E = ecoles[g];
+    const R = SLOTS.find(s => s.scratch && !s.extra && s.group === g);
+    const cases = photoAlignement(toi.roster), sort = cases[R.i];
+    cases[R.i] = S.cle; cases[S.sl.i] = cle(E);
+    return { cases, palier: `b:${S.at}:${S.cle}`, ballottage: { i: R.i, entre: cle(E), sort, ecole: true } };
+  },
   // Le banc, à la main : le blessé dans une réserve de plus, le réserviste à sa case — et rien d'autre.
   banc: (S, toi) => {
     const R = SLOTS.find(s => s.scratch && s.extra && !toi.roster[s.i]);
@@ -146,6 +179,7 @@ const CHEMINS = {
 function essai(groupe, nom, S) {
   const rap = rappeles[groupe];
   connaitre(rap);
+  if (ecoles[groupe]) connaitre(ecoles[groupe]);
   const decision = CHEMINS[nom](S, S.L.teams[0], rap);
   const decisions = [S.depart, { jour: S.jour, equipe: 0, sel: `s-${nom}`, ...decision }];
   const T = `${groupe} · ${nom}`;
@@ -166,6 +200,11 @@ function essai(groupe, nom, S) {
   exiger(`${T} : le blessé n'est pas dans une case habillée, et son suppléant y joue`,
     !SLOTS.some(s => !s.scratch && apres.toi.roster[s.i] === b.player), `${S.nom} en réserve`);
 
+  if (decision.ballottage && decision.ballottage.ecole) {
+    const p = apres.toi.roster[S.sl.i];
+    exiger(`${T} : le rappelé du club-école joue sa case, et il ne compte pas au plafond`,
+      p && cle(p) === decision.ballottage.entre && plafondDe(decisions).ecole.has(decision.ballottage.entre), p ? p.n : 'personne');
+  }
   // 3. …et un autre jour de la même blessure, et dans une ligue reconstruite (un rechargement).
   let rebloque = 0, jours = 0;
   const fin = S.b.at + S.b.games;
@@ -209,8 +248,12 @@ function essai(groupe, nom, S) {
   const jr = Lr.jour;
   const jouee = etatAuJour(S.graine, [...decisions, { jour: jr, equipe: 0, cases: r.cases, palier: `rv:${S.at}:${S.cle}`, sel: 'retour' }], jr);
   const lineup = activeLineup(jouee.toi);
-  const trous = SLOTS.filter(s => !s.scratch && !s.extra && !lineup[s.i]).length;
-  exiger(`${T} : le jour du retour, il joue sa case et aucune case n'est vide`, lineup[S.sl.i] && cle(lineup[S.sl.i]) === S.cle && trous === 0, `${trous} case(s) vide(s)`);
+  // Une case vide n'est permise que si son joueur vient de se blesser et qu'aucun réserviste en santé ne la joue.
+  const reservistesSains = SLOTS.filter(s => s.scratch && jouee.toi.roster[s.i] && !jouee.toi.injured.has(jouee.toi.roster[s.i])).map(s => jouee.toi.roster[s.i]);
+  const utilises = new Set(Object.values(lineup).filter(Boolean));
+  const trous = SLOTS.filter(s => !s.scratch && !s.extra && !lineup[s.i]
+    && (!jouee.toi.injured.has(jouee.toi.roster[s.i]) || reservistesSains.some(r => !utilises.has(r) && fits(r, s)))).length;
+  exiger(`${T} : le jour du retour, il joue sa case et aucune case n'est vide sans raison`, lineup[S.sl.i] && cle(lineup[S.sl.i]) === S.cle && trous === 0, `${trous} case(s) vide(s)`);
   const jouer = etatAuJour(S.graine, [...decisions, { jour: jr, equipe: 0, cases: r.cases, palier: `rv:${S.at}:${S.cle}`, sel: 'retour' }], jr + 5);
   exiger(`${T} : cinq matchs plus tard, l'alignement est toujours valide`, !valide(jouee.toi.roster).length && !valide(jouer.toi.roster).length, '');
   // Il est revenu : plus de retour à proposer.

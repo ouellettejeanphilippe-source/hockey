@@ -428,6 +428,8 @@ function colonneEchange(q, mot, sl = null) {
  */
 function choisirQuiSort(p, o) {
   const { roster, onFerme, bloque = null } = o;
+  // Le rappel du club-école (oct.) ne compte pas au plafond : la masse le dit.
+  const masseDe = q => (o.horsPlafond ? 0 : capHitDuJour(p)) - (q ? capHitDuJour(q) : 0);
   const nomDe = n => String(n).split(' ').slice(-1)[0];
   const signe = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${money(Math.abs(x))}`;
   // Une case pour lui, la case du sortant `A` libérée : la sienne, une vide, ou celle d'un joueur qui peut jouer `A`.
@@ -436,7 +438,7 @@ function choisirQuiSort(p, o) {
   const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !roster[sl.i] && fits(p, sl)) : null;
   const rangees = rangeesAlignement(roster, (A, q) => ({
     non: (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`),
-    note: `masse ${signe(capHitDuJour(p) - capHitDuJour(q))}`,
+    note: `masse ${signe(masseDe(q))}`,
   }), libre ? sl => (sl.i === libre.i ? { non: bloque ? bloque(null) : '', note: 'personne ne sort' } : null) : null);
   ouvrirAlignement({
     ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Continuer',
@@ -447,8 +449,8 @@ function choisirQuiSort(p, o) {
       const A = SLOTS[Number(k)];
       if (!A) return '';
       const q = roster[A.i];
-      if (!q) return `<span class="ech-bilan"><b>Case libre</b> : réserve · personne ne sort · masse ${esc(signe(capHitDuJour(p)))}</span>`;
-      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(capHitDuJour(p) - capHitDuJour(q)))}</span>`;
+      if (!q) return `<span class="ech-bilan"><b>Case libre</b> : réserve · personne ne sort · masse ${esc(signe(masseDe(null)))}</span>`;
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(masseDe(q)))}</span>`;
     },
     onChoix: k => { const A = SLOTS[Number(k)]; if (A && (roster[A.i] || (libre && A.i === libre.i))) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
     onFerme,

@@ -11,7 +11,7 @@ import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
 import { BANQUE, palierAllume, coachsActifs, payloadDe } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
-import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs } from './ballottage.js';
+import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
@@ -311,6 +311,7 @@ function confirmerDecision(d) {
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans ton inventaire : pose-la au verso d'un joueur, quand tu veux.`;
   else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
   // S80 : une signature dit où va celui qui sort — ou qu'il n'y en a pas.
+  else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
   else if (d.deck === 'strategie' && d.maitrise && systemeDe(d.maitrise.tac)) mot = `📘 ${systemeDe(d.maitrise.tac).groupe === 'D' ? 'Tes défenseurs apprennent' : 'Tes avants apprennent'} : ${systemeDe(d.maitrise.tac).nom.toLowerCase()}.`;
@@ -360,6 +361,17 @@ function candidatsBallottage(blesse, at) {
     i: slot.i, sort: sort ? getPlayerKey(sort) : null, sortNom: sort ? sort.n : null, cout: coutBallottage(),
     candidats: out.map(p => ({ cle: getPlayerKey(p), p, nom: p.n, club: `${p.t} ${p.s}`, pos: p.p, poste: POSTE_GROUPE[g], salaire: money(p.$), ligne: ligne(p), rarete: rareteJoueur(p) })),
   };
+}
+/* Le rappel du club-école pour `blesse` (js/ballottage.js) : la même case de réserve que le ballottage, un vrai joueur, gratuit, hors plafond. */
+function rappelEcole(blesse, at) {
+  const L = G.ligue;
+  if (!L || !blesse || !L.cles) return null;
+  const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[groupeDe(blesse)]);
+  const p = slot ? rappelDuClubEcole({ shards: G.shards, ligue: L, blesse, at }) : null;
+  if (!p) return null;
+  ballottageVu.set(getPlayerKey(p), p);
+  const sort = G.roster[slot.i] || null;
+  return { i: slot.i, sort: sort ? getPlayerKey(sort) : null, p, cle: getPlayerKey(p) };
 }
 /*
  * LA RECRUE DU DECK (S73). JP : *des cartes style événement qui permettent
@@ -710,6 +722,8 @@ function ouvrirEcranSaison(depuis = 0) {
         quiEst,
         // LE BALLOTTAGE (S66) : trois joueurs offerts sur une vraie blessure.
         ballottage: candidatsBallottage,
+        // LE RAPPEL DU CLUB-ÉCOLE (oct.) : toujours quelqu'un, un vrai joueur faible, gratuit et hors plafond.
+        rappelEcole,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
         // OÙ IL JOUE (S80) : « 3e paire », dit à côté d'un nom (les dilemmes, le ballottage, un nouveau rôle).
