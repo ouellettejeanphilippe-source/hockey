@@ -112,7 +112,7 @@ const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
 console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
 if (offerts.length !== COACHS_ATTENDUS || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s) (le prestige en ouvre ${COACHS_ATTENDUS}), ou ne dit pas sa confiance I`);
-if (!/Tes patrons de départ/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas les patrons imposés');
+if (!/Tes patrons :/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas les patrons imposés');
 await choix();
 /*
  * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
@@ -181,6 +181,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * sa première option, un message bloquant sa réponse par défaut.
  */
 const des = [], evenementsDe = [];
+let pocheVendues = 0;   // V4 : les cartes vendues parce que la poche débordait
 const captures = { main: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
@@ -199,6 +200,11 @@ async function regler() {
       if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
       await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue;
     }
+    /*
+     * LA POCHE QUI DÉBORDE (V4) : quatre places ; la carte de trop se joue ou se vend sur-le-champ. Le joueur
+     * pressé vend : la carte en grand (« Vendre » ou « Jeter »), jusqu'à ce que la poche tienne.
+     */
+    if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); pocheVendues++; await page.waitForTimeout(500); continue; }
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
@@ -529,6 +535,19 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
   await auBureau();
   await regler();
+}
+/*
+ * LA POCHE AU BUREAU (V4) : après trois packs de cartes, la poche se voit sous le match, au plus quatre cartes —
+ * ce qui débordait a été joué ou vendu avant la journée suivante.
+ */
+{
+  await auBureau();
+  const mt = await page.$('#sousNav .soustab[data-page="match"]');
+  if (mt && await mt.isVisible()) { await mt.click(); await page.waitForTimeout(300); }
+  const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
+  console.log(`10a. la poche au bureau : ${cases} carte(s) · ${pocheVendues} vendue(s) parce qu'elle débordait`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la poche ne se voit pas au bureau');
+  else if (cases > 4) erreurs.push(`la poche garde ${cases} cartes au bureau (quatre places)`);
 }
 /*
  * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE

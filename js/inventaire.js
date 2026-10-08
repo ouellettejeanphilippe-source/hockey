@@ -30,7 +30,12 @@ import { esc, money as M } from './util.js';
 const $ = id => document.getElementById(id);
 
 /* Les paliers de la saison donnent un pack mixte gratuit (S79) : ses cartes de saison, jamais un permanent. */
-const PALIERS_PACK = [9, 18, 26];
+export const PALIERS_PACK = [9, 18, 26];
+/*
+ * LA POCHE A QUATRE PLACES (V4). Avant, aucune limite : les cartes dormaient au Marché jusqu'à la fin de la saison.
+ * Quatre, c'est un pack de cartes entier dans une poche vide ; une carte de plus se joue ou se vend sur-le-champ.
+ */
+export const POCHE_MAX = 4;
 
 /*
  * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
@@ -134,7 +139,7 @@ export function ouvrirInventaire(ctx) {
       for (const x of ctx.partie) { if (!piles.has(x.id)) piles.set(x.id, []); piles.get(x.id).push(x); }
       const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
-      corps = `<p class="inv-mot"><b>${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}</b>${ctx.mode === 'rogue' ? ' <b>Ta poche expire à la fin de la saison</b> ; une modif posée reste sur sa carte.' : ''}</p>
+      corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🎒 ${POCHE_MAX} places, au bureau. Elle expire à la fin de la saison.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
                 ${filtres(cats)}
         <div class="inv-grille">${cartes.map(([id, pile]) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
           actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}"${ctx.peutJouer ? '' : ' disabled'}>${BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` })).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}</div>`;

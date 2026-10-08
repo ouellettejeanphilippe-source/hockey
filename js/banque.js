@@ -609,7 +609,7 @@ export const VIES = {
  * saison (prise à un palier) sont JOUÉES IMMÉDIATEMENT.
  */
 export const MOMENTS = {
-  garde: { nom: 'Se garde', ico: '⏳', mot: 'Se garde — joue-la quand tu veux : elle attend dans ton inventaire.' },
+  garde: { nom: 'Se garde', ico: '⏳', mot: 'Dans ta poche jusqu\'à ce que tu la joues.' },
   immediat: { nom: 'Jouée immédiatement', ico: '⚡', mot: 'Jouée immédiatement : elle s\'applique dès que tu la reçois.' },
 };
 export const momentDe = id => { const c = BANQUE[id]; return c && (c.rarete === 'maudite' || c.cat === 'saison') ? 'immediat' : 'garde'; };
