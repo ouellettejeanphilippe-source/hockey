@@ -60,6 +60,16 @@ La poche devient jouable en séries (aujourd'hui en lecture seule) ; ce qui rest
 - **D, le bureau court.** L'affiche d'un soir garde le match, une phrase d'avantage, le dos-à-dos en quatre mots et la poche ; le tableau des forces, « ce qui devrait décider », les totaux du soir et les effets en cours vont au dépistage. Environ 200 mots → 60.
 - Reste : **B** (trois sortes de cartes) et **E** (la poche en séries, qui demande au moteur des séries de lire les cartes de la poche).
 
+## 3 ter. Fait (V4.3, 8 oct.) — la main de la semaine
+
+JP : *ça pioche x cartes, pis tu choisis ce que tu joues pour la semaine, ce qui force à les jouer ou pas les jouer consciemment, tout en gardant de bâtir un deck de bonnes cartes pour de bonnes pioches* ; *ce système justifie encore plus les coachs*.
+
+- La poche n'a plus de places : c'est ta pile. Chaque semaine, `MAIN_SEMAINE` (4) de ses cartes sortent en main, au bureau ; tu en joues `JOUEES_SEMAINE` (2) au plus ; les autres retournent dans la poche (`mainDeLaSemaine`, js/inventaire.js, pure : la graine, la semaine, la carte). Une carte reçue en cours de semaine complète une main qui n'est pas pleine.
+- La main bloque la semaine jusqu'à ce qu'on l'ait réglée : jouer une ou deux cartes, puis « C'est réglé », ou « Ne rien jouer cette semaine ». Une carte jouée reste dans la main, éteinte, jusqu'à la semaine suivante.
+- Une carte ne se joue que de la main : le bureau, « Tes cartes » au Marché et « + Poser une amélioration » au verso le respectent. Vendre reste toujours permis : c'est ainsi qu'on amincit la poche.
+- Les coachs pigent leurs cartes : le tirage d'une carte de la couleur d'un coach auquel l'équipe croit est élevé à la puissance 1 + sa confiance (I, II, III), donc elle sort plus souvent ; sa case dit l'icône du coach et la confiance. Au jeu, elle grandit déjà avec ses cartes jouées (`grandi`, js/banque.js).
+- « Ta poche déborde » et ses quatre places sont partis : la main les remplace.
+
 ## 4. L'ordre proposé
 
 1. **A (la semaine)** : c'est le plus gros gain de rythme, sans toucher l'équilibre.

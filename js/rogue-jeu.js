@@ -15,7 +15,7 @@ import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirer
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, POCHE_MAX } from './inventaire.js';
+import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, MAIN_SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
@@ -428,7 +428,7 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Dans ma poche',
     recit: (rogue
-      ? `Le personnel reste d'une run à l'autre ; le reste va dans ta poche (${POCHE_MAX} places).${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      ? `Le personnel reste d'une run à l'autre ; le reste va dans ta poche : ${MAIN_SEMAINE} de ses cartes sortent en main chaque semaine.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
       : 'Tout va dans ta poche.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
@@ -474,6 +474,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider, page),
+    ...(rogue && enSaison ? { nonJouable: ref => horsDeLaMain(ref, j) } : {}),
     vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
   });
 }
@@ -490,41 +491,46 @@ function plafondPourInventaire(j) {
   };
 }
 /*
- * V4 — LA POCHE AU BUREAU. JP : *faut encore jouer et se rappeler que ya des cartes randoms dans le sac*. La poche
- * n'est plus un sac au fond du Marché : ses cartes sont au bureau, sous le match du soir, `POCHE_MAX` places au plus
- * (js/inventaire.js). Une carte se touche, se joue ou se vend de là. Une carte de trop bloque la journée suivante :
- * on joue ou on vend tout de suite, comme les consommables de Balatro.
+ * V4.3 — LA MAIN DE LA SEMAINE AU BUREAU (js/inventaire.js, `mainDeLaSemaine`). JP : *ça pioche x cartes, pis tu
+ * choisis ce que tu joues pour la semaine*. Les cartes de la poche ne dorment plus au fond du Marché : chaque
+ * semaine, `MAIN_SEMAINE` d'entre elles sortent au bureau, et tu en joues `JOUEES_SEMAINE` au plus. Une carte se
+ * touche, se joue ou se vend de là ; vendre amincit la poche, pour de meilleures mains.
  */
+export function mainDuJour(j) {
+  const Lg = G.ligue;
+  if (!Lg) return null;
+  const debut = Math.floor(j / SEMAINE) * SEMAINE;
+  const m = mainDeLaSemaine({ decisions: decisionsDeLaPartie(), graine: Lg.graine, jour: j, nMatchDebut: matchsEntre(Lg.you, 0, debut), nMatch: matchsEntre(Lg.you, 0, j), rogue: G.bonus === 'ROGUE' });
+  return { ...m, main: m.main.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null })) };
+}
+/* Toute la poche du jour (le pack gratuit s'annonce avec ses cartes). */
 export function pocheDuJour(j) {
   const Lg = G.ligue;
   if (!Lg) return [];
   return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue: G.bonus === 'ROGUE' })
-    .map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete }));
+    .map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom }));
 }
-/* Une carte de la poche, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
-export function ouvrirCarteDeLaPoche(item, j, decider, retour = null) {
-  const v = valeurDe(item.id), rien = () => {};
-  const jouer = () => jouerCarte({ src: 'partie', ref: item.ref, id: item.id }, j, decider, null, retour || rien);
+/* Pourquoi une carte de la poche ne se joue pas aujourd'hui (rien : elle se joue). */
+function horsDeLaMain(ref, j) {
+  const m = mainDuJour(j);
+  if (!m) return '';
+  const x = m.main.find(c => c.ref === ref);
+  return !x ? 'Pas dans ta main cette semaine' : x.jouee || x.vendue ? 'Déjà jouée' : !m.reste ? `${JOUEES_SEMAINE} cartes jouées cette semaine` : '';
+}
+/* Une carte de la main, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
+export function ouvrirCarteDeLaPoche(item, j, decider) {
+  const v = valeurDe(item.id), rien = () => {}, non = horsDeLaMain(item.ref, j);
+  const jouer = () => { if (!non) jouerCarte({ src: 'partie', ref: item.ref, id: item.id }, j, decider, null, rien); };
   const fermer = ouvrirChoix({
-    ico: item.ico, titre: item.nom, cartes: true, genre: 'palier', fermable: true, motFermer: retour ? 'Retour' : 'La garder',
-    options: [{ ...optionDeBanque(item.id), cle: 'jouer' }],
-    contexte: `<div class="poche-boutons"><button type="button" class="btn gold poche-jouer">${BANQUE[item.id].cat === 'match' ? 'Au deck' : 'Jouer'}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
+    ico: item.ico, titre: item.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'La garder',
+    options: [{ ...optionDeBanque(item.id), cle: 'jouer', ...(non ? { desactive: non } : {}) }],
+    contexte: `<div class="poche-boutons"><button type="button" class="btn gold poche-jouer"${non ? ' disabled' : ''}>${non ? esc(non) : BANQUE[item.id].cat === 'match' ? 'Au deck' : 'Jouer'}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
     onChoix: jouer,
-    onFerme: retour || rien,
+    onFerme: rien,
   });
   const bj = document.querySelector('#choixModal .poche-jouer'), bv = document.querySelector('#choixModal .poche-vendre');
   if (bj) bj.onclick = () => { fermer(); jouer(); };
   if (bv) bv.onclick = () => { fermer(); decider({ jour: j, vend: { refs: [item.ref], jetons: v } }); };
-}
-/* La poche qui déborde : toutes ses cartes, on en joue ou on en vend jusqu'à ce qu'elle tienne. */
-export function ouvrirPochePleine(j, decider) {
-  const items = pocheDuJour(j);
-  ouvrirChoix({
-    ico: '🎒', titre: `Ta poche : ${items.length} cartes, ${POCHE_MAX} places`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
-    recit: `Joue ou vends-en ${items.length - POCHE_MAX}.`,
-    options: items.map(it => ({ ...optionDeBanque(it.id), cle: it.ref })),
-    onChoix: ref => ouvrirCarteDeLaPoche(items.find(x => x.ref === ref), j, decider, () => ouvrirPochePleine(j, decider)),
-  });
 }
 /* Le nombre de cartes à jouer, pour le bouton du hub. */
 export function cartesAJouer(j) {

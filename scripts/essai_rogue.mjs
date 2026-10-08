@@ -181,7 +181,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * sa première option, un message bloquant sa réponse par défaut.
  */
 const des = [], evenementsDe = [];
-let pocheVendues = 0;   // V4 : les cartes vendues parce que la poche débordait
+let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
@@ -201,8 +201,7 @@ async function regler() {
       await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue;
     }
     /*
-     * LA POCHE QUI DÉBORDE (V4) : quatre places ; la carte de trop se joue ou se vend sur-le-champ. Le joueur
-     * pressé vend : la carte en grand (« Vendre » ou « Jeter »), jusqu'à ce que la poche tienne.
+     * UNE CARTE DE LA MAIN, EN GRAND (V4.3) : « Jouer » ou « Vendre ». Le joueur pressé vend, ce qui amincit la poche.
      */
     if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); pocheVendues++; await page.waitForTimeout(500); continue; }
     // Une main de palier (des cartes .tc) : la première carte jouable.
@@ -537,17 +536,17 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   await regler();
 }
 /*
- * LA POCHE AU BUREAU (V4) : après trois packs de cartes, la poche se voit sous le match, au plus quatre cartes —
- * ce qui débordait a été joué ou vendu avant la journée suivante.
+ * LA MAIN DE LA SEMAINE AU BUREAU (V4.3) : après les packs de cartes, quatre cartes de la poche au plus se voient
+ * sous le match ; on en joue deux par semaine au plus.
  */
 {
   await auBureau();
   const mt = await page.$('#sousNav .soustab[data-page="match"]');
   if (mt && await mt.isVisible()) { await mt.click(); await page.waitForTimeout(300); }
   const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
-  console.log(`10a. la poche au bureau : ${cases} carte(s) · ${pocheVendues} vendue(s) parce qu'elle débordait`);
-  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la poche ne se voit pas au bureau');
-  else if (cases > 4) erreurs.push(`la poche garde ${cases} cartes au bureau (quatre places)`);
+  console.log(`10a. la main de la semaine au bureau : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas au bureau');
+  else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
 }
 /*
  * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE

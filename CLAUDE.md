@@ -173,6 +173,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **confiance** : I, II, III — l'équipe croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
 - **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — médailles 🏅 gagnées à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
 - **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
+- **poche** : en Rogue, tes cartes de la saison (packs, paliers) ; elle expire à la fin de la saison. **La main de la semaine** : les quatre cartes que chaque semaine pige dans la poche, au bureau ; tu en joues deux au plus (`mainDeLaSemaine`, js/inventaire.js). Une carte d'un coach auquel l'équipe croit sort plus souvent. Vendre amincit la poche.
 - **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers. Les joueurs faibles du départ d'une run sont des **bouche-trous**, pas des plombiers.
 - **vestiaire** : la pièce, et l'équipe qui y vit (« le vestiaire est galvanisé ») ; au repêchage, le vestiaire d'une vraie équipe où l'on pige. Ce que les médailles achètent, ce sont **les déblocages** ; l'équipe d'une run, c'est **ton effectif**.
 - **cartable** : tes cartes de joueur, d'une partie à l'autre. **classeur** : le tirage de ton cartable au départ d'une run (« Le départ du classeur »). La **banque** : toutes les cartes de jeu. Un **doublon** est un joueur déjà à ton cartable.

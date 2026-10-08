@@ -2798,17 +2798,18 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-une-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
 .hub-une-but { color: var(--encre-2); font-style: italic; }
 .hub-une-voix { color: var(--encre-2); }
-/* ---- V4 · Ta poche, au bureau : quatre places, chaque carte se touche (js/saison.js, pocheHtml) ---- */
+/* ---- V4.3 · Ta main de la semaine, au bureau : chaque carte se touche (js/saison.js, mainHtml) ---- */
 .hub-poche { margin-top: var(--esp-3); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .hub-poche-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .hub-poche-t b { color: var(--encre); }
 .hub-poche-rang { margin-top: var(--esp-2); display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
 .hub-poche-case { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; min-height: 72px; padding: var(--esp-2) var(--esp-1); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 700 var(--t-1)/1.15 var(--display); text-align: center; }
-.hub-poche-case.libre { border-style: dashed; background: none; }
+.hub-poche-case.jouee { opacity: 0.45; }
+.hub-poche-coach { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
+.hub-poche-coach.cru { color: var(--or); }
 .hub-poche-case.tc-peu { border-color: var(--argent); }
 .hub-poche-case.tc-rare { border-color: var(--or); }
 .hub-poche-case.tc-legendaire { border-color: var(--platine); box-shadow: 0 0 12px color-mix(in srgb, var(--platine) 40%, transparent); }
-.hub-poche-case.de-trop { border-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 12%, var(--fond-2)); }
 .hub-poche-ico { font-size: var(--t-5); line-height: 1; }
 .hub-poche-nom { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .hub-poche-venus { display: flex; flex-wrap: wrap; gap: var(--esp-1); }

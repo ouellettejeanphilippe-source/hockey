@@ -40,7 +40,7 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
-import { POCHE_MAX, PALIERS_PACK } from './inventaire.js';
+import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
 import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeReponse, jambesHtml, courbeJambes, courbeJambesHtml, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
@@ -1204,7 +1204,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // règle du palier, étendue aux blessures, aux situations et aux cases
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf() || vieOuverte() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf() || vieOuverte() || mainOuverteSemaine() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
@@ -1753,7 +1753,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * match, son entracte). Le moteur ne change pas : la ligue se joue toujours au jour le jour (check_graine).
    * « Un jour » reste offert, pour qui veut la journée seule.
    */
-  const SEMAINE = 7;
   let enRoute = false;
   async function avancerSemaine() {
     if (enRoute || jour >= N) return;
@@ -2064,27 +2063,26 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots)}</span>` : ''}</div>`;
   };
   /*
-   * V4 — TA POCHE, AU BUREAU, sous le match du soir : ses cartes, `POCHE_MAX` places. Toucher une carte la montre
-   * en grand, pour la jouer ou la vendre (js/rogue-jeu.js). Rien ne dort plus au fond du Marché.
+   * V4.3 — TA MAIN DE LA SEMAINE, AU BUREAU, sous le match du soir (js/inventaire.js, `mainDeLaSemaine`) : les
+   * `MAIN_SEMAINE` cartes de ta poche que la semaine a pigées, et combien tu peux encore en jouer. Toucher une carte la
+   * montre en grand, pour la jouer ou la vendre (js/rogue-jeu.js). Une carte jouée reste là, éteinte, jusqu'à lundi.
    */
-  const pocheDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.poche ? ctx.inventaire.poche(jour) : null);
-  const pocheHtml = () => {
-    const items = pocheDuBureau();
-    if (!items) return '';
-    const cases = Array.from({ length: Math.max(POCHE_MAX, items.length) }, (_, i) => {
-      const it = items[i];
-      return it ? `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${i >= POCHE_MAX ? ' de-trop' : ''}" data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}</span></button>`
-        : '<span class="hub-poche-case libre" aria-hidden="true"></span>';
-    }).join('');
-    // Vide, elle tient en une ligne : quatre cases vides ne disent rien de plus.
-    return `<section class="hub-poche" aria-label="Ta poche"><div class="hub-poche-t">🎒 Ta poche <b>${items.length}/${POCHE_MAX}</b></div>${items.length ? `<div class="hub-poche-rang">${cases}</div>` : ''}</section>`;
+  const mainDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.main ? ctx.inventaire.main(jour) : null);
+  const casesDeLaMain = m => `<div class="hub-poche-rang">${m.main.map(it => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.jouee || it.vendue ? ' jouee' : ''}" data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.jouee ? '✓' : it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}</span>${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}</button>`).join('')}</div>`;
+  const mainHtml = () => {
+    const m = mainDuBureau();
+    if (!m) return '';
+    // Vide, elle tient en une ligne.
+    return `<section class="hub-poche" aria-label="Ta main de la semaine"><div class="hub-poche-t">🃏 Ta main · semaine ${m.w + 1} ${m.main.length ? `<b>${m.reste} à jouer</b>` : '<b>poche vide</b>'}</div>${m.main.length ? casesDeLaMain(m) : ''}</section>`;
   };
-  const brancherPoche = el => el.querySelectorAll('.hub-poche-case[data-ref]').forEach(b => {
+  const brancherMain = el => el.querySelectorAll('.hub-poche-case[data-ref]').forEach(b => {
     b.onclick = () => {
-      const it = (pocheDuBureau() || []).find(x => x.ref === b.dataset.ref);
+      const it = ((mainDuBureau() || {}).main || []).find(x => x.ref === b.dataset.ref);
       if (it) ctx.inventaire.carte(it, jour, d => { const j = jour; quitter(); onDecision(d, j); });
     };
   });
+  /* La main d'une semaine qui attend ta décision : des cartes à jouer, et rien de réglé encore. */
+  const mainOuverteSemaine = () => { const m = mainDuBureau(); return m && m.main.length && m.reste && !m.reglee ? m : null; };
   const voletJourneeSeul = () => {
     if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
@@ -2894,8 +2892,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${soirHtml(etape, faits, p.j > jour)}
         ${matin ? resultatHtml : affiche}
         ${matin ? '' : `${depistage}${planSoir}`}
-      </div>${pocheHtml()}`;
-      brancherPoche(carte);
+      </div>${mainHtml()}`;
+      brancherMain(carte);
       // Du matin au soir : « Aujourd'hui » dans la barre, ou un lien qui parle du prochain match (le dépistage, la préparation).
       const auSoir = () => { if (!(hierMatch && !soirPasse)) return false; soirPasse = true; dessiner(); return true; };
       // Le dépistage : une page sous 1200 px, déplié dans l'affiche au bureau.
@@ -3201,9 +3199,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     /*
      * V4 — LE PACK GRATUIT S'ANNONCE (matchs 9, 18, 26). Avant, ses cartes tombaient en silence dans la poche.
-     * Et LA POCHE QUI DÉBORDE bloque : une carte de plus que `POCHE_MAX` se joue ou se vend tout de suite.
+     * V4.3 — LA MAIN DE LA SEMAINE bloque : tu joues tes cartes (au plus `JOUEES_SEMAINE`), ou tu dis que c'est réglé.
      */
-    const poche = pocheDuBureau();
+    const poche = onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.poche ? ctx.inventaire.poche(jour) : null;
     if (poche) {
       const pg = PALIERS_PACK.filter(x => miens.length >= x && miens.length - x < 3).at(-1);
       const venus = pg ? poche.filter(x => x.ref.startsWith(`p${pg}:`)) : [];
@@ -3212,11 +3210,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           corps: `<div class="hub-poche-venus">${venus.map(x => `<span class="puce neutre">${x.ico} ${ctx.esc(x.nom)}</span>`).join('')}</div>
             <button type="button" class="btn gold hub-compris" data-defaut>Compris</button>` });
       }
-      if (poche.length > POCHE_MAX) {
-        out.push({ id: 'poche', genre: 'poche', bloque: true, de: DE.dg, sujet: `Ta poche déborde : ${poche.length} cartes, ${POCHE_MAX} places`,
-          corps: `<div class="hub-msg-mot">Joue ou vends-en ${poche.length - POCHE_MAX}.</div>
-            <button type="button" class="btn gold hub-poche-vider" data-defaut>Faire de la place</button>` });
-      }
+    }
+    const mSem = mainOuverteSemaine();
+    if (mSem) {
+      const nJ = JOUEES_SEMAINE - mSem.reste;
+      out.push({ id: `main:${mSem.w}`, genre: 'main-semaine', bloque: true, de: DE.coach, sujet: `Ta main de la semaine : joue jusqu'à ${mSem.reste} carte${mSem.reste > 1 ? 's' : ''}`, mSem,
+        corps: `${casesDeLaMain(mSem)}
+          <button type="button" class="btn gold hub-main-reglee" data-defaut>${nJ ? 'C\'est réglé' : 'Ne rien jouer cette semaine'}</button>` });
     }
     const cTrou = trou ? carteDuTrou(trou) : null;
     if (trou && cTrou && onTrou) {
@@ -3433,11 +3433,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         redessinerBoite();
       };
     });
-    const vider = () => ctx.inventaire.pleine(jour, d => { const j = jour; quitter(); onDecision(d, j); });
-    actions.querySelectorAll('.hub-poche-vider').forEach(b => { b.onclick = vider; });
+    brancherMain(actions);
+    const mM = msgs.find(m => m.genre === 'main-semaine');
+    actions.querySelectorAll('.hub-main-reglee').forEach(b => { b.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: `main:${mM.mSem.w}` }, j); }; });
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter) traiter.onclick = () => {
-      if (premier.genre === 'poche') { vider(); return; }
       if (premier.genre === 'choix') { (premier.spec.ouvrir ? premier.spec.ouvrir() : ouvrirChoix(premier.spec)); return; }
       if (premier.genre === 'palier') { ouvrirMain(premier.pal); return; }
       boite.ouvert = premier.id;
