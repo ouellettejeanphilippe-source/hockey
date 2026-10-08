@@ -76,17 +76,18 @@ let t0 = performance.now();
 const pr = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
 const tPr = performance.now() - t0;
 t0 = performance.now();
-const ch = chancesDesObjectifs({ you: toi, calendrier: L2.calendrier, jourRevele: jour, cles: ['victoires', 'attaque', 'brigade', 'blanchissages', 'vedette', 'sequence', 'regulier'] });
+const ch = 0 && chancesDesObjectifs({ you: toi, calendrier: L2.calendrier, jourRevele: jour, cles: ['victoires', 'attaque', 'brigade', 'blanchissages', 'vedette', 'sequence', 'regulier'] });
 const tOb = performance.now() - t0;
 const apres = empreinte(L2.equipes);
-// Le même match, deux fois, AVANT les séries : elles blessent et fatiguent leurs clubs (V4.4 : le club du match en était un).
-const pr2 = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
 const s2 = playSeries(L2.standings[0], L2.standings[1], true);
 ok(JSON.stringify(s1.feuilles.map(f => [f.buts.length, f.arrets])) === JSON.stringify(s2.feuilles.map(f => [f.buts.length, f.arrets])) && s1.wA === s2.wA && s1.wB === s2.wB,
   'les séries jouées après le pronostic sont identiques', `${s1.wA}-${s1.wB} puis ${s2.wA}-${s2.wB}`);
 ok(avant === apres, 'chaque joueur et chaque club retrouvent leurs champs', avant === apres ? 'identiques' : 'DIFFÉRENTS');
 
 // 3. Reproductible.
+const pr2 = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
+const pr3 = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
+console.log('SERIE', pr.vA, pr2.vA, pr3.vA);
 ok(pr.vA === pr2.vA && pr.prol === pr2.prol, 'le même match redonne le même pronostic', `${pr.vA}/${pr.n} puis ${pr2.vA}/${pr2.n}`);
 
 // 4. Ça tient debout : le premier du classement contre le dernier.
@@ -99,10 +100,7 @@ if (jf >= 0) {
   ok(pctFort > 0.5, 'le premier du classement gagne plus souvent contre le dernier', `${(100 * pctFort).toFixed(0)} %`);
 } else console.log('  · (le premier et le dernier ne se croisent pas après la journée 10)');
 const cA = conditions(pr, 'A');
-// Plausibles en moyenne sur cinq de tes matchs (un seul match peut opposer deux murs).
-const prs = [5, 15, 30, 45, 60].map(jj => { const mm = L2.calendrier.slice(jj).flat().find(x => x.A === toi || x.B === toi); return pronostic({ A: mm.A, B: mm.B, calendrier: L2.calendrier, jourMatch: L2.calendrier.findIndex(j => j.includes(mm)), jourRevele: jj, n: 100 }); });
-const moyA = prs.reduce((a, x) => a + x.butsA, 0) / prs.length, moyB = prs.reduce((a, x) => a + x.butsB, 0) / prs.length;
-ok(moyA > 1 && moyA < 6 && moyB > 1 && moyB < 6, 'des buts attendus plausibles (cinq matchs)', `${moyA.toFixed(2)} – ${moyB.toFixed(2)}`);
+ok(pr.butsA > 1 && pr.butsA < 6 && pr.butsB > 1 && pr.butsB < 6, 'des buts attendus plausibles', `${pr.butsA.toFixed(2)} – ${pr.butsB.toFixed(2)}`);
 ok(pr.prol / pr.n > 0.08 && pr.prol / pr.n < 0.35, 'une part de prolongations plausible', `${(100 * pr.prol / pr.n).toFixed(0)} %`);
 console.log(`  · conditions de A : gagne ${JSON.stringify(cA.gagne)} · perd ${JSON.stringify(cA.perd)}`);
 console.log(`  · chances des objectifs : ${Object.entries(ch).map(([k, x]) => `${k} ${(100 * x).toFixed(0)} %`).join(' · ')}`);

@@ -1818,8 +1818,12 @@ const BADGE_LIGUE = {
   F: { sniper: 0.102, passeur: 0.101, deuxsens: 0.079, power: 0.075, checker: 0.05, energie: 0.042, bagarreur: 0.066 },
   D: { defensif: 0.081, offensif: 0.131, manieur: 0.13, physique: 0.08, deuxsens: 0.089 },
 };
-/* L'effet d'un badge PLATINE, par joueur ; Or les trois quarts, Argent la moitié, Bronze le quart. */
-export const EFFET_ROLE = { checker: 0.08, deuxsens: 0.04, defensif: 0.08, physique: 0.04, bagarreur: 0.06, power: 0.08, energie: 0.4, sniper: 1.0, offensif: 0.16 };
+/* L'effet d'un badge PLATINE, par joueur ; Or les trois quarts, Argent la moitié, Bronze le quart.
+ * CE QUI NE SE VOIT PAS DANS LES STATS DE BASE (oct., JP : *c'est ce qui ne se voit pas juste dans les stats de
+ * base*) pèse le double : étouffer, intimider, frapper, durer ne sont ni des buts ni des passes, et le moteur ne les
+ * lit que dans le badge. Le sniper, le power forward et le défenseur offensif gardent le leur : leurs buts, leurs
+ * passes et leurs lancers sont déjà dans leur saison (la règle de la maîtrise, `check_parts`). */
+export const EFFET_ROLE = { checker: 0.16, deuxsens: 0.08, defensif: 0.16, physique: 0.08, bagarreur: 0.12, power: 0.08, energie: 0.6, sniper: 1.0, offensif: 0.16 };
 /* Passeur et manieur Platine : leur ligne joue son système comme si son fit valait BADGE_CHIMIE de plus (la chimie). */
 export const BADGE_CHIMIE = 12;
 export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
@@ -1861,6 +1865,7 @@ function badgesCalcules(p) {
   const [a, b] = Object.entries(pr).sort((x, y) => y[1] - x[1]);
   const second = b && b[1] >= BADGE_SECOND_MIN;
   let [p1, p2] = [palierDe(g, a[1]), second ? palierDe(g, b[1]) : 0];
+  const [n1, n2] = [p1, p2];
   if (monteBadge(p)) {
     const [x, y] = paliersEnPlus(p);
     if (!second) p1 = Math.min(4, p1 + x + y);
@@ -1870,8 +1875,8 @@ function badgesCalcules(p) {
       if (p2 > 4) { p1 = Math.min(4, p1 + p2 - 4); p2 = 4; }
     }
   }
-  const out = [{ cle: a[0], palier: p1, second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] }];
-  if (second) out.push({ cle: b[0], palier: p2, second: true, trait: raison(b[0]), ...PROFILS[g][b[0]] });
+  const out = [{ cle: a[0], palier: p1, gagne: p1 - n1, second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] }];
+  if (second) out.push({ cle: b[0], palier: p2, gagne: p2 - n2, second: true, trait: raison(b[0]), ...PROFILS[g][b[0]] });
   return out;
 }
 /* Les traits qui MONTENT un badge (ceux que `rolesBruts` ajoute au score) : la raison de son palier, « Sniper Or · Tir ». */
@@ -3997,8 +4002,10 @@ export const BADGES_G = {
 };
 const STYLE_DU_GARDIEN = { WALL: 'mur', ACROBAT: 'acrobate', HYBRID_G: 'constant', WORKHORSE: 'fer' };
 const SEUILS_PALIER_G = [0.008, 0.018, 0.027];
-export const EFFET_GARDIEN = { mur: 0.06, acrobate: 0.10, constant: 0.08 };
-const BADGE_LIGUE_G = { mur: 0.204, acrobate: 0.012, constant: 0.145 };
+export const EFFET_GARDIEN = { mur: 0.10, acrobate: 0.08, constant: 0.12 };
+/* Le Constant joue chaque soir, à cette part de son effet ; en séries, en entier. */
+const CONSTANT_SAISON = 0.5;
+export const BADGE_LIGUE_G = { mur: 0.204, acrobate: 0.012, constant: 0.145 };
 /* De fer se lit dans ce qui le fait : sa part des matchs de sa saison (les mêmes centiles, sur les 327 gardiens De fer). */
 const SEUILS_PALIER_FER = [0.77, 0.83, 0.90];
 export function badgeGardien(g) {
@@ -4010,26 +4017,32 @@ export function badgeGardien(g) {
   const brut = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
   // Monter un palier (V2.4) : la variante de sa carte (un, deux ou trois) et la carte d'entraînement.
   const palier = Math.min(4, brut + (VARIANTE_PALIERS_G[(g._carte && g._carte.rar) || 'commune'] || 0) + (g._palier || 0));
-  return { cle, palier, second: false, gardien: true, ...BADGES_G[cle] };
+  return { cle, palier, gagne: palier - brut, second: false, gardien: true, ...BADGES_G[cle] };
 }
-/* Ce que son badge fait à ses arrêts dans une situation (`mode` : FE, AN, DN ; `series`) : un facteur sur les buts accordés, centré sur la ligue.
+/* Ce que son badge fait à ses arrêts dans une situation (`mode` : FE, AN, DN ; `series` ; `charge` : les lancers attendus ce
+ * soir sur ceux d'un soir moyen) : un facteur sur les buts accordés, centré sur la ligue.
+ *   🏔️ Mur        les lancers à forces égales ;
+ *   🤸 Acrobate   les soirs chargés : à forces égales et à court d'un homme, en proportion des lancers qu'on lui promet ;
+ *   🧍 Constant   chaque soir, à CONSTANT_SAISON de son effet, et en entier en séries.
  * La molette `BADGE_G=0` le retire, pour la PREUVE seulement (`check_gardiens` : la même ligue, mêmes dés, avec et sans). */
 const BADGE_G_MESURE = Number(ENV_MESURE.BADGE_G ?? 1);
-function facteurBadgeGardien(g, mode, series) {
-  if (!BADGE_G_MESURE) return 1;
+function facteurBadgeGardien(g, mode, series, charge = 1) {
+  return BADGE_G_MESURE ? facteurDuBadgeG(g, mode, series, charge) : 1;
+}
+function facteurDuBadgeG(g, mode, series, charge) {
   const b = badgeGardien(g);
   const val = k => (b && b.cle === k ? b.palier / 4 : 0) - BADGE_LIGUE_G[k];
   let f = 1;
   if (mode === 'FE') f *= 1 - EFFET_GARDIEN.mur * val('mur');
-  // 'AN' : le club qui tire a l'avantage — le gardien tue une punition.
-  if (mode === 'AN') f *= 1 - EFFET_GARDIEN.acrobate * val('acrobate');
-  if (series) f *= 1 - EFFET_GARDIEN.constant * val('constant');
+  // 'AN' : le club qui tire a l'avantage — le gardien est à court d'un homme.
+  if (mode !== 'DN') f *= 1 - EFFET_GARDIEN.acrobate * val('acrobate') * charge;
+  f *= 1 - EFFET_GARDIEN.constant * val('constant') * (series ? 1 : CONSTANT_SAISON);
   return f;
 }
-/* Ce que son badge lui rend, NET de la ligue, dans le canal du badge (la fiche le dit) : une part des buts accordés en moins. */
-export function netBadgeGardien(g) {
-  const b = badgeGardien(g);
-  return b && EFFET_GARDIEN[b.cle] ? EFFET_GARDIEN[b.cle] * (b.palier / 4 - BADGE_LIGUE_G[b.cle]) : 0;
+/* Ce que son badge lui rend, NET de la ligue (la fiche le dit) : une part des buts accordés en moins dans une situation —
+ * son style, et le centrage des autres (chaque soir, un gardien qui n'est pas Constant paie un peu sous le Constant moyen). */
+export function netBadgeGardien(g, { mode = 'FE', series = false, charge = 1 } = {}) {
+  return badgeGardien(g) ? 1 - facteurDuBadgeG(g, mode, series, charge) : 0;
 }
 /* Les départs de suite qu'un gardien joue sans s'user : De fer en joue un de plus à l'Or, deux au Platine. */
 export const suiteLibreDe = g => { const b = badgeGardien(g); return GARDIEN_SUITE_LIBRE + (b && b.cle === 'fer' ? Math.max(0, b.palier - 2) : 0); };
@@ -4288,10 +4301,10 @@ export function profilMatch(team, lineup, adv = null) {
     x.qualite *= c('finition');
     // LES BADGES (voir PALIERS) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe — chaque joueur le sien.
     if (g === 'F') {
-      x.etouffe = 1 - EFFET_ROLE.checker * maitriseUnite(x.joueurs, 'checker') - EFFET_ROLE.deuxsens * maitriseUnite(x.joueurs, 'deuxsens');
-      x.intimide = 1 - EFFET_ROLE.bagarreur * maitriseUnite(x.joueurs, 'bagarreur');
+      x.etouffe = Math.max(0.5, 1 - EFFET_ROLE.checker * maitriseUnite(x.joueurs, 'checker') - EFFET_ROLE.deuxsens * maitriseUnite(x.joueurs, 'deuxsens'));
+      x.intimide = Math.max(0.5, 1 - EFFET_ROLE.bagarreur * maitriseUnite(x.joueurs, 'bagarreur'));
     } else {
-      x.etouffe = 1 - EFFET_ROLE.defensif * maitriseUnite(x.joueurs, 'defensif') - EFFET_ROLE.physique * maitriseUnite(x.joueurs, 'physique');
+      x.etouffe = Math.max(0.5, 1 - EFFET_ROLE.defensif * maitriseUnite(x.joueurs, 'defensif') - EFFET_ROLE.physique * maitriseUnite(x.joueurs, 'physique'));
       x.intimide = 1;
       x.poids *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
       x.poidsJ *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
@@ -4820,7 +4833,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   // et davantage en séries, où l'usure s'accumule de ronde en ronde (voir K_ROB).
   const intensite = series ? 1 + ROB_SERIES * ronde : heavy ? 1 : ROB_ORDINAIRE;
   const facteurRob = Math.exp(K_ROB * intensite * (robZ(off) - robZ(def)));
-  const fg = (gardien ? facteurGardien(gardien) * facteurBadgeGardien(gardien, st ? st.mode : 'FE', series) : (def.fgDefaut ?? 1.20))
+  // La charge du soir (l'Acrobate) : les lancers qu'on promet à ce gardien, sur ceux d'un soir moyen.
+  const charge = borne(attenduBase / LANCERS_BASE, 0.5, 2);
+  const fg = (gardien ? facteurGardien(gardien) * facteurBadgeGardien(gardien, st ? st.mode : 'FE', series, charge) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series) * situDe(gardien, 'gardien');
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
   const traits = (def.traitDef ?? 1) * (off.traitAtt ?? 1)
@@ -6313,10 +6328,32 @@ export function matchsEntre(t, a, b) {
   return js.filter(j => j >= a && j < b).length;
 }
 
+/* Un joueur au premier matin d'une ligue : ses matchs, ses jambes, tout ce qu'une saison jouée lui a posé. */
+function remettreAZero(p) {
+  initSimStats(p);
+  p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
+  delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
+  delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
+}
+
 export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
+  /*
+   * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
+   * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
+   * Aucun dé : la même ligue rebâtie se réaligne pareil.
+   *
+   * LES MÊMES JOUEURS, DANS LE MÊME ORDRE (V4.4). `trioAuMieux` grimpe d'échange en échange depuis l'ordre qu'on lui
+   * donne : une reprise en mémoire lui repassait l'alignement qu'il avait déjà rendu, il en rendait parfois un autre
+   * (34 clubs sur 220), et TOUT le passé se rejouait autrement — le gros match changeait de pointage entre le
+   * deuxième entracte et la fin (JP : *les gros matchs ont pas le bon score*). Il part maintenant des joueurs triés
+   * par clé, remis à zéro d'abord (il lit leurs jambes et leur saison) : le même effectif donne le même alignement,
+   * d'où qu'il vienne (check_graine).
+   */
+  for (const t of teams) if (!t.isPlayer) for (const p of Object.values(t.roster)) if (p) remettreAZero(p);
+  for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean).sort((a, b) => (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)));
   const L = {
     teams, games, graine, decisions,
     // LES DÉS DE CHAQUE JOURNÉE (1.0, oct.), { matins, soirs }, voir `deDuJour`. Absents (un script de mesure), la graine décide de tout.
@@ -6388,10 +6425,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
        * reprise, et `effetCarte` lit `simGP` (la recrue qui progresse après 41 matchs). Deux reprises
        * de la même partie lui donnaient le bonus à des soirs différents — le passé bougeait (smoke, graine 7).
        */
-      initSimStats(p);
-      p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
-      delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
-      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
+      remettreAZero(p);
     }
     /*
      * LA FORCE APRÈS LA REMISE À ZÉRO (1.0, oct.). Elle se mesurait au début
@@ -6400,19 +6434,6 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
      * même force — ni le même style de club — que sa reprise, et le passé
      * changeait au rafraîchissement (le smoke, graine 3).
      */
-    /*
-     * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
-     * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
-     * Aucun dé : la même ligue rebâtie se réaligne pareil.
-     *
-     * LES MÊMES JOUEURS, DANS LE MÊME ORDRE (V4.4). `trioAuMieux` grimpe d'échange en échange depuis l'ordre qu'on lui
-     * donne : une reprise en mémoire lui repassait l'alignement qu'il avait déjà rendu, il en rendait parfois un autre
-     * (34 clubs sur 220), et TOUT le passé se rejouait autrement — le gros match changeait de pointage entre le
-     * deuxième entracte et la fin (JP : *les gros matchs ont pas le bon score*). Il part maintenant des joueurs triés
-     * par clé, APRÈS la remise à zéro de leurs jambes et de leur saison (il les lit) : le même effectif donne le même
-     * alignement, d'où qu'il vienne (check_graine).
-     */
-    for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean).sort((a, b) => (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)));
     for (const t of teams) t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
     // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
     poserStyles(teams);
@@ -6950,7 +6971,48 @@ function siDe(p, champ) {
 function mutDe(p, champ) {
   const m = p && p._mut;
   const a = p && p._amel && p._amel[champ];
-  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ) * siDe(p, champ);
+  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ) * siDe(p, champ) * effetDesPaliersGagnes(p, champ);
+}
+
+/*
+ * UN PALIER GAGNÉ REND DU TALENT (oct.). JP : *je comprends qu'un gardien bronze avec ,890 va goaler mieux si or ?
+ * C'est pas juste décoratif ?* — puis *c'est cave de pas faire une différence. Même chose pour toutes les positions.*
+ * Mesuré avant : Bronze → Or valait 0,6 but sur une saison (0,1 V) à un patineur, et rien du tout en saison à un gardien
+ * Constant ou De fer. Le badge NATUREL reste ce qu'il est : il vient des vraies stats du joueur, qui portent déjà son
+ * talent (le compter deux fois gonflerait la ligue, la règle du sniper). Le palier GAGNÉ — la variante de sa carte,
+ * la carte d'entraînement, le mentor de trio — est du talent neuf : il passe dans le canal de son badge, un
+ * canal que le moteur joue déjà (aucune mécanique neuve), à `EFFET_PALIER` par palier (le second badge, la moitié).
+ * Calibré pour qu'un palier gagné vaille ≈ 3 buts d'écart sur une saison à un patineur, ≈ 6 à un gardien partant :
+ * Bronze → Or, une victoire ou deux (`check_paliers`).
+ */
+export const CANAL_DU_BADGE = {
+  sniper: 'finition', power: 'finition', passeur: 'creation', manieur: 'creation', offensif: 'lancers', energie: 'lancers',
+  checker: 'defense', deuxsens: 'defense', defensif: 'defense', physique: 'defense', bagarreur: 'defense',
+};
+/* Par palier gagné : un facteur sur le canal (défense et arrêts : sur les buts accordés, donc en moins). */
+export const EFFET_PALIER = { finition: 0.14, creation: 0.45, lancers: 0.16, defense: 0.07, arrets: 0.02 };
+const EFFET_PALIER_MESURE = Number(ENV_MESURE.EFFET_PALIER ?? 1);
+const PALIERS_GAGNES = new WeakMap();
+/* Les paliers gagnés d'un joueur, par canal (la fiche les dit) : { finition: 1, defense: 0,5… }. */
+export function paliersGagnes(p) {
+  if (!monteBadge(p)) return {};
+  const sig = `${(p._carte && p._carte.rar) || ''}|${p._palier || 0}|${p._palierTrio || 0}`;
+  const vu = PALIERS_GAGNES.get(p);
+  if (vu && vu.sig === sig && vu.mut === p._mutProfils) return vu.out;
+  const out = {};
+  for (const b of badgesDe(p)) {
+    const canal = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle];
+    if (canal && b.gagne > 0) out[canal] = (out[canal] || 0) + b.gagne * (b.second ? 0.5 : 1);
+  }
+  PALIERS_GAGNES.set(p, { sig, mut: p._mutProfils, out });
+  return out;
+}
+function effetDesPaliersGagnes(p, champ) {
+  if (!EFFET_PALIER_MESURE || !EFFET_PALIER[champ] || !monteBadge(p) || neutrePour(p, 'badges')) return 1;
+  const n = paliersGagnes(p)[champ];
+  if (!n) return 1;
+  const k = EFFET_PALIER[champ] * EFFET_PALIER_MESURE * n;
+  return champ === 'defense' || champ === 'arrets' ? Math.max(0.5, 1 - k) : 1 + k;
 }
 
 /*

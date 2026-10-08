@@ -28,7 +28,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, SLOTS, getPlayerKey,
-  jambesGardien, usureGardien, facteurGardienDe, badgeGardien, netBadgeGardien, suiteLibreDe, coachDuJoueur, BADGES_G, EFFET_GARDIEN,
+  jambesGardien, usureGardien, facteurGardienDe, badgeGardien, netBadgeGardien, suiteLibreDe, coachDuJoueur, BADGES_G, EFFET_GARDIEN, BADGE_LIGUE_G,
+  attenduDeCote, LANCERS_BASE,
   GARDIEN_SUITE_LIBRE } from '../js/sim.js';
 import { lectureDuMatch } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -74,7 +75,9 @@ function lectureBadges() {
     const a = { ...g }, b = { ...g, n: `${g.n} (2)` };
     registerHiddenRatings(a); registerHiddenRatings(b);
     t.roster[i0] = a; t.roster[i1] = b;
-    return { n: g.n, s: g.s, x: lectureDuMatch(t).p.contre[mode] };
+    const lu = lectureDuMatch(t);
+    // La charge du soir (l'Acrobate) : les lancers promis à ce gardien, comme `jouerCote` la lit.
+    return { n: g.n, s: g.s, x: lu.p.contre[mode], charge: Math.min(2, Math.max(0.5, attenduDeCote(lu.B, lu.A) / LANCERS_BASE)) };
   };
   return { mur: lu(platine('mur'), 'FE'), acrobate: lu(platine('acrobate'), 'AN') };
 }
@@ -233,7 +236,7 @@ function saison(teams, graine, decisions) {
   for (const k of Object.keys(EFFET_GARDIEN)) {
     const avec = bs.filter(([, b]) => b && b.cle === k);
     if (!avec.length) continue;
-    const [g0, b0] = avec[0], L = b0.palier / 4 - netBadgeGardien(g0) / EFFET_GARDIEN[k];
+    const L = BADGE_LIGUE_G[k];
     const tot = bs.reduce((a, [g]) => a + g.gp, 0), m = avec.reduce((a, [g, b]) => a + g.gp * b.palier / 4, 0) / tot;
     borne(`${BADGES_G[k].nom} : centré sur la ligue (badge moyen ${m.toFixed(3)}, retranché ${L.toFixed(3)})`, m - L, -0.02, 0.02);
   }
@@ -246,8 +249,8 @@ function saison(teams, graine, decisions) {
   // La saison le LIT : la même lecture du moteur, avec et sans le badge (la molette BADGE_G, dans un fils).
   const avecB = lectureBadges();
   const sansB = JSON.parse(String(execFileSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, GARDIENS_FILS: '1', BADGE_G: '0' }, maxBuffer: 1 << 24 })));
-  for (const [k, mode] of [['mur', 'à forces égales'], ['acrobate', 'en désavantage']]) {
-    const r = avecB[k].x / sansB[k].x, attendu = 1 - netBadgeGardien(gs.find(g => g.n === avecB[k].n && g.s === avecB[k].s));
+  for (const [k, mode, m] of [['mur', 'à forces égales', 'FE'], ['acrobate', 'en désavantage', 'AN']]) {
+    const r = avecB[k].x / sansB[k].x, attendu = 1 - netBadgeGardien(gs.find(g => g.n === avecB[k].n && g.s === avecB[k].s), { mode: m, charge: avecB[k].charge });
     console.log(`  ${avecB[k].n} (${avecB[k].s}), ${BADGES_G[k].nom} Platine : un lancer ${mode} entre ×${r.toFixed(4)} (le badge annonce ×${attendu.toFixed(4)})`);
     exiger(`la saison lit le badge ${BADGES_G[k].nom} : ce que la fiche annonce, au dix-millième`, Math.abs(r - attendu) < 1e-4, `×${r.toFixed(4)} contre ×${attendu.toFixed(4)}`);
   }
