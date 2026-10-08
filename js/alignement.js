@@ -256,6 +256,11 @@ function slotEl(s) {
     const ligneStats = G.banc ? ficheDuJour(p) : surTable() ? slotAxesTexte(p) : `${main} · ${secondary}`;
     const blesseTag = G.banc && G.banc.blesses.has(p)
       ? `<span class="tag tag-pen" title="Blessé : il lui reste ${G.banc.blesses.get(p)} match${G.banc.blesses.get(p) > 1 ? 's' : ''}. Un réserviste prend sa place le soir du match.">🩹 ${G.banc.blesses.get(p)}</span>` : '';
+    // LA LANCÉE (V3.6, Rogue) : son état au prochain match, en un mot ; le détail est dans les règles.
+    const lancee = G.banc && G.banc.lancees ? G.banc.lancees.get(p) : null;
+    const lanceeTag = !lancee ? '' : lancee === 'doute'
+      ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
+      : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄️ Vive' : 'Lancée'}</span>`;
     // Le −N est celui du jour (J1-J) : il fond en jouant à cette case, et la case le dit.
     const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position aujourd'hui : ${esc(motPenalite(adapt))}${adapt.matchs ? ` — elle était de −${adapt.base} au premier match et fond en jouant ici` : ''}">${adapt.matchs ? `−${String(pen).replace('.', ',')}` : `−${pen}`}</span>` : '';
     const ecart = zoneEcart(p, s);
@@ -309,7 +314,7 @@ function slotEl(s) {
         <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
         <button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button>
         ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
-        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag, main })}
+        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag, main })}
       </div>`;
     // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*). Le reste de
     // la case garde son geste : la toucher la choisit pour déplacer ou permuter.

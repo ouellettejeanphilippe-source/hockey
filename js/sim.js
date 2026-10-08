@@ -3432,6 +3432,13 @@ function lanceesDeLigne(lineup) {
   }
   return etat;
 }
+/* La lancée de chacun au prochain match d'un club Rogue, sur l'alignement de ce soir (le banc la montre) ; vide au 82-0. */
+export function lanceesDuSoir(team, lineup) {
+  const out = new Map();
+  if (!team || !team.courbe) return out;
+  for (const [p, c] of lanceesDeLigne(lineup)) if (c) out.set(p, c);
+  return out;
+}
 /* Sur sa lancée, vive ou non. */
 const estLancee = c => c === 'lancee' || c === 'vive';
 function poserLancees(T, Lx) {

@@ -767,6 +767,9 @@ input[type="range"] { accent-color: var(--or); }
 .tag-fragile { color: var(--mauvais); }
 .tag-pen { color: var(--mauvais); }
 .tag-zone-up { color: var(--attention); }
+/* La lancée (V3.6) : le feu en orange, le doute en gris. */
+.tag-lancee { color: var(--attention); font-weight: 800; }
+.tag-doute { color: var(--encre-3); }
 .tag-mut { color: var(--violet); }
 /* La zone est la seule capsule : quatre paliers, une échelle qui se compare d'une carte à l'autre. */
 .tag-zone { padding: 1px 6px; border-radius: var(--r-1); color: var(--sur-choisi); background: var(--zone-clair); }
@@ -4718,21 +4721,26 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
   position: relative; display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; padding: var(--esp-3);
   border: 1px solid var(--filet); border-left: 3px solid var(--bq-a); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); color: var(--encre);
 }
-.bq-patron { --bq-a: var(--or); }
-.bq-evenement { --bq-a: var(--attention); }
-.bq-joueur { --bq-a: var(--bleu); }
-.bq-consommable { --bq-a: var(--bon); }
-.bq-plafond { --bq-a: var(--bon); }
+/* La couleur de sa famille, la même que sa carte en grand (style.css, « LES CARTES DE LA BANQUE »). */
+.bq-patron { --bq-a: var(--fam-patron); }
+.bq-evenement { --bq-a: var(--fam-evenement); }
+.bq-joueur { --bq-a: var(--fam-joueur); }
+.bq-consommable { --bq-a: var(--fam-consommable); }
+.bq-plafond { --bq-a: var(--fam-plafond); }
 .bq-match { --bq-a: var(--live); }
-.bq-saison { --bq-a: var(--violet); }
+.bq-saison { --bq-a: var(--fam-saison); }
+/* Le métal de sa rareté en filet au haut de la carte : le chrome, le prisme, l'or. */
+.bq-carte:is(.tc-peu, .tc-rare, .tc-legendaire)::before { content: ''; position: absolute; top: -1px; left: var(--esp-2); right: var(--esp-2); height: 3px; border-radius: 0 0 var(--r-1) var(--r-1); background: var(--metal-argent); }
+.bq-carte.tc-rare::before { background: linear-gradient(90deg, var(--prisme)); }
 .bq-carte.tc-rare { border-color: var(--encre-2); border-left-color: var(--bq-a); }
-.bq-carte.tc-legendaire { border-color: var(--or); border-left-color: var(--bq-a); }
+.bq-carte.tc-legendaire::before { background: linear-gradient(90deg, var(--or-stops)); }
+.bq-carte.tc-legendaire { border-color: var(--or); border-left-color: var(--bq-a); box-shadow: var(--relief), 0 0 18px -8px var(--or-lueur); }
 .bq-carte.pas-a-moi { --bq-a: var(--encre-3); opacity: 0.4; }
 .bq-tete { display: flex; align-items: center; gap: var(--esp-2); }
 .bq-ico { flex: none; font-size: var(--t-4); line-height: 1; color: var(--bq-a); }
 .bq-nom { flex: 1; min-width: 0; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
 .bq-compte { flex: none; font: 800 var(--t-2)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
-.bq-sous { display: flex; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.bq-sous { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--esp-2); min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .bq-coach { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .bq-regle { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .bq-cache { font-size: var(--t-1); color: var(--encre-3); font-style: italic; }

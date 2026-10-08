@@ -180,7 +180,8 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * règle tout comme un joueur pressé : le sommaire se ferme, un choix prend
  * sa première option, un message bloquant sa réponse par défaut.
  */
-const des = [], evenementsDe = [];   // les dés lancés pendant la run, et les événements qui les ont demandés
+const des = [], evenementsDe = [];
+const captures = { main: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 async function regler() {
   for (let i = 0; i < 30; i++) {
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau ».
@@ -193,7 +194,11 @@ async function regler() {
       await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {});
       continue;
     }
-    if (await page.$('#choixModal:not([hidden]) .main-jouer')) { await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue; }
+    if (await page.$('#choixModal:not([hidden]) .main-jouer')) {
+      // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
+      if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
+      await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue;
+    }
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
