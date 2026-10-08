@@ -30,7 +30,7 @@ import {
   ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
   PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
-  EFFET_ROLE, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
+  EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
 } from '../js/sim.js';
 import { PATRONS } from '../js/banque.js';
@@ -291,6 +291,7 @@ const MOTS_RESERVES = [
     [`(usure −${nombre(EFFET_ROLE.energie * 100)} %)`, 'le plombier'],
     [`(${nombre(1 + EFFET_ROLE.sniper)} fois plus)`, 'le sniper'],
     [`(sa paire +${nombre(EFFET_ROLE.offensif * 100)} %)`, 'le défenseur offensif'],
+    [`finition +${nombre(EFFET_PALIER.finition * 100)} %, jeu +${nombre(EFFET_PALIER.creation * 100)} %, lancers +${nombre(EFFET_PALIER.lancers * 100)} %, lancers adverses −${nombre(EFFET_PALIER.defense * 100)} %, buts accordés au gardien −${nombre(EFFET_PALIER.arrets * 100)} %`, 'un palier gagné'],
     [`(comme ${nombre(BADGE_CHIMIE)} points de fit)`, 'le passeur et le manieur'],
     [`Chaque coup reçu coûte ${nombre(COUP_JAMBES)} jambes à un joueur moyen, de ${nombre(COUP_JAMBES * (1 - COUP_ABSORBE))} au plus costaud 🪨 à ${nombre(COUP_JAMBES * (1 + COUP_ABSORBE))} au plus léger 🪶 : la fiche dit le sien.`, 'les coups'],
     // Le jeu physique en événements (1.0).

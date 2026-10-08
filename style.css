@@ -2096,16 +2096,18 @@ button.marche-tuile:active { transform: scale(0.98); }
 .pcard-full > .modal-body { overflow: visible; padding: var(--esp-4) var(--esp-3) var(--esp-3); }
 .pcard-full-club { display: inline-flex; align-items: center; gap: var(--esp-1); margin-left: var(--esp-2); color: var(--encre); text-transform: none; letter-spacing: 0; font-weight: 600; }
 
-/* ---- La carte, recto et verso empilés dans la même case : elle garde la hauteur de la plus haute face ---- */
+/* ---- La carte, recto et verso empilés dans la même case : le carton 5:7 du recto en décide ---- */
 .fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: min(400px, 52dvh * 5 / 7); margin: var(--esp-3) auto 0; }
-.fc-faces { display: grid; }
+.fc-faces { position: relative; display: grid; }
 .fc-faces > .fc-face { grid-area: 1 / 1; }
+/* Le verso prend la case du carton, 5:7, et défile en dedans s'il déborde : la carte a la même taille des deux côtés. */
+.fc-faces > .fc-verso { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; border-radius: 4.5% / 3.2%; }
 .fc-face { position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); touch-action: pan-y; cursor: pointer; }
 .fc-face > * { flex-shrink: 0; }
 .fc-face.fc-cachee { visibility: hidden; pointer-events: none; }
 
-/* ---- La plaque du recto : sa vraie saison en six cellules à plat, le salaire, « Verso » en contour ---- */
-.fc-plaque { --cj-encre-2: var(--encre-3); --cj-prix: var(--or); flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-1); color: var(--encre); }
+/* ---- La plaque sous la carte : sa vraie saison en six cellules à plat, le salaire, « ↻ » en contour ---- */
+.fc-plaque { --cj-encre-2: var(--encre-3); --cj-prix: var(--or); display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-3); color: var(--encre); }
 .fc-legende, .fc-sec { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-encre-2); }
 .fc-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--filet); border-bottom: 1px solid var(--filet); }
 .fc-stat { display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) 2px; border-left: 1px solid var(--filet); }
