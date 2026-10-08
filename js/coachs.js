@@ -205,6 +205,8 @@ export function coachDesCanaux(c = {}) {
     if (M.ombre) plus('tortue', pc(1 - M.ombre, 'defense') / 3);
     plus('etoiles', pc((M.creation || 1) - 1, 'finition') + (M.lustre ? 2 : 0));
     plus('profondeur', (M.cran || M.partout || M.enBas) ? 2.5 : 0);
+    // Le feu qui s'entretient (V3.6) : la lancée, c'est de la finition.
+    plus('rapaces', M.feu ? 2 : 0);
     plus('souffle', M.physio ? 2 : 0);
     const pr = M.profils || {};
     plus('rhinos', (Math.max(0, pr.power || 0) + Math.max(0, pr.physique || 0)) / 12);

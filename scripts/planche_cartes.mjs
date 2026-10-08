@@ -14,6 +14,7 @@
  *   cartes-mini.png              la carte mini des choix (`carteMiniHtml`) ;
  *   cartes-verso.png             le dos de la fiche, cinq séries ;
  *   cartes-match.png             les cartes de match, par genre (js/combat.js) ;
+ *   cartes-banque.png            les cartes de la banque, par catégorie (js/banque.js) ;
  *   cartes-actions.png           avec --actions : les séries modernes avec une
  *                                photo d'action (<dossier>/<id>.webp, au format
  *                                5:7, servie sous img/actions/) ;
@@ -56,10 +57,12 @@ async function demarrer(largeur, hauteur) {
   await page.click('.menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
   await page.waitForSelector('#npGo', { timeout: 30000 });
   await page.click('#npGo');
-  await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 20000 });
-  await page.evaluate(() => document.querySelector('#choixModal .tc').click());
+  // La roulette peut s'ouvrir sur un choix (l'identité de départ) ou droit au vestiaire.
+  if (await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 4000 }).catch(() => null)) await page.evaluate(() => document.querySelector('#choixModal .tc').click());
   await page.waitForSelector('#pool .pcard', { timeout: 30000 });
   await page.waitForTimeout(600);
+  // Le 82-0 n'a aucune variante (`varianteJoueur`) : la planche montre les finitions du Rogue.
+  await page.evaluate(() => { window.cap82.G.bonus = 'ROGUE'; });
   return page;
 }
 
@@ -187,6 +190,23 @@ await planche(page, 'match', 6, 212, async p => {
   const d = document.createElement('div');
   d.innerHTML = carteHtml({ cle: 'x', rarete: 'peu', ico: '🧪', nomHtml: 'Une carte sans genre', typeHtml: 'Amélioration · au joueur de ton choix', texteHtml: 'Une modif, un événement, une identité : son icône sur un médaillon.', pucesHtml: puces([{ txt: 'Précision +3 %', bon: true }, { txt: 'Jambes −5', bon: false }]) });
   p.appendChild(d.firstElementChild);
+});
+
+// 6 bis. Les cartes de la banque (V3) : une rangée par catégorie, de la commune à la légendaire, dans leur costume.
+await planche(page, 'banque', 6, 212, async p => {
+  const { BANQUE, reglesDe, CATEGORIES } = await import('/js/banque.js');
+  const { puces } = await import('/js/gerant.js');
+  const { carteHtml } = await import('/js/cartes.js');
+  const esc = t => String(t).replace(/[&<>\"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '\"': '&quot;' }[c]));
+  for (const cat of ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'saison']) {
+    const ids = Object.keys(BANQUE).filter(id => BANQUE[id].cat === cat);
+    const choix = ['commune', 'peu', 'rare', 'legendaire'].flatMap(r => ids.filter(id => BANQUE[id].rarete === r).slice(0, 2)).slice(0, 6);
+    for (const id of choix) {
+      const c = BANQUE[id], d = document.createElement('div');
+      d.innerHTML = carteHtml({ cle: id, rarete: c.rarete, ico: c.ico, nomHtml: esc(c.nom), typeHtml: esc(CATEGORIES[c.cat].un), texteHtml: esc(c.texte || ''), pucesHtml: puces(reglesDe(id)), famille: c.cat });
+      p.appendChild(d.firstElementChild);
+    }
+  }
 });
 
 // 7. Les photos d'action, si on en a.

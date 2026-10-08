@@ -108,6 +108,18 @@ function victoiresEntre(de, a) {
   }
   return n;
 }
+/* Les soirs de lancée de ton club entre deux journées (V3.6, le vendeur de chandails) : un par joueur, chaque soir. */
+function lanceesEntre(de, a) {
+  const L = G.ligue;
+  if (!L || !Array.isArray(L.calendrier)) return 0;
+  let n = 0;
+  for (const jour of L.calendrier.slice(de, a)) for (const m of jour) {
+    const f = m.feuille;
+    if (!f || !f.lancees || (m.A !== L.you && m.B !== L.you)) continue;
+    n += (f.lancees[m.A === L.you ? 'A' : 'B'] || []).length;
+  }
+  return n;
+}
 export function jetonsRogue(j = G.journee || 0) {
   const L = G.ligue;
   const decs = decisionsDeLaPartie();
@@ -115,7 +127,9 @@ export function jetonsRogue(j = G.journee || 0) {
   const depenses = decs.reduce((a, d) => a + ((d.achat || d.rogue || {}).prix || 0) + ((d.plafond || {}).cout || 0) + ((d.ballottage || {}).cout || 0), 0);
   // Un doublon signé (1.0, oct.) n'est pas revendu : sa vente, comptée à l'ouverture, se retire (`annuleVente`).
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0) - (d.annuleVente || 0), 0);
-  const direction = modificateurs(decs).jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0);
+  const mods = modificateurs(decs);
+  const direction = mods.jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0)
+    + mods.jetonsLancee.reduce((a, x) => a + x.n * lanceesEntre(x.depuis, j), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
   const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
@@ -381,7 +395,7 @@ function optionDeBanque(id) {
   if (c.cat === 'match') return optionDeCarteMatch(c.cle);
   const etiquette = etiquetteBanque(id);
   return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
-    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), ...(etiquette ? { etiquette } : {}) };
+    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
 }
 /*
  * L'OUVERTURE D'UN PACK DE CARTES : tout va dans l'inventaire. En Rogue, le

@@ -314,7 +314,7 @@ export function choisirCarteAPoser(p, rouvrir) {
       const c = BANQUE[id];
       const etiquette = etiquetteBanque(id);
       return { cle: pile[0].ref, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
-        type: `${CATEGORIES[c.cat].un}${pile.length > 1 ? ` · ×${pile.length}` : ''}`, texte: c.texte, mots: reglesDe(id), motChoix: 'Choisir', ...(etiquette ? { etiquette } : {}) };
+        type: `${CATEGORIES[c.cat].un}${pile.length > 1 ? ` · ×${pile.length}` : ''}`, texte: c.texte, mots: reglesDe(id, { joueur: p }), famille: c.cat, motChoix: 'Choisir', ...(etiquette ? { etiquette } : {}) };
     }),
     onChoix: ref => { const x = offre.find(o => o.pile[0].ref === ref); if (x) rouvrir({ src: 'partie', ref, id: x.id }); },
     onFerme: () => rouvrir(null),
