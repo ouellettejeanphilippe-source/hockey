@@ -49,6 +49,7 @@ js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lu
 js/direct.js          un match en direct, rejoué depuis sa feuille
 js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match
+js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
 js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit pour ton club (« ≈ +1,2 tir par match »), jamais en « % » ; partagé navigateur + Node
@@ -114,6 +115,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - La ligue se joue au jour le jour : rien n'est simulé d'avance, une décision s'applique au jour dit, et les journées d'avant ne bougent pas — `check_graine`, `check_ballottage`.
 - Une saison en cours se REJOUE plutôt qu'elle ne se relit ; les séries aussi.
 - Les égalités de la feuille de match tiennent — `check_feuilles` (sur table : `check_table`).
+- Ce qui a fait le match se dit cause par cause : une carte, un badge, un système, le gardien n'est dit que si, retiré seul, il changeait le lancer, avec le même dé — `check_causes`.
 - La production se répartit comme la vraie saison l'a répartie — `check_parts`.
 - Le direct, le sommaire et le bilan disent les mêmes buts, au caractère près — smoke.
 - Aucune cote neuve, aucune mécanique neuve : une carte, un trait, un effet passent par les canaux existants — `check_combat` (chaque carte jouable est lue par le moteur), `check_traits`.

@@ -2058,3 +2058,14 @@ JP : *je comprends qu'un gardien bronze avec un pourcentage d'arrêt de 890 va g
 ## L'alignement de l'écran est celui du moteur (8 oct. 2026)
 
 JP : *des fois, le joueur pigé d'un pack s'ajoute pas*. En pleine saison, `G.roster` est l'objet même que le moteur aligne (`appliquerAlignement` le réécrit en place). « Aligner au mieux » lui substituait un objet neuf. Une signature suivante entrait donc dans l'alignement du moteur et pas dans celui de l'écran ; la photo du banc d'après le retirait du moteur aussi. Règle : on ne remplace jamais `G.roster` pendant une saison, on le réécrit en place. `essai_packs` le garde.
+
+## Ce qui a fait le match, cause par cause (8 oct. 2026)
+
+JP : *ya moyen de savoir quand le proc d'un bonus sur carte a fait la différence* ; puis *tout ce qui a influencé le jeu. On dirait que tu comprends pas que le joueur doit comprendre ce qui se passe et avoir un impact.* Le sommaire disait en toutes lettres : « Ce que le match a donné, pas ce que chaque carte a fait. »
+
+**Décidé : le même dé, moins une cause.** La chance d'un lancer est un produit de facteurs ; le but tombe si son dé passe sous elle. `causesDuLancer` (js/sim.js) nomme chaque facteur — la carte posée, le badge monté, l'accident de saison, le système et la chimie de la ligne, l'action spéciale, le système en défense, les badges qui étouffent, le gardien (contre le gardien moyen), son badge, ses jambes, les défenseurs, le jeu des coéquipiers, les cartes et décisions du club, le plafond du jeu, l'élan, la robustesse, la chance du soir — et le retire seul : si le dé tombe entre la chance avec et sans lui, c'est lui qui a décidé (un but qu'il a fait entrer, un arrêt qu'il a fait). Les groupes à toi (tes cartes, tes systèmes, tes badges, ton gardien, les jambes) se retirent aussi ensemble : « Sans tes systèmes, c'était 1-3 au lieu de 2-3 ». Rien n'est estimé, aucun dé de plus (`check_causes` : les mêmes pointages avec et sans la lecture), et seuls les matchs de ton club la paient.
+
+**À l'écran.** Le sommaire a sa section « Ce qui a fait la différence » ; chaque but du sommaire et du direct dit sa cause la plus lourde (« Décisif : le badge monté de Penner l'a fait entrer ») ; le bilan a un chapitre « Ton impact » : l'écart de buts de chaque groupe et les résultats qu'il a fait tourner.
+
+**Séparé en chemin.** Un accident de saison (« Confiance ébranlée ») n'est pas une carte à toi : il a sa cause. Le plafond de finition du jeu, qui retient les clubs trop forts, n'est pas une carte non plus. La prolongation (`butProlongation`, sa propre formule) ne porte pas de causes.
+

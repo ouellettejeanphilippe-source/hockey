@@ -26,6 +26,7 @@
 import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
+import { causeDuBut } from './causes.js';
 import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
 import { ord, ordF, cap, nom, varsEquipe } from './util.js';
@@ -479,7 +480,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
         r: tempsRestant(b.instant), tard: b.instant >= 56 && b.instant < 60, ot: b.instant >= 60,
       });
       ligne(`but but-eq ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
-        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span></span>`, couleurs(e.cote));
+        <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span>${(c => (c ? ` <span class="live-cause">Décisif : ${ctx.esc(c)}.</span>` : ''))(causeDuBut(b))}</span>`, couleurs(e.cote));
       majBoard();
       son('but');
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
