@@ -371,6 +371,26 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
 }
 
 /*
+ * (5 bis) LA REPRISE EN MÉMOIRE (V4.4). JP : *les gros matchs ont pas le bon score*. Une décision datée d'un soir
+ * déjà joué (l'entracte d'un gros match) recrée la ligue sur les clubs de l'IA DÉJÀ alignés au mieux par la
+ * première (`G.ligue.adversaires`) ; `trioAuMieux` en rendait parfois un autre alignement, et tout le passé
+ * changeait — le pointage montré au deuxième entracte n'était plus celui du match. Le même effectif, d'où qu'il
+ * vienne, doit donner le même passé.
+ */
+{
+  const LA = creerLigue(equipesNeuves(), 82, { graine: 'memoire' });
+  const premier = texteDe(jouerJusqua(LA, 20).calendrier.slice(0, 20));
+  jouerJusqua(LA, 45);
+  // Les joueurs sortent d'une saison jouée plus loin : des jambes usées, des matchs au compteur.
+  for (const t of LA.teams) for (const p of Object.values(t.roster)) if (p) p.energie = 35;
+  const eqB = LA.teams.map(t => { const n = createTeam(t.name, t.tag, { ...t.roster }, { season: t.season }); n.isPlayer = t.isPlayer; return n; });
+  const LB = creerLigue(eqB, 82, { graine: 'memoire' });
+  jouerJusqua(LB, 20);
+  dire(texteDe(LB.calendrier.slice(0, 20)) === premier,
+    'une reprise sur les clubs de l\'IA déjà alignés au mieux, sortis d\'une saison jouée, rejoue les 20 journées, au but près');
+}
+
+/*
  * (6) LES DÉS DU JOUR (1.0, oct.). JP : *le principe de seed, ça suce*. La
  * graine n'écrit plus l'avenir : chaque journée tire ses dés à son matin
  * (`deDuJour`), et la sauvegarde les garde. Avec les dés gardés, le passé se

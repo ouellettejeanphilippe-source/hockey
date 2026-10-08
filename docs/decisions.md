@@ -2034,3 +2034,7 @@ JP : *or pis bronze sont trop similaires, surtout page alignement*. Le palier Or
 
 JP : *encore des doublons de packs achetés*. Au Marché, la boutique vit dans une page, et sa fiche de pack restait ouverte après « Acheter » ; le numéro d'achat (la graine du tirage, la décision `k:n`) se prenait à l'ouverture de la boutique, et un pack de joueurs charge ses saisons avant d'écrire son achat. Un second toucher rouvrait donc le même pack : le même tirage, montré deux fois, et une décision qui remplaçait l'autre. Décidé : la fiche part avec l'achat ; le numéro se prend au clic et compte les achats encore en vol ; un seul tirage à la fois ; les jetons se recomptent au clic. Preuve : `scripts/essai_achat.mjs`, les saisons ralenties à quatre secondes comme sur un téléphone (l'ancien code y échoue deux fois).
 
+
+## La reprise rejoue le même passé, clubs de l'IA compris (8 oct. 2026)
+
+Un choix d'entracte porte sur un soir déjà joué pour être montré, donc la ligue se reconstruit du jour 0. Les clubs de l'IA s'y réalignaient (`trioAuMieux`) en partant de l'alignement déjà placé et des jambes de la saison jouée : 34 clubs sur 220 en sortaient avec un autre alignement. Le passé changeait donc, et le gros match aussi (1–1 à l'entracte, 0–2 au final). Ils s'alignent maintenant après la remise à zéro, depuis leurs joueurs triés par clé. On a écarté l'idée de sauver l'alignement de l'IA dans la partie : la sauvegarde ne garde que des clés, et le même effectif doit donner le même alignement, d'où qu'il vienne. `check_graine` (5 bis).

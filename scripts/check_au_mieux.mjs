@@ -16,7 +16,7 @@
  *   5. et quand un des siens manque, tout le monde monte : son centre du 1er trio blessé, la case prend le meilleur
  *      qui y convient (un joueur d'une ligne plus bas ou un réserviste), le trou descend au 4e trio, personne deux fois.
  */
-import { autoRoster, registerHiddenRatings, SLOTS, createTeam, creerLigue, activeLineup, trioAuMieux, getHiddenRatings, getPositionPenalty, lignesAuMieux, lignesDe, getPersonKey, fitUnite, TACTIQUES, SYSTEMES_D } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, SLOTS, createTeam, creerLigue, activeLineup, trioAuMieux, getHiddenRatings, getPositionPenalty, lignesAuMieux, lignesDe, getPersonKey, fitUnite, TACTIQUES, SYSTEMES_D, getPlayerKey } from '../js/sim.js';
 import { alignementAuMieux, chiffresDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -64,7 +64,8 @@ const ligue = CLUBS.map(([s, t]) => { const j = equipeReelle(s, t).flat().map(x 
 ligue[0].isPlayer = true;
 const tonAlignement = { ...ligue[0].roster };
 const avant = ligue.map(t => new Set(Object.values(t.roster).filter(Boolean)));
-const attendus = ligue.map(t => trioAuMieux(Object.values(t.roster).filter(Boolean)));
+// Les joueurs triés par clé (V4.4) : le même effectif donne le même alignement, d'où qu'il vienne.
+const attendus = ligue.map(t => trioAuMieux(Object.values(t.roster).filter(Boolean).sort((a, b) => (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1))));
 creerLigue(ligue, 82, { graine: 'au-mieux' });
 const memes = (t, k) => { const v = Object.values(t.roster).filter(Boolean); return v.length === avant[k].size && v.every(p => avant[k].has(p)); };
 exiger('un club de l\'IA s\'aligne au mieux, avec les mêmes joueurs ; le tien ne bouge pas',

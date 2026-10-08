@@ -6317,12 +6317,6 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
-  /*
-   * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
-   * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
-   * Aucun dé : la même ligue rebâtie se réaligne pareil.
-   */
-  for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean));
   const L = {
     teams, games, graine, decisions,
     // LES DÉS DE CHAQUE JOURNÉE (1.0, oct.), { matins, soirs }, voir `deDuJour`. Absents (un script de mesure), la graine décide de tout.
@@ -6406,6 +6400,19 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
      * même force — ni le même style de club — que sa reprise, et le passé
      * changeait au rafraîchissement (le smoke, graine 3).
      */
+    /*
+     * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
+     * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
+     * Aucun dé : la même ligue rebâtie se réaligne pareil.
+     *
+     * LES MÊMES JOUEURS, DANS LE MÊME ORDRE (V4.4). `trioAuMieux` grimpe d'échange en échange depuis l'ordre qu'on lui
+     * donne : une reprise en mémoire lui repassait l'alignement qu'il avait déjà rendu, il en rendait parfois un autre
+     * (34 clubs sur 220), et TOUT le passé se rejouait autrement — le gros match changeait de pointage entre le
+     * deuxième entracte et la fin (JP : *les gros matchs ont pas le bon score*). Il part maintenant des joueurs triés
+     * par clé, APRÈS la remise à zéro de leurs jambes et de leur saison (il les lit) : le même effectif donne le même
+     * alignement, d'où qu'il vienne (check_graine).
+     */
+    for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean).sort((a, b) => (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)));
     for (const t of teams) t.strength = teamStrength(t);   // à pleine santé, pour les barres du résultat
     // LE STYLE DE CHAQUE CLUB, posé une fois, sans hasard (voir STYLES).
     poserStyles(teams);

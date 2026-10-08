@@ -76,7 +76,7 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
  * donne à chaque carte (`hache`) ; une carte reçue en cours de semaine complète une main qui n'est pas pleine, sans
  * déplacer celles déjà là. Une carte jouée ou vendue cette semaine reste dans la main, marquée. `nMatchDebut` et
  * `nMatch` : les matchs joués au premier jour et aujourd'hui (les packs gratuits des paliers).
- * Rend { w, debut, fin, main: [{ ref, id, jouee, vendue }], reste, reglee }.
+ * Rend { w, debut, fin, main: [{ ref, id, jouee, vendue }], taille, reste, reglee }.
  */
 export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDebut = 0, nMatch = 0, rogue = false } = {}) {
   const w = Math.floor(jour / SEMAINE), debut = w * SEMAINE, fin = debut + SEMAINE;
@@ -100,7 +100,8 @@ export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDe
   // Une carte jouée ou vendue cette semaine n'est plus dans la poche d'aujourd'hui : on la garde dans la main, marquée.
   const main = [...tiree, ...recues].slice(0, MAIN_SEMAINE).map(x => ({ ...x, jouee: jouees.has(x.ref), vendue: vendues.has(x.ref), confiance: confiance.get(BANQUE[x.id].coach) || 0 }));
   const nJouees = main.filter(x => x.jouee).length;
-  return { w, debut, fin, main, reste: Math.max(0, JOUEES_SEMAINE - nJouees), reglee: decisions.some(d => d && d.palier === `main:${w}`) };
+  // `taille` : les cartes où la semaine a pigé (la poche du lundi et celles reçues depuis), pour le dire à l'écran.
+  return { w, debut, fin, main, taille: pile.length + recues.length, reste: Math.max(0, JOUEES_SEMAINE - nJouees), reglee: decisions.some(d => d && d.palier === `main:${w}`) };
 }
 
 /* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */

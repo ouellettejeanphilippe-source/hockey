@@ -501,7 +501,14 @@ export function mainDuJour(j) {
   if (!Lg) return null;
   const debut = Math.floor(j / SEMAINE) * SEMAINE;
   const m = mainDeLaSemaine({ decisions: decisionsDeLaPartie(), graine: Lg.graine, jour: j, nMatchDebut: matchsEntre(Lg.you, 0, debut), nMatch: matchsEntre(Lg.you, 0, j), rogue: G.bonus === 'ROGUE' });
-  return { ...m, main: m.main.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null })) };
+  /*
+   * V4.4 — CE QUE LA MAIN PIGE SE LIT SANS LA TOUCHER. JP : *c'est pas clair les piges*. Chaque case dit ce que sa
+   * carte fait en peu de mots (ce qu'elle donne, ce qu'elle coûte, sa durée : `reglesDe`), et la main dit dans quoi
+   * elle pige (`taille`, js/inventaire.js).
+   */
+  // Ce qu'elle donne d'abord, puis ce qu'elle coûte, puis sa durée.
+  const bref = id => { const r = reglesDe(id); return [r.find(x => x.bon === true && !x.duree), r.find(x => x.bon === false && !x.duree), r.find(x => x.duree)].filter(Boolean).map(x => ({ txt: x.txt, bon: x.duree ? null : x.bon })); };
+  return { ...m, main: m.main.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, bref: bref(x.id) })) };
 }
 /* Toute la poche du jour (le pack gratuit s'annonce avec ses cartes). */
 export function pocheDuJour(j) {
