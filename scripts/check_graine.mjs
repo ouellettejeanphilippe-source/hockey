@@ -54,6 +54,8 @@ function jouer(graine, decider = null, opts = {}) {
     pool.forEach(registerHiddenRatings);
     return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season });
   });
+  // La première équipe est la tienne : c'est elle que les décisions alignent, et un club de l'IA se réaligne seul (`creerLigue`).
+  equipes[0].isPlayer = true;
   const decisions = decider ? decider(equipes) : [];
   const ligue = simulateLeague(equipes, 82, { graine, decisions, ...opts });
   // Les séries continuent la même suite : elles doivent se rejouer aussi.

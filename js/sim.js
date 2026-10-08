@@ -5166,6 +5166,7 @@ export function activeLineup(team) {
   const reserves = SLOTS.filter(s => s.scratch)
     .map(s => team.roster[s.i])
     .filter(p => p && !team.injured.has(p) && !absent(p));
+  if (!team.isPlayer) return lineupQuiMonte(team, reserves, absent);
   for (const s of SLOTS) {
     if (s.scratch) continue;
     let p = team.roster[s.i];
@@ -5175,6 +5176,38 @@ export function activeLineup(team) {
       if (sub) { p = sub; used.add(sub); }
     }
     lineup[s.i] = p || null;
+  }
+  return lineup;
+}
+/*
+ * TOUT LE MONDE MONTE (oct.). JP : *les équipes adverses aussi devraient optimiser leurs effectifs, position,
+ * stratégie, etc, et aussi avoir des blessures*. Un club de l'IA qui perdait son centre du 1er trio y mettait le
+ * premier réserviste qui convenait — un plombier au centre du premier trio, et personne ne bougeait. Il fait
+ * maintenant ce que fait un vrai entraîneur : chaque case vide, de la plus importante à la moins importante
+ * (l'ordre d'`autoRoster`, le centre d'abord), prend le meilleur qui y convient — un joueur d'une ligne plus bas
+ * ou un réserviste, mesuré comme l'IA mesure (`autoRoster` : la valeur moins la pénalité de poste) — et le trou
+ * descend d'une ligne. Aucun dé ; ton club, lui, reste entre tes mains (le banc, « Aligner au mieux »).
+ */
+function lineupQuiMonte(team, reserves, absent) {
+  const lineup = {};
+  for (const s of SLOTS) if (!s.scratch) {
+    const p = team.roster[s.i];
+    lineup[s.i] = p && !team.injured.has(p) && !absent(p) ? p : null;
+  }
+  const libres = new Set(reserves);
+  const note = (p, s) => getHiddenRatings(p).v - getPositionPenalty(p, s);
+  for (const s of ORDRE_AUTO) {
+    if (s.scratch || lineup[s.i]) continue;
+    let best = null, d = null, score = -Infinity;
+    for (const r of libres) if (fits(r, s) && note(r, s) > score) { best = r; d = null; score = note(r, s); }
+    // Les gardiens ne montent pas : l'auxiliaire prend le filet ailleurs (`gardiensDuSoir`).
+    if (s.group !== 'G') for (const t of SLOTS) {
+      const q = !t.scratch && t.group === s.group && t.unit > s.unit ? lineup[t.i] : null;
+      if (q && fits(q, s) && note(q, s) > score) { best = q; d = t; score = note(q, s); }
+    }
+    if (!best) continue;
+    lineup[s.i] = best;
+    if (d) lineup[d.i] = null; else libres.delete(best);
   }
   return lineup;
 }
@@ -6284,6 +6317,12 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
+  /*
+   * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
+   * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
+   * Aucun dé : la même ligue rebâtie se réaligne pareil.
+   */
+  for (const t of teams) if (!t.isPlayer) t.roster = trioAuMieux(Object.values(t.roster).filter(Boolean));
   const L = {
     teams, games, graine, decisions,
     // LES DÉS DE CHAQUE JOURNÉE (1.0, oct.), { matins, soirs }, voir `deDuJour`. Absents (un script de mesure), la graine décide de tout.
@@ -7059,7 +7098,7 @@ export const MUTATIONS = {
   domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
     quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.8 },
   route: { nom: 'Le joueur de route', ico: '🛤️', cible: 'libre', source: 'atelier', si: 'visiteur',
-    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.2, finition: 1.25 },
+    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.2, finition: 1.2 },
   printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
     quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
   /*

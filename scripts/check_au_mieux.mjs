@@ -10,9 +10,13 @@
  *      fait jamais pire, et mieux en moyenne ; ses systèmes sont ceux que l'IA choisirait pour ces trios (`lignesDe`) ;
  *   2. chaque style remplit les 23 cases, sans doublon, et garde tout le monde ;
  *   3. « Offensif » penche ses systèmes vers l'attaque, « Défensif » vers la défense — jamais l'inverse —, et
- *      aucun ne s'éloigne de plus de huit points de fit du meilleur système de la ligne.
+ *      aucun ne s'éloigne de plus de huit points de fit du meilleur système de la ligne ;
+ *   4. JP : *les équipes adverses aussi devraient optimiser leurs effectifs* : un club de l'IA s'aligne au mieux en
+ *      entrant dans la ligue (`creerLigue`), les mêmes joueurs ; ton club n'est pas touché ;
+ *   5. et quand un des siens manque, tout le monde monte : son centre du 1er trio blessé, la case prend le meilleur
+ *      qui y convient (un joueur d'une ligne plus bas ou un réserviste), le trou descend au 4e trio, personne deux fois.
  */
-import { autoRoster, registerHiddenRatings, SLOTS, createTeam, getPositionPenalty, lignesAuMieux, lignesDe, getPersonKey, fitUnite, TACTIQUES, SYSTEMES_D } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, SLOTS, createTeam, creerLigue, activeLineup, trioAuMieux, getHiddenRatings, getPositionPenalty, lignesAuMieux, lignesDe, getPersonKey, fitUnite, TACTIQUES, SYSTEMES_D } from '../js/sim.js';
 import { alignementAuMieux, chiffresDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -54,4 +58,35 @@ borne('« Le meilleur » contre l\'IA, buts par match en moyenne', gains.reduce(
 exiger('chaque style remplit les 23 cases, sans doublon', complets.every(Boolean), `${complets.filter(Boolean).length}/${complets.length}`);
 exiger('« Offensif » penche vers l\'attaque, « Défensif » vers la défense', penche.every(Boolean), `${penche.filter(Boolean).length}/${penche.length} clubs`);
 exiger('aucun style ne s\'éloigne de plus de huit points de fit du meilleur système', proches.every(Boolean), `${proches.filter(Boolean).length}/${proches.length} unités`);
+
+// 4 et 5 : les clubs de l'IA.
+const ligue = CLUBS.map(([s, t]) => { const j = equipeReelle(s, t).flat().map(x => ({ ...x })); j.forEach(registerHiddenRatings); return createTeam(t, t, autoRoster(j), { season: s }); });
+ligue[0].isPlayer = true;
+const tonAlignement = { ...ligue[0].roster };
+const avant = ligue.map(t => new Set(Object.values(t.roster).filter(Boolean)));
+const attendus = ligue.map(t => trioAuMieux(Object.values(t.roster).filter(Boolean)));
+creerLigue(ligue, 82, { graine: 'au-mieux' });
+const memes = (t, k) => { const v = Object.values(t.roster).filter(Boolean); return v.length === avant[k].size && v.every(p => avant[k].has(p)); };
+exiger('un club de l\'IA s\'aligne au mieux, avec les mêmes joueurs ; le tien ne bouge pas',
+  ligue.slice(1).every((t, k) => memes(t, k + 1) && SLOTS.every(sl => t.roster[sl.i] === attendus[k + 1][sl.i]))
+  && SLOTS.every(sl => ligue[0].roster[sl.i] === tonAlignement[sl.i]), `${ligue.length - 1} clubs`);
+const monte = [];
+for (const t of ligue.slice(1)) {
+  const c1 = SLOTS.find(sl => sl.group === 'F' && sl.unit === 0 && sl.role === 'C');
+  const blesse = t.roster[c1.i];
+  t.injured = new Map([[blesse, 5]]);
+  const lu = activeLineup(t), habilles = SLOTS.filter(sl => !sl.scratch).map(sl => lu[sl.i]).filter(Boolean);
+  const v = p => getHiddenRatings(p).v;
+  // Le remplaçant du centre : jamais un réserviste quand un meilleur joueur d'une ligne plus bas pouvait monter.
+  const reserve = SLOTS.filter(sl => sl.scratch).map(sl => t.roster[sl.i]).filter(Boolean);
+  const venu = lu[c1.i], deReserve = reserve.includes(venu);
+  const plusBas = SLOTS.filter(sl => sl.group === 'F' && sl.unit > 0 && !sl.scratch).map(sl => t.roster[sl.i]);
+  // Sans réserviste qui convient, le trou descend au 4e trio : c'est là que joue le rappel du club-école.
+  const vides = SLOTS.filter(sl => !sl.scratch && !lu[sl.i]);
+  monte.push(vides.every(sl => sl.group === 'F' && sl.unit === 3) && vides.length <= 1 && !habilles.includes(blesse) && new Set(habilles).size === habilles.length
+    && (!deReserve || plusBas.every(p => v(p) - getPositionPenalty(p, c1) <= v(venu) - getPositionPenalty(venu, c1))));
+  informer(`${t.name} sans ${blesse.n}`, `au centre du 1er trio : ${venu.n}${deReserve ? ' (réserviste)' : ''}`);
+  t.injured = new Map();
+}
+exiger('un blessé de l\'IA : tout le monde monte, le trou descend au 4e trio, personne deux fois', monte.every(Boolean), `${monte.filter(Boolean).length}/${monte.length} clubs`);
 verdict();

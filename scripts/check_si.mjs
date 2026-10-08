@@ -43,7 +43,8 @@ function ligue(seed, n) {
   return out;
 }
 
-const SEEDS = (process.env.SEEDS || '1000,1001,1002').split(',').map(Number);
+// Six graines, pas trois (oct.) : à trois, le net d'une carte d'un moment se lisait au hasard des dés (🏯 plus fort avec une défense plus faible).
+const SEEDS = (process.env.SEEDS || '1000,1001,1002,1003,1004,1005').split(',').map(Number);
 const BORNE = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
 
 /*
