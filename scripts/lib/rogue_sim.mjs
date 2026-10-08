@@ -34,7 +34,7 @@ import { TIERS, PACKS_JOUEURS, SKILLS } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
-  DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, GARDES_DE_SAISON,
+  DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, GARDES_DE_SAISON,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE,
 } from '../../js/rogue.js';
 
@@ -237,7 +237,8 @@ function jouerSaison(meta, etat, { graine, saison }) {
     }
     const gros = (you.minisBoss || []).filter(mb => mb.gagne).length;
     const B = baremeRogue(meta);
-    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch - depense;
+    // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
+    return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total - depense;
   };
   while (!L.fini) {
     // La boutique, le matin : tant qu'il y a de quoi acheter.

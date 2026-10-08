@@ -44,6 +44,7 @@ import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeRepo
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
+import { primesDesFils } from './rogue.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
@@ -3269,7 +3270,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const fil = fe && fe.j === jour - 1 ? fe.fils[0] : null;
       if (fil) {
         const x = messageDuFil(fil);
-        out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet, corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>` });
+        // LA PRIME DU FIL (V3.6, Rogue) : le soir où il naît, sa voix paie en jetons (`primesDesFils`, js/rogue.js).
+        const prime = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour.get(fe.j) : null;
+        out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet,
+          corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>${prime ? `<div class="choix-puces"><span class="puce bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span></div>` : ''}` });
       } else if (jour % 2 === 0) {
         for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
           const id = `v:${jour}:${x.id}`, r = reponsesVie(x.id, `vie:${jour}:${x.id}`, boite.ouvert === id);
