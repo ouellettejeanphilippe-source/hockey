@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, compterFeuilles, tirsTotal, soirEreintant, dosADos, glaceDesLignes, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
+import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, glaceDesLignes, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -44,6 +44,7 @@ import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeRepo
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
+import { primesDesFils } from './rogue.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
@@ -51,7 +52,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -2000,6 +2001,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!filsLus || filsLus.jour !== jour) filsLus = { jour, r: filsDeSaison(calendrier, you, jour) };
     return filsLus.r;
   };
+  // Ses buts soir par soir dans tes matchs joués, ses soirs habillés : ce que le moteur lit pour la lancée et le doute.
+  const lanceeAuJour = p => {
+    const r = [];
+    for (const { m } of miens) {
+      const cote = m.A === you ? 'A' : 'B';
+      if (m.feuille && (m.feuille.alignes?.[cote] || []).includes(p)) r.push(m.feuille.buts.filter(b => b.cote === cote && b.marqueur === p).length);
+    }
+    return lanceeDe(p, r.slice(-LANCEE.doute.matchs));
+  };
   const uneHtml = () => {
     const e = filsAuJour().journal.at(-1);
     if (!e || e.j !== jour - 1) return '';
@@ -2903,11 +2913,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     rendreActions(messagesCourants(), p);
   }
 
+  // Les voix de la boîte : une seule distribution avec les courriels et les fils (EXPEDITEURS, js/vie-gm.js).
   const DE = {
     medecin: { ico: '🩺', nom: 'Le médecin' },
     dg: { ico: '📋', nom: 'Le DG' },
-    proprio: { ico: '🏢', nom: 'Le proprio' },
-    coach: { ico: '🧑‍🏫', nom: 'L\'entraîneur' },
+    proprio: EXPEDITEURS.pr,
+    coach: EXPEDITEURS.en,
     depisteur: { ico: '🔎', nom: 'Le dépisteur' },
   };
 
@@ -3259,7 +3270,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const p = prochain(), adv = p ? (p.m.A === you ? p.m.B : p.m.A) : null;
       const vu = [...boite.lus].filter(id => /^v:\d+:/.test(id) && Number(id.split(':')[1]) < jour).map(id => id.split(':').slice(2).join(':'));
       const c = { moment: momentDeSaison(jour, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja: vu };
-      if (jour % 2 === 0) {
+      /*
+       * LE FIL D'HIER SOIR, DIT PAR SA VOIX (V3.3) : l'analyste, les partisans, le proprio, l'entraîneur, le
+       * capitaine, le physio ou le joueur lui-même. Un soir où un fil bouge, il prend la place du courriel :
+       * ce qui arrive vraiment passe avant ce qu'on tire au hasard.
+       */
+      const fe = filsAuJour().journal.at(-1);
+      const fil = fe && fe.j === jour - 1 ? fe.fils[0] : null;
+      if (fil) {
+        const x = messageDuFil(fil);
+        // LA PRIME DU FIL (V3.6, Rogue) : le soir où il naît, sa voix paie en jetons (`primesDesFils`, js/rogue.js).
+        const prime = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour.get(fe.j) : null;
+        // LA LANCÉE ET LE DOUTE (V3.6, Rogue) : ce que ses soirs d'avant font de lui au prochain match (`lanceeDe`, js/sim.js).
+        const etat = ctx.rogue ? lanceeAuJour(fil.joueur) : null;
+        const puces = [prime ? `<span class="puce bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span>` : '',
+          etat === 'lancee' ? '<span class="puce bon">Sur sa lancée : il finit mieux tant qu\'il marque</span>' : '',
+          etat === 'doute' ? '<span class="puce prix">Il doute : il finit moins bien tant qu\'il ne marque pas</span>' : ''].join('');
+        out.push({ id: `f:${fe.j}:${fil.sorte}`, genre: 'fil', bloque: false, de: x.de, sujet: x.sujet,
+          corps: `<div class="hub-msg-mot">« ${ctx.esc(x.mot)} »</div>${puces ? `<div class="choix-puces">${puces}</div>` : ''}` });
+      } else if (jour % 2 === 0) {
         for (const x of courrielsDe(c, `${graine}|${jour}`, 1)) {
           const id = `v:${jour}:${x.id}`, r = reponsesVie(x.id, `vie:${jour}:${x.id}`, boite.ouvert === id);
           out.push({ id, genre: 'courriel', bloque: false, de: x.de, sujet: x.sujet, vie: { cle: x.id, palier: `vie:${jour}:${x.id}`, cibles: r.cibles }, corps: `<div class="hub-msg-mot">${ctx.esc(x.corps)}</div>${r.html}` });

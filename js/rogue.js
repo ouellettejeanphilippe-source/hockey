@@ -31,6 +31,7 @@
  */
 import { hache } from './util.js';
 import { VOIES } from './coachs.js';
+import { filsDeSaison } from './recit.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -40,6 +41,36 @@ const CLE_META = 'cap82_rogue';
  * pack dès le premier jour, 74 à 90 — la bulle des séries. Une run doit donc en signer une
  * vingtaine en cours de saison : environ 25 packs sur 82 matchs, cinq dans les vingt premiers.
  */
+/*
+ * LA PRIME D'UN FIL (V3.6, JP : *si des trucs arrivent random, genre justement Cheechoo, c'est là que ça
+ * pourrait proc un bonus*). En Rogue, le soir où un fil NAÎT et fait la une (`filsDeSaison`, js/recit.js),
+ * sa voix paie : les partisans s'arrachent le chandail du Cheechoo, le proprio verse une prime au jalon.
+ * Rien de neuf dans le moteur : ce sont des jetons, déduits des feuilles jouées comme les victoires. Le
+ * Cheechoo paie le plus parce qu'il est le plus rare ; seul ce qui sort de l'ordinaire paie (pas le duo, pas un
+ * jalon de 30 buts) ; la saison plafonne (`PRIME_FILS_MAX`) pour que le
+ * hasard pimente la run sans la rendre facile (check_rogue).
+ */
+export const PRIMES_DES_FILS = {
+  feu: { jetons: 10, mot: 'Les partisans s\'arrachent son chandail' },
+  recrue: { jetons: 5, mot: 'Le chandail de la recrue se vend' },
+  jalon: { jetons: 5, mot: 'Le proprio verse une prime', seuil: 40 },
+  course: { jetons: 5, mot: 'Les cotes d\'écoute montent', rythme: 50 },
+};
+export const PRIME_FILS_MAX = 30;
+/** Les primes des fils jusqu'à la journée `j` (non comprise) : { total, parJour: Map(journée → { jetons, mot }) }. */
+export function primesDesFils(calendrier, you, j = Infinity) {
+  const parJour = new Map();
+  let total = 0;
+  for (const e of filsDeSaison(calendrier, you, j).journal) {
+    const a = e.fils[0], P = a.neuf && PRIMES_DES_FILS[a.sorte];
+    // Seulement ce qui sort de l'ordinaire : un jalon de 40 buts et plus, un rythme de 50 buts.
+    if (!P || total >= PRIME_FILS_MAX || (P.seuil && !(a.unite === 'buts' && a.seuil >= P.seuil)) || (P.rythme && !(a.g != null && a.rythme >= P.rythme))) continue;
+    const n = Math.min(P.jetons, PRIME_FILS_MAX - total);
+    total += n;
+    parJour.set(e.j, { jetons: n, mot: P.mot });
+  }
+  return { total, parJour };
+}
 export const JETONS = { depart: 40, victoire: 8, prolongation: 4, defaite: 2, grosMatch: 20, objectif: 20, serie: 40 };
 /*
  * Les jetons à un moment de la saison : ce que les résultats ont rapporté,
@@ -50,7 +81,7 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
   const r = res || {};
   const B = bareme || JETONS;
   return depart + (r.W || 0) * B.victoire + (r.OTL || 0) * B.prolongation + (r.L || 0) * B.defaite
-    + (r.gros || 0) * B.grosMatch + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie - (depenses || 0);
+    + (r.gros || 0) * B.grosMatch + (r.objectifs || 0) * B.objectif + (r.series || 0) * B.serie + (r.primes || 0) - (depenses || 0);
 }
 /*
  * LE BARÈME D'UNE RUN (S80). Une run dure maintenant plusieurs saisons : ce

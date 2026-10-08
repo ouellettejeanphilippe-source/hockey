@@ -3365,6 +3365,32 @@ function situDe(p, champ) {
 }
 
 /*
+ * LA LANCÉE ET LE DOUTE (V3.6, le Rogue seulement). JP : *sa performance influence ses performances plus
+ * tard*. Le réalisme n'a presque pas de « main chaude » (docs/refonte-v3.md) : le 82-0 n'en a donc pas. Le
+ * Rogue a du chaos : un joueur qui vient de marquer beaucoup (au moins `buts` sur ses `matchs` derniers
+ * matchs, et `facteur` fois son vrai rythme) est SUR SA LANCÉE — il finit mieux tant que ça dure ; un vrai
+ * marqueur sans but depuis `doute.matchs` matchs DOUTE — il finit moins bien. Rien de neuf pour le moteur :
+ * les canaux de la situation « En feu » (finition, lancers), lus sur ses propres feuilles d'avant, pour les
+ * deux clubs. `check_lancee` le mesure.
+ */
+export const LANCEE = {
+  matchs: 6, buts: 4, facteur: 1.5, lancee: { finition: 1.15, lancers: 1.05 },
+  doute: { matchs: 10, vrai: 0.3, finition: 0.85 },
+};
+/** 'lancee', 'doute' ou null : `recents`, ses buts match par match (le plus récent à la fin), ses soirs habillés. */
+export function lanceeDe(p, recents) {
+  if (!p || p.p === 'G' || !recents || !recents.length) return null;
+  const vrai = (p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0;
+  const six = recents.slice(-LANCEE.matchs);
+  const buts = six.reduce((a, x) => a + x, 0);
+  if (six.length === LANCEE.matchs && buts >= Math.max(LANCEE.buts, LANCEE.facteur * vrai * LANCEE.matchs)) return 'lancee';
+  const dix = recents.slice(-LANCEE.doute.matchs);
+  if (dix.length === LANCEE.doute.matchs && vrai >= LANCEE.doute.vrai && dix.every(x => x === 0)) return 'doute';
+  return null;
+}
+const lanceeFacteur = (p, champ) => (p && p._lancee && p._lancee[champ]) || 1;
+
+/*
  * Le mélangeur des situations : PUR, comme celui des cartes. Même graine,
  * même journée, même équipe, mêmes deux joueurs — sinon la reprise d'une
  * saison ne rejouerait pas la même, et `check_graine.mjs` le dirait.
@@ -3828,7 +3854,7 @@ function lancersRel(p) {
   // rondelles, où qu'on le place dans l'alignement.
   // Une SITUATION agit sur le même canal que la vitesse : c'est son volume
   // de rondelles à lui, où qu'on le place dans l'alignement.
-  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p) * situDe(p, 'lancers') * facteurEnergie(p) * mutDe(p, 'lancers');
+  return borne(perso / base, 0.25, 2.60) * facteurLancersJoueur(p) * situDe(p, 'lancers') * lanceeFacteur(p, 'lancers') * facteurEnergie(p) * mutDe(p, 'lancers');
 }
 
 /**
@@ -3842,7 +3868,7 @@ function pctTirRel(p) {
   const ligue = seasonLancers(p.s)[1];
   if (!ligue) return 1;
   // La réputation de lancer agit ici : ce sont SES rondelles qui entrent plus.
-  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p) * situDe(p, 'finition') * facteurEnergie(p) * mutDe(p, 'finition');
+  return borne(100 * (p.g || 0) / lancers / ligue, 0.35, 2.20) * facteurFinitionJoueur(p) * situDe(p, 'finition') * lanceeFacteur(p, 'finition') * facteurEnergie(p) * mutDe(p, 'finition');
 }
 
 // La création d'un joueur, sa situation comprise : un joueur qui voit mieux
@@ -5376,6 +5402,12 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // récupération se fait au début de chaque journée (`simulateLeague`).
   if (series) { recupererEnergie(A); recupererEnergie(B); }
   const LA = activeLineup(A), LB = activeLineup(B);
+  // LA LANCÉE ET LE DOUTE (V3.6) : une ligue Rogue (`courbe`) les lit sur les feuilles d'avant de chacun.
+  for (const [T, Lx] of [[A, LA], [B, LB]]) for (const p of Object.values(Lx)) {
+    if (!p) continue;
+    const c = T.courbe ? lanceeDe(p, p._recents) : null;
+    p._lancee = c ? LANCEE[c] : null;
+  }
   // LE JOURNAL DES CASES VIDES. `activeLineup` promeut le premier réserviste
   // compatible ; quand il n'y en a plus, la case reste vide et le moteur y met
   // un joueur de remplacement. C'est l'ÉVÉNEMENT que l'écran de saison
@@ -5504,6 +5536,15 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // LES MISES EN ÉCHEC COÛTENT DES JAMBES (voir PALIERS) : les coups de chaque club tombent sur l'autre.
     encaisserCoups(pA, pB); encaisserCoups(pB, pA);
     noterDepart(A, partantA); noterDepart(B, partantB);
+    // LA LANCÉE (V3.6) : les buts de ce soir, pour chaque patineur habillé, dans une ligue Rogue.
+    if (journal && journal.alignes) for (const [T, cote] of [[A, 'A'], [B, 'B']]) {
+      if (!T.courbe) continue;
+      for (const p of journal.alignes[cote]) {
+        const n = journal.buts.filter(b => b.cote === cote && b.marqueur === p).length;
+        (p._recents = p._recents || []).push(n);
+        if (p._recents.length > LANCEE.doute.matchs) p._recents.shift();
+      }
+    }
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.
     if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
@@ -6233,7 +6274,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
-      for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._situ;
+      for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
     /*
      * LES JOUEURS QUI ARRIVENT EN COURS DE SAISON (S74). La remise à zéro
@@ -6253,7 +6294,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
        */
       initSimStats(p);
       p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
-      delete p._maitrise; delete p._adapt; delete p._situ;
+      delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
       delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio;
     }
     /*

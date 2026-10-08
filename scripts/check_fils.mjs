@@ -15,6 +15,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
 import { filsDeSaison, FILS } from '../js/recit.js';
+import { messageDuFil } from '../js/vie-gm.js';
+import { primesDesFils, PRIMES_DES_FILS, PRIME_FILS_MAX, jetonsDe, JETONS } from '../js/rogue.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -55,7 +57,7 @@ jouerJusqua(L, Infinity);
 const cal = L.calendrier;
 
 const sortes = {};
-let fautes = [], arcs = 0, prefixe = 0, deterministe = 0, unes = 0, unesFausses = 0;
+let fautes = [], voixFausses = [], primesFausses = [], primes = [], voix = new Set(), arcs = 0, prefixe = 0, deterministe = 0, unes = 0, unesFausses = 0;
 const exemples = new Map();
 const faute = (a, quoi) => { if (fautes.length < 12) fautes.push(`${a.sorte} « ${a.texte} » : ${quoi}`); else fautes.push(''); };
 
@@ -73,11 +75,23 @@ for (const you of teams) {
     unes++;
     if (e.fils.some(a => a.poids > e.fils[0].poids)) unesFausses++;
   }
+  // LA PRIME D'UN FIL (V3.6, Rogue) : seulement le soir où un fil naît et fait la une, plafonnée par saison.
+  const pr = primesDesFils(cal, you);
+  primes.push(pr.total);
+  for (const [j, x] of pr.parJour) {
+    const e = tout.journal.find(y => y.j === j), a = e && e.fils[0];
+    if (!a || !a.neuf || !PRIMES_DES_FILS[a.sorte] || x.jetons > PRIMES_DES_FILS[a.sorte].jetons) primesFausses.push(`J${j + 1} ${a ? a.sorte : '?'}`);
+  }
+  if (pr.total > PRIME_FILS_MAX || [...pr.parJour.values()].reduce((s, x) => s + x.jetons, 0) !== pr.total) primesFausses.push(`total ${pr.total}`);
   for (const e of tout.journal) for (const a of e.fils) {
     arcs++;
     sortes[a.sorte] = (sortes[a.sorte] || 0) + 1;
     if (!exemples.has(a.sorte)) exemples.set(a.sorte, a.texte);
     const p = a.joueur;
+    // La voix du fil (js/vie-gm.js) : le fait au caractère près, une opinion sans chiffre.
+    const msg = messageDuFil(a);
+    voix.add(`${a.sorte}${a.fini ? ' (fin)' : ''} : ${msg.de && (msg.de.nom === p.n ? 'le joueur' : msg.de.nom)}`);
+    if (!msg.de || !msg.de.nom || msg.sujet !== a.texte || /\d|\{/.test(msg.mot)) voixFausses.push(`${a.sorte} « ${msg.mot} »`);
     // 3. Chaque preuve : un match de ton club, d'avant ou de ce soir, le joueur habillé.
     const mats = a.preuves.map(({ j, k }) => cal[j] && cal[j][k]);
     if (mats.some(m => !m || !m.feuille || (m.A !== you && m.B !== you))) { faute(a, 'une preuve n\'est pas un match de ton club'); continue; }
@@ -149,5 +163,10 @@ exiger('le même calendrier redonne les mêmes fils', deterministe === teams.len
 exiger('aucun fil ne lit l\'avenir (le journal à mi-saison est le début du journal complet)', prefixe === teams.length, `${prefixe} / ${teams.length}`);
 exiger('la une d\'un soir est son fil le plus lourd', unesFausses === 0, `${unes - unesFausses} / ${unes}`);
 exiger('chaque fil cite des feuilles réelles et se recompte sur elles', fautes.length === 0, fautes.length ? fautes.filter(Boolean).join(' ; ') : `${arcs} fils`);
+informer('qui le dit', [...voix].sort().join(' · '));
+exiger('chaque fil a sa voix, dit son fait au caractère près, et la voix ne dit aucun chiffre', voixFausses.length === 0, voixFausses.slice(0, 5).join(' ; ') || `${arcs} messages`);
+informer('la prime des fils, par club et par saison (Rogue)', `${(primes.reduce((s, x) => s + x, 0) / primes.length).toFixed(1)} 🪙 en moyenne · ${primes.filter(x => x >= PRIME_FILS_MAX).length} club(s) au plafond de ${PRIME_FILS_MAX}`);
+exiger('une prime ne se verse qu\'au soir où un fil naît et fait la une, sous le plafond de la saison', primesFausses.length === 0, primesFausses.slice(0, 5).join(' ; ') || `${primes.length} clubs`);
+exiger('les jetons comptent la prime', jetonsDe({ primes: 15 }, 0, 40, JETONS) === 55, String(jetonsDe({ primes: 15 }, 0, 40, JETONS)));
 exiger('le jeu voit des histoires : au moins cinq sortes sur la ligue', Object.keys(sortes).length >= 5, Object.keys(sortes).join(', '));
 verdict();

@@ -179,6 +179,9 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **relance** : seulement le dé qu'on relance (la roulette, la relance d'équipe sur table) ; la sortie de zone se dit « sortie », la passe du gardien « remise ».
 - **rejouer** : les mêmes clubs, d'autres dés (« Rejouer la saison ») ; l'historique « reprend l'alignement », une décision « reprend la saison ».
 - **rival** : un club à deux rangs ou moins ; la **bête noire** 😤 : celui qui t'a battu deux fois ; **ta rivalité** : le club le plus croisé en gros match.
+- **fil** : une histoire de ta saison lue dans les feuilles jouées (la course, le Cheechoo, la disette, le duo…, `filsDeSaison`, js/recit.js) ; **la une** : le fil le plus lourd d'hier soir, au bureau.
+- **voix** : qui écrit dans la boîte (le proprio, l'entraîneur, l'analyste à la télé, les partisans, le capitaine, le physio, le joueur lui-même…) — une seule distribution, `EXPEDITEURS` (js/vie-gm.js). Une voix dit le fait d'un fil et y ajoute une opinion, jamais un chiffre — `check_fils`. En Rogue, le soir où un fil rare naît (le Cheechoo, la recrue, 40 buts, un rythme de 50), sa voix paie une **prime** en jetons (`primesDesFils`, js/rogue.js).
+- **lancée** : en Rogue, un joueur qui vient de marquer beaucoup finit mieux tant que ça dure ; le **doute**, le vrai marqueur en panne qui finit moins bien (`lanceeDe`, js/sim.js — `check_lancee`). Pas « confiance », qui est aux coachs ; jamais dans le 82-0.
 - **trait** : ce qu'un vote ou une réputation donne au joueur (🛡️ Selke, ⚡ vitesse) ; un **trophée** se décerne au bilan, sur les colonnes.
 - **consigne** : 😌 Basse, 🎚️ Normale, 🌡️ Haute ; **agressivité** : 🕊️ Prudente, ⚖️ Moyenne, 💥 Musclée, 🪓 Rentre-dedans.
 - **contrat** : une carte de masse salariale (💵) ; une modif de joueur qui touche son contrat est une **clause**.
@@ -212,7 +215,7 @@ Depuis la V2.3 : `node scripts/check_voies.mjs` (quarante minutes ; `VOIES=tortu
 
 L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scripts/check_chiffres.mjs` (une minute : ce que l'écran annonce égale ce que le moteur joue, en paires) et `node scripts/check_impact.mjs` (douze secondes : la base de la ligue, le témoin à zéro ; `COMPLET=1` le tableau de chaque choix).
 
-Depuis la V3 : `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
+Depuis la V3 : `node scripts/check_lancee.mjs` (une minute : la lancée et le doute du Rogue, absents du 82-0) et `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
 
 Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 

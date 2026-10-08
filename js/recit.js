@@ -320,6 +320,8 @@ export function filsDeSaison(calendrier, you, jusqua = Infinity) {
     // Un fil qui dure ne refait la une qu'à un nouveau cran (`cran`) : le cinquième but d'une course, pas chacun.
     const pose = (arc, persiste = true, cran = null) => {
       const e = etat.get(arc.joueur);
+      // NEUF : le fil naît ce soir (son premier cran de la saison, ou un fil d'un soir : le jalon, le retour, une fin).
+      arc.neuf = cran == null || ![...e.crans].some(c => c.startsWith(`${arc.sorte}:`));
       if (cran == null || !e.crans.has(`${arc.sorte}:${cran}`)) bougent.push(arc);
       if (cran != null) e.crans.add(`${arc.sorte}:${cran}`);
       if (persiste) {
