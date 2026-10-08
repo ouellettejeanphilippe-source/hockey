@@ -118,9 +118,11 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Le direct, le sommaire et le bilan disent les mêmes buts, au caractère près — smoke.
 - Aucune cote neuve, aucune mécanique neuve : une carte, un trait, un effet passent par les canaux existants — `check_combat` (chaque carte jouable est lue par le moteur), `check_traits`.
 - On mesure une carte EN PAIRES, sinon on ne mesure rien — `check_cartes`.
+- Une carte peut ne jouer que dans son moment (`si` : à domicile, à l'étranger, en séries) : elle frappe alors plus fort ses soirs-là, rien hors d'eux, et sa face dit son moment en premier — `check_si`.
 - Une carte change la FORME du match, pas sa force : le net en victoires est borné par la rareté (commune ±1, peu commune ±1,5, rare ±2,5, légendaire ±4 : un maximum, jamais une cible), une rare ou une légendaire se VOIT dans la feuille (±2 tirs, ±0,3 but des deux clubs, ±0,5 punition, ±4 mises en échec ou ±3 blessures), et le style ne se paie pas en force : au plus 0,5 V par seuil franchi — `check_cartes`.
 - Les gros matchs portent leur plan, leur contre et leur pointage après deux périodes — `check_gros`.
 - Le robot « premier Signer » ne gagne pas la Coupe — `check_robot`.
+- Une carte seule reste sous la borne de sa rareté et la première run reste dure ; une run qui a duré, ou un build qui s'emboîte, a le droit de casser le jeu — c'est la récompense du Rogue (docs/refonte-v3.md, principe 5).
 
 **L'économie (Rogue et boutique)**
 - Revendre un pack de cartes rapporte au plus 40 % de son prix — `check_packs`.
@@ -207,7 +209,7 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 
 L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_fiches.mjs`, `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
 
-`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (douze minutes) se lancent à part.
+`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une heure et plus ; `FAMILLES=evenements PART=1/4` n'en mesure qu'une famille et qu'un quart, pour le partager entre quatre processus) se lancent à part.
 
 Depuis la v2 : `node scripts/check_coachs.mjs` (dix minutes : la couleur des cartes, la confiance, et chaque coach mesuré en paires à six ligues ; `LIGUES=0` en CI).
 
@@ -215,7 +217,7 @@ Depuis la V2.3 : `node scripts/check_voies.mjs` (quarante minutes ; `VOIES=tortu
 
 L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scripts/check_chiffres.mjs` (une minute : ce que l'écran annonce égale ce que le moteur joue, en paires) et `node scripts/check_impact.mjs` (douze secondes : la base de la ligue, le témoin à zéro ; `COMPLET=1` le tableau de chaque choix).
 
-Depuis la V3 : `node scripts/check_lancee.mjs` (une minute : la lancée et le doute du Rogue, absents du 82-0) et `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
+Depuis la V3 : `node scripts/check_si.mjs` (deux minutes et demie : les cartes d'un moment, en paires), `node scripts/check_lancee.mjs` (une minute : la lancée et le doute du Rogue, absents du 82-0) et `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
 
 Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 40 saisons, avec et sans ballottage ; `BALLOTTAGE=1`, `MODE=rogue`) et `RUNS=40 CAMPAGNES=6 node scripts/check_rogue.mjs` (la courbe des runs). Les photos d'action : `node scripts/actions.mjs` les refait (deux minutes, 700 Mo téléchargés une fois) et `node scripts/check_actions.mjs` les vérifie (avec l'adresse du jeu en argument, il simule aussi l'application Android ; réseau requis). Playwright peut vivre ailleurs que dans le dépôt : `NODE_PATH=<dossier>/node_modules`.
 

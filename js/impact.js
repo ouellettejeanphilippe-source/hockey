@@ -269,6 +269,8 @@ export function agressiviteEnChiffres(team, lineup, adv, lignes, u, agr) {
 const CANAUX_MUTATION = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets', 'ombre', 'abri'];
 const N_MUTATION = 2000;   // un joueur tire un lancer sur vingt : il en faut plus pour lire les siens
 const auMatch = x => (Math.abs(x) >= 9.5 ? String(Math.round(Math.abs(x))) : virgule(Math.abs(x).toFixed(1)));
+/* Un printemps qui va loin : quatre rondes de cinq matchs. */
+const MATCHS_DE_SERIES_LUS = 20;
 export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = {}) {
   const base = motsDeMutation(cle).filter(m => m.cle !== 'role' && !m.txt.includes(' %')), M = MUTATIONS[cle], c = clubLu();
   if (!c || !c.team || !M) return motsDeMutation(cle);
@@ -283,7 +285,12 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
     if (deja) { avec = L(tel); sans = L({ mutation: { cle, joueur, retirer: true } }); } else { avec = L({ mutation: { cle, joueur } }); sans = L(tel); }
   } catch { return motsDeMutation(cle); }
   const d = differences(avec, sans);
-  const reste = Math.max(1, 82 - (c.team.games || 0)), quand = reste >= 82 ? 'sur la saison' : `d'ici la fin (${reste} matchs)`;
+  // UNE MODIF D'UN MOMENT (V3.4, `si`) se lit un soir où son moment est vrai : la moitié des soirs pour domicile ou
+  // l'étranger ; en séries, sur un printemps (`MATCHS_DE_SERIES_LUS`).
+  const resteSaison = Math.max(1, 82 - (c.team.games || 0));
+  const reste = M.si === 'series' ? MATCHS_DE_SERIES_LUS : M.si ? Math.round(resteSaison / 2) : resteSaison;
+  const quand = M.si === 'series' ? `sur ${MATCHS_DE_SERIES_LUS} matchs de séries`
+    : `${resteSaison >= 82 ? 'sur la saison' : `d'ici la fin (${resteSaison} matchs)`}${M.si === 'domicile' ? ', à domicile' : M.si === 'visiteur' ? ', à l\'étranger' : ''}`;
   const out = [];
   // À LUI : ses buts et ses tirs (un patineur), ou les buts que son filet accorde (un gardien : ceux du club, c'est lui).
   if (p && p.p !== 'G') {

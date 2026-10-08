@@ -17,7 +17,7 @@ import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie } from './inventaire.js';
 import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
-import { ouvrirChoix, optionDeCarteMatch, puces, ouvrirAlignement } from './gerant.js';
+import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction } from './cartes.js';
@@ -506,7 +506,7 @@ function jouerCarte(item, j, decider, page = null) {
   };
   const listeJoueurs = (titre, recit, liste, choisir, mots = null) => ouvrirChoix({
     ico: c.ico, titre, compact: true, fermable: true, motFermer: 'Retour', recit,
-    contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${puces(mots)}</div>` : '',
+    contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
     options: liste.map(({ p, sous }) => ({ cle: getPlayerKey(p), visage: headshotHtml(p), nom: p.n, sous })),
     onChoix: choisir, onFerme: retour,
   });
@@ -544,14 +544,14 @@ function jouerCarte(item, j, decider, page = null) {
       const uniques = [...new Set(deck)].filter(k => (C.cible === 'malediction' ? CARTES_MATCH[k] && CARTES_MATCH[k].maudite : CARTES_MATCH[`${k}+`]));
       if (!uniques.length) { toast(C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.'); retour(); return; }
       ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour', recit: c.texte,
-        contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${puces(reglesDe(item.id))}</div>`,
+        contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
         options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
         onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
       return;
     }
     if (C.cible === 'tactique') {
       ouvrirChoix({ ico: c.ico, titre: c.nom, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
-        contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${puces(reglesDe(item.id))}</div>`,
+        contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
         options: Object.entries(TACTIQUES).filter(([k]) => k !== 'hourra').map(([k, T]) => ({ cle: k, ico: T.ico, nom: T.nom, sous: T.mot })),
         onChoix: k => ecrire(payloadDe(item.id, { tactique: k })), onFerme: retour });
       return;
@@ -599,7 +599,7 @@ function poserUneModif(item, j, decider, retour) {
   // Poser ferme l'alignement en silence (`fermer`) : la décision part, et l'inventaire ne se rouvre pas.
   const fermer = ouvrirAlignement({
     ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour',
-    contexte: `<div class="choix-puces">${puces(motsDeMutationEnChiffres(c.cle))}</div>`,
+    contexte: `<div class="choix-puces">${pucesEnBref(motsDeMutationEnChiffres(c.cle))}</div>`,
     aide: 'Touche un joueur pour voir son verso.',
     rangees,
     onApercu: k => {
