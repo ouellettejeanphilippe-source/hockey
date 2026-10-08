@@ -381,6 +381,7 @@ const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat'];
 const RARETE_MOD = {
   affute: 'peu', moteur: 'peu', mur: 'peu', vision: 'peu', coach: 'peu',
   partout: 'rare', cran: 'rare', physio: 'peu', lustre: 'legendaire', enBas: 'rare', chasse: 'rare', entrainement: 'peu', mentorTrio: 'rare',
+  domicile: 'peu', route: 'peu', printemps: 'rare',
   style_sniper: 'peu', style_faiseur: 'peu', style_ancre: 'peu', style_locomotive: 'peu', style_chasseur: 'peu',
   style_architecte: 'rare', style_sentinelle: 'rare', style_canonnier: 'rare', style_buteur: 'legendaire', style_pieuvre: 'rare',
   masque_neuf: 'commune', baton_neuf: 'commune', contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',

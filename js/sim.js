@@ -5402,6 +5402,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // récupération se fait au début de chaque journée (`simulateLeague`).
   if (series) { recupererEnergie(A); recupererEnergie(B); }
   const LA = activeLineup(A), LB = activeLineup(B);
+  // LE MOMENT DU SOIR (V3.4) : ce qu'une modif d'un moment (`si`) lit — qui reçoit, qui voyage, les séries.
+  for (const [Lx, chez] of [[LA, true], [LB, false]]) for (const p of Object.values(Lx)) if (p) p._soir = { domicile: chez, visiteur: !chez, series: !!series };
   // LA LANCÉE ET LE DOUTE (V3.6) : une ligue Rogue (`courbe`) les lit sur les feuilles d'avant de chacun.
   for (const [T, Lx] of [[A, LA], [B, LB]]) for (const p of Object.values(Lx)) {
     if (!p) continue;
@@ -5743,7 +5745,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
  * sinon le centre du premier trio), puis une photo de ses champs de mutation pour les lui rendre tels quels.
  * Rend la fonction qui les rend ; `null` si personne ne peut le porter.
  */
-const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte', '_palier', '_mentor'];
+const CHAMPS_MUTATION = ['_mut', '_amel', '_mutProfils', '_mutCles', '_partout', '_cran', '_enBas', '_ombre', '_abri', '_carte', '_palier', '_mentor', '_si', '_soir'];
 /* Le joueur qu'une modif lue vise : celui qu'on donne, sinon celui que la carte vise, sinon le partant (une carte de gardien) ou le centre du premier trio. */
 export function joueurDeMutation(team, lineup, cle, joueur = null) {
   const lu = lineup || activeLineup(team);
@@ -5761,7 +5763,8 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
     const M = MUTATIONS[cle];
     if (M) {
       const dans = M.source === 'amelioration' ? p._amel : p._mut;
-      for (const c of CANAUX_MUT) if (M[c] && dans && dans[c]) dans[c] /= M[c];
+      if (M.si) { const i = (p._si || []).findIndex(e => e.cle === cle); if (i >= 0) p._si.splice(i, 1); }
+      else for (const c of CANAUX_MUT) if (M[c] && dans && dans[c]) dans[c] /= M[c];
       for (const [k, d] of Object.entries(M.profils || {})) if (p._mutProfils && k in p._mutProfils) p._mutProfils[k] -= d;
       if (M.partout) delete p._partout;
       if (M.enBas) delete p._enBas;
@@ -5772,6 +5775,8 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
       if (M.abri) delete p._abri;
     }
   } else appliquerMutation(team, p, cle, 0, 'lecture');
+  // Une modif d'un moment (V3.4) se lit un soir où son moment est vrai ; `motsDeMutationEnChiffres` dit combien de soirs.
+  if (MUTATIONS[cle] && MUTATIONS[cle].si) p._soir = { [MUTATIONS[cle].si]: true };
   return () => {
     for (const [k, avait, v] of photo) { if (avait) p[k] = v; else delete p[k]; }
     if (avaitMutations) { team.mutations = mutations; mutations.length = nb; } else delete team.mutations;
@@ -6271,7 +6276,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._maitrise; delete t.roster[s.i]._adapt; }
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
@@ -6295,7 +6300,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       initSimStats(p);
       p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
       delete p._maitrise; delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
-      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio;
+      delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir;
     }
     /*
      * LA FORCE APRÈS LA REMISE À ZÉRO (1.0, oct.). Elle se mesurait au début
@@ -6762,10 +6767,17 @@ export function lignesAuMieux(lineup, style = 'equilibre') {
  * une or de TON alignement ; 1 pour tout autre joueur). S80 : une AMÉLIORATION
  * (`p._amel`) grandit avec le soir — voir `echelleTardive`.
  */
+/* Une modif qui ne joue que certains soirs (V3.4, `si` : domicile, visiteur, series) : `p._soir` est posé par `playGame` au début du match. */
+function siDe(p, champ) {
+  if (!p || !p._si || !p._soir) return 1;
+  let f = 1;
+  for (const e of p._si) if (p._soir[e.si] && e[champ]) f *= e[champ];
+  return f;
+}
 function mutDe(p, champ) {
   const m = p && p._mut;
   const a = p && p._amel && p._amel[champ];
-  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ);
+  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ) * siDe(p, champ);
 }
 
 /*
@@ -6911,6 +6923,18 @@ export const MUTATIONS = {
     quoi: 'Un été à travailler ce qu\'il fait de mieux : son badge monte au suivant (Bronze → Argent → Or → Platine).' },
   mentorTrio: { nom: 'Le mentor', ico: '🦉', cible: 'libre', source: 'atelier', mentor: true,
     quoi: 'Il prend ses compagnons de ligne sous son aile : tant qu\'ils jouent avec lui, leur badge monte au suivant.' },
+  /*
+   * V3.4 — FORTE, MAIS DANS SON MOMENT. JP : *un joueur est plus robuste à domicile* ; *ce genre de trucs
+   * complexes, mais pas trop*. Une modif peut ne jouer que certains soirs (`si`) : à domicile, à
+   * l'étranger, en séries (`siDe`). Elle est plus forte qu'une modif de tous les soirs, parce qu'elle ne
+   * s'additionne pas aux autres chaque soir ; sa face dit son moment en premier.
+   */
+  domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
+    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.8 },
+  route: { nom: 'Le joueur de route', ico: '🛤️', cible: 'libre', source: 'atelier', si: 'visiteur',
+    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.2, finition: 1.25 },
+  printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
+    quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
@@ -7052,7 +7076,8 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   // S80 : une AMÉLIORATION grandit avec la saison (`echelleTardive`) ; elle vit à part, et `mutDe` la fait grandir.
   const grandit = M.source === 'amelioration';
   if (grandit) p._amel = p._amel || {};
-  for (const c of CANAUX_MUT) if (M[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * M[c]; else p._mut[c] = (p._mut[c] || 1) * M[c]; }
+  if (M.si) (p._si = p._si || []).push({ cle, si: M.si, ...Object.fromEntries(CANAUX_MUT.filter(c => M[c]).map(c => [c, M[c]])) });
+  else for (const c of CANAUX_MUT) if (M[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * M[c]; else p._mut[c] = (p._mut[c] || 1) * M[c]; }
   p._mutProfils = p._mutProfils || {};
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
