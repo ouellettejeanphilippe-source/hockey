@@ -51,6 +51,8 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
   for (const d of achats) (d.achat.cartes || []).forEach((id, t) => {
     if (!BANQUE[id]) return;
     if (rogue && BANQUE[id].vie === 'permanent') return;
+    // Une carte de match va droit au deck à l'ouverture (`deckDe`, js/combat.js) : la poche est ce qui se joue en semaine.
+    if (BANQUE[id].cat === 'match') return;
     if ((d.achat.vendus || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
@@ -58,7 +60,7 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
   for (const p of PALIERS_PACK) {
     if (nMatch < p) continue;
-    tirerCartesPack('mixte', graine, `palier${p}`).forEach((id, t) => {
+    tirerCartesPack('mixte', graine, `palier${p}`, { sans: ['match'] }).forEach((id, t) => {
       if (!BANQUE[id] || BANQUE[id].vie === 'permanent') return;
       items.push({ ref: `p${p}:${t}`, id, source: `Main du match ${p}` });
     });
@@ -182,7 +184,7 @@ export function ouvrirInventaire(ctx) {
         <div class="inv-grille">${cartes.map(([id, pile]) => {
           const x = pile.find(c => !nonJouable(c.ref)) || pile[0], non = nonJouable(x.ref);
           return carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${ctx.peutJouer && !non ? '' : ' disabled'}>${non ? esc(non) : BANQUE[id].cat === 'match' ? 'Au deck' : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
+          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${ctx.peutJouer && !non ? '' : ' disabled'}>${non ? esc(non) : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
         }).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}</div>`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));

@@ -3410,8 +3410,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-but-ligne:last-child { border-bottom: 0; }
 /* UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP) : le fond, l'encre et le liseré de son bandeau (js/logos.js). */
 .but-eq { background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
-.but-eq :is(b, small, .lien-joueur, .live-tps, .live-but-mot, .live-xe, .live-micro, .live-score, .som-tps, .som-xe, .som-aides, .som-recit, .exh-t, .exh-pt) { color: inherit; }
-.but-eq :is(small, .live-tps, .live-xe, .live-micro, .som-tps, .som-xe, .som-recit, .exh-t) { opacity: 0.8; }
+.but-eq :is(b, small, .lien-joueur, .live-tps, .live-but-mot, .live-xe, .live-micro, .live-cause, .live-score, .som-tps, .som-xe, .som-aides, .som-recit, .som-cause, .exh-t, .exh-pt) { color: inherit; }
+.but-eq :is(small, .live-tps, .live-xe, .live-micro, .live-cause, .som-tps, .som-xe, .som-recit, .som-cause, .exh-t) { opacity: 0.8; }
 .live-but-ligne .team-logo-img, .live-but-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-xe { color: var(--encre-2); font-size: var(--t-1); }
 .live-score { margin-left: var(--esp-1); font: 800 var(--t-2)/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -3491,6 +3491,11 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-detail > summary { font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre-2); cursor: pointer; }
 .som-decide { margin-bottom: var(--esp-4); }
 .som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.som-difference :is(p, ul) { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.som-difference ul { padding-left: var(--esp-4); }
+.som-difference h4 { margin: var(--esp-3) 0 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.som-difference li.bon { color: var(--bon); }
+.som-difference li.prix { color: var(--live); }
 .som-ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: var(--esp-3); align-items: center; min-height: 48px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); }
 /* Le pointage en couleurs d'équipe : chaque ligne prend l'aplat et la seconde couleur de son club. */
 .som-ligne-eq { padding-inline: var(--esp-3); background: linear-gradient(100deg, var(--eq-band) 45%, color-mix(in srgb, var(--eq-stripe) 80%, var(--eq-band))); color: var(--eq-ink); box-shadow: inset 4px 0 0 var(--eq-stripe); }
@@ -3516,6 +3521,9 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-sit.an { color: var(--or); }
 .som-sit.dn { color: var(--mauvais); }
 .som-recit { grid-column: 3 / -1; color: var(--encre-3); font-size: var(--t-1); line-height: 1.45; }
+/* Ce qui a décidé du but (js/causes.js) : sous son récit, en gras léger. */
+.som-cause { grid-column: 3 / -1; font-size: var(--t-1); font-weight: 600; line-height: 1.45; }
+.live-cause { display: block; font-size: var(--t-1); font-weight: 600; }
 .som-pun { color: var(--encre-2); }
 .som-bless .som-qui { color: var(--mauvais); }
 .som-coup .som-qui, .som-bagarre .som-qui { color: var(--attention); }

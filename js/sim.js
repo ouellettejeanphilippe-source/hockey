@@ -4923,6 +4923,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     }
     // « Le fantôme » : leur couverture ne le trouve pas. Il ignore une part
     // de l'étouffement de CETTE présence, pas le gardien, pas le volume.
+    const defAvantAbri = facteurDef;
     if (tireur && tireur._abri && facteurDef < 1) facteurDef = 1 - (1 - facteurDef) * (1 - tireur._abri);
 
     // Les passes causent les buts : la création des coéquipiers sur la glace
@@ -4950,14 +4951,14 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // LA LECTURE (js/impact.js) ne tire pas ce dé : elle prend son espérance, la chance de l'action × ce qu'elle rapporte.
       if (st?.espP) { attenteSpec = 1 + SPEC_BASE * (trioOff.chimie || 0) / 100 * (special === 'reussie' ? SPEC_MULT - 1 : 0); special = null; }
     }
-    const p = borne(
+    const pBrut = (
       CIBLE_PCT_TIR
         * (tireur ? pctTirRel(tireur) : (off.pctTirDefaut ?? RAPPEL_PCT_TIR)) / REF.pctTir * crea
         * (fg / REF.fg) * facteurDef * facteurRob * traits * (unite ? unite.qualite : 1) * chance * devantFilet * elanDe(off, instant)
         * (off.finitionFacteur ?? 1) * qualite * (mode === 'FE' && st ? FE_QUALITE : 1)
         * (mode === 'FE' ? SPEC_NORME : 1) * (special === 'reussie' ? SPEC_MULT : 1) * attenteSpec
-        * (vedette && tireur === vedette ? ombre : 1),
-      0.005, PCT_TIR_MAX);
+        * (vedette && tireur === vedette ? ombre : 1));
+    const p = borne(pBrut, 0.005, PCT_TIR_MAX);
 
     // LA LECTURE (js/impact.js, `pMoyenDuLancer`) : la chance moyenne d'un lancer, sans tirer le but — le tirage ne bouge donc pas avec `p`.
     if (st?.espP) {
@@ -4975,11 +4976,17 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode, special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null, p: Math.round(p * 1000) / 1000 } : null;
     if (lancer) journal.lancers.push(lancer);
 
-    if (hasard() < p) {
+    const de = hasard();
+    // CE QUI A FAIT CE LANCER (oct.) : pour les matchs de ton club, chaque cause nommée, et celles qui ont décidé de ce dé.
+    if (lancer && journal.lireCauses) lancer.causes = causesDuLancer({
+      off, def, cote, mode, tireur, gardien, unite, uniteD: !!unite && unite === paireOff, trioOff, defGlace, dTrio, dPaire, facteurDef, defAvantAbri, crea, devantFilet,
+      special, chance, facteurRob, traits, instant, series, ombre: vedette && tireur === vedette ? ombre : 1,
+    }, pBrut, de);
+    if (de < p) {
       buts++;
       if (lancer) lancer.but = true;
       if (journal && tireur) {
-        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN', special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null });
+        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN', special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null, causes: lancer ? lancer.causes : undefined });
       }
       if (feuille && tireur && mode === 'AN') tireur.simPPG = (tireur.simPPG || 0) + 1;
       // Les passeurs sont tirés dès qu'il y a un but : la feuille de saison
@@ -5526,6 +5533,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
 
   const pA = profilMatch(A, LA, B), pB = profilMatch(B, LB, A);
   pA.rob = sA.rob; pB.rob = sB.rob;
+  if (CAUSES_MESURE && journal && (A.isPlayer || B.isPlayer)) journal.lireCauses = true;
   // A est à domicile : le dernier changement est à lui (voir FERMETURE_DEFAUT).
   pA.domicile = true; pB.domicile = false;
 
@@ -5899,6 +5907,106 @@ function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joue
   if (joueurs && espP.n) for (const j of joueurs.values()) { j.t /= espP.n; j.b /= espP.n; }
   return espP.n ? espP.s / espP.n : 0;
 }
+
+/*
+ * CE QUI A FAIT CE LANCER (oct.). JP : *ya moyen de savoir quand le proc d'un bonus sur carte a fait la différence* ;
+ * *tout ce qui a influencé le jeu. Le joueur doit comprendre ce qui se passe et avoir un impact.*
+ *
+ * La chance d'un lancer est un PRODUIT de facteurs ; le but tombe si le dé du lancer passe sous elle. Chaque
+ * facteur se nomme (une carte, un badge monté, le système de la ligne, le gardien, les jambes…) et se retire
+ * seul : sans lui, la chance aurait été `pBrut / f`. Si le dé tombe ENTRE les deux, c'est lui qui a décidé —
+ * il a fait entrer ce but (`but`), ou il a fait cet arrêt (`arret`). Rien n'est estimé : le même dé, la même
+ * chance, moins un facteur. Aucun dé de plus (`check_graine`), aucune cote dans la feuille — des noms de causes.
+ *
+ * Chaque cause : { k (la sorte), c (le club à qui elle appartient), qui (un joueur, s'il y en a un), f (son
+ * facteur), d ('but' | 'arret' quand elle a décidé du dé) }. Les GROUPES (`GROUPE_CAUSE`) se retirent aussi
+ * ensemble, club par club — « sans tes cartes » — dans `g`.
+ */
+const GROUPE_CAUSE = {
+  carte: 'cartes', monte: 'cartes', cartesClub: 'cartes', fantome: 'cartes', ombre: 'cartes',
+  ligne: 'systemes', special: 'systemes', systemeDef: 'systemes',
+  power: 'badges', badges: 'badges', badgeG: 'badges',
+  jambes: 'jambes', gardien: 'gardien', defense: 'talent', plafond: 'talent', creation: 'talent', trait: 'talent', traitsClub: 'talent', traitG: 'talent',
+  lancee: 'elan', elan: 'elan', situation: 'elan', accident: 'elan', robustesse: 'robustesse', chance: 'chance',
+};
+function causesDuLancer(x, pBrut, de) {
+  const A = x.cote, D = A === 'A' ? 'B' : 'A';
+  const out = [];
+  const ajoute = (k, c, f, qui = null, ch = null) => { if (Number.isFinite(f) && f > 0 && Math.abs(f - 1) > 1e-4) out.push(ch ? { k, c, f, qui, ch } : { k, c, f, qui }); };
+  // Ses modifs sur ce canal, en deux : les accidents de la saison (pas un choix à toi), et le reste — tes cartes.
+  const accidentsDe = (q, champ) => (q._mutCles || []).reduce((a, k) => (MUTATIONS[k] && MUTATIONS[k].source === 'accident' && MUTATIONS[k][champ] ? a * MUTATIONS[k][champ] : a), 1);
+  const cartesDe = (q, champ) => {
+    const m = q._mut, a = q._amel && q._amel[champ];
+    return ((m && m[champ]) || 1) / accidentsDe(q, champ) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(q, champ) * siDe(q, champ);
+  };
+  // Le tireur et ce qui l'entoure, au club qui attaque.
+  const t = x.tireur;
+  if (t) {
+    ajoute('carte', A, cartesDe(t, 'finition'), t, 'finition');
+    ajoute('accident', A, accidentsDe(t, 'finition'), t, 'finition');
+    ajoute('monte', A, effetDesPaliersGagnes(t, 'finition'), t);
+    ajoute('lancee', A, lanceeFacteur(t, 'finition'), t);
+    ajoute('situation', A, situDe(t, 'finition'), t);
+    ajoute('jambes', A, facteurEnergie(t), t);
+    ajoute('trait', A, facteurFinitionJoueur(t), t);
+  }
+  ajoute('creation', A, x.crea);
+  ajoute('power', A, x.devantFilet);
+  const uniteDe = (u, d) => (u ? { rang: u.rang || 0, tac: u.tactique || null, d } : null);
+  if (x.unite) ajoute('ligne', A, x.unite.qualite, uniteDe(x.unite, x.uniteD));
+  if (x.special === 'reussie') ajoute('special', A, SPEC_MULT, uniteDe(x.trioOff, false));
+  // La finition du club : ses cartes, ou le plafond du jeu quand c'est lui qui mord (`finitionFacteur` est le plus petit des deux).
+  if (x.off.cartes && x.off.finEquipe) {
+    const plafond = (FINITION_MAX + ((x.off.plafonds && x.off.plafonds.finition) || 0)) / x.off.finEquipe, cartesF = x.off.cartes.finition ?? 1;
+    if (cartesF <= plafond) ajoute('cartesClub', A, cartesF); else ajoute('plafond', A, plafond);
+  } else ajoute('cartesClub', A, x.off.finitionFacteur ?? 1);
+  ajoute('elan', A, elanDe(x.off, x.instant));
+  ajoute('fantome', A, x.facteurDef / x.defAvantAbri, t);
+  // La chance et la robustesse ne sont à personne : elles vont au club qu'elles ont servi.
+  ajoute('chance', x.chance >= 1 ? A : D, x.chance);
+  ajoute('robustesse', x.facteurRob >= 1 ? A : D, x.facteurRob);
+  // Le traits d'équipe, des deux bords (les cartes de défense du club vont avec ses cartes).
+  const cartesDef = (x.def.cartes && x.def.cartes.defense) || 1;
+  ajoute('cartesClub', D, cartesDef);
+  ajoute('traitsClub', A, (x.off.traitAtt ?? 1) * (x.series ? (x.off.traitSeries ?? 1) : 1));
+  ajoute('traitsClub', D, (x.def.traitDef ?? 1) / cartesDef);
+  ajoute('ombre', D, x.ombre);
+  // Le gardien, au club qui défend : son talent contre le gardien moyen, son badge, ses cartes, ses jambes.
+  const g = x.gardien;
+  if (g) {
+    const svLigue = 1 - seasonLancers(g.s)[1] / 100, sv = g.sv || svLigue;
+    ajoute('gardien', D, borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) / REF.fg, g);
+    ajoute('badgeG', D, facteurBadgeGardien(g, x.mode, x.series, borne(attenduDeCote(x.off, x.def) / LANCERS_BASE, 0.5, 2)), g);
+    ajoute('carte', D, cartesDe(g, 'arrets'), g, 'arrets');
+    ajoute('accident', D, accidentsDe(g, 'arrets'), g, 'arrets');
+    ajoute('monte', D, effetDesPaliersGagnes(g, 'arrets'), g);
+    ajoute('jambes', D, usureGardien(g), g);
+    ajoute('traitG', D, facteurTraitGardien(g, x.series) * situDe(g, 'gardien'), g);
+  } else ajoute('gardien', D, (x.def.fgDefaut ?? 1.20) / REF.fg);
+  // Ceux qui défendent cette présence-là.
+  if (x.defGlace) {
+    const z = borne((0.5 * (x.dTrio.coteDef + x.dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
+    ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)));
+    ajoute('traitsClub', D, facteurPresenceUnite(x.defGlace));
+    for (const q of x.defGlace) { ajoute('carte', D, cartesDe(q, 'defense'), q, 'defense'); ajoute('accident', D, accidentsDe(q, 'defense'), q, 'defense'); ajoute('monte', D, effetDesPaliersGagnes(q, 'defense'), q); }
+    ajoute('systemeDef', D, Math.sqrt((x.dTrio.defTac ?? 1) * (x.dPaire.defTac ?? 1)), uniteDe(x.dTrio, false));
+    ajoute('badges', D, (x.dTrio.etouffe ?? 1) * (x.dPaire.etouffe ?? 1) * (x.dTrio.intimide ?? 1), uniteDe(x.dTrio, false));
+  } else ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (x.def.zDef - REF.zDef)));
+  // Qui a décidé du dé : retiré seul, ce facteur aurait-il changé le lancer ?
+  const but = de < borne(pBrut, 0.005, PCT_TIR_MAX);
+  const decide = f => { const sans = borne(pBrut / f, 0.005, PCT_TIR_MAX); return but ? (de >= sans ? 'but' : null) : (de < sans ? 'arret' : null); };
+  for (const c of out) { const d = decide(c.f); if (d) c.d = d; }
+  // Les groupes, club par club : « sans tes cartes », « sans tes systèmes »…
+  const groupes = new Map();
+  for (const c of out) { const k = `${c.c}|${GROUPE_CAUSE[c.k]}`; groupes.set(k, (groupes.get(k) || 1) * c.f); }
+  const g2 = [];
+  for (const [k, f] of groupes) { const d = decide(f); if (d) { const [c, gr] = k.split('|'); g2.push({ c, g: gr, d }); } }
+  // La molette `CAUSES_PREUVE=1` garde la chance et le dé du lancer, pour la PREUVE seulement (`check_causes`).
+  return CAUSES_PREUVE ? { liste: out.filter(c => c.d), groupes: g2, pBrut, de } : { liste: out.filter(c => c.d), groupes: g2 };
+}
+const CAUSES_PREUVE = Number(ENV_MESURE.CAUSES_PREUVE ?? 0);
+/* La molette `CAUSES=0` ne lit aucune cause : la preuve que les lire ne touche à aucun dé (`check_causes`). */
+const CAUSES_MESURE = Number(ENV_MESURE.CAUSES ?? 1);
 
 function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {
   if (track && gardien) gardien.simSA = (gardien.simSA || 0) + 1;

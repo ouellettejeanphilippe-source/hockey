@@ -227,7 +227,7 @@ async function deciderMaintenant(d, depuis) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  const allume = (d.joue || d.recompense !== undefined) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
+  const allume = (d.joue || d.recompense !== undefined || d.achat) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || (!!d.garde && !d.mutation));

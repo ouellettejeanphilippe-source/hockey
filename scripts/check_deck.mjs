@@ -29,9 +29,9 @@ import {
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, MUTATIONS, CARTES, PALIERS_CARTES,
   chimieLigne, apprentissagePhoto, getPlayerKey, profilsDe,
 } from '../js/sim.js';
-import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose } from '../js/banque.js';
+import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte } from '../js/banque.js';
 import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH } from '../js/combat.js';
-import { pocheDeLaPartie } from '../js/inventaire.js';
+import { pocheDeLaPartie, mainDeLaSemaine, PALIERS_PACK } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -185,6 +185,27 @@ console.log('\n  Le deck (S73)\n');
   const base = deckDe([], { pertes: [3, 9] }).filter(c => !CARTES_MATCH[c].maudite);
   const suivante = deckDe([{ jour: 0, deck: 'report', deckDeBase: base }]);
   exiger('la saison suivante d\'une run repart d\'un deck sans cicatrice', !suivante.some(c => CARTES_MATCH[c].maudite) && suivante.length === DECK_DEPART.length, `${suivante.length} cartes, ${suivante.filter(c => CARTES_MATCH[c].maudite).length} maudite(s)`);
+}
+
+/*
+ * LES CARTES DE MATCH NE SONT PAS DANS LA POCHE (oct.). JP : *les poches de cartes, faut pas que les cartes de match
+ * soient là, ça n'a pas de sens*. Elles se jouent au deck, aux gros matchs : un pack les y met à l'ouverture, elles ne
+ * prennent jamais une place de la main de la semaine. Une partie d'avant (la carte envoyée « Au deck » depuis la poche)
+ * ne la compte pas deux fois, ni au deck ni pour son coach.
+ */
+{
+  const m = idsDe('match').find(id => coachDeCarte(id)), autre = idsDe('evenement')[0], cle = m.slice(6);
+  const achat = { jour: 3, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: [m, autre] } };
+  const poche = pocheDeLaPartie({ decisions: [achat], graine: 7, nMatch: PALIERS_PACK.at(-1) + 1, rogue: true });
+  exiger('la poche n\'a aucune carte de match (packs achetés et packs gratuits des paliers)', poche.every(x => !x.id.startsWith('match:')) && poche.some(x => x.id === autre), `${poche.length} cartes`);
+  const main = mainDeLaSemaine({ decisions: [achat], graine: 7, jour: 7, nMatchDebut: 5, nMatch: 6, rogue: true });
+  exiger('la main de la semaine n\'en pige aucune', main.main.every(x => !x.id.startsWith('match:')));
+  const avant = deckDe([]).filter(k => k === cle).length;
+  exiger('la carte de match du pack est au deck dès l\'ouverture', deckDe([achat]).filter(k => k === cle).length === avant + 1);
+  const vieux = [achat, { jour: 4, joue: { src: 'partie', ref: '1:0', id: m }, recompense: cle }];
+  exiger('une partie d\'avant (« Au deck » depuis la poche) ne la compte pas deux fois', deckDe(vieux).filter(k => k === cle).length === avant + 1);
+  const e = coachDeCarte(m);
+  exiger('elle compte une fois pour son coach', buildDe([achat])[e] === 1 && buildDe(vieux)[e] === 1, `${buildDe([achat])[e]} · ${buildDe(vieux)[e]}`);
 }
 
 verdict('Le deck');

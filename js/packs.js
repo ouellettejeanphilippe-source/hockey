@@ -428,7 +428,8 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
-  const cats = coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats;
+  // `params.sans` : des familles que ce tirage ne donne pas (le pack gratuit de la poche n'a pas de carte de match).
+  const cats = (coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats).filter(c => !(params.sans || []).includes(c));
   for (let t = 0; t < P.n; t++) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
     const pool = idsDe(cat).filter(id => BANQUE[id].rarete !== 'maudite' && (!coach || BANQUE[id].coach === coach));
