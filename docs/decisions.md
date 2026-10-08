@@ -2055,3 +2055,6 @@ JP : *je comprends qu'un gardien bronze avec un pourcentage d'arrêt de 890 va g
 
 **À l'écran.** La fiche dit le badge monté (« 🤸 Acrobate monté : Bronze → Or : il accorde 4 % de buts de moins sur chaque lancer ») ; la page des règles dit chaque chiffre depuis `EFFET_ROLE` et `EFFET_PALIER` (`check_clarte`). `VERSION_MOTEUR` passe à S101 : une saison en cours se rejoue.
 
+## L'alignement de l'écran est celui du moteur (8 oct. 2026)
+
+JP : *des fois, le joueur pigé d'un pack s'ajoute pas*. En pleine saison, `G.roster` est l'objet même que le moteur aligne (`appliquerAlignement` le réécrit en place). « Aligner au mieux » lui substituait un objet neuf. Une signature suivante entrait donc dans l'alignement du moteur et pas dans celui de l'écran ; la photo du banc d'après le retirait du moteur aussi. Règle : on ne remplace jamais `G.roster` pendant une saison, on le réécrit en place. `essai_packs` le garde.

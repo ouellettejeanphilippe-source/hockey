@@ -136,8 +136,9 @@ export async function reprendreSaison() {
   const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
   if (avant.length || relaches.length) d.relache = [...avant, ...relaches];
   // On ne remplace que la décision de BANC du même jour : une carte, un plan
-  // du soir ou un dilemme pris ce jour-là restent.
-  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases);
+  // du soir ou un dilemme pris ce jour-là restent. V4.4 : une signature (un pack, le ballottage) ou une blessure
+  // réglée porte aussi des cases, mais avec son palier : elle reste, sinon le pack redemandait sa signature.
+  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases || x.palier !== undefined || !!x.ballottage);
   decisions.push(d);
   G.banc = null;
   $('game').classList.remove('banc');
