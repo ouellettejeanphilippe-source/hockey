@@ -661,7 +661,7 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
 if (posee) {
   await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
   await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
-  await page.click('#hockeyCardModal .fc-recto .cj-retourner');
+  await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
   await page.waitForTimeout(700);
   const pleines = await page.$$eval('#hockeyCardModal .fc-case.pleine', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   const titre = await page.$$eval('#hockeyCardModal .fc-sec', e => e.map(x => x.textContent.trim()).find(t => /améliorations/i.test(t)) || '');
@@ -678,7 +678,7 @@ if (posee) {
     await page.click(`[data-ct-equipe="${cle}"]`);
     await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
     if (!(await page.$('#hockeyCardModal .fc-plus'))) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); continue; }
-    await page.click('#hockeyCardModal .fc-recto .cj-retourner');
+    await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
     await page.waitForTimeout(700);
     await page.click('#hockeyCardModal .fc-plus');
     await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="poser"] .tc', { timeout: 10000 });

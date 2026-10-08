@@ -409,11 +409,13 @@ export function showPlayerModal(p, opts = {}) {
    * au plus, au bureau), dans le dessin de sa SÉRIE et aux couleurs de son
    * CLUB (1.0, `cartonDe`, style.css « LES SÉRIES ») ; la variante en est la
    * parallèle, la même sur les deux faces. Les deux faces s'empilent dans la
-   * même case : la carte a la taille de la plus haute, et elle ne change pas
-   * de taille quand on la retourne.
+   * même case, LA MÊME TAILLE DES DEUX CÔTÉS (oct., JP : *même taille des deux
+   * côtés*) : le carton 5:7 du recto la décide, le verso la remplit et défile
+   * en dedans s'il déborde.
    *   RECTO — le carton (le visage, le poste, le niveau, la gemme, le nom, le
-   *     club, les petits caractères), puis la plaque : la vraie saison (six
-   *     nombres) et le salaire.
+   *     club, les petits caractères).
+   *   SOUS LA CARTE — la plaque : la vraie saison (six nombres), le salaire,
+   *     et « ↻ », qui la retourne ; elle reste là sur les deux faces.
    *   VERSO — le numéro de la carte, le nom et le poste ; les mensurations ;
    *     ce qu'il sait faire ; les traits, les mesures et la zone ; ce que sa
    *     carte JOUE (la variante et son bonus, en toutes lettres) ; l'échange
@@ -451,16 +453,16 @@ export function showPlayerModal(p, opts = {}) {
         <div class="fc-faces">
           <div class="fc-face fc-recto cs-${serie} tc-${rarete}" title="Touche la carte pour la retourner">
             ${cartonDe(p, { nomClasse: 'pcard-full-name' })}
-            <div class="fc-plaque">
-            <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
-            <div class="fc-stats">${statsCarte}</div>
-            <div class="fc-pied">
-              <span class="fc-salaire"><b>${st.salaryMain}</b><small>${[st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
-              <button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button>
-            </div>
-            </div>
           </div>
           ${verso}
+        </div>
+        <div class="fc-plaque">
+          <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
+          <div class="fc-stats">${statsCarte}</div>
+          <div class="fc-pied">
+            <span class="fc-salaire"><b>${st.salaryMain}</b><small>${[st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
+            <button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button>
+          </div>
         </div>
       </div>
       <div class="modal-body">${corps}</div>
@@ -490,11 +492,7 @@ export function showPlayerModal(p, opts = {}) {
   const carte = body.querySelector('.fiche-carte');
   brancherRetournement(carte);
   // S80 : la fiche s'ouvre AU VERSO quand on y vient pour poser une carte — sans tourner, elle y est déjà.
-  if (opts.verso && carte) {
-    carte.classList.add('au-verso');
-    const recto = carte.querySelector('.fc-recto'), dos = carte.querySelector('.fc-verso');
-    if (recto && dos) { recto.classList.add('fc-cachee'); dos.classList.remove('fc-cachee'); recto.setAttribute('aria-hidden', 'true'); dos.setAttribute('aria-hidden', 'false'); }
-  }
+  if (opts.verso && carte) montrerFace(carte, true);
   // LES CASES DU VERSO (S80) : « Poser ici » pose la carte en attente ; « + Poser une amélioration » ouvre tes cartes.
   const poser = body.querySelector('[data-poser]');
   if (poser && opts.attente) poser.onclick = () => opts.attente.poser();
@@ -525,21 +523,23 @@ export function showPlayerModal(p, opts = {}) {
  * sont connues) : une animation absente, coupée ou refusée par la feuille ne
  * peut plus bloquer la carte ; et la courbe est écrite en toutes lettres.
  */
-const TOUR_1 = 200, TOUR_2 = 340;   // les deux moitiés du tour, en ms (style.css, `cj-tourne-1/2`)
+const TOUR_1 = 200, TOUR_2 = 340;
+/* Une face ou l'autre. Les deux restent dans la case (`visibility`, pas `hidden`) ; « ↻ », sous la carte, dit l'autre face. */
+function montrerFace(carte, auVerso) {
+  const recto = carte.querySelector('.fc-recto'), dos = carte.querySelector('.fc-verso'), bouton = carte.querySelector('.fc-plaque .cj-retourner');
+  if (!recto || !dos) return;
+  carte.classList.toggle('au-verso', auVerso);
+  recto.classList.toggle('fc-cachee', auVerso);
+  dos.classList.toggle('fc-cachee', !auVerso);
+  recto.setAttribute('aria-hidden', String(auVerso));
+  dos.setAttribute('aria-hidden', String(!auVerso));
+  if (bouton) { bouton.textContent = auVerso ? '↻ Recto' : '↻ Verso'; bouton.setAttribute('aria-label', auVerso ? 'Revenir au recto' : 'Retourner la carte'); }
+}   // les deux moitiés du tour, en ms (style.css, `cj-tourne-1/2`)
 function brancherRetournement(carte) {
   if (!carte) return;
-  const recto = carte.querySelector('.fc-recto');
-  const dos = carte.querySelector('.fc-verso');
-  if (!recto || !dos) return;
+  if (!carte.querySelector('.fc-recto') || !carte.querySelector('.fc-verso')) return;
   let enCours = false;
-  // Les deux faces restent dans la case (`visibility`, pas `hidden`) : la carte garde sa taille.
-  const changer = () => {
-    const auVerso = carte.classList.toggle('au-verso');
-    recto.classList.toggle('fc-cachee', auVerso);
-    dos.classList.toggle('fc-cachee', !auVerso);
-    recto.setAttribute('aria-hidden', String(auVerso));
-    dos.setAttribute('aria-hidden', String(!auVerso));
-  };
+  const changer = () => montrerFace(carte, !carte.classList.contains('au-verso'));
   const retourner = () => {
     if (enCours) return;
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) { changer(); return; }
@@ -620,7 +620,7 @@ function versoDeCarte(p, numero, rarete, milieu = '', serie = 'signature') {
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
-    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span><button type="button" class="cj-retourner" aria-label="Revenir au recto">↻ Recto</button></div>
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span></div>
   </div>`;
 }
 
