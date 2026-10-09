@@ -236,7 +236,7 @@ Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans pre
 
 ## Tranché par JP (9 oct.)
 
-1. **Le mandat** (JP, 9 oct. : *je suis ouvert à tous*) : **le proprio juge la saison, pas une série.** Faire les séries, puis finir dans le premier tiers de la ligue, puis dans le premier quart, puis dans les quatre premiers (`MANDATS`, `rangDuMandat`, js/rogue.js). Les séries paient toujours et la Coupe gagne la run ; une série perdue ne la finit plus.
+1. **Le mandat** (JP, 9 oct. : *je suis ouvert à tous*) : **le proprio juge la saison, pas une série.** Faire les séries, puis finir dans les dix premiers, les six, puis les trois premiers (mesuré : le premier tiers puis le quart laissaient la Coupe à 17 % des runs sans déblocage) (`MANDATS`, `rangDuMandat`, js/rogue.js). Les séries paient toujours et la Coupe gagne la run ; une série perdue ne la finit plus.
 2. **Les trois types de cartes** : oui. **La coupe** (JP : *nécessaire de couper ?*) : non. On garde les cartes. On retire seulement les doublons (les 4 consommables qui font le camp, le ménage et le stage) et on rebranche les cartes mortes (les 12 maudites, les 18 cartes de saison). La clarté vient des trois types et de ce qu'on montre à la fois, pas du nombre de cartes.
 3. **La boutique** (JP : *nœud en début de semaine ?*) : oui. La boutique ouvre **au début de chaque semaine**, au bureau, et se ferme quand la semaine se joue. On n'achète plus au milieu d'une semaine. Le nœud 🛒 garde le pack de la semaine au rabais.
 4. **Les déblocages en options** : oui.

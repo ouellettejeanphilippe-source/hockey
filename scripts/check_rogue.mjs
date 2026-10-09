@@ -268,7 +268,7 @@ if (!isMainThread) {
   // V5 : le mandat se lit au classement (un rang qui monte), plus une série gagnée.
   const seuils = MANDATS.map(m => rangDuMandat(m, 32));
   exiger('le mandat du proprio monte de saison en saison', seuils[0] == null && seuils.slice(1).every((s, i) => i === 0 || s < seuils[i]) && mandatDe(9) === MANDATS[MANDATS.length - 1]
-    && mandatRempli(1, { series: true, rang: 16 }) && !mandatRempli(2, { series: true, rang: 12 }) && mandatRempli(2, { series: true, rang: 11 }) && !mandatRempli(1, { series: false }) && mandatRempli(4, { series: true, rang: 4 }),
+    && mandatRempli(1, { series: true, rang: 16 }) && !mandatRempli(2, { series: true, rang: 11 }) && mandatRempli(2, { series: true, rang: 10 }) && !mandatRempli(1, { series: false }) && mandatRempli(4, { series: true, rang: 3 }) && !mandatRempli(9, { series: true, rang: 4 }),
     MANDATS.map((m, i) => `saison ${i + 1}${i === MANDATS.length - 1 ? '+' : ''} : ${m.mot}`).join(' · '));
   {
     const m = { deblocages: [], jalons: {} };
