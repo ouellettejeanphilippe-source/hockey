@@ -67,6 +67,7 @@ import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
 import { IDENTITES } from './identites.js';
+import { statureDe } from './rarete.js';
 
 /*
  * 1.0 — MOINS D'ÉTOILES (JP : *les packs sont trop généreux en joueurs étoiles*).
@@ -411,6 +412,14 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
   }
   // LA GARANTIE : le pack garanti, ou la pitié de la run (\`PITIE\`) — la dernière carte monte à holo.
   if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
+  /*
+   * V5 — LA BRILLANTE VA À LA VEDETTE DU PACK (js/rarete.js, \`statureDe\`). Les variantes tirées restent celles du pack
+   * (ses chances affichées ne bougent pas) ; elles se distribuent seulement par stature : la plus brillante au joueur
+   * de plus grande stature. Un holo dans un pack de Crosby et de trois Soutien, c'est le Crosby holo.
+   */
+  const ordre = out.map((x, i) => ({ i, s: statureDe(x.p, x.niveau) })).sort((a, b) => b.s - a.s || a.i - b.i).map(o => o.i);
+  const vars = out.map(x => ({ rar: x.rar, num: x.num })).sort((a, b) => ORDRE_VAR.indexOf(b.rar) - ORDRE_VAR.indexOf(a.rar));
+  ordre.forEach((i, k) => { out[i].rar = vars[k].rar; out[i].num = vars[k].num; });
   return { cartes: out, reglage };
 }
 

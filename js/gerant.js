@@ -185,7 +185,7 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
 /* Ce que la case lit d'un joueur (V2.3) : son badge de ce rôle, à son palier, ou la base. */
 const motDuFit = (p, role) => {
   const b = p && badgesDe(p).find(x => x.cle === role);
-  return !b ? 'pas ce badge : la case ne rend que la base' : b.second ? `son second badge, ${motDuBadge(b)} : la moitié` : `son badge, ${motDuBadge(b)}`;
+  return !b ? 'pas ce badge : la case ne rend que la base' : b.second && !b.plein ? `son second badge, ${motDuBadge(b)} : la moitié` : `son badge, ${motDuBadge(b)}`;
 };
 export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
 /*
@@ -195,7 +195,7 @@ export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { 
  */
 export const motDuBadge = b => `${b.nom} ${PALIERS[b.palier].nom}`;
 export const raisonDuBadge = b => (b.trait && TRAITS[b.trait] ? TRAITS[b.trait].short : '');
-export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, ${b.gardien ? 'comparé aux gardiens de sa saison' : 'comparé aux joueurs de son poste, toutes saisons'}${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}. Il dit CE QU'IL FAIT au match ; sa zone dit où.`;
+export const titreDuBadge = b => `${b.second ? (b.plein ? 'Son second badge (plein : sa carte brille)' : 'Son second badge (la moitié de son effet)') : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, ${b.gardien ? 'comparé aux gardiens de sa saison' : 'comparé aux joueurs de son poste, toutes saisons'}${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}. Il dit CE QU'IL FAIT au match ; sa zone dit où.`;
 function rolesDe(p) {
   const bs = badgesDe(p);
   if (!bs.length) return '';
@@ -939,7 +939,7 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
     // V2.3 : la case lit le BADGE — le bon rend son palier, le second la moitié, le mauvais la base (`fitDeCase`).
     const b = p ? badgesDe(p).find(x => x.cle === prof) : null;
-    const marque = !p ? '' : !b ? '✗' : b.second ? '≈' : '✓';
+    const marque = !p ? '' : !b ? '✗' : b.second && !b.plein ? '≈' : '✓';
     return `<span class="ln-dem${marque === '✓' ? ' fit-bon' : marque === '✗' ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${esc(motDuFit(p, prof))}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
   return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
@@ -1067,7 +1067,7 @@ export function ouvrirLignes(spec) {
     // V2.3 : la case lit son badge de ce rôle — ✓ le badge, ≈ le second, ✗ la base.
     const bVoulu = voulu && p ? badgesDe(p).find(b => b.cle === voulu) : null;
     const c = p ? carrureDe(p) : null;
-    const marque = !voulu || !p ? '' : !bVoulu ? '✗' : bVoulu.second ? '≈' : '✓';
+    const marque = !voulu || !p ? '' : !bVoulu ? '✗' : bVoulu.second && !bVoulu.plein ? '≈' : '✓';
     // TOUT CE QUI JOUE SUR LE TRIO, ICI (S72) : sa zone (le rang de ligne où
     // il rend) et sa position (mauvaise aile, centre à l'aile).
     const place = p ? placementDe(p, role, u) : null;

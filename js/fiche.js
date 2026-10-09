@@ -91,7 +91,7 @@ const MOTS_GAGNES = {
 function lignesGagnees(p, li) {
   const gagnes = paliersGagnes(p);
   return badgesDe(p).filter(b => b.gagne > 0).map(b => {
-    const k = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle], n = b.gagne * (b.second ? 0.5 : 1);
+    const k = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle], n = b.gagne * (b.second && !b.plein ? 0.5 : 1);
     const mot = MOTS_GAGNES[k] && gagnes[k] ? ` : ${esc(MOTS_GAGNES[k](Math.min(0.5, EFFET_PALIER[k] * n), p))}` : '';
     return li(`<b>${glyphe(b.ico)} ${esc(b.nom)} monté : ${PALIERS[b.palier - b.gagne].nom} → ${PALIERS[b.palier].nom}</b>${mot}.`, 'bon');
   });
@@ -115,7 +115,7 @@ function surLaGlaceHtml(p) {
   for (const b of badgesDe(p)) {
     const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * maitrise(p, b.cle);
     const raison = raisonDuBadge(b);
-    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' — son second badge, à moitié' : ''}.` : '.'}`));
+    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? (b.plein ? ' — son second badge, plein (sa carte brille)' : ' — son second badge, à moitié') : ''}.` : '.'}`));
   }
   lignes.push(...lignesGagnees(p, li));
   // SANS BADGE QUI DÉFEND (V2.2) : le moteur centre chaque badge sur la ligue, donc un joueur qui n'en a pas tire son unité

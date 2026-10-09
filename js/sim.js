@@ -7,7 +7,7 @@
  */
 
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
-import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G } from './rarete.js';
+import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
          POIDS_TRIO, POIDS_PAIRE, RAPPEL_PASSES, passesRelatives, creationAutour, ageAtSeason, archetypeKey } from './ratings.js';
@@ -1893,15 +1893,26 @@ function badgesCalcules(p) {
   const [n1, n2] = [p1, p2];
   if (monteBadge(p)) {
     const [x, y] = paliersEnPlus(p);
-    if (!second) p1 = Math.min(4, p1 + x + y);
-    else {
+    if (!second) {
+      // V5 : un premier badge déjà Platine ne perd plus ce que sa carte lui donne — le palier en trop ouvre son second
+      // rôle (« un Crosby holo, c'est une machine de guerre », JP). Avant, un Phénomène holo gagnait 0,35 palier en
+      // moyenne contre 1 pour un Soutien.
+      // Seule la variante de la carte déborde : le mentor et l'entraînement restent bornés comme leurs cartes (check_paliers).
+      const variante = (VARIANTE_PALIERS[(p._carte && p._carte.rar) || 'commune'] || [0, 0]).reduce((s, v) => s + v, 0);
+      const trop = Math.min(variante, Math.max(0, p1 + x + y - 4));
+      p1 = Math.min(4, p1 + x + y);
+      if (trop && b) return [{ cle: a[0], palier: p1, gagne: p1 - n1, second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] },
+        { cle: b[0], palier: Math.min(4, trop), gagne: Math.min(4, trop), second: true, ...(VARIANTE_PLEINE[p._carte.rar] ? { plein: true } : {}), trait: raison(b[0]), ...PROFILS[g][b[0]] }];
+    } else {
       p1 += x; p2 += y;
       if (p1 > 4) { p2 += p1 - 4; p1 = 4; }
       if (p2 > 4) { p1 = Math.min(4, p1 + p2 - 4); p2 = 4; }
     }
   }
   const out = [{ cle: a[0], palier: p1, gagne: p1 - n1, second: false, trait: raison(a[0]), ...PROFILS[g][a[0]] }];
-  if (second) out.push({ cle: b[0], palier: p2, gagne: p2 - n2, second: true, trait: raison(b[0]), ...PROFILS[g][b[0]] });
+  // V5 : le second badge d'une carte or rend plein (`plein`), pas la moitié.
+  const plein = !!VARIANTE_PLEINE[(p._carte && p._carte.rar) || 'commune'];
+  if (second) out.push({ cle: b[0], palier: p2, gagne: p2 - n2, second: true, ...(plein ? { plein: true } : {}), trait: raison(b[0]), ...PROFILS[g][b[0]] });
   return out;
 }
 /* Les traits qui MONTENT un badge (ceux que `rolesBruts` ajoute au score) : la raison de son palier, « Sniper Or · Tir ». */
@@ -1914,7 +1925,7 @@ const TRAITS_DU_BADGE = {
 function valeurBadge(p, role) {
   if (!p || p.p === 'G') return 0;
   const b = badgesDe(p).find(x => x.cle === role);
-  return b ? b.palier / (b.second ? 8 : 4) : 0;
+  return b ? b.palier / (b.second && !b.plein ? 8 : 4) : 0;
 }
 /* Un badge, centré sur la ligue (0 = le badge moyen) : ce que le moteur lit. */
 export function maitrise(p, role) {
@@ -2159,7 +2170,7 @@ function fitRoles(lineup, u, slots) {
 export const FIT_BASE = 52, FIT_PAR_PALIER = 12;
 function paliersPour(p, role) {
   const b = badgesDe(p).find(x => x.cle === role);
-  return b ? (b.second ? b.palier / 2 : b.palier) : 0;
+  return b ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0;
 }
 export const fitDeCase = (p, role, bonus = 0) => Math.min(100, FIT_BASE + FIT_PAR_PALIER * (paliersPour(p, role) + (paliersPour(p, role) > 0 ? bonus : 0)));
 /*
@@ -7135,7 +7146,7 @@ export function paliersGagnes(p) {
   const out = {};
   for (const b of badgesDe(p)) {
     const canal = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle];
-    if (canal && b.gagne > 0) out[canal] = (out[canal] || 0) + b.gagne * (b.second ? 0.5 : 1);
+    if (canal && b.gagne > 0) out[canal] = (out[canal] || 0) + b.gagne * (b.second && !b.plein ? 0.5 : 1);
   }
   PALIERS_GAGNES.set(p, { sig, mut: p._mutProfils, out });
   return out;

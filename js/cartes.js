@@ -247,8 +247,8 @@ export function rareteDeSalaire(p, saison) {
 const SENS_RARETE = {
   commune: 'la carte de base : le joueur, rien de plus',
   peu: 'une parallèle : son second badge monte d\'un métal',
-  rare: 'une holo : son premier badge monte d\'un métal',
-  legendaire: 'une or : ses deux badges montent d\'un métal',
+  rare: 'une holo : ses deux badges montent d\'un métal, et le second rend plein',
+  legendaire: 'une or : ses deux badges montent de deux métaux, et le second rend plein',
 };
 export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
 /* Une variante BRILLANTE (peu commune et au-dessus) : le « shiny ». */
