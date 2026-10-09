@@ -332,16 +332,22 @@ const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(pr
  * son fond, son encre, son liseré — l'avant-match, la main du soir, le deuxième entracte.
  */
 const auxCouleurs = b => (b ? ` aux-couleurs" style="${varsEquipe(b)}` : '');
+/*
+ * LES JOUEURS NOMMÉS D'UN CHOIX : {nom} (le visé) et {noms} (ceux qu'un geste touche, S72), et où ils jouent
+ * (S80, JP : *dire que x est sur la xième ligne*) : `ouDe(p)` rend « 3e paire », dit à côté du nom.
+ */
+function nommer({ joueur = null, joueurs = [], ouDe = null }) {
+  const nom = joueur ? joueur.n : (joueurs && joueurs[0] ? joueurs[0].n : '');
+  const ou = p => (typeof ouDe === 'function' && p ? ouDe(p) || '' : '');
+  const noms = joueurs && joueurs.length ? listeNoms(joueurs.map(p => (ou(p) ? `${p.n} (${ou(p)})` : p.n))) : '';
+  const sub = t => esc(String(t || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
+  return { nom, ou, noms, sub };
+}
 export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
-  const nom = spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : '');
-  // OÙ IL JOUE (S80, JP : *dire que x est sur la xième ligne*) : `ouDe(p)` rend « 3e paire », dit à côté du nom.
-  const ou = p => (typeof spec.ouDe === 'function' && p ? spec.ouDe(p) || '' : '');
-  // {noms} : les joueurs visés par un geste réel, nommés (S72) — et où ils jouent (S80).
-  const noms = spec.joueurs && spec.joueurs.length ? listeNoms(spec.joueurs.map(p => (ou(p) ? `${p.n} (${ou(p)})` : p.n))) : '';
-  const sub = s => esc(String(s || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
+  const { nom, ou, noms, sub } = nommer(spec);
   const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
   const paquet = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0
     && !PAQUETS_OUVERTS.has(clePaquet) && !mouvementCalme();
@@ -462,7 +468,7 @@ export function ouvrirChoix(spec) {
 const DE_PAS = [55, 55, 60, 70, 85, 105, 130, 165, 210];   // ms entre deux faces : le dé ralentit
 const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
 const deHtml = face => `<span class="de" data-face="${face}" aria-hidden="true">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map(i => `<i${PIPS[face].includes(i) ? ' class="on"' : ''}></i>`).join('')}</span>`;
-function sceneDuDe(m, spec, o, sub, fermer) {
+function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
   const faces = facesDuPari(o.pari.chance);
   const corps = m.querySelector('.choix-corps');
   if (!corps) return;
@@ -495,7 +501,7 @@ function sceneDuDe(m, spec, o, sub, fermer) {
     b.onclick = valider;
     b.focus({ preventScroll: true });
   };
-  corps.querySelector('.de-autre').onclick = () => ouvrirChoix(spec);
+  corps.querySelector('.de-autre').onclick = autre;
   const lancer = corps.querySelector('.de-lancer');
   lancer.onclick = () => {
     v = spec.lancer(o.cle);
@@ -1460,15 +1466,26 @@ function combiner(effets) {
  * ajoute la suite de la pioche à la main. « Recommencer » rend la main du
  * début ; « Jouer ces cartes » décide (zéro carte, c'est aussi un choix).
  *
+ * L'ÉCRAN DE COMBAT (V5, phase 1). JP : *s'assurer que chaque semaine et gros match soit des nodes, des
+ * combats*. Un gros match ne s'arrête plus trois fois : l'intention d'en face (l'enjeu, leur main, leurs
+ * pistes) en haut, l'avant-match en deux cartes de vestiaire à 0 élan dont on garde une, puis ta main.
+ * Le même bouton décide tout : `onJouer` reçoit la carte de vestiaire, et la saison en fait les deux mêmes
+ * décisions qu'avant (`{ avant }` puis `{ main }`). Une carte de vestiaire qui est un pari se joue au dé
+ * d'abord (`sceneDuDe`), et « Autre réponse » ramène à la main.
+ *
  * spec : { titre, sousTitre, recit, contexte, equipe, main, pioche, deck,
  *          ajustements (séries : [{ cle, ico, nom, bon, prix, … }] ou null),
- *          onJouer(jouees, enMain, ajustement), motJouer }
+ *          enjeu(vestiaire) → html, vestiaire : { ico, titre, recit, joueurs, ouDe, cadre, options, pris,
+ *          lancer(cle, args) → le dé d'un pari }, onJouer(jouees, enMain, ajustement, prep, vestiaire), motJouer }
  */
 export function ouvrirMainDeMatch(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
   let main, pioche, jouees, energie, voirDeck = false, aj = null, prep = [];
+  const V = spec.vestiaire || null, nV = V ? nommer(V) : null;
+  let vest = V ? V.pris || null : null;
+  const manque = () => (spec.ajustements && !aj ? 'Choisis ton ajustement' : V && !vest ? 'Choisis ta carte de vestiaire' : '');
   const depart = () => { main = spec.main.slice(); pioche = (spec.pioche || []).slice(); jouees = []; energie = ENERGIE_MAIN; };
   depart();
   const joue = new Set();          // les rangs de la main déjà joués
@@ -1507,6 +1524,23 @@ export function ouvrirMainDeMatch(spec) {
     for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
     const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
+    // LES CARTES DE VESTIAIRE : l'avant-match, deux cartes à 0 élan ; on en garde une (déjà gardée : elle reste dite).
+    const vestiaire = V ? `<div class="main-vestiaire">
+      <div class="gl-k">${V.ico} ${esc(V.titre)} · garde une carte</div>
+      ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
+      <div class="main-vest-rang">${V.options.map(o => {
+        const { duree: _d, ...canaux } = o;
+        const mv = [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, V.cadre), ...motsDeCarte(o, nV.noms)];
+        const forme = formeDe(o);
+        return `<button type="button" class="main-vest${vest === o.cle ? ' on' : ''}" data-vest="${esc(o.cle)}"${V.pris ? ' disabled' : ''}>
+          <span class="main-vest-tete"><b>${nV.sub(o.nom)}</b><span class="main-vest-coin" title="0 élan">0</span></span>
+          ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
+          ${o.bon ? `<span class="choix-option-bon">+ ${nV.sub(o.bon)}</span>` : ''}
+          ${o.prix ? `<span class="choix-option-prix">− ${nV.sub(o.prix)}</span>` : ''}
+          <span class="choix-puces">${puces(enMotsEtChiffres(mv.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nV.nom).replace(/\{noms\}/g, nV.noms) }))), x => !!x.chiffre)}</span>
+        </button>`;
+      }).join('')}</div>
+    </div>` : '';
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">⚔️</span>
@@ -1514,8 +1548,10 @@ export function ouvrirMainDeMatch(spec) {
       </div>
       <div class="choix-corps">
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
-        ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx }) : ''}
+        ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${spec.contexte || ''}
+        ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx }) : ''}
+        ${vestiaire}
         ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
           const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${motsEnChiffres(o.pari.gagne).map(x => x.txt).join(', ') || 'rien'}`, bon: true }, { txt: `🎲 sinon : ${motsEnChiffres(o.pari.perd).map(x => x.txt).join(', ') || 'rien'}`, bon: false }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
@@ -1531,7 +1567,7 @@ export function ouvrirMainDeMatch(spec) {
         </div>
         ${spec.stats || ''}
         <div class="main-boutons">
-          <button type="button" class="btn go main-jouer"${spec.ajustements && !aj ? ' disabled' : ''}>${esc(spec.ajustements && !aj ? 'Choisis ton ajustement' : jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer')}</button>
+          <button type="button" class="btn go main-jouer"${manque() ? ' disabled' : ''}>${esc(manque() || (jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer'))}</button>
         </div>
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
@@ -1561,11 +1597,16 @@ export function ouvrirMainDeMatch(spec) {
       };
     });
     m.querySelector('.main-jouer').onclick = () => {
-      if (spec.ajustements && !aj) return;
+      if (manque()) return;
       const enMain = main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain);
+      const args = [jouees.slice(), enMain, aj, prep.slice()];
+      // Une carte de vestiaire neuve qui est un pari : le dé d'abord, puis tout part ensemble.
+      const ov = V && !V.pris && V.options.find(o => o.cle === vest);
+      if (ov && ov.pari && typeof V.lancer === 'function') { sceneDuDe(m, { lancer: c => V.lancer(c, args), onChoix: c => spec.onJouer(...args, c) }, ov, nV.sub, fermer, dessiner); return; }
       fermer(true);
-      spec.onJouer(jouees.slice(), enMain, aj, prep.slice());
+      spec.onJouer(...args, V && !V.pris ? vest : null);
     };
+    m.querySelectorAll('.main-vest[data-vest]').forEach(b => { b.onclick = () => { vest = b.dataset.vest; jouerSon('joue'); dessiner(); }; });
     // Me préparer : toucher une piste. Une seule (deux avec « Le plan B ») ; la dernière touchée reste.
     m.querySelectorAll('.dep-piste[data-plan]').forEach(b => {
       b.onclick = () => {
@@ -1576,7 +1617,7 @@ export function ouvrirMainDeMatch(spec) {
       };
     });
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
-    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; dessiner(); };
+    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; vest = V ? V.pris || null : null; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
     // LES CHIFFRES (V3) : la préparation se lit en mots ; ses chiffres se déplient, comme dans un choix.
     const bc = m.querySelector('.main-chiffres');
@@ -1584,7 +1625,7 @@ export function ouvrirMainDeMatch(spec) {
     const adj = m.querySelector('.main-adjoint');
     if (adj) adj.onclick = () => { fermer(true); spec.onAdjoint(); };
     // Le focus reste DANS la main : le clavier ne tombe jamais sur la page dessous.
-    m.querySelector('.main-jouer').focus({ preventScroll: true });
+    (m.querySelector('.main-jouer:not(:disabled)') || m.querySelector('.main-vest:not(:disabled), .main-aj') || m.querySelector('.main-jouer')).focus({ preventScroll: true });
   };
   const fermer = (silencieux = false) => {
     m.hidden = true; m.innerHTML = '';

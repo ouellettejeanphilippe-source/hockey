@@ -948,7 +948,6 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-recit { font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); margin: 0; }
 .choix-encours { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); padding: var(--esp-2) var(--esp-3); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .choix-encours b { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); margin-right: var(--esp-1); }
-.choix-avant { margin: 0; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--live); }
 .choix-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--esp-3); }
 .choix-sheet[data-genre="evenement"] .choix-options:not(.choix-main) { grid-template-columns: 1fr; }
 .choix-sheet[data-genre="evenement"] .choix-option { min-height: 0; }
@@ -3935,6 +3934,18 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .main-aj b { font: 800 var(--t-3)/1.15 var(--display); letter-spacing: 0.02em; }
 .main-aj small { color: var(--encre-2); font-size: var(--t-1); }
 .main-aj.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); }
+/* L'écran de combat (V5) : l'enjeu en une ligne ; l'avant-match en deux cartes de vestiaire à 0 élan, on en garde une. */
+.main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
+.main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
+.main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
+.main-vest-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
+.main-vest { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; min-height: 44px; padding: var(--esp-2); text-align: left; cursor: pointer; background: var(--fond-2); color: var(--encre); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-1); font: inherit; transition: border-color var(--t-vite), background var(--t-vite); }
+.main-vest:disabled { cursor: default; opacity: 0.45; }
+.main-vest.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); opacity: 1; }
+.main-vest-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-1); }
+.main-vest-tete b { font: 800 var(--t-3)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.main-vest-coin { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--or) 45%, transparent); font: 800 var(--t-1)/1 var(--display); color: var(--encre-2); }
+.main-vest .choix-puces { display: flex; flex-direction: column; gap: 2px; }
 /* L'élan : trois orbes, pleins en or. */
 .main-energie { display: flex; align-items: center; gap: var(--esp-3); font: 800 var(--t-4)/1 var(--display); }
 .main-orbes { display: inline-flex; gap: 6px; }
