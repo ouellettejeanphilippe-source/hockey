@@ -99,8 +99,14 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const d4 = palierAllume([...base, ...deux.slice(0, 2)], deux[2]);
   exiger('le coach du départ compte trois cartes, et la 6e allume II', !palierAllume(base, deux[0]) && d4 && d4.coach.palier === 2, d4 ? `II au jour ${deux[2].jour}` : 'rien');
   // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter.
-  exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['bloquer+'], enMain: [] } }]).tortue === 1, 'Bloquer des tirs+');
-  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'bloquer+' }]).tortue === 0, 'Bloquer des tirs+');
+  exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['gachettes+'], enMain: [] } }]).rapaces === 1, 'Les gâchettes+');
+  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'gachettes+' }]).rapaces === 0, 'Les gâchettes+');
+  // La run de JP gagnée du premier coup : « Changements » rejoué huit fois montait le Doc à III.
+  const huit = Array.from({ length: 8 }, (_, i) => ({ jour: 10 + i * 10, main: { jouees: ['gachettes', 'changements', 'bloquer+'], enMain: [] } }));
+  const b8 = buildDe(huit);
+  exiger('une carte de match rejouée ne compte qu\'une fois, et le deck de départ ne compte pas', b8.rapaces === 1 && b8.souffle === 0 && b8.tortue === 0, `Aigle ${b8.rapaces} · Doc ${b8.souffle} · Tortue ${b8.tortue}`);
+  const gach = Array.from({ length: 3 }, (_, i) => ({ jour: 10 + i, main: { jouees: ['gachettes'], enMain: [] } }));
+  exiger('rejouée trois fois, elle n\'allume pas la confiance I', !palierAllume(gach.slice(0, 2), gach[2]));
 }
 
 /* 2b. Les systèmes se tiennent : la confiance II fait apprendre son système. */

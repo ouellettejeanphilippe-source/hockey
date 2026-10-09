@@ -32,7 +32,7 @@
 import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
-import { CARTES_MATCH, estPlus } from './combat.js';
+import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
 import { money, hache } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
@@ -828,12 +828,24 @@ const cartesJouees = d => [
  * d'une run (`coachsDeBase` : la saison d'avant, et le coach choisi au
  * départ), plus chaque carte jouée de sa couleur. Rend { cle: n }.
  */
-export function buildDe(decisions = [], jusqua = Infinity) {
+/*
+ * UNE CARTE DE MATCH COMPTE UNE FOIS (V5, la run de JP gagnée du premier coup) : rejouée à chaque gros match, elle
+ * comptait à chaque fois — « Changements » joué huit fois montait le Doc à III, « Bloquer » la Tortue, sans qu'on bâtisse
+ * rien. Une carte de match compte la première fois qu'elle est jouée, et celles du deck de départ (`DECK_DEPART`) ne
+ * comptent pas : elles sont à tout le monde. `vues` : les cartes de match déjà comptées.
+ */
+const quiComptent = (d, vues) => cartesJouees(d).filter(id => {
+  if (!id.startsWith('match:')) return true;
+  if (vues.has(id) || DECK_DEPART.includes(id.slice(6))) return false;
+  vues.add(id);
+  return true;
+});
+export function buildDe(decisions = [], jusqua = Infinity, vues = new Set()) {
   const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
   for (const d of decisions) {
     if (!d || (d.jour || 0) >= jusqua) continue;
     if (d.coachsDeBase) for (const [k, v] of Object.entries(d.coachsDeBase)) if (k in n) n[k] += v || 0;
-    for (const id of cartesJouees(d)) { const e = coachDeCarte(id); if (e) n[e]++; }
+    for (const id of quiComptent(d, vues)) { const e = coachDeCarte(id); if (e) n[e]++; }
   }
   return n;
 }
@@ -855,9 +867,9 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
  */
 export function palierAllume(decisions = [], d) {
   // Le premier coach dont les cartes de cette décision (un pack en porte plusieurs) font franchir un seuil.
-  const ajout = {};
-  for (const id of d ? cartesJouees(d) : []) { const k = coachDeCarte(id); if (k) ajout[k] = (ajout[k] || 0) + 1; }
-  const build = buildDe(decisions);
+  const ajout = {}, vues = new Set();
+  const build = buildDe(decisions, Infinity, vues);
+  for (const id of d ? quiComptent(d, vues) : []) { const k = coachDeCarte(id); if (k) ajout[k] = (ajout[k] || 0) + 1; }
   const e = Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > Math.max(palierDe(build[k]), ...coachsActifs(decisions).filter(x => x.cle === k).map(x => x.palier)));
   if (!e) return null;
   const p = palierDe(build[e] + ajout[e]);

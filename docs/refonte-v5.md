@@ -198,6 +198,7 @@ Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans pre
 **Phase 0 · Réparer** (1 à 2 jours). Ne change pas la boucle.
 - [x] Un coach compte les cartes de match jouées — `js/banque.js` `buildDe` — `check_coachs`, `check_voies` (en paires).
 - [x] Les permanents d'un pack gratuit se repigent (le pack gratuit donne ses cinq cartes). Les maudites et les cartes de saison restent ce qu'elles sont : elles se gagnent en jouant, par choix de conception (`sortDUnPack`) — `js/packs.js`, `js/inventaire.js` — `check_packs`, `check_deck`.
+- [x] Une carte de match compte UNE fois pour son coach, et le deck de départ ne compte pas : la run de JP gagnée du premier coup avait monté la Tortue, le Doc et l'Aigle à III en rejouant « Bloquer », « Changements » et « Les gâchettes » à chaque gros match — `js/banque.js` `quiComptent` — `check_coachs`, `check_deck`.
 - [ ] (reporté : il faut que l'équipe des packs soit posée avant l'écran du coach pour que ses chiffres se calculent) Le coach se choisit après les packs de départ — `js/rogue-jeu.js` `ouvrirRogue` — `essai_rogue`, `check_graine`.
 - [x] Les jetons dans l'en-tête au téléphone ; le sommaire de la semaine dit les jetons et la caisse, et la prime d'un gros match gagné — `index.html`, `js/game.js`, `js/saison.js` `ouvrirSommaire` — `essai_rogue` (le chiffre égale `jetonsRogue`).
 - [ ] La carte en grand garde ses chiffres ; `.aln-sauts` (déjà fait en #166) — `js/rogue-jeu.js` — smoke.
