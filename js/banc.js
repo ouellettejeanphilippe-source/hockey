@@ -506,7 +506,7 @@ export async function deciderSerie(d) {
   if (pasJoue && !retireJoue) {
     S.decisions = G.ligue.decisionsSeries;
     ouvrirEcranSeries(vues);
-    if (d.recompense) confirmerDecision(d);
+    if (d.recompense !== undefined) confirmerDecision(d);
     return;
   }
   G.done = false;
@@ -515,7 +515,7 @@ export async function deciderSerie(d) {
     await runSeason({ adversaires: G.ligue.adversaires, graine: G.ligue.graine, depuis: Infinity, decisions: G.ligue.decisions, reprise: true });
     reprendreSeries(vues);
   });
-  if (d.recompense) confirmerDecision(d);
+  if (d.recompense !== undefined) confirmerDecision(d);
 }
 /* Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. */
 export function bancSerie(ronde, k) {

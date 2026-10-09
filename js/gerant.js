@@ -384,6 +384,7 @@ export function ouvrirChoix(spec) {
         </button>`;
       }).join('')}</div>
       <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
+      ${spec.autres && spec.autres.length ? `<div class="choix-autres">${spec.autres.map((a, i) => `<button type="button" class="btn choix-autre" data-autre="${i}">${esc(a.mot)}</button>`).join('')}</div>` : ''}
       ${(spec.cartes || spec.genre) && spec.fermable ? `<button type="button" class="btn choix-plus-tard">${esc(spec.motFermer || 'Plus tard')}</button>` : ''}
     </div>
   </div>`;
@@ -429,6 +430,8 @@ export function ouvrirChoix(spec) {
     el.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); voir(); } };
   });
   for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
+  // LES AUTRES BUTINS (V5) : retirer ou améliorer une carte du deck, au lieu d'en prendre une — chacun ouvre son propre choix.
+  for (const x of m.querySelectorAll('.choix-autre')) x.onclick = () => { fermer(true); spec.autres[+x.dataset.autre].ouvrir(); };
   pointsDeBande(m);
   if (pile) brancherPaquet(m, () => PAQUETS_OUVERTS.add(clePaquet), { walkout, scelle: paquet });
   const premier = paquet ? m.querySelector('.paquet') : pile ? null : m.querySelector('.choix-option:not([disabled])');

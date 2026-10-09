@@ -182,6 +182,13 @@ console.log('\n  Le deck (S73)\n');
   const dSerieAvant = deckDe([], { pertes: [3, 9], serie: [{ ronde: 0, match_no: -1, recompense: null }], ronde: 0 });
   exiger('une série gagnée efface une cicatrice, et seulement à partir de la ronde suivante', dSerie.filter(c => c === 'doute').length === 1 && dSerieAvant.filter(c => c === 'doute').length === 2,
     `ronde 1 : ${dSerie.filter(c => c === 'doute').length} doute · ronde 0 : ${dSerieAvant.filter(c => c === 'doute').length}`);
+  // LE BUTIN À TROIS CHOIX (V5) : un gros match ou une série gagnée retire ou améliore une carte au lieu d'en ajouter une.
+  const k0 = DECK_DEPART.find(k => CARTES_MATCH[`${k}+`]);
+  const parGros = deckDe([{ jour: 10, palier: 'r:8', recompense: null, deck: 'menage', retrait: DECK_DEPART[0] }, { jour: 20, palier: 'r:18', recompense: null, deck: 'camp', aiguise: k0 }]);
+  exiger('le butin d\'un gros match retire ou améliore une carte du deck', parGros.length === DECK_DEPART.length - 1 && parGros.includes(`${k0}+`), parGros.join(' · '));
+  const parSerie = r => deckDe([], { serie: [{ ronde: 0, match_no: -1, recompense: null, deck: 'menage', retrait: DECK_DEPART[0] }, { ronde: 1, match_no: -1, recompense: null, deck: 'camp', aiguise: k0 }], ronde: r });
+  exiger('le butin d\'une série vaut à partir de la ronde suivante', parSerie(1).length === DECK_DEPART.length - 1 && !parSerie(1).includes(`${k0}+`) && parSerie(2).includes(`${k0}+`) && parSerie(0).length === DECK_DEPART.length,
+    `ronde 0 : ${parSerie(0).length} · 1 : ${parSerie(1).length} · 2 : ${parSerie(2).includes(`${k0}+`) ? '+' : 'sans +'}`);
   const base = deckDe([], { pertes: [3, 9] }).filter(c => !CARTES_MATCH[c].maudite);
   const suivante = deckDe([{ jour: 0, deck: 'report', deckDeBase: base }]);
   exiger('la saison suivante d\'une run repart d\'un deck sans cicatrice', !suivante.some(c => CARTES_MATCH[c].maudite) && suivante.length === DECK_DEPART.length, `${suivante.length} cartes, ${suivante.filter(c => CARTES_MATCH[c].maudite).length} maudite(s)`);

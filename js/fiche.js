@@ -93,7 +93,9 @@ function lignesGagnees(p, li) {
   return badgesDe(p).filter(b => b.gagne > 0).map(b => {
     const k = p.p === 'G' ? 'arrets' : CANAL_DU_BADGE[b.cle], n = b.gagne * (b.second && !b.plein ? 0.5 : 1);
     const mot = MOTS_GAGNES[k] && gagnes[k] ? ` : ${esc(MOTS_GAGNES[k](Math.min(0.5, EFFET_PALIER[k] * n), p))}` : '';
-    return li(`<b>${glyphe(b.ico)} ${esc(b.nom)} monté : ${PALIERS[b.palier - b.gagne].nom} → ${PALIERS[b.palier].nom}</b>${mot}.`, 'bon');
+    // Un second rôle qu'une variante éveille (V5) part de rien : il est gagné, pas monté.
+    const avant = PALIERS[b.palier - b.gagne];
+    return li(`<b>${glyphe(b.ico)} ${esc(b.nom)} ${avant ? `monté : ${avant.nom} →` : 'gagné :'} ${PALIERS[b.palier].nom}</b>${mot}.`, 'bon');
   });
 }
 function surLaGlaceHtml(p) {

@@ -216,6 +216,7 @@ Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans pre
 
 **Phase 2 · Trois types de cartes.**
 - [ ] Personnel, Tactiques, Coups : une seule pile de main (les Coups), le deck borné à ~15 cartes avec le retrait comme butin — `js/banque.js`, `js/combat.js`, `js/inventaire.js` — `check_combat`, `check_deck`, `check_cartes` (en paires).
+- [x] **Le butin à trois choix** : après un gros match ou une série gagnés, une carte parmi trois, « 🗑️ Retirer une carte » (les malédictions d'abord) ou « 🏋️ Améliorer une carte » (sa version « + »), ou passer. Ce sont les décisions du ménage et du camp (`retrait`, `aiguise`) portées par la décision du butin ; `deckDe` les lit aussi en séries. Une fiche dont un second rôle naît d'une variante dit « gagné : Bronze » (elle plantait) — `js/saison.js` `autresButins`, `js/combat.js`, `js/gerant.js` (`autres`), `js/fiche.js` — `check_deck`, `essai_rogue` (20c).
 - [ ] Couper de 535 vers ~120 cartes : on garde celles qui se voient dans la feuille et celles d'un moment (`si`) — `check_banque FAMILLES=…`, `check_cartes`, `check_si`, `check_mort`.
 - [x] Chaque carte d'équipe est nommée dans les causes (« 🎯 « L'école de tir » a fait entrer 16 buts ») : `effetsDeSaison` garde ses sources nommées, `causesDuLancer` les dit une par une ; ce qui reste sans nom va au groupe — `js/sim.js`, `js/causes.js` — `check_causes` (6), `check_empreinte` (les matchs ne bougent pas).
 

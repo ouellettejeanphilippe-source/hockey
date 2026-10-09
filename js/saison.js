@@ -654,6 +654,25 @@ function cacherBoutonFlottant() {
  *   onJour      appelé à chaque avance avec le numéro de journée révélée :
  *               c'est ce que le contrôleur écrit dans la sauvegarde
  */
+/*
+ * LES AUTRES BUTINS (V5, docs/refonte-v5.md) : au lieu d'une carte neuve, retirer une carte du deck (les malédictions
+ * d'abord) ou en améliorer une (sa version « + »). Aucune mécanique neuve : ce sont les décisions du ménage et du camp
+ * (`retrait`, `aiguise`), que `deckDe` lit déjà. `retour` rouvre le butin quand on revient sans choisir.
+ */
+function autresButins(deck, prendre, retour) {
+  const uniques = [...new Set(deck)].filter(k => CARTES_MATCH[k]);
+  const sous = (ico, titre, recit, options, d) => ({ mot: `${ico} ${titre}`, ouvrir: () => ouvrirChoix({ ico, titre, recit, cartes: true, fermable: true, motFermer: 'Retour',
+    options, onChoix: k => prendre(d(k)), onFerme: retour }) });
+  const plus = uniques.filter(k => CARTES_MATCH[`${k}+`]);
+  return [
+    ...(uniques.length > 1 ? [sous('🗑️', 'Retirer une carte', 'Elle quitte ton deck de match pour de bon.',
+      uniques.sort((a, b) => (CARTES_MATCH[b].maudite ? 1 : 0) - (CARTES_MATCH[a].maudite ? 1 : 0)).map(k => ({ ...optionDeCarteMatch(k), rarete: CARTES_MATCH[k].maudite ? 'commune' : CARTES_MATCH[k].rarete })),
+      k => ({ deck: 'menage', retrait: k }))] : []),
+    ...(plus.length ? [sous('🏋️', 'Améliorer une carte', 'Elle devient sa version « + ». On voit ici la version améliorée.',
+      plus.map(k => ({ ...optionDeCarteMatch(`${k}+`), cle: k })), k => ({ deck: 'camp', aiguise: k }))] : []),
+  ];
+}
+
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
@@ -3186,12 +3205,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: cle => decider(dDl(cle)) };
     }
     if (rc) {
-      // LA RÉCOMPENSE D'UNE VICTOIRE (S74) : une carte parmi trois, ou passer.
-      return { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Victoire contre ${ctx.teamLabel(rc.adv)} ! Une carte pour ton deck, ou passe : un deck mince pige plus souvent ses meilleures.`,
+      // LE BUTIN D'UNE VICTOIRE (S74, V5) : une carte parmi trois, retirer une carte, en améliorer une, ou passer.
+      const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null, ...d }, j); };
+      const spec = { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+        recit: `Victoire contre ${ctx.teamLabel(rc.adv)} ! Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.`,
         options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
-        onChoix: k => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: k }, j); },
-        onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
+        onChoix: k => prendre({ recompense: k }),
+        onFerme: () => prendre({}) };
+      spec.autres = autresButins(deckAvant(soirDuProchain()), prendre, () => ouvrirChoix(spec));
+      return spec;
     }
     if (mo) return { de: DE.depisteur, ico: '⚔️', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Leur plan, une carte de vestiaire, puis tes cinq cartes et trois d\'élan.', ouvrir: () => ouvrirMainGros(mo) };
     // LE NŒUD DE LA SEMAINE (V5, js/noeuds.js) : trois routes, une seule — chacune est une carte de la banque.
@@ -4015,13 +4037,15 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       if (r >= nRondes - 1 || !s || !complete(s) || s.winner !== you || decsSerie.some(d => d.ronde === r && d.recompense !== undefined)) continue;
       const boss = s.A === you ? s.B : s.A;
       const quitterR = f => { quitter(); f(); };
-      ouvrirChoix({
+      const spec = {
         ico: '🏆', titre: `Série gagnée · ${nomRondeCourt(r)}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Tu as sorti ${ctx.teamLabel(boss)}. Une carte rare pour la suite des séries — ou passe.`,
+        recit: `Tu as sorti ${ctx.teamLabel(boss)}. Une carte rare pour la suite des séries, ou retires-en une.`,
         options: recompensesOffertes(graine, `po${r}`, { serie: true }).map(optionDeCarteMatch),
         onChoix: k => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: k })),
         onFerme: () => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: null })),
-      });
+      };
+      spec.autres = autresButins(deckDeSerie(), d => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: null, ...d })), () => ouvrirChoix(spec));
+      ouvrirChoix(spec);
       return true;
     }
     return false;

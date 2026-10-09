@@ -200,6 +200,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0, combat: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
+const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
@@ -284,6 +285,27 @@ async function regler() {
       const titreDe = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
       await page.click(`#choixModal:not([hidden]) button.choix-option[data-choix="${risquee}"]`); await page.waitForTimeout(300);
       evenementsDe.push(titreDe);
+      continue;
+    }
+    /*
+     * LE BUTIN À TROIS CHOIX (V5) : au premier, « Retirer une carte », « Retour » (le butin revient), puis on retire pour
+     * de bon ; la décision porte le retrait et pas de carte. Les butins suivants prennent une carte, comme avant.
+     */
+    const autre = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-autre');
+    if (autre && !butin.fait && await autre.isVisible()) {
+      butin.fait = true;
+      const titre0 = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
+      await autre.click(); await page.waitForTimeout(300);
+      if (!/Retirer une carte/.test((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '')) { erreurs.push('« Retirer une carte » n\'ouvre pas le deck'); continue; }
+      await page.click('#choixModal .choix-plus-tard'); await page.waitForTimeout(300);
+      if (((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '').trim() !== titre0) erreurs.push('« Retour » ne rouvre pas le butin');
+      await page.click('#choixModal:not([hidden]) .choix-autre'); await page.waitForTimeout(300);
+      const n0 = (await decisionsDuCombat()).length;
+      const cle = await page.$eval('#choixModal:not([hidden]) .choix-option:not([disabled])', b => b.dataset.choix);
+      await page.click('#choixModal:not([hidden]) .choix-option:not([disabled])'); await page.waitForTimeout(1200);
+      const d = (await decisionsDuCombat()).slice(n0).find(x => x.retrait);
+      if (!d || d.retrait !== cle || d.recompense !== null || !String(d.palier).startsWith('r:')) erreurs.push(`le butin « retirer » n'enregistre pas le retrait (${JSON.stringify(d || null)})`);
+      else butin.retrait = cle;
       continue;
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
@@ -880,6 +902,7 @@ if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {})
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

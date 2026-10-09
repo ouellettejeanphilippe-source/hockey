@@ -982,6 +982,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option-mut { font-size: var(--t-2); color: var(--encre-2); line-height: 1.35; font-style: italic; }
 .choix-option-non { font-size: var(--t-1); color: var(--encre-3); }
 .choix-plus-tard { align-self: center; }
+.choix-autres { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 /* LE LANCER DE DÉ (1.0, oct.) : la réponse risquée, ce qu'il faut, le dé qui roule et tombe, le verdict. */
 .de-scene { display: grid; justify-items: center; gap: var(--esp-3); padding: var(--esp-3) 0; text-align: center; }
 .de-choix { font: 800 var(--t-4)/1.15 var(--display); color: var(--encre); }
@@ -3854,7 +3855,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .paquet-ferme .choix-corps, .paquet-dechire .choix-corps { position: relative; }
 .paquet-ferme .paquet-scene, .paquet-dechire .paquet-scene { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 40px 0 54px; pointer-events: none; }
 .paquet-ferme .paquet, .paquet-dechire .paquet { pointer-events: auto; }
-.paquet-ferme :is(.choix-main, .choix-points, .choix-plus-tard), .paquet-dechire :is(.choix-main, .choix-points, .choix-plus-tard) { opacity: 0; pointer-events: none; }
+.paquet-ferme :is(.choix-main, .choix-points, .choix-plus-tard, .choix-autres), .paquet-dechire :is(.choix-main, .choix-points, .choix-plus-tard, .choix-autres) { opacity: 0; pointer-events: none; }
 .paquet-ferme .tc-dos, .paquet-dechire .tc-dos { opacity: 1; }
 .paquet {
   --lueur-c: color-mix(in srgb, var(--encre) 16%, transparent);
@@ -3920,7 +3921,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   flex: 1 0 auto; display: grid; grid-template-columns: var(--pile-l); place-content: center; align-items: start; gap: 0;
   margin: 0; padding: var(--esp-5) 0 var(--esp-2); overflow: visible; scroll-snap-type: none; touch-action: none; outline: none; cursor: grab;
 }
-.paquet-pile :is(.choix-recit, .choix-chiffres, .choix-plus-tard) { display: none; }
+.paquet-pile :is(.choix-recit, .choix-chiffres, .choix-plus-tard, .choix-autres) { display: none; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile] { grid-area: 1 / 1; min-width: 0; transform-origin: 50% 0; transition: transform var(--t-lent) var(--e-sortie), opacity var(--t-lent); }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"] { z-index: 5; transform: translateX(calc(var(--glisse, 0) * 1px)) rotate(calc(var(--glisse, 0) * 0.05deg)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); animation: pile-retourne 0.5s var(--e-sortie) backwards; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"].glisse { transition: none; cursor: grabbing; }
