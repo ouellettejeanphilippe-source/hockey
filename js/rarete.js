@@ -36,8 +36,9 @@ import { hache } from './util.js';
 import { getTraits } from './traits.js';
 import { ageAtSeason } from './ratings.js';
 
-/* Les cotes d'une carte ordinaire, en moyenne (le repêchage, le ballottage, la recrue) : une sur quatre brille. */
-export const COTES_VARIANTES = { commune: 75, peu: 17, rare: 6, legendaire: 2 };
+/* Les cotes d'une carte ordinaire, en moyenne sur toutes les statures (le robot de mesure s'en sert) : V5, une holo
+ * est RARE (1,7 %) et forte — mesuré : à 6 % et 2 %, le robot du Rogue gagnait la Coupe dans 25 % des runs. */
+export const COTES_VARIANTES = { commune: 82, peu: 16, rare: 1.6, legendaire: 0.4 };
 /*
  * LA BRILLANTE VA AUX VEDETTES (V5). JP : *la rareté des cartes devrait avoir un lien avec leur niveau ; irl, les holo,
  * c'est généralement les vedettes ou les joueurs vraiment aimés : capitaines, leaders, vétérans, recrues* ; *tu pulls un
@@ -48,11 +49,11 @@ export const COTES_VARIANTES = { commune: 75, peu: 17, rare: 6, legendaire: 2 };
  */
 const VETERAN = 34;
 export const COTES_PAR_STATURE = [
-  { commune: 85, peu: 13.6, rare: 1.2, legendaire: 0.2 },
-  { commune: 77, peu: 19, rare: 3.4, legendaire: 0.6 },
-  { commune: 66, peu: 24, rare: 8, legendaire: 2 },
-  { commune: 50, peu: 28, rare: 16, legendaire: 6 },
-  { commune: 32, peu: 30, rare: 26, legendaire: 12 },
+  { commune: 87, peu: 12.5, rare: 0.4, legendaire: 0.1 },
+  { commune: 80, peu: 18, rare: 1.6, legendaire: 0.4 },
+  { commune: 70, peu: 24, rare: 5, legendaire: 1 },
+  { commune: 55, peu: 30, rare: 11, legendaire: 4 },
+  { commune: 40, peu: 32, rare: 20, legendaire: 8 },
 ];
 export function statureDe(p, niveau) {
   if (!p) return 0;
