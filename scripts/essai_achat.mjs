@@ -10,6 +10,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { exiger, informer, verdict } from './verdict.mjs';
+import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 const require = createRequire(import.meta.url);
 let pw;
 try { pw = require('playwright'); }
@@ -20,11 +21,10 @@ const browser = await pw.chromium.launch();
 const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
 const erreurs = [];
 page.on('pageerror', e => erreurs.push(e.message));
-// Le paquet FLOTTE (une animation continue) : on le touche de force, et on attend qu'il ait fini (essai_depart pareil).
+// Le paquet se déchire, puis sa pile se passe carte par carte jusqu'à la bande des choix (scripts/lib/paquet.mjs ; essai_depart pareil).
 const dechirer = async () => {
   if (!(await page.$('#choixModal:not([hidden]) .paquet'))) return;
-  await page.click('#choixModal .paquet', { force: true });
-  await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 15000 }).catch(() => {});
+  for (const f of fautesDePile(await traverserPaquet(page), page.viewportSize().width)) erreurs.push(f);
 };
 const titre = () => page.evaluate(() => (document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || '');
 

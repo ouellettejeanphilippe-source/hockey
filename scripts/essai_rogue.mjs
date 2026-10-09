@@ -11,6 +11,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
+import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 const require = createRequire(import.meta.url);
 let pw;
 try { pw = require('playwright'); }
@@ -25,6 +26,22 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
  * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
  */
 const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter)';
+/*
+ * LA PILE D'UN PAQUET (1.0, oct.) : chaque carte en grand, passée d'un geste (scripts/lib/paquet.mjs). Elle doit
+ * faire 80 % de la largeur à 390 px et mener aux mêmes cartes dans la bande des choix. LE WALKOUT : un pack qui
+ * cache une holo, une or ou un Phénomène l'annonce en trois temps juste avant elle. Une capture de la première
+ * carte en grand, et du premier walkout.
+ */
+let walkouts = 0, piles = 0;
+const passerLaPile = async () => {
+  const premiere = !piles++;
+  const pile = await traverserPaquet(page, {
+    surAnnonce: async () => { if (!walkouts) { await page.waitForTimeout(350); await page.screenshot({ path: `${DOSSIER}/rogue-walkout.png` }); } },
+    surCarte: async i => { if (premiere && i === 0) await page.screenshot({ path: `${DOSSIER}/rogue-pile.png` }); },
+  });
+  if (pile.annonce) walkouts++;
+  for (const f of fautesDePile(pile, page.viewportSize().width)) erreurs.push(`paquet ${piles} : ${f}`);
+};
 /*
  * LA BOUTIQUE ET « TES CARTES » VIVENT AU MARCHÉ (1.0, oct.). JP : *je veux RIEN de la boutique dans club/accueil*.
  * Une décision prise de la boutique ou de « Tes cartes » rejoue la saison en coulisse et rouvre la même page DANS le
@@ -187,15 +204,10 @@ const combats = [];   // V5 : les combats confirmés, leur soir et la carte de v
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
   for (let i = 0; i < 30; i++) {
-    // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on montre tout. Elle passe devant le
-    // sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
+    // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
+    // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
-    if (pq && await pq.isVisible()) {
-      await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(300);
-      await page.click('#choixModal .choix-tete').catch(() => {});
-      await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {});
-      continue;
-    }
+    if (pq && await pq.isVisible()) { await passerLaPile(); continue; }
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
     if (await page.$('#choixModal:not([hidden]) .main-jouer')) {
@@ -366,13 +378,9 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
  * plafond), puis l'ouverture.
  */
 const decisions = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
-// LE WALKOUT (1.0, oct.) : un pack qui cache une holo, une or ou un Phénomène l'annonce en trois temps avant les cartes.
-let walkouts = 0;
 const dechirer = async () => {
   const paquet = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
-  if (paquet) { await page.click('#choixModal .paquet', { force: true });
-    if (await page.waitForSelector('#choixModal .walkout[data-pas="3"]', { timeout: 2600 }).catch(() => null)) { if (!walkouts++) { await page.waitForTimeout(350); await page.screenshot({ path: `${DOSSIER}/rogue-walkout.png` }); } }
-    await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
+  if (paquet) await passerLaPile();
   await page.waitForTimeout(600);
 };
 /* V5 : la boutique du Rogue ouvre au début de la semaine. Fermée, on va au bureau finir la semaine, puis on revient. */
@@ -869,7 +877,8 @@ const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogu
 const tete = await page.textContent('.tete-nom');
 console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
-console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
+console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
+if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');

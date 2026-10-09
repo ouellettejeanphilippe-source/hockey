@@ -1916,9 +1916,9 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cjm-ligne b small { font-size: var(--t-1); margin-left: 2px; color: var(--encre-3); letter-spacing: 0.04em; }
 .cjm-ligne > span { color: var(--or); white-space: nowrap; }
 
-/* ---- ✦ Une brillante qui sort : un éclat, la première fois seulement (`.pcard.cj-apparait`) ---- */
+/* ---- ✦ Une brillante qui sort : un éclat, la première fois seulement (`.pcard.cj-apparait`), ou en haut de la pile d'un paquet ---- */
 .cj-eclat { position: absolute; inset: -30%; z-index: 5; pointer-events: none; opacity: 0; }
-.cj-apparait .cj-eclat {
+:is(.cj-apparait, .paquet-pile .tc-meilleure[data-pile="0"]) .cj-eclat {
   background:
     radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.9), transparent 22%),
     radial-gradient(circle at 22% 30%, #fff 0 2px, transparent 3px),
@@ -1928,9 +1928,9 @@ button.marche-tuile:active { transform: scale(0.98); }
     radial-gradient(circle at 50% 18%, #fff 0 1.5px, transparent 2.5px);
   animation: cj-eclat 1.1s ease-out 0.15s both;
 }
-.cj-apparait.tc-legendaire .cj-eclat { filter: sepia(1) saturate(4) hue-rotate(-12deg); }
+:is(.cj-apparait, .paquet-pile .tc-meilleure[data-pile="0"]).tc-legendaire .cj-eclat { filter: sepia(1) saturate(4) hue-rotate(-12deg); }
 @keyframes cj-eclat { 0% { opacity: 0; transform: scale(0.3) rotate(-20deg); } 35% { opacity: 1; } 100% { opacity: 0; transform: scale(1.15) rotate(10deg); } }
-@media (prefers-reduced-motion: reduce) { .cj-apparait .cj-eclat { animation: none; } }
+@media (prefers-reduced-motion: reduce) { :is(.cj-apparait, .paquet-pile .tc-meilleure[data-pile="0"]) .cj-eclat { animation: none; } }
 
 
 /* ---- La vignette (`.cj-mini`) : le visage sur le fond du club, le métal de la rareté en bordure ---- */
@@ -3821,7 +3821,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc-puces .puce { display: block; padding-left: var(--esp-2); border-left: 2px solid currentColor; font-size: var(--t-1); line-height: 1.3; }
 .tc-cadre > .choix-option-non { margin: 0 var(--esp-3); }
 .tc-pied { display: flex; justify-content: space-between; margin: auto var(--esp-3) 0; padding-top: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
-/* Le dos d'une carte (elle sort d'un paquet) : opacité 0 sauf tant que le paquet est fermé ; le smoke la lit. */
+/* Le dos d'une carte (elle sort d'un paquet) : opacité 0 sauf tant que le paquet est fermé, et derrière la carte du dessus de la pile ; le smoke la lit. */
 .tc-dos {
   position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; border-radius: inherit; pointer-events: none; opacity: 0;
   background: color-mix(in srgb, var(--bleu) 22%, var(--noir)); border: 6px solid var(--fond-1); outline: 2px solid var(--tc-bord); outline-offset: -8px;
@@ -3909,26 +3909,42 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .walkout[data-pas="3"] .wo-pas:nth-child(3) { animation-name: wo-reste; }
 @keyframes wo-reste { 0% { opacity: 0; transform: scale(2.4); } 35% { opacity: 1; transform: scale(0.94); } 60%, 100% { opacity: 1; transform: scale(1); } }
 @keyframes wo-rayons { to { transform: rotate(360deg); } }
-/* On révèle (900 ms par carte, 320 ms entre deux, dans l'ordre --tc-r) : chaque carte sort face cachée et se retourne ; la meilleure en dernier. */
-.paquet-revele .choix-main > .choix-option.tc { animation: tc-sort 0.9s var(--e-sortie) backwards; animation-delay: calc(var(--tc-r, 0) * 320ms); }
-.paquet-revele .choix-main > .choix-option.tc > .tc-dos { animation: tc-dos-part 0.9s linear both; animation-delay: calc(var(--tc-r, 0) * 320ms); }
-@keyframes tc-sort {
-  0% { transform: perspective(800px) translateY(120px) scale(0.78) rotate(-5deg); opacity: 0; }
-  30% { transform: perspective(800px) translateY(0) scale(1); opacity: 1; }
-  44% { transform: perspective(800px) translateY(-6px) scale(1.02) rotateY(0deg); }
-  64% { transform: perspective(800px) translateY(-6px) scale(1.02) rotateY(90deg); }
-  84% { transform: perspective(800px) translateY(0) scale(1) rotateY(-10deg) rotate(2.5deg); }
-  100% { transform: perspective(800px) translateY(0) scale(1) rotateY(0deg) rotate(0deg); }
+/*
+ * LA PILE (js/gerant.js, brancherPaquet) : les cartes de la bande, empilées dans une seule case de grille. Celle du
+ * dessus en grand (`data-pile="0"`, presque toute la largeur au téléphone), deux autres face cachée derrière ; elle
+ * suit le doigt (`--glisse`, en px sans unité) et part de son côté (`data-sens`). Le texte d'une carte de joueur et
+ * son « Signer » attendent la bande.
+ */
+.choix-sheet.paquet-pile .choix-options.choix-main {
+  --pile-l: min(86vw, 360px, calc((100dvh - 250px) * 0.66));
+  flex: 1 0 auto; display: grid; grid-template-columns: var(--pile-l); place-content: center; align-items: start; gap: 0;
+  margin: 0; padding: var(--esp-5) 0 var(--esp-2); overflow: visible; scroll-snap-type: none; touch-action: none; outline: none; cursor: grab;
 }
-@keyframes tc-dos-part { 0%, 63.9% { opacity: 1; } 64%, 100% { opacity: 0; } }
-/* Une rare luit en se posant ; la meilleure, la dernière, éclate — un anneau, pas une ombre. */
-.paquet-revele .choix-main > .choix-option.tc:is(.tc-rare, .tc-legendaire) { animation: tc-sort 0.9s var(--e-sortie) backwards, tc-luit 1.2s ease-out; animation-delay: calc(var(--tc-r, 0) * 320ms), calc(var(--tc-r, 0) * 320ms + 700ms); }
-.paquet-revele .choix-main > .choix-option.tc.tc-meilleure { animation: tc-sort 0.9s var(--e-sortie) backwards, tc-eclate 1.4s ease-out; animation-delay: calc(var(--tc-r, 0) * 320ms), calc(var(--tc-r, 0) * 320ms + 700ms); }
+.paquet-pile :is(.choix-recit, .choix-chiffres, .choix-plus-tard) { display: none; }
+.paquet-pile .choix-main > .choix-option.tc[data-pile] { grid-area: 1 / 1; min-width: 0; transform-origin: 50% 0; transition: transform var(--t-lent) var(--e-sortie), opacity var(--t-lent); }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="0"] { z-index: 5; transform: translateX(calc(var(--glisse, 0) * 1px)) rotate(calc(var(--glisse, 0) * 0.05deg)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); animation: pile-retourne 0.5s var(--e-sortie) backwards; }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="0"].glisse { transition: none; cursor: grabbing; }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="1"] { z-index: 4; transform: translateY(-12px) scale(0.95); }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="2"] { z-index: 3; transform: translateY(-22px) scale(0.9); }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="loin"] { z-index: 1; opacity: 0; transform: translateY(-22px) scale(0.9); }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="passee"] { z-index: 6; opacity: 0; pointer-events: none; animation: pile-part 0.4s ease-in; }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="passee"][data-sens="d"] { animation-name: pile-part-d; }
+.paquet-pile .choix-main > .choix-option.tc:is([data-pile="1"], [data-pile="2"], [data-pile="loin"]) > .tc-dos { opacity: 1; }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="0"] > .tc-dos { animation: pile-dos 0.5s linear backwards; }
+.paquet-pile .choix-main > .tc-joueur > :is(.tcj-texte, .tcj-signer, .choix-option-non) { display: none; }
+.paquet-pile .choix-main > .tc-joueur > .tcj-carte { align-self: stretch; }
+.paquet-pile .choix-main > .tc-joueur .cj-mini-carte { width: 100%; }
+/* Une rare luit en montant sur la pile ; la carte du pack éclate — un anneau, pas une ombre. */
+.paquet-pile .choix-main > .choix-option.tc[data-pile="0"]:is(.tc-rare, .tc-legendaire) { animation: pile-retourne 0.5s var(--e-sortie) backwards, tc-luit 1.2s ease-out 0.4s; }
+.paquet-pile .choix-main > .choix-option.tc[data-pile="0"].tc-meilleure { animation: pile-retourne 0.5s var(--e-sortie) backwards, tc-eclate 1.4s ease-out 0.4s; }
+@keyframes pile-retourne { from { rotate: y 180deg; scale: 1.06; } to { rotate: y 0deg; scale: 1; } }
+@keyframes pile-dos { 0%, 49% { opacity: 1; } 50%, 100% { opacity: 0; } }
+@keyframes pile-part { from { opacity: 1; transform: translateX(calc(var(--glisse, 0) * 1px)) rotate(calc(var(--glisse, 0) * 0.05deg)); } to { opacity: 0; transform: translateX(-130%) rotate(-14deg); } }
+@keyframes pile-part-d { from { opacity: 1; transform: translateX(calc(var(--glisse, 0) * 1px)) rotate(calc(var(--glisse, 0) * 0.05deg)); } to { opacity: 0; transform: translateX(130%) rotate(14deg); } }
 @keyframes tc-luit { 0% { outline: 0 solid transparent; } 35% { outline: 4px solid var(--tc-bord); } 100% { outline: 0 solid transparent; } }
 @keyframes tc-eclate { 0% { outline: 0 solid transparent; } 25% { outline: 6px solid var(--choisi); } 100% { outline: 0 solid transparent; } }
-/* Toucher encore : tout, tout de suite (paquet-tout s'ajoute à paquet-revele). */
-.paquet-tout.paquet-revele .choix-main > .choix-option.tc, .paquet-tout.paquet-revele .choix-main > .choix-option.tc > .tc-dos { animation: none; }
-.paquet-tout .tc-dos { opacity: 0; }
+.paquet-pile .choix-points { flex-wrap: wrap; }
+.pile-tout { align-self: center; }
 
 /* ---- La main d'un match (.main-sheet, ouvrirMainDeMatch) : l'ajustement, les orbes d'élan, cinq cartes, l'aperçu, « Jouer » collé en bas ---- */
 .main-ajuste { display: flex; flex-direction: column; gap: var(--esp-2); }
@@ -4119,8 +4135,7 @@ button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
 @media (prefers-reduced-motion: reduce) {
   .choix-main.donne > .choix-option.tc, .choix-option.tc.pige, .tc-holo, .paquet, .paquet-lueur, .paquet-face::after, .paquet-mot { animation: none; }
   .choix-option.tc { transition: none; }
-  .paquet-revele .choix-main > .choix-option.tc, .paquet-revele .choix-main > .choix-option.tc > .tc-dos { animation: none; }
-  .paquet-revele .tc-dos { opacity: 0; }
+  .paquet-pile .choix-main > .choix-option.tc[data-pile], .paquet-pile .choix-main > .choix-option.tc > .tc-dos { animation: none; transition: none; }
 }
 /* =====================================================================
    7. LA LIGUE — le bilan de saison, le classement, le calendrier, les

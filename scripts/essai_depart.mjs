@@ -8,6 +8,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { exiger, informer, verdict } from './verdict.mjs';
+import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 const require = createRequire(import.meta.url);
 let pw;
 try { pw = require('playwright'); }
@@ -42,10 +43,9 @@ for (let i = 0; i < 5; i++) {
   }, null, { timeout: 120000 });
   const t = await titre();
   if (!/Pack de départ/.test(t)) break;
-  // Le paquet FLOTTE (une animation continue) : on le touche de force, et on attend qu'il ait fini (smoke.mjs fait pareil).
+  // Le paquet se déchire, puis sa pile se passe carte par carte (le premier) ou d'un coup, « Tout voir » (scripts/lib/paquet.mjs).
   if (await page.$('#choixModal:not([hidden]) .paquet')) {
-    await page.click('#choixModal .paquet', { force: true });
-    await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 15000 }).catch(() => {});
+    for (const f of fautesDePile(await traverserPaquet(page, { tout: packs.length > 0, delai: 60 }), page.viewportSize().width)) erreurs.push(f);
   }
   const n = (await page.$$('#choixModal .choix-options [data-apercu]')).length;
   packs.push({ t, n });
