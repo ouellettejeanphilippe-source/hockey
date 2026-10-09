@@ -54,14 +54,17 @@ exiger('2. les matchs de ton club portent leurs causes (le temps réglementaire)
 exiger('2. les autres matchs n\'en portent aucune', autres.every(m => m.feuille.lancers.every(l => !l.causes)), `${autres.length} matchs`);
 
 let dites = 0, fausses = 0, mauvaisBut = 0;
-const borne = p => Math.max(0.005, Math.min(p, Infinity));
+// La borne du moteur (`borne(pBrut, 0.005, PCT_TIR_MAX)`, js/sim.js) : 0,35 au plus. Les shards de la V5 (les positions
+// multiples) sortent des lancers au-dessus : la preuve la lit comme le moteur, sans la supposer jamais atteinte.
+const PCT_TIR_MAX = 0.35;
+const borne = p => Math.max(0.005, Math.min(p, PCT_TIR_MAX));
 for (const m of miens) for (const l of m.feuille.lancers) {
   if (!l.causes) continue;
   const { pBrut, de } = l.causes;
   if (pBrut == null) continue;
-  const p = Math.min(borne(pBrut), Infinity);
-  // Le but du lancer est le dé contre sa chance (la borne haute du moteur ne mord jamais sur ces lancers-là).
-  if ((de < p) !== l.but && p < 0.6) mauvaisBut++;
+  const p = borne(pBrut);
+  // Le but du lancer est le dé contre sa chance bornée, comme au moteur.
+  if ((de < p) !== l.but) mauvaisBut++;
   for (const c of l.causes.liste) {
     dites++;
     const pSans = borne(pBrut / c.f);

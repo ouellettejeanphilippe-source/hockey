@@ -1730,10 +1730,27 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="som-l"><b>${ctx.esc(a.texte)}</b> <span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>${prime ? ` <span class="bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span>` : ''}</div>`;
     });
   };
+  /* Ce que dit une info de la semaine (la carte qui change, le vestiaire), sans bouton : le sommaire et la boîte la partagent. */
+  function corpsDInfo(genre, x) {
+    if (genre === 'accident' && MUTATIONS[x.cle]) return `<div class="hub-situ hub-accident" role="status">
+      <div class="hub-situ-quoi">${MUTATIONS[x.cle].ico} <b>${ctx.esc(x.p.n)}</b> · ${ctx.esc(MUTATIONS[x.cle].nom)} — ${ctx.esc(MUTATIONS[x.cle].quoi)}</div>
+      <div class="choix-puces">${puces(motsDeMutationEnChiffres(x.cle, x.p, { deja: true }))}</div>
+    </div>`;
+    if (genre === 'situation') return `<div class="hub-situ" role="status">
+      <div class="hub-situ-rang">${[['porte', x.porte], ['pese', x.pese]].map(([sens, b]) => {
+        const c = SITUATIONS[b.cle];
+        return `<div class="hub-situ-bout hub-situ-${sens}">
+          <span class="hub-situ-nom">${c.ico} ${ctx.esc(b.p.n)}</span>
+          <span class="hub-situ-quoi">${ctx.esc(c.nom)} — ${ctx.esc(c.quoi.toLowerCase())}</span>
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+    return '';
+  }
   function ouvrirSommaire(avant, semaine = false) {
     const nouveaux = miens.slice(avant.joues);
     if (!nouveaux.length) return false;
-    const attend = messagesCourants().filter(m => m.bloque);
+    const attendTout = messagesCourants().filter(m => m.bloque);
     /*
      * LE PLEIN ÉCRAN SE MÉRITE (1.0, J2-8). JP ne voulait pas tout relire à
      * chaque journée : un seul match ordinaire, sans gros match, sans
@@ -1743,7 +1760,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      */
     const grosVu = (you.minisBoss || []).some(mb => mb.jour >= avant.jour && mb.jour < jour);
     const blesse = (you.injuriesLog || []).some(b => b.at > avant.joues && b.at <= miens.length);
-    if (!semaine && nouveaux.length === 1 && !grosVu && !blesse && !attend.length) { hierFrais = jour; hierAnimer = true; return false; }
+    /*
+     * V5 — UN SEUL ENDROIT (JP : *le moins d'endroits différents où sont les choses, le mieux c'est*). La carte qui
+     * change, le vestiaire et les mouvements de l'alignement se lisent ici, dans le sommaire, qui bloque jusqu'à ce
+     * qu'on le ferme : on les voit forcément. En se fermant, il les archive ; la boîte ne les redit pas.
+     */
+    const infos = [...boite.infos].filter(([, { genre, x }]) => corpsDInfo(genre, x));
+    const mv = mouvements(avant.joues, miens.length);
+    const dits = new Set(infos.map(([id]) => id));
+    const attend = attendTout.filter(m => !dits.has(m.id) && m.genre !== 'mouvements');
+    if (!semaine && nouveaux.length === 1 && !grosVu && !blesse && !attend.length && !infos.length && !mv.length) { hierFrais = jour; hierAnimer = true; return false; }
     const f = fiche.get(you), rang = rangDe(you);
     const W = nouveaux.filter(x => gagne(x.m, you)).length;
     const OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length, L = nouveaux.length - W - OTL;
@@ -1766,7 +1792,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     blocs.push(`<div class="som-l som-rang">📊 ${rangMot(rang)} de la ligue${bouge ? ` <span class="${bouge > 0 ? 'bon' : 'prix'}">${bouge > 0 ? '▲' : '▼'} ${Math.abs(bouge)}</span>` : ' · sans bouger'} · ${f.W}-${f.L}-${f.OTL}, ${f.PTS} pts</div>`);
     for (const b of (you.injuriesLog || []).filter(b => b.at > avant.joues && b.at <= miens.length)) blocs.push(`<div class="som-l prix">🚑 ${ctx.esc(b.player.n)} blessé : ${b.games} match${b.games > 1 ? 's' : ''}${b.games >= BLESSURE_TRAINEE ? cicatriceMot('trainee') : ''}</div>`);
-    for (const x of mouvements(avant.joues, miens.length).slice(0, 4)) blocs.push(`<div class="som-l">🔁 ${ctx.esc(x.txt)}</div>`);
+    for (const x of mv) blocs.push(`<div class="som-l">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`);
+    for (const [, { genre, x }] of infos) blocs.push(corpsDInfo(genre, x));
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
       const primeGros = mb.gagne && ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat().bareme.grosMatch : 0;
       blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs${primeGros ? ` · +${primeGros} 🪙` : ''}${!mb.gagne && mb.raison === 'nemesis' ? cicatriceMot('doute') : ''}</div>`);
@@ -1784,7 +1811,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       genre: 'sommaire', ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre,
       html: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
       pied: `<button type="button" class="btn go hub-page-fermer">${attend.length ? '📥 Voir ma boîte de réception' : 'Retour au bureau'}</button>`,
-      onFerme: () => { retenir = false; dessiner(); if (attend.length) { boite.deplie = true; tabs.montrer('boite'); } },
+      onFerme: () => {
+        retenir = false;
+        // Ce que le sommaire a dit est lu : la boîte ne le redemande pas (V5).
+        for (const [id] of infos) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); }
+        if (mv.length) boite.archives.add(`mv:${miens.length}:${mv.length}`);
+        dessiner(); if (attend.length) { boite.deplie = true; tabs.montrer('boite'); }
+      },
     });
     return true;
   }
@@ -3362,27 +3395,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const compris = '<button type="button" class="btn gold hub-compris" data-defaut>Compris</button>';
     const info = (id, x) => { if (!boite.archives.has(id)) out.push({ id, bloque: true, ...x }); };
     // LA CARTE QUI CHANGE (S68) et LES SITUATIONS (le porté d'abord) : toutes celles de la semaine (V4.4, `boite.infos`).
+    // V5 : le sommaire de la semaine les dit d'abord et les archive en se fermant ; la boîte ne garde que ce qu'il n'a pas montré.
     for (const [id, { genre, x }] of boite.infos) {
-      if (genre === 'accident' && MUTATIONS[x.cle]) {
-        info(id, { genre, de: DE.coach, sujet: `Sa carte change : ${x.p.n}`,
-          corps: `<div class="hub-situ hub-accident" role="status">
-            <div class="hub-situ-quoi">${MUTATIONS[x.cle].ico} ${ctx.esc(MUTATIONS[x.cle].nom)} — ${ctx.esc(MUTATIONS[x.cle].quoi)}</div>
-            <div class="choix-puces">${puces(motsDeMutationEnChiffres(x.cle, x.p, { deja: true }))}</div>
-            ${compris}
-          </div>` });
-      } else if (genre === 'situation') {
-        info(id, { genre, de: DE.coach, sujet: `Dans le vestiaire : ${x.porte.p.n} et ${x.pese.p.n}`,
-          corps: `<div class="hub-situ" role="status">
-            <div class="hub-situ-rang">${[['porte', x.porte], ['pese', x.pese]].map(([sens, b]) => {
-              const c = SITUATIONS[b.cle];
-              return `<div class="hub-situ-bout hub-situ-${sens}">
-                <span class="hub-situ-nom">${c.ico} ${ctx.esc(b.p.n)}</span>
-                <span class="hub-situ-quoi">${ctx.esc(c.nom)} — ${ctx.esc(c.quoi.toLowerCase())}</span>
-              </div>`;
-            }).join('')}</div>
-            <div class="hub-alerte-choix">${compris}${onBanc ? '<button class="btn hub-situ-banc">Revoir mon alignement</button>' : ''}</div>
-          </div>` });
-      }
+      const corps = corpsDInfo(genre, x);
+      if (!corps) continue;
+      info(id, { genre, de: DE.coach, sujet: genre === 'accident' ? `Sa carte change : ${x.p.n}` : `Dans le vestiaire : ${x.porte.p.n} et ${x.pese.p.n}`,
+        corps: `${corps}<div class="hub-alerte-choix">${compris}${genre === 'situation' && onBanc ? '<button class="btn hub-situ-banc">Revoir mon alignement</button>' : ''}</div>` });
     }
     // QUI A CHANGÉ DE PLACE à la dernière avance (JP : *je dois le voir*) — sauf si la blessure qui l'explique est déjà là.
     if (dernierAvance && miens.length > dernierAvance.joues0 && !out.some(m => m.genre === 'blessure')) {

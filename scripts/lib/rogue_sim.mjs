@@ -342,7 +342,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     ecussons += e;
     saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes });
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.
-    if (r.coupe || !mandatRempli(n, r)) break;
+    if (r.coupe || !mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32 })) break;
     // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
     const equipe = Object.values(r.roster).filter(Boolean);
     const restent = gardesDeSaison(meta, equipe);

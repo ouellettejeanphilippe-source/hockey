@@ -339,7 +339,7 @@ const MOTS_RESERVES = [
   const manquants = ecrits.filter(([t]) => !brut.includes(t)).map(([t, nom]) => `${nom} (« ${t.slice(0, 70)} »)`);
   exiger('chaque chiffre de la page vient de sa constante', manquants.length === 0, manquants.join(' · ') || `${ecrits.length} chiffres vérifiés`);
   const mandats = MANDATS.map(m => m.mot);
-  exiger('les mandats du proprio sont ceux du code', /faire les séries, puis gagner une ronde, puis atteindre les demi-finales, puis la finale/.test(texte) && mandats.length === 4,
+  exiger('les mandats du proprio sont ceux du code', /faire les séries, puis finir dans le premier tiers, puis dans le premier quart, puis dans les quatre premiers/.test(texte) && mandats.length === 4,
     mandats.join(' → '));
 }
 
