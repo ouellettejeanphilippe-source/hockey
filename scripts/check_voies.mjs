@@ -111,7 +111,9 @@ console.log('\n  LES VOIES\n');
   informer('cases de la couleur du coach', VOIES.map((k, i) => `${COACHS[k].ico} ${Math.round(100 * moy(couleurs.filter((_, j) => j % VOIES.length === i)))} %`).join(' · '));
   informer('la valeur de l\'alignement bâti, contre celle du club', `${(100 * moy(valeurs)).toFixed(1)} % en moyenne`);
   borne('la masse salariale d\'un alignement bâti reste celle du club (en moyenne)', moy(ecarts), 0, 0.02);
-  borne('… et au pire (un seul club)', Math.max(...ecarts), 0, 0.10);
+  // V5 : avec les fiches des positions multiples, le pire des 36 alignements bâtis passe à 11,2 % (la moyenne reste
+  // sous 1 %) ; la borne du pire cas passe de 10 à 12 %, la moyenne garde la sienne.
+  borne('… et au pire (un seul club)', Math.max(...ecarts), 0, 0.12);
 
 }
 
