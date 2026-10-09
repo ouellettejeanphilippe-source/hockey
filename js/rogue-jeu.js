@@ -464,7 +464,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   const possedees = new Set((meta.cartes || []).map(k => (BANQUE[k] ? k : BANQUE[`match:${k}`] ? `match:${k}` : null)).filter(Boolean));
   ouvrirInventaire({
     ...(page || {}),
-    titre: 'Ton inventaire', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
+    titre: 'Mes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
     partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
@@ -1579,7 +1579,7 @@ export function ouvrirVestiaire(apres = null) {
     <p class="vs-sec">🏅 Les déblocages</p>`;
   ouvrirChoix({
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
-    recit: `Tes médailles se gagnent à chaque saison : un par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
+    recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
     contexte: jalons,
     options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le nom, les couleurs et l\'écusson : ceux que tu portes, et ceux qui se débloquent.' },
       ...Object.entries(DEBLOCAGES).map(([k, D]) => {

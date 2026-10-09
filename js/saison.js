@@ -2227,7 +2227,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const t = d.deck === 'camp' && CARTES_MATCH[`${d.aiguise}+`] ? `Le camp d'entraînement : ${CARTES_MATCH[d.aiguise].ico} <b>${ctx.esc(CARTES_MATCH[`${d.aiguise}+`].nom)}</b>`
           : d.deck === 'menage' && CARTES_MATCH[d.retrait] ? `Le ménage : ${CARTES_MATCH[d.retrait].ico} <b>${ctx.esc(CARTES_MATCH[d.retrait].nom)}</b> quitte ton deck`
           : d.deck === 'recrue' ? `Recrue : <b>${ctx.esc(qui || 'un joueur')}</b> signé`
-          : MG ? `${MG.ico} <b>${ctx.esc(MG.nom)}</b> gardée dans ton inventaire`
+          : MG ? `${MG.ico} <b>${ctx.esc(MG.nom)}</b> gardée dans tes cartes`
           : M ? `${M.ico} ${ctx.esc(M.nom)} pour <b>${ctx.esc(qui || 'un joueur')}</b>`
             : T ? `Stage de système : ${T.ico} <b>${ctx.esc(T.nom)}</b>` : ctx.esc(S.nom);
         ev.push({ j: d.jour, t: `${S.ico} ${t}` });
@@ -2242,7 +2242,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const m = (calendrier[mb.jour] || []).find(x => x.A === you || x.B === you);
       const Av = mb.avant && AVANT_GROS[mb.avant.cle];
       const Ao = Av && Av.options.find(o => o.cle === mb.avant.choix);
-      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Combat contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · événement : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
+      ev.push({ j: mb.jour, t: `${MINI_BOSS[mb.raison].ico} Gros match contre ${ctx.esc(ctx.teamShort(mb.adv))} (${ctx.esc(MINI_BOSS[mb.raison].nom.toLowerCase())}) — ${mb.gagne ? '<b>gagné</b>' : '<b>perdu</b>'}${m ? ` ${scoreDe(mb.jour, m)}` : ''}${Ao ? ` · événement : ${Av.ico} ${ctx.esc(Ao.nom.toLowerCase())}` : ''}${mb.cartes && mb.cartes.jouees.length ? ` · 🃏 ${mb.cartes.jouees.map(c => CARTES_MATCH[c] ? CARTES_MATCH[c].ico : '').join('')}` : ''}${mb.prepJuste === true ? ' · 🎯 préparation juste' : mb.prepJuste === false ? ' · 💥 préparation ratée' : ''}<small class="recit-detail">${motEntracte(ctx, mb)}</small>` });
     }
     // Les fils qui ont fait la une, quand ils pèsent (V3.2) : la course, le Cheechoo, le jalon, le duo.
     for (const e of filsAuJour().journal) if (e.fils[0].poids >= FIL_MARQUANT) ev.push({ j: e.j, t: `<b>${ctx.esc(e.fils[0].texte)}</b>` });
@@ -2308,7 +2308,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const bas = new Set([...JOURS_MOMENTS, ...JOURS_SITUATIONS].map(jEv));
     const combat = (j, raison) => {
       if (j == null || combats.has(j)) return;
-      combats.set(j, MINI_BOSS[raison] ? MINI_BOSS[raison].nom : 'match important');
+      combats.set(j, MINI_BOSS[raison] ? MINI_BOSS[raison].nom : 'gros match');
     };
     const event = (jMatch, choisi) => {
       const jE = choisi ? jMatch - ANNONCE_GROS : Math.min(jMatch, Math.max(jour, jMatch - ANNONCE_GROS));
@@ -2329,7 +2329,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       }
     }
     return {
-      combats: [...combats].map(([j, nom]) => ({ j, titre: `combat · ${nom}` })),
+      combats: [...combats].map(([j, nom]) => ({ j, titre: `gros match · ${nom}` })),
       evenements,
     };
   };
@@ -2362,7 +2362,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return `<div class="hub-titre">Le calendrier · journée ${jour} sur ${N}</div><div class="calj-grille">${semaines}</div>`;
   };
   const routeFiche = () => `<div class="hub-titre">La route de la saison</div>${routeHtml(jour, N, marquesDeSaison())}
-    <div class="hub-route-legende">🏢 le proprio · 🃏 une carte à prendre · ⚔️ un combat · ❓ un événement · 💬 le vestiaire · en sourdine : peut-être</div>`;
+    <div class="hub-route-legende">🏢 le proprio · 🃏 une carte à prendre · ⚔️ un gros match · ❓ un événement · 💬 le vestiaire · en sourdine : peut-être</div>`;
   /*
    * LA PRÉVISION DU MOTEUR (1.0, oct.). JP : *pas un ov qui décide tout, mais
    * un genre de prévision de ce que l'équipe doit faire donner, ou un joueur,
@@ -2388,7 +2388,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="hub-prev-fin"><b>${rond(f.PTS + pr.pts)} points</b> en fin de saison <span>(de ${f.PTS + pr.bas} à ${f.PTS + pr.haut})</span></div>
       <div class="hub-note">${pr.matchs} matchs restants · ${virgule(pr.gfm, 2)} buts pour et ${virgule(pr.gam, 2)} contre par match${gpDe(you) >= 3 ? ` (cette saison : ${virgule(f.GF / gpDe(you), 2)} et ${virgule(f.GA / gpDe(you), 2)})` : ''}.</div>
       <table class="ent2-stats hub-prev-joueurs"><thead><tr><th></th><th>À ce jour</th><th>Projeté</th><th>Buts</th></tr></thead><tbody>${lignes.map(l => `<tr><th>${ctx.esc(l.p.n)} <small>${ctx.esc(ctx.slotShort ? ctx.slotShort(l.sl) : l.sl.role)}</small></th><td>${l.ajd} pts</td><td>${rond(l.fin)} pts</td><td>${rond(l.b)}</td></tr>`).join('')}</tbody></table>
-      <div class="hub-note">${pr.n} saisons rejouées, ta formation de ce matin. Une blessure, un échange, une carte la changent : relance-la après.</div>
+      <div class="hub-note">${pr.n} saisons rejouées, ta formation de ce matin. Une blessure, un échange, une carte la remettent à zéro.</div>
     </div>`;
   }
   /*
@@ -2686,7 +2686,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      */
     if (sorte === 'atelier') {
       ouvrirChoix({ ...suite, ico: '🛠️', titre: 'L\'atelier',
-        recit: 'Trois éditions : touche celle que tu gardes. Elle va dans ton inventaire, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
+        recit: 'Trois éditions : touche celle que tu gardes. Elle va dans tes cartes, et tu la poses au verso d\'un joueur quand tu veux ; elle vaut pour le reste de la saison.',
         options: editionsDuJour(graine, p0).map(k => ({ cle: k, rarete: 'rare', ico: MUTATIONS[k].ico, nom: MUTATIONS[k].nom, type: 'L\'atelier', texte: MUTATIONS[k].quoi, mots: motsDeMutationEnChiffres(k) })),
         onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
       return;
@@ -2877,7 +2877,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * dans le dépistage, qui s'ouvre au toucher.
        */
       const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros aux-couleurs" style="${varsEquipe(ctx.band(mb.adv.tag))}">
-        <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Combat · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
+        <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Gros match · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
         ${Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
       </div>` : '';
       const grosDepistage = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-dep">
@@ -3177,7 +3177,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: k => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: k }, j); },
         onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
     }
-    if (mo) return { de: DE.depisteur, ico: '⚔️', titre: `Combat contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Cinq cartes, trois d\'élan, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
+    if (mo) return { de: DE.depisteur, ico: '⚔️', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Cinq cartes, trois d\'élan, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
     return null;
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));
@@ -3249,7 +3249,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : null;
     if (packOuvert) {
       out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert attend ta signature', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
-        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. Gère ton équipe d'abord : seule la suite exige un choix.</div>
+        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. La suite de la saison attend ce choix.</div>
           <div class="hub-alerte-choix">
             <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Aller au Marché</button>
             <button type="button" class="btn hub-pack-passer">Ne signer personne</button>

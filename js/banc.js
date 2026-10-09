@@ -309,7 +309,7 @@ function confirmerDecision(d) {
   else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
-  else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans ton inventaire : pose-la au verso d'un joueur, quand tu veux.`;
+  else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
   else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
   // S80 : une signature dit où va celui qui sort — ou qu'il n'y en a pas.
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;

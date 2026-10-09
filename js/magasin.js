@@ -115,7 +115,7 @@ export function ouvrirMagasin(ctx) {
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>
-        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · ton DG négocie −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}</div></div>
+        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · rabais −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}</div></div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">

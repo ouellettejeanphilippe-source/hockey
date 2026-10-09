@@ -1053,7 +1053,7 @@ export const traitTags = (p, full = false) => traitTagList(p, full).join('');
 export function realTag(p) {
   return p.isReal
     ? `<span class="tag tag-real" title="Salaire réellement publié cette saison-là, converti au prorata du plafond de l'année.">Salaire réel</span>`
-    : `<span class="tag tag-est" title="Salaire estimé par le barème de cote globale : aucun montant publié pour cette saison.">Salaire estimé</span>`;
+    : `<span class="tag tag-est" title="Salaire estimé d'après sa saison : aucun montant publié cette année-là.">Salaire estimé</span>`;
 }
 
 /*
@@ -1346,7 +1346,7 @@ function setupEvents() {
       { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
       { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue un système. Plus elle le joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
       { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'élan. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
-      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre des boss. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
+      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre les meilleurs clubs. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
     ],
     onChoix: () => {},
   });

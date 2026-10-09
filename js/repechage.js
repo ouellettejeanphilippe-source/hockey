@@ -910,7 +910,7 @@ export function renderSpin() {
   const instruction = targetSlot
     ? `${ico('i-target')} Case ciblée : <span class="target-on">${esc(slotShort(targetSlot))}</span> — touche-la à nouveau pour annuler.`
     : need ? ''
-      : `Alignement complet : permute tes joueurs ou simule.`;
+      : `Alignement complet : permute tes joueurs, ou lance la saison.`;
 
   if (MODE().loto) {
     // TROIS CLUBS, UN CHOIX. La carte porte la case qu'on comble en gros —
@@ -1053,7 +1053,7 @@ export function renderDash() {
   // de bord ne montre que le chiffre qui sert à trancher.
   const needTitle = need
     ? (MODE().loto
-      ? `Case qu'on comble : ${slotShort(need)}. Le loto, c'est le joueur que trois clubs mettent à cette case exacte. Touche une autre case vide dans l'alignement pour la viser à la place : les mêmes clubs te tendent leur joueur de cette case.`
+      ? `Case qu'on comble : ${slotShort(need)}. Trois clubs, leur joueur à cette case. Touche une autre case vide pour la viser.`
       : `Prochaine case libre de l'alignement : ${slotShort(need)}. Touche une autre case dans l'alignement pour la viser à la place.`)
     : `Les ${totalCases()} cases sont comblées.`;
   const budgetTitle = left === 0
@@ -1489,7 +1489,7 @@ export function renderPool() {
   if (!list.length) {
     host.className = 'pool';
     host.innerHTML = `<div class="empty-msg">${MODE().loto
-      ? (slotsLeft() === 0 ? 'Alignement complet : permute tes joueurs ou simule.'
+      ? (slotsLeft() === 0 ? 'Alignement complet : permute tes joueurs, ou lance la saison.'
         : 'Ce tirage ne met personne à cette case.<br>Vise une autre case dans l\'alignement' + (G.relances ? ' ou relance.' : '.'))
       : `Aucun joueur ne correspond.<br>${G.search ? 'Efface la recherche' : G.onlyFit ? 'Désactive « signables seulement » dans les options' : 'Change de filtre'} ou utilise une relance.`}</div>`;
     return;

@@ -1308,7 +1308,7 @@ function buildDuSoirHtml(f, A, B, jour) {
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,
   }));
-  return `<div class="som-build"><div class="som-per-head"><span>Ton build ce soir</span>${moi ? `<span class="som-tirs">moyenne : ${moi.n} matchs d'avant</span>` : ''}</div>
+  return `<div class="som-build"><div class="som-per-head"><span>Tes choix ce soir</span>${moi ? `<span class="som-tirs">moyenne : ${moi.n} matchs d'avant</span>` : ''}</div>
     ${buildVide(b) ? '<p>Rien de réglé de ta part ce soir.</p>' : groupes}${liste(lignes)}
     </div>`;
 }
