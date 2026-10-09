@@ -185,7 +185,7 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
 /* Ce que la case lit d'un joueur (V2.3) : son badge de ce rôle, à son palier, ou la base. */
 const motDuFit = (p, role) => {
   const b = p && badgesDe(p).find(x => x.cle === role);
-  return !b ? 'pas ce badge : la case ne rend que la base' : b.second ? `son second badge, ${motDuBadge(b)} : la moitié` : `son badge, ${motDuBadge(b)}`;
+  return !b ? 'pas ce badge : la case ne rend que la base' : b.second && !b.plein ? `son second badge, ${motDuBadge(b)} : la moitié` : `son badge, ${motDuBadge(b)}`;
 };
 export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { ico: '🪨', mot: 'Costaud' } : ph <= 0.38 ? { ico: '🪶', mot: 'Léger' } : null; };
 /*
@@ -195,7 +195,7 @@ export const carrureDe = p => { const ph = physiqueDe(p); return ph >= 0.62 ? { 
  */
 export const motDuBadge = b => `${b.nom} ${PALIERS[b.palier].nom}`;
 export const raisonDuBadge = b => (b.trait && TRAITS[b.trait] ? TRAITS[b.trait].short : '');
-export const titreDuBadge = b => `${b.second ? 'Son second badge (la moitié de son effet)' : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, ${b.gardien ? 'comparé aux gardiens de sa saison' : 'comparé aux joueurs de son poste, toutes saisons'}${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}. Il dit CE QU'IL FAIT au match ; sa zone dit où.`;
+export const titreDuBadge = b => `${b.second ? (b.plein ? 'Son second badge (plein : sa carte brille)' : 'Son second badge (la moitié de son effet)') : 'Son badge'} : ${motDuBadge(b)} — lu dans ${b.mot}, ${b.gardien ? 'comparé aux gardiens de sa saison' : 'comparé aux joueurs de son poste, toutes saisons'}${b.trait ? ` ; ${raisonDuBadge(b)} le monte` : ''}. Il dit CE QU'IL FAIT au match ; sa zone dit où.`;
 function rolesDe(p) {
   const bs = badgesDe(p);
   if (!bs.length) return '';
@@ -289,17 +289,17 @@ let fermerChoixCourant = null;
  * L'OUVERTURE D'UN PAQUET (S77). JP : *rends ça plus dynamique et beau*. Une
  * récompense (un gros match gagné, une série gagnée) arrive dans un PAQUET
  * scellé qui luit de la couleur de sa meilleure carte ; on le touche, le rabat
- * se déchire, les cartes sortent face cachée et se retournent une à une — la
- * meilleure en DERNIER, avec un éclat plus grand. Toucher encore montre tout
- * d'un coup. Puis le choix se fait comme avant : le contenu était déjà décidé
- * (`recompensesOffertes`), le paquet n'est qu'une façon de le montrer. Un
- * paquet ne s'ouvre qu'une fois : rouvrir le choix (« Voir la récompense »)
- * montre les cartes. Sous `prefers-reduced-motion`, pas de paquet.
+ * se déchire, et les cartes attendent en PILE (1.0, oct. ; JP : *ouverture de
+ * pack, cartes plus grosses avec swipe ?*) : une à la fois, en grand, la
+ * meilleure en DERNIER. On la glisse, on la touche, Entrée ou → : la suivante ;
+ * « Tout voir » saute au bout. Puis le choix se fait comme avant : le contenu
+ * était déjà décidé (`recompensesOffertes`), la pile n'est qu'une façon de le
+ * montrer. Un paquet ne s'ouvre qu'une fois : rouvrir le choix (« Voir la
+ * récompense ») montre les cartes. Sous `prefers-reduced-motion`, la pile sans
+ * paquet ni mouvement.
  */
 const RANG_RARETE = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
 const PAQUETS_OUVERTS = new Set();
-const REVELE_PAS = 320;          // ms entre deux cartes qui se retournent
-const REVELE_CARTE = 900;        // ms pour qu'une carte sorte et se retourne
 const DECHIRE = 460;             // ms du rabat qui se déchire
 const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 /**
@@ -329,21 +329,21 @@ export function ouvrirChoix(spec) {
   if (fermerChoixCourant) fermerChoixCourant(true);
   const { nom, ou, noms, sub } = nommer(spec);
   const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
-  const paquet = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0
-    && !PAQUETS_OUVERTS.has(clePaquet) && !mouvementCalme();
+  const pile = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0 && !PAQUETS_OUVERTS.has(clePaquet);
+  const paquet = pile && !mouvementCalme();
   // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas) ; à rareté égale, le meilleur joueur (`rang`, son niveau, S80).
   const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0)
     || (spec.options[a].rang || 0) - (spec.options[b].rang || 0) || a - b);
   const rangDe = i => ordre.indexOf(i);
   const meilleure = spec.options.reduce((b, o) => ((RANG_RARETE[o.rarete] || 0) > (RANG_RARETE[b] || 0) ? o.rarete : b), 'commune');
   // LE WALKOUT (1.0, oct.), comme FUT et HUT : la carte du pack — une holo, une or, un Phénomène — s'annonce avant de sortir.
-  const vedette = paquet && ordre.length ? spec.options[ordre[ordre.length - 1]] : null;
+  const vedette = paquet ? spec.options[ordre[ordre.length - 1]] : null;
   const walkout = vedette && vedette.walkout && ((RANG_RARETE[vedette.rarete] || 0) >= RANG_RARETE.rare || vedette.eclat) ? vedette.walkout : null;
   // Le genre dit CE QUE C'EST, à part du titre : un événement n'est pas le combat, le butin n'est pas l'événement.
   const BADGE = { evenement: 'Événement', recompense: 'Butin', entracte: 'Gros match' };
   const badgeTxt = spec.regle && spec.genre === 'evenement' ? 'Événement · Règlement' : (BADGE[spec.genre] || '');
   const badge = badgeTxt ? `<div class="choix-badge">${badgeTxt}</div>` : '';
-  m.innerHTML = `<div class="choix-sheet${chiffresOuverts() ? ' chiffres' : ''}${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet${chiffresOuverts() ? ' chiffres' : ''}${spec.cartes ? ' choix-cartes' : ''}${paquet ? ' paquet-ferme' : pile ? ' paquet-pile' : ''}${auxCouleurs(spec.couleurs)}"${spec.genre ? ` data-genre="${esc(spec.genre)}"` : ''} role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '❓'}</span>
       <div class="choix-titres">${badge}<div class="choix-titre">${sub(spec.titre)}</div>${spec.irl ? `<div class="choix-irl">${esc(spec.irl)}</div>` : ''}</div>
@@ -354,7 +354,7 @@ export function ouvrirChoix(spec) {
       ${spec.joueur ? carteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
-      <div class="choix-options${spec.cartes ? ` choix-main${paquet ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
+      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
@@ -367,7 +367,7 @@ export function ouvrirChoix(spec) {
           // sa face dit ce qu'elle fait (+ bon, − prix) ; ses chiffres de match attendent « Les chiffres ».
           pucesHtml: puces(enMotsEtChiffres(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))), m => !!m.chiffre) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
-          dos: paquet, r: paquet ? rangDe(i) : null, meilleure: paquet && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
+          dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
         });
         const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
@@ -384,6 +384,7 @@ export function ouvrirChoix(spec) {
         </button>`;
       }).join('')}</div>
       <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
+      ${spec.autres && spec.autres.length ? `<div class="choix-autres">${spec.autres.map((a, i) => `<button type="button" class="btn choix-autre" data-autre="${i}">${esc(a.mot)}</button>`).join('')}</div>` : ''}
       ${(spec.cartes || spec.genre) && spec.fermable ? `<button type="button" class="btn choix-plus-tard">${esc(spec.motFermer || 'Plus tard')}</button>` : ''}
     </div>
   </div>`;
@@ -392,7 +393,7 @@ export function ouvrirChoix(spec) {
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
   // Un paquet se tait tant qu'il est scellé : ses sons sont ceux de l'ouverture.
-  if (spec.cartes && !spec.lecture && !paquet) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
+  if (spec.cartes && !spec.lecture && !pile) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
   const fermer = (silencieux = false) => {
     m.hidden = true; m.innerHTML = '';
     m.classList.remove('feuille');
@@ -429,9 +430,11 @@ export function ouvrirChoix(spec) {
     el.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); voir(); } };
   });
   for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
+  // LES AUTRES BUTINS (V5) : retirer ou améliorer une carte du deck, au lieu d'en prendre une — chacun ouvre son propre choix.
+  for (const x of m.querySelectorAll('.choix-autre')) x.onclick = () => { fermer(true); spec.autres[+x.dataset.autre].ouvrir(); };
   pointsDeBande(m);
-  if (paquet) brancherPaquet(m, spec.options.length, () => PAQUETS_OUVERTS.add(clePaquet), walkout);
-  const premier = m.querySelector(paquet ? '.paquet' : '.choix-option:not([disabled])');
+  if (pile) brancherPaquet(m, () => PAQUETS_OUVERTS.add(clePaquet), { walkout, scelle: paquet });
+  const premier = paquet ? m.querySelector('.paquet') : pile ? null : m.querySelector('.choix-option:not([disabled])');
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
 }
@@ -616,67 +619,161 @@ export function ouvrirAlignement(spec) {
 }
 
 /*
- * Le paquet en trois temps, portés par des classes sur la feuille :
- * `paquet-ferme` (il luit, il attend), `paquet-dechire` (le rabat part, le
- * paquet tremble), `paquet-revele` (les cartes sortent et se retournent, dans
- * l'ordre `--tc-r`), puis `paquet-fini` : on choisit. Tant que ce n'est pas
- * fini, un toucher n'importe où dans la feuille est intercepté (en capture)
- * — il ouvre, puis il montre tout — pour qu'un doigt pressé ne prenne pas une
- * carte encore face cachée. Le ✕ reste le ✕ : on peut passer sans ouvrir.
+ * Le paquet en quatre temps, portés par des classes sur la feuille : `paquet-ferme`
+ * (il luit, il attend), `paquet-dechire` (le rabat part, le paquet tremble),
+ * `paquet-pile` (les cartes en pile, une à la fois, en grand), puis
+ * `paquet-fini` : la bande des choix, comme avant. Tant que ce n'est pas fini,
+ * un toucher n'importe où dans la feuille est intercepté (en capture) — il
+ * ouvre, puis il passe à la carte suivante — pour qu'un doigt pressé ne prenne
+ * pas une carte qu'il n'a pas vue. Le ✕ reste le ✕ : on peut passer sans ouvrir.
+ *
+ * LA PILE (1.0, oct.), comme Pokémon TCG Pocket et HUT : la carte du dessus en
+ * grand, deux autres face cachée derrière elle. Elle se glisse (le doigt, la
+ * souris), se touche, ou Entrée, Espace, → (A à la manette) ; un point par
+ * carte dit où on en est. Les cartes passent dans l'ordre du retournement
+ * (`--tc-r`), la meilleure en dernier ; « Tout voir » saute au bout. Ce sont
+ * les cartes MÊMES de la bande, empilées : au bout, la bande reprend sa place,
+ * avec ses boutons et ses décisions.
  *
  * LE WALKOUT (1.0, oct.). JP : *regarde comment d'autres jeux gèrent les cartes, les FUT et HUT*. Quand
  * le pack cache une holo, une or ou un Phénomène, FUT fait attendre : le drapeau, le poste, le club, puis
- * le joueur. Ici, la saison, le poste, l'écusson — trois temps de 650 ms entre le rabat et les cartes —
- * et la carte sort la dernière, comme avant. Un toucher saute tout.
+ * le joueur. Ici, la saison, le poste, l'écusson — trois temps de 650 ms juste avant que la carte du pack
+ * monte sur la pile. Un toucher saute l'annonce.
  */
 const WALKOUT_PAS = 650;
-function brancherPaquet(m, n, ouvert, walkout = null) {
+const GLISSE_SEUIL = 60;   // px : un glissé plus court revient en place
+function brancherPaquet(m, ouvert, { walkout = null, scelle = true } = {}) {
   const feuille = m.querySelector('.choix-sheet');
-  if (!feuille) return;
-  let etat = 'ferme', minuteur = 0, dechire = 0;
+  const bande = feuille && feuille.querySelector('.choix-main');
+  if (!bande) return;
+  const rangDe = c => Number(c.style.getPropertyValue('--tc-r')) || 0;
+  const cartes = [...bande.children].sort((a, b) => rangDe(a) - rangDe(b));
+  const n = cartes.length;
+  const trois = bande.classList.contains('trois');
+  let etat = scelle ? 'ferme' : 'pile', cur = 0, minuteur = 0, glisseA = 0, x0 = null, dx = 0;
+  const points = m.querySelector('.choix-points');
+  const tout = document.createElement('button');
+  tout.type = 'button';
+  tout.className = 'btn pile-tout';
+  tout.textContent = 'Tout voir';
+  tout.hidden = n < 2;
+  (points || bande).after(tout);
+  const poser = () => {
+    cartes.forEach((c, k) => { c.dataset.pile = k < cur ? 'passee' : k - cur > 2 ? 'loin' : String(k - cur); });
+    if (points) {
+      points.hidden = n < 2;
+      points.innerHTML = cartes.map((_, k) => `<i class="${k === cur ? 'on' : ''}"></i>`).join('');
+    }
+  };
+  const montrer = () => {
+    feuille.querySelector('.walkout')?.remove();
+    etat = 'pile';
+    poser();
+    jouerSon(cartes[cur].matches('.tc-meilleure, .tc-rare, .tc-legendaire') ? 'recompense' : 'tap');
+  };
+  const annoncer = () => {
+    etat = 'walkout';
+    poser();
+    // Elle attend face cachée derrière l'annonce : son retournement et son éclat se jouent après.
+    cartes[cur].dataset.pile = '1';
+    const wo = document.createElement('div');
+    wo.className = 'walkout';
+    wo.setAttribute('aria-hidden', 'true');
+    wo.innerHTML = `<span class="wo-pas">${walkout.saison}</span><span class="wo-pas">${walkout.pos}</span><span class="wo-pas wo-ecu">${walkout.logo}</span>`;
+    feuille.appendChild(wo);
+    [0, 1, 2].forEach(i => setTimeout(() => { if (etat === 'walkout') { wo.dataset.pas = String(i + 1); jouerSon(i < 2 ? 'tap' : 'valide'); } }, i * WALKOUT_PAS));
+    minuteur = setTimeout(() => { if (etat === 'walkout') montrer(); }, 3 * WALKOUT_PAS + 300);
+  };
+  // La carte du pack s'annonce juste avant de monter sur la pile.
+  const suivante = () => (walkout && cur === n - 1 ? annoncer() : montrer());
+  const empiler = () => {
+    clearTimeout(minuteur);
+    feuille.classList.remove('paquet-ferme', 'paquet-dechire');
+    feuille.classList.add('paquet-pile');
+    // Deux ou trois cartes se rangent en mini côte à côte (`.trois`) : pas dans la pile, où elles sont en grand.
+    bande.classList.remove('trois');
+    bande.tabIndex = -1;
+    bande.focus({ preventScroll: true });
+    suivante();
+  };
   const finir = () => {
     if (etat === 'fini') return;
     etat = 'fini';
-    clearTimeout(minuteur); clearTimeout(dechire);
-    const wo = feuille.querySelector('.walkout');
-    if (wo) wo.remove();
-    feuille.classList.remove('paquet-ferme', 'paquet-dechire');
-    feuille.classList.add('paquet-revele', 'paquet-fini');
+    clearTimeout(minuteur);
+    feuille.querySelector('.walkout')?.remove();
+    feuille.classList.remove('paquet-ferme', 'paquet-dechire', 'paquet-pile');
+    feuille.classList.add('paquet-fini');
+    for (const c of cartes) { delete c.dataset.pile; c.style.removeProperty('--glisse'); }
+    if (trois) bande.classList.add('trois');
+    bande.removeAttribute('tabindex');
+    bande.classList.add('donne');
+    tout.remove();
+    window.removeEventListener('keydown', clavier, true);
     ouvert();
     pointsDeBande(m);
     const premiere = feuille.querySelector('.choix-option:not([disabled])');
     if (premiere) premiere.focus({ preventScroll: true });
+  };
+  const avancer = (sens = 'g') => {
+    if (etat === 'ferme') { ouvrir(); return; }
+    if (etat === 'ouvre') { empiler(); return; }
+    if (etat === 'walkout') { clearTimeout(minuteur); montrer(); return; }
+    if (etat !== 'pile') return;
+    if (cur >= n - 1) { finir(); return; }
+    cartes[cur].dataset.sens = sens;
+    cur++;
+    suivante();
   };
   const ouvrir = () => {
     etat = 'ouvre';
     jouerSon('donne');
     feuille.classList.remove('paquet-ferme');
     feuille.classList.add('paquet-dechire');
-    // Le paquet a fini de tomber : on l'enlève et les cartes sortent. `paquet-dechire`
-    // doit PARTIR ici : tant qu'il est posé, la bande reste invisible, et les cartes se
-    // retournaient derrière elle — face cachée à l'écran quand le minuteur finissait.
-    const reveler = () => { if (etat === 'ouvre') { feuille.querySelector('.walkout')?.remove(); feuille.classList.replace('paquet-dechire', 'paquet-revele'); jouerSon('recompense'); } };
-    const attente = walkout ? 3 * WALKOUT_PAS + 300 : 0;
-    dechire = setTimeout(() => {
-      if (!walkout) { reveler(); return; }
-      if (etat !== 'ouvre') return;
-      const wo = document.createElement('div');
-      wo.className = 'walkout';
-      wo.setAttribute('aria-hidden', 'true');
-      wo.innerHTML = `<span class="wo-pas">${walkout.saison}</span><span class="wo-pas">${walkout.pos}</span><span class="wo-pas wo-ecu">${walkout.logo}</span>`;
-      feuille.appendChild(wo);
-      [0, 1, 2].forEach(i => setTimeout(() => { if (etat === 'ouvre') { wo.dataset.pas = String(i + 1); jouerSon(i < 2 ? 'tap' : 'valide'); } }, i * WALKOUT_PAS));
-      dechire = setTimeout(reveler, attente);
-    }, DECHIRE);
-    minuteur = setTimeout(finir, DECHIRE + attente + (n - 1) * REVELE_PAS + REVELE_CARTE + 200);
+    minuteur = setTimeout(empiler, DECHIRE);
   };
   feuille.addEventListener('click', ev => {
     if (etat === 'fini' || ev.target.closest('.choix-fermer')) return;
     ev.stopPropagation();
     ev.preventDefault();
-    if (etat === 'ferme') ouvrir();
-    else { feuille.classList.add('paquet-tout'); finir(); }
+    if (ev.target.closest('.pile-tout')) finir();
+    // Le clic qui suit un glissé est le même geste : la carte est déjà passée.
+    else if (performance.now() - glisseA > 350) avancer();
   }, true);
+  // Le clavier, où que soit le focus (un toucher sur la tête l'a rendu à la page) : il passe avant les flèches de js/manette.js.
+  const clavier = ev => {
+    if (etat === 'fini' || !feuille.isConnected) { window.removeEventListener('keydown', clavier, true); return; }
+    if (m.hidden || !['Enter', ' ', 'ArrowRight'].includes(ev.key) || ev.target.closest?.('.choix-fermer, .pile-tout')) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    avancer();
+  };
+  window.addEventListener('keydown', clavier, true);
+  // LE GLISSÉ : la carte du dessus suit le doigt (`--glisse`) ; assez loin, elle part de ce côté-là.
+  bande.addEventListener('pointerdown', ev => {
+    if (etat !== 'pile' || ev.button > 0) return;
+    x0 = ev.clientX; dx = 0;
+    bande.setPointerCapture?.(ev.pointerId);
+    cartes[cur].classList.add('glisse');
+  });
+  bande.addEventListener('pointermove', ev => {
+    if (x0 === null) return;
+    dx = ev.clientX - x0;
+    cartes[cur].style.setProperty('--glisse', String(Math.round(dx)));
+  });
+  const lacher = () => {
+    if (x0 === null) return;
+    x0 = null;
+    const c = cartes[cur];
+    c.classList.remove('glisse');
+    if (Math.abs(dx) > 8) glisseA = performance.now();
+    if (Math.abs(dx) >= GLISSE_SEUIL) avancer(dx < 0 ? 'g' : 'd');
+    else c.style.removeProperty('--glisse');
+  };
+  bande.addEventListener('pointerup', lacher);
+  bande.addEventListener('pointercancel', lacher);
+  // Un visage est une image : la souris la traînerait (glisser-déposer) et le navigateur annulerait le glissé.
+  bande.addEventListener('dragstart', ev => { if (etat !== 'fini') ev.preventDefault(); });
+  if (!scelle) empiler();
 }
 export const choixOuvert = () => !!fermerChoixCourant;
 
@@ -845,7 +942,7 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
     // V2.3 : la case lit le BADGE — le bon rend son palier, le second la moitié, le mauvais la base (`fitDeCase`).
     const b = p ? badgesDe(p).find(x => x.cle === prof) : null;
-    const marque = !p ? '' : !b ? '✗' : b.second ? '≈' : '✓';
+    const marque = !p ? '' : !b ? '✗' : b.second && !b.plein ? '≈' : '✓';
     return `<span class="ln-dem${marque === '✓' ? ' fit-bon' : marque === '✗' ? ' fit-mauvais' : ''}" title="${esc(P.nom)}, lu dans ${esc(P.mot)}${p ? ` — ${esc(p.n)} : ${esc(motDuFit(p, prof))}` : ' — case vide'}"><b>${r}</b> ${P.ico} ${esc(P.nom)}${marque ? ` <i>${marque}</i>` : ''}</span>`;
   }).join('') : '';
   return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
@@ -973,7 +1070,7 @@ export function ouvrirLignes(spec) {
     // V2.3 : la case lit son badge de ce rôle — ✓ le badge, ≈ le second, ✗ la base.
     const bVoulu = voulu && p ? badgesDe(p).find(b => b.cle === voulu) : null;
     const c = p ? carrureDe(p) : null;
-    const marque = !voulu || !p ? '' : !bVoulu ? '✗' : bVoulu.second ? '≈' : '✓';
+    const marque = !voulu || !p ? '' : !bVoulu ? '✗' : bVoulu.second && !bVoulu.plein ? '≈' : '✓';
     // TOUT CE QUI JOUE SUR LE TRIO, ICI (S72) : sa zone (le rang de ligne où
     // il rend) et sa position (mauvaise aile, centre à l'aile).
     const place = p ? placementDe(p, role, u) : null;

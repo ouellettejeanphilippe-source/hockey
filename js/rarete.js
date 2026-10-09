@@ -33,12 +33,43 @@
  * pose rien n'a aucun de ces effets.
  */
 import { hache } from './util.js';
+import { getTraits } from './traits.js';
+import { ageAtSeason } from './ratings.js';
 
-/* Les cotes d'une carte ordinaire (le repêchage, le ballottage, la recrue) : une sur quatre brille. */
-export const COTES_VARIANTES = { commune: 75, peu: 17, rare: 6, legendaire: 2 };
+/* Les cotes d'une carte ordinaire, en moyenne sur toutes les statures (le robot de mesure s'en sert) : V5, une holo
+ * est RARE (1,7 %) et forte — mesuré : à 6 % et 2 %, le robot du Rogue gagnait la Coupe dans 25 % des runs. */
+export const COTES_VARIANTES = { commune: 82, peu: 16, rare: 1.6, legendaire: 0.4 };
+/*
+ * LA BRILLANTE VA AUX VEDETTES (V5). JP : *la rareté des cartes devrait avoir un lien avec leur niveau ; irl, les holo,
+ * c'est généralement les vedettes ou les joueurs vraiment aimés : capitaines, leaders, vétérans, recrues* ; *tu pulls un
+ * Crosby normal, 125 points, nice ; tu pognes le holo, c'est une machine de guerre*. La STATURE d'un joueur, c'est son
+ * niveau dans sa saison (Soutien 0 → Phénomène 4), plus un cran s'il est recrue (`rk`), vétéran (VETERAN ans et plus)
+ * ou 🧭 Meneur ; ses cotes de variante suivent sa stature. Un Soutien peut encore briller (le « shiny »), juste
+ * rarement ; une vedette brille souvent. Les cotes restent en moyenne près de COTES_VARIANTES (check_atelier).
+ */
+const VETERAN = 34;
+export const COTES_PAR_STATURE = [
+  { commune: 87, peu: 12.5, rare: 0.4, legendaire: 0.1 },
+  { commune: 80, peu: 18, rare: 1.6, legendaire: 0.4 },
+  { commune: 70, peu: 24, rare: 5, legendaire: 1 },
+  { commune: 55, peu: 30, rare: 11, legendaire: 4 },
+  { commune: 40, peu: 32, rare: 20, legendaire: 8 },
+];
+export function statureDe(p, niveau) {
+  if (!p) return 0;
+  const age = p.bd && p.s ? ageAtSeason(p.bd, p.s) : null;
+  const marques = (p.rk ? 1 : 0) + (age != null && age >= VETERAN ? 1 : 0) + (getTraits(p).some(t => t.cle === 'MENEUR') ? 1 : 0);
+  return Math.max(0, Math.min(COTES_PAR_STATURE.length - 1, Math.max(0, niveau ?? 0) + marques));
+}
 export const NOM_VARIANTE = { commune: 'Base', peu: 'Parallèle', rare: 'Holo', legendaire: 'Or' };
 /* Les paliers qu'une variante ajoute : [premier badge, second badge] d'un patineur ; un nombre pour un gardien. */
-export const VARIANTE_PALIERS = { commune: [0, 0], peu: [0, 1], rare: [1, 0], legendaire: [1, 1] };
+/*
+ * V5 — UNE HOLO, C'EST SPÉCIAL (JP : *tomber sur un holo doit être vraiment spécial*). La holo monte ses DEUX badges
+ * d'un métal et son second badge rend PLEIN au lieu de la moitié (`VARIANTE_PLEINE`, lu par js/sim.js) : même un double
+ * Platine (Makar, Fox) y gagne. L'or les monte de deux métaux. Plus rares en moyenne, et surtout chez les vedettes (`COTES_PAR_STATURE`).
+ */
+export const VARIANTE_PALIERS = { commune: [0, 0], peu: [0, 1], rare: [1, 1], legendaire: [2, 2] };
+export const VARIANTE_PLEINE = { rare: true, legendaire: true };
 export const VARIANTE_PALIERS_G = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
 const ICO_VARIANTE = { peu: '◆◆', rare: '✦', legendaire: '★' };
 const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };

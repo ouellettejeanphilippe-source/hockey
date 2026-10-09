@@ -116,8 +116,10 @@ const decisions = [
 
   // La consigne choisie ce matin compte déjà.
   const sansConsigne = totauxDuSoir(t);
-  exiger('la consigne choisie ce matin entre dans le total du soir', !pres(sansConsigne.finition, T.finition) && !pres(sansConsigne.defense, T.defense),
-    `précision ${flechesDe(sansConsigne.finition)} → ${flechesDe(T.finition)}`);
+  // Le brut, avant les plafonds : une équipe déjà au plafond de précision le garde avec ou sans la consigne (V5 : les
+  // positions multiples changent les clubs tirés), mais la consigne entre quand même dans le produit.
+  exiger('la consigne choisie ce matin entre dans le total du soir', !pres(sansConsigne.brut.finition, T.brut.finition) && !pres(sansConsigne.brut.defense, T.brut.defense),
+    `précision brute ${flechesDe(sansConsigne.brut.finition)} → ${flechesDe(T.brut.finition)}`);
   exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.source === 'match') && (t.cartes || []).length === 2 && (t.patrons || []).length === 2);
 
   // 3. Une borne qui mord.

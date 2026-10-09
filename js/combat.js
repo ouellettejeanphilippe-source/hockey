@@ -399,7 +399,13 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
     // Un objectif raté : le proprio fait les manchettes, et ça te suit.
     if (typeof d.palier === 'string' && d.palier.startsWith('v:') && d.effet) deck.push('distraction');
   }
-  for (const d of serie) if (d && d.ronde < ronde && d.recompense && CARTES_MATCH[d.recompense]) deck.push(d.recompense);
+  // Le butin d'une série gagnée (V5) : une carte, un retrait ou une amélioration, comme celui d'un gros match.
+  for (const d of serie) {
+    if (!d || !(d.ronde < ronde)) continue;
+    if (d.recompense && CARTES_MATCH[d.recompense]) deck.push(d.recompense);
+    if (d.retrait && CARTES_MATCH[d.retrait]) retraits.push(d.retrait);
+    if (d.aiguise && CARTES_MATCH[`${d.aiguise}+`]) { const i = deck.indexOf(d.aiguise); if (i >= 0) deck[i] = `${d.aiguise}+`; }
+  }
   /*
    * CE QUE LA SAISON LAISSE (S74) : un gros match perdu contre ta RIVALITÉ
    * glisse le doute dans ton deck, une blessure de quinze matchs et plus une

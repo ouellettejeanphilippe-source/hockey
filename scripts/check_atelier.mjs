@@ -180,7 +180,9 @@ const cles = SAISONS.slice(0, 40).flatMap(f => shard(f).players.slice(0, 50).map
 const tirees = cles.map(k => varianteTiree(COTES_VARIANTES, 'graine', k));
 const part = r => tirees.filter(x => x === r).length / tirees.length;
 informer('variantes tirées', `base ${(part('commune') * 100).toFixed(0)} % · parallèle ${(part('peu') * 100).toFixed(0)} % · holo ${(part('rare') * 100).toFixed(1)} % · or ${(part('legendaire') * 100).toFixed(1)} %`);
-exiger('les variantes suivent leurs cotes (75 / 17 / 6 / 2)', Math.abs(part('commune') - 0.75) < 0.03 && Math.abs(part('peu') - 0.17) < 0.03 && Math.abs(part('rare') - 0.06) < 0.02, '');
+// Les cotes se LISENT dans js/rarete.js (docs/organisation-equilibrage.md, action 3) : elles ne se recopient plus ici.
+const CV = COTES_VARIANTES;
+exiger(`les variantes suivent leurs cotes (${CV.commune} / ${CV.peu} / ${CV.rare} / ${CV.legendaire})`, Math.abs(part("commune") - CV.commune / 100) < 0.03 && Math.abs(part("peu") - CV.peu / 100) < 0.03 && Math.abs(part("rare") - CV.rare / 100) < 0.01, '');
 exiger('une variante est la même carte d\'un tirage à l\'autre', varianteTiree(COTES_VARIANTES, 'graine', cles[7]) === varianteTiree(COTES_VARIANTES, 'graine', cles[7])
   && JSON.stringify(carteDe('rare')) === JSON.stringify(carteDe('rare')), '');
 exiger('l\'atelier offre trois éditions différentes, pures', new Set(editionsDuJour('g', 20)).size === 3 && JSON.stringify(editionsDuJour('g', 20)) === JSON.stringify(editionsDuJour('g', 20)), editionsDuJour('g', 20).join(' · '));

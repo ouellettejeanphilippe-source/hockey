@@ -424,17 +424,28 @@ export const GARDES_DE_SAISON = 5;
  * ensuite. Manque le mandat et la run est finie ; gagne la Coupe et la run
  * est gagnée. C'est ce qui fait de la Coupe l'affaire de plusieurs saisons ET
  * de plusieurs runs.
+ *
+ * V5 — LE PROPRIO JUGE LA SAISON, PAS UNE SÉRIE (docs/refonte-v5.md ; JP : *je suis ouvert à tous*). Une série au
+ * meilleur de sept est à moitié un tirage : « gagner une ronde » tuait 46 à 67 % des runs en deuxième saison, avec
+ * une bonne équipe (mesuré, eco.mjs). Le mandat se lit maintenant au classement de la saison régulière, ce que le
+ * build contrôle : les séries d'abord, puis un rang qui monte (les dix, les six, puis les trois premiers ; mesuré :
+ * le premier tiers, puis le quart, laissaient la Coupe à 17 % des runs sans déblocage). Les séries paient toujours (40 🪙 la ronde) et donnent la Coupe, qui gagne la run.
  */
 export const MANDATS = [
-  { rondes: 0, mot: 'faire les séries' },
-  { rondes: 1, mot: 'gagner une ronde des séries' },
-  { rondes: 2, mot: 'atteindre les demi-finales' },
-  { rondes: 3, mot: 'atteindre la finale' },
+  { top: null, mot: 'faire les séries' },
+  { top: 10, mot: 'finir dans les dix premiers' },
+  { top: 6, mot: 'finir dans les six premiers' },
+  { top: 3, mot: 'finir dans les trois premiers' },
 ];
 /* Le mandat de la saison `n` (1 = la première de la run). */
 export const mandatDe = n => MANDATS[Math.max(0, Math.min(MANDATS.length, n || 1) - 1)];
-/* La saison a-t-elle rempli son mandat ? `series` : qualifiée ; `rondes` : séries gagnées. */
-export const mandatRempli = (n, { series = false, rondes = 0 } = {}) => !!series && rondes >= mandatDe(n).rondes;
+/* Le rang à atteindre pour le mandat `M` dans une ligue de `nEquipes` clubs (null : faire les séries). */
+export const rangDuMandat = (M, nEquipes = 32) => (M.top ? Math.min(M.top, nEquipes) : null);
+/* La saison a-t-elle rempli son mandat ? `series` : qualifiée ; `rang` : au classement ; `nEquipes` : la taille de la ligue. */
+export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32 } = {}) => {
+  const seuil = rangDuMandat(mandatDe(n), nEquipes);
+  return !!series && (seuil == null || rang <= seuil);
+};
 
 /* ---------- les jalons (S80) ---------- */
 /*

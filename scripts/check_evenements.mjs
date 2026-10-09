@@ -45,8 +45,14 @@ function ligue(seed, n) {
 }
 
 console.log('\n  UN ÉVÉNEMENT SE SENT, DES DEUX CÔTÉS\n');
-const [A, B] = ligue(4242, 2);
-const base = chiffresDuSoir(A, null, B);
+/*
+ * QUATRE PAIRES DE CLUBS, PAS UNE (V5). Une seule paire tirée faisait de la médiane une loterie : un club déjà au
+ * plafond de précision écrase l'effet de toutes les cartes de finition (les shards de la V5 en ont tiré un). La
+ * moyenne de quatre paires lit l'événement, pas le club.
+ */
+const clubs = ligue(4242, 8);
+const PAIRES = [0, 2, 4, 6].map(i => [clubs[i], clubs[i + 1]]);
+const bases = PAIRES.map(([A, B]) => chiffresDuSoir(A, null, B));
 const BUTS = ['volume', 'finition', 'defense', 'discipline'];
 const lignes = [];
 for (const [id, c] of Object.entries(BANQUE)) {
@@ -54,10 +60,14 @@ for (const [id, c] of Object.entries(BANQUE)) {
   const p = payloadDe(id);
   if (!p || !p.effet) continue;
   const { nom, ico: _i, duree, regle: _r, ...e } = p.effet;
-  A._effetMatch = [e];
-  const av = chiffresDuSoir(A, null, B);
-  delete A._effetMatch;
-  const bp = av.butsPour - base.butsPour, bc = av.butsContre - base.butsContre;
+  let bp = 0, bc = 0;
+  PAIRES.forEach(([A, B], k) => {
+    A._effetMatch = [e];
+    const av = chiffresDuSoir(A, null, B);
+    delete A._effetMatch;
+    bp += (av.butsPour - bases[k].butsPour) / PAIRES.length;
+    bc += (av.butsContre - bases[k].butsContre) / PAIRES.length;
+  });
   lignes.push({ nom, duree: duree || 0, bp, bc, total: (bp - bc) * (duree || 0), buts: BUTS.some(k => k in e) });
 }
 const med = a => { const s = a.slice().sort((x, y) => x - y); return s[Math.floor(s.length / 2)]; };

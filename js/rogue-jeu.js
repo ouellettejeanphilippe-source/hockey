@@ -1168,7 +1168,8 @@ function sortDeLaRun() {
   const s = G.rogue && G.rogue.series;
   if (!s) return 'attente';
   if (s.coupe) return 'gagnee';
-  return mandatRempli(numeroDeSaison(), { series: true, rondes: s.rondes }) ? 'continue' : 'finie';
+  // V5 : le mandat se lit au classement de la saison régulière ; les séries ne le défont pas.
+  return mandatRempli(numeroDeSaison(), { series: true, rang: f.rang, nEquipes: (L.teams || []).length }) ? 'continue' : 'finie';
 }
 /*
  * LA RUN AU BILAN : quelle saison, ce que le proprio voulait, et ce qui
@@ -1187,7 +1188,12 @@ export function majRunRogue() {
   const n = numeroDeSaison(), M = mandatDe(n), suivant = mandatDe(n + 1);
   const s = (G.rogue && G.rogue.series) || null;
   const mots = {
-    attente: `Le proprio veut : ${M.mot}. ${faitsDeLaSaison().series ? 'Tes séries le diront.' : ''} Le but de la run : la Coupe.`,
+    attente: (() => {
+      const f = faitsDeLaSaison();
+      if (!f.series) return `Le proprio veut : ${M.mot}. Le but de la run : la Coupe.`;
+      const ok = mandatRempli(n, { series: true, rang: f.rang, nEquipes: (G.ligue.teams || []).length });
+      return `Le proprio voulait : ${M.mot} — ${ok ? 'c\'est fait, la run continuera' : `raté (${f.rang}e)`}. Les séries peuvent encore te donner la Coupe.`;
+    })(),
     continue: `Mandat rempli : ${M.mot}. La run continue ; la saison ${n + 1}, le proprio voudra : ${suivant.mot}.`,
     finie: `Mandat manqué — il fallait ${M.mot}. La run est finie après ${n} saison${n > 1 ? 's' : ''}. Tes médailles, tes jalons et ton cartable restent.`,
     gagnee: `La Coupe Stanley, à la saison ${n} de la run : la run est gagnée ! Tes médailles, tes jalons et ton cartable restent.`,

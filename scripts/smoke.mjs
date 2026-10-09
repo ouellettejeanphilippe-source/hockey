@@ -18,6 +18,7 @@
 
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
+import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 
 // Playwright peut être installé globalement (npm root -g) plutôt que dans le dépôt
 const require = createRequire(import.meta.url);
@@ -281,26 +282,24 @@ async function guetterBallottage() {
 /*
  * LE PAQUET (S77) : une récompense arrive scellée, par-dessus ses cartes
  * encore invisibles — les toucher, c'est toucher le paquet. On l'ouvre (un
- * toucher), on montre tout (un deuxième), et on exige ce que l'écran
- * promet : autant de cartes face visible qu'il en annonçait, prêtes à
- * choisir. Le paquet FLOTTE (une animation continue) : Playwright attendrait
- * sans fin qu'il soit immobile, d'où `force` ; le deuxième toucher va à la
- * tête de la feuille, qui ne bouge pas.
+ * toucher), puis LA PILE (1.0, oct.) : chaque carte en grand, passée d'un
+ * geste — glissée, touchée, → — jusqu'à la bande (scripts/lib/paquet.mjs).
+ * On exige ce que l'écran promet : autant de cartes vues dans la pile qu'il
+ * en annonçait, chacune presque de la largeur du téléphone (80 % au moins),
+ * puis les MÊMES cartes face visible dans la bande, prêtes à choisir.
  */
 const paquetsVus = [];
 async function ouvrirPaquet() {
   const p = await page.$('#choixModal:not([hidden]) .paquet');
   if (!p || !(await p.isVisible())) return false;
   const annonce = Number(((await page.textContent('#choixModal .paquet-n')) || '').replace(/\D/g, '')) || 0;
-  await _click('#choixModal .paquet', { force: true });
-  await page.waitForTimeout(120);
-  await _click('#choixModal .choix-tete');
-  const pret = await _wait('#choixModal .choix-sheet.paquet-fini', { timeout: 5000 }).catch(() => null);
+  const pile = await traverserPaquet(page);
   const lu = await page.evaluate(() => ({
     cartes: document.querySelectorAll('#choixModal .choix-main > .choix-option.tc').length,
     dos: [...document.querySelectorAll('#choixModal .tc-dos')].filter(d => +getComputedStyle(d).opacity > 0.05).length,
   }));
-  if (!pret || lu.cartes !== annonce || lu.dos) errors.push(`le paquet annonce ${annonce} cartes et en montre ${lu.cartes} (${lu.dos} encore face cachée${pret ? '' : ', jamais fini'})`);
+  if (!pile.fini || lu.cartes !== annonce || lu.dos) errors.push(`le paquet annonce ${annonce} cartes et en montre ${lu.cartes} (${lu.dos} encore face cachée${pile.fini ? '' : ', jamais fini'})`);
+  errors.push(...fautesDePile(pile, page.viewportSize().width));
   paquetsVus.push(`${lu.cartes} cartes`);
   return true;
 }

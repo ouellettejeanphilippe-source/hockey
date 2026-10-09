@@ -9,7 +9,7 @@ import { estD as isD, esc, money, pct3 } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres } from './impact.js';
-import { varianteTiree, COTES_VARIANTES, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
+import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite } from './cartes.js';
@@ -87,7 +87,8 @@ export function varianteJoueur(p) {
   // La carte posée pour la saison dit la vérité, lustre compris (l'atelier).
   if (p._carte && p._carte.rar) return p._carte.rar;
   const cle = getPlayerKey(p);
-  return G.variantes.cartes[cle] || varianteTiree(COTES_VARIANTES, graineVariantes(), cle);
+  // V5 : ses cotes suivent sa stature (son niveau, recrue, vétéran, meneur) — la brillante va aux vedettes.
+  return G.variantes.cartes[cle] || varianteTiree(COTES_PAR_STATURE[statureDe(p, niveauJoueur(p))], graineVariantes(), cle);
 }
 export const rareteJoueur = varianteJoueur;
 /*

@@ -10,6 +10,7 @@
  */
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
+import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 const require = createRequire(import.meta.url);
 let pw;
 try { pw = require('playwright'); }
@@ -24,6 +25,15 @@ page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|
 let n = 0;
 const shot = async nom => { const f = `${DOS}/${String(++n).padStart(3, '0')}-${nom}.png`; await page.screenshot({ path: f }); return f; };
 const log = (...a) => console.log(...a);
+/*
+ * LA PILE (1.0, oct.) : chaque carte d'un pack en grand, passée d'un geste (scripts/lib/paquet.mjs) — 80 % de la
+ * largeur à 390 px, et les mêmes cartes au bout, dans la bande où l'on signe. « Tout voir » dans la boîte.
+ */
+let piles = 0;
+const passerLaPile = async (o = {}) => {
+  piles++;
+  for (const f of fautesDePile(await traverserPaquet(page, o), page.viewportSize().width)) errs.push(`paquet ${piles} : ${f}`);
+};
 
 await page.addInitScript(() => {
   if (localStorage.getItem('essai80')) return;
@@ -64,7 +74,7 @@ async function regler(max = 40) {
   for (let i = 0; i < max; i++) {
     const e = await etat();
     if (e.choix) {
-      if (await page.$('#choixModal:not([hidden]) .paquet')) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(400); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
+      if (await page.$('#choixModal:not([hidden]) .paquet')) { await passerLaPile({ tout: true }); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
       // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
       if (await page.$('#choixModal:not([hidden]) .main-jouer')) { const v = await page.$('#choixModal .main-vest:not([disabled])'); if (v && await page.$('#choixModal .main-jouer:disabled')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1200); continue; }
       if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); await page.waitForTimeout(600); continue; }
@@ -135,13 +145,21 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   if (await page.$('#pageMarche .pk-tout')) { await page.click('#pageMarche .pk-tout'); await page.waitForTimeout(200); }
   const packs = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack^="j:"]:not(.verrou):not(.pk-cher)', e => e.map(x => x.dataset.pack));
   const pack = packs[Math.floor(rnd() * packs.length)];
+  // Plus rien à sa portée (les jetons, la boutique fermée de la V5) : le tour passe, il n'attend pas un pack qui n'est pas là.
+  if (!pack) {
+    log(`tour ${tour} : aucun pack de joueurs achetable`, await shot('sans-pack'));
+    await club(); await regler();
+    const sj = await page.$('#hubModal .hub-jour:not([disabled])');
+    if (sj) { await sj.click(); await page.waitForFunction(() => !document.querySelector('#hubModal .hub-jour[disabled]'), null, { timeout: 120000 }).catch(() => {}); await page.waitForTimeout(800); }
+    continue;
+  }
   await page.click(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);
   await page.waitForSelector('#pageMarche .pk-fiche');
   const ok = await page.$('#pageMarche .pk-acheter:not([disabled])');
   if (!ok) { log('pas achetable', pack); await page.click('#pageMarche .pk-retour'); continue; }
   await ok.click();
   const pq = await page.waitForSelector('#choixModal:not([hidden]) .paquet', { timeout: 60000 }).catch(() => null);
-  if (pq) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(400); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); await page.waitForTimeout(600); }
+  if (pq) { await passerLaPile(); await page.waitForTimeout(600); }
   let cle;
   const plusTard = rnd() < 0.35;
   if (plusTard) {
@@ -171,6 +189,8 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   const manque2 = [...attendu].filter(k => !r.includes(k));
   if (manque2.length) { pb++; log('   ⚠ après la semaine, manque', manque2.join(','), JSON.stringify((await decs()).filter(x => x.cases || x.b).slice(-6))); await shot('manque-semaine'); }
 }
+log(`piles passées carte par carte : ${piles}`);
+if (!piles) errs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 log(`\n${pb} problème(s) · erreurs console : ${errs.length ? errs.join(' | ') : 'aucune'}`);
 await browser.close();
 process.exit(pb || errs.length ? 1 : 0);

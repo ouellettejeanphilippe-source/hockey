@@ -6,6 +6,10 @@ Jeu web statique en français québécois : la roulette sort une saison et une �
 
 Hébergé sur GitHub Pages. Aucun backend, aucune dépendance npm, aucun framework.
 
+## Où on travaille
+
+Le Rogue, tout le temps, sauf si JP demande expressément un autre mode. Le 82-0, Sur table et l'exhibition sont faits : les stats, un peu de hasard, rien de plus. Une mesure, un équilibrage, un correctif se jugent d'abord en Rogue (`scripts/lib/rogue_sim.mjs`, `check_rogue`, `essai_rogue`).
+
 ## Avant de coder
 
 Lis `LIVRAISON.md` — c'est le plan de travail courant vers la 1.0 : les jalons, chaque item avec son fichier, sa valeur et le script qui le prouve. Coche les cases au fur et à mesure et ajoute une ligne à son journal.

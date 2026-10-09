@@ -246,7 +246,11 @@ for (const k of ['j:etoiles', 'j:legendes']) {
   exiger('le Pack Trio reste une vraie ligne d\'un même club-saison', bonnes === lignes, `${bonnes} / ${lignes}`);
 }
 
-/* 6. Deux axes : la finition ne dépend pas du niveau. */
+/*
+ * 6. LA BRILLANTE VA AUX VEDETTES (V5 ; JP : *les holo, c'est généralement les vedettes*). Les variantes d'un pack
+ * restent celles de son barème (le total ne bouge pas : les chances affichées tiennent), mais elles se donnent par
+ * stature : un Étoile ou un Phénomène brille plus souvent qu'un Pilier, qui brille plus qu'un Soutien.
+ */
 {
   const m = await mesurer('j:hasard_premium', PACKS, { graine: 'axes' });
   const cotes = TIERS.premium.cotes;
@@ -256,9 +260,13 @@ for (const k of ['j:etoiles', 'j:legendes']) {
     for (const k of ks) for (const [r, c] of Object.entries(m.var_[k])) { v[r] = (v[r] || 0) + c; t += c; }
     return { nom, t, v };
   });
-  const hors = lu.flatMap(g => Object.entries(cotes).filter(([r, w]) => Math.abs((g.v[r] || 0) / g.t - w / 100) > tolere(w / 100, g.t)).map(([r]) => `${g.nom} ${r}`));
-  exiger('le niveau et la finition sont deux axes (Premium : le barème par niveau)', !hors.length,
-    lu.map(g => `${g.nom} : base ${pc((g.v.commune || 0) / g.t)}, holo+ ${pc(((g.v.rare || 0) + (g.v.legendaire || 0)) / g.t)} (${g.t} cartes)`).join(' · ') + (hors.length ? ` — hors : ${hors.join(', ')}` : ''));
+  const holo = g => ((g.v.rare || 0) + (g.v.legendaire || 0)) / g.t;
+  const tous = { t: 0, v: {} };
+  for (const g of lu) { tous.t += g.t; for (const [r, c] of Object.entries(g.v)) tous.v[r] = (tous.v[r] || 0) + c; }
+  const totalHors = Object.entries(cotes).filter(([r, w]) => Math.abs((tous.v[r] || 0) / tous.t - w / 100) > tolere(w / 100, tous.t)).map(([r]) => r);
+  exiger('le pack garde son barème de variantes, toutes cartes ensemble (Premium)', !totalHors.length, `${tous.t} cartes${totalHors.length ? ` — hors : ${totalHors.join(', ')}` : ''}`);
+  exiger('la brillante va aux vedettes : holo ou mieux, Soutien < Pilier < Étoile et Phénomène', holo(lu[0]) < holo(lu[1]) && holo(lu[1]) < holo(lu[2]),
+    lu.map(g => `${g.nom} : holo+ ${pc(holo(g))} (${g.t} cartes)`).join(' · '));
 }
 
 /* 7. Un plafond serré : le niveau descend, le salaire jamais au-dessus. */

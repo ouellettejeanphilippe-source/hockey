@@ -67,6 +67,7 @@ import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
 import { IDENTITES } from './identites.js';
+import { statureDe } from './rarete.js';
 
 /*
  * 1.0 — MOINS D'ÉTOILES (JP : *les packs sont trop généreux en joueurs étoiles*).
@@ -74,15 +75,15 @@ import { IDENTITES } from './identites.js';
  * Premium 35 % (avant : 6, 18, 34, 60 %). La part retirée va aux réguliers et aux piliers.
  */
 export const TIERS = {
-  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 82, peu: 14, rare: 3.6, legendaire: 0.4 }, niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 } },
-  argent: { nom: 'Argent', n: 4, cotes: { commune: 70, peu: 22, rare: 7, legendaire: 1 }, niveaux: { soutien: 38, regulier: 39, pilier: 21.25, etoile: 1.6, phenomene: 0.15 } },
-  or: { nom: 'Or', n: 5, cotes: { commune: 55, peu: 30, rare: 12, legendaire: 3 }, niveaux: { soutien: 26, regulier: 40, pilier: 30.6, etoile: 3, phenomene: 0.4 } },
-  premium: { nom: 'Premium', n: 6, cotes: { commune: 40, peu: 35, rare: 19, legendaire: 6 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
+  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 84, peu: 14, rare: 1.8, legendaire: 0.2 }, niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 } },
+  argent: { nom: 'Argent', n: 4, cotes: { commune: 74, peu: 22, rare: 3.5, legendaire: 0.5 }, niveaux: { soutien: 38, regulier: 39, pilier: 21.25, etoile: 1.6, phenomene: 0.15 } },
+  or: { nom: 'Or', n: 5, cotes: { commune: 62.5, peu: 30, rare: 6, legendaire: 1.5 }, niveaux: { soutien: 26, regulier: 40, pilier: 30.6, etoile: 3, phenomene: 0.4 } },
+  premium: { nom: 'Premium', n: 6, cotes: { commune: 52, peu: 35, rare: 10, legendaire: 3 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
 };
 /* La numérotation d'une or (en % des or). */
 export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
 /* En mode Rogue : huit packs de joueurs sans holo ni or, et le neuvième en a une. */
-export const PITIE = 8;
+export const PITIE = 12;   // V5 : la holo est rare ; la garantie arrive plus tard aussi
 /*
  * LA DATE LIMITE DES ÉCHANGES (1.0, oct.). JP : *rendre impossible de prendre
  * des packs de joueurs après la date limite des échanges*. Comme la vraie
@@ -411,6 +412,14 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
   }
   // LA GARANTIE : le pack garanti, ou la pitié de la run (\`PITIE\`) — la dernière carte monte à holo.
   if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
+  /*
+   * V5 — LA BRILLANTE VA À LA VEDETTE DU PACK (js/rarete.js, \`statureDe\`). Les variantes tirées restent celles du pack
+   * (ses chances affichées ne bougent pas) ; elles se distribuent seulement par stature : la plus brillante au joueur
+   * de plus grande stature. Un holo dans un pack de Crosby et de trois Soutien, c'est le Crosby holo.
+   */
+  const ordre = out.map((x, i) => ({ i, s: statureDe(x.p, x.niveau) })).sort((a, b) => b.s - a.s || a.i - b.i).map(o => o.i);
+  const vars = out.map(x => ({ rar: x.rar, num: x.num })).sort((a, b) => ORDRE_VAR.indexOf(b.rar) - ORDRE_VAR.indexOf(a.rar));
+  ordre.forEach((i, k) => { out[i].rar = vars[k].rar; out[i].num = vars[k].num; });
   return { cartes: out, reglage };
 }
 

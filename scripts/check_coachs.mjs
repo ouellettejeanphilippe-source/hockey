@@ -261,13 +261,16 @@ if (LIGUES > 0) {
   });
   exiger('le système de chaque coach demande des joueurs de sa couleur', mal.length === 0,
     mal.map(k => COACHS[k].nom).join(', ') || ORDRE_COACHS.filter(k => COACHS[k].systeme).map(k => `${COACHS[k].ico} ${systemeDe(COACHS[k].systeme).ico}`).join(' · '));
-  const t = ligue(79, 2)[0], lu = activeLineup(t);
+  const t = ligue(79, 2)[0];
   const k = 'rapaces', sys = COACHS[k].systeme;
   const avec = { ...t, coachs: [effetDePalier(k, 2)] }, avecI = { ...t, coachs: [effetDePalier(k, 1)] };
   exiger('à sa confiance II, son système joue un palier plus haut (une case du bon badge)', bonusDuCoach(avec, sys) === PALIER_DU_COACH && bonusDuCoach(avecI, sys) === 0 && bonusDuCoach(avec, 'defensive') === 0,
     `${COACHS[k].nom} II : ${systemeDe(sys).nom} +${PALIER_DU_COACH} palier`);
-  const f0 = [0, 1, 2, 3].map(u => fitUnite(lu, 'F', u, sys)), f1 = [0, 1, 2, 3].map(u => fitUnite(lu, 'F', u, sys, 1));
-  exiger('… et le fit monte là où le badge est là', f1.every((x, u) => x >= f0[u]) && f1.some((x, u) => x > f0[u]), `${f0.join('/')} → ${f1.join('/')}`);
+  // Huit clubs, pas un (V5) : un club tiré peut n'avoir que des cases sans badge (52) ou déjà plafonnées (100), où le
+  // palier de plus n'a rien à monter. Le fit ne baisse jamais, et il monte là où un badge a de la place.
+  const mesures = ligue(79, 8).map(c => { const l = activeLineup(c); return { f0: [0, 1, 2, 3].map(u => fitUnite(l, 'F', u, sys)), f1: [0, 1, 2, 3].map(u => fitUnite(l, 'F', u, sys, 1)) }; });
+  const monte = mesures.find(m => m.f1.some((x, u) => x > m.f0[u])) || mesures[0];
+  exiger('… et le fit monte là où le badge est là', mesures.every(m => m.f1.every((x, u) => x >= m.f0[u])) && mesures.some(m => m.f1.some((x, u) => x > m.f0[u])), `${monte.f0.join('/')} → ${monte.f1.join('/')}`);
 }
 {
   // Le dépisteur : sur 60 packs de joueurs, le coach de la run en tire plus de sa couleur qu'un club sans coach.
