@@ -135,7 +135,7 @@ export const PACKS_CARTES = {
   mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
   // v2 : le pack d'un coach (js/coachs.js) — quatre cartes de sa couleur, de toutes les familles. Le coach se choisit à l'achat.
   coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
-  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles — le prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
+  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles, au prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
 };
 
 /* Tous les packs, par clé : \`j:\` les joueurs, \`c:\` les cartes. */

@@ -32,6 +32,7 @@ import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offres
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
+import { afficherMenu } from './menu.js';
 
 /* =====================================================================
    LE MODE ROGUE (S77) — voir js/rogue.js pour la règle et le méta.
@@ -199,13 +200,28 @@ function unTirageALaFois(f) {
     .catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'))
     .finally(() => { tirageEnCours = false; });
 }
+/*
+ * LA BOUTIQUE OUVRE AU DÉBUT DE LA SEMAINE (V5, docs/refonte-v5.md). JP : *nœud en début de semaine*. En Rogue, en
+ * saison régulière, on achète au bureau du lundi (le premier jour d'une semaine du calendrier, `SEMAINE`) ; une
+ * semaine arrêtée en chemin (une blessure, un gros match) garde la boutique fermée jusqu'au lundi suivant. Les
+ * packs déjà payés (scellés) s'ouvrent quand on veut. Rend la raison de la fermeture, ou null.
+ */
+function boutiqueFermee(j = G.journee || 0) {
+  const L = G.ligue;
+  if (G.bonus !== 'ROGUE' || !L || !L.calendrier || j <= 0 || j >= L.calendrier.length || j % SEMAINE === 0) return null;
+  const lundi = (Math.floor(j / SEMAINE) + 1) * SEMAINE;
+  return `La boutique ouvre au début de la semaine : journée ${lundi + 1}, dans ${lundi - j} jour${lundi - j > 1 ? 's' : ''}`;
+}
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
+  const ferme = boutiqueFermee(j);
+  const ouverts = ferme ? Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, ferme])) : packsOuvertsBoutique(j);
   ouvrirMagasin({
     ...(page || {}),
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(j),
+    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts, ferme,
     mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
-    duJour: packDuJour(new Date(), packsOuvertsBoutique(j)),
+    // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
+    duJour: ferme ? null : packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
     // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),
@@ -464,7 +480,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   const possedees = new Set((meta.cartes || []).map(k => (BANQUE[k] ? k : BANQUE[`match:${k}`] ? `match:${k}` : null)).filter(Boolean));
   ouvrirInventaire({
     ...(page || {}),
-    titre: 'Ton inventaire', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
+    titre: 'Mes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
     partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
@@ -831,13 +847,15 @@ export async function ouvrirRogue() {
         `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
         aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`].filter(Boolean).join(' · '),
-      prix: `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` }],
+      sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }],
     onChoix: () => resolve(true),
     onFerme: () => resolve(false),
   }));
-  if (!go) return;
+  // « Pas maintenant » et « Retour » ramènent au menu, pas dans le vestiaire de repêchage qui attend dessous.
+  const auMenu = () => afficherMenu(contexteDuMenu({ enJeu: false }));
+  if (!go) { auMenu(); return; }
   const coach = await choisirCoach();
-  if (!coach) return;
+  if (!coach) { auMenu(); return; }
   const gardes = [];
   if (k && (meta.derniereEquipe || []).length) {
     const joueurs = (await Promise.all(meta.derniereEquipe.map(joueurDeCle))).filter(Boolean);
@@ -869,11 +887,12 @@ function choisirCoach() {
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
+      : `Sa philosophie joue dès le premier soir ; plus tu joues ses cartes, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: ouverts.map(k => {
       const C = COACHS[k];
       return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
-        mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: `${idsDuCoach(k).length} cartes de sa couleur` };
+        mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: meta.runs ? `${idsDuCoach(k).length} cartes de sa couleur` : '' };
     }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),
@@ -1579,7 +1598,7 @@ export function ouvrirVestiaire(apres = null) {
     <p class="vs-sec">🏅 Les déblocages</p>`;
   ouvrirChoix({
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
-    recit: `Tes médailles se gagnent à chaque saison : un par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
+    recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
     contexte: jalons,
     options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le nom, les couleurs et l\'écusson : ceux que tu portes, et ceux qui se débloquent.' },
       ...Object.entries(DEBLOCAGES).map(([k, D]) => {

@@ -242,7 +242,7 @@ function montrerFinExhibition(A, B, r) {
     <p class="tr-note">${esc(gagneA ? A.nom : B.nom)} l'emporte${r.fusillade ? ' aux tirs de barrage' : ''}. Rien n'est écrit : la partie en cours et l'historique ne bougent pas.</p>
     <div class="tr-actions">
       <button type="button" id="exhibitionEncore" class="btn">Un autre match</button>
-      <button type="button" id="exhibitionMemes" class="btn">Les mêmes clubs</button>
+      <button type="button" id="exhibitionMemes" class="btn">↻ Rejouer</button>
       <button type="button" id="exhibitionFin" class="btn">Fermer</button>
     </div>`;
   openModal('gameModal');

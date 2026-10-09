@@ -233,7 +233,7 @@ const R = {
       'Selon nos sources, le bureau du directeur général aurait été repeint. Nous ne savons pas encore en quelle couleur, ni pourquoi cela nous regarde.'],
   },
   momentum: {
-    victoires: ['{n} victoires de suite : {eq} a le momentum. Le momentum est une réalité scientifique, et je la mesure à l\'oeil, ce qui est la méthode reconnue.',
+    victoires: ['{n} victoires de suite : {eq} a le momentum. Le momentum est une réalité scientifique, et je la mesure à l\'œil, ce qui est la méthode reconnue.',
       'Avec {n} victoires, le momentum de {eq} est à son maximum. Il ne peut que baisser, ou monter, ce qui est un phénomène classique.'],
     defaites: ['{n} défaites : le momentum a quitté {eq}. Il est parti sans prévenir, ce qui est son comportement habituel.',
       'Après {n} défaites de suite, le momentum de {eq} est à zéro, et même un peu en dessous, ce qui est rare en physique.'],
@@ -276,7 +276,7 @@ const R = {
     m2: 'Bonsoir, c\'est Marcel. Deuxième match contre {autre}. Je suis fébrile, ma femme aussi, et le chien est parti dans l\'autre pièce.',
     m3: 'Allô, Marcel de Laval. Troisième match. J\'ai pris congé du travail. Mon patron est au courant et il comprend, je crois.',
     m4: 'Marcel, de Laval. Quatrième match contre {autre}. J\'ai refait mon souper pour qu\'il se mange pendant la deuxième période.',
-    m5: 'Bonsoir, c\'est Marcel. Cinquième match. J\'ai le coeur qui bat comme un tambour, et je suis assis, rassurez-vous.',
+    m5: 'Bonsoir, c\'est Marcel. Cinquième match. J\'ai le cœur qui bat comme un tambour, et je suis assis, rassurez-vous.',
     m6: 'Allô, Marcel. Sixième match. Je suis dans la cour, parce que dans la maison c\'est trop tendu pour moi.',
     m7: 'Marcel, de Laval. Septième match contre {autre}. Je n\'ai pas dormi, et je ne crois pas que je dormirai avant la saison prochaine.',
     elimine: 'Bonsoir, c\'est Marcel. {eq} est éliminé. Je veux juste dire merci aux joueurs, merci à la direction, et merci à ma femme de ne rien dire.',

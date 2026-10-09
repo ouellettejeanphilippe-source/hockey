@@ -500,6 +500,8 @@ body.nav-clavier .btn:focus, body.nav-clavier .chip:focus, body.nav-clavier .nav
   .panes[data-view="pool"] .pane-roster, .panes[data-view="roster"] .pane-pool { display: block; }
   .panes { grid-template-columns: minmax(0, 2.15fr) minmax(340px, 0.75fr); }
   .pane-roster { position: sticky; top: calc(var(--topbar-h) + var(--esp-3)); max-height: calc(100vh - var(--topbar-h) - var(--actionbar-h) - var(--esp-5)); overflow-y: auto; }
+  /* À l'Effectif, le vestiaire est caché : l'alignement prend toute la largeur. */
+  body[data-page="alignement"] .panes { grid-template-columns: minmax(0, 1fr); }
 }
 /* La zone de jeu s'ancre : ce qui sert à décider ne défile pas, le vestiaire et l'alignement défilent dessous. */
 body[data-zone="jeu"] .game {
@@ -553,7 +555,8 @@ body.hub-cache #hubModal { display: none !important; }
 .vide-btns { display: flex; gap: var(--esp-3); justify-content: center; flex-wrap: wrap; }
 .vide-btns .btn { min-width: 160px; }
 /* L'entrée d'un écran, d'un volet : un fondu et une montée. */
-.ecran-entre { animation: ecran-entre 200ms var(--e-sortie) both; }
+/* `backwards` et non `both` : un transform figé ferait d'un enfant `position: fixed` (la fiche d'un pack) un enfant de la section. */
+.ecran-entre { animation: ecran-entre 200ms var(--e-sortie) backwards; }
 @keyframes ecran-entre { from { opacity: 0; transform: translateY(8px); } }
 @keyframes panneau-monte { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
 .volet-entre { animation: ecran-entre 160ms var(--e-sortie) both; }
@@ -610,6 +613,9 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
   .toast.on { transform: none; }
   .toast.warn { border-bottom-color: var(--or); }
   .toast.bad { border-bottom-color: var(--mauvais); }
+  /* Au vestiaire, le haut de l'écran est le club qu'on vient de tirer : le toast descend au-dessus des onglets. */
+  body[data-page="repechage"] .toast { top: auto; bottom: calc(var(--bas-coquille) + var(--esp-2)); transform: translateY(6px); border-bottom: 0; border-top: 2px solid var(--club-vif); }
+  body[data-page="repechage"] .toast.on { transform: none; }
 }
 
 /* ---- Le chargement et le voile ---- */
@@ -667,7 +673,6 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, #fff), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, #fff); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
-.btn.blue { border-color: var(--bleu); color: var(--bleu); }
 .btn.danger { border-color: var(--mauvais); color: var(--mauvais); }
 .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); }
 .btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-2); }
@@ -893,7 +898,8 @@ img.visage.brut { object-position: 50% 12%; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .modal-sheet {
   position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; max-height: 92vh; overflow: hidden;
-  background: var(--ambiance), var(--fond-1); border: 1px solid var(--filet); border-top: 2px solid var(--club-vif); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0; box-shadow: var(--ombre), 0 -10px 40px -20px var(--club-vif);
+  /* Le projecteur de l'ambiance, sans l'anneau de patinoire qui traverserait le texte d'une fenêtre. */
+  background: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 26%, transparent), transparent 62%), var(--fond-1); border: 1px solid var(--filet); border-top: 2px solid var(--club-vif); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0; box-shadow: var(--ombre), 0 -10px 40px -20px var(--club-vif);
 }
 .modal-narrow { max-width: 560px; }
 .modal-large { max-width: 1100px; }
@@ -948,7 +954,6 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-recit { font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); margin: 0; }
 .choix-encours { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); padding: var(--esp-2) var(--esp-3); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .choix-encours b { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); margin-right: var(--esp-1); }
-.choix-avant { margin: 0; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--live); }
 .choix-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--esp-3); }
 .choix-sheet[data-genre="evenement"] .choix-options:not(.choix-main) { grid-template-columns: 1fr; }
 .choix-sheet[data-genre="evenement"] .choix-option { min-height: 0; }
@@ -1023,7 +1028,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 /* ---- Le menu : plein écran, par-dessus tout (js/menu.js, z 400 lu par js/manette.js) ---- */
 body.menu-ouvert { overflow: hidden; }
 .menu-depart { position: fixed; inset: 0; z-index: 400; overflow-y: auto; overscroll-behavior: contain; background: conic-gradient(from 160deg at 12% -10%, transparent 0deg, color-mix(in srgb, var(--or) 14%, transparent) 14deg, transparent 30deg), conic-gradient(from 170deg at 88% -10%, transparent 0deg, color-mix(in srgb, var(--bleu) 14%, transparent) 16deg, transparent 32deg), var(--ambiance), var(--noir); }
-.menu-depart.en-jeu { background: color-mix(in srgb, var(--noir) 86%, transparent); }
+.menu-depart.en-jeu { background: color-mix(in srgb, var(--noir) 95%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .menu-depart.en-jeu .menu-fond { opacity: 0.5; }
 /* La glace vue des gradins : les bandes, les deux lignes bleues, la ligne rouge, au trait et couchée en perspective. */
 .menu-fond { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
@@ -1067,7 +1072,7 @@ body.menu-ouvert { overflow: hidden; }
 .menu-mode:nth-child(n+4) { animation-delay: 390ms; }
 .menu-mode:hover { transform: translateY(-4px); border-color: color-mix(in srgb, var(--club-vif) 60%, var(--filet)); box-shadow: var(--relief-haut); }
 .menu-mode:hover .menu-mode-ico { transform: scale(1.2) rotate(-8deg); color: var(--or); }
-.menu-mode[data-genre="rogue"] { min-height: 280px; padding: var(--esp-5) var(--esp-4); border-top: 3px solid var(--violet); background: radial-gradient(90% 90% at 85% 0, color-mix(in srgb, var(--violet) 34%, transparent), transparent 65%), radial-gradient(60% 70% at 0 100%, color-mix(in srgb, var(--violet) 14%, transparent), transparent 70%), var(--panneau); }
+.menu-mode[data-genre="rogue"] { padding: var(--esp-5) var(--esp-4); border-top: 3px solid var(--violet); background: radial-gradient(90% 90% at 85% 0, color-mix(in srgb, var(--violet) 34%, transparent), transparent 65%), radial-gradient(60% 70% at 0 100%, color-mix(in srgb, var(--violet) 14%, transparent), transparent 70%), var(--panneau); }
 .menu-mode[data-genre="rogue"]:hover { border-color: var(--violet); box-shadow: var(--reflet), 0 0 0 1px color-mix(in srgb, var(--violet) 55%, transparent), 0 18px 40px -14px color-mix(in srgb, var(--violet) 60%, transparent); }
 .menu-mode-ico { font-size: var(--t-5); line-height: 1; color: var(--encre-2); transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite); }
 .menu-mode[data-genre="rogue"] .menu-mode-ico { color: var(--violet); }
@@ -1196,6 +1201,9 @@ body.menu-ouvert { overflow: hidden; }
 .spin-top::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: var(--team-stripe); }
 .spin-watermark { position: absolute; right: -34px; top: 50%; transform: translateY(-50%); opacity: 0.12; pointer-events: none; }
 .spin-logo { position: relative; flex: none; display: grid; place-items: center; width: 44px; height: 44px; }
+/* L'écusson du club tiré roule en entrant, comme un dé qui tombe : la roulette a tourné. */
+.spin-card .spin-logo { animation: de-roule var(--t-lent) var(--e-ressort) both; }
+@media (prefers-reduced-motion: reduce) { .spin-card .spin-logo { animation: none; } }
 .spin-logo .ico { width: 28px; height: 28px; }
 .spin-id { position: relative; flex: 1; min-width: 0; }
 .spin-kicker { display: flex; align-items: center; gap: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; }
@@ -1251,7 +1259,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .dash-big { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-big.sm { font-size: var(--t-4); letter-spacing: 0.01em; }
 .dash-unit { margin-left: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.dash-note { display: none; }
+.dash-note { margin-top: var(--esp-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .dash-good { color: var(--bon); }
 .dash-warn { color: var(--or); }
 .dash-bad { color: var(--mauvais); }
@@ -1270,7 +1278,7 @@ a.spin-club:hover { background: var(--fond-2); }
   /* Deux chiffres : la case qu'on comble et le budget du choix ; les signables sont le badge de l'onglet Marché. */
   .dash { padding: var(--esp-1) var(--esp-3); justify-content: space-between; gap: var(--esp-3); }
   .dash-card { flex: 0 1 auto; display: flex; align-items: baseline; gap: var(--esp-2); padding: 0; border-left: 0; }
-  .dash-card:first-child h3, .dash-card:nth-child(3) { display: none; }
+  .dash-card:nth-child(3) { display: none; }
   .dash-big, .dash-big.sm { font-size: var(--t-3); }
   .pool-tools .seg-view { display: none; }
 }
@@ -2175,14 +2183,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 .glace li.prix { border-left-color: var(--mauvais); }
 .glace li b { color: var(--encre); }
 
-/* ---- Sous la carte : ce qui décide — où il ira, ses rôles, le détail replié ---- */
-/* Ses rôles : une liste, le mot à droite ; le premier en vert, les faibles en retrait. */
-.ses-roles { display: flex; flex-direction: column; margin: 0 0 var(--esp-3); }
-.ses-role { display: flex; align-items: baseline; gap: var(--esp-2); min-height: 36px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); color: var(--encre-2); }
-.ses-role b { margin-left: auto; flex: none; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.ses-role.premier { color: var(--encre); }
-.ses-role.premier b { color: var(--pal, var(--bon)); }
-.ses-role.faible { color: var(--encre-3); }
+/* ---- Sous la carte : ce qui décide — où il ira, le détail replié ---- */
 details.fiche-plus { margin-top: var(--esp-3); border-top: 1px solid var(--filet); }
 details.fiche-plus > summary { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; cursor: pointer; list-style: none; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
 details.fiche-plus > summary::-webkit-details-marker { display: none; }
@@ -2257,20 +2258,20 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line.bad { border-left: 3px solid var(--mauvais); }
 .line.fermeture { border-left: 3px solid var(--or); }
 /* L'en-tête : le rang en gros, l'identité en or, « à leur place » en vert, sur un filet. */
-.line-head { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border-bottom: 1px solid var(--filet); }
+.line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); }
 .line-head-regle { cursor: pointer; }
 .line-head-regle:hover .line-name { color: var(--or); }
 .line-name { flex: none; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
-.line-id { flex: 1 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line-id { flex: 1 1 8ch; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Ce que l'unité produit : les points par match des habillés, additionnés — une vraie stat en tête de bande. */
 .line-prod { flex: none; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
 .cell-l3 { flex-wrap: wrap; }
 .cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
-.line-orig { flex: 0 1 auto; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line-orig { flex: none; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-ferm { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-2); border: 0; background: none; color: var(--encre-3); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite); }
 .line-ferm:hover { color: var(--encre); }
 .line-ferm.on { color: var(--or); }
-.line-chem { flex: 0 1 auto; min-width: 0; margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line-chem { flex: none; min-width: 0; margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-chem.good { color: var(--bon); }
 .line-chem.bad { color: var(--mauvais); }
 /* Les cases : trois de front, deux pour une paire ou les gardiens. */
@@ -2572,6 +2573,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* En colonnes : les rangées suivent leur contenu, sinon la rangée « Système » d'un trio s'imprime sur l'en-tête du suivant. */
 @media (min-width: 1400px) {
   body[data-page="alignement"] .roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-auto-rows: max-content; gap: var(--esp-3); align-items: start; }
+  body[data-page="alignement"] .roster > .ln-auto { grid-column: 1 / -1; }
 }
 /* La tablette, debout ou couchée : les unités de l'onglet deux à deux (les quatre trios en carré), chacune en rangées —
    une colonne d'unité y est aussi large qu'un téléphone. */
@@ -2701,7 +2703,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-page-pied .btn { width: 100%; min-height: 48px; }
 /* Un écran qui rend une feuille de fenêtre dans la page (js/gerant.js, js/magasin.js, js/inventaire.js) : la feuille se déplie,
    sa bande de tête se tait (la page a la sienne), son corps ne défile pas à part. */
-.hub-page .choix-sheet { height: auto; max-height: none; max-width: none; background: transparent; }
+.hub-page .choix-sheet { height: auto; max-height: none; max-width: none; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
 .hub-page .choix-sheet > .choix-tete { display: none; }
 .hub-page .choix-sheet .choix-corps { flex: none; overflow: visible; padding: 0; }
 .hub-page .gl-pied { position: sticky; bottom: 0; z-index: 3; margin: 0 calc(-1 * var(--esp-3)); }
@@ -3349,12 +3351,12 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .live-temps { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .live-tirs { font: 600 var(--t-1)/1.25 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; }
 /* L'avantage numérique en cours : un mot en or sous l'horloge, rien tant qu'il n'y en a pas. */
-.live-situation { display: none; margin-top: 2px; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--or); white-space: nowrap; }
+.live-situation { display: none; max-width: 11ch; margin-top: 2px; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--or); text-align: center; }
 .live-situation.on { display: inline-block; }
 
-/* ---- La bannière de but : un tiers inférieur qui glisse par-dessus le tableau indicateur ---- */
+/* ---- La bannière de but : un tiers inférieur qui glisse sous le tableau indicateur, le pointage qui roule reste visible ---- */
 .live-banniere {
-  position: absolute; left: var(--esp-3); right: var(--esp-3); top: 50%; transform: translateY(-50%);
+  position: absolute; left: var(--esp-3); right: var(--esp-3); top: calc(100% + 4px); z-index: 2;
   display: flex; align-items: center; justify-content: center; gap: var(--esp-3);
   padding: var(--esp-3) var(--esp-4); border-radius: var(--r-1);
   overflow: hidden;
@@ -3366,7 +3368,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .live-banniere::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent); transform: translateX(-140%) skewX(-18deg); animation: go-reflet 1.2s var(--e-sortie) 0.15s; }
 .live-banniere span { font: 700 var(--t-4)/1 var(--display); }
 .live-banniere b { font: 800 var(--t-5)/1 var(--display); }
-@keyframes banniere { 0% { opacity: 0; transform: translate(0, -50%) scale(1.5); } 10% { opacity: 1; transform: translate(0, -50%) scale(0.96); } 16% { transform: translate(-4px, -50%) scale(1.02); } 20% { transform: translate(4px, -50%); } 24% { transform: translate(0, -50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(0, -50%) scale(1); } }
+@keyframes banniere { 0% { opacity: 0; transform: translate(0, 0) scale(1.5); } 10% { opacity: 1; transform: translate(0, 0) scale(0.96); } 16% { transform: translate(-4px, 0) scale(1.02); } 20% { transform: translate(4px, 0); } 24% { transform: translate(0, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(0, 0) scale(1); } }
 .live-visage { flex: none; position: relative; width: 56px; height: 56px; border-radius: 50%; overflow: hidden; display: grid; place-items: center; background: color-mix(in srgb, var(--noir) 25%, transparent); }
 .live-visage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transform: scale(1.35); transform-origin: 50% 42%; }
 .live-visage .headshot-fallback { font-size: var(--t-5); color: inherit; opacity: 0.5; }
@@ -3935,6 +3937,18 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .main-aj b { font: 800 var(--t-3)/1.15 var(--display); letter-spacing: 0.02em; }
 .main-aj small { color: var(--encre-2); font-size: var(--t-1); }
 .main-aj.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); }
+/* L'écran de combat (V5) : l'enjeu en une ligne ; l'avant-match en deux cartes de vestiaire à 0 élan, on en garde une. */
+.main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
+.main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
+.main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
+.main-vest-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
+.main-vest { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; min-height: 44px; padding: var(--esp-2); text-align: left; cursor: pointer; background: var(--fond-2); color: var(--encre); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-1); font: inherit; transition: border-color var(--t-vite), background var(--t-vite); }
+.main-vest:disabled { cursor: default; opacity: 0.45; }
+.main-vest.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); opacity: 1; }
+.main-vest-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-1); }
+.main-vest-tete b { font: 800 var(--t-3)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
+.main-vest-coin { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--or) 45%, transparent); font: 800 var(--t-1)/1 var(--display); color: var(--encre-2); }
+.main-vest .choix-puces { display: flex; flex-direction: column; gap: 2px; }
 /* L'élan : trois orbes, pleins en or. */
 .main-energie { display: flex; align-items: center; gap: var(--esp-3); font: 800 var(--t-4)/1 var(--display); }
 .main-orbes { display: inline-flex; gap: 6px; }
@@ -4004,7 +4018,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-aln .choix-corps { gap: var(--esp-3); padding-top: var(--esp-3); }
 .aln { display: flex; flex-direction: column; gap: var(--esp-3); }
 /* Les sauts de ligne : une rangée de boutons collée en haut du corps de la fenêtre. */
-.aln-sauts { position: sticky; top: calc(-1 * var(--esp-4)); z-index: 2; display: flex; gap: var(--esp-1); margin: 0 calc(-1 * var(--esp-4)) var(--esp-2); padding: var(--esp-2) var(--esp-4); overflow-x: auto; scrollbar-width: none; background: var(--fond-1); border-bottom: 1px solid var(--filet); }
+.aln-sauts { flex: none; position: sticky; top: calc(-1 * var(--esp-4)); z-index: 2; display: flex; gap: var(--esp-1); margin: 0 calc(-1 * var(--esp-4)) var(--esp-2); padding: var(--esp-2) var(--esp-4); overflow-x: auto; scrollbar-width: none; background: var(--fond-1); border-bottom: 1px solid var(--filet); }
 .aln-sauts::-webkit-scrollbar { display: none; }
 .aln-saut { flex: 1 0 auto; min-width: 40px; min-height: 36px; padding: 0 var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite), border-color var(--t-vite); }
 .aln-saut:hover { color: var(--encre); border-color: var(--club-vif); }

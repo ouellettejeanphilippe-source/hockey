@@ -20,7 +20,7 @@ import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
-import { bloqueParLePlafond, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs } from './rogue-jeu.js';
+import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -207,14 +207,31 @@ function deciderSaison(d, depuis) {
   decisionEnCours = suite;
   return suite;
 }
-async function deciderMaintenant(d, depuis) {
+/*
+ * PLUSIEURS DÉCISIONS D'UN COUP (V5, l'écran de combat) : l'avant-match puis la main, dans cet ordre, chacune
+ * comme si elle était prise seule — son filtre, son sel — et la saison ne reprend qu'une fois.
+ */
+async function deciderMaintenant(ds, depuis) {
   if (!G.ligue) return;
+  let decisions = G.ligue.decisions || [];
+  const prises = [];
+  for (const d0 of Array.isArray(ds) ? ds : [ds]) {
+    const { liste, d } = ajouterDecision(decisions, d0);
+    decisions = liste;
+    prises.push(d);
+  }
+  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
+  // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
+  if (prises.some(d => d.ballottage || d.plafond || d.patron || d.achat)) renderCap();
+  prises.forEach(confirmerDecision);
+}
+function ajouterDecision(avant, d) {
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
   if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
   // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
-  const decisions = (G.ligue.decisions || []).filter(x =>
+  const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
@@ -227,16 +244,13 @@ async function deciderMaintenant(d, depuis) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  const allume = (d.joue || d.recompense !== undefined || d.achat) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
+  const allume = (d.joue || d.main) && !d.coach ? palierAllume(avant, d) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
   decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
-  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
-  // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
-  if (d.ballottage || d.plafond || d.patron || d.achat) renderCap();
-  confirmerDecision(d);
+  return { liste: decisions, d };
 }
 
 /*
@@ -309,7 +323,7 @@ function confirmerDecision(d) {
   else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
-  else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans ton inventaire : pose-la au verso d'un joueur, quand tu veux.`;
+  else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
   else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
   // S80 : une signature dit où va celui qui sort — ou qu'il n'y en a pas.
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
@@ -742,7 +756,9 @@ function ouvrirEcranSaison(depuis = 0) {
           // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
           mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
-            bareme: (G.rogue && G.rogue.bareme) || JETONS }) } : null,
+            bareme: (G.rogue && G.rogue.bareme) || JETONS }),
+          // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
+          jetons: j => jetonsRogue(j) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },

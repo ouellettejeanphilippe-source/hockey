@@ -431,6 +431,13 @@ async function repondreAuxChoix() {
           await _click('#choixModal .dep-piste[data-plan]:not([disabled])');
         }
       }
+      // L'ÉCRAN DE COMBAT (V5) : un gros match offre deux cartes de vestiaire ; on garde celle qui n'est pas un pari (le dé ferait attendre la décision).
+      const vests = await page.$$('#choixModal .main-vest:not([disabled])');
+      if (vests.length) {
+        if (!(await page.$('#choixModal .main-jouer:disabled'))) errors.push('le combat laisse jouer sans garder de carte de vestiaire');
+        const formes = await Promise.all(vests.map(v => v.$eval('.choix-forme', e => e.textContent).catch(() => '')));
+        await vests[Math.max(0, formes.findIndex(f => !/Pari/.test(f)))].click();
+      }
       await _click('#choixModal .main-jouer');
       await ecranPret();
       await page.waitForTimeout(350);

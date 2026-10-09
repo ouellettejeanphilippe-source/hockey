@@ -164,7 +164,7 @@ async function dessiner() {
         <h2 class="exh-titre">🏟️ Exhibition</h2>
         <p class="exh-sous">N'importe quels clubs, toutes les époques. Le vrai moteur, pour le fun : rien ne compte pour ta partie.</p>
       </div>
-      <button type="button" class="menu-fermer exh-fermer" data-exh="fermer" aria-label="Fermer l'exhibition">✕</button>
+      <button type="button" class="close-btn exh-fermer" data-exh="fermer" aria-label="Fermer l'exhibition">✕</button>
     </header>
     <div class="exh-affiche">
       ${await cote('vis')}
@@ -332,7 +332,7 @@ function rendreResultat() {
   const { A, B } = r;
   if (r.quoi === 'match') {
     return `${boite(r.feuille, A, B, { regarder: true })}
-      <div class="exh-actions exh-encore"><button type="button" class="btn go" data-exh="match">↻ Rejouer</button></div>`;
+      <div class="exh-actions exh-encore"><button type="button" class="btn" data-exh="match">↻ Rejouer</button></div>`;
   }
   if (r.quoi === 'serie') {
     const gagnant = r.winner;
@@ -388,7 +388,7 @@ function regarder() {
   el.style.display = 'none';
   diffuserMatch({
     feuille: r.feuille, A: r.A, B: r.B,
-    titre: 'Exhibition', sousTitre: `${nomEq(r.B)} @ ${nomEq(r.A)}`,
+    titre: 'Exhibition',
     etat: 'Pour le fun : rien ne compte', graine: Number.parseInt(String(r.graine), 36) || 1,
     ctx: ctx.direct,
     onTermine: () => { if (el) el.style.display = ''; },

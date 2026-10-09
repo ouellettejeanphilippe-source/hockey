@@ -121,7 +121,7 @@ function dessiner(m) {
       <div class="mp-etape">${esc(ligneResume(p) || 'Pas commencée')} · ${esc(quand(p.maj))}</div>
       <div class="mp-actions">
         <button type="button" class="btn small go" data-menu="reprendre" data-id="${p.id}">${estActive && ctx.enJeu ? 'Y retourner' : 'Continuer'}</button>
-        <button type="button" class="btn small" data-menu="copier" data-id="${p.id}">Copie</button>
+        <button type="button" class="btn small" data-menu="copier" data-id="${p.id}">Dupliquer</button>
         <button type="button" class="btn small" data-menu="exporter" data-id="${p.id}" title="Un fichier à transférer sur un autre appareil">📤 Exporter</button>
         <button type="button" class="btn small danger" data-menu="supprimer" data-id="${p.id}"${estActive && ctx.enJeu ? ' disabled title="Partie en cours"' : ''}>✕</button>
       </div>
@@ -149,7 +149,7 @@ function dessiner(m) {
     </nav>`;
 
   const liensRogue = ctx.enJeu && active && active.genre === 'rogue' && ctx.rogue
-    ? [ctx.rogue.inventaire ? '<button type="button" class="menu-lien" data-menu="inventaire">Inventaire</button>' : '',
+    ? [ctx.rogue.inventaire ? '<button type="button" class="menu-lien" data-menu="inventaire">🎒 Mes cartes</button>' : '',
       ctx.rogue.vestiaire ? '<button type="button" class="menu-lien" data-menu="vestiaire">Déblocages</button>' : ''].join('')
     : '';
 

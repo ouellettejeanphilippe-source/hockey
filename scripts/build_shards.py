@@ -89,6 +89,16 @@ def fetch_season(year, min_gp):
         if rows:
             realtime = {str(r["playerId"]): r for r in rows if r.get("playerId")}
 
+    # V5 : les mises au jeu prises (depuis 1997-98). Un centre qui en prend peu
+    # joue a l'aile, un ailier qui en prend beaucoup depanne au centre
+    # (positionsAvant, js/sim.js). Tolerant : un rapport absent ne change rien.
+    if year >= 1997:
+        fo = api("skater/faceoffwins", {"limit": -1, "sort": "playerId", "cayenneExp": exp})
+        total = {r["playerId"]: r.get("totalFaceoffs") for r in fo if r.get("playerId")}
+        for r in skaters:
+            if total.get(r.get("playerId")) is not None:
+                r["totalFaceoffs"] = total[r["playerId"]]
+
     # Annee de naissance (contrats d'entree selon l'age). Facultatif : si le
     # point bios ne repond pas, js/ratings.js retombe sur la cohorte
     # d'identifiant (scripts/rerate.mjs).

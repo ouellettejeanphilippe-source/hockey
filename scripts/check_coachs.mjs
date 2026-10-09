@@ -98,7 +98,9 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const deux = idsDuCoach('essaim').slice(0, 3).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id } }));
   const d4 = palierAllume([...base, ...deux.slice(0, 2)], deux[2]);
   exiger('le coach du départ compte trois cartes, et la 6e allume II', !palierAllume(base, deux[0]) && d4 && d4.coach.palier === 2, d4 ? `II au jour ${deux[2].jour}` : 'rien');
-  exiger('une carte gagnée à un gros match compte pour son coach', buildDe([{ jour: 3, recompense: 'bloquer+' }]).tortue === 1, 'Bloquer des tirs+');
+  // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter.
+  exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['bloquer+'], enMain: [] } }]).tortue === 1, 'Bloquer des tirs+');
+  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'bloquer+' }]).tortue === 0, 'Bloquer des tirs+');
 }
 
 /* 2b. Les systèmes se tiennent : la confiance II fait apprendre son système. */

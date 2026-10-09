@@ -10,7 +10,7 @@ import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './rati
 import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { sesRolesHtml, barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
+import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
 import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
@@ -115,7 +115,7 @@ function surLaGlaceHtml(p) {
   for (const b of badgesDe(p)) {
     const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * maitrise(p, b.cle);
     const raison = raisonDuBadge(b);
-    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' (son second badge)' : ''}.` : '.'}`));
+    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? ' — son second badge, à moitié' : ''}.` : '.'}`));
   }
   lignes.push(...lignesGagnees(p, li));
   // SANS BADGE QUI DÉFEND (V2.2) : le moteur centre chaque badge sur la ligue, donc un joueur qui n'en a pas tire son unité
@@ -123,7 +123,7 @@ function surLaGlaceHtml(p) {
   const defR = estD(p) ? ['defensif', 'physique'] : ['checker', 'deuxsens'];
   if (!badgesDe(p).some(b => defR.includes(b.cle))) {
     const net = defR.reduce((a, r) => a + (EFFET_ROLE[r] || 0) * maitrise(p, r), 0);
-    if (net < -0.0005) lignes.push(li(`Sans badge qui défend, il est un peu sous le joueur moyen : les lancers adverses passent ${pctMot(-net)} mieux pendant ses présences.`, 'prix'));
+    if (net < -0.0005) lignes.push(li(`Sans badge qui défend (ni ${estD(p) ? 'Défensif ni Physique' : 'Checker ni Two-way'}), il est un peu sous le joueur moyen : les lancers adverses passent ${pctMot(-net)} mieux pendant ses présences.`, 'prix'));
   }
   const c = carrureDe(p);
   if (c) {
@@ -412,15 +412,14 @@ export function showPlayerModal(p, opts = {}) {
   const legendes = surTable() ? [] : legendesDe(getPlayerKey(p));
   const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
   const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
-  const sesRoles = p.p === 'G' || surTable() ? '' : `<div class="section-label">Ses rôles</div>${sesRolesHtml(p)}`;
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';
-  const corps = apercu ? profil + sesRoles + plusDeDetails : apres
+  const corps = apercu ? profil + plusDeDetails : apres
     ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
        ${courbe ? `<div class="section-label">Ses jambes, journée par journée</div>${courbe}` : ''}
-       ${profil}${sesRoles}
+       ${profil}
        ${plusDeDetails}`
     : surTable()
     ? `<div class="section-label">Sur la glace de table</div>
@@ -429,7 +428,7 @@ export function showPlayerModal(p, opts = {}) {
        ${destNote}`
     : `<div class="section-label">Impact sur ton alignement</div>
        ${destNote}
-       ${profil}${sesRoles}
+       ${profil}
        ${plusDeDetails}`;
 
   /*
@@ -463,7 +462,7 @@ export function showPlayerModal(p, opts = {}) {
   const roles = p.p === 'G' ? '' : barresProfils(p);
   const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme}${brillante(rarete) ? '✦' : ''} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
     ? joue.map(t => `<span class="cj-sa-trait"><b>${t.ico} ${esc(t.nom)}</b> — ${esc(t.mot)}</span>`).join('')
-    : '<span class="cj-sa-trait">La carte de base : elle ne joue rien de plus.</span>'}</div>`;
+    : ''}</div>`;
   // La vraie saison, sur la carte : six nombres, comme au dos d'une vraie carte… mais au recto, où on les cherche.
   // Le nombre en évidence est son chiffre clé (`chiffreCle`) : les punitions d'un bagarreur, les mises en échec d'un checker.
   const cle = chiffreCle(p);

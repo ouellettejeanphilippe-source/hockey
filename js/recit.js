@@ -195,10 +195,13 @@ export function conseilDuBilan(r, you, teams = [], calendrier = []) {
   const n = teams.length;
   const rGF = n > 1 ? rangDans(teams, you, 'GF', false) : 0;
   const rGA = n > 1 ? rangDans(teams, you, 'GA', true) : 0;
-  // Le trio qui convertit le moins, parmi ceux qui ont assez tiré pour qu'on le juge.
+  // Une bonne saison portée par un côté de la glace se dit comme une force, pas comme un reproche.
+  if (r.W >= 41 && rGF && rGF <= 3) return `Ton attaque a marqué ${r.GF} buts, ${rGF}e de la ligue : c'est elle qui a porté ta saison.`;
+  if (r.W >= 41 && rGA && rGA <= 3) return `Ta défense n'a accordé que ${r.GA} buts, ${rGA}e de la ligue : c'est elle qui a porté ta saison.`;
+  // Le trio qui convertit le moins, parmi ceux qui ont assez tiré pour qu'on le juge ; le 4e convertit toujours moins, on ne le lui reproche pas.
   const NOMS = ['1er', '2e', '3e', '4e'];
   const pire = lignesAForcesEgales(calendrier, you).map((x, u) => ({ ...x, u, pct: x.t ? x.b / x.t : 0 }))
-    .filter(x => x.t >= 30).sort((a, b) => a.pct - b.pct)[0];
+    .filter(x => x.t >= 30 && x.u < 3).sort((a, b) => a.pct - b.pct)[0];
   if (r.W >= 41 && pire) return `Ton ${NOMS[pire.u]} trio a marqué ${pire.b} but${pire.b > 1 ? 's' : ''} en ${pire.t} tirs à forces égales : c'est là que ça se joue.`;
   if (rGA && rGA >= rGF) return `Ta défense a accordé ${r.GA} buts, ${rGA}e de la ligue sur ${n} : c'est là que ça se joue.`;
   if (rGF) return `Ton attaque a marqué ${r.GF} buts, ${rGF}e de la ligue sur ${n} : c'est là que ça se joue.`;

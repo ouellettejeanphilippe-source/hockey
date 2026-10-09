@@ -67,6 +67,7 @@
     <div class="tete-chiffres">
       <div class="tete-ch" id="teteFiche" hidden><span class="tete-ch-l">Fiche</span><b class="tete-ch-v">—</b></div>
       <div class="tete-ch" id="teteRang" hidden><span class="tete-ch-l">Rang</span><b class="tete-ch-v">—</b></div>
+      <div class="tete-ch" id="teteJetons" hidden><span class="tete-ch-l">Jetons</span><b class="tete-ch-v">—</b></div>
       <div class="capgauge tete-ch" id="capGauge">
         <div class="capgauge-row">
           <span class="capgauge-label tete-ch-l">Plafond restant</span>
@@ -364,7 +365,7 @@
 
     <div class="modal-body options np-body">
       <p class="np-reprise" id="npReprise" hidden></p>
-      <button type="button" class="btn np-aide" id="npAide">❓ Comment on joue, en cinq cartes</button>
+      <button type="button" class="btn np-aide" id="npAide">❓ Comment on joue</button>
       <div class="opt-row opt-modes">
         <div class="opt-text"><strong>Alignement</strong></div>
         <div class="seg seg-wrap" data-opt="format">
@@ -422,7 +423,7 @@
            est complète. Ce n'est pas un réglage — rien ne s'applique, rien ne
            s'écrit — c'est un bouton qui ouvre le plateau. -->
       <div class="opt-row opt-modes">
-        <div class="opt-text"><strong>Exhibition</strong><span>Rien n'est écrit.</span></div>
+        <div class="opt-text"><strong>Essai sur table</strong><span>Un match, rien ne compte.</span></div>
         <button type="button" class="btn np-exhibition" id="npExhibition">Jouer un match d'exhibition</button>
       </div>
     </div>
@@ -473,7 +474,7 @@
       <p><strong>La consigne du match</strong>, un seul réglage : 😌 basse (précision −5 %, usure des jambes −20 %), 🎚️ normale, ou 🌡️ haute (précision +6 %, buts contre −1 %, blessures +25 %, usure des jambes +12 %). </p>
 
       <h3>Les jambes et les gardiens</h3>
-      <p>Chaque patineur a des <strong>jambes</strong>, sur 100. Un match les use selon sa glace, l'agressivité et le système de sa ligne ; chaque journée en rend. Elles comptent chaque soir : à 94, il rend sa moyenne ; chaque point de moins lui coûte 0,5 % de lancers, de finition et de création, chaque point de plus lui en rend autant. Elles se lisent en niveaux : Frais (95 et plus), Correct (85), Lourd (70), Vidé ; sous 60, il se blesse plus. Pousser ton premier trio rapporte et se paie : un banc solide est un vrai build.</p>
+      <p>Chaque patineur a des <strong>jambes</strong>, sur 100. Un match les use selon sa glace, l'agressivité et le système de sa ligne ; chaque journée en rend. Elles comptent chaque soir : à 94, il rend sa moyenne ; chaque point de moins lui coûte 0,5 % de lancers, de finition et de création, chaque point de plus lui en rend autant. Elles se lisent en niveaux : Frais (95 et plus), Correct (85), Lourd (70), Vidé ; sous 60, il se blesse plus. Pousser ton premier trio rapporte et se paie : un banc solide, ça se construit.</p>
       <p><strong>Les gardiens</strong> : la rotation du club choisit le partant d'office. L'auxiliaire prend sa vraie part des départs, entre 12 et 50 % ; sans auxiliaire, un gardien rappelé en prend 20 %. Un gardien garde ses jambes trois départs de suite ; au quatrième, il en perd 5 par départ, jamais sous 40, et chaque 5 points perdus lui coûtent 1 % de buts accordés de plus. Une soirée de congé les lui rend. Dans « Préparer le match », <strong>Devant le filet ce soir</strong> te laisse donner le filet à l'autre.</p>
 
       <h3>Les cartes (le Rogue)</h3>

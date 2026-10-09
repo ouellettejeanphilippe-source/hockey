@@ -182,7 +182,9 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  */
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
-const captures = { main: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
+const captures = { main: 0, combat: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
+const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
+const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
   for (let i = 0; i < 30; i++) {
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on montre tout. Elle passe devant le
@@ -197,9 +199,41 @@ async function regler() {
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
     if (await page.$('#choixModal:not([hidden]) .main-jouer')) {
+      /*
+       * L'ÉCRAN DE COMBAT (V5) : l'avant-match n'est plus un arrêt à part. Dans un gros match, l'écran dit l'enjeu
+       * (les vrais chiffres de la run) et offre deux cartes de vestiaire ; on garde la première, et « Jouer » attend ce choix.
+       * Le même bouton émet l'avant-match puis la main, au même soir, dans cet ordre.
+       */
+      const vest = await page.$$('#choixModal .main-vest:not([disabled])');
+      const enjeu = ((await page.textContent('#choixModal .main-enjeu').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+      if (enjeu) {
+        const B = ((await lireSauvegarde()).partie || {}).rogue?.bareme || (await lireSauvegarde()).rogue?.bareme || null;
+        if (B && !enjeu.includes(`Victoire : +${B.grosMatch} 🪙`)) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit pas la prime de la run (+${B.grosMatch} 🪙)`);
+        if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
+        if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
+        if (vest.length && !(await page.$('#choixModal .main-jouer:disabled'))) erreurs.push('« Jouer » ne demande pas de garder une carte de vestiaire');
+        // Le premier combat, photographié deux fois : l'intention en haut, puis la carte de vestiaire gardée.
+        const premierCombat = !captures.combat++;
+        if (premierCombat) {
+          await page.waitForTimeout(600);
+          await page.evaluate(() => document.querySelectorAll('#choixModal, #choixModal .choix-sheet, #choixModal .choix-corps').forEach(e => { e.scrollTop = 0; }));
+          await page.screenshot({ path: `${DOSSIER}/rogue-combat.png` });
+        }
+        if (vest.length) { await vest[0].click(); await page.waitForTimeout(250); }
+        if (premierCombat) await page.screenshot({ path: `${DOSSIER}/rogue-combat-vestiaire.png` });
+      }
       // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
       if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
-      await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500); continue;
+      const mains0 = (await decisionsDuCombat()).filter(d => d.main).length;
+      await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500);
+      if (enjeu && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
+        const ds = await decisionsDuCombat();
+        const iM = ds.findLastIndex(d => d.main), iA = iM >= 0 ? ds.findLastIndex(d => d.avant && d.jour === ds[iM].jour) : -1;
+        combats.push(iM >= 0 ? `J${ds[iM].jour + 1}${iA >= 0 ? ` ${ds[iA].avant.cle}:${ds[iA].avant.choix}` : ''}` : '?');
+        if (ds.filter(d => d.main).length !== mains0 + 1) erreurs.push('le combat confirmé n\'enregistre pas la main');
+        else if (vest.length && (iA < 0 || iA > iM)) erreurs.push('le combat n\'enregistre pas l\'avant-match puis la main, au même soir');
+      }
+      continue;
     }
     /*
      * UNE CARTE DE LA MAIN, EN GRAND (V4.3) : « Jouer » ou « Vendre ». Le joueur pressé vend, ce qui amincit la poche.
@@ -319,6 +353,13 @@ await page.click('#navbar .navtab[data-section="club"]'); await page.waitForTime
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
 if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne montre pas le plafond');
+// V5 : LE NŒUD DE LA SEMAINE (js/noeuds.js) : après huit semaines, le lundi d'une semaine sur deux a offert ses trois routes.
+{
+  const routes = (((await lireSauvegarde()).partie || {}).decisions || []).filter(d => d && /^n:\d+$/.test(d.palier || ''));
+  console.log(`6n. les routes prises : ${routes.map(d => `${d.palier} ${d.noeud && d.noeud.route}`).join(' · ') || 'aucune'}`);
+  if (!routes.length) erreurs.push('aucune route de la semaine prise en huit semaines (js/noeuds.js)');
+  if (routes.some(d => !d.noeud || !(d.gestes || d.effet || d.gain))) erreurs.push(`une route prise ne porte pas la charge de sa carte : ${JSON.stringify(routes[0])}`);
+}
 /*
  * LA BOUTIQUE (S79, js/magasin.js) : des rayons de packs à la HUT, chacun avec
  * sa fiche (ses chances par pack, le barème d'une carte, l'espace sous le
@@ -334,9 +375,18 @@ const dechirer = async () => {
     await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
   await page.waitForTimeout(600);
 };
+/* V5 : la boutique du Rogue ouvre au début de la semaine. Fermée, on va au bureau finir la semaine, puis on revient. */
+const boutiqueFermee = () => page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-mot', p => p.textContent.trim().startsWith('🔒')).catch(() => false);
 const acheter = async (pack, capture) => {
   await versMarche('boutique');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  for (let i = 0; i < 4 && await boutiqueFermee(); i++) {
+    await page.click('#pageMarche .hub-page-retour').catch(() => {});
+    await auBureau(); await regler(); await prochaineDecision(); await regler();
+    await versMarche('boutique');
+    await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  }
+  if (await boutiqueFermee()) erreurs.push('la boutique reste fermée après quatre avances : elle n\'ouvre jamais au début de la semaine');
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
   if (!(await page.$(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
   await page.click(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);
@@ -820,6 +870,7 @@ const tete = await page.textContent('.tete-nom');
 console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
 if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson)`);
+console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

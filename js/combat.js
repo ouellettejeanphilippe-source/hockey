@@ -375,7 +375,7 @@ export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 
  * gagnées avant la ronde `ronde`.
  */
 /* Les cartes de match d'un pack acheté (`achat.cartes`, des ids `match:cle`), moins celles revendues à l'ouverture. */
-export const cartesDeMatchDuPack = d => (d && d.achat && d.achat.sorte === 'cartes'
+const cartesDeMatchDuPack = d => (d && d.achat && d.achat.sorte === 'cartes'
   ? (d.achat.cartes || []).filter((id, t) => typeof id === 'string' && id.startsWith('match:') && !(d.achat.vendus || []).includes(t)).map(id => id.slice(6)).filter(k => CARTES_MATCH[k])
   : []);
 export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {

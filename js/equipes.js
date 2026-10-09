@@ -326,7 +326,7 @@ function voletLigue() {
       <span class="eq-carte-pied">${f.joueurs} joueurs${teamSeasonUrl(t, annee) ? ' · fiche officielle ↗' : ''}</span>
     </button>`;
   }).join('')}</div>
-  <p class="eq-note">Fiches <strong>reconstituées</strong> des colonnes de la saison : les victoires et les défaites viennent des gardiens, les buts pour des patineurs. Le troisième nombre est ce qui reste du calendrier — les nuls, que le shard ne porte pas. Un joueur échangé porte sa saison entière sous chacun de ses clubs, donc il sort du total : <strong>⇄</strong> marque une fiche à qui il manque un gardien, et <strong>—</strong> un club dont aucun gardien n'est resté toute l'année. Un shard porte des joueurs, pas un classement.</p></div>`;
+  <p class="eq-note">Fiches <strong>reconstituées</strong> des colonnes de la saison : les victoires et les défaites viennent des gardiens, les buts pour des patineurs. Le troisième nombre est ce qui reste du calendrier : les nuls, que la saison ne garde pas. Un joueur échangé porte sa saison entière sous chacun de ses clubs, donc il sort du total : <strong>⇄</strong> marque une fiche à qui il manque un gardien, et <strong>—</strong> un club dont aucun gardien n'est resté toute l'année. La saison garde ses joueurs, pas son classement.</p></div>`;
 }
 
 /* ---------- un club : le bandeau et les onglets ANCRÉS, la table défile ---------- */
@@ -363,7 +363,7 @@ function voletClub() {
         ${CO.map(c => `<td class="stat${c.heros ? ' heros' : ''}">${esc(String(c.fmt ? c.fmt(c.v(p)) : c.v(p)))}</td>`).join('')}
       </tr>`).join('') || `<tr><td colspan="${CO.length + 2}" class="eq-vide">Personne.</td></tr>`}</tbody>
     </table>
-    ${echange ? '<p class="eq-note">⇄ Échangé en cours de saison : le shard répète sa ligne sous chacun de ses clubs, avec ses totaux de la saison ENTIÈRE.</p>' : ''}
+    ${echange ? '<p class="eq-note">⇄ Échangé en cours de saison : sa ligne revient sous chacun de ses clubs, avec ses totaux de la saison ENTIÈRE.</p>' : ''}
     </div>`;
 }
 
