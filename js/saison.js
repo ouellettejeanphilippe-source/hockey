@@ -2663,7 +2663,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: k => {
           const x = recrues.find(y => y.cle === k);
           if (!x) return;
-          const decide = ({ i, sort, cases }) => deciderDeck(p0, { deck: 'recrue', ballottage: { i, entre: x.cle, sort }, ...(cases ? { cases } : {}) });
+          /*
+           * LA RECRUE ENTRE AUJOURD'HUI (oct.). JP : *la carte qui bugge, celle qui permet d'avoir trois joueurs étoiles
+           * pas dans la ligue*. Datée du soir du prochain match comme les autres cartes de la main, elle n'entrait qu'à
+           * ce soir-là : signé, il n'était pas dans l'effectif, et la photo de l'alignement qu'elle porte (`cases`)
+           * écrasait au passage tout ce qu'on avait changé d'ici là. Elle entre aujourd'hui, comme un pack signé ou
+           * un réclamé du ballottage (`poserAlignementDuJour`).
+           */
+          const decide = ({ i, sort, cases }) => { const j = jour; quitter(); onDecision({ jour, palier: p0, deck: 'recrue', ballottage: { i, entre: x.cle, sort }, ...(cases ? { cases } : {}) }, j); };
           if (ctx.quiSort) ctx.quiSort(x.p, { roster: you.roster, genre: 'palier', onChoix: decide, onFerme: () => suiteDeLaMain(p0, 'recrue', recrues, roles) });
           else decide({ i: x.i, sort: x.sort });
         } });
