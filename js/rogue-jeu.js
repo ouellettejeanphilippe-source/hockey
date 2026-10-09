@@ -201,27 +201,18 @@ function unTirageALaFois(f) {
     .finally(() => { tirageEnCours = false; });
 }
 /*
- * LA BOUTIQUE OUVRE AU DÉBUT DE LA SEMAINE (V5, docs/refonte-v5.md). JP : *nœud en début de semaine*. En Rogue, en
- * saison régulière, on achète au bureau du lundi (le premier jour d'une semaine du calendrier, `SEMAINE`) ; une
- * semaine arrêtée en chemin (une blessure, un gros match) garde la boutique fermée jusqu'au lundi suivant. Les
- * packs déjà payés (scellés) s'ouvrent quand on veut. Rend la raison de la fermeture, ou null.
+ * LA BOUTIQUE OUVERTE EN TOUT TEMPS (V5). JP : *accès au store en tout temps*. Elle avait fermé hors du lundi ;
+ * le nœud de la semaine regroupe maintenant ce qui se décide, et la boutique reste ouverte à toute journée.
  */
-function boutiqueFermee(j = G.journee || 0) {
-  const L = G.ligue;
-  if (G.bonus !== 'ROGUE' || !L || !L.calendrier || j <= 0 || j >= L.calendrier.length || j % SEMAINE === 0) return null;
-  const lundi = (Math.floor(j / SEMAINE) + 1) * SEMAINE;
-  return `La boutique ouvre au début de la semaine : journée ${lundi + 1}, dans ${lundi - j} jour${lundi - j > 1 ? 's' : ''}`;
-}
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
-  const ferme = boutiqueFermee(j);
-  const ouverts = ferme ? Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, ferme])) : packsOuvertsBoutique(j);
+  const ouverts = packsOuvertsBoutique(j);
   ouvrirMagasin({
     ...(page || {}),
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts, ferme,
+    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
     mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
-    duJour: ferme ? null : packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
+    duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
     // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),

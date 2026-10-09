@@ -3540,6 +3540,20 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-l.bon, .som-l .bon { color: var(--bon); }
 .som-l.prix, .som-l .prix { color: var(--mauvais); }
 .som-rang { color: var(--encre); font-weight: 600; }
+/* Le nœud de la semaine (js/saison.js, `ouvrirNoeud`) : ses cases à régler, puis les accès d'un roguelike. */
+.nd-route { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-bottom: var(--esp-3); }
+.nd-jour { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-height: 44px; border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); }
+.nd-jour.match { border: 1px solid var(--filet); color: var(--encre); }
+.nd-jour.dom { box-shadow: inset 0 -2px 0 var(--club-vif); }
+.nd-jour em { font-style: normal; font-size: var(--t-1); text-transform: uppercase; }
+.nd-cases { display: flex; flex-direction: column; gap: var(--esp-2); }
+.nd-case { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 56px; padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); text-align: left; cursor: pointer; }
+.nd-ico { flex: none; font-size: 1.4rem; }
+.nd-txt { display: flex; flex-direction: column; min-width: 0; }
+.nd-txt b { font-size: var(--t-2); }
+.nd-txt span { font-size: var(--t-1); color: var(--encre-2); }
+.nd-acces { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); margin-top: var(--esp-3); }
+.nd-acces-b { min-height: 44px; }
 .som-attente { margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); background: color-mix(in srgb, var(--mauvais) 12%, transparent); box-shadow: inset 3px 0 0 var(--mauvais); }
 
 /* ---- Le rapport d'entracte : une rangée de cartons plats qu'on balaie, un par écran au téléphone ---- */

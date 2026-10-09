@@ -673,6 +673,11 @@ function autresButins(deck, prendre, retour) {
   ];
 }
 
+/* Ce qui presse (V5) : en semaine, seuls ces messages bloquent ; le reste attend le nœud du lundi. */
+const PRESSE = new Set(['choix', 'pack', 'blessure', 'trou']);
+/* Les accès de la carte de la semaine (V5) : ce qu'un roguelike garde à un toucher de sa carte. La boutique n'y est
+   pas (JP : *rien de la boutique dans le Club*) : elle est au Marché, à un toucher de la barre, ouverte en tout temps. */
+const NOEUD_ACCES = [['deck', '🃏', 'Le deck'], ['cartes', '🎒', 'Tes cartes'], ['banc', '📋', 'L\'alignement']];
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
@@ -1249,7 +1254,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * DÉCIDE avant le prochain match l'arrête encore : un blessé à remplacer, un choix forcé (dilemme, séquence,
    * proprio, l'avant-match d'un gros match), la main d'un gros match, le retour d'un blessé, l'entracte.
    */
-  const arretDeSemaine = () => { const bo = blessureOuverte(); return (!!bo && !vues.has(bo)) || forceOuvert() || !!mainOuverte() || retourNeuf(); };
+  /*
+   * LE NŒUD DU LUNDI (V5). JP : *revenir au jour par jour, mais avec une fois par semaine un genre de node avec tous
+   * les éléments de la semaine, sauf match important ; accès au store en tout temps*. En Rogue, ce qui se décide sans
+   * presser (un événement, une séquence, le proprio, un courriel, un butin, un retour, un palier, un pack gratuit, la
+   * main et la route) attend le lundi (`auNoeud`) : la semaine ne s'arrête que pour un gros match (sa main, son
+   * entracte) et pour un blessé qu'il faut remplacer avant le prochain match.
+   */
+  const auNoeud = () => !ctx.rogue || jour >= N || jour % SEMAINE === 0;
+  const arretDeSemaine = () => { const bo = blessureOuverte(); return (!!bo && !vues.has(bo)) || !!mainOuverte() || (auNoeud() && (forceOuvert() || retourNeuf())); };
   const avancer = (n, stop = false, infos = true, semaine = false) => {
     let premier = true, arrete = false;
     entracteDemande = false;
@@ -1788,7 +1801,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mv = mouvements(avant.joues, miens.length);
     const dits = new Set(infos.map(([id]) => id));
     const attend = attendTout.filter(m => !dits.has(m.id) && m.genre !== 'mouvements');
-    if (!semaine && nouveaux.length === 1 && !grosVu && !blesse && !attend.length && !infos.length && !mv.length) { hierFrais = jour; hierAnimer = true; return false; }
+    // V5 : en semaine, le soir d'un match ordinaire se lit à l'affiche ; ses nouvelles attendent le sommaire du lundi.
+    if (!semaine && nouveaux.length <= 1 && !grosVu && !attend.length && (!auNoeud() || (!blesse && !infos.length && !mv.length))) { hierFrais = jour; hierAnimer = true; return false; }
     const f = fiche.get(you), rang = rangDe(you);
     const W = nouveaux.filter(x => gagne(x.m, you)).length;
     const OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length, L = nouveaux.length - W - OTL;
@@ -1829,13 +1843,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     ui.ouvrirPage({
       genre: 'sommaire', ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓️', titre,
       html: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">📥 ${attend.length} message${attend.length > 1 ? 's' : ''} à traiter t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
-      pied: `<button type="button" class="btn go hub-page-fermer">${attend.length ? '📥 Voir ma boîte de réception' : 'Retour au bureau'}</button>`,
+      pied: `<button type="button" class="btn go hub-page-fermer">${attend.length ? (ctx.rogue && auNoeud() ? '🗺️ Ta semaine' : '📥 Voir ma boîte de réception') : 'Retour au bureau'}</button>`,
       onFerme: () => {
         retenir = false;
         // Ce que le sommaire a dit est lu : la boîte ne le redemande pas (V5).
         for (const [id] of infos) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); }
         if (mv.length) boite.archives.add(`mv:${miens.length}:${mv.length}`);
-        dessiner(); if (attend.length) { boite.deplie = true; tabs.montrer('boite'); }
+        dessiner(); if (attend.length && !(ctx.rogue && auNoeud())) { boite.deplie = true; tabs.montrer('boite'); }
       },
     });
     return true;
@@ -3124,10 +3138,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   function choixForce() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
-    const rc = recompenseOuverte();
-    const vo = rc ? null : verdictObjectif(), oo = rc || vo ? null : offreObjectif();
-    const sq = rc || vo || oo ? null : sequenceOuverte();
-    const dl = rc || vo || oo || sq ? null : dilemmeOuvert();
+    // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
+    const noeud = auNoeud();
+    const rc = noeud ? recompenseOuverte() : null;
+    const vo = rc || !noeud ? null : verdictObjectif(), oo = rc || vo || !noeud ? null : offreObjectif();
+    const sq = rc || vo || oo || !noeud ? null : sequenceOuverte();
+    const dl = rc || vo || oo || sq || !noeud ? null : dilemmeOuvert();
     const mo = vo || oo || sq || dl || rc ? null : mainOuverte();
     // Chaque choix est une décision : elle entre dans la liste, et la saison
     // se rejoue depuis aujourd'hui, avec des dés neufs.
@@ -3441,6 +3457,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const r = reponsesVie(vie.cle, vie.palier, true);
       out.push({ id: vie.palier, genre: 'courriel', bloque: true, de: vie.de, sujet: vie.sujet, vie: { cle: vie.cle, palier: vie.palier, cibles: r.cibles }, corps: `${vie.corps}${r.html}` });
     }
+    // V5 : hors du lundi, seul ce qui presse bloque (le gros match, un pack à signer, un blessé à remplacer, une case vide).
+    if (!auNoeud()) for (const m of out) if (!PRESSE.has(m.genre)) m.bloque = false;
     return out.filter(m => m.bloque || !boite.archives.has(m.id));
   }
 
@@ -3451,11 +3469,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Un choix forcé s'ouvre de lui-même, comme avant — sauf derrière un sommaire (il attend qu'on le ferme).
     const spec = (msgs.find(m => m.genre === 'choix') || {}).spec || null;
     const pal = (msgs.find(m => m.genre === 'palier') || {}).pal;
-    if (!retenir) {
+    // V5 : le lundi, en Rogue, la carte de la semaine (`ouvrirNoeud`, plus bas) remplace l'ouverture d'office.
+    if (!retenir && !(ctx.rogue && auNoeud() && bloquants.length)) {
       // Un événement remis à plus tard attend dans la boîte : « Ouvrir » le rouvre, pas le prochain rendu.
       boite.remisPour = spec ? spec.titre : null;
       if (spec && !choixOuvert() && boite.remis !== spec.titre) { if (spec.ouvrir) spec.ouvrir(); else ouvrirChoix(spec); }
-      else if (!spec && pal !== undefined && !palProposes.has(pal) && !choixOuvert()) { palProposes.add(pal); ouvrirMain(pal); }
+      else if (!spec && pal !== undefined && auNoeud() && !palProposes.has(pal) && !choixOuvert()) { palProposes.add(pal); ouvrirMain(pal); }
     }
     // LE MESSAGE OUVERT : celui qu'on a touché, sinon le premier à traiter. Les autres, pliés.
     const ouvert = boite.ouvert && msgs.some(m => m.id === boite.ouvert) ? boite.ouvert
@@ -3484,18 +3503,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // UNE SEULE ACTION EN TÊTE : la journée suivante, ou ce qui la retient. Le matin,
     // « Aujourd'hui » passe du résultat d'hier au match du jour, sans avancer le temps.
     const primaire = premier
-      ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ À régler avant le match${bloquants.length > 1 ? ` (${bloquants.length})` : ''} : ${ctx.esc(premier.sujet)}</button>`
+      ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend tes réponses">⏳ ${auNoeud() && ctx.rogue ? 'Ta semaine' : 'À régler avant le match'}${bloquants.length > 1 ? ` (${bloquants.length})` : ''} : ${ctx.esc(premier.sujet)}</button>`
       : matinCourant
         ? '<button class="btn go hub-jour hub-vers-soir" title="Du résultat d\'hier au match d\'aujourd\'hui">Aujourd\'hui ›</button>'
         // UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas de saut de jour*. Un jour de
         // congé se passe comme les autres : les résultats de la ligue, le classement du jour.
-        : `<button class="btn go hub-jour" title="Jusqu'à la fin de la semaine ; tout ce qui demande une décision l'arrête avant">Semaine suivante</button>`;
+        // V5 : le jour par jour revient ; « Jusqu'à lundi » saute au nœud de la semaine (seul un gros match l'arrête).
+        : `<button class="btn go hub-jour" title="Une journée ; ce qui se décide attend le lundi">Jour suivant</button>`;
     // « Le banc » a quitté la rangée : l'onglet Alignement de la barre fait la même chose (JP : jamais deux fois la même chose).
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; la boîte à part.
     actions.innerHTML = `<div class="hub-barre">${primaire}
       <div class="hub-actions-rang">
       ${p && p.j === jour && !premier ? '<button class="btn gold hub-regarder" title="Ton match de ce soir, lancer par lancer">Regarder</button>' : ''}
-      ${premier || matinCourant ? '' : '<button class="btn hub-un-jour" title="Une seule journée">Un jour</button>'}
+      ${premier || matinCourant ? '' : '<button class="btn hub-semaine" title="Jusqu\'au lundi ; seul un gros match ou un blessé à remplacer l\'arrête">Jusqu\'à lundi</button>'}
       </div></div>
       ${boiteHtml}`;
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
@@ -3533,18 +3553,60 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     brancherMain(actions);
     const mM = msgs.find(m => m.genre === 'main-semaine');
     actions.querySelectorAll('.hub-main-reglee').forEach(b => { b.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: `main:${mM.mSem.w}` }, j); }; });
-    const traiter = actions.querySelector('.hub-traiter');
-    if (traiter) traiter.onclick = () => {
-      if (premier.genre === 'choix') { (premier.spec.ouvrir ? premier.spec.ouvrir() : ouvrirChoix(premier.spec)); return; }
-      if (premier.genre === 'palier') { ouvrirMain(premier.pal); return; }
-      boite.ouvert = premier.id;
+    /* Régler un message : un choix s'ouvre, un palier montre sa main, le reste s'ouvre dans la boîte. */
+    const traiterMessage = m => {
+      if (m.genre === 'choix') { (m.spec.ouvrir ? m.spec.ouvrir() : ouvrirChoix(m.spec)); return; }
+      if (m.genre === 'palier') { ouvrirMain(m.pal); return; }
+      boite.ouvert = m.id;
       boite.deplie = true;
       // Au téléphone, la boîte est un sous-onglet du Club : « À régler » y mène.
       if (tabs.courant() !== 'boite' && matchMedia('(max-width: 1199.98px)').matches) tabs.montrer('boite');
       redessinerBoite();
-      const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(premier.id)}"]`);
+      const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(m.id)}"]`);
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }
     };
+    /*
+     * LE NŒUD DE LA SEMAINE, EN CARTE (V5). JP : *ça va ressembler plus à un vrai roguelike, que t'as accès à ton deck,
+     * menus, etc. du menu de la map de nodes*. Le lundi, en Rogue, ce qui attend la semaine se montre en cases ; on les
+     * règle dans l'ordre qu'on veut, et le deck, tes cartes et l'alignement sont à un toucher. Fermée,
+     * la carte ne se rouvre pas d'elle-même cette semaine (« Ta semaine » la rouvre).
+     */
+    const semaineDuNoeud = Math.floor(jour / SEMAINE);
+    /* La route de la semaine : ses sept jours, tes matchs (chez toi ou chez eux) et les congés — la carte qu'on va jouer. */
+    const routeDeLaSemaine = () => {
+      const jours = [];
+      for (let j = semaineDuNoeud * SEMAINE; j < Math.min(N, (semaineDuNoeud + 1) * SEMAINE); j++) {
+        const k = indexMien(j), m = k >= 0 ? calendrier[j][k] : null, adv = m ? (m.A === you ? m.B : m.A) : null;
+        jours.push(m ? `<span class="nd-jour match${m.A === you ? ' dom' : ''}" title="Journée ${j + 1} · ${m.A === you ? 'contre' : 'chez'} ${ctx.esc(ctx.teamShort(adv))}">${ctx.logo(adv.tag, 18)}<em>${m.A === you ? 'Dom.' : 'Ext.'}</em></span>`
+          : `<span class="nd-jour" title="Journée ${j + 1} · congé"><em>Congé</em></span>`);
+      }
+      return `<div class="nd-route" aria-label="Les sept jours de la semaine">${jours.join('')}</div>`;
+    };
+    const ouvrirNoeud = () => {
+      const corps = ui.ouvrirPage({ genre: 'noeud', ico: '🗺️', titre: `Semaine ${semaineDuNoeud + 1}`,
+        sousTitre: `${bloquants.length} à régler avant le prochain match`,
+        html: `${routeDeLaSemaine()}<div class="nd-cases">${bloquants.map(m => `<button type="button" class="nd-case" data-id="${ctx.esc(m.id)}"><span class="nd-ico" aria-hidden="true">${m.de.ico}</span><span class="nd-txt"><b>${ctx.esc(m.sujet)}</b><span>${ctx.esc(m.de.nom)}</span></span></button>`).join('')}</div>
+          <div class="nd-acces">${NOEUD_ACCES.filter(([k]) => k !== 'banc' || onBanc).map(([k, ico, nom]) => `<button type="button" class="btn nd-acces-b" data-acces="${k}"><span aria-hidden="true">${ico}</span> ${nom}</button>`).join('')}</div>`,
+        onFerme: () => { boite.noeudFerme = semaineDuNoeud; } });
+      if (!corps) return;
+      // Une case réglée dans la boîte (un courriel, un retour) y garde la main : la carte attend « Ta semaine ».
+      corps.querySelectorAll('.nd-case').forEach(b => { b.onclick = () => {
+        const m = bloquants.find(x => x.id === b.dataset.id);
+        if (!m) return;
+        if (m.genre !== 'choix' && m.genre !== 'palier') boite.noeudFerme = semaineDuNoeud;
+        ui.fermerPage(true); traiterMessage(m);
+      }; });
+      const acces = {
+        deck: () => ouvrirDeck({ deck: deckAvant(jour) }),
+        cartes: () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { page: 'cartes' } })),
+        banc: () => { quitter(); onBanc(jour); },
+      };
+      corps.querySelectorAll('.nd-acces-b').forEach(b => { b.onclick = () => acces[b.dataset.acces](); });
+    };
+    const auLundi = ctx.rogue && auNoeud() && bloquants.length > 0;
+    if (auLundi && !retenir && !choixOuvert() && boite.noeudFerme !== semaineDuNoeud) ouvrirNoeud();
+    const traiter = actions.querySelector('.hub-traiter');
+    if (traiter) traiter.onclick = () => (auLundi ? ouvrirNoeud() : traiterMessage(premier));
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');
@@ -3635,9 +3697,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const voirMain = actions.querySelector('.hub-main-ouvrir');
     if (voirMain && pal !== undefined) voirMain.onclick = () => ouvrirMain(pal);
     boutonFlottant(actions, termine);
-    const bj = actions.querySelector('.hub-jour'), b1 = actions.querySelector('.hub-un-jour');
-    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => { avancerSemaine(); };
-    if (b1) b1.onclick = () => avancerPuisResumer(1);
+    const bj = actions.querySelector('.hub-jour'), bs = actions.querySelector('.hub-semaine');
+    if (bj) bj.onclick = matinCourant ? () => { soirPasse = true; dessiner(); } : () => avancerPuisResumer(1);
+    if (bs) bs.onclick = () => { avancerSemaine(); };
   }
 
   /*
