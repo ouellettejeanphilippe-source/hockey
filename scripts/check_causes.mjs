@@ -17,14 +17,14 @@
 process.env.CAUSES_PREUVE = '1';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-const { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, badgesDe } = await import('../js/sim.js');
+const { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, badgesDe, CARTES } = await import('../js/sim.js');
 const { causesDuMatch, causesDeSaison } = await import('../js/causes.js');
 const { equipeReelle } = await import('./lib/vestiaires.mjs');
 const { exiger, informer, verdict } = await import('./verdict.mjs');
 
 const CLUBS = [['2006-07', 'ANA'], ['2006-07', 'DET'], ['1995-96', 'COL'], ['1985-86', 'EDM'], ['2013-14', 'LAK'], ['2018-19', 'TBL'], ['1979-80', 'MTL'], ['2001-02', 'DET']];
 const MATCHS = 40;
-function saison(joueur, carte = false) {
+function saison(joueur, carte = false, carteClub = null) {
   const teams = CLUBS.map(([s, t]) => { const p = equipeReelle(s, t).flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(`${t} ${s}`, t, autoRoster(p), { season: s }); });
   if (joueur) teams[0].isPlayer = true;
   let vedette = null;
@@ -33,7 +33,7 @@ function saison(joueur, carte = false) {
     vedette = Object.values(teams[0].roster).filter(p => p && p.p !== 'G' && (b => b && ['sniper', 'power'].includes(b.cle) && b.palier <= 2)(badgesDe(p)[0])).sort((a, b) => (b.g || 0) - (a.g || 0))[0];
     vedette._carte = { rar: 'legendaire' };
   }
-  const L = creerLigue(teams, MATCHS, { graine: 'causes' });
+  const L = creerLigue(teams, MATCHS, { graine: 'causes', decisions: carteClub ? [{ jour: 0, carte: carteClub }] : [] });
   while (!L.fini) jouerJournee(L);
   for (const m of L.calendrier.flat()) if (m.feuille) m.joue = true;
   return { L, toi: teams[0], vedette };
@@ -97,4 +97,12 @@ const S = causesDeSaison(or.L.calendrier, or.toi);
 informer('5. la saison de ton club', `${S.n} matchs · ${S.groupes.map(g => `${g.mot} ${g.ecart > 0 ? '+' : ''}${g.ecart}`).join(' · ')}`);
 exiger(`5. le badge monté de ${lui.n} (carte Or) fait entrer des buts, à lui`, butsMonte >= 1, `${butsMonte} but(s) en ${MATCHS} matchs`);
 exiger('5. le bilan de saison le dit', S.pour.some(x => /badge monté/.test(x.texte)), S.pour.slice(0, 3).map(x => x.texte).join(' | '));
+
+/* 6. V5 : UNE CARTE DU CLUB SE NOMME. « L'école de tir a fait entrer 2 buts », pas « les cartes et les décisions du club ». */
+const ecole = saison(true, false, 'ecole');
+const nommes = ecole.L.calendrier.flat().filter(m => m.feuille && (m.A === ecole.toi || m.B === ecole.toi))
+  .reduce((a, m) => a + m.feuille.lancers.filter(l => l.causes && l.causes.liste.some(c => c.k === 'carteClub' && c.qui && c.qui.nom === CARTES.ecole.nom)).length, 0);
+const SE = causesDeSaison(ecole.L.calendrier, ecole.toi);
+exiger('6. une carte du club se nomme dans les lancers qu\'elle décide', nommes >= 1, `${nommes} lancer(s) décidé(s) par « ${CARTES.ecole.nom} »`);
+exiger('6. le bilan de saison la dit par son nom', SE.pour.concat(SE.contre || []).some(x => x.texte.includes(CARTES.ecole.nom)), SE.pour.slice(0, 4).map(x => x.texte).join(' | '));
 verdict();

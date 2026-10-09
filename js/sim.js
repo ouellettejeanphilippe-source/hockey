@@ -1263,6 +1263,9 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
   const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...coachsJoues(team),
     ROULEMENTS[roulementDe(team)], ...actifs];
+  // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
+  // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
+  Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
   for (const c of sources) {
     if (!c) continue;
     e.finition *= c.finition ?? 1;
@@ -5959,7 +5962,7 @@ function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joue
  * ensemble, club par club — « sans tes cartes » — dans `g`.
  */
 const GROUPE_CAUSE = {
-  carte: 'cartes', monte: 'cartes', cartesClub: 'cartes', fantome: 'cartes', ombre: 'cartes',
+  carte: 'cartes', monte: 'cartes', cartesClub: 'cartes', carteClub: 'cartes', fantome: 'cartes', ombre: 'cartes',
   ligne: 'systemes', special: 'systemes', systemeDef: 'systemes',
   power: 'badges', badges: 'badges', badgeG: 'badges',
   jambes: 'jambes', gardien: 'gardien', defense: 'talent', plafond: 'talent', creation: 'talent', trait: 'talent', traitsClub: 'talent', traitG: 'talent',
@@ -5969,6 +5972,12 @@ function causesDuLancer(x, pBrut, de) {
   const A = x.cote, D = A === 'A' ? 'B' : 'A';
   const out = [];
   const ajoute = (k, c, f, qui = null, ch = null) => { if (Number.isFinite(f) && f > 0 && Math.abs(f - 1) > 1e-4) out.push(ch ? { k, c, f, qui, ch } : { k, c, f, qui }); };
+  // V5 : les cartes du club, UNE PAR UNE (son nom, `effetsDeSaison` en garde la liste) ; ce qui reste sans nom va au groupe.
+  const cartesDuClub = (c, prof, champ, total) => {
+    let nommes = 1;
+    for (const s of (prof.cartes && prof.cartes.sources) || []) { const f = s[champ] ?? 1; if (f !== 1) { ajoute('carteClub', c, f, { nom: s.nom, ico: s.ico }); nommes *= f; } }
+    ajoute('cartesClub', c, total / nommes);
+  };
   // Ses modifs sur ce canal, en deux : les accidents de la saison (pas un choix à toi), et le reste — tes cartes.
   const accidentsDe = (q, champ) => (q._mutCles || []).reduce((a, k) => (MUTATIONS[k] && MUTATIONS[k].source === 'accident' && MUTATIONS[k][champ] ? a * MUTATIONS[k][champ] : a), 1);
   const cartesDe = (q, champ) => {
@@ -5994,7 +6003,7 @@ function causesDuLancer(x, pBrut, de) {
   // La finition du club : ses cartes, ou le plafond du jeu quand c'est lui qui mord (`finitionFacteur` est le plus petit des deux).
   if (x.off.cartes && x.off.finEquipe) {
     const plafond = (FINITION_MAX + ((x.off.plafonds && x.off.plafonds.finition) || 0)) / x.off.finEquipe, cartesF = x.off.cartes.finition ?? 1;
-    if (cartesF <= plafond) ajoute('cartesClub', A, cartesF); else ajoute('plafond', A, plafond);
+    if (cartesF <= plafond) cartesDuClub(A, x.off, 'finition', cartesF); else ajoute('plafond', A, plafond);
   } else ajoute('cartesClub', A, x.off.finitionFacteur ?? 1);
   ajoute('elan', A, elanDe(x.off, x.instant));
   ajoute('fantome', A, x.facteurDef / x.defAvantAbri, t);
@@ -6003,7 +6012,7 @@ function causesDuLancer(x, pBrut, de) {
   ajoute('robustesse', x.facteurRob >= 1 ? A : D, x.facteurRob);
   // Le traits d'équipe, des deux bords (les cartes de défense du club vont avec ses cartes).
   const cartesDef = (x.def.cartes && x.def.cartes.defense) || 1;
-  ajoute('cartesClub', D, cartesDef);
+  cartesDuClub(D, x.def, 'defense', cartesDef);
   ajoute('traitsClub', A, (x.off.traitAtt ?? 1) * (x.series ? (x.off.traitSeries ?? 1) : 1));
   ajoute('traitsClub', D, (x.def.traitDef ?? 1) / cartesDef);
   ajoute('ombre', D, x.ombre);

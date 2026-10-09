@@ -31,6 +31,7 @@ const SUJET = {
   accident: c => `${modifsDe(c.qui, c.ch, true)} (${nomDe(c.qui)})`,
   monte: c => `le badge monté de ${nomDe(c.qui)}`,
   cartesClub: () => 'les cartes et les décisions du club',
+  carteClub: c => `${c.qui.ico ? `${c.qui.ico} ` : ''}« ${c.qui.nom} »`,
   plafond: () => 'le plafond de finition du jeu',
   fantome: c => `le fantôme ${nomDe(c.qui)}`,
   ombre: () => 'la chasse à la vedette',
@@ -70,7 +71,7 @@ const MOTS = {
 };
 const pluriel = sujet => /^les /.test(sujet);
 const phrase = (sujet, mot, n) => `${sujet} ${MOTS[mot](n, pluriel(sujet))}`;
-const cleDe = c => `${c.k}|${c.qui && c.qui.n ? c.qui.n : c.qui && c.qui.rang != null ? `${c.qui.d ? 'D' : 'F'}${c.qui.rang}` : ''}`;
+const cleDe = c => `${c.k}|${c.qui && c.qui.n ? c.qui.n : c.qui && c.qui.nom ? c.qui.nom : c.qui && c.qui.rang != null ? `${c.qui.d ? 'D' : 'F'}${c.qui.rang}` : ''}`;
 
 /**
  * Les causes d'un match, pour le club `moi` ('A' ou 'B') : { pour[], contre[], sans[] }.

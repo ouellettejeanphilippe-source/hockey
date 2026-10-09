@@ -217,7 +217,7 @@ Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans pre
 **Phase 2 · Trois types de cartes.**
 - [ ] Personnel, Tactiques, Coups : une seule pile de main (les Coups), le deck borné à ~15 cartes avec le retrait comme butin — `js/banque.js`, `js/combat.js`, `js/inventaire.js` — `check_combat`, `check_deck`, `check_cartes` (en paires).
 - [ ] Couper de 535 vers ~120 cartes : on garde celles qui se voient dans la feuille et celles d'un moment (`si`) — `check_banque FAMILLES=…`, `check_cartes`, `check_si`, `check_mort`.
-- [ ] Chaque carte d'équipe est nommée dans les causes — `js/causes.js` — `check_causes`.
+- [x] Chaque carte d'équipe est nommée dans les causes (« 🎯 « L'école de tir » a fait entrer 16 buts ») : `effetsDeSaison` garde ses sources nommées, `causesDuLancer` les dit une par une ; ce qui reste sans nom va au groupe — `js/sim.js`, `js/causes.js` — `check_causes` (6), `check_empreinte` (les matchs ne bougent pas).
 
 **Phase 3 · La signature au centre.**
 - [ ] Les positions multiples réelles (voir plus haut) — `scripts/build_shards.py`, `js/ratings.js`, `js/sim.js` `getPositionPenalty` — `check_ratings`, `check_positions` (neuf), `check_robot`.
@@ -244,3 +244,4 @@ Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans pre
 6. **Les gros matchs** (JP : *décidés au fur et à mesure selon la saison*) : c'est ce que fait déjà `annoncerGros` (la veille, contre un rival à deux rangs ou moins, ou la bête noire). Le boss d'acte est le gros match que le classement désigne à la fin de l'acte, sans calendrier fixé d'avance : la variante A.
 7. **La défaite** (JP : *décide*) : **elle reste à 2 🪙.** La tension vient de la boutique en début de semaine et des nœuds, pas d'une punition de plus pour une équipe qui perd déjà. La première run est déjà dure (50 % d'élimination en saison 1).
 8. **Les messages sans choix** (JP : *les passer au sommaire, et bloquer si ça fait qu'on les voit ; le moins d'endroits différents, le mieux c'est*) : la carte qui change, le vestiaire et les mouvements se lisent dans le sommaire de la semaine, qui bloque jusqu'à ce qu'on le ferme ; il les archive, et la boîte ne les redit pas.
+9. **La courbe de difficulté** (JP, 9 oct. : *je vis avec ça, c'est clairement facile de rebalancer ensuite* ; *je préfère qu'on optimise le fun in game avant de vraiment viser un objectif clair de fin de jeu*) : la Coupe possible dès la 2e run est tolérée pour l'instant. La difficulté se réglera plus tard, par paliers de défi débloqués (comme l'Ascension de Slay the Spire) et en retirant la force brute aux déblocages (phase 4).
