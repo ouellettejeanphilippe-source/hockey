@@ -65,7 +65,8 @@ async function regler(max = 40) {
     const e = await etat();
     if (e.choix) {
       if (await page.$('#choixModal:not([hidden]) .paquet')) { await page.click('#choixModal .paquet', { force: true }); await page.waitForTimeout(400); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
-      if (await page.$('#choixModal:not([hidden]) .main-jouer')) { await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1200); continue; }
+      // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
+      if (await page.$('#choixModal:not([hidden]) .main-jouer')) { const v = await page.$('#choixModal .main-vest:not([disabled])'); if (v && await page.$('#choixModal .main-jouer:disabled')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1200); continue; }
       if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); await page.waitForTimeout(600); continue; }
       const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])'); if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) { await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500); await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(500); continue; }

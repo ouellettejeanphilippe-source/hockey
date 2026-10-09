@@ -207,14 +207,31 @@ function deciderSaison(d, depuis) {
   decisionEnCours = suite;
   return suite;
 }
-async function deciderMaintenant(d, depuis) {
+/*
+ * PLUSIEURS DÉCISIONS D'UN COUP (V5, l'écran de combat) : l'avant-match puis la main, dans cet ordre, chacune
+ * comme si elle était prise seule — son filtre, son sel — et la saison ne reprend qu'une fois.
+ */
+async function deciderMaintenant(ds, depuis) {
   if (!G.ligue) return;
+  let decisions = G.ligue.decisions || [];
+  const prises = [];
+  for (const d0 of Array.isArray(ds) ? ds : [ds]) {
+    const { liste, d } = ajouterDecision(decisions, d0);
+    decisions = liste;
+    prises.push(d);
+  }
+  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
+  // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
+  if (prises.some(d => d.ballottage || d.plafond || d.patron || d.achat)) renderCap();
+  prises.forEach(confirmerDecision);
+}
+function ajouterDecision(avant, d) {
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
   if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
   // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
-  const decisions = (G.ligue.decisions || []).filter(x =>
+  const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
@@ -227,16 +244,13 @@ async function deciderMaintenant(d, depuis) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  const allume = (d.joue || d.main) && !d.coach ? palierAllume(G.ligue.decisions || [], d) : null;
+  const allume = (d.joue || d.main) && !d.coach ? palierAllume(avant, d) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
   decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
-  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
-  // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
-  if (d.ballottage || d.plafond || d.patron || d.achat) renderCap();
-  confirmerDecision(d);
+  return { liste: decisions, d };
 }
 
 /*
