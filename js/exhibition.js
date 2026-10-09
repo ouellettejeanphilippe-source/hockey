@@ -388,7 +388,7 @@ function regarder() {
   el.style.display = 'none';
   diffuserMatch({
     feuille: r.feuille, A: r.A, B: r.B,
-    titre: 'Exhibition', sousTitre: `${nomEq(r.B)} @ ${nomEq(r.A)}`,
+    titre: 'Exhibition',
     etat: 'Pour le fun : rien ne compte', graine: Number.parseInt(String(r.graine), 36) || 1,
     ctx: ctx.direct,
     onTermine: () => { if (el) el.style.display = ''; },

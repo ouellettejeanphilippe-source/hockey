@@ -25,6 +25,7 @@ import { hubActif } from './coquille.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { RARETES, sensRarete } from './cartes.js';
 import { animerComptes } from './mouvement.js';
+import { jouerSon } from './sons.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
@@ -735,7 +736,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   const grosV = (you.minisBoss || []).filter(m => m.gagne).length, grosN = (you.minisBoss || []).length;
   const compteDeck = new Map();
   for (const c of deckFinal) compteDeck.set(c, (compteDeck.get(c) || 0) + 1);
-  const tonDeck = deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
+  const tonDeck = G.bonus === 'ROGUE' && deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
       <div class="dash-note">Gros matchs : ${grosV} gagné${grosV > 1 ? 's' : ''} sur ${grosN}.${jouees.size ? ` Les plus jouées : ${[...jouees.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${CARTES_MATCH[c] ? CARTES_MATCH[c].ico : ''} ${esc(CARTES_MATCH[c] ? CARTES_MATCH[c].nom : c)} ×${n}`).join(' · ')}.` : ''}</div>
       <div class="deck-grille">${[...compteDeck.entries()].filter(([c]) => CARTES_MATCH[c]).map(([c, n]) => {
         const C = CARTES_MATCH[c];
@@ -1044,6 +1045,19 @@ function finDesSeries(S, host, rogue = true) {
     });
   }
   dessinerTableauDesSeries(host, n, champion);
+  // Le haut du bilan dit la fin de ton printemps : la Coupe en or, ou la ronde où ça s'est arrêté.
+  const band = document.querySelector('#resultHost .hero-band');
+  if (band && toi) {
+    const miennes = (G.series || []).filter(x => x.A === toi || x.B === toi), derniere = miennes[miennes.length - 1];
+    const coupe = champion === toi;
+    if (coupe || derniere) {
+      band.textContent = coupe ? '🏆 Champion de la Coupe Stanley' : `Éliminé — ${RONDES[derniere.ronde] || `ronde ${derniere.ronde + 1}`}`;
+      band.classList.toggle('or', coupe);
+      band.classList.toggle('out', !coupe);
+    }
+    // La fanfare du 82-0 la première fois (le Rogue joue la sienne à l'écran de la run).
+    if (coupe && rogue && G.bonus !== 'ROGUE') jouerSon('coupe');
+  }
   // Le Rogue paie ses écussons une fois (`rogue`) ; une reprise qui a tout vu lui redit quand même le sort de la run (S80).
   if (finDesSeriesRogue) finDesSeriesRogue((G.series || []).filter(x => x.winner && x.winner.isPlayer).length, !!(champion && champion.isPlayer), { payer: rogue });
 }

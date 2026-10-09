@@ -26,7 +26,7 @@
 
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
-  profilsDe, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite, enFaceDe, FERMETURE_DEFAUT,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
@@ -182,7 +182,6 @@ export function planAdverseHtml(cle, contre, { nomAdv = 'Ils', suite = '', prepJ
  * garde ses deux ou trois vrais rôles, avec un mot pour le niveau, et sa
  * carrure quand elle compte (le jeu physique en dépend).
  */
-/* Le mot d'un rôle qu'il n'a pas en badge (sa fiche, « Ses rôles ») : ce que son score dans ce rôle vaut. */
 /* Ce que la case lit d'un joueur (V2.3) : son badge de ce rôle, à son palier, ou la base. */
 const motDuFit = (p, role) => {
   const b = p && badgesDe(p).find(x => x.cle === role);
@@ -206,25 +205,6 @@ function rolesDe(p) {
 }
 /* L'ancien nom : la fiche l'appelle encore. */
 export const barresProfils = rolesDe;
-/*
- * SES RÔLES, TOUS (1.0, C2). JP : *variété de build, complexe mais clair*. Un
- * système demande des rôles ; le joueur a ses badges, et c'est eux que la
- * case lit (V2.3, `fitDeCase`) : les autres rôles se rangent du plus près au
- * plus loin, sans mot, puisqu'ils ne rendent que la base.
- */
-export function sesRolesHtml(p) {
-  const pr = p && p.p !== 'G' ? profilsDe(p) : null;
-  if (!pr) return '';
-  const g = p.p === 'D' || p.p === 'LD' || p.p === 'RD' ? 'D' : 'F';
-  const liste = Object.entries(pr).filter(([k]) => PROFILS[g][k]).sort((a, b) => b[1] - a[1]);
-  // Ses badges d'abord, à leur palier ; les autres rôles, du plus près au plus loin, ne rendent que la base (V2.3).
-  const badges = new Map(badgesDe(p).map(b => [b.cle, b]));
-  return `<div class="ses-roles">${liste.map(([k]) => {
-    const R = PROFILS[g][k], b = badges.get(k);
-    if (b) return `<span class="ses-role premier pal-${b.palier}" title="${esc(titreDuBadge(b))}">${R.ico} ${esc(R.nom)} <b>${PALIERS[b.palier].nom}</b></span>`;
-    return `<span class="ses-role faible" title="${esc(R.nom)} — pas son badge : un système qui le demande ne rend que la base à sa case.">${R.ico} ${esc(R.nom)}</span>`;
-  }).join('')}</div>`;
-}
 /* « Brodeur, Stevens et Niedermayer » : une liste de noms, en français. */
 const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(', ')} et ${ns[ns.length - 1]}`);
 /* Les canaux d'effet d'un objet : ce que motsEnChiffres sait dire. */

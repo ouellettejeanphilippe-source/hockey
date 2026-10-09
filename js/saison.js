@@ -3121,7 +3121,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         options: oo.offerts.map(cle => {
           const x = ch[cle], m = Number.isFinite(x) ? motDeChance(x) : null;
           return { cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom, sous: raisonObjectif(cle),
-            mots: m ? [{ txt: `${m.mot} · environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
+            mots: m ? [{ txt: `${m.mot} · ${x < 0.05 ? 'moins de 1 chance sur 10' : `environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`}`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
         }),
         contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs · ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} au deck</span></div>`,
         onChoix: cle => decider({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) };
@@ -4293,7 +4293,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     }
 
     const boutons = [];
-    if (s && !complete(s)) boutons.push(`<button class="btn gold hub-regarder" title="Le prochain match de ta série, lancer par lancer">Regarder le match ${revele.get(s) + 1}</button>`);
+    if (s && !complete(s)) boutons.push(`<button class="btn go hub-regarder" title="Le prochain match de ta série, lancer par lancer">Regarder le match ${revele.get(s) + 1}</button>`);
     /*
      * PAS DE SAUT PAR-DESSUS TA SÉRIE (S79). JP : *pas possible de sauter la
      * saison*. « Finir la ronde » n'existe que ta série décidée (ou sans toi) ;
@@ -4301,7 +4301,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
      */
     const plusRienADecider = !you || elimination() >= 0;
     if (!rondeComplete(ronde)) {
-      boutons.push(`<button class="btn go hub-jour" title="Un match de plus dans chaque série de la ronde">Match suivant</button>`);
+      // Regarder ton match est le chemin par défaut ; « Match suivant » le saute, en second.
+      boutons.push(`<button class="btn ${s && !complete(s) ? '' : 'go '}hub-jour" title="Un match de plus dans chaque série de la ronde">Match suivant</button>`);
       if (!s || complete(s)) boutons.push(`<button class="btn hub-ronde" title="Jouer la ronde jusqu'au bout">Finir la ronde</button>`);
     } else if (ronde + 1 < nRondes) {
       boutons.push(`<button class="btn go hub-jour" title="${ctx.esc(nomRonde(ronde + 1))}">${ctx.esc(nomRondeCourt(ronde + 1))}</button>`);

@@ -135,6 +135,9 @@ export function ouvrirNouvellePartie(bonus = null) {
   semerBrouillon();
   // Du menu (S77) : la carte « Sur table » ouvre l'écran déjà réglé sur table.
   if (bonus && G.brouillon) { G.brouillon.bonus = bonus; syncOptionsUI(); majPiedPartie(); }
+  // Le titre dit le mode qu'on prépare.
+  const t = $('npTitre');
+  if (t && t.lastChild) t.lastChild.textContent = G.brouillon && G.brouillon.bonus === 'TABLE' ? 'Sur table' : 'Le 82-0';
   openModal('partieModal');
 }
 
@@ -177,6 +180,9 @@ export function syncOptionsUI() {
     repechage: src.repechage === 'FRANCHISE' ? 'FRANCHISE' : src.epoque ? src.repechage : 'TOUTES',
     bonus: src.bonus,
   };
+  // L'essai sur table ouvre le plateau : il n'a de sens que dans Sur table (le menu a sa propre exhibition, au vrai moteur).
+  const ex = $('npExhibition');
+  if (ex) ex.closest('.opt-row').hidden = src.bonus !== 'TABLE';
   const sel = $('epoqueSelect');
   if (sel) {
     if (!sel.options.length) {

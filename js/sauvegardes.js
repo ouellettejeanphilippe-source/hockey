@@ -23,9 +23,9 @@ const MAX_PARTIES = 24;
 
 /* Les trois familles de parties, telles que le menu les range. */
 export const GENRES = {
-  saison: { ico: '🏒', nom: 'Le 82-0', mot: 'Le repêchage, 82 matchs d\'un coup, les séries match par match' },
-  table: { ico: '🎲', nom: 'Sur table', mot: 'Le plateau, pièce par pièce' },
-  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Une run. Des packs. Le proprio.' },
+  saison: { ico: '🏒', nom: 'Le 82-0', mot: 'Repêche 23 vrais joueurs, joue 82 matchs d\'un coup, vise la Coupe.' },
+  table: { ico: '🎲', nom: 'Sur table', mot: 'Le match en jeu de plateau, geste par geste.' },
+  rogue: { ico: '💀', nom: 'Le mode Rogue', mot: 'Ouvre des packs, bâtis ton club, survis au proprio. Perds : tu repars plus fort.' },
 };
 /* Le genre d'une sauvegarde, lu dans ce qu'elle porte. */
 const genreDe = data => (data && data.bonus === 'TABLE' ? 'table' : data && data.bonus === 'ROGUE' ? 'rogue' : 'saison');

@@ -135,7 +135,7 @@ borne('le taux de victoires médian d\'un club', taux[Math.floor(taux.length / 2
 
 /* ---------- le conseil du bilan cite ses chiffres (1.0, J2-18) ---------- */
 {
-  // Une saison construite : quatre trios, le 4e convertit le moins ; puis une saison ratée, où la défense est la pire.
+  // Une saison construite : quatre trios, le 4e convertit le moins mais on ne le lui reproche pas, le 3e ensuite ; puis une saison ratée, où la défense est la pire.
   const moi = { isPlayer: true, GF: 250, GA: 290 };
   const autres = Array.from({ length: 7 }, (_, i) => ({ GF: 240 + i * 5, GA: 220 + i * 5 }));
   const tir = (ligne, but) => ({ ligne, mode: 'FE', cote: 'A', but });
@@ -143,7 +143,9 @@ borne('le taux de victoires médian d\'un club', taux[Math.floor(taux.length / 2
   for (const [u, t, b] of [[0, 90, 12], [1, 70, 8], [2, 50, 5], [3, 40, 2]]) for (let k = 0; k < t; k++) lancers.push(tir(u, k < b));
   const calendrier = [[{ A: moi, B: autres[0], feuille: { lancers } }]];
   const bon = conseilDuBilan({ W: 46, L: 30, OTL: 6, GF: 250, GA: 290 }, moi, [moi, ...autres], calendrier);
-  exiger('le conseil nomme le trio qui convertit le moins, avec ses buts et ses tirs', /4e trio a marqué 2 buts en 40 tirs/.test(bon), bon);
+  exiger('le conseil nomme le trio qui convertit le moins (hors 4e), avec ses buts et ses tirs', /3e trio a marqué 5 buts en 50 tirs/.test(bon), bon);
+  const fort = conseilDuBilan({ W: 50, L: 26, OTL: 6, GF: 300, GA: 290 }, { ...moi, GF: 300 }, [{ ...moi, GF: 300 }, ...autres], calendrier);
+  exiger('une bonne saison portée par son attaque se dit comme une force', /c'est elle qui a porté ta saison/.test(fort), fort);
   const rate = conseilDuBilan({ W: 32, L: 40, OTL: 10, GF: 250, GA: 290 }, moi, [moi, ...autres], calendrier);
   exiger('sous 41 victoires, le conseil nomme la défense et son rang', /accordé 290 buts, 8e de la ligue sur 8/.test(rate), rate);
 }

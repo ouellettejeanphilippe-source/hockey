@@ -32,6 +32,7 @@ import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offres
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
+import { afficherMenu } from './menu.js';
 
 /* =====================================================================
    LE MODE ROGUE (S77) — voir js/rogue.js pour la règle et le méta.
@@ -831,13 +832,15 @@ export async function ouvrirRogue() {
         `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
         aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`].filter(Boolean).join(' · '),
-      prix: `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` }],
+      sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }],
     onChoix: () => resolve(true),
     onFerme: () => resolve(false),
   }));
-  if (!go) return;
+  // « Pas maintenant » et « Retour » ramènent au menu, pas dans le vestiaire de repêchage qui attend dessous.
+  const auMenu = () => afficherMenu(contexteDuMenu({ enJeu: false }));
+  if (!go) { auMenu(); return; }
   const coach = await choisirCoach();
-  if (!coach) return;
+  if (!coach) { auMenu(); return; }
   const gardes = [];
   if (k && (meta.derniereEquipe || []).length) {
     const joueurs = (await Promise.all(meta.derniereEquipe.map(joueurDeCle))).filter(Boolean);
@@ -869,11 +872,12 @@ function choisirCoach() {
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
+      : `Sa philosophie joue dès le premier soir ; plus tu joues ses cartes, plus l'équipe y croit.${plus}`,
     options: ouverts.map(k => {
       const C = COACHS[k];
       return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
-        mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: `${idsDuCoach(k).length} cartes de sa couleur` };
+        mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: meta.runs ? `${idsDuCoach(k).length} cartes de sa couleur` : '' };
     }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),

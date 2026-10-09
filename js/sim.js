@@ -58,7 +58,7 @@ export const REROLLS = { season: 2, team: 2, pass: 2 };
  */
 export const MODES = {
   CLASSIQUE: {
-    nom: 'Classique', format: 'COMPLET', tirage: 'VESTIAIRE', cap: CAP, renfort: false, loto: false, relances: 0,
+    nom: 'Vestiaire', format: 'COMPLET', tirage: 'VESTIAIRE', cap: CAP, renfort: false, loto: false, relances: 0,
     desc: 'Vingt-trois joueurs, un par tour, dans le vestiaire d\'une vraie équipe. Deux relances d\'année, deux d\'équipe, deux passes.',
   },
   LOTO: {

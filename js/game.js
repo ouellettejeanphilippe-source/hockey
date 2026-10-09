@@ -22,7 +22,7 @@
 
 import { REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES } from './sim.js';
 import { COACHS, JOUEUR_COACH } from './coachs.js';
-import { PLAFOND_ROGUE, lireMeta } from './rogue.js';
+import { PLAFOND_ROGUE, lireMeta, mandatDe } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
 import { IDENTITES, scoreIdentite } from './identites.js';
 import { state, loadIndex, cacheClear } from './data.js';
@@ -631,7 +631,7 @@ function resumePartie() {
     }
     etape = G.seriesVues ? `Les séries · saison ${W}-${D}-${P}` : j >= L.calendrier.length ? `Bilan · ${W}-${D}-${P}` : `Journée ${j} / ${L.calendrier.length} · ${W}-${D}-${P}`;
   }
-  const qui = [MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
+  const qui = [G.bonus !== 'ROGUE' && MODES[G.mode] ? MODES[G.mode].nom : '', G.repechage === 'FRANCHISE' && FRANCHISES[G.franchise] ? FRANCHISES[G.franchise].nom : '', G.epoque || ''].filter(Boolean).join(' · ');
   // S80 : une run Rogue dit sa saison, au menu comme au hub.
   if (G.bonus === 'ROGUE' && G.rogue && G.rogue.saison) etape = `Run ${G.rogue.numero || ''} · saison ${G.rogue.saison} · ${etape}`.replace('Run  ·', 'Run ·');
   return { etape, qui, vierge: !signes && !L };
@@ -1134,7 +1134,8 @@ export function toast(msg, kind = '') {
   el.className = 'toast on' + (kind ? ' ' + kind : '');
   el.textContent = msg;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.className = 'toast'; }, 1800);
+  // Un long message reste le temps qu'on le lise.
+  toastTimer = setTimeout(() => { el.className = 'toast'; }, Math.min(6000, Math.max(1800, msg.length * 45)));
 }
 
 /* =====================================================================
@@ -1342,11 +1343,11 @@ function setupEvents() {
     ico: '❓', titre: 'Comment on joue', cartes: true, lecture: true, genre: 'aide', fermable: true, motFermer: 'Compris !',
     recit: 'Cap 82-0, c\'est bâtir une équipe de vrais joueurs et aller chercher la Coupe. Balaie les cartes.',
     options: [
-      { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'Le repêchage', texte: 'La roulette sort de vrais clubs de 55 saisons. Signe 23 joueurs sous le plafond : trouver les aubaines, c\'est le métier.' },
-      { cle: 'a2', rarete: 'peu', ico: '🧬', nom: '2. Ton identité', type: 'Avant le premier tour', texte: 'Une carte parmi trois colore ton repêchage : la roulette sort plus souvent tes francs-tireurs, tes costauds, tes aubaines…' },
-      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'Derrière le banc', texte: 'Chaque ligne joue un système. Plus elle le joue, plus sa chimie monte — mais contre un gros adversaire, il faut parfois changer.' },
-      { cle: 'a4', rarete: 'rare', ico: '🃏', nom: '4. Tes cartes', type: 'Gros matchs et séries', texte: 'Cinq cartes, trois d\'élan. Tu vois la main de l\'adversaire : réponds-lui. Gagne, et ton deck grandit.' },
-      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: '82 matchs, puis les séries, match par match, contre les meilleurs clubs. La Coupe est le vrai but ; le 82-0, le Graal. Tout ce que tu gagnes va dans ton album.' },
+      { cle: 'a1', rarete: 'commune', ico: '🎰', nom: '1. Repêche', type: 'La roulette', texte: 'Elle sort une saison et un vrai club de la LNH. Dans son vestiaire, tu piges un joueur.' },
+      { cle: 'a2', rarete: 'peu', ico: '💰', nom: '2. Le plafond', type: '23 joueurs', texte: 'Signe-les tous sous le plafond salarial : trouver les aubaines, c\'est le métier.' },
+      { cle: 'a3', rarete: 'peu', ico: '🏒', nom: '3. Tes lignes', type: 'L\'alignement', texte: 'Chaque joueur à sa case, chaque ligne son système. Un joueur mal placé rend moins.' },
+      { cle: 'a4', rarete: 'rare', ico: '⏩', nom: '4. La saison', type: '82 matchs', texte: 'Elle se joue d\'un coup. Ton classement dit si ton équipe tient.' },
+      { cle: 'a5', rarete: 'legendaire', ico: '🏆', nom: '5. La Coupe', type: 'Le but', texte: 'Les séries se regardent match par match. La Coupe est le vrai but ; le 82-0, le Graal.' },
     ],
     onChoix: () => {},
   });
@@ -2051,7 +2052,7 @@ function remplirVide(cle) {
     if (cle === 'match') {
       msg = manque > 0
         ? `Ta formation n'est pas complète : il reste <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler sous le plafond. La saison se lance d'ici dès que les ${totalCases()} sont signés.`
-        : 'Ta formation est complète. La saison t\'attend.';
+        : `Ta formation est complète. La saison t'attend.${G.bonus === 'ROGUE' && G.rogue ? ` Le proprio veut : ${esc(mandatDe(G.rogue.saison).mot)}.` : ''}`;
       btns = manque > 0
         ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true)
         : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);

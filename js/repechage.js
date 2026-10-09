@@ -1068,7 +1068,7 @@ export function renderDash() {
       <div class="dash-big sm">${need ? esc(slotShort(need)) : 'Complet'}</div>
     </div>
     <div class="dash-card" title="${esc(budgetTitle)}">
-      <h3>Budget <span class="h3-long">du choix</span></h3>
+      <h3>Ce choix</h3>
       <div class="dash-big ${budgetCls}">${left ? money(Math.max(0, maxPick)) : money(rem)}</div>
     </div>
     <div class="dash-card" title="${esc(poolTitle)}">
@@ -1291,7 +1291,7 @@ export function playerCardEl(p) {
     const cur = SLOTS.find(s => G.roster[s.i] === p);
     dest = `<span class="dest-ok">✓ signé</span>${cur ? ` · ${esc(slotShort(cur))}` : ''}`;
   } else if (!slot) {
-    dest = `<span class="dest-bad">aucune case libre</span>`;
+    dest = '';   // le bouton le dit déjà : « Position pleine »
   } else if (over) {
     dest = `<span class="dest-bad">hors budget</span>`;
   } else {
@@ -1307,7 +1307,7 @@ export function playerCardEl(p) {
     // menace pas d'un malus que le mode bonus ne jouera pas.
     if (!surTable()) {
       if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
-      if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ sous sa zone${isTargeted ? '' : ` : ${esc(slotShort(slot))}`}</span>`);
+      if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ ${isTargeted ? 'sous sa zone' : esc(slotShort(slot))}</span>`);
       else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
     }
     dest = bits.join(' · ');
@@ -1365,7 +1365,7 @@ function voleAuCartable(el, rarete) {
   const src = el.querySelector('.carton-photo');
   const r = (src && src.offsetParent ? src : el).getBoundingClientRect();
   if (!r.width) return;
-  const cible = [...document.querySelectorAll('.navtab[data-page="alignement"]')].find(b => b.offsetParent) || $('cnt');
+  const cible = [...document.querySelectorAll('.navtab[data-section="effectif"]')].find(b => b.offsetParent) || $('cnt');
   const rc = cible ? cible.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
   const img = src && src.querySelector('img.visage, img.carton-action');
   const v = document.createElement('div');

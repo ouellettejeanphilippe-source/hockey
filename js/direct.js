@@ -375,8 +375,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   const Pl = f.cartes && f.cartes.plan ? PLANS_ADV[f.cartes.plan] : null;
   if (Pl) {
     const pj = f.cartes.prepJuste;
-    const mot = pj === true ? '🎯 <b>ta préparation vise juste</b> : leur plan tombe' : pj === false ? '💥 <b>t\'as chié ta préparation</b>' : 'tu n\'avais rien préparé';
-    ligne(`debut cartes prep${pj === true ? ' juste' : pj === false ? ' ratee' : ''}`, `${Pl.ico} <b>Ils jouent ${ctx.esc(Pl.nom.toLowerCase())}</b> — ${mot}.`);
+    const mot = pj === true ? '🎯 <b>ta préparation vise juste</b> : leur plan tombe' : pj === false ? '💥 <b>t\'as chié ta préparation</b>' : '';
+    ligne(`debut cartes prep${pj === true ? ' juste' : pj === false ? ' ratee' : ''}`, `${Pl.ico} <b>Ils jouent ${ctx.esc(Pl.nom.toLowerCase())}</b>${mot ? ` — ${mot}` : ''}.`);
   }
   // LEUR MAIN (S74) : ce qu'ils ont joué, ou ce que ta main a annulé.
   const leurs = f.cartes && f.cartes.adverses ? f.cartes.adverses.filter(c => CARTES_MATCH[c]) : [];
@@ -482,7 +482,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne(`but but-eq ${e.cote === 'A' ? 'a' : 'b'}${b.gagnant ? ' gagnant' : ''}`, `<span class="live-tps">${tempsDeJeu(b.instant)}</span>${ctx.logo(equipe(e.cote).tag, 15)}
         <span><b class="live-but-mot">BUT${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</b> <b>${nomLie(b.marqueur, e.cote)}</b> <span class="live-xe">(${ord(nG)} but)</span>${aides} <span class="live-score">${gA}-${gB}</span> <span class="live-micro">${micro}</span>${(c => (c ? ` <span class="live-cause">Décisif : ${ctx.esc(c)}.</span>` : ''))(causeDuBut(b))}</span>`, couleurs(e.cote));
       majBoard();
-      son('but');
+      // La sirène pour ton but (ou pour tous, entre deux clubs qui ne sont pas le tien) ; leur but tombe à plat.
+      son(equipe(e.cote).isPlayer || !(A.isPlayer || B.isPlayer) ? 'but' : 'rate');
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
       cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
       // La bannière de but, aux couleurs du marqueur, le temps de la pause.
@@ -492,8 +493,11 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       // Le visage du marqueur dans la bannière : c'est lui qu'on célèbre.
       ban.innerHTML = `${ctx.mug ? `<span class="live-visage">${ctx.mug(b.marqueur)}</span>` : ''}<span class="live-ban-txt"><span>${b.gagnant ? 'BUT GAGNANT' : 'BUT'}${b.an ? ' · AN' : b.dn ? ' · DN' : ''}</span><b>${ctx.esc(nom(b.marqueur))}</b></span>`;
       board.appendChild(ban);
-      setTimeout(() => ban.remove(), PAUSE_BUT + 200);
-      return PAUSE_BUT;
+      // Ton but, ou un but en fin de match, se savoure plus longtemps.
+      const p = equipe(e.cote).isPlayer || b.instant >= 56 ? 2200 : PAUSE_BUT;
+      ban.style.animationDuration = `${p / 1000 + 0.2}s`;
+      setTimeout(() => ban.remove(), p + 200);
+      return p;
     }
     if (e.type === 'punition') {
       son('sifflet');
@@ -527,6 +531,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       st.coups[e.cote]++;
       ligne(`coup ${e.cote === 'A' ? 'a' : 'b'}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
         <span><b class="live-coup-mot">MISE EN ÉCHEC</b> ${com.coup({ j: `<b>${nomLie(e.joueur, e.cote)}</b>`, c: `<b>${nomLie(e.cible, autre(e.cote))}</b>`, eq: ctx.esc(ctx.teamShort(eq)), autre: ctx.esc(ctx.teamShort(autre_)) })}</span>`, couleurs(e.cote));
+      son('echec');
       return 400;
     }
     if (e.type === 'bagarre') {
@@ -536,7 +541,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       ligne(`bagarre${g ? ` ${g === 'A' ? 'a' : 'b'}` : ''}${g && equipe(g).isPlayer ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(A.tag, 13)}${ctx.logo(B.tag, 13)}
         <span><b class="live-bag-mot">BAGARRE</b> ${com.bagarre({ j: `<b>${nomLie(a, 'A')}</b>`, c: `<b>${nomLie(b, 'B')}</b>`, g: gagnant ? `<b>${nomLie(gagnant, g)}</b>` : null, p: perdant ? nomLie(perdant, autre(g)) : null,
           eq: g ? ctx.esc(ctx.teamShort(equipe(g))) : null, autre: g ? ctx.esc(ctx.teamShort(equipe(autre(g)))) : null })} <span class="live-micro">${e.minutes} min et ${BAGARRE_JAMBES} jambes chacun${g ? ` ; ${ctx.esc(ctx.teamShort(equipe(g)))} finit mieux pendant ${ELAN_DUREE} min` : ''}.</span></span>`, g ? couleurs(g) : undefined);
-      son('periode');
+      son('echec');
       return 1200;
     }
     if (e.type === 'melee') {
@@ -552,6 +557,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       return 0;
     }
     if (e.type === 'periode') {
+      // La fin de la 3e sans prolongation : la sirène de « Fin du match » la dit déjà.
+      if (e.per === 3 && !f.ot) return 0;
       const tA_ = f.tirs.A[e.per] || 0, tB_ = f.tirs.B[e.per] || 0;
       const P = com.periode({
         per: NOM_PERIODE[e.per], ot: e.per === 3 && f.ot, s: `${Math.max(gA, gB)}-${Math.min(gA, gB)}`,
@@ -566,9 +573,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     }
     if (e.type === 'fin') {
       fini = true;
-      son('fin');
       const vainqueur = f.vainqueur === 'A' ? A : B;
       const perdant = vainqueur === A ? B : A;
+      son(perdant.isPlayer ? 'periode' : 'fin');
       const gVainqueur = f.vainqueur === 'A' ? f.gardienA : f.gardienB;
       const F = com.fin({ eq: ctx.esc(ctx.teamShort(vainqueur)), autre: ctx.esc(ctx.teamShort(perdant)),
         g: gVainqueur ? ctx.esc(nomCourt(gVainqueur.n)) : 'le gardien', blanchissage: Math.min(gA, gB) === 0,
@@ -637,13 +644,14 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
 
   function finDeMatch() {
     stop();
+    onglets.ouvrir();
     boutons(`<button class="btn gold live-suite">Continuer</button>`);
     controls.querySelector('.live-suite').onclick = fermer;
   }
 
   boutons(`<div class="seg live-vitesse" title="Minutes de jeu par seconde">${VITESSES.map(v => `<button data-v="${v}" class="${v === vitesse ? 'on' : ''}">${ETIQ_VITESSE[v]}</button>`).join('')}</div>
     <button class="btn live-pause" aria-pressed="false" title="Arrêter l'horloge et lire les statistiques du match (barre d'espace)">Pause</button>
-    <button class="btn live-fin">Fin du match</button>`);
+    <button class="btn live-fin">Passer à la fin</button>`);
   controls.querySelector('.live-pause').onclick = () => pauser(!enPause);
   controls.querySelectorAll('.live-vitesse button').forEach(b => {
     b.onclick = () => {
