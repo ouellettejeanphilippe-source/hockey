@@ -500,6 +500,8 @@ body.nav-clavier .btn:focus, body.nav-clavier .chip:focus, body.nav-clavier .nav
   .panes[data-view="pool"] .pane-roster, .panes[data-view="roster"] .pane-pool { display: block; }
   .panes { grid-template-columns: minmax(0, 2.15fr) minmax(340px, 0.75fr); }
   .pane-roster { position: sticky; top: calc(var(--topbar-h) + var(--esp-3)); max-height: calc(100vh - var(--topbar-h) - var(--actionbar-h) - var(--esp-5)); overflow-y: auto; }
+  /* À l'Effectif, le vestiaire est caché : l'alignement prend toute la largeur. */
+  body[data-page="alignement"] .panes { grid-template-columns: minmax(0, 1fr); }
 }
 /* La zone de jeu s'ancre : ce qui sert à décider ne défile pas, le vestiaire et l'alignement défilent dessous. */
 body[data-zone="jeu"] .game {
@@ -553,7 +555,8 @@ body.hub-cache #hubModal { display: none !important; }
 .vide-btns { display: flex; gap: var(--esp-3); justify-content: center; flex-wrap: wrap; }
 .vide-btns .btn { min-width: 160px; }
 /* L'entrée d'un écran, d'un volet : un fondu et une montée. */
-.ecran-entre { animation: ecran-entre 200ms var(--e-sortie) both; }
+/* `backwards` et non `both` : un transform figé ferait d'un enfant `position: fixed` (la fiche d'un pack) un enfant de la section. */
+.ecran-entre { animation: ecran-entre 200ms var(--e-sortie) backwards; }
 @keyframes ecran-entre { from { opacity: 0; transform: translateY(8px); } }
 @keyframes panneau-monte { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
 .volet-entre { animation: ecran-entre 160ms var(--e-sortie) both; }
@@ -670,7 +673,6 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, #fff), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); }
 .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, #fff); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 rgba(255, 255, 255, 0.45); }
-.btn.blue { border-color: var(--bleu); color: var(--bleu); }
 .btn.danger { border-color: var(--mauvais); color: var(--mauvais); }
 .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); }
 .btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-2); }
@@ -896,7 +898,8 @@ img.visage.brut { object-position: 50% 12%; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .modal-sheet {
   position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; max-height: 92vh; overflow: hidden;
-  background: var(--ambiance), var(--fond-1); border: 1px solid var(--filet); border-top: 2px solid var(--club-vif); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0; box-shadow: var(--ombre), 0 -10px 40px -20px var(--club-vif);
+  /* Le projecteur de l'ambiance, sans l'anneau de patinoire qui traverserait le texte d'une fenêtre. */
+  background: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 26%, transparent), transparent 62%), var(--fond-1); border: 1px solid var(--filet); border-top: 2px solid var(--club-vif); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0; box-shadow: var(--ombre), 0 -10px 40px -20px var(--club-vif);
 }
 .modal-narrow { max-width: 560px; }
 .modal-large { max-width: 1100px; }
@@ -1026,7 +1029,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 /* ---- Le menu : plein écran, par-dessus tout (js/menu.js, z 400 lu par js/manette.js) ---- */
 body.menu-ouvert { overflow: hidden; }
 .menu-depart { position: fixed; inset: 0; z-index: 400; overflow-y: auto; overscroll-behavior: contain; background: conic-gradient(from 160deg at 12% -10%, transparent 0deg, color-mix(in srgb, var(--or) 14%, transparent) 14deg, transparent 30deg), conic-gradient(from 170deg at 88% -10%, transparent 0deg, color-mix(in srgb, var(--bleu) 14%, transparent) 16deg, transparent 32deg), var(--ambiance), var(--noir); }
-.menu-depart.en-jeu { background: color-mix(in srgb, var(--noir) 86%, transparent); }
+.menu-depart.en-jeu { background: color-mix(in srgb, var(--noir) 95%, transparent); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
 .menu-depart.en-jeu .menu-fond { opacity: 0.5; }
 /* La glace vue des gradins : les bandes, les deux lignes bleues, la ligne rouge, au trait et couchée en perspective. */
 .menu-fond { position: fixed; inset: 0; overflow: hidden; pointer-events: none; }
@@ -2256,20 +2259,20 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line.bad { border-left: 3px solid var(--mauvais); }
 .line.fermeture { border-left: 3px solid var(--or); }
 /* L'en-tête : le rang en gros, l'identité en or, « à leur place » en vert, sur un filet. */
-.line-head { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border-bottom: 1px solid var(--filet); }
+.line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); }
 .line-head-regle { cursor: pointer; }
 .line-head-regle:hover .line-name { color: var(--or); }
 .line-name { flex: none; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
-.line-id { flex: 1 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line-id { flex: 1 1 8ch; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Ce que l'unité produit : les points par match des habillés, additionnés — une vraie stat en tête de bande. */
 .line-prod { flex: none; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
 .cell-l3 { flex-wrap: wrap; }
 .cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
-.line-orig { flex: 0 1 auto; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line-orig { flex: none; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-ferm { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-2); border: 0; background: none; color: var(--encre-3); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite); }
 .line-ferm:hover { color: var(--encre); }
 .line-ferm.on { color: var(--or); }
-.line-chem { flex: 0 1 auto; min-width: 0; margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.line-chem { flex: none; min-width: 0; margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-chem.good { color: var(--bon); }
 .line-chem.bad { color: var(--mauvais); }
 /* Les cases : trois de front, deux pour une paire ou les gardiens. */
@@ -2571,6 +2574,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* En colonnes : les rangées suivent leur contenu, sinon la rangée « Système » d'un trio s'imprime sur l'en-tête du suivant. */
 @media (min-width: 1400px) {
   body[data-page="alignement"] .roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-auto-rows: max-content; gap: var(--esp-3); align-items: start; }
+  body[data-page="alignement"] .roster > .ln-auto { grid-column: 1 / -1; }
 }
 /* La tablette, debout ou couchée : les unités de l'onglet deux à deux (les quatre trios en carré), chacune en rangées —
    une colonne d'unité y est aussi large qu'un téléphone. */
@@ -2700,7 +2704,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-page-pied .btn { width: 100%; min-height: 48px; }
 /* Un écran qui rend une feuille de fenêtre dans la page (js/gerant.js, js/magasin.js, js/inventaire.js) : la feuille se déplie,
    sa bande de tête se tait (la page a la sienne), son corps ne défile pas à part. */
-.hub-page .choix-sheet { height: auto; max-height: none; max-width: none; background: transparent; }
+.hub-page .choix-sheet { height: auto; max-height: none; max-width: none; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
 .hub-page .choix-sheet > .choix-tete { display: none; }
 .hub-page .choix-sheet .choix-corps { flex: none; overflow: visible; padding: 0; }
 .hub-page .gl-pied { position: sticky; bottom: 0; z-index: 3; margin: 0 calc(-1 * var(--esp-3)); }
@@ -3348,7 +3352,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .live-temps { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
 .live-tirs { font: 600 var(--t-1)/1.25 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; }
 /* L'avantage numérique en cours : un mot en or sous l'horloge, rien tant qu'il n'y en a pas. */
-.live-situation { display: none; margin-top: 2px; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--or); white-space: nowrap; }
+.live-situation { display: none; max-width: 11ch; margin-top: 2px; font: 800 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; color: var(--or); text-align: center; }
 .live-situation.on { display: inline-block; }
 
 /* ---- La bannière de but : un tiers inférieur qui glisse sous le tableau indicateur, le pointage qui roule reste visible ---- */

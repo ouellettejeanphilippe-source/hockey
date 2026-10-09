@@ -881,7 +881,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
 
       <div class="result-actions">
         ${rank <= enSeries ? `<button class="btn gold" id="playoffsBtn">${ico('i-cup')}Jouer les séries</button>` : ''}
-        <button class="btn blue" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
+        <button class="btn" id="shareBtn">${ico('i-copy')}Copier le résultat</button>
         <button class="btn" id="replayBtn" title="Le même alignement, les mêmes clubs, d'autres dés">${ico('i-dice')}Rejouer la saison</button>
         <button class="btn${rank <= enSeries ? '' : ' go'}" id="againBtn">Nouvelle partie</button>
       </div>

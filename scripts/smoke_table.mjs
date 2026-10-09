@@ -92,7 +92,8 @@ const modesAuMenu = await page.$$eval('#menuDepart .menu-mode', l => l.map(x => 
 // S78 : l'exhibition a son carton, sans être un genre de sauvegarde.
 // 1.0 (R8) : le Rogue en premier, l'exhibition en lien sous la grille.
 if (modesAuMenu !== 'rogue,saison,table') errors.push(`le menu au départ n'offre pas les trois modes, le Rogue en premier : ${modesAuMenu}`);
-await page.click('#menuDepart .menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
+// L'essai sur table ne s'offre que dans « Nouvelle partie » de Sur table : c'est elle qu'on ouvre.
+await page.click('#menuDepart .menu-mode[data-genre="table"] [data-menu="nouvelle"]');
 await page.waitForSelector('#game', { state: 'visible', timeout: 30000 });
 console.log('1. #game visible');
 
