@@ -93,6 +93,9 @@ jobs:
       - name: Le moteur se rejoue sur sa graine
         run: node scripts/check_graine.mjs
 
+      - name: Un match qui change fait monter la version du moteur
+        run: node scripts/check_empreinte.mjs
+
       - name: Le ballottage se rejoue
         run: node scripts/check_ballottage.mjs
 
