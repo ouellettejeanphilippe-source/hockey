@@ -319,6 +319,13 @@ await page.click('#navbar .navtab[data-section="club"]'); await page.waitForTime
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
 if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne montre pas le plafond');
+// V5 : LE NŒUD DE LA SEMAINE (js/noeuds.js) : après huit semaines, le lundi d'une semaine sur deux a offert ses trois routes.
+{
+  const routes = (((await lireSauvegarde()).partie || {}).decisions || []).filter(d => d && /^n:\d+$/.test(d.palier || ''));
+  console.log(`6n. les routes prises : ${routes.map(d => `${d.palier} ${d.noeud && d.noeud.route}`).join(' · ') || 'aucune'}`);
+  if (!routes.length) erreurs.push('aucune route de la semaine prise en huit semaines (js/noeuds.js)');
+  if (routes.some(d => !d.noeud || !(d.gestes || d.effet || d.gain))) erreurs.push(`une route prise ne porte pas la charge de sa carte : ${JSON.stringify(routes[0])}`);
+}
 /*
  * LA BOUTIQUE (S79, js/magasin.js) : des rayons de packs à la HUT, chacun avec
  * sa fiche (ses chances par pack, le barème d'une carte, l'espace sous le

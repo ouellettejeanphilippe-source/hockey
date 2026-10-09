@@ -46,6 +46,8 @@ import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOfferte
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { primesDesFils } from './rogue.js';
+import { BANQUE, reglesDe } from './banque.js';
+import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
@@ -3184,7 +3186,22 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onFerme: () => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null }, j); } };
     }
     if (mo) return { de: DE.depisteur, ico: '⚔️', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Cinq cartes, trois d\'élan, pour ce match seulement — et le dépistage de leurs pistes.', ouvrir: () => ouvrirMainGros(mo) };
+    // LE NŒUD DE LA SEMAINE (V5, js/noeuds.js) : trois routes, une seule — chacune est une carte de la banque.
+    const nd = noeudOuvert();
+    if (nd) return { de: DE.coach, ico: '🗺️', titre: `Semaine ${nd.w + 1} : ta route`, recit: 'Une seule des trois, pour la semaine.',
+      options: nd.routes.map(n => ({ cle: n.route, ico: BANQUE[n.id].ico, nom: `${ROUTES[n.route].ico} ${ROUTES[n.route].nom} · ${BANQUE[n.id].nom}`, mots: reglesDe(n.id) })),
+      onChoix: cle => decider(decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle))) };
     return null;
+  }
+  /*
+   * LE NŒUD DE LA SEMAINE (V5) : au bureau du lundi d'une semaine sur deux, en Rogue, en saison régulière. Une
+   * route par semaine paierait trop (environ 26 cartes ou commandites gratuites par saison) : une sur deux.
+   */
+  function noeudOuvert() {
+    if (!onDecision || !ctx.rogue || jour >= N || jour % SEMAINE !== 0) return null;
+    const w = jour / SEMAINE;
+    if (w % 2 !== 1 || decs.some(d => d.palier === `n:${w}`)) return null;
+    return { w, routes: noeudsDeLaSemaine(graine, w) };
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));
 
