@@ -109,6 +109,29 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   exiger('rejouée trois fois, elle n\'allume pas la confiance I', !palierAllume(gach.slice(0, 2), gach[2]));
 }
 
+/*
+ * 2a. UN SEUL COACH EN POSTE (V5, JP : *juste un coach peut être actif à la fois* ; *choisi au début de la saison,
+ * ou changé avec une carte qui enlève l'autre bonus*). Les cartes d'une autre couleur ne montent personne ;
+ * « Le congédiement » installe un autre coach à la confiance I, son compte repart, et l'ancien quitte le moteur.
+ */
+{
+  const depart = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
+  const aigle = idsDuCoach('rapaces').filter(id => BANQUE[id].cat === 'evenement').slice(0, 6).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id, ref: `a${i}` } }));
+  const decs = [];
+  for (const d of aigle) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
+  exiger('six cartes d\'une autre couleur ne changent pas de coach', !decs.some(d => d.coach) && coachsActifs([...depart, ...decs]).map(c => c.cle).join() === 'tortue', coachsActifs([...depart, ...decs]).map(c => `${c.cle} ${c.palier}`).join());
+  const cg = payloadDe('consommable:congediement', { coach: 'rapaces' });
+  const apres = [...depart, ...decs, { jour: 8, joue: { src: 'partie', id: 'consommable:congediement', ref: 'c' }, ...cg }];
+  const actifs = coachsActifs(apres);
+  exiger('« Le congédiement » installe un autre coach à la confiance I, seul', actifs.length === 1 && actifs[0].cle === 'rapaces' && actifs[0].palier === 1 && cg.coachNeuf === true, actifs.map(c => `${c.cle} ${c.palier}`).join());
+  exiger('son compte repart à la confiance I : les cartes d\'avant ne comptent plus', buildDe(apres).rapaces === SEUILS[0], `${buildDe(apres).rapaces} cartes`);
+  const plus = idsDuCoach('rapaces').filter(id => BANQUE[id].cat === 'evenement').slice(6, 9).map((id, i) => ({ jour: 9 + i, joue: { src: 'partie', id, ref: `b${i}` } }));
+  const ii = palierAllume([...apres, ...plus.slice(0, 2)], plus[2]);
+  exiger('trois cartes de sa couleur le montent à II', ii && ii.coach.cle === 'rapaces' && ii.coach.palier === 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
+  const sansCible = payloadDe('consommable:congediement', {});
+  exiger('sans coach choisi, la carte ne fait rien', sansCible === null);
+}
+
 /* 2b. Les systèmes se tiennent : la confiance II fait apprendre son système. */
 {
   const cartes = idsDuCoach('essaim').slice(0, 6);
@@ -207,10 +230,11 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const decs = [{ jour: 5, equipe: 0, coach: effetDePalier('tortue', 3) }, { jour: 6, equipe: 0, coach: effetDePalier('etoiles', 3) }];
   simulateLeague(t, 82, { graine: 'coachs', decisions: decs });
   const e = effetsDeSaison(moi);
-  // Portée par ses joueurs habillés ce soir-là (2d) : la Tortue par ses joueurs de devoir, le Showman par ses passeurs.
+  // Portée par ses joueurs habillés ce soir-là (2d) : le Showman par ses passeurs.
   const nj = joueursDesCoachs(moi);
-  const d0 = porteParSesJoueurs(effetDePalier('tortue', 3), (nj.tortue || {}).paliers).defense, f0 = porteParSesJoueurs(effetDePalier('etoiles', 3), (nj.etoiles || {}).paliers).finition;
-  exiger('une confiance joue pour la saison', (moi.coachs || []).length === 2 && Math.abs(e.defense - d0) < 1e-9 && Math.abs(e.finition - f0) < 1e-9, `buts contre ×${e.defense.toFixed(3)} · précision ×${e.finition.toFixed(3)} (${(nj.tortue || {}).paliers || 0} et ${(nj.etoiles || {}).paliers || 0} paliers de leur couleur)`);
+  const f0 = porteParSesJoueurs(effetDePalier('etoiles', 3), (nj.etoiles || {}).paliers).finition;
+  // V5 : un seul coach en poste — la confiance du Showman, posée après, remplace celle de la Tortue.
+  exiger('une confiance joue pour la saison, et la dernière remplace l\'autre', (moi.coachs || []).length === 1 && moi.coachs[0].cle === 'etoiles' && e.defense === 1 && Math.abs(e.finition - f0) < 1e-9, `${(moi.coachs || []).map(c => c.cle).join(', ')} · buts contre ×${e.defense.toFixed(3)} · précision ×${e.finition.toFixed(3)} (${(nj.etoiles || {}).paliers || 0} paliers de sa couleur)`);
   const parts = partsDuRoulement(POIDS_TRIO, 'F', moi), sans = partsDuRoulement(POIDS_TRIO, 'F', { ...moi, coachs: [] });
   exiger('le Showman donne plus de glace au premier trio', parts[0] > sans[0] && parts[3] < sans[3], `1er trio ${sans[0].toFixed(3)} → ${parts[0].toFixed(3)}`);
   const a = ligue(79, 16), b = ligue(79, 16);

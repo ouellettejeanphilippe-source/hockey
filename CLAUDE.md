@@ -135,7 +135,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - L'achat s'enregistre avant le butin ; la prime de série est versée — `check_rogue`.
 - Le ballottage offre un dépanneur (niveau Régulier au plus), pas une vedette — `check_ballottage`.
 - Une carte ne se prend qu'une fois, et un palier n'arrête l'avance qu'une fois.
-- Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres — `check_coachs`.
+- Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres, et un seul coach est en poste à la fois — `check_coachs`.
 - L'adversaire ne pige pas les cartes de match de la v2 (`horsAdverse`) : sa main est calibrée, la difficulté ne bouge pas — `check_gros`, `check_robot`.
 
 **Sur table**
@@ -176,7 +176,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
 - **couleur** : le coach d'une carte, ou d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon ». Une carte sans couleur est **neutre**.
-- **confiance** : I, II, III — l'équipe croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
+- **confiance** : I, II, III — un seul coach en poste, choisi au début de la saison à la confiance I ; ses cartes jouées le montent à II (6) et III (9), chacune une fois, celles du deck de départ non. « Le congédiement » en installe un autre, à I, et l'ancien part avec son bonus (V5).
 - **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — médailles 🏅 gagnées à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
 - **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
 - **poche** : en Rogue, tes cartes de la saison (packs, paliers) ; elle expire à la fin de la saison. **La main de la semaine** : les quatre cartes que chaque semaine pige dans la poche, au bureau ; tu en joues deux au plus (`mainDeLaSemaine`, js/inventaire.js). Une carte d'un coach auquel l'équipe croit sort plus souvent. Vendre amincit la poche.

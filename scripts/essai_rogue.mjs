@@ -104,7 +104,8 @@ await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {} }));
+  // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -697,6 +698,41 @@ let posee = null, nomModif = '';
   }
 }
 if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+/*
+ * LE CONGÉDIEMENT (V5). JP : *juste un coach peut être actif à la fois* ; *changé avec une carte qui enlève l'autre
+ * bonus*. La carte offre les autres coachs (pas celui en poste) ; le choix entre comme une décision `coachNeuf` à la
+ * confiance I, et la sauvegarde porte le nouveau coach de la run.
+ */
+{
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  const avant = await lireSauvegarde();
+  const coachAvant = (avant.rogue && avant.rogue.coach) || (avant.partie && avant.partie.rogue && avant.partie.rogue.coach);
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]');
+  await page.waitForTimeout(300);
+  const jouer = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:congediement"]:not([disabled])');
+  if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis l\'onglet Permanent');
+  else {
+    await jouer.click();
+    await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
+    await page.screenshot({ path: `${DOSSIER}/rogue-congediement.png` });
+    const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.dataset.choix));
+    const n0 = (await decisions()).length;
+    await page.click('#choixModal .choix-option');
+    await page.waitForTimeout(800);
+    await regler();
+    const dc = (await decisions()).slice(n0).find(x => x.coachNeuf);
+    const apres = await lireSauvegarde();
+    const coachApres = (apres.rogue && apres.rogue.coach) || (apres.partie && apres.partie.rogue && apres.partie.rogue.coach);
+    console.log(`10c. le congédiement : ${coachAvant} → ${dc ? `${dc.coach.cle} ${dc.coach.palier}` : '(rien)'} · offerts ${offerts.join(', ')} · coach de la run ${coachApres}`);
+    if (offerts.includes(coachAvant)) erreurs.push('« Le congédiement » offre le coach déjà en poste');
+    if (!dc || dc.coach.palier !== 1 || dc.coach.cle === coachAvant) erreurs.push(`« Le congédiement » n'installe pas un autre coach à la confiance I (${JSON.stringify(dc ? dc.coach : null)})`);
+    else if (coachApres !== dc.coach.cle) erreurs.push(`la sauvegarde garde ${coachApres} comme coach de la run, pas ${dc.coach.cle}`);
+  }
+  // Les cartes de la saison, pour la suite (11).
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="partie"]').catch(() => {});
+  await page.waitForTimeout(300);
+}
 /*
  * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
  * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc

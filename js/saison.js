@@ -2820,14 +2820,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${bareme ? `<small class="hub-run-bareme" title="Ce que chaque résultat rapporte, en jetons">🪙 ${ctx.esc(bareme)}</small>` : ''}
       </div>`);
     }
-    // LES COACHS (v2, js/coachs.js) : ceux auxquels le vestiaire croit, et leur confiance. Le détail est dans « Tes coachs » (Marché › Mes cartes).
+    // TON COACH (V5 : un seul en poste) et sa confiance. Le détail est dans « Ton coach » (Marché › Mes cartes).
     const co = ctx.coachs ? ctx.coachs(jour) : null;
     if (co && (co.actifs.length || co.tien)) {
-      const liste = [...co.actifs].sort((a, b) => (b.cle === co.tien) - (a.cle === co.tien) || b.palier - a.palier)
-        .map(x => `${COACHS[x.cle] ? COACHS[x.cle].ico : ''} ${ctx.esc(COACHS[x.cle] ? COACHS[x.cle].nom : x.cle)} <b>${ROMAINS[x.palier] || ''}</b>`);
-      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="Chaque carte jouée compte pour le coach de sa couleur ; à ${SEUILS.join(', ')} cartes, l'équipe croit à lui">
-        <span class="hub-etat-k">📋 Tes coachs</span>
-        <span class="hub-etat-v">${liste.join(' · ') || 'personne encore'}</span>
+      const x = co.actifs[0], C = x && COACHS[x.cle];
+      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="À ${SEUILS.slice(1).join(' et ')} cartes de sa couleur jouées, sa confiance monte">
+        <span class="hub-etat-k">📋 Ton coach</span>
+        <span class="hub-etat-v">${C ? `${C.ico} ${ctx.esc(C.nom)} <b>${ROMAINS[x.palier] || ''}</b>` : 'personne encore'}</span>
       </div>`);
     }
     const oc = onDecision ? objectifEnCours() : null;

@@ -336,7 +336,8 @@ function confirmerDecision(d) {
   if (d.coach && COACHS[d.coach.cle]) {
     const C = COACHS[d.coach.cle];
     const sys = d.maitrise && systemeDe(d.maitrise.tac);
-    mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
+    if (d.coachNeuf) mot = `${C.ico} ${C.nom} prend le banc : confiance ${ROMAINS[d.coach.palier]}. L'ancien coach part avec son bonus.`;
+    else mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
   }
   if (mot) toast(mot);
 }
