@@ -205,7 +205,9 @@ console.log('\n  Le deck (S73)\n');
   const vieux = [achat, { jour: 4, joue: { src: 'partie', ref: '1:0', id: m }, recompense: cle }];
   exiger('une partie d\'avant (« Au deck » depuis la poche) ne la compte pas deux fois', deckDe(vieux).filter(k => k === cle).length === avant + 1);
   const e = coachDeCarte(m);
-  exiger('elle compte une fois pour son coach', buildDe([achat])[e] === 1 && buildDe(vieux)[e] === 1, `${buildDe([achat])[e]} · ${buildDe(vieux)[e]}`);
+  // V5 : une carte de match achetée ne compte pour son coach qu'une fois jouée.
+  const jouee = { jour: 9, main: { jouees: [cle], enMain: [] } };
+  exiger('achetée, elle ne compte pas pour son coach ; jouée, elle compte une fois', buildDe([achat])[e] === 0 && buildDe(vieux)[e] === 0 && buildDe([achat, jouee])[e] === 1, `${buildDe([achat])[e]} · ${buildDe(vieux)[e]} · ${buildDe([achat, jouee])[e]}`);
 }
 
 verdict('Le deck');

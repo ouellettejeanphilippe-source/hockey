@@ -196,11 +196,14 @@ On le garde tel qu'il est : juste le repêchage, la saison d'un coup, les série
 Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans preuve n'est pas fini.
 
 **Phase 0 · Réparer** (1 à 2 jours). Ne change pas la boucle.
-- [ ] Un coach compte les cartes de match jouées — `js/banque.js` `buildDe` — `check_coachs`, `check_voies` (en paires).
-- [ ] Les permanents d'un pack gratuit vont au méta au lieu d'être jetés ; les maudits et les cartes de saison retrouvent une source — `js/packs.js`, `js/inventaire.js` — `check_packs`, `check_deck`.
-- [ ] Le coach se choisit après les packs de départ — `js/rogue-jeu.js` `ouvrirRogue` — `essai_rogue`, `check_graine`.
-- [ ] Les jetons dans l'en-tête au téléphone ; le sommaire de la semaine dit les jetons et la caisse — `index.html`, `js/game.js`, `js/saison.js` `ouvrirSommaire` — `essai_rogue` (le chiffre égale `jetonsRogue`).
+- [x] Un coach compte les cartes de match jouées — `js/banque.js` `buildDe` — `check_coachs`, `check_voies` (en paires).
+- [x] Les permanents d'un pack gratuit se repigent (le pack gratuit donne ses cinq cartes). Les maudites et les cartes de saison restent ce qu'elles sont : elles se gagnent en jouant, par choix de conception (`sortDUnPack`) — `js/packs.js`, `js/inventaire.js` — `check_packs`, `check_deck`.
+- [ ] (reporté : il faut que l'équipe des packs soit posée avant l'écran du coach pour que ses chiffres se calculent) Le coach se choisit après les packs de départ — `js/rogue-jeu.js` `ouvrirRogue` — `essai_rogue`, `check_graine`.
+- [x] Les jetons dans l'en-tête au téléphone ; le sommaire de la semaine dit les jetons et la caisse, et la prime d'un gros match gagné — `index.html`, `js/game.js`, `js/saison.js` `ouvrirSommaire` — `essai_rogue` (le chiffre égale `jetonsRogue`).
 - [ ] La carte en grand garde ses chiffres ; `.aln-sauts` (déjà fait en #166) — `js/rogue-jeu.js` — smoke.
+
+- [x] La boutique ouvre au début de la semaine (décision 3 de JP) ; la main de la semaine se distribue après les achats du lundi ; le pack au rabais est celui de la semaine, tiré de la graine — `js/rogue-jeu.js` `boutiqueFermee`, `js/inventaire.js` `mainDeLaSemaine` — `check_deck`, `check_graine`, `essai_rogue`.
+- [x] Les positions multiples réelles, le code : `positionsAvant` (js/sim.js), « C/AG » à l'écran, `sc` et `fpg` dans le build, `RATINGS_VERSION` 28 — `check_positions` (sur 2023-24 rebâtie à part : 25,6 % d'attaquants à deux positions, les clubs à quatre ailiers de chaque côté passent de 2 à 14 sur 32). **Reste** : lancer l'Action `build-data` en mode `full` après la fusion, puis mesurer `check_robot` et `check_rogue`.
 
 **Phase 1 · La semaine devient un nœud.**
 - [ ] `noeudsDeLaSaison` dans un module neuf `js/route.js` : une fonction pure, d'abord seulement affichée — `check_route` (neuf : pur, un nœud par semaine, 82 matchs, aucun `hasard()` consommé), `check_graine`, `check_coquille`.
@@ -230,12 +233,12 @@ Chaque item nomme ses fichiers et le script qui le prouve. Un correctif sans pre
 **Phase 6 · Le 82-0.**
 - [ ] Le défi du jour — `js/partie.js`, `js/menu.js` — smoke (un défi jouable de bout en bout).
 
-## À trancher par JP, dans l'ordre
+## Tranché par JP (9 oct.)
 
-1. **Le mandat.** Le juger sur la saison (rang, points, gros matchs), ou garder la ronde de séries avec une « vie » de plus ?
-2. **Les trois types de cartes et la coupe à ~120.** C'est la plus grosse coupe, et elle règle la poche, le deck sans maximum et les doublons.
-3. **La boutique.** Ouverte seulement aux nœuds 🛒, ou toujours ouverte avec le rabais au 🛒 ?
-4. **Les déblocages en options.** Ils perdent la force brute (+44 points → environ +10).
-5. **Sur table.** La sortir du jeu principal, ou la geler sans nouveau travail ?
-6. **Le boss d'acte.** Variante A (le premier gros match de la semaine, sans toucher le moteur) ou B (forcer le rival le plus proche, en modifiant `annoncerGros`) ?
-7. **La défaite à 1 🪙** au lieu de 2.
+1. **Le mandat** (JP : *?*). Expliqué en clair : aujourd'hui, une run meurt quand le proprio n'est pas content à la fin d'une saison, et dès la 2e saison il exige une ronde de séries gagnée. Une série au meilleur de sept est à moitié un tirage : 46 à 67 % des runs meurent là avec une bonne équipe. **Décision par défaut, en attendant JP** : le proprio juge la saison (un rang à atteindre, qui monte de saison en saison) ; les séries paient et donnent la Coupe, mais une série perdue ne tue pas la run seule.
+2. **Les trois types de cartes** : oui. **La coupe** (JP : *nécessaire de couper ?*) : non. On garde les cartes. On retire seulement les doublons (les 4 consommables qui font le camp, le ménage et le stage) et on rebranche les cartes mortes (les 12 maudites, les 18 cartes de saison). La clarté vient des trois types et de ce qu'on montre à la fois, pas du nombre de cartes.
+3. **La boutique** (JP : *nœud en début de semaine ?*) : oui. La boutique ouvre **au début de chaque semaine**, au bureau, et se ferme quand la semaine se joue. On n'achète plus au milieu d'une semaine. Le nœud 🛒 garde le pack de la semaine au rabais.
+4. **Les déblocages en options** : oui.
+5. **Sur table** : garder comme mode à part, gelé.
+6. **Les gros matchs** (JP : *décidés au fur et à mesure selon la saison*) : c'est ce que fait déjà `annoncerGros` (la veille, contre un rival à deux rangs ou moins, ou la bête noire). Le boss d'acte est le gros match que le classement désigne à la fin de l'acte, sans calendrier fixé d'avance : la variante A.
+7. **La défaite** (JP : *décide*) : **elle reste à 2 🪙.** La tension vient de la boutique en début de semaine et des nœuds, pas d'une punition de plus pour une équipe qui perd déjà. La première run est déjà dure (50 % d'élimination en saison 1).

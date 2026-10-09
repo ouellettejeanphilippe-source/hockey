@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 27;
+export const RATINGS_VERSION = 28;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 const CAP_REF = 95_500_000;
@@ -967,6 +967,10 @@ function rateSkaters(rows, realtimeById = null) {
       ...(r.ppGoals != null ? { ppg: r.ppGoals || 0, ppp: r.ppPoints || 0, shg: r.shGoals || 0, shp: r.shPoints || 0 } : {}),
       ht: htPerGame,
       fo: foPct,
+      // V5 : ce qui donne ses positions secondaires à un attaquant (`positionsAvant`, js/sim.js) — le côté du lancer,
+      // et ses mises au jeu par match (le rapport `skater/faceoffwins`, depuis 1997-98).
+      ...(!isD && (r.shootsCatches === 'L' || r.shootsCatches === 'R') ? { sc: r.shootsCatches } : {}),
+      ...(!isD && r.totalFaceoffs != null ? { fpg: Math.round((r.totalFaceoffs / gp) * 10) / 10 } : {}),
       toi: Math.round(toiMin * 10) / 10,
       o: scale(zOff),
       d: scale(zDef),

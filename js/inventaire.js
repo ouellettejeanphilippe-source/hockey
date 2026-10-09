@@ -61,6 +61,9 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
   for (const p of PALIERS_PACK) {
     if (nMatch < p) continue;
     tirerCartesPack('mixte', graine, `palier${p}`, { sans: ['match'] }).forEach((id, t) => {
+      // V5 : un permanent ne se joue pas en semaine ; sa place se repige (même graine, autre clé) au lieu de laisser
+      // un pack gratuit de cinq cartes en donner trois. Une partie d'avant ne l'avait jamais vue : rien à rejouer.
+      for (let k = 0; k < 8 && BANQUE[id] && BANQUE[id].vie === 'permanent'; k++) id = tirerCartesPack('mixte', graine, `palier${p}:${t}:${k}`, { sans: ['match'] })[t];
       if (!BANQUE[id] || BANQUE[id].vie === 'permanent') return;
       items.push({ ref: `p${p}:${t}`, id, source: `Main du match ${p}` });
     });
@@ -82,7 +85,13 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
  */
 export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDebut = 0, nMatch = 0, rogue = false } = {}) {
   const w = Math.floor(jour / SEMAINE), debut = w * SEMAINE, fin = debut + SEMAINE;
-  const avant = decisions.filter(d => d && (d.jour ?? 0) < debut);
+  /*
+   * V5 : LA MAIN SE DISTRIBUE APRÈS LA BOUTIQUE. La boutique du Rogue n'ouvre qu'au début de la semaine : ce qu'on y
+   * achète le lundi entre dans la pile où la main pige, tant qu'aucune carte de la semaine n'a été jouée ni vendue
+   * (la main est alors figée : racheter ne la rebrasse pas). Après, une carte reçue complète la main si elle a de la place.
+   */
+  const premier = decisions.findIndex(d => d && (d.jour ?? 0) >= debut && (d.jour ?? 0) < fin && (d.joue || d.vend));
+  const avant = decisions.filter((d, i) => d && ((d.jour ?? 0) < debut || ((d.jour ?? 0) === debut && d.achat && (premier < 0 || i < premier))));
   const pile = pocheDeLaPartie({ decisions: avant, graine, nMatch: nMatchDebut, rogue });
   /*
    * LES COACHS PIGENT LEURS CARTES (V4.3). JP : *ce système justifie encore plus les coachs*. Une carte de la couleur

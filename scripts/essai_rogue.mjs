@@ -334,9 +334,18 @@ const dechirer = async () => {
     await page.waitForTimeout(300); await page.click('#choixModal .choix-tete').catch(() => {}); await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {}); }
   await page.waitForTimeout(600);
 };
+/* V5 : la boutique du Rogue ouvre au début de la semaine. Fermée, on va au bureau finir la semaine, puis on revient. */
+const boutiqueFermee = () => page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-mot', p => p.textContent.trim().startsWith('🔒')).catch(() => false);
 const acheter = async (pack, capture) => {
   await versMarche('boutique');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  for (let i = 0; i < 4 && await boutiqueFermee(); i++) {
+    await page.click('#pageMarche .hub-page-retour').catch(() => {});
+    await auBureau(); await regler(); await prochaineDecision(); await regler();
+    await versMarche('boutique');
+    await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
+  }
+  if (await boutiqueFermee()) erreurs.push('la boutique reste fermée après quatre avances : elle n\'ouvre jamais au début de la semaine');
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
   if (!(await page.$(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
   await page.click(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);

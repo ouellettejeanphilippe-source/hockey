@@ -20,7 +20,7 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES } from './sim.js';
+import { REROLLS, MODES, AFFICHAGE_COURBE, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, PALIERS, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES } from './sim.js';
 import { COACHS, JOUEUR_COACH } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta, mandatDe } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
@@ -864,7 +864,11 @@ export function positionLabel(p) {
   else if (p.np === 'C') primary = 'C';
   else if (p.np === 'R' || p.np === 'AD') primary = 'AD';
   else if (p.np === 'L' || p.np === 'AG') primary = 'AG';
-
+  // V5 : un attaquant qui a vraiment joué ailleurs le dit, comme dans un pool (« C/AG », « AG/AD »).
+  if (primary === 'C' || primary === 'AG' || primary === 'AD') {
+    const autres = ['C', 'AG', 'AD'].filter(x => x !== primary && positionsAvant(p).has(x));
+    if (autres.length) return [primary, ...autres].join('/');
+  }
   return primary;
 }
 
@@ -1874,6 +1878,8 @@ export function majEntete() {
   };
   poser('teteFiche', fr && fr.fiche);
   poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`);
+  // V5 : la caisse du Rogue se lit en saison, au téléphone aussi (la jauge du repêchage, qui la portait, y est cachée).
+  poser('teteJetons', G.bonus === 'ROGUE' && fr ? `🪙 ${jetonsRogue()}` : null);
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
   document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');

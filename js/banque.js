@@ -32,7 +32,7 @@
 import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
-import { CARTES_MATCH, estPlus, cartesDeMatchDuPack } from './combat.js';
+import { CARTES_MATCH, estPlus } from './combat.js';
 import { money, hache } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
@@ -815,12 +815,13 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
 export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
 export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
 /* La carte qu'une décision fait jouer : l'inventaire, le personnel, le deck (`joue.id`), ou la carte d'un gros match (`recompense`). */
-/* Les cartes qu'une décision fait jouer : la carte jouée, la récompense de match, et (oct.) les cartes de match d'un pack, qui vont droit au deck.
- * Une carte de match « Au deck » d'une partie d'avant oct. est déjà comptée par son pack. */
+/* Les cartes qu'une décision fait JOUER : la carte jouée de la main ou du personnel, et (V5) les cartes de match
+ * jouées dans la main d'un gros match. Une carte de match achetée en pack ou gagnée en récompense entre au deck
+ * sans compter : c'est la jouer qui fait croire le vestiaire (docs/refonte-v5.md, phase 0). Une carte de match
+ * « Au deck » d'une partie d'avant oct. (`joue.src === 'partie'` avec `recompense`) ne compte pas non plus. */
 const cartesJouees = d => [
   ...(d.joue && d.joue.id && !(d.recompense && d.joue.src === 'partie') ? [d.joue.id] : []),
-  ...(d.recompense && !(d.joue && d.joue.src === 'partie') ? [`match:${String(d.recompense).replace(/\+$/, '')}`] : []),
-  ...cartesDeMatchDuPack(d).map(k => `match:${k}`),
+  ...(d.main && Array.isArray(d.main.jouees) ? d.main.jouees.map(k => `match:${String(k).replace(/\+$/, '')}`) : []),
 ];
 /*
  * LE COMPTE DE CHAQUE COACH à une journée (`jusqua` exclue), pur : le report

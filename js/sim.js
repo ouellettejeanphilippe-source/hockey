@@ -455,6 +455,31 @@ export function getHiddenRatings(p) {
   };
 }
 
+/*
+ * LES POSITIONS D'UN ATTAQUANT (V5, docs/refonte-v5.md). JP : *positions multiples aux joueurs qui en ont, sans
+ * irréaliste*. La position officielle de la LNH en donne une ; la glace en dit plus, saison par saison, et seulement
+ * de ce que les données mesurent :
+ *   - un centre listé qui prend moins de 3 mises au jeu par match (`fpg`, depuis 1997-98) joue à l'aile, du côté
+ *     de son lancer (`sc`) ;
+ *   - un ailier qui en prend 5 ou plus par match dépanne au centre ;
+ *   - un ailier qui lance du côté opposé à son aile (un ailier gauche qui lance de la droite) joue les deux ailes.
+ * Rien n'est inventé : sans `fpg` ni `sc` (une vieille saison, un shard d'avant la V5), le joueur garde sa position
+ * seule. Rend l'ensemble des cases d'avant ('C', 'AG', 'AD') où il joue sans pénalité.
+ */
+const MAJ_AILIER = 3, MAJ_CENTRE = 5;
+export function positionsAvant(p) {
+  const np = (p && p.np) || 'C';
+  const prim = np === 'C' ? 'C' : (np === 'L' || np === 'AG') ? 'AG' : 'AD';
+  const s = new Set([prim]);
+  const sc = p && (p.sc === 'L' || p.sc === 'R') ? p.sc : null;
+  if (p && p.fpg != null) {
+    if (prim === 'C' && p.fpg < MAJ_AILIER && sc) s.add(sc === 'L' ? 'AG' : 'AD');
+    if (prim !== 'C' && p.fpg >= MAJ_CENTRE) s.add('C');
+  }
+  if (prim === 'AG' && sc === 'R') s.add('AD');
+  if (prim === 'AD' && sc === 'L') s.add('AG');
+  return s;
+}
 export function getPositionPenalty(player, slot) {
   if (!slot || slot.scratch || slot.group === 'ANY') return 0;
   if (player.p === 'G') return slot.group === 'G' ? 0 : 999;
@@ -477,8 +502,8 @@ export function getPositionPenalty(player, slot) {
     (role === 'AG' && (np === 'L' || np === 'AG')) ||
     (role === 'AD' && (np === 'R' || np === 'AD'));
 
-  // « Joue partout » (S78, l'atelier) : centre et ailes.
-  if (isPrimaryMatch || player._partout) return 0;
+  // « Joue partout » (S78, l'atelier) : centre et ailes. V5 : ses vraies positions secondaires (`positionsAvant`).
+  if (isPrimaryMatch || player._partout || positionsAvant(player).has(role)) return 0;
 
   if (np === 'C') {
     return 3; // Center playing wing (-3)

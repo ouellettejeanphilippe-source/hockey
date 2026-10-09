@@ -200,13 +200,28 @@ function unTirageALaFois(f) {
     .catch(() => toast('Impossible d\'ouvrir ce pack : une saison n\'a pas pu se charger.', 'bad'))
     .finally(() => { tirageEnCours = false; });
 }
+/*
+ * LA BOUTIQUE OUVRE AU DÉBUT DE LA SEMAINE (V5, docs/refonte-v5.md). JP : *nœud en début de semaine*. En Rogue, en
+ * saison régulière, on achète au bureau du lundi (le premier jour d'une semaine du calendrier, `SEMAINE`) ; une
+ * semaine arrêtée en chemin (une blessure, un gros match) garde la boutique fermée jusqu'au lundi suivant. Les
+ * packs déjà payés (scellés) s'ouvrent quand on veut. Rend la raison de la fermeture, ou null.
+ */
+function boutiqueFermee(j = G.journee || 0) {
+  const L = G.ligue;
+  if (G.bonus !== 'ROGUE' || !L || !L.calendrier || j <= 0 || j >= L.calendrier.length || j % SEMAINE === 0) return null;
+  const lundi = (Math.floor(j / SEMAINE) + 1) * SEMAINE;
+  return `La boutique ouvre au début de la semaine : journée ${lundi + 1}, dans ${lundi - j} jour${lundi - j > 1 ? 's' : ''}`;
+}
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
+  const ferme = boutiqueFermee(j);
+  const ouverts = ferme ? Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, ferme])) : packsOuvertsBoutique(j);
   ouvrirMagasin({
     ...(page || {}),
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts: packsOuvertsBoutique(j),
+    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts, ferme,
     mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
-    duJour: packDuJour(new Date(), packsOuvertsBoutique(j)),
+    // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
+    duJour: ferme ? null : packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
     // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),
@@ -873,7 +888,7 @@ function choisirCoach() {
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
     recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
-      : `Sa philosophie joue dès le premier soir ; plus tu joues ses cartes, plus l'équipe y croit.${plus}`,
+      : `Sa philosophie joue dès le premier soir ; plus tu joues ses cartes, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: ouverts.map(k => {
       const C = COACHS[k];
       return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
