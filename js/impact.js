@@ -92,7 +92,7 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || activeLineup(team)).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}:${p._palier || ''}:${p._mentor ? 1 : 0}:${(p._carte && p._carte.rar) || ''}` : '-'));
   try {
     return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
-      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games],
+      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
       opts.nu, opts.neutre, opts.n, opts.series]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire

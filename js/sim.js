@@ -3672,7 +3672,7 @@ const BETA_CREATION = 0.5;
  * gardien, qui efface au passage l'équipe qui suit son gardien) à 0,050
  * (sans contrôle, donc contaminé par le gardien). On prend le milieu.
  */
-const K_DEFENSE = 0.050;   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
+const K_DEFENSE = Number(ENV_MESURE.K_DEFENSE ?? 0.050);   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
 
 /*
  * LA DÉFENSIVE AGIT AUSSI, UN PEU, SUR LE VOLUME. `check_suppression.mjs` a
@@ -4414,8 +4414,12 @@ export function profilMatch(team, lineup, adv = null) {
   const disciplineBase = patineurs.length
     ? discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr : 1;
 
+  // LE PLAN D'APPARIEMENT (V6) : le tien s'il est posé ; celui de l'IA quand elle te reçoit. Il ne joue qu'à domicile (jouerCote).
+  const plan = team && team.appariement ? team.appariement
+    : team && !team.isPlayer && adv && adv.isPlayer ? planDeLIA(unites.F, lignesSoir, lignesDe(adv, activeLineup(adv))) : null;
   return {
     unites,
+    plan,
     ...speciales,
     patineurs,
     // L'indiscipline : combien cet alignement prend de punitions, relativement
@@ -4574,6 +4578,47 @@ const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
  * adverse — « généralement 1 v 3 » — pour le même écart qu'à 0,25.
  */
 const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
+/*
+ * LE PLAN D'APPARIEMENT (V6, docs/refonte-v6.md). JP : *donner des stratégies à chaque trio et devoir construire autour
+ * de ça, avec matching de trios à domicile pour l'équipe, selon sa stratégie, humain et ai* ; *tu choisis le matching
+ * de trio dans une liste… À l'étranger, l'adversaire fait de même*. Le plan, c'est quatre cases : contre leur 1er
+ * trio, ton trio m0 ; contre leur 2e, m1… Seul celui de l'équipe à DOMICILE joue (le dernier changement), sur
+ * PLAN_DOMICILE de ses présences à forces égales ; les autres suivent l'appariement par rang. Le trio de fermeture
+ * reste le plan par défaut de tout le monde. L'IA a un plan chez elle quand elle te reçoit (`planDeLIA`).
+ */
+const PLAN_DOMICILE = Number(ENV_MESURE.PLAN_DOMICILE ?? 0.60);
+/* LE CONTRE (V6, à trancher par JP) : ce que le système qui bat le leur étouffe de leurs lancers, toute la présence. 0 : seulement leur action spéciale, comme avant. */
+const CONTRE_SYSTEME = Number(ENV_MESURE.CONTRE_SYSTEME ?? 0);
+/* Un plan qui se tient : quatre rangs de trio de 0 à 3, chacun au plus une fois (une case vide : l'appariement par rang). */
+function planValide(a) {
+  if (!Array.isArray(a) || a.length !== 4) return null;
+  const vus = new Set();
+  const out = a.map(x => (Number.isInteger(x) && x >= 0 && x < 4 && !vus.has(x) ? (vus.add(x), x) : -1));
+  return out.some(x => x >= 0) ? out : null;
+}
+/*
+ * LE PLAN DE L'IA, CHEZ ELLE, CONTRE TOI (V6). JP : *oui, elle contre*. Pur, sans dé : contre ton trio le plus
+ * dangereux d'abord (ton 1er, puis ton 2e…), elle envoie le trio qui l'étouffe (son système bat le tien, `bat`), sinon
+ * son meilleur trio en défense ; elle évite le trio que ton système bat. Elle ne change pas ses systèmes : elle les
+ * envoie au bon endroit.
+ */
+function planDeLIA(unitesIA, lignesIA, lignesToi) {
+  const libres = new Set(unitesIA.map((_, u) => u));
+  const plan = [-1, -1, -1, -1];
+  for (let r = 0; r < Math.min(4, lignesToi.length); r++) {
+    const tacToi = lignesToi[r] && lignesToi[r].tac;
+    let meilleur = -1, note = -Infinity;
+    for (const u of libres) {
+      const tacIA = lignesIA[u] && lignesIA[u].tac;
+      const T = TACTIQUES[tacIA], Tt = TACTIQUES[tacToi];
+      const n = (T && T.bat && T.bat === tacToi ? 2 : 0) - (Tt && Tt.bat && Tt.bat === tacIA ? 2 : 0)
+        + (unitesIA[u].coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE * (r === 0 ? 1 : 0.5);
+      if (n > note) { note = n; meilleur = u; }
+    }
+    if (meilleur >= 0) { plan[r] = meilleur; libres.delete(meilleur); }
+  }
+  return plan;
+}
 const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
 /*
  * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, plus haut il l'incline
@@ -4943,7 +4988,11 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // Le dernier changement est à l'équipe à domicile : son appariement
       // tient, celui du visiteur est plus lâche (APPARIEMENT_VISITEUR).
       const kApp = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
-      dTrio = choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
+      // LE PLAN DE L'ÉQUIPE À DOMICILE (V6) : elle a le dernier changement, et son plan d'appariement dit quel trio
+      // affronte lequel — le sien quand elle défend, et celui qu'elle envoie quand elle attaque. Sans plan, aucun dé de plus.
+      const plan = mode === 'FE' ? (def.domicile ? def.plan : off.domicile ? off.plan : null) : null;
+      const cibleD = plan && hasard() < PLAN_DOMICILE ? (def.domicile ? plan[rangOff] : plan.indexOf(rangOff)) : -1;
+      dTrio = cibleD >= 0 && unitesDef.F[cibleD] ? unitesDef.F[cibleD] : choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff, kApp);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs].filter(q => !auCachot(def, q, instant));
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
@@ -4956,7 +5005,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         // tout en attaque laisse le champ libre — chacune pour sa moitié.
         * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1))
         // Les rôles maîtrisés qui défendent : le checker et le défensif étouffent, le bagarreur intimide.
-        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1);
+        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1)
+        // LE CONTRE (V6, à trancher) : le trio qui défend joue le système qui bat celui du trio qui attaque.
+        * (CONTRE_SYSTEME && mode === 'FE' && trioOff && dTrio.tactique && TACTIQUES[dTrio.tactique] && TACTIQUES[dTrio.tactique].bat === trioOff.tactique ? 1 - CONTRE_SYSTEME : 1);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
@@ -6201,6 +6252,8 @@ function appliquerDecision(team, d, graine = 0) {
   // elle a été prise et vaut pour le reste de la saison.
   if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
+  // L'APPARIEMENT (V6) : contre leur trio r, ton trio `d.appariement[r]` — ou null pour revenir à l'appariement par rang.
+  if ('appariement' in d) team.appariement = planValide(d.appariement);
   if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
   // UN CHANGEMENT DE CARTE PAR CHOIX (S68) : direct, ou porté par l'option
   // d'un dilemme. Le joueur visé est nommé dans la décision.
