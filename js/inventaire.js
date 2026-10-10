@@ -21,7 +21,7 @@
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach, coachsActifs } from './banque.js';
-import { COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH } from './coachs.js';
+import { COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, PALIERS_COACH_MAX } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch, enMotsEtChiffres, chiffresOuverts, basculerChiffres } from './gerant.js';
@@ -220,7 +220,7 @@ export function ouvrirInventaire(ctx) {
        */
       const [actif] = ctx.coachsActifs || [];
       const enPoste = actif ? actif.cle : ctx.coachRun;
-      corps = `<p class="inv-mot">Un seul coach à la fois : celui en poste monte à ${ROMAINS.slice(2).join(' puis ')} à ${SEUILS.slice(1).join(' et ')} cartes de sa couleur jouées, et sa philosophie joue pour le reste de la saison, séries comprises. Chaque joueur de sa couleur habillé la fait jouer ${Math.round(JOUEUR_COACH * 100)} % plus fort (jusqu'à ${JOUEURS_MAX}). Pour en changer : « Le congédiement », ou au début d'une saison.</p>
+      corps = `<p class="inv-mot">Un seul coach à la fois : celui en poste monte à ${ROMAINS.slice(2).join(' puis ')} à ${SEUILS.slice(1).join(' et ')} cartes de sa couleur jouées, et sa philosophie joue pour le reste de la saison, séries comprises. Chaque joueur de sa couleur habillé la fait jouer plus fort : ${Math.round(JOUEUR_COACH * 100)} % pour un badge Bronze, ${Math.round(4 * JOUEUR_COACH * 100)} % pour un Platine, jusqu'à ${Math.round(PALIERS_COACH_MAX * JOUEUR_COACH * 100)} % en tout. Pour en changer : « Le congédiement », ou au début d'une saison.</p>
         <div class="inv-coachs">${[enPoste].filter(k => COACHS[k]).map(k => {
           const C = COACHS[k], n = ctx.build[k] || 0, pal = Math.max(palierDe(n), actif && actif.cle === k ? actif.palier : 0), manque = avantProchain(n);
           const cible = SEUILS[Math.min(pal, SEUILS.length - 1)];

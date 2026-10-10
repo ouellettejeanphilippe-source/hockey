@@ -30,7 +30,7 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
 } from '../../js/sim.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS } from '../../js/packs.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
@@ -194,13 +194,15 @@ function tirerClasseur(rnd, meta, classeur, exclus) {
  * gardiens s'ils sont débloqués), sinon un pack Argent.
  */
 const VERROUS = { defensif: 'packDefenseurs', gardien: 'packGardiens', etoiles: 'packVedettes', legendes: 'packVedettes' };
+/* Le prix d'un pack au `n`-ième achat de la saison : les prix montent comme au jeu (js/packs.js `hausseDesPacks`). */
+const prixAuAchat = (k, n) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n)));
 function packVoulu(meta, jetons, n) {
   const ouvert = k => !VERROUS[k] || aDebloque(meta, VERROUS[k]);
-  if (ouvert('etoiles') && jetons >= PACKS_JOUEURS.etoiles.prix) return 'etoiles';
+  if (ouvert('etoiles') && jetons >= prixAuAchat('etoiles', n)) return 'etoiles';
   const talents = [ouvert('sniper') ? 'sniper' : 'hasard_argent', ouvert('passeur') ? 'passeur' : 'hasard_argent', ouvert('defensif') ? 'defensif' : 'hasard_argent', ouvert('gardien') ? 'gardien' : 'hasard_argent'];
   const k = talents[n % talents.length];
-  if (jetons >= PACKS_JOUEURS[k].prix) return k;
-  if (jetons >= PACKS_JOUEURS.hasard_argent.prix) return 'hasard_argent';
+  if (jetons >= prixAuAchat(k, n)) return k;
+  if (jetons >= prixAuAchat('hasard_argent', n)) return 'hasard_argent';
   return null;
 }
 
@@ -245,7 +247,7 @@ function jouerSaison(meta, etat, { graine, saison }) {
     for (let garde = 0; garde < 4; garde++) {
       const cle = packVoulu(meta, jetons(), achats);
       if (!cle) break;
-      depense += PACKS_JOUEURS[cle].prix; achats++;
+      depense += prixAuAchat(cle, achats); achats++;
       const actuel = you.roster;
       const salaireMax = cap - masseDe(actuel) + Math.max(...Object.values(actuel).filter(Boolean).map(p => p.$ || 0));
       const cartes = tirerPack(rnd, cle, p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)));

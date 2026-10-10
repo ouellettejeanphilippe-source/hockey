@@ -80,7 +80,7 @@ function ouvrirBanc(jour) {
   let prochain = null;
   for (let j = jour; j < L.calendrier.length && !prochain; j++) {
     const m = L.calendrier[j].find(x => x.A === L.you || x.B === L.you);
-    if (m) prochain = { j, adv: m.A === L.you ? m.B : m.A };
+    if (m) prochain = { j, adv: m.A === L.you ? m.B : m.A, domicile: m.A === L.you };
   }
   const derniere = (L.decisions || [])[L.decisions.length - 1] || {};
   /*
@@ -92,6 +92,9 @@ function ouvrirBanc(jour) {
   G.banc = {
     jour, compte, blesses, remplace, monte, prochain, fiche, N: L.calendrier.length,
     fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
+    // LE PLAN DE MATCH (V6) : l'appariement de tes trios et la glace du club, en vigueur sur l'équipe.
+    appariement: L.you.appariement ? [...L.you.appariement] : null,
+    roulement: L.you.roulement || 'quatre',
     // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
     lignes: lignesDe(L.you, G.roster),
     chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
@@ -131,7 +134,7 @@ export async function reprendreSaison() {
     return;
   }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, sel: nouvelleGraine() };
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, appariement: b.appariement, roulement: b.roulement, sel: nouvelleGraine() };
   // Une décision de banc du même jour remplacée garde ses relâchés : ils sont partis pour de bon.
   const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
   if (avant.length || relaches.length) d.relache = [...avant, ...relaches];

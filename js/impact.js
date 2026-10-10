@@ -49,8 +49,29 @@ function moyennes(L) {
       joueurs.set(k, x);
     }
   }
+  /*
+   * CHAQUE UNITÉ, CE QU'ELLE CHANGE (V6, la note qui bouge). JP : *les buts pour, sur l'effectif, ça veut rien, pis
+   * c'est pas influencé par la stratégie on dirait* ; puis *un trio défensif pourrait être hyper pertinent et utile et
+   * dans les moins*. À forces égales, par match, ce qu'elle fait de plus qu'une unité neutre à sa place, face aux
+   * mêmes adversaires :
+   *   attaque  = ses lancers, mieux (ou moins bien) convertis qu'avec un tireur, une création, une qualité et un
+   *              système neutres ; plus son volume : les lancers qu'elle prend au-delà de sa part de glace ;
+   *   défense  = les buts que sa défense sur la glace évite, contre une défense neutre devant les mêmes tireurs.
+   * Un trio de fermeture qui prend leur premier trio se lit à la défense qu'il fait, pas au +/− qu'il subit.
+   */
+  const U = L.unites;
+  const unites = g => {
+    if (!U || !U.pour.n) return [];
+    const nP = U.pour.n, nC = U.contre.n || 1, pnMoy = (U.pour.pn || 0) / nP, glace = U.glace[g] || [];
+    return Array.from({ length: Math.max(glace.length, U.pour[g].length, U.contre[g].length) }, (_, i) => {
+      const o = U.pour[g][i] || { n: 0, p: 0, pn: 0 }, d = U.contre[g][i] || { ev: 0 };
+      const attaque = feA * ((o.p - o.pn) + (o.n - (glace[i] || 0) * nP) * pnMoy) / nP;
+      const defense = feB * d.ev / nC;
+      return { attaque, defense, net: attaque + defense };
+    });
+  };
   return {
-    joueurs, partDuFilet: L.partDuFilet,
+    joueurs, partDuFilet: L.partDuFilet, unitesF: unites('F'), unitesD: unites('D'),
     tirsPour, tirsContre, rythme: tirsPour + tirsContre,
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
@@ -71,7 +92,7 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || activeLineup(team)).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}:${p._palier || ''}:${p._mentor ? 1 : 0}:${(p._carte && p._carte.rar) || ''}` : '-'));
   try {
     return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
-      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games],
+      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
       opts.nu, opts.neutre, opts.n, opts.series]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
@@ -261,6 +282,17 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
     const txt = Math.abs(ecart) >= 0.01 ? `${nom} ≈ ${signeDe(ecart)}${nb(ecart, 2)} but net par match` : `${nom} : rien ce soir`;
     return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart };
   });
+}
+
+/*
+ * LA NOTE QUI BOUGE (V6, docs/refonte-v6.md). Chaque trio et chaque paire de ton club : ce qu'il fait de plus qu'une
+ * unité neutre à sa place, à forces égales, par match, contre `adv` — en attaque, en défense, et les deux ensemble.
+ * Il suit son système, sa chimie, ses badges, ses jambes et ses cases. `lignes` : celles à lire (le banc).
+ */
+export function unitesDuSoir(team, lineup, adv, lignes = null) {
+  if (!team) return null;
+  const m = lire(team, lineup, adv, { lignes, n: N_BASE });
+  return { F: m.unitesF, D: m.unitesD };
 }
 
 /*

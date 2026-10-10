@@ -3672,7 +3672,7 @@ const BETA_CREATION = 0.5;
  * gardien, qui efface au passage l'équipe qui suit son gardien) à 0,050
  * (sans contrôle, donc contaminé par le gardien). On prend le milieu.
  */
-const K_DEFENSE = 0.050;   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
+const K_DEFENSE = Number(ENV_MESURE.K_DEFENSE ?? 0.050);   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
 
 /*
  * LA DÉFENSIVE AGIT AUSSI, UN PEU, SUR LE VOLUME. `check_suppression.mjs` a
@@ -4414,8 +4414,12 @@ export function profilMatch(team, lineup, adv = null) {
   const disciplineBase = patineurs.length
     ? discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr : 1;
 
+  // LE PLAN D'APPARIEMENT (V6) : le tien s'il est posé ; celui de l'IA quand elle te reçoit. Il ne joue qu'à domicile (jouerCote).
+  const plan = team && team.appariement ? team.appariement
+    : team && !team.isPlayer && adv && adv.isPlayer ? planDeLIA(unites.F, lignesSoir, lignesDe(adv, activeLineup(adv))) : null;
   return {
     unites,
+    plan,
     ...speciales,
     patineurs,
     // L'indiscipline : combien cet alignement prend de punitions, relativement
@@ -4574,6 +4578,47 @@ const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
  * adverse — « généralement 1 v 3 » — pour le même écart qu'à 0,25.
  */
 const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
+/*
+ * LE PLAN D'APPARIEMENT (V6, docs/refonte-v6.md). JP : *donner des stratégies à chaque trio et devoir construire autour
+ * de ça, avec matching de trios à domicile pour l'équipe, selon sa stratégie, humain et ai* ; *tu choisis le matching
+ * de trio dans une liste… À l'étranger, l'adversaire fait de même*. Le plan, c'est quatre cases : contre leur 1er
+ * trio, ton trio m0 ; contre leur 2e, m1… Seul celui de l'équipe à DOMICILE joue (le dernier changement), sur
+ * PLAN_DOMICILE de ses présences à forces égales ; les autres suivent l'appariement par rang. Le trio de fermeture
+ * reste le plan par défaut de tout le monde. L'IA a un plan chez elle quand elle te reçoit (`planDeLIA`).
+ */
+const PLAN_DOMICILE = Number(ENV_MESURE.PLAN_DOMICILE ?? 0.60);
+/* LE CONTRE (V6, à trancher par JP) : ce que le système qui bat le leur étouffe de leurs lancers, toute la présence. 0 : seulement leur action spéciale, comme avant. */
+const CONTRE_SYSTEME = Number(ENV_MESURE.CONTRE_SYSTEME ?? 0);
+/* Un plan qui se tient : quatre rangs de trio de 0 à 3, chacun au plus une fois (une case vide : l'appariement par rang). */
+function planValide(a) {
+  if (!Array.isArray(a) || a.length !== 4) return null;
+  const vus = new Set();
+  const out = a.map(x => (Number.isInteger(x) && x >= 0 && x < 4 && !vus.has(x) ? (vus.add(x), x) : -1));
+  return out.some(x => x >= 0) ? out : null;
+}
+/*
+ * LE PLAN DE L'IA, CHEZ ELLE, CONTRE TOI (V6). JP : *oui, elle contre*. Pur, sans dé : contre ton trio le plus
+ * dangereux d'abord (ton 1er, puis ton 2e…), elle envoie le trio qui l'étouffe (son système bat le tien, `bat`), sinon
+ * son meilleur trio en défense ; elle évite le trio que ton système bat. Elle ne change pas ses systèmes : elle les
+ * envoie au bon endroit.
+ */
+function planDeLIA(unitesIA, lignesIA, lignesToi) {
+  const libres = new Set(unitesIA.map((_, u) => u));
+  const plan = [-1, -1, -1, -1];
+  for (let r = 0; r < Math.min(4, lignesToi.length); r++) {
+    const tacToi = lignesToi[r] && lignesToi[r].tac;
+    let meilleur = -1, note = -Infinity;
+    for (const u of libres) {
+      const tacIA = lignesIA[u] && lignesIA[u].tac;
+      const T = TACTIQUES[tacIA], Tt = TACTIQUES[tacToi];
+      const n = (T && T.bat && T.bat === tacToi ? 2 : 0) - (Tt && Tt.bat && Tt.bat === tacIA ? 2 : 0)
+        + (unitesIA[u].coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE * (r === 0 ? 1 : 0.5);
+      if (n > note) { note = n; meilleur = u; }
+    }
+    if (meilleur >= 0) { plan[r] = meilleur; libres.delete(meilleur); }
+  }
+  return plan;
+}
 const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
 /*
  * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, plus haut il l'incline
@@ -4943,7 +4988,11 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // Le dernier changement est à l'équipe à domicile : son appariement
       // tient, celui du visiteur est plus lâche (APPARIEMENT_VISITEUR).
       const kApp = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
-      dTrio = choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
+      // LE PLAN DE L'ÉQUIPE À DOMICILE (V6) : elle a le dernier changement, et son plan d'appariement dit quel trio
+      // affronte lequel — le sien quand elle défend, et celui qu'elle envoie quand elle attaque. Sans plan, aucun dé de plus.
+      const plan = mode === 'FE' ? (def.domicile ? def.plan : off.domicile ? off.plan : null) : null;
+      const cibleD = plan && hasard() < PLAN_DOMICILE ? (def.domicile ? plan[rangOff] : plan.indexOf(rangOff)) : -1;
+      dTrio = cibleD >= 0 && unitesDef.F[cibleD] ? unitesDef.F[cibleD] : choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff, kApp);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs].filter(q => !auCachot(def, q, instant));
       const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
@@ -4956,7 +5005,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
         // tout en attaque laisse le champ libre — chacune pour sa moitié.
         * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1))
         // Les rôles maîtrisés qui défendent : le checker et le défensif étouffent, le bagarreur intimide.
-        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1);
+        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1)
+        // LE CONTRE (V6, à trancher) : le trio qui défend joue le système qui bat celui du trio qui attaque.
+        * (CONTRE_SYSTEME && mode === 'FE' && trioOff && dTrio.tactique && TACTIQUES[dTrio.tactique] && TACTIQUES[dTrio.tactique].bat === trioOff.tactique ? 1 - CONTRE_SYSTEME : 1);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
@@ -5004,6 +5055,27 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       st.espP.s += p; st.espP.n++;
       // Par tireur : ses lancers et ses buts attendus dans la lecture (ce qu'une modif de joueur change À LUI).
       if (st.espP.joueurs && tireur) { const k = getPlayerKey(tireur), j = st.espP.joueurs.get(k) || { t: 0, b: 0 }; j.t++; j.b += p; st.espP.joueurs.set(k, j); }
+      /*
+       * Par UNITÉ (V6, la note qui bouge), ce qu'elle fait de PLUS qu'une unité neutre à sa place, face aux mêmes
+       * adversaires. JP : *un trio défensif pourrait être hyper pertinent et utile et dans les moins*. Un +/− brut
+       * punit le trio de fermeture qui prend leur premier trio ; ici, chacun est jugé sur ce qu'il change au lancer.
+       *   attaque (`qui` 'off') : le lancer de ton unité, contre le même lancer avec un tireur, une création, une
+       *     qualité d'unité et un système neutres (`pn`) ; son volume se juge à part (js/impact.js) ;
+       *   défense ('def') : les buts que ta défense sur la glace évite — le même lancer contre une défense neutre
+       *     (`facteurDef` à 1 : talent défensif, système, badges qui étouffent), moins le lancer réel.
+       */
+      if (st.espP.unites) {
+        const u = st.espP.unites, tr = u.qui === 'off' ? trioOff : dTrio, pa = u.qui === 'off' ? paireOff : dPaire;
+        const fOff = (tireur ? pctTirRel(tireur) / REF.pctTir : 1) * crea * (unite ? unite.qualite : 1) * devantFilet * attenteSpec;
+        const pn = u.qui === 'off' ? borne(pBrut / (fOff || 1), 0.005, PCT_TIR_MAX) : 0;
+        const ev = u.qui === 'def' ? borne(pBrut / (facteurDef || 1), 0.005, PCT_TIR_MAX) - p : 0;
+        for (const [g, x] of [['F', tr], ['D', pa]]) {
+          if (!x) continue;
+          const c = u[g][x.rang || 0] || (u[g][x.rang || 0] = { n: 0, p: 0, pn: 0, ev: 0 });
+          c.n++; c.p += p; c.pn += pn; c.ev += ev;
+        }
+        u.pn = (u.pn || 0) + pn;
+      }
       continue;
     }
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
@@ -5863,12 +5935,15 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       let partDuFilet = 1;
       if (gMut) { const [st, bk] = gardiensDuSoir(lu), aux = bk ? partAuxiliaire(st, bk) : 0; partDuFilet = gMut === st ? 1 - aux : aux; }
       const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
-      const lire = (off, def, g, mode, joueurs = null) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n, joueurs });
+      const lire = (off, def, g, mode, joueurs = null, unites = null) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n, joueurs, unites });
       const p = { pour: {}, contre: {} }, joueurs = {};
+      // Tes unités à forces égales (V6) : ce que chacune change, en attaque et en défense, et leurs parts de glace.
+      const presences = g => { const u = (A.unites && A.unites[g]) || [], t = u.reduce((a, x) => a + (x.presence || 0), 0) || 1; return u.map(x => (x.presence || 0) / t); };
+      const unites = { pour: { qui: 'off', F: [], D: [] }, contre: { qui: 'def', F: [], D: [] }, glace: { F: presences('F'), D: presences('D') } };
       for (const mode of ['FE', 'AN', 'DN']) {
         joueurs[mode] = new Map();
-        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode]);
-        p.contre[mode] = lire(B, A, gA, mode);
+        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode], mode === 'FE' ? unites.pour : null);
+        p.contre[mode] = lire(B, A, gA, mode, null, mode === 'FE' ? unites.contre : null);
       }
       // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
       const dissuasion = Math.exp(-DISSUASION * robZ(A));
@@ -5878,7 +5953,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
       // Les bagarres attendues (V2.2) : contre un club moyen, on lit le match contre son propre reflet.
       const phys = physiqueAttendu(A, adv ? B : A);
-      return { A, B, occasions, p, joueurs, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
+      return { A, B, occasions, p, joueurs, unites, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
       if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
@@ -5936,14 +6011,16 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
   };
 }
 /* La chance moyenne d'un lancer de `off` sur le gardien de `def`, dans une situation. `mode` : FE, AN (off a l'avantage) ou DN (off est puni). */
-function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joueurs = null }) {
-  const espP = { s: 0, n: 0, joueurs };
+function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joueurs = null, unites = null }) {
+  const espP = { s: 0, n: 0, joueurs, unites };
   const st = mode === 'FE' ? { mode, lancers: n, fenetres: [], espP }
     : mode === 'AN' ? { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE, espP }
       : { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.desavantage, unitesDef: def.avantage, qualite: DN_QUALITE, espP };
   avecHasardIsole('lecture', () => jouerCote(off, def, gardien, 1, heavy, null, series, null, 'A', st, ronde));
   // Par tireur, en parts des lancers lus : sa part des tirs, et sa part des buts attendus.
   if (joueurs && espP.n) for (const j of joueurs.values()) { j.t /= espP.n; j.b /= espP.n; }
+  // Par unité : ses sommes, et le nombre de lancers lus pour les ramener au match (js/impact.js).
+  if (unites) unites.n = espP.n;
   return espP.n ? espP.s / espP.n : 0;
 }
 
@@ -6175,6 +6252,8 @@ function appliquerDecision(team, d, graine = 0) {
   // elle a été prise et vaut pour le reste de la saison.
   if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
+  // L'APPARIEMENT (V6) : contre leur trio r, ton trio `d.appariement[r]` — ou null pour revenir à l'appariement par rang.
+  if ('appariement' in d) team.appariement = planValide(d.appariement);
   if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
   // UN CHANGEMENT DE CARTE PAR CHOIX (S68) : direct, ou porté par l'option
   // d'un dilemme. Le joueur visé est nommé dans la décision.
