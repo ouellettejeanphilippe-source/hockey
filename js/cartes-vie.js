@@ -116,27 +116,27 @@ export const CONSOMMABLES_VIE = {
 
 /* ---------- LES CONTRATS (le plafond se manipule) ---------- */
 export const CONTRATS_VIE = {
-  fidelite: { nom: 'Le rabais de fidélité', ico: '🐕', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.888, texte: 'Il reste pour le prix de l\'épicerie et un abonnement au gym.' },
-  billetsSaison: { nom: 'Le boni en billets de saison', ico: '🎫', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.916, texte: 'Quarante places derrière le banc visiteur. Il n\'a pas de famille.' },
+  fidelite: { nom: 'Le rabais de fidélité', ico: '🐕', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.944, texte: 'Il reste pour le prix de l\'épicerie et un abonnement au gym.' },
+  billetsSaison: { nom: 'Le boni en billets de saison', ico: '🎫', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.958, texte: 'Quarante places derrière le banc visiteur. Il n\'a pas de famille.' },
   indexation: { nom: 'L\'indexation oubliée', ico: '📈', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_000_000, texte: 'Une clause que personne n\'avait lue, sauf Bernard, à la comptabilité.' },
   creditVille: { nom: 'Le crédit de la ville', ico: '🌉', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_800_000, texte: 'La mairie rembourse l\'asphalte du stationnement. Ça compte, paraît-il.' },
-  serviette: { nom: 'Le contrat sur une serviette', ico: '🍽️', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.51, texte: 'Signé au restaurant, jugé valide à la quatrième lecture.' },
-  nonEchange: { nom: 'Clause de non-échange, sauf en cas de tempête', ico: '🌩️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.748, texte: 'Il accepte moins d\'argent contre la sécurité. La météo reste une exception.' },
-  preteEte: { nom: 'Le prêt à la ligue d\'été', ico: '🚐', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.678, cout: 6, texte: 'Trois semaines à Rimouski, chez un oncle. Les papiers suivent.' },
+  serviette: { nom: 'Le contrat sur une serviette', ico: '🍽️', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.755, texte: 'Signé au restaurant, jugé valide à la quatrième lecture.' },
+  nonEchange: { nom: 'Clause de non-échange, sauf en cas de tempête', ico: '🌩️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.874, texte: 'Il accepte moins d\'argent contre la sécurité. La météo reste une exception.' },
+  preteEte: { nom: 'Le prêt à la ligue d\'été', ico: '🚐', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.839, cout: 6, texte: 'Trois semaines à Rimouski, chez un oncle. Les papiers suivent.' },
   fondation: { nom: 'Le chèque de la fondation', ico: '🎢', rarete: 'peu', vie: 'usage', cible: 'aucune', espace: 2_500_000, texte: 'Une fondation qui s\'intéresse beaucoup aux gardiens.' },
-  copropriete: { nom: 'La retenue en copropriété', ico: '🛎️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.44, texte: 'Trois clubs se partagent son salaire, et son camion.' },
-  etale: { nom: 'Le rachat étalé sur quatre ans', ico: '⏩', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.608, cout: 7, texte: 'Le comptable a utilisé une calculatrice avec beaucoup de touches.' },
+  copropriete: { nom: 'La retenue en copropriété', ico: '🛎️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.72, texte: 'Trois clubs se partagent son salaire, et son camion.' },
+  etale: { nom: 'Le rachat étalé sur quatre ans', ico: '⏩', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.804, cout: 7, texte: 'Le comptable a utilisé une calculatrice avec beaucoup de touches.' },
   rallonge: { nom: 'La rallonge du plafond', ico: '🗜️', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 4_000_000, texte: 'Votée à main levée un jeudi, à une heure creuse.' },
   stabilisation: { nom: 'Le fonds de stabilisation', ico: '⚖️', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 3_500_000, cout: 10, texte: 'Personne ne sait de quoi il stabilise quoi, mais il est stable.' },
-  deuxVolets: { nom: 'Le contrat à deux volets', ico: '🪞', rarete: 'rare', vie: 'usage', cible: 'joueur', facteur: 0.44, cout: 6, texte: 'Un volet pour la grande ligue, un pour le club-école, un pour son frère.' },
-  enveloppeRecrues: { nom: 'L\'enveloppe des recrues', ico: '📲', rarete: 'rare', vie: 'usage', cible: 'recrue', facteur: 0.23, cout: 8, texte: 'Un contrat d\'entrée si mince qu\'il tient dans un texto.' },
+  deuxVolets: { nom: 'Le contrat à deux volets', ico: '🪞', rarete: 'rare', vie: 'usage', cible: 'joueur', facteur: 0.72, cout: 6, texte: 'Un volet pour la grande ligue, un pour le club-école, un pour son frère.' },
+  enveloppeRecrues: { nom: 'L\'enveloppe des recrues', ico: '📲', rarete: 'rare', vie: 'usage', cible: 'recrue', facteur: 0.615, cout: 8, texte: 'Un contrat d\'entrée si mince qu\'il tient dans un texto.' },
   chequeBlanc: { nom: 'Le chèque en blanc du proprio', ico: '🧧', rarete: 'legendaire', vie: 'permanent', cible: 'aucune', espace: 7_000_000, cout: 60, texte: 'Le proprio a signé, puis il est parti en croisière.' },
   depassement: { nom: 'La pénalité de dépassement', ico: '🚨', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -2_500_000, texte: 'Un chiffre dépassé de trois dollars, et la ligue veut un chèque certifié.' },
 
   // Nouveaux contrats
-  clause_demenagement: { nom: 'La clause de déménagement', ico: '📦', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.85, cout: 5, texte: 'Il a fallu payer les boîtes, mais le salaire baisse.' },
+  clause_demenagement: { nom: 'La clause de déménagement', ico: '📦', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.925, cout: 5, texte: 'Il a fallu payer les boîtes, mais le salaire baisse.' },
   fond_urgence: { nom: 'Le fonds d\'urgence de la ligue', ico: '🚑', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 5_000_000, cout: 15, texte: 'Un prêt à taux avantageux pour "causes imprévues".' },
-  salaire_differe: { nom: 'Le salaire différé en 2040', ico: '📅', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.5, cout: 12, texte: 'Il touchera le gros magot à soixante ans. Pour l\'instant, on économise.' },
+  salaire_differe: { nom: 'Le salaire différé en 2040', ico: '📅', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.75, cout: 12, texte: 'Il touchera le gros magot à soixante ans. Pour l\'instant, on économise.' },
 
 };
 

@@ -164,6 +164,16 @@ export function packDuJour(date = new Date(), ouverts = null) {
   return { pack: tous[Math.floor(hache('pack-du-jour', cle) * tous.length)], rabais: 0.75, date: cle };
 }
 export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cle] || {}).prix * rabais));
+/*
+ * LES PRIX MONTENT (JP : *trop de cartes, trop de cash, ça vire rapidement à être trop et j'ai rien à faire*). En
+ * Rogue, chaque pack acheté dans la saison fait monter les suivants de `HAUSSE_PACK` de leur prix, comme la
+ * relance de Balatro : le premier garde son prix, le quatrième pack d'une même journée coûte 30 % de plus, et la
+ * saison suivante repart au prix de base. L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md,
+ * phase 4 : les packs ramenés à ~8 par saison). Un achat de ton club (un nom, un écusson) ne compte pas.
+ */
+const HAUSSE_PACK = 0.1;
+export const achatsDePacks = (decisions = []) => decisions.filter(d => d && d.achat && d.achat.prix > 0 && (d.achat.sorte === 'joueurs' || d.achat.sorte === 'cartes')).length;
+export const hausseDesPacks = n => 1 + HAUSSE_PACK * (n || 0);
 
 /* ---------- les chances affichées ---------- */
 const unSur = p => (p <= 0 ? null : p >= 0.999 ? 1 : Math.max(2, Math.round(1 / p)));

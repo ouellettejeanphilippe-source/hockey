@@ -10,7 +10,7 @@
  * « Acheter ». L'achat est une décision (js/game.js) ; l'ouverture, le
  * paquet qui se déchire (js/gerant.js).
  */
-import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe } from './packs.js';
+import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { esc, money as M } from './util.js';
@@ -22,7 +22,7 @@ const $ = id => document.getElementById(id);
 /*
  * ctx : { jetons, mode ('rogue' | 'saison'), ouverts (cle → true | 'raison du verrou'),
  *         mods (patrons : rabais, holo, carteExtra, sansBase), sansHolo (packs d'affilée),
- *         duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels], coachs [{ cle, nom }], coachRun,
+ *         achats() (packs achetés cette saison : les prix montent), duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels], coachs [{ cle, nom }], coachRun,
  *         scelles [{ palier, cle, verrou }], ouvrirScelle(palier),
  *         acheter(cle, { prix, params, scelle }), onFerme() }
  */
@@ -48,7 +48,10 @@ export function ouvrirMagasin(ctx) {
   // Dans une page du Marché (`ctx.dans`, `ctx.fermer`, js/game.js) ou dans sa fenêtre.
   const m = ctx.dans || $('magasinModal');
   if (!m) return;
-  const rabaisDe = cle => (ctx.mods.rabais || 1) * (ctx.duJour && ctx.duJour.pack === cle ? ctx.duJour.rabais : 1);
+  // LES PRIX MONTENT (js/packs.js `hausseDesPacks`) : en Rogue, les packs déjà achetés cette saison renchérissent le
+  // suivant. Ils se recomptent à chaque fiche : la boutique reste ouverte dans sa page d'un achat à l'autre.
+  const achats = () => (ctx.achats ? ctx.achats() : 0);
+  const rabaisDe = cle => (ctx.mods.rabais || 1) * hausseDesPacks(achats()) * (ctx.duJour && ctx.duJour.pack === cle ? ctx.duJour.rabais : 1);
   const tuile = (cle, jour = false) => {
     const P = PACKS_TOUS[cle];
     if (!P) return '';
@@ -115,7 +118,7 @@ export function ouvrirMagasin(ctx) {
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>
-        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · rabais −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}</div></div>
+        <div class="choix-titres"><div class="choix-titre">La boutique</div><div class="choix-irl">🪙 ${ctx.jetons} jetons${ctx.mods.rabais && ctx.mods.rabais < 1 ? ` · rabais −${Math.round((1 - ctx.mods.rabais) * 100)} %` : ''}${achats() ? ` · prix +${Math.round((hausseDesPacks(achats()) - 1) * 100)} % (${achats()} pack${achats() > 1 ? 's' : ''} cette saison)` : ''}</div></div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">

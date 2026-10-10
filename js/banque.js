@@ -183,23 +183,23 @@ export const PATRONS = {
  * chacun une décision (`plafond`) : de l'espace de plus cette saison, une
  * RETENUE salariale (son ancien club en paie une part), un joueur blessé à
  * long terme (LTIR : son salaire sort du plafond tant qu'il est à
- * l'infirmerie), un RACHAT de contrat (un tiers de moins, contre des
+ * l'infirmerie), un RACHAT de contrat (un rabais, contre des
  * jetons), le contrat d'entrée d'une recrue, une clause de bonis. Et une
  * malédiction : la taxe de luxe. `cible` : un joueur, un blessé, une recrue.
  */
 export const CONTRATS = {
   espace: { nom: 'Espace sous le plafond', ico: '💵', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 2_000_000, texte: 'Une clause d\'indexation négociée en ta faveur.' },
   grosEspace: { nom: 'La marge de manœuvre', ico: '💰', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 5_000_000, texte: 'Le proprio signe un chèque pour l\'espace sous le plafond.' },
-  retenue: { nom: 'Retenue salariale', ico: '✂️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.3, texte: 'Son ancien club paie la moitié de son salaire.' },
+  retenue: { nom: 'Retenue salariale', ico: '✂️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.65, texte: 'Son ancien club paie une part de son salaire.' },
   ltir: { nom: 'Blessé à long terme', ico: '🏥', rarete: 'peu', vie: 'usage', cible: 'blesse', ltir: true, texte: 'Son salaire sort du plafond tant qu\'il est à l\'infirmerie.' },
-  rachat: { nom: 'Rachat de contrat', ico: '🧾', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 2 / 3, cout: 10, texte: 'Le reste de son contrat étalé : un tiers de moins cette saison, 10 jetons de frais.' },
-  entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.44, texte: 'Une recrue sous contrat d\'entrée compte pour 40 % de moins.' },
-  bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.79, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
-  enterre: { nom: 'Le contrat enterré', ico: '🗃️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.72, texte: 'Une part de son salaire est réputée au club-école. Il compte pour moins, et il joue encore.' },
+  rachat: { nom: 'Rachat de contrat', ico: '🧾', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.833, cout: 10, texte: 'Le reste de son contrat étalé : moins cette saison, 10 jetons de frais.' },
+  entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.72, texte: 'Une recrue sous contrat d\'entrée compte pour moins.' },
+  bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.895, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
+  enterre: { nom: 'Le contrat enterré', ico: '🗃️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.86, texte: 'Une part de son salaire est réputée au club-école. Il compte pour moins, et il joue encore.' },
   // v2 : cinq de plus.
-  aRabais: { nom: 'Le contrat à rabais', ico: '🏷️', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.86, texte: 'Il signe sous sa valeur pour courir après une bague.' },
-  clubEcole: { nom: 'Le passage au club-école', ico: '🚍', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.65, cout: 5, texte: 'Trois jours dans la ligue américaine, le temps que la paperasse passe. 5 jetons de frais.' },
-  anticipee: { nom: 'La prolongation anticipée', ico: '✍️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.79, texte: 'Signé un an d\'avance, à l\'ancien prix.' },
+  aRabais: { nom: 'Le contrat à rabais', ico: '🏷️', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.93, texte: 'Il signe sous sa valeur pour courir après une bague.' },
+  clubEcole: { nom: 'Le passage au club-école', ico: '🚍', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.825, cout: 5, texte: 'Trois jours dans la ligue américaine, le temps que la paperasse passe. 5 jetons de frais.' },
+  anticipee: { nom: 'La prolongation anticipée', ico: '✍️', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.895, texte: 'Signé un an d\'avance, à l\'ancien prix.' },
   hausse: { nom: 'La hausse du plafond', ico: '🆙', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 3_000_000, texte: 'Les revenus de la ligue montent : le plafond aussi.' },
   signature: { nom: 'Le bonus de signature', ico: '🖊️', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_500_000, texte: 'Payé d\'avance, cet été : il ne compte plus cette saison.' },
   ...CONTRATS_VIE,

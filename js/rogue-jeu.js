@@ -11,7 +11,7 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHidd
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
-import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH } from './packs.js';
+import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
@@ -210,7 +210,7 @@ export function ouvrirBoutique(j, decider, page) {
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
-    mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
+    mods: modsDesPacks(decs, j), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
     duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
