@@ -719,7 +719,14 @@ let posee = null, nomModif = '';
    * n'en donnait pas toujours une qui se pose).
    */
   const nModifs = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])', e => e.length);
-  if (!nModifs) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
+  /*
+   * EN ROGUE, UNE CARTE SE JOUE DE TA MAIN DE LA SEMAINE (V4.3) : les modifs achetées en semaine attendent le lundi,
+   * leur bouton le dit. L'erreur, c'est que le pack Modifs n'ait rien laissé dans l'inventaire ; qu'aucune ne soit
+   * dans la main cette semaine dépend du tirage (et des prix qui montent, V6), et l'étape du verso attend.
+   */
+  const modifsVues = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur', e => e.length);
+  if (!modifsVues) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
+  else if (!nModifs) console.log(`7a. ${modifsVues} modif(s) dans l'inventaire, aucune dans la main de la semaine : l'étape du verso attend`);
   let permis = 0, grises = 0;
   for (let k = 0; k < nModifs && !permis; k++) {
     if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
