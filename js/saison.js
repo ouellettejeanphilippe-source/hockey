@@ -3685,7 +3685,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       options: mB.reserves.map(r => {
         const pen = getPositionPenalty(r.p, mB.sl);
         return { cle: String(r.sl.i), ico: '🪑', nom: r.p.n, sous: ctx.quiEst ? ctx.quiEst(r.p, { stats: false }) : r.p.p,
-          mots: [{ txt: pen > 0 ? `Hors position −${pen}` : 'À sa position', bon: pen > 0 ? false : true }] };
+          mots: [{ txt: pen > 0 ? '↔ Hors de sa position' : 'À sa position', bon: pen > 0 ? false : true }] };
       }),
       onChoix: k => { const j = jour; quitter(); onDecision({ jour, palier: mB.palierB, cases: echange(mB.sl.i, Number(k)) }, j); },
     });

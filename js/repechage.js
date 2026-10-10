@@ -395,7 +395,6 @@ export function rangeesAlignement(roster, etat, libre = null) {
  * toucher un joueur les met côte à côte, avec la masse et la case où
  * l'arrivant jouerait. Des stats et des rangs : jamais une cote.
  */
-const virg = x => String(x).replace('.', ',');
 function ficheCourte(q) {
   const c = G.ligue && (G.journee || 0) > 0 ? compteRevele('jour').get(q) : null;
   if (c && c.gp) return q.p === 'G' ? `${c.gp} PJ · ${c.w || 0}-${c.l || 0} · ${c.sa ? pct3(c.sv / c.sa) : '—'}` : `${c.gp} PJ · ${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
@@ -469,7 +468,7 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
     if (!g) return { non: `${nomDe(q.n)} n'a nulle part où aller` };
     const pen = penaliteAffichee(p, sl).pen;
     if (pen) marques = true;
-    return { marque: pen ? `−${pen}` : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors position (−${pen})` : '',
+    return { marque: pen ? '↔' : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors de sa position` : '',
       note: sl.i === A.i ? (q0 ? `${nomDe(q0.n)} sort` : 'case libre') : glisseMot(g) || 'case libre' };
   });
   ouvrirAlignement({
@@ -483,7 +482,7 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
       const pen = penaliteAffichee(p, B).pen, q = roster[B.i];
       const ecart = capHitDuJour(p) - (q0 ? capHitDuJour(q0) : 0);
       const g = quiGlisse(roster, A, B, caseOuverte) || [];
-      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? `, hors position −${virg(pen)}` : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}</span>`;
+      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? ', hors de sa position' : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}</span>`;
     },
     onChoix: k => {
       const B = SLOTS[Number(k)];
@@ -1307,7 +1306,7 @@ export function playerCardEl(p) {
     // Le plateau ne lit ni la pénalité de position ni la zone : on ne
     // menace pas d'un malus que le mode bonus ne jouera pas.
     if (!surTable()) {
-      if (pen > 0) bits.push(`<span class="dest-bad">−${pen} hors position</span>`);
+      if (pen > 0) bits.push('<span class="dest-bad">↔ hors de sa position</span>');
       if (ecart === 'sous') bits.push(`<span class="dest-bad" title="${esc(ZONE_SOUS_TITLE)}">▼ ${isTargeted ? 'sous sa zone' : esc(slotShort(slot))}</span>`);
       else if (ecart === 'dessus') bits.push(`<span class="dest-warn" title="${esc(ZONE_DESSUS_TITLE)}">▲ au-dessus de sa zone</span>`);
     }
@@ -1400,7 +1399,7 @@ export async function signPlayer(p, el = null) {
   const sous = zoneEcart(p, slot) === 'sous';
   // LE TOAST NE DIT QUE CE QUI NE SE VOIT PAS (JP : *le toast gosse*) : la case qui s'allume dit déjà où il va ;
   // reste l'avertissement, hors position ou sous sa zone.
-  if (pen > 0 || sous) toast(`${p.n} → ${slotShort(slot)}${pen > 0 ? ` (−${pen} hors position)` : ''}${sous ? ' · ▼ sous sa zone' : ''}`, 'warn');
+  if (pen > 0 || sous) toast(`${p.n} → ${slotShort(slot)}${pen > 0 ? ' (hors de sa position)' : ''}${sous ? ' · ▼ sous sa zone' : ''}`, 'warn');
   // Le toast à retardement « sous le plancher » est parti (J1-Q) : le bouton l'a dit AVANT, et a demandé confirmation.
 
   poserEchelle();

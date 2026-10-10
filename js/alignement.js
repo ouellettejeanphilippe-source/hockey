@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, motPenalite, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux } from './sim.js';
 import { alignementAuMieux } from './impact.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix } from './gerant.js';
@@ -154,8 +154,9 @@ function ficheDuJour(p) {
   const c = G.banc && G.banc.compte.get(p);
   if (!c || !c.gp) return 'aucun match';
   // 1,000 : un blanchissage en début de saison s'écrivait « 1.000 » (le remplacement ne visait que « 0. »).
-  if (p.p === 'G') return `${c.w}-${c.l} · ${c.sa ? pct3(c.sv / c.sa) : '—'}`;
-  return `${c.g}-${c.a}-${c.pts} · ${c.pm > 0 ? '+' : ''}${c.pm}`;
+  // CHAQUE CHIFFRE DIT CE QU'IL EST (JP : *−3, ça veut dire quoi ?*) : « 0-1-1 · −3 » se lisait comme une pénalité.
+  if (p.p === 'G') return `${c.w} V · ${c.l} D · ${c.sa ? pct3(c.sv / c.sa) : '—'}`;
+  return `${c.g} B · ${c.a} A · diff. ${c.pm > 0 ? '+' : c.pm < 0 ? '−' : ''}${Math.abs(c.pm)}`;
 }
 
 function slotTags(p, zoneEcartTag, penTag) {
@@ -192,7 +193,7 @@ function slotTags(p, zoneEcartTag, penTag) {
  * icônes et cote générale à sa position dans l'alignement*. Un joueur se lit
  * en trois choses (LIVRAISON.md, jalon C) : son RÔLE (une icône et un mot),
  * son NIVEAU (la pastille, son rang dans sa saison) et sa ZONE (✓ chez lui,
- * ▼ trop bas, ▲ trop haut) — plus −N hors position, 🩹 blessé, un trophée s'il
+ * ▼ trop bas, ▲ trop haut) — plus ↔ hors poste, 🩹 blessé, un trophée s'il
  * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
  * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
@@ -262,8 +263,10 @@ function slotEl(s) {
     const lanceeTag = !lancee ? '' : lancee === 'doute'
       ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
       : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄️ Vive' : 'Lancée'}</span>`;
-    // Le −N est celui du jour (J1-J) : il fond en jouant à cette case, et la case le dit.
-    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="Pénalité de position aujourd'hui : ${esc(motPenalite(adapt))}${adapt.matchs ? ` — elle était de −${adapt.base} au premier match et fond en jouant ici` : ''}">${adapt.matchs ? `−${String(pen).replace('.', ',')}` : `−${pen}`}</span>` : '';
+    /* HORS POSTE, EN MOTS (JP : *−3, ça veut dire quoi ? Ya même pas de overall aux joueurs*). Le chiffre de la
+       pénalité est sur l'échelle des cotes, qu'aucun écran ne montre : la case porte ↔, le signe du jeu pour
+       « hors de sa position » (js/gerant.js), et l'infobulle dit s'il s'y adapte, sans chiffre. */
+    const penTag = !surTable() && pen > 0 ? `<span class="tag tag-pen" title="${adapt.matchs ? `Hors de sa position naturelle, mais il s'y adapte : la pénalité fond en jouant ici (${adapt.matchs} m.)` : 'Hors de sa position naturelle : il rend moins ici, et s\'y fera en jouant là'}">↔</span>` : '';
     const ecart = zoneEcart(p, s);
     /* Une flèche seule : « ▼ zone » et « ▲ zone » poussaient la pénalité de
        position hors de la case sur les écrans où un trio n'a que cent pixels
