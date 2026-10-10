@@ -2268,12 +2268,12 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line-prod { flex: none; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
 /* La note qui bouge (V6) : le différentiel attendu de l'unité, en vert ou en rouge. */
 /* LE PLAN DE MATCH (V6) : la glace du club et l'appariement, en un panneau. */
-.plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2, 8px); }
+.plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .pm-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .pm-tete span { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); text-transform: none; letter-spacing: 0; text-align: right; }
 .pm-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .pm-seg { display: flex; gap: 2px; flex-wrap: wrap; }
-.pm-btn { flex: 1 1 0; min-width: 40px; min-height: 40px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: 6px; background: var(--fond-2, transparent); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); white-space: nowrap; }
+.pm-btn { flex: 1 1 0; min-width: 40px; min-height: 40px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2, transparent); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); white-space: nowrap; }
 .pm-btn.on { background: var(--choisi); color: var(--fond-1); border-color: var(--choisi); }
 .pm-app { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--esp-2); }
 .pm-leur { font: 700 var(--t-2)/1.1 var(--display); white-space: nowrap; }
