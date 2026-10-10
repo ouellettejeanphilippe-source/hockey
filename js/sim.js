@@ -4232,11 +4232,6 @@ function fermetureAuto(unitesF) {
   return unitesF.length > FERMETURE_DEFAUT ? FERMETURE_DEFAUT : null;
 }
 
-/** Pour l'écran : le trio que 'auto' désigne. */
-export function trioDeFermetureAuto() {
-  return FERMETURE_DEFAUT;
-}
-
 /** Le volume d'un joueur à forces égales : ses lancers, moins sa part d'avantage. */
 const lancersFE = (p, partAN) => lancersRel(p) * (1 - ((partAN && partAN.get(p)) || 0));
 
@@ -4759,17 +4754,6 @@ const RYTHME_PLANCHER = Number(ENV_MESURE.RYTHME_PLANCHER ?? 1);
  * trio (la première paire joue avec le premier trio — c'est ce qui lui
  * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
  */
-/*
- * QUI TON TRIO CROISE (V2.2, « En face » vise la bonne unité) : par le plan d'appariement, ton trio `u` croise le
- * trio adverse de son rang, sauf PLAN_FERMETURE des présences où le plan l'envoie ailleurs — ton 1er contre leur
- * fermeture, ta fermeture… contre leur 1er. Rend [{ rang, part }], la part la plus grosse d'abord. `fermRang` :
- * le rang de leur trio de fermeture (null : aucun plan).
- */
-export function enFaceDe(u, fermRang) {
-  if (fermRang == null) return [{ rang: u, part: 1 }];
-  const duPlan = u === 0 ? fermRang : u === fermRang ? 0 : u;
-  return duPlan === u ? [{ rang: u, part: 1 }] : [{ rang: u, part: 1 - PLAN_FERMETURE }, { rang: duPlan, part: PLAN_FERMETURE }];
-}
 function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence', plan = false) {
   if (!unites.length) return unites[0];
   const nDef = unites.length;

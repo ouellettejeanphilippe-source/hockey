@@ -16,7 +16,6 @@ import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.j
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
-import { fermetureCourante } from './banc.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
@@ -499,16 +498,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     chemHtml = `<span class="line-chem">${filled}/${ouvertes} comblés</span>`;
   }
 
-  // Derrière le banc, le trio de fermeture porte son 🔒 : il prend le
-  // premier trio adverse (voir FERMETURE_DEFAUT dans js/sim.js).
-  let fermHtml = '';
-  if (G.banc && group === 'F') {
-    const ferm = fermetureCourante();
-    const on = ferm === unit;
-    // V6 : le trio de fermeture se choisit au plan de match (onglet Équipe, « contre leur 1er ») ; l'en-tête le dit seulement.
-    fermHtml = on ? `<span class="line-ferm on" title="Ton trio de fermeture : il prend le premier trio adverse. Il se change au plan de match, dans l'onglet Équipe.">🔒 Fermeture</span>` : '';
-    if (on) wrap.classList.add('fermeture');
-  }
+  // L'appariement et la glace (V6) vivent dans l'onglet Équipe, au plan de match : l'unité ne les répète pas.
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
@@ -531,7 +521,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${fermHtml}${chemHtml}</div>`;
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
   // UN TOUCHER SUR L'EN-TÊTE OUVRE LE SYSTÈME DE L'UNITÉ (1.0, les lignes).
   if ((group === 'F' || group === 'D') && !surTable()) {
     const tete = wrap.querySelector('.line-head');

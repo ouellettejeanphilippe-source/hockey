@@ -27,7 +27,7 @@
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_DEFAUT, PART_UNITE,
   badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite, enFaceDe, FERMETURE_DEFAUT,
+  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne, bilanAgressivite,
@@ -961,7 +961,7 @@ function chiffresSysteme(lineup, lignes, u, groupe, cle) {
   const c = clubLu();
   return c && c.team ? systemeEnChiffres(c.team, lineup, c.adv || null, lignes, u, groupe, cle) : [];
 }
-function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false, advFermeture = FERMETURE_DEFAUT }) {
+function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const attr = D ? 'tacd' : 'tac';
@@ -976,11 +976,8 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
   const fM = SYS[meilleur] && SYS[meilleur].slots ? (fitUnite(lineup, groupe, u, meilleur) ?? 0) : 0;
   const conseil = !incomplete && meilleur !== cle && fM >= fit + 10
     ? `<div class="ln-conseil">💡 ${D ? 'Cette paire' : 'Ce trio'} irait mieux en <button type="button" class="ln-conseil-btn" data-${attr}="${meilleur}">${nomSys(meilleur)}</button> <small>${motFit(fM).toLowerCase()}</small></div>` : '';
-  // EN FACE (V2.2) : le trio adverse que le moteur envoie vraiment — celui de même rang, et leur fermeture
-  // contre ton 1er trio (ou leur 1er contre ta fermeture) une présence sur PLAN_FERMETURE (`enFaceDe`).
-  const croises = !D && adv ? enFaceDe(u, advFermeture != null && adv.length > advFermeture ? advFermeture : null) : [{ rang: u, part: 1 }];
-  const autre = croises[1] && adv && adv[croises[1].rang];
-  const aAutre = autre && TACTIQUES[autre.tac] && TACTIQUES[autre.tac].slots ? autre.tac : null;
+  // EN FACE (V2.2) : le système du trio adverse de même rang. Qui affronte qui (l'appariement) et la glace se
+  // règlent dans l'onglet Équipe, au plan de match (V6) : la fenêtre d'une unité ne les répète pas.
   const a = adv && adv[u];
   const aF = a && TACTIQUES[a.tac] && TACTIQUES[a.tac].slots ? a.tac : null;
   const aD = a && u < 3 && SYSTEMES_D[a.tacD] && SYSTEMES_D[a.tacD].slots ? a.tacD : null;
@@ -989,7 +986,7 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
     const menace = TACTIQUES[aF].bat === cle || (aD && SYSTEMES_D[aD].bat === cle);
     const pour = contreDe(aF);
     // Un gros match (J1-N) : ces lignes sont celles du plan le plus probable du dépistage, et l'écran le dit.
-    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : ${aAutre ? `${Math.round(croises[0].part * 100)} % du temps ` : ''}<b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}${aAutre ? `<br><small>${Math.round(croises[1].part * 100)} % du temps, ${croises[1].rang === 0 ? 'leur 1er trio' : `leur trio de fermeture (le ${croises[1].rang + 1}e)`} : <b>${nomSys(aAutre)}</b>${S.bat === aAutre ? ' · <span class="ok">✓ tu l\'étouffes</span>' : contreDe(aAutre) ? ` · l'étouffer : <b>${nomSys(contreDe(aAutre))}</b>` : ''}</small>` : ''}</div>`;
+    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}${aAutre ? `<br><small>${Math.round(croises[1].part * 100)} % du temps, ${croises[1].rang === 0 ? 'leur 1er trio' : `leur trio de fermeture (le ${croises[1].rang + 1}e)`} : <b>${nomSys(aAutre)}</b>${S.bat === aAutre ? ' · <span class="ok">✓ tu l\'étouffes</span>' : contreDe(aAutre) ? ` · l'étouffer : <b>${nomSys(contreDe(aAutre))}</b>` : ''}</small>` : ''}</div>`;
   } else if (aF) {
     const pour = contreDeD(aF);
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
@@ -1349,7 +1346,6 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const S = SYS[cle];
   // La chimie est celle de la LIGNE (trio et paire) : elle s'écrit sous le trio.
   const chimie = patch => (app ? chimieLigne(app, spec.lineup, u, { ...l, ...patch }) : (spec.chimie || [])[u] || 0);
-  const mins = glaceDe(spec.lignes, spec.glace || null);
   const fitBrut = S.slots ? fitUnite(spec.lineup, groupe, u, cle) : 0;
   // UNITÉ INCOMPLÈTE (1.0, J1-I) : ni fit, ni chimie, ni système — « À
   // compléter ». Un trio vide lisait « Échec avant 2-1-2 · Mauvais fit ».
@@ -1362,13 +1358,13 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   // la saison, elle est « naissante » pour les quatre, et le dire quatre fois
   // n'apprend rien.
   const sommaire = incomplete
-    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b>${D ? '' : `<span>${glaceMot(mins, u, true)}</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`
-    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${D ? '' : `${app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}<span>${glaceMot(mins, u, true)}</span>`}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+    ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b></span><span class="ln-som-ouvre" aria-hidden="true"></span>`
+    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${!D && app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
   const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
     chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
-  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie, agressivité et glace : avec le ${NOMS_TRIO[u]}.</div>` };
+  if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie et agressivité : avec le ${NOMS_TRIO[u]}.</div>` };
 
   const ph = physiqueLigne(spec.lineup, u);
   const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';

@@ -2257,7 +2257,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line:nth-child(n+7) { animation-delay: 300ms; }
 .line.good { border-left: 3px solid var(--bon); }
 .line.bad { border-left: 3px solid var(--mauvais); }
-.line.fermeture { border-left: 3px solid var(--or); }
 /* L'en-tête : le rang en gros, l'identité en or, « à leur place » en vert, sur un filet. */
 .line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); }
 .line-head-regle { cursor: pointer; }
@@ -2287,8 +2286,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-l3 { flex-wrap: wrap; }
 .cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .line-orig { flex: none; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.line-ferm { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); padding: 0 var(--esp-2); color: var(--encre-3); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite); }
-.line-ferm.on { color: var(--or); }
 .line-chem { flex: none; min-width: 0; margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-chem.good { color: var(--bon); }
 .line-chem.bad { color: var(--mauvais); }
