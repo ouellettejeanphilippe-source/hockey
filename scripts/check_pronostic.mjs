@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D, AGRESSIVITES, enFaceDe, FERMETURE_DEFAUT } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D, AGRESSIVITES } from '../js/sim.js';
 import { pronostic, conditions, chancesDesObjectifs, conseilsDuMatch } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
@@ -142,18 +142,6 @@ ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)}
   const L3 = ligue(), L4 = (() => { const eq = vestiaires.map((v, i) => { const pool = v.pool.map(p => ({ ...p })); pool.forEach(registerHiddenRatings); return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season, isPlayer: i === 0 }); }); return { equipes: eq, ...simulateLeague(eq, 82, { graine: 'pronostic-graine', decisions: [d] }) }; })();
   const f3 = [L3.equipes[0].W, L3.equipes[0].GF, L3.equipes[0].GA].join('-'), f4 = [L4.equipes[0].W, L4.equipes[0].GF, L4.equipes[0].GA].join('-');
   ok(f3 !== f4, 'appliqué, un conseil change la saison', `« ${c.titre} » : ${f3} puis ${f4}`);
-}
-
-/*
- * « EN FACE » VISE LA BONNE UNITÉ (V2.2). Le moteur envoie leur fermeture contre ton 1er trio une présence sur
- * PLAN_FERMETURE (`choisirApparie`) ; `enFaceDe` le dit, et « Préparer le match » le lit au lieu du trio de même rang.
- */
-{
-  const f = FERMETURE_DEFAUT, j = x => x.map(c => `${c.rang}:${Math.round(c.part * 100)}`).join(',');
-  ok(j(enFaceDe(0, f)) === `0:60,${f}:40` && j(enFaceDe(f, f)) === `${f}:60,0:40` && j(enFaceDe(1, f)) === '1:100' && j(enFaceDe(0, null)) === '0:100',
-    'ton 1er trio croise leur fermeture 40 % du temps, ta fermeture leur 1er', `1er : ${j(enFaceDe(0, f))} · ${f + 1}e : ${j(enFaceDe(f, f))} · 2e : ${j(enFaceDe(1, f))}`);
-  const src = fs.readFileSync(new URL('../js/gerant.js', import.meta.url), 'utf8');
-  ok(/const croises = !D && adv \? enFaceDe\(u,/.test(src), '« En face » lit le trio que le moteur envoie (`enFaceDe`)', 'js/gerant.js');
 }
 
 console.log(echecs ? `\n  ${echecs} échec(s).` : '\n  Le pronostic ne touche à rien.');

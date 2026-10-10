@@ -2089,3 +2089,74 @@ JP : *ya de bons et de mauvais joueurs de troisième et quatrième trios, ce son
 **Plausible, pas exact.** JP : *pour 120 points, 100-140 est legit, pis pour 30, 20-40 aussi* ; *on veut pas un plombier à 100 points ou Lemieux à 10* ; *si c'est genre 5 joueurs dans la simu qui sont weirds, on s'en fout*. Avec le levier A, l'erreur systématique par joueur monte de 11,8 à 15,5 % (sans lui, 10,8 %) : dans la marge de JP. `check_parts` juge désormais l'INVRAISEMBLABLE (aucun patineur à deux fois ses points attendus : le plus haut est à 1,56, contre 1,52 avant) et garde la queue plausible (une fois et demie) en filet à 2 % ; le bas de l'étendue n'est pas jugé, ce sont des réservistes du banc d'essai (0,22 fois avant le chantier).
 
 **Une conséquence : les événements.** Une défense plus lourde étouffe un peu leurs effets offensifs : la médiane de `check_evenements` tombait à 0,28 but marqué par match (borne 0,30). `AMPLEUR_EVENEMENT` 2,1 → 2,6 la remonte ; les bornes des canaux la font monter lentement (2,4 : 0,296). `check_banque` sur les événements juge qu'aucun ne sort de la borne de sa rareté. La V6 (phase 4) doit de toute façon les ramener d'environ 160 à 40.
+
+## Une carte, une idée (10 oct. 2026)
+
+JP : *je pense que les cartes sont trop complexes, autant événements que le reste*. Une carte de la banque disait en moyenne trois à cinq choses sur sa face (« Tu tires moins · L'adversaire tire moins · Tu marques moins · Tu accordes moins de buts »), et les cartes de match les disaient en chiffres pendant que les autres les disaient en mots. **Décidé** (V6, phase 4) : la face d'une carte dit au plus `FACE_MAX` = 2 choses, en mots — au plus un bon et un prix, ce qui la définit d'abord (un geste réel, un badge, le joueur visé), les buts ensuite, le plus gros devant ; la durée se dit à part. Le reste, et chaque chiffre de match, se plie sous « Les chiffres » : rien ne disparaît (`pucesDeFace`, `pliDeFace`, js/gerant.js). Une ligne à sujet garde son sujet (« Si tu mènes après deux périodes : tu marques plus ») ; une ligne « Eux : » se dit de ton côté (leurs buts accordés : « Tu marques plus ») ; un pari dit ses deux issues ; une ligne qui grandit le dit en tête (« Avec 5 joueurs du Rhino habillés : tu marques plus »). Les minutes par trio, une puce par unité, deviennent une puce en tout : « Le haut joue plus », « Le bas joue plus », « La glace se brasse » (`sensDeLaGlace`, js/sim.js). Écarté : couper les effets de trop dans les cartes elles-mêmes — ce serait changer ce que le moteur joue, et la borne de rareté (`check_cartes`) a été mesurée sur ces effets. Preuve : `check_chiffres`, section 3b.
+
+## Les liens se lisent, ils ne paient rien de neuf (10 oct. 2026)
+
+JP : *le jeu devrait m'encourager à essayer des joueurs différents, trouver des synergies*. V6, phase 3 : entre deux voisins d'une unité, une pastille dit ce qui les lie et, touchée, ce que ça rapporte — 🤝 l'entente (les matchs joués ensemble, qui montent la chimie de la ligne par `chimieLigne`), 👬 de vrais coéquipiers et 🎽 la même franchise (que les cartes d'origine du gros match paient). L'onglet Équipe compte les joueurs du coach en poste. **Écarté** : un lien « même coach » entre deux voisins — la confiance compte chaque joueur de sa couleur habillé, où qu'il joue ; deux voisins de la même couleur ne rapportent rien de plus que s'ils étaient séparés, et l'écran ne dit que ce que le moteur joue. **À trancher par JP** : les origines paient-elles en permanence (un petit bonus de chimie par lien) ? Rien n'a bougé dans le moteur.
+
+## Les événements passent de 160 à une quarantaine (V6, phase 4 — 10 oct. 2026)
+
+JP : *les cartes sont trop complexes, autant événements que le reste*. L'inventaire de la V6 : 160 événements, 0,03 V en médiane, 124 qui ont la même forme (un bonus, un prix, deux canaux) — douze fois « plus de finition, plus de punitions », neuf fois « moins de tirs, moins de buts contre ». On ne distinguait plus un événement d'un autre ; on lisait sa liste.
+
+**Décidé : 40 se tirent, 120 sont retirés.** Un événement retiré porte `retire: true` sur sa définition (js/banque.js, js/evenements-vie.js) ; `idsDe` et `idsDuCoach` ne rendent que les cartes qui se tirent, donc les packs (`tirerCartesPack`), les packs gratuits des paliers, les nœuds de la semaine (`BASSINS.evenement`, js/noeuds.js) et le dénominateur de la banque (`sortDUnPack`) ne les voient plus. La définition reste : une vieille partie qui en porte un dans sa poche le joue (`payloadDe` le rend), et une décision déjà prise rejoue sa charge `effet` telle quelle. La banque de la Collection ne montre un retiré qu'à qui l'a déjà. Ce qui bouge pour une partie en cours : le pack gratuit d'un palier se recalcule de la graine (`pocheDeLaPartie`) ; une carte de ce pack pas encore jouée qui tombait sur un événement peut devenir une autre carte, et les routes des nœuds à venir aussi. Ce qui a été joué rejoue pareil.
+
+**La méthode.** Chaque événement est lu par `chiffresDuSoir` contre quatre paires de vrais clubs (le banc de `check_evenements`) : tirs pour et contre, buts pour et contre, punitions, blessures, par match ; puis en victoires, en paires (`check_banque FAMILLES=evenements`, quatre ligues). On groupe par **forme** : les canaux au signe près, la glace des trios vers le haut ou le bas, un geste (soin, jambes) et des jetons comptant chacun pour un canal — 71 formes pour 160 événements. Dans chaque forme on garde au plus un événement, le plus visible (le déplacement de `check_cartes` : ±2 tirs, ±0,3 but des deux clubs, ±0,5 punition, ±3 blessures par saison), sauf que :
+- les neuf **événements de coach** (`echelle`, un par coach) restent : ils sont la seule carte d'événement du Contremaître, du Showman et du Comptable, et ils grandissent avec le build ; ils prennent la place de leur forme (le Bunker plutôt que la Surfaceuse en panne, le Regard du tueur plutôt que le Centenaire) ;
+- un cadeau au bord de sa borne s'en va : **Le nom de l'aréna vendu** (+2,5 V, rare, hors de la borne de `check_banque`), **La visite de la légende** (+2,4 V, tout positif), **Le code de conduite** (+1,4 V, une commune bornée à ±1) ; **Le vétéran parle** (+1,4 V, peu commune à ±1,5) cède sa forme au **Cercle vertueux** (+0,0 V, la même forme) ;
+- deux bornes de `check_evenements` tiennent sur les tirables : la médiane d'un tiers de but marqué par match et le net sur la durée sous deux buts. Le Club des partisans (net +4,3 buts), La lutte à l'entraînement (0,09 but) et L'entraîneur suspendu (+2,1) laissent leur place au Retour prématuré, à La tempête de neige et au Jet privé ;
+- les malédictions d'événement ne sortaient déjà de rien depuis la 1.0 (seule la taxe de luxe frappe à l'ouverture) : retirées aussi, sans rien changer.
+
+**Les 40 qui se tirent** (par match, contre un adversaire ; V en paires, ±0,5 à quatre ligues ; « bless. » = blessures par saison au même rythme) :
+
+| Événement | Rareté · coach | Ce qu'il fait | La feuille, par match | V |
+|---|---|---|---|---|
+| `greveZamboni` La grève des surfaceuses | peu · 🐢 | tirs −, buts contre −, usure des jambes + | −11,6 / −6,2 tirs · −0,93 / −1,68 but | +0,9 |
+| `obstruction` L'obstruction oubliée (règlement) | peu · 🐢 | tirs −, buts contre −, punitions + | −9,3 / −2,1 tirs · −0,74 / −0,91 · +2,3 pun. | plantait (réglé : voir plus bas) |
+| `bunker` Le bunker | peu · 🐢 coach | tirs −, buts contre − | −5,8 / −2,9 · −0,47 / −0,84 | +0,6 |
+| `siffletPoche` Le sifflet dans la poche (règlement) | commune · 🐢 | buts contre −, punitions + | −0,39 / −0,78 · +2,8 pun. | +0,5 |
+| `pacte` Le pacte | rare · 🐢 | finition +, buts contre −, blessures + | +0,10 / −0,93 · +4,3 bless. | +2,0 |
+| `planDesert` Le plan du filet désert (règlement) | peu · 🐝 | tirs +, buts contre + | +10,4 / +4,3 · +0,84 / +1,50 | −0,3 |
+| `concours` Le concours de lancers | peu · 🐝 coach | tirs +, usure des jambes + | +4,4 tirs · +0,36 but | +1,3 |
+| `autobus` Le fan-club en autobus | commune · 🐝 | tirs +, punitions + | +4,8 / +2,0 · +0,39 / +0,32 · +1,4 pun. | −0,2 |
+| `rumeur` La rumeur d'échange | peu · 🐝 | tirs +, finition − | +6,5 tirs · −0,30 but | −0,5 |
+| `engueulade` L'entraîneur sort de ses gonds | peu · 🦅 | finition +, punitions +, blessures + | +0,27 / +0,46 · +2,8 pun. · +5,9 bless. | +0,7 |
+| `derby` La semaine du derby | peu · 🦅 | finition +, punitions +, robustesse + | +0,34 / +0,39 · +3,0 pun. | −1,0 |
+| `soiree` La soirée du hockey | peu · 🦅 | finition +, buts contre + | +0,72 / +1,28 | +0,2 |
+| `regard` Le regard du tueur | peu · 🦅 coach | finition +, punitions + | +0,31 / +0,19 · +1,2 pun. | −0,4 |
+| `dossier` Le dossier des gardiens | commune · 🦅 | tirs −, finition + | −6,1 tirs · −0,14 / −0,11 | −0,3 |
+| `retourPrecoce` Le retour prématuré | peu · 🦅 | soin de 3, finition +, blessures + | +0,39 but · +5,9 bless. | −0,4 |
+| `jeuneProdige` Le jeune prodige sous contrat | rare · 🦅 | tirs +, finition +, punitions − | +5,9 tirs · +0,97 but · −1,0 pun. | +1,7 |
+| `recrueRecord` La séquence de la recrue | rare · 🦅 | tirs +, finition +, usure des jambes + | +4,6 tirs · +0,86 but | +0,2 |
+| `bagarre` La bagarre à l'entraînement | peu · 🦏 | punitions +, blessures +, robustesse + | +0,36 contre · +3,0 pun. · +2,8 bless. | −0,1 |
+| `steak` Le steak d'avant-match | peu · 🦏 coach | punitions +, robustesse + | +1,4 pun. | +0,3 |
+| `sousSol` Le gymnase du sous-sol | commune · 🦏 | tirs −, robustesse + | −3,2 tirs · −1,5 bless. | +0,2 |
+| `spa` La semaine au spa | peu · 🫁 coach | jambes +8, blessures −, tirs − | −3,2 tirs · −2,9 bless. | +0,9 |
+| `piscineThera` La piscine thérapeutique | peu · 🫁 | soin de 2, blessures −, tirs − | −3,4 tirs · −2,9 bless. | −0,0 |
+| `relache` La semaine de relâche | peu · 🫁 | jambes +20, finition − | −0,36 but | −0,5 |
+| `petitionFiltre` La pétition du filtre | commune · 🫁 | jambes fraîches, tirs − | −3,4 tirs · −0,28 but | +0,2 |
+| `tempete` La tempête de neige | commune · 🫁 | jambes fraîches, finition − | −0,45 but | −0,8 |
+| `jetPrive` Le jet privé | peu · 🫁 | jambes fraîches, punitions + | +1,2 pun. | −0,3 |
+| `retraite` La retraite fermée | peu · 😇 coach | punitions −, finition − | −0,17 / −0,19 · −1,1 pun. | +0,9 |
+| `arbitres` La réunion avec les arbitres | commune · 😇 | punitions − | −0,19 contre · −1,1 pun. | −0,1 |
+| `courrielSieste` Le courriel du dimanche | peu · 😇 | punitions −, tirs − | −3,8 / −1,7 · −0,30 / −0,27 · −1,1 pun. | +0,2 |
+| `autobusPanne` L'autobus en panne | commune · 😇 | punitions −, usure des jambes + | −0,17 contre · −1,0 pun. | +0,0 |
+| `garage` La ligue de garage | peu · 🪜 coach | la glace au bas, jambes fraîches | — (la glace) | −0,1 |
+| `une` La une des journaux | peu · 🌠 coach | la glace au haut, finition + | +0,31 but | +0,1 |
+| `commanditaires` La soirée des commanditaires | peu · 🏦 coach | +8 🪙, finition − | −0,36 but | +0,7 |
+| `droitsTele` Les nouveaux droits télé | rare · neutre | +25 🪙, finition +, buts contre −, jambes fraîches | −2,9 / −2,9 · +0,15 / −1,00 | +1,6 |
+| `miracleGlace` Le miracle sur glace | rare · neutre | finition +, buts contre −, usure des jambes + | −3,9 / −3,9 · +0,11 / −1,30 | +0,5 |
+| `dernierSprint` Le dernier droit | rare · neutre | tirs +, finition +, buts contre −, usure des jambes + | +1,6 / −2,2 · +0,57 / −0,94 | +1,7 |
+| `chandail` Le chandail retiré | peu · neutre | finition +, buts contre − | −3,4 / −3,4 · +0,13 / −1,15 | +1,1 |
+| `domicile` La série à domicile | commune · neutre | tirs +, jambes fraîches | +6,0 tirs · +0,49 but | +0,3 |
+| `cercleVertueux` Le cercle vertueux | commune · neutre | buts contre −, punitions − | −2,1 tirs contre · −0,60 · −1,0 pun. | +0,0 |
+| `reservistes` Le match des réservistes | peu · neutre | la glace au bas (trios et paires), blessures −, finition − | −0,29 but · −2,9 bless. | −0,5 |
+
+Par coach : 🐝 4 · 🦅 8 · 🐢 5 · 🦏 3 · 🫁 6 · 😇 4 · 🪜 1 · 🌠 1 · 🏦 1 · neutres 7. Médiane des tirables : 0,30 but marqué par match (0,304, la borne est 0,30), net sur la durée 1,9 but (borne 2), aucun événement sous le dixième de but parmi ceux qui touchent aux buts. Moyenne en victoires des 39 mesurés : +0,3 V (borne ±0,6) ; aucun hors de la borne de sa rareté.
+
+**Prouvé.** `check_evenements` juge maintenant ses trois bornes sur les tirables (un retiré n'arrive plus dans une partie neuve : le compter jugerait une banque que personne ne pige) et ajoute les règles du choix : 30 à 50 tirables, aucune forme en double, chaque coach garde des événements de sa couleur, chaque rare se voit dans la feuille, un retiré ne sort d'aucun tirage (packs, paliers, nœuds) et rend encore sa décision. `check_banque` ne mesure plus en victoires que les tirables. `check_coachs` complétait la confiance de l'Aigle avec neuf de ses événements ; il en a huit, ses consommables complètent.
+
+**Douteux, laissé ouvert.** `check_banque` plante sur L'obstruction oubliée (`TypeError` dans `jouerCote`, js/sim.js) : dans une des quatre ligues, un club finit par aligner un soir zéro défenseur, `unitesSpeciales` rend un avantage numérique sans paire, et `choisirApparie([])` rend `undefined`. Le défaut est au moteur (n'importe quel tirage qui vide la défense le ferait), pas à l'événement, et il existait avant ; l'événement reste. Réglé dans la même PR : sans défenseur habillé, des attaquants jouent la pointe (`unitesSpeciales`), l'empreinte du moteur ne bouge pas. Les médianes de `check_evenements` restent au ras de leurs bornes (0,304 pour 0,30) comme avant la coupe : la prochaine retouche du moteur peut les faire basculer.

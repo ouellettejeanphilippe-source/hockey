@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace } from './sim.js';
 import { virgule } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -231,11 +231,17 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
     if (Math.abs(usure) >= 0.1) out.push({ txt: `≈ ${signeDe(usure)}${nb(usure, 1)} ${mot(usure, 'jambe', 'jambes')} d'usure ${par}`, bon: usure < 0, cle: 'jambes' });
     else out.push({ txt: 'jambes : à peine perceptible', bon: null, cle: 'rien' });
   }
-  for (const g of ['F', 'D']) if (!eux && Array.isArray(e[g])) e[g].forEach((m, i) => {
-    if (m === 1) return;
-    const x = d[g === 'F' ? 'glaceF' : 'glaceD'][i];
-    out.push({ txt: Math.abs(x) >= SEUILS.minutes ? `${RANGS[g][i]} : ≈ ${signeDe(x)}${nb(x, 1)} min de glace ${par}` : `${RANGS[g][i]} : glace presque inchangée`, bon: null, cle: 'glace' });
-  });
+  /*
+   * LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée). Elle disait une rangée par trio et par paire touchés,
+   * jusqu'à sept : son sens d'abord (« Le haut joue plus »), puis l'unité qui gagne le plus et celle qui perd le plus.
+   */
+  const sens = !eux && sensDeLaGlace(e);
+  if (sens) {
+    const ecarts = ['F', 'D'].flatMap(g => (Array.isArray(e[g]) ? (d[g === 'F' ? 'glaceF' : 'glaceD'] || []).map((x, i) => ({ x, nom: RANGS[g][i] })) : []));
+    const plus = ecarts.reduce((a, b) => (b.x > a.x ? b : a), { x: 0 }), moins = ecarts.reduce((a, b) => (b.x < a.x ? b : a), { x: 0 });
+    const bouts = [plus, moins].filter(b => Math.abs(b.x) >= SEUILS.minutes).map(b => `${b.nom} ≈ ${signeDe(b.x)}${nb(b.x, 1)} min`);
+    out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} ${par}` : `${sens}, à peine`, bon: null, cle: 'glace' });
+  }
   return out;
 }
 

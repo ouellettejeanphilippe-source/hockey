@@ -7,15 +7,15 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
 import { alignementAuMieux, unitesDuSoir } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
-import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix } from './gerant.js';
+import { COACHS } from './coachs.js';
+import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, motAppris } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
-import { fermetureCourante } from './banc.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
@@ -425,6 +425,45 @@ function puceOrigine(o, group) {
   return mots.slice(0, 2).map(([ico, mot, titre]) => `<span class="line-orig" title="${esc(titre)}">${ico} ${esc(mot)}</span>`).join('');
 }
 
+/*
+ * LES LIENS (V6, phase 3). JP : *trouver des synergies*. Entre deux voisins d'une unité, une pastille dit ce qui les
+ * lie — 🤝 leur entente, 👬 de vrais coéquipiers, 🎽 la même franchise — et, touchée, ce que ce lien rapporte.
+ * Rien qu'une lecture (`lienDePaire`, js/sim.js) : l'entente monte la chimie de la ligne, l'origine se paie par sa carte.
+ */
+function liensEntre(app, a, b) {
+  const L = lienDePaire(app, a, b), out = [];
+  const court = p => String(p.n || '').trim().split(' ').pop();
+  const qui = `${court(a)} et ${court(b)}`;
+  if (L.entente >= 0.2) out.push(['🤝', `${qui} : entente ${motAppris(L.entente)}, ${Math.round(L.matchs)} matchs ensemble. Elle monte la chimie de la ligne.`]);
+  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). La carte 👬 Les vrais coéquipiers les paie.`]);
+  else if (L.famille) out.push(['🎽', `${qui} : la même franchise. La carte 🎽 La même famille les compte.`]);
+  return out;
+}
+function poserLiens(row, slots) {
+  const app = G.banc && G.banc.apprentissage ? apprentissagePhoto(G.banc.apprentissage) : null;
+  const cases = [...row.children];
+  row.style.setProperty('--n', slots.length);
+  for (let i = 0; i + 1 < slots.length; i++) {
+    const a = G.roster[slots[i].i], b = G.roster[slots[i + 1].i];
+    if (!a || !b || a.p === 'G' || b.p === 'G') continue;
+    const liens = liensEntre(app, a, b);
+    if (!liens.length) continue;
+    const texte = liens.map(l => l[1]).join(' ');
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = 'lien';
+    el.textContent = liens.map(l => l[0]).join('');
+    el.title = texte;
+    el.setAttribute('aria-label', texte);
+    el.onclick = ev => { ev.stopPropagation(); toast(texte); };
+    // Entre les deux cases : sous la première en rangée (le téléphone), sur l'écart des deux en colonnes.
+    const place = document.createElement('span');
+    place.className = 'lien-place';
+    place.style.setProperty('--k', i + 1);
+    place.appendChild(el);
+    cases[i].after(place);
+  }
+}
 function lineEl(title, slots, group, unit, cls = '') {
   const wrap = document.createElement('div');
   wrap.className = 'line';
@@ -459,16 +498,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     chemHtml = `<span class="line-chem">${filled}/${ouvertes} comblés</span>`;
   }
 
-  // Derrière le banc, le trio de fermeture porte son 🔒 : il prend le
-  // premier trio adverse (voir FERMETURE_DEFAUT dans js/sim.js).
-  let fermHtml = '';
-  if (G.banc && group === 'F') {
-    const ferm = fermetureCourante();
-    const on = ferm === unit;
-    // V6 : le trio de fermeture se choisit au plan de match (onglet Équipe, « contre leur 1er ») ; l'en-tête le dit seulement.
-    fermHtml = on ? `<span class="line-ferm on" title="Ton trio de fermeture : il prend le premier trio adverse. Il se change au plan de match, dans l'onglet Équipe.">🔒 Fermeture</span>` : '';
-    if (on) wrap.classList.add('fermeture');
-  }
+  // L'appariement et la glace (V6) vivent dans l'onglet Équipe, au plan de match : l'unité ne les répète pas.
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
   const id = (group === 'F' || group === 'D') && !surTable() ? identiteUnite(G.roster, group, unit) : null;
   const idHtml = id ? `<span class="line-id" title="${esc(id.roles.join(' · '))}">${esc(id.nom)}</span>` : '';
@@ -491,7 +521,7 @@ function lineEl(title, slots, group, unit, cls = '') {
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
-  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${fermHtml}${chemHtml}</div>`;
+  wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${chemHtml}</div>`;
   // UN TOUCHER SUR L'EN-TÊTE OUVRE LE SYSTÈME DE L'UNITÉ (1.0, les lignes).
   if ((group === 'F' || group === 'D') && !surTable()) {
     const tete = wrap.querySelector('.line-head');
@@ -502,6 +532,7 @@ function lineEl(title, slots, group, unit, cls = '') {
   const row = document.createElement('div');
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
+  if ((group === 'F' || group === 'D') && !surTable()) poserLiens(row, slots);
   wrap.appendChild(row);
   // LA STRATÉGIE SOUS SON TRIO (S78 ; en fenêtre depuis 1.0). Sur table, rien :
   // le plateau ne lit ni tactique ni glace.
@@ -748,7 +779,16 @@ export function renderTeamSummary() {
     + tile('Unités en place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
     + tile('Unités mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
       `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's sont' : ' est'} à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
-    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`);
+    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`)
+    + tuileDuCoach(tile);
+}
+/* TON COACH, COMPTÉ (V6, phase 3) : « 🐢 7 joueurs » — ses joueurs habillés, sur qui sa confiance joue. */
+function tuileDuCoach(tile) {
+  const C = G.bonus === 'ROGUE' && G.rogue ? COACHS[G.rogue.coach] : null;
+  if (!C) return '';
+  const n = (joueursDesCoachs({ roster: G.roster, injured: G.banc ? G.banc.blesses : null })[G.rogue.coach] || {}).joueurs || 0;
+  return tile(`${C.ico} ${C.nom}`, `${n} joueur${n > 1 ? 's' : ''}`, n ? 'dash-good' : '',
+    `${n} joueur${n > 1 ? 's' : ''} ${C.de} habillé${n > 1 ? 's' : ''} : la confiance de ton coach joue sur chacun, et plus fort sur un badge plus haut. Ses cartes qui comptent ses joueurs grandissent avec eux.`);
 }
 
 export function renderMain() {

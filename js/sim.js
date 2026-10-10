@@ -1550,6 +1550,17 @@ export function origineUnite(lineup, groupe, u) {
     decennie: groupe === 'F' && tous(decennieDe) ? decennieDe(js[0]) : null,
   };
 }
+/*
+ * CE QUI LIE DEUX VOISINS (V6, phase 3) : leur entente (les matchs joués ensemble, qui montent la chimie de la ligne)
+ * et leur origine (les vrais coéquipiers, la même franchise, que les cartes d'origine paient). Une lecture, rien de neuf.
+ */
+export function lienDePaire(app, a, b) {
+  const matchs = app ? app.entente(cleDePaire(a, b)) : 0;
+  return {
+    matchs, entente: 1 - Math.exp(-matchs / ENTENTE_MATCHS),
+    coequipiers: clubSaison(a) === clubSaison(b), famille: franchiseDe(a) === franchiseDe(b),
+  };
+}
 export function originesDe(team) {
   const lineup = team && team.roster;
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
@@ -4178,8 +4189,10 @@ const est_Def = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
  * `presence`.
  */
 function unitesSpeciales(habilles) {
-  const F = habilles.filter(p => p && p.p !== 'G' && !est_Def(p));
-  const D = habilles.filter(est_Def);
+  const F0 = habilles.filter(p => p && p.p !== 'G' && !est_Def(p)), D0 = habilles.filter(est_Def);
+  // Sans un seul défenseur habillé (l'infirmerie pleine), des attaquants jouent la pointe, et l'inverse :
+  // une unité spéciale n'est jamais vide (check_banque plantait sur une avantage sans paire).
+  const F = F0.length ? F0 : D0, D = D0.length ? D0 : F0;
   const offensif = p => lancersRel(p) * pctTirRel(p) + passesRel(p);
   // QUAND LES SHARDS LE DISENT, ON LE LIT. Les points en avantage disent qui
   // jouait l'avantage, les points en désavantage qui le tuait : deux
@@ -4217,11 +4230,6 @@ function unitesSpeciales(habilles) {
 /** Le trio de fermeture par défaut : le 3e trio, s'il existe (voir FERMETURE_DEFAUT). */
 function fermetureAuto(unitesF) {
   return unitesF.length > FERMETURE_DEFAUT ? FERMETURE_DEFAUT : null;
-}
-
-/** Pour l'écran : le trio que 'auto' désigne. */
-export function trioDeFermetureAuto() {
-  return FERMETURE_DEFAUT;
 }
 
 /** Le volume d'un joueur à forces égales : ses lancers, moins sa part d'avantage. */
@@ -4746,17 +4754,6 @@ const RYTHME_PLANCHER = Number(ENV_MESURE.RYTHME_PLANCHER ?? 1);
  * trio (la première paire joue avec le premier trio — c'est ce qui lui
  * donne son +/- dans la vraie ligue, +9 contre −1 sans ça).
  */
-/*
- * QUI TON TRIO CROISE (V2.2, « En face » vise la bonne unité) : par le plan d'appariement, ton trio `u` croise le
- * trio adverse de son rang, sauf PLAN_FERMETURE des présences où le plan l'envoie ailleurs — ton 1er contre leur
- * fermeture, ta fermeture… contre leur 1er. Rend [{ rang, part }], la part la plus grosse d'abord. `fermRang` :
- * le rang de leur trio de fermeture (null : aucun plan).
- */
-export function enFaceDe(u, fermRang) {
-  if (fermRang == null) return [{ rang: u, part: 1 }];
-  const duPlan = u === 0 ? fermRang : u === fermRang ? 0 : u;
-  return duPlan === u ? [{ rang: u, part: 1 }] : [{ rang: u, part: 1 - PLAN_FERMETURE }, { rang: duPlan, part: PLAN_FERMETURE }];
-}
 function choisirApparie(unites, rangOff, nOff, k = APPARIEMENT, cle = 'presence', plan = false) {
   if (!unites.length) return unites[0];
   const nDef = unites.length;
@@ -7625,6 +7622,8 @@ export function motsDeMutation(cle) {
   if (M.abri) out.push({ txt: `Il ignore ${Math.round(M.abri * 100)} % de leur étouffement`, bon: true });
   if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
   if (M.lustre) out.push({ txt: 'Sa carte : une variante de plus', bon: true });
+  if (M.palier) out.push({ txt: 'Son badge monte au suivant', bon: true, cle: 'badge' });
+  if (M.mentor) out.push({ txt: 'Ses compagnons de ligne : leur badge monte au suivant', bon: true, cle: 'badge' });
   // Le feu qui s'entretient (V3.6) : ce que la carte fait à sa lancée, en mots ; les chiffres sont dans les règles.
   if (M.feu === 'etincelle') out.push({ txt: 'Sa lancée s\'allume plus vite, et brûle plus fort', bon: true });
   if (M.feu === 'braise') out.push({ txt: 'Sa lancée tient tant qu\'il marque', bon: true });
@@ -7693,6 +7692,22 @@ export function flechesDe(x, seuils = null) {
   void seuils;
   return pctDe(x);
 }
+/*
+ * LE SENS D'UN DÉPLACEMENT DE GLACE (V6) : les multiplicateurs F (trios) et D (paires) d'un effet, dits en une idée.
+ * La moitié du haut contre la moitié du bas, pondérée par l'écart de chaque rang à 1 : « Le haut joue plus »,
+ * « Le bas joue plus », ou « La glace se brasse » quand les deux bouts bougent pareil. Rend '' sans glace.
+ */
+export function sensDeLaGlace(e) {
+  let haut = 0, bas = 0, bouge = false;
+  for (const g of ['F', 'D']) {
+    if (!Array.isArray(e && e[g])) continue;
+    const n = e[g].length;
+    e[g].forEach((m, i) => { if (m === 1) return; bouge = true; if (i < n / 2) haut += m - 1; else bas += m - 1; });
+  }
+  if (!bouge) return '';
+  const net = haut - bas;
+  return Math.abs(net) < 0.05 ? 'La glace se brasse' : net > 0 ? 'Le haut joue plus' : 'Le bas joue plus';
+}
 export function motsDEffet(e, duree = null) {
   if (!e) return [];
   const out = [];
@@ -7704,10 +7719,9 @@ export function motsDEffet(e, duree = null) {
   if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
   if (e.energie && e.energie !== 1) out.push({ txt: `Usure des jambes ${pct(e.energie)}`, bon: e.energie < 1 });
   if (e.robustesse) out.push({ txt: `Robustesse ${e.robustesse > 0 ? '+' : '−'}${String(Math.abs(Math.round(e.robustesse * 10) / 10)).replace('.', ',')}`, bon: e.robustesse > 0 });
-  const rangF = ['1er trio', '2e trio', '3e trio', '4e trio'], rangD = ['1re paire', '2e paire', '3e paire'];
-  for (const [g, noms] of [['F', rangF], ['D', rangD]]) if (Array.isArray(e[g])) e[g].forEach((m, i) => {
-    if (m !== 1) out.push({ txt: `${noms[i]} : glace ${flechesDe(m, [0.1, 0.25])}`, bon: null });
-  });
+  // LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée) : sept rangées « 1er trio : glace ↑ » disaient une seule idée.
+  const sens = sensDeLaGlace(e);
+  if (sens) out.push({ txt: sens, bon: null, cle: 'glace' });
   if (e.mutation && MUTATIONS[e.mutation]) out.push({ txt: `Change sa carte : ${MUTATIONS[e.mutation].ico} ${MUTATIONS[e.mutation].nom}`, bon: null });
   if (duree) out.push({ txt: `${duree} match${duree > 1 ? 's' : ''}`, bon: null, duree: true });
   return out;

@@ -6,8 +6,10 @@
  *   LIGUES=8 node scripts/check_banque.mjs   (une lecture plus fine)
  *   FAMILLES=evenements PART=1/4 node scripts/check_banque.mjs
  *       (l'équilibre d'une seule famille, et le quart de ses cartes : quatre
- *       processus en parallèle font les 160 événements en un quart du temps ;
- *       la moyenne d'une famille ne se juge alors que sur la liste entière)
+ *       processus en parallèle font les événements en un quart du temps ;
+ *       la moyenne d'une famille ne se juge alors que sur la liste entière.
+ *       V6 : seuls les événements qui se tirent sont mesurés, une quarantaine
+ *       sur 160 — les retirés ne sortent plus d'aucun tirage)
  *
  * Vérifie :
  *   1. le registre : plus de 150 cartes, sept familles, une règle chiffrée
@@ -79,11 +81,12 @@ informer('les cartes', `${total} en tout · ${ORDRE_CATEGORIES.map(c => `${c} ${
 exiger('plus de 150 cartes, dans sept familles', total >= 150 && ORDRE_CATEGORIES.length === 7 && ORDRE_CATEGORIES.every(c => compte[c] > 0), `${total}`);
 const sansRegle = Object.keys(BANQUE).filter(id => BANQUE[id].cat !== 'match' && !reglesDe(id).length);
 exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
-const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'evenement', 'consommable', 'plafond'].includes(BANQUE[id].cat)).filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
+// Le congédiement (V5) change de coach : il n'a pas de chiffre à dire.
+const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'evenement', 'consommable', 'plafond'].includes(BANQUE[id].cat) && id !== 'consommable:congediement').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
 exiger('les patrons, événements, consommables et contrats se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'tous');
-const CHAMPS = ['patron', 'effet', 'gestes', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond'];
+const CHAMPS = ['patron', 'effet', 'gestes', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
-  const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', carte: 'lancer', patrons: [], alea: 0.2 });
+  const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', carte: 'lancer', coach: 'essaim', patrons: [], alea: 0.2 });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
 });
 exiger('chaque carte devient une décision que le moteur (ou le plafond) lit', !sansDecision.length, sansDecision.slice(0, 5).join(', ') || 'toutes');
@@ -127,7 +130,10 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
   exiger('l\'espace, la taxe de luxe et le DG du plafond flexible font le plafond au dollar', pl.cap === attendu,
     `${(pl.cap / 1e6).toFixed(2)} M$ (attendu ${(attendu / 1e6).toFixed(2)}) · ${pl.lignes.map(l => `${l.nom} ${l.montant > 0 ? '+' : ''}${(l.montant / 1e6).toFixed(1)}`).join(' · ')}`);
   const f = k => pl.facteurs.get(k);
-  exiger('retenue ½, rachat ⅔, contrat d\'entrée 60 %, bonis 85 %, LTIR : chacun sur son joueur', f('A') === 0.5 && Math.abs(f('B') - 2 / 3) < 1e-9 && f('D') === 0.6 && f('E') === 0.85 && pl.ltir.has('C') && !pl.facteurs.has('C'),
+  // Les facteurs viennent de leurs cartes (V6 : les contrats ont gardé leur %, moins fort).
+  const F = k => CONTRATS[k].facteur;
+  exiger(`retenue ${Math.round(F('retenue') * 100)} %, rachat ${Math.round(F('rachat') * 100)} %, contrat d'entrée ${Math.round(F('entree') * 100)} %, bonis ${Math.round(F('bonis') * 100)} %, LTIR : chacun sur son joueur`,
+    f('A') === F('retenue') && f('B') === F('rachat') && f('D') === F('entree') && f('E') === F('bonis') && F('retenue') < 1 && pl.ltir.has('C') && !pl.facteurs.has('C'),
     [...pl.facteurs].map(([k, v]) => `${k} ${Math.round(v * 100)} %`).join(' · ') + ` · LTIR ${[...pl.ltir].join(',')}`);
   exiger('une carte jouée plus tard ne compte pas encore', plafondDe([d(50, 'plafond:grosEspace')], 20, { base }).cap === base, 'La marge de manœuvre, jour 50, lue au jour 20');
   exiger('le rachat coûte ses jetons, dans la décision', (payloadDe('plafond:rachat', { joueur: 'B' }).plafond.cout || 0) === CONTRATS.rachat.cout, `${CONTRATS.rachat.cout} 🪙`);
@@ -209,7 +215,8 @@ if (FAMILLES.includes('patrons')) {
 const horsE = [];
 const lignesE = [];
 const ve = [];
-for (const cle of FAMILLES.includes('evenements') ? maPart(Object.keys(EVENEMENTS)) : []) {
+// V6 : seuls les événements qui se tirent (une quarantaine) ; un retiré n'entre plus dans une partie neuve.
+for (const cle of FAMILLES.includes('evenements') ? maPart(Object.keys(EVENEMENTS).filter(k => !EVENEMENTS[k].retire)) : []) {
   const v = paires(equipe => [{ jour: 20, equipe, ...payloadDe(`evenement:${cle}`) }]);
   lignesE.push(`événement ${EVENEMENTS[cle].nom} ${signe(v)} V`);
   ve.push(v);

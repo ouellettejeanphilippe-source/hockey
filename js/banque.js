@@ -242,35 +242,35 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
 /* ---------- LES ÉVÉNEMENTS D'ÉQUIPE : quelques journées ---------- */
 /* \`duree\` en journées ; les canaux comme les moments (\`effet\` d'une décision). */
 export const EVENEMENTS = {
-  voyage: { nom: 'Le voyage dans l\'Ouest', ico: '✈️', rarete: 'commune', duree: 8, texte: 'Trois villes, cinq fuseaux horaires, un seul autobus.', effet: { finition: 1.105, energie: 1.21 } },
-  souper: { nom: 'Le souper d\'équipe', ico: '🍝', rarete: 'commune', duree: 7, texte: 'Le capitaine paie la facture.', effet: { finition: 1.07, discipline: 0.825 } },
-  video: { nom: 'La séance vidéo', ico: '📼', rarete: 'commune', duree: 6, texte: 'Quatre heures dans le noir.', effet: { volume: 0.93, defense: 0.895 } },
+  voyage: { nom: 'Le voyage dans l\'Ouest', ico: '✈️', rarete: 'commune', retire: true, duree: 8, texte: 'Trois villes, cinq fuseaux horaires, un seul autobus.', effet: { finition: 1.105, energie: 1.21 } },
+  souper: { nom: 'Le souper d\'équipe', ico: '🍝', rarete: 'commune', retire: true, duree: 7, texte: 'Le capitaine paie la facture.', effet: { finition: 1.07, discipline: 0.825 } },
+  video: { nom: 'La séance vidéo', ico: '📼', rarete: 'commune', retire: true, duree: 6, texte: 'Quatre heures dans le noir.', effet: { volume: 0.93, defense: 0.895 } },
   rumeur: { nom: 'La rumeur d\'échange', ico: '📱', rarete: 'peu', duree: 10, texte: 'Tout le monde lit les journaux.', effet: { volume: 1.112, finition: 0.895 } },
-  hopital: { nom: 'La visite à l\'hôpital', ico: '🏥', rarete: 'commune', duree: 7, texte: 'Des sourires qui valent tous les trophées.', effet: { finition: 1.07, defense: 0.965 } },
+  hopital: { nom: 'La visite à l\'hôpital', ico: '🏥', rarete: 'commune', retire: true, duree: 7, texte: 'Des sourires qui valent tous les trophées.', effet: { finition: 1.07, defense: 0.965 } },
   chandail: { nom: 'Le chandail retiré', ico: '🎖️', rarete: 'peu', duree: 3, texte: 'Une bannière monte au plafond.', effet: { finition: 1.112, defense: 0.895 } },
   tempete: { nom: 'La tempête de neige', ico: '🌨️', rarete: 'commune', duree: 5, texte: 'Pratiques annulées : tout le monde dort.', effet: { finition: 0.93, energie: 0.72 } },
   bagarre: { nom: 'La bagarre à l\'entraînement', ico: '🥊', rarete: 'peu', duree: 8, texte: 'Ça a brassé. Ça brasse encore.', effet: { discipline: 1.42, blessure: 1.7, robustesse: 1.5 } },
   arbitres: { nom: 'La réunion avec les arbitres', ico: '🦓', rarete: 'commune', duree: 10, texte: 'On a compris ce qu\'ils siffleront.', effet: { discipline: 0.65 } },
-  veteran: { nom: 'Le vétéran parle', ico: '🧓', rarete: 'peu', duree: 10, texte: 'Dix minutes, porte fermée.', effet: { defense: 0.93, discipline: 0.72 } },
-  huisClos: { nom: 'La réunion à huis clos', ico: '🚪', rarete: 'peu', duree: 6, texte: 'On a entendu crier jusque dans le corridor.', effet: { finition: 1.112, blessure: 1.606 } },
+  veteran: { nom: 'Le vétéran parle', ico: '🧓', rarete: 'peu', retire: true, duree: 10, texte: 'Dix minutes, porte fermée.', effet: { defense: 0.93, discipline: 0.72 } },
+  huisClos: { nom: 'La réunion à huis clos', ico: '🚪', rarete: 'peu', retire: true, duree: 6, texte: 'On a entendu crier jusque dans le corridor.', effet: { finition: 1.112, blessure: 1.606 } },
   relache: { nom: 'La semaine de relâche', ico: '🏖️', rarete: 'peu', duree: 3, texte: 'Une semaine au soleil.', effet: { finition: 0.944 }, gestes: { energieTous: 20 } },
-  campMiSaison: { nom: 'Le camp de mi-saison', ico: '🏕️', rarete: 'rare', duree: 12, texte: 'Deux jours dans le bois, sans téléphone.', effet: { finition: 1.084, defense: 0.916, energie: 1.336 } },
-  nouveauChandail: { nom: 'Le nouveau chandail', ico: '👕', rarete: 'commune', duree: 5, texte: 'Le troisième chandail, enfin sorti.', effet: { finition: 1.105, discipline: 1.175 } },
-  gala: { nom: 'La soirée de gala', ico: '🎆', rarete: 'peu', duree: 4, texte: 'Les anciens sont dans les estrades.', effet: { volume: 1.07, finition: 1.112, energie: 1.175 } },
-  controverse: { nom: 'La controverse', ico: '📰', rarete: 'maudite', duree: 8, texte: 'Une photo de trop sur les réseaux.', effet: { finition: 0.895, discipline: 1.35 } },
-  grippe: { nom: 'La grippe au vestiaire', ico: '🤧', rarete: 'maudite', duree: 6, texte: 'Un joueur tousse. Puis tous.', effet: { blessure: 1.7, energie: 1.35 } },
-  recrueSurprise: { nom: 'La recrue surprise', ico: '🌱', rarete: 'peu', duree: 10, texte: 'Rappelé du club-école, il ne veut plus repartir.', effet: { volume: 1.105, energie: 0.895 } },
+  campMiSaison: { nom: 'Le camp de mi-saison', ico: '🏕️', rarete: 'rare', retire: true, duree: 12, texte: 'Deux jours dans le bois, sans téléphone.', effet: { finition: 1.084, defense: 0.916, energie: 1.336 } },
+  nouveauChandail: { nom: 'Le nouveau chandail', ico: '👕', rarete: 'commune', retire: true, duree: 5, texte: 'Le troisième chandail, enfin sorti.', effet: { finition: 1.105, discipline: 1.175 } },
+  gala: { nom: 'La soirée de gala', ico: '🎆', rarete: 'peu', retire: true, duree: 4, texte: 'Les anciens sont dans les estrades.', effet: { volume: 1.07, finition: 1.112, energie: 1.175 } },
+  controverse: { nom: 'La controverse', ico: '📰', rarete: 'maudite', retire: true, duree: 8, texte: 'Une photo de trop sur les réseaux.', effet: { finition: 0.895, discipline: 1.35 } },
+  grippe: { nom: 'La grippe au vestiaire', ico: '🤧', rarete: 'maudite', retire: true, duree: 6, texte: 'Un joueur tousse. Puis tous.', effet: { blessure: 1.7, energie: 1.35 } },
+  recrueSurprise: { nom: 'La recrue surprise', ico: '🌱', rarete: 'peu', retire: true, duree: 10, texte: 'Rappelé du club-école, il ne veut plus repartir.', effet: { volume: 1.105, energie: 0.895 } },
   pacte: { nom: 'Le pacte', ico: '🤞', rarete: 'rare', duree: 15, texte: 'Personne ne se rase avant la fin de la séquence.', effet: { finition: 1.056, defense: 0.916, blessure: 1.28 } },
-  retourBlesse: { nom: 'Le retour au jeu', ico: '🔙', rarete: 'commune', duree: 5, texte: 'Le physio donne le feu vert plus tôt que prévu.', effet: { finition: 1.056 }, gestes: { soin: 2, tousLesBlesses: true } },
+  retourBlesse: { nom: 'Le retour au jeu', ico: '🔙', rarete: 'commune', retire: true, duree: 5, texte: 'Le physio donne le feu vert plus tôt que prévu.', effet: { finition: 1.056 }, gestes: { soin: 2, tousLesBlesses: true } },
   derby: { nom: 'La semaine du derby', ico: '⚔️', rarete: 'peu', duree: 3, texte: 'Personne n\'a oublié le dernier match.', effet: { finition: 1.112, discipline: 1.42, robustesse: 1.25 } },
   domicile: { nom: 'La série à domicile', ico: '🏠', rarete: 'commune', duree: 8, texte: 'Huit soirs dans son lit.', effet: { volume: 1.105, energie: 0.825 } },
-  anciens: { nom: 'Le banquet des anciens', ico: '🍷', rarete: 'peu', duree: 10, texte: 'Les histoires de 1971 font le tour de la table.', effet: { defense: 0.965, robustesse: 1.25 } },
-  photo: { nom: 'La photo d\'équipe', ico: '📸', rarete: 'commune', duree: 5, texte: 'Tout le monde en complet, les cheveux peignés.', effet: { finition: 1.035, discipline: 0.65 } },
+  anciens: { nom: 'Le banquet des anciens', ico: '🍷', rarete: 'peu', retire: true, duree: 10, texte: 'Les histoires de 1971 font le tour de la table.', effet: { defense: 0.965, robustesse: 1.25 } },
+  photo: { nom: 'La photo d\'équipe', ico: '📸', rarete: 'commune', retire: true, duree: 5, texte: 'Tout le monde en complet, les cheveux peignés.', effet: { finition: 1.035, discipline: 0.65 } },
   engueulade: { nom: 'L\'entraîneur sort de ses gonds', ico: '🤬', rarete: 'peu', duree: 5, texte: 'Un bâton cassé sur le banc.', effet: { finition: 1.112, discipline: 1.35, blessure: 1.7 } },
-  brunch: { nom: 'Le brunch des familles', ico: '🥞', rarete: 'commune', duree: 7, texte: 'Les enfants dans le vestiaire.', effet: { volume: 0.944, energie: 0.72 } },
-  public: { nom: 'L\'œil du public', ico: '👁️', rarete: 'rare', duree: 10, texte: 'Chaque match est télévisé d\'un océan à l\'autre.', effet: { finition: 1.095, defense: 0.937, energie: 1.158 } },
-  arena: { nom: 'Le déménagement d\'aréna', ico: '🏟️', rarete: 'peu', duree: 6, texte: 'La glace neuve est rapide.', effet: { volume: 1.112, defense: 1.07 } },
-  batons: { nom: 'L\'atelier des bâtons', ico: '📏', rarete: 'peu', duree: 8, regle: true, texte: 'Tout le vestiaire a la même courbe, un cran au-delà du gabarit.', effet: { finition: 1.105, discipline: 1.28 } },
+  brunch: { nom: 'Le brunch des familles', ico: '🥞', rarete: 'commune', retire: true, duree: 7, texte: 'Les enfants dans le vestiaire.', effet: { volume: 0.944, energie: 0.72 } },
+  public: { nom: 'L\'œil du public', ico: '👁️', rarete: 'rare', retire: true, duree: 10, texte: 'Chaque match est télévisé d\'un océan à l\'autre.', effet: { finition: 1.095, defense: 0.937, energie: 1.158 } },
+  arena: { nom: 'Le déménagement d\'aréna', ico: '🏟️', rarete: 'peu', retire: true, duree: 6, texte: 'La glace neuve est rapide.', effet: { volume: 1.112, defense: 1.07 } },
+  batons: { nom: 'L\'atelier des bâtons', ico: '📏', rarete: 'peu', retire: true, duree: 8, regle: true, texte: 'Tout le vestiaire a la même courbe, un cran au-delà du gabarit.', effet: { finition: 1.105, discipline: 1.28 } },
   siffletPoche: { nom: 'Le sifflet dans la poche', ico: '🦓', rarete: 'commune', duree: 6, regle: true, texte: 'Les arbitres laissent jouer. On en profite dans les coins.', effet: { defense: 0.895, discipline: 1.35 } },
   planDesert: { nom: 'Le plan du filet désert', ico: '🚪', rarete: 'peu', duree: 4, regle: true, texte: 'Le sixième attaquant sort trop tôt, plusieurs soirs de suite.', effet: { volume: 1.112, defense: 1.112 } },
   obstruction: { nom: 'L\'obstruction oubliée', ico: '🪝', rarete: 'peu', duree: 8, regle: true, texte: 'On joue le hockey d\'avant la règle : les bâtons retiennent, les corps bloquent.', effet: { volume: 0.895, defense: 0.895, discipline: 1.28 } },
@@ -289,30 +289,30 @@ export const EVENEMENTS = {
   une: { nom: 'La une des journaux', ico: '🗞️', rarete: 'peu', coach: 'etoiles', duree: 8, texte: 'Leurs visages sur chaque kiosque de la ville.', effet: { finition: 1.035, F: [1.18, 1.06, 0.94, 0.82] }, echelle: { par: { finition: 0.008 }, max: 8 } },
   commanditaires: { nom: 'La soirée des commanditaires', ico: '🥂', rarete: 'peu', coach: 'banque', duree: 3, texte: 'Des petits fours et des chèques.', effet: { finition: 0.944 }, gain: 8, echelle: { gain: 3, max: 8 } },
   // ---- v2 : dix-sept de plus, des échanges ----
-  pleinAir: { nom: 'Le match en plein air', ico: '❄️', rarete: 'commune', duree: 3, texte: 'Un stade de football, moins vingt, et la neige qui tombe.', effet: { volume: 1.105, finition: 0.93, energie: 1.175 } },
-  repechageSoir: { nom: 'Le soir du repêchage', ico: '🎓', rarete: 'commune', duree: 5, texte: 'Tout le monde regarde qui le club a choisi.', effet: { finition: 0.944, energie: 0.832 } },
-  balado: { nom: 'Le balado du capitaine', ico: '🎧', rarete: 'commune', duree: 8, texte: 'Une heure par semaine, et le vestiaire écoute.', effet: { volume: 0.965, discipline: 0.755 } },
-  bagages: { nom: 'Les bagages perdus', ico: '🧳', rarete: 'commune', duree: 4, texte: 'Des patins empruntés, et on joue fâché.', effet: { defense: 0.93, energie: 1.28 } },
-  centenaire: { nom: 'Le centenaire du club', ico: '🎂', rarete: 'peu', duree: 4, texte: 'Le vieux chandail, les anciens au centre de la glace.', effet: { finition: 1.112, discipline: 1.28 } },
+  pleinAir: { nom: 'Le match en plein air', ico: '❄️', rarete: 'commune', retire: true, duree: 3, texte: 'Un stade de football, moins vingt, et la neige qui tombe.', effet: { volume: 1.105, finition: 0.93, energie: 1.175 } },
+  repechageSoir: { nom: 'Le soir du repêchage', ico: '🎓', rarete: 'commune', retire: true, duree: 5, texte: 'Tout le monde regarde qui le club a choisi.', effet: { finition: 0.944, energie: 0.832 } },
+  balado: { nom: 'Le balado du capitaine', ico: '🎧', rarete: 'commune', retire: true, duree: 8, texte: 'Une heure par semaine, et le vestiaire écoute.', effet: { volume: 0.965, discipline: 0.755 } },
+  bagages: { nom: 'Les bagages perdus', ico: '🧳', rarete: 'commune', retire: true, duree: 4, texte: 'Des patins empruntés, et on joue fâché.', effet: { defense: 0.93, energie: 1.28 } },
+  centenaire: { nom: 'Le centenaire du club', ico: '🎂', rarete: 'peu', retire: true, duree: 4, texte: 'Le vieux chandail, les anciens au centre de la glace.', effet: { finition: 1.112, discipline: 1.28 } },
   autobus: { nom: 'Le fan-club en autobus', ico: '🚌', rarete: 'commune', duree: 6, texte: 'Quarante partisans dans les estrades de l\'adversaire.', effet: { volume: 1.105, discipline: 1.175 } },
-  invite: { nom: 'L\'entraîneur invité', ico: '🧑‍🏫', rarete: 'peu', duree: 10, texte: 'Un ancien de l\'équipe nationale, pour deux semaines.', effet: { volume: 0.93, defense: 0.93 } },
+  invite: { nom: 'L\'entraîneur invité', ico: '🧑‍🏫', rarete: 'peu', retire: true, duree: 10, texte: 'Un ancien de l\'équipe nationale, pour deux semaines.', effet: { volume: 0.93, defense: 0.93 } },
   dossier: { nom: 'Le dossier des gardiens', ico: '🗂️', rarete: 'commune', duree: 8, texte: 'La mitaine de chaque gardien de la ligue, à la loupe.', effet: { volume: 0.895, finition: 1.105 } },
-  fondante: { nom: 'La glace fondante', ico: '☀️', rarete: 'commune', duree: 5, texte: 'Avril en mars : la rondelle roule sur la tranche.', effet: { volume: 0.895, defense: 0.93 } },
-  infernal: { nom: 'Le calendrier infernal', ico: '🥾', rarete: 'peu', duree: 7, texte: 'Cinq matchs en sept soirs.', effet: { volume: 1.105, energie: 1.35 } },
-  bebe: { nom: 'Le bébé du capitaine', ico: '🍼', rarete: 'commune', duree: 5, texte: 'Il ne dort plus, et il n\'a jamais aussi bien joué.', effet: { finition: 1.105, energie: 1.14 } },
-  lockout: { nom: 'La menace de lock-out', ico: '🪧', rarete: 'peu', duree: 8, texte: 'Les négociations traînent : on joue serré.', effet: { finition: 0.93, discipline: 0.72 } },
-  mascotte: { nom: 'La nouvelle mascotte', ico: '🦦', rarete: 'commune', duree: 6, texte: 'Une loutre géante qui lance des t-shirts.', effet: { volume: 1.087, defense: 1.035 } },
+  fondante: { nom: 'La glace fondante', ico: '☀️', rarete: 'commune', retire: true, duree: 5, texte: 'Avril en mars : la rondelle roule sur la tranche.', effet: { volume: 0.895, defense: 0.93 } },
+  infernal: { nom: 'Le calendrier infernal', ico: '🥾', rarete: 'peu', retire: true, duree: 7, texte: 'Cinq matchs en sept soirs.', effet: { volume: 1.105, energie: 1.35 } },
+  bebe: { nom: 'Le bébé du capitaine', ico: '🍼', rarete: 'commune', retire: true, duree: 5, texte: 'Il ne dort plus, et il n\'a jamais aussi bien joué.', effet: { finition: 1.105, energie: 1.14 } },
+  lockout: { nom: 'La menace de lock-out', ico: '🪧', rarete: 'peu', retire: true, duree: 8, texte: 'Les négociations traînent : on joue serré.', effet: { finition: 0.93, discipline: 0.72 } },
+  mascotte: { nom: 'La nouvelle mascotte', ico: '🦦', rarete: 'commune', retire: true, duree: 6, texte: 'Une loutre géante qui lance des t-shirts.', effet: { volume: 1.087, defense: 1.035 } },
   soiree: { nom: 'La soirée du hockey', ico: '📡', rarete: 'peu', duree: 3, texte: 'Le pays au complet devant sa télé.', effet: { finition: 1.112, defense: 1.105 } },
-  surfaceuse: { nom: 'La surfaceuse en panne', ico: '🚜', rarete: 'commune', duree: 3, texte: 'La glace est une route de gravier.', effet: { volume: 0.888, defense: 0.888 } },
-  golf: { nom: 'Le tournoi de golf de la fondation', ico: '⛳', rarete: 'commune', duree: 5, texte: 'Dix-huit trous pour une bonne cause.', effet: { finition: 0.944, energie: 0.72 } },
-  rivalite: { nom: 'La rivalité rallumée', ico: '🧨', rarete: 'peu', duree: 6, texte: 'Un double-échec de trop, en novembre.', effet: { discipline: 1.42, robustesse: 1.5 } },
-  lutte: { nom: 'La lutte à l\'entraînement', ico: '🤼', rarete: 'commune', duree: 6, texte: 'Un contre un dans le coin, jusqu\'à ce que quelqu\'un abandonne.', effet: { blessure: 1.606, robustesse: 1.5 } },
+  surfaceuse: { nom: 'La surfaceuse en panne', ico: '🚜', rarete: 'commune', retire: true, duree: 3, texte: 'La glace est une route de gravier.', effet: { volume: 0.888, defense: 0.888 } },
+  golf: { nom: 'Le tournoi de golf de la fondation', ico: '⛳', rarete: 'commune', retire: true, duree: 5, texte: 'Dix-huit trous pour une bonne cause.', effet: { finition: 0.944, energie: 0.72 } },
+  rivalite: { nom: 'La rivalité rallumée', ico: '🧨', rarete: 'peu', retire: true, duree: 6, texte: 'Un double-échec de trop, en novembre.', effet: { discipline: 1.42, robustesse: 1.5 } },
+  lutte: { nom: 'La lutte à l\'entraînement', ico: '🤼', rarete: 'commune', retire: true, duree: 6, texte: 'Un contre un dans le coin, jusqu\'à ce que quelqu\'un abandonne.', effet: { blessure: 1.606, robustesse: 1.5 } },
   sousSol: { nom: 'Le gymnase du sous-sol', ico: '🏚️', rarete: 'commune', duree: 10, texte: 'Des poids rouillés et un vieux sac de sable.', effet: { volume: 0.944, robustesse: 1.5 } },
-  plombiers: { nom: 'La soirée des plombiers', ico: '🪛', rarete: 'commune', duree: 5, texte: 'Le quatrième trio a marqué deux fois hier : il joue plus.', effet: { finition: 0.965, energie: 0.895, F: [0.925, 1, 1.06, 1.225] } },
+  plombiers: { nom: 'La soirée des plombiers', ico: '🪛', rarete: 'commune', retire: true, duree: 5, texte: 'Le quatrième trio a marqué deux fois hier : il joue plus.', effet: { finition: 0.965, energie: 0.895, F: [0.925, 1, 1.06, 1.225] } },
   reservistes: { nom: 'Le match des réservistes', ico: '🎛️', rarete: 'peu', duree: 6, texte: 'Les réservistes jouent une partie entre eux, et reviennent affamés.', effet: { finition: 0.965, blessure: 0.394, F: [0.94, 0.97, 1.075, 1.18], D: [0.925, 1, 1.12] } },
-  etoiles: { nom: 'La semaine du match des étoiles', ico: '🤩', rarete: 'peu', duree: 5, texte: 'Tes vedettes reviennent de la fête avec un trophée et des cernes.', effet: { finition: 1.07, energie: 1.14, F: [1.15, 1.045, 0.955, 0.85] } },
-  policiers: { nom: 'Le retour des policiers', ico: '👮', rarete: 'peu', duree: 8, texte: 'Deux durs rappelés du club-école : plus personne ne touche aux vedettes.', effet: { discipline: 1.35, robustesse: 1.5 } },
-  code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.65, robustesse: -0.5 } },
+  etoiles: { nom: 'La semaine du match des étoiles', ico: '🤩', rarete: 'peu', retire: true, duree: 5, texte: 'Tes vedettes reviennent de la fête avec un trophée et des cernes.', effet: { finition: 1.07, energie: 1.14, F: [1.15, 1.045, 0.955, 0.85] } },
+  policiers: { nom: 'Le retour des policiers', ico: '👮', rarete: 'peu', retire: true, duree: 8, texte: 'Deux durs rappelés du club-école : plus personne ne touche aux vedettes.', effet: { discipline: 1.35, robustesse: 1.5 } },
+  code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', retire: true, duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.65, robustesse: -0.5 } },
   ...EVENEMENTS_VIE,
 };
 /*
@@ -490,7 +490,7 @@ function construire() {
   const B = {};
   const mettre = c => { B[c.id] = { ...c, coach: coachDeLaFamille(c.cat, c.cle) }; };
   for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role }));
-  for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}) }));
+  for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}), ...(E.retire ? { retire: true } : {}) }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
@@ -597,7 +597,12 @@ export function etiquetteBanque(id) {
   if (c.cat === 'plafond') return formeDePlafond(CONTRATS[c.cle]);
   return '';
 }
-export const idsDe = cat => Object.values(BANQUE).filter(c => c.cat === cat).map(c => c.id);
+/*
+ * LES CARTES QUI SE TIRENT. Une carte RETIRÉE (\`retire\`, V6 : les événements passés de 160 à une quarantaine) ne
+ * sort plus d'aucun tirage — packs, nœuds de la semaine, packs des paliers —, mais sa définition reste : une partie
+ * d'avant qui la porte dans sa poche ou dans ses décisions la charge, la joue et la rejoue pareil.
+ */
+export const idsDe = cat => Object.values(BANQUE).filter(c => c.cat === cat && !c.retire).map(c => c.id);
 export const compteParCategorie = () => Object.fromEntries(ORDRE_CATEGORIES.map(c => [c, idsDe(c).length]));
 
 /* Les étiquettes de durée de vie, telles que l'inventaire les affiche. */
@@ -819,7 +824,7 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, co
    ===================================================================== */
 /* Le coach d'une carte de la banque (une carte « + » du deck lit sa carte de base), ou null (neutre). */
 export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
-export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
+export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach && !c.retire).map(c => c.id);
 /* La carte qu'une décision fait jouer : l'inventaire, le personnel, le deck (`joue.id`), ou la carte d'un gros match (`recompense`). */
 /* Les cartes qu'une décision fait JOUER : la carte jouée de la main ou du personnel, et (V5) les cartes de match
  * jouées dans la main d'un gros match. Une carte de match achetée en pack ou gagnée en récompense entre au deck

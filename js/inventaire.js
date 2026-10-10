@@ -24,7 +24,7 @@ import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, r
 import { COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, PALIERS_COACH_MAX } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
-import { puces, optionDeCarteMatch, enMotsEtChiffres, chiffresOuverts, basculerChiffres } from './gerant.js';
+import { puces, pucesDeFace, optionDeCarteMatch, chiffresOuverts, basculerChiffres } from './gerant.js';
 import { esc, hache, money as M } from './util.js';
 
 const $ = id => document.getElementById(id);
@@ -142,7 +142,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
     <div class="bq-tete"><span class="bq-ico" aria-hidden="true">${c.ico}</span><span class="bq-nom">${esc(c.nom)}</span>${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}</div>
     <div class="bq-sous"><span>${esc(CATEGORIES[c.cat].un)}</span>${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}<span>${esc(sous)}</span></div>
     ${COACHS[c.coach] ? `<div class="bq-coach" title="${esc(COACHS[c.coach].mot)}">${COACHS[c.coach].ico} ${esc(COACHS[c.coach].nom)}</div>` : '<div class="bq-coach" title="Elle ne compte pour aucun coach">Neutre</div>'}
-    ${possede ? `<div class="bq-regle">${puces(enMotsEtChiffres(mots), m => !!m.chiffre)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
+    ${possede ? `<div class="bq-regle">${pucesDeFace(mots)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
     <div class="bq-pied"><span class="bq-moment moment-${momentDe(id)}" title="${esc(MOMENTS[momentDe(id)].mot)}">${MOMENTS[momentDe(id)].ico} ${esc(MOMENTS[momentDe(id)].nom)}</span><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
     ${actions ? `<div class="bq-actions">${actions}</div>` : ''}
   </div>`;
@@ -235,11 +235,12 @@ export function ouvrirInventaire(ctx) {
           </div>`;
         }).join('')}</div>`;
     } else {
-      const ids = Object.keys(BANQUE).filter(garde).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
+      // V6 : une carte retirée (elle ne se tire plus) ne se montre qu'à qui l'a déjà.
+      const ids = Object.keys(BANQUE).filter(id => garde(id) && (!BANQUE[id].retire || ctx.possedees.has(id))).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
       // Le dénominateur ne compte que ce qu'un pack peut donner (V2.2) ; le reste se gagne en jouant.
       const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => sortDUnPack(id) && ctx.possedees.has(id)).length, idsDe(c).filter(sortDUnPack).length]).filter(([, , n]) => n > 0);
-      const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id)).length;
-      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).length - horsPack} cartes à tirer des packs, et ${horsPack} qui se gagnent en jouant (les cartes de saison, les malédictions). Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
+      const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id) && !BANQUE[id].retire).length;
+      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).filter(sortDUnPack).length} cartes à tirer des packs, et ${horsPack} qui se gagnent en jouant (les cartes de saison, les malédictions). Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
         <div class="inv-progres">${par.map(([c, a, n]) => `<span class="inv-prog"><b>${CATEGORIES[c].ico} ${a}/${n}</b> ${esc(CATEGORIES[c].nom)}</span>`).join('')}</div>
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;

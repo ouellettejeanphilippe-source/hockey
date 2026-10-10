@@ -116,7 +116,9 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
  */
 {
   const depart = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
-  const aigle = idsDuCoach('rapaces').filter(id => BANQUE[id].cat === 'evenement').slice(0, 6).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id, ref: `a${i}` } }));
+  // V6 : l'Aigle n'a plus que huit événements qui se tirent ; ses consommables complètent les neuf cartes jouées.
+  const deLAigle = idsDuCoach('rapaces').filter(id => ['evenement', 'consommable'].includes(BANQUE[id].cat));
+  const aigle = deLAigle.slice(0, 6).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id, ref: `a${i}` } }));
   const decs = [];
   for (const d of aigle) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
   exiger('six cartes d\'une autre couleur ne changent pas de coach', !decs.some(d => d.coach) && coachsActifs([...depart, ...decs]).map(c => c.cle).join() === 'tortue', coachsActifs([...depart, ...decs]).map(c => `${c.cle} ${c.palier}`).join());
@@ -125,7 +127,7 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const actifs = coachsActifs(apres);
   exiger('« Le congédiement » installe un autre coach à la confiance I, seul', actifs.length === 1 && actifs[0].cle === 'rapaces' && actifs[0].palier === 1 && cg.coachNeuf === true, actifs.map(c => `${c.cle} ${c.palier}`).join());
   exiger('son compte repart à la confiance I : les cartes d\'avant ne comptent plus', buildDe(apres).rapaces === SEUILS[0], `${buildDe(apres).rapaces} cartes`);
-  const plus = idsDuCoach('rapaces').filter(id => BANQUE[id].cat === 'evenement').slice(6, 9).map((id, i) => ({ jour: 9 + i, joue: { src: 'partie', id, ref: `b${i}` } }));
+  const plus = deLAigle.slice(6, 9).map((id, i) => ({ jour: 9 + i, joue: { src: 'partie', id, ref: `b${i}` } }));
   const ii = palierAllume([...apres, ...plus.slice(0, 2)], plus[2]);
   exiger('trois cartes de sa couleur le montent à II', ii && ii.coach.cle === 'rapaces' && ii.coach.palier === 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
   const sansCible = payloadDe('consommable:congediement', {});

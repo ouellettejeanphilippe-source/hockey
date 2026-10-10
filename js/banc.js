@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, compterFeuilles, lignesDe, trioDeFermetureAuto, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -110,12 +110,6 @@ function ouvrirBanc(jour) {
   // Le panneau du banc est la première chose à voir : on remonte après le
   // rendu, pas avant (l'écran de saison vient de rendre le défilement au corps).
   requestAnimationFrame(() => window.scrollTo(0, 0));
-}
-
-/** Le trio de fermeture tel que le banc le montre : le désigné, ou celui que 'auto' prendrait. */
-export function fermetureCourante() {
-  if (!G.banc) return null;
-  return G.banc.fermeture === 'auto' ? trioDeFermetureAuto() : G.banc.fermeture;
 }
 
 /** Retour au match : la décision entre dans la liste, la saison se rejoue de la graine et reprend là. */

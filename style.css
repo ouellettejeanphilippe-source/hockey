@@ -2257,7 +2257,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line:nth-child(n+7) { animation-delay: 300ms; }
 .line.good { border-left: 3px solid var(--bon); }
 .line.bad { border-left: 3px solid var(--mauvais); }
-.line.fermeture { border-left: 3px solid var(--or); }
 /* L'en-tête : le rang en gros, l'identité en or, « à leur place » en vert, sur un filet. */
 .line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); }
 .line-head-regle { cursor: pointer; }
@@ -2287,13 +2286,19 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .cell-l3 { flex-wrap: wrap; }
 .cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .line-orig { flex: none; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.line-ferm { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); padding: 0 var(--esp-2); color: var(--encre-3); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; transition: color var(--t-vite); }
-.line-ferm.on { color: var(--or); }
 .line-chem { flex: none; min-width: 0; margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; text-align: right; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line-chem.good { color: var(--bon); }
 .line-chem.bad { color: var(--mauvais); }
 /* Les cases : trois de front, deux pour une paire ou les gardiens. */
-.line-slots { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2); }
+.line-slots { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2); }
+/* LES LIENS (V6) : une pastille posée sur l'écart de deux voisins (js/alignement.js `poserLiens`). En colonnes, au milieu de
+   l'écart entre la k-ième case et la suivante ; en rangées (le téléphone), sur le filet entre les deux, au bord du bandeau. */
+.lien-place { position: absolute; z-index: 3; top: 50%; left: calc(var(--esp-2) / 2 + (100% - var(--esp-2)) * var(--k) / var(--n)); width: 0; height: 0; }
+.lien {
+  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); min-width: 28px; height: 28px; padding: 0 var(--esp-1);
+  display: grid; place-items: center; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--noir);
+  font: 700 var(--t-2)/1 var(--display); white-space: nowrap; cursor: pointer;
+}
 .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* ---- La case : le bandeau du club, le nom, le rôle et son mot, le niveau et la zone, le chiffre clé, les jambes ---- */
@@ -2614,6 +2619,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
   .line-head { min-height: 36px; }
   /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
   .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
+  .lien-place { position: relative; top: auto; left: 54px; margin-top: -1px; }
   .slot { flex-direction: row; align-items: stretch; min-height: 56px; border: 0; border-radius: 0; }
   .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; box-shadow: inset -2px 0 0 var(--slot-stripe, var(--club-2)); }
   .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
