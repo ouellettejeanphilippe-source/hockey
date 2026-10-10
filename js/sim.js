@@ -5004,6 +5004,13 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       st.espP.s += p; st.espP.n++;
       // Par tireur : ses lancers et ses buts attendus dans la lecture (ce qu'une modif de joueur change À LUI).
       if (st.espP.joueurs && tireur) { const k = getPlayerKey(tireur), j = st.espP.joueurs.get(k) || { t: 0, b: 0 }; j.t++; j.b += p; st.espP.joueurs.set(k, j); }
+      // Par UNITÉ (V6, la note qui bouge) : les buts attendus de ce lancer vont au trio et à la paire de TON club sur
+      // la glace — ceux qui attaquent (`qui` 'off', ta lecture « pour ») ou ceux qui défendent ('def', « contre »).
+      if (st.espP.unites) {
+        const u = st.espP.unites, tr = u.qui === 'off' ? trioOff : dTrio, pa = u.qui === 'off' ? paireOff : dPaire;
+        if (tr) u.F[tr.rang || 0] = (u.F[tr.rang || 0] || 0) + p;
+        if (pa) u.D[pa.rang || 0] = (u.D[pa.rang || 0] || 0) + p;
+      }
       continue;
     }
     if (feuille && tireur) tireur.simSH = (tireur.simSH || 0) + 1;
@@ -5863,12 +5870,14 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       let partDuFilet = 1;
       if (gMut) { const [st, bk] = gardiensDuSoir(lu), aux = bk ? partAuxiliaire(st, bk) : 0; partDuFilet = gMut === st ? 1 - aux : aux; }
       const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
-      const lire = (off, def, g, mode, joueurs = null) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n, joueurs });
+      const lire = (off, def, g, mode, joueurs = null, unites = null) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n, joueurs, unites });
       const p = { pour: {}, contre: {} }, joueurs = {};
+      // Tes unités à forces égales (V6) : la part de chacune dans tes buts attendus pour et contre.
+      const unites = { pour: { qui: 'off', F: [], D: [] }, contre: { qui: 'def', F: [], D: [] } };
       for (const mode of ['FE', 'AN', 'DN']) {
         joueurs[mode] = new Map();
-        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode]);
-        p.contre[mode] = lire(B, A, gA, mode);
+        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode], mode === 'FE' ? unites.pour : null);
+        p.contre[mode] = lire(B, A, gA, mode, null, mode === 'FE' ? unites.contre : null);
       }
       // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
       const dissuasion = Math.exp(-DISSUASION * robZ(A));
@@ -5878,7 +5887,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
       // Les bagarres attendues (V2.2) : contre un club moyen, on lit le match contre son propre reflet.
       const phys = physiqueAttendu(A, adv ? B : A);
-      return { A, B, occasions, p, joueurs, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
+      return { A, B, occasions, p, joueurs, unites, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
       if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
@@ -5936,14 +5945,16 @@ function poserMutationLue(team, lineup, { cle, joueur = null, retirer = false })
   };
 }
 /* La chance moyenne d'un lancer de `off` sur le gardien de `def`, dans une situation. `mode` : FE, AN (off a l'avantage) ou DN (off est puni). */
-function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joueurs = null }) {
-  const espP = { s: 0, n: 0, joueurs };
+function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joueurs = null, unites = null }) {
+  const espP = { s: 0, n: 0, joueurs, unites };
   const st = mode === 'FE' ? { mode, lancers: n, fenetres: [], espP }
     : mode === 'AN' ? { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.avantage, unitesDef: def.desavantage, qualite: AN_QUALITE, espP }
       : { mode, lancers: n, fenetre: [0, AN_MINUTES], unitesOff: off.desavantage, unitesDef: def.avantage, qualite: DN_QUALITE, espP };
   avecHasardIsole('lecture', () => jouerCote(off, def, gardien, 1, heavy, null, series, null, 'A', st, ronde));
   // Par tireur, en parts des lancers lus : sa part des tirs, et sa part des buts attendus.
   if (joueurs && espP.n) for (const j of joueurs.values()) { j.t /= espP.n; j.b /= espP.n; }
+  // Par unité, en parts des buts attendus de la lecture : la somme des trios (et celle des paires) vaut 1.
+  if (unites && espP.s) for (const g of ['F', 'D']) unites[g] = unites[g].map(x => (x || 0) / espP.s);
   return espP.n ? espP.s / espP.n : 0;
 }
 

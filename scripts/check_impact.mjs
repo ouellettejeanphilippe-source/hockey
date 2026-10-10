@@ -30,8 +30,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, AGRESSIVITES } from '../js/sim.js';
-import { effetEnChiffres } from '../js/impact.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, AGRESSIVITES, activeLineup, SLOTS } from '../js/sim.js';
+import { effetEnChiffres, unitesDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -166,6 +166,33 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
   borne('« La chasse » change le rythme : des tirs de plus, mesurés', r.tp, 1.4, 3.4, ' tirs');
   // La lecture tient ce que la mesure trouve, à son bruit près (la lecture arrondit au dixième de tir).
   exiger('la lecture de l\'écran suit la mesure en paires', Math.abs(lu.tir - r.tp) <= 0.6, `${sg(lu.tir)} annoncés, ${sg(r.tp)} mesurés`);
+}
+
+/*
+ * 5. LA NOTE QUI BOUGE (V6, js/impact.js `unitesDuSoir`) : chaque trio et chaque paire, son différentiel attendu à
+ * forces égales contre un vrai club. Les trios se partagent le différentiel du club (leur somme le vaut), les paires
+ * aussi ; et le 1er trio permuté avec le 4e tombe, le club aussi (ses vedettes au 4e trio jouent moins et paient
+ * la zone « trop bas » : la note le dit au lieu de déplacer leur production un pour un).
+ */
+{
+  const lg = ligue(SEEDS[0], 12);
+  let somme = 0, chute = 0, n = 0;
+  for (let i = 0; i + 1 < lg.length; i += 2) {
+    const t = lg[i], adv = lg[i + 1], lu = activeLineup(t);
+    const u = unitesDuSoir(t, lu, adv);
+    if (!u) continue;
+    n++;
+    const sF = u.F.reduce((a, b) => a + b, 0), sD = u.D.reduce((a, b) => a + b, 0);
+    if (Math.abs(sF - u.FE) < 1e-6 && Math.abs(sD - u.FE) < 1e-6) somme++;
+    // Le 1er trio contre le 4e permutés : la case du 1er trio, qui reçoit le 4e, tombe, et le club avec elle.
+    const echange = { ...lu };
+    const f = r => SLOTS.filter(s => !s.scratch && s.group === 'F' && s.unit === r).map(s => s.i);
+    f(0).forEach((k, j) => { echange[k] = lu[f(3)[j]]; echange[f(3)[j]] = lu[k]; });
+    const v = unitesDuSoir(t, echange, adv);
+    if (v && v.F[0] < u.F[0] && v.FE < u.FE) chute++;
+  }
+  exiger('la note des unités : la somme des trios, et celle des paires, vaut le différentiel du club', somme === n, `${somme}/${n} clubs`);
+  exiger('la note des unités suit les cases : le 1er trio permuté avec le 4e tombe, et le club avec lui', chute >= n - 1, `${chute}/${n} clubs`);
 }
 
 /* 4. Le tableau de chaque choix. */

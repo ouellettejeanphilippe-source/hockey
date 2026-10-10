@@ -7,8 +7,8 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux } from './sim.js';
-import { alignementAuMieux } from './impact.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup } from './sim.js';
+import { alignementAuMieux, unitesDuSoir } from './impact.js';
 import { getArchetype } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
@@ -480,7 +480,12 @@ function lineEl(title, slots, group, unit, cls = '') {
    * stat, jamais une cote — dès que l'unité est complète.
    */
   const patineurs = (group === 'F' || group === 'D') && !surTable() ? slots.map(s => G.roster[s.i]).filter(p => p && p.p !== 'G') : [];
-  const prodHtml = patineurs.length && patineurs.length === slots.length
+  // Derrière le banc, LE CHIFFRE DU MOTEUR (V6) remplace les points additionnés : il suit le système et les cases.
+  const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
+  const net = note ? (group === 'D' ? note.D : note.F)[unit] : null;
+  const prodHtml = Number.isFinite(net)
+    ? `<span class="line-net ${net >= 0.005 ? 'bon' : net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Son différentiel attendu à forces égales contre ${teamShort(G.banc.prochain.adv)} : les buts pour moins les buts contre quand ${group === 'D' ? 'cette paire' : 'ce trio'} est sur la glace, par match. Il suit son système, sa chimie, ses badges, ses jambes et ses cases.`)}">${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(2).replace('.', ',')}</span>`
+    : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
   wrap.innerHTML = `<div class="line-head"><span class="line-name">${esc(title)}</span>${idHtml}${prodHtml}${orig}${fermHtml}${chemHtml}</div>`;
@@ -505,6 +510,20 @@ function lineEl(title, slots, group, unit, cls = '') {
   // le plateau ne lit ni tactique ni glace.
   if ((group === 'F' || group === 'D') && !surTable()) wrap.appendChild(rangeeStrategie(unit, group));
   return wrap;
+}
+
+/*
+ * LA NOTE QUI BOUGE (V6). Derrière le banc, ce que le moteur ferait de chaque unité contre ton prochain
+ * adversaire, sur tes cases d'aujourd'hui (le blessé cède la sienne) et tes lignes en vigueur (js/impact.js
+ * `unitesDuSoir`). Une lecture par rendu : la mémoire d'impact.js la garde le temps d'un écran.
+ */
+function noteDesUnites() {
+  const b = G.banc, L = G.ligue;
+  if (!b || !L || !L.you || !b.prochain || surTable()) return null;
+  try {
+    const lu = activeLineup({ ...L.you, roster: G.roster, injured: b.blesses, jourCourant: b.jour });
+    return unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes);
+  } catch { return null; }
 }
 
 /*

@@ -55,6 +55,7 @@ Chaque levier a été mesuré sur une copie du moteur. Le levier choisi se mesur
 - Plus de glace au bas ne suffit pas : avec le roulement profond, le gain passe seulement de +0,132 à +0,146.
 
 **Phase 2 · La note qui bouge**
+- [x] Derrière le banc, l'en-tête de chaque trio et de chaque paire porte son différentiel attendu à forces égales contre le prochain adversaire (« −0,43 », en vert ou en rouge), à la place des points additionnés de leurs vraies saisons. JP : *les buts pour, sur l'effectif, ça veut rien, pis c'est pas influencé par la stratégie on dirait, bouger un joueur bouge juste sa production un pour un*. La lecture du soir compte, lancer par lancer, l'unité de ton club qui attaque et celle qui défend (`pMoyenDuLancer`, js/sim.js, sans un dé de plus) ; la somme des trios et celle des paires valent le différentiel du club — js/impact.js `unitesDuSoir`, js/alignement.js — `check_impact` (5), `check_chiffres`, `check_graine`.
 - En tête de l'Effectif : « ≈ +0,63 but net par match · 9e de la ligue », décomposé d'un toucher en systèmes, badges, chimie, jambes et coach (`alignementDuSoir`). Le même chiffre par trio et par paire, à côté de son étiquette.
 - À la signature : chaque case de « Qui sort ? » porte ce que la signature y changerait (« ≈ +0,12 », « ≈ −0,05 »), calculé par `lignesEnChiffres` sur les mêmes dés. La meilleure case arrive en premier, et un toucher de plus montre l'avant/après.
 - La carte de la pile montre son rôle et son badge (« 🎯 Sniper Or »), et la couleur de son coach.

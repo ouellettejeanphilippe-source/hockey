@@ -49,8 +49,20 @@ function moyennes(L) {
       joueurs.set(k, x);
     }
   }
+  /*
+   * CHAQUE UNITÉ, SON DIFFÉRENTIEL ATTENDU (V6, la note qui bouge). JP : *les buts pour, sur l'effectif, ça veut rien,
+   * pis c'est pas influencé par la stratégie on dirait*. À forces égales, les buts attendus pour (son trio ou sa paire
+   * qui attaque) moins les buts attendus contre (qui défend), par match : le +/− que le moteur jouerait à ce trio, avec
+   * son système, sa chimie, ses badges, ses jambes et sa case. La somme des trios (et celle des paires) est le
+   * différentiel à forces égales du club.
+   */
+  const fePour = feA * p.pour.FE, feContre = feB * p.contre.FE;
+  const unites = g => {
+    const up = (L.unites && L.unites.pour[g]) || [], uc = (L.unites && L.unites.contre[g]) || [];
+    return Array.from({ length: Math.max(up.length, uc.length) }, (_, i) => fePour * (up[i] || 0) - feContre * (uc[i] || 0));
+  };
   return {
-    joueurs, partDuFilet: L.partDuFilet,
+    joueurs, partDuFilet: L.partDuFilet, netF: unites('F'), netD: unites('D'), netFE: fePour - feContre,
     tirsPour, tirsContre, rythme: tirsPour + tirsContre,
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
@@ -261,6 +273,17 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
     const txt = Math.abs(ecart) >= 0.01 ? `${nom} ≈ ${signeDe(ecart)}${nb(ecart, 2)} but net par match` : `${nom} : rien ce soir`;
     return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart };
   });
+}
+
+/*
+ * LA NOTE QUI BOUGE (V6, docs/refonte-v6.md). Chaque trio et chaque paire de ton club : son différentiel attendu à
+ * forces égales, par match, contre `adv` — ce que le moteur fait de lui avec son système, sa chimie, ses badges, ses
+ * jambes et ses cases. Bouger un joueur, changer un système : le chiffre bouge. `lignes` : celles à lire (le banc).
+ */
+export function unitesDuSoir(team, lineup, adv, lignes = null) {
+  if (!team) return null;
+  const m = lire(team, lineup, adv, { lignes, n: N_BASE });
+  return { F: m.netF, D: m.netD, FE: m.netFE };
 }
 
 /*
