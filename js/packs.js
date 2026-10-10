@@ -475,11 +475,12 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
  * LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète). Une carte compte au dénominateur si un pack
  * peut la donner : sa famille est dans un pack de cartes, et une malédiction seulement si c'est la taxe que le
  * Pack Contrats cache (`maudite`). Les cartes de saison et les autres malédictions ne sortent d'aucun pack :
- * elles se gagnent en jouant, et la banque les montre à part.
+ * elles se gagnent en jouant, et la banque les montre à part. Une carte retirée (V6, `retire`) ne sort plus de rien :
+ * elle ne compte pas, et la banque ne la montre qu'à qui l'a déjà.
  */
 export function sortDUnPack(id) {
   const c = BANQUE[id];
-  if (!c) return false;
+  if (!c || c.retire) return false;
   if (c.rarete === 'maudite') return c.cat === 'plafond' && Object.values(PACKS_CARTES).some(P => P.maudite && P.cats.includes('plafond'));
   return Object.values(PACKS_CARTES).some(P => P.cats.includes(c.cat));
 }

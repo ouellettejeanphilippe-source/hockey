@@ -6,8 +6,10 @@
  *   LIGUES=8 node scripts/check_banque.mjs   (une lecture plus fine)
  *   FAMILLES=evenements PART=1/4 node scripts/check_banque.mjs
  *       (l'équilibre d'une seule famille, et le quart de ses cartes : quatre
- *       processus en parallèle font les 160 événements en un quart du temps ;
- *       la moyenne d'une famille ne se juge alors que sur la liste entière)
+ *       processus en parallèle font les événements en un quart du temps ;
+ *       la moyenne d'une famille ne se juge alors que sur la liste entière.
+ *       V6 : seuls les événements qui se tirent sont mesurés, une quarantaine
+ *       sur 160 — les retirés ne sortent plus d'aucun tirage)
  *
  * Vérifie :
  *   1. le registre : plus de 150 cartes, sept familles, une règle chiffrée
@@ -213,7 +215,8 @@ if (FAMILLES.includes('patrons')) {
 const horsE = [];
 const lignesE = [];
 const ve = [];
-for (const cle of FAMILLES.includes('evenements') ? maPart(Object.keys(EVENEMENTS)) : []) {
+// V6 : seuls les événements qui se tirent (une quarantaine) ; un retiré n'entre plus dans une partie neuve.
+for (const cle of FAMILLES.includes('evenements') ? maPart(Object.keys(EVENEMENTS).filter(k => !EVENEMENTS[k].retire)) : []) {
   const v = paires(equipe => [{ jour: 20, equipe, ...payloadDe(`evenement:${cle}`) }]);
   lignesE.push(`événement ${EVENEMENTS[cle].nom} ${signe(v)} V`);
   ve.push(v);
