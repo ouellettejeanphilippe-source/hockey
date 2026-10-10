@@ -7431,7 +7431,7 @@ export const MUTATIONS = {
    * s'additionne pas aux autres chaque soir ; sa face dit son moment en premier.
    */
   domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
-    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.8 },
+    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.83 },   // S108 : 0,8 → 0,83, l'entente des coéquipiers l'avait poussé au-dessus de la borne d'une peu (1,52 V, check_si)
   route: { nom: 'Le joueur de route', ico: '🛤️', cible: 'libre', source: 'atelier', si: 'visiteur',
     quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.2, finition: 1.2 },
   printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
