@@ -51,7 +51,7 @@ import {
 } from '../js/sim.js';
 import { SEASON_LANCERS } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { borne, informer, verdict } from './verdict.mjs';
+import { borne, exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
@@ -201,7 +201,21 @@ const gonfles = gros.filter(c => c.simPts >= 1.5 * c.attPts);
  * part par rang d'unité ci-dessus, qui lit 0,76 fois le réel au quatrième trio
  * avant le chantier et 0,98 après, sur toutes les graines.
  */
-borne('patineurs à 1,5 fois leurs points attendus', 100 * gonfles.length / Math.max(1, gros.length), 0, 1.0, ' %');
+/*
+ * PLAUSIBLE, PAS EXACT (V6). JP : *pour 120 points, 100-140 est legit, pis pour 30, 20-40 aussi* ; *on veut pas un
+ * plombier à 100 points ou Lemieux à 10 points, mais réaliste et plausible, c'est pas pareil*. Une saison peut dévier
+ * d'un bon bout — la défense qui compte (moteur S107) en fait dévier plus, et c'est voulu — mais jamais jusqu'à
+ * l'absurde. Deux étages : l'INVRAISEMBLABLE (deux fois ses points) n'est jamais permis ; la
+ * queue PLAUSIBLE (une fois et demie) reste un filet, à 2 %.
+ */
+const rapports = gros.map(c => c.simPts / c.attPts).sort((a, b) => a - b);
+informer('l\'étendue, du plus bas au plus haut (points simulés sur attendus)', `${rapports[0].toFixed(2)} · 1 % ${rapports[Math.floor(rapports.length * 0.01)].toFixed(2)} · 99 % ${rapports[Math.floor(rapports.length * 0.99)].toFixed(2)} · ${rapports[rapports.length - 1].toFixed(2)}`);
+// Le bas de l'étendue n'est pas jugé ici : les plus bas (0,22 fois avant S107, Jeff Carter 2007-08 à 20 points contre
+// 60) sont des joueurs que ce banc d'essai laisse en réserve, et ils jouent peu. Le haut, lui, est le moteur.
+const absurdes = gros.filter(c => c.simPts >= 2 * c.attPts);
+exiger('aucun patineur invraisemblable (deux fois ses points attendus)', absurdes.length === 0,
+  absurdes.length ? absurdes.slice(0, 3).map(e => `${e.p.n} ${e.p.s} : ${e.simPts.toFixed(0)} contre ${e.attPts.toFixed(0)}`).join(' · ') : `${gros.length} patineurs à 40 points attendus et plus`);
+borne('patineurs à 1,5 fois leurs points attendus', 100 * gonfles.length / Math.max(1, gros.length), 0, 2.0, ' %');
 for (const e of gonfles.slice(0, 4)) {
   informer(`  ${e.p.n} ${e.p.s}`, `${e.simPts.toFixed(0)} points simulés contre ${e.attPts.toFixed(0)} attendus (réel ${e.p.pt} en ${e.p.gp})`);
 }

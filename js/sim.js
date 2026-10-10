@@ -251,6 +251,8 @@ const ZONE_NOMBRE_UN = lireListe('ZONE_NOMBRE_UN', [1, 1, 1.25, 1.8]);
 // 1.0 · J1-L : 15. Deux vedettes au 2e trio (5,5 × 2 × 1,25 = 13,8) disent « un joueur mal placé » ;
 // trois (29,7) et tout joueur à deux crans de sa zone disent « hors de ses lignes ».
 const ZONE_DUR = 15;
+/* Le levier A (V6) : 1 remet l'ancien malus « trop bas » sur la défense aussi (la mesure d'avant). */
+const ZONE_SOUS_DEF = Number(ENV_MESURE.ZONE_SOUS_DEF ?? 0);
 
 /**
  * Calibre attendu d'une case : la cote plancher de la meilleure zone dont
@@ -557,6 +559,14 @@ export function getUnitSynergy(roster, group, unit) {
     enBas: !!(x.player && x.player._enBas),
   }));
   const { pen, mal } = malusZoneUnite(group, unit, entrees);
+  /*
+   * TROP BAS, IL DÉFEND QUAND MÊME (V6, le levier A, docs/refonte-v6.md). JP : *ya de bons et de mauvais joueurs de
+   * troisième et quatrième trios, ce sont même parfois les plus importants en séries*. Un joueur placé sous sa zone
+   * gaspille son talent OFFENSIF — il joue moins, avec moins bon que lui — mais il ne défend pas plus mal pour autant :
+   * la défense ne paie que la part « au-dessus de sa zone » (un joueur dépassé). Mesuré : un meilleur attaquant au
+   * 4e trio rendait ce trio PIRE (−0,32 V), parce que son malus lui retirait aussi la défense.
+   */
+  const penDef = ZONE_SOUS_DEF ? pen : malusZoneUnite(group, unit, entrees, { sous: 0 }).pen;
   let zone = null;
   if (mal === 0) {
     zone = { off: 2, def: 2, etat: 'optimal', tag: group === 'F' ? '✨ Trio optimal' : '✨ Paire optimale' };
@@ -573,7 +583,7 @@ export function getUnitSynergy(roster, group, unit) {
      */
     const dur = pen >= ZONE_DUR;
     zone = {
-      off: -pen, def: -pen, etat: dur ? 'hors' : 'mal',
+      off: -pen, def: -penDef, etat: dur ? 'hors' : 'mal',
       tag: dur
         ? (group === 'F' ? '🚨 Trio hors de ses lignes' : '🚨 Paire hors de ses lignes')
         : (group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie'),
@@ -3672,7 +3682,7 @@ const BETA_CREATION = 0.5;
  * gardien, qui efface au passage l'équipe qui suit son gardien) à 0,050
  * (sans contrôle, donc contaminé par le gardien). On prend le milieu.
  */
-const K_DEFENSE = Number(ENV_MESURE.K_DEFENSE ?? 0.050);   // le haut de l'intervalle mesuré : voir ROBUSTESSE ci-dessous, et check_builds.mjs
+const K_DEFENSE = Number(ENV_MESURE.K_DEFENSE ?? 0.100);   // V6 : 0,050 → 0,100, la défense sur la glace compte (docs/refonte-v6.md, phase 1) ; check_monotonie tient l'écart des clubs
 
 /*
  * LA DÉFENSIVE AGIT AUSSI, UN PEU, SUR LE VOLUME. `check_suppression.mjs` a
@@ -3752,6 +3762,13 @@ const robZ = t => (t && t.rob != null ? borne((t.rob - MOY_ROB_EQUIPE) / ECART_R
 /** Cote défensive d'équipe : moyenne et écart-type des 1392 équipes-saisons. */
 const MOY_DEF_EQUIPE = 57.6;
 const ECART_DEF_EQUIPE = 4.3;
+/*
+ * LA DÉFENSE QU'AFFRONTE D'HABITUDE UN TRIO DE CHAQUE RANG (V6), mesurée dans des matchs joués : quatre ligues de
+ * vingt-quatre vraies équipes, 172 000 lancers à forces égales, l'appariement et le trio de fermeture compris. Le
+ * premier trio voit 60,7 (écart 6,0), le quatrième 56,2 : centrée sur 57,6 (MOY_DEF_EQUIPE), la défense retirait au
+ * premier trio, chaque soir, ce que sa vraie saison avait déjà payé.
+ */
+const DEF_RANG = [60.7, 59.7, 58.6, 56.2];
 
 /*
  * Conversion d'un bonus de chimie ou d'un malus de zone (en points de cote)
@@ -4586,7 +4603,7 @@ const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
  * PLAN_DOMICILE de ses présences à forces égales ; les autres suivent l'appariement par rang. Le trio de fermeture
  * reste le plan par défaut de tout le monde. L'IA a un plan chez elle quand elle te reçoit (`planDeLIA`).
  */
-const PLAN_DOMICILE = Number(ENV_MESURE.PLAN_DOMICILE ?? 0.60);
+const PLAN_DOMICILE = Number(ENV_MESURE.PLAN_DOMICILE ?? 0.80);
 /* LE CONTRE (V6, à trancher par JP) : ce que le système qui bat le leur étouffe de leurs lancers, toute la présence. 0 : seulement leur action spéciale, comme avant. */
 const CONTRE_SYSTEME = Number(ENV_MESURE.CONTRE_SYSTEME ?? 0);
 /* Un plan qui se tient : quatre rangs de trio de 0 à 3, chacun au plus une fois (une case vide : l'appariement par rang). */
@@ -4995,7 +5012,15 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       dTrio = cibleD >= 0 && unitesDef.F[cibleD] ? unitesDef.F[cibleD] : choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff, kApp);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs].filter(q => !auCachot(def, q, instant));
-      const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
+      /*
+       * LA DÉFENSE SE JUGE AU RANG DE CELUI QU'ELLE AFFRONTE (V6). JP : *toutes les stats doivent travailler entre elles,
+       * sans faire trop dévier… si on refait la même saison 100 fois, ça devrait être cohérent* ; *Mario Lemieux va quand
+       * même réussir à compter contre des gros joueurs défensifs, mais se reprendre contre de moins bons, genre à
+       * domicile*. Un 1er trio affronte d'habitude une meilleure défense qu'un 4e (DEF_RANG) : sa vraie saison la
+       * contient déjà. Centrée sur ce rang, la défense ne fait dévier que le soir où elle sort de l'ordinaire — un trio
+       * de fermeture d'élite, ou un 4e trio faible qu'un plan envoie contre lui — et la saison moyenne reste la sienne.
+       */
+      const z = borne((0.5 * (dTrio.coteDef + dPaire.coteDef) - DEF_RANG[Math.min(DEF_RANG.length - 1, rangOff)]) / ECART_DEF_EQUIPE, -5, 3) + REF.zDef;
       // Le bidirectionnel (et le Selke) étouffe PENDANT SES PRÉSENCES : c'est
       // le seul trait qui passe par ici, voir EFFET dans js/traits.js.
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)) * facteurPresenceUnite(defGlace)
@@ -6107,7 +6132,9 @@ function causesDuLancer(x, pBrut, de) {
   } else ajoute('gardien', D, (x.def.fgDefaut ?? 1.20) / REF.fg);
   // Ceux qui défendent cette présence-là.
   if (x.defGlace) {
-    const z = borne((0.5 * (x.dTrio.coteDef + x.dPaire.coteDef) - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3);
+    // Le même calcul que `jouerCote` : la défense jugée au rang du trio qu'elle affronte (DEF_RANG).
+    const rangOff = x.trioOff ? (x.trioOff.rang || 0) : 0;
+    const z = borne((0.5 * (x.dTrio.coteDef + x.dPaire.coteDef) - DEF_RANG[Math.min(DEF_RANG.length - 1, rangOff)]) / ECART_DEF_EQUIPE, -5, 3) + REF.zDef;
     ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)));
     ajoute('traitsClub', D, facteurPresenceUnite(x.defGlace));
     for (const q of x.defGlace) { ajoute('carte', D, cartesDe(q, 'defense'), q, 'defense'); ajoute('accident', D, accidentsDe(q, 'defense'), q, 'defense'); ajoute('monte', D, effetDesPaliersGagnes(q, 'defense'), q); }
