@@ -434,8 +434,8 @@ function liensEntre(app, a, b) {
   const L = lienDePaire(app, a, b), out = [];
   const court = p => String(p.n || '').trim().split(' ').pop();
   const qui = `${court(a)} et ${court(b)}`;
-  if (L.entente >= 0.2) out.push(['🤝', `${qui} : entente ${motAppris(L.entente)}, ${Math.round(L.matchs)} matchs ensemble. Elle monte la chimie de la ligne.`]);
-  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). La carte 👬 Les vrais coéquipiers les paie.`]);
+  if (L.jouee >= 0.2) out.push(['🤝', `${qui} : entente ${motAppris(L.entente)}, ${Math.round(L.joues)} matchs ensemble. Elle monte la chimie de la ligne.`]);
+  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). Ils arrivent avec leur entente, qui monte la chimie de la ligne ; la carte 👬 Les vrais coéquipiers les paie en plus.`]);
   else if (L.famille) out.push(['🎽', `${qui} : la même franchise. La carte 🎽 La même famille les compte.`]);
   return out;
 }
