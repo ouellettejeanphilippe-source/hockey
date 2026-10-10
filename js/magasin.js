@@ -119,7 +119,7 @@ export function ouvrirMagasin(ctx) {
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
-        <p class="pk-mot">${ctx.ferme ? `🔒 ${esc(ctx.ferme)}.` : 'Joueurs : tu en signes un. Cartes : dans ta poche.'}</p>
+        <p class="pk-mot">Joueurs : tu en signes un. Cartes : dans ta poche.</p>
         ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
         ${garantie}
         ${plafond}

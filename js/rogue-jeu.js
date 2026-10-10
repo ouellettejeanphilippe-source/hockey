@@ -8,8 +8,8 @@
 import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
-import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, reglesDePalier, idsDuCoach } from './banque.js';
-import { COACHS, ORDRE_COACHS, VOIES, SEUILS } from './coachs.js';
+import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
+import { COACHS, ORDRE_COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -201,27 +201,18 @@ function unTirageALaFois(f) {
     .finally(() => { tirageEnCours = false; });
 }
 /*
- * LA BOUTIQUE OUVRE AU DÉBUT DE LA SEMAINE (V5, docs/refonte-v5.md). JP : *nœud en début de semaine*. En Rogue, en
- * saison régulière, on achète au bureau du lundi (le premier jour d'une semaine du calendrier, `SEMAINE`) ; une
- * semaine arrêtée en chemin (une blessure, un gros match) garde la boutique fermée jusqu'au lundi suivant. Les
- * packs déjà payés (scellés) s'ouvrent quand on veut. Rend la raison de la fermeture, ou null.
+ * LA BOUTIQUE OUVERTE EN TOUT TEMPS (V5). JP : *accès au store en tout temps*. Elle avait fermé hors du lundi ;
+ * le nœud de la semaine regroupe maintenant ce qui se décide, et la boutique reste ouverte à toute journée.
  */
-function boutiqueFermee(j = G.journee || 0) {
-  const L = G.ligue;
-  if (G.bonus !== 'ROGUE' || !L || !L.calendrier || j <= 0 || j >= L.calendrier.length || j % SEMAINE === 0) return null;
-  const lundi = (Math.floor(j / SEMAINE) + 1) * SEMAINE;
-  return `La boutique ouvre au début de la semaine : journée ${lundi + 1}, dans ${lundi - j} jour${lundi - j > 1 ? 's' : ''}`;
-}
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
-  const ferme = boutiqueFermee(j);
-  const ouverts = ferme ? Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, ferme])) : packsOuvertsBoutique(j);
+  const ouverts = packsOuvertsBoutique(j);
   ouvrirMagasin({
     ...(page || {}),
-    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts, ferme,
+    jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
     mods: modsDesPacks(decs, j), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
-    duJour: ferme ? null : packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
+    duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
     // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),
@@ -636,6 +627,15 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
         onChoix: k => ecrire(payloadDe(item.id, { tactique: k })), onFerme: retour });
       return;
     }
+    if (C.cible === 'coach') {
+      // LE CONGÉDIEMENT (V5) : un autre coach, à la confiance I ; celui en poste part avec la sienne.
+      const [actif] = coachsActifs(decs, j + 1);
+      ouvrirChoix({ ico: c.ico, titre: c.nom, fermable: true, motFermer: 'Retour',
+        recit: `${c.texte}${actif && COACHS[actif.cle] ? ` ${COACHS[actif.cle].ico} ${COACHS[actif.cle].nom} part, avec sa confiance ${ROMAINS[actif.palier]}.` : ''}`,
+        options: optionsDeCoach(coachsOuverts((G.rogue && G.rogue.prestige) || 0).filter(k => !actif || k !== actif.cle)),
+        onChoix: k => { if (G.rogue) G.rogue.coach = k; ecrire(payloadDe(item.id, { coach: k })); }, onFerme: retour });
+      return;
+    }
     ecrire(payloadDe(item.id, { alea: hache(Lg.graine, 'billet', item.ref || item.id, j), build, joueurs }));
     return;
   }
@@ -889,13 +889,33 @@ function choisirCoach() {
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
     recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
       : `Sa philosophie joue dès le premier soir ; plus tu joues ses cartes, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
-    options: ouverts.map(k => {
-      const C = COACHS[k];
-      return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
-        mots: [{ txt: 'Confiance I', bon: null, duree: true }, ...reglesDePalier(k, 1)], quand: meta.runs ? `${idsDuCoach(k).length} cartes de sa couleur` : '' };
-    }),
+    options: optionsDeCoach(ouverts, { cartes: !!meta.runs }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),
+  }));
+}
+/* Les coachs offerts, en options d'`ouvrirChoix` : sa philosophie, sa confiance I. `garde` : le coach en poste, gardé tel quel. */
+function optionsDeCoach(cles, { cartes = true, garde = null } = {}) {
+  return cles.map(k => {
+    const C = COACHS[k], g = garde && garde.cle === k;
+    return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
+      mots: [{ txt: g ? `On le garde · confiance ${ROMAINS[garde.palier]}` : 'Confiance I', bon: g ? true : null, duree: true }, ...reglesDePalier(k, g ? garde.palier : 1)],
+      quand: cartes ? `${idsDuCoach(k).length} cartes de sa couleur` : '' };
+  });
+}
+/*
+ * LE COACH D'UNE SAISON NEUVE (V5, JP : *le coach, choisi au début de la saison*) : on garde celui en poste, avec
+ * sa confiance, ou on en prend un autre, qui repart à la confiance I. Rend la clé du coach choisi.
+ */
+function choisirCoachDeSaison(saison) {
+  const actif = coachsActifs(decisionsDeLaPartie())[0] || null;
+  const ouverts = coachsOuverts((G.rogue && G.rogue.prestige) || 0);
+  const cles = actif ? [actif.cle, ...ouverts.filter(k => k !== actif.cle)] : ouverts;
+  return new Promise(resolve => ouvrirChoix({
+    ico: '📋', titre: `Ton coach · saison ${saison}`,
+    recit: actif ? `Garde ${COACHS[actif.cle].nom}, avec sa confiance ${ROMAINS[actif.palier]}, ou prends-en un autre : il repart à la confiance I.` : 'Sa philosophie joue dès le premier soir.',
+    options: optionsDeCoach(cles, { garde: actif }),
+    onChoix: k => resolve(k),
   }));
 }
 /*
@@ -1479,9 +1499,10 @@ async function choisirNouvelleEquipe(saison) {
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
   }
   const roster = placerDevant(autoRoster(pris), gardes);
-  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, classeurtires, draftes, roster));
+  const coach = await choisirCoachDeSaison(saison);
+  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, classeurtires, draftes, roster, coach));
 }
-async function continuerRun(gardes = [], classeurtires = [], draftes = [], rosterExterne = null) {
+async function continuerRun(gardes = [], classeurtires = [], draftes = [], rosterExterne = null, coachSaison = null) {
   if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
   const L = G.ligue, meta = lireMeta();
   const saison = numeroDeSaison() + 1;
@@ -1509,7 +1530,10 @@ async function continuerRun(gardes = [], classeurtires = [], draftes = [], roste
   const decsSaison = decisionsDeLaPartie();
   const compte = buildDe(decsSaison);
   report.push({ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(compte).filter(([, n]) => n > 0)), report: true });
-  for (const c of coachsActifs(decsSaison)) { const { jour: _j, ...coach } = c; void _j; report.push({ jour: 0, coach, report: true }); }
+  const [enPoste] = coachsActifs(decsSaison);
+  if (enPoste && (!coachSaison || coachSaison === enPoste.cle)) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }
+  // Un autre coach choisi pour la saison neuve (V5) : il repart à la confiance I.
+  else if (coachSaison && COACHS[coachSaison]) { report.push({ jour: 0, ...coachNeuf(coachSaison), report: true }); G.rogue.coach = coachSaison; }
   // 1.0 : un patron engagé l'est pour la RUN — il reste en poste à la saison suivante, avec ses chiffres.
   for (const pa of patronsActifs(decsSaison)) { const { jour: _j, remplace: _r, ...patron } = pa; void _j; void _r; report.push({ jour: 0, patron, report: true }); }
   // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.

@@ -6233,8 +6233,8 @@ function appliquerDecision(team, d, graine = 0) {
     const { remplace: _r, ...pat } = d.patron;
     team.patrons.push(pat);
   }
-  // LA CONFIANCE D'UN COACH (v2, js/coachs.js) : la décision porte ses chiffres, et la nouvelle remplace l'ancienne du même coach.
-  if (d.coach && d.coach.cle) team.coachs = [...(team.coachs || []).filter(x => x.cle !== d.coach.cle), { ...d.coach }];
+  // LA CONFIANCE D'UN COACH (v2, js/coachs.js) : la décision porte ses chiffres. Un seul coach en poste (V5) : la nouvelle remplace tout.
+  if (d.coach && d.coach.cle) team.coachs = [{ ...d.coach }];
   /*
    * LES GESTES D'UNE CARTE (S79) : un soin (des matchs d'infirmerie en
    * moins), de l'énergie, le repos du gardien — sur les joueurs NOMMÉS par la
@@ -7657,7 +7657,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
       const { remplace: _r, ...pat } = d.patron; void _r;
       team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
     }
-    if (d.coach && d.coach.cle) team.coachs = [...(team.coachs || []).filter(x => x.cle !== d.coach.cle), { ...d.coach }];
+    if (d.coach && d.coach.cle) team.coachs = [{ ...d.coach }];
     if (cases && d.cases) { team.roster = { ...team.roster }; appliquerAlignement(team, { cases: d.cases }); }
   }
 }

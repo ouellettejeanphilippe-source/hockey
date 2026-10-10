@@ -25,7 +25,10 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
  * v2 : la boutique et tes cartes n'ont plus qu'une porte, la section Marché (la rangée de liens du bureau doublait
  * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
  */
-const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter)';
+// V5 : le lundi, la carte de la semaine (ses cases) couvre le bureau.
+const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter, .nd-case)';
+/* Attendre qu'UN des éléments soit visible (le premier de la liste peut être caché sous une page du Club). */
+const unVisible = (sel, timeout = 120000) => page.waitForFunction(s => [...document.querySelectorAll(s)].some(e => e.offsetParent), sel, { timeout });
 /*
  * LA PILE D'UN PAQUET (1.0, oct.) : chaque carte en grand, passée d'un geste (scripts/lib/paquet.mjs). Elle doit
  * faire 80 % de la largeur à 390 px et mener aux mêmes cartes dans la bande des choix. LE WALKOUT : un pack qui
@@ -48,10 +51,10 @@ const passerLaPile = async () => {
  * Marché. Pour retrouver le bureau, on touche « Club » dans la barre.
  */
 const auBureau = async (timeout = 120000) => {
-  await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter'), null, { timeout });
+  await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case'), null, { timeout });
   await page.waitForTimeout(300);
   if (await page.evaluate(() => document.body.dataset.section !== 'club')) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); await page.waitForTimeout(250); }
-  await page.waitForSelector(BUREAU, { timeout });
+  await unVisible(BUREAU, timeout);
 };
 /*
  * RIEN DE LA BOUTIQUE DANS LE CLUB, À AUCUN MOMENT : la section ouverte et le bouton allumé de la barre sont le Marché,
@@ -104,7 +107,8 @@ await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {} }));
+  // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -200,6 +204,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0, combat: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
+const noeud = { vu: false, acces: [], cases: [], reglees: 0 };   // V5 : la carte de la semaine, vue au premier lundi
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
@@ -209,6 +214,23 @@ async function regler() {
     // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
     if (pq && await pq.isVisible()) { await passerLaPile(); continue; }
+    /*
+     * LE NŒUD DE LA SEMAINE (V5) : le lundi, ce qui attend se montre en cases sur une page du Club, avec le deck, tes
+     * cartes, la boutique et l'alignement à un toucher. On note ses accès une fois, puis on règle la première case.
+     */
+    const caseNoeud = await page.$('#hubModal .hub-page[data-genre="noeud"] .nd-case');
+    if (caseNoeud && !(await page.$('#choixModal:not([hidden])')) && await caseNoeud.isVisible()) {
+      if (!noeud.vu) {
+        noeud.vu = true;
+        noeud.acces = await page.$$eval('#hubModal .hub-page[data-genre="noeud"] .nd-acces-b', e => e.map(x => x.dataset.acces));
+        noeud.cases = await page.$$eval('#hubModal .hub-page[data-genre="noeud"] .nd-case', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+        await page.screenshot({ path: `${DOSSIER}/rogue-noeud.png` });
+        if (!['deck', 'cartes', 'banc'].every(k => noeud.acces.includes(k))) erreurs.push(`la carte de la semaine n'a pas ses accès (${noeud.acces.join(', ')})`);
+      }
+      noeud.reglees++;
+      await caseNoeud.click(); await page.waitForTimeout(400);
+      continue;
+    }
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
     if (await page.$('#choixModal:not([hidden]) .main-jouer')) {
@@ -330,7 +352,7 @@ async function regler() {
 }
 // Lancer la saison
 await page.click('#mainBtn');
-await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #choixModal:not([hidden]) .choix-option');
 await regler();
 // LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut — sous le sous-onglet Saison du Club (1.0, R2).
 const versSaison = await page.$('#sousNav:not([hidden]) .soustab[data-page="saison"]');
@@ -367,16 +389,51 @@ if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat d
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
  * réactive).
  */
+/*
+ * V5 : « Jour suivant » est le bouton principal (le jour par jour) ; « Jusqu'à lundi » saute au nœud de la semaine.
+ * L'essai prend « Jusqu'à lundi » quand il est là, sinon le bouton principal (« Aujourd'hui › » le matin).
+ */
 async function prochaineDecision() {
-  const p = await page.$('#hubModal .hub-jour');
+  const s = await page.$('#hubModal .hub-semaine');
+  const p = s && await s.isVisible() ? s : await page.$('#hubModal .hub-jour');
   if (!p || !(await p.isVisible()) || await p.isDisabled()) return false;
   await p.click();
-  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-jour[disabled]'), null, { timeout: 120000 }).catch(() => {});
+  await page.waitForFunction(() => !document.querySelector('#hubModal :is(.hub-jour, .hub-semaine)[disabled]'), null, { timeout: 120000 }).catch(() => {});
   await page.waitForTimeout(300);
   return true;
 }
-// Avancer un peu pour gagner des jetons (des semaines : V4)
-for (let i = 0; i < 8; i++) {
+/*
+ * LE JOUR PAR JOUR ET LE NŒUD DU LUNDI (V5). « Jour suivant » avance d'une seule journée ; en semaine, rien d'autre
+ * qu'un gros match, un pack à signer, un blessé à remplacer ou une case vide ne bloque l'avance.
+ */
+const PRESSE = ['choix', 'pack', 'blessure', 'trou'];
+async function unJour() {
+  const b = await page.$('#hubModal .hub-jour:not(.hub-vers-soir)');
+  if (!b || !(await b.isVisible())) return null;
+  const j0 = ((await lireSauvegarde()).partie || {}).journee;
+  await b.click();
+  await page.waitForFunction(() => !document.querySelector('#hubModal .hub-jour[disabled]'), null, { timeout: 60000 }).catch(() => {});
+  await page.waitForTimeout(400);
+  const j1 = ((await lireSauvegarde()).partie || {}).journee;
+  const bloquants = await page.$$eval('#hubModal .hub-msg.bloque', e => e.map(x => x.dataset.msg)).catch(() => []);
+  return { j0, j1, bloquants };
+}
+// Trois journées une à une : chacune avance d'un jour, et en semaine seul ce qui presse bloque.
+{
+  const vus = [];
+  for (let i = 0; i < 3; i++) {
+    await regler();
+    const r = await unJour();
+    if (!r) continue;
+    vus.push(`J${r.j0}→J${r.j1}${r.bloquants.length ? ` (${r.bloquants.join(',')})` : ''}`);
+    if (r.j1 !== r.j0 + 1) erreurs.push(`« Jour suivant » avance de ${r.j0} à ${r.j1}`);
+    if (r.j1 % 7 !== 0 && r.bloquants.some(g => !PRESSE.includes(g))) erreurs.push(`en semaine (J${r.j1}), un message qui ne presse pas bloque : ${r.bloquants.join(', ')}`);
+  }
+  console.log(`5e. le jour par jour : ${vus.join(' · ') || '(aucune journée)'}`);
+}
+// Avancer un peu pour gagner des jetons (des semaines : V4). V5 : « Jusqu'à lundi » ne s'arrête plus en route, cinq
+// semaines suffisent — et la boutique de la première run montre encore ses quatre packs (avant le 20e match).
+for (let i = 0; i < 5; i++) {
   await regler();
   await prochaineDecision();
 }
@@ -405,18 +462,11 @@ const dechirer = async () => {
   if (paquet) await passerLaPile();
   await page.waitForTimeout(600);
 };
-/* V5 : la boutique du Rogue ouvre au début de la semaine. Fermée, on va au bureau finir la semaine, puis on revient. */
-const boutiqueFermee = () => page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-mot', p => p.textContent.trim().startsWith('🔒')).catch(() => false);
 const acheter = async (pack, capture) => {
   await versMarche('boutique');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  for (let i = 0; i < 4 && await boutiqueFermee(); i++) {
-    await page.click('#pageMarche .hub-page-retour').catch(() => {});
-    await auBureau(); await regler(); await prochaineDecision(); await regler();
-    await versMarche('boutique');
-    await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-  }
-  if (await boutiqueFermee()) erreurs.push('la boutique reste fermée après quatre avances : elle n\'ouvre jamais au début de la semaine');
+  // V5 : la boutique est ouverte en tout temps (JP : *accès au store en tout temps*).
+  if (await page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-mot', p => p.textContent.trim().startsWith('🔒')).catch(() => false)) erreurs.push('la boutique est fermée');
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; « Voir les N packs » montre le reste.
   if (!(await page.$(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`)) && await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout')) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tout'); await page.waitForTimeout(300); }
   await page.click(`#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="${pack}"]`);
@@ -698,6 +748,41 @@ let posee = null, nomModif = '';
 }
 if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
 /*
+ * LE CONGÉDIEMENT (V5). JP : *juste un coach peut être actif à la fois* ; *changé avec une carte qui enlève l'autre
+ * bonus*. La carte offre les autres coachs (pas celui en poste) ; le choix entre comme une décision `coachNeuf` à la
+ * confiance I, et la sauvegarde porte le nouveau coach de la run.
+ */
+{
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  const avant = await lireSauvegarde();
+  const coachAvant = (avant.rogue && avant.rogue.coach) || (avant.partie && avant.partie.rogue && avant.partie.rogue.coach);
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]');
+  await page.waitForTimeout(300);
+  const jouer = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:congediement"]:not([disabled])');
+  if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis l\'onglet Permanent');
+  else {
+    await jouer.click();
+    await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
+    await page.screenshot({ path: `${DOSSIER}/rogue-congediement.png` });
+    const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.dataset.choix));
+    const n0 = (await decisions()).length;
+    await page.click('#choixModal .choix-option');
+    await page.waitForTimeout(800);
+    await regler();
+    const dc = (await decisions()).slice(n0).find(x => x.coachNeuf);
+    const apres = await lireSauvegarde();
+    const coachApres = (apres.rogue && apres.rogue.coach) || (apres.partie && apres.partie.rogue && apres.partie.rogue.coach);
+    console.log(`10c. le congédiement : ${coachAvant} → ${dc ? `${dc.coach.cle} ${dc.coach.palier}` : '(rien)'} · offerts ${offerts.join(', ')} · coach de la run ${coachApres}`);
+    if (offerts.includes(coachAvant)) erreurs.push('« Le congédiement » offre le coach déjà en poste');
+    if (!dc || dc.coach.palier !== 1 || dc.coach.cle === coachAvant) erreurs.push(`« Le congédiement » n'installe pas un autre coach à la confiance I (${JSON.stringify(dc ? dc.coach : null)})`);
+    else if (coachApres !== dc.coach.cle) erreurs.push(`la sauvegarde garde ${coachApres} comme coach de la run, pas ${dc.coach.cle}`);
+  }
+  // Les cartes de la saison, pour la suite (11).
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="partie"]').catch(() => {});
+  await page.waitForTimeout(300);
+}
+/*
  * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
  * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
  * la première carte ne se joue pas toujours. On essaie les cartes une à une
@@ -782,7 +867,7 @@ if (posee) {
   if (!(await page.$(BUREAU))) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); }
 }
 await page.click('#navbar .navtab[data-section="club"]');
-await page.waitForSelector(BUREAU, { timeout: 20000 });
+await unVisible(BUREAU, 20000);
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
   await regler();
@@ -902,6 +987,8 @@ if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {})
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20d. la carte de la semaine : ${noeud.vu ? `${noeud.reglees} case(s) réglée(s) · accès ${noeud.acces.join(', ')} · au premier lundi : ${noeud.cases.join(' | ')}` : 'jamais ouverte'}`);
+if (!noeud.vu) erreurs.push('la carte de la semaine ne s\'est jamais ouverte');
 console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');

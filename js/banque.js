@@ -32,11 +32,11 @@
 import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
-import { CARTES_MATCH, estPlus } from './combat.js';
+import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
 import { money, hache } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
-import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME } from './coachs.js';
+import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME, SEUILS } from './coachs.js';
 
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
@@ -397,6 +397,9 @@ export const CONSOMMABLES = {
   epingles: { nom: 'Les épingles du tableau', ico: '🧷', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'profondeur', effet: { F: [0.952, 1, 1.048, 1.128], energie: 0.978 }, duree: 5, parJoueur: { par: { energie: -0.016 }, max: 5 }, texte: 'Tes checkers ont chacun leur épingle au tableau des présences.' },
   disco: { nom: 'La boule disco', ico: '🪩', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'etoiles', effet: { F: [1.08, 1.032, 0.968, 0.92], finition: 1.011 }, duree: 5, parJoueur: { par: { finition: 0.0096 }, max: 5 }, texte: 'Tes passeurs allument le vestiaire après chaque victoire.' },
   ...CONSOMMABLES_VIE,
+  // V5 : comme dans la LNH, on change de coach en cours de saison en congédiant l'entraîneur — le nouveau arrive avec
+  // sa philosophie, à la confiance I, et l'ancienne part avec son bonus. Le seul chemin vers un autre coach en saison.
+  congediement: { nom: 'Le congédiement', ico: '📋', rarete: 'peu', vie: 'usage', cible: 'coach', texte: 'L\'entraîneur vide son bureau au matin. Le nouveau arrive avec son cahier de jeux, et tout est à rebâtir.' },
   capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.72, defense: 0.944, volume: 0.958 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 
@@ -545,6 +548,7 @@ function formeDeConsommable(C) {
   if (C.cible === 'malediction') return 'Malédiction';
   if (C.cible === 'carteMatch') return 'Plus';
   if (C.cible === 'tactique') return 'Système';
+  if (C.cible === 'coach') return 'Coach';
   if (C.gain) return 'Jetons';
   if (g.gardienAux) return 'Filet';
   if (g.soin) return 'Soin';
@@ -659,6 +663,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true }, { txt: '🔗 Carte de trio : forte au début de la saison, elle plafonne (une ligne apprend son système en jouant)', bon: null });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
     if (C.cible === 'carteMatch') out.push({ txt: '1 carte du deck devient « + »', bon: true });
+    if (C.cible === 'coach') out.push({ txt: 'Un autre coach, à la confiance I', bon: true }, { txt: 'Ton coach part, avec sa confiance', bon: false });
     if (C.parJoueur) out.push(motDeJoueurs(C.parJoueur, c.coach));
     return out;
   }
@@ -760,7 +765,7 @@ function grandi(X, coach, build = {}, joueurs = {}) {
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, tactique = null, carte = null, patrons = [], alea = null, build = {}, joueurs = {} } = {}) {
+export function payloadDe(id, { joueur = null, tactique = null, carte = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {} } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
@@ -790,6 +795,7 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, pa
     if (C.cible === 'malediction') return carte ? { deck: 'menage', retrait: carte } : null;
     if (C.cible === 'carteMatch') return carte ? { deck: 'camp', aiguise: carte } : null;
     if (C.cible === 'tactique') return tactique ? { deck: 'strategie', maitrise: { tac: tactique, gain: C.maitrise } } : null;
+    if (C.cible === 'coach') return coach && COACHS[coach] ? coachNeuf(coach) : null;
     const out = {};
     if (C.gestes) out.gestes = { ...C.gestes };
     if (effet) out.effet = effet;
@@ -828,25 +834,43 @@ const cartesJouees = d => [
  * d'une run (`coachsDeBase` : la saison d'avant, et le coach choisi au
  * départ), plus chaque carte jouée de sa couleur. Rend { cle: n }.
  */
-export function buildDe(decisions = [], jusqua = Infinity) {
+/*
+ * UNE CARTE DE MATCH COMPTE UNE FOIS (V5, la run de JP gagnée du premier coup) : rejouée à chaque gros match, elle
+ * comptait à chaque fois — « Changements » joué huit fois montait le Doc à III, « Bloquer » la Tortue, sans qu'on bâtisse
+ * rien. Une carte de match compte la première fois qu'elle est jouée, et celles du deck de départ (`DECK_DEPART`) ne
+ * comptent pas : elles sont à tout le monde. `vues` : les cartes de match déjà comptées.
+ */
+const quiComptent = (d, vues) => cartesJouees(d).filter(id => {
+  if (!id.startsWith('match:')) return true;
+  if (vues.has(id) || DECK_DEPART.includes(id.slice(6))) return false;
+  vues.add(id);
+  return true;
+});
+export function buildDe(decisions = [], jusqua = Infinity, vues = new Set()) {
   const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
   for (const d of decisions) {
     if (!d || (d.jour || 0) >= jusqua) continue;
     if (d.coachsDeBase) for (const [k, v] of Object.entries(d.coachsDeBase)) if (k in n) n[k] += v || 0;
-    for (const id of cartesJouees(d)) { const e = coachDeCarte(id); if (e) n[e]++; }
+    // UN COACH NEUF (« Le virage », ou un autre choisi au début d'une saison) repart à la confiance I : ses cartes d'avant ne comptent plus.
+    if (d.coachNeuf && d.coach && d.coach.cle in n) n[d.coach.cle] = SEUILS[0];
+    for (const id of quiComptent(d, vues)) { const e = coachDeCarte(id); if (e) n[e]++; }
   }
   return n;
 }
-/* La confiance allumée de chaque coach à une journée : la plus haute que les décisions ont posée (`coach`). */
+/*
+ * LE COACH EN POSTE (V5, JP : *juste un coach peut être actif à la fois* ; *le coach, choisi au début de la saison,
+ * ou changé avec une carte qui enlève l'autre bonus*). Un seul : la dernière confiance posée. Rend [] ou [coach].
+ */
 export function coachsActifs(decisions = [], jusqua = Infinity) {
-  const par = new Map();
+  let dernier = null;
   for (const d of decisions) {
     if (!d || !d.coach || !d.coach.cle || (d.jour || 0) >= jusqua) continue;
-    const avant = par.get(d.coach.cle);
-    if (!avant || avant.palier < d.coach.palier) par.set(d.coach.cle, { ...d.coach, jour: d.jour || 0 });
+    if (!dernier || (d.jour || 0) >= dernier.jour) dernier = { ...d.coach, jour: d.jour || 0 };
   }
-  return [...par.values()];
+  return dernier ? [dernier] : [];
 }
+/* La décision d'un coach neuf : sa confiance I, et son compte qui repart (`coachNeuf`). */
+export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true });
 /*
  * LA CONFIANCE QU'ALLUME UNE CARTE : la décision `d` fait-elle franchir un
  * seuil au coach de sa carte ? Rend `{ coach }` à ajouter à la décision (les
@@ -855,10 +879,13 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
  */
 export function palierAllume(decisions = [], d) {
   // Le premier coach dont les cartes de cette décision (un pack en porte plusieurs) font franchir un seuil.
-  const ajout = {};
-  for (const id of d ? cartesJouees(d) : []) { const k = coachDeCarte(id); if (k) ajout[k] = (ajout[k] || 0) + 1; }
-  const build = buildDe(decisions);
-  const e = Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > Math.max(palierDe(build[k]), ...coachsActifs(decisions).filter(x => x.cle === k).map(x => x.palier)));
+  const ajout = {}, vues = new Set();
+  const build = buildDe(decisions, Infinity, vues);
+  for (const id of d ? quiComptent(d, vues) : []) { const k = coachDeCarte(id); if (k) ajout[k] = (ajout[k] || 0) + 1; }
+  // Seul le coach en poste monte (V5) : les cartes d'une autre couleur jouent leur effet, sans changer de coach.
+  const [actif] = coachsActifs(decisions);
+  const e = actif ? (ajout[actif.cle] && palierDe(build[actif.cle] + ajout[actif.cle]) > actif.palier ? actif.cle : null)
+    : Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > palierDe(build[k]));
   if (!e) return null;
   const p = palierDe(build[e] + ajout[e]);
   // La confiance II fait apprendre son système à tes avants (le stage de système, une décision `maitrise`).

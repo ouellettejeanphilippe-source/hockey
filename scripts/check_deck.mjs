@@ -201,7 +201,7 @@ console.log('\n  Le deck (S73)\n');
  * ne la compte pas deux fois, ni au deck ni pour son coach.
  */
 {
-  const m = idsDe('match').find(id => coachDeCarte(id)), autre = idsDe('evenement')[0], cle = m.slice(6);
+  const m = idsDe('match').find(id => coachDeCarte(id) && !DECK_DEPART.includes(id.slice(6))), autre = idsDe('evenement')[0], cle = m.slice(6);
   const achat = { jour: 3, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: [m, autre] } };
   const poche = pocheDeLaPartie({ decisions: [achat], graine: 7, nMatch: PALIERS_PACK.at(-1) + 1, rogue: true });
   exiger('la poche n\'a aucune carte de match (packs achetés et packs gratuits des paliers)', poche.every(x => !x.id.startsWith('match:')) && poche.some(x => x.id === autre), `${poche.length} cartes`);

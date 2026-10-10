@@ -135,7 +135,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - L'achat s'enregistre avant le butin ; la prime de série est versée — `check_rogue`.
 - Le ballottage offre un dépanneur (niveau Régulier au plus), pas une vedette — `check_ballottage`.
 - Une carte ne se prend qu'une fois, et un palier n'arrête l'avance qu'une fois.
-- Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres — `check_coachs`.
+- Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres, et un seul coach est en poste à la fois — `check_coachs`.
 - L'adversaire ne pige pas les cartes de match de la v2 (`horsAdverse`) : sa main est calibrée, la difficulté ne bouge pas — `check_gros`, `check_robot`.
 
 **Sur table**
@@ -146,7 +146,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Mobile d'abord : rien ne déborde à 390 px, tout ce qu'on touche est atteignable — smoke `sansDebordement`, `toutEstAtteignable`.
 - Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; cinq sections (Club, Effectif, Marché, Ligue, Collection), les mêmes dans le même ordre dans tous les modes — smoke.
 - Un seul retour, un niveau à la fois (js/pile.js) ; rien de sélectionnable, aucun lien souligné ; l'anneau du focus en mode clavier ou manette seulement — smoke.
-- La boîte de réception ne contient que ce qui se règle, et elle bloque « Semaine suivante » et « Un jour » tant qu'un message est à traiter (docs/refonte-v4.md).
+- La boîte de réception ne contient que ce qui se règle. Le jour par jour : en semaine, seul ce qui presse bloque « Jour suivant » (un gros match, un pack à signer, un blessé à remplacer) ; le reste attend le nœud du lundi, la carte de la semaine (docs/refonte-v5.md) — `essai_rogue`.
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
@@ -176,7 +176,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
 - **couleur** : le coach d'une carte, ou d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon ». Une carte sans couleur est **neutre**.
-- **confiance** : I, II, III — l'équipe croit à un coach à 3, 6 et 9 cartes jouées de sa couleur ; sa philosophie joue alors la saison.
+- **confiance** : I, II, III — un seul coach en poste, choisi au début de la saison à la confiance I ; ses cartes jouées le montent à II (6) et III (9), chacune une fois, celles du deck de départ non. « Le congédiement » en installe un autre, à I, et l'ancien part avec son bonus (V5).
 - **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — médailles 🏅 gagnées à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
 - **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
 - **poche** : en Rogue, tes cartes de la saison (packs, paliers) ; elle expire à la fin de la saison. **La main de la semaine** : les quatre cartes que chaque semaine pige dans la poche, au bureau ; tu en joues deux au plus (`mainDeLaSemaine`, js/inventaire.js). Une carte d'un coach auquel l'équipe croit sort plus souvent. Vendre amincit la poche.
