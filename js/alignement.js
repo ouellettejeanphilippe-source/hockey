@@ -482,9 +482,11 @@ function lineEl(title, slots, group, unit, cls = '') {
   const patineurs = (group === 'F' || group === 'D') && !surTable() ? slots.map(s => G.roster[s.i]).filter(p => p && p.p !== 'G') : [];
   // Derrière le banc, LE CHIFFRE DU MOTEUR (V6) remplace les points additionnés : il suit le système et les cases.
   const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
-  const net = note ? (group === 'D' ? note.D : note.F)[unit] : null;
+  const u = note ? (group === 'D' ? note.D : note.F)[unit] : null;
+  const net = u ? u.net : null;
+  const sg = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2).replace('.', ',')}`;
   const prodHtml = Number.isFinite(net)
-    ? `<span class="line-net ${net >= 0.005 ? 'bon' : net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Son différentiel attendu à forces égales contre ${teamShort(G.banc.prochain.adv)} : les buts pour moins les buts contre quand ${group === 'D' ? 'cette paire' : 'ce trio'} est sur la glace, par match. Il suit son système, sa chimie, ses badges, ses jambes et ses cases.`)}">${net >= 0 ? '+' : '−'}${Math.abs(net).toFixed(2).replace('.', ',')}</span>`
+    ? `<span class="line-net ${net >= 0.005 ? 'bon' : net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Ce que ${group === 'D' ? 'cette paire' : 'ce trio'} fait de plus qu'une unité ordinaire à sa place, contre ${teamShort(G.banc.prochain.adv)}, en buts par match à forces égales : attaque ${sg(u.attaque)}, défense ${sg(u.defense)}. Un trio de fermeture se juge aux buts qu'il évite, pas à ceux qu'il subit. Il suit son système, sa chimie, ses badges, ses jambes et ses cases.`)}">${sg(net)}</span>`
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';

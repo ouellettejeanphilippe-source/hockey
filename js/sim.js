@@ -5004,12 +5004,26 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       st.espP.s += p; st.espP.n++;
       // Par tireur : ses lancers et ses buts attendus dans la lecture (ce qu'une modif de joueur change À LUI).
       if (st.espP.joueurs && tireur) { const k = getPlayerKey(tireur), j = st.espP.joueurs.get(k) || { t: 0, b: 0 }; j.t++; j.b += p; st.espP.joueurs.set(k, j); }
-      // Par UNITÉ (V6, la note qui bouge) : les buts attendus de ce lancer vont au trio et à la paire de TON club sur
-      // la glace — ceux qui attaquent (`qui` 'off', ta lecture « pour ») ou ceux qui défendent ('def', « contre »).
+      /*
+       * Par UNITÉ (V6, la note qui bouge), ce qu'elle fait de PLUS qu'une unité neutre à sa place, face aux mêmes
+       * adversaires. JP : *un trio défensif pourrait être hyper pertinent et utile et dans les moins*. Un +/− brut
+       * punit le trio de fermeture qui prend leur premier trio ; ici, chacun est jugé sur ce qu'il change au lancer.
+       *   attaque (`qui` 'off') : le lancer de ton unité, contre le même lancer avec un tireur, une création, une
+       *     qualité d'unité et un système neutres (`pn`) ; son volume se juge à part (js/impact.js) ;
+       *   défense ('def') : les buts que ta défense sur la glace évite — le même lancer contre une défense neutre
+       *     (`facteurDef` à 1 : talent défensif, système, badges qui étouffent), moins le lancer réel.
+       */
       if (st.espP.unites) {
         const u = st.espP.unites, tr = u.qui === 'off' ? trioOff : dTrio, pa = u.qui === 'off' ? paireOff : dPaire;
-        if (tr) u.F[tr.rang || 0] = (u.F[tr.rang || 0] || 0) + p;
-        if (pa) u.D[pa.rang || 0] = (u.D[pa.rang || 0] || 0) + p;
+        const fOff = (tireur ? pctTirRel(tireur) / REF.pctTir : 1) * crea * (unite ? unite.qualite : 1) * devantFilet * attenteSpec;
+        const pn = u.qui === 'off' ? borne(pBrut / (fOff || 1), 0.005, PCT_TIR_MAX) : 0;
+        const ev = u.qui === 'def' ? borne(pBrut / (facteurDef || 1), 0.005, PCT_TIR_MAX) - p : 0;
+        for (const [g, x] of [['F', tr], ['D', pa]]) {
+          if (!x) continue;
+          const c = u[g][x.rang || 0] || (u[g][x.rang || 0] = { n: 0, p: 0, pn: 0, ev: 0 });
+          c.n++; c.p += p; c.pn += pn; c.ev += ev;
+        }
+        u.pn = (u.pn || 0) + pn;
       }
       continue;
     }
@@ -5872,8 +5886,9 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       const occasions = A.occasions && B.occasions ? (A.occasions + B.occasions) / 2 : (A.occasions || B.occasions || occasionsEpoque(A.annee || B.annee));
       const lire = (off, def, g, mode, joueurs = null, unites = null) => pMoyenDuLancer(off, def, g, mode, { heavy, series, ronde, n, joueurs, unites });
       const p = { pour: {}, contre: {} }, joueurs = {};
-      // Tes unités à forces égales (V6) : la part de chacune dans tes buts attendus pour et contre.
-      const unites = { pour: { qui: 'off', F: [], D: [] }, contre: { qui: 'def', F: [], D: [] } };
+      // Tes unités à forces égales (V6) : ce que chacune change, en attaque et en défense, et leurs parts de glace.
+      const presences = g => { const u = (A.unites && A.unites[g]) || [], t = u.reduce((a, x) => a + (x.presence || 0), 0) || 1; return u.map(x => (x.presence || 0) / t); };
+      const unites = { pour: { qui: 'off', F: [], D: [] }, contre: { qui: 'def', F: [], D: [] }, glace: { F: presences('F'), D: presences('D') } };
       for (const mode of ['FE', 'AN', 'DN']) {
         joueurs[mode] = new Map();
         p.pour[mode] = lire(A, B, gB, mode, joueurs[mode], mode === 'FE' ? unites.pour : null);
@@ -5953,8 +5968,8 @@ function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joue
   avecHasardIsole('lecture', () => jouerCote(off, def, gardien, 1, heavy, null, series, null, 'A', st, ronde));
   // Par tireur, en parts des lancers lus : sa part des tirs, et sa part des buts attendus.
   if (joueurs && espP.n) for (const j of joueurs.values()) { j.t /= espP.n; j.b /= espP.n; }
-  // Par unité, en parts des buts attendus de la lecture : la somme des trios (et celle des paires) vaut 1.
-  if (unites && espP.s) for (const g of ['F', 'D']) unites[g] = unites[g].map(x => (x || 0) / espP.s);
+  // Par unité : ses sommes, et le nombre de lancers lus pour les ramener au match (js/impact.js).
+  if (unites) unites.n = espP.n;
   return espP.n ? espP.s / espP.n : 0;
 }
 

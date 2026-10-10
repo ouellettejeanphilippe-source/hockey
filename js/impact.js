@@ -50,19 +50,28 @@ function moyennes(L) {
     }
   }
   /*
-   * CHAQUE UNITÉ, SON DIFFÉRENTIEL ATTENDU (V6, la note qui bouge). JP : *les buts pour, sur l'effectif, ça veut rien,
-   * pis c'est pas influencé par la stratégie on dirait*. À forces égales, les buts attendus pour (son trio ou sa paire
-   * qui attaque) moins les buts attendus contre (qui défend), par match : le +/− que le moteur jouerait à ce trio, avec
-   * son système, sa chimie, ses badges, ses jambes et sa case. La somme des trios (et celle des paires) est le
-   * différentiel à forces égales du club.
+   * CHAQUE UNITÉ, CE QU'ELLE CHANGE (V6, la note qui bouge). JP : *les buts pour, sur l'effectif, ça veut rien, pis
+   * c'est pas influencé par la stratégie on dirait* ; puis *un trio défensif pourrait être hyper pertinent et utile et
+   * dans les moins*. À forces égales, par match, ce qu'elle fait de plus qu'une unité neutre à sa place, face aux
+   * mêmes adversaires :
+   *   attaque  = ses lancers, mieux (ou moins bien) convertis qu'avec un tireur, une création, une qualité et un
+   *              système neutres ; plus son volume : les lancers qu'elle prend au-delà de sa part de glace ;
+   *   défense  = les buts que sa défense sur la glace évite, contre une défense neutre devant les mêmes tireurs.
+   * Un trio de fermeture qui prend leur premier trio se lit à la défense qu'il fait, pas au +/− qu'il subit.
    */
-  const fePour = feA * p.pour.FE, feContre = feB * p.contre.FE;
+  const U = L.unites;
   const unites = g => {
-    const up = (L.unites && L.unites.pour[g]) || [], uc = (L.unites && L.unites.contre[g]) || [];
-    return Array.from({ length: Math.max(up.length, uc.length) }, (_, i) => fePour * (up[i] || 0) - feContre * (uc[i] || 0));
+    if (!U || !U.pour.n) return [];
+    const nP = U.pour.n, nC = U.contre.n || 1, pnMoy = (U.pour.pn || 0) / nP, glace = U.glace[g] || [];
+    return Array.from({ length: Math.max(glace.length, U.pour[g].length, U.contre[g].length) }, (_, i) => {
+      const o = U.pour[g][i] || { n: 0, p: 0, pn: 0 }, d = U.contre[g][i] || { ev: 0 };
+      const attaque = feA * ((o.p - o.pn) + (o.n - (glace[i] || 0) * nP) * pnMoy) / nP;
+      const defense = feB * d.ev / nC;
+      return { attaque, defense, net: attaque + defense };
+    });
   };
   return {
-    joueurs, partDuFilet: L.partDuFilet, netF: unites('F'), netD: unites('D'), netFE: fePour - feContre,
+    joueurs, partDuFilet: L.partDuFilet, unitesF: unites('F'), unitesD: unites('D'),
     tirsPour, tirsContre, rythme: tirsPour + tirsContre,
     butsPour: feA * p.pour.FE + nPour * wA.buts + dnA * p.pour.DN,
     butsContre: feB * p.contre.FE + nContre * wB.buts + dnB * p.contre.DN,
@@ -276,14 +285,14 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
 }
 
 /*
- * LA NOTE QUI BOUGE (V6, docs/refonte-v6.md). Chaque trio et chaque paire de ton club : son différentiel attendu à
- * forces égales, par match, contre `adv` — ce que le moteur fait de lui avec son système, sa chimie, ses badges, ses
- * jambes et ses cases. Bouger un joueur, changer un système : le chiffre bouge. `lignes` : celles à lire (le banc).
+ * LA NOTE QUI BOUGE (V6, docs/refonte-v6.md). Chaque trio et chaque paire de ton club : ce qu'il fait de plus qu'une
+ * unité neutre à sa place, à forces égales, par match, contre `adv` — en attaque, en défense, et les deux ensemble.
+ * Il suit son système, sa chimie, ses badges, ses jambes et ses cases. `lignes` : celles à lire (le banc).
  */
 export function unitesDuSoir(team, lineup, adv, lignes = null) {
   if (!team) return null;
   const m = lire(team, lineup, adv, { lignes, n: N_BASE });
-  return { F: m.netF, D: m.netD, FE: m.netFE };
+  return { F: m.unitesF, D: m.unitesD };
 }
 
 /*

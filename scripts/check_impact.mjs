@@ -169,30 +169,34 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
 }
 
 /*
- * 5. LA NOTE QUI BOUGE (V6, js/impact.js `unitesDuSoir`) : chaque trio et chaque paire, son différentiel attendu à
- * forces égales contre un vrai club. Les trios se partagent le différentiel du club (leur somme le vaut), les paires
- * aussi ; et le 1er trio permuté avec le 4e tombe, le club aussi (ses vedettes au 4e trio jouent moins et paient
- * la zone « trop bas » : la note le dit au lieu de déplacer leur production un pour un).
+ * 5. LA NOTE QUI BOUGE (V6, js/impact.js `unitesDuSoir`) : chaque trio et chaque paire, ce qu'il fait de plus qu'une
+ * unité neutre à sa place, contre un vrai club. JP : *un trio défensif pourrait être hyper pertinent et utile et dans
+ * les moins*. Trois choses : le 1er trio permuté avec le 4e tombe, et le club avec lui (ses vedettes au 4e trio jouent
+ * moins et paient la zone « trop bas ») ; un système défensif sur un trio monte la DÉFENSE de ce trio ; et la note
+ * d'un trio dit sa défense à part de son attaque.
  */
 {
   const lg = ligue(SEEDS[0], 12);
-  let somme = 0, chute = 0, n = 0;
+  const f = r => SLOTS.filter(s => !s.scratch && s.group === 'F' && s.unit === r).map(s => s.i);
+  const somme = u => u.F.reduce((a, x) => a + x.net, 0);
+  let chute = 0, defend = 0, separe = 0, n = 0;
   for (let i = 0; i + 1 < lg.length; i += 2) {
     const t = lg[i], adv = lg[i + 1], lu = activeLineup(t);
     const u = unitesDuSoir(t, lu, adv);
-    if (!u) continue;
+    if (!u || u.F.length < 4) continue;
     n++;
-    const sF = u.F.reduce((a, b) => a + b, 0), sD = u.D.reduce((a, b) => a + b, 0);
-    if (Math.abs(sF - u.FE) < 1e-6 && Math.abs(sD - u.FE) < 1e-6) somme++;
-    // Le 1er trio contre le 4e permutés : la case du 1er trio, qui reçoit le 4e, tombe, et le club avec elle.
     const echange = { ...lu };
-    const f = r => SLOTS.filter(s => !s.scratch && s.group === 'F' && s.unit === r).map(s => s.i);
     f(0).forEach((k, j) => { echange[k] = lu[f(3)[j]]; echange[f(3)[j]] = lu[k]; });
     const v = unitesDuSoir(t, echange, adv);
-    if (v && v.F[0] < u.F[0] && v.FE < u.FE) chute++;
+    if (v && v.F[0].net < u.F[0].net && somme(v) < somme(u)) chute++;
+    const lignes = s2 => [0, 1, 2, 3].map(k => ({ tac: k === 1 ? s2 : 'hourra', tacD: 'hourra', agr: 1, sec: 60 }));
+    const d = unitesDuSoir(t, lu, adv, lignes('defensive')), h = unitesDuSoir(t, lu, adv, lignes('hourra'));
+    if (d && h && d.F[1].defense > h.F[1].defense) defend++;
+    if (u.F.every(x => Number.isFinite(x.attaque) && Number.isFinite(x.defense) && Math.abs(x.net - x.attaque - x.defense) < 1e-9)) separe++;
   }
-  exiger('la note des unités : la somme des trios, et celle des paires, vaut le différentiel du club', somme === n, `${somme}/${n} clubs`);
   exiger('la note des unités suit les cases : le 1er trio permuté avec le 4e tombe, et le club avec lui', chute >= n - 1, `${chute}/${n} clubs`);
+  exiger('la note des unités voit la défense : un système défensif monte la défense de son trio', defend === n, `${defend}/${n} clubs`);
+  exiger('la note d\'une unité, c\'est son attaque plus sa défense, chacune lisible', separe === n, `${separe}/${n} clubs`);
 }
 
 /* 4. Le tableau de chaque choix. */
