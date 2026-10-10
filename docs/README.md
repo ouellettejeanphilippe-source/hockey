@@ -4,6 +4,7 @@
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
 - `organisation-equilibrage.md` — équilibrer sans casser le jeu : où vivent les chiffres, ce qui casse, et le plan en dix actions (l'empreinte du moteur d'abord).
+- `refonte-v6.md` — la V6 (10 oct.) : trouver la meilleure combinaison. Trois enquêtes (une run jouée, l'inventaire des synergies, le bas de l'alignement mesuré en paires) ; la note d'équipe qui bouge à chaque geste, les liens visibles entre joueurs, une carte une idée, des événements qui lient tes joueurs, chaque trio qui compte, et ce que JP doit trancher.
 - `refonte-v5.md` — la V5 (9 oct.) : la meilleure boucle possible, mesurée. La semaine en nœud, le gros match en combat, trois types de cartes, la signature au centre, les positions multiples réelles ; ce qu'on garde, répare, fusionne et coupe, phase par phase, et ce que JP doit trancher.
 - `refonte-v4.md` — la V4 : la boîte où tout se règle, la poche de quatre places au bureau, et les plus gros changements proposés (la semaine, trois sortes de cartes, un choix qui vaut un but).
 - `refonte-systeme.md` — la refonte des cartes, des badges et des coachs : l'idée, les étapes, et les réponses de JP.
