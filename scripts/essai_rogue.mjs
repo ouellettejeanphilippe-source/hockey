@@ -235,9 +235,9 @@ async function regler() {
      * LA ROUTE DE LA SEMAINE (V5, JP : *comment je suis supposé savoir quoi prendre sans les infos nécessaires ?*) :
      * le choix dit l'état du club (jambes, infirmerie, semaine, caisse), et chaque route ce qu'elle lui fait.
      */
-    const titreChoix = ((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '');
+    const titreChoix = await page.$eval('#choixModal:not([hidden]) .choix-titre', e => e.textContent).catch(() => '');
     if (/ta route/.test(titreChoix) && !noeud.route) {
-      noeud.route = (await page.textContent('#choixModal .choix-corps > .choix-puces').catch(() => '')) || '';
+      noeud.route = await page.$eval('#choixModal .choix-corps > .choix-puces', e => e.textContent).catch(() => '');
       noeud.sous = await page.$$eval('#choixModal .choix-option-sous', e => e.map(x => x.textContent.trim()));
       await page.screenshot({ path: `${DOSSIER}/rogue-route.png` });
       if (!/Jambes \d+/.test(noeud.route) || !/en caisse/.test(noeud.route) || !/cette semaine/.test(noeud.route)) erreurs.push(`la route de la semaine ne dit pas l'état du club (« ${noeud.route} »)`);
