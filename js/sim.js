@@ -1555,9 +1555,11 @@ export function origineUnite(lineup, groupe, u) {
  * et leur origine (les vrais coéquipiers, la même franchise, que les cartes d'origine paient). Une lecture, rien de neuf.
  */
 export function lienDePaire(app, a, b) {
-  const matchs = app ? app.entente(cleDePaire(a, b)) : 0;
+  // `joues` : leurs matchs ensemble chez toi ; `entente` compte aussi celle que de vrais coéquipiers apportent.
+  const joues = app ? app.entente(cleDePaire(a, b)) : 0;
+  const matchs = joues + (clubSaison(a) === clubSaison(b) ? ENTENTE_COEQUIPIERS : 0);
   return {
-    matchs, entente: 1 - Math.exp(-matchs / ENTENTE_MATCHS),
+    joues, entente: 1 - Math.exp(-matchs / ENTENTE_MATCHS), jouee: 1 - Math.exp(-joues / ENTENTE_MATCHS),
     coequipiers: clubSaison(a) === clubSaison(b), famille: franchiseDe(a) === franchiseDe(b),
   };
 }
@@ -2365,11 +2367,19 @@ export function apprentissagePhoto(photo) {
   const e = (photo && photo.entente) || {}, m = (photo && photo.maitrise) || {};
   return { entente: k => e[k] || 0, maitrise: p => (p && m[getPlayerKey(p)]) || {} };
 }
+/*
+ * DE VRAIS COÉQUIPIERS ARRIVENT AVEC LEUR ENTENTE (V6, phase 3). JP : *tout le temps pour les coéquipiers*, puis
+ * « l'entente déjà faite ». Deux joueurs du même club la même saison ont joué ensemble pour vrai : leur paire part
+ * avec ENTENTE_COEQUIPIERS matchs d'entente, pour toi comme pour l'IA (ses clubs sont de vraies équipes). Ça pèse
+ * surtout tôt, le temps que les lignes mêlées apprennent ; rien de neuf : c'est l'entente de `chimieLigne`.
+ */
+const ENTENTE_COEQUIPIERS = ENTENTE_MATCHS;
+const matchsEnsemble = (app, a, b) => app.entente(cleDePaire(a, b)) + (clubSaison(a) === clubSaison(b) ? ENTENTE_COEQUIPIERS : 0);
 export function ententeLigne(app, lineup, u) {
   const js = joueursLigne(lineup, u);
   if (js.length < 2) return 0;
   let som = 0, n = 0;
-  for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) { som += 1 - Math.exp(-app.entente(cleDePaire(js[i], js[j])) / ENTENTE_MATCHS); n++; }
+  for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) { som += 1 - Math.exp(-matchsEnsemble(app, js[i], js[j]) / ENTENTE_MATCHS); n++; }
   return som / n;
 }
 /* Une ligne en systèmes : `{ tac, tacD }`, ou la clé seule d'un système de trio (l'écran d'avant S79). */
