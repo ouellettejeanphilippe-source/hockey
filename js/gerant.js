@@ -38,6 +38,8 @@ import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { ROULEMENTS, effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
+import { coachDeCarte } from './banque.js';
+import { COACHS } from './coachs.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
 import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
@@ -58,7 +60,7 @@ export function puces(mots, detail = () => false) {
  * Rien ne disparaît : ce que le moteur joue reste écrit, on choisit seulement quand le lire.
  */
 // Un chiffre de match, en tête (« ≈ +0,2 but ») ou après son sujet (« Ton club : ≈ +1,5 but marqué »).
-const estChiffre = m => /(^|: )≈ /.test(String(m.txt || ''));
+const estChiffre = m => /(^|: )(jusqu'à )?≈ |^Jusqu'à ≈ |, et ≈ /.test(String(m.txt || '')) || (m.cle === 'glace' && /≈ /.test(String(m.txt || '')));
 function detailDe(mots) {
   const chiffres = mots.filter(estChiffre);
   const buts = m => m.cle === 'but' || m.cle === 'butContre';
@@ -81,24 +83,93 @@ const MOTS_DU_CHIFFRE = {
   punition: ['Plus de punitions', 'Moins de punitions'], coup: ['Plus de mises en échec', 'Moins de mises en échec'],
   blessure: ['Plus de blessures', 'Moins de blessures'], jambes: ['Les jambes s\'usent plus', 'Les jambes s\'usent moins'],
 };
+/* Le sujet d'un chiffre, lu dans son texte quand la ligne ne le porte pas (une condition, une ligne « Eux : »). */
+const CLE_DU_TEXTE = [[/but.*marqué/, 'but'], [/but.*accordé/, 'butContre'], [/tirs? accordés?/, 'tir accordé'], [/\btirs?\b/, 'tir'],
+  [/punition/, 'punition'], [/mises? en échec/, 'coup'], [/blessure/, 'blessure'], [/jambe/, 'jambes']];
+const cleDuTexte = t => (CLE_DU_TEXTE.find(([re]) => re.test(t)) || [])[1];
+/* Ce qui leur arrive, dit de ton côté : leurs tirs sont ceux que tu accordes, leurs buts ceux que tu encaisses. */
+const VU_D_EUX = { tir: 'tir accordé', 'tir accordé': 'tir', but: 'butContre', butContre: 'but' };
+const MOTS_D_EUX = {
+  punition: ['Ils prennent plus de punitions', 'Ils prennent moins de punitions'], coup: ['Ils frappent plus', 'Ils frappent moins'],
+  blessure: ['Plus de blessures chez eux', 'Moins de blessures chez eux'], jambes: ['Leurs jambes s\'usent plus', 'Leurs jambes s\'usent moins'],
+};
+const HAUT_EST_BON = { but: true, tir: true, butContre: false, 'tir accordé': false, blessure: false, jambes: false };
+const minuscule = t => t.charAt(0).toLowerCase() + t.slice(1);
+/* La taille d'un chiffre de match, par match (« ≈ 1 but de plus tous les 14 matchs » : 1/14), pour mettre le plus gros devant. */
+function ampleurDe(t) {
+  const m = String(t).match(/≈ [+−]?(\d+(?:,\d+)?)/), tous = String(t).match(/tous les (\d+) matchs/);
+  return m ? parseFloat(m[1].replace(',', '.')) / (tous ? Number(tous[1]) : 1) : 0;
+}
 function enMots(m) {
   const t = String(m.txt || ''), moins = /≈ −|de moins/.test(t);
-  if (m.cle === 'glace') { const qui = t.split(' : ')[0]; return /presque inchangée/.test(t) ? null : `${qui} : ${moins ? 'moins' : 'plus'} de glace`; }
-  if (m.cle === 'lui') return `${t.split(' : ')[0]} : ${moins ? 'moins' : 'plus'} de buts`;
-  const M = MOTS_DU_CHIFFRE[m.cle];
-  return M ? M[moins ? 1 : 0] : null;
+  // La glace, en une puce : son sens (« Le haut joue plus »), rien quand elle bouge à peine.
+  if (m.cle === 'glace') return /à peine/.test(t) ? null : [t.split(/ : |, /)[0], 'glace'];
+  if (m.cle === 'lui') return [`${t.split(' : ')[0]} : ${moins ? 'moins' : 'plus'} de buts`, 'lui'];
+  // Un pari dit ses deux issues, chacune en mots.
+  if (/ — sinon : /.test(t)) {
+    const [gagne, perd] = t.split(' — sinon : '), a = enMots({ txt: gagne }), b = enMots({ txt: `Sinon : ${perd}` });
+    return a && b ? [`${a[0]} — ${minuscule(b[0])}`, a[1], null, false] : null;
+  }
+  // Une ligne à sujet (« Eux : ≈ … », « Si tu mènes après deux périodes : ≈ … ») garde son sujet ; une ligne qui
+  // grandit (« Jusqu'à ≈ … avec 5 joueurs du Rhino habillés ») le dit en tête : « Avec 5 joueurs du Rhino habillés : … ».
+  const j = t.indexOf('≈ '), grandit = t.match(/ (avec \d+ (?:cartes|joueurs) .*)$/);
+  const avant = (j > 0 ? t.slice(0, j) : '').replace(/(^|: )jusqu'à $/i, '$1').trim();
+  const sujet = grandit && !avant ? majuscule(grandit[1]) : avant.replace(/ :$/, '');
+  const lie = !!avant && !avant.endsWith(':');   // « Si ta préparation rate : pas de malus, et ≈ … »
+  const corps = (j >= 0 ? t.slice(j) : t).replace(grandit ? grandit[0] : /$^/, '');
+  // Une ligne de plusieurs chiffres (« ≈ −0,3 tir …, ≈ −0,11 but accordé … ») se dit par un seul : les buts, sinon le plus gros.
+  const bouts = corps.split(/, (?=≈ )/);
+  const plusGros = l => [...l].sort((x, y) => ampleurDe(y) - ampleurDe(x))[0];
+  const bout = bouts.length > 1 ? plusGros(bouts.filter(x => /\bbut/.test(x)).length ? bouts.filter(x => /\bbut/.test(x)) : bouts) : bouts[0];
+  const bas = /≈ −|de moins/.test(bout), par = (bout.match(/ (par carte .*)$/) || [])[1];
+  const cle = m.cle && bouts.length === 1 && !/^Eux/.test(sujet) ? m.cle : cleDuTexte(bout);
+  // Le sens du bout choisi, quand la ligne en mêle plusieurs : plus de buts marqués est bon, plus de buts accordés non.
+  const bonDe = c => (bouts.length > 1 && HAUT_EST_BON[c] !== undefined ? HAUT_EST_BON[c] !== bas : m.bon);
+  const dit = mot => {
+    const avec = par ? `${mot} ${par}` : mot;
+    if (lie) return `${avant} ${minuscule(avec)}`;
+    return sujet && !['Eux', 'Ton club', 'Toi'].includes(sujet) ? `${sujet} : ${minuscule(avec)}` : avec;
+  };
+  if (/^Eux/.test(sujet)) {
+    const mot = VU_D_EUX[cle] ? MOTS_DU_CHIFFRE[VU_D_EUX[cle]][bas ? 1 : 0] : MOTS_D_EUX[cle] ? MOTS_D_EUX[cle][bas ? 1 : 0] : null;
+    return mot ? [dit(mot), VU_D_EUX[cle] || cle, bonDe(VU_D_EUX[cle] || cle), !!grandit] : null;
+  }
+  const M = MOTS_DU_CHIFFRE[cle];
+  return M ? [dit(M[bas ? 1 : 0]), cle, bonDe(cle), !!grandit] : null;
 }
 /* Les mots d'une carte : chaque chiffre dit aussi en mots (une fois chacun), le chiffre gardé pour « Les chiffres ». */
-export function enMotsEtChiffres(mots) {
+function enMotsEtChiffres(mots) {
   const vus = new Set(), out = [];
   for (const m of mots) {
     if (!estChiffre(m) && m.cle !== 'lui' && m.cle !== 'glace') { out.push(m); continue; }
-    const txt = enMots(m);
-    if (txt && !vus.has(txt)) { vus.add(txt); out.push({ txt, bon: m.bon, enMots: true }); }
+    const [txt, cle, bon = m.bon, grandit = false] = enMots(m) || [];
+    if (txt && !vus.has(txt)) { vus.add(txt); out.push({ txt, bon, cle, ampleur: ampleurDe(m.txt), enMots: true, grandit }); }
     out.push({ ...m, chiffre: true });
   }
   return out;
 }
+/*
+ * UNE CARTE, UNE IDÉE (V6, phase 4). JP : *je pense que les cartes sont trop complexes*. La face d'une carte dit au
+ * plus FACE_MAX choses, en mots : ce qu'elle rapporte et ce qu'elle coûte, ce qui la définit d'abord (un geste, un
+ * badge, le joueur visé), les buts ensuite ; sa durée se dit à part. Le reste — ses autres effets, ses chiffres de
+ * match — attend « Les chiffres » (`.detail`). Rien ne disparaît : on choisit seulement quand le lire.
+ */
+export const FACE_MAX = 2;
+const BRUIT = /à peine perceptible|ne changent pas/;
+const poidsFace = m => (m.cle === 'rien' || BRUIT.test(m.txt) ? 5
+  : !m.enMots ? (/^(Jusqu'à|Grandit|🔗)/.test(m.txt) ? 4 : 0) : m.grandit ? 4
+  : m.cle === 'lui' ? 1 : m.cle === 'but' || m.cle === 'butContre' ? 2 : 3);
+/** Ce qui se plie sur la face d'une carte (ses mots déjà passés par `enMotsEtChiffres`) : un prédicat pour `puces`. */
+function pliDeFace(lus) {
+  const face = (lus || []).filter(m => !m.chiffre && !m.duree && poidsFace(m) < 5)
+    .sort((a, b) => poidsFace(a) - poidsFace(b) || (poidsFace(a) === 2 ? (b.ampleur || 0) - (a.ampleur || 0) : 0));
+  // Un bon, un prix, ou ce qui n'est ni l'un ni l'autre : jamais deux fois le même sens.
+  const tete = [];
+  for (const m of face) if (tete.length < FACE_MAX && (m.bon === null || m.bon === undefined || !tete.some(x => x.bon === m.bon))) tete.push(m);
+  return m => !!m.chiffre || (!m.duree && !tete.includes(m));
+}
+/** La face d'une carte, en puces : au plus FACE_MAX en mots, le reste plié sous « Les chiffres ». */
+export const pucesDeFace = mots => { const lus = enMotsEtChiffres(mots || []); return puces(lus, pliDeFace(lus)); };
 let CHIFFRES_OUVERTS = null;
 export const chiffresOuverts = () => {
   if (CHIFFRES_OUVERTS === null) { try { CHIFFRES_OUVERTS = localStorage.getItem('cap82.chiffres') === '1'; } catch { CHIFFRES_OUVERTS = false; } }
@@ -365,7 +436,7 @@ export function ouvrirChoix(spec) {
           bonHtml: o.bon ? sub(o.bon) : '', prixHtml: o.prix ? sub(o.prix) : '', coinHtml: o.coin ? esc(o.coin) : '',
           // UNE CARTE SE LIT EN MOTS (V3, JP : *les cartes doivent être plus claires, quitte à pas mettre de stats*) :
           // sa face dit ce qu'elle fait (+ bon, − prix) ; ses chiffres de match attendent « Les chiffres ».
-          pucesHtml: puces(enMotsEtChiffres(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))), m => !!m.chiffre) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
+          pucesHtml: pucesDeFace(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
@@ -870,7 +941,7 @@ const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'F
 // Sous le pivot (CHIMIE_PIVOT), une chimie coûte au lieu de rapporter : le mot le dit (V2.2, les coûts cachés).
 const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= CHIMIE_PIVOT ? 'correcte' : 'naissante, elle coûte');
 /* L'entente et la maîtrise, de 0 à 1, en mots (S73). */
-const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
+export const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
 
 const nomSys = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${esc(S.nom)}` : ''; };
@@ -1497,12 +1568,15 @@ export function mainAdverseHtml(cartes, { nomAdv = 'Eux', energie = ENERGIE_MAIN
     return C ? `<span class="main-adverse-carte tc-${C.rarete}" title="${esc(C.texte)}"><b>${C.ico} ${esc(C.nom)}</b><span class="choix-puces">${puces(motsDeCarteAdverse(C, echelle))}</span></span>` : '';
   }).join('')}</div></div>`;
 }
+/* « · 🐝 Le Frelon », ou « · Neutre » : la couleur d'une carte, dite comme dans « Tes cartes ». */
+const couleurDe = k => (COACHS[k] ? ` · ${COACHS[k].ico} ${COACHS[k].nom}` : ' · Neutre');
 /* Une carte de match en option d'`ouvrirChoix` (une récompense, un retrait). */
 export function optionDeCarteMatch(cle) {
   const C = CARTES_MATCH[cle];
   return {
     cle, rarete: C.maudite ? 'commune' : C.rarete, ico: C.ico, nom: C.nom,
-    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}`,
+    // La couleur de son coach, sur toute carte, le gros match compris (V6, phase 4).
+    type: `${GENRES_CARTE[C.genre] || ''} · ${C.injouable ? 'injouable' : `${C.cout} élan`}${C.maudite ? '' : couleurDe(coachDeCarte(`match:${cle}`))}`,
     texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C), genreCarte: C.genre, dessin: cle,
   };
 }
@@ -1511,7 +1585,7 @@ const carteDeMatch = (cle, i, etat, cout = null) => {
   const coin = cout != null && CARTES_MATCH[cle] && cout < CARTES_MATCH[cle].cout ? `<s>${CARTES_MATCH[cle].cout}</s>${cout}` : esc(o.coin);
   return carteHtml({
     cle: String(i), rarete: o.rarete, i, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(o.type),
-    texteHtml: `<i class="tc-ambiance">${esc(o.texte)}</i>`, coinHtml: coin, pucesHtml: puces(o.mots), genreCarte: o.genreCarte, dessin: o.dessin,
+    texteHtml: `<i class="tc-ambiance">${esc(o.texte)}</i>`, coinHtml: coin, pucesHtml: pucesDeFace(o.mots), genreCarte: o.genreCarte, dessin: o.dessin,
   }).replace('class="choix-option tc', `class="choix-option tc main-carte${String(cle).endsWith('+') ? ' plus' : ''}${etat ? ` ${etat}` : ''}`);
 };
 
@@ -1605,7 +1679,7 @@ export function ouvrirMainDeMatch(spec) {
           ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
           ${o.bon ? `<span class="choix-option-bon">+ ${nV.sub(o.bon)}</span>` : ''}
           ${o.prix ? `<span class="choix-option-prix">− ${nV.sub(o.prix)}</span>` : ''}
-          <span class="choix-puces">${puces(enMotsEtChiffres(mv.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nV.nom).replace(/\{noms\}/g, nV.noms) }))), x => !!x.chiffre)}</span>
+          <span class="choix-puces">${pucesDeFace(mv.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nV.nom).replace(/\{noms\}/g, nV.noms) })))}</span>
         </button>`;
       }).join('')}</div>
     </div>` : '';
@@ -1640,7 +1714,7 @@ export function ouvrirMainDeMatch(spec) {
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
           <button type="button" class="btn main-deck">${voirDeck ? 'Cacher mon deck' : `Mon deck · ${deck.length}`}</button>
-          ${spec.depistage ? `<button type="button" class="btn main-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
+          <button type="button" class="btn main-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>
           ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il joue tes mains et garde le cap aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
         </div>
         ${voirDeck ? `<div class="deck-grille">${deck.map(c => `<span class="deck-mini tc-${CARTES_MATCH[c].maudite ? 'commune' : CARTES_MATCH[c].rarete}${CARTES_MATCH[c].maudite ? ' maudite' : ''}" title="${esc(CARTES_MATCH[c].texte)}"><b>${CARTES_MATCH[c].injouable ? '✕' : CARTES_MATCH[c].cout}</b>${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : ''}

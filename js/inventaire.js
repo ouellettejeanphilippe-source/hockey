@@ -24,7 +24,7 @@ import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, r
 import { COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, PALIERS_COACH_MAX } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
-import { puces, optionDeCarteMatch, enMotsEtChiffres, chiffresOuverts, basculerChiffres } from './gerant.js';
+import { puces, pucesDeFace, optionDeCarteMatch, chiffresOuverts, basculerChiffres } from './gerant.js';
 import { esc, hache, money as M } from './util.js';
 
 const $ = id => document.getElementById(id);
@@ -142,7 +142,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
     <div class="bq-tete"><span class="bq-ico" aria-hidden="true">${c.ico}</span><span class="bq-nom">${esc(c.nom)}</span>${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}</div>
     <div class="bq-sous"><span>${esc(CATEGORIES[c.cat].un)}</span>${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}<span>${esc(sous)}</span></div>
     ${COACHS[c.coach] ? `<div class="bq-coach" title="${esc(COACHS[c.coach].mot)}">${COACHS[c.coach].ico} ${esc(COACHS[c.coach].nom)}</div>` : '<div class="bq-coach" title="Elle ne compte pour aucun coach">Neutre</div>'}
-    ${possede ? `<div class="bq-regle">${puces(enMotsEtChiffres(mots), m => !!m.chiffre)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
+    ${possede ? `<div class="bq-regle">${pucesDeFace(mots)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
     <div class="bq-pied"><span class="bq-moment moment-${momentDe(id)}" title="${esc(MOMENTS[momentDe(id)].mot)}">${MOMENTS[momentDe(id)].ico} ${esc(MOMENTS[momentDe(id)].nom)}</span><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
     ${actions ? `<div class="bq-actions">${actions}</div>` : ''}
   </div>`;

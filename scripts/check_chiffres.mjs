@@ -29,7 +29,7 @@ import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouer
 import { chiffresDuSoir, effetEnChiffres, motsDuSoir, systemeEnChiffres, agressiviteEnChiffres, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
 import { BANQUE, reglesDe } from '../js/banque.js';
 import { CARTES_MATCH } from '../js/combat.js';
-import { optionDeCarteMatch } from '../js/gerant.js';
+import { optionDeCarteMatch, pucesDeFace, FACE_MAX } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -154,7 +154,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   ];
   const mots = tous.flatMap(e => effetEnChiffres(e, A));
   exiger('aucun mot d\'effet ne contient « % »', mots.every(m => !m.txt.includes('%')), `${mots.length} mots`);
-  exiger('chaque mot dit un chiffre de match, ou « à peine perceptible »', mots.every(m => /^≈ [+−]\d|à peine perceptible|≈ 1 but|glace presque inchangée|min de glace/.test(m.txt)), mots.slice(0, 3).map(m => m.txt).join(' | '));
+  exiger('chaque mot dit un chiffre de match, ou « à peine perceptible »', mots.every(m => /^≈ [+−]\d|à peine perceptible|≈ 1 but|joue plus|se brasse/.test(m.txt)), mots.slice(0, 3).map(m => m.txt).join(' | '));
   exiger('l\'unité de match est toujours dite', mots.filter(m => /^≈ [+−]\d/.test(m.txt)).every(m => /par match|par saison|sur \d+ match/.test(m.txt)), '');
   exiger('un effet sans canal ne dit rien', effetEnChiffres({ mutation: 'x' }, A).length === 0 && effetEnChiffres({}, A).length === 0 && effetEnChiffres(null, A).length === 0);
   const un = effetEnChiffres({ volume: 1.07 }, A, null, null, { part: 1 / 3, par: 'en 3e' });
@@ -192,6 +192,21 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   for (const k of Object.keys(CARTES_MATCH)) {
     try { for (const m of optionDeCarteMatch(k).mots) { lues++; if (/%/.test(m.txt) && !AUTRE.test(m.txt)) fautes.push(`${k} : ${m.txt}`); } } catch (e) { fautes.push(`${k} : ${e.message}`); }
   }
+  // UNE CARTE, UNE IDÉE (V6, phase 4) : sa face dit au plus FACE_MAX choses, en mots ; le reste attend « Les chiffres ».
+  const face = mots => (pucesDeFace(mots).match(/<span class="puce [^"]*">/g) || []).filter(x => !/detail|duree/.test(x));
+  const deTrop = [], enChiffres = [];
+  let pliees = 0;
+  for (const [id, c] of Object.entries(BANQUE)) {
+    const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);
+    const f = face(mots);
+    if (f.length > FACE_MAX) deTrop.push(`${c.nom} (${f.length})`);
+    if (mots.filter(m => !m.duree).length > FACE_MAX) pliees++;
+    // Une seule langue : un chiffre de match sur la face est un chiffre de trop.
+    const vus = (pucesDeFace(mots).match(/<span class="puce [^"]*">[^<]*/g) || []).filter(x => !/detail|duree|en-mots/.test(x) && /≈/.test(x));
+    if (vus.length) enChiffres.push(c.nom);
+  }
+  exiger(`une carte dit au plus ${FACE_MAX} choses sur sa face`, deTrop.length === 0, deTrop.slice(0, 4).join(' · ') || `${Object.keys(BANQUE).length} cartes, ${pliees} pliées`);
+  exiger('la face d\'une carte parle en mots, ses chiffres de match attendent « Les chiffres »', enChiffres.length === 0, enChiffres.slice(0, 4).join(' · ') || 'aucun chiffre sur une face');
   // JP : *« +25 déf », ça veut rien dire.* Un rôle se dit par le badge qu'il gagne ou perd, jamais en points de profil.
   const POINTS = /\p{Extended_Pictographic}\S* [\p{L}' -]+ [+−]\d+$/u;
   const muettes = [], aLui = [];

@@ -30,6 +30,7 @@ base), ce qui exige de connaitre toutes les saisons.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -102,10 +103,15 @@ def fetch_season(year, min_gp):
     # Annee de naissance (contrats d'entree selon l'age). Facultatif : si le
     # point bios ne repond pas, js/ratings.js retombe sur la cohorte
     # d'identifiant (scripts/rerate.mjs).
+    # `fetch_bios` rend { bd, hgt, wgt } par joueur : la date seule va dans
+    # birthDate. Le dict entier y allait, et js/ratings.js en gardait les dix
+    # premiers caracteres, « [object Ob », pour les 40 867 joueurs du build
+    # complet du 9 oct. 2026. La taille et le poids suivent par patch_bios.
     births = fetch_bios(year)
     for r in skaters + goalies:
-        if r.get("playerId") in births:
-            r["birthDate"] = births[r["playerId"]]
+        bd = births.get(r.get("playerId"), {}).get("bd")
+        if bd:
+            r["birthDate"] = bd
 
     return skaters, goalies, realtime, avantages
 
@@ -180,6 +186,21 @@ def fetch_bios(year):
             if isinstance(wgt, (int, float)) and 130 <= wgt <= 300:
                 bio["wgt"] = int(wgt)
     return bios
+
+
+def verifier_dates(labels):
+    """Le build echoue plutot que de publier des dates de naissance illisibles.
+
+    Une date se lit AAAA-MM-JJ ; sans elle, ni l'age, ni le contrat d'entree,
+    ni les cartes des veterans et de la releve. Le build du 9 oct. 2026 a
+    publie « [object Ob » partout sans que rien ne bronche.
+    """
+    for label in labels:
+        with open(os.path.join(SEASONS_DIR, f"{label}.json"), encoding="utf-8") as f:
+            joueurs = json.load(f)["players"]
+        mauvaises = [p.get("bd") for p in joueurs if p.get("bd") and not re.match(r"^\d{4}-\d{2}-\d{2}$", str(p["bd"]))]
+        if mauvaises:
+            sys.exit(f"{label} : {len(mauvaises)} dates de naissance illisibles (ex. {mauvaises[0]!r})")
 
 
 def patch_bios(labels):
@@ -429,7 +450,7 @@ def main():
     else:
         years = list(range(args.start, args.end + 1))
 
-    built, teams_seen = [], set()
+    built, rebuilt, teams_seen = [], [], set()
     fetched = 0
 
     version = ratings_version()
@@ -478,11 +499,22 @@ def main():
                 json.dump(shard, f, ensure_ascii=False, separators=(",", ":"))
 
         built.append(label)
+        rebuilt.append(label)
         fetched += 1
         teams_seen.update(p["t"] for p in shard["players"])
         size = os.path.getsize(path) // 1024 if os.path.exists(path) else 0
         print(f"{len(shard['players'])} entrees, {size} Ko")
         time.sleep(0.35)
+
+    # Un shard rebati depuis l'API repart de zero : la taille et le poids
+    # (--bios-only) et les gestes (--gestes-only : blocs, vols, type de tir)
+    # s'y rajoutent ici, sinon ils disparaissent. Le build complet du
+    # 9 oct. 2026 les avait perdus pour toutes les saisons : le gabarit du
+    # mode Sur table et le tir signature lisaient du vide.
+    if rebuilt and not args.seed_only:
+        patch_bios(rebuilt)
+        patch_actions(rebuilt)
+        verifier_dates(rebuilt)
 
     # ---- etage 2 : contrats d'entree et salaires reels, sur tous les shards ----
     if args.rerate or (fetched and not args.seed_only):
