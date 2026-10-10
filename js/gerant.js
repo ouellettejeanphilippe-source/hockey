@@ -25,7 +25,7 @@
  */
 
 import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
+  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_DEFAUT, PART_UNITE,
   badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite, enFaceDe, FERMETURE_DEFAUT,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
@@ -1193,9 +1193,6 @@ export function ouvrirLignes(spec) {
         return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
         <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...defaut, ...effets])}</span></button>`;
       }).join('')}</div>
-      <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
-      <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-      <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
@@ -1212,8 +1209,6 @@ export function ouvrirLignes(spec) {
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[ouverte].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[ouverte].tacD = b.dataset.tacd; dessiner(); }; });
     m.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => { brouillon[ouverte].agr = Number(b.dataset.agr); dessiner(); }; });
-    const s = m.querySelector('.gl-sec');
-    if (s) s.onchange = () => { brouillon[ouverte].sec = Number(s.value); dessiner(); };
     m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; match.ad = AD_DE_CONSIGNE[match.importance] ?? 0; dessiner(); }; });
     m.querySelectorAll('[data-roulement]').forEach(b => { b.onclick = () => { roulement = b.dataset.roulement; dessiner(); }; });
     m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
@@ -1319,9 +1314,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     <div class="gl-sec-titre">Agressivité · ${carrure}</div>
     <div class="gl-seg gl-seg-court ln-agr">${agr}</div>
     ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
-    <div class="gl-sec-titre">Glace : ${l.sec} s par présence · ${glaceMot(mins, u)}</div>
-    <input type="range" class="gl-sec" min="${SEC_MIN}" max="${SEC_MAX}" step="5" value="${l.sec}" aria-label="Secondes de présence de la ${NOMS_LIGNE[u]}">
-    <div class="gl-mot">Plus de glace, plus de lancers, et plus d'usure des jambes.</div>`;
+`;
   return { sommaire, corps };
 }
 
@@ -1355,8 +1348,6 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[u].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[u].tacD = b.dataset.tacd; dessiner(); }; });
     m.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => { brouillon[u].agr = Number(b.dataset.agr); dessiner(); }; });
-    const sec = m.querySelector('.gl-sec');
-    if (sec) sec.onchange = () => { brouillon[u].sec = Number(sec.value); dessiner(); };
     m.querySelectorAll('.gl-annuler').forEach(b => { b.onclick = fermer; });
     m.querySelector('.gl-appliquer').onclick = () => { fermer(); onAppliquer({ ...brouillon[u] }); };
   }

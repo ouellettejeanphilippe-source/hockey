@@ -7,9 +7,9 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup } from './sim.js';
+import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement } from './sim.js';
 import { alignementAuMieux, unitesDuSoir } from './impact.js';
-import { getArchetype } from './ratings.js';
+import { getArchetype, POIDS_TRIO } from './ratings.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
@@ -459,13 +459,14 @@ function lineEl(title, slots, group, unit, cls = '') {
     chemHtml = `<span class="line-chem">${filled}/${ouvertes} comblés</span>`;
   }
 
-  // Derrière le banc, chaque trio porte son 🔒 : le trio de fermeture prend le
+  // Derrière le banc, le trio de fermeture porte son 🔒 : il prend le
   // premier trio adverse (voir FERMETURE_DEFAUT dans js/sim.js).
   let fermHtml = '';
   if (G.banc && group === 'F') {
     const ferm = fermetureCourante();
     const on = ferm === unit;
-    fermHtml = `<button type="button" class="line-ferm${on ? ' on' : ''}" data-unit="${unit}" title="${on ? 'Ton trio de fermeture : il prend le premier trio adverse. Touche pour le libérer.' : 'En faire ton trio de fermeture : il prendra le premier trio adverse. Son blocage est celui de ses trois joueurs.'}">🔒${on ? ' Fermeture' : ''}</button>`;
+    // V6 : le trio de fermeture se choisit au plan de match (onglet Équipe, « contre leur 1er ») ; l'en-tête le dit seulement.
+    fermHtml = on ? `<span class="line-ferm on" title="Ton trio de fermeture : il prend le premier trio adverse. Il se change au plan de match, dans l'onglet Équipe.">🔒 Fermeture</span>` : '';
     if (on) wrap.classList.add('fermeture');
   }
   // QUI EST CETTE UNITÉ (S79) : « Trio de snipers », « Paire classique » — les icônes sont dans les cases.
@@ -498,12 +499,6 @@ function lineEl(title, slots, group, unit, cls = '') {
     tete.title = `Régler le système ${group === 'D' ? 'de la paire' : 'du trio'}`;
     tete.onclick = () => ouvrirReglage(unit, group);
   }
-  const fermBtn = wrap.querySelector('.line-ferm');
-  if (fermBtn) fermBtn.onclick = ev => {
-    ev.stopPropagation();
-    G.banc.fermeture = fermetureCourante() === unit ? 'auto' : unit;
-    render();
-  };
   const row = document.createElement('div');
   row.className = 'line-slots' + (cls ? ' ' + cls : '');
   slots.forEach(s => row.appendChild(slotEl(s)));
@@ -524,7 +519,10 @@ function noteDesUnites() {
   if (!b || !L || !L.you || !b.prochain || surTable()) return null;
   try {
     const lu = activeLineup({ ...L.you, roster: G.roster, injured: b.blesses, jourCourant: b.jour });
-    return unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes);
+    // Le plan de match du banc (V6), posé le temps de la lecture : l'appariement et la glace qu'on essaie.
+    const avant = [L.you.appariement, L.you.roulement];
+    L.you.appariement = b.appariement; L.you.roulement = b.roulement;
+    try { return unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes); } finally { [L.you.appariement, L.you.roulement] = avant; }
   } catch { return null; }
 }
 
@@ -624,6 +622,61 @@ function boutonAuMieux() {
   return b;
 }
 
+/*
+ * LE PLAN DE MATCH (V6, docs/refonte-v6.md). JP : *donner des stratégies à chaque trio et devoir construire autour de
+ * ça, avec matching de trios à domicile* ; *le matching de trio dans une liste, et la répartition du temps dans une
+ * autre, overall, au lieu de par ligne. À l'étranger, l'adversaire fait de même* ; *garder les stratégies, matching,
+ * répartition, mais streamline pour plus de facilité de gestion*. Derrière le banc, un seul panneau : la glace du club
+ * (les trois roulements) et l'appariement (contre chacun de leurs trios, lequel des tiens — A : par rang). Ton choix
+ * contre leur 1er trio est ton trio de fermeture. Chez eux, c'est leur plan qui joue (`profilMatch(...).plan`), et le
+ * panneau le dit. Chaque toucher rejoue la note des unités.
+ */
+const ORD_TRIO = ['1er', '2e', '3e', '4e'];
+/* LA GLACE EN MINUTES (V6, JP : *des temps par trio genre 60-50-40-30*) : ce qu'un roulement donne à chaque trio, sur 60 minutes, coachs et patrons compris. */
+const minutesDuRoulement = k => partsDuRoulement(POIDS_TRIO, 'F', { ...G.ligue.you, roulement: k }).map(x => Math.round(60 * x));
+function planDeMatchEl() {
+  const b = G.banc;
+  const el = document.createElement('section');
+  el.className = 'plan-match';
+  const adv = b.prochain.adv;
+  const leurs = lignesDe(adv, adv.roster), miennes = b.lignes || [];
+  const ico = l => (l && TACTIQUES[l.tac] ? TACTIQUES[l.tac].ico : '');
+  const app = b.appariement || [-1, -1, -1, -1];
+  // Chez eux : le plan que leur entraîneur t'impose ce soir.
+  let chezEux = '';
+  if (!b.prochain.domicile) {
+    try {
+      const pl = profilMatch(adv, activeLineup(adv), G.ligue.you).plan;
+      if (pl) chezEux = `<div class="pm-eux-plan">Chez eux, leur plan joue : ${pl.map((m, r) => (m >= 0 ? `ton ${ORD_TRIO[r]} ${ico(miennes[r])} ↔ leur ${ORD_TRIO[m]} ${ico(leurs[m])}` : '')).filter(Boolean).slice(0, 2).join(' · ')}</div>`;
+    } catch { chezEux = ''; }
+  }
+  // CE QUE LE PLAN FAIT À TES TRIOS (V6, JP : *si ton deuxième est contre le premier, peut-être que la 3 et 4 peuvent
+  // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
+  const note = b.prochain.domicile ? noteDesUnites() : null;
+  const sg = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2).replace('.', ',')}`;
+  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.net >= 0.005 ? 'bon' : x.net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Attaque ${sg(x.attaque)}, défense ${sg(x.defense)}`)}">${u + 1}${ico(miennes[u])} ${sg(x.net)}</span>`).join('')}</div>` : '';
+  el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}</span></div>
+    <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
+    <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
+    <div class="pm-k">Appariement</div>
+    ${[0, 1, 2, 3].map(r => `<div class="pm-app"><span class="pm-leur">Leur ${ORD_TRIO[r]} ${ico(leurs[r])}</span><span class="pm-seg">${[-1, 0, 1, 2, 3].map(m => `<button type="button" class="pm-btn${app[r] === m ? ' on' : ''}" data-app="${r}:${m}" aria-pressed="${app[r] === m}" title="${m < 0 ? 'Par rang, comme le veut la rotation' : `Ton ${ORD_TRIO[m]} trio`}">${m < 0 ? 'A' : `${m + 1}${ico(miennes[m])}`}</button>`).join('')}</span></div>`).join('')}
+    ${notesHtml}${chezEux}`;
+  el.querySelectorAll('[data-roul]').forEach(x => { x.onclick = () => { b.roulement = x.dataset.roul; render(); }; });
+  el.querySelectorAll('[data-app]').forEach(x => {
+    x.onclick = () => {
+      const [r, m] = x.dataset.app.split(':').map(Number);
+      const a = (b.appariement || [-1, -1, -1, -1]).slice();
+      // Un trio n'affronte qu'un des leurs : celui qu'on prend ailleurs y revient à « A ».
+      if (m >= 0) a.forEach((v, k) => { if (v === m) a[k] = -1; });
+      a[r] = m;
+      b.appariement = a.some(v => v >= 0) ? a : null;
+      b.fermeture = b.appariement && b.appariement[0] >= 0 ? b.appariement[0] : 'auto';
+      render();
+    };
+  });
+  return el;
+}
+
 export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
@@ -631,6 +684,7 @@ export function renderRoster() {
   // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
+  if (!surTable() && G.banc && G.banc.prochain && !G.banc.serie && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);

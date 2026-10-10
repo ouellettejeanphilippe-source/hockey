@@ -39,6 +39,7 @@ import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { brancherBilan, teamLabel, teamShort, tagCourt } from './bilan.js';
 import { activerSons, jouerSon } from './sons.js';
 import { brancherRetour } from './pile.js';
+import { brancherGlisser } from './glisser.js';
 import { brancherManette } from './manette.js';
 import { brancherInclinaison } from './cartes.js';
 import { afficherMenu, fermerMenu } from './menu.js';
@@ -1406,6 +1407,8 @@ function setupEvents() {
    * LE RETOUR, UN NIVEAU À LA FOIS (1.0, R1, js/pile.js) : Échap, B, le bouton
    * d'Android et « ‹ Retour » passent tous par ici, du plus haut au plus bas.
    */
+  // GLISSER D'UN ONGLET À L'AUTRE (V6, js/glisser.js), à tous les niveaux.
+  brancherGlisser();
   brancherRetour([
     fermerCoucheDuDessus,
     // Le direct et le plateau ont leur propre sortie : la saison ne se laisse
@@ -1545,7 +1548,8 @@ export function setOption(key, val) {
   }
   else if (key === 'effectif') {
     // L'onglet de l'alignement au téléphone (1.0, R4) : un état d'écran, jamais sauvegardé.
-    document.body.dataset.effectif = ['F', 'D', 'G'].includes(val) ? val : 'F';
+    // V6 : l'onglet Équipe — le plan de match derrière le banc, et le résumé d'équipe.
+    document.body.dataset.effectif = ['E', 'F', 'D', 'G'].includes(val) ? val : 'F';
     document.querySelectorAll('.seg-effectif button').forEach(b => b.classList.toggle('on', b.dataset.val === document.body.dataset.effectif));
   }
   else if (key === 'palette') {

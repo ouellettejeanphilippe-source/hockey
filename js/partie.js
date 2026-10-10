@@ -179,6 +179,8 @@ export function syncOptionsUI() {
     // Sans ligue fixée, « dans la saison » ne veut rien dire : le bouton allumé est « toutes les époques ».
     repechage: src.repechage === 'FRANCHISE' ? 'FRANCHISE' : src.epoque ? src.repechage : 'TOUTES',
     bonus: src.bonus,
+    // L'onglet de l'Effectif (un état d'écran, pas un réglage) : sans lui, chaque toucher éteignait les quatre boutons.
+    effectif: document.body.dataset.effectif || 'F',
   };
   // L'essai sur table ouvre le plateau : il n'a de sens que dans Sur table (le menu a sa propre exhibition, au vrai moteur).
   const ex = $('npExhibition');
