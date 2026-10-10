@@ -46,7 +46,7 @@ import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOfferte
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { primesDesFils, JETONS } from './rogue.js';
-import { BANQUE, reglesDe } from './banque.js';
+import { BANQUE, reglesDe, payloadDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { jouerSon } from './sons.js';
@@ -3233,9 +3233,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (mo) return { de: DE.depisteur, ico: '⚔️', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Leur plan, une carte de vestiaire, puis tes cinq cartes et trois d\'élan.', ouvrir: () => ouvrirMainGros(mo) };
     // LE NŒUD DE LA SEMAINE (V5, js/noeuds.js) : trois routes, une seule — chacune est une carte de la banque.
     const nd = noeudOuvert();
-    if (nd) return { de: DE.coach, ico: '🗺️', titre: `Semaine ${nd.w + 1} : ta route`, recit: 'Une seule des trois, pour la semaine.',
-      options: nd.routes.map(n => ({ cle: n.route, ico: BANQUE[n.id].ico, nom: `${ROUTES[n.route].ico} ${ROUTES[n.route].nom} · ${BANQUE[n.id].nom}`, mots: reglesDe(n.id) })),
-      onChoix: cle => decider(decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle))) };
+    if (nd) {
+      const et = etatDuNoeud();
+      return { de: DE.coach, ico: '🗺️', titre: `Semaine ${nd.w + 1} : ta route`, recit: 'Une seule des trois, pour la semaine.', contexte: et.contexte,
+        options: nd.routes.map(n => ({ cle: n.route, ico: BANQUE[n.id].ico, nom: `${ROUTES[n.route].ico} ${ROUTES[n.route].nom} · ${BANQUE[n.id].nom}`, sous: et.pourToi(n.id), mots: reglesDe(n.id) })),
+        onChoix: cle => decider(decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle))) };
+    }
     return null;
   }
   /*
@@ -3247,6 +3250,40 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const w = jour / SEMAINE;
     if (w % 2 !== 1 || decs.some(d => d.palier === `n:${w}`)) return null;
     return { w, routes: noeudsDeLaSemaine(graine, w) };
+  }
+  /*
+   * CE QU'IL FAUT SAVOIR POUR CHOISIR SA ROUTE. JP : *comment je suis supposé savoir quoi prendre sans les infos
+   * nécessaires ?* L'état du club au lundi — ses jambes, son infirmerie, sa semaine, sa caisse — et, pour chaque
+   * route, ce que sa carte fait à CE club-là : « Jambes 74 → 86 », « Personne à soigner », « Caisse 46 → 58 🪙 ».
+   * De vraies mesures du jour, jamais une cote.
+   */
+  function etatDuNoeud() {
+    const patineurs = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => you.roster[sl.i]).filter(Boolean);
+    const matin = ((you.jourLignes || [])[jour] || {}).energie || {};
+    const jambes = p => matin[getPlayerKey(p)] ?? p.energie ?? 100;
+    const moyenne = (plus = 0) => (patineurs.length ? Math.round(patineurs.reduce((a, p) => a + Math.min(100, jambes(p) + plus), 0) / patineurs.length) : null);
+    const bl = [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]);
+    const caisse = ctx.rogue && ctx.rogue.jetons ? ctx.rogue.jetons(jour) : null;
+    const soirs = [];
+    for (let j = jour; j < Math.min(N, jour + SEMAINE); j++) if (indexMien(j) >= 0) soirs.push(j);
+    const dos = soirs.filter(j => dosADos(you, j)).length;
+    const partant = partantDe(you);
+    const j0 = moyenne();
+    const etat = [
+      j0 !== null ? { txt: `Jambes ${j0}`, bon: j0 >= 85 ? true : j0 < 70 ? false : null } : null,
+      bl.length ? { txt: `🚑 ${bl.slice(0, 2).map(([p, n]) => `${p.n} ${n} m.`).join(', ')}${bl.length > 2 ? ` et ${bl.length - 2} autre${bl.length > 3 ? 's' : ''}` : ''}`, bon: false } : { txt: 'Personne à l\'infirmerie', bon: true },
+      { txt: `${soirs.length} match${soirs.length > 1 ? 's' : ''} cette semaine${dos ? `, dont ${dos} dos-à-dos` : ''}`, bon: dos ? false : null },
+      caisse !== null ? { txt: `${caisse} 🪙 en caisse`, bon: null } : null,
+    ].filter(Boolean);
+    const pourToi = id => {
+      const P = payloadDe(id) || {}, g = P.gestes || {}, out = [];
+      if (g.energieTous && j0 !== null) out.push(`Jambes ${j0} → ${moyenne(g.energieTous)}`);
+      if (g.soin) out.push(bl.length ? bl.slice(0, 2).map(([p, n]) => `${p.n} ${n} → ${Math.max(0, n - g.soin)} m.`).join(', ') : 'Personne à soigner : le soin ne sert pas');
+      if (g.gardienAux && partant) out.push(`${partant.n} (jambes ${Math.round(jambes(partant))}) souffle ; ${soirs.length} match${soirs.length > 1 ? 's' : ''} cette semaine`);
+      if (P.gain && caisse !== null) out.push(`Caisse ${caisse} → ${caisse + P.gain} 🪙`);
+      return out.join(' · ');
+    };
+    return { contexte: `<div class="choix-puces">${puces(etat)}</div>`, pourToi };
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));
 

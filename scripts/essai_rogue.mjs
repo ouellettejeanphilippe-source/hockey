@@ -204,7 +204,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0, combat: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
-const noeud = { vu: false, acces: [], cases: [], reglees: 0 };   // V5 : la carte de la semaine, vue au premier lundi
+const noeud = { vu: false, acces: [], cases: [], reglees: 0, route: '', sous: [] };   // V5 : la carte de la semaine, vue au premier lundi
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
@@ -230,6 +230,17 @@ async function regler() {
       noeud.reglees++;
       await caseNoeud.click(); await page.waitForTimeout(400);
       continue;
+    }
+    /*
+     * LA ROUTE DE LA SEMAINE (V5, JP : *comment je suis supposé savoir quoi prendre sans les infos nécessaires ?*) :
+     * le choix dit l'état du club (jambes, infirmerie, semaine, caisse), et chaque route ce qu'elle lui fait.
+     */
+    const titreChoix = ((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '');
+    if (/ta route/.test(titreChoix) && !noeud.route) {
+      noeud.route = (await page.textContent('#choixModal .choix-corps > .choix-puces').catch(() => '')) || '';
+      noeud.sous = await page.$$eval('#choixModal .choix-option-sous', e => e.map(x => x.textContent.trim()));
+      await page.screenshot({ path: `${DOSSIER}/rogue-route.png` });
+      if (!/Jambes \d+/.test(noeud.route) || !/en caisse/.test(noeud.route) || !/cette semaine/.test(noeud.route)) erreurs.push(`la route de la semaine ne dit pas l'état du club (« ${noeud.route} »)`);
     }
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
@@ -987,6 +998,7 @@ if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {})
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20e. la route de la semaine : ${noeud.route ? `${noeud.route} · ${noeud.sous.join(' | ')}` : 'jamais offerte'}`);
 console.log(`20d. la carte de la semaine : ${noeud.vu ? `${noeud.reglees} case(s) réglée(s) · accès ${noeud.acces.join(', ')} · au premier lundi : ${noeud.cases.join(' | ')}` : 'jamais ouverte'}`);
 if (!noeud.vu) erreurs.push('la carte de la semaine ne s\'est jamais ouverte');
 console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
