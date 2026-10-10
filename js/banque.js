@@ -324,7 +324,7 @@ export const EVENEMENTS = {
  * canaux qui s'additionnent (la robustesse) et la glace des trios gardent leur valeur ; rien ne passe sous la
  * moitié ni au-dessus du double (`BORNES_EVENEMENT`).
  */
-export const AMPLEUR_EVENEMENT = 2.1;   // V5 : 2 → 2,1, la médiane mesurée sur quatre paires de clubs était sous le tiers de but (0,29)
+export const AMPLEUR_EVENEMENT = 2.6;   // V5 : 2 → 2,1, la médiane mesurée sur quatre paires de clubs était sous le tiers de but (0,29) ; V6 : → 2,6, la défense qui pèse deux fois plus (K_DEFENSE) l'avait ramenée à 0,28, et les bornes des canaux font monter la médiane lentement (2,4 : 0,296)
 const BORNES_EVENEMENT = [0.5, 2];
 const AMPLIFIES = ['volume', 'finition', 'defense', 'discipline', 'energie', 'blessure'];
 for (const E of Object.values(EVENEMENTS)) {
