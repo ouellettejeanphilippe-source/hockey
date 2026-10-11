@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs } from './sim.js';
+import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs, lignesDeGros, planProbable } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
@@ -574,12 +574,19 @@ function noteDesUnites() {
  * `G.lignes` (sauvegardé), derrière le banc dans `G.banc.lignes`, qui part
  * avec la décision au « Retour au match ».
  */
+/*
+ * LEURS LIGNES CE SOIR. Un gros match (et chaque match de série) a son dépistage : ses lignes se lisent SOUS LE PLAN LE
+ * PLUS PROBABLE (le vrai reste caché), sur l'alignement qui jouera, et l'écran dit « selon le dépistage ».
+ */
+const lignesEnFace = b => (b.depistage
+  ? lignesDeGros(b.prochain.adv, activeLineup(b.prochain.adv), planProbable(b.depistage))
+  : lignesDe(b.prochain.adv, b.prochain.adv.roster));
 function specStrategie() {
   const b = G.banc;
   if (!b) return { lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), adv: null };
   return {
     lineup: G.roster, lignes: b.lignes,
-    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
+    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesEnFace(b), selonDepistage: !!b.depistage } : null,
   };
 }
 function rangeeStrategie(unit, groupe = 'F') {
@@ -678,7 +685,7 @@ function planDeMatchEl() {
   const el = document.createElement('section');
   el.className = 'plan-match';
   const adv = b.prochain.adv;
-  const leurs = lignesDe(adv, adv.roster), miennes = b.lignes || [];
+  const leurs = lignesEnFace(b), miennes = b.lignes || [];
   const ico = l => (l && TACTIQUES[l.tac] ? TACTIQUES[l.tac].ico : '');
   const app = b.appariement || [-1, -1, -1, -1];
   // Chez eux : le plan que leur entraîneur t'impose ce soir.
@@ -693,7 +700,7 @@ function planDeMatchEl() {
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
   const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % au tir, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
-  el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}</span></div>
+  el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}${b.depistage ? ' · selon le dépistage' : ''}</span></div>
     <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
     <div class="pm-k">Appariement</div>

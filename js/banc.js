@@ -104,6 +104,9 @@ function ouvrirBanc(jour) {
     filetEtat: ((L.you.jourLignes || [])[jour] || {}).filet || null,
     // LA LANCÉE (V3.6, Rogue) : qui la porte au prochain match, sur l'alignement de ce soir — la case le dit.
     lancees: lanceesDuSoir(L.you, ce_soir),
+    // UN GROS MATCH ANNONCÉ (V7) : son dépistage, pour que les Lignes lisent leurs lignes sous leur plan le plus probable.
+    depistage: (prochain && ((L.you.minisBoss || []).find(x => x.jour === prochain.j)
+      || (L.moteur && L.moteur.grosAnnonces && L.moteur.grosAnnonces[prochain.j])) || {}).depistage || null,
   };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
@@ -534,7 +537,7 @@ export async function deciderSerie(d) {
 /*
  * Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. V7 : « Préparer le
  * match » y est fondu — `soir` (js/saison.js, `soirDeSerie`) dit le prochain match de ta série et ce qui y est déjà
- * réglé (la consigne, le filet, les jambes des gardiens), et l'onglet Lignes le règle comme en saison.
+ * réglé (la consigne, le filet, les jambes des gardiens, le dépistage), et l'onglet Lignes le règle comme en saison.
  */
 export function bancSerie(ronde, k, soir = null) {
   if (!G.ligue || !G.ligue.calendrier) return;
@@ -543,7 +546,7 @@ export function bancSerie(ronde, k, soir = null) {
   G.banc.serie = { ronde, k };
   if (soir) {
     G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
-    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, energie: { ...G.banc.energie, ...soir.energie } });
+    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, depistage: soir.depistage, energie: { ...G.banc.energie, ...soir.energie } });
   }
   renderBanc();
 }

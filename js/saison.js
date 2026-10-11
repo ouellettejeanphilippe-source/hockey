@@ -4159,7 +4159,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   /*
    * LE SOIR DE TON PROCHAIN MATCH DE SÉRIE (V7 : « Préparer le match » fondu dans les Lignes). Ce que l'onglet Lignes
    * règle derrière le banc, comme en saison : l'adversaire, chez qui (A reçoit), la consigne et le filet déjà choisis
-   * pour ce match, et les jambes des gardiens.
+   * pour ce match, les jambes des gardiens, et le dépistage (leurs lignes sous leur plan le plus probable).
    */
   const soirDeSerie = (s, k) => {
     const pour = d => d.ronde === ronde && d.match_no === k;
@@ -4167,6 +4167,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     return {
       adv: s.A === you ? s.B : s.A, domicile: s.A === you,
       match: derniere('match') || { importance: 'normale', ad: 0 }, filet: derniere('filet') || 'auto', filetEtat: filetDuSoir(you),
+      depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
       energie: Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])),
     };
   };
