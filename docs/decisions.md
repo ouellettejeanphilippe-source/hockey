@@ -2174,3 +2174,14 @@ JP : *le modal des réglages de trio charge plus* ; *mettre le coach et explicat
 - **« Qui sort ? » et « Où joue ? » chiffrent chaque case** : l'alignement avec l'arrivant posé là, ceux qui glissent compris, contre celui en vigueur (`rosterEnVictoires`) ; la meilleure case est cerclée d'or, chaque joueur montre son niveau et son badge.
 - **Le soir de match n'a plus quatre étapes** : l'affiche, puis deux boutons (Dépistage, une page ; Préparer). Hier est dans le volet de la journée, avec son drame ; « Regarder » est dans la barre. Le matin à part (« Aujourd'hui › ») est parti avec.
 - **Moins de mots** : la boutique ne redit plus ce qu'est un pack ; les chances d'un pack se déplient au besoin ; les pages Marché, Cartable, Saisons et Équipes n'ont plus de titre (la barre les nomme) ; les tuiles du Marché disent un chiffre.
+
+## Le cheval : cinq onglets, une question chacun (V7 — 11 oct. 2026)
+
+JP : *aucun des quinze jeux qui nous ont inspirés n'est aussi chiant à naviguer ; même EHM, qui a cent fois plus d'infos, est plus clair* ; *revoir ce qui va où, de zéro ; on avait un dragon, on veut un cheval* ; *je veux gérer mon équipe, pas des maths absolues ; un coach qui change un joueur se dit pas « je vais gagner 1,2 match de plus »* ; *des lancers, précision de lancer, pourcentage d'arrêt, des vrais stats*. **Décidé** (validé par JP sur la carte de docs/refonte-v7.md) :
+- **Bureau · Joueurs · Lignes · Cartes · Ligue.** Un onglet répond à une question de gérant ; chaque lego a une maison. Le coach vivait à trois endroits, les jambes à deux, les lignes à deux, le calendrier à deux.
+- **Les victoires partent comme mesure**, une heure après être arrivées : un choix se lit en tirs, % au tir, tirs contre et % d'arrêts par match (`statsDe`, `motsDeStats`). Le moteur garde son but net ; l'écran ne le dit plus.
+- **Le Bureau** dit le mandat, puis le match en duel de vraies stats : la saison à ce jour des deux clubs (trois matchs chacun au moins), sinon ce que le moteur attend de ce match-ci.
+- **Joueurs** est un tableau triable, toujours là (js/joueurs.js). Les propositions « ménager les jambes » du volet Jambes sont parties : elles redisaient la consigne, le roulement et la réserve, qui se règlent dans les Lignes.
+- **Les Lignes** portent la consigne et le filet du soir ; « Préparer le match » n'existe plus en saison.
+- **Cartes › Ta main** réunit la main de la semaine, ce qui est en jeu et le coach ; le barème des jetons est à la Boutique ; les déblocages au Menu.
+

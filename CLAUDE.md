@@ -34,6 +34,7 @@ img/actions           photos de match recadrées en 5:7 pour les cartes, HORS DU
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les cinq sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
+js/joueurs.js         l'onglet Joueurs : l'effectif en tableau triable (jambes, saison à ce jour ou vraie saison, salaire)
 js/alignement.js      les cases, les trios et les paires, le système en fenêtre, le résumé d'équipe
 js/fiche.js           la fiche d'un joueur : recto verso, ses rôles, l'impact, le profil mesuré
 js/banc.js            derrière le banc : les décisions en saison, le ballottage, l'écran de saison
@@ -44,7 +45,7 @@ js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, pl
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
-js/saison.js          l'écran de saison et des séries : le hub, la boîte de réception, les choix forcés
+js/saison.js          l'écran de saison et des séries : le Bureau (le duel du soir), la boîte, Cartes › Ta main, Ligue › Ta saison, les choix forcés
 js/gerant.js          « Préparer le match » et la fenêtre du système d'une ligne
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
@@ -144,13 +145,14 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 
 **L'interface**
 - Mobile d'abord : rien ne déborde à 390 px, tout ce qu'on touche est atteignable — smoke `sansDebordement`, `toutEstAtteignable`.
-- Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; cinq sections (Club, Effectif, Marché, Ligue, Collection), les mêmes dans le même ordre dans tous les modes — smoke.
+- Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; cinq sections (Bureau, Joueurs, Lignes, Cartes, Ligue), les mêmes dans le même ordre dans tous les modes ; chacune répond à UNE question de gérant et chaque info a UNE maison (docs/refonte-v7.md) — smoke.
 - Un seul retour, un niveau à la fois (js/pile.js) ; rien de sélectionnable, aucun lien souligné ; l'anneau du focus en mode clavier ou manette seulement — smoke.
 - La boîte de réception ne contient que ce qui se règle. Le jour par jour : en semaine, seul ce qui presse bloque « Jour suivant » (un gros match, un pack à signer, un blessé à remplacer) ; le reste attend le nœud du lundi, la carte de la semaine (docs/refonte-v5.md) — `essai_rogue`.
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
 - Moins de mots, et surtout pas les évidents : une ligne à l'écran, le détail chiffré dans la page des règles, dont chaque chiffre vient d'une constante — `check_clarte`.
+- Un choix se dit en vraies stats de match : tirs, % au tir, tirs contre, % d'arrêts (`statsDe`, `motsDeStats`, js/impact.js) ; jamais en victoires ni en but net, jamais en note.
 - Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son nom, ses couleurs et son écusson s'achètent en jetons à la boutique, comme les packs, et se portent aux déblocages (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 - Ce qu'un texte affirme d'un match (un rythme, une disette, trois punitions en deux matchs) est arrivé dans les feuilles déjà jouées, et il dit les vrais chiffres — `check_fils`, `check_vie`.

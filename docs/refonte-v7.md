@@ -47,6 +47,15 @@ Le **menu** (☰) garde le méta, qui vit entre les runs : les déblocages (méd
 | Collection › Saisons | Ligue › Palmarès |
 | « Préparer le match » (consigne, roulement, lignes, filet) | Lignes |
 
+## Fait le 11 octobre
+
+- [x] Le squelette : les cinq onglets, leurs sous-onglets, les scripts qui les suivent.
+- [x] Bureau : le mandat en tête, le duel du soir en vraies stats, Dépistage et Lignes en deux boutons.
+- [x] Joueurs : le tableau triable (js/joueurs.js) ; le volet Jambes du Club est parti.
+- [x] Lignes : la consigne et le filet au plan de match ; « Préparer le match » a disparu de la saison (il reste aux séries).
+- [x] Cartes : Ta main (la main, en jeu, le coach), la Boutique (son barème y vit), l'Album ; les déblocages au Menu.
+- [ ] Reste : la boîte fondue dans le Bureau (elle est encore un sous-onglet, « À régler ») ; les séries passent au même cheval (leur préparation, leur banc) ; le gros match lit le plan probable du dépistage dans les Lignes.
+
 ## L'ordre de travail
 
 1. **Le squelette** : les cinq onglets, leurs sous-onglets, le retour (js/pile.js), la manette ; chaque lego déménagé tel quel. Aucune perte : les scripts (smoke, essai_rogue) suivent les nouveaux chemins.
