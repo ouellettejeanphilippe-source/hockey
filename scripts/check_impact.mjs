@@ -17,11 +17,11 @@
  *     3. l'égalité des lancers : les tirs pour de la ligue sont les tirs contre de la ligue ;
  *     4. une lecture : l'effet d'une carte, lu par `effetEnChiffres` (js/impact.js), est ce que la mesure en paires
  *        trouve — une carte qui change le rythme, mesurée pour de vrai.
- *   `COMPLET=1` : le tableau de CHAQUE choix (la grille des canaux, les cartes de saison, les systèmes, les
- *     agressivités, des styles composés), en `informer` — c'est un tableau de calibration, pas un repère : un
+ *   `COMPLET=1` : le tableau de CHAQUE choix (la grille des canaux, les cartes de saison, les systèmes,
+ *     des styles composés), en `informer` — c'est un tableau de calibration, pas un repère : un
  *     intervalle inventé crierait pour du bruit (verdict.mjs). Une carte rare ou légendaire doit se VOIR dans cette
  *     colonne (docs/impact-des-choix.md §7.5). Il est long (sept secondes par configuration et par graine : de
- *     cinq à quinze minutes) : à la main, comme check_cartes. `GROUPE=carte|canal|systeme|agressivite|style`
+ *     cinq à quinze minutes) : à la main, comme check_cartes. `GROUPE=carte|canal|systeme|style`
  *     n'en lit qu'un, `SEEDS=1000,1001,1002` règle les ligues, `PARITES=0,1` les deux passages (un seul par défaut).
  *
  *   node scripts/check_impact.mjs
@@ -30,7 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, AGRESSIVITES, activeLineup, SLOTS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, activeLineup, SLOTS } from '../js/sim.js';
 import { effetEnChiffres, unitesDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -189,7 +189,7 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
     f(0).forEach((k, j) => { echange[k] = lu[f(3)[j]]; echange[f(3)[j]] = lu[k]; });
     const v = unitesDuSoir(t, echange, adv);
     if (v && v.F[0].net < u.F[0].net && somme(v) < somme(u)) chute++;
-    const lignes = s2 => [0, 1, 2, 3].map(k => ({ tac: k === 1 ? s2 : 'hourra', tacD: 'hourra', agr: 1, sec: 60 }));
+    const lignes = s2 => [0, 1, 2, 3].map(k => ({ tac: k === 1 ? s2 : 'hourra', tacD: 'hourra', sec: 60 }));
     const d = unitesDuSoir(t, lu, adv, lignes('defensive')), h = unitesDuSoir(t, lu, adv, lignes('hourra'));
     if (d && h && d.F[1].defense > h.F[1].defense) defend++;
     if (u.F.every(x => Number.isFinite(x.attaque) && Number.isFinite(x.defense) && Math.abs(x.net - x.attaque - x.defense) < 1e-9)) separe++;
@@ -202,9 +202,9 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
 /* 4. Le tableau de chaque choix. */
 if (COMPLET) {
   const E = c => ({ effet: { duree: 100, nom: 'mesure', ...c } });
-  const L = (tac, tacD, agr = 1) => ({ lignes: [0, 1, 2, 3].map(() => ({ tac, tacD, agr, sec: 60 })) });
+  const L = (tac, tacD) => ({ lignes: [0, 1, 2, 3].map(() => ({ tac, tacD, sec: 60 })) });
   const K = ks => ks.map(carte => ({ carte }));
-  const G = { canal: [], carte: [], systeme: [], agressivite: [], style: [] };
+  const G = { canal: [], carte: [], systeme: [], style: [] };
   for (const v of [0.9, 1.1]) G.canal.push([`volume ×${v}`, E({ volume: v })]);
   for (const v of [0.9, 1.1]) G.canal.push([`finition ×${v}`, E({ finition: v })]);
   for (const v of [0.9, 1.1]) G.canal.push([`défense ×${v}`, E({ defense: v })]);
@@ -213,9 +213,8 @@ if (COMPLET) {
   for (const k of Object.keys(CARTES)) G.carte.push([`carte ${k}`, { carte: k }]);
   for (const k of Object.keys(TACTIQUES)) G.systeme.push([`système (trios) ${k}`, L(k, 'equilibre')]);
   for (const k of Object.keys(SYSTEMES_D)) G.systeme.push([`système (paires) ${k}`, L('hourra', k)]);
-  AGRESSIVITES.forEach((a, i) => G.agressivite.push([`agressivité ${a.nom}`, L('hourra', 'hourra', i)]));
   G.style.push(['défensif : cartes', K(['cadenas', 'newjersey', 'gardiens'])], ['offensif : cartes', K(['grandjeu', 'ouvert', 'chasse'])],
-    ['défensif : systèmes', L('defensive', 'maison', 0)], ['offensif : systèmes', L('bleue', 'activer', 2)]);
+    ['défensif : systèmes', L('defensive', 'maison')], ['offensif : systèmes', L('bleue', 'activer')]);
   for (const [groupe, liste] of Object.entries(G)) {
     if (GROUPE && GROUPE !== groupe) continue;
     for (const [nom, payload] of liste) informer(nom, ligneDe(paires(payload)));

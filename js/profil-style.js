@@ -18,7 +18,7 @@
  * vote : sans assez de matchs, il n'y a pas de mot.
  */
 
-import { tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES } from './sim.js';
+import { tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, IMPORTANCES } from './sim.js';
 import { PATRONS } from './banque.js';
 import { CARTES_MATCH } from './combat.js';
 import { virgule } from './util.js';
@@ -120,7 +120,7 @@ export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 /**
  * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les cartes de saison, les
  * patrons, les effets en cours (événements, dilemmes, séquences, paris), les
- * systèmes et l'agressivité réglés, la consigne du soir, les cartes de match
+ * systèmes réglés, la consigne du soir, les cartes de match
  * jouées. Tout se relit des décisions et des effets datés de l'équipe : rien
  * n'est stocké, rien n'est deviné. `decisions` : celles de ta formation.
  */
@@ -136,11 +136,10 @@ export function buildDuSoir(team, decisions, jour, feuille = null) {
   }
   const effets = ((team && team.effets) || []).filter(e => e.nom && e.source !== 'match' && jour >= e.debut && jour < e.fin).map(nomIco);
   const lignes = ds.filter(d => Array.isArray(d.lignes)).pop();
-  const systemes = [], agressivites = [];
+  const systemes = [];
   for (const l of (lignes ? lignes.lignes : [])) {
     if (l.tac && TACTIQUES[l.tac] && l.tac !== 'hourra') systemes.push(nomIco(TACTIQUES[l.tac]));
     if (l.tacD && SYSTEMES_D[l.tacD] && l.tacD !== 'hourra') systemes.push(nomIco(SYSTEMES_D[l.tacD]));
-    if (Number.isInteger(l.agr) && AGRESSIVITES[l.agr] && l.agr !== 1) agressivites.push(nomIco(AGRESSIVITES[l.agr]));
   }
   const unique = xs => [...new Set(xs)];
   const soir = ds.filter(d => d.jour === jour && d.match).pop();
@@ -150,7 +149,7 @@ export function buildDuSoir(team, decisions, jour, feuille = null) {
   const jouees = ((feuille && feuille.cartes && feuille.cartes.jouees) || []).filter(c => CARTES_MATCH[c]).map(c => nomIco(CARTES_MATCH[c]));
   return {
     cartes, patrons: patrons.filter(c => PATRONS[c]).map(c => nomIco(PATRONS[c])), effets: unique(effets),
-    systemes: unique(systemes), agressivites: unique(agressivites), consigne, jouees,
+    systemes: unique(systemes), consigne, jouees,
   };
 }
 

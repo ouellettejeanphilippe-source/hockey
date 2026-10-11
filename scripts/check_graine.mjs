@@ -165,8 +165,9 @@ const tacMortes = Object.keys(TACTIQUES)
 dire(!tacMortes.length, tacMortes.length ? `tactiques sans effet : ${tacMortes.join(', ')}`
   : `les ${Object.keys(TACTIQUES).length} tactiques déplacent la saison`);
 const hourraMoyen = jouer('la-meme-graine', reglage('lignes', lignes('hourra', 1))).feuilles;
-const agrMortes = [0, 2, 3].filter(i => jouer('la-meme-graine', reglage('lignes', lignes('hourra', i))).feuilles === hourraMoyen);
-dire(!agrMortes.length, agrMortes.length ? `agressivités sans effet : ${agrMortes.map(i => AGRESSIVITES[i].nom).join(', ')}` : 'les agressivités déplacent la saison');
+// V7 : l'agressivité est celle de la carrure des joueurs ; une agressivité réglée (une vieille sauvegarde) ne se lit plus.
+const agrLues = [0, 2, 3].filter(i => jouer('la-meme-graine', reglage('lignes', lignes('hourra', i))).feuilles !== hourraMoyen);
+dire(!agrLues.length, agrLues.length ? `une agressivité réglée se lit encore : ${agrLues.map(i => AGRESSIVITES[i].nom).join(', ')}` : 'une agressivité réglée ne change rien : c\'est celle des joueurs');
 const secMorte = jouer('la-meme-graine', reglage('lignes', [70, 60, 50, 40].map(sec => ({ tac: 'hourra', agr: 1, sec })))).feuilles === hourraMoyen;
 dire(!secMorte, secMorte ? 'les secondes de présence sont sans effet' : 'les secondes de présence déplacent la saison');
 const roulMorts = Object.keys(ROULEMENTS).filter(cle => cle !== 'quatre'
@@ -349,7 +350,7 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
   };
   const eqA = equipesNeuves();
   // Un aperçu du repêchage a fatigué et « appris » le vestiaire avant la saison.
-  for (const sl of SLOTS) { const p = eqA[0].roster[sl.i]; if (p) { p.energie = 40; p._maitrise = { [sl.i]: 3 }; } }
+  for (const sl of SLOTS) { const p = eqA[0].roster[sl.i]; if (p) { p.energie = 40; p._adapt = { [sl.role]: 3 }; } }
   const decs = [{ jour: 0, cases: photoAlignement(eqA[0].roster) }];
   const LA = creerLigue(eqA, 82, { graine: 'reprise', decisions: decs });
   const forceA = JSON.stringify(LA.teams.map(t => [t.strength, t.style]));

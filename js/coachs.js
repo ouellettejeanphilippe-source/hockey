@@ -98,16 +98,13 @@ export function porteParSesJoueurs(c, n) {
   }
   return out;
 }
-/* La maîtrise que la confiance II d'un coach donne à son système (js/sim.js, `maitrise` d'une décision). */
-export const GAIN_SYSTEME = 0.35;
 /*
  * Un coach : son visage (`ico`, un totem : une icône, un coach), son surnom,
  * `de` pour les phrases (« une carte du Frelon »), sa philosophie en une
  * ligne, et ce que chaque confiance joue pour la saison. Les SYSTÈMES SE
  * TIENNENT (v2, JP : *mieux ficeler les systèmes entre eux*) : `systeme`, le
- * système que ses joueurs apprennent à sa confiance II (la maîtrise du stage
- * de système, `GAIN_SYSTEME`), et qu'il joue alors un palier plus haut
- * (`bonusDuCoach`, js/sim.js). V2.3 : c'est le système qui DEMANDE ses badges
+ * système que ses joueurs jouent un palier plus haut dès sa confiance II
+ * (`bonusDuCoach`, js/sim.js ; V7 : la maîtrise qu'il apprenait n'existe plus). V2.3 : c'est le système qui DEMANDE ses badges
  * — l'Aigle le Volume de tirs (deux snipers), le Frelon l'enclave (deux power
  * forwards), l'Abbé et le Rhino un système de paire (manieurs, physiques) ; `recrute`, le style de joueur que son
  * dépisteur fait pencher dans les packs de joueurs de la run (js/packs.js). `econ` : comme un

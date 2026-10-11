@@ -36,7 +36,7 @@ import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
 import { money, hache } from './util.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
-import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, GAIN_SYSTEME, SEUILS } from './coachs.js';
+import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS } from './coachs.js';
 
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
@@ -324,7 +324,7 @@ export const EVENEMENTS = {
  * canaux qui s'additionnent (la robustesse) et la glace des trios gardent leur valeur ; rien ne passe sous la
  * moitié ni au-dessus du double (`BORNES_EVENEMENT`).
  */
-export const AMPLEUR_EVENEMENT = 2.2;   // V5 : 2 → 2,1, la médiane mesurée sur quatre paires de clubs était sous le tiers de but (0,29) ; V6 : → 2,6, la défense qui pèse deux fois plus (K_DEFENSE) l'avait ramenée à 0,28, et les bornes des canaux font monter la médiane lentement (2,4 : 0,296) ; S109 : → 2,2, sur les données refaites (les âges, les tailles, les gestes revenus) le net sur la durée montait à 2,24 (borne 2) ; la médiane par match reste à 0,37
+export const AMPLEUR_EVENEMENT = 2.0;   // V5 : 2 → 2,1, la médiane mesurée sur quatre paires de clubs était sous le tiers de but (0,29) ; V6 : → 2,6, la défense qui pèse deux fois plus (K_DEFENSE) l'avait ramenée à 0,28, et les bornes des canaux font monter la médiane lentement (2,4 : 0,296) ; S109 : → 2,2, sur les données refaites (les âges, les tailles, les gestes revenus) le net sur la durée montait à 2,24 (borne 2) ; la médiane par match reste à 0,37 ; V7 : → 2,0, la chimie qui ne s'apprend plus est pleine dès le premier soir (lu par check_evenements), et le net sur la durée montait à 2,15 ; la médiane par match, 0,38
 const BORNES_EVENEMENT = [0.5, 2];
 const AMPLIFIES = ['volume', 'finition', 'defense', 'discipline', 'energie', 'blessure'];
 for (const E of Object.values(EVENEMENTS)) {
@@ -357,7 +357,6 @@ export const CONSOMMABLES = {
   billet: { nom: 'Le billet de loterie', ico: '🎟️', rarete: 'commune', vie: 'usage', cible: 'aucune', pari: { chance: 0.5, gain: 30 }, texte: 'Une chance sur deux de gratter 30 jetons.' },
   exorciste: { nom: 'L\'exorciste', ico: '🕯️', rarete: 'rare', vie: 'permanent', cible: 'malediction', texte: 'Il chasse une malédiction de ton deck de match.' },
   campExpress: { nom: 'Le camp express', ico: '⛺', rarete: 'peu', vie: 'usage', cible: 'carteMatch', texte: 'Une carte de ton deck de match devient sa version « + ».' },
-  stageExpress: { nom: 'Le stage express', ico: '📘', rarete: 'peu', vie: 'usage', cible: 'tactique', maitrise: 0.25, texte: 'Ta formation fait 25 % du chemin vers la maîtrise d\'un système.' },
   gabarit: { nom: 'Le gabarit de poche', ico: '📐', rarete: 'peu', vie: 'usage', cible: 'aucune', regle: true, effet: { finition: 1.105, discipline: 1.28 }, duree: 3, texte: 'Tu mesures leurs bâtons. Les tiens restent dans le sac.' },
   repos: { nom: 'Le repos du partant', ico: '🧤', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { gardienAux: 3 }, texte: 'Le partant regarde. L\'auxiliaire prend les trois prochains.' },
   bancCourt: { nom: 'Le banc court', ico: '🔥', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { F: [1.4, 1.04, 0.84, 0.6], blessure: 1.525, energie: 1.21 }, duree: 4, texte: 'Le premier trio ne sort plus. Le quatrième rouille.' },
@@ -375,7 +374,6 @@ export const CONSOMMABLES = {
   visualisation: { nom: 'La visualisation', ico: '🔮', rarete: 'peu', vie: 'usage', cible: 'aucune', effet: { defense: 0.895, finition: 1.035 }, duree: 3, texte: 'Yeux fermés, il voit chaque arrêt avant de le faire.' },
   cryo: { nom: 'La cryothérapie', ico: '🥶', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { energieTous: 15 }, effet: { finition: 0.93 }, duree: 3, texte: 'Trois minutes à moins cent dix. Les mains gèlent aussi.' },
   vacances: { nom: 'Le partant en vacances', ico: '🏝️', rarete: 'peu', vie: 'usage', cible: 'aucune', gestes: { gardienAux: 5 }, effet: { energie: 0.895 }, duree: 5, texte: 'Une semaine au soleil pour le partant ; l\'auxiliaire a sa chance.' },
-  pizza: { nom: 'Le souper des trios', ico: '🍕', rarete: 'commune', vie: 'usage', cible: 'tactique', maitrise: 0.15, texte: 'Chaque trio à sa table, et le cahier de jeux entre les pointes.' },
   epaulettes: { nom: 'Les épaulettes de football', ico: '🏈', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { robustesse: 1.6, energie: 1.175 }, duree: 4, texte: 'Trop grosses, trop lourdes, et plus personne n\'a peur de la bande.' },
   coudieres: { nom: 'Les coudières de bois', ico: '🪵', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { robustesse: 1.6, discipline: 1.28 }, duree: 4, texte: 'Des protège-coudes d\'une autre époque. L\'arbitre fronce les sourcils.' },
   carteBlanche: { nom: 'La carte blanche au quatrième', ico: '📝', rarete: 'commune', vie: 'usage', cible: 'aucune', effet: { F: [0.84, 1, 1.1, 1.4], energie: 0.825, finition: 0.965 }, duree: 4, texte: 'Le quatrième trio commence les matchs, et il les finit.' },
@@ -547,7 +545,6 @@ function formeDeConsommable(C) {
   if (bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
   if (C.cible === 'malediction') return 'Malédiction';
   if (C.cible === 'carteMatch') return 'Plus';
-  if (C.cible === 'tactique') return 'Système';
   if (C.cible === 'coach') return 'Coach';
   if (C.gain) return 'Jetons';
   if (g.gardienAux) return 'Filet';
@@ -665,7 +662,6 @@ export function reglesDe(id, { joueur = null } = {}) {
     if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
     if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
     if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
-    if (C.maitrise) out.push({ txt: `Maîtrise d'un système +${Math.round(C.maitrise * 100)} %`, bon: true }, { txt: '🔗 Carte de trio : forte au début de la saison, elle plafonne (une ligne apprend son système en jouant)', bon: null });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
     if (C.cible === 'carteMatch') out.push({ txt: '1 carte du deck devient « + »', bon: true });
     if (C.cible === 'coach') out.push({ txt: 'Un autre coach, à la confiance I', bon: true }, { txt: 'Ton coach part, avec sa confiance', bon: false });
@@ -766,11 +762,11 @@ function grandi(X, coach, build = {}, joueurs = {}) {
 }
 /*
  * LA DÉCISION D'UNE CARTE JOUÉE : les champs que le moteur connaît, et ses
- * chiffres. \`cible\` : { joueur, tactique, carte }. \`patrons\` : ceux déjà
+ * chiffres. \`cible\` : { joueur, carte }. \`patrons\` : ceux déjà
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, tactique = null, carte = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {} } = {}) {
+export function payloadDe(id, { joueur = null, carte = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {} } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
@@ -799,7 +795,6 @@ export function payloadDe(id, { joueur = null, tactique = null, carte = null, co
     }
     if (C.cible === 'malediction') return carte ? { deck: 'menage', retrait: carte } : null;
     if (C.cible === 'carteMatch') return carte ? { deck: 'camp', aiguise: carte } : null;
-    if (C.cible === 'tactique') return tactique ? { deck: 'strategie', maitrise: { tac: tactique, gain: C.maitrise } } : null;
     if (C.cible === 'coach') return coach && COACHS[coach] ? coachNeuf(coach) : null;
     const out = {};
     if (C.gestes) out.gestes = { ...C.gestes };
@@ -893,9 +888,7 @@ export function palierAllume(decisions = [], d) {
     : Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > palierDe(build[k]));
   if (!e) return null;
   const p = palierDe(build[e] + ajout[e]);
-  // La confiance II fait apprendre son système à tes avants (le stage de système, une décision `maitrise`).
-  const sys = p === 2 && COACHS[e].systeme;
-  return { coach: effetDePalier(e, p), ...(sys ? { maitrise: { tac: sys, gain: GAIN_SYSTEME } } : {}) };
+  return { coach: effetDePalier(e, p) };
 }
 /* Ce qu'une confiance fait, en mots — les canaux, les minutes, la boutique. */
 export function reglesDePalier(cle, palier) {
@@ -911,6 +904,6 @@ export function reglesDePalier(cle, palier) {
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
   const sys = palier === 2 && COACHS[cle].systeme && systemeDe(COACHS[cle].systeme);
-  if (sys) out.push({ txt: `Tes ${sys.groupe === 'D' ? 'défenseurs' : 'avants'} apprennent ${sys.ico} ${sys.nom} (+${Math.round(GAIN_SYSTEME * 100)} % de maîtrise), et le jouent chacun un cran plus haut (Bronze → Argent…)`, bon: true });
+  if (sys) out.push({ txt: `Tes ${sys.groupe === 'D' ? 'défenseurs' : 'avants'} jouent ${sys.ico} ${sys.nom} chacun un cran plus haut (Bronze → Argent…)`, bon: true });
   return out;
 }

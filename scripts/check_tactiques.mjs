@@ -2,12 +2,11 @@
  * LES LIGNES À LA HOCKEYARENA (S68) — chaque réglage doit PAYER ou COÛTER,
  * sans décider la saison. Mesuré EN PAIRES (voir check_cartes.mjs), contre
  * les réglages par défaut d'un club de l'IA (chaque ligne dans la tactique
- * où elle a le meilleur fit, agressivité moyenne, 60 secondes).
+ * où elle a le meilleur fit, 60 secondes ; V7 : l'agressivité est celle de la
+ * carrure de ses joueurs, elle ne se règle plus).
  *
  *   mal assorti      chaque ligne dans la tactique où elle a le PIRE fit
  *   hourra partout   aucun système : ni chimie, ni action spéciale
- *   rentre-dedans    agressivité maximale partout
- *   basse            agressivité minimale partout
  *   80 s au 1er trio la première ligne surutilisée : sa fatigue
  *
  * Le contrat : mal assortir COÛTE (au moins une victoire), aucun réglage ne
@@ -22,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, activeLineup, fitUnite, TACTIQUES, SYSTEMES_D, SLOTS, physiqueLigne, badgesDe, fitDeCase, FIT_BASE, FIT_PAR_PALIER, rangSystemes,
-  meilleureTactique, meilleurSystemeD, identiteUnite, fitDeLigne, chimieLigne } from '../js/sim.js';
+  meilleureTactique, meilleurSystemeD, identiteUnite, fitDeLigne, chimieLigne, agressiviteDeLigne } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { estD } from '../js/util.js';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
@@ -77,9 +76,8 @@ const pire = (team, u) => { const r = rangDe(team, 'F', u); return r ? r[r.lengt
 
 /*
  * `temoin` (S72) : ce que jouent les équipes SANS la décision. Par défaut,
- * les réglages de la ligue — qui choisissent maintenant eux-mêmes la
- * tactique et l'agressivité payantes. Pour éprouver un principe (le physique
- * décide de l'agressivité), on compare à un témoin fixe : « moyenne partout ».
+ * les réglages de la ligue — qui choisissent eux-mêmes la tactique payante.
+ * Pour éprouver un principe, on peut comparer à un témoin fixe.
  */
 function paires(fabrique, temoin = null, nLigues = LIGUES) {
   const dv = [], dbp = [], dbc = [], en = [];
@@ -107,34 +105,26 @@ function paires(fabrique, temoin = null, nLigues = LIGUES) {
   return { v: moy(dv), bp: moy(dbp), bc: moy(dbc), e: moy(en), spec: buts ? spec / buts : 0, etouf: etouf / nLigues };
 }
 const dire = (t, r) => console.log(`  ${t.padEnd(26)} ${signe(r.v).padStart(5)} V  ${signe(r.bp, 0).padStart(4)} BP  ${signe(r.bc, 0).padStart(4)} BC   énergie finale ${r.e.toFixed(0)}`);
-const tous = (tac, agr = 1, sec = 60) => [0, 1, 2, 3].map(() => ({ tac, agr, sec }));
+const tous = (tac, sec = 60) => [0, 1, 2, 3].map(() => ({ tac, sec }));
 
 console.log(`\n  ${LIGUES} ligues × 32 équipes, contre les réglages par défaut\n`);
-const mal = paires(t => [0, 1, 2, 3].map(u => ({ tac: pire(t, u), agr: 1, sec: 60 }))); dire('mal assorti', mal);
+const mal = paires(t => [0, 1, 2, 3].map(u => ({ tac: pire(t, u), sec: 60 }))); dire('mal assorti', mal);
 const hourra = paires(() => tous('hourra')); dire('hourra partout', hourra);
-const brute = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: 3, sec: 60 }))); dire('rentre-dedans partout', brute);
-const doux = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: 0, sec: 60 }))); dire('agressivité basse partout', doux);
-const use = paires(t => [80, 60, 55, 45].map(sec => ({ tac: undefined, agr: 1, sec }))); dire('80 s au 1er trio', use);
+const use = paires(t => [80, 60, 55, 45].map(sec => ({ tac: undefined, sec }))); dire('80 s au 1er trio', use);
 /*
- * LE PHYSIQUE DÉCIDE (S71). JP : *s'assurer que c'est plus clair quels
- * joueurs sont avantagés* — l'agressivité doit profiter aux lignes
- * costaudes et coûter aux légères. On la pose sur les DEUX lignes les plus
- * costaudes de chaque club, puis sur les deux plus légères.
+ * LE PHYSIQUE DÉCIDE (S71, V7). JP : *les joueurs vont être robustes selon
+ * leur tendance, pas le niveau choisi*. L'agressivité d'une ligne est celle
+ * de sa carrure (`agressiviteDeLigne`) : dans chaque club, ses deux lignes
+ * les plus costaudes jouent au moins aussi physique que ses deux plus légères.
  */
 const parPhysique = t => { const L = activeLineup(t); return [0, 1, 2, 3].sort((a, b) => physiqueLigne(L, b) - physiqueLigne(L, a)); };
-const sur = (lignesVisees, agr) => [0, 1, 2, 3].map(u => ({ tac: undefined, agr: lignesVisees.includes(u) ? agr : 1, sec: 60 }));
-const moyenne = () => [0, 1, 2, 3].map(() => ({ tac: undefined, agr: 1, sec: 60 }));
-const dur = paires(t => sur(parPhysique(t).slice(0, 2), 3), moyenne); dire('rentre-dedans · costaudes', dur);
-const leger = paires(t => sur(parPhysique(t).slice(2), 3), moyenne); dire('rentre-dedans · légères', leger);
-const calmeDur = paires(t => sur(parPhysique(t).slice(0, 2), 0), moyenne); dire('basse · costaudes', calmeDur);
-const calmeLeger = paires(t => sur(parPhysique(t).slice(2), 0), moyenne); dire('basse · légères', calmeLeger);
-/*
- * LA PARITÉ (S72). JP : *faire que toutes les équipes ont les mêmes
- * stratégies*. Les réglages par défaut — ceux de chaque club de l'IA —
- * choisissent l'agressivité payante de chaque ligne : ils doivent faire au
- * moins aussi bien que « moyenne partout ».
- */
-const parite = paires(moyenne); dire('moyenne partout (vs défaut)', parite);
+{
+  const clubs = ligue(4000);
+  const agrDe = (t, us) => us.reduce((a, u) => a + agressiviteDeLigne(activeLineup(t), u), 0) / us.length;
+  const contre = clubs.filter(t => agrDe(t, parPhysique(t).slice(0, 2)) < agrDe(t, parPhysique(t).slice(2))).length;
+  const vues = new Set(clubs.flatMap(t => [0, 1, 2, 3].map(u => agressiviteDeLigne(activeLineup(t), u))));
+  exiger('la carrure fait l\'agressivité : les lignes costaudes jouent au moins aussi physique que les légères', contre === 0, `${contre} club(s) sur ${clubs.length} à l'envers · ${vues.size} agressivités jouées dans la ligue`);
+}
 /*
  * UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE (S79). Trois contrats de
  * plus : une PAIRE mal assortie coûte aussi ; aucun système n'est bon
@@ -145,18 +135,18 @@ const parite = paires(moyenne); dire('moyenne partout (vs défaut)', parite);
  */
 const CLES_D = Object.keys(SYSTEMES_D).filter(k => k !== 'hourra');
 const pireD = (team, u) => { const r = rangDe(team, 'D', u); return r ? r[r.length - 1] : undefined; };
-const malD = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, tacD: u < 3 ? pireD(t, u) : undefined, agr: 1, sec: 60 }))); dire('paires mal assorties', malD);
+const malD = paires(t => [0, 1, 2, 3].map(u => ({ tac: undefined, tacD: u < 3 ? pireD(t, u) : undefined, sec: 60 }))); dire('paires mal assorties', malD);
 const LIG_DOM = Math.max(2, Math.round(LIGUES / 2));
 const forces = [];
-for (const k of CLES) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: k, agr: 1, sec: 60 })), null, LIG_DOM); forces.push([TACTIQUES[k].nom, r]); dire(`tous les trios · ${k}`, r); }
-for (const k of CLES_D) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: undefined, tacD: k, agr: 1, sec: 60 })), null, LIG_DOM); forces.push([SYSTEMES_D[k].nom, r]); dire(`toutes les paires · ${k}`, r); }
+for (const k of CLES) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: k, sec: 60 })), null, LIG_DOM); forces.push([TACTIQUES[k].nom, r]); dire(`tous les trios · ${k}`, r); }
+for (const k of CLES_D) { const r = paires(() => [0, 1, 2, 3].map(() => ({ tac: undefined, tacD: k, sec: 60 })), null, LIG_DOM); forces.push([SYSTEMES_D[k].nom, r]); dire(`toutes les paires · ${k}`, r); }
 /*
  * Le fit compte PAR DEGRÉS : chaque trio dans son DEUXIÈME système (un peu
  * moins bien assorti) coûte, mais nettement moins que dans son pire. Le gain
  * d'un système suit le fit (`echelleFit`) et la chimie aussi (`chimieMax`).
  */
 const rangF = (team, u, i) => { const r = rangDe(team, 'F', u); return r ? r[i] : undefined; };
-const second = paires(t => [0, 1, 2, 3].map(u => ({ tac: rangF(t, u, 1), agr: 1, sec: 60 }))); dire('chaque trio dans son 2e système', second);
+const second = paires(t => [0, 1, 2, 3].map(u => ({ tac: rangF(t, u, 1), sec: 60 }))); dire('chaque trio dans son 2e système', second);
 informer('buts sur action spéciale', `${(100 * mal.spec).toFixed(1)} % des buts de la ligue`);
 informer('actions étouffées par un contre', `${mal.etouf.toFixed(0)} par ligue`);
 
@@ -164,10 +154,7 @@ if (juger) {
   borne('mal assortir coûte', -mal.v, 1, 6, 'victoire');
   // 7 et non 6 (1.0, J1-M, mesuré 6,21) : la chimie compte plus, donc un système aussi ; c'est l'effet voulu.
   borne('jouer sans système coûte', -hourra.v, 0.5, 7, 'victoire');
-  for (const [n, r] of [['rentre-dedans', brute], ['basse', doux], ['80 s au 1er trio', use]]) borne(`${n} · écart net`, r.v, -4, 4, 'victoire');
-  exiger('rentre-dedans rapporte plus aux lignes costaudes qu\'aux légères', dur.v > leger.v + 0.3, `${signe(dur.v)} V contre ${signe(leger.v)} V`);
-  exiger('les réglages de l\'IA font au moins aussi bien que « moyenne partout »', parite.v <= 0.3, `moyenne partout : ${signe(parite.v)} V`);
-  exiger('l\'agressivité basse rapporte plus aux lignes légères qu\'aux costaudes', calmeLeger.v > calmeDur.v, `${signe(calmeLeger.v)} V contre ${signe(calmeDur.v)} V`);
+  borne('80 s au 1er trio · écart net', use.v, -4, 4, 'victoire');
   borne('mal assortir les paires coûte', -malD.v, 0.2, 5, 'victoire');
   const dominant = forces.filter(([, r]) => r.v > 1.0);
   exiger('aucun système n\'est bon partout (forcé partout : +1 V au plus)', !dominant.length, dominant.length ? dominant.map(([n, r]) => `${n} ${signe(r.v)} V`).join(' · ') : `le meilleur : ${forces.slice().sort((a, b) => b[1].v - a[1].v)[0].map((x, i) => (i ? signe(x.v) + ' V' : x)).join(' ')}`);
@@ -190,8 +177,8 @@ if (juger) {
   exiger('le fit d\'un trio vide est null', fitUnite(vide, 'F', 0, 'echec') === null, `${fitUnite(vide, 'F', 0, 'echec')}`);
   exiger('aucun système ne se choisit pour un trio vide', meilleureTactique(vide, 0) === 'hourra' && meilleurSystemeD(vide, 0) === 'hourra');
   exiger('un trio à deux sur trois n\'a ni fit ni nom', fitUnite(deuxSurTrois, 'F', 1, 'echec') === null && identiteUnite(deuxSurTrois, 'F', 1) === null);
-  exiger('une ligne incomplète n\'a pas de chimie', fitDeLigne(deuxSurTrois, 1, { tac: 'echec', tacD: 'maison', agr: 1, sec: 60 }) === null
-    && chimieLigne(null, deuxSurTrois, 1, { tac: 'echec', tacD: 'maison', agr: 1, sec: 60 }) === 0);
+  exiger('une ligne incomplète n\'a pas de chimie', fitDeLigne(deuxSurTrois, 1, { tac: 'echec', tacD: 'maison', sec: 60 }) === null
+    && chimieLigne(deuxSurTrois, 1, { tac: 'echec', tacD: 'maison', sec: 60 }) === 0);
   exiger('un alignement complet garde son fit et son nom', Number.isFinite(fitUnite(L, 'F', 0, 'echec')) && !!identiteUnite(L, 'F', 0));
 }
 

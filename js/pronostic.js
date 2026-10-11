@@ -28,11 +28,11 @@
 
 import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF,
   poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR,
-  TACTIQUES, SYSTEMES_D, AGRESSIVITES, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD, meilleureAgressivite,
+  TACTIQUES, SYSTEMES_D, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD,
   effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
   SEC_MIN, SPEC_BASE, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET } from './sim.js';
 import { virgule } from './util.js';
-import { clubLu, systemeEnChiffres, lignesEnChiffres, motsEnChiffres } from './impact.js';
+import { clubLu, systemeEnChiffres, motsEnChiffres } from './impact.js';
 
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
@@ -65,8 +65,8 @@ function matchsAvant(calendrier, t, jour) {
 /*
  * UN CLUB AU MATIN D'UNE JOURNÉE, en copie. `joues` : ses matchs avant ce
  * soir ; `connus` : ceux dont on a vu le résultat (on ne sort de
- * l'infirmerie que les blessures déjà arrivées). L'énergie, la chimie et
- * l'apprentissage viennent de l'instantané du moteur (`jourLignes`).
+ * l'infirmerie que les blessures déjà arrivées). L'énergie et la chimie
+ * viennent de l'instantané du moteur (`jourLignes`).
  */
 function copieDuJour(t, { jourMatch, jourRevele, joues, connus }) {
   const snap = (t.jourLignes || [])[Math.max(0, Math.min(jourRevele, (t.jourLignes || []).length - 1))] || null;
@@ -76,17 +76,13 @@ function copieDuJour(t, { jourMatch, jourRevele, joues, connus }) {
     const reste = b.at + b.games - joues;
     if (reste > 0) injured.set(b.player, reste);
   }
-  const app = snap && snap.apprentissage;
   const tardives = new Set((t.mutations || []).filter(m => m.jour >= jourRevele && m.p).map(m => m.p));
   const avant = { injured };
-  // Ce que chaque joueur est ce matin-là : l'énergie de l'instantané, sa
-  // maîtrise des systèmes (ta formation), sans la situation d'un soir, sans
-  // un changement de carte qui n'est pas encore arrivé.
+  // Ce que chaque joueur est ce matin-là : l'énergie de l'instantané, sans
+  // la situation d'un soir, sans un changement de carte qui n'est pas encore arrivé.
   const poser = p => {
     const cle = getPlayerKey(p);
     p.energie = snap && snap.energie && Number.isFinite(snap.energie[cle]) ? snap.energie[cle] : 100;
-    if (app && app.maitrise) p._maitrise = { ...(app.maitrise[cle] || {}) };
-    else if (p._maitrise) p._maitrise = { ...p._maitrise };
     if (p._adapt) p._adapt = { ...p._adapt };
     delete p._situ;
     if (tardives.has(p)) { delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; }
@@ -97,7 +93,6 @@ function copieDuJour(t, { jourMatch, jourRevele, joues, connus }) {
     luck: 0, _gros: null, _effetMatch: null, _entracte: null, _advGros: null, _dernierGros: null,
     games: joues, jourCourant: jourMatch,
     chimie: snap && snap.chimie ? snap.chimie.slice() : (t.chimie || [0, 0, 0, 0]).slice(),
-    entente: app && app.entente ? new Map(Object.entries(app.entente)) : new Map(t.entente || []),
     W: 0, L: 0, OTL: 0, GF: 0, GA: 0, PTS: 0,
   };
   return { copie, poser, avant };
@@ -270,14 +265,12 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
  *                de tes trios : il passe au meilleur système qu'ils n'étouffent pas ;
  *   fit          l'unité la plus loin de son meilleur système y passe ;
  *   fermeture    ton trio le plus défensif (ses rôles) prend leur 1er trio ;
- *   agressivite  chaque ligne à l'agressivité qui paie pour sa carrure ;
  *   glace        un des deux premiers trios est usé : moins de glace ;
  *   consigne     attaque ou défense, selon les forces comparées.
  * Chaque conseil porte la décision que l'écran applique d'un toucher
  * (`lignes`, `fermeture` ou `match`) — une décision comme une autre, qui
  * se rejoue — et ses chiffres sont ceux du moteur : ce que le système fait à
- * CE fit et ce que l'agressivité rend à CETTE carrure (les deux versions des lignes
- * jouées par le moteur, en chiffres de match : js/impact.js), la chance d'action spéciale (`SPEC_BASE` × chimie)
+ * CE fit (les deux versions des lignes jouées par le moteur, en chiffres de match : js/impact.js), la chance d'action spéciale (`SPEC_BASE` × chimie)
  * et ce qu'elle vaut (`SPEC_MULT`), l'énergie du matin.
  *
  * POURQUOI PAS « +3 POINTS DE VICTOIRE » ? Mesuré en S79 : un réglage d'une
@@ -293,7 +286,6 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
  */
 const RANG_TRIO = ['1er trio', '2e trio', '3e trio', '4e trio'];
 const RANG_PAIRE = ['1re paire', '2e paire', '3e paire'];
-const RANG_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
 const nomSysteme = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${S.nom}` : ''; };
 const motFit = f => (f >= 70 ? 'sur mesure' : f >= 55 ? 'bon fit' : f >= 40 ? 'fit moyen' : 'mauvais fit');
 export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null, forces = null, consigne = null }) {
@@ -383,19 +375,6 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
     const id = idDe(lineup, 'F', defensif);
     out.push({ genre: 'fermeture', fermeture: defensif, titre: `Ton ${RANG_TRIO[defensif]} en fermeture`,
       pourquoi: `Le trio de fermeture prend leur 1er trio${leur ? ` (${leur})` : ''}. ${id ? `Ton ${RANG_TRIO[defensif]} est un ${id.replace(/^Trio/, 'trio')}` : `Ton ${RANG_TRIO[defensif]}`} : ses joueurs sont les plus défensifs de ta formation${ferm == null ? '' : `, plus que ton ${RANG_TRIO[ferm]}`}.`, chiffres: [] });
-  }
-  // L'AGRESSIVITÉ qui paie pour la carrure de chaque ligne.
-  const mieux = lignes.map((l, u) => meilleureAgressivite(lineup, u));
-  const changees = [0, 1, 2, 3].filter(u => mieux[u] !== lignes[u].agr);
-  if (changees.length) {
-    out.push({ genre: 'agressivite', lignes: lignes.map((l, u) => ({ ...l, agr: mieux[u] })),
-      titre: changees.map(u => `${RANG_LIGNE[u]} ${AGRESSIVITES[mieux[u]].ico} ${AGRESSIVITES[mieux[u]].nom.toLowerCase()}`).join(' · '),
-      pourquoi: 'L\'agressivité qui paie pour la carrure de chaque ligne : le jeu physique rapporte aux lignes costaudes et coûte des punitions aux légères.',
-      // Ce que ça change, ligne par ligne, par rapport à son agressivité d'aujourd'hui.
-      chiffres: changees.slice(0, 2).flatMap(u => {
-        const mots = club && club.team ? lignesEnChiffres(club.team, lineup, null, avec(u, { agr: mieux[u] }), lignes) : [];
-        return mots.length ? mots.map(m => ({ ...m, txt: `${RANG_LIGNE[u]} : ${m.txt}` })) : [{ txt: `${RANG_LIGNE[u]} : presque rien`, bon: null }];
-      }) });
   }
   // LA GLACE : un des deux premiers trios usé — sous ENERGIE_REF, chaque point de jambes coûte (`facteurEnergie`) ;
   // le conseil attend qu'il en manque assez pour que quinze secondes de moins vaillent la peine (JAMBES_CONSEIL).

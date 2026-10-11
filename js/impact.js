@@ -373,13 +373,13 @@ export function unitesDuSoir(team, lineup, adv, lignes = null) {
 
 /*
  * UN RÉGLAGE DE LIGNES, EN CHIFFRES : le soir joué avec ces lignes contre le même soir joué avec les
- * autres. Le système, l'agressivité et la glace jouent ligne par ligne dans le moteur ; on lui fait
+ * autres. Le système et la glace jouent ligne par ligne dans le moteur ; on lui fait
  * jouer les deux versions, sous les mêmes dés (l'action spéciale d'un système se lit par son espérance,
  * pas par un dé : la différence n'est pas du bruit).
  */
 const N_LIGNES = 500;
 /** La différence de deux jeux de lignes (quatre `{ tac, tacD, agr, sec }`), en mots de match. */
-export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
+function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   if (!team) return [];
   const a = lire(team, lineup, adv, { lignes, n: N_LIGNES }), b = lire(team, lineup, adv, { lignes: contre, n: N_LIGNES });
   const d = differences(a, b), out = lignesDe(d);
@@ -401,10 +401,6 @@ const surLigne = (lignes, u, patch) => lignes.map((l, i) => (i === u ? { ...l, .
 export function systemeEnChiffres(team, lineup, adv, lignes, u, groupe, cle) {
   const champ = groupe === 'D' ? 'tacD' : 'tac';
   return lignesEnChiffres(team, lineup, adv, surLigne(lignes, u, { [champ]: cle }), surLigne(lignes, u, { [champ]: 'hourra' }));
-}
-/** Une agressivité sur la ligne `u`, contre la moyenne : des mises en échec, des punitions, des tirs. */
-export function agressiviteEnChiffres(team, lineup, adv, lignes, u, agr) {
-  return lignesEnChiffres(team, lineup, adv, surLigne(lignes, u, { agr }), surLigne(lignes, u, { agr: 1 }));
 }
 
 
