@@ -1043,7 +1043,10 @@ export function roleTag(p) {
  * qu'on ne peut pas déduire des colonnes.
  */
 function traitTagList(p, full = false) {
-  return getTraits(p).map(t => {
+  // Dans la fiche (`full`), un trait qu'un badge porte déjà (« Two-way Or · Selke ») ne se redit pas (JP : *ça sert à
+  // rien de redire si le badge peut faire la job*).
+  const portes = full && p && p.p !== 'G' ? new Set(badgesDe(p).map(b => b.trait).filter(Boolean)) : new Set();
+  return getTraits(p).filter(t => !portes.has(t.cle)).map(t => {
     const meta = TRAITS[t.cle];
     // Une réputation n'est pas un vote : ni lauréat ni finaliste (V2.1).
     const niveau = meta.reputation ? 'Réputation' : t.niveau === 0 ? 'Lauréat' : 'Finaliste';
