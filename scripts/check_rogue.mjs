@@ -24,8 +24,8 @@
  *   3. LES CAMPAGNES : de zéro, run après run, les écussons et les jalons
  *      achètent les déblocages — combien de runs avant la première Coupe ;
  *   4. LA FORCE DES CARTES SELON LE MOMENT : le même match, sur les mêmes
- *      dés, au jour 3, au jour 75 et en finale — des cartes de trio (le
- *      stage), des améliorations, des cartes qui visent l'adversaire.
+ *      dés, au jour 3, au jour 75 et en finale — des cartes de trio du
+ *      deck, des améliorations, des cartes qui visent l'adversaire.
  *
  * Les runs, les campagnes et les moments se jouent en parallèle (un
  * travailleur chacun, FILS à la fois — 6 par défaut) : le moteur a son état
@@ -36,8 +36,8 @@ import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import {
   SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
-  echelleTardive, grandirEffet, effetsDesCartes, appliquerMutation, simulerGrosMatch, MUTATIONS, MAITRISE_PAS, ENTENTE_STAGE,
-  lignesDe, chimieLigne, apprentissageDe, joueursDeLigne, JOURS_PAR_MATCH,
+  echelleTardive, grandirEffet, effetsDesCartes, appliquerMutation, simulerGrosMatch, MUTATIONS,
+  JOURS_PAR_MATCH,
 } from '../js/sim.js';
 import { deckDe, DECK_DEPART } from '../js/combat.js';
 import {
@@ -61,13 +61,8 @@ const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 /*
  * LA FORCE DES CARTES À UN MOMENT : le même match sur les mêmes dés
  * (`simulerGrosMatch`, avec son moment), une vraie équipe contre une autre,
- * MATCHS fois par bras. L'état de la formation suit le moment : au jour N,
- * chaque ligne a joué N matchs de son système (`MAITRISE_PAS`) et ses paires
- * N matchs ensemble ; en finale, une saison entière. Trois bras, contre le
- * même match sans carte :
- *   - TRIO DE SAISON : « Le stage express » sur chaque système de la
- *     formation (une carte par système : maîtrise +25 %, et ENTENTE_STAGE
- *     matchs d'entente aux lignes qui le jouent), joué juste avant ;
+ * MATCHS fois par bras (V7 : la chimie ne s'apprend plus, la formation est la
+ * même à chaque moment). Trois bras, contre le même match sans carte :
  *   - TRIO DE MATCH : les synergies du deck qui lisent tes lignes, « Les
  *     gâchettes », « Les jambes » et « Le mur bleu » (trois cartes) ;
  *   - AMÉLIORATION : « Le tir affûté » sur les six avants du top 6 et « Le
@@ -84,36 +79,11 @@ function forceAuMoment(i, matchs) {
   const toi = equipe('2005-06', 'CAR'), adv = equipe('2005-06', 'BUF');
   // Une ligue Rogue : la courbe de la fin de partie joue (`courbe`).
   toi.courbe = adv.courbe = true;
-  const systemes = new Set();
-  const poserEtat = (t, stage) => {
-    const lignes = lignesDe(t, t.roster, { duSoir: false });
-    t.entente = new Map();
-    for (let u = 0; u < 4; u++) {
-      // Au jour N, chaque paire de la ligne a N matchs ensemble ; le stage (le moteur, `stageDEntente`) en ajoute ENTENTE_STAGE aux paires du trio et de la paire.
-      const js = Object.entries(joueursDeLigne(t.roster, u)).filter(([, p]) => p).map(([role, p]) => ({ p, d: role === 'DG' || role === 'DD' }));
-      for (let a = 0; a < js.length; a++) for (let b = a + 1; b < js.length; b++) {
-        const x = getPlayerKey(js[a].p), y = getPlayerKey(js[b].p);
-        t.entente.set(x < y ? `${x}|${y}` : `${y}|${x}`, jours + (stage && js[a].d === js[b].d ? ENTENTE_STAGE : 0));
-      }
-      for (const [role, p] of Object.entries(joueursDeLigne(t.roster, u))) {
-        if (!p) continue;
-        const k = role === 'DG' || role === 'DD' ? lignes[u].tacD : lignes[u].tac;
-        p._maitrise = {};
-        if (!k || k === 'hourra') continue;
-        if (t === toi) systemes.add(k);
-        const m = 1 - (1 - MAITRISE_PAS) ** jours;
-        p._maitrise[k] = stage ? m + (1 - m) * 0.25 : m;
-      }
-    }
-    return [0, 1, 2, 3].map(u => chimieLigne(apprentissageDe(t), t.roster, u, lignes[u]));
-  };
-  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; delete p._maitrise; } };
+  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; } };
   const jouer = (bras, cartes = []) => {
     let v = 0, ecart = 0;
     for (let k = 0; k < matchs; k++) {
       nettoyer(toi); nettoyer(adv);
-      poserEtat(adv, false);
-      poserEtat(toi, bras === 'trio');
       if (bras === 'amelioration') for (const s of SLOTS.filter(x => !x.scratch && x.unit <= 1 && (x.group === 'F' || x.group === 'D'))) {
         const p = toi.roster[s.i];
         if (p) appliquerMutation(toi, p, s.group === 'F' ? 'affute' : 'mur', 0, 'choix');
@@ -123,13 +93,10 @@ function forceAuMoment(i, matchs) {
     }
     return { v: v / matchs, ecart: ecart / matchs };
   };
-  const avant = poserEtat(toi, false), apres = poserEtat(toi, true);
-  const rien = jouer('rien'), trio = jouer('trio'), amel = jouer('amelioration'), advs = jouer('rien', ['provoquer', 'ombre', 'user']), syn = jouer('rien', ['gachettes', 'jambes', 'murBleu']);
+  const rien = jouer('rien'), amel = jouer('amelioration'), advs = jouer('rien', ['provoquer', 'ombre', 'user']), syn = jouer('rien', ['gachettes', 'jambes', 'murBleu']);
   nettoyer(toi); nettoyer(adv);
-  const nTrio = Math.max(1, systemes.size);
   return {
-    nom, echelle: echelleTardive(moment), rien: rien.v, chimie: moy(apres) - moy(avant), nTrio,
-    trio: { v: trio.v - rien.v, parCarte: (trio.ecart - rien.ecart) / nTrio },
+    nom, echelle: echelleTardive(moment), rien: rien.v,
     synergie: { v: syn.v - rien.v, parCarte: (syn.ecart - rien.ecart) / 3 },
     amelioration: { v: amel.v - rien.v, parCarte: (amel.ecart - rien.ecart) / 10 },
     adversaire: { v: advs.v - rien.v, parCarte: (advs.ecart - rien.ecart) / 3 },
@@ -335,10 +302,9 @@ if (!isMainThread) {
   /* 4. la force des cartes selon le moment */
   const force = resultats.filter(x => x.force).map(x => x.force).sort((a, b) => a.echelle - b.echelle);
   for (const f of force) {
-    informer(`les cartes, ${f.nom} (×${f.echelle.toFixed(2).replace('.', ',')})`, `sans carte ${pct(f.rien)} de victoires · STAGE (${f.nTrio}), chimie ${signe(f.chimie)} par ligne : ${signe(f.trio.parCarte, 3)} but/match par carte, ${signe(100 * f.trio.v)} pts · SYNERGIES (3) : ${signe(f.synergie.parCarte, 3)} par carte, ${signe(100 * f.synergie.v)} pts · AMÉLIORATIONS (10) : ${signe(f.amelioration.parCarte, 3)} par carte, ${signe(100 * f.amelioration.v)} pts · ADVERSAIRE (3) : ${signe(f.adversaire.parCarte, 3)} par carte, ${signe(100 * f.adversaire.v)} pts`);
+    informer(`les cartes, ${f.nom} (×${f.echelle.toFixed(2).replace('.', ',')})`, `sans carte ${pct(f.rien)} de victoires · SYNERGIES (3) : ${signe(f.synergie.parCarte, 3)} par carte, ${signe(100 * f.synergie.v)} pts · AMÉLIORATIONS (10) : ${signe(f.amelioration.parCarte, 3)} par carte, ${signe(100 * f.amelioration.v)} pts · ADVERSAIRE (3) : ${signe(f.adversaire.parCarte, 3)} par carte, ${signe(100 * f.adversaire.v)} pts`);
   }
-  const [debut, fin, finale] = force;
-  exiger('la carte de trio aide au début et plafonne : son gain de chimie fond avec la saison', debut.chimie > 1 && fin.chimie < debut.chimie / 5, `chimie ${signe(debut.chimie)} par ligne au jour 3, ${signe(fin.chimie)} au jour 75`);
+  const [debut, , finale] = force;
   {
     // Une carte de trio ne grandit pas, par construction : la même main à ×0,5 et à ×2 fait les mêmes effets pour toi.
     const a = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 0.5 }), b = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 2 });
@@ -346,8 +312,8 @@ if (!isMainThread) {
   }
   exiger('une amélioration et une carte sur l\'adversaire valent au moins deux fois plus en finale qu\'au jour 3', finale.amelioration.parCarte > 2 * debut.amelioration.parCarte && finale.adversaire.parCarte > 2 * debut.adversaire.parCarte,
     `amélioration ${signe(debut.amelioration.parCarte, 3)} → ${signe(finale.amelioration.parCarte, 3)} · adversaire ${signe(debut.adversaire.parCarte, 3)} → ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
-  exiger('en finale, une amélioration bat le stage, et une carte sur l\'adversaire bat une carte de trio du deck', finale.amelioration.parCarte > finale.trio.parCarte && finale.adversaire.parCarte > finale.synergie.parCarte,
-    `stage ${signe(finale.trio.parCarte, 3)} · synergie ${signe(finale.synergie.parCarte, 3)} · amélioration ${signe(finale.amelioration.parCarte, 3)} · adversaire ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
+  exiger('en finale, une carte sur l\'adversaire bat une carte de trio du deck', finale.adversaire.parCarte > finale.synergie.parCarte,
+    `synergie ${signe(finale.synergie.parCarte, 3)} · amélioration ${signe(finale.amelioration.parCarte, 3)} · adversaire ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
   // Ce qui se lit sans se juger : au troisième soir, une carte de trio du deck contre une amélioration — l'écart dépend de la formation.
   informer('au jour 3, une carte de trio du deck contre une amélioration', `synergie ${signe(debut.synergie.parCarte, 3)} · amélioration ${signe(debut.amelioration.parCarte, 3)} · adversaire ${signe(debut.adversaire.parCarte, 3)} but/match par carte`);
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${RUNS} runs par niveau, ${CAMPAGNES} campagne(s) de ${RUNS_CAMPAGNE} runs, ${MATCHS} matchs par bras et par moment)`);

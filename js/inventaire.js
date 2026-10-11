@@ -116,7 +116,7 @@ export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDe
 }
 
 /* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */
-const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck', tactique: 'Un système' };
+const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck' };
 /*
  * La valeur de vente rapide d'une carte, en jetons (selon sa rareté). S82 :
  * à 2/5/12/30, une carte valait 4,94 🪙 en moyenne aux cotes 55/30/12/3 des

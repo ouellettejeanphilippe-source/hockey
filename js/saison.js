@@ -28,10 +28,10 @@ import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dos
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS,
+  lignesDe, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, MUTATIONS,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
-  mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
+  mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
@@ -2612,7 +2612,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
    * portant son palier : c'est ce qui ferme la main.
    */
-  const RARETE_SORTE = { effet: 'rare', recrue: 'legendaire', amelioration: 'peu', profil: 'peu', strategie: 'commune', menage: 'peu', camp: 'peu', atelier: 'rare' };
+  const RARETE_SORTE = { effet: 'rare', recrue: 'legendaire', amelioration: 'peu', profil: 'peu', menage: 'peu', camp: 'peu', atelier: 'rare' };
   /*
    * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
    * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,
@@ -2625,7 +2625,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const POSTE_CARTE = { G: 'Gardien', D: 'Défenseur', LD: 'Défenseur', RD: 'Défenseur', C: 'Centre', LW: 'Ailier', RW: 'Ailier' };
   // Le visage du joueur, l'écusson en médaillon (S74, l'agent de test : « le logo au lieu du visage »).
   const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug ? photoAction(p) : '' });
-  const connait = x => (x >= 0.6 ? 'le connaît bien' : x >= 0.3 ? 'le connaît un peu' : x > 0.02 ? 'le connaît à peine' : 'ne le connaît pas encore');
   function ouvrirMain(p0) {
     const main = mainDuDeck(graine, p0, dejaPrises);
     const recrues = ctx.recrues ? (ctx.recrues(p0) || []) : [];
@@ -2652,10 +2651,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (c.sorte === 'camp') return { cle: 'camp', rarete, ico: S.ico, nom: 'Le camp d\'entraînement', type: `${S.nom} · ton deck de match`,
         texte: 'Une carte de ton deck de match devient sa version « + » : moitié plus forte, ou un élan de moins.',
         desactive: deckAvant(jour).some(k => CARTES_MATCH[`${k}+`]) ? '' : 'Tout ton deck est déjà amélioré' };
-      if (c.sorte === 'menage') return { cle: 'menage', rarete, ico: S.ico, nom: 'Le ménage du vestiaire', type: `${S.nom} · ton deck de match`,
+      return { cle: 'menage', rarete, ico: S.ico, nom: 'Le ménage du vestiaire', type: `${S.nom} · ton deck de match`,
         texte: `Une carte de moins dans ton deck de match (${deckAvant(jour).length} cartes) : les autres sortent plus souvent. Tu choisis laquelle.` };
-      return { cle: 'strategie', rarete, ico: S.ico, nom: 'Stage de système', type: `${S.nom} · toute la formation`,
-        texte: `Une semaine de pratiques sur un seul système : ta formation fait ${Math.round(GAIN_STAGE * 100)} % du chemin vers sa maîtrise d'un coup. Trois systèmes offerts.` };
     });
     ouvrirChoix({
       ico: '🎁', titre: `La main de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
@@ -2734,28 +2731,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         options: uniques.map(k => ({ ...optionDeCarteMatch(k), rarete: CARTES_MATCH[k].maudite ? 'commune' : CARTES_MATCH[k].rarete })),
         onChoix: k => deciderDeck(p0, { deck: 'menage', retrait: k }) });
       return;
-    }
-    if (sorte === 'strategie') {
-      const dresses = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => you.roster[sl.i]).filter(p => p && p.p !== 'G');
-      // La maîtrise À CE JOUR (la photo de la journée), pas celle de fin de saison :
-      // le moteur a déjà joué les 82 matchs quand l'écran s'ouvre.
-      const jl = you.jourLignes && you.jourLignes[Math.max(0, Math.min(jour, you.jourLignes.length - 1))];
-      const app = jl && jl.apprentissage ? apprentissagePhoto(jl.apprentissage) : null;
-      // Un système de trio s'apprend par les avants, un système de paire par les défenseurs (S79).
-      const estD = p => p.p === 'D' || p.p === 'LD' || p.p === 'RD';
-      const maitrise = tac => { const D = systemeDe(tac).groupe === 'D'; const qui = dresses.filter(p => estD(p) === D); return app ? qui.reduce((a, p) => a + ((app.maitrise(p) || {})[tac] || 0), 0) / (qui.length || 1) : 0; };
-      const NOMS = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire', '2e paire', '3e paire'] };
-      ouvrirChoix({ ...suite, ico: '📘', titre: 'Stage de système',
-        recit: `Toute ta formation apprend le système choisi : ${Math.round(GAIN_STAGE * 100)} % du chemin vers la maîtrise, d'un coup. La chimie de chaque ligne qui le joue monte avec.`,
-        options: tactiquesDuStage(graine, p0).map(tac => {
-          const T = systemeDe(tac);
-          const fits = NOMS[T.groupe].map((_, u) => fitUnite(you.roster, T.groupe, u, tac) ?? 0);
-          const meilleure = fits.indexOf(Math.max(...fits));
-          return { cle: tac, rarete: 'commune', ico: T.ico, nom: T.nom, type: T.groupe === 'D' ? 'Stage · système de paire' : 'Stage · système de trio',
-            texte: `${T.mot} ${T.groupe === 'D' ? 'Tes défenseurs' : 'Tes avants'} : ${connait(maitrise(tac))}.`,
-            mots: [{ txt: `Taillé pour ta ${NOMS[T.groupe][meilleure]}`, bon: fits[meilleure] >= 55 }] };
-        }),
-        onChoix: tac => deciderDeck(p0, { deck: 'strategie', maitrise: { tac, gain: GAIN_STAGE } }) });
     }
   }
 
@@ -3992,7 +3967,6 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       dans: ui.ouvrirPage({ genre: 'preparer', ico: '🏒', titre: `Préparer le match ${k + 1}`, sousTitre: `${ctx.esc(nomRondeCourt(ronde))} · contre ${ctx.esc(ctx.teamShort(boss))}` }),
       fermer: () => ui.fermerPage(true),
       lineup: you.roster, lignes: lignesDe(you, you.roster),
-      chimie: (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).chimie || [0, 0, 0, 0],
       energie: { ...((you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {}),
         ...Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])) },
       filet: { ...filetDuSoir(you), choix: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.filet) || {}).filet || 'auto' },

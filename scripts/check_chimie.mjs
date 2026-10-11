@@ -1,18 +1,16 @@
 /*
- * LA CHIMIE APPRISE (S73) — ce qui doit tenir.
+ * LA CHIMIE (S73, V7) — ce qui doit tenir.
  *
  *   node scripts/check_chimie.mjs
  *
- * JP : *l'important est que je puisse m'adapter aux adversaires, mais pas
- * complètement, d'où l'apprentissage de la chimie entre les joueurs et avec
- * les stratégies, mais sans punir les ajustements* ; *plus une ligne joue une
- * stratégie, mieux c'est* ; *les joueurs s'adaptent à leur position dans
- * l'alignement* ; *comme un deck de deckbuilder*. On exige :
- *   1. plus une ligne joue un système, plus sa chimie monte ;
- *   2. s'adapter UN soir (changer de tactique pour contrer) ne coûte presque
- *      rien à la chimie de la saison — l'ancienne règle la coupait de moitié ;
- *   3. mais s'adapter n'est pas complet : un système peu joué a moins de
- *      chimie ce soir-là que le système maîtrisé ;
+ * V7, JP : *enlever les apprentissages de stratégie et chimie*. La chimie
+ * d'une ligne ne s'apprend plus : elle vaut ce que ses joueurs font de son
+ * système (`chimieLigne`). On exige :
+ *   1. rien ne s'apprend : après une saison, ni entente ni maîtrise, et les
+ *      mêmes lignes lisent la même chimie qu'au premier soir ;
+ *   2. s'adapter un soir ne coûte rien, et un système mieux rempli a plus de
+ *      chimie ;
+ *   3. (S73, toujours vrai) les joueurs s'adaptent à leur position dans l'alignement ;
  *   4. la pénalité d'un joueur hors position fond en jouant à cette case ;
  *   5. la ligue garde son bonus moyen (calibrage de CHIMIE_BONUS) ;
  *   6. (1.0 · J1-M) le levier : chimie 100 contre 0 vaut au moins 8 % de buts ;
@@ -23,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, activeLineup, lignesDe, contreDe,
-  chimieLigne, apprentissagePhoto, penaliteAdaptee, getPositionPenalty, bonusChimie, fits,
+  chimieLigne, penaliteAdaptee, copieDeJoueur, fitDeLigne, getPositionPenalty, bonusChimie, fits,
 } from '../js/sim.js';
 import { LINE_ZONES, ZONES_ETOILE } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -49,7 +47,7 @@ function ligue(seed) {
     vus.add(`${sh.season}|${tag}`);
     out.push(eq(`${tag} ${sh.season}`, tag, un, sh.season));
   }
-  out[0].isPlayer = true;   // la photo de l'apprentissage n'est prise que pour ta formation
+  out[0].isPlayer = true;
   return out;
 }
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
@@ -72,7 +70,7 @@ if (process.env.LEVIER) {
   process.exit(0);
 }
 
-console.log('\n  La chimie apprise (S73)\n');
+console.log('\n  La chimie (S73, V7 : elle ne s\'apprend plus)\n');
 
 /*
  * PLUSIEURS SAISONS, PAS UNE (S79). Une ligue seule est un tirage : la même
@@ -85,46 +83,39 @@ const GRAINES = ['chimie', 'chimie-2', 'chimie-3', 'chimie-4', 'chimie-5', 'chim
 const bases = GRAINES.map(g => { const b = ligue(8100); simulateLeague(b, 82, { graine: g, decisions: [] }); return b; });
 const base = bases[0];
 
-/* ---------- 1. plus une ligne joue, mieux c'est ---------- */
+/* ---------- 1. rien ne s'apprend ---------- */
 {
-  const c = j => moy(bases.map(b => moy(b[0].jourLignes[j].chimie)));
-  // Les blessures de fin de saison cassent des lignes, et la chimie peut
-  // redescendre un peu entre la journée 40 et la 80 — c'est la vie d'une
-  // saison, pas une chimie qui se défait. On exige la montée, pas un plateau.
-  informer('chimie moyenne de tes lignes', `journée 5 : ${c(5).toFixed(0)} % · 20 : ${c(20).toFixed(0)} % · 40 : ${c(40).toFixed(0)} % · 80 : ${c(80).toFixed(0)} % (${GRAINES.length} saisons)`);
-  exiger('plus une ligne joue son système, plus sa chimie monte', c(5) < c(20) && c(20) < c(40) && c(40) <= c(80) + 10, `${c(5).toFixed(0)} → ${c(80).toFixed(0)} %`);
+  const t = base[0];
+  const appris = Object.values(t.roster).filter(p => p && p._maitrise);
+  exiger('après une saison, ni entente ni maîtrise', !t.entente && !appris.length, `${appris.length} joueurs avec une maîtrise`);
+  // Les mêmes joueurs aux mêmes cases : la chimie après 82 matchs, et sur des copies neuves (rien de la saison).
+  const L = activeLineup(t);
+  const neuf = Object.fromEntries(Object.entries(L).map(([k, p]) => [k, p && copieDeJoueur(p)]));
+  const lignes = lignesDe(t, L, { duSoir: false });
+  const apres = [0, 1, 2, 3].map(u => chimieLigne(L, u, lignes[u])), avant = [0, 1, 2, 3].map(u => chimieLigne(neuf, u, lignes[u]));
+  exiger('les mêmes lignes lisent la même chimie au premier soir et au 82e', apres.every((c, u) => Math.abs(c - avant[u]) < 1e-9),
+    `${avant.map(c => c.toFixed(0)).join(' · ')} → ${apres.map(c => c.toFixed(0)).join(' · ')}`);
+  informer('chimie moyenne de tes lignes', `journée 5 : ${moy(bases.map(b => moy(b[0].jourLignes[5].chimie))).toFixed(0)} % · 40 : ${moy(bases.map(b => moy(b[0].jourLignes[40].chimie))).toFixed(0)} % (les blessures cassent des lignes)`);
 }
 
-/* ---------- 2 et 3. s'adapter un soir : pas puni, pas complet ---------- */
+/* ---------- 2. s'adapter un soir ne coûte rien ; le fit fait la chimie ---------- */
 {
-  const J0 = 30;
   const t = ligue(8100);
   const L = activeLineup(t[0]);
   const saison = lignesDe(t[0], L);
-  // Contrer quelqu'un un soir : les deux premières lignes dans la tactique qui étouffe la leur.
   const soir = saison.map((l, u) => (u < 2 ? { ...l, tac: contreDe(l.tac) || 'defensive' } : { ...l }));
-  const avecAjustement = GRAINES.map(g => {
-    const u = ligue(8100);
-    simulateLeague(u, 82, { graine: g, decisions: [
-      { jour: J0, equipe: 0, lignes: soir.map(l => ({ ...l })) },
-      { jour: J0 + 1, equipe: 0, lignes: saison.map(l => ({ ...l })) },
-    ] });
-    return u;
-  });
-  // LA MÊME FORMATION, LES MÊMES LIGNES (refonte 1) : on lit la chimie que la MÉMOIRE de chaque saison (l'entente, la
-  // maîtrise) donne à l'alignement de départ. Lire `jourLignes[…].chimie` mesurait surtout les blessures : sur la graine
-  // « chimie », une ligne cassée dans la saison ajustée (51,8 contre 36,3) faisait à elle seule l'écart moyen, alors
-  // qu'à alignement égal l'ajustement coûte 0,2 point.
-  const memoire = u => moy([0, 1, 2, 3].map(k => chimieLigne(apprentissagePhoto(u[0].jourLignes[J0 + 3].apprentissage), L, k, saison[k])));
-  const apres = moy(avecAjustement.map(memoire));
-  const temoin = moy(bases.map(memoire));
-  exiger('s\'adapter un soir ne défait pas la chimie de la saison', Math.abs(apres - temoin) < 3,
-    `${temoin.toFixed(1)} % sans l'ajustement, ${apres.toFixed(1)} % avec, moyenne de ${GRAINES.length} saisons (l'ancienne règle l'aurait coupée de moitié)`);
-  // Pas complet : ce soir-là, le système peu joué a moins de chimie que le système maîtrisé.
-  const photo = apprentissagePhoto(base[0].jourLignes[J0].apprentissage);
-  const maitrise = chimieLigne(photo, L, 0, saison[0].tac), nouveau = chimieLigne(photo, L, 0, soir[0].tac);
-  exiger('mais s\'adapter n\'est pas complet : un système peu joué a moins de chimie ce soir-là', nouveau < maitrise,
-    `${saison[0].tac} ${maitrise.toFixed(0)} % contre ${soir[0].tac} ${nouveau.toFixed(0)} %`);
+  const J0 = 30;
+  const u = ligue(8100);
+  simulateLeague(u, 82, { graine: GRAINES[0], decisions: [
+    { jour: J0, equipe: 0, lignes: soir.map(l => ({ ...l })) },
+    { jour: J0 + 1, equipe: 0, lignes: saison.map(l => ({ ...l })) },
+  ] });
+  const lu = x => [0, 1, 2, 3].map(k => chimieLigne(activeLineup(x[0]), k, saison[k]).toFixed(6)).join('|');
+  exiger('s\'adapter un soir ne laisse aucune trace sur la chimie', lu(u) === lu(base), 'les mêmes lignes, avec et sans le soir ajusté');
+  const fitDe = l => fitDeLigne(L, 0, l), chim = l => chimieLigne(L, 0, l);
+  const a = saison[0], b = soir[0];
+  const [mieux, pire] = fitDe(a) >= fitDe(b) ? [a, b] : [b, a];
+  exiger('un système mieux rempli a plus de chimie', chim(mieux) >= chim(pire), `fit ${fitDe(mieux)} : ${chim(mieux).toFixed(0)} % · fit ${fitDe(pire)} : ${chim(pire).toFixed(0)} %`);
 }
 
 /* ---------- 4. la position s'apprend ---------- */
@@ -182,4 +173,4 @@ const base = bases[0];
   exiger('une zone est chez elle à une case ⇔ l\'étiquette de la case la nomme', faux.length === 0, faux.join(' · ') || [...new Set(SLOTS.filter(x => !x.scratch && x.group !== 'G').map(x => x.label))].join(' | '));
 }
 
-verdict('La chimie apprise');
+verdict('La chimie');

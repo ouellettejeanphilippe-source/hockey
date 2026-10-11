@@ -26,7 +26,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, playGame, feuilleVierge,
   grainerHasard, activeLineup, profilMatch, coupsAttendus, CARTES, MUTATIONS } from '../js/sim.js';
-import { chiffresDuSoir, effetEnChiffres, motsDuSoir, systemeEnChiffres, agressiviteEnChiffres, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
+import { chiffresDuSoir, effetEnChiffres, motsDuSoir, systemeEnChiffres, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
 import { BANQUE, reglesDe } from '../js/banque.js';
 import { CARTES_MATCH } from '../js/combat.js';
 import { optionDeCarteMatch, pucesDeFace, FACE_MAX } from '../js/gerant.js';
@@ -168,10 +168,8 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
   const apres = motsEnChiffres({ volume: 1.07 }, 4);
   poserClubLu(null);
   exiger('sans club, les mots d\'avant ; avec lui, des matchs et la durée', avant.some(m => m.txt.includes('%')) && apres.some(m => m.txt.includes('par match')) && apres.some(m => m.duree), `${avant[0].txt} → ${apres.map(m => m.txt).join(' | ')}`);
-  // Systèmes et agressivité : en mises en échec, en punitions, en tirs.
-  const L = [0, 1, 2, 3].map(() => ({ tac: 'hourra', tacD: 'hourra', agr: 1, sec: 60 }));
-  const agr = agressiviteEnChiffres(A, null, null, L, 0, 3);
-  exiger('rentre-dedans : des mises en échec de plus, dites en matchs', agr.some(m => m.cle === 'coup' && /\+/.test(m.txt)) && agr.every(m => !m.txt.includes('%')), agr.map(m => m.txt).join(' | '));
+  // Les systèmes : en mises en échec, en punitions, en tirs (V7 : l'agressivité est celle des joueurs, elle ne se règle plus).
+  const L = [0, 1, 2, 3].map(() => ({ tac: 'hourra', tacD: 'hourra', sec: 60 }));
   const sys = systemeEnChiffres(A, null, null, L, 0, 'F', 'echec');
   informer('un système de trio, à l\'écran', sys.map(m => m.txt).join(' · ') || '—');
   exiger('un système se dit en matchs', sys.every(m => !m.txt.includes('%')), sys.map(m => m.txt).join(' | '));
@@ -245,7 +243,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
       if (lire && L.jour % 4 === 0) {
         const t = teams[0], avant = [t.cartes, t.patrons, t.effets, t.lignes, t._effetMatch, t._lignesMatch, t.roulement, t.coachs];
         chiffresDuSoir(t); motsDuSoir(t, null, null, []); effetEnChiffres({ volume: 1.1, defense: 0.9 }, t);
-        systemeEnChiffres(t, null, null, [0, 1, 2, 3].map(() => ({ tac: 'hourra', tacD: 'hourra', agr: 1, sec: 60 })), 1, 'F', 'echec');
+        systemeEnChiffres(t, null, null, [0, 1, 2, 3].map(() => ({ tac: 'hourra', tacD: 'hourra', sec: 60 })), 1, 'F', 'echec');
         rendue = rendue && [t.cartes, t.patrons, t.effets, t.lignes, t._effetMatch, t._lignesMatch, t.roulement, t.coachs].every((x, i) => x === avant[i]);
       }
       jouerJournee(L);

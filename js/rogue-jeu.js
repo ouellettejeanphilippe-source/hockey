@@ -7,7 +7,7 @@
 
 import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, TACTIQUES, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
@@ -619,13 +619,6 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
         contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
         options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
         onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
-      return;
-    }
-    if (C.cible === 'tactique') {
-      ouvrirChoix({ ico: c.ico, titre: c.nom, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
-        contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
-        options: Object.entries(TACTIQUES).filter(([k]) => k !== 'hourra').map(([k, T]) => ({ cle: k, ico: T.ico, nom: T.nom, sous: T.mot })),
-        onChoix: k => ecrire(payloadDe(item.id, { tactique: k })), onFerme: retour });
       return;
     }
     if (C.cible === 'coach') {

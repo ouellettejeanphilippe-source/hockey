@@ -1311,7 +1311,7 @@ function buildDuSoirHtml(f, A, B, jour) {
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
   const b = buildDuSoir(toi, G.ligue.decisions, jour, f);
-  const groupes = [['Cartes', b.cartes], ['Patrons', b.patrons], ['Événements', b.effets], ['Systèmes', [...b.systemes, ...b.agressivites]], ['Consigne', b.consigne ? [b.consigne] : []], ['Cartes de match', b.jouees]]
+  const groupes = [['Cartes', b.cartes], ['Patrons', b.patrons], ['Événements', b.effets], ['Systèmes', b.systemes], ['Consigne', b.consigne ? [b.consigne] : []], ['Cartes de match', b.jouees]]
     .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,

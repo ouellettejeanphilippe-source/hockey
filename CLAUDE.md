@@ -175,7 +175,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **rôle** : ce que le joueur fait (sniper, passeur, checker…), une icône et un mot ; un système demande des rôles.
 - **badge** : son rôle à un palier — Bronze, Argent, Or, Platine (`badgesDe`, js/sim.js) ; un premier et, au plus, un second qui rend la moitié. Le palier se dit en mot et se voit en couleur (`pal-1` à `pal-4`), jamais en médaille : 🥉🥈🥇💎 nomment les packs. « Palier » reste un mot du code ; à l'écran on dit « Sniper Or ».
 - **zone** : où le joueur rend (T1-2, P1…) ; une case porte les zones qui y sont chez elles.
-- **carrure** : 🪨 costaud ou 🪶 léger ; elle décide de ce que rapporte l'agressivité.
+- **carrure** : 🪨 costaud ou 🪶 léger ; elle fait l'agressivité de sa ligne, qui ne se règle pas (`agressiviteDeLigne`).
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
 - **couleur** : le coach d'une carte, ou d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon ». Une carte sans couleur est **neutre**.
 - **confiance** : I, II, III — un seul coach en poste, choisi au début de la saison à la confiance I ; ses cartes jouées le montent à II (6) et III (9), chacune une fois, celles du deck de départ non. « Le congédiement » en installe un autre, à I, et l'ancien part avec son bonus (V5).

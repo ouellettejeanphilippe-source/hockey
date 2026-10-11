@@ -3,14 +3,13 @@
  *
  * JP : *je veux variété de build, pas trop simple, complexe mais clair*. Les
  * jambes (sur 100) sont le prix de pousser son premier trio : plus de glace,
- * une agressivité haute, un système qui use, et le trio s'use plus vite qu'il
+ * des joueurs qui frappent, un système qui use, et le trio s'use plus vite qu'il
  * ne récupère. Ce script mesure trois choses, EN PAIRES (la même ligue deux
  * fois sous la même graine, le réglage aux rangs pairs puis aux impairs —
  * la méthode de check_cartes.mjs) :
  *
- *   1. les jambes du matin du 1er trio : réglé par défaut (60 s, l'agressivité
- *      que l'IA choisit), et poussé (80 s, rentre-dedans, un soir important
- *      sur deux) — la cible est 90-95 et 75-85 ;
+ *   1. les jambes du matin du 1er trio : réglé par défaut (60 s), et poussé
+ *      (80 s, un soir important sur deux) — la cible est 90-95 et 75-85 ;
  *   2. un jour de congé rend des jambes (une ligue impaire en a) ;
  *   3. ce que valent, à talent égal, le 1er trio poussé et les quatre trios
  *      roulés (le banc profond, 60 s partout) : quelque chose, pas la saison.
@@ -62,10 +61,10 @@ const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 
 /* Les réglages mesurés. `null` : ce que l'IA joue d'elle-même. */
 const REGLAGES = {
-  // Le 1er trio poussé : 80 s (le max est 90), rentre-dedans, et un soir important sur deux.
-  pousse: { lignes: t => [80, 58, 50, 42].map((sec, u) => ({ tac: undefined, agr: u === 0 ? 3 : undefined, sec })), importance: true },
-  // Les quatre trios roulés : le banc profond, 60 s partout, agressivité moyenne.
-  roule: { lignes: t => [60, 60, 60, 60].map(sec => ({ tac: undefined, agr: 1, sec })), roulement: 'profond' },
+  // Le 1er trio poussé : 80 s (le max est 90) et un soir important sur deux (V7 : l'agressivité est celle de ses joueurs).
+  pousse: { lignes: t => [80, 58, 50, 42].map(sec => ({ tac: undefined, sec })), importance: true },
+  // Les quatre trios roulés : le banc profond, 60 s partout.
+  roule: { lignes: t => [60, 60, 60, 60].map(sec => ({ tac: undefined, sec })), roulement: 'profond' },
 };
 
 /*
@@ -128,13 +127,13 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
 // 1. L'équilibre calculé : ce que la formule promet, ligne par ligne, avant de jouer.
 {
   const t = ligue(99)[0], lu = activeLineup(t);
-  t.lignes = [60, 60, 60, 60].map(() => ({ tac: undefined, agr: 1, sec: 60 }));
+  t.lignes = [60, 60, 60, 60].map(() => ({ tac: undefined, sec: 60 }));
   const us = usuresDe(t, lu);
   const ms = us.F.map(jambesEquilibre);
-  console.log(`  à l'équilibre, défaut (60 s, moyenne) : trios ${ms.map(x => x.toFixed(0)).join(' · ')} · paires ${us.D.map(jambesEquilibre).map(x => x.toFixed(0)).join(' · ')}`);
-  t.lignes = [80, 58, 50, 42].map((sec, u) => ({ tac: undefined, agr: u === 0 ? 3 : 1, sec }));
+  console.log(`  à l'équilibre, défaut (60 s) : trios ${ms.map(x => x.toFixed(0)).join(' · ')} · paires ${us.D.map(jambesEquilibre).map(x => x.toFixed(0)).join(' · ')}`);
+  t.lignes = [80, 58, 50, 42].map(sec => ({ tac: undefined, sec }));
   const up = usuresDe(t, lu);
-  console.log(`  à l'équilibre, 1er trio à 80 s rentre-dedans : ${jambesEquilibre(up.F[0]).toFixed(0)} (un soir important : ${jambesEquilibre(up.F[0] * 1.12).toFixed(0)})`);
+  console.log(`  à l'équilibre, 1er trio à 80 s : ${jambesEquilibre(up.F[0]).toFixed(0)} (un soir important : ${jambesEquilibre(up.F[0] * 1.12).toFixed(0)})`);
   // 90 : la borne de calibration d'une ligne ordinaire (les jambes comptent en continu depuis 1.0, centrées sur ENERGIE_REF).
   exiger('à 60 s, un 1er trio dort au-dessus de 90', ms[0] > 90, ms[0].toFixed(1));
   // 2. Le repos : d'un match à l'autre, l'écart moyen du calendrier rend la moitié du manque ; un geste de repos garde son surplus.

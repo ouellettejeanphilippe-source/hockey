@@ -55,7 +55,7 @@ const decisions = [
   { jour: 3, equipe: 0, carte: 'fougue' },
   { jour: 0, equipe: 0, ...payloadDe('patron:att_adjoint') },
   { jour: 6, equipe: 0, match: { importance: 'basse', ad: -1 } },
-  { jour: 10, equipe: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: 'defensive', tacD: 'maison', agr: 0 })) },
+  { jour: 10, equipe: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: 'defensive', tacD: 'maison' })) },
 ];
 const aplatir = x => JSON.stringify(x);
 const pres = (a, b, e = 1e-9) => Math.abs(a - b) < e;
@@ -139,7 +139,7 @@ const b2 = buildDuSoir(toi, L.decisions, 2), b3 = buildDuSoir(toi, L.decisions, 
 exiger('une carte prise au jour 3 n\'était pas active au jour 2, et l\'est au jour 3', b2.cartes.length === 1 && b3.cartes.length === 2, `${b2.cartes.join(', ')} → ${b3.cartes.join(', ')}`);
 exiger('le patron pris au jour 0 est actif', b2.patrons.length === 1, b2.patrons.join(', '));
 exiger('la consigne ne vaut que le soir où elle est réglée', !!b6.consigne && !b7.consigne, `${b6.consigne}`);
-exiger('les systèmes ne comptent qu\'après la décision des lignes', !b7.systemes.length && b12.systemes.length >= 2 && b12.agressivites.length === 1, `${b12.systemes.join(', ')} · ${b12.agressivites.join(', ')}`);
+exiger('les systèmes ne comptent qu\'après la décision des lignes', !b7.systemes.length && b12.systemes.length >= 2, b12.systemes.join(', '));
 exiger('un soir sans rien de réglé se dit vide', buildVide(buildDuSoir(toi, [], 4)) && !buildVide(b3));
 const lignes = ecartsDuSoir(toi === miens[0].A ? miens[0].f : miens[0].f, miens[0].A === toi ? 'A' : 'B', P, Lg);
 exiger('l\'écart du soir porte le soir, ta moyenne et la ligue', lignes.length >= 5 && lignes.every(r => Number.isFinite(r.soir) && r.moyenne != null && r.ligue != null), lignes.map(r => `${r.nom} ${r.soir}`).join(' · '));

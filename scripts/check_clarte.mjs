@@ -183,7 +183,7 @@ const MOTS_RESERVES = [
     ['la fiche dit l\'effet NET d\'un badge (`maitrise`, centré sur la ligue), pas le brut', /\(EFFET_ROLE\[b\.cle\] \|\| 0\) \* maitrise\(p, b\.cle\)/.test(src('fiche.js')) && sans('fiche.js', /b\.palier \/ \(b\.second/)],
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
     ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
-    ['« par défaut » est ce que joue une ligne jamais réglée (`meilleureAgressivite`), la Moyenne la référence', /i === meilleureAgressivite\(spec\.lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /i === 1 \? \{ txt: 'Par défaut'|i === 1 \? 'par défaut'/)],
+    ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /data-agr/)],
     ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison et sa rareté/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
     ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('gerant.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
@@ -245,7 +245,7 @@ const MOTS_RESERVES = [
   const texte = brut.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   const mots = texte.split(' ').filter(w => /[\p{L}\d]/u.test(w)).length;
   // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
-  // de série, l'adjoint, les huit sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
+  // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   borne('la page des règles est courte', mots, 300, 2100, 'mots');
   const taisait = [[/avantage numérique<\/strong> se règle seul/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
@@ -324,7 +324,7 @@ const MOTS_RESERVES = [
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
-    [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 8 ? 'un effet pour la saison, un vrai joueur, une amélioration à poser au verso d\'une carte, un nouveau rôle, un stage de système, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
+    [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 7 ? 'un effet pour la saison, un vrai joueur, une amélioration à poser au verso d\'une carte, un nouveau rôle, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).
     [`${LANCEE.buts} buts en ${LANCEE.matchs} matchs, et ${nombre(LANCEE.facteur)} fois son vrai rythme, mettent un joueur <strong>sur sa lancée</strong> : précision +${pct(LANCEE.lancee.finition)} %, tirs +${pct(LANCEE.lancee.lancers)} %`, 'la lancée'],

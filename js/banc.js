@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, systemeDe, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -97,9 +97,7 @@ function ouvrirBanc(jour) {
     roulement: L.you.roulement || 'quatre',
     // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
     lignes: lignesDe(L.you, G.roster),
-    chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
-    apprentissage: ((L.you.jourLignes || [])[jour] || {}).apprentissage || null,
     // LE SOIR DU MATCH (V7 : « Préparer le match » vit ici) : la consigne et le filet déjà choisis pour ce soir-là.
     match: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.match).pop() || {}).match) || { importance: 'normale', ad: 0 },
     filet: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.filet).pop() || {}).filet) || 'auto',
@@ -344,15 +342,13 @@ function confirmerDecision(d) {
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  else if (d.deck === 'strategie' && d.maitrise && systemeDe(d.maitrise.tac)) mot = `📘 ${systemeDe(d.maitrise.tac).groupe === 'D' ? 'Tes défenseurs apprennent' : 'Tes avants apprennent'} : ${systemeDe(d.maitrise.tac).nom.toLowerCase()}.`;
   // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
   else if (d.carte && CARTES[d.carte]) mot = `${CARTES[d.carte].ico} ${CARTES[d.carte].nom} : pour le reste de la saison.`;
   // v2 : la carte qui fait croire le vestiaire à un coach le dit, avec ce que sa confiance joue.
   if (d.coach && COACHS[d.coach.cle]) {
     const C = COACHS[d.coach.cle];
-    const sys = d.maitrise && systemeDe(d.maitrise.tac);
     if (d.coachNeuf) mot = `${C.ico} ${C.nom} prend le banc : confiance ${ROMAINS[d.coach.palier]}. L'ancien coach part avec son bonus.`;
-    else mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.${sys ? ` Tes avants apprennent ${sys.nom.toLowerCase()}.` : ''}`;
+    else mot = `${mot ? `${mot} ` : ''}${C.ico} L'équipe croit ${C.de.replace(/^du /, 'au ').replace(/^de l'/, 'à l\'').replace(/^de la /, 'à la ')} : confiance ${ROMAINS[d.coach.palier]}, pour le reste de la saison.`;
   }
   if (mot) toast(mot);
 }

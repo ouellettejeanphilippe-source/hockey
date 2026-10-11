@@ -2566,8 +2566,6 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .gj-barre { display: inline-block; height: 4px; border-radius: var(--r-1); background: var(--noir); overflow: hidden; }
 .gj-barre > span { display: block; height: 100%; background: var(--or); }
 .gl-chimie { width: 120px; vertical-align: middle; }
-.gl-appris { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-4); font-size: var(--t-2); color: var(--encre-2); }
-.gl-appris b { color: var(--encre); }
 /* Les systèmes : une grille de cartons plats, l'ouvert cerné d'or, le fit en mot coloré, le contre en pointillé. */
 .gl-tacs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
 .gl-tac {
@@ -2600,7 +2598,6 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .ln-dem.fit-mauvais i { color: var(--live); }
 .ln-etat { display: flex; flex-wrap: wrap; gap: 3px var(--esp-4); font-size: var(--t-2); color: var(--encre-2); }
 .ln-etat b { color: var(--encre); font-family: var(--display); }
-.ln-agr-effets { margin-top: 0; }
 /* La glace : un curseur pleine largeur. */
 /* Le pied : « Appliquer » prend la largeur, les autres en contour. */
 .gl-pied { flex: none; display: flex; gap: var(--esp-2); padding: var(--esp-3) var(--esp-4) calc(var(--esp-3) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }

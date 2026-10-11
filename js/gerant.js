@@ -27,13 +27,13 @@
 import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_DEFAUT, PART_UNITE,
   badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
-  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, meilleureAgressivite,
+  joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, agressiviteDeLigne,
   MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
   PLANS_ADV, commentContrer, reglageDuPlan,
-  physiqueDe, physiqueLigne, bilanAgressivite,
-  chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
+  physiqueDe, physiqueLigne,
+  chimieLigne, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
+import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { ROULEMENTS, effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
@@ -941,8 +941,6 @@ const glaceMot = (g, u, court = false) => (g.mins ? `≈ ${mmss(g.mins[u])}${cou
 const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
 // Sous le pivot (CHIMIE_PIVOT), une chimie coûte au lieu de rapporter : le mot le dit (V2.2, les coûts cachés).
 const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= CHIMIE_PIVOT ? 'correcte' : 'naissante, elle coûte');
-/* L'entente et la maîtrise, de 0 à 1, en mots (S73). */
-export const motAppris = x => (x >= 0.75 ? 'solide' : x >= 0.45 ? 'bonne' : x >= 0.2 ? 'en route' : 'à bâtir');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
 
 const nomSys = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${esc(S.nom)}` : ''; };
@@ -953,11 +951,7 @@ const nomSys = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.i
  * chiffres, au prorata du fit), qui il étouffe et qui l'étouffe, ce qu'il
  * demande à chaque poste — et ce qu'il y a en face.
  */
-/* L'agressivité d'une ligne et le système d'une unité, en chiffres de match pour TON club : le moteur joue les deux versions (js/impact.js). */
-function chiffresAgressivite(lineup, lignes, u, agr) {
-  const c = clubLu();
-  return c && c.team ? agressiviteEnChiffres(c.team, lineup, c.adv || null, lignes, u, agr) : [];
-}
+/* Le système d'une unité, en chiffres de match pour TON club : le moteur joue les deux versions (js/impact.js). */
 function chiffresSysteme(lineup, lignes, u, groupe, cle) {
   const c = clubLu();
   return c && c.team ? systemeEnChiffres(c.team, lineup, c.adv || null, lignes, u, groupe, cle) : [];
@@ -1030,7 +1024,7 @@ function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = 
 }
 /**
  * spec : {
- *   titre, lineup (case → joueur), lignes [{ tac, tacD, agr, sec }] × 4, chimie [4], energie { clé: 0-100 },
+ *   titre, lineup (case → joueur), lignes [{ tac, tacD, sec }] × 4, energie { clé: 0-100 },
  *   adv: { nom, lignes [{ tac }] } | null, match: { importance, ad } | null,
  *   onAppliquer(lignes, match), onBanc() | null, sousTitre,
  *   usure(match, lignes) → { clé: jambes perdues ce soir } | absent
@@ -1091,13 +1085,8 @@ export function ouvrirLignes(spec) {
   // Dans une page du Club (1.0, R3 : `spec.dans`, `spec.fermer`) ou dans sa fenêtre.
   const m = spec.dans || $('lignesModal');
   if (!m) return;
-  /*
-   * LA CHIMIE DE CE SOIR (S73) : entente × maîtrise × fit, pour la tactique
-   * que tu choisis. Sans photo de l'apprentissage (avant la saison), la chimie
-   * que l'appelant a donnée.
-   */
-  const app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
-  const chimieDe = (u, l) => (app ? chimieLigne(app, spec.lineup, u, l) : (spec.chimie || [])[u] || 0);
+  // LA CHIMIE (V7) : le fit de la ligne, pour le système que tu choisis — elle ne s'apprend plus.
+  const chimieDe = (u, l) => chimieLigne(spec.lineup, u, l);
   const brouillon = spec.lignes.map(l => ({ ...l }));
   // La consigne porte la répartition attaque / défense (1.0, J2-11) : `ad` suit l'importance.
   const importance0 = spec.match ? (spec.match.importance || 'normale') : null;
@@ -1252,28 +1241,18 @@ export function ouvrirLignes(spec) {
       const id = identiteUnite(spec.lineup, groupe, u);
       const titre = `<div class="gl-sec-titre">Système ${groupe === 'D' ? 'de la paire' : 'du trio'}${id ? ` · <span class="ln-id">${id.ico} ${esc(id.nom)}</span>` : ''}</div>`;
       return titre + systemesHtml({ lineup: spec.lineup, lignes: brouillon, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
-        chimieDe: app ? k => chimieDe(u, { ...l, [groupe === 'D' ? 'tacD' : 'tac']: k }) : null });
+        chimieDe: k => chimieDe(u, { ...l, [groupe === 'D' ? 'tacD' : 'tac']: k }) });
     };
     const detail = `<section class="gl-ligne">
       <div class="gl-joueurs">${ROLES.map(r => joueurLigne(u, r)).join('')}</div>
       <div class="gl-etat">
         <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : fitLigneBrut == null ? 'À compléter' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : fitLigneBrut == null ? 'ligne incomplète' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
         <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l))}%"></span></span> <b>${motChimie(chimieDe(u, l))}</b></div>
-        ${app && !sansSysteme ? `<div class="gl-appris" title="La chimie s'apprend en gardant ses lignes, et ne se perd pas."><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise des systèmes : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span></div>` : ''}
       </div>
       ${choixDe('F')}
       ${u < 3 ? choixDe('D') : ''}
       <div class="gl-sec-titre">Agressivité · ${carrureLigne}</div>
-      <div class="gl-mot">🪨 Le physique paie aux costauds ; 🪶 les légers prennent des punitions.</div>
-      <div class="gl-seg">${AGRESSIVITES.map((A, i) => {
-        const b = bilanAgressivite(i, ph);
-        // V2.2 : la Moyenne est la RÉFÉRENCE des chiffres ; « par défaut », c'est ce que joue une ligne jamais réglée (`meilleureAgressivite`).
-        const verdict = i === 1 ? { txt: 'La référence', bon: null } : b.net > 0.006 ? { txt: '✓ Payant pour cette ligne', bon: true } : b.net < -0.006 ? { txt: '✗ Coûteux pour cette ligne', bon: false } : { txt: '≈ Neutre pour cette ligne', bon: null };
-        const defaut = i === meilleureAgressivite(spec.lineup, u) ? [{ txt: 'Par défaut', bon: null }] : [];
-        const effets = i === 1 ? [] : chiffresAgressivite(spec.lineup, brouillon, u, i);
-        return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}">
-        <b>${A.ico} ${esc(A.nom)}</b><span class="choix-puces">${puces([verdict, ...defaut, ...effets])}</span></button>`;
-      }).join('')}</div>
+      <div class="gl-mot">${agressiviteMot(spec.lineup, u)}</div>
     </section>`;
     m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
       ${tete}
@@ -1289,7 +1268,6 @@ export function ouvrirLignes(spec) {
     m.querySelectorAll('[data-ligne]').forEach(b => { b.onclick = () => { ouverte = Number(b.dataset.ligne); dessiner(); }; });
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[ouverte].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[ouverte].tacD = b.dataset.tacd; dessiner(); }; });
-    m.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => { brouillon[ouverte].agr = Number(b.dataset.agr); dessiner(); }; });
     m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; match.ad = AD_DE_CONSIGNE[match.importance] ?? 0; dessiner(); }; });
     m.querySelectorAll('[data-roulement]').forEach(b => { b.onclick = () => { roulement = b.dataset.roulement; dessiner(); }; });
     m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
@@ -1335,9 +1313,9 @@ void SLOTS;
    `ouvrirLignes` reste : la préparation d'avant-match (js/saison.js) a sa
    consigne et son dépistage, et c'est un moment à part.
 
-   spec : { lineup, lignes, chimie, apprentissage, adv: { nom, lignes } | null }
+   spec : { lineup, lignes, adv: { nom, lignes } | null }
    Rend { sommaire, corps } ; l'appelant pose le tiroir et branche ses
-   boutons ([data-tac], [data-tacd], [data-agr], .gl-sec). Le corps ne se
+   boutons ([data-tac], [data-tacd], .gl-sec). Le corps ne se
    calcule que pour un tiroir OUVERT (`ouvert`) : l'alignement se redessine
    à chaque signature, et huit fits × sept unités pour des tiroirs fermés,
    c'est du travail que personne ne lit.
@@ -1348,17 +1326,19 @@ void SLOTS;
    (`tacD`). Le corps commun est `systemesHtml`.
 */
 const NOMS_TRIO = ['1er trio', '2e trio', '3e trio', '4e trio'];
+/* L'AGRESSIVITÉ D'UNE LIGNE (V7) : celle de sa carrure, pas un menu — elle change avec ses joueurs. */
+function agressiviteMot(lineup, u) {
+  const A = AGRESSIVITES[agressiviteDeLigne(lineup, u)];
+  return `${A.ico} ${esc(A.nom)} : ses joueurs jouent selon leur carrure.`;
+}
 export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
-  // La photo de l'apprentissage, une fois par rendu pour les sept tiroirs.
-  if (spec._app === undefined) spec._app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
-  const app = spec._app;
   const D = groupe === 'D';
   const l = spec.lignes[u];
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const cle = SYS[D ? l.tacD : l.tac] ? (D ? l.tacD : l.tac) : 'hourra';
   const S = SYS[cle];
   // La chimie est celle de la LIGNE (trio et paire) : elle s'écrit sous le trio.
-  const chimie = patch => (app ? chimieLigne(app, spec.lineup, u, { ...l, ...patch }) : (spec.chimie || [])[u] || 0);
+  const chimie = patch => chimieLigne(spec.lineup, u, { ...l, ...patch });
   const fitBrut = S.slots ? fitUnite(spec.lineup, groupe, u, cle) : 0;
   // UNITÉ INCOMPLÈTE (1.0, J1-I) : ni fit, ni chimie, ni système — « À
   // compléter ». Un trio vide lisait « Échec avant 2-1-2 · Mauvais fit ».
@@ -1367,35 +1347,24 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const fit = fitBrut ?? 0;
   const classeFit = f => (f >= 55 ? ' bon' : f < 40 ? ' prix' : '');
 
-  // FERMÉ : une ligne. La chimie ne s'y écrit que derrière le banc — avant
-  // la saison, elle est « naissante » pour les quatre, et le dire quatre fois
-  // n'apprend rien.
+  // FERMÉ : une ligne.
   const sommaire = incomplete
     ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b></span><span class="ln-som-ouvre" aria-hidden="true"></span>`
-    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${!D && app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${!D ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
   const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, base: spec.base || null, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
-    chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
+    chimieDe: k => chimie({ [D ? 'tacD' : 'tac']: k }) });
   if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie et agressivité : avec le ${NOMS_TRIO[u]}.</div>` };
 
   const ph = physiqueLigne(spec.lineup, u);
   const carrure = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
-  const agr = AGRESSIVITES.map((A, i) => {
-    const b = bilanAgressivite(i, ph);
-    const verdict = `${i === 1 ? 'la référence' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre'}${i === meilleureAgressivite(spec.lineup, u) ? ' · par défaut' : ''}`;
-    const enVigueur = spec.base && (spec.base[u] || {}).agr === i;
-    const net = spec.base && !enVigueur ? netDuChoix(spec.lineup, spec.base, u, { agr: i }) : null;
-    return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b>${enVigueur ? '<small class="gl-net">en jeu</small>' : net != null ? motNet(net) : `<small>${verdict}</small>`}</button>`;
-  }).join('');
-  const effetsAgr = l.agr === 1 ? [] : chiffresAgressivite(spec.lineup, spec.lignes, u, l.agr);
   const avecPaire = u < 3 && !(l.tac === 'hourra' && l.tacD === 'hourra');
   const corps = `
     ${choix}
-    ${incomplete || (sansFit && !avecPaire) || fitDeLigne(spec.lineup, u, l) == null ? '' : `<div class="ln-etat"><span>Plafond de chimie${u < 3 ? ' (trio et paire)' : ''} : <b>${plafondChimie(chimieMax(fitDeLigne(spec.lineup, u, l)))}</b></span>${app ? `<span>Ce soir : <b>${motChimie(chimie({}))}</b></span><span>🤝 Entente : <b>${motAppris(ententeLigne(app, spec.lineup, u))}</b></span><span>📘 Maîtrise : <b>${motAppris(maitriseLigne(app, spec.lineup, u, l))}</b></span>` : ''}</div>`}
+    ${incomplete || (sansFit && !avecPaire) || fitDeLigne(spec.lineup, u, l) == null ? '' : `<div class="ln-etat"><span>Plafond de chimie${u < 3 ? ' (trio et paire)' : ''} : <b>${plafondChimie(chimieMax(fitDeLigne(spec.lineup, u, l)))}</b></span><span>Chimie : <b>${motChimie(chimie({}))}</b></span></div>`}
     <div class="gl-sec-titre">Agressivité · ${carrure}</div>
-    <div class="gl-seg gl-seg-court ln-agr">${agr}</div>
-    ${effetsAgr.length ? `<div class="choix-puces ln-agr-effets">${puces(effetsAgr)}</div>` : ''}
+    <div class="gl-mot">${agressiviteMot(spec.lineup, u)}</div>
 `;
   return { sommaire, corps };
 }
@@ -1406,18 +1375,17 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
  * trio est devenu une rangée qu'on touche : elle ouvre cette fenêtre, avec les
  * mêmes systèmes, le même fit, les mêmes chiffres. On essaie (rien ne
  * s'applique en touchant), puis « Appliquer » décide ; ✕ ou « Annuler » ne
- * change rien. `onAppliquer(ligne)` reçoit la ligne réglée (tac, tacD, agr, sec).
+ * change rien. `onAppliquer(ligne)` reçoit la ligne réglée (tac, tacD, sec).
  */
 const NOMS_PAIRE = ['1re paire', '2e paire', '3e paire'];
 export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
   const m = $('lignesModal');
   if (!m) return;
   const brouillon = spec.lignes.map(l => ({ ...l }));
-  const app = spec.apprentissage ? apprentissagePhoto(spec.apprentissage) : null;
   const titre = groupe === 'D' ? NOMS_PAIRE[u] : NOMS_TRIO[u];
   const fermer = () => { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
   function dessiner() {
-    const { corps } = strategieDeLigne({ ...spec, lignes: brouillon, base: spec.lignes, _app: app }, u, true, groupe);
+    const { corps } = strategieDeLigne({ ...spec, lignes: brouillon, base: spec.lignes }, u, true, groupe);
     m.innerHTML = `<div class="choix-sheet gl-sheet ln-fenetre" role="dialog" aria-modal="true" aria-label="Système du ${esc(titre)}" data-g="${groupe}" data-u="${u}">
       <div class="choix-tete">
         <span class="choix-ico">${groupe === 'D' ? '🛡️' : '🏒'}</span>
@@ -1429,7 +1397,6 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
     </div>`;
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[u].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[u].tacD = b.dataset.tacd; dessiner(); }; });
-    m.querySelectorAll('[data-agr]').forEach(b => { b.onclick = () => { brouillon[u].agr = Number(b.dataset.agr); dessiner(); }; });
     m.querySelectorAll('.gl-annuler').forEach(b => { b.onclick = fermer; });
     m.querySelector('.gl-appliquer').onclick = () => { fermer(); onAppliquer({ ...brouillon[u] }); };
   }

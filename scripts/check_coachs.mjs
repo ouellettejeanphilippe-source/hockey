@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, systemeDe, bonusDuCoach, fitUnite, activeLineup, coachDuJoueur, PALIER_DU_COACH } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, EVENEMENTS, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
-import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, GAIN_SYSTEME, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
+import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
 import { poserClubLu } from '../js/impact.js';
@@ -134,14 +134,15 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   exiger('sans coach choisi, la carte ne fait rien', sansCible === null);
 }
 
-/* 2b. Les systèmes se tiennent : la confiance II fait apprendre son système. */
+/* 2b. Les systèmes se tiennent : à la confiance II, son système joue un cran plus haut (V7 : rien à apprendre). */
 {
   const cartes = idsDuCoach('essaim').slice(0, 6);
   const decs = [];
   let ii = null;
   cartes.forEach((id, i) => { const d = { jour: i, joue: { src: 'partie', id } }; const a = palierAllume(decs, d); if (a && a.coach.palier === 2) ii = a; decs.push({ ...d, ...(a || {}) }); });
-  exiger('la confiance II du Frelon fait apprendre son système à tes avants', !!ii && ii.maitrise && ii.maitrise.tac === COACHS.essaim.systeme && ii.maitrise.gain === GAIN_SYSTEME,
-    ii ? JSON.stringify(ii.maitrise) : 'pas de confiance II');
+  exiger('la confiance II du Frelon fait jouer son système un cran plus haut, sans maîtrise à apprendre',
+    !!ii && !ii.maitrise && bonusDuCoach({ coachs: [ii.coach] }, COACHS.essaim.systeme) === PALIER_DU_COACH,
+    ii ? JSON.stringify(ii.coach) : 'pas de confiance II');
 }
 
 /* 2c. Le prestige du club : il ouvre les Étoiles et les Phénomènes, run après run. */

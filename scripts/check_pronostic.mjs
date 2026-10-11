@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D, AGRESSIVITES } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D } from '../js/sim.js';
 import { pronostic, conditions, chancesDesObjectifs, conseilsDuMatch } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
@@ -118,8 +118,8 @@ ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)}
     const x = L2.calendrier.slice(j).flat().find(y => y.A === toi || y.B === toi);
     const adv = x.A === toi ? x.B : x.A;
     const snap = t => (t.jourLignes || [])[j] || {};
-    // Une ligne mal réglée exprès (le 2e trio en énergie, rentre-dedans) : il doit y avoir quoi dire.
-    const lignes = lignesDe(toi, toi.roster, { duSoir: false }).map((l, u) => (u === 1 ? { ...l, tac: 'energie', agr: 3 } : l));
+    // Une ligne mal réglée exprès (le 2e trio en énergie) : il doit y avoir quoi dire.
+    const lignes = lignesDe(toi, toi.roster, { duSoir: false }).map((l, u) => (u === 1 ? { ...l, tac: 'energie' } : l));
     const cs = conseilsDuMatch({ lineup: toi.roster, lignes, fermeture: toi.fermeture, energie: snap(toi).energie || {},
       adv: { lignes: lignesDe(adv, adv.roster, { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
       forces: { moi: { attaque: { rang: 3, sur: 32 }, defense: { rang: 20, sur: 32 } }, lui: { attaque: { rang: 15, sur: 32 }, gardien: { rang: 30, sur: 32 } } }, consigne: null });
@@ -128,7 +128,7 @@ ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)}
       if (/\b(?:[odrcv]|sp)\s*[:=]\s*\d/.test(`${c.titre} ${c.pourquoi} ${c.chiffres.map(y => y.txt).join(' ')}`)) cotes++;
       if (c.genre === 'deja') continue;
       if (!c.lignes && c.fermeture == null && !c.match) { sansDecision++; continue; }
-      if (c.lignes && !(c.lignes.length === 4 && c.lignes.every((l, u) => TACTIQUES[l.tac] && (u === 3 || SYSTEMES_D[l.tacD]) && AGRESSIVITES[l.agr] && Number.isFinite(l.sec)))) invalides++;
+      if (c.lignes && !(c.lignes.length === 4 && c.lignes.every((l, u) => TACTIQUES[l.tac] && (u === 3 || SYSTEMES_D[l.tacD]) && Number.isFinite(l.sec)))) invalides++;
       vus.push({ j, c });
     }
   }

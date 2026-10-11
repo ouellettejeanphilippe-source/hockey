@@ -62,7 +62,7 @@ js/mouvement.js             le MOUVEMENT de l'interface (S77) : les chiffres qui
                             DOM, qui reste le vrai chiffre
 js/gerant.js                le POSTE DE GÉRANT (S68), en plein écran : un choix
                             (l'histoire, le joueur visé, des options chiffrées) et
-                            « Mes lignes » (tactiques, fit, chimie, agressivité,
+                            « Mes lignes » (tactiques, fit, chimie, carrure,
                             glace, énergie, tactique d'en face, consigne du match)
 js/direct.js                un match en direct, sur demande seulement : rejoue la
                             feuille d'un match dans le temps, plein écran
@@ -154,8 +154,8 @@ scripts/check_gros.mjs      les gros matchs (S70) : aucun dans une ligue sans jo
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison (S70)
 scripts/check_commentaire.mjs le commentateur du direct (S70) : gabarits, variété, graine
 scripts/check_tactiques.mjs les lignes à la HockeyArena (S68) : mal assortir et
-                            jouer sans système coûtent, aucune agressivité ni
-                            aucune glace ne décide la saison — mesuré EN PAIRES
+                            jouer sans système coûtent, aucune glace ne décide
+                            la saison, la carrure fait l'agressivité — EN PAIRES
 scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes : ce qui
                             règle `PROFIL_REF`
 scripts/check_plans.mjs     (S62, remplacé par check_tactiques depuis S68 : le

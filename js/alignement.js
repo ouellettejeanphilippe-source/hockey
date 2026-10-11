@@ -7,12 +7,12 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
+import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
-import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, motAppris, puces } from './gerant.js';
+import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
@@ -428,26 +428,24 @@ function puceOrigine(o, group) {
 
 /*
  * LES LIENS (V6, phase 3). JP : *trouver des synergies*. Entre deux voisins d'une unité, une pastille dit ce qui les
- * lie — 🤝 leur entente, 👬 de vrais coéquipiers, 🎽 la même franchise — et, touchée, ce que ce lien rapporte.
- * Rien qu'une lecture (`lienDePaire`, js/sim.js) : l'entente monte la chimie de la ligne, l'origine se paie par sa carte.
+ * lie — 👬 de vrais coéquipiers, 🎽 la même franchise — et, touchée, ce que ce lien rapporte.
+ * Rien qu'une lecture (`lienDePaire`, js/sim.js) : l'origine se paie par sa carte.
  */
-function liensEntre(app, a, b) {
-  const L = lienDePaire(app, a, b), out = [];
+function liensEntre(a, b) {
+  const L = lienDePaire(a, b), out = [];
   const court = p => String(p.n || '').trim().split(' ').pop();
   const qui = `${court(a)} et ${court(b)}`;
-  if (L.jouee >= 0.2) out.push(['🤝', `${qui} : entente ${motAppris(L.entente)}, ${Math.round(L.joues)} matchs ensemble. Elle monte la chimie de la ligne.`]);
-  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). Ils arrivent avec leur entente, qui monte la chimie de la ligne ; la carte 👬 Les vrais coéquipiers les paie en plus.`]);
+  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). La carte 👬 Les vrais coéquipiers les paie.`]);
   else if (L.famille) out.push(['🎽', `${qui} : la même franchise. La carte 🎽 La même famille les compte.`]);
   return out;
 }
 function poserLiens(row, slots) {
-  const app = G.banc && G.banc.apprentissage ? apprentissagePhoto(G.banc.apprentissage) : null;
   const cases = [...row.children];
   row.style.setProperty('--n', slots.length);
   const pastille = (i, j) => {
     const a = G.roster[slots[i].i], b = G.roster[slots[j].i];
     if (!a || !b || a.p === 'G' || b.p === 'G') return null;
-    const liens = liensEntre(app, a, b);
+    const liens = liensEntre(a, b);
     if (!liens.length) return null;
     const texte = liens.map(l => l[1]).join(' ');
     const el = document.createElement('button');
@@ -580,9 +578,9 @@ function noteDesUnites() {
  */
 function specStrategie() {
   const b = G.banc;
-  if (!b) return { lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), chimie: [0, 0, 0, 0], adv: null };
+  if (!b) return { lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), adv: null };
   return {
-    lineup: G.roster, lignes: b.lignes, chimie: b.chimie, apprentissage: b.apprentissage,
+    lineup: G.roster, lignes: b.lignes,
     adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
   };
 }
