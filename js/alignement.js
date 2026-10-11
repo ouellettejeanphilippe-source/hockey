@@ -434,8 +434,8 @@ function liensEntre(app, a, b) {
   const L = lienDePaire(app, a, b), out = [];
   const court = p => String(p.n || '').trim().split(' ').pop();
   const qui = `${court(a)} et ${court(b)}`;
-  if (L.entente >= 0.2) out.push(['🤝', `${qui} : entente ${motAppris(L.entente)}, ${Math.round(L.matchs)} matchs ensemble. Elle monte la chimie de la ligne.`]);
-  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). La carte 👬 Les vrais coéquipiers les paie.`]);
+  if (L.jouee >= 0.2) out.push(['🤝', `${qui} : entente ${motAppris(L.entente)}, ${Math.round(L.joues)} matchs ensemble. Elle monte la chimie de la ligne.`]);
+  if (L.coequipiers) out.push(['👬', `${qui} : coéquipiers pour vrai (${a.t} ${a.s}). Ils arrivent avec leur entente, qui monte la chimie de la ligne ; la carte 👬 Les vrais coéquipiers les paie en plus.`]);
   else if (L.famille) out.push(['🎽', `${qui} : la même franchise. La carte 🎽 La même famille les compte.`]);
   return out;
 }
@@ -443,11 +443,11 @@ function poserLiens(row, slots) {
   const app = G.banc && G.banc.apprentissage ? apprentissagePhoto(G.banc.apprentissage) : null;
   const cases = [...row.children];
   row.style.setProperty('--n', slots.length);
-  for (let i = 0; i + 1 < slots.length; i++) {
-    const a = G.roster[slots[i].i], b = G.roster[slots[i + 1].i];
-    if (!a || !b || a.p === 'G' || b.p === 'G') continue;
+  const pastille = (i, j) => {
+    const a = G.roster[slots[i].i], b = G.roster[slots[j].i];
+    if (!a || !b || a.p === 'G' || b.p === 'G') return null;
     const liens = liensEntre(app, a, b);
-    if (!liens.length) continue;
+    if (!liens.length) return null;
     const texte = liens.map(l => l[1]).join(' ');
     const el = document.createElement('button');
     el.type = 'button';
@@ -456,12 +456,23 @@ function poserLiens(row, slots) {
     el.title = texte;
     el.setAttribute('aria-label', texte);
     el.onclick = ev => { ev.stopPropagation(); toast(texte); };
+    return el;
+  };
+  for (let i = 0; i + 1 < slots.length; i++) {
+    const el = pastille(i, i + 1);
+    if (!el) continue;
     // Entre les deux cases : sous la première en rangée (le téléphone), sur l'écart des deux en colonnes.
     const place = document.createElement('span');
     place.className = 'lien-place';
     place.style.setProperty('--k', i + 1);
     place.appendChild(el);
     cases[i].after(place);
+  }
+  // LES DEUX AILIERS (JP : *pourquoi un LW et un RW peuvent pas avoir d'affinités ?*). Le moteur compte l'entente de
+  // chaque paire du trio, les ailiers aussi : leur pastille se pose sur la case du centre, qui est entre eux.
+  if (slots.length === 3) {
+    const el = pastille(0, 2);
+    if (el) { el.classList.add('lien-ailes'); cases[1].appendChild(el); }
   }
 }
 function lineEl(title, slots, group, unit, cls = '') {

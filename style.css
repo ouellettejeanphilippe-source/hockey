@@ -2299,6 +2299,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
   display: grid; place-items: center; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--noir);
   font: 700 var(--t-2)/1 var(--display); white-space: nowrap; cursor: pointer;
 }
+/* Les deux ailiers : sur la case du centre, qui est entre eux — en bas de la carte en colonnes, au bord du bandeau en rangée. */
+.slot > .lien-ailes { z-index: 3; left: 50%; top: auto; bottom: var(--esp-1); transform: translateX(-50%); }
 .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* ---- La case : le bandeau du club, le nom, le rôle et son mot, le niveau et la zone, le chiffre clé, les jambes ---- */
@@ -2620,6 +2622,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
   /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
   .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
   .lien-place { position: relative; top: auto; left: 54px; margin-top: -1px; }
+  .slot > .lien-ailes { left: 54px; top: 50%; bottom: auto; transform: translate(0, -50%); }
   .slot { flex-direction: row; align-items: stretch; min-height: 56px; border: 0; border-radius: 0; }
   .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; box-shadow: inset -2px 0 0 var(--slot-stripe, var(--club-2)); }
   .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }

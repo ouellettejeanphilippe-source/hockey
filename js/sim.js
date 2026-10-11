@@ -1458,7 +1458,10 @@ export function rolesBruts(p) {
   const brut = g === 'F' ? {
     sniper: melange([[0.5, zG], [0.3, zPCT], [0.2, zSH]]) + t('TIR'),
     passeur: melange([[0.6, zA], [0.25, zPPP], [0.15, zA == null || zG == null ? null : zA - zG]]) + t('CREATEUR', 'MENEUR'),
-    deuxsens: melange([[0.5, md], [0.3, zPT], [0.2, zSHP]]) + t('SELKE', 'BIDIR'),
+    // S109 (JP : *les attaquants défensifs doivent être reconnus même s'ils font pas beaucoup de points* ; *mettons
+    // 35 points et en dessous, attaquant défensif*) : la défense d'abord, et sous ATTAQUANT_DEFENSIF points au rythme
+    // de 82 matchs, la défense seule — un attaquant défensif ne se juge pas à ses points.
+    deuxsens: (attaquantDefensif(p) ? melange([[0.75, md], [0.25, zSHP]]) : melange([[0.65, md], [0.1, zPT], [0.25, zSHP]])) + t('SELKE', 'BIDIR'),
     power: melange([[0.35, zG], [0.3, mr], [0.2, zGB], [0.15, zHT ?? zPIM]]) + t('COLOSSE'),
     checker: melange([[0.4, zHT ?? mr], [0.35, md], [-0.25, zPT]]) + 0.5 * t('SELKE'),
     energie: melange([[0.35, zSH], [0.25, zHT ?? mr], [-0.4, zTOI ?? zPT]]) + t('VITESSE'),
@@ -1480,7 +1483,7 @@ export function rolesBruts(p) {
  * bagarreurs rares.
  */
 export const DECALAGE_ROLES = {
-  F: { sniper: -0.08, passeur: -0.1, deuxsens: 0, power: 0.2, checker: 0.07, energie: 0.06, bagarreur: -0.16 },
+  F: { sniper: -0.08, passeur: -0.1, deuxsens: -0.12, power: 0.2, checker: 0.07, energie: 0.06, bagarreur: -0.16 },
   D: { defensif: 0, offensif: 0.09, manieur: 0.11, physique: -0.38, deuxsens: 0.17 },
 };
 function profilsBase(p) {
@@ -1555,9 +1558,11 @@ export function origineUnite(lineup, groupe, u) {
  * et leur origine (les vrais coéquipiers, la même franchise, que les cartes d'origine paient). Une lecture, rien de neuf.
  */
 export function lienDePaire(app, a, b) {
-  const matchs = app ? app.entente(cleDePaire(a, b)) : 0;
+  // `joues` : leurs matchs ensemble chez toi ; `entente` compte aussi celle que de vrais coéquipiers apportent.
+  const joues = app ? app.entente(cleDePaire(a, b)) : 0;
+  const matchs = joues + (clubSaison(a) === clubSaison(b) ? ENTENTE_COEQUIPIERS : 0);
   return {
-    matchs, entente: 1 - Math.exp(-matchs / ENTENTE_MATCHS),
+    joues, entente: 1 - Math.exp(-matchs / ENTENTE_MATCHS), jouee: 1 - Math.exp(-joues / ENTENTE_MATCHS),
     coequipiers: clubSaison(a) === clubSaison(b), famille: franchiseDe(a) === franchiseDe(b),
   };
 }
@@ -1876,6 +1881,10 @@ export const EFFET_ROLE = { checker: 0.16, deuxsens: 0.08, defensif: 0.16, physi
 /* Passeur et manieur Platine : leur ligne joue son système comme si son fit valait BADGE_CHIMIE de plus (la chimie). */
 export const BADGE_CHIMIE = 12;
 export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
+const DEUXSENS_SANS_POINTS = 3;   // Or : voir `badgesCalcules`
+/* Un attaquant défensif (S109) : ATTAQUANT_DEFENSIF points ou moins au rythme de 82 matchs. Son Two-way se lit à sa défense seule. */
+const ATTAQUANT_DEFENSIF = 35;
+const attaquantDefensif = p => (p.pt ?? ((p.g || 0) + (p.a || 0))) / Math.max(1, p.gp || 1) * 82 <= ATTAQUANT_DEFENSIF;
 export const palierDe = (g, x) => { const S = SEUILS_PALIER[g]; return x >= S[2] ? 4 : x >= S[1] ? 3 : x >= S[0] ? 2 : 1; };
 /*
  * LES BADGES d'un joueur : son rôle premier, et le second s'il vaut
@@ -1914,6 +1923,18 @@ function badgesCalcules(p) {
   const [a, b] = Object.entries(pr).sort((x, y) => y[1] - x[1]);
   const second = b && b[1] >= BADGE_SECOND_MIN;
   let [p1, p2] = [palierDe(g, a[1]), second ? palierDe(g, b[1]) : 0];
+  // UN ATTAQUANT DÉFENSIF VA JUSQU'À OR (S109, JP : *juste or*) : sa défense seule le mène à Or ; le Platine du
+  // Two-way demande aussi des points.
+  if (g === 'F' && attaquantDefensif(p)) {
+    if (a[0] === 'deuxsens') p1 = Math.min(p1, DEUXSENS_SANS_POINTS);
+    else if (second && b[0] === 'deuxsens') p2 = Math.min(p2, DEUXSENS_SANS_POINTS);
+  }
+  // ET RECONNU (JP : *je veux juste que les attaquants défensifs soient reconnus*) : avant 1997, nos colonnes ne voient
+  // ni son temps de glace ni ses présences en désavantage ; un attaquant qui a des votes au Selke est donc au moins Or.
+  if (g === 'F' && traits.includes('SELKE')) {
+    if (a[0] === 'deuxsens') p1 = Math.max(p1, DEUXSENS_SANS_POINTS);
+    else if (second && b[0] === 'deuxsens') p2 = Math.max(p2, DEUXSENS_SANS_POINTS);
+  }
   const [n1, n2] = [p1, p2];
   if (monteBadge(p)) {
     const [x, y] = paliersEnPlus(p);
@@ -2365,11 +2386,19 @@ export function apprentissagePhoto(photo) {
   const e = (photo && photo.entente) || {}, m = (photo && photo.maitrise) || {};
   return { entente: k => e[k] || 0, maitrise: p => (p && m[getPlayerKey(p)]) || {} };
 }
+/*
+ * DE VRAIS COÉQUIPIERS ARRIVENT AVEC LEUR ENTENTE (V6, phase 3). JP : *tout le temps pour les coéquipiers*, puis
+ * « l'entente déjà faite ». Deux joueurs du même club la même saison ont joué ensemble pour vrai : leur paire part
+ * avec ENTENTE_COEQUIPIERS matchs d'entente, pour toi comme pour l'IA (ses clubs sont de vraies équipes). Ça pèse
+ * surtout tôt, le temps que les lignes mêlées apprennent ; rien de neuf : c'est l'entente de `chimieLigne`.
+ */
+const ENTENTE_COEQUIPIERS = ENTENTE_MATCHS;
+const matchsEnsemble = (app, a, b) => app.entente(cleDePaire(a, b)) + (clubSaison(a) === clubSaison(b) ? ENTENTE_COEQUIPIERS : 0);
 export function ententeLigne(app, lineup, u) {
   const js = joueursLigne(lineup, u);
   if (js.length < 2) return 0;
   let som = 0, n = 0;
-  for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) { som += 1 - Math.exp(-app.entente(cleDePaire(js[i], js[j])) / ENTENTE_MATCHS); n++; }
+  for (let i = 0; i < js.length; i++) for (let j = i + 1; j < js.length; j++) { som += 1 - Math.exp(-matchsEnsemble(app, js[i], js[j]) / ENTENTE_MATCHS); n++; }
   return som / n;
 }
 /* Une ligne en systèmes : `{ tac, tacD }`, ou la clé seule d'un système de trio (l'écran d'avant S79). */
@@ -7421,9 +7450,9 @@ export const MUTATIONS = {
    * s'additionne pas aux autres chaque soir ; sa face dit son moment en premier.
    */
   domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
-    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.8 },
+    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.83 },   // S108 : 0,8 → 0,83, l'entente des coéquipiers l'avait poussé au-dessus de la borne d'une peu (1,52 V, check_si)
   route: { nom: 'Le joueur de route', ico: '🛤️', cible: 'libre', source: 'atelier', si: 'visiteur',
-    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.2, finition: 1.2 },
+    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.22, finition: 1.22 },   // S109 : 1,2 → 1,22, le 1er centre qu'elle vise par défaut tire moins depuis que le Two-way lit la défense (0,08 à 0,11 but, borne 0,1, check_si)
   printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
     quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
   /*
