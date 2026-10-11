@@ -458,19 +458,19 @@ export const ARCHETYPES = {
   SNIPER:        { label: 'Franc-tireur / Marqueur',   short: 'Franc-tireur',    icon: '🎯', desc: 'Lancer foudroyant et finition d\'élite' },
   PLAYMAKER:     { label: 'Fabricant de jeu',          short: 'Fabricant',       icon: '🎨', desc: 'Distribue la rondelle avec précision' },
   POWER_FWD:     { label: 'Attaquant de puissance',    short: 'Puissance',       icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
-  TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '⚖️', desc: 'Responsable dans les deux sens de la patinoire' },
+  TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '⚖', desc: 'Responsable dans les deux sens de la patinoire' },
   ENERGY:        { label: 'Plombier',                  short: 'Plombier',        icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
   SKILLED_FWD:   { label: 'Attaquant offensif',        short: 'Offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
   CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🏃', desc: 'Profondeur et ardeur au travail' },
   // Défenseurs
   OFF_D:         { label: 'Défenseur offensif',        short: 'Offensif',        icon: '🚀', desc: 'Première passe, tir frappé et avantage numérique' },
-  DEF_D:         { label: 'Défenseur physique',        short: 'Physique',        icon: '🛡️', desc: 'Jeu physique et protection du territoire' },
+  DEF_D:         { label: 'Défenseur physique',        short: 'Physique',        icon: '🛡', desc: 'Jeu physique et protection du territoire' },
   STAY_D:        { label: 'Défenseur défensif',        short: 'Défensif',        icon: '🔒', desc: 'Sécurité et désavantage numérique' },
   TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
   CHECKER_D:     { label: 'Défenseur de profondeur',   short: 'Profondeur',      icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
   // Gardiens
   // 1.0 (C1) : un gardien se lit par ce seul mot ; ni l'icône d'un trophée (🧱 Norris, 🥅 Vezina, ⚡ Vitesse), ni un mot de niveau (« Régulier »).
-  WALL:          { label: 'Gardien mur',               short: 'Mur',             icon: '🏔️', desc: '% d\'arrêts et moyenne d\'élite' },
+  WALL:          { label: 'Gardien mur',               short: 'Mur',             icon: '🏔', desc: '% d\'arrêts et moyenne d\'élite' },
   ACROBAT:       { label: 'Gardien acrobatique',       short: 'Acrobate',        icon: '🤸', desc: 'Réflexes et arrêts spectaculaires' },
   WORKHORSE:     { label: 'Gardien de fer',            short: 'De fer',          icon: '🦾', desc: 'Grosse charge de travail' },
   HYBRID_G:      { label: 'Gardien constant',          short: 'Constant',        icon: '🧍', desc: 'Style fiable et constant' },
@@ -1303,7 +1303,7 @@ function finalizeSeason(players, season, opts = {}) {
   valeurDeSaison(players, season, games);
   // Le contexte de création lit la valeur (pour ranger les trios) : après.
   contexteDeCreation(players, season);
-  // Les deux mesures que la carte porte (🛡️ Défensif, 🪨 Robuste) et que les
+  // Les deux mesures que la carte porte (🛡 Défensif, 🪨 Robuste) et que les
   // traits lisent pour ne rendre que dans les grosses saisons : `md` et `mr`,
   // les centiles de défensive et de robustesse parmi les réguliers de la
   // saison et de la position (voir mesuresDeSaison). Publics : ce sont des

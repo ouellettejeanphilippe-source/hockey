@@ -263,7 +263,7 @@ function slotEl(s) {
     const lancee = G.banc && G.banc.lancees ? G.banc.lancees.get(p) : null;
     const lanceeTag = !lancee ? '' : lancee === 'doute'
       ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
-      : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄️ Vive' : 'Lancée'}</span>`;
+      : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄ Vive' : 'Lancée'}</span>`;
     /* HORS POSTE, EN MOTS (JP : *−3, ça veut dire quoi ? Ya même pas de overall aux joueurs*). Le chiffre de la
        pénalité est sur l'échelle des cotes, qu'aucun écran ne montre : la case porte ↔, le signe du jeu pour
        « hors de sa position » (js/gerant.js), et l'infobulle dit s'il s'y adapte, sans chiffre. */
@@ -422,7 +422,7 @@ function puceOrigine(o, group) {
   if (o.ligneOrigine) mots.push(['🧩', group === 'D' ? 'Paire d\'origine' : 'Ligne d\'origine', 'Tous du même club, la même saison : la carte « La ligne d\'origine » la paie.']);
   else if (o.coequipiers) mots.push(['👬', 'Coéquipiers', 'Deux vrais coéquipiers (même club, même saison) : la carte « Les vrais coéquipiers » les paie.']);
   if (!o.ligneOrigine && o.famille) mots.push(['🎽', 'Même franchise', 'Tous de la même franchise, d\'une époque ou d\'une autre : « La même famille » et « La dynastie de club » la comptent.']);
-  if (o.decennie != null && mots.length < 2) mots.push(['🕰️', `Années ${String(o.decennie).slice(2)}`, 'Trois joueurs de la même décennie : la carte « La décennie » les paie.']);
+  if (o.decennie != null && mots.length < 2) mots.push(['🕰', `Années ${String(o.decennie).slice(2)}`, 'Trois joueurs de la même décennie : la carte « La décennie » les paie.']);
   return mots.slice(0, 2).map(([ico, mot, titre]) => `<span class="line-orig" title="${esc(titre)}">${ico} ${esc(mot)}</span>`).join('');
 }
 
@@ -490,11 +490,11 @@ function lineEl(title, slots, group, unit, cls = '') {
      * lignes ». Il dit si ses joueurs sont à leur place ; la paire aussi.
      * La tactique et le fit ne s'y écrivent plus depuis S78 : ils ont leur
      * tiroir sous le trio (`strategieDeLigne`), et l'en-tête les répétait —
-     * coupés, en plus, à 1 280 px (« ⚠️ un joueur ma… »).
+     * coupés, en plus, à 1 280 px (« ⚠ un joueur ma… »).
      */
     const syn = getUnitSynergy(G.roster, group, unit);
     const filled = slots.filter(s => G.roster[s.i]).length;
-    const place = syn.zoneEtat === 'optimal' ? '✨ à leur place' : syn.zoneEtat === 'hors' ? '🚨 hors de leurs lignes' : syn.zoneEtat === 'mal' ? '⚠️ un joueur mal placé' : '';
+    const place = syn.zoneEtat === 'optimal' ? '✨ à leur place' : syn.zoneEtat === 'hors' ? '🚨 hors de leurs lignes' : syn.zoneEtat === 'mal' ? '⚠ un joueur mal placé' : '';
     if (filled === slots.length) {
       const kind = syn.zoneEtat === 'optimal' ? 'good' : syn.zoneEtat ? 'bad' : '';
       if (kind) wrap.classList.add(kind);
@@ -621,8 +621,8 @@ function ouvrirReglage(unit, groupe) {
  */
 const AU_MIEUX = [
   { cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Chacun à son poste et dans sa zone, des trios qui jouent un système ensemble.' },
-  { cle: 'offensif', ico: '⚔️', nom: 'Offensif', sous: 'Tes marqueurs en haut, et les systèmes qui tirent.' },
-  { cle: 'defensif', ico: '🛡️', nom: 'Défensif', sous: 'Tes défensifs en haut, et les systèmes qui ferment.' },
+  { cle: 'offensif', ico: '⚔', nom: 'Offensif', sous: 'Tes marqueurs en haut, et les systèmes qui tirent.' },
+  { cle: 'defensif', ico: '🛡', nom: 'Défensif', sous: 'Tes défensifs en haut, et les systèmes qui ferment.' },
   { cle: 'trios', ico: '👥', nom: 'Seulement les trios', sous: 'Les meilleurs à chaque case ; tes systèmes ne bougent pas.' },
   { cle: 'systemes', ico: '📋', nom: 'Seulement les systèmes', sous: 'Le système qui va à chaque ligne ; tes joueurs ne bougent pas.' },
 ];

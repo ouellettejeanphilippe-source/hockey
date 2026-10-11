@@ -578,7 +578,7 @@ export function getUnitSynergy(roster, group, unit) {
      * quatrième trio (qui coûte le tiers de la production de l'unité).
      *
      * `etat` est là pour que l'écran n'ait pas à reconnaître un émoji : le
-     * tableau de bord comptait `zone.startsWith('⚠️')`, donc une étiquette
+     * tableau de bord comptait `zone.startsWith('⚠')`, donc une étiquette
      * de plus lui aurait fait rater EXACTEMENT les pires unités, en silence.
      */
     const dur = pen >= ZONE_DUR;
@@ -586,7 +586,7 @@ export function getUnitSynergy(roster, group, unit) {
       off: -pen, def: -penDef, etat: dur ? 'hors' : 'mal',
       tag: dur
         ? (group === 'F' ? '🚨 Trio hors de ses lignes' : '🚨 Paire hors de ses lignes')
-        : (group === 'F' ? '⚠️ Trio mal assorti' : '⚠️ Paire mal assortie'),
+        : (group === 'F' ? '⚠ Trio mal assorti' : '⚠ Paire mal assortie'),
     };
   }
 
@@ -1146,7 +1146,7 @@ export const CARTES = {
     robustesse: 1.8, discipline: 1.25, finition: 0.96,
   },
   physio: {
-    nom: 'Le préparateur physique', ico: '🏋️',
+    nom: 'Le préparateur physique', ico: '🏋',
     bon: 'Moins de blessures', prix: 'Des pratiques moins intenses : moins de lancers',
     blessure: 0.35, volume: 0.955,
   },
@@ -1376,12 +1376,12 @@ export function partsDuRoulement(base, group, team) {
  * complètent. Chaque rôle vaut 0 à 100 ; le premier est le RÔLE du joueur,
  * le second s'affiche s'il vaut 60 et plus.
  */
-/* Une icône par chose : un rôle ne porte ni l'icône d'un trait (🪄 Créateur, 🔁 Bidirectionnel, 🛡️ Selke, ⚡ Vitesse, 🥊 Colosse, 🧱 Norris) ni celle d'un système. */
+/* Une icône par chose : un rôle ne porte ni l'icône d'un trait (🪄 Créateur, 🔁 Bidirectionnel, 🛡 Selke, ⚡ Vitesse, 🥊 Colosse, 🧱 Norris) ni celle d'un système. */
 export const PROFILS = {
   F: {
     sniper: { nom: 'Sniper', ico: '🎯', mot: 'ses buts par match, son % de tir, ses lancers' },
-    passeur: { nom: 'Passeur', ico: '🅰️', mot: 'ses passes par match, ses points en avantage' },
-    deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, son infériorité' },
+    passeur: { nom: 'Passeur', ico: '🅰', mot: 'ses passes par match, ses points en avantage' },
+    deuxsens: { nom: 'Two-way', ico: '☯', mot: 'sa défensive mesurée ET sa production, son infériorité' },
     // `court` : le nom qui tient dans une case de l'alignement (cent pixels) ; les autres tiennent déjà.
     power: { nom: 'Power forward', court: 'Power', ico: '🦍', mot: 'ses buts, sa robustesse mesurée, son gabarit' },
     checker: { nom: 'Checker', ico: '🔧', mot: 'ses mises en échec (sa robustesse avant 2005), sa défensive, peu de points' },
@@ -1394,7 +1394,7 @@ export const PROFILS = {
     offensif: { nom: 'Offensif', ico: '🚀', mot: 'ses points, ses buts, ses lancers' },
     manieur: { nom: 'Manieur de rondelle', court: 'Manieur', ico: '🏒', mot: 'ses passes, ses minutes, ses points en avantage' },
     physique: { nom: 'Physique', ico: '💪', mot: 'sa robustesse mesurée, ses mises en échec, son gabarit' },
-    deuxsens: { nom: 'Two-way', ico: '☯️', mot: 'sa défensive mesurée ET sa production, ses minutes' },
+    deuxsens: { nom: 'Two-way', ico: '☯', mot: 'sa défensive mesurée ET sa production, ses minutes' },
   },
 };
 /* Les trois colonnes brutes, SANS situation ni trait ni énergie (sonde_aptitudes.mjs). */
@@ -1631,7 +1631,7 @@ export const TACTIQUES = {
     gain: { finition: 1.089 }, prix: { volume: 0.943 },
   },
   bleue: {
-    nom: 'Volume de tirs', ico: '🌧️', bat: 'defensive',
+    nom: 'Volume de tirs', ico: '🌧', bat: 'defensive',
     slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
     mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
     gain: { volume: 1.157 }, prix: { finition: 0.954 },
@@ -1741,8 +1741,8 @@ export function effetsDeSysteme(S, fit) {
  * légère, c'est l'inverse.
  */
 export const AGRESSIVITES = [
-  { nom: 'Prudente', ico: '🕊️', energie: 0.98, physique: 0.0, def: -0.04, pun: -0.15 },
-  { nom: 'Moyenne', ico: '⚖️', energie: 1.00, physique: 0.4, def: 0, pun: 0 },
+  { nom: 'Prudente', ico: '🕊', energie: 0.98, physique: 0.0, def: -0.04, pun: -0.15 },
+  { nom: 'Moyenne', ico: '⚖', energie: 1.00, physique: 0.4, def: 0, pun: 0 },
   { nom: 'Musclée', ico: '💥', energie: 1.04, physique: 0.7, def: 0.035, pun: 0.15 },
   { nom: 'Rentre-dedans', ico: '🪓', energie: 1.09, physique: 0.9, def: 0.07, pun: 0.30 },
 ];
@@ -2151,8 +2151,8 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
 export const IMPORTANCES = {
   basse: { nom: 'Basse', ico: '😌', mot: 'on se ménage', finition: 0.97, defense: 1.02, energie: 0.8 },
   // 1.0 (C1) : une icône par sens — 🏒 est le manieur de rondelle, 🔥 l'échec avant.
-  normale: { nom: 'Normale', ico: '🎚️', mot: 'un match comme un autre' },
-  haute: { nom: 'Haute', ico: '🌡️', mot: 'on joue ça comme un match des séries', finition: 1.03, defense: 0.97, blessure: 1.25, energie: 1.12 },
+  normale: { nom: 'Normale', ico: '🎚', mot: 'un match comme un autre' },
+  haute: { nom: 'Haute', ico: '🌡', mot: 'on joue ça comme un match des séries', finition: 1.03, defense: 0.97, blessure: 1.25, energie: 1.12 },
 };
 /*
  * UN SEUL RÉGLAGE (1.0, J2-11) : la consigne porte aussi la répartition
@@ -2589,7 +2589,7 @@ export const STYLES = {
   offensif: { nom: 'Offensif', ico: '🎯', mot: 'Ils marquent beaucoup', contre: 'trappe' },
   defensif: { nom: 'Défensif', ico: '🧱', mot: 'Ils ferment le jeu', contre: 'echec' },
   robuste: { nom: 'Robuste', ico: '🥊', mot: 'Ils frappent tout ce qui bouge', contre: 'surnombre' },
-  equilibre: { nom: 'Équilibré', ico: '⚖️', mot: 'Rien ne dépasse', contre: null },
+  equilibre: { nom: 'Équilibré', ico: '⚖', mot: 'Rien ne dépasse', contre: null },
 };
 const STYLE_SEUIL = 0.35;
 
@@ -2702,7 +2702,7 @@ export const MOMENTS = {
     ],
   },
   malarchuk: {
-    ico: '🕯️', titre: 'Un accident terrible', irl: 'Buffalo, 1989', cible: 'gardien',
+    ico: '🕯', titre: 'Un accident terrible', irl: 'Buffalo, 1989', cible: 'gardien',
     recit: 'Un patin tranche la gorge de {nom} pendant le match. Il survit grâce au soigneur, mais les deux vestiaires sont sous le choc. Aucun bon choix ici.',
     // S80 : ton gardien s\'est vraiment blessé à ton dernier match.
     faits: c => (c.dernier && c.dernier.gardienBlesse ? { joueur: c.dernier.gardienBlesse } : null),
@@ -2757,7 +2757,7 @@ export const MOMENTS = {
     ],
   },
   tortorella: {
-    ico: '🎙️', titre: 'L\'entraîneur pète une coche', irl: 'Inspiré de plusieurs points de presse',
+    ico: '🎙', titre: 'L\'entraîneur pète une coche', irl: 'Inspiré de plusieurs points de presse',
     recit: 'Ton entraîneur insulte un journaliste en direct et promet que « ça va changer ». La vidéo fait le tour du continent.',
     options: [
       { cle: 'appuyer', nom: 'L\'appuyer', bon: 'Si le vestiaire embarque, ça brasse', prix: 'Sinon, ça dégénère en punitions',
@@ -2766,7 +2766,7 @@ export const MOMENTS = {
     ],
   },
   tempete: {
-    ico: '🌨️', titre: 'La tempête de neige', irl: 'Buffalo, 2014',
+    ico: '🌨', titre: 'La tempête de neige', irl: 'Buffalo, 2014',
     recit: 'Deux mètres de neige. L\'avion ne décolle pas, et le match est dans deux jours à l\'autre bout du continent. Les deux options font mal : laquelle moins ?',
     options: [
       { cle: 'autobus', nom: 'Vingt heures d\'autobus', prix: 'Toute l\'équipe arrive épuisée', action: { energieTous: -15 } },
@@ -2821,7 +2821,7 @@ export const MOMENTS = {
    * qui porte `mutation` le change pour le reste de la saison.
    */
   camp: {
-    ico: '🏕️', titre: 'Le camp de mi-saison', irl: null,
+    ico: '🏕', titre: 'Le camp de mi-saison', irl: null,
     recit: 'La pause du Match des étoiles : trois jours d\'entraînement. Qui travaille quoi ?',
     // S80 : à la mi-saison seulement, quand la pause arrive vraiment.
     faits: c => (c.J >= 38 && c.J <= 55 ? {} : null),
@@ -2839,7 +2839,7 @@ export const MOMENTS = {
     ],
   },
   patinage: {
-    ico: '⛸️', titre: 'L\'entraîneur de patinage', irl: null,
+    ico: '⛸', titre: 'L\'entraîneur de patinage', irl: null,
     recit: 'Une ancienne patineuse olympique offre ses services pour la saison. Elle ne prend qu\'un élève : {nom}.',
     options: [
       { cle: 'oui', nom: 'Oui, pour {nom}', mutation: 'patin', bon: 'Il arrivera avant la rondelle' },
@@ -2920,7 +2920,7 @@ export const MOMENTS = {
     ],
   },
   minutes: {
-    ico: '⏱️', titre: 'La paire qui ne descend plus', irl: null, regle: true,
+    ico: '⏱', titre: 'La paire qui ne descend plus', irl: null, regle: true,
     recit: 'Le règlement ne limite pas les minutes. Ton adjoint, lui, dit que vingt-huit minutes par défenseur, c\'est déjà trop.',
     options: [
       { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
@@ -3097,15 +3097,15 @@ export const PALIERS_CARTES = [20, 40, 60];
  */
 export const SORTES_DECK = {
   effet: { ico: '🃏', nom: 'Carte d\'effet', mot: 'Un effet pour le reste de la saison' },
-  recrue: { ico: '🎟️', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
-  amelioration: { ico: '⬆️', nom: 'Amélioration', mot: 'Une amélioration à poser au verso d\'un de tes joueurs' },
+  recrue: { ico: '🎟', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
+  amelioration: { ico: '⬆', nom: 'Amélioration', mot: 'Une amélioration à poser au verso d\'un de tes joueurs' },
   profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de rôle' },
   // LE MÉNAGE (S74) : une carte de moins dans le deck de match (js/combat.js) — l'autre moitié d'un deckbuilder.
-  menage: { ico: '🗑️', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
+  menage: { ico: '🗑', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
   // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck de match devient sa version « + ».
-  camp: { ico: '🏋️', nom: 'Le camp d\'entraînement', mot: 'Améliore une carte de ton deck de match' },
+  camp: { ico: '🏋', nom: 'Le camp d\'entraînement', mot: 'Améliore une carte de ton deck de match' },
   // L'ATELIER (S78) : éditer un joueur — son poste, ses trios possibles, ses malus, sa carte.
-  atelier: { ico: '🛠️', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
+  atelier: { ico: '🛠', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
 };
 export function mainDuDeck(graine, jour, prises = []) {
   const effet = mainDeCartes(graine, jour, prises)[0];
@@ -3283,7 +3283,7 @@ export const SITUATIONS = {
 
   /* ---------- LES PESÉS : tirés du haut de l'effectif ---------- */
   panne: {
-    nom: 'La panne sèche', ico: '🌧️', sens: -1,
+    nom: 'La panne sèche', ico: '🌧', sens: -1,
     mot: 'Il génère autant, et plus rien ne rentre.',
     quoi: 'Sa finition s\'effondre',
     finition: 0.70,
@@ -3295,7 +3295,7 @@ export const SITUATIONS = {
     lancers: 0.82, finition: 0.88,
   },
   rumeur: {
-    nom: 'Son nom circule', ico: '🗞️', sens: -1,
+    nom: 'Son nom circule', ico: '🗞', sens: -1,
     mot: 'Il lit les mêmes rumeurs que tout le monde.',
     quoi: 'Il joue pour lui : sa création tombe',
     creation: 0.67, finition: 0.925,
@@ -3325,7 +3325,7 @@ export const SITUATIONS = {
    * suit donc le partage des départs, pas la symétrie apparente.
    */
   passoire: {
-    nom: 'La passoire', ico: '🕳️', sens: -1, gardiens: true,
+    nom: 'La passoire', ico: '🕳', sens: -1, gardiens: true,
     mot: 'Le premier lancer entre, et la soirée est longue.',
     quoi: 'Ton PARTANT est plus facile à battre',
     gardien: 1.040,
@@ -3970,7 +3970,7 @@ export const GARDIEN_SUITE_LIBRE = 3, GARDIEN_JAMBES_PAS = 5, GARDIEN_USURE = 0.
  * de la ligue de sa saison (SEUILS_PALIER_G : Bronze sous le 60e centile des gardiens de quinze départs,
  * Argent au 60e, Or au 85e, Platine au 96e — la même échelle que les patineurs) ; De fer, sa part des matchs. Le style ne se lisait que
  * sur table ; la saison le lit enfin, chacun dans un canal que son % d'arrêts ne porte pas :
- *   🏔️ Mur        les lancers à forces égales (EFFET_GARDIEN.mur)
+ *   🏔 Mur        les lancers à forces égales (EFFET_GARDIEN.mur)
  *   🤸 Acrobate   les lancers quand son club est en désavantage numérique
  *   🧍 Constant   les lancers des séries
  *   🦾 De fer     ses jambes : un départ de suite de plus sans s'user à l'Or, deux au Platine
@@ -3980,7 +3980,7 @@ export const GARDIEN_SUITE_LIBRE = 3, GARDIEN_JAMBES_PAS = 5, GARDIEN_USURE = 0.
  * (jusqu'en avril), De fer au Doc (les jambes).
  */
 export const BADGES_G = {
-  mur: { nom: 'Mur', ico: '🏔️', mot: 'son % d\'arrêts, grand et sur un vrai échantillon', coach: 'tortue' },
+  mur: { nom: 'Mur', ico: '🏔', mot: 'son % d\'arrêts, grand et sur un vrai échantillon', coach: 'tortue' },
   acrobate: { nom: 'Acrobate', ico: '🤸', mot: 'son % d\'arrêts sous une grosse charge de lancers', coach: 'choeur' },
   constant: { nom: 'Constant', ico: '🧍', mot: 'son % d\'arrêts, sans charge ni écart extrême', coach: 'rhinos' },
   fer: { nom: 'De fer', ico: '🦾', mot: 'ses départs : il joue tous les soirs', coach: 'souffle' },
@@ -4006,7 +4006,7 @@ export function badgeGardien(g) {
 }
 /* Ce que son badge fait à ses arrêts dans une situation (`mode` : FE, AN, DN ; `series` ; `charge` : les lancers attendus ce
  * soir sur ceux d'un soir moyen) : un facteur sur les buts accordés, centré sur la ligue.
- *   🏔️ Mur        les lancers à forces égales ;
+ *   🏔 Mur        les lancers à forces égales ;
  *   🤸 Acrobate   les soirs chargés : à forces égales et à court d'un homme, en proportion des lancers qu'on lui promet ;
  *   🧍 Constant   chaque soir, à CONSTANT_SAISON de son effet, et en entier en séries.
  * La molette `BADGE_G=0` le retire, pour la PREUVE seulement (`check_gardiens` : la même ligue, mêmes dés, avec et sans). */
@@ -7310,7 +7310,7 @@ export const MUTATIONS = {
    */
   domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
     quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.83 },   // S108 : 0,8 → 0,83, l'entente des coéquipiers l'avait poussé au-dessus de la borne d'une peu (1,52 V, check_si)
-  route: { nom: 'Le joueur de route', ico: '🛤️', cible: 'libre', source: 'atelier', si: 'visiteur',
+  route: { nom: 'Le joueur de route', ico: '🛤', cible: 'libre', source: 'atelier', si: 'visiteur',
     quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.22, finition: 1.22 },   // S109 : 1,2 → 1,22, le 1er centre qu'elle vise par défaut tire moins depuis que le Two-way lit la défense (0,08 à 0,11 but, borne 0,1, check_si)
   printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
     quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
@@ -7319,7 +7319,7 @@ export const MUTATIONS = {
    * lancée ne touche qu'un joueur sur vingt, un soir sur vingt. Ensemble, sur un trio qui marque, et avec le vendeur
    * de chandails (js/banque.js) : le feu prend, tient, se propage et paie.
    */
-  etincelle: { nom: 'L\'étincelle', ico: '☄️', cible: 'libre', source: 'atelier', feu: 'etincelle',
+  etincelle: { nom: 'L\'étincelle', ico: '☄', cible: 'libre', source: 'atelier', feu: 'etincelle',
     quoi: 'Sa lancée part plus vite et brûle plus fort : trois buts en six matchs l\'allument, quel que soit son rythme.' },
   braise: { nom: 'La braise', ico: '🪔', cible: 'libre', source: 'atelier', feu: 'braise',
     quoi: 'Sa lancée ne s\'éteint pas : allumée, elle tient tant qu\'il marque une fois en trois matchs.' },
@@ -7363,10 +7363,10 @@ export const MUTATIONS = {
   baton: { nom: 'Nouveau bâton, nouveau lancer', ico: '🏒', cible: 'hasard', source: 'accident',
     quoi: 'Un nouveau modèle de bâton, et son lancer a pris dix kilomètres-heure.',
     profils: { sniper: 10, offensif: 15 }, finition: 1.05 },
-  doute: { nom: 'Confiance ébranlée', ico: '🌧️', cible: 'hasard', source: 'accident',
+  doute: { nom: 'Confiance ébranlée', ico: '🌧', cible: 'hasard', source: 'accident',
     quoi: 'Hué dans son propre aréna : il ne tente plus rien.',
     profils: { sniper: -15, passeur: -10 }, finition: 0.93 },
-  pere: { nom: 'Il joue pour son père', ico: '🕊️', cible: 'hasard', source: 'accident',
+  pere: { nom: 'Il joue pour son père', ico: '🕊', cible: 'hasard', source: 'accident',
     quoi: 'Son père est au plus mal : il joue chaque présence comme la dernière.',
     profils: { power: 10, passeur: 10 }, lancers: 1.05, finition: 1.03 },
   /*
@@ -7383,16 +7383,16 @@ export const MUTATIONS = {
   style_locomotive: { nom: 'Style : locomotive', ico: '🚂', cible: 'libre', source: 'style', quoi: 'Il part avant la rondelle et arrive avant tout le monde.', profils: { energie: 12 }, lancers: 1.11 },
   style_chasseur: { nom: 'Style : chasseur', ico: '🐺', cible: 'libre', source: 'style', quoi: 'Il écrase le porteur et repart avec la rondelle.', profils: { power: 10, physique: 10 }, lancers: 1.066, finition: 1.044 },
   style_architecte: { nom: 'Style : architecte', ico: '📐', cible: 'libre', source: 'style', quoi: 'Chaque présence est un plan dessiné au tableau.', profils: { passeur: 12, manieur: 12 }, creation: 1.09, finition: 1.036 },
-  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡️', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15, deuxsens: 10 }, defense: 0.94 },
+  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15, deuxsens: 10 }, defense: 0.94 },
   style_canonnier: { nom: 'Style : canonnier', ico: '💣', cible: 'libre', source: 'style', quoi: 'Il décoche de la ligne bleue à chaque remise.', profils: { offensif: 15 }, lancers: 1.108 },
   style_buteur: { nom: 'Style : buteur né', ico: '👑', cible: 'libre', source: 'style', quoi: 'Il sent le but comme d\'autres sentent la pluie.', profils: { sniper: 20 }, finition: 1.112, lancers: 1.032 },
   style_pieuvre: { nom: 'Style : pieuvre', ico: '🐙', cible: 'libre', source: 'style', gardien: true, quoi: 'Des bras et des jambières partout dans le demi-cercle.', arrets: 0.955, blessure: 0.8 },
   masque_neuf: { nom: 'Le masque neuf', ico: '🎭', cible: 'libre', source: 'style', gardien: true, quoi: 'Un masque peint à ses couleurs : il se sent invincible.', arrets: 0.964 },
   baton_neuf: { nom: 'Le bâton neuf', ico: '🏒', cible: 'libre', source: 'style', quoi: 'La bonne courbe, enfin.', profils: { sniper: 5 }, finition: 1.075 },
   contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
-  contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋️', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
+  contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
   contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.09, creation: 1.054, blessure: 1.3 },
-  contrat_leader: { nom: 'Le « C » cousu', ico: '©️', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
+  contrat_leader: { nom: 'Le « C » cousu', ico: '©', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
   style_courbe: { nom: 'Style : la courbe', ico: '📏', cible: 'libre', source: 'style', quoi: 'La courbe que le gabarit n\'aime pas : le lancer trompe, il passe moins.', profils: { sniper: 10, passeur: -6 }, finition: 1.088, creation: 0.956 },
   style_accrocheur: { nom: 'Style : l\'accrocheur', ico: '🪝', cible: 'libre', source: 'style', quoi: 'Il retient le bâton dans les coins, comme avant la règle. Moins de jeux, moins de lancers.', profils: { checker: 10, defensif: 8 }, defense: 0.949, lancers: 0.934 },
   style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.928,
@@ -8204,7 +8204,7 @@ export const AVANT_GROS = {
       { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit : gagné, la lancée dure deux fois plus', prix: 'Perdu, on reste sonnés deux fois plus', finition: 1.088, enjeu: true },
       { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', defense: 0.96 },
     ] },
-  mots: { ico: '🗣️', titre: 'La guerre des mots',
+  mots: { ico: '🗣', titre: 'La guerre des mots',
     irl: 'Patrick Roy à Jeremy Roenick, 1996 : « Je ne l\'entends pas, j\'ai mes deux bagues de la Coupe dans les oreilles. »',
     recit: 'Leur entraîneur a dit en point de presse que ta formation « ne ferait pas les séries dans la Ligue américaine ».',
     options: [
@@ -8350,26 +8350,26 @@ export const ENTRACTES = {
   attaque: { ico: '🎲', nom: 'Tout pour l\'attaque', si: ['derriere'], bon: 'Tout le monde monte', prix: 'Ton gardien est seul', volume: 1.36, defense: 1.3 },
   gardien: { ico: '🧤', nom: 'Envoyer l\'auxiliaire', si: ['derriere'], bon: 'Ton auxiliaire prend le filet pour la troisième', prix: 'Le partant rentre au vestiaire', changeGardien: true, defense: 0.92 },
   pointe: { ico: '🪜', nom: 'Les défenseurs montent', si: ['derriere'], bon: 'Cinq joueurs en attaque', prix: 'Des échappées contre', volume: 1.24, defense: 1.2 },
-  vedettes: { ico: '✌️', nom: 'Deux trios, pas plus', si: ['derriere'], bon: 'Tes meilleurs sur la glace', prix: 'Ils finissent à plat, et demain aussi', F: [1.35, 1.25, 0.7, 0.5], finition: 1.04, energie: 1.24 },
+  vedettes: { ico: '✌', nom: 'Deux trios, pas plus', si: ['derriere'], bon: 'Tes meilleurs sur la glace', prix: 'Ils finissent à plat, et demain aussi', F: [1.35, 1.25, 0.7, 0.5], finition: 1.04, energie: 1.24 },
   rage: { ico: '😤', nom: 'Revenir à coups d\'épaule', si: ['derriere'], bon: 'Le jeu robuste tourne pour toi', prix: 'Des punitions', robustesse: 1.6, finition: 1.04, discipline: 1.5 },
   jeunes: { ico: '🪁', nom: 'Laisser jouer le 4e trio', si: ['derriere'], bon: 'Tes vedettes gardent leurs jambes pour demain', prix: 'Tu laisses filer celui-ci', F: [0.8, 0.9, 1.1, 1.5], energie: 0.76, finition: 0.96 },
   // Mené ou à égalité.
   patience: { ico: '🔦', nom: 'Attendre le bon tir', si: ['derriere', 'egal'], bon: 'Des tirs de qualité', prix: 'Moins de tirs', finition: 1.12, volume: 0.84 },
   pluie: { ico: '🪃', nom: 'Une pluie de rondelles', si: ['derriere', 'egal'], bon: 'Tout au filet', prix: 'Des tirs de nulle part', volume: 1.28, finition: 0.9, defense: 1.06 },
   meute: { ico: '🐺', nom: 'Échec-avant à trois', si: ['derriere', 'egal'], bon: 'On vole des rondelles', prix: 'Des surnombres contre, des jambes en moins', volume: 1.3, defense: 1.14, energie: 1.16 },
-  discours: { ico: '🗣️', nom: 'L\'entraîneur élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.06, discipline: 1.2 },
+  discours: { ico: '🗣', nom: 'L\'entraîneur élève la voix', si: ['derriere', 'egal', 'devant'], bon: 'Le vestiaire se réveille', prix: 'Des têtes chaudes', finition: 1.06, discipline: 1.2 },
   // À égalité.
   prolo: { ico: '⏳', nom: 'Jouer pour la prolongation', si: ['egal'], bon: 'Pas de risque', prix: 'Pas de but non plus', defense: 0.8, volume: 0.8 },
   doubler: { ico: '🔥', nom: 'Doubler le 1er trio', si: ['egal'], bon: 'Ton meilleur trio sur la glace', prix: 'Il va finir à plat', F: [1.4, 1, 0.85, 0.75], energie: 1.2 },
   premier: { ico: '🛸', nom: 'Le premier but gagne', si: ['egal'], bon: 'On attaque en vagues', prix: 'La porte s\'entrouvre', volume: 1.2, finition: 1.04, defense: 1.12 },
-  rouler: { ico: '♻️', nom: 'Rouler quatre trios', si: ['egal', 'devant'], bon: 'Des jambes fraîches à chaque présence', prix: 'Ton 4e trio joue les grosses minutes', F: [0.9, 0.95, 1.05, 1.15], energie: 0.8, finition: 0.96 },
+  rouler: { ico: '♻', nom: 'Rouler quatre trios', si: ['egal', 'devant'], bon: 'Des jambes fraîches à chaque présence', prix: 'Ton 4e trio joue les grosses minutes', F: [0.9, 0.95, 1.05, 1.15], energie: 0.8, finition: 0.96 },
   // À égalité ou devant.
   paire: { ico: '🦔', nom: 'La 1re paire tout le temps', si: ['egal', 'devant'], bon: 'Tes meilleurs défenseurs sur la glace', prix: 'Ils vont finir à plat', D: [1.4, 1, 0.6], defense: 0.88, energie: 1.2 },
   bloquer: { ico: '🧯', nom: 'Bloquer tous les tirs', si: ['egal', 'devant'], bon: 'Rien ne se rend au filet', prix: 'Des rondelles dans les chevilles', defense: 0.8, blessure: 1.8 },
   // Devant.
   porte: { ico: '🧱', nom: 'Fermer la porte', si: ['devant'], bon: 'Tout le monde en zone neutre', prix: "On n'attaque plus", defense: 0.7, volume: 0.7 },
   tueur: { ico: '🦬', nom: 'Aller chercher le but qui tue', si: ['devant'], bon: 'Enterrer le match', prix: 'Un contre peut tout renverser', volume: 1.16, finition: 1.06, defense: 1.12 },
-  repos: { ico: '🛋️', nom: 'Reposer les vedettes', si: ['devant'], bon: 'Leurs jambes pour demain', prix: 'Les plombiers protègent l\'avance', F: [0.7, 0.9, 1.15, 1.3], energie: 0.76, defense: 1.08 },
+  repos: { ico: '🛋', nom: 'Reposer les vedettes', si: ['devant'], bon: 'Leurs jambes pour demain', prix: 'Les plombiers protègent l\'avance', F: [0.7, 0.9, 1.15, 1.3], energie: 0.76, defense: 1.08 },
   rondelle: { ico: '🪀', nom: 'Garder la rondelle', si: ['devant'], bon: 'Ils ne l\'ont pas, ils ne marquent pas', prix: 'Moins de tirs, des jambes en moins', volume: 0.9, defense: 0.86, energie: 1.1 },
   payer: { ico: '🔨', nom: 'Faire payer chaque mise en échec', si: ['devant'], bon: 'Ils hésitent à venir', prix: 'Des punitions', robustesse: 1.6, defense: 0.94, discipline: 1.5 },
   contre: { ico: '💨', nom: 'Contre-attaquer en vitesse', si: ['devant'], bon: 'Leurs défenseurs montés, des surnombres', prix: 'Ça ouvre des deux côtés', volume: 1.1, finition: 1.08, defense: 1.1 },
@@ -8506,7 +8506,7 @@ function poserPreparation(toi, adv, gros, fx) {
   if (gros.prepJuste) {
     adv._lignesMatch = null;
     toi._effetMatch.push({ source: 'preparation', nom: 'Ta préparation vise juste', ico: '🎯', ...PREP_JUSTE });
-    if (fx && fx.piege) toi._effetMatch.push({ source: 'carte', nom: 'Le piège tendu', ico: '🕸️', ...fx.piege });
+    if (fx && fx.piege) toi._effetMatch.push({ source: 'carte', nom: 'Le piège tendu', ico: '🕸', ...fx.piege });
   } else if (fx && fx.improvise) {
     toi._effetMatch.push({ source: 'carte', nom: 'L\'improvisation', ico: '🎷', ...fx.improvise });
   } else {
@@ -8740,7 +8740,7 @@ export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
   nemesis: { ico: '😤', nom: 'Bête noire', mot: 'il t\'a déjà battu deux fois' },
 };
-export const ELAN = { nom: 'La lancée', ico: '⬆️', finition: 1.03, duree: 3 };
+export const ELAN = { nom: 'La lancée', ico: '⬆', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
 /*
  * LE GROS MATCH, repéré AVANT d'être joué (S70) : le moteur doit savoir

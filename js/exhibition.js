@@ -161,7 +161,7 @@ async function dessiner() {
   el.innerHTML = `<div class="exh-feuille">
     <header class="exh-tete">
       <div>
-        <h2 class="exh-titre">🏟️ Exhibition</h2>
+        <h2 class="exh-titre">🏟 Exhibition</h2>
         <p class="exh-sous">N'importe quels clubs, toutes les époques. Le vrai moteur, pour le fun : rien ne compte pour ta partie.</p>
       </div>
       <button type="button" class="close-btn exh-fermer" data-exh="fermer" aria-label="Fermer l'exhibition">✕</button>

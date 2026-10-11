@@ -396,7 +396,7 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
     const ad = gL != null && aM != null && gL >= 2 / 3 && aM <= 0.5 ? 1 : aL != null && dM != null && aL <= 1 / 3 && dM >= 0.5 ? -1 : 0;
     if (ad) {
       const match = { importance: 'normale', ad };
-      out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡️ Consigne : défense',
+      out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡 Consigne : défense',
         pourquoi: ad > 0 ? `Leur gardien de ce soir est ${forces.lui.gardien.rang}e de la ligue, ton attaque ${forces.moi.attaque.rang}${forces.moi.attaque.rang === 1 ? 're' : 'e'} : force-le.`
           : `Leur attaque est ${forces.lui.attaque.rang}${forces.lui.attaque.rang === 1 ? 're' : 'e'} de la ligue, ta défense ${forces.moi.defense.rang}e : ferme le jeu.`,
         chiffres: motsEnChiffres(effetDeMoment({ jour: 0, match })).filter(m => m.cle !== 'rien') });
