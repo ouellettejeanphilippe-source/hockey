@@ -1929,6 +1929,12 @@ function badgesCalcules(p) {
     if (a[0] === 'deuxsens') p1 = Math.min(p1, DEUXSENS_SANS_POINTS);
     else if (second && b[0] === 'deuxsens') p2 = Math.min(p2, DEUXSENS_SANS_POINTS);
   }
+  // ET RECONNU (JP : *je veux juste que les attaquants défensifs soient reconnus*) : avant 1997, nos colonnes ne voient
+  // ni son temps de glace ni ses présences en désavantage ; un attaquant qui a des votes au Selke est donc au moins Or.
+  if (g === 'F' && traits.includes('SELKE')) {
+    if (a[0] === 'deuxsens') p1 = Math.max(p1, DEUXSENS_SANS_POINTS);
+    else if (second && b[0] === 'deuxsens') p2 = Math.max(p2, DEUXSENS_SANS_POINTS);
+  }
   const [n1, n2] = [p1, p2];
   if (monteBadge(p)) {
     const [x, y] = paliersEnPlus(p);
