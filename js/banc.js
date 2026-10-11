@@ -16,7 +16,7 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS } from './rogue.js';
+import { mandatDe, MANDATS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain } from './alignement.js';
@@ -750,11 +750,9 @@ function ouvrirEcranSaison(depuis = 0) {
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), ...o }),
         // LE MODE ROGUE (S77) : la run, pour le Club — rien de la boutique (elle est au Marché).
         rogue: G.bonus === 'ROGUE' ? {
-          // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
-          // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
+          // S80 : la saison de la run, le mandat du proprio, et celui d'après.
           mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
-            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
-            bareme: (G.rogue && G.rogue.bareme) || JETONS }),
+            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null }),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.

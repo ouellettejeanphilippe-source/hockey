@@ -975,7 +975,7 @@ else console.log(`   reprise du tournoi : ${apresT.tete} — ${sauveT.vide} matc
   }
 }
 // Les boutons du tournoi vivent au Club (S67 ; 1.0, R1).
-await page.click('#navbar .navtab[data-section="club"]');
+await page.click('#navbar .navtab[data-section="bureau"]');
 await page.waitForTimeout(250);
 let tour = 0;
 /*

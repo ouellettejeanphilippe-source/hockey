@@ -33,15 +33,15 @@ import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dos
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, AGRESSIVITES, AD_DE_CONSIGNE, SEC_MIN, SEC_DEFAUT, nouvelleGraine } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { COACHS, ROMAINS, SEUILS } from './coachs.js';
-import { pronostic, prevision, jambesAVenir, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
+import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeReponse, jambesHtml, courbeJambes, courbeJambesHtml, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
+import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -165,8 +165,6 @@ function boiteDe(graine) {
 const PRONOS = new Map();
 /* La prévision de la saison (js/pronostic.js), gardée pour la journée et les décisions du moment. */
 const PREVISIONS = new Map();
-/* Ce que rend chaque ménagement des jambes (js/pronostic.js, `jambesAVenir`), pour la journée et les décisions du moment. */
-const MENAGEMENTS = new Map();
 /* « 2e 14:05 » : l'instant d'un but, pour le tableau de l'entracte. */
 // Un but à l'entracte : sa période et l'horloge du direct (le temps qu'il reste, `tempsRestant`).
 const instantMot = t => { const per = Math.min(3, Math.floor(t / 20) + 1); return `${per === 1 ? '1re' : `${per}e`} ${tempsRestant(t)}`; };
@@ -1529,8 +1527,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pour = liste('moi'), contre = liste('lui');
     const phrase = !pour.length && !contre.length ? 'Deux clubs de même force : aucun écart qui compte.'
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
-    // V4 — LE BUREAU EN TROIS LIGNES : l'affiche ne garde que la phrase ; le tableau et les duels vont au dépistage.
-    return { mot: `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`, detail: `<div class="hub-forces">
+    // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
+    return { mot: duelHtml(adv), detail: `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>` + `<div class="hub-forces">
       <table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
         <tbody>
@@ -1539,6 +1537,35 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         </tbody></table>
       ${decideHtml(axes, nomMoi, nomLui)}
     </div>` };
+  }
+  /*
+   * LE DUEL DU SOIR (V7, JP : *des lancers, précision de lancer, pourcentage d'arrêt, des vrais stats*). Les deux clubs
+   * côte à côte : leur saison à ce jour, lue sur les feuilles jouées (trois matchs chacun au moins), sinon ce que le
+   * moteur attend de ce match-ci (`chiffresDuSoir`). Le meilleur des deux s'allume.
+   */
+  function duelHtml(adv) {
+    const S = saisonDesFeuilles(calendrier.slice(0, jour));
+    const a = S.get(you), b = S.get(adv);
+    const v1 = x => (x == null ? '—' : String(x.toFixed(1)).replace('.', ','));
+    const p1 = x => (x == null ? '—' : `${String((100 * x).toFixed(1)).replace('.', ',')} %`);
+    const par = (n, d) => (d ? n / d : null);
+    let lignes, titre;
+    if (a && b && a.n >= 3 && b.n >= 3) {
+      titre = 'Cette saison, par match';
+      const de = x => ({ tirs: par(x.SF, x.n), tir: par(x.GF, x.SF), contre: par(x.SA, x.n), arr: x.SA ? 1 - x.GA / x.SA : null, an: par(x.ANB, x.ANO), dn: x.PKO ? 1 - x.INB / x.PKO : null });
+      const m = de(a), l = de(b);
+      lignes = [['Tirs', m.tirs, l.tirs, v1, 1], ['% au tir', m.tir, l.tir, p1, 1], ['Tirs contre', m.contre, l.contre, v1, -1], ['% arrêts', m.arr, l.arr, pct3, 1], ['Avantage num.', m.an, l.an, p1, 1], ['Désavantage num.', m.dn, l.dn, p1, 1]];
+    } else {
+      titre = 'Attendu ce soir';
+      const c = chiffresDuSoir(you, null, adv);
+      lignes = [['Tirs', c.tirsPour, c.tirsContre, v1, 1], ['% au tir', par(c.butsPour, c.tirsPour), par(c.butsContre, c.tirsContre), p1, 1], ['Punitions', c.punitions, c.punitionsEux, v1, -1]];
+    }
+    // Dans l'ordre de l'affiche : le club à domicile à gauche.
+    const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}">${f(x)}</td>`;
+    const chezNous = (prochain() || {}).m ? prochain().m.A === you : true;
+    return `<div class="hub-duel-titre">${titre}</div><table class="hub-duel"><tbody>${lignes.map(([k, x, y, f, sens]) => (chezNous
+      ? `<tr>${cell(x, y, f, sens, 'g')}<th scope="row">${k}</th>${cell(y, x, f, sens, 'd')}</tr>`
+      : `<tr>${cell(y, x, f, sens, 'g')}<th scope="row">${k}</th>${cell(x, y, f, sens, 'd')}</tr>`)).join('')}</tbody></table>`;
   }
   /* Le pari d'où vient un effet (`team.paris`, noté au tirage) : son jour et son titre. */
   const pariDe = e => (you.paris || []).find(x => x.jour === e.debut && x.titre === e.nom) || null;
@@ -2443,85 +2470,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="hub-note">${pr.n} saisons rejouées, ta formation de ce matin. Une blessure, un échange, une carte la remettent à zéro.</div>
     </div>`;
   }
-  /*
-   * LES JAMBES (1.0, le suivi des jambes). JP : *tracking de l'énergie et optimisation de l'énergie*.
-   * Ta formation, les plus usés d'abord : ses jambes ce matin et leur courbe depuis la première journée
-   * (l'instantané du moteur, `jourLignes`). Puis de quoi les ménager, rien que des décisions qui existent :
-   * un joueur en réserve (les cases), la consigne Basse, un roulement, une ligne moins poussée. Chacune
-   * dit ce qu'elle rend en jambes au matin du match d'après, mesuré par le moteur (`jambesAVenir`,
-   * js/pronostic.js) : tes matchs d'ici là rejoués avec et sans elle, sur les mêmes dés.
-   */
-  const MESURES_JAMBES = 6;
-  let menagements = [];
-  const nomCase = s => ctx.esc(ctx.slotShort ? ctx.slotShort(s) : s.role);
-  const lien = p => (ctx.fiche ? ctx.fiche(p, you, ctx.esc(p.n)) : ctx.esc(p.n));
-  // Les lignes et la consigne déjà choisies pour un soir : une proposition les garde (`deciderSaison` remplace la décision du même soir).
-  const prisPour = (j, k) => { const d = decs.filter(x => x.jour === j && x[k]).pop(); return d ? d[k] : null; };
-  function propositionsJambes(rangs) {
-    const p0 = prochain();
-    if (!onDecision || !p0) return [];
-    const soir = p0.j, out = [];
-    const habilles = rangs.filter(r => !r.s.scratch && r.p.p !== 'G' && !(you.injured && you.injured.has(r.p)));
-    const libres = SLOTS.filter(s => s.scratch && you.roster[s.i] && !(you.injured && you.injured.has(you.roster[s.i])));
-    // Le plus usé qui a un remplaçant, en réserve : un réserviste en santé qui peut jouer sa case la prend.
-    // On descend la liste (les plus usés d'abord) jusqu'à deux propositions : les deux premiers peuvent n'avoir personne pour les remplacer.
-    let nReserves = 0;
-    for (const r of habilles) {
-      if (nReserves >= 2) break;
-      const sub = libres.find(s => fits(you.roster[s.i], r.s) && fits(r.p, s));
-      if (!sub) continue;
-      nReserves++;
-      const cases = photoAlignement(you.roster);
-      [cases[r.s.i], cases[sub.i]] = [cases[sub.i], cases[r.s.i]];
-      out.push({ titre: `${ctx.esc(r.p.n)} en réserve`, mot: `${ctx.esc(you.roster[sub.i].n)} prend sa case ; il y reste tant que tu ne le remets pas.`, qui: [getPlayerKey(r.p)], a: 'à lui', d: { jour, palier: `jb:${jour}:${getPlayerKey(r.p)}`, cases } });
-    }
-    const lignesSoir = prisPour(soir, 'lignes'), matchSoir = prisPour(soir, 'match');
-    if (!matchSoir || matchSoir.importance !== 'basse') {
-      const I = IMPORTANCES.basse;
-      out.push({ titre: `${I.ico} Consigne ${I.nom} au prochain match`, mot: `${cap(I.mot)} : un peu moins de finition.`, qui: habilles.map(r => getPlayerKey(r.p)), a: 'en moyenne',
-        d: { jour: soir, match: { importance: 'basse', ad: AD_DE_CONSIGNE.basse }, ...(lignesSoir ? { lignes: lignesSoir } : {}) } });
-    }
-    const premiere = SLOTS.filter(s => !s.scratch && s.unit === 0 && (s.group === 'F' || s.group === 'D') && you.roster[s.i]).map(s => getPlayerKey(you.roster[s.i]));
-    for (const [k, R] of Object.entries(ROULEMENTS)) if (k !== roulementDe(you)) out.push({ titre: `${R.ico} ${ctx.esc(R.nom)}`, mot: `Le roulement, dès aujourd'hui : ${ctx.esc(R.prix.toLowerCase())}.`, qui: premiere, a: 'à ta 1re ligne', d: { jour, roulement: k } });
-    // La ligne la plus usée, moins poussée : quinze secondes de moins par présence, l'agressivité basse.
-    const base = (lignesSoir || lignesDe(you, you.roster)).map(l => ({ ...l }));
-    const usee = [0, 1, 2, 3].map(u => ({ u, e: habilles.filter(r => r.s.group === 'F' && r.s.unit === u).reduce((a, r, _, t) => a + r.e / t.length, 0) })).filter(x => x.e > 0).sort((a, b) => a.e - b.e)[0];
-    if (usee && (base[usee.u].sec > SEC_MIN || base[usee.u].agr !== 0)) {
-      const u = usee.u, l = { ...base[u], sec: Math.max(SEC_MIN, (base[u].sec || SEC_DEFAUT) - 15), agr: 0 };
-      const lignes = base.map((x, i) => (i === u ? l : x));
-      const A = AGRESSIVITES[0];
-      out.push({ titre: `${ord(u + 1)} trio : ${l.sec} s, agressivité ${A.ico} ${ctx.esc(A.nom)}`, mot: 'Au prochain match, et ensuite : moins de glace, moins de jeu physique.',
-        qui: habilles.filter(r => r.s.group === 'F' && r.s.unit === u).map(r => getPlayerKey(r.p)), a: 'au trio', d: { jour: soir, lignes, ...(matchSoir ? { match: matchSoir } : {}) } });
-    }
-    return out;
-  }
-  function voletJambes() {
-    const snap = (you.jourLignes || [])[jour];
-    if (!snap) return '<div class="hub-note">Les jambes se lisent dès la première journée.</div>';
-    const rangs = SLOTS.filter(s => you.roster[s.i]).map(s => ({ s, p: you.roster[s.i], e: snap.energie[getPlayerKey(you.roster[s.i])] ?? 100 })).sort((a, b) => a.e - b.e);
-    const liste = rangs.map(({ s, p, e }) => `<div class="jb-j"><span class="jb-nom">${lien(p)} <small>${nomCase(s)}</small></span>${courbeJambesHtml(courbeJambes(you, p, jour))}${jambesHtml(e)}</div>`).join('');
-    const tete = `<div class="hub-titre">Les jambes · au matin de la journée ${jour + 1}</div><div class="jb-liste">${liste}</div>`;
-    menagements = propositionsJambes(rangs);
-    if (!menagements.length) return tete;
-    const cle = `${graine}|${jour}|${decs.length}`;
-    if (!MENAGEMENTS.has(cle)) {
-      setTimeout(() => {
-        if (MENAGEMENTS.has(cle)) return;
-        MENAGEMENTS.set(cle, jambesAVenir({ toi: you, calendrier, jourRevele: jour, aVenir: decs.filter(d => d.jour >= jour && !d.entracte), propositions: menagements.map(m => m.d), n: MESURES_JAMBES }));
-        if (tabs.courant() === 'jambes') tabs.rafraichir();
-      }, 30);
-      return `${tete}<div class="hub-titre">Les ménager</div><div class="hub-note jb-calc">Le moteur rejoue tes prochains matchs…</div>`;
-    }
-    const m = MENAGEMENTS.get(cle);
-    if (!m) return tete;
-    const gain = (i, qui) => qui.reduce((a, k) => a + ((m.propositions[i].get(k) ?? 0) - (m.base.get(k) ?? 0)), 0) / (qui.length || 1);
-    const props = menagements.map((x, i) => {
-      const g = gain(i, x.qui), r = Math.round(g * 10) / 10;
-      const puce = `<span class="puce ${r >= 0.5 ? 'bon' : r <= -0.5 ? 'prix' : 'neutre'}">${r > 0 ? '+' : r < 0 ? '−' : '±'}${virgule(Math.abs(r))} jambes ${x.a}</span>`;
-      return `<div class="jb-prop${r >= 0.5 ? ' rend' : ''}"><div class="jb-prop-t"><b>${x.titre}</b><small>${x.mot}</small></div><span class="choix-puces">${puce}</span><button type="button" class="btn jb-appliquer" data-menager="${i}">Appliquer</button></div>`;
-    }).join('');
-    return `${tete}<div class="hub-titre">Les ménager</div><div class="hub-note">Au matin de la journée ${m.horizon + 1}, avec et sans le choix : tes matchs d'ici là rejoués ${MESURES_JAMBES} fois par le moteur.</div><div class="jb-props">${props}</div>`;
-  }
   // TON STYLE (docs/impact-des-choix.md, §6.1) : tes derniers matchs contre la ligue, lus sur les feuilles révélées.
   const styleHtml = () => {
     const vus = matchsJoues(calendrier.slice(0, jour));
@@ -2565,12 +2513,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // la saison — le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
     { cle: 'boite', ico: 'i-boite', titre: 'Boîte', page: 'boite' },
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
-    // LES JAMBES (1.0) : un sous-onglet du Club, comme la boîte et la saison.
-    { cle: 'jambes', ico: 'i-jambes', titre: 'Jambes', page: 'jambes' },
   ], cle => {
     if (cle === 'boite') return '';
-    if (cle === 'jambes') return voletJambes();
-    if (cle === 'saison') return etatHtml() + rapportPlie() + previsionHtml() + voletFiche();
+    if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
@@ -2627,15 +2572,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }, 30);
   };
   volet.addEventListener('click', lancerPrevision);
-  // Un ménagement des jambes est une décision comme une autre : elle passe par le même chemin.
-  const menager = e => {
-    const b = e.target.closest('[data-menager]');
-    const x = b && menagements[Number(b.dataset.menager)];
-    if (!x) return;
-    const j = jour; quitter(); onDecision(x.d, j);
-  };
-  volet.addEventListener('click', menager);
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', menager); };
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -2811,14 +2748,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // LA RUN ROGUE (S80) : sa saison, et ce que le proprio exige pour qu'elle continue.
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
     if (run) {
-      // 1.0 (R4) : le barème des jetons, lu dans la run (jamais tapé), et le mandat d'après.
-      const B = run.bareme || {};
-      const bareme = [['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['gros match', B.grosMatch, '+'], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']]
-        .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ');
+      // Le mandat, et celui d'après (V7 : le barème des jetons est à la boutique).
       lignes.push(`<div class="hub-etat-l hub-etat-run" title="Manque le mandat et la run est finie ; gagne la Coupe et elle est gagnée">
-        <span class="hub-etat-k">💀 La run</span>
-        <span class="hub-etat-v">Saison ${run.saison} · le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''} <small class="hub-run-suite">· 🏆 le but : la Coupe</small></span>
-        ${bareme ? `<small class="hub-run-bareme" title="Ce que chaque résultat rapporte, en jetons">🪙 ${ctx.esc(bareme)}</small>` : ''}
+        <span class="hub-etat-k">💀 Saison ${run.saison}</span>
+        <span class="hub-etat-v">Le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''}</span>
       </div>`);
     }
     // TON COACH (V5 : un seul en poste) et sa confiance. Le détail est dans « Ton coach » (Marché › Mes cartes).
@@ -2842,13 +2775,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <small>${oc.e.joues}/${MATCHS_OBJECTIF} matchs</small>
       </div>`);
     }
-    // L'INFIRMERIE : qui manque, et pour combien de matchs — à ce jour seulement (`blessesDe` ne révèle que ce qui est arrivé).
-    const bl = [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]);
-    const lien = p => (ctx.fiche ? ctx.fiche(p, you, ctx.esc(p.n)) : ctx.esc(p.n));
-    if (bl.length) lignes.push(`<div class="hub-etat-l hub-etat-infirmerie">
-        <span class="hub-etat-k">🚑 Infirmerie</span>
-        <span class="hub-etat-v">${bl.slice(0, 3).map(([p, n]) => `${lien(p)} <b>${n} m.</b>`).join(' · ')}${bl.length > 3 ? ` · et ${bl.length - 3} autre${bl.length - 3 > 1 ? 's' : ''}` : ''}</span>
-      </div>`);
     return lignes.length ? `<div class="hub-etat" role="group" aria-label="Ta saison">${lignes.join('')}</div>` : '';
   }
 
@@ -2963,7 +2889,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
-      carte.innerHTML = `${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>${mainHtml()}`;
+      // V7 : le Bureau dit d'abord ce que le proprio attend (la run, son objectif, ton coach), puis le match.
+      carte.innerHTML = `${etatHtml()}${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>${mainHtml()}`;
       brancherMain(carte);
       // Le dépistage : une page du Club, calculée à l'ouverture.
       carte.querySelector('.hub-dep-ouvrir').onclick = () => {

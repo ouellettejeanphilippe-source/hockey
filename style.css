@@ -2828,6 +2828,15 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-forces tbody th { width: 22%; text-align: left; letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hub-forces td.av.moi { color: var(--bon); }
 .hub-forces td.av.lui { color: var(--mauvais); }
+/* Le duel du soir (V7) : ta colonne à gauche, la leur à droite, le libellé au centre ; le meilleur s'allume. */
+.hub-duel { display: table; width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hub-duel-titre { padding: var(--esp-2) var(--esp-3) var(--esp-1); border-top: 1px solid var(--filet-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.hub-duel th { padding: 6px var(--esp-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); text-align: center; }
+.hub-duel td { width: 30%; padding: 6px var(--esp-3); font: 800 var(--t-3)/1 var(--display); color: var(--encre-2); }
+.hub-duel td.g { text-align: left; }
+.hub-duel td.d { text-align: right; }
+.hub-duel td.mieux { color: var(--bon); }
+.hub-duel tr + tr > * { border-top: 1px solid var(--filet-2); }
 .hub-forces-mot { padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .hub-decide { margin-top: var(--esp-2); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .hub-decide ul { margin: var(--esp-1) 0 0; padding-left: var(--esp-4); }
@@ -2981,7 +2990,7 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-rap-l.prix { color: var(--mauvais); }
 .hub-rap-lignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px var(--esp-3); font-size: var(--t-2); color: var(--encre-2); }
 .hub-rap-lignes b { color: var(--encre); font-family: var(--display); }
-.hub-run-bareme { flex: 1 0 100%; font-variant-numeric: tabular-nums; }
+.pk-bareme-run { margin: 0 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.03em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .hub-run-suite { color: var(--encre-2); }
 
 /* ---- La saison en calendrier (js/saison.js, calendrierFiche) : des semaines de sept journées, une case par jour ---- */
@@ -3083,7 +3092,6 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-etat-coachs .hub-etat-k { color: var(--or); }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
-.hub-etat-infirmerie .hub-etat-v b { color: var(--mauvais); }
 .hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }
 .hub-etat-l small { font-size: var(--t-1); color: var(--encre-3); }
 .tuile-jauge { display: block; height: 4px; border-radius: var(--r-1); background: var(--noir); overflow: hidden; }
@@ -3311,18 +3319,6 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-prev-fin span { color: var(--encre-3); font-size: var(--t-2); }
 .hub-prev-joueurs th small { color: var(--encre-3); font-size: var(--t-1); }
 /* LES JAMBES (le volet de saison) : les plus usés d'abord, puis de quoi les ménager. */
-.jb-liste { display: grid; gap: 2px; margin: var(--esp-2) 0 var(--esp-4); }
-.jb-j { display: grid; grid-template-columns: minmax(0, 1fr) 64px 120px; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); background: var(--fond-1); font-size: var(--t-2); }
-.jb-nom { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.jb-nom small { color: var(--encre-3); font-size: var(--t-1); }
-.jb-j .jambes-k { display: none; }
-.jb-props { display: grid; gap: var(--esp-2); margin: var(--esp-2) 0; }
-.jb-prop { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-1); border-left: 3px solid var(--filet-2); }
-.jb-prop.rend { border-left-color: var(--bon); }
-.jb-prop-t { min-width: 0; display: grid; gap: 2px; }
-.jb-prop-t small { color: var(--encre-2); font-size: var(--t-1); }
-.jb-prop .choix-puces { grid-column: 1; }
-.jb-prop .btn { grid-column: 2; grid-row: 1 / span 2; min-height: 44px; }
 .ent2-buts { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--esp-1) var(--esp-3); margin: var(--esp-1) 0 var(--esp-2); }
 .ent2-but { font: 700 var(--t-1)/1.3 var(--display); padding: 1px var(--esp-2) 1px calc(var(--esp-2) + 4px); border-radius: var(--r-1); }
 .ent2-incident { margin: var(--esp-2) 0; padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
@@ -4574,8 +4570,9 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
    sont habillés ailleurs ; ici on pose leur grille et ce qui les entoure.
    ===================================================================== */
 
-/* ---- Les zones sans jeu : le cartable et le marché prennent la place du jeu et de sa barre d'action ---- */
+/* ---- Les zones sans jeu : les joueurs, le cartable et la boutique prennent la place du jeu et de sa barre d'action ---- */
 body[data-zone="cartable"] #game, body[data-zone="cartable"] .actionbar,
+body[data-zone="joueurs"] #game, body[data-zone="joueurs"] .actionbar,
 body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: none; }
 
 /* ---- L'historique des saisons (#pageHistorique) : une bande par saison, la fiche en gros, la Coupe en or ---- */
@@ -4633,6 +4630,25 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .album-saison { font-size: var(--t-1); color: var(--encre-2); }
 .album-fois { position: absolute; top: var(--esp-1); right: var(--esp-2); font: 700 var(--t-1)/1 var(--display); color: var(--or); }
 
+/* ---- Les joueurs (V7, js/joueurs.js, #pageJoueurs) : l'effectif en tableau, la colonne du nom collée à gauche ---- */
+.jr-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-bottom: var(--esp-2); }
+.jr-barre .seg { flex: 1 1 auto; }
+.jr-groupes span { color: var(--encre-3); }
+.jr-scroll { overflow-x: auto; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
+.jr-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.jr-table th, .jr-table td { padding: var(--esp-2); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
+.jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); cursor: pointer; }
+.jr-table th.on { color: var(--or); }
+.jr-table td { font: 700 var(--t-2)/1.1 var(--display); }
+.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 150px; }
+.jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
+.jr-nom { display: block; max-width: 100%; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: inherit; }
+.jr-sous { display: block; overflow: hidden; text-overflow: ellipsis; font: 600 var(--t-1)/1.3 var(--display); color: var(--encre-3); }
+.jr-table tr.reserve td { opacity: 0.6; }
+.jr-bl { font-size: var(--t-1); color: var(--mauvais); }
+.jr-jambes.frais { color: var(--bon); }
+.jr-jambes.use { color: var(--mauvais); }
+.jr-pied { margin: var(--esp-2) 0 0; font-size: var(--t-1); color: var(--encre-3); }
 /* ---- Le cartable (js/cartable.js, #pageCartable) : une reliure, des feuilles de neuf pochettes ---- */
 .ct { display: flex; flex-direction: column; gap: var(--esp-3); height: 100%; min-height: 0; }
 .ct-tete { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-3); flex-wrap: wrap; }

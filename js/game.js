@@ -57,6 +57,7 @@ import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDe
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
 import { actionDuBouton, choisirIdentite, majPiedPartie, oublierBrouillon, ouvrirNouvellePartie, poserBrouillon, resoudreHasard, semerBrouillon, syncOptionsUI } from './partie.js';
 import { renderMain, renderRoster, renderTeamSummary } from './alignement.js';
+import { remplirJoueurs } from './joueurs.js';
 
 /* Une icône du sprite de `index.html` : trait de 2, couleur du texte. */
 export const ico = n => `<svg class="ico" aria-hidden="true"><use href="#${n}"/></svg>`;
@@ -1427,7 +1428,7 @@ function setupEvents() {
     () => { const h = hubActif(); return !!(h && h.fermerPage && h.fermerPage()); },
     // Une page du Marché (la boutique, tes cartes) : la fiche d'un pack se replie d'abord, puis retour à la liste du Marché.
     () => {
-      if (!marchePage || document.body.dataset.section !== 'marche') return false;
+      if (!marchePage || document.body.dataset.page !== 'marche') return false;
       const fiche = document.querySelector('#pageMarcheCorps .pk-fiche');
       if (fiche) fiche.remove(); else { marchePage = null; remplirMarche(); }
       return true;
@@ -1597,41 +1598,44 @@ export function setOption(key, val) {
    de style en déduit tout ; `data-section` dit quelle porte est ouverte.
    ====================================================================== */
 const SECTIONS = [
-  { cle: 'club', ico: 'i-club', titre: 'Club' },
-  { cle: 'effectif', ico: 'i-list', titre: 'Effectif' },
-  { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
+  { cle: 'bureau', ico: 'i-club', titre: 'Bureau' },
+  { cle: 'joueurs', ico: 'i-jersey', titre: 'Joueurs' },
+  { cle: 'lignes', ico: 'i-list', titre: 'Lignes' },
+  { cle: 'cartes', ico: 'i-cartes', titre: 'Cartes' },
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
-  { cle: 'collection', ico: 'i-cartes', titre: 'Collection' },
 ];
 /* Le vestiaire (ou le loto) tant qu'on repêche. En saison, le Rogue bâtit par packs ; son repêchage vient entre deux saisons. */
 const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
-/* Les pages de chaque section, dans l'ordre de ses onglets internes. */
+/*
+ * LES PAGES DE CHAQUE SECTION (V7, docs/refonte-v7.md). JP : *revoir ce qui va où, de zéro ; on avait un dragon,
+ * on veut un cheval*. Un onglet répond à UNE question de gérant, et chaque info a une seule maison :
+ *   Bureau   qu'est-ce qui se passe aujourd'hui ? (le prochain match, ce qui attend ta décision)
+ *   Joueurs  qui j'ai, et dans quel état ? (le tableau de l'effectif ; au repêchage du 82-0, le vestiaire)
+ *   Lignes   comment on joue ce soir ? (les trios, les paires, les systèmes, le plan de match)
+ *   Cartes   avec quoi je joue ? (la boutique, tes cartes ; l'album)
+ *   Ligue    où j'en suis ? (le classement, ta saison, les meneurs, les équipes, le palmarès)
+ */
 const PAGES_DE = {
-  // LE CLUB EN SOUS-ONGLETS (1.0, R2). JP : *ajouter des sous-onglets dans les pages comme l'accueil, avec les infos,
-  // au lieu de tout avoir*. En saison : le match, la boîte de réception, la saison (le proprio, l'infirmerie, ta route,
-  // ton histoire, tes matchs). « Ma fiche » vivait sous Ligue › Calendrier ; elle est la page Saison du Club.
-  // LES JAMBES (1.0) : en saison, la courbe de chacun et de quoi les ménager (js/saison.js, `voletJambes`). Au Club,
-  // parce que l'Effectif ouvre « derrière le banc » et ferme l'écran de saison.
-  club: () => ['match', ...['boite', 'saison', 'jambes'].filter(p => voletPour(p))],
-  effectif: () => ['alignement'],
-  marche: () => [auVestiaire() ? 'repechage' : 'marche'],
-  // En saison, le calendrier n'a pas de volet (« Ma fiche » est la page Saison du Club) : l'onglet attend le bilan.
-  ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), 'meneurs', 'equipes'],
-  collection: () => ['historique', 'cartable'],
+  bureau: () => ['match', ...(voletPour('boite') ? ['boite'] : [])],
+  joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
+  lignes: () => ['alignement'],
+  cartes: () => [...(G.bonus === 'ROGUE' ? ['marche'] : []), 'cartable'],
+  // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
+  ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletPour('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], boite: ['i-boite', 'Boîte'], saison: ['i-saison', 'Saison'], alignement: ['i-list', 'Effectif'], jambes: ['i-jambes', 'Jambes'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Marché'],
+  match: ['i-club', 'Match'], boite: ['i-boite', 'À régler'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
-  historique: ['i-trophy', 'Saisons'], cartable: ['i-cartes', 'Cartable'],
+  historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
 };
-const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement' };
+const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement', jambes: 'joueurs' };
 /* Les sections du bilan que montre chaque page. */
 const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
-const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'jambes', 'classement', 'calendrier', 'meneurs', 'equipes'];
+const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
 /* Les pages de lecture, pareilles à tout moment de la partie. */
 const PAGES_REF = ['equipes', 'historique'];
 
@@ -1662,9 +1666,9 @@ function sectionsCourantes() {
     // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
     // premier match et le dit d'un coup d'oeil. La toucher reste permis.
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
-    // v2 : en saison, le Marché compte les cartes qui attendent d'être jouées — sa seule porte depuis le bureau.
-    badge: !draft ? (s.cle === 'marche' ? cartesEnAttente() : '') : s.cle === 'marche' && auVestiaire() ? String(compteSignables())
-      : s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
+    // En saison, les Cartes comptent celles qui attendent d'être jouées ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
+    badge: !draft ? (s.cle === 'cartes' ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
+      : s.cle === 'lignes' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
 
@@ -1733,7 +1737,7 @@ function zoneDe(cle) {
   const hub = hubActif();
   if (hub && voletPour(cle)) return 'hub';
   if (PAGES_REF.includes(cle)) return 'ref';
-  if (cle === 'marche' || cle === 'cartable') return cle;
+  if (cle === 'marche' || cle === 'cartable' || cle === 'joueurs') return cle;
   if (bilanPret() && !hub) return VOLETS_DU_BILAN[cle] ? 'jeu' : 'vide';
   if (cle === 'repechage') return 'jeu';
   // Pendant les séries et le tournoi, l'alignement est figé : rien à y faire.
@@ -1744,8 +1748,8 @@ function zoneDe(cle) {
 /* Une page d'avant la coquille (une sauvegarde, un rappel) retombe sur ses pieds. */
 function normaliser(cle) {
   cle = ALIAS_PAGE[cle] || cle;
-  // Le vestiaire n'existe qu'au repêchage ; le marché prend sa place ensuite, et réciproquement.
-  if (cle === 'repechage' || cle === 'marche') cle = PAGES_DE.marche()[0];
+  // Le vestiaire n'existe qu'au repêchage ; le tableau des joueurs prend sa place ensuite, et réciproquement.
+  if (cle === 'repechage' || cle === 'joueurs') cle = PAGES_DE.joueurs()[0];
   return PAGES().includes(cle) ? cle : 'match';
 }
 
@@ -1757,8 +1761,8 @@ function marquerPage(cle) {
   const sec = sectionDe(cle);
   dernierePage[sec] = cle;
   const zone = zoneDe(cle);
-  // Sortir du Marché referme sa boutique : elle n'est jamais ailleurs.
-  if (sec !== 'marche') marchePage = null;
+  // Quitter la boutique la referme : elle n'est jamais ailleurs.
+  if (cle !== 'marche') marchePage = null;
   document.body.dataset.page = cle;
   document.body.dataset.section = sec;
   document.body.dataset.zone = zone;
@@ -1801,6 +1805,11 @@ function marquerPage(cle) {
   if (cartable) {
     cartable.hidden = zone !== 'cartable';
     if (zone === 'cartable') remplirCartable();
+  }
+  const joueurs = $('pageJoueurs');
+  if (joueurs) {
+    joueurs.hidden = zone !== 'joueurs';
+    if (zone === 'joueurs') remplirJoueurs();
   }
   const marche = $('pageMarche');
   if (marche) {
@@ -2066,27 +2075,27 @@ function remplirVide(cle) {
   if (enRepechage()) {
     if (cle === 'match') {
       msg = manque > 0
-        ? `Ta formation n'est pas complète : il reste <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler sous le plafond. La saison se lance d'ici dès que les ${totalCases()} sont signés.`
-        : `Ta formation est complète. La saison t'attend.${G.bonus === 'ROGUE' && G.rogue ? ` Le proprio veut : ${esc(mandatDe(G.rogue.saison).mot)}.` : ''}`;
+        ? `Encore <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler.`
+        : `Ta formation est complète.${G.bonus === 'ROGUE' && G.rogue ? ` Le proprio veut : ${esc(mandatDe(G.rogue.saison).mot)}.` : ''}`;
       btns = manque > 0
-        ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true)
+        ? (auVestiaire() ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true) : bouton('alignement', 'Aux lignes', true))
         : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);
     } else {
-      msg = `La saison n'a pas commencé. ${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
-      btns = bouton('match', 'Au club');
+      msg = `${QUOI[cle] || 'Tout ça'} s'affichera ici dès le premier match.`;
+      btns = bouton('match', 'Au bureau');
     }
   } else if (G.banc) {
     msg = 'Tu es derrière le banc. La saison reprend là où tu l\'as laissée.';
     btns = bouton('reprendre', 'Retour au match', true);
   } else if (cle === 'alignement' && hubActif()) {
     msg = 'Ton alignement est figé : on ne touche plus aux trios quand ça compte.';
-    btns = bouton('match', 'Au club', true);
+    btns = bouton('match', 'Au bureau', true);
   } else if (cle === 'calendrier' && hubActif()) {
     msg = 'Le tournoi n\'a pas de calendrier à lui : ses journées se lisent au club.';
-    btns = bouton('match', 'Au club', true);
+    btns = bouton('match', 'Au bureau', true);
   } else {
     msg = 'Rien à lire ici pour l\'instant.';
-    btns = bouton('match', 'Au club', true);
+    btns = bouton('match', 'Au bureau', true);
   }
   corps.innerHTML = `<div class="vide"><p class="vide-mot">${msg}</p><div class="vide-btns">${btns}</div></div>`;
   corps.querySelectorAll('[data-vide]').forEach(b => {

@@ -107,6 +107,10 @@ export function ouvrirMagasin(ctx) {
         <span class="pk-prix">${o.verrou ? '🔒' : `${o.prix} 🪙`}</span>
       </button>`;
     }).join('') || '<p class="pk-mot">Tout est à toi.</p>'}</div></section>` : '';
+    // LE BARÈME (1.0, R4 ; V7 : à la boutique, là où les jetons se dépensent) : lu dans la run, jamais tapé.
+    const B = ctx.bareme;
+    const bareme = B ? `<p class="pk-bareme-run" title="Ce que chaque résultat rapporte, en jetons">🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['gros match', B.grosMatch, '+'], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']]
+      .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}</p>` : '';
     const garantie = ctx.mode === 'rogue'
       ? `<p class="pk-garantie">🛟 Une holo ou une or au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
@@ -120,6 +124,7 @@ export function ouvrirMagasin(ctx) {
       </div>
       <div class="choix-corps pk-corps">
         ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
+        ${bareme}
         ${garantie}
         ${plafond}
         ${rayons}

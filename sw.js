@@ -27,7 +27,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-2.1.0';  // 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
+const VERSION = 'cap82-2.2.0';  // 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -55,7 +55,7 @@ const FICHIERS = [
   'js/cartable.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js', 'js/util.js',
   'js/actions.js', 'js/recadrage-action.js', 'js/impact.js',
   // 1.0 (J3-6) : js/game.js découpé ; ces modules sont importés par lui (ou chargés à la demande).
-  'js/rogue-jeu.js', 'js/partie.js', 'js/repechage.js', 'js/alignement.js', 'js/fiche.js', 'js/banc.js', 'js/modes-table.js', 'js/charge-table.js',
+  'js/rogue-jeu.js', 'js/partie.js', 'js/repechage.js', 'js/alignement.js', 'js/joueurs.js', 'js/fiche.js', 'js/banc.js', 'js/modes-table.js', 'js/charge-table.js',
   'data/trophees.js', 'data/reputations.js', 'data/index.json', 'data/seed.json', 'data/portraits.json', 'data/actions.json', 'data/recrues.json',
   'fonts/BarlowCondensed-600-latin.woff2', 'fonts/BarlowCondensed-600-latin-ext.woff2',
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',

@@ -68,17 +68,17 @@ const parisPris = [], parisDits = [], desLances = [];   // les paris pris, ce qu
 const _click = page.click.bind(page);
 const _wait = page.waitForSelector.bind(page);
 /*
- * LA COQUILLE (1.0, R1) : cinq sections — Club, Effectif, Marché, Ligue,
- * Collection —, et des onglets internes pour la Ligue et la Collection. Le
+ * LA COQUILLE (V7, docs/refonte-v7.md) : cinq sections — Bureau, Joueurs, Lignes,
+ * Cartes, Ligue —, et des onglets internes pour le Bureau, les Cartes et la Ligue. Le
  * parcours y va comme un joueur : il touche la section, puis l'onglet interne
  * s'il y en a un. Les règles vivent dans le Menu. `clic` est `page.click`
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'club', boite: 'club', saison: 'club', alignement: 'effectif', jambes: 'club', repechage: 'marche', marche: 'marche',
-  classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'collection', cartable: 'collection',
+  match: 'bureau', boite: 'bureau', saison: 'ligue', alignement: 'lignes', joueurs: 'joueurs', repechage: 'joueurs', marche: 'cartes',
+  classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'ligue', cartable: 'cartes',
 };
-const SECTIONS = ['club', 'effectif', 'marche', 'ligue', 'collection'];
+const SECTIONS = ['bureau', 'joueurs', 'lignes', 'cartes', 'ligue'];
 async function aller(cle, clic = s => page.click(s)) {
   if (cle === 'regles') {
     await clic('#menuBtn');
@@ -883,7 +883,7 @@ console.log('   écran « Nouvelle partie » : ouvert à la première visite, re
   await page.waitForTimeout(400);
   const lu = await page.evaluate(() => {
     const txt = s => (document.querySelector(s) || {}).textContent || '';
-    const badge = txt('.navtab[data-section="marche"] .navtab-badge').trim();
+    const badge = txt('.navtab[data-section="joueurs"] .navtab-badge').trim();
     const dash = (txt('#dash').match(/(\d+)\s*signables/) || [])[1];
     const titre = (txt('#poolCount').match(/(\d+)\s*signable/) || [])[1];
     const b = document.getElementById('mainBtn');
@@ -1314,12 +1314,12 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 // LE GARDIEN DIT SA PART DES DÉPARTS (V2.2) : la case de chaque gardien habillé, dans l'Effectif.
 {
   const avant = await page.evaluate(() => document.body.dataset.section);
-  await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
+  await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
   await page.waitForTimeout(400);
   const deps = await page.$$eval('.slot .cell-departs', e => e.map(x => x.textContent.trim()));
   if (deps.length < 2) errors.push(`les cases des gardiens ne disent pas leur part des départs (${deps.length} sur 2)`);
   else console.log(`   les gardiens : ${deps.join(' · ')}`);
-  if (avant && avant !== 'effectif') { await page.click(`#navbar .navtab[data-section="${avant}"]`).catch(() => {}); await page.waitForTimeout(300); }
+  if (avant && avant !== 'lignes') { await page.click(`#navbar .navtab[data-section="${avant}"]`).catch(() => {}); await page.waitForTimeout(300); }
 }
 
 /*
@@ -1447,10 +1447,10 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
    */
   {
     const gestes = [];
-    for (const s of ['effectif', 'marche', 'ligue', 'collection']) {
+    for (const s of ['joueurs', 'lignes', 'cartes', 'ligue']) {
       await page.click(`#navbar .navtab[data-section="${s}"]`);
       await page.waitForTimeout(300);
-      if (s === 'effectif') {
+      if (s === 'lignes') {
         const nom = await page.$('.slot .slot-fiche');
         if (nom) {
           await nom.click();
@@ -1464,15 +1464,15 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
       let n = 0;
       while (n < 3 && await page.evaluate(() => document.body.dataset.page !== 'match')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); n++; }
       gestes.push(`${s} ${n}`);
-      if (await page.evaluate(() => document.body.dataset.page !== 'match')) errors.push(`Échap ne ramène pas au Club depuis « ${s} » en trois gestes`);
-      else if (n > 2) errors.push(`de « ${s} », Échap prend ${n} gestes pour remonter au Club`);
+      if (await page.evaluate(() => document.body.dataset.page !== 'match')) errors.push(`Échap ne ramène pas au Bureau depuis « ${s} » en trois gestes`);
+      else if (n > 2) errors.push(`de « ${s} », Échap prend ${n} gestes pour remonter au Bureau`);
     }
     /*
      * LES IDIOMES DE CONSOLE : le corps ne se sélectionne pas comme un texte,
      * aucun bouton ni lien n'est souligné, et les flèches déplacent le focus
      * — avec son anneau lumineux, en mode clavier seulement.
      */
-    await page.click('#navbar .navtab[data-section="effectif"]');
+    await page.click('#navbar .navtab[data-section="lignes"]');
     await page.waitForTimeout(300);
     const idiomes = await page.evaluate(() => ({
       selection: getComputedStyle(document.body).userSelect,
@@ -1495,7 +1495,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     await page.mouse.click(5, 5);
     const eteint = await page.evaluate(() => !document.body.classList.contains('nav-clavier'));
     if (!eteint) errors.push('un clic n\'éteint pas l\'anneau du focus');
-    console.log(`   le retour : Échap vers le Club (${gestes.join(', ')}) · user-select ${idiomes.selection} · ${idiomes.soulignes.length} souligné(s) · les flèches : « ${(f1 || '').split('|')[2]} » → « ${(f2 || '').split('|')[2]} »`);
+    console.log(`   le retour : Échap vers le Bureau (${gestes.join(', ')}) · user-select ${idiomes.selection} · ${idiomes.soulignes.length} souligné(s) · les flèches : « ${(f1 || '').split('|')[2]} » → « ${(f2 || '').split('|')[2]} »`);
   }
   barreAuRepechage = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(' · '));
   await redimensionner('le repêchage');
@@ -2105,15 +2105,14 @@ if (enabled) {
     const tete = ((await page.textContent('#leaderboardBody .lb-tete')) || '').replace(/\s+/g, ' ').trim();
     if (!/Coupe/.test(tete)) errors.push(`l'historique ne dit pas les Coupes : « ${tete} »`);
     else console.log(`   l'historique en tête : ${tete}`);
-    // LA BARRE NE PERD RIEN (S67) : le vestiaire reste là, et il dit que le
-    // repêchage est fini plutôt que de disparaître.
-    if (!(await page.$('#navbar .navtab[data-section="marche"]'))) errors.push("la barre a perdu l'onglet du vestiaire une fois la saison jouée");
-    await aller('marche');
+    // LA BARRE NE PERD RIEN (S67) : les Joueurs restent là ; le vestiaire fini, ils montrent l'effectif en tableau (V7).
+    if (!(await page.$('#navbar .navtab[data-section="joueurs"]'))) errors.push("la barre a perdu l'onglet des joueurs une fois la saison jouée");
+    await aller('joueurs');
     await page.waitForTimeout(250);
-    if (!(await page.$('#pageMarche:not([hidden]) [data-marche="cartes"]'))) errors.push('le Marché ne montre pas « Mes cartes » une fois la saison jouée');
+    if (!(await page.$('#pageJoueurs:not([hidden]) .jr-table tbody tr'))) errors.push('les Joueurs ne montrent pas le tableau de l\'effectif une fois la saison jouée');
     await aller('cartable');
     await page.waitForTimeout(250);
-    if (!(await page.$('#pageCartable:not([hidden])'))) errors.push('la Collection ne montre pas le cartable');
+    if (!(await page.$('#pageCartable:not([hidden])'))) errors.push('les Cartes ne montrent pas l\'album');
     await aller('match');
     await page.waitForTimeout(250);
   }
