@@ -773,28 +773,28 @@ export function coachHtml(decs, j, injured = new Set()) {
   const n = buildDe(decs, j + 1)[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
   const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
   const fin = SEUILS[SEUILS.length - 1];
-  return `<div class="eq-coach">
-    <div class="eq-coach-tete"><span class="eq-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="eq-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
-    <div class="eq-jauge" role="img" aria-label="${n} carte${n > 1 ? 's' : ''} de sa couleur jouée${n > 1 ? 's' : ''}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
-    <div class="eq-coach-l">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
-    ${pal ? `<div class="eq-coach-l"><span class="eq-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
-    ${manque ? `<div class="eq-coach-l suite"><span class="eq-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
+  return `<div class="ej-coach">
+    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="ej-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
+    <div class="ej-jauge" role="img" aria-label="${n} carte${n > 1 ? 's' : ''} de sa couleur jouée${n > 1 ? 's' : ''}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
+    <div class="ej-coach-l">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
+    ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
+    ${manque ? `<div class="ej-coach-l suite"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
   </div>`;
 }
 function equipeDuSoirEl() {
   const el = document.createElement('section');
-  el.className = 'eq-soir';
+  el.className = 'ej-soir';
   const lu = lectureDuBanc();
   if (!lu) return el;
   const t = lu.stats;
-  const rangee = (nom, d) => `<li class="eq-r"><span class="eq-nom">${esc(nom)}</span><span class="eq-stats">${pastillesDeStats(d)}</span></li>`;
-  el.innerHTML = `<div class="eq-tete">Par match, ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
-    <div class="eq-feuille">
+  const rangee = (nom, d) => `<li class="ej-r"><span class="ej-nom">${esc(nom)}</span><span class="ej-stats">${pastillesDeStats(d)}</span></li>`;
+  el.innerHTML = `<div class="ej-tete">Par match, ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
+    <div class="ej-feuille">
       <div><b>${v1(t.tirs)}</b><small>Tirs</small></div><div><b>${v1(t.pctTir * 100)} %</b><small>Au tir</small></div>
       <div><b>${v1(t.contre)}</b><small>Tirs contre</small></div><div><b>${pct3(t.pctArr)}</b><small>Arrêts</small></div>
     </div>
-    <div class="eq-k">Ton alignement</div>
-    <ul class="eq-liste">${lu.parts.map(x => rangee({ systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
+    <div class="ej-k">Ton alignement</div>
+    <ul class="ej-liste">${lu.parts.map(x => rangee({ systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
 `;
   return el;
 }

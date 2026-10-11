@@ -2268,41 +2268,41 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* La note qui bouge (V6) : le différentiel attendu de l'unité, en vert ou en rouge. */
 /* LE PLAN DE MATCH (V6) : la glace du club et l'appariement, en un panneau. */
 /* Ton équipe ce soir (V7) : l'alignement et ce qui joue, en but net par match ; le coach et sa confiance. */
-.eq-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
-.eq-soir:empty { display: none; }
-.eq-tete { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); letter-spacing: 0.04em; text-transform: uppercase; }
-.eq-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
-.eq-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
-.eq-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
-.eq-r.a-detail { cursor: pointer; }
-.eq-r.a-detail .eq-nom::after { content: ' ›'; color: var(--encre-3); }
-.eq-r.ouvert .eq-nom::after { content: ' ⌄'; }
-.eq-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
-.eq-nom small { margin-left: var(--esp-1); color: var(--encre-3); }
-.eq-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
+.ej-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
+.ej-soir:empty { display: none; }
+.ej-tete { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); letter-spacing: 0.04em; text-transform: uppercase; }
+.ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
+.ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.ej-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
+.ej-r.a-detail { cursor: pointer; }
+.ej-r.a-detail .ej-nom::after { content: ' ›'; color: var(--encre-3); }
+.ej-r.ouvert .ej-nom::after { content: ' ⌄'; }
+.ej-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
+.ej-nom small { margin-left: var(--esp-1); color: var(--encre-3); }
+.ej-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
 .st-p { padding: 2px 6px; border-radius: var(--r-1); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; }
-.eq-feuille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--filet-2); border-radius: var(--r-1); overflow: hidden; }
-.eq-feuille > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-2) var(--esp-1); background: var(--fond-2); }
-.eq-feuille b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
-.eq-feuille small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
-.eq-soir .bon { color: var(--bon); }
-.eq-soir .mauvais { color: var(--mauvais); }
-.eq-detail { display: none; grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
-.eq-r.ouvert .eq-detail { display: block; }
-.eq-vide { margin: 0; font-size: var(--t-1); color: var(--encre-3); }
-.eq-coach { display: flex; flex-direction: column; gap: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
-.eq-coach-tete { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
-.eq-coach-tete small { flex-basis: 100%; font-family: inherit; font-weight: 400; font-size: var(--t-1); line-height: 1.3; text-transform: none; color: var(--encre-2); }
-.eq-coach-ico { font-size: var(--t-4); line-height: 1; }
-.eq-rang { padding: 2px 6px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
-.eq-jauge { position: relative; height: 6px; margin: var(--esp-2) 0 var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
-.eq-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
-.eq-jauge em { position: absolute; top: -2px; width: 2px; height: 10px; margin-left: -1px; background: var(--encre-3); }
-.eq-jauge em b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
-.eq-jauge em.fait { background: var(--encre); }
-.eq-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
-.eq-coach-l.suite { opacity: 0.6; }
-.eq-coach-l .eq-k { font-size: var(--t-1); color: var(--encre-3); }
+.ej-feuille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--filet-2); border-radius: var(--r-1); overflow: hidden; }
+.ej-feuille > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-2) var(--esp-1); background: var(--fond-2); }
+.ej-feuille b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
+.ej-feuille small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.ej-soir .bon { color: var(--bon); }
+.ej-soir .mauvais { color: var(--mauvais); }
+.ej-detail { display: none; grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
+.ej-r.ouvert .ej-detail { display: block; }
+.ej-vide { margin: 0; font-size: var(--t-1); color: var(--encre-3); }
+.ej-coach { display: flex; flex-direction: column; gap: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
+.ej-coach-tete { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
+.ej-coach-tete small { flex-basis: 100%; font-family: inherit; font-weight: 400; font-size: var(--t-1); line-height: 1.3; text-transform: none; color: var(--encre-2); }
+.ej-coach-ico { font-size: var(--t-4); line-height: 1; }
+.ej-rang { padding: 2px 6px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
+.ej-jauge { position: relative; height: 6px; margin: var(--esp-2) 0 var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
+.ej-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
+.ej-jauge em { position: absolute; top: -2px; width: 2px; height: 10px; margin-left: -1px; background: var(--encre-3); }
+.ej-jauge em b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
+.ej-jauge em.fait { background: var(--encre); }
+.ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
+.ej-coach-l.suite { opacity: 0.6; }
+.ej-coach-l .ej-k { font-size: var(--t-1); color: var(--encre-3); }
 .plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .pm-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .pm-tete span { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); text-transform: none; letter-spacing: 0; text-align: right; }
@@ -2319,8 +2319,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pm-notes { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); font: 700 var(--t-2)/1.2 var(--display); font-variant-numeric: tabular-nums; }
 .pm-notes .bon { color: var(--bon); }
 .pm-notes .mauvais { color: var(--mauvais); }
-.line-net { flex: none; font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
-.line-net { font-size: var(--t-1); color: var(--encre-3); }
+.line-net { flex: none; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
 .line-net b { font-size: var(--t-3); color: var(--encre); }
 .line-net b.bon { color: var(--bon); }
 .line-net b.mauvais { color: var(--mauvais); }
@@ -2660,7 +2659,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
   .seg-effectif { display: flex; }
   body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
   /* L'onglet Équipe (V6) : le plan de match et le résumé d'équipe ; les unités vivent dans les trois autres. */
-  body[data-effectif="E"] #rosterBoard .line, body:not([data-effectif="E"]) #rosterBoard :is(.plan-match, .eq-soir) { display: none; }
+  body[data-effectif="E"] #rosterBoard .line, body:not([data-effectif="E"]) #rosterBoard :is(.plan-match, .ej-soir) { display: none; }
   .line-head { min-height: 36px; }
   /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
   .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }

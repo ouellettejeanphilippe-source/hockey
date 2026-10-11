@@ -2256,9 +2256,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const p = prochain();
     const jeu = p ? auSoirDu(p.j, null, aVenir => ceQuiJoue(you, null, p.m.A === you ? p.m.B : p.m.A, aVenir)) : [];
     const pastilles = d => motsDeStats(d, 2).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
-    const rangee = x => `<li class="eq-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="eq-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} m.</small>` : ''}</span><span class="eq-stats">${pastilles(x.d)}</span>${x.mots.length ? `<div class="eq-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
-    return `${mainHtml()}<section class="eq-soir"><div class="eq-k">En jeu${p ? ` <small>par match, au prochain</small>` : ''}</div>
-      ${jeu.length ? `<ul class="eq-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="eq-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}
+    const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} m.</small>` : ''}</span><span class="ej-stats">${pastilles(x.d)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
+    return `${mainHtml()}<section class="ej-soir"><div class="ej-k">En jeu${p ? ` <small>par match, au prochain</small>` : ''}</div>
+      ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}
       ${ctx.coachHtml ? ctx.coachHtml(jour) : ''}</section>`;
   };
   const voletJourneeSeul = () => {
@@ -2593,7 +2593,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const dansLaMain = e => {
     const c = e.target.closest('.hub-poche-case[data-ref]');
     if (c && volet.contains(c)) { const it = ((mainDuBureau() || {}).main || []).find(x => x.ref === c.dataset.ref); if (it) ctx.inventaire.carte(it, jour, d => { const j = jour; quitter(); onDecision(d, j); }); return; }
-    const r = e.target.closest('.eq-r.a-detail');
+    const r = e.target.closest('.ej-r.a-detail');
     if (r && volet.contains(r) && (e.type === 'click' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); r.setAttribute('aria-expanded', String(r.classList.toggle('ouvert'))); }
   };
   volet.addEventListener('click', dansLaMain);
