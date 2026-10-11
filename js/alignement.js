@@ -7,7 +7,7 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
+import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, alignementDuSoir, ceQuiJoue, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
@@ -702,8 +702,11 @@ function planDeMatchEl() {
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
     <div class="pm-k">Appariement</div>
     ${[0, 1, 2, 3].map(r => `<div class="pm-app"><span class="pm-leur">Leur ${ORD_TRIO[r]} ${ico(leurs[r])}</span><span class="pm-seg">${[-1, 0, 1, 2, 3].map(m => `<button type="button" class="pm-btn${app[r] === m ? ' on' : ''}" data-app="${r}:${m}" aria-pressed="${app[r] === m}" title="${m < 0 ? 'Par rang, comme le veut la rotation' : `Ton ${ORD_TRIO[m]} trio`}">${m < 0 ? 'A' : `${m + 1}${ico(miennes[m])}`}</button>`).join('')}</span></div>`).join('')}
-    ${notesHtml}${chezEux}`;
+    ${notesHtml}${chezEux}
+    ${consigneHtml()}${filetHtml()}`;
   el.querySelectorAll('[data-roul]').forEach(x => { x.onclick = () => { b.roulement = x.dataset.roul; render(); }; });
+  el.querySelectorAll('[data-consigne]').forEach(x => { x.onclick = () => { b.match = { importance: x.dataset.consigne, ad: AD_DE_CONSIGNE[x.dataset.consigne] }; render(); }; });
+  el.querySelectorAll('[data-filet]').forEach(x => { x.onclick = () => { b.filet = x.dataset.filet; render(); }; });
   el.querySelectorAll('[data-app]').forEach(x => {
     x.onclick = () => {
       const [r, m] = x.dataset.app.split(':').map(Number);
@@ -729,19 +732,37 @@ function planDeMatchEl() {
 /* Un écart de stats en pastilles : les deux qui bougent le plus, en vert ou en rouge. */
 const pastillesDeStats = (d, max = 2) => motsDeStats(d, max).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
 const v1 = x => x.toFixed(1).replace('.', ',');
-function lectureDuBanc() {
+/*
+ * LE SOIR DU BANC, POSÉ LE TEMPS D'UNE LECTURE : le prochain match, avec ce qui se règle ici (les lignes, la glace,
+ * l'appariement, la consigne, le filet) à la place de ce qui était décidé. `plan` remplace la consigne ou le filet
+ * le temps d'essayer. `fn(you, lu, adv, aVenir)`.
+ */
+function aVenirDuBanc(plan = {}) {
+  const b = G.banc, L = G.ligue, you = L.you, j = b.prochain.j ?? b.jour;
+  return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes && !(d.jour === j && (d.match || d.filet))),
+    { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+}
+function avecLeBanc(fn) {
   const b = G.banc, L = G.ligue, you = L && L.you;
   if (!b || !you || !b.prochain || surTable()) return null;
-  const decs = [...(L.decisions || []), ...(L.decisionsSeries || [])];
   const j = b.prochain.j ?? b.jour;
-  const aVenir = [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes), { jour: j, lignes: b.lignes }];
+  const aVenir = aVenirDuBanc();
   const jc = you.jourCourant, avant = [you.appariement, you.roulement];
   you.jourCourant = j; you.appariement = b.appariement; you.roulement = b.roulement;
   try {
-    const lu = activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j });
-    return { stats: statsDe(chiffresDuSoir(you, lu, b.prochain.adv, aVenir)), parts: alignementDuSoir(you, lu, b.prochain.adv, aVenir), jeu: ceQuiJoue(you, lu, b.prochain.adv, aVenir), decs, j };
+    return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir);
   } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
 }
+function lectureDuBanc() {
+  const L = G.ligue;
+  return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir), jeu: ceQuiJoue(you, lu, adv, aVenir),
+    decs: [...(L.decisions || []), ...(L.decisionsSeries || [])], j: G.banc.prochain.j ?? G.banc.jour }));
+}
+/* Ce qu'un autre réglage du soir (`plan` : la consigne, le filet) change aux stats du match, contre celui en place. */
+const ecartDuSoir = plan => avecLeBanc((you, lu, adv, aVenir) => {
+  const a = statsDe(chiffresDuSoir(you, lu, adv, aVenirDuBanc(plan))), b = statsDe(chiffresDuSoir(you, lu, adv, aVenir));
+  return { tirs: a.tirs - b.tirs, pctTir: a.pctTir - b.pctTir, contre: a.contre - b.contre, pctArr: a.pctArr - b.pctArr };
+});
 function coachDuBancHtml(decs, j) {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const [actif] = coachsActifs(decs, j + 1);
@@ -781,6 +802,30 @@ function equipeDuSoirEl() {
     r.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bascule(); } };
   });
   return el;
+}
+
+/*
+ * LA CONSIGNE ET LE FILET DU SOIR (V7 : « Préparer le match » fondu dans les Lignes). Chaque consigne dit ce qu'elle
+ * change aux stats du match ; chaque gardien, son % d'arrêts et ses jambes. Ils jouent au « Retour au match ».
+ */
+function consigneHtml() {
+  const b = G.banc, cle = (b.match && b.match.importance) || 'normale';
+  return `<div class="pm-k">Consigne du match</div><div class="pm-seg pm-consigne">${Object.entries(IMPORTANCES).map(([k, I]) => {
+    const d = k === cle ? null : ecartDuSoir({ match: { importance: k, ad: AD_DE_CONSIGNE[k] } });
+    return `<button type="button" class="pm-btn${k === cle ? ' on' : ''}" data-consigne="${k}" aria-pressed="${k === cle}" title="${esc(I.mot)}"><b>${I.ico} ${esc(I.nom)}</b>${d ? `<span class="pm-stats">${pastillesDeStats(d, 1)}</span>` : '<small>en jeu</small>'}</button>`;
+  }).join('')}</div>`;
+}
+function filetHtml() {
+  const b = G.banc, F = b.filetEtat;
+  if (!F) return '';
+  const gardien = cle => Object.values(G.roster).find(p => p && getPlayerKey(p) === cle) || null;
+  const choix = b.filet === 'auto' ? F.rotation : b.filet;
+  const bouton = qui => {
+    const g = gardien(F[qui]);
+    const e = g ? ((b.energie || {})[getPlayerKey(g)] ?? 100) : 100;
+    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'} · jambes ${Math.round(e)}${qui === F.rotation ? ' · son tour' : ''}</small></button>`;
+  };
+  return `<div class="pm-k">Devant le filet</div><div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
 }
 
 export function renderRoster() {

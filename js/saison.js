@@ -23,16 +23,16 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, glaceDesLignes, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
+import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, lignesDeGros, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS,
+  lignesDe, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, fitUnite, MUTATIONS,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, GAIN_STAGE, rolesOfferts, tactiquesDuStage, editionsDuJour, apprentissagePhoto,
-  familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, usureDuSoir, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
+  familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
@@ -2880,8 +2880,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const forces = forcesHtml(adv);
       const detailDuSoir = `${forces.detail}${totauxHtml}${enJeuHtml}<div class="hub-match-note">${dernierMot}</div>`;
       // LE SOIR EN DEUX GESTES (V7, JP : *les 4 onglets aperçu, préparation, match, résultats sont useless*) : le
-      // dépistage et la préparation, deux boutons sous l'affiche ; « Regarder » est dans la barre, hier dans le volet.
-      const gestes = `<div class="hub-soir-gestes"><button type="button" class="btn hub-dep-ouvrir">🔎 Dépistage</button>${onDecision ? '<button type="button" class="btn gold hub-preparer">🏒 Préparer</button>' : ''}</div>`;
+      // dépistage et les lignes, deux boutons sous l'affiche ; « Regarder » est dans la barre, hier dans le volet.
+      const gestes = `<div class="hub-soir-gestes"><button type="button" class="btn hub-dep-ouvrir">🔎 Dépistage</button>${onDecision && onBanc ? '<button type="button" class="btn gold hub-vers-lignes">🏒 Lignes</button>' : ''}</div>`;
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
       const formeA = formeHtml(p.m.A), formeB = formeHtml(p.m.B);
@@ -2900,33 +2900,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // Un conseil appliqué ferme la page avant de rejouer la saison depuis ce soir.
         corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { ui.fermerPage(true); if (f) f.call(b, e); }; });
       };
-      // « Préparer le match » : le bouton de l'affiche au bureau, la tuile au téléphone — le même geste.
-      carte.querySelectorAll('.hub-preparer').forEach(prep => { prep.onclick = () => { ouvrirLignes({
-        titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.teamShort(adv)}`,
-        // Une page du Club (1.0, R3), pas une fenêtre.
-        dans: ui.ouvrirPage({ genre: 'preparer', ico: '🏒', titre: 'Préparer le match', sousTitre: `Journée ${p.j + 1} · ${domicile ? 'contre' : 'chez'} ${ctx.esc(ctx.teamShort(adv))}` }),
-        fermer: () => ui.fermerPage(true),
-        lineup: you.roster, lignes: lignesToi, chimie: etat.chimie, energie: etat.energie, apprentissage: etat.apprentissage,
-        // Un gros match (J1-N) : les indices « tu étouffes » lisent leurs lignes SOUS LE PLAN LE PLUS
-        // PROBABLE du dépistage (le vrai reste caché), sur l'alignement qui jouera (blessés retirés).
-        adv: { nom: ctx.teamShort(adv), lignes: lignesDeGros(adv, activeLineup(adv), mb ? planProbable(mb.depistage) : null), selonDepistage: !!mb },
-        depistage: mb ? mb.depistage : null,
-        effets: { ...effetsEnCours(you, p.j), cartes: decs.filter(d => d.carte && d.jour <= p.j).map(d => d.carte) },
-        // « Normale » par défaut, même un gros match (J1-O) : « Haute » a un prix (blessures, énergie) et se choisit.
-        match: (matchPris && matchPris.match) || { importance: 'normale', ad: 0 },
-        grosMatch: !!mb,
-        roulement: roulementDuSoir(p.j),
-        totaux: (match, lignes, r) => totauxDuMatch(p.j, { match, lignes, ...r }),
-        alignement: (match, lignes, r) => partsDuSoirDu(p.j, { match, lignes, ...r }),
-        // LA GLACE DU SOIR (V2.2) : la part que le moteur joue, sur ses minutes à forces égales.
-        glace: (match, lignes, r) => auSoirDu(p.j, { match, lignes, ...r }, aVenir => { const fe = chiffresDuSoir(you, null, null, aVenir).minutesFE; return glaceDesLignes(you, aVenir).F.map(x => x * fe); }),
-        usure: (match, lignes, r) => auSoirDu(p.j, { match, lignes, ...r }, aVenir => usureDuSoir(you, aVenir)),
-        // DEVANT LE FILET CE SOIR (1.0, C4) : la rotation du matin, et ton choix s'il y en a un.
-        filet: etat.filet ? { ...etat.filet, choix: (decs.find(d => d.jour === p.j && d.filet) || {}).filet || 'auto' } : null,
-        motAppliquer: 'Appliquer — la saison reprend ici',
-        onBanc: onBanc ? () => { quitter(); onBanc(jour); } : null,
-        onAppliquer: (lignes, match, filet, r) => { const j = jour; quitter(); onDecision({ jour: p.j, lignes, match, ...(filet ? { filet } : {}), ...r }, j); },
-      }); }; });
+      // « Préparer le match » est l'onglet Lignes (V7) : la consigne, le filet, les trios et le plan s'y règlent.
+      const versLignes = carte.querySelector('.hub-vers-lignes');
+      if (versLignes) versLignes.onclick = () => { quitter(); onBanc(jour); };
     } else {
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les ${ctx.esc(you.name)} ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
