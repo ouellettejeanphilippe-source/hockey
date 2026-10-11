@@ -8099,7 +8099,7 @@ export function commentContrer(cle) {
   const c = P && contreDuPlan(P);
   if (!c) return '';
   if (c.tac) return `${c.n} lignes en ${TACTIQUES[c.tac].ico} ${TACTIQUES[c.tac].nom} — leur système est étouffé, plus d'actions spéciales`;
-  return `la consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom} (Préparer le match) — ${P.pourquoi}`;
+  return `la consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom} (dans les Lignes) — ${P.pourquoi}`;
 }
 /* Le plan est-il contré ? Des lignes `{ tac, agr }` × 4 et la consigne du match (`ad`, −2 à 2). */
 export function planEstContre(cle, lignes, ad = 0) {

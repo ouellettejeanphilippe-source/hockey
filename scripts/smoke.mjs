@@ -1956,7 +1956,7 @@ if (enabled) {
      * LES SÉRIES DU 82-0 SE REGARDENT (oct.) : match par match, sans cartes, sans plan, sans banc — tout ça
      * est au Rogue. Le seul geste est « Match suivant ».
      */
-    for (const [sel, quoi] of [['#hubModal .hub-preparer', '« Préparer le match »'], ['#hubModal .hub-deck', 'le deck'], ['#hubModal .hub-banc-serie', 'le banc']]) {
+    for (const [sel, quoi] of [['#hubModal .hub-vers-lignes', 'les Lignes du match'], ['#hubModal .hub-deck', 'le deck']]) {
       if (await page.$(sel)) errors.push(`les séries du 82-0 offrent encore ${quoi}`);
     }
     if (!(await page.$('#hubModal .boss-eclaireur'))) errors.push('les séries ne montrent pas le rapport d\'éclaireur de l\'adversaire');

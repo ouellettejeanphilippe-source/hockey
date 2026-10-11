@@ -46,7 +46,7 @@ js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
 js/saison.js          l'écran de saison et des séries : le Bureau (le duel du soir), la boîte, Cartes › Ta main, Ligue › Ta saison, les choix forcés
-js/gerant.js          « Préparer le match » et la fenêtre du système d'une ligne
+js/gerant.js          la fenêtre du système d'une ligne, les choix, la main de match et le deck
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
@@ -209,7 +209,7 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 1. La page démarre, `#game` devient visible
 2. Auto-draft conscient du budget : à chaque tour il lit le plafond restant, calcule ce qu'il peut mettre sur ce choix sans passer sous le plancher pour les cases suivantes, et signe, parmi les cartes qui tiennent dans ce budget, celle dont la destination ne porte aucun avertissement et dont le chiffre clé est le plus grand (voir S64 : prendre la première rendait une équipe de .500 et faisait du passage des séries une loterie). Sinon il relance (passer, autre équipe, autre année) ; en dernier recours il clique `#freeCapBtn`, le bouton de la bande de secours qui retire le plus gros contrat
 3. `#mainBtn` devient actif
-4. Cliquer : le 82-0 va droit au bilan (aucun `#hubModal .hub-jour`), `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan — sans « Préparer le match », deck ni banc (le jour à jour s'éprouve en Rogue : `essai_rogue.mjs`)
+4. Cliquer : le 82-0 va droit au bilan (aucun `#hubModal .hub-jour`), `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan — sans les Lignes du match ni deck (le jour à jour s'éprouve en Rogue : `essai_rogue.mjs`)
 5. « Rejouer la saison » (`#replayBtn`) rejoue le même alignement contre les mêmes clubs, puis l'historique (`.lb-replay`) relit un alignement et repart une saison — droit au bilan à chaque fois
 6. Le même parcours en tirage Loto (`#rrL` relance quand rien ne tient dans le budget)
 7. Zéro erreur console (les portraits refusés ne sont demandés qu'une fois : `PORTRAITS_ABSENTS`)

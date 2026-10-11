@@ -561,9 +561,7 @@ function noteDesUnites() {
   try {
     const lu = activeLineup({ ...L.you, roster: G.roster, injured: b.blesses, jourCourant: b.jour });
     // Le plan de match du banc (V6), posé le temps de la lecture : l'appariement et la glace qu'on essaie.
-    const avant = [L.you.appariement, L.you.roulement];
-    L.you.appariement = b.appariement; L.you.roulement = b.roulement;
-    try { return unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes); } finally { [L.you.appariement, L.you.roulement] = avant; }
+    return auSoirDuBanc(L.you, () => unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes));
   } catch { return null; }
 }
 
@@ -647,7 +645,7 @@ function alignerAuMieux(cle) {
   } else if (!G.banc) G.lignes = null;   // de nouveaux trios, les systèmes que l'IA leur ferait
   saveGame();
   render();
-  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ' Il joue au « Retour au match ».' : ''}`);
+  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ` Il joue au « ${G.banc.serie ? 'Retour aux séries' : 'Retour au match'} ».` : ''}`);
 }
 function boutonAuMieux() {
   const b = document.createElement('button');
@@ -737,19 +735,33 @@ const v1 = x => x.toFixed(1).replace('.', ',');
  */
 function aVenirDuBanc(plan = {}) {
   const b = G.banc, L = G.ligue, you = L.you, j = b.prochain.j ?? b.jour;
+  // EN SÉRIES (V7), le match de ta série : ses décisions déjà prises (un ajustement, une main), sans celles que le banc règle.
+  if (b.serie) {
+    return [...(L.decisionsSeries || []).filter(d => d.ronde === b.serie.ronde && d.match_no === b.serie.k && !d.entracte && !d.cases && !d.lignes && !d.match && !d.filet),
+      { lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+  }
   return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes && !(d.jour === j && (d.match || d.filet))),
     { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+}
+/*
+ * Le soir du banc posé sur ton club le temps d'une lecture : le plan de match qu'on essaie et, en séries, le match
+ * qui vient (`jourCourant` à l'infini : le moteur lit `effetsSerie`, que chaque match de série repart à vide).
+ */
+function auSoirDuBanc(you, fn) {
+  const b = G.banc, serie = !!b.serie;
+  const jc = you.jourCourant, es = you.effetsSerie, avant = [you.appariement, you.roulement];
+  you.appariement = b.appariement; you.roulement = b.roulement;
+  if (serie) { you.jourCourant = Infinity; you.effetsSerie = []; }
+  try { return fn(); } finally { you.jourCourant = jc; you.effetsSerie = es; [you.appariement, you.roulement] = avant; }
 }
 function avecLeBanc(fn) {
   const b = G.banc, L = G.ligue, you = L && L.you;
   if (!b || !you || !b.prochain || surTable()) return null;
   const j = b.prochain.j ?? b.jour;
   const aVenir = aVenirDuBanc();
-  const jc = you.jourCourant, avant = [you.appariement, you.roulement];
-  you.jourCourant = j; you.appariement = b.appariement; you.roulement = b.roulement;
   try {
-    return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir);
-  } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
+    return auSoirDuBanc(you, () => { you.jourCourant = j; return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir); });
+  } catch { return null; }
 }
 function lectureDuBanc() {
   return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir) }));
@@ -816,7 +828,8 @@ function filetHtml() {
   const bouton = qui => {
     const g = gardien(F[qui]);
     const e = g ? ((b.energie || {})[getPlayerKey(g)] ?? 100) : 100;
-    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'} · jambes ${Math.round(e)}${qui === F.rotation ? ' · son tour' : ''}</small></button>`;
+    // Ses jambes, avec la règle des gardiens en infobulle (`jambesHtml`) : elles tombent par départs de suite.
+    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'}${qui === F.rotation ? ' · son tour' : ''}</small>${g ? jambesHtml(e, { gardien: true }) : ''}</button>`;
   };
   return `<div class="pm-k">Devant le filet</div><div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
 }
@@ -829,7 +842,7 @@ export function renderRoster() {
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
   if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(equipeDuSoirEl());
-  if (!surTable() && G.banc && G.banc.prochain && !G.banc.serie && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
+  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);
@@ -901,7 +914,7 @@ export function renderMain() {
   const over = capLeft() < 0;
   if (G.banc) {
     b.disabled = reste > 0;
-    b.textContent = `Retour au match · journée ${G.banc.jour}`;
+    b.textContent = G.banc.serie ? `Retour aux séries · match ${G.banc.serie.k + 1}` : `Retour au match · journée ${G.banc.jour}`;
     return;
   }
   b.disabled = reste > 0 || G.done || over;

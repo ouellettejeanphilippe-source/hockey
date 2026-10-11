@@ -584,8 +584,8 @@ body[data-zone="ref"] .actionbar { display: none; }
   body.au-repechage:has(#mainBtn:disabled) { --actionbar-h: 0px; }
   body.au-repechage:has(#mainBtn:disabled) .actionbar { display: none; }
 }
-body:has(#game.bilan) .actionbar { display: none; }
-body:has(#game.bilan) { --actionbar-h: 0px; }
+body:has(#game.bilan:not(.banc)) .actionbar { display: none; }
+body:has(#game.bilan:not(.banc)) { --actionbar-h: 0px; }
 /* Sa hauteur, `--flottant-h`, le volet du bureau la réserve sous sa dernière rangée (sinon le dernier du classement passe dessous).
    `.btn.go.hub-flottant` : `.btn.go` (deux classes) pose `position: relative` plus bas ; à une classe, le bouton ne flottait pas
    et se posait en haut de l'écran, sur les premières rangées (CI, graine h13l7m : « bouton 35-79, rangée 64-108 »). */
@@ -2227,7 +2227,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 }
 /* =====================================================================
    5. L'EFFECTIF — le tableau des lignes, la case, le résumé, le banc,
-      la fenêtre du système, « Préparer le match »
+      la fenêtre du système, le plan de match
    =====================================================================
    L'alignement est un TABLEAU DE LIGNES : chaque trio et chaque paire est
    une bande bord à bord — l'en-tête sur un filet, les cases dessous, la
@@ -2313,6 +2313,9 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pm-consigne .pm-btn, .pm-filet .pm-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--esp-2); min-width: 0; }
 .pm-consigne .pm-btn small, .pm-filet .pm-btn small { font: 600 var(--t-1)/1.2 var(--display); opacity: 0.8; }
 .pm-filet .pm-btn b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+/* Ses jambes (`jambesHtml`) sous le nom ; sur le gardien choisi, le texte suit la couleur du bouton. */
+.pm-filet .pm-btn .jambes { width: 100%; }
+.pm-filet .pm-btn.on .jambes, .pm-filet .pm-btn.on .jambes :is(b, .jambes-k, .jambes-mot) { color: inherit; }
 .pm-app { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--esp-2); }
 .pm-leur { font: 700 var(--t-2)/1.1 var(--display); white-space: nowrap; }
 .pm-eux-plan { font: 600 var(--t-1)/1.3 var(--display); color: var(--attention); }
@@ -2480,7 +2483,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .banc { margin-bottom: var(--esp-3); }
 .banc-retour { width: 100%; margin-top: var(--esp-3); }
 
-/* ---- La fenêtre du système et « Préparer le match » (#lignesModal .gl-sheet) ---- */
+/* ---- La fenêtre du système d'une unité (#lignesModal .gl-sheet) ---- */
 .gl-sheet { max-width: 1180px; }
 .ln-fenetre .choix-corps { gap: var(--esp-3); }
 /* Chaque section est une bande sur un filet, coiffée d'une étiquette. */
@@ -2488,84 +2491,12 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .gl-sheet .choix-corps > section:first-child { border-top: 0; padding-top: 0; }
 .gl-sec-titre, .gl-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .gl-sec-titre { margin: var(--esp-2) 0 var(--esp-1); }
-.gl-sec-titre .ln-id { color: var(--or); }
 .gl-mot { font-size: var(--t-2); line-height: 1.4; color: var(--encre-3); }
 /* En face : l'adversaire, son système, ce qui l'étouffe ; un filet d'or à gauche. */
-.gl-adv-tete { display: grid; gap: var(--esp-2); }
 .gl-adv { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: var(--fond-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 .gl-adv b { color: var(--encre); }
 .gl-adv .ok { color: var(--bon); }
 .gl-adv .prix { color: var(--live); }
-/* Les totaux du soir : une ligne d'effets, en mots colorés. */
-.gl-totaux-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); }
-.gl-totaux-l b { font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.gl-totaux .choix-puces { margin-top: 0; }
-.gl-totaux .gl-mot { margin-top: var(--esp-1); }
-/* Ce qui joue sur ta formation : une rangée par effet, sur un filet. */
-.gl-effet { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-1) var(--esp-2); min-height: 40px; padding: var(--esp-1) 0; border-bottom: 1px solid var(--filet-2); font-size: var(--t-2); }
-.gl-effet-nom small { color: var(--encre-3); }
-.gl-effet .choix-puces { margin-top: 0; }
-/* Un choix en cartons plats (agressivité en préparation) ; en segment quand il est court (consigne, agressivité de la fenêtre). */
-.gl-seg { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--esp-2); }
-.gl-seg-btn {
-  display: flex; flex-direction: column; gap: 3px; min-width: 0; min-height: 44px; padding: var(--esp-2) var(--esp-3);
-  text-align: left; cursor: pointer; color: var(--encre); background: var(--fond-2); border: 1px solid var(--filet); border-radius: var(--r-1);
-  transition: border-color var(--t-vite), background var(--t-vite), color var(--t-vite);
-}
-.gl-seg-btn b { font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.gl-seg-btn small { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
-.gl-seg-btn:hover { border-color: var(--encre-3); }
-.gl-seg-btn.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); }
-.gl-seg.gl-seg-court { display: flex; gap: 2px; padding: 2px; background: var(--fond-2); border-radius: var(--r-1); }
-.gl-seg-court .gl-seg-btn { flex: 1 1 0; align-items: center; padding: var(--esp-2) var(--esp-1); text-align: center; border: 0; background: none; color: var(--encre-2); }
-.gl-seg-court .gl-seg-btn b { white-space: normal; overflow-wrap: anywhere; }
-.gl-seg-court .gl-seg-btn .choix-puces { display: none; }
-.gl-seg-court .gl-seg-btn:hover { color: var(--encre); }
-.gl-seg-court .gl-seg-btn.on { background: var(--choisi); color: var(--sur-choisi); }
-.gl-seg-court .gl-seg-btn.on small { color: inherit; opacity: 0.7; }
-.gl-consigne-effet { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); margin-top: var(--esp-2); font-size: var(--t-2); }
-.gl-consigne-effet small { font-size: var(--t-2); color: var(--encre-2); }
-.gl-consigne-effet .choix-puces { margin-top: 0; }
-/* Devant le filet ce soir : deux cartons, le partant et l'auxiliaire, leurs jambes. */
-.gl-filet .gl-seg.gl-seg-court { padding: 0; gap: var(--esp-2); background: none; }
-.gl-filet .gl-gardien { display: grid; gap: var(--esp-1); align-items: start; padding: var(--esp-2) var(--esp-3); text-align: left; border: 1px solid var(--filet); background: var(--fond-2); color: var(--encre); }
-.gl-filet .gl-gardien.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); color: var(--encre); }
-.gl-filet .gl-gardien b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gl-gardien-l { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--esp-2); color: var(--encre-2); }
-.gl-gardien .jambes { width: 100%; }
-/* Les lignes en onglets : deux par rangée au téléphone, quatre dès 640 px ; l'ouvert souligné d'or. */
-.gl-onglets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border-bottom: 1px solid var(--filet); }
-.gl-onglet { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 56px; padding: var(--esp-2); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--encre-3); text-align: left; cursor: pointer; transition: color var(--t-vite), border-color var(--t-vite); }
-.gl-onglet b { font: 800 var(--t-2)/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.gl-onglet span, .gl-onglet small { font: 600 var(--t-1)/1.2 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gl-onglet small { color: var(--encre-3); }
-.gl-onglet:hover { color: var(--encre); }
-.gl-onglet.on { color: var(--encre); border-bottom-color: var(--or); }
-/* La ligne ouverte : ses joueurs en rangées, puis son état, ses systèmes, son agressivité, sa glace. */
-.gl-ligne { display: flex; flex-direction: column; gap: var(--esp-2); }
-.gl-joueurs { display: flex; flex-direction: column; gap: 1px; border: 1px solid var(--filet); background: var(--filet); }
-.gl-j { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto auto; grid-template-areas: "role nom usure niv" "role prof voulu jambes"; align-items: center; gap: var(--esp-1) var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-2); background: var(--fond-1); font-size: var(--t-2); }
-.gl-j-role { grid-area: role; font: 800 var(--t-1)/1 var(--display); color: var(--encre-3); }
-.gl-j-nom { grid-area: nom; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.gl-j-nom i { color: var(--encre-3); }
-.gl-j-niv { grid-area: niv; }
-.gl-j-prof { grid-area: prof; }
-.gl-j-voulu { grid-area: voulu; }
-.gl-j .jambes { grid-area: jambes; min-width: 96px; }
-/* L'usure des jambes de ce soir, à côté des jambes du matin. */
-.gl-j-usure { grid-area: usure; justify-self: end; font: 800 var(--t-1)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
-.gl-j-prof, .gl-j-voulu { font: 700 var(--t-1)/1 var(--display); white-space: nowrap; }
-.gl-j-prof small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-2); }
-.gl-j-place { margin-left: 3px; font-size: var(--t-1); color: var(--attention); cursor: help; }
-.gl-j-marque { font-size: var(--t-2); }
-.gl-j-mut { display: none; font-size: var(--t-2); }
-.gl-j.fit-bon :is(.gl-j-voulu, .gl-j-marque) { color: var(--bon); }
-.gl-j.fit-mauvais :is(.gl-j-voulu, .gl-j-marque) { color: var(--live); }
-.gl-etat { display: flex; flex-direction: column; gap: var(--esp-1); font-size: var(--t-2); color: var(--encre-2); }
-.gl-etat b { color: var(--encre); font-family: var(--display); }
-.gj-barre { display: inline-block; height: 4px; border-radius: var(--r-1); background: var(--noir); overflow: hidden; }
-.gj-barre > span { display: block; height: 100%; background: var(--or); }
-.gl-chimie { width: 120px; vertical-align: middle; }
 /* Les systèmes : une grille de cartons plats, l'ouvert cerné d'or, le fit en mot coloré, le contre en pointillé. */
 .gl-tacs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
 .gl-tac {
@@ -2602,7 +2533,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* Le pied : « Appliquer » prend la largeur, les autres en contour. */
 .gl-pied { flex: none; display: flex; gap: var(--esp-2); padding: var(--esp-3) var(--esp-4) calc(var(--esp-3) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
 .gl-pied .gl-appliquer { flex: 1 1 auto; }
-.gl-pied .gl-annuler, .gl-pied .gl-banc { flex: 0 1 auto; }
+.gl-pied .gl-annuler { flex: 0 1 auto; }
 /* Le résumé des lignes sur l'affiche du match : les icônes et la chimie en points. */
 .gl-resume { display: inline-flex; align-items: baseline; gap: 1px; margin-right: var(--esp-2); font-size: var(--t-3); }
 .gl-resume small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
@@ -2617,10 +2548,6 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 @media (hover: none) { .slot-remove { opacity: 1; } }
 @media (min-width: 640px) {
   .sum-item .v { font-size: var(--t-5); }
-  .gl-onglets { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .gl-j { grid-template-columns: 30px minmax(0, 1fr) auto auto 56px 110px 30px auto; grid-template-areas: none; }
-  .gl-j > *, .gl-j .jambes, .gl-j .gl-j-usure { grid-area: auto; }
-  .gl-j-mut { display: inline; }
 }
 /* Une case large (une seule colonne de trios, avant les deux colonnes de la tablette) montre le prénom et l'écusson. */
 @media (min-width: 640px) and (max-width: 699.98px) {
@@ -2845,9 +2772,9 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-soir-gestes .btn { min-height: 44px; }
 .hub-lignes { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); border-top: 1px solid var(--filet-2); }
 .hub-lignes-imp { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-/* Un seul bouton plein par écran : « Préparer » et les seconds rôles en or sont en contour. */
-.hub-preparer, .hub-actions > .btn.gold:not(.hub-suite), .hub-actions-rang .btn.gold { background: transparent; border-color: var(--or); color: var(--or); }
-.hub-preparer:hover:not(:disabled), .hub-actions > .btn.gold:not(.hub-suite):hover:not(:disabled), .hub-actions-rang .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 12%, transparent); }
+/* Un seul bouton plein par écran : les seconds rôles en or sont en contour. */
+.hub-actions > .btn.gold:not(.hub-suite), .hub-actions-rang .btn.gold { background: transparent; border-color: var(--or); color: var(--or); }
+.hub-actions > .btn.gold:not(.hub-suite):hover:not(:disabled), .hub-actions-rang .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 12%, transparent); }
 
 /* ---- Le gros match, le mini-boss ---- */
 .hub-gros { margin: 0 0 var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--violet); border-radius: var(--r-2); background: color-mix(in srgb, var(--violet) 10%, var(--fond-1)); }
@@ -4206,6 +4133,9 @@ button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
 
 /* ---- Le bilan prend l'écran : la roulette et le vestiaire s'effacent sous lui ---- */
 #game.bilan #workspace { display: none; }
+/* Derrière le banc pendant les séries (V7, les Lignes du match) : le bilan est posé, mais c'est l'alignement qui se règle. */
+#game.bilan.banc #workspace { display: flex; }
+#game.bilan.banc #resultHost { display: none; }
 .result-host { padding-bottom: var(--esp-3); }
 .result { padding: var(--esp-4) var(--esp-3) var(--esp-5); border-radius: var(--r-2); background: radial-gradient(90% 60% at 50% 0, color-mix(in srgb, var(--club-vif) 30%, transparent), transparent 70%), var(--panneau); box-shadow: inset 0 3px 0 var(--club-vif), var(--relief); }
 

@@ -168,8 +168,8 @@ const MOTS_RESERVES = [
  * Ce que l'écran dit des zones, de la carrure, de la glace et des jambes est
  * calculé depuis la constante que le moteur joue, jamais recopié : le malus
  * au-dessus de sa zone (ZONE_PEN_DESSUS × crans^ZONE_PUISSANCE), le coût d'un
- * coup pour CE joueur (`coutDuCoup`), la glace sur PART_UNITE (pas POIDS_TRIO,
- * qui compte aussi les avantages), le conseil de jambes sur ENERGIE_REF, et
+ * coup pour CE joueur (`coutDuCoup`), la glace du plan de match au moteur
+ * (`partsDuRoulement`), le conseil de jambes sur ENERGIE_REF, et
  * l'infobulle d'un gardien sur la règle des gardiens.
  */
 {
@@ -178,14 +178,15 @@ const MOTS_RESERVES = [
   const faits = [
     ['le malus au-dessus de sa zone vient de ZONE_PEN_DESSUS et ZONE_PUISSANCE', /ZONE_DESSUS_TITLE = `[^`]*malusDessus\(1\)/.test(src('game.js')) && /ZONE_PEN_DESSUS \* n \*\* ZONE_PUISSANCE/.test(src('game.js')) && sans('game.js', /−3 par cran/)],
     ['la fiche dit le coût d\'un coup pour CE joueur (`coutDuCoup`)', /coutDuCoup\(p\)/.test(src('fiche.js')) && sans('fiche.js', /1 - COUP_ABSORBE|1 \+ COUP_ABSORBE/)],
-    ['la glace de « Préparer le match » se lit sur PART_UNITE', /PART_UNITE\.F/.test(src('gerant.js')) && sans('gerant.js', /POIDS_TRIO\.map/)],
+    // V7 : « Préparer le match » est fondu dans les Lignes ; la glace du plan de match se lit au moteur, roulement compris.
+    ['la glace du plan de match se lit au moteur (`partsDuRoulement`)', /partsDuRoulement\(/.test(src('alignement.js')) && sans('gerant.js', /POIDS_TRIO\.map/)],
     ['le conseil de glace dit la ligne ordinaire du moteur (ENERGIE_REF)', /Sous \$\{ENERGIE_REF\}/.test(src('pronostic.js')) && sans('pronostic.js', /Sous 90|moy >= 88/)],
     ['la fiche dit l\'effet NET d\'un badge (`maitrise`, centré sur la ligue), pas le brut', /\(EFFET_ROLE\[b\.cle\] \|\| 0\) \* maitrise\(p, b\.cle\)/.test(src('fiche.js')) && sans('fiche.js', /b\.palier \/ \(b\.second/)],
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
     ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
     ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /data-agr/)],
     ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison et sa rareté/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
-    ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('gerant.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
+    ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('alignement.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
   for (const [nom, ok] of faits) exiger(nom, ok);
 }

@@ -126,7 +126,9 @@ export async function reprendreSaison() {
   if (b.serie) {
     G.banc = null;
     $('game').classList.remove('banc');
-    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, ...(relaches.length ? { relache: relaches } : {}) });
+    // V7 : le plan de match du soir part avec l'alignement — la glace, l'appariement, la consigne, le filet.
+    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes,
+      appariement: b.appariement, roulement: b.roulement, match: b.match, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
     return;
   }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
@@ -529,11 +531,21 @@ export async function deciderSerie(d) {
   });
   if (d.recompense !== undefined) confirmerDecision(d);
 }
-/* Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. */
-export function bancSerie(ronde, k) {
+/*
+ * Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. V7 : « Préparer le
+ * match » y est fondu — `soir` (js/saison.js, `soirDeSerie`) dit le prochain match de ta série et ce qui y est déjà
+ * réglé (la consigne, le filet, les jambes des gardiens), et l'onglet Lignes le règle comme en saison.
+ */
+export function bancSerie(ronde, k, soir = null) {
   if (!G.ligue || !G.ligue.calendrier) return;
   ouvrirBanc(G.ligue.calendrier.length);
-  if (G.banc) { G.banc.serie = { ronde, k }; renderBanc(); }
+  if (!G.banc) return;
+  G.banc.serie = { ronde, k };
+  if (soir) {
+    G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
+    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, energie: { ...G.banc.energie, ...soir.energie } });
+  }
+  renderBanc();
 }
 
 async function choisirCarte(palier, jour, cle, depuis = jour) {

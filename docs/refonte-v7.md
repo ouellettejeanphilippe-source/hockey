@@ -52,10 +52,11 @@ Le **menu** (☰) garde le méta, qui vit entre les runs : les déblocages (méd
 - [x] Le squelette : les cinq onglets, leurs sous-onglets, les scripts qui les suivent.
 - [x] Bureau : le mandat en tête, le duel du soir en vraies stats, Dépistage et Lignes en deux boutons.
 - [x] Joueurs : le tableau triable (js/joueurs.js) ; le volet Jambes du Club est parti.
-- [x] Lignes : la consigne et le filet au plan de match ; « Préparer le match » a disparu de la saison (il reste aux séries).
+- [x] Lignes : la consigne et le filet au plan de match ; « Préparer le match » a disparu de la saison.
 - [x] Cartes : Ta main (la main, en jeu, le coach), la Boutique (son barème y vit), l'Album ; les déblocages au Menu.
 - [x] La boîte fondue dans le Bureau : plus de sous-onglet « À régler » ; elle se range sous l'affiche, pliée tant que rien ne bloque, et « À régler » y déplie le message au-dessus de la barre. La pastille rouge passe sur la porte du Bureau, visible de partout.
-- [ ] Reste : les séries passent au même cheval (leur préparation, leur banc) ; le gros match lit le plan probable du dépistage dans les Lignes.
+- [x] Les séries au même cheval : « Préparer le match » et « Le banc » des séries ne font plus qu'un, l'onglet Lignes (« 🏒 Lignes · match N » au Bureau). Le banc d'une série porte son prochain match (l'adversaire, chez qui, la consigne, le filet, les jambes des gardiens), le plan de match s'y règle comme en saison, et « Retour aux séries » envoie tout en une décision. Le plein écran `ouvrirLignes` (js/gerant.js) et ses 32 classes sont partis.
+- [ ] Reste : le gros match lit le plan probable du dépistage dans les Lignes.
 
 ## L'ordre de travail
 

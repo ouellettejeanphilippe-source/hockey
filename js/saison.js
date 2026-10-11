@@ -40,7 +40,7 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
-import { ouvrirChoix, choixOuvert, ouvrirLignes, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
+import { ouvrirChoix, choixOuvert, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -2857,16 +2857,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * vraies probabilités*. Il se calcule au toucher (300 matchs du moteur),
        * pas à chaque journée qui passe.
        */
-      // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans « Préparer le match ».
+      // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans les Lignes.
       const ecJ = effetsEnCours(you, p.j);
       const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
-      const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans « Préparer le match »">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
+      const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans les Lignes">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
       const totJ = totauxDuMatch(p.j);
       // TON ALIGNEMENT AUSSI (V2.2) : systèmes, badges, chimie, jambes — un soir sans carte n'est pas un soir « sans effet ».
       const alJ = partsDuSoirDu(p.j);
       const puceAl = { txt: `Ton alignement : ${alJ.map(x => x.txt).join(' · ')}`, bon: null };
-      const totauxHtml = `<div class="hub-totaux" title="${ctx.esc(`Tes effets se multiplient entre eux. Ton alignement : ${alJ.map(x => x.txt).join(' · ')}. Le détail est dans « Préparer le match ».`)}"><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${puces([...totJ, puceAl])}</span></div>`;
+      const totauxHtml = `<div class="hub-totaux" title="${ctx.esc(`Tes effets se multiplient entre eux. Ton alignement : ${alJ.map(x => x.txt).join(' · ')}. Le détail est dans les Lignes.`)}"><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${puces([...totJ, puceAl])}</span></div>`;
       const forces = forcesHtml(adv);
       const detailDuSoir = `${forces.detail}${totauxHtml}${enJeuHtml}<div class="hub-match-note">${dernierMot}</div>`;
       // LE SOIR EN DEUX GESTES (V7, JP : *les 4 onglets aperçu, préparation, match, résultats sont useless*) : le
@@ -3956,39 +3956,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const k = revele.get(s);
     const boss = s.A === you ? s.B : s.A;
     const quitterPour = f => { const r = ronde; quitter(); f(r); };
-    const prep = actions.querySelector('.hub-preparer');
-    if (prep) prep.onclick = () => ouvrirLignes({
-      titre: `Préparer le match ${k + 1}`, sousTitre: `${nomRondeCourt(ronde)} · contre ${ctx.teamShort(boss)}`,
-      dans: ui.ouvrirPage({ genre: 'preparer', ico: '🏒', titre: `Préparer le match ${k + 1}`, sousTitre: `${ctx.esc(nomRondeCourt(ronde))} · contre ${ctx.esc(ctx.teamShort(boss))}` }),
-      fermer: () => ui.fermerPage(true),
-      lineup: you.roster, lignes: lignesDe(you, you.roster),
-      energie: { ...((you.jourLignes && you.jourLignes[you.jourLignes.length - 1] || {}).energie || {}),
-        ...Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])) },
-      filet: { ...filetDuSoir(you), choix: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.filet) || {}).filet || 'auto' },
-      adv: { nom: ctx.teamShort(boss), lignes: lignesDe(boss, boss.roster) },
-      depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
-      match: (decsSerie.find(d => d.ronde === ronde && d.match_no === k && d.match) || {}).match || { importance: 'normale', ad: 0 },
-      // LES TOTAUX DU SOIR (1.0, C5) : les effets du match précédent tombent, ceux de ce match-ci s'ajoutent.
-      totaux: (match, lignes) => {
-        const aVenir = decsSerie.filter(d => d.ronde === ronde && d.match_no === k && !d.entracte && !d.match && !d.lignes);
-        aVenir.push({ match, lignes });
-        const es = you.effetsSerie, jc = you.jourCourant;
-        you.effetsSerie = []; you.jourCourant = Infinity;
-        try { return motsDuSoir(you, null, null, aVenir); } finally { you.effetsSerie = es; you.jourCourant = jc; }
-      },
-      alignement: (match, lignes) => {
-        const aVenir = decsSerie.filter(d => d.ronde === ronde && d.match_no === k && !d.entracte && !d.match && !d.lignes);
-        aVenir.push({ match, lignes });
-        const es = you.effetsSerie, jc = you.jourCourant;
-        you.effetsSerie = []; you.jourCourant = Infinity;
-        try { return alignementDuSoir(you, null, null, aVenir); } finally { you.effetsSerie = es; you.jourCourant = jc; }
-      },
-      motAppliquer: `Appliquer — le match ${k + 1} se joue comme ça`,
-      onBanc: onBanc ? () => quitterPour(r => onBanc(r, k)) : null,
-      onAppliquer: (lignes, match, filet) => quitterPour(r => onDecision({ ronde: r, match_no: k, lignes, match, ...(filet ? { filet } : {}) })),
-    });
-    const bb = actions.querySelector('.hub-banc-serie');
-    if (bb) bb.onclick = () => quitterPour(r => onBanc(r, k));
+    const lignes = actions.querySelector('.hub-vers-lignes');
+    if (lignes) lignes.onclick = versLesLignes;
     /*
      * AVANT CHAQUE MATCH DE TA SÉRIE (S74b) : UN plein écran, pas deux. L'agent
      * de test : « un tapis roulant de modales » — l'ajustement « Entre deux
@@ -4187,13 +4156,28 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   const debrancherMenu = brancherMenu(volet, menu, clubs, () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
   tabs.hub.ouvrirPage = ui.ouvrirPage;
   tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
-  // L'onglet « Alignement » ouvre le banc pendant ta série (S69).
-  if (onBanc) tabs.hub.banc = () => {
+  /*
+   * LE SOIR DE TON PROCHAIN MATCH DE SÉRIE (V7 : « Préparer le match » fondu dans les Lignes). Ce que l'onglet Lignes
+   * règle derrière le banc, comme en saison : l'adversaire, chez qui (A reçoit), la consigne et le filet déjà choisis
+   * pour ce match, et les jambes des gardiens.
+   */
+  const soirDeSerie = (s, k) => {
+    const pour = d => d.ronde === ronde && d.match_no === k;
+    const derniere = champ => (decsSerie.filter(d => pour(d) && d[champ]).pop() || {})[champ];
+    return {
+      adv: s.A === you ? s.B : s.A, domicile: s.A === you,
+      match: derniere('match') || { importance: 'normale', ad: 0 }, filet: derniere('filet') || 'auto', filetEtat: filetDuSoir(you),
+      energie: Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])),
+    };
+  };
+  // L'onglet Lignes ouvre le banc pendant ta série (S69), réglé pour son prochain match.
+  const versLesLignes = () => {
     const s = maSerie(ronde);
     if (!s || complete(s)) return;
-    const r = ronde, k = revele.get(s);
-    quitter(); onBanc(r, k);
+    const r = ronde, k = revele.get(s), soir = soirDeSerie(s, k);
+    quitter(); onBanc(r, k, soir);
   };
+  if (onBanc) tabs.hub.banc = versLesLignes;
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -4247,8 +4231,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     } else if (ronde + 1 < nRondes) {
       boutons.push(`<button class="btn go hub-jour" title="${ctx.esc(nomRonde(ronde + 1))}">${ctx.esc(nomRondeCourt(ronde + 1))}</button>`);
     }
-    // PRÉPARER LE ROUND ET LE BANC (S69) : tant que ta série se joue.
-    if (s && !complete(s) && onDecision) boutons.unshift(`<div class="hub-actions-rang"><button class="btn gold hub-preparer">Préparer le match ${revele.get(s) + 1}</button>${onBanc ? '<button class="btn hub-banc-serie">Le banc</button>' : ''}</div>`);
+    // LES LIGNES DU PROCHAIN MATCH (V7) : l'alignement, la glace, la consigne et le filet, derrière le banc — tant que ta série se joue.
+    if (s && !complete(s) && onDecision && onBanc) boutons.unshift(`<div class="hub-actions-rang"><button type="button" class="btn gold hub-vers-lignes">🏒 Lignes · match ${revele.get(s) + 1}</button></div>`);
     if (plusRienADecider) boutons.push(`<button class="btn hub-fin" title="Jouer toutes les séries et voir le tableau">Passer à la fin</button>`);
     if (onDecision) boutons.push(`<button class="btn hub-deck" title="Tes cartes de match : tu en piges cinq avant chaque match de ta série">🃏 Mon deck · ${deckDeSerie().length}</button>`);
     actions.innerHTML = `<div class="hub-barre">${boutons.join('')}</div>`;
