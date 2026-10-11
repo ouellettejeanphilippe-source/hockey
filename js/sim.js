@@ -1878,6 +1878,7 @@ export const EFFET_ROLE = { checker: 0.16, deuxsens: 0.08, defensif: 0.16, physi
 /* Passeur et manieur Platine : leur ligne joue son système comme si son fit valait BADGE_CHIMIE de plus (la chimie). */
 export const BADGE_CHIMIE = 12;
 export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
+const SELKE_PALIER_MIN = 3;   // Or : voir `badgesCalcules`
 export const palierDe = (g, x) => { const S = SEUILS_PALIER[g]; return x >= S[2] ? 4 : x >= S[1] ? 3 : x >= S[0] ? 2 : 1; };
 /*
  * LES BADGES d'un joueur : son rôle premier, et le second s'il vaut
@@ -1916,6 +1917,15 @@ function badgesCalcules(p) {
   const [a, b] = Object.entries(pr).sort((x, y) => y[1] - x[1]);
   const second = b && b[1] >= BADGE_SECOND_MIN;
   let [p1, p2] = [palierDe(g, a[1]), second ? palierDe(g, b[1]) : 0];
+  /*
+   * UN SELKE EST AU MOINS OR EN TWO-WAY (S109). JP, sur Craig Ramsay 1984-85, Selke et Two-way Argent : *l'attaquant
+   * défensif d'élite, pas rapport aux côtés ?* Le badge mêle la défense et les points, comparés à tous les attaquants :
+   * 19 des 108 attaquants-saisons qui ont des votes au Selke, des spécialistes qui marquaient peu, restaient Argent.
+   */
+  if (g === 'F' && traits.includes('SELKE')) {
+    if (a[0] === 'deuxsens') p1 = Math.max(p1, SELKE_PALIER_MIN);
+    else if (second && b[0] === 'deuxsens') p2 = Math.max(p2, SELKE_PALIER_MIN);
+  }
   const [n1, n2] = [p1, p2];
   if (monteBadge(p)) {
     const [x, y] = paliersEnPlus(p);
