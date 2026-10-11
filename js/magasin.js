@@ -41,7 +41,7 @@ function niveauxHtml(cle, mods = {}) {
   const manque = PACKS_TOUS[cle].famille === 'equipe' ? 'sous ton plafond, ou dans ce club' : 'sous ton plafond';
   return `<h4>Le joueur d'une carte</h4>
       <table class="pk-bareme pk-niveaux">${lignes.map(({ N, k, v }) => `<tr><th>${k >= ETOILE ? '★ ' : ''}${esc(N.nom)}</th><td class="pk-rang">${esc(N.rang)}</td><td>${pct(v)}</td></tr>`).join('')}</table>
-      <p class="pk-num">Son rang dans sa vraie saison, parmi les réguliers de son poste : aux points par match, aux buts évités pour un gardien. Sans joueur de ce niveau ${manque}, la carte prend le niveau le plus proche.</p>
+      <p class="pk-num">Son rang dans sa vraie saison, à son poste. Sans ce niveau ${manque} : le plus proche.</p>
       ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ouvre les Étoiles et les Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
 }
 export function ouvrirMagasin(ctx) {
@@ -57,8 +57,6 @@ export function ouvrirMagasin(ctx) {
     if (!P) return '';
     const verrou = ctx.ouverts[cle] === true ? '' : (ctx.ouverts[cle] || 'Verrouillé');
     const prix = prixDe(cle, rabaisDe(cle));
-    const ch = chancesDe(cle, P.sorte === 'joueurs' ? ctx.mods : {});
-    const phare = P.sorte === 'joueurs' ? ch.find(x => x.nom === 'Holo ou mieux') : ch[0];
     const tier = P.sorte === 'cartes' ? 'cartes' : P.tier;
     const n = cartesDuPack(cle, ctx.mods);
     // 1.0 (R5) : un pack impayable se grise et dit ce qui manque ; il s'ouvre encore (sa fiche explique).
@@ -67,7 +65,6 @@ export function ouvrirMagasin(ctx) {
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[P.tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
       <span class="pk-n">${n} carte${n > 1 ? 's' : ''}</span>
-      ${phare ? `<span class="pk-cote">${esc(phare.nom)} : ${esc(phare.txt)}</span>` : ''}
       <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
@@ -110,6 +107,10 @@ export function ouvrirMagasin(ctx) {
         <span class="pk-prix">${o.verrou ? '🔒' : `${o.prix} 🪙`}</span>
       </button>`;
     }).join('') || '<p class="pk-mot">Tout est à toi.</p>'}</div></section>` : '';
+    // LE BARÈME (1.0, R4 ; V7 : à la boutique, là où les jetons se dépensent) : lu dans la run, jamais tapé.
+    const B = ctx.bareme;
+    const bareme = B ? `<p class="pk-bareme-run" title="Ce que chaque résultat rapporte, en jetons">🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['gros match', B.grosMatch, '+'], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']]
+      .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}</p>` : '';
     const garantie = ctx.mode === 'rogue'
       ? `<p class="pk-garantie">🛟 Une holo ou une or au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
@@ -122,8 +123,8 @@ export function ouvrirMagasin(ctx) {
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
       <div class="choix-corps pk-corps">
-        <p class="pk-mot">Joueurs : tu en signes un. Cartes : dans ta poche.</p>
         ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
+        ${bareme}
         ${garantie}
         ${plafond}
         ${rayons}
@@ -165,13 +166,14 @@ export function ouvrirMagasin(ctx) {
     d.innerHTML = `<div class="pk-fiche-carte pk-${P.sorte === 'cartes' ? 'cartes' : P.tier}">
       <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {})} cartes · ${prix} 🪙</div></div></div>
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
-      <h4>Les chances, par pack</h4>
+      <details class="pk-detail"><summary>Les chances</summary>
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Salaires tirés : jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait).</p>` : ''}
       ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
       <h4>${P.sorte === 'joueurs' ? 'La finition d\'une carte' : 'Le barème d\'une carte'}</h4>
       <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${RARETES[k] ? RARETES[k].gemme : ''} ${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
-      ${P.sorte === 'joueurs' ? `<p class="pk-num">Une or est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}. Le numéro est un honneur, pas un bonus.</p>` : ''}
+      ${P.sorte === 'joueurs' ? `<p class="pk-num">Une or est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
+      </details>
       ${choix}
       ${verrou ? `<p class="pk-verrou">🔒 ${esc(verrou)}</p>` : ''}
       <div class="pk-fiche-actions">

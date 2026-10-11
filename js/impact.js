@@ -11,12 +11,40 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace } from './sim.js';
-import { virgule } from './util.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES } from './sim.js';
+import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
-const N_EFFET = 400;    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
+const N_EFFET = 400;
+/*
+ * EN VRAIES STATS (V7, JP : *je veux des lancers, précision de lancer, pourcentage d'arrêt, des vrais stats* ; *un coach
+ * qui change un joueur se dit pas : je vais gagner 1,2 match de plus*). Une lecture du soir se dit comme une feuille de
+ * match : les tirs, la réussite au tir (les buts sur les tirs), les tirs contre, le % d'arrêts. Un choix se lit par
+ * l'écart entre deux lectures du même soir, sous les mêmes dés.
+ */
+export const statsDe = m => ({
+  tirs: m.tirsPour, pctTir: m.tirsPour > 0 ? m.butsPour / m.tirsPour : 0,
+  contre: m.tirsContre, pctArr: m.tirsContre > 0 ? 1 - m.butsContre / m.tirsContre : 0,
+});
+const statsEntre = (a, b) => { const x = statsDe(a), y = statsDe(b); return { tirs: x.tirs - y.tirs, pctTir: x.pctTir - y.pctTir, contre: x.contre - y.contre, pctArr: x.pctArr - y.pctArr }; };
+/* Le poids d'un écart, pour dire d'abord ce qui bouge le plus : un demi-tir vaut trois millièmes d'arrêts. */
+const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003 };
+const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005 };
+const pts = x => virgule((Math.abs(x) * 100).toFixed(1));
+/** Un écart de stats en puces, le plus fort d'abord : [{ cle, txt, bon }]. `max` : combien au plus. */
+export function motsDeStats(d, max = 4) {
+  if (!d) return [];
+  const mots = {
+    tirs: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')}`,
+    pctTir: x => `${signeDe(x)}${pts(x)} pt au tir`,
+    contre: x => `${signeDe(x)}${nb(x, 1)} contre`,
+    pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} arr.`,
+  };
+  return Object.keys(mots).filter(k => Math.abs(d[k]) >= SEUIL_STAT[k])
+    .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)
+    .map(k => ({ cle: k, txt: mots[k](d[k]), bon: k === 'contre' ? d[k] < 0 : d[k] > 0 }));
+}    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
 
 /* Une fenêtre d'avantage de deux minutes : le premier but la ferme (un but = un arrêt du processus de lancers), donc sa durée moyenne est (1 − e^(−2λ)) / λ. */
 function fenetre(volume, p) {
@@ -67,7 +95,10 @@ function moyennes(L) {
       const o = U.pour[g][i] || { n: 0, p: 0, pn: 0 }, d = U.contre[g][i] || { ev: 0 };
       const attaque = feA * ((o.p - o.pn) + (o.n - (glace[i] || 0) * nP) * pnMoy) / nP;
       const defense = feB * d.ev / nC;
-      return { attaque, defense, net: attaque + defense };
+      // Ses vraies stats sur la glace, à forces égales (V7) : ses tirs et ceux d'en face par match, la réussite, les arrêts.
+      const c = U.contre[g][i] || { n: 0, p: 0 };
+      const stats = { tirs: feA * o.n / nP, pctTir: o.n ? o.p / o.n : 0, contre: feB * c.n / nC, pctArr: c.n ? 1 - c.p / c.n : 0 };
+      return { attaque, defense, net: attaque + defense, stats };
     });
   };
   return {
@@ -285,9 +316,48 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
   return PARTS_DU_SOIR.map(([k, nom]) => {
     const sans = lire(team, lineup, adv, { aVenir, neutre: { [k]: true }, n: N_EFFET });
     const ecart = (tel.butsPour - tel.butsContre) - (sans.butsPour - sans.butsContre);
-    const txt = Math.abs(ecart) >= 0.01 ? `${nom} ≈ ${signeDe(ecart)}${nb(ecart, 2)} but net par match` : `${nom} : rien ce soir`;
-    return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart };
+    const d = statsEntre(tel, sans), m = motsDeStats(d, 2);
+    const txt = m.length ? `${nom} : ${m.map(x => x.txt).join(', ')} par match` : `${nom} : rien ce soir`;
+    return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart, d };
   });
+}
+
+/*
+ * CE QUI JOUE, UN PAR UN (V7, JP : *pas facile d'avoir numériquement quels trucs sont déjà actifs*). Le coach, chaque
+ * patron, chaque carte de la saison et chaque effet qui court ce soir : le soir tel quel contre le même soir sans lui
+ * seul, sous les mêmes dés. Rend [{ genre, ico, nom, reste, d (l'écart de stats, `statsDe`), mots }], le plus lourd d'abord.
+ */
+export function ceQuiJoue(team, lineup = null, adv = null, aVenir = []) {
+  if (!team) return [];
+  return avecAVenir(team, aVenir, () => {
+    const tel = lire(team, lineup, adv, { n: N_EFFET });
+    const j = team.jourCourant || 0;
+    const sources = [
+      ...(team.coachs || []).map((c, i) => ({ champ: 'coachs', i, genre: 'coach', ico: c.ico, nom: c.nom })),
+      ...(team.patrons || []).map((x, i) => ({ champ: 'patrons', i, genre: 'patron', ico: x.ico, nom: x.nom })),
+      ...(team.cartes || []).map((k, i) => ({ champ: 'cartes', i, genre: 'carte', ico: (CARTES[k] || {}).ico, nom: (CARTES[k] || {}).nom || k })),
+      ...(team.effets || []).map((e, i) => ({ champ: 'effets', i, e })).filter(({ e }) => j >= e.debut && j < e.fin && e.source !== 'match')
+        .map(({ champ, i, e }) => ({ champ, i, genre: 'effet', ico: e.ico, nom: e.nom, reste: matchsEntre(team, j, e.fin) })),
+    ].filter(s => s.nom);
+    return sources.map(({ champ, i, ...s }) => {
+      const avant = team[champ];
+      team[champ] = avant.filter((_, k) => k !== i);
+      let sans;
+      try { sans = lire(team, lineup, adv, { n: N_EFFET }); } finally { team[champ] = avant; }
+      const d = differences(tel, sans);
+      const e = statsEntre(tel, sans);
+      return { ...s, d: e, poids: Math.max(...Object.keys(PAS_STAT).map(k => Math.abs(e[k]) / PAS_STAT[k])), mots: [...lignesDe(d), ...horsFeuille(d)] };
+    }).sort((a, b) => b.poids - a.poids);
+  });
+}
+
+/*
+ * UNE SIGNATURE, EN CHIFFRES (V7, JP : *comparaison de joueur lorsque carte à ajouter, on a pas les lignes*). Un autre
+ * alignement (`roster`, case → joueur) contre celui en vigueur, contre un club moyen : l'écart de stats par match (`statsDe`).
+ */
+export function rosterEnStats(team, roster) {
+  if (!team || !team.roster) return null;
+  return statsEntre(lire(team, activeLineup({ ...team, roster }), null, { n: N_EFFET }), lire(team, activeLineup(team), null, { n: N_EFFET }));
 }
 
 /*
@@ -320,6 +390,11 @@ export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   const bag = d.bagarres * 10;
   if (Math.abs(bag) >= 0.05) out.push({ txt: `≈ ${signeDe(bag)}${nb(bag, 1)} ${mot(bag, 'bagarre', 'bagarres')} par 10 matchs`, bon: null, cle: 'bagarre' });
   return out;
+}
+/** La même différence, en stats de match : ce que ces lignes changent aux tirs, à la réussite, aux tirs contre, aux arrêts. */
+export function lignesEnStats(team, lineup, adv, lignes, contre) {
+  if (!team) return null;
+  return statsEntre(lire(team, lineup, adv, { lignes, n: N_LIGNES }), lire(team, lineup, adv, { lignes: contre, n: N_LIGNES }));
 }
 const surLigne = (lignes, u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : l));
 /** Un système sur la ligne `u` (`groupe` F : le trio, D : la paire), contre aucun système sur cette ligne : ce qu'il fait à CE club CE soir. */

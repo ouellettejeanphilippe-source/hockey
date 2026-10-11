@@ -53,7 +53,7 @@ const passerLaPile = async () => {
 const auBureau = async (timeout = 120000) => {
   await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case'), null, { timeout });
   await page.waitForTimeout(300);
-  if (await page.evaluate(() => document.body.dataset.section !== 'club')) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); await page.waitForTimeout(250); }
+  if (await page.evaluate(() => document.body.dataset.section !== 'bureau')) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(250); }
   await unVisible(BUREAU, timeout);
 };
 /*
@@ -68,7 +68,7 @@ const verifMarche = async (etape, { boutique = true } = {}) => {
       boutique: !!document.querySelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile'),
       hubVisible: !!hub && getComputedStyle(hub).display !== 'none' && hub.offsetParent !== null };
   });
-  if (r.sec !== 'marche' || r.nav !== 'marche') erreurs.push(`${etape} : la section ouverte est « ${r.sec} » et la barre allume « ${r.nav} » (attendu : marche)`);
+  if (r.sec !== 'cartes' || r.nav !== 'cartes') erreurs.push(`${etape} : la section ouverte est « ${r.sec} » et la barre allume « ${r.nav} » (attendu : cartes)`);
   if (r.horsMarche) erreurs.push(`${etape} : ${r.horsMarche} élément(s) de boutique dans la feuille du Club (#hubModal)`);
   if (r.hubVisible) erreurs.push(`${etape} : la feuille du Club est visible pendant qu'on est au Marché`);
   if (boutique && !r.boutique) erreurs.push(`${etape} : la boutique n'est pas rendue au Marché`);
@@ -84,7 +84,7 @@ const verifClubSansBoutique = async etape => {
   if (r.mots.length || r.tuiles) erreurs.push(`${etape} : le Club parle de boutique (${r.mots.join(', ')}) ou en rend (${r.tuiles})`);
 };
 const versMarche = async quoi => {
-  await page.click('#navbar .navtab[data-section="marche"]');
+  await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
   await page.waitForTimeout(150);
   // La page ouverte reste ouverte au Marché (un achat la rouvre) : déjà là, ou on revient à la liste d'abord.
   if (await page.$(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`)) return;
@@ -366,12 +366,15 @@ await page.click('#mainBtn');
 await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #choixModal:not([hidden]) .choix-option');
 await regler();
 // LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut — sous le sous-onglet Saison du Club (1.0, R2).
-const versSaison = await page.$('#sousNav:not([hidden]) .soustab[data-page="saison"]');
-if (versSaison) { await versSaison.click(); await page.waitForTimeout(300); }
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 {
-  const coachs = ((await page.textContent('#hubModal .hub-etat-coachs').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  // V7 : ton coach et sa confiance vivent sous Cartes › Ta main.
+  const versMain = async () => { await page.click('#navbar .navtab[data-section="cartes"]'); await page.waitForTimeout(300); await page.click('#sousNav .soustab[data-page="main"]', { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(600); };
+  await versMain();
+  const coachs = ((await page.textContent('#hubModal .eq-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const rangCoach = ((await page.textContent('#hubModal .eq-coach .eq-rang').catch(() => '')) || '').trim();
+  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
   console.log(`5c. tes coachs : ${coachs || '(absent)'} · décision du jour 0 : ${d0 ? `${d0.coach.nom} ${JSON.stringify(d0.coachsDeBase)}` : '(aucune)'}`);
@@ -379,22 +382,10 @@ console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ')
   const p0 = ((sv0.partie || {}).decisions || []).filter(x => x.jour === 0 && x.patron);
   console.log(`5d. les patrons imposés : ${p0.map(x => `${x.patron.ico} ${x.patron.nom}`).join(' · ') || '(aucun)'}`);
   if (p0.length !== 2) erreurs.push(`la run ne part pas avec deux patrons imposés (${p0.length})`);
-  if (!/ I\b/.test(coachs)) erreurs.push('le bureau ne dit pas le coach de la run et sa confiance');
+  if (rangCoach !== 'I') erreurs.push(`Cartes › Ta main ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
-// 1.0 (R4) : le barème des jetons est écrit au hub, et ses chiffres sont ceux de la run (jamais tapés).
-{
-  const bareme = (await page.textContent('#hubModal .hub-run-bareme').catch(() => '')) || '';
-  const svB = await lireSauvegarde();
-  const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
-  const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
-  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.grosMatch, B.objectif, B.serie] : null;
-  console.log(`5b. le barème au hub : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
-  if (!bareme) erreurs.push('le hub n\'écrit pas le barème des jetons de la run');
-  else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème au hub (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
-  if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
-  if (versSaison) { await page.click('#sousNav .soustab[data-page="match"]'); await page.waitForTimeout(200); }
-}
+if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
 /*
  * « SEMAINE SUIVANTE » (V4) remplace « Jusqu'à la prochaine décision » : elle joue les journées une à une jusqu'à
  * la fin de la semaine, et s'arrête avant sur ce qui demande le joueur. On attend qu'elle ait fini (le bouton se
@@ -449,12 +440,26 @@ for (let i = 0; i < 5; i++) {
   await prochaineDecision();
 }
 await regler();
-await page.click('#navbar .navtab[data-section="marche"]'); await page.waitForTimeout(200);
+await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(200);
 const avant = (await page.textContent('#pageMarcheCorps [data-marche="boutique"]')).replace(/\s+/g, ' ').trim();
-await page.click('#navbar .navtab[data-section="club"]'); await page.waitForTimeout(200);
+await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
 if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne montre pas le plafond');
+// 1.0 (R4) ; V7 : le barème des jetons est écrit à la boutique, et ses chiffres sont ceux de la run (jamais tapés).
+{
+  // V7 : le barème est à la boutique, là où les jetons se dépensent.
+  await versMarche('boutique'); await page.waitForSelector('#pageMarche .pk-bareme-run', { timeout: 30000 }).catch(() => {});
+  const bareme = (await page.textContent('#pageMarche .pk-bareme-run').catch(() => '')) || '';
+  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
+  const svB = await lireSauvegarde();
+  const B = (svB.partie && svB.partie.rogue && svB.partie.rogue.bareme) || (svB.rogue && svB.rogue.bareme) || null;
+  const lu = [...bareme.matchAll(/(\d+)/g)].map(m => Number(m[1]));
+  const attendu = B ? [B.victoire, B.prolongation, B.defaite, B.grosMatch, B.objectif, B.serie] : null;
+  console.log(`5b. le barème à la boutique : ${bareme.replace(/\s+/g, ' ').trim() || '(absent)'} · attendu ${attendu ? attendu.join('/') : '?'}`);
+  if (!bareme) erreurs.push('la boutique n\'écrit pas le barème des jetons de la run');
+  else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème à la boutique (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
+}
 // V5 : LE NŒUD DE LA SEMAINE (js/noeuds.js) : après huit semaines, le lundi d'une semaine sur deux a offert ses trois routes.
 {
   const routes = (((await lireSauvegarde()).partie || {}).decisions || []).filter(d => d && /^n:\d+$/.test(d.palier || ''));
@@ -659,13 +664,13 @@ else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été of
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
+  await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
   await page.waitForTimeout(800);
   const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   const nom = nomSigne.split(' ').slice(-1)[0];
   if (!noms.some(n => n.includes(nom))) erreurs.push(`${nomSigne}, signé d'un pack, n'est pas dans l'alignement`);
   else console.log(`   ${nomSigne} est dans l'alignement dès la signature`);
-  await page.click('#navbar .navtab[data-section="club"]').catch(() => {});
+  await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(500);
 }
 // Un pack Modifs (S80 : ses cartes se posent au verso), un pack de cartes : tout va dans l'inventaire ; puis un pack Contrats (la masse salariale).
@@ -678,17 +683,18 @@ for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
   await regler();
 }
 /*
- * LA MAIN DE LA SEMAINE AU BUREAU (V4.3) : après les packs de cartes, quatre cartes de la poche au plus se voient
- * sous le match ; on en joue deux par semaine au plus.
+ * LA MAIN DE LA SEMAINE (V4.3 ; V7 : sous Cartes › Ta main) : après les packs de cartes, quatre cartes de la poche
+ * au plus ; on en joue deux par semaine au plus.
  */
 {
   await auBureau();
-  const mt = await page.$('#sousNav .soustab[data-page="match"]');
-  if (mt && await mt.isVisible()) { await mt.click(); await page.waitForTimeout(300); }
+  await page.click('#navbar .navtab[data-section="cartes"]'); await page.waitForTimeout(300);
+  await page.click('#sousNav .soustab[data-page="main"]', { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(600);
   const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
-  console.log(`10a. la main de la semaine au bureau : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
-  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas au bureau');
+  console.log(`10a. la main de la semaine, sous Cartes › Ta main : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas sous Cartes › Ta main');
   else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
+  await auBureau();
 }
 /*
  * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE
@@ -830,7 +836,7 @@ console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.
 if (!jouee && !d.some(x => x.joue)) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
 else if (!jouee) console.log('    (rien d\'autre que des modifs dans l\'inventaire : la modif posée au verso compte)');
 // LE CARTABLE (S79) : dans la Collection (1.0, R1), à côté de tes saisons.
-await page.click('#navbar .navtab[data-section="collection"]');
+await page.click('#navbar .navtab[data-section="cartes"]');
 await page.click('#sousNav .soustab[data-page="cartable"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-cartable.png` });
@@ -882,9 +888,9 @@ if (posee) {
     break;
   }
   if (!fait) console.log('12b. plus de modif à poser (ou personne à qui elles vont)');
-  if (!(await page.$(BUREAU))) { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); }
+  if (!(await page.$(BUREAU))) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); }
 }
-await page.click('#navbar .navtab[data-section="club"]');
+await page.click('#navbar .navtab[data-section="bureau"]');
 await unVisible(BUREAU, 20000);
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {

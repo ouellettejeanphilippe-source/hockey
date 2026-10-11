@@ -9,7 +9,7 @@ import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
-import { BANQUE, palierAllume, coachsActifs, payloadDe } from './banque.js';
+import { BANQUE, palierAllume, payloadDe } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
@@ -19,8 +19,8 @@ import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
-import { renderMain } from './alignement.js';
-import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs } from './rogue-jeu.js';
+import { renderMain, coachHtml } from './alignement.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -100,6 +100,10 @@ function ouvrirBanc(jour) {
     chimie: ((L.you.jourLignes || [])[jour] || {}).chimie || [0, 0, 0, 0],
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
     apprentissage: ((L.you.jourLignes || [])[jour] || {}).apprentissage || null,
+    // LE SOIR DU MATCH (V7 : « Préparer le match » vit ici) : la consigne et le filet déjà choisis pour ce soir-là.
+    match: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.match).pop() || {}).match) || { importance: 'normale', ad: 0 },
+    filet: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.filet).pop() || {}).filet) || 'auto',
+    filetEtat: ((L.you.jourLignes || [])[jour] || {}).filet || null,
     // LA LANCÉE (V3.6, Rogue) : qui la porte au prochain match, sur l'alignement de ce soir — la case le dit.
     lancees: lanceesDuSoir(L.you, ce_soir),
   };
@@ -135,7 +139,21 @@ export async function reprendreSaison() {
   // On ne remplace que la décision de BANC du même jour : une carte, un plan
   // du soir ou un dilemme pris ce jour-là restent. V4.4 : une signature (un pack, le ballottage) ou une blessure
   // réglée porte aussi des cases, mais avec son palier : elle reste, sinon le pack redemandait sa signature.
-  const decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases || x.palier !== undefined || !!x.ballottage);
+  let decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases || x.palier !== undefined || !!x.ballottage);
+  /*
+   * LA CONSIGNE ET LE FILET DU SOIR (V7) : ils valent pour le match de ce soir-là (`effetDeMoment`, `_filetForce`).
+   * Réglés derrière le banc, ils remplacent ceux du même soir ; le jour du match, ils vont dans la décision du banc.
+   */
+  if (b.prochain) {
+    const soir = b.prochain.j, avaient = decisions.some(x => x.jour === soir && (x.match || x.filet));
+    const match = b.match && b.match.importance !== 'normale' ? b.match : null, filet = b.filet && b.filet !== 'auto' ? b.filet : null;
+    if (match || filet || avaient) {
+      decisions = decisions.filter(x => !(x.jour === soir && (x.match || x.filet) && !x.cases && x.palier === undefined));
+      const plan = { match: b.match || { importance: 'normale', ad: 0 }, filet: b.filet || 'auto' };
+      if (soir === b.jour) Object.assign(d, plan);
+      else decisions.push({ jour: soir, ...plan, sel: nouvelleGraine() });
+    }
+  }
   decisions.push(d);
   G.banc = null;
   $('game').classList.remove('banc');
@@ -750,8 +768,8 @@ function ouvrirEcranSaison(depuis = 0) {
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), ...o }),
         // LE MODE ROGUE (S77) : la run, pour le Club — rien de la boutique (elle est au Marché).
         rogue: G.bonus === 'ROGUE' ? {
-          // S80 : la saison de la run et le mandat du proprio. 1.0 (R4) : le barème de la run, tel que
-          // `jetonsRogue` le compte (`G.rogue.bareme`, fixé au départ de la saison), et le mandat d'après.
+          // S80 : la saison de la run, le mandat du proprio, et celui d'après ; le barème de la run, tel que `jetonsRogue`
+          // le compte (`G.rogue.bareme`) — le sommaire y lit la prime d'un gros match.
           mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }),
@@ -764,7 +782,8 @@ function ouvrirEcranSaison(depuis = 0) {
         inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page), poche: j => pocheDuJour(j), main: j => mainDuJour(j),
           carte: (item, j, decider) => ouvrirCarteDeLaPoche(item, j, decider) },
         // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
-        coachs: j => ({ actifs: coachsActifs(G.ligue ? G.ligue.decisions || [] : [], j + 1), tien: (G.bonus === 'ROGUE' && G.rogue && G.rogue.coach) || null }),
+        // V7 : ton coach et sa confiance, sous Cartes › Ta main.
+        coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
       },
       onTermine: () => terminerSaison(),
       depuis,

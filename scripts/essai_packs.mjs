@@ -100,9 +100,9 @@ async function regler(max = 40) {
   }
   return 'max';
 }
-const club = async () => { await page.click('#navbar .navtab[data-section="club"]').catch(() => {}); await page.waitForTimeout(300); const mt = await page.$('#sousNav .soustab[data-page="match"]'); if (mt && await mt.isVisible()) { await mt.click({ timeout: 3000 }).catch(() => {}); await page.waitForTimeout(200); } };
+const club = async () => { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(300); const mt = await page.$('#sousNav .soustab[data-page="match"]'); if (mt && await mt.isVisible()) { await mt.click({ timeout: 3000 }).catch(() => {}); await page.waitForTimeout(200); } };
 const versBoutique = async () => {
-  await page.click('#navbar .navtab[data-section="marche"]'); await page.waitForTimeout(300);
+  await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(300);
   if (!(await page.$('#pageMarcheCorps .hub-page[data-genre="boutique"]'))) {
     if (await page.$('#pageMarcheCorps .hub-page-retour')) { await page.click('#pageMarcheCorps .hub-page-retour'); await page.waitForTimeout(200); }
     await page.click('#pageMarcheCorps [data-marche="boutique"]');
@@ -133,7 +133,7 @@ let pb = 0;
 for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   await regler(); await club(); log('regler:', await regler());
   if (tour % 2 === 1) {
-    await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(1500);
+    await page.click('#navbar .navtab[data-section="lignes"]'); await page.waitForTimeout(1500);
     const am = await page.$('.ln-auto');
     if (am) { await am.click(); await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 5000 }); await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]'); await page.waitForTimeout(800); }
     else log('   pas de bouton au mieux');

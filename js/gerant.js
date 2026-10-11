@@ -33,7 +33,7 @@ import {
   physiqueDe, physiqueLigne, bilanAgressivite,
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres } from './impact.js';
+import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { ROULEMENTS, effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
@@ -624,11 +624,12 @@ export function ouvrirAlignement(spec) {
       <h3 class="aln-titre">${esc(r.titre)}${commune && !partout ? ` <small>· ${esc(commune)}</small>` : ''}</h3>
       <div class="aln-cases">${r.cases.map(c => (c.vide
         ? `<div class="aln-case aln-vide" aria-label="Case vide"><span class="aln-nom">Case vide</span>${c.pos ? `<span class="aln-pos">${esc(c.pos)}</span>` : ''}</div>`
-        : `<button type="button" class="aln-case${c.non ? ' non' : ''}" data-aln="${esc(c.cle)}" aria-pressed="false"${c.non ? ' disabled' : ''} title="${esc([c.nomLong || c.nom, c.pos, c.marqueMot, c.non].filter(Boolean).join(' · '))}">
+        : `<button type="button" class="aln-case${c.non ? ' non' : ''}${c.meilleure ? ' meilleure' : ''}" data-aln="${esc(c.cle)}" aria-pressed="false"${c.non ? ' disabled' : ''} title="${esc([c.nomLong || c.nom, c.pos, c.marqueMot, c.non].filter(Boolean).join(' · '))}">
             <span class="aln-visage" aria-hidden="true">${c.visage || ''}</span>
             <span class="aln-nom">${esc(c.nom)}</span>
             <span class="aln-pos"><span>${esc(c.pos || '')}</span>${c.marque ? `<b class="aln-marque" aria-label="${esc(c.marqueMot || c.marque)}">${esc(c.marque)}</b>` : ''}</span>
-            ${c.non && !commune ? `<span class="aln-non">${esc(c.non)}</span>` : !c.non && c.note ? `<span class="aln-note">${esc(c.note)}</span>` : ''}
+            ${c.sous ? `<span class="aln-sous">${c.sous}</span>` : ''}
+            ${c.non && !commune ? `<span class="aln-non">${esc(c.non)}</span>` : !c.non && c.note ? `<span class="aln-note${c.ton ? ` ${c.ton}` : ''}">${esc(c.note)}</span>` : ''}
           </button>`)).join('')}</div>
     </section>`;
   };
@@ -961,7 +962,17 @@ function chiffresSysteme(lineup, lignes, u, groupe, cle) {
   const c = clubLu();
   return c && c.team ? systemeEnChiffres(c.team, lineup, c.adv || null, lignes, u, groupe, cle) : [];
 }
-function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
+/*
+ * CE QUE CHAQUE CHOIX CHANGE (V7, JP : *pas facile d'avoir numériquement quel impact aura notre choix*) : la ligne `u`
+ * avec ce réglage, contre les lignes en vigueur (`base`), en vraies stats de match pour ton club (tirs, réussite, tirs contre, arrêts). null hors saison.
+ */
+function netDuChoix(lineup, base, u, patch) {
+  const c = clubLu();
+  if (!c || !c.team || !base) return null;
+  return lignesEnStats(c.team, lineup, c.adv || null, base.map((x, i) => (i === u ? { ...x, ...patch } : x)), base);
+}
+const motNet = d => { if (!d) return ''; const m = motsDeStats(d, 1)[0]; return m ? `<small class="gl-net ${m.bon ? 'bon' : 'prix'}">${esc(m.txt)}</small>` : '<small class="gl-net">≈ pareil</small>'; };
+function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
   const attr = D ? 'tacd' : 'tac';
@@ -986,14 +997,16 @@ function systemesHtml({ lineup, lignes = null, u, groupe, l, adv = null, advNom 
     const menace = TACTIQUES[aF].bat === cle || (aD && SYSTEMES_D[aD].bat === cle);
     const pour = contreDe(aF);
     // Un gros match (J1-N) : ces lignes sont celles du plan le plus probable du dépistage, et l'écran le dit.
-    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}${aAutre ? `<br><small>${Math.round(croises[1].part * 100)} % du temps, ${croises[1].rang === 0 ? 'leur 1er trio' : `leur trio de fermeture (le ${croises[1].rang + 1}e)`} : <b>${nomSys(aAutre)}</b>${S.bat === aAutre ? ' · <span class="ok">✓ tu l\'étouffes</span>' : contreDe(aAutre) ? ` · l'étouffer : <b>${nomSys(contreDe(aAutre))}</b>` : ''}</small>` : ''}</div>`;
+    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}</div>`;
   } else if (aF) {
     const pour = contreDeD(aF);
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
   }
   const boutons = Object.entries(SYS).map(([k, X]) => {
     const f = X.slots && !incomplete ? fitUnite(lineup, groupe, u, k) : null;
-    return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}${aF && X.bat === aF ? ` — contre ${selonDepistage ? 'leur plan probable, selon le dépistage' : 'leur système'}` : ''}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? (incomplete && X.slots ? 'à compléter' : 'rien à assortir') : motFit(f)}</span>${f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
+    const enVigueur = base && (base[u] || {})[D ? 'tacD' : 'tac'] === k;
+    const net = base && !incomplete && !enVigueur ? netDuChoix(lineup, base, u, { [D ? 'tacD' : 'tac']: k }) : null;
+    return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}${aF && X.bat === aF ? ` — contre ${selonDepistage ? 'leur plan probable, selon le dépistage' : 'leur système'}` : ''}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? (incomplete && X.slots ? 'à compléter' : 'rien à assortir') : motFit(f)}</span>${enVigueur ? '<small class="gl-net">en jeu</small>' : net != null ? motNet(net) : f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
   }).join('');
   const effets = lignes && S.slots ? chiffresSysteme(lineup, lignes, u, groupe, cle) : [];
   const etouffe = S.bat ? (D ? ` Étouffe l'action spéciale d'un trio en ${nomSys(S.bat)}.` : ` Étouffe ${nomSys(S.bat)}.`) : '';
@@ -1362,7 +1375,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
     : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${!D && app ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
-  const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
+  const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, base: spec.base || null, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
     chimieDe: app ? k => chimie({ [D ? 'tacD' : 'tac']: k }) : null });
   if (D) return { sommaire, corps: `${choix}<div class="gl-mot">Chimie et agressivité : avec le ${NOMS_TRIO[u]}.</div>` };
 
@@ -1371,7 +1384,9 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const agr = AGRESSIVITES.map((A, i) => {
     const b = bilanAgressivite(i, ph);
     const verdict = `${i === 1 ? 'la référence' : b.net > 0.006 ? '✓ payant' : b.net < -0.006 ? '✗ coûteux' : '≈ neutre'}${i === meilleureAgressivite(spec.lineup, u) ? ' · par défaut' : ''}`;
-    return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b><small>${verdict}</small></button>`;
+    const enVigueur = spec.base && (spec.base[u] || {}).agr === i;
+    const net = spec.base && !enVigueur ? netDuChoix(spec.lineup, spec.base, u, { agr: i }) : null;
+    return `<button type="button" class="gl-seg-btn${l.agr === i ? ' on' : ''}" data-agr="${i}" aria-pressed="${l.agr === i}"><b>${A.ico} ${esc(A.nom)}</b>${enVigueur ? '<small class="gl-net">en jeu</small>' : net != null ? motNet(net) : `<small>${verdict}</small>`}</button>`;
   }).join('');
   const effetsAgr = l.agr === 1 ? [] : chiffresAgressivite(spec.lineup, spec.lignes, u, l.agr);
   const avecPaire = u < 3 && !(l.tac === 'hourra' && l.tacD === 'hourra');
@@ -1402,11 +1417,11 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
   const titre = groupe === 'D' ? NOMS_PAIRE[u] : NOMS_TRIO[u];
   const fermer = () => { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
   function dessiner() {
-    const { corps } = strategieDeLigne({ ...spec, lignes: brouillon, _app: app }, u, true, groupe);
+    const { corps } = strategieDeLigne({ ...spec, lignes: brouillon, base: spec.lignes, _app: app }, u, true, groupe);
     m.innerHTML = `<div class="choix-sheet gl-sheet ln-fenetre" role="dialog" aria-modal="true" aria-label="Système du ${esc(titre)}" data-g="${groupe}" data-u="${u}">
       <div class="choix-tete">
         <span class="choix-ico">${groupe === 'D' ? '🛡️' : '🏒'}</span>
-        <div class="choix-titres"><div class="choix-titre">${esc(titre)} · son système</div><div class="choix-irl">Touche un système pour le lire, puis « Appliquer ».</div></div>
+        <div class="choix-titres"><div class="choix-titre">${esc(titre)}</div>${clubLu() && clubLu().team ? '<div class="choix-irl">Par match, contre ce qui joue</div>' : ''}</div>
         <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
       </div>
       <div class="choix-corps">${corps}</div>

@@ -210,6 +210,8 @@ export function ouvrirBoutique(j, decider, page) {
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
+    // V7 : le barème des jetons vit où ils se dépensent (il était au bureau).
+    bareme: G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.bareme) || JETONS) : null,
     mods: modsDesPacks(decs, j), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
     duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
@@ -477,7 +479,6 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
     patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: postesDePatron((G.rogue && G.rogue.prestige) || 0),
     deck: enSaison ? deckDe(Lg.decisions || []) : [],
-    ...(enSaison ? { build: buildDe(decs, j + 1), coachsActifs: coachsActifs(decs, j + 1), coachRun: (rogue && G.rogue && G.rogue.coach) || null, joueurs: joueursDesCoachs(Lg.you) } : {}),
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider, page),

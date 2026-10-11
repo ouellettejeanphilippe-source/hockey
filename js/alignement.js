@@ -7,11 +7,12 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
-import { alignementAuMieux, unitesDuSoir } from './impact.js';
+import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
-import { COACHS } from './coachs.js';
-import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, motAppris } from './gerant.js';
+import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
+import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
+import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, motAppris, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
@@ -525,10 +526,10 @@ function lineEl(title, slots, group, unit, cls = '') {
   // Derrière le banc, LE CHIFFRE DU MOTEUR (V6) remplace les points additionnés : il suit le système et les cases.
   const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
   const u = note ? (group === 'D' ? note.D : note.F)[unit] : null;
-  const net = u ? u.net : null;
-  const sg = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2).replace('.', ',')}`;
-  const prodHtml = Number.isFinite(net)
-    ? `<span class="line-net ${net >= 0.005 ? 'bon' : net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Ce que ${group === 'D' ? 'cette paire' : 'ce trio'} fait de plus qu'une unité ordinaire à sa place, contre ${teamShort(G.banc.prochain.adv)}, en buts par match à forces égales : attaque ${sg(u.attaque)}, défense ${sg(u.defense)}. Un trio de fermeture se juge aux buts qu'il évite, pas à ceux qu'il subit. Il suit son système, sa chimie, ses badges, ses jambes et ses cases.`)}">${sg(net)}</span>`
+  // Ses vraies stats sur la glace (V7, JP : *des lancers, précision de lancer, pourcentage d'arrêt*) : à forces égales, par match.
+  const st = u && u.stats;
+  const prodHtml = st && st.tirs + st.contre > 0
+    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % au tir), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}"><b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}–${v1(st.contre)}</b> tirs</span>`
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
@@ -695,15 +696,17 @@ function planDeMatchEl() {
   // CE QUE LE PLAN FAIT À TES TRIOS (V6, JP : *si ton deuxième est contre le premier, peut-être que la 3 et 4 peuvent
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
-  const sg = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2).replace('.', ',')}`;
-  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.net >= 0.005 ? 'bon' : x.net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Attaque ${sg(x.attaque)}, défense ${sg(x.defense)}`)}">${u + 1}${ico(miennes[u])} ${sg(x.net)}</span>`).join('')}</div>` : '';
+  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % au tir, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
   el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}</span></div>
     <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
     <div class="pm-k">Appariement</div>
     ${[0, 1, 2, 3].map(r => `<div class="pm-app"><span class="pm-leur">Leur ${ORD_TRIO[r]} ${ico(leurs[r])}</span><span class="pm-seg">${[-1, 0, 1, 2, 3].map(m => `<button type="button" class="pm-btn${app[r] === m ? ' on' : ''}" data-app="${r}:${m}" aria-pressed="${app[r] === m}" title="${m < 0 ? 'Par rang, comme le veut la rotation' : `Ton ${ORD_TRIO[m]} trio`}">${m < 0 ? 'A' : `${m + 1}${ico(miennes[m])}`}</button>`).join('')}</span></div>`).join('')}
-    ${notesHtml}${chezEux}`;
+    ${notesHtml}${chezEux}
+    ${consigneHtml()}${filetHtml()}`;
   el.querySelectorAll('[data-roul]').forEach(x => { x.onclick = () => { b.roulement = x.dataset.roul; render(); }; });
+  el.querySelectorAll('[data-consigne]').forEach(x => { x.onclick = () => { b.match = { importance: x.dataset.consigne, ad: AD_DE_CONSIGNE[x.dataset.consigne] }; render(); }; });
+  el.querySelectorAll('[data-filet]').forEach(x => { x.onclick = () => { b.filet = x.dataset.filet; render(); }; });
   el.querySelectorAll('[data-app]').forEach(x => {
     x.onclick = () => {
       const [r, m] = x.dataset.app.split(':').map(Number);
@@ -719,6 +722,107 @@ function planDeMatchEl() {
   return el;
 }
 
+/*
+ * TON ÉQUIPE CE SOIR (V7, JP : *mettre le coach et l'explication des bonus dans effectif/équipe* ; *pas facile d'avoir
+ * numériquement quels trucs sont déjà actifs*). En tête de l'onglet Équipe, derrière le banc : ce que vaut ton
+ * alignement (systèmes, badges, chimie, jambes), puis ce qui joue un par un (le coach, les patrons, les cartes, les
+ * effets qui courent), chacun en vraies stats de match (tirs, réussite, tirs contre, arrêts), et ton coach avec sa confiance. Tout se lit par différence dans le
+ * moteur (js/impact.js), au soir du prochain match, avec les lignes du banc.
+ */
+/* Un écart de stats en pastilles : les deux qui bougent le plus, en vert ou en rouge. */
+const pastillesDeStats = (d, max = 2) => motsDeStats(d, max).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
+const v1 = x => x.toFixed(1).replace('.', ',');
+/*
+ * LE SOIR DU BANC, POSÉ LE TEMPS D'UNE LECTURE : le prochain match, avec ce qui se règle ici (les lignes, la glace,
+ * l'appariement, la consigne, le filet) à la place de ce qui était décidé. `plan` remplace la consigne ou le filet
+ * le temps d'essayer. `fn(you, lu, adv, aVenir)`.
+ */
+function aVenirDuBanc(plan = {}) {
+  const b = G.banc, L = G.ligue, you = L.you, j = b.prochain.j ?? b.jour;
+  return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes && !(d.jour === j && (d.match || d.filet))),
+    { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+}
+function avecLeBanc(fn) {
+  const b = G.banc, L = G.ligue, you = L && L.you;
+  if (!b || !you || !b.prochain || surTable()) return null;
+  const j = b.prochain.j ?? b.jour;
+  const aVenir = aVenirDuBanc();
+  const jc = you.jourCourant, avant = [you.appariement, you.roulement];
+  you.jourCourant = j; you.appariement = b.appariement; you.roulement = b.roulement;
+  try {
+    return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir);
+  } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
+}
+function lectureDuBanc() {
+  return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir) }));
+}
+/* Ce qu'un autre réglage du soir (`plan` : la consigne, le filet) change aux stats du match, contre celui en place. */
+const ecartDuSoir = plan => avecLeBanc((you, lu, adv, aVenir) => {
+  const a = statsDe(chiffresDuSoir(you, lu, adv, aVenirDuBanc(plan))), b = statsDe(chiffresDuSoir(you, lu, adv, aVenir));
+  return { tirs: a.tirs - b.tirs, pctTir: a.pctTir - b.pctTir, contre: a.contre - b.contre, pctArr: a.pctArr - b.pctArr };
+});
+/*
+ * TON COACH ET SA CONFIANCE (V7 : il vit dans Cartes › Ta main, avec les cartes qui le font monter). `injured` : les
+ * blessés du jour, qui ne portent pas sa confiance.
+ */
+export function coachHtml(decs, j, injured = new Set()) {
+  if (G.bonus !== 'ROGUE' || !G.rogue) return '';
+  const [actif] = coachsActifs(decs, j + 1);
+  const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
+  if (!C) return '';
+  const n = buildDe(decs, j + 1)[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
+  const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
+  const fin = SEUILS[SEUILS.length - 1];
+  return `<div class="ej-coach">
+    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="ej-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
+    <div class="ej-jauge" role="img" aria-label="${n} carte${n > 1 ? 's' : ''} de sa couleur jouée${n > 1 ? 's' : ''}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
+    <div class="ej-coach-l">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
+    ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
+    ${manque ? `<div class="ej-coach-l suite"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
+  </div>`;
+}
+function equipeDuSoirEl() {
+  const el = document.createElement('section');
+  el.className = 'ej-soir';
+  const lu = lectureDuBanc();
+  if (!lu) return el;
+  const t = lu.stats;
+  const rangee = (nom, d) => `<li class="ej-r"><span class="ej-nom">${esc(nom)}</span><span class="ej-stats">${pastillesDeStats(d)}</span></li>`;
+  el.innerHTML = `<div class="ej-tete">Par match, ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
+    <div class="ej-feuille">
+      <div><b>${v1(t.tirs)}</b><small>Tirs</small></div><div><b>${v1(t.pctTir * 100)} %</b><small>Au tir</small></div>
+      <div><b>${v1(t.contre)}</b><small>Tirs contre</small></div><div><b>${pct3(t.pctArr)}</b><small>Arrêts</small></div>
+    </div>
+    <div class="ej-k">Ton alignement</div>
+    <ul class="ej-liste">${lu.parts.map(x => rangee({ systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
+`;
+  return el;
+}
+
+/*
+ * LA CONSIGNE ET LE FILET DU SOIR (V7 : « Préparer le match » fondu dans les Lignes). Chaque consigne dit ce qu'elle
+ * change aux stats du match ; chaque gardien, son % d'arrêts et ses jambes. Ils jouent au « Retour au match ».
+ */
+function consigneHtml() {
+  const b = G.banc, cle = (b.match && b.match.importance) || 'normale';
+  return `<div class="pm-k">Consigne du match</div><div class="pm-seg pm-consigne">${Object.entries(IMPORTANCES).map(([k, I]) => {
+    const d = k === cle ? null : ecartDuSoir({ match: { importance: k, ad: AD_DE_CONSIGNE[k] } });
+    return `<button type="button" class="pm-btn${k === cle ? ' on' : ''}" data-consigne="${k}" aria-pressed="${k === cle}" title="${esc(I.mot)}"><b>${I.ico} ${esc(I.nom)}</b>${d ? `<span class="pm-stats">${pastillesDeStats(d, 1)}</span>` : '<small>en jeu</small>'}</button>`;
+  }).join('')}</div>`;
+}
+function filetHtml() {
+  const b = G.banc, F = b.filetEtat;
+  if (!F) return '';
+  const gardien = cle => Object.values(G.roster).find(p => p && getPlayerKey(p) === cle) || null;
+  const choix = b.filet === 'auto' ? F.rotation : b.filet;
+  const bouton = qui => {
+    const g = gardien(F[qui]);
+    const e = g ? ((b.energie || {})[getPlayerKey(g)] ?? 100) : 100;
+    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'} · jambes ${Math.round(e)}${qui === F.rotation ? ' · son tour' : ''}</small></button>`;
+  };
+  return `<div class="pm-k">Devant le filet</div><div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
+}
+
 export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
@@ -726,6 +830,7 @@ export function renderRoster() {
   // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
+  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(equipeDuSoirEl());
   if (!surTable() && G.banc && G.banc.prochain && !G.banc.serie && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
 
   UNIT_NAMES_F.forEach((name, u) => {
@@ -790,18 +895,8 @@ export function renderTeamSummary() {
     + tile('Unités en place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
     + tile('Unités mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
       `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's sont' : ' est'} à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
-    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`)
-    + tuileDuCoach(tile);
+    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`);
 }
-/* TON COACH, COMPTÉ (V6, phase 3) : « 🐢 7 joueurs » — ses joueurs habillés, sur qui sa confiance joue. */
-function tuileDuCoach(tile) {
-  const C = G.bonus === 'ROGUE' && G.rogue ? COACHS[G.rogue.coach] : null;
-  if (!C) return '';
-  const n = (joueursDesCoachs({ roster: G.roster, injured: G.banc ? G.banc.blesses : null })[G.rogue.coach] || {}).joueurs || 0;
-  return tile(`${C.ico} ${C.nom}`, `${n} joueur${n > 1 ? 's' : ''}`, n ? 'dash-good' : '',
-    `${n} joueur${n > 1 ? 's' : ''} ${C.de} habillé${n > 1 ? 's' : ''} : la confiance de ton coach joue sur chacun, et plus fort sur un badge plus haut. Ses cartes qui comptent ses joueurs grandissent avec eux.`);
-}
-
 export function renderMain() {
   const b = $('mainBtn');
   const reste = slotsLeft();

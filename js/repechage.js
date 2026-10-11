@@ -8,7 +8,7 @@ import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
-import { motsDeMutationEnChiffres } from './impact.js';
+import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
@@ -426,6 +426,36 @@ function colonneEchange(q, mot, sl = null) {
  * (sa fiche à ce jour, la masse) avant « Continuer ». La case de réserve libre du Rogue y est une case
  * comme les autres (« personne ne sort ») : l'écran « X arrive : où ? » d'avant n'a plus de raison d'être.
  */
+/*
+ * CE QUE CHAQUE CASE CHANGE (V7) : l'alignement avec l'arrivant posé là (et ceux qui glissent), contre celui en
+ * vigueur, en vraies stats par match (js/impact.js `rosterEnStats`) : ce qui bouge le plus sur la case, tout dans la barre.
+ * La case qui gagne le plus de tirs nets (tirs pour moins tirs contre) est cerclée d'or.
+ */
+function netDuRoster(roster, moves) {
+  const c = clubLu();
+  if (!c || !c.team) return null;
+  const r = { ...roster };
+  for (const [i, x] of moves) r[i] = x;
+  try { return rosterEnStats(c.team, r); } catch { return null; }
+}
+const badgeCourt = q => { const b = badgesDe(q)[0]; return `${pastilleNiveau(q)}${b ? ` <i class="badge pal-${b.palier}" title="${esc(b.nom)}">${b.ico}</i>` : ''}`; };
+const motDeCase = d => { const m = d && motsDeStats(d, 1)[0]; return m ? m : { txt: '≈ pareil', bon: null }; };
+const motsDeBarre = d => motsDeStats(d, 4).map(x => x.txt).join(', ');
+/* Le classement des cases : les tirs nets, puis la réussite et les arrêts (un demi-tir vaut trois millièmes d'arrêts). */
+const valeurDeCase = d => (d ? d.tirs - d.contre + (d.pctTir + d.pctArr) * 170 : -Infinity);
+function marquerMeilleure(rangees, nets) {
+  const vals = [...nets.values()].filter(Boolean).map(valeurDeCase);
+  if (!vals.length) return;
+  const max = Math.max(...vals);
+  for (const r of rangees) for (const c of r.cases) {
+    const d = nets.get(c.cle);
+    if (!d || c.non) continue;
+    const m = motDeCase(d);
+    c.note = m.txt;
+    c.ton = m.bon === true ? 'bon' : m.bon === false ? 'prix' : '';
+    c.meilleure = valeurDeCase(d) === max && max > 0;
+  }
+}
 function choisirQuiSort(p, o) {
   const { roster, onFerme, bloque = null } = o;
   // Le rappel du club-école (oct.) ne compte pas au plafond : la masse le dit.
@@ -439,7 +469,18 @@ function choisirQuiSort(p, o) {
   const rangees = rangeesAlignement(roster, (A, q) => ({
     non: (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`),
     note: `masse ${signe(masseDe(q))}`,
+    sous: badgeCourt(q),
   }), libre ? sl => (sl.i === libre.i ? { non: bloque ? bloque(null) : '', note: 'personne ne sort' } : null) : null);
+  // Le net de chaque sortie : l'arrivant à sa meilleure case, celle du sortant libérée (au plus quelques lectures par case).
+  const nets = new Map();
+  for (const r of rangees) for (const c of r.cases) {
+    if (c.vide || c.non) continue;
+    const A = SLOTS[Number(c.cle)];
+    const options = fits(p, A) ? [[[A.i, p]]] : placesDe(A).slice(0, 3).map(B => { const g = quiGlisse(roster, A, B, caseOuverte) || []; return [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]; });
+    const vals = options.map(m => netDuRoster(roster, m)).filter(Boolean);
+    nets.set(c.cle, vals.length ? vals.reduce((a, b) => (valeurDeCase(b) > valeurDeCase(a) ? b : a)) : null);
+  }
+  marquerMeilleure(rangees, nets);
   ouvrirAlignement({
     ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Continuer',
     aide: 'Touche un joueur.',
@@ -450,7 +491,8 @@ function choisirQuiSort(p, o) {
       if (!A) return '';
       const q = roster[A.i];
       if (!q) return `<span class="ech-bilan"><b>Case libre</b> : réserve · personne ne sort · masse ${esc(signe(masseDe(null)))}</span>`;
-      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(masseDe(q)))}</span>`;
+      const x = nets.get(k);
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(masseDe(q)))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} par match</b>` : ''}</span>`;
     },
     onChoix: k => { const A = SLOTS[Number(k)]; if (A && (roster[A.i] || (libre && A.i === libre.i))) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
     onFerme,
@@ -468,9 +510,16 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
     if (!g) return { non: `${nomDe(q.n)} n'a nulle part où aller` };
     const pen = penaliteAffichee(p, sl).pen;
     if (pen) marques = true;
-    return { marque: pen ? '↔' : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors de sa position` : '',
+    return { sous: badgeCourt(q), marque: pen ? '↔' : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors de sa position` : '',
       note: sl.i === A.i ? (q0 ? `${nomDe(q0.n)} sort` : 'case libre') : glisseMot(g) || 'case libre' };
   });
+  const nets = new Map();
+  for (const r of rangees) for (const c of r.cases) {
+    if (c.vide || c.non) continue;
+    const B = SLOTS[Number(c.cle)], g = quiGlisse(roster, A, B, caseOuverte);
+    if (g) nets.set(c.cle, netDuRoster(roster, [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]));
+  }
+  marquerMeilleure(rangees, nets);
   ouvrirAlignement({
     ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
     aide: 'Touche sa case.',
@@ -482,7 +531,8 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
       const pen = penaliteAffichee(p, B).pen, q = roster[B.i];
       const ecart = capHitDuJour(p) - (q0 ? capHitDuJour(q0) : 0);
       const g = quiGlisse(roster, A, B, caseOuverte) || [];
-      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? ', hors de sa position' : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}</span>`;
+      const x = nets.get(k);
+      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? ', hors de sa position' : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} par match</b>` : ''}</span>`;
     },
     onChoix: k => {
       const B = SLOTS[Number(k)];
@@ -1365,7 +1415,7 @@ function voleAuCartable(el, rarete) {
   const src = el.querySelector('.carton-photo');
   const r = (src && src.offsetParent ? src : el).getBoundingClientRect();
   if (!r.width) return;
-  const cible = [...document.querySelectorAll('.navtab[data-section="effectif"]')].find(b => b.offsetParent) || $('cnt');
+  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"]')].find(b => b.offsetParent) || $('cnt');
   const rc = cible ? cible.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
   const img = src && src.querySelector('img.visage, img.carton-action');
   const v = document.createElement('div');

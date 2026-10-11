@@ -7810,7 +7810,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
     if (cases && d.cases) { team.roster = { ...team.roster }; appliquerAlignement(team, { cases: d.cases }); }
   }
 }
-function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
+export function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
   const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'lignes', ...(cases ? ['roster'] : [])];
   const avant = champs.map(k => [k, k in team, team[k]]);
   try {
