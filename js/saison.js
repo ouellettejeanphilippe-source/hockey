@@ -2948,8 +2948,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
       const totJ = totauxDuMatch(p.j);
       // TON ALIGNEMENT AUSSI (V2.2) : systèmes, badges, chimie, jambes — un soir sans carte n'est pas un soir « sans effet ».
-      const alJ = partsDuSoirDu(p.j), vAl = alJ.reduce((a, x) => a + x.v, 0);
-      const puceAl = { txt: `Ton alignement ≈ ${vAl >= 0 ? '+' : '−'}${String(Math.abs(vAl).toFixed(1)).replace('.', ',')} V sur 82 matchs`, bon: Math.abs(vAl) >= 0.05 ? vAl > 0 : null };
+      const alJ = partsDuSoirDu(p.j);
+      const puceAl = { txt: `Ton alignement : ${alJ.map(x => x.txt).join(' · ')}`, bon: null };
       const totauxHtml = `<div class="hub-totaux" title="${ctx.esc(`Tes effets se multiplient entre eux. Ton alignement : ${alJ.map(x => x.txt).join(' · ')}. Le détail est dans « Préparer le match ».`)}"><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${puces([...totJ, puceAl])}</span></div>`;
       const forces = forcesHtml(adv);
       const detailDuSoir = `${forces.detail}${totauxHtml}${enJeuHtml}<div class="hub-match-note">${dernierMot}</div>`;

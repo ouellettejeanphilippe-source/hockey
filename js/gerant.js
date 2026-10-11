@@ -33,7 +33,7 @@ import {
   physiqueDe, physiqueLigne, bilanAgressivite,
   chimieLigne, ententeLigne, maitriseLigne, apprentissagePhoto, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
 } from './sim.js';
-import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres, lignesEnVictoires } from './impact.js';
+import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, agressiviteEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
 import { ROULEMENTS, effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
@@ -964,14 +964,14 @@ function chiffresSysteme(lineup, lignes, u, groupe, cle) {
 }
 /*
  * CE QUE CHAQUE CHOIX CHANGE (V7, JP : *pas facile d'avoir numériquement quel impact aura notre choix*) : la ligne `u`
- * avec ce réglage, contre les lignes en vigueur (`base`), en victoires sur 82 matchs pour ton club. null hors saison.
+ * avec ce réglage, contre les lignes en vigueur (`base`), en vraies stats de match pour ton club (tirs, réussite, tirs contre, arrêts). null hors saison.
  */
 function netDuChoix(lineup, base, u, patch) {
   const c = clubLu();
   if (!c || !c.team || !base) return null;
-  return lignesEnVictoires(c.team, lineup, c.adv || null, base.map((x, i) => (i === u ? { ...x, ...patch } : x)), base);
+  return lignesEnStats(c.team, lineup, c.adv || null, base.map((x, i) => (i === u ? { ...x, ...patch } : x)), base);
 }
-const motNet = x => (x == null ? '' : Math.abs(x) < 0.05 ? '<small class="gl-net">≈ 0 V</small>' : `<small class="gl-net ${x > 0 ? 'bon' : 'prix'}">${x > 0 ? '+' : '−'}${Math.abs(x).toFixed(1).replace('.', ',')} V</small>`);
+const motNet = d => { if (!d) return ''; const m = motsDeStats(d, 1)[0]; return m ? `<small class="gl-net ${m.bon ? 'bon' : 'prix'}">${esc(m.txt)}</small>` : '<small class="gl-net">≈ pareil</small>'; };
 function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = null, advNom = '', chimieDe = null, selonDepistage = false }) {
   const D = groupe === 'D';
   const SYS = D ? SYSTEMES_D : TACTIQUES;
@@ -1421,7 +1421,7 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
     m.innerHTML = `<div class="choix-sheet gl-sheet ln-fenetre" role="dialog" aria-modal="true" aria-label="Système du ${esc(titre)}" data-g="${groupe}" data-u="${u}">
       <div class="choix-tete">
         <span class="choix-ico">${groupe === 'D' ? '🛡️' : '🏒'}</span>
-        <div class="choix-titres"><div class="choix-titre">${esc(titre)}</div>${clubLu() && clubLu().team ? '<div class="choix-irl">Chaque choix : victoires sur 82 matchs, contre ce qui joue</div>' : ''}</div>
+        <div class="choix-titres"><div class="choix-titre">${esc(titre)}</div>${clubLu() && clubLu().team ? '<div class="choix-irl">Par match, contre ce qui joue</div>' : ''}</div>
         <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
       </div>
       <div class="choix-corps">${corps}</div>

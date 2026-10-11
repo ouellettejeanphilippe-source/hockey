@@ -8,7 +8,7 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, alignementDuSoir, ceQuiJoue } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, ceQuiJoue, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
@@ -526,10 +526,10 @@ function lineEl(title, slots, group, unit, cls = '') {
   // Derrière le banc, LE CHIFFRE DU MOTEUR (V6) remplace les points additionnés : il suit le système et les cases.
   const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
   const u = note ? (group === 'D' ? note.D : note.F)[unit] : null;
-  // En victoires sur 82 matchs (V7, JP : *le plus de but, je m'en calisse*), au rythme du prochain match.
-  const net = u ? u.net * note.parBut : null;
-  const prodHtml = Number.isFinite(net)
-    ? `<span class="line-net ${classeNet(net)}" title="${esc(`Ce que ${group === 'D' ? 'cette paire' : 'ce trio'} vaut de plus qu'une unité ordinaire à sa place, en victoires sur 82 matchs : attaque ${enV(u.attaque * note.parBut)}, défense ${enV(u.defense * note.parBut)}.`)}">${enV(net)} V</span>`
+  // Ses vraies stats sur la glace (V7, JP : *des lancers, précision de lancer, pourcentage d'arrêt*) : à forces égales, par match.
+  const st = u && u.stats;
+  const prodHtml = st && st.tirs + st.contre > 0
+    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % au tir), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}"><b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}–${v1(st.contre)}</b> tirs</span>`
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
@@ -696,8 +696,7 @@ function planDeMatchEl() {
   // CE QUE LE PLAN FAIT À TES TRIOS (V6, JP : *si ton deuxième est contre le premier, peut-être que la 3 et 4 peuvent
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
-  const V = x => x * note.parBut;
-  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · victoires sur 82</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${classeNet(V(x.net))}" title="${esc(`Attaque ${enV(V(x.attaque))}, défense ${enV(V(x.defense))}`)}">${u + 1}${ico(miennes[u])} ${enV(V(x.net))}</span>`).join('')}</div>` : '';
+  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % au tir, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
   el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}</span></div>
     <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
@@ -724,11 +723,12 @@ function planDeMatchEl() {
  * TON ÉQUIPE CE SOIR (V7, JP : *mettre le coach et l'explication des bonus dans effectif/équipe* ; *pas facile d'avoir
  * numériquement quels trucs sont déjà actifs*). En tête de l'onglet Équipe, derrière le banc : ce que vaut ton
  * alignement (systèmes, badges, chimie, jambes), puis ce qui joue un par un (le coach, les patrons, les cartes, les
- * effets qui courent), chacun en victoires sur 82 matchs, et ton coach avec sa confiance. Tout se lit par différence dans le
+ * effets qui courent), chacun en vraies stats de match (tirs, réussite, tirs contre, arrêts), et ton coach avec sa confiance. Tout se lit par différence dans le
  * moteur (js/impact.js), au soir du prochain match, avec les lignes du banc.
  */
-const enV = x => `${x >= 0.05 ? '+' : x <= -0.05 ? '−' : ''}${Math.abs(x).toFixed(1).replace('.', ',')}`;
-const classeNet = x => (x >= 0.05 ? 'bon' : x <= -0.05 ? 'mauvais' : '');
+/* Un écart de stats en pastilles : les deux qui bougent le plus, en vert ou en rouge. */
+const pastillesDeStats = (d, max = 2) => motsDeStats(d, max).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
+const v1 = x => x.toFixed(1).replace('.', ',');
 function lectureDuBanc() {
   const b = G.banc, L = G.ligue, you = L && L.you;
   if (!b || !you || !b.prochain || surTable()) return null;
@@ -739,7 +739,7 @@ function lectureDuBanc() {
   you.jourCourant = j; you.appariement = b.appariement; you.roulement = b.roulement;
   try {
     const lu = activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j });
-    return { parts: alignementDuSoir(you, lu, b.prochain.adv, aVenir), jeu: ceQuiJoue(you, lu, b.prochain.adv, aVenir), decs, j };
+    return { stats: statsDe(chiffresDuSoir(you, lu, b.prochain.adv, aVenir)), parts: alignementDuSoir(you, lu, b.prochain.adv, aVenir), jeu: ceQuiJoue(you, lu, b.prochain.adv, aVenir), decs, j };
   } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
 }
 function coachDuBancHtml(decs, j) {
@@ -763,15 +763,17 @@ function equipeDuSoirEl() {
   el.className = 'eq-soir';
   const lu = lectureDuBanc();
   if (!lu) return el;
-  const totalAl = lu.parts.reduce((a, x) => a + x.v, 0);
-  const max = Math.max(0.5, ...lu.parts.map(x => Math.abs(x.v)), ...lu.jeu.map(x => Math.abs(x.v)));
-  const barre = x => `<span class="eq-barre ${classeNet(x)}" aria-hidden="true"><i style="width:${Math.round(50 * Math.min(1, Math.abs(x) / max))}%;${x < 0 ? 'right:50%' : 'left:50%'}"></i></span>`;
-  const rangee = (ico, nom, x, { reste = null, detail = '' } = {}) => `<li class="eq-r${detail ? ' a-detail' : ''}"${detail ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="eq-nom">${ico ? `${ico} ` : ''}${esc(nom)}${reste != null ? `<small>${reste} m.</small>` : ''}</span>${barre(x)}<b class="${classeNet(x)}">${enV(x)}</b>${detail ? `<div class="eq-detail">${detail}</div>` : ''}</li>`;
-  el.innerHTML = `<div class="eq-tete">Victoires sur 82 matchs · au rythme de ce soir ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
-    <div class="eq-k">Ton alignement <b class="${classeNet(totalAl)}">${enV(totalAl)}</b></div>
-    <ul class="eq-liste">${lu.parts.map(x => rangee('', { systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.v)).join('')}</ul>
+  const t = lu.stats;
+  const rangee = (ico, nom, d, { reste = null, detail = '' } = {}) => `<li class="eq-r${detail ? ' a-detail' : ''}"${detail ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="eq-nom">${ico ? `${ico} ` : ''}${esc(nom)}${reste != null ? `<small>${reste} m.</small>` : ''}</span><span class="eq-stats">${pastillesDeStats(d)}</span>${detail ? `<div class="eq-detail">${detail}</div>` : ''}</li>`;
+  el.innerHTML = `<div class="eq-tete">Par match, ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
+    <div class="eq-feuille">
+      <div><b>${v1(t.tirs)}</b><small>Tirs</small></div><div><b>${v1(t.pctTir * 100)} %</b><small>Au tir</small></div>
+      <div><b>${v1(t.contre)}</b><small>Tirs contre</small></div><div><b>${pct3(t.pctArr)}</b><small>Arrêts</small></div>
+    </div>
+    <div class="eq-k">Ton alignement</div>
+    <ul class="eq-liste">${lu.parts.map(x => rangee('', { systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
     <div class="eq-k">En jeu</div>
-    ${lu.jeu.length ? `<ul class="eq-liste">${lu.jeu.map(x => rangee(x.ico, x.nom, x.v, { reste: x.reste ?? null, detail: x.mots.length ? `<span class="choix-puces">${puces(x.mots)}</span>` : '' })).join('')}</ul>` : '<p class="eq-vide">Rien encore : coach, patrons et cartes jouées viennent ici.</p>'}
+    ${lu.jeu.length ? `<ul class="eq-liste">${lu.jeu.map(x => rangee(x.ico, x.nom, x.d, { reste: x.reste ?? null, detail: x.mots.length ? `<span class="choix-puces">${puces(x.mots)}</span>` : '' })).join('')}</ul>` : '<p class="eq-vide">Rien encore : coach, patrons et cartes jouées viennent ici.</p>'}
     ${coachDuBancHtml(lu.decs, lu.j)}`;
   el.querySelectorAll('.eq-r.a-detail').forEach(r => {
     const bascule = () => { const o = r.classList.toggle('ouvert'); r.setAttribute('aria-expanded', String(o)); };

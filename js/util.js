@@ -87,8 +87,7 @@ export const glyphe = ico => String(ico ?? '').replace(/\uFE0F/g, '\uFE0E');
 
 /*
  * PYTHAGORE AU HOCKEY : la part de victoires que des buts pour et contre annoncent (des totaux de saison ou des
- * moyennes par match). L'exposant 2 : le différentiel y pèse moins qu'au baseball. Le bilan s'en sert pour l'attente,
- * l'écran pour dire un choix en victoires sur 82 matchs (js/impact.js).
+ * moyennes par match). L'exposant 2 : le différentiel y pèse moins qu'au baseball. Le bilan s'en sert pour l'attente.
  */
 const PYTHAGORE = 2;
 export const pythagore = (gf, ga) => {

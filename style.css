@@ -2273,20 +2273,20 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .eq-tete { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); letter-spacing: 0.04em; text-transform: uppercase; }
 .eq-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .eq-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
-.eq-r { display: grid; grid-template-columns: minmax(0, 1fr) 72px 48px; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
+.eq-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
 .eq-r.a-detail { cursor: pointer; }
 .eq-r.a-detail .eq-nom::after { content: ' ›'; color: var(--encre-3); }
 .eq-r.ouvert .eq-nom::after { content: ' ⌄'; }
 .eq-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
 .eq-nom small { margin-left: var(--esp-1); color: var(--encre-3); }
-.eq-r > b, .eq-k > b { font: 800 var(--t-2)/1 var(--display); text-align: right; font-variant-numeric: tabular-nums; }
+.eq-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
+.st-p { padding: 2px 6px; border-radius: var(--r-1); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; }
+.eq-feuille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--filet-2); border-radius: var(--r-1); overflow: hidden; }
+.eq-feuille > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-2) var(--esp-1); background: var(--fond-2); }
+.eq-feuille b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
+.eq-feuille small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .eq-soir .bon { color: var(--bon); }
 .eq-soir .mauvais { color: var(--mauvais); }
-.eq-barre { position: relative; height: 6px; border-radius: var(--r-1); background: var(--fond-3); }
-.eq-barre::before { content: ''; position: absolute; left: 50%; top: -2px; width: 1px; height: 10px; background: var(--encre-3); }
-.eq-barre i { position: absolute; top: 0; height: 100%; border-radius: var(--r-1); background: var(--encre-3); }
-.eq-barre.bon i { background: var(--bon); }
-.eq-barre.mauvais i { background: var(--mauvais); }
 .eq-detail { display: none; grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
 .eq-r.ouvert .eq-detail { display: block; }
 .eq-vide { margin: 0; font-size: var(--t-1); color: var(--encre-3); }
@@ -2317,8 +2317,10 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pm-notes .bon { color: var(--bon); }
 .pm-notes .mauvais { color: var(--mauvais); }
 .line-net { flex: none; font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
-.line-net.bon { color: var(--bon); }
-.line-net.mauvais { color: var(--mauvais); }
+.line-net { font-size: var(--t-1); color: var(--encre-3); }
+.line-net b { font-size: var(--t-3); color: var(--encre); }
+.line-net b.bon { color: var(--bon); }
+.line-net b.mauvais { color: var(--mauvais); }
 .cell-l3 { flex-wrap: wrap; }
 .cell-sec { flex: 1 0 100%; text-align: right; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .line-orig { flex: none; min-width: 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4484,7 +4486,6 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions .btn 
 body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #playoffsBtn { display: inline-flex; flex: 0 1 auto; min-height: 44px; padding: 0 var(--esp-4); font-size: var(--t-2); }
 
 /* ---- L'écran des équipes (#pageEquipes) : la barre d'outils et le bandeau du club sont ancrés, seul .eq-scroll défile ---- */
-.eq-barre { flex: 0 0 auto; display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) 0 var(--esp-3); border-bottom: 1px solid var(--filet); }
 .eq-retour { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3) 0 var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: transparent; color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .eq-retour:hover { color: var(--or); border-color: var(--or); }
 .eq-retour .ico { width: 16px; height: 16px; }
