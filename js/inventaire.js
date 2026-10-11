@@ -20,8 +20,8 @@
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
-import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, reglesDePalier, idsDuCoach, coachsActifs } from './banque.js';
-import { COACHS, SEUILS, ROMAINS, palierDe, avantProchain, JOUEUR_COACH, PALIERS_COACH_MAX } from './coachs.js';
+import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, coachsActifs } from './banque.js';
+import { COACHS } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, pucesDeFace, optionDeCarteMatch, chiffresOuverts, basculerChiffres } from './gerant.js';
@@ -154,7 +154,6 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
  * ctx : { titre, mode ('rogue' | 'saison'), enSaison, jetons, partie: [{ref, id, source}],
  *         meta: [{id, n}], personnel: [cles], patronsActifs: [{cle, role}], maxPatrons,
  *         deck: [cles], possedees: Set(ids), joueursCollection: n,
- *         build: { coach: n } (v2), coachsActifs: [{cle, palier}], coachRun: le coach de la run,
  *         jouer(item), vendre(item), onFerme() }
  */
 export function ouvrirInventaire(ctx) {
@@ -165,8 +164,6 @@ export function ouvrirInventaire(ctx) {
     ...(ctx.enSaison ? [['partie', 'Cette saison', ctx.partie.length]] : []),
     ...(ctx.mode === 'rogue' ? [['permanent', 'Permanent', ctx.meta.reduce((a, x) => a + x.n, 0) + ctx.personnel.length]] : []),
     ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
-    // v2 : tes coachs — ce que tes cartes jouées font croire au vestiaire (js/coachs.js).
-    ...(ctx.build ? [['coachs', 'Ton coach', (ctx.coachsActifs || []).length]] : []),
     ['classeur', 'La banque', `${[...ctx.possedees].filter(sortDUnPack).length}/${Object.keys(BANQUE).filter(sortDUnPack).length}`],
   ];
   if (!etat.onglet || !onglets.some(o => o[0] === etat.onglet)) etat.onglet = onglets[0][0];
@@ -213,27 +210,6 @@ export function ouvrirInventaire(ctx) {
       for (const k of ctx.deck) piles.set(k, (piles.get(k) || 0) + 1);
       corps = `<p class="inv-mot">Ton deck de match : tu en piges cinq avant chaque gros match et chaque match de séries.</p>
         <div class="inv-grille">${[...piles.entries()].map(([k, n]) => carteBanqueHtml(`match:${String(k).replace(/\+$/, '')}`, { compte: n })).join('')}</div>`;
-    } else if (etat.onglet === 'coachs') {
-      /*
-       * TON COACH (V5, JP : *juste un coach peut être actif à la fois*) : celui en poste vient en tête, et ses cartes
-       * jouées le montent à II et III. Les autres attendent : « Le congédiement », ou le début d'une saison, en installe un.
-       */
-      const [actif] = ctx.coachsActifs || [];
-      const enPoste = actif ? actif.cle : ctx.coachRun;
-      corps = `<p class="inv-mot">Un seul coach à la fois : celui en poste monte à ${ROMAINS.slice(2).join(' puis ')} à ${SEUILS.slice(1).join(' et ')} cartes de sa couleur jouées, et sa philosophie joue pour le reste de la saison, séries comprises. Chaque joueur de sa couleur habillé la fait jouer plus fort : ${Math.round(JOUEUR_COACH * 100)} % pour un badge Bronze, ${Math.round(4 * JOUEUR_COACH * 100)} % pour un Platine, jusqu'à ${Math.round(PALIERS_COACH_MAX * JOUEUR_COACH * 100)} % en tout. Pour en changer : « Le congédiement », ou au début d'une saison.</p>
-        <div class="inv-coachs">${[enPoste].filter(k => COACHS[k]).map(k => {
-          const C = COACHS[k], n = ctx.build[k] || 0, pal = Math.max(palierDe(n), actif && actif.cle === k ? actif.palier : 0), manque = avantProchain(n);
-          const cible = SEUILS[Math.min(pal, SEUILS.length - 1)];
-          return `<div class="inv-coach${pal ? ' allume' : ''} tien" data-coach="${k}">
-            <div class="inv-coach-tete"><span class="inv-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="inv-coach-rang">${ROMAINS[pal]}</span>` : ''}<span class="inv-coach-tien">Ton coach</span></div>
-            <div class="inv-coach-mot">${esc(C.mot)} Son dépisteur recrute ${esc(C.recrute)}.</div>
-            <div class="inv-coach-jauge" aria-label="${n} carte${n > 1 ? 's' : ''} sur ${cible}"><i style="width:${Math.min(100, Math.round((n / SEUILS[SEUILS.length - 1]) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / SEUILS[SEUILS.length - 1]) * 100)}%"${n >= x ? ' class="fait"' : ''}></em>`).join('')}</div>
-            <div class="inv-coach-compte">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · encore ${manque} pour ${ROMAINS[pal + 1]}` : ' · confiance au sommet'} · ${idsDuCoach(k).length} cartes de sa couleur</div>
-            ${k !== 'banque' ? (() => { const J = (ctx.joueurs || {})[k] || { joueurs: 0, paliers: 0 }; return `<div class="inv-coach-compte">${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur habillé${J.joueurs > 1 ? 's' : ''}, ${J.paliers} palier${J.paliers > 1 ? 's' : ''}${pal && J.paliers ? ` : sa confiance joue ×${String(Math.round((1 + JOUEUR_COACH * J.paliers) * 10) / 10).replace('.', ',')}` : ''}</div>`; })() : ''}
-            ${pal ? `<div class="inv-coach-regle"><span>Joue :</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
-            ${manque ? `<div class="inv-coach-regle suite"><span>${ROMAINS[pal + 1]} :</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
-          </div>`;
-        }).join('')}</div>`;
     } else {
       // V6 : une carte retirée (elle ne se tire plus) ne se montre qu'à qui l'a déjà.
       const ids = Object.keys(BANQUE).filter(id => garde(id) && (!BANQUE[id].retire || ctx.possedees.has(id))).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));

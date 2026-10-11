@@ -29,7 +29,7 @@ import { jouerSon } from './sons.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
 // et que `check_ratings.mjs`. Une seule définition, un seul propriétaire.
 import { ficheDeClub, tauxDeClub } from './equipes.js';
-import { cap, ord, ordF, pct3, pmMatch, varsEquipe } from './util.js';
+import { cap, ord, ordF, pct3, pmMatch, pythagore, varsEquipe } from './util.js';
 
 /* Ce que le contrôleur branche au démarrage (voir `brancherBilan`). */
 let $, G, TEAMFULL, capMax, capUsed, esc, formatName, headshotHtml, ico, lienEquipe, lienJoueur, porteeRevele, money, openModal, ouvrirNouvellePartie, picked, rejouerSaison, renderMain, saveLeaderboard, majLeaderboard, lireSeriesHistorique, saveGame, montrerPage, statsSim, toast, getShard, deciderSerie, bancSerie, finDesSeriesRogue;
@@ -399,12 +399,6 @@ async function chargerNiveau(teams) {
   if (bouge && volet) volet.innerHTML = voletNiveau(teams, FICHES_REELLES);
 }
 
-/** L'exposant de Pythagore au hockey : le différentiel de buts y pèse moins qu'au baseball. */
-const PYTHAGORE = 2;
-const pythagore = (gf, ga) => {
-  const a = Math.pow(Math.max(1, gf), PYTHAGORE), b = Math.pow(Math.max(1, ga), PYTHAGORE);
-  return a / (a + b);
-};
 
 /**
  * Les trois mesures, pour toutes les équipes de la ligue. `reelles` est une

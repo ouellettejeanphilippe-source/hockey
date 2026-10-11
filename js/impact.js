@@ -11,12 +11,18 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace } from './sim.js';
-import { virgule } from './util.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES } from './sim.js';
+import { virgule, pythagore } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
 const N_BASE = 1600;    // les lancers lus pour le niveau absolu d'un soir (±1 % sur les buts)
-const N_EFFET = 400;    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
+const N_EFFET = 400;
+/*
+ * EN VICTOIRES (V7, JP : *le plus de but, je m'en calisse*). Deux lectures du même soir, dites en victoires sur une
+ * saison de 82 matchs : la part de victoires que Pythagore lit dans leurs buts pour et contre (js/util.js).
+ */
+const SAISON = 82;
+const victoiresEntre = (a, b) => SAISON * (pythagore(a.butsPour, a.butsContre) - pythagore(b.butsPour, b.butsContre));    // pour la différence : les deux lectures partagent leurs dés, le bruit s'en va
 
 /* Une fenêtre d'avantage de deux minutes : le premier but la ferme (un but = un arrêt du processus de lancers), donc sa durée moyenne est (1 − e^(−2λ)) / λ. */
 function fenetre(volume, p) {
@@ -285,9 +291,47 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
   return PARTS_DU_SOIR.map(([k, nom]) => {
     const sans = lire(team, lineup, adv, { aVenir, neutre: { [k]: true }, n: N_EFFET });
     const ecart = (tel.butsPour - tel.butsContre) - (sans.butsPour - sans.butsContre);
-    const txt = Math.abs(ecart) >= 0.01 ? `${nom} ≈ ${signeDe(ecart)}${nb(ecart, 2)} but net par match` : `${nom} : rien ce soir`;
-    return { txt, bon: Math.abs(ecart) >= 0.01 ? ecart > 0 : null, cle: k, ecart };
+    const v = victoiresEntre(tel, sans);
+    const txt = Math.abs(v) >= 0.05 ? `${nom} ≈ ${signeDe(v)}${nb(v, 1)} V sur 82 matchs` : `${nom} : rien ce soir`;
+    return { txt, bon: Math.abs(v) >= 0.05 ? v > 0 : null, cle: k, ecart, v };
   });
+}
+
+/*
+ * CE QUI JOUE, UN PAR UN (V7, JP : *pas facile d'avoir numériquement quels trucs sont déjà actifs*). Le coach, chaque
+ * patron, chaque carte de la saison et chaque effet qui court ce soir : le soir tel quel contre le même soir sans lui
+ * seul, sous les mêmes dés. Rend [{ genre, ico, nom, reste, v (victoires sur 82 matchs), mots }], le plus lourd d'abord.
+ */
+export function ceQuiJoue(team, lineup = null, adv = null, aVenir = []) {
+  if (!team) return [];
+  return avecAVenir(team, aVenir, () => {
+    const tel = lire(team, lineup, adv, { n: N_EFFET });
+    const j = team.jourCourant || 0;
+    const sources = [
+      ...(team.coachs || []).map((c, i) => ({ champ: 'coachs', i, genre: 'coach', ico: c.ico, nom: c.nom })),
+      ...(team.patrons || []).map((x, i) => ({ champ: 'patrons', i, genre: 'patron', ico: x.ico, nom: x.nom })),
+      ...(team.cartes || []).map((k, i) => ({ champ: 'cartes', i, genre: 'carte', ico: (CARTES[k] || {}).ico, nom: (CARTES[k] || {}).nom || k })),
+      ...(team.effets || []).map((e, i) => ({ champ: 'effets', i, e })).filter(({ e }) => j >= e.debut && j < e.fin && e.source !== 'match')
+        .map(({ champ, i, e }) => ({ champ, i, genre: 'effet', ico: e.ico, nom: e.nom, reste: matchsEntre(team, j, e.fin) })),
+    ].filter(s => s.nom);
+    return sources.map(({ champ, i, ...s }) => {
+      const avant = team[champ];
+      team[champ] = avant.filter((_, k) => k !== i);
+      let sans;
+      try { sans = lire(team, lineup, adv, { n: N_EFFET }); } finally { team[champ] = avant; }
+      const d = differences(tel, sans);
+      return { ...s, v: victoiresEntre(tel, sans), mots: [...lignesDe(d), ...horsFeuille(d)] };
+    }).sort((a, b) => Math.abs(b.v) - Math.abs(a.v));
+  });
+}
+
+/*
+ * UNE SIGNATURE, EN CHIFFRES (V7, JP : *comparaison de joueur lorsque carte à ajouter, on a pas les lignes*). Un autre
+ * alignement (`roster`, case → joueur) contre celui en vigueur, contre un club moyen : les victoires sur 82 matchs.
+ */
+export function rosterEnVictoires(team, roster) {
+  if (!team || !team.roster) return null;
+  return victoiresEntre(lire(team, activeLineup({ ...team, roster }), null, { n: N_EFFET }), lire(team, activeLineup(team), null, { n: N_EFFET }));
 }
 
 /*
@@ -298,7 +342,8 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
 export function unitesDuSoir(team, lineup, adv, lignes = null) {
   if (!team) return null;
   const m = lire(team, lineup, adv, { lignes, n: N_BASE });
-  return { F: m.unitesF, D: m.unitesD };
+  // `parBut` : les victoires sur 82 matchs que vaut un but net par match à ce rythme (la pente de Pythagore, exposant 2).
+  return { F: m.unitesF, D: m.unitesD, parBut: SAISON / Math.max(1, m.butsPour + m.butsContre) };
 }
 
 /*
@@ -320,6 +365,11 @@ export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   const bag = d.bagarres * 10;
   if (Math.abs(bag) >= 0.05) out.push({ txt: `≈ ${signeDe(bag)}${nb(bag, 1)} ${mot(bag, 'bagarre', 'bagarres')} par 10 matchs`, bon: null, cle: 'bagarre' });
   return out;
+}
+/** La même différence, en un nombre : les victoires sur 82 matchs que ces lignes donnent de plus que les autres. */
+export function lignesEnVictoires(team, lineup, adv, lignes, contre) {
+  if (!team) return null;
+  return victoiresEntre(lire(team, lineup, adv, { lignes, n: N_LIGNES }), lire(team, lineup, adv, { lignes: contre, n: N_LIGNES }));
 }
 const surLigne = (lignes, u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : l));
 /** Un système sur la ligne `u` (`groupe` F : le trio, D : la paire), contre aucun système sur cette ligne : ce qu'il fait à CE club CE soir. */

@@ -8,7 +8,7 @@ import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3 } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
-import { motsDeMutationEnChiffres } from './impact.js';
+import { motsDeMutationEnChiffres, clubLu, rosterEnVictoires } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
@@ -426,6 +426,31 @@ function colonneEchange(q, mot, sl = null) {
  * (sa fiche à ce jour, la masse) avant « Continuer ». La case de réserve libre du Rogue y est une case
  * comme les autres (« personne ne sort ») : l'écran « X arrive : où ? » d'avant n'a plus de raison d'être.
  */
+/*
+ * CE QUE CHAQUE CASE CHANGE (V7) : l'alignement avec l'arrivant posé là (et ceux qui glissent), contre celui en
+ * vigueur, en victoires sur 82 matchs (js/impact.js `rosterEnVictoires`). La meilleure case est cerclée d'or.
+ */
+function netDuRoster(roster, moves) {
+  const c = clubLu();
+  if (!c || !c.team) return null;
+  const r = { ...roster };
+  for (const [i, x] of moves) r[i] = x;
+  try { return rosterEnVictoires(c.team, r); } catch { return null; }
+}
+const badgeCourt = q => { const b = badgesDe(q)[0]; return `${pastilleNiveau(q)}${b ? ` <i class="badge pal-${b.palier}" title="${esc(b.nom)}">${b.ico}</i>` : ''}`; };
+const motVictoires = x => (x == null ? '' : Math.abs(x) < 0.05 ? '≈ 0 V' : `${x > 0 ? '+' : '−'}${Math.abs(x).toFixed(1).replace('.', ',')} V`);
+function marquerMeilleure(rangees, nets) {
+  const vals = [...nets.values()].filter(x => x != null);
+  if (!vals.length) return;
+  const max = Math.max(...vals);
+  for (const r of rangees) for (const c of r.cases) {
+    const x = nets.get(c.cle);
+    if (x == null || c.non) continue;
+    c.note = motVictoires(x);
+    c.meilleure = x === max && max >= 0.05;
+    c.ton = x >= 0.05 ? 'bon' : x <= -0.05 ? 'prix' : '';
+  }
+}
 function choisirQuiSort(p, o) {
   const { roster, onFerme, bloque = null } = o;
   // Le rappel du club-école (oct.) ne compte pas au plafond : la masse le dit.
@@ -439,7 +464,18 @@ function choisirQuiSort(p, o) {
   const rangees = rangeesAlignement(roster, (A, q) => ({
     non: (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`),
     note: `masse ${signe(masseDe(q))}`,
+    sous: badgeCourt(q),
   }), libre ? sl => (sl.i === libre.i ? { non: bloque ? bloque(null) : '', note: 'personne ne sort' } : null) : null);
+  // Le net de chaque sortie : l'arrivant à sa meilleure case, celle du sortant libérée (au plus quelques lectures par case).
+  const nets = new Map();
+  for (const r of rangees) for (const c of r.cases) {
+    if (c.vide || c.non) continue;
+    const A = SLOTS[Number(c.cle)];
+    const options = fits(p, A) ? [[[A.i, p]]] : placesDe(A).slice(0, 3).map(B => { const g = quiGlisse(roster, A, B, caseOuverte) || []; return [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]; });
+    const vals = options.map(m => netDuRoster(roster, m)).filter(x => x != null);
+    nets.set(c.cle, vals.length ? Math.max(...vals) : null);
+  }
+  marquerMeilleure(rangees, nets);
   ouvrirAlignement({
     ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Continuer',
     aide: 'Touche un joueur.',
@@ -450,7 +486,8 @@ function choisirQuiSort(p, o) {
       if (!A) return '';
       const q = roster[A.i];
       if (!q) return `<span class="ech-bilan"><b>Case libre</b> : réserve · personne ne sort · masse ${esc(signe(masseDe(null)))}</span>`;
-      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(masseDe(q)))}</span>`;
+      const x = nets.get(k);
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(masseDe(q)))}${x != null ? ` · <b>${esc(motVictoires(x))} sur 82 matchs</b>` : ''}</span>`;
     },
     onChoix: k => { const A = SLOTS[Number(k)]; if (A && (roster[A.i] || (libre && A.i === libre.i))) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
     onFerme,
@@ -468,9 +505,16 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
     if (!g) return { non: `${nomDe(q.n)} n'a nulle part où aller` };
     const pen = penaliteAffichee(p, sl).pen;
     if (pen) marques = true;
-    return { marque: pen ? '↔' : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors de sa position` : '',
+    return { sous: badgeCourt(q), marque: pen ? '↔' : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors de sa position` : '',
       note: sl.i === A.i ? (q0 ? `${nomDe(q0.n)} sort` : 'case libre') : glisseMot(g) || 'case libre' };
   });
+  const nets = new Map();
+  for (const r of rangees) for (const c of r.cases) {
+    if (c.vide || c.non) continue;
+    const B = SLOTS[Number(c.cle)], g = quiGlisse(roster, A, B, caseOuverte);
+    if (g) nets.set(c.cle, netDuRoster(roster, [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]));
+  }
+  marquerMeilleure(rangees, nets);
   ouvrirAlignement({
     ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
     aide: 'Touche sa case.',
@@ -482,7 +526,8 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
       const pen = penaliteAffichee(p, B).pen, q = roster[B.i];
       const ecart = capHitDuJour(p) - (q0 ? capHitDuJour(q0) : 0);
       const g = quiGlisse(roster, A, B, caseOuverte) || [];
-      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? ', hors de sa position' : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}</span>`;
+      const x = nets.get(k);
+      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? ', hors de sa position' : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}${x != null ? ` · <b>${esc(motVictoires(x))} sur 82 matchs</b>` : ''}</span>`;
     },
     onChoix: k => {
       const B = SLOTS[Number(k)];

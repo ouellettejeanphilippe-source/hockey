@@ -1951,15 +1951,15 @@ function remplirMarche() {
   }
   marchePage = null;
   const tuile = (id, icone, titre, mot) => {
-    const corps = `<span class="marche-ico" aria-hidden="true">${icone}</span><span class="marche-txt"><b>${esc(titre)}</b><small>${esc(mot)}</small></span>`;
+    const corps = `<span class="marche-ico" aria-hidden="true">${icone}</span><span class="marche-txt"><b>${esc(titre)}</b>${mot ? `<small>${esc(mot)}</small>` : ''}</span>`;
     return id ? `<button type="button" class="marche-tuile" data-marche="${id}">${corps}</button>` : `<div class="marche-tuile off">${corps}</div>`;
   };
   const enSaison = !!(hub && hub.boutique);
   const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
   host.innerHTML = `${signatureHtml(hub)}<div class="marche">
-    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `Des packs de joueurs et de cartes · ${jetonsRogue(G.journee || 0)} jetons` : G.bonus === 'ROGUE' ? 'Elle ouvre pendant la saison, entre deux journées.' : 'Au mode Rogue.')}
-    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer · la main, le deck, le personnel` : 'Ton inventaire et la banque des cartes, à lire')}
-    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Les déblocages', `${lireMeta().ecussons || 0} médailles à dépenser`) : ''}
+    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `${jetonsRogue(G.journee || 0)} 🪙` : G.bonus === 'ROGUE' ? 'Pendant la saison' : 'Au mode Rogue')}
+    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer` : '')}
+    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Les déblocages', `${lireMeta().ecussons || 0} 🏅`) : ''}
   </div>`;
   brancherSignature(host, hub);
   host.querySelectorAll('[data-marche]').forEach(b => {

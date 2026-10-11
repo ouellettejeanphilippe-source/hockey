@@ -8,10 +8,11 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
-import { alignementAuMieux, unitesDuSoir } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, ceQuiJoue } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
-import { COACHS } from './coachs.js';
-import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, motAppris } from './gerant.js';
+import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
+import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
+import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, motAppris, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
@@ -525,10 +526,10 @@ function lineEl(title, slots, group, unit, cls = '') {
   // Derrière le banc, LE CHIFFRE DU MOTEUR (V6) remplace les points additionnés : il suit le système et les cases.
   const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
   const u = note ? (group === 'D' ? note.D : note.F)[unit] : null;
-  const net = u ? u.net : null;
-  const sg = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2).replace('.', ',')}`;
+  // En victoires sur 82 matchs (V7, JP : *le plus de but, je m'en calisse*), au rythme du prochain match.
+  const net = u ? u.net * note.parBut : null;
   const prodHtml = Number.isFinite(net)
-    ? `<span class="line-net ${net >= 0.005 ? 'bon' : net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Ce que ${group === 'D' ? 'cette paire' : 'ce trio'} fait de plus qu'une unité ordinaire à sa place, contre ${teamShort(G.banc.prochain.adv)}, en buts par match à forces égales : attaque ${sg(u.attaque)}, défense ${sg(u.defense)}. Un trio de fermeture se juge aux buts qu'il évite, pas à ceux qu'il subit. Il suit son système, sa chimie, ses badges, ses jambes et ses cases.`)}">${sg(net)}</span>`
+    ? `<span class="line-net ${classeNet(net)}" title="${esc(`Ce que ${group === 'D' ? 'cette paire' : 'ce trio'} vaut de plus qu'une unité ordinaire à sa place, en victoires sur 82 matchs : attaque ${enV(u.attaque * note.parBut)}, défense ${enV(u.defense * note.parBut)}.`)}">${enV(net)} V</span>`
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
@@ -695,8 +696,8 @@ function planDeMatchEl() {
   // CE QUE LE PLAN FAIT À TES TRIOS (V6, JP : *si ton deuxième est contre le premier, peut-être que la 3 et 4 peuvent
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
-  const sg = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(2).replace('.', ',')}`;
-  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.net >= 0.005 ? 'bon' : x.net <= -0.005 ? 'mauvais' : ''}" title="${esc(`Attaque ${sg(x.attaque)}, défense ${sg(x.defense)}`)}">${u + 1}${ico(miennes[u])} ${sg(x.net)}</span>`).join('')}</div>` : '';
+  const V = x => x * note.parBut;
+  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · victoires sur 82</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${classeNet(V(x.net))}" title="${esc(`Attaque ${enV(V(x.attaque))}, défense ${enV(V(x.defense))}`)}">${u + 1}${ico(miennes[u])} ${enV(V(x.net))}</span>`).join('')}</div>` : '';
   el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}</span></div>
     <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
@@ -719,6 +720,67 @@ function planDeMatchEl() {
   return el;
 }
 
+/*
+ * TON ÉQUIPE CE SOIR (V7, JP : *mettre le coach et l'explication des bonus dans effectif/équipe* ; *pas facile d'avoir
+ * numériquement quels trucs sont déjà actifs*). En tête de l'onglet Équipe, derrière le banc : ce que vaut ton
+ * alignement (systèmes, badges, chimie, jambes), puis ce qui joue un par un (le coach, les patrons, les cartes, les
+ * effets qui courent), chacun en victoires sur 82 matchs, et ton coach avec sa confiance. Tout se lit par différence dans le
+ * moteur (js/impact.js), au soir du prochain match, avec les lignes du banc.
+ */
+const enV = x => `${x >= 0.05 ? '+' : x <= -0.05 ? '−' : ''}${Math.abs(x).toFixed(1).replace('.', ',')}`;
+const classeNet = x => (x >= 0.05 ? 'bon' : x <= -0.05 ? 'mauvais' : '');
+function lectureDuBanc() {
+  const b = G.banc, L = G.ligue, you = L && L.you;
+  if (!b || !you || !b.prochain || surTable()) return null;
+  const decs = [...(L.decisions || []), ...(L.decisionsSeries || [])];
+  const j = b.prochain.j ?? b.jour;
+  const aVenir = [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes), { jour: j, lignes: b.lignes }];
+  const jc = you.jourCourant, avant = [you.appariement, you.roulement];
+  you.jourCourant = j; you.appariement = b.appariement; you.roulement = b.roulement;
+  try {
+    const lu = activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j });
+    return { parts: alignementDuSoir(you, lu, b.prochain.adv, aVenir), jeu: ceQuiJoue(you, lu, b.prochain.adv, aVenir), decs, j };
+  } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
+}
+function coachDuBancHtml(decs, j) {
+  if (G.bonus !== 'ROGUE' || !G.rogue) return '';
+  const [actif] = coachsActifs(decs, j + 1);
+  const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
+  if (!C) return '';
+  const n = buildDe(decs, j + 1)[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
+  const J = joueursDesCoachs({ roster: G.roster, injured: G.banc.blesses })[k] || { joueurs: 0, paliers: 0 };
+  const fin = SEUILS[SEUILS.length - 1];
+  return `<div class="eq-coach">
+    <div class="eq-coach-tete"><span class="eq-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="eq-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
+    <div class="eq-jauge" role="img" aria-label="${n} carte${n > 1 ? 's' : ''} de sa couleur jouée${n > 1 ? 's' : ''}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
+    <div class="eq-coach-l">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
+    ${pal ? `<div class="eq-coach-l"><span class="eq-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
+    ${manque ? `<div class="eq-coach-l suite"><span class="eq-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
+  </div>`;
+}
+function equipeDuSoirEl() {
+  const el = document.createElement('section');
+  el.className = 'eq-soir';
+  const lu = lectureDuBanc();
+  if (!lu) return el;
+  const totalAl = lu.parts.reduce((a, x) => a + x.v, 0);
+  const max = Math.max(0.5, ...lu.parts.map(x => Math.abs(x.v)), ...lu.jeu.map(x => Math.abs(x.v)));
+  const barre = x => `<span class="eq-barre ${classeNet(x)}" aria-hidden="true"><i style="width:${Math.round(50 * Math.min(1, Math.abs(x) / max))}%;${x < 0 ? 'right:50%' : 'left:50%'}"></i></span>`;
+  const rangee = (ico, nom, x, { reste = null, detail = '' } = {}) => `<li class="eq-r${detail ? ' a-detail' : ''}"${detail ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="eq-nom">${ico ? `${ico} ` : ''}${esc(nom)}${reste != null ? `<small>${reste} m.</small>` : ''}</span>${barre(x)}<b class="${classeNet(x)}">${enV(x)}</b>${detail ? `<div class="eq-detail">${detail}</div>` : ''}</li>`;
+  el.innerHTML = `<div class="eq-tete">Victoires sur 82 matchs · au rythme de ce soir ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
+    <div class="eq-k">Ton alignement <b class="${classeNet(totalAl)}">${enV(totalAl)}</b></div>
+    <ul class="eq-liste">${lu.parts.map(x => rangee('', { systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.v)).join('')}</ul>
+    <div class="eq-k">En jeu</div>
+    ${lu.jeu.length ? `<ul class="eq-liste">${lu.jeu.map(x => rangee(x.ico, x.nom, x.v, { reste: x.reste ?? null, detail: x.mots.length ? `<span class="choix-puces">${puces(x.mots)}</span>` : '' })).join('')}</ul>` : '<p class="eq-vide">Rien encore : coach, patrons et cartes jouées viennent ici.</p>'}
+    ${coachDuBancHtml(lu.decs, lu.j)}`;
+  el.querySelectorAll('.eq-r.a-detail').forEach(r => {
+    const bascule = () => { const o = r.classList.toggle('ouvert'); r.setAttribute('aria-expanded', String(o)); };
+    r.onclick = bascule;
+    r.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bascule(); } };
+  });
+  return el;
+}
+
 export function renderRoster() {
   const host = $('rosterBoard');
   if (!host) return;
@@ -726,6 +788,7 @@ export function renderRoster() {
   // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
+  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(equipeDuSoirEl());
   if (!surTable() && G.banc && G.banc.prochain && !G.banc.serie && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
 
   UNIT_NAMES_F.forEach((name, u) => {
@@ -790,18 +853,8 @@ export function renderTeamSummary() {
     + tile('Unités en place', `${optimal}/7`, optimal ? 'dash-good' : '', "Trios et paires dont tous les joueurs sont dans leur zone : le trio rend à plein. Les quatre trios et les trois paires comptent.")
     + tile('Unités mal placées', hors ? `${miscast} · ${hors}🚨` : miscast, miscast ? 'dash-bad' : '',
       `Unités où au moins un joueur joue hors de sa zone. Un cran d'écart ne coûte presque rien ; ${hors ? `${hors} unité${hors > 1 ? 's sont' : ' est'} à deux crans ou plus, et là ça coûte cher.` : 'à deux crans ou plus, ça coûte cher.'}`)
-    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`)
-    + tuileDuCoach(tile);
+    + tile('Joueurs hors position', oop, oop ? 'dash-warn' : '', `Joueurs placés ailleurs qu'à leur position naturelle : chacun y perd de 2 à 5 points, et s'adapte en jouant (la pénalité fond des deux tiers en ${ADAPT_MATCHS} matchs).`);
 }
-/* TON COACH, COMPTÉ (V6, phase 3) : « 🐢 7 joueurs » — ses joueurs habillés, sur qui sa confiance joue. */
-function tuileDuCoach(tile) {
-  const C = G.bonus === 'ROGUE' && G.rogue ? COACHS[G.rogue.coach] : null;
-  if (!C) return '';
-  const n = (joueursDesCoachs({ roster: G.roster, injured: G.banc ? G.banc.blesses : null })[G.rogue.coach] || {}).joueurs || 0;
-  return tile(`${C.ico} ${C.nom}`, `${n} joueur${n > 1 ? 's' : ''}`, n ? 'dash-good' : '',
-    `${n} joueur${n > 1 ? 's' : ''} ${C.de} habillé${n > 1 ? 's' : ''} : la confiance de ton coach joue sur chacun, et plus fort sur un badge plus haut. Ses cartes qui comptent ses joueurs grandissent avec eux.`);
-}
-
 export function renderMain() {
   const b = $('mainBtn');
   const reste = slotsLeft();
