@@ -4,15 +4,14 @@ Bâtis un alignement de 23 joueurs de la LNH — n'importe quelle saison depuis 
 
 Chaque tour, la roulette sort une saison et une équipe. Tu piges dans ce vestiaire-là. Tu vois les vraies stats et le salaire. Aucune cote ne s'affiche, ni avant ni après : un joueur se juge sur ce qu'il a fait, et la simulation joue lancer par lancer sur ses vraies colonnes.
 
-## La boucle, façon deckbuilder
+## Les modes
 
-- **Ton identité** : avant le premier tour, une carte parmi trois oriente la roulette (francs-tireurs, costauds, aubaines, jeunesse…).
-- **Le repêchage** : vestiaire (une équipe entière) ou loto (le même joueur de trois clubs), dans toutes les époques, dans la saison de la ligue, ou dans **l'histoire d'une franchise** (relocalisations comprises).
-- **Le mode Rogue** : une run de plusieurs saisons. Tu pars avec des plombiers et 40 jetons ; dès la deuxième run, ce sont tes propres cartes Soutien, moins nombreuses à mesure que ton club progresse. La boutique vend des packs ; chaque saison, le proprio en veut plus, et ton équipe se défait : tu n'en gardes que quelques joueurs. Les modifs restent sur la carte du joueur. Écussons, jalons et cartable débloquent la suite d'une run à l'autre.
-- **La saison** : tes lignes, leur système et leur chimie qui s'apprend ; les jambes de tes joueurs et de tes gardiens ; des dilemmes tirés d'histoires vraies ; aux journées 20, 40 et 60, la **main de la journée** en plein écran — un effet, un vrai joueur au choix, une amélioration, un nouveau rôle, un stage de système, le ménage du deck.
-- **Les gros matchs et les séries** : un **deck de match** (50 cartes, de commune à légendaire, et des malédictions). Cinq cartes, trois d'élan ; l'adversaire joue aussi sa main, connue d'avance. Les victoires font grandir le deck, et les cartes de club paient les vrais coéquipiers, la même franchise, une vraie ligne d'origine.
-- **L'album** : d'une partie à l'autre, les cartes eues, les identités essayées, et le cartable des joueurs — les champions de la Coupe en holographique.
-- **Sur table** : le même alignement, joué comme un jeu de plateau à la Blood Bowl.
+- **Le 82-0** : le repêchage, rien d'autre. Vestiaire (une équipe entière) ou loto (le même joueur de trois clubs), dans toutes les époques, dans la saison de la ligue ou dans l'histoire d'une franchise (relocalisations comprises). La saison se simule d'un coup ; les séries se regardent match par match.
+- **Le Rogue** : une run de plusieurs saisons, au jour le jour. Ton club part en NHL Stars avec des bouche-trous et quelques jetons 🪙 ; la boutique vend des packs de joueurs et de cartes, et chaque saison le proprio en veut plus (le mandat). Un **coach** en poste — neuf philosophies, du 🐝 Frelon à la 🐢 Tortue — gagne la confiance de l'équipe (I, II, III) à mesure que tu joues des cartes de sa couleur. Chaque semaine, **la main de la semaine** pige quatre cartes dans ta poche ; les **gros matchs** et les séries se jouent avec un deck de match (trois d'élan par main, l'adversaire joue la sienne). Les médailles 🏅 et le cartable restent d'une run à l'autre et ouvrent les déblocages.
+- **Sur table** : le même alignement, joué comme un jeu de plateau à la Blood Bowl, en tournoi de six clubs.
+- **L'exhibition** : deux vrais clubs de n'importe quelle époque, joués par le même moteur — un match, une série 4 de 7, ou cent matchs pour lire les chances.
+
+L'écran est celui d'un directeur général, en cinq sections qui ne bougent jamais, chacune pour une question : **Bureau** (qu'est-ce qui se passe aujourd'hui ?), **Joueurs** (qui j'ai, et dans quel état ?), **Lignes** (comment on joue ce soir ?), **Cartes** (avec quoi je joue ?), **Ligue** (où j'en suis ?). Un choix se dit en vraies stats de match — tirs, % au tir, tirs contre, % d'arrêts —, jamais en note.
 
 ## Jouer
 
@@ -25,7 +24,7 @@ python3 -m http.server 8000
 
 Ouvre http://localhost:8000. Les modules ES exigent `http://`, pas `file://`.
 
-L'écran est celui d'un directeur général : la jauge de plafond et le budget par case restante en haut, la roulette et le tableau de bord dessous, puis le vestiaire et l'alignement. Le vestiaire se range par position — une colonne par poste sur grand écran, des sections empilées sur téléphone. Sur téléphone, vestiaire et alignement se prennent par onglets ; sur écran large, l'alignement reste sous les yeux. Chaque carte dit l'essentiel : le poste, le salaire, le chiffre clé, le rôle, la zone d'efficacité et la case où le joueur irait. Un clic ouvre sa fiche complète — statistiques détaillées, salaire d'époque, pénalité de position et effet sur ton alignement.
+Au repêchage, chaque carte dit l'essentiel : le poste, le salaire, le chiffre clé, le rôle, la zone d'efficacité et la case où le joueur irait. Un toucher ouvre sa fiche — ses vraies statistiques, son salaire d'époque, ce que le moteur fera de lui sur la glace.
 
 Pour la base complète — 1970-71 à aujourd'hui, tout joueur à 10+ matchs :
 
@@ -42,15 +41,19 @@ python3 scripts/build_shards.py --rerate
 node scripts/check_ratings.mjs      # distribution des cotes et cohérence avec les vrais classements
 ```
 
-## En images (1.0)
+## En images (1.0, à 390 px)
 
-| Le bureau | Un système, en fenêtre |
+| Le Bureau, en séries | Les Lignes |
 |---|---|
-| ![Le bureau à 1440 px](docs/captures/bureau-1440.png) | ![La fenêtre du système à 390 px](docs/captures/systeme-390.png) |
+| ![Le Bureau d'un match de séries](docs/captures/bureau-series-390.png) | ![Les trios, leurs tirs pour–contre](docs/captures/lignes-390.png) |
 
-| La main d'un match de séries | Les règles |
+| Le plan de match, selon le dépistage | La main d'un gros match |
 |---|---|
-| ![La main de match à 1440 px](docs/captures/main-de-match-1440.png) | ![La page des règles à 390 px](docs/captures/regles-390.png) |
+| ![La glace, l'appariement, la consigne, le filet](docs/captures/plan-de-match-390.png) | ![La main d'un gros match](docs/captures/main-de-match-390.png) |
+
+| Ton coach | Les règles |
+|---|---|
+| ![Le choix du coach au départ d'une run](docs/captures/coach-390.png) | ![La page des règles](docs/captures/regles-390.png) |
 
 ## Android et bureau
 
@@ -83,15 +86,15 @@ La cote globale ajoute un bonus de vedette calculé sur le rang du joueur dans s
 
 Le salaire suit un barème par cote globale sur le plafond de 95,5 M$ (cote 70 → 2,3 M$, 80 → 5,6 M$, 88 → 11,5 M$, 99 → 18,5 M$). Un joueur de 100+ points coûte 12 à 18 M$, un défenseur de première paire 9 à 14 M$, et le premier contrat d'un joueur de 24 ans ou moins est un contrat d'entrée plafonné selon l'époque (rien avant 1995-96, base + bonis ensuite). Quand un salaire réel publié existe (`data/salaries/`), il remplace le barème au prorata du plafond de l'année ; pour 1989-90 à 2003-04, le « plafond » est la masse salariale de l'équipe la plus dépensière.
 
-Chaque joueur porte aussi un archétype classique (franc-tireur, fabricant de jeu, attaquant de puissance, défenseur offensif…) et une zone d'efficacité (calibre 1er, 2e, 3e ou 4e trio) : un trio où tout le monde est dans sa zone gagne un bonus de chimie.
+Chaque joueur porte aussi un archétype classique (franc-tireur, fabricant de jeu, attaquant de puissance, défenseur offensif…) et une zone d'efficacité (calibre 1er, 2e, 3e ou 4e trio) : un trio où chacun est dans sa zone joue mieux, et la chimie d'une ligne suit ce que le système demande à ses joueurs.
 
 ## La simulation
 
-Une ligue complète : ta formation plus 31 vraies équipes historiques (tirées des saisons sorties par la roulette, alignées automatiquement), 82 matchs chacune, 1 312 matchs. Les trios comptent 34/28/22/16 %, les paires 40/34/26 % — ton quatrième trio pèse pour vrai. Le partant prend environ 68 départs.
+Une ligue complète : ta formation plus les vraies équipes historiques sorties par la roulette, alignées par l'IA, au jour le jour sur un vrai calendrier — rien n'est simulé d'avance, une décision s'applique au jour dit. Puis les séries, 4 de 7, pour les seize premiers au plus.
 
-Buts tirés d'une loi de Poisson autour d'espérances calculées depuis l'attaque, la brigade défensive et le gardien, avec une part de chance par match et un « PDO » d'équipe pour la saison. Un match sur quatre est éreintant, où la robustesse d'équipe ajuste la défensive. Les égalités passent en prolongation, tranchée par le clutch. Un trio qui reste intact gagne en continuité ; un joueur qui a raté des matchs dans sa vraie saison se blesse plus souvent et laisse sa place à un réserviste. Buts et passes sont distribués selon la vraie production de chaque joueur cette année-là. Classement, meneurs, infirmerie, puis séries 4 de 7 pour les 16 premiers.
+Le moteur joue chaque match **lancer par lancer** ([MOTEUR.md](MOTEUR.md)). Le rythme du hockey n'a presque pas bougé en 55 ans (28 à 29 lancers par équipe par match) ; ce qui a changé, c'est le % au tir et le % d'arrêts. L'événement de base est donc le lancer, et chaque époque garde son % de tir et son % d'arrêts de ligue : 100 points en 1982 et 100 points en 2004 ne valent pas la même chose, et une équipe de 1985 rencontre une équipe de 2015 sur un pied d'égalité.
 
-Avec 23 joueurs de cote uniforme contre la moyenne de la ligue : cote 60 donne 53-26-4, cote 70 donne 69-12-1, cote 99 donne 81-1-0. Même une équipe parfaite perd en moyenne un match. Le 82-0 reste rare, c'est voulu.
+Les trios jouent 30 / 26 / 23,5 / 20,5 % du temps à forces égales, les paires 39 / 31,5 / 29,5 % : ton quatrième trio pèse pour vrai. Chaque unité joue un système (trappe, échec avant, contre-attaque…) qui demande des rôles ; un joueur rend selon ses badges (Sniper Or, Passeur Argent…), sa carrure fait l'agressivité de sa ligne, ses jambes s'usent et se refont. Buts et passes se distribuent comme sa vraie saison les a distribués. La même graine rejoue la même saison, au but près.
 
 ## Documentation
 
