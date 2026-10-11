@@ -1846,7 +1846,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // Ce que le sommaire a dit est lu : la boîte ne le redemande pas (V5).
         for (const [id] of infos) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); }
         if (mv.length) boite.archives.add(`mv:${miens.length}:${mv.length}`);
-        dessiner(); if (attend.length && !(ctx.rogue && auNoeud())) { boite.deplie = true; tabs.montrer('boite'); }
+        dessiner(); if (attend.length && !(ctx.rogue && auNoeud())) { boite.deplie = true; tabs.montrer('journee'); }
       },
     });
     return true;
@@ -2525,12 +2525,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
     // V7 : TA MAIN, sous les Cartes — la main de la semaine, ce qui est en jeu, ton coach.
     ...(ctx.inventaire ? [{ cle: 'main', ico: 'i-cartes', titre: 'Ta main', page: 'main' }] : []),
-    // LE CLUB EN SOUS-ONGLETS (1.0, R2) : la boîte de réception (rendue dans .hub-actions, montrée par la vue) et
-    // la saison — le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
-    { cle: 'boite', ico: 'i-boite', titre: 'Boîte', page: 'boite' },
+    // LA SAISON, sous la Ligue : le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
+    // La boîte de réception n'a plus d'onglet (V7) : elle vit au Bureau, sous l'affiche (rendue dans .hub-actions).
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
   ], cle => {
-    if (cle === 'boite') return '';
     if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
     if (cle === 'main') return voletMain();
     if (cle === 'classement') return voletClassement();
@@ -3326,12 +3324,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // LE MESSAGE OUVERT : celui qu'on a touché, sinon le premier à traiter. Les autres, pliés.
     const ouvert = boite.ouvert && msgs.some(m => m.id === boite.ouvert) ? boite.ouvert
       : boite.ouvert === false ? null : (premier ? premier.id : null);
-    // V4 : tout ce qui est dans la boîte se règle ; la pastille de la Boîte le compte, au téléphone (style.css, .soustab[data-page="boite"]).
+    // V4 : tout ce qui est dans la boîte se règle ; la pastille du Bureau le dit, d'où qu'on soit (style.css, .navtab[data-section="bureau"]).
     document.body.dataset.aTraiter = String(bloquants.length);
     const compteur = bloquants.length ? `<b class="a-traiter">${bloquants.length} à traiter</b>` : '<span class="a-jour">À jour</span>';
-    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien — sauf sur son propre
-    // sous-onglet (1.0, R2), où sa bande de tête dit « À jour » plutôt qu'un écran noir (style.css, .hub-boite.vide).
-    // Pliée au téléphone tant que rien ne bloque et qu'on ne l'a pas dépliée (style.css, .hub-boite.pliee).
+    // Vide, elle ne prend pas de place (S79) : « À jour » était une rangée pour rien (style.css, .hub-boite.vide).
+    // V7 : elle vit au Bureau, sous l'affiche ; pliée au téléphone tant que rien ne bloque et qu'on ne l'a pas dépliée (.hub-boite.pliee).
     const pliee = !bloquants.length && !boite.deplie;
     const boiteHtml = `<section class="hub-boite${pliee ? ' pliee' : ''}${msgs.length ? '' : ' vide'}" aria-label="Boîte de réception">
       <div class="hub-boite-tete" role="button" tabindex="0"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
@@ -3390,8 +3387,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       b.onclick = () => {
         const id = b.closest('.hub-msg').dataset.id;
         boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); boite.ouvert = null;
-        // La boîte vidée, on revient au match : une Boîte « À jour » n'a rien à montrer.
-        if (bloquants.length <= 1 && tabs.courant() === 'boite') tabs.montrer('journee');
         redessinerBoite();
       };
     });
@@ -3404,8 +3399,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (m.genre === 'palier') { ouvrirMain(m.pal); return; }
       boite.ouvert = m.id;
       boite.deplie = true;
-      // Au téléphone, la boîte est un sous-onglet du Club : « À régler » y mène.
-      if (tabs.courant() !== 'boite' && matchMedia('(max-width: 1199.98px)').matches) tabs.montrer('boite');
+      // La boîte vit au Bureau (V7) : « À régler » y ramène, le message déplié sous l'affiche.
+      if (tabs.courant() !== 'journee') tabs.montrer('journee');
       redessinerBoite();
       const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(m.id)}"]`);
       if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('[data-defaut]'); if (d) d.focus({ preventScroll: true }); }

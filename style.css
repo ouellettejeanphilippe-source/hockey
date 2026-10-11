@@ -383,8 +383,6 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
 .soustab:hover { color: var(--encre); }
 .soustab:active { transform: scale(0.94); }
 .soustab.on { color: var(--encre); border-bottom-color: var(--or); text-shadow: 0 0 14px color-mix(in srgb, var(--or) 45%, transparent); animation: filet-or var(--t-lent) var(--e-sortie); }
-/* V4 : la Boîte dit qu'elle a quelque chose à régler, sans qu'on l'ouvre (js/saison.js pose `data-a-traiter`). */
-body[data-a-traiter]:not([data-a-traiter="0"]) .soustab[data-page="boite"]::after { content: ""; display: inline-block; width: 8px; height: 8px; margin-left: var(--esp-1); border-radius: 50%; background: var(--mauvais); vertical-align: middle; }
 
 /* ---- Les cinq portes : la barre au bas du téléphone, le rail à gauche dès 1000 px ---- */
 .navbar {
@@ -409,6 +407,8 @@ body[data-a-traiter]:not([data-a-traiter="0"]) .soustab[data-page="boite"]::afte
   font: 800 var(--t-1)/1 var(--display); color: var(--encre); background: var(--fond-3);
 }
 .navtab.mort:not(.on) { opacity: 0.45; }
+/* V7 : le Bureau dit qu'il a quelque chose à régler, d'où qu'on soit (js/saison.js pose `data-a-traiter`). */
+body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::after { content: ""; position: absolute; top: 8px; left: calc(50% + 10px); width: 8px; height: 8px; border-radius: 50%; background: var(--mauvais); }
 .navtab.on { color: var(--encre); background: radial-gradient(60% 70% at 50% 0, color-mix(in srgb, var(--or) 22%, transparent), transparent 75%); }
 .navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); animation: porte-saut 420ms var(--e-ressort); }
 .navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); animation: porte-filet var(--t-lent) var(--e-sortie); }
@@ -2712,6 +2712,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-actions:has(> .hub-barre) { display: contents; }
   body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
+  /* « À régler » amène le message au-dessus de la barre collée, ses réponses comprises (V7 : la boîte vit au Bureau). */
+  body.hub-docke .hub-sheet .hub-msg { scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-match .hub-match-note:not(.hub-ereintant), .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
@@ -2728,12 +2730,8 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   .hub-barre .hub-actions-rang .btn { min-height: 36px; }
   /* Sous le volet, la place du bouton flottant (`.hub-flottant`) : défilé au bout, le dernier rang se lit. */
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
-  /* Hors de « Match », le volet seul : l'affiche et les boutons appartiennent à l'onglet Journée. */
-  body.hub-docke .hub-sheet:not([data-vue="match"]) .hub-carte, body.hub-docke .hub-sheet:not([data-vue="match"]):not([data-vue="boite"]) .hub-actions { display: none; }
-  /* Les sous-onglets du Club (1.0, R2) : sur « Match », la boîte ne s'empile pas (sa tuile y mène) ; sur « Boîte », elle seule, dépliée, avec la barre. */
-  body.hub-docke .hub-sheet[data-vue="match"] .hub-boite { display: none; }
-  body.hub-docke .hub-sheet[data-vue="boite"] .hub-volet { display: none; }
-  body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.pliee .hub-msgs { display: flex; }
+  /* Hors de « Match », le volet seul : l'affiche, la boîte et les boutons appartiennent au Bureau. */
+  body.hub-docke .hub-sheet:not([data-vue="match"]) :is(.hub-carte, .hub-actions) { display: none; }
   body.hub-docke .hub-sheet .hub-actions { overflow: visible; min-height: auto; }
 }
 @media (min-width: 1200px) {
@@ -2747,9 +2745,6 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   /* Le panneau de droite : les boutons puis la boîte. `height: 0` pour qu'il ne gonfle pas la rangée de
      l'affiche qu'il enjambe ; `min-height: 100%` le rend à sa hauteur une fois la grille posée. */
   body.hub-docke .hub-sheet .hub-actions { grid-area: boite; height: 0; min-height: 100%; align-content: flex-start; overflow-y: auto; padding: var(--esp-4) var(--esp-4) var(--esp-4) 0; border-bottom: 0; }
-  /* Sur « Boîte » au bureau, la boîte prend toute la largeur ; l'affiche et le volet attendent « Match ». */
-  body.hub-docke .hub-sheet[data-vue="boite"] .hub-carte, body.hub-docke .hub-sheet[data-vue="boite"] .hub-volet { display: none; }
-  body.hub-docke .hub-sheet[data-vue="boite"] .hub-actions { grid-column: 1 / -1; padding-left: var(--esp-4); }
   body.hub-docke .hub-sheet .hub-page { grid-column: 1 / -1; grid-row: 2 / -1; min-height: 0; overflow-y: auto; padding: 0 var(--esp-4) var(--esp-4); }
 }
 @media (min-width: 1600px) { body.hub-docke .hub-sheet { grid-template-columns: minmax(0, 1fr) 440px; } }
@@ -2911,7 +2906,6 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-boite { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
 /* Vide, elle ne se montre que sur son sous-onglet (1.0, R2) : sa bande de tête, « À jour ». */
 .hub-boite.vide { display: none; }
-body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-boite-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); padding-bottom: var(--esp-2); border-bottom: 1px solid var(--filet); }
 .hub-boite-titre { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-boite-compte { display: flex; gap: var(--esp-3); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }

@@ -75,7 +75,7 @@ const _wait = page.waitForSelector.bind(page);
  * (qui règle d'abord les choix forcés, plus bas) ou `_click`.
  */
 const SECTION_DE = {
-  match: 'bureau', boite: 'bureau', saison: 'ligue', alignement: 'lignes', joueurs: 'joueurs', repechage: 'joueurs', marche: 'cartes',
+  match: 'bureau', saison: 'ligue', alignement: 'lignes', joueurs: 'joueurs', repechage: 'joueurs', marche: 'cartes',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'ligue', cartable: 'cartes',
 };
 const SECTIONS = ['bureau', 'joueurs', 'lignes', 'cartes', 'ligue'];
@@ -226,12 +226,12 @@ async function toucher(sel) {
   await page.waitForTimeout(350);
   return true;
 }
-// LA BOÎTE, UN SOUS-ONGLET DU CLUB (1.0, R2) : au téléphone, ses messages ne se touchent que depuis « Boîte ».
+// LA BOÎTE VIT AU BUREAU (V7), sous l'affiche : d'ailleurs, ses messages ne se touchent qu'en revenant au Bureau.
 async function versLaBoite() {
   const boite = await page.$('#hubModal .hub-boite');
   if (!boite || await boite.isVisible().catch(() => false)) return;
-  const tab = await page.$('#sousNav:not([hidden]) .soustab[data-page="boite"]');
-  if (tab) { await tab.click(); await page.waitForTimeout(200); }
+  await _click('#navbar .navtab[data-section="bureau"]').catch(() => {});
+  await page.waitForTimeout(200);
 }
 async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
 async function debloquer() {

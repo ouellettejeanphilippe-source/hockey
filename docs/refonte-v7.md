@@ -54,7 +54,8 @@ Le **menu** (☰) garde le méta, qui vit entre les runs : les déblocages (méd
 - [x] Joueurs : le tableau triable (js/joueurs.js) ; le volet Jambes du Club est parti.
 - [x] Lignes : la consigne et le filet au plan de match ; « Préparer le match » a disparu de la saison (il reste aux séries).
 - [x] Cartes : Ta main (la main, en jeu, le coach), la Boutique (son barème y vit), l'Album ; les déblocages au Menu.
-- [ ] Reste : la boîte fondue dans le Bureau (elle est encore un sous-onglet, « À régler ») ; les séries passent au même cheval (leur préparation, leur banc) ; le gros match lit le plan probable du dépistage dans les Lignes.
+- [x] La boîte fondue dans le Bureau : plus de sous-onglet « À régler » ; elle se range sous l'affiche, pliée tant que rien ne bloque, et « À régler » y déplie le message au-dessus de la barre. La pastille rouge passe sur la porte du Bureau, visible de partout.
+- [ ] Reste : les séries passent au même cheval (leur préparation, leur banc) ; le gros match lit le plan probable du dépistage dans les Lignes.
 
 ## L'ordre de travail
 
