@@ -9,7 +9,7 @@ import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { CARTES_MATCH } from './combat.js';
-import { BANQUE, palierAllume, coachsActifs, payloadDe } from './banque.js';
+import { BANQUE, palierAllume, payloadDe } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
@@ -19,8 +19,8 @@ import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
-import { renderMain } from './alignement.js';
-import { bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs } from './rogue-jeu.js';
+import { renderMain, coachHtml } from './alignement.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -780,7 +780,8 @@ function ouvrirEcranSaison(depuis = 0) {
         inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page), poche: j => pocheDuJour(j), main: j => mainDuJour(j),
           carte: (item, j, decider) => ouvrirCarteDeLaPoche(item, j, decider) },
         // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
-        coachs: j => ({ actifs: coachsActifs(G.ligue ? G.ligue.decisions || [] : [], j + 1), tien: (G.bonus === 'ROGUE' && G.rogue && G.rogue.coach) || null }),
+        // V7 : ton coach et sa confiance, sous Cartes › Ta main.
+        coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
       },
       onTermine: () => terminerSaison(),
       depuis,

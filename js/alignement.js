@@ -8,7 +8,7 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, apprentissagePhoto, joueursDesCoachs } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, alignementDuSoir, ceQuiJoue, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
 import { getArchetype, POIDS_TRIO } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
@@ -754,22 +754,24 @@ function avecLeBanc(fn) {
   } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
 }
 function lectureDuBanc() {
-  const L = G.ligue;
-  return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir), jeu: ceQuiJoue(you, lu, adv, aVenir),
-    decs: [...(L.decisions || []), ...(L.decisionsSeries || [])], j: G.banc.prochain.j ?? G.banc.jour }));
+  return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir) }));
 }
 /* Ce qu'un autre réglage du soir (`plan` : la consigne, le filet) change aux stats du match, contre celui en place. */
 const ecartDuSoir = plan => avecLeBanc((you, lu, adv, aVenir) => {
   const a = statsDe(chiffresDuSoir(you, lu, adv, aVenirDuBanc(plan))), b = statsDe(chiffresDuSoir(you, lu, adv, aVenir));
   return { tirs: a.tirs - b.tirs, pctTir: a.pctTir - b.pctTir, contre: a.contre - b.contre, pctArr: a.pctArr - b.pctArr };
 });
-function coachDuBancHtml(decs, j) {
+/*
+ * TON COACH ET SA CONFIANCE (V7 : il vit dans Cartes › Ta main, avec les cartes qui le font monter). `injured` : les
+ * blessés du jour, qui ne portent pas sa confiance.
+ */
+export function coachHtml(decs, j, injured = new Set()) {
   if (G.bonus !== 'ROGUE' || !G.rogue) return '';
   const [actif] = coachsActifs(decs, j + 1);
   const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
   if (!C) return '';
   const n = buildDe(decs, j + 1)[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
-  const J = joueursDesCoachs({ roster: G.roster, injured: G.banc.blesses })[k] || { joueurs: 0, paliers: 0 };
+  const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
   const fin = SEUILS[SEUILS.length - 1];
   return `<div class="eq-coach">
     <div class="eq-coach-tete"><span class="eq-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="eq-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
@@ -785,22 +787,15 @@ function equipeDuSoirEl() {
   const lu = lectureDuBanc();
   if (!lu) return el;
   const t = lu.stats;
-  const rangee = (ico, nom, d, { reste = null, detail = '' } = {}) => `<li class="eq-r${detail ? ' a-detail' : ''}"${detail ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="eq-nom">${ico ? `${ico} ` : ''}${esc(nom)}${reste != null ? `<small>${reste} m.</small>` : ''}</span><span class="eq-stats">${pastillesDeStats(d)}</span>${detail ? `<div class="eq-detail">${detail}</div>` : ''}</li>`;
+  const rangee = (nom, d) => `<li class="eq-r"><span class="eq-nom">${esc(nom)}</span><span class="eq-stats">${pastillesDeStats(d)}</span></li>`;
   el.innerHTML = `<div class="eq-tete">Par match, ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
     <div class="eq-feuille">
       <div><b>${v1(t.tirs)}</b><small>Tirs</small></div><div><b>${v1(t.pctTir * 100)} %</b><small>Au tir</small></div>
       <div><b>${v1(t.contre)}</b><small>Tirs contre</small></div><div><b>${pct3(t.pctArr)}</b><small>Arrêts</small></div>
     </div>
     <div class="eq-k">Ton alignement</div>
-    <ul class="eq-liste">${lu.parts.map(x => rangee('', { systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
-    <div class="eq-k">En jeu</div>
-    ${lu.jeu.length ? `<ul class="eq-liste">${lu.jeu.map(x => rangee(x.ico, x.nom, x.d, { reste: x.reste ?? null, detail: x.mots.length ? `<span class="choix-puces">${puces(x.mots)}</span>` : '' })).join('')}</ul>` : '<p class="eq-vide">Rien encore : coach, patrons et cartes jouées viennent ici.</p>'}
-    ${coachDuBancHtml(lu.decs, lu.j)}`;
-  el.querySelectorAll('.eq-r.a-detail').forEach(r => {
-    const bascule = () => { const o = r.classList.toggle('ouvert'); r.setAttribute('aria-expanded', String(o)); };
-    r.onclick = bascule;
-    r.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); bascule(); } };
-  });
+    <ul class="eq-liste">${lu.parts.map(x => rangee({ systemes: 'Systèmes', badges: 'Badges', chimie: 'Chimie', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
+`;
   return el;
 }
 

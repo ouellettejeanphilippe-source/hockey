@@ -3092,7 +3092,6 @@ body.hub-docke .hub-sheet[data-vue="boite"] .hub-boite.vide { display: flex; }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
 .hub-etat-k { flex: none; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .hub-etat-run .hub-etat-k { color: var(--mauvais); }
-.hub-etat-coachs .hub-etat-k { color: var(--or); }
 .hub-etat-v { min-width: 0; }
 .hub-etat-v b { font: 800 var(--t-3)/1 var(--display); font-variant-numeric: tabular-nums; }
 .hub-etat-l .tuile-jauge { flex: 1 1 80px; min-width: 60px; }

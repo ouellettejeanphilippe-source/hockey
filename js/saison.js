@@ -35,9 +35,8 @@ import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dos
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, nouvelleGraine } from './sim.js';
 import { seasonLancers } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
+import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
-import { COACHS, ROMAINS, SEUILS } from './coachs.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
@@ -2247,6 +2246,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (bl.length) bits.push(`blessé${bl.length > 1 ? 's' : ''} : ${bl.map(x => ctx.esc(nom(x.joueur))).join(', ')}`);
     return bits.length ? `<div class="soir-drame">${cap(bits.join(' · '))}.</div>` : '';
   };
+  /*
+   * TA MAIN (V7, Cartes › Ta main). JP : *le roguelike, c'est une lettre d'amour aux cartes de hockey*. Les cartes
+   * réunies : la main de la semaine (on joue d'ici), ce qui est en jeu un par un — le coach, les patrons, les cartes
+   * de la saison, les effets qui courent —, chacun avec ce qu'il change aux stats du prochain match (tirs, réussite,
+   * tirs contre, arrêts : `ceQuiJoue`), et ton coach avec sa confiance.
+   */
+  const voletMain = () => {
+    const p = prochain();
+    const jeu = p ? auSoirDu(p.j, null, aVenir => ceQuiJoue(you, null, p.m.A === you ? p.m.B : p.m.A, aVenir)) : [];
+    const pastilles = d => motsDeStats(d, 2).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
+    const rangee = x => `<li class="eq-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="eq-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} m.</small>` : ''}</span><span class="eq-stats">${pastilles(x.d)}</span>${x.mots.length ? `<div class="eq-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
+    return `${mainHtml()}<section class="eq-soir"><div class="eq-k">En jeu${p ? ` <small>par match, au prochain</small>` : ''}</div>
+      ${jeu.length ? `<ul class="eq-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="eq-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}
+      ${ctx.coachHtml ? ctx.coachHtml(jour) : ''}</section>`;
+  };
   const voletJourneeSeul = () => {
     if (!jour) return '';
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
@@ -2509,6 +2523,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const tabs = onglets(barre, volet, [
     { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
     { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
+    // V7 : TA MAIN, sous les Cartes — la main de la semaine, ce qui est en jeu, ton coach.
+    ...(ctx.inventaire ? [{ cle: 'main', ico: 'i-cartes', titre: 'Ta main', page: 'main' }] : []),
     // LE CLUB EN SOUS-ONGLETS (1.0, R2) : la boîte de réception (rendue dans .hub-actions, montrée par la vue) et
     // la saison — le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
     { cle: 'boite', ico: 'i-boite', titre: 'Boîte', page: 'boite' },
@@ -2516,6 +2532,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   ], cle => {
     if (cle === 'boite') return '';
     if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
+    if (cle === 'main') return voletMain();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
@@ -2572,7 +2589,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }, 30);
   };
   volet.addEventListener('click', lancerPrevision);
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); };
+  // Ta main (V7) : une carte de la main se touche ; une ligne « en jeu » se déplie sur ses chiffres de match.
+  const dansLaMain = e => {
+    const c = e.target.closest('.hub-poche-case[data-ref]');
+    if (c && volet.contains(c)) { const it = ((mainDuBureau() || {}).main || []).find(x => x.ref === c.dataset.ref); if (it) ctx.inventaire.carte(it, jour, d => { const j = jour; quitter(); onDecision(d, j); }); return; }
+    const r = e.target.closest('.eq-r.a-detail');
+    if (r && volet.contains(r) && (e.type === 'click' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); r.setAttribute('aria-expanded', String(r.classList.toggle('ouvert'))); }
+  };
+  volet.addEventListener('click', dansLaMain);
+  volet.addEventListener('keydown', dansLaMain);
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', dansLaMain); volet.removeEventListener('keydown', dansLaMain); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -2754,15 +2780,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <span class="hub-etat-v">Le proprio veut : <b>${ctx.esc(run.mot)}</b>${run.suivant ? ` <small class="hub-run-suite">· puis : ${ctx.esc(run.suivant)}</small>` : ''}</span>
       </div>`);
     }
-    // TON COACH (V5 : un seul en poste) et sa confiance. Le détail est dans « Ton coach » (Marché › Mes cartes).
-    const co = ctx.coachs ? ctx.coachs(jour) : null;
-    if (co && (co.actifs.length || co.tien)) {
-      const x = co.actifs[0], C = x && COACHS[x.cle];
-      lignes.push(`<div class="hub-etat-l hub-etat-coachs" title="À ${SEUILS.slice(1).join(' et ')} cartes de sa couleur jouées, sa confiance monte">
-        <span class="hub-etat-k">📋 Ton coach</span>
-        <span class="hub-etat-v">${C ? `${C.ico} ${ctx.esc(C.nom)} <b>${ROMAINS[x.palier] || ''}</b>` : 'personne encore'}</span>
-      </div>`);
-    }
     const oc = onDecision ? objectifEnCours() : null;
     if (oc && OBJECTIFS[oc.d.objectif.cle]) {
       const O = OBJECTIFS[oc.d.objectif.cle];
@@ -2890,8 +2907,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
       // V7 : le Bureau dit d'abord ce que le proprio attend (la run, son objectif, ton coach), puis le match.
-      carte.innerHTML = `${etatHtml()}${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>${mainHtml()}`;
-      brancherMain(carte);
+      carte.innerHTML = `${etatHtml()}${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>`;
       // Le dépistage : une page du Club, calculée à l'ouverture.
       carte.querySelector('.hub-dep-ouvrir').onclick = () => {
         const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`,

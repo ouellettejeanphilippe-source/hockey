@@ -1612,20 +1612,22 @@ const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
  *   Bureau   qu'est-ce qui se passe aujourd'hui ? (le prochain match, ce qui attend ta décision)
  *   Joueurs  qui j'ai, et dans quel état ? (le tableau de l'effectif ; au repêchage du 82-0, le vestiaire)
  *   Lignes   comment on joue ce soir ? (les trios, les paires, les systèmes, le plan de match)
- *   Cartes   avec quoi je joue ? (la boutique, tes cartes ; l'album)
+ *   Cartes   avec quoi je joue ? (ta main, ce qui est en jeu, ton coach ; la boutique ; l'album)
  *   Ligue    où j'en suis ? (le classement, ta saison, les meneurs, les équipes, le palmarès)
  */
+/* Un volet de l'écran de saison, ou que l'écran rouvrira : derrière le banc, il est fermé, et toucher le volet l'y ramène. */
+const voletDeSaison = v => !!voletPour(v) || !!(G.banc && !G.banc.serie && G.bonus === 'ROGUE');
 const PAGES_DE = {
-  bureau: () => ['match', ...(voletPour('boite') ? ['boite'] : [])],
+  bureau: () => ['match', ...(voletDeSaison('boite') ? ['boite'] : [])],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
-  cartes: () => [...(G.bonus === 'ROGUE' ? ['marche'] : []), 'cartable'],
+  cartes: () => [...(voletDeSaison('main') ? ['main'] : []), ...(G.bonus === 'ROGUE' ? ['marche'] : []), 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
-  ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletPour('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
+  ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], boite: ['i-boite', 'À régler'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
+  match: ['i-club', 'Match'], boite: ['i-boite', 'À régler'], main: ['i-cartes', 'Ta main'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
 };
@@ -1635,7 +1637,7 @@ const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
-const PAGES_DE_SAISON = ['match', 'boite', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
+const PAGES_DE_SAISON = ['match', 'boite', 'main', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
 /* Les pages de lecture, pareilles à tout moment de la partie. */
 const PAGES_REF = ['equipes', 'historique'];
 
@@ -1906,9 +1908,8 @@ export function majEntete() {
 }
 
 /*
- * LE MARCHÉ (1.0, R1), une fois le repêchage fini : la boutique (des packs de
- * joueurs et de cartes, entre deux journées) et tes cartes. Le Rogue y ajoute
- * le vestiaire des déblocages.
+ * LA BOUTIQUE (1.0, R1 ; V7 : Cartes › Boutique), une fois le repêchage fini : les packs de joueurs et de
+ * cartes, entre deux journées, et tes cartes. Les déblocages vivent au Menu, entre deux runs.
  *
  * LA BOUTIQUE EST AU MARCHÉ, ET NULLE PART AILLEURS (1.0, oct.). JP : *wtf la boutique en accueil ; si j'achète
  * un pack, retourne juste pas à l'accueil* ; *je veux RIEN de la boutique dans club/accueil*. La boutique et
@@ -1968,7 +1969,6 @@ function remplirMarche() {
   host.innerHTML = `${signatureHtml(hub)}<div class="marche">
     ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `${jetonsRogue(G.journee || 0)} 🪙` : G.bonus === 'ROGUE' ? 'Pendant la saison' : 'Au mode Rogue')}
     ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer` : '')}
-    ${G.bonus === 'ROGUE' ? tuile('deblocages', '🏅', 'Les déblocages', `${lireMeta().ecussons || 0} 🏅`) : ''}
   </div>`;
   brancherSignature(host, hub);
   host.querySelectorAll('[data-marche]').forEach(b => {
@@ -1977,7 +1977,6 @@ function remplirMarche() {
       // Une carte jouée ou un pack acheté est une décision du jour : la page reste ici, la saison se rejoue en coulisse.
       if ((quoi === 'boutique' || quoi === 'cartes') && h && h[quoi]) { marchePage = quoi; remplirMarche(); }
       else if (quoi === 'cartes') ouvrirInventaireJeu(null, null);
-      else if (quoi === 'deblocages') ouvrirVestiaire(() => remplirMarche());
     };
   });
 }
