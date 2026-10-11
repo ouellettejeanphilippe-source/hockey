@@ -1458,7 +1458,10 @@ export function rolesBruts(p) {
   const brut = g === 'F' ? {
     sniper: melange([[0.5, zG], [0.3, zPCT], [0.2, zSH]]) + t('TIR'),
     passeur: melange([[0.6, zA], [0.25, zPPP], [0.15, zA == null || zG == null ? null : zA - zG]]) + t('CREATEUR', 'MENEUR'),
-    deuxsens: melange([[0.5, md], [0.3, zPT], [0.2, zSHP]]) + t('SELKE', 'BIDIR'),
+    // S109 (JP : *les attaquants défensifs doivent être reconnus même s'ils font pas beaucoup de points* ; *mettons
+    // 35 points et en dessous, attaquant défensif*) : la défense d'abord, et sous ATTAQUANT_DEFENSIF points au rythme
+    // de 82 matchs, la défense seule — un attaquant défensif ne se juge pas à ses points.
+    deuxsens: (attaquantDefensif(p) ? melange([[0.75, md], [0.25, zSHP]]) : melange([[0.65, md], [0.1, zPT], [0.25, zSHP]])) + t('SELKE', 'BIDIR'),
     power: melange([[0.35, zG], [0.3, mr], [0.2, zGB], [0.15, zHT ?? zPIM]]) + t('COLOSSE'),
     checker: melange([[0.4, zHT ?? mr], [0.35, md], [-0.25, zPT]]) + 0.5 * t('SELKE'),
     energie: melange([[0.35, zSH], [0.25, zHT ?? mr], [-0.4, zTOI ?? zPT]]) + t('VITESSE'),
@@ -1480,7 +1483,7 @@ export function rolesBruts(p) {
  * bagarreurs rares.
  */
 export const DECALAGE_ROLES = {
-  F: { sniper: -0.08, passeur: -0.1, deuxsens: 0, power: 0.2, checker: 0.07, energie: 0.06, bagarreur: -0.16 },
+  F: { sniper: -0.08, passeur: -0.1, deuxsens: -0.12, power: 0.2, checker: 0.07, energie: 0.06, bagarreur: -0.16 },
   D: { defensif: 0, offensif: 0.09, manieur: 0.11, physique: -0.38, deuxsens: 0.17 },
 };
 function profilsBase(p) {
@@ -1878,7 +1881,10 @@ export const EFFET_ROLE = { checker: 0.16, deuxsens: 0.08, defensif: 0.16, physi
 /* Passeur et manieur Platine : leur ligne joue son système comme si son fit valait BADGE_CHIMIE de plus (la chimie). */
 export const BADGE_CHIMIE = 12;
 export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
-const SELKE_PALIER_MIN = 3;   // Or : voir `badgesCalcules`
+const DEUXSENS_SANS_POINTS = 3;   // Or : voir `badgesCalcules`
+/* Un attaquant défensif (S109) : ATTAQUANT_DEFENSIF points ou moins au rythme de 82 matchs. Son Two-way se lit à sa défense seule. */
+const ATTAQUANT_DEFENSIF = 35;
+const attaquantDefensif = p => (p.pt ?? ((p.g || 0) + (p.a || 0))) / Math.max(1, p.gp || 1) * 82 <= ATTAQUANT_DEFENSIF;
 export const palierDe = (g, x) => { const S = SEUILS_PALIER[g]; return x >= S[2] ? 4 : x >= S[1] ? 3 : x >= S[0] ? 2 : 1; };
 /*
  * LES BADGES d'un joueur : son rôle premier, et le second s'il vaut
@@ -1917,14 +1923,11 @@ function badgesCalcules(p) {
   const [a, b] = Object.entries(pr).sort((x, y) => y[1] - x[1]);
   const second = b && b[1] >= BADGE_SECOND_MIN;
   let [p1, p2] = [palierDe(g, a[1]), second ? palierDe(g, b[1]) : 0];
-  /*
-   * UN SELKE EST AU MOINS OR EN TWO-WAY (S109). JP, sur Craig Ramsay 1984-85, Selke et Two-way Argent : *l'attaquant
-   * défensif d'élite, pas rapport aux côtés ?* Le badge mêle la défense et les points, comparés à tous les attaquants :
-   * 19 des 108 attaquants-saisons qui ont des votes au Selke, des spécialistes qui marquaient peu, restaient Argent.
-   */
-  if (g === 'F' && traits.includes('SELKE')) {
-    if (a[0] === 'deuxsens') p1 = Math.max(p1, SELKE_PALIER_MIN);
-    else if (second && b[0] === 'deuxsens') p2 = Math.max(p2, SELKE_PALIER_MIN);
+  // UN ATTAQUANT DÉFENSIF VA JUSQU'À OR (S109, JP : *juste or*) : sa défense seule le mène à Or ; le Platine du
+  // Two-way demande aussi des points.
+  if (g === 'F' && attaquantDefensif(p)) {
+    if (a[0] === 'deuxsens') p1 = Math.min(p1, DEUXSENS_SANS_POINTS);
+    else if (second && b[0] === 'deuxsens') p2 = Math.min(p2, DEUXSENS_SANS_POINTS);
   }
   const [n1, n2] = [p1, p2];
   if (monteBadge(p)) {
