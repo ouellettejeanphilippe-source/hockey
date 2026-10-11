@@ -51,18 +51,37 @@ informer('la feuille', `${(Buffer.byteLength(src) / 1024).toFixed(0)} Ko · ${rs
  * 3. LE SYSTÈME DE DESIGN (1.0, la refonte — docs/refonte-ui.md) : sept
  * tailles, trois rayons, une vingtaine de couleurs, toutes des jetons. On
  * compte ce qui s'en écarte HORS des jetons (:root) : une taille écrite en
- * px, un rayon en px, une couleur en hexadécimal. Les cartons de collection
- * (`cqw`) et le plateau (`--tcell`) ont droit à leurs unités relatives ; les
- * plafonds sont ceux de la fusion et ne montent pas.
+ * px, un rayon en px, une couleur en hexadécimal ou en rgba.
+ *
+ * R5, la peau (oct.) : AUCUN écart dans l'interface. Deux blocs ont leurs
+ * propres règles et leurs propres plafonds, qui ne montent pas : le carton de
+ * collection (4b, ses dix séries : le papier, le chrome, l'or — des palettes
+ * de cartes, pas des couleurs d'écran) et le plateau de Sur table (10, ses
+ * tailles suivent la case, `--tcell`).
  */
-const PLAFOND_TAILLES_PX = Number(process.env.PLAFOND_TAILLES_PX ?? 6);
-const PLAFOND_RAYONS_PX = Number(process.env.PLAFOND_RAYONS_PX ?? 1);
-const PLAFOND_COULEURS = Number(process.env.PLAFOND_COULEURS ?? 319);
-const horsJetons = src.replace(/:root[^{]*\{[^}]*\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
-const taillesPx = (horsJetons.match(/font(?:-size)?:[^;]*?\b\d+(?:\.\d+)?px/g) || []).length;
-const rayonsPx = (horsJetons.match(/border-radius:[^;]*?\b\d+(?:\.\d+)?px/g) || []).filter(x => !/50%/.test(x)).length;
-const couleurs = (horsJetons.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\(/g) || []).length;
-exiger(`${PLAFOND_TAILLES_PX} tailles de police en px au plus hors des jetons (les sept tailles sont --t-1 à --t-7)`, taillesPx <= PLAFOND_TAILLES_PX, `${taillesPx}`);
-exiger(`${PLAFOND_RAYONS_PX} rayons en px au plus hors des jetons (--r-0, --r-1, --r-2)`, rayonsPx <= PLAFOND_RAYONS_PX, `${rayonsPx}`);
-exiger(`${PLAFOND_COULEURS} couleurs écrites en dur au plus hors des jetons`, couleurs <= PLAFOND_COULEURS, `${couleurs}`);
+const PLAFOND_COULEURS_CARTON = Number(process.env.PLAFOND_COULEURS_CARTON ?? 301);
+const PLAFOND_TAILLES_PLATEAU = Number(process.env.PLAFOND_TAILLES_PLATEAU ?? 6);
+const bloc = (debut, fin) => {
+  const i = src.indexOf(debut), j = fin ? src.indexOf(fin, i) : src.length;
+  if (i < 0 || j < 0) throw new Error(`style.css : le bloc « ${debut} » est introuvable`);
+  return [i, j];
+};
+const CARTON = bloc('4b. LE CARTON DE COLLECTION', '(B) LA FICHE DU JOUEUR');
+const PLATEAU = bloc('/* == 10. SUR TABLE', null);
+const sansJetons = t => t.replace(/:root[^{]*\{[^}]*\}/g, '').replace(/\/\*[\s\S]*?\*\//g, '');
+const mesurer = t => ({
+  tailles: (t.match(/font(?:-size)?:[^;]*?\b\d+(?:\.\d+)?px/g) || []).length,
+  rayons: (t.match(/border-radius:[^;]*?\b\d+(?:\.\d+)?px/g) || []).filter(x => !/50%/.test(x)).length,
+  couleurs: (t.match(/#[0-9a-fA-F]{3,8}\b|\brgba?\(/g) || []).length,
+});
+const [a0, b0] = CARTON, [a1, b1] = PLATEAU;
+const interface_ = mesurer(sansJetons(src.slice(0, a0) + src.slice(b0, a1) + src.slice(b1)));
+const carton = mesurer(sansJetons(src.slice(a0, b0))), plateau = mesurer(sansJetons(src.slice(a1, b1)));
+exiger('aucune taille de police en px dans l\'interface (les sept tailles sont --t-1 à --t-7)', interface_.tailles === 0, `${interface_.tailles}`);
+exiger('aucun rayon en px dans l\'interface (--r-0, --r-1, --r-2)', interface_.rayons === 0, `${interface_.rayons}`);
+exiger('aucune couleur écrite en dur dans l\'interface (toutes des jetons)', interface_.couleurs === 0, `${interface_.couleurs}`);
+exiger(`le carton : ${PLAFOND_COULEURS_CARTON} couleurs de ses séries au plus, aucune taille ni rayon en px`, carton.couleurs <= PLAFOND_COULEURS_CARTON && !carton.tailles && !carton.rayons,
+  `${carton.couleurs} couleurs · ${carton.tailles} tailles · ${carton.rayons} rayons`);
+exiger(`le plateau : ${PLAFOND_TAILLES_PLATEAU} tailles bornées en px au plus (elles suivent la case), aucune couleur ni rayon en px`, plateau.tailles <= PLAFOND_TAILLES_PLATEAU && !plateau.couleurs && !plateau.rayons,
+  `${plateau.tailles} tailles · ${plateau.couleurs} couleurs · ${plateau.rayons} rayons`);
 verdict('Le CSS');
