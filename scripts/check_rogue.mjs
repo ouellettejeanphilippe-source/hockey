@@ -48,6 +48,7 @@ import {
 } from '../js/rogue.js';
 import { BANQUE, PATRONS_IMPOSES, patronsDeDepart } from '../js/banque.js';
 import { VOIES } from '../js/coachs.js';
+import { PACKS_TOUS, PACKS_DE_SERIE } from '../js/packs.js';
 import { jouerRun, acheterDans, metaAuNiveau, coutDuNiveau, classeurSynthetique, ORDRE_DEBLOCAGES, shard, groupe } from './lib/rogue_sim.mjs';
 import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
 
@@ -208,6 +209,13 @@ if (!isMainThread) {
     const base = ['lancer+', 'bloquer', 'gachettes', 'doute'];
     const d = deckDe([{ jour: 0, deck: 'report', deckDeBase: base }, { jour: 5, recompense: 'provoquer' }]);
     exiger('la saison suivante d\'une run repart du deck de la fin (`deckDeBase`)', d.join() === [...base, 'provoquer'].join() && deckDe([]).join() === DECK_DEPART.join(), d.join(' · '));
+  }
+  {
+    // JALON P1 : une série gagnée donne un pack de joueurs, pas une carte ; le deck des séries ne bouge pas.
+    const serie = PACKS_DE_SERIE.slice(0, 3).map((pack, r) => ({ ronde: r, match_no: -1, recompense: null, packSerie: pack }));
+    const d = deckDe([], { serie, ronde: 3, k: 0 });
+    exiger('une série gagnée donne un pack de joueurs (Argent, Or, Étoiles, puis Légendes avec la Coupe), et le deck des séries ne bouge pas',
+      PACKS_DE_SERIE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs') && d.join() === DECK_DEPART.join(), PACKS_DE_SERIE.map(k => PACKS_TOUS[k].nom).join(' · '));
   }
   {
     const niveaux = [[], ['classeur1'], ['classeur1', 'classeur2', 'classeurTri'], ['classeur1', 'classeur2', 'classeur3', 'classeurTri', 'classeurChoix']];

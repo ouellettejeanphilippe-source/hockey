@@ -144,6 +144,13 @@ export const PACKS_TOUS = {
   ...Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }])),
   ...Object.fromEntries(Object.entries(PACKS_CARTES).map(([k, P]) => [`c:${k}`, { ...P, sorte: 'cartes', cle: k }])),
 };
+/*
+ * LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1). JP : *les récompenses devraient être des packs de joueurs*. Une série
+ * gagnée donnait une carte rare jouable tout de suite : la main grossissait de ronde en ronde et emballait la run.
+ * Elle donne maintenant un pack dont les joueurs vont au cartable — pour la saison suivante et les runs d'après,
+ * jamais dans l'alignement des séries en cours. Par ronde gagnée (0, 1, 2), puis la Coupe.
+ */
+export const PACKS_DE_SERIE = ['j:hasard_argent', 'j:hasard_or', 'j:etoiles', 'j:legendes'];
 export const RAYONS = [
   { cle: 'jour', nom: 'Le pack du jour', ico: '📆' },
   { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:hasard_bronze', 'j:hasard_argent', 'j:hasard_or', 'j:hasard_premium', 'j:garanti'] },

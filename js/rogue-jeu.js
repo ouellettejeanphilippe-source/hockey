@@ -11,7 +11,7 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHidd
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
-import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks } from './packs.js';
+import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
@@ -337,6 +337,27 @@ export async function rouvrirPackJoueurs(achat, j, decider) {
   cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
   offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider });
 }
+/* Un joueur tiré d'un pack, en option d'`ouvrirChoix` : sa carte à la variante du tirage, son niveau, sa couleur. */
+function optionDeJoueurTire(x) {
+  const g = groupeDe(x.p);
+  const bonus = traitsDeCarte(carteDe(x.rar), g === 'G');
+  return {
+    // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
+    cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+    art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
+    carteJoueur: miniAvecVariante(x.p, x.rar),
+    // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
+    walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
+    // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
+    texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
+      // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
+      COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
+    // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
+    // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
+    desactive: dejaChezToi(x.p) ? 'Déjà dans ton équipe' : '',
+    apercu: () => apercuJoueur(x.p),
+  };
+}
 /* Le même homme est-il déjà dans ton équipe (n'importe quelle saison de lui) ? */
 const dejaChezToi = p => Object.values(G.roster || {}).some(q => q && getPersonKey(q) === getPersonKey(p));
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
@@ -348,26 +369,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
   const offrir = () => ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Plus tard',
     recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l'offre attend dans ta boîte jusqu'à la fin de la journée.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
-    options: cartes.map(x => {
-      const g = groupeDe(x.p);
-      const bonus = traitsDeCarte(carteDe(x.rar), g === 'G');
-      return {
-        // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
-        cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
-        art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
-        carteJoueur: miniAvecVariante(x.p, x.rar),
-        // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
-        walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
-        // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
-        texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
-          // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
-          COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
-        // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
-        // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
-        desactive: dejaChezToi(x.p) ? 'Déjà dans ton équipe' : '',
-        apercu: () => apercuJoueur(x.p),
-      };
-    }),
+    options: cartes.map(x => optionDeJoueurTire(x)),
     onChoix: k => {
       const x = cartes.find(y => getPlayerKey(y.p) === k);
       if (!x || dejaChezToi(x.p)) return;
@@ -384,6 +386,27 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
     onFerme: () => {},
   });
   offrir();
+}
+/*
+ * LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1) : tiré de la graine et de la ronde (hors des numéros d'achat), ouvert tout
+ * de suite, et TOUT va au cartable : rien ne se signe en pleines séries. Une fois, à la décision (`confirmerDecision`,
+ * js/banc.js) ; la Coupe ouvre le sien à la fin des séries (`finDesSeriesRogue`).
+ */
+export async function ouvrirPackDeSerie(cle, ronde) {
+  const P = PACKS_TOUS[cle];
+  if (!P || !G.ligue) return;
+  const { cartes } = await tirerJoueursDuPack(cle, {
+    graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(decisionsDeLaPartie(), G.journee || 0), saisons: state.index.seasons, shard: getShard,
+  });
+  ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
+  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  ouvrirChoix({
+    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Au cartable',
+    recit: `${cartes.length} vrais joueurs, tous à ton cartable : pour la saison prochaine et les runs d'après.`,
+    options: cartes.map(x => ({ ...optionDeJoueurTire(x), desactive: 'Au cartable' })),
+    onChoix: () => {},
+    onFerme: () => {},
+  });
 }
 /*
  * UNE SORTIE QUE LE PLAFOND REFUSE : l'arrivée de `p` à la place de `q`
@@ -1152,6 +1175,8 @@ export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
     const S = G.seriesMoteur;
     const finale = !!(S && S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A.isPlayer || s.B.isPlayer)));
     direJalons(payerJalons({ ...faitsDeLaSaison(), rondes, coupe: !!coupe, finale }));
+    // LA COUPE (Jalon P1) : son pack, des Légendes, au cartable.
+    if (coupe) setTimeout(() => ouvrirPackDeSerie(PACKS_DE_SERIE[3], 3), 2400);
     modsAuCartable();
     // V2 · Item 4 : à la fin d'une run (gagnée ou perdue), rembourser les packs scellés non ouverts.
     const sortRun = sortDeLaRun();

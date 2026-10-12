@@ -32,7 +32,7 @@ import {
 } from '../../js/sim.js';
 import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks } from '../../js/packs.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, PACKS_DE_SERIE } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
@@ -313,6 +313,8 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
     }
     rondes = S.toutes.filter(s => s.winner === you).length;
     coupe = S.champion === you;
+    // LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1, `PACKS_DE_SERIE`) : ses joueurs vont au classeur, pas dans l'alignement des séries.
+    for (let i = 0; i < Math.min(rondes, PACKS_DE_SERIE.length); i++) entrees.push(...tirerPack(rnd, PACKS_DE_SERIE[i].slice(2), p => !dansLaLigue.has(getPersonKey(p))));
     finale = S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A === you || s.B === you));
   }
   const reste = Math.max(0, jetons());
