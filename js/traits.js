@@ -81,7 +81,7 @@ export const VEZINA_VOTE_DEPUIS = '1981-82';
 
 export const TRAITS = {
   SELKE: {
-    label: 'Attaquant défensif d\'élite', short: 'Selke', icon: '🛡️',
+    label: 'Attaquant défensif d\'élite', short: 'Selke', icon: '🛡',
     desc: 'Reconnu comme le meilleur attaquant défensif de sa saison',
   },
   NORRIS: {

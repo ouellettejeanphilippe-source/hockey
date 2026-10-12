@@ -56,7 +56,7 @@ const MOMENTS_PLUS = {
     ],
   },
   charter: {
-    ico: '✈️', titre: 'Le proprio coupe la classe affaires', irl: null,
+    ico: '✈', titre: 'Le proprio coupe la classe affaires', irl: null,
     recit: 'Les vols de l\'Ouest se font en économique. Les sièges sont étroits, les nuits courtes.',
     options: [
       { cle: 'encaisser', nom: 'On encaisse', prix: 'Les jambes arrivent lourdes', action: { energieTous: -12 } },
@@ -64,7 +64,7 @@ const MOMENTS_PLUS = {
     ],
   },
   journal: {
-    ico: '🎙️', titre: 'Le micro est resté ouvert', irl: null,
+    ico: '🎙', titre: 'Le micro est resté ouvert', irl: null,
     recit: 'Ton entraîneur parle du 4e trio sans savoir que ça enregistre. La bande sort le lendemain.',
     options: [
       { cle: 'assumer', nom: 'Il assume devant eux', bon: 'Si le vestiaire embarque, ça brasse', prix: 'Sinon, le 4e boude',

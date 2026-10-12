@@ -7,16 +7,16 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
-import { getArchetype, POIDS_TRIO } from './ratings.js';
+import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs, lignesDeGros, planProbable, PART_UNITE, specialesDuSoir } from './sim.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats, specialesEnStats } from './impact.js';
+import { getArchetype } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
-import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
+import { ajusterCartes, choisirSpeciale, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
@@ -263,7 +263,7 @@ function slotEl(s) {
     const lancee = G.banc && G.banc.lancees ? G.banc.lancees.get(p) : null;
     const lanceeTag = !lancee ? '' : lancee === 'doute'
       ? '<span class="tag tag-doute" title="Il doute : un vrai marqueur sans but depuis dix matchs finit moins bien, jusqu\'à son prochain but">Doute</span>'
-      : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄️ Vive' : 'Lancée'}</span>`;
+      : `<span class="tag tag-lancee" title="${lancee === 'vive' ? 'Sur une lancée vive (l\'étincelle) : il finit beaucoup mieux tant qu\'il marque' : 'Sur sa lancée : il finit mieux tant qu\'il marque'}">${lancee === 'vive' ? '☄ Vive' : 'Lancée'}</span>`;
     /* HORS POSTE, EN MOTS (JP : *−3, ça veut dire quoi ? Ya même pas de overall aux joueurs*). Le chiffre de la
        pénalité est sur l'échelle des cotes, qu'aucun écran ne montre : la case porte ↔, le signe du jeu pour
        « hors de sa position » (js/gerant.js), et l'infobulle dit s'il s'y adapte, sans chiffre. */
@@ -422,7 +422,7 @@ function puceOrigine(o, group) {
   if (o.ligneOrigine) mots.push(['🧩', group === 'D' ? 'Paire d\'origine' : 'Ligne d\'origine', 'Tous du même club, la même saison : la carte « La ligne d\'origine » la paie.']);
   else if (o.coequipiers) mots.push(['👬', 'Coéquipiers', 'Deux vrais coéquipiers (même club, même saison) : la carte « Les vrais coéquipiers » les paie.']);
   if (!o.ligneOrigine && o.famille) mots.push(['🎽', 'Même franchise', 'Tous de la même franchise, d\'une époque ou d\'une autre : « La même famille » et « La dynastie de club » la comptent.']);
-  if (o.decennie != null && mots.length < 2) mots.push(['🕰️', `Années ${String(o.decennie).slice(2)}`, 'Trois joueurs de la même décennie : la carte « La décennie » les paie.']);
+  if (o.decennie != null && mots.length < 2) mots.push(['🕰', `Années ${String(o.decennie).slice(2)}`, 'Trois joueurs de la même décennie : la carte « La décennie » les paie.']);
   return mots.slice(0, 2).map(([ico, mot, titre]) => `<span class="line-orig" title="${esc(titre)}">${ico} ${esc(mot)}</span>`).join('');
 }
 
@@ -490,11 +490,11 @@ function lineEl(title, slots, group, unit, cls = '') {
      * lignes ». Il dit si ses joueurs sont à leur place ; la paire aussi.
      * La tactique et le fit ne s'y écrivent plus depuis S78 : ils ont leur
      * tiroir sous le trio (`strategieDeLigne`), et l'en-tête les répétait —
-     * coupés, en plus, à 1 280 px (« ⚠️ un joueur ma… »).
+     * coupés, en plus, à 1 280 px (« ⚠ un joueur ma… »).
      */
     const syn = getUnitSynergy(G.roster, group, unit);
     const filled = slots.filter(s => G.roster[s.i]).length;
-    const place = syn.zoneEtat === 'optimal' ? '✨ à leur place' : syn.zoneEtat === 'hors' ? '🚨 hors de leurs lignes' : syn.zoneEtat === 'mal' ? '⚠️ un joueur mal placé' : '';
+    const place = syn.zoneEtat === 'optimal' ? '✨ à leur place' : syn.zoneEtat === 'hors' ? '🚨 hors de leurs lignes' : syn.zoneEtat === 'mal' ? '⚠ un joueur mal placé' : '';
     if (filled === slots.length) {
       const kind = syn.zoneEtat === 'optimal' ? 'good' : syn.zoneEtat ? 'bad' : '';
       if (kind) wrap.classList.add(kind);
@@ -561,9 +561,7 @@ function noteDesUnites() {
   try {
     const lu = activeLineup({ ...L.you, roster: G.roster, injured: b.blesses, jourCourant: b.jour });
     // Le plan de match du banc (V6), posé le temps de la lecture : l'appariement et la glace qu'on essaie.
-    const avant = [L.you.appariement, L.you.roulement];
-    L.you.appariement = b.appariement; L.you.roulement = b.roulement;
-    try { return unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes); } finally { [L.you.appariement, L.you.roulement] = avant; }
+    return auSoirDuBanc(L.you, () => unitesDuSoir(L.you, lu, b.prochain.adv, b.lignes));
   } catch { return null; }
 }
 
@@ -576,12 +574,19 @@ function noteDesUnites() {
  * `G.lignes` (sauvegardé), derrière le banc dans `G.banc.lignes`, qui part
  * avec la décision au « Retour au match ».
  */
+/*
+ * LEURS LIGNES CE SOIR. Un gros match (et chaque match de série) a son dépistage : ses lignes se lisent SOUS LE PLAN LE
+ * PLUS PROBABLE (le vrai reste caché), sur l'alignement qui jouera, et l'écran dit « selon le dépistage ».
+ */
+const lignesEnFace = b => (b.depistage
+  ? lignesDeGros(b.prochain.adv, activeLineup(b.prochain.adv), planProbable(b.depistage))
+  : lignesDe(b.prochain.adv, b.prochain.adv.roster));
 function specStrategie() {
   const b = G.banc;
   if (!b) return { lineup: G.roster, lignes: lignesDe({ lignes: G.lignes }, G.roster), adv: null };
   return {
     lineup: G.roster, lignes: b.lignes,
-    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesDe(b.prochain.adv, b.prochain.adv.roster) } : null,
+    adv: b.prochain ? { nom: teamShort(b.prochain.adv), lignes: lignesEnFace(b), selonDepistage: !!b.depistage } : null,
   };
 }
 function rangeeStrategie(unit, groupe = 'F') {
@@ -616,8 +621,8 @@ function ouvrirReglage(unit, groupe) {
  */
 const AU_MIEUX = [
   { cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Chacun à son poste et dans sa zone, des trios qui jouent un système ensemble.' },
-  { cle: 'offensif', ico: '⚔️', nom: 'Offensif', sous: 'Tes marqueurs en haut, et les systèmes qui tirent.' },
-  { cle: 'defensif', ico: '🛡️', nom: 'Défensif', sous: 'Tes défensifs en haut, et les systèmes qui ferment.' },
+  { cle: 'offensif', ico: '⚔', nom: 'Offensif', sous: 'Tes marqueurs en haut, et les systèmes qui tirent.' },
+  { cle: 'defensif', ico: '🛡', nom: 'Défensif', sous: 'Tes défensifs en haut, et les systèmes qui ferment.' },
   { cle: 'trios', ico: '👥', nom: 'Seulement les trios', sous: 'Les meilleurs à chaque case ; tes systèmes ne bougent pas.' },
   { cle: 'systemes', ico: '📋', nom: 'Seulement les systèmes', sous: 'Le système qui va à chaque ligne ; tes joueurs ne bougent pas.' },
 ];
@@ -647,7 +652,7 @@ function alignerAuMieux(cle) {
   } else if (!G.banc) G.lignes = null;   // de nouveaux trios, les systèmes que l'IA leur ferait
   saveGame();
   render();
-  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ' Il joue au « Retour au match ».' : ''}`);
+  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ` Il joue au « ${G.banc.serie ? 'Retour aux séries' : 'Retour au match'} ».` : ''}`);
 }
 function boutonAuMieux() {
   const b = document.createElement('button');
@@ -673,14 +678,16 @@ function boutonAuMieux() {
  * panneau le dit. Chaque toucher rejoue la note des unités.
  */
 const ORD_TRIO = ['1er', '2e', '3e', '4e'];
-/* LA GLACE EN MINUTES (V6, JP : *des temps par trio genre 60-50-40-30*) : ce qu'un roulement donne à chaque trio, sur 60 minutes, coachs et patrons compris. */
-const minutesDuRoulement = k => partsDuRoulement(POIDS_TRIO, 'F', { ...G.ligue.you, roulement: k }).map(x => Math.round(60 * x));
+/* Les minutes à forces égales du soir, lues au moteur (ni avantage ni désavantage : tes unités spéciales ont les leurs). */
+const minutesFEduSoir = () => avecLeBanc((you, lu, adv, aVenir) => chiffresDuSoir(you, lu, adv, aVenir).minutesFE) || 60;
+/* LA GLACE EN MINUTES (V6, JP : *des temps par trio genre 60-50-40-30* ; V7 : à forces égales, la part que le moteur joue) : ce qu'un roulement donne à chaque trio, coachs et patrons compris. */
+const minutesDuRoulement = (k, fe) => partsDuRoulement(PART_UNITE.F, 'F', { ...G.ligue.you, roulement: k }).map(x => Math.round(fe * x));
 function planDeMatchEl() {
-  const b = G.banc;
+  const b = G.banc, fe = minutesFEduSoir();
   const el = document.createElement('section');
   el.className = 'plan-match';
   const adv = b.prochain.adv;
-  const leurs = lignesDe(adv, adv.roster), miennes = b.lignes || [];
+  const leurs = lignesEnFace(b), miennes = b.lignes || [];
   const ico = l => (l && TACTIQUES[l.tac] ? TACTIQUES[l.tac].ico : '');
   const app = b.appariement || [-1, -1, -1, -1];
   // Chez eux : le plan que leur entraîneur t'impose ce soir.
@@ -695,9 +702,9 @@ function planDeMatchEl() {
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
   const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % au tir, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
-  el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}</span></div>
-    <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
-    <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
+  el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}${b.depistage ? ' · selon le dépistage' : ''}</span></div>
+    <div class="pm-k">Glace à forces égales · minutes du 1er au 4e trio</div>
+    <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k, fe).join(' · ')}</button>`).join('')}</div>
     <div class="pm-k">Appariement</div>
     ${[0, 1, 2, 3].map(r => `<div class="pm-app"><span class="pm-leur">Leur ${ORD_TRIO[r]} ${ico(leurs[r])}</span><span class="pm-seg">${[-1, 0, 1, 2, 3].map(m => `<button type="button" class="pm-btn${app[r] === m ? ' on' : ''}" data-app="${r}:${m}" aria-pressed="${app[r] === m}" title="${m < 0 ? 'Par rang, comme le veut la rotation' : `Ton ${ORD_TRIO[m]} trio`}">${m < 0 ? 'A' : `${m + 1}${ico(miennes[m])}`}</button>`).join('')}</span></div>`).join('')}
     ${notesHtml}${chezEux}
@@ -721,6 +728,91 @@ function planDeMatchEl() {
 }
 
 /*
+ * TES UNITÉS SPÉCIALES (V7, JP : *créer lignes avantages numériques à part*). Le moteur en joue deux d'avantage (trois
+ * attaquants, deux défenseurs ; 65 et 35 % du temps) et deux de désavantage (deux et deux ; 60 et 40 %), rangées sur
+ * les vrais points de chacun en avantage et en désavantage. Derrière le banc, elles se voient et se choisissent :
+ * chacune dit ses minutes et ses vraies stats du soir ; toucher un joueur ouvre ceux qui peuvent prendre sa place
+ * (un joueur déjà dans la situation y échange sa case). « Le choix du moteur » revient au rangement automatique.
+ * Le choix part avec la décision du banc (`speciales`, js/sim.js `unitesSpeciales`).
+ */
+const SIT = {
+  AN: { titre: 'Avantage numérique', court: 'AN', stat: p => p.ppp },
+  DN: { titre: 'Désavantage numérique', court: 'DN', stat: p => p.shp },
+};
+/* « 1 pt AN », « 27 pts AN » : ses vrais points dans la situation, sur sa saison. */
+const ptsDe = (S, n) => `${n ?? '—'} ${n === 1 || n === 0 ? 'pt' : 'pts'} ${S.court}`;
+const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
+function unitesSpecialesEl() {
+  const b = G.banc;
+  const el = document.createElement('section');
+  el.className = 'unites-speciales';
+  const lu = avecLeBanc((you, l, adv, aVenir) => ({ u: specialesDuSoir(you, l), st: specialesEnStats(you, l, adv, aVenir), l }));
+  if (!lu) return el;
+  const { u, st, l } = lu;
+  const patineurs = Object.values(l).filter(p => p && p.p !== 'G');
+  const statDe = (sit, i) => {
+    const x = st && st[sit] && st[sit][i];
+    if (!x) return '';
+    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % au tir` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} arr.`;
+  };
+  const rangee = (sit, i, j, p) => {
+    const S = SIT[sit], n = S.stat(p);
+    return `<button type="button" class="us-j" data-sit="${sit}" data-u="${i}" data-i="${j}"><span class="us-pos">${esc(positionLabel(p))}</span><span class="us-nom">${formatName(p.n)}</span>${n != null ? `<span class="us-stat">${ptsDe(S, n)}</span>` : ''}</button>`;
+  };
+  el.innerHTML = `<div class="pm-tete"><b>Unités spéciales</b>${b.speciales ? '<button type="button" class="btn us-auto">Le choix du moteur</button>' : '<span>le choix du moteur</span>'}</div>
+    ${['AN', 'DN'].map(sit => `<div class="pm-k">${SIT[sit].titre}</div>${u[sit].map((js, i) => `<div class="us-unite">
+      <div class="us-tete"><b>${SIT[sit].court} ${i + 1}</b><span class="us-stats">${statDe(sit, i)}</span></div>
+      <div class="us-joueurs">${js.map((p, j) => rangee(sit, i, j, p)).join('')}</div></div>`).join('')}`).join('')}`;
+  const auto = el.querySelector('.us-auto');
+  if (auto) auto.onclick = () => { b.speciales = null; render(); };
+  const cles = js => js.map(getPlayerKey);
+  el.querySelectorAll('.us-j').forEach(x => {
+    x.onclick = () => {
+      const sit = x.dataset.sit, i = Number(x.dataset.u), j = Number(x.dataset.i), S = SIT[sit];
+      const actuel = u[sit][i][j];
+      // Le choix avec `q` à la place d'`actuel` ; un joueur déjà dans la situation y échange sa case avec lui.
+      const avec = q => {
+        const choix = { AN: u.AN.map(cles), DN: u.DN.map(cles) }, k = getPlayerKey(q);
+        for (const v of [0, 1]) { const w = choix[sit][v].indexOf(k); if (w >= 0) choix[sit][v][w] = getPlayerKey(actuel); }
+        choix[sit][i][j] = k;
+        return choix;
+      };
+      const habilles = new Set(Object.values(l).filter(Boolean));
+      // L'unité lue avec `q` dedans, une fois par joueur : la case, la barre et le comparatif lisent la même.
+      const lus = new Map();
+      const apresAvec = q => {
+        if (!lus.has(q)) { const r = avecLeBanc((you, ll, adv) => specialesEnStats(you, ll, adv, aVenirDuBanc({ speciales: avec(q) }))); lus.set(q, r && r[sit][i]); }
+        return lus.get(q);
+      };
+      choisirSpeciale({
+        roster: G.roster, sortant: actuel, unite: `${S.court} ${i + 1}`,
+        joue: q => (q.p === 'G' ? 'gardien' : !habilles.has(q) ? 'pas habillé ce soir' : ''),
+        sous: q => ptsDe(S, S.stat(q)),
+        ou: q => { const v = [0, 1].find(k => u[sit][k].includes(q)); return v == null ? '' : `${S.court} ${v + 1}`; },
+        // L'écart de L'UNITÉ touchée, en vraies stats de la situation : en avantage ses tirs et sa réussite, en
+        // désavantage les tirs d'en face et tes arrêts. Sur tout le match, six minutes d'avantage se perdaient (« ≈ pareil »).
+        ecart: q => {
+          const a = apresAvec(q), d = st && st[sit][i];
+          if (!a || !d) return null;
+          return sit === 'AN' ? { tirs: a.tirs - d.tirs, pctTir: a.pctTir - d.pctTir, contre: 0, pctArr: 0 } : { tirs: 0, pctTir: 0, contre: a.contre - d.contre, pctArr: a.pctArr - d.pctArr };
+        },
+        dans: `en ${S.court} ${i + 1}`,
+        avantApres: q => {
+          const a = apresAvec(q), d = st && st[sit][i];
+          if (!a || !d) return '';
+          const fl = (x, y, f) => `${f(x)} → <b>${f(y)}</b>`;
+          return `${S.court} ${i + 1} : ${sit === 'AN'
+            ? `${fl(d.tirs, a.tirs, v1)} tirs · ${fl(d.pctTir * 100, a.pctTir * 100, v1)} % au tir`
+            : `${fl(d.contre, a.contre, v1)} tirs contre · ${fl(d.pctArr, a.pctArr, pct3)} arr.`} par match`;
+        },
+        onChoix: q => { b.speciales = avec(q); render(); },
+      });
+    };
+  });
+  return el;
+}
+
+/*
  * TON ÉQUIPE CE SOIR (V7, JP : *mettre le coach et l'explication des bonus dans effectif/équipe* ; *pas facile d'avoir
  * numériquement quels trucs sont déjà actifs*). En tête de l'onglet Équipe, derrière le banc : ce que vaut ton
  * alignement (systèmes, badges, chimie, jambes), puis ce qui joue un par un (le coach, les patrons, les cartes, les
@@ -737,19 +829,33 @@ const v1 = x => x.toFixed(1).replace('.', ',');
  */
 function aVenirDuBanc(plan = {}) {
   const b = G.banc, L = G.ligue, you = L.you, j = b.prochain.j ?? b.jour;
+  // EN SÉRIES (V7), le match de ta série : ses décisions déjà prises (un ajustement, une main), sans celles que le banc règle.
+  if (b.serie) {
+    return [...(L.decisionsSeries || []).filter(d => d.ronde === b.serie.ronde && d.match_no === b.serie.k && !d.entracte && !d.cases && !d.lignes && !d.match && !d.filet),
+      { lignes: b.lignes, match: b.match, filet: b.filet, speciales: b.speciales || null, ...plan }];
+  }
   return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes && !(d.jour === j && (d.match || d.filet))),
-    { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+    { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, speciales: b.speciales || null, ...plan }];
+}
+/*
+ * Le soir du banc posé sur ton club le temps d'une lecture : le plan de match et les unités spéciales qu'on essaie et, en séries, le match
+ * qui vient (`jourCourant` à l'infini : le moteur lit `effetsSerie`, que chaque match de série repart à vide).
+ */
+function auSoirDuBanc(you, fn) {
+  const b = G.banc, serie = !!b.serie;
+  const jc = you.jourCourant, es = you.effetsSerie, avant = [you.appariement, you.roulement, you.speciales];
+  you.appariement = b.appariement; you.roulement = b.roulement; you.speciales = b.speciales || null;
+  if (serie) { you.jourCourant = Infinity; you.effetsSerie = []; }
+  try { return fn(); } finally { you.jourCourant = jc; you.effetsSerie = es; [you.appariement, you.roulement, you.speciales] = avant; }
 }
 function avecLeBanc(fn) {
   const b = G.banc, L = G.ligue, you = L && L.you;
   if (!b || !you || !b.prochain || surTable()) return null;
   const j = b.prochain.j ?? b.jour;
   const aVenir = aVenirDuBanc();
-  const jc = you.jourCourant, avant = [you.appariement, you.roulement];
-  you.jourCourant = j; you.appariement = b.appariement; you.roulement = b.roulement;
   try {
-    return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir);
-  } catch { return null; } finally { you.jourCourant = jc; [you.appariement, you.roulement] = avant; }
+    return auSoirDuBanc(you, () => { you.jourCourant = j; return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir); });
+  } catch { return null; }
 }
 function lectureDuBanc() {
   return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir) }));
@@ -816,7 +922,8 @@ function filetHtml() {
   const bouton = qui => {
     const g = gardien(F[qui]);
     const e = g ? ((b.energie || {})[getPlayerKey(g)] ?? 100) : 100;
-    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'} · jambes ${Math.round(e)}${qui === F.rotation ? ' · son tour' : ''}</small></button>`;
+    // Ses jambes, avec la règle des gardiens en infobulle (`jambesHtml`) : elles tombent par départs de suite.
+    return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'}${qui === F.rotation ? ' · son tour' : ''}</small>${g ? jambesHtml(e, { gardien: true }) : ''}</button>`;
   };
   return `<div class="pm-k">Devant le filet</div><div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
 }
@@ -829,7 +936,8 @@ export function renderRoster() {
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
   if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(equipeDuSoirEl());
-  if (!surTable() && G.banc && G.banc.prochain && !G.banc.serie && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
+  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
+  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(unitesSpecialesEl());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);
@@ -901,7 +1009,7 @@ export function renderMain() {
   const over = capLeft() < 0;
   if (G.banc) {
     b.disabled = reste > 0;
-    b.textContent = `Retour au match · journée ${G.banc.jour}`;
+    b.textContent = G.banc.serie ? `Retour aux séries · match ${G.banc.serie.k + 1}` : `Retour au match · journée ${G.banc.jour}`;
     return;
   }
   b.disabled = reste > 0 || G.done || over;

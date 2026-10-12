@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES, POIDS_AN, POIDS_DN } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -101,6 +101,19 @@ function moyennes(L) {
       return { attaque, defense, net: attaque + defense, stats };
     });
   };
+  /*
+   * TES UNITÉS SPÉCIALES (V7) : chacune, par match, ses minutes et ses vraies stats — en avantage, ses tirs et sa
+   * réussite ; en désavantage, les tirs d'en face et tes arrêts. Comptées sur l'unité d'attaquants, qui monte avec sa
+   * paire.
+   */
+  const speciales = () => {
+    const S = L.speciales;
+    if (!S || !S.pour.n) return null;
+    const tirsAN = nPour * wA.tirs, tirsDN = nContre * wB.tirs;
+    const AN = POIDS_AN.map((w, i) => { const o = S.pour.F[i] || { n: 0, p: 0 }; return { minutes: nPour * wA.long * w, tirs: tirsAN * o.n / S.pour.n, pctTir: o.n ? o.p / o.n : 0 }; });
+    const DN = POIDS_DN.map((w, i) => { const c = S.contre.F[i] || { n: 0, p: 0 }; return { minutes: nContre * wB.long * w, contre: tirsDN * c.n / (S.contre.n || 1), pctArr: c.n ? 1 - c.p / c.n : 0 }; });
+    return { AN, DN };
+  };
   return {
     joueurs, partDuFilet: L.partDuFilet, unitesF: unites('F'), unitesD: unites('D'),
     tirsPour, tirsContre, rythme: tirsPour + tirsContre,
@@ -110,6 +123,7 @@ function moyennes(L) {
     coups: coupsAttendus(A), bagarres: L.bagarres,
     blessures: L.blessures, usure: L.usure,
     glaceF: glace('F'), glaceD: glace('D'),
+    speciales: speciales(),
     // Les minutes à forces égales du soir (ni avantage ni désavantage) : la glace de « Préparer le match » s'y lit.
     minutesFE: 60 * part,
   };
@@ -123,7 +137,7 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || activeLineup(team)).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}:${p._palier || ''}:${p._mentor ? 1 : 0}:${(p._carte && p._carte.rar) || ''}` : '-'));
   try {
     return J([team.name, team.jourCourant, team.games, joueurs, team.cartes, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
-      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
+      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.speciales, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
       opts.nu, opts.neutre, opts.n, opts.series]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
@@ -365,6 +379,12 @@ export function rosterEnStats(team, roster) {
  * unité neutre à sa place, à forces égales, par match, contre `adv` — en attaque, en défense, et les deux ensemble.
  * Il suit son système, sa chimie, ses badges, ses jambes et ses cases. `lignes` : celles à lire (le banc).
  */
+/** Tes unités spéciales ce soir, en minutes et en vraies stats (voir `speciales` dans `moyennes`), et les minutes à forces égales. */
+export function specialesEnStats(team, lineup, adv, aVenir = []) {
+  if (!team) return null;
+  const m = lire(team, lineup, adv, { aVenir, n: N_BASE });
+  return m.speciales ? { ...m.speciales, minutesFE: m.minutesFE } : null;
+}
 export function unitesDuSoir(team, lineup, adv, lignes = null) {
   if (!team) return null;
   const m = lire(team, lineup, adv, { lignes, n: N_BASE });

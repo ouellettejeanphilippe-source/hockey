@@ -32,6 +32,7 @@ import {
   PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
+  POIDS_AN, POIDS_DN,
 } from '../js/sim.js';
 import { PATRONS } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
@@ -168,8 +169,8 @@ const MOTS_RESERVES = [
  * Ce que l'écran dit des zones, de la carrure, de la glace et des jambes est
  * calculé depuis la constante que le moteur joue, jamais recopié : le malus
  * au-dessus de sa zone (ZONE_PEN_DESSUS × crans^ZONE_PUISSANCE), le coût d'un
- * coup pour CE joueur (`coutDuCoup`), la glace sur PART_UNITE (pas POIDS_TRIO,
- * qui compte aussi les avantages), le conseil de jambes sur ENERGIE_REF, et
+ * coup pour CE joueur (`coutDuCoup`), la glace du plan de match au moteur
+ * (`partsDuRoulement`), le conseil de jambes sur ENERGIE_REF, et
  * l'infobulle d'un gardien sur la règle des gardiens.
  */
 {
@@ -178,14 +179,15 @@ const MOTS_RESERVES = [
   const faits = [
     ['le malus au-dessus de sa zone vient de ZONE_PEN_DESSUS et ZONE_PUISSANCE', /ZONE_DESSUS_TITLE = `[^`]*malusDessus\(1\)/.test(src('game.js')) && /ZONE_PEN_DESSUS \* n \*\* ZONE_PUISSANCE/.test(src('game.js')) && sans('game.js', /−3 par cran/)],
     ['la fiche dit le coût d\'un coup pour CE joueur (`coutDuCoup`)', /coutDuCoup\(p\)/.test(src('fiche.js')) && sans('fiche.js', /1 - COUP_ABSORBE|1 \+ COUP_ABSORBE/)],
-    ['la glace de « Préparer le match » se lit sur PART_UNITE', /PART_UNITE\.F/.test(src('gerant.js')) && sans('gerant.js', /POIDS_TRIO\.map/)],
+    // V7 : « Préparer le match » est fondu dans les Lignes ; la glace du plan de match se lit au moteur, roulement compris.
+    ['la glace du plan de match se lit au moteur (`partsDuRoulement`)', /partsDuRoulement\(/.test(src('alignement.js')) && sans('gerant.js', /POIDS_TRIO\.map/)],
     ['le conseil de glace dit la ligne ordinaire du moteur (ENERGIE_REF)', /Sous \$\{ENERGIE_REF\}/.test(src('pronostic.js')) && sans('pronostic.js', /Sous 90|moy >= 88/)],
     ['la fiche dit l\'effet NET d\'un badge (`maitrise`, centré sur la ligue), pas le brut', /\(EFFET_ROLE\[b\.cle\] \|\| 0\) \* maitrise\(p, b\.cle\)/.test(src('fiche.js')) && sans('fiche.js', /b\.palier \/ \(b\.second/)],
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
     ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
     ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /data-agr/)],
     ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison et sa rareté/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
-    ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('gerant.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
+    ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('alignement.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
   for (const [nom, ok] of faits) exiger(nom, ok);
 }
@@ -247,7 +249,7 @@ const MOTS_RESERVES = [
   // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   borne('la page des règles est courte', mots, 300, 2100, 'mots');
-  const taisait = [[/avantage numérique<\/strong> se règle seul/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
+  const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
   const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
@@ -326,6 +328,8 @@ const MOTS_RESERVES = [
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 7 ? 'un effet pour la saison, un vrai joueur, une amélioration à poser au verso d\'une carte, un nouveau rôle, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
+    // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
+    [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).
     [`${LANCEE.buts} buts en ${LANCEE.matchs} matchs, et ${nombre(LANCEE.facteur)} fois son vrai rythme, mettent un joueur <strong>sur sa lancée</strong> : précision +${pct(LANCEE.lancee.finition)} %, tirs +${pct(LANCEE.lancee.lancers)} %`, 'la lancée'],
     [`sans but en ${LANCEE.doute.matchs} matchs <strong>doute</strong> : précision −${pct(LANCEE.doute.finition)} %`, 'le doute'],

@@ -46,7 +46,7 @@ js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
 js/saison.js          l'écran de saison et des séries : le Bureau (le duel du soir), la boîte, Cartes › Ta main, Ligue › Ta saison, les choix forcés
-js/gerant.js          « Préparer le match » et la fenêtre du système d'une ligne
+js/gerant.js          la fenêtre du système d'une ligne, les choix, la main de match et le deck
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
@@ -194,6 +194,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **voix** : qui écrit dans la boîte (le proprio, l'entraîneur, l'analyste à la télé, les partisans, le capitaine, le physio, le joueur lui-même…) — une seule distribution, `EXPEDITEURS` (js/vie-gm.js). Une voix dit le fait d'un fil et y ajoute une opinion, jamais un chiffre — `check_fils`. En Rogue, le soir où un fil rare naît (le Cheechoo, la recrue, 40 buts, un rythme de 50), sa voix paie une **prime** en jetons (`primesDesFils`, js/rogue.js).
 - **lancée** : en Rogue, un joueur qui vient de marquer beaucoup finit mieux tant que ça dure ; le **doute**, le vrai marqueur en panne qui finit moins bien (`lanceeDe`, js/sim.js — `check_lancee`). Pas « confiance », qui est aux coachs ; jamais dans le 82-0. La lancée **vive** est celle de ☄️ l'étincelle ; la braise, la traînée de poudre et le vendeur de chandails l'entretiennent (le premier combo du Rogue, `check_combo`).
 - **trait** : ce qu'un vote ou une réputation donne au joueur (🛡️ Selke, ⚡ vitesse) ; un **trophée** se décerne au bilan, sur les colonnes.
+- **unités spéciales** : AN 1 et AN 2 (l'avantage numérique), DN 1 et DN 2 (le désavantage) ; le moteur les range, l'onglet AN · DN des Lignes les change (`speciales`, `check_speciales`).
 - **consigne** : 😌 Basse, 🎚️ Normale, 🌡️ Haute ; **agressivité** : 🕊️ Prudente, ⚖️ Moyenne, 💥 Musclée, 🪓 Rentre-dedans.
 - **contrat** : une carte de masse salariale (💵) ; une modif de joueur qui touche son contrat est une **clause**.
 - **usure des jambes** : ce qu'un match coûte aux jambes (la puce « Usure des jambes +12 % »).
@@ -213,7 +214,7 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 1. La page démarre, `#game` devient visible
 2. Auto-draft conscient du budget : à chaque tour il lit le plafond restant, calcule ce qu'il peut mettre sur ce choix sans passer sous le plancher pour les cases suivantes, et signe, parmi les cartes qui tiennent dans ce budget, celle dont la destination ne porte aucun avertissement et dont le chiffre clé est le plus grand (voir S64 : prendre la première rendait une équipe de .500 et faisait du passage des séries une loterie). Sinon il relance (passer, autre équipe, autre année) ; en dernier recours il clique `#freeCapBtn`, le bouton de la bande de secours qui retire le plus gros contrat
 3. `#mainBtn` devient actif
-4. Cliquer : le 82-0 va droit au bilan (aucun `#hubModal .hub-jour`), `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan — sans « Préparer le match », deck ni banc (le jour à jour s'éprouve en Rogue : `essai_rogue.mjs`)
+4. Cliquer : le 82-0 va droit au bilan (aucun `#hubModal .hub-jour`), `.result .score` affiche une fiche et `.rrow` en compte 23. Les séries : « Match suivant », le tableau en cours (`.bk-serie`), un match en direct, la fin, puis l'onglet Séries du bilan — sans les Lignes du match ni deck (le jour à jour s'éprouve en Rogue : `essai_rogue.mjs`)
 5. « Rejouer la saison » (`#replayBtn`) rejoue le même alignement contre les mêmes clubs, puis l'historique (`.lb-replay`) relit un alignement et repart une saison — droit au bilan à chaque fois
 6. Le même parcours en tirage Loto (`#rrL` relance quand rien ne tient dans le budget)
 7. Zéro erreur console (les portraits refusés ne sont demandés qu'une fois : `PORTRAITS_ABSENTS`)
@@ -231,6 +232,8 @@ Depuis la V2.3 : `node scripts/check_voies.mjs` (quarante minutes ; `VOIES=tortu
 L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scripts/check_chiffres.mjs` (une minute : ce que l'écran annonce égale ce que le moteur joue, en paires) et `node scripts/check_impact.mjs` (douze secondes : la base de la ligue, le témoin à zéro ; `COMPLET=1` le tableau de chaque choix).
 
 Depuis la V3 : `node scripts/check_si.mjs` (cinq minutes, six graines : les cartes d'un moment, en paires), `node scripts/check_lancee.mjs` (une minute : la lancée et le doute du Rogue, absents du 82-0), `node scripts/check_combo.mjs` (trois minutes et demie : le feu qui s'entretient, chaque pièce seule sous sa borne, le build complet qui casse le jeu, en paires) et `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
+
+`node scripts/essai_poids.mjs <adresse>` (une demi-minute) mesure le premier écran comme un téléphone le vit, processeur ×4 : les requêtes, les octets compressés, le temps du titre ; sur le www/ de l'APK (`mobile/assembler-www.mjs`, servi à part), les trois tiennent.
 
 `node scripts/essai_packs.mjs http://localhost:8000` (une vingtaine de minutes) signe des packs de joueurs tour après tour, avec « Aligner au mieux » un tour sur deux et « Plus tard » puis la boîte : chaque joueur signé reste dans l'alignement de l'écran, qui est celui du moteur.
 

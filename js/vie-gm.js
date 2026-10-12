@@ -48,7 +48,7 @@ export const EXPEDITEURS = {
   en: { ico: '🧑‍🏫', nom: 'L\'entraîneur' },
   an: { ico: '📺', nom: 'L\'analyste à la télé' },
   pt: { ico: '📣', nom: 'Les partisans' },
-  ca: { ico: '🎖️', nom: 'Le capitaine' },
+  ca: { ico: '🎖', nom: 'Le capitaine' },
   fi: { ico: '🧾', nom: 'Le directeur des finances' },
   ad: { ico: '🎯', nom: 'Ton adjoint' },
   ag: { ico: '🤝', nom: 'Un agent de joueur' },
@@ -57,7 +57,7 @@ export const EXPEDITEURS = {
   co: { ico: '📢', nom: 'Le service des communications' },
   li: { ico: '🪪', nom: 'La ligue' },
   pa: { ico: '🧣', nom: 'Un partisan fidèle' },
-  ma: { ico: '🗳️', nom: 'Le maire' },
+  ma: { ico: '🗳', nom: 'Le maire' },
 };
 
 const TOUS = MOMENTS_DE_SAISON.join(' ');
@@ -419,7 +419,7 @@ const DILEMMES_BRUTS = {
       o('tour', 'Instaurer un tour de rôle', 'Un vestiaire apaisé, moins de punitions', 'Des voyages plus longs à négocier, donc plus d\'usure des jambes', { discipline: 0.84, energie: 1.08, duree: 6 }),
       o('laisser', 'Laisser le rituel en place', 'Le rituel tient et la confiance aussi', 'Les vétérans bouillent et les punitions montent', { finition: 1.08, discipline: 1.19, duree: 6 }),
     ] },
-  souper: { ico: '🍽️', titre: 'Le souper d\'équipe', quand: 'decembre',
+  souper: { ico: '🍽', titre: 'Le souper d\'équipe', quand: 'decembre',
     recit: 'Le souper d\'équipe a lieu dans un restaurant qui exige un code vestimentaire. Quatre joueurs se présentent en survêtement.',
     options: [
       o('veston', 'Exiger le veston', 'Une équipe en ordre, moins de punitions', 'Des joueurs raides qui ne tirent plus', { discipline: 0.825, finition: 0.94, duree: 4 }),
@@ -432,7 +432,7 @@ const DILEMMES_BRUTS = {
       o('nuit', 'Les laver pendant la nuit', 'S\'il ne remarque rien, tout le monde respire', 'S\'il remarque, il joue contrarié',
         { pari: { chance: 3 / 6, gagne: { discipline: 0.84, duree: 5 }, perd: { defense: 1.095, duree: 4 } } }),
     ] },
-  chrono: { ico: '⏲️', titre: 'Le chrono des changements', quand: 'octobre decembre echeance',
+  chrono: { ico: '⏲', titre: 'Le chrono des changements', quand: 'octobre decembre echeance',
     recit: 'L\'adjoint souhaite chronométrer chaque présence à la seconde. Les joueurs demandent si le chronomètre pourra, à son tour, être chronométré.',
     options: [
       o('chronometrer', 'Chronométrer chaque présence', 'Des changements nets, moins de punitions', 'Des présences courtes, moins de lancers', { discipline: 0.825, volume: 0.913, duree: 5 }),
@@ -492,7 +492,7 @@ const DILEMMES_BRUTS = {
       o('amende', 'L\'amende symbolique', 'Un message clair, une équipe disciplinée', 'Un joueur qui boude un peu', { discipline: 0.825, finition: 0.94, duree: 5 }),
       o('blague', 'En rire et lui offrir un cadran', 'Le vestiaire rit, la pression tombe', 'D\'autres se croiront permis', { finition: 1.08, discipline: 1.175, duree: 5 }),
     ] },
-  patins_neufs: { ico: '⛸️', titre: 'Les patins neufs', quand: 'camp octobre',
+  patins_neufs: { ico: '⛸', titre: 'Les patins neufs', quand: 'camp octobre',
     recit: 'Le fournisseur offre des patins neufs à toute l\'équipe, à condition qu\'ils soient portés dès demain. Le préposé à l\'équipement rappelle que des patins neufs, ça fait des ampoules.',
     options: [
       o('demain', 'Les porter dès demain', 'Des patins plus vifs, plus de lancers', 'Des ampoules, donc plus de blessures', { volume: 1.088, blessure: 1.24, duree: 6 }),
@@ -504,7 +504,7 @@ const DILEMMES_BRUTS = {
       o('accepter', 'Y aller', 'Le vestiaire se sent soutenu et lance plus', 'Un matin entier perdu en préparation', { volume: 1.08, energie: 1.08, duree: 4 }),
       o('decliner', 'Décliner poliment', 'Un entraîneur concentré sur sa semaine, une défense serrée', 'Une radio fâchée qui s\'en souvient', { defense: 0.94, discipline: 1.1, duree: 4 }),
     ] },
-  tempete_mars: { ico: '🌨️', titre: 'La dernière tempête', quand: 'mars series',
+  tempete_mars: { ico: '🌨', titre: 'La dernière tempête', quand: 'mars series',
     recit: 'Une tempête de fin de saison ferme l\'autoroute devant l\'aréna. La pratique est maintenue, à condition que les joueurs arrivent.',
     options: [
       o('maintenir', 'Maintenir la pratique', 'Un groupe qui a fait l\'effort, ça tire', 'Une équipe fatiguée par la route', { finition: 1.08, energie: 1.128, duree: 4 }),
@@ -522,13 +522,13 @@ const DILEMMES_BRUTS = {
       o('conge', 'Lui accorder le congé', 'Il revient reposé et motivé', 'Un match avec ton auxiliaire', { action: { gardienAux: 1 }, ensuite: { apres: 1, duree: 6, defense: 0.94 } }),
       o('refuser', 'Refuser poliment', 'Le message est clair : on joue ce soir', 'Un gardien qui répète son discours dans le filet', { defense: 1.06, discipline: 0.84, duree: 4 }),
     ] },
-  vedette_photo: { ico: '🎞️', titre: 'Le documentaire sur {nom}', quand: 'octobre decembre echeance', cible: 'vedette',
+  vedette_photo: { ico: '🎞', titre: 'Le documentaire sur {nom}', quand: 'octobre decembre echeance', cible: 'vedette',
     recit: 'Une maison de production veut suivre {nom} dans sa routine pour un documentaire de six épisodes. Le premier épisode s\'intitule « Les matins ».',
     options: [
       o('accepter', 'Accepter le tournage', 'Il se sent regardé et se défonce', 'Des soirées écourtées, des jambes qui paient', { finition: 1.088, energie: 1.128, duree: 6 }),
       o('refuser', 'Refuser le tournage', 'Une routine préservée, des jambes fraîches', 'Une vedette un peu boudeuse', { energie: 0.872, finition: 0.94, duree: 6 }),
     ] },
-  dur_sermon: { ico: '🗨️', titre: 'La mise au point avec {nom}', quand: 'octobre decembre mars', cible: 'dur', preuve: 'punitions',
+  dur_sermon: { ico: '🗨', titre: 'La mise au point avec {nom}', quand: 'octobre decembre mars', cible: 'dur', preuve: 'punitions',
     recit: '{nom} a reçu {n} punitions en {m} matchs. L\'arbitre lui a demandé de modérer ses gestes, par écrit.',
     options: [
       o('galerie', 'Un match à la galerie de presse', 'Le message passe : moins de punitions', '{nom} regarde de là-haut, un réserviste joue', { action: { absents: 1 }, discipline: 0.825, duree: 6 }),
@@ -548,7 +548,7 @@ const DILEMMES_BRUTS = {
       o('respecter', 'Ne rien changer', 'La routine tient et la confiance aussi', 'Un nouveau mis à l\'écart', { finition: 1.08, discipline: 1.16, duree: 5 }),
       o('integrer', 'Intégrer le nouveau au rituel', 'Un vestiaire plus uni, moins de punitions', 'Une routine bousculée, moins de lancers', { discipline: 0.84, volume: 0.92, duree: 5 }),
     ] },
-  photo_victoire: { ico: '🖼️', titre: 'La photo de la séquence', quand: 'decembre echeance mars series', etat: 'sequence',
+  photo_victoire: { ico: '🖼', titre: 'La photo de la séquence', quand: 'decembre echeance mars series', etat: 'sequence',
     recit: 'Les communications veulent une photo du groupe pour souligner la séquence. Les joueurs craignent de « jouer la poisse » en la prenant avant la fin.',
     options: [
       o('prendre', 'La prendre maintenant', 'Un groupe fier, qui tire avec confiance', 'La poisse, si elle existe, a rendez-vous', { finition: 1.088, defense: 1.08, duree: 4 }),
@@ -633,7 +633,7 @@ const DILEMMES_BRUTS = {
       o('jeunes', 'Faire jouer les jeunes', 'Du rythme et plus de lancers', 'Des erreurs de système derrière', { volume: 1.088, defense: 1.088, duree: 6 }),
       o('vieux', 'Compter sur les vétérans qui restent', 'Un système respecté, la défense tient', 'Des vétérans qui jouent beaucoup, leur usure des jambes grimpe', { defense: 0.913, energie: 1.128, duree: 6 }),
     ] },
-  visite_medecin: { ico: '🧑‍⚕️', titre: 'La visite du spécialiste', quand: 'decembre echeance mars series', etat: 'blesses',
+  visite_medecin: { ico: '🧑‍⚕', titre: 'La visite du spécialiste', quand: 'decembre echeance mars series', etat: 'blesses',
     recit: 'Un spécialiste de passage offre d\'examiner tous les blessés en une journée. Il demande, en retour, qu\'on reconnaisse sa méthode devant les médias.',
     options: [
       o('accepter', 'Accepter son offre', 'Un diagnostic net, moins de rechutes', 'Un entraîneur qui promet, devant la presse, plus qu\'il ne sait : le vestiaire est tendu', { blessure: 0.808, discipline: 1.16, duree: 8 }),
@@ -672,7 +672,7 @@ const DILEMMES_BRUTS = {
       o('longue', 'Accepter la version longue', 'La foule monte, et l\'équipe aussi', 'Un échauffement écourté, des trous derrière', { finition: 1.08, defense: 1.06, duree: 3 }),
       o('courte', 'Demander la version courte', 'L\'échauffement tient, la défense est en place', 'Une foule un peu déçue', { defense: 0.92, finition: 0.96, duree: 3 }),
     ] },
-  conge_series: { ico: '🛋️', titre: 'La journée de congé en série', quand: 'series',
+  conge_series: { ico: '🛋', titre: 'La journée de congé en série', quand: 'series',
     recit: 'Le calendrier laisse une journée libre entre deux matchs. L\'adjoint veut une pratique à huis clos ; le physio, un congé complet.',
     options: [
       o('pratique', 'Une pratique à huis clos', 'Des lancers précis et du rythme', 'Des jambes moins fraîches', { finition: 1.08, volume: 1.06, energie: 1.096, duree: 3 }),
@@ -692,7 +692,7 @@ const DILEMMES_BRUTS = {
     ] },
 
   // ---- Camp ----
-  camp_chambres: { ico: '🛏️', titre: 'Les chambres du camp', quand: 'camp',
+  camp_chambres: { ico: '🛏', titre: 'Les chambres du camp', quand: 'camp',
     recit: 'Le camp d\'entraînement loge les joueurs à deux par chambre, selon un tirage informatique. Un vétéran se retrouve avec un jeune qui ronfle « par principe ».',
     options: [
       o('changer', 'Refaire le tirage', 'Un vestiaire reposé, des jambes fraîches', 'Une journée de réorganisation et des plaintes', { energie: 0.872, volume: 0.92, duree: 6 }),
@@ -724,7 +724,7 @@ const DILEMMES_BRUTS = {
     ] },
 
   // ---- Échéance ----
-  echeance_telephone: { ico: '☎️', titre: 'Le téléphone qui sonne', quand: 'echeance',
+  echeance_telephone: { ico: '☎', titre: 'Le téléphone qui sonne', quand: 'echeance',
     recit: 'Depuis ce matin, quatre directeurs généraux t\'ont appelé « pour prendre des nouvelles ». Aucun n\'a parlé d\'échange, ce qui, dans la circonstance, parle beaucoup.',
     options: [
       o('repondre', 'Répondre à tout le monde', 'Un vestiaire qui sent que ça bouge et qui se défonce', 'Des gars qui se demandent s\'ils partent : ça frotte', { volume: 1.088, discipline: 1.175, duree: 5 }),
@@ -768,7 +768,7 @@ const DILEMMES_BRUTS = {
       o('rester', 'Prendre le temps de signer', 'Un vestiaire ému et motivé', 'Des jambes qui piétinent une heure de plus', { finition: 1.08, energie: 1.112, duree: 4 }),
       o('ecourter', 'Écourter la visite', 'Des jambes reposées', 'Des enfants déçus et des joueurs un peu gênés', { energie: 0.888, finition: 0.94, duree: 4 }),
     ] },
-  mars_tournee: { ico: '🗺️', titre: 'La dernière tournée', quand: 'mars',
+  mars_tournee: { ico: '🗺', titre: 'La dernière tournée', quand: 'mars',
     recit: 'La dernière tournée de la saison comprend quatre villes en cinq jours, dont une pour laquelle personne n\'a de souvenir. Le préposé aux horaires jure que la ville existe.',
     options: [
       o('serre', 'Garder l\'horaire serré', 'Un groupe qui reste dans sa bulle et lance', 'L\'usure des jambes grimpe', { volume: 1.088, energie: 1.16, duree: 6 }),

@@ -1470,7 +1470,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
             ${['PA', 'MA', 'TI', 'FO', 'DE'].map(k => {
               // LE TRAIT EST LE NOMBRE. On ne lui donne pas d'étiquette à lui :
               // « les icônes ne doivent jamais se répéter sur la même carte »,
-              // et ⚡ comme 🛡️ sont déjà pris par l'habileté Coup de patin et
+              // et ⚡ comme 🛡 sont déjà pris par l'habileté Coup de patin et
               // le geste Se placer devant. Le nombre qu'il majore porte donc sa marque, et
               // l'infobulle le nomme — le trait se lit là où il agit.
               const tr = (st.traits || {})[k];
@@ -1494,7 +1494,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * UNE ICÔNE PAR GESTE (1.0, oct.), devant son nom : la barre se lit d'un coup d'oeil. Aucune n'est
    * prise ailleurs sur le plateau (habiletés, tirs signature, gabarits) : une icône = un sens.
    */
-  const ICONE_GESTE = { deplacer: '⛸️', passe: '↗️', tir: '🏑', reception: '🏑', reprise: '↩️', devie: '↪️', dejouer: '💃', echec: '🤜', vol: '🪝' };
+  const ICONE_GESTE = { deplacer: '⛸', passe: '↗', tir: '🏑', reception: '🏑', reprise: '↩', devie: '↪', dejouer: '💃', echec: '🤜', vol: '🪝' };
   const ico = quoi => `<span class="t-ico" aria-hidden="true">${ICONE_GESTE[quoi] || ''}</span>`;
   /* Un bouton de geste : son icône, son nom, son seuil et ses chances, comme partout. */
   const bouton = (geste, nom, d, cls = '') =>

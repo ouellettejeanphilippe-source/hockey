@@ -10,12 +10,6 @@
  *                 et des options qui disent chacune en CHIFFRES ce qu'elles
  *                 achètent, ce qu'elles coûtent, combien de matchs, et
  *                 quelles factions elles bougent
- *   ouvrirLignes  les quatre lignes : les joueurs avec leur profil et leur
- *                 énergie, les sept tactiques avec le fit de CETTE ligne, la
- *                 chimie, l'agressivité, les secondes de présence ; la
- *                 tactique d'en face et celle qui la contre ; la consigne du
- *                 match. Rien ne s'applique avant « Appliquer ». Depuis S78,
- *                 il ne sert plus qu'à la préparation d'avant-match.
  *   strategieDeLigne  la même stratégie, ligne par ligne, dans un tiroir
  *                 SOUS son trio de l'alignement (S78) : l'alignement, la
  *                 stratégie et les trios sont un seul écran.
@@ -25,24 +19,22 @@
  */
 
 import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, AD_DE_CONSIGNE, effetDeMoment, SEC_DEFAUT, PART_UNITE,
-  badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, identiteUnite, effetsDeSysteme,
+  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, badgesDe, PALIERS, fitUnite, rolesDuSysteme, fitDeLigne, meilleureTactique, meilleurSystemeD, echelleFit, effetsDeSysteme,
   joueursDeLigne, contreDe, contreDeD, motCourbe, chimieMax, agressiviteDeLigne,
-  MUTATIONS, SLOTS, getPlayerKey, getHiddenRatings, getPositionPenalty, CARTES,
-  PLANS_ADV, commentContrer, reglageDuPlan,
+  MUTATIONS, SLOTS, getPlayerKey, PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne,
-  chimieLigne, penaliteAdaptee, unitesIdeales, joueEnBas, EDITIONS_REGLEMENT,
+  chimieLigne, EDITIONS_REGLEMENT,
 } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { ROULEMENTS, effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { coachDeCarte } from './banque.js';
 import { COACHS } from './coachs.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
-import { esc, cap as majuscule, pct3, varsEquipe } from './util.js';
+import { esc, cap as majuscule, varsEquipe } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -205,7 +197,7 @@ function motsDeCarte(o, noms = '') {
   if (o.action) out.push(...motsDAction(o.action, noms));
   if (o.changeGardien) out.push({ txt: '🧤 L\'auxiliaire prend le filet', bon: null });
   if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
-  if (o.enjeu) out.push({ txt: '⚖️ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
+  if (o.enjeu) out.push({ txt: '⚖ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
   if (o.pari) {
     const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
     out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${issue(o.pari.gagne)}`, bon: true });
@@ -597,7 +589,11 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
  * quand toute une rangée l'est pour la même raison, la raison se dit une fois,
  * dans son titre.
  *
- * spec : { ico, titre, contexte, aide, motFermer, motConfirmer,
+ * LE COMPARATIF EN TÊTE (V7, JP : *mettre comparatif plus complet en haut, dès qu'on clique sur le joueur*) :
+ * `contexteDe(cle)` remplace le contexte dès qu'une case est touchée — les deux joueurs côte à côte — et le
+ * contexte revient quand on la relâche.
+ *
+ * spec : { ico, titre, contexte, contexteDe(cle) → html, aide, motFermer, motConfirmer,
  *          rangees: [{ titre, cases: [{ cle, vide, visage, nom, nomLong, pos, marque, marqueMot, note, non }] }],
  *          barre(cle) → html, onChoix(cle) | onApercu(cle), onFerme() }
  */
@@ -640,7 +636,7 @@ export function ouvrirAlignement(spec) {
       <button type="button" class="close-btn choix-fermer" aria-label="${esc(spec.motFermer || 'Retour')}" title="${esc(spec.motFermer || 'Retour')}">✕</button>
     </div>
     <div class="choix-corps">
-      ${spec.contexte || ''}
+      ${spec.contexteDe ? `<div class="aln-contexte">${spec.contexte || ''}</div>` : spec.contexte || ''}
       ${partout ? `<p class="aln-grises">Grisées : ${esc(partout)}.</p>` : ''}
       <nav class="aln-sauts" aria-label="Aller à une ligne">${spec.rangees.map(r => `<button type="button" class="aln-saut" data-saut="${esc(r.titre)}">${esc(SAUT[r.titre] || r.titre)}</button>`).join('')}</nav>
       <div class="aln">${spec.rangees.map(rangee).join('')}</div>
@@ -674,6 +670,8 @@ export function ouvrirAlignement(spec) {
       m.querySelectorAll('.aln-case[data-aln]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.aln === choisie)));
       m.querySelector('.aln-barre').classList.toggle('pret', !!choisie);
       mot.innerHTML = choisie && spec.barre ? spec.barre(choisie) : esc(spec.aide || 'Touche un joueur.');
+      const ctx = spec.contexteDe && m.querySelector('.aln-contexte');
+      if (ctx) ctx.innerHTML = (choisie && spec.contexteDe(choisie)) || spec.contexte || '';
       ok.disabled = !choisie;
     };
   });
@@ -922,21 +920,6 @@ export function courbeJambesHtml(v, { large = false } = {}) {
    MES LIGNES, EN PLEIN ÉCRAN
    ====================================================================== */
 const NOMS_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
-const ROLES = ['AG', 'C', 'AD', 'DG', 'DD'];
-/*
- * LA GLACE DE CHAQUE TRIO À FORCES ÉGALES (V2.2, les bons chiffres). La part est celle que le moteur joue
- * (`PART_UNITE`, pas `POIDS_TRIO` qui compte aussi les avantages), les secondes de chaque ligne appliquées.
- * Avec `glace` (« Préparer le match ») : les minutes du soir, roulement, moments et coachs compris, sur les
- * minutes à forces égales que le moteur lit. Sans club (avant la saison) : la part, en pour cent.
- */
-function glaceDe(lignes, glace = null) {
-  if (glace) return { mins: glace(lignes), pct: null };
-  const w = PART_UNITE.F.map((x, u) => x * lignes[u].sec / SEC_DEFAUT);
-  const s = w.reduce((a, b) => a + b, 0) || 1;
-  return { mins: null, pct: w.map(x => x / s * 100) };
-}
-const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
-const glaceMot = (g, u, court = false) => (g.mins ? `≈ ${mmss(g.mins[u])}${court ? ' de glace' : ' à forces égales'}` : `${Math.round(g.pct[u])} %${court ? ' de la glace' : ' de la glace à forces égales'}`);
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
 const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
 // Sous le pivot (CHIMIE_PIVOT), une chimie coûte au lieu de rapporter : le mot le dit (V2.2, les coûts cachés).
@@ -991,7 +974,7 @@ function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = 
     const menace = TACTIQUES[aF].bat === cle || (aD && SYSTEMES_D[aD].bat === cle);
     const pour = contreDe(aF);
     // Un gros match (J1-N) : ces lignes sont celles du plan le plus probable du dépistage, et l'écran le dit.
-    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠️ son système étouffe le tien</span>' : ''}</div>`;
+    enFace = `<div class="gl-adv">En face, ${esc(advNom)}${selonDepistage ? ' <small>(selon le dépistage)</small>' : ''} : <b>${nomSys(aF)}</b>${aD ? ` et une paire en <b>${nomSys(aD)}</b>` : ''}${S.bat === aF ? ' · <span class="ok">✓ tu étouffes ses actions spéciales</span>' : pour ? ` · pour l'étouffer : <b>${nomSys(pour)}</b>` : ''}${menace ? ' · <span class="prix">⚠ son système étouffe le tien</span>' : ''}</div>`;
   } else if (aF) {
     const pour = contreDeD(aF);
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
@@ -1022,268 +1005,6 @@ function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = 
   }).join('') : '';
   return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${demande ? `<div class="ln-demande"><span class="gl-k">Il demande${inverse ? ' · ailes inversées' : ''}</span>${demande}</div>` : ''}`;
 }
-/**
- * spec : {
- *   titre, lineup (case → joueur), lignes [{ tac, tacD, sec }] × 4, energie { clé: 0-100 },
- *   adv: { nom, lignes [{ tac }] } | null, match: { importance, ad } | null,
- *   onAppliquer(lignes, match), onBanc() | null, sousTitre,
- *   usure(match, lignes) → { clé: jambes perdues ce soir } | absent
- * }
- */
-/*
- * LE PLACEMENT D'UN JOUEUR DANS SA LIGNE (S72) : ▼ trop bas (son talent est
- * gaspillé, l'unité porte un malus), ▲ trop haut (un cran, léger), ↔ hors de
- * sa position naturelle. Rien s'il est à sa place.
- */
-function placementDe(p, role, u) {
-  const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
-  const unite = g === 'D' ? u : u;
-  const slot = SLOTS.find(s => !s.scratch && s.role === role && s.unit === unite && s.group === g);
-  const bits = [];
-  // La zone GRANDIT avec « ⏫ Monte d'un cran » (l'atelier, S78) : `unitesIdeales`,
-  // jamais la zone brute de `getLineZone`, qui ignorerait l'édition.
-  const ideal = unitesIdeales(p, getHiddenRatings(p).v) || [];
-  if (ideal.length && unite > Math.max(...ideal) && !joueEnBas(p, g, unite)) bits.push(['▼', 'Trop bas : son talent est gaspillé ici, l\'unité porte un malus']);
-  else if (ideal.length && unite < Math.min(...ideal)) bits.push(['▲', 'Un cran trop haut : léger malus']);
-  const pen = slot ? getPositionPenalty(p, slot) : 0;
-  if (pen > 0) {
-    const reste = penaliteAdaptee(p, slot);
-    bits.push(['↔', reste < pen * 0.6 ? 'Hors de sa position naturelle, mais il s\'y adapte' : 'Hors de sa position naturelle : il s\'y fera en jouant là']);
-  }
-  return bits.length ? { html: bits.map(([m, t]) => ` <span class="gl-j-place" title="${esc(t)}">${m}</span>`).join(''), bits } : null;
-}
-/*
- * CE QUI JOUE SUR TA FORMATION (S72). JP : *les bonus et malus devraient être
- * avec les stratégies, tout devrait être ensemble*. Les effets en cours —
- * dilemmes, séquences, élan, paris, investissements, cartes — et les absents
- * se lisent ici, à côté des lignes, avec le nombre de matchs qui restent.
- */
-function effetsHtml(e) {
-  if (!e) return '';
-  const ligne = (nom, mots, duree) => `<div class="gl-effet"><span class="gl-effet-nom">${nom}</span><span class="choix-puces">${puces(mots)}${duree}</span></div>`;
-  const regle = [];
-  const reste = [];
-  for (const x of e.effets || []) {
-    const mots = motsEnChiffres(canauxDe(x), x.reste).filter(m => !m.duree);
-    if (!mots.length) continue;
-    const nom = `${x.ico ? `${x.ico} ` : ''}${esc(x.nom || 'Effet')}${x.choix ? ` <small>· ${esc(x.choix)}</small>` : ''}`;
-    (x.regle ? regle : reste).push(ligne(nom, mots, `<span class="puce neutre duree">${plur(x.reste, 'match')}</span>`));
-  }
-  for (const t of e.trous || []) {
-    const M = MUTATIONS[t.cle];
-    if (!M) continue;
-    const qui = t.p && t.p.n ? ` <small>· ${esc(t.p.n)}</small>` : '';
-    regle.push(ligne(`${M.ico} ${esc(M.nom)}${qui}`, motsDeMutationEnChiffres(t.cle, t.p, { deja: true }), '<span class="puce neutre duree">la saison</span>'));
-  }
-  for (const c of e.cartes || []) if (CARTES[c]) reste.push(ligne(`${CARTES[c].ico} ${esc(CARTES[c].nom)} <small>· carte</small>`, motsEnChiffres(canauxDe(CARTES[c])), '<span class="puce neutre duree">la saison</span>'));
-  for (const a of e.absents || []) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">👥 ${esc(a.p.n)} <small>· au vestiaire</small></span><span class="choix-puces"><span class="puce neutre duree">${plur(a.reste, 'match')}</span></span></div>`);
-  if (e.gardienAux) reste.push(`<div class="gl-effet"><span class="gl-effet-nom">🧤 L'auxiliaire au filet</span><span class="choix-puces"><span class="puce neutre duree">${plur(e.gardienAux, 'match')}</span></span></div>`);
-  const corps = `${regle.length ? `<div class="gl-k">Le règlement contourné</div>${regle.join('')}` : ''}${reste.join('')}`;
-  return `<section class="gl-effets"><div class="gl-sec-titre">Ce qui joue sur ta formation</div>${corps || '<div class="gl-mot">Rien pour l\'instant : tes lignes jouent sur leur propre valeur.</div>'}</section>`;
-}
-export function ouvrirLignes(spec) {
-  // Dans une page du Club (1.0, R3 : `spec.dans`, `spec.fermer`) ou dans sa fenêtre.
-  const m = spec.dans || $('lignesModal');
-  if (!m) return;
-  // LA CHIMIE (V7) : le fit de la ligne, pour le système que tu choisis — elle ne s'apprend plus.
-  const chimieDe = (u, l) => chimieLigne(spec.lineup, u, l);
-  const brouillon = spec.lignes.map(l => ({ ...l }));
-  // La consigne porte la répartition attaque / défense (1.0, J2-11) : `ad` suit l'importance.
-  const importance0 = spec.match ? (spec.match.importance || 'normale') : null;
-  const match = spec.match ? { importance: importance0, ad: AD_DE_CONSIGNE[importance0] ?? 0 } : null;
-  // Ce que joue une consigne, exactement comme le moteur la pose (`effetDeMoment`).
-  const effetConsigne = k => effetDeMoment({ jour: 0, match: { importance: k, ad: AD_DE_CONSIGNE[k] ?? 0 } });
-  let ouverte = 0;
-  /*
-   * LE ROULEMENT, UNE VRAIE DÉCISION (V2.3). Il ne s'atteignait que par « Les ménager », présenté par son prix.
-   * Ici, à côté de la glace qu'il déplace : ses trois choix, ce que chacun rend et coûte, et les minutes, les
-   * totaux et l'usure du soir recalculés avec lui (`spec.roulement` : { avant, choix } — celui d'avant ce soir
-   * et celui qui joue ce soir ; la saison seulement). La décision du soir le porte dès qu'il diffère d'avant :
-   * elle remplace celle du même soir, qui le portait peut-être.
-   */
-  let roulement = spec.roulement ? spec.roulement.choix : null;
-  const avecRoul = () => (roulement && roulement !== spec.roulement.avant ? { roulement } : {});
-  /*
-   * DEVANT LE FILET CE SOIR (1.0, C4). JP : *je comprends pas la gestion des
-   * gardiens*. Le partant et l'auxiliaire, leurs jambes et leur % d'arrêts de
-   * leur vraie saison ; la rotation du club est choisie d'office, toucher
-   * l'autre gardien lui donne le filet pour CE soir (une décision, qui se
-   * rejoue). `spec.filet` : { partant, aux (clés), rotation: 'partant'|'aux', choix }.
-   */
-  const F0 = spec.filet || null;
-  const gardienDe = cle => (cle ? Object.values(spec.lineup || {}).find(p => p && getPlayerKey(p) === cle) || null : null);
-  const gPartant = F0 ? gardienDe(F0.partant) : null, gAux = F0 ? gardienDe(F0.aux) : null;
-  let filet = F0 ? (F0.choix && F0.choix !== 'auto' ? F0.choix : F0.rotation) : null;
-  const filetSortie = () => (!F0 ? undefined : filet === F0.rotation ? (F0.choix && F0.choix !== 'auto' ? 'auto' : undefined) : filet);
-
-  /*
-   * L'USURE DES JAMBES CE SOIR (1.0, le suivi des jambes) : ce que ses présences lui coûteront, refait à
-   * chaque toucher — les secondes, l'agressivité, le système et la consigne la changent (`spec.usure`,
-   * `usureDuSoir` dans js/sim.js). Les coups reçus s'y ajoutent en jouant.
-   */
-  let usureSoir = null;
-  const usureHtml = p => {
-    const c = p && usureSoir ? usureSoir[getPlayerKey(p)] : null;
-    return c == null ? '<span class="gl-j-usure"></span>'
-      : `<span class="gl-j-usure" title="L'usure des jambes de ses présences ce soir : ses minutes, l'agressivité, le système et la consigne la décident. Les coups reçus s'y ajoutent.">−${Math.round(c)}</span>`;
-  };
-  const joueurLigne = (u, role) => {
-    const js = joueursDeLigne(spec.lineup, u);
-    if (!(role in js)) return '';
-    const p = js[role];
-    const T = role === 'DG' || role === 'DD' ? SYSTEMES_D[brouillon[u].tacD] : TACTIQUES[brouillon[u].tac];
-    const g = role === 'DG' || role === 'DD' ? 'D' : 'F';
-    const R = T && T.slots ? rolesDuSysteme(spec.lineup, g, u, g === 'D' ? brouillon[u].tacD : brouillon[u].tac) : null;
-    const voulu = R ? R[role] : null;
-    const pp = p && badgesDe(p)[0];
-    const e = p ? (spec.energie[getPlayerKey(p)] ?? 100) : 0;
-    // V2.3 : la case lit son badge de ce rôle — ✓ le badge, ≈ le second, ✗ la base.
-    const bVoulu = voulu && p ? badgesDe(p).find(b => b.cle === voulu) : null;
-    const c = p ? carrureDe(p) : null;
-    const marque = !voulu || !p ? '' : !bVoulu ? '✗' : bVoulu.second && !bVoulu.plein ? '≈' : '✓';
-    // TOUT CE QUI JOUE SUR LE TRIO, ICI (S72) : sa zone (le rang de ligne où
-    // il rend) et sa position (mauvaise aile, centre à l'aile).
-    const place = p ? placementDe(p, role, u) : null;
-    return `<div class="gl-j${marque === '✓' ? ' fit-bon' : marque === '✗' ? ' fit-mauvais' : ''}">
-      <span class="gl-j-role">${role}</span>
-      <span class="gl-j-nom">${p ? esc(p.n) : '<i>vide</i>'}${place ? place.html : ''}</span>
-      <span class="gl-j-prof" title="${pp ? `${esc(titreDuBadge(pp))}${c ? ` · ${c.mot}` : ''}` : ''}">${pp ? `<i class="badge pal-${pp.palier}">${pp.ico}</i> <small>${esc(pp.nom)}</small>` : ''}</span>
-      <span class="gl-j-niv">${p ? pastilleNiveau(p) : ''}</span>
-      ${voulu ? `<span class="gl-j-voulu" title="Ce que ${esc(T.nom)} demande à ce poste : ${esc(PROFILS[g][voulu].nom)} — il y joue ${esc(motDuFit(p, voulu))}">${PROFILS[g][voulu].ico} <b class="gl-j-marque">${marque}</b></span>` : '<span class="gl-j-voulu"></span>'}
-      ${p ? jambesHtml(e) : '<span class="jambes"></span>'}
-      ${usureHtml(p)}
-      ${(p && p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="gl-j-mut" title="${esc(MUTATIONS[k].nom)}">${MUTATIONS[k].ico}</span>` : '').join('')}
-    </div>`;
-  };
-
-  function dessiner() {
-    const mins = glaceDe(brouillon, spec.glace ? lignes => spec.glace(match, lignes, avecRoul()) : null);
-    usureSoir = spec.usure ? spec.usure(match, brouillon, avecRoul()) : null;
-    const tete = `<div class="choix-tete">
-      <span class="choix-ico">🏒</span>
-      <div class="choix-titres"><div class="choix-titre">${esc(spec.titre || 'Mes lignes')}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
-      <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
-    </div>`;
-    /*
-     * LA CONSIGNE TIENT EN UNE RANGÉE (S71). JP : *avoir les bonnes infos au
-     * bon endroit, lisible*. Trois grandes cases poussaient les lignes — ce
-     * qu'on vient régler — sous le premier écran du téléphone. Trois boutons
-     * courts, et l'effet du choix courant en une ligne dessous.
-     */
-    const Icour = match ? IMPORTANCES[match.importance] || IMPORTANCES.normale : null;
-    const consigne = match ? `<section class="gl-consigne">
-      <div class="gl-sec-titre">Consigne du match</div>
-      <div class="gl-seg gl-seg-court">${Object.entries(IMPORTANCES).map(([k, I]) => `<button type="button" class="gl-seg-btn${match.importance === k ? ' on' : ''}" data-importance="${k}">
-        <b>${I.ico} ${esc(I.nom)}</b><span class="choix-puces">${puces(motsEnChiffres(effetConsigne(k)).filter(x => x.cle !== 'rien'))}</span></button>`).join('')}</div>
-      <div class="gl-consigne-effet"><small>${esc(Icour.mot)}</small>${spec.grosMatch && match.importance !== 'haute' ? ' <span class="choix-puces"><span class="puce neutre" title="Un gros match : la consigne Haute joue plus fort, au prix des jambes et des blessures. Elle se choisit.">🌡️ Haute conseillée</span></span>' : ''}</div>
-    </section>` : '';
-    const pctR = x => `${x > 1 ? '+' : '−'}${Math.round(Math.abs(x - 1) * 100)} %`;
-    const roulHtml = roulement ? `<section class="gl-roulement">
-      <div class="gl-sec-titre">Le roulement · toute l'équipe, dès ce soir</div>
-      <div class="gl-seg gl-seg-court">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="gl-seg-btn${roulement === k ? ' on' : ''}" data-roulement="${k}" aria-pressed="${roulement === k}">
-        <b>${R.ico} ${esc(R.nom)}</b><span class="choix-puces">${puces([{ txt: R.bon, bon: true }, ...(k === 'quatre' ? [] : [{ txt: R.prix, bon: false }]), ...(R.blessure ? [{ txt: `Blessures ${pctR(R.blessure)}`, bon: R.blessure < 1 }] : [])])}</span></button>`).join('')}</div>
-      <div class="gl-mot">Il déplace la glace d'un trio à l'autre ; les minutes des onglets le suivent.</div>
-    </section>` : '';
-    /*
-     * LES TOTAUX DU SOIR (1.0, C5). Tout ce qui joue ce soir, multiplié et
-     * lu dans le moteur (`motsDuSoir`, js/impact.js) — la
-     * consigne qu'on règle ici comprise, recalculée à chaque toucher.
-     */
-    const tot = spec.totaux ? spec.totaux(match, brouillon, avecRoul()) : null;
-    // TON ALIGNEMENT (V2.2) : ce que tes systèmes, tes badges, ta chimie et tes jambes rapportent ce soir, chacun contre le neutre.
-    const al = spec.alignement ? spec.alignement(match, brouillon, avecRoul()) : [];
-    const totauxHtml = tot ? `<section class="gl-totaux">
-      <div class="gl-totaux-l"><b>Tes effets :</b> <span class="choix-puces">${tot.length ? puces(tot) : '<span class="puce neutre">aucune carte ni consigne</span>'}</span></div>
-      ${al.length ? `<div class="gl-totaux-l"><b>Ton alignement :</b> <span class="choix-puces">${puces(al)}</span></div>` : ''}
-      <div class="gl-mot">Chacun contre le même soir sans lui.</div>
-    </section>` : '';
-    /*
-     * L'ADVERSAIRE D'ABORD (1.0, J2-11). Tout ce qui se règle ici se règle
-     * CONTRE quelqu'un : son nom, son plan probable (le dépistage d'un gros
-     * match) ou, un soir ordinaire, les systèmes de ses deux premières lignes.
-     * Le détail par ligne (« pour l'étouffer ») reste sous chaque système.
-     */
-    const advL = (spec.adv && spec.adv.lignes) || [];
-    const sysAdv = l => { const T = l && TACTIQUES[l.tac]; return T ? `${T.ico} ${esc(T.nom)}` : ''; };
-    const advTete = spec.adv ? `<section class="gl-adv-tete">
-      <div class="gl-sec-titre">En face · ${esc(spec.adv.nom || 'Eux')}</div>
-      ${spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: spec.adv.nom || 'Eux' })
-        : advL.length ? `<div class="gl-adv">Leur 1re ligne : <b>${sysAdv(advL[0])}</b>${advL[1] ? ` · leur 2e : <b>${sysAdv(advL[1])}</b>` : ''}</div>` : ''}
-    </section>` : (spec.depistage ? depistageHtml(pistesDuRapport(spec.depistage), { nomAdv: 'Eux' }) : '');
-    const svTxt = g => (g && Number.isFinite(g.sv) ? pct3(g.sv) : '—');
-    const boutonGardien = (qui, g) => {
-      const e = g ? (spec.energie[getPlayerKey(g)] ?? 100) : 100;
-      const estRot = F0 && F0.rotation === qui;
-      return `<button type="button" class="gl-seg-btn gl-gardien${filet === qui ? ' on' : ''}" data-filet="${qui}" aria-pressed="${filet === qui}">
-        <b>🥅 ${g ? esc(g.n) : 'Le rappel du club-école'}</b>
-        <span class="gl-gardien-l"><small>${qui === 'partant' ? 'Partant' : 'Auxiliaire'}${estRot ? ' · la rotation' : ''}</small><small title="Son % d'arrêts de sa vraie saison">${svTxt(g)} d'arrêts</small></span>
-        ${jambesHtml(e, { gardien: true })}</button>`;
-    };
-    const filetHtml = F0 ? `<section class="gl-filet">
-      <div class="gl-sec-titre">Devant le filet ce soir</div>
-      <div class="gl-seg gl-seg-court">${boutonGardien('partant', gPartant)}${boutonGardien('aux', gAux)}</div>
-      <div class="gl-mot">Trois départs de suite sans perte ; ensuite ses jambes baissent. Touche l'autre pour lui donner le filet.</div>
-    </section>` : '';
-    const onglets = `<div class="gl-onglets" role="tablist">${NOMS_LIGNE.map((n, u) => {
-      const T = TACTIQUES[brouillon[u].tac] || TACTIQUES.hourra, D = u < 3 ? SYSTEMES_D[brouillon[u].tacD] || SYSTEMES_D.hourra : null;
-      return `<button type="button" role="tab" class="gl-onglet${u === ouverte ? ' on' : ''}" data-ligne="${u}" aria-selected="${u === ouverte}">
-        <b>${n}</b><span>${T.ico}${D ? ` ${D.ico}` : ''} ${esc(T.nom)}</span><small>chimie ${motChimie(chimieDe(u, brouillon[u]))} · ${glaceMot(mins, u, true)}</small></button>`;
-    }).join('')}</div>`;
-    const u = ouverte, l = brouillon[u];
-    const sansSysteme = l.tac === 'hourra' && (u > 2 || l.tacD === 'hourra');
-    const fitLigneBrut = fitDeLigne(spec.lineup, u, l);
-    const fitCourant = fitLigneBrut ?? 0;
-    // LA CARRURE DE LA LIGNE (S71) : c'est elle qui dit si le jeu physique paie.
-    const ph = physiqueLigne(spec.lineup, u);
-    const carrureLigne = ph >= 0.56 ? '🪨 ligne costaude' : ph <= 0.44 ? '🪶 ligne légère' : 'ligne moyenne';
-    // UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE (S79), chacun sous le nom de ce que ses joueurs sont.
-    const choixDe = groupe => {
-      const id = identiteUnite(spec.lineup, groupe, u);
-      const titre = `<div class="gl-sec-titre">Système ${groupe === 'D' ? 'de la paire' : 'du trio'}${id ? ` · <span class="ln-id">${id.ico} ${esc(id.nom)}</span>` : ''}</div>`;
-      return titre + systemesHtml({ lineup: spec.lineup, lignes: brouillon, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),
-        chimieDe: k => chimieDe(u, { ...l, [groupe === 'D' ? 'tacD' : 'tac']: k }) });
-    };
-    const detail = `<section class="gl-ligne">
-      <div class="gl-joueurs">${ROLES.map(r => joueurLigne(u, r)).join('')}</div>
-      <div class="gl-etat">
-        <div><span class="gl-k">Fit</span> <b>${sansSysteme ? '—' : fitLigneBrut == null ? 'À compléter' : motFit(fitCourant)}</b> <small>${sansSysteme ? 'aucune chimie' : fitLigneBrut == null ? 'ligne incomplète' : `plafond de chimie : ${plafondChimie(chimieMax(fitCourant))}`}</small></div>
-        <div><span class="gl-k">Chimie ce soir</span> <span class="gj-barre gl-chimie"><span style="width:${Math.round(chimieDe(u, l))}%"></span></span> <b>${motChimie(chimieDe(u, l))}</b></div>
-      </div>
-      ${choixDe('F')}
-      ${u < 3 ? choixDe('D') : ''}
-      <div class="gl-sec-titre">Agressivité · ${carrureLigne}</div>
-      <div class="gl-mot">${agressiviteMot(spec.lineup, u)}</div>
-    </section>`;
-    m.innerHTML = `<div class="choix-sheet gl-sheet" role="dialog" aria-modal="true" aria-label="Mes lignes">
-      ${tete}
-      <div class="choix-corps">${advTete}${totauxHtml}${effetsHtml(spec.effets)}${consigne}${roulHtml}${filetHtml}${onglets}${detail}</div>
-      <div class="gl-pied">
-        ${spec.onBanc ? '<button type="button" class="btn gl-banc">Changer les trios</button>' : ''}
-        <button type="button" class="btn go gl-appliquer">${esc(spec.motAppliquer || 'Appliquer')}</button>
-      </div>
-    </div>`;
-    brancher();
-  }
-  function brancher() {
-    m.querySelectorAll('[data-ligne]').forEach(b => { b.onclick = () => { ouverte = Number(b.dataset.ligne); dessiner(); }; });
-    m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[ouverte].tac = b.dataset.tac; dessiner(); }; });
-    m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[ouverte].tacD = b.dataset.tacd; dessiner(); }; });
-    m.querySelectorAll('[data-importance]').forEach(b => { b.onclick = () => { match.importance = b.dataset.importance; match.ad = AD_DE_CONSIGNE[match.importance] ?? 0; dessiner(); }; });
-    m.querySelectorAll('[data-roulement]').forEach(b => { b.onclick = () => { roulement = b.dataset.roulement; dessiner(); }; });
-    m.querySelectorAll('[data-filet]').forEach(b => { b.onclick = () => { filet = b.dataset.filet; dessiner(); }; });
-    m.querySelector('.gl-annuler').onclick = fermer;
-    m.querySelector('.gl-appliquer').onclick = () => { fermer(); spec.onAppliquer(brouillon, match, filetSortie(), avecRoul()); };
-    const bb = m.querySelector('.gl-banc');
-    if (bb) bb.onclick = () => { fermer(); spec.onBanc(); };
-  }
-  const fermer = () => {
-    if (spec.dans) { if (spec.fermer) spec.fermer(); return; }
-    m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert');
-  };
-  if (!spec.dans) { m.hidden = false; document.body.classList.add('choix-ouvert'); }
-  dessiner();
-}
-
 /* Le résumé d'une ligne pour l'affiche du match : sa tactique et sa chimie. */
 export function resumeLignes(lignes, chimie) {
   return lignes.map((l, u) => {
@@ -1309,9 +1030,6 @@ void SLOTS;
    commandes et le résumé se tait (il dirait ce que les boutons disent).
    Les noms ne s'y répètent pas — ils sont dans les cases, juste au-dessus :
    ce qui dépend du joueur, la marque du profil demandé, s'écrit par POSTE.
-
-   `ouvrirLignes` reste : la préparation d'avant-match (js/saison.js) a sa
-   consigne et son dépistage, et c'est un moment à part.
 
    spec : { lineup, lignes, adv: { nom, lignes } | null }
    Rend { sommaire, corps } ; l'appelant pose le tiroir et branche ses
@@ -1388,7 +1106,7 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
     const { corps } = strategieDeLigne({ ...spec, lignes: brouillon, base: spec.lignes }, u, true, groupe);
     m.innerHTML = `<div class="choix-sheet gl-sheet ln-fenetre" role="dialog" aria-modal="true" aria-label="Système du ${esc(titre)}" data-g="${groupe}" data-u="${u}">
       <div class="choix-tete">
-        <span class="choix-ico">${groupe === 'D' ? '🛡️' : '🏒'}</span>
+        <span class="choix-ico">${groupe === 'D' ? '🛡' : '🏒'}</span>
         <div class="choix-titres"><div class="choix-titre">${esc(titre)}</div>${clubLu() && clubLu().team ? '<div class="choix-irl">Par match, contre ce qui joue</div>' : ''}</div>
         <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
       </div>
@@ -1663,7 +1381,7 @@ export function ouvrirMainDeMatch(spec) {
     </div>` : '';
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
-        <span class="choix-ico">⚔️</span>
+        <span class="choix-ico">⚔</span>
         <div class="choix-titres"><div class="choix-badge">Gros match</div><div class="choix-titre">${esc(spec.titre)}</div>${spec.sousTitre ? `<div class="choix-irl">${esc(spec.sousTitre)}</div>` : ''}</div>
       </div>
       <div class="choix-corps">

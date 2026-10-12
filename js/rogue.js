@@ -116,12 +116,12 @@ export const DEBLOCAGES = {
   // S80 : le barème d'une run (`baremeRogue`) — 5 🪙 par victoire sans commanditaire.
   commanditaire1: { ico: '📺', nom: 'Un commanditaire', prix: 60, texte: '+3 🪙 par victoire : 8 au lieu de 5, à chaque saison de la run.' },
   commanditaire2: { ico: '📺', nom: 'Le commanditaire principal', prix: 150, requis: 'commanditaire1', texte: '+2 🪙 de plus par victoire : 10.' },
-  packDefenseurs: { ico: '❄️', nom: 'Le pack Défensif', prix: 35, texte: 'La boutique vend le pack Défensif : quatre joueurs au meilleur différentiel de leur saison.' },
+  packDefenseurs: { ico: '❄', nom: 'Le pack Défensif', prix: 35, texte: 'La boutique vend le pack Défensif : quatre joueurs au meilleur différentiel de leur saison.' },
   packGardiens: { ico: '🥅', nom: 'Le pack Gardiens', prix: 50, texte: 'La boutique vend le pack Gardiens : quatre partants au meilleur pourcentage d\'arrêts.' },
   packAnnees80: { ico: '📼', nom: 'Le pack années 80', prix: 60, texte: 'La boutique vend le pack des années 80, l\'époque des 400 buts par saison.' },
   packVedettes: { ico: '🌟', nom: 'Les packs Étoiles et Légendes', prix: 150, texte: 'La boutique vend les packs Étoiles et Légendes : les meilleurs de leur saison.' },
   deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer de la pointe+ » et « Bloquer des tirs+ ».' },
-  plombiersPlus: { ico: '🛠️', nom: 'Des bouche-trous moins pires', prix: 80, texte: 'Tes bouche-trous de départ sortent du bas de la ligue, pas du fond du baril.' },
+  plombiersPlus: { ico: '🛠', nom: 'Des bouche-trous moins pires', prix: 80, texte: 'Tes bouche-trous de départ sortent du bas de la ligue, pas du fond du baril.' },
   // S79 : la masse salariale se débloque aussi.
   plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3\u00a0M$ de plafond au début de chaque run.' },
   plafond2: { ico: '💰', nom: 'Le proprio dépense', prix: 110, requis: 'plafond1', texte: '+4\u00a0M$ de plus au début de chaque run (+7\u00a0M$ en tout).' },
@@ -460,14 +460,14 @@ export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32
  * serieMax (la plus longue séquence de victoires), cartes (au cartable) }.
  */
 export const JALONS = [
-  { cle: 'series', ico: '🎟️', nom: 'Faire les séries', texte: 'Qualifie-toi pour les séries.', si: f => f.series, recompense: { deblocage: 'classeur1', ecussons: 30 } },
+  { cle: 'series', ico: '🎟', nom: 'Faire les séries', texte: 'Qualifie-toi pour les séries.', si: f => f.series, recompense: { deblocage: 'classeur1', ecussons: 30 } },
   { cle: 'ronde', ico: '🥊', nom: 'Gagner une ronde', texte: 'Gagne une série des séries.', si: f => (f.rondes || 0) >= 1, recompense: { deblocage: 'banc1', ecussons: 40 } },
   { cle: 'dixDeSuite', ico: '🔥', nom: 'Dix de suite', texte: 'Gagne dix matchs de suite en saison.', si: f => (f.serieMax || 0) >= 10, recompense: { ecussons: 35 } },
   { cle: 'cent', ico: '💯', nom: 'Cent points', texte: 'Fais 100 points en une saison.', si: f => (f.pts || 0) >= 100, recompense: { deblocage: 'classeurTri', ecussons: 50 } },
   { cle: 'deuxSaisons', ico: '📅', nom: 'La deuxième saison', texte: 'Joue la deuxième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 2, recompense: { ecussons: 30 } },
-  { cle: 'troisSaisons', ico: '🗓️', nom: 'La troisième saison', texte: 'Joue la troisième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 3, recompense: { deblocage: 'garder1', ecussons: 45 } },
+  { cle: 'troisSaisons', ico: '🗓', nom: 'La troisième saison', texte: 'Joue la troisième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 3, recompense: { deblocage: 'garder1', ecussons: 45 } },
   { cle: 'premier', ico: '🥇', nom: 'Premier de la ligue', texte: 'Finis une saison au premier rang.', si: f => !!f.premier, recompense: { ecussons: 60 } },
-  { cle: 'finale', ico: '🏟️', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 } },
+  { cle: 'finale', ico: '🏟', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 } },
   { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeurChoix', ecussons: 120 } },
   { cle: 'cartable', ico: '📒', nom: 'Cent cartes', texte: 'Aie 100 cartes de joueur dans ton cartable.', si: f => (f.cartes || 0) >= 100, recompense: { ecussons: 20 } },
   // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.

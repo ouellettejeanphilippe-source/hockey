@@ -52,9 +52,12 @@ Le **menu** (☰) garde le méta, qui vit entre les runs : les déblocages (méd
 - [x] Le squelette : les cinq onglets, leurs sous-onglets, les scripts qui les suivent.
 - [x] Bureau : le mandat en tête, le duel du soir en vraies stats, Dépistage et Lignes en deux boutons.
 - [x] Joueurs : le tableau triable (js/joueurs.js) ; le volet Jambes du Club est parti.
-- [x] Lignes : la consigne et le filet au plan de match ; « Préparer le match » a disparu de la saison (il reste aux séries).
+- [x] Lignes : la consigne et le filet au plan de match ; « Préparer le match » a disparu de la saison.
 - [x] Cartes : Ta main (la main, en jeu, le coach), la Boutique (son barème y vit), l'Album ; les déblocages au Menu.
-- [ ] Reste : la boîte fondue dans le Bureau (elle est encore un sous-onglet, « À régler ») ; les séries passent au même cheval (leur préparation, leur banc) ; le gros match lit le plan probable du dépistage dans les Lignes.
+- [x] La boîte fondue dans le Bureau : plus de sous-onglet « À régler » ; elle se range sous l'affiche, pliée tant que rien ne bloque, et « À régler » y déplie le message au-dessus de la barre. La pastille rouge passe sur la porte du Bureau, visible de partout.
+- [x] Les séries au même cheval : « Préparer le match » et « Le banc » des séries ne font plus qu'un, l'onglet Lignes (« 🏒 Lignes · match N » au Bureau). Le banc d'une série porte son prochain match (l'adversaire, chez qui, la consigne, le filet, les jambes des gardiens), le plan de match s'y règle comme en saison, et « Retour aux séries » envoie tout en une décision. Le plein écran `ouvrirLignes` (js/gerant.js) et ses 32 classes sont partis.
+- [x] Le gros match lit le plan probable du dépistage dans les Lignes : un gros match annoncé (et chaque match de série) pose son dépistage sur le banc ; la fenêtre du système et le plan de match lisent leurs lignes sous leur plan le plus probable et le disent (« selon le dépistage »), comme le faisait l'ancien « Préparer le match ».
+- [x] Le ménage : `check_mort` vert (le plein écran `ouvrirLignes` et ses classes partis), CLAUDE.md à jour (les cinq sections, `js/gerant.js`, le smoke des séries).
 
 ## L'ordre de travail
 

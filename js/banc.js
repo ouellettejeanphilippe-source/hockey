@@ -95,6 +95,8 @@ function ouvrirBanc(jour) {
     // LE PLAN DE MATCH (V6) : l'appariement de tes trios et la glace du club, en vigueur sur l'équipe.
     appariement: L.you.appariement ? [...L.you.appariement] : null,
     roulement: L.you.roulement || 'quatre',
+    // TES UNITÉS SPÉCIALES (V7) : celles qu'on a choisies, ou null — le moteur range seul.
+    speciales: L.you.speciales || null,
     // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
     lignes: lignesDe(L.you, G.roster),
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
@@ -104,6 +106,9 @@ function ouvrirBanc(jour) {
     filetEtat: ((L.you.jourLignes || [])[jour] || {}).filet || null,
     // LA LANCÉE (V3.6, Rogue) : qui la porte au prochain match, sur l'alignement de ce soir — la case le dit.
     lancees: lanceesDuSoir(L.you, ce_soir),
+    // UN GROS MATCH ANNONCÉ (V7) : son dépistage, pour que les Lignes lisent leurs lignes sous leur plan le plus probable.
+    depistage: (prochain && ((L.you.minisBoss || []).find(x => x.jour === prochain.j)
+      || (L.moteur && L.moteur.grosAnnonces && L.moteur.grosAnnonces[prochain.j])) || {}).depistage || null,
   };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
@@ -126,11 +131,13 @@ export async function reprendreSaison() {
   if (b.serie) {
     G.banc = null;
     $('game').classList.remove('banc');
-    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, ...(relaches.length ? { relache: relaches } : {}) });
+    // V7 : le plan de match du soir part avec l'alignement — la glace, l'appariement, la consigne, le filet.
+    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes,
+      appariement: b.appariement, roulement: b.roulement, speciales: b.speciales || null, match: b.match, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
     return;
   }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, appariement: b.appariement, roulement: b.roulement, sel: nouvelleGraine() };
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, appariement: b.appariement, roulement: b.roulement, speciales: b.speciales || null, sel: nouvelleGraine() };
   // Une décision de banc du même jour remplacée garde ses relâchés : ils sont partis pour de bon.
   const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
   if (avant.length || relaches.length) d.relache = [...avant, ...relaches];
@@ -332,9 +339,9 @@ function confirmerDecision(d) {
   const C = k => CARTES_MATCH[k];
   let mot = null;
   if (d.recompense && C(d.recompense)) mot = `🎁 ${C(d.recompense).nom} rejoint ton deck.`;
-  else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑️ ${C(d.retrait).nom} quitte ton deck.`;
-  else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋️ ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
-  else if (d.deck === 'recrue' && d.ballottage) mot = `🎟️ ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
+  else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑 ${C(d.retrait).nom} quitte ton deck.`;
+  else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋 ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
+  else if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
   else if (d.joue && M) mot = `${M.ico} ${M.nom} : posée au verso de ${qui(d.mutation.joueur)}.`;
@@ -529,11 +536,21 @@ export async function deciderSerie(d) {
   });
   if (d.recompense !== undefined) confirmerDecision(d);
 }
-/* Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. */
-export function bancSerie(ronde, k) {
+/*
+ * Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. V7 : « Préparer le
+ * match » y est fondu — `soir` (js/saison.js, `soirDeSerie`) dit le prochain match de ta série et ce qui y est déjà
+ * réglé (la consigne, le filet, les jambes des gardiens, le dépistage), et l'onglet Lignes le règle comme en saison.
+ */
+export function bancSerie(ronde, k, soir = null) {
   if (!G.ligue || !G.ligue.calendrier) return;
   ouvrirBanc(G.ligue.calendrier.length);
-  if (G.banc) { G.banc.serie = { ronde, k }; renderBanc(); }
+  if (!G.banc) return;
+  G.banc.serie = { ronde, k };
+  if (soir) {
+    G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
+    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, depistage: soir.depistage, speciales: soir.speciales || null, energie: { ...G.banc.energie, ...soir.energie } });
+  }
+  renderBanc();
 }
 
 async function choisirCarte(palier, jour, cle, depuis = jour) {

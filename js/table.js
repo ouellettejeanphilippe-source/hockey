@@ -428,7 +428,7 @@ export function statsDeTable(p) {
    *
    *   ⚡ Vitesse                            PA, le patin
    *   💣 Lancer redouté                     TI, faire entrer la rondelle
-   *   🪄 Créateur, 🛡️ Selke, 🧱 Norris,
+   *   🪄 Créateur, 🛡 Selke, 🧱 Norris,
    *   🔁 Bidirectionnel                     MA, le maniement — passer, et
    *                                         enlever la rondelle du bâton
    *   🥊 Colosse                            FO, la force
@@ -584,7 +584,7 @@ function tirParDefaut(p) {
                           mais il encaisse mal (−1 FO, et une mise en échec
                           le laisse au sol une présence de plus) et il donne
                           tout (−1 de souffle)
-     ⚖️ MOYEN             il joue toute la soirée (+1 de souffle) et il garde
+     ⚖ MOYEN             il joue toute la soirée (+1 de souffle) et il garde
                           le jeu vivant (+1 à la passe) ; aucune faiblesse
      🐂 MATADOR           il frappe (+1 FO), une mise en échec ratée ne lui
                           coûte pas la présence, et il protège la rondelle
@@ -597,7 +597,7 @@ function tirParDefaut(p) {
 
 export const GABARITS = {
   [GABARIT_PETIT]:   { cle: 'PETIT',   nom: 'Petit et rapide', icon: '🐇', desc: 'Il patine et se faufile, mais il encaisse mal et il s\'essouffle.' },
-  // 🐇 🐎 🐂 : un triangle qui se retient sans légende. Le moyen portait ⚖️,
+  // 🐇 🐎 🐂 : un triangle qui se retient sans légende. Le moyen portait ⚖,
   // la même icône que l'archétype « Complet » de ratings.js — deux étiquettes
   // identiques côte à côte sur la carte, ça se lit comme un doublon.
   [GABARIT_MOYEN]:   { cle: 'MOYEN',   nom: 'Gabarit moyen',   icon: '🐎', desc: 'Aucune faiblesse : il joue toute la soirée et garde le jeu vivant.' },

@@ -74,7 +74,7 @@ const verifMarche = async (etape, { boutique = true } = {}) => {
   if (boutique && !r.boutique) erreurs.push(`${etape} : la boutique n'est pas rendue au Marché`);
   console.log(`   ${etape} : section ${r.sec}, barre ${r.nav}, boutique au Marché ${r.boutique}, dans le Club ${r.horsMarche}, Club visible ${r.hubVisible}`);
 };
-/* Le Club (le bureau, la Boîte) ne dit jamais « boutique » et n'offre rien à acheter. */
+/* Le Bureau (l'affiche, la boîte) ne dit jamais « boutique » et n'offre rien à acheter. */
 const verifClubSansBoutique = async etape => {
   const r = await page.evaluate(() => {
     const hub = document.getElementById('hubModal');
@@ -343,7 +343,7 @@ async function regler() {
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     const t = await page.$('#hubModal .hub-traiter');
-    // Le message plié, ou rangé sous le sous-onglet Boîte du téléphone (1.0, R2) : « À régler » l'ouvre et y mène.
+    // Le message plié : « À régler » le déplie, sous l'affiche du Bureau (V7).
     if (t) {
       const d = await page.$('#hubModal .hub-msg.bloque.ouvert [data-defaut]');
       const cible = d && await d.isVisible() ? d : await t.isVisible() ? t : null;
@@ -372,8 +372,8 @@ console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ')
   // V7 : ton coach et sa confiance vivent sous Cartes › Ta main.
   const versMain = async () => { await page.click('#navbar .navtab[data-section="cartes"]'); await page.waitForTimeout(300); await page.click('#sousNav .soustab[data-page="main"]', { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(600); };
   await versMain();
-  const coachs = ((await page.textContent('#hubModal .eq-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-  const rangCoach = ((await page.textContent('#hubModal .eq-coach .eq-rang').catch(() => '')) || '').trim();
+  const coachs = ((await page.textContent('#hubModal .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const rangCoach = ((await page.textContent('#hubModal .ej-coach .ej-rang').catch(() => '')) || '').trim();
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);

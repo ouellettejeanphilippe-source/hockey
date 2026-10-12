@@ -3,7 +3,7 @@
  * des combats*. Au bureau du lundi, en Rogue, la semaine se choisit comme une case de la carte de Slay the Spire :
  * trois routes, une seule. Se soigner, prendre de la force ou de l'argent — l'arbitrage du roguelike.
  *   🛌 le repos        : une carte de soin, de jambes ou de filet (la journée de congé, la ronde de l'infirmerie…) ;
- *   🏋️ l'entraînement : une carte qui change la forme des prochains matchs (le seau de rondelles, la glace du bas…) ;
+ *   🏋 l'entraînement : une carte qui change la forme des prochains matchs (le seau de rondelles, la glace du bas…) ;
  *   ❓ l'événement     : une carte d'événement de la banque, commune ou peu commune ;
  *   💰 la commandite   : des jetons (la vente de garage, le dépanneur, le garagiste).
  * VARIER (JP : *varier ces choix*) : chaque nœud offre trois des quatre routes, jamais les trois mêmes que le nœud
@@ -18,7 +18,7 @@ import { hache } from './util.js';
 
 export const ROUTES = {
   repos: { ico: '🛌', nom: 'Le repos' },
-  entrainement: { ico: '🏋️', nom: 'L\'entraînement' },
+  entrainement: { ico: '🏋', nom: 'L\'entraînement' },
   evenement: { ico: '❓', nom: 'L\'événement' },
   commandite: { ico: '💰', nom: 'La commandite' },
 };
