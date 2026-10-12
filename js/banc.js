@@ -630,7 +630,7 @@ export async function runSeason(opts = {}) {
 
   let opponents = [];
   if (opts.adversaires) {
-    opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season }));
+    opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season, ecole: a.ecole || [] }));
   } else {
     try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
@@ -699,7 +699,7 @@ export async function runSeason(opts = {}) {
     // qu'on est en train de composer.
     mode: G.mode, repechage: G.repechage, franchise: G.franchise, bonus: G.bonus,
     // De quoi rejouer : les mêmes 31 clubs, à partir des mêmes alignements.
-    adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season })),
+    adversaires: opponents.map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season, ecole: t.ecole || [] })),
   };
 
   if (!moteur) {

@@ -6691,7 +6691,9 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     for (const t of teams) {
       for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
       // Les rappelés du club-école (B) repartent de zéro, comme l'effectif.
-      for (const p of t.ecole || []) { initSimStats(p); connaitre(p); p.energie = 100; delete p._reserve; }
+      // Tout, comme `remettreAZero` : ce sont des objets de shard partagés, et une autre saison jouée dans la même page
+      // leur laissait sa lancée, ses situations, son adaptation — la reprise, page neuve, rejouait autre chose.
+      for (const p of t.ecole || []) { remettreAZero(p); connaitre(p); }
       // La chance de saison est tirée ICI, sous la graine, et non à
       // `createTeam` : sinon deux saisons de même graine différaient déjà
       // avant le premier lancer (check_graine.mjs l'a attrapé).
@@ -7079,6 +7081,7 @@ export function copieDeJoueur(p) {
 }
 function remettreANeuf(t) {
   for (const s of SLOTS) { const p = t.roster[s.i]; if (p) { initSimStats(p); p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; } }
+  for (const p of t.ecole || []) remettreAZero(p);
   t.injured = new Map(); t.together = new Map(); t.togetherSig = new Map(); t.injuriesLog = []; t.journal = [];
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);

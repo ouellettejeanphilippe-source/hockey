@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
+import { SLOTS, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -42,7 +42,7 @@ import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { ouvrirChoix, choixOuvert, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
-import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
+import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, signaturesDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
@@ -1084,7 +1084,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
     blessures: (you.injuriesLog || []).filter(i => i.games >= BLESSURE_TRAINEE && i.jour != null).map(i => i.jour + 1),
   });
-  const deckAvant = j => deckDe(decs, { avant: j + 1, ...cicatrices() });
+  // Les cartes signature (Jalon P5), en Rogue seulement (le 82-0 n'a pas de cartes) : celles des Holo et des Or habillés ce
+  // soir ; le camp et le ménage ne visent que le deck.
+  const signatures = () => (ctx.rogue ? signaturesDe(SLOTS.filter(sl => !sl.scratch).map(sl => you.roster[sl.i]).filter(p => p && !you.injured.has(p)), badgesDe) : []);
+  const deckBase = j => deckDe(decs, { avant: j + 1, ...cicatrices() });
+  const deckAvant = j => [...deckBase(j), ...signatures()];
   function mainOuverte() {
     if (!onDecision || jour >= N) return null;
     const p = prochain();
@@ -2658,9 +2662,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         texte: `Trois éditions : ${editionsDuJour(graine, p0).map(k => `${MUTATIONS[k].ico} ${MUTATIONS[k].nom}`).join(' · ')}. Tu en gardes une, et tu la poses au verso d'un joueur quand tu veux.` };
       if (c.sorte === 'camp') return { cle: 'camp', rarete, ico: S.ico, nom: 'Le camp d\'entraînement', type: `${S.nom} · ton deck de match`,
         texte: 'Une carte de ton deck de match devient sa version « + » : moitié plus forte, ou un élan de moins.',
-        desactive: deckAvant(jour).some(k => CARTES_MATCH[`${k}+`]) ? '' : 'Tout ton deck est déjà amélioré' };
+        desactive: deckBase(jour).some(k => CARTES_MATCH[`${k}+`]) ? '' : 'Tout ton deck est déjà amélioré' };
       return { cle: 'menage', rarete, ico: S.ico, nom: 'Le ménage du vestiaire', type: `${S.nom} · ton deck de match`,
-        texte: `Une carte de moins dans ton deck de match (${deckAvant(jour).length} cartes) : les autres sortent plus souvent. Tu choisis laquelle.` };
+        texte: `Une carte de moins dans ton deck de match (${deckBase(jour).length} cartes) : les autres sortent plus souvent. Tu choisis laquelle.` };
     });
     ouvrirChoix({
       ico: '🎁', titre: `La main de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
@@ -2724,7 +2728,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return;
     }
     if (sorte === 'camp') {
-      const uniques = [...new Set(deckAvant(jour))].filter(k => CARTES_MATCH[`${k}+`]);
+      const uniques = [...new Set(deckBase(jour))].filter(k => CARTES_MATCH[`${k}+`]);
       ouvrirChoix({ ...suite, ico: '🏋', titre: 'Le camp d\'entraînement',
         recit: 'Une semaine de pratiques sur une seule chose : choisis la carte qui devient sa version « + ». On voit ici la version améliorée.',
         options: uniques.map(k => ({ ...optionDeCarteMatch(`${k}+`), cle: k })),
@@ -2733,7 +2737,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (sorte === 'menage') {
       // Les malédictions d'abord : c'est d'elles qu'on veut se débarrasser.
-      const uniques = [...new Set(deckAvant(jour))].sort((a, b) => (CARTES_MATCH[b].maudite ? 1 : 0) - (CARTES_MATCH[a].maudite ? 1 : 0));
+      const uniques = [...new Set(deckBase(jour))].sort((a, b) => (CARTES_MATCH[b].maudite ? 1 : 0) - (CARTES_MATCH[a].maudite ? 1 : 0));
       ouvrirChoix({ ...suite, ico: '🗑', titre: 'Le ménage du vestiaire',
         recit: 'Une carte quitte ton deck de match pour de bon. Une malédiction, une carte faible, un doublon : un deck mince pige plus souvent ses meilleures.',
         options: uniques.map(k => ({ ...optionDeCarteMatch(k), rarete: CARTES_MATCH[k].maudite ? 'commune' : CARTES_MATCH[k].rarete })),
@@ -3935,9 +3939,11 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     return `Match ${k} : ${pour > contre ? 'victoire' : 'défaite'} ${pour}-${contre}${f.ot ? ' en prolongation' : ''}. `;
   };
   /* Le deck en séries : la saison, et les cartes gagnées aux séries d'avant. */
-  const deckDeSerie = (k = maSerie(ronde) ? revele.get(maSerie(ronde)) : Infinity) => deckDe(decisionsSaison, { serie: decsSerie, ronde, k,
+  const deckDeSerie = (k = maSerie(ronde) ? revele.get(maSerie(ronde)) : Infinity) => [...deckDe(decisionsSaison, { serie: decsSerie, ronde, k,
     pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
-    blessures: (you.injuriesLog || []).filter(i => i.games >= BLESSURE_TRAINEE && i.jour != null).map(i => i.jour + 1) });
+    blessures: (you.injuriesLog || []).filter(i => i.games >= BLESSURE_TRAINEE && i.jour != null).map(i => i.jour + 1) }),
+    // Les cartes signature des Holo et des Or habillés (Jalon P5), en Rogue seulement.
+    ...(ctx && ctx.rogue ? signaturesDe(SLOTS.filter(sl => !sl.scratch).map(sl => you.roster[sl.i]).filter(p => p && !you.injured.has(p)), badgesDe) : [])];
   /*
    * La récompense d'une série gagnée (Jalon P1) : un pack de joueurs, ouvert tout de suite, dont les joueurs vont au
    * cartable (`ouvrirPackDeSerie`, js/rogue-jeu.js) — plus une carte de match qui grossissait la main des séries.

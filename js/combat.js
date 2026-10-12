@@ -385,6 +385,23 @@ const cartesDeMatchDuPack = d => {
   const vendus = (a.sorte === 'cartes' ? a.vendus : a.cartesVendues) || [];
   return a.cartes.filter((id, t) => typeof id === 'string' && id.startsWith('match:') && !vendus.includes(t)).map(id => id.slice(6)).filter(k => CARTES_MATCH[k]);
 };
+/*
+ * LA CARTE SIGNATURE (Jalon P5). JP : *mettre l'accent sur la collection des joueurs avec certaines cartes d'effets
+ * avec les joueurs*. Un joueur habillé dont la carte est Holo ou Or apporte au deck une carte de match qui existe
+ * déjà, celle de son premier rôle (un sniper : « Le tir des poignets ») — tant qu'il est habillé : blessé, rayé ou
+ * parti, sa carte quitte le deck. Aucune carte neuve : chacune est déjà mesurée en paires (check_cartes).
+ */
+const SIGNATURE_DU_ROLE = {
+  sniper: 'poignets', power: 'enclave', passeur: 'avantage', manieur: 'contreAttaque', offensif: 'lancer', energie: 'quatrieme',
+  checker: 'echecAvant', deuxsens: 'trappe', defensif: 'bloquer', physique: 'frapper', bagarreur: 'provoquer',
+  mur: 'gardienFeu', acrobate: 'gardienFeu', constant: 'gardienFeu', fer: 'gardienFeu',
+};
+const VARIANTES_SIGNEES = new Set(['rare', 'legendaire']);
+/* Les cartes signature de ces joueurs habillés ; `badges(p)` : ses badges (js/sim.js `badgesDe`), le premier décide. */
+export const signaturesDe = (joueurs = [], badges = () => []) => joueurs
+  .filter(p => p && p._carte && VARIANTES_SIGNEES.has(p._carte.rar))
+  .map(p => SIGNATURE_DU_ROLE[((badges(p) || [])[0] || {}).cle])
+  .filter(k => k && CARTES_MATCH[k]);
 export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {
   // LA SAISON SUIVANTE D'UNE RUN ROGUE (S80) : le deck repart de celui de la fin de la saison d'avant (`deckDeBase`).
   const base = decisions.find(d => d && Array.isArray(d.deckDeBase));

@@ -30,7 +30,7 @@ import {
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte, payloadDe } from '../js/banque.js';
 import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
-import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH } from '../js/combat.js';
+import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH, signaturesDe } from '../js/combat.js';
 import { pocheDeLaPartie, mainDeLaSemaine, PALIERS_PACK } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -244,6 +244,17 @@ console.log('\n  Le deck (S73)\n');
   const ms = Object.fromEntries(missionsDuCartable({ joueurs }, [1980, 2000]).map(m => [m.cle, m]));
   exiger('neuf cartes d\'un club-saison font une feuille ; cinq Holo d\'une décennie, une extension', ms.feuille.fait && ms.cinqHolo.fait && ms.holo.fait && !ms.or.fait && !ms.cent.fait, Object.values(ms).map(m => `${m.cle} ${m.n}/${m.but}`).join(' · '));
   exiger('une carte de chaque décennie du jeu : toutes les extensions', ms.epoques.fait && !missionsDuCartable({ joueurs }, [1980, 1990, 2000]).find(m => m.cle === 'epoques').fait && decennieDe('1999-00') === 1990);
+}
+
+/*
+ * LA CARTE SIGNATURE (Jalon P5) : un Holo ou un Or habillé apporte la carte de son premier rôle, une carte qui
+ * existe déjà ; une Base ou une Parallèle, rien.
+ */
+{
+  const joueur = (rar, cle) => ({ _carte: { rar }, cle });
+  const s = signaturesDe([joueur('rare', 'sniper'), joueur('legendaire', 'mur'), joueur('peu', 'sniper'), joueur('commune', 'passeur'), { cle: 'checker' }], p => [{ cle: p.cle }]);
+  exiger('un Holo et un Or apportent la carte de leur rôle, les autres rien', JSON.stringify(s) === JSON.stringify(['poignets', 'gardienFeu']), JSON.stringify(s));
+  exiger('chaque carte signature est une carte de match qui existe', s.every(k => CARTES_MATCH[k] && !CARTES_MATCH[k].maudite));
 }
 
 verdict('Le deck');

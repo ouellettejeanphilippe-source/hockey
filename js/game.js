@@ -2425,7 +2425,10 @@ export async function rebatirAdversaires(cles, decisions = []) {
     if (!pool) continue;
     const roster = autoRoster(pool, exclude);
     for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
-    out.push({ name: `${team} ${season}`, tag: team, roster, season });
+    // Son club-école, comme `buildOpponents` l'a bâti (B) : sans lui, la reprise jouait d'autres séries.
+    const ecole = ecoleDe(pool.filter(p => !exclude.has(getPersonKey(p))), roster);
+    for (const p of ecole) exclude.add(getPersonKey(p));
+    out.push({ name: `${team} ${season}`, tag: team, roster, season, ecole });
   }
   return out;
 }
