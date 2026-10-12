@@ -8,14 +8,14 @@
 import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
-import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
+import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
+import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
@@ -29,7 +29,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeSignature, ouvrirVersoPourPoser, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
+import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, ouvrirVersoPourPoser, poserCartes, rangeesAlignement } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -484,13 +484,6 @@ export function bloqueParLePlafond(p, q) {
   return reste < 0 ? `Plafond : il manque ${money(-reste)}` : '';
 }
 /* Une carte de la banque en option d'`ouvrirChoix` (l'ouverture d'un pack de cartes). */
-function optionDeBanque(id) {
-  const c = BANQUE[id];
-  if (c.cat === 'match') return optionDeCarteMatch(c.cle);
-  const etiquette = etiquetteBanque(id);
-  return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
-    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
-}
 /*
  * L'OUVERTURE D'UN PACK DE CARTES : tout va dans l'inventaire. En Rogue, le
  * personnel et les consommables permanents partent au MÉTA (gardés d'une run
@@ -673,11 +666,11 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (item.src === 'meta') retirerDuMeta(item.id);
     decider({ jour: j, joue, ...payload });
   };
-  const listeJoueurs = (titre, recit, liste, choisir, mots = null) => ouvrirChoix({
-    ico: c.ico, titre, compact: true, fermable: true, motFermer: 'Retour', recit,
+  // Jalon U : les rangées du vestiaire, comme toute liste de joueurs (`ouvrirListeJoueurs`).
+  const listeJoueurs = (titre, recit, liste, choisir, mots = null) => ouvrirListeJoueurs({
+    ico: c.ico, titre, motFermer: 'Retour', recit, motBouton: 'Choisir',
     contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
-    options: liste.map(({ p, sous }) => ({ cle: getPlayerKey(p), visage: headshotHtml(p), nom: p.n, sous })),
-    onChoix: choisir, onFerme: retour,
+    joueurs: liste, onChoix: choisir, onFerme: retour,
   });
   if (c.cat === 'patron') {
     const actifs = patronsActifs(decs, j + 1), postes = postesDePatron((G.rogue && G.rogue.prestige) || 0);
@@ -915,15 +908,13 @@ function placerDevant(roster, prioritaires = []) {
   }
   return roster;
 }
-/* Le choix d'un joueur à garder de la dernière run, en cartes. */
+/* Le choix d'un joueur à garder de la dernière run : les rangées du vestiaire (Jalon U). */
 function choisirGarde(joueurs, i, total) {
   return new Promise(resolve => {
-    ouvrirChoix({
-      ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Personne',
-      recit: 'Ta dernière équipe : celui que tu touches te suit dans cette run, avec ta nouvelle bande de bouche-trous.',
-      options: joueurs.map(p => ({ cle: getPlayerKey(p), rarete: rareteJoueur(p), nom: p.n, type: `${POSTE_GROUPE[groupeDe(p)]} · ${p.t} ${p.s}`, coin: money(p.$),
-        art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[groupeDe(p)]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p) }),
-        carteJoueur: carteMiniHtml(p), motChoix: 'Garder', apercu: () => apercuJoueur(p) })),
+    ouvrirListeJoueurs({
+      ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, motFermer: 'Personne', motBouton: 'Garder',
+      recit: 'Ta dernière équipe : celui que tu gardes te suit dans cette run, avec ta nouvelle bande de bouche-trous.',
+      joueurs: joueurs.map(p => ({ p, sous: quiEst(p) })),
       onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
       onFerme: () => resolve(null),
     });

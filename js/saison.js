@@ -2711,14 +2711,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (sorte === 'amelioration') { deciderDeck(p0, { deck: 'amelioration', garde: `joueur:${arg}` }); return; }
     if (sorte === 'profil') {
-      ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
+      // Jalon U : les rangées du vestiaire ; la ligne dit le rôle offert, où il joue et ce que ça change.
+      ctx.listeJoueurs({ ico: '🔄', titre: 'Nouveau rôle', motFermer: 'Retour aux trois cartes', motBouton: 'Choisir',
         recit: 'Trois conversions possibles dans ton alignement. Le joueur change de rôle pour de bon : son fit dans chaque système suit.',
         contexte: dejaEnJeu(roles.map(x => x.p)),
-        options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom,
-          // Où il joue (S80) : « Hal Gill · 3e paire ».
-          type: ctx.ouJoue && ctx.ouJoue(x.p) ? `${x.p.n} · ${ctx.ouJoue(x.p)}` : x.p.n,
-          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', mutation: x.cle, motChoix: 'Choisir', apercu: ctx.apercu ? () => ctx.apercu(x.p) : null })),
-        onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); } });
+        joueurs: roles.map(x => ({ p: x.p, cle: `${x.cle}|${getPlayerKey(x.p)}`,
+          sous: [`${MUTATIONS[x.cle].ico} ${MUTATIONS[x.cle].nom}`, ctx.ouJoue && ctx.ouJoue(x.p), ...motsDeMutationEnChiffres(x.cle, x.p).slice(0, 2).map(m => m.txt)].filter(Boolean).join(' · ') })),
+        onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); },
+        onFerme: retour });
       return;
     }
     if (sorte === 'camp') {
@@ -3480,14 +3480,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     });
     if (voirBal && mB && mB.bal) voirBal.onclick = ouvrirBallottage;
     const monter = actions.querySelector('.hub-alerte-reserve');
-    if (monter && mB && mB.sl) monter.onclick = () => ouvrirChoix({
-      ico: '🪑', titre: 'Qui monte ?', compact: true, fermable: true, motFermer: 'Retour', genre: 'ballottage',
+    // Jalon U : les rangées du vestiaire, comme toute liste de joueurs.
+    if (monter && mB && mB.sl) monter.onclick = () => ctx.listeJoueurs({
+      ico: '🪑', titre: 'Qui monte ?', motFermer: 'Retour', motBouton: 'Il monte',
       recit: `${alerte.player.n} descend en réserve pour ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Qui prend sa case (${ctx.slotShort ? ctx.slotShort(mB.sl) : mB.sl.role}) ?`,
-      options: mB.reserves.map(r => {
-        const pen = getPositionPenalty(r.p, mB.sl);
-        return { cle: String(r.sl.i), ico: '🪑', nom: r.p.n, sous: ctx.quiEst ? ctx.quiEst(r.p, { stats: false }) : r.p.p,
-          mots: [{ txt: pen > 0 ? '↔ Hors de sa position' : 'À sa position', bon: pen > 0 ? false : true }] };
-      }),
+      joueurs: mB.reserves.map(r => ({ p: r.p, cle: String(r.sl.i), sous: getPositionPenalty(r.p, mB.sl) > 0 ? '↔ Hors de sa position' : 'À sa position' })),
       onChoix: k => { const j = jour; quitter(); onDecision({ jour, palier: mB.palierB, cases: echange(mB.sl.i, Number(k)) }, j); },
     });
     /*

@@ -505,7 +505,7 @@ await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tui
 await verifMarche('la boutique ouverte');
 await page.screenshot({ path: `${DOSSIER}/rogue-boutique.png` });
 const nPacks = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
-const espace = await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .pk-plafond').catch(() => '');
+const espace = await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .inv-plafond').catch(() => '');
 // 1.0 (R5) : à la première run, quatre packs pour commencer, un bouton « Voir les N packs », et un pack impayable qui dit ce qui manque.
 const voirTout = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-tout');
 console.log(`7. la boutique : ${nPacks} packs · ${(espace || '(pas de plafond)').replace(/\s+/g, ' ').trim()}${voirTout ? ` · « ${(await voirTout.textContent()).trim()} »` : ''}`);
@@ -720,7 +720,7 @@ for (const pack of ['j:or', 'j:coach']) {
 await versMarche('cartes');
 await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-inventaire.png` });
-const poche = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-carte', e => e.map(x => x.querySelector('.bq-nom').textContent.trim()));
+const poche = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-carte', e => e.map(x => x.querySelector('.tc-nom').textContent.trim()));
 const plafond = await page.textContent('#pageMarche .hub-page[data-genre="cartes"] .inv-plafond').catch(() => '');
 console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'} · ${(plafond || '(pas de panneau)').replace(/\s+/g, ' ').trim()}`);
 if (!plafond) erreurs.push('l\'inventaire ne montre pas la masse salariale');
@@ -755,7 +755,7 @@ let posee = null, nomModif = '';
     if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
     const jouer = (await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])'))[k];
     if (!jouer) break;
-    nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.bq-nom') || {}).textContent || '').trim());
+    nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.tc-nom') || {}).textContent || '').trim());
     await jouer.click();
     await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
     await page.waitForTimeout(400);

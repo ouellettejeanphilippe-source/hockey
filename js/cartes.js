@@ -156,12 +156,14 @@ export function carteHtml(c) {
     <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
     ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
     ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
-    ${c.vue ? '' : c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
+    ${c.vue ? '' : c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : `<button type="button" class="btn-sign tcj-signer" data-choix="${c.cle}">${c.motChoixHtml || 'Signer'}</button>`}
   </div>`;
   const genre = DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '';
   const famille = !genre && FAMILLES.includes(c.famille) ? c.famille : '';
   const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
-  return `<button type="button" class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' disabled' : ''}>
+  // `statique` (Jalon U) : la même face hors d'un choix (l'inventaire), une div ; ses boutons sont dessous.
+  const tag = c.statique ? 'div' : 'button type="button"';
+  return `<${tag} class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive && !c.statique ? ' disabled' : ''}>
     ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <span class="tc-cadre">
@@ -173,7 +175,7 @@ export function carteHtml(c) {
       ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
       <span class="tc-pied"><span>Cap 82-0</span><span>${R.nom}</span></span>
     </span>
-  </button>`;
+  </${c.statique ? 'div' : 'button'}>`;
 }
 
 /*

@@ -13,7 +13,7 @@
 import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
-import { esc, money as M } from './util.js';
+import { esc, money as M, jaugePlafond } from './util.js';
 import { COACHS } from './coachs.js';
 import { RAYONS_CLUB } from './club.js';
 
@@ -116,7 +116,8 @@ export function ouvrirMagasin(ctx) {
       ? `<p class="pk-garantie">🛟 Une holo ou une or au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
     const plafond = ctx.plafond
-      ? `<p class="pk-plafond${ctx.plafond.espace < 0 ? ' over' : ''}">💵 ${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond de ${M(ctx.plafond.cap)}` : `${M(-ctx.plafond.espace)} au-dessus du plafond de ${M(ctx.plafond.cap)}`}${ctx.plafond.tordu ? ' ✦' : ''} : salaires jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} dans un pack de joueurs.</p>` : '';
+      ? jaugePlafond({ masse: ctx.plafond.cap - ctx.plafond.espace, cap: ctx.plafond.cap,
+        mot: `<span class="inv-pl-rien">${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond` : `${M(-ctx.plafond.espace)} au-dessus du plafond`}${ctx.plafond.tordu ? ' ✦' : ''} : salaires jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} dans un pack de joueurs.</span>` }) : '';
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>

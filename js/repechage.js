@@ -5,7 +5,7 @@
  */
 
 import { loadSeason, state, prefetch } from './data.js';
-import { estD as isD, esc, money, pct3 } from './util.js';
+import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
@@ -692,22 +692,52 @@ function rangeeDeSignature(x, o, signer) {
  *       Rend la fonction qui ferme.
  */
 export function ouvrirListeSignature(o) {
+  for (const x of o.joueurs) ballottageVu.set(getPlayerKey(x.p), x.p);
+  let fermer = () => {};
+  const signer = (x, sortie) => { fermer(); o.onSigne(x, sortie); };
+  fermer = feuilleDeJoueurs({ ...o,
+    haut: jaugePlafond({ masse: capUsed(), cap: capUsed() + capLeft(), mot: `<span class="inv-pl-rien">${esc(money(capLeft()))} sous le plafond · ${signes().length} / ${totalCases()} signés</span>` }),
+    rangees: o.joueurs.map(x => rangeeDeSignature(x, o, signer)) });
+  return fermer;
+}
+/*
+ * CHOISIR UN JOUEUR (Jalon U : les mêmes rangées partout). JP : *l'interface toujours en phase, cohérente, pas plein de
+ * designs différents pour des fonctions pareilles*. « Pour qui ? », « qui soigner ? », « qui monte ? » : les rangées du
+ * vestiaire, ce que le choix lui fait en une ligne (`sous`), et un bouton.
+ *   o : { ico, titre, recit, contexte (html), joueurs [{ p, cle?, sous, desactive? }], motBouton, motFermer, onChoix(cle), onFerme }
+ */
+export function ouvrirListeJoueurs(o) {
+  let fermer = () => {};
+  const rangees = o.joueurs.map(x => {
+    const el = document.createElement('div');
+    el.className = `pcard tc-commune${x.desactive ? ' locked' : ''}`;
+    el.setAttribute('style', varsEquipe(x.p));
+    el.innerHTML = rangeeHtml(x.p, { salaire: capHitDuJour(x.p),
+      dest: `<div class="pcard-dest">${x.desactive ? `<span class="dest-bad">${esc(x.desactive)}</span>` : esc(x.sous || '')}</div>`,
+      bouton: `<button class="btn-sign" ${x.desactive ? 'disabled' : ''}>${esc(o.motBouton || 'Choisir')}</button>` });
+    el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(x.p); };
+    if (!x.desactive) el.querySelector('.btn-sign').onclick = ev => { ev.stopPropagation(); fermer(); o.onChoix(x.cle || getPlayerKey(x.p)); };
+    return el;
+  });
+  fermer = feuilleDeJoueurs({ ...o, rangees });
+  return fermer;
+}
+/* La fenêtre des deux listes : la tête, le récit, ce qui va en haut (`haut`, `contexte`), les rangées. Rend « fermer ». */
+function feuilleDeJoueurs(o) {
   const m = $('signatureModal');
   if (!m) return () => {};
-  for (const x of o.joueurs) ballottageVu.set(getPlayerKey(x.p), x.p);
   let ferme = false;
   const fermer = () => { if (ferme) return; ferme = true; m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
-  const signer = (x, sortie) => { fermer(); o.onSigne(x, sortie); };
   m.innerHTML = `<div class="choix-sheet" role="dialog" aria-modal="true" aria-label="${esc(o.titre)}">
       <div class="choix-tete"><span class="choix-ico">${o.ico || ''}</span>
         <div class="choix-titres"><div class="choix-titre">${esc(o.titre)}</div>${o.irl ? `<div class="choix-irl">${esc(o.irl)}</div>` : ''}</div>
         <button type="button" class="close-btn choix-fermer" aria-label="${esc(o.motFermer || 'Plus tard')}" title="${esc(o.motFermer || 'Plus tard')}">✕</button></div>
-      <div class="choix-corps">${o.recit ? `<p class="choix-recit">${esc(o.recit)}</p>` : ''}
-        <p class="sig-plafond">Plafond restant <b>${esc(money(capLeft()))}</b> · ${esc(String(signes().length))} / ${esc(String(totalCases()))} signés</p>
+      <div class="choix-corps">${o.recit ? `<p class="choix-recit">${esc(o.recit)}</p>` : ''}${o.contexte || ''}${o.haut || ''}
         <div class="sig-liste"></div></div>
     </div>`;
   const liste = m.querySelector('.sig-liste');
-  for (const x of o.joueurs) liste.appendChild(rangeeDeSignature(x, o, signer));
+  for (const el of o.rangees) liste.appendChild(el);
+  if (!o.rangees.length) liste.outerHTML = '<p class="empty-msg">Personne ici.</p>';
   m.querySelector('.choix-fermer').onclick = () => { fermer(); if (o.onFerme) o.onFerme(); };
   m.hidden = false;
   document.body.classList.add('choix-ouvert');

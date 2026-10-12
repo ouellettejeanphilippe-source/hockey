@@ -31,6 +31,7 @@
  *         textes? { ico, titre, irl, recit, budget, plein, partir(n) } }
  */
 import { rangeeHtml, varsEquipe } from './repechage.js';
+import { jaugePlafond } from './util.js';
 
 const $ = id => document.getElementById(id);
 const PAGE = 24;
@@ -91,13 +92,9 @@ export function ouvrirDepartClasseur(ctx) {
       </div>
       <div class="choix-corps dp-corps">
         <p class="choix-recit">${esc(T.recit)}</p>
-        <div class="inv-plafond dp-budget${depense > ctx.budget ? ' over' : ''}">
-          <div class="inv-pl-tete"><span>${esc(T.budget)}</span><b>${ctx.money(depense)} / ${ctx.money(ctx.budget)}</b></div>
-          <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((depense / Math.max(1, ctx.budget)) * 100))}%"></i></div>
-          <span class="inv-pl-rien">Ensemble, leurs salaires tiennent sous le plafond de la run, avec la place pour tes bouche-trous.</span>
-        </div>
+        ${jaugePlafond({ titre: T.budget, masse: depense, cap: ctx.budget, mot: '<span class="inv-pl-rien">Ensemble, leurs salaires tiennent sous le plafond de la run, avec la place pour tes bouche-trous.</span>' })}
         ${ctx.mode === 'choix' ? `<div class="inv-filtres" role="group" aria-label="Position">${GROUPES.map(([g, nom]) => `<button type="button" class="inv-filtre${etat.groupe === g ? ' on' : ''}" data-groupe="${g}">${esc(nom)} <span>${g === 'tout' ? liste.length : liste.filter(x => ctx.groupe(x.p) === g).length}</span></button>`).join('')}</div>
-          <input type="search" class="dp-cherche" placeholder="Chercher un nom" value="${esc(etat.cherche)}" aria-label="Chercher un joueur">` : ''}
+          <label class="search"><svg class="ico" aria-hidden="true"><use href="#i-search"/></svg><input type="search" class="dp-cherche" placeholder="Chercher un joueur…" value="${esc(etat.cherche)}" aria-label="Chercher un joueur" autocomplete="off"></label>` : ''}
         ${cartes ? `<div class="sig-liste">${cartes}</div>` : '<p class="inv-vide">Aucune carte ici.</p>'}
         ${ctx.mode === 'choix' && filtres.length > visibles.length ? `<button type="button" class="btn dp-plus">Voir ${Math.min(PAGE, filtres.length - visibles.length)} cartes de plus · ${filtres.length - visibles.length} en tout</button>` : ''}
       </div>
@@ -114,7 +111,11 @@ export function ouvrirDepartClasseur(ctx) {
     m.querySelectorAll('[data-remettre]').forEach(b => { b.onclick = () => { pris.delete(b.dataset.remettre); dessiner(); }; });
     m.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; etat.montres = PAGE; dessiner(); }; });
     const cherche = m.querySelector('.dp-cherche');
-    if (cherche) cherche.onchange = () => { etat.cherche = cherche.value.trim(); etat.montres = PAGE; dessiner(); };
+    // Comme le vestiaire (Jalon U) : la liste se filtre à chaque lettre, le curseur reste dans la recherche.
+    if (cherche) cherche.oninput = () => {
+      etat.cherche = cherche.value.trim(); etat.montres = PAGE; dessiner();
+      const c = m.querySelector('.dp-cherche'); if (c) { c.focus(); c.setSelectionRange(c.value.length, c.value.length); }
+    };
     const plus = m.querySelector('.dp-plus');
     if (plus) plus.onclick = () => { etat.montres += PAGE; dessiner(); };
     m.querySelector('.dp-commencer').onclick = () => {

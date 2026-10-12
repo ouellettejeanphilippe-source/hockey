@@ -373,6 +373,20 @@ Le constat, mesuré le 12 oct. (270 premières saisons de `rogue_sim`, 99 qualif
 - [x] **R2 · Entre deux saisons, les mêmes rangées.** Le départ du classeur, « Ceux qui restent » et les lotos (js/depart.js) montrent les rangées du vestiaire, « Prendre » et « Remettre ».
   - Preuve : `essai_rogue` (le départ du classeur).
 
+## Jalon U · Une interface (JP, 12 oct. : *je veux que l'interface soit toujours en phase, cohérente, pas avec plein de designs différents pour des fonctions pareilles* ; *prends le meilleur de chaque*)
+
+L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur, sept d'onglets et de filtres, quatre jauges du plafond, deux faces pour la même carte de jeu, dix « rien ici ».
+
+- [x] **U1 · Les onglets** : un dessin, le souligné d'or des sous-pages (`.soustab`), pour les onglets de l'inventaire, de la boutique, du bilan et les vues du cartable.
+- [x] **U2 · Les filtres** : un dessin, la pastille bordée et son compte (`.inv-filtre`), pour les postes du vestiaire (avec ce qui reste à combler), les groupes de l'onglet Joueurs, du classeur et de l'inventaire.
+- [x] **U3 · La recherche** : celle du vestiaire (l'icône, la liste qui suit chaque lettre) au départ du classeur.
+- [x] **U4 · Le plafond** : une jauge (`jaugePlafond`, js/util.js) à l'inventaire, à la boutique, au classeur et dans la liste de signature.
+- [x] **U5 · Les boutons et les pieds** : « Signer » est `.btn-sign` partout ; or pour choisir, vert pour lancer ; un pied de fenêtre (`.gl-pied`).
+- [x] **U6 · Choisir un joueur** : les rangées du vestiaire (`ouvrirListeJoueurs`) pour « pour qui ? », « qui soigner ? », « qui monte ? », « Nouveau rôle » et « Garder un joueur ».
+- [x] **U7 · La carte de jeu** : l'inventaire montre la face d'un pack ou d'une main (`carteDeBanqueHtml`), plus une carte plate à part.
+- [x] **U8 · Rien ici** : une phrase centrée (`.empty-msg`), et sa petite.
+  - Preuve : `essai_rogue`, `smoke`, `check_css`, `check_mort`.
+
 ## Après la 1.0 · idées notées
 
 - [ ] **Variété de mise en page des cartes** (JP, 28 sept. : *les cartes, ça manque de variété de mise en page*). Les 55 designs du S80 varient la couleur, la bande du nom et la finition, mais la structure reste la même partout : photo en haut, nom, salaire et points en bas. Pistes, comme les vraies séries : photo pleine carte avec le nom en surimpression (années 90), photo en médaillon sur un fond de club (années 70), cadre horizontal pour les cartes de série ou de trophée, photo d'action détourée qui déborde du cadre, dos de carte stylisé par époque. Contrainte : le poste, le salaire et le chiffre clé restent au même endroit sur toutes les cartes du vestiaire, sinon on ne compare plus d'un coup d'oeil.
@@ -556,3 +570,4 @@ Le constat, mesuré le 12 oct. (270 premières saisons de `rogue_sim`, 99 qualif
 - 2026-10-12 — P4 : les extensions du cartable par décennie, avec leur complétion, et six missions de collection payées en médailles. Le robot ne les touche pas (il n'a pas de cartable réel) : la courbe des campagnes ne compte pas ces médailles.
 - 2026-10-12 — P5 : la carte signature des Holo et des Or. Corrigé au passage (le smoke le trouvait, la #181 rouge) : une reprise rebâtissait les adversaires sans leur club-école (B), et les séries rejouées divergeaient ; `rebatirAdversaires` et les adversaires gardés le portent maintenant.
 - 2026-10-12 — R : la liste du 82-0 pour signer en Rogue (packs, rappel, ballottage, joueur au choix, entre deux saisons), la case calculée d'avance, « qui sort ? » au besoin.
+- 2026-10-12 — U : une interface — un dessin par fonction (onglets, filtres, recherche, jauge du plafond, boutons, listes de joueurs, face des cartes, « rien ici »).
