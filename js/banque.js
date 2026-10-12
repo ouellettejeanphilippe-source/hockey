@@ -34,6 +34,7 @@ import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
 import { money, hache } from './util.js';
+import { NIVEAUX } from './niveaux.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS } from './coachs.js';
@@ -398,6 +399,13 @@ export const CONSOMMABLES = {
   // V5 : comme dans la LNH, on change de coach en cours de saison en congédiant l'entraîneur — le nouveau arrive avec
   // sa philosophie, à la confiance I, et l'ancienne part avec son bonus. Le seul chemin vers un autre coach en saison.
   congediement: { nom: 'Le congédiement', ico: '📋', rarete: 'peu', vie: 'usage', cible: 'coach', texte: 'L\'entraîneur vide son bureau au matin. Le nouveau arrive avec son cahier de jeux, et tout est à rebâtir.' },
+  /*
+   * LE RAPPEL DU CLUB-ÉCOLE (Jalon P3). JP : *ajouter des cartes qui permettent de piger dans tes cartes pour signer* ;
+   * *les cartes sont genre le club-école*. Trois joueurs de TON cartable (`offres`), au plus de leur niveau
+   * (`niveauMax`, js/niveaux.js), sous le plafond ; un se signe comme au ballottage (une décision `ballottage`).
+   */
+  rappel: { nom: 'Le rappel du club-école', ico: '📟', rarete: 'commune', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 1, texte: 'Un coup de fil à la ferme : trois de tes cartes répondent.' },
+  rappelPilier: { nom: 'Le rappel d\'un pilier', ico: '📟', rarete: 'rare', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, texte: 'Celui-là, il n\'aurait jamais dû descendre.' },
   capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.72, defense: 0.944, volume: 0.958 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 
@@ -546,6 +554,7 @@ function formeDeConsommable(C) {
   if (C.cible === 'malediction') return 'Malédiction';
   if (C.cible === 'carteMatch') return 'Plus';
   if (C.cible === 'coach') return 'Coach';
+  if (C.cible === 'cartable') return 'Rappel';
   if (C.gain) return 'Jetons';
   if (g.gardienAux) return 'Filet';
   if (g.soin) return 'Soin';
@@ -665,6 +674,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
     if (C.cible === 'carteMatch') out.push({ txt: '1 carte du deck devient « + »', bon: true });
     if (C.cible === 'coach') out.push({ txt: 'Un autre coach, à la confiance I', bon: true }, { txt: 'Ton coach part, avec sa confiance', bon: false });
+    if (C.cible === 'cartable') out.push({ txt: `${C.offres} joueurs de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus : un signé`, bon: true });
     if (C.parJoueur) out.push(motDeJoueurs(C.parJoueur, c.coach));
     return out;
   }
@@ -766,7 +776,7 @@ function grandi(X, coach, build = {}, joueurs = {}) {
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, carte = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {} } = {}) {
+export function payloadDe(id, { joueur = null, carte = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {}, sortie = null, rar = null } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
@@ -796,6 +806,8 @@ export function payloadDe(id, { joueur = null, carte = null, coach = null, patro
     if (C.cible === 'malediction') return carte ? { deck: 'menage', retrait: carte } : null;
     if (C.cible === 'carteMatch') return carte ? { deck: 'camp', aiguise: carte } : null;
     if (C.cible === 'coach') return coach && COACHS[coach] ? coachNeuf(coach) : null;
+    // Le rappel : le joueur du cartable entre à la case que `sortie` libère, comme au ballottage.
+    if (C.cible === 'cartable') return joueur ? { ballottage: { entre: joueur, i: sortie ? sortie.i : null, sort: sortie ? sortie.sort : null, ...(rar ? { rar } : {}) }, ...(sortie && sortie.cases ? { cases: sortie.cases } : {}) } : null;
     const out = {};
     if (C.gestes) out.gestes = { ...C.gestes };
     if (effet) out.effet = effet;

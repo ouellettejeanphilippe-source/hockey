@@ -16,7 +16,7 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
-import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
+import { ajouterAuCartable, lireCartable, meilleureVariante, motDeMontee, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -341,8 +341,34 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   decider({ jour: j, palier: `k:${n}`, achat });
   if (tc) rangerCartes(tc, n);
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  annoncerMontees(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
   offrirPackJoueurs({ cle, cartes, reglage, pitie, vente: achat.vente, n, j, decider, tc, montrerCartes: true });
+}
+/*
+ * LES OFFRES DU RAPPEL (Jalon P3) : les cartes de ton cartable dans l'ordre pur de `graine`, au plus du niveau de la
+ * carte jouée, à un salaire qu'un pack offrirait, ni dans la ligue ni déjà chez toi ; leur meilleure variante.
+ */
+async function offresDuCartable(C, graine) {
+  const c = lireCartable(), Lg = G.ligue;
+  const dansLaLigue = new Set();
+  for (const t of Lg.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const max = salaireMaxDePack(), out = [];
+  for (const cle of tirageDuClasseur(Object.keys(c.joueurs), graine)) {
+    if (out.length >= C.offres) break;
+    const p = await joueurDeCle(cle);
+    if (!p || !(p.$ > 0) || p.$ > max || dansLaLigue.has(getPersonKey(p)) || dejaChezToi(p) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
+    const niveau = niveauDe(p, (await getShard(p.s)).players);
+    if (niveau > C.niveauMax) continue;
+    const x = c.joueurs[cle];
+    out.push({ p, rar: meilleureVariante(x), niveau, num: (x.num || [])[0] || null });
+  }
+  return out;
+}
+/* Les cartes que leurs doublons ont montées (Jalon P3), dites une fois, à l'ouverture. */
+function annoncerMontees(montees, cartes) {
+  if (!montees.length) return;
+  const nom = cle => (cartes.find(x => getPlayerKey(x.p) === cle) || { p: { n: 'Ta carte' } }).p.n;
+  toast(`${montees.map(m => motDeMontee(m, nom(m.cle))).join(' · ')}`);
 }
 /* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
 export async function rouvrirPackJoueurs(achat, j, decider) {
@@ -431,7 +457,7 @@ export async function ouvrirPackDeSerie(cle, ronde) {
     graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(decisionsDeLaPartie(), G.journee || 0), saisons: state.index.seasons, shard: getShard,
   });
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  annoncerMontees(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Au cartable',
     recit: `${cartes.length} vrais joueurs, tous à ton cartable : pour la saison prochaine et les runs d'après.`,
@@ -686,6 +712,24 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
         contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
         options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
         onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
+      return;
+    }
+    if (C.cible === 'cartable') {
+      // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
+      sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
+        if (!offres.length) { toast(`Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`); retour(); return; }
+        for (const x of offres) ballottageVu.set(getPlayerKey(x.p), x.p);
+        const offrir = () => ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'recompense', sansPaquet: true, fermable: true, motFermer: 'Retour', recit: c.texte,
+          options: offres.map(optionDeJoueurTire),
+          onChoix: k => {
+            const x = offres.find(y => getPlayerKey(y.p) === k);
+            if (!x || dejaChezToi(x.p)) return;
+            quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onFerme: offrir,
+              onChoix: sortie => { if (!sortie) return; G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); } });
+          },
+          onFerme: retour });
+        offrir();
+      });
       return;
     }
     if (C.cible === 'coach') {

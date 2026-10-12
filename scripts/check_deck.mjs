@@ -28,7 +28,8 @@ import {
   mainDuDeck, SORTES_DECK, rolesOfferts, MUTATIONS, CARTES, PALIERS_CARTES,
   getPlayerKey, profilsDe,
 } from '../js/sim.js';
-import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte } from '../js/banque.js';
+import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte, payloadDe } from '../js/banque.js';
+import { monterLesDoublons } from '../js/cartable.js';
 import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH } from '../js/combat.js';
 import { pocheDeLaPartie, mainDeLaSemaine, PALIERS_PACK } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -212,6 +213,24 @@ console.log('\n  Le deck (S73)\n');
   const poche = pocheDeLaPartie({ decisions: [report], graine: 7, nMatch: 0, rogue: true });
   const apres = pocheDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], graine: 7, nMatch: 0, rogue: true });
   exiger('la poche de la saison d\'avant entre au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
+}
+
+/*
+ * LES DOUBLONS ET LE RAPPEL (Jalon P3). Trois doublons d'une variante la montent d'un cran, jusqu'à Holo ; l'Or ne se
+ * fabrique pas. « Le rappel du club-école » signe un joueur de ton cartable par la décision qui existe (`ballottage`).
+ */
+{
+  // Treize Base : quatre montent (douze doublons), et ces quatre Parallèles en font une Holo.
+  const x = { v: { commune: 13 } };
+  const m = monterLesDoublons(x);
+  exiger('trois doublons montent la carte : Base → Parallèle → Holo, jamais Or', m.length === 5 && x.v.commune === 1 && x.v.peu === 1 && x.v.rare === 1 && !x.v.legendaire,
+    `${JSON.stringify(m.map(y => `${y.de}→${y.a}`))} · reste ${JSON.stringify(x.v)}`);
+  const y = { v: { peu: 4 } };
+  monterLesDoublons(y);
+  exiger('une Parallèle et trois doublons font une Holo', y.v.peu === 1 && y.v.rare === 1, JSON.stringify(y.v));
+  const p = payloadDe('consommable:rappel', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
+  exiger('le rappel du club-école est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
+  exiger('sans joueur choisi, le rappel ne décide rien', payloadDe('consommable:rappel', {}) === null);
 }
 
 verdict('Le deck');

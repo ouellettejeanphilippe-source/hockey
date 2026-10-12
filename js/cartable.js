@@ -45,25 +45,47 @@ export function lireCartable() {
   return c;
 }
 /*
+ * TROIS DOUBLONS MONTENT LA CARTE (Jalon P3). JP : *avoir des doublons possibles, […] mais ajouter des mécaniques
+ * pour compenser*. Une variante qui compte sa carte et `FUSION` doublons de plus les échange contre la variante
+ * au-dessus : Base → Parallèle → Holo (l'Or ne se fabrique pas, il se tire). Pure : rend les montées, `x` change.
+ */
+const FUSION = 3, MONTE = { commune: 'peu', peu: 'rare' };
+export function monterLesDoublons(x) {
+  const montees = [];
+  for (const rar of ['commune', 'peu']) {
+    while ((x.v[rar] || 0) > FUSION) {
+      x.v[rar] -= FUSION;
+      x.v[MONTE[rar]] = (x.v[MONTE[rar]] || 0) + 1;
+      montees.push({ de: rar, a: MONTE[rar] });
+    }
+  }
+  return montees;
+}
+/* Ce que la boîte dit d'une montée : « Gaborik monte : Base → Parallèle (trois doublons) ». */
+const NOM_VARIANTE = Object.fromEntries(VARIANTES.map(([k, nom]) => [k, nom]));
+export const motDeMontee = (m, nom) => `${nom} monte : ${NOM_VARIANTE[m.de]} → ${NOM_VARIANTE[m.a]} (${FUSION} doublons)`;
+/*
  * DES CARTES ENTRENT AU CARTABLE. `doublons` : une copie de plus compte (un
  * pack) ; sinon (l'alignement au départ d'une saison, une signature déjà
- * tirée) seule une variante NEUVE s'ajoute. Rend le nombre de joueurs neufs.
+ * tirée) seule une variante NEUVE s'ajoute. Rend les cartes montées par leurs
+ * doublons ({ cle, de, a }).
  */
 export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
   const c = lireCartable();
-  let neufs = 0;
+  const montees = [];
   for (const e of entrees) {
     if (!e || !e.cle) continue;
     const rar = RANG[e.rar] !== undefined ? e.rar : 'commune';
     const x = c.joueurs[e.cle];
-    if (!x) { c.joueurs[e.cle] = { v: { [rar]: 1 }, n: 1, ...(e.num ? { num: [e.num] } : {}) }; neufs++; continue; }
+    if (!x) { c.joueurs[e.cle] = { v: { [rar]: 1 }, n: 1, ...(e.num ? { num: [e.num] } : {}) }; continue; }
     if (!doublons && x.v[rar]) continue;
     x.v[rar] = (x.v[rar] || 0) + 1;
     x.n = (x.n || 0) + 1;
     if (e.num) x.num = [...new Set([...(x.num || []), e.num])];
+    for (const m of monterLesDoublons(x)) montees.push({ cle: e.cle, ...m });
   }
   ecrire(c);
-  return neufs;
+  return montees;
 }
 /*
  * LES ANCIENNES PARTIES (une fois) : les joueurs qui ont porté tes couleurs
@@ -72,10 +94,10 @@ export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
  */
 export function migrerHistorique(cles = []) {
   const c = lireCartable();
-  if (c.hist) return 0;
+  if (c.hist) return;
   c.hist = true;
   ecrire(c);
-  return ajouterAuCartable(cles.map(cle => ({ cle })), { doublons: false });
+  ajouterAuCartable(cles.map(cle => ({ cle })), { doublons: false });
 }
 /*
  * LES RUNS JOUÉES PAR CARTE (1.0) : `r` compte les runs Rogue où la carte a
