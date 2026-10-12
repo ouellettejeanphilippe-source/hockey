@@ -4168,6 +4168,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       adv: s.A === you ? s.B : s.A, domicile: s.A === you,
       match: derniere('match') || { importance: 'normale', ad: 0 }, filet: derniere('filet') || 'auto', filetEtat: filetDuSoir(you),
       depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
+      // Tes unités spéciales déjà choisies pour ce match (la décision ne joue qu'à la mise au jeu), sinon celles en vigueur.
+      speciales: (decsSerie.filter(d => pour(d) && 'speciales' in d).pop() || { speciales: you.speciales || null }).speciales,
       energie: Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])),
     };
   };

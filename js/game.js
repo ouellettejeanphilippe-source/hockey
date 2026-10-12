@@ -1553,7 +1553,7 @@ export function setOption(key, val) {
   else if (key === 'effectif') {
     // L'onglet de l'alignement au téléphone (1.0, R4) : un état d'écran, jamais sauvegardé.
     // V6 : l'onglet Équipe — le plan de match derrière le banc, et le résumé d'équipe.
-    document.body.dataset.effectif = ['E', 'F', 'D', 'G'].includes(val) ? val : 'F';
+    document.body.dataset.effectif = ['E', 'F', 'D', 'S', 'G'].includes(val) ? val : 'F';
     document.querySelectorAll('.seg-effectif button').forEach(b => b.classList.toggle('on', b.dataset.val === document.body.dataset.effectif));
   }
   else if (key === 'palette') {

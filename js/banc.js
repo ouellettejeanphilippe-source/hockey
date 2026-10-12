@@ -95,6 +95,8 @@ function ouvrirBanc(jour) {
     // LE PLAN DE MATCH (V6) : l'appariement de tes trios et la glace du club, en vigueur sur l'équipe.
     appariement: L.you.appariement ? [...L.you.appariement] : null,
     roulement: L.you.roulement || 'quatre',
+    // TES UNITÉS SPÉCIALES (V7) : celles qu'on a choisies, ou null — le moteur range seul.
+    speciales: L.you.speciales || null,
     // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
     lignes: lignesDe(L.you, G.roster),
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
@@ -131,11 +133,11 @@ export async function reprendreSaison() {
     $('game').classList.remove('banc');
     // V7 : le plan de match du soir part avec l'alignement — la glace, l'appariement, la consigne, le filet.
     await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes,
-      appariement: b.appariement, roulement: b.roulement, match: b.match, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
+      appariement: b.appariement, roulement: b.roulement, speciales: b.speciales || null, match: b.match, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
     return;
   }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, appariement: b.appariement, roulement: b.roulement, sel: nouvelleGraine() };
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, appariement: b.appariement, roulement: b.roulement, speciales: b.speciales || null, sel: nouvelleGraine() };
   // Une décision de banc du même jour remplacée garde ses relâchés : ils sont partis pour de bon.
   const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
   if (avant.length || relaches.length) d.relache = [...avant, ...relaches];
@@ -546,7 +548,7 @@ export function bancSerie(ronde, k, soir = null) {
   G.banc.serie = { ronde, k };
   if (soir) {
     G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
-    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, depistage: soir.depistage, energie: { ...G.banc.energie, ...soir.energie } });
+    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, depistage: soir.depistage, speciales: soir.speciales || null, energie: { ...G.banc.energie, ...soir.energie } });
   }
   renderBanc();
 }

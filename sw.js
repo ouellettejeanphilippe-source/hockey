@@ -27,7 +27,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-2.2.1';  // 2.2.1 : les émojis au trait en tranches (fonts/NotoEmoji-*.woff2). 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
+const VERSION = 'cap82-2.2.2';  // 2.2.2 : tes unités spéciales (l'onglet AN · DN des Lignes). 2.2.1 : les émojis au trait en tranches (fonts/NotoEmoji-*.woff2). 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages

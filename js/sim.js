@@ -3861,8 +3861,8 @@ const FE_QUALITE = 1.03;       // idem, sur la finition
  * de première unité prend le quart à la moitié de ses tirs en avantage.
  */
 const PART_AN_TIRS = [0.35, 0.15];   // première unité, deuxième unité
-const POIDS_AN = [0.65, 0.35];        // part du temps d'avantage de chaque unité
-const POIDS_DN = [0.60, 0.40];
+export const POIDS_AN = [0.65, 0.35];        // part du temps d'avantage de chaque unité
+export const POIDS_DN = [0.60, 0.40];
 const PART_LANCERS_D_AN = 0.38;       // en avantage, la pointe tire plus (Lidström) — repère public
 const DISCIPLINE_MIN = 0.5;    // bornes de l'indiscipline d'un alignement
 const DISCIPLINE_MAX = 1.8;
@@ -4105,8 +4105,16 @@ const est_Def = p => p && (p.p === 'D' || p.p === 'LD' || p.p === 'RD');
  * Elles ont la forme des unités ordinaires pour que `jouerCote` les joue
  * sans rien savoir : `choisirUnite` tire sur `poids`, `choisirPresence` sur
  * `presence`.
+ *
+ * TES UNITÉS SPÉCIALES (V7, JP : *créer lignes avantages numériques à part*).
+ * `choix` = { AN: [[clés ×5], [×5]], DN: [[×4], [×4]] } — trois attaquants
+ * et deux défenseurs par unité d'avantage, deux et deux en désavantage, dans
+ * l'ordre des cases. Un choisi qui n'est pas habillé ce soir (blessé, au
+ * cachot de l'alignement) laisse sa case au suivant du classement du moteur
+ * qui n'est pas déjà dans cette situation. Sans choix, le moteur range seul.
  */
-function unitesSpeciales(habilles) {
+const NB_SPECIALES = { AN: { F: 3, D: 2 }, DN: { F: 2, D: 2 } };
+function unitesSpeciales(habilles, choix = null) {
   const F0 = habilles.filter(p => p && p.p !== 'G' && !est_Def(p)), D0 = habilles.filter(est_Def);
   // Sans un seul défenseur habillé (l'infirmerie pleine), des attaquants jouent la pointe, et l'inverse :
   // une unité spéciale n'est jamais vide (check_banque plantait sur une avantage sans paire).
@@ -4127,15 +4135,41 @@ function unitesSpeciales(habilles) {
     coteDef: joueurs.length ? joueurs.reduce((a, p) => a + coteD(p), 0) / joueurs.length : REPLACEMENT,
   });
   const Fo = ranges(F, clAN), Do = ranges(D, clAN), Fd = ranges(F, clDN), Dd = ranges(D, clDN);
-  const anF = [Fo.slice(0, 3), Fo.slice(3, 6)], anD = [Do.slice(0, 2), Do.slice(2, 4)];
-  const dnF = [Fd.slice(0, 2), Fd.slice(2, 4)], dnD = [Dd.slice(0, 2), Dd.slice(2, 4)];
+  let anF = [Fo.slice(0, 3), Fo.slice(3, 6)], anD = [Do.slice(0, 2), Do.slice(2, 4)];
+  let dnF = [Fd.slice(0, 2), Fd.slice(2, 4)], dnD = [Dd.slice(0, 2), Dd.slice(2, 4)];
   // La part d'avantage d'un joueur : SES buts en avantage sur ses buts quand
   // le shard les porte (dix buts et plus pour que le rapport veuille dire
-  // quelque chose), sinon la constante de son unité.
+  // quelque chose), sinon la constante de son unité. Elle se lit sur les
+  // unités du MOTEUR, celles de sa vraie saison, même quand tu choisis les
+  // tiennes : sortir une vedette de l'avantage ne lui rend pas, à forces
+  // égales, les lancers qu'elle a pris en avantage (check_speciales).
   const partAN = new Map();
   const partDe = (p, u) => (p.ppg != null && (p.g || 0) >= 10) ? borne(p.ppg / p.g, 0, 0.6) : PART_AN_TIRS[u];
   anF.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
   anD.forEach((js, u) => js.forEach(p => partAN.set(p, partDe(p, u))));
+  if (choix) {
+    const parCle = new Map(habilles.filter(Boolean).map(p => [getPlayerKey(p), p]));
+    // Une situation : ses deux unités, case par case ; une case vide prend le premier du classement qui n'y est pas déjà.
+    const poser = (sit, oF, oD) => {
+      const n = NB_SPECIALES[sit], pris = new Set(), unites = (choix[sit] || []).slice(0, 2);
+      const voulus = [0, 1].map(u => (unites[u] || []).map(k => parCle.get(k) || null));
+      for (const u of voulus) for (const p of u) if (p) pris.add(p);
+      // Un joueur ne sert qu'une fois par situation : un doublon cède sa case comme un absent.
+      const places = new Set();
+      const combler = (u, debut, combien, ordre) => {
+        const out = [];
+        for (let i = 0; i < combien; i++) {
+          let p = voulus[u][debut + i];
+          if (!p || places.has(p)) { p = ordre.find(q => !pris.has(q) && !places.has(q)) || null; if (p) pris.add(p); }
+          if (p) { out.push(p); places.add(p); }
+        }
+        return out;
+      };
+      return [0, 1].map(u => [combler(u, 0, n.F, oF), combler(u, n.F, n.D, oD)]);
+    };
+    if (choix.AN) { const [u0, u1] = poser('AN', Fo, Do); anF = [u0[0], u1[0]]; anD = [u0[1], u1[1]]; }
+    if (choix.DN) { const [u0, u1] = poser('DN', Fd, Dd); dnF = [u0[0], u1[0]]; dnD = [u0[1], u1[1]]; }
+  }
   const premiere = [...anF[0], ...anD[0]];
   const volume = premiere.length ? borne(premiere.reduce((a, p) => a + lancersRel(p), 0) / premiere.length, 0.6, 1.6) : 1;
   const garnir = (unites, poids) => unites.map((js, u) => unite(js, poids[u], u)).filter(x => x.joueurs.length);
@@ -4143,6 +4177,23 @@ function unitesSpeciales(habilles) {
     avantage: { F: garnir(anF, POIDS_AN), D: garnir(anD, POIDS_AN), volume, partAN },
     desavantage: { F: garnir(dnF, POIDS_DN), D: garnir(dnD, POIDS_DN) },
   };
+}
+
+/* Un choix d'unités spéciales qui a la forme attendue (deux unités de cinq clés en avantage, de quatre en désavantage), ou null. */
+export function specialesValides(x) {
+  if (!x || typeof x !== 'object') return null;
+  const ok = (sit, n) => Array.isArray(x[sit]) && x[sit].length === 2 && x[sit].every(u => Array.isArray(u) && u.length === n && u.every(k => typeof k === 'string'));
+  const out = {};
+  if (ok('AN', 5)) out.AN = x.AN.map(u => [...u]);
+  if (ok('DN', 4)) out.DN = x.DN.map(u => [...u]);
+  return out.AN || out.DN ? out : null;
+}
+/* Les unités spéciales de ce soir, en joueurs, telles que le moteur les jouera : { AN: [[5], [5]], DN: [[4], [4]] }. */
+export function specialesDuSoir(team, lineup) {
+  const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
+  const u = unitesSpeciales(habilles, team.speciales || null);
+  const deux = sit => [0, 1].map(i => [...((sit.F[i] || {}).joueurs || []), ...((sit.D[i] || {}).joueurs || [])]);
+  return { AN: deux(u.avantage), DN: deux(u.desavantage) };
 }
 
 /** Le trio de fermeture par défaut : le 3e trio, s'il existe (voir FERMETURE_DEFAUT). */
@@ -4181,7 +4232,7 @@ function poserMentors(lineup) {
 export function profilMatch(team, lineup, adv = null) {
   poserMentors(lineup);
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup[s.i]).filter(Boolean);
-  const speciales = unitesSpeciales(habilles);
+  const speciales = unitesSpeciales(habilles, team.speciales || null);
   const membresAN = speciales.avantage.partAN;
   const unites = { F: [], D: [] };
   // LA CHIMIE DE CE SOIR (S73), ligne par ligne, avec les tactiques jouées ce soir.
@@ -5879,10 +5930,12 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // Tes unités à forces égales (V6) : ce que chacune change, en attaque et en défense, et leurs parts de glace.
       const presences = g => { const u = (A.unites && A.unites[g]) || [], t = u.reduce((a, x) => a + (x.presence || 0), 0) || 1; return u.map(x => (x.presence || 0) / t); };
       const unites = { pour: { qui: 'off', F: [], D: [] }, contre: { qui: 'def', F: [], D: [] }, glace: { F: presences('F'), D: presences('D') } };
+      // Tes unités spéciales (V7) : en avantage, les lancers de chacune ; en désavantage, ceux d'en face contre chacune.
+      const speciales = { pour: { qui: 'off', F: [], D: [] }, contre: { qui: 'def', F: [], D: [] } };
       for (const mode of ['FE', 'AN', 'DN']) {
         joueurs[mode] = new Map();
-        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode], mode === 'FE' ? unites.pour : null);
-        p.contre[mode] = lire(B, A, gA, mode, null, mode === 'FE' ? unites.contre : null);
+        p.pour[mode] = lire(A, B, gB, mode, joueurs[mode], mode === 'FE' ? unites.pour : mode === 'AN' ? speciales.pour : null);
+        p.contre[mode] = lire(B, A, gA, mode, null, mode === 'FE' ? unites.contre : mode === 'AN' ? speciales.contre : null);
       }
       // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
       const dissuasion = Math.exp(-DISSUASION * robZ(A));
@@ -5892,7 +5945,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       const usure = couts.length ? couts.reduce((a, [, c]) => a + c, 0) / couts.length : 0;
       // Les bagarres attendues (V2.2) : contre un club moyen, on lit le match contre son propre reflet.
       const phys = physiqueAttendu(A, adv ? B : A);
-      return { A, B, occasions, p, joueurs, unites, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
+      return { A, B, occasions, p, joueurs, unites, speciales, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
       if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
@@ -6196,6 +6249,8 @@ function appliquerDecision(team, d, graine = 0) {
   // L'APPARIEMENT (V6) : contre leur trio r, ton trio `d.appariement[r]` — ou null pour revenir à l'appariement par rang.
   if ('appariement' in d) team.appariement = planValide(d.appariement);
   if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
+  // TES UNITÉS SPÉCIALES (V7) : l'avantage et le désavantage numériques choisis derrière le banc ; null, le moteur range seul.
+  if ('speciales' in d) team.speciales = specialesValides(d.speciales);
   // UN CHANGEMENT DE CARTE PAR CHOIX (S68) : direct, ou porté par l'option
   // d'un dilemme. Le joueur visé est nommé dans la décision.
   const mut = d.mutation || (d.moment && d.moment.joueur && (() => {
@@ -7648,6 +7703,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   for (const d of aVenir || []) {
     if (d.carte && CARTES[d.carte]) team.cartes = [...(team.cartes || []), d.carte];
     if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
+    if ('speciales' in d) team.speciales = specialesValides(d.speciales);
     if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
     const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
     if (eff) ajouter(eff);
@@ -7670,7 +7726,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   }
 }
 export function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
-  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'lignes', ...(cases ? ['roster'] : [])];
+  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'speciales', 'lignes', ...(cases ? ['roster'] : [])];
   const avant = champs.map(k => [k, k in team, team[k]]);
   try {
     poserAVenir(team, aVenir, { cases });

@@ -2337,6 +2337,19 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pm-notes { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); font: 700 var(--t-2)/1.2 var(--display); font-variant-numeric: tabular-nums; }
 .pm-notes .bon { color: var(--bon); }
 .pm-notes .mauvais { color: var(--mauvais); }
+/* Tes unités spéciales (V7) : le panneau du plan de match ; une bande par unité, ses minutes et ses stats, une rangée par joueur. */
+.unites-speciales { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
+.unites-speciales .pm-tete { align-items: center; }
+.us-auto { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-1); }
+.us-unite { display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; }
+.us-tete { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--esp-1) var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
+.us-stats { font: 700 var(--t-1)/1.2 var(--display); color: var(--encre-2); text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.us-joueurs { display: flex; flex-direction: column; gap: 1px; background: var(--filet-2); }
+.us-j { display: grid; grid-template-columns: 3em minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 0; background: var(--fond-1); color: var(--encre); text-align: left; cursor: pointer; }
+.us-j:hover { background: var(--fond-2); }
+.us-pos { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
+.us-nom { font: 700 var(--t-3)/1.1 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.us-stat { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .line-net { flex: none; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
 .line-net b { font-size: var(--t-3); color: var(--encre); }
 .line-net b.bon { color: var(--bon); }
@@ -2599,6 +2612,9 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
   body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
   /* L'onglet Équipe (V6) : le plan de match et le résumé d'équipe ; les unités vivent dans les trois autres. */
   body[data-effectif="E"] #rosterBoard .line, body:not([data-effectif="E"]) #rosterBoard :is(.plan-match, .ej-soir) { display: none; }
+  /* L'onglet AN · DN (V7) : tes unités spéciales seules ; il n'existe que derrière le banc, où elles se jouent. */
+  body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="S"]) #rosterBoard .unites-speciales { display: none; }
+  #game:not(.banc) .seg-effectif [data-val="S"] { display: none; }
   .line-head { min-height: 36px; }
   /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
   .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }

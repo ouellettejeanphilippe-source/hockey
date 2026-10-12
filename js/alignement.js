@@ -7,9 +7,9 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs, lignesDeGros, planProbable } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats } from './impact.js';
-import { getArchetype, POIDS_TRIO } from './ratings.js';
+import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getHiddenRatings, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs, lignesDeGros, planProbable, PART_UNITE, specialesDuSoir } from './sim.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats, specialesEnStats } from './impact.js';
+import { getArchetype } from './ratings.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
 import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, puces } from './gerant.js';
@@ -678,10 +678,12 @@ function boutonAuMieux() {
  * panneau le dit. Chaque toucher rejoue la note des unités.
  */
 const ORD_TRIO = ['1er', '2e', '3e', '4e'];
-/* LA GLACE EN MINUTES (V6, JP : *des temps par trio genre 60-50-40-30*) : ce qu'un roulement donne à chaque trio, sur 60 minutes, coachs et patrons compris. */
-const minutesDuRoulement = k => partsDuRoulement(POIDS_TRIO, 'F', { ...G.ligue.you, roulement: k }).map(x => Math.round(60 * x));
+/* Les minutes à forces égales du soir, lues au moteur (ni avantage ni désavantage : tes unités spéciales ont les leurs). */
+const minutesFEduSoir = () => avecLeBanc((you, lu, adv, aVenir) => chiffresDuSoir(you, lu, adv, aVenir).minutesFE) || 60;
+/* LA GLACE EN MINUTES (V6, JP : *des temps par trio genre 60-50-40-30* ; V7 : à forces égales, la part que le moteur joue) : ce qu'un roulement donne à chaque trio, coachs et patrons compris. */
+const minutesDuRoulement = (k, fe) => partsDuRoulement(PART_UNITE.F, 'F', { ...G.ligue.you, roulement: k }).map(x => Math.round(fe * x));
 function planDeMatchEl() {
-  const b = G.banc;
+  const b = G.banc, fe = minutesFEduSoir();
   const el = document.createElement('section');
   el.className = 'plan-match';
   const adv = b.prochain.adv;
@@ -701,8 +703,8 @@ function planDeMatchEl() {
   const note = b.prochain.domicile ? noteDesUnites() : null;
   const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % au tir, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
   el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}${b.depistage ? ' · selon le dépistage' : ''}</span></div>
-    <div class="pm-k">Glace · minutes du 1er au 4e trio</div>
-    <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k).join(' · ')}</button>`).join('')}</div>
+    <div class="pm-k">Glace à forces égales · minutes du 1er au 4e trio</div>
+    <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k, fe).join(' · ')}</button>`).join('')}</div>
     <div class="pm-k">Appariement</div>
     ${[0, 1, 2, 3].map(r => `<div class="pm-app"><span class="pm-leur">Leur ${ORD_TRIO[r]} ${ico(leurs[r])}</span><span class="pm-seg">${[-1, 0, 1, 2, 3].map(m => `<button type="button" class="pm-btn${app[r] === m ? ' on' : ''}" data-app="${r}:${m}" aria-pressed="${app[r] === m}" title="${m < 0 ? 'Par rang, comme le veut la rotation' : `Ton ${ORD_TRIO[m]} trio`}">${m < 0 ? 'A' : `${m + 1}${ico(miennes[m])}`}</button>`).join('')}</span></div>`).join('')}
     ${notesHtml}${chezEux}
@@ -720,6 +722,71 @@ function planDeMatchEl() {
       b.appariement = a.some(v => v >= 0) ? a : null;
       b.fermeture = b.appariement && b.appariement[0] >= 0 ? b.appariement[0] : 'auto';
       render();
+    };
+  });
+  return el;
+}
+
+/*
+ * TES UNITÉS SPÉCIALES (V7, JP : *créer lignes avantages numériques à part*). Le moteur en joue deux d'avantage (trois
+ * attaquants, deux défenseurs ; 65 et 35 % du temps) et deux de désavantage (deux et deux ; 60 et 40 %), rangées sur
+ * les vrais points de chacun en avantage et en désavantage. Derrière le banc, elles se voient et se choisissent :
+ * chacune dit ses minutes et ses vraies stats du soir ; toucher un joueur ouvre ceux qui peuvent prendre sa place
+ * (un joueur déjà dans la situation y échange sa case). « Le choix du moteur » revient au rangement automatique.
+ * Le choix part avec la décision du banc (`speciales`, js/sim.js `unitesSpeciales`).
+ */
+const SIT = {
+  AN: { titre: 'Avantage numérique', court: 'AN', stat: p => p.ppp },
+  DN: { titre: 'Désavantage numérique', court: 'DN', stat: p => p.shp },
+};
+/* « 1 pt AN », « 27 pts AN » : ses vrais points dans la situation, sur sa saison. */
+const ptsDe = (S, n) => `${n ?? '—'} ${n === 1 || n === 0 ? 'pt' : 'pts'} ${S.court}`;
+const mmss = m => `${Math.floor(m)}:${String(Math.round((m % 1) * 60)).padStart(2, '0')}`;
+function unitesSpecialesEl() {
+  const b = G.banc;
+  const el = document.createElement('section');
+  el.className = 'unites-speciales';
+  const lu = avecLeBanc((you, l, adv, aVenir) => ({ u: specialesDuSoir(you, l), st: specialesEnStats(you, l, adv, aVenir), l }));
+  if (!lu) return el;
+  const { u, st, l } = lu;
+  const patineurs = Object.values(l).filter(p => p && p.p !== 'G');
+  const statDe = (sit, i) => {
+    const x = st && st[sit] && st[sit][i];
+    if (!x) return '';
+    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % au tir` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} arr.`;
+  };
+  const rangee = (sit, i, j, p) => {
+    const S = SIT[sit], n = S.stat(p);
+    return `<button type="button" class="us-j" data-sit="${sit}" data-u="${i}" data-i="${j}"><span class="us-pos">${esc(positionLabel(p))}</span><span class="us-nom">${formatName(p.n)}</span>${n != null ? `<span class="us-stat">${ptsDe(S, n)}</span>` : ''}</button>`;
+  };
+  el.innerHTML = `<div class="pm-tete"><b>Unités spéciales</b>${b.speciales ? '<button type="button" class="btn us-auto">Le choix du moteur</button>' : '<span>le choix du moteur</span>'}</div>
+    ${['AN', 'DN'].map(sit => `<div class="pm-k">${SIT[sit].titre}</div>${u[sit].map((js, i) => `<div class="us-unite">
+      <div class="us-tete"><b>${SIT[sit].court} ${i + 1}</b><span class="us-stats">${statDe(sit, i)}</span></div>
+      <div class="us-joueurs">${js.map((p, j) => rangee(sit, i, j, p)).join('')}</div></div>`).join('')}`).join('')}`;
+  const auto = el.querySelector('.us-auto');
+  if (auto) auto.onclick = () => { b.speciales = null; render(); };
+  const cles = js => js.map(getPlayerKey);
+  el.querySelectorAll('.us-j').forEach(x => {
+    x.onclick = () => {
+      const sit = x.dataset.sit, i = Number(x.dataset.u), j = Number(x.dataset.i), S = SIT[sit];
+      const actuel = u[sit][i][j];
+      const parMatch = p => (S.stat(p) || 0) / Math.max(1, p.gp || 1);
+      const ordre = patineurs.filter(p => p !== actuel).sort((a, c) => parMatch(c) - parMatch(a));
+      ouvrirChoix({
+        ico: '🏒', titre: `${S.court} ${i + 1} · à la place de ${actuel.n}`, fermable: true, motFermer: 'Retour',
+        options: ordre.map(p => {
+          const ou = [0, 1].find(k => u[sit][k].includes(p));
+          return { cle: getPlayerKey(p), nom: `${positionLabel(p)} · ${p.n}`, sous: `${ptsDe(S, S.stat(p))} en ${p.gp || 0} PJ${ou != null ? ` · déjà en ${S.court} ${ou + 1}` : ''}` };
+        }),
+        onChoix: k => {
+          const choix = { AN: u.AN.map(cles), DN: u.DN.map(cles) };
+          // Un joueur déjà dans cette situation y échange sa case avec celui qu'il remplace.
+          for (const v of [0, 1]) { const w = choix[sit][v].indexOf(k); if (w >= 0) choix[sit][v][w] = getPlayerKey(actuel); }
+          choix[sit][i][j] = k;
+          b.speciales = choix;
+          render();
+        },
+      });
     };
   });
   return el;
@@ -745,21 +812,21 @@ function aVenirDuBanc(plan = {}) {
   // EN SÉRIES (V7), le match de ta série : ses décisions déjà prises (un ajustement, une main), sans celles que le banc règle.
   if (b.serie) {
     return [...(L.decisionsSeries || []).filter(d => d.ronde === b.serie.ronde && d.match_no === b.serie.k && !d.entracte && !d.cases && !d.lignes && !d.match && !d.filet),
-      { lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+      { lignes: b.lignes, match: b.match, filet: b.filet, speciales: b.speciales || null, ...plan }];
   }
   return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes && !(d.jour === j && (d.match || d.filet))),
-    { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, ...plan }];
+    { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, speciales: b.speciales || null, ...plan }];
 }
 /*
- * Le soir du banc posé sur ton club le temps d'une lecture : le plan de match qu'on essaie et, en séries, le match
+ * Le soir du banc posé sur ton club le temps d'une lecture : le plan de match et les unités spéciales qu'on essaie et, en séries, le match
  * qui vient (`jourCourant` à l'infini : le moteur lit `effetsSerie`, que chaque match de série repart à vide).
  */
 function auSoirDuBanc(you, fn) {
   const b = G.banc, serie = !!b.serie;
-  const jc = you.jourCourant, es = you.effetsSerie, avant = [you.appariement, you.roulement];
-  you.appariement = b.appariement; you.roulement = b.roulement;
+  const jc = you.jourCourant, es = you.effetsSerie, avant = [you.appariement, you.roulement, you.speciales];
+  you.appariement = b.appariement; you.roulement = b.roulement; you.speciales = b.speciales || null;
   if (serie) { you.jourCourant = Infinity; you.effetsSerie = []; }
-  try { return fn(); } finally { you.jourCourant = jc; you.effetsSerie = es; [you.appariement, you.roulement] = avant; }
+  try { return fn(); } finally { you.jourCourant = jc; you.effetsSerie = es; [you.appariement, you.roulement, you.speciales] = avant; }
 }
 function avecLeBanc(fn) {
   const b = G.banc, L = G.ligue, you = L && L.you;
@@ -850,6 +917,7 @@ export function renderRoster() {
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
   if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(equipeDuSoirEl());
   if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(planDeMatchEl());
+  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(unitesSpecialesEl());
 
   UNIT_NAMES_F.forEach((name, u) => {
     const slots = SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch);

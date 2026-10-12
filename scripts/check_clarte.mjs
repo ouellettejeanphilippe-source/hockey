@@ -32,6 +32,7 @@ import {
   PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
+  POIDS_AN, POIDS_DN,
 } from '../js/sim.js';
 import { PATRONS } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
@@ -248,7 +249,7 @@ const MOTS_RESERVES = [
   // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   borne('la page des règles est courte', mots, 300, 2100, 'mots');
-  const taisait = [[/avantage numérique<\/strong> se règle seul/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
+  const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
   const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
@@ -327,6 +328,8 @@ const MOTS_RESERVES = [
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 7 ? 'un effet pour la saison, un vrai joueur, une amélioration à poser au verso d\'une carte, un nouveau rôle, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
+    // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
+    [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).
     [`${LANCEE.buts} buts en ${LANCEE.matchs} matchs, et ${nombre(LANCEE.facteur)} fois son vrai rythme, mettent un joueur <strong>sur sa lancée</strong> : précision +${pct(LANCEE.lancee.finition)} %, tirs +${pct(LANCEE.lancee.lancers)} %`, 'la lancée'],
     [`sans but en ${LANCEE.doute.matchs} matchs <strong>doute</strong> : précision −${pct(LANCEE.doute.finition)} %`, 'le doute'],
