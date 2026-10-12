@@ -26,7 +26,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
   energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH,
-  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir, glaceDesLignes, ROULEMENTS } from '../js/sim.js';
+  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir, glaceDesLignes, ROULEMENTS, ecoleDe } from '../js/sim.js';
 import { jambesAVenir } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
@@ -38,7 +38,13 @@ const LIGUES = Number(process.env.LIGUES ?? 4);
 const FILS = process.env.JAMBES_FILS === '1';
 const C = new Map();
 const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
-const eq = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
+// Son club-école (Jalon P, B) : les autres joueurs de ce club-saison (`tous`), rappelés quand les blessés manquent.
+const eq = (nom, tag, un, s, tous = []) => {
+  const p = un.flat().map(x => ({ ...x })), autres = tous.map(x => ({ ...x }));
+  [...p, ...autres].forEach(registerHiddenRatings);
+  const roster = autoRoster(p);
+  return createTeam(nom, tag, roster, { season: s, ecole: ecoleDe(autres, roster) });
+};
 function ligue(seed, n = 32) {
   let x = seed; const rnd = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
   const out = [], vus = new Set();
@@ -51,7 +57,7 @@ function ligue(seed, n = 32) {
     let un; try { un = equipeReelle(sh.season, tag); } catch { continue; }
     if (un[0].length < 12 || un[1].length < 6 || !un[2].length) continue;
     vus.add(`${sh.season}|${tag}`);
-    out.push(eq(`${tag} ${sh.season}`, tag, un, sh.season));
+    out.push(eq(`${tag} ${sh.season}`, tag, un, sh.season, sh.players.filter(p => p.t === tag)));
   }
   return out;
 }

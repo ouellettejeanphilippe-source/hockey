@@ -132,11 +132,11 @@ export const DEBLOCAGES = {
    * au hasard ; des pages de plus en donnent plus, le tri en montre deux fois
    * plus pour garder les meilleures, et le classeur ouvert te laisse choisir.
    */
-  classeur1: { ico: '📒', nom: 'Une page de plus', prix: 50, texte: 'Au départ d\'une run, une carte de plus de ton classeur : deux en tout.' },
-  classeur2: { ico: '📒', nom: 'Deux pages de plus', prix: 130, requis: 'classeur1', texte: 'Trois cartes de ton classeur au départ.' },
-  classeur3: { ico: '📒', nom: 'Trois pages de plus', prix: 240, requis: 'classeur2', texte: 'Quatre cartes de ton classeur au départ.' },
-  classeurTri: { ico: '🔍', nom: 'Le tri du classeur', prix: 90, texte: 'Au départ, tu vois deux fois plus de cartes de ton classeur, tirées au hasard, et tu gardes celles que tu veux.' },
-  classeurChoix: { ico: '📖', nom: 'Le classeur ouvert', prix: 280, requis: 'classeurTri', texte: 'Au départ, tu choisis tes cartes dans tout ton classeur : plus de hasard.' },
+  classeur1: { ico: '📒', nom: 'Une page de plus', prix: 50, texte: 'Au départ d\'une run, une carte de plus de ton classeur : deux en tout. Entre deux saisons, un loto de plus.' },
+  classeur2: { ico: '📒', nom: 'Deux pages de plus', prix: 130, requis: 'classeur1', texte: 'Trois cartes de ton classeur au départ, et un loto de plus entre deux saisons.' },
+  classeur3: { ico: '📒', nom: 'Trois pages de plus', prix: 240, requis: 'classeur2', texte: 'Quatre cartes de ton classeur au départ, et un loto de plus entre deux saisons.' },
+  classeurTri: { ico: '🔍', nom: 'Le tri du classeur', prix: 90, texte: 'Au départ, tu vois deux fois plus de cartes de ton classeur, tirées au hasard, et tu gardes celles que tu veux. Entre deux saisons, chaque loto montre cinq cartes.' },
+  classeurChoix: { ico: '📖', nom: 'Le classeur ouvert', prix: 280, requis: 'classeurTri', texte: 'Au départ et entre deux saisons, tu choisis tes cartes dans tout ton classeur : plus de hasard.' },
   /*
    * S80 : LES CASES DE RÉSERVE DE PLUS. JP : *débloquer des slots de
    * remplacement*. Une case de réserviste qui prend n'importe qui : un joueur
@@ -165,6 +165,16 @@ export function departDuClasseur(m) {
   const n = 1 + ['classeur1', 'classeur2', 'classeur3'].filter(k => aDebloque(m, k)).length;
   const mode = aDebloque(m, 'classeurChoix') ? 'choix' : aDebloque(m, 'classeurTri') ? 'tri' : 'hasard';
   return { n, mode, vues: mode === 'tri' ? n * 2 : n };
+}
+/*
+ * LES LOTOS DU CARTABLE, ENTRE DEUX SAISONS (Jalon Q, js/rogue-jeu.js `lotoDuCartable`) : trois lotos, un de plus
+ * par page du classeur ; chacun montre trois cartes du cartable (cinq avec le tri) et en signe une. Le classeur
+ * ouvert en fait le choix dans tout : autant de cartes, prises dans tout le cartable.
+ */
+const LOTOS_DE_SAISON = 3, CARTES_PAR_LOTO = 3, CARTES_PAR_LOTO_TRI = 5;
+export function lotosDeSaison(m) {
+  const D = departDuClasseur(m);
+  return { n: D.n - 1 + LOTOS_DE_SAISON, mode: D.mode, vues: D.mode === 'tri' ? CARTES_PAR_LOTO_TRI : CARTES_PAR_LOTO };
 }
 /*
  * LE BUDGET DU CLASSEUR : ce que ses cartes peuvent coûter ensemble. Le
@@ -377,6 +387,23 @@ export function ajouterCollection({ joueurs = [], cartes = [] } = {}) {
  * par run et par étape (`recompenses[cle]`) : un rechargement du bilan ne
  * paie pas deux fois.
  */
+/*
+ * LES MISSIONS DE COLLECTION PAYENT (Jalon P4, js/cartable.js `missionsDuCartable`) : une fois chacune, en médailles
+ * gagnées à vie (elles comptent au prestige). Rend celles qui viennent d'être payées.
+ */
+export function payerMissions(missions = []) {
+  const m = lireMeta();
+  m.missions = m.missions || {};
+  const neuves = missions.filter(x => x.fait && !m.missions[x.cle]);
+  if (!neuves.length) return [];
+  for (const x of neuves) {
+    m.missions[x.cle] = true;
+    m.ecussonsAVie = ecussonsAVie(m) + x.medailles;
+    m.ecussons = (m.ecussons || 0) + x.medailles;
+  }
+  ecrireMeta(m);
+  return neuves;
+}
 export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } = {}) {
   const m = lireMeta();
   const k = `${cleRun}:${etape}`;

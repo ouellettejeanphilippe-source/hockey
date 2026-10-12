@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils } from './rogue.js';
+import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
@@ -15,8 +15,8 @@ import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirer
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, MAIN_SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
-import { ajouterAuCartable, lireCartable, meilleureVariante, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
+import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
+import { ajouterAuCartable, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -341,8 +341,41 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   decider({ jour: j, palier: `k:${n}`, achat });
   if (tc) rangerCartes(tc, n);
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
-  offrirPackJoueurs({ cle, cartes, reglage, pitie, vente: achat.vente, n, j, decider, tc });
+  apresLeCartable(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
+  offrirPackJoueurs({ cle, cartes, reglage, pitie, vente: achat.vente, n, j, decider, tc, montrerCartes: true });
+}
+/*
+ * LES OFFRES DU RAPPEL (Jalon P3) : les cartes de ton cartable dans l'ordre pur de `graine`, au plus du niveau de la
+ * carte jouée, à un salaire qu'un pack offrirait, ni dans la ligue ni déjà chez toi ; leur meilleure variante.
+ */
+async function offresDuCartable(C, graine) {
+  const c = lireCartable(), Lg = G.ligue;
+  const dansLaLigue = new Set();
+  for (const t of Lg.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
+  const max = salaireMaxDePack(), out = [];
+  for (const cle of tirageDuClasseur(Object.keys(c.joueurs), graine)) {
+    if (out.length >= C.offres) break;
+    const p = await joueurDeCle(cle);
+    if (!p || !(p.$ > 0) || p.$ > max || dansLaLigue.has(getPersonKey(p)) || dejaChezToi(p) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
+    const niveau = niveauDe(p, (await getShard(p.s)).players);
+    if (niveau > C.niveauMax) continue;
+    const x = c.joueurs[cle];
+    out.push({ p, rar: meilleureVariante(x), niveau, num: (x.num || [])[0] || null });
+  }
+  return out;
+}
+/*
+ * APRÈS UNE ENTRÉE AU CARTABLE : les cartes que leurs doublons ont montées (Jalon P3) et les missions de collection
+ * accomplies, payées une fois en médailles (Jalon P4), dites d'un seul toast.
+ */
+function apresLeCartable(montees, cartes) {
+  const nom = cle => (cartes.find(x => getPlayerKey(x.p || x) === cle) || { n: 'Ta carte' });
+  const mots = montees.map(m => { const x = nom(m.cle); return motDeMontee(m, (x.p || x).n); });
+  if (G.bonus === 'ROGUE') {
+    const decennies = [...new Set(state.index.seasons.map(decennieDe))];
+    for (const x of payerMissions(missionsDuCartable(lireCartable(), decennies))) mots.push(`🏅 Mission « ${x.nom} » : +${x.medailles} médailles`);
+  }
+  if (mots.length) toast(mots.join(' · '));
 }
 /* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
 export async function rouvrirPackJoueurs(achat, j, decider) {
@@ -377,7 +410,12 @@ function optionDeJoueurTire(x) {
 /* Le même homme est-il déjà dans ton équipe (n'importe quelle saison de lui) ? */
 const dejaChezToi = p => Object.values(G.roster || {}).some(q => q && getPersonKey(q) === getPersonKey(p));
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
-function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, tc = null }) {
+/*
+ * EN DEUX TEMPS (Jalon Q). JP : *signer un, et autres cartes jouables quand on veut*. Un pack mixte montre d'abord
+ * ses cartes de jeu, rangées (le deck, la poche) ; puis ses joueurs, seuls, à signer. « Plus tard » : la boîte
+ * rouvre l'offre sur place, sans les cartes déjà vues.
+ */
+function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, tc = null, montrerCartes = false }) {
   const P = PACKS_TOUS[cle];
   const palier = `k:${n}:signe`;
   // Passé la date limite (Jalon P2), rien ne se signe : tout va au cartable.
@@ -385,9 +423,9 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   for (const x of cartes) ballottageVu.set(getPlayerKey(x.p), x.p);
   const titre = `${P.nom}${reglage.franchise ? ` · ${FRANCHISES[reglage.franchise].nom}` : reglage.saison ? ` · ${reglage.saison}` : reglage.club ? ` · ${reglage.club}` : ''}`;
   const offrir = () => ouvrirChoix({
-    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Plus tard',
-    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}${tc ? ` et ${tc.ids.length + tc.maudites.length} carte${tc.ids.length + tc.maudites.length > 1 ? 's' : ''}, déjà rangée${tc.ids.length + tc.maudites.length > 1 ? 's' : ''} (le deck, la poche)` : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu signes un joueur, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l\'offre attend dans ta boîte jusqu\'à la fin de la journée.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
-    options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), ...(limite ? { desactive: 'Date limite passée : au cartable' } : {}) })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, desactive: o.prix || 'Rangée' })) : [])],
+    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Plus tard', sansPaquet: !!tc || !montrerCartes,
+    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu signes un joueur, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l\'offre attend dans ta boîte jusqu\'à la fin de la journée.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
+    options: cartes.map(x => ({ ...optionDeJoueurTire(x), ...(limite ? { desactive: 'Date limite passée : au cartable' } : {}) })),
     onChoix: k => {
       const x = cartes.find(y => getPlayerKey(y.p) === k);
       if (!x || dejaChezToi(x.p)) return;
@@ -403,7 +441,16 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
     // « Plus tard » : rien ne s'écrit, l'offre attend au Marché et dans la boîte (`packOuvert`, js/saison.js).
     onFerme: () => {},
   });
-  offrir();
+  const nc = tc ? tc.ids.length + tc.maudites.length : 0;
+  if (!montrerCartes || !nc) { offrir(); return; }
+  // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
+  ouvrirChoix({
+    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur',
+    recit: `${cartes.length} joueurs et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes sont rangées : celles de match au deck, le reste dans ta poche, à jouer quand tu veux.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true }))],
+    onChoix: () => {},
+    onFerme: limite ? () => {} : offrir,
+  });
 }
 /*
  * LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1) : tiré de la graine et de la ronde (hors des numéros d'achat), ouvert tout
@@ -417,7 +464,7 @@ export async function ouvrirPackDeSerie(cle, ronde) {
     graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(decisionsDeLaPartie(), G.journee || 0), saisons: state.index.seasons, shard: getShard,
   });
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  apresLeCartable(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Au cartable',
     recit: `${cartes.length} vrais joueurs, tous à ton cartable : pour la saison prochaine et les runs d'après.`,
@@ -491,7 +538,7 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Dans ma poche',
     recit: (rogue
-      ? `Le personnel reste d'une run à l'autre, les cartes de match vont droit à ton deck ; le reste va dans ta poche : ${MAIN_SEMAINE} de ses cartes sortent en main chaque semaine.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      ? `Le personnel reste d'une run à l'autre, les cartes de match vont droit à ton deck ; le reste va dans ta poche, à jouer quand tu veux (${JOUEES_SEMAINE} par semaine).${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
       : 'Les cartes de match vont droit à ton deck ; le reste va dans ta poche.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: optionsDeCartes(tc),
@@ -578,12 +625,12 @@ export function pocheDuJour(j) {
   return pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue: G.bonus === 'ROGUE' })
     .map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom }));
 }
-/* Pourquoi une carte de la poche ne se joue pas aujourd'hui (rien : elle se joue). */
+/* Pourquoi une carte de la poche ne se joue pas aujourd'hui (rien : elle se joue) — Jalon Q : toute la poche, `JOUEES_SEMAINE` par semaine. */
 function horsDeLaMain(ref, j) {
   const m = mainDuJour(j);
   if (!m) return '';
   const x = m.main.find(c => c.ref === ref);
-  return !x ? 'Pas dans ta main cette semaine' : x.jouee || x.vendue ? 'Déjà jouée' : !m.reste ? `${JOUEES_SEMAINE} cartes jouées cette semaine` : '';
+  return x && (x.jouee || x.vendue) ? 'Déjà jouée' : !m.reste ? `${JOUEES_SEMAINE} cartes jouées cette semaine` : '';
 }
 /* Une carte de la main, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
 export function ouvrirCarteDeLaPoche(item, j, decider) {
@@ -674,6 +721,24 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
         onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
       return;
     }
+    if (C.cible === 'cartable') {
+      // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
+      sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
+        if (!offres.length) { toast(`Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`); retour(); return; }
+        for (const x of offres) ballottageVu.set(getPlayerKey(x.p), x.p);
+        const offrir = () => ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'recompense', sansPaquet: true, fermable: true, motFermer: 'Retour', recit: c.texte,
+          options: offres.map(optionDeJoueurTire),
+          onChoix: k => {
+            const x = offres.find(y => getPlayerKey(y.p) === k);
+            if (!x || dejaChezToi(x.p)) return;
+            quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onFerme: offrir,
+              onChoix: sortie => { if (!sortie) return; G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); } });
+          },
+          onFerme: retour });
+        offrir();
+      });
+      return;
+    }
     if (C.cible === 'coach') {
       // LE CONGÉDIEMENT (V5) : un autre coach, à la confiance I ; celui en poste part avec la sienne.
       const [actif] = coachsActifs(decs, j + 1);
@@ -759,7 +824,7 @@ const PACKS_DE_DEPART = [{ g: 'F', nom: 'Les attaquants' }, { g: 'D', nom: 'Les 
 async function ouvrirPacksDeDepart(roster) {
   const joueurs = Object.values(roster).filter(Boolean);
   ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
-  ajouterAuCartable(joueurs.map(p => ({ cle: getPlayerKey(p), rar: 'commune' })));
+  apresLeCartable(ajouterAuCartable(joueurs.map(p => ({ cle: getPlayerKey(p), rar: 'commune' }))), joueurs);
   const packs = PACKS_DE_DEPART.map(P => ({ ...P, cartes: joueurs.filter(p => groupeDe(p) === P.g) })).filter(P => P.cartes.length);
   for (const [i, P] of packs.entries()) {
     const suite = i < packs.length - 1 ? 'Pack suivant' : 'À la run';
@@ -1271,7 +1336,7 @@ export function majRunRogue() {
   bloc.innerHTML = `<div class="rg-run-tete"><span>${sort === 'gagnee' ? '🏆' : sort === 'finie' ? '🚪' : '💀'} Run ${(G.rogue && G.rogue.numero) || ''} · saison ${n}</span>
       <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
     <p class="rg-run-mot">${esc(mots[sort])}</p>
-    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs, et le reste vient de ton classeur, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : ton deck de match, tes patrons engagés, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » et les consommables de ta poche.</p>` : ''}
+    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs, tu signes une carte à chacun de tes ${lotosDeSaison(lireMeta()).n} lotos du cartable, et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : ton deck de match, tes patrons engagés, ta poche, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » déjà en jeu.</p>` : ''}
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
@@ -1375,9 +1440,9 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
  *   - le DECK de match : la saison neuve part du deck de la fin (`deckDeBase`) ;
  *   - les JETONS qui restent, plus la caisse du vestiaire ;
  *   - le PLAFOND est celui d'un départ de run (`plafondDeDepart`).
- * Le personnel et les cartes permanentes vivent déjà dans le méta. Les
- * cartes « cette saison » et les consommables de la poche expirent : la poche
- * se déduit des décisions de la saison, et la saison neuve n'en a pas.
+ * Le personnel et les cartes permanentes vivent déjà dans le méta. La POCHE
+ * (Jalon Q) suit aussi : ses cartes pas jouées entrent au jour 0 de la saison
+ * neuve (`poche`, une décision de report, js/inventaire.js `pocheDeLaPartie`).
  */
 /*
  * LES MODIFS QUI VIVENT SUR LA CARTE (1.0, js/cartable.js `poserSurLesCartes`) :
@@ -1431,142 +1496,83 @@ function choisirGardesDeSaison(saison) {
   }));
 }
 /*
- * LE CLASSEUR EN SAISON SUIVANTE (v2) : même principe que `choisirDuClasseur`
- * au départ d'une run, mais les gardes sont déjà comptés et leur masse réduit
- * le budget disponible. La graine porte le numéro de saison pour ne pas
- * présenter les mêmes cartes que la run précédente.
+ * LE LOTO DU CARTABLE (Jalon Q). JP : *présentement, la grosse liste, ça suce, faque je dirais x loto à même mes
+ * joueurs pis plus tard, choix dans tout*. Entre deux saisons, plus de repêchage de cinquante cartes : quelques
+ * LOTOS (`lotosDeSaison`, js/rogue.js), chacun tire trois cartes de TON cartable — n'importe quel niveau, sous le
+ * budget du classeur moins tes gardés — et tu en signes une, ou aucune. Le tri du classeur en montre cinq ; le
+ * classeur ouvert, c'est le « choix dans tout » : tout le cartable, d'un coup. Le reste de l'équipe se tire du
+ * cartable comme au départ d'une run (`vestiaireDeDepart`), comme le robot le joue (scripts/lib/rogue_sim.mjs).
+ * Le tirage est pur (la graine du classeur, la saison, le loto) : recharger redonne les mêmes cartes.
  */
-async function choisirDuClasseurSaison(gardes = [], saison = 2) {
+async function lotoDuCartable(gardes = [], saison = 2) {
   const meta = lireMeta();
-  const D = departDuClasseur(meta);
+  const L = lotosDeSaison(meta);
   const c = lireCartable();
-  const masseFixes = gardes.reduce((a, p) => a + (p.$ || 0), 0);
-  const budget = budgetDuClasseur(meta) - masseFixes;
-  const exclus = new Set(gardes.map(getPersonKey));
   const cles = Object.keys(c.joueurs);
-  if (!D.n || !cles.length || budget <= 0) return [];
-  const graine = `${graineDuClasseur()}:s${saison}`;
-  const cands = await sousVoile('On ouvre ton classeur…', async () => {
-    const out = [], personnes = new Set(exclus);
+  let budget = budgetDuClasseur(meta) - gardes.reduce((a, p) => a + (p.$ || 0), 0);
+  if (!cles.length || budget <= 0) return [];
+  const personnes = new Set(gardes.map(getPersonKey));
+  const decrire = async (graine, max) => {
+    const out = [];
     for (const cle of tirageDuClasseur(cles, graine)) {
-      if (D.mode !== 'choix' && out.length >= D.vues) break;
+      if (out.length >= max) break;
       const p = await joueurDeCle(cle);
-      if (!p || !(p.$ > 0) || p.$ > budget || personnes.has(getPersonKey(p))) continue;
-      personnes.add(getPersonKey(p));
+      if (!p || !(p.$ > 0) || p.$ > budget || personnes.has(getPersonKey(p)) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
       const x = c.joueurs[cle];
       out.push({ cle, p, rar: meilleureVariante(x), num: (x.num || [])[0] || null });
     }
     return out;
-  });
-  if (!cands.length) return [];
-  return new Promise(resolve => ouvrirDepartClasseur({
-    mode: D.mode, n: D.n, budget, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
+  };
+  const ouvrir = (cands, ctx) => new Promise(resolve => ouvrirDepartClasseur({
+    budget, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
     esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
-    mini: (p, rar) => miniAvecVariante(p, rar),
-    textes: {
-      ico: '📖', titre: 'Ton classeur', irl: `Saison ${saison} de la run · jusqu'à ${D.n} carte${D.n > 1 ? 's' : ''}`,
-      recit: `Tes cartes d'une run à l'autre. Choisis jusqu'à ${D.n}.`,
-      budget: '📖 Budget du classeur', plein: `Tu as pris tes ${D.n} cartes`,
-      partir: k => (k ? `${k} carte${k > 1 ? 's' : ''} du classeur` : 'Sans le classeur'),
-    },
+    mini: (p, rar) => miniAvecVariante(p, rar), ...ctx,
     onFini: pris => resolve(cands.filter(x => pris.includes(x.cle)).map(x => x.p)),
   }));
-}
-/*
- * CANDIDATS POUR LE REPÊCHAGE (v2) : des vrais joueurs tirés de saisons
- * aléatoires, dans la tranche 35-70 % de production — des Réguliers, pas des
- * plombiers, pas des vedettes. Filtre les doublons de personnes et le budget.
- */
-async function candidatsDraftSaison(besoins, exclusPersonnes, budgetRestant) {
-  const saisons = state.index.seasons.slice(), choisies = [];
-  while (choisies.length < 8 && saisons.length) choisies.push(saisons.splice(Math.floor(Math.random() * saisons.length), 1)[0]);
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-  const cands = { F: [], D: [], G: [] };
-  for (const s of choisies) {
-    const e = await getShard(s);
-    for (const g of ['F', 'D', 'G']) {
-      if (!besoins[g]) continue;
-      const reg = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 25) && !exclusPersonnes.has(getPersonKey(p)) && (p.$ || 0) > 0 && (p.$ || 0) <= budgetRestant).sort((a, b) => prod(a) - prod(b));
-      const tranche = reg.slice(Math.floor(reg.length * 0.35), Math.max(1, Math.floor(reg.length * 0.70)));
-      const cible = besoins[g] * 3;
-      while (cands[g].length < cible && tranche.length) {
-        const idx = Math.floor(Math.random() * tranche.length);
-        const p = tranche.splice(idx, 1)[0];
-        if (!exclusPersonnes.has(getPersonKey(p))) { exclusPersonnes.add(getPersonKey(p)); cands[g].push({ cle: getPlayerKey(p), p }); }
-      }
-    }
+  const graine = `${graineDuClasseur()}:s${saison}`;
+  // Le classeur ouvert : le choix dans tout, en une fois.
+  if (L.mode === 'choix') {
+    const cands = await sousVoile('On ouvre ton cartable…', () => decrire(graine, Infinity));
+    if (!cands.length) return [];
+    return ouvrir(cands, { mode: 'choix', n: L.n, textes: {
+      ico: '📖', titre: 'Le choix dans tout', irl: `Saison ${saison} de la run · jusqu'à ${L.n} carte${L.n > 1 ? 's' : ''}`,
+      recit: `Tout ton cartable est là. Choisis jusqu'à ${L.n} cartes ; ton cartable comble le reste.`,
+      budget: '📖 Budget du classeur', plein: `Tu as pris tes ${L.n} cartes`,
+      partir: k => (k ? `${k} carte${k > 1 ? 's' : ''} du cartable` : 'Sans choisir'),
+    } });
   }
-  return [...cands.F, ...cands.D, ...cands.G];
+  const pris = [];
+  for (let i = 0; i < L.n; i++) {
+    const cands = await sousVoile('On brasse le loto…', () => decrire(`${graine}:l${i}`, L.vues));
+    if (!cands.length) break;
+    const [p] = await ouvrir(cands, { mode: 'tri', n: 1, textes: {
+      ico: '🎰', titre: `Le loto du cartable · ${i + 1} de ${L.n}`, irl: `Saison ${saison} de la run · ${cands.length} cartes de ton cartable`,
+      recit: `Le loto tire ${cands.length} cartes de ton cartable : signes-en une, ou passe. Ton cartable comble le reste.`,
+      budget: '🎰 Budget du classeur', plein: 'Tu as ta carte de ce loto',
+      partir: k => (k ? (i + 1 < L.n ? 'Loto suivant' : 'À la saison') : 'Passer ce loto'),
+    } });
+    if (!p) continue;
+    pris.push(p); personnes.add(getPersonKey(p)); budget -= p.$ || 0;
+    if (budget <= 0) break;
+  }
+  return pris;
 }
-/*
- * LE REPÊCHAGE INTERACTIF (v2) : présente des candidats des saisons aléatoires
- * pour remplir les trous que gardes + classeur laissent. Le joueur choisit ;
- * les places non comblées reçoivent des plombiers comme avant.
- */
-async function drafterJoueurs(meta, dejaSigmes, saison) {
-  const personnes = new Set(dejaSigmes.map(getPersonKey));
-  const besoins = { F: COMPOSITION_DEPART.F, D: COMPOSITION_DEPART.D, G: COMPOSITION_DEPART.G };
-  for (const p of dejaSigmes) { const g = groupeDe(p); if (g in besoins) besoins[g] = Math.max(0, besoins[g] - 1); }
-  const nTotal = Object.values(besoins).reduce((a, n) => a + n, 0);
-  if (!nTotal) return [];
-  const masseFixe = dejaSigmes.reduce((a, p) => a + (p.$ || 0), 0);
-  const budgetRestant = PLAFOND_ROGUE + plafondDuVestiaire(meta) - ESPACE_DE_DEPART - masseFixe;
-  if (budgetRestant <= 0) return [];
-  const cands = await sousVoile('On prépare le repêchage…', () => candidatsDraftSaison(besoins, personnes, budgetRestant));
-  if (!cands.length) return [];
-  return new Promise(resolve => ouvrirDepartClasseur({
-    mode: 'choix', n: nTotal, budget: budgetRestant, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
-    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
-    mini: (p, rar) => miniAvecVariante(p, rar || 'commune'),
-    textes: {
-      ico: '🏒', titre: 'Le repêchage', irl: `Saison ${saison} de la run · ${nTotal} poste${nTotal > 1 ? 's' : ''} à combler`,
-      recit: `Choisis tes nouvelles recrues. Les cases vides recevront des bouche-trous de la ligue.`,
-      budget: '💰 Budget restant', plein: `L'alignement est complet`,
-      partir: k => (k ? `${k} recrue${k > 1 ? 's' : ''} choisie${k > 1 ? 's' : ''}` : 'Passer le repêchage'),
-    },
-    onFini: pris => resolve(cands.filter(x => pris.includes(x.cle)).map(x => x.p)),
-  }));
-}
-/*
- * LE NOUVEAU DÉPART D'UNE SAISON (v2) : trois phases — garder des joueurs,
- * piger dans son classeur, puis repêcher les recrues manquantes.
- */
+/* LA SAISON SUIVANTE : ceux qui restent, les lotos du cartable, puis le vestiaire tiré du cartable et le coach. */
 async function choisirNouvelleEquipe(saison) {
   const gardes = await choisirGardesDeSaison(saison);
-  const classeurtires = await choisirDuClasseurSaison(gardes, saison);
-  const meta = lireMeta();
-  const dejaLa = [...gardes, ...classeurtires];
-  const draftes = await drafterJoueurs(meta, dejaLa, saison);
-  // V2 · Item 2 : la recrue repêchée garde la variante montrée à l'écran (carte de base).
-  for (const p of draftes) G.variantes.cartes[getPlayerKey(p)] = 'commune';
-  const pris = [...dejaLa, ...draftes];
-  // V2 · Item 1 : combler les cases vides avec des plombiers si le draft a été passé.
-  const manque = { F: COMPOSITION_DEPART.F, D: COMPOSITION_DEPART.D, G: COMPOSITION_DEPART.G };
-  for (const p of pris) { const g = groupeDe(p); if (g in manque) manque[g] = Math.max(0, manque[g] - 1); }
-  if (Object.values(manque).some(n => n > 0)) {
-    const ligue = await plombiersDeLaLigue(meta, pris, graine);
-    for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
-  }
-  const roster = placerDevant(autoRoster(pris), gardes);
+  const lotos = await lotoDuCartable(gardes, saison);
   const coach = await choisirCoachDeSaison(saison);
-  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, classeurtires, draftes, roster, coach));
+  await sousVoile('La saison suivante se prépare…', () => continuerRun(gardes, lotos, coach));
 }
-async function continuerRun(gardes = [], classeurtires = [], draftes = [], rosterExterne = null, coachSaison = null) {
+async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
   const L = G.ligue, meta = lireMeta();
   const saison = numeroDeSaison() + 1;
   const partants = new Set(signes().filter(Boolean).map(getPlayerKey).filter(k => !gardes.some(p => getPlayerKey(p) === k)));
-  let V;
-  if (rosterExterne) {
-    // Flux v2 : roster déjà bâti par gardes + classeur + repêchage.
-    const c = lireCartable();
-    const tiresDesc = classeurtires.map(p => ({ cle: getPlayerKey(p), p, niveau: niveauDe(p, []) }));
-    V = { roster: rosterExterne, quota: null, tires: tiresDesc, nFixes: gardes.length };
-    for (const p of classeurtires) { const k = getPlayerKey(p); G.variantes.cartes[k] = meilleureVariante(c.joueurs[k]); }
-  } else {
-    V = await vestiaireDeDepart(meta, gardes, { saison, rang: G.rogue.prestige || 0, exclus: partants, graine: `${graineDuClasseur()}:s${saison}` });
-    for (const x of V.tires) G.variantes.cartes[x.cle] = meilleureVariante(lireCartable().joueurs[x.cle]);
-  }
+  // Les gardés et les cartes des lotos passent devant ; le reste se tire du cartable (`vestiaireDeDepart`).
+  const fixes = [...gardes, ...lotos];
+  const V = await vestiaireDeDepart(meta, fixes, { saison, rang: G.rogue.prestige || 0, exclus: partants, graine: `${graineDuClasseur()}:s${saison}` });
+  for (const x of [...V.tires, ...lotos.map(p => ({ cle: getPlayerKey(p) }))]) G.variantes.cartes[x.cle] = meilleureVariante(lireCartable().joueurs[x.cle]);
   const roster = V.roster;
   // Les modifs de la saison sont déjà sur leurs cartes (`modsAuCartable`, à la fin de la saison) : chaque carte de l'équipe neuve rejoue les siennes.
   modsAuCartable();
@@ -1585,6 +1591,9 @@ async function continuerRun(gardes = [], classeurtires = [], draftes = [], roste
   else if (coachSaison && COACHS[coachSaison]) { report.push({ jour: 0, ...coachNeuf(coachSaison), report: true }); G.rogue.coach = coachSaison; }
   // 1.0 : un patron engagé l'est pour la RUN — il reste en poste à la saison suivante, avec ses chiffres.
   for (const pa of patronsActifs(decsSaison)) { const { jour: _j, remplace: _r, ...patron } = pa; void _j; void _r; report.push({ jour: 0, patron, report: true }); }
+  // Jalon Q : la poche te suit — ses cartes pas jouées passent à la saison suivante.
+  const poche = pocheDeLaPartie({ decisions: decsSaison, graine: L.graine, nMatch: matchsEntre(L.you, 0, L.calendrier.length), rogue: true }).map(x => x.id);
+  if (poche.length) report.push({ jour: 0, poche, report: true });
   // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
   packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
@@ -1602,9 +1611,7 @@ async function continuerRun(gardes = [], classeurtires = [], draftes = [], roste
   $('game').classList.remove('bilan');
   saveGame(); render();
   setView('roster');
-  const motEquipe = rosterExterne
-    ? `${gardes.length ? `${gardes.map(p => p.n).join(', ')} gardés` : 'Nouvelle équipe'}${classeurtires.length ? `, ${classeurtires.length} carte${classeurtires.length > 1 ? 's' : ''} du classeur` : ''}${draftes.length ? `, ${draftes.length} recrue${draftes.length > 1 ? 's' : ''} repêchées` : ''}`
-    : `${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}`;
+  const motEquipe = `${motDuVestiaire(V).toLowerCase()}${gardes.length ? `, avec ${gardes.map(p => p.n).join(', ')}` : ''}${lotos.length ? `, ${lotos.length} carte${lotos.length > 1 ? 's' : ''} du loto` : ''}`;
   toast(`Saison ${G.rogue.saison} de la run : ${motEquipe}, et 🪙 ${G.rogue.depart} jetons. Le proprio veut : ${mandatDe(G.rogue.saison).mot}.`);
 }
 /*

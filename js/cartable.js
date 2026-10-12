@@ -45,25 +45,47 @@ export function lireCartable() {
   return c;
 }
 /*
+ * TROIS DOUBLONS MONTENT LA CARTE (Jalon P3). JP : *avoir des doublons possibles, […] mais ajouter des mécaniques
+ * pour compenser*. Une variante qui compte sa carte et `FUSION` doublons de plus les échange contre la variante
+ * au-dessus : Base → Parallèle → Holo (l'Or ne se fabrique pas, il se tire). Pure : rend les montées, `x` change.
+ */
+const FUSION = 3, MONTE = { commune: 'peu', peu: 'rare' };
+export function monterLesDoublons(x) {
+  const montees = [];
+  for (const rar of ['commune', 'peu']) {
+    while ((x.v[rar] || 0) > FUSION) {
+      x.v[rar] -= FUSION;
+      x.v[MONTE[rar]] = (x.v[MONTE[rar]] || 0) + 1;
+      montees.push({ de: rar, a: MONTE[rar] });
+    }
+  }
+  return montees;
+}
+/* Ce que la boîte dit d'une montée : « Gaborik monte : Base → Parallèle (trois doublons) ». */
+const NOM_VARIANTE = Object.fromEntries(VARIANTES.map(([k, nom]) => [k, nom]));
+export const motDeMontee = (m, nom) => `${nom} monte : ${NOM_VARIANTE[m.de]} → ${NOM_VARIANTE[m.a]} (${FUSION} doublons)`;
+/*
  * DES CARTES ENTRENT AU CARTABLE. `doublons` : une copie de plus compte (un
  * pack) ; sinon (l'alignement au départ d'une saison, une signature déjà
- * tirée) seule une variante NEUVE s'ajoute. Rend le nombre de joueurs neufs.
+ * tirée) seule une variante NEUVE s'ajoute. Rend les cartes montées par leurs
+ * doublons ({ cle, de, a }).
  */
 export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
   const c = lireCartable();
-  let neufs = 0;
+  const montees = [];
   for (const e of entrees) {
     if (!e || !e.cle) continue;
     const rar = RANG[e.rar] !== undefined ? e.rar : 'commune';
     const x = c.joueurs[e.cle];
-    if (!x) { c.joueurs[e.cle] = { v: { [rar]: 1 }, n: 1, ...(e.num ? { num: [e.num] } : {}) }; neufs++; continue; }
+    if (!x) { c.joueurs[e.cle] = { v: { [rar]: 1 }, n: 1, ...(e.num ? { num: [e.num] } : {}) }; continue; }
     if (!doublons && x.v[rar]) continue;
     x.v[rar] = (x.v[rar] || 0) + 1;
     x.n = (x.n || 0) + 1;
     if (e.num) x.num = [...new Set([...(x.num || []), e.num])];
+    for (const m of monterLesDoublons(x)) montees.push({ cle: e.cle, ...m });
   }
   ecrire(c);
-  return neufs;
+  return montees;
 }
 /*
  * LES ANCIENNES PARTIES (une fois) : les joueurs qui ont porté tes couleurs
@@ -72,10 +94,10 @@ export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
  */
 export function migrerHistorique(cles = []) {
   const c = lireCartable();
-  if (c.hist) return 0;
+  if (c.hist) return;
   c.hist = true;
   ecrire(c);
-  return ajouterAuCartable(cles.map(cle => ({ cle })), { doublons: false });
+  ajouterAuCartable(cles.map(cle => ({ cle })), { doublons: false });
 }
 /*
  * LES RUNS JOUÉES PAR CARTE (1.0) : `r` compte les runs Rogue où la carte a
@@ -168,6 +190,36 @@ function comptesDuCartable(c = lireCartable()) {
 }
 /* La clé d'un joueur-saison-club : « saison_club_id ». */
 const partsDe = cle => { const [s, t] = String(cle).split('_'); return { s, t }; };
+/*
+ * LES EXTENSIONS (Jalon P4). JP : *des cartables style Pokémon Pocket, mettre l'accent sur la collection*. Chaque
+ * décennie de saisons est une extension (Vintage 70, Rétro 80, Années 2000…), avec sa complétion : tes cartes sur
+ * tous les joueurs-saisons de ses shards.
+ */
+export const decennieDe = saison => Math.floor(Number(String(saison).slice(0, 4)) / 10) * 10;
+const nomExtension = d => (d < 1980 ? `Vintage ${String(d).slice(2)}` : d < 2000 ? `Rétro ${String(d).slice(2)}` : `Années ${d}`);
+/*
+ * LES MISSIONS DE COLLECTION (Jalon P4) : chacune paie ses médailles une fois (js/rogue.js `payerMissions`). Pures :
+ * elles se lisent sur le cartable et les décennies que le jeu connaît.
+ */
+const MISSIONS = [
+  { cle: 'holo', nom: 'La première Holo', texte: 'Une carte Holo ou Or.', medailles: 15, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && (x.v.rare || x.v.legendaire)).length },
+  { cle: 'feuille', nom: 'Une feuille de club', texte: 'Neuf cartes d\'un même club, la même saison.', medailles: 30, but: PAR_FEUILLE,
+    compte: c => Math.max(0, ...[...ensembles(c).parSaison.values()].flatMap(m => [...m.values()].map(l => l.length))) },
+  { cle: 'cent', nom: 'Cent cartes', texte: 'Cent joueurs différents au cartable.', medailles: 40, but: 100, compte: c => Object.keys(c.joueurs).length },
+  { cle: 'or', nom: 'Une Or', texte: 'Une carte Or, tirée d\'un pack.', medailles: 40, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && x.v.legendaire).length },
+  { cle: 'cinqHolo', nom: 'Cinq Holo d\'une extension', texte: 'Cinq cartes Holo ou Or de la même décennie.', medailles: 60, but: 5,
+    compte: c => { const n = {}; for (const [k, x] of Object.entries(c.joueurs)) if (x.v && (x.v.rare || x.v.legendaire)) { const d = decennieDe(partsDe(k).s); n[d] = (n[d] || 0) + 1; } return Math.max(0, ...Object.values(n)); } },
+  { cle: 'epoques', nom: 'Toutes les extensions', texte: 'Une carte de chaque décennie.', medailles: 80, but: d => d.length,
+    compte: (c, d) => new Set(Object.keys(c.joueurs).map(k => decennieDe(partsDe(k).s)).filter(x => d.includes(x))).size },
+];
+/* Où en est chaque mission : { cle, nom, texte, medailles, but, n, fait }. `decennies` : celles des saisons du jeu. */
+export function missionsDuCartable(c = lireCartable(), decennies = []) {
+  return MISSIONS.map(M => {
+    const but = typeof M.but === 'function' ? M.but(decennies) : M.but;
+    const n = Math.min(but, M.compte(c, decennies));
+    return { cle: M.cle, nom: M.nom, texte: M.texte, medailles: M.medailles, but, n, fait: but > 0 && n >= but };
+  });
+}
 /* Les ensembles : saison → club → clés ; club → saison → clés. */
 function ensembles(c = lireCartable()) {
   const parSaison = new Map(), parClub = new Map();
@@ -180,6 +232,12 @@ function ensembles(c = lireCartable()) {
     const mc = parClub.get(t); if (!mc.has(s)) mc.set(s, []); mc.get(s).push(cle);
   }
   return { parSaison, parClub };
+}
+
+/* Les missions de collection, en tête des extensions : faites, ou ce qui manque. */
+function missionsHtml(ms, esc) {
+  return `<section class="ct-missions" aria-label="Missions de collection"><div class="ct-missions-t">Missions · ${ms.filter(m => m.fait).length} / ${ms.length}</div>
+    ${ms.map(m => `<div class="ct-mission${m.fait ? ' faite' : ''}"><span class="ct-mission-nom">${m.fait ? '✓ ' : ''}${esc(m.nom)}</span><span class="ct-mission-texte">${esc(m.texte)}</span><span class="ct-mission-n">${m.fait ? `🏅 ${m.medailles}` : `${m.n} / ${m.but} · 🏅 ${m.medailles}`}</span></div>`).join('')}</section>`;
 }
 
 /* ---------- la page ---------- */
@@ -209,7 +267,8 @@ function pagesDe(cellules, titre, esc) {
  *   esc, equipe [{ p, cle, mini, saison, vraie }], titreSaison ('À la journée 20'…),
  *   nCartes (cartes de jeu à jouer), ouvrirCartes(), fiche(cle, p), ficheEquipe(p),
  *   charger(saison) → Promise(entrée de shard : { players, byTeam }),
- *   mini(p, rar), cleDe(p), club(tag) → nom, vraie(p) → ligne de sa vraie saison.
+ *   mini(p, rar), cleDe(p), club(tag) → nom, vraie(p) → ligne de sa vraie saison,
+ *   saisons (celles du jeu : les extensions et leur complétion).
  */
 export function rendreCartable(host, ctx) {
   if (!host) return;
@@ -217,6 +276,9 @@ export function rendreCartable(host, ctx) {
   const c = lireCartable();
   const k = comptesDuCartable(c);
   const { parSaison, parClub } = ensembles(c);
+  const decennies = [...new Set((ctx.saisons || []).map(decennieDe))];
+  const parDecennie = new Map();
+  for (const s of parSaison.keys()) { const d = decennieDe(s); parDecennie.set(d, (parDecennie.get(d) || 0) + [...parSaison.get(s).values()].reduce((a, l) => a + l.length, 0)); }
   const gemmes = x => VARIANTES.filter(([r]) => x && x.v && x.v[r]).map(([r, nom, g]) => `<span class="ct-gemme v-${r}" title="${esc(nom)}${x.v[r] > 1 ? ` ×${x.v[r]}` : ''}">${g}</span>`).join('');
   const tete = `<div class="ct-tete">
       <div class="ct-comptes">
@@ -226,7 +288,7 @@ export function rendreCartable(host, ctx) {
       <button type="button" class="btn gold ct-mes-cartes" title="Tes cartes de jeu : celles qui se gardent jusqu'au moment voulu, le personnel, le deck">🎒 Mes cartes${ctx.nCartes ? ` <span class="ct-n">${ctx.nCartes}</span>` : ''}</button>
     </div>
     <div class="ct-vues" role="tablist">
-      ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['saisons', `Saisons · ${parSaison.size}`], ['clubs', `Clubs · ${parClub.size}`]]
+      ${[['equipe', `Ton équipe · ${ctx.equipe.length}`], ['extensions', `Extensions · ${parDecennie.size}`], ['clubs', `Clubs · ${parClub.size}`]]
         .map(([v, nom]) => `<button type="button" role="tab" class="ct-vue${etat.vue === v ? ' on' : ''}" data-vue="${v}" aria-selected="${etat.vue === v}">${esc(nom)}</button>`).join('')}
     </div>`;
   let corps = '';
@@ -241,11 +303,12 @@ export function rendreCartable(host, ctx) {
       ? `<p class="ct-mot">${esc(ctx.titreSaison || 'Tes joueurs, dans le cartable.')} Touche une carte.</p><div class="ct-reliure">${pagesDe(cartes, 'Ton équipe', esc)}</div>${autres ? `<button type="button" class="ct-autres">Les autres débloqués · ${autres}</button>` : ''}`
       : '<p class="ct-vide">Pas encore d\'alignement.</p>';
   } else {
-    const groupes = etat.vue === 'saisons'
-      ? [...parSaison.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([s, m]) => ({ id: `s:${s}`, titre: s, n: [...m.values()].reduce((a, l) => a + l.length, 0), sous: `${m.size} club${m.size > 1 ? 's' : ''}` }))
+    const nSaisons = d => (ctx.saisons || []).filter(s => decennieDe(s) === d).length;
+    const groupes = etat.vue === 'extensions'
+      ? [...parDecennie.entries()].sort((a, b) => b[0] - a[0]).map(([d, n]) => ({ id: `e:${d}`, titre: nomExtension(d), n, sous: `${nSaisons(d)} saison${nSaisons(d) > 1 ? 's' : ''}` }))
       : [...parClub.entries()].sort((a, b) => (ctx.club(a[0]) || a[0]).localeCompare(ctx.club(b[0]) || b[0], 'fr')).map(([t, m]) => ({ id: `c:${t}`, titre: ctx.club(t) || t, n: [...m.values()].reduce((a, l) => a + l.length, 0), sous: `${m.size} saison${m.size > 1 ? 's' : ''}` }));
     corps = groupes.length
-      ? `<p class="ct-mot">${etat.vue === 'saisons' ? 'Tes joueurs débloqués, saison par saison.' : 'Tes joueurs débloqués, club par club.'}</p>
+      ? `${etat.vue === 'extensions' ? missionsHtml(missionsDuCartable(c, decennies), esc) : '<p class="ct-mot">Tes joueurs débloqués, club par club.</p>'}
         ${groupes.map(g => `<details class="ct-set" data-set="${esc(g.id)}"${etat.ouverts.has(g.id) ? ' open' : ''}>
           <summary><span class="ct-set-nom">${esc(g.titre)}</span><span class="ct-set-sous">${esc(g.sous)}</span><b class="ct-set-n">${g.n}</b></summary>
           <div class="ct-set-corps"><p class="ct-charge">On ouvre le cartable…</p></div>
@@ -255,7 +318,7 @@ export function rendreCartable(host, ctx) {
   host.innerHTML = `<div class="ct">${tete}${nav}<div class="ct-corps">${corps}</div></div>`;
   host.querySelectorAll('[data-vue]').forEach(b => { b.onclick = () => { etat.vue = b.dataset.vue; rendreCartable(host, ctx); }; });
   const autresBtn = host.querySelector('.ct-autres');
-  if (autresBtn) autresBtn.onclick = () => { etat.vue = 'saisons'; rendreCartable(host, ctx); };
+  if (autresBtn) autresBtn.onclick = () => { etat.vue = 'extensions'; rendreCartable(host, ctx); };
   const mes = host.querySelector('.ct-mes-cartes');
   if (mes) mes.onclick = () => ctx.ouvrirCartes();
   host.querySelectorAll('[data-ct-equipe]').forEach(b => {
@@ -281,29 +344,32 @@ export function rendreCartable(host, ctx) {
   const remplir = async det => {
     const id = det.dataset.set, corpsSet = det.querySelector('.ct-set-corps');
     const [genre, val] = [id.slice(0, 1), id.slice(2)];
-    const paires = genre === 's' ? [...(parSaison.get(val) || new Map()).entries()].map(([t, cles]) => ({ s: val, t, cles }))
+    // Une extension : toutes ses saisons, club par club ; ses saisons sans carte se chargent aussi, pour la complétion.
+    const saisonsExt = genre === 'e' ? (ctx.saisons || []).filter(s => decennieDe(s) === Number(val)) : [];
+    const paires = genre === 'e' ? [...parSaison.entries()].filter(([s]) => decennieDe(s) === Number(val)).sort((a, b) => b[0].localeCompare(a[0]))
+      .flatMap(([s, m]) => [...m.entries()].sort((a, b) => (ctx.club(a[0]) || a[0]).localeCompare(ctx.club(b[0]) || b[0], 'fr')).map(([t, cles]) => ({ s, t, cles })))
       : [...(parClub.get(val) || new Map()).entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([s, cles]) => ({ s, t: val, cles }));
     const entrees = new Map();
-    for (const s of new Set(paires.map(x => x.s))) { try { entrees.set(s, await ctx.charger(s)); } catch { /* saison indisponible */ } }
+    for (const s of new Set([...paires.map(x => x.s), ...saisonsExt])) { try { entrees.set(s, await ctx.charger(s)); } catch { /* saison indisponible */ } }
     const morceaux = [];
-    for (const { s, t, cles } of paires.sort((a, b) => (genre === 's' ? (ctx.club(a.t) || a.t).localeCompare(ctx.club(b.t) || b.t, 'fr') : b.s.localeCompare(a.s)))) {
+    for (const { s, t, cles } of paires) {
       const e = entrees.get(s);
       const club = (e && e.byTeam && e.byTeam[t]) || [];
       const parCle = new Map(club.map(p => [ctx.cleDe(p), p]));
       const cartes = cles.map(cle => ({ cle, p: parCle.get(cle), x: c.joueurs[cle] })).filter(y => y.p).sort((a, b) => a.p.n.localeCompare(b.p.n, 'fr'));
       const total = club.length;
-      const titre = genre === 's' ? (ctx.club(t) || t) : s;
+      const titre = genre === 'e' ? `${s} · ${ctx.club(t) || t}` : s;
       morceaux.push(`<div class="ct-page-tete"><b>${esc(titre)}</b><span class="ct-completion${total && cles.length >= total ? ' complet' : ''}">${cles.length}${total ? ` / ${total}` : ''}</span>${total ? `<span class="ct-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((cles.length / total) * 100))}%"></i></span>` : ''}</div>`);
       if (!cartes.length) { morceaux.push('<p class="ct-vide">Ces cartes ne se chargent pas.</p>'); continue; }
       const html = cartes.map(y => `<button type="button" class="ct-carte" data-cle="${esc(y.cle)}">${ctx.mini(y.p, meilleureVariante(y.x))}<span class="ct-badges">${gemmes(y.x)}${(y.x.n || 1) > 1 ? `<span class="ct-double">×${y.x.n}</span>` : ''}${(y.x.num || []).map(n => `<span class="ct-num">${esc(n)}</span>`).join('')}</span><span class="ct-stats"><span class="ct-ligne ct-vraie"><i>Vraie</i>${esc(ctx.vraie(y.p))}</span></span></button>`);
       morceaux.push(pagesDe(html, titre, esc));
     }
     corpsSet.innerHTML = morceaux.length ? `<div class="ct-reliure">${morceaux.join('')}</div>` : '<p class="ct-vide">Cette saison n\'a pas pu se charger.</p>';
-    if (genre === 's') {
-      const e = entrees.get(val);
+    if (genre === 'e') {
+      const total = saisonsExt.reduce((a, s) => a + (((entrees.get(s) || {}).players || []).length), 0);
       const n = paires.reduce((a, x) => a + x.cles.length, 0);
       const sous = det.querySelector('.ct-set-n');
-      if (e && e.players && sous) sous.textContent = `${n} / ${e.players.length}`;
+      if (total && sous) sous.textContent = `${n} / ${total}`;
     }
     corpsSet.querySelectorAll('[data-cle]').forEach(b => {
       b.onclick = () => {

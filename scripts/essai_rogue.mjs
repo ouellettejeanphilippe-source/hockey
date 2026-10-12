@@ -108,7 +108,7 @@ await page.addInitScript(cartes => {
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
   // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1 } }));
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -587,6 +587,15 @@ await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
 await page.click('#pageMarche .hub-page-retour');
 await acheter('j:argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
+// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer) ;
+// « Signer un joueur » mène à la signature, joueurs seuls.
+const revele = await page.$$eval('#choixModal .choix-option.tc', e => ({ joueurs: e.filter(x => x.querySelector('.cj-mini-carte')).length, jeu: e.filter(x => !x.querySelector('.cj-mini-carte')).length, signer: e.filter(x => x.querySelector('.tcj-signer')).length }));
+if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Argent ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
+else {
+  await page.click('#choixModal:not([hidden]) .choix-fermer');
+  await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc .cj-mini-carte', { timeout: 30000 });
+  if (await page.$$eval('#choixModal .choix-option.tc', e => e.some(x => !x.querySelector('.cj-mini-carte')))) erreurs.push('la signature du pack Argent montre encore des cartes de jeu');
+}
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
@@ -681,7 +690,10 @@ await regler();
 for (const pack of ['j:or', 'j:coach']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
+  // Jalon Q : le paquet entier, puis la signature, joueurs seuls ; « Plus tard » laisse l'offre à la boîte.
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+  await page.waitForTimeout(500);
+  if (await page.$('#choixModal:not([hidden]) .tcj-signer')) await page.click('#choixModal:not([hidden]) .choix-plus-tard');
   await auBureau();
   await regler();
 }
@@ -805,6 +817,34 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     if (!dc || dc.coach.palier !== 1 || dc.coach.cle === coachAvant) erreurs.push(`« Le congédiement » n'installe pas un autre coach à la confiance I (${JSON.stringify(dc ? dc.coach : null)})`);
     else if (coachApres !== dc.coach.cle) erreurs.push(`la sauvegarde garde ${coachApres} comme coach de la run, pas ${dc.coach.cle}`);
   }
+  /*
+   * LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, une signée ; la décision est un ballottage
+   * dont le joueur sort de ton cartable, au plus Régulier.
+   */
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
+  await page.waitForTimeout(300);
+  const rappel = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:rappel"]:not([disabled])');
+  if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas depuis l\'onglet Permanent');
+  else {
+    await rappel.click();
+    await page.waitForSelector('#choixModal:not([hidden]) .tcj-signer', { timeout: 30000 });
+    await page.screenshot({ path: `${DOSSIER}/rogue-rappel.png` });
+    const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.length);
+    const n0 = (await decisions()).length;
+    await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
+    await page.waitForTimeout(500);
+    // Qui sort, puis la boîte se règle du bureau (un message peut attendre sous la page du Marché).
+    for (let k = 0; k < 6 && await page.$('#choixModal:not([hidden])'); k++) await regler().catch(() => {});
+    await auBureau();
+    await regler();
+    const d = (await decisions()).slice(n0).find(x => x.ballottage);
+    const cartable = await page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
+    console.log(`10d. le rappel du club-école : ${offres} cartes offertes · ${d ? `${d.ballottage.entre} entre, ${d.ballottage.sort || 'case libre'} sort` : '(rien signé)'}`);
+    if (offres !== 3) erreurs.push(`le rappel offre ${offres} cartes au lieu de trois`);
+    if (!d) erreurs.push('le rappel du club-école ne signe personne');
+    else if (!cartable.includes(d.ballottage.entre)) erreurs.push('le joueur rappelé ne vient pas du cartable');
+  }
   // Les cartes de la saison, pour la suite (11).
   if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
   await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="partie"]').catch(() => {});
@@ -845,6 +885,21 @@ await page.click('#sousNav .soustab[data-page="cartable"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-cartable.png` });
 console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace(/\s+/g, ' ').trim()} · ${await page.$$eval('[data-ct-equipe]', e => e.length)} cartes d'équipe`);
+// LES EXTENSIONS (Jalon P4) : les missions en tête, une décennie s'ouvre et dit sa complétion sur ses shards.
+{
+  await page.click('#pageCartable [data-vue="extensions"]');
+  await page.waitForSelector('#pageCartable .ct-missions', { timeout: 10000 });
+  const missions = await page.$$eval('#pageCartable .ct-mission', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  await page.click('#pageCartable details.ct-set > summary');
+  await page.waitForFunction(() => /\d+ \/ \d+/.test((document.querySelector('#pageCartable details.ct-set[open] .ct-set-n') || {}).textContent || ''), null, { timeout: 30000 }).catch(() => {});
+  const ext = await page.$eval('#pageCartable details.ct-set[open] summary', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+  await page.screenshot({ path: `${DOSSIER}/rogue-extensions.png` });
+  console.log(`12x. les extensions : ${ext} · missions : ${missions.join(' | ')}`);
+  if (missions.length !== 6) erreurs.push(`le cartable montre ${missions.length} missions au lieu de six`);
+  if (!/\d+ \/ \d+/.test(ext)) erreurs.push(`une extension ouverte ne dit pas sa complétion (« ${ext} »)`);
+  await page.click('#pageCartable [data-vue="equipe"]');
+  await page.waitForTimeout(300);
+}
 /*
  * LE VERSO GARDE LA CARTE POSÉE (S80) : la fiche du joueur, retournée, la
  * montre dans une case pleine. Puis « + Poser une amélioration » d'une fiche

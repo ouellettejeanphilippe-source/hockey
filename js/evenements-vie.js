@@ -32,7 +32,7 @@ export const EVENEMENTS_VIE = {
 
   // ---- Le propriétaire ----
   loge: { nom: 'La loge du propriétaire', ico: '🥃', rarete: 'commune', retire: true, duree: 6, texte: 'Il regarde le match de haut, comme il se doit.', effet: { finition: 0.962, discipline: 0.85 } },
-  courrielSieste: { nom: 'Le courriel du dimanche', ico: '💌', rarete: 'peu', duree: 6, texte: 'Rédigé « comme discuté lors de ma sieste ». Aucune consigne n\'y figure.', effet: { volume: 0.925, discipline: 0.775 } },
+  courrielSieste: { nom: 'Le courriel du dimanche', ico: '💌', rarete: 'peu', retire: true, duree: 6, texte: 'Rédigé « comme discuté lors de ma sieste ». Aucune consigne n\'y figure.', effet: { volume: 0.925, discipline: 0.775 } },
   budgetCafe: { nom: 'Le budget du café', ico: '🫖', rarete: 'maudite', retire: true, duree: 8, texte: 'Une coupure à l\'infirmerie, annoncée entre deux dossiers de comptabilité.', effet: { blessure: 1.562, energie: 1.225 } },
   nouveauLogo: { nom: 'Le nouveau logo', ico: '🔷', rarete: 'peu', retire: true, duree: 5, texte: 'Un comité de douze personnes a changé la teinte du bleu.', effet: { finition: 1.083, discipline: 1.124 } },
   jetPrive: { nom: 'Le jet privé', ico: '🛩', rarete: 'peu', duree: 6, texte: 'Les voyages sont plus courts. Personne ne pose de question sur la facture.', effet: { discipline: 1.147, energie: 0.7 } },
@@ -55,12 +55,12 @@ export const EVENEMENTS_VIE = {
   banderole: { nom: 'La banderole de la section 112', ico: '🚩', rarete: 'peu', retire: true, duree: 5, texte: 'Quarante mètres de toile, et une faute d\'orthographe.', effet: { finition: 1.075, defense: 1.037 } },
   clubDesAmis: { nom: 'Le club des partisans de longue date', ico: '🧣', rarete: 'peu', retire: true, duree: 8, texte: 'Ils n\'ont pas manqué un match depuis la présidence précédente.', effet: { volume: 1.075, discipline: 0.812 } },
   partisanAvion: { nom: 'Le partisan de l\'avion', ico: '🧑‍✈', rarete: 'commune', retire: true, duree: 4, texte: 'Il a voyagé neuf heures pour s\'asseoir derrière le banc adverse.', effet: { discipline: 1.12, energie: 0.82 } },
-  petitionFiltre: { nom: 'La pétition du filtre', ico: '📃', rarete: 'commune', duree: 6, texte: 'Dix mille signatures pour demander un nouveau système de ventilation.', effet: { volume: 0.94, energie: 0.76 } },
+  petitionFiltre: { nom: 'La ventilation neuve', ico: '📃', rarete: 'commune', duree: 6, texte: 'Tu cèdes à la pétition des partisans : un nouveau système de ventilation, et l\'air frais au vestiaire.', effet: { volume: 0.94, energie: 0.76 } },
   tifo: { nom: 'Le tifo géant', ico: '🏳', rarete: 'peu', retire: true, duree: 4, texte: 'Déployé avant la mise au jeu. Il couvre une section entière.', effet: { finition: 1.12, defense: 0.925 } },
   loterieMoitie: { nom: 'Le tirage moitié-moitié', ico: '🎠', rarete: 'commune', retire: true, duree: 4, texte: 'Le gagnant a donné sa part au club de pétanque.', effet: { finition: 1.06, energie: 0.82 } },
 
   // ---- Les voyages ----
-  autobusPanne: { nom: 'L\'autobus en panne', ico: '🛞', rarete: 'commune', duree: 4, texte: 'Trois heures au bord de l\'autoroute, à regarder passer des camions.', effet: { discipline: 0.865, energie: 1.315 } },
+  autobusPanne: { nom: 'L\'autobus en panne', ico: '🛞', rarete: 'commune', retire: true, duree: 4, texte: 'Trois heures au bord de l\'autoroute, à regarder passer des camions.', effet: { discipline: 0.865, energie: 1.315 } },
   volRetarde: { nom: 'Le vol retardé', ico: '🛬', rarete: 'commune', retire: true, duree: 3, texte: 'Atterri à l\'aube, entraîné à midi, couché à midi et quart.', effet: { volume: 0.925, energie: 1.3 } },
   tournoiNeige: { nom: 'La route enneigée', ico: '🛣', rarete: 'commune', retire: true, duree: 4, texte: 'Le chauffeur a dit « ça va bien aller » pendant deux cents kilomètres.', effet: { discipline: 0.865, energie: 1.225 } },
   frontiere: { nom: 'La fouille à la frontière', ico: '🛂', rarete: 'commune', retire: true, duree: 3, texte: 'Un douanier compte les bâtons, un par un, avec application.', effet: { finition: 1.06, energie: 1.24 } },
@@ -80,7 +80,7 @@ export const EVENEMENTS_VIE = {
   bandageSerre: { nom: 'Le bandage trop serré', ico: '🧵', rarete: 'maudite', retire: true, duree: 5, texte: 'Un joueur revient trop vite. Le soigneur répond d\'un haussement d\'épaules.', effet: { finition: 1.06, blessure: 1.75 } },
   testSang: { nom: 'La prise de sang de routine', ico: '🔬', rarete: 'commune', retire: true, duree: 3, texte: 'Les résultats sont corrects, sauf les vôtres.', effet: { blessure: 0.5, energie: 1.075 } },
   imagerie: { nom: 'La résonance magnétique', ico: '🩻', rarete: 'commune', retire: true, duree: 4, texte: 'Un joueur y reste quarante minutes et sort en parfaite santé.', effet: { volume: 0.94, blessure: 0.5 }, gestes: { soin: 1, tousLesBlesses: true } },
-  retourPrecoce: { nom: 'Le retour prématuré', ico: '🦿', rarete: 'peu', duree: 5, texte: 'Le blessé a dit « je me sens bien » trois fois. Il n\'a pas été cru.', effet: { finition: 1.075, blessure: 1.75 }, gestes: { soin: 3, tousLesBlesses: true } },
+  retourPrecoce: { nom: 'Le retour précipité', ico: '🦿', rarete: 'peu', duree: 5, texte: 'Tu laisses ton blessé revenir plus tôt. Il a dit « je me sens bien » trois fois.', effet: { finition: 1.075, blessure: 1.75 }, gestes: { soin: 3, tousLesBlesses: true } },
 
   // ---- Le repêchage, l'échéance, le camp, la fin ----
   tableRepechage: { nom: 'La table de repêchage', ico: '🔖', rarete: 'commune', retire: true, duree: 5, texte: 'Le recruteur en chef a quatre listes, et trois sont à jour.', effet: { finition: 0.955, discipline: 0.865 } },
@@ -89,9 +89,9 @@ export const EVENEMENTS_VIE = {
   silenceEcheance: { nom: 'Le silence de l\'échéance', ico: '🔕', rarete: 'commune', retire: true, duree: 3, texte: 'Le téléphone n\'a pas sonné. C\'est une nouvelle en soi.', effet: { discipline: 0.85, energie: 1.075 } },
   campEntrainement: { nom: 'La journée des tests physiques', ico: '⛰', rarete: 'peu', retire: true, duree: 6, texte: 'Chaque joueur est mesuré, pesé et classé sur une feuille de calcul.', effet: { energie: 1.24, robustesse: 1.3 } },
   campFlechettes: { nom: 'Le camp de la relève', ico: '🌲', rarete: 'peu', retire: true, duree: 8, texte: 'Quarante espoirs, un seul filet, et une patience de moine.', effet: { volume: 1.112, finition: 0.962, energie: 1.15 } },
-  dernierSprint: { nom: 'Le dernier droit', ico: '🚦', rarete: 'rare', duree: 10, texte: 'Douze matchs, une seule consigne, et un tableau qui ne ment pas.', effet: { volume: 1.09, finition: 1.09, defense: 0.91, energie: 1.15 } },
+  dernierSprint: { nom: 'Le dernier droit', ico: '🚦', rarete: 'rare', duree: 10, texte: 'Tu annonces le dernier droit : douze matchs, une seule consigne, et un tableau qui ne ment pas.', effet: { volume: 1.09, finition: 1.09, defense: 0.91, energie: 1.15 } },
   bilanFinSaison: { nom: 'Le bilan de fin de saison', ico: '🪫', rarete: 'peu', retire: true, duree: 5, texte: 'Trente minutes de diapositives. Une seule était lisible.', effet: { finition: 0.962, discipline: 0.812 } },
-  cercleVertueux: { nom: 'Le cercle vertueux', ico: '🎡', rarete: 'commune', duree: 5, texte: 'Les vétérans montrent aux jeunes où se trouve le chemin du retour.', effet: { defense: 0.962, discipline: 0.85 } },
+  cercleVertueux: { nom: 'Le parrainage des vétérans', ico: '🎡', rarete: 'commune', duree: 5, texte: 'Tu jumelles chaque jeune à un vétéran : ils lui montrent le chemin du retour.', effet: { defense: 0.962, discipline: 0.85 } },
 
   // ---- Nouveaux événements (ajouts pour plus de variété) ----
   zamboniEnFeu: { nom: 'La surfaceuse en feu', ico: '🔥', rarete: 'peu', retire: true, duree: 5, texte: 'Le conducteur a sauté juste à temps. La glace fond.', effet: { volume: 0.9, defense: 0.9, energie: 0.85 } },
@@ -99,7 +99,7 @@ export const EVENEMENTS_VIE = {
   alarmeIncendie: { nom: 'L\'alarme incendie à l\'hôtel', ico: '🚨', rarete: 'peu', retire: true, duree: 4, texte: 'Trois heures du matin, dans la neige, en pyjama.', effet: { energie: 1.25, defense: 0.95 } },
   equipementEgare: { nom: 'L\'équipement égaré', ico: '📦', rarete: 'maudite', retire: true, duree: 5, texte: 'Les sacs sont à Calgary, l\'équipe est à Boston.', effet: { finition: 0.9, energie: 1.2, discipline: 1.3 } },
   commanditaireFuit: { nom: 'Le commanditaire qui fuit', ico: '🏃', rarete: 'maudite', retire: true, duree: 8, texte: 'Un chèque qui rebondit. Le proprio hurle dans les couloirs.', effet: { finition: 0.92, discipline: 1.2 } },
-  recrueRecord: { nom: 'La séquence de la recrue', ico: '🔥', rarete: 'rare', duree: 10, texte: 'Huit matchs de suite avec un point. Les vétérans la vouvoient.', effet: { volume: 1.08, finition: 1.1, energie: 1.15 } },
+  recrueRecord: { nom: 'La séquence de la recrue', ico: '🔥', rarete: 'rare', retire: true, duree: 10, texte: 'Huit matchs de suite avec un point. Les vétérans la vouvoient.', effet: { volume: 1.08, finition: 1.1, energie: 1.15 } },
   gastroLocaux: { nom: 'La gastro des locaux', ico: '🤢', rarete: 'maudite', retire: true, duree: 5, texte: 'Personne n\'ose toucher les poignées de porte.', effet: { blessure: 1.6, energie: 1.3 } },
   fuiteToit: { nom: 'La fuite dans le toit', ico: '💧', rarete: 'commune', retire: true, duree: 4, texte: 'Un seau au milieu de la patinoire pendant la pratique.', effet: { volume: 0.95, defense: 0.92 } },
   repasEmpoisonne: { nom: 'L\'intoxication alimentaire', ico: '🦞', rarete: 'maudite', retire: true, duree: 3, texte: 'Le poulet de l\'avion n\'était pas assez cuit.', effet: { blessure: 1.4, energie: 1.4, finition: 0.85 } },
@@ -117,7 +117,7 @@ export const EVENEMENTS_VIE = {
   bagarreBanc: { nom: 'La bagarre au banc', ico: '🥊', rarete: 'maudite', retire: true, duree: 6, texte: 'Entre nos propres joueurs. L\'ambiance est lourde.', effet: { finition: 0.85, discipline: 1.4, energie: 1.1 } },
   retourLegende: { nom: 'La visite de la légende', ico: '👴', rarete: 'rare', retire: true, duree: 7, texte: 'Il a passé une heure dans le vestiaire à raconter sa Coupe.', effet: { finition: 1.08, defense: 0.9, discipline: 0.8 } },
   debutantBut: { nom: 'Le premier but du débutant', ico: '🐣', rarete: 'commune', retire: true, duree: 5, texte: 'La rondelle est dans une vitrine, tout le monde est joyeux.', effet: { finition: 1.06, discipline: 0.9 } },
-  greveZamboni: { nom: 'La grève des surfaceuses', ico: '🪧', rarete: 'peu', duree: 6, texte: 'On joue dans deux pouces de neige artificielle.', effet: { volume: 0.85, defense: 0.85, energie: 1.2 } },
-  miracleGlace: { nom: 'Le miracle sur glace', ico: '✨', rarete: 'rare', duree: 10, texte: 'On a remonté quatre buts en troisième. L\'équipe y croit.', effet: { finition: 1.15, defense: 0.88, energie: 1.2 } },
+  greveZamboni: { nom: 'La grève des surfaceuses', ico: '🪧', rarete: 'peu', retire: true, duree: 6, texte: 'On joue dans deux pouces de neige artificielle.', effet: { volume: 0.85, defense: 0.85, energie: 1.2 } },
+  miracleGlace: { nom: 'Le miracle sur glace', ico: '✨', rarete: 'rare', retire: true, duree: 10, texte: 'On a remonté quatre buts en troisième. L\'équipe y croit.', effet: { finition: 1.15, defense: 0.88, energie: 1.2 } },
 
 };

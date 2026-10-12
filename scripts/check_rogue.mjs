@@ -39,8 +39,9 @@ import { availableParallelism } from 'node:os';
 import {
   SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
   echelleTardive, grandirEffet, effetsDesCartes, appliquerMutation, simulerGrosMatch, MUTATIONS,
-  JOURS_PAR_MATCH,
+  JOURS_PAR_MATCH, registerHiddenRatings,
 } from '../js/sim.js';
+import fs from 'node:fs';
 import { deckDe, DECK_DEPART } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
@@ -80,7 +81,10 @@ const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 function forceAuMoment(i, matchs) {
   const [nom, moment] = MOMENTS[i];
   const jours = moment.serie ? 82 : moment.jour;
-  const equipe = (s, tag) => createTeam(tag, tag, autoRoster(shard(s).byTeam[tag].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }))));
+  // Des cotes fraîches, relues du shard : les runs que ce même fil a jouées avant (leurs modifs, leurs variantes) ne
+  // touchent pas la mesure — sans ça, l'ordre des tâches entre les fils la faisait bouger (Jalon Q).
+  const frais = s => JSON.parse(fs.readFileSync(fileURLToPath(new URL(`../data/seasons/${s}.json`, import.meta.url)), 'utf8')).players;
+  const equipe = (s, tag) => createTeam(tag, tag, autoRoster(frais(s).filter(p => p.t === tag && (p.gp || 0) >= 10).map(p => { registerHiddenRatings(p); return p; })));
   const toi = equipe('2005-06', 'CAR'), adv = equipe('2005-06', 'BUF');
   // Une ligue Rogue : la courbe de la fin de partie joue (`courbe`).
   toi.courbe = adv.courbe = true;

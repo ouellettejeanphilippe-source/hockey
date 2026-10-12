@@ -38,7 +38,14 @@ export const PALIERS_PACK = [9, 18, 26];
  * et tu en joues `JOUEES_SEMAINE` au plus ; les autres retournent dans la poche. Acheter ajoute des cartes à la
  * pile, vendre l'amincit : une poche de bonnes cartes pige de bonnes mains.
  */
-export const SEMAINE = 7, MAIN_SEMAINE = 4, JOUEES_SEMAINE = 2;
+export const SEMAINE = 7, JOUEES_SEMAINE = 2;
+const MAIN_SEMAINE = 4;
+/*
+ * JOUABLES QUAND ON VEUT (Jalon Q). JP : *main de 4 trop étroite ; les autres cartes jouables quand on veut*. La main
+ * reste le choix du coach au bureau, mais toute la poche se joue, du bureau ou de Cartes : `JOUEES_SEMAINE` cartes
+ * par semaine en tout, d'où qu'elles sortent. Et la poche te suit d'une saison à l'autre de la run (`poche`, une
+ * décision de report : js/rogue-jeu.js `continuerRun`).
+ */
 
 /*
  * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
@@ -57,6 +64,8 @@ export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue 
     if (((d.achat.sorte === 'cartes' ? d.achat.vendus : d.achat.cartesVendues) || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
+  // Jalon Q : la poche de la saison d'avant, reportée au jour 0 (ses cartes gardent leur rang : `r<i>`).
+  for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
   // S80 : une amélioration ou une édition de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
   for (const p of PALIERS_PACK) {
@@ -111,7 +120,8 @@ export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDe
   const vendues = new Set(cette.flatMap(d => (d.vend && Array.isArray(d.vend.refs) ? d.vend.refs : [])));
   // Une carte jouée ou vendue cette semaine n'est plus dans la poche d'aujourd'hui : on la garde dans la main, marquée.
   const main = [...tiree, ...recues].slice(0, MAIN_SEMAINE).map(x => ({ ...x, jouee: jouees.has(x.ref), vendue: vendues.has(x.ref), confiance: confiance.get(BANQUE[x.id].coach) || 0 }));
-  const nJouees = main.filter(x => x.jouee).length;
+  // Toute carte de la poche jouée cette semaine compte, dans la main ou non (Jalon Q).
+  const nJouees = jouees.size;
   // `taille` : les cartes où la semaine a pigé (la poche du lundi et celles reçues depuis), pour le dire à l'écran.
   return { w, debut, fin, main, taille: pile.length + recues.length, reste: Math.max(0, JOUEES_SEMAINE - nJouees), reglee: decisions.some(d => d && d.palier === `main:${w}`) };
 }
@@ -184,9 +194,9 @@ export function ouvrirInventaire(ctx) {
       for (const x of ctx.partie) { if (!piles.has(x.id)) piles.set(x.id, []); piles.get(x.id).push(x); }
       const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
-      // V4.3 : en Rogue, une carte ne se joue que de ta main de la semaine (`ctx.nonJouable` dit pourquoi pas).
+      // En Rogue, `JOUEES_SEMAINE` cartes par semaine (`ctx.nonJouable` dit pourquoi pas).
       const nonJouable = ref => (ctx.nonJouable ? ctx.nonJouable(ref) : '');
-      corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Chaque semaine, ${MAIN_SEMAINE} cartes de ta poche en main ; tu en joues ${JOUEES_SEMAINE}. Elle expire à la fin de la saison.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
+      corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Joue ${JOUEES_SEMAINE} cartes de ta poche par semaine, quand tu veux. Elle te suit d'une saison à l'autre de la run.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
                 ${filtres(cats)}
         <div class="inv-grille">${cartes.map(([id, pile]) => {
           const x = pile.find(c => !nonJouable(c.ref)) || pile[0], non = nonJouable(x.ref);

@@ -28,8 +28,9 @@ import {
   mainDuDeck, SORTES_DECK, rolesOfferts, MUTATIONS, CARTES, PALIERS_CARTES,
   getPlayerKey, profilsDe,
 } from '../js/sim.js';
-import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte } from '../js/banque.js';
-import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH } from '../js/combat.js';
+import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte, payloadDe } from '../js/banque.js';
+import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
+import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH, signaturesDe } from '../js/combat.js';
 import { pocheDeLaPartie, mainDeLaSemaine, PALIERS_PACK } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -193,6 +194,67 @@ console.log('\n  Le deck (S73)\n');
   // V5 : une carte de match achetée ne compte pour son coach qu'une fois jouée.
   const jouee = { jour: 9, main: { jouees: [cle], enMain: [] } };
   exiger('achetée, elle ne compte pas pour son coach ; jouée, elle compte une fois', buildDe([achat])[e] === 0 && buildDe(vieux)[e] === 0 && buildDe([achat, jouee])[e] === 1, `${buildDe([achat])[e]} · ${buildDe(vieux)[e]} · ${buildDe([achat, jouee])[e]}`);
+}
+
+/*
+ * LA POCHE SE JOUE QUAND ON VEUT, ET ELLE SUIT (Jalon Q). JP : *main de 4 trop étroite ; perdues en fin de saison*.
+ * Une carte hors de la main se joue et compte dans les deux de la semaine ; la poche reportée au jour 0 d'une saison
+ * neuve (`poche`) entre dans la poche, et une carte jouée de là en sort.
+ */
+{
+  const ev = idsDe('evenement').slice(0, 6);
+  const achat = { jour: 0, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: ev } };
+  const m0 = mainDeLaSemaine({ decisions: [achat], graine: 7, jour: 7, nMatchDebut: 5, nMatch: 6, rogue: true });
+  const dehors = pocheDeLaPartie({ decisions: [achat], graine: 7, nMatch: 6, rogue: true }).find(x => !m0.main.some(y => y.ref === x.ref));
+  const joue = { jour: 8, joue: { src: 'partie', ref: dehors.ref, id: dehors.id } };
+  const m1 = mainDeLaSemaine({ decisions: [achat, joue], graine: 7, jour: 8, nMatchDebut: 5, nMatch: 6, rogue: true });
+  exiger('une carte hors de la main se joue, et compte dans les cartes de la semaine', m0.reste === 2 && m1.reste === 1, `${m0.reste} → ${m1.reste}`);
+  const report = { jour: 0, poche: ev.slice(0, 2), report: true };
+  const poche = pocheDeLaPartie({ decisions: [report], graine: 7, nMatch: 0, rogue: true });
+  const apres = pocheDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], graine: 7, nMatch: 0, rogue: true });
+  exiger('la poche de la saison d\'avant entre au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
+}
+
+/*
+ * LES DOUBLONS ET LE RAPPEL (Jalon P3). Trois doublons d'une variante la montent d'un cran, jusqu'à Holo ; l'Or ne se
+ * fabrique pas. « Le rappel du club-école » signe un joueur de ton cartable par la décision qui existe (`ballottage`).
+ */
+{
+  // Treize Base : quatre montent (douze doublons), et ces quatre Parallèles en font une Holo.
+  const x = { v: { commune: 13 } };
+  const m = monterLesDoublons(x);
+  exiger('trois doublons montent la carte : Base → Parallèle → Holo, jamais Or', m.length === 5 && x.v.commune === 1 && x.v.peu === 1 && x.v.rare === 1 && !x.v.legendaire,
+    `${JSON.stringify(m.map(y => `${y.de}→${y.a}`))} · reste ${JSON.stringify(x.v)}`);
+  const y = { v: { peu: 4 } };
+  monterLesDoublons(y);
+  exiger('une Parallèle et trois doublons font une Holo', y.v.peu === 1 && y.v.rare === 1, JSON.stringify(y.v));
+  const p = payloadDe('consommable:rappel', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
+  exiger('le rappel du club-école est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
+  exiger('sans joueur choisi, le rappel ne décide rien', payloadDe('consommable:rappel', {}) === null);
+}
+
+/*
+ * LES MISSIONS DE COLLECTION (Jalon P4) se lisent sur le cartable : neuf cartes d'un club-saison font une feuille,
+ * cinq Holo d'une décennie une extension, une carte par décennie du jeu les extensions toutes.
+ */
+{
+  const joueurs = {};
+  for (let i = 0; i < 9; i++) joueurs[`1985-86_EDM_${i}`] = { v: { rare: 1 }, n: 1 };
+  joueurs['2005-06_CAR_1'] = { v: { commune: 1 }, n: 1 };
+  const ms = Object.fromEntries(missionsDuCartable({ joueurs }, [1980, 2000]).map(m => [m.cle, m]));
+  exiger('neuf cartes d\'un club-saison font une feuille ; cinq Holo d\'une décennie, une extension', ms.feuille.fait && ms.cinqHolo.fait && ms.holo.fait && !ms.or.fait && !ms.cent.fait, Object.values(ms).map(m => `${m.cle} ${m.n}/${m.but}`).join(' · '));
+  exiger('une carte de chaque décennie du jeu : toutes les extensions', ms.epoques.fait && !missionsDuCartable({ joueurs }, [1980, 1990, 2000]).find(m => m.cle === 'epoques').fait && decennieDe('1999-00') === 1990);
+}
+
+/*
+ * LA CARTE SIGNATURE (Jalon P5) : un Holo ou un Or habillé apporte la carte de son premier rôle, une carte qui
+ * existe déjà ; une Base ou une Parallèle, rien.
+ */
+{
+  const joueur = (rar, cle) => ({ _carte: { rar }, cle });
+  const s = signaturesDe([joueur('rare', 'sniper'), joueur('legendaire', 'mur'), joueur('peu', 'sniper'), joueur('commune', 'passeur'), { cle: 'checker' }], p => [{ cle: p.cle }]);
+  exiger('un Holo et un Or apportent la carte de leur rôle, les autres rien', JSON.stringify(s) === JSON.stringify(['poignets', 'gardienFeu']), JSON.stringify(s));
+  exiger('chaque carte signature est une carte de match qui existe', s.every(k => CARTES_MATCH[k] && !CARTES_MATCH[k].maudite));
 }
 
 verdict('Le deck');

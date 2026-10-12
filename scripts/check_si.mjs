@@ -43,8 +43,10 @@ function ligue(seed, n) {
   return out;
 }
 
-// Six graines, pas trois (oct.) : à trois, le net d'une carte d'un moment se lisait au hasard des dés (🏯 plus fort avec une défense plus faible).
-const SEEDS = (process.env.SEEDS || '1000,1001,1002,1003,1004,1005').split(',').map(Number);
+// Douze graines (S111) : six ne suffisaient plus quand l'adversaire se blesse comme dans la vraie LNH — une saison appariée
+// diverge au moindre écart, et 🛤️ lisait +0,08 sur les six premières, +0,20 sur les six suivantes. À trois (oct.), déjà,
+// le net d'une carte d'un moment se lisait au hasard des dés (🏯 plus fort avec une défense plus faible).
+const SEEDS = (process.env.SEEDS || '1000,1001,1002,1003,1004,1005,1006,1007,1008,1009,1010,1011').split(',').map(Number);
 const BORNE = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
 
 /*

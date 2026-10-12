@@ -84,7 +84,7 @@ exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).jo
 // Le congédiement (V5) change de coach : il n'a pas de chiffre à dire.
 const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'evenement', 'consommable', 'plafond'].includes(BANQUE[id].cat) && id !== 'consommable:congediement').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
 exiger('les patrons, événements, consommables et contrats se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'tous');
-const CHAMPS = ['patron', 'effet', 'gestes', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach'];
+const CHAMPS = ['patron', 'effet', 'gestes', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach', 'ballottage'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
   const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', carte: 'lancer', coach: 'essaim', patrons: [], alea: 0.2 });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));

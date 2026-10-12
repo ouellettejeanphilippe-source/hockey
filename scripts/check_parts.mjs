@@ -48,6 +48,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, generateur,
   PART_UNITE, VOLUME_EXPOSANT, PASSE_D,
+  ecoleDe,
 } from '../js/sim.js';
 import { SEASON_LANCERS } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -81,7 +82,11 @@ function batirLigue() {
     vus.add(cle);
     const pool = unites.flat().map(p => ({ ...p }));
     pool.forEach(registerHiddenRatings);
-    equipes.push(createTeam(`${tag} ${shard.season}`, tag, autoRoster(pool), { season: shard.season }));
+    // Son club-école (Jalon P, B) : les autres joueurs de ce club-saison.
+    const autres = shard.players.filter(p => p.t === tag).map(p => ({ ...p }));
+    autres.forEach(registerHiddenRatings);
+    const roster = autoRoster(pool);
+    equipes.push(createTeam(`${tag} ${shard.season}`, tag, roster, { season: shard.season, ecole: ecoleDe(autres, roster) }));
   }
   // La graine du moteur est celle du tirage : la ligue entière se rejoue.
   const ligue = simulateLeague(equipes, 82, { graine: `${GRAINE}-${equipes.length}-${vus.size}` });
@@ -165,8 +170,13 @@ for (const g of ['F', 'D']) {
      * et 1,03 fois le réel ; une ligue seule bouge de ±0,03. La borne 0,90 à
      * 1,12 attrape ce que le chantier a corrigé — 1,12 au premier trio et 0,77
      * au quatrième — sans crier pour du bruit.
+     *
+     * JALON P (B) : avec les blessures de la vraie LNH, les clubs de l'IA rappellent leurs vrais joueurs du
+     * club-école (`ecoleDe`), et un rappelé prend sa part des lancers au 4e trio, comme dans la vraie vie : le
+     * 4e trio lit 0,89 à 0,90 fois le réel (1,03 sans blessures). Sa borne basse descend à 0,88 ; les autres rangs
+     * gardent 0,90.
      */
-    borne(`${g}${u + 1} · lancers, part du réel`, s[u] / r[u], 0.90, 1.12, ' fois');
+    borne(`${g}${u + 1} · lancers, part du réel`, s[u] / r[u], g === 'F' && u === 3 ? 0.88 : 0.90, 1.12, ' fois');
   }
 }
 
