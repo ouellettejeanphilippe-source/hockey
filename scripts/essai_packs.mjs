@@ -55,7 +55,8 @@ await page.click('#departModal .dp-commencer');
 await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 90000 });
 await page.waitForTimeout(800);
 await page.click('#mainBtn');
-await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
+// V5 : le lundi, la carte de la semaine (ses cases) couvre le bureau ; on attend qu'UN des trois soit visible.
+await page.waitForFunction(() => [...document.querySelectorAll('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #choixModal:not([hidden]) .choix-option')].some(e => e.offsetParent), null, { timeout: 120000 });
 
 
 await page.evaluate(() => { window.cap82.G.rogue.depart = 5000; });
@@ -67,6 +68,8 @@ const etat = () => page.evaluate(() => ({
   sommaire: !!document.querySelector('#hubModal .hub-page[data-genre="sommaire"]'),
   traiter: !!document.querySelector('#hubModal .hub-traiter'),
   jour: !!document.querySelector('#hubModal .hub-jour:not([disabled])'),
+  noeud: [...document.querySelectorAll('#hubModal .nd-case')].some(x => x.offsetParent),
+  liste: (document.querySelector('#signatureModal:not([hidden]) .choix-titre') || {}).textContent || '',
 }));
 const rnd = (() => { let x = Number(process.env.GRAINE || 7); return () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; })();
 // Règle la boîte comme un joueur pressé (sans signer de pack).
@@ -86,12 +89,18 @@ async function regler(max = 40) {
       const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) { await f.click(); await page.waitForTimeout(300); continue; }
       return 'coince';
     }
+    // Jalon R : la liste de signature — le ballottage se signe (sa case est celle du blessé), un pack attend « Plus tard ».
+    if (e.liste && !e.choix) {
+      if (/ballottage/i.test(e.liste) && await page.$('#signatureModal .btn-sign:not([disabled])')) await page.click('#signatureModal .btn-sign:not([disabled])');
+      else await page.click('#signatureModal .choix-fermer');
+      await page.waitForTimeout(500); continue;
+    }
+    if (e.noeud) { await page.click('#hubModal .nd-case'); await page.waitForTimeout(400); continue; }
     if (e.sommaire) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
     if (e.traiter) {
       await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400);
       const pack = await page.$('#hubModal .hub-msg.ouvert[data-msg="pack"]');
       if (pack) return 'pack';
-      const main = await page.$('#hubModal .hub-msg.ouvert .hub-main-reglee'); if (main) { await main.click(); await page.waitForTimeout(600); continue; }
       const d = await page.$('#hubModal .hub-msg.ouvert [data-defaut]'); if (d && await d.isVisible()) { await d.click(); await page.waitForTimeout(500); continue; }
       const r = await page.$('#hubModal .hub-msg.ouvert .vie-rep'); if (r) { await r.click(); await page.waitForTimeout(500); continue; }
       return 'coince-boite';
@@ -110,13 +119,19 @@ const versBoutique = async () => {
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 };
 // Signe dans la fenêtre d'offre ouverte ; rend la clé signée.
+// Jalon R : la liste du 82-0 ; « Signer » pose à la meilleure case, ou (un tour sur deux) « qui sort ? » depuis la destination.
 async function signer() {
-  await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
-  const opts = await page.$$('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
-  if (!opts.length) return null;
-  const k = Math.floor(rnd() * opts.length);
-  const cle = await opts[k].evaluate(b => b.closest('.choix-option').dataset.choix);
-  await opts[k].click(); await page.waitForTimeout(500);
+  if (!(await page.$('#signatureModal:not([hidden])'))) {
+    await page.waitForSelector('#choixModal:not([hidden]) .choix-fermer', { timeout: 60000 });
+    await page.click('#choixModal:not([hidden]) .choix-fermer');
+  }
+  await page.waitForSelector('#signatureModal:not([hidden]) .pcard', { timeout: 60000 });
+  const rangees = await page.$$('#signatureModal .pcard:not(.locked)');
+  if (!rangees.length) { await page.click('#signatureModal .choix-fermer'); return null; }
+  const k = Math.floor(rnd() * rangees.length);
+  const cle = await rangees[k].evaluate(x => x.dataset.cle);
+  if (rnd() < 0.5) { await (await rangees[k].$('.btn-sign')).click(); await page.waitForTimeout(500); return cle; }
+  await (await rangees[k].$('.sig-changer')).click(); await page.waitForTimeout(500);
   // qui sort
   for (let etape = 0; etape < 2; etape++) {
     await page.waitForSelector('#choixModal:not([hidden]) .aln-case', { timeout: 10000 });
@@ -164,8 +179,14 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   const plusTard = rnd() < 0.35;
   if (plusTard) {
     await page.click('#choixModal:not([hidden]) .choix-fermer'); await page.waitForTimeout(800);
+    if (await page.$('#signatureModal:not([hidden])')) { await page.click('#signatureModal .choix-fermer'); await page.waitForTimeout(500); }
     await club(); const r = await regler(); log('   plus tard, boîte :', r);
-    if (r === 'pack') { await page.click('#hubModal .hub-msg.ouvert .hub-pack-rouvrir'); await page.waitForTimeout(1500); }
+    if (r === 'pack') {
+      // Le lundi, le message est une case de la carte de la semaine (V5) : on la touche, puis « Signer maintenant ».
+      const caseNd = await page.$('#hubModal .nd-case'); if (caseNd && await caseNd.isVisible()) { await caseNd.click(); await page.waitForTimeout(600); }
+      const rouvrir = await page.$('#hubModal .hub-pack-rouvrir'); if (rouvrir && await rouvrir.isVisible()) await rouvrir.click();
+      await page.waitForTimeout(1500);
+    }
     else { log('   ⚠ pas de message de pack après « Plus tard »'); pb++; continue; }
     cle = await signer();
   } else cle = await signer();

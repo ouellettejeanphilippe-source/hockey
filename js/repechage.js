@@ -666,6 +666,7 @@ function rangeeDeSignature(x, o, signer) {
   const nomDe = n => String(n).split(' ').slice(-1)[0];
   const el = document.createElement('div');
   el.className = `pcard tc-${x.rar || 'commune'}${best ? '' : ' locked'}`;
+  el.dataset.cle = getPlayerKey(p);
   el.setAttribute('style', varsEquipe(p));
   const stats = best && best.net ? motsDeStats(best.net, 2) : [];
   const dest = non ? `<span class="dest-bad">${esc(non)}</span>`
