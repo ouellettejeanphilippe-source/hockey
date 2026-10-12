@@ -23,6 +23,8 @@
  *      première saison, les saisons par run, la première saison ;
  *   3. LES CAMPAGNES : de zéro, run après run, les écussons et les jalons
  *      achètent les déblocages — combien de runs avant la première Coupe ;
+ *   2b. LA MAIN EN SÉRIES : la même première saison, sur les mêmes dés,
+ *      séries jouées avec et sans la main de l'adjoint (SAISONS_MAIN) ;
  *   4. LA FORCE DES CARTES SELON LE MOMENT : le même match, sur les mêmes
  *      dés, au jour 3, au jour 75 et en finale — des cartes de trio du
  *      deck, des améliorations, des cartes qui visent l'adversaire.
@@ -53,6 +55,8 @@ const RUNS = Number(process.env.RUNS ?? 10);
 const CAMPAGNES = Number(process.env.CAMPAGNES ?? 2);
 const RUNS_CAMPAGNE = Number(process.env.RUNS_CAMPAGNE ?? 14);
 const MATCHS = Number(process.env.MATCHS ?? 1500);
+/* Les premières saisons jouées deux fois, avec et sans la main en séries (Jalon P0). */
+const SAISONS_MAIN = Number(process.env.SAISONS_MAIN ?? 12);
 /* Les niveaux : 0, puis les N premiers déblocages de l'ordre du robot ; le classeur de M runs jouées. */
 const NIVEAUX = [[0, 0], [6, 4], [11, 9], [16, 16], [ORDRE_DEBLOCAGES.length, 28]];
 const MOMENTS = [['jour 3', { jour: 2 }], ['jour 75', { jour: 74 }], ['finale', { serie: true, ronde: 3 }]];
@@ -115,6 +119,15 @@ if (!isMainThread) {
       out.push({ coupe: r.coupe, nSaisons: r.nSaisons, pts1: r.pts1, series1: r.series1, coupe1: !!r.saisons[0].coupe, depart: r.depart });
     }
     parentPort.postMessage({ niveau: t.niveau, classeur: classeur.length, out });
+  } else if (t.genre === 'main') {
+    // LA MAIN EN SÉRIES (Jalon P0) : la même première saison, sur les mêmes dés, séries jouées avec puis sans la main de l'adjoint.
+    const out = [];
+    for (let i = t.de; i < t.a; i++) {
+      const jouer = mains => jouerRun(metaAuNiveau(0), { graine: `main-${i}`, maxSaisons: 1, mains }).saisons[0];
+      const avec = jouer(true), sans = jouer(false);
+      if (avec.rang <= 16) out.push({ rang: avec.rang, avec: avec.rondes, sans: sans.rondes });
+    }
+    parentPort.postMessage({ main: out });
   } else if (t.genre === 'force') {
     parentPort.postMessage({ force: forceAuMoment(t.i, t.matchs) });
   } else {
@@ -251,6 +264,7 @@ if (!isMainThread) {
   for (const [niveau, runsAvant] of NIVEAUX) for (let de = 0; de < RUNS; de += Math.ceil(RUNS / 2)) taches.push({ genre: 'niveau', niveau, runsAvant, de, a: Math.min(RUNS, de + Math.ceil(RUNS / 2)) });
   for (let c = 0; c < CAMPAGNES; c++) taches.push({ genre: 'campagne', c, runs: RUNS_CAMPAGNE });
   for (let i = 0; i < MOMENTS.length; i++) taches.push({ genre: 'force', i, matchs: MATCHS });
+  for (let de = 0; de < SAISONS_MAIN; de += Math.ceil(SAISONS_MAIN / 2)) taches.push({ genre: 'main', de, a: Math.min(SAISONS_MAIN, de + Math.ceil(SAISONS_MAIN / 2)) });
   /*
    * Au plus FILS travailleurs à la fois (6 par défaut) : à RUNS=40 CAMPAGNES=6,
    * les dix-neuf d'un coup tenaient 8,6 Go et la machine a manqué de mémoire.
@@ -284,6 +298,19 @@ if (!isMainThread) {
   borne('sans aucun déblocage, la Coupe par run est rare', lignes[0].coupe, 0, 0.1);
   borne('sans aucun déblocage, la Coupe dès la première saison : presque jamais', lignes[0].coupe1, 0, 0.1);
   exiger('tout débloqué, la Coupe se gagne bien plus souvent qu\'au départ', lignes[lignes.length - 1].coupe >= lignes[0].coupe + 0.1, `${pct(lignes[0].coupe)} → ${pct(lignes[lignes.length - 1].coupe)}`);
+
+  /*
+   * 2b. LA MAIN EN SÉRIES (Jalon P0). Mesuré le 12 oct. à 270 premières saisons (99 qualifiées) : 1,00 ronde sans
+   * main, 1,24 avec ; un 13e à 16e atteint la finale 17 % du temps même sans carte. La courbe (2.) et les campagnes
+   * (3.) se jouent maintenant AVEC la main : ce qui se lit ici, c'est ce qu'elle vaut.
+   */
+  {
+    const q = resultats.filter(x => x.main).flatMap(x => x.main);
+    const finale = k => pct(moy(q.map(o => (o[k] >= 3 ? 1 : 0))));
+    informer('la main en séries, la même première saison sur les mêmes dés', q.length
+      ? `${q.length} saisons qualifiées sur ${SAISONS_MAIN} · rondes gagnées ${moy(q.map(o => o.sans)).toFixed(2).replace('.', ',')} sans main, ${moy(q.map(o => o.avec)).toFixed(2).replace('.', ',')} avec · finale ${finale('sans')} sans, ${finale('avec')} avec`
+      : `aucune saison qualifiée sur ${SAISONS_MAIN}`);
+  }
 
   /* 3. les campagnes */
   const camp = resultats.filter(x => x.c !== undefined);
