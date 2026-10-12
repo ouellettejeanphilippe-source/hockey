@@ -3870,8 +3870,15 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     return !!(s.plans && s.plans[k] && (!s.feuilles[k] || s.feuilles[k].entracte))
       && !decsSerie.some(d => d.ronde === ronde && d.match_no === k && d.entracte);
   };
-  /* La série confiée à l'adjoint (J2-13) : une décision `auto` dans cette ronde, et il la finit. */
-  const serieDelegue = () => decsSerie.some(d => d.ronde === ronde && d.auto);
+  /*
+   * La série confiée à l'adjoint (J2-13) : une décision `auto` dans cette ronde, et il la finit — à moins
+   * qu'une `reprise` la rende après. JP (oct.) : *je pouvais plus choisir mes cartes en finale* ; un toucher
+   * de trop sur « L'adjoint joue cette série » ne se défaisait pas.
+   */
+  const serieDelegue = () => {
+    const rep = Math.max(-1, ...decsSerie.filter(d => d.ronde === ronde && d.reprise).map(d => d.match_no));
+    return decsSerie.some(d => d.ronde === ronde && d.auto && d.match_no >= rep);
+  };
   /* LE DEUXIÈME ENTRACTE D'UN MATCH DE SÉRIES (S70), comme en saison. */
   function ouvrirEntracteSerie(direct = false) {
     const s = maSerie(ronde);
@@ -4213,7 +4220,12 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         const gagne = s.winner === you;
         carte.innerHTML = `<div class="live-bilan ${gagne ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">${gagne ? 'Série remportée' : 'Éliminé'} ${Math.max(s.wA, s.wB)}-${Math.min(s.wA, s.wB)} · ${ctx.esc(nomRondeCourt(ronde))}</div>
           <div class="hub-carte-note">${rondeComplete(ronde) ? (gagne ? `La ronde est finie. ${ronde + 1 < nRondes ? 'La suivante t\'attend.' : ''}` : 'La ronde est finie ; les séries continuent sans ta formation.') : 'Les autres séries de la ronde se poursuivent.'}</div></div>`;
-      } else carte.innerHTML = carteSerie(s, true) + (serieDelegue() ? '<div class="hub-carte-note hub-adjoint">L\'adjoint joue cette série.</div>' : '') + bossHtml(s);
+      } else {
+        carte.innerHTML = carteSerie(s, true) + (serieDelegue() ? '<div class="hub-carte-note hub-adjoint">L\'adjoint joue cette série. <button type="button" class="btn hub-reprendre">Reprendre la série</button></div>' : '') + bossHtml(s);
+        // Le match qui vient n'est pas joué : la main de l'adjoint s'en va, et la tienne revient.
+        const rb = carte.querySelector('.hub-reprendre');
+        if (rb && onDecision) rb.onclick = () => { const r = ronde, k = revele.get(s); quitter(); onDecision({ ronde: r, match_no: k, reprise: true }); };
+      }
     } else {
       const r = elimination();
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">${ctx.esc(nomRonde(ronde))}</div><div class="hub-match-note">${r >= 0 ? `Ta formation est tombée au ${ctx.esc(nomRonde(r).toLowerCase())}. ` : ''}${deRonde(ronde).length} série${deRonde(ronde).length > 1 ? 's' : ''} : ${rondeComplete(ronde) ? 'la ronde est finie.' : 'la ronde se joue.'}</div></div>`;

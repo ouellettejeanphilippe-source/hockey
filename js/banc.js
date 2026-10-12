@@ -505,11 +505,13 @@ export async function deciderSerie(d) {
     (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement)
     // S74 : une main par match, une récompense par série.
     || (d.main && x.main) || (d.recompense !== undefined && x.recompense !== undefined)
+    // Reprendre la série retire ce que l'adjoint a posé pour ce match ; la lui redonner retire la reprise.
+    || (d.reprise && x.auto) || (d.auto && x.reprise)
     // S70 : un entracte par match, et toute autre décision pour ce match l'annule.
     || !!x.entracte);
-  // Une récompense de série ne touche que le deck : pas de dés neufs (S74).
+  // Une récompense de série ne touche que le deck, une reprise que l'écran : pas de dés neufs (S74).
   const avant = G.ligue.decisionsSeries || [];
-  G.ligue.decisionsSeries = [...avant.filter(x => !meme(x)), d.recompense !== undefined ? { ...d } : { ...d, sel: nouvelleGraine() }];
+  G.ligue.decisionsSeries = [...avant.filter(x => !meme(x)), d.recompense !== undefined || d.reprise ? { ...d } : { ...d, sel: nouvelleGraine() }];
   const vues = G.seriesVues;
   saveGame();
   /*
