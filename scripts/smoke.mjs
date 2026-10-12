@@ -2072,6 +2072,17 @@ if (enabled) {
             mainsAuto = dsB.filter(d => d.auto && d.ronde === r0 && d.main).length;
           }
           console.log(`   l'adjoint joue la série : ${mainsAuto || auto.length} main(s) décidée(s) par lui, « ${auto[0].main.jouees.join(', ') || 'rien'} » au premier match`);
+          // REPRENDRE LA SÉRIE (JP, oct. : *je pouvais plus choisir mes cartes en finale*) : la série se rend, la main revient.
+          const rep = await page.$('#hubModal .hub-reprendre');
+          if (await page.$('#hubModal .hub-adjoint') && !rep) errors.push('une série confiée à l\'adjoint ne se reprend pas');
+          else if (rep && await rep.isVisible()) {
+            await rep.click();
+            await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
+            await page.waitForTimeout(600);
+            if (await page.$('#hubModal .hub-adjoint')) errors.push('« Reprendre la série » : l\'adjoint la joue encore');
+            else if (!(await page.$('#hubModal .hub-main-serie'))) errors.push('« Reprendre la série » : la main du match ne revient pas');
+            else console.log('   la série reprise : la main du prochain match revient');
+          }
         }
       }
     }
