@@ -834,6 +834,9 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     const n0 = (await decisions()).length;
     await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
     await page.waitForTimeout(500);
+    // Qui sort, puis la boîte se règle du bureau (un message peut attendre sous la page du Marché).
+    for (let k = 0; k < 6 && await page.$('#choixModal:not([hidden])'); k++) await regler().catch(() => {});
+    await auBureau();
     await regler();
     const d = (await decisions()).slice(n0).find(x => x.ballottage);
     const cartable = await page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -882,6 +885,21 @@ await page.click('#sousNav .soustab[data-page="cartable"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-cartable.png` });
 console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace(/\s+/g, ' ').trim()} · ${await page.$$eval('[data-ct-equipe]', e => e.length)} cartes d'équipe`);
+// LES EXTENSIONS (Jalon P4) : les missions en tête, une décennie s'ouvre et dit sa complétion sur ses shards.
+{
+  await page.click('#pageCartable [data-vue="extensions"]');
+  await page.waitForSelector('#pageCartable .ct-missions', { timeout: 10000 });
+  const missions = await page.$$eval('#pageCartable .ct-mission', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  await page.click('#pageCartable details.ct-set > summary');
+  await page.waitForFunction(() => /\d+ \/ \d+/.test((document.querySelector('#pageCartable details.ct-set[open] .ct-set-n') || {}).textContent || ''), null, { timeout: 30000 }).catch(() => {});
+  const ext = await page.$eval('#pageCartable details.ct-set[open] summary', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+  await page.screenshot({ path: `${DOSSIER}/rogue-extensions.png` });
+  console.log(`12x. les extensions : ${ext} · missions : ${missions.join(' | ')}`);
+  if (missions.length !== 6) erreurs.push(`le cartable montre ${missions.length} missions au lieu de six`);
+  if (!/\d+ \/ \d+/.test(ext)) erreurs.push(`une extension ouverte ne dit pas sa complétion (« ${ext} »)`);
+  await page.click('#pageCartable [data-vue="equipe"]');
+  await page.waitForTimeout(300);
+}
 /*
  * LE VERSO GARDE LA CARTE POSÉE (S80) : la fiche du joueur, retournée, la
  * montre dans une case pleine. Puis « + Poser une amélioration » d'une fiche

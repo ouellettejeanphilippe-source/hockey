@@ -387,6 +387,23 @@ export function ajouterCollection({ joueurs = [], cartes = [] } = {}) {
  * par run et par étape (`recompenses[cle]`) : un rechargement du bilan ne
  * paie pas deux fois.
  */
+/*
+ * LES MISSIONS DE COLLECTION PAYENT (Jalon P4, js/cartable.js `missionsDuCartable`) : une fois chacune, en médailles
+ * gagnées à vie (elles comptent au prestige). Rend celles qui viennent d'être payées.
+ */
+export function payerMissions(missions = []) {
+  const m = lireMeta();
+  m.missions = m.missions || {};
+  const neuves = missions.filter(x => x.fait && !m.missions[x.cle]);
+  if (!neuves.length) return [];
+  for (const x of neuves) {
+    m.missions[x.cle] = true;
+    m.ecussonsAVie = ecussonsAVie(m) + x.medailles;
+    m.ecussons = (m.ecussons || 0) + x.medailles;
+  }
+  ecrireMeta(m);
+  return neuves;
+}
 export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } = {}) {
   const m = lireMeta();
   const k = `${cleRun}:${etape}`;

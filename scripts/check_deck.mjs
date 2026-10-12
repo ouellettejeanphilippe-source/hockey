@@ -29,7 +29,7 @@ import {
   getPlayerKey, profilsDe,
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte, payloadDe } from '../js/banque.js';
-import { monterLesDoublons } from '../js/cartable.js';
+import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
 import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH } from '../js/combat.js';
 import { pocheDeLaPartie, mainDeLaSemaine, PALIERS_PACK } from '../js/inventaire.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -231,6 +231,19 @@ console.log('\n  Le deck (S73)\n');
   const p = payloadDe('consommable:rappel', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
   exiger('le rappel du club-école est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
   exiger('sans joueur choisi, le rappel ne décide rien', payloadDe('consommable:rappel', {}) === null);
+}
+
+/*
+ * LES MISSIONS DE COLLECTION (Jalon P4) se lisent sur le cartable : neuf cartes d'un club-saison font une feuille,
+ * cinq Holo d'une décennie une extension, une carte par décennie du jeu les extensions toutes.
+ */
+{
+  const joueurs = {};
+  for (let i = 0; i < 9; i++) joueurs[`1985-86_EDM_${i}`] = { v: { rare: 1 }, n: 1 };
+  joueurs['2005-06_CAR_1'] = { v: { commune: 1 }, n: 1 };
+  const ms = Object.fromEntries(missionsDuCartable({ joueurs }, [1980, 2000]).map(m => [m.cle, m]));
+  exiger('neuf cartes d\'un club-saison font une feuille ; cinq Holo d\'une décennie, une extension', ms.feuille.fait && ms.cinqHolo.fait && ms.holo.fait && !ms.or.fait && !ms.cent.fait, Object.values(ms).map(m => `${m.cle} ${m.n}/${m.but}`).join(' · '));
+  exiger('une carte de chaque décennie du jeu : toutes les extensions', ms.epoques.fait && !missionsDuCartable({ joueurs }, [1980, 1990, 2000]).find(m => m.cle === 'epoques').fait && decennieDe('1999-00') === 1990);
 }
 
 verdict('Le deck');

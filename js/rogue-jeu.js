@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils } from './rogue.js';
+import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
@@ -16,7 +16,7 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
-import { ajouterAuCartable, lireCartable, meilleureVariante, motDeMontee, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
+import { ajouterAuCartable, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -341,7 +341,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   decider({ jour: j, palier: `k:${n}`, achat });
   if (tc) rangerCartes(tc, n);
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  annoncerMontees(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
+  apresLeCartable(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
   offrirPackJoueurs({ cle, cartes, reglage, pitie, vente: achat.vente, n, j, decider, tc, montrerCartes: true });
 }
 /*
@@ -364,11 +364,18 @@ async function offresDuCartable(C, graine) {
   }
   return out;
 }
-/* Les cartes que leurs doublons ont montées (Jalon P3), dites une fois, à l'ouverture. */
-function annoncerMontees(montees, cartes) {
-  if (!montees.length) return;
-  const nom = cle => (cartes.find(x => getPlayerKey(x.p) === cle) || { p: { n: 'Ta carte' } }).p.n;
-  toast(`${montees.map(m => motDeMontee(m, nom(m.cle))).join(' · ')}`);
+/*
+ * APRÈS UNE ENTRÉE AU CARTABLE : les cartes que leurs doublons ont montées (Jalon P3) et les missions de collection
+ * accomplies, payées une fois en médailles (Jalon P4), dites d'un seul toast.
+ */
+function apresLeCartable(montees, cartes) {
+  const nom = cle => (cartes.find(x => getPlayerKey(x.p || x) === cle) || { n: 'Ta carte' });
+  const mots = montees.map(m => { const x = nom(m.cle); return motDeMontee(m, (x.p || x).n); });
+  if (G.bonus === 'ROGUE') {
+    const decennies = [...new Set(state.index.seasons.map(decennieDe))];
+    for (const x of payerMissions(missionsDuCartable(lireCartable(), decennies))) mots.push(`🏅 Mission « ${x.nom} » : +${x.medailles} médailles`);
+  }
+  if (mots.length) toast(mots.join(' · '));
 }
 /* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
 export async function rouvrirPackJoueurs(achat, j, decider) {
@@ -457,7 +464,7 @@ export async function ouvrirPackDeSerie(cle, ronde) {
     graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(decisionsDeLaPartie(), G.journee || 0), saisons: state.index.seasons, shard: getShard,
   });
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
-  annoncerMontees(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
+  apresLeCartable(ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null }))), cartes);
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Au cartable',
     recit: `${cartes.length} vrais joueurs, tous à ton cartable : pour la saison prochaine et les runs d'après.`,
@@ -817,7 +824,7 @@ const PACKS_DE_DEPART = [{ g: 'F', nom: 'Les attaquants' }, { g: 'D', nom: 'Les 
 async function ouvrirPacksDeDepart(roster) {
   const joueurs = Object.values(roster).filter(Boolean);
   ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
-  ajouterAuCartable(joueurs.map(p => ({ cle: getPlayerKey(p), rar: 'commune' })));
+  apresLeCartable(ajouterAuCartable(joueurs.map(p => ({ cle: getPlayerKey(p), rar: 'commune' }))), joueurs);
   const packs = PACKS_DE_DEPART.map(P => ({ ...P, cartes: joueurs.filter(p => groupeDe(p) === P.g) })).filter(P => P.cartes.length);
   for (const [i, P] of packs.entries()) {
     const suite = i < packs.length - 1 ? 'Pack suivant' : 'À la run';

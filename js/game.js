@@ -2049,6 +2049,7 @@ function remplirCartable() {
     cleDe: getPlayerKey,
     club: t => TEAMFULL[t] || t,
     vraie: ligneVraieSaison,
+    saisons: state.index.seasons,
   });
 }
 /* L'alignement entre au cartable au départ d'une saison (une variante neuve compte, pas un doublon). */
