@@ -13,7 +13,8 @@
  * déblocages qu'ils achètent, et la run suivante.
  *
  * Le robot est GROSSIER exprès : il achète le pack qu'il peut, signe le
- * joueur que l'alignement automatique prendrait, ne joue aucune carte. Un
+ * joueur que l'alignement automatique prendrait, ne joue aucune carte en
+ * saison et, en séries, la main de l'adjoint. Un
  * humain fait mieux ; ce qui compte, c'est la PENTE d'un niveau de
  * déblocages à l'autre, au même robot.
  *
@@ -27,8 +28,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
-  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
+  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
 } from '../../js/sim.js';
+import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
@@ -211,7 +213,7 @@ function packVoulu(meta, jetons, n) {
  * (la saison 2 d'une run repart de l'équipe de la saison 1), les jetons de
  * départ. Rend la fiche, les séries, les jetons qui restent et l'équipe.
  */
-function jouerSaison(meta, etat, { graine, saison }) {
+function jouerSaison(meta, etat, { graine, saison, mains = true }) {
   const rnd = generateur('rogue80', graine, saison);
   const { roster, variantes } = etat;
   const nRes = reservesDeLaRun(meta);
@@ -293,8 +295,22 @@ function jouerSaison(meta, etat, { graine, saison }) {
   const rang = b.standings.indexOf(you) + 1;
   let rondes = 0, coupe = false, finale = false;
   if (rang <= 16) {
-    const S = creerSeries(b.standings.slice(0, 16), { ligue: L, graine: L.graine, decisions: [], equipes: L.teams });
-    for (let garde = 0; !S.fini && garde < 200; garde++) jouerMatchSeries(S);
+    const decsS = [];
+    const S = creerSeries(b.standings.slice(0, 16), { ligue: L, graine: L.graine, decisions: decsS, equipes: L.teams });
+    for (let garde = 0; !S.fini && garde < 200; garde++) {
+      /*
+       * LA MAIN EN SÉRIES (Jalon P0). Le robot jouait ses séries sans carte quand l'adversaire jouait la sienne : ce que
+       * le joueur vit en séries n'était pas mesuré. Il joue maintenant la main de l'adjoint (« L'adjoint joue cette
+       * série », `mainDeLAdjoint`) tirée du deck de départ, avec la piste la plus probable ; `mains: false`, sans.
+       */
+      const s = mains && S.courante.find(x => (x.A === you || x.B === you) && x.wA < 4 && x.wB < 4);
+      if (s) {
+        const pl = s.plans[S.k];
+        const { jouees, enMain } = mainDeLAdjoint(mainDuMatch(S.graine, `po${S.ronde}:${S.k}`, DECK_DEPART).main);
+        decsS.push({ ronde: S.ronde, match_no: S.k, main: { jouees, enMain }, prep: pl ? [planProbable(pl.depistage)] : [] });
+      }
+      jouerMatchSeries(S);
+    }
     rondes = S.toutes.filter(s => s.winner === you).length;
     coupe = S.champion === you;
     finale = S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A === you || s.B === you));
@@ -316,7 +332,7 @@ function jouerSaison(meta, etat, { graine, saison }) {
  * peuvent débloquer en cours de run. Rend la run saison par saison, les
  * écussons, ce qui entre au classeur, et l'équipe finale.
  */
-export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8, joues = new Map() } = {}) {
+export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8, joues = new Map(), mains = true } = {}) {
   const rnd = generateur('rogue80', graine);
   const exclus = new Set();
   // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs).
@@ -333,7 +349,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   let ecussons = 0;
   const entrees = Object.values(etat.roster).map(p => ({ p, rar: etat.variantes.get(getPlayerKey(p)) || 'commune' }));
   for (let n = 1; n <= maxSaisons; n++) {
-    const r = jouerSaison(meta, etat, { graine, saison: n });
+    const r = jouerSaison(meta, etat, { graine, saison: n, mains });
     entrees.push(...r.entrees);
     let e = ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe);
     // La prime de découverte : les cartes qui finissent leur première saison (`joues` ne les connaît pas encore).
