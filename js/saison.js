@@ -40,11 +40,12 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
+import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { ouvrirChoix, choixOuvert, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
-import { primesDesFils, JETONS } from './rogue.js';
+import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { BANQUE, reglesDe, payloadDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
@@ -3158,7 +3159,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * de choisir le joueur*).
      */
     const packOuvert = onDecision && ctx.boutique && ctx.boutique.rouvrir
-      ? decs.find(d => d && d.achat && d.achat.sorte === 'joueurs' && !d.achat.scelle && typeof d.palier === 'string' && /^k:\d+$/.test(d.palier) && !pris.has(`${d.palier}:signe`)) || null
+      ? decs.find(d => d && d.achat && d.achat.sorte === 'joueurs' && !d.achat.scelle && !d.achat.auCartable && typeof d.palier === 'string' && /^k:\d+$/.test(d.palier) && !pris.has(`${d.palier}:signe`)) || null
       : null;
     if (packOuvert) {
       out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert attend ta signature', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
@@ -3937,23 +3938,23 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   const deckDeSerie = (k = maSerie(ronde) ? revele.get(maSerie(ronde)) : Infinity) => deckDe(decisionsSaison, { serie: decsSerie, ronde, k,
     pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
     blessures: (you.injuriesLog || []).filter(i => i.games >= BLESSURE_TRAINEE && i.jour != null).map(i => i.jour + 1) });
-  /* La récompense d'une série gagnée (S74) : une carte plus rare, ou passer. */
+  /*
+   * La récompense d'une série gagnée (Jalon P1) : un pack de joueurs, ouvert tout de suite, dont les joueurs vont au
+   * cartable (`ouvrirPackDeSerie`, js/rogue-jeu.js) — plus une carte de match qui grossissait la main des séries.
+   */
   function recompenseSerie() {
     if (!onDecision || choixOuvert()) return false;
     for (let r = 0; r < nRondes; r++) {
       const s = maSerie(r);
       if (r >= nRondes - 1 || !s || !complete(s) || s.winner !== you || decsSerie.some(d => d.ronde === r && d.recompense !== undefined)) continue;
       const boss = s.A === you ? s.B : s.A;
-      const quitterR = f => { quitter(); f(); };
-      const spec = {
-        ico: '🏆', titre: `Série gagnée · ${nomRondeCourt(r)}`, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Tu as sorti ${ctx.teamLabel(boss)}. Une carte rare pour la suite des séries, ou retires-en une.`,
-        options: recompensesOffertes(graine, `po${r}`, { serie: true }).map(optionDeCarteMatch),
-        onChoix: k => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: k })),
-        onFerme: () => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: null })),
-      };
-      spec.autres = autresButins(deckDeSerie(), d => quitterR(() => onDecision({ ronde: r, match_no: -1, recompense: null, ...d })), () => ouvrirChoix(spec));
-      ouvrirChoix(spec);
+      const cle = packDeSerie(r, aDebloque(lireMeta(), 'packVedettes')), P = PACKS_TOUS[cle];
+      ouvrirChoix({
+        ico: '🏆', titre: `Série gagnée · ${nomRondeCourt(r)}`, genre: 'recompense',
+        recit: `Tu as sorti ${ctx.teamLabel(boss)}. Ses joueurs vont à ton cartable : pour la saison prochaine et les runs d'après.`,
+        options: [{ cle, ico: P.ico, nom: P.nom, texte: P.texte }],
+        onChoix: () => { quitter(); onDecision({ ronde: r, match_no: -1, recompense: null, packSerie: cle }); },
+      });
       return true;
     }
     return false;

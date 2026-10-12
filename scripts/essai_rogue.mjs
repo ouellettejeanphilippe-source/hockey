@@ -512,13 +512,15 @@ if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur
 else {
   await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
   await voirTout.click(); await page.waitForTimeout(300);
-  const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
+  // Les packs des rayons (le pack de la semaine et ton club à part).
+  const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile[data-pack]', e => e.length);
   const chers = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
   // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
   const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
   console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
-  if (nTout < 20) erreurs.push(`« Voir les N packs » ne montre que ${nTout} packs`);
+  // Jalon P2 : la boutique vend sept packs, tous mixtes.
+  if (nTout !== 7) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 7`);
   if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
   // Échap ferme la boutique (1.0, R5) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
@@ -565,7 +567,7 @@ await page.click('#pageMarche .hub-page-retour');
 const NOMS_NIVEAUX = ['Soutien', 'Régulier', 'Pilier', 'Étoile', 'Phénomène'];
 await versMarche('boutique');
 await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
-await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="j:hasard_bronze"]');
+await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-pack="j:bronze"]');
 await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche');
 await page.screenshot({ path: `${DOSSIER}/rogue-fiche-bronze.png` });
 const fiche3 = await page.evaluate(() => {
@@ -583,12 +585,13 @@ console.log(`3b. la fiche du Pack Bronze : ${fiche3.chances.join(' · ')} · ${f
 if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !== 5 || !fiche3.chances.some(x => /Phénomène/.test(x))) erreurs.push(`la fiche du pack ne dit pas le joueur d'une carte : ${JSON.stringify(fiche3)}`);
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
 await page.click('#pageMarche .hub-page-retour');
-await acheter('j:hasard_argent', 'rogue-pack-fiche');
+await acheter('j:argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
-const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
+const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
-const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.map(x => {
+// Jalon P2 : un pack mixte montre aussi ses cartes de jeu, qui n'ont pas de niveau ; on lit les joueurs.
+const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => {
   const ruban = (x.querySelector('.cj-ruban') || {}).textContent || '';
   const mot = ((x.querySelector('.tc-quoi') || {}).textContent || '').split('\n')[0].trim();
   return { ruban, mot, fois: noms.filter(n => ruban.includes(n)).length + noms.filter(n => mot === n).length };
@@ -673,9 +676,9 @@ else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été of
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(500);
 }
-// Un pack Modifs (S80 : ses cartes se posent au verso), un pack de cartes : tout va dans l'inventaire ; puis un pack Contrats (la masse salariale).
+// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; leurs cartes vont au deck et dans la poche.
 await regler();
-for (const pack of ['c:modifs', 'c:mixte', 'c:contrats']) {
+for (const pack of ['j:or', 'j:coach']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
@@ -731,7 +734,8 @@ let posee = null, nomModif = '';
    * dans la main cette semaine dépend du tirage (et des prix qui montent, V6), et l'étape du verso attend.
    */
   const modifsVues = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur', e => e.length);
-  if (!modifsVues) erreurs.push('aucune modif de joueur dans l\'inventaire (le pack Modifs en donne quatre)');
+  // Jalon P2 : plus de pack Modifs ; une modif sort d'un pack mixte au hasard du tirage, et l'étape du verso attend sans elle.
+  if (!modifsVues) console.log('7a. aucune modif de joueur dans l\'inventaire (les packs mixtes n\'en ont pas donné) : l\'étape du verso attend');
   else if (!nModifs) console.log(`7a. ${modifsVues} modif(s) dans l'inventaire, aucune dans la main de la semaine : l'étape du verso attend`);
   let permis = 0, grises = 0;
   for (let k = 0; k < nModifs && !permis; k++) {

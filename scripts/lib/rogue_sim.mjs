@@ -32,7 +32,7 @@ import {
 } from '../../js/sim.js';
 import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks } from '../../js/packs.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
@@ -131,16 +131,16 @@ function adversaires(rnd, exclus, n = 31) {
  * pige, le tier dit la variante. `libre` : un salaire qu'une sortie ferait
  * entrer, personne de la ligue.
  */
-function tirerPack(rnd, cle, libre) {
+function tirerPack(rnd, cle, libre, role = null) {
   const P = PACKS_JOUEURS[cle];
   const T = TIERS[P.tier];
-  const nb = T.n + (P.famille === 'trio' ? -2 : 0);
+  const nb = P.joueurs || T.n + (P.famille === 'trio' ? -2 : 0);
   const out = [];
   for (let t = 0; out.length < nb && t < nb * 6; t++) {
     const e = shard(SAISONS[Math.floor(rnd() * SAISONS.length)]);
     let pool;
     if (P.famille === 'skill') {
-      const S = SKILLS[P.skill];
+      const S = SKILLS[P.skill || role || 'sniper'];
       const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupe(p) === S.groupe) && (!S.skaters || p.p !== 'G')).sort((a, b) => S.score(b) - S.score(a));
       pool = c.slice(0, Math.ceil(c.length / 4));
     } else if (P.famille === 'etoiles' || P.famille === 'legendes') pool = e.players.filter(p => estEtoile(p) && (P.famille !== 'legendes' || Number(p.s.slice(0, 4)) < 1995));
@@ -191,20 +191,19 @@ function tirerClasseur(rnd, meta, classeur, exclus) {
 }
 
 /*
- * LA POLITIQUE D'ACHAT DU ROBOT : les étoiles s'il les a débloquées et les
- * moyens, sinon un pack de talent (franc-tireurs, passeurs, défensif ou
- * gardiens s'ils sont débloqués), sinon un pack Argent.
+ * LA POLITIQUE D'ACHAT DU ROBOT (Jalon P2, la boutique des sept packs mixtes) : un Pack Or un achat sur trois
+ * s'il en a les moyens, sinon un Pack Spécialistes dont le rôle tourne (franc-tireurs, passeurs, puis défensif et
+ * gardiens s'ils sont débloqués), sinon un Pack Argent. Les cartes des packs ne se jouent pas : il n'en joue aucune.
+ * Rend { cle, role } ou null.
  */
-const VERROUS = { defensif: 'packDefenseurs', gardien: 'packGardiens', etoiles: 'packVedettes', legendes: 'packVedettes' };
+const VERROUS = { defensif: 'packDefenseurs', gardien: 'packGardiens' };
 /* Le prix d'un pack au `n`-ième achat de la saison : les prix montent comme au jeu (js/packs.js `hausseDesPacks`). */
 const prixAuAchat = (k, n) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n)));
 function packVoulu(meta, jetons, n) {
-  const ouvert = k => !VERROUS[k] || aDebloque(meta, VERROUS[k]);
-  if (ouvert('etoiles') && jetons >= prixAuAchat('etoiles', n)) return 'etoiles';
-  const talents = [ouvert('sniper') ? 'sniper' : 'hasard_argent', ouvert('passeur') ? 'passeur' : 'hasard_argent', ouvert('defensif') ? 'defensif' : 'hasard_argent', ouvert('gardien') ? 'gardien' : 'hasard_argent'];
-  const k = talents[n % talents.length];
-  if (jetons >= prixAuAchat(k, n)) return k;
-  if (jetons >= prixAuAchat('hasard_argent', n)) return 'hasard_argent';
+  const roles = ['sniper', 'passeur', 'defensif', 'gardien'].filter(r => !VERROUS[r] || aDebloque(meta, VERROUS[r]));
+  if (n % 3 === 2 && jetons >= prixAuAchat('or', n)) return { cle: 'or' };
+  if (jetons >= prixAuAchat('specialistes', n)) return { cle: 'specialistes', role: roles[n % roles.length] };
+  if (jetons >= prixAuAchat('argent', n)) return { cle: 'argent' };
   return null;
 }
 
@@ -247,12 +246,12 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
   while (!L.fini) {
     // La boutique, le matin : tant qu'il y a de quoi acheter.
     for (let garde = 0; garde < 4; garde++) {
-      const cle = packVoulu(meta, jetons(), achats);
-      if (!cle) break;
-      depense += prixAuAchat(cle, achats); achats++;
+      const voulu = packVoulu(meta, jetons(), achats);
+      if (!voulu) break;
+      depense += prixAuAchat(voulu.cle, achats); achats++;
       const actuel = you.roster;
       const salaireMax = cap - masseDe(actuel) + Math.max(...Object.values(actuel).filter(Boolean).map(p => p.$ || 0));
-      const cartes = tirerPack(rnd, cle, p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)));
+      const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)), voulu.role);
       entrees.push(...cartes);
       // SIGNER (un seul du pack) : celui qui monte le plus l'alignement, sous le plafond ; qui sort : celui que l'alignement laisse.
       let meilleur = null;
@@ -313,6 +312,9 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
     }
     rondes = S.toutes.filter(s => s.winner === you).length;
     coupe = S.champion === you;
+    // LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1, `PACKS_DE_SERIE`) : ses joueurs vont au classeur, pas dans l'alignement des séries.
+    // « Les vedettes » (le déblocage) montent d'un cran le pack de chaque ronde.
+    for (let i = 0; i < rondes; i++) entrees.push(...tirerPack(rnd, packDeSerie(i, aDebloque(meta, 'packVedettes')).slice(2), p => !dansLaLigue.has(getPersonKey(p))));
     finale = S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A === you || s.B === you));
   }
   const reste = Math.max(0, jetons());
@@ -435,7 +437,7 @@ export function classeurSynthetique(meta, nRuns, graine = 'classeur') {
   const out = [];
   for (let r = 0; r < nRuns; r++) {
     out.push(...plombiers(rnd, meta, new Set()).map(p => ({ p, rar: 'commune' })));
-    for (let n = 0; n < 28; n++) out.push(...tirerPack(rnd, packVoulu(meta, 999, n) || 'hasard_argent', p => p.$ > 0));
+    for (let n = 0; n < 28; n++) { const v = packVoulu(meta, 999, n); out.push(...tirerPack(rnd, v.cle, p => p.$ > 0, v.role)); }
   }
   const vus = new Map();
   for (const x of out) if (!vus.has(getPlayerKey(x.p))) vus.set(getPlayerKey(x.p), x);

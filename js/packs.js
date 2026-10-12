@@ -61,11 +61,11 @@
  */
 import { hache } from './util.js';
 import { BANQUE, idsDe, idsDuCoach } from './banque.js';
-import { COACHS, ORDRE_COACHS } from './coachs.js';
+import { COACHS, ORDRE_COACHS, VOIES } from './coachs.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
-import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau } from './niveaux.js';
+import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
 import { IDENTITES } from './identites.js';
 import { statureDe } from './rarete.js';
 
@@ -122,7 +122,25 @@ export const PACKS_JOUEURS = {
   etoiles: { famille: 'etoiles', nom: 'Pack Étoiles', ico: '⭐', tier: 'or', prix: 55, niveaux: { etoile: 92, phenomene: 8 }, texte: 'Cinq étoiles de leur saison : le 4 % du haut à leur poste.' },
   legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, niveaux: { etoile: 90, phenomene: 10 }, texte: 'Six étoiles d\'avant 1995.' },
   garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une holo ou mieux, garantie.' },
+  /*
+   * LA BOUTIQUE DU JALON P (P2). JP : *on limite les packs, tout en gardant des thématiques* ; *je veux que les cartes
+   * de match, événements, etc. soient avec les cartes de joueurs*. Sept packs (\`BOUTIQUE\`), tous MIXTES : des
+   * joueurs (\`joueurs\`) et des cartes de la banque (\`cartes\`), le thème choisi à l'achat (\`choix\`). Les packs
+   * d'avant restent définis : une vieille partie les ouvre encore ; ils ne se vendent plus.
+   */
+  bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques, et une carte.' },
+  argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs et deux cartes, de meilleures chances.' },
+  or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs et deux cartes, les meilleures chances de la boutique.' },
+  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'argent', choix: 'decennie', joueurs: 3, cartes: 2, prix: 26, texte: 'Trois joueurs de la décennie de ton choix, et deux cartes.' },
+  specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes du rôle de ton choix, le quart du haut de leur saison, et deux cartes.' },
+  club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et deux cartes.' },
+  coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et deux cartes de sa couleur : de quoi bâtir sa confiance.' },
 };
+/* Les sept packs que la boutique vend (Jalon P2), dans son ordre. */
+export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach'];
+/* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
+export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
+export const NOMS_SKILLS = { sniper: '🎯 Francs-tireurs', passeur: '🪄 Passeurs', defensif: '❄ Défensif', dur: '🥊 Durs à cuire', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
 
 /* LES PACKS DE CARTES : la banque (js/banque.js). Toutes gardées dans ton inventaire. */
 const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
@@ -141,16 +159,22 @@ export const PACKS_CARTES = {
 
 /* Tous les packs, par clé : \`j:\` les joueurs, \`c:\` les cartes. */
 export const PACKS_TOUS = {
-  ...Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }])),
+  ...Object.fromEntries(Object.entries(PACKS_JOUEURS).map(([k, P]) => [`j:${k}`, { ...P, sorte: 'joueurs', cle: k, n: P.joueurs || P.n || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0) }])),
   ...Object.fromEntries(Object.entries(PACKS_CARTES).map(([k, P]) => [`c:${k}`, { ...P, sorte: 'cartes', cle: k }])),
 };
+/*
+ * LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1). JP : *les récompenses devraient être des packs de joueurs*. Une série
+ * gagnée donnait une carte rare jouable tout de suite : la main grossissait de ronde en ronde et emballait la run.
+ * Elle donne maintenant un pack dont les joueurs vont au cartable — pour la saison suivante et les runs d'après,
+ * jamais dans l'alignement des séries en cours. Par ronde gagnée (0, 1, 2), puis la Coupe.
+ */
+export const PACKS_DE_SERIE = ['j:hasard_argent', 'j:hasard_or', 'j:etoiles', 'j:legendes'];
+/* Le pack de la ronde `r` gagnée : « Les vedettes » (le déblocage) le montent d'un cran ; la Coupe, des Légendes. */
+export const packDeSerie = (r, vedettes = false) => PACKS_DE_SERIE[Math.min(PACKS_DE_SERIE.length - 1, r + (vedettes ? 1 : 0))];
 export const RAYONS = [
   { cle: 'jour', nom: 'Le pack du jour', ico: '📆' },
-  { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:hasard_bronze', 'j:hasard_argent', 'j:hasard_or', 'j:hasard_premium', 'j:garanti'] },
-  { cle: 'cibles', nom: 'Équipe, année, trio', ico: '🏟', packs: ['j:equipe', 'j:annee', 'j:trio', 'j:etoiles', 'j:legendes'] },
-  { cle: 'epoques', nom: 'Les époques', ico: '📼', packs: ['j:ere70', 'j:ere80', 'j:ere90', 'j:ere00', 'j:ere10', 'j:ere20'] },
-  { cle: 'skills', nom: 'Par talent', ico: '🎯', packs: ['j:sniper', 'j:passeur', 'j:defensif', 'j:dur', 'j:gardien', 'j:recrue', 'j:veteran'] },
-  { cle: 'cartes', nom: 'Les cartes', ico: '🃏', packs: ['c:coach', 'c:patrons', 'c:evenements', 'c:modifs', 'c:consommables', 'c:contrats', 'c:match', 'c:mixte', 'c:lot'] },
+  { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:bronze', 'j:argent', 'j:or'] },
+  { cle: 'themes', nom: 'À ton choix', ico: '🎯', packs: ['j:epoque', 'j:specialistes', 'j:club', 'j:coach'] },
 ];
 
 /*
@@ -160,7 +184,7 @@ export const RAYONS = [
  */
 export function packDuJour(date = new Date(), ouverts = null) {
   const cle = typeof date === 'string' ? date : `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-  const tous = Object.keys(PACKS_TOUS).filter(k => k !== 'c:lot' && k !== 'j:legendes' && (!ouverts || ouverts[k] === true));
+  const tous = BOUTIQUE.filter(k => !ouverts || ouverts[k] === true);
   return { pack: tous[Math.floor(hache('pack-du-jour', cle) * tous.length)], rabais: 0.75, date: cle };
 }
 export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cle] || {}).prix * rabais));
@@ -285,6 +309,8 @@ function tirerVariante(cotes, ...parts) {
   }
   return { rar, num };
 }
+/* La part des cartes Soutien qui viennent des joueurs sans niveau (Jalon P2b) : la chance d'un régulier bouge à peine. */
+const PART_HORS_NIVEAU = 0.1;
 /* Un niveau tiré aux taux du pack (son rang dans NIVEAUX), de la graine et de mots. */
 function tirerNiveau(taux, ...parts) {
   let r = hache('pack-niveau', ...parts) * 100;
@@ -347,7 +373,15 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
   const an = s => Number(String(s).slice(0, 4));
   let saisons = toutes.slice();
   const reglage = { ...params };
-  if (P.famille === 'ere') saisons = saisons.filter(s => an(s) >= P.decennie && an(s) < P.decennie + 10);
+  // L'ÉPOQUE : la décennie du pack, ou celle choisie à l'achat (Jalon P2), ou une tirée parmi celles des données.
+  if (P.famille === 'ere') {
+    const decs = DECENNIES.filter(d => saisons.some(s => an(s) >= d && an(s) < d + 10));
+    // `permis` : ce que les déblocages ouvrent (le hasard ne tombe jamais sur une décennie verrouillée).
+    const ouvertes = decs.filter(d => !reglage.permis || reglage.permis.includes(d));
+    const dec = P.decennie || (ouvertes.includes(Number(reglage.decennie)) ? Number(reglage.decennie) : ouvertes[Math.floor(hache(graine, 'pack-decennie', n) * ouvertes.length)]);
+    reglage.decennie = dec;
+    saisons = saisons.filter(s => an(s) >= dec && an(s) < dec + 10);
+  }
   if (P.famille === 'legendes') saisons = saisons.filter(s => an(s) < 1995);
   if (P.famille === 'annee') {
     if (!reglage.saison || !saisons.includes(reglage.saison)) reglage.saison = saisons[Math.floor(hache(graine, 'pack-annee', n) * saisons.length)];
@@ -384,7 +418,11 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
     }
   } else if (P.famille === 'skill') {
     // UN TALENT : le quart du haut de sa saison à ce talent (ou tous ceux qui passent son filtre) — pas de niveau tiré.
-    const S = SKILLS[P.skill];
+    // LE RÔLE : celui du pack, ou celui choisi à l'achat (Jalon P2), ou un tiré.
+    const roles = Object.keys(SKILLS).filter(k => !reglage.permis || reglage.permis.includes(k));
+    const skill = P.skill || (roles.includes(reglage.skill) ? reglage.skill : roles[Math.floor(hache(graine, 'pack-skill', n) * roles.length)]);
+    reglage.skill = skill;
+    const S = SKILLS[skill];
     for (let t = 0; out.length < nb && t < nb * 5; t++) {
       const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, t) * saisons.length)];
       if (!sa) break;
@@ -398,6 +436,10 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
     }
   } else {
     // LE NIVEAU D'ABORD : tiré aux taux du pack, puis une saison et un joueur de ce niveau.
+    // LE PACK DU COACH (Jalon P2) : seulement des joueurs de sa couleur (`coachDuJoueur`, leur meilleur rôle maîtrisé).
+    // Les huit coachs qui ont des joueurs (`VOIES`) : le Comptable est un patron, personne n'est de sa couleur.
+    const couleur = P.famille === 'coach' ? (VOIES.includes(reglage.coach) ? reglage.coach : VOIES[Math.floor(hache(graine, 'pack-coach', n) * VOIES.length)]) : null;
+    if (couleur) reglage.coach = couleur;
     const taux = niveauxDuPack(cle, mods);
     const permis = NIVEAUX.map((N, k) => k).filter(k => taux[NIVEAUX[k].cle] > 0);
     const essais = Math.min(ESSAIS_NIVEAU, saisons.length);
@@ -410,9 +452,11 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
         for (let e = 0; e < essais && !carte; e++) {
           const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, c, k, e) * saisons.length)];
           const sh = await shard(sa);
+          // TOUT SE PIGE (Jalon P2b) : une carte Soutien sur PART_HORS_NIVEAU vient de ceux qui n'ont pas de niveau.
+          const hors = k === 0 && hache(graine, 'pack-hors', cle, n, c, e) < PART_HORS_NIVEAU;
           const pool = (P.famille === 'equipe'
-            ? (sh.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => niveauDe(p, sh.players) === k)
-            : joueursParNiveau(sh.players)[k]).filter(dispo);
+            ? (sh.byTeam[codeDeFranchise(reglage.franchise, sa)] || []).filter(p => (hors ? joueursHorsNiveau(sh.players).includes(p) : niveauDe(p, sh.players) === k))
+            : hors ? joueursHorsNiveau(sh.players) : joueursParNiveau(sh.players)[k]).filter(p => dispo(p) && (!couleur || coachDuJoueur(p) === couleur));
           if (pool.length) carte = { p: recrue(pool, mods.coach, graine, cle, n, c, k, e), niveau: k };
         }
         if (carte) break;
@@ -442,8 +486,22 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
  * jamais d'un pack.
  */
 export function tirerCartesPack(cleCourte, graine, n, params = {}) {
-  const P = PACKS_CARTES[cleCourte];
+  return PACKS_CARTES[cleCourte] ? tirerCartes(PACKS_CARTES[cleCourte], cleCourte, graine, n, params) : [];
+}
+/*
+ * LES CARTES D'UN PACK, quel qu'il soit (Jalon P2) : un pack de cartes d'avant, ou les \`cartes\` d'un pack mixte —
+ * de toutes les familles, de la couleur du coach pour le Pack du coach, et la taxe de luxe une fois sur vingt-cinq.
+ */
+const CATS_MIXTES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'];
+const MAUDITE_MIXTE = 0.04;
+export function tirerCartesDuPack(cle, graine, n, params = {}) {
+  const P = PACKS_TOUS[cle];
   if (!P) return [];
+  if (P.sorte === 'cartes') return tirerCartesPack(P.cle, graine, n, params);
+  if (!P.cartes) return [];
+  return tirerCartes({ n: P.cartes, cats: CATS_MIXTES, cotes: COTES_CARTES, choix: P.choix === 'coach' ? 'coach' : null, maudite: MAUDITE_MIXTE }, cle, graine, n, params);
+}
+function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
@@ -481,7 +539,7 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
 export function sortDUnPack(id) {
   const c = BANQUE[id];
   if (!c || c.retire) return false;
-  if (c.rarete === 'maudite') return c.cat === 'plafond' && Object.values(PACKS_CARTES).some(P => P.maudite && P.cats.includes('plafond'));
+  if (c.rarete === 'maudite') return c.cat === 'plafond' && (MAUDITE_MIXTE > 0 || Object.values(PACKS_CARTES).some(P => P.maudite && P.cats.includes('plafond')));
   return Object.values(PACKS_CARTES).some(P => P.cats.includes(c.cat));
 }
 /* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */

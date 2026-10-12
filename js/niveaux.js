@@ -105,7 +105,11 @@ function saisonDe(joueurs) {
   };
   const parNiveau = NIVEAUX.map(() => []);
   for (const p of uniques) { const k = niveau(p); if (k >= 0) parNiveau[k].push(p); }
-  s = { niveau, parNiveau };
+  // CEUX QUI N'ONT PAS DE NIVEAU (Jalon P2b, tout se pige) : sous le seuil d'un régulier, ou la seconde fiche d'un
+  // joueur échangé. Les packs les donnent comme des Soutien, à petit poids (`PART_HORS_NIVEAU`, js/packs.js).
+  const classes = new Set(parNiveau.flat());
+  const horsNiveau = joueurs.filter(p => !classes.has(p));
+  s = { niveau, parNiveau, horsNiveau };
   SAISONS.set(joueurs, s);
   return s;
 }
@@ -113,3 +117,4 @@ function saisonDe(joueurs) {
 export const niveauDe = (p, joueurs) => (p && joueurs ? saisonDe(joueurs).niveau(p) : -1);
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
+export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;

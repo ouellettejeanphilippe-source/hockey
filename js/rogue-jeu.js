@@ -9,9 +9,9 @@ import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutie
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, CATEGORIES, VIES, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
-import { COACHS, ORDRE_COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
+import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
-import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks } from './packs.js';
+import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
@@ -153,7 +153,16 @@ function salaireMaxDePack() {
   const pl = G.ligue ? plafondEffectif() : null;
   return capLeft() + Math.max(0, ...signes().map(q => (pl ? capHit(q, pl) : q.$ || 0)));
 }
-const VERROUS_ROGUE = { 'j:defensif': 'packDefenseurs', 'j:gardien': 'packGardiens', 'j:ere80': 'packAnnees80', 'j:etoiles': 'packVedettes', 'j:legendes': 'packVedettes' };
+/* Jalon P2 : les déblocages de packs ouvrent un CHOIX dans les packs à thème (le rôle, la décennie). */
+const VERROUS_CHOIX = { skill: { defensif: 'packDefenseurs', gardien: 'packGardiens' }, decennie: { 1980: 'packAnnees80' } };
+/* Ce qu'un choix refuse encore (valeur → raison), et ce qu'il permet : le hasard ne tire que dans ce qui est ouvert. */
+function verrousDesChoix() {
+  if (G.bonus !== 'ROGUE') return {};
+  const meta = lireMeta();
+  return Object.fromEntries(Object.entries(VERROUS_CHOIX).map(([choix, v]) => [choix,
+    Object.fromEntries(Object.entries(v).filter(([, d]) => !aDebloque(meta, d)).map(([val, d]) => [val, `Débloque « ${DEBLOCAGES[d].nom} » aux déblocages`]))]));
+}
+const permisDe = (choix, valeurs) => { const v = verrousDesChoix()[choix] || {}; return valeurs.filter(x => !v[x]); };
 /*
  * ACHETER SANS OUVRIR (1.0, oct.). JP : *achat de pack sans ouvrir possible*.
  * Un pack scellé est un achat (`achat.scelle`) qui paie et ne tire rien ; son
@@ -168,15 +177,11 @@ function packsScelles(decs) {
 }
 /* Passé la date limite (ton DATE_LIMITE_MATCH-e match joué), les packs de joueurs se ferment. */
 const apresDateLimite = j => !!(G.ligue && G.ligue.you && matchsEntre(G.ligue.you, 0, j) >= DATE_LIMITE_MATCH);
-function packsOuvertsBoutique(j = 0) {
-  const meta = G.bonus === 'ROGUE' ? lireMeta() : null;
-  const limite = apresDateLimite(j);
-  return Object.fromEntries(Object.keys(PACKS_TOUS).map(k => {
-    if (limite && PACKS_TOUS[k].sorte === 'joueurs') return [k, `La date limite des échanges est passée (${DATE_LIMITE_MATCH}e match)`];
-    const d = meta && VERROUS_ROGUE[k];
-    return [k, !d || aDebloque(meta, d) ? true : `Débloque « ${DEBLOCAGES[d].nom} » aux déblocages`];
-  }));
-}
+/*
+ * LA BOUTIQUE RESTE OUVERTE (Jalon P2) : tous ses packs ont des joueurs ; passé la date limite, ils vont au cartable
+ * sans se signer (`offrirPackJoueurs`), et les cartes servent encore. Seul un pack scellé attend la saison suivante.
+ */
+const packsOuvertsBoutique = () => Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, true]));
 /*
  * LE NUMÉRO D'UN ACHAT SE PREND AU CLIC (oct.). JP : *encore des doublons de packs achetés*. Il se prenait à
  * l'ouverture de la boutique ; or un pack de joueurs charge ses saisons AVANT d'écrire son achat, et la boutique
@@ -206,7 +211,7 @@ function unTirageALaFois(f) {
  */
 export function ouvrirBoutique(j, decider, page) {
   const decs = decisionsDeLaPartie();
-  const ouverts = packsOuvertsBoutique(j);
+  const ouverts = packsOuvertsBoutique();
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
@@ -214,16 +219,21 @@ export function ouvrirBoutique(j, decider, page) {
     bareme: G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.bareme) || JETONS) : null,
     mods: modsDesPacks(decs, j), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
     // V5 : en Rogue, le pack au rabais est celui de la semaine, tiré de la graine (plus de la date réelle).
-    duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique(j)),
+    duJour: packDuJour(G.bonus === 'ROGUE' && G.ligue ? `${G.ligue.graine}:s${Math.floor(j / SEMAINE)}` : new Date(), packsOuvertsBoutique()),
     // 1.0 (R5) : à la première run, avant le 20e match, quatre packs ; « Voir les N packs » montre tout.
     // Le vrai calendrier (1.0, oct.) : le 20e match tombe vers le jour 45 (20 × 186 / 82).
     debutant: G.bonus === 'ROGUE' && ((G.rogue && G.rogue.numero) || 1) <= 1 && j < Math.round(20 * JOURS_PAR_MATCH),
     franchises: Object.entries(FRANCHISES).map(([cle, F]) => ({ cle, nom: F.nom })).sort((a, b) => a.nom.localeCompare(b.nom, 'fr')),
-    saisons: state.index.seasons.slice().reverse(),
     // v2 : le pack du coach propose ton coach en premier.
-    coachs: ORDRE_COACHS.map(k => ({ cle: k, nom: `${COACHS[k].ico} ${COACHS[k].nom}` })), coachRun: (G.rogue && G.rogue.coach) || null,
-    acheter: (cle, { prix, params, scelle = false }) => {
+    coachs: VOIES.map(k => ({ cle: k, nom: `${COACHS[k].ico} ${COACHS[k].nom}` })), coachRun: (G.rogue && G.rogue.coach) || null,
+    // Jalon P2 : la décennie et le rôle des packs à thème, avec ce que les déblocages ouvrent encore.
+    decennies: DECENNIES.filter(d => state.index.seasons.some(x => Number(String(x).slice(0, 4)) >= d && Number(String(x).slice(0, 4)) < d + 10)),
+    roles: Object.entries(NOMS_SKILLS).map(([cle, nom]) => ({ cle, nom })), verrousChoix: verrousDesChoix(),
+    acheter: (cle, { prix, params: choisis, scelle = false }) => {
       const P = PACKS_TOUS[cle];
+      // Le hasard d'un pack à thème ne tire que dans ce que les déblocages ouvrent (`permis`).
+      const params = P.choix === 'skill' ? { ...choisis, permis: permisDe('skill', Object.keys(NOMS_SKILLS)) }
+        : P.choix === 'decennie' ? { ...choisis, permis: permisDe('decennie', DECENNIES) } : choisis;
       // Les jetons se recomptent au clic : une boutique restée ouverte montre ceux d'avant le dernier achat.
       if (prix > jetonsRogue(j)) { toast(`Il te manque ${prix - jetonsRogue(j)} 🪙.`, 'bad'); return; }
       if (scelle) {
@@ -314,7 +324,11 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   let vente = 0;
   cartes.forEach((x, t) => { x.doublon = avant.has(getPlayerKey(x.p)); if (x.doublon) { vendus.push(t); vente += venteJoueur(x); } });
   const meilleure = ['legendaire', 'rare', 'peu', 'commune'].find(r => cartes.some(x => x.rar === r)) || 'commune';
-  const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente, ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}), ...(de ? { de } : {}) };
+  // UN PACK MIXTE (Jalon P2) : ses cartes de la banque se tirent avec les joueurs, au même thème (la couleur du coach).
+  const tc = PACKS_TOUS[cle].cartes ? cartesTirees(cle, n, reglage) : null;
+  // `auCartable` : acheté passé la date limite, rien ne se signe — la boîte ne le réclame pas (Jalon P2).
+  const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente: vente + (tc ? tc.vente : 0), ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}), ...(de ? { de } : {}), ...(apresDateLimite(j) ? { auCartable: true } : {}),
+    ...(tc ? { cartes: tc.ids, ...(tc.vendus.length ? { cartesVendues: tc.vendus } : {}), ...(tc.maudites.length ? { maudites: tc.maudites } : {}) } : {}) };
   /*
    * L'ACHAT D'ABORD (1.0, J1-B). Avant, le butin entrait au méta (collection,
    * cartable) AVANT que la décision n'enregistre l'achat : recharger la page
@@ -325,9 +339,10 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
    * (`rouvrirPackJoueurs`, le même tirage), sans retirer ni repayer.
    */
   decider({ jour: j, palier: `k:${n}`, achat });
+  if (tc) rangerCartes(tc, n);
   ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
   ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
-  offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider });
+  offrirPackJoueurs({ cle, cartes, reglage, pitie, vente: achat.vente, n, j, decider, tc });
 }
 /* Un achat enregistré sans signature (la page rechargée en plein choix) : le même tirage, à choisir. */
 export async function rouvrirPackJoueurs(achat, j, decider) {
@@ -335,39 +350,44 @@ export async function rouvrirPackJoueurs(achat, j, decider) {
   const mods = modsDesPacks(decs, j);
   const { cartes, reglage } = await tirerPackJoueurs(achat.pack, achat.n, achat.params || {}, mods, !!achat.pitie);
   cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
-  offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider });
+  const tc = Array.isArray(achat.cartes) ? { ids: achat.cartes, maudites: achat.maudites || [], vendus: achat.cartesVendues || [] } : null;
+  offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider, tc });
+}
+/* Un joueur tiré d'un pack, en option d'`ouvrirChoix` : sa carte à la variante du tirage, son niveau, sa couleur. */
+function optionDeJoueurTire(x) {
+  const g = groupeDe(x.p);
+  const bonus = traitsDeCarte(carteDe(x.rar), g === 'G');
+  return {
+    // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
+    cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
+    art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
+    carteJoueur: miniAvecVariante(x.p, x.rar),
+    // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
+    walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
+    // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
+    texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
+      // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
+      COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
+    // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
+    // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
+    desactive: dejaChezToi(x.p) ? 'Déjà dans ton équipe' : '',
+    apercu: () => apercuJoueur(x.p),
+  };
 }
 /* Le même homme est-il déjà dans ton équipe (n'importe quelle saison de lui) ? */
 const dejaChezToi = p => Object.values(G.roster || {}).some(q => q && getPersonKey(q) === getPersonKey(p));
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
-function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }) {
+function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, tc = null }) {
   const P = PACKS_TOUS[cle];
   const palier = `k:${n}:signe`;
+  // Passé la date limite (Jalon P2), rien ne se signe : tout va au cartable.
+  const limite = apresDateLimite(j);
   for (const x of cartes) ballottageVu.set(getPlayerKey(x.p), x.p);
   const titre = `${P.nom}${reglage.franchise ? ` · ${FRANCHISES[reglage.franchise].nom}` : reglage.saison ? ` · ${reglage.saison}` : reglage.club ? ` · ${reglage.club}` : ''}`;
   const offrir = () => ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Plus tard',
-    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}. Tu en signes un, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l'offre attend dans ta boîte jusqu'à la fin de la journée.${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
-    options: cartes.map(x => {
-      const g = groupeDe(x.p);
-      const bonus = traitsDeCarte(carteDe(x.rar), g === 'G');
-      return {
-        // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
-        cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
-        art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
-        carteJoueur: miniAvecVariante(x.p, x.rar),
-        // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
-        walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
-        // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
-        texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
-          // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
-          COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
-        // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
-        // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
-        desactive: dejaChezToi(x.p) ? 'Déjà dans ton équipe' : '',
-        apercu: () => apercuJoueur(x.p),
-      };
-    }),
+    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}${tc ? ` et ${tc.ids.length + tc.maudites.length} carte${tc.ids.length + tc.maudites.length > 1 ? 's' : ''}, déjà rangée${tc.ids.length + tc.maudites.length > 1 ? 's' : ''} (le deck, la poche)` : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu signes un joueur, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l\'offre attend dans ta boîte jusqu\'à la fin de la journée.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
+    options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), ...(limite ? { desactive: 'Date limite passée : au cartable' } : {}) })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, desactive: o.prix || 'Rangée' })) : [])],
     onChoix: k => {
       const x = cartes.find(y => getPlayerKey(y.p) === k);
       if (!x || dejaChezToi(x.p)) return;
@@ -384,6 +404,27 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider }
     onFerme: () => {},
   });
   offrir();
+}
+/*
+ * LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1) : tiré de la graine et de la ronde (hors des numéros d'achat), ouvert tout
+ * de suite, et TOUT va au cartable : rien ne se signe en pleines séries. Une fois, à la décision (`confirmerDecision`,
+ * js/banc.js) ; la Coupe ouvre le sien à la fin des séries (`finDesSeriesRogue`).
+ */
+export async function ouvrirPackDeSerie(cle, ronde) {
+  const P = PACKS_TOUS[cle];
+  if (!P || !G.ligue) return;
+  const { cartes } = await tirerJoueursDuPack(cle, {
+    graine: G.ligue.graine, n: -100 - ronde, mods: modsDesPacks(decisionsDeLaPartie(), G.journee || 0), saisons: state.index.seasons, shard: getShard,
+  });
+  ajouterCollection({ joueurs: cartes.map(x => getPlayerKey(x.p)) });
+  ajouterAuCartable(cartes.map(x => ({ cle: getPlayerKey(x.p), rar: x.rar, num: x.num || null })));
+  ouvrirChoix({
+    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Au cartable',
+    recit: `${cartes.length} vrais joueurs, tous à ton cartable : pour la saison prochaine et les runs d'après.`,
+    options: cartes.map(x => ({ ...optionDeJoueurTire(x), desactive: 'Au cartable' })),
+    onChoix: () => {},
+    onFerme: () => {},
+  });
 }
 /*
  * UNE SORTIE QUE LE PLAFOND REFUSE : l'arrivée de `p` à la place de `q`
@@ -414,34 +455,46 @@ function optionDeBanque(id) {
  * UNE MALÉDICTION (la taxe de luxe, que certains packs cachent) ne se range
  * pas : elle frappe à l'ouverture (`achat.maudites`, lu par `plafondDe`).
  */
-function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
-  const P = PACKS_TOUS[cle], Lg = G.ligue;
-  const tirees = tirerCartesPack(P.cle, Lg.graine, n, params);
+/* Les cartes tirées d'un pack (de cartes, ou mixte) : les rangées, les malédictions, et les patrons doublons revendus. */
+function cartesTirees(cle, n, params) {
+  const tirees = tirerCartesDuPack(cle, G.ligue.graine, n, params);
   const ids = tirees.filter(id => BANQUE[id].rarete !== 'maudite');
   const maudites = tirees.filter(id => BANQUE[id].rarete === 'maudite');
-  const rogue = G.bonus === 'ROGUE';
-  const meta = lireMeta();
-  const perso = new Set(meta.personnel || []);
+  const perso = new Set(lireMeta().personnel || []);
   const vendus = [];
   let vente = 0;
   ids.forEach((id, t) => {
     const c = BANQUE[id];
     const dejaVu = c.cat === 'patron' && (perso.has(c.cle) || ids.slice(0, t).includes(id));
-    if (rogue && dejaVu) { vendus.push(t); vente += valeurDe(id); }
+    if (G.bonus === 'ROGUE' && dejaVu) { vendus.push(t); vente += valeurDe(id); }
   });
+  return { ids, maudites, vendus, vente };
+}
+/* Une fois l'achat écrit : le personnel au méta, les cartes à la collection. */
+function rangerCartes({ ids, vendus }, n) {
+  if (G.bonus === 'ROGUE') recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${G.ligue.graine}:k:${n}`);
+  ajouterCollection({ cartes: ids });
+}
+/* Les cartes d'un pack en options d'`ouvrirChoix` : ce qui se revend, ce qui frappe. */
+const optionsDeCartes = ({ ids, maudites, vendus }, pre = '') => [
+  ...ids.map((id, t) => ({ ...optionDeBanque(id), cle: `${pre}${t}`, prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
+  ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `${pre}m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))];
+function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
+  const P = PACKS_TOUS[cle], Lg = G.ligue;
+  const tc = cartesTirees(cle, n, params);
+  const { ids, maudites, vendus, vente } = tc;
+  const rogue = G.bonus === 'ROGUE';
   const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(P.choix === 'coach' ? { params: { coach: coachDuPack(Lg.graine, n, params) } } : {}), ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}), ...(de ? { de } : {}) };
   // 1.0 (J1-B) : l'achat est une décision AVANT que le butin n'entre au méta — recharger la page ne donne plus les cartes gratis.
   decider({ jour: j, palier: `k:${n}`, achat });
-  if (rogue) recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${Lg.graine}:k:${n}`);
-  ajouterCollection({ cartes: ids });
+  rangerCartes(tc, n);
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Dans ma poche',
     recit: (rogue
       ? `Le personnel reste d'une run à l'autre, les cartes de match vont droit à ton deck ; le reste va dans ta poche : ${MAIN_SEMAINE} de ses cartes sortent en main chaque semaine.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
       : 'Les cartes de match vont droit à ton deck ; le reste va dans ta poche.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
-    options: [...ids.map((id, t) => ({ ...optionDeBanque(id), cle: String(t), prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : '' })),
-      ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))],
+    options: optionsDeCartes(tc),
     onChoix: () => {},
     onFerme: () => {},
   });
@@ -838,7 +891,7 @@ export async function ouvrirRogue() {
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? '' : `🥉 ta première run : ton équipe sort de ${PACKS_DE_DEPART.length} packs de départ`, nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
         nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
-        `${Object.keys(PACKS_TOUS).filter(k => !VERROUS_ROGUE[k] || aDebloque(meta, VERROUS_ROGUE[k])).length} packs à la boutique`,
+        `${BOUTIQUE.length} packs à la boutique`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
         aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }],
@@ -1152,6 +1205,8 @@ export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
     const S = G.seriesMoteur;
     const finale = !!(S && S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A.isPlayer || s.B.isPlayer)));
     direJalons(payerJalons({ ...faitsDeLaSaison(), rondes, coupe: !!coupe, finale }));
+    // LA COUPE (Jalon P1) : son pack, des Légendes, au cartable.
+    if (coupe) setTimeout(() => ouvrirPackDeSerie(PACKS_DE_SERIE[3], 3), 2400);
     modsAuCartable();
     // V2 · Item 4 : à la fin d'une run (gagnée ou perdue), rembourser les packs scellés non ouverts.
     const sortRun = sortDeLaRun();
