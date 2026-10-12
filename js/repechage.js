@@ -485,6 +485,13 @@ function choisirQuiSort(p, o) {
     ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Continuer',
     aide: 'Touche un joueur.',
     contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
+    // Le comparatif complet, dès qu'un joueur est touché : le sortant et l'arrivant côte à côte, et ce que ça change.
+    contexteDe: k => {
+      const A = SLOTS[Number(k)], q = A && roster[A.i];
+      if (!q) return '';
+      const x = nets.get(k);
+      return `<div class="ech-arrive"><span class="ech">${colonneEchange(q, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span><span class="ech-bilan">masse ${esc(signe(masseDe(q)))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} par match</b>` : ''}</span></div>`;
+    },
     rangees,
     barre: k => {
       const A = SLOTS[Number(k)];
@@ -496,6 +503,47 @@ function choisirQuiSort(p, o) {
     },
     onChoix: k => { const A = SLOTS[Number(k)]; if (A && (roster[A.i] || (libre && A.i === libre.i))) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
     onFerme,
+  });
+}
+/*
+ * QUI ENTRE DANS UNE UNITÉ SPÉCIALE (V7). JP : *pourquoi le remplacement, c'est pas la même chose que quand on
+ * remplace avec une nouvelle carte, avec comparatif*. Le même écran que « qui sort ? » : l'effectif dans ses
+ * lignes, chaque joueur qui peut entrer avec ce que son entrée change à l'unité, en vraies stats (le meilleur
+ * cerclé d'or), le sortant en tête, la barre qui dit tout, et « Confirmer ».
+ *   o : { roster, sortant, unite ('AN 1'), joue(q) → '' ou la raison qu'il ne peut pas, sous(q), ecart(q) → stats de
+ *         l'unité (`dans` : « en AN 1 »), avantApres(q) → html (l'unité avant → après, en tête),
+ *         ou(q) → 'AN 2' s'il est déjà dans la situation (il échange sa case), onChoix(q), onFerme }
+ */
+export function choisirSpeciale(o) {
+  const { roster, sortant, unite } = o;
+  const nomDe = n => String(n).split(' ').slice(-1)[0];
+  const rangees = rangeesAlignement(roster, (sl, q) => {
+    const non = q === sortant ? `déjà en ${unite}` : o.joue(q);
+    return non ? { non } : { sous: o.sous(q) };
+  });
+  const nets = new Map();
+  for (const r of rangees) for (const c of r.cases) if (!c.vide && !c.non) nets.set(c.cle, o.ecart(roster[SLOTS[Number(c.cle)].i]));
+  marquerMeilleure(rangees, nets);
+  ouvrirAlignement({
+    ico: '🔁', titre: `${unite} : qui entre à la place de ${sortant.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
+    aide: 'Touche un joueur.',
+    contexte: `<div class="ech-arrive">${colonneEchange(sortant, 'Sort')}</div>`,
+    // Le comparatif complet, dès qu'un joueur est touché : les deux côte à côte, et l'unité avant → après.
+    contexteDe: k => {
+      const q = roster[SLOTS[Number(k)].i];
+      if (!q) return '';
+      const u = o.avantApres ? o.avantApres(q) : '';
+      return `<div class="ech-arrive"><span class="ech">${colonneEchange(sortant, 'Sort')}${colonneEchange(q, 'Entre')}</span><span class="ech-bilan">${esc(nomDe(sortant.n))} ${esc(o.sous(sortant))} · ${esc(nomDe(q.n))} ${esc(o.sous(q))}</span>${u ? `<span class="ech-bilan">${u}</span>` : ''}</div>`;
+    },
+    rangees,
+    barre: k => {
+      const q = roster[SLOTS[Number(k)].i];
+      if (!q) return '';
+      const ou = o.ou(q), x = nets.get(k);
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> entre en ${esc(unite)}${ou ? ` · ${esc(nomDe(sortant.n))} prend sa case en ${esc(ou)}` : ''} · ${esc(ficheCourte(q))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} ${esc(o.dans)}</b>` : ''}</span>`;
+    },
+    onChoix: k => { const q = roster[SLOTS[Number(k)].i]; if (q) o.onChoix(q); },
+    onFerme: o.onFerme,
   });
 }
 /* L'étape deux : la case de l'arrivant, `A` étant celle que le sortant (ou une case libre) laisse. */

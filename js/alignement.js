@@ -16,7 +16,7 @@ import { jambesHtml, titreDuBadge, motDuBadge, strategieDeLigne, ouvrirStrategie
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
-import { ajusterCartes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
+import { ajusterCartes, choisirSpeciale, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
@@ -770,22 +770,42 @@ function unitesSpecialesEl() {
     x.onclick = () => {
       const sit = x.dataset.sit, i = Number(x.dataset.u), j = Number(x.dataset.i), S = SIT[sit];
       const actuel = u[sit][i][j];
-      const parMatch = p => (S.stat(p) || 0) / Math.max(1, p.gp || 1);
-      const ordre = patineurs.filter(p => p !== actuel).sort((a, c) => parMatch(c) - parMatch(a));
-      ouvrirChoix({
-        ico: '🏒', titre: `${S.court} ${i + 1} · à la place de ${actuel.n}`, fermable: true, motFermer: 'Retour',
-        options: ordre.map(p => {
-          const ou = [0, 1].find(k => u[sit][k].includes(p));
-          return { cle: getPlayerKey(p), nom: `${positionLabel(p)} · ${p.n}`, sous: `${ptsDe(S, S.stat(p))} en ${p.gp || 0} PJ${ou != null ? ` · déjà en ${S.court} ${ou + 1}` : ''}` };
-        }),
-        onChoix: k => {
-          const choix = { AN: u.AN.map(cles), DN: u.DN.map(cles) };
-          // Un joueur déjà dans cette situation y échange sa case avec celui qu'il remplace.
-          for (const v of [0, 1]) { const w = choix[sit][v].indexOf(k); if (w >= 0) choix[sit][v][w] = getPlayerKey(actuel); }
-          choix[sit][i][j] = k;
-          b.speciales = choix;
-          render();
+      // Le choix avec `q` à la place d'`actuel` ; un joueur déjà dans la situation y échange sa case avec lui.
+      const avec = q => {
+        const choix = { AN: u.AN.map(cles), DN: u.DN.map(cles) }, k = getPlayerKey(q);
+        for (const v of [0, 1]) { const w = choix[sit][v].indexOf(k); if (w >= 0) choix[sit][v][w] = getPlayerKey(actuel); }
+        choix[sit][i][j] = k;
+        return choix;
+      };
+      const habilles = new Set(Object.values(l).filter(Boolean));
+      // L'unité lue avec `q` dedans, une fois par joueur : la case, la barre et le comparatif lisent la même.
+      const lus = new Map();
+      const apresAvec = q => {
+        if (!lus.has(q)) { const r = avecLeBanc((you, ll, adv) => specialesEnStats(you, ll, adv, aVenirDuBanc({ speciales: avec(q) }))); lus.set(q, r && r[sit][i]); }
+        return lus.get(q);
+      };
+      choisirSpeciale({
+        roster: G.roster, sortant: actuel, unite: `${S.court} ${i + 1}`,
+        joue: q => (q.p === 'G' ? 'gardien' : !habilles.has(q) ? 'pas habillé ce soir' : ''),
+        sous: q => ptsDe(S, S.stat(q)),
+        ou: q => { const v = [0, 1].find(k => u[sit][k].includes(q)); return v == null ? '' : `${S.court} ${v + 1}`; },
+        // L'écart de L'UNITÉ touchée, en vraies stats de la situation : en avantage ses tirs et sa réussite, en
+        // désavantage les tirs d'en face et tes arrêts. Sur tout le match, six minutes d'avantage se perdaient (« ≈ pareil »).
+        ecart: q => {
+          const a = apresAvec(q), d = st && st[sit][i];
+          if (!a || !d) return null;
+          return sit === 'AN' ? { tirs: a.tirs - d.tirs, pctTir: a.pctTir - d.pctTir, contre: 0, pctArr: 0 } : { tirs: 0, pctTir: 0, contre: a.contre - d.contre, pctArr: a.pctArr - d.pctArr };
         },
+        dans: `en ${S.court} ${i + 1}`,
+        avantApres: q => {
+          const a = apresAvec(q), d = st && st[sit][i];
+          if (!a || !d) return '';
+          const fl = (x, y, f) => `${f(x)} → <b>${f(y)}</b>`;
+          return `${S.court} ${i + 1} : ${sit === 'AN'
+            ? `${fl(d.tirs, a.tirs, v1)} tirs · ${fl(d.pctTir * 100, a.pctTir * 100, v1)} % au tir`
+            : `${fl(d.contre, a.contre, v1)} tirs contre · ${fl(d.pctArr, a.pctArr, pct3)} arr.`} par match`;
+        },
+        onChoix: q => { b.speciales = avec(q); render(); },
       });
     };
   });

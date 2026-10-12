@@ -589,7 +589,11 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
  * quand toute une rangée l'est pour la même raison, la raison se dit une fois,
  * dans son titre.
  *
- * spec : { ico, titre, contexte, aide, motFermer, motConfirmer,
+ * LE COMPARATIF EN TÊTE (V7, JP : *mettre comparatif plus complet en haut, dès qu'on clique sur le joueur*) :
+ * `contexteDe(cle)` remplace le contexte dès qu'une case est touchée — les deux joueurs côte à côte — et le
+ * contexte revient quand on la relâche.
+ *
+ * spec : { ico, titre, contexte, contexteDe(cle) → html, aide, motFermer, motConfirmer,
  *          rangees: [{ titre, cases: [{ cle, vide, visage, nom, nomLong, pos, marque, marqueMot, note, non }] }],
  *          barre(cle) → html, onChoix(cle) | onApercu(cle), onFerme() }
  */
@@ -632,7 +636,7 @@ export function ouvrirAlignement(spec) {
       <button type="button" class="close-btn choix-fermer" aria-label="${esc(spec.motFermer || 'Retour')}" title="${esc(spec.motFermer || 'Retour')}">✕</button>
     </div>
     <div class="choix-corps">
-      ${spec.contexte || ''}
+      ${spec.contexteDe ? `<div class="aln-contexte">${spec.contexte || ''}</div>` : spec.contexte || ''}
       ${partout ? `<p class="aln-grises">Grisées : ${esc(partout)}.</p>` : ''}
       <nav class="aln-sauts" aria-label="Aller à une ligne">${spec.rangees.map(r => `<button type="button" class="aln-saut" data-saut="${esc(r.titre)}">${esc(SAUT[r.titre] || r.titre)}</button>`).join('')}</nav>
       <div class="aln">${spec.rangees.map(rangee).join('')}</div>
@@ -666,6 +670,8 @@ export function ouvrirAlignement(spec) {
       m.querySelectorAll('.aln-case[data-aln]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.aln === choisie)));
       m.querySelector('.aln-barre').classList.toggle('pret', !!choisie);
       mot.innerHTML = choisie && spec.barre ? spec.barre(choisie) : esc(spec.aide || 'Touche un joueur.');
+      const ctx = spec.contexteDe && m.querySelector('.aln-contexte');
+      if (ctx) ctx.innerHTML = (choisie && spec.contexteDe(choisie)) || spec.contexte || '';
       ok.disabled = !choisie;
     };
   });
