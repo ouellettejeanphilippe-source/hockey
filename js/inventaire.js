@@ -47,13 +47,14 @@ export const SEMAINE = 7, MAIN_SEMAINE = 4, JOUEES_SEMAINE = 2;
  */
 export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue = false } = {}) {
   const items = [];
-  const achats = decisions.filter(d => d && d.achat && d.achat.sorte === 'cartes');
-  for (const d of achats) (d.achat.cartes || []).forEach((id, t) => {
+  // Les packs de cartes, et les cartes des packs mixtes (Jalon P2), dont les revendues sont `cartesVendues`.
+  const achats = decisions.filter(d => d && d.achat && Array.isArray(d.achat.cartes));
+  for (const d of achats) d.achat.cartes.forEach((id, t) => {
     if (!BANQUE[id]) return;
     if (rogue && BANQUE[id].vie === 'permanent') return;
     // Une carte de match va droit au deck à l'ouverture (`deckDe`, js/combat.js) : la poche est ce qui se joue en semaine.
     if (BANQUE[id].cat === 'match') return;
-    if ((d.achat.vendus || []).includes(t)) return;
+    if (((d.achat.sorte === 'cartes' ? d.achat.vendus : d.achat.cartesVendues) || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
   // S80 : une amélioration ou une édition de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.

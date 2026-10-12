@@ -62,7 +62,7 @@ await page.waitForSelector('#pageMarche .pk-tuile');
 await page.evaluate(() => new Promise(r => { const q = indexedDB.deleteDatabase('cap82'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
 await page.route(/data\/seasons\/.*\.json/, async r => { await new Promise(x => setTimeout(x, 4000)); await r.continue(); });
 const tuiles = await page.$$eval('#pageMarche .pk-tuile', ts => ts.map(x => x.dataset.pack));
-const pack = tuiles.find(k => /hasard_bronze/.test(k)) || tuiles[0];
+const pack = tuiles.find(k => k === 'j:bronze') || tuiles[0];
 const acheter = async () => {
   await page.click(`#pageMarche .pk-tuile[data-pack="${pack}"]`);
   await page.click('#pageMarche .pk-fiche .pk-acheter');

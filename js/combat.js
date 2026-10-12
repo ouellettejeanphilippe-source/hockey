@@ -374,10 +374,17 @@ export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 
  * (celles prises avant ce jour-là) ; `serie` ajoute les récompenses de séries
  * gagnées avant la ronde `ronde`.
  */
-/* Les cartes de match d'un pack acheté (`achat.cartes`, des ids `match:cle`), moins celles revendues à l'ouverture. */
-const cartesDeMatchDuPack = d => (d && d.achat && d.achat.sorte === 'cartes'
-  ? (d.achat.cartes || []).filter((id, t) => typeof id === 'string' && id.startsWith('match:') && !(d.achat.vendus || []).includes(t)).map(id => id.slice(6)).filter(k => CARTES_MATCH[k])
-  : []);
+/*
+ * Les cartes de match d'un pack acheté (`achat.cartes`, des ids `match:cle`), moins celles revendues à l'ouverture.
+ * Un pack mixte (Jalon P2) est un achat de joueurs qui porte aussi ses cartes ; ses cartes revendues sont
+ * `cartesVendues` (`vendus`, chez lui, ce sont les joueurs).
+ */
+const cartesDeMatchDuPack = d => {
+  const a = d && d.achat;
+  if (!a || !Array.isArray(a.cartes)) return [];
+  const vendus = (a.sorte === 'cartes' ? a.vendus : a.cartesVendues) || [];
+  return a.cartes.filter((id, t) => typeof id === 'string' && id.startsWith('match:') && !vendus.includes(t)).map(id => id.slice(6)).filter(k => CARTES_MATCH[k]);
+};
 export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {
   // LA SAISON SUIVANTE D'UNE RUN ROGUE (S80) : le deck repart de celui de la fin de la saison d'avant (`deckDeBase`).
   const base = decisions.find(d => d && Array.isArray(d.deckDeBase));

@@ -34,11 +34,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, sortDUnPack } from '../js/packs.js';
+import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, sortDUnPack, BOUTIQUE } from '../js/packs.js';
+import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
-import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
-import { getPlayerKey, getPersonKey } from '../js/sim.js';
+import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
+import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { ageAtSeason } from '../js/ratings.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -154,7 +155,9 @@ async function mesurer(cle, nPacks, o = {}) {
       cartes++;
       compte[x.niveau]++;
       var_[x.niveau][x.rar] = (var_[x.niveau][x.rar] || 0) + 1;
-      if (niveauDe(x.p, (await shard(x.p.s)).players) !== x.niveau) faux++;
+      // Jalon P2b : un joueur sans niveau (sous le seuil d'un régulier, une seconde fiche) sort comme un Soutien.
+      const joueurs = (await shard(x.p.s)).players;
+      if (niveauDe(x.p, joueurs) !== x.niveau && !(x.niveau === 0 && joueursHorsNiveau(joueurs).includes(x.p))) faux++;
       if (o.saisons && !o.saisons(x.p.s)) horsSaisons++;
       if (o.libre && !o.libre(x.p)) trop++;
     }
@@ -370,6 +373,70 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   exiger('les cartes de saison ne comptent pas au dénominateur', horsPack.some(id => BANQUE[id].cat === 'saison') && Object.keys(BANQUE).filter(id => BANQUE[id].cat === 'saison').every(id => !sortDUnPack(id)), `${horsPack.length} cartes se gagnent en jouant`);
   const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
   informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (400 ouvertures par pack)`);
+}
+
+/*
+ * LA BOUTIQUE DU JALON P (P2). JP : *on limite les packs, tout en gardant des thématiques* ; *les cartes de match,
+ * événements, etc. avec les cartes de joueurs*. Sept packs, tous mixtes ; chaque thème tient sa promesse (la décennie,
+ * le rôle, la franchise, la couleur du coach — ses joueurs ET ses cartes) ; le hasard d'un thème ne tombe jamais sur
+ * ce que les déblocages ferment ; et aucune carte que les packs d'avant donnaient ne se perd dans la fusion.
+ */
+{
+  exiger('la boutique vend sept packs, tous mixtes (des joueurs et des cartes)', BOUTIQUE.length === 7 && BOUTIQUE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs' && PACKS_TOUS[k].n >= 3 && PACKS_TOUS[k].cartes >= 1),
+    BOUTIQUE.map(k => `${PACKS_TOUS[k].nom} ${PACKS_TOUS[k].n}+${PACKS_TOUS[k].cartes}`).join(' · '));
+  const an = x => Number(String(x.p.s).slice(0, 4));
+  const ep = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
+  exiger('Pack Époque : la décennie choisie', ep.length >= 10 && ep.every(x => an(x) >= 1980 && an(x) < 1990), `${ep.length} joueurs des années 80`);
+  const sp = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:specialistes', n, { params: { skill: 'gardien' } })))).flatMap(r => r.cartes);
+  exiger('Pack Spécialistes : le rôle choisi', sp.length >= 10 && sp.every(x => x.p.p === 'G'), `${sp.length} gardiens`);
+  const permis = await Promise.all(Array.from({ length: 12 }, (_, n) => tirer('j:specialistes', n, { params: { permis: ['sniper', 'passeur'] } })));
+  exiger('le hasard d\'un thème ne tire que dans ce que les déblocages ouvrent', permis.every(r => ['sniper', 'passeur'].includes(r.reglage.skill)), permis.map(r => r.reglage.skill).join(' '));
+  const cl = (await Promise.all([0, 1, 2].map(n => tirer('j:club', n, { params: { franchise: 'MTL' } })))).flatMap(r => r.cartes);
+  exiger('Pack Club : la franchise choisie', cl.length >= 6 && cl.every(x => x.p.t === 'MTL'), `${cl.length} Canadiens`);
+  for (const coach of VOIES) {
+    const r = await Promise.all([0, 1, 2].map(n => tirer('j:coach', n, { params: { coach } })));
+    const joueurs = r.flatMap(x => x.cartes), cartes = [0, 1, 2].flatMap(n => tirerCartesDuPack('j:coach', `packs-${n}`, n, { coach })).filter(id => BANQUE[id].rarete !== 'maudite');
+    exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs et ses cartes de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach) && cartes.length >= 4 && cartes.every(id => BANQUE[id].coach === coach),
+      `${joueurs.length} joueurs, ${cartes.length} cartes`);
+  }
+  // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des sept (6 000 ouvertures chacun, les coachs tous).
+  const avant = new Set(), apres = new Set();
+  for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 1500; n++) for (const id of tirerCartesPack(cle, `fusion-${cle}`, n)) avant.add(id);
+  for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) apres.add(id);
+  const perdues = [...avant].filter(id => !apres.has(id));
+  const comptees = Object.keys(BANQUE).filter(sortDUnPack);
+  exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);
+  exiger('chaque carte que la banque compte sort d\'un des sept packs', comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
+  // L'économie ne fuit pas : les cartes d'un pack mixte, revendues, valent au plus 40 % de son prix (majoré, la famille la plus chère).
+  const fuites = BOUTIQUE.filter(k => {
+    const P = PACKS_TOUS[k];
+    const parRarete = r => Math.max(0, ...Object.keys(BANQUE).filter(id => BANQUE[id].rarete === r).map(valeurDe));
+    return P.cartes * Object.entries({ commune: 55, peu: 30, rare: 12, legendaire: 3 }).reduce((a, [r, c]) => a + (c / 100) * parRarete(r), 0) > 0.4 * P.prix;
+  });
+  exiger('les cartes d\'un pack mixte ne se revendent pas plus de 40 % de son prix', !fuites.length, fuites.join(', ') || 'aucune fuite');
+}
+
+/*
+ * TOUT SE PIGE (Jalon P2b). JP : *faire que toutes les cartes et leurs variantes soient possibles avec tous les packs
+ * combinés*. Le SUPPORT, pas un échantillon : chaque joueur-saison-club de chaque shard est dans un niveau, ou parmi
+ * ceux sans niveau que les Soutien tirent (\`joueursHorsNiveau\`) ; et chaque tier donne chacune des quatre variantes.
+ */
+{
+  let total = 0, manquants = [];
+  for (const sa of SAISONS) {
+    const e = await shard(sa);
+    const dedans = new Set([...joueursParNiveau(e.players).flat(), ...joueursHorsNiveau(e.players)]);
+    for (const p of e.players) { total++; if (!dedans.has(p)) manquants.push(`${p.n} ${sa} ${p.t}`); }
+  }
+  exiger('chaque joueur-saison-club des données peut sortir d\'un pack', !manquants.length, manquants.slice(0, 4).join(', ') || `${total} cartes de joueur, toutes au support`);
+  const variantes = ['bronze', 'argent', 'or'].every(t => ['commune', 'peu', 'rare', 'legendaire'].every(r => TIERS[t].cotes[r] > 0));
+  exiger('chaque variante (Base, Parallèle, Holo, Or) sort de chaque pack au hasard', variantes, ['bronze', 'argent', 'or'].map(t => `${TIERS[t].nom} ${Object.values(TIERS[t].cotes).join('/')}`).join(' · '));
+  let hors = 0, cartes = 0;
+  for (let n = 0; n < 300; n++) for (const x of (await tirer('j:bronze', n, { graine: 'p2b' })).cartes) {
+    cartes++;
+    if (joueursHorsNiveau((await shard(x.p.s)).players).includes(x.p)) hors++;
+  }
+  borne('les joueurs sans niveau sortent, à petit poids (part des cartes d\'un Pack Bronze)', hors / cartes, 0.01, 0.1);
 }
 
 verdict('Les packs selon le niveau des joueurs');

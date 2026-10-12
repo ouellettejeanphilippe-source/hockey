@@ -10,7 +10,7 @@
  * « Acheter ». L'achat est une décision (js/game.js) ; l'ouverture, le
  * paquet qui se déchire (js/gerant.js).
  */
-import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks } from './packs.js';
+import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { esc, money as M } from './util.js';
@@ -22,7 +22,8 @@ const $ = id => document.getElementById(id);
 /*
  * ctx : { jetons, mode ('rogue' | 'saison'), ouverts (cle → true | 'raison du verrou'),
  *         mods (patrons : rabais, holo, carteExtra, sansBase), sansHolo (packs d'affilée),
- *         achats() (packs achetés cette saison : les prix montent), duJour { pack, rabais }, franchises [{ cle, nom }], saisons [labels], coachs [{ cle, nom }], coachRun,
+ *         achats() (packs achetés cette saison : les prix montent), duJour { pack, rabais }, franchises [{ cle, nom }], coachs [{ cle, nom }], coachRun,
+ *         decennies [1970…], roles [{ cle, nom }], verrousChoix { choix: { valeur: raison } } (Jalon P2),
  *         scelles [{ palier, cle, verrou }], ouvrirScelle(palier),
  *         acheter(cle, { prix, params, scelle }), onFerme() }
  */
@@ -64,12 +65,12 @@ export function ouvrirMagasin(ctx) {
     return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
       <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[P.tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
-      <span class="pk-n">${n} carte${n > 1 ? 's' : ''}</span>
+      <span class="pk-n">${P.cartes ? `${n} joueurs · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
       <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ».
-  const DEBUT = ['j:hasard_bronze', 'j:hasard_argent', 'c:match', 'c:consommables'];
+  const DEBUT = ['j:bronze', 'j:argent', 'j:or', 'j:coach'];
   let tout = !ctx.debutant;
   let ongletClub = 'nom';
   const dessiner = () => {
@@ -78,7 +79,7 @@ export function ouvrirMagasin(ctx) {
       return `<section class="pk-rayon"><h3>${R.ico} ${esc(R.nom)}</h3><div class="pk-rangee">${R.packs.map(k => tuile(k)).join('')}</div></section>`;
     }).join('')
       : `<section class="pk-rayon pk-rayon-debut"><h3>🎒 Pour commencer</h3><div class="pk-rangee">${DEBUT.filter(k => PACKS_TOUS[k]).map(k => tuile(k)).join('')}</div>
-        <button type="button" class="btn pk-tout">Voir les ${Object.keys(PACKS_TOUS).length} packs</button></section>`;
+        <button type="button" class="btn pk-tout">Voir les ${BOUTIQUE.length} packs</button></section>`;
     /* TES PACKS (1.0, oct.) : achetés sans les ouvrir. JP : *séparer le marché des cartes déjà achetées, en bas*.
        Le haut de la boutique est le marché ; ce qui est déjà à toi vit à part, en bas, et une ligne en tête y mène. */
     const nScelles = (ctx.scelles || []).length;
@@ -154,11 +155,16 @@ export function ouvrirMagasin(ctx) {
     const cotes = P.sorte === 'joueurs' ? cotesDuPack(cle, ctx.mods) : P.cotes;
     const tot = Object.values(cotes).reduce((a, b) => a + b, 0) || 100;
     const noms = P.sorte === 'joueurs' ? { commune: 'Base', peu: 'Parallèle', rare: 'Holo', legendaire: 'Or numérotée' } : { commune: 'Commune', peu: 'Peu commune', rare: 'Rare', legendaire: 'Légendaire' };
-    const choix = P.choix === 'franchise'
-      ? `<label class="pk-choix">La franchise <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.franchises.map(f => `<option value="${esc(f.cle)}">${esc(f.nom)}</option>`).join('')}</select></label>`
-      : P.choix === 'saison'
-        ? `<label class="pk-choix">La saison <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.saisons.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')}</select></label>`
-        : P.choix === 'coach' && ctx.coachs
+    // Jalon P2 : la décennie et le rôle ; une option que les déblocages ferment se voit, grisée, avec sa raison.
+    const verrous = (ctx.verrousChoix || {})[P.choix] || {};
+    const option = (cle, nom) => `<option value="${esc(cle)}"${verrous[cle] ? ` disabled title="${esc(verrous[cle])}"` : ''}>${esc(nom)}${verrous[cle] ? ' 🔒' : ''}</option>`;
+    const choix = P.choix === 'decennie' && ctx.decennies
+      ? `<label class="pk-choix">La décennie <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.decennies.map(d => option(d, `Les années ${String(d).slice(2)}`)).join('')}</select></label>`
+      : P.choix === 'skill' && ctx.roles
+        ? `<label class="pk-choix">Le rôle <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.roles.map(r => option(r.cle, r.nom)).join('')}</select></label>`
+        : P.choix === 'franchise'
+          ? `<label class="pk-choix">La franchise <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.franchises.map(f => `<option value="${esc(f.cle)}">${esc(f.nom)}</option>`).join('')}</select></label>`
+          : P.choix === 'coach' && ctx.coachs
           ? `<label class="pk-choix">Le coach <select id="pkParam"><option value="">🎲 Au hasard</option>${ctx.coachs.map(c => `<option value="${esc(c.cle)}"${c.cle === ctx.coachRun ? ' selected' : ''}>${esc(c.nom)}</option>`).join('')}</select></label>` : '';
     const peut = !verrou && ctx.jetons >= prix;
     const d = document.createElement('div');
