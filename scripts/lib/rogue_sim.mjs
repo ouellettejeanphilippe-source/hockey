@@ -29,6 +29,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
+  ecoleDe,
 } from '../../js/sim.js';
 import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
@@ -119,9 +120,13 @@ function adversaires(rnd, exclus, n = 31) {
     const pool = e.byTeam[tag];
     if (pool.filter(p => groupe(p) === 'F').length < 12 || pool.filter(p => groupe(p) === 'D').length < 6 || pool.filter(p => p.p === 'G').length < 2) continue;
     vus.add(`${e.season}|${tag}`);
-    const roster = autoRoster(pool.map(copie), exclus);
+    const copies = pool.map(copie);
+    const roster = autoRoster(copies, exclus);
     for (const p of Object.values(roster)) exclus.add(getPersonKey(p));
-    out.push(createTeam(`${tag} ${e.season}`, tag, roster, { season: e.season }));
+    // Son club-école (Jalon P, B) : les vrais joueurs de ce club-saison hors de ses 23.
+    const ecole = ecoleDe(copies.filter(p => !exclus.has(getPersonKey(p))), roster);
+    for (const p of ecole) exclus.add(getPersonKey(p));
+    out.push(createTeam(`${tag} ${e.season}`, tag, roster, { season: e.season, ecole }));
   }
   return out;
 }

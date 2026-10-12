@@ -6,6 +6,7 @@
  * Toute modification des constantes doit être revalidée (voir PLAN.md, S3).
  */
 
+import { episodesDuMatin } from './arcs.js';
 import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
 import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
@@ -2531,8 +2532,8 @@ export function depenserEnergie(team, lineup) {
   }
 }
 export function recupererEnergie(team, part = ENERGIE_RECUP) {
-  for (const s of SLOTS) {
-    const p = team.roster[s.i];
+  // Les rappelés du club-école (B) récupèrent aussi : ils dorment comme les autres.
+  for (const p of [...SLOTS.map(s => team.roster[s.i]), ...(team.ecole || [])]) {
     if (p) p.energie = Math.min(100, energieDe(p) + part * (100 - energieDe(p)));
   }
 }
@@ -5232,15 +5233,72 @@ const BLESSURE_BASE = 0.0015, BLESSURE_FRAGILE = 0.015;
  */
 export const FRAGILE_DES = 2;
 export const fragiliteDe = p => { const f = 1 - gpShare(p); return (BLESSURE_BASE + BLESSURE_FRAGILE * f * f) / BLESSURE_BASE; };
+/*
+ * LA ROBUSTESSE BLESSE, AU NOMBRE DE LA VRAIE LNH (Jalon P, B). JP, 12 oct. : *robustesse cause blessures, pas
+ * douze blessés en même temps, mais nombre normal versus la vraie vie*. Mesuré avant, sur des ligues de vrais
+ * clubs : 6,4 blessures et 49 matchs-hommes perdus par club-saison, 0,6 blessé à la fois ; la LNH en perd 180 à
+ * 220, de deux à deux et demi à la fois.
+ *   BLESSURES_LNH      la part FRAGILE du risque (ce que sa vraie saison a de matchs manqués), multipliée : 2,4
+ *                      blessés à la fois en 2018-19, 1,8 en 1985-86. Pas le plancher : un joueur qui a joué ses 82
+ *                      vrais matchs reste presque toujours là, et la production se répartit comme la vraie saison
+ *                      (`check_parts` — multiplier tout le risque donnait les tirs des vedettes au 4e trio) ;
+ *   FRAPPE             chaque écart-type de robustesse de l'ADVERSAIRE monte le risque de tes joueurs de e^0,12
+ *                      (13 %) : ses durs blessent, et les tiens protègent (`DISSUASION`) ;
+ *   INFIRMERIE_PLEINE  passé quatre blessés, une blessure de plus devient rare (×0,75, ×0,5, puis ×0,25) : jamais
+ *                      une infirmerie de douze (au plus huit, mesuré).
+ * Une blessure de moins de `BLESSURE_MOMENT` matchs ne bloque jamais la journée (js/ballottage.js).
+ */
+export const BLESSURES_LNH = 9, FRAPPE = 0.12, INFIRMERIE_PLEINE = 4;
 function injuryChance(p, heavy = false) {
   const frail = 1 - gpShare(p);
-  let pr = BLESSURE_BASE + BLESSURE_FRAGILE * frail * frail;
+  let pr = BLESSURE_BASE + BLESSURES_LNH * BLESSURE_FRAGILE * frail * frail;
   if (p.p === 'G') pr *= 0.5;
   if (heavy) pr *= BLESSURE_EREINTANT;
   // Un joueur costaud se blesse moins : sa carrure, la même que la fiche montre (V2.3).
   pr *= blessureDuPhysique(p);
   return pr;
 }
+
+/*
+ * CE QUI LE BLESSE, LU DANS LE MOTEUR (Jalon P, B). JP : *préciser la blessure (certaines drôles) ; chaque chose que tu
+ * dis doit se voir dans le vrai jeu*. Le nom d'une blessure vient de ce qui l'a CAUSÉE ce soir-là, dans cet ordre :
+ * une bagarre perdue, un coup marquant reçu, des jambes vides, les durs d'en face, un dos-à-dos. Sans cause du soir,
+ * sa durée choisit : une absence courte est parfois drôle (une sur quatre), une longue, sérieuse. Aucun dé : une
+ * empreinte du joueur et du match, donc la saison rejouée nomme la même blessure.
+ */
+const BLESSURES = {
+  main: { nom: 'une main fracturée', cause: 'en bagarre' },
+  commotion: { nom: 'une commotion cérébrale', cause: 'après un coup marquant' },
+  aine: { nom: 'une élongation à l\'aine', cause: 'les jambes vidées' },
+  epaule: { nom: 'une épaule séparée', cause: 'sur une mise en échec' },
+  dos: { nom: 'des maux de dos', cause: 'au bout d\'un dos-à-dos' },
+  haut: { nom: 'une blessure au haut du corps', cause: '' },
+  bas: { nom: 'une blessure au bas du corps', cause: '' },
+  cheville: { nom: 'une entorse à la cheville', cause: '' },
+  genou: { nom: 'une entorse au genou', cause: '' },
+  fracture: { nom: 'une fracture', cause: '' },
+  ligaments: { nom: 'des ligaments déchirés', cause: '' },
+  lacets: { nom: 'une coupure au doigt', cause: 'en laçant ses patins trop vite', drole: true },
+  torticolis: { nom: 'un torticolis', cause: 'à force de regarder l\'écran géant', drole: true },
+  sauna: { nom: 'un coup de chaleur', cause: 'au sauna de l\'hôtel', drole: true },
+  porte: { nom: 'le nez enflé', cause: 'contre la porte du banc', drole: true },
+  chien: { nom: 'une morsure au mollet', cause: 'en promenant le chien du capitaine', drole: true },
+  gateau: { nom: 'une brûlure à la main', cause: 'en allumant les chandelles du gâteau d\'un coéquipier', drole: true },
+};
+const DROLES = Object.keys(BLESSURES).filter(k => BLESSURES[k].drole);
+function genreDeBlessure(p, team, matchs, { bagarre, sonne, jambes, frappe, heavy }) {
+  if (bagarre) return 'main';
+  if (sonne) return 'commotion';
+  if (jambes) return 'aine';
+  const x = empreinte(`${getPlayerKey(p)}|${team.name}|${team.games}|blessure`);
+  if (frappe > 1.25) return 'epaule';
+  if (heavy && x < 0.5) return 'dos';
+  if (matchs <= 3) return x < 0.25 ? DROLES[Math.floor((x / 0.25) * DROLES.length)] : x < 0.625 ? 'haut' : 'bas';
+  if (matchs <= 15) return ['cheville', 'genou', 'haut', 'bas'][Math.floor(x * 4)];
+  return ['fracture', 'ligaments', 'genou'][Math.floor(x * 3)];
+}
+/* La blessure en mots : « une commotion cérébrale après un coup marquant ». */
+export const motDeBlessure = genre => { const B = BLESSURES[genre]; return B ? `${B.nom}${B.cause ? ` ${B.cause}` : ''}` : 'une blessure'; };
 
 function injuryLength() {   // moyenne ~8 matchs, plafond 40
   let n = 1;
@@ -5258,9 +5316,23 @@ function initSimStats(p) {
   }
 }
 
+/*
+ * LE CLUB-ÉCOLE D'UN CLUB DE L'IA (Jalon P, B). JP : *club-école pour tous*. Avec les blessures de la vraie LNH, un
+ * club dépasse souvent ses trois réservistes ; personne ne remplaçait, et son 4e trio doublait ses présences (27 de
+ * jambes au matin à quatre blessés). Comme dans la LNH, il rappelle : ses VRAIS joueurs de cette saison-là qui ne
+ * sont pas dans ses 23 (ceux qui ont joué quelques matchs), les plus utilisés d'abord. Ton club, lui, rappelle par
+ * une décision (le ballottage, le rappel du club-école).
+ */
+const ECOLE_MAX = 6;
+export const ecoleDe = (pool, roster) => {
+  const dedans = new Set(Object.values(roster || {}).filter(Boolean).map(getPersonKey));
+  return (pool || []).filter(p => p && p.p !== 'G' && !dedans.has(getPersonKey(p)))
+    .sort((a, b) => (b.gp || 0) - (a.gp || 0) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)).slice(0, ECOLE_MAX);
+};
 export function createTeam(name, tag, roster, opts = {}) {
   return {
     name, tag, roster,
+    ecole: opts.ecole || [],
     isPlayer: !!opts.isPlayer,
     season: opts.season || null,
     fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_DEFAUT)
@@ -5331,6 +5403,14 @@ function lineupQuiMonte(team, reserves, absent) {
     if (!best) continue;
     lineup[s.i] = best;
     if (d) lineup[d.i] = null; else libres.delete(best);
+  }
+  // LE CLUB-ÉCOLE (B) : tout l'effectif est monté ; les cases encore vides, en bas, prennent un rappelé qui y convient.
+  const dedans = new Set(Object.values(lineup).filter(Boolean));
+  const ecole = (team.ecole || []).filter(p => !team.injured.has(p) && !absent(p) && !dedans.has(p));
+  for (const s of ORDRE_AUTO) {
+    if (s.scratch || s.group === 'G' || lineup[s.i]) continue;
+    const k = ecole.findIndex(p => fits(p, s));
+    if (k >= 0) lineup[s.i] = ecole.splice(k, 1)[0];
   }
   return lineup;
 }
@@ -5547,7 +5627,9 @@ function instantDeBlessure(feuille, p, team) {
   if (dernier >= fin - 0.4) return Math.max(dernier, fin - 0.3);
   return dernier + (fin - 0.3 - dernier) * (0.1 + 0.8 * empreinte(`${getPlayerKey(p)}|${team.name}|${team.games}`));
 }
-function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil = null) {
+function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil = null, profilAdv = null) {
+  // LA FRAPPE (B) : les durs d'en face blessent ; une infirmerie déjà pleine se remplit moins vite.
+  const frappe = profilAdv ? Math.exp(FRAPPE * robZ(profilAdv)) : 1;
   for (const [p, n] of team.injured) {
     if (n <= 1) team.injured.delete(p); else team.injured.set(p, n - 1);
   }
@@ -5562,14 +5644,17 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
     const usee = 1 + Math.max(0, ENERGIE_BLESSURE - energieDe(p)) / 30;
     // Sonné par un coup marquant, ou une bagarre perdue (1.0) : ce soir, il se blesse plus.
     const soiree = (p._sonne ? BLESSURE_SONNE : 1) * (p._bagarrePerdue ? BLESSURE_BAGARRE_PERDUE : 1);
+    const causes = { bagarre: !!p._bagarrePerdue, sonne: !!p._sonne, jambes: energieDe(p) < ENERGIE_BLESSURE, frappe, heavy };
     delete p._sonne; delete p._bagarrePerdue;
-    if (hasard() < injuryChance(p, heavy) * dissuasion * soiree * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
+    const plein = Math.max(0.25, 1 - 0.25 * Math.max(0, team.injured.size - INFIRMERIE_PLEINE));
+    if (hasard() < injuryChance(p, heavy) * frappe * plein * dissuasion * soiree * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
       const n = injuryLength();
+      const genre = genreDeBlessure(p, team, n, causes);
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
       // `avant` : l'alignement du soir où il s'est blessé (sa case d'avant, pour son retour — `retourDuBlesse`, js/ballottage.js). Aucun hasard.
-      team.injuriesLog.push({ player: p, games: n, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null, avant: photoAlignement(team.roster) });
-      if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, instant: instantDeBlessure(feuille, p, team) });
+      team.injuriesLog.push({ player: p, games: n, genre, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null, avant: photoAlignement(team.roster) });
+      if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, genre, instant: instantDeBlessure(feuille, p, team) });
     }
   }
 }
@@ -5766,7 +5851,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
     if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
-  applyInjuries(A, LA, heavy, journal, 'A', pA); applyInjuries(B, LB, heavy, journal, 'B', pB);
+  applyInjuries(A, LA, heavy, journal, 'A', pA, pB); applyInjuries(B, LB, heavy, journal, 'B', pB, pA);
   if (track) { A.games++; B.games++; }
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
@@ -5938,7 +6023,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
         p.contre[mode] = lire(B, A, gA, mode, null, mode === 'FE' ? unites.contre : mode === 'AN' ? speciales.contre : null);
       }
       // Les blessures attendues ce soir (la formule d'`applyInjuries`, sans les aléas du soir) et l'usure moyenne des jambes par habillé.
-      const dissuasion = Math.exp(-DISSUASION * robZ(A));
+      const dissuasion = Math.exp(-DISSUASION * robZ(A)) * (adv ? Math.exp(FRAPPE * robZ(B)) : 1);
       const habilles = Object.values(lu).filter(Boolean);
       const blessures = habilles.reduce((a, q) => a + injuryChance(q, heavy) * mutDe(q, 'blessure'), 0) * dissuasion * effetsDeSaison(team).blessure;
       const couts = coutsDuSoir(team, lu);
@@ -6551,7 +6636,7 @@ function remettreAZero(p) {
   delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
 }
 
-export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null } = {}) {
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null, arcs = courbe } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
@@ -6582,6 +6667,8 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     calendrier: ceduleDe(teams, games, graine),
     // Le gros match du prochain soir, repéré d'avance sans rien jouer (voir `preludeDuJour`).
     grosAVenir: null, grosAnnonces: {},
+    // LES ARCS (Jalon P, E, js/arcs.js) : ton club en vit en Rogue ; `arcs: false`, une mesure sans eux.
+    arcs: !!arcs,
   };
   poserJours(L);
   avecLigue(L, () => {
@@ -6603,6 +6690,8 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     }
     for (const t of teams) {
       for (const s of SLOTS) if (t.roster[s.i]) { initSimStats(t.roster[s.i]); connaitre(t.roster[s.i]); }
+      // Les rappelés du club-école (B) repartent de zéro, comme l'effectif.
+      for (const p of t.ecole || []) { initSimStats(p); connaitre(p); p.energie = 100; delete p._reserve; }
       // La chance de saison est tirée ICI, sous la graine, et non à
       // `createTeam` : sinon deux saisons de même graine différaient déjà
       // avant le premier lancer (check_graine.mjs l'a attrapé).
@@ -6620,7 +6709,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; }
-      t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
+      t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null;
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
@@ -6746,6 +6835,11 @@ function preludeDuJour(L) {
       }
     }
   }
+  /*
+   * LES ARCS DU MATIN (Jalon P, E, js/arcs.js) : nés des faits de TON club (ses matchs joués, ses blessés, son
+   * calendrier), sans hasard ; chaque épisode pose son effet de quelques matchs, comme un moment.
+   */
+  if (toi && L.arcs) for (const e of episodesDuMatin(toi, r)) toi.effets.push({ debut: r, fin: apresMatchs(toi, r, e.matchs), source: 'arc', nom: e.titre, ...e.effet });
 }
 /* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
 const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));

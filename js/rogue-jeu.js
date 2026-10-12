@@ -1544,7 +1544,7 @@ async function choisirNouvelleEquipe(saison) {
   const manque = { F: COMPOSITION_DEPART.F, D: COMPOSITION_DEPART.D, G: COMPOSITION_DEPART.G };
   for (const p of pris) { const g = groupeDe(p); if (g in manque) manque[g] = Math.max(0, manque[g] - 1); }
   if (Object.values(manque).some(n => n > 0)) {
-    const ligue = await plombiersDeLaLigue(meta, pris, graine);
+    const ligue = await plombiersDeLaLigue(meta, pris);
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
   }
   const roster = placerDevant(autoRoster(pris), gardes);

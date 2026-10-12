@@ -33,7 +33,7 @@ import { SLOTS, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dos
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
@@ -1755,10 +1755,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const nouvellesDe = debut => {
     const primes = ctx.rogue ? primesDesFils(calendrier, you, jour).parJour : null;
-    return filsAuJour().journal.filter(e => e.j >= debut && e.j < jour).map(e => {
+    return [...arcsDeLaSemaine(debut).map(a => arcHtml(a, false)), ...filsAuJour().journal.filter(e => e.j >= debut && e.j < jour).map(e => {
       const a = e.fils[0], x = messageDuFil(a), prime = primes ? primes.get(e.j) : null;
       return `<div class="som-l"><b>${ctx.esc(a.texte)}</b> <span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>${prime ? ` <span class="bon">${ctx.esc(prime.mot)} : +${prime.jetons} 🪙</span>` : ''}</div>`;
-    });
+    })];
   };
   /* Ce que dit une info de la semaine (la carte qui change, le vestiaire), sans bouton : le sommaire et la boîte la partagent. */
   function corpsDInfo(genre, x) {
@@ -1822,7 +1822,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       blocs.push(`<div class="som-l">${pour} buts pour, ${contre} contre</div>`);
     }
     blocs.push(`<div class="som-l som-rang">📊 ${rangMot(rang)} de la ligue${bouge ? ` <span class="${bouge > 0 ? 'bon' : 'prix'}">${bouge > 0 ? '▲' : '▼'} ${Math.abs(bouge)}</span>` : ' · sans bouger'} · ${f.W}-${f.L}-${f.OTL}, ${f.PTS} pts</div>`);
-    for (const b of (you.injuriesLog || []).filter(b => b.at > avant.joues && b.at <= miens.length)) blocs.push(`<div class="som-l prix">🚑 ${ctx.esc(b.player.n)} blessé : ${b.games} match${b.games > 1 ? 's' : ''}${b.games >= BLESSURE_TRAINEE ? cicatriceMot('trainee') : ''}</div>`);
+    for (const b of (you.injuriesLog || []).filter(b => b.at > avant.joues && b.at <= miens.length)) blocs.push(`<div class="som-l prix">🚑 ${ctx.esc(b.player.n)}, ${ctx.esc(motDeBlessure(b.genre))} : ${b.games} match${b.games > 1 ? 's' : ''}${b.games >= BLESSURE_TRAINEE ? cicatriceMot('trainee') : ''}</div>`);
     for (const x of mv) blocs.push(`<div class="som-l">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`);
     for (const [, { genre, x }] of infos) blocs.push(corpsDInfo(genre, x));
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
@@ -2189,8 +2189,23 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     return lanceeDe(p, r.slice(-LANCEE.doute.matchs));
   };
+  /*
+   * UN ARC À LA UNE (Jalon P, E, js/arcs.js) : son épisode est né d'un fait du moteur et joue ses matchs ; il passe
+   * devant le fil s'il est plus frais. Ce qui se lit est déjà arrivé (`a.jour <= jour`).
+   */
+  const arcsDeLaSemaine = debut => (you.arcs || []).filter(a => a.jour >= debut && a.jour <= jour);
+  const arcHtml = (a, une) => {
+    const x = EXPEDITEURS[a.de] || EXPEDITEURS.en;
+    const mots = motsEnChiffres(a.effet).filter(m => m.cle !== 'rien');
+    return une
+      ? `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.titre)}</b>
+      <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots.map(m => ({ ...m, txt: `${m.txt} · ${a.matchs} matchs` })))}</span>` : ''}</div>`
+      : `<div class="som-l"><b>${ctx.esc(a.titre)}</b> <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span></div>`;
+  };
   const uneHtml = () => {
     const e = filsAuJour().journal.at(-1);
+    const arc = arcsDeLaSemaine(jour - SEMAINE).at(-1);
+    if (arc && (!e || arc.jour > e.j)) return arcHtml(arc, true);
     // V4.4 : le dernier fil de la semaine écoulée (le sommaire les a tous dits), pas seulement celui d'hier soir.
     if (!e || e.j < jour - SEMAINE) return '';
     const a = e.fils[0], x = messageDuFil(a);
@@ -2244,7 +2259,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const donnes = coups.filter(x => x.cote === moi).length, recus = coups.length - donnes;
     if (coups.length) bits.push(`${donnes} coup${donnes > 1 ? 's' : ''} marquant${donnes > 1 ? 's' : ''} donné${donnes > 1 ? 's' : ''}, ${recus} reçu${recus > 1 ? 's' : ''}`);
     const bl = (f.blessures || []).filter(x => x.joueur);
-    if (bl.length) bits.push(`blessé${bl.length > 1 ? 's' : ''} : ${bl.map(x => ctx.esc(nom(x.joueur))).join(', ')}`);
+    if (bl.length) bits.push(`blessé${bl.length > 1 ? 's' : ''} : ${bl.map(x => `${ctx.esc(nom(x.joueur))} (${ctx.esc(motDeBlessure(x.genre))})`).join(', ')}`);
     return bits.length ? `<div class="soir-drame">${cap(bits.join(' · '))}.</div>` : '';
   };
   /*

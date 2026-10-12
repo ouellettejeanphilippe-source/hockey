@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE } from './sim.js';
+import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
@@ -151,7 +151,7 @@ function evenementsDuMatch(f, graine) {
     if (!x.butAN && fin < 60) ev.push({ type: 'finPunition', cote: x.cote, instant: fin + 1e-4, joueur: x.joueur });
   }
   // LES BLESSURES (S80) : datées sur la feuille, après la dernière action du blessé ce soir-là.
-  for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs });
+  for (const x of (f.blessures || [])) ev.push({ type: 'blessure', cote: x.cote, instant: x.instant, joueur: x.joueur, matchs: x.matchs, genre: x.genre });
   // LE JEU PHYSIQUE (1.0) : les coups marquants, les bagarres, les mêlées, datés sur la feuille.
   for (const x of (f.physique || [])) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
@@ -517,7 +517,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const eq = equipe(e.cote), nous = !!eq.isPlayer;
       const qui = e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : 'Un joueur';
       ligne(`blessure ${e.cote === 'A' ? 'a' : 'b'}${nous ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
-        <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et retraite au vestiaire.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) se blesse et quitte le match.`}</span>`);
+        <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et retraite au vestiaire : ${ctx.esc(motDeBlessure(e.genre))}.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) quitte le match : ${ctx.esc(motDeBlessure(e.genre))}.`}</span>`);
       return nous ? 1200 : 500;
     }
     /*

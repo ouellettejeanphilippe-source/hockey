@@ -11,7 +11,7 @@
  */
 
 import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
-  ROULEMENTS, roulementDe } from './sim.js';
+  ROULEMENTS, roulementDe, motDeBlessure } from './sim.js';
 import { causesDuMatch, causeDuBut, causesDeSaison } from './causes.js';
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT } from './recit.js';
 import { apresMatch } from './apres-match.js';
@@ -763,14 +763,16 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
    * (`filsDeSaison`, js/recit.js ; check_fils). Les six plus lourds.
    */
   const fils = filsDeSaison(calendrier, you).fils.filter(a => a.poids >= FIL_MARQUANT).slice(0, 6);
-  const histoire = fils.length
+  // Les arcs de ta saison (Jalon P, E, js/arcs.js) : nés de ses faits, joués par le moteur, épisode par épisode.
+  const arcs = you.arcs || [];
+  const histoire = fils.length || arcs.length
     ? `<div class="result-section" data-bl="histoire"><h3>L'histoire de ta saison</h3>
-        <ul class="inj-list">${fils.map(a => `<li>${esc(a.texte)}</li>`).join('')}</ul>
+        <ul class="inj-list">${fils.map(a => `<li>${esc(a.texte)}</li>`).join('')}${arcs.map(a => `<li><strong>${esc(a.titre)}</strong> — ${esc(a.texte)}</li>`).join('')}</ul>
       </div>`
     : '';
 
   const injuries = you.injuriesLog && you.injuriesLog.length
-    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${lienJoueur(i.player, you, 'saison', esc(i.player.n))}</strong> — ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
+    ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${lienJoueur(i.player, you, 'saison', esc(i.player.n))}</strong> — ${esc(motDeBlessure(i.genre))} · ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
     : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
 
   G.lbId = saveLeaderboard({
@@ -1390,7 +1392,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
         return `<div class="som-but som-pun som-bless">
           <span class="som-tps">${tempsRestant(b.instant)}</span>
           <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
-          <span class="som-qui">🚑 Blessure${b.joueur ? ` : ${lien(b.joueur)}` : ''} · absent ${b.matchs} match${b.matchs > 1 ? 's' : ''}</span>
+          <span class="som-qui">🚑 Blessure${b.joueur ? ` : ${lien(b.joueur)}` : ''}, ${esc(motDeBlessure(b.genre))} · absent ${b.matchs} match${b.matchs > 1 ? 's' : ''}</span>
         </div>`;
       }
       if (b.type === 'coup' || b.type === 'bagarre' || b.type === 'melee') {

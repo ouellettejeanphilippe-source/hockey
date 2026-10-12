@@ -26,11 +26,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, jouerJournee, poserAlignementDuJour, getPlayerKey, connaitre, photoAlignement, fits, activeLineup } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, jouerJournee, poserAlignementDuJour, getPlayerKey, connaitre, photoAlignement, fits, activeLineup, teamStrength, grainerHasard, playGame, INFIRMERIE_PLEINE, ecoleDe } from '../js/sim.js';
 import { BLESSURE_MOMENT, etatDeBlessure, blessureOuverte, retourDuBlesse, problemesDAlignement, rappelDuClubEcole, productionDe } from '../js/ballottage.js';
 import { plafondDe } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
-import { exiger, informer, verdict } from './verdict.mjs';
+import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -386,6 +386,52 @@ for (const groupe of ['F', 'D']) {
   const rS = retourDuBlesse({ roster: mettre(casesS), injured: new Map(), b });
   const pS = rS && problemesDAlignement(rS.cases, parCle(roster), { attendu: Object.values(casesS) });
   exiger('le suppléant parti plus loin : le retour reste valide', !rS || !pS.length, rS ? rS.mouvements.map(m => `${m.p.n} → ${m.vers.role}`).join(' · ') : 'aucun retour');
+}
+
+/*
+ * LE NOMBRE DE LA VRAIE LNH, ET LA ROBUSTESSE QUI BLESSE (Jalon P, B). JP : *robustesse cause blessures, pas douze
+ * blessés en même temps, mais nombre normal versus la vraie vie*. Une ligue de vrais clubs (2018-19) : la LNH perd
+ * de 180 à 220 matchs-hommes par club-saison, deux à deux et demi blessés à la fois. Puis, en PAIRES (les mêmes dés),
+ * le même club contre l'adversaire le plus dur et le plus léger de sa saison : le dur blesse plus.
+ */
+{
+  const sh = shard('2018-19.json');
+  const tags = [...new Set(sh.players.map(p => p.t))];
+  // Avec leur club-école (les autres joueurs du club-saison) : au-delà des réservistes, un vrai rappelé monte.
+  const clubs = () => tags.map(tag => {
+    const j = equipeReelle(sh.season, tag).flat().map(x => ({ ...x })), autres = sh.players.filter(p => p.t === tag).map(x => ({ ...x }));
+    [...j, ...autres].forEach(registerHiddenRatings);
+    const roster = autoRoster(j);
+    return createTeam(tag, tag, roster, { season: sh.season, ecole: ecoleDe(autres, roster) });
+  });
+  const L = jouerJusqua(creerLigue(clubs(), 82, { graine: 'infirmerie' }), Infinity);
+  let mgl = 0, pic = 0;
+  for (const t of L.teams) {
+    const parMatch = new Array(83).fill(0);
+    for (const i of t.injuriesLog) for (let g = i.at; g < Math.min(83, i.at + i.games); g++) parMatch[g]++;
+    mgl += parMatch.reduce((a, x) => a + x, 0); pic = Math.max(pic, ...parMatch);
+  }
+  const aLaFois = mgl / L.teams.length / 82;
+  borne('une ligue de vrais clubs : les blessés à la fois, au nombre de la vraie LNH', aLaFois, 1.9, 2.8);
+  borne('jamais une infirmerie pleine : le plus de blessés en même temps chez un club', pic, 0, INFIRMERIE_PLEINE + 5);
+  const [X, ...autres] = clubs();
+  const rob = t => teamStrength(t).rob;
+  const tri = autres.sort((a, b) => rob(a) - rob(b)), leger = tri[0], dur = tri[tri.length - 1];
+  const contre = adv => {
+    let n = 0;
+    for (let k = 0; k < 1500; k++) {
+      X.injured.clear(); adv.injured.clear();
+      for (const sl of SLOTS) for (const t of [X, adv]) { const p = t.roster[sl.i]; if (p) p.energie = 100; }
+      const avant = X.injuriesLog.length;
+      grainerHasard(`frappe:${k}`);
+      playGame(X, adv, 1, false);
+      n += X.injuriesLog.length - avant;
+    }
+    return n;
+  };
+  const nDur = contre(dur), nLeger = contre(leger);
+  exiger('la robustesse blesse : le même club se blesse plus contre l\'adversaire le plus dur que contre le plus léger', nDur > nLeger,
+    `${X.name} : ${nDur} blessures contre ${dur.name} (dur), ${nLeger} contre ${leger.name} (léger), 1 500 matchs chacun`);
 }
 
 verdict('La blessure se règle et le retour ne bouge que ce qu\'il faut');
