@@ -1921,12 +1921,13 @@ export function majEntete() {
 document.addEventListener('cap82:marche', ev => {
   // Une signature attend (la Boîte du Club le dit, sans nommer la boutique) : on va au Marché et on rouvre l'offre.
   // V5 : le nœud de la semaine y mène aussi, sur « Tes cartes » (`page`).
+  // Jalon Q : la signature s'ouvre sur place, par-dessus le bureau — plus de détour par la boutique.
   const d = ev.detail || {};
-  if (!d.signer && !PAGES_DU_MARCHE[d.page]) return;
-  marchePage = d.signer ? 'boutique' : d.page;
-  montrerPage('marche');
   const h = hubActif();
-  if (d.signer && h && h.signer) h.signer();
+  if (d.signer) { if (h && h.signer) h.signer(); return; }
+  if (!PAGES_DU_MARCHE[d.page]) return;
+  marchePage = d.page;
+  montrerPage('marche');
 });
 const PAGES_DU_MARCHE = { boutique: ['🛒', 'La boutique'], cartes: ['🎒', 'Tes cartes'] };
 /* « Un joueur à signer » : un pack ouvert, personne de signé — il se traite ici, au Marché. */

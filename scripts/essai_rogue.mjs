@@ -587,6 +587,15 @@ await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
 await page.click('#pageMarche .hub-page-retour');
 await acheter('j:argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
+// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer) ;
+// « Signer un joueur » mène à la signature, joueurs seuls.
+const revele = await page.$$eval('#choixModal .choix-option.tc', e => ({ joueurs: e.filter(x => x.querySelector('.cj-mini-carte')).length, jeu: e.filter(x => !x.querySelector('.cj-mini-carte')).length, signer: e.filter(x => x.querySelector('.tcj-signer')).length }));
+if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Argent ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
+else {
+  await page.click('#choixModal:not([hidden]) .choix-fermer');
+  await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc .cj-mini-carte', { timeout: 30000 });
+  if (await page.$$eval('#choixModal .choix-option.tc', e => e.some(x => !x.querySelector('.cj-mini-carte')))) erreurs.push('la signature du pack Argent montre encore des cartes de jeu');
+}
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
@@ -681,7 +690,10 @@ await regler();
 for (const pack of ['j:or', 'j:coach']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
+  // Jalon Q : le paquet entier, puis la signature, joueurs seuls ; « Plus tard » laisse l'offre à la boîte.
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+  await page.waitForTimeout(500);
+  if (await page.$('#choixModal:not([hidden]) .tcj-signer')) await page.click('#choixModal:not([hidden]) .choix-plus-tard');
   await auBureau();
   await regler();
 }

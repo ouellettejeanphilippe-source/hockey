@@ -292,12 +292,11 @@ function cartesAPoserSur(p) {
   const j = jourDuHub();
   const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
   const piles = new Map();
-  // V4.3 : en Rogue, seulement les cartes de ta main de la semaine qui se jouent encore (js/inventaire.js).
   const debut = Math.floor(j / SEMAINE) * SEMAINE;
   const m = G.bonus === 'ROGUE' ? mainDeLaSemaine({ decisions: decisionsDeLaPartie(), graine: L.graine, jour: j, nMatchDebut: matchsEntre(L.you, 0, debut), nMatch: matchsEntre(L.you, 0, j), rogue: true }) : null;
-  const enMain = m ? new Set(m.reste ? m.main.filter(x => !x.jouee && !x.vendue).map(x => x.ref) : []) : null;
+  // Jalon Q : toute la poche se joue, tant qu'il reste des cartes à jouer cette semaine.
+  if (m && !m.reste) return [];
   for (const x of pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: L.graine, nMatch: matchsEntre(L.you, 0, j), rogue: G.bonus === 'ROGUE' })) {
-    if (enMain && !enMain.has(x.ref)) continue;
     const c = BANQUE[x.id];
     if (!c || c.cat !== 'joueur' || etatPourPoser(c.cle, p, sl, { jour: j }).non) continue;
     if (!piles.has(x.id)) piles.set(x.id, []);

@@ -195,4 +195,23 @@ console.log('\n  Le deck (S73)\n');
   exiger('achetée, elle ne compte pas pour son coach ; jouée, elle compte une fois', buildDe([achat])[e] === 0 && buildDe(vieux)[e] === 0 && buildDe([achat, jouee])[e] === 1, `${buildDe([achat])[e]} · ${buildDe(vieux)[e]} · ${buildDe([achat, jouee])[e]}`);
 }
 
+/*
+ * LA POCHE SE JOUE QUAND ON VEUT, ET ELLE SUIT (Jalon Q). JP : *main de 4 trop étroite ; perdues en fin de saison*.
+ * Une carte hors de la main se joue et compte dans les deux de la semaine ; la poche reportée au jour 0 d'une saison
+ * neuve (`poche`) entre dans la poche, et une carte jouée de là en sort.
+ */
+{
+  const ev = idsDe('evenement').slice(0, 6);
+  const achat = { jour: 0, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: ev } };
+  const m0 = mainDeLaSemaine({ decisions: [achat], graine: 7, jour: 7, nMatchDebut: 5, nMatch: 6, rogue: true });
+  const dehors = pocheDeLaPartie({ decisions: [achat], graine: 7, nMatch: 6, rogue: true }).find(x => !m0.main.some(y => y.ref === x.ref));
+  const joue = { jour: 8, joue: { src: 'partie', ref: dehors.ref, id: dehors.id } };
+  const m1 = mainDeLaSemaine({ decisions: [achat, joue], graine: 7, jour: 8, nMatchDebut: 5, nMatch: 6, rogue: true });
+  exiger('une carte hors de la main se joue, et compte dans les cartes de la semaine', m0.reste === 2 && m1.reste === 1, `${m0.reste} → ${m1.reste}`);
+  const report = { jour: 0, poche: ev.slice(0, 2), report: true };
+  const poche = pocheDeLaPartie({ decisions: [report], graine: 7, nMatch: 0, rogue: true });
+  const apres = pocheDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], graine: 7, nMatch: 0, rogue: true });
+  exiger('la poche de la saison d\'avant entre au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
+}
+
 verdict('Le deck');

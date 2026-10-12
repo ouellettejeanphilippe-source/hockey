@@ -37,7 +37,7 @@ import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie } from '../..
 import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
-  DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, GARDES_DE_SAISON,
+  DEBLOCAGES, departDuClasseur, lotosDeSaison, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, GARDES_DE_SAISON,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE,
 } from '../../js/rogue.js';
 
@@ -374,7 +374,9 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     const partants = new Set(equipe.map(getPlayerKey).filter(k => !restent.some(p => getPlayerKey(p) === k)));
     // Le classeur a grossi pendant la saison : les cartes tirées des packs en sont.
     const classeurSaison = [...classeur, ...r.entrees.map(x => ({ p: x.p, rar: x.rar }))];
-    etat.roster = vestiaire(rnd, meta, restent, classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}` }).roster;
+    // LES LOTOS DU CARTABLE (Jalon Q) : le robot signe la meilleure carte de chaque loto, sous le budget du classeur.
+    const lotos = lotosDuRobot(meta, classeurSaison, restent, partants, `${graine}:s${n + 1}`);
+    etat.roster = vestiaire(rnd, meta, [...restent, ...lotos.map(x => copie(x.p))], classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}` }).roster;
     etat.jetons = r.reste + jetonsDeDepart(meta);
   }
   for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
@@ -407,6 +409,32 @@ function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(),
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupe(p) === g).slice(0, manque[g]));
   }
   return { roster: ranger(pris, nRes), tires };
+}
+/*
+ * LES LOTOS DU ROBOT (js/rogue-jeu.js `lotoDuCartable`) : le même tirage pur du cartable, loto par loto ; il signe
+ * la carte qui vaut le plus parmi celles qui tiennent dans ce qui reste du budget du classeur. Le classeur ouvert :
+ * les meilleures de tout le cartable.
+ */
+function lotosDuRobot(meta, classeur, gardes, partants, graine) {
+  const L = lotosDeSaison(meta);
+  let budget = budgetDuClasseur(meta) - masseDe(gardes);
+  const personnes = new Set(gardes.map(getPersonKey));
+  const parCle = new Map(classeur.filter(x => !partants.has(getPlayerKey(x.p))).map(x => [getPlayerKey(x.p), x]));
+  const cles = [...parCle.keys()];
+  const tient = x => (x.p.$ || 0) > 0 && (x.p.$ || 0) <= budget && !personnes.has(getPersonKey(x.p));
+  const pris = [];
+  const prendre = x => { pris.push(x); personnes.add(getPersonKey(x.p)); budget -= x.p.$ || 0; };
+  if (L.mode === 'choix') {
+    for (const x of cles.map(k => parCle.get(k)).sort((a, b) => v(b.p) - v(a.p))) { if (pris.length >= L.n) break; if (tient(x)) prendre(x); }
+    return pris;
+  }
+  for (let i = 0; i < L.n && budget > 0; i++) {
+    const vus = [];
+    for (const k of tirageDuClasseur(cles, `${graine}:l${i}`)) { if (vus.length >= L.vues) break; const x = parCle.get(k); if (tient(x) && !vus.some(y => getPersonKey(y.p) === getPersonKey(x.p))) vus.push(x); }
+    const [meilleure] = vus.sort((a, b) => v(b.p) - v(a.p));
+    if (meilleure) prendre(meilleure);
+  }
+  return pris;
 }
 /* Ceux qui restent d'une saison à l'autre : le robot garde les meilleurs qui tiennent ensemble dans le budget du classeur. */
 function gardesDeSaison(meta, equipe) {

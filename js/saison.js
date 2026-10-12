@@ -39,7 +39,7 @@ import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMut
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
-import { PALIERS_PACK, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
+import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { ouvrirChoix, choixOuvert, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
@@ -1275,7 +1275,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // vides : un moment qu'on dépasse ne revient pas bloquer l'avance.
       if (stop && semaine) { if (arretDeSemaine()) { arrete = true; break; } continue; }
       if (stop && (blessuresNeuves().length || trousNeufs().length || (infos && (situationsNeuves().length || accidentsNeufs().length))
-        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf() || vieOuverte() || mainOuverteSemaine() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
+        || (pal !== undefined && !paliersVus.has(pal)) || forceOuvert() || mainOuverte() || recompenseOuverte() || retourNeuf() || vieOuverte() || PALIERS_PACK.some(x => miens.length >= x && !packsVus.has(x)))) { arrete = true; break; }
     }
     const pal = palierOuvert();
     if (pal !== undefined) paliersVus.add(pal);
@@ -2225,7 +2225,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const mainDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.main ? ctx.inventaire.main(jour) : null);
   const casesDeLaMain = m => `<div class="hub-poche-rang">${m.main.map(it => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.jouee || it.vendue ? ' jouee' : ''}" data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.jouee ? '✓' : it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}</span>${it.bref && it.bref.length ? `<span class="hub-poche-bref">${it.bref.map(x => `<span${x.bon === true ? ' class="bon"' : x.bon === false ? ' class="prix"' : ''}>${ctx.esc(x.txt)}</span>`).join('')}</span>` : ''}${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}</button>`).join('')}</div>`;
   // D'où vient la main (V4.4, JP : *c'est pas clair les piges*) : la poche, sa taille, et ce qui arrive aux autres.
-  const piocheMot = m => (m.reste ? `<div class="hub-poche-mot">Pigées dans ta poche (${m.taille} carte${m.taille > 1 ? 's' : ''}). Joue-en ${m.reste} ; les autres y retournent.</div>` : '');
+  const piocheMot = m => (m.reste ? `<div class="hub-poche-mot">Le choix du coach dans ta poche (${m.taille} carte${m.taille > 1 ? 's' : ''}). Encore ${m.reste} à jouer cette semaine, d'ici ou de ta poche.</div>` : '');
   const mainHtml = () => {
     const m = mainDuBureau();
     if (!m) return '';
@@ -2238,12 +2238,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (it) ctx.inventaire.carte(it, jour, d => { const j = jour; quitter(); onDecision(d, j); });
     };
   });
-  /*
-   * La main d'une semaine qui attend ta décision : des cartes à jouer, et rien de réglé encore. V4.4 : elle bloque
-   * AU DÉBUT de la semaine (le lundi du tour), plus au milieu quand une carte reçue en route la complète — une carte
-   * arrivée mardi se joue de la main sans arrêter la semaine, ou sort la semaine suivante.
-   */
-  const mainOuverteSemaine = () => { const m = mainDuBureau(); return m && jour === m.debut && m.main.length && m.reste && !m.reglee ? m : null; };
   /* Le drame d'hier soir, en une ligne : les bagarres, les coups marquants, les blessés (les événements physiques de la feuille). */
   const drameHtml = m => {
     const f = m.feuille;
@@ -3178,15 +3172,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : null;
     if (packOuvert) {
       out.push({ id: packOuvert.palier, genre: 'pack', bloque: true, de: DE.dg, sujet: 'Un pack ouvert attend ta signature', achat: packOuvert.achat, palierSigne: `${packOuvert.palier}:signe`,
-        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe : ça se fait au Marché. La suite de la saison attend ce choix.</div>
+        corps: `<div class="hub-msg-mot">Signe un joueur du pack, ou passe. La suite de la saison attend ce choix.</div>
           <div class="hub-alerte-choix">
-            <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Aller au Marché</button>
+            <button type="button" class="btn gold hub-pack-rouvrir" data-defaut>Signer maintenant</button>
             <button type="button" class="btn hub-pack-passer">Ne signer personne</button>
           </div>` });
     }
     /*
      * V4 — LE PACK GRATUIT S'ANNONCE (matchs 9, 18, 26). Avant, ses cartes tombaient en silence dans la poche.
-     * V4.3 — LA MAIN DE LA SEMAINE bloque : tu joues tes cartes (au plus `JOUEES_SEMAINE`), ou tu dis que c'est réglé.
+     * Jalon Q : la main de la semaine ne bloque plus — la poche se joue quand on veut, du bureau ou de Cartes.
      */
     const poche = onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.poche ? ctx.inventaire.poche(jour) : null;
     if (poche) {
@@ -3197,13 +3191,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           corps: `<div class="hub-poche-venus">${venus.map(x => `<span class="puce neutre">${x.ico} ${ctx.esc(x.nom)}</span>`).join('')}</div>
             <button type="button" class="btn gold hub-compris" data-defaut>Compris</button>` });
       }
-    }
-    const mSem = mainOuverteSemaine();
-    if (mSem) {
-      const nJ = JOUEES_SEMAINE - mSem.reste;
-      out.push({ id: `main:${mSem.w}`, genre: 'main-semaine', bloque: true, de: DE.coach, sujet: `Ta main de la semaine : joue jusqu'à ${mSem.reste} carte${mSem.reste > 1 ? 's' : ''}`, mSem,
-        corps: `${piocheMot(mSem)}${casesDeLaMain(mSem)}
-          <button type="button" class="btn gold hub-main-reglee" data-defaut>${nJ ? 'C\'est réglé' : 'Ne rien jouer cette semaine'}</button>` });
     }
     const cTrou = trou ? carteDuTrou(trou) : null;
     if (trou && cTrou && onTrou) {
@@ -3407,8 +3394,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       };
     });
     brancherMain(actions);
-    const mM = msgs.find(m => m.genre === 'main-semaine');
-    actions.querySelectorAll('.hub-main-reglee').forEach(b => { b.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: `main:${mM.mSem.w}` }, j); }; });
     /* Régler un message : un choix s'ouvre, un palier montre sa main, le reste s'ouvre dans la boîte. */
     const traiterMessage = m => {
       if (m.genre === 'choix') { (m.spec.ouvrir ? m.spec.ouvrir() : ouvrirChoix(m.spec)); return; }
@@ -3467,7 +3452,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');
     const rouvrirPack = actions.querySelector('.hub-pack-rouvrir');
-    // La signature se traite au Marché (js/game.js écoute `cap82:marche` : il y va, et rouvre l'offre).
+    // La signature s'ouvre sur place (js/game.js écoute `cap82:marche` et rouvre l'offre).
     if (rouvrirPack && mPack) rouvrirPack.onclick = () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { signer: true } }));
     const passerPack = actions.querySelector('.hub-pack-passer');
     if (passerPack && mPack) passerPack.onclick = () => { const j = jour; quitter(); onDecision({ jour, palier: mPack.palierSigne, signe: false }, j); };
