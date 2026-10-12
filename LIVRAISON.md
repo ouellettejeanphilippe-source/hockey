@@ -366,6 +366,13 @@ Le constat, mesuré le 12 oct. (270 premières saisons de `rogue_sim`, 99 qualif
 - [x] **Q2 · La poche, quand on veut, et elle suit.** Toute carte de la poche se joue, du bureau ou de Cartes, `JOUEES_SEMAINE` par semaine en tout (la main de quatre reste le choix du coach, elle ne bloque plus le lundi) ; la poche pas jouée passe à la saison suivante de la run (`poche`, une décision de report). Un pack mixte se déchire une fois sur tout son contenu, puis ses joueurs seuls se signent ; « Plus tard » se signe de la boîte, sur place.
   - Preuve : `check_deck` (une carte hors de la main se joue et compte ; la poche reportée entre au jour 0 et en sort une fois jouée) ; `essai_rogue` (le paquet entier, puis la signature, joueurs seuls).
 
+## Jalon R · Signer comme au 82-0 (JP, 12 oct. : *la liste pour signer en mode 82-0, c'est clair complet, pourquoi c'est pas ça pour intégrer joueurs signés et alignement en mode roguelike ?* ; choisi : la liste, et la case calculée)
+
+- [x] **R1 · La liste de signature.** `ouvrirListeSignature` (js/repechage.js) : les rangées du vestiaire du 82-0 (`rangeeHtml` : visage, salaire, chiffre clé, variante, rôle, zone) ; chacune dit sa meilleure case (`meilleureSortie` : la case où il rend le plus, un avant pour un avant, qui sort, ce que ça change par match). « Signer » l'y pose ; toucher la destination ouvre « qui sort ? ». Les packs de joueurs (après le paquet), le rappel du club-école, le ballottage (sa case : celle du blessé) et le joueur au choix d'une main.
+  - Preuve : `essai_rogue` (8 : la liste, la fiche, « Changer » puis « qui sort ? » ; 10d : le rappel signé d'un toucher), `smoke` (le ballottage du 82-0 passe par la liste).
+- [x] **R2 · Entre deux saisons, les mêmes rangées.** Le départ du classeur, « Ceux qui restent » et les lotos (js/depart.js) montrent les rangées du vestiaire, « Prendre » et « Remettre ».
+  - Preuve : `essai_rogue` (le départ du classeur).
+
 ## Après la 1.0 · idées notées
 
 - [ ] **Variété de mise en page des cartes** (JP, 28 sept. : *les cartes, ça manque de variété de mise en page*). Les 55 designs du S80 varient la couleur, la bande du nom et la finition, mais la structure reste la même partout : photo en haut, nom, salaire et points en bas. Pistes, comme les vraies séries : photo pleine carte avec le nom en surimpression (années 90), photo en médaillon sur un fond de club (années 70), cadre horizontal pour les cartes de série ou de trophée, photo d'action détourée qui déborde du cadre, dos de carte stylisé par époque. Contrainte : le poste, le salaire et le chiffre clé restent au même endroit sur toutes les cartes du vestiaire, sinon on ne compare plus d'un coup d'oeil.
@@ -548,3 +555,4 @@ Le constat, mesuré le 12 oct. (270 premières saisons de `rogue_sim`, 99 qualif
 - 2026-10-12 — P3 : le rappel du club-école (deux cartes 📟 qui signent un joueur de ton cartable par le ballottage) et la montée par trois doublons (Base → Parallèle → Holo). L'échange d'un doublon et le rappel d'une run d'avant restent à faire.
 - 2026-10-12 — P4 : les extensions du cartable par décennie, avec leur complétion, et six missions de collection payées en médailles. Le robot ne les touche pas (il n'a pas de cartable réel) : la courbe des campagnes ne compte pas ces médailles.
 - 2026-10-12 — P5 : la carte signature des Holo et des Or. Corrigé au passage (le smoke le trouvait, la #181 rouge) : une reprise rebâtissait les adversaires sans leur club-école (B), et les séries rejouées divergeaient ; `rebatirAdversaires` et les adversaires gardés le portent maintenant.
+- 2026-10-12 — R : la liste du 82-0 pour signer en Rogue (packs, rappel, ballottage, joueur au choix, entre deux saisons), la case calculée d'avance, « qui sort ? » au besoin.

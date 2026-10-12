@@ -50,7 +50,7 @@ await choix();
 await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 await choix();
 await page.waitForSelector('#departModal:not([hidden])', { timeout: 60000 });
-const pr = await page.$('#departModal .dp-prendre:not([disabled])'); if (pr) await pr.click();
+const pr = await page.$('#departModal [data-prendre]:not([disabled])'); if (pr) await pr.click();
 await page.click('#departModal .dp-commencer');
 await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 90000 });
 await page.waitForTimeout(800);

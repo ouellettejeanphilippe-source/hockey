@@ -601,6 +601,118 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
   });
 }
 /*
+ * LA LISTE DE SIGNATURE DU ROGUE (Jalon R). JP : *la liste pour signer en mode 82-0, c'est clair complet, pourquoi
+ * c'est pas ça pour intégrer joueurs signés et alignement en mode roguelike ?*. Les rangées du vestiaire
+ * (`playerCardEl`) : visage, salaire, chiffre clé, rôle et zone ; et la destination, calculée d'avance : la case où
+ * il rend le plus (`meilleureSortie`), qui sort, ce que ça change par match. « Signer » le pose là ; toucher la
+ * destination ouvre « qui sort ? » pour en choisir une autre. Packs, rappel du club-école, ballottage.
+ */
+function meilleureSortie(p, { roster, bloque = null }) {
+  const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !roster[sl.i] && fits(p, sl)) : null;
+  let mieux = null;
+  const essayer = (A, B) => {
+    const g = quiGlisse(roster, A, B, caseOuverte);
+    if (!g) return;
+    const net = netDuRoster(roster, [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]);
+    const v = valeurDeCase(net);
+    if (!mieux || v > mieux.v) mieux = { v, net, A, B, g };
+  };
+  if (libre && !(bloque && bloque(null))) essayer(libre, libre);
+  for (const A of SLOTS) {
+    const q = roster[A.i];
+    // Un avant pour un avant, un défenseur pour un défenseur, un gardien pour un gardien : le moteur ne compte pas la
+    // profondeur d'une réserve, et la meilleure case renvoyait le troisième gardien pour un attaquant. « Qui sort ? » permet tout.
+    if (!q || !caseOuverte(A) || groupeDe(q) !== groupeDe(p) || (bloque && bloque(q))) continue;
+    for (const B of fits(p, A) ? [A] : SLOTS.filter(B => caseOuverte(B) && fits(p, B)).slice(0, 3)) essayer(A, B);
+  }
+  if (!mieux) return null;
+  const { A, B, g, net } = mieux;
+  const q0 = roster[A.i] || null;
+  const sortie = { i: A.i, sort: q0 ? getPlayerKey(q0) : null };
+  if (B.i !== A.i) {
+    const cases = {};
+    for (const [i, x] of Object.entries(roster)) if (x) cases[i] = getPlayerKey(x);
+    delete cases[A.i];
+    for (const [x, sl] of g) cases[sl.i] = getPlayerKey(x);
+    cases[B.i] = getPlayerKey(p);
+    sortie.cases = cases;
+  }
+  return { sortie, B, q0, net };
+}
+/*
+ * UNE RANGÉE DU VESTIAIRE (Jalon R) : visage, nom, postes et club ; le carton (au bureau) ; salaire et chiffre clé ;
+ * sa variante, son rôle et sa zone ; `dest` et `bouton` disent la suite. Le dedans d'un `.pcard`, pour la liste de
+ * signature et le départ du classeur (js/depart.js).
+ */
+export function rangeeHtml(p, { rar = 'commune', num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
+  const { v, u, mot } = chiffreCle(p);
+  const tags = [rar && rar !== 'commune' ? `<span class="tag">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
+    doublon ? '<span class="tag">Doublon</span>' : ''].filter(Boolean).join('');
+  return `<div class="pcard-rangee"><span class="pcard-mug">${headshotHtml(p)}</span><span class="pcard-qui"><b class="pcard-nom">${formatName(p.n)}</b><small>${esc(positionLabel(p).split(' / ').join('/'))} · ${esc(p.t)} ${esc(p.s || '')}</small></span></div>
+    ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team' })}
+    <div class="pcard-fiche">
+      <div class="pcard-ligne"><span class="pcard-price">${money(salaire)}</span><span class="pcard-big" title="Son chiffre clé : ${esc(mot)}"><b>${v}</b><span>${u}</span></span></div>
+      <div class="pcard-mid"><div class="tags">${tags}</div></div>
+      ${dest}
+      ${bouton}
+    </div>`;
+}
+function rangeeDeSignature(x, o, signer) {
+  const p = x.p;
+  const non = o.desactive ? o.desactive(x) : '';
+  // `destination` : l'écran qui appelle sait déjà où il va (le ballottage : la case du blessé, la réserve libérée).
+  const fixe = !non && o.destination ? o.destination(x) : null;
+  const best = non ? null : fixe || meilleureSortie(p, { roster: o.roster, bloque: o.bloque ? q => o.bloque(p, q) : null });
+  const nomDe = n => String(n).split(' ').slice(-1)[0];
+  const el = document.createElement('div');
+  el.className = `pcard tc-${x.rar || 'commune'}${best ? '' : ' locked'}`;
+  el.setAttribute('style', varsEquipe(p));
+  const stats = best && best.net ? motsDeStats(best.net, 2) : [];
+  const dest = non ? `<span class="dest-bad">${esc(non)}</span>`
+    : !best ? '<span class="dest-bad">Aucune case sous le plafond</span>'
+      : fixe ? `${esc(fixe.mot)} ›`
+      : `<span class="dest-target">${esc(ligneDe(best.B))}</span> · ${best.q0 ? `${esc(nomDe(best.q0.n))} sort` : 'personne ne sort'}${stats.length ? ` · ${stats.map(s => `<span class="${s.bon === true ? 'dest-ok' : s.bon === false ? 'dest-bad' : ''}">${esc(s.txt)}</span>`).join(', ')}` : ''} ›`;
+  el.innerHTML = rangeeHtml(p, { ...x, salaire: capHitDuJour(p),
+    dest: best ? `<button type="button" class="pcard-dest sig-changer" title="Choisir une autre case">${dest}</button>` : `<div class="pcard-dest">${dest}</div>`,
+    bouton: `<button class="btn-sign" ${best ? '' : 'disabled'}>${best ? 'Signer' : 'Pas de case'}</button>` });
+  el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(p); };
+  const b = el.querySelector('.btn-sign');
+  if (best) b.onclick = ev => { ev.stopPropagation(); signer(x, best.sortie); };
+  const ch = el.querySelector('.sig-changer');
+  if (ch) ch.onclick = ev => {
+    ev.stopPropagation();
+    choisirQuiSort(p, { roster: o.roster, genre: o.genre || 'recompense', bloque: o.bloque ? q => o.bloque(p, q) : null, onChoix: sortie => { if (sortie) signer(x, sortie); }, onFerme: () => {} });
+  };
+  return el;
+}
+/*
+ * o : { ico, titre, irl, recit, joueurs [{ p, rar, num, doublon }], roster, bloque(p, q) → raison ou '', desactive(x),
+ *       destination(x) → { sortie, mot } (sinon la meilleure case), genre, motFermer, onSigne(x, sortie), onFerme() }.
+ *       Rend la fonction qui ferme.
+ */
+export function ouvrirListeSignature(o) {
+  const m = $('signatureModal');
+  if (!m) return () => {};
+  for (const x of o.joueurs) ballottageVu.set(getPlayerKey(x.p), x.p);
+  let ferme = false;
+  const fermer = () => { if (ferme) return; ferme = true; m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
+  const signer = (x, sortie) => { fermer(); o.onSigne(x, sortie); };
+  m.innerHTML = `<div class="choix-sheet" role="dialog" aria-modal="true" aria-label="${esc(o.titre)}">
+      <div class="choix-tete"><span class="choix-ico">${o.ico || ''}</span>
+        <div class="choix-titres"><div class="choix-titre">${esc(o.titre)}</div>${o.irl ? `<div class="choix-irl">${esc(o.irl)}</div>` : ''}</div>
+        <button type="button" class="close-btn choix-fermer" aria-label="${esc(o.motFermer || 'Plus tard')}" title="${esc(o.motFermer || 'Plus tard')}">✕</button></div>
+      <div class="choix-corps">${o.recit ? `<p class="choix-recit">${esc(o.recit)}</p>` : ''}
+        <p class="sig-plafond">Plafond restant <b>${esc(money(capLeft()))}</b> · ${esc(String(signes().length))} / ${esc(String(totalCases()))} signés</p>
+        <div class="sig-liste"></div></div>
+    </div>`;
+  const liste = m.querySelector('.sig-liste');
+  for (const x of o.joueurs) liste.appendChild(rangeeDeSignature(x, o, signer));
+  m.querySelector('.choix-fermer').onclick = () => { fermer(); if (o.onFerme) o.onFerme(); };
+  m.hidden = false;
+  document.body.classList.add('choix-ouvert');
+  return fermer;
+}
+/*
  * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue). JP : *possible de discard les cartes de remplaçants ou
  * débloquer des slots de remplacement*. Quand un réserviste a été relâché, ou qu'une case de plus est
  * débloquée, le joueur qui arrive peut y entrer sans que personne sorte. Depuis oct., c'est une case de

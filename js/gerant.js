@@ -392,8 +392,7 @@ export function ouvrirChoix(spec) {
   if (fermerChoixCourant) fermerChoixCourant(true);
   const { nom, ou, noms, sub } = nommer(spec);
   const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
-  // `sansPaquet` : un paquet déjà déchiré (le pack mixte, Jalon Q) — ses joueurs se signent sans le rouvrir.
-  const pile = spec.genre === 'recompense' && spec.cartes && !spec.lecture && !spec.sansPaquet && spec.options.length > 0 && !PAQUETS_OUVERTS.has(clePaquet);
+  const pile = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0 && !PAQUETS_OUVERTS.has(clePaquet);
   const paquet = pile && !mouvementCalme();
   // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas) ; à rareté égale, le meilleur joueur (`rang`, son niveau, S80).
   const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0)

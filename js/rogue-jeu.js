@@ -29,7 +29,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirVersoPourPoser, poserCartes, quiSortOuCaseLibre, rangeesAlignement, rareteJoueur } from './repechage.js';
+import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeSignature, ouvrirVersoPourPoser, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -422,32 +422,29 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   const limite = apresDateLimite(j);
   for (const x of cartes) ballottageVu.set(getPlayerKey(x.p), x.p);
   const titre = `${P.nom}${reglage.franchise ? ` · ${FRANCHISES[reglage.franchise].nom}` : reglage.saison ? ` · ${reglage.saison}` : reglage.club ? ` · ${reglage.club}` : ''}`;
-  const offrir = () => ouvrirChoix({
-    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Plus tard', sansPaquet: !!tc || !montrerCartes,
-    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu signes un joueur, et tu choisis qui lui laisse sa place ; les autres vont à ton cartable. Plus tard : l\'offre attend dans ta boîte jusqu\'à la fin de la journée.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
-    options: cartes.map(x => ({ ...optionDeJoueurTire(x), ...(limite ? { desactive: 'Date limite passée : au cartable' } : {}) })),
-    onChoix: k => {
-      const x = cartes.find(y => getPlayerKey(y.p) === k);
-      if (!x || dejaChezToi(x.p)) return;
-      const signer = sortie => {
-        if (!sortie) return;
-        G.variantes.cartes[k] = x.rar;
-        if (x.num) (G.variantes.numeros = G.variantes.numeros || {})[k] = x.num;
-        decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) }, ...(sortie.cases ? { cases: sortie.cases } : {}), ...(x.doublon ? { annuleVente: venteJoueur(x) } : {}) });
-      };
-      // QUI SORT : la sortie doit faire entrer son salaire sous le plafond (effectif), ou au moins ne pas l'empirer.
-      quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onChoix: signer, onFerme: offrir });
+  // LA LISTE DU 82-0 (Jalon R) : les joueurs du pack en rangées, chacun avec sa meilleure case ; « Signer » l'y pose.
+  const offrir = () => ouvrirListeSignature({
+    ico: P.ico, titre, motFermer: 'Plus tard',
+    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu en signes un ; les autres vont à ton cartable.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
+    joueurs: cartes, roster: G.roster,
+    bloque: bloqueParLePlafond,
+    desactive: x => (limite ? 'Date limite passée : au cartable' : dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
+    onSigne: (x, sortie) => {
+      const k = getPlayerKey(x.p);
+      G.variantes.cartes[k] = x.rar;
+      if (x.num) (G.variantes.numeros = G.variantes.numeros || {})[k] = x.num;
+      decider({ jour: j, palier, ballottage: { i: sortie.i, entre: k, sort: sortie.sort, rar: x.rar, ...(x.num ? { num: x.num } : {}) }, ...(sortie.cases ? { cases: sortie.cases } : {}), ...(x.doublon ? { annuleVente: venteJoueur(x) } : {}) });
     },
-    // « Plus tard » : rien ne s'écrit, l'offre attend au Marché et dans la boîte (`packOuvert`, js/saison.js).
+    // « Plus tard » : rien ne s'écrit, l'offre attend dans la boîte (`packOuvert`, js/saison.js).
     onFerme: () => {},
   });
   const nc = tc ? tc.ids.length + tc.maudites.length : 0;
-  if (!montrerCartes || !nc) { offrir(); return; }
+  if (!montrerCartes) { offrir(); return; }
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur',
-    recit: `${cartes.length} joueurs et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes sont rangées : celles de match au deck, le reste dans ta poche, à jouer quand tu veux.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
-    options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true }))],
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes sont rangées : celles de match au deck, le reste dans ta poche, à jouer quand tu veux` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
   });
@@ -725,17 +722,11 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
         if (!offres.length) { toast(`Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`); retour(); return; }
-        for (const x of offres) ballottageVu.set(getPlayerKey(x.p), x.p);
-        const offrir = () => ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'recompense', sansPaquet: true, fermable: true, motFermer: 'Retour', recit: c.texte,
-          options: offres.map(optionDeJoueurTire),
-          onChoix: k => {
-            const x = offres.find(y => getPlayerKey(y.p) === k);
-            if (!x || dejaChezToi(x.p)) return;
-            quiSortOuCaseLibre(x.p, { roster: G.roster, genre: 'recompense', bloque: q => bloqueParLePlafond(x.p, q), onFerme: offrir,
-              onChoix: sortie => { if (!sortie) return; G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); } });
-          },
+        // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
+        ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: c.texte, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
+          desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
+          onSigne: (x, sortie) => { const k = getPlayerKey(x.p); G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); },
           onFerme: retour });
-        offrir();
       });
       return;
     }
@@ -1071,7 +1062,6 @@ async function choisirDuClasseur(gardes = []) {
   return new Promise(resolve => ouvrirDepartClasseur({
     mode: D.mode, n: D.n, budget, run: (meta.runs || 0) + 1, candidats,
     esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
-    mini: (p, rar) => miniAvecVariante(p, rar),
     onFini: pris => resolve(candidats.filter(x => pris.includes(x.cle))),
   }));
 }
@@ -1485,7 +1475,7 @@ function choisirGardesDeSaison(saison) {
   const n = GARDES_DE_SAISON;
   return new Promise(resolve => ouvrirDepartClasseur({
     mode: 'choix', n, budget: budgetDuClasseur(meta), run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats,
-    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p), mini: p => carteMiniHtml(p),
+    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
     textes: {
       ico: '🤝', titre: 'Ceux qui restent', irl: `Saison ${saison} de la run · jusqu'à ${n} joueurs`,
       recit: `Ton équipe se défait. Garde jusqu'à ${n} joueurs ; les autres partent, et ton classeur comble les trous.`,
@@ -1526,7 +1516,7 @@ async function lotoDuCartable(gardes = [], saison = 2) {
   const ouvrir = (cands, ctx) => new Promise(resolve => ouvrirDepartClasseur({
     budget, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
     esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
-    mini: (p, rar) => miniAvecVariante(p, rar), ...ctx,
+    ...ctx,
     onFini: pris => resolve(cands.filter(x => pris.includes(x.cle)).map(x => x.p)),
   }));
   const graine = `${graineDuClasseur()}:s${saison}`;

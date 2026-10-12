@@ -140,17 +140,17 @@ await choix();
  * cartable tirée au hasard. On la voit, on touche sa carte (sa fiche), on la
  * prend, on commence.
  */
-await page.waitForSelector('#departModal:not([hidden]) .dp-carte', { timeout: 60000 });
+await page.waitForSelector('#departModal:not([hidden]) .pcard', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-depart-classeur.png` });
-const tiree = await page.$$eval('#departModal .dp-carte', e => e.map(x => x.dataset.cle));
+const tiree = await page.$$eval('#departModal .pcard', e => e.map(x => x.dataset.voir));
 const entete = (await page.textContent('#departModal .choix-irl')).trim();
-await page.click('#departModal .dp-voir');
+await page.click('#departModal .pcard .pcard-qui');
 await page.waitForTimeout(500);
 const ficheClasseur = await page.evaluate(() => { const m = document.getElementById('hockeyCardModal'); return !!m && getComputedStyle(m).display !== 'none'; });
 if (!ficheClasseur) erreurs.push('toucher une carte du classeur n\'ouvre pas sa fiche');
 await page.keyboard.press('Escape');
 await page.waitForTimeout(300);
-await page.click('#departModal .dp-prendre:not([disabled])');
+await page.click('#departModal [data-prendre]:not([disabled])');
 await page.waitForTimeout(200);
 await page.screenshot({ path: `${DOSSIER}/rogue-depart-pris.png` });
 await page.click('#departModal .dp-commencer');
@@ -290,6 +290,8 @@ async function regler() {
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
     // Un joueur offert (S78) : « Signer », puis « qui sort ? » — dans l'alignement (S80) : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
+    // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », à sa meilleure case.
+    if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#signatureModal:not([hidden]) .btn-sign:not([disabled])')) { await page.click('#signatureModal .btn-sign:not([disabled])'); await page.waitForTimeout(600); continue; }
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-confirmer')) {
       await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue;
     }
@@ -587,47 +589,46 @@ await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
 await page.click('#pageMarche .hub-page-retour');
 await acheter('j:argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
-// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer) ;
-// « Signer un joueur » mène à la signature, joueurs seuls.
+// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer).
 const revele = await page.$$eval('#choixModal .choix-option.tc', e => ({ joueurs: e.filter(x => x.querySelector('.cj-mini-carte')).length, jeu: e.filter(x => !x.querySelector('.cj-mini-carte')).length, signer: e.filter(x => x.querySelector('.tcj-signer')).length }));
 if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Argent ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
-else {
-  await page.click('#choixModal:not([hidden]) .choix-fermer');
-  await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc .cj-mini-carte', { timeout: 30000 });
-  if (await page.$$eval('#choixModal .choix-option.tc', e => e.some(x => !x.querySelector('.cj-mini-carte')))) erreurs.push('la signature du pack Argent montre encore des cartes de jeu');
-}
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
-const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
-// Jalon P2 : un pack mixte montre aussi ses cartes de jeu, qui n'ont pas de niveau ; on lit les joueurs.
 const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => {
   const ruban = (x.querySelector('.cj-ruban') || {}).textContent || '';
   const mot = ((x.querySelector('.tc-quoi') || {}).textContent || '').split('\n')[0].trim();
   return { ruban, mot, fois: noms.filter(n => ruban.includes(n)).length + noms.filter(n => mot === n).length };
 }), NOMS_NIVEAUX);
 if (niveaux.some(x => x.fois !== 1)) erreurs.push(`le niveau d'une carte ouverte n'est pas dit une fois : ${JSON.stringify(niveaux)}`);
-console.log(`8. le pack Argent : ${offres.map((o, i) => `${o} (${NOMS_NIVEAUX.includes(niveaux[i].mot) ? niveaux[i].mot : niveaux[i].ruban})`).join(' · ')}`);
-// Toucher la carte montre sa fiche, sans la prendre (S78) ; « Signer » la prend, puis on choisit qui sort.
-await page.click('#choixModal:not([hidden]) .choix-option.tc .tcj-carte');
+/*
+ * LA LISTE DU 82-0 (Jalon R). JP : *la liste pour signer en mode 82-0, c'est clair complet, pourquoi c'est pas ça en
+ * roguelike ?*. « Signer un joueur » ouvre les rangées du vestiaire, chacune avec sa meilleure case (la ligne, qui
+ * sort, ce que ça change par match) ; toucher la rangée ouvre la fiche ; toucher la destination ouvre « qui sort ? ».
+ */
+await page.click('#choixModal:not([hidden]) .choix-fermer');
+await page.waitForSelector('#signatureModal:not([hidden]) .pcard', { timeout: 30000 });
+await page.waitForTimeout(400);
+await page.screenshot({ path: `${DOSSIER}/rogue-liste-signature.png` });
+const offres = await page.$$eval('#signatureModal .pcard .pcard-nom', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+const dests = await page.$$eval('#signatureModal .pcard .pcard-dest', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+console.log(`8. le pack Argent, en liste : ${offres.map((o, i) => `${o} → ${dests[i]}`).join(' · ')} · niveaux ${niveaux.map(x => x.mot || x.ruban).join(', ')}`);
+if (!offres.length || offres.length !== revele.joueurs) erreurs.push(`la liste de signature montre ${offres.length} joueurs, le pack ${revele.joueurs}`);
+if (!dests.some(t => / sort/.test(t))) erreurs.push(`aucune rangée ne dit où il va : ${dests.join(' | ')}`);
+// Toucher la rangée montre sa fiche, sans la prendre.
+await page.click('#signatureModal .pcard .pcard-qui');
 await page.waitForTimeout(600);
 const fiche = await page.evaluate(() => { const m = document.getElementById('hockeyCardModal'); return !!m && getComputedStyle(m).display !== 'none'; });
-const encore = !!(await page.$('#choixModal:not([hidden]) .tcj-signer'));
-if (!fiche || !encore) erreurs.push(`toucher la carte : fiche ${fiche}, choix toujours ouvert ${encore}`);
+const encore = !!(await page.$('#signatureModal:not([hidden]) .btn-sign'));
+if (!fiche || !encore) erreurs.push(`toucher la rangée : fiche ${fiche}, liste toujours ouverte ${encore}`);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
-// Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79).
-const nomSigne = await page.$eval('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"])', x => (x.querySelector('.carton-nom .lname, .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim());
-await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
+// Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79). On choisit sa case soi-même (« Changer »).
+const nomSigne = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-nom', x => x.textContent.replace(/\s+/g, ' ').trim());
+await page.click('#signatureModal .pcard:not(.locked) .sig-changer');
 /*
- * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue) : avant « qui sort ? », le choix
- * d'y entrer sans que personne sorte. L'essai vérifie qu'elle est OFFERTE,
- * puis choisit « quelqu'un sort » pour éprouver le choix dans l'alignement.
- *
- * QUI SORT, DANS L'ALIGNEMENT (S80). JP : *le screen de choix pour les
- * upgrades et les remplacements sont à chier* ; *dire que x est sur la
- * xième ligne*. Les neuf rangées titrées par ce qu'elles sont ; toucher une
- * case la surligne et la barre dit ce qui va se passer (la ligne de celui
- * qui sort) ; rien ne part avant « Confirmer ».
+ * QUI SORT, DANS L'ALIGNEMENT (S80). JP : *le screen de choix pour les upgrades et les remplacements sont à chier* ;
+ * *dire que x est sur la xième ligne*. Les neuf rangées titrées par ce qu'elles sont ; toucher une case la surligne et
+ * la barre dit ce qui va se passer ; rien ne part avant « Confirmer ».
  */
 // QUI SORT, DANS L'ALIGNEMENT (1.0, oct.) : la case de réserve libre y est une case (« personne ne sort »), puis « Où joue X ? ».
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
@@ -693,7 +694,7 @@ for (const pack of ['j:or', 'j:coach']) {
   // Jalon Q : le paquet entier, puis la signature, joueurs seuls ; « Plus tard » laisse l'offre à la boîte.
   await page.click('#choixModal:not([hidden]) .choix-plus-tard');
   await page.waitForTimeout(500);
-  if (await page.$('#choixModal:not([hidden]) .tcj-signer')) await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+  if (await page.$('#signatureModal:not([hidden])')) await page.click('#signatureModal .choix-fermer');
   await auBureau();
   await regler();
 }
@@ -828,11 +829,13 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas depuis l\'onglet Permanent');
   else {
     await rappel.click();
-    await page.waitForSelector('#choixModal:not([hidden]) .tcj-signer', { timeout: 30000 });
+    // Jalon R : la liste, chacun à sa meilleure case ; « Signer » pose sans demander qui sort.
+    await page.waitForSelector('#signatureModal:not([hidden]) .btn-sign', { timeout: 30000 });
+    await page.waitForTimeout(400);
     await page.screenshot({ path: `${DOSSIER}/rogue-rappel.png` });
-    const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.length);
+    const offres = await page.$$eval('#signatureModal .pcard', e => e.length);
     const n0 = (await decisions()).length;
-    await page.click('#choixModal:not([hidden]) .choix-option.tc:not([aria-disabled="true"]) .tcj-signer');
+    await page.click('#signatureModal .btn-sign:not([disabled])');
     await page.waitForTimeout(500);
     // Qui sort, puis la boîte se règle du bureau (un message peut attendre sous la page du Marché).
     for (let k = 0; k < 6 && await page.$('#choixModal:not([hidden])'); k++) await regler().catch(() => {});

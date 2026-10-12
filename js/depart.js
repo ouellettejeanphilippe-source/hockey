@@ -26,10 +26,12 @@
  * les mots du classeur.
  *
  * ctx : { mode ('hasard' | 'tri' | 'choix'), n, budget, run (son numéro),
- *         candidats [{ cle, p, rar }], esc, mini(p, rar), qui(p), money(x),
+ *         candidats [{ cle, p, rar, num }], esc, qui(p), money(x),
  *         groupe(p) ('F' | 'D' | 'G'), apercu(p), onFini(cles),
  *         textes? { ico, titre, irl, recit, budget, plein, partir(n) } }
  */
+import { rangeeHtml, varsEquipe } from './repechage.js';
+
 const $ = id => document.getElementById(id);
 const PAGE = 24;
 const MOTS = {
@@ -69,15 +71,14 @@ export function ouvrirDepartClasseur(ctx) {
       && (!etat.cherche || x.p.n.toLowerCase().includes(etat.cherche.toLowerCase())));
     const visibles = ctx.mode === 'choix' ? filtres.slice(0, etat.montres) : filtres;
     const depense = cout();
+    // Jalon R : les rangées du vestiaire du 82-0 (`rangeeHtml`), une par carte ; toucher la rangée ouvre sa fiche.
     const cartes = visibles.map(x => {
       const non = pourquoiPas(x);
       const a = pris.has(x.cle);
-      return `<div class="dp-carte${a ? ' prise' : ''}" data-cle="${esc(x.cle)}">
-        <button type="button" class="dp-voir" data-voir="${esc(x.cle)}" title="Voir sa fiche">${ctx.mini(x.p, x.rar)}</button>
-        <span class="dp-qui">${esc(ctx.qui(x.p))}</span>
-        ${a ? `<button type="button" class="btn dp-remettre" data-remettre="${esc(x.cle)}">✓ Prise · Remettre</button>`
-          : `<button type="button" class="btn gold dp-prendre" data-prendre="${esc(x.cle)}"${non ? ' disabled' : ''}>Prendre</button>${non ? `<span class="dp-non">${esc(non)}</span>` : ''}`}
-      </div>`;
+      return `<div class="pcard tc-${esc(x.rar || 'commune')}${a ? ' signed' : non ? ' locked' : ''}" data-voir="${esc(x.cle)}" style="${varsEquipe(x.p)}">${rangeeHtml(x.p, { rar: x.rar, num: x.num,
+        dest: `<div class="pcard-dest">${a ? '<span class="dest-ok">✓ pris</span>' : non ? `<span class="dest-bad">${esc(non)}</span>` : esc(ctx.qui(x.p))}</div>`,
+        bouton: a ? `<button type="button" class="btn-sign is-signed" data-remettre="${esc(x.cle)}">Remettre</button>`
+          : `<button type="button" class="btn-sign" data-prendre="${esc(x.cle)}"${non ? ' disabled' : ''}>Prendre</button>` })}</div>`;
     }).join('');
     // Prendre une carte au bas du classeur ne ramène pas en haut : le défilement se garde d'un rendu à l'autre.
     const defile = m.querySelector('.dp-corps');
@@ -97,7 +98,7 @@ export function ouvrirDepartClasseur(ctx) {
         </div>
         ${ctx.mode === 'choix' ? `<div class="inv-filtres" role="group" aria-label="Position">${GROUPES.map(([g, nom]) => `<button type="button" class="inv-filtre${etat.groupe === g ? ' on' : ''}" data-groupe="${g}">${esc(nom)} <span>${g === 'tout' ? liste.length : liste.filter(x => ctx.groupe(x.p) === g).length}</span></button>`).join('')}</div>
           <input type="search" class="dp-cherche" placeholder="Chercher un nom" value="${esc(etat.cherche)}" aria-label="Chercher un joueur">` : ''}
-        <div class="dp-grille">${cartes || '<p class="inv-vide">Aucune carte ici.</p>'}</div>
+        ${cartes ? `<div class="sig-liste">${cartes}</div>` : '<p class="inv-vide">Aucune carte ici.</p>'}
         ${ctx.mode === 'choix' && filtres.length > visibles.length ? `<button type="button" class="btn dp-plus">Voir ${Math.min(PAGE, filtres.length - visibles.length)} cartes de plus · ${filtres.length - visibles.length} en tout</button>` : ''}
       </div>
       <div class="dp-pied">
@@ -106,7 +107,7 @@ export function ouvrirDepartClasseur(ctx) {
     </div>`;
     const corps = m.querySelector('.dp-corps');
     if (corps && y) corps.scrollTop = y;
-    m.querySelectorAll('[data-voir]').forEach(b => { b.onclick = () => { const x = liste.find(y => y.cle === b.dataset.voir); if (x) ctx.apercu(x.p); }; });
+    m.querySelectorAll('[data-voir]').forEach(b => { b.onclick = ev => { if (ev.target.closest('button')) return; const x = liste.find(y => y.cle === b.dataset.voir); if (x) ctx.apercu(x.p); }; });
     m.querySelectorAll('[data-prendre]').forEach(b => {
       b.onclick = () => { const x = liste.find(y => y.cle === b.dataset.prendre); if (x && !pourquoiPas(x)) { pris.add(x.cle); dessiner(); } };
     });
