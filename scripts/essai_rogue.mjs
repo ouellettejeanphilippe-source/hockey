@@ -512,7 +512,8 @@ if (nPacks !== 4 || !voirTout) erreurs.push(`la première run devrait ouvrir sur
 else {
   await page.screenshot({ path: `${DOSSIER}/rogue-boutique-debut.png` });
   await voirTout.click(); await page.waitForTimeout(300);
-  const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', e => e.length);
+  // Les packs des rayons (le pack de la semaine et ton club à part).
+  const nTout = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile[data-pack]', e => e.length);
   const chers = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile.pk-cher .pk-manque', e => e.map(x => x.textContent.trim()));
   // Un pack coûte plus que la caisse ? Alors sa tuile doit le dire. (À 84 🪙, aucun pack n'est impayable : rien à exiger.)
   const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
@@ -587,9 +588,10 @@ await page.click('#pageMarche .hub-page-retour');
 await acheter('j:argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
-const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
+const offres = await page.$$eval('#choixModal .choix-option.tc', e => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => (x.querySelector('.tc-nom, .carton-nom .lname, .cj-mini-carte .pcard-full-name') || x).textContent.replace(/\s+/g, ' ').trim()));
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
-const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.map(x => {
+// Jalon P2 : un pack mixte montre aussi ses cartes de jeu, qui n'ont pas de niveau ; on lit les joueurs.
+const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => {
   const ruban = (x.querySelector('.cj-ruban') || {}).textContent || '';
   const mot = ((x.querySelector('.tc-quoi') || {}).textContent || '').split('\n')[0].trim();
   return { ruban, mot, fois: noms.filter(n => ruban.includes(n)).length + noms.filter(n => mot === n).length };
