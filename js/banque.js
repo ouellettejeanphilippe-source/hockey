@@ -33,7 +33,7 @@ import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
-import { money, hache } from './util.js';
+import { money, hache, SENS_DES_CANAUX } from './util.js';
 import { NIVEAUX } from './niveaux.js';
 import { EVENEMENTS_VIE } from './evenements-vie.js';
 import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
@@ -316,6 +316,38 @@ export const EVENEMENTS = {
   code: { nom: 'Le code de conduite', ico: '📜', rarete: 'commune', retire: true, duree: 10, texte: 'Affiché au-dessus de chaque casier.', effet: { discipline: 0.65, robustesse: -0.5 } },
   ...EVENEMENTS_VIE,
 };
+/*
+ * PLUS SIMPLES, MOINS FORTS, UNE FIN QU'ON VOIT (JP, 13 oct. : *les cartes et événements long terme, plus simples et
+ * moins brisés*). Un événement court plusieurs matchs, et s'empile avec les autres : chacun garde au plus UN bonus et
+ * UN prix (ses deux canaux les plus forts, de sens opposés quand il en a, sans faire la même chose qu'un autre),
+ * son écart au 1 baisse à `ATTENUATION_LONG`,
+ * et il ne dure jamais plus de `DUREE_MAX_LONG` journées. La face et le moteur lisent ces chiffres-ci.
+ */
+const ATTENUATION_LONG = 0.85, DUREE_MAX_LONG = 8;
+{
+  const ecartDe = (k, v) => (k === 'robustesse' ? v : Math.abs(v - 1));
+  const bon = ([k, v]) => (k === 'robustesse' ? v > 0 : Math.sign(v - 1) === SENS_DES_CANAUX[k]);
+  const canauxDe = E => Object.entries(E.effet || {}).filter(([k, v]) => SENS_DES_CANAUX[k] && typeof v === 'number');
+  // Deux événements ne font jamais la même chose (`check_evenements`) : la signature, ce sont les canaux et leur sens.
+  const signature = cs => cs.map(c => `${c[0]}${bon(c) ? '+' : '-'}`).sort().join(',');
+  const prises = new Set(Object.values(EVENEMENTS).filter(E => canauxDe(E).length <= 2).map(E => signature(canauxDe(E))));
+  for (const E of Object.values(EVENEMENTS)) {
+    E.duree = Math.min(E.duree, DUREE_MAX_LONG);
+    const canaux = canauxDe(E).sort((x, y) => ecartDe(y[0], y[1]) - ecartDe(x[0], x[1]));
+    let garde = canaux;
+    if (canaux.length > 2) {
+      // Les paires, la plus forte d'abord ; un bonus et un prix avant deux bonus : la première qu'aucun autre ne porte.
+      const paires = canaux.flatMap((x, i) => canaux.slice(i + 1).map(y => [x, y]))
+        .sort((p, q) => (bon(q[0]) !== bon(q[1])) - (bon(p[0]) !== bon(p[1])) || (ecartDe(...q[0]) + ecartDe(...q[1])) - (ecartDe(...p[0]) + ecartDe(...p[1])));
+      // Toutes portées ailleurs : il garde ses canaux plutôt que d'en doubler un autre.
+      garde = paires.find(pr => !prises.has(signature(pr))) || canaux;
+      prises.add(signature(garde));
+    }
+    if (!E.effet) continue;
+    const autres = Object.entries(E.effet).filter(([k]) => !SENS_DES_CANAUX[k]);
+    E.effet = Object.fromEntries([...autres, ...garde.map(([k, v]) => [k, k === 'robustesse' ? Math.round(v * ATTENUATION_LONG * 100) / 100 : Math.round((1 + (v - 1) * ATTENUATION_LONG) * 1000) / 1000])]);
+  }
+}
 /*
  * UN ÉVÉNEMENT SE SENT, DES DEUX CÔTÉS (V3.4). JP : *tu scores plus, mais l'adversaire aussi ; ton gardien arrête
  * plus, mais plus de rebonds, donc plus de tirs* ; *pas nécessairement ça, mais dans ce sens-là*. Mesuré avant

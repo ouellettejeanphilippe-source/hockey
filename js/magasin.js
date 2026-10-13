@@ -72,7 +72,7 @@ export function ouvrirMagasin(ctx) {
   // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ».
   const DEBUT = ['j:bronze', 'j:argent', 'j:or', 'j:coach'];
   let tout = !ctx.debutant;
-  let ongletClub = 'nom';
+  let ongletClub = 'club';
   const dessiner = () => {
     const rayons = tout ? RAYONS.map(R => {
       if (R.cle === 'jour') return ctx.duJour ? `<section class="pk-rayon pk-rayon-jour"><h3>${R.ico} ${esc(ctx.mode === 'rogue' ? 'Le pack de la semaine' : R.nom)} <span class="pk-rabais">−${Math.round((1 - ctx.duJour.rabais) * 100)} % ${ctx.mode === 'rogue' ? 'cette semaine' : 'aujourd\'hui'}</span></h3><div class="pk-rangee">${tuile(ctx.duJour.pack, true)}</div></section>` : '';
@@ -92,9 +92,9 @@ export function ouvrirMagasin(ctx) {
       </button>`;
     }).join('')}</div></section>` : '';
     /*
-     * TON CLUB (1.0, oct.) : les noms, les couleurs et les écussons, en jetons comme les packs. Trois onglets
-     * (huit noms, cinquante couleurs, trente écussons) : un nom et un écusson se montrent SUR ton écusson,
-     * une couleur en nuancier, l'aplat et la seconde.
+     * TON CLUB (1.0, oct.) : les clubs et les couleurs, en jetons comme les packs. Deux onglets (Jalon U : un
+     * club, c'est son nom ET son écusson, vendus ensemble ; cinquante couleurs) : un club se montre en écusson
+     * aux couleurs que tu portes, une couleur en nuancier, l'aplat et la seconde.
      */
     const offres = (ctx.club || []).filter(o => o.sorte === ongletClub);
     const club = (ctx.club || []).length ? `<section class="pk-rayon pk-rayon-club"><h3>🏅 Ton club · ${ctx.club.length} à débloquer</h3>
@@ -214,7 +214,7 @@ export function ouvrirMagasin(ctx) {
     d.className = 'pk-fiche';
     d.innerHTML = `<div class="pk-fiche-carte pk-club">
       <div class="club-porte"><span class="club-ecu" aria-hidden="true">${o.apercu}</span><b>${esc(o.nom)}</b></div>
-      <p class="pk-fiche-texte">${esc(o.rayon)} de ton club : à toi pour toutes tes parties, porté tout de suite, et changé quand tu veux aux déblocages. Ça ne change rien au jeu.</p>
+      <p class="pk-fiche-texte">${o.sorte === 'club' ? 'Son nom et son écusson, ensemble' : 'Les couleurs de ton club'} : à toi pour toutes tes parties, porté tout de suite, et changé quand tu veux aux déblocages. Ça ne change rien au jeu.</p>
       ${o.verrou ? `<p class="pk-verrou">🔒 ${esc(o.verrou)}</p>` : ''}
       <div class="pk-fiche-actions">
         <button type="button" class="btn pk-retour">Retour</button>

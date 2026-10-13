@@ -1,5 +1,5 @@
 /**
- * TON CLUB — son nom, ses couleurs, son écusson, qui se débloquent run après run.
+ * TON CLUB — son nom et son écusson (ensemble), ses couleurs, qui se débloquent run après run.
  *
  * JP : *pour l'aspect roguelike, que les couleurs de notre équipe, le nom de
  * notre équipe puis des logos, ce soient des choses qu'on débloque au fur et à
@@ -21,16 +21,6 @@ import { TEAM_COLORS, poserEcussonDuClub } from './logos.js';
 import { lireMeta, ecrireMeta, rangDePrestige, PRESTIGES } from './rogue.js';
 import { esc } from './util.js';
 
-const NOMS = {
-  stars: { nom: 'NHL Stars', court: 'NHL', prix: 0 },
-  harfangs: { nom: 'Harfangs', court: 'HAR', prix: 15 },
-  orignaux: { nom: 'Orignaux', court: 'ORI', prix: 15 },
-  huards: { nom: 'Huards', court: 'HUA', prix: 15 },
-  bucherons: { nom: 'Bûcherons', court: 'BUC', prix: 20 },
-  carcajous: { nom: 'Carcajous', court: 'CRC', prix: 20 },
-  cometes: { nom: 'Comètes', court: 'COM', prix: 25, rang: 1 },
-  loupsgarous: { nom: 'Loups-garous', court: 'LGR', prix: 35, rang: 2 },
-};
 /*
  * Les couleurs : l'aplat (primary), la seconde (le liseré, la plaque), l'encre sur l'aplat. Cinquante
  * nuanciers DESSINÉS ici (JP : *créer de toutes pièces 50 swatches*) : l'aplat toujours sombre, pour que
@@ -91,133 +81,164 @@ const PALETTES = {
   dynastie: PAL('Noir et or', '#111111', '#d4af37', 60, 4),
 };
 /*
- * Les écussons : chacun DESSINÉ ici (jamais emprunté, comme ceux des disparues), aux couleurs choisies
- * et au code du club. `a` l'aplat, `b` la seconde. Trente à débloquer (JP : *créer de toutes pièces
- * trente logos*) : un CADRE (sa forme, et la plaque où s'écrit le code) et un MOTIF au centre.
+ * LES CLUBS : UN NOM ET SON ÉCUSSON, ENSEMBLE (JP, 13 oct. : *nom et logo devraient être ensemble, et logos moins
+ * ressemblants*). Avant, huit noms et trente écussons à part, tous bâtis sur le même gabarit (un cadre, un motif,
+ * la plaque du code) : ils se ressemblaient tous, et rien ne liait « Harfangs » à son harfang. Chaque club a
+ * maintenant SON écusson, dessiné ici pour lui (jamais emprunté), et chacun sa composition : une tête de mascotte
+ * sans cadre, un lettrage, un monogramme, un fanion, un rondin, un phare… `a` l'aplat, `b` la seconde, `mot` le
+ * code. Le nom est PLURIEL (« Les Harfangs soulèvent la Coupe ») ; son code tient en trois lettres.
  */
 const BLANC = '#ffffff';
-const TXT = (y, taille, fill, mot, large = 62) => `<text x="50" y="${y}" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="${taille}" letter-spacing="1.5" fill="${fill}" text-anchor="middle" textLength="${large}" lengthAdjust="spacingAndGlyphs">${esc(mot)}</text>`;
-/* Un cadre : son fond, et la plaque [x, y, largeur, hauteur]. */
-const CADRES = {
-  rond: { fond: (a, b) => `<circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/>`, plaque: [18, 70, 64, 14] },
-  anneau: { fond: (a, b) => `<circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/><circle cx="50" cy="50" r="39" fill="none" stroke="${BLANC}" stroke-width="1.5"/>`, plaque: [20, 70, 60, 13] },
-  ecu: { fond: (a, b) => `<path d="M50 4 L90 16 L86 58 Q80 84 50 96 Q20 84 14 58 L10 16 Z" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>`, plaque: [20, 68, 60, 13] },
-  blason: { fond: (a, b) => `<path d="M10 7 H90 V50 Q90 80 50 96 Q10 80 10 50 Z" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>`, plaque: [18, 68, 64, 13] },
-  carre: { fond: (a, b) => `<rect x="5" y="5" width="90" height="90" rx="16" fill="${a}" stroke="${b}" stroke-width="5"/>`, plaque: [14, 72, 72, 15] },
-  hexagone: { fond: (a, b) => `<polygon points="50,3 91,26 91,74 50,97 9,74 9,26" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>`, plaque: [24, 68, 52, 13] },
-  octogone: { fond: (a, b) => `<polygon points="31,4 69,4 96,31 96,69 69,96 31,96 4,69 4,31" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>`, plaque: [16, 70, 68, 14] },
-  fanion: { fond: (a, b) => `<path d="M14 4 H86 V78 L50 96 L14 78 Z" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>`, plaque: [20, 64, 60, 13] },
-};
-/* Les motifs, dans le haut de l'écusson (x 20 à 80, y 12 à 64). */
-const MOTIFS = {
-  montagne: (a, b) => `<path d="M18 64 L38 32 L47 44 L60 20 L82 64 Z" fill="${b}"/><path d="M60 20 L67 33 L62 31 L58 36 L55 30 Z" fill="${BLANC}"/><path d="M38 32 L42 39 L38 38 L35 40 Z" fill="${BLANC}"/>`,
-  vague: (a, b) => `<g fill="none" stroke-width="5" stroke-linecap="round"><path d="M20 30 Q30 20 40 30 T60 30 T80 30" stroke="${BLANC}"/><path d="M20 44 Q30 34 40 44 T60 44 T80 44" stroke="${b}"/><path d="M20 58 Q30 48 40 58 T60 58 T80 58" stroke="${BLANC}"/></g>`,
-  eclair: (a, b) => `<polygon points="56,12 30,44 46,44 38,66 72,32 54,32 64,12" fill="${b}" stroke="${BLANC}" stroke-width="2.5" stroke-linejoin="round"/>`,
-  flamme: (a, b) => `<path d="M50 12 C60 28 74 34 68 52 C64 64 36 64 32 52 C28 40 40 36 42 24 C46 32 50 32 50 12 Z" fill="${b}"/><path d="M50 34 C56 42 60 46 57 54 C55 60 45 60 43 54 C41 48 47 44 50 34 Z" fill="${BLANC}"/>`,
-  sapin: (a, b) => `<polygon points="50,10 64,30 57,30 70,46 60,46 74,62 26,62 40,46 30,46 43,30 36,30" fill="${b}"/><rect x="46" y="62" width="8" height="5" fill="${BLANC}"/>`,
-  harfang: (a, b) => `<path d="M30 26 L36 14 L42 24 Q50 20 58 24 L64 14 L70 26 Q76 44 66 60 Q50 70 34 60 Q24 44 30 26 Z" fill="${BLANC}"/><circle cx="41" cy="36" r="7" fill="${b}"/><circle cx="59" cy="36" r="7" fill="${b}"/><circle cx="41" cy="36" r="3" fill="${a}"/><circle cx="59" cy="36" r="3" fill="${a}"/><polygon points="46,44 54,44 50,52" fill="${a}"/>`,
-  lune: (a, b) => `<circle cx="48" cy="38" r="22" fill="${b}"/><circle cx="58" cy="32" r="18" fill="${a}"/><circle cx="68" cy="52" r="2.5" fill="${BLANC}"/><circle cx="74" cy="22" r="2" fill="${BLANC}"/><circle cx="62" cy="60" r="1.6" fill="${BLANC}"/>`,
-  comete: (a, b) => `<polygon points="54,16 74,36 20,64" fill="${b}"/><polygon points="58,22 68,32 30,58" fill="${BLANC}" opacity="0.7"/><circle cx="64" cy="26" r="12" fill="${BLANC}" stroke="${b}" stroke-width="3"/>`,
-  soleil: (a, b) => `<g stroke="${b}" stroke-width="4" stroke-linecap="round">${Array.from({ length: 12 }, (_, k) => { const t = (k * Math.PI) / 6, c = Math.cos(t), s = Math.sin(t); return `<path d="M${(50 + 19 * c).toFixed(1)} ${(38 + 19 * s).toFixed(1)} L${(50 + 27 * c).toFixed(1)} ${(38 + 27 * s).toFixed(1)}"/>`; }).join('')}</g><circle cx="50" cy="38" r="14" fill="${BLANC}"/>`,
-  fleche: (a, b) => `<polygon points="50,10 70,34 58,34 58,64 42,64 42,34 30,34" fill="${b}" stroke="${BLANC}" stroke-width="2.5" stroke-linejoin="round"/>`,
-  ancre: (a, b) => `<g fill="none" stroke="${b}" stroke-width="5" stroke-linecap="round"><circle cx="50" cy="18" r="5"/><path d="M50 23 L50 62"/><path d="M38 32 L62 32"/><path d="M26 46 Q30 62 50 62 Q70 62 74 46"/></g><polygon points="22,48 30,44 28,52" fill="${BLANC}"/><polygon points="78,48 70,44 72,52" fill="${BLANC}"/>`,
-  hache: (a, b) => `<path d="M30 64 L62 18" stroke="${BLANC}" stroke-width="6" stroke-linecap="round"/><path d="M54 14 Q74 14 80 32 Q66 36 58 30 Z" fill="${b}"/><path d="M70 64 L38 18" stroke="${BLANC}" stroke-width="6" stroke-linecap="round"/><path d="M46 14 Q26 14 20 32 Q34 36 42 30 Z" fill="${b}"/>`,
-  pagaies: (a, b) => `<g stroke="${BLANC}" stroke-width="4" stroke-linecap="round"><path d="M28 62 L68 20"/><path d="M72 62 L32 20"/></g><ellipse cx="72" cy="16" rx="6" ry="10" transform="rotate(43 72 16)" fill="${b}"/><ellipse cx="28" cy="16" rx="6" ry="10" transform="rotate(-43 28 16)" fill="${b}"/><path d="M20 58 Q50 70 80 58" fill="none" stroke="${b}" stroke-width="4" stroke-linecap="round"/>`,
-  aurore: (a, b) => `<g fill="none" stroke-linecap="round"><path d="M18 50 C30 20 44 44 54 22 S74 30 82 14" stroke="${b}" stroke-width="7"/><path d="M18 60 C30 34 44 56 54 36 S74 42 82 28" stroke="${BLANC}" stroke-width="3"/></g><path d="M18 64 L34 54 L44 60 L58 50 L82 64 Z" fill="${BLANC}"/>`,
-  masque: (a, b) => `<path d="M32 18 Q50 6 68 18 Q72 40 64 58 Q50 68 36 58 Q28 40 32 18 Z" fill="${BLANC}"/><g stroke="${a}" stroke-width="2.5"><path d="M38 34 L62 34"/><path d="M38 42 L62 42"/><path d="M40 50 L60 50"/><path d="M45 30 L45 56"/><path d="M55 30 L55 56"/></g><path d="M50 10 L50 24" stroke="${b}" stroke-width="4"/>`,
-  patin: (a, b) => `<path d="M30 16 L46 16 L48 38 Q66 40 72 48 L72 54 L28 54 Z" fill="${BLANC}"/><path d="M34 22 L44 22 M34 28 L44 28 M34 34 L46 34" stroke="${a}" stroke-width="2"/><path d="M22 62 L78 62 Q82 62 80 58" fill="none" stroke="${b}" stroke-width="4" stroke-linecap="round"/><path d="M34 54 L34 62 M66 54 L66 62" stroke="${b}" stroke-width="3"/>`,
-  chevrons: (a, b) => `<g fill="none" stroke-width="6" stroke-linejoin="round"><path d="M22 34 L50 16 L78 34" stroke="${b}"/><path d="M22 48 L50 30 L78 48" stroke="${BLANC}"/><path d="M22 62 L50 44 L78 62" stroke="${b}"/></g>`,
-  damier: (a, b) => `<g>${[0, 1, 2, 3].flatMap(i => [0, 1, 2].map(j => `<rect x="${26 + i * 12}" y="${22 + j * 13}" width="12" height="13" fill="${(i + j) % 2 ? b : BLANC}"/>`)).join('')}</g><rect x="26" y="22" width="48" height="39" fill="none" stroke="${b}" stroke-width="2"/>`,
-  patte: (a, b) => `<path d="M50 36 Q66 36 66 52 Q66 62 50 60 Q34 62 34 52 Q34 36 50 36 Z" fill="${b}"/><ellipse cx="32" cy="32" rx="6" ry="8" fill="${BLANC}"/><ellipse cx="44" cy="22" rx="6" ry="8" fill="${BLANC}"/><ellipse cx="56" cy="22" rx="6" ry="8" fill="${BLANC}"/><ellipse cx="68" cy="32" rx="6" ry="8" fill="${BLANC}"/>`,
-  loup: (a, b) => `<polygon points="28,12 40,28 60,28 72,12 74,40 62,62 50,66 38,62 26,40" fill="${b}"/><polygon points="40,28 60,28 50,46" fill="${BLANC}"/><polygon points="34,38 44,40 40,44" fill="${a}"/><polygon points="66,38 56,40 60,44" fill="${a}"/><polygon points="46,56 54,56 50,62" fill="${a}"/>`,
-  huard: (a, b) => `<path d="M24 46 Q34 34 52 40 Q60 30 70 32 Q76 34 80 38 L70 40 Q66 50 54 52 Q36 56 24 46 Z" fill="${BLANC}"/><circle cx="70" cy="35" r="1.8" fill="${a}"/><path d="M36 44 L52 44" stroke="${b}" stroke-width="2"/><path d="M18 60 Q30 54 42 60 T66 60 T84 60" fill="none" stroke="${b}" stroke-width="4" stroke-linecap="round"/>`,
-  feu: (a, b) => `<g stroke="${b}" stroke-width="4" stroke-linecap="round"><path d="M18 30 L38 30"/><path d="M14 40 L34 40"/><path d="M18 50 L38 50"/></g><ellipse cx="58" cy="44" rx="20" ry="9" fill="${BLANC}"/><rect x="38" y="34" width="40" height="10" fill="${BLANC}"/><ellipse cx="58" cy="34" rx="20" ry="9" fill="${b}"/>`,
-  but: (a, b) => `<path d="M24 62 L24 24 Q24 18 30 18 L70 18 Q76 18 76 24 L76 62" fill="none" stroke="${b}" stroke-width="5" stroke-linecap="round"/><g stroke="${BLANC}" stroke-width="1.5" opacity="0.85">${[32, 40, 48, 56, 64].map(x => `<path d="M${x} 22 L${x} 60"/>`).join('')}${[28, 36, 44, 52].map(y => `<path d="M28 ${y} L72 ${y}"/>`).join('')}</g><ellipse cx="50" cy="62" rx="7" ry="3" fill="${BLANC}"/>`,
-  trois: (a, b) => {
-    const e = (x, y, r, f) => `<polygon points="${Array.from({ length: 10 }, (_, k) => { const t = -Math.PI / 2 + (k * Math.PI) / 5, q = k % 2 ? r * 0.42 : r; return `${(x + q * Math.cos(t)).toFixed(1)},${(y + q * Math.sin(t)).toFixed(1)}`; }).join(' ')}" fill="${f}"/>`;
-    return `${e(30, 44, 11, BLANC)}${e(50, 32, 15, b)}${e(70, 44, 11, BLANC)}`;
-  },
-  diamant: (a, b) => `<polygon points="32,24 68,24 80,36 50,66 20,36" fill="${b}"/><g fill="none" stroke="${BLANC}" stroke-width="2" stroke-linejoin="round"><path d="M20 36 L80 36"/><path d="M40 24 L34 36 L50 66 L66 36 L60 24"/><path d="M34 36 L50 24 L66 36"/></g>`,
-  rose: (a, b) => `<polygon points="50,10 56,32 78,38 56,44 50,66 44,44 22,38 44,32" fill="${BLANC}"/><polygon points="50,10 56,32 50,38" fill="${b}"/><polygon points="78,38 56,44 50,38" fill="${b}"/><polygon points="50,66 44,44 50,38" fill="${b}"/><polygon points="22,38 44,32 50,38" fill="${b}"/><circle cx="50" cy="38" r="3" fill="${a}"/>`,
-};
-/* Un écusson du catalogue : son cadre, son motif, la plaque aux couleurs du club. */
-const ECU = (nom, cadre, motif, prix, rang) => ({ nom, prix, ...(rang ? { rang } : {}), svg: (a, b, mot) => {
-  const C = CADRES[cadre], [x, y, w, h] = C.plaque;
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${C.fond(a, b)}${MOTIFS[motif](a, b)}<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="3" fill="${b}"/>${TXT(y + h - 3.2, h - 2, a, mot, Math.min(w - 10, 8 + 10 * mot.length))}</svg>`;
-} });
-const ECUSSONS = {
-  etoile: { nom: "L'étoile", prix: 0, svg: (a, b, mot) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/>
-    <circle cx="50" cy="50" r="38" fill="none" stroke="#ffffff" stroke-width="2"/>
-    <polygon points="50,14 58.5,36 82,36 63,50 70,73 50,59 30,73 37,50 18,36 41.5,36" fill="#ffffff"/>
+const TXT = (y, taille, fill, mot, large = 62, x = 50) => `<text x="${x}" y="${y}" font-family="Arial Narrow, Arial, sans-serif" font-weight="900" font-size="${taille}" letter-spacing="1.5" fill="${fill}" text-anchor="middle" textLength="${large}" lengthAdjust="spacingAndGlyphs">${esc(mot)}</text>`;
+const SVG = corps => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${corps}</svg>`;
+/* Une étoile à cinq branches, centrée en (x, y), de rayon r. */
+const etoile5 = (x, y, r, fill) => `<polygon points="${Array.from({ length: 10 }, (_, k) => { const t = -Math.PI / 2 + (k * Math.PI) / 5, q = k % 2 ? r * 0.42 : r; return `${(x + q * Math.cos(t)).toFixed(1)},${(y + q * Math.sin(t)).toFixed(1)}`; }).join(' ')}" fill="${fill}"/>`;
+const CLUB = (nom, court, prix, svg, rang) => ({ nom, court, prix, svg, ...(rang ? { rang } : {}) });
+const CLUBS = {
+  // Le club de départ : le rond, l'étoile, la plaque.
+  stars: CLUB('NHL Stars', 'NHL', 0, (a, b, mot) => SVG(`<circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/>
+    <circle cx="50" cy="50" r="38" fill="none" stroke="${BLANC}" stroke-width="2"/>
+    <polygon points="50,14 58.5,36 82,36 63,50 70,73 50,59 30,73 37,50 18,36 41.5,36" fill="${BLANC}"/>
     <polygon points="50,24 55,37 69,37 58,45.5 62.5,59 50,50.5 37.5,59 42,45.5 31,37 45,37" fill="${b}"/>
-    <rect x="14" y="70" width="72" height="16" rx="3" fill="${b}"/>${TXT(82.5, 13.5, a, mot)}</svg>` },
-  bouclier: { nom: 'Le bouclier', prix: 25, svg: (a, b, mot) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <path d="M50 4 L90 16 L86 58 Q80 84 50 96 Q20 84 14 58 L10 16 Z" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>
-    <path d="M22 40 L50 26 L78 40 L78 50 L50 36 L22 50 Z" fill="${b}"/>
-    <path d="M22 56 L50 42 L78 56 L78 64 L50 50 L22 64 Z" fill="#ffffff"/>${TXT(84, 15, b, mot, 40)}</svg>` },
-  rondelle: { nom: 'Les bâtons croisés', prix: 25, svg: (a, b, mot) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/>
-    <path d="M24 20 L62 70 L74 70" stroke="#ffffff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M76 20 L38 70 L26 70" stroke="${b}" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <ellipse cx="50" cy="32" rx="13" ry="6" fill="#ffffff"/>${TXT(86, 14, '#ffffff', mot, 38)}</svg>` },
-  flocon: { nom: 'Le flocon', prix: 35, rang: 1, svg: (a, b, mot) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="50,3 91,26 91,74 50,97 9,74 9,26" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>
-    <g stroke="#ffffff" stroke-width="5" stroke-linecap="round"><path d="M50 18 L50 62"/><path d="M31 29 L69 51"/><path d="M69 29 L31 51"/></g>
-    <g stroke="${b}" stroke-width="4" stroke-linecap="round" fill="none"><path d="M43 22 L50 28 L57 22"/><path d="M43 58 L50 52 L57 58"/></g>${TXT(83, 14, '#ffffff', mot, 38)}</svg>` },
-  couronne: { nom: 'La couronne', prix: 50, rang: 3, svg: (a, b, mot) => `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/>
-    <path d="M22 62 L18 28 L36 44 L50 20 L64 44 L82 28 L78 62 Z" fill="${b}" stroke="#ffffff" stroke-width="3" stroke-linejoin="round"/>
-    <circle cx="50" cy="20" r="5" fill="#ffffff"/><circle cx="18" cy="28" r="4" fill="#ffffff"/><circle cx="82" cy="28" r="4" fill="#ffffff"/>${TXT(83, 14, '#ffffff', mot, 38)}</svg>` },
-  montagne: ECU('La montagne', 'blason', 'montagne', 15),
-  vague: ECU('La vague', 'rond', 'vague', 15),
-  eclair: ECU("L'éclair", 'ecu', 'eclair', 15),
-  flamme: ECU('La flamme', 'fanion', 'flamme', 15),
-  sapin: ECU('Le sapin', 'hexagone', 'sapin', 15),
-  fleche: ECU('La flèche', 'fanion', 'fleche', 15),
-  chevrons: ECU('Les chevrons', 'blason', 'chevrons', 15),
-  damier: ECU('Le damier', 'carre', 'damier', 20),
-  harfang: ECU('Le harfang', 'anneau', 'harfang', 20),
-  lune: ECU('La pleine lune', 'rond', 'lune', 20),
-  ancre: ECU("L'ancre", 'octogone', 'ancre', 20),
-  hache: ECU('Les haches', 'ecu', 'hache', 20),
-  pagaies: ECU('Les pagaies', 'anneau', 'pagaies', 20),
-  patin: ECU('Le patin', 'carre', 'patin', 20),
-  masque: ECU('Le masque', 'octogone', 'masque', 25),
-  feu: ECU('La rondelle en feu', 'rond', 'feu', 25),
-  but: ECU('Le filet', 'carre', 'but', 25),
-  patte: ECU("La patte d'ours", 'blason', 'patte', 25),
-  huard: ECU('Le huard', 'anneau', 'huard', 25),
-  soleil: ECU('Le soleil', 'octogone', 'soleil', 30, 1),
-  comete: ECU('La comète', 'hexagone', 'comete', 30, 1),
-  loup: ECU('Le loup', 'ecu', 'loup', 35, 1),
-  aurore: ECU("L'aurore", 'fanion', 'aurore', 35, 2),
-  rose: ECU('La rose des vents', 'anneau', 'rose', 40, 2),
-  trois: ECU('Les trois étoiles', 'blason', 'trois', 45, 3),
-  diamant: ECU('Le diamant', 'hexagone', 'diamant', 50, 4),
+    <rect x="14" y="70" width="72" height="16" rx="3" fill="${b}"/>${TXT(82.5, 13.5, a, mot)}`)),
+  // La tête du harfang, sans cadre : ses aigrettes en sont les coins.
+  harfangs: CLUB('Harfangs', 'HAR', 20, (a, b, mot) => SVG(`<path d="M50 8 C68 8 82 16 88 28 L95 12 L94 44 C96 72 76 94 50 94 C24 94 4 72 6 44 L5 12 L12 28 C18 16 32 8 50 8 Z" fill="${a}" stroke="${b}" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="34" cy="46" r="16" fill="${BLANC}"/><circle cx="66" cy="46" r="16" fill="${BLANC}"/>
+    <circle cx="34" cy="46" r="9" fill="${b}"/><circle cx="66" cy="46" r="9" fill="${b}"/><circle cx="34" cy="46" r="4" fill="${a}"/><circle cx="66" cy="46" r="4" fill="${a}"/>
+    <path d="M16 28 L46 38 M84 28 L54 38" stroke="${b}" stroke-width="5" stroke-linecap="round"/>
+    <polygon points="44,58 56,58 50,72" fill="${b}"/>${TXT(88, 10, BLANC, mot, 26)}`)),
+  // Le panache qui déborde de l'écu.
+  orignaux: CLUB('Orignaux', 'ORI', 20, (a, b) => SVG(`<path d="M22 36 H78 V62 Q78 84 50 96 Q22 84 22 62 Z" fill="${a}" stroke="${b}" stroke-width="4" stroke-linejoin="round"/>
+    <g fill="${b}"><path d="M44 40 C30 40 16 32 8 14 L16 20 L16 6 L24 18 L28 4 L33 18 L40 8 L40 26 C42 32 45 34 48 36 Z"/><path d="M44 40 C30 40 16 32 8 14 L16 20 L16 6 L24 18 L28 4 L33 18 L40 8 L40 26 C42 32 45 34 48 36 Z" transform="translate(100 0) scale(-1 1)"/></g>
+    <path d="M38 38 Q50 32 62 38 L59 66 Q57 82 50 84 Q43 82 41 66 Z" fill="${BLANC}"/>
+    <circle cx="44" cy="50" r="2.6" fill="${a}"/><circle cx="56" cy="50" r="2.6" fill="${a}"/><circle cx="46" cy="76" r="2" fill="${a}"/><circle cx="54" cy="76" r="2" fill="${a}"/>`)),
+  // Le huard sur l'eau, dans un ovale couché.
+  huards: CLUB('Huards', 'HUA', 20, (a, b, mot) => SVG(`<ellipse cx="50" cy="50" rx="47" ry="38" fill="${a}" stroke="${b}" stroke-width="4"/>
+    <path d="M18 54 Q28 40 50 44 Q58 32 70 32 Q78 32 84 40 L74 42 Q72 54 58 58 Q38 62 18 54 Z" fill="${BLANC}"/>
+    <path d="M58 40 Q64 35 72 36" stroke="${b}" stroke-width="3" fill="none"/><circle cx="74" cy="37" r="1.8" fill="${a}"/>
+    <g fill="${a}"><rect x="34" y="48" width="4" height="4"/><rect x="42" y="48" width="4" height="4"/><rect x="50" y="49" width="4" height="4"/><rect x="38" y="53" width="4" height="3"/><rect x="46" y="54" width="4" height="3"/></g>
+    <path d="M12 66 Q30 60 50 66 T88 66" stroke="${b}" stroke-width="4" fill="none" stroke-linecap="round"/>${TXT(82, 10, BLANC, mot, 28)}`)),
+  // Le bout d'un rondin, ses cernes, les deux haches plantées.
+  bucherons: CLUB('Bûcherons', 'BUC', 25, (a, b) => SVG(`<path d="M50 4 C70 3 92 18 96 40 C99 62 86 92 54 96 C26 99 6 82 4 54 C2 28 26 5 50 4 Z" fill="${b}"/>
+    <circle cx="50" cy="50" r="38" fill="${a}"/><g fill="none" stroke="${b}" stroke-width="3"><circle cx="50" cy="50" r="30"/><circle cx="50" cy="50" r="21"/><circle cx="50" cy="50" r="12"/></g><circle cx="50" cy="50" r="4" fill="${b}"/>
+    <path d="M50 50 L70 22" stroke="${a}" stroke-width="3"/>
+    <g stroke="${BLANC}" stroke-width="6" stroke-linecap="round"><path d="M22 84 L66 22"/><path d="M78 84 L34 22"/></g>
+    <path d="M58 16 Q78 14 84 34 Q70 38 62 30 Z" fill="${BLANC}" stroke="${a}" stroke-width="2"/><path d="M42 16 Q22 14 16 34 Q30 38 38 30 Z" fill="${BLANC}" stroke="${a}" stroke-width="2"/>`)),
+  // Trois griffes qui déchirent l'hexagone.
+  carcajous: CLUB('Carcajous', 'CRC', 25, (a, b) => SVG(`<polygon points="50,3 91,26 91,74 50,97 9,74 9,26" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>
+    <g fill="${BLANC}"><path d="M30 14 Q40 50 26 88 L34 86 Q48 50 38 14 Z"/><path d="M48 10 Q58 50 44 92 L52 90 Q66 50 56 10 Z"/><path d="M66 14 Q76 50 62 86 L70 84 Q84 50 74 14 Z"/></g>
+    <g fill="${b}"><path d="M33 22 Q40 50 30 80 L32 79 Q44 50 36 22 Z"/><path d="M51 18 Q58 50 48 84 L50 83 Q62 50 54 18 Z"/><path d="M69 22 Q76 50 66 78 L68 77 Q80 50 72 22 Z"/></g>`)),
+  // Un lettrage en pastille, la traînée et l'étoile.
+  cometes: CLUB('Comètes', 'COM', 30, (a, b) => SVG(`<rect x="2" y="30" width="96" height="44" rx="22" fill="${a}" stroke="${b}" stroke-width="3"/>
+    <path d="M10 64 Q48 42 80 28" stroke="${b}" stroke-width="8" stroke-linecap="round" opacity="0.6" fill="none"/>
+    ${etoile5(82, 26, 15, BLANC)}${etoile5(82, 26, 7, b)}
+    <text x="48" y="62" font-family="Arial Narrow, Arial, sans-serif" font-style="italic" font-weight="900" font-size="22" fill="${BLANC}" text-anchor="middle" textLength="74" lengthAdjust="spacingAndGlyphs">COMÈTES</text>
+    <path d="M14 68 Q48 74 86 64" stroke="${BLANC}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`), 1),
+  // Le loup qui hurle devant la pleine lune.
+  loupsgarous: CLUB('Loups-garous', 'LGR', 40, (a, b) => SVG(`<circle cx="50" cy="50" r="47" fill="${a}" stroke="${b}" stroke-width="5"/>
+    <circle cx="60" cy="38" r="24" fill="${b}"/>
+    <path d="M18 92 C20 78 24 68 30 60 C28 54 29 48 32 44 L30 28 L39 37 L43 24 L48 36 C53 33 58 27 63 20 L71 11 L68 24 L62 31 L76 22 L67 37 C62 45 58 51 58 59 C62 67 64 79 62 92 Z" fill="${BLANC}"/>
+    <polygon points="44,42 50,40 47,46" fill="${a}"/>
+    <path d="M10 82 Q50 74 90 82" stroke="${b}" stroke-width="4" fill="none"/>`), 2),
+  // Le losange de glace et son flocon.
+  blizzard: CLUB('Blizzard', 'BLZ', 25, (a, b) => SVG(`<rect x="17" y="17" width="66" height="66" rx="6" transform="rotate(45 50 50)" fill="${a}" stroke="${b}" stroke-width="5"/>
+    <g stroke="${BLANC}" stroke-width="5" stroke-linecap="round"><path d="M50 18 L50 82"/><path d="M22 34 L78 66"/><path d="M78 34 L22 66"/></g>
+    <g stroke="${b}" stroke-width="3.5" stroke-linecap="round" fill="none"><path d="M42 22 L50 30 L58 22"/><path d="M42 78 L50 70 L58 78"/><path d="M24 44 L32 40 L28 30"/><path d="M76 56 L68 60 L72 70"/><path d="M76 44 L68 40 L72 30"/><path d="M24 56 L32 60 L28 70"/></g>
+    <circle cx="50" cy="50" r="6" fill="${b}"/>`)),
+  // Le T du Tonnerre, l'éclair qui le traverse.
+  tonnerre: CLUB('Tonnerre', 'TON', 25, (a, b) => SVG(`<path d="M8 6 H92 V60 L50 96 L8 60 Z" fill="${a}" stroke="${b}" stroke-width="5" stroke-linejoin="round"/>
+    <rect x="18" y="16" width="64" height="15" fill="${BLANC}"/><rect x="42" y="16" width="16" height="58" fill="${BLANC}"/>
+    <polygon points="64,22 34,58 50,58 38,90 74,46 58,46 70,22" fill="${b}" stroke="${a}" stroke-width="2.5" stroke-linejoin="round"/>`)),
+  // Un fanion couché sur sa hampe, la rivière dessous.
+  draveurs: CLUB('Draveurs', 'DRA', 25, (a, b, mot) => SVG(`<rect x="8" y="4" width="6" height="92" rx="3" fill="${BLANC}"/><circle cx="11" cy="5" r="5" fill="${b}"/>
+    <path d="M14 12 L96 38 L14 64 Z" fill="${a}" stroke="${b}" stroke-width="4" stroke-linejoin="round"/>
+    ${TXT(43, 15, BLANC, mot, 36, 40)}
+    <path d="M22 52 Q32 46 42 52 T62 52" stroke="${b}" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+    <path d="M16 82 Q34 74 52 82 T88 82" stroke="${b}" stroke-width="5" fill="none" stroke-linecap="round"/>`)),
+  // La rose des vents, le canot en travers.
+  voyageurs: CLUB('Voyageurs', 'VOY', 30, (a, b) => SVG(`<circle cx="50" cy="50" r="46" fill="${a}" stroke="${b}" stroke-width="4"/>
+    <polygon points="50,6 56,44 50,50 44,44" fill="${b}"/><polygon points="50,94 56,56 50,50 44,56" fill="${BLANC}"/><polygon points="6,50 44,44 50,50 44,56" fill="${BLANC}"/><polygon points="94,50 56,44 50,50 56,56" fill="${BLANC}"/>
+    <path d="M14 62 Q50 80 86 62 Q80 74 50 76 Q20 74 14 62 Z" fill="${b}" stroke="${a}" stroke-width="2"/>
+    <path d="M34 50 L42 80 M64 48 L58 80" stroke="${BLANC}" stroke-width="3" stroke-linecap="round"/>`)),
+  // La tête de l'ours noir, de face.
+  ours: CLUB('Ours noirs', 'ONR', 30, (a, b) => SVG(`<circle cx="24" cy="22" r="13" fill="${a}" stroke="${b}" stroke-width="4"/><circle cx="76" cy="22" r="13" fill="${a}" stroke="${b}" stroke-width="4"/>
+    <circle cx="24" cy="22" r="5" fill="${b}"/><circle cx="76" cy="22" r="5" fill="${b}"/>
+    <path d="M12 48 C12 22 88 22 88 48 C88 76 72 94 50 94 C28 94 12 76 12 48 Z" fill="${a}" stroke="${b}" stroke-width="4"/>
+    <path d="M28 40 L42 46 M72 40 L58 46" stroke="${b}" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="37" cy="52" r="4" fill="${BLANC}"/><circle cx="63" cy="52" r="4" fill="${BLANC}"/>
+    <ellipse cx="50" cy="70" rx="19" ry="15" fill="${BLANC}"/><path d="M42 62 H58 L50 72 Z" fill="${a}"/><path d="M50 72 L50 78 M44 80 Q50 84 56 80" stroke="${a}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`)),
+  // Le phare, ses deux faisceaux, la mer.
+  phares: CLUB('Phares', 'PHA', 30, (a, b) => SVG(`<rect x="5" y="5" width="90" height="90" rx="22" fill="${a}" stroke="${b}" stroke-width="5"/>
+    <polygon points="50,30 8,14 8,42" fill="${b}" opacity="0.55"/><polygon points="50,30 92,14 92,42" fill="${b}" opacity="0.55"/>
+    <polygon points="42,34 58,34 62,82 38,82" fill="${BLANC}"/><rect x="40.5" y="46" width="19" height="7" fill="${b}"/><rect x="39" y="62" width="22" height="7" fill="${b}"/>
+    <rect x="43" y="23" width="14" height="11" fill="${b}"/><polygon points="41,23 59,23 50,14" fill="${BLANC}"/>
+    <path d="M8 84 Q28 78 50 84 T92 84" stroke="${BLANC}" stroke-width="4" fill="none" stroke-linecap="round"/>`)),
+  // Le faucon : les ailes débordent du rond.
+  faucons: CLUB('Faucons', 'FAU', 30, (a, b) => SVG(`<path d="M50 48 C36 32 18 26 2 30 C14 36 22 42 26 48 C18 48 10 52 4 58 C20 54 34 56 50 62 Z" fill="${b}"/>
+    <path d="M50 48 C36 32 18 26 2 30 C14 36 22 42 26 48 C18 48 10 52 4 58 C20 54 34 56 50 62 Z" fill="${b}" transform="translate(100 0) scale(-1 1)"/>
+    <circle cx="50" cy="52" r="26" fill="${a}" stroke="${b}" stroke-width="4"/>
+    <path d="M38 40 Q50 24 62 40 Q64 56 56 70 L50 80 L44 70 Q36 56 38 40 Z" fill="${BLANC}"/>
+    <path d="M42 42 L50 46 L58 42" stroke="${a}" stroke-width="3" fill="none"/><circle cx="44" cy="40" r="2.4" fill="${a}"/><circle cx="56" cy="40" r="2.4" fill="${a}"/>
+    <polygon points="47,48 53,48 50,56" fill="${b}"/>`)),
+  // Le béluga qui saute, dans un anneau plein.
+  belugas: CLUB('Bélugas', 'BEL', 30, (a, b) => SVG(`<circle cx="50" cy="50" r="47" fill="${b}"/><circle cx="50" cy="50" r="38" fill="${a}"/>
+    <path d="M20 66 C24 40 46 26 66 30 C78 32 84 40 82 48 C80 52 74 52 70 50 C62 46 50 48 42 58 C36 66 30 70 20 66 Z" fill="${BLANC}"/>
+    <path d="M20 66 L10 58 L14 70 L8 78 Z" fill="${BLANC}"/><circle cx="72" cy="40" r="2.4" fill="${a}"/>
+    <path d="M18 80 Q34 74 50 80 T82 80" stroke="${BLANC}" stroke-width="3" fill="none" stroke-linecap="round"/>`)),
+  // Le C du Caribou, coiffé de ses bois, dans un carré franc.
+  caribous: CLUB('Caribous', 'CAR', 35, (a, b) => SVG(`<rect x="6" y="6" width="88" height="88" fill="${a}" stroke="${b}" stroke-width="5"/>
+    <path d="M72 42 A24 24 0 1 0 72 74" stroke="${BLANC}" stroke-width="13" fill="none"/>
+    <g stroke="${b}" stroke-width="3.5" fill="none" stroke-linecap="round"><path d="M40 34 L30 12 M33 20 L22 18 M30 12 L34 4"/><path d="M58 34 L68 12 M65 20 L76 18 M68 12 L64 4"/></g>`), 1),
+  // Trois feux follets dans une capsule.
+  feuxfollets: CLUB('Feux follets', 'FFO', 40, (a, b) => SVG(`<rect x="18" y="4" width="64" height="92" rx="32" fill="${a}" stroke="${b}" stroke-width="5"/>
+    <path d="M50 12 C58 26 64 30 60 42 C58 50 42 50 40 42 C36 32 44 28 46 20 C48 24 50 22 50 12 Z" fill="${b}"/>
+    <path d="M36 46 C42 56 46 60 43 68 C41 74 31 74 29 68 C27 60 33 58 34 52 C36 54 37 52 36 46 Z" fill="${BLANC}"/>
+    <path d="M64 50 C70 60 74 64 71 72 C69 78 59 78 57 72 C55 64 61 62 62 56 C64 58 65 56 64 50 Z" fill="${BLANC}"/>
+    <path d="M44 82 C48 88 50 90 49 94" stroke="${b}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`), 2),
+  // La chasse-galerie : le canot volant devant le croissant, sur sa bannière.
+  chassegalerie: CLUB('Chasse-galerie', 'CHG', 45, (a, b, mot) => SVG(`<circle cx="50" cy="40" r="37" fill="${a}" stroke="${b}" stroke-width="4"/>
+    <circle cx="64" cy="26" r="12" fill="${BLANC}"/><circle cx="70" cy="23" r="10" fill="${a}"/>
+    ${etoile5(28, 22, 4, BLANC)}${etoile5(40, 14, 3, BLANC)}
+    <path d="M14 48 Q50 64 86 42 Q80 56 50 60 Q24 60 14 48 Z" fill="${b}"/>
+    <g fill="${BLANC}"><circle cx="32" cy="48" r="3.2"/><circle cx="44" cy="51" r="3.2"/><circle cx="56" cy="50" r="3.2"/><circle cx="68" cy="47" r="3.2"/></g>
+    <path d="M6 70 L94 70 L88 81 L94 92 L6 92 L12 81 Z" fill="${b}"/>${TXT(87, 13, a, mot, 44)}`), 3),
+  // Le R royal, sa couronne au-dessus de l'écu.
+  royaux: CLUB('Royaux', 'ROY', 55, (a, b) => SVG(`<path d="M16 32 H84 V58 Q84 84 50 96 Q16 84 16 58 Z" fill="${a}" stroke="${b}" stroke-width="4" stroke-linejoin="round"/>
+    <path d="M18 30 L22 6 L36 18 L50 2 L64 18 L78 6 L82 30 Z" fill="${b}" stroke="${BLANC}" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="22" cy="6" r="3.5" fill="${BLANC}"/><circle cx="50" cy="3" r="3.5" fill="${BLANC}"/><circle cx="78" cy="6" r="3.5" fill="${BLANC}"/>
+    <text x="50" y="80" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="46" fill="${BLANC}" text-anchor="middle">R</text>`), 4),
 };
-/* Les trois rayons de l'écran « Ton club », dans l'ordre où on les lit. */
+/* Les deux rayons de l'écran « Ton club », dans l'ordre où on les lit : le club (son nom et son écusson), ses couleurs. */
 export const RAYONS_CLUB = [
-  { cle: 'nom', titre: 'Le nom', liste: NOMS },
+  { cle: 'club', titre: 'Le club', liste: CLUBS },
   { cle: 'palette', titre: 'Les couleurs', liste: PALETTES },
-  { cle: 'ecusson', titre: "L'écusson", liste: ECUSSONS },
 ];
-const DEPART = { nom: 'stars', palette: 'etoiles', ecusson: 'etoile' };
+const DEPART = { club: 'stars', palette: 'etoiles' };
+/*
+ * LES ACHATS D'AVANT (un nom et un écusson vendus à part) : un nom acheté donne son club ; un écusson acheté donne
+ * le club dont il était le motif. Le reste des vieux écussons n'a plus de club.
+ */
+const ANCIENS = { 'ecusson:harfang': 'harfangs', 'ecusson:huard': 'huards', 'ecusson:loup': 'loupsgarous', 'ecusson:comete': 'cometes', 'ecusson:hache': 'bucherons', 'ecusson:flocon': 'blizzard', 'ecusson:eclair': 'tonnerre', 'ecusson:patte': 'ours', 'ecusson:couronne': 'royaux' };
+const clubDAvant = cle => (cle.startsWith('nom:') ? cle.slice(4) : ANCIENS[cle]);
 const rayon = cle => RAYONS_CLUB.find(R => R.cle === cle);
 
 /* Le choix du club dans le méta, complété : ce qui n'existe plus retombe sur le départ. */
 export function choixDuClub(m = lireMeta()) {
-  const c = { ...DEPART, ...((m && m.club) || {}) };
+  const vieux = (m && m.club) || {};
+  const c = { ...DEPART, ...vieux, club: vieux.club || vieux.nom || DEPART.club };
   for (const R of RAYONS_CLUB) if (!R.liste[c[R.cle]]) c[R.cle] = DEPART[R.cle];
   return c;
 }
 /* Un objet est à toi s'il est gratuit ou acheté (`m.club.pris`, « nom:harfangs »). */
-export const possede = (m, rayonCle, cle) => !rayon(rayonCle).liste[cle].prix || ((m.club && m.club.pris) || []).includes(`${rayonCle}:${cle}`);
+export const possede = (m, rayonCle, cle) => {
+  const pris = (m.club && m.club.pris) || [];
+  return !rayon(rayonCle).liste[cle].prix || pris.includes(`${rayonCle}:${cle}`) || (rayonCle === 'club' && pris.some(k => clubDAvant(k) === cle));
+};
 /* Ce que la boutique offre au rayon « Ton club » : tout ce qui n'est pas encore à toi. */
 export function offresDuClub(m = lireMeta()) {
   const c = choixDuClub(m);
   return RAYONS_CLUB.flatMap(R => Object.entries(R.liste).filter(([k]) => !possede(m, R.cle, k)).map(([k, o]) => ({
-    cle: `${R.cle}:${k}`, sorte: R.cle, rayon: R.titre, nom: o.nom, prix: o.prix,
+    cle: `${R.cle}:${k}`, sorte: R.cle, nom: o.nom, prix: o.prix,
     verrou: o.rang && rangDePrestige(m) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '',
     apercu: ecussonDe({ ...c, [R.cle]: k }), ...(o.primary ? { nuance: [o.primary, o.secondary] } : {}) })));
 }
@@ -245,12 +266,12 @@ export function porter(rayonCle, cle) {
 }
 
 let actuel = DEPART;
-export const nomDuClub = () => NOMS[actuel.nom].nom;
-export const courtDuClub = () => NOMS[actuel.nom].court;
+export const nomDuClub = () => CLUBS[actuel.club].nom;
+export const courtDuClub = () => CLUBS[actuel.club].court;
 /* L'écusson d'un choix, pour un aperçu (l'écran « Ton club ») sans le porter. */
 export function ecussonDe(c) {
-  const P = PALETTES[c.palette], N = NOMS[c.nom];
-  return ECUSSONS[c.ecusson].svg(P.primary, P.secondary, c.ecusson === 'etoile' && c.nom === 'stars' ? 'NHL STARS' : N.court);
+  const P = PALETTES[c.palette], C = CLUBS[c.club];
+  return C.svg(P.primary, P.secondary, c.club === 'stars' ? 'NHL STARS' : C.court);
 }
 /* Pose le club choisi là où l'interface lit ton équipe. Rend le choix. */
 export function appliquerClub(m = lireMeta()) {

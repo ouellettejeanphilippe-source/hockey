@@ -337,7 +337,7 @@ function typeAvecForme(type, forme) {
 }
 
 /* `ligne` (S80) : où il joue dans ton alignement (« 3e paire ») — on le dit, on ne le nomme pas par là. */
-export function carteJoueur(p, ligne = '') {
+function enteteJoueur(p, ligne = '') {
   if (!p) return '';
   const barres = barresProfils(p);
   const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="puce neutre">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
@@ -414,10 +414,10 @@ export function ouvrirChoix(spec) {
     </div>
     <div class="choix-corps">
       ${spec.recit ? `<p class="choix-recit">${sub(spec.recit)}</p>` : ''}
-      ${spec.joueur ? carteJoueur(spec.joueur, ou(spec.joueur)) : ''}
+      ${spec.joueur ? enteteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
-      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.carteJoueur) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
+      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.joueurHtml) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
@@ -431,7 +431,7 @@ export function ouvrirChoix(spec) {
           pucesHtml: pucesDeFace(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) }))) + (o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''),
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
-          joueurHtml: o.carteJoueur || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
+          joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
         });
         const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
         return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
@@ -446,9 +446,9 @@ export function ouvrirChoix(spec) {
           ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
         </button>`;
       }).join('')}</div>
+      ${spec.options.length ? '' : `<p class="empty-msg">${esc(spec.vide || 'Rien ici.')}</p>`}
       <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
       ${spec.autres && spec.autres.length ? `<div class="choix-autres">${spec.autres.map((a, i) => `<button type="button" class="btn choix-autre" data-autre="${i}">${esc(a.mot)}</button>`).join('')}</div>` : ''}
-      ${(spec.cartes || spec.genre) && spec.fermable ? `<button type="button" class="btn choix-plus-tard">${esc(spec.motFermer || 'Plus tard')}</button>` : ''}
     </div>
   </div>`;
   const FETE = spec.cartes || spec.genre === 'recompense' || spec.genre === 'main' || spec.genre === 'entracte' || spec.genre === 'coupe';
@@ -456,7 +456,7 @@ export function ouvrirChoix(spec) {
   m.hidden = false;
   document.body.classList.add('choix-ouvert');
   // Un paquet se tait tant qu'il est scellé : ses sons sont ceux de l'ouverture.
-  if (spec.cartes && !spec.lecture && !pile) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
+  if (spec.cartes && !spec.lecture && !pile && spec.options.length) jouerSon(spec.genre === 'recompense' ? 'recompense' : 'donne');
   const fermer = (silencieux = false) => {
     m.hidden = true; m.innerHTML = '';
     m.classList.remove('feuille');
@@ -492,7 +492,7 @@ export function ouvrirChoix(spec) {
     el.onclick = () => voir();
     el.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); voir(); } };
   });
-  for (const x of m.querySelectorAll('.choix-fermer, .choix-plus-tard')) x.onclick = () => fermer();
+  for (const x of m.querySelectorAll('.choix-fermer')) x.onclick = () => fermer();
   // LES AUTRES BUTINS (V5) : retirer ou améliorer une carte du deck, au lieu d'en prendre une — chacun ouvre son propre choix.
   for (const x of m.querySelectorAll('.choix-autre')) x.onclick = () => { fermer(true); spec.autres[+x.dataset.autre].ouvrir(); };
   pointsDeBande(m);
@@ -579,22 +579,16 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
  * (« 1er trio », « 2e paire »), chaque case avec son visage, son nom et ses
  * positions. On voit OÙ joue chacun sans qu'on le nomme par sa case.
  *
- * Deux façons de toucher, jamais d'action sans bouton :
- *   SÉLECTION  (`onChoix`) toucher surligne la case, la barre du bas dit ce
- *              qui va se passer (« Hal Gill (3e paire) sort, … »), et c'est
- *              « Confirmer » qui décide ;
- *   APERÇU     (`onApercu`) toucher ouvre quelque chose par-dessus (la fiche
- *              du joueur, retournée au verso) — l'action est là-bas.
- * Une case qu'on ne peut pas prendre reste visible, grisée, avec sa raison ;
- * quand toute une rangée l'est pour la même raison, la raison se dit une fois,
- * dans son titre.
+ * Jalon U : chaque case est une rangée de la liste de signature, et un bouton par rangée décide
+ *   SÉLECTION  (`onChoix`, `motConfirmer`) : le bouton prend la case ;
+ *   APERÇU     (`onApercu`, `motBouton`) : le bouton ouvre quelque chose par-dessus (la fiche du joueur,
+ *              retournée au verso) — l'action est là-bas.
+ * Toucher la rangée ouvre la fiche du joueur (`fiche`). Une case qu'on ne peut pas prendre reste visible,
+ * grisée, avec sa raison ; quand toute une rangée l'est pour la même raison, la raison se dit une fois, dans
+ * son titre. Ce que le choix fait à chaque case se dit sur sa ligne (`barre(cle)`, sinon `note`).
  *
- * LE COMPARATIF EN TÊTE (V7, JP : *mettre comparatif plus complet en haut, dès qu'on clique sur le joueur*) :
- * `contexteDe(cle)` remplace le contexte dès qu'une case est touchée — les deux joueurs côte à côte — et le
- * contexte revient quand on la relâche.
- *
- * spec : { ico, titre, contexte, contexteDe(cle) → html, aide, motFermer, motConfirmer,
- *          rangees: [{ titre, cases: [{ cle, vide, visage, nom, nomLong, pos, marque, marqueMot, note, non }] }],
+ * spec : { ico, titre, contexte, motFermer, motConfirmer | motBouton, fiche(p),
+ *          rangees: [{ titre, cases: [{ cle, vide, p, rangee(dest, bouton) → html, rar, nom, pos, marque, note, ton, non, meilleure }] }],
  *          barre(cle) → html, onChoix(cle) | onApercu(cle), onFerme() }
  */
 /*
@@ -614,39 +608,41 @@ export function ouvrirAlignement(spec) {
   // …et une fois pour toutes quand toutes les rangées grisées le sont pour la même (une carte de gardien : sept rangées).
   const communes = spec.rangees.map(communeDe).filter(Boolean);
   const partout = communes.length >= 3 && communes.every(x => x === communes[0]) ? communes[0] : '';
+  const mot = esc(apercu ? spec.motBouton || 'Choisir' : spec.motConfirmer || 'Choisir');
+  /*
+   * EN RANGÉES, COMME LA SIGNATURE (Jalon U, JP : *refaire l'alignement plus comme la page signature*). Chaque joueur
+   * est une rangée de la liste de signature (`c.rangee`, le `rangeeHtml` de js/repechage.js) : visage, salaire, chiffre clé, rôle ; sa ligne dit ce que
+   * ce choix lui fait (`barre`, sinon `note`), ou pourquoi il ne peut pas (`non`) ; le bouton décide. Toucher la
+   * rangée ouvre sa fiche (`fiche`). Une case libre qu'on peut prendre est une rangée sans visage.
+   */
+  const ligne = c => {
+    if (c.vide) return `<p class="empty-msg small">Case vide${c.pos ? ` · ${esc(c.pos)}` : ''}</p>`;
+    const dit = c.non ? `<span class="dest-bad">${esc(c.non)}</span>`
+      : spec.barre ? spec.barre(c.cle) : `${c.marque ? '<span class="dest-warn">hors position</span> · ' : ''}<span class="${c.ton === 'bon' ? 'dest-ok' : c.ton === 'prix' ? 'dest-bad' : ''}">${esc(c.note || '')}</span>`;
+    const dest = `<div class="pcard-dest aln-dit">${dit}</div>`;
+    const bouton = `<button type="button" class="btn-sign aln-choisir"${c.non ? ' disabled' : ''}>${mot}</button>`;
+    const classe = `pcard aln-ligne tc-${c.rar || 'commune'}${c.non ? ' locked' : ''}${c.meilleure ? ' meilleure' : ''}`;
+    if (!c.rangee) return `<div class="${classe}" data-aln="${esc(c.cle)}"><div class="pcard-rangee"><span class="pcard-mug"></span><span class="pcard-qui"><b class="pcard-nom">${esc(c.nom)}</b><small>${esc(c.pos || '')}</small></span></div><div class="pcard-fiche">${dest}${bouton}</div></div>`;
+    return `<div class="${classe}" data-aln="${esc(c.cle)}" style="${varsEquipe(c.p)}">${c.rangee(dest, bouton)}</div>`;
+  };
   const rangee = r => {
     const commune = communeDe(r);
-    return `<section class="aln-rangee${commune ? ' grisee' : ''}" data-cases="${r.cases.length}" data-rangee="${esc(r.titre)}">
+    return `<section class="aln-rangee${commune ? ' grisee' : ''}" data-rangee="${esc(r.titre)}">
       <h3 class="aln-titre">${esc(r.titre)}${commune && !partout ? ` <small>· ${esc(commune)}</small>` : ''}</h3>
-      <div class="aln-cases">${r.cases.map(c => (c.vide
-        ? `<div class="aln-case aln-vide" aria-label="Case vide"><span class="aln-nom">Case vide</span>${c.pos ? `<span class="aln-pos">${esc(c.pos)}</span>` : ''}</div>`
-        : `<button type="button" class="aln-case${c.non ? ' non' : ''}${c.meilleure ? ' meilleure' : ''}" data-aln="${esc(c.cle)}" aria-pressed="false"${c.non ? ' disabled' : ''} title="${esc([c.nomLong || c.nom, c.pos, c.marqueMot, c.non].filter(Boolean).join(' · '))}">
-            <span class="aln-visage" aria-hidden="true">${c.visage || ''}</span>
-            <span class="aln-nom">${esc(c.nom)}</span>
-            <span class="aln-pos"><span>${esc(c.pos || '')}</span>${c.marque ? `<b class="aln-marque" aria-label="${esc(c.marqueMot || c.marque)}">${esc(c.marque)}</b>` : ''}</span>
-            ${c.sous ? `<span class="aln-sous">${c.sous}</span>` : ''}
-            ${c.non && !commune ? `<span class="aln-non">${esc(c.non)}</span>` : !c.non && c.note ? `<span class="aln-note${c.ton ? ` ${c.ton}` : ''}">${esc(c.note)}</span>` : ''}
-          </button>`)).join('')}</div>
+      <div class="sig-liste">${r.cases.map(ligne).join('')}</div>
     </section>`;
   };
-  m.innerHTML = `<div class="choix-sheet choix-aln" data-genre="alignement" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
+  m.innerHTML = `<div class="choix-sheet choix-aln" data-genre="alignement" data-mode="${apercu ? 'apercu' : 'choix'}" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
     <div class="choix-tete">
       <span class="choix-ico">${spec.ico || '🔁'}</span>
       <div class="choix-titres"><div class="choix-titre">${esc(spec.titre)}</div></div>
       <button type="button" class="close-btn choix-fermer" aria-label="${esc(spec.motFermer || 'Retour')}" title="${esc(spec.motFermer || 'Retour')}">✕</button>
     </div>
     <div class="choix-corps">
-      ${spec.contexteDe ? `<div class="aln-contexte">${spec.contexte || ''}</div>` : spec.contexte || ''}
+      ${spec.contexte || ''}
       ${partout ? `<p class="aln-grises">Grisées : ${esc(partout)}.</p>` : ''}
       <nav class="aln-sauts" aria-label="Aller à une ligne">${spec.rangees.map(r => `<button type="button" class="aln-saut" data-saut="${esc(r.titre)}">${esc(SAUT[r.titre] || r.titre)}</button>`).join('')}</nav>
       <div class="aln">${spec.rangees.map(rangee).join('')}</div>
-    </div>
-    <div class="aln-barre">
-      <p class="aln-barre-mot" aria-live="polite">${esc(spec.aide || 'Touche un joueur.')}</p>
-      <div class="aln-barre-boutons">
-        <button type="button" class="btn aln-retour">${esc(spec.motFermer || 'Retour')}</button>
-        ${apercu ? '' : `<button type="button" class="btn gold aln-confirmer" disabled>${esc(spec.motConfirmer || 'Confirmer')}</button>`}
-      </div>
     </div>
   </div>`;
   m.hidden = false;
@@ -658,32 +654,25 @@ export function ouvrirAlignement(spec) {
     if (!silencieux && spec.onFerme) spec.onFerme();
   };
   fermerChoixCourant = fermer;
-  const mot = m.querySelector('.aln-barre-mot');
-  const ok = m.querySelector('.aln-confirmer');
-  let choisie = null;
-  m.querySelectorAll('.aln-case[data-aln]').forEach(b => {
-    b.onclick = () => {
-      if (b.disabled) return;
-      if (apercu) { spec.onApercu(b.dataset.aln); return; }
-      // Toucher la case choisie la relâche ; toucher une autre la remplace.
-      choisie = choisie === b.dataset.aln ? null : b.dataset.aln;
-      m.querySelectorAll('.aln-case[data-aln]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.aln === choisie)));
-      m.querySelector('.aln-barre').classList.toggle('pret', !!choisie);
-      mot.innerHTML = choisie && spec.barre ? spec.barre(choisie) : esc(spec.aide || 'Touche un joueur.');
-      const ctx = spec.contexteDe && m.querySelector('.aln-contexte');
-      if (ctx) ctx.innerHTML = (choisie && spec.contexteDe(choisie)) || spec.contexte || '';
-      ok.disabled = !choisie;
+  const cases = new Map(spec.rangees.flatMap(r => r.cases).filter(c => !c.vide).map(c => [c.cle, c]));
+  m.querySelectorAll('.aln-ligne[data-aln]').forEach(el => {
+    const c = cases.get(el.dataset.aln);
+    const b = el.querySelector('.aln-choisir');
+    if (b && !b.disabled) b.onclick = ev => {
+      ev.stopPropagation();
+      if (apercu) { spec.onApercu(c.cle); return; }
+      fermer(true); spec.onChoix(c.cle);
     };
+    if (c && c.p && spec.fiche) el.onclick = ev => { if (!ev.target.closest('button')) spec.fiche(c.p); };
   });
-  if (ok) ok.onclick = () => { if (!choisie) return; const k = choisie; fermer(true); spec.onChoix(k); };
-  for (const x of m.querySelectorAll('.choix-fermer, .aln-retour')) x.onclick = () => fermer();
+  m.querySelector('.choix-fermer').onclick = () => fermer();
   for (const x of m.querySelectorAll('.aln-saut')) x.onclick = () => m.querySelector(`.aln-rangee[data-rangee="${CSS.escape(x.dataset.saut)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  // La première case qu'on peut prendre se montre : une carte de gardien ouvre sur les gardiens, pas sur le 1er trio grisé.
-  const premier = m.querySelector('.aln-case[data-aln]:not([disabled])');
+  // La première rangée qu'on peut prendre se montre : une carte de gardien ouvre sur les gardiens, pas sur le 1er trio grisé.
+  const premier = m.querySelector('.aln-choisir:not([disabled])');
   if (premier) {
     premier.focus({ preventScroll: true });
     const corps = m.querySelector('.choix-corps'), r = premier.getBoundingClientRect(), rc = corps.getBoundingClientRect();
-    if (r.bottom > rc.bottom) premier.closest('.aln-rangee').scrollIntoView({ block: 'center' });
+    if (r.bottom > rc.bottom) premier.closest('.aln-rangee').scrollIntoView({ block: 'start' });
   }
   return () => fermer(true);
 }
@@ -1092,7 +1081,7 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
  * lignes et stratégie, au lieu de dropdown, modal*. Le tiroir sous chaque
  * trio est devenu une rangée qu'on touche : elle ouvre cette fenêtre, avec les
  * mêmes systèmes, le même fit, les mêmes chiffres. On essaie (rien ne
- * s'applique en touchant), puis « Appliquer » décide ; ✕ ou « Annuler » ne
+ * s'applique en touchant), puis « Appliquer » décide ; le ✕ (ou Échap) ne
  * change rien. `onAppliquer(ligne)` reçoit la ligne réglée (tac, tacD, sec).
  */
 const NOMS_PAIRE = ['1re paire', '2e paire', '3e paire'];
@@ -1108,14 +1097,14 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
       <div class="choix-tete">
         <span class="choix-ico">${groupe === 'D' ? '🛡' : '🏒'}</span>
         <div class="choix-titres"><div class="choix-titre">${esc(titre)}</div>${clubLu() && clubLu().team ? '<div class="choix-irl">Par match, contre ce qui joue</div>' : ''}</div>
-        <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
+        <button type="button" class="close-btn choix-fermer" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
       </div>
       <div class="choix-corps">${corps}</div>
-      <div class="gl-pied"><button type="button" class="btn gl-annuler">Annuler</button><button type="button" class="btn gold gl-appliquer">Appliquer</button></div>
+      <div class="choix-pied"><button type="button" class="btn gold gl-appliquer">Appliquer</button></div>
     </div>`;
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[u].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[u].tacD = b.dataset.tacd; dessiner(); }; });
-    m.querySelectorAll('.gl-annuler').forEach(b => { b.onclick = fermer; });
+    m.querySelector('.choix-fermer').onclick = fermer;
     m.querySelector('.gl-appliquer').onclick = () => { fermer(); onAppliquer({ ...brouillon[u] }); };
   }
   m.hidden = false;

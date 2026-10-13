@@ -53,7 +53,7 @@ import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
-import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil } from './vie-gm.js';
 
@@ -234,22 +234,11 @@ function coquille(label) {
   };
   const ouvrirPage = ({ genre, ico = '', titre, sousTitre = '', html = '', pied = '', onFerme = null }) => {
     fermerPage(true);
-    const el = document.createElement('section');
-    el.className = 'hub-page';
-    el.dataset.genre = genre;
-    el.setAttribute('aria-label', titre);
-    el.innerHTML = `<div class="hub-page-tete">
-        <button type="button" class="hub-page-retour" aria-label="Retour au bureau" title="Retour au bureau">‹</button>
-        ${ico ? `<span class="hub-page-ico" aria-hidden="true">${ico}</span>` : ''}
-        <div class="hub-page-titres"><h2 class="hub-page-titre">${titre}</h2>${sousTitre ? `<div class="hub-page-sous">${sousTitre}</div>` : ''}</div>
-      </div>
-      <div class="hub-page-corps">${html}</div>
-      ${pied ? `<div class="hub-page-pied">${pied}</div>` : ''}`;
+    const el = pageDuClub({ genre, retour: 'Retour au bureau', ico, titre, sous: sousTitre, corps: html, pied, fermer: () => fermerPage() });
     sheet.appendChild(el);
     sheet.dataset.page = genre;
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
-    el.querySelectorAll('.hub-page-retour, .hub-page-fermer').forEach(b => { b.onclick = () => fermerPage(); });
     return el.querySelector('.hub-page-corps');
   };
   return { modal, head: $('.hub-head'), carte: $('.hub-carte'), actions: $('.hub-actions'), barre: $('.hub-onglets'), volet: $('.hub-volet'), close: $('.hub-close'), ouvrirPage, fermerPage };
@@ -2867,7 +2856,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        */
       // CE QUI JOUE SUR TA FORMATION (S72), en une ligne ; le détail est dans les Lignes.
       const ecJ = effetsEnCours(you, p.j);
-      const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
+      const enJeu = [...ecJ.effets.filter(e => e.nom).map(e => { const x = e.source === 'pari' && pariDe(e); return x ? `🎲 ${e.nom} : ${x.gagne ? 'pari payé' : 'pari raté'}` : `${e.ico || '✨'} ${e.nom}${e.reste > 0 ? ` · encore ${e.reste} match${e.reste > 1 ? 's' : ''}` : ''}`; }), ...ecJ.absents.map(a => `👥 ${a.p.n} au vestiaire`), ...(ecJ.gardienAux ? ['🧤 l\'auxiliaire au filet'] : [])];
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans les Lignes">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
       const totJ = totauxDuMatch(p.j);

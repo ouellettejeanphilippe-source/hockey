@@ -29,7 +29,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, ouvrirVersoPourPoser, poserCartes, rangeesAlignement } from './repechage.js';
+import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -394,7 +394,7 @@ function optionDeJoueurTire(x) {
     // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
     cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
     art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
-    carteJoueur: miniAvecVariante(x.p, x.rar),
+    joueurHtml: miniAvecVariante(x.p, x.rar),
     // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
     walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
     // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
@@ -667,8 +667,9 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     decider({ jour: j, joue, ...payload });
   };
   // Jalon U : les rangées du vestiaire, comme toute liste de joueurs (`ouvrirListeJoueurs`).
-  const listeJoueurs = (titre, recit, liste, choisir, mots = null) => ouvrirListeJoueurs({
-    ico: c.ico, titre, motFermer: 'Retour', recit, motBouton: 'Choisir',
+  // Rien à prendre (Jalon U) : la liste s'ouvre quand même et le dit (`vide`) ; les toasts restent aux confirmations.
+  const listeJoueurs = (titre, recit, liste, choisir, mots = null, vide = '') => ouvrirListeJoueurs({
+    ico: c.ico, titre, motFermer: 'Retour', recit, motBouton: 'Choisir', vide,
     contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
     joueurs: liste, onChoix: choisir, onFerme: retour,
   });
@@ -691,8 +692,8 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     const C = CONSOMMABLES[c.cle];
     if (C.cible === 'blesse') {
       const bl = blessesAuJour(j);
-      if (!bl.length) { toast('Personne à l\'infirmerie : garde-la pour plus tard.'); retour(); return; }
-      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · ') })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · ') })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
+        'Personne à l\'infirmerie : garde-la pour plus tard.');
       return;
     }
     if (C.cible === 'joueur') {
@@ -704,8 +705,8 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'malediction' || C.cible === 'carteMatch') {
       const deck = deckDe(Lg.decisions || []);
       const uniques = [...new Set(deck)].filter(k => (C.cible === 'malediction' ? CARTES_MATCH[k] && CARTES_MATCH[k].maudite : CARTES_MATCH[`${k}+`]));
-      if (!uniques.length) { toast(C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.'); retour(); return; }
       ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour', recit: c.texte,
+        vide: C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.',
         contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
         options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
         onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
@@ -714,9 +715,9 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'cartable') {
       // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
-        if (!offres.length) { toast(`Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`); retour(); return; }
         // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
         ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: c.texte, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
+          vide: `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
           desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
           onSigne: (x, sortie) => { const k = getPlayerKey(x.p); G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); },
           onFerme: retour });
@@ -747,40 +748,37 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'blesse') {
       liste = blessesAuJour(j).filter(x => signes().some(q => getPlayerKey(q) === getPlayerKey(x.p)) && !deja(getPlayerKey(x.p)))
         .map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie · ${money(x.p.$)} hors du plafond`].filter(Boolean).join(' · ') }));
-      if (!liste.length) { toast('Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'); retour(); return; }
     } else {
       liste = signes().filter(p => !deja(getPlayerKey(p)) && (C.cible !== 'recrue' || ageAtSeason(p.bd, p.s) <= 23))
         .sort((a, b) => (b.$ || 0) - (a.$ || 0)).map(p => ({ p, sous: `${ouJoue(p) ? `${ouJoue(p)} · ` : ''}${apres(p)}${C.cible === 'recrue' ? ` · ${ageAtSeason(p.bd, p.s)} ans` : ''}` }));
-      if (!liste.length) { toast(C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.'); retour(); return; }
     }
-    listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+    listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
+      C.cible === 'blesse' ? 'Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'
+        : C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.');
     return;
   }
   ecrire(payloadDe(item.id, { build, joueurs }));
 }
 /*
- * JOUER UNE MODIF DE JOUEUR (S80). JP : *donne l'alignement, je clique sur le
- * joueur, pis je dois aller au verso pour l'ajouter dans une des slots
- * joueurs?* — oui. « Jouer » ouvre l'ALIGNEMENT (`ouvrirAlignement`, en
- * aperçu) : chaque case dit ce que la carte lui ferait, ou pourquoi elle ne
- * peut pas aller sur lui (un gardien, ses cases pleines, aucun malus à
- * effacer…). Toucher un joueur ouvre sa fiche retournée au VERSO, la carte en
- * attente sur sa case libre ; « Poser ici » décide. Fermer la fiche ramène à
- * l'alignement, « Retour » à l'inventaire.
+ * JOUER UNE MODIF DE JOUEUR (S80 ; Jalon U). JP : *jouer les cartes du menu Cartes, trop d'étapes*. « Jouer » ouvre
+ * l'alignement en rangées (`ouvrirAlignement`) : chaque joueur dit ce que la carte lui ferait, ou pourquoi elle ne
+ * peut pas aller sur lui (un gardien, ses cases pleines, aucun malus à effacer…). « Poser » décide tout de suite —
+ * la même décision `{ joue, mutation }` que le verso écrivait ; toucher la rangée ouvre sa fiche, pour lire.
+ * Avant, « Jouer » → l'alignement → la fiche au verso → « Poser ici » : deux fenêtres de trop.
  */
 function poserUneModif(item, j, decider, retour) {
   const c = BANQUE[item.id], M = MUTATIONS[c.cle];
   const you = G.ligue && G.ligue.you;
-  const rangees = rangeesAlignement(G.roster, (sl, q) => { const e = etatPourPoser(c.cle, q, sl, { jour: j, you }); return { non: e.non || '', note: e.note || '' }; });
-  // Poser ferme l'alignement en silence (`fermer`) : la décision part, et l'inventaire ne se rouvre pas.
-  const fermer = ouvrirAlignement({
-    ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour',
+  const etats = new Map();
+  const rangees = rangeesAlignement(G.roster, (sl, q) => { const e = etatPourPoser(c.cle, q, sl, { jour: j, you }); etats.set(String(sl.i), e); return { non: e.non || '', note: e.note || '' }; });
+  ouvrirAlignement({
+    ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour', motConfirmer: 'Poser', fiche: apercuJoueur,
     contexte: `<div class="choix-puces">${pucesEnBref(motsDeMutationEnChiffres(c.cle))}</div>`,
-    aide: 'Touche un joueur pour voir son verso.',
     rangees,
-    onApercu: k => {
-      const q = G.roster[Number(k)];
-      if (q) ouvrirVersoPourPoser(q, item, { decider, jour: j, auDessus: true, avant: () => fermer() });
+    onChoix: k => {
+      const q = G.roster[Number(k)], e = etats.get(k) || {};
+      if (!q || e.non) return;
+      decider({ jour: j, joue: { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) }, mutation: { cle: c.cle, joueur: getPlayerKey(q), ...(e.extra || {}) } });
     },
     onFerme: retour,
   });
@@ -820,7 +818,7 @@ async function ouvrirPacksDeDepart(roster) {
         return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
           art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p) }),
           // Un pack de départ ne se choisit pas, il se montre : la carte se touche pour sa fiche, le bas mène au pack suivant.
-          carteJoueur: carteMiniHtml(p), vue: true, apercu: () => apercuJoueur(p) };
+          joueurHtml: carteMiniHtml(p), vue: true, apercu: () => apercuJoueur(p) };
       }),
       onFerme: () => resolve(),
     }));
@@ -1602,8 +1600,8 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
  */
 /*
  * TON CLUB (1.0, oct.). JP : *que les couleurs, le nom de notre équipe puis des logos, ce soient des
- * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque nom, chaque couleur
- * et chaque écusson, montré SUR ton écusson : ce que tu as se porte d'un toucher ; le reste s'achète en
+ * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque club (son nom et son
+ * écusson, ensemble : Jalon U) et chaque couleur, montrés aux couleurs portées : ce que tu as se porte d'un toucher ; le reste s'achète en
  * jetons 🪙 à la boutique, comme un pack (JP : *même monnaie que les autres packs*), et les plus beaux
  * attendent un rang de prestige (js/club.js). Rien n'y change le jeu.
  */
@@ -1613,9 +1611,9 @@ function clubChange() {
   if (!enRepechage()) applyTeamColors('YOU');
   majEntete();
 }
-function ouvrirClub(apres = null, onglet = 'nom') {
+function ouvrirClub(apres = null, onglet = 'club') {
   const meta = lireMeta(), c = choixDuClub(meta);
-  // Trois onglets (huit noms, cinquante couleurs, trente écussons) : ce qui est à toi d'abord.
+  // Deux onglets (les clubs, chacun son nom et son écusson ; cinquante couleurs) : ce qui est à toi d'abord.
   const R = RAYONS_CLUB.find(x => x.cle === onglet) || RAYONS_CLUB[0];
   const onglets = `<div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(x => {
     const a = Object.keys(x.liste).filter(k => possede(meta, x.cle, k)).length;
@@ -1624,7 +1622,7 @@ function ouvrirClub(apres = null, onglet = 'nom') {
   const options = Object.entries(R.liste).map(([k, o]) => {
     const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
     const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
-    return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre, a,
+    return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), a,
       nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
       desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
   }).sort((x, y) => y.a - x.a);
@@ -1667,7 +1665,7 @@ export function ouvrirVestiaire(apres = null) {
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
     recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
     contexte: jalons,
-    options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le nom, les couleurs et l\'écusson : ceux que tu portes, et ceux qui se débloquent.' },
+    options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le club (son nom et son écusson) et ses couleurs : ceux que tu portes, et ceux qui se débloquent.' },
       ...Object.entries(DEBLOCAGES).map(([k, D]) => {
       const pris = aDebloque(meta, k);
       const manque = D.requis && !aDebloque(meta, D.requis) ? `Demande d'abord : ${DEBLOCAGES[D.requis].nom}` : null;

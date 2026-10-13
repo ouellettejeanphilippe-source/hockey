@@ -508,6 +508,10 @@ export function showPlayerModal(p, opts = {}) {
       </div>
     </div>`;
 
+  // La tête de la fenêtre (Jalon U) : la même que partout, son nom et sa saison, le ✕.
+  $('ficheTitre').textContent = p.n || 'Fiche du joueur';
+  $('ficheSous').textContent = [p.s, p.t].filter(Boolean).join(' · ');
+
   const btn = $('modalSignBtn');
   if (btn) {
     btn.onclick = () => {

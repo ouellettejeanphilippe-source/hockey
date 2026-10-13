@@ -365,7 +365,9 @@ console.log('\n  Le deck de match (S74)\n');
   const vide = effetsDesCartes(t, { jouees: ['toutOuRien', 'miracle'] }, 'x').effets.some(e => e.nom === CARTES_MATCH.toutOuRien.nom);
   const pasVide = effetsDesCartes(t, { jouees: ['toutOuRien', 'lancer'] }, 'x').effets.some(e => e.nom === CARTES_MATCH.toutOuRien.nom);
   exiger('les combos se comptent : l\'élan par carte d\'attaque, la riposte par carte d\'attaque de leur main, tout ou rien sur un réservoir vide',
-    !!elan && Math.abs(elan.volume - 1.09) < 1e-9 && !!riposte && Math.abs(riposte.defense - 0.92) < 1e-9 && vide && !pasVide,
+    // Trois cartes d'attaque pour l'élan (lui, « Lancer », « Tirer de partout ») ; deux dans leur main pour la riposte.
+    !!elan && Math.abs(elan.volume - (1 + 3 * (CARTES_MATCH.elan.parGenre.effet.volume - 1))) < 1e-9
+      && !!riposte && Math.abs(riposte.defense - (1 + 2 * (CARTES_MATCH.riposte.selonLeurMain.effet.defense - 1))) < 1e-9 && vide && !pasVide,
     `élan ${elan && elan.volume.toFixed(2)} · riposte ${riposte && riposte.defense.toFixed(2)} · vide ${vide} · pas vide ${pasVide}`);
   exiger('le rabais : les cartes de défense coûtent 1 de moins avec « Le système défensif »', coutDe('bloquer', ['systemeDef']) === 0 && coutDe('bloquer', []) === 1
     && energieDepensee(['systemeDef', 'bloquer', 'gardienFeu']) === 3 - 1 - 0 - 1, `${energieDepensee(['systemeDef', 'bloquer', 'gardienFeu'])} d'énergie restante`);

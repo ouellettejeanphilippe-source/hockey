@@ -7,7 +7,7 @@
  */
 
 import { episodesDuMatin } from './arcs.js';
-import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee } from './combat.js';
+import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee, FRANCHISE_MATCH } from './combat.js';
 import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
@@ -5757,20 +5757,20 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
      * du tueur » ne joue que si on mène après deux périodes. Ta main, puis la
      * leur (sauf annulée) — l'effet s'ajoute pour la troisième seulement.
      */
-    const apres40De = (jouees, equipe, mene) => {
+    const apres40De = (jouees, equipe, mene, echelle = 1) => {
       let ajoute = false;
       for (const c of jouees || []) {
         const C = CARTES_MATCH[c];
         const fx = C && C.apres40 && C.apres40[mene ? 'siMene' : 'sinon'];
         if (!fx || !Object.keys(fx).length) continue;
-        equipe._effetMatch = [...(equipe._effetMatch || []), { source: 'carte', nom: C.nom, ico: C.ico, ...fx }];
+        equipe._effetMatch = [...(equipe._effetMatch || []), { source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(fx, echelle) }];
         ajoute = true;
       }
       return ajoute;
     };
     const cj = gros.cartesJouees || {};
     if (apres40De(cj.jouees, toi, gros.apres40.moi > gros.apres40.lui)) refaireToi = true;
-    if (!cj.annulee && apres40De(cj.adverses, adv, gros.apres40.lui > gros.apres40.moi)) refaireAdv = true;
+    if (!cj.annulee && apres40De(cj.adverses, adv, gros.apres40.lui > gros.apres40.moi, 1 / FRANCHISE_MATCH)) refaireAdv = true;
     if (refaireToi) {
       const L = toiA ? LA : LB;
       const q = profilMatch(toi, L, adv);
@@ -8531,6 +8531,20 @@ export const ENTRACTES = {
   payer: { ico: '🔨', nom: 'Faire payer chaque mise en échec', si: ['devant'], bon: 'Ils hésitent à venir', prix: 'Des punitions', robustesse: 1.6, defense: 0.94, discipline: 1.5 },
   contre: { ico: '💨', nom: 'Contre-attaquer en vitesse', si: ['devant'], bon: 'Leurs défenseurs montés, des surnombres', prix: 'Ça ouvre des deux côtés', volume: 1.1, finition: 1.08, defense: 1.1 },
 };
+/*
+ * ENCORE PLUS FRANCS (JP, 13 oct. : *les choix de stratégies de l'entracte, ça devrait avoir plus gros effet*).
+ * Chaque écart au 1 des gestes et des incidents est multiplié par `FRANCHISE_ENTRACTE`, prix compris (les dominances
+ * de `check_choix` et `check_gros` tiennent) ; un canal ne descend jamais sous `PLANCHER_ENTRACTE`. Les chiffres
+ * qu'on lit sur l'écran sont ceux-ci : la table ci-dessus en est l'échelle, ce sont eux que le moteur joue.
+ */
+const FRANCHISE_ENTRACTE = 1.6, PLANCHER_ENTRACTE = 0.35;
+const CANAUX_FRANCS = ['volume', 'defense', 'finition', 'energie', 'robustesse', 'discipline', 'blessure'];
+const plusFranc = v => Math.max(PLANCHER_ENTRACTE, Math.round((1 + (v - 1) * FRANCHISE_ENTRACTE) * 100) / 100);
+function rendreFranc(g) {
+  // La robustesse est une somme (« +1,6 ») : elle se multiplie, comme dans `grandirEffet`.
+  for (const k of CANAUX_FRANCS) if (typeof g[k] === 'number') g[k] = k === 'robustesse' ? Math.round(g[k] * FRANCHISE_ENTRACTE * 100) / 100 : plusFranc(g[k]);
+  for (const k of ['F', 'D']) if (Array.isArray(g[k])) g[k] = g[k].map(plusFranc);
+}
 /* Les gestes d'entracte qu'un pointage peut tirer. */
 export const entractesDu = etat => Object.keys(ENTRACTES).filter(c => (ENTRACTES[c].si || []).includes(etat));
 export const INCIDENTS = {
@@ -8551,6 +8565,8 @@ export const INCIDENTS = {
   gabarit: { ico: '📏', titre: 'L\'arbitre a sorti son gabarit',
     option: { cle: 'courbes', ico: '🏒', nom: 'Garder les courbes quand même', bon: 'Le tir reste vicieux', prix: 'Une punition s\'il mesure le bon bâton', finition: 1.08, discipline: 1.44 } },
 };
+Object.values(ENTRACTES).forEach(rendreFranc);
+Object.values(INCIDENTS).forEach(I => rendreFranc(I.option));
 /* L'incident de l'entracte : pur, de la graine et du match. */
 function incidentDuMatch(graine, cle) {
   const cles = Object.keys(INCIDENTS);
@@ -8619,9 +8635,11 @@ function poserGros(toi, adv, gros) {
   if (gros.cartesAdv) {
     const annulee = !!(gros.cartes && (gros.cartes.jouees || []).some(c => CARTES_MATCH[c] && CARTES_MATCH[c].annule));
     if (!annulee) {
+      // Leur main joue à l'échelle d'avant les cartes franches (js/combat.js `FRANCHISE_MATCH`) : la difficulté ne bouge pas.
       const fx = effetsDesCartes(adv, { jouees: gros.cartesAdv }, `${gros.graineMain}:${gros.cleMain}:adverse`, { mainAdv: (gros.cartes && gros.cartes.jouees) || [], echelle: echelleDuGros(gros, toi) });
-      adv._effetMatch = [...(adv._effetMatch || []), ...fx.effets];
-      toi._effetMatch.push(...fx.adv);
+      const calibre = e => grandirEffet(e, 1 / FRANCHISE_MATCH);
+      adv._effetMatch = [...(adv._effetMatch || []), ...fx.effets.map(calibre)];
+      toi._effetMatch.push(...fx.adv.map(calibre));
       if (fx.energieTous) for (const sl of SLOTS) { const p = adv.roster[sl.i]; if (p && p.p !== 'G') rendreJambes(p, fx.energieTous); }
     }
     gros.cartesJouees = { ...(gros.cartesJouees || { jouees: [] }), plan: gros.plan, adverses: gros.cartesAdv.slice(), annulee };

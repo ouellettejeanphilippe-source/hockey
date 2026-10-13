@@ -146,6 +146,20 @@ export function optionDeBanque(id, vie = null) {
     type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
 }
 
+/*
+ * SUR QUI, SUR QUOI (Jalon U, JP : *jouer les cartes du menu Cartes, on ne comprend pas*). Une ligne, avant le
+ * bouton : ce que « Jouer » va te demander, ou que rien ne sera demandé.
+ */
+const CIBLES = { joueur: '👤 Sur un joueur de ton alignement', blesse: '🚑 Sur un blessé', recrue: '🐣 Sur une recrue de 23 ans ou moins',
+  cartable: '📟 Un joueur de ton cartable entre', coach: '🔁 Change ton coach', malediction: '🗑 Retire une malédiction de ton deck', carteMatch: '🏋 Améliore une carte de ton deck' };
+function cibleDe(id) {
+  const c = BANQUE[id];
+  if (!c) return '';
+  if (c.cat === 'joueur') return CIBLES.joueur;
+  if (c.cat === 'evenement') return '🏒 Toute l\'équipe, dès ce soir';
+  if (c.cat === 'patron') return '👔 Un poste de ton personnel';
+  return CIBLES[c.cible] || (c.cat === 'plafond' ? '💵 Ta masse salariale, tout de suite' : '⚡ Tout de suite');
+}
 /* ---------- la carte de la banque : la face d'un pack (Jalon U), son compte, ses boutons ---------- */
 function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
   const c = carteBanque(id);
@@ -190,13 +204,23 @@ export function ouvrirInventaire(ctx) {
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
       // En Rogue, `JOUEES_SEMAINE` cartes par semaine (`ctx.nonJouable` dit pourquoi pas).
       const nonJouable = ref => (ctx.nonJouable ? ctx.nonJouable(ref) : '');
+      /*
+       * CE QUI SE JOUE D'ABORD (Jalon U, JP : *trop de cartes injouables*). Les cartes jouables en tête ; les autres sous
+       * « Pas maintenant », leur raison dite une fois quand elle est la même pour toutes (la semaine est pleine).
+       */
+      const rangee = ([id, pile]) => {
+        const x = pile.find(c => !nonJouable(c.ref)) || pile[0], non = nonJouable(x.ref) || (ctx.peutJouer ? '' : 'Pas maintenant');
+        return { id, pile, x, non };
+      };
+      const toutes = cartes.map(rangee), jouables = toutes.filter(r => !r.non), autres = toutes.filter(r => r.non);
+      const raison = autres.length && autres.every(r => r.non === autres[0].non) ? autres[0].non : '';
+      const carte = ({ id, pile, x, non }) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
+        actions: `<p class="bq-cible">${esc(cibleDe(id))}</p><button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${non ? ' disabled' : ''}>${non ? esc(raison ? 'Plus tard' : non) : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
       corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Joue ${JOUEES_SEMAINE} cartes de ta poche par semaine, quand tu veux. Elle te suit d'une saison à l'autre de la run.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
                 ${filtres(cats)}
-        <div class="inv-grille">${cartes.map(([id, pile]) => {
-          const x = pile.find(c => !nonJouable(c.ref)) || pile[0], non = nonJouable(x.ref);
-          return carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-          actions: `<button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${ctx.peutJouer && !non ? '' : ' disabled'}>${non ? esc(non) : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
-        }).join('') || vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}</div>`;
+        ${jouables.length ? `<div class="inv-grille">${jouables.map(carte).join('')}</div>` : ''}
+        ${autres.length ? `<h3 class="inv-sec">Pas maintenant · ${autres.length}${raison ? ` — ${esc(raison)}` : ''}</h3><div class="inv-grille">${autres.map(carte).join('')}</div>` : ''}
+        ${toutes.length ? '' : vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));

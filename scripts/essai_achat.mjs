@@ -40,7 +40,7 @@ for (let i = 0; i < 5; i++) {
     || document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #mainBtn:not([disabled])'), null, { timeout: 120000 });
   if (!/Pack de départ/.test(await titre())) break;
   await dechirer();
-  await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+  await page.click('#choixModal:not([hidden]) .choix-fermer');
   await page.waitForTimeout(400);
 }
 if (await page.$('#mainBtn:not([disabled])') && !(await page.$('#hubModal .hub-jour'))) {
@@ -50,7 +50,7 @@ if (await page.$('#mainBtn:not([disabled])') && !(await page.$('#hubModal .hub-j
 }
 for (let i = 0; i < 10 && !(await page.$('#choixModal[hidden]')); i++) {
   const o = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
-  if (o) await o.click(); else await page.click('#choixModal:not([hidden]) .choix-plus-tard').catch(() => {});
+  if (o) await o.click(); else await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
   await page.waitForTimeout(400);
 }
 
@@ -73,7 +73,7 @@ const second = await page.click('#pageMarche .pk-fiche .pk-acheter', { timeout: 
 // Le premier pack s'ouvre (le paquet) : on le laisse « Plus tard », puis on en achète un deuxième.
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet', { timeout: 60000 });
 await dechirer();
-await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+await page.click('#choixModal:not([hidden]) .choix-fermer');
 await page.waitForTimeout(1500);
 await page.waitForSelector(`#pageMarche .pk-tuile[data-pack="${pack}"]`, { timeout: 30000 });
 await acheter();
@@ -81,7 +81,7 @@ await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet', { timeout: 
 await page.waitForTimeout(1500);
 const achats = await page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => d.achat).map(d => d.palier));
 await dechirer();
-await page.click('#choixModal:not([hidden]) .choix-plus-tard').catch(() => {});
+await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
 await page.waitForTimeout(1500);
 
 /*
@@ -100,13 +100,12 @@ for (let k = 0; k < 2; k++) {
   const b = await page.$('#choixModal:not([hidden]) .tcj-signer');
   if (!b) break;
   await b.click();
-  // Qui sort, puis où il joue : la première case permise, et « Continuer » / « Confirmer ».
+  // Qui sort (la liste, « Sort »), puis où il joue : la première case permise, et « Confirmer ».
   for (let i = 0; i < 4 && /qui sort|Où joue/.test(await titre()); i++) {
-    const c = await page.$('#choixModal:not([hidden]) .aln-case:not([disabled])');
+    const sort = await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])');
+    if (sort) { await sort.click(); await page.waitForTimeout(600); continue; }
+    const c = await page.$('#choixModal:not([hidden]) .aln-ligne .aln-choisir:not([disabled])');
     if (c) await c.click();
-    await page.waitForTimeout(300);
-    const ok = await page.$('#choixModal:not([hidden]) .aln-confirmer:not([disabled])');
-    if (ok) await ok.click();
     await page.waitForTimeout(1200);
   }
   signes.push(await page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => /:signe$/.test(d.palier || '') && d.ballottage).length));

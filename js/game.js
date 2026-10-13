@@ -29,7 +29,7 @@ import { state, loadIndex, cacheClear } from './data.js';
 import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
+import { estD as isD, esc, money, pct3, pmMatch, pageDuClub } from './util.js';
 import { getEraFactor, getEraSalary, getLineZone, getArchetype, seasonGames } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
@@ -1945,17 +1945,9 @@ function remplirMarche() {
   if (marchePage && !hub) return;
   if (marchePage && hub && hub[marchePage]) {
     const [icone, titre] = PAGES_DU_MARCHE[marchePage];
-    host.innerHTML = `<section class="hub-page" data-genre="${marchePage}" aria-label="${esc(titre)}">
-      <div class="hub-page-tete">
-        <button type="button" class="hub-page-retour" aria-label="Retour au marché" title="Retour au marché">‹</button>
-        <span class="hub-page-ico" aria-hidden="true">${icone}</span>
-        <div class="hub-page-titres"><h2 class="hub-page-titre">${esc(titre)}</h2><div class="hub-page-sous">🪙 ${jetonsRogue(G.journee || 0)} jetons</div></div>
-      </div>
-      ${signatureHtml(hub)}
-      <div class="hub-page-corps"></div>
-    </section>`;
     const fermer = () => { marchePage = null; remplirMarche(); };
-    host.querySelector('.hub-page-retour').onclick = fermer;
+    host.replaceChildren(pageDuClub({ genre: marchePage, retour: 'Retour au marché', ico: icone, titre: esc(titre),
+      sous: `🪙 ${jetonsRogue(G.journee || 0)} jetons`, haut: signatureHtml(hub), fermer }));
     brancherSignature(host, hub);
     hub[marchePage]({ dans: host.querySelector('.hub-page-corps'), fermer });
     return;
