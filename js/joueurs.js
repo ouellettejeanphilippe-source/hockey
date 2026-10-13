@@ -8,7 +8,7 @@
  */
 import { SLOTS, badgesDe, PALIERS, getPlayerKey } from './sim.js';
 import { esc, money, pct3, virgule } from './util.js';
-import { $, G, capHitDuJour, displayStats } from './game.js';
+import { $, G, capHitDuJour, displayStats, headshotHtml } from './game.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { blessesAuJour } from './rogue-jeu.js';
 import { slotShort } from './repechage.js';
@@ -63,10 +63,11 @@ export function remplirJoueurs() {
   const [cle, asc] = etat.tri[g];
   const val = r => { const v = r.st[cle]; return v == null ? -Infinity : v; };
   const vues = rangees.filter(r => groupeDe(r) === g).sort((x, y) => (asc ? val(x) - val(y) : val(y) - val(x)) || x.s.i - y.s.i);
+  // Le visage du joueur (le prototype, oct. : *ça lie au vrai monde*), puis son nom, son poste et ses badges.
   const nom = r => {
-    const b = badgesDe(r.p)[0], bl = blesses.get(r.p);
-    return `<button type="button" class="jr-nom" data-i="${r.s.i}"><b>${esc(r.p.n)}</b>${bl ? ` <span class="jr-bl" title="Blessé">🩹 ${bl} m.</span>` : ''}</button>
-      <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}">${b.ico}</i> ${esc(PALIERS[b.palier].nom)}` : ''}</small>`;
+    const [b, b2] = badgesDe(r.p), bl = blesses.get(r.p);
+    return `<div class="jr-qui"><span class="rond-visage jr-visage" aria-hidden="true">${headshotHtml(r.p)}</span><div class="jr-qui-txt"><button type="button" class="jr-nom" data-i="${r.s.i}"><b>${esc(r.p.n)}</b>${bl ? ` <span class="jr-bl" title="Blessé">🩹 ${bl} m.</span>` : ''}</button>
+      <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}">${b.ico}</i> ${esc(PALIERS[b.palier].nom)}` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small></div></div>`;
   };
   host.innerHTML = `<div class="jr-barre">
       <div class="inv-filtres" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>

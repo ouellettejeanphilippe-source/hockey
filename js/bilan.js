@@ -1421,7 +1421,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       return `<div class="som-but but-eq" style="${varsEquipe(getTeamBand(t.tag))}">
         <span class="som-tps">${tempsRestant(b.instant)}</span>
         <span class="som-eq">${getTeamLogoHtml(t.tag, 13)}</span>
-        <span class="som-qui">${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
+        <span class="som-qui"><span class="rond-visage som-visage" aria-hidden="true">${headshotHtml(b.marqueur)}</span>${situation}${lien(b.marqueur)} <span class="som-xe">(${ord(r.g)})</span> ${aides}</span>
         <span class="som-recit">${esc(recitUnique(b))}</span>
         ${(c => (c ? `<span class="som-cause">Décisif : ${esc(c)}.</span>` : ''))(causeDuBut(b))}
       </div>`;
