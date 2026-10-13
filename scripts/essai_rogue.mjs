@@ -27,7 +27,7 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
  * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
  */
 // V5 : le lundi, la carte de la semaine (ses cases) couvre le bureau.
-const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter, .nd-case)';
+const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter, .nd-case, .sem-valider)';
 /* Attendre qu'UN des éléments soit visible (le premier de la liste peut être caché sous une page du Club). */
 const unVisible = (sel, timeout = 120000) => page.waitForFunction(s => [...document.querySelectorAll(s)].some(e => e.offsetParent), sel, { timeout });
 /*
@@ -52,7 +52,7 @@ const passerLaPile = async () => {
  * Marché. Pour retrouver le bureau, on touche « Club » dans la barre.
  */
 const auBureau = async (timeout = 120000) => {
-  await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case'), null, { timeout });
+  await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #hubModal .sem-valider'), null, { timeout });
   await page.waitForTimeout(300);
   if (await page.evaluate(() => document.body.dataset.section !== 'bureau')) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(250); }
   await unVisible(BUREAU, timeout);
@@ -205,7 +205,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
 const captures = { main: 0, combat: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
-const noeud = { vu: false, acces: [], cases: [], reglees: 0, route: '', sous: [] };   // V5 : la carte de la semaine, vue au premier lundi
+const noeud = { vu: false, choix: [], cases: [], reglees: 0, lots: [], route: '', sous: [] };   // l'écran de la semaine, vu au premier lundi
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
@@ -216,32 +216,52 @@ async function regler() {
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
     if (pq && await pq.isVisible()) { await passerLaPile(); continue; }
     /*
-     * LE NŒUD DE LA SEMAINE (V5) : le lundi, ce qui attend se montre en cases sur une page du Club, avec le deck, tes
-     * cartes, la boutique et l'alignement à un toucher. On note ses accès une fois, puis on règle la première case.
+     * L'ÉCRAN DE LA SEMAINE (le lundi ; JP : *plus streamlined, sans perdre de complexité*). Chaque choix du lundi est
+     * sur la page avec ses options : on coche (une réponse risquée, la première fois, pour lancer le dé), puis « Valider
+     * la semaine » les envoie en un lot ; ce qui reste se règle en cases. Photographié une fois : il dit les sept jours,
+     * l'état du club (jambes, infirmerie, semaine, caisse) et ce que chaque route lui fait.
      */
-    const caseNoeud = await page.$('#hubModal .hub-page[data-genre="noeud"] .nd-case');
-    if (caseNoeud && !(await page.$('#choixModal:not([hidden])')) && await caseNoeud.isVisible()) {
+    const pageSem = await page.$('#hubModal .hub-page[data-genre="noeud"]');
+    if (pageSem && !(await page.$('#choixModal:not([hidden])')) && await pageSem.isVisible()) {
+      const SEM = '#hubModal .hub-page[data-genre="noeud"]';
       if (!noeud.vu) {
         noeud.vu = true;
-        noeud.acces = await page.$$eval('#hubModal .hub-page[data-genre="noeud"] .nd-acces-b', e => e.map(x => x.dataset.acces));
-        noeud.cases = await page.$$eval('#hubModal .hub-page[data-genre="noeud"] .nd-case', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+        noeud.choix = await page.$$eval(`${SEM} .sem-choix-titres b`, e => e.map(x => x.textContent.trim()));
+        noeud.cases = await page.$$eval(`${SEM} .nd-case`, e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
         await page.screenshot({ path: `${DOSSIER}/rogue-noeud.png` });
-        if (!['deck', 'cartes', 'banc'].every(k => noeud.acces.includes(k))) erreurs.push(`la carte de la semaine n'a pas ses accès (${noeud.acces.join(', ')})`);
+        if (!(await page.$(`${SEM} .nd-route .nd-jour`))) erreurs.push('l\'écran de la semaine ne montre pas ses sept jours');
       }
-      noeud.reglees++;
-      await caseNoeud.click(); await page.waitForTimeout(400);
+      const blocs = await page.$$eval(`${SEM} .sem-choix`, e => e.map(x => ({ i: x.dataset.i, titre: x.querySelector('.sem-choix-titres b').textContent, coche: !!x.querySelector('.sem-option.on'), pari: [...x.querySelectorAll('.sem-option:not([disabled])')].findIndex(o => /Pari/.test((o.querySelector('.choix-forme') || {}).textContent || '')) })));
+      const route = blocs.find(x => /ta route/i.test(x.titre));
+      if (route && !noeud.route) {
+        noeud.route = await page.$eval(`${SEM} .sem-sheet > .choix-puces`, e => e.textContent).catch(() => '');
+        noeud.sous = await page.$$eval(`${SEM} .sem-choix[data-i="${route.i}"] .choix-option-sous`, e => e.map(x => x.textContent.trim()));
+        await page.locator(`${SEM} .sem-choix[data-i="${route.i}"]`).scrollIntoViewIfNeeded();
+        await page.screenshot({ path: `${DOSSIER}/rogue-route.png` });
+        if (!/Jambes \d+/.test(noeud.route) || !/en caisse/.test(noeud.route) || !/cette semaine/.test(noeud.route)) erreurs.push(`la semaine ne dit pas l'état du club (« ${noeud.route} »)`);
+      }
+      const aCocher = blocs.find(x => !x.coche);
+      if (aCocher) {
+        // Une réponse risquée, tant que le dé n'a pas roulé cinq fois : elle se joue au dé, sur-le-champ.
+        const opts = `${SEM} .sem-choix[data-i="${aCocher.i}"] .sem-option:not([disabled])`;
+        if (aCocher.pari >= 0 && des.length < 5) { evenementsDe.push(aCocher.titre); await page.locator(opts).nth(aCocher.pari).click(); }
+        else await page.locator(opts).first().click();
+        await page.waitForTimeout(400);
+        continue;
+      }
+      const valider = await page.$(`${SEM} .sem-valider`);
+      const mot = valider ? (await valider.textContent()).trim() : '';
+      const caseNoeud = await page.$(`${SEM} .nd-case`);
+      if (blocs.length && /Valider/.test(mot)) {
+        const n0 = (await decisionsDuCombat()).length;
+        await valider.click(); await page.waitForTimeout(1500);
+        await page.waitForFunction(() => !document.querySelector('#hubModal .hub-page[data-genre="noeud"] .sem-option.on'), null, { timeout: 60000 }).catch(() => {});
+        const pris = (await decisionsDuCombat()).length - n0;
+        noeud.lots.push(`${blocs.length}→${pris}`);
+        if (pris < blocs.length) erreurs.push(`« Valider la semaine » envoie ${pris} décision(s) pour ${blocs.length} choix`);
+      } else if (caseNoeud) { noeud.reglees++; await caseNoeud.click(); await page.waitForTimeout(400); }
+      else if (valider) { await valider.click(); await page.waitForTimeout(400); }
       continue;
-    }
-    /*
-     * LA ROUTE DE LA SEMAINE (V5, JP : *comment je suis supposé savoir quoi prendre sans les infos nécessaires ?*) :
-     * le choix dit l'état du club (jambes, infirmerie, semaine, caisse), et chaque route ce qu'elle lui fait.
-     */
-    const titreChoix = await page.$eval('#choixModal:not([hidden]) .choix-titre', e => e.textContent).catch(() => '');
-    if (/ta route/.test(titreChoix) && !noeud.route) {
-      noeud.route = await page.$eval('#choixModal .choix-corps > .choix-puces', e => e.textContent).catch(() => '');
-      noeud.sous = await page.$$eval('#choixModal .choix-option-sous', e => e.map(x => x.textContent.trim()));
-      await page.screenshot({ path: `${DOSSIER}/rogue-route.png` });
-      if (!/Jambes \d+/.test(noeud.route) || !/en caisse/.test(noeud.route) || !/cette semaine/.test(noeud.route)) erreurs.push(`la route de la semaine ne dit pas l'état du club (« ${noeud.route} »)`);
     }
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
     if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
@@ -368,7 +388,7 @@ async function regler() {
 }
 // Lancer la saison
 await page.click('#mainBtn');
-await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #choixModal:not([hidden]) .choix-option');
+await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #hubModal .sem-valider, #choixModal:not([hidden]) .choix-option');
 await regler();
 // LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut — sous le sous-onglet Saison du Club (1.0, R2).
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
@@ -1125,8 +1145,9 @@ console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison,
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
 console.log(`20e. la route de la semaine : ${noeud.route ? `${noeud.route} · ${noeud.sous.join(' | ')}` : 'jamais offerte'}`);
-console.log(`20d. la carte de la semaine : ${noeud.vu ? `${noeud.reglees} case(s) réglée(s) · accès ${noeud.acces.join(', ')} · au premier lundi : ${noeud.cases.join(' | ')}` : 'jamais ouverte'}`);
-if (!noeud.vu) erreurs.push('la carte de la semaine ne s\'est jamais ouverte');
+console.log(`20d. l'écran de la semaine : ${noeud.vu ? `lots (choix → décisions) ${noeud.lots.join(' · ') || 'aucun'} · ${noeud.reglees} case(s) réglée(s) · au premier lundi : ${[...noeud.choix, ...noeud.cases].join(' | ')}` : 'jamais ouvert'}`);
+if (!noeud.vu) erreurs.push('l\'écran de la semaine ne s\'est jamais ouvert');
+if (noeud.vu && !noeud.lots.length) erreurs.push('aucune semaine validée en un lot');
 console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');

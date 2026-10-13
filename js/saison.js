@@ -41,7 +41,7 @@ import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance
 import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
-import { ouvrirChoix, choixOuvert, resumeLignes, puces, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
+import { ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, signaturesDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -664,7 +664,6 @@ function autresButins(deck, prendre, retour) {
 const PRESSE = new Set(['choix', 'pack', 'blessure', 'trou']);
 /* Les accès de la carte de la semaine (V5) : ce qu'un roguelike garde à un toucher de sa carte. La boutique n'y est
    pas (JP : *rien de la boutique dans le Club*) : elle est au Marché, à un toucher de la barre, ouverte en tout temps. */
-const NOEUD_ACCES = [['deck', '🃏', 'Le deck'], ['cartes', '🎒', 'Tes cartes'], ['banc', '🏒', 'Les lignes']];
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
@@ -1828,6 +1827,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (gain > 0) blocs.push(`<div class="som-l bon">🪙 <b>+${gain}</b> ${un ? 'ce soir' : 'cette semaine'} · ${caisse} en caisse</div>`);
     }
     blocs.push(...nouvellesDe(avant.jour));
+    // AU LUNDI, EN ROGUE : la semaine passée se plie en tête de l'écran de la semaine (`ouvrirNoeud`) — une page de moins.
+    if (semaine && ctx.rogue && onDecision && jour < N && auNoeud()) {
+      boite.semainePassee = { w: Math.floor(jour / SEMAINE), titre: `${titre} · ${rangMot(rang)}${ctx.rogue.jetons ? ` · ${ctx.rogue.jetons(jour)} 🪙` : ''}`, html: `<div class="som">${blocs.join('')}</div>` };
+      for (const [id] of infos) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); }
+      if (mv.length) boite.archives.add(`mv:${miens.length}:${mv.length}`);
+      boite.noeudFerme = null;
+      return false;
+    }
     retenir = true;
     // UNE PAGE DU CLUB (1.0, R3), plus un plein écran. UN SEUL BOUTON (JP : *jamais dédoubler information*) :
     // retour au bureau, ou à la boîte s'il y a du courrier à régler.
@@ -1890,7 +1897,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     retenir = false;
     dessiner();
     // Le passage ne couvre jamais un message à régler (JP : *des courriels qu'on voit pas*) : il est décor, pas nouvelle.
-    if (!messagesCourants().some(m => m.bloque)) passage(avant);
+    // …ni l'écran de la semaine qui vient de s'ouvrir.
+    if (!messagesCourants().some(m => m.bloque) && !(carte.closest('.hub-sheet') || {}).dataset?.page) passage(avant);
   };
   async function avancerSemaine() {
     if (enRoute || jour >= N) return;
@@ -2965,15 +2973,23 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * achète, ce qu'elle coûte et pendant combien de matchs. Depuis S78, chacun
    * est aussi un message de la boîte, qui bloque tant qu'on n'a pas choisi.
    */
-  function choixForce() {
+  /*
+   * TOUS LES CHOIX OUVERTS, dans l'ordre de la boîte (JP : *la carte de la semaine… ça pourrait être plus streamlined*).
+   * Ils ne dépendent pas les uns des autres (chacun son palier) : l'écran de la semaine les montre ensemble et les
+   * envoie en un lot (`decision`), la boîte en montre un à la fois (`choixForce`, le premier). La main d'un gros
+   * match ne s'ouvre que seule, comme avant : elle a son écran de combat.
+   */
+  const choixForce = () => specsForces()[0] || null;
+  function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
     const noeud = auNoeud();
     const rc = noeud ? recompenseOuverte() : null;
-    const vo = rc || !noeud ? null : verdictObjectif(), oo = rc || vo || !noeud ? null : offreObjectif();
-    const sq = rc || vo || oo || !noeud ? null : sequenceOuverte();
-    const dl = rc || vo || oo || sq || !noeud ? null : dilemmeOuvert();
+    const vo = noeud ? verdictObjectif() : null, oo = noeud ? offreObjectif() : null;
+    const sq = noeud ? sequenceOuverte() : null;
+    const dl = noeud ? dilemmeOuvert() : null;
     const mo = vo || oo || sq || dl || rc ? null : mainOuverte();
+    const specs = [];
     // Chaque choix est une décision : elle entre dans la liste, et la saison
     // se rejoue depuis aujourd'hui, avec des dés neufs.
     const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
@@ -2988,18 +3004,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return x ? { face: x.face, faces: x.faces, gagne: x.gagne, effet: x.effet, valider: () => prendre(d) } : null;
     };
     const plusTard = { fermable: true, motFermer: 'Plus tard', onFerme: () => { boite.remis = boite.remisPour; } };
+    if (rc) {
+      // LE BUTIN D'UNE VICTOIRE (S74, V5) : une carte parmi trois, retirer une carte, en améliorer une, ou passer. Il garde sa fenêtre (le paquet).
+      const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null, ...d }, j); };
+      const spec = { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
+        recit: `Victoire contre ${ctx.teamLabel(rc.adv)} ! Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.`,
+        options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
+        onChoix: k => prendre({ recompense: k }),
+        onFerme: () => prendre({}) };
+      spec.autres = autresButins(deckAvant(soirDuProchain()), prendre, () => ouvrirChoix(spec));
+      specs.push(spec);
+    }
     if (vo) {
       const o = OBJECTIFS[vo.d.objectif.cle];
-      return vo.e.reussi
+      specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte. Elle vaut pour le reste de la saison.`,
           contexte: dejaEnJeu(),
           options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle] })),
-          onChoix: cle => decider({ palier: `v:${vo.j0}`, carte: cle }) }
+          decision: cle => ({ palier: `v:${vo.j0}`, carte: cle }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te fait venir dans son bureau.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: `Le proprio coupe les vols nolisés : les voyages fatiguent ; ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} entre dans ton deck`, energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
-          onChoix: () => decider({ palier: `v:${vo.j0}`, effet: { ...OBJECTIF_RATE } }) };
+          decision: () => ({ palier: `v:${vo.j0}`, effet: { ...OBJECTIF_RATE } }) });
     }
     if (oo) {
       /*
@@ -3010,7 +3037,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * trois : elles se disent une fois, en tête, pas trois.
        */
       const ch = chancesObjectifs(oo.j0, oo.offerts);
-      return { de: DE.proprio, ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes',
+      specs.push({ de: DE.proprio, ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes',
         recit: `Choisis un défi pour tes ${MATCHS_OBJECTIF} prochains matchs. Ton adjoint a rejoué ces vingt matchs contre tes vrais adversaires : voici ce que ça donne.`,
         options: oo.offerts.map(cle => {
           const x = ch[cle], m = Number.isFinite(x) ? motDeChance(x) : null;
@@ -3018,17 +3045,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
             mots: m ? [{ txt: `${m.mot} · ${x < 0.05 ? 'moins de 1 chance sur 10' : `environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`}`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
         }),
         contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs · ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} au deck</span></div>`,
-        onChoix: cle => decider({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) };
+        decision: cle => ({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) });
     }
     if (sq) {
       const s = SEQUENCES[sq.cle];
       const EN_LETTRES = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit', 'Neuf', 'Dix'];
       const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
       const dSq = cle => ({ jour, palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } });
-      return { de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(), ...plusTard,
+      specs.push({ de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(), ...plusTard,
         options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
         lancer: cle => auDe({ ...dSq(cle), sel: nouvelleGraine() }, decider),
-        onChoix: cle => decider(dSq(cle)) };
+        decision: dSq });
     }
     if (dl) {
       const m = MOMENTS[dl.cle];
@@ -3041,34 +3068,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
       const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
       const dDl = cle => ({ jour, palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } });
-      return { de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
+      specs.push({ de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
         contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
         options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
         lancer: cle => auDe({ ...dDl(cle), sel: nouvelleGraine() }, decider),
-        onChoix: cle => decider(dDl(cle)) };
+        decision: dDl });
     }
-    if (rc) {
-      // LE BUTIN D'UNE VICTOIRE (S74, V5) : une carte parmi trois, retirer une carte, en améliorer une, ou passer.
-      const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null, ...d }, j); };
-      const spec = { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Victoire contre ${ctx.teamLabel(rc.adv)} ! Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.`,
-        options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
-        onChoix: k => prendre({ recompense: k }),
-        onFerme: () => prendre({}) };
-      spec.autres = autresButins(deckAvant(soirDuProchain()), prendre, () => ouvrirChoix(spec));
-      return spec;
-    }
-    if (mo) return { de: DE.depisteur, ico: '⚔', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Leur plan, une carte de vestiaire, puis tes cinq cartes et trois d\'élan.', ouvrir: () => ouvrirMainGros(mo) };
+    if (mo) specs.push({ de: DE.depisteur, ico: '⚔', titre: `Gros match contre ${ctx.teamShort(mo.mb.adv)}`, recit: 'Leur plan, une carte de vestiaire, puis tes cinq cartes et trois d\'élan.', ouvrir: () => ouvrirMainGros(mo) });
     // LE NŒUD DE LA SEMAINE (V5, js/noeuds.js) : trois routes, une seule — chacune est une carte de la banque.
     const nd = noeudOuvert();
     if (nd) {
       const et = etatDuNoeud();
-      return { de: DE.coach, ico: '🗺', titre: `Semaine ${nd.w + 1} : ta route`, recit: 'Une seule des trois, pour la semaine.', contexte: et.contexte,
-        options: nd.routes.map(n => ({ cle: n.route, ico: BANQUE[n.id].ico, nom: `${ROUTES[n.route].ico} ${ROUTES[n.route].nom} · ${BANQUE[n.id].nom}`, sous: et.pourToi(n.id), mots: reglesDe(n.id) })),
-        onChoix: cle => decider(decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle))) };
+      specs.push({ de: DE.coach, ico: '🗺', titre: `Semaine ${nd.w + 1} : ta route`, recit: 'Une seule des trois, pour la semaine.', contexte: et.contexte, etat: true,
+        options: nd.routes.map(n => ({ cle: n.route, ico: ROUTES[n.route].ico, nom: `${ROUTES[n.route].nom} · ${BANQUE[n.id].nom}`, sous: et.pourToi(n.id), mots: reglesDe(n.id) })),
+        decision: cle => decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle)) });
     }
-    return null;
+    // Un choix qui se décide d'un toucher passe par sa décision : la boîte et l'écran de la semaine écrivent la même.
+    for (const sp of specs) if (sp.decision && !sp.onChoix) sp.onChoix = cle => decider(sp.decision(cle));
+    return specs;
   }
   /*
    * LE NŒUD DE LA SEMAINE (V5) : au bureau du lundi d'une semaine sur deux, en Rogue, en saison régulière. Une
@@ -3436,28 +3454,138 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       }
       return `<div class="nd-route" aria-label="Les sept jours de la semaine">${jours.join('')}</div>`;
     };
+    /*
+     * L'ÉCRAN DE LA SEMAINE (JP : *la carte de la semaine, les cartes événements… le UI est vraiment convoluted ; ça
+     * pourrait être plus streamlined sans perdre de complexité*). Le lundi demandait cinq écrans pour deux décisions :
+     * le sommaire de la semaine, la carte, une fenêtre par case, la carte encore, la route. Tout tient ici : la semaine
+     * passée pliée en une ligne, les sept jours et l'état du club une fois, chaque choix du lundi avec ses options
+     * (le même bouton qu'en fenêtre, `optionHtml`), ce qui attend encore, ta main. On coche, puis « Valider la
+     * semaine » envoie les choix en UN lot (`deciderMaintenant`, js/banc.js) : la saison ne se rejoue qu'une fois.
+     * Rien n'est retiré : un pari garde son dé (il décide sur-le-champ), le butin garde son paquet, la main se joue
+     * comme au Bureau ; ce qui est coché attend dans la boîte (`boite.brouillon`) pendant ce temps.
+     */
     const ouvrirNoeud = () => {
+      const specs = specsForces().filter(sp => !sp.ouvrir);
+      /*
+       * La boîte du lundi, mise en choix comme les autres : le courriel ou le point de presse (ses réponses), le retour
+       * d'un blessé (le remettre ou garder) — les mêmes décisions que leurs boutons de la boîte. Le pack gratuit se lit
+       * en passant (il n'a qu'un « Compris ») et s'archive avec la semaine.
+       */
+      const deLaBoite = m => {
+        if (m.genre === 'courriel' && m.vie && REPONSES_VIE[m.vie.cle]) {
+          const fam = REPONSES_VIE[m.vie.cle], [cible] = m.vie.cibles, sub = t => String(t || '').replace(/\{nom\}/g, cible ? cible.n : 'ton joueur');
+          return { ico: m.de.ico, titre: m.sujet, de: m.de, recitHtml: m.corps.split('<div class="vie-reps">')[0], joueur: cible || null,
+            options: fam.options.map(o => ({ cle: o.cle, nom: sub(o.nom), bon: sub(o.bon), prix: sub(o.prix), ...(o.pari ? { etiquette: 'Pari' } : {}),
+              mots: motsDeReponse(o, { joueur: cible || null, noms: cible ? cible.n : '' }).map(x => ({ ...x, txt: sub(x.txt) })),
+              desactive: fam.cible && !m.vie.cibles.length && (o.mutation || (o.action && (o.action.absents || o.action.energie))) ? 'Personne dans ton alignement pour ça' : null })),
+            decision: cle => {
+              const o = fam.options.find(x => x.cle === cle);
+              return { palier: m.vie.palier, moment: { famille: 'vie', cle: m.vie.cle, choix: o.cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: m.vie.cibles.map(getPlayerKey) }, ...(o.pari ? { sel: nouvelleGraine() } : {}) };
+            } };
+        }
+        if (m.genre === 'retour' && m.rv) return { ico: '🩹', titre: m.sujet, de: m.de, recitHtml: m.corps.split('<div class="hub-alerte-choix">')[0].replace('<div class="hub-alerte" role="status">', '').replace(/<div class="hub-alerte-tete">[^<]*<\/div>/, ''),
+          options: [{ cle: 'remettre', nom: 'Le remettre à sa place' }, { cle: 'garder', nom: 'Garder l\'alignement actuel' }],
+          decision: cle => (cle === 'remettre' ? { palier: m.rv.id, cases: m.rv.cases } : { palier: m.rv.id, retour: 'garde' }) };
+        return null;
+      };
+      const convertis = new Map(bloquants.map(m => [m, deLaBoite(m)]).filter(([, sp]) => sp));
+      const infos = bloquants.filter(m => m.genre === 'pack-gratuit');
+      const enLigne = [...specs.filter(sp => sp.decision && !sp.cartes), ...convertis.values()];
+      const aParte = specs.filter(sp => !sp.decision || sp.cartes);
+      const autres = bloquants.filter(m => m.genre !== 'choix' && !convertis.has(m) && !infos.includes(m));
+      const archiverInfos = () => { for (const m of infos) { boite.archives.add(m.id); boite.lus.add(m.id); } };
+      if (!boite.brouillon || boite.brouillon.w !== semaineDuNoeud) boite.brouillon = { w: semaineDuNoeud, choix: {} };
+      const br = boite.brouillon.choix;
+      for (const k of Object.keys(br)) if (!enLigne.some(sp => sp.titre === k)) delete br[k];
+      const passee = boite.semainePassee && boite.semainePassee.w === semaineDuNoeud ? boite.semainePassee : null;
+      if (passee) passee.vue = true;
+      const et = etatDuNoeud();
+      const noms = sp => (sp.joueurs || []).map(x => x.n).join(', ');
+      const recitDe = sp => ctx.esc(String(sp.recit || '').replace(/\{nom\}/g, sp.joueur ? sp.joueur.n : 'ton joueur').replace(/\{noms\}/g, noms(sp) || 'tes joueurs'));
+      // « Déjà en jeu » une fois, en tête, avec les joueurs que les choix visent (une fenêtre le redisait à chaque choix).
+      const vises = enLigne.flatMap(sp => [sp.joueur, ...(sp.joueurs || [])]).filter(Boolean);
+      const propre = sp => (sp.contexte && !sp.etat && !String(sp.contexte).startsWith('<div class="choix-encours">') ? sp.contexte : '');
+      const bloc = (sp, i) => `<section class="sem-choix" data-i="${i}">
+          <div class="sem-choix-tete"><span class="sem-choix-ico" aria-hidden="true">${sp.ico || '❓'}</span>
+            <span class="sem-choix-titres"><b>${ctx.esc(titreDuChoix(sp))}</b><small>${ctx.esc(sp.de ? sp.de.nom : '')}${sp.irl ? ` · ${ctx.esc(sp.irl)}` : ''}</small></span></div>
+          ${sp.recitHtml ? `<div class="sem-recit">${sp.recitHtml}</div>` : sp.recit ? `<p class="sem-recit">${recitDe(sp)}</p>` : ''}
+          ${sp.joueur ? enteteJoueur(sp.joueur, ctx.ouJoue ? ctx.ouJoue(sp.joueur) : '') : ''}
+          ${propre(sp)}
+          <div class="sem-options">${sp.options.map(o => optionHtml(o, { ...sp, cadre: cadreDuMatch() }, { classe: 'sem-option', on: br[sp.titre] === o.cle })).join('')}</div>
+        </section>`;
+      const manquent = enLigne.filter(sp => br[sp.titre] === undefined);
+      const rangee = (id, ico, sujet, de) => `<button type="button" class="nd-case" data-id="${ctx.esc(id)}"><span class="nd-ico" aria-hidden="true">${ico}</span><span class="nd-txt"><b>${ctx.esc(sujet)}</b><span>${ctx.esc(de)}</span></span></button>`;
       const corps = ui.ouvrirPage({ genre: 'noeud', ico: '🗺', titre: `Semaine ${semaineDuNoeud + 1}`,
-        sousTitre: `${bloquants.length} à régler avant le prochain match`,
-        html: `${routeDeLaSemaine()}<div class="nd-cases">${bloquants.map(m => `<button type="button" class="nd-case" data-id="${ctx.esc(m.id)}"><span class="nd-ico" aria-hidden="true">${m.de.ico}</span><span class="nd-txt"><b>${ctx.esc(m.sujet)}</b><span>${ctx.esc(m.de.nom)}</span></span></button>`).join('')}</div>
-          <div class="nd-acces">${NOEUD_ACCES.filter(([k]) => k !== 'banc' || onBanc).map(([k, ico, nom]) => `<button type="button" class="btn nd-acces-b" data-acces="${k}"><span aria-hidden="true">${ico}</span> ${nom}</button>`).join('')}</div>`,
+        sousTitre: enLigne.length ? `${enLigne.length} choix pour la semaine` : autres.length || aParte.length ? `${autres.length + aParte.length} à régler` : 'Rien à décider',
+        html: `<div class="choix-sheet sem-sheet${chiffresOuverts() ? ' chiffres' : ''}">
+          ${passee ? `<details class="sem-passee"><summary>${ctx.esc(passee.titre)}</summary>${passee.html}</details>` : ''}
+          ${routeDeLaSemaine()}
+          ${et.contexte}
+          ${infos.map(m => `<div class="sem-info"><b>${m.de.ico} ${ctx.esc(m.sujet)}</b>${m.corps.replace(/<button[^>]*hub-compris[^>]*>[^<]*<\/button>/, '')}</div>`).join('')}
+          ${enLigne.length ? `<details class="sem-encours"><summary>Déjà en jeu</summary>${dejaEnJeu(vises)}</details>` : ''}
+          ${enLigne.map(bloc).join('')}
+          ${aParte.length || autres.length ? `<div class="gl-k">À régler aussi</div><div class="nd-cases">${aParte.map((sp, i) => rangee(`sp:${i}`, sp.ico || '🎁', titreDuChoix(sp), sp.de ? sp.de.nom : '')).join('')}${autres.map(m => rangee(m.id, m.de.ico, m.sujet, m.de.nom)).join('')}</div>` : ''}
+          ${mainHtml()}
+          ${'<button type="button" class="choix-chiffres sem-chiffres" aria-pressed="' + chiffresOuverts() + '">Les chiffres</button>'}
+        </div>`,
+        // Il en manque : le bouton le dit et mène au premier choix qui attend (un bouton éteint ne disait pas où chercher).
+        pied: `<button type="button" class="btn go sem-valider${manquent.length ? ' manque' : ''}">${enLigne.length ? (manquent.length ? `Encore ${manquent.length} choix ↓` : 'Valider la semaine') : 'Au bureau'}</button>`,
         onFerme: () => { boite.noeudFerme = semaineDuNoeud; } });
       if (!corps) return;
-      // Une case réglée dans la boîte (un courriel, un retour) y garde la main : la carte attend « Ta semaine ».
+      const page = corps.closest('.hub-page');
+      // Cocher une option : rien ne part, l'écran se redessine (le pari, lui, se joue au dé et décide sur-le-champ).
+      corps.querySelectorAll('.sem-choix').forEach(el => {
+        const sp = enLigne[Number(el.dataset.i)];
+        el.querySelectorAll('.sem-option[data-choix]').forEach(b => {
+          b.onclick = () => {
+            const o = sp.options.find(x => String(x.cle) === b.dataset.choix);
+            if (!o) return;
+            if (o.pari && typeof sp.lancer === 'function') {
+              ui.fermerPage(true); ouvrirChoix(sp);
+              const dans = document.querySelector(`#choixModal [data-choix="${CSS.escape(String(o.cle))}"]`);
+              if (dans) dans.click();
+              return;
+            }
+            br[sp.titre] = o.cle;
+            jouerSon('joue');
+            // On reste où on lisait : la feuille et la page gardent leur défilement.
+            const sh = page && page.closest('.hub-sheet'), hauts = [sh ? sh.scrollTop : 0, page ? page.scrollTop : 0];
+            ouvrirNoeud();
+            const p2 = sh && sh.querySelector('.hub-page[data-genre="noeud"]');
+            if (sh) sh.scrollTop = hauts[0];
+            if (p2) p2.scrollTop = hauts[1];
+          };
+        });
+      });
       corps.querySelectorAll('.nd-case').forEach(b => { b.onclick = () => {
-        const m = bloquants.find(x => x.id === b.dataset.id);
+        const id = b.dataset.id;
+        if (id.startsWith('sp:')) { const sp = aParte[Number(id.slice(3))]; ui.fermerPage(true); ouvrirChoix(sp); return; }
+        const m = autres.find(x => x.id === id);
         if (!m) return;
-        if (m.genre !== 'choix' && m.genre !== 'palier') boite.noeudFerme = semaineDuNoeud;
+        if (m.genre !== 'palier') boite.noeudFerme = semaineDuNoeud;
         ui.fermerPage(true); traiterMessage(m);
       }; });
-      const acces = {
-        deck: () => ouvrirDeck({ deck: deckAvant(jour) }),
-        cartes: () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { page: 'cartes' } })),
-        banc: () => { quitter(); onBanc(jour); },
+      brancherMain(corps);
+      const bc = corps.querySelector('.sem-chiffres');
+      if (bc && !corps.querySelector('.puce.detail')) bc.hidden = true;
+      if (bc) bc.onclick = () => { const o = basculerChiffres(); corps.querySelector('.sem-sheet').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
+      const valider = page && page.querySelector('.sem-valider');
+      if (valider) valider.onclick = () => {
+        if (!enLigne.length) { archiverInfos(); ui.fermerPage(); dessiner(); return; }
+        const premier = enLigne.findIndex(sp => br[sp.titre] === undefined);
+        if (premier >= 0) { const el = corps.querySelector(`.sem-choix[data-i="${premier}"]`); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
+        archiverInfos();
+        const ds = enLigne.map(sp => ({ jour, ...sp.decision(br[sp.titre]) }));
+        boite.brouillon = null;
+        ui.fermerPage(true);
+        const j = jour;
+        quitter();
+        onDecision(ds, j);
       };
-      corps.querySelectorAll('.nd-acces-b').forEach(b => { b.onclick = () => acces[b.dataset.acces](); });
     };
-    const auLundi = ctx.rogue && auNoeud() && bloquants.length > 0;
+    // Le lundi, l'écran de la semaine s'ouvre de lui-même : s'il y a quelque chose à régler, ou la semaine passée à lire.
+    const semaineFraiche = !!(boite.semainePassee && boite.semainePassee.w === semaineDuNoeud && !boite.semainePassee.vue);
+    const auLundi = ctx.rogue && onDecision && jour < N && auNoeud() && (bloquants.length > 0 || semaineFraiche);
     if (auLundi && !retenir && !choixOuvert() && boite.noeudFerme !== semaineDuNoeud) ouvrirNoeud();
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter) traiter.onclick = () => (auLundi ? ouvrirNoeud() : traiterMessage(premier));
