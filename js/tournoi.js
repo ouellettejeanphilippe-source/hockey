@@ -20,7 +20,7 @@
  * joueur qui a déjà vu l'écran de saison n'a rien à réapprendre.
  */
 
-import { equipeDeTable, jouerMatchAuto, gagnantDuMatch } from './table.js';
+import { equipeDeTable, jouerMatchAuto, gagnantDuMatch, PERIODES, PERIODES_ECLAIR } from './table.js';
 import { getPlayerKey } from './sim.js';
 import { ouvrirTable } from './plateau.js';
 import { inscrireHub, retirerHub, signalerVue } from './coquille.js';
@@ -53,11 +53,13 @@ const ficheVierge = () => ({ V: 0, D: 0, BP: 0, BC: 0, PTS: 0, PJ: 0 });
  * Joue tout le tournoi SAUF tes matchs, qui restent à jouer sur table. Rend
  * la structure ; l'écran la révèle journée par journée.
  */
-export function nouveauTournoi(clubs, graine) {
+export function nouveauTournoi(clubs, graine, periodes = PERIODES) {
   const journees = calendrierRondRobin(clubs.length).map((matchs, j) =>
     matchs.map(([a, b], k) => ({ a, b, j, k, graine: `${graine}-j${j}-${k}`, r: null })));
   return {
     clubs, graine, journees,
+    // Complet ou Éclair, fixé au tirage : les six clubs jouent tous au même format.
+    periodes: periodes === PERIODES_ECLAIR ? PERIODES_ECLAIR : PERIODES,
     fiches: clubs.map(ficheVierge),
     jour: 0,
     series: null,
@@ -76,7 +78,7 @@ const surTable = (club, cote) => equipeDeTable(club.nom, club.tag, club.roster, 
 function jouerAuto(T, match, compte = true) {
   const A = surTable(T.clubs[match.a], 'A');
   const B = surTable(T.clubs[match.b], 'B');
-  match.r = jouerMatchAuto(A, B, match.graine);
+  match.r = jouerMatchAuto(A, B, match.graine, { periodes: T.periodes });
   // CE MATCH SE REJOUE : même graine, mêmes clubs, même résultat. C'est ce
   // qui permet à la sauvegarde de ne porter QUE tes matchs (voir la reprise
   // en bas de fichier). Le marquer ici plutôt que de le deviner à la case :
@@ -230,6 +232,7 @@ export function etatDuTournoi(T) {
   }
   return {
     graine: T.graine,
+    periodes: T.periodes,
     jour: T.jour,
     champion: T.champion,
     ronde: T.series ? T.series.ronde : 0,
@@ -243,7 +246,8 @@ export function etatDuTournoi(T) {
  */
 export function relireTournoi(etat, clubs) {
   if (!etat || !etat.graine || !Array.isArray(clubs) || clubs.length !== CLUBS) return null;
-  const T = nouveauTournoi(clubs, etat.graine);
+  // Une sauvegarde d'avant le format Éclair n'a pas de `periodes` : c'était un tournoi complet.
+  const T = nouveauTournoi(clubs, etat.graine, etat.periodes);
   // La table clé -> joueur de chaque club : c'est elle qui rend leurs objets
   // aux feuilles, et son échec qui refuse la reprise.
   const parCle = clubs.map(c => {
@@ -527,7 +531,7 @@ export function ouvrirTournoi({ T, ctx, onTermine, onAvance = null }) {
     const B = surTable(T.clubs[advI], 'B');
     const serie = !!T.series;
     ouvrirTable({
-      A, B, graine: mt.graine, ctx,
+      A, B, graine: mt.graine, ctx, periodes: T.periodes,
       titre: serie ? (T.series.ronde === 0 ? 'Demi-finale' : 'Finale') : `Journée ${mt.j + 1}`,
       sousTitre: `${T.clubs[MOI].nom} contre ${T.clubs[advI].nom}`,
       onTermine: r => {

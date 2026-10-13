@@ -6,7 +6,7 @@
 import { esc } from './util.js';
 import { nomDuClub } from './club.js';
 import { getTeamBand, couleurVive, getTeamLogoHtml } from './logos.js';
-import { reglesDuPlateau, equipeDeTable, gagnantDuMatch } from './table.js';
+import { reglesDuPlateau, equipeDeTable, gagnantDuMatch, PERIODES, PERIODES_ECLAIR } from './table.js';
 import { CLUBS as CLUBS_TOURNOI, nouveauTournoi, ouvrirTournoi, relireTournoi, classement as classementTournoi } from './tournoi.js';
 import { nouvelleGraine } from './sim.js';
 import { state } from './data.js';
@@ -30,6 +30,9 @@ import { getShard } from './repechage.js';
    plateau, cinq matchs de saison et deux rondes de séries, et tu joues chaque
    geste toi-même.
    ====================================================================== */
+
+/* Le format choisi aux options : trois périodes, ou une seule (Éclair). */
+const periodesTable = () => (G.formatTable === 'ECLAIR' ? PERIODES_ECLAIR : PERIODES);
 
 /* Le niveau de l'adversaire se lit et se change d'ici (S75) : le plateau le lit, l'écran du tournoi le bascule. */
 const ctxTable = () => ({
@@ -78,7 +81,7 @@ export async function lancerTournoi() {
     { nom: nomDuClub(), tag: 'YOU', roster: G.roster },
     ...rivaux.slice(0, CLUBS_TOURNOI - 1).map(t => ({ nom: t.name, tag: t.tag, roster: t.roster, season: t.season })),
   ];
-  afficherTournoi(nouveauTournoi(clubs, nouvelleGraine()));
+  afficherTournoi(nouveauTournoi(clubs, nouvelleGraine(), periodesTable()));
 }
 
 /* L'écran du tournoi, d'où qu'il vienne — un tirage neuf ou une reprise. */
@@ -221,7 +224,7 @@ export async function jouerExhibition({ memes = false } = {}) {
     ouvrirTable({
       A: equipeDeTable(A.nom, A.tag, A.roster, 'A'),
       B: equipeDeTable(B.nom, B.tag, B.roster, 'B'),
-      graine: nouvelleGraine(), ctx: ctxTable(),
+      graine: nouvelleGraine(), ctx: ctxTable(), periodes: periodesTable(),
       titre: 'Exhibition', sousTitre: `${A.nom} contre ${B.nom}`,
       onTermine: r => montrerFinExhibition(A, B, r),
     });

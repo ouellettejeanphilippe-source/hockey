@@ -139,6 +139,12 @@ export const G = {
    */
   niveauTable: 'RECRUE',  // RECRUE | PRO
   /*
+   * LE FORMAT SUR TABLE (oct. 2026) : Complet (trois périodes) ou Éclair (une
+   * seule, js/table.js `PERIODES_ECLAIR`). Une préférence aussi : le tournoi
+   * le fixe à son tirage et le garde ; l'exhibition le lit à chaque match.
+   */
+  formatTable: 'COMPLET',  // COMPLET | ECLAIR
+  /*
    * LE MODE BONUS. JP : *mode bonus genre blood bowl, fft et autres jeux de
    * sport de table*. Ce réglage ne touche PAS au repêchage : les 23 cases, le
    * plafond et la roulette sont exactement les mêmes. Il dit ce qu'on fait de
@@ -649,7 +655,7 @@ export function saveOpts() {
   try {
     localStorage.setItem('cap82_opts', JSON.stringify({
       statsProrata: G.statsProrata, salaryMode: G.salaryMode, mode: G.mode, epoque: G.epoque,
-      repechage: G.repechage, franchise: G.franchise, palette: G.palette, bonus: G.bonus, sons: G.sons, niveauTable: G.niveauTable,
+      repechage: G.repechage, franchise: G.franchise, palette: G.palette, bonus: G.bonus, sons: G.sons, niveauTable: G.niveauTable, formatTable: G.formatTable,
       onlyFit: G.onlyFit, sortBy: G.sortBy, poolView: G.poolView,
     }));
   } catch { /* ignore */ }
@@ -666,6 +672,7 @@ function loadOpts() {
     if (PALETTES.includes(o.palette)) G.palette = o.palette;
     if (typeof o.sons === 'boolean') G.sons = o.sons;
     if (o.niveauTable === 'RECRUE' || o.niveauTable === 'PRO') G.niveauTable = o.niveauTable;
+    if (o.formatTable === 'COMPLET' || o.formatTable === 'ECLAIR') G.formatTable = o.formatTable;
     // Un mode disparu (l'ancien « Par unité ») retombe sur le classique.
     if (o.mode && MODES[o.mode]) G.mode = o.mode;
     // Les saisons ne sont pas encore chargées ici : `boot` vérifie après.
@@ -1567,6 +1574,7 @@ export function setOption(key, val) {
   }
   else if (key === 'sons') { G.sons = val === 'on'; activerSons(G.sons); }
   else if (key === 'niveauTable') G.niveauTable = val === 'PRO' ? 'PRO' : 'RECRUE';
+  else if (key === 'formatTable') G.formatTable = val === 'ECLAIR' ? 'ECLAIR' : 'COMPLET';
   else if (key === 'stats') G.statsProrata = val === 'prorata';
   else if (key === 'salary') G.salaryMode = val;
   else if (key === 'onlyFit') G.onlyFit = val === 'on';

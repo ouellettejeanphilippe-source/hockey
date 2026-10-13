@@ -747,13 +747,21 @@ function chances(a, b, opp = true, rondelle = false, loin = false) {
   }
   return n / tot;
 }
-export const chancesDe = d => chances(d.a, d.b, d.opp, d.rondelle, d.loin);
+/* Un tir dont le but serait refusé (l'interférence, voir `gardienGene`) n'a aucune chance de compter. */
+export const chancesDe = d => (d.refuse ? 0 : chances(d.a, d.b, d.opp, d.rondelle, d.loin));
 
 /* ======================================================================
    LE MATCH
    ====================================================================== */
 
 export const PERIODES = 3;
+/*
+ * LE FORMAT ÉCLAIR (oct. 2026, inspiré du « Quick Game » de Trick Shot) : une
+ * seule période, les mêmes règles. Un match de téléphone, un tournoi d'un
+ * quart d'heure. Le nombre de périodes appartient au MATCH (`m.periodes`) :
+ * le tournoi le fixe à sa naissance, pour que les six clubs jouent au même.
+ */
+export const PERIODES_ECLAIR = 1;
 /*
  * CINQ PRÉSENCES PAR ÉQUIPE PAR PÉRIODE, quinze par match. Mesuré à six :
  * 2,78 buts au lieu de 2,53, mais le match s'allonge d'un cinquième et le
@@ -1164,11 +1172,12 @@ function poser(eq, evite = null, point = MJ_CENTRE, permis = null) {
  * `recrue` (S75) : le camp que l'IA joue au niveau RECRUE — celui d'en face
  * quand tu joues en Recrue, personne sinon (voir `NIVEAU_RECRUE_MOTS`).
  */
-export function nouveauMatch(A, B, graine, { recrue = null } = {}) {
+export function nouveauMatch(A, B, graine, { recrue = null, periodes = PERIODES } = {}) {
   const de = generateur(graine);
   const m = {
     A, B, de,
     recrue,                // S75 : 'A', 'B' ou null — le camp que l'IA joue en recrue
+    periodes,              // PERIODES, ou PERIODES_ECLAIR
     periode: 1,
     presence: 1,           // 1 à PRESENCES_PAR_PERIODE × 2 : un TOUR (les dix pièces) en vaut deux
     tour: 'A',             // à qui la main
@@ -1545,6 +1554,17 @@ function donner(m, piece, compte = true, genre = 'passe', suite = null) {
  */
 const RAYON_REBOND = 2;
 /*
+ * LA MARGE DU DÉ DÉCIDE OÙ VA LA RONDELLE (oct. 2026 ; l'idée vient de Trick
+ * Shot, où un raté imprécis pousse la rondelle d'une case par symbole). Une
+ * passe ratée tombait n'importe où à deux cases du receveur : rater de peu
+ * ou de loin, c'était pareil, et le dé ne racontait rien. Elle file
+ * maintenant AU-DELÀ du receveur, dans la direction de la passe, d'une case
+ * par point manqué (`MARGE_MAX` au plus) ; la bande la renvoie — tout droit,
+ * elle revient sur ses pas ; en diagonale, elle repart de biais. Le tir
+ * suit la même idée : arrêté de justesse, le retour reste collé au gardien.
+ */
+const MARGE_MAX = 3;
+/*
  * LA RELANCE DU GARDIEN PORTE JUSQU'À SA LIGNE BLEUE. Il relançait à sa
  * pièce la plus avancée où qu'elle soit : dix cases en moyenne, jusqu'à
  * vingt et une, sans dé, sans ligne de passe — la rondelle quittait la
@@ -1568,6 +1588,8 @@ export const TRAJETS = {
   echappe:      { mot: 'échappée', max: RAYON_REBOND },
   ricochet:     { mot: 'ricochet', max: RAYON_REBOND },
   banc:         { mot: 'laissée sur la glace', max: RAYON_REBOND },
+  manquee:      { mot: 'passe manquée', max: MARGE_MAX },   // au-delà du receveur, une case par point manqué
+  bande:        { mot: 'bande', max: MARGE_MAX },           // ce qui reste de la course, après la bande
 };
 /** Où est la rondelle dans l'état du moteur : la case de son porteur, ou celle où elle traîne. */
 export const caseDeLaRondelle = m => {
@@ -1773,6 +1795,37 @@ function placeGardien(m, piece, ou = piece) {
   return Math.max(PLACE_GARDIEN.pointe, placeDeLoin(d));
 }
 
+/*
+ * L'ÉCRAN ET L'INTERFÉRENCE (oct. 2026 ; Trick Shot interdit de tirer quand
+ * un coéquipier est dans le demi-cercle adverse — ici, on tire, et c'est
+ * l'arbitre qui tranche). La place devant le filet devient un choix fin :
+ *
+ *   L'ÉCRAN          un coéquipier sur la trajectoire, à deux rangées du
+ *                    filet ou plus : le gardien ne voit pas partir la
+ *                    rondelle, +ECRAN_MOD au tir.
+ *   L'INTERFÉRENCE   un coéquipier SUR le gardien — une des trois cases
+ *                    collées devant le filet : le but est refusé, sifflet,
+ *                    mise au jeu en zone neutre. Les chances de but d'un tel
+ *                    tir sont nulles, et l'écran l'affiche avant le dé.
+ *
+ * Le tireur ne se gêne jamais lui-même, ni celui qui dévie (il est à `ou`).
+ */
+const ECRAN_MOD = 1;
+const coequipiers = (m, piece, ou) => eqDe(m, piece.eq).pieces
+  .filter(x => x !== piece && !x.gardien && !x.etourdi && !(x.r === ou.r && x.c === ou.c));
+/** Le coéquipier qui gêne le gardien adverse, s'il y en a un. */
+export function gardienGene(m, piece, ou = piece) {
+  if (filetVide(m, piece)) return null;
+  const but = eqDe(m, piece.eq).but;
+  return coequipiers(m, piece, ou).find(x => profondeur(x.r, but) === 1 && Math.abs(x.c - BUT_COL) <= 1) || null;
+}
+/** Le coéquipier qui fait écran devant le gardien, sur la trajectoire de ce tir. */
+function ecranDe(m, piece, ou) {
+  if (filetVide(m, piece)) return null;
+  const but = eqDe(m, piece.eq).but;
+  return coequipiers(m, piece, ou).find(x => profondeur(x.r, but) >= 2 && surLaTrajectoire(ou, x, but)) || null;
+}
+
 /**
  * LE TIR : ton dé + ton TI (+ ta signature, − les bâtons devant toi, deux
  * au plus) contre son dé + son AR + la place. La pression qui compte ici est
@@ -1820,7 +1873,9 @@ export function modTir(m, piece, ou = piece) {
     const att = piece.st.TI + signature + malusSouffle(m, piece) - gene;
     return duel(att, 2 + placeGardien(m, piece, ou) + Math.max(0, d - PORTEE_TIR), false, ['TI', null], true, [piece.st.TI, null], d > PRES_NATUREL);
   }
-  return duel(piece.st.TI + signature + malusSouffle(m, piece) - gene, g.st.AR + placeGardien(m, piece, ou) + GARDIEN_PLUS, true, ['TI', 'AR'], TIR_AU_TIREUR, [piece.st.TI, g.st.AR], d > PRES_NATUREL);
+  const ecran = ecranDe(m, piece, ou) ? ECRAN_MOD : 0;
+  const leTir = duel(piece.st.TI + signature + ecran + malusSouffle(m, piece) - gene, g.st.AR + placeGardien(m, piece, ou) + GARDIEN_PLUS, true, ['TI', 'AR'], TIR_AU_TIREUR, [piece.st.TI, g.st.AR], d > PRES_NATUREL);
+  return gardienGene(m, piece, ou) ? { ...leTir, refuse: true } : leTir;
 }
 
 /**
@@ -1891,10 +1946,11 @@ export function relancer(m, jet, cote) {
  * recours, la case libre la plus proche — ce qui ne s'est jamais vu sur
  * 200 matchs, et que `check_regles` signalerait.
  */
-function rebondir(m, r, c, { genre = 'ricochet', but = null, derriere = false, strict = false } = {}) {
+function rebondir(m, r, c, { genre = 'ricochet', but = null, derriere = false, strict = false, rayon0 = 1, vise = null } = {}) {
   const pivot = { r, c };
-  for (let rayon = 1; rayon <= RAYON_REBOND; rayon++) {
-    const cases = [];
+  const rayons = [rayon0, ...Array.from({ length: RAYON_REBOND }, (_, i) => i + 1).filter(x => x !== rayon0)];
+  for (const rayon of rayons) {
+    let cases = [];
     for (let dr = -rayon; dr <= rayon; dr++) for (let dc = -rayon; dc <= rayon; dc++) {
       if (Math.max(Math.abs(dr), Math.abs(dc)) !== rayon) continue;
       const nr = r + dr, nc = c + dc;
@@ -1902,6 +1958,8 @@ function rebondir(m, r, c, { genre = 'ricochet', but = null, derriere = false, s
       if (dansLaGlace(nr, nc) && !occupee(m, nr, nc)) cases.push({ r: nr, c: nc });
     }
     if (cases.length) {
+      // `vise` : la case vers laquelle la rondelle repart (le retour du côté opposé au tir) ; les plus proches d'elle, puis le dé.
+      if (vise) { const pres = x => dist(x, vise) * 10 + Math.abs(x.c - vise.c); const b = Math.min(...cases.map(pres)); cases = cases.filter(x => pres(x) === b); }
       const ou = cases[Math.floor(m.de() * cases.length)];
       m.rondelle = { libre: ou };
       noter(m, genre, ou, { pivot });
@@ -1915,6 +1973,49 @@ function rebondir(m, r, c, { genre = 'ricochet', but = null, derriere = false, s
   noter(m, genre, ou, { pivot });
   return ou;
 }
+
+/** Les points qui ont manqué à un jet raté : un au moins (un 1 naturel perd même quand les totaux gagnent). */
+const margeDe = jet => Math.max(1, jet.total2 - jet.total);
+/** La direction d'un trajet, ramenée à l'une des huit cases voisines. */
+const sensVers = (de, a) => {
+  const dr = a.r - de.r, dc = a.c - de.c, n = Math.max(Math.abs(dr), Math.abs(dc)) || 1;
+  return [Math.round(dr / n), Math.round(dc / n)];
+};
+/**
+ * La rondelle glisse de `pivot`, `n` cases dans la direction (dr, dc). Elle
+ * traverse les patineurs (elle passe sous les bâtons), s'arrête contre un
+ * filet, et la bande la renvoie. Elle finit sur la dernière case LIBRE de sa
+ * course ; sans case libre, c'est le rebond ordinaire autour du pivot.
+ */
+function glisser(m, pivot, dr, dc, n) {
+  const course = [];
+  let r = pivot.r, c = pivot.c, bande = -1;
+  for (let i = 0; i < n; i++) {
+    let nr = r + dr, nc = c + dc;
+    if (!dansLaGlace(nr, nc) && !estFilet(nr, nc)) {
+      if (dr && dc) { if (nr < RANG_MIN || nr > RANG_MAX) dr = -dr; if (nc < 0 || nc >= COLS) dc = -dc; }
+      else { dr = -dr; dc = -dc; }
+      if (bande < 0) bande = course.length - 1;
+      nr = r + dr; nc = c + dc;
+    }
+    if (!dansLaGlace(nr, nc)) break;     // contre un filet, ou coincée dans un coin : elle s'arrête là
+    r = nr; c = nc;
+    course.push({ r, c });
+  }
+  let fin = course.length - 1;
+  while (fin >= 0 && occupee(m, course[fin].r, course[fin].c)) fin--;
+  if (fin < 0) return rebondir(m, pivot.r, pivot.c);
+  const ou = course[fin];
+  m.rondelle = { libre: ou };
+  if (bande >= 0 && bande < fin) {
+    noter(m, 'manquee', course[bande], { pivot });
+    noter(m, 'bande', ou);
+  } else noter(m, 'manquee', ou, { pivot });
+  return ou;
+}
+/** Une passe ratée sans bâton pour la couper : elle file au-delà de sa cible, d'une case par point manqué. */
+const passeManquee = (m, piece, cible, jet) =>
+  glisser(m, cible, ...sensVers(piece, cible), Math.min(MARGE_MAX, margeDe(jet)));
 
 /** Le revirement : la rondelle a changé de camp, la main passe sur-le-champ. */
 function revirement(m, texte) {
@@ -2353,7 +2454,7 @@ export function appliquerPasse(m, piece, cible, jet) {
       verifierHorsJeu(m, piece.eq, avant);
       return true;
     }
-    rebondir(m, cible.r, cible.c);
+    passeManquee(m, piece, cible, jet);
     dire(m, `La rondelle de ${nomDe(piece)} file le long de la bande et rebondit.`, 'degage');
     return false;
   }
@@ -2368,7 +2469,11 @@ export function appliquerPasse(m, piece, cible, jet) {
   // LE TARIF DE L'ÉCHEC : le bâton qui couvrait la ligne l'intercepte.
   const voleur = meilleurBaton(batonsSurLaLigne(m, piece, cible));
   if (voleur) { donner(m, voleur, true, 'interception'); revirement(m, `${nomDe(voleur)} intercepte la passe de ${nomDe(piece)}.`); }
-  else { rebondir(m, cible.r, cible.c); revirement(m, `La passe de ${nomDe(piece)} est ratée.`); }
+  else {
+    const marge = margeDe(jet);
+    passeManquee(m, piece, cible, jet);
+    revirement(m, marge <= 1 ? `La passe de ${nomDe(piece)} glisse juste derrière ${nomDe(cible)}.` : `La passe de ${nomDe(piece)} est ratée de loin.`);
+  }
   return false;
 }
 
@@ -2378,7 +2483,7 @@ export function tirer(m, piece) {
   // `vide` est noté ICI, au moment du tir : un but dans le filet désert fait
   // rentrer le gardien, donc après coup on ne peut plus savoir si le tir de
   // la zone neutre était permis. C'est ce que `check_regles` lit.
-  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(piece.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece), vide: filetVide(m, piece) });
+  eqDe(m, piece.eq).modsTir.push({ mod: d.a - d.b, d: profondeur(piece.r, eqDe(m, piece.eq).but), place: placeGardien(m, piece), vide: filetVide(m, piece), ecran: !!ecranDe(m, piece, piece), refuse: !!d.refuse });
   return jeter(m, 'tir', d);
 }
 
@@ -2392,6 +2497,20 @@ export function appliquerTir(m, piece, jet) {
   // LA RONDELLE PART VERS LE FILET, quoi qu'il arrive ensuite (S74) : le but,
   // l'arrêt, le retour et la mitaine partent tous de là, jamais du tireur.
   noter(m, 'tir', { r: eq.but, c: BUT_COL });
+  /*
+   * LE BUT REFUSÉ. La rondelle est entrée, mais un coéquipier était sur le
+   * gardien : l'arbitre l'annule, et le tir ne compte pas — comme le tir qui
+   * rate le filet désert, ce n'est ni un arrêt ni un but alloué, et
+   * l'égalité de la feuille tient.
+   */
+  const gene = jet.reussi ? gardienGene(m, piece) : null;
+  if (gene) {
+    eq.tirs--; piece.tirs--; fiche(eq, piece.p).tirs--;
+    m.refuses = (m.refuses || 0) + 1;
+    dire(m, `BUT REFUSÉ — ${nomDe(gene)} était sur le gardien.`, 'refuse');
+    arretDeJeu(m, 'But refusé', pointNeutre(m, eq.but, piece.c));
+    return false;
+  }
   if (jet.reussi) {
     eq.buts++; piece.buts++;
     advG.alloues++; eqDe(m, adverse(piece.eq)).alloues++;
@@ -2450,7 +2569,15 @@ export function appliquerTir(m, piece, jet) {
      * la rondelle pouvait ressortir à la pointe. Sans case libre collée au
      * gardien, il tombe dessus : c'est un gel, et le sifflet le dit.
      */
-    if (rebondir(m, advG.r, advG.c, { genre: 'retour', but: eq.but, strict: true })) {
+    /*
+     * LA MARGE DIT OÙ (oct. 2026). Arrêté de justesse (un point), le retour
+     * reste COLLÉ au gardien ; de plus loin, à deux cases. Et il sort du côté
+     * OPPOSÉ à celui d'où vient le tir, comme une rondelle qui frappe une
+     * jambière : le tir de l'aile gauche laisse son retour à droite.
+     */
+    const rayon0 = margeDe(jet) <= 1 ? 1 : RAYON_REBOND;
+    const vise = { r: advG.r + sensDe(eq.but) * rayon0, c: advG.c + Math.sign(advG.c - piece.c) * rayon0 };
+    if (rebondir(m, advG.r, advG.c, { genre: 'retour', but: eq.but, strict: true, rayon0, vise })) {
       dire(m, `${nomDe(advG)} repousse le tir de ${nomDe(piece)} — retour devant le filet.`, 'retour');
       // LA REPRISE (1.0, oct.) : un coéquipier collé au retour peut le reprendre tout de suite — une seule fois par tir.
       if (!jet.reprise) { const l = libre(m); m.retour = { eq: piece.eq, tireur: piece, r: l.r, c: l.c }; }
@@ -2639,7 +2766,7 @@ export function peutRetirerGardien(m, cote) {
   const eq = eqDe(m, cote);
   if (!DESERT_POSSESSIONS) return false;   // DESERT=0 : le filet désert éteint, pour la mesure
   if (eq.desert || m.fini || m.prolongation) return false;
-  if (m.periode < PERIODES) return false;
+  if (m.periode < m.periodes) return false;
   const ecart = eqDe(m, adverse(cote)).buts - eq.buts;
   if (ecart <= 0 || ecart > DESERT_ECART) return false;
   return POSSESSIONS_PAR_PERIODE - m.possessions <= DESERT_POSSESSIONS;
@@ -3096,7 +3223,7 @@ export function finirPresence(m, butMarque = false) {
     // « période 4 » et le tableau indicateur affichait « 4e période ·
     // Terminé ». `finirMatch` pose lui-même la période quand il ouvre une
     // prolongation ; ici, on n'avance que s'il reste une période à jouer.
-    if (m.periode >= PERIODES) { finirMatch(m); return; }
+    if (m.periode >= m.periodes) { finirMatch(m); return; }
     m.periode++;
     m.presence = 1;
     m.possessions = 0;
@@ -3179,7 +3306,7 @@ function finirMatch(m) {
      */
     if (suivante > PROLONGATIONS_MAX) { fusillade(m); return; }
     m.prolongation = suivante;
-    m.periode = PERIODES + m.prolongation;
+    m.periode = m.periodes + m.prolongation;
     m.presence = 1;
     m.possessions = 0;
     m.A.relance = true; m.B.relance = true;
@@ -3387,6 +3514,7 @@ function valeurCase(r, c, but) {
  * valeur (`valeurCase`). Rien d'autre n'entre.
  */
 const COUT_RONDELLE = 3, COUT_POSITION = 1.5;
+const ECRAN_IA = 1.2;   // ce que vaut, à l'IA, une case d'écran devant le tireur
 
 /** Le meilleur geste d'une pièce, et ce qu'il vaut. */
 /* ======================================================================
@@ -3424,8 +3552,10 @@ function optionTir(m, piece, eq) {
   if (!peutTirer(m, piece)) return [];
   const devant = eq.pieces.filter(x => x !== piece && !x.gardien && !x.etourdi &&
     profondeur(x.r, eq.but) <= 2).length;
-  const c = chancesDe(avec(modTir(m, piece), bonusDe(piece, 'DECOCHE')));
-  const out = [{ type: 'tir', val: c * 11 + (1 - c) * devant * VAL_RETOUR + 0.3 }];
+  const dt = modTir(m, piece);
+  const c = chancesDe(avec(dt, bonusDe(piece, 'DECOCHE')));
+  // Un but qu'on refuserait : l'IA ne tire pas, elle passe ou elle dégage le devant du filet.
+  const out = dt.refuse ? [] : [{ type: 'tir', val: c * 11 + (1 - c) * devant * VAL_RETOUR + 0.3 }];
   // LA DÉVIATION (1.0, oct.) : de loin, un coéquipier dans l'enclave sur la trajectoire.
   for (const x of devieursDe(m, piece)) {
     const cd = chancesDe(modDevie(m, piece, x));
@@ -3567,7 +3697,12 @@ function optionPlacement(m, piece, eq) {
     const ouvert = pression(m, piece.eq, v.r, v.c).n === 0 ? 0.9 : 0;
     const tir = (poste ? notre : true) && peutTirerDe(v.r, v.c, eq.but, filetVide(m, piece)) ? 1.4 : 0;
     const passe = (poste ? notre : true) && !m.main.agi && peutAgir(m, p) ? chancesDe(modPasse(m, p, v)) * 1.2 : 0;
-    const val = base + ouvert + tir + passe;
+    // L'écran vaut d'y aller ; le demi-cercle, quand un coéquipier peut tirer, coûte son but.
+    const tireur = notre && p !== piece && peutTirer(m, p);
+    const sv = profondeur(v.r, eq.but);
+    const ecran = tireur && sv >= 2 && surLaTrajectoire(p, v, eq.but) ? ECRAN_IA : 0;
+    const gene = tireur && sv === 1 && Math.abs(v.c - BUT_COL) <= 1 ? -ECRAN_IA * 2 : 0;
+    const val = base + ouvert + tir + passe + ecran + gene;
     if (!mieux || val > mieux.val) mieux = { type: 'deplacer', vers: v, val };
   }
   return mieux ? [mieux] : [];
@@ -4017,8 +4152,8 @@ function relanceIA(m, cote, jet) {
  * matchs du tournoi auxquels tu n'assistes pas. Même moteur, même graine,
  * mêmes règles — juste personne pour regarder.
  */
-export function jouerMatchAuto(A, B, graine) {
-  const m = nouveauMatch(A, B, graine);
+export function jouerMatchAuto(A, B, graine, { periodes = PERIODES } = {}) {
+  const m = nouveauMatch(A, B, graine, { periodes });
   let garde = 0;
   // Dix activations par tour, trente-six tours et la prolongation : 4000 est large.
   while (!m.fini && garde++ < 4000) iaPresence(m);
@@ -4236,7 +4371,7 @@ export function reglesDuPlateau() {
     {
       titre: 'Le match',
       points: [
-        `Trois périodes. Une période finit quand la rondelle a changé de camp ${POSSESSIONS_PAR_PERIODE} fois (le compte est sous le pointage).`,
+        `Trois périodes — ${PERIODES_ECLAIR === 1 ? 'une seule' : PERIODES_ECLAIR} en format Éclair (aux options). Une période finit quand la rondelle a changé de camp ${POSSESSIONS_PAR_PERIODE} fois (le compte est sous le pointage).`,
         `Égalité après trois périodes : prolongation à trois contre trois, ${POSSESSIONS_PROLONGATION} possessions, le premier but gagne. Une punition y fait jouer l'autre équipe à quatre contre trois, comme dans la LNH. Puis les tirs de barrage : ${TIREURS_FUSILLADE} tireurs chacun, puis un à la fois ; après quarante rondes égales, un dernier dé tranche, et il est écrit.`,
         'Tu attaques toujours vers le HAUT.',
         `Deux niveaux. Recrue : l'adversaire ${NIVEAU_RECRUE_MOTS}. Pro : il joue au mieux, comme les matchs que tu ne joues pas.`,
@@ -4279,8 +4414,8 @@ export function reglesDuPlateau() {
       colonnes: ['geste', 'duel', 'ce que ça fait', 'si ça rate'],
       rangees: [
         ['Patiner', 'MA c. DE', 'aussi loin que son PA le permet ; sans dé, sauf pour quitter ou rejoindre un adversaire collé avec la rondelle', 'la rondelle tombe, libre'],
-        ['Passer', 'MA c. DE', 'à un coéquipier : plus c\'est loin et couvert, plus c\'est dur. Le receveur peut tirer tout de suite. Ou AU FOND, de la zone neutre : la rondelle file dans un coin, libre', 'un bâton sur la ligne l\'intercepte'],
-        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Chaque rangée de recul, plus dur ; près et au centre, mieux c'est`, 'le gardien l\'arrête : il la garde, la remet ou la gèle — ou elle rebondit devant lui'],
+        ['Passer', 'MA c. DE', 'à un coéquipier : plus c\'est loin et couvert, plus c\'est dur. Le receveur peut tirer tout de suite. Ou AU FOND, de la zone neutre : la rondelle file dans un coin, libre', `un bâton sur la ligne l'intercepte ; sinon elle file au-delà de sa cible, une case par point manqué (${MARGE_MAX} au plus)`],
+        ['Tirer', 'TI c. AR', `de la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Chaque rangée de recul, plus dur ; près et au centre, mieux c'est. Un coéquipier sur la trajectoire, à deux rangées du filet ou plus, fait écran : +${ECRAN_MOD}. Un coéquipier collé devant le gardien le gêne : le but serait refusé`, 'le gardien l\'arrête : il la garde, la remet ou la gèle — ou elle rebondit devant lui, collée s\'il l\'a arrêtée de justesse, du côté opposé au tir'],
         ['Reprendre', 'TI c. AR', `un patineur collé au retour le tire tout de suite, à −${-REPRISE_MOD}, une action de plus — une fois par tir`, 'le gardien l\'arrête'],
         ['Dévier', 'TI c. AR', `un tir de loin passe par un coéquipier dans l\'enclave, sur sa trajectoire : −${-DEVIATION_MOD}, mais de près ; le but est à lui`, 'le gardien l\'arrête'],
         ['Feinter', 'MA c. DE', 'le porteur déjoue un défenseur collé, qui reste hors jeu jusqu\'à la fin du tour', 'la rondelle tombe, libre'],
@@ -4293,6 +4428,7 @@ export function reglesDuPlateau() {
       titre: 'La rondelle',
       points: [
         'Une rondelle libre (cerclée d\'or) est à qui met le pied dessus, sans dé.',
+        'Rater de peu ou de loin, ce n\'est pas pareil : la rondelle va d\'autant plus loin que le dé a manqué de points. La bande la renvoie — tout droit, elle revient sur ses pas ; en diagonale, elle repart de biais.',
         `Hors-jeu : si un coéquipier attend dans la zone offensive (fanion ⚑) quand la rondelle y entre, c'est un sifflet. Celui qui porte la rondelle n'est jamais hors-jeu.`,
         'De ta propre zone, pas de passe au fond : ce serait un dégagement refusé (sifflet, mise au jeu chez toi). On passe, ou on patine.',
         `Un rebond reste près de ce qui l'a fait (${RAYON_REBOND} cases au plus). Le gardien la remet à un coéquipier libre, ou la gèle.`,
@@ -4317,7 +4453,7 @@ export function reglesDuPlateau() {
     {
       titre: 'Les sifflets',
       points: [
-        'Un but, la fin d\'une période, un gardien qui gèle, une punition, un hors-jeu ou un dégagement refusé arrêtent le jeu. Tout le monde se replace autour d\'un point de mise au jeu (au centre après un but).',
+        'Un but, la fin d\'une période, un gardien qui gèle, une punition, un hors-jeu, un dégagement refusé ou un but refusé (un coéquipier sur le gardien : mise au jeu en zone neutre) arrêtent le jeu. Tout le monde se replace autour d\'un point de mise au jeu (au centre après un but).',
         'La mise au jeu : un dé chacun, plus le maniement et la force des deux centres.',
         `Une punition : un contact raté sur un 1 peut envoyer au cachot pour ${PUNITION_TOURS} tours, et l'équipe joue à quatre (trois au moins). Un but contre elle libère le puni.`,
         `Le filet désert : mené d'un ou deux buts à la fin de la troisième, on peut sortir son gardien pour un sixième patineur.`,
@@ -4328,6 +4464,7 @@ export function reglesDuPlateau() {
       points: [
         'Six clubs, cinq matchs chacun. Les quatre premiers vont en séries : demi-finale et finale, à match unique.',
         'Les matchs que tu ne joues pas se jouent avec les mêmes règles, au niveau Pro.',
+        'Le format (Complet ou Éclair) se fixe au tirage du tournoi : les six clubs jouent au même.',
         'Quitter un match (✕), c\'est le laisser se jouer sans toi : le résultat compte.',
       ],
     },

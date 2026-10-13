@@ -31,6 +31,7 @@ import {
   deplacer, appliquerPasse, appliquerTir, appliquerEchec, ciblesFondDe,
   enJeu, passer, tirer, mettreEnEchec, voler,
   peutBouger, appliquerDejouer, peutRetirerGardien, retirerGardien, expliquerGeste, modEsquive, adverse,
+  modTir, chancesDe, PERIODES_ECLAIR,
 } from '../js/table.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -615,6 +616,65 @@ for (const g of ['deplacer', 'passe', 'tir', 'echec', 'vol', 'dejouer', 'recepti
     juger('après un but, la pièce d\'avant le sifflet ne joue plus : le moteur refuse, rien n\'est dépensé',
       !enJeu(m, ailier) && !enJeu(m, p) && enJeu(m, neuf) && refus.every(Boolean) && intact && deplacementsDe(m, neuf).length > 0,
       `refus ${refus.map(Number).join('')} · main ${JSON.stringify(m.main.bouge)} · ${tirages} dé(s) · ailier en ${ailier.r},${ailier.c}`);
+  }
+
+  /*
+   * 17-21. CE QUE TRICK SHOT A INSPIRÉ (oct. 2026) : la marge du dé décide
+   * où va la rondelle, l'écran aide le tir, l'interférence l'annule.
+   */
+  const libreEn = (m, r, c) => { const l = libre(m); return !!l && l.r === r && l.c === c; };
+  {
+    const { m, p, piece } = scene({ 'A-C': [Z + 2, 6], 'A-AD': [Z + 2, 9] }, 'A-C');
+    appliquerPasse(m, p, piece('A-AD'), { reussi: false, total: 4, total2: 5 });
+    juger('une passe ratée d\'un point, sans bâton : la rondelle glisse UNE case derrière le receveur',
+      libreEn(m, Z + 2, 10) && m.trajet[m.trajet.length - 1].genre === 'manquee', `${dernieres(m, 2)} · libre ${JSON.stringify(libre(m))}`);
+  }
+  {
+    const { m, p, piece } = scene({ 'A-C': [Z + 2, 6], 'A-AD': [Z + 2, 11] }, 'A-C');
+    appliquerPasse(m, p, piece('A-AD'), { reussi: false, total: 2, total2: 5 });
+    juger('ratée de trois, vers la bande : elle y frappe et revient sur ses pas, sous le receveur',
+      libreEn(m, Z + 2, 10) && dernieres(m, 2) === 'manquee → bande', `${dernieres(m, 2)} · libre ${JSON.stringify(libre(m))}`);
+  }
+  {
+    const { m, p } = scene({ 'A-C': [FILET_HAUT + 3, BUT_COL - 3] }, 'A-C');
+    appliquerTir(m, p, { reussi: false, total: 5, total2: 6 });
+    const { m: m2, p: p2 } = scene({ 'A-C': [FILET_HAUT + 3, BUT_COL - 3] }, 'A-C');
+    m2.de = () => 0;   // le gardien ne contrôle pas
+    appliquerTir(m2, p2, { reussi: false, total: 2, total2: 6 });
+    juger('un tir arrêté de justesse laisse le retour COLLÉ au gardien, du côté opposé ; de loin, à deux cases',
+      libreEn(m, FILET_HAUT + 1, BUT_COL + 1) && libreEn(m2, FILET_HAUT + 2, BUT_COL + 2),
+      `justesse ${JSON.stringify(libre(m))} · de loin ${JSON.stringify(libre(m2))}`);
+  }
+  {
+    const { m, p } = scene({ 'A-C': [FILET_HAUT + 4, BUT_COL] }, 'A-C');
+    const sans = modTir(m, p);
+    const { m: m2, p: p2 } = scene({ 'A-C': [FILET_HAUT + 4, BUT_COL], 'A-AG': [FILET_HAUT + 2, BUT_COL] }, 'A-C');
+    const avecEcran = modTir(m2, p2);
+    juger('un coéquipier sur la trajectoire, à deux rangées du filet : l\'écran vaut +1 au tir', avecEcran.a === sans.a + 1 && !avecEcran.refuse,
+      `sans ${sans.a} · avec ${avecEcran.a}`);
+  }
+  {
+    const { m, p } = scene({ 'A-C': [FILET_HAUT + 4, BUT_COL], 'A-AG': [FILET_HAUT + 1, BUT_COL] }, 'A-C');
+    const affiche = chancesDe(modTir(m, p));
+    appliquerTir(m, p, { reussi: true, total: 9, total2: 0 });
+    const mj = siffle(m, 'But refusé');
+    juger('un coéquipier SUR le gardien : 0 % affiché, le but est REFUSÉ, mise au jeu au neutre, le tir ne compte pas',
+      affiche === 0 && !!mj && MJ_NEUTRE.includes(mj.point.r) && m.A.buts === 0 && m.A.tirs === 0 && m.B.arrets === 0,
+      `${Math.round(affiche * 100)} % · ${dernieres(m, 2)} · buts ${m.A.buts} tirs ${m.A.tirs}`);
+  }
+  // 22. Le format Éclair : une période, puis la prolongation s'il le faut — jamais une deuxième.
+  {
+    let fautes = 0, prol = 0;
+    const N = Math.min(30, MATCHS);
+    for (let i = 0; i < N; i++) {
+      const a = clubs[(i * 7) % clubs.length], b = clubs[(i * 13 + 3) % clubs.length];
+      const m = nouveauMatch(equipeDeTable(a.nom, a.tag, a.roster, 'A'), equipeDeTable(b.nom, b.tag, b.roster, 'B'), `eclair${i}`, { periodes: PERIODES_ECLAIR });
+      let maxP = 0, g = 0;
+      while (!m.fini && g++ < 4000) { iaPresence(m); if (!m.prolongation) maxP = Math.max(maxP, m.periode); }
+      if (m.prolongation) prol++;
+      if (!m.fini || maxP > PERIODES_ECLAIR || (m.prolongation && m.periode !== PERIODES_ECLAIR + m.prolongation)) fautes++;
+    }
+    juger(`le format Éclair : ${PERIODES_ECLAIR} période, puis la prolongation s'il le faut (${N} matchs)`, !fautes, `${fautes} match(s) fautif(s), ${prol} prolongation(s)`);
   }
 
   console.log('\nLES SIFFLETS, MIS EN SCÈNE');
