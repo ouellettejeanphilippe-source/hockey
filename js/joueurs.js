@@ -4,7 +4,7 @@
  * à ce jour, ou sa vraie saison), son salaire. Les avants, les défenseurs, les gardiens. Un en-tête trie ; un nom
  * ouvre la fiche. Rien d'autre : les lignes se règlent dans l'onglet Lignes.
  *
- * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, % au tir ; V, D, % d'arrêts, moyenne), jamais une cote.
+ * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, précision ; V, D, % d'arrêts, moyenne), jamais une cote.
  */
 import { SLOTS, badgesDe, PALIERS, getPlayerKey } from './sim.js';
 import { esc, money, pct3, virgule } from './util.js';
@@ -75,7 +75,7 @@ export function remplirJoueurs() {
     </div>
     <div class="jr-scroll"><table class="jr-table">
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
-      <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td>${FORMAT[k] ? FORMAT[k](r.st[k]) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
+      <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k]) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>
     <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>`;
   host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });

@@ -520,7 +520,7 @@ function lineEl(title, slots, group, unit, cls = '') {
   // Ses vraies stats sur la glace (V7, JP : *des lancers, précision de lancer, pourcentage d'arrêt*) : à forces égales, par match.
   const st = u && u.stats;
   const prodHtml = st && st.tirs + st.contre > 0
-    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % au tir), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}"><b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}–${v1(st.contre)}</b> tirs</span>`
+    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % de précision), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}"><b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}–${v1(st.contre)}</b> tirs</span>`
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
@@ -695,7 +695,7 @@ function planDeMatchEl() {
   // CE QUE LE PLAN FAIT À TES TRIOS (V6, JP : *si ton deuxième est contre le premier, peut-être que la 3 et 4 peuvent
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
-  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % au tir, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
+  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % de précision, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
   el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}${b.depistage ? ' · selon le dépistage' : ''}</span></div>
     <div class="pm-k">Glace à forces égales · minutes du 1er au 4e trio</div>
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k, fe).join(' · ')}</button>`).join('')}</div>
@@ -747,7 +747,7 @@ function unitesSpecialesEl() {
   const statDe = (sit, i) => {
     const x = st && st[sit] && st[sit][i];
     if (!x) return '';
-    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % au tir` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} arr.`;
+    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % de précision` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} arr.`;
   };
   const rangee = (sit, i, j, p) => {
     const S = SIT[sit], n = S.stat(p);
@@ -796,7 +796,7 @@ function unitesSpecialesEl() {
           if (!a || !d) return '';
           const fl = (x, y, f) => `${f(x)} → <b>${f(y)}</b>`;
           return `${S.court} ${i + 1} : ${sit === 'AN'
-            ? `${fl(d.tirs, a.tirs, v1)} tirs · ${fl(d.pctTir * 100, a.pctTir * 100, v1)} % au tir`
+            ? `${fl(d.tirs, a.tirs, v1)} tirs · ${fl(d.pctTir * 100, a.pctTir * 100, v1)} % de précision`
             : `${fl(d.contre, a.contre, v1)} tirs contre · ${fl(d.pctArr, a.pctArr, pct3)} arr.`} par match`;
         },
         onChoix: q => { b.speciales = avec(q); render(); },

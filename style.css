@@ -22,6 +22,10 @@
 @font-face { font-family: "Barlow Condensed"; font-style: normal; font-weight: 700; font-display: swap; src: url("fonts/BarlowCondensed-700-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 @font-face { font-family: "Barlow Condensed"; font-style: normal; font-weight: 800; font-display: swap; src: url("fonts/BarlowCondensed-800-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
 @font-face { font-family: "Barlow Condensed"; font-style: normal; font-weight: 800; font-display: swap; src: url("fonts/BarlowCondensed-800-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+/* ---- Manrope (fonts/, OFL 1.1) : le texte courant, une seule fonte variable de 400 à 800 ----
+   Du prototype : une police lisible pour les phrases, la condensée gardée pour ce qui se compte. */
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("fonts/Manrope-latin-ext.woff2") format("woff2"); unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Manrope"; font-style: normal; font-weight: 400 800; font-display: swap; src: url("fonts/Manrope-latin.woff2") format("woff2"); unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
 /* ---- Noto Emoji (fonts/, OFL 1.1), les 541 pictogrammes du jeu, en 9 tranches ----
    Les mots du jeu (rôles, systèmes, trophées, cartes) gardent leur émoji
    dans le code ; à l'écran il rend AU TRAIT, en monochrome, de la couleur
@@ -178,7 +182,7 @@
   --e-ressort: cubic-bezier(0.34, 1.56, 0.64, 1);
   /* Les polices. */
   --display: "Barlow Condensed", "Noto Emoji", "Arial Narrow", system-ui, sans-serif;
-  --corps: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, "Noto Emoji", sans-serif;
+  --corps: "Manrope", -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, "Noto Emoji", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   /* La coquille : mesurées par js (--topbar-h) ou fixées ici. */
   --topbar-h: 64px;
@@ -340,24 +344,18 @@ body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #
 .fill-marker { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--or); opacity: 0.8; transition: left var(--t-compte) var(--e-sortie); pointer-events: none; }
 @media (max-width: 430px) { .capgauge-max { display: none; } }
 @media (max-width: 679.98px) {
-  /* Une rangée : l'écusson, le club et son état, puis les chiffres en cellules, le menu. Les étiquettes s'effacent
-     (une fiche « 4-0-0 », un rang « 3e » et un montant se reconnaissent seuls) ; la barre du plafond reste, en 3 px. */
+  /* Deux rangées, comme le prototype (oct.) : l'écusson, le club et son état en entier, le menu ; puis les chiffres
+     en cellules, chacun sous son étiquette. Sur une seule rangée, l'état se coupait (« Saison régulière · jour… »)
+     et les étiquettes s'effaçaient. */
   .topbar { padding: var(--esp-2) var(--esp-3) 0; }
   .topbar:has(.sousnav[hidden]) { padding-bottom: var(--esp-2); }
-  .topbar-inner { grid-template-columns: auto minmax(0, 1fr) auto auto; grid-template-areas: "retour club chiffres menu"; gap: var(--esp-2); }
+  .topbar-inner { gap: var(--esp-2) var(--esp-2); }
   .tete-club { gap: var(--esp-2); }
-  .tete-ecu { width: 28px; height: 28px; }
+  .tete-ecu { width: 32px; height: 32px; }
   .tete-nom { font-size: var(--t-3); }
-  .tete-chiffres { flex: none; }
-  .tete-ch { align-content: center; padding: 0 var(--esp-2); }
-  .tete-ch:last-child { padding-right: 0; }
-  .tete-ch-l, .capgauge-label, .capgauge-max, #perSlotLbl { display: none; }
-  .tete-ch-v, .capgauge-amt .amt { font-size: var(--t-3); }
-  .capgauge.tete-ch { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: var(--esp-2); max-width: none; }
-  .capgauge-row { display: contents; }
-  .capgauge-row.small > span:first-child { font-size: var(--t-1); }
-  .capgauge-row.small strong { font-size: var(--t-3); }
-  .capgauge .track { grid-column: 1 / -1; order: 1; height: 3px; margin-top: 2px; }
+  .tete-ch { padding: 0 var(--esp-3); }
+  .capgauge-max, #perSlotLbl { display: none; }
+  .capgauge .track { height: 3px; }
   body:not(.au-repechage):not(.mode-rogue) .capgauge-row.small { display: none; }
   #menuBtn { width: 40px; height: 40px; }
   /* Avec « ‹ Retour » (derrière le banc), le nom du club cède la place : l'écusson suffit à dire chez qui on est. */
@@ -1534,13 +1532,15 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cj-gemme .cj-trait { font-weight: 400; margin-left: 3px; font-size: var(--t-1); letter-spacing: 0; text-shadow: none; }
 
 /* ---- Le carton : ses couches (fond → parallèle → photo → décor → mots → pastilles → reflet), l'inclinaison ---- */
-.carton {
+.carton, .fc-recto {
   --band: var(--team-band, #243044);
   --ink: var(--team-ink, #ffffff);
   --stripe: var(--team-stripe, #8d97a3);
   --vive: var(--team-line, var(--band));
   --fonce: var(--team-fond, #151b26);
   --or-feuille: linear-gradient(100deg, #9a6b12 0%, #f3d27a 22%, #fff4c9 34%, #c89528 50%, #f7dd8c 68%, #a4761a 100%);
+}
+.carton {
   position: relative; display: block; width: 100%; aspect-ratio: 5 / 7; container-type: inline-size;
   isolation: isolate; overflow: hidden; border-radius: 4.5% / 3.2%;
   background: var(--c-fond, #1b2230); color: var(--c-encre, white);
@@ -2143,7 +2143,8 @@ button.marche-tuile:active { transform: scale(0.98); }
 .pcard-full-club { display: inline-flex; align-items: center; gap: var(--esp-1); margin-left: var(--esp-2); color: var(--encre); text-transform: none; letter-spacing: 0; font-weight: 600; }
 
 /* ---- La carte, recto et verso empilés dans la même case : le carton 5:7 du recto en décide ---- */
-.fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: min(400px, 52dvh * 5 / 7); margin: var(--esp-3) auto 0; }
+/* La carte tient dans l'écran avec la tête de la fenêtre et sa plaque : la largeur suit la hauteur qui reste. */
+.fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: min(400px, (100dvh - 270px) * 5 / 7); margin: var(--esp-3) auto 0; }
 .fc-faces { position: relative; display: grid; }
 .fc-faces > .fc-face { grid-area: 1 / 1; }
 /* Le verso prend la case du carton, 5:7, et défile en dedans s'il déborde : la carte a la même taille des deux côtés. */
@@ -2151,16 +2152,27 @@ button.marche-tuile:active { transform: scale(0.98); }
 .fc-face { position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); touch-action: pan-y; cursor: pointer; }
 .fc-face > * { flex-shrink: 0; }
 .fc-face.fc-cachee { visibility: hidden; pointer-events: none; }
+/* LES STATS DANS LA CARTE (JP, oct. : *les stats dans la CARTE, pas en dessous*) : le recto s'allonge sous le carton, sur le
+   même papier que sa série (--c-fond, --c-encre), et ses saisons et ses badges y sont imprimés en petits caractères. */
+.fc-recto { gap: 0; overflow: hidden; border-radius: var(--r-2); background: var(--c-fond, var(--fond-2)); color: var(--c-encre, var(--encre)); box-shadow: var(--relief); }
+.fc-recto > .carton { border-radius: 0; box-shadow: none; }
+.fc-imprime { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); }
 
 /* ---- La plaque sous la carte : sa vraie saison en six cellules à plat, le salaire, « ↻ » en contour ---- */
 .fc-plaque { --cj-encre-2: var(--encre-3); --cj-prix: var(--or); display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-3); color: var(--encre); }
 .fc-legende, .fc-sec { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-encre-2); }
-.fc-stats { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--filet); border-bottom: 1px solid var(--filet); }
-.fc-stat { display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); min-width: 0; padding: var(--esp-2) 2px; border-left: 1px solid var(--filet); }
-.fc-stat:first-child { border-left: 0; }
-.fc-stat .k { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--cj-encre-2); white-space: nowrap; }
-.fc-stat b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums lining-nums; }
-.fc-stat.hl b { color: var(--cj-prix); }
+/* Ses saisons en petits caractères, comme au dos d'une vieille carte : une rangée par saison, la colonne clé en or. */
+.fc-tab { width: 100%; border-collapse: collapse; font: 700 var(--t-2)/1.2 var(--display); font-variant-numeric: tabular-nums lining-nums; }
+.fc-tab th, .fc-tab td { padding: 3px 2px; text-align: right; white-space: nowrap; }
+.fc-tab thead th { font-size: var(--t-1); letter-spacing: 0.06em; color: color-mix(in srgb, currentColor 62%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
+.fc-tab th:first-child { text-align: left; max-width: 110px; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
+.fc-tab tbody th { font-weight: 600; color: color-mix(in srgb, currentColor 75%, transparent); }
+.fc-tab tbody td { font-size: var(--t-3); }
+.fc-tab .hl { color: var(--vive); }
+.fc-tab-toi > * { border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
+/* Un badge sur la carte : une étiquette sombre, comme le poste en coin, pour que les quatre paliers se lisent sur tout papier. */
+.fc-badges { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); font: 700 var(--t-1)/1.2 var(--corps); }
+.fc-badges > .badge { padding: 3px var(--esp-2); border-radius: var(--r-1); background: var(--noir); }
 .fc-pied { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); margin-top: auto; }
 .fc-salaire { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .fc-salaire b { font: 800 var(--t-5)/1 var(--display); color: var(--cj-prix); font-variant-numeric: tabular-nums lining-nums; }
@@ -2253,6 +2265,9 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .ext-link:hover { color: var(--encre); border-color: var(--encre-3); }
 #modalSignBtn { order: -1; flex: 1 1 100%; min-height: 52px; font-size: var(--t-4); }
 @media (max-width: 899.98px) { #hockeyCardModal .pcard-full-foot { position: sticky; bottom: 0; z-index: 6; } }
+/* Au téléphone, la fiche prend tout l'écran : une carte qu'on tient, pas une feuille posée sur la partie. */
+@media (max-width: 679.98px) { #hockeyCardModal .modal-card { max-width: none; height: 100%; max-height: none; border: 0; border-radius: 0; } }
+.pcard-full > .modal-body > .ext-links { margin-top: var(--esp-4); }
 /* Au bureau : le carton à gauche, ce qui décide à droite, le pied au bas de la colonne. */
 @media (min-width: 900px) {
   #hockeyCardModal .modal-card { max-width: 900px; }
@@ -3698,8 +3713,10 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-main::-webkit-scrollbar { display: none; }
 .choix-main > .tc { flex: 0 0 min(72vw, 270px); scroll-snap-align: start; }
 .main-sheet .choix-main > .tc { flex-basis: min(64vw, 240px); }
-.choix-main.joueurs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); margin: 0; padding: var(--esp-2) 0 var(--esp-3); overflow: visible; scroll-snap-type: none; }
-.choix-main.joueurs > .tc { flex: none; }
+/* Un joueur dans la bande : sa carte en grand, de la largeur de sa place (JP, oct. : « quand ouverture de pack, mettre
+   cartes en gros, pas en miniature »). Les joueurs se balaient comme les autres cartes, un à la fois au téléphone. */
+.choix-main > .tc-joueur > .tcj-carte { align-self: stretch; }
+.choix-main > .tc-joueur .cj-mini-carte { width: 100%; }
 /* Les points de la bande : un par carte, allumé sur celle qu'on regarde (js/gerant.js pose [hidden] quand rien ne défile). */
 .choix-points { display: flex; justify-content: center; gap: var(--esp-2); margin-top: calc(-1 * var(--esp-1)); }
 .choix-points i { width: 8px; height: 8px; border-radius: 50%; background: var(--filet); transition: background var(--t-vite), transform var(--t-vite); }
@@ -3708,7 +3725,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   .choix-main { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 250px)); justify-content: center; gap: var(--esp-4); margin: 0; padding: var(--esp-2) 0 var(--esp-1); overflow: visible; scroll-snap-type: none; }
   .choix-main > .tc, .main-sheet .choix-main > .tc { flex: none; }
   .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(160px, 180px)); gap: var(--esp-3); }
-  .choix-main.joueurs { grid-template-columns: repeat(auto-fit, minmax(150px, 190px)); gap: var(--esp-3); }
 }
 @media (min-width: 900px) { .choix-sheet[data-genre="entracte"] .choix-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
@@ -3991,8 +4007,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .paquet-pile .choix-main > .choix-option.tc:is([data-pile="1"], [data-pile="2"], [data-pile="loin"]) > .tc-dos { opacity: 1; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"] > .tc-dos { animation: pile-dos 0.5s linear backwards; }
 .paquet-pile .choix-main > .tc-joueur > :is(.tcj-texte, .tcj-signer, .choix-option-non) { display: none; }
-.paquet-pile .choix-main > .tc-joueur > .tcj-carte { align-self: stretch; }
-.paquet-pile .choix-main > .tc-joueur .cj-mini-carte { width: 100%; }
 /* Une rare luit en montant sur la pile ; la carte du pack éclate — un anneau, pas une ombre. */
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"]:is(.tc-rare, .tc-legendaire) { animation: pile-retourne 0.5s var(--e-sortie) backwards, tc-luit 1.2s ease-out 0.4s; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"].tc-meilleure { animation: pile-retourne 0.5s var(--e-sortie) backwards, tc-eclate 1.4s ease-out 0.4s; }
@@ -4607,15 +4621,17 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-table th, .jr-table td { padding: var(--esp-2); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
 .jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); cursor: pointer; }
 .jr-table th.on { color: var(--or); }
-.jr-table td { font: 700 var(--t-2)/1.1 var(--display); }
+.jr-table td { font: 700 var(--t-3)/1.1 var(--display); }
+/* La colonne qui trie se lit en gros, comme les points du prototype : le chiffre qu'on cherche saute aux yeux. */
+.jr-table td.on { font-size: var(--t-4); font-weight: 800; color: var(--encre); }
 .jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 190px; }
 /* Le visage, à gauche du nom (le prototype, oct.). */
 .jr-qui { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
 .jr-qui-txt { min-width: 0; }
-.jr-visage { width: 32px; height: 32px; }
+.jr-visage { width: 40px; height: 40px; }
 .jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
-.jr-nom { display: block; max-width: 100%; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: inherit; }
-.jr-sous { display: block; overflow: hidden; text-overflow: ellipsis; font: 600 var(--t-1)/1.3 var(--display); color: var(--encre-3); }
+.jr-nom { display: block; max-width: 100%; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 700 var(--t-3)/1.25 var(--corps); }
+.jr-sous { display: block; overflow: hidden; text-overflow: ellipsis; font: 500 var(--t-1)/1.35 var(--corps); color: var(--encre-2); }
 .jr-table tr.reserve td { opacity: 0.6; }
 .jr-bl { font-size: var(--t-1); color: var(--mauvais); }
 .jr-jambes.frais { color: var(--bon); }
