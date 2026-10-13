@@ -16,11 +16,11 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
-import { ajouterAuCartable, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
+import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
 import { traitsDeCarte, carteDe } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
-import { artJoueur, photoAction } from './cartes.js';
+import { artJoueur, photoAction, serieDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
 import { ageAtSeason } from './ratings.js';
@@ -353,6 +353,7 @@ async function offresDuCartable(C, graine) {
   const dansLaLigue = new Set();
   for (const t of Lg.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
   const max = salaireMaxDePack(), out = [];
+  if (C.echange) return offresDEchange(C, graine, c, dansLaLigue, max);
   // `anciens` (P3) : une carte qui a joué une run d'avant celle-ci (`r`, `der` : js/cartable.js `marquerJouees`).
   const run = (G.rogue && G.rogue.numero) || 0;
   const cles = Object.keys(c.joueurs).filter(k => !C.anciens || ((c.joueurs[k].r || 0) > 0 && c.joueurs[k].der !== run));
@@ -719,10 +720,11 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
         // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
-        ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: c.texte, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
-          vide: C.anciens ? `Aucun ancien de tes runs d'avant, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.` : `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
+        const don = offres[0] && offres[0].donne ? ` Il part : ${offres[0].donneNom}, série ${offres[0].serie}.` : '';
+        ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: `${c.texte}${don}`, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
+          vide: C.echange ? 'Aucun doublon à échanger, ou personne de sa série sous le plafond.' : C.anciens ? `Aucun ancien de tes runs d'avant, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.` : `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
           desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
-          onSigne: (x, sortie) => { const k = getPlayerKey(x.p); G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); },
+          onSigne: (x, sortie) => { const k = getPlayerKey(x.p); G.variantes.cartes[k] = x.rar; if (x.donne) { donnerUnDoublon(x.donne); ajouterAuCartable([{ cle: k, rar: x.rar }]); } ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); },
           onFerme: retour });
       });
       return;
@@ -785,6 +787,38 @@ function poserUneModif(item, j, decider, retour) {
     },
     onFerme: retour,
   });
+}
+/*
+ * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : ton doublon le plus fourni (à égalité, l'ordre pur de `graine`) donne trois
+ * joueurs de la même série de cartons (`serieDe`, js/cartes.js) — des saisons qu'elle couvre, pas encore à ton
+ * cartable, au plus du niveau de la carte, sous le plafond d'un pack, ni dans la ligue ni chez toi. Chaque offre porte
+ * le doublon qu'elle coûte (`donne`) ; la signature le retire (`donnerUnDoublon`).
+ */
+async function offresDEchange(C, graine, c, dansLaLigue, max) {
+  const doublons = tirageDuClasseur(Object.keys(c.joueurs).filter(k => (c.joueurs[k].n || 0) >= 2), graine)
+    .sort((a, b) => (c.joueurs[b].n || 0) - (c.joueurs[a].n || 0));
+  for (const d of doublons) {
+    const q = await joueurDeCle(d);
+    if (!q) continue;
+    const serie = serieDe(q.s);
+    const saisons = tirageDuClasseur(state.index.seasons.filter(s => serieDe(s) === serie), `${graine}:saisons`);
+    const out = [];
+    for (const s of saisons) {
+      if (out.length >= C.offres) break;
+      const joueurs = (await getShard(s)).players;
+      for (const k of tirageDuClasseur(joueurs.map(getPlayerKey), `${graine}:${s}`)) {
+        const p = joueurs.find(x => getPlayerKey(x) === k);
+        if (!p || c.joueurs[k] || !(p.$ > 0) || p.$ > max || dansLaLigue.has(getPersonKey(p)) || dejaChezToi(p) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
+        const niveau = niveauDe(p, joueurs);
+        if (niveau > C.niveauMax) continue;
+        // Un joueur par saison : l'échange montre la série, pas un seul vestiaire.
+        out.push({ p, rar: 'commune', niveau, num: null, donne: d, donneNom: q.n, serie: SERIES[serie].nom });
+        break;
+      }
+    }
+    if (out.length) return out;
+  }
+  return [];
 }
 /* Un joueur retrouvé par sa clé (« saison_club_id ») : ceux qu'on garde d'une run à l'autre. */
 async function joueurDeCle(cle) {

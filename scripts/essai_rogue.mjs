@@ -109,9 +109,9 @@ const CARTES = ['1985-86_MNS_8445724', '1995-96_PIT_8446951', '2007-08_DET_84680
 await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
-  localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
+  localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, i === 1 ? { v: { commune: 3 }, n: 3 } : { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
   // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1 } }));
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -861,6 +861,46 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     if (offres !== 3) erreurs.push(`le rappel offre ${offres} cartes au lieu de trois`);
     if (!d) erreurs.push('le rappel du club-école ne signe personne');
     else if (!cartable.includes(d.ballottage.entre)) erreurs.push('le joueur rappelé ne vient pas du cartable');
+  }
+  /*
+   * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : le doublon le plus fourni du cartable (trois copies de CARTES[1], 1995-96) donne
+   * trois joueurs de sa série de cartons (Filet : 1995-96 à 1998-99), pas encore au cartable ; signé, le doublon perd une
+   * copie et le nouveau entre au cartable.
+   */
+  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
+  await page.waitForTimeout(300);
+  const echange = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:echangeDoublon"]:not([disabled])');
+  if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas depuis l\'onglet Permanent');
+  else {
+    const copies = () => page.evaluate(k => ((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs || {})[k] || {}).n || 0, CARTES[1]);
+    const avant = await copies();
+    await echange.click();
+    await page.waitForSelector('#signatureModal:not([hidden]) .pcard', { timeout: 60000 });
+    await page.waitForTimeout(400);
+    await page.screenshot({ path: `${DOSSIER}/rogue-echange.png` });
+    const lu = await page.evaluate(() => ({ cles: [...document.querySelectorAll('#signatureModal .pcard')].map(e => e.dataset.cle), recit: (document.querySelector('#signatureModal .choix-recit') || {}).textContent || '' }));
+    const horsSerie = lu.cles.filter(k => !['1995-96', '1996-97', '1997-98', '1998-99'].includes(k.split('_')[0]));
+    if (lu.cles.length !== 3) erreurs.push(`l'échange offre ${lu.cles.length} joueurs au lieu de trois`);
+    if (horsSerie.length) erreurs.push(`l'échange offre des joueurs hors de la série du doublon : ${horsSerie.join(', ')}`);
+    if (!/Il part : .+, série Filet/.test(lu.recit)) erreurs.push(`l'échange ne dit pas quel doublon part : « ${lu.recit} »`);
+    const n0 = (await decisions()).length;
+    const signable = await page.$('#signatureModal .pcard:not(.locked) .btn-sign:not([disabled])');
+    if (signable) {
+      await signable.click();
+      await page.waitForTimeout(500);
+      for (let k = 0; k < 6 && await page.$('#choixModal:not([hidden])'); k++) await regler().catch(() => {});
+      await auBureau();
+      await regler();
+    }
+    const d = (await decisions()).slice(n0).find(x => x.ballottage);
+    const apres = await copies(), au = d ? (await cartable()).includes(d.ballottage.entre) : false;
+    console.log(`10e. l'échange d'un doublon : ${lu.cles.join(', ')} · ${d ? `${d.ballottage.entre} entre` : '(rien signé)'} · copies du doublon ${avant} → ${apres} · au cartable ${au}`);
+    if (!d) erreurs.push('l\'échange d\'un doublon ne signe personne');
+    else {
+      if (apres !== avant - 1) erreurs.push(`le doublon donné garde ses copies (${avant} → ${apres})`);
+      if (!au) erreurs.push('le joueur reçu à l\'échange n\'entre pas au cartable');
+    }
   }
   // Les cartes de la saison, pour la suite (11).
   if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
