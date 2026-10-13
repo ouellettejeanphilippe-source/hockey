@@ -173,6 +173,7 @@ export function syncOptionsUI() {
     palette: G.palette,
     sons: G.sons ? 'on' : 'off',
     niveauTable: G.niveauTable,
+    formatTable: G.formatTable,
     format: M.format,
     tirage: M.tirage,
     ligue: src.epoque ? 'UNE' : 'TOUTES',
@@ -185,6 +186,8 @@ export function syncOptionsUI() {
   // L'essai sur table ouvre le plateau : il n'a de sens que dans Sur table (le menu a sa propre exhibition, au vrai moteur).
   const ex = $('npExhibition');
   if (ex) ex.closest('.opt-row').hidden = src.bonus !== 'TABLE';
+  const format = document.querySelector('#partieModal .np-format');
+  if (format) format.hidden = src.bonus !== 'TABLE';
   const sel = $('epoqueSelect');
   if (sel) {
     if (!sel.options.length) {

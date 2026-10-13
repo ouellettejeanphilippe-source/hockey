@@ -307,6 +307,15 @@ awk '/^## /{if(n)print b"\t"s"\t"n; n=$0; s=NR; b=0} {b+=length($0)+1} END{print
   - Preuve : `m.icings === 0` sur 250 matchs.
 - [x] **Les petites règles, écrites.** `ciblesVolDe` (`:2108`) exclut l'essoufflé ; bouton (`js/plateau.js:1462`) « à bout de souffle » ; `reglesDuPlateau()` ajoute durées au sol (`:2452`), diagonale couverte à 3 (`:2031`), fusillade tranchée après 40 rondes (`:3894`). Un « ? » par geste dans le menu de pièce (`bouton()`, `:1574`) lit sa règle dans le fil.
 
+### Inspirés de Trick Shot (JP, 13 oct. : *sans reprendre le fonctionnement, voici un jeu qui peut inspirer* ; choisis : 2, 4 et 8)
+
+- [x] **T2 · La marge du dé décide où va la rondelle.** `glisser`, `passeManquee`, `margeDe` (js/table.js) : une passe ratée sans bâton sur la ligne, ou un « au fond » raté, file au-delà de sa cible d'une case par point manqué (`MARGE_MAX` 3), la bande la renvoie ; le retour d'un tir arrêté de justesse reste collé au gardien, de plus loin à deux cases, du côté opposé au tir (`rebondir`, `rayon0`, `vise`).
+  - Preuve : `check_regles` (trois scènes : un point, trois vers la bande, le retour de justesse et de loin).
+- [x] **T4 · L'écran et l'interférence.** `gardienGene`, `ecranDe`, `ECRAN_MOD` (js/table.js) : un coéquipier sur la trajectoire, à deux rangées du filet ou plus, vaut +1 au tir ; un coéquipier sur une des trois cases collées au gardien fait refuser le but (sifflet, mise au jeu au neutre, le tir ne compte pas). Le tir affiche 0 % et la consigne dit pourquoi (js/plateau.js) ; l'IA se place en écran et ne tire pas un but qu'on refuserait.
+  - Preuve : `check_regles` (l'écran +1 ; 0 % affiché, BUT REFUSÉ, l'égalité de la feuille) ; `check_table` (les cibles du plateau tiennent).
+- [x] **T8 · Le format Éclair.** `PERIODES_ECLAIR`, `m.periodes` (js/table.js) ; le réglage « Format » de Nouvelle partie, en Sur table (`G.formatTable`, une préférence) ; le tournoi le fixe à son tirage et le garde dans sa sauvegarde (`T.periodes`, js/tournoi.js), l'exhibition le lit à chaque match ; le titre du plateau dit « Éclair ».
+  - Preuve : `check_regles` (30 matchs Éclair : une période, puis la prolongation s'il le faut) ; `smoke_table`.
+
 ## Jalon 5 · La sortie
 
 ### Fini, ça veut dire
@@ -584,3 +593,4 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
 - 2026-10-13 — U9 à U13 : une tête et un pied pour toutes les fenêtres, le ✕ seul pour fermer ; la page du club bâtie une fois ; `enteteJoueur` ; « rien à prendre » en état vide ; « qui sort ? » dans la liste de signature (JP).
 - 2026-10-13 — U14 à U17 (JP, en jouant) : le club en un nom et son écusson ; les choix dans l'alignement en rangées ; jouer une carte en un geste ; l'entracte et les cartes de match plus francs, les événements plus simples et plus courts.
 - 2026-10-13 — Entracte (JP : *le choix fucke, le score final change*, sans regarder le direct) : vérifié en Rogue, dans la page, sur cinq gros matchs (trois en direct, deux par « Jour suivant ») — les deux premières périodes et le pointage annoncé à l'entracte sont ceux de la feuille rejouée, au caractère près ; au moteur, une ligue Rogue rejouée avec l'entracte garde aussi ses quarante premières minutes (quatre graines). Pas reproduit : on attend l'export de la partie (Menu › 📤 Exporter) au moment où ça arrive.
+- 2026-10-13 — Sur table, trois idées tirées de Trick Shot (JP : *sans reprendre le fonctionnement*) : la marge du dé décide où va la rondelle, l'écran et l'interférence devant le gardien, le format Éclair (une période). check_regles, check_table et smoke_table verts.

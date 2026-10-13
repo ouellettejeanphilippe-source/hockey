@@ -37,7 +37,7 @@ import {
   peutBouger, peutAgir, souffleMax, etatSouffle, couvreurs, pressionDe, PAS_PAR_MAIN, pasRestants, porteeDe,
   enPositionHorsJeu, POINTS_MJ, MJ_CENTRE, MJ_FOND,
   bataillePossible, modBataille, appliquerBataille, enJeu,
-  peutRetirerGardien, retirerGardien, expliquerGeste,
+  peutRetirerGardien, retirerGardien, expliquerGeste, gardienGene, PERIODES, PERIODES_ECLAIR,
 } from './table.js';
 import { archetypeKey, ARCHETYPES } from './ratings.js';
 import { TRAITS } from './traits.js';
@@ -93,7 +93,7 @@ const detail = d => {
  * haut) et `B` l'adversaire ; `onTermine(resultat)` reçoit la feuille à la
  * fin. Le tournoi s'en sert pour chacun de tes matchs.
  */
-export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onTermine }) {
+export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onTermine, periodes = PERIODES }) {
   const modal = document.getElementById('tableModal');
   if (!modal) { onTermine(null); return; }
   const $ = s => modal.querySelector(s);
@@ -105,7 +105,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * pour ce qui change, et ce qui ne change pas : les règles et les dés.
    */
   const niveau = ctx.niveau ? ctx.niveau() : 'PRO';
-  const m = nouveauMatch(A, B, graine, { recrue: niveau === 'RECRUE' ? 'B' : null });
+  const m = nouveauMatch(A, B, graine, { recrue: niveau === 'RECRUE' ? 'B' : null, periodes });
   // LA COUTURE DES ESSAIS (S75b) : `smoke_table` amène un match jusqu'aux tirs de barrage avant
   // de l'ouvrir, pour vérifier qu'ils se VOIENT. Le jeu ne la passe jamais.
   if (typeof ctx.preparer === 'function') ctx.preparer(m);
@@ -998,6 +998,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
     horsjeu:    ['HORS-JEU', -1, 'defaut'],
     desert:     ['FILET DÉSERT', 0, 'defaut'],
     icing:      ['DÉGAGEMENT REFUSÉ', -1, 'defaut'],
+    refuse:     ['BUT REFUSÉ', -1, 'filet'],
   };
   const tonDe = (genre, sens, camp) => {
     const pourToi = camp === 'A' ? sens : -sens;
@@ -1269,7 +1270,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   const SON_DU_GENRE = {
     but: 'but', retour: 'retour', arret: 'arret', echec: 'echec', vol: 'vol', rate: 'rate',
     revirement: 'revirement', degage: 'degage', mj: 'mj', fin: 'fin', periode: 'periode',
-    dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode', horsjeu: 'periode', icing: 'periode', desert: 'periode',
+    dejoue: 'patin', changement: 'tap', bataille: 'vol', punition: 'periode', horsjeu: 'periode', icing: 'periode', refuse: 'periode', desert: 'periode',
     relance: 'passe',   // S74 : la sortie de zone du gardien est une passe, elle s'entend comme une passe
   };
   const PAS_SON = { tir: 0.22, patin: 0.12, passe: 0.1, echec: 0.28, arret: 0.2, retour: 0.25, vol: 0.15, rate: 0.15, degage: 0.45, mj: 0.1, periode: 0.5, fin: 2, but: 1.6, revirement: 0.2, tap: 0.08 };
@@ -1436,6 +1437,8 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
       : mode ? AIDE_MODE[mode]
       : horsPortee && prof <= 0 ? 'Derrière le filet on ne tire pas : une passe vers l\'enclave vaut +1 d\'ici — le gardien ne la voit pas venir.'
       : horsPortee ? `Trop loin pour tirer : il faut entrer dans la zone offensive, à ${PORTEE_TIR} cases du filet ou moins. Il en est à ${prof}.`
+      // L'INTERFÉRENCE SE DIT AVANT LE DÉ : le tir affiche 0 %, la consigne dit pourquoi.
+      : aLaRondelle && peutTirer(m, sel) && gardienGene(m, sel) ? `${nomCourt(gardienGene(m, sel).p)} est sur le gardien : un but serait refusé. Passe-lui, ou écarte-le.`
       : aLaRondelle ? 'Choisis un geste, ou touche directement une case allumée ou un adversaire. Pour passer, choisis « Passer » puis le coéquipier.'
       : 'Choisis un geste, ou touche directement une case allumée ou un adversaire adjacent.';
     // LES ACTIONS VONT DANS LA BARRE DU BAS (`dock`), pas dans le volet :
@@ -1966,7 +1969,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
    * dégagement refusé ou une punition finissaient ta main et la barre disait
    * « Ta main est jouée », comme si tu l'avais passée.
    */
-  const SIFFLETS_DE_MAIN = { horsjeu: 'Hors-jeu : coup de sifflet', icing: 'Dégagement refusé : coup de sifflet', punition: 'Punition : coup de sifflet', periode: 'Fin de la période' };
+  const SIFFLETS_DE_MAIN = { horsjeu: 'Hors-jeu : coup de sifflet', icing: 'Dégagement refusé : coup de sifflet', refuse: 'But refusé : coup de sifflet', punition: 'Punition : coup de sifflet', periode: 'Fin de la période' };
   function noterFinDeMain(avant) {
     const genres = m.fil.slice(0, Math.max(0, m.fil.length - avant)).map(e => e.genre);
     const sifflet = genres.find(g => SIFFLETS_DE_MAIN[g]);
@@ -2389,7 +2392,7 @@ export function ouvrirTable({ A, B, graine, titre = '', sousTitre = '', ctx, onT
   }
 
   // Le niveau se lit sur la première ligne (S75) : sur la seconde, il la faisait passer sur deux lignes à 390 px.
-  $('.t-titre').innerHTML = `<span class="t-titre-1">${esc(titre)} · ${niveau === 'RECRUE' ? 'Recrue' : 'Pro'}</span><span class="t-titre-2">${esc(sousTitre)}</span>`;
+  $('.t-titre').innerHTML = `<span class="t-titre-1">${esc(titre)} · ${niveau === 'RECRUE' ? 'Recrue' : 'Pro'}${m.periodes === PERIODES_ECLAIR ? ' · Éclair' : ''}</span><span class="t-titre-2">${esc(sousTitre)}</span>`;
   // Pas d'écouteur direct sur le bouton « ? » : `modal.onclick` le sert déjà
   // par délégation, et les deux ensemble basculaient le volet deux fois — il
   // s'ouvrait et se refermait dans le même clic.
