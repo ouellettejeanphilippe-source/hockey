@@ -595,7 +595,8 @@ function rangeeStrategie(unit, groupe = 'F') {
   return b;
 }
 function ouvrirReglage(unit, groupe) {
-  const spec = specStrategie();
+  // La glace du système montre les visages (js/gerant.js, `glaceHtml`).
+  const spec = { ...specStrategie(), visage: headshotHtml };
   ouvrirStrategie(spec, unit, groupe, ligne => {
     const lignes = spec.lignes.map(l => ({ ...l }));
     lignes[unit] = { ...lignes[unit], ...ligne };

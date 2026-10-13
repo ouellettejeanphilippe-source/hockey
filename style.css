@@ -2528,6 +2528,18 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* ---- La fenêtre du système d'une unité (#lignesModal .gl-sheet) ---- */
 .gl-sheet { max-width: 1180px; }
 .ln-fenetre .choix-corps { gap: var(--esp-3); }
+/* La glace du système (js/gerant.js, `glaceHtml`) : où le système place ses patineurs, une illustration.
+   Blanche comme la glace du plateau ; chaque joueur, son visage et une étiquette noire (son nom, ses badges
+   teints de leur palier) ; il glisse d'une place à l'autre quand on essaie un système. */
+.gl-glace { position: relative; flex: none; height: 300px; border: 3px solid var(--glace-bande); border-radius: var(--r-2); background: var(--glace-blanc); overflow: hidden; }
+.gl-glace > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.gl-pion { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; transform: translate(-50%, -50%); transition: left 500ms var(--e-sortie), top 500ms var(--e-sortie); pointer-events: none; }
+.gl-pion-visage { position: relative; width: 38px; height: 38px; overflow: hidden; border-radius: 50%; background: var(--glace-encre); box-shadow: 0 3px 8px color-mix(in srgb, var(--glace-encre) 35%, transparent); }
+.gl-pion-visage > * { position: absolute; inset: 0; display: grid; place-items: center; }
+.gl-pion-visage img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.15); transform-origin: 50% 0; }
+.gl-pion-visage .headshot-fallback { font-size: var(--t-3); opacity: 0.45; }
+.gl-pion-nom { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: var(--r-1); background: var(--glace-encre); color: var(--glace-blanc); font: 800 var(--t-1)/1.25 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .gl-pion { transition: none; } }
 /* Chaque section est une bande sur un filet, coiffée d'une étiquette. */
 .gl-sheet .choix-corps > section { border-top: 1px solid var(--filet); padding-top: var(--esp-3); }
 .gl-sheet .choix-corps > section:first-child { border-top: 0; padding-top: 0; }
@@ -2762,8 +2774,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
-.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(90deg, var(--a-duel) 0%, var(--a-duel) 35%, var(--b-duel) 65%, var(--b-duel) 100%); }
-/* Le duel en un seul dégradé : une couleur par club (`duel`, js/logos.js), qui fond dans celle de l'autre au VS.
+.hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(108deg, var(--a-duel) 0 49.6%, var(--b-duel) 50.4% 100%); }
+/* Le duel en biais (oct., le prototype) : une couleur par club (`duel`, js/logos.js), coupées net au VS comme une affiche de télé.
    L'aplat du club s'il se voit sur le noir ; sinon sa couleur vive (l'orange des NHL Stars, dont l'aplat est noir). */
 .hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); color: var(--eq-ink); }
 .hub-eq.b { align-items: flex-end; text-align: right; }

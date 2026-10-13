@@ -34,7 +34,7 @@ import { coachDeCarte } from './banque.js';
 import { COACHS } from './coachs.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
-import { esc, cap as majuscule, varsEquipe } from './util.js';
+import { esc, cap as majuscule, glyphe, varsEquipe } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -1085,6 +1085,64 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
  * change rien. `onAppliquer(ligne)` reçoit la ligne réglée (tac, tacD, sec).
  */
 const NOMS_PAIRE = ['1re paire', '2e paire', '3e paire'];
+/*
+ * LA GLACE DU SYSTÈME (oct., le prototype). JP : *la stratégie pourrait changer le positionnement des joueurs* ;
+ * *des logos, des visages : ça lie au vrai monde*. La fenêtre dessine où le système place ses cinq patineurs —
+ * le trio selon son système, la paire selon le sien —, chacun avec son visage, son nom et les icônes de ses
+ * badges à la couleur de leur palier. Une ILLUSTRATION : le moteur ne joue aucune position (aucune mécanique
+ * neuve) ; ce qui change le match reste écrit dessous, en vraies stats. Essayer un système fait glisser les
+ * joueurs de leur place à la nouvelle. Les places sont sur une glace de 350 × 300, la zone adverse en haut.
+ */
+const GLACE_F = {
+  hourra: [[100, 112], [175, 124], [250, 112]],
+  echec: [[98, 52], [175, 96], [252, 56]],
+  courtes: [[64, 84], [112, 40], [222, 86]],
+  bleue: [[70, 96], [175, 56], [280, 96]],
+  defensive: [[64, 168], [175, 128], [286, 168]],
+  contre: [[70, 176], [175, 226], [280, 160]],
+  derriere: [[116, 72], [175, 26], [234, 72]],
+  energie: [[62, 60], [142, 40], [288, 70]],
+};
+const GLACE_D = {
+  hourra: [[100, 230], [250, 230]],
+  maison: [[112, 256], [238, 256]],
+  activer: [[70, 104], [280, 98]],
+  relance: [[78, 238], [272, 238]],
+  rude: [[118, 262], [232, 262]],
+  equilibre: [[100, 220], [250, 220]],
+};
+// La dernière place de chaque joueur, pour qu'il glisse vers la nouvelle au lieu d'y sauter.
+const placesGlace = new Map();
+const nomCourt = n => String(n || '').trim().split(' ').slice(1).join(' ') || String(n || '');
+function glaceHtml(lineup, u, l, visage) {
+  const js = joueursDeLigne(lineup, u);
+  const f = GLACE_F[l.tac] || GLACE_F.hourra, d = GLACE_D[l.tacD] || GLACE_D.hourra;
+  const pions = [['AG', f[0]], ['C', f[1]], ['AD', f[2]], ['DG', d[0]], ['DD', d[1]]].filter(([r]) => js[r]).map(([r, [x, y]]) => {
+    const p = js[r], k = getPlayerKey(p), [ax, ay] = placesGlace.get(k) || [x, y];
+    const icones = badgesDe(p).slice(0, 2).map(b => `<i class="badge pal-${b.palier}">${glyphe(b.ico)}</i>`).join('');
+    return `<div class="gl-pion" data-k="${esc(k)}" data-x="${x}" data-y="${y}" style="left:${ax / 3.5}%;top:${ay / 3}%"><span class="gl-pion-visage">${visage ? visage(p) : ''}</span><span class="gl-pion-nom">${esc(nomCourt(p.n))}${icones}</span></div>`;
+  }).join('');
+  return `<div class="gl-glace" role="img" aria-label="Où le système place ses joueurs">
+    <svg viewBox="0 0 350 300" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="0" y1="28" x2="350" y2="28" stroke="var(--glace-rouge)" stroke-width="2" opacity="0.6"/>
+      <rect x="164" y="18" width="22" height="10" fill="none" stroke="var(--glace-rouge)" stroke-width="2"/>
+      <rect x="0" y="106" width="350" height="6" fill="var(--glace-bleu)" opacity="0.45"/>
+      <line x1="0" y1="150" x2="350" y2="150" stroke="var(--glace-rouge)" stroke-width="2" stroke-dasharray="6 5" opacity="0.6"/>
+      <circle cx="175" cy="150" r="26" fill="none" stroke="var(--glace-bleu)" stroke-width="2" opacity="0.45"/>
+      <rect x="0" y="188" width="350" height="6" fill="var(--glace-bleu)" opacity="0.45"/>
+      <line x1="0" y1="272" x2="350" y2="272" stroke="var(--glace-rouge)" stroke-width="2" opacity="0.6"/>
+      <rect x="164" y="272" width="22" height="10" fill="none" stroke="var(--glace-rouge)" stroke-width="2"/>
+    </svg>${pions}</div>`;
+}
+// Après le dessin : chaque joueur part de sa dernière place et glisse vers celle du système.
+function glisserGlace(m) {
+  const pions = [...m.querySelectorAll('.gl-pion')];
+  requestAnimationFrame(() => requestAnimationFrame(() => pions.forEach(el => {
+    const x = Number(el.dataset.x), y = Number(el.dataset.y);
+    el.style.left = `${x / 3.5}%`; el.style.top = `${y / 3}%`;
+    placesGlace.set(el.dataset.k, [x, y]);
+  })));
+}
 export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
   const m = $('lignesModal');
   if (!m) return;
@@ -1099,9 +1157,10 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
         <div class="choix-titres"><div class="choix-titre">${esc(titre)}</div>${clubLu() && clubLu().team ? '<div class="choix-irl">Par match, contre ce qui joue</div>' : ''}</div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
       </div>
-      <div class="choix-corps">${corps}</div>
+      <div class="choix-corps">${glaceHtml(spec.lineup, u, brouillon[u], spec.visage)}${corps}</div>
       <div class="choix-pied"><button type="button" class="btn gold gl-appliquer">Appliquer</button></div>
     </div>`;
+    glisserGlace(m);
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[u].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[u].tacD = b.dataset.tacd; dessiner(); }; });
     m.querySelector('.choix-fermer').onclick = fermer;
