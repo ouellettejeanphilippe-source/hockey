@@ -293,9 +293,9 @@ async function regler() {
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
     // Un joueur offert (S78) : « Signer », puis « qui sort ? » — en liste (Jalon U), puis « Où joue ? » : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
-    // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », à sa meilleure case.
+    // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », puis « qui sort ? » (U18).
     if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#signatureModal:not([hidden]) .btn-sign:not([disabled])')) { await page.click('#signatureModal .btn-sign:not([disabled])'); await page.waitForTimeout(600); continue; }
-    // « Qui sort ? » en liste (Jalon U) : « Sort » sur le premier proposé.
+    // « Qui sort ? » en liste (Jalon U) : « Sort » sur le premier, la sortie proposée (U18).
     if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) {
       await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue;
@@ -627,6 +627,23 @@ const encore = !!(await page.$('#signatureModal:not([hidden]) .btn-sign'));
 if (!fiche || !encore) erreurs.push(`toucher la rangée : fiche ${fiche}, liste toujours ouverte ${encore}`);
 await page.keyboard.press('Escape');
 await page.waitForTimeout(400);
+// U18 (JP : *signer doit toujours demander qui part*) : « Signer » ouvre « qui sort ? » dès que quelqu'un sort, la meilleure
+// sortie en tête et cerclée d'or ; une case libre où personne ne sort se signe sans question. Le ✕ ramène à la liste.
+const destSigner = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-dest', x => x.textContent.replace(/\s+/g, ' ').trim());
+if (!/personne ne sort/.test(destSigner)) {
+  await page.click('#signatureModal .pcard:not(.locked) .btn-sign');
+  const qs = await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 }).catch(() => null);
+  if (!qs) erreurs.push(`« Signer » pose le joueur sans demander qui sort (${destSigner})`);
+  else {
+    const tete = await page.$$eval('#choixModal .sig-liste .pcard', e => ({ n: e.filter(x => x.classList.contains('meilleure')).length, premiere: e[0].classList.contains('meilleure') }));
+    if (tete.n !== 1 || !tete.premiere) erreurs.push(`« qui sort ? » après « Signer » : la meilleure sortie n'est pas seule en tête, cerclée d'or (${JSON.stringify(tete)})`);
+    await page.screenshot({ path: `${DOSSIER}/rogue-signer-qui-sort.png` });
+    await page.click('#choixModal .choix-fermer');
+    await page.waitForTimeout(400);
+    if (!(await page.$('#signatureModal:not([hidden]) .pcard'))) erreurs.push('fermer « qui sort ? » referme aussi la liste de signature');
+    console.log(`   « Signer » demande qui sort : la meilleure sortie proposée en tête (${destSigner})`);
+  }
+}
 // Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79). On choisit sa case soi-même (« Changer »).
 const nomSigne = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-nom', x => x.textContent.replace(/\s+/g, ' ').trim());
 await page.click('#signatureModal .pcard:not(.locked) .sig-changer');
@@ -643,10 +660,12 @@ const rangees = await page.$$eval('#choixModal .sig-liste .pcard', e => e.length
 if (rangees < 20) erreurs.push(`« qui sort ? » ne montre que ${rangees} joueurs`);
 const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.length);
 // Un joueur qui sort (pas la réserve libre) : c'est le chemin qui retire quelqu'un.
-const barreSortie = await page.$eval('#choixModal .sig-sort:not([disabled])', b => b.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim());
+// La sortie proposée (U18) signe à sa case calculée ; un autre sortant passe par « Où joue X ? », l'étape éprouvée ici.
+const AUTRE = '#choixModal .sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])';
+const barreSortie = await page.$eval(AUTRE, b => b.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim());
 if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(barreSortie)) erreurs.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${barreSortie} »`);
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
-await page.click('#choixModal .sig-sort:not([disabled])');
+await page.click(AUTRE);
 // Où joue l'arrivant : sa case, et ce qui glisse.
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
 await page.waitForTimeout(300);
@@ -824,7 +843,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas depuis l\'onglet Permanent');
   else {
     await rappel.click();
-    // Jalon R : la liste, chacun à sa meilleure case ; « Signer » pose sans demander qui sort.
+    // Jalon R : la liste, chacun à sa meilleure case ; « Signer » demande qui sort (U18), la meilleure sortie proposée.
     await page.waitForSelector('#signatureModal:not([hidden]) .btn-sign', { timeout: 30000 });
     await page.waitForTimeout(400);
     await page.screenshot({ path: `${DOSSIER}/rogue-rappel.png` });

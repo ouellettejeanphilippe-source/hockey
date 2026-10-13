@@ -353,7 +353,10 @@ async function offresDuCartable(C, graine) {
   const dansLaLigue = new Set();
   for (const t of Lg.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
   const max = salaireMaxDePack(), out = [];
-  for (const cle of tirageDuClasseur(Object.keys(c.joueurs), graine)) {
+  // `anciens` (P3) : une carte qui a joué une run d'avant celle-ci (`r`, `der` : js/cartable.js `marquerJouees`).
+  const run = (G.rogue && G.rogue.numero) || 0;
+  const cles = Object.keys(c.joueurs).filter(k => !C.anciens || ((c.joueurs[k].r || 0) > 0 && c.joueurs[k].der !== run));
+  for (const cle of tirageDuClasseur(cles, graine)) {
     if (out.length >= C.offres) break;
     const p = await joueurDeCle(cle);
     if (!p || !(p.$ > 0) || p.$ > max || dansLaLigue.has(getPersonKey(p)) || dejaChezToi(p) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
@@ -717,7 +720,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
         // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
         ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: c.texte, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
-          vide: `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
+          vide: C.anciens ? `Aucun ancien de tes runs d'avant, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.` : `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
           desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
           onSigne: (x, sortie) => { const k = getPlayerKey(x.p); G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); },
           onFerme: retour });

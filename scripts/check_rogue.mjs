@@ -88,7 +88,10 @@ function forceAuMoment(i, matchs) {
   const toi = equipe('2005-06', 'CAR'), adv = equipe('2005-06', 'BUF');
   // Une ligue Rogue : la courbe de la fin de partie joue (`courbe`).
   toi.courbe = adv.courbe = true;
-  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; } };
+  // Tout ce qu'`appliquerMutation` pose : ses canaux, mais aussi ses profils (« sniper +12 »), ses clés et le journal du club.
+  // Sans `_mutProfils`, le tir affûté s'empilait 1 500 fois sur les mêmes avants, et les bras joués après (l'adversaire,
+  // les synergies) se mesuraient sur des profils au plafond : la carte sur l'adversaire valait ×1,6 en finale au lieu de ×8.
+  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; delete p._mutProfils; delete p._mutCles; } t.mutations = []; };
   const jouer = (bras, cartes = []) => {
     let v = 0, ecart = 0;
     for (let k = 0; k < matchs; k++) {

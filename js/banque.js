@@ -438,6 +438,8 @@ export const CONSOMMABLES = {
    */
   rappel: { nom: 'Le rappel du club-école', ico: '📟', rarete: 'commune', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 1, texte: 'Un coup de fil à la ferme : trois de tes cartes répondent.' },
   rappelPilier: { nom: 'Le rappel d\'un pilier', ico: '📟', rarete: 'rare', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, texte: 'Celui-là, il n\'aurait jamais dû descendre.' },
+  // Le retour d'un ancien (P3) : trois cartes de ton cartable qui ont porté tes couleurs dans une run d'avant (`anciens`).
+  rappelAncien: { nom: 'Le retour d\'un ancien', ico: '📟', rarete: 'peu', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, anciens: true, texte: 'Il a déjà porté tes couleurs. Il connaît le vestiaire.' },
   capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.72, defense: 0.944, volume: 0.958 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 

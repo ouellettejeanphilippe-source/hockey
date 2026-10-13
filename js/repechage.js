@@ -478,13 +478,17 @@ function choisirQuiSort(p, o) {
     return { A, q, non, net: non ? null : netDe(A) };
   });
   // Ceux qui peuvent sortir d'abord, ceux de son poste devant, puis ce que sa sortie rend par match.
-  sorties.sort((x, y) => !!x.non - !!y.non || (groupeDe(y.q) === groupeDe(p)) - (groupeDe(x.q) === groupeDe(p)) || valeurDeCase(y.net) - valeurDeCase(x.net));
+  // La sortie proposée (U18, `propose` : la meilleure de la liste de signature) passe en tête, cerclée d'or.
+  const propre = s => !!(o.propose && !s.non && s.A.i === o.propose.i);
+  sorties.sort((x, y) => propre(y) - propre(x) || !!x.non - !!y.non || (groupeDe(y.q) === groupeDe(p)) - (groupeDe(x.q) === groupeDe(p)) || valeurDeCase(y.net) - valeurDeCase(x.net));
   let fermer = () => {};
-  const choisir = A => { fermer(); placerArrivant(p, o, A, () => choisirQuiSort(p, o)); };
-  const rangees = sorties.map(({ A, q, non, net }) => {
+  // La proposée a déjà sa case (et ceux qui glissent) : « Sort » signe. Les autres passent par « Où joue X ? ».
+  const choisir = A => { fermer(); if (o.propose && A.i === o.propose.i) o.onChoix(o.propose.sortie); else placerArrivant(p, o, A, () => choisirQuiSort(p, o)); };
+  const rangees = sorties.map(s => {
+    const { A, q, non, net } = s;
     const el = document.createElement('div');
     const rar = rareteJoueur(q) || 'commune';
-    el.className = `pcard tc-${rar}${non ? ' locked' : ''}`;
+    el.className = `pcard tc-${rar}${non ? ' locked' : ''}${propre(s) ? ' meilleure' : ''}`;
     el.dataset.cle = getPlayerKey(q);
     el.setAttribute('style', varsEquipe(q));
     const stats = net ? motsDeStats(net, 2) : [];
@@ -595,8 +599,11 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
  * LA LISTE DE SIGNATURE DU ROGUE (Jalon R). JP : *la liste pour signer en mode 82-0, c'est clair complet, pourquoi
  * c'est pas ça pour intégrer joueurs signés et alignement en mode roguelike ?*. Les rangées du vestiaire
  * (`playerCardEl`) : visage, salaire, chiffre clé, rôle et zone ; et la destination, calculée d'avance : la case où
- * il rend le plus (`meilleureSortie`), qui sort, ce que ça change par match. « Signer » le pose là ; toucher la
- * destination ouvre « qui sort ? » pour en choisir une autre. Packs, rappel du club-école, ballottage.
+ * il rend le plus (`meilleureSortie`), qui sort, ce que ça change par match. Packs, rappel du club-école, ballottage.
+ * SIGNER DEMANDE QUI PART (U18). JP, 13 oct. : *signer doit toujours demander qui part*. Dès que quelqu'un sort,
+ * « Signer » ouvre « qui sort ? » : la meilleure sortie y est proposée, cerclée d'or et en tête, elle ne décide plus
+ * seule. Quand la meilleure case est libre et que personne ne sort (la réserve libre du Rogue), la rangée le dit et
+ * « Signer » y signe.
  */
 function meilleureSortie(p, { roster, bloque = null }) {
   const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !roster[sl.i] && fits(p, sl)) : null;
@@ -628,7 +635,7 @@ function meilleureSortie(p, { roster, bloque = null }) {
     cases[B.i] = getPlayerKey(p);
     sortie.cases = cases;
   }
-  return { sortie, B, q0, net };
+  return { sortie, A, B, q0, net };
 }
 /*
  * UNE RANGÉE DU VESTIAIRE (Jalon R) : visage, nom, postes et club ; le carton (au bureau) ; salaire et chiffre clé ;
@@ -663,18 +670,22 @@ function rangeeDeSignature(x, o, signer) {
   const dest = non ? `<span class="dest-bad">${esc(non)}</span>`
     : !best ? '<span class="dest-bad">Aucune case sous le plafond</span>'
       : fixe ? `${esc(fixe.mot)} ›`
-      : `<span class="dest-target">${esc(ligneDe(best.B))}</span> · ${best.q0 ? `${esc(nomDe(best.q0.n))} sort` : 'personne ne sort'}${stats.length ? ` · ${stats.map(s => `<span class="${s.bon === true ? 'dest-ok' : s.bon === false ? 'dest-bad' : ''}">${esc(s.txt)}</span>`).join(', ')}` : ''} ›`;
+      : `<span class="dest-target">${esc(ligneDe(best.B))}</span> · ${best.q0 ? `${esc(nomDe(best.q0.n))} sort` : 'case libre, personne ne sort'}${stats.length ? ` · ${stats.map(s => `<span class="${s.bon === true ? 'dest-ok' : s.bon === false ? 'dest-bad' : ''}">${esc(s.txt)}</span>`).join(', ')}` : ''} ›`;
   el.innerHTML = rangeeHtml(p, { ...x, salaire: capHitDuJour(p),
     dest: best ? `<button type="button" class="pcard-dest sig-changer" title="Choisir une autre case">${dest}</button>` : `<div class="pcard-dest">${dest}</div>`,
     bouton: `<button class="btn-sign" ${best ? '' : 'disabled'}>${best ? 'Signer' : 'Pas de case'}</button>` });
   el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(p); };
+  // « Qui sort ? », la meilleure sortie proposée (`propose`) ; `libre` : il y a de la place, personne ne sort.
+  const quiSort = propose => choisirQuiSort(p, { roster: o.roster, genre: o.genre || 'recompense', bloque: o.bloque ? q => o.bloque(p, q) : null, propose,
+    onChoix: sortie => { if (sortie) signer(x, sortie); }, onFerme: () => {} });
   const b = el.querySelector('.btn-sign');
-  if (best) b.onclick = ev => { ev.stopPropagation(); signer(x, best.sortie); };
-  const ch = el.querySelector('.sig-changer');
-  if (ch) ch.onclick = ev => {
+  if (best) b.onclick = ev => {
     ev.stopPropagation();
-    choisirQuiSort(p, { roster: o.roster, genre: o.genre || 'recompense', bloque: o.bloque ? q => o.bloque(p, q) : null, onChoix: sortie => { if (sortie) signer(x, sortie); }, onFerme: () => {} });
+    if (!best.sortie.sort) signer(x, best.sortie);
+    else quiSort({ i: best.sortie.i, sortie: best.sortie });
   };
+  const ch = el.querySelector('.sig-changer');
+  if (ch) ch.onclick = ev => { ev.stopPropagation(); quiSort(best && best.sortie.sort ? { i: best.sortie.i, sortie: best.sortie } : null); };
   return el;
 }
 /*
@@ -739,9 +750,14 @@ function feuilleDeJoueurs(o) {
  * UNE CASE DE RÉSERVE LIBRE (S80, le Rogue). JP : *possible de discard les cartes de remplaçants ou
  * débloquer des slots de remplacement*. Quand un réserviste a été relâché, ou qu'une case de plus est
  * débloquée, le joueur qui arrive peut y entrer sans que personne sorte. Depuis oct., c'est une case de
- * l'alignement de « qui sort ? » (`choisirQuiSort`), plus un écran à part.
+ * l'alignement de « qui sort ? » (`choisirQuiSort`), plus un écran à part ; depuis U18, quand elle est la meilleure case, il y entre sans question.
  */
-export const quiSortOuCaseLibre = (p, o) => choisirQuiSort(p, o);
+export function quiSortOuCaseLibre(p, o) {
+  // U18 : comme « Signer » dans la liste — la meilleure case est libre, il y entre ; sinon « qui sort ? », la meilleure sortie proposée.
+  const best = meilleureSortie(p, { roster: o.roster, bloque: o.bloque || null });
+  if (best && !best.sortie.sort) { o.onChoix(best.sortie); return; }
+  choisirQuiSort(p, { ...o, propose: best ? { i: best.sortie.i, sortie: best.sortie } : null });
+}
 /*
  * LA CARTE QUI SORT VA AU CARTABLE (S80). JP : *envoyer cartes au cartable
  * quand discard*. Un joueur qui laisse sa place (une signature, un

@@ -278,9 +278,8 @@ function slotEl(s) {
      * deux fois (l'écusson et « EDM '94 »), et un nom de famille qui n'avait
      * que 60 px — six noms coupés à 390 px, dix à 1 280. Elle garde ce qui
      * DÉCIDE d'un alignement, chacun une fois, dans cet ordre de lecture :
-     *   1. la bande : la case qu'il occupe (sa pastille), son club (l'écusson),
-     *      son salaire ;
-     *   2. son NOM, sur toute la largeur de la case ;
+     *   1. la bande : la case qu'il occupe (sa pastille), son salaire ;
+     *   2. son NOM, sur toute la largeur de la case, l'écusson de son club devant (U19) ;
      *   3. sa production (au repêchage) ou sa fiche à ce jour (derrière le banc) ;
      *   4. les verdicts : 🩹 blessé, sa zone (T1-3), ▼ ▲ hors de sa zone, −N
      *      hors position, puis ses icônes.
@@ -305,14 +304,13 @@ function slotEl(s) {
         : `<button class="slot-remove" title="Retirer ${esc(p.n)}" aria-label="Retirer ${esc(p.n)}">✕</button>`}
       <div class="slot-band${estRenfort(p) ? ' off' : ''}">
         <span class="sb-role ${positionClass(p)}" title="Ses positions : ${esc(positionLabel(p))} — ce qu'il peut jouer (la case, elle, se lit à sa place dans le trio)">${esc(positionLabel(p).split(' / ').join('/'))}</span>
-        <span class="sb-logo">${getTeamLogoHtml(p.t, 12)}</span>
         ${estRenfort(p)
           ? '<span class="slot-salary renfort" title="Fourni par ton club de renfort : ne coûte rien au plafond et ne se modifie pas.">renfort</span>'
           : `<span class="slot-salary">${st.salaryMain}</span>`}
       </div>
       <div class="slot-inner">
         <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
-        <button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button>
+        <span class="slot-qui"><span class="slot-logo" aria-hidden="true">${getTeamLogoHtml(p.t, 20)}</span><button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button></span>
         ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
         <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag })}
       </div>`;
