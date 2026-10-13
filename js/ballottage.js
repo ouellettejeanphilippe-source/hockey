@@ -20,6 +20,9 @@ import { niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from './ni
 import { estD as isD } from './util.js';
 
 export const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
+/* Le poste naturel exact (JP, 13 oct. : *club-école ou rappel, un joueur de l'exacte même position*) : C, AG, AD, DG, DD ou G. */
+const posteDe = p => (p.p === 'G' ? 'G' : isD(p) ? (['RD', 'DD', 'R'].includes(p.np) ? 'DD' : 'DG')
+  : p.np === 'C' ? 'C' : ['R', 'AD'].includes(p.np) ? 'AD' : 'AG');
 /* La production d'un joueur dans sa saison : points par match, ou % d'arrêts. */
 export const productionDe = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
 
@@ -109,6 +112,9 @@ export function candidatsBallottage({ shards, ligue, blesse, budget, at, graine 
       }
     }
   }
+  // Le poste exact du blessé d'abord ; son groupe seulement si personne n'y joue.
+  const auPoste = pool.filter(p => posteDe(p) === posteDe(blesse));
+  if (auPoste.length) pool.splice(0, pool.length, ...auPoste);
   const h = str => { let x = ((Number(graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
   // Des offres qui valent la peine : les meilleurs producteurs qui passent le
   // filtre (tous sous le blessé), puis trois d'entre eux tirés de la graine.
@@ -129,8 +135,8 @@ export function candidatsBallottage({ shards, ligue, blesse, budget, at, graine 
  * est impossible de remplacer un joueur* ; *ça doit ajouter un « mauvais » joueur : tout doit être réel dans le
  * système, si on le dit au joueur*. Le ballottage peut n'offrir personne, ou personne que le plafond et les jetons
  * laissent signer. Le club-école, lui, a toujours quelqu'un : un VRAI joueur des saisons de la ligue, d'un club qui
- * n'y est pas, monté quelques matchs dans sa saison (RAPPEL_MATCHS) — le plus faible producteur de son groupe (à
- * égalité, celui qui a le plus joué), un bouche-trou, pas un renfort. Gratuit et hors plafond (le contrôleur le dit à `plafondDe`, js/banque.js). Le même à
+ * n'y est pas, monté quelques matchs dans sa saison (RAPPEL_MATCHS) — le plus faible producteur à son poste exact, sinon
+ * de son groupe (à égalité, celui qui a le plus joué), un bouche-trou, pas un renfort. Gratuit et hors plafond (le contrôleur le dit à `plafondDe`, js/banque.js). Le même à
  * chaque appel (la graine et le match départagent les égalités). Pas de gardien : l'auxiliaire prend le filet.
  */
 export function rappelDuClubEcole({ shards, ligue, blesse, at, graine = ligue && ligue.graine }) {
@@ -141,22 +147,26 @@ export function rappelDuClubEcole({ shards, ligue, blesse, at, graine = ligue &&
   for (const t of ligue.teams || []) for (const p of Object.values(t.roster || {})) if (p) dansLaLigue.add(getPersonKey(p));
   const clubs = new Set(ligue.cles);
   const h = str => { let x = ((Number(graine) >>> 0) ^ Math.imul(at + 1, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
-  let best = null, bestMesure = Infinity;
-  for (const s of new Set(ligue.cles.map(c => String(c).split('|')[0]))) {
-    const e = shards.get(s);
-    if (!e) continue;
-    for (const [tag, joueurs] of Object.entries(e.byTeam || {})) {
-      if (clubs.has(`${s}|${tag}`)) continue;
-      for (const p of joueurs) {
-        if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1] || !(p.$ > 0) || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p))) continue;
-        // À production égale (souvent zéro point), celui qui a joué le plus : un mauvais joueur éprouvé, pas un fragile.
-        const m = productionRelative(p, shards);
-        const egal = Math.abs(m - bestMesure) <= 1e-12;
-        if (m < bestMesure - 1e-12 || (egal && (p.gp > best.gp || (p.gp === best.gp && h(getPlayerKey(p)) < h(getPlayerKey(best)))))) { best = p; bestMesure = m; }
+  // Le plus faible qui passe `garde`, à production égale celui qui a joué le plus : un mauvais joueur éprouvé, pas un fragile.
+  const plusFaible = garde => {
+    let best = null, bestMesure = Infinity;
+    for (const s of new Set(ligue.cles.map(c => String(c).split('|')[0]))) {
+      const e = shards.get(s);
+      if (!e) continue;
+      for (const [tag, joueurs] of Object.entries(e.byTeam || {})) {
+        if (clubs.has(`${s}|${tag}`)) continue;
+        for (const p of joueurs) {
+          if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1] || !(p.$ > 0) || groupeDe(p) !== g || !garde(p) || dansLaLigue.has(getPersonKey(p))) continue;
+          const m = productionRelative(p, shards);
+          const egal = Math.abs(m - bestMesure) <= 1e-12;
+          if (m < bestMesure - 1e-12 || (egal && (p.gp > best.gp || (p.gp === best.gp && h(getPlayerKey(p)) < h(getPlayerKey(best)))))) { best = p; bestMesure = m; }
+        }
       }
     }
-  }
-  return best;
+    return best;
+  };
+  // Le poste exact du blessé d'abord ; son groupe seulement si personne n'y joue (le club-école a toujours quelqu'un).
+  return plusFaible(p => posteDe(p) === posteDe(blesse)) || plusFaible(() => true);
 }
 
 /*

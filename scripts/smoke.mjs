@@ -931,6 +931,8 @@ console.log('   écran « Nouvelle partie » : ouvert à la première visite, re
     await carte.click({ position: { x: 30, y: 30 } });
     const btn = await page.waitForSelector('#hockeyCardModal #modalSignBtn', { timeout: 5000 }).catch(() => null);
     if (btn) {
+      // La fiche entre en glissant (la fiche-carte plein écran) : on la mesure à l'arrêt, pas en pleine entrée.
+      await auRepos();
       const r = await btn.boundingBox();
       if (!r || r.y + r.height > 844 + 1) errors.push(`la fiche d'un joueur laisse « Signer » sous le pli (${r ? Math.round(r.y + r.height) : '?'} px sur 844)`);
     } else errors.push('la fiche d\'un joueur du vestiaire ne s\'ouvre pas, ou n\'a pas de bouton « Signer »');

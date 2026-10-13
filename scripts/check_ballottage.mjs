@@ -13,10 +13,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPlayerKey, getPersonKey, connaitre, photoAlignement, fits } from '../js/sim.js';
-import { candidatsBallottage, productionDe, NIVEAU_MAX_BALLOTTAGE, RAPPEL_MATCHS, quiGlisse } from '../js/ballottage.js';
+import { candidatsBallottage, rappelDuClubEcole, productionDe, NIVEAU_MAX_BALLOTTAGE, RAPPEL_MATCHS, quiGlisse } from '../js/ballottage.js';
 import { niveauDe, joueursParNiveau, groupeDuJoueur } from '../js/niveaux.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
+/* Le poste naturel exact, comme `posteDe` (js/ballottage.js) : C, AG, AD, DG, DD ou G. */
+const posteExact = p => (p.p === 'G' ? 'G' : ['D', 'LD', 'RD'].includes(p.p) ? (['RD', 'DD', 'R'].includes(p.np) ? 'DD' : 'DG')
+  : p.np === 'C' ? 'C' : ['R', 'AD'].includes(p.np) ? 'AD' : 'AG');
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -102,7 +105,7 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
   for (const f of SAISONS) { const sh = shard(f); const byTeam = {}; for (const p of sh.players) (byTeam[p.t] = byTeam[p.t] || []).push(p); shards.set(sh.season, { players: sh.players, byTeam }); }
   const L = { cles, teams, graine: 'ballottage' };
   const budget = 95_500_000 * 0.03;
-  let n = 0, vedettes = 0, gros = 0, vides = 0, instables = 0, offerts = [], meilleurs = 0, horsRappel = 0;
+  let n = 0, vedettes = 0, gros = 0, vides = 0, instables = 0, offerts = [], meilleurs = 0, horsRappel = 0, auPoste = 0, ecoles = 0, ecolesAuPoste = 0;
   // Rapportée aux réguliers de sa saison à son poste, comme js/ballottage.js la juge.
   const reguliers = (sa, g) => { const e = shards.get(String(sa)); const v = e ? e.players.filter(x => (x.gp || 0) >= 40 && groupeDuJoueur(x) === g).map(productionDe) : []; return v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0; };
   const relative = p => (p.p === 'G' ? productionDe(p) : productionDe(p) / (reguliers(p.s, groupeDuJoueur(p)) || 1));
@@ -111,10 +114,13 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
     const blesse = Object.values(t.roster).filter(Boolean)[(i * 7) % 20];
     const a = candidatsBallottage({ shards, ligue: L, blesse, budget, at: 10 + i });
     const b = candidatsBallottage({ shards, ligue: L, blesse, budget, at: 10 + i });
+    // Le club-école : toujours quelqu'un pour un patineur, au poste exact du blessé.
+    if (blesse.p !== 'G') { const r = rappelDuClubEcole({ shards, ligue: L, blesse, at: 10 + i }); ecoles++; if (r && posteExact(r) === posteExact(blesse)) ecolesAuPoste++; }
     if (!a.length) { vides++; continue; }
     if (a.map(getPlayerKey).join() !== b.map(getPlayerKey).join()) instables++;
     for (const p of a) {
       n++;
+      if (posteExact(p) === posteExact(blesse)) auPoste++;
       if (relative(p) >= relative(blesse)) meilleurs++;
       if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1]) horsRappel++;
       const e = shards.get(String(p.s));
@@ -133,6 +139,9 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
   exiger('la même blessure offre les mêmes trois noms', instables === 0, `${instables} offres qui changent`);
   // UN VRAI RAPPEL (1.0, oct.) : jamais meilleur que le blessé, et un gars qui a peu joué dans sa saison.
   exiger('jamais un réclamé meilleur que le blessé', meilleurs === 0, `${meilleurs} au-dessus`);
+  // JP, 13 oct. : *club-école ou rappel, un joueur de l'exacte même position*. Son groupe ne sert que si personne n'y joue.
+  exiger('les réclamés jouent le poste exact du blessé (C, AG, AD, DG, DD, G)', n > 0 && auPoste === n, `${auPoste}/${n}`);
+  exiger('le club-école rappelle un joueur du poste exact du blessé', ecoles > 0 && ecolesAuPoste === ecoles, `${ecolesAuPoste}/${ecoles}`);
   exiger(`un réclamé a joué de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, horsRappel === 0, `${horsRappel} hors de la fourchette`);
 }
 /*
