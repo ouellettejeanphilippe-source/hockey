@@ -104,11 +104,8 @@ for (let k = 0; k < 2; k++) {
   for (let i = 0; i < 4 && /qui sort|Où joue/.test(await titre()); i++) {
     const sort = await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])');
     if (sort) { await sort.click(); await page.waitForTimeout(600); continue; }
-    const c = await page.$('#choixModal:not([hidden]) .aln-case:not([disabled])');
+    const c = await page.$('#choixModal:not([hidden]) .aln-ligne .aln-choisir:not([disabled])');
     if (c) await c.click();
-    await page.waitForTimeout(300);
-    const ok = await page.$('#choixModal:not([hidden]) .aln-confirmer:not([disabled])');
-    if (ok) await ok.click();
     await page.waitForTimeout(1200);
   }
   signes.push(await page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => /:signe$/.test(d.palier || '') && d.ballottage).length));

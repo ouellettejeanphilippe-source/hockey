@@ -32,7 +32,7 @@
  * malédictions) ; la main d'un match se tire de la graine et du match ; les
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
-import { hache } from './util.js';
+import { hache, SENS_DES_CANAUX } from './util.js';
 import { CARTES_MATCH_VIE } from './cartes-vie.js';
 
 export const ENERGIE_MAIN = 3;
@@ -330,7 +330,7 @@ export const carteDeBase = cle => String(cle).replace(/\+$/, '');
  * −4,5 %) ; sur l'adversaire (`adv`), le bon sens est l'inverse. Les minutes
  * des lignes (F, D) restent telles quelles.
  */
-const SENS = { finition: 1, volume: 1, robustesse: 1, defense: -1, energie: -1, discipline: -1, blessure: -1 };
+const SENS = SENS_DES_CANAUX;
 const plusDe = (v, k = null, cote = 1) => {
   if (typeof v !== 'number') return v;
   const s = k ? SENS[k] : null;
@@ -338,6 +338,29 @@ const plusDe = (v, k = null, cote = 1) => {
   return 1 + (v - 1) * 1.5;
 };
 const canauxPlus = (e, cote = 1) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v, k, cote)])) : e);
+/*
+ * DES CARTES DE MATCH PLUS FRANCHES (JP, 13 oct. : *les cartes de matchs, plus gros effet*). Une carte ne joue qu'un
+ * soir : à ±6 %, on ne la voyait pas dans la feuille. Chaque écart au 1 de ses canaux (et des minutes des lignes) est
+ * multiplié par `FRANCHISE_MATCH`, son prix compris, AVANT que sa version « + » en soit tirée ; un canal ne descend
+ * jamais sous `PLANCHER_MATCH`. La face lit ces chiffres-là : ce sont eux que le moteur joue. La main ADVERSE, elle,
+ * joue à l'échelle d'avant (js/sim.js, `poserGros`) : elle est calibrée, la difficulté ne bouge pas.
+ */
+export const FRANCHISE_MATCH = 1.8;
+const PLANCHER_MATCH = 0.4;
+const CHAMPS_DE_CANAUX = ['effet', 'adv', 'improvise', 'piege', 'siVide'];
+const plusFranche = v => Math.max(PLANCHER_MATCH, Math.round((1 + (v - 1) * FRANCHISE_MATCH) * 1000) / 1000);
+const rendreFranche = e => {
+  if (!e || typeof e !== 'object') return;
+  // La robustesse est une somme (« +1,4 ») que le moteur multiplie (`grandirEffet`) : elle se multiplie aussi.
+  for (const k of Object.keys(SENS)) if (typeof e[k] === 'number') e[k] = k === 'robustesse' ? Math.round(e[k] * FRANCHISE_MATCH * 1000) / 1000 : plusFranche(e[k]);
+  for (const k of ['F', 'D']) if (Array.isArray(e[k])) e[k] = e[k].map(plusFranche);
+};
+for (const C of Object.values(CARTES_MATCH)) {
+  for (const k of CHAMPS_DE_CANAUX) rendreFranche(C[k]);
+  if (C.apres40) { rendreFranche(C.apres40.siMene); rendreFranche(C.apres40.sinon); }
+  for (const k of ['parGenre', 'selonLeurMain']) if (C[k]) rendreFranche(C[k].effet);
+  if (C.pari) { rendreFranche(C.pari.gagne); rendreFranche(C.pari.perd); }
+}
 for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   if (C.maudite) continue;
   const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.revele || C.planB || C.rabais;

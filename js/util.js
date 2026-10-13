@@ -104,6 +104,12 @@ export function pageDuClub({ genre, retour, ico = '', titre, sous = '', haut = '
   return el;
 }
 
+/*
+ * LE SENS D'UN CANAL : ce qui est bon quand ça monte (finition, volume, robustesse) et ce qui est bon quand ça baisse
+ * (défensive, énergie, discipline, blessure). Les cartes de match (js/combat.js) et les événements (js/banque.js) le lisent.
+ */
+export const SENS_DES_CANAUX = { finition: 1, volume: 1, robustesse: 1, defense: -1, energie: -1, discipline: -1, blessure: -1 };
+
 /** Un nombre de 0 à 1 tiré de mots : la même entrée, le même nombre (le hasard pur des packs, des variantes, du deck). */
 export function hache(...parts) {
   let h = 2166136261 >>> 0;

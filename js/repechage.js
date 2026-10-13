@@ -364,9 +364,10 @@ export function rangeesAlignement(roster, etat, libre = null) {
     const q = roster && roster[sl.i];
     // Une case vide qu'on peut prendre (`libre`, la réserve libre du Rogue) se touche comme un joueur.
     const offerte = !q && libre ? libre(sl) : null;
-    if (offerte) return { cle: String(sl.i), visage: '', nom: 'Case libre', nomLong: 'Case libre', pos: sl.scratch ? 'Réserve' : sl.role, ...offerte };
+    if (offerte) return { cle: String(sl.i), nom: 'Case libre', pos: sl.scratch ? 'Réserve' : sl.role, ...offerte };
     if (!q) return { cle: String(sl.i), vide: true, pos: sl.scratch ? '' : sl.role };
-    return { cle: String(sl.i), visage: headshotHtml(q), nom: nomCourt(q.n), nomLong: q.n, pos: positionLabel(q), ...(etat(sl, q) || {}) };
+    const rar = rareteJoueur(q) || 'commune';
+    return { cle: String(sl.i), p: q, rar, rangee: (dest, bouton) => rangeeHtml(q, { rar, salaire: capHitDuJour(q), dest, bouton }), nom: nomCourt(q.n), pos: positionLabel(q), ...(etat(sl, q) || {}) };
   }) });
   return [
     ...UNIT_NAMES_F.map((t, u) => rangee(t, SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch))),
@@ -509,7 +510,7 @@ function choisirQuiSort(p, o) {
  * lignes, chaque joueur qui peut entrer avec ce que son entrée change à l'unité, en vraies stats (le meilleur
  * cerclé d'or), le sortant en tête, la barre qui dit tout, et « Confirmer ».
  *   o : { roster, sortant, unite ('AN 1'), joue(q) → '' ou la raison qu'il ne peut pas, sous(q), ecart(q) → stats de
- *         l'unité (`dans` : « en AN 1 »), avantApres(q) → html (l'unité avant → après, en tête),
+ *         l'unité (`dans` : « en AN 1 »), avantApres(q) → html (l'unité avant → après, sur sa ligne),
  *         ou(q) → 'AN 2' s'il est déjà dans la situation (il échange sa case), onChoix(q), onFerme }
  */
 export function choisirSpeciale(o) {
@@ -523,22 +524,14 @@ export function choisirSpeciale(o) {
   for (const r of rangees) for (const c of r.cases) if (!c.vide && !c.non) nets.set(c.cle, o.ecart(roster[SLOTS[Number(c.cle)].i]));
   marquerMeilleure(rangees, nets);
   ouvrirAlignement({
-    ico: '🔁', titre: `${unite} : qui entre à la place de ${sortant.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
-    aide: 'Touche un joueur.',
+    ico: '🔁', titre: `${unite} : qui entre à la place de ${sortant.n} ?`, motFermer: 'Retour', motConfirmer: 'Entre', fiche: apercuJoueur,
     contexte: `<div class="ech-arrive">${colonneEchange(sortant, 'Sort')}</div>`,
-    // Le comparatif complet, dès qu'un joueur est touché : les deux côte à côte, et l'unité avant → après.
-    contexteDe: k => {
-      const q = roster[SLOTS[Number(k)].i];
-      if (!q) return '';
-      const u = o.avantApres ? o.avantApres(q) : '';
-      return `<div class="ech-arrive"><span class="ech">${colonneEchange(sortant, 'Sort')}${colonneEchange(q, 'Entre')}</span><span class="ech-bilan">${esc(nomDe(sortant.n))} ${esc(o.sous(sortant))} · ${esc(nomDe(q.n))} ${esc(o.sous(q))}</span>${u ? `<span class="ech-bilan">${u}</span>` : ''}</div>`;
-    },
     rangees,
     barre: k => {
       const q = roster[SLOTS[Number(k)].i];
       if (!q) return '';
       const ou = o.ou(q), x = nets.get(k);
-      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> entre en ${esc(unite)}${ou ? ` · ${esc(nomDe(sortant.n))} prend sa case en ${esc(ou)}` : ''} · ${esc(ficheCourte(q))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} ${esc(o.dans)}</b>` : ''}</span>`;
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> entre en ${esc(unite)}${ou ? ` · ${esc(nomDe(sortant.n))} prend sa case en ${esc(ou)}` : ''} · ${esc(ficheCourte(q))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} ${esc(o.dans)}</b>` : ''}${o.avantApres && o.avantApres(q) ? ` · ${o.avantApres(q)}` : ''}</span>`;
     },
     onChoix: k => { const q = roster[SLOTS[Number(k)].i]; if (q) o.onChoix(q); },
     onFerme: o.onFerme,
@@ -567,8 +560,7 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
   }
   marquerMeilleure(rangees, nets);
   ouvrirAlignement({
-    ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
-    aide: 'Touche sa case.',
+    ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Ici', fiche: apercuJoueur,
     contexte: q0 ? `<span class="ech">${colonneEchange(q0, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span>` : '',
     rangees,
     barre: k => {

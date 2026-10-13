@@ -29,7 +29,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, ouvrirVersoPourPoser, poserCartes, rangeesAlignement } from './repechage.js';
+import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -760,28 +760,25 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
   ecrire(payloadDe(item.id, { build, joueurs }));
 }
 /*
- * JOUER UNE MODIF DE JOUEUR (S80). JP : *donne l'alignement, je clique sur le
- * joueur, pis je dois aller au verso pour l'ajouter dans une des slots
- * joueurs?* — oui. « Jouer » ouvre l'ALIGNEMENT (`ouvrirAlignement`, en
- * aperçu) : chaque case dit ce que la carte lui ferait, ou pourquoi elle ne
- * peut pas aller sur lui (un gardien, ses cases pleines, aucun malus à
- * effacer…). Toucher un joueur ouvre sa fiche retournée au VERSO, la carte en
- * attente sur sa case libre ; « Poser ici » décide. Fermer la fiche ramène à
- * l'alignement, « Retour » à l'inventaire.
+ * JOUER UNE MODIF DE JOUEUR (S80 ; Jalon U). JP : *jouer les cartes du menu Cartes, trop d'étapes*. « Jouer » ouvre
+ * l'alignement en rangées (`ouvrirAlignement`) : chaque joueur dit ce que la carte lui ferait, ou pourquoi elle ne
+ * peut pas aller sur lui (un gardien, ses cases pleines, aucun malus à effacer…). « Poser » décide tout de suite —
+ * la même décision `{ joue, mutation }` que le verso écrivait ; toucher la rangée ouvre sa fiche, pour lire.
+ * Avant, « Jouer » → l'alignement → la fiche au verso → « Poser ici » : deux fenêtres de trop.
  */
 function poserUneModif(item, j, decider, retour) {
   const c = BANQUE[item.id], M = MUTATIONS[c.cle];
   const you = G.ligue && G.ligue.you;
-  const rangees = rangeesAlignement(G.roster, (sl, q) => { const e = etatPourPoser(c.cle, q, sl, { jour: j, you }); return { non: e.non || '', note: e.note || '' }; });
-  // Poser ferme l'alignement en silence (`fermer`) : la décision part, et l'inventaire ne se rouvre pas.
-  const fermer = ouvrirAlignement({
-    ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour',
+  const etats = new Map();
+  const rangees = rangeesAlignement(G.roster, (sl, q) => { const e = etatPourPoser(c.cle, q, sl, { jour: j, you }); etats.set(String(sl.i), e); return { non: e.non || '', note: e.note || '' }; });
+  ouvrirAlignement({
+    ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour', motConfirmer: 'Poser', fiche: apercuJoueur,
     contexte: `<div class="choix-puces">${pucesEnBref(motsDeMutationEnChiffres(c.cle))}</div>`,
-    aide: 'Touche un joueur pour voir son verso.',
     rangees,
-    onApercu: k => {
-      const q = G.roster[Number(k)];
-      if (q) ouvrirVersoPourPoser(q, item, { decider, jour: j, auDessus: true, avant: () => fermer() });
+    onChoix: k => {
+      const q = G.roster[Number(k)], e = etats.get(k) || {};
+      if (!q || e.non) return;
+      decider({ jour: j, joue: { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) }, mutation: { cle: c.cle, joueur: getPlayerKey(q), ...(e.extra || {}) } });
     },
     onFerme: retour,
   });

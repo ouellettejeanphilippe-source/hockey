@@ -297,8 +297,8 @@ async function regler() {
     if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#signatureModal:not([hidden]) .btn-sign:not([disabled])')) { await page.click('#signatureModal .btn-sign:not([disabled])'); await page.waitForTimeout(600); continue; }
     // « Qui sort ? » en liste (Jalon U) : « Sort » sur le premier proposé.
     if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
-    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-confirmer')) {
-      await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue;
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) {
+      await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue;
     }
     /*
      * LE LANCER DE DÉ (1.0, oct.) : une réponse risquée ouvre le dé. Entrée lance ; le dé tombe sur la face
@@ -648,14 +648,13 @@ if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(barreSortie)) erreu
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
 await page.click('#choixModal .sig-sort:not([disabled])');
 // Où joue l'arrivant : sa case, et ce qui glisse.
-await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
 await page.waitForTimeout(300);
-await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
-await page.waitForTimeout(250);
-const barrePlace = (await page.textContent('#choixModal .choix-pied-mot')).replace(/\s+/g, ' ').trim();
-if (!/: .+masse/.test(barrePlace)) erreurs.push(`la barre de « où joue ? » ne dit pas ce qui va se passer : « ${barrePlace} »`);
+// Où joue X ? (Jalon U) : les rangées de la signature ; chacune dit ce que sa case fait, « Ici » décide.
+const barrePlace = await page.$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', b => b.closest('.aln-ligne').querySelector('.aln-dit').textContent.replace(/\s+/g, ' ').trim());
+if (!/: .+masse/.test(barrePlace)) erreurs.push(`une rangée de « où joue ? » ne dit pas ce qui va se passer : « ${barrePlace} »`);
 console.log(`   qui sort : ${rangees} rangées, ${refusees} grisée(s) · « ${barreSortie} » · puis « ${barrePlace} »`);
-await page.click('#choixModal .aln-confirmer');
+await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
 // APRÈS UN PACK SIGNÉ : la boutique est rouverte AU MARCHÉ, le Club n'a pas paru (une capture à 390 px).
 await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 120000 });
 await page.waitForTimeout(500);
@@ -758,10 +757,10 @@ let posee = null, nomModif = '';
     if (!jouer) break;
     nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.tc-nom') || {}).textContent || '').trim());
     await jouer.click();
-    await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
+    await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
     await page.waitForTimeout(400);
-    permis = await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled])', e => e.length);
-    grises = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
+    permis = await page.$$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', e => e.length);
+    grises = await page.$$eval('#choixModal .aln-ligne .aln-choisir[disabled]', e => e.length);
     if (!permis) {
       console.log(`   « ${nomModif} » : personne ne peut la recevoir (${grises} grisés), on essaie la suivante`);
       await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => page.keyboard.press('Escape'));
@@ -771,21 +770,16 @@ let posee = null, nomModif = '';
   if (nModifs && !permis) console.log('7a. aucune modif ne se pose sur cet alignement : l\'étape du verso est sautée');
   else if (nModifs) {
     await page.screenshot({ path: `${DOSSIER}/rogue-poser-alignement.png` });
-    await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
-    await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
-    await page.waitForTimeout(500);
-    if (!(await page.$eval('#hockeyCardModal .fiche-carte', e => e.classList.contains('au-verso')))) erreurs.push('la fiche ne s\'ouvre pas au verso pour y poser la carte');
-    await page.evaluate(() => document.querySelector('#hockeyCardModal .fc-cases').scrollIntoView({ block: 'center' }));
-    await page.screenshot({ path: `${DOSSIER}/rogue-verso-poser.png` });
-    const nomJoueur = (await page.textContent('#hockeyCardModal .cjv-nom')).trim();
-    await page.click('#hockeyCardModal .fc-poser');
+    // Jalon U : « Poser » sur la rangée décide tout de suite (plus de détour par la fiche au verso).
+    const nomJoueur = await page.$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', b => b.closest('.aln-ligne').querySelector('.pcard-nom').textContent.trim());
+    await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
     await auBureau();
     await page.waitForTimeout(800);
     await regler();
     d = await decisions();
     posee = d.find(x => x.joue && x.mutation) || null;
     if (!posee) erreurs.push(`« ${nomModif} » n'a pas été posée`);
-    console.log(`7a. « ${nomModif} » posée au verso de ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
+    console.log(`7a. « ${nomModif} » posée sur ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
   }
 }
 if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }

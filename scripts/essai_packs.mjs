@@ -85,7 +85,7 @@ async function regler(max = 40) {
       if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) { await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500); await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .tcj-signer') && e.choix === 'ballottage') { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
       if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
-      if (await page.$('#choixModal:not([hidden]) .aln-confirmer')) { await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue; }
+      if (await page.$('#choixModal:not([hidden]) [data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) { await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue; }
       if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await page.click('#choixModal:not([hidden]) button.choix-option:not([disabled])'); await page.waitForTimeout(400); continue; }
       const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) { await f.click(); await page.waitForTimeout(300); continue; }
       return 'coince';
@@ -138,15 +138,11 @@ async function signer() {
   const sorts = await page.$$('#choixModal:not([hidden]) .sig-sort:not([disabled])');
   if (!sorts.length) { log('   personne ne peut sortir'); await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {}); return null; }
   await sorts[Math.floor(rnd() * sorts.length)].click(); await page.waitForTimeout(500);
-  // où il joue
-  for (let etape = 0; etape < 1; etape++) {
-    await page.waitForSelector('#choixModal:not([hidden]) .aln-case', { timeout: 10000 });
-    const cases = await page.$$('#choixModal:not([hidden]) .aln-case[data-aln]:not([disabled])');
-    if (!cases.length) { log('   aucune case permise'); await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {}); return null; }
-    await cases[Math.floor(rnd() * cases.length)].click(); await page.waitForTimeout(200);
-    await page.click('#choixModal:not([hidden]) .aln-confirmer'); await page.waitForTimeout(700);
-    if (!(await page.$('#choixModal:not([hidden]) .aln-case'))) break;
-  }
+  // où il joue : une rangée, « Ici »
+  await page.waitForSelector('#choixModal:not([hidden]) .aln-ligne', { timeout: 10000 });
+  const ici = await page.$$('#choixModal:not([hidden]) .aln-ligne .aln-choisir:not([disabled])');
+  if (!ici.length) { log('   aucune case permise'); await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {}); return null; }
+  await ici[Math.floor(rnd() * ici.length)].click(); await page.waitForTimeout(700);
   return cle;
 }
 const attendu = new Set();

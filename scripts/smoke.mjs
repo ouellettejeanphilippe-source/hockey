@@ -118,15 +118,15 @@ async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
 /*
  * QUI SORT, EN LISTE (Jalon U, JP : *un menu similaire à celui pour signer*). « Qui sort ? » est la liste de
  * signature : une rangée par joueur de l'alignement (visage, nom, sa ligne et la masse), rien qui déborde à
- * 390 px, « Sort » sur ceux qui peuvent sortir. Puis « Où joue X ? » est l'alignement : neuf rangées titrées
- * par ce qu'elles sont, toucher une case ne décide rien — la barre dit ce qui va se passer — et c'est
- * « Confirmer » qui décide. Le parcours prend le premier proposé.
+ * 390 px, « Sort » sur ceux qui peuvent sortir. Puis « Où joue X ? » : les mêmes rangées, rangées sous leurs
+ * neuf lignes titrées par ce qu'elles sont, chacune disant ce que sa case fait ; « Ici » décide. Le parcours
+ * prend le premier proposé.
  */
 const alignementsVus = [];
 async function sortirDansAlignement() {
   // La liste « qui sort ? » d'abord (attendue si aucun alignement n'est déjà ouvert), puis l'alignement s'il vient.
   if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]')) && !(await quiSortEnListe())) return false;
-  if (!(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 3000 }).catch(() => null))) return true;
+  if (!(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 3000 }).catch(() => null))) return true;
   return alignementDuChoix();
 }
 async function quiSortEnListe() {
@@ -151,31 +151,29 @@ async function quiSortEnListe() {
   return true;
 }
 async function alignementDuChoix() {
-  await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 5000 });
+  await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 5000 });
   await page.waitForTimeout(150);
+  // Jalon U : « Où joue X ? » en rangées de la signature, titrées par ligne ; chacune dit ce que sa case fait, « Ici » décide.
   const lu = await page.evaluate(() => {
     const m = document.querySelector('#choixModal');
     const titres = [...m.querySelectorAll('.aln-titre')].map(t => (t.firstChild ? t.firstChild.textContent : t.textContent).trim());
-    const cases = [...m.querySelectorAll('.aln-case[data-aln]')];
-    const incompletes = cases.filter(c => !c.querySelector('.aln-visage') || !(c.querySelector('.aln-nom') || {}).textContent || !((c.querySelector('.aln-pos') || {}).textContent || '').trim()).length;
+    const lignes = [...m.querySelectorAll('.aln-ligne[data-aln]')];
+    const incompletes = lignes.filter(c => !(c.querySelector('.pcard-nom') || {}).textContent || !((c.querySelector('.aln-dit') || {}).textContent || '').trim()).length;
     const corps = m.querySelector('.choix-corps');
-    return { titres, n: cases.length, permises: cases.filter(c => !c.disabled).length, incompletes, confirmer: !!m.querySelector('.aln-confirmer'), sw: corps.scrollWidth, cw: corps.clientWidth };
+    const premiere = m.querySelector('.aln-ligne .aln-choisir:not([disabled])');
+    return { titres, n: lignes.length, permises: m.querySelectorAll('.aln-ligne .aln-choisir:not([disabled])').length, incompletes, sw: corps.scrollWidth, cw: corps.clientWidth,
+      dit: premiere ? premiere.closest('.aln-ligne').querySelector('.aln-dit').textContent.replace(/\s+/g, ' ').trim() : '' };
   });
   const attendus = ['1er trio', '2e trio', '3e trio', '4e trio', '1re paire', '2e paire', '3e paire', 'Gardiens', 'Réserve'];
-  if (JSON.stringify(lu.titres) !== JSON.stringify(attendus)) errors.push(`« qui sort ? » ne titre pas ses rangées par ce qu'elles sont : ${lu.titres.join(' · ')}`);
-  if (lu.n < 20) errors.push(`« qui sort ? » ne montre que ${lu.n} joueurs de l'alignement`);
-  if (lu.incompletes) errors.push(`« qui sort ? » : ${lu.incompletes} case(s) sans visage, nom ou positions`);
-  if (lu.sw > lu.cw + 1) errors.push(`« qui sort ? » déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
-  if (!lu.confirmer || !lu.permises) { errors.push(`« qui sort ? » : ${lu.permises} case permise, ${lu.confirmer ? 'un' : 'aucun'} bouton Confirmer`); await _click('#choixModal .choix-fermer'); return false; }
-  await _click('#choixModal .aln-case[data-aln]:not([disabled])');
-  await page.waitForTimeout(120);
-  const pret = await page.$eval('#choixModal .aln-confirmer', b => !b.disabled);
-  const barre = ((await page.textContent('#choixModal .choix-pied-mot')) || '').replace(/\s+/g, ' ').trim();
-  // Où il joue (1.0, oct.) : « Roenick : 1er trio, hors position −3 · masse −1,98 M$ » — et toucher n'a rien décidé.
-  const encore = !!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'));
-  if (!pret || !encore || !/: (\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+masse/.test(barre)) errors.push(`toucher une case de « qui sort ? » ne prépare pas la confirmation : « ${barre} »`);
-  alignementsVus.push(barre);
-  await _click('#choixModal .aln-confirmer');
+  if (JSON.stringify(lu.titres) !== JSON.stringify(attendus)) errors.push(`« où joue ? » ne titre pas ses rangées par ce qu'elles sont : ${lu.titres.join(' · ')}`);
+  if (lu.n < 20) errors.push(`« où joue ? » ne montre que ${lu.n} joueurs de l'alignement`);
+  if (lu.incompletes) errors.push(`« où joue ? » : ${lu.incompletes} rangée(s) sans nom ou sans ce qu'elle fait`);
+  if (lu.sw > lu.cw + 1) errors.push(`« où joue ? » déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
+  if (!lu.permises) { errors.push('« où joue ? » : aucune case permise'); await _click('#choixModal .choix-fermer'); return false; }
+  // « Roenick : 1er trio, hors de sa position · masse −1,98 M$ »
+  if (!/: (\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+masse/.test(lu.dit)) errors.push(`une rangée de « où joue ? » ne dit pas ce qui va se passer : « ${lu.dit} »`);
+  alignementsVus.push(lu.dit);
+  await _click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
   return true;
 }
 /*
@@ -329,7 +327,7 @@ async function ouvrirPaquet() {
  */
 const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
   // L'alignement aussi (1.0, oct.) : après « qui sort ? », l'arrivant se place dans ses cases.
-  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-case, #choixModal:not([hidden]) .sig-sort, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
+  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-choisir, #choixModal:not([hidden]) .sig-sort, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
   return [...document.querySelectorAll(sel)].some(el => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
