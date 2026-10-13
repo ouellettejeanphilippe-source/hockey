@@ -11,6 +11,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
+import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 const require = createRequire(import.meta.url);
 let pw;
@@ -93,6 +94,8 @@ const versMarche = async quoi => {
   await page.click(`#pageMarcheCorps [data-marche="${quoi}"]`);
 };
 const erreurs = [];
+const CLUBS_LISTE = RAYONS_CLUB.find(R => R.cle === 'club').liste;
+const NB_CLUBS = Object.keys(CLUBS_LISTE).length, PRIX_HARFANGS = CLUBS_LISTE.harfangs.prix;
 page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.stack); });
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
 const choix = async (sel = '.choix-option:not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
@@ -547,9 +550,9 @@ else {
   await page.screenshot({ path: `${DOSSIER}/rogue-boutique-couleurs.png` });
   if (nuances !== 50) erreurs.push(`le nuancier de la boutique montre ${nuances} couleurs, il en faut 50`);
   console.log(`7c. le nuancier : ${nuances} couleurs à débloquer`);
-  await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="nom"]');
+  await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon-club [data-onglet="club"]');
   await page.waitForTimeout(300);
-  await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-club="nom:harfangs"]');
+  await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile[data-club="club:harfangs"]');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche .club-porte');
   await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche .pk-acheter');
   await page.waitForTimeout(1500);
@@ -558,8 +561,8 @@ else {
   const tete = await page.textContent('.tete-nom');
   await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
   const apresJ = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
-  console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.nom} · en-tête « ${tete} »`);
-  if (mc.nom !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - 15) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.nom}, en-tête « ${tete} »)`);
+  console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.club} · en-tête « ${tete} »`);
+  if (mc.club !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - PRIX_HARFANGS) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.club}, en-tête « ${tete} »)`);
 }
 await page.click('#pageMarche .hub-page-retour');
 /*
@@ -1052,22 +1055,22 @@ await page.waitForSelector('#choixModal:not([hidden]) .choix-option[data-choix="
 await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 const nClub = await page.$$eval("#choixModal .choix-option", e => e.length);
-// Trois onglets (1.0, oct.) : huit noms, cinquante et une couleurs, trente et un écussons — les gratuits compris.
+// Deux onglets (Jalon U) : les clubs (un nom et son écusson, ensemble) et cinquante et une couleurs — les gratuits compris.
 const parOnglet = {};
-for (const o of ['palette', 'ecusson', 'nom']) {
+for (const o of ['palette', 'club']) {
   await page.click(`#choixModal:not([hidden]) [data-onglet="${o}"]`);
   await page.waitForTimeout(400);
   parOnglet[o] = await page.$$eval('#choixModal .choix-option', e => e.length);
 }
-if (parOnglet.nom !== 8 || parOnglet.palette !== 51 || parOnglet.ecusson !== 31) erreurs.push(`les onglets du club : ${JSON.stringify(parOnglet)}, il faut 8, 51 et 31`);
-await page.click('#choixModal:not([hidden]) .choix-option[data-choix="nom:stars"]');
+if (parOnglet.club !== NB_CLUBS || parOnglet.palette !== 51) erreurs.push(`les onglets du club : ${JSON.stringify(parOnglet)}, il faut ${NB_CLUBS} et 51`);
+await page.click('#choixModal:not([hidden]) .choix-option[data-choix="club:stars"]');
 await page.waitForSelector('#choixModal:not([hidden]) .club-porte', { timeout: 10000 });
 await page.waitForTimeout(700);
 await page.screenshot({ path: `${DOSSIER}/rogue-club.png` });
 const m3 = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const tete = await page.textContent('.tete-nom');
-console.log(`18. ton club : ${nClub} noms · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).nom} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
-if ((m3.club || {}).nom !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('nom:harfangs')) erreurs.push(`le nom remis n'est pas porté (méta ${(m3.club || {}).nom}, en-tête « ${tete} »)`);
+console.log(`18. ton club : ${nClub} clubs · onglets ${JSON.stringify(parOnglet)} · porté : ${(m3.club || {}).club} · en-tête « ${tete} » · pris : ${((m3.club || {}).pris || []).join(', ')}`);
+if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}).pris || []).includes('club:harfangs')) erreurs.push(`le club remis n'est pas porté (méta ${(m3.club || {}).club}, en-tête « ${tete} »)`);
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);

@@ -1603,8 +1603,8 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
  */
 /*
  * TON CLUB (1.0, oct.). JP : *que les couleurs, le nom de notre équipe puis des logos, ce soient des
- * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque nom, chaque couleur
- * et chaque écusson, montré SUR ton écusson : ce que tu as se porte d'un toucher ; le reste s'achète en
+ * choses qu'on débloque au fur et à mesure*. L'écusson porté en grand, puis chaque club (son nom et son
+ * écusson, ensemble : Jalon U) et chaque couleur, montrés aux couleurs portées : ce que tu as se porte d'un toucher ; le reste s'achète en
  * jetons 🪙 à la boutique, comme un pack (JP : *même monnaie que les autres packs*), et les plus beaux
  * attendent un rang de prestige (js/club.js). Rien n'y change le jeu.
  */
@@ -1614,9 +1614,9 @@ function clubChange() {
   if (!enRepechage()) applyTeamColors('YOU');
   majEntete();
 }
-function ouvrirClub(apres = null, onglet = 'nom') {
+function ouvrirClub(apres = null, onglet = 'club') {
   const meta = lireMeta(), c = choixDuClub(meta);
-  // Trois onglets (huit noms, cinquante couleurs, trente écussons) : ce qui est à toi d'abord.
+  // Deux onglets (les clubs, chacun son nom et son écusson ; cinquante couleurs) : ce qui est à toi d'abord.
   const R = RAYONS_CLUB.find(x => x.cle === onglet) || RAYONS_CLUB[0];
   const onglets = `<div class="stat-tabs" role="tablist">${RAYONS_CLUB.map(x => {
     const a = Object.keys(x.liste).filter(k => possede(meta, x.cle, k)).length;
@@ -1668,7 +1668,7 @@ export function ouvrirVestiaire(apres = null) {
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
     recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
     contexte: jalons,
-    options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le nom, les couleurs et l\'écusson : ceux que tu portes, et ceux qui se débloquent.' },
+    options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le club (son nom et son écusson) et ses couleurs : ceux que tu portes, et ceux qui se débloquent.' },
       ...Object.entries(DEBLOCAGES).map(([k, D]) => {
       const pris = aDebloque(meta, k);
       const manque = D.requis && !aDebloque(meta, D.requis) ? `Demande d'abord : ${DEBLOCAGES[D.requis].nom}` : null;
