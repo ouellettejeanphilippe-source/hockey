@@ -1622,7 +1622,7 @@ function ouvrirClub(apres = null, onglet = 'club') {
   const options = Object.entries(R.liste).map(([k, o]) => {
     const porte = c[R.cle] === k, a = possede(meta, R.cle, k);
     const garde = o.rang && rangDePrestige(meta) < o.rang ? `Prestige : ${PRESTIGES[o.rang].nom}` : '';
-    return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), sous: R.titre, a,
+    return { cle: `${R.cle}:${k}`, visage: ecussonDe({ ...c, [R.cle]: k }), a,
       nom: `${o.nom}${porte ? ' ✓' : a ? '' : ` · ${o.prix} 🪙`}`,
       desactive: porte ? 'Porté' : a ? null : garde || 'À la boutique, rayon « Ton club »' };
   }).sort((x, y) => y.a - x.a);
