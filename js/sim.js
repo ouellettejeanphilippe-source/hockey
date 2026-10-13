@@ -1720,7 +1720,7 @@ function canalSysteme(S, fit, canal) {
  * moteur. Le jeu robuste est le canal « physique » : ce que la mise en échec
  * rapporte les soirs éreintants et en séries.
  */
-const CANAUX_SYSTEME = [['volume', 'Tirs', 1], ['finition', 'Précision', 1], ['defense', 'Buts contre', -1], ['discipline', 'Punitions', -1], ['energie', 'Usure des jambes', -1], ['physique', 'Jeu robuste', 1]];
+const CANAUX_SYSTEME = [['volume', 'Tirs', 1], ['finition', 'Précision', 1], ['defense', 'Précision adverse', -1], ['discipline', 'Punitions', -1], ['energie', 'Usure des jambes', -1], ['physique', 'Jeu robuste', 1]];
 export function effetsDeSysteme(S, fit) {
   if (!S || !S.slots) return [];
   return CANAUX_SYSTEME.map(([c, nom, sens]) => {
@@ -4015,9 +4015,9 @@ const BADGE_G_MESURE = Number(ENV_MESURE.BADGE_G ?? 1);
 function facteurBadgeGardien(g, mode, series, charge = 1) {
   return BADGE_G_MESURE ? facteurDuBadgeG(g, mode, series, charge) : 1;
 }
-function facteurDuBadgeG(g, mode, series, charge) {
+function facteurDuBadgeG(g, mode, series, charge, naturel = false) {
   const b = badgeGardien(g);
-  const val = k => (b && b.cle === k ? b.palier / 4 : 0) - BADGE_LIGUE_G[k];
+  const val = k => (b && b.cle === k ? (naturel ? b.palier - b.gagne : b.palier) / 4 : 0) - BADGE_LIGUE_G[k];
   let f = 1;
   if (mode === 'FE') f *= 1 - EFFET_GARDIEN.mur * val('mur');
   // 'AN' : le club qui tire a l'avantage — le gardien est à court d'un homme.
@@ -4030,6 +4030,32 @@ function facteurDuBadgeG(g, mode, series, charge) {
 export function netBadgeGardien(g, { mode = 'FE', series = false, charge = 1 } = {}) {
   return badgeGardien(g) ? 1 - facteurDuBadgeG(g, mode, series, charge) : 0;
 }
+/*
+ * LE PLAFOND DU GARDIEN (oct.). JP : *les gardiens sont trop faciles à booster.* Un gardien est tout le filet : ce que
+ * ses cartes lui donnent touche chaque lancer du soir. Mesuré : un gardien médian (ses buts à 0,93 de sa ligue) qui
+ * portait trois modifs d'arrêts (le masque de cuir, celui de l'oracle, l'entraîneur des gardiens) sur une carte Holo
+ * (son badge Bronze → Platine) jouait à 0,61 — mieux que le meilleur gardien de l'histoire (le 1er centile des
+ * gardiens de trente départs : 0,68), et les modifs d'arrêts se multipliaient sans borne. Un patineur, lui, se cogne à
+ * FINITION_MAX. Tout ce qu'un gardien GAGNE — ses modifs, ses paliers gagnés, la part de son badge que la carte
+ * a montée — ne lui retire donc pas plus de `GAIN_GARDIEN_MAX` de ses buts accordés : deux bonnes cartes y
+ * arrivent, la troisième n'ajoute rien. Un gardien moyen boosté au plafond devient un bon partant (le 15e centile),
+ * jamais Hasek. Ses accidents (un malus qui n'est pas un choix) jouent par-dessus, en entier. Aucune mécanique
+ * neuve : un plafond, comme celui de la finition.
+ */
+export const GAIN_GARDIEN_MAX = 0.12;
+const accidentsDe = (q, champ) => (q._mutCles || []).reduce((a, k) => (MUTATIONS[k] && MUTATIONS[k].source === 'accident' && MUTATIONS[k][champ] ? a * MUTATIONS[k][champ] : a), 1);
+/* Ce que tout ce qu'il a gagné lui retire, avant le plafond : 0,8 = 20 % de buts accordés de moins. */
+export function gainBrutGardien(g, { mode = 'FE', series = false, charge = 1 } = {}) {
+  if (!g) return 1;
+  const badge = BADGE_G_MESURE && badgeGardien(g) ? facteurDuBadgeG(g, mode, series, charge) / facteurDuBadgeG(g, mode, series, charge, true) : 1;
+  return mutDe(g, 'arrets') / accidentsDe(g, 'arrets') * badge;
+}
+/* Ce que le plafond lui rend (≥ 1) : 1 tant que ses gains restent sous `GAIN_GARDIEN_MAX`. */
+export function plafondGardien(g, opts) {
+  const x = gainBrutGardien(g, opts);
+  return x < 1 - GAIN_GARDIEN_MAX ? (1 - GAIN_GARDIEN_MAX) / x : 1;
+}
+
 /* Les départs de suite qu'un gardien joue sans s'user : De fer en joue un de plus à l'Or, deux au Platine. */
 export const suiteLibreDe = g => { const b = badgeGardien(g); return GARDIEN_SUITE_LIBRE + (b && b.cle === 'fer' ? Math.max(0, b.palier - 2) : 0); };
 export function jambesGardien(g) {
@@ -4902,7 +4928,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
   const facteurRob = Math.exp(K_ROB * intensite * (robZ(off) - robZ(def)));
   // La charge du soir (l'Acrobate) : les lancers qu'on promet à ce gardien, sur ceux d'un soir moyen.
   const charge = borne(attenduBase / LANCERS_BASE, 0.5, 2);
-  const fg = (gardien ? facteurGardien(gardien) * facteurBadgeGardien(gardien, st ? st.mode : 'FE', series, charge) : (def.fgDefaut ?? 1.20))
+  const fg = (gardien ? facteurGardien(gardien) * facteurBadgeGardien(gardien, st ? st.mode : 'FE', series, charge) * plafondGardien(gardien, { mode: st ? st.mode : 'FE', series, charge }) : (def.fgDefaut ?? 1.20))
     * facteurTraitGardien(gardien, series) * situDe(gardien, 'gardien');
   // Les traits de l'équipe qui défend, et ceux de celle qui attaque en séries.
   const traits = (def.traitDef ?? 1) * (off.traitAtt ?? 1)
@@ -6116,7 +6142,7 @@ function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joue
  * ensemble, club par club — « sans tes cartes » — dans `g`.
  */
 const GROUPE_CAUSE = {
-  carte: 'cartes', monte: 'cartes', cartesClub: 'cartes', carteClub: 'cartes', fantome: 'cartes', ombre: 'cartes',
+  carte: 'cartes', monte: 'cartes', plafondG: 'cartes', cartesClub: 'cartes', carteClub: 'cartes', fantome: 'cartes', ombre: 'cartes',
   ligne: 'systemes', special: 'systemes', systemeDef: 'systemes',
   power: 'badges', badges: 'badges', badgeG: 'badges',
   jambes: 'jambes', gardien: 'gardien', defense: 'talent', plafond: 'talent', creation: 'talent', trait: 'talent', traitsClub: 'talent', traitG: 'talent',
@@ -6133,7 +6159,6 @@ function causesDuLancer(x, pBrut, de) {
     ajoute('cartesClub', c, total / nommes);
   };
   // Ses modifs sur ce canal, en deux : les accidents de la saison (pas un choix à toi), et le reste — tes cartes.
-  const accidentsDe = (q, champ) => (q._mutCles || []).reduce((a, k) => (MUTATIONS[k] && MUTATIONS[k].source === 'accident' && MUTATIONS[k][champ] ? a * MUTATIONS[k][champ] : a), 1);
   const cartesDe = (q, champ) => {
     const m = q._mut, a = q._amel && q._amel[champ];
     return ((m && m[champ]) || 1) / accidentsDe(q, champ) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(q, champ) * siDe(q, champ);
@@ -6175,7 +6200,9 @@ function causesDuLancer(x, pBrut, de) {
   if (g) {
     const svLigue = 1 - seasonLancers(g.s)[1] / 100, sv = g.sv || svLigue;
     ajoute('gardien', D, borne((1 - sv) / Math.max(0.02, 1 - svLigue), 0.55, 1.60) / REF.fg, g);
-    ajoute('badgeG', D, facteurBadgeGardien(g, x.mode, x.series, borne(attenduDeCote(x.off, x.def) / LANCERS_BASE, 0.5, 2)), g);
+    const charge = borne(attenduDeCote(x.off, x.def) / LANCERS_BASE, 0.5, 2);
+    ajoute('badgeG', D, facteurBadgeGardien(g, x.mode, x.series, charge), g);
+    ajoute('plafondG', D, plafondGardien(g, { mode: x.mode, series: x.series, charge }), g);
     ajoute('carte', D, cartesDe(g, 'arrets'), g, 'arrets');
     ajoute('accident', D, accidentsDe(g, 'arrets'), g, 'arrets');
     ajoute('monte', D, effetDesPaliersGagnes(g, 'arrets'), g);
@@ -7656,7 +7683,7 @@ export function motsDeMutation(cle) {
   if (M.finition) out.push(pct(M.finition, 'Précision', true));
   if (M.lancers) out.push(pct(M.lancers, 'Tirs', true));
   if (M.creation) out.push(pct(M.creation, 'Création', true));
-  if (M.defense) out.push({ txt: `Buts contre quand il est là ${flechesDe(M.defense)}`, bon: M.defense < 1 });
+  if (M.defense) out.push({ txt: `Précision adverse quand il est là ${flechesDe(M.defense)}`, bon: M.defense < 1 });
   if (M.blessure) out.push({ txt: `Blessures ${flechesDe(M.blessure)}`, bon: M.blessure < 1 });
   if (M.arrets) out.push({ txt: `Buts accordés ${flechesDe(M.arrets)}`, bon: M.arrets < 1 });
   if (M.partout) out.push({ txt: 'Pénalité hors position : aucune', bon: true });
@@ -7723,7 +7750,7 @@ export function badgesDeMutation(p, cle, { deja = false } = {}) {
  * de S71 (↑, ↑↑, ↑↑↑) disaient « un peu, net, beaucoup » et laissaient
  * deviner le reste : deux cartes à ↑ ne se comparaient pas. Un effet se lit
  * maintenant comme dans Slay the Spire, en nombre entier : « Tirs +6 % »,
- * « Buts contre −5 % ». Le nom est resté (`flechesDe`) pour ne pas toucher
+ * « Précision adverse −5 % ». Le nom est resté (`flechesDe`) pour ne pas toucher
  * tous ses appels ; `seuils` ne sert plus.
  */
 function pctDe(x) {
@@ -7758,7 +7785,7 @@ export function motsDEffet(e, duree = null) {
   const pct = x => flechesDe(x);
   if (e.volume && e.volume !== 1) out.push({ txt: `Tirs ${pct(e.volume)}`, bon: e.volume > 1 });
   if (e.finition && e.finition !== 1) out.push({ txt: `Précision ${pct(e.finition)}`, bon: e.finition > 1 });
-  if (e.defense && e.defense !== 1) out.push({ txt: `Buts contre ${pct(e.defense)}`, bon: e.defense < 1 });
+  if (e.defense && e.defense !== 1) out.push({ txt: `Précision adverse ${pct(e.defense)}`, bon: e.defense < 1 });
   if (e.discipline && e.discipline !== 1) out.push({ txt: `Punitions ${pct(e.discipline)}`, bon: e.discipline < 1 });
   if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
   if (e.energie && e.energie !== 1) out.push({ txt: `Usure des jambes ${pct(e.energie)}`, bon: e.energie < 1 });

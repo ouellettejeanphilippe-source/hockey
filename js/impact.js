@@ -206,30 +206,29 @@ const signeDe = x => (x > 0 ? '+' : '−');
 const mot = (x, un, plusieurs) => (Math.abs(x) < 2 ? un : plusieurs);
 const RANGS = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire', '2e paire', '3e paire'] };
 
-/* « ≈ +2,1 tirs par match » : le chiffre d'abord, l'unité de match toujours. */
-const SEUILS = { tirs: 0.15, buts: 0.1, rare: 0.03, punitions: 0.1, coups: 1, minutes: 0.3 };
+/*
+ * « ≈ +2,1 tirs par match » : le chiffre d'abord, l'unité de match toujours. EN VRAIES STATS (oct., JP : *on s'entend
+ * que but pour et contre, c'est pas une vraie stat du moteur, pourquoi c'est dans les cartes ?*) : le moteur joue des
+ * lancers et la chance de chacun ; un but en est le produit, jamais un canal. Une carte se dit donc en ce qu'elle
+ * touche : les tirs, le % au tir, les tirs accordés, le % d'arrêts (`statsDe`), en points de pourcentage
+ * (« ≈ +0,4 pt au tir par match »). La ligne garde les buts qu'elle vaut (`buts`), pour la preuve seulement.
+ */
+const SEUILS = { tirs: 0.15, pct: 0.0005, punitions: 0.1, coups: 1, minutes: 0.3 };
+const pt = x => `${signeDe(x)}${virgule((Math.abs(x) * 100).toFixed(1))} pt`;
 function lignesDe(d, par = 'par match') {
   const out = [];
   const tirs = (x, un, plur, bon) => {
     if (Math.abs(x) < SEUILS.tirs) return;
     out.push({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, un, plur)} ${par}`, bon: bon ? x > 0 : x < 0, cle: un });
   };
-  const buts = (x, marque) => {
-    const a = Math.abs(x);
-    if (a < SEUILS.rare) return;
-    const bon = marque ? x > 0 : x < 0;
-    if (a < SEUILS.buts) {
-      if (par !== 'par match') return;
-      const n = Math.round(1 / a);
-      out.push({ txt: marque ? `≈ 1 but ${x > 0 ? 'de plus' : 'de moins'} marqué tous les ${n} matchs` : `≈ 1 but accordé ${x > 0 ? 'de plus' : 'de moins'} tous les ${n} matchs`, bon, cle: marque ? 'but' : 'butContre' });
-      return;
-    }
-    out.push({ txt: `≈ ${signeDe(x)}${nb(x, 2)} but ${marque ? 'marqué' : 'accordé'} ${par}`, bon, cle: marque ? 'but' : 'butContre' });
+  const taux = (x, quoi, cle, buts) => {
+    if (!(Math.abs(x) >= SEUILS.pct)) return;
+    out.push({ txt: `≈ ${pt(x)} ${quoi} ${par}`, bon: x > 0, cle, buts });
   };
   tirs(d.tirsPour, 'tir', 'tirs', true);
   tirs(d.tirsContre, 'tir accordé', 'tirs accordés', false);
-  buts(d.butsPour, true);
-  buts(d.butsContre, false);
+  taux(d.pctTir, 'au tir', 'pctTir', d.butsPour);
+  taux(d.pctArr, 'd\'arrêts', 'pctArr', -d.butsContre);
   if (Math.abs(d.punitions) >= SEUILS.punitions) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: null, cle: 'punition' });
   if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(Math.round(d.coups), 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
   return out;
@@ -237,7 +236,11 @@ function lignesDe(d, par = 'par match') {
 
 /* Les canaux dont le match se lit dans la feuille. Les autres (blessure, jambes, glace) ont leur unité à eux. */
 const CANAUX_MATCH = ['volume', 'finition', 'defense', 'discipline', 'robustesse'];
-const differences = (a, b) => Object.fromEntries(Object.keys(a).filter(k => k !== 'joueurs').map(k => [k, Array.isArray(a[k]) ? a[k].map((x, i) => x - b[k][i]) : a[k] - b[k]]));
+const differences = (a, b) => {
+  const x = statsDe(a), y = statsDe(b);
+  return { ...Object.fromEntries(Object.keys(a).filter(k => k !== 'joueurs').map(k => [k, Array.isArray(a[k]) ? a[k].map((v, i) => v - b[k][i]) : a[k] - b[k]])),
+    pctTir: x.pctTir - y.pctTir, pctArr: x.pctArr - y.pctArr };
+};
 /* Le cadre d'une lecture : la part du match qui reste (une 3e période : 1/3) et comment la dire (« en 3e »). */
 const surLaPart = (d, part) => (part === 1 ? d : { ...d, tirsPour: d.tirsPour * part, tirsContre: d.tirsContre * part, butsPour: d.butsPour * part, butsContre: d.butsContre * part, punitions: d.punitions * part, coups: d.coups * part });
 
@@ -259,7 +262,7 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   const sans = lire(team, lineup, adv, { n: N_EFFET }), avec = lire(team, lineup, adv, eux ? { effetsAdv: [e], n: N_EFFET } : { effets: [e], n: N_EFFET });
   let d = differences(avec, sans);
   // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
-  if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, punitions: d.punitionsEux, coups: 0 };
+  if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, pctTir: -d.pctArr, pctArr: -d.pctTir, punitions: d.punitionsEux, coups: 0 };
   const out = [];
   if (CANAUX_MATCH.some(k => k in e)) {
     const l = lignesDe(surLaPart(d, part), par);
@@ -473,11 +476,13 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
     if (Math.abs(dt) >= 3) bits.push(`${signeDe(dt)}${auMatch(dt)} tirs`);
     if (bits.length) out.push({ txt: `${p.n} : ≈ ${bits.join(', ')} ${quand}`, bon: (Math.abs(db) >= 0.5 ? db : dt) > 0, cle: 'lui' });
   }
-  // À TON CLUB, sur la même durée : les buts marqués et accordés (ce que sa création, sa défense ou ses arrêts rapportent aux autres aussi).
-  // Une carte de gardien ne joue que les soirs où il garde le filet.
-  const bp = d.butsPour * reste, bc = d.butsContre * reste * (M.gardien ? avec.partDuFilet : 1);
-  if (Math.abs(bp) >= 0.5) out.push({ txt: `Ton club : ≈ ${signeDe(bp)}${auMatch(bp)} ${mot(bp, 'but marqué', 'buts marqués')} ${quand}`, bon: bp > 0, cle: 'but' });
-  if (Math.abs(bc) >= 0.5) out.push({ txt: `Ton club : ≈ ${signeDe(bc)}${auMatch(bc)} ${mot(bc, 'but accordé', 'buts accordés')} ${quand}`, bon: bc < 0, cle: 'butContre' });
+  // À TON CLUB, sur la même durée : son % au tir et son % d'arrêts (ce que sa création, sa défense ou ses arrêts
+  // rapportent aux autres aussi), les vraies stats que le moteur joue. Une carte de gardien ne joue que les soirs où il
+  // garde le filet : son % d'arrêts se dit sur la saison du club, à sa part des départs.
+  const filet = M.gardien ? avec.partDuFilet : 1;
+  for (const [x, quoi, cle] of [[d.pctTir, 'au tir', 'pctTir'], [d.pctArr * filet, 'd\'arrêts', 'pctArr']]) {
+    if (Math.abs(x) >= SEUILS.pct) out.push({ txt: `Ton club : ≈ ${pt(x)} ${quoi} ${quand}`, bon: x > 0, cle });
+  }
   if (M.blessure) {
     const n = d.blessures * reste;
     out.push(Math.abs(n) >= 0.1 ? { txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${quand}`, bon: n < 0, cle: 'blessure' } : { txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
