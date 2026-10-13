@@ -29,7 +29,7 @@ import { state, loadIndex, cacheClear } from './data.js';
 import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { estD as isD, esc, money, pct3, pmMatch, pageDuClub } from './util.js';
+import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
 import { getEraFactor, getEraSalary, getLineZone, getArchetype, seasonGames } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
@@ -1433,11 +1433,11 @@ function setupEvents() {
     () => { if (!$('menuDepart')) return false; if (demarre) fermerMenu(); return true; },
     // Une page du Club (le dépistage, la préparation, le sommaire) : retour au bureau.
     () => { const h = hubActif(); return !!(h && h.fermerPage && h.fermerPage()); },
-    // Une page du Marché (la boutique, tes cartes) : la fiche d'un pack se replie d'abord, puis retour à la liste du Marché.
+    // La boutique : la fiche d'un pack se replie d'abord (la page elle-même est un sous-onglet, le retour suivant mène au Bureau).
     () => {
-      if (!marchePage || document.body.dataset.page !== 'marche') return false;
-      const fiche = document.querySelector('#pageMarcheCorps .pk-fiche');
-      if (fiche) fiche.remove(); else { marchePage = null; remplirMarche(); }
+      const fiche = marcheOuvert && document.querySelector('#pageMarcheCorps .pk-fiche');
+      if (!fiche) return false;
+      fiche.remove();
       return true;
     },
     // Une case visée ou un joueur choisi dans l'alignement.
@@ -1629,13 +1629,14 @@ const PAGES_DE = {
   bureau: () => ['match'],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
-  cartes: () => [...(voletDeSaison('main') ? ['main'] : []), ...(G.bonus === 'ROGUE' ? ['marche'] : []), 'cartable'],
+  // Ta main, tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun.
+  cartes: () => [...(voletDeSaison('main') ? ['main'] : []), ...(G.bonus === 'ROGUE' ? ['poche', 'marche'] : []), 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], main: ['i-cartes', 'Ta main'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
+  match: ['i-club', 'Match'], main: ['i-cartes', 'Ta main'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
 };
@@ -1665,8 +1666,8 @@ const sectionDe = cle => (SECTIONS.find(s => PAGES_DE[s.cle]().includes(cle)) ||
 const PAGES = () => SECTIONS.flatMap(s => PAGES_DE[s.cle]());
 /* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
 const dernierePage = {};
-/* La page du Marché ouverte ('boutique', 'cartes'), ou null : la liste. Elle survit à la saison rejouée (un achat, une carte). */
-let marchePage = null;
+/* La page du Marché ouverte ('poche', 'marche'), ou null. Elle survit à la saison rejouée (un achat, une carte jouée). */
+let marcheOuvert = null;
 
 const cartesEnAttente = () => { const h = hubActif(); const n = h && h.cartes && G.ligue ? cartesAJouer(G.journee || 0) : 0; return n ? String(n) : ''; };
 function sectionsCourantes() {
@@ -1739,7 +1740,7 @@ function ouvrirSection(sec) {
  *   'hub'       un volet de l'écran de saison, des séries ou du tournoi
  *   'jeu'       le repêchage, l'alignement, ou une section du bilan (#game)
  *   'ref'       une page de lecture (les équipes, tes saisons)
- *   'marche'    la boutique et tes cartes, une fois le repêchage fini (jamais dans la feuille du Club)
+ *   'marche'    tes cartes et la boutique (jamais dans la feuille du Club)
  *   'cartable'  tes joueurs gagnés
  *   'vide'      rien encore : la page dit pourquoi et offre la suite
  */
@@ -1747,7 +1748,8 @@ function zoneDe(cle) {
   const hub = hubActif();
   if (hub && voletPour(cle)) return 'hub';
   if (PAGES_REF.includes(cle)) return 'ref';
-  if (cle === 'marche' || cle === 'cartable' || cle === 'joueurs') return cle;
+  if (PAGES_DU_MARCHE[cle]) return 'marche';
+  if (cle === 'cartable' || cle === 'joueurs') return cle;
   if (bilanPret() && !hub) return VOLETS_DU_BILAN[cle] ? 'jeu' : 'vide';
   if (cle === 'repechage') return 'jeu';
   // Pendant les séries et le tournoi, l'alignement est figé : rien à y faire.
@@ -1772,7 +1774,9 @@ function marquerPage(cle) {
   dernierePage[sec] = cle;
   const zone = zoneDe(cle);
   // Quitter la boutique la referme : elle n'est jamais ailleurs.
-  if (cle !== 'marche') marchePage = null;
+  marcheOuvert = PAGES_DU_MARCHE[cle] ? cle : null;
+  // Une page du Marché quittée se redessine au retour : celle de la saison ne reste pas après elle.
+  if (!marcheOuvert && $('pageMarcheCorps')) delete $('pageMarcheCorps').dataset.rendu;
   document.body.dataset.page = cle;
   document.body.dataset.section = sec;
   document.body.dataset.zone = zone;
@@ -1927,7 +1931,7 @@ export function majEntete() {
  * un pack, retourne juste pas à l'accueil* ; *je veux RIEN de la boutique dans club/accueil*. La boutique et
  * « Tes cartes » se rendent DANS #pageMarcheCorps, jamais dans la feuille du Club (#hubModal). Un achat reste une
  * décision du jour (l'écran de saison se ferme, la saison se rejoue, il se rouvre) : tout cela se passe en
- * coulisse, `marchePage` garde la page ouverte, et l'écran de saison qui revient la redessine au Marché
+ * coulisse, `marcheOuvert` garde la page ouverte, et l'écran de saison qui revient la redessine au Marché
  * (`remplirMarche`, le signal `vue` de `surCoquille`). Le Club n'apparaît à aucun moment.
  */
 document.addEventListener('cap82:marche', ev => {
@@ -1937,53 +1941,44 @@ document.addEventListener('cap82:marche', ev => {
   const d = ev.detail || {};
   const h = hubActif();
   if (d.signer) { if (h && h.signer) h.signer(); return; }
-  if (!PAGES_DU_MARCHE[d.page]) return;
-  marchePage = d.page;
-  montrerPage('marche');
+  const cle = Object.keys(PAGES_DU_MARCHE).find(k => PAGES_DU_MARCHE[k] === d.page);
+  if (cle) montrerPage(cle);
 });
-const PAGES_DU_MARCHE = { boutique: ['🛒', 'La boutique'], cartes: ['🎒', 'Tes cartes'] };
+/* Les deux pages du Marché, chacune son sous-onglet des Cartes, et ce que l'écran de saison y rend (`hub.cartes`, `hub.boutique`). */
+const PAGES_DU_MARCHE = { poche: 'cartes', marche: 'boutique' };
 /* « Un joueur à signer » : un pack ouvert, personne de signé — il se traite ici, au Marché. */
 function brancherSignature(host, hub) {
   const b = host.querySelector('.marche-signer');
-  if (b) b.onclick = () => { marchePage = 'boutique'; remplirMarche(); hub.signer(); };
+  if (b) b.onclick = () => hub.signer();
 }
 const signatureHtml = hub => (hub && hub.signature && hub.signature()
   ? '<div class="marche-signature"><button type="button" class="btn gold marche-signer">Un joueur à signer · voir les cartes</button></div>' : '');
+/*
+ * UN SOUS-ONGLET, UNE PAGE (JP : *limiter d'avoir à chercher et se promener partout*). « Tes cartes » et « Boutique »
+ * s'ouvrent d'un toucher, sans liste à deux tuiles ni seconde tête « ‹ » : le sous-onglet allumé dit où l'on est, les
+ * jetons sont dans l'en-tête.
+ */
 function remplirMarche() {
   const host = $('pageMarcheCorps');
   if (!host) return;
+  const quoi = PAGES_DU_MARCHE[marcheOuvert];
+  if (!quoi) return;
   const hub = hubActif();
-  // L'écran de saison se rejoue en coulisse : la page ouverte reste telle quelle jusqu'à son retour.
-  if (marchePage && !hub) return;
-  if (marchePage && hub && hub[marchePage]) {
-    const [icone, titre] = PAGES_DU_MARCHE[marchePage];
-    const fermer = () => { marchePage = null; remplirMarche(); };
-    host.replaceChildren(pageDuClub({ genre: marchePage, retour: 'Retour au marché', ico: icone, titre: esc(titre),
-      sous: `🪙 ${jetonsRogue(G.journee || 0)} jetons`, haut: signatureHtml(hub), fermer }));
+  // L'écran de saison se rejoue en coulisse (un achat, une carte jouée) : la page reste telle quelle jusqu'à son retour.
+  if (!hub && host.dataset.rendu === quoi) return;
+  if (hub && hub[quoi]) {
+    host.innerHTML = `${signatureHtml(hub)}<section class="hub-page" data-genre="${quoi}"><div class="hub-page-corps"></div></section>`;
+    host.dataset.rendu = quoi;
     brancherSignature(host, hub);
-    hub[marchePage]({ dans: host.querySelector('.hub-page-corps'), fermer });
+    hub[quoi]({ dans: host.querySelector('.hub-page-corps'), fermer: () => montrerPage('match') });
     return;
   }
-  marchePage = null;
-  const tuile = (id, icone, titre, mot) => {
-    const corps = `<span class="marche-ico" aria-hidden="true">${icone}</span><span class="marche-txt"><b>${esc(titre)}</b>${mot ? `<small>${esc(mot)}</small>` : ''}</span>`;
-    return id ? `<button type="button" class="marche-tuile" data-marche="${id}">${corps}</button>` : `<div class="marche-tuile off">${corps}</div>`;
-  };
-  const enSaison = !!(hub && hub.boutique);
-  const n = enSaison && G.ligue ? cartesAJouer(G.journee || 0) : 0;
-  host.innerHTML = `${signatureHtml(hub)}<div class="marche">
-    ${tuile(enSaison ? 'boutique' : null, '🛒', 'La boutique', enSaison ? `${jetonsRogue(G.journee || 0)} 🪙` : G.bonus === 'ROGUE' ? 'Pendant la saison' : 'Au mode Rogue')}
-    ${tuile('cartes', '🎒', 'Mes cartes', enSaison ? `${n} à jouer` : '')}
-  </div>`;
-  brancherSignature(host, hub);
-  host.querySelectorAll('[data-marche]').forEach(b => {
-    b.onclick = () => {
-      const quoi = b.dataset.marche, h = hubActif();
-      // Une carte jouée ou un pack acheté est une décision du jour : la page reste ici, la saison se rejoue en coulisse.
-      if ((quoi === 'boutique' || quoi === 'cartes') && h && h[quoi]) { marchePage = quoi; remplirMarche(); }
-      else if (quoi === 'cartes') ouvrirInventaireJeu(null, null);
-    };
-  });
+  delete host.dataset.rendu;
+  // Hors saison : tes cartes se regardent (le permanent, la banque) ; la boutique attend la saison.
+  if (quoi === 'cartes') {
+    host.innerHTML = `<section class="hub-page" data-genre="cartes"><div class="hub-page-corps"></div></section>`;
+    ouvrirInventaireJeu(null, null, { dans: host.querySelector('.hub-page-corps') });
+  } else host.innerHTML = '<p class="empty-msg">La boutique ouvre avec la saison.</p>';
 }
 
 /*
@@ -2014,7 +2009,7 @@ function fermerRegles() {
  * de la saison en cours et saisons réelles comme vraie carte. Je veux
  * collectionner.* Ton équipe — sa saison RÉVÉLÉE (`compteRevele`, jamais la
  * fin de l'année) et sa vraie saison — puis la collection, par saison et par
- * club. « Mes cartes » ouvre les cartes de jeu (l'inventaire) : du hub avec
+ * club. « Tes cartes » ouvre les cartes de jeu (l'inventaire) : du hub avec
  * sa décision quand une saison se joue, en lecture sinon.
  */
 function ligneDeSaison(p, S) {
@@ -2043,7 +2038,7 @@ function remplirCartable() {
     nCartes: L ? cartesAJouer(G.journee || 0) : 0,
     ouvrirCartes: () => {
       // En pleine saison : l'inventaire du Marché, qui joue une carte comme décision du jour.
-      if (hub && hub.cartes) { marchePage = 'cartes'; montrerPage('marche'); return; }
+      if (G.bonus === 'ROGUE') { montrerPage('poche'); return; }
       ouvrirInventaireJeu(null, null);
     },
     ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),
@@ -2160,7 +2155,7 @@ export function montrerPage(cle) {
 surCoquille(ev => {
   if (ev.type === 'vue') {
     // L'écran de saison se rouvre derrière le Marché (un achat, une carte jouée) : la boutique reste à l'écran, le Club n'apparaît pas.
-    if (marchePage) { marquerPage('marche'); return; }
+    if (marcheOuvert) { marquerPage(marcheOuvert); return; }
     if (G.pageVoulue) {
       const cible = G.pageVoulue;
       G.pageVoulue = null;

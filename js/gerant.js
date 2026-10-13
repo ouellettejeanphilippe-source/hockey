@@ -340,7 +340,7 @@ function typeAvecForme(type, forme) {
 }
 
 /* `ligne` (S80) : où il joue dans ton alignement (« 3e paire ») — on le dit, on ne le nomme pas par là. */
-function enteteJoueur(p, ligne = '') {
+export function enteteJoueur(p, ligne = '') {
   if (!p) return '';
   const barres = barresProfils(p);
   const marques = (p._mutCles || []).map(k => MUTATIONS[k] ? `<span class="puce neutre">${MUTATIONS[k].ico} ${esc(MUTATIONS[k].nom)}</span>` : '').join('');
@@ -389,6 +389,33 @@ function nommer({ joueur = null, joueurs = [], ouDe = null }) {
   const sub = t => esc(String(t || '').replace(/\{nom\}/g, nom || 'ton joueur').replace(/\{noms\}/g, noms || 'tes joueurs'));
   return { nom, ou, noms, sub };
 }
+/*
+ * UNE OPTION, UN DESSIN (JP : *le UI est convoluted, ça pourrait être plus streamlined*). Le nom, sa forme (Cadeau,
+ * Échange, Pari), ce qu'elle change en vraies stats sur une ligne, puis le bon et le prix en mots : le même bouton
+ * pour un événement, la route de la semaine, le proprio, une carte de vestiaire et l'écran de la semaine.
+ * `spec` donne les noms ({nom}, {noms}), le joueur visé et le cadre du match ; `classe`, `attr` et `on` laissent
+ * chaque écran brancher son geste (`data-vest`, `data-semaine`) sans redessiner le bouton.
+ */
+export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', on = false } = {}) {
+  const { nom, noms, sub } = nommer(spec);
+  if (!mots) {
+    const { duree: _d, ...canaux } = o.effet || o;
+    mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+  }
+  const forme = formeDe(o);
+  const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
+  return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
+    ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
+    <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
+    ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
+    ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
+    ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
+    ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
+    ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
+    ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
+    ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
+  </button>`;
+}
 export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -436,18 +463,7 @@ export function ouvrirChoix(spec) {
           dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
         });
-        const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
-        return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}" data-choix="${esc(o.cle)}"${o.desactive ? ' disabled' : ''}>
-          ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
-          <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
-          ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
-          ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
-          ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
-          ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
-          ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
-          ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
-          ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
-        </button>`;
+        return optionHtml(o, spec, { mots });
       }).join('')}</div>
       ${spec.options.length ? '' : `<p class="empty-msg">${esc(spec.vide || 'Rien ici.')}</p>`}
       <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
@@ -1191,7 +1207,7 @@ export function pistesDuRapport(dep, { planReel = null, ecarte = 0, revele = fal
   const tot = dep.filter(x => !rayees.has(x.plan)).reduce((a, x) => a + x.p, 0) || 1;
   return dep.map(x => (rayees.has(x.plan) ? { ...x, p: 0, ecarte: true } : { ...x, p: Math.round(100 * x.p / tot) }));
 }
-export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = false, fx = null } = {}) {
+export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = false, fx = null, etape = '' } = {}) {
   if (!pistes || !pistes.length) return '';
   const qui = nomAdv === 'Eux' ? '' : ' ' + esc(avecArticle('de', nomAdv));
   const ligne = x => {
@@ -1212,10 +1228,12 @@ export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = fal
   const justeN = [chiffres(PREP_JUSTE), fx && fx.piege ? chiffres(fx.piege) : ''].filter(Boolean).join(' · ');
   const rate = fx && fx.improvise ? `pas de malus, et l'improvisation : ${mots(fx.improvise)}` : mots(PREP_RATEE);
   const rateN = chiffres(fx && fx.improvise ? fx.improvise : PREP_RATEE);
+  // `etape` (l'écran de combat) : le titre devient son étape, et la règle se plie sous les pistes (elle se relit, elle ne se choisit pas).
+  const regle = `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span>${justeN ? `<span class="puce bon detail">${esc(justeN)}</span>` : ''}<span class="puce prix">💥 Rate : ${esc(rate)}</span>${rateN ? `<span class="puce prix detail">${esc(rateN)}</span>` : ''}<span class="puce neutre">Sans préparation : rien ne change</span></div>`;
   return `<div class="depistage${choisir ? ' choisir' : ''}">
-    <div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>
+    ${etape || `<div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>`}
     <div class="dep-pistes">${pistes.map(ligne).join('')}</div>
-    ${choisir ? `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span>${justeN ? `<span class="puce bon detail">${esc(justeN)}</span>` : ''}<span class="puce prix">💥 Rate : ${esc(rate)}</span>${rateN ? `<span class="puce prix detail">${esc(rateN)}</span>` : ''}<span class="puce neutre">Sans préparation : rien ne change</span></div>` : ''}
+    ${choisir ? (etape ? `<details class="main-plie"><summary>🎯 Viser juste ou rater : ce que ça change</summary>${regle}</details>` : regle) : ''}
   </div>`;
 }
 
@@ -1392,7 +1410,7 @@ export function ouvrirMainDeMatch(spec) {
     const hauts = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].map(e => (e ? e.scrollTop : 0));
     // Leur plan, déplié, le reste d'une carte à l'autre : il se refermait à
     // chaque carte touchée, et on le lit justement en choisissant (QA S74b).
-    const planOuvert = !!m.querySelector('.main-plan[open]');
+    const plies = [...m.querySelectorAll('details.main-plie')].map(d => d.open);
     const cartes = main.map((c, i) => {
       const C = CARTES_MATCH[c];
       const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : energieDepensee([...jouees, c]) < 0 ? 'trop-cher' : '';
@@ -1418,20 +1436,17 @@ export function ouvrirMainDeMatch(spec) {
     const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
     // LES CARTES DE VESTIAIRE : l'avant-match, deux cartes à 0 élan ; on en garde une (déjà gardée : elle reste dite).
+    // L'ÉCRAN DE COMBAT EN ÉTAPES (JP : *simplifier le UI du jour de match*) : leur plan, ta carte de vestiaire, ta main —
+    // numérotées dans l'ordre où on les règle ; ce qui se consulte (leur main, le tableau des deux clubs) se plie.
+    const etapes = [spec.depistage && 'plan', V && 'vest', spec.ajustements && 'aj', 'main'].filter(Boolean);
+    const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
     const vestiaire = V ? `<div class="main-vestiaire">
-      <div class="gl-k">${V.ico} ${esc(V.titre)} · garde une carte</div>
+      ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
       ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
       <div class="main-vest-rang">${V.options.map(o => {
         const { duree: _d, ...canaux } = o;
         const mv = [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, V.cadre), ...motsDeCarte(o, nV.noms)];
-        const forme = formeDe(o);
-        return `<button type="button" class="main-vest${vest === o.cle ? ' on' : ''}" data-vest="${esc(o.cle)}"${V.pris ? ' disabled' : ''}>
-          <span class="main-vest-tete"><b>${nV.sub(o.nom)}</b><span class="main-vest-coin" title="0 élan">0</span></span>
-          ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
-          ${o.bon ? `<span class="choix-option-bon">+ ${nV.sub(o.bon)}</span>` : ''}
-          ${o.prix ? `<span class="choix-option-prix">− ${nV.sub(o.prix)}</span>` : ''}
-          <span class="choix-puces">${pucesDeFace(mv.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nV.nom).replace(/\{noms\}/g, nV.noms) })))}</span>
-        </button>`;
+        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
       }).join('')}</div>
     </div>` : '';
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
@@ -1442,14 +1457,15 @@ export function ouvrirMainDeMatch(spec) {
       <div class="choix-corps">
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
-        ${spec.contexte || ''}
-        ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx }) : ''}
+        ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx, etape: etape('plan', '🔎 Leur plan · prépare-toi') }) : ''}
+        ${spec.contexte ? `<details class="main-plie"><summary>Ce qu'ils jouent ce soir</summary>${spec.contexte}</details>` : ''}
         ${vestiaire}
-        ${spec.ajustements ? `<div class="main-ajuste"><div class="gl-k">Ton ajustement pour ce match</div><div class="main-ajuste-rang">${spec.ajustements.map(o => {
+        ${spec.ajustements ? `<div class="main-ajuste">${etape('aj', 'Ton ajustement pour ce match')}<div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
           const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${motsEnChiffres(o.pari.gagne).map(x => x.txt).join(', ') || 'rien'}`, bon: true }, { txt: `🎲 sinon : ${motsEnChiffres(o.pari.perd).map(x => x.txt).join(', ') || 'rien'}`, bon: false }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
+        ${etape('main', 'Ta main · joue tes cartes')}
         <div class="main-energie" aria-label="Élan : ${energie}"><span class="gl-k">Élan</span><span class="main-orbes">${orbes}</span><b>${energie}</b>
           <span class="main-pioche" title="Les cartes qui restent à piger ce match">🂠 ${pioche.length}</span></div>
         <div class="choix-options choix-main${premier ? ' donne' : ''}">${cartes}</div>
@@ -1458,7 +1474,7 @@ export function ouvrirMainDeMatch(spec) {
           ${jouees.length ? `<div class="main-jouees">${jouees.map(c => `<span class="main-jouee">${CARTES_MATCH[c].ico} ${esc(CARTES_MATCH[c].nom)}</span>`).join('')}</div>` : '<div class="main-vide">Aucune carte jouée. Touche une carte pour la jouer.</div>'}
           ${mots.length ? `<div class="choix-puces">${puces(mots)}</div>` : ''}
         </div>
-        ${spec.stats || ''}
+        ${spec.stats ? `<details class="main-plie"><summary>📊 Les deux clubs, par match</summary>${spec.stats}</details>` : ''}
         <div class="main-boutons">
           <button type="button" class="btn go main-jouer"${manque() ? ' disabled' : ''}>${esc(manque() || (jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer'))}</button>
         </div>
@@ -1474,7 +1490,7 @@ export function ouvrirMainDeMatch(spec) {
     const nd = m.querySelector('.choix-main');
     if (nd) nd.scrollLeft = x;
     [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].forEach((e, i) => { if (e && hauts[i]) e.scrollTop = hauts[i]; });
-    if (planOuvert) { const pl = m.querySelector('.main-plan'); if (pl) pl.open = true; }
+    m.querySelectorAll('details.main-plie').forEach((d, i) => { if (plies[i]) d.open = true; });
     pointsDeBande(m);
     premier = false; pigees = new Set();
     m.querySelectorAll('.main-carte').forEach(b => {

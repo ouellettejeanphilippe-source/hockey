@@ -1006,6 +1006,11 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); outline: none; transform: translateY(-4px); box-shadow: var(--reflet), 0 0 0 1px color-mix(in srgb, var(--or) 50%, transparent), 0 18px 36px -14px color-mix(in srgb, var(--or) 50%, transparent); }
 .choix-option:active:not([disabled]) { transform: translateY(0) scale(0.97); transition-duration: 60ms; }
 .choix-option[disabled] { opacity: 0.45; cursor: not-allowed; }
+/* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : l'or, et son crochet. */
+.choix-option.on { border-color: var(--or); background: linear-gradient(color-mix(in srgb, var(--or) 14%, transparent), transparent 70%), var(--panneau); box-shadow: var(--relief), 0 0 0 1px var(--or); }
+.choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
+/* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
+:is(.main-vest, .sem-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
 .choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .choix-forme { align-self: flex-start; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
 .choix-option-sous { font-size: var(--t-2); color: var(--encre-2); line-height: 1.4; }
@@ -1485,24 +1490,11 @@ a.spin-club:hover { background: var(--fond-2); }
   .sig-liste > .aln-titre { margin: 0; padding: var(--esp-3) var(--esp-4) var(--esp-1); background: var(--noir); }
 }
 
-/* ---- La page Marché : des tuiles plates, une icône au trait, un mot, une phrase ---- */
-.marche { display: grid; gap: var(--esp-3); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.marche-tuile {
-  display: flex; align-items: center; gap: var(--esp-4); min-height: 88px; padding: var(--esp-4); text-align: left;
-  color: var(--encre); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2);
-  transition: border-color var(--t-vite), transform var(--t-vite);
-}
-button.marche-tuile:hover { border-color: var(--or); }
-button.marche-tuile:active { transform: scale(0.98); }
-.marche-tuile.off { opacity: 0.55; }
-/* Un joueur à signer (un pack ouvert, personne de signé) : en tête du Marché, pleine largeur. */
+/* ---- Tes cartes et la boutique (les pages du Marché) : un joueur à signer (un pack ouvert, personne de signé) en tête, pleine largeur ---- */
 .marche-signature .btn { width: 100%; min-height: 48px; }
 .page-corps > .marche-signature { padding-bottom: var(--esp-3); }
-.hub-page > .marche-signature { padding: var(--esp-3) var(--esp-3) 0; }
-.marche-ico { flex: none; font-size: var(--t-5); line-height: 1; color: var(--or); }
-.marche-txt { display: grid; gap: var(--esp-1); min-width: 0; }
-.marche-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.marche-txt small { font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
+/* La page elle-même porte déjà sa marge (`.page-corps`) : son corps ne la redouble pas. */
+.page-corps > .hub-page > .hub-page-corps { padding: 0; }
 /* =====================================================================
    4b. LE CARTON DE COLLECTION (gardé tel quel) ET LA FICHE DU JOUEUR
    =====================================================================
@@ -2869,6 +2861,13 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-gros-note, .hub-gros-detail { font-size: var(--t-1); line-height: 1.4; margin-top: var(--esp-1); color: var(--encre-2); }
 .hub-gros-dep { display: flex; flex-direction: column; gap: var(--esp-2); }
 .hub-gros .choix-puces { margin-top: var(--esp-1); }
+/* Hier soir, en un bloc (js/saison.js `voletJourneeSeul`) : le résultat, son but gagnant, le drame, la une, autour de la ligue. */
+.hub-soir { display: flex; flex-direction: column; gap: var(--esp-2); }
+.hub-soir:empty { display: none; }
+.hub-soir > .hub-une, .hub-soir > .hub-miniboss { margin: 0; }
+.hub-autour { display: grid; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--filet); font-size: var(--t-2); line-height: 1.4; color: var(--encre); }
+.hub-autour .hub-une-t { color: var(--encre-3); }
+.hub-autour p { margin: 0; }
 .hub-une { display: grid; gap: var(--esp-1); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .hub-une-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
 .hub-une-but { color: var(--encre-2); font-style: italic; }
@@ -3025,7 +3024,9 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
   position: fixed; z-index: 85; left: var(--rail-w); right: 0; top: var(--topbar-h); bottom: var(--bas-coquille);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-4);
   padding: var(--esp-4); overflow: hidden; pointer-events: none;
-  background: radial-gradient(70% 50% at 50% 45%, color-mix(in srgb, var(--noir) 82%, transparent), color-mix(in srgb, var(--noir) 35%, transparent) 75%, transparent);
+  /* Un voile presque opaque : l'affiche dessous ne se lit pas à travers le pointage (ce qu'il raconte reste au Bureau, « Hier soir »). */
+  background: radial-gradient(70% 50% at 50% 45%, color-mix(in srgb, var(--noir) 96%, transparent), color-mix(in srgb, var(--noir) 88%, transparent) 80%);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   animation: passage-vie 3.2s var(--e-sortie) forwards;
 }
 @keyframes passage-vie { 0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
@@ -3057,9 +3058,6 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .passage-rang .prix { color: var(--mauvais); }
 @keyframes passage-monte { from { opacity: 0; transform: translateY(10px); } }
 /* La une du jour : deux nouvelles au plus, chacune sur son filet du club. */
-.passage-une { display: flex; flex-direction: column; gap: var(--esp-1); width: 100%; margin: var(--esp-2) 0 0; padding: 0; list-style: none; }
-.passage-une li { padding: var(--esp-1) var(--esp-3); border-left: 3px solid var(--club-vif); background: color-mix(in srgb, var(--noir) 70%, transparent); font-size: var(--t-2); line-height: 1.35; text-align: left; color: var(--encre); animation: passage-monte 400ms var(--e-sortie) 1050ms backwards; }
-.passage-une li + li { animation-delay: 1200ms; }
 /* Le fil des autres résultats : un bandeau du bas qui défile, comme à la télé. */
 .passage-fil { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; padding: var(--esp-2) 0; background: color-mix(in srgb, var(--noir) 88%, transparent); border-top: 2px solid var(--club-vif); }
 .passage-defile { display: flex; gap: var(--esp-5); width: max-content; animation: passage-fil 9s linear; }
@@ -3089,6 +3087,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-hier-eq b { font-size: var(--t-3); letter-spacing: 0.04em; }
 .hub-hier-eq em { font-style: normal; }
 .hub-hier-eq.toi b { color: var(--or); }
+.hub-hier-recit { flex: 1 1 100%; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); }
 .hub-hier-voir { margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
@@ -3600,8 +3599,33 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .nd-txt { display: flex; flex-direction: column; min-width: 0; }
 .nd-txt b { font-size: var(--t-2); }
 .nd-txt span { font-size: var(--t-1); color: var(--encre-2); }
-.nd-acces { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); margin-top: var(--esp-3); }
-.nd-acces-b { min-height: 44px; }
+/* L'écran de la semaine (js/saison.js `ouvrirNoeud`) : la semaine passée pliée, les sept jours, l'état du club, chaque
+   choix du lundi et ses options (le bouton `optionHtml`, serré), ce qui attend encore, la main ; « Valider la semaine » au pied. */
+.sem-sheet { display: flex; flex-direction: column; gap: var(--esp-3); }
+.sem-sheet > .nd-route { margin-bottom: 0; }
+.sem-passee { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
+.sem-passee > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 44px; padding: var(--esp-2) var(--esp-3); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.sem-passee > summary::-webkit-details-marker { display: none; }
+.sem-passee > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); color: var(--encre-3); transition: transform var(--t-vite); }
+.sem-passee[open] > summary::after { transform: rotate(90deg); }
+.sem-passee > .som { padding: 0 var(--esp-3) var(--esp-3); }
+.sem-choix { display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-3); border-top: 1px solid var(--filet); }
+.sem-choix-tete { display: flex; align-items: center; gap: var(--esp-2); }
+.sem-choix-ico { flex: none; font-size: var(--t-5); line-height: 1; }
+.sem-choix-titres { display: flex; flex-direction: column; min-width: 0; }
+.sem-choix-titres b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.sem-choix-titres small { font-size: var(--t-1); color: var(--encre-2); }
+.sem-recit { margin: 0; font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+.sem-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
+@media (min-width: 700px) { .sem-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
+.sem-encours > summary { list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); min-height: 32px; display: flex; align-items: center; }
+.sem-encours > summary::-webkit-details-marker { display: none; }
+.sem-encours > summary::after { content: " ›"; margin-left: var(--esp-1); }
+.sem-encours[open] > summary { color: var(--encre); }
+.sem-info { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); }
+.sem-chiffres { align-self: center; }
+.sem-valider { width: 100%; min-height: 48px; }
+.sem-valider.manque { filter: saturate(0.4); opacity: 0.85; }
 .som-attente { margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); background: color-mix(in srgb, var(--mauvais) 12%, transparent); box-shadow: inset 3px 0 0 var(--mauvais); }
 
 /* ---- Le rapport d'entracte : une rangée de cartons plats qu'on balaie, un par écran au téléphone ---- */
@@ -4016,17 +4040,20 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .main-aj small { color: var(--encre-2); font-size: var(--t-1); }
 .main-aj.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); }
 /* L'écran de combat (V5) : l'enjeu en une ligne ; l'avant-match en deux cartes de vestiaire à 0 élan, on en garde une. */
+/* L'écran de combat en étapes : 1 leur plan, 2 ta carte de vestiaire, 3 ta main ; ce qui se consulte, plié. */
+.main-etape { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre); }
+.main-etape > b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); letter-spacing: 0; }
+.main-plie { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
+.main-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 40px; padding: var(--esp-1) var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
+.main-plie > summary::-webkit-details-marker { display: none; }
+.main-plie > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); transition: transform var(--t-vite); }
+.main-plie[open] > summary::after { transform: rotate(90deg); }
+.main-plie > :not(summary) { margin: 0 var(--esp-3) var(--esp-3); }
 .main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
-.main-vest-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
-.main-vest { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; min-height: 44px; padding: var(--esp-2); text-align: left; cursor: pointer; background: var(--fond-2); color: var(--encre); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-1); font: inherit; transition: border-color var(--t-vite), background var(--t-vite); }
-.main-vest:disabled { cursor: default; opacity: 0.45; }
-.main-vest.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 12%, transparent); opacity: 1; }
-.main-vest-tete { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--esp-1); }
-.main-vest-tete b { font: 800 var(--t-3)/1.15 var(--display); letter-spacing: 0.02em; overflow-wrap: anywhere; }
-.main-vest-coin { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--or) 45%, transparent); font: 800 var(--t-1)/1 var(--display); color: var(--encre-2); }
-.main-vest .choix-puces { display: flex; flex-direction: column; gap: 2px; }
+.main-vest-rang { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
+@media (min-width: 700px) { .main-vest-rang { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 /* L'élan : trois orbes, pleins en or. */
 .main-energie { display: flex; align-items: center; gap: var(--esp-3); font: 800 var(--t-4)/1 var(--display); }
 .main-orbes { display: inline-flex; gap: 6px; }

@@ -57,8 +57,6 @@ for (let i = 0; i < 10 && !(await page.$('#choixModal[hidden]')); i++) {
 
 // La boutique, au Marché ; chaque saison met quatre secondes à arriver (le cache vidé).
 await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
-await page.waitForSelector('#pageMarcheCorps [data-marche="boutique"]');
-await page.click('#pageMarcheCorps [data-marche="boutique"]');
 await page.waitForSelector('#pageMarche .pk-tuile');
 await page.evaluate(() => new Promise(r => { const q = indexedDB.deleteDatabase('cap82'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
 await page.route(/data\/seasons\/.*\.json/, async r => { await new Promise(x => setTimeout(x, 4000)); await r.continue(); });
