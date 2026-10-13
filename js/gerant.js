@@ -1123,7 +1123,7 @@ function glaceHtml(lineup, u, l, visage) {
   const pions = [['AG', f[0]], ['C', f[1]], ['AD', f[2]], ['DG', d[0]], ['DD', d[1]]].filter(([r]) => js[r]).map(([r, [x, y]]) => {
     const p = js[r], k = getPlayerKey(p), [ax, ay] = placesGlace.get(k) || [x, y];
     const icones = badgesDe(p).slice(0, 2).map(b => `<i class="badge pal-${b.palier}">${glyphe(b.ico)}</i>`).join('');
-    return `<div class="gl-pion" data-k="${esc(k)}" data-x="${x}" data-y="${y}" style="left:${ax / 3.5}%;top:${ay / 3}%"><span class="gl-pion-visage">${visage ? visage(p) : ''}</span><span class="gl-pion-nom">${esc(nomCourt(p.n))}${icones}</span></div>`;
+    return `<div class="gl-pion" data-k="${esc(k)}" data-x="${x}" data-y="${y}" style="left:${ax / 3.5}%;top:${ay / 3}%"><span class="rond-visage gl-pion-visage">${visage ? visage(p) : ''}</span><span class="gl-pion-nom">${esc(nomCourt(p.n))}${icones}</span></div>`;
   }).join('');
   return `<div class="gl-glace" role="img" aria-label="Où le système place ses joueurs">
     <svg viewBox="0 0 350 300" preserveAspectRatio="none" aria-hidden="true">

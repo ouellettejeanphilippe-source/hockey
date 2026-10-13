@@ -909,6 +909,12 @@ table.data td small { font-size: var(--t-1); color: var(--encre-3); }
 img.visage { object-fit: cover; object-position: 50% 0; }
 img.visage.brut { object-position: 50% 12%; }
 .headshot-fallback { display: grid; place-items: center; color: var(--encre-3); }
+/* Un visage dans un rond (le prototype, oct.) : la Liste, le sommaire, la boîte, l'affiche, la glace du système.
+   Chaque endroit ne pose que sa taille (et, sur la glace, son fond). */
+.rond-visage { position: relative; flex: none; overflow: hidden; border-radius: 50%; background: var(--fond-3); }
+.rond-visage > * { position: absolute; inset: 0; display: grid; place-items: center; }
+.rond-visage img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.15); transform-origin: 50% 0; }
+.rond-visage .headshot-fallback { font-size: var(--t-2); opacity: 0.45; }
 
 /* ---- Les fenêtres : une feuille posée, un corps qui défile ----
    Jalon U : les deux familles (`.modal-backdrop` ici, `.choix-modal` plus bas) portent LA MÊME tête (`.choix-tete` :
@@ -2536,10 +2542,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .gl-glace { position: relative; flex: none; height: 300px; border: 3px solid var(--glace-bande); border-radius: var(--r-2); background: var(--glace-blanc); overflow: hidden; }
 .gl-glace > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .gl-pion { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; transform: translate(-50%, -50%); transition: left 500ms var(--e-sortie), top 500ms var(--e-sortie); pointer-events: none; }
-.gl-pion-visage { position: relative; width: 38px; height: 38px; overflow: hidden; border-radius: 50%; background: var(--glace-encre); box-shadow: 0 3px 8px color-mix(in srgb, var(--glace-encre) 35%, transparent); }
-.gl-pion-visage > * { position: absolute; inset: 0; display: grid; place-items: center; }
-.gl-pion-visage img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.15); transform-origin: 50% 0; }
-.gl-pion-visage .headshot-fallback { font-size: var(--t-3); opacity: 0.45; }
+.gl-pion-visage { width: 38px; height: 38px; background: var(--glace-encre); box-shadow: 0 3px 8px color-mix(in srgb, var(--glace-encre) 35%, transparent); }
 .gl-pion-nom { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: var(--r-1); background: var(--glace-encre); color: var(--glace-blanc); font: 800 var(--t-1)/1.25 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .gl-pion { transition: none; } }
 /* Chaque section est une bande sur un filet, coiffée d'une étiquette. */
@@ -2797,6 +2800,14 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
    L'aplat du club s'il se voit sur le noir ; sinon sa couleur vive (l'orange des NHL Stars, dont l'aplat est noir). */
 .hub-eq { display: flex; flex-direction: column; gap: 2px; min-width: 0; overflow: hidden; padding: var(--esp-3); color: var(--eq-ink); }
 .hub-eq.b { align-items: flex-end; text-align: right; }
+/* Les deux visages du soir, sous l'affiche (le prototype, oct.) : le meilleur buteur de chaque club. */
+.hub-vedettes { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet-2); }
+.hub-vedette { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
+.hub-vedette.b { flex-direction: row-reverse; text-align: right; }
+.hub-vedette-visage { width: 40px; height: 40px; }
+.hub-vedette-txt { display: grid; min-width: 0; }
+.hub-vedette-txt b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; text-transform: uppercase; }
+.hub-vedette-txt small { font: 700 var(--t-1)/1.2 var(--display); color: var(--encre-2); }
 .hub-eq-band { display: flex; align-items: center; gap: var(--esp-2); max-width: 100%; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .hub-eq.b .hub-eq-band { flex-direction: row-reverse; }
 .hub-eq-nom { max-width: 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2913,6 +2924,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-msg-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-3); min-height: 52px; padding: var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: left; transition: background var(--t-vite); }
 .hub-msg-tete:hover { background: var(--fond-2); }
 .hub-msg-ico { flex: none; font-size: var(--t-4); line-height: 1; color: var(--encre-2); }
+.hub-msg-visage { width: 32px; height: 32px; }
 .hub-msg-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .hub-msg-sujet { font-size: var(--t-3); line-height: 1.25; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
@@ -3547,6 +3559,8 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-tps { font: 700 var(--t-1)/1.5 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-3); }
 .som-eq { line-height: 1; align-self: center; }
 .som-qui { min-width: 0; }
+/* Le visage du marqueur, devant son nom (le prototype, oct.). */
+.som-visage { display: inline-block; width: 26px; height: 26px; margin-right: var(--esp-1); vertical-align: middle; }
 .som-qui .lien-joueur { display: inline; }
 .som-aides { color: var(--encre-2); font-size: var(--t-1); }
 .som-aides.sans { color: var(--encre-3); font-style: italic; }
@@ -4594,7 +4608,11 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); cursor: pointer; }
 .jr-table th.on { color: var(--or); }
 .jr-table td { font: 700 var(--t-2)/1.1 var(--display); }
-.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 150px; }
+.jr-table .jr-col-nom { position: sticky; left: 0; z-index: 2; text-align: left; background: var(--fond-1); max-width: 190px; }
+/* Le visage, à gauche du nom (le prototype, oct.). */
+.jr-qui { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; }
+.jr-qui-txt { min-width: 0; }
+.jr-visage { width: 32px; height: 32px; }
 .jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
 .jr-nom { display: block; max-width: 100%; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: inherit; }
 .jr-sous { display: block; overflow: hidden; text-overflow: ellipsis; font: 600 var(--t-1)/1.3 var(--display); color: var(--encre-3); }

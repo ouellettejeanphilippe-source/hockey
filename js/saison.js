@@ -2872,8 +2872,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
       const formeA = formeHtml(p.m.A), formeB = formeHtml(p.m.B);
+      // LES DEUX VISAGES DU SOIR (le prototype, oct. : *ça lie au vrai monde*) : le meilleur buteur de chaque club,
+      // sous l'affiche, dans l'ordre de l'affiche — ses buts et ses passes, lus sur les feuilles déjà jouées.
+      const vedettes = [p.m.A, p.m.B].map(buteurDe);
+      const surveiller = vedettes.some(Boolean) ? `<div class="hub-vedettes">${vedettes.map((v, k) => (v
+        ? `<div class="hub-vedette ${k ? 'b' : 'a'}"><span class="rond-visage hub-vedette-visage" aria-hidden="true">${ctx.mug(v.p)}</span><span class="hub-vedette-txt"><b>${ctx.esc(v.p.n)}</b><small>${v.c.g} B · ${v.c.a} A</small></span></div>`
+        : '<div></div>')).join('')}</div>` : '';
       const affiche = `<div class="hub-match-titre">Match ${miens.length + 1} · ${quand} <span class="hub-lieu" title="L'équipe à domicile a le dernier changement : son appariement de trios tient mieux.">${domicile ? 'à domicile' : `chez ${ctx.esc(ctx.teamShort(adv))}`}</span></div>
-        <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>
+        <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>${surveiller}
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
       // V7 : le Bureau dit d'abord ce que le proprio attend (la run, son objectif, ton coach), puis le match.
@@ -3229,7 +3235,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const forcer = !!sl && etat.forcer;
       const defaut = forcer ? (reserves.length ? 'reserve' : 'rappel') : 'banc';
       const d = k => (k === defaut ? ' data-defaut' : '');
-      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB, sl, reserves,
+      out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB, sl, reserves,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🚑 ${ctx.esc(alerte.player.n)} est blessé</div>
           <div class="hub-alerte-note">${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${alerte.games >= BLESSURE_TRAINEE ? ctx.esc(cicatriceMot('trainee')) : ''}${caseDe(alerte.player) ? ` · ${ctx.esc(caseDe(alerte.player))}` : ''}${forcer ? ' · il sort de ton alignement : qui joue sa case ?' : ` · ${ctx.esc(remplacant(alerte.player))}`}</div>
@@ -3249,7 +3255,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const rv = retourOuvert();
     if (rv) {
       const court = sl => (ctx.slotShort ? ctx.slotShort(sl) : sl.role);
-      out.push({ id: rv.id, genre: 'retour', bloque: true, de: DE.coach, sujet: `${rv.b.player.n} revient : le remettre à sa place ?`, rv,
+      out.push({ id: rv.id, genre: 'retour', bloque: true, de: DE.coach, joueur: rv.b.player, sujet: `${rv.b.player.n} revient : le remettre à sa place ?`, rv,
         corps: `<div class="hub-alerte" role="status">
           <div class="hub-alerte-tete">🩹 ${ctx.esc(rv.b.player.n)} revient au jeu</div>
           <div class="hub-mouvements">${rv.mouvements.map(m => `<div class="hub-mv">${ctx.esc(m.p.n)} : ${ctx.esc(court(m.de))} → ${ctx.esc(court(m.vers))}</div>`).join('')}</div>
@@ -3324,9 +3330,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <div class="hub-boite-tete" role="button" tabindex="0"><span class="hub-boite-titre">📥 Boîte de réception</span><span class="hub-boite-compte">${compteur}</span></div>
       ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
         const o = m.id === ouvert;
+        // Un message sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
+        const qui = m.joueur || (m.spec && m.spec.joueur) || null;
         return `<article class="hub-msg${o ? ' ouvert' : ''}${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
           <button type="button" class="hub-msg-tete" aria-expanded="${o}">
-            <span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>
+            ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
             <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span></span>
             <span class="hub-msg-etat">${m.bloque ? 'À traiter' : ''}</span>
           </button>
