@@ -375,10 +375,8 @@ export function showPlayerModal(p, opts = {}) {
   const st = displayStats(p);
   const colors = TEAM_COLORS[p.t] || { primary: '#112236', accent: '#38bdf8' };
 
-  const cell = cellStat;
   const pmStr = pmMatch(st.pm, st.gp);
-  // La vraie saison (six colonnes, S71) se lit au RECTO de la carte (`statsCarte`, plus bas) ;
-  // le temps de glace, les mises en échec et les mises au jeu vivent dans le détail.
+  // Ses saisons se lisent au VERSO de la carte (`statsCarte`, plus bas), avec le reste de sa vraie saison.
 
   /*
    * Plus de cotes sur la fiche. Un joueur se juge sur ce qu'il a fait, et
@@ -388,11 +386,10 @@ export function showPlayerModal(p, opts = {}) {
   const ratings = profilMesure(p);
   // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
   // mises en échec, les mises au jeu — là pour qui les cherche.
-  const detailStats = p.p === 'G' ? '' : cell('PTS/M', st.ppgStr) + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
-    + (p.ht != null ? cell('MÉ/M', p.ht) : '');   // 1.0 (C2) : le MJ % ne joue pas dans la saison ; il est parti
+  // Le reste de sa vraie saison (1.0, C2 : le MJ % ne joue pas dans la saison ; il est parti), au verso avec ses saisons.
+  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? Number(p.toi).toFixed(1) : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
-  const plusDeDetails = `${detailStats ? `<div class="section-label">Sa vraie saison, le reste</div><div class="stat-grid">${detailStats}</div>` : ''}
-       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
+  const plusDeDetails = `<div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}`;
 
   const risky = !already && !over && !!slot && p.$ > maxForPick();
@@ -472,8 +469,9 @@ export function showPlayerModal(p, opts = {}) {
   // Le nombre en évidence est son chiffre clé (`chiffreCle`) : les punitions d'un bagarreur, les mises en échec d'un checker.
   const cle = chiffreCle(p);
   /*
-   * SES SAISONS EN PETITS CARACTÈRES, COMME AU DOS D'UNE VIEILLE CARTE (JP, oct.) : une rangée par saison — la vraie,
-   * puis celle qu'il joue chez toi quand elle existe —, mêmes colonnes. La colonne de son chiffre clé est en or.
+   * SES SAISONS AU VERSO, COMME AU DOS D'UNE VIEILLE CARTE (JP, oct. : *stats on back* — le verso seulement, le recto
+   * reste la photo) : une rangée par saison — la vraie, puis celle qu'il joue chez toi quand elle existe —, mêmes
+   * colonnes, son chiffre clé à l'encre de la série ; dessous, le reste de sa vraie saison, puis ses badges (« Ce qu'il sait faire »).
    */
   const G_ = p.p === 'G';
   const sixieme = cle.u === 'MÉ/M' || cle.u === 'TB/M' ? cle.u : '+/M';
@@ -486,19 +484,17 @@ export function showPlayerModal(p, opts = {}) {
     : [sim.GP || 0, sim.G || 0, sim.A || 0, sim.PTS || 0, sixieme === '+/M' ? pmMatch(sim.PM || 0, sim.GP || 0) : '—', sim.PIM || 0];
   const enOr = G_ ? 1 : tetes.indexOf(cle.u);
   const td = (v, i) => `<td${i === enOr ? ' class="hl"' : ''}>${v}</td>`;
-  const statsCarte = `<table class="fc-tab"><thead><tr><th>Saison</th>${tetes.map((t, i) => `<th${i === enOr ? ' class="hl"' : ''}>${t}</th>`).join('')}</tr></thead><tbody>
+  const statsCarte = `<div class="cjv-table-wrap"><table class="cjv-table cjv-saisons"><thead><tr><th scope="col">Saison</th>${tetes.map((t, i) => `<th scope="col"${i === enOr ? ' class="hl"' : ''}>${t}</th>`).join('')}</tr></thead><tbody>
     <tr><th scope="row">${esc([p.s, p.t].filter(Boolean).join(' '))}</th>${vraie.map(td).join('')}</tr>
-    ${chezToi ? `<tr class="fc-tab-toi"><th scope="row">${esc(opts.team ? teamLabel(opts.team) : opts.sim === 'series' ? 'Séries' : 'Chez toi')}</th>${chezToi.map(td).join('')}</tr>` : ''}
-  </tbody></table>`;
+    ${chezToi ? `<tr><th scope="row">${esc(opts.team ? teamLabel(opts.team) : opts.sim === 'series' ? 'Séries' : 'Chez toi')}</th>${chezToi.map(td).join('')}</tr>` : ''}
+  </tbody></table></div>${reste.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${reste.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${reste.map(([, v]) => `<td>${v}</td>`).join('')}</tr></tbody></table></div>` : ''}`;
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p) + coachTag(p)}${realTag(p)}`;
-  const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
+  const milieuVerso = `${statsCarte}
+    ${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
     ${sectionMods(p, opts.attente || null)}`;
   const verso = versoDeCarte(p, numero, rarete, milieuVerso, serie);
-  // SES BADGES SUR LA CARTE (JP, oct. : *ses points de sa vraie saison, ses badges, etc. pour pas avoir le menu en
-  // dessous* ; puis : *les stats dans la CARTE*) : imprimés sur la carte même, sous ses saisons ; « Détails » dit ce qu'ils font.
-  const badgesCarte = badgesDe(p).length ? `<div class="fc-badges">${badgesDe(p).map(b => `<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}</b>`).join('')}</div>` : '';
   const liens = `<div class="ext-links">
           <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
           <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
@@ -511,7 +507,6 @@ export function showPlayerModal(p, opts = {}) {
         <div class="fc-faces">
           <div class="fc-face fc-recto cs-${serie} tc-${rarete}" title="Touche la carte pour la retourner">
             ${cartonDe(p, { nomClasse: 'pcard-full-name' })}
-            <div class="fc-imprime">${statsCarte}${badgesCarte}</div>
           </div>
           ${verso}
         </div>

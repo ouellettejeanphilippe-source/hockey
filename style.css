@@ -1532,15 +1532,13 @@ button.marche-tuile:active { transform: scale(0.98); }
 .cj-gemme .cj-trait { font-weight: 400; margin-left: 3px; font-size: var(--t-1); letter-spacing: 0; text-shadow: none; }
 
 /* ---- Le carton : ses couches (fond → parallèle → photo → décor → mots → pastilles → reflet), l'inclinaison ---- */
-.carton, .fc-recto {
+.carton {
   --band: var(--team-band, #243044);
   --ink: var(--team-ink, #ffffff);
   --stripe: var(--team-stripe, #8d97a3);
   --vive: var(--team-line, var(--band));
   --fonce: var(--team-fond, #151b26);
   --or-feuille: linear-gradient(100deg, #9a6b12 0%, #f3d27a 22%, #fff4c9 34%, #c89528 50%, #f7dd8c 68%, #a4761a 100%);
-}
-.carton {
   position: relative; display: block; width: 100%; aspect-ratio: 5 / 7; container-type: inline-size;
   isolation: isolate; overflow: hidden; border-radius: 4.5% / 3.2%;
   background: var(--c-fond, #1b2230); color: var(--c-encre, white);
@@ -2107,6 +2105,11 @@ button.marche-tuile:active { transform: scale(0.98); }
 .fc-verso .cjv-table { width: 100%; border-collapse: collapse; font: 700 var(--t-3)/1.2 var(--display); font-variant-numeric: tabular-nums lining-nums; }
 .fc-verso .cjv-table :is(th, td) { padding: var(--esp-2) var(--esp-1); text-align: center; white-space: nowrap; }
 .fc-verso .cjv-table :is(th, td) + :is(th, td) { border-left: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+/* Ses saisons, comme au dos d'une vieille carte : la saison à gauche, son chiffre clé à l'encre forte de la série. */
+.fc-verso .cjv-saisons :is(th, td):first-child { text-align: left; }
+.fc-verso .cjv-saisons tbody th { font-weight: 600; color: var(--cj-encre-2); }
+.fc-verso .cjv-saisons tbody tr + tr > * { border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.fc-verso .cjv-saisons .hl { color: var(--cj-prix); }
 .fc-verso .cjv-table thead th { font-size: var(--t-1); letter-spacing: 0.14em; text-transform: uppercase; color: var(--cj-encre-2); border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
 .fc-verso .cjv-bio { margin: 0 2px; font-size: var(--t-2); line-height: 1.4; color: var(--cj-encre-2); }
 /* Le reste de la place reçoit l'écusson du club, en filigrane ; il s'efface quand le verso est plein. */
@@ -2144,7 +2147,7 @@ button.marche-tuile:active { transform: scale(0.98); }
 
 /* ---- La carte, recto et verso empilés dans la même case : le carton 5:7 du recto en décide ---- */
 /* La carte tient dans l'écran avec la tête de la fenêtre et sa plaque : la largeur suit la hauteur qui reste. */
-.fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: min(400px, (100dvh - 270px) * 5 / 7); margin: var(--esp-3) auto 0; }
+.fiche-carte { position: relative; width: calc(100% - var(--esp-5)); max-width: min(400px, (100dvh - 240px) * 5 / 7); margin: var(--esp-3) auto 0; }
 .fc-faces { position: relative; display: grid; }
 .fc-faces > .fc-face { grid-area: 1 / 1; }
 /* Le verso prend la case du carton, 5:7, et défile en dedans s'il déborde : la carte a la même taille des deux côtés. */
@@ -2152,27 +2155,10 @@ button.marche-tuile:active { transform: scale(0.98); }
 .fc-face { position: relative; isolation: isolate; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); touch-action: pan-y; cursor: pointer; }
 .fc-face > * { flex-shrink: 0; }
 .fc-face.fc-cachee { visibility: hidden; pointer-events: none; }
-/* LES STATS DANS LA CARTE (JP, oct. : *les stats dans la CARTE, pas en dessous*) : le recto s'allonge sous le carton, sur le
-   même papier que sa série (--c-fond, --c-encre), et ses saisons et ses badges y sont imprimés en petits caractères. */
-.fc-recto { gap: 0; overflow: hidden; border-radius: var(--r-2); background: var(--c-fond, var(--fond-2)); color: var(--c-encre, var(--encre)); box-shadow: var(--relief); }
-.fc-recto > .carton { border-radius: 0; box-shadow: none; }
-.fc-imprime { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); }
 
 /* ---- La plaque sous la carte : sa vraie saison en six cellules à plat, le salaire, « ↻ » en contour ---- */
 .fc-plaque { --cj-encre-2: var(--encre-3); --cj-prix: var(--or); display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-3); color: var(--encre); }
 .fc-legende, .fc-sec { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--cj-encre-2); }
-/* Ses saisons en petits caractères, comme au dos d'une vieille carte : une rangée par saison, la colonne clé en or. */
-.fc-tab { width: 100%; border-collapse: collapse; font: 700 var(--t-2)/1.2 var(--display); font-variant-numeric: tabular-nums lining-nums; }
-.fc-tab th, .fc-tab td { padding: 3px 2px; text-align: right; white-space: nowrap; }
-.fc-tab thead th { font-size: var(--t-1); letter-spacing: 0.06em; color: color-mix(in srgb, currentColor 62%, transparent); border-bottom: 1px solid color-mix(in srgb, currentColor 30%, transparent); }
-.fc-tab th:first-child { text-align: left; max-width: 110px; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.02em; }
-.fc-tab tbody th { font-weight: 600; color: color-mix(in srgb, currentColor 75%, transparent); }
-.fc-tab tbody td { font-size: var(--t-3); }
-.fc-tab .hl { color: var(--vive); }
-.fc-tab-toi > * { border-top: 1px solid color-mix(in srgb, currentColor 18%, transparent); }
-/* Un badge sur la carte : une étiquette sombre, comme le poste en coin, pour que les quatre paliers se lisent sur tout papier. */
-.fc-badges { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); font: 700 var(--t-1)/1.2 var(--corps); }
-.fc-badges > .badge { padding: 3px var(--esp-2); border-radius: var(--r-1); background: var(--noir); }
 .fc-pied { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); margin-top: auto; }
 .fc-salaire { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .fc-salaire b { font: 800 var(--t-5)/1 var(--display); color: var(--cj-prix); font-variant-numeric: tabular-nums lining-nums; }
