@@ -2192,7 +2192,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mots = motsEnChiffres(a.effet).filter(m => m.cle !== 'rien');
     return une
       ? `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.titre)}</b>
-      <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots.map(m => ({ ...m, txt: `${m.txt} · ${a.matchs} matchs` })))}</span>` : ''}</div>`
+      <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots.map(m => ({ ...m, txt: `${m.txt} · ${a.cible === 'contre' ? `${a.pour}, le reste de la saison` : `${a.pour ? `${a.pour} · ` : ''}${a.matchs} matchs`}` })))}</span>` : ''}</div>`
       : `<div class="som-l"><b>${ctx.esc(a.titre)}</b> <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span></div>`;
   };
   const uneHtml = () => {

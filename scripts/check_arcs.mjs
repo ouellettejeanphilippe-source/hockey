@@ -6,18 +6,21 @@
  *      victoires de suite, quatre défaites, la raclée et son pointage, la recrue et ses buts, le meneur blessé) ;
  *   2. IL JOUE DANS LE MOTEUR : chaque épisode pose son effet dans `team.effets`, sur ses matchs ;
  *   3. IL EST PUR : la même ligue rejoue les mêmes arcs, aux mêmes jours ;
- *   4. IL EST NEUTRE : chaque arc, ses deux épisodes joués comme des blocs de leurs matchs, AVEC et SANS leur
- *      effet, sur les mêmes dés (comme check_cartes mesure une carte) — un arc ne vaut ni ne coûte une victoire.
+ *   4. IL COMPTE, SANS DÉCIDER UNE SAISON (JP, 13 oct. : *ils peuvent nuire ou aider*) : chaque arc, ses deux
+ *      épisodes joués comme des blocs de leurs matchs, AVEC et SANS leur effet, sur les mêmes dés (comme
+ *      check_cartes mesure une carte), reste sous la borne d'une carte peu commune (±1,5 V). Sa cible : l'équipe,
+ *      un joueur (le meilleur pointeur du club mesuré, son gardien pour les arrêts) ou l'adversaire du bloc.
  *      La même ligue jouée avec et sans arcs se dit aussi, sans se juger : une saison appariée diverge au
- *      moindre écart (mesuré : des effets nettement négatifs y lisaient −1,5 point, des effets à peine
- *      positifs +5), le bloc apparié, non. Et le 82-0 n'en a pas.
+ *      moindre écart, le bloc apparié, non. Et le 82-0 n'en a pas.
+ *   5. IL EST VARIÉ : d'une graine à l'autre, la même équipe ne vit pas les mêmes arcs ; les trois familles
+ *      (équipe, joueur, adversaire) se voient.
  *
  *   node scripts/check_arcs.mjs            (LIGUES=4 ligues pour les faits ; REPRISES=200 blocs par épisode)
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, grainerHasard, playGame, recupererEnergie } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, grainerHasard, playGame, recupererEnergie, effetsDesJoueurs } from '../js/sim.js';
 import { ARCS, ARCS_PAR_SAISON } from '../js/arcs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -36,7 +39,8 @@ function ligue(saison, toiIdx, opts) {
   return { L: jouerJusqua(creerLigue(teams, 82, opts), Infinity), toi };
 }
 
-const rangees = [];
+const butsDe = (e, p) => (e && e.feuille ? e.feuille.buts.filter(b => b.marqueur === p).length : 0);
+const rangees = [], suites = new Set(), familles = new Set();
 let faux = 0, total = 0, sansEffet = 0, trop = 0;
 const diffs = [];
 for (let k = 0; k < LIGUES; k++) {
@@ -55,12 +59,23 @@ for (let k = 0; k < LIGUES; k++) {
       : a.cle === 'huisClos' ? j.slice(-4).every(e => !e.win) && !(j.length > 4 && !j[j.length - 5].win)
         : a.cle === 'raclee' ? j.at(-1) && j.at(-1).ga === a.x.ga && j.at(-1).gf === a.x.gf && a.x.ga - a.x.gf >= 5
           : a.cle === 'recrue' ? a.x.p.elc && fin.reduce((s, e) => s + (e.feuille ? e.feuille.buts.filter(b => b.marqueur === a.x.p).length : 0), 0) === a.x.buts
-            : a.cle === 'meneur' ? toi.injuriesLog.some(b => b.player === a.x.p && b.games === a.x.matchs && b.at === a.matchsAuDebut)
-              : true;
+            : a.cle === 'releve' ? toi.injuriesLog.some(b => b.player === a.x.meneur && b.games === a.x.matchs && b.at === a.matchsAuDebut)
+              : a.cle === 'chapeau' ? butsDe(j.at(-1), a.x.p) === a.x.buts && a.x.buts >= 3
+                : a.cle === 'vieuxLion' ? butsDe(j.at(-1), a.x.p) === a.x.buts && a.x.buts >= 2 && a.x.age >= 35
+                  : a.cle === 'gardienEbranle' ? j.at(-1).gardien === a.x.p && j.at(-1).ga === a.x.ga && a.x.ga >= 6
+                    : a.cle === 'gardienFeu' ? j.slice(-3).every(e => e.gardien === a.x.p && e.win && e.ga <= 1)
+                      : a.cle === 'heros' ? j.at(-1).win && j.at(-1).ot && butsDe(j.at(-1), a.x.p) >= 1
+                        : a.cle === 'beteNoire' ? j.at(-1).adv === a.x.adv && !j.at(-1).win && j.filter(e => e.adv === a.x.adv && !e.win).length === a.x.n
+                          : a.cle === 'rancune' ? j.at(-1).adv === a.x.adv && toi.injuriesLog.some(b => b.player === a.x.p && b.games === a.x.matchs && b.at === a.matchsAuDebut)
+                          : a.cle === 'ancienClub' ? j.at(-1).adv === a.x.adv && butsDe(j.at(-1), a.x.p) >= 1
+                            : a.cle === 'remontee' ? j.at(-1).win
+                              : a.cle === 'calendrier';
     if (!ok) faux++;
   }
   // 2. Chaque épisode a posé son effet, au jour dit.
-  for (const a of arcs) if (!toi.effets.some(e => e.source === 'arc' && e.debut === a.jour && e.nom === a.titre)) sansEffet++;
+  for (const a of arcs) if (![...toi.effets, ...(toi.effetsCibles || [])].some(e => e.source === 'arc' && e.debut === a.jour && e.nom === a.titre)) sansEffet++;
+  for (const a of arcs) familles.add(ARCS[a.cle].famille);
+  suites.add(arcs.filter(a => a.ep === 0).map(a => a.cle).join(','));
   diffs.push(avec.toi.PTS - sans.toi.PTS);
   rangees.push(`${saison} ${toi.name} : ${arcs.map(a => `${a.cle}${a.ep ? '+' : ''}`).join(' ') || 'aucun'} · ${avec.toi.PTS} pts avec, ${sans.toi.PTS} sans`);
   if (k === 0) {
@@ -76,7 +91,8 @@ for (const r of rangees) informer('une ligue', r);
 exiger('chaque arc naît d\'un fait relu dans le journal du club, avec ses vrais chiffres', total > 0 && !faux, `${total} débuts d'arc, ${faux} sans leur fait`);
 exiger('chaque épisode pose son effet dans le moteur, au jour dit', !sansEffet, `${sansEffet} épisode(s) sans effet`);
 exiger(`au plus ${ARCS_PAR_SAISON} arcs par saison`, !trop, `${trop} saison(s) de trop`);
-exiger(`six arcs, deux épisodes chacun`, Object.values(ARCS).every(A => A.episodes.length === 2), Object.keys(ARCS).join(', '));
+exiger(`${Object.keys(ARCS).length} arcs, deux épisodes chacun, de trois familles`, Object.values(ARCS).every(A => A.episodes.length === 2) && new Set(Object.values(ARCS).map(A => A.famille)).size === 3, Object.keys(ARCS).join(', '));
+exiger('varié : chaque saison vit sa propre suite d\'arcs, et plus d\'une famille se voit', suites.size === LIGUES && familles.size >= 2, `${suites.size} suites sur ${LIGUES} · familles ${[...familles].join(', ')}`);
 const moy = diffs.reduce((a, x) => a + x, 0) / diffs.length;
 informer('la même ligue avec et sans arcs (bruit de saison, non jugé)', `${moy >= 0 ? '+' : ''}${moy.toFixed(1)} point en moyenne sur ${diffs.length} paires`);
 
@@ -86,9 +102,16 @@ informer('la même ligue avec et sans arcs (bruit de saison, non jugé)', `${moy
   const club = tag => { const j = equipeReelle(sh.season, tag).flat().map(x => ({ ...x })); j.forEach(registerHiddenRatings); return createTeam(tag, tag, autoRoster(j), { season: sh.season }); };
   const X = club('CAR'), Y = club('BUF');
   const REPRISES = Number(process.env.REPRISES ?? 200);
-  const bloc = (effet, matchs, k, avec) => {
-    for (const t of [X, Y]) { t.injured.clear(); t.effets = []; t.jourCourant = 0; for (const p of Object.values(t.roster)) if (p) p.energie = 100; }
-    if (avec) X.effets = [{ debut: 0, fin: Infinity, source: 'arc', nom: 'mesure', ...effet }];
+  // La cible d'un épisode dans le bloc : le meilleur pointeur du club (son gardien partant pour les arrêts), ou l'adversaire.
+  const vedette = Object.values(X.roster).filter(p => p && p.p !== 'G').sort((a, b) => (b.pt || 0) - (a.pt || 0))[0];
+  const gardien = Object.values(X.roster).filter(p => p && p.p === 'G').sort((a, b) => (b.gp || 0) - (a.gp || 0))[0];
+  const bloc = (E, matchs, k, avec) => {
+    for (const t of [X, Y]) { t.injured.clear(); t.effets = []; t.effetsCibles = []; t.jourCourant = 0; for (const p of Object.values(t.roster)) if (p) p.energie = 100; }
+    const x = { debut: 0, fin: Infinity, source: 'arc', nom: 'mesure', ...E.effet };
+    if (avec && E.cible === 'equipe') X.effets = [x];
+    if (avec && E.cible === 'joueur') X.effetsCibles = [{ ...x, joueur: E.effet.arrets ? gardien : vedette }];
+    if (avec && E.cible === 'contre') X.effetsCibles = [{ ...x, contre: Y }];
+    effetsDesJoueurs(X, 0);
     let v = 0;
     for (let g = 0; g < matchs; g++) {
       grainerHasard(`arc:${k}:${g}`);
@@ -101,12 +124,15 @@ informer('la même ligue avec et sans arcs (bruit de saison, non jugé)', `${moy
   let pire = 0;
   for (const [cle, A] of Object.entries(ARCS)) {
     let net = 0;
-    for (const E of A.episodes) for (let k = 0; k < REPRISES; k++) net += (bloc(E.effet, E.matchs, `${cle}:${k}`, true) - bloc(E.effet, E.matchs, `${cle}:${k}`, false)) / REPRISES;
+    // Un arc contre un adversaire joue toute la saison, mais seulement contre lui : on le mesure sur quatre matchs contre lui.
+    for (const E of A.episodes) { const m = E.cible === 'contre' ? 4 : E.matchs; for (let k = 0; k < REPRISES; k++) net += (bloc(E, m, `${cle}:${k}`, true) - bloc(E, m, `${cle}:${k}`, false)) / REPRISES; }
     lignes.push(`${cle} ${net >= 0 ? '+' : ''}${net.toFixed(2)} V`);
     pire = Math.max(pire, Math.abs(net));
   }
   informer('la valeur de chaque arc, ses deux épisodes en paires', lignes.join(' · '));
-  borne('un arc ne vaut ni ne coûte une victoire (le plus grand écart, en victoires)', pire, 0, 0.35);
+  // Pas neutre (JP) : un arc aide ou nuit, sous la borne d'une carte peu commune.
+  borne('un arc compte sans décider une saison : sous la borne d\'une peu commune (le plus grand écart, en victoires)', pire, 0, 1.5);
+  effetsDesJoueurs(X, 0);
 }
 informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s, ${LIGUES} ligues en paires`);
 verdict('Les arcs');

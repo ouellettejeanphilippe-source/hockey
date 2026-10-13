@@ -1268,8 +1268,11 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // Les MOMENTS et la CONSIGNE DU MATCH (S66, S68) vivent dans `team.effets`,
   // lus au jour courant (`team.jourCourant`). Le plan de match, lui, se joue
   // LIGNE PAR LIGNE depuis S68 (`lignesDe`, `profilMatch`).
-  void adv; void lineup;
-  const actifs = effetsActifs(team);
+  void lineup;
+  // Un arc contre un adversaire (js/arcs.js) : seulement les soirs contre lui.
+  const j = team && team.jourCourant;
+  const contreLui = adv && team && team.effetsCibles ? team.effetsCibles.filter(x => x.contre === adv && j >= x.debut && j < x.fin) : [];
+  const actifs = [...effetsActifs(team), ...contreLui];
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
   const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...coachsJoues(team),
@@ -6146,7 +6149,7 @@ const GROUPE_CAUSE = {
   ligne: 'systemes', special: 'systemes', systemeDef: 'systemes',
   power: 'badges', badges: 'badges', badgeG: 'badges',
   jambes: 'jambes', gardien: 'gardien', defense: 'talent', plafond: 'talent', creation: 'talent', trait: 'talent', traitsClub: 'talent', traitG: 'talent',
-  lancee: 'elan', elan: 'elan', situation: 'elan', accident: 'elan', robustesse: 'robustesse', chance: 'chance',
+  lancee: 'elan', elan: 'elan', situation: 'elan', arc: 'elan', accident: 'elan', robustesse: 'robustesse', chance: 'chance',
 };
 function causesDuLancer(x, pBrut, de) {
   const A = x.cote, D = A === 'A' ? 'B' : 'A';
@@ -6163,9 +6166,12 @@ function causesDuLancer(x, pBrut, de) {
     const m = q._mut, a = q._amel && q._amel[champ];
     return ((m && m[champ]) || 1) / accidentsDe(q, champ) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(q, champ) * siDe(q, champ);
   };
+  // Un arc de joueur (js/arcs.js), le temps de ses matchs.
+  const arcDe = (q, champ) => (q._arcFx && q._arcFx[champ]) || 1;
   // Le tireur et ce qui l'entoure, au club qui attaque.
   const t = x.tireur;
   if (t) {
+    ajoute('arc', A, arcDe(t, 'finition'), t, 'finition');
     ajoute('carte', A, cartesDe(t, 'finition'), t, 'finition');
     ajoute('accident', A, accidentsDe(t, 'finition'), t, 'finition');
     ajoute('monte', A, effetDesPaliersGagnes(t, 'finition'), t);
@@ -6206,6 +6212,7 @@ function causesDuLancer(x, pBrut, de) {
     ajoute('carte', D, cartesDe(g, 'arrets'), g, 'arrets');
     ajoute('accident', D, accidentsDe(g, 'arrets'), g, 'arrets');
     ajoute('monte', D, effetDesPaliersGagnes(g, 'arrets'), g);
+    ajoute('arc', D, arcDe(g, 'arrets'), g, 'arrets');
     ajoute('jambes', D, usureGardien(g), g);
     ajoute('traitG', D, facteurTraitGardien(g, x.series) * situDe(g, 'gardien'), g);
   } else ajoute('gardien', D, (x.def.fgDefaut ?? 1.20) / REF.fg);
@@ -6216,7 +6223,7 @@ function causesDuLancer(x, pBrut, de) {
     const z = borne((0.5 * (x.dTrio.coteDef + x.dPaire.coteDef) - DEF_RANG[Math.min(DEF_RANG.length - 1, rangOff)]) / ECART_DEF_EQUIPE, -5, 3) + REF.zDef;
     ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)));
     ajoute('traitsClub', D, facteurPresenceUnite(x.defGlace));
-    for (const q of x.defGlace) { ajoute('carte', D, cartesDe(q, 'defense'), q, 'defense'); ajoute('accident', D, accidentsDe(q, 'defense'), q, 'defense'); ajoute('monte', D, effetDesPaliersGagnes(q, 'defense'), q); }
+    for (const q of x.defGlace) { ajoute('carte', D, cartesDe(q, 'defense'), q, 'defense'); ajoute('accident', D, accidentsDe(q, 'defense'), q, 'defense'); ajoute('monte', D, effetDesPaliersGagnes(q, 'defense'), q); ajoute('arc', D, arcDe(q, 'defense'), q, 'defense'); }
     ajoute('systemeDef', D, Math.sqrt((x.dTrio.defTac ?? 1) * (x.dPaire.defTac ?? 1)), uniteDe(x.dTrio, false));
     ajoute('badges', D, (x.dTrio.etouffe ?? 1) * (x.dPaire.etouffe ?? 1) * (x.dTrio.intimide ?? 1), uniteDe(x.dTrio, false));
   } else ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (x.def.zDef - REF.zDef)));
@@ -6741,8 +6748,8 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; }
-      t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null;
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; }
+      t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null; t.effetsCibles = [];
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
@@ -6870,9 +6877,29 @@ function preludeDuJour(L) {
   }
   /*
    * LES ARCS DU MATIN (Jalon P, E, js/arcs.js) : nés des faits de TON club (ses matchs joués, ses blessés, son
-   * calendrier), sans hasard ; chaque épisode pose son effet de quelques matchs, comme un moment.
+   * calendrier), sans hasard ; chaque épisode pose son effet de quelques matchs, comme un moment. Sa cible : l'équipe
+   * (`effets`), un joueur ou un adversaire (`effetsCibles`, lus par `mutDe` et `effetsDeSaison`).
    */
-  if (toi && L.arcs) for (const e of episodesDuMatin(toi, r)) toi.effets.push({ debut: r, fin: apresMatchs(toi, r, e.matchs), source: 'arc', nom: e.titre, ...e.effet });
+  if (toi && L.arcs) {
+    for (const e of episodesDuMatin(toi, r, L.graine)) {
+      const x = { debut: r, fin: apresMatchs(toi, r, e.matchs), source: 'arc', nom: e.titre, ...e.effet };
+      if (e.cible === 'equipe') toi.effets.push(x);
+      else (toi.effetsCibles = toi.effetsCibles || []).push({ ...x, joueur: e.joueur, contre: e.contre });
+    }
+    effetsDesJoueurs(toi, r);
+  }
+}
+/*
+ * LES EFFETS D'UN JOUEUR CE JOUR-LÀ (les arcs d'un joueur) : posés sur lui (`_arcFx`, lu par `mutDe`) chaque matin,
+ * sur ses canaux à lui (lancers, finition, création, défense, blessure, arrêts), le temps de leurs matchs.
+ */
+export function effetsDesJoueurs(team, jour) {
+  for (const p of Object.values(team.roster || {})) if (p) delete p._arcFx;
+  for (const e of team.effetsCibles || []) {
+    if (!e.joueur || jour < e.debut || jour >= e.fin) continue;
+    const fx = e.joueur._arcFx = e.joueur._arcFx || {};
+    for (const c of CANAUX_MUT) if (typeof e[c] === 'number') fx[c] = (fx[c] || 1) * e[c];
+  }
 }
 /* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
 const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));
@@ -7303,7 +7330,9 @@ function siDe(p, champ) {
 function mutDe(p, champ) {
   const m = p && p._mut;
   const a = p && p._amel && p._amel[champ];
-  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ) * siDe(p, champ) * effetDesPaliersGagnes(p, champ);
+  // Un arc de joueur (js/arcs.js), le temps de ses matchs (`effetsDesJoueurs`).
+  const arc = (p && p._arcFx && p._arcFx[champ]) || 1;
+  return ((m && m[champ]) || 1) * (a ? grandir(a, ECHELLE_SOIR) : 1) * effetCarte(p, champ) * siDe(p, champ) * effetDesPaliersGagnes(p, champ) * arc;
 }
 
 /*

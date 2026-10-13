@@ -52,6 +52,7 @@ const SUJET = {
   lancee: c => `la lancée de ${nomDe(c.qui)}`,
   elan: () => "l'élan du match",
   situation: c => `la situation de ${nomDe(c.qui)}`,
+  arc: c => `l'histoire de ${nomDe(c.qui)}`,
   robustesse: () => 'la robustesse',
   chance: () => 'la chance du soir',
 };
