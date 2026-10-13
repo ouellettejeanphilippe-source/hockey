@@ -120,7 +120,8 @@ const versBoutique = async () => {
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 };
 // Signe dans la fenêtre d'offre ouverte ; rend la clé signée.
-// Jalon R : la liste du 82-0 ; « Signer » pose à la meilleure case, ou (un tour sur deux) « qui sort ? » depuis la destination.
+// U18 : « Signer » demande qui part dès que quelqu'un sort — la meilleure sortie proposée, en tête et cerclée d'or ; un tour
+// sur deux on la prend (« Sort », la case déjà calculée), sinon « qui sort ? » depuis la destination, un sortant au hasard.
 async function signer() {
   if (!(await page.$('#signatureModal:not([hidden])'))) {
     await page.waitForSelector('#choixModal:not([hidden]) .choix-fermer', { timeout: 60000 });
@@ -131,7 +132,18 @@ async function signer() {
   if (!rangees.length) { await page.click('#signatureModal .choix-fermer'); return null; }
   const k = Math.floor(rnd() * rangees.length);
   const cle = await rangees[k].evaluate(x => x.dataset.cle);
-  if (rnd() < 0.5) { await (await rangees[k].$('.btn-sign')).click(); await page.waitForTimeout(500); return cle; }
+  if (rnd() < 0.5) {
+    const libre = /personne ne sort/.test(await rangees[k].evaluate(x => x.querySelector('.pcard-dest').textContent));
+    await (await rangees[k].$('.btn-sign')).click(); await page.waitForTimeout(500);
+    const qs = await page.$('#choixModal:not([hidden]) .sig-liste .pcard');
+    if (libre) { if (qs) { pb++; log('   ⚠ une case libre, et « Signer » demande quand même qui sort'); } return cle; }
+    if (!qs) { pb++; log('   ⚠ « Signer » pose le joueur sans demander qui sort'); return cle; }
+    const tete = await page.$eval('#choixModal .sig-liste .pcard', x => x.classList.contains('meilleure'));
+    if (!tete) { pb++; log('   ⚠ la meilleure sortie n\'est pas proposée en tête, cerclée d\'or'); }
+    await page.click('#choixModal .sig-liste .pcard.meilleure .sig-sort').catch(async () => page.click('#choixModal .sig-sort:not([disabled])'));
+    await page.waitForTimeout(700);
+    return cle;
+  }
   await (await rangees[k].$('.sig-changer')).click(); await page.waitForTimeout(500);
   // qui sort : la liste (Jalon U), « Sort » sur l'un d'eux
   await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 });

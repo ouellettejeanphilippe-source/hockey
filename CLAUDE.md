@@ -223,6 +223,8 @@ S'il y a un runner de navigateur disponible (Playwright), `node scripts/smoke.mj
 
 L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `check_feuilles.mjs` sur une ligue, plus `check_fiches.mjs`, `check_table.mjs`, `check_regles.mjs` et `smoke_table.mjs`. Les scripts de calibration (monotonie, plafond, tireurs) restent à lancer à la main.
 
+**Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_rogue`, `essai_packs`, `essai_achat` pour la signature, la boutique ou le jour à jour du Rogue ; `check_rogue`, `check_banque`, `check_cartes` quand on touche au moteur ou aux cartes. Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
+
 `node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une heure et plus ; `FAMILLES=evenements PART=1/4` n'en mesure qu'une famille et qu'un quart, pour le partager entre quatre processus) se lancent à part.
 
 Depuis la v2 : `node scripts/check_coachs.mjs` (dix minutes : la couleur des cartes, la confiance, et chaque coach mesuré en paires à six ligues ; `LIGUES=0` en CI).

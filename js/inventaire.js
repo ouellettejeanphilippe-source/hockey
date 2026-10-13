@@ -158,6 +158,7 @@ function cibleDe(id) {
   if (c.cat === 'joueur') return CIBLES.joueur;
   if (c.cat === 'evenement') return '🏒 Toute l\'équipe, dès ce soir';
   if (c.cat === 'patron') return '👔 Un poste de ton personnel';
+  if (c.echange) return '📟 Un doublon contre un joueur de sa série';
   return CIBLES[c.cible] || (c.cat === 'plafond' ? '💵 Ta masse salariale, tout de suite' : '⚡ Tout de suite');
 }
 /* ---------- la carte de la banque : la face d'un pack (Jalon U), son compte, ses boutons ---------- */

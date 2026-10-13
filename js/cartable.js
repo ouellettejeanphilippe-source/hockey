@@ -88,6 +88,20 @@ export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
   return montees;
 }
 /*
+ * UN DOUBLON DONNÉ (Jalon P3, « L'échange d'un doublon ») : une copie de moins, la variante la plus basse d'abord ;
+ * la carte reste au cartable (il en reste au moins une). Rend vrai si une copie est partie.
+ */
+export function donnerUnDoublon(cle) {
+  const c = lireCartable(), x = c.joueurs[cle];
+  if (!x || (x.n || 0) < 2) return false;
+  const rar = ['commune', 'peu', 'rare', 'legendaire'].find(r => (x.v[r] || 0) > 1) || ['commune', 'peu', 'rare', 'legendaire'].find(r => (x.v[r] || 0) > 0);
+  x.v[rar] -= 1;
+  if (!x.v[rar]) delete x.v[rar];
+  x.n -= 1;
+  ecrire(c);
+  return true;
+}
+/*
  * LES ANCIENNES PARTIES (une fois) : les joueurs qui ont porté tes couleurs
  * (l'historique, que l'album de S74 lit aussi) entrent au cartable en cartes
  * de base — un cartable qui commence vide après cent saisons mentirait.
