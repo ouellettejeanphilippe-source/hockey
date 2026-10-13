@@ -2635,8 +2635,9 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
   .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
   .slot-band .sb-role { font-size: var(--t-1); }
   .slot-salary { margin: 0; font-size: var(--t-1); opacity: 0.85; }
-  .slot-inner { flex: 1 1 auto; grid-template-columns: 40px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "mug nom cle" "mug l1 l2"; row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
-  .slot-mug { grid-area: mug; }
+  .slot-inner { flex: 1 1 auto; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "mug nom cle" "mug l1 l2"; row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
+  /* L'anatomie de la rangée (docs/refonte-ui.md, règle 12) : le visage carré de 44 px, au liseré de sa variante, comme au vestiaire. */
+  .slot-mug { grid-area: mug; width: 44px; height: 44px; border-radius: var(--r-1); }
   .slot .slot-name { grid-area: nom; font-size: var(--t-3); }
   .slot-inner > .cell-l3 { grid-area: cle; justify-self: end; text-align: right; }
   .cell-l1 { grid-area: l1; }

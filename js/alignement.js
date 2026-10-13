@@ -197,7 +197,7 @@ function slotTags(p, zoneEcartTag, penTag) {
  * en a un, et derrière le banc ses JAMBES. Sa production : ses PTS (ou V)
  * au repêchage, sa fiche à ce jour derrière le banc ; le visage et tout le reste sont dans la fiche, à un toucher.
  */
-function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
+function celluleJoueur(p, s, { ecart, penTag, blesseTag }) {
   // LE RÔLE EN MOTS, COMME À LA SIGNATURE (Jalon U, JP : *refaire l'alignement plus comme la page signature*) : la même
   // étiquette que la rangée du vestiaire (`roleTag`) — « Passeur Or », le second badge en icône, les modifs posées.
   const tag = roleTag(p);
@@ -218,7 +218,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag, main }) {
   // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
   return `<div class="cell-l1">${role}</div>
         <div class="slot-tags cell-l2">${pastilleNiveau(p)}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
-        <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${esc(G.banc ? ficheDuJour(p) : main)}</span>${!G.banc && p.p !== 'G' && chiffreCle(p).u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : ''}</div>
+        <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(chiffreCle(p).v)}</b> <span>${esc(chiffreCle(p).u)}</span></span>`}</span>${!G.banc && p.p !== 'G' && chiffreCle(p).u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : ''}</div>
         ${jambes}`;
 }
 
@@ -314,7 +314,7 @@ function slotEl(s) {
         <span class="slot-mug" aria-hidden="true">${headshotHtml(p)}</span>
         <button type="button" class="slot-name lien-joueur slot-fiche" title="Sa carte">${formatName(p.n)}</button>
         ${surTable() ? `<div class="slot-meta slot-faits">${ligneStats}</div>
-        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag, main })}
+        <div class="slot-tags">${blesseTag}${slotTags(p, zoneEcartTag, penTag)}</div>` : celluleJoueur(p, s, { ecart, penTag, blesseTag: blesseTag + lanceeTag })}
       </div>`;
     // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*). Le reste de
     // la case garde son geste : la toucher la choisit pour déplacer ou permuter.
