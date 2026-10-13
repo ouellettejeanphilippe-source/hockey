@@ -137,7 +137,7 @@ export function ouvrirNouvellePartie(bonus = null) {
   if (bonus && G.brouillon) { G.brouillon.bonus = bonus; syncOptionsUI(); majPiedPartie(); }
   // Le titre dit le mode qu'on prépare.
   const t = $('npTitre');
-  if (t && t.lastChild) t.lastChild.textContent = G.brouillon && G.brouillon.bonus === 'TABLE' ? 'Sur table' : 'Le 82-0';
+  if (t) t.textContent = G.brouillon && G.brouillon.bonus === 'TABLE' ? 'Sur table' : 'Le 82-0';
   openModal('partieModal');
 }
 

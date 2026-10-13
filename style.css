@@ -910,7 +910,10 @@ img.visage { object-fit: cover; object-position: 50% 0; }
 img.visage.brut { object-position: 50% 12%; }
 .headshot-fallback { display: grid; place-items: center; color: var(--encre-3); }
 
-/* ---- Les fenêtres : une feuille posée, un titre en bande, un corps qui défile ---- */
+/* ---- Les fenêtres : une feuille posée, un corps qui défile ----
+   Jalon U : les deux familles (`.modal-backdrop` ici, `.choix-modal` plus bas) portent LA MÊME tête (`.choix-tete` :
+   l'icône, le titre, sa sous-ligne et le ✕ `.choix-fermer`, la seule façon de fermer avec Échap, B et le retour
+   d'Android) et, quand elles confirment quelque chose, LE MÊME pied (`.choix-pied`). */
 .modal-backdrop {
   position: fixed; inset: var(--safe-top) 0 var(--safe-bas); z-index: 90; display: flex; align-items: flex-end; justify-content: center; padding: 0;
   background: color-mix(in srgb, var(--noir) 70%, transparent); -webkit-backdrop-filter: blur(6px) saturate(1.2); backdrop-filter: blur(6px) saturate(1.2); animation: fade 0.18s ease;
@@ -918,17 +921,12 @@ img.visage.brut { object-position: 50% 12%; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 .modal-sheet {
   position: relative; display: flex; flex-direction: column; width: 100%; max-width: 720px; max-height: 92vh; overflow: hidden;
-  /* Le projecteur de l'ambiance, sans l'anneau de patinoire qui traverserait le texte d'une fenêtre. */
-  background: radial-gradient(120% 70% at 50% -18%, color-mix(in srgb, var(--club-vif) 26%, transparent), transparent 62%), var(--fond-1); border: 1px solid var(--filet); border-top: 2px solid var(--club-vif); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0; box-shadow: var(--ombre), 0 -10px 40px -20px var(--club-vif);
+  /* La même feuille qu'un choix en panneau (`.choix-modal.feuille`) : le liseré de couleur est celui de la tête. */
+  background: var(--fond-1); border: 1px solid var(--filet); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0; box-shadow: var(--ombre);
 }
 .modal-narrow { max-width: 560px; }
 .modal-large { max-width: 1100px; }
-.modal-header { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); }
-.modal-header h2 { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-.modal-header h2 .ico { width: 20px; height: 20px; color: var(--or); }
 .modal-body { padding: var(--esp-4); overflow-y: auto; -webkit-overflow-scrolling: touch; }
-/* La fiche : « ‹ Retour » dans une bande en tête, comme partout (le ✕ se posait sur le coin du carton). */
-.fiche-barre { flex: none; display: flex; align-items: center; padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); background: var(--fond-1); }
 .modal-lien { display: inline-flex; align-items: center; gap: var(--esp-1); margin-top: var(--esp-3); color: var(--bleu); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; }
 @media (min-width: 680px) {
   .modal-backdrop { align-items: center; padding: var(--esp-5); }
@@ -950,10 +948,13 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet { display: flex; flex-direction: column; width: 100%; max-width: 980px; height: 100%; max-height: 100dvh; background: var(--noir); }
 .choix-chiffres { align-self: center; margin-top: var(--esp-2); padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: transparent; color: var(--encre-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .choix-chiffres[aria-pressed="true"] { border-color: var(--or); color: var(--or); }
+/* La tête de TOUTE fenêtre (Jalon U) : l'icône, le titre, sa sous-ligne, le ✕ au bout. */
 .choix-tete { flex: none; display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); box-shadow: inset 0 3px 0 var(--or); }
 .choix-ico { line-height: 1; font-size: var(--t-5); color: var(--or); }
+.choix-ico .ico { display: block; width: 24px; height: 24px; }
 .choix-titres { flex: 1; min-width: 0; }
-.choix-titre { font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+.choix-titre { margin: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
+.choix-titre img { vertical-align: -0.15em; }
 .choix-badge { display: inline-block; margin-bottom: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .choix-sheet[data-genre="evenement"] .choix-tete { box-shadow: inset 0 3px 0 var(--violet); }
 .choix-sheet[data-genre="evenement"] .choix-ico,
@@ -970,6 +971,13 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet.aux-couleurs :is(.choix-ico, .choix-badge, .choix-titre) { color: inherit; }
 .choix-irl { font: 700 var(--t-1)/1.2 var(--display); text-transform: uppercase; color: var(--encre-3); margin-top: 3px; letter-spacing: 0.1em; }
 .choix-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-4); padding: var(--esp-4); }
+/* LE PIED D'UNE FENÊTRE QUI CONFIRME (Jalon U, le dessin de « qui sort ? ») : ce qui va se passer à gauche, le verbe
+   à droite ; au téléphone, le verbe prend la largeur sous le mot. Le ✕ de la tête ferme : le pied n'a pas d'« Annuler ». */
+.choix-pied { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2) var(--esp-3); padding: var(--esp-3) var(--esp-4); border-top: 1px solid var(--filet); background: var(--fond-1); }
+.choix-pied-mot { flex: 1 1 200px; min-width: 0; margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
+.choix-pied.pret .choix-pied-mot, .choix-pied-mot b { color: var(--encre); }
+.choix-pied > .btn { flex: 1 1 100%; min-height: 48px; }
+@media (min-width: 640px) { .choix-pied > .btn { flex: none; min-width: 180px; margin-left: auto; } }
 .choix-corps > .stat-tabs { position: sticky; top: calc(-1 * var(--esp-4)); z-index: 2; margin: 0 calc(-1 * var(--esp-4)) calc(-1 * var(--esp-2)); padding: 0 var(--esp-4); background: var(--fond-1); border-bottom: 1px solid var(--filet); }
 .choix-recit { font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); margin: 0; }
 .choix-encours { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); padding: var(--esp-2) var(--esp-3); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2); }
@@ -1001,7 +1009,6 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option-prix { font: 700 var(--t-2)/1.3 var(--display); color: var(--live); }
 .choix-option-mut { font-size: var(--t-2); color: var(--encre-2); line-height: 1.35; font-style: italic; }
 .choix-option-non { font-size: var(--t-1); color: var(--encre-3); }
-.choix-plus-tard { align-self: center; }
 .choix-autres { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 /* LE LANCER DE DÉ (1.0, oct.) : la réponse risquée, ce qu'il faut, le dé qui roule et tombe, le verdict. */
 .de-scene { display: grid; justify-items: center; gap: var(--esp-3); padding: var(--esp-3) 0; text-align: center; }
@@ -1170,20 +1177,15 @@ body.menu-ouvert { overflow: hidden; }
 .np-body .seg button:disabled { cursor: default; opacity: 0.4; }
 .np-lignee { display: block; flex: 1 1 100%; min-height: 1em; margin-top: var(--esp-1); color: var(--encre-2); font-size: var(--t-1); line-height: 1.4; }
 .np-exhibition { flex: none; align-self: flex-start; white-space: nowrap; }
-/* Le pied est un frère de .modal-body : seul le corps défile, le résumé et le verbe restent en vue. */
-.np-pied { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-3); padding: var(--esp-3) var(--esp-4); border-top: 1px solid var(--filet); background: var(--fond-1); }
-.np-resume { flex: 1 1 100%; min-width: 0; margin: 0; font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.02em; color: var(--encre-2); }
-.np-go { flex: 1 1 100%; flex-direction: column; gap: 2px; min-height: 56px; background: var(--or); border-color: var(--or); color: var(--encre-sur-or); font-size: var(--t-4); letter-spacing: 0.08em; }
+/* Le pied (`.choix-pied`) est un frère de .modal-body : seul le corps défile, le résumé et le verbe restent en vue. */
+.np-resume { font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.02em; }
+.np-go { flex-direction: column; gap: 2px; background: var(--or); border-color: var(--or); color: var(--encre-sur-or); font-size: var(--t-4); letter-spacing: 0.08em; }
 .np-go:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--encre)); }
 .np-go-note { font: 600 var(--t-1)/1 var(--display); letter-spacing: 0; text-transform: none; opacity: 0.8; white-space: nowrap; }
 /* Le bouton qui efface le dit en rouge (ce qui coûte), jamais en vert. */
 .np-go.efface { background: var(--mauvais); border-color: var(--mauvais); color: var(--noir); }
 .np-go.efface:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 88%, var(--encre)); }
 .np-go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
-@media (min-width: 640px) {
-  .np-resume { flex: 1 1 auto; }
-  .np-go { flex: none; min-width: 180px; }
-}
 
 /* ---- Les options (#optionsModal) : les mêmes rangées, le même segment ---- */
 #optionsModal .modal-sheet { max-width: 620px; }
@@ -2571,11 +2573,6 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .ln-etat { display: flex; flex-wrap: wrap; gap: 3px var(--esp-4); font-size: var(--t-2); color: var(--encre-2); }
 .ln-etat b { color: var(--encre); font-family: var(--display); }
 /* La glace : un curseur pleine largeur. */
-/* Le pied : « Appliquer » prend la largeur, les autres en contour. */
-/* LE PIED D'UNE FENÊTRE QUI DÉCIDE (Jalon U : un seul dessin) : collé en bas, l'action pleine à droite. */
-.gl-pied, .dp-pied { flex: none; display: flex; gap: var(--esp-2); padding: var(--esp-3) var(--esp-4) calc(var(--esp-3) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
-.gl-pied .gl-appliquer { flex: 1 1 auto; }
-.gl-pied .gl-annuler { flex: 0 1 auto; }
 /* Le résumé des lignes sur l'affiche du match : les icônes et la chimie en points. */
 .gl-resume { display: inline-flex; align-items: baseline; gap: 1px; margin-right: var(--esp-2); font-size: var(--t-3); }
 .gl-resume small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
@@ -2733,14 +2730,12 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-page-sous { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 .hub-page-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .hub-page-corps > * { flex: none; }
-.hub-page-pied { position: sticky; bottom: 0; z-index: 3; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
-.hub-page-pied .btn { width: 100%; min-height: 48px; }
+.hub-page-pied { position: sticky; bottom: 0; z-index: 3; padding-bottom: calc(var(--esp-3) + var(--safe-bas)); }
 /* Un écran qui rend une feuille de fenêtre dans la page (js/gerant.js, js/magasin.js, js/inventaire.js) : la feuille se déplie,
    sa bande de tête se tait (la page a la sienne), son corps ne défile pas à part. */
 .hub-page .choix-sheet { height: auto; max-height: none; max-width: none; background: transparent; border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
 .hub-page .choix-sheet > .choix-tete { display: none; }
 .hub-page .choix-sheet .choix-corps { flex: none; overflow: visible; padding: 0; }
-.hub-page .gl-pied { position: sticky; bottom: 0; z-index: 3; margin: 0 calc(-1 * var(--esp-3)); }
 @media (max-width: 1199.98px) {
   .hub-page-corps { padding: var(--esp-3) var(--esp-3) var(--esp-4); }
 }
@@ -3875,7 +3870,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .paquet-ferme .choix-corps, .paquet-dechire .choix-corps { position: relative; }
 .paquet-ferme .paquet-scene, .paquet-dechire .paquet-scene { position: absolute; inset: 0; z-index: 8; display: grid; place-items: center; padding: 40px 0 54px; pointer-events: none; }
 .paquet-ferme .paquet, .paquet-dechire .paquet { pointer-events: auto; }
-.paquet-ferme :is(.choix-main, .choix-points, .choix-plus-tard, .choix-autres), .paquet-dechire :is(.choix-main, .choix-points, .choix-plus-tard, .choix-autres) { opacity: 0; pointer-events: none; }
+.paquet-ferme :is(.choix-main, .choix-points, .choix-autres), .paquet-dechire :is(.choix-main, .choix-points, .choix-autres) { opacity: 0; pointer-events: none; }
 .paquet-ferme .tc-dos, .paquet-dechire .tc-dos { opacity: 1; }
 .paquet {
   --lueur-c: color-mix(in srgb, var(--encre) 16%, transparent);
@@ -3941,7 +3936,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
   flex: 1 0 auto; display: grid; grid-template-columns: var(--pile-l); place-content: center; align-items: start; gap: 0;
   margin: 0; padding: var(--esp-5) 0 var(--esp-2); overflow: visible; scroll-snap-type: none; touch-action: none; outline: none; cursor: grab;
 }
-.paquet-pile :is(.choix-recit, .choix-chiffres, .choix-plus-tard, .choix-autres) { display: none; }
+.paquet-pile :is(.choix-recit, .choix-chiffres, .choix-autres) { display: none; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile] { grid-area: 1 / 1; min-width: 0; transform-origin: 50% 0; transition: transform var(--t-lent) var(--e-sortie), opacity var(--t-lent); }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"] { z-index: 5; transform: translateX(calc(var(--glisse, 0) * 1px)) rotate(calc(var(--glisse, 0) * 0.05deg)) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)); animation: pile-retourne 0.5s var(--e-sortie) backwards; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"].glisse { transition: none; cursor: grabbing; }
@@ -4091,7 +4086,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .aln-case[disabled] { cursor: not-allowed; opacity: 0.42; }
 .aln-case.aln-vide { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; border-style: dashed; background: transparent; color: var(--encre-3); cursor: default; }
 .aln-case.aln-vide .aln-nom { font-size: var(--t-1); font-weight: 700; }
-.aln-barre { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2) var(--esp-3); padding: var(--esp-3) var(--esp-4); border-top: 1px solid var(--filet); background: var(--noir); }
 .ech-arrive { padding: var(--esp-2) var(--esp-3); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .ech { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); }
 .ech-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-1); line-height: 1.3; color: var(--encre-2); }
@@ -4099,10 +4093,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .ech-col b { color: var(--encre); font-size: var(--t-2); }
 .ech-mot { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .ech-bilan { display: block; margin-top: var(--esp-1); font-size: var(--t-1); color: var(--encre-2); }
-.aln-barre-mot { flex: 1 1 200px; margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
-.aln-barre.pret .aln-barre-mot, .aln-barre-mot b { color: var(--encre); }
-.aln-barre-boutons { display: flex; gap: var(--esp-2); margin-left: auto; }
-@media (min-width: 1000px) { .aln-barre { background: var(--fond-1); border-radius: 0 0 var(--r-2) var(--r-2); } }
 
 /* ---- Le dépistage (depistageHtml) : trois pistes et leurs chances ; à choisir (.choisir), on touche celle pour laquelle on se prépare ---- */
 .depistage { margin: var(--esp-2) 0; padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); }
@@ -4862,12 +4852,10 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .dp-carte { display: flex; flex-direction: column; gap: var(--esp-1); min-width: 0; }
 .dp-qui { min-height: 2.6em; font-size: var(--t-1); line-height: 1.3; color: var(--encre-2); }
 .dp-plus { align-self: center; }
-.dp-pied .dp-commencer { width: 100%; min-height: 52px; }
 @media (min-width: 640px) {
   .dp-grille { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: var(--esp-3); }
   .inv-grille { gap: var(--esp-3); }
 }
-@media (min-width: 1000px) { .dp-pied { padding-bottom: var(--esp-3); } }
 
 /* ---- L'exhibition (js/exhibition.js, #exhibitionModal.exh) : deux clubs face à face, une feuille de match en tableau ---- */
 body.exh-ouverte { overflow: hidden; }

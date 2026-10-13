@@ -98,7 +98,7 @@ export function ouvrirDepartClasseur(ctx) {
         ${cartes ? `<div class="sig-liste">${cartes}</div>` : '<p class="inv-vide">Aucune carte ici.</p>'}
         ${ctx.mode === 'choix' && filtres.length > visibles.length ? `<button type="button" class="btn dp-plus">Voir ${Math.min(PAGE, filtres.length - visibles.length)} cartes de plus · ${filtres.length - visibles.length} en tout</button>` : ''}
       </div>
-      <div class="dp-pied">
+      <div class="choix-pied">
         <button type="button" class="btn go dp-commencer">${esc(T.partir(pris.size))}</button>
       </div>
     </div>`;

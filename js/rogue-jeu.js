@@ -394,7 +394,7 @@ function optionDeJoueurTire(x) {
     // S80 : à finition égale, son niveau ordonne aussi le retournement (la finition d'abord : une holo Soutien sort après un Phénomène de base ; js/gerant.js).
     cle: getPlayerKey(x.p), rarete: x.rar, rang: x.niveau, eclat: x.niveau === PHENOMENE, nom: x.p.n, type: `${POSTE_GROUPE[g]} · ${x.p.t} ${x.p.s}`, coin: money(x.p.$),
     art: artJoueur({ portraitHtml: headshotHtml(x.p), logoHtml: getTeamLogoHtml(x.p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(x.p.s), club: esc(x.p.t), actionSrc: photoAction(x.p) }),
-    carteJoueur: miniAvecVariante(x.p, x.rar),
+    joueurHtml: miniAvecVariante(x.p, x.rar),
     // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
     walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
     // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
@@ -667,8 +667,9 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     decider({ jour: j, joue, ...payload });
   };
   // Jalon U : les rangées du vestiaire, comme toute liste de joueurs (`ouvrirListeJoueurs`).
-  const listeJoueurs = (titre, recit, liste, choisir, mots = null) => ouvrirListeJoueurs({
-    ico: c.ico, titre, motFermer: 'Retour', recit, motBouton: 'Choisir',
+  // Rien à prendre (Jalon U) : la liste s'ouvre quand même et le dit (`vide`) ; les toasts restent aux confirmations.
+  const listeJoueurs = (titre, recit, liste, choisir, mots = null, vide = '') => ouvrirListeJoueurs({
+    ico: c.ico, titre, motFermer: 'Retour', recit, motBouton: 'Choisir', vide,
     contexte: mots ? `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(mots)}</div>` : '',
     joueurs: liste, onChoix: choisir, onFerme: retour,
   });
@@ -691,8 +692,8 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     const C = CONSOMMABLES[c.cle];
     if (C.cible === 'blesse') {
       const bl = blessesAuJour(j);
-      if (!bl.length) { toast('Personne à l\'infirmerie : garde-la pour plus tard.'); retour(); return; }
-      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · ') })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · ') })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
+        'Personne à l\'infirmerie : garde-la pour plus tard.');
       return;
     }
     if (C.cible === 'joueur') {
@@ -704,8 +705,8 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'malediction' || C.cible === 'carteMatch') {
       const deck = deckDe(Lg.decisions || []);
       const uniques = [...new Set(deck)].filter(k => (C.cible === 'malediction' ? CARTES_MATCH[k] && CARTES_MATCH[k].maudite : CARTES_MATCH[`${k}+`]));
-      if (!uniques.length) { toast(C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.'); retour(); return; }
       ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour', recit: c.texte,
+        vide: C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.',
         contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
         options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
         onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
@@ -714,9 +715,9 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'cartable') {
       // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
-        if (!offres.length) { toast(`Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`); retour(); return; }
         // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
         ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: c.texte, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
+          vide: `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
           desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
           onSigne: (x, sortie) => { const k = getPlayerKey(x.p); G.variantes.cartes[k] = x.rar; ecrire(payloadDe(item.id, { joueur: k, sortie, rar: x.rar })); },
           onFerme: retour });
@@ -747,13 +748,13 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'blesse') {
       liste = blessesAuJour(j).filter(x => signes().some(q => getPlayerKey(q) === getPlayerKey(x.p)) && !deja(getPlayerKey(x.p)))
         .map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie · ${money(x.p.$)} hors du plafond`].filter(Boolean).join(' · ') }));
-      if (!liste.length) { toast('Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'); retour(); return; }
     } else {
       liste = signes().filter(p => !deja(getPlayerKey(p)) && (C.cible !== 'recrue' || ageAtSeason(p.bd, p.s) <= 23))
         .sort((a, b) => (b.$ || 0) - (a.$ || 0)).map(p => ({ p, sous: `${ouJoue(p) ? `${ouJoue(p)} · ` : ''}${apres(p)}${C.cible === 'recrue' ? ` · ${ageAtSeason(p.bd, p.s)} ans` : ''}` }));
-      if (!liste.length) { toast(C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.'); retour(); return; }
     }
-    listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
+    listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
+      C.cible === 'blesse' ? 'Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'
+        : C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.');
     return;
   }
   ecrire(payloadDe(item.id, { build, joueurs }));
@@ -820,7 +821,7 @@ async function ouvrirPacksDeDepart(roster) {
         return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
           art: artJoueur({ portraitHtml: headshotHtml(p), logoHtml: getTeamLogoHtml(p.t, 24), pos: esc(POSTE_GROUPE[g]), saison: esc(p.s), club: esc(p.t), actionSrc: photoAction(p) }),
           // Un pack de départ ne se choisit pas, il se montre : la carte se touche pour sa fiche, le bas mène au pack suivant.
-          carteJoueur: carteMiniHtml(p), vue: true, apercu: () => apercuJoueur(p) };
+          joueurHtml: carteMiniHtml(p), vue: true, apercu: () => apercuJoueur(p) };
       }),
       onFerme: () => resolve(),
     }));

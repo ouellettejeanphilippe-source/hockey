@@ -385,7 +385,12 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
 - [x] **U6 · Choisir un joueur** : les rangées du vestiaire (`ouvrirListeJoueurs`) pour « pour qui ? », « qui soigner ? », « qui monte ? », « Nouveau rôle » et « Garder un joueur ».
 - [x] **U7 · La carte de jeu** : l'inventaire montre la face d'un pack ou d'une main (`carteDeBanqueHtml`), plus une carte plate à part.
 - [x] **U8 · Rien ici** : une phrase centrée (`.empty-msg`), et sa petite.
-  - Preuve : `essai_rogue`, `smoke`, `check_css`, `check_mort`.
+- [x] **U9 · Les fenêtres** : une tête (`.choix-tete` : l'icône, le titre, sa sous-ligne, le ✕ `.choix-fermer`) pour les deux familles — les `.modal-backdrop` (sommaire, options, « Nouvelle partie », la fiche) comme les `.choix-modal` ; un pied (`.choix-pied`, le dessin de « qui sort ? » : le mot à gauche, le verbe à droite, pleine largeur au téléphone) pour celles qui confirment (« Où joue X ? », le système d'une unité, le classeur, « Nouvelle partie », une page du club). Le ✕ est la seule façon de fermer : plus de « Plus tard » en ligne, d'« Annuler » ni de « Retour » au pied. Le système d'une unité se ferme enfin à Échap (son ✕ n'était pas un `.choix-fermer`).
+- [x] **U10 · La page du club** : bâtie une fois (`pageDuClub`, js/util.js), pour le Bureau et le Marché.
+- [x] **U11 · Un nom, une fonction** : `enteteJoueur` (js/gerant.js) et le champ d'option `joueurHtml` ; `carteJoueur` reste à js/repechage.js.
+- [x] **U12 · Rien à prendre** : la liste s'ouvre et le dit (`vide`, `.empty-msg`) au lieu d'un toast qui la refermait (infirmerie vide, deck sans malédiction, cartable sans carte sous le plafond, contrats) ; les toasts restent aux confirmations.
+- [x] **U13 · Qui sort, en liste** (JP, 13 oct. : *choisir qui est remplacé avec un menu similaire à celui pour signer le joueur*) : les rangées de la liste de signature (`rangeeHtml`), sa ligne, la masse et ce que sa sortie change par match, « Sort » ; ceux de son poste d'abord, le meilleur échange en tête ; la réserve libre en bouton au-dessus. « Où joue X ? » reste l'alignement.
+  - Preuve : `essai_rogue`, `essai_packs`, `smoke`, `check_css`, `check_mort`.
 
 ## Après la 1.0 · idées notées
 
@@ -572,3 +577,4 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
 - 2026-10-12 — R : la liste du 82-0 pour signer en Rogue (packs, rappel, ballottage, joueur au choix, entre deux saisons), la case calculée d'avance, « qui sort ? » au besoin.
 - 2026-10-12 — U : une interface — un dessin par fonction (onglets, filtres, recherche, jauge du plafond, boutons, listes de joueurs, face des cartes, « rien ici »).
 - 2026-10-13 — Corrigé (check_feuilles rouge sur la #182, un tirage sur deux) : le but en prolongation d'un trio vide — plus fréquent avec la vraie LNH des blessures — entrait au pointage sans marqueur ni lancer. Il revient à un patineur habillé ; VERSION_MOTEUR S112.
+- 2026-10-13 — U9 à U13 : une tête et un pied pour toutes les fenêtres, le ✕ seul pour fermer ; la page du club bâtie une fois ; `enteteJoueur` ; « rien à prendre » en état vide ; « qui sort ? » dans la liste de signature (JP).

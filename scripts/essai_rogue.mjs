@@ -288,10 +288,12 @@ async function regler() {
     // Une main de palier (des cartes .tc) : la première carte jouable.
     const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
-    // Un joueur offert (S78) : « Signer », puis « qui sort ? » — dans l'alignement (S80) : une case, puis « Confirmer ».
+    // Un joueur offert (S78) : « Signer », puis « qui sort ? » — en liste (Jalon U), puis « Où joue ? » : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
     // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », à sa meilleure case.
     if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#signatureModal:not([hidden]) .btn-sign:not([disabled])')) { await page.click('#signatureModal .btn-sign:not([disabled])'); await page.waitForTimeout(600); continue; }
+    // « Qui sort ? » en liste (Jalon U) : « Sort » sur le premier proposé.
+    if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-confirmer')) {
       await page.click('#choixModal .aln-case[data-aln]:not([disabled])'); await page.click('#choixModal .aln-confirmer'); await page.waitForTimeout(600); continue;
     }
@@ -332,7 +334,7 @@ async function regler() {
       const titre0 = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
       await autre.click(); await page.waitForTimeout(300);
       if (!/Retirer une carte/.test((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '')) { erreurs.push('« Retirer une carte » n\'ouvre pas le deck'); continue; }
-      await page.click('#choixModal .choix-plus-tard'); await page.waitForTimeout(300);
+      await page.click('#choixModal .choix-fermer'); await page.waitForTimeout(300);
       if (((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '').trim() !== titre0) erreurs.push('« Retour » ne rouvre pas le butin');
       await page.click('#choixModal:not([hidden]) .choix-autre'); await page.waitForTimeout(300);
       const n0 = (await decisionsDuCombat()).length;
@@ -626,34 +628,30 @@ await page.waitForTimeout(400);
 const nomSigne = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-nom', x => x.textContent.replace(/\s+/g, ' ').trim());
 await page.click('#signatureModal .pcard:not(.locked) .sig-changer');
 /*
- * QUI SORT, DANS L'ALIGNEMENT (S80). JP : *le screen de choix pour les upgrades et les remplacements sont à chier* ;
- * *dire que x est sur la xième ligne*. Les neuf rangées titrées par ce qu'elles sont ; toucher une case la surligne et
- * la barre dit ce qui va se passer ; rien ne part avant « Confirmer ».
+ * QUI SORT, EN LISTE (Jalon U). JP : *choisir qui est remplacé avec un menu similaire à celui pour signer le joueur*.
+ * Les rangées de la liste de signature : chacune dit sa ligne et ce que sa sortie change à la masse ; « Sort » décide
+ * qui part, puis « Où joue X ? » (l'alignement) place l'arrivant. La réserve libre est un bouton au-dessus.
  */
-// QUI SORT, DANS L'ALIGNEMENT (1.0, oct.) : la case de réserve libre y est une case (« personne ne sort »), puis « Où joue X ? ».
-await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
+await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 });
 await page.waitForTimeout(300);
 const titre = (await page.textContent('#choixModal .choix-titre')).trim();
-const libreOfferte = await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled]) .aln-nom', e => e.some(x => x.textContent.trim() === 'Case libre'));
-const rangees = await page.$$eval('#choixModal .aln-titre', e => e.map(x => (x.firstChild ? x.firstChild.textContent : x.textContent).trim()));
-if (rangees.join('|') !== '1er trio|2e trio|3e trio|4e trio|1re paire|2e paire|3e paire|Gardiens|Réserve') erreurs.push(`« qui sort ? » : rangées ${rangees.join(' · ')}`);
-const refusees = await page.$$eval('#choixModal .aln-case[data-aln][disabled]', e => e.length);
-// Un joueur qui sort (pas la case libre) : c'est le chemin qui retire quelqu'un.
-await page.$$eval('#choixModal .aln-case[data-aln]:not([disabled])', e => { const b = e.find(x => x.querySelector('.aln-nom').textContent.trim() !== 'Case libre'); if (b) b.click(); });
-await page.waitForTimeout(250);
-const barreSortie = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
-if (!/sort : .+masse/.test(barreSortie)) erreurs.push(`la barre de « qui sort ? » ne dit pas ce qui va se passer : « ${barreSortie} »`);
-if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]'))) erreurs.push('toucher une case de « qui sort ? » a décidé sans « Continuer »');
+const libreOfferte = !!(await page.$('#choixModal .sig-libre:not([disabled])'));
+const rangees = await page.$$eval('#choixModal .sig-liste .pcard', e => e.length);
+if (rangees < 20) erreurs.push(`« qui sort ? » ne montre que ${rangees} joueurs`);
+const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.length);
+// Un joueur qui sort (pas la réserve libre) : c'est le chemin qui retire quelqu'un.
+const barreSortie = await page.$eval('#choixModal .sig-sort:not([disabled])', b => b.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim());
+if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(barreSortie)) erreurs.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${barreSortie} »`);
 await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
-await page.click('#choixModal .aln-confirmer');
+await page.click('#choixModal .sig-sort:not([disabled])');
 // Où joue l'arrivant : sa case, et ce qui glisse.
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-case', { timeout: 10000 });
 await page.waitForTimeout(300);
 await page.click('#choixModal .aln-case[data-aln]:not([disabled])');
 await page.waitForTimeout(250);
-const barrePlace = (await page.textContent('#choixModal .aln-barre-mot')).replace(/\s+/g, ' ').trim();
+const barrePlace = (await page.textContent('#choixModal .choix-pied-mot')).replace(/\s+/g, ' ').trim();
 if (!/: .+masse/.test(barrePlace)) erreurs.push(`la barre de « où joue ? » ne dit pas ce qui va se passer : « ${barrePlace} »`);
-console.log(`   qui sort : ${rangees.length} rangées, ${refusees} case(s) grisée(s) · « ${barreSortie} » · puis « ${barrePlace} »`);
+console.log(`   qui sort : ${rangees} rangées, ${refusees} grisée(s) · « ${barreSortie} » · puis « ${barrePlace} »`);
 await page.click('#choixModal .aln-confirmer');
 // APRÈS UN PACK SIGNÉ : la boutique est rouverte AU MARCHÉ, le Club n'a pas paru (une capture à 390 px).
 await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 120000 });
@@ -692,7 +690,7 @@ for (const pack of ['j:or', 'j:coach']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
   // Jalon Q : le paquet entier, puis la signature, joueurs seuls ; « Plus tard » laisse l'offre à la boîte.
-  await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+  await page.click('#choixModal:not([hidden]) .choix-fermer');
   await page.waitForTimeout(500);
   if (await page.$('#signatureModal:not([hidden])')) await page.click('#signatureModal .choix-fermer');
   await auBureau();
