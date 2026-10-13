@@ -43,9 +43,10 @@ for (let i = 0; i < 5; i++) {
   await page.click('#choixModal:not([hidden]) .choix-fermer');
   await page.waitForTimeout(400);
 }
-if (await page.$('#mainBtn:not([disabled])') && !(await page.$('#hubModal .hub-jour'))) {
+// « Lancer la saison » : la saison part derrière les Lignes, le bureau reste caché (la ligue suffit).
+if (await page.$('#mainBtn:not([disabled])')) {
   await page.click('#mainBtn');
-  await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden])', { timeout: 120000 });
+  await page.waitForFunction(() => window.cap82.G.ligue, null, { timeout: 120000 });
   await page.waitForTimeout(800);
 }
 for (let i = 0; i < 10 && !(await page.$('#choixModal[hidden]')); i++) {
@@ -74,7 +75,10 @@ const second = await page.click('#pageMarche .pk-fiche .pk-acheter', { timeout: 
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet', { timeout: 60000 });
 await dechirer();
 await page.click('#choixModal:not([hidden]) .choix-fermer');
-await page.waitForTimeout(1500);
+await page.waitForTimeout(600);
+// Un pack mixte passe ensuite à sa liste de signature (Jalon Q) : « Plus tard » est son ✕ aussi.
+if (await page.$('#signatureModal:not([hidden]) .choix-fermer')) await page.click('#signatureModal:not([hidden]) .choix-fermer');
+await page.waitForTimeout(900);
 await page.waitForSelector(`#pageMarche .pk-tuile[data-pack="${pack}"]`, { timeout: 30000 });
 await acheter();
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet', { timeout: 60000 });
@@ -82,7 +86,9 @@ await page.waitForTimeout(1500);
 const achats = await page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => d.achat).map(d => d.palier));
 await dechirer();
 await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
-await page.waitForTimeout(1500);
+await page.waitForTimeout(600);
+if (await page.$('#signatureModal:not([hidden]) .choix-fermer')) await page.click('#signatureModal:not([hidden]) .choix-fermer');
+await page.waitForTimeout(900);
 
 /*
  * SIGNÉ, IL QUITTE LA BOÎTE (oct.). JP : *j'achète un pack, je choisis, pis y a encore un pack dans la boîte*.
@@ -95,12 +101,15 @@ const attendaient = await enAttente();
 const signes = [];
 for (let k = 0; k < 2; k++) {
   await page.evaluate(() => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { signer: true } })));
-  await page.waitForSelector('#choixModal:not([hidden]) .tcj-signer', { timeout: 60000 }).catch(() => {});
+  // Le pack se rouvre : un pack mixte montre d'abord ses cartes (le ✕ passe à la signature), puis la liste (Jalon R).
+  await page.waitForSelector('#choixModal:not([hidden]), #signatureModal:not([hidden])', { timeout: 60000 }).catch(() => {});
   await dechirer();
-  const b = await page.$('#choixModal:not([hidden]) .tcj-signer');
+  if (!(await page.$('#signatureModal:not([hidden])')) && await page.$('#choixModal:not([hidden]) .choix-fermer')) await page.click('#choixModal:not([hidden]) .choix-fermer');
+  const b = await page.waitForSelector('#signatureModal:not([hidden]) .pcard:not(.locked) .btn-sign:not([disabled])', { timeout: 30000 }).catch(() => null);
   if (!b) break;
   await b.click();
-  // Qui sort (la liste, « Sort »), puis où il joue : la première case permise, et « Confirmer ».
+  await page.waitForTimeout(600);
+  // U18 : qui sort (la sortie proposée en tête), puis, pour un autre, où il joue : la première case permise.
   for (let i = 0; i < 4 && /qui sort|Où joue/.test(await titre()); i++) {
     const sort = await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])');
     if (sort) { await sort.click(); await page.waitForTimeout(600); continue; }

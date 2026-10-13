@@ -42,7 +42,7 @@ import {
   JOURS_PAR_MATCH, registerHiddenRatings,
 } from '../js/sim.js';
 import fs from 'node:fs';
-import { deckDe, DECK_DEPART } from '../js/combat.js';
+import { deckDe, DECK_DEPART, CARTES_MATCH } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron,
@@ -88,7 +88,10 @@ function forceAuMoment(i, matchs) {
   const toi = equipe('2005-06', 'CAR'), adv = equipe('2005-06', 'BUF');
   // Une ligue Rogue : la courbe de la fin de partie joue (`courbe`).
   toi.courbe = adv.courbe = true;
-  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; } };
+  // Tout ce qu'`appliquerMutation` pose : ses canaux, mais aussi ses profils (« sniper +12 »), ses clés et le journal du club.
+  // Sans `_mutProfils`, le tir affûté s'empilait 1 500 fois sur les mêmes avants, et les bras joués après (l'adversaire,
+  // les synergies) se mesuraient sur des profils au plafond : la carte sur l'adversaire valait ×1,6 en finale au lieu de ×8.
+  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; delete p._mutProfils; delete p._mutCles; } t.mutations = []; };
   const jouer = (bras, cartes = []) => {
     let v = 0, ecart = 0;
     for (let k = 0; k < matchs; k++) {
@@ -206,8 +209,10 @@ if (!isMainThread) {
     const fx1 = effetsDesCartes(null, { jouees: ['provoquer'] }, 'x');
     const fx2 = effetsDesCartes(null, { jouees: ['provoquer'] }, 'x', { echelle: 2 });
     const r = grandirEffet({ robustesse: 1.4, finition: 1.04, F: [1.3, 1, 0.9, 0.8] }, 2);
-    exiger('une carte qui vise l\'adversaire grandit ; la robustesse (une somme) et les minutes suivent', fx1.adv[0].discipline === 1.25 && Math.abs(fx2.adv[0].discipline - 1.5) < 1e-9
-      && Math.abs(r.robustesse - 2.8) < 1e-9 && Math.abs(r.finition - 1.08) < 1e-9 && Math.abs(r.F[0] - 1.6) < 1e-9, `« Les provoquer » : punitions +25 % → +${Math.round((fx2.adv[0].discipline - 1) * 100)} % en finale`);
+    // Sa valeur se lit sur la carte (U17 : les cartes de match sont plus franches, `FRANCHISE_MATCH`) : à ×2, son écart à 1 double.
+    const d = CARTES_MATCH.provoquer.adv.discipline;
+    exiger('une carte qui vise l\'adversaire grandit ; la robustesse (une somme) et les minutes suivent', fx1.adv[0].discipline === d && Math.abs(fx2.adv[0].discipline - (1 + 2 * (d - 1))) < 1e-9
+      && Math.abs(r.robustesse - 2.8) < 1e-9 && Math.abs(r.finition - 1.08) < 1e-9 && Math.abs(r.F[0] - 1.6) < 1e-9, `« Les provoquer » : punitions +${Math.round((d - 1) * 100)} % → +${Math.round((fx2.adv[0].discipline - 1) * 100)} % en finale`);
   }
   {
     const base = ['lancer+', 'bloquer', 'gachettes', 'doute'];

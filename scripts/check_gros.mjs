@@ -17,7 +17,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde,
+  autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries,
   PLANS_ADV, planEstContre, planDeSerie, entractesOfferts, effetEntracte, contreDe, TACTIQUES,
   AVANT_GROS, avantDuGros, ENTRACTES, entractesDu,
   lignesDeGros, lignesDe, planProbable, activeLineup,
@@ -130,6 +130,47 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
   exiger('le choix de l\'entracte laisse les deux premières périodes intactes', essais > 0 && p12 === essais, `${p12}/${essais} gros matchs`);
   exiger('des dés neufs à l\'entracte donnent une autre troisième période', p3 >= Math.ceil(essais / 2), `${p3}/${essais}`);
   informer('gros matchs sondés', `${vus} ligues`);
+}
+
+/* ---------- 3b. l'entracte d'un match de séries : la reprise garde les deux premières périodes ---------- */
+/*
+ * JP : *sans regarder le direct, le score final change*. Le Rogue montre un match de séries pour son entracte
+ * (`ouvrirEntracteSerie`, js/saison.js), puis le choix REJOUE tout (`deciderSerie`, js/banc.js) : la saison sur ses dés
+ * gardés, les séries sur les leurs, avec la décision d'entracte et son sel. Ici, la même chose au moteur : le match 1
+ * de ta série joué une fois sans choix, puis rejoué de zéro avec un choix — le pointage après deux périodes, l'heure de
+ * chaque but et l'entracte annoncé doivent tenir.
+ */
+{
+  let essais = 0, p12 = 0, p3 = 0;
+  const buts = (f, dedans) => f.buts.filter(b => dedans(b.instant)).map(b => `${b.cote}@${b.instant.toFixed(3)}`).join(',');
+  for (let L = 0; L < LIGUES; L++) {
+    const graine = `gros-serie-${L}`;
+    const jouer = (des, decisions) => {
+      const teams = ligue(9300 + L);
+      const res = simulateLeague(teams, 82, { graine, decisions: [], des });
+      // Comme la section 5 : ton club entre aux séries même s'il finit 17e.
+      const top = teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W || (a.name < b.name ? -1 : 1)).slice(0, 16);
+      if (!top.includes(teams[0])) { top.pop(); top.push(teams[0]); }
+      const S = creerSeries(top, { ligue: res.ligue, graine, decisions, equipes: teams, des: des.series });
+      jouerMatchSeries(S);
+      const s = S.toutes.find(x => x.A === teams[0] || x.B === teams[0]);
+      return s && s.feuilles[0];
+    };
+    const des = { matins: [], soirs: [], series: {} };
+    const f0 = jouer(des, []);
+    if (!f0 || !f0.entracte) continue;
+    // Les dés gardés, comme une sauvegarde : la reprise les relit.
+    const garde = () => JSON.parse(JSON.stringify(des));
+    const fa = jouer(garde(), [{ ronde: 0, match_no: 0, entracte: { cle: 'garder' }, sel: 'a' }]);
+    const fb = jouer(garde(), [{ ronde: 0, match_no: 0, entracte: { cle: 'garder' }, sel: 'b' }]);
+    if (!fa || !fb) continue;
+    essais++;
+    const avant = f => buts(f, t => t < 40), apres = f => buts(f, t => t >= 40);
+    if (avant(f0) === avant(fa) && avant(fa) === avant(fb) && fa.entracte && f0.entracte.gfA === fa.entracte.gfA && f0.entracte.gfB === fa.entracte.gfB) p12++;
+    if (apres(fa) !== apres(fb)) p3++;
+  }
+  exiger('en séries, rejouer avec le choix de l\'entracte garde les deux premières périodes et le pointage annoncé', essais > 0 && p12 === essais, `${p12}/${essais} matchs de séries`);
+  informer('en séries, des dés neufs à l\'entracte changent la troisième période', `${p3}/${essais}`);
 }
 
 /* ---------- 4. les options d'entracte et d'avant-match ---------- */

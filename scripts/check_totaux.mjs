@@ -3,7 +3,7 @@
  *
  * JP : *je comprends pas plusieurs mécaniques*. « Préparer le match » et la
  * carte du prochain match disent « Ce soir : Tirs +14 % · Précision −3 % ·
- * Buts contre −6 % · Punitions +10 % ». Ce script prouve, sur une vraie équipe
+ * Précision adverse −6 % · Punitions +10 % ». Ce script prouve, sur une vraie équipe
  * qui porte cinq effets à la fois (deux cartes de saison, deux patrons, la
  * consigne du match choisie le matin même) :
  *
@@ -109,7 +109,7 @@ const decisions = [
 
   // 4. Les mots.
   const mots = motsDesTotaux(T).map(m => m.txt);
-  const attendus = [['volume', 'Tirs'], ['finition', 'Précision'], ['defense', 'Buts contre'], ['discipline', 'Punitions']]
+  const attendus = [['volume', 'Tirs'], ['finition', 'Précision'], ['defense', 'Précision adverse'], ['discipline', 'Punitions']]
     .filter(([k]) => Math.round((T[k] - 1) * 100) !== 0).map(([k, mot]) => `${mot} ${flechesDe(T[k])}`);
   exiger('les mots affichés sont ces nombres, au pour cent près', mots.join('|') === attendus.join('|'), `Ce soir : ${mots.join(' · ')}`);
   informer('la ligne, telle que l\'écran la montre', `Ce soir : ${mots.join(' · ')}`);

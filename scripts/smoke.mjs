@@ -107,12 +107,18 @@ async function sansIdentite() {
 /*
  * UN JOUEUR OFFERT SE SIGNE, PUIS ON CHOISIT QUI SORT (S78). Toucher sa carte
  * ouvre sa fiche (un aperçu) : c'est « Signer » qui le prend, puis « qui sort ? »
- * — le parcours prend le premier proposé (un réserviste de sa position).
+ * (U18, JP : *signer doit toujours demander qui part*) — la meilleure sortie y est
+ * proposée, en tête et cerclée d'or ; une case libre où personne ne sort se signe
+ * sans question.
  */
 async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
-  // Jalon R : la liste du vestiaire ; on choisit la case soi-même (« qui sort ? ») en touchant la destination.
-  if (await page.$('#signatureModal:not([hidden]) .pcard:not(.locked) .sig-changer')) await _click('#signatureModal:not([hidden]) .pcard:not(.locked) .sig-changer');
-  else await _click(`${portee} .tcj-signer`);
+  const rangee = '#signatureModal:not([hidden]) .pcard:not(.locked)';
+  if (!(await page.$(`${rangee} .btn-sign:not([disabled])`))) { await _click(`${portee} .tcj-signer`); await sortirDansAlignement(); return; }
+  const libre = /personne ne sort/.test(await page.$eval(`${rangee} .pcard-dest`, x => x.textContent));
+  await _click(`${rangee} .btn-sign:not([disabled])`);
+  const qs = await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 5000 }).catch(() => null);
+  if (libre) { if (qs) errors.push('une case libre, et « Signer » demande quand même qui sort'); else return; }
+  if (!qs) { errors.push('« Signer » pose le joueur sans demander qui sort'); return; }
   await sortirDansAlignement();
 }
 /*
@@ -139,6 +145,8 @@ async function quiSortEnListe() {
     const corps = m.querySelector('.choix-corps');
     const premiere = m.querySelector('.sig-sort:not([disabled])');
     return { n: rangees.length, permises: m.querySelectorAll('.sig-sort:not([disabled])').length, incompletes, sw: corps.scrollWidth, cw: corps.clientWidth,
+      proposees: m.querySelectorAll('.sig-liste .pcard.meilleure').length, enTete: !!(rangees[0] && rangees[0].classList.contains('meilleure')),
+      autre: !!m.querySelector('.sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])'),
       dest: premiere ? premiere.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim() : '' };
   });
   if (lu.n < 6) errors.push(`« qui sort ? » ne montre que ${lu.n} joueurs de l'alignement`);
@@ -146,8 +154,10 @@ async function quiSortEnListe() {
   if (lu.sw > lu.cw + 1) errors.push(`« qui sort ? » déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
   if (!lu.permises) { errors.push('« qui sort ? » : personne ne peut sortir'); await _click('#choixModal .choix-fermer'); return false; }
   if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(lu.dest)) errors.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${lu.dest} »`);
+  if (lu.proposees > 1 || (lu.proposees && !lu.enTete)) errors.push(`« qui sort ? » : la sortie proposée n'est pas seule en tête (${lu.proposees}, en tête : ${lu.enTete})`);
   alignementsVus.push(lu.dest);
-  await _click('#choixModal .sig-sort:not([disabled])');
+  // Un autre que la sortie proposée, s'il y en a un : c'est le chemin qui passe par « Où joue X ? ».
+  await _click(lu.autre ? '#choixModal .sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])' : '#choixModal .sig-sort:not([disabled])');
   return true;
 }
 async function alignementDuChoix() {

@@ -55,9 +55,9 @@ export function puces(mots, detail = () => false) {
 const estChiffre = m => /(^|: )(jusqu'à )?≈ |^Jusqu'à ≈ |, et ≈ /.test(String(m.txt || '')) || (m.cle === 'glace' && /≈ /.test(String(m.txt || '')));
 function detailDe(mots) {
   const chiffres = mots.filter(estChiffre);
-  const buts = m => m.cle === 'but' || m.cle === 'butContre';
-  const meilleur = sens => chiffres.find(m => m.bon === sens && buts(m)) || chiffres.find(m => m.bon === sens) || null;
-  // Un chiffre pour et un contre, au plus : ce que l'option rapporte et ce qu'elle coûte, en buts d'abord.
+  const taux = m => m.cle === 'pctTir' || m.cle === 'pctArr';
+  const meilleur = sens => chiffres.find(m => m.bon === sens && taux(m)) || chiffres.find(m => m.bon === sens) || null;
+  // Un chiffre pour et un contre, au plus : ce que l'option rapporte et ce qu'elle coûte, le % au tir ou d'arrêts d'abord.
   const tete = [meilleur(true), meilleur(false)].filter(Boolean);
   if (!tete.length && chiffres[0]) tete.push(chiffres[0]);
   const garde = new Set(tete.map(m => `${m.cle}|${m.txt}`));
@@ -70,27 +70,30 @@ export const pucesEnBref = mots => puces(mots, detailDe(mots || []));
  * « L'adversaire tire moins ») ; « Les chiffres » rend les nombres exacts à la place des mots.
  */
 const MOTS_DU_CHIFFRE = {
-  but: ['Tu marques plus', 'Tu marques moins'], butContre: ['Tu accordes plus de buts', 'Tu accordes moins de buts'],
+  pctTir: ['Tu tires plus juste', 'Tu tires moins juste'], pctArr: ['Ton filet arrête plus', 'Ton filet arrête moins'],
   tir: ['Tu tires plus', 'Tu tires moins'], 'tir accordé': ['L\'adversaire tire plus', 'L\'adversaire tire moins'],
   punition: ['Plus de punitions', 'Moins de punitions'], coup: ['Plus de mises en échec', 'Moins de mises en échec'],
   blessure: ['Plus de blessures', 'Moins de blessures'], jambes: ['Les jambes s\'usent plus', 'Les jambes s\'usent moins'],
 };
 /* Le sujet d'un chiffre, lu dans son texte quand la ligne ne le porte pas (une condition, une ligne « Eux : »). */
-const CLE_DU_TEXTE = [[/but.*marqué/, 'but'], [/but.*accordé/, 'butContre'], [/tirs? accordés?/, 'tir accordé'], [/\btirs?\b/, 'tir'],
+const CLE_DU_TEXTE = [[/pt au tir/, 'pctTir'], [/pt d'arrêts/, 'pctArr'], [/tirs? accordés?/, 'tir accordé'], [/\btirs?\b/, 'tir'],
   [/punition/, 'punition'], [/mises? en échec/, 'coup'], [/blessure/, 'blessure'], [/jambe/, 'jambes']];
 const cleDuTexte = t => (CLE_DU_TEXTE.find(([re]) => re.test(t)) || [])[1];
-/* Ce qui leur arrive, dit de ton côté : leurs tirs sont ceux que tu accordes, leurs buts ceux que tu encaisses. */
-const VU_D_EUX = { tir: 'tir accordé', 'tir accordé': 'tir', but: 'butContre', butContre: 'but' };
+/* Ce qui leur arrive, dit de ton côté : leurs tirs sont ceux que tu accordes. Leur % au tir et leur % d'arrêts se disent d'eux. */
+const VU_D_EUX = { tir: 'tir accordé', 'tir accordé': 'tir' };
 const MOTS_D_EUX = {
+  pctTir: ['Ils tirent plus juste', 'Ils tirent moins juste'], pctArr: ['Leur filet arrête plus', 'Leur filet arrête moins'],
   punition: ['Ils prennent plus de punitions', 'Ils prennent moins de punitions'], coup: ['Ils frappent plus', 'Ils frappent moins'],
   blessure: ['Plus de blessures chez eux', 'Moins de blessures chez eux'], jambes: ['Leurs jambes s\'usent plus', 'Leurs jambes s\'usent moins'],
 };
-const HAUT_EST_BON = { but: true, tir: true, butContre: false, 'tir accordé': false, blessure: false, jambes: false };
+const HAUT_EST_BON = { pctTir: true, pctArr: true, tir: true, 'tir accordé': false, blessure: false, jambes: false };
+/* Chez eux, monter est mauvais pour toi. */
+const HAUT_EST_BON_EUX = { pctTir: false, pctArr: false };
 const minuscule = t => t.charAt(0).toLowerCase() + t.slice(1);
-/* La taille d'un chiffre de match, par match (« ≈ 1 but de plus tous les 14 matchs » : 1/14), pour mettre le plus gros devant. */
+/* La taille d'un chiffre de match, pour mettre le plus gros devant. */
 function ampleurDe(t) {
-  const m = String(t).match(/≈ [+−]?(\d+(?:,\d+)?)/), tous = String(t).match(/tous les (\d+) matchs/);
-  return m ? parseFloat(m[1].replace(',', '.')) / (tous ? Number(tous[1]) : 1) : 0;
+  const m = String(t).match(/≈ [+−]?(\d+(?:,\d+)?)/);
+  return m ? parseFloat(m[1].replace(',', '.')) : 0;
 }
 function enMots(m) {
   const t = String(m.txt || ''), moins = /≈ −|de moins/.test(t);
@@ -109,14 +112,14 @@ function enMots(m) {
   const sujet = grandit && !avant ? majuscule(grandit[1]) : avant.replace(/ :$/, '');
   const lie = !!avant && !avant.endsWith(':');   // « Si ta préparation rate : pas de malus, et ≈ … »
   const corps = (j >= 0 ? t.slice(j) : t).replace(grandit ? grandit[0] : /$^/, '');
-  // Une ligne de plusieurs chiffres (« ≈ −0,3 tir …, ≈ −0,11 but accordé … ») se dit par un seul : les buts, sinon le plus gros.
+  // Une ligne de plusieurs chiffres (« ≈ −0,3 tir …, ≈ +0,4 pt d'arrêts … ») se dit par un seul : un % au tir ou d'arrêts, sinon le plus gros.
   const bouts = corps.split(/, (?=≈ )/);
   const plusGros = l => [...l].sort((x, y) => ampleurDe(y) - ampleurDe(x))[0];
-  const bout = bouts.length > 1 ? plusGros(bouts.filter(x => /\bbut/.test(x)).length ? bouts.filter(x => /\bbut/.test(x)) : bouts) : bouts[0];
+  const bout = bouts.length > 1 ? plusGros(bouts.filter(x => / pt /.test(x)).length ? bouts.filter(x => / pt /.test(x)) : bouts) : bouts[0];
   const bas = /≈ −|de moins/.test(bout), par = (bout.match(/ (par carte .*)$/) || [])[1];
   const cle = m.cle && bouts.length === 1 && !/^Eux/.test(sujet) ? m.cle : cleDuTexte(bout);
-  // Le sens du bout choisi, quand la ligne en mêle plusieurs : plus de buts marqués est bon, plus de buts accordés non.
-  const bonDe = c => (bouts.length > 1 && HAUT_EST_BON[c] !== undefined ? HAUT_EST_BON[c] !== bas : m.bon);
+  // Le sens du bout choisi, quand la ligne en mêle plusieurs : plus de tirs est bon, plus de tirs accordés non.
+  const bonDe = (c, haut = HAUT_EST_BON) => (bouts.length > 1 && haut[c] !== undefined ? haut[c] !== bas : m.bon);
   const dit = mot => {
     const avec = par ? `${mot} ${par}` : mot;
     if (lie) return `${avant} ${minuscule(avec)}`;
@@ -124,7 +127,7 @@ function enMots(m) {
   };
   if (/^Eux/.test(sujet)) {
     const mot = VU_D_EUX[cle] ? MOTS_DU_CHIFFRE[VU_D_EUX[cle]][bas ? 1 : 0] : MOTS_D_EUX[cle] ? MOTS_D_EUX[cle][bas ? 1 : 0] : null;
-    return mot ? [dit(mot), VU_D_EUX[cle] || cle, bonDe(VU_D_EUX[cle] || cle), !!grandit] : null;
+    return mot ? [dit(mot), VU_D_EUX[cle] || cle, VU_D_EUX[cle] ? bonDe(VU_D_EUX[cle]) : bonDe(cle, HAUT_EST_BON_EUX), !!grandit] : null;
   }
   const M = MOTS_DU_CHIFFRE[cle];
   return M ? [dit(M[bas ? 1 : 0]), cle, bonDe(cle), !!grandit] : null;
@@ -150,7 +153,7 @@ export const FACE_MAX = 2;
 const BRUIT = /à peine perceptible|ne changent pas/;
 const poidsFace = m => (m.cle === 'rien' || BRUIT.test(m.txt) ? 5
   : !m.enMots ? (/^(Jusqu'à|Grandit|🔗)/.test(m.txt) ? 4 : 0) : m.grandit ? 4
-  : m.cle === 'lui' ? 1 : m.cle === 'but' || m.cle === 'butContre' ? 2 : 3);
+  : m.cle === 'lui' ? 1 : m.cle === 'pctTir' || m.cle === 'pctArr' ? 2 : 3);
 /** Ce qui se plie sur la face d'une carte (ses mots déjà passés par `enMotsEtChiffres`) : un prédicat pour `puces`. */
 function pliDeFace(lus) {
   const face = (lus || []).filter(m => !m.chiffre && !m.duree && poidsFace(m) < 5)
@@ -1231,12 +1234,6 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
  */
 /* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
 const EN_3E = { part: 1 / 3, par: 'en 3e' };
-/*
- * UNE CARTE DE MATCH DURE UN SOIR (1.0, le tempo) : « 1 but de moins tous les 16 matchs » n'y veut rien dire, et
- * depuis que le style se lit des deux côtés (tirs pour ET contre) ces lignes faisaient passer la carte sous les
- * boutons. Elles tombent quand la carte dit déjà autre chose ; seules, elles restent.
- */
-const unSoir = mots => { const autres = mots.filter(m => !/ tous les \d+ matchs/.test(m.txt)); return autres.length ? autres : mots; };
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
@@ -1248,8 +1245,8 @@ function regleDeCarte(C) {
     const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
     out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
   } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
-  out.push(...unSoir(motsEnChiffres(C.effet || null)));
-  for (const m of unSoir(motsEnChiffres(C.adv || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  out.push(...motsEnChiffres(C.effet || null));
+  for (const m of motsEnChiffres(C.adv || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
    * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
    * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;
@@ -1290,9 +1287,9 @@ const motsDeCarteMatch = regleDeCarte;
 function motsDeCarteAdverse(C, echelle = 1) {
   if (!C) return [];
   const out = [];
-  for (const m of unSoir(motsEnChiffres(C.effet || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  for (const m of (motsEnChiffres(C.effet || null, null, { eux: true }))) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   // Ce qui te vise grandit avec le soir, pour eux aussi (S80).
-  for (const m of unSoir(motsEnChiffres(grandirEffet(C.adv || null, echelle)))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
+  for (const m of (motsEnChiffres(grandirEffet(C.adv || null, echelle)))) out.push({ txt: `Toi : ${m.txt}`, bon: m.bon });
   if (C.pari) out.push({ txt: `🎲 Leur pari, ${facesMot(facesDuPari(C.pari.chance))}`, bon: null });
   if (C.apres40) for (const m of motsEnChiffres(C.apres40.siMene || null, null, { ...EN_3E, eux: true })) out.push({ txt: `Eux, s'ils mènent après deux périodes : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   if (C.synergie) out.push({ txt: 'Lit leur formation', bon: null });

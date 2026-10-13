@@ -115,18 +115,8 @@ exiger('aucun canal au-delà des plus gros des dilemmes, aucune durée au-delà 
 /* ---------- 4. le moteur lit, les chiffres de match le disent, le net reste sous une victoire ---------- */
 const decisionDe = (k, o, joueurs = []) => ({ jour: 30, moment: { famille: 'vie', cle: k, choix: o.cle, joueur: joueurs[0] || null, joueurs }, sel: 'sel-de-test' });
 const canauxDe = e => Object.fromEntries(Object.entries(e).filter(([c]) => CANAUX.includes(c)));
-const nombre = s => Number(s.replace(',', '.'));
-/* Les buts nets par match (pour − contre) que disent les mots de match : la même moyenne que le moteur joue. */
-function netParMatch(lignes) {
-  let net = 0;
-  for (const l of lignes) {
-    let m = /≈ ([+−])(\d+(?:,\d+)?) but (?:marqué|accordé)/.exec(l.txt), x = null;
-    if (m) x = nombre(m[2]) * (m[1] === '+' ? 1 : -1);
-    else if ((m = /≈ 1 but (de plus|de moins) (?:marqué|accordé) tous les (\d+) matchs/.exec(l.txt))) x = (m[1] === 'de plus' ? 1 : -1) / Number(m[2]);
-    if (x != null) net += l.cle === 'but' ? x : -x;
-  }
-  return net;
-}
+/* Les buts nets par match (pour − contre) que valent les mots de match (le % au tir et le % d'arrêts portent les leurs) : la même moyenne que le moteur joue. */
+const netParMatch = lignes => lignes.reduce((a, l) => a + (Number.isFinite(l.buts) ? l.buts : 0), 0);
 const BUTS_PAR_VICTOIRE = 6;   // la règle du pouce de la LNH : six buts de différentiel valent une victoire
 const lectureFautes = [], moteurFautes = [], invisibles = [], pariFautes = [], gestesFautes = [];
 let netMax = { v: 0, qui: '' };
