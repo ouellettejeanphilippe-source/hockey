@@ -69,7 +69,7 @@ export function remplirJoueurs() {
       <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}">${b.ico}</i> ${esc(PALIERS[b.palier].nom)}` : ''}</small>`;
   };
   host.innerHTML = `<div class="jr-barre">
-      <div class="seg jr-groupes" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="${k === g ? 'on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>
+      <div class="inv-filtres" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>
       ${enSaison ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>
     <div class="jr-scroll"><table class="jr-table">

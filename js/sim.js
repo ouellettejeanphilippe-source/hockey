@@ -6223,7 +6223,11 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
   const trio = tireDef ? choisirPresence(off.unites.F) : choisirUnite(off.unites.F);
   const paire = tireDef ? choisirUnite(off.unites.D) : choisirPresence(off.unites.D);
   const unite = tireDef ? paire : trio;
-  const glace = [...trio.joueurs, ...paire.joueurs];
+  // UN TRIO VIDE (la vraie LNH des blessures, S111) : la présence tirée peut n'avoir personne. Le but compté plus haut
+  // appartient alors à n'importe quel patineur habillé — sans ça, il entrait au pointage sans marqueur ni lancer,
+  // et les égalités de la feuille cassaient (check_feuilles).
+  let glace = [...trio.joueurs, ...paire.joueurs];
+  if (!glace.length) glace = [...off.unites.F, ...off.unites.D].flatMap(u => u.joueurs || []);
   if (!glace.length) return;
   const tireur = weightedPick(unite.joueurs.length ? unite.joueurs : glace, p => lancersRel(p) * pctTirRel(p));
   const passeurs = [];

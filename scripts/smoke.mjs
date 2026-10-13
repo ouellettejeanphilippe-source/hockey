@@ -110,7 +110,9 @@ async function sansIdentite() {
  * — le parcours prend le premier proposé (un réserviste de sa position).
  */
 async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
-  await _click(`${portee} .tcj-signer`);
+  // Jalon R : la liste du vestiaire ; on choisit la case soi-même (« qui sort ? ») en touchant la destination.
+  if (await page.$('#signatureModal:not([hidden]) .pcard:not(.locked) .sig-changer')) await _click('#signatureModal:not([hidden]) .pcard:not(.locked) .sig-changer');
+  else await _click(`${portee} .tcj-signer`);
   await sortirDansAlignement();
 }
 /*
@@ -268,8 +270,8 @@ async function guetterBallottage() {
   ballottage.fait = true;
   const tete = ((await page.textContent('#hubModal .hub-head')) || '').match(/Journée\s+(\d+)/);
   await ouvrir.click();
-  await _wait('#choixModal:not([hidden]) .choix-option', { timeout: 5000 });
-  const qui = ((await page.textContent('#choixModal .choix-option')) || '').replace(/\s+/g, ' ').trim();
+  await _wait('#signatureModal:not([hidden]) .pcard', { timeout: 5000 });
+  const qui = ((await page.textContent('#signatureModal .pcard .pcard-nom')) || '').replace(/\s+/g, ' ').trim();
   await signerPuisSortir();
   await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option', { timeout: 120000 });
   await page.waitForTimeout(350);

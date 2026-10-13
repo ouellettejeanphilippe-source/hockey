@@ -629,7 +629,6 @@ export const MOMENTS = {
   garde: { nom: 'Se garde', ico: '⏳', mot: 'Dans ta poche jusqu\'à ce que tu la joues.' },
   immediat: { nom: 'Jouée immédiatement', ico: '⚡', mot: 'Jouée immédiatement : elle s\'applique dès que tu la reçois.' },
 };
-export const momentDe = id => { const c = BANQUE[id]; return c && (c.rarete === 'maudite' || c.cat === 'saison') ? 'immediat' : 'garde'; };
 
 /*
  * LA RÈGLE EN CHIFFRES d'une carte : des mots \`{ txt, bon }\`, les mêmes que

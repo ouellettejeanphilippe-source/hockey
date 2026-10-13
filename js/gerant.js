@@ -392,8 +392,7 @@ export function ouvrirChoix(spec) {
   if (fermerChoixCourant) fermerChoixCourant(true);
   const { nom, ou, noms, sub } = nommer(spec);
   const clePaquet = `${spec.titre}|${spec.options.map(o => o.cle).join(',')}`;
-  // `sansPaquet` : un paquet déjà déchiré (le pack mixte, Jalon Q) — ses joueurs se signent sans le rouvrir.
-  const pile = spec.genre === 'recompense' && spec.cartes && !spec.lecture && !spec.sansPaquet && spec.options.length > 0 && !PAQUETS_OUVERTS.has(clePaquet);
+  const pile = spec.genre === 'recompense' && spec.cartes && !spec.lecture && spec.options.length > 0 && !PAQUETS_OUVERTS.has(clePaquet);
   const paquet = pile && !mouvementCalme();
   // L'ordre du retournement : la meilleure carte en dernier (l'ordre à l'écran ne bouge pas) ; à rareté égale, le meilleur joueur (`rang`, son niveau, S80).
   const ordre = spec.options.map((o, i) => i).sort((a, b) => (RANG_RARETE[spec.options[a].rarete] || 0) - (RANG_RARETE[spec.options[b].rarete] || 0)
@@ -1112,7 +1111,7 @@ export function ouvrirStrategie(spec, u, groupe, onAppliquer) {
         <button type="button" class="close-btn gl-annuler" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
       </div>
       <div class="choix-corps">${corps}</div>
-      <div class="gl-pied"><button type="button" class="btn gl-annuler">Annuler</button><button type="button" class="btn go gl-appliquer">Appliquer</button></div>
+      <div class="gl-pied"><button type="button" class="btn gl-annuler">Annuler</button><button type="button" class="btn gold gl-appliquer">Appliquer</button></div>
     </div>`;
     m.querySelectorAll('[data-tac]').forEach(b => { b.onclick = () => { brouillon[u].tac = b.dataset.tac; dessiner(); }; });
     m.querySelectorAll('[data-tacd]').forEach(b => { b.onclick = () => { brouillon[u].tacD = b.dataset.tacd; dessiner(); }; });
@@ -1277,6 +1276,16 @@ export function optionDeCarteMatch(cle) {
     texte: C.texte, coin: C.injouable ? '✕' : String(C.cout), mots: motsDeCarteMatch(C), genreCarte: C.genre, dessin: cle,
   };
 }
+/*
+ * UNE CARTE DE LA BANQUE, HORS D'UN CHOIX (Jalon U : un seul dessin). JP : *pas plein de designs différents pour des
+ * fonctions pareilles*. L'inventaire montre la même face qu'un pack ou une main (`carteHtml`) ; `cache` : une carte
+ * qu'on n'a pas encore (sa règle ne se lit pas).
+ */
+export const carteDeBanqueHtml = (o, { cache = false } = {}) => carteHtml({
+  cle: esc(o.cle), rarete: o.rarete, i: 0, ico: o.ico, nomHtml: esc(o.nom), typeHtml: esc(typeAvecForme(o.type || '', formeDe(o))),
+  texteHtml: cache ? 'Pas encore dans ta collection' : o.texte ? `<i class="tc-ambiance">${esc(o.texte)}</i>` : '', coinHtml: o.coin ? esc(o.coin) : '',
+  pucesHtml: cache ? '' : pucesDeFace(o.mots), genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille, statique: true,
+});
 const carteDeMatch = (cle, i, etat, cout = null) => {
   const o = optionDeCarteMatch(cle);
   const coin = cout != null && CARTES_MATCH[cle] && cout < CARTES_MATCH[cle].cout ? `<s>${CARTES_MATCH[cle].cout}</s>${cout}` : esc(o.coin);

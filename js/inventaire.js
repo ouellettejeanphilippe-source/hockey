@@ -20,12 +20,12 @@
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
-import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, ROLES, VIES, MOMENTS, momentDe, reglesDe, carteBanque, idsDe, etiquetteBanque, coachsActifs } from './banque.js';
+import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, MOMENTS, reglesDe, carteBanque, idsDe, etiquetteBanque, coachsActifs } from './banque.js';
 import { COACHS } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
-import { puces, pucesDeFace, optionDeCarteMatch, chiffresOuverts, basculerChiffres } from './gerant.js';
-import { esc, hache, money as M } from './util.js';
+import { puces, optionDeCarteMatch, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
+import { esc, hache, money as M, jaugePlafond } from './util.js';
 
 const $ = id => document.getElementById(id);
 
@@ -126,8 +126,6 @@ export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDe
   return { w, debut, fin, main, taille: pile.length + recues.length, reste: Math.max(0, JOUEES_SEMAINE - nJouees), reglee: decisions.some(d => d && d.palier === `main:${w}`) };
 }
 
-/* Sur qui une carte se joue : ce que dit le coin de la carte (sa famille est déjà en haut). */
-const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue', aucune: 'L\'équipe', malediction: 'Le deck', carteMatch: 'Le deck' };
 /*
  * La valeur de vente rapide d'une carte, en jetons (selon sa rareté). S82 :
  * à 2/5/12/30, une carte valait 4,94 🪙 en moyenne aux cotes 55/30/12/3 des
@@ -139,24 +137,20 @@ const CIBLES = { blesse: 'Un blessé', joueur: 'Un joueur', recrue: 'Une recrue'
 export const VENTE = { commune: 1, peu: 1, rare: 2, legendaire: 5, maudite: 0 };
 export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
 
-/* ---------- la carte de la banque, en petit ---------- */
+/* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa couleur, sa règle. */
+export function optionDeBanque(id, vie = null) {
+  const c = BANQUE[id];
+  if (c.cat === 'match') return optionDeCarteMatch(c.cle);
+  const etiquette = etiquetteBanque(id);
+  return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
+    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
+}
+
+/* ---------- la carte de la banque : la face d'un pack (Jalon U), son compte, ses boutons ---------- */
 function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = null } = {}) {
   const c = carteBanque(id);
   if (!c) return '';
-  const mots = c.cat === 'match' ? optionDeCarteMatch(c.cle).mots : reglesDe(id);
-  const R = RARETES[c.rarete] || { gemme: '◆', nom: c.rarete };
-  const forme = etiquetteBanque(id);
-  const sous = c.cat === 'patron' ? ROLES[c.role].nom : c.cat === 'match' ? `${c.cout} élan` : c.cat === 'evenement' ? `${c.duree} match${c.duree === 1 ? '' : 's'}`
-    : c.cat === 'saison' ? 'Toute la saison' : c.cat === 'joueur' ? 'Un joueur' : (CIBLES[c.cible] || CATEGORIES[c.cat].un);
-  const v = vie || c.vie;
-  return `<div class="bq-carte bq-${c.cat} tc-${c.rarete}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">
-    <div class="bq-tete"><span class="bq-ico" aria-hidden="true">${c.ico}</span><span class="bq-nom">${esc(c.nom)}</span>${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}</div>
-    <div class="bq-sous"><span>${esc(CATEGORIES[c.cat].un)}</span>${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}<span>${esc(sous)}</span></div>
-    ${COACHS[c.coach] ? `<div class="bq-coach" title="${esc(COACHS[c.coach].mot)}">${COACHS[c.coach].ico} ${esc(COACHS[c.coach].nom)}</div>` : '<div class="bq-coach" title="Elle ne compte pour aucun coach">Neutre</div>'}
-    ${possede ? `<div class="bq-regle">${pucesDeFace(mots)}</div><div class="bq-texte">${esc(c.texte || '')}</div>` : '<div class="bq-regle bq-cache">Pas encore dans ta collection</div>'}
-    <div class="bq-pied"><span class="bq-moment moment-${momentDe(id)}" title="${esc(MOMENTS[momentDe(id)].mot)}">${MOMENTS[momentDe(id)].ico} ${esc(MOMENTS[momentDe(id)].nom)}</span><span class="bq-vie vie-${v}" title="${esc(VIES[v] ? VIES[v].mot : '')}">${esc(VIES[v] ? VIES[v].nom : '')}</span><span class="bq-gemme" title="${esc(R.nom)}">${R.gemme}</span></div>
-    ${actions ? `<div class="bq-actions">${actions}</div>` : ''}
-  </div>`;
+  return `<div class="bq-carte bq-${c.cat}${possede ? '' : ' pas-a-moi'}" data-id="${esc(id)}">${carteDeBanqueHtml(optionDeBanque(id, vie), { cache: !possede })}${compte > 1 ? `<span class="bq-compte">×${compte}</span>` : ''}${actions ? `<div class="bq-actions">${actions}</div>` : ''}</div>`;
 }
 
 /* ---------- l'écran ---------- */
@@ -234,11 +228,8 @@ export function ouvrirInventaire(ctx) {
     }
     // LA MASSE SALARIALE (S79) : le plafond effectif, et ce qui le tord — les cartes 💵 jouées, le vestiaire, le DG.
     const P = ctx.plafond;
-    const plafond = P ? `<div class="inv-plafond${P.masse > P.cap ? ' over' : ''}">
-      <div class="inv-pl-tete"><span>💵 Masse salariale</span><b>${M(P.masse)} / ${M(P.cap)}</b></div>
-      <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((P.masse / P.cap) * 100))}%"></i></div>
-      <div class="inv-pl-lignes">${P.lignes.length ? puces(P.lignes.map(l => ({ txt: l.joueur ? l.nom : `${l.nom} ${l.montant > 0 ? '+' : '−'}${M(Math.abs(l.montant))}`, bon: l.joueur ? true : l.montant > 0 }))) : `<span class="inv-pl-rien">Plafond de base : ${M(P.base)}. Les cartes 💵 le tordent.</span>`}</div>
-    </div>` : '';
+    const plafond = P ? `${jaugePlafond({ masse: P.masse, cap: P.cap,
+      mot: P.lignes.length ? puces(P.lignes.map(l => ({ txt: l.joueur ? l.nom : `${l.nom} ${l.montant > 0 ? '+' : '−'}${M(Math.abs(l.montant))}`, bon: l.joueur ? true : l.montant > 0 }))) : `<span class="inv-pl-rien">Plafond de base : ${M(P.base)}. Les cartes 💵 le tordent.</span>` })}` : '';
     m.innerHTML = `<div class="choix-sheet inv-sheet${chiffresOuverts() ? ' chiffres' : ''}" role="dialog" aria-modal="true" aria-label="${esc(ctx.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">🎒</span>

@@ -73,6 +73,15 @@ export const money = n => {
   if (s.includes('.')) s = s.replace(/0+$/, '').replace(/\.$/, '');
   return (n < 0 ? '−' : '') + s.replace('.', ',') + ESPACE_INSECABLE + 'M$';
 };
+/*
+ * LA JAUGE DU PLAFOND (Jalon U : un seul dessin) : un titre, « masse / plafond », la barre, et une ligne dessous
+ * (`mot`, déjà échappé : des puces, une phrase). L'inventaire, la boutique, le départ du classeur, la liste de signature.
+ */
+export const jaugePlafond = ({ titre = '💵 Masse salariale', masse = 0, cap = 1, mot = '' }) => `<div class="inv-plafond${masse > cap ? ' over' : ''}">
+    <div class="inv-pl-tete"><span>${esc(titre)}</span><b>${money(masse)} / ${money(cap)}</b></div>
+    <div class="inv-pl-barre" aria-hidden="true"><i style="width:${Math.min(100, Math.round((masse / Math.max(1, cap)) * 100))}%"></i></div>
+    ${mot ? `<div class="inv-pl-lignes">${mot}</div>` : ''}
+  </div>`;
 
 /** Un nombre de 0 à 1 tiré de mots : la même entrée, le même nombre (le hasard pur des packs, des variantes, du deck). */
 export function hache(...parts) {

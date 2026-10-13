@@ -2680,24 +2680,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sorte === 'effet') { const j = jour, s = soirDuProchain(); quitter(); onCarte(p0, s, arg, j); return; }
     const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour aux trois cartes', onFerme: retour };
     if (sorte === 'recrue') {
-      ouvrirChoix({ ...suite, ico: '🎟', titre: 'Joueur au choix',
-        recit: 'Trois vrais joueurs, style loto. Touche une carte pour sa fiche, « Signer » pour le prendre — puis tu choisis qui lui laisse sa place.',
-        options: recrues.map(x => ({ cle: x.cle, rarete: x.rarete || 'legendaire', nom: x.nom, type: `${x.poste} · ${x.club}`, coin: x.salaire,
-          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', texte: x.ligne, apercu: ctx.apercu ? () => ctx.apercu(x.p) : null })),
-        onChoix: k => {
-          const x = recrues.find(y => y.cle === k);
-          if (!x) return;
-          /*
-           * LA RECRUE ENTRE AUJOURD'HUI (oct.). JP : *la carte qui bugge, celle qui permet d'avoir trois joueurs étoiles
-           * pas dans la ligue*. Datée du soir du prochain match comme les autres cartes de la main, elle n'entrait qu'à
-           * ce soir-là : signé, il n'était pas dans l'effectif, et la photo de l'alignement qu'elle porte (`cases`)
-           * écrasait au passage tout ce qu'on avait changé d'ici là. Elle entre aujourd'hui, comme un pack signé ou
-           * un réclamé du ballottage (`poserAlignementDuJour`).
-           */
-          const decide = ({ i, sort, cases }) => { const j = jour; quitter(); onDecision({ jour, palier: p0, deck: 'recrue', ballottage: { i, entre: x.cle, sort }, ...(cases ? { cases } : {}) }, j); };
-          if (ctx.quiSort) ctx.quiSort(x.p, { roster: you.roster, genre: 'palier', onChoix: decide, onFerme: () => suiteDeLaMain(p0, 'recrue', recrues, roles) });
-          else decide({ i: x.i, sort: x.sort });
-        } });
+      /*
+       * LA RECRUE ENTRE AUJOURD'HUI (oct.). JP : *la carte qui bugge, celle qui permet d'avoir trois joueurs étoiles
+       * pas dans la ligue*. Datée du soir du prochain match comme les autres cartes de la main, elle n'entrait qu'à
+       * ce soir-là : signé, il n'était pas dans l'effectif, et la photo de l'alignement qu'elle porte (`cases`)
+       * écrasait au passage tout ce qu'on avait changé d'ici là. Elle entre aujourd'hui, comme un pack signé ou
+       * un réclamé du ballottage (`poserAlignementDuJour`). Jalon R : la liste du 82-0, chacun à sa meilleure case.
+       */
+      ctx.listeSignature({ ico: '🎟', titre: 'Joueur au choix', motFermer: 'Retour aux trois cartes', genre: 'palier',
+        recit: 'Trois vrais joueurs, style loto. Tu en signes un.',
+        joueurs: recrues.map(x => ({ p: x.p, rar: x.rarete || 'legendaire', x })), roster: you.roster,
+        onSigne: (y, { i, sort, cases }) => { const j = jour; quitter(); onDecision({ jour, palier: p0, deck: 'recrue', ballottage: { i, entre: y.x.cle, sort }, ...(cases ? { cases } : {}) }, j); },
+        onFerme: retour });
       return;
     }
     /*
@@ -2717,14 +2711,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (sorte === 'amelioration') { deciderDeck(p0, { deck: 'amelioration', garde: `joueur:${arg}` }); return; }
     if (sorte === 'profil') {
-      ouvrirChoix({ ...suite, ico: '🔄', titre: 'Nouveau rôle',
+      // Jalon U : les rangées du vestiaire ; la ligne dit le rôle offert, où il joue et ce que ça change.
+      ctx.listeJoueurs({ ico: '🔄', titre: 'Nouveau rôle', motFermer: 'Retour aux trois cartes', motBouton: 'Choisir',
         recit: 'Trois conversions possibles dans ton alignement. Le joueur change de rôle pour de bon : son fit dans chaque système suit.',
         contexte: dejaEnJeu(roles.map(x => x.p)),
-        options: roles.map(x => ({ cle: `${x.cle}|${getPlayerKey(x.p)}`, rarete: 'peu', ico: MUTATIONS[x.cle].ico, nom: MUTATIONS[x.cle].nom,
-          // Où il joue (S80) : « Hal Gill · 3e paire ».
-          type: ctx.ouJoue && ctx.ouJoue(x.p) ? `${x.p.n} · ${ctx.ouJoue(x.p)}` : x.p.n,
-          art: joueurArt(x.p), carteJoueur: ctx.carteMini ? ctx.carteMini(x.p) : '', mutation: x.cle, motChoix: 'Choisir', apercu: ctx.apercu ? () => ctx.apercu(x.p) : null })),
-        onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); } });
+        joueurs: roles.map(x => ({ p: x.p, cle: `${x.cle}|${getPlayerKey(x.p)}`,
+          sous: [`${MUTATIONS[x.cle].ico} ${MUTATIONS[x.cle].nom}`, ctx.ouJoue && ctx.ouJoue(x.p), ...motsDeMutationEnChiffres(x.cle, x.p).slice(0, 2).map(m => m.txt)].filter(Boolean).join(' · ') })),
+        onChoix: k => { const [m, joueur] = k.split('|'); deciderDeck(p0, { deck: 'profil', mutation: { cle: m, joueur } }); },
+        onFerme: retour });
       return;
     }
     if (sorte === 'camp') {
@@ -3463,38 +3457,34 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // LE BALLOTTAGE, en plein écran : trois joueurs en CARTES (S76), ou garder son réserviste.
     const mB = msgs.find(m => m.genre === 'blessure');
     const voirBal = actions.querySelector('.hub-ballottage-ouvrir');
-    const ouvrirBallottage = () => ouvrirChoix({
-      ico: '📋', titre: 'Au ballottage', cartes: true, genre: 'ballottage', fermable: true, motFermer: 'Garder mon alignement',
-      recit: `${alerte.player.n}${ctx.ouJoue && ctx.ouJoue(alerte.player) ? ` (${ctx.ouJoue(alerte.player)})` : ''} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois rappels du club-école : moins bons que lui, ils ont peu joué dans leur saison — de quoi tenir le temps de sa blessure. Touche une carte pour sa fiche, « Signer » pour le réclamer${mB.bal.cout ? ` (${mB.bal.cout} 🪙)` : ''} : il joue sa case, et tu choisis quel réserviste lui laisse sa place. Le plafond compte toujours.`,
-      options: mB.bal.candidats.map(c => ({ cle: c.cle, rarete: c.rarete || 'commune', nom: c.nom, type: `${c.poste || c.pos} · ${c.club}`, coin: c.salaire,
-        art: c.p ? joueurArt(c.p) : '', carteJoueur: c.p && ctx.carteMini ? ctx.carteMini(c.p) : '', texte: c.ligne, apercu: c.p && ctx.apercu ? () => ctx.apercu(c.p) : null })),
-      onChoix: cle => {
-        const c = mB.bal.candidats.find(x => x.cle === cle);
-        // Le rappelé entre en réserve (case `i`) puis échange avec le blessé : il joue sa case, le blessé descend.
-        // Placé par toi (`cases`, l'étape deux de l'échange) ; sinon il prend la case du blessé, qui descend en réserve.
-        const decide = ({ i, sort, cases: placees }) => {
-          let cases = placees;
-          if (!cases && mB.sl && SLOTS[i] && SLOTS[i].scratch && c && c.p && fits(c.p, mB.sl)) {
-            cases = photoAlignement(you.roster);
-            cases[i] = getPlayerKey(alerte.player); cases[mB.sl.i] = cle;
-          }
-          quitter();
-          onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: cle, sort, ...(mB.bal.cout ? { cout: mB.bal.cout } : {}) }, ...(cases ? { cases } : {}) }, jour);
-        };
-        if (c && c.p && ctx.quiSort) ctx.quiSort(c.p, { roster: you.roster, genre: 'ballottage', onChoix: decide, onFerme: ouvrirBallottage });
-        else decide({ i: mB.bal.i, sort: mB.bal.sort });
-      },
+    // Le rappelé entre en réserve (case `i`) puis échange avec le blessé : il joue sa case, le blessé descend.
+    // Placé par toi (`cases`, l'étape deux de l'échange) ; sinon il prend la case du blessé, qui descend en réserve.
+    const decideBal = (c, { i, sort, cases: placees }) => {
+      let cases = placees;
+      if (!cases && mB.sl && SLOTS[i] && SLOTS[i].scratch && c && c.p && fits(c.p, mB.sl)) {
+        cases = photoAlignement(you.roster);
+        cases[i] = getPlayerKey(alerte.player); cases[mB.sl.i] = c.cle;
+      }
+      quitter();
+      onDecision({ jour, palier: mB.palierB, ballottage: { i, entre: c.cle, sort, ...(mB.bal.cout ? { cout: mB.bal.cout } : {}) }, ...(cases ? { cases } : {}) }, jour);
+    };
+    // LA LISTE DU 82-0 (Jalon R) : les rappels en rangées ; chacun dit où il va (la case du blessé) et qui sort de la réserve.
+    const ouvrirBallottage = () => ctx.listeSignature({
+      ico: '📋', titre: 'Au ballottage', motFermer: 'Garder mon alignement', genre: 'ballottage',
+      recit: `${alerte.player.n} est absent ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Trois rappels, moins bons que lui${mB.bal.cout ? ` (${mB.bal.cout} 🪙)` : ''}. Le plafond compte toujours.`,
+      joueurs: mB.bal.candidats.filter(c => c.p).map(c => ({ p: c.p, rar: c.rarete || 'commune', c })),
+      roster: you.roster,
+      destination: x => ({ sortie: { i: mB.bal.i, sort: mB.bal.sort },
+        mot: `${mB.sl && fits(x.p, mB.sl) ? `${ctx.slotShort ? ctx.slotShort(mB.sl) : 'sa case'}, à la place de ${alerte.player.n} (blessé)` : 'en réserve'}${mB.bal.sortNom ? ` · ${mB.bal.sortNom} sort` : ''}` }),
+      onSigne: (x, sortie) => decideBal(x.c, sortie),
     });
     if (voirBal && mB && mB.bal) voirBal.onclick = ouvrirBallottage;
     const monter = actions.querySelector('.hub-alerte-reserve');
-    if (monter && mB && mB.sl) monter.onclick = () => ouvrirChoix({
-      ico: '🪑', titre: 'Qui monte ?', compact: true, fermable: true, motFermer: 'Retour', genre: 'ballottage',
+    // Jalon U : les rangées du vestiaire, comme toute liste de joueurs.
+    if (monter && mB && mB.sl) monter.onclick = () => ctx.listeJoueurs({
+      ico: '🪑', titre: 'Qui monte ?', motFermer: 'Retour', motBouton: 'Il monte',
       recit: `${alerte.player.n} descend en réserve pour ${restantDe(alerte)} match${restantDe(alerte) > 1 ? 's' : ''}. Qui prend sa case (${ctx.slotShort ? ctx.slotShort(mB.sl) : mB.sl.role}) ?`,
-      options: mB.reserves.map(r => {
-        const pen = getPositionPenalty(r.p, mB.sl);
-        return { cle: String(r.sl.i), ico: '🪑', nom: r.p.n, sous: ctx.quiEst ? ctx.quiEst(r.p, { stats: false }) : r.p.p,
-          mots: [{ txt: pen > 0 ? '↔ Hors de sa position' : 'À sa position', bon: pen > 0 ? false : true }] };
-      }),
+      joueurs: mB.reserves.map(r => ({ p: r.p, cle: String(r.sl.i), sous: getPositionPenalty(r.p, mB.sl) > 0 ? '↔ Hors de sa position' : 'À sa position' })),
       onChoix: k => { const j = jour; quitter(); onDecision({ jour, palier: mB.palierB, cases: echange(mB.sl.i, Number(k)) }, j); },
     });
     /*

@@ -18,7 +18,7 @@ import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
-import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
+import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
 import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs, ouvrirPackDeSerie } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
@@ -783,6 +783,8 @@ function ouvrirEcranSaison(depuis = 0) {
         // S79 : toute signature de la saison (ballottage, recrue) respecte le plafond effectif, et dit ce que libère chaque sortie.
         // S80 : une case de réserve libre (Rogue) s'offre d'abord — personne ne sort.
         quiSort: (p, o) => quiSortOuCaseLibre(p, { bloque: q => bloqueParLePlafond(p, q), ...o }),
+        listeSignature: o => ouvrirListeSignature({ bloque: bloqueParLePlafond, ...o }),
+        listeJoueurs: ouvrirListeJoueurs,
         // LE MODE ROGUE (S77) : la run, pour le Club — rien de la boutique (elle est au Marché).
         rogue: G.bonus === 'ROGUE' ? {
           // S80 : la saison de la run, le mandat du proprio, et celui d'après ; le barème de la run, tel que `jetonsRogue`
