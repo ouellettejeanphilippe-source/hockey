@@ -664,7 +664,7 @@ function autresButins(deck, prendre, retour) {
 const PRESSE = new Set(['choix', 'pack', 'blessure', 'trou']);
 /* Les accès de la carte de la semaine (V5) : ce qu'un roguelike garde à un toucher de sa carte. La boutique n'y est
    pas (JP : *rien de la boutique dans le Club*) : elle est au Marché, à un toucher de la barre, ouverte en tout temps. */
-const NOEUD_ACCES = [['deck', '🃏', 'Le deck'], ['cartes', '🎒', 'Tes cartes'], ['banc', '📋', 'L\'alignement']];
+const NOEUD_ACCES = [['deck', '🃏', 'Le deck'], ['cartes', '🎒', 'Tes cartes'], ['banc', '🏒', 'Les lignes']];
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, onTrou = null, trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
@@ -1973,6 +1973,27 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return lignes.slice(0, 2);
   }
 
+  // Le but gagnant : celui qui a mis le vainqueur devant pour de bon (la règle de ceQuiADecide).
+  const butGagnant = m => {
+    const f = m.feuille, c = m.gfA > m.gfB ? 'A' : 'B';
+    return f ? f.buts.slice().sort((x, y) => x.instant - y.instant).filter(b => b.cote === c)[c === 'A' ? m.gfB : m.gfA] || null : null;
+  };
+  const panelDuSoir = () => {
+    const seq = sequenceDe(you);
+    return panelDe({ eq: ctx.teamShort(you), jour, nbJours: calendrier.length, sequence: seq === '—' ? undefined : seq, rang: rangDe(you), nbEquipes: teams.length }, `${graine}|${jour}`);
+  };
+  /*
+   * AUTOUR DE LA LIGUE, HIER SOIR (JP : *limiter d'avoir à chercher*). Le rival au classement, la séquence de ton
+   * prochain adversaire, la tienne, puis la voix du panel : avant, ces lignes ne vivaient que les trois secondes du
+   * passage, par-dessus l'affiche. Elles restent au Bureau, sous le résultat, jusqu'à la journée suivante.
+   */
+  const autourHtml = () => {
+    const lignes = uneDuJour().map(x => ctx.esc(x));
+    const r = panelDuSoir().repliques[0];
+    if (r) lignes.push(`<span class="hub-une-voix">${ctx.esc(r.nom)}, ${ctx.esc(r.titre.toLowerCase())} : « ${ctx.esc(r.t)} »</span>`);
+    return lignes.length ? `<div class="hub-autour"><span class="hub-une-t">Autour de la ligue</span>${lignes.map(x => `<p>${x}</p>`).join('')}</div>` : '';
+  };
+
   function passage(avant) {
     document.querySelector('.passage')?.remove();
     if (jour <= avant.jour) return;
@@ -1986,9 +2007,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (un) {
       const { m } = un, v = gagne(m, you);
       const eq = (t, buts) => `<span class="passage-eq" style="${bande(t)}">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span><b>${buts}</b></span>`;
-      // Le but gagnant : celui qui a mis le vainqueur devant pour de bon (la règle de ceQuiADecide).
-      const f = m.feuille, c = m.gfA > m.gfB ? 'A' : 'B';
-      const but = f ? f.buts.slice().sort((x, y) => x.instant - y.instant).filter(b => b.cote === c)[c === 'A' ? m.gfB : m.gfA] : null;
+      const but = butGagnant(m);
       const bouge = avant.rang - rangDe(you);
       corps = `<div class="passage-match">${eq(m.A, m.gfA)}<i>${m.ot ? 'P' : '–'}</i>${eq(m.B, m.gfB)}</div>
         <div class="passage-tampon ${v ? 'v' : 'd'}">${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</div>
@@ -2004,11 +2023,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
       corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
     }
-    const seq = sequenceDe(you);
-    const panel = panelDe({ eq: ctx.teamShort(you), jour, nbJours: calendrier.length, sequence: seq === '—' ? undefined : seq, rang: rangDe(you), nbEquipes: teams.length }, `${graine}|${jour}`);
-    const une = uneDuJour();
-    if (panel.repliques[0]) une.push(`${panel.repliques[0].nom}, ${panel.repliques[0].titre} : ${panel.repliques[0].t}`);
-    if (une.length) corps += `<ul class="passage-une">${une.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul>`;
+    const panel = panelDuSoir();
     // Le fil des autres résultats du soir, deux fois de suite pour qu'il défile sans couture.
     const autres = matchs.filter(m => m.A !== you && m.B !== you)
       .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('') + panel.manchettes.map(x => `<span class="passage-score">${ctx.esc(x)}</span>`).join('');
@@ -2082,7 +2097,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * buts. Il dit le résultat, et le toucher rouvre le sommaire.
    */
   const resultatHier = ({ j, k, m }) => {
-    const v = gagne(m, you);
+    const v = gagne(m, you), but = butGagnant(m);
     const eq = (t, buts) => `<span class="hub-hier-eq${t === you ? ' toi' : ''}">${ctx.logo(t.tag, 18)}<b>${ctx.esc(ctx.tagCourt(t))}</b><em>${buts}</em></span>`;
     const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
     // Le résultat neuf, lu au bureau plutôt qu'en plein écran (J2-8) : il s'anime une fois.
@@ -2092,6 +2107,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       <span class="hub-hier-quand">Journée ${j + 1} · <b>${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</b></span>
       <span class="hub-hier-score">${eq(m.A, m.gfA)}<i>–</i>${eq(m.B, m.gfB)}${m.ot ? '<small>P</small>' : ''}</span>
       ${m.feuille ? '<span class="hub-hier-voir">Sommaire ›</span>' : ''}
+      ${but && but.marqueur ? `<span class="hub-hier-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</span>` : ''}
     </div>`;
   };
   // LES RÉSULTATS DE LA JOURNÉE (S79) : ils font le classement, donc ils vivent avec lui.
@@ -2273,7 +2289,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mien = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) + drameHtml(matchs[k]) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : '';   // un congé hier (le vrai calendrier en a un sur deux) : rien à dire, l'affiche dit quand vient le match
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
     const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour ${mbHier.duree || SONNE.duree} matchs${mbHier.raison === 'nemesis' ? cicatriceMot('doute') : ''}`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
-    return `${uneHtml()}${mbMot}${mien}${portailHtml()}`;
+    // HIER SOIR, EN UN BLOC (JP : *narration, limiter d'avoir à chercher*) : le résultat et son but gagnant, le drame, le
+    // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
+    return `<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };
 
   /*
@@ -2503,7 +2521,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return `<div class="hub-jeu${v ? ' v' : ' d'}"${somm}><span class="hub-jeu-n">J${j + 1}</span><span class="hub-jeu-res">${v ? 'V' : m.ot ? 'DP' : 'D'}</span><span class="hub-jeu-score">${pour}–${contre}</span>${ctx.logo(adv.tag, 15)}<span class="hub-jeu-adv">${ctx.esc(ctx.teamLabel(adv))}</span>${m.ot ? '<em>P</em>' : ''}</div>`;
     }).join('');
     const f = fiche.get(you);
-    return `${styleHtml()}${routeFiche()}${calendrierFiche()}${recitHtml()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
+    return `${styleHtml()}${routeFiche()}${recitHtml()}${calendrierFiche()}<div class="hub-titre">Tes ${miens.length} matchs · ${f.W}-${f.L}-${f.OTL} · ${f.GF} BP · ${f.GA} BC${sequence() ? ` · séquence ${sequence()}` : ''}</div><div class="hub-jeux">${lignes}</div>`;
   };
 
   /*
@@ -2737,7 +2755,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     /*
      * S79 : les cinq tuiles répétaient ce que l'en-tête, l'affiche et les
      * onglets disent déjà (la fiche trois fois, le rang deux fois, le deck qui
-     * est dans « Mes cartes »). Il reste ce qui n'a pas d'autre place : ce que
+     * est dans « Tes cartes »). Il reste ce qui n'a pas d'autre place : ce que
      * le proprio attend, et qui manque. Rien quand il n'y a rien.
      */
     const lignes = [];

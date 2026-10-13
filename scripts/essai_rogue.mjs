@@ -84,14 +84,10 @@ const verifClubSansBoutique = async etape => {
   });
   if (r.mots.length || r.tuiles) erreurs.push(`${etape} : le Club parle de boutique (${r.mots.join(', ')}) ou en rend (${r.tuiles})`);
 };
+// Tes cartes et la boutique sont chacune un sous-onglet des Cartes (« Tes cartes », « Boutique ») : un toucher, sans liste.
 const versMarche = async quoi => {
-  await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
-  await page.waitForTimeout(150);
-  // La page ouverte reste ouverte au Marché (un achat la rouvre) : déjà là, ou on revient à la liste d'abord.
-  if (await page.$(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`)) return;
-  if (await page.$('#pageMarcheCorps .hub-page-retour')) await page.click('#pageMarcheCorps .hub-page-retour');
-  await page.waitForSelector(`#pageMarcheCorps [data-marche="${quoi}"]`, { timeout: 10000 });
-  await page.click(`#pageMarcheCorps [data-marche="${quoi}"]`);
+  await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click(`#sousNav .soustab[data-page="${quoi === 'cartes' ? 'poche' : 'marche'}"]`, { timeout: 3000 }).catch(() => {}));
+  await page.waitForSelector(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`, { timeout: 10000 });
 };
 const erreurs = [];
 const CLUBS_LISTE = RAYONS_CLUB.find(R => R.cle === 'club').liste;
@@ -111,7 +107,9 @@ await page.addInitScript(cartes => {
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, i === 1 ? { v: { commune: 3 }, n: 3 } : { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
   // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
+  // « Une caisse de départ » (+20 jetons) : les Harfangs puis le Pack Argent s'achètent quel que soit le tirage de la saison
+  // (sans elle, une caisse de 22 ou 36 jetons laissait l'essai en panne de jetons devant le Pack Argent : une loterie).
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -130,7 +128,7 @@ await choix();
  * donc quatre), un à prendre — sa confiance I est allumée dès le premier soir (une décision du jour 0) —, et
  * les deux patrons imposés de la run, nommés sur le même écran.
  */
-const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1'], jalons: {} })].coachs;
+const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1'], jalons: {} })].coachs;
 await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
@@ -447,8 +445,8 @@ for (let i = 0; i < 5; i++) {
   await prochaineDecision();
 }
 await regler();
-await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(200);
-const avant = (await page.textContent('#pageMarcheCorps [data-marche="boutique"]')).replace(/\s+/g, ' ').trim();
+await versMarche('boutique'); await page.waitForTimeout(200);
+const avant = (await page.textContent('#pageMarcheCorps .hub-page[data-genre="boutique"] .choix-irl')).replace(/\s+/g, ' ').trim();
 await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(200);
 const jauge = async () => (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`6. au hub : la boutique dit « ${avant} » · barre : ${await jauge()}`);
@@ -500,7 +498,7 @@ const acheter = async (pack, capture) => {
   if (capture) await page.screenshot({ path: `${DOSSIER}/${capture}.png` });
   const ok = await page.$('#pageMarche .hub-page[data-genre="boutique"] .pk-acheter:not([disabled])');
   // Pas assez de jetons : la fiche du pack se referme d'abord (« Retour »), puis la boutique — la fiche couvre le ✕.
-  if (!ok) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour'); await page.click('#pageMarche .hub-page-retour'); return false; }
+  if (!ok) { await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour'); return false; }
   await ok.click();
   await dechirer();
   return true;
@@ -529,9 +527,9 @@ else {
   // Jalon P2 : la boutique vend sept packs, tous mixtes.
   if (nTout !== 7) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 7`);
   if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
-  // Échap ferme la boutique (1.0, R5) ; on la rouvre pour continuer comme avant.
+  // Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
-  if (await page.$('#pageMarche .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
+  if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"]')) erreurs.push('Échap ne ferme pas la boutique');
   await versMarche('boutique'); await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 }
 /*
@@ -564,7 +562,6 @@ else {
   console.log(`7c. ton club à la boutique : les Harfangs · ${avantJ} → ${apresJ} 🪙 · porté : ${mc.club} · en-tête « ${tete} »`);
   if (mc.club !== 'harfangs' || tete !== 'Harfangs' || apresJ !== avantJ - PRIX_HARFANGS) erreurs.push(`les Harfangs achetés à la boutique (${avantJ} → ${apresJ} 🪙, méta ${mc.club}, en-tête « ${tete} »)`);
 }
-await page.click('#pageMarche .hub-page-retour');
 /*
  * S80 : LE JOUEUR D'UNE CARTE. La fiche d'un pack par niveau dit ses chances
  * de joueur par pack (★ Étoile ou mieux, ★ Phénomène) et le niveau d'une
@@ -591,7 +588,6 @@ await page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche-carte',
 console.log(`3b. la fiche du Pack Bronze : ${fiche3.chances.join(' · ')} · ${fiche3.niveaux.join(' · ')}`);
 if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !== 5 || !fiche3.chances.some(x => /Phénomène/.test(x))) erreurs.push(`la fiche du pack ne dit pas le joueur d'une carte : ${JSON.stringify(fiche3)}`);
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
-await page.click('#pageMarche .hub-page-retour');
 await acheter('j:argent', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 // Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer).
@@ -858,7 +854,8 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     const d = (await decisions()).slice(n0).find(x => x.ballottage);
     const cartable = await page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
     console.log(`10d. le rappel du club-école : ${offres} cartes offertes · ${d ? `${d.ballottage.entre} entre, ${d.ballottage.sort || 'case libre'} sort` : '(rien signé)'}`);
-    if (offres !== 3) erreurs.push(`le rappel offre ${offres} cartes au lieu de trois`);
+    // Trois au plus : seulement les cartes qui tiennent sous le plafond, Pilier au plus (`offresDuCartable`) — le tirage en laisse parfois moins.
+    if (offres < 1 || offres > 3) erreurs.push(`le rappel offre ${offres} cartes (d'une à trois)`);
     if (!d) erreurs.push('le rappel du club-école ne signe personne');
     else if (!cartable.includes(d.ballottage.entre)) erreurs.push('le joueur rappelé ne vient pas du cartable');
   }
@@ -929,7 +926,7 @@ for (; essais < 5 && !jouee; essais++) {
   // REVENIR OÙ L'ON ÉTAIT (1.0, oct.) : une carte jouée rouvre « Tes cartes », pas le bureau.
   if (jouee && !(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) erreurs.push('une carte jouée ramène au bureau au lieu de « Tes cartes », au Marché');
 }
-if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')) await page.click('#pageMarche .hub-page-retour');
+if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')) await page.click('#navbar .navtab[data-section="bureau"]');
 d = await decisions();
 console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
 // Une modif posée au verso (7a) est déjà une carte jouée : le Rogue paie moins (S80), et l'inventaire

@@ -112,11 +112,8 @@ async function regler(max = 40) {
 }
 const club = async () => { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(300); const mt = await page.$('#sousNav .soustab[data-page="match"]'); if (mt && await mt.isVisible()) { await mt.click({ timeout: 3000 }).catch(() => {}); await page.waitForTimeout(200); } };
 const versBoutique = async () => {
+  // La boutique est un sous-onglet des Cartes : un toucher, sans liste.
   await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(300);
-  if (!(await page.$('#pageMarcheCorps .hub-page[data-genre="boutique"]'))) {
-    if (await page.$('#pageMarcheCorps .hub-page-retour')) { await page.click('#pageMarcheCorps .hub-page-retour'); await page.waitForTimeout(200); }
-    await page.click('#pageMarcheCorps [data-marche="boutique"]');
-  }
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 };
 // Signe dans la fenêtre d'offre ouverte ; rend la clé signée.

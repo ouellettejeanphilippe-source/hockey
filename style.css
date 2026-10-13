@@ -1485,24 +1485,11 @@ a.spin-club:hover { background: var(--fond-2); }
   .sig-liste > .aln-titre { margin: 0; padding: var(--esp-3) var(--esp-4) var(--esp-1); background: var(--noir); }
 }
 
-/* ---- La page Marché : des tuiles plates, une icône au trait, un mot, une phrase ---- */
-.marche { display: grid; gap: var(--esp-3); grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); }
-.marche-tuile {
-  display: flex; align-items: center; gap: var(--esp-4); min-height: 88px; padding: var(--esp-4); text-align: left;
-  color: var(--encre); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2);
-  transition: border-color var(--t-vite), transform var(--t-vite);
-}
-button.marche-tuile:hover { border-color: var(--or); }
-button.marche-tuile:active { transform: scale(0.98); }
-.marche-tuile.off { opacity: 0.55; }
-/* Un joueur à signer (un pack ouvert, personne de signé) : en tête du Marché, pleine largeur. */
+/* ---- Tes cartes et la boutique (les pages du Marché) : un joueur à signer (un pack ouvert, personne de signé) en tête, pleine largeur ---- */
 .marche-signature .btn { width: 100%; min-height: 48px; }
 .page-corps > .marche-signature { padding-bottom: var(--esp-3); }
-.hub-page > .marche-signature { padding: var(--esp-3) var(--esp-3) 0; }
-.marche-ico { flex: none; font-size: var(--t-5); line-height: 1; color: var(--or); }
-.marche-txt { display: grid; gap: var(--esp-1); min-width: 0; }
-.marche-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.marche-txt small { font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
+/* La page elle-même porte déjà sa marge (`.page-corps`) : son corps ne la redouble pas. */
+.page-corps > .hub-page > .hub-page-corps { padding: 0; }
 /* =====================================================================
    4b. LE CARTON DE COLLECTION (gardé tel quel) ET LA FICHE DU JOUEUR
    =====================================================================
@@ -2869,6 +2856,13 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-gros-note, .hub-gros-detail { font-size: var(--t-1); line-height: 1.4; margin-top: var(--esp-1); color: var(--encre-2); }
 .hub-gros-dep { display: flex; flex-direction: column; gap: var(--esp-2); }
 .hub-gros .choix-puces { margin-top: var(--esp-1); }
+/* Hier soir, en un bloc (js/saison.js `voletJourneeSeul`) : le résultat, son but gagnant, le drame, la une, autour de la ligue. */
+.hub-soir { display: flex; flex-direction: column; gap: var(--esp-2); }
+.hub-soir:empty { display: none; }
+.hub-soir > .hub-une, .hub-soir > .hub-miniboss { margin: 0; }
+.hub-autour { display: grid; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--filet); font-size: var(--t-2); line-height: 1.4; color: var(--encre); }
+.hub-autour .hub-une-t { color: var(--encre-3); }
+.hub-autour p { margin: 0; }
 .hub-une { display: grid; gap: var(--esp-1); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .hub-une-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
 .hub-une-but { color: var(--encre-2); font-style: italic; }
@@ -3025,7 +3019,9 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
   position: fixed; z-index: 85; left: var(--rail-w); right: 0; top: var(--topbar-h); bottom: var(--bas-coquille);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-4);
   padding: var(--esp-4); overflow: hidden; pointer-events: none;
-  background: radial-gradient(70% 50% at 50% 45%, color-mix(in srgb, var(--noir) 82%, transparent), color-mix(in srgb, var(--noir) 35%, transparent) 75%, transparent);
+  /* Un voile presque opaque : l'affiche dessous ne se lit pas à travers le pointage (ce qu'il raconte reste au Bureau, « Hier soir »). */
+  background: radial-gradient(70% 50% at 50% 45%, color-mix(in srgb, var(--noir) 96%, transparent), color-mix(in srgb, var(--noir) 88%, transparent) 80%);
+  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
   animation: passage-vie 3.2s var(--e-sortie) forwards;
 }
 @keyframes passage-vie { 0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
@@ -3057,9 +3053,6 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .passage-rang .prix { color: var(--mauvais); }
 @keyframes passage-monte { from { opacity: 0; transform: translateY(10px); } }
 /* La une du jour : deux nouvelles au plus, chacune sur son filet du club. */
-.passage-une { display: flex; flex-direction: column; gap: var(--esp-1); width: 100%; margin: var(--esp-2) 0 0; padding: 0; list-style: none; }
-.passage-une li { padding: var(--esp-1) var(--esp-3); border-left: 3px solid var(--club-vif); background: color-mix(in srgb, var(--noir) 70%, transparent); font-size: var(--t-2); line-height: 1.35; text-align: left; color: var(--encre); animation: passage-monte 400ms var(--e-sortie) 1050ms backwards; }
-.passage-une li + li { animation-delay: 1200ms; }
 /* Le fil des autres résultats : un bandeau du bas qui défile, comme à la télé. */
 .passage-fil { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; padding: var(--esp-2) 0; background: color-mix(in srgb, var(--noir) 88%, transparent); border-top: 2px solid var(--club-vif); }
 .passage-defile { display: flex; gap: var(--esp-5); width: max-content; animation: passage-fil 9s linear; }
@@ -3089,6 +3082,7 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-hier-eq b { font-size: var(--t-3); letter-spacing: 0.04em; }
 .hub-hier-eq em { font-style: normal; }
 .hub-hier-eq.toi b { color: var(--or); }
+.hub-hier-recit { flex: 1 1 100%; font-size: var(--t-2); line-height: 1.4; font-style: italic; color: var(--encre-2); }
 .hub-hier-voir { margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--or); }
 .hub-etat { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .hub-etat-l { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); min-width: 0; font-size: var(--t-2); }
