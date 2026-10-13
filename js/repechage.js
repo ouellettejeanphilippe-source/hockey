@@ -364,9 +364,10 @@ export function rangeesAlignement(roster, etat, libre = null) {
     const q = roster && roster[sl.i];
     // Une case vide qu'on peut prendre (`libre`, la réserve libre du Rogue) se touche comme un joueur.
     const offerte = !q && libre ? libre(sl) : null;
-    if (offerte) return { cle: String(sl.i), visage: '', nom: 'Case libre', nomLong: 'Case libre', pos: sl.scratch ? 'Réserve' : sl.role, ...offerte };
+    if (offerte) return { cle: String(sl.i), nom: 'Case libre', pos: sl.scratch ? 'Réserve' : sl.role, ...offerte };
     if (!q) return { cle: String(sl.i), vide: true, pos: sl.scratch ? '' : sl.role };
-    return { cle: String(sl.i), visage: headshotHtml(q), nom: nomCourt(q.n), nomLong: q.n, pos: positionLabel(q), ...(etat(sl, q) || {}) };
+    const rar = rareteJoueur(q) || 'commune';
+    return { cle: String(sl.i), p: q, rar, rangee: (dest, bouton) => rangeeHtml(q, { rar, salaire: capHitDuJour(q), dest, bouton }), nom: nomCourt(q.n), pos: positionLabel(q), ...(etat(sl, q) || {}) };
   }) });
   return [
     ...UNIT_NAMES_F.map((t, u) => rangee(t, SLOTS.filter(s => s.group === 'F' && s.unit === u && !s.scratch))),
@@ -418,12 +419,12 @@ function colonneEchange(q, mot, sl = null) {
  * `{ i, sort }` — et `cases` quand il ne prend pas la case du sortant.
  */
 /*
- * QUI SORT, DANS L'ALIGNEMENT (1.0, oct.). JP : *le « qui sort » devrait être un alignement avec des mini
- * cartes, comme la fenêtre d'après : ça aiderait à se retrouver*. C'était une liste de vingt-trois rangées
- * de texte ; c'est maintenant l'alignement lui-même, comme « Où joue X ? » : chaque case dit ce que sa sortie
- * change à la masse, une case grisée dit pourquoi, et toucher un joueur le met côte à côte avec l'arrivant
- * (sa fiche à ce jour, la masse) avant « Continuer ». La case de réserve libre du Rogue y est une case
- * comme les autres (« personne ne sort ») : l'écran « X arrive : où ? » d'avant n'a plus de raison d'être.
+ * QUI SORT, EN LISTE (Jalon U). JP, 13 oct. : *quand on signe, choisir qui est remplacé avec un menu similaire à celui
+ * pour signer le joueur*. Avant, l'alignement en petites cases (S80) ; maintenant les rangées de la liste de signature
+ * (`rangeeHtml`) : visage, salaire, chiffre clé, rôle ; sa ligne, ce que sa sortie change à la masse et par match ;
+ * « Sort ». Ceux de son poste d'abord, le meilleur échange en tête ; un joueur qui ne peut pas sortir reste grisé avec
+ * sa raison. L'arrivant est en tête (sa fiche à ce jour). La case de réserve libre du Rogue est un bouton au-dessus
+ * (« personne ne sort »). Puis « Où joue X ? » : l'alignement, l'étape deux.
  */
 /*
  * CE QUE CHAQUE CASE CHANGE (V7) : l'alignement avec l'arrivant posé là (et ceux qui glissent), contre celui en
@@ -465,44 +466,43 @@ function choisirQuiSort(p, o) {
   const placable = (A, B) => fits(p, B) && !!quiGlisse(roster, A, B, caseOuverte);
   const placesDe = A => SLOTS.filter(B => caseOuverte(B) && placable(A, B));
   const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !roster[sl.i] && fits(p, sl)) : null;
-  const rangees = rangeesAlignement(roster, (A, q) => ({
-    non: (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`),
-    note: `masse ${signe(masseDe(q))}`,
-    sous: badgeCourt(q),
-  }), libre ? sl => (sl.i === libre.i ? { non: bloque ? bloque(null) : '', note: 'personne ne sort' } : null) : null);
   // Le net de chaque sortie : l'arrivant à sa meilleure case, celle du sortant libérée (au plus quelques lectures par case).
-  const nets = new Map();
-  for (const r of rangees) for (const c of r.cases) {
-    if (c.vide || c.non) continue;
-    const A = SLOTS[Number(c.cle)];
+  const netDe = A => {
     const options = fits(p, A) ? [[[A.i, p]]] : placesDe(A).slice(0, 3).map(B => { const g = quiGlisse(roster, A, B, caseOuverte) || []; return [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]; });
     const vals = options.map(m => netDuRoster(roster, m)).filter(Boolean);
-    nets.set(c.cle, vals.length ? vals.reduce((a, b) => (valeurDeCase(b) > valeurDeCase(a) ? b : a)) : null);
-  }
-  marquerMeilleure(rangees, nets);
-  ouvrirAlignement({
-    ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour', motConfirmer: 'Continuer',
-    aide: 'Touche un joueur.',
-    contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
-    // Le comparatif complet, dès qu'un joueur est touché : le sortant et l'arrivant côte à côte, et ce que ça change.
-    contexteDe: k => {
-      const A = SLOTS[Number(k)], q = A && roster[A.i];
-      if (!q) return '';
-      const x = nets.get(k);
-      return `<div class="ech-arrive"><span class="ech">${colonneEchange(q, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span><span class="ech-bilan">masse ${esc(signe(masseDe(q)))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} par match</b>` : ''}</span></div>`;
-    },
-    rangees,
-    barre: k => {
-      const A = SLOTS[Number(k)];
-      if (!A) return '';
-      const q = roster[A.i];
-      if (!q) return `<span class="ech-bilan"><b>Case libre</b> : réserve · personne ne sort · masse ${esc(signe(masseDe(null)))}</span>`;
-      const x = nets.get(k);
-      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> sort : ${esc(ligneDe(A))} · ${esc(ficheCourte(q))} · masse ${esc(signe(masseDe(q)))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} par match</b>` : ''}</span>`;
-    },
-    onChoix: k => { const A = SLOTS[Number(k)]; if (A && (roster[A.i] || (libre && A.i === libre.i))) placerArrivant(p, o, A, () => choisirQuiSort(p, o)); },
-    onFerme,
+    return vals.length ? vals.reduce((x, y) => (valeurDeCase(y) > valeurDeCase(x) ? y : x)) : null;
+  };
+  const sorties = SLOTS.filter(A => roster[A.i]).map(A => {
+    const q = roster[A.i];
+    const non = (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`);
+    return { A, q, non, net: non ? null : netDe(A) };
   });
+  // Ceux qui peuvent sortir d'abord, ceux de son poste devant, puis ce que sa sortie rend par match.
+  sorties.sort((x, y) => !!x.non - !!y.non || (groupeDe(y.q) === groupeDe(p)) - (groupeDe(x.q) === groupeDe(p)) || valeurDeCase(y.net) - valeurDeCase(x.net));
+  let fermer = () => {};
+  const choisir = A => { fermer(); placerArrivant(p, o, A, () => choisirQuiSort(p, o)); };
+  const rangees = sorties.map(({ A, q, non, net }) => {
+    const el = document.createElement('div');
+    const rar = rareteJoueur(q) || 'commune';
+    el.className = `pcard tc-${rar}${non ? ' locked' : ''}`;
+    el.dataset.cle = getPlayerKey(q);
+    el.setAttribute('style', varsEquipe(q));
+    const stats = net ? motsDeStats(net, 2) : [];
+    const dest = non ? `<span class="dest-bad">${esc(non)}</span>`
+      : `<span class="dest-target">${esc(ligneDe(A))}</span> · masse ${esc(signe(masseDe(q)))}${stats.length ? ` · ${stats.map(x => `<span class="${x.bon === true ? 'dest-ok' : x.bon === false ? 'dest-bad' : ''}">${esc(x.txt)}</span>`).join(', ')}` : ''}`;
+    el.innerHTML = rangeeHtml(q, { rar, salaire: capHitDuJour(q), dest: `<div class="pcard-dest">${dest}</div>`,
+      bouton: `<button type="button" class="btn-sign sig-sort"${non ? ' disabled' : ''}>Sort</button>` });
+    el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(q); };
+    if (!non) el.querySelector('.sig-sort').onclick = ev => { ev.stopPropagation(); choisir(A); };
+    return el;
+  });
+  const libreNon = libre && bloque ? bloque(null) : '';
+  fermer = feuilleDeJoueurs({ modal: 'choixModal', ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour',
+    contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
+    haut: libre ? `<button type="button" class="btn sig-libre"${libreNon ? ` disabled title="${esc(libreNon)}"` : ''}>Personne ne sort · la réserve libre · masse ${esc(signe(masseDe(null)))}</button>` : '',
+    rangees, onFerme });
+  const bl = $('choixModal').querySelector('.sig-libre');
+  if (bl && !libreNon) bl.onclick = () => choisir(libre);
 }
 /*
  * QUI ENTRE DANS UNE UNITÉ SPÉCIALE (V7). JP : *pourquoi le remplacement, c'est pas la même chose que quand on
@@ -510,7 +510,7 @@ function choisirQuiSort(p, o) {
  * lignes, chaque joueur qui peut entrer avec ce que son entrée change à l'unité, en vraies stats (le meilleur
  * cerclé d'or), le sortant en tête, la barre qui dit tout, et « Confirmer ».
  *   o : { roster, sortant, unite ('AN 1'), joue(q) → '' ou la raison qu'il ne peut pas, sous(q), ecart(q) → stats de
- *         l'unité (`dans` : « en AN 1 »), avantApres(q) → html (l'unité avant → après, en tête),
+ *         l'unité (`dans` : « en AN 1 »), avantApres(q) → html (l'unité avant → après, sur sa ligne),
  *         ou(q) → 'AN 2' s'il est déjà dans la situation (il échange sa case), onChoix(q), onFerme }
  */
 export function choisirSpeciale(o) {
@@ -524,22 +524,14 @@ export function choisirSpeciale(o) {
   for (const r of rangees) for (const c of r.cases) if (!c.vide && !c.non) nets.set(c.cle, o.ecart(roster[SLOTS[Number(c.cle)].i]));
   marquerMeilleure(rangees, nets);
   ouvrirAlignement({
-    ico: '🔁', titre: `${unite} : qui entre à la place de ${sortant.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
-    aide: 'Touche un joueur.',
+    ico: '🔁', titre: `${unite} : qui entre à la place de ${sortant.n} ?`, motFermer: 'Retour', motConfirmer: 'Entre', fiche: apercuJoueur,
     contexte: `<div class="ech-arrive">${colonneEchange(sortant, 'Sort')}</div>`,
-    // Le comparatif complet, dès qu'un joueur est touché : les deux côte à côte, et l'unité avant → après.
-    contexteDe: k => {
-      const q = roster[SLOTS[Number(k)].i];
-      if (!q) return '';
-      const u = o.avantApres ? o.avantApres(q) : '';
-      return `<div class="ech-arrive"><span class="ech">${colonneEchange(sortant, 'Sort')}${colonneEchange(q, 'Entre')}</span><span class="ech-bilan">${esc(nomDe(sortant.n))} ${esc(o.sous(sortant))} · ${esc(nomDe(q.n))} ${esc(o.sous(q))}</span>${u ? `<span class="ech-bilan">${u}</span>` : ''}</div>`;
-    },
     rangees,
     barre: k => {
       const q = roster[SLOTS[Number(k)].i];
       if (!q) return '';
       const ou = o.ou(q), x = nets.get(k);
-      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> entre en ${esc(unite)}${ou ? ` · ${esc(nomDe(sortant.n))} prend sa case en ${esc(ou)}` : ''} · ${esc(ficheCourte(q))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} ${esc(o.dans)}</b>` : ''}</span>`;
+      return `<span class="ech-bilan"><b>${esc(nomDe(q.n))}</b> entre en ${esc(unite)}${ou ? ` · ${esc(nomDe(sortant.n))} prend sa case en ${esc(ou)}` : ''} · ${esc(ficheCourte(q))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} ${esc(o.dans)}</b>` : ''}${o.avantApres && o.avantApres(q) ? ` · ${o.avantApres(q)}` : ''}</span>`;
     },
     onChoix: k => { const q = roster[SLOTS[Number(k)].i]; if (q) o.onChoix(q); },
     onFerme: o.onFerme,
@@ -568,8 +560,7 @@ function placerArrivant(p, { roster, onChoix }, A, retour) {
   }
   marquerMeilleure(rangees, nets);
   ouvrirAlignement({
-    ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Confirmer',
-    aide: 'Touche sa case.',
+    ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Ici', fiche: apercuJoueur,
     contexte: q0 ? `<span class="ech">${colonneEchange(q0, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span>` : '',
     rangees,
     barre: k => {
@@ -724,7 +715,7 @@ export function ouvrirListeJoueurs(o) {
 }
 /* La fenêtre des deux listes : la tête, le récit, ce qui va en haut (`haut`, `contexte`), les rangées. Rend « fermer ». */
 function feuilleDeJoueurs(o) {
-  const m = $('signatureModal');
+  const m = $(o.modal || 'signatureModal');
   if (!m) return () => {};
   let ferme = false;
   const fermer = () => { if (ferme) return; ferme = true; m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
@@ -737,7 +728,8 @@ function feuilleDeJoueurs(o) {
     </div>`;
   const liste = m.querySelector('.sig-liste');
   for (const el of o.rangees) liste.appendChild(el);
-  if (!o.rangees.length) liste.outerHTML = '<p class="empty-msg">Personne ici.</p>';
+  // Rien à prendre (Jalon U) : la liste le dit à sa place (`vide`), plutôt qu'un toast qui ferme la fenêtre.
+  if (!o.rangees.length) liste.outerHTML = `<p class="empty-msg">${esc(o.vide || 'Personne ici.')}</p>`;
   m.querySelector('.choix-fermer').onclick = () => { fermer(); if (o.onFerme) o.onFerme(); };
   m.hidden = false;
   document.body.classList.add('choix-ouvert');

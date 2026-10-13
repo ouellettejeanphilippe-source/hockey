@@ -49,7 +49,7 @@ for (let i = 0; i < 5; i++) {
   }
   const n = (await page.$$('#choixModal .choix-options [data-apercu]')).length;
   packs.push({ t, n });
-  await page.click('#choixModal:not([hidden]) .choix-plus-tard');
+  await page.click('#choixModal:not([hidden]) .choix-fermer');
   await page.waitForTimeout(400);
 }
 informer('packs ouverts', packs.map(p => `${p.t.replace('Pack de départ · ', '')} (${p.n})`).join(' · '));

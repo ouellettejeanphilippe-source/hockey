@@ -240,9 +240,9 @@
        équipe, le sommaire d'un match, le bilan du tournoi — et un tableau de
        onze colonnes a besoin de la largeur qu'un texte de règles n'a pas. -->
   <div class="modal-sheet modal-large">
-    <div class="modal-header">
-      <h2 id="gameModalTitle">Sommaire</h2>
-      <button id="closeGameBtn" class="close-btn" aria-label="Fermer">✕</button>
+    <div class="choix-tete">
+      <div class="choix-titres"><h2 class="choix-titre" id="gameModalTitle">Sommaire</h2></div>
+      <button type="button" id="closeGameBtn" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
     </div>
     <div class="modal-body sommaire" id="gameModalBody"></div>
   </div>
@@ -266,7 +266,10 @@
 
 <div id="hockeyCardModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-card" role="dialog" aria-modal="true" aria-label="Fiche du joueur">
-    <div class="fiche-barre"><button type="button" id="closeHockeyCardBtn" class="retour-btn"><svg class="ico" aria-hidden="true"><use href="#i-retour"/></svg>Retour</button></div>
+    <div class="choix-tete">
+      <div class="choix-titres"><h2 class="choix-titre" id="ficheTitre">Fiche du joueur</h2><div class="choix-irl" id="ficheSous"></div></div>
+      <button type="button" id="closeHockeyCardBtn" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
+    </div>
     <div id="hockeyCardBody"></div>
   </div>
 </div>
@@ -307,9 +310,10 @@
 <!-- ===== Modale : options ===== -->
 <div id="optionsModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-narrow" role="dialog" aria-modal="true" aria-label="Options">
-    <div class="modal-header">
-      <h2><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg>Options d'affichage</h2>
-      <button id="closeOptionsBtn" class="close-btn" aria-label="Fermer">✕</button>
+    <div class="choix-tete">
+      <span class="choix-ico"><svg class="ico" aria-hidden="true"><use href="#i-gear"/></svg></span>
+      <div class="choix-titres"><h2 class="choix-titre">Options d'affichage</h2></div>
+      <button type="button" id="closeOptionsBtn" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
     </div>
     <div class="modal-body options">
       <div class="opt-row opt-modes">
@@ -359,9 +363,10 @@
      et le clic sur le fond restent ce qu'ils sont partout ailleurs. -->
 <div id="partieModal" class="modal-backdrop" style="display:none;">
   <div class="modal-sheet modal-narrow" role="dialog" aria-modal="true" aria-labelledby="npTitre">
-    <div class="modal-header">
-      <h2 id="npTitre"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg>Nouvelle partie</h2>
-      <button id="closePartieBtn" class="close-btn" aria-label="Fermer sans rien changer">✕</button>
+    <div class="choix-tete">
+      <span class="choix-ico"><svg class="ico" aria-hidden="true"><use href="#i-new"/></svg></span>
+      <div class="choix-titres"><h2 class="choix-titre" id="npTitre">Nouvelle partie</h2></div>
+      <button type="button" id="closePartieBtn" class="close-btn choix-fermer" aria-label="Fermer sans rien changer" title="Fermer sans rien changer">✕</button>
     </div>
 
     <div class="modal-body options np-body">
@@ -434,8 +439,8 @@
       </div>
     </div>
 
-    <div class="np-pied">
-      <p class="np-resume" id="npResume"></p>
+    <div class="choix-pied">
+      <p class="choix-pied-mot np-resume" id="npResume"></p>
       <button type="button" class="btn np-go" id="npGo">
         <span id="npGoVerbe">Commencer</span><span class="np-go-note" id="npGoNote">la roulette repart</span>
       </button>
