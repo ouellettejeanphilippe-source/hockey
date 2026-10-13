@@ -1479,9 +1479,12 @@ a.spin-club:hover { background: var(--fond-2); }
 /* ---- La liste de signature du Rogue (Jalon R) : les rangées du vestiaire, la destination calculée, qui se touche ---- */
 .sig-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--esp-3); }
 .sig-changer { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+/* « Qui sort ? » par trios (JP) : le titre d'une ligne sur toute la largeur, comme dans « Où joue X ? ». */
+.sig-liste > .aln-titre { grid-column: 1 / -1; margin: var(--esp-2) 2px 0; }
 @media (max-width: 679.98px) {
   .sig-liste { grid-template-columns: minmax(0, 1fr); gap: 1px; margin: 0 calc(-1 * var(--esp-4)); background: var(--filet-2); border-top: 1px solid var(--filet-2); }
   .sig-changer { white-space: normal; }
+  .sig-liste > .aln-titre { margin: 0; padding: var(--esp-3) var(--esp-4) var(--esp-1); background: var(--noir); }
 }
 
 /* ---- La page Marché : des tuiles plates, une icône au trait, un mot, une phrase ---- */

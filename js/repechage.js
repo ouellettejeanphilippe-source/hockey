@@ -477,14 +477,12 @@ function choisirQuiSort(p, o) {
     const non = (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`);
     return { A, q, non, net: non ? null : netDe(A) };
   });
-  // Ceux qui peuvent sortir d'abord, ceux de son poste devant, puis ce que sa sortie rend par match.
   // La sortie proposée (U18, `propose` : la meilleure de la liste de signature) passe en tête, cerclée d'or.
   const propre = s => !!(o.propose && !s.non && s.A.i === o.propose.i);
-  sorties.sort((x, y) => propre(y) - propre(x) || !!x.non - !!y.non || (groupeDe(y.q) === groupeDe(p)) - (groupeDe(x.q) === groupeDe(p)) || valeurDeCase(y.net) - valeurDeCase(x.net));
   let fermer = () => {};
   // La proposée a déjà sa case (et ceux qui glissent) : « Sort » signe. Les autres passent par « Où joue X ? ».
   const choisir = A => { fermer(); if (o.propose && A.i === o.propose.i) o.onChoix(o.propose.sortie); else placerArrivant(p, o, A, () => choisirQuiSort(p, o)); };
-  const rangees = sorties.map(s => {
+  const rangeeDe = s => {
     const { A, q, non, net } = s;
     const el = document.createElement('div');
     const rar = rareteJoueur(q) || 'commune';
@@ -499,7 +497,26 @@ function choisirQuiSort(p, o) {
     el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(q); };
     if (!non) el.querySelector('.sig-sort').onclick = ev => { ev.stopPropagation(); choisir(A); };
     return el;
-  });
+  };
+  /*
+   * PAR TRIOS (JP, 13 oct. : *séparer dans la page de remplacement, par trios*) : la sortie proposée en tête, puis chaque
+   * trio, paire, les gardiens et la réserve sous leur titre, ses joueurs dans l'ordre de la glace — les lignes du poste
+   * de l'arrivant d'abord.
+   */
+  const titre = t => { const h = document.createElement('h3'); h.className = 'aln-titre'; h.textContent = t; return h; };
+  const lignes = [
+    ...UNIT_NAMES_F.map((t, u) => ({ t, g: 'F', slots: SLOTS.filter(x => x.group === 'F' && x.unit === u && !x.scratch) })),
+    ...UNIT_NAMES_D.map((t, u) => ({ t, g: 'D', slots: SLOTS.filter(x => x.group === 'D' && x.unit === u && !x.scratch) })),
+    { t: 'Gardiens', g: 'G', slots: SLOTS.filter(x => x.group === 'G' && !x.scratch) },
+  ].sort((a, b) => (b.g === groupeDe(p)) - (a.g === groupeDe(p)));
+  lignes.push({ t: 'Réserve', slots: SLOTS.filter(x => x.scratch) });
+  const rangees = [];
+  const proposee = sorties.find(propre);
+  if (proposee) rangees.push(titre('La meilleure sortie'), rangeeDe(proposee));
+  for (const l of lignes) {
+    const ici = l.slots.map(sl => sorties.find(x => x.A.i === sl.i && x !== proposee)).filter(Boolean);
+    if (ici.length) rangees.push(titre(l.t), ...ici.map(rangeeDe));
+  }
   const libreNon = libre && bloque ? bloque(null) : '';
   fermer = feuilleDeJoueurs({ modal: 'choixModal', ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour',
     contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
