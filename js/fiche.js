@@ -7,7 +7,7 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
+import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
@@ -84,7 +84,7 @@ const MOTS_GAGNES = {
   arrets: (x, p) => {
     if (!(p.sv > 0)) return `il accorde ${pctMot(x)} de buts de moins sur chaque lancer`;
     const nat = { ...p, _carte: null, _palier: 0 };
-    const buts = (1 - p.sv) * (1 - x) * (1 - netBadgeGardien(p)) / (1 - netBadgeGardien(nat));
+    const buts = (1 - p.sv) * Math.max(1 - GAIN_GARDIEN_MAX, (1 - x) * (1 - netBadgeGardien(p)) / (1 - netBadgeGardien(nat)));
     return `son % d'arrêts joue comme ${pct3(1 - buts)} au lieu de ${pct3(p.sv)}`;
   },
 };
@@ -111,6 +111,7 @@ function surLaGlaceHtml(p) {
     lignes.push(li('Son % d\'arrêts est le chiffre que le moteur lit sur chaque lancer.'));
     if (b && EFFETS_GLACE_G[b.cle]) lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}</b> : ${esc(EFFETS_GLACE_G[b.cle](p, n))}.`));
     lignes.push(...lignesGagnees(p, li));
+    if (plafondGardien(p) > 1) lignes.push(li(`Au plafond du gardien : ses cartes ne lui retirent pas plus de ${Math.round(GAIN_GARDIEN_MAX * 100)} % de ses buts accordés, une de plus n'ajoute rien.`, 'prix'));
     lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
   }

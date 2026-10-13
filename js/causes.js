@@ -33,6 +33,7 @@ const SUJET = {
   cartesClub: () => 'les cartes et les décisions du club',
   carteClub: c => `${c.qui.ico ? `${c.qui.ico} ` : ''}« ${c.qui.nom} »`,
   plafond: () => 'le plafond de finition du jeu',
+  plafondG: c => `le plafond du gardien (${nomDe(c.qui)})`,
   fantome: c => `le fantôme ${nomDe(c.qui)}`,
   ombre: () => 'la chasse à la vedette',
   ligne: c => `le système et la chimie : ${uniteDe(c.qui)}`,

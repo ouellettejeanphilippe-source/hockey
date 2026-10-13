@@ -2,6 +2,8 @@
 
 Le joueur : *« Je trouve pas que les choix (événements, dilemmes, cartes de saison, cartes de match, cartes en général) ont un assez gros impact, ni un impact clair, même chose pour les stratégies. Plus fort, ça veut pas dire plus gagner : si je fais juste des choix défensifs, ça devrait être un match défensif. Les pourcentages, ça me dit fuck all ce que ça impacte dans le match. Je veux pas tant que ça brise le jeu, mais ça doit être clair que le build que je fais a un impact pour vrai ; sinon, si je le sens pas, ça sert à quoi ? »*
 
+> **Depuis le 13 oct. 2026**, les chiffres d'une carte ne disent plus de buts (« ≈ −0,20 but accordé ») mais les stats que le moteur joue : tirs, pt au tir, tirs accordés, pt d'arrêts (docs/decisions.md, « Les cartes parlent en vraies stats »). Les exemples plus bas gardent l'ancienne forme.
+
 Ce document est une mesure et un plan. Aucun fichier existant n'a été modifié ; tous les scripts de mesure vivent dans le scratchpad (`/tmp/claude-0/-home-user-hockey/0709c4bb-22d7-5b5a-9a62-0d2e725f4488/scratchpad/`, appelé « le scratchpad » plus bas) et se relancent tels quels.
 
 **Ordre de lecture voulu : le ressenti et la clarté d'abord (§1, §5, §6), la mécanique ensuite (§3, §4), le plan par étapes à la fin (§7).** Le plafond de 4 victoires pour une rare ou une légendaire reste un maximum théorique, pas une cible : les amplitudes proposées sont modérées, à peine au-dessus de l'existant.
