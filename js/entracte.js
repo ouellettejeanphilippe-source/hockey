@@ -200,7 +200,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
   const c3 = carte('Défensive', 'Sans la rondelle',
     grille([
       { k: 'Buts accordés / match', v: un(you.GA / Math.max(1, pj), 2) },
-      { k: 'Tirs accordés / match', v: un(tirsContre / Math.max(1, pj)) },
+      { k: 'Tirs contre / match', v: un(tirsContre / Math.max(1, pj)) },
       { k: '% d\'arrêts', v: pct3(arrets / Math.max(1, tirsContre)) },
       { k: 'Punitions / match', v: un(pun / Math.max(1, pj)) },
     ])
