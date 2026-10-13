@@ -1547,11 +1547,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       titre = 'Cette saison, par match';
       const de = x => ({ tirs: par(x.SF, x.n), tir: par(x.GF, x.SF), contre: par(x.SA, x.n), arr: x.SA ? 1 - x.GA / x.SA : null, an: par(x.ANB, x.ANO), dn: x.PKO ? 1 - x.INB / x.PKO : null });
       const m = de(a), l = de(b);
-      lignes = [['Tirs', m.tirs, l.tirs, v1, 1], ['% au tir', m.tir, l.tir, p1, 1], ['Tirs contre', m.contre, l.contre, v1, -1], ['% arrêts', m.arr, l.arr, pct3, 1], ['Avantage num.', m.an, l.an, p1, 1], ['Désavantage num.', m.dn, l.dn, p1, 1]];
+      lignes = [['Tirs', m.tirs, l.tirs, v1, 1], ['Précision', m.tir, l.tir, p1, 1], ['Tirs contre', m.contre, l.contre, v1, -1], ['% d\'arrêts', m.arr, l.arr, pct3, 1], ['Avantage num.', m.an, l.an, p1, 1], ['Désavantage num.', m.dn, l.dn, p1, 1]];
     } else {
       titre = 'Attendu ce soir';
       const c = chiffresDuSoir(you, null, adv);
-      lignes = [['Tirs', c.tirsPour, c.tirsContre, v1, 1], ['% au tir', par(c.butsPour, c.tirsPour), par(c.butsContre, c.tirsContre), p1, 1], ['Punitions', c.punitions, c.punitionsEux, v1, -1]];
+      lignes = [['Tirs', c.tirsPour, c.tirsContre, v1, 1], ['Précision', par(c.butsPour, c.tirsPour), par(c.butsContre, c.tirsContre), p1, 1], ['Punitions', c.punitions, c.punitionsEux, v1, -1]];
     }
     // Dans l'ordre de l'affiche : le club à domicile à gauche.
     const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}">${f(x)}</td>`;

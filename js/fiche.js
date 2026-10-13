@@ -375,10 +375,8 @@ export function showPlayerModal(p, opts = {}) {
   const st = displayStats(p);
   const colors = TEAM_COLORS[p.t] || { primary: '#112236', accent: '#38bdf8' };
 
-  const cell = cellStat;
   const pmStr = pmMatch(st.pm, st.gp);
-  // La vraie saison (six colonnes, S71) se lit au RECTO de la carte (`statsCarte`, plus bas) ;
-  // le temps de glace, les mises en échec et les mises au jeu vivent dans le détail.
+  // Ses saisons se lisent au VERSO de la carte (`statsCarte`, plus bas), avec le reste de sa vraie saison.
 
   /*
    * Plus de cotes sur la fiche. Un joueur se juge sur ce qu'il a fait, et
@@ -388,13 +386,11 @@ export function showPlayerModal(p, opts = {}) {
   const ratings = profilMesure(p);
   // LE DÉTAIL SE REPLIE (S71) : le profil mesuré, le temps de glace, les
   // mises en échec, les mises au jeu — là pour qui les cherche.
-  const detailStats = p.p === 'G' ? '' : cell('PTS/M', st.ppgStr) + cell('TG/M', p.toi ? Number(p.toi).toFixed(1) : '—')
-    + (p.ht != null ? cell('MÉ/M', p.ht) : '');   // 1.0 (C2) : le MJ % ne joue pas dans la saison ; il est parti
+  // Le reste de sa vraie saison (1.0, C2 : le MJ % ne joue pas dans la saison ; il est parti), au verso avec ses saisons.
+  const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? Number(p.toi).toFixed(1) : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
-  const plusDeDetails = `<details class="fiche-plus"${matchMedia('(min-width: 900px)').matches ? ' open' : ''}><summary>Plus de détails</summary>
-       ${detailStats ? `<div class="stat-grid">${detailStats}</div>` : ''}
-       <div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
-       ${ratings}</details>`;
+  const plusDeDetails = `<div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
+       ${ratings}`;
 
   const risky = !already && !over && !!slot && p.$ > maxForPick();
   const label = already ? '✓ Déjà signé' : !slot ? 'Aucune case libre' : over ? 'Hors budget' : risky ? 'Signer · bloque la fin' : `Signer · ${slot.role}`;
@@ -417,22 +413,25 @@ export function showPlayerModal(p, opts = {}) {
   const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';
-  const corps = apercu ? profil + plusDeDetails : apres
-    ? `<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
+  /*
+   * LA CARTE SEULEMENT (JP, oct. : *je veux pas de détails si possible […] si nécessaire d'infos en dessous, faire
+   * qqchose qu'on doit « ouvrir »*) : tout ce qui n'est pas sur la carte se range sous « Détails », fermé au téléphone,
+   * ouvert au bureau où la colonne de droite l'attend.
+   */
+  const ouvrir = html => `<details class="fiche-plus"${matchMedia('(min-width: 900px)').matches ? ' open' : ''}><summary>Détails</summary>${html}</details>`;
+  const corps = apercu ? ouvrir(profil + plusDeDetails) : apres
+    ? ouvrir(`<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>
        ${opts.sim === 'series' && statsSim(p, 'saison') ? `<div class="section-label">Saison régulière simulée</div><div class="stat-grid">${grilleSim(p, statsSim(p, 'saison'))}</div>` : ''}
        ${courbe ? `<div class="section-label">Ses jambes, journée par journée</div>${courbe}` : ''}
        ${profil}
-       ${plusDeDetails}`
+       ${plusDeDetails}`)
     : surTable()
     ? `<div class="section-label">Sur la glace de table</div>
        ${ficheTable(p)}
        <div class="section-label">Impact sur ton alignement</div>
        ${destNote}`
-    : `<div class="section-label">Impact sur ton alignement</div>
-       ${destNote}
-       ${profil}
-       ${plusDeDetails}`;
+    : `${destNote}${ouvrir(profil + plusDeDetails)}`;
 
   /*
    * LA FICHE EST UNE CARTE, RECTO ET VERSO (S78). JP : *devant de carte
@@ -469,17 +468,39 @@ export function showPlayerModal(p, opts = {}) {
   // La vraie saison, sur la carte : six nombres, comme au dos d'une vraie carte… mais au recto, où on les cherche.
   // Le nombre en évidence est son chiffre clé (`chiffreCle`) : les punitions d'un bagarreur, les mises en échec d'un checker.
   const cle = chiffreCle(p);
-  const nb = (k, v, hl = false) => `<div class="fc-stat${hl ? ' hl' : ''}"><span class="k">${k}</span><b>${v}</b></div>`;
-  const statsCarte = p.p === 'G'
-    ? nb('PJ', st.gp) + nb('V', st.w, true) + nb('D', st.l) + nb('BL', st.so) + nb('%ARR', p.sv != null ? pct3(Number(p.sv)) : '—') + nb('MBA', p.ga != null ? String(p.ga).replace('.', ',') : '—')
-    : nb('PJ', st.gp) + nb('B', st.g) + nb('A', st.a) + nb('PTS', st.pt, cle.u === 'PTS')
-      + (cle.u === 'MÉ/M' || cle.u === 'TB/M' ? nb(cle.u, cle.v, true) : nb('+/M', pmStr, cle.u === '+/M')) + nb('PUN', p.pim ?? '—', cle.u === 'PUN');
+  /*
+   * SES SAISONS AU VERSO, COMME AU DOS D'UNE VIEILLE CARTE (JP, oct. : *stats on back* — le verso seulement, le recto
+   * reste la photo) : une rangée par saison — la vraie, puis celle qu'il joue chez toi quand elle existe —, mêmes
+   * colonnes, son chiffre clé à l'encre de la série ; dessous, le reste de sa vraie saison, puis ses badges (« Ce qu'il sait faire »).
+   */
+  const G_ = p.p === 'G';
+  const sixieme = cle.u === 'MÉ/M' || cle.u === 'TB/M' ? cle.u : '+/M';
+  const tetes = G_ ? ['PJ', 'V', 'D', 'BL', '%ARR', 'MBA'] : ['PJ', 'B', 'A', 'PTS', sixieme, 'PUN'];
+  const vraie = G_
+    ? [st.gp, st.w, st.l, st.so, p.sv != null ? pct3(Number(p.sv)) : '—', p.ga != null ? String(p.ga).replace('.', ',') : '—']
+    : [st.gp, st.g, st.a, st.pt, sixieme === '+/M' ? pmStr : cle.v, p.pim ?? '—'];
+  const chezToi = !sim ? null : G_
+    ? [sim.GP || 0, sim.W || 0, sim.L || 0, sim.SO || 0, sim.SA ? pct3(sim.SV / sim.SA) : '—', ((sim.GA || 0) / Math.max(1, sim.GP || 1)).toFixed(2).replace('.', ',')]
+    : [sim.GP || 0, sim.G || 0, sim.A || 0, sim.PTS || 0, sixieme === '+/M' ? pmMatch(sim.PM || 0, sim.GP || 0) : '—', sim.PIM || 0];
+  const enOr = G_ ? 1 : tetes.indexOf(cle.u);
+  const td = (v, i) => `<td${i === enOr ? ' class="hl"' : ''}>${v}</td>`;
+  const statsCarte = `<div class="cjv-table-wrap"><table class="cjv-table cjv-saisons"><thead><tr><th scope="col">Saison</th>${tetes.map((t, i) => `<th scope="col"${i === enOr ? ' class="hl"' : ''}>${t}</th>`).join('')}</tr></thead><tbody>
+    <tr><th scope="row">${esc([p.s, p.t].filter(Boolean).join(' '))}</th>${vraie.map(td).join('')}</tr>
+    ${chezToi ? `<tr><th scope="row">${esc(opts.team ? teamLabel(opts.team) : opts.sim === 'series' ? 'Séries' : 'Chez toi')}</th>${chezToi.map(td).join('')}</tr>` : ''}
+  </tbody></table></div>${reste.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${reste.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${reste.map(([, v]) => `<td>${v}</td>`).join('')}</tr></tbody></table></div>` : ''}`;
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p) + coachTag(p)}${realTag(p)}`;
-  const milieuVerso = `${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
+  const milieuVerso = `${statsCarte}
+    ${roles ? `<div class="fc-sec">Ce qu'il sait faire</div><div class="fiche-profils">${roles}</div>` : ''}
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
     ${sectionMods(p, opts.attente || null)}`;
   const verso = versoDeCarte(p, numero, rarete, milieuVerso, serie);
+  const liens = `<div class="ext-links">
+          <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
+          <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
+          ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">La saison du club ${ico('i-ext')}</a>` : ''}
+        </div>`;
+  const signer = apres || apercu ? '' : `<button class="btn go${risky ? ' risque' : ''}" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`;
   body.innerHTML = `
     <div class="pcard-full" style="${varsEquipe(p)};--card-primary:${colors.primary};--card-accent:${colors.accent}">
       <div class="fiche-carte">
@@ -490,23 +511,15 @@ export function showPlayerModal(p, opts = {}) {
           ${verso}
         </div>
         <div class="fc-plaque">
-          <div class="fc-legende">Sa vraie saison${G.statsProrata ? ' · prorata 82 matchs, ajusté à l\'époque' : ''}</div>
-          <div class="fc-stats">${statsCarte}</div>
+          ${G.statsProrata ? '<div class="fc-legende">Prorata 82 matchs, ajusté à l\'époque</div>' : ''}
           <div class="fc-pied">
             <span class="fc-salaire"><b>${st.salaryMain}</b><small>${[st.salarySub, G.salaryMode === 'ERA' ? '' : `${p.s} : ${money(st.eraSal)}`].filter(Boolean).join(' · ')}</small></span>
             <button type="button" class="cj-retourner" aria-label="Retourner la carte">↻ Verso</button>
           </div>
         </div>
       </div>
-      <div class="modal-body">${corps}</div>
-      <div class="pcard-full-foot">
-        <div class="ext-links">
-          <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
-          <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
-          ${teamSeasonUrl(p.t, p.s) ? `<a class="ext-link" href="${teamSeasonUrl(p.t, p.s)}" target="_blank" rel="noopener" title="La saison ${esc(p.s)} de son équipe sur Hockey-Reference">La saison du club ${ico('i-ext')}</a>` : ''}
-        </div>
-        ${apres || apercu ? '' : `<button class="btn go${risky ? ' risque' : ''}" id="modalSignBtn" ${already || !slot || over ? 'disabled' : ''}>${label}</button>`}
-      </div>
+      <div class="modal-body">${corps}${liens}</div>
+      ${signer ? `<div class="pcard-full-foot">${signer}</div>` : ''}
     </div>`;
 
   // La tête de la fenêtre (Jalon U) : la même que partout, son nom et sa saison, le ✕.

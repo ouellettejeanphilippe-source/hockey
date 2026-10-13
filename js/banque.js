@@ -741,7 +741,7 @@ function motDEchelle(E, coach) {
   const pas = [...auPlafond(E.par, E.max), ...(E.gain ? [`+${E.gain} 🪙 par carte`] : [])].join(', ');
   return { txt: pas ? `Jusqu'à ${pas} avec ${E.max} cartes ${Ec.ico} ${Ec.de} jouées` : `Grandit avec chaque carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
 }
-/* « jusqu'à ≈ +0,4 pt au tir par match avec 5 joueurs de l'Aigle habillés » : ce qu'une carte gagne de tes joueurs. */
+/* « jusqu'à ≈ +0,4 pt de précision par match avec 5 joueurs de l'Aigle habillés » : ce qu'une carte gagne de tes joueurs. */
 function motDeJoueurs(J, coach) {
   const Ec = COACHS[coach] || { de: '' };
   const pas = auPlafond(J.par, J.max).join(', ');

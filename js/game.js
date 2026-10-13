@@ -1886,7 +1886,11 @@ function etatDeLaPartie() {
   if (G.bonus === 'TABLE') return hub ? 'Sur table · le tournoi' : 'Sur table · le tournoi est joué';
   if (G.banc) return `Derrière le banc · journée ${j} / ${N}`;
   if (hub && hub.onglets().some(o => o.cle === 'serie')) return 'Séries éliminatoires';
-  if (hub && N && j < N) return `Saison régulière · journée ${j} / ${N}`;
+  if (hub && N && j < N) {
+    // Comme le prototype (oct.) : le jour, et ce qu'il est pour toi — un match ce soir ou un congé.
+    const ceSoir = (L.calendrier[j] || []).some(m => m.A === L.you || m.B === L.you);
+    return `Journée ${j} sur ${N} · ${ceSoir ? 'match ce soir' : 'congé'}`;
+  }
   return hub ? 'Saison régulière · terminée' : 'La saison est jouée';
 }
 export function majEntete() {

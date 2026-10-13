@@ -37,8 +37,8 @@ export function motsDeStats(d, max = 4) {
   if (!d) return [];
   const mots = {
     tirs: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')}`,
-    pctTir: x => `${signeDe(x)}${pts(x)} pt au tir`,
-    contre: x => `${signeDe(x)}${nb(x, 1)} contre`,
+    pctTir: x => `${signeDe(x)}${pts(x)} pt de précision`,
+    contre: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir contre', 'tirs contre')}`,
     pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} arr.`,
   };
   return Object.keys(mots).filter(k => Math.abs(d[k]) >= SEUIL_STAT[k])
@@ -210,24 +210,24 @@ const RANGS = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire
  * « ≈ +2,1 tirs par match » : le chiffre d'abord, l'unité de match toujours. EN VRAIES STATS (oct., JP : *on s'entend
  * que but pour et contre, c'est pas une vraie stat du moteur, pourquoi c'est dans les cartes ?*) : le moteur joue des
  * lancers et la chance de chacun ; un but en est le produit, jamais un canal. Une carte se dit donc en ce qu'elle
- * touche : les tirs, le % au tir, les tirs accordés, le % d'arrêts (`statsDe`), en points de pourcentage
- * (« ≈ +0,4 pt au tir par match »). La ligne garde les buts qu'elle vaut (`buts`), pour la preuve seulement.
+ * touche : les tirs, la précision, les tirs contre, le % d'arrêts (`statsDe`), en points de pourcentage
+ * (« ≈ +0,4 pt de précision par match »). Les quatre mots de l'écran (JP, oct.) : Tirs, Tirs contre, Précision, % d'arrêts. La ligne garde les buts qu'elle vaut (`buts`), pour la preuve seulement.
  */
 const SEUILS = { tirs: 0.15, pct: 0.0005, punitions: 0.1, coups: 1, minutes: 0.3 };
 const pt = x => `${signeDe(x)}${virgule((Math.abs(x) * 100).toFixed(1))} pt`;
 function lignesDe(d, par = 'par match') {
   const out = [];
-  const tirs = (x, un, plur, bon) => {
+  const tirs = (x, un, plur, bon, cle = un) => {
     if (Math.abs(x) < SEUILS.tirs) return;
-    out.push({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, un, plur)} ${par}`, bon: bon ? x > 0 : x < 0, cle: un });
+    out.push({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, un, plur)} ${par}`, bon: bon ? x > 0 : x < 0, cle });
   };
   const taux = (x, quoi, cle, buts) => {
     if (!(Math.abs(x) >= SEUILS.pct)) return;
     out.push({ txt: `≈ ${pt(x)} ${quoi} ${par}`, bon: x > 0, cle, buts });
   };
   tirs(d.tirsPour, 'tir', 'tirs', true);
-  tirs(d.tirsContre, 'tir accordé', 'tirs accordés', false);
-  taux(d.pctTir, 'au tir', 'pctTir', d.butsPour);
+  tirs(d.tirsContre, 'tir contre', 'tirs contre', false, 'tir accordé');
+  taux(d.pctTir, 'de précision', 'pctTir', d.butsPour);
   taux(d.pctArr, 'd\'arrêts', 'pctArr', -d.butsContre);
   if (Math.abs(d.punitions) >= SEUILS.punitions) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: null, cle: 'punition' });
   if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(Math.round(d.coups), 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
@@ -476,11 +476,11 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
     if (Math.abs(dt) >= 3) bits.push(`${signeDe(dt)}${auMatch(dt)} tirs`);
     if (bits.length) out.push({ txt: `${p.n} : ≈ ${bits.join(', ')} ${quand}`, bon: (Math.abs(db) >= 0.5 ? db : dt) > 0, cle: 'lui' });
   }
-  // À TON CLUB, sur la même durée : son % au tir et son % d'arrêts (ce que sa création, sa défense ou ses arrêts
+  // À TON CLUB, sur la même durée : sa précision et son % d'arrêts (ce que sa création, sa défense ou ses arrêts
   // rapportent aux autres aussi), les vraies stats que le moteur joue. Une carte de gardien ne joue que les soirs où il
   // garde le filet : son % d'arrêts se dit sur la saison du club, à sa part des départs.
   const filet = M.gardien ? avec.partDuFilet : 1;
-  for (const [x, quoi, cle] of [[d.pctTir, 'au tir', 'pctTir'], [d.pctArr * filet, 'd\'arrêts', 'pctArr']]) {
+  for (const [x, quoi, cle] of [[d.pctTir, 'de précision', 'pctTir'], [d.pctArr * filet, 'd\'arrêts', 'pctArr']]) {
     if (Math.abs(x) >= SEUILS.pct) out.push({ txt: `Ton club : ≈ ${pt(x)} ${quoi} ${quand}`, bon: x > 0, cle });
   }
   if (M.blessure) {

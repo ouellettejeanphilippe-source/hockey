@@ -76,10 +76,10 @@ const MOTS_DU_CHIFFRE = {
   blessure: ['Plus de blessures', 'Moins de blessures'], jambes: ['Les jambes s\'usent plus', 'Les jambes s\'usent moins'],
 };
 /* Le sujet d'un chiffre, lu dans son texte quand la ligne ne le porte pas (une condition, une ligne « Eux : »). */
-const CLE_DU_TEXTE = [[/pt au tir/, 'pctTir'], [/pt d'arrêts/, 'pctArr'], [/tirs? accordés?/, 'tir accordé'], [/\btirs?\b/, 'tir'],
+const CLE_DU_TEXTE = [[/pt de précision/, 'pctTir'], [/pt d'arrêts/, 'pctArr'], [/tirs? contre/, 'tir accordé'], [/\btirs?\b/, 'tir'],
   [/punition/, 'punition'], [/mises? en échec/, 'coup'], [/blessure/, 'blessure'], [/jambe/, 'jambes']];
 const cleDuTexte = t => (CLE_DU_TEXTE.find(([re]) => re.test(t)) || [])[1];
-/* Ce qui leur arrive, dit de ton côté : leurs tirs sont ceux que tu accordes. Leur % au tir et leur % d'arrêts se disent d'eux. */
+/* Ce qui leur arrive, dit de ton côté : leurs tirs sont ceux que tu accordes. Leur précision et leur % d'arrêts se disent d'eux. */
 const VU_D_EUX = { tir: 'tir accordé', 'tir accordé': 'tir' };
 const MOTS_D_EUX = {
   pctTir: ['Ils tirent plus juste', 'Ils tirent moins juste'], pctArr: ['Leur filet arrête plus', 'Leur filet arrête moins'],
@@ -420,7 +420,7 @@ export function ouvrirChoix(spec) {
       ${spec.joueur ? enteteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
-      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && spec.options.length && spec.options.every(o => o.joueurHtml) ? ' joueurs' : spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 ? ' trois' : ''}">${spec.options.map((o, i) => {
+      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 && !spec.options.every(o => o.joueurHtml) ? ' trois' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
