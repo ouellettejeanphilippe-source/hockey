@@ -5,6 +5,7 @@
 - *L'interface devrait être beaucoup plus naturelle et affordante.*
 - *Affordance dans le sens de : chaque chose sous-entend ce à quoi elle sert. Genre, c'est pas clair comment jouer les cartes présentement.*
 - *C'est correct, des menus, si les menus sont clairs et s'expliquent d'eux-mêmes.*
+- *Je veux pas moins d'actions, au contraire, mais moins de confusion.*
 
 Ce plan s'appuie sur une run jouée le même jour dans Chromium à 390 px, sur un profil neuf. Il y a deux parties : une jouée avec attention jusqu'à la journée 84, une jouée par script jusqu'au bilan de la run. Il y a 93 captures. Il s'appuie aussi sur la relecture des V3 à V7.
 
@@ -76,7 +77,7 @@ Quatre principes :
 
 1. **La forme dit l'usage.** Une carte, un bouton, un onglet annonce par sa forme et son libellé où il va et ce qu'il fait. Un bouton dit son verbe et son objet (« Poser sur un joueur », « Jouer les 10 prochains matchs »), jamais « OK » ni « Compris ».
 2. **On touche la chose, pas un menu sur la chose.** Une carte se joue en la touchant, puis en touchant sa cible, qui s'allume sur l'écran où elle vit (les Lignes). Les menus restent, mais chaque menu dit ce qu'il contient, et aucun ne renvoie vers un autre qui renvoie vers lui.
-3. **Un tour, une décision.** On n'avance jamais sans avoir décidé quelque chose. Ce qui ne demande pas de décision ne bloque jamais : l'adjoint le règle et le sommaire le dit.
+3. **Plus d'actions, aucune vide.** Le but n'est pas de toucher moins : c'est que chaque toucher soit un choix qu'on comprend. Un « Compris », un choix à une seule option ou une journée sans rien à faire, c'est du bruit : on le retire, et on met de vrais choix à sa place (une carte de plus à jouer, un remplaçant parmi trois, un trio à monter avant le match).
 4. **Si ça ne se voit pas, ça n'existe pas.** Une carte ou un choix sous la borne visible d'une commune est retiré, pas étiqueté « à peine perceptible ».
 
 ## 4. La boucle, de zéro
@@ -95,7 +96,7 @@ RUN    3 saisons au plus · le mandat du proprio en une ligne · les déblocages
 ```
 
 - **Huit étapes au lieu de 26 semaines et 186 journées.** La ligue se joue toujours au jour le jour en dessous : `check_graine` tient, rien n'est simulé d'avance. Seul le pas de l'écran change.
-- **Cible : environ 6 touchers par étape, 50 par saison, dont les trois quarts sont des décisions.** Aujourd'hui, c'est environ 400.
+- **Cible : aucun toucher vide.** Le nombre d'actions peut monter ; ce qui doit tomber à zéro, ce sont les « Compris », les choix à une seule option et les journées sans rien à décider. Aujourd'hui, ils font la majorité des touchers.
 - **Les blessures ne bloquent plus.** L'adjoint rappelle le meilleur du club-école au poste exact (c'est déjà la règle de `check_ballottage`). Le sommaire le dit avec le visage du joueur, et on peut changer dans les Lignes. Un rappel ne libère jamais personne.
 - **« Regarder » reste offert** pour chaque match de l'étape, et toujours pour le gros match.
 - **Le plafond redevient la contrainte.** En Rogue, le plafond de la saison 1 est serré et monte avec les saisons (le mérite du club). Chaque signature se lit d'abord contre la barre. C'est la tension que le 82-0 a déjà et que le Rogue a perdue.
@@ -160,8 +161,8 @@ Rien de cela n'enlève du moteur : les réglages fins restent pour qui les cherc
 1. **Gel des ajouts** jusqu'à ce que la boucle V8 soit jouable : aucune mécanique, aucun onglet, aucune famille de cartes neuve.
 2. **La boucle V8 se bâtit à côté**, derrière une option « Rogue V8 », jouable de bout en bout avant de toucher au reste. Le moteur ne bouge pas : une étape est une suite de journées, une carte passe par les canaux existants.
 3. **Un juge de la boucle** : `essai_boucle.mjs` joue une saison et échoue si :
-   - il y a plus de 60 touchers ;
-   - moins de 70 % des touchers sont des décisions ;
+   - un toucher n'est qu'une confirmation (« Compris », un choix à une seule option) ;
+   - un choix ne dit pas, avant, ce qu'il va changer ;
    - plus de 15 concepts distincts sont affichés dans les 15 premières minutes ;
    - un écran renvoie vers un écran qui renvoie vers lui ;
    - une carte se joue en plus de 2 touchers.
@@ -171,11 +172,33 @@ Rien de cela n'enlève du moteur : les réglages fins restent pour qui les cherc
 ## 9. Ce que JP tranche
 
 1. **La thèse** : ouvrir, bâtir, regarder. Tout le reste part ou devient automatique. D'accord ?
-2. **L'étape de 10 matchs** au lieu de la semaine et de la journée, avec les blessures réglées par l'adjoint ?
+2. **Le rythme** : l'étape de 10 matchs, ou la semaine d'aujourd'hui débarrassée de ses touchers vides ? Les blessures deviennent un vrai choix parmi trois remplaçants (ou l'adjoint, si tu passes), jamais un « qui monte ? » à une seule option.
 3. **Les quatre formes de cartes** (joueur, équipement, personnel, tactique) au lieu des 7 familles et des 4 piles, et une banque d'environ 100 cartes ?
 4. **Le plafond qui contraint en Rogue**, serré à la saison 1 et qui s'ouvre avec le mérite ?
 5. **Les règles fermes à réécrire** :
    - « cinq sections » devient quatre (Équipe réunit Joueurs et Lignes) ;
    - « la boîte ne contient que ce qui se règle » devient « il n'y a pas de boîte : le sommaire de l'étape et le gros bouton du Bureau » ;
    - les scripts des familles fondues partent avec elles.
-6. **L'ordre** : la boucle V8 derrière une option d'abord (recommandé), ou une transformation en place de l'actuel ?
+6. **L'ordre** : la boucle V8 derrière une option, ou l'entre-deux ci-dessous ?
+
+## 10. L'entre-deux : transformer en place, par tranches
+
+JP : *un entre-deux ?*, puis *je veux pas moins d'actions, au contraire, mais moins de confusion*. On transforme le jeu actuel, une PR par tranche. Chaque tranche ajoute des choix lisibles et retire de la confusion. Elle ne retire jamais d'action.
+
+1. **Les cartes qui disent leur usage.**
+   - La poche et la main de la semaine deviennent une seule rangée de cartes.
+   - Le pied de chaque carte dit sa place et sa durée (« Se pose sur un attaquant · toute la saison »), et son bouton dit le même verbe.
+   - Toucher la carte allume ses cibles dans les Lignes ; toucher une cible la pose. Le joueur nommé par la carte est en tête.
+   - La carte posée reste visible là où elle agit : sur la carte du joueur, ou au banc.
+   - Le deck de match ne bouge pas : il reste au gros match.
+2. **Aucun toucher vide.**
+   - Les « Compris » partent ; ce qu'ils annonçaient va au sommaire.
+   - Une blessure propose trois remplaçants, chacun avec ce qu'il change en vraies stats ; un rappel ne libère jamais personne pour de bon.
+   - Une journée sans rien à décider ne demande pas de toucher. Une journée de match peut en demander : le trio à monter, la carte du soir.
+3. **Les mots qui s'expliquent.**
+   - Chaque terme se touche et dit sa définition en une ligne.
+   - Aucun onglet ne s'ouvre vide.
+   - Les chemins en boucle trouvés dans la run sont corrigés : le gros match « à régler », Ligue › Classement qui montrait la semaine, le pack qui finit sur un ✕.
+4. **Des cartes qui se sentent.** Celles sous la borne visible de leur rareté quittent les tirages (`retire`, comme les 120 événements). Les vieilles parties les rejouent.
+
+Le juge de chaque tranche : un script joue une saison et échoue s'il trouve un toucher vide, un choix qui ne dit pas d'avance ce qu'il change, ou une carte dont la face ne dit pas sa place.
