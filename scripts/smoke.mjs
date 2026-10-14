@@ -78,7 +78,8 @@ const SECTION_DE = {
   match: 'bureau', saison: 'ligue', alignement: 'lignes', joueurs: 'joueurs', repechage: 'joueurs', marche: 'cartes',
   classement: 'ligue', calendrier: 'ligue', meneurs: 'ligue', equipes: 'ligue', historique: 'ligue', cartable: 'cartes',
 };
-const SECTIONS = ['bureau', 'joueurs', 'lignes', 'cartes', 'ligue'];
+// Le 82-0 : aucune carte hors du Rogue, donc pas de section Cartes (js/game.js, `sectionsDuMode`).
+const SECTIONS = ['bureau', 'joueurs', 'lignes', 'ligue'];
 async function aller(cle, clic = s => page.click(s)) {
   if (cle === 'regles') {
     await clic('#menuBtn');
@@ -1431,8 +1432,8 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
   // LA BARRE EST FIXE (S67 ; 1.0, R1) : ses cinq sections existent dès le
   // repêchage, et chaque page de chaque section tient sur un écran, même vide.
   const sections = await page.$$eval('#navbar .navtab', e => e.map(x => x.dataset.section).join(','));
-  if (sections !== SECTIONS.join(',')) errors.push(`la barre du repêchage ne porte pas les cinq sections : « ${sections} »`);
-  for (const cle of ['match', 'repechage', 'alignement', 'classement', 'calendrier', 'meneurs', 'equipes', 'historique', 'cartable', 'regles']) {
+  if (sections !== SECTIONS.join(',')) errors.push(`la barre du repêchage du 82-0 ne porte pas ses quatre sections (sans Cartes) : « ${sections} »`);
+  for (const cle of ['match', 'repechage', 'alignement', 'classement', 'calendrier', 'meneurs', 'equipes', 'historique', 'regles']) {
     if (cle !== 'regles' && !(await page.$(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`))) { errors.push(`la barre n'a pas de section pour « ${cle} »`); continue; }
     await aller(cle);
     await page.waitForTimeout(cle === 'equipes' ? 2500 : 400);
@@ -1471,7 +1472,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
    */
   {
     const gestes = [];
-    for (const s of ['joueurs', 'lignes', 'cartes', 'ligue']) {
+    for (const s of ['joueurs', 'lignes', 'ligue']) {
       await page.click(`#navbar .navtab[data-section="${s}"]`);
       await page.waitForTimeout(300);
       if (s === 'lignes') {
@@ -1644,24 +1645,11 @@ if (enabled) {
       await deuxCaptures('bilan-rythme', '#resultHost [data-bl="rythme"]');
     }
   }
-  /*
-   * L'ALBUM (S74) : la saison jouée y entre — ses 23 joueurs au cartable,
-   * ses cartes de match (au moins celles du départ), sans déborder.
-   */
+  // AUCUNE CARTE HORS DU ROGUE : le Palmarès du 82-0 n'a pas d'album de cartes.
   {
     await aller('historique');
     await page.waitForTimeout(300);
-    await page.click('.lb-vues [data-vue="album"]');
-    await page.waitForTimeout(400);
-    const a = await page.evaluate(() => ({
-      joueurs: document.querySelectorAll('.album-joueur').length,
-      cartes: document.querySelectorAll('.album-carte').length,
-      trous: document.querySelectorAll('.album-trou').length,
-    }));
-    if (a.joueurs < 20 || a.cartes < 1 || !a.trous) errors.push(`l'album ne dit pas la saison jouée : ${JSON.stringify(a)}`);
-    else console.log(`   l'album : ${a.joueurs} joueurs au cartable, ${a.cartes} cartes eues, ${a.trous} à trouver`);
-    await sansDebordement('l\'album');
-    await page.click('.lb-vues [data-vue="saisons"]');
+    if (await page.$('.lb-vues [data-vue="album"]')) errors.push('le Palmarès du 82-0 offre encore l\'album des cartes');
     await aller('match');
     await page.waitForTimeout(300);
   }
@@ -2145,9 +2133,7 @@ if (enabled) {
     await aller('joueurs');
     await page.waitForTimeout(250);
     if (!(await page.$('#pageJoueurs:not([hidden]) .jr-table tbody tr'))) errors.push('les Joueurs ne montrent pas le tableau de l\'effectif une fois la saison jouée');
-    await aller('cartable');
-    await page.waitForTimeout(250);
-    if (!(await page.$('#pageCartable:not([hidden])'))) errors.push('les Cartes ne montrent pas l\'album');
+    if (await page.$('#navbar .navtab[data-section="cartes"]')) errors.push('la barre du 82-0 porte une section Cartes (aucune carte hors du Rogue)');
     await aller('match');
     await page.waitForTimeout(250);
   }

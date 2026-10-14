@@ -801,7 +801,7 @@ function ouvrirEcranSaison(depuis = 0) {
         inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page), poche: j => pocheDuJour(j), main: j => mainDuJour(j),
           carte: (item, j, decider) => ouvrirCarteDeLaPoche(item, j, decider) },
         // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
-        // V7 : ton coach et sa confiance, sous Cartes › Ta main.
+        // Ton coach et sa confiance, au Bureau, sous « En jeu ».
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
       },
       onTermine: () => terminerSaison(),

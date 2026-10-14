@@ -2247,3 +2247,11 @@ JP : *la carte de la semaine, les cartes événements, etc. Je trouve que le UI 
 - **Rien n'est retiré** : un pari garde son dé et décide sur-le-champ, le butin garde son paquet, la blessure garde sa liste de rappel (une case « À régler aussi »), la main de la semaine se joue de là comme du Bureau ; ce qui est coché attend dans la boîte (`boite.brouillon`) pendant ce temps. Le pack gratuit (un « Compris ») se lit en passant et s'archive avec la semaine. Les trois accès (le deck, tes cartes, les lignes) sont partis : la barre les a déjà.
 - **Le bouton du pied dit ce qui manque** (« Encore 2 choix ↓ ») et mène au premier choix qui attend, au lieu d'un bouton éteint qui énumérait les titres.
 - **Le gros match en étapes** (`ouvrirMainDeMatch`) : 1 leur plan (les pistes, à toucher), 2 ta carte de vestiaire, 3 ta main ; ce qui se consulte se plie — ce qu'ils jouent ce soir, la règle « viser juste ou rater », le tableau des deux clubs.
+
+## La main et ce qui est en jeu vivent au Bureau (13 oct. 2026)
+
+JP, sur sa capture de Cartes › Ta main : *pas jouer les cartes ici ; les cartes actives, faire total dans Bureau et dropdown pour voir les cartes en soi ; dans la page Cartes, juste les achats de cartes, le management de deck*. Les Cartes répondent à « avec quoi je bâtis ? » (Tes cartes, la Boutique, l'Album) ; ce qui se joue cette semaine et ce qui joue ce soir répond à « qu'est-ce qui se passe aujourd'hui ? », la question du Bureau. La main de la semaine s'y joue (elle y était en V4.3). « En jeu » s'y lit plié en UNE ligne : le total en stats du prochain match, lu en retirant tout ensemble sous les mêmes dés — la somme des lignes compterait deux fois ce qui se chevauche ; déplié, chaque source et le coach avec sa confiance. La pastille « cartes à jouer » suit la main, sur l'onglet Bureau.
+
+## Aucune carte hors du Rogue (13 oct. 2026)
+
+JP : *jeu de table, 82-0, draft sans cartes, aucune carte en dehors du roguelike*. Le 82-0, Sur table et l'exhibition, c'est les joueurs et leurs stats. La section Cartes n'y est plus (la barre en a quatre, dans le même ordre) et le Palmarès n'y offre plus « Ton album » des cartes de match. La règle « cinq sections dans tous les modes » devient : les mêmes sections dans le même ordre, Cartes en Rogue seulement.
