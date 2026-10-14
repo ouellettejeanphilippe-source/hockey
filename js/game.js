@@ -1620,7 +1620,7 @@ const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
  *   Bureau   qu'est-ce qui se passe aujourd'hui ? (le prochain match, ce qui attend ta décision)
  *   Joueurs  qui j'ai, et dans quel état ? (le tableau de l'effectif ; au repêchage du 82-0, le vestiaire)
  *   Lignes   comment on joue ce soir ? (les trios, les paires, les systèmes, le plan de match)
- *   Cartes   avec quoi je joue ? (ta main, ce qui est en jeu, ton coach ; la boutique ; l'album)
+ *   Cartes   avec quoi je bâtis ? (tes cartes et ton deck ; la boutique ; l'album) — la main et ce qui est en jeu : au Bureau
  *   Ligue    où j'en suis ? (le classement, ta saison, les meneurs, les équipes, le palmarès)
  */
 /* Un volet de l'écran de saison, ou que l'écran rouvrira : derrière le banc, il est fermé, et toucher le volet l'y ramène. */
@@ -1629,14 +1629,15 @@ const PAGES_DE = {
   bureau: () => ['match'],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
-  // Ta main, tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun.
-  cartes: () => [...(voletDeSaison('main') ? ['main'] : []), ...(G.bonus === 'ROGUE' ? ['poche', 'marche'] : []), 'cartable'],
+  // Tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun. La main se
+  // joue au Bureau, avec ce qui est en jeu (JP, oct. : *dans la page Cartes, juste les achats, le deck*).
+  cartes: () => ['poche', 'marche', 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], main: ['i-cartes', 'Ta main'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
+  match: ['i-club', 'Match'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
 };
@@ -1646,7 +1647,7 @@ const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
-const PAGES_DE_SAISON = ['match', 'main', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
+const PAGES_DE_SAISON = ['match', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
 /* Les pages de lecture, pareilles à tout moment de la partie. */
 const PAGES_REF = ['equipes', 'historique'];
 
@@ -1662,8 +1663,13 @@ function voletsPrets() {
 const bilanPret = () => voletsPrets().size > 0;
 export const enRepechage = () => !G.done && !bilanPret() && !hubActif();
 
-const sectionDe = cle => (SECTIONS.find(s => PAGES_DE[s.cle]().includes(cle)) || SECTIONS[0]).cle;
-const PAGES = () => SECTIONS.flatMap(s => PAGES_DE[s.cle]());
+/*
+ * AUCUNE CARTE HORS DU ROGUE (JP, oct. : *jeu de table, 82-0, draft sans cartes, aucune carte en dehors du roguelike*).
+ * Le 82-0, Sur table et l'exhibition, c'est les joueurs et leurs stats : la section Cartes n'y est pas.
+ */
+const sectionsDuMode = () => (G.bonus === 'ROGUE' ? SECTIONS : SECTIONS.filter(s => s.cle !== 'cartes'));
+const sectionDe = cle => (sectionsDuMode().find(s => PAGES_DE[s.cle]().includes(cle)) || SECTIONS[0]).cle;
+const PAGES = () => sectionsDuMode().flatMap(s => PAGES_DE[s.cle]());
 /* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
 const dernierePage = {};
 /* La page du Marché ouverte ('poche', 'marche'), ou null. Elle survit à la saison rejouée (un achat, une carte jouée). */
@@ -1672,13 +1678,13 @@ let marcheOuvert = null;
 const cartesEnAttente = () => { const h = hubActif(); const n = h && h.cartes && G.ligue ? cartesAJouer(G.journee || 0) : 0; return n ? String(n) : ''; };
 function sectionsCourantes() {
   const draft = enRepechage();
-  return SECTIONS.map(s => ({
+  return sectionsDuMode().map(s => ({
     ...s,
     // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
     // premier match et le dit d'un coup d'oeil. La toucher reste permis.
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
-    // En saison, les Cartes comptent celles qui attendent d'être jouées ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
-    badge: !draft ? (s.cle === 'cartes' ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
+    // En saison, le Bureau compte les cartes qui attendent d'être jouées (la main s'y joue) ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
+    badge: !draft ? (s.cle === 'bureau' ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
       : s.cle === 'lignes' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
@@ -2262,8 +2268,10 @@ function showLeaderboard() {
    * match gagnées d'une partie à l'autre, tes identités, et le cartable des
    * joueurs (js/album.js). L'album se déduit de cette même liste.
    */
-  const vue = G.vueHistorique === 'album' ? 'album' : 'saisons';
-  const bascule = `<div class="seg lb-vues" role="tablist"><button type="button" data-vue="saisons" class="${vue === 'saisons' ? 'on' : ''}">Tes saisons</button><button type="button" data-vue="album" class="${vue === 'album' ? 'on' : ''}">Ton album</button></div>`;
+  // L'album est un album de cartes : en Rogue seulement (aucune carte hors du Rogue).
+  const avecAlbum = G.bonus === 'ROGUE';
+  const vue = avecAlbum && G.vueHistorique === 'album' ? 'album' : 'saisons';
+  const bascule = !avecAlbum ? '' : `<div class="seg lb-vues" role="tablist"><button type="button" data-vue="saisons" class="${vue === 'saisons' ? 'on' : ''}">Tes saisons</button><button type="button" data-vue="album" class="${vue === 'album' ? 'on' : ''}">Ton album</button></div>`;
   const brancher = () => body.querySelectorAll('.lb-vues [data-vue]').forEach(b => { b.onclick = () => { G.vueHistorique = b.dataset.vue; showLeaderboard(); }; });
   if (vue === 'album') {
     body.innerHTML = bascule + albumHtml(list, { logo: getTeamLogoHtml, mug: headshotHtml });

@@ -394,9 +394,9 @@ await regler();
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 {
-  // V7 : ton coach et sa confiance vivent sous Cartes › Ta main.
-  const versMain = async () => { await page.click('#navbar .navtab[data-section="cartes"]'); await page.waitForTimeout(300); await page.click('#sousNav .soustab[data-page="main"]', { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(600); };
-  await versMain();
+  // Ton coach et sa confiance vivent au Bureau, sous « En jeu », plié.
+  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
+  await page.$eval('#hubModal details.ej-plie', d => { d.open = true; }).catch(() => {}); await page.waitForTimeout(300);
   const coachs = ((await page.textContent('#hubModal .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .ej-coach .ej-rang').catch(() => '')) || '').trim();
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
@@ -407,7 +407,7 @@ console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ')
   const p0 = ((sv0.partie || {}).decisions || []).filter(x => x.jour === 0 && x.patron);
   console.log(`5d. les patrons imposés : ${p0.map(x => `${x.patron.ico} ${x.patron.nom}`).join(' · ') || '(aucun)'}`);
   if (p0.length !== 2) erreurs.push(`la run ne part pas avec deux patrons imposés (${p0.length})`);
-  if (rangCoach !== 'I') erreurs.push(`Cartes › Ta main ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
+  if (rangCoach !== 'I') erreurs.push(`le Bureau ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -734,16 +734,15 @@ for (const pack of ['j:or', 'j:coach']) {
   await regler();
 }
 /*
- * LA MAIN DE LA SEMAINE (V4.3 ; V7 : sous Cartes › Ta main) : après les packs de cartes, quatre cartes de la poche
+ * LA MAIN DE LA SEMAINE (V4.3 ; au Bureau) : après les packs de cartes, quatre cartes de la poche
  * au plus ; on en joue deux par semaine au plus.
  */
 {
   await auBureau();
-  await page.click('#navbar .navtab[data-section="cartes"]'); await page.waitForTimeout(300);
-  await page.click('#sousNav .soustab[data-page="main"]', { timeout: 5000 }).catch(() => {}); await page.waitForTimeout(600);
+  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(600);
   const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
-  console.log(`10a. la main de la semaine, sous Cartes › Ta main : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
-  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas sous Cartes › Ta main');
+  console.log(`10a. la main de la semaine, au Bureau : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas au Bureau');
   else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
   await auBureau();
 }

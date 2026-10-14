@@ -342,7 +342,8 @@ export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
 /*
  * CE QUI JOUE, UN PAR UN (V7, JP : *pas facile d'avoir numériquement quels trucs sont déjà actifs*). Le coach, chaque
  * patron, chaque carte de la saison et chaque effet qui court ce soir : le soir tel quel contre le même soir sans lui
- * seul, sous les mêmes dés. Rend [{ genre, ico, nom, reste, d (l'écart de stats, `statsDe`), mots }], le plus lourd d'abord.
+ * seul, sous les mêmes dés. Rend [{ genre, ico, nom, reste, d (l'écart de stats, `statsDe`), mots }], le plus lourd d'abord,
+ * et `.total` : l'écart de tous ensemble.
  */
 export function ceQuiJoue(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return [];
@@ -356,15 +357,23 @@ export function ceQuiJoue(team, lineup = null, adv = null, aVenir = []) {
       ...(team.effets || []).map((e, i) => ({ champ: 'effets', i, e })).filter(({ e }) => j >= e.debut && j < e.fin && e.source !== 'match')
         .map(({ champ, i, e }) => ({ champ, i, genre: 'effet', ico: e.ico, nom: e.nom, reste: matchsEntre(team, j, e.fin) })),
     ].filter(s => s.nom);
-    return sources.map(({ champ, i, ...s }) => {
-      const avant = team[champ];
-      team[champ] = avant.filter((_, k) => k !== i);
-      let sans;
-      try { sans = lire(team, lineup, adv, { n: N_EFFET }); } finally { team[champ] = avant; }
+    const sansDes = retires => {
+      const avant = {};
+      for (const [champ, ix] of retires) { avant[champ] = team[champ]; team[champ] = team[champ].filter((_, k) => !ix.has(k)); }
+      try { return lire(team, lineup, adv, { n: N_EFFET }); } finally { Object.assign(team, avant); }
+    };
+    const r = sources.map(({ champ, i, ...s }) => {
+      const sans = sansDes([[champ, new Set([i])]]);
       const d = differences(tel, sans);
       const e = statsEntre(tel, sans);
       return { ...s, d: e, poids: Math.max(...Object.keys(PAS_STAT).map(k => Math.abs(e[k]) / PAS_STAT[k])), mots: [...lignesDe(d), ...horsFeuille(d)] };
     }).sort((a, b) => b.poids - a.poids);
+    // LE TOTAL (le Bureau) : le soir tel quel contre le même soir sans aucun d'eux, sous les mêmes dés — pas la somme des
+    // lignes, qui compterait deux fois ce qui se chevauche.
+    const parChamp = new Map();
+    for (const { champ, i } of sources) { if (!parChamp.has(champ)) parChamp.set(champ, new Set()); parChamp.get(champ).add(i); }
+    r.total = sources.length ? statsEntre(tel, sansDes([...parChamp])) : null;
+    return r;
   });
 }
 

@@ -2303,6 +2303,11 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Ton équipe ce soir (V7) : l'alignement et ce qui joue, en but net par match ; le coach et sa confiance. */
 .ej-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .ej-soir:empty { display: none; }
+.ej-plie > summary { cursor: pointer; list-style: none; gap: var(--esp-2); }
+.ej-plie > summary::-webkit-details-marker { display: none; }
+.ej-plie > summary > span:first-child::after { content: ' ›'; color: var(--encre-3); }
+.ej-plie[open] > summary > span:first-child::after { content: ' ⌄'; }
+.ej-plie:not([open]) { gap: 0; }
 .ej-tete { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); letter-spacing: 0.04em; text-transform: uppercase; }
 .ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }

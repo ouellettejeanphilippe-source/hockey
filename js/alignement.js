@@ -860,7 +860,7 @@ const ecartDuSoir = plan => avecLeBanc((you, lu, adv, aVenir) => {
   return { tirs: a.tirs - b.tirs, pctTir: a.pctTir - b.pctTir, contre: a.contre - b.contre, pctArr: a.pctArr - b.pctArr };
 });
 /*
- * TON COACH ET SA CONFIANCE (V7 : il vit dans Cartes › Ta main, avec les cartes qui le font monter). `injured` : les
+ * TON COACH ET SA CONFIANCE (il vit au Bureau, sous « En jeu », avec les cartes qui le font monter). `injured` : les
  * blessés du jour, qui ne portent pas sa confiance.
  */
 export function coachHtml(decs, j, injured = new Set()) {

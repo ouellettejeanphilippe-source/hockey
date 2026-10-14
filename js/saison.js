@@ -2274,22 +2274,30 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return bits.length ? `<div class="soir-drame">${cap(bits.join(' · '))}.</div>` : '';
   };
   /*
-   * TA MAIN (V7, Cartes › Ta main). JP : *le roguelike, c'est une lettre d'amour aux cartes de hockey*. Les cartes
-   * réunies : la main de la semaine (on joue d'ici), ce qui est en jeu un par un — le coach, les patrons, les cartes
-   * de la saison, les effets qui courent —, chacun avec ce qu'il change aux stats du prochain match (tirs, réussite,
-   * tirs contre, arrêts : `ceQuiJoue`), et ton coach avec sa confiance.
+   * TES CARTES, AU BUREAU (JP, oct. : *pas jouer les cartes ici [Cartes] ; les cartes actives, faire total dans bureau
+   * et dropdown pour voir les cartes en soi ; dans la page Cartes, juste les achats, le deck*). La main de la semaine
+   * se joue d'ici ; ce qui est en jeu — le coach, les patrons, les cartes de la saison, les effets qui courent — se dit
+   * en UN total de stats du prochain match (`ceQuiJoue(...).total` : tous retirés ensemble, sous les mêmes dés), et se
+   * déplie, un par un, avec ton coach et sa confiance. Lu une fois par journée : le Bureau se redessine souvent.
    */
-  const voletMain = () => {
+  let enJeuLu = null;
+  const enJeuDuSoir = p => {
+    if (!enJeuLu || enJeuLu.jour !== jour) enJeuLu = { jour, jeu: p ? auSoirDu(p.j, null, aVenir => ceQuiJoue(you, null, p.m.A === you ? p.m.B : p.m.A, aVenir)) : [] };
+    return enJeuLu.jeu;
+  };
+  const cartesDuBureau = () => {
+    if (!ctx.inventaire) return '';
     const p = prochain();
-    const jeu = p ? auSoirDu(p.j, null, aVenir => ceQuiJoue(you, null, p.m.A === you ? p.m.B : p.m.A, aVenir)) : [];
-    const pastilles = d => motsDeStats(d, 2).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
-    const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} m.</small>` : ''}</span><span class="ej-stats">${pastilles(x.d)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
-    return `${mainHtml()}<section class="ej-soir"><div class="ej-k">En jeu${p ? ` <small>par match, au prochain</small>` : ''}</div>
+    const jeu = enJeuDuSoir(p);
+    const pastilles = (d, n) => motsDeStats(d, n).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
+    const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} m.</small>` : ''}</span><span class="ej-stats">${pastilles(x.d, 2)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
+    const coach = ctx.coachHtml ? ctx.coachHtml(jour) : '';
+    return `${mainHtml()}<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, 4) : ''}</span></summary>
       ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}
-      ${ctx.coachHtml ? ctx.coachHtml(jour) : ''}</section>`;
+      ${coach}</details>`;
   };
   const voletJourneeSeul = () => {
-    if (!jour) return '';
+    if (!jour) return cartesDuBureau();
     const j = jour - 1, k = indexMien(j), matchs = calendrier[j];
     // PLIÉ PAR DÉFAUT (S78) : le rapport de tes lignes et les quinze autres
     // matchs se déplient au toucher. Au téléphone, ils faisaient deux écrans.
@@ -2299,7 +2307,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour ${mbHier.duree || SONNE.duree} matchs${mbHier.raison === 'nemesis' ? cicatriceMot('doute') : ''}`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
     // HIER SOIR, EN UN BLOC (JP : *narration, limiter d'avoir à chercher*) : le résultat et son but gagnant, le drame, le
     // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
-    return `<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
+    return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };
 
   /*
@@ -2552,14 +2560,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const tabs = onglets(barre, volet, [
     { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' }, { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
     { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
-    // V7 : TA MAIN, sous les Cartes — la main de la semaine, ce qui est en jeu, ton coach.
-    ...(ctx.inventaire ? [{ cle: 'main', ico: 'i-cartes', titre: 'Ta main', page: 'main' }] : []),
     // LA SAISON, sous la Ligue : le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
     // La boîte de réception n'a plus d'onglet (V7) : elle vit au Bureau, sous l'affiche (rendue dans .hub-actions).
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
   ], cle => {
     if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
-    if (cle === 'main') return voletMain();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
     if (cle === 'equipes') return equipesHtml(ctx, {
@@ -2616,7 +2621,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }, 30);
   };
   volet.addEventListener('click', lancerPrevision);
-  // Ta main (V7) : une carte de la main se touche ; une ligne « en jeu » se déplie sur ses chiffres de match.
+  // Tes cartes au Bureau : une carte de la main se touche ; une ligne « en jeu » se déplie sur ses chiffres de match.
   const dansLaMain = e => {
     const c = e.target.closest('.hub-poche-case[data-ref]');
     if (c && volet.contains(c)) { const it = ((mainDuBureau() || {}).main || []).find(x => x.ref === c.dataset.ref); if (it) ctx.inventaire.carte(it, jour, d => { const j = jour; quitter(); onDecision(d, j); }); return; }
