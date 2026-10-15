@@ -507,6 +507,7 @@ body.nav-clavier .btn:focus, body.nav-clavier .chip:focus, body.nav-clavier .nav
 .pane-title h2 { font: 800 var(--t-4)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; }
 .pane-meta { font: 700 var(--t-2)/1 var(--display); color: var(--encre-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pane-pool { container-type: inline-size; container-name: pool; }
+.pane-roster { container-type: inline-size; container-name: roster; }
 .pane-pool.loto .pool-tools, .pane-pool.loto .filters { display: none; }
 .pane-pool.loto .pane-title { display: flex; }
 @media (min-width: 680px) {
@@ -2297,7 +2298,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line.good { border-left: 3px solid var(--bon); }
 .line.bad { border-left: 3px solid var(--mauvais); }
 /* L'en-tête : le rang en gros, l'identité en or, « à leur place » en vert, sur un filet. */
-.line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); min-height: 44px; padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); }
+.line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); min-height: 36px; }
 .line-head-regle { cursor: pointer; }
 .line-head-regle:hover .line-name { color: var(--or); }
 .line-name { flex: none; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
@@ -2390,32 +2391,31 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line-chem.bad { color: var(--mauvais); }
 /* Les cases : trois de front, deux pour une paire ou les gardiens. */
 .line-slots { position: relative; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2); }
-/* LES LIENS (V6) : une pastille posée sur l'écart de deux voisins (js/alignement.js `poserLiens`). En colonnes, au milieu de
-   l'écart entre la k-ième case et la suivante ; en rangées (le téléphone), sur le filet entre les deux, au bord du bandeau. */
-.lien-place { position: absolute; z-index: 3; top: 50%; left: calc(var(--esp-2) / 2 + (100% - var(--esp-2)) * var(--k) / var(--n)); width: 0; height: 0; }
+/* LES LIENS (V6) : une pastille posée sur l'écart de deux voisins (js/alignement.js `poserLiens`). En rangées, sur le filet
+   entre les deux, au bord du bandeau ; en depth chart, au milieu de l'écart entre la k-ième case et la suivante. */
+.lien-place { z-index: 3; width: 0; height: 0; position: relative; top: auto; left: 54px; margin-top: -1px; }
 .lien {
   position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); min-width: 28px; height: 28px; padding: 0 var(--esp-1);
   display: grid; place-items: center; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--noir);
   font: 700 var(--t-2)/1 var(--display); white-space: nowrap; cursor: pointer;
 }
 /* Les deux ailiers : sur la case du centre, qui est entre eux — en bas de la carte en colonnes, au bord du bandeau en rangée. */
-.slot > .lien-ailes { z-index: 3; left: 50%; top: auto; bottom: var(--esp-1); transform: translateX(-50%); }
+.slot > .lien-ailes { z-index: 3; left: 54px; top: 50%; bottom: auto; transform: translate(0, -50%); }
 .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 
 /* ---- La case : le bandeau du club, le nom, le rôle et son mot, le niveau et la zone, le chiffre clé, les jambes ---- */
 .slot {
-  position: relative; display: flex; flex-direction: column; min-height: 106px;
-  border: 1px solid var(--filet); border-radius: var(--r-1); background: linear-gradient(100deg, color-mix(in srgb, var(--slot-band, transparent) 34%, var(--fond-2)), var(--slot-fond, var(--fond-2)) 78%);
-  overflow: hidden; cursor: pointer;
-  transition: border-color var(--t-vite), transform var(--t-vite), background var(--t-vite);
+  position: relative; display: flex; overflow: hidden; cursor: pointer;
+  transition: border-color var(--t-vite), transform var(--t-vite), background var(--t-vite); flex-direction: row; align-items: stretch; min-height: 56px;
+  border: 0; border-radius: 0; background: var(--fond-1);
 }
 .slot:hover { border-color: var(--encre-3); }
 .slot:active { transform: scale(0.98); }
 /* Sa hauteur suit son contenu (les jambes ajoutent une rangée derrière le banc) ; rien ne se coupe. */
-.slot-inner { flex: 1 0 auto; min-height: 0; display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-auto-rows: min-content; align-items: center; column-gap: var(--esp-2); row-gap: 3px; padding: var(--esp-1) var(--esp-2) var(--esp-2); }
+.slot-inner { min-height: 0; display: grid; grid-auto-rows: min-content; align-items: center; column-gap: var(--esp-2); flex: 1 1 auto; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "mug nom cle" "mug l1 l2"; row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
 /* LE VISAGE DANS LA CASE (1.0, R3). JP : *intégrer les faces dans l'alignement*. Rond, sur le fond du club, l'anneau au métal de sa variante ;
    il tient le nom et les deux premières lignes ; le chiffre clé et les jambes prennent toute la largeur dessous. */
-.slot-mug { position: relative; grid-row: 1 / span 3; width: 40px; height: 40px; overflow: hidden; border-radius: 50%; border: 2px solid var(--encre-3); background: color-mix(in srgb, var(--slot-band, var(--fond-3)) 70%, var(--noir)); }
+.slot-mug { position: relative; grid-row: 1 / span 3; overflow: hidden; border: 2px solid var(--encre-3); background: color-mix(in srgb, var(--slot-band, var(--fond-3)) 70%, var(--noir)); grid-area: mug; width: 44px; height: 44px; border-radius: var(--r-1); }
 .slot-mug > * { position: absolute; inset: 0; display: grid; place-items: center; }
 .slot-mug img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; transform: scale(1.15); transform-origin: 50% 0; }
 .slot-mug .headshot-fallback { font-size: var(--t-3); opacity: 0.45; }
@@ -2425,7 +2425,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .slot-inner > :not(.slot-mug) { grid-column: 2; }
 .slot-inner > .cell-l3, .slot-inner > .jambes, .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 1 / -1; }
 /* Les états : vide en pointillés, visée qui pulse, tenue cernée, hors position, hors de sa zone, renfort, cadenassée. */
-.slot.empty { justify-content: center; align-items: center; gap: 2px; padding: var(--esp-2); text-align: center; border-style: dashed; background: transparent; }
+.slot.empty { align-items: center; text-align: center; border-style: dashed; flex-direction: row; justify-content: flex-start; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px dashed var(--filet); background: var(--fond-1); }
 .slot-role { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 .slot-sub { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
 .slot.empty.target { border-style: solid; border-color: var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); outline: 2px solid var(--or); outline-offset: -2px; animation: slot-cible 1.2s ease-in-out infinite; }
@@ -2449,27 +2449,28 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .slot.tc-rare .slot-band { box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--club-2)), inset 0 2px 0 var(--encre); }
 .slot.tc-legendaire .slot-band { box-shadow: inset 0 -2px 0 var(--slot-stripe, var(--club-2)), inset 0 2px 0 var(--or); }
 .sb-role { flex: none; color: inherit; }
-.slot-salary { flex: none; margin-left: auto; color: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.slot-salary { flex: none; margin-left: auto; color: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; margin: 0; font-size: var(--t-1); opacity: 0.85; }
 .slot-salary.renfort { color: var(--encre-3); }
 .slot-band.off .slot-salary { color: var(--encre-3); }
 /* Le ✕ (retirer, ou relâcher un réserviste en Rogue) prend le coin de la bande, qui lui laisse sa place. */
-.slot:has(> .slot-remove) .slot-band { padding-right: 32px; }
+.slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
 .slot-remove {
-  position: absolute; top: 0; right: 0; z-index: 3; width: 32px; height: 32px; display: grid; place-items: center;
-  border: 0; border-radius: 0 0 0 var(--r-1); background: var(--noir); color: var(--encre-3); font: 700 var(--t-2)/1 var(--display);
-  opacity: 0; transition: opacity var(--t-vite), color var(--t-vite);
+  position: absolute; right: 0; z-index: 3; display: grid;
+  place-items: center; border: 0; background: var(--noir); color: var(--encre-3);
+  font: 700 var(--t-2)/1 var(--display); transition: opacity var(--t-vite), color var(--t-vite); top: 50%; transform: translateY(-50%);
+  width: 28px; height: 28px; border-radius: var(--r-1); opacity: 1;
 }
 .slot:hover .slot-remove, .slot.selected .slot-remove { opacity: 1; }
 .slot-remove:hover { color: var(--mauvais); }
 .slot-remove.slot-relacher { opacity: 1; color: var(--mauvais); }
 /* Le nom, sur toute la largeur, une ligne : `ajusterCartes` le mesure et rétrécit sa police. */
 /* Le nom et, devant lui, l'écusson de son club (U19, JP : *l'écusson et la couleur en accent, les deux*). */
-.slot-qui { display: flex; align-items: center; gap: var(--esp-1); min-width: 0; }
+.slot-qui { display: flex; align-items: center; gap: var(--esp-1); min-width: 0; grid-area: nom; }
 .slot-logo { flex: none; display: inline-flex; }
-.slot .slot-name { display: block; width: 100%; min-width: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.01em; text-transform: uppercase; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.slot .slot-name { display: block; width: 100%; min-width: 0; font: 800 var(--t-4)/1.05 var(--display); letter-spacing: 0.01em; text-transform: uppercase; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--t-3); }
 .slot-name .fname { display: none; color: var(--encre-2); font-weight: 600; }
 /* Rangée 1 : le rôle (une icône, un mot) et son mot de maîtrise à droite. */
-.cell-l1 { display: flex; align-items: center; gap: var(--esp-1); min-width: 0; }
+.cell-l1 { display: flex; align-items: center; gap: var(--esp-1); min-width: 0; grid-area: l1; }
 /* Le rôle, son icône et son mot sur une rangée qui plie : le mot passe à la ligne plutôt que de couper le rôle (« S… TRÈS BON ») ou d'être coupé lui-même (le smoke le mesure). */
 .cell-role { flex: 1 1 auto; display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 3px; min-width: 0; font-size: var(--t-3); line-height: 1; white-space: nowrap; overflow: hidden; }
 .cell-role > span { flex: 0 1 auto; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -2495,7 +2496,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* Rangée 2 : le niveau, la zone (✓ ▼ ▲), le blessé, la pénalité, le trophée. Elle se plie plutôt que de couper. */
 .slot-tags { margin-top: auto; display: flex; flex-wrap: nowrap; gap: 3px; min-width: 0; overflow: hidden; transform-origin: left center; }
 .slot-tags > * { flex: none; }
-.slot-tags.cell-l2 { margin-top: 0; flex-wrap: wrap; align-items: center; row-gap: 2px; overflow: visible; }
+.slot-tags.cell-l2 { margin-top: 0; flex-wrap: wrap; align-items: center; row-gap: 2px; overflow: visible; grid-area: l2; justify-self: end; margin: 0; justify-content: flex-end; }
 .cell-zone { font: 800 var(--t-1)/1.3 var(--display); padding: 0 2px; }
 .cell-zone.ok { color: var(--bon); }
 .cell-zone.sous { color: var(--mauvais); }
@@ -2517,7 +2518,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .slot-tags .tag-table { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
 /* ---- La rangée « Système » au pied d'un trio ou d'une paire : une ligne de 44 px, « Régler › » en or ---- */
-.ln-strat { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: 0 var(--esp-3); border: 0; border-top: 1px solid var(--filet); background: none; color: var(--encre-2); text-align: left; font: 600 var(--t-2)/1.2 var(--display); cursor: pointer; transition: background var(--t-vite); }
+.ln-strat { display: flex; align-items: center; gap: var(--esp-2); width: 100%; padding: 0 var(--esp-3); border: 0; border-top: 1px solid var(--filet); background: none; color: var(--encre-2); text-align: left; font: 600 var(--t-2)/1.2 var(--display); cursor: pointer; transition: background var(--t-vite); min-height: 36px; }
 .ln-strat:hover { background: var(--fond-2); }
 /* Aligner au mieux (oct.) : un bouton au-dessus des trios, pleine largeur sur mobile. */
 .ln-auto { width: 100%; min-height: 44px; margin: 0 0 var(--esp-2); }
@@ -2533,12 +2534,9 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 
 /* ---- Derrière le banc : le panneau de la journée au-dessus de l'alignement ---- */
 #game.banc #spin, #game.banc #dash, #game.banc #panePool { display: none; }
-/* Au téléphone, le volet entier défile et le « Retour au match » du bas (#mainBtn) fait le retour. */
+/* Au téléphone, le volet entier défile ; le « Retour au match » du bas (#mainBtn) fait le retour, à toutes les largeurs (un seul). */
 #game.banc #paneRoster { display: flex; flex-direction: column; overflow-y: auto; }
 #game.banc #paneRoster .roster { flex: 0 0 auto; min-height: auto; overflow: visible; }
-#game.banc #bancRetour { display: none; }
-.banc { margin-bottom: var(--esp-3); }
-.banc-retour { width: 100%; margin-top: var(--esp-3); }
 
 /* ---- La fenêtre du système d'une unité (#lignesModal .gl-sheet) ---- */
 .gl-sheet { max-width: 1180px; }
@@ -2619,79 +2617,64 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 @media (min-width: 1000px) {
   #game.banc #paneRoster { overflow-y: visible; }
   #game.banc #paneRoster .roster { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  #game.banc #bancRetour { display: inline-flex; }
-}
-/* En colonnes : les rangées suivent leur contenu, sinon la rangée « Système » d'un trio s'imprime sur l'en-tête du suivant. */
-@media (min-width: 1400px) {
-  body[data-page="alignement"] .roster { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); grid-auto-rows: max-content; gap: var(--esp-3); align-items: start; }
-  body[data-page="alignement"] .roster > .ln-auto { grid-column: 1 / -1; }
 }
 /* La tablette, debout ou couchée : les unités de l'onglet deux à deux (les quatre trios en carré), chacune en rangées —
-   une colonne d'unité y est aussi large qu'un téléphone. */
-@media (min-width: 700px) and (max-width: 1399.98px) {
+   une colonne d'unité y est aussi large qu'un téléphone. Plus large, le depth chart (plus bas) les reprend une sous l'autre.
+   Les rangées suivent leur contenu, sinon la rangée « Système » d'un trio s'imprime sur l'en-tête du suivant. */
+@media (min-width: 700px) {
   body[data-page="alignement"] .roster { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: max-content; gap: var(--esp-3); align-items: start; }
   /* « Aligner au mieux » sur toute la largeur (JP : *le bouton ne devrait pas casser l'interface en tablette*) : il prenait la place d'une unité. */
   body[data-page="alignement"] .roster > .ln-auto { grid-column: 1 / -1; }
 }
 /* Le volet de l'alignement à côté du vestiaire est étroit : le chiffre du résumé reprend sa taille de téléphone. */
 @media (min-width: 1400px) { body[data-page="repechage"] .sum-item .v { font-size: var(--t-4); } }
-/* ---- Au téléphone (1.0, R4), APRÈS les cases (à égalité de spécificité, la dernière règle gagne) : l'onglet nomme déjà l'écran,
-   le titre et la phrase d'aide s'effacent, le résumé tient sur une ligne, un onglet à la fois, une RANGÉE par joueur. ---- */
-.seg-effectif { display: none; }
-/* JUSQU'À 1400 PX (la tablette, couchée ou debout, et le petit portable) : les cartes en colonnes n'y laissaient qu'environ
-   cent pixels à une case — tout se coupait, « Pass… », « Trio d… » — et sans onglets, l'alignement faisait quatre écrans à 1024 px.
-   Le téléphone et la tablette lisent donc pareil : un onglet à la fois, une rangée par joueur. */
-@media (max-width: 1399.98px) {
-  /* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
-  .seg-effectif { display: flex; }
-  body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
-  /* L'onglet Équipe (V6) : le plan de match et le résumé d'équipe ; les unités vivent dans les trois autres. */
-  body[data-effectif="E"] #rosterBoard .line, body:not([data-effectif="E"]) #rosterBoard :is(.plan-match, .ej-soir) { display: none; }
-  /* L'onglet AN · DN (V7) : tes unités spéciales seules ; il n'existe que derrière le banc, où elles se jouent. */
-  body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="S"]) #rosterBoard .unites-speciales { display: none; }
-  #game:not(.banc) .seg-effectif [data-val="S"] { display: none; }
-  .line-head { min-height: 36px; }
-  /* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
-  .line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
-  .lien-place { position: relative; top: auto; left: 54px; margin-top: -1px; }
-  .slot > .lien-ailes { left: 54px; top: 50%; bottom: auto; transform: translate(0, -50%); }
-  /* LA COULEUR DU CLUB DERRIÈRE LE JOUEUR (U19, JP : *le fond où y'a la position, pas de couleur, mais couleur où y'a le nom
-     et les autres infos*) : la colonne du poste et du salaire est neutre, comme le fond de la rangée de signature (`.pcard`) ;
-     le nom, l'écusson devant lui, et ses infos portent les couleurs de son club. */
-  .slot { flex-direction: row; align-items: stretch; min-height: 56px; border: 0; border-radius: 0; background: var(--fond-1); }
-  .slot-band, .slot.tc-peu .slot-band, .slot.tc-rare .slot-band, .slot.tc-legendaire .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; background: var(--fond-1); color: var(--encre-2); box-shadow: inset -1px 0 0 var(--filet); }
-  .slot:has(> .slot-remove) .slot-band { padding-right: 2px; }
-  .slot-band .sb-role { color: var(--encre); font-size: var(--t-1); }
-  .slot:not(.empty) .slot-inner { background: linear-gradient(100deg, color-mix(in srgb, var(--slot-band, transparent) 16%, var(--fond-1)), var(--fond-1) 70%); }
-  .slot-salary { margin: 0; font-size: var(--t-1); opacity: 0.85; }
-  .slot-inner { flex: 1 1 auto; grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "mug nom cle" "mug l1 l2"; row-gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
-  /* L'anatomie de la rangée (docs/refonte-ui.md, règle 12) : le visage carré de 44 px, au liseré de sa variante, comme au vestiaire. */
-  .slot-mug { grid-area: mug; width: 44px; height: 44px; border-radius: var(--r-1); }
-  .slot-qui { grid-area: nom; }
-  .slot .slot-name { font-size: var(--t-3); }
-  .slot-inner > .cell-l3 { grid-area: cle; justify-self: end; text-align: right; }
-  .cell-l1 { grid-area: l1; }
-  .slot-tags.cell-l2 { grid-area: l2; justify-self: end; margin: 0; justify-content: flex-end; }
-  /* En rangée, la place y est : le badge et son palier restent sur une ligne. En carte (dès 1400 px), le palier passe dessous. */
-  .slot-inner > .jambes, .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 2 / -1; }
-  .slot.empty { flex-direction: row; justify-content: flex-start; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px dashed var(--filet); background: var(--fond-1); }
-  .slot-remove { top: 50%; transform: translateY(-50%); width: 28px; height: 28px; border-radius: var(--r-1); opacity: 1; }
-  .slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
-  .ln-strat { min-height: 36px; }
-  /* Rien d'écrit au-dessus des trios (1.0, R3) : ni titre, ni résumé — l'en-tête dit la masse et le compte, chaque trio dit s'il est à sa place. */
-  .pane-roster .pane-title, .team-summary { display: none; }
-  body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--esp-3); }
-}
+/* ---- À toutes les largeurs (1.0, R4), APRÈS les cases (à égalité de spécificité, la dernière règle gagne) : l'onglet nomme
+   déjà l'écran, le titre et la phrase d'aide s'effacent, un onglet à la fois, une RANGÉE par joueur. ---- */
+/* Les cartes en colonnes ne laissaient qu'environ cent pixels à une case — tout se coupait,
+   « Pass… », « Trio d… » — et sans onglets, l'alignement faisait quatre écrans à 1024 px. Dès 1400 px, il jetait le plan de
+   match, les unités spéciales et deux trios dans une même grille (JP, oct. : *c'est pas du design qui a de l'allure ça*).
+   Le téléphone, la tablette et l'écran large lisent donc pareil : un onglet à la fois, une rangée par joueur. */
+/* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
+body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
+/* L'onglet Équipe (V6) : le plan de match et le résumé d'équipe ; les unités vivent dans les trois autres. */
+body[data-effectif="E"] #rosterBoard .line, body:not([data-effectif="E"]) #rosterBoard :is(.plan-match, .ej-soir) { display: none; }
+/* L'onglet AN · DN (V7) : tes unités spéciales seules ; il n'existe que derrière le banc, où elles se jouent. */
+body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="S"]) #rosterBoard .unites-speciales { display: none; }
+#game:not(.banc) .seg-effectif [data-val="S"] { display: none; }
+/* Une RANGÉE par joueur : la case (le poste, le salaire) à gauche, le nom et le chiffre clé, puis le rôle, le niveau et la zone. */
+.line-slots, .line-slots.pair { grid-template-columns: minmax(0, 1fr); gap: 1px; padding: 0; background: var(--filet-2); }
+/* LA COULEUR DU CLUB DERRIÈRE LE JOUEUR (U19, JP : *le fond où y'a la position, pas de couleur, mais couleur où y'a le nom
+   et les autres infos*) : la colonne du poste et du salaire est neutre, comme le fond de la rangée de signature (`.pcard`) ;
+   le nom, l'écusson devant lui, et ses infos portent les couleurs de son club. */
+.slot-band, .slot.tc-peu .slot-band, .slot.tc-rare .slot-band, .slot.tc-legendaire .slot-band { flex: none; width: 54px; flex-direction: column; justify-content: center; gap: 1px; padding: 2px; background: var(--fond-1); color: var(--encre-2); box-shadow: inset -1px 0 0 var(--filet); }
+.slot-band .sb-role { color: var(--encre); font-size: var(--t-1); }
+.slot:not(.empty) .slot-inner { background: linear-gradient(100deg, color-mix(in srgb, var(--slot-band, transparent) 16%, var(--fond-1)), var(--fond-1) 70%); }
+/* L'anatomie de la rangée (docs/refonte-ui.md, règle 12) : le visage carré de 44 px, au liseré de sa variante, comme au vestiaire. */
+.slot-inner > .cell-l3 { grid-area: cle; justify-self: end; text-align: right; }
+/* En rangée, la place y est : le badge et son palier restent sur une ligne. */
+.slot-inner > .jambes, .slot-inner > .slot-meta, .slot-inner > .slot-tags:not(.cell-l2) { grid-column: 2 / -1; }
+.slot:has(> .slot-remove) .slot-inner { padding-right: 34px; }
+/* Rien d'écrit au-dessus des trios (1.0, R3) : ni titre, ni résumé — l'en-tête dit la masse et le compte, chaque trio dit s'il est à sa place. */
+.pane-roster .pane-title, .team-summary { display: none; }
+body[data-effectif="E"] .team-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); row-gap: var(--esp-3); }
 /* EN DEPTH CHART, HORS DU TÉLÉPHONE (U19, JP : *des lignes horizontales style depth chart quand pas mobile*) : chaque unité sur
    toute la largeur, ses joueurs côte à côte dans l'ordre de la glace (AG · C · AD, DG · DD), chacun dans sa rangée ; les liens
-   reprennent leur place entre deux voisins. Sous 1000 px, trois rangées de front seraient trop étroites pour le nom. */
-@media (min-width: 1000px) and (max-width: 1399.98px) {
+   reprennent leur place entre deux voisins. Lu sur la LARGEUR DU VOLET, pas de l'écran : sous 1000 px, trois rangées de front
+   seraient trop étroites pour le nom et le rôle (le téléphone, la tablette, le volet de l'alignement à côté du vestiaire). */
+@container roster (min-width: 1000px) {
   body[data-page="alignement"] .roster { grid-template-columns: minmax(0, 1fr); }
   .line-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .lien-place { position: absolute; top: var(--esp-4); left: calc(100% * var(--k) / var(--n)); margin-top: 0; }
   .slot > .lien-ailes { left: 50%; top: auto; bottom: var(--esp-1); transform: translateX(-50%); }
+  /* L'onglet Équipe en large : ce que vaut ton alignement à gauche, le plan de match à droite ; les unités spéciales deux à deux. */
+  body[data-page="alignement"][data-effectif="E"] .roster { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .roster > :is(.ej-soir, .plan-match, .unites-speciales) { margin-bottom: 0; }
+  .unites-speciales { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .unites-speciales > :is(.pm-tete, .pm-k) { grid-column: 1 / -1; }
 }
+/* Le résumé de l'onglet Équipe sur une ligne dès qu'il y a la place. */
+@container roster (min-width: 600px) { body[data-effectif="E"] .team-summary { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
 
 
 /* == 6a. LE CLUB — le bureau (l'écran de saison), la boîte de réception, le dépistage, le portail, les tableaux du bureau == */
@@ -2728,6 +2711,18 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .rt-arret.rt-gros { color: var(--or); }
 .rt-arret.rt-lundi { color: var(--encre-3); border-top: 1px dashed var(--filet); padding-top: 2px; }
 .rt-ico { display: grid; place-items: center; }
+/* Les derniers matchs : le résultat à droite, teint ; la rangée ouvre le sommaire. */
+.rt-passes { margin-bottom: var(--esp-3); }
+.rt-joue { cursor: pointer; border-radius: var(--r-1); }
+.rt-joue:hover { background: var(--fond-2); }
+.rt-res { font: 700 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); white-space: nowrap; }
+.rt-joue.v .rt-res b { color: var(--bon); }
+.rt-joue.d .rt-res b { color: var(--mauvais); }
+/* En large, d'où tu viens à gauche, où tu vas à droite. */
+@media (min-width: 1200px) {
+  .bu-route:has(> .rt-passes) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr; grid-auto-flow: column; column-gap: var(--esp-5); align-items: start; }
+  .bu-route .rt-passes { margin-bottom: 0; }
+}
 .rt-txt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* À FAIRE (V8) : une ligne qui mène où ça se règle. */
 .hub-afaire-lien { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; margin: var(--esp-2) 0 0; padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 700 var(--t-2)/1.2 var(--corps); text-align: left; cursor: pointer; }
@@ -3114,11 +3109,6 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 @keyframes passage-monte { from { opacity: 0; transform: translateY(10px); } }
 /* La une du jour : deux nouvelles au plus, chacune sur son filet du club. */
 /* Le fil des autres résultats : un bandeau du bas qui défile, comme à la télé. */
-.passage-fil { position: absolute; left: 0; right: 0; bottom: 0; overflow: hidden; padding: var(--esp-2) 0; background: color-mix(in srgb, var(--noir) 88%, transparent); border-top: 2px solid var(--club-vif); }
-.passage-defile { display: flex; gap: var(--esp-5); width: max-content; animation: passage-fil 9s linear; }
-@keyframes passage-fil { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-.passage-score { display: inline-flex; align-items: center; gap: var(--esp-1); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); white-space: nowrap; }
-.passage-score b { color: var(--encre); font-variant-numeric: tabular-nums; }
 
 /* ---- Le volet : les titres, hier soir, l'état de la saison, ce qui se plie ---- */
 .hub-titre { display: flex; align-items: center; gap: var(--esp-2); margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }

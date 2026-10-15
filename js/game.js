@@ -53,7 +53,7 @@ import { ouvrirEquipes } from './equipes.js';
 import { albumHtml } from './album.js';
 import { blessesAuJour, cartesAJouer, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
 import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, varianteJoueur } from './repechage.js';
-import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, renderBanc, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
+import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
 import { actionDuBouton, choisirIdentite, majPiedPartie, oublierBrouillon, ouvrirNouvellePartie, poserBrouillon, resoudreHasard, semerBrouillon, syncOptionsUI } from './partie.js';
 import { renderMain, renderRoster, renderTeamSummary } from './alignement.js';
@@ -2250,7 +2250,6 @@ export function render() {
   renderPool();
   renderPoolMeta();
   renderRoster();
-  renderBanc();
   renderTeamSummary();
   renderMain();
 }

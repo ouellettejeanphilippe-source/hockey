@@ -653,3 +653,12 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
   - **Une page du Club ne couvre que son onglet** (`pageVue`, js/saison.js).
 
   Preuves : `essai_rogue` (10d, la bulle s'ouvre et se referme), `tout.mjs`, `check_mort`, `check_css`.
+- 2026-10-15 — L'écran large (JP : *c'est pas du design qui a de l'allure ça* ; *on voit pas les matchs d'avant* ; *le texte rotatif dans le bas, ça sert à rien*) :
+  - **Les Lignes lisent pareil à toutes les largeurs** : les onglets (Équipe, Attaque, Défense, AN · DN, Filet · réserve) et une rangée par joueur ; dès 1400 px, la page jetait le plan de match, les unités spéciales et deux trios en mini-cartes tronquées dans une même grille. Le depth chart se lit sur la largeur du volet (`@container roster`, 1000 px) ; en large, l'onglet Équipe va sur deux colonnes, les unités spéciales deux à deux.
+  - **Un seul « Retour au match »** : celui du bas ; le bouton du haut (`#bancPanel`, `renderBanc`) est retiré.
+  - **Les derniers matchs au Bureau** : tes cinq d'avant au-dessus de la route, chacun ouvre son sommaire.
+  - **Le fil défilant du passage de la journée est retiré**, et avec lui les manchettes du panel qui ne servaient qu'à lui (js/panel-tv.js).
+
+  Les règles des rangées sont fondues dans leurs règles de base (le @media qui les portait n'avait plus de raison d'être) : rendu calculé identique, élément par élément, dans les cinq onglets à 390, 900, 1100, 1500 et 2000 px.
+
+  Preuves : `tout.mjs`, `check_mort`, `check_css`, `essai_rogue`, captures à 390, 1024, 1280, 1500 et 2000 px.

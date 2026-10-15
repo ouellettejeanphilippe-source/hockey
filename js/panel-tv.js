@@ -4,7 +4,7 @@
  * Une vraie télé sportive a des visages qui reviennent : le même animateur,
  * le même chroniqueur qui a toujours raison de s'inquiéter, le même
  * statisticien. Ce module les invente (aucun vrai nom) et leur donne des
- * répliques, des manchettes de bandeau et des bulletins de série. Le format
+ * répliques et des bulletins de série. Le format
  * est celui d'une émission sérieuse ; ce qui fait rire, c'est le sérieux.
  *
  * LA RÈGLE DE CE FICHIER (la même que js/recit.js) : il ne décide de RIEN et
@@ -292,80 +292,6 @@ const R = {
 const REPLIQUES = Object.entries(R).flatMap(([p, tags]) => Object.entries(tags)
   .flatMap(([si, ts]) => [].concat(ts).map(t => ({ p, si, t }))));
 
-/* ---------- les manchettes du bandeau défilant : { si, t }, une ligne ---------- */
-
-const M = {
-  victoires: ['{eq} : {n} victoires de suite, et ça continue', '{n} victoires consécutives pour {eq}',
-    '{eq} aligne {n} gains et ne regarde pas en arrière', 'Séquence de {n} victoires : {eq} ne ralentit pas',
-    '{eq} : {n} matchs gagnés de suite, la ligue prend note', '{n} victoires de suite : {eq} joue avec le vent dans le dos',
-    'Les {n} victoires de {eq} font jaser', '{eq} gagne encore : {n} de suite, le vestiaire reste prudent'],
-  defaites: ['{eq} : {n} défaites de suite, l\'heure des questions', '{n} défaites consécutives pour {eq}',
-    '{eq} encaisse une {n}e défaite de suite', 'Séquence de {n} défaites : {eq} cherche des réponses',
-    '{eq} : {n} matchs perdus de suite, le banc s\'impatiente', '{n} défaites de suite, {eq} parle d\'« ajustements »',
-    'Les {n} défaites de {eq} inquiètent', '{eq} : {n} revers d\'affilée, le vestiaire se regarde'],
-  debut: ['Journée {jour} : la saison prend son envol', 'Début de saison : {eq} en est à la journée {jour}, rien n\'est joué',
-    '{eq} à la journée {jour} : trop tôt pour juger, assez pour discuter', 'Journée {jour} : les premières tendances se dessinent',
-    'Début de saison, journée {jour} : le calendrier suit son cours', 'Journée {jour} : l\'échantillon reste mince',
-    '{eq} en début de saison : on attend d\'en voir plus', 'Journée {jour} : personne ne s\'emballe encore'],
-  milieu: ['Journée {jour} : la saison est à mi-chemin', 'Mi-saison : {eq} à la journée {jour}, {rest} journées à jouer',
-    'Journée {jour} : il reste {rest} journées, rien n\'est réglé', '{eq} à mi-parcours, l\'heure du premier bilan',
-    'Mi-saison : le portrait se précise', 'Journée {jour} : le milieu de saison est atteint',
-    '{rest} journées à jouer pour {eq}', 'À mi-saison, {eq} sait à quoi s\'en tenir'],
-  fin: ['Plus que {rest} journées : chaque point compte', 'Fin de saison : {rest} journées, {eq} reste attentif',
-    'Dernière ligne droite pour {eq} : {rest} journées', 'Il reste {rest} journées, la pression monte',
-    'Fin de saison, journée {jour} : on retient son souffle', '{rest} journées à jouer : {eq} fait ses calculs',
-    'La saison tire à sa fin : {rest} journées pour {eq}', 'Journée {jour} : le dernier tiers de la saison est entamé'],
-  'course-dedans': ['{eq} garde {pts} d\'avance sur la dernière place en séries', 'Course aux séries : {eq} y est, {pts} d\'avance',
-    '{eq} en séries pour l\'instant, avec {pts} de marge', 'Avance de {pts} pour {eq} : le coussin est mince',
-    'Place en séries : {eq} y est, de {pts}', '{eq} maintient {pts} d\'avance et ne regarde pas derrière',
-    'Course aux séries : {eq} garde sa place, {pts} d\'écart', 'Séries : {eq} conserve {pts} d\'avance'],
-  'course-dehors': ['{eq} tire de l\'arrière de {pts} dans la course aux séries', 'Course aux séries : {eq} à {pts} d\'une place',
-    '{eq} à {pts} d\'une place en séries : « rien n\'est perdu »', 'Retard de {pts} pour {eq} : il faudra gagner',
-    'Séries : {eq} doit combler {pts}', '{eq} garde espoir malgré {pts} de retard',
-    'Course aux séries : {pts} séparent {eq} d\'une place', '{eq} à {pts} des séries : le temps presse'],
-  echeance: ['La date limite des échanges approche, les téléphones chauffent', 'Date limite des échanges : {eq} refuse de commenter',
-    'À l\'approche de la date limite, {eq} dit « être à l\'écoute »', 'Date limite des échanges : plusieurs clubs magasinent',
-    'La date limite approche : les directeurs généraux dorment peu', 'Date limite des échanges : {eq} se dit « satisfait de son groupe »'],
-  'echeance-passee': ['La date limite des échanges est passée, {eq} n\'a pas bougé', 'Date limite passée : {eq} ira au bout avec son groupe',
-    'Les échanges sont clos : {eq} garde son effectif', 'Date limite écoulée : les jeux sont faits',
-    'Date limite derrière nous : {eq} regarde vers l\'avant', 'Les échanges sont terminés, place au hockey'],
-  blesse: ['{eq} perd son meilleur joueur sur blessure', 'Meilleur joueur de {eq} blessé : le club « suit la situation »',
-    'Le meilleur joueur de {eq} est blessé', '{eq} privé de son meilleur joueur',
-    'Blessure : {eq} devra se débrouiller sans sa vedette', '{eq} annonce une blessure : « on verra jour après jour »'],
-  m1: ['Série : premier match, {eq} contre {autre}', '{eq} et {autre} ouvrent la série',
-    'Match 1 : {eq} contre {autre}, la série commence', 'Premier match de la série entre {eq} et {autre}'],
-  m2: ['Série : deuxième match, {eq} contre {autre}', 'Match 2 : {eq} et {autre} remettent ça',
-    '{eq} contre {autre} : deuxième match de la série', 'Match 2 entre {eq} et {autre}, rien n\'est tranché'],
-  m3: ['Série : troisième match, {eq} contre {autre}', 'Match 3 : {eq} et {autre}, la série se resserre',
-    '{eq} contre {autre} : troisième match de la série', 'Match 3 entre {eq} et {autre}, un tournant possible'],
-  m4: ['Série : quatrième match, {eq} contre {autre}', 'Match 4 : {eq} et {autre}, la série peut basculer',
-    '{eq} contre {autre} : quatrième match de la série', 'Quatrième match entre {eq} et {autre}, l\'étau se resserre'],
-  m5: ['Série : cinquième match, {eq} contre {autre}', 'Match 5 : {eq} et {autre}, plus de place pour l\'erreur',
-    '{eq} contre {autre} : cinquième match de la série', 'Match 5 entre {eq} et {autre}, le ton monte'],
-  m6: ['Série : sixième match, {eq} contre {autre}', 'Match 6 : {eq} et {autre}, un club joue sa saison',
-    '{eq} contre {autre} : sixième match de la série', 'Match 6 entre {eq} et {autre}, un septième est possible'],
-  m7: ['Série : septième match, {eq} contre {autre}', 'Match 7 : {eq} et {autre}, pas de lendemain',
-    '{eq} contre {autre} : septième match, tout se joue', 'Septième match entre {eq} et {autre}, personne ne dort'],
-  elimine: ['{eq} est éliminé des séries', 'Fin de parcours pour {eq} : la saison est terminée', '{eq} sort des séries et remercie ses partisans',
-    'Élimination de {eq} : l\'heure du bilan', '{eq} est éliminé, les séries continuent sans lui', 'La saison de {eq} est terminée'],
-  coupe: ['{eq} remporte la Coupe', 'Coupe : {eq} au sommet', '{eq} gagne la Coupe, la ville est en fête',
-    'Victoire finale de {eq} : la Coupe change de mains', '{eq} champion : le vestiaire savoure', 'La Coupe revient à {eq}'],
-  surprend: ['{eq} au {rang} rang, bien au-delà des attentes', '{eq} {rang} : les spécialistes s\'étaient trompés',
-    'Surprise : {eq} est {rang}, personne ne l\'avait annoncé', '{eq} dépasse les attentes et se classe {rang}',
-    'Le {rang} rang de {eq} étonne les spécialistes', '{eq} {rang} : la surprise de la saison'],
-  decoit: ['{eq} au {rang} rang, en deçà des attentes', '{eq} {rang} : le club promet des « ajustements »',
-    'Déception : {eq} est {rang}, loin de ce qui était annoncé', '{eq} sous les attentes, {rang} au classement',
-    'Le {rang} rang de {eq} préoccupe les observateurs', '{eq} {rang} : « pas ce qu\'on voulait », admet-on'],
-  general: ['{eq} : le panel poursuit son analyse', 'Ailleurs dans la ligue, la soirée suit son cours',
-    'Journée {jour} : les résultats suivent', '{eq} : « on y va un match à la fois », répète le club',
-    'Le panel décortique la soirée', 'Pas de nouvelles de {eq}, et c\'est tant mieux',
-    'Les résultats complets suivent après cette manchette', '{eq} garde le cap, selon une source près du club',
-    'Rien à signaler au vestiaire de {eq}', 'Le panel revient après la pause'],
-};
-
-/** Les manchettes à plat : { si, t }, une ligne chacune. */
-const MANCHETTES = Object.entries(M).flatMap(([si, ts]) => ts.map(t => ({ si, t })));
-
 /* ---------- les bulletins de série : { si, t } ---------- */
 
 const B = {
@@ -527,11 +453,9 @@ function remplir(t, v) {
  *   situation  voir l'en-tête du fichier
  *   graine     une chaîne (ou un nombre) stable : saison + journée, par exemple
  *
- * Retourne `{ repliques, manchettes, bulletin }` :
+ * Retourne `{ repliques, bulletin }` :
  *   repliques   jusqu'à 3 `{ id, nom, titre, t }`, de personnages différents, une par étiquette
  *               vraie en ordre de priorité, `general` en dernier recours
- *   manchettes  jusqu'à 4 lignes de bandeau (≤ 80 caractères), deux étiquettes jamais de suite
- *               identiques, `general` pour combler
  *   bulletin    une phrase de bulletin de série, ou null hors série
  */
 export function panelDe(situation, graine) {
@@ -551,18 +475,6 @@ export function panelDe(situation, graine) {
     }
   }
 
-  const manchettes = [], dits = new Set();
-  for (let tour = 0; tour < 3 && manchettes.length < 4; tour++) {
-    for (const si of ordre) {
-      if (manchettes.length >= 4) break;
-      const dispo = MANCHETTES.filter(m => m.si === si).map(m => remplir(m.t, v)).filter(x => x !== null && !dits.has(x));
-      if (!dispo.length) continue;
-      const x = pige(dispo, graineDe(`${g}|m|${si}|${tour}`));
-      dits.add(x);
-      manchettes.push(x);
-    }
-  }
-
   let bulletin = null;
   const bt = etiquettesDeSerie(s.serie);
   const sb = PRIORITE_BULLETIN.find(x => bt.has(x));
@@ -570,5 +482,5 @@ export function panelDe(situation, graine) {
     const dispo = BULLETINS.filter(b => b.si === sb).map(b => remplir(b.t, v)).filter(x => x !== null);
     if (dispo.length) bulletin = pige(dispo, graineDe(`${g}|b|${sb}`));
   }
-  return { repliques, manchettes, bulletin };
+  return { repliques, bulletin };
 }
