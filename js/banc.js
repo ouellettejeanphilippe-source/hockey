@@ -560,7 +560,6 @@ export function bancSerie(ronde, k, soir = null) {
     G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
     Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, depistage: soir.depistage, speciales: soir.speciales || null, energie: { ...G.banc.energie, ...soir.energie } });
   }
-  renderBanc();
 }
 
 async function choisirCarte(palier, jour, cle, depuis = jour) {
@@ -569,23 +568,6 @@ async function choisirCarte(palier, jour, cle, depuis = jour) {
   decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
   await continuerSaison(decisions, Math.min(depuis, jour), 'La saison reprend avec ta carte…');
   toast(`${CARTES[cle].ico} ${CARTES[cle].nom} : pour le reste de la saison.`);
-}
-
-/**
- * Le panneau du banc : rien que le retour. Le texte d'en-tête (la journée, la fiche, le prochain match,
- * l'infirmerie, l'aide) a été retiré : l'alignement garde les joueurs, et l'en-tête du club dit déjà la journée et la fiche.
- */
-export function renderBanc() {
-  const host = $('bancPanel');
-  if (!host) return;
-  const b = G.banc;
-  host.hidden = !b;
-  if (!b) return;
-  host.innerHTML = `<button class="btn go banc-retour" id="bancRetour" title="La saison reprend à cette journée, avec ces trios et cette glace. Ce qui est joué reste joué.">Retour au match</button>`;
-  $('bancRetour').onclick = reprendreSaison;
-  // MES LIGNES, derrière le banc (S68) : elles se règlent sous chaque trio
-  // depuis S78 (`rangeeStrategie`, en fenêtre depuis 1.0), et partent avec la décision du banc au
-  // « Retour au match ».
 }
 
 /*
