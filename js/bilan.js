@@ -1328,19 +1328,24 @@ function buildDuSoirHtml(f, A, B, jour) {
  * impact.* Ce qui a décidé d'un lancer de ton club ou contre lui — une carte, un badge monté, un système, le gardien,
  * les jambes —, et le pointage sans chacun de tes groupes quand il l'aurait changé. Chaque ligne se recompte dans la feuille.
  */
-const MAX_CAUSES = 4;
+const MAX_TIRS = 8;
 function differenceHtml(f, A, B) {
   const moi = A.isPlayer ? 'A' : B.isPlayer ? 'B' : null;
   const r = moi && causesDuMatch(f, moi);
   if (!r) return '';
   const reel = `${moi === 'A' ? f.gfA : f.gfB}-${moi === 'A' ? f.gfB : f.gfA}`;
-  const sans = r.sans.filter(x => x.ecart).map(x => (x.change
+  const vaut = e => `${e > 0 ? 'ça t\'a valu' : 'ça t\'a coûté'} ${Math.abs(e)} but${Math.abs(e) > 1 ? 's' : ''} d'écart`;
+  const avecEcart = r.sans.filter(x => x.ecart);
+  const sans = avecEcart.map(x => (x.change
     ? `<li class="${x.ecart > 0 ? 'bon' : 'prix'}"><b>Sans ${esc(x.mot)}, c'était ${x.moi}-${x.eux}</b> au lieu de ${reel} : ${x.ecart > 0 ? 'ils ont fait le résultat' : 'ils ont coûté le résultat'}.</li>`
-    : `<li>Sans ${esc(x.mot)} : ${x.moi}-${x.eux} au lieu de ${reel}.</li>`)).join('');
-  const liste = (xs, cls) => xs.slice(0, MAX_CAUSES).map(x => `<li class="${cls}">${esc(cap(x.texte))}.</li>`).join('');
-  const corps = `${sans}${liste(r.pour, 'bon')}${liste(r.contre, 'prix')}`;
+    : `<li>Sans ${esc(x.mot)} : ${x.moi}-${x.eux} au lieu de ${reel}, ${vaut(x.ecart)}.</li>`)).join('');
+  const verdict = avecEcart.length && !avecEcart.some(x => x.change) ? '<p>Rien de ça n\'a changé le résultat.</p>' : '';
+  // Les tirs changés : les buts d'abord si la liste déborde, puis dans l'ordre du match.
+  const tirs = r.tirs.length > MAX_TIRS ? r.tirs.filter(t => t.but).concat(r.tirs.filter(t => !t.but)).slice(0, MAX_TIRS).sort((a, b) => a.instant - b.instant) : r.tirs;
+  const parTir = tirs.map(t => `<li class="${t.aide ? 'bon' : 'prix'}">${esc(t.texte)}.</li>`).join('');
+  const corps = `${verdict}${sans ? `<ul>${sans}</ul>` : ''}${parTir ? `<h4>Tir par tir</h4><ul>${parTir}</ul>` : ''}`;
   return `<div class="som-decide som-difference"><div class="som-per-head"><span>Ce qui a fait la différence</span></div>${corps
-    ? `<ul>${corps}</ul>` : '<p>Ce soir, rien n\'a renversé un lancer : chaque but serait entré, chaque arrêt se serait fait.</p>'}</div>`;
+    || '<p>Ce soir, rien n\'a renversé un lancer : chaque but serait entré, chaque arrêt se serait fait.</p>'}</div>`;
 }
 
 function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null, jour = null }) {
