@@ -2389,7 +2389,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const adv = m.A === you ? m.B : m.A, v = gagne(m, you), moi = m.A === you ? m.gfA : m.gfB, eux = m.A === you ? m.gfB : m.gfA;
       const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
       return `<li class="rt-arret rt-joue ${v ? 'v' : 'd'}"${somm}><span class="rt-ico" aria-hidden="true">${ctx.logo(adv.tag, 18)}</span>
-        <span class="rt-txt">J${j + 1} · ${m.A === you ? '' : '@ '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res"><b>${v ? 'V' : m.ot ? 'DP' : 'D'}</b> ${moi}–${eux}${m.ot ? ' P' : ''}</span></li>`;
+        <span class="rt-txt">J${j + 1} · ${m.A === you ? '' : '@ '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res"><b>${v ? 'V' : m.ot ? 'DP' : 'D'}</b> ${moi}–${eux}</span></li>`;
     });
     let n = miens.length;
     for (let j = jour; j < fin; j++) {
