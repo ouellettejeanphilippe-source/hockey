@@ -517,7 +517,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const eq = equipe(e.cote), nous = !!eq.isPlayer;
       const qui = e.joueur ? `<b>${nomLie(e.joueur, e.cote)}</b>` : 'Un joueur';
       ligne(`blessure ${e.cote === 'A' ? 'a' : 'b'}${nous ? ' nous' : ''}`, `<span class="live-tps">${tempsDeJeu(e.instant)}</span>${ctx.logo(eq.tag, 13)}
-        <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et retraite au vestiaire : ${ctx.esc(motDeBlessure(e.genre))}.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) quitte le match : ${ctx.esc(motDeBlessure(e.genre))}.`}</span>`);
+        <span>${nous ? `<b class="live-bless-mot">😱 OH NON !</b> ${qui} se blesse et rentre au vestiaire : ${ctx.esc(motDeBlessure(e.genre))}.` : `<b class="live-bless-mot">🚑 BLESSURE</b> ${qui} (${ctx.esc(ctx.teamShort(eq))}) quitte le match : ${ctx.esc(motDeBlessure(e.genre))}.`}</span>`);
       return nous ? 1200 : 500;
     }
     /*
@@ -616,7 +616,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   function arreter() {
     enArret = true;
     stop();
-    ligne('periode ent2-marque', '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : ton choix décidera de la troisième période.');
+    ligne('periode ent2-marque', '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : la troisième période se jouera sur ton choix.');
     boutons(`<button class="btn gold live-entracte">Au vestiaire — ton choix</button>`);
     controls.querySelector('.live-entracte').onclick = () => {
       if (termine) return;

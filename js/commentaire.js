@@ -27,12 +27,12 @@ import { GESTES, SOLO, SEQUENCE, FIN, profil, nomCourt } from './recit.js';
 
 /* ---------- les arrêts dangereux ---------- */
 export const CRI_ARRET = [
-  'Oh !', 'Quel arrêt !', 'Attention !', 'Danger !', 'Ouf !', 'Wow !', 'Mais quel arrêt !', 'Sauvé !',
-  'Incroyable !', 'Pas cette fois !', 'Oh la la !', 'Tout un arrêt !', 'Grosse occasion !', 'Ça passe proche !',
-  'Quelle chance ratée !', 'Spectaculaire !', 'On a eu chaud !', 'Pas de but !', 'Il dit non !',
-  'Ça brasse devant le filet !', 'Presque !', 'Tout le monde debout !', 'Quelle séquence !', 'Aïe aïe aïe !',
-  'Mais comment ?', 'Du grand art !', 'Menace !', 'Chaude alerte !', 'Oh, le beau jeu !', 'Et non !',
-  'Holà !', 'Regardez-moi ça !',
+  'Oh !', 'Quel arrêt !', 'Attention !', 'Danger !', 'Ouf !', 'Mais quel arrêt !', 'Sauvé !', 'Refusé !',
+  'Incroyable !', 'Pas cette fois !', 'Tout un arrêt !', 'Grosse occasion !', 'Ça passe proche !', 'Quelle parade !',
+  'Quelle occasion ratée !', 'Spectaculaire !', 'On a eu chaud !', 'Pas de but !', 'Il dit non !',
+  'Ça brasse devant le filet !', 'Presque !', 'La foule est debout !', 'Quelle séquence !', 'Ça sentait le but !',
+  'Mais comment ?', 'Pas ce soir !', 'Chaude alerte !', 'Il était là !', 'Et non !',
+  'Fermé à double tour !', 'Quel duel !',
 ];
 /*
  * LES ACTIONS DU TIREUR COLLENT AU JOUEUR ET AU SYSTÈME (S71). JP : *les
@@ -50,7 +50,7 @@ export const ACTIONS_TIREUR = [
   ['{t} file en échappée', 'F rapide contre'], ['{t} récupère le retour', 'F'],
   ['{t} coupe au filet en vitesse', 'F rapide'], ['{t} lance sur réception', 'tireur canon courtes'],
   ['{t} se faufile entre les deux défenseurs', 'F rapide'], ['{t} arme son lancer frappé', 'canon bleue'],
-  ['{t} vise la lucarne du poignet', 'tireur'], ['{t} contourne le filet et tente le tour du poteau', 'F rapide derriere'],
+  ['{t} vise la lucarne d\'un tir du poignet', 'tireur'], ['{t} contourne le filet et tente le tour du poteau', 'F rapide derriere'],
   ['{t} pivote dans l\'enclave et décoche', 'F tireur'], ['{t} hérite d\'une rondelle libre devant le filet', 'F'],
   ['{t} déborde son couvreur sur l\'aile', 'F rapide'], ['{t} tente une feinte du revers', 'F fab'],
   ['{t} vole la rondelle et s\'échappe', 'F rapide echec'], ['{t} décoche du haut du cercle', 'F tireur canon'],
@@ -58,9 +58,9 @@ export const ACTIONS_TIREUR = [
   ['{t} a tout le filet devant lui', 'F'], ['{t} reçoit seul au deuxième poteau', 'F courtes AN'],
   ['{t} tente sa chance en pleine course', 'F rapide contre'], ['{t} profite d\'un revirement en zone neutre', 'F contre defensive'],
   ['{t} lance sur un deux contre un', 'F contre'], ['{t} se retrouve seul dans l\'enclave', 'F'],
-  ['{t} fonce au filet avec la rondelle', 'F'], ['{t} ramasse la rondelle dans la mêlée', 'F echec'],
-  ['{t} tente un tir bas vers la jambière', 'tireur'], ['{t} essaie de le surprendre de l\'angle', 'F'],
-  ['{t} décoche sans ralentir', 'rapide canon contre'], ['{t} tente le tir en fente', 'canon AN'],
+  ['{t} fonce au filet, la rondelle sur la palette', 'F'], ['{t} ramasse une rondelle libre dans la cohue', 'F echec'],
+  ['{t} vise bas, côté jambière', 'tireur'], ['{t} tente sa chance d\'un angle fermé', 'F'],
+  ['{t} décoche sans ralentir', 'rapide canon contre'], ['{t} décoche sur réception, un genou sur la glace', 'canon AN'],
   ['{t} reçoit la passe du fond de la zone', 'F derriere'], ['{t} fait une feinte de tir et contourne le défenseur', 'F fab'],
   ['{t} redirige la passe en plein vol', 'F courtes'], ['{t} saute sur une rondelle bondissante', 'F'],
   // Les défenseurs.
@@ -70,7 +70,7 @@ export const ACTIONS_TIREUR = [
   // Les systèmes.
   ['{t} surgit de derrière le filet', 'F derriere'], ['{t} reçoit une remise de derrière la ligne des buts', 'F derriere'],
   ['{t} conclut un jeu de passes en triangle', 'F courtes'], ['{t} vole la rondelle en échec avant et lance', 'F echec'],
-  ['{t} récupère la rondelle sur la bande grâce à l\'échec avant', 'F echec'], ['{t} jaillit en contre-attaque', 'F rapide contre defensive'],
+  ['{t} arrache la rondelle le long de la bande en échec avant', 'F echec'], ['{t} jaillit en contre-attaque', 'F rapide contre defensive'],
   ['{t} repart en contre après un revirement', 'F defensive'],
   // Les unités spéciales.
   ['{t} décoche sur l\'avantage numérique', 'AN'], ['La rondelle circule sur le jeu de puissance, {t} lance du cercle', 'F AN'],
@@ -80,69 +80,71 @@ export const ACTIONS_TIREUR = [
 export const ACTION_TIREUR = ACTIONS_TIREUR.map(([t]) => t);
 export const LIEN_ARRET = [', mais ', '… ', ' : ', ', et ', ', '];
 export const ISSUE_GARDIEN = [
-  '{g} ferme la mitaine', '{g} fait l\'arrêt de la jambière', '{g} s\'étire de tout son long', '{g} dit non',
-  '{g} garde la porte fermée', '{g} fait le grand écart', '{g} sort de nulle part', '{g} plonge et le lui vole',
-  '{g} l\'arrête du bloqueur', '{g} couvre la rondelle', '{g} reste solide comme un roc', '{g} gagne le duel',
-  '{g} se jette et bloque tout', '{g} détourne en coin de patinoire', '{g} fait l\'arrêt de l\'épaule',
-  '{g} referme la jambière juste à temps', '{g} repousse le tir de la jambière gauche', '{g} le frustre d\'un arrêt du masque',
-  '{g} réussit un arrêt acrobatique', '{g} traverse le demi-cercle et bloque', '{g} garde les jambières collées',
-  '{g} reste debout et absorbe le tir', '{g} fait l\'arrêt en papillon', '{g} détourne la rondelle au-dessus du filet',
-  '{g} dévie avec la palette de son bâton', '{g} se jette sur le dos et bloque', '{g} ne donne rien', '{g} fige le jeu',
-  '{g} a suivi la rondelle jusqu\'au bout', '{g} voit tout', '{g} règle le cas', '{g} s\'interpose',
-  '{g} reste de glace', '{g} saisit la rondelle en pleine extension', '{g} étouffe le tir sur son plastron',
-  '{g} lève la jambière au dernier moment', '{g} fait un arrêt de la main droite', '{g} bloque avec la tête de son bâton',
-  '{g} ferme le cinq trous', '{g} se déplace latéralement et bloque',
+  '{g} ferme la mitaine', '{g} sort la jambière', '{g} s\'étire de tout son long', '{g} dit non', '{g} lui ferme la porte',
+  '{g} fait le grand écart', '{g} surgit de nulle part', '{g} plonge et le lui vole', '{g} l\'arrête du bloqueur',
+  '{g} se couche sur la rondelle', '{g} ne bronche pas', '{g} gagne le duel', '{g} se jette et bloque tout',
+  '{g} détourne en coin de patinoire', '{g} l\'arrête de l\'épaule', '{g} referme la jambière juste à temps',
+  '{g} repousse de la jambière gauche', '{g} l\'arrête avec le masque', '{g} réussit un arrêt acrobatique',
+  '{g} traverse le demi-cercle et bloque', '{g} garde les jambières collées', '{g} reste debout et absorbe le tir',
+  '{g} s\'écrase en papillon', '{g} détourne la rondelle au-dessus du filet', '{g} fait dévier du bout de son bâton',
+  '{g} se jette sur le dos et bloque', '{g} ne donne rien', '{g} gèle la rondelle', '{g} a suivi la rondelle jusqu\'au bout',
+  '{g} a tout vu', '{g} règle le cas', '{g} s\'interpose', '{g} reste de glace', '{g} cueille la rondelle en pleine extension',
+  '{g} étouffe le tir sur son plastron', '{g} lève la jambière au dernier moment', '{g} pique la rondelle du bout de la mitaine',
+  '{g} bloque avec la palette de son bâton', '{g} ferme le cinq trous', '{g} glisse d\'un poteau à l\'autre et bloque',
 ];
 export const CHUTE_ARRET = [
-  'Quel arrêt !', 'Il vole un but certain.', 'La foule n\'en revient pas.', 'Tout un arrêt !', 'Il fallait le faire.',
+  'Il vole un but certain.', 'La foule n\'en revient pas.', 'Il fallait le faire.', 'Un arrêt qui vaut un but.',
   'Ça, c\'est un arrêt de gardien numéro un.', 'Il garde les siens dans le match.', 'Les partisans se lèvent pour l\'applaudir.',
-  'Le tireur n\'en revient pas.', 'Il lève les bras au ciel, découragé.', 'On va le revoir au ralenti, celui-là.',
-  'C\'est peut-être l\'arrêt du match.', 'Il a eu le dernier mot.', 'Quelle concentration !', 'Il est dans sa bulle.',
-  'Le banc tape des bâtons sur la bande.', 'Le tireur ne comprend pas.', 'Du travail de pro.',
-  'Un arrêt digne des faits saillants.', 'Les dépisteurs dans les gradins prennent des notes.', 'La rondelle ne veut pas rentrer.',
-  'Il fait des miracles.', 'Les coéquipiers tapent sur ses jambières.', 'Le tireur regarde le plafond.',
-  'Ça, ça va passer aux nouvelles du sport.', 'Une vraie muraille.', 'Il ne s\'énerve jamais.', 'Rien de facile ce soir.',
-  'Le public retient son souffle.', 'Il fallait être là.',
+  'Le tireur se prend la tête à deux mains.', 'On va le revoir au ralenti, celui-là.', 'C\'est peut-être l\'arrêt du match.',
+  'Il a eu le dernier mot.', 'Il a lu le jeu avant tout le monde.', 'Le banc tape des bâtons sur la bande.',
+  'Le tireur ne comprend pas ce qui vient d\'arriver.', 'Du travail de professionnel.', 'Un arrêt pour les faits saillants.',
+  'La rondelle ne veut pas entrer.', 'Il a fallu tout son corps.', 'Ses coéquipiers lui tapent les jambières.',
+  'Le tireur regarde le plafond.', 'Une vraie muraille.', 'Il ne s\'énerve jamais.', 'Rien de facile ce soir.',
+  'Le public retient son souffle.', 'Le tireur n\'avait rien à se reprocher.',
 ];
 export const CHUTE_ARRETS_NOMBREUX = [
   '{g} en est à {n} arrêts ce soir.', '{n} arrêts pour {g}, et ce n\'est pas fini.', 'Une soirée occupée pour {g} : {n} arrêts.',
   '{g} porte son équipe sur ses épaules : {n} arrêts.', '{n} arrêts ! {g} est le meilleur joueur sur la glace.',
+  'Encore un, le {n}e de la soirée pour {g}.',
 ];
 export const CHUTE_ARRET_SERRE = [
-  'Arrêt crucial dans les circonstances !', 'Il reste {r} : quel moment pour un arrêt !', 'Le genre d\'arrêt qui fait gagner des matchs.',
-  'Un arrêt en or à ce stade-ci !', 'Pas le temps de trembler : il reste {r}.',
+  'Arrêt crucial dans les circonstances !', 'Il reste {r} : quel moment pour un arrêt !',
+  'Le genre d\'arrêt qui fait gagner des matchs.', 'Un arrêt en or à ce stade-ci !', 'Pas le temps de trembler : il reste {r}.',
+  'Avec {r} à jouer, il n\'a pas le droit à l\'erreur.',
 ];
 export const CHUTE_ARRET_POUSSE = [
-  '{att} pousse pour revenir.', '{att} cherche désespérément le but.', '{att} frappe à la porte.',
-  '{att} met de la pression.', '{att} sent que ça s\'en vient.', 'La pression monte sur {def}.',
+  '{att} pousse pour revenir.', '{att} cherche désespérément le but.', '{att} frappe à la porte.', '{att} assiège la zone.',
+  '{att} sent que ça s\'en vient.', 'La pression monte sur {def}.', '{att} ne lâche pas le morceau.',
 ];
 /* LES STATS DU TIREUR (S71) : une vedette qui rate se le fait rappeler. */
 export const CHUTE_VEDETTE = [
-  '{t} n\'a pas l\'habitude de rater ça : {n} buts cette saison.', 'Même avec {n} buts cette saison, {t} ne trouve pas la faille.',
-  '{n} buts cette saison pour {t}, mais pas celui-là.', 'Le meilleur marqueur de l\'équipe est frustré.',
+  '{t} n\'a pas l\'habitude de rater ça : {n} buts cette saison.',
+  'Même avec {n} buts cette saison, {t} ne trouve pas la faille.', '{n} buts cette saison pour {t}, mais pas celui-là.',
+  '{t} en a {n} cette saison, et il repart les mains vides.',
 ];
 export const CHUTE_BLANCHISSAGE = [
   'Le blanchissage tient toujours pour {g}.', '{g} flirte avec le blanchissage.', 'Toujours rien derrière {g}.',
-  '{g} n\'a encore rien donné ce soir.',
+  '{g} n\'a encore rien donné ce soir.', 'Le filet de {g} est toujours vierge.',
 ];
 
 /* ---------- les séquences arrêtées (une action spéciale réussie, mais sauvée) ---------- */
 export const ACTION_SEQUENCE = [
   '{att} déroule son système, {t} au bout de la séquence', 'Passe transversale parfaite de {att}, {t} reçoit',
-  '{att} fait tourner la rondelle en zone offensive, {t} trouve l\'ouverture', 'Jeu de passes à une touche de {att} : {t} a le filet ouvert',
-  'Le jeu pratiqué à l\'entraînement : {t} se présente seul', '{att} surcharge un côté de la patinoire et {t} surgit de l\'autre',
-  'Montée à trois de {att}, {t} décoche au bout', 'Échange rapide entre les avants de {att}, {t} lance',
-  '{att} gagne la mise au jeu, rondelle à {t} en retrait', 'Le trio de {att} fait courir la défensive : {t} tire',
-  '{att} fait circuler la rondelle d\'un côté à l\'autre, {t} dans l\'enclave', 'Passe dans l\'enclave de derrière le filet : {t}',
-  'Une remise en retrait parfaite pour {t}', '{att} force la défensive à se commettre, {t} arrive en trombe',
-  'Le système de {att} crée une ouverture pour {t}',
+  '{att} fait tourner la rondelle en zone offensive, {t} trouve l\'ouverture',
+  'Jeu de passes à une touche de {att} : {t} a le filet ouvert', 'Le jeu sort tout droit du tableau noir : {t} se présente seul',
+  '{att} surcharge un côté de la patinoire et {t} surgit de l\'autre', 'Montée à trois de {att}, {t} décoche au bout',
+  'Échange rapide entre les avants de {att}, {t} lance', '{att} gagne la mise au jeu, rondelle à {t} en retrait',
+  'Le trio de {att} fait courir la défensive : {t} tire',
+  '{att} fait circuler la rondelle d\'un côté à l\'autre, {t} dans l\'enclave',
+  'Passe dans l\'enclave de derrière le filet : {t}', 'Une remise en retrait parfaite pour {t}',
+  '{att} force la défensive à se commettre, {t} arrive en trombe', 'Le système de {att} crée une ouverture pour {t}',
 ];
 
 /* ---------- les beaux jeux défensifs ---------- */
 export const CRI_DEFENSE = [
   'Bien joué !', 'Superbe lecture !', 'Quelle défense !', 'Intelligent !', 'Beau travail !', 'Solide !', 'Rien à faire !',
-  'Fermé à clé !', 'Personne ne passe !', 'Du hockey défensif de haut niveau !', 'Propre !', 'Très bien lu !',
-  'Quel repli !', 'Discipline exemplaire !', 'Le mur tient !',
+  'Fermé à clé !', 'Personne ne passe !', 'Du hockey défensif de haut niveau !', 'Propre !', 'Très bien lu !', 'Quel repli !',
+  'Discipline exemplaire !', 'Le mur tient !', 'Coupé net !',
 ];
 export const ACTION_DEFENSE = [
   '{def} lit le jeu et coupe la passe', '{def} étouffe le système de {att} avant le tir', 'Le repli de {def} est parfait',
@@ -154,10 +156,11 @@ export const ACTION_DEFENSE = [
   'Le centre de {def} redescend au bon moment', '{def} lit la montée et intercepte', '{def} tient sa ligne bleue',
 ];
 export const CHUTE_DEFENSE = [
-  'Le système de {att} tombe à plat.', '{att} doit tout recommencer.', 'Pas une chance de marquer.', 'Tout le monde fait son travail.',
-  'L\'entraîneur de {def} doit être content.', 'C\'est ça, jouer en équipe.', 'Aucune ouverture.', '{att} ne trouve pas la faille.',
-  'Le plan de match est respecté à la lettre.', 'Pas de cadeau ce soir.', 'On a déjà vu {att} plus inspiré.',
-  '{att} se casse les dents.', 'Le jeu ne se rend même pas au filet.', 'Du travail qui ne paraît pas sur la feuille de match.',
+  'Le système de {att} tombe à plat.', '{att} doit tout recommencer.', 'Pas une chance de marquer.', 'Chacun est à sa place.',
+  'L\'entraîneur de {def} doit être content.', 'Cinq joueurs, une seule idée.', 'Aucune ouverture.',
+  '{att} ne trouve pas la faille.', 'Le plan de match est respecté à la lettre.', 'Pas de cadeau ce soir.',
+  'On a déjà vu {att} plus inspiré.', '{att} se casse les dents.', 'Le jeu ne se rend même pas au filet.',
+  'Du travail qui ne paraît pas sur la feuille de match.',
 ];
 export const ACTION_BLOQUE = [
   'Un joueur de {def} se jette devant le tir de {att}', '{def} bloque le lancer de la pointe', 'Le désavantage de {def} tient bon : {att} tire de loin',
@@ -166,8 +169,8 @@ export const ACTION_BLOQUE = [
   '{def} fait circuler {att} sans lui laisser d\'ouverture',
 ];
 export const CHUTE_BLOQUE = [
-  'Du courage à revendre.', 'Ça va laisser une marque.', 'Les unités de désavantage font le travail.',
-  'Deux minutes, c\'est long quand on joue à quatre.', 'Le banc applaudit le sacrifice.', 'Des secondes précieuses de passées.',
+  'Les secondes s\'égrènent.', 'Le banc de {def} respire.', 'Les unités de désavantage font le travail.',
+  'Deux minutes, c\'est long quand on joue à quatre.', 'Le banc applaudit l\'effort.', 'Des secondes précieuses de passées.',
   'Le jeu de puissance de {att} tourne à vide.', 'L\'avantage numérique de {att} ne trouve rien.',
 ];
 
@@ -182,53 +185,63 @@ export const ACTIONS_TIR = [
 ];
 export const ISSUE_TIR = [
   'arrêt de {g}', '{g} immobilise', '{g} bloque sans problème', 'facile pour {g}', '{g} fait dévier dans le coin',
-  '{g} contrôle le retour', '{g} était bien placé', '{g} le voit venir', '{g} met la mitaine dessus', '{g} fige le jeu',
+  '{g} contrôle le retour', '{g} était bien placé', '{g} le voit venir', '{g} met la mitaine dessus', '{g} gèle la rondelle',
   'aucun problème pour {g}', '{g} fait l\'arrêt', '{g} absorbe le tir', '{g} envoie en coin', 'routine pour {g}',
 ];
 
 /* ---------- les buts ---------- */
 export const CRI_BUT = [
-  'Et le but !', 'Il compte !', 'Dans le fond du filet !', 'La lumière rouge s\'allume !', 'Et ça rentre !', 'Il lance et compte !',
-  'Et c\'est le but !', 'Le filet a tremblé !', 'Quel but !', 'Oh, le beau but !', 'Il marque !', 'C\'est dedans !',
-  'Et la rondelle est dans le but !', 'Il ne pardonne pas !', 'Il fait bouger les cordages !', 'Et voilà !', 'Ça y est !',
-  'Magnifique !', 'Tout un but !', 'Et vlan !', 'Et ça passe !', 'Il le fait !', 'Oh que oui !', 'Bingo !', 'Et compte !',
-  'La foule explose !', 'Wow !', 'Quel tir !', 'Il ne rate pas sa chance !', 'Ça, c\'est du hockey !',
+  'Et le but !', 'Il compte !', 'Dans le fond du filet !', 'La lumière rouge s\'allume !', 'Et ça rentre !',
+  'Il lance et compte !', 'Et c\'est le but !', 'Le filet a tremblé !', 'Quel but !', 'Oh, le beau but !', 'Il marque !',
+  'C\'est dedans !', 'Et la rondelle est dans le but !', 'Il ne pardonne pas !', 'Il fait bouger les cordages !', 'Et voilà !',
+  'Ça y est !', 'Magnifique !', 'Tout un but !', 'Il trompe le gardien !', 'Et ça passe !', 'La rondelle est au fond !',
+  'Et compte !', 'La foule explose !', 'Il fait mouche !', 'Quel jeu !', 'Il ne rate pas sa chance !', 'Ça, c\'est du hockey !',
+  'Le gardien est battu !', 'Et le filet bouge !',
 ];
 export const APPUI_SOLO = [...SOLO, 'tout seul comme un grand', 'après avoir tout fait lui-même', 'sur un effort individuel'];
 export const APPUI_SEQUENCE = [...SEQUENCE, 'après une passe dans l\'enclave', 'au bout d\'un jeu de passes à une touche',
   'sur une remise parfaite', 'après un long échange en zone adverse'];
 export const CONTEXTE_BUT = {
   premier: ['{eq} brise la glace.', 'Premier but de la rencontre.', 'La marque est ouverte.', '{eq} ouvre la marque.',
-    '{eq} frappe le premier.', 'Le premier but, et il compte double dans un match comme celui-là.'],
-  egalite: ['C\'est à égalité, {s} !', 'Tout est à recommencer !', '{eq} revient de l\'arrière !', 'Les chiffres sont égaux, {s} !',
+    '{eq} frappe le premier.', 'Le premier but, et dans un match comme celui-là, il pèse lourd.', '{eq} ouvre le pointage.'],
+  egalite: ['C\'est à égalité, {s} !', 'Tout est à recommencer !', '{eq} revient de l\'arrière !', 'L\'égalité est rétablie : {s}.',
     '{eq} efface son retard !', 'On a un nouveau match : {s} !', '{eq} n\'a pas dit son dernier mot : {s}.'],
-  devant: ['{eq} prend les devants !', '{eq} passe en avant, {s} !', 'Et {eq} mène maintenant {s} !', 'Revirement de situation : {eq} en avant !',
-    '{eq} prend l\'avance, {s}.', 'Le vent tourne : {eq} mène {s} !'],
-  creuse: ['{eq} creuse l\'écart, {s}.', 'Une avance de {n} buts pour {eq}.', '{eq} se donne de l\'air.', '{eq} prend le contrôle du match.',
-    'La marque est maintenant {s}.', '{eq} enfonce le clou.', 'Ça commence à peser lourd pour {autre}.'],
+  devant: ['{eq} prend les devants !', '{eq} passe en avant, {s} !', 'Et {eq} mène maintenant {s} !', '{eq} brise l\'égalité : {s} !',
+    '{eq} prend l\'avance, {s}.', 'Le vent tourne : {eq} mène {s} !', 'C\'était égal. Plus maintenant : {s}.'],
+  creuse: ['{eq} creuse l\'écart, {s}.', 'Une avance de {n} buts pour {eq}.', '{eq} se donne de l\'air.',
+    '{eq} prend le contrôle du match.', '{s}, et {autre} court après le match.', '{eq} enfonce le clou.',
+    'Ça commence à peser lourd pour {autre}.'],
   raclee: ['Ça ressemble à une raclée : {s}.', 'La soirée tourne au cauchemar pour {autre}.', '{eq} ne lève pas le pied : {s}.',
-    'Les partisans de {autre} commencent à quitter.', '{s} ! {autre} est dépassé.'],
+    'Dans les gradins, certains commencent à quitter.', '{s}. {autre} est complètement dépassé.', 'Une raclée en règle : {s}.'],
   reduit: ['{eq} se rapproche, {s}.', 'L\'écart n\'est plus que de {n}.', '{eq} refuse d\'abdiquer !', '{eq} donne signe de vie.',
-    'Le match n\'est pas fini !', '{eq} revient dans le match : {s}.'],
-  doublé: ['Son deuxième du match !', 'Il récidive !', 'Un doublé ce soir.', 'Et de deux pour lui !', 'Il en a deux !'],
+    'Le match n\'est pas fini !', '{eq} revient dans le match : {s}.', '{eq} relance la soirée : {s}.'],
+  doublé: ['Son deuxième du match !', 'Il récidive !', 'Un doublé ce soir.', 'Et de deux pour lui !', 'Il en a deux !',
+    'Deux buts déjà ce soir !'],
   chapeau: ['TOUR DU CHAPEAU ! Les casquettes pleuvent sur la glace !', 'Et c\'est le tour du chapeau ! Les casquettes volent !',
-    'Trois buts ce soir ! La foule lance ses casquettes !', 'Le tour du chapeau ! Quelle soirée !'],
-  festival: ['{n} buts ce soir ! Une soirée historique !', 'Il en est à {n} ! On n\'a jamais vu ça !', '{n} buts ! Il est intouchable ce soir !'],
-  an: ['L\'avantage numérique fait mal.', 'Le jeu de puissance livre la marchandise.', 'L\'unité d\'avantage numérique a fait le travail.',
-    'La punition coûte cher.', 'Ils avaient un joueur de plus, et ça paraît.'],
-  dn: ['En désavantage numérique ! Quelle gifle !', 'Un but en infériorité numérique, ça fait mal au moral.', 'Ils étaient à quatre et ils marquent !',
-    'Un but en désavantage : le vent vient de tourner.'],
-  special: ['Le système de {eq} fonctionne à merveille.', 'Exactement ce qu\'ils ont pratiqué.', 'Le jeu parfait, tel que dessiné au tableau.',
-    'La chimie de ce trio fait des ravages.', 'On voit le travail de l\'entraîneur.'],
+    'Le tour du chapeau ! La glace se couvre de casquettes !',
+    'Tour du chapeau ! Trois buts ce soir, et les casquettes tombent des gradins !'],
+  festival: ['{n} buts ce soir ! Une soirée historique !', 'Il en est à {n} ! On n\'en voit pas souvent, des soirées comme celle-là !',
+    '{n} buts ! Personne ne l\'arrête ce soir !'],
+  an: ['L\'avantage numérique fait mal.', 'Le jeu de puissance livre la marchandise.',
+    'L\'unité d\'avantage numérique a fait le travail.', 'La punition coûte cher.',
+    'Ils avaient un joueur de plus, et ça paraît.', 'Le jeu de puissance n\'a pas raté son coup.'],
+  dn: ['En désavantage numérique, en plus !', 'Un but en infériorité numérique : l\'autre banc n\'en revient pas.',
+    'Ils étaient à quatre et ils marquent !', 'Un but en désavantage : le vent vient de tourner.'],
+  special: ['Le système de {eq} fonctionne à merveille.', 'Exactement ce qu\'ils ont pratiqué.',
+    'Le jeu parfait, tel que dessiné au tableau.', 'La chimie de ce trio fait des ravages.',
+    'Le plan de l\'entraîneur, exécuté à la lettre.'],
   // Le système de la ligne qui marque, quand il a fait le travail (S71).
   bleue: ['La ligne bleue frappe encore.', 'Les tirs de la pointe finissent par payer.', 'Tout part de la ligne bleue ce soir.'],
   contre: ['La contre-attaque a fait mal.', 'Ils attendaient l\'ouverture, ils l\'ont eue.', 'Frappés en transition !'],
-  derriere: ['Le jeu derrière le filet fonctionne.', 'Tout passe par derrière la ligne des buts.', 'Le gardien ne savait plus où regarder.'],
-  courtes: ['Les passes courtes ont mystifié la défense.', 'Un jeu de passes à une touche, du grand art.', 'Ils font tourner la défense en bourrique.'],
+  derriere: ['Le jeu derrière le filet fonctionne.', 'Tout passe par derrière la ligne des buts.',
+    'Le gardien ne savait plus où regarder.'],
+  courtes: ['Les passes courtes ont mystifié la défense.', 'Un jeu de passes à une touche, du grand art.',
+    'Ils font tourner la défense en bourrique.'],
   echec: ['L\'échec avant a forcé le revirement.', 'Ils les ont étouffés dans leur zone.', 'La pression a payé.'],
   defensive: ['Patients, ils ont frappé en contre.', 'Ils ferment le jeu et piquent au bon moment.', 'Le plan défensif paie.'],
-  tard: ['À {r} de la fin !', 'Dans les dernières minutes !', 'Un but crucial !', 'Au pire moment pour {autre} !', 'Avec {r} à jouer !'],
-  prolongation: ['C\'est terminé en prolongation !', 'La prolongation n\'aura pas duré longtemps !', '{eq} l\'emporte en prolongation !',
+  tard: ['À {r} de la fin !', 'Dans les dernières minutes !', 'Un but qui pèse une tonne !', 'Au pire moment pour {autre} !',
+    'Avec {r} à jouer !'],
+  prolongation: ['C\'est terminé en prolongation !', '{eq} gagne en prolongation !', '{eq} l\'emporte en prolongation !',
     'Mort subite, et c\'est {eq} qui survit !', 'Tout le banc saute sur la glace !'],
 };
 
@@ -239,9 +252,10 @@ export const INFRACTIONS = [
   'rudesse après le sifflet', 'avoir dardé',
 ];
 export const PHRASE_PUNITION = [
-  '{j} écope de deux minutes pour {inf}.', '{j} s\'en va au banc des punitions pour {inf}.', 'L\'arbitre lève le bras : {j}, deux minutes pour {inf}.',
-  'Deux minutes à {j} pour {inf}.', '{j} est chassé pour {inf}.', 'Punition à {j} : {inf}.', '{j} prend le chemin du cachot pour {inf}.',
-  'Le sifflet retentit : {j}, {inf}.', '{j} va réfléchir deux minutes : {inf}.',
+  '{j} écope de deux minutes pour {inf}.', '{j} s\'en va au banc des punitions pour {inf}.',
+  'L\'arbitre lève le bras : {j}, deux minutes pour {inf}.', 'Deux minutes à {j} pour {inf}.', '{j} est chassé pour {inf}.',
+  'Punition à {j} : {inf}.', '{j} prend le chemin du cachot pour {inf}.', 'Le sifflet retentit : {j}, {inf}.',
+  '{j} va réfléchir deux minutes : {inf}.',
 ];
 export const PHRASE_PUNITION_EQUIPE = ['Punition à {autre} pour {inf}.', '{autre} écope de deux minutes pour {inf}.'];
 export const PHRASE_AVANTAGE = [
@@ -249,19 +263,23 @@ export const PHRASE_AVANTAGE = [
   '{eq} aura deux minutes pour en profiter.', 'L\'unité d\'avantage numérique de {eq} saute sur la glace.',
 ];
 export const COULEUR_PUNITION = [
-  'Punition inutile.', 'L\'entraîneur n\'est pas content.', 'La foule hue l\'arbitre.', 'Il conteste, mais rien à faire.',
-  'Il ne semble pas d\'accord.', 'C\'était évident.', 'Pas une décision populaire dans l\'amphithéâtre.', 'Il frappe la bande en entrant au banc.',
+  'Une punition évitable.', 'Derrière le banc, l\'entraîneur grimace.', 'La foule hue l\'arbitre.',
+  'Il conteste, mais rien à faire.', 'Il ne semble pas d\'accord.', 'L\'arbitre n\'a pas hésité.',
+  'Pas une décision populaire dans l\'amphithéâtre.', 'Il frappe la bande en entrant au cachot.',
   'Il n\'avait pas le choix, il était battu.', 'Une punition de paresse.',
 ];
-export const COULEUR_PUNITION_TARD = ['Mauvais moment pour une punition !', 'Une punition coûteuse à ce stade du match !',
-  'Il n\'y a pas pire moment.', 'Son entraîneur n\'en revient pas.'];
+export const COULEUR_PUNITION_TARD = [
+  'Mauvais moment pour une punition !', 'Une punition coûteuse à ce stade du match !', 'Il n\'y a pas pire moment.',
+  'Son entraîneur n\'en revient pas.',
+];
 export const RETOUR_PUNITION = [
   '{j} revient au jeu.', '{j} sort du cachot.', '{j} est libéré.', 'Fin de la punition de {j}.', '{j} saute sur la glace.',
 ];
 export const RETOUR_EQUIPE = ['Fin de la punition.', 'Le puni revient au jeu.'];
 export const COULEUR_RETOUR = [
   'Retour à cinq contre cinq.', 'Les deux équipes à forces égales.', 'Le désavantage de {eq} a tenu bon.',
-  'Les unités de désavantage de {eq} ont fait le travail.', '{autre} n\'a pas profité de l\'avantage.', 'Mission accomplie pour {eq}.',
+  'Les unités de désavantage de {eq} ont fait le travail.', '{autre} n\'a pas profité de l\'avantage.',
+  'Mission accomplie pour {eq}.',
 ];
 
 /* ---------- le jeu physique (1.0) : le coup marquant, la bagarre, la mêlée ---------- */
@@ -272,7 +290,7 @@ export const PHRASE_COUP = [
 ];
 export const COULEUR_COUP = [
   'La foule se lève.', 'Ça s\'entend jusqu\'aux bancs.', 'Le banc de {autre} n\'aime pas ça.', 'Il s\'en souviendra ce soir.',
-  'Un message envoyé.', 'Le match vient de changer de ton.', 'Ça va chauffer.', 'La glace vibre encore.',
+  'Un message envoyé.', 'Le match vient de changer de ton.', 'Ça va chauffer.', 'La baie vitrée tremble encore.',
 ];
 export const PHRASE_BAGARRE = [
   'Les gants tombent ! {j} et {c} en viennent aux coups !', '{j} et {c} jettent les gants !', 'Bagarre ! {j} contre {c} !',
@@ -280,12 +298,13 @@ export const PHRASE_BAGARRE = [
 ];
 export const ISSUE_BAGARRE = {
   gagne: ['{g} prend le dessus et laisse {p} sur la glace.', '{g} l\'emporte haut la main.', '{p} est tombé : {g} a gagné le duel.',
-    'Quelques bons coups de {g}, et {p} demande grâce.', '{g} enchaîne trois droites, les juges de ligne interviennent.'],
+    'Quelques bons coups de {g}, et {p} demande grâce.', '{g} enchaîne les droites, les juges de ligne interviennent.'],
   nul: ['Les deux se tiennent, personne ne tombe.', 'Un combat égal, séparé par les juges de ligne.', 'Ni l\'un ni l\'autre ne cède.'],
 };
 export const COULEUR_BAGARRE = {
-  gagne: ['Le banc de {eq} tape sur la bande !', 'La foule est debout pour {g}.', 'Ça donne de l\'élan à {eq}.', 'Cinq minutes chacun, mais un seul vainqueur.'],
-  nul: ['Cinq minutes chacun.', 'Ils s\'en vont réfléchir cinq minutes.', 'Un duel pour l\'honneur.'],
+  gagne: ['Le banc de {eq} tape sur la bande !', 'La foule est debout pour {g}.', 'Ça donne de l\'élan à {eq}.',
+    'Les deux s\'en vont au cachot, un seul la tête haute.'],
+  nul: ['Un duel pour l\'honneur.', 'Les deux s\'en vont au cachot, chacun de son côté.', 'La foule a eu sa bagarre.'],
 };
 export const PHRASE_MELEE = [
   'Mêlée après le sifflet : {j} et {c} se poussent devant le filet.', '{j} et {c} se prennent le collet.', 'Ça chamaille dans le coin entre {j} et {c}.',
@@ -302,24 +321,26 @@ export const FIN_PERIODE = [
   'Les joueurs rentrent au vestiaire : fin de la {per}.', 'La {per} est terminée.',
 ];
 export const COULEUR_PERIODE = {
-  egal: ['Tout est à égalité.', 'Rien n\'est décidé.', 'Personne ne se détache.', 'Un match chaudement disputé.'],
+  egal: ['Tout est à égalité.', 'Rien n\'est décidé.', 'Personne ne se détache.', 'Un match chaudement disputé.',
+    'Tout reste à faire.'],
   mene: ['{eq} mène {s}.', '{eq} a l\'avantage au tableau.', '{eq} garde les commandes.', 'Avantage {eq}.'],
   tirs: ['{eq} domine au chapitre des tirs.', 'Le gardien de {autre} a été occupé.', '{eq} lance tout ce qui bouge.'],
   prolongation: ['On s\'en va en prolongation !', 'Il faudra du temps supplémentaire !', 'Mort subite en vue !'],
 };
 export const DEBUT = [
-  'Mise au jeu !', 'C\'est parti !', 'La rondelle est mise en jeu.', 'L\'arbitre laisse tomber la rondelle.', 'Et c\'est commencé !',
-  'Le match est lancé.',
+  'Mise au jeu !', 'C\'est parti !', 'La rondelle est mise en jeu.', 'L\'arbitre laisse tomber la rondelle.',
+  'Et c\'est commencé !', 'Le match est lancé.',
 ];
 export const COULEUR_DEBUT = [
-  'L\'amphithéâtre est plein à craquer.', 'Les deux formations sont prêtes.', 'Bienvenue à ce duel.', 'L\'ambiance est électrique.',
-  'Les partisans sont debout.', 'On annonce un grand match.', 'Les gardiens sont en place.',
+  'L\'amphithéâtre est plein à craquer.', 'Les deux formations sont prêtes.', 'Les gardiens tapent leurs poteaux.',
+  'L\'ambiance est électrique.', 'Les partisans sont debout.', 'On annonce un grand match.', 'Les gardiens sont en place.',
 ];
 export const FIN_MATCH = ['C\'est terminé !', 'La sirène finale retentit !', 'Fin du match !', 'Et c\'est fini !', 'Le match est terminé.'];
 export const COULEUR_FIN = {
   blanchissage: ['Blanchissage pour {g} !', 'Un jeu blanc pour {g} !', '{g} n\'a rien donné de la soirée.'],
   raclee: ['Une soirée à oublier pour {autre}.', 'Une démonstration de {eq}.', '{eq} n\'a laissé aucune chance.'],
-  serre: ['Un match serré jusqu\'à la fin.', 'Ça s\'est joué à un but.', 'Du hockey haletant.'],
+  serre: ['Un match serré jusqu\'à la fin.', 'Ça s\'est joué à un but.', 'Du hockey haletant.',
+    'Personne n\'a respiré avant la sirène.'],
   // Pas « la prolongation » : la phrase d'avant vient de la nommer (S74, l'agent de test).
   prolongation: ['La mort subite a tranché.', 'Il a fallu du temps supplémentaire.', 'Un seul but de plus, et tout était dit.'],
 };

@@ -81,47 +81,47 @@ export function profil(p) {
  * pas du français.
  */
 export const GESTES = {
-  defenseur: ['décoche de la ligne bleue et bat {G}', 'sert une bombe de la pointe que {G} ne voit jamais',
-    'fait dévier un tir de la pointe derrière {G}', 'surgit en deuxième vague et surprend {G}',
-    'se joint à l\'attaque et loge la rondelle derrière {G}', 'lance à travers un écran, et {G} ne voit rien',
-    'pince le long de la bande et trompe {G} du poignet', 'tire de la pointe, la rondelle dévie et {G} est battu',
-    'descend en vitesse et surprend {G} d\'un tir bas', 'fait la montée lui-même et déjoue {G}'],
-  canonnier: ['dégaine son fameux lancer frappé devant {G}', 'loge son tir dans la lucarne, au-dessus de {G}',
-    'décoche sans ralentir et bat {G}', 'trouve le petit côté sur {G}',
-    'arme son lancer du haut de l\'enclave, {G} n\'a pas le temps de réagir', 'lance une frappe sur réception que {G} ne voit jamais',
-    'décoche un boulet qui passe sous le bras de {G}', 'fait vibrer la barre et la rondelle rentre derrière {G}',
-    'prend son temps et loge un tir précis derrière {G}', 'canonne de l\'entrée de zone et {G} est pris à froid'],
-  rapide: ['prend la défensive de vitesse et déjoue {G}', 'file en échappée et ne rate pas {G}',
-    'déborde son couvreur et glisse la rondelle sous {G}', 'gagne la course à la rondelle et trompe {G}',
-    'explose en zone neutre et déjoue {G} d\'une feinte', 'coupe au filet en vitesse et pousse la rondelle derrière {G}',
-    'contourne le filet à toute allure et surprend {G}', 'récupère une rondelle libre en vitesse et bat {G} du revers',
-    'file entre les deux défenseurs et déjoue {G}', 'accélère sur l\'aile et trouve le petit côté de {G}'],
-  tireur: ['décoche du cercle et bat {G}', 'fait mouche du poignet devant {G}',
-    'trouve une ouverture et déjoue {G}', 'se démarque et ne laisse aucune chance à {G}',
-    'lance à bout portant et bat {G}', 'saisit la rondelle dans l\'enclave et trompe {G}',
-    'tire du cercle gauche, précis, et {G} n\'y peut rien', 'se libère devant le filet et loge la rondelle derrière {G}',
-    'lance en pivotant et surprend {G}', 'fait mouche du revers sur {G}'],
-  fabricant: ['se présente seul devant et déjoue {G}', 'attire {G} et le glisse du revers',
-    'termine lui-même le jeu qu\'il a lancé, aux dépens de {G}', 'patiente et loge la rondelle derrière {G}',
+  defenseur: ['décoche de la ligne bleue et bat {G} dans le haut', 's\'avance à la pointe et prend {G} à froid d\'un tir sec',
+    'surgit en deuxième vague et surprend {G}', 'se faufile jusque dans l\'enclave et loge la rondelle derrière {G}',
+    'lance à travers une forêt de jambes et trompe {G}', 'pince le long de la bande et bat {G} du poignet',
+    'tire de la pointe, la rondelle ricoche sur un patin et déjoue {G}', 'monte en vitesse sur l\'aile et bat {G} d\'un tir bas',
+    'remonte toute la patinoire et déjoue {G}', 'quitte la ligne bleue au bon moment et pousse la rondelle derrière {G}'],
+  canonnier: ['dégaine son lancer frappé et foudroie {G}', 'loge la rondelle dans la lucarne et laisse {G} sans réaction',
+    'décoche sur réception, sans arrêter la rondelle, et bat {G}', 'surprend {G} au petit côté d\'un tir des poignets',
+    'arme son tir du haut de l\'enclave et bat {G} avant qu\'il se place', 'décoche un boulet qui passe sous le bras de {G}',
+    'fait chanter la barre horizontale, et la rondelle tombe derrière {G}', 'prend son temps, vise et loge son tir derrière {G}',
+    'canonne de l\'entrée de zone et prend {G} à froid', 'décoche de son cercle favori et fusille {G}'],
+  rapide: ['prend la défensive de vitesse et déjoue {G}', 'file seul en échappée et ne rate pas {G}',
+    'déborde son couvreur par l\'extérieur et glisse la rondelle sous {G}', 'gagne la course à la rondelle libre et trompe {G}',
+    'explose en zone neutre et déjoue {G} d\'une feinte', 'coupe au filet à toute vitesse et pousse la rondelle derrière {G}',
+    'contourne le filet en trombe et surprend {G} au poteau', 'ramasse une rondelle libre en pleine course et bat {G} du revers',
+    'se faufile entre les deux défenseurs et déjoue {G}', 'accélère sur l\'aile et bat {G} au petit côté'],
+  tireur: ['décoche du cercle des mises en jeu et bat {G}', 'fait mouche d\'un tir des poignets devant {G}',
+    'faufile la rondelle entre les jambières et bat {G}', 'se démarque dans l\'enclave et ne laisse aucune chance à {G}',
+    'lance à bout portant et bat {G}', 'cueille la rondelle dans l\'enclave et trompe {G} sur réception',
+    'tire du cercle gauche et bat {G} juste au-dessus de la jambière', 'se libère devant le filet et loge la rondelle derrière {G}',
+    'pivote dans l\'enclave et surprend {G}', 'fait mouche du revers, en pleine course, sur {G}'],
+  fabricant: ['se présente seul devant et déjoue {G}', 'attire {G} d\'un côté et glisse la rondelle de l\'autre',
+    'termine lui-même le jeu qu\'il a lancé, aux dépens de {G}', 'patiente jusqu\'à ce que {G} se couche, puis soulève la rondelle',
     'feinte la passe et surprend {G} d\'un tir', 'garde la rondelle, attend, et bat {G} du poignet',
     'orchestre le jeu et le conclut lui-même devant {G}', 'contourne le filet et glisse la rondelle sous {G}',
-    'fait la passe à lui-même sur la bande et déjoue {G}', 'remonte la rondelle et trompe {G} d\'une feinte'],
-  neutre: ['pousse la rondelle derrière {G}', 'marque dans la mêlée devant {G}',
-    'saisit le retour que {G} a laissé', 'fait dévier la rondelle et trompe {G}',
-    'bat {G} d\'un tir bas dans l\'enclave', 'lance à travers la circulation et surprend {G}',
-    'profite d\'un revirement et déjoue {G}', 'poursuit son effort au filet et pousse la rondelle sous {G}',
-    'tire de l\'angle et la rondelle rentre derrière {G}', 'récupère un retour et trompe {G} du revers'],
+    'se fait une passe sur la bande, récupère et déjoue {G}', 'remonte la rondelle et trompe {G} d\'une feinte'],
+  neutre: ['pousse la rondelle derrière {G} dans la cohue', 'marque dans la mêlée devant {G}',
+    'saute sur le retour que {G} a laissé traîner', 'fait dévier la rondelle devant {G}',
+    'bat {G} d\'un tir bas de l\'enclave', 'lance à travers la circulation et surprend {G}',
+    'profite d\'un revirement et déjoue {G}', 's\'acharne devant le filet et pousse la rondelle sous {G}',
+    'tire d\'un angle fermé, et la rondelle se faufile derrière {G}', 'cueille un retour et trompe {G} du revers'],
 };
 
 export const SOLO = ['en solo', 'sans aide', 'sur un jeu individuel', 'à la suite d\'un revirement',
   'après avoir volé la rondelle', 'sans que personne le touche'];
-export const SEQUENCE = ['au bout d\'une belle séquence', 'sur un jeu de passes bien mené',
-  'après une montée à trois', 'sur une attaque massue', 'au terme d\'un jeu de passes rapide',
-  'sur une passe transversale parfaite', 'après un long cycle en zone offensive'];
+export const SEQUENCE = ['au bout d\'une belle séquence de passes', 'sur un jeu de passes tricoté serré',
+  'après une montée à trois', 'sur une attaque massive', 'au bout d\'un échange en triangle',
+  'sur une passe transversale parfaite', 'après un long siège en zone adverse'];
 
 /* La prolongation a ses propres mots : c'est le but qui met fin au match. */
-export const FIN = ['met fin au débat', 'donne la victoire aux siens', 'tranche en prolongation',
-  'règle la question', 'libère les siens', 'envoie tout le monde aux douches', 'termine le match d\'un coup'];
+export const FIN = ['fait pencher la balance', 'donne la victoire aux siens', 'marque le but qui décide',
+  'règle la question', 'fait la différence', 'signe le but vainqueur', 'met fin au débat'];
 
 /**
  * Une phrase pour un but. `but` vient du journal du moteur
@@ -154,14 +154,14 @@ export function recitDeSerie(wV, wP, nomV, nomP, feuilles) {
   const prolongations = feuilles.filter(f => f.ot).length;
   const g = graine(`s${nomV}${nomP}${wV}${wP}${feuilles.length}`);
   let phrase;
-  if (wP === 0) phrase = pige([`${nomV} balaie ${nomP} en quatre matchs.`, `${nomV} ne laisse pas un match à ${nomP} : quatre à zéro.`,
-    `Le balayage : ${nomV} passe ${nomP} en quatre.`], g);
+  if (wP === 0) phrase = pige([`${nomV} balaie ${nomP} en quatre matchs.`, `${nomV} ne laisse rien à ${nomP} : quatre matchs, quatre victoires.`,
+    `${nomV} expédie ${nomP} en quatre matchs.`], g);
   else if (wV === 4 && wP === 3) phrase = pige([`${nomV} survit à un septième match contre ${nomP}.`,
-    `Sept matchs, et c'est ${nomV} qui a le dernier mot contre ${nomP}.`, `${nomV} gagne le septième match et élimine ${nomP}.`], g);
+    `Sept matchs, et c'est ${nomV} qui a le dernier mot contre ${nomP}.`, `Tout se joue au septième match, et ${nomV} sort ${nomP}.`], g);
   else phrase = pige([`${nomV} élimine ${nomP} en ${wV + wP} matchs.`, `${nomV} a besoin de ${wV + wP} matchs pour écarter ${nomP}.`,
     `${nomV} vient à bout de ${nomP} en ${wV + wP} matchs.`], g);
-  if (prolongations >= 2) phrase += ` ${prolongations} matchs se sont réglés en prolongation.`;
-  else if (prolongations === 1) phrase += ' Un match s\'est réglé en prolongation.';
+  if (prolongations >= 2) phrase += ` ${prolongations} matchs se sont décidés en prolongation.`;
+  else if (prolongations === 1) phrase += ' Un des matchs s\'est décidé en prolongation.';
   return phrase;
 }
 
@@ -227,7 +227,7 @@ export function ceQuiADecide(f, nomA, nomB) {
   if (lancers.length && lancers.filter(l => l.p != null).length >= 0.8 * lancers.length) {
     for (const c of ['A', 'B']) {
       const attendu = lancers.filter(l => l.cote === c && l.p != null).reduce((a, l) => a + l.p, 0), g = buts(c), d = g - attendu;
-      if (Math.abs(d) >= 1) faits.push({ poids: Math.abs(d), txt: `${nom(c)} : ${plur(g, 'but')} sur ${v(attendu)} attendus — ${d > 0 ? 'ses tirs sont entrés' : 'le gardien d\'en face a fermé la porte'}.` });
+      if (Math.abs(d) >= 1) faits.push({ poids: Math.abs(d), txt: `${nom(c)} : ${plur(g, 'but')} sur ${v(attendu)} attendus — ${d > 0 ? 'ses tirs ont trouvé le fond du filet' : 'ses tirs ont buté sur le gardien d\'en face'}.` });
     }
   }
   const dt = tirs('A') - tirs('B');
@@ -238,15 +238,15 @@ export function ceQuiADecide(f, nomA, nomB) {
   const an = c => f.buts.filter(b => b.cote === c && b.an).length, occ = c => (f.punitions || []).filter(x => x.cote === autre(c)).length;
   if (an('A') !== an('B')) {
     const c = an('A') > an('B') ? 'A' : 'B';
-    faits.push({ poids: 1.2 * Math.abs(an('A') - an('B')), txt: `L'avantage numérique : ${nom(c)} ${an(c)} en ${occ(c)}, ${nom(autre(c))} ${an(autre(c))} en ${occ(autre(c))}.` });
+    faits.push({ poids: 1.2 * Math.abs(an('A') - an('B')), txt: `Avantage numérique : ${nom(c)} ${an(c)} en ${occ(c)}, ${nom(autre(c))} ${an(autre(c))} en ${occ(autre(c))}.` });
   }
   for (const c of ['A', 'B']) {
     const g = f[c === 'A' ? 'gardienA' : 'gardienB'], recus = tirs(autre(c)), arrets = recus - buts(autre(c));
-    if (g && recus >= 25 && arrets / recus >= 0.94) faits.push({ poids: (arrets / recus - 0.9) * 25, txt: `${g.n} a arrêté ${arrets} des ${recus} tirs (${pct3(arrets / recus)}).` });
+    if (g && recus >= 25 && arrets / recus >= 0.94) faits.push({ poids: (arrets / recus - 0.9) * 25, txt: `${g.n} a fermé la porte : ${arrets} arrêts sur ${recus} tirs (${pct3(arrets / recus)}).` });
   }
   for (const c of ['A', 'B']) {
     const n = lancers.filter(l => l.cote === c && l.special === 'reussie').length;
-    if (n >= 2) faits.push({ poids: 0.5 * n, txt: `${nom(c)} a réussi ${n} actions spéciales de ses systèmes.` });
+    if (n >= 2) faits.push({ poids: 0.5 * n, txt: `Les systèmes de ${nom(c)} ont tourné : ${n} actions spéciales réussies.` });
   }
   const lignes = faits.sort((x, y) => y.poids - x.poids).slice(0, 3).map(x => x.txt);
   // Le but gagnant : celui qui a mis le vainqueur devant pour de bon.
@@ -299,6 +299,8 @@ export const FIL_MARQUANT = 5;
 
 const oublier = (e, sorte) => { for (const c of [...e.crans]) if (c.startsWith(`${sorte}:`)) e.crans.delete(c); };
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+/** « de Oates » → « d'Oates ». */
+const deNom = nom => (/^[AEIOUYÉÈÊÎ]/.test(nom) ? `d'${nom}` : `de ${nom}`);
 
 export function filsDeSaison(calendrier, you, jusqua = Infinity) {
   const etat = new Map();
@@ -349,18 +351,18 @@ export function filsDeSaison(calendrier, you, jusqua = Infinity) {
       // LE JALON
       for (const s of FILS.jalon.buts) if (avantG < s && e.g >= s && !e.jalons.has(`g${s}`)) {
         e.jalons.add(`g${s}`);
-        pose(arc('jalon', `${nc} atteint les ${s} buts, en ${e.gp} matchs.`, 4 + s / 10, e.joues.slice(), { seuil: s, unite: 'buts', n: e.gp }));
+        pose(arc('jalon', `${nc} atteint le plateau des ${s} buts, à son ${e.gp}e match.`, 4 + s / 10, e.joues.slice(), { seuil: s, unite: 'buts', n: e.gp }));
       }
       for (const s of FILS.jalon.points) if (avantPts < s && e.pts >= s && !e.jalons.has(`p${s}`)) {
         e.jalons.add(`p${s}`);
-        pose(arc('jalon', `${nc} atteint les ${s} points, en ${e.gp} matchs.`, 3 + s / 25, e.joues.slice(), { seuil: s, unite: 'points', n: e.gp }));
+        pose(arc('jalon', `${nc} franchit le cap des ${s} points, à son ${e.gp}e match.`, 3 + s / 25, e.joues.slice(), { seuil: s, unite: 'points', n: e.gp }));
       }
       // LA SÉQUENCE, et sa fin
       if (point) {
         e.serie.push(ref);
-        if (e.serie.length >= FILS.sequence.min) pose(arc('sequence', `${nc} : un point dans ${e.serie.length} matchs de suite.`, 2 + e.serie.length / 3, e.serie.slice(), { n: e.serie.length }), true, Math.floor(e.serie.length / 2));
+        if (e.serie.length >= FILS.sequence.min) pose(arc('sequence', `${nc} récolte un point pour un ${e.serie.length}e match de suite.`, 2 + e.serie.length / 3, e.serie.slice(), { n: e.serie.length }), true, Math.floor(e.serie.length / 2));
       } else {
-        if (e.serie.length >= FILS.sequence.fin) pose(arc('sequence', `La séquence de ${nc} s'arrête à ${e.serie.length} matchs.`, 1.5, e.serie.concat([ref]), { n: e.serie.length, fini: true }), false);
+        if (e.serie.length >= FILS.sequence.fin) pose(arc('sequence', `${nc} est blanchi : sa séquence s'arrête à ${e.serie.length} matchs.`, 1.5, e.serie.concat([ref]), { n: e.serie.length, fini: true }), false);
         e.serie = [];
         oublier(e, 'sequence');
       }
@@ -368,23 +370,23 @@ export function filsDeSaison(calendrier, you, jusqua = Infinity) {
       const marqueur = (p.gp || 0) >= 20 && (p.g || 0) / p.gp >= FILS.disette.vrai;
       if (sesButs.length) {
         if (marqueur && e.sansBut.length >= FILS.disette.min) fils.delete(`disette|${p.n}`);
-        if (marqueur && e.sansBut.length >= FILS.disette.min) pose(arc('disette', `${nc} brise une disette de ${e.sansBut.length} matchs.`, 3 + e.sansBut.length / 6, e.sansBut.concat([ref]), { n: e.sansBut.length, fini: true }), false);
+        if (marqueur && e.sansBut.length >= FILS.disette.min) pose(arc('disette', `${nc} trouve enfin le fond du filet, après ${e.sansBut.length} matchs de disette.`, 3 + e.sansBut.length / 6, e.sansBut.concat([ref]), { n: e.sansBut.length, fini: true }), false);
         e.sansBut = [];
         oublier(e, 'disette');
       } else {
         e.sansBut.push(ref);
-        if (marqueur && e.sansBut.length >= FILS.disette.min) pose(arc('disette', `${nc} n'a pas marqué depuis ${e.sansBut.length} matchs.`, 1 + e.sansBut.length / 8, e.sansBut.slice(), { n: e.sansBut.length }), true, Math.floor(e.sansBut.length / 4));
+        if (marqueur && e.sansBut.length >= FILS.disette.min) pose(arc('disette', `${nc} cherche son but depuis ${e.sansBut.length} matchs.`, 1 + e.sansBut.length / 8, e.sansBut.slice(), { n: e.sansBut.length }), true, Math.floor(e.sansBut.length / 4));
       }
       if (sesButs.length) {
         // LE FEU : le Cheechoo, plus loin que sa vraie saison
         const vrai = (p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0;
         if (e.gp >= FILS.feu.matchs && e.g >= FILS.feu.buts && e.g / e.gp >= FILS.feu.facteur * Math.max(vrai, FILS.feu.plancher)) {
-          pose(arc('feu', `${nc} : ${pluriel(e.g, 'but')} en ${e.gp} matchs ; sa vraie saison, ${pluriel(p.g || 0, 'but')} en ${p.gp || 0}.`, 5 + e.g / 5, e.joues.slice(), { g: e.g, n: e.gp }), true, Math.floor(e.g / 4));
+          pose(arc('feu', `${nc} enfile ${pluriel(e.g, 'but')} en ${e.gp} matchs ; sa vraie saison : ${pluriel(p.g || 0, 'but')} en ${p.gp || 0}.`, 5 + e.g / 5, e.joues.slice(), { g: e.g, n: e.gp }), true, Math.floor(e.g / 4));
         }
         // LA COURSE aux buts
         if (e.gp >= FILS.course.matchs) {
           const r = Math.round(e.g / e.gp * 82);
-          if (r >= FILS.course.buts) pose(arc('course', `${nc} : ${pluriel(e.g, 'but')} en ${e.gp} matchs, sur un rythme de ${r}.`, 3 + r / 10, e.joues.slice(), { g: e.g, n: e.gp, rythme: r }), true, Math.floor(e.g / 5));
+          if (r >= FILS.course.buts) pose(arc('course', `${nc} marque à un rythme de ${r} buts : ${pluriel(e.g, 'but')} en ${e.gp} matchs.`, 3 + r / 10, e.joues.slice(), { g: e.g, n: e.gp, rythme: r }), true, Math.floor(e.g / 5));
         }
         // LE DUO : le passeur qui fait la saison du marqueur
         let meilleur = null;
@@ -392,23 +394,23 @@ export function filsDeSaison(calendrier, you, jusqua = Infinity) {
         if (meilleur && e.g >= FILS.duo.buts && meilleur[1].length >= FILS.duo.passes && meilleur[1].length / e.g >= FILS.duo.part
           && sesButs.some(b => (b.passeurs || []).includes(meilleur[0]))) {
           const k2 = meilleur[1].length;
-          pose(arc('duo', `${nc} : ${k2} de ses ${e.g} buts sur une passe de ${nomCourt(meilleur[0].n)}.`, 3 + k2 / 3, [...new Set(meilleur[1])], { passeur: meilleur[0], n: k2, g: e.g }), true, Math.floor(k2 / 4));
+          pose(arc('duo', `${nc} doit ${k2} de ses ${e.g} buts aux passes ${deNom(nomCourt(meilleur[0].n))}.`, 3 + k2 / 3, [...new Set(meilleur[1])], { passeur: meilleur[0], n: k2, g: e.g }), true, Math.floor(k2 / 4));
         }
       }
       if (point && !(e.gp >= FILS.course.matchs && Math.round(e.g / e.gp * 82) >= FILS.course.buts)) {
         // La course aux points, quand celle des buts ne la dit pas déjà
         if (e.gp >= FILS.course.matchs) {
           const r = Math.round(e.pts / e.gp * 82);
-          if (r >= FILS.course.points) pose(arc('course', `${nc} : ${pluriel(e.pts, 'point')} en ${e.gp} matchs, sur un rythme de ${r}.`, 3 + r / 25, e.joues.slice(), { pts: e.pts, n: e.gp, rythme: r }), true, `p${Math.floor(e.pts / 10)}`);
+          if (r >= FILS.course.points) pose(arc('course', `${nc} produit à un rythme de ${r} points : ${pluriel(e.pts, 'point')} en ${e.gp} matchs.`, 3 + r / 25, e.joues.slice(), { pts: e.pts, n: e.gp, rythme: r }), true, `p${Math.floor(e.pts / 10)}`);
         }
       }
       // LA RECRUE
       if (point && p.rk && e.gp >= FILS.recrue.matchs && e.pts / e.gp >= FILS.recrue.rythme) {
-        pose(arc('recrue', `La recrue ${nc} : ${pluriel(e.pts, 'point')} en ${e.gp} matchs.`, 2.5 + e.pts / 10, e.joues.slice(), { pts: e.pts, n: e.gp }), true, Math.floor(e.pts / 10));
+        pose(arc('recrue', `La recrue ${nc} s'impose : ${pluriel(e.pts, 'point')} en ${e.gp} matchs.`, 2.5 + e.pts / 10, e.joues.slice(), { pts: e.pts, n: e.gp }), true, Math.floor(e.pts / 10));
       }
       // LE RETOUR
       if (revient && point) {
-        pose(arc('retour', `De retour après ${revient} matchs, ${nc} ${sesButs.length ? 'marque' : 'obtient un point'} dès son premier soir.`, 2.5, [ref], { n: revient }), false);
+        pose(arc('retour', `Absent ${revient} matchs, ${nc} ${sesButs.length ? 'marque' : 'récolte un point'} dès son retour au jeu.`, 2.5, [ref], { n: revient }), false);
       }
     }
     if (bougent.length) journal.push({ j, k, fils: bougent.sort((x, y) => y.poids - x.poids) });

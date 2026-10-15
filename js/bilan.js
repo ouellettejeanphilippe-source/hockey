@@ -439,10 +439,10 @@ function voletNiveau(teams, reelles) {
   const sosMoyen = lignes.reduce((a, x) => a + x.sos, 0) / lignes.length;
 
   const mot = nivMoyen == null ? ''
-    : nivMoyen >= 0.56 ? 'Une ligue RELEVÉE : tu as passé l\'année contre des clubs qui gagnaient pour vrai.'
+    : nivMoyen >= 0.56 ? 'Une ligue RELEVÉE : toute l\'année, tu as croisé des clubs qui gagnaient pour vrai.'
     : nivMoyen >= 0.52 ? 'Une ligue un peu au-dessus de la moyenne.'
     : nivMoyen >= 0.48 ? 'Une ligue ordinaire : tes adversaires valaient la moyenne de leur époque.'
-    : 'Une ligue TENDRE : tu as croisé beaucoup de clubs qui perdaient pour vrai.';
+    : 'Une ligue TENDRE : beaucoup de tes adversaires perdaient pour vrai.';
 
   const signe = x => `${x >= 0 ? '+' : ''}${x.toFixed(1)}`;
   const parEcart = lignes.slice().sort((a, b) => b.ecart - a.ecart);
@@ -773,7 +773,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
 
   const injuries = you.injuriesLog && you.injuriesLog.length
     ? `<ul class="inj-list">${you.injuriesLog.map(i => `<li><strong>${lienJoueur(i.player, you, 'saison', esc(i.player.n))}</strong> — ${esc(motDeBlessure(i.genre))} · ${i.games} match${i.games > 1 ? 's' : ''} ratés à partir du match ${i.at}</li>`).join('')}</ul>`
-    : `<div class="dash-note">Aucune blessure cette saison. Chanceux.</div>`;
+    : `<div class="dash-note">Aucune blessure de la saison. Le physio a eu la paix.</div>`;
 
   G.lbId = saveLeaderboard({
     W: r.W, L: r.L, OTL: r.OTL, points: r.points, GF: r.GF, GA: r.GA,
@@ -928,7 +928,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       + (G.ligue && G.ligue.epoque ? `Saison : ${G.ligue.epoque}\n` : '')
       + `Masse salariale : ${money(capUsed())} / ${money(capMax())}\n`
       + `Vedette : ${top ? `${top.n} (${top.t} ${top.s})` : '—'}\n`
-      + (po && po.coupe ? `Bats ça.` : `Essaie de gagner la Coupe.`);
+      + (po && po.coupe ? `Bats ça.` : `À ton tour de viser la Coupe.`);
     if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(txt)
         .then(() => toast('Fiche copiée dans le presse-papier.'))
@@ -1143,7 +1143,7 @@ function dessinerTableauDesSeries(host, n, champion) {
     <div class="champion">
       <h3>Champion de la Coupe Stanley</h3>
       <div class="champ-name">${getTeamLogoHtml(champion.tag, 30)} ${esc(teamLabel(champion))}</div>
-      <p>${champion.isPlayer ? `Les ${esc(nomDuClub())} soulèvent la Coupe${G.ligue && G.ligue.epoque ? ` de ${esc(G.ligue.epoque)}` : ''}. 🏆` : `Les ${esc(nomDuClub())} sont tombés en chemin${G.ligue && G.ligue.epoque ? ` en ${esc(G.ligue.epoque)}` : ''}. Rebâtis et réessaie.`}</p>
+      <p>${champion.isPlayer ? `Les ${esc(nomDuClub())} soulèvent la Coupe${G.ligue && G.ligue.epoque ? ` de ${esc(G.ligue.epoque)}` : ''}. 🏆` : `Les ${esc(nomDuClub())} sont tombés en chemin${G.ligue && G.ligue.epoque ? ` en ${esc(G.ligue.epoque)}` : ''}. Retour à la planche à dessin.`}</p>
     </div>`;
   for (let r = 0; r < n; r++) {
     const dedans = G.series.filter(s => s.ronde === r);
