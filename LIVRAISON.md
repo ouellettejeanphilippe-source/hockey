@@ -638,3 +638,17 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
   - **L'en-tête** : la cellule Cartes.
 
   `essai_rogue` suit les nouvelles portes : la main dans « Ce soir », chaque carte qui dit sa place, le coach dans « Ce soir ».
+- 2026-10-15 — V8, le reste du plan (JP : *continue*) :
+  - **L'infirmerie dans l'Effectif** (js/joueurs.js) : chaque blessé qui laisse une case, qui la joue ce soir, et « Le remplacer › » vers son message au Bureau (`ouvrirBlessure`, js/saison.js).
+  - **Poser en touchant** dans « Ce soir » : une modif touchée allume les joueurs qui peuvent la porter, et toucher l'un d'eux la pose (`ciblesDeLaModif`, `poserLaModif`, js/rogue-jeu.js).
+  - **Ton coach et ton personnel en tête de « Tes cartes ».**
+  - **Seul l'écran de saison actif répond aux touchers du volet** : un écran rouvert laissait l'écouteur de l'ancien, qui réécrivait « Ce soir » avec le Bureau.
+
+  Preuves : `essai_rogue` (10b, la pose allume les joueurs et « Annuler » les referme ; 10c, l'infirmerie suit les 🩹 du tableau), `tout.mjs`, `check_mort`, `check_css`.
+- 2026-10-15 — V8, pour finir (JP : *fais ce qui est pertinent pour finir*) :
+  - **Un mot se touche** : le `title` d'une étiquette s'affiche dans une bulle au toucher (js/game.js) ; la variante (Parallèle…) et les états d'après un gros match portent le leur.
+  - **Le pack finit** sur « Signer un joueur › » (`suite`, js/gerant.js).
+  - **Le gros match de la page de la semaine** ouvre son écran de combat.
+  - **Une page du Club ne couvre que son onglet** (`pageVue`, js/saison.js).
+
+  Preuves : `essai_rogue` (10d, la bulle s'ouvre et se referme), `tout.mjs`, `check_mort`, `check_css`.

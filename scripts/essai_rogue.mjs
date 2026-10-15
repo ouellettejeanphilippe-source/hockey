@@ -757,7 +757,38 @@ for (const pack of ['j:or', 'j:coach']) {
   if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas dans « Ce soir »');
   else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
   else if (places < cases) erreurs.push(`${cases - places} carte(s) de la main ne disent pas leur place`);
+  /*
+   * POSER EN TOUCHANT (V8) : une modif de joueur touchée dans « Ce soir » ouvre tes lignes, ceux qui peuvent la porter
+   * allumés ; « Annuler » les referme (l'essai ne la pose pas ici : la poche sert plus loin).
+   */
+  const modif = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.findIndex(x => x.hasAttribute('data-pose'))).catch(() => -1);
+  if (modif >= 0) {
+    await page.click(`#hubModal .hub-poche .hub-poche-case[data-ref] >> nth=${modif}`); await page.waitForTimeout(400);
+    await page.screenshot({ path: `${DOSSIER}/rogue-pose.png`, fullPage: true });
+    const cibles = await page.$$eval('#hubModal .pose-zone .pose-puce.cible', e => e.length).catch(() => 0);
+    const grises = await page.$$eval('#hubModal .pose-zone .pose-puce:disabled', e => e.length).catch(() => 0);
+    console.log(`10b. poser en touchant : ${cibles} joueur(s) allumé(s), ${grises} grisé(s)`);
+    if (!cibles) erreurs.push('une modif touchée dans « Ce soir » n\'allume aucun joueur de tes lignes');
+    await page.click('#hubModal .pose-zone .pose-annuler').catch(() => {}); await page.waitForTimeout(300);
+    if (await page.$('#hubModal .pose-zone')) erreurs.push('« Annuler » ne referme pas les lignes de la pose');
+  } else console.log('10b. poser en touchant : aucune modif de joueur dans la main cette semaine');
+  // L'INFIRMERIE (V8) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie, en tête, avec « Le remplacer ».
+  await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
+  await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
+  const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
+  const inf = await page.$$eval('#pageJoueursCorps .jr-infirmerie .jr-remplacer', e => e.length).catch(() => 0);
+  console.log(`10c. l'infirmerie : ${inf} blessé(s), ${marques} 🩹 au tableau des avants`);
+  if (marques && !inf) erreurs.push('des blessés au tableau de l\'Effectif, mais pas d\'infirmerie');
   await auBureau();
+  // UN MOT SE TOUCHE (V8) : la ligne du mandat porte sa définition ; la toucher l'affiche dans une bulle, le toucher suivant la ferme.
+  if (await page.$('#hubModal .hub-etat-run')) {
+    await page.click('#hubModal .hub-etat-run'); await page.waitForTimeout(200);
+    const bulle = ((await page.textContent('.bulle-def').catch(() => '')) || '').trim();
+    console.log(`10d. un mot se touche : « ${bulle.slice(0, 60)} »`);
+    if (!/mandat/i.test(bulle)) erreurs.push('toucher la ligne du mandat n\'affiche pas sa définition');
+    await page.mouse.click(5, 300); await page.waitForTimeout(150);
+    if (await page.$('.bulle-def')) erreurs.push('la bulle d\'une définition ne se referme pas au toucher suivant');
+  }
 }
 /*
  * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE

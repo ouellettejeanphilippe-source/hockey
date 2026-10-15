@@ -11,6 +11,7 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRos
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
+import { coachHtml } from './alignement.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -449,7 +450,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   if (!montrerCartes) { offrir(); return; }
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
-    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur',
+    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
     recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes sont rangées : celles de match au deck, le reste dans ta poche, à jouer quand tu veux` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
@@ -571,6 +572,8 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   ouvrirInventaire({
     ...(page || {}),
     titre: 'Tes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
+    // V8 : ton coach, sa confiance et ton personnel en tête de tes cartes, que la cellule « Cartes » de l'en-tête ouvre d'où qu'on soit.
+    entete: rogue && enSaison ? `${coachHtml(decs, j, new Set(blessesAuJour(j).map(b => b.p)))}${personnelHtml(patronsActifs(decs, j + 1), postesDePatron((G.rogue && G.rogue.prestige) || 0))}` : '',
     partie: enSaison ? pocheDeLaPartie({ decisions: decs, graine: Lg.graine, nMatch: matchsEntre(Lg.you, 0, j), rogue }) : [],
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
     personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
@@ -801,6 +804,31 @@ function poserUneModif(item, j, decider, retour) {
     },
     onFerme: retour,
   });
+}
+/* Ton personnel (les patrons en poste) en une ligne : qui, et combien de postes sont pris. */
+const personnelHtml = (pa, max) => `<p class="inv-personnel">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}${pa.length ? ` : ${pa.map(x => `${x.ico || ''} ${esc(x.nom)}`).join(' · ')}` : ''}</p>`;
+/*
+ * POSER UNE MODIF EN TOUCHANT SON JOUEUR (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert*. Une
+ * modif de joueur touchée allume, dans les lignes de « Ce soir », les joueurs qui peuvent la porter ; toucher l'un
+ * d'eux la pose. Les mêmes états et la même décision que la liste de l'alignement (`poserUneModif`).
+ * `ciblesDeLaModif` : null si la carte ne se pose pas sur un joueur ; sinon l'état de chaque case et le joueur visé.
+ */
+export function ciblesDeLaModif(item, j) {
+  const c = BANQUE[item.id];
+  if (!c || c.cat !== 'joueur' || !MUTATIONS[c.cle]) return null;
+  const you = G.ligue && G.ligue.you;
+  const cases = new Map();
+  for (const sl of SLOTS) { const q = G.roster[sl.i]; if (q) cases.set(sl.i, etatPourPoser(c.cle, q, sl, { jour: j, you })); }
+  const vise = you ? joueurDeMutation(you, null, c.cle) : null;
+  return { nom: c.nom, ico: c.ico, cases, vise: vise ? getPlayerKey(vise) : null };
+}
+export function poserLaModif(item, j, i, decider) {
+  const c = BANQUE[item.id], M = c && MUTATIONS[c.cle], q = G.roster[i];
+  if (!M || !q) return;
+  const e = etatPourPoser(c.cle, q, SLOTS.find(sl => sl.i === i), { jour: j, you: G.ligue && G.ligue.you });
+  if (e.non) return;
+  toast(`${M.ico} ${M.nom} : posée sur ${q.n}.`);
+  decider({ jour: j, joue: { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) }, mutation: { cle: c.cle, joueur: getPlayerKey(q), ...(e.extra || {}) } });
 }
 /*
  * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : ton doublon le plus fourni (à égalité, l'ordre pur de `graine`) donne trois
