@@ -1441,6 +1441,9 @@ a.spin-club:hover { background: var(--fond-2); }
 .pcard-dest .dest-ok { color: var(--bon); }
 .pcard-dest .dest-bad { color: var(--mauvais); }
 .pcard-dest .dest-warn { color: var(--attention); }
+/* Ce que la carte touche, dit en premier (« Jambes 62 → 87 ») : la valeur d'arrivée en vert. */
+.pcard-dest .dest-jambes { color: var(--encre); }
+.pcard-dest .dest-jambes b:last-child { color: var(--bon); }
 /* « Signer » : LE bouton plein de l'écran, en or. Une signature qui bloque la fin le dit en rouge et demande un second toucher. */
 .btn-sign {
   width: 100%; min-height: 44px; padding: 0 var(--esp-2); border: 1px solid var(--or); border-radius: var(--r-1);
