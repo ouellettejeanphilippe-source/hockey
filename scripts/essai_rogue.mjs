@@ -772,13 +772,18 @@ for (const pack of ['j:or', 'j:coach']) {
     await page.click('#hubModal .pose-zone .pose-annuler').catch(() => {}); await page.waitForTimeout(300);
     if (await page.$('#hubModal .pose-zone')) erreurs.push('« Annuler » ne referme pas les lignes de la pose');
   } else console.log('10b. poser en touchant : aucune modif de joueur dans la main cette semaine');
-  // L'INFIRMERIE (V8) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie, en tête, avec « Le remplacer ».
+  // L'INFIRMERIE (V8) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie, en tête.
   await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
-  const inf = await page.$$eval('#pageJoueursCorps .jr-infirmerie .jr-remplacer', e => e.length).catch(() => 0);
-  console.log(`10c. l'infirmerie : ${inf} blessé(s), ${marques} 🩹 au tableau des avants`);
-  if (marques && !inf) erreurs.push('des blessés au tableau de l\'Effectif, mais pas d\'infirmerie');
+  // Un blessé en case a son « Le remplacer » ; un réserviste blessé n'a pas de case à remplir et se dit dans la ligne
+  // « En réserve ». On compte donc les blessés de l'infirmerie, pas ses boutons (la run du 15 oct. : deux réservistes).
+  const inf = await page.$eval('#pageJoueursCorps .jr-infirmerie', e => ({
+    boutons: e.querySelectorAll('.jr-remplacer').length,
+    total: Number(((e.querySelector('h3') || {}).textContent || '').match(/(\d+)\s*$/)?.[1] || 0),
+  })).catch(() => ({ boutons: 0, total: 0 }));
+  console.log(`10c. l'infirmerie : ${inf.total} blessé(s), ${inf.boutons} à remplacer, ${marques} 🩹 au tableau des avants`);
+  if (marques > inf.total) erreurs.push(`${marques} blessé(s) au tableau de l'Effectif, ${inf.total} à l'infirmerie`);
   await auBureau();
   // UN MOT SE TOUCHE (V8) : la ligne du mandat porte sa définition ; la toucher l'affiche dans une bulle, le toucher suivant la ferme.
   if (await page.$('#hubModal .hub-etat-run')) {
