@@ -662,3 +662,4 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
   Les règles des rangées sont fondues dans leurs règles de base (le @media qui les portait n'avait plus de raison d'être) : rendu calculé identique, élément par élément, dans les cinq onglets à 390, 900, 1100, 1500 et 2000 px.
 
   Preuves : `tout.mjs`, `check_mort`, `check_css`, `essai_rogue`, captures à 390, 1024, 1280, 1500 et 2000 px.
+- 2026-10-15 — `essai_rogue`, l'infirmerie : le test comptait les boutons « Le remplacer » et criait quand les blessés étaient des réservistes (la run du 15 oct. : Abols et Ritola, listés « En réserve », sans case à remplir). Il compare maintenant les blessés du tableau au compte de l'infirmerie. Le jeu n'avait rien.
