@@ -261,6 +261,7 @@ export function ouvrirInventaire(ctx) {
         <div class="choix-titres"><div class="choix-titre">${esc(ctx.titre)}</div>${ctx.jetons != null ? `<div class="choix-irl">🪙 ${ctx.jetons} jetons</div>` : ''}</div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
+      ${ctx.entete || ''}
       ${plafond}
       <div class="inv-onglets" role="tablist">${onglets.map(([k, nom, n]) => `<button type="button" role="tab" class="inv-onglet${etat.onglet === k ? ' on' : ''}" data-onglet="${k}" aria-selected="${etat.onglet === k}">${esc(nom)} <span>${n}</span></button>`).join('')}</div>
       <div class="choix-corps inv-corps">${corps}${corps.includes('puce') && corps.includes(' detail') ? `<button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}</div>

@@ -221,7 +221,8 @@ Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
   - La boutique en premier, puis tes cartes et l'album.
   - En tête : ce qui manque à ton équipe (les absents) et le plafond.
 - [x] **Tranche 5, l'en-tête.** La cellule « Cartes » ouvre tes cartes d'où qu'on soit, et la section Cartes disparaît du Rogue.
-- [ ] **Reste** :
-  - l'infirmerie dans l'Effectif (les blessés se règlent dans À faire) ;
-  - poser une carte du soir en touchant directement son trio dans les Lignes (elle passe encore par la liste de l'alignement) ;
-  - le panneau du coach et du banc dans l'en-tête.
+- [x] **Le reste, fait le même jour** :
+  - **L'infirmerie dans l'Effectif.** Chaque blessé qui laisse une case, qui la joue ce soir, et « Le remplacer ›», qui ouvre son message au Bureau (sinon les Lignes). Les blessés de la réserve tiennent en une ligne.
+  - **Poser en touchant.** Une modif de joueur touchée dans « Ce soir » ouvre tes lignes sur place. Les joueurs qui peuvent la porter s'allument, le joueur suggéré est cerclé, les autres disent pourquoi pas, et toucher un joueur la pose (`ciblesDeLaModif`, `poserLaModif`, js/rogue-jeu.js). Les autres cartes gardent leur fenêtre.
+  - **Ton coach, sa confiance et ton personnel en tête de « Tes cartes »**, que la cellule de l'en-tête ouvre d'où qu'on soit.
+  - **Un correctif trouvé en chemin.** Un écran de saison rouvert laissait l'écouteur de l'ancien sur le volet partagé ; l'ancien réécrivait le volet avec son onglet. Seul l'écran actif répond maintenant (`actif`, js/saison.js).

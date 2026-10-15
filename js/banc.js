@@ -20,7 +20,7 @@ import { mandatDe, MANDATS, JETONS } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
-import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, rouvrirPackJoueurs, ouvrirPackDeSerie } from './rogue-jeu.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, mainDuJour, ouvrirCarteDeLaPoche, ouvrirInventaireJeu, pocheDuJour, ciblesDeLaModif, poserLaModif, rouvrirPackJoueurs, ouvrirPackDeSerie } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -805,7 +805,9 @@ function ouvrirEcranSaison(depuis = 0) {
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
         // V4.3 : la main de la semaine au bureau, une carte en grand (jouer ou vendre), et la poche (le pack gratuit).
         inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page), poche: j => pocheDuJour(j), main: j => mainDuJour(j),
-          carte: (item, j, decider) => ouvrirCarteDeLaPoche(item, j, decider) },
+          carte: (item, j, decider) => ouvrirCarteDeLaPoche(item, j, decider),
+          // V8 : une modif se pose en touchant son joueur dans « Ce soir ».
+          cibles: (item, j) => ciblesDeLaModif(item, j), poser: (item, j, i, decider) => poserLaModif(item, j, i, decider) },
         // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
         // Ton coach et sa confiance, au Bureau, sous « En jeu ».
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),

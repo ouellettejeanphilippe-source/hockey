@@ -6,9 +6,10 @@
  *
  * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, précision ; V, D, % d'arrêts, moyenne), jamais une cote.
  */
-import { SLOTS, badgesDe, PALIERS, getPlayerKey } from './sim.js';
+import { SLOTS, badgesDe, PALIERS, getPlayerKey, activeLineup } from './sim.js';
 import { esc, money, pct3, virgule } from './util.js';
-import { $, G, capHitDuJour, displayStats, headshotHtml } from './game.js';
+import { $, G, capHitDuJour, displayStats, headshotHtml, montrerPage } from './game.js';
+import { hubActif } from './coquille.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { blessesAuJour } from './rogue-jeu.js';
 import { slotShort } from './repechage.js';
@@ -69,7 +70,21 @@ export function remplirJoueurs() {
     return `<div class="jr-qui"><span class="rond-visage jr-visage" aria-hidden="true">${headshotHtml(r.p)}</span><div class="jr-qui-txt"><button type="button" class="jr-nom" data-i="${r.s.i}"><b>${esc(r.p.n)}</b>${bl ? ` <span class="jr-bl" title="Blessé">🩹 ${bl} m.</span>` : ''}</button>
       <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}">${b.ico}</i> ${esc(PALIERS[b.palier].nom)}` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small></div></div>`;
   };
-  host.innerHTML = `<div class="jr-barre">
+  /*
+   * L'INFIRMERIE (V8, l'Effectif du Rogue). JP : *je veux pas avoir à me chercher*. Qui est blessé, pour combien de matchs,
+   * qui joue sa case ce soir ; « Le remplacer » ouvre son message au Bureau (le rappel, le ballottage, le club-école),
+   * sinon les Lignes.
+   */
+  const ceSoir = enSaison && blesses.size && G.bonus === 'ROGUE' ? activeLineup({ ...L.you, injured: blesses, jourCourant: jour }) : null;
+  // Un blessé de la réserve n'a pas de case à remplir : il se dit en une ligne, sans bouton.
+  const enCase = rangees.filter(r => blesses.has(r.p) && !r.s.scratch), enReserve = rangees.filter(r => blesses.has(r.p) && r.s.scratch);
+  const infirmerie = ceSoir ? `<section class="jr-infirmerie" aria-label="L'infirmerie"><h3>🩹 L'infirmerie · ${blesses.size}</h3>${enCase.map(r => {
+    const q = ceSoir[r.s.i], n = blesses.get(r.p);
+    return `<div class="jr-inf"><span class="rond-visage jr-visage" aria-hidden="true">${headshotHtml(r.p)}</span>
+      <span class="jr-inf-txt"><b>${esc(r.p.n)}</b><small>${n} match${n > 1 ? 's' : ''} · ${q && q !== r.p ? `${esc(q.n)} joue sa case` : 'sa case est vide'}</small></span>
+      <button type="button" class="btn small jr-remplacer" data-cle="${esc(getPlayerKey(r.p))}">Le remplacer ›</button></div>`;
+  }).join('')}${enReserve.length ? `<p class="jr-inf-reserve">En réserve : ${enReserve.map(r => `${esc(r.p.n)} (${blesses.get(r.p)} m.)`).join(', ')}</p>` : ''}</section>` : '';
+  host.innerHTML = `${infirmerie}<div class="jr-barre">
       <div class="inv-filtres" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>
       ${enSaison ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
     </div>
@@ -78,6 +93,13 @@ export function remplirJoueurs() {
       <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k]) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>
     <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>`;
+  host.querySelectorAll('.jr-remplacer').forEach(b => {
+    b.onclick = () => {
+      const h = hubActif();
+      montrerPage('match');
+      if (!(h && h.ouvrirBlessure && h.ouvrirBlessure(b.dataset.cle))) montrerPage('alignement');
+    };
+  });
   host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
   host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
   host.querySelectorAll('[data-tri]').forEach(th => {

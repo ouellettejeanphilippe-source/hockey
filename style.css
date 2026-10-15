@@ -2918,6 +2918,20 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-poche-case.tc-rare { border-color: var(--or); }
 .hub-poche-case.tc-legendaire { border-color: var(--platine); box-shadow: 0 0 12px color-mix(in srgb, var(--platine) 40%, transparent); }
 .hub-poche-ico { font-size: var(--t-5); line-height: 1; }
+/* POSER EN TOUCHANT (V8, « Ce soir ») : la carte qu'on pose se soulève ; sous elle, tes lignes, ceux qui la portent allumés. */
+.hub-poche-case.en-pose { border-color: var(--or); box-shadow: 0 0 0 2px var(--or); transform: translateY(-3px); }
+.pose-zone { display: grid; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-2); background: var(--fond-1); }
+.pose-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); font-size: var(--t-2); }
+.pose-rang { display: grid; gap: var(--esp-1); }
+.pose-rang-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.pose-puces { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-1); }
+.pose-puce { display: grid; min-width: 0; min-height: 44px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-3); text-align: left; cursor: pointer; }
+.pose-puce b { font: 800 var(--t-2)/1.1 var(--display); text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pose-puce small { font-size: var(--t-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pose-puce.cible { border-color: var(--bon); color: var(--encre); }
+.pose-puce.vise { border-color: var(--or); box-shadow: 0 0 0 1px var(--or); }
+.pose-puce:disabled { opacity: 0.45; cursor: default; }
+.pose-autres { justify-self: start; }
 .hub-poche-place, .poche-place { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 .poche-place { margin: 0 0 var(--esp-2); }
 .hub-poche-nom { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
@@ -4666,6 +4680,13 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .album-fois { position: absolute; top: var(--esp-1); right: var(--esp-2); font: 700 var(--t-1)/1 var(--display); color: var(--or); }
 
 /* ---- Les joueurs (V7, js/joueurs.js, #pageJoueurs) : l'effectif en tableau, la colonne du nom collée à gauche ---- */
+.jr-infirmerie { display: grid; gap: var(--esp-2); margin-bottom: var(--esp-3); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
+.jr-infirmerie h3 { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.jr-inf { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); }
+.jr-inf-txt { display: grid; min-width: 0; }
+.jr-inf-txt b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jr-inf-txt small { font-size: var(--t-1); color: var(--encre-2); }
+.jr-inf-reserve { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
 .jr-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); margin-bottom: var(--esp-2); }
 .jr-barre .seg { flex: 1 1 auto; }
 .jr-scroll { overflow-x: auto; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
@@ -4928,6 +4949,8 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .inv-prog b { color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
 /* Tes coachs (v2) : un coach par rangée, sa jauge aux seuils 3, 6, 9, ce que sa confiance joue et la suivante. */
 /* La masse salariale : le montant, la barre, ce qui tord le plafond. */
+.inv-sheet > .ej-coach { margin: var(--esp-3) var(--esp-4) 0; }
+.inv-personnel { margin: var(--esp-2) var(--esp-4) 0; font-size: var(--t-1); color: var(--encre-2); }
 .inv-plafond { margin: var(--esp-3) var(--esp-4) 0; padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .inv-pl-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .inv-pl-tete b { color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
