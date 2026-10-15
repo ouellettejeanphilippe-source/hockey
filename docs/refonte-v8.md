@@ -1,29 +1,47 @@
-# La V8 · un jeu qui se comprend en le regardant
+# La V8 · le club en main
 
-14 octobre 2026. JP :
-- *On a fait plusieurs idéations et améliorations à l'interface, mais tu me proposes toujours des trucs qui ne sont pas holistiques et ne refont pas le jeu de façon à le rendre réellement plus jouable.*
-- *L'interface devrait être beaucoup plus naturelle et affordante.*
+14 et 15 octobre 2026. JP :
+- *Tu me proposes toujours des trucs qui ne sont pas holistiques et ne refont pas le jeu de façon à le rendre réellement plus jouable.*
 - *Affordance dans le sens de : chaque chose sous-entend ce à quoi elle sert. Genre, c'est pas clair comment jouer les cartes présentement.*
 - *C'est correct, des menus, si les menus sont clairs et s'expliquent d'eux-mêmes.*
 - *Je veux pas moins d'actions, au contraire, mais moins de confusion.*
+- *Ça doit feeler comme si je manage vraiment un club, mais sans avoir à me faire chier dans les menus. Tu peux avoir des sous-menus si ça rend chaque page claire, mais je veux pas avoir à me chercher non stop.*
+- *L'idée est pas de faire un jeu totalement différent, mais d'organiser l'information d'une manière claire, actionnable et basée sur l'intention du joueur.*
+- *EHM ou Slay the Spire : y'a aucun moment où je ne suis pas en complet contrôle de ce que je fais. Je veux un mix des deux.*
 
-Ce plan s'appuie sur une run jouée le même jour dans Chromium à 390 px, sur un profil neuf. Il y a deux parties : une jouée avec attention jusqu'à la journée 84, une jouée par script jusqu'au bilan de la run. Il y a 93 captures. Il s'appuie aussi sur la relecture des V3 à V7.
+**Le même jeu**, avec ses joueurs, ses cartes, son moteur et ses modes. Ce qui change, c'est **où vit chaque chose** : rangée selon ce que le joueur veut faire, avec l'information de la décision sur l'écran de la décision. Et **rien ne t'arrive sans que tu l'aies vu venir**.
 
-## 1. Pourquoi sept refontes n'ont pas suffi
+Ce plan s'appuie sur deux enquêtes :
+- une run jouée le 14 oct. dans Chromium à 390 px, sur un profil neuf : 93 captures, une partie jouée avec attention jusqu'à la journée 84, une jouée par script jusqu'au bilan ;
+- l'inventaire, dans le code, de chaque information et de chaque action d'une saison de Rogue : où elle s'affiche, où elle se règle, en combien de touchers.
 
-JP a raison, et le motif se lit dans le journal : **chaque refonte a ajouté, aucune n'a retiré un système.**
+## 1. Pourquoi la V7 n'a pas suffi
 
-| Refonte | Ce qu'elle promettait de couper | Ce qui est arrivé |
+La V7 a rangé par **question** (« Qu'est-ce qui se passe aujourd'hui ? », « Qui j'ai ? »). Une question appelle de l'information. Or un gérant arrive avec une **intention** : préparer le match de ce soir, boucher un trou, jouer une carte. L'action et l'information dont elle a besoin se retrouvent donc dans deux onglets différents. L'inventaire le montre partout :
+
+| Je veux… | L'action vit dans | L'info pour décider vit dans |
 |---|---|---|
-| V3 (7 oct.) | « Trop de tout » : 528 cartes, 60 décisions forcées par saison | La poche bornée, les fils et la une **ajoutés** |
-| V4 (8 oct.) | Trois sortes de cartes au lieu de sept, environ 120 cartes | Pas fait. La semaine **ajoutée** par-dessus la journée |
-| V5 (9 oct.) | Environ 95 concepts, 4 monnaies, 7 familles : couper | Pas fait. Les nœuds **ajoutés** |
-| V6 (10 oct.) | La composition au centre | Les liens, l'appariement, le roulement, la note par unité **ajoutés** |
-| V7 (11 oct.) | Ranger chaque lego à une seule maison | Les legos **déménagés**, pas un seul retiré. Ensuite : les unités spéciales, les arcs, sept packs mixtes, le club-école |
+| Préparer le match de ce soir | Lignes (consigne, gardien, systèmes, appariement) | Bureau › Dépistage (leurs forces, leur plan, ce qui est en jeu) |
+| Remplacer un blessé | Un message de la boîte, puis « Remanier derrière le banc » (le message ne suit pas) | Lignes : seulement 🩹 et qui le remplace |
+| Jouer une carte | Bureau (la main) | La confiance du coach est pliée sous « En jeu » ; le deck est dans Cartes |
+| Jouer une carte de plafond 💵 | Bureau | La barre du plafond n'est que dans Cartes et la Boutique : celle de l'en-tête est **cachée partout**, parce qu'elle vise des sections qui n'existent plus (`marche`, `effectif`, style.css:330) |
+| Acheter un pack | Cartes › Boutique, 4 touchers | Les trous de l'effectif, les blessés et les jambes : Joueurs et Lignes |
 
-Aujourd'hui, la banque a encore **535 cartes en 7 familles** (408 se tirent). Le dépôt compte 71 modules et 51 000 lignes de JS. Un joueur neuf rencontre **environ 40 concepts dans son premier quart d'heure**, dont 4 monnaies (jetons, médailles, plafond, élan).
+Et la même chose s'affiche à plusieurs endroits :
+- le rang, à 6 endroits ;
+- les jetons, à 6 ;
+- les effets en jeu, à 4 (« En jeu », « En cours », « Déjà en jeu », Lignes › Équipe) ;
+- le gros match, à 4 ;
+- les blessés, à 7.
 
-Le défaut de méthode est de mon côté. Chaque message de JP est devenu un correctif local, jugé par son propre script. Les règles fermes protègent chaque système : un check par mécanique rend chaque mécanique intouchable. Si personne n'a le droit de retirer, aucune refonte de l'écran ne rend le jeu jouable, parce que le problème n'est pas l'écran. **Le problème, c'est la quantité de choses que l'écran doit montrer.**
+On ne sait jamais lequel est le vrai, ni où agir.
+
+**Ce qui brise le contrôle**, au sens d'EHM et de Slay the Spire :
+- **Ce que tu changes aux Lignes ne compte pas** tant que tu n'as pas touché « Retour au match » ou un autre onglet de la saison.
+- **Des choses arrivent sans que tu les voies venir** : une fenêtre qui bloque, un pack gratuit qui tombe, une main de la semaine pigée pour toi, une carte qui change.
+- **Des choses se décident à ta place** : le rappel qui libère pour de bon un joueur absent cinq matchs, une case vide remplie d'une carte tirée pour toi, « l'adjoint joue cette série ».
+- **Des cartes qui ne disent pas ce qu'elles font** : « à peine perceptible », « Tu tires moins », une main de match qui ne donne aucun chiffre.
+- **« Jour suivant »** ne dit pas où il va s'arrêter.
 
 ## 2. Ce que la run montre
 
@@ -67,138 +85,110 @@ Le défaut de méthode est de mon côté. Chaque message de JP est devenu un cor
 - **Le dé des paris.**
 - **Les voix** : l'analyste, Marcel de Laval.
 
-## 3. La thèse
+## 3. Le contrôle : six règles, d'EHM et de Slay the Spire
 
-**Le Cap, c'est une lettre d'amour aux cartes de hockey : tu ouvres des paquets de vrais joueurs, tu bâtis le meilleur alignement sous le plafond, et tu le regardes jouer.**
-
-Tout ce qui ne sert pas l'une de ces trois choses (ouvrir, bâtir, regarder) part ou devient automatique. Tout ce qui reste se comprend en le regardant.
-
-Quatre principes :
-
-1. **La forme dit l'usage.** Une carte, un bouton, un onglet annonce par sa forme et son libellé où il va et ce qu'il fait. Un bouton dit son verbe et son objet (« Poser sur un joueur », « Jouer les 10 prochains matchs »), jamais « OK » ni « Compris ».
-2. **On touche la chose, pas un menu sur la chose.** Une carte se joue en la touchant, puis en touchant sa cible, qui s'allume sur l'écran où elle vit (les Lignes). Les menus restent, mais chaque menu dit ce qu'il contient, et aucun ne renvoie vers un autre qui renvoie vers lui.
-3. **Plus d'actions, aucune vide.** Le but n'est pas de toucher moins : c'est que chaque toucher soit un choix qu'on comprend. Un « Compris », un choix à une seule option ou une journée sans rien à faire, c'est du bruit : on le retire, et on met de vrais choix à sa place (une carte de plus à jouer, un remplaçant parmi trois, un trio à monter avant le match).
-4. **Si ça ne se voit pas, ça n'existe pas.** Une carte ou un choix sous la borne visible d'une commune est retiré, pas étiqueté « à peine perceptible ».
-
-## 4. La boucle, de zéro
-
-```
-RUN    3 saisons au plus · le mandat du proprio en une ligne · les déblocages entre les runs
- └─ SAISON = 8 ÉTAPES (environ 10 matchs chacune) + les séries
-     └─ ÉTAPE = un seul écran, dans cet ordre :
-          1. LE MARCHÉ   un pack offert parmi deux (ou des jetons pour en acheter un autre)
-                         → tu ouvres, tu signes, l'écran dit qui part et ce que ça change
-          2. LE BANC     tu poses 0 à 2 cartes, en les touchant puis en touchant leur cible
-          3. « Jouer les 10 prochains matchs » → le sommaire : la fiche, LE moment (un but, un fil),
-                         les blessés et qui les a remplacés, les jetons
-          4. LE GROS MATCH de fin d'étape contre un rival : l'écran de combat qu'on a déjà
-     SÉRIES = les boss : un gros match à chaque match
-```
-
-- **Huit étapes au lieu de 26 semaines et 186 journées.** La ligue se joue toujours au jour le jour en dessous : `check_graine` tient, rien n'est simulé d'avance. Seul le pas de l'écran change.
-- **Cible : aucun toucher vide.** Le nombre d'actions peut monter ; ce qui doit tomber à zéro, ce sont les « Compris », les choix à une seule option et les journées sans rien à décider. Aujourd'hui, ils font la majorité des touchers.
-- **Les blessures ne bloquent plus.** L'adjoint rappelle le meilleur du club-école au poste exact (c'est déjà la règle de `check_ballottage`). Le sommaire le dit avec le visage du joueur, et on peut changer dans les Lignes. Un rappel ne libère jamais personne.
-- **« Regarder » reste offert** pour chaque match de l'étape, et toujours pour le gros match.
-- **Le plafond redevient la contrainte.** En Rogue, le plafond de la saison 1 est serré et monte avec les saisons (le mérite du club). Chaque signature se lit d'abord contre la barre. C'est la tension que le 82-0 a déjà et que le Rogue a perdue.
-
-## 5. Les cartes : quatre formes, quatre places
-
-Aujourd'hui : 7 familles, 4 piles, 535 cartes. Proposé : **la carte de joueur, plus trois sortes de cartes de jeu, chacune avec sa forme et sa seule place.**
-
-| Forme | Ce que c'est | Sa place, et le seul geste | Sa durée | Ce qu'elle remplace |
-|---|---|---|---|---|
-| **Carte de joueur** (le portrait) | Un vrai joueur-saison | Les Lignes : on la glisse ou on la touche, puis on touche la case | La run | Inchangée |
-| **Équipement** (cadre à pince, en bas de la carte) | Ce qui change UN joueur : un style, une clause, un bâton | Toucher la carte, puis toucher le joueur dans les Lignes. Les joueurs à qui elle va s'allument, les autres s'éteignent. Elle reste ensuite épinglée sur sa carte de joueur, visible | La saison | Modifs, contrats, consommables de joueur |
-| **Personnel** (cadre en fanion) | Le coach et ses adjoints, comme les jokers de Balatro | Le banc : **5 cases visibles en haut des Lignes**. Toucher la carte, puis toucher une case. Le banc plein, il faut en remplacer une | La run | Patrons, cartes de saison, le coach |
-| **Tactique** (cadre de tableau blanc) | Un jeu de match | Seulement dans la main du gros match. Elle ne se voit nulle part ailleurs | Un match | Cartes de match. Les événements utiles deviennent des tactiques ou des choix de sommaire |
-
-- **Plus de poche, plus de main de la semaine, plus de « En jeu » replié.** Ce qui est en jeu se voit là où ça agit : l'équipement sur le joueur, le personnel au banc, la tactique dans la main.
-- **Le pied de chaque carte dit sa place et sa durée** en une ligne : « Se pose sur un attaquant · toute la saison ». Son bouton dit le même verbe. Il n'y a plus de « Jouer » générique.
-- **Une carte achetée va dans un tiroir de 3 places**, au-dessus des Lignes. Un tiroir plein se voit, et la carte de trop se pose ou se vend sur-le-champ.
-- **Environ 100 cartes de jeu au lieu de 408**, chacune au-dessus de la borne visible de sa rareté (`check_cartes`, en paires). Une carte qui dit « à peine perceptible » part.
-- **L'élan ne vit que dans le gros match**, là où on le voit se dépenser. Ce n'est plus une monnaie du jeu.
-
-## 6. Les écrans : des menus qui s'expliquent
-
-On garde des onglets, mais chacun porte le nom de ce qu'il contient, et le Bureau devient une seule question.
-
-| Onglet | Ce qu'il contient | Ce qui en sort |
+| D'où | La règle | Ce qu'elle exige à l'écran |
 |---|---|---|
-| **Bureau** | Le mandat en une ligne, la dernière étape (fiche et moment), et UN gros bouton qui dit la prochaine chose : « Ouvrir le pack de l'étape », « Jouer les 10 prochains matchs », « Préparer le gros match contre Boston » | Le duel en stats répété, le dépistage en double, la main, « En jeu », la boîte |
-| **Équipe** (Lignes et Joueurs, deux vues de la même chose) | Le banc (5 cases), le tiroir (3), les trios, les paires et les gardiens avec leurs cartes épinglées. La vue tableau garde le tri à la EHM | La barre du plafond répétée |
-| **Cartes** | La boutique et l'album, rien d'autre | Les quatre sous-onglets de piles |
-| **Ligue** | Le classement, le calendrier, les meneurs, le palmarès | — |
+| Slay the Spire, la carte | **Tu vois ce qui vient.** | La route des deux prochaines semaines est toujours visible : les matchs, les gros matchs, le lundi, le pack gratuit, la date limite. Rien n'arrive qui n'était pas sur la route. |
+| Slay the Spire, l'intention de l'ennemi | **Tu sais ce que fait l'adversaire avant de jouer.** | Le plan de l'adversaire et ses forces sont affichés là où tu prépares le match, pas un écran à côté. |
+| Slay the Spire, le texte des cartes | **Chaque carte dit exactement ce qu'elle fait**, en vraies stats, là où tu la joues. | « +1,2 tir par match pour ton 1er trio · 4 matchs ». Jamais « à peine perceptible » ; une carte qui ne peut pas le dire n'est pas dans le jeu. |
+| EHM, la coquille | **Tout ce que tu possèdes se consulte et se change en tout temps.** | Les lignes, l'effectif, les cartes et le plafond sont à un toucher de partout, et un changement compte tout de suite, sans « Retour au match ». |
+| EHM, la boîte | **Rien ne se décide à ta place, sauf si tu le délègues.** | Pas de libération ni de carte tirée en silence. Tu peux confier à l'adjoint une sorte de tâche (les blessures, par exemple), par un réglage que tu vois et que tu reprends. |
+| Les deux | **Avancer dit où il s'arrête.** | « Jouer jusqu'à jeudi · gros match contre Boston », jamais un « Jour suivant » muet. |
 
-Les règles des menus :
-- **Un mot à l'écran se touche** et dit sa définition en une ligne (Fragile, T2-3, Parallèle). Un mot qu'on ne peut pas définir en une ligne ne s'affiche pas.
-- **Un onglet ne s'ouvre jamais vide.** Il s'ouvre sur ce qui a quelque chose.
-- **Une fenêtre se ferme par son action** (« Signer », « Continuer »), le ✕ n'est qu'une sortie de secours.
-- **Aucun lien ne renvoie vers un écran qui renvoie vers lui** (smoke : un parcours sans boucle).
+## 4. Les cinq sections, rangées par intention
 
-## 7. Les concepts : de 40 à environ 15
+On garde cinq sections et des sous-onglets. Chacune répond à **une intention** et porte, sur le même écran, l'information dont l'intention a besoin.
 
-Le premier quart d'heure ne montre que ceci :
+| Section | L'intention | Ce qu'on y fait | L'info qui y vit, pour décider sur place |
+|---|---|---|---|
+| **Bureau** | « Qu'est-ce que j'ai à faire, et qu'est-ce qui s'en vient ? » | **À faire** : chaque élément est un bouton qui ouvre l'endroit exact où il se règle, avec son contexte, puis revient. **Avancer**, qui dit où il s'arrête. | **La route** (deux semaines, à la Slay the Spire), le mandat, hier soir en un bloc (le résultat, la une) |
+| **Ce soir** (les Lignes d'aujourd'hui, devenues la préparation du match) | « Préparer le prochain match » | Les trios, les paires, le filet, AN · DN ; la consigne ; **les cartes du soir** ; Aligner au mieux | **L'adversaire en face** : son plan, ses forces, ses meneurs (le dépistage déménage ici). Ce qui est en jeu, **en un seul endroit**, et la feuille attendue qui bouge à chaque changement |
+| **Effectif** (Joueurs) | « Gérer mes joueurs » | La fiche, poser un équipement sur un joueur, libérer, échanger de case ; **l'infirmerie** : chaque blessé avec ses remplaçants proposés | Le tableau triable : jambes, stats, salaire, niveau, badge ; la barre du plafond |
+| **Marché** (la Boutique d'aujourd'hui, sortie de Cartes) | « Améliorer mon équipe » | Acheter un pack, signer, le ballottage, le club-école | **Les besoins de l'équipe** : les cases faibles, les blessés, le plafond qu'il reste. Chaque joueur offert dit sa meilleure case et ce qu'il y changerait |
+| **Ligue** | « Où j'en suis ? » | — | Le classement, le calendrier, les meneurs, les équipes, le palmarès, ton histoire |
 
-joueur, niveau, rôle et badge, trio et paire, système, jambes, plafond, pack, jetons, équipement, personnel, coach, tactique, gros match, mandat.
+**Les cartes, le build et le plafond restent à portée en tout temps**, comme le deck dans Slay the Spire. L'en-tête porte trois boutons :
+- 🪙 les jetons ;
+- 💵 le plafond, qui ouvre sa barre détaillée ;
+- 🂠 tes cartes, qui ouvre ta collection : le coach et sa confiance, le deck de match, la poche, l'album.
 
-| Concept d'aujourd'hui | Le sort |
+Le panneau des cartes s'ouvre par-dessus n'importe quel écran et s'y referme.
+
+**Le menu (☰)** garde ce qui vit entre les runs : les déblocages, les options, les règles, les parties.
+
+### Ce qui déménage
+
+| Aujourd'hui | Sa maison V8 |
 |---|---|
-| Médailles, prestige, déblocages | Entre les runs seulement : un écran de fin de run, pas pendant |
-| Confiance I-II-III | Elle se lit sur la case du coach au banc (« 4 joueurs du Frelon ») et monte avec les joueurs de sa couleur alignés, pas avec les cartes jouées. On bâtit l'équipe pour son coach |
-| Élan | Dans le gros match seulement |
-| Poche, main de la semaine, deck, banque | Remplacés par le tiroir et la main du gros match |
-| Zones (T2-3), carrure, Parallèle, ◆◆, Fragile ×N | Une icône qu'on touche pour la définir, ou rien. « Mal placé » nomme le joueur et sa case, ou disparaît |
-| Ballottage, club-école, rappel, bouche-trous | L'adjoint, automatique ; le sommaire le dit |
-| Cartable, classeur, album | L'album seulement ; le classeur devient « ton premier pack » |
-| Arcs, fils, voix, une, lancée | Le « moment » de l'étape, dans le sommaire : une histoire à la fois |
-| Appariement, roulement, unités spéciales, consigne, agressivité | Restent dans Équipe › Ce soir, réglés par défaut, jamais demandés |
-| Défi du proprio (trois « très durs ») | Un choix réel : facile et petit butin, moyen, dur et gros butin |
+| Bureau › Dépistage, « En cours », la forme de l'adversaire | Ce soir, en tête |
+| Bureau › la main de la semaine, « En jeu » | Ce soir › les cartes du soir ; Effectif pour l'équipement ; le panneau 🂠 pour le reste |
+| La boîte de réception | Bureau › À faire. Chaque élément ouvre l'endroit où il se règle |
+| La page du lundi | Bureau › À faire, regroupé sous « Lundi » ; ses choix restent envoyés en un lot |
+| Cartes › Boutique | Marché |
+| Cartes › Tes cartes, Album | Le panneau 🂠 de l'en-tête |
+| La barre du plafond (Cartes, Boutique, signatures) | L'en-tête 💵, en tout temps ; en grand dans Marché et Effectif |
+| Les blessés (7 endroits) | Effectif › Infirmerie ; une ligne dans À faire tant que rien n'est réglé |
+| Ligue › Ta saison › Calendrier | Bureau › La route (les deux semaines), Ligue › Calendrier (la saison) |
 
-Rien de cela n'enlève du moteur : les réglages fins restent pour qui les cherche. Ils cessent seulement d'être sur le chemin.
+## 5. Les cartes, par intention
 
-## 8. La méthode : couper d'abord, ensuite polir
+Une carte vit là où agit son effet, et sa face dit sa place et sa durée.
 
-1. **Gel des ajouts** jusqu'à ce que la boucle V8 soit jouable : aucune mécanique, aucun onglet, aucune famille de cartes neuve.
-2. **La boucle V8 se bâtit à côté**, derrière une option « Rogue V8 », jouable de bout en bout avant de toucher au reste. Le moteur ne bouge pas : une étape est une suite de journées, une carte passe par les canaux existants.
-3. **Un juge de la boucle** : `essai_boucle.mjs` joue une saison et échoue si :
-   - un toucher n'est qu'une confirmation (« Compris », un choix à une seule option) ;
-   - un choix ne dit pas, avant, ce qu'il va changer ;
-   - plus de 15 concepts distincts sont affichés dans les 15 premières minutes ;
-   - un écran renvoie vers un écran qui renvoie vers lui ;
-   - une carte se joue en plus de 2 touchers.
-4. **Ensuite, on retire l'ancien** : les familles fondues, leurs écrans, leurs scripts. `check_mort` dit ce qui reste. Une règle ferme qui protégeait un système retiré part avec lui (section 9).
-5. **Un joueur neuf la joue** (une personne qui n'a jamais vu le jeu, ou un agent sur un profil neuf) avant la fusion. On compte le temps jusqu'à la première carte bien posée.
+| La carte | Où elle se joue | Le geste |
+|---|---|---|
+| **Carte du soir** (match, consigne, événement d'une semaine) | Ce soir | La toucher allume ses cibles (un trio, le gardien, l'équipe), toucher la cible la pose. La feuille attendue bouge tout de suite, et tu peux la reprendre jusqu'au match |
+| **Équipement** (modif, style, clause) | Effectif | La toucher allume les joueurs qui peuvent la porter, toucher un joueur la pose. Elle reste ensuite visible sur sa carte de joueur |
+| **Personnel** (coach, patrons) | Panneau 🂠 › Le banc | Des cases visibles, comme les jokers de Balatro |
+| **Tactique du gros match** (le deck, l'élan) | Le gros match, comme aujourd'hui | Inchangé : c'est un des bons moments du jeu |
+| **Contrat 💵** | Marché, à côté de la barre du plafond | Elle n'est offerte que si elle change quelque chose à ton plafond |
 
-## 9. Ce que JP tranche
+- **Le pied de la carte** dit sa place et sa durée (« Ce soir · ton 1er trio · 4 matchs ») ; **son bouton**, le même verbe.
+- **Sa face dit l'effet exact** en vraies stats, comme le dit déjà la signature (« +2,3 tirs »), qui est le modèle à suivre.
+- **Le compteur** « 2 cartes à jouer cette semaine » vit dans l'en-tête, sur 🂠, et dans À faire.
 
-1. **La thèse** : ouvrir, bâtir, regarder. Tout le reste part ou devient automatique. D'accord ?
-2. **Le rythme** : l'étape de 10 matchs, ou la semaine d'aujourd'hui débarrassée de ses touchers vides ? Les blessures deviennent un vrai choix parmi trois remplaçants (ou l'adjoint, si tu passes), jamais un « qui monte ? » à une seule option.
-3. **Les quatre formes de cartes** (joueur, équipement, personnel, tactique) au lieu des 7 familles et des 4 piles, et une banque d'environ 100 cartes ?
-4. **Le plafond qui contraint en Rogue**, serré à la saison 1 et qui s'ouvre avec le mérite ?
-5. **Les règles fermes à réécrire** :
-   - « cinq sections » devient quatre (Équipe réunit Joueurs et Lignes) ;
-   - « la boîte ne contient que ce qui se règle » devient « il n'y a pas de boîte : le sommaire de l'étape et le gros bouton du Bureau » ;
-   - les scripts des familles fondues partent avec elles.
-6. **L'ordre** : la boucle V8 derrière une option, ou l'entre-deux ci-dessous ?
+## 6. Une journée type, après
 
-## 10. L'entre-deux : transformer en place, par tranches
+1. **Bureau.** À faire : « Lindros blessé 5 matchs · le remplacer », « 2 cartes à jouer cette semaine ». La route : mardi contre Ottawa, jeudi **gros match** contre Boston, lundi.
+2. Je touche « Lindros blessé ». **Effectif › Infirmerie** s'ouvre sur lui avec trois remplaçants, chacun avec ce qu'il change en vraies stats. J'en choisis un et je reviens au Bureau.
+3. Je touche **Ce soir**. Ottawa en tête (leur plan, leurs forces), mes lignes dessous. Je touche une carte du soir, mon 1er trio s'allume, je le touche. La feuille attendue passe de 31 à 33 tirs.
+4. **Avancer · jusqu'à jeudi, gros match contre Boston.** Le match de mardi se joue : je peux le regarder, ou le sommaire le dira.
+5. Jeudi, le gros match s'ouvre tout seul, parce qu'il était sur la route.
 
-JP : *un entre-deux ?*, puis *je veux pas moins d'actions, au contraire, mais moins de confusion*. On transforme le jeu actuel, une PR par tranche. Chaque tranche ajoute des choix lisibles et retire de la confusion. Elle ne retire jamais d'action.
+Il y a autant d'actions qu'aujourd'hui, ou plus. Aucune ne demande de chercher, et aucune n'est une surprise.
 
-1. **Les cartes qui disent leur usage.**
-   - La poche et la main de la semaine deviennent une seule rangée de cartes.
-   - Le pied de chaque carte dit sa place et sa durée (« Se pose sur un attaquant · toute la saison »), et son bouton dit le même verbe.
-   - Toucher la carte allume ses cibles dans les Lignes ; toucher une cible la pose. Le joueur nommé par la carte est en tête.
-   - La carte posée reste visible là où elle agit : sur la carte du joueur, ou au banc.
-   - Le deck de match ne bouge pas : il reste au gros match.
-2. **Aucun toucher vide.**
-   - Les « Compris » partent ; ce qu'ils annonçaient va au sommaire.
-   - Une blessure propose trois remplaçants, chacun avec ce qu'il change en vraies stats ; un rappel ne libère jamais personne pour de bon.
-   - Une journée sans rien à décider ne demande pas de toucher. Une journée de match peut en demander : le trio à monter, la carte du soir.
-3. **Les mots qui s'expliquent.**
-   - Chaque terme se touche et dit sa définition en une ligne.
-   - Aucun onglet ne s'ouvre vide.
-   - Les chemins en boucle trouvés dans la run sont corrigés : le gros match « à régler », Ligue › Classement qui montrait la semaine, le pack qui finit sur un ✕.
-4. **Des cartes qui se sentent.** Celles sous la borne visible de leur rareté quittent les tirages (`retire`, comme les 120 événements). Les vieilles parties les rejouent.
+## 7. Les tranches, une PR chacune, dans le jeu actuel
 
-Le juge de chaque tranche : un script joue une saison et échoue s'il trouve un toucher vide, un choix qui ne dit pas d'avance ce qu'il change, ou une carte dont la face ne dit pas sa place.
+1. **Les correctifs de contrôle** (petits, tout de suite) :
+   - un changement aux Lignes compte sans « Retour au match » ;
+   - la barre du plafond de l'en-tête réapparaît ;
+   - un rappel ne libère plus personne ;
+   - plus aucune case vide remplie d'une carte tirée en silence ;
+   - « Avancer » dit où il s'arrête.
+2. **Bureau : À faire et la route.**
+   - La boîte et la page du lundi deviennent la liste À faire, chaque élément avec son lien vers l'endroit exact.
+   - La route des deux semaines remplace le calendrier du Bureau.
+3. **Ce soir.**
+   - Le dépistage et ce qui est en jeu montent en tête des Lignes.
+   - Les cartes du soir se posent sur leur cible.
+   - La feuille attendue bouge à chaque geste.
+4. **Effectif et Marché.**
+   - L'infirmerie, avec ses remplaçants proposés.
+   - L'équipement posé sur le joueur.
+   - Le Marché sort de Cartes, avec les besoins de l'équipe en tête.
+5. **L'en-tête et le panneau 🂠.**
+   - Les cartes, le coach et le plafond deviennent accessibles de partout.
+   - La section Cartes disparaît.
+
+Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
+- une fenêtre qui n'était pas sur la route ;
+- un élément d'À faire qui n'ouvre pas l'endroit où il se règle ;
+- une carte dont la face ne dit pas sa place, sa durée et son effet ;
+- une même information affichée à deux endroits sans être un lien vers sa maison.
+
+## 8. Ce que JP tranche
+
+1. Les cinq sections par intention : **Bureau, Ce soir, Effectif, Marché, Ligue**, avec les cartes et le plafond dans l'en-tête plutôt que dans une section ?
+2. La boîte de réception et la page du lundi fondues dans **À faire**, au Bureau ?
+3. La délégation : quelles tâches l'adjoint peut-il prendre si tu le lui confies (les blessés, Aligner au mieux avant chaque match) ?
+4. On commence par la tranche 1, les correctifs de contrôle, pendant que je monte une maquette cliquable des tranches 2 et 3 ?
