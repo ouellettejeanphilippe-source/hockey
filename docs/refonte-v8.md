@@ -92,7 +92,7 @@ On ne sait jamais lequel est le vrai, ni où agir.
 | Slay the Spire, la carte | **Tu vois ce qui vient.** | La route des deux prochaines semaines est toujours visible : les matchs, les gros matchs, le lundi, le pack gratuit, la date limite. Rien n'arrive qui n'était pas sur la route. |
 | Slay the Spire, l'intention de l'ennemi | **Tu sais ce que fait l'adversaire avant de jouer.** | Le plan de l'adversaire et ses forces sont affichés là où tu prépares le match, pas un écran à côté. |
 | Slay the Spire, le texte des cartes | **Chaque carte dit exactement ce qu'elle fait**, en vraies stats, là où tu la joues. | « +1,2 tir par match pour ton 1er trio · 4 matchs ». Jamais « à peine perceptible » ; une carte qui ne peut pas le dire n'est pas dans le jeu. |
-| EHM, la coquille | **Tout ce que tu possèdes se consulte et se change en tout temps.** | Les lignes, l'effectif, les cartes et le plafond sont à un toucher de partout, et un changement compte tout de suite, sans « Retour au match ». |
+| EHM, la coquille | **Tout ce que tu possèdes se consulte et se change en tout temps.** | Les lignes, l'effectif et les cartes sont à un toucher de partout, et un changement compte tout de suite, sans « Retour au match ». |
 | EHM, la boîte | **Rien ne se décide à ta place, sauf si tu le délègues.** | Pas de libération ni de carte tirée en silence. Tu peux confier à l'adjoint une sorte de tâche (les blessures, par exemple), par un réglage que tu vois et que tu reprends. |
 | Les deux | **Avancer dit où il s'arrête.** | « Jouer jusqu'à jeudi · gros match contre Boston », jamais un « Jour suivant » muet. |
 
@@ -104,13 +104,12 @@ On garde cinq sections et des sous-onglets. Chacune répond à **une intention**
 |---|---|---|---|
 | **Bureau** | « Qu'est-ce que j'ai à faire, et qu'est-ce qui s'en vient ? » | **À faire** : chaque élément est un bouton qui ouvre l'endroit exact où il se règle, avec son contexte, puis revient. **Avancer**, qui dit où il s'arrête. | **La route** (deux semaines, à la Slay the Spire), le mandat, hier soir en un bloc (le résultat, la une) |
 | **Ce soir** (les Lignes d'aujourd'hui, devenues la préparation du match) | « Préparer le prochain match » | Les trios, les paires, le filet, AN · DN ; la consigne ; **les cartes du soir** ; Aligner au mieux | **L'adversaire en face** : son plan, ses forces, ses meneurs (le dépistage déménage ici). Ce qui est en jeu, **en un seul endroit**, et la feuille attendue qui bouge à chaque changement |
-| **Effectif** (Joueurs) | « Gérer mes joueurs » | La fiche, poser un équipement sur un joueur, libérer, échanger de case ; **l'infirmerie** : chaque blessé avec ses remplaçants proposés | Le tableau triable : jambes, stats, salaire, niveau, badge ; la barre du plafond |
+| **Effectif** (Joueurs) | « Gérer mes joueurs » | La fiche, poser un équipement sur un joueur, libérer, échanger de case ; **l'infirmerie** : chaque blessé avec ses remplaçants proposés | Le tableau triable : jambes, stats, salaire, niveau, badge |
 | **Marché** (la Boutique d'aujourd'hui, sortie de Cartes) | « Améliorer mon équipe » | Acheter un pack, signer, le ballottage, le club-école | **Les besoins de l'équipe** : les cases faibles, les blessés, le plafond qu'il reste. Chaque joueur offert dit sa meilleure case et ce qu'il y changerait |
 | **Ligue** | « Où j'en suis ? » | — | Le classement, le calendrier, les meneurs, les équipes, le palmarès, ton histoire |
 
-**Les cartes, le build et le plafond restent à portée en tout temps**, comme le deck dans Slay the Spire. L'en-tête porte trois boutons :
+**Les cartes et le build restent à portée en tout temps**, comme le deck dans Slay the Spire. L'en-tête porte deux boutons :
 - 🪙 les jetons ;
-- 💵 le plafond, qui ouvre sa barre détaillée ;
 - 🂠 tes cartes, qui ouvre ta collection : le coach et sa confiance, le deck de match, la poche, l'album.
 
 Le panneau des cartes s'ouvre par-dessus n'importe quel écran et s'y referme.
@@ -127,7 +126,7 @@ Le panneau des cartes s'ouvre par-dessus n'importe quel écran et s'y referme.
 | La page du lundi | Bureau › À faire, regroupé sous « Lundi » ; ses choix restent envoyés en un lot |
 | Cartes › Boutique | Marché |
 | Cartes › Tes cartes, Album | Le panneau 🂠 de l'en-tête |
-| La barre du plafond (Cartes, Boutique, signatures) | L'en-tête 💵, en tout temps ; en grand dans Marché et Effectif |
+| La barre du plafond (Cartes, Boutique, signatures) | Là où l'on signe seulement : le Marché, la liste de signature, le pack (JP, 15 oct. : *le plafond est nécessaire en dehors du management des cartes à signer ? Je pense pas*) |
 | Les blessés (7 endroits) | Effectif › Infirmerie ; une ligne dans À faire tant que rien n'est réglé |
 | Ligue › Ta saison › Calendrier | Bureau › La route (les deux semaines), Ligue › Calendrier (la saison) |
 
@@ -161,7 +160,7 @@ Il y a autant d'actions qu'aujourd'hui, ou plus. Aucune ne demande de chercher, 
 
 1. **Les correctifs de contrôle** (petits, tout de suite) :
    - un changement aux Lignes compte sans « Retour au match » ;
-   - la barre du plafond de l'en-tête réapparaît ;
+   - la barre du plafond de l'en-tête ne se montre qu'au repêchage ; en saison, elle vit là où l'on signe ;
    - un rappel ne libère plus personne ;
    - plus aucune case vide remplie d'une carte tirée en silence ;
    - « Avancer » dit où il s'arrête.
@@ -177,7 +176,7 @@ Il y a autant d'actions qu'aujourd'hui, ou plus. Aucune ne demande de chercher, 
    - L'équipement posé sur le joueur.
    - Le Marché sort de Cartes, avec les besoins de l'équipe en tête.
 5. **L'en-tête et le panneau 🂠.**
-   - Les cartes, le coach et le plafond deviennent accessibles de partout.
+   - Les cartes et le coach deviennent accessibles de partout.
    - La section Cartes disparaît.
 
 Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
@@ -188,7 +187,7 @@ Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
 
 ## 8. Ce que JP tranche
 
-1. Les cinq sections par intention : **Bureau, Ce soir, Effectif, Marché, Ligue**, avec les cartes et le plafond dans l'en-tête plutôt que dans une section ?
+1. Les cinq sections par intention : **Bureau, Ce soir, Effectif, Marché, Ligue**, avec les cartes dans l'en-tête plutôt que dans une section ? Oui (JP, 15 oct. : *Ok. Oui. Tout ça. Go*), le plafond là où l'on signe seulement, et le travail porte sur le Rogue (*travailler surtout le roguelike, pas le reste*).
 2. La boîte de réception et la page du lundi fondues dans **À faire**, au Bureau ?
 3. La délégation : quelles tâches l'adjoint peut-il prendre si tu le lui confies (les blessés, Aligner au mieux avant chaque match) ?
 4. On commence par la tranche 1, les correctifs de contrôle, pendant que je monte une maquette cliquable des tranches 2 et 3 ?

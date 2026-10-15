@@ -1647,7 +1647,6 @@ const VOLETS_DU_BILAN = {
   match: ['series', 'bilan'], classement: ['classement', 'ligue'], calendrier: ['calendrier'],
   meneurs: ['stats'], alignement: ['alignement'],
 };
-const PAGES_DE_SAISON = ['match', 'saison', 'classement', 'calendrier', 'meneurs', 'equipes'];
 /* Les pages de lecture, pareilles à tout moment de la partie. */
 const PAGES_REF = ['equipes', 'historique'];
 
@@ -2119,7 +2118,9 @@ export function montrerPage(cle) {
   const hub = hubActif();
   // DERRIÈRE LE BANC, les onglets de la saison y RAMÈNENT : la saison reprend
   // (même graine, même jour), puis l'onglet demandé s'ouvre.
-  if (G.banc && PAGES_DE_SAISON.includes(cle)) { G.pageVoulue = cle; reprendreSaison(); return; }
+  // V8 : QUITTER LES LIGNES LES APPLIQUE, par n'importe quelle porte (JP : *aucun moment où je ne suis pas en contrôle*) :
+  // ce qu'on a changé compte, sans bouton à trouver. Un alignement incomplet reste derrière le banc, à finir.
+  if (G.banc && cle !== 'alignement' && !slotsLeft()) { G.pageVoulue = cle; reprendreSaison(); return; }
   // EN PLEINE SAISON, L'ALIGNEMENT EST LE BANC : c'est là qu'on y touche.
   if (hub && cle === 'alignement' && hub.banc) { hub.banc(); return; }
   if (cle === 'repechage' && enRepechage()) setView('pool');
@@ -2166,6 +2167,8 @@ surCoquille(ev => {
       const cible = G.pageVoulue;
       G.pageVoulue = null;
       if (voletPour(cible)) { marquerPage(cible); return; }
+      // Une page hors de l'écran de saison (Joueurs, Cartes) s'ouvre une fois la saison reprise.
+      if (PAGES().includes(cible)) { montrerPage(cible); return; }
     }
     // Un volet que l'écran ouvre de lui-même ne déplace la barre que si on
     // regardait l'écran ; sinon on reste sur la page qu'on lisait.
