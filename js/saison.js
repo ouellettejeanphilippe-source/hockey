@@ -1982,8 +1982,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * instantané, sans animation, sans logique, narration*. Chaque avance passe maintenant par un
    * habillage de télé, un peu plus de trois secondes, par-dessus le bureau : le numéro de la journée qui
    * tourne, ton match en bandeau (le tampon, le but gagnant raconté par recit.js, le rang qui bouge),
-   * ou le congé et le plus gros pointage de la ligue, puis le fil des autres résultats. Il ne bloque
-   * rien (pointer-events: none) et une autre avance le remplace sur-le-champ : on peut enchaîner.
+   * ou le congé et le plus gros pointage de la ligue. Le fil défilant des autres résultats est parti (JP : *le texte
+   * rotatif dans le bas, ça sert à rien*) : ils vivent dans « Les résultats de la journée ». Il ne bloque rien
+   * (pointer-events: none) et une autre avance le remplace sur-le-champ : on peut enchaîner.
    */
   /*
    * LA UNE DU JOUR (1.0, oct.). JP : *pense à comment d'autres jeux gèrent ça*. Football Manager avance
@@ -2076,14 +2077,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
       corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
     }
-    const panel = panelDuSoir();
-    // Le fil des autres résultats du soir, deux fois de suite pour qu'il défile sans couture.
-    const autres = matchs.filter(m => m.A !== you && m.B !== you)
-      .map(m => `<span class="passage-score">${ctx.logo(m.A.tag, 14)}${ctx.esc(ctx.tagCourt(m.A))} <b>${m.gfA}–${m.gfB}</b> ${ctx.esc(ctx.tagCourt(m.B))}${ctx.logo(m.B.tag, 14)}</span>`).join('') + panel.manchettes.map(x => `<span class="passage-score">${ctx.esc(x)}</span>`).join('');
     const el = document.createElement('div');
     el.className = 'passage';
     el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = `<div class="passage-boite"><div class="passage-tete">${tete}</div>${corps}</div>${autres ? `<div class="passage-fil"><div class="passage-defile">${autres}${autres}</div></div>` : ''}`;
+    el.innerHTML = `<div class="passage-boite"><div class="passage-tete">${tete}</div>${corps}</div>`;
     el.addEventListener('animationend', e => { if (e.target === el) el.remove(); });
     setTimeout(() => el.remove(), 4500);
     document.body.appendChild(el);
@@ -2382,10 +2379,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * matchs (chez toi ou chez eux), le gros match contre un rival choisi ou ta bête noire, le lundi, le pack gratuit.
    * Ce qui naîtra en route (une blessure, un événement) n'y est pas : il arrivera dans À faire.
    */
-  const ROUTE_JOURS = 14;
+  const ROUTE_JOURS = 14, ROUTE_PASSES = 5;
   const routeHtml = () => {
     if (!ctx.rogue || jour >= N) return '';
     const fin = Math.min(N, jour + ROUTE_JOURS), arrets = [];
+    // D'OÙ TU VIENS (JP : *on voit pas les matchs d'avant*) : tes cinq derniers, le plus récent en bas, chacun ouvre son
+    // sommaire. Celui d'hier a déjà son bloc sous la route : il n'est pas redit.
+    const passes = miens.filter(x => x.j < jour - 1).slice(-ROUTE_PASSES).map(({ j, k, m }) => {
+      const adv = m.A === you ? m.B : m.A, v = gagne(m, you), moi = m.A === you ? m.gfA : m.gfB, eux = m.A === you ? m.gfB : m.gfA;
+      const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
+      return `<li class="rt-arret rt-joue ${v ? 'v' : 'd'}"${somm}><span class="rt-ico" aria-hidden="true">${ctx.logo(adv.tag, 18)}</span>
+        <span class="rt-txt">J${j + 1} · ${m.A === you ? '' : '@ '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res"><b>${v ? 'V' : m.ot ? 'DP' : 'D'}</b> ${moi}–${eux}${m.ot ? ' P' : ''}</span></li>`;
+    });
     let n = miens.length;
     for (let j = jour; j < fin; j++) {
       if (j > jour && j % SEMAINE === 0) arrets.push(`<li class="rt-arret rt-lundi"><span class="rt-ico" aria-hidden="true">📅</span><span class="rt-txt">Lundi</span></li>`);
@@ -2399,7 +2404,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <span class="rt-ico" aria-hidden="true">${gros && MINI_BOSS[gros.raison] ? MINI_BOSS[gros.raison].ico : ctx.logo(adv.tag, 18)}</span>
         <span class="rt-txt">${j === jour ? 'Ce soir' : `J${j + 1}`} · ${m.A === you ? '' : '@ '}${ctx.esc(ctx.tagCourt(adv))}${gros && MINI_BOSS[gros.raison] ? ` · <b>${ctx.esc(MINI_BOSS[gros.raison].nom)}</b>` : ''}</span>${pack}</li>`);
     }
-    return arrets.length ? `<section class="bu-route" aria-label="La route"><div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol></section>` : '';
+    if (!arrets.length && !passes.length) return '';
+    const avant = passes.length ? `<div class="bu-route-t">Derniers matchs</div><ol class="rt-liste rt-passes">${passes.join('')}</ol>` : '';
+    return `<section class="bu-route" aria-label="La route">${avant}${arrets.length ? `<div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol>` : ''}</section>`;
   };
   const voletJourneeSeul = () => {
     if (soirEnVolet && !jour) return routeHtml();
