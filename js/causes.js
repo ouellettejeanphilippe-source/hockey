@@ -7,8 +7,8 @@
  * les compte et on les dit, du point de vue de ton club. Pur (aucun DOM) : la même feuille donne les mêmes mots.
  * Rien n'est estimé : chaque chiffre se recompte dans `f.lancers`.
  */
-import { MUTATIONS, TACTIQUES, SYSTEMES_D } from './sim.js';
-import { nomCourt } from './recit.js';
+import { MUTATIONS, TACTIQUES, SYSTEMES_D, periodeDe } from './sim.js';
+import { nomCourt, tempsRestant } from './recit.js';
 import { ord, ordF, pct3 } from './util.js';
 
 const nomDe = p => (p && p.n ? nomCourt(p.n) : 'un joueur');
@@ -43,8 +43,9 @@ const SUJET = {
   badges: c => `les badges qui étouffent : ${uniteDe(c.qui)}`,
   badgeG: c => `le badge de ${nomDe(c.qui)}`,
   jambes: c => `les jambes de ${nomDe(c.qui)}`,
-  gardien: c => (c.qui ? `${nomDe(c.qui)} au filet (${pct3(c.qui.sv)})` : 'un filet sans vrai gardien'),
-  defense: () => 'les défenseurs sur la glace',
+  // Le gardien et la défense se jugent contre la moyenne de la ligue : le sujet le dit.
+  gardien: c => (c.qui ? `${nomDe(c.qui)} au filet (${pct3(c.qui.sv)}, ${c.f > 1 ? 'sous' : 'au-dessus de'} la moyenne)` : 'un filet sans vrai gardien'),
+  defense: c => `les défenseurs sur la glace (${c.f > 1 ? 'sous' : 'au-dessus de'} la moyenne)`,
   creation: () => 'le jeu des coéquipiers',
   trait: c => `les traits de ${nomDe(c.qui)}`,
   traitsClub: () => 'les traits du club',
@@ -73,12 +74,25 @@ const MOTS = {
 };
 const pluriel = sujet => /^les /.test(sujet);
 const phrase = (sujet, mot, n) => `${sujet} ${MOTS[mot](n, pluriel(sujet))}`;
+/* « X, Y et Z ». */
+const enListe = xs => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} et ${xs[xs.length - 1]}`);
+const PERIODE_COURTE = ['1re', '2e', '3e', 'Prol.'];
+/* Un tir que tes causes ont changé, dit à ton club : quand, qui, ce qui est arrivé, et ce qui l'a décidé. */
+function phraseDuTir(t) {
+  const qui = t.tireur, par = enListe(t.sujets);
+  const quoi = t.attaque
+    ? (t.but ? `Ton but (${qui}) : il entre grâce à ${par}` : `Tir de ${qui} arrêté, à cause de ${par}`)
+    : (t.but ? `But de ${qui} contre toi : il entre à cause de ${par}` : `Tir de ${qui} arrêté grâce à ${par}`);
+  return `${t.quand} · ${quoi}`;
+}
 const cleDe = c => `${c.k}|${c.qui && c.qui.n ? c.qui.n : c.qui && c.qui.nom ? c.qui.nom : c.qui && c.qui.rang != null ? `${c.qui.d ? 'D' : 'F'}${c.qui.rang}` : ''}`;
 
 /**
  * Les causes d'un match, pour le club `moi` ('A' ou 'B') : { pour[], contre[], sans[] }.
  * `pour` et `contre` : { texte, n, poids } — ce qui l'a aidé, ce qui lui a nui, les plus lourds d'abord ;
- * `sans` : pour chaque groupe à toi qui a décidé d'un lancer, le pointage sans lui et s'il change le résultat.
+ * `sans` : pour chaque groupe à toi qui a décidé d'un lancer, le pointage sans lui et s'il change le résultat ;
+ * `tirs` : chaque tir que tes causes ont changé, dans l'ordre du match, avec ce qui l'a décidé — un tir, une ligne :
+ * deux causes du même tir ne s'additionnent pas. La chance seule ne fait pas une ligne : elle n'est à personne.
  */
 export function causesDuMatch(f, moi) {
   const lancers = (f && f.lancers) || [];
@@ -97,6 +111,17 @@ export function causesDuMatch(f, moi) {
   }
   const lignes = [...tas.entries()].map(([cle, x]) => { const sujet = SUJET[x.c.k](x.c); return { cle, sujet, mot: x.e.mot, aide: x.e.aide, n: x.n, texte: phrase(sujet, x.e.mot, x.n) }; })
     .sort((a, b) => b.n - a.n);
+  const tirs = [];
+  for (const l of lancers) {
+    const mes = l.causes ? l.causes.liste.filter(c => c.c === moi && SUJET[c.k]) : [];
+    if (!mes.some(c => c.k !== 'chance')) continue;
+    // Tes causes d'un même lancer vont toutes du même bord : le dé est tombé entre la chance avec et sans chacune.
+    const t = { instant: l.instant, quand: `${PERIODE_COURTE[Math.min(4, periodeDe(l.instant)) - 1]} ${tempsRestant(l.instant)}`, attaque: l.cote === moi, but: !!l.but, tireur: nomDe(l.tireur), sujets: [...new Set(mes.map(c => SUJET[c.k](c)))] };
+    t.aide = t.attaque === t.but;
+    t.texte = phraseDuTir(t);
+    tirs.push(t);
+  }
+  tirs.sort((a, b) => a.instant - b.instant);
   const gf = { A: f.gfA ?? 0, B: f.gfB ?? 0 };
   const eux = moi === 'A' ? 'B' : 'A';
   const sans = [];
@@ -113,7 +138,7 @@ export function causesDuMatch(f, moi) {
     const res = x => Math.sign(x[moi] - x[eux]);
     sans.push({ groupe: g, mot, n, moi: apres[moi], eux: apres[eux], change: res(apres) !== res(gf), ecart: (gf[moi] - gf[eux]) - (apres[moi] - apres[eux]) });
   }
-  return { pour: lignes.filter(x => x.aide), contre: lignes.filter(x => !x.aide), sans };
+  return { pour: lignes.filter(x => x.aide), contre: lignes.filter(x => !x.aide), sans, tirs };
 }
 
 /** La cause la plus lourde d'un but, dite au marqueur : « la carte de Nieuwendyk », ou null. */

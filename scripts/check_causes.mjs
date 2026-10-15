@@ -10,6 +10,7 @@
  *   3. chaque cause dite a DÉCIDÉ : retirée seule, la chance de son lancer passait de l'autre côté du dé
  *      (la molette CAUSES_PREUVE garde la chance et le dé) ; et le but du lancer est bien `dé < chance` ;
  *   4. « sans tes cartes » se recompte : le pointage sans un groupe est le vrai, moins ses lancers renversés ;
+ *   4b. le tir par tir dit chaque tir changé une fois, avec ses causes, et pas un de plus ;
  *   5. un badge monté (une carte Or sur le meilleur marqueur) se voit : il fait entrer des buts, à lui.
  *
  *   node scripts/check_causes.mjs
@@ -87,6 +88,16 @@ for (const m of miens) {
     if (x.moi === m.feuille[`gf${moi}`] + d[moi] && x.eux === m.feuille[`gf${eux}`] + d[eux] && x.n === renverses.length) recomptes++;
   }
 }
+let tirsDits = 0, tirsAttendus = 0;
+for (const m of miens) {
+  const moi = m.A === avec.toi ? 'A' : 'B';
+  const r = causesDuMatch(m.feuille, moi);
+  tirsDits += r.tirs.length;
+  tirsAttendus += m.feuille.lancers.filter(l => l.causes && l.causes.liste.some(c => c.c === moi && c.k !== 'chance')).length;
+  if (r.tirs.some(t => t.aide !== (t.attaque === t.but) || !t.sujets.length)) tirsAttendus = -1;
+}
+informer('4b. un tir changé, tel que l\'écran le dit', causesDuMatch(miens[0].feuille, miens[0].A === avec.toi ? 'A' : 'B').tirs.slice(0, 3).map(t => t.texte).join(' | '));
+exiger('4b. le tir par tir dit chaque lancer que tes causes ont décidé, une fois', tirsDits > 0 && tirsDits === tirsAttendus, `${tirsDits} tirs dits sur ${tirsAttendus}`);
 exiger('4. le pointage sans un groupe se recompte dans la feuille', groupesVus > 0 && recomptes === groupesVus, `${recomptes} sur ${groupesVus}`);
 
 const or = saison(true, true);
