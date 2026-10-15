@@ -1543,7 +1543,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const liste = cote => FORCES_MOT.filter((_, i) => av[i] === cote);
     const et = l => (l.length > 1 ? `${l.slice(0, -1).join(', ')} et ${l[l.length - 1]}` : l[0]);
     const pour = liste('moi'), contre = liste('lui');
-    const phrase = !pour.length && !contre.length ? 'Deux clubs de même force : aucun écart qui compte.'
+    const phrase = !pour.length && !contre.length ? 'Deux clubs à armes égales : aucun écart qui compte.'
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
     return { mot: duelHtml(adv), detail: `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>` + `<div class="hub-forces">
@@ -1714,13 +1714,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const liste = (xs, cls) => xs.slice(0, 3).map(x => `<div class="hub-rap-l ${cls}">${ctx.esc(x.txt)}</div>`).join('');
     return `<div class="hub-rapport">
       <div class="hub-rap-s">Ce qui marche</div>${forces.length ? liste(forces, 'bon') : '<div class="hub-rap-l">Rien ne sort du lot : tu es dans la moyenne partout.</div>'}
-      <div class="hub-rap-s">Ce qui coule</div>${faiblesses.length ? liste(faiblesses, 'prix') : '<div class="hub-rap-l">Aucune faiblesse franche.</div>'}
+      <div class="hub-rap-s">Ce qui coule</div>${faiblesses.length ? liste(faiblesses, 'prix') : '<div class="hub-rap-l">Pas de trou évident.</div>'}
       <div class="hub-rap-s">Tes lignes à forces égales</div>
       <div class="hub-rap-lignes">${L.map((x, u) => `<span><b>${NOMS[u]}</b> ${x.b} but${x.b > 1 ? 's' : ''} · ${x.t} tirs</span>`).join('')}</div>
       <div class="hub-rap-s">Tes ${n10} derniers matchs</div>
       ${chaud ? `<div class="hub-rap-l bon">🔥 ${ctx.esc(chaud.p.n)} : ${chaud.c.pts} point${chaud.c.pts > 1 ? 's' : ''} (${chaud.c.g} but${chaud.c.g > 1 ? 's' : ''})</div>` : ''}
       ${froid ? `<div class="hub-rap-l prix">🥶 ${ctx.esc(froid.p.n)} : ${froid.d.pts} point en ${froid.d.gp} matchs, après ${froid.s.pts} cette saison</div>` : ''}
-      ${!chaud && !froid ? '<div class="hub-rap-l">Personne ne sort du lot.</div>' : ''}
+      ${!chaud && !froid ? '<div class="hub-rap-l">Personne n\'est en feu, personne n\'est en panne.</div>' : ''}
     </div>`;
   }
 
@@ -2002,8 +2002,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (!miensCeSoir.has(pl) || !tot) continue;
         const franchi = (cle, pas) => c[cle] && Math.floor(tot[cle] / pas) > Math.floor((tot[cle] - c[cle]) / pas) ? Math.floor(tot[cle] / pas) * pas : 0;
         const buts = franchi('g', 10), pts = franchi('pts', 25);
-        if (buts) lignes.push(`${pl.n} atteint ${buts} buts cette saison.`);
-        else if (pts) lignes.push(`${pl.n} atteint ${pts} points cette saison.`);
+        if (buts) lignes.push(`${pl.n} franchit le cap des ${buts} buts.`);
+        else if (pts) lignes.push(`${pl.n} franchit le cap des ${pts} points.`);
       }
     }
     const cl = classement(), r = cl.indexOf(you);
@@ -2013,16 +2013,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const pour = m.A === t ? m.gfA : m.gfB, contre = m.A === t ? m.gfB : m.gfA, adv = m.A === t ? m.B : m.A;
       const ecart = fiche.get(you).PTS - fiche.get(t).PTS;
       const ou = ecart === 0 ? 'à égalité avec toi' : `${Math.abs(ecart)} point${Math.abs(ecart) > 1 ? 's' : ''} ${ecart > 0 ? 'derrière' : 'devant'} toi`;
-      lignes.push(`${ctx.teamShort(t)} (${rangMot(cl.indexOf(t) + 1)}) ${pour > contre ? 'bat' : 'perd contre'} ${ctx.teamShort(adv)} ${pour}–${contre}${m.ot ? ' en prolongation' : ''} : ${ou}.`);
+      lignes.push(`${ctx.teamShort(t)} (${rangMot(cl.indexOf(t) + 1)}) ${pour > contre ? 'bat' : 's\'incline devant'} ${ctx.teamShort(adv)} ${pour}–${contre}${m.ot ? ' en prolongation' : ''} : ${ou}.`);
       break;
     }
     const p = prochain();
     if (p) {
       const adv = p.m.A === you ? p.m.B : p.m.A, s = sequenceDe(adv), n = Number(s.slice(1));
-      if (n >= 3) lignes.push(`Ton prochain adversaire, ${ctx.teamShort(adv)}, ${s[0] === 'V' ? 'a gagné' : 'a perdu'} ses ${n} derniers matchs.`);
+      if (n >= 3) lignes.push(`${ctx.teamShort(adv)}, ton prochain adversaire, ${s[0] === 'V' ? 'arrive avec' : 'traîne'} ${n} ${s[0] === 'V' ? 'victoires' : 'défaites'} de suite.`);
     }
     const s = sequenceDe(you), n = Number(s.slice(1));
-    if (n >= 3) lignes.push(`${n} ${s[0] === 'V' ? 'victoires' : 'défaites'} de suite pour ${you.name}.`);
+    if (n >= 3) lignes.push(`Une ${n}e ${s[0] === 'V' ? 'victoire' : 'défaite'} de suite pour ${you.name}.`);
     return lignes.slice(0, 2);
   }
 
@@ -2336,7 +2336,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const bits = [];
     for (const e of (f.physique || []).filter(x => x.type === 'bagarre')) {
       const gagnant = e.gagnant ? (e.gagnant === 'A' ? e.joueur : e.cible) : null;
-      bits.push(gagnant ? `<b>${ctx.esc(nom(gagnant))}</b> gagne sa bagarre contre ${ctx.esc(nom(e.gagnant === 'A' ? e.cible : e.joueur))}` : `bagarre nulle entre ${ctx.esc(nom(e.joueur))} et ${ctx.esc(nom(e.cible))}`);
+      bits.push(gagnant ? `<b>${ctx.esc(nom(gagnant))}</b> sort gagnant de sa bagarre contre ${ctx.esc(nom(e.gagnant === 'A' ? e.cible : e.joueur))}` : `bagarre sans vainqueur entre ${ctx.esc(nom(e.joueur))} et ${ctx.esc(nom(e.cible))}`);
     }
     // Pilonner ou être pilonné : les coups marquants donnés par tes gars, et ceux qu'ils ont reçus.
     const coups = (f.physique || []).filter(x => x.type === 'coup');
@@ -3002,7 +3002,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const deja = miens.filter(x => (x.m.A === adv || x.m.B === adv));
       const dernierMot = deja.length
         ? `${deja.filter(x => gagne(x.m, you)).length} victoire${deja.filter(x => gagne(x.m, you)).length > 1 ? 's' : ''} en ${deja.length} match${deja.length > 1 ? 's' : ''} contre ce club cette saison.`
-        : 'Premier affrontement de la saison contre ce club.';
+        : 'Premier duel de la saison entre ces deux clubs.';
       // L'AFFICHE DU MATCH (S30) : qui reçoit qui. `A` est à domicile dans le
       // moteur — c'est lui qui a le dernier changement — et une affiche le dit.
       const domicile = p.m.A === you;
@@ -3195,7 +3195,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LE BUTIN D'UNE VICTOIRE (S74, V5) : une carte parmi trois, retirer une carte, en améliorer une, ou passer. Il garde sa fenêtre (le paquet).
       const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null, ...d }, j); };
       const spec = { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Victoire contre ${ctx.teamLabel(rc.adv)} ! Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.`,
+        recit: `Victoire contre ${ctx.teamLabel(rc.adv)}. Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.`,
         options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
         onChoix: k => prendre({ recompense: k }),
         onFerme: () => prendre({}) };
@@ -3214,12 +3214,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const o = OBJECTIFS[vo.d.objectif.cle];
       specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
-          recit: `Le proprio est ravi (${o.ico} ${vo.e.val} ${o.unite}). Il t'offre de quoi renforcer le club : pige une carte. Elle vaut pour le reste de la saison.`,
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.val} ${o.unite}). Il sort son carnet de chèques : pige une carte. Elle vaut pour le reste de la saison.`,
           contexte: dejaEnJeu(),
           options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle] })),
           decision: cle => ({ palier: `v:${vo.j0}`, carte: cle }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
-          recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te fait venir dans son bureau.`,
+          recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: `Le proprio coupe les vols nolisés : les voyages fatiguent ; ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} entre dans ton deck`, energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
           decision: () => ({ palier: `v:${vo.j0}`, effet: { ...OBJECTIF_RATE } }) });
     }
@@ -3930,7 +3930,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     </div>`;
     ouvrirChoix({
       ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(adv.tag), cadre: cadreDuMatch(1 / 3, 'en 3e'),
-      recit: etat === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etat === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
+      recit: etat === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etat === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour remonter la pente.' : 'Égalité. Tout reste à jouer en troisième.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
       onChoix: cle => {
@@ -4204,7 +4204,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     if (!k || !pl[k - 1]) return 'Premier match de la série : le dépisteur n\'a que leur saison.';
     const P = PLANS_ADV[pl[k - 1].plan];
     const nom = P ? P.nom.toLowerCase() : 'leur plan';
-    return pl[k - 1].gagne ? `Au dernier match, ${nom} n'a pas marché : ils vont sûrement changer.` : `Au dernier match, ${nom} a marché : ils risquent de le garder.`;
+    return pl[k - 1].gagne ? `Au dernier match, ${nom} s'est cassé les dents : attends-toi à du neuf.` : `Au dernier match, ${nom} a fonctionné : ils risquent d'y revenir.`;
   };
   // Le prochain match de ta série a son plan d'avance (le moteur le pose sans jouer) :
   // son deuxième entracte s'attend. Une fois joué, sa feuille le confirme.
@@ -4258,7 +4258,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     </div>`;
     ouvrirChoix({
       ico: '🎬', titre: `Deuxième entracte · ${moi}–${lui}`, genre: 'entracte', couleurs: ctx.band(boss.tag), cadre: cadreSerie(1 / 3, 'en 3e'),
-      recit: etatM === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etatM === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour renverser ça.' : 'C\'est égal. Vingt minutes pour faire la différence.',
+      recit: etatM === 'devant' ? 'Tu mènes. Vingt minutes à tenir.' : etatM === 'derriere' ? 'Tu tires de l\'arrière. Vingt minutes pour remonter la pente.' : 'Égalité. Tout reste à jouer en troisième.',
       contexte,
       options: off.options.map(o => ({ ...o, quand: '3e période' })),
       onChoix: cle => {
@@ -4296,7 +4296,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       const cle = packDeSerie(r, aDebloque(lireMeta(), 'packVedettes')), P = PACKS_TOUS[cle];
       ouvrirChoix({
         ico: '🏆', titre: `Série gagnée · ${nomRondeCourt(r)}`, genre: 'recompense',
-        recit: `Tu as sorti ${ctx.teamLabel(boss)}. Ses joueurs vont à ton cartable : pour la saison prochaine et les runs d'après.`,
+        recit: `${ctx.teamLabel(boss)} est en vacances. Ses joueurs passent à ton cartable, pour la saison prochaine et les runs d'après.`,
         options: [{ cle, ico: P.ico, nom: P.nom, texte: P.texte }],
         onChoix: () => { quitter(); onDecision({ ronde: r, match_no: -1, recompense: null, packSerie: cle }); },
       });
@@ -4565,7 +4565,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       if (complete(s)) {
         const gagne = s.winner === you;
         carte.innerHTML = `<div class="live-bilan ${gagne ? 'gagne' : 'perdu'}"><div class="live-bilan-titre">${gagne ? 'Série remportée' : 'Éliminé'} ${Math.max(s.wA, s.wB)}-${Math.min(s.wA, s.wB)} · ${ctx.esc(nomRondeCourt(ronde))}</div>
-          <div class="hub-carte-note">${rondeComplete(ronde) ? (gagne ? `La ronde est finie. ${ronde + 1 < nRondes ? 'La suivante t\'attend.' : ''}` : 'La ronde est finie ; les séries continuent sans ta formation.') : 'Les autres séries de la ronde se poursuivent.'}</div></div>`;
+          <div class="hub-carte-note">${rondeComplete(ronde) ? (gagne ? `La ronde est finie. ${ronde + 1 < nRondes ? 'La suivante t\'attend.' : ''}` : 'La ronde est finie ; le printemps continue sans ta formation.') : 'Les autres séries de la ronde se poursuivent.'}</div></div>`;
       } else {
         carte.innerHTML = carteSerie(s, true) + (serieDelegue() ? '<div class="hub-carte-note hub-adjoint">L\'adjoint joue cette série. <button type="button" class="btn hub-reprendre">Reprendre la série</button></div>' : '') + bossHtml(s);
         // Le match qui vient n'est pas joué : la main de l'adjoint s'en va, et la tienne revient.

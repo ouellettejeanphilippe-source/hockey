@@ -384,7 +384,7 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
     if (moy >= JAMBES_CONSEIL || lignes[u].sec <= SEC_MIN) continue;
     const sec = Math.max(SEC_MIN, lignes[u].sec - 15);
     out.push({ genre: 'glace', lignes: avec(u, { sec }), titre: `Ton ${RANG_TRIO[u]} : ${sec} s par présence`,
-      pourquoi: `Il est usé : ${Math.round(moy)} de jambes (sur 100) ce matin. Sous ${ENERGIE_REF}, un joueur rend ${String(ENERGIE_EFFET).replace('.', ',')} % de moins par point ; moins de glace ce soir, c'est plus de jambes au prochain.`,
+      pourquoi: `Il traîne la patte : ${Math.round(moy)} de jambes (sur 100) ce matin. Sous ${ENERGIE_REF}, un joueur rend ${String(ENERGIE_EFFET).replace('.', ',')} % de moins par point ; moins de glace ce soir, c'est plus de jambes au prochain.`,
       chiffres: [{ txt: `Jambes ${Math.round(moy)}`, bon: false }] });
     break;
   }
@@ -397,7 +397,7 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
     if (ad) {
       const match = { importance: 'normale', ad };
       out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡 Consigne : défense',
-        pourquoi: ad > 0 ? `Leur gardien de ce soir est ${forces.lui.gardien.rang}e de la ligue, ton attaque ${forces.moi.attaque.rang}${forces.moi.attaque.rang === 1 ? 're' : 'e'} : force-le.`
+        pourquoi: ad > 0 ? `Leur gardien de ce soir est ${forces.lui.gardien.rang}e de la ligue, ton attaque ${forces.moi.attaque.rang}${forces.moi.attaque.rang === 1 ? 're' : 'e'} : fais-le travailler.`
           : `Leur attaque est ${forces.lui.attaque.rang}${forces.lui.attaque.rang === 1 ? 're' : 'e'} de la ligue, ta défense ${forces.moi.defense.rang}e : ferme le jeu.`,
         chiffres: motsEnChiffres(effetDeMoment({ jour: 0, match })).filter(m => m.cle !== 'rien') });
     }
