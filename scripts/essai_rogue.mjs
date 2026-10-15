@@ -780,6 +780,15 @@ for (const pack of ['j:or', 'j:coach']) {
   console.log(`10c. l'infirmerie : ${inf} blessé(s), ${marques} 🩹 au tableau des avants`);
   if (marques && !inf) erreurs.push('des blessés au tableau de l\'Effectif, mais pas d\'infirmerie');
   await auBureau();
+  // UN MOT SE TOUCHE (V8) : la ligne du mandat porte sa définition ; la toucher l'affiche dans une bulle, le toucher suivant la ferme.
+  if (await page.$('#hubModal .hub-etat-run')) {
+    await page.click('#hubModal .hub-etat-run'); await page.waitForTimeout(200);
+    const bulle = ((await page.textContent('.bulle-def').catch(() => '')) || '').trim();
+    console.log(`10d. un mot se touche : « ${bulle.slice(0, 60)} »`);
+    if (!/mandat/i.test(bulle)) erreurs.push('toucher la ligne du mandat n\'affiche pas sa définition');
+    await page.mouse.click(5, 300); await page.waitForTimeout(150);
+    if (await page.$('.bulle-def')) erreurs.push('la bulle d\'une définition ne se referme pas au toucher suivant');
+  }
 }
 /*
  * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE

@@ -371,6 +371,7 @@ const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(pr
 /**
  * spec : { ico, titre, irl, recit, joueur, options: [{ cle, nom, bon, prix, effet, duree, jauges,
  *          mutation, desactive }], fermable, motFermer, onChoix(cle), onFerme() }
+ *   suite : la suite se dit en un vrai bouton sous les cartes (« Signer un joueur › »), pas seulement dans le ✕ (V8).
  */
 /*
  * UN GROS MATCH AUX COULEURS DE L'ADVERSAIRE (1.0, oct.). JP : *matchs importants aux couleurs de
@@ -468,6 +469,7 @@ export function ouvrirChoix(spec) {
       ${spec.options.length ? '' : `<p class="empty-msg">${esc(spec.vide || 'Rien ici.')}</p>`}
       <button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
       ${spec.autres && spec.autres.length ? `<div class="choix-autres">${spec.autres.map((a, i) => `<button type="button" class="btn choix-autre" data-autre="${i}">${esc(a.mot)}</button>`).join('')}</div>` : ''}
+      ${spec.suite ? `<button type="button" class="btn gold choix-fermer choix-suite">${esc(spec.motFermer || 'Continuer')} ›</button>` : ''}
     </div>
   </div>`;
   const FETE = spec.cartes || spec.genre === 'recompense' || spec.genre === 'main' || spec.genre === 'entracte' || spec.genre === 'coupe';

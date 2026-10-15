@@ -450,7 +450,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   if (!montrerCartes) { offrir(); return; }
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
-    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur',
+    ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
     recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes sont rangées : celles de match au deck, le reste dans ta poche, à jouer quand tu veux` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},

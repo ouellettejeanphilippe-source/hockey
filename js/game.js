@@ -1965,6 +1965,28 @@ export function majEntete() {
  * coulisse, `marcheOuvert` garde la page ouverte, et l'écran de saison qui revient la redessine au Marché
  * (`remplirMarche`, le signal `vue` de `surCoquille`). Le Club n'apparaît à aucun moment.
  */
+/*
+ * UN MOT SE TOUCHE (V8, docs/refonte-v8.md). JP : *des menus clairs qui s'expliquent d'eux-mêmes*. Au téléphone, le
+ * `title` d'une étiquette (Fragile ×8, T2-3, Parallèle, un rôle, un coach…) ne se voyait jamais : toucher une étiquette
+ * qui en porte un l'affiche dans une bulle, sous elle. Un bouton n'en ouvre pas : lui fait ce qu'il dit. Le toucher
+ * suivant, ou un défilement, la referme.
+ */
+let bulleDef = null;
+const fermerBulle = () => { if (bulleDef) { bulleDef.remove(); bulleDef = null; } };
+document.addEventListener('click', ev => {
+  fermerBulle();
+  const el = ev.target.closest('[title]');
+  if (!el || !el.title.trim() || el.closest('button, a, input, select, textarea, summary, [role="button"], [role="tab"]')) return;
+  bulleDef = document.createElement('div');
+  bulleDef.className = 'bulle-def';
+  bulleDef.setAttribute('role', 'status');
+  bulleDef.textContent = el.title;
+  document.body.appendChild(bulleDef);
+  const r = el.getBoundingClientRect(), w = bulleDef.offsetWidth, h = bulleDef.offsetHeight;
+  bulleDef.style.left = `${Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))}px`;
+  bulleDef.style.top = `${r.bottom + 6 + h < innerHeight ? r.bottom + 6 : Math.max(8, r.top - h - 6)}px`;
+});
+window.addEventListener('scroll', fermerBulle, true);
 document.addEventListener('cap82:marche', ev => {
   // Une signature attend (la Boîte du Club le dit, sans nommer la boutique) : on va au Marché et on rouvre l'offre.
   // V5 : le nœud de la semaine y mène aussi, sur « Tes cartes » (`page`).

@@ -645,3 +645,10 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
   - **Seul l'écran de saison actif répond aux touchers du volet** : un écran rouvert laissait l'écouteur de l'ancien, qui réécrivait « Ce soir » avec le Bureau.
 
   Preuves : `essai_rogue` (10b, la pose allume les joueurs et « Annuler » les referme ; 10c, l'infirmerie suit les 🩹 du tableau), `tout.mjs`, `check_mort`, `check_css`.
+- 2026-10-15 — V8, pour finir (JP : *fais ce qui est pertinent pour finir*) :
+  - **Un mot se touche** : le `title` d'une étiquette s'affiche dans une bulle au toucher (js/game.js) ; la variante (Parallèle…) et les états d'après un gros match portent le leur.
+  - **Le pack finit** sur « Signer un joueur › » (`suite`, js/gerant.js).
+  - **Le gros match de la page de la semaine** ouvre son écran de combat.
+  - **Une page du Club ne couvre que son onglet** (`pageVue`, js/saison.js).
+
+  Preuves : `essai_rogue` (10d, la bulle s'ouvre et se referme), `tout.mjs`, `check_mort`, `check_css`.

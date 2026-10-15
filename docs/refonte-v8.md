@@ -226,3 +226,13 @@ Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
   - **Poser en touchant.** Une modif de joueur touchée dans « Ce soir » ouvre tes lignes sur place. Les joueurs qui peuvent la porter s'allument, le joueur suggéré est cerclé, les autres disent pourquoi pas, et toucher un joueur la pose (`ciblesDeLaModif`, `poserLaModif`, js/rogue-jeu.js). Les autres cartes gardent leur fenêtre.
   - **Ton coach, sa confiance et ton personnel en tête de « Tes cartes »**, que la cellule de l'en-tête ouvre d'où qu'on soit.
   - **Un correctif trouvé en chemin.** Un écran de saison rouvert laissait l'écouteur de l'ancien sur le volet partagé ; l'ancien réécrivait le volet avec son onglet. Seul l'écran actif répond maintenant (`actif`, js/saison.js).
+- [x] **Pour finir** (JP : *fais ce qui est pertinent pour finir et laisse les trucs pas importants de côté*) :
+  - **Un mot se touche.** Au téléphone, le `title` d'une étiquette (Fragile ×8, T2-3, Parallèle, un rôle, un coach, Sonnés, le mandat) ne se voyait jamais. Le toucher l'affiche maintenant dans une bulle (js/game.js) ; un bouton n'en ouvre pas.
+  - **La fin du pack** se dit en un vrai bouton, « Signer un joueur › » (`suite`, js/gerant.js), et plus seulement dans le ✕.
+  - **Deux chemins en boucle corrigés.** Le gros match de la page de la semaine ouvre son écran de combat au lieu d'une fenêtre vide. Une page du Club ne couvre plus que l'onglet qui l'a ouverte : Ligue › Classement ne montre plus la semaine.
+  - **Laissé de côté, par choix** :
+    - les cartes trop faibles pour se sentir (un tri de la banque, mesuré en paires) ;
+    - le défi du proprio aux trois options « très dures » ;
+    - les jetons perdus en fin de run ;
+    - « Aligner au mieux » qui laisse un joueur mal placé ;
+    - le script qui juge la boucle.

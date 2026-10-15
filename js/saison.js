@@ -228,7 +228,7 @@ function coquille(label) {
     const { el, onFerme } = pageOuverte;
     pageOuverte = null;
     el.remove();
-    if (sheet) delete sheet.dataset.page;
+    if (sheet) { delete sheet.dataset.page; delete sheet.dataset.pageVue; delete sheet.dataset.pageAilleurs; }
     if (!silencieux && onFerme) onFerme();
     return true;
   };
@@ -237,6 +237,8 @@ function coquille(label) {
     const el = pageDuClub({ genre, retour: 'Retour au bureau', ico, titre, sous: sousTitre, corps: html, pied, fermer: () => fermerPage() });
     sheet.appendChild(el);
     sheet.dataset.page = genre;
+    // V8 : la page appartient à l'onglet qui l'a ouverte (la semaine au Bureau, le dépistage à « Ce soir ») : ailleurs, elle s'efface.
+    sheet.dataset.pageVue = sheet.dataset.vue || '';
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
     return el.querySelector('.hub-page-corps');
@@ -290,7 +292,11 @@ function onglets(barre, volet, liste, rendre) {
     });
     // LA VUE DE LA COQUILLE (S67) : la feuille de style en déduit ce qui se
     // montre — le match et ses boutons sur « Match », le volet seul ailleurs.
-    if (sheet) sheet.dataset.vue = pageDe(cle) || '';
+    if (sheet) {
+      sheet.dataset.vue = pageDe(cle) || '';
+      // V8 (la run du 14 oct. : Ligue › Classement montrait la page de la semaine) : une page ne couvre que son onglet.
+      if (sheet.dataset.page) { if (sheet.dataset.pageVue !== sheet.dataset.vue) sheet.dataset.pageAilleurs = ''; else delete sheet.dataset.pageAilleurs; }
+    }
     volet.innerHTML = rendre(cle);
     volet.scrollTop = 0;
     // LE CHANGEMENT D'ONGLET SE VOIT (S77) : le volet entre en glissant, une
@@ -2404,7 +2410,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const rl = k >= 0 ? rapportLignes(matchs[k]) : '';
     const mien = k >= 0 ? resultatHier({ j, k, m: matchs[k] }) + drameHtml(matchs[k]) + (rl ? `<details class="hub-plie"><summary>Tes lignes à forces égales, ce soir</summary>${rl}</details>` : '') : '';   // un congé hier (le vrai calendrier en a un sur deux) : rien à dire, l'affiche dit quand vient le match
     const mbHier = (you.minisBoss || []).find(x => x.jour === j);
-    const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${ELAN.ico} ${ELAN.nom} pour ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> : ${SONNE.ico} ${SONNE.nom} pour ${mbHier.duree || SONNE.duree} matchs${mbHier.raison === 'nemesis' ? cicatriceMot('doute') : ''}`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
+    // V8 : « Sonnés » et « La lancée » se touchent et disent ce qu'ils font.
+    const etatDuGros = E => `<span title="${ctx.esc(`${E.nom} : ${ditFinition(E)}`)}">${E.ico} ${E.nom}</span>`;
+    const mbMot = mbHier ? `<div class="hub-miniboss ${mbHier.gagne ? 'gagne' : 'perdu'}">${MINI_BOSS[mbHier.raison].ico} ${mbHier.gagne ? `<b>Gros match gagné</b> : ${etatDuGros(ELAN)} pour ${mbHier.duree || ELAN.duree} matchs` : `<b>Gros match perdu</b> : ${etatDuGros(SONNE)} pour ${mbHier.duree || SONNE.duree} matchs${mbHier.raison === 'nemesis' ? cicatriceMot('doute') : ''}`}.<div class="hub-gros-detail">${motEntracte(ctx, mbHier)}</div></div>` : '';
     // HIER SOIR, EN UN BLOC (JP : *narration, limiter d'avoir à chercher*) : le résultat et son but gagnant, le drame, le
     // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
     if (soirEnVolet) return `${routeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${uneHtml()}${autourHtml()}</section>`;
@@ -3755,7 +3763,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       });
       corps.querySelectorAll('.nd-case').forEach(b => { b.onclick = () => {
         const id = b.dataset.id;
-        if (id.startsWith('sp:')) { const sp = aParte[Number(id.slice(3))]; ui.fermerPage(true); ouvrirChoix(sp); return; }
+        // Le gros match a son écran de combat (`ouvrir`) : sans lui, une fenêtre vide renvoyait au Bureau (V8, la run du 14 oct.).
+        if (id.startsWith('sp:')) { const sp = aParte[Number(id.slice(3))]; ui.fermerPage(true); if (sp.ouvrir) sp.ouvrir(); else ouvrirChoix(sp); return; }
         const m = autres.find(x => x.id === id);
         if (!m) return;
         if (m.genre !== 'palier') boite.noeudFerme = semaineDuNoeud;

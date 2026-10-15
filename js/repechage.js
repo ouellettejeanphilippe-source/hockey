@@ -12,7 +12,7 @@ import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
-import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite } from './cartes.js';
+import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
@@ -661,7 +661,7 @@ function meilleureSortie(p, { roster, bloque = null }) {
  */
 export function rangeeHtml(p, { rar = 'commune', num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
   const { v, u, mot } = chiffreCle(p);
-  const tags = [rar && rar !== 'commune' ? `<span class="tag">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
+  const tags = [rar && rar !== 'commune' ? `<span class="tag" title="${esc(`${NOM_VARIANTE[rar]} : ${sensRarete(rar)}`)}">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
     doublon ? '<span class="tag">Doublon</span>' : ''].filter(Boolean).join('');
   return `<div class="pcard-rangee"><span class="pcard-mug">${headshotHtml(p)}</span><span class="pcard-qui"><b class="pcard-nom">${formatName(p.n)}</b><small>${esc(positionLabel(p).split(' / ').join('/'))} · ${esc(p.t)} ${esc(p.s || '')}</small></span></div>
     ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team' })}
