@@ -8976,7 +8976,7 @@ export function effetsEnCours(team, jour) {
 export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
   nemesis: { ico: '😤', nom: 'Bête noire', mot: 'il t\'a déjà battu deux fois' },
-  choisi: { ico: '⚔️', nom: 'Ton rival', mot: 'choisi au début de la saison' },
+  choisi: { ico: '⚔', nom: 'Ton rival', mot: 'choisi au début de la saison' },
 };
 /*
  * LES RIVAUX CHOISIS (V8, Rogue). JP : *choisir rivaux en début de saison, pour pas inventer les gros matchs au fur et

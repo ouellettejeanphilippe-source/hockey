@@ -3135,7 +3135,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (ro) {
       const forts = ['le plus fort', 'fort', 'au milieu', 'faible', 'le plus faible'];
-      specs.push({ de: DE.proprio, ico: '⚔️', titre: `Ton rival · ${ro.k + 1} sur ${RIVAUX}`,
+      specs.push({ de: DE.proprio, ico: '⚔', titre: `Ton rival · ${ro.k + 1} sur ${RIVAUX}`,
         recit: `Chacun de tes matchs contre lui sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
         options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros matchs`,
           mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
