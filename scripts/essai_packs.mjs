@@ -113,7 +113,7 @@ async function regler(max = 40) {
 const club = async () => { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(300); const mt = await page.$('#sousNav .soustab[data-page="match"]'); if (mt && await mt.isVisible()) { await mt.click({ timeout: 3000 }).catch(() => {}); await page.waitForTimeout(200); } };
 const versBoutique = async () => {
   // La boutique est un sous-onglet des Cartes : un toucher, sans liste.
-  await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(300);
+  await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(300);
   await page.waitForSelector('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 30000 });
 };
 // Signe dans la fenêtre d'offre ouverte ; rend la clé signée.
@@ -159,7 +159,7 @@ let pb = 0;
 for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   await regler(); await club(); log('regler:', await regler());
   if (tour % 2 === 1) {
-    await page.click('#navbar .navtab[data-section="lignes"]'); await page.waitForTimeout(1500);
+    await page.click('#navbar .navtab[data-section="soir"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(1500);
     const am = await page.$('.ln-auto');
     if (am) { await am.click(); await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 5000 }); await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]'); await page.waitForTimeout(800); }
     else log('   pas de bouton au mieux');

@@ -320,14 +320,17 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .tete-chiffres { grid-area: chiffres; display: flex; align-items: stretch; min-width: 0; }
 .tete-ch { display: grid; align-content: end; gap: 2px; min-width: 0; padding: 0 var(--esp-3); border-left: 1px solid var(--filet); }
 .tete-ch:first-child { padding-left: 0; border-left: 0; }
+/* V8 : la cellule « Cartes » de l'en-tête est un bouton (le Rogue) : elle ouvre tes cartes d'où qu'on soit. */
+.tete-cartes { border-top: 0; border-right: 0; border-bottom: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .tete-ch-v { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #menuBtn { grid-area: menu; }
 /* La jauge du plafond : le montant en gros, la barre dessous. */
 .capgauge.tete-ch { flex: 1 1 auto; max-width: 340px; justify-items: stretch; text-align: left; }
-/* LA MASSE SALARIALE OÙ L'ON GÈRE LES JOUEURS (1.0, R3). JP : *en haut, j'ai pas besoin de la masse salariale sauf
-   quand je manage les joueurs*. Au Marché et à l'Effectif seulement ; ailleurs, l'en-tête garde la fiche et le rang. */
-body[data-section]:not([data-section="marche"]):not([data-section="effectif"]) #capGauge { display: none; }
+/* LE PLAFOND SE LIT QUAND ON SIGNE (V8, JP : *le plafond est nécessaire en dehors du management des cartes à signer ?
+   Je pense pas*). L'en-tête le porte au repêchage, qui n'est que des signatures ; en saison, il vit dans la liste de
+   signature, le pack et la boutique, et l'en-tête garde la fiche et le rang. */
+body:not(.au-repechage) #capGauge { display: none; }
 .capgauge-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); }
 .capgauge-row.small { margin-top: 2px; color: var(--encre-2); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
 .capgauge-row.small strong { color: var(--encre); font-variant-numeric: tabular-nums; font-weight: 800; }
@@ -2705,6 +2708,27 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-carte:empty { display: none; }
 .hub-volet { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .hub-volet > * { flex: none; }
+/* LE PROCHAIN MATCH EN UNE LIGNE (V8, le Bureau du Rogue) : le toucher ouvre « Ce soir ». */
+.bu-prochain { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); width: 100%; min-height: 56px; margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-2); color: var(--encre); text-align: left; cursor: pointer; }
+.bu-prochain.gros { border-color: var(--or); }
+.bu-prochain-txt { display: grid; min-width: 0; line-height: 1.25; }
+.bu-prochain-txt b { font: 800 var(--t-4)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bu-prochain-txt small { font-size: var(--t-1); color: var(--encre-2); }
+.bu-prochain-txt .bu-prochain-gros { color: var(--or); font-weight: 700; }
+.bu-prochain-aller { font: 800 var(--t-2)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--or); white-space: nowrap; }
+/* LA ROUTE (V8) : deux semaines, un arrêt par match, le gros match en or, le lundi, le pack gratuit. */
+.bu-route { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
+.bu-route-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); margin-bottom: var(--esp-2); }
+.rt-liste { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.rt-arret { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 28px; font-size: var(--t-1); color: var(--encre-2); }
+.rt-arret.rt-ce-soir { color: var(--encre); font-weight: 700; }
+.rt-arret.rt-gros { color: var(--or); }
+.rt-arret.rt-lundi { color: var(--encre-3); border-top: 1px dashed var(--filet); padding-top: 2px; }
+.rt-ico { display: grid; place-items: center; }
+.rt-txt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* À FAIRE (V8) : une ligne qui mène où ça se règle. */
+.hub-afaire-lien { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; margin: var(--esp-2) 0 0; padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 700 var(--t-2)/1.2 var(--corps); text-align: left; cursor: pointer; }
+.hub-afaire-aller { margin-left: auto; color: var(--or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
   body.hub-docke .hub-sheet > * { flex-shrink: 0; }
@@ -2718,7 +2742,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-msg { scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
-  .hub-match .hub-match-note:not(.hub-ereintant), .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
+  .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
   body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
   /* La boîte pliée : sa bande de tête seule, tant que rien ne bloque et qu'on ne l'a pas dépliée. */
   .hub-boite.pliee .hub-msgs { display: none; }
@@ -2894,6 +2918,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-poche-case.tc-rare { border-color: var(--or); }
 .hub-poche-case.tc-legendaire { border-color: var(--platine); box-shadow: 0 0 12px color-mix(in srgb, var(--platine) 40%, transparent); }
 .hub-poche-ico { font-size: var(--t-5); line-height: 1; }
+.hub-poche-place, .poche-place { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
+.poche-place { margin: 0 0 var(--esp-2); }
 .hub-poche-nom { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .hub-poche-venus { display: flex; flex-wrap: wrap; gap: var(--esp-1); }
 .poche-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); margin-bottom: var(--esp-3); }
@@ -2981,6 +3007,8 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-tiree-nom { font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; }
 .hub-tiree-bon { font-size: var(--t-1); line-height: 1.3; color: var(--bon); }
 .hub-tiree-prix { font-size: var(--t-1); line-height: 1.3; color: var(--mauvais); }
+.hub-tiree + .hub-tiree { margin-top: var(--esp-2); }
+.hub-tiree .hub-trou-prendre { align-self: flex-start; margin-top: var(--esp-1); }
 /* Le palier : trois dos de cartes, un bouton pour les voir. */
 .hub-cartes, .hub-main { align-items: center; text-align: center; }
 .hub-dos-rang { display: flex; gap: var(--esp-2); justify-content: center; }
@@ -2999,6 +3027,9 @@ body.hub-docke .hub-sheet[data-page] > :is(.hub-carte, .hub-actions, .hub-volet,
 .hub-rap-l.prix { color: var(--mauvais); }
 .hub-rap-lignes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px var(--esp-3); font-size: var(--t-2); color: var(--encre-2); }
 .hub-rap-lignes b { color: var(--encre); font-family: var(--display); }
+.pk-besoins { padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
+.pk-besoins h3 { margin: 0 0 var(--esp-1); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.pk-besoins ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 2px; font-size: var(--t-1); }
 .pk-bareme-run { margin: 0 0 var(--esp-2); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.03em; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .hub-run-suite { color: var(--encre-2); }
 

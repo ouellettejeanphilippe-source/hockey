@@ -646,7 +646,7 @@ function alignerAuMieux(cle) {
   } else if (!G.banc) G.lignes = null;   // de nouveaux trios, les systèmes que l'IA leur ferait
   saveGame();
   render();
-  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ` Il joue au « ${G.banc.serie ? 'Retour aux séries' : 'Retour au match'} ».` : ''}`);
+  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ' Il joue dès que tu quittes les Lignes.' : ''}`);
 }
 function boutonAuMieux() {
   const b = document.createElement('button');

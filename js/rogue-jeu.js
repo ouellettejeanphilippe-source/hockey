@@ -7,8 +7,8 @@
 
 import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
-import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
@@ -78,7 +78,8 @@ function resultatsRogue(j) {
     const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
-  const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).length;
+  // V8 : un rival choisi paie son butin (un multiple du gros match) ; les autres gros matchs, un.
+  const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).reduce((n, mb) => n + (mb.butin || 1), 0);
   // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && d.carte).length;
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
@@ -215,6 +216,8 @@ export function ouvrirBoutique(j, decider, page) {
   ouvrirMagasin({
     ...(page || {}),
     jetons: jetonsRogue(j), mode: G.bonus === 'ROGUE' ? 'rogue' : 'saison', ouverts,
+    // V8 : ce qui manque à ton équipe, en tête du Marché — là où l'on décide quoi acheter.
+    besoins: G.bonus === 'ROGUE' ? blessesAuJour(j).map(b => `🩹 ${b.p.n} : absent ${b.reste} match${b.reste > 1 ? 's' : ''}`) : [],
     // V7 : le barème des jetons vit où ils se dépensent (il était au bureau).
     bareme: G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.bareme) || JETONS) : null,
     mods: modsDesPacks(decs, j), achats: () => (G.bonus === 'ROGUE' ? achatsDePacks(decisionsDeLaPartie()) : 0), sansHolo: G.bonus === 'ROGUE' ? packsSansHolo(decs) : 0, plafond: plafondPourBoutique(),
@@ -628,12 +631,13 @@ function horsDeLaMain(ref, j) {
 }
 /* Une carte de la main, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
 export function ouvrirCarteDeLaPoche(item, j, decider) {
-  const v = valeurDe(item.id), rien = () => {}, non = horsDeLaMain(item.ref, j);
+  // V8 : la place de la carte et le verbe de son bouton (`placeDe`, js/banque.js).
+  const v = valeurDe(item.id), rien = () => {}, non = horsDeLaMain(item.ref, j), pl = placeDe(item.id);
   const jouer = () => { if (!non) jouerCarte({ src: 'partie', ref: item.ref, id: item.id }, j, decider, null, rien); };
   const fermer = ouvrirChoix({
     ico: item.ico, titre: item.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'La garder',
     options: [{ ...optionDeBanque(item.id), cle: 'jouer', ...(non ? { desactive: non } : {}) }],
-    contexte: `<div class="poche-boutons"><button type="button" class="btn gold poche-jouer"${non ? ' disabled' : ''}>${non ? esc(non) : 'Jouer'}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
+    contexte: `${pl ? `<p class="poche-place">${esc(pl.ou)} · ${esc(pl.duree)}</p>` : ''}<div class="poche-boutons"><button type="button" class="btn gold poche-jouer"${non ? ' disabled' : ''}>${non ? esc(non) : esc(pl ? pl.verbe : 'Jouer')}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
     onChoix: jouer,
     onFerme: rien,
   });
@@ -668,6 +672,8 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
   const ecrire = payload => {
     if (!payload) return;
     if (item.src === 'meta') retirerDuMeta(item.id);
+    // V8 (la run du 14 oct. : *rien ne confirme qu'une carte a été jouée*) : on le dit.
+    toast(`${c.ico} ${c.nom} : jouée.`);
     decider({ jour: j, joue, ...payload });
   };
   // Jalon U : les rangées du vestiaire, comme toute liste de joueurs (`ouvrirListeJoueurs`).
@@ -776,6 +782,13 @@ function poserUneModif(item, j, decider, retour) {
   const you = G.ligue && G.ligue.you;
   const etats = new Map();
   const rangees = rangeesAlignement(G.roster, (sl, q) => { const e = etatPourPoser(c.cle, q, sl, { jour: j, you }); etats.set(String(sl.i), e); return { non: e.non || '', note: e.note || '' }; });
+  /*
+   * LA CIBLE SUGGÉRÉE EN TÊTE (V8, la run du 14 oct. : la carte disait « sur Clark Gillies » et la liste ouvrait sur
+   * Gainey ; une rare a fini sur le mauvais joueur). Le joueur que les chiffres de la carte lisent passe en premier, cerclé.
+   */
+  const vise = you ? joueurDeMutation(you, null, c.cle) : null;
+  const suggeree = vise && rangees.flatMap(r => r.cases).find(x => x.p && !x.non && getPlayerKey(x.p) === getPlayerKey(vise));
+  if (suggeree) rangees.unshift({ titre: 'La cible suggérée', cases: [{ ...suggeree, meilleure: true }] });
   ouvrirAlignement({
     ico: M.ico, titre: `${M.nom} : sur qui ?`, motFermer: 'Retour', motConfirmer: 'Poser', fiche: apercuJoueur,
     contexte: `<div class="choix-puces">${pucesEnBref(motsDeMutationEnChiffres(c.cle))}</div>`,
@@ -783,6 +796,7 @@ function poserUneModif(item, j, decider, retour) {
     onChoix: k => {
       const q = G.roster[Number(k)], e = etats.get(k) || {};
       if (!q || e.non) return;
+      toast(`${M.ico} ${M.nom} : posée sur ${q.n}.`);
       decider({ jour: j, joue: { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) }, mutation: { cle: c.cle, joueur: getPlayerKey(q), ...(e.extra || {}) } });
     },
     onFerme: retour,

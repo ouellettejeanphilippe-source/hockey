@@ -16,7 +16,7 @@ import { franchiseDuCode } from './franchises.js';
 import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
-import { estD, borne } from './util.js';
+import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
 import { MOMENTS_VIE, REPONSES_VIE } from './vie-gm.js';
@@ -6369,6 +6369,12 @@ function appliquerDecision(team, d, graine = 0) {
   // elle a été prise et vaut pour le reste de la saison.
   if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
+  // TES RIVAUX (V8) : choisis au premier jour, ils font les gros matchs de la saison (`grosMatchAvant`).
+  // Au jeu, ils se prennent un à la fois (`rival`) ; le robot les pose d'un coup (`rivaux`).
+  for (const x of Array.isArray(d.rivaux) ? d.rivaux : d.rival ? [d.rival] : []) {
+    team.rivaux = team.rivaux || [];
+    if (x && x.cle && team.rivaux.length < RIVAUX && !team.rivaux.some(y => y.cle === x.cle)) team.rivaux.push({ cle: x.cle, butin: Number(x.butin) || 1 });
+  }
   // L'APPARIEMENT (V6) : contre leur trio r, ton trio `d.appariement[r]` — ou null pour revenir à l'appariement par rang.
   if ('appariement' in d) team.appariement = planValide(d.appariement);
   if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
@@ -6750,7 +6756,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null; t.effetsCibles = [];
-      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
+      t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null; t.rivaux = null; t.beteNoire = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
     /*
@@ -6951,7 +6957,7 @@ export function jouerJournee(L) {
       let gros = null;
       if (raison) {
         const depistage = depistageDe(graine, `j${r}`, advToi);
-        gros = { jour: r, adv: advToi, raison, depistage, plan: planDuDepistage(graine, `j${r}`, depistage),
+        gros = { jour: r, adv: advToi, raison, depistage, plan: planDuDepistage(graine, `j${r}`, depistage), ...(annonce.butin ? { butin: annonce.butin } : {}),
           prep: mainDuJour ? mainDuJour.prep || null : null,
           avant: avantsDuJour.length ? avantsDuJour[avantsDuJour.length - 1].avant : null,
           effetsAvant: avantsDuJour.map(effetAvant).filter(Boolean),
@@ -7148,7 +7154,7 @@ function remettreANeuf(t) {
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
-  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null;
+  t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null; t.rivaux = null; t.beteNoire = null;
 }
 export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
   const avant = hasard;
@@ -8970,7 +8976,33 @@ export function effetsEnCours(team, jour) {
 export const MINI_BOSS = {
   rival: { ico: '📊', nom: 'Rival au classement', mot: 'à deux rangs ou moins de toi' },
   nemesis: { ico: '😤', nom: 'Bête noire', mot: 'il t\'a déjà battu deux fois' },
+  choisi: { ico: '⚔', nom: 'Ton rival', mot: 'choisi au début de la saison' },
 };
+/*
+ * LES RIVAUX CHOISIS (V8, Rogue). JP : *choisir rivaux en début de saison, pour pas inventer les gros matchs au fur et
+ * à mesure ?* Le gros match ne s'annonçait que la veille, sur le classement du jour. Au premier jour d'une saison de
+ * Rogue, cinq clubs sont offerts, un par cinquième de la ligue (du plus fort au plus faible, `teamStrength`), et tu en
+ * prends RIVAUX : chacun de tes matchs contre eux est un gros match, connu d'avance — la route le montre dès le premier
+ * jour, rien n'est simulé pour le savoir. Un rival plus fort paie plus (`BUTIN_RIVAL`, un multiple de JETONS.grosMatch).
+ * La bête noire reste : elle naît de deux défaites et ses matchs à venir se voient dès qu'elle est née. Sans la
+ * décision `rivaux` (les autres modes, une vieille partie), le moteur garde la rivalité de classement d'avant.
+ */
+export const RIVAUX = 3, RIVAUX_OFFERTS = 5;
+export const BUTIN_RIVAL = [1.5, 1.25, 1, 0.75, 0.5];
+const cleDuClub = t => `${t.season}|${t.tag}`;
+export function rivauxOfferts(teams, toi, graine) {
+  const autres = teams.filter(t => t && t !== toi).map(t => ({ t, f: teamStrength(t) })).sort((a, b) => b.f - a.f);
+  const out = [];
+  for (let q = 0; q < RIVAUX_OFFERTS; q++) {
+    const lo = Math.floor(q * autres.length / RIVAUX_OFFERTS), hi = Math.floor((q + 1) * autres.length / RIVAUX_OFFERTS);
+    if (hi <= lo) continue;
+    const { t } = autres[lo + Math.floor(hache(graine, 'rivaux', q) * (hi - lo))];
+    out.push({ cle: cleDuClub(t), team: t, cinquieme: q, butin: BUTIN_RIVAL[q] });
+  }
+  return out;
+}
+/* Le rival choisi `adv`, ou null : sa clé et son butin, tels que la décision les porte. */
+export const rivalChoisi = (toi, adv) => (toi && Array.isArray(toi.rivaux) && adv ? toi.rivaux.find(x => x.cle === cleDuClub(adv)) || null : null);
 export const ELAN = { nom: 'La lancée', ico: '⬆', finition: 1.03, duree: 3 };
 export const SONNE = { nom: 'Sonnés', ico: '😵', finition: 0.97, duree: 3 };
 /*
@@ -8994,9 +9026,14 @@ function annoncerGros(L, toi, j) {
   if (!raison) { L.grosAnnonces[j] = null; return; }
   toi._dernierAnnonce = j;
   const depistage = depistageDe(L.graine, `j${j}`, adv);
-  L.grosAnnonces[j] = { jour: j, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${j}`, depistage) };
+  const riv = raison === 'choisi' ? rivalChoisi(toi, adv) : null;
+  L.grosAnnonces[j] = { jour: j, adv, raison, depistage, plan: planDuDepistage(L.graine, `j${j}`, depistage), ...(riv ? { butin: riv.butin } : {}) };
 }
 function grosMatchAvant(toi, adv, r, rangs) {
+  // V8 : avec des rivaux choisis, ni classement ni espacement — ton rival ou ta bête noire, connus d'avance.
+  // Une seule bête noire à la fois (`beteNoire`, posée par `grosMatchApres`) : sans espacement, chaque club qui t'a battu
+  // deux fois en devenait une, et une équipe faible jouait vingt gros matchs.
+  if (Array.isArray(toi.rivaux)) return rivalChoisi(toi, adv) ? 'choisi' : toi.beteNoire === adv ? 'nemesis' : null;
   if (!rangs) return null;
   if (toi._dernierAnnonce != null && matchsEntre(toi, toi._dernierAnnonce, r) < ESPACEMENT_GROS) return null;
   toi.defaitesContre = toi.defaitesContre || new Map();
@@ -9010,6 +9047,11 @@ function grosMatchApres(toi, m, r, gros) {
   toi.defaitesContre = toi.defaitesContre || new Map();
   if (!gagne) toi.defaitesContre.set(adv, (toi.defaitesContre.get(adv) || 0) + 1);
   else toi.defaitesContre.delete(adv);
+  // V8 : avec des rivaux choisis, la bête noire est UNE : le premier club qui t'a battu deux fois, jusqu'à ce que tu le battes.
+  if (Array.isArray(toi.rivaux)) {
+    if (gagne && toi.beteNoire === adv) toi.beteNoire = null;
+    else if (!gagne && !toi.beteNoire && toi.defaitesContre.get(adv) >= 2 && !rivalChoisi(toi, adv)) toi.beteNoire = adv;
+  }
   if (!gros) return;
   toi._dernierGros = r;
   const E = gagne ? ELAN : SONNE;
@@ -9018,7 +9060,7 @@ function grosMatchApres(toi, m, r, gros) {
   const o = A && A.options.find(x => x.cle === gros.avant.choix);
   const duree = E.duree * (o && o.enjeu ? 2 : 1);
   (toi.effets = toi.effets || []).push({ debut: r + 1, fin: apresMatchs(toi, r + 1, duree), source: 'miniboss', nom: E.nom, ico: E.ico, finition: E.finition });
-  (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, gagne, duree, plan: gros.plan, contre: gros.contre,
+  (toi.minisBoss = toi.minisBoss || []).push({ jour: r, adv, raison: gros.raison, ...(gros.butin ? { butin: gros.butin } : {}), gagne, duree, plan: gros.plan, contre: gros.contre,
     depistage: gros.depistage || null, preparation: gros.preparation || [], prepJuste: gros.prepJuste ?? null,
     avant: gros.avant, entracte: gros.entracte || null, apres40: gros.apres40 || null, cartes: gros.cartesJouees || null });
 }

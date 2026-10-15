@@ -29,7 +29,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
-  ecoleDe,
+  ecoleDe, rivauxOfferts, RIVAUX,
 } from '../../js/sim.js';
 import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
 import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
@@ -231,6 +231,9 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus);
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }];
+  // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
+  const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
+  if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: offre.slice(1, 1 + RIVAUX).map(x => ({ cle: x.cle, butin: x.butin })) });
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
@@ -243,7 +246,7 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
       const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
       if (pour > contre) W++; else if (m.ot) P++; else D++;
     }
-    const gros = (you.minisBoss || []).filter(mb => mb.gagne).length;
+    const gros = (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1), 0);
     const B = baremeRogue(meta);
     // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
     return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total - depense;

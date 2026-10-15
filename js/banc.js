@@ -379,12 +379,18 @@ export const ballottageVu = new Map();
 /* En Rogue, une réclamation coûte des jetons (1.0) : un dépanneur, pas un cadeau. En saison, rien. */
 const COUT_BALLOTTAGE_ROGUE = 10;
 const coutBallottage = () => (G.bonus === 'ROGUE' ? COUT_BALLOTTAGE_ROGUE : 0);
+/*
+ * UN RAPPEL NE LIBÈRE JAMAIS UN BLESSÉ (V8, la run du 14 oct. : « qui sort ? » d'un rappel relâchait pour de bon un joueur
+ * absent cinq matchs). Le réserviste d'une case de réserve est souvent un blessé qu'on y a descendu ; tant qu'il l'est,
+ * sa case n'est pas à prendre, et le rappel ne s'offre pas — monter un réserviste et remanier restent.
+ */
+const blesseAu = (p, at) => !!p && (G.ligue.you.injuriesLog || []).some(b => getPlayerKey(b.player) === getPlayerKey(p) && b.at <= at && at < b.at - 1 + b.games);
 function candidatsBallottage(blesse, at) {
   const L = G.ligue;
   if (!L || !blesse || !L.cles) return null;
   const g = groupeDe(blesse);
   const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[g]);
-  if (!slot) return null;
+  if (!slot || blesseAu(G.roster[slot.i], at)) return null;
   const sort = G.roster[slot.i] || null;
   const budget = Math.min(capLeft() + (sort ? sort.$ : 0), MODE().cap * PLAFOND_BALLOTTAGE);
   // 1.0 (J1-D) : la fonction pure (js/ballottage.js), qui n'offre que des réguliers — jamais une vedette à son contrat d'entrée.
@@ -403,7 +409,7 @@ function rappelEcole(blesse, at) {
   const L = G.ligue;
   if (!L || !blesse || !L.cles) return null;
   const slot = SLOTS.find(s => s.scratch && s.role === RESERVE_DE[groupeDe(blesse)]);
-  const p = slot ? rappelDuClubEcole({ shards: G.shards, ligue: L, blesse, at }) : null;
+  const p = slot && !blesseAu(G.roster[slot.i], at) ? rappelDuClubEcole({ shards: G.shards, ligue: L, blesse, at }) : null;
   if (!p) return null;
   ballottageVu.set(getPlayerKey(p), p);
   const sort = G.roster[slot.i] || null;
