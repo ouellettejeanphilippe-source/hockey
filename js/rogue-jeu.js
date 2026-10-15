@@ -78,7 +78,8 @@ function resultatsRogue(j) {
     const pour = m.A === toi ? m.gfA : m.gfB, contre = m.A === toi ? m.gfB : m.gfA;
     if (pour > contre) W++; else if (m.ot) P++; else D++;
   }
-  const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).length;
+  // V8 : un rival choisi paie son butin (un multiple du gros match) ; les autres gros matchs, un.
+  const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).reduce((n, mb) => n + (mb.butin || 1), 0);
   // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`).
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && d.carte).length;
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.

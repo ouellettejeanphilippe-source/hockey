@@ -33,7 +33,7 @@ import { SLOTS, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirErei
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, cleDuClub, RIVAUX } from './sim.js';
 import { seasonLancers } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
@@ -1032,7 +1032,23 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const o = objectifEnCours();
     return o && o.e.fini ? o : null;
   };
-  const forceOuvert = () => !!(offreObjectif() || verdictObjectif() || dilemmeOuvert() || sequenceOuverte());
+  /*
+   * TES RIVAUX (V8, Rogue). Au premier jour, cinq clubs offerts (un par cinquième de la ligue, `rivauxOfferts`) ; tu en
+   * prends RIVAUX, un à la fois. Chacun de tes matchs contre eux, à partir de ton 10e, sera un gros match : la route les
+   * montre d'avance. Le plus fort paie le plus.
+   */
+  const primeDuGros = () => { const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null; return ((run && run.bareme) || JETONS).grosMatch; };
+  const rivauxPris = () => decs.filter(d => d.rival && d.rival.cle).map(d => d.rival.cle);
+  const gros10 = j => matchsEntre(you, 0, j) >= 10;
+  const matchsContre = t => calendrier.reduce((n, jr, j) => n + (gros10(j) && jr.some(m => (m.A === you && m.B === t) || (m.B === you && m.A === t)) ? 1 : 0), 0);
+  const rivalOuvert = () => {
+    if (!onDecision || !ctx.rogue || jour !== 0) return null;
+    const pris = rivauxPris();
+    if (pris.length >= RIVAUX) return null;
+    const offre = rivauxOfferts(teams, you, graine).filter(x => !pris.includes(x.cle));
+    return offre.length ? { k: pris.length, offre } : null;
+  };
+  const forceOuvert = () => !!(rivalOuvert() || offreObjectif() || verdictObjectif() || dilemmeOuvert() || sequenceOuverte());
 
   /*
    * LES GROS MATCHS MIS EN SCÈNE (S70). L'avant-match et la main sont un seul
@@ -1104,7 +1120,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const jouer = (dA, [jouees, enMain, , prep]) => { const j = jour; quitter(); onDecision([...(dA ? [dA] : []), { jour: mo.p.j, main: { jouees, enMain }, prep }], j); };
     // L'ENJEU, en une ligne : les vraies constantes (le barème de la run, `SONNE`) ; une carte « à enjeu » double le contrecoup.
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
-    const prime = ((run && run.bareme) || JETONS).grosMatch;
+    // V8 : un rival choisi paie son butin.
+    const prime = Math.round(((run && run.bareme) || JETONS).grosMatch * (mo.mb.butin || 1));
     const enjeu = cle => {
       const o = cle && av ? av.A.options.find(x => x.cle === cle) : null;
       return puces([{ txt: `Victoire : +${prime} 🪙 et une carte`, bon: true },
@@ -3014,7 +3031,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const vo = noeud ? verdictObjectif() : null, oo = noeud ? offreObjectif() : null;
     const sq = noeud ? sequenceOuverte() : null;
     const dl = noeud ? dilemmeOuvert() : null;
-    const mo = vo || oo || sq || dl || rc ? null : mainOuverte();
+    const ro = noeud ? rivalOuvert() : null;
+    const mo = ro || vo || oo || sq || dl || rc ? null : mainOuverte();
     const specs = [];
     // Chaque choix est une décision : elle entre dans la liste, et la saison
     // se rejoue depuis aujourd'hui, avec des dés neufs.
@@ -3040,6 +3058,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onFerme: () => prendre({}) };
       spec.autres = autresButins(deckAvant(soirDuProchain()), prendre, () => ouvrirChoix(spec));
       specs.push(spec);
+    }
+    if (ro) {
+      const forts = ['le plus fort', 'fort', 'au milieu', 'faible', 'le plus faible'];
+      specs.push({ de: DE.proprio, ico: '⚔️', titre: `Ton rival · ${ro.k + 1} sur ${RIVAUX}`,
+        recit: `Chacun de tes matchs contre lui sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
+        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros matchs`,
+          mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
+        decision: cle => { const x = ro.offre.find(y => y.cle === cle); return { palier: `riv:${ro.k}`, rival: { cle, butin: x.butin } }; } });
     }
     if (vo) {
       const o = OBJECTIFS[vo.d.objectif.cle];
