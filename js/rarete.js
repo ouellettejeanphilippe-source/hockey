@@ -71,7 +71,8 @@ export const NOM_VARIANTE = { commune: 'Base', peu: 'Parallèle', rare: 'Holo', 
 export const VARIANTE_PALIERS = { commune: [0, 0], peu: [0, 1], rare: [1, 1], legendaire: [2, 2] };
 export const VARIANTE_PLEINE = { rare: true, legendaire: true };
 export const VARIANTE_PALIERS_G = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
-const ICO_VARIANTE = { peu: '◆◆', rare: '✦', legendaire: '★' };
+/* Les diamants de la carte (js/cartes.js `RARETES`) : l'✦ et le ★ d'avant ne se comptaient pas, et ★ est l'Étoile. */
+const ICO_VARIANTE = { peu: '◆◆', rare: '◆◆◆', legendaire: '◆◆◆◆' };
 const RECRUE_PROGRESSE = { ico: '🐣', nom: 'Le jeune progresse', mot: 'Contrat d\'entrée : précision +1 % à partir de son 42e match.', apres: 41, finition: 1.01 };
 
 /* La variante tirée selon des cotes (en %), de la graine et de la clé du joueur. */

@@ -127,7 +127,7 @@ export function pastilleNiveau(p) {
   if (n < 0) return p && p.s && G.shards.get(p.s) ? '<span class="niv niv-partiel" title="Trop peu de matchs dans sa saison pour un rang parmi les réguliers">Peu joué</span>' : '';
   const N = NIVEAUX[n];
   // TROIS VERDICTS, TROIS USAGES (V2.2) : le niveau dit SA SAISON (sa rareté, les packs), il ne joue pas au match.
-  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste. Il dit sa saison et sa rareté ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
+  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste. Il dit sa saison ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
 }
 brancherPastilleNiveau(pastilleNiveau);
 /*
