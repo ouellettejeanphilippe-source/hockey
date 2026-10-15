@@ -646,6 +646,7 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
 
   Preuves : `essai_rogue` (10b, la pose allume les joueurs et « Annuler » les referme ; 10c, l'infirmerie suit les 🩹 du tableau), `tout.mjs`, `check_mort`, `check_css`.
 - 2026-10-15 — V8, pour finir (JP : *fais ce qui est pertinent pour finir*) :
+- 2026-10-15 — JP : *revois toute la copie… plus vivant, vrai, style journalistique, pas de blagues*. Environ 1 300 chaînes revues (sommaires, direct, entracte, panel, boîte et voix, événements, arcs, cartes, bureau, bilan) ; le texte seul, rien de la logique. Les phrases qui affirmaient un fait que la feuille ne garantit pas sont parties. Preuves : `tout.mjs`, `check_mort`, `check_clarte`, `check_commentaire`, `check_combat`, `check_arcs`.
   - **Un mot se touche** : le `title` d'une étiquette s'affiche dans une bulle au toucher (js/game.js) ; la variante (Parallèle…) et les états d'après un gros match portent le leur.
   - **Le pack finit** sur « Signer un joueur › » (`suite`, js/gerant.js).
   - **Le gros match de la page de la semaine** ouvre son écran de combat.

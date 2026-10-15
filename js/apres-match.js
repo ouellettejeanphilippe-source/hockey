@@ -46,36 +46,36 @@ const CHANCE = { blessure: 0.8, punition: 0.14, coup: 0.12, bagarre: 0.45, melee
 
 /* ---------- les banques de phrases du récit (assemblées, jamais des chiffres écrits) ---------- */
 
-const ENTREE_NORMALE = ['{W} bat {L} {s}.', "{W} l'emporte {s} contre {L}.", "{L} s'incline {s} devant {W}.", '{W} signe une victoire de {s} aux dépens de {L}.'];
-const ENTREE_NETTE = ["{W} l'emporte nettement, {s}, contre {L}.", '{W} bat {L} {s} dans un match à sens unique.', "{L} s'incline lourdement, {s}, devant {W}."];
-const ENTREE_BLANCHI = ['{W} blanchit {L} {s}.', "{W} l'emporte {s} et ne laisse aucun but à {L}.", 'Blanchissage : {W} gagne {s} contre {L}.'];
-const ENTREE_PROLONGATION = ['{W} bat {L} {s} en prolongation.', "{W} l'emporte {s} en prolongation contre {L}.", 'Il a fallu la prolongation : {W} gagne {s} contre {L}.'];
+const ENTREE_NORMALE = ['{W} bat {L} {s}.', '{W} prend la mesure de {L}, {s}.', "{L} s'incline {s} devant {W}.", '{W} vient à bout de {L}, {s}.'];
+const ENTREE_NETTE = ['{W} écrase {L} {s}.', '{W} bat {L} {s} dans un match à sens unique.', '{W} donne une leçon à {L}, {s}.'];
+const ENTREE_BLANCHI = ['{W} blanchit {L} {s}.', '{L} ne trouve jamais le fond du filet : {W} gagne {s}.', 'Rien ne passe : {W} blanchit {L} {s}.'];
+const ENTREE_PROLONGATION = ['{W} bat {L} {s} en prolongation.', '{W} arrache la victoire en prolongation, {s} contre {L}.', 'Il a fallu du temps supplémentaire : {W} bat {L} {s}.'];
 
-const TIRS_DOMINE = ['{X} a dominé aux tirs, {a}-{b}.', "{X} a tiré {a} fois contre {b} pour l'autre club.", 'Aux tirs, {X} a eu le dessus, {a}-{b}.'];
-const TIRS_DOMINE_PERDU = ['{X} a pourtant dominé aux tirs, {a}-{b}.', "{X} a lancé davantage, {a}-{b}, sans que cela se traduise au pointage.", 'Aux tirs, {X} menait {a}-{b}, et ce n\'est pas ce qui a décidé.'];
-const TIRS_EGAUX = ['Les deux clubs ont tiré {a} fois chacun.', 'Autant de tirs de chaque côté : {a}.'];
+const TIRS_DOMINE = ['{X} a dominé aux tirs, {a}-{b}.', '{X} a eu le dessus aux tirs, {a}-{b}.', "{X} a lancé {a} fois, contre {b} pour l'adversaire."];
+const TIRS_DOMINE_PERDU = ['{X} a pourtant eu plus de tirs, {a}-{b}.', '{X} a lancé davantage, {a}-{b}, sans que ça paie au tableau.', 'Aux tirs, {X} menait {a}-{b} ; le tableau ne retient que les buts.'];
+const TIRS_EGAUX = ['Les deux clubs ont tiré {a} fois chacun.', 'Tirs égaux : {a} de chaque côté.'];
 
-const REMONTEE = ["{W} a comblé un retard de {n} buts pour l'emporter.", "{W} tirait de l'arrière de {n} buts avant de renverser la situation.", "{L} avait pourtant mené de {n} buts."];
+const REMONTEE = ["{W} a effacé un retard de {n} buts pour l'emporter.", "{W} tirait de l'arrière par {n} buts avant de renverser la vapeur.", '{L} a pourtant mené par {n} buts.'];
 
-const VERBES_OUVRE = ['ouvre la marque pour {T}', 'inscrit le premier but du match, pour {T}', 'donne les devants à {T}'];
-const VERBES_AVANCE = ["donne l'avance à {T}, {s}", 'met {T} en avant, {s}', 'place {T} en tête, {s}'];
-const VERBES_EGALISE = ['égalise pour {T}, {s}', 'ramène les deux clubs à égalité, {s}', "redonne l'égalité à {T}, {s}"];
-const VERBES_REDUIT = ["réduit l'écart à {s}", 'marque pour {T} et réduit l\'écart à {s}', 'ramène {T} dans le match, {s}'];
-const VERBES_ALLONGE = ["porte l'avance de {T} à {s}", "creuse l'écart pour {T}, {s}", 'ajoute un but pour {T}, {s}'];
-const VERBES_PROLONGATION = ['inscrit le but gagnant en prolongation et donne la victoire à {T}', 'met fin au match en prolongation, le but gagnant pour {T}', 'règle le sort du match en prolongation, un but gagnant pour {T}'];
-const DOUBLE = ['Son deuxième but du match.', 'Il en est à deux buts dans ce match.', "C'est son deuxième de la soirée."];
-const CHAPEAU = ['Il complète un tour du chapeau.', 'Troisième but du match pour lui : le tour du chapeau.'];
-const MARQUE_GAGNANT = ["C'est le but gagnant.", 'Ce but est le gagnant.', 'Il s\'agit du but gagnant.'];
-const MARQUE_ASSURANCE = ["Un but d'assurance.", "Ce but d'assurance ferme la porte."];
-const GARDIEN_BATTU = ['aux dépens de {G}', 'battant {G}', 'devant {G}'];
-const PASSE_UNE = ['sur une passe de {a}', 'avec l\'aide de {a}'];
+const VERBES_OUVRE = ['ouvre la marque pour {T}', 'brise la glace pour {T}', 'donne les devants à {T}'];
+const VERBES_AVANCE = ["donne l'avance à {T}, {s}", "brise l'égalité pour {T}, {s}", 'place {T} en tête, {s}'];
+const VERBES_EGALISE = ['égalise pour {T}, {s}', 'remet les deux clubs à égalité, {s}', 'ramène {T} à égalité, {s}'];
+const VERBES_REDUIT = ["réduit l'écart à {s}", 'réplique pour {T}, {s}', 'ramène {T} dans le match, {s}'];
+const VERBES_ALLONGE = ["porte l'avance de {T} à {s}", "creuse l'écart pour {T}, {s}", 'enfonce le clou pour {T}, {s}'];
+const VERBES_PROLONGATION = ['inscrit le but gagnant en prolongation pour {T}', 'met fin au match en prolongation pour {T}', 'tranche en prolongation et donne la victoire à {T}'];
+const DOUBLE = ['Son deuxième but du match.', 'Il en est à deux ce soir.', "C'est son deuxième de la soirée."];
+const CHAPEAU = ['Il complète le tour du chapeau.', 'Troisième but du match pour lui : le tour du chapeau.'];
+const MARQUE_GAGNANT = ["C'est le but gagnant.", 'Ce sera le but gagnant.', 'Ce but-là décidera du match.'];
+const MARQUE_ASSURANCE = ["Un but d'assurance.", "Ce but d'assurance scelle l'issue."];
+const GARDIEN_BATTU = ['aux dépens de {G}', 'en battant {G}', 'en déjouant {G}'];
+const PASSE_UNE = ['sur une passe de {a}', "avec l'aide de {a}"];
 const PASSE_DEUX = ['sur des passes de {a} et {b}', 'aidé de {a} et {b}', 'avec {a} et {b} aux passes'];
 const SANS_AIDE = ['sans aide', 'en solo'];
 
-const GARDIEN_BLANCHI = ["{G} ({T}) a blanchi l'adversaire : {n} arrêts.", '{G} ({T}) signe un blanchissage avec {n} arrêts.', 'Blanchissage pour {G} ({T}), qui a repoussé les {n} tirs.'];
-const GARDIEN_NORMAL = ['{G} ({T}) a repoussé {n} des {t} tirs ({pct}).', '{G} ({T}) : {n} arrêts sur {t} tirs, pour {pct}.', '{G} ({T}) a fait {n} arrêts sur {t} tirs ({pct}).'];
-const GARDIEN_SOLIDE = ['Il a gardé son équipe dans le match.', 'Sa solidité a gardé {T} dans le match.'];
-const GARDIEN_DUR = ['Une soirée difficile devant le filet.', 'Il n\'a pas trouvé son rythme ce soir.'];
+const GARDIEN_BLANCHI = ['{G} ({T}) ferme la porte : {n} arrêts, aucun but.', '{G} ({T}) signe un blanchissage de {n} arrêts.', 'Blanchissage pour {G} ({T}), qui a repoussé les {n} tirs.'];
+const GARDIEN_NORMAL = ['{G} ({T}) a repoussé {n} des {t} tirs ({pct}).', '{G} ({T}) : {n} arrêts sur {t} tirs, pour {pct}.', '{G} ({T}) a stoppé {n} des {t} tirs ({pct}).'];
+const GARDIEN_SOLIDE = ['Il a gardé son équipe dans le match.', 'Il a tenu {T} à flot.'];
+const GARDIEN_DUR = ['Une longue soirée devant le filet.', 'Il a passé la soirée à aller chercher la rondelle au fond de son filet.'];
 
 const INFRACTIONS = ['accrochage', 'obstruction', 'bâton élevé', 'rudesse', 'croc-en-jambe', 'retenue', 'double échec', 'conduite antisportive', 'retard de jeu', 'mise en échec avec le coude'];
 
@@ -85,119 +85,119 @@ const ETOILES_ENTREE = ['Les trois étoiles du match', 'Les étoiles de la soir�
 // {j} le joueur de l'événement ; {c} sa cible (un coup) ; {w} le gagnant et {l} le perdant d'une bagarre ; {a} et {b} les deux joueurs.
 
 const INC_BLESSURE = [
-  "{j} se prend une rondelle en plein dans les bijoux de famille et plie en deux sur la glace",
-  "{j} bloque un tir avec les gosses, une décision qu'il regrette sur-le-champ",
-  "{j} reçoit un lancer frappé là où le protecteur ne protège pas assez",
-  "{j} met son patin dans la mauvaise direction et le genou suit un peu plus loin que prévu",
-  "{j} est fauché par son propre coéquipier, qui visait pourtant un joueur adverse",
-  "{j} percute son propre gardien devant le filet et ressort de la collision en moins bon état que lui",
-  "{j} casse son bâton au pire moment, tombe de tout son long et atterrit sur le poignet",
-  "{j} perd un lacet en pleine accélération et termine sa course dans la bande",
-  "{j} reçoit un bout de bâton en plein visage quand un adversaire casse le sien",
-  "{j} glisse en sautant par-dessus la bande et atterrit sur le dos, devant son propre banc",
-  "{j} se coince la main dans la porte du banc, un détail que les statistiques ne retiendront pas",
-  "{j} reçoit une rondelle sur le pied, au seul endroit que le patin ne couvre pas",
-  "{j} s'enfarge dans son propre bâton et file tête première vers la bande",
-  "{j} reçoit un tir de la pointe directement sur l'orteil",
-  "{j} se fait écraser la jambe entre la bande et un joueur de deux cent vingt livres",
-  "{j} retombe sur l'épaule après avoir sauté pour éviter un tir, un saut qui n'était pas nécessaire",
-  "{j} s'étire pour attraper une rondelle en l'air, la rate et rattrape la glace avec le menton",
-  "{j} entre dans le poteau à pleine vitesse, et le poteau n'a pas bougé",
-  "{j} prend le patin d'un adversaire dans le mollet dans un amas de joueurs devant le filet",
-  "{j} reçoit le bâton d'un coéquipier en pleine bouche pendant un échange devant le banc",
-  "{j} se coince un doigt dans le gant d'un adversaire et ne le récupère pas intact",
-  "{j} se fait frapper par un tir de son propre défenseur, à moins de trois mètres",
-  "{j} reçoit une rondelle dans la gorge et quitte la glace en toussant",
-  "{j} saute sur la glace sans attacher sa jugulaire, et la rondelle trouve la mâchoire",
-  "{j} se fait tirer le chandail par un adversaire, tourne sur lui-même et retombe sur le genou",
-  "{j} prend le bout d'un patin dans la cheville lors d'un jeu à la bande",
-  "{j} recule sans regarder et rentre dans l'arbitre, qui s'en sort mieux que lui",
-  "{j} fonce dans la bande à pleine vitesse après avoir raté sa mise en échec",
-  "{j} ressent un claquement derrière la cuisse en démarrant et termine son virage au ralenti",
-  "{j} reçoit un tir en plein sur la main, celle qui tenait le bâton",
+  "{j} reçoit une rondelle à l'aine et reste plié en deux sur la glace",
+  "{j} bloque un tir à bout portant et se relève en grimaçant",
+  "{j} reçoit un lancer frappé juste au-dessus de la jambière",
+  "{j} freine sec près de la bande et le genou cède",
+  "{j} est fauché par son propre coéquipier, qui visait pourtant un adversaire",
+  "{j} percute son propre gardien devant le filet, et c'est le gardien qui se relève le premier",
+  "{j} casse son bâton en pleine montée, perd pied et tombe sur le poignet",
+  "{j} perd pied en pleine accélération et finit sa course dans la bande",
+  "{j} reçoit un bout de bâton au visage quand un adversaire brise le sien",
+  "{j} trébuche en sautant par-dessus la bande et tombe sur le dos, devant son propre banc",
+  "{j} se coince la main dans la porte du banc pendant un changement",
+  "{j} reçoit la rondelle sur le pied, là où le patin ne protège rien",
+  "{j} s'enfarge dans son propre bâton et file tête première dans la bande",
+  "{j} reçoit un tir de la pointe sur le bout du patin",
+  "{j} se fait coincer la jambe entre la bande et un défenseur de deux cent vingt livres",
+  "{j} saute pour éviter un tir et retombe lourdement sur l'épaule",
+  "{j} plonge vers une rondelle en l'air, la rate, et c'est le menton qui touche la glace",
+  "{j} entre dans le poteau à pleine vitesse ; le poteau n'a pas bougé",
+  "{j} reçoit le patin d'un adversaire dans le mollet, au fond d'un amas de joueurs devant le filet",
+  "{j} reçoit la palette d'un coéquipier en pleine bouche pendant un changement",
+  "{j} se tord un doigt dans le gant d'un adversaire lors d'une bousculade à la bande",
+  "{j} reçoit le tir de son propre défenseur, à moins de dix pieds",
+  "{j} reçoit une rondelle à la gorge et quitte la glace en toussant",
+  "{j} reçoit la rondelle en pleine mâchoire, la jugulaire détachée",
+  "{j} se fait tirer le chandail, pivote sur lui-même et retombe sur le genou",
+  "{j} prend la lame d'un patin dans la cheville lors d'une bataille à la bande",
+  "{j} recule sans regarder et percute l'arbitre, qui s'en sort mieux que lui",
+  "{j} rate sa mise en échec et fonce seul dans la bande",
+  "{j} ressent un claquement derrière la cuisse au démarrage et termine son virage au ralenti",
+  "{j} reçoit un tir sur la main, celle qui tient le bâton",
   "{j} se fait casser le nez par un dégagement raté de son propre club",
 ];
 
 const INC_PUNITION = [
-  "{j} accroche un adversaire qui n'allait nulle part, et l'arbitre le remarque avant tout le monde",
-  "{j} fait trébucher un joueur adverse qui patinait seul, sous les yeux des deux arbitres",
-  "{j} jette son bâton en direction de la rondelle, qui était trop loin pour qu'il l'atteigne",
-  "{j} dégage la rondelle par-dessus la baie vitrée, sans que personne l'ait demandé",
-  "{j} retient le chandail d'un adversaire à deux mains, en le regardant dans les yeux",
-  "{j} s'écroule au moindre contact, et l'arbitre siffle la simulation",
-  "{j} lève son bâton trop haut en voulant s'étirer et accroche le casque de l'adversaire",
-  "{j} donne un coup de bâton sur les jambes d'un adversaire, en se croyant à l'abri des regards",
-  "{j} frappe un joueur par derrière près de la bande, à dix pieds de l'arbitre",
-  "{j} s'attaque à un adversaire après le sifflet, ce qui n'était plus nécessaire",
-  "{j} entre dans le gardien adverse comme s'il ne l'avait pas vu, et l'arbitre refuse d'y croire",
-  "{j} conteste un appel de l'arbitre en gesticulant, ce qui lui vaut une punition de conduite antisportive",
-  "{j} met la main sur la rondelle dans le cercle, un geste qui n'était prévu dans aucun système",
-  "{j} agrippe le bâton d'un adversaire et ne le lâche pas, même quand l'arbitre le lui demande",
+  "{j} accroche un adversaire qui n'allait nulle part, et l'arbitre le voit avant tout le monde",
+  "{j} fait trébucher un adversaire qui patinait seul, sous les yeux des deux arbitres",
+  "{j} tend le bâton vers une rondelle hors d'atteinte et fauche un adversaire",
+  "{j} expédie la rondelle par-dessus la baie vitrée, de sa propre zone",
+  "{j} retient le chandail d'un adversaire à deux mains",
+  "{j} s'écroule au premier contact, et l'arbitre siffle la simulation",
+  "{j} lève son bâton trop haut et accroche le casque d'un adversaire",
+  "{j} donne un coup de bâton sur les jambes d'un adversaire, loin du jeu mais pas des arbitres",
+  "{j} frappe un adversaire par derrière près de la bande, à dix pieds de l'arbitre",
+  "{j} s'en prend à un adversaire bien après le sifflet",
+  "{j} fonce dans le gardien adverse, et l'arbitre ne croit pas à l'accident",
+  "{j} conteste un appel en gesticulant et récolte une punition de conduite antisportive",
+  "{j} referme la main sur la rondelle dans le cercle",
+  "{j} agrippe le bâton d'un adversaire et refuse de le lâcher",
   "{j} fait un croc-en-jambe à un adversaire qui lui tournait le dos",
-  "{j} donne un coup de coude à la tête d'un adversaire, sans le faire exprès, selon ses dires",
-  "{j} obstrue un adversaire qui n'avait pas la rondelle, et ça se voyait depuis les gradins",
-  "{j} fait voler son bâton jusqu'au banc adverse après un jeu qui ne lui plaisait pas",
-  "{j} ne comprend pas ce qui lui vaut deux minutes, et l'arbitre le lui explique avec les doigts",
-  "{j} termine son geste dans les jambes d'un adversaire en voulant s'étirer à la bande",
-  "{j} projette un défenseur dans la bande avec un peu trop de conviction",
-  "{j} remet le casque d'un adversaire en place, un peu trop fermement",
-  "{j} s'acharne sur un adversaire déjà couché sur la glace, sous le regard de l'arbitre",
-  "{j} bloque la route d'un adversaire en patinant dans la mauvaise direction, volontairement selon l'arbitre",
+  "{j} donne un coup de coude à la tête d'un adversaire, sans le faire exprès, jure-t-il",
+  "{j} retient un adversaire sans la rondelle, assez longtemps pour que toute la foule le voie",
+  "{j} lance son bâton vers le banc adverse après un jeu qui ne lui a pas plu",
+  "{j} proteste tout le long du trajet vers le banc des punitions",
+  "{j} s'étire à la bande et termine son geste dans les jambes d'un adversaire",
+  "{j} plaque un défenseur dans la bande avec un peu trop de conviction",
+  "{j} enfonce son gant dans le visage d'un adversaire après le sifflet",
+  "{j} s'acharne sur un adversaire déjà couché sur la glace",
+  "{j} coupe la route d'un adversaire sans la rondelle, délibérément selon l'arbitre",
 ];
 
 const INC_COUP = [
   "{j} écrase {c} contre la bande, et le bruit se rend jusqu'au banc adverse",
-  "{c} cherche encore la rondelle après la mise en échec de {j}, qui est pourtant déjà à l'autre bout de la patinoire",
-  "{c} fait connaissance avec la baie vitrée, présenté par {j}",
-  "{j} projette {c} dans la bande avec une telle force que les gradins s'en ressentent",
-  "{c} revient au banc en marchant de côté après le contact avec {j}",
-  "{j} frappe {c} à pleine vitesse, et {c} regarde ce côté de la patinoire avec méfiance",
-  "{c} vole sur trois mètres avant d'atterrir, après un contact avec {j}",
-  "{j} passe son épaule dans {c}, et le casque de {c} termine sa course à la ligne bleue",
-  "{c} voit des étoiles pendant quelques secondes après la mise en échec de {j}",
-  "{j} ramasse {c} à la ligne rouge, et la rondelle est la dernière chose à laquelle {c} pense",
-  "{c} perd son bâton, son équilibre et une partie de sa dignité sur la mise en échec de {j}",
+  "{c} cherche encore la rondelle après la mise en échec de {j}",
+  "{j} envoie {c} contre la baie vitrée, et toute la vitre tremble",
+  "{j} projette {c} dans la bande, et la foule se lève",
+  "{c} regagne le banc à petits pas après sa rencontre avec {j}",
+  "{j} frappe {c} de plein fouet au centre de la glace",
+  "{j} soulève {c} de terre en zone neutre",
+  "{j} passe l'épaule dans {c}, dont le casque glisse jusqu'à la ligne bleue",
+  "{c} met quelques secondes à se relever après la mise en échec de {j}",
+  "{j} cueille {c} à la ligne rouge, tête baissée",
+  "{c} perd son bâton et l'équilibre sur la mise en échec de {j}",
   "{c} se retrouve assis sur la glace, face à la bande, après avoir croisé {j}",
-  "{j} plaque {c} si fort sur la bande que le chandail y laisse une marque",
-  "{c} ramasse son casque, ses gants et ses idées après le passage de {j}",
+  "{j} plaque {c} si fort contre la bande que le banc adverse grimace",
+  "{c} ramasse son casque et ses gants après le passage de {j}",
 ];
 
 const INC_BAGARRE = [
-  "{w} et {l} laissent tomber les gants ; {w} en sort avec le dernier mot et {l} avec un œil à surveiller",
-  "{w} décoche trois coups avant que {l} ait fini d'enlever son gant",
-  "{l} perd son casque, son bâton et la bagarre, dans cet ordre, contre {w}",
-  "{w} tient {l} par le chandail et le laisse retomber sur la glace, au grand plaisir de son banc",
-  "{l} termine à genoux sur la glace après un solide crochet de {w}",
-  "{w} sort de la bagarre avec les jointures écorchées, {l} avec le chandail déchiré",
-  "{w} retourne le chandail de {l} par-dessus sa tête, et {l} ne voit plus rien du reste",
-  "{w} gagne par décision des deux juges, qui avaient une bonne vue de {l} par terre",
-  "{w} aide {l} à se relever, non par bonté, mais pour lui montrer le chemin du banc",
-  "{w} enchaîne un crochet et un uppercut, et {l} enchaîne un retour au banc",
-  "{l} perd l'équilibre en lançant un coup dans le vide, et {w} n'a plus qu'à finir le travail",
-  "{w} gagne le combat, et {l} gagne le droit de se faire raconter la suite par ses coéquipiers",
+  "{w} et {l} jettent les gants ; {w} a le dernier mot, {l} un œil qui enfle",
+  "{w} place trois coups avant que {l} ait fini d'enlever son gant",
+  "{l} perd son casque, son bâton et le combat, dans cet ordre, contre {w}",
+  "{w} tient {l} par le chandail et le renvoie à la glace sous les cris de son banc",
+  "{l} se retrouve à genoux après un solide crochet de {w}",
+  "{w} sort du combat les jointures écorchées, {l} le chandail déchiré",
+  "{w} retourne le chandail de {l} par-dessus sa tête, et la suite se joue à sens unique",
+  "{w} l'emporte sans discussion ; {l} finit étendu sur la glace",
+  "{w} garde le dessus d'un bout à l'autre contre {l}",
+  "{w} enchaîne un crochet et un uppercut, et {l} ne se relève pas tout de suite",
+  "{l} frappe dans le vide, perd l'équilibre, et {w} n'a plus qu'à conclure",
+  "{w} prend vite le dessus, et les juges de lignes s'interposent pour protéger {l}",
 ];
 
 const INC_BAGARRE_NUL = [
-  "{a} et {b} s'agrippent par le chandail pendant une minute complète, sans qu'un seul coup parte vraiment",
-  "{a} et {b} laissent tomber les gants, se regardent, et restent debout jusqu'à l'arrivée des juges",
-  "{a} et {b} tournent en rond au centre de la glace, sans rien de plus à déclarer",
-  "{a} et {b} perdent leur casque en même temps, ce qui n'a rien réglé",
-  "{a} et {b} s'échangent quelques coups de moulinet qui ne touchent que l'air",
-  "{a} et {b} tombent ensemble sur la glace, et les juges concluent à l'absence de gagnant",
-  "{a} et {b} se lancent des coups dans les épaules, les gants et le vide, et personne n'en sort gagnant",
-  "{a} et {b} se font séparer avant d'avoir décidé qui avait raison",
+  "{a} et {b} s'agrippent par le chandail une minute entière sans qu'un vrai coup parte",
+  "{a} et {b} jettent les gants, se jaugent et restent debout jusqu'à l'arrivée des juges de lignes",
+  "{a} et {b} tournent en rond au centre de la glace, et rien ne se décide",
+  "{a} et {b} perdent leur casque en même temps, ce qui ne règle rien",
+  "{a} et {b} échangent quelques coups qui ne trouvent que l'air",
+  "{a} et {b} tombent ensemble sur la glace, et les juges de lignes s'interposent",
+  "{a} et {b} se frappent sur les épaules et les gants, sans vainqueur",
+  "{a} et {b} se font séparer avant d'avoir réglé quoi que ce soit",
 ];
 
 const INC_MELEE = [
-  "{a} et {b} se retrouvent au fond d'une pile de joueurs, et personne ne sait trop comment",
-  "{a} et {b} se poussent devant le filet pendant que quatre autres joueurs tentent de comprendre pourquoi",
-  "{a} et {b} échangent des politesses à la ligne bleue, les mains plus occupées que les mots",
+  "{a} et {b} se retrouvent au fond d'une pile de joueurs devant le filet",
+  "{a} et {b} se poussent devant le filet, et quatre autres joueurs s'en mêlent",
+  "{a} et {b} s'accrochent à la ligne bleue et se disent deux mots, gant contre visage",
   "{a} et {b} sont les derniers à comprendre que le jeu est arrêté",
-  "{a} et {b} se poussent à la hauteur du banc, et le banc se lève par solidarité",
-  "{a} et {b} s'accrochent au sifflet et ne se lâchent plus avant l'arrivée des juges",
+  "{a} et {b} se poussent à la hauteur du banc, et tout le banc se lève",
+  "{a} et {b} s'accrochent au sifflet et ne se lâchent plus avant l'arrivée des juges de lignes",
 ];
 
-const ABSENCE = ['Il manquera {n} {matchs}.', 'Absence prévue : {n} {matchs}.', 'Il sera absent {n} {matchs}.'];
+const ABSENCE = ['Il manquera {n} {matchs}.', "Il est à l'écart pour {n} {matchs}.", 'Il sera absent {n} {matchs}.'];
 const BLESSE_SANS_CAUSE = ['{j} ({T}) a quitté le match, {quand}. Il manquera {n} {matchs}.', 'Blessure à {j} ({T}), {quand} : absence prévue de {n} {matchs}.'];
 
 /* ---------- les petits outils ---------- */
@@ -364,7 +364,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const aide = ps.length ? `passes de ${ps.join(' et ')}` : 'sans aide';
       const sit = but.an ? ', avantage numérique' : but.dn ? ', infériorité numérique' : '';
       const rang = x.nth > 1 ? `, ${x.nth}e but du match` : '';
-      return `${tempsRestant(but.instant)} ${nomDe(but.marqueur)} (${nm[x.T]}${sit}, ${aide}), score ${scoreDe(x)}${rang}${x.gagnant ? `, but gagnant${but.instant >= 60 ? ' en prolongation' : ''}` : ''}`;
+      return `${tempsRestant(but.instant)} ${nomDe(but.marqueur)} (${nm[x.T]}${sit}, ${aide}), pointage ${scoreDe(x)}${rang}${x.gagnant ? `, but gagnant${but.instant >= 60 ? ' en prolongation' : ''}` : ''}`;
     };
     const etat = (A, B) => (A === B ? `Égalité ${A}-${B}` : `${nm[A > B ? 'A' : 'B']} mène ${Math.max(A, B)}-${Math.min(A, B)}`);
 
@@ -469,7 +469,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
 
   /* ===== LA DISCIPLINE : les faits, et seulement ce que la feuille dit ===== */
   {
-    if (!penalites.length) ajouter('Discipline', pige(["Aucune punition n'a été décernée.", 'Match sans punition.'], 'sanspun'), 3);
+    if (!penalites.length) ajouter('Discipline', pige(["Aucune punition n'a été décernée.", 'Pas une seule punition de la soirée.'], 'sanspun'), 3);
     for (const c of ['A', 'B']) {
       const siennes = penalites.filter(p => p.cote === c).sort((x, y) => x.instant - y.instant);
       if (!siennes.length) continue;
@@ -589,12 +589,12 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     const gW = W === 'A' ? f.gardienA : f.gardienB;
     const vals = { W: nm[W], L: nm[L], s, m, n: creux };
     let manchette;
-    if (ot && m) manchette = piger(["{W} l'emporte {s} en prolongation grâce à {m}", '{m} donne la victoire à {W}, {s} en prolongation contre {L}'], 'm|ot', vals);
-    else if (creux >= 2) manchette = piger(['{W} renverse la vapeur et bat {L} {s}', "{W} comble un retard de {n} buts et l'emporte {s}"], 'm|creux', vals);
-    else if (parPer && parPer.n >= 3) manchette = `${parPer.n} buts en ${NOM_PERIODE[parPer.per]} : ${nm[W]} l'emporte ${s} contre ${nm[L]}`;
-    else if (gf[L] === 0 && gW && gW.n) manchette = piger(['{G} ferme la porte : {W} blanchit {L} {s}', '{W} blanchit {L} {s}, {G} repousse tous les tirs'], 'm|bl', { ...vals, G: nomDe(gW) });
+    if (ot && m) manchette = piger(['{m} fait gagner {W} en prolongation, {s} contre {L}', '{m} donne la victoire à {W}, {s} en prolongation contre {L}'], 'm|ot', vals);
+    else if (creux >= 2) manchette = piger(['{W} renverse la vapeur et bat {L} {s}', '{W} efface un retard de {n} buts et bat {L} {s}'], 'm|creux', vals);
+    else if (parPer && parPer.n >= 3) manchette = `${parPer.n} buts en ${NOM_PERIODE[parPer.per]} : ${nm[W]} bat ${nm[L]} ${s}`;
+    else if (gf[L] === 0 && gW && gW.n) manchette = piger(['{G} ferme la porte : {W} blanchit {L} {s}', '{G} ne cède rien, et {W} blanchit {L} {s}'], 'm|bl', { ...vals, G: nomDe(gW) });
     else if (nVedette >= 2) manchette = `${nm[W]} bat ${nm[L]} ${s} grâce au ${nVedette === 2 ? 'doublé' : 'tour du chapeau'} de ${nomDe(vedette)}`;
-    else manchette = piger(['{W} bat {L} {s} grâce à {m}', "{W} s'impose {s} face à {L} avec un but décisif de {m}"], 'm|n', vals);
+    else manchette = piger(["{W} bat {L} {s}, et c'est {m} qui fait la différence", "{W} s'impose {s} face à {L} ; {m} signe le but gagnant"], 'm|n', vals);
     dire(`${manchette}.`);
     // Le tournant : ce qui a décidé le match, par importance.
     const tournant = [];

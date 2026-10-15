@@ -231,7 +231,7 @@ export function cartesDeSaison({ you, teams, rang, ctx }) {
       { k: 'Blanchissages', v: J.filter(m => m.ga === 0).length },
       { k: 'Matchs à 1 but', v: J.filter(m => Math.abs(m.gf - m.ga) === 1).length },
       { k: 'Soirs à 5 buts +', v: J.filter(m => m.gf >= 5).length },
-      { k: 'Buts en 3 périodes', v: `${Math.max(...J.map(m => m.gf))} max` },
+      { k: 'Sommet en un soir', v: `${Math.max(...J.map(m => m.gf))} buts` },
     ]));
 
   return [c1, c2, c3, c4, c5].filter(Boolean);
@@ -331,6 +331,6 @@ export function cartesDeStyle({ profil, ligue, style }) {
   const coups = profil.coups != null && ligue.coups != null;
   const c2 = carte(`Ton style · ${profil.n} derniers matchs`, 'Rythme et contact',
     grille([stat('Tirs en tout', 'rythme'), stat('Punitions', 'punitions'), ...(coups ? [stat('Mises en échec', 'coups', 0)] : [])])
-    + (coups ? '<p class="ent-note">Les mises en échec sont estimées par le moteur, pas comptées une à une.</p>' : ''));
+    + (coups ? '<p class="ent-note">Les mises en échec sont une estimation du moteur : la feuille ne les compte pas une à une.</p>' : ''));
   return [c1, c2];
 }

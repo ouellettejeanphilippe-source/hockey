@@ -67,8 +67,8 @@ function effet(c, attaque) {
 /* Le verbe s'accorde au sujet : « les jambes de Getzlaf ont coûté ». */
 const MOTS = {
   but: (n, pl) => `${pl ? 'ont' : 'a'} fait entrer ${plur(n, 'but')}`,
-  arret: (n, pl) => `${pl ? 'ont' : 'a'} fait ${plur(n, 'arrêt')} décisif${n > 1 ? 's' : ''}`,
-  rate: (n, pl) => `${pl ? 'ont' : 'a'} coûté ${plur(n, 'but')} raté${n > 1 ? 's' : ''}`,
+  arret: (n, pl) => `${pl ? 'ont' : 'a'} empêché ${plur(n, 'but')}`,
+  rate: (n, pl) => `${pl ? 'ont' : 'a'} fait rater ${plur(n, 'but')}`,
   passe: (n, pl) => `${pl ? 'ont' : 'a'} laissé passer ${plur(n, 'but')}`,
 };
 const pluriel = sujet => /^les /.test(sujet);
