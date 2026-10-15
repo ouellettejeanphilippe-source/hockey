@@ -191,3 +191,37 @@ Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
 2. La boîte de réception et la page du lundi fondues dans **À faire**, au Bureau ?
 3. La délégation : quelles tâches l'adjoint peut-il prendre si tu le lui confies (les blessés, Aligner au mieux avant chaque match) ?
 4. On commence par la tranche 1, les correctifs de contrôle, pendant que je monte une maquette cliquable des tranches 2 et 3 ?
+
+## 9. Fait le 15 octobre (en Rogue)
+
+- [x] **Tranche 1, le contrôle.**
+  - Quitter les Lignes les applique.
+  - Un rappel ne libère jamais un blessé.
+  - La case vide offre trois cartes.
+  - L'avance dit où elle s'arrête.
+  - Le plafond ne s'affiche que là où l'on signe.
+- [x] **Les rivaux choisis.** Trois parmi cinq au premier lundi ; chaque match contre eux est un gros match connu d'avance ; une seule bête noire à la fois (`rivauxOfferts`, `beteNoire`, js/sim.js).
+- [x] **Tranche 2, le Bureau.**
+  - Le mandat, puis le prochain match en une ligne qui ouvre « Ce soir ».
+  - **À faire**, déplié, avec la ligne « Jouer N cartes cette semaine ».
+  - **La route** : deux semaines, ⚔️ ton rival, 😤 ta bête noire, 📅 le lundi, 🎁 le pack gratuit.
+  - Hier soir, puis l'avance.
+- [x] **Tranche 3, Ce soir.** Le volet `soir` de l'écran de saison contient :
+  - l'affiche, les vraies stats des deux clubs, le gros match et ce qui est en jeu ;
+  - tes cartes de la semaine et ton coach ;
+  - « Le dépistage complet » et « Changer tes lignes ».
+
+  Les Lignes en sont le second onglet.
+- [x] **Les cartes disent leur usage.**
+  - Chaque carte de la main dit sa place et sa durée (`placeDe`, js/banque.js).
+  - Le bouton dit le même verbe (« Poser sur un joueur », « Choisir un blessé », « Engager »).
+  - La cible suggérée passe en tête de l'alignement, cerclée.
+  - Une carte jouée se confirme.
+- [x] **Tranche 4, le Marché.**
+  - La boutique en premier, puis tes cartes et l'album.
+  - En tête : ce qui manque à ton équipe (les absents) et le plafond.
+- [x] **Tranche 5, l'en-tête.** La cellule « Cartes » ouvre tes cartes d'où qu'on soit, et la section Cartes disparaît du Rogue.
+- [ ] **Reste** :
+  - l'infirmerie dans l'Effectif (les blessés se règlent dans À faire) ;
+  - poser une carte du soir en touchant directement son trio dans les Lignes (elle passe encore par la liste de l'alignement) ;
+  - le panneau du coach et du banc dans l'en-tête.

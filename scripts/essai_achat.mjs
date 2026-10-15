@@ -56,7 +56,7 @@ for (let i = 0; i < 10 && !(await page.$('#choixModal[hidden]')); i++) {
 }
 
 // La boutique, au Marché ; chaque saison met quatre secondes à arriver (le cache vidé).
-await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
+await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
 await page.waitForSelector('#pageMarche .pk-tuile');
 await page.evaluate(() => new Promise(r => { const q = indexedDB.deleteDatabase('cap82'); q.onsuccess = q.onerror = q.onblocked = () => r(); }));
 await page.route(/data\/seasons\/.*\.json/, async r => { await new Promise(x => setTimeout(x, 4000)); await r.continue(); });
@@ -124,7 +124,7 @@ const restent = await enAttente();
 
 // DERRIÈRE LE BANC, en pleine saison, « Aligner au mieux » est là (JP : *le bouton de ligne automatique n'est pas
 // toujours là ?* — il se cachait dès la saison lancée, c'est-à-dire là où l'alignement se règle en Rogue).
-await page.click('#navbar .navtab[data-section="lignes"]');
+await page.click('#navbar .navtab[data-section="soir"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {}));
 await page.waitForFunction(() => window.cap82.G.banc, null, { timeout: 60000 });
 await page.waitForTimeout(800);
 const auBanc = !!(await page.$('#rosterBoard .ln-auto'));

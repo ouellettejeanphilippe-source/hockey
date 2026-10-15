@@ -145,7 +145,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 
 **L'interface**
 - Mobile d'abord : rien ne déborde à 390 px, tout ce qu'on touche est atteignable — smoke `sansDebordement`, `toutEstAtteignable`.
-- Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; cinq sections (Bureau, Joueurs, Lignes, Cartes, Ligue), dans le même ordre ; Cartes n'existe qu'en Rogue (aucune carte hors du Rogue : ni au 82-0, ni sur table, ni au repêchage) ; chacune répond à UNE question de gérant et chaque info a UNE maison (docs/refonte-v7.md) — smoke.
+- Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; hors du Rogue, quatre sections (Bureau, Joueurs, Lignes, Ligue), dans le même ordre, aucune carte (ni au 82-0, ni sur table, ni au repêchage) ; en Rogue, cinq sections rangées par intention (Bureau, Ce soir, Effectif, Marché, Ligue), tes cartes aussi à un toucher de l'en-tête ; chacune répond à UNE intention de gérant et chaque info a UNE maison (docs/refonte-v8.md) — smoke, `essai_rogue`.
 - Un seul retour, un niveau à la fois (js/pile.js) ; rien de sélectionnable, aucun lien souligné ; l'anneau du focus en mode clavier ou manette seulement — smoke.
 - La boîte de réception ne contient que ce qui se règle. Le jour par jour : en semaine, seul ce qui presse bloque « Jour suivant » (un gros match, un pack à signer, un blessé à remplacer) ; le reste attend le lundi, l'écran de la semaine : ses choix sur une page, envoyés en un lot (docs/decisions.md) — `essai_rogue`.
 - Toute commande visible doit fonctionner.

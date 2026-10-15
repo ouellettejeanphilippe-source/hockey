@@ -8989,7 +8989,7 @@ export const MINI_BOSS = {
  */
 export const RIVAUX = 3, RIVAUX_OFFERTS = 5;
 export const BUTIN_RIVAL = [1.5, 1.25, 1, 0.75, 0.5];
-export const cleDuClub = t => `${t.season}|${t.tag}`;
+const cleDuClub = t => `${t.season}|${t.tag}`;
 export function rivauxOfferts(teams, toi, graine) {
   const autres = teams.filter(t => t && t !== toi).map(t => ({ t, f: teamStrength(t) })).sort((a, b) => b.f - a.f);
   const out = [];

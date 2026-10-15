@@ -1612,6 +1612,23 @@ const SECTIONS = [
   { cle: 'cartes', ico: 'i-cartes', titre: 'Cartes' },
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
 ];
+/*
+ * LE ROGUE, RANGÉ PAR INTENTION (V8, docs/refonte-v8.md). JP : *organiser l'information de façon claire, actionnable et
+ * basée sur l'intention du joueur* ; *travailler surtout le roguelike, pas le reste*. Cinq portes, une intention chacune :
+ *   Bureau    qu'est-ce que j'ai à faire, qu'est-ce qui s'en vient ? (À faire, la route, hier soir, avancer)
+ *   Ce soir   préparer le match (l'affiche et leur plan, tes cartes du soir, puis tes lignes)
+ *   Effectif  gérer mes joueurs (le tableau, les fiches)
+ *   Marché    améliorer l'équipe (la boutique ; tes cartes et l'album, aussi à un toucher de l'en-tête)
+ *   Ligue     où j'en suis ?
+ * Les autres modes gardent les leurs (`SECTIONS`).
+ */
+const SECTIONS_ROGUE = [
+  { cle: 'bureau', ico: 'i-club', titre: 'Bureau' },
+  { cle: 'soir', ico: 'i-list', titre: 'Ce soir' },
+  { cle: 'effectif', ico: 'i-jersey', titre: 'Effectif' },
+  { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
+  { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
+];
 /* Le vestiaire (ou le loto) tant qu'on repêche. En saison, le Rogue bâtit par packs ; son repêchage vient entre deux saisons. */
 const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
 /*
@@ -1632,12 +1649,16 @@ const PAGES_DE = {
   // Tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun. La main se
   // joue au Bureau, avec ce qui est en jeu (JP, oct. : *dans la page Cartes, juste les achats, le deck*).
   cartes: () => ['poche', 'marche', 'cartable'],
+  // V8, le Rogue : « Ce soir » (le volet de l'écran de saison, puis les Lignes), l'Effectif, le Marché.
+  soir: () => [...(voletDeSaison('soir') ? ['soir'] : []), 'alignement'],
+  effectif: () => ['joueurs'],
+  marche: () => ['marche', 'poche', 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
+  match: ['i-club', 'Match'], soir: ['i-list', 'Ce soir'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
 };
@@ -1666,7 +1687,7 @@ export const enRepechage = () => !G.done && !bilanPret() && !hubActif();
  * AUCUNE CARTE HORS DU ROGUE (JP, oct. : *jeu de table, 82-0, draft sans cartes, aucune carte en dehors du roguelike*).
  * Le 82-0, Sur table et l'exhibition, c'est les joueurs et leurs stats : la section Cartes n'y est pas.
  */
-const sectionsDuMode = () => (G.bonus === 'ROGUE' ? SECTIONS : SECTIONS.filter(s => s.cle !== 'cartes'));
+const sectionsDuMode = () => (G.bonus === 'ROGUE' ? SECTIONS_ROGUE : SECTIONS.filter(s => s.cle !== 'cartes'));
 const sectionDe = cle => (sectionsDuMode().find(s => PAGES_DE[s.cle]().includes(cle)) || SECTIONS[0]).cle;
 const PAGES = () => sectionsDuMode().flatMap(s => PAGES_DE[s.cle]());
 /* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
@@ -1683,8 +1704,9 @@ function sectionsCourantes() {
     // premier match et le dit d'un coup d'oeil. La toucher reste permis.
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
     // En saison, le Bureau compte les cartes qui attendent d'être jouées (la main s'y joue) ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
-    badge: !draft ? (s.cle === 'bureau' ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
-      : s.cle === 'lignes' ? `${signes().length}/${totalCases()}` : '',
+    // V8 : en Rogue, les cartes du soir se jouent dans « Ce soir » ; la pastille y va.
+    badge: !draft ? (s.cle === (G.bonus === 'ROGUE' ? 'soir' : 'bureau') ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
+      : s.cle === 'lignes' || s.cle === 'soir' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
 
@@ -1919,6 +1941,10 @@ export function majEntete() {
   poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`);
   // V5 : la caisse du Rogue se lit en saison, au téléphone aussi (la jauge du repêchage, qui la portait, y est cachée).
   poser('teteJetons', G.bonus === 'ROGUE' && fr ? `🪙 ${jetonsRogue()}` : null);
+  // V8 : tes cartes à un toucher de partout, comme le deck de Slay the Spire ; le chiffre dit ce qui reste à jouer cette semaine.
+  poser('teteCartes', G.bonus === 'ROGUE' && fr && hubActif() ? `🃏 ${cartesEnAttente() || '·'}` : null);
+  const tc = $('teteCartes');
+  if (tc && !tc.onclick) tc.onclick = () => montrerPage('poche');
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
   document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');

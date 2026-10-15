@@ -630,3 +630,11 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
   - l'avance dit où elle s'arrête : « Jouer ce soir · OTT », « Jusqu'à lundi · 3 matchs », « Jusqu'au gros match · BOS » (js/saison.js) ;
   - la barre du plafond de l'en-tête, qui visait des sections d'avant la V7 et ne se montrait nulle part, ne se montre qu'au repêchage. En saison, elle vit là où l'on signe (JP : *le plafond est nécessaire en dehors du management des cartes à signer ? Je pense pas*).
 - 2026-10-15 — V8, les rivaux choisis (JP : *choisir rivaux en début de saison, pour pas inventer les gros matchs au fur et à mesure ?* ; *je te laisse choisir*). En Rogue, au premier lundi, cinq clubs offerts (un par cinquième de la ligue, `rivauxOfferts`, js/sim.js), trois à prendre un à la fois. Chacun de tes matchs contre eux, dès ton 10e, est un gros match connu d'avance ; le plus fort paie ×1,5 le gros match, le plus faible ×0,5 (`BUTIN_RIVAL`). Une seule bête noire à la fois (`beteNoire`) ; plus de rivalité de classement ni d'espacement. Le robot (`rogue_sim`) prend les trois du milieu : 8 à 12 gros matchs par saison sur quatre saisons d'essai. Sans la décision (les autres modes, une vieille partie), le moteur garde l'ancienne règle.
+- 2026-10-15 — V8, tranches 2 à 5 en Rogue (JP : *pourquoi tu fais pas tout avant de faire des tests ?*). Cinq sections par intention : Bureau, Ce soir, Effectif, Marché, Ligue (`SECTIONS_ROGUE`, js/game.js).
+  - **Le Bureau** : le mandat, le prochain match en une ligne, À faire (la ligne des cartes de la semaine comprise) et la route de deux semaines.
+  - **Ce soir** : l'affiche, les deux clubs en vraies stats, le gros match, ce qui est en jeu, tes cartes et tes lignes (le volet `soir`, js/saison.js).
+  - **Les cartes disent leur usage** : leur place, leur durée et leur verbe (`placeDe`, js/banque.js) ; la cible suggérée en tête ; une carte jouée se confirme.
+  - **Le Marché** : la boutique en tête, avec ce qui manque à ton équipe.
+  - **L'en-tête** : la cellule Cartes.
+
+  `essai_rogue` suit les nouvelles portes : la main dans « Ce soir », chaque carte qui dit sa place, le coach dans « Ce soir ».

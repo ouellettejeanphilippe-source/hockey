@@ -126,9 +126,10 @@ export function ouvrirMagasin(ctx) {
       </div>
       <div class="choix-corps pk-corps">
         ${nScelles ? `<button type="button" class="btn small pk-aller">📦 ${nScelles} pack${nScelles > 1 ? 's' : ''} à ouvrir, en bas ↓</button>` : ''}
+        ${(ctx.besoins || []).length ? `<section class="pk-besoins" aria-label="Ce qui manque à ton équipe"><h3>Ce qui manque à ton équipe</h3><ul>${ctx.besoins.map(x => `<li>${esc(x)}</li>`).join('')}</ul></section>` : ''}
+        ${plafond}
         ${bareme}
         ${garantie}
-        ${plafond}
         ${rayons}
         ${tout ? club : ''}
         ${scelles}

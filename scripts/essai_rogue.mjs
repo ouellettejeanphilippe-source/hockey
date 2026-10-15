@@ -11,6 +11,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
+import { BUTIN_RIVAL } from '../js/sim.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 const require = createRequire(import.meta.url);
@@ -51,6 +52,12 @@ const passerLaPile = async () => {
  * Une décision prise de la boutique ou de « Tes cartes » rejoue la saison en coulisse et rouvre la même page DANS le
  * Marché. Pour retrouver le bureau, on touche « Club » dans la barre.
  */
+/* « Ce soir » (V8) : la section, puis son premier onglet — elle rouvre sinon la page qu'on y lisait (les Lignes). */
+const versCeSoir = async () => {
+  await page.click('#navbar .navtab[data-section="soir"]').catch(() => {});
+  await page.click('#sousNav .soustab[data-page="soir"]', { timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(500);
+};
 const auBureau = async (timeout = 120000) => {
   await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #hubModal .sem-valider'), null, { timeout });
   await page.waitForTimeout(300);
@@ -69,7 +76,7 @@ const verifMarche = async (etape, { boutique = true } = {}) => {
       boutique: !!document.querySelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile'),
       hubVisible: !!hub && getComputedStyle(hub).display !== 'none' && hub.offsetParent !== null };
   });
-  if (r.sec !== 'cartes' || r.nav !== 'cartes') erreurs.push(`${etape} : la section ouverte est « ${r.sec} » et la barre allume « ${r.nav} » (attendu : cartes)`);
+  if (r.sec !== 'marche' || r.nav !== 'marche') erreurs.push(`${etape} : la section ouverte est « ${r.sec} » et la barre allume « ${r.nav} » (attendu : marche)`);
   if (r.horsMarche) erreurs.push(`${etape} : ${r.horsMarche} élément(s) de boutique dans la feuille du Club (#hubModal)`);
   if (r.hubVisible) erreurs.push(`${etape} : la feuille du Club est visible pendant qu'on est au Marché`);
   if (boutique && !r.boutique) erreurs.push(`${etape} : la boutique n'est pas rendue au Marché`);
@@ -86,7 +93,7 @@ const verifClubSansBoutique = async etape => {
 };
 // Tes cartes et la boutique sont chacune un sous-onglet des Cartes (« Tes cartes », « Boutique ») : un toucher, sans liste.
 const versMarche = async quoi => {
-  await page.click('#navbar .navtab[data-section="cartes"]').then(() => page.click(`#sousNav .soustab[data-page="${quoi === 'cartes' ? 'poche' : 'marche'}"]`, { timeout: 3000 }).catch(() => {}));
+  await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click(`#sousNav .soustab[data-page="${quoi === 'cartes' ? 'poche' : 'marche'}"]`, { timeout: 3000 }).catch(() => {}));
   await page.waitForSelector(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`, { timeout: 10000 });
 };
 const erreurs = [];
@@ -275,7 +282,9 @@ async function regler() {
       const enjeu = ((await page.textContent('#choixModal .main-enjeu').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
       if (enjeu) {
         const B = ((await lireSauvegarde()).partie || {}).rogue?.bareme || (await lireSauvegarde()).rogue?.bareme || null;
-        if (B && !enjeu.includes(`Victoire : +${B.grosMatch} 🪙`)) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit pas la prime de la run (+${B.grosMatch} 🪙)`);
+        // V8 : un rival choisi paie son butin, un multiple de la prime de la run (`BUTIN_RIVAL`) ; une bête noire, la prime.
+        const primes = [1, ...BUTIN_RIVAL].map(x => Math.round(B ? B.grosMatch * x : 0));
+        if (B && !primes.some(x => enjeu.includes(`Victoire : +${x} 🪙`))) erreurs.push(`l'enjeu du combat (« ${enjeu} ») ne dit ni la prime de la run (+${B.grosMatch} 🪙) ni le butin d'un rival`);
         if (!/Défaite : 😵 sonnés \d+ matchs/.test(enjeu)) erreurs.push(`l'enjeu du combat ne dit pas la défaite (« ${enjeu} »)`);
         if (vest.length && vest.length !== 2) erreurs.push(`le combat offre ${vest.length} carte(s) de vestiaire au lieu de deux`);
         if (vest.length && !(await page.$('#choixModal .main-jouer:disabled'))) erreurs.push('« Jouer » ne demande pas de garder une carte de vestiaire');
@@ -394,8 +403,8 @@ await regler();
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
 console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
 {
-  // Ton coach et sa confiance vivent au Bureau, sous « En jeu », plié.
-  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
+  // Ton coach et sa confiance vivent sous « En jeu », plié — dans « Ce soir » depuis la V8.
+  await versCeSoir();
   await page.$eval('#hubModal details.ej-plie', d => { d.open = true; }).catch(() => {}); await page.waitForTimeout(300);
   const coachs = ((await page.textContent('#hubModal .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .ej-coach .ej-rang').catch(() => '')) || '').trim();
@@ -407,7 +416,7 @@ console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ')
   const p0 = ((sv0.partie || {}).decisions || []).filter(x => x.jour === 0 && x.patron);
   console.log(`5d. les patrons imposés : ${p0.map(x => `${x.patron.ico} ${x.patron.nom}`).join(' · ') || '(aucun)'}`);
   if (p0.length !== 2) erreurs.push(`la run ne part pas avec deux patrons imposés (${p0.length})`);
-  if (rangCoach !== 'I') erreurs.push(`le Bureau ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
+  if (rangCoach !== 'I') erreurs.push(`« Ce soir » ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -712,7 +721,7 @@ else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été of
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
+  await page.click('#navbar .navtab[data-section="soir"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})).catch(() => {});
   await page.waitForTimeout(800);
   const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   const nom = nomSigne.split(' ').slice(-1)[0];
@@ -734,16 +743,20 @@ for (const pack of ['j:or', 'j:coach']) {
   await regler();
 }
 /*
- * LA MAIN DE LA SEMAINE (V4.3 ; au Bureau) : après les packs de cartes, quatre cartes de la poche
- * au plus ; on en joue deux par semaine au plus.
+ * LA MAIN DE LA SEMAINE (V4.3 ; V8 : dans « Ce soir », où le match se prépare) : après les packs de cartes, quatre
+ * cartes de la poche au plus ; on en joue deux par semaine au plus. Chaque carte dit sa place et sa durée.
  */
 {
   await auBureau();
-  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(600);
+  await page.screenshot({ path: `${DOSSIER}/rogue-bureau.png` });
+  await versCeSoir();
+  await page.screenshot({ path: `${DOSSIER}/rogue-ce-soir.png`, fullPage: true });
   const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
-  console.log(`10a. la main de la semaine, au Bureau : ${cases} carte(s) · ${pocheVendues} vendue(s)`);
-  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas au Bureau');
+  const places = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref] .hub-poche-place', e => e.length).catch(() => 0);
+  console.log(`10a. la main de la semaine, dans « Ce soir » : ${cases} carte(s), ${places} disent leur place · ${pocheVendues} vendue(s)`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas dans « Ce soir »');
   else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
+  else if (places < cases) erreurs.push(`${cases - places} carte(s) de la main ne disent pas leur place`);
   await auBureau();
 }
 /*
@@ -953,7 +966,7 @@ console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.
 if (!jouee && !d.some(x => x.joue)) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
 else if (!jouee) console.log('    (rien d\'autre que des modifs dans l\'inventaire : la modif posée au verso compte)');
 // LE CARTABLE (S79) : dans la Collection (1.0, R1), à côté de tes saisons.
-await page.click('#navbar .navtab[data-section="cartes"]');
+await page.click('#navbar .navtab[data-section="marche"]');
 await page.click('#sousNav .soustab[data-page="cartable"]');
 await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-cartable.png` });
