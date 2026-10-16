@@ -24,6 +24,7 @@ import {
   MUTATIONS, SLOTS, getPlayerKey, PLANS_ADV, commentContrer, reglageDuPlan,
   physiqueDe, physiqueLigne,
   chimieLigne, EDITIONS_REGLEMENT,
+  FAMILLES, SYSTEMES_DU_PLAN, famillesDe, ecartDuPlan, systemeDuPlan, PLAN_REF,
 } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
@@ -933,6 +934,19 @@ export function courbeJambesHtml(v, { large = false } = {}) {
 const NOMS_LIGNE = ['1re ligne', '2e ligne', '3e ligne', '4e ligne'];
 /* Le fit d'une ligne à une tactique, et sa chimie, en mots (S71). */
 const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'Fit moyen' : 'Mauvais fit');
+/*
+ * LE PLAN, EN MOTS (V9, le Rogue). Le système paie une famille : l'écran dit ce que l'unité y apporte (à niveau égal,
+ * contre l'unité typique qui joue sa meilleure famille, `PLAN_REF`) et ce que chacun y apporte. Des mots, jamais
+ * l'écart ; les chiffres de match sont à côté (`netDuChoix`, les effets du système).
+ */
+const planEnJeu = () => { const c = clubLu(); return !!(c && c.team && c.team.courbe); };
+const motDeFamille = z => (z >= 1.25 ? 'rare' : z >= 0.5 ? 'fort' : z > -0.5 ? 'ordinaire' : 'faible');
+function motDuPlan(js, famille) {
+  if (!js.length || js.some(p => !p)) return { mot: 'à compléter', cls: '' };
+  const m = ecartDuPlan(js, famille) / js.length + PLAN_REF;
+  return m >= PLAN_REF + 0.5 ? { mot: 'Bâti pour', cls: ' bon' } : m >= PLAN_REF - 0.3 ? { mot: 'Assorti', cls: ' bon' } : m >= 0 ? { mot: 'Ordinaire', cls: '' } : { mot: 'Mal assorti', cls: ' prix' };
+}
+const joueursDeLUnite = (lineup, groupe, u) => SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]);
 // Sous le pivot (CHIMIE_PIVOT), une chimie coûte au lieu de rapporter : le mot le dit (V2.2, les coûts cachés).
 const motChimie = c => (c >= 70 ? 'excellente' : c >= 45 ? 'bonne' : c >= CHIMIE_PIVOT ? 'correcte' : 'naissante, elle coûte');
 const plafondChimie = c => (c >= 70 ? 'haut' : c >= 45 ? 'bon' : c >= 20 ? 'bas' : 'très bas');
@@ -971,9 +985,15 @@ function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = 
   const incomplete = fitBrut == null;
   const fit = fitBrut ?? 0;
   const classeFit = f => (f >= 55 ? ' bon' : f < 40 ? ' prix' : '');
-  const meilleur = D ? meilleurSystemeD(lineup, u) : meilleureTactique(lineup, u);
+  const plan = planEnJeu();
+  const js0 = joueursDeLUnite(lineup, groupe, u);
+  const meilleur = plan ? systemeDuPlan(lineup, groupe, u) : D ? meilleurSystemeD(lineup, u) : meilleureTactique(lineup, u);
   const fM = SYS[meilleur] && SYS[meilleur].slots ? (fitUnite(lineup, groupe, u, meilleur) ?? 0) : 0;
-  const conseil = !incomplete && meilleur !== cle && fM >= fit + 10
+  // En Rogue : le conseil quand une autre famille va nettement mieux à l'unité (un écart type de plus, joueur moyen compris).
+  const mieuxEnPlan = plan && !incomplete && meilleur !== cle && SYS[meilleur].famille
+    && ecartDuPlan(js0, SYS[meilleur].famille) >= (S.famille ? ecartDuPlan(js0, S.famille) : -Infinity) + js0.length * 0.5;
+  const conseil = plan ? (mieuxEnPlan ? `<div class="ln-conseil">💡 ${D ? 'Cette paire' : 'Ce trio'} irait mieux en <button type="button" class="ln-conseil-btn" data-${attr}="${meilleur}">${nomSys(meilleur)}</button> <small>${esc(motDuPlan(js0, SYS[meilleur].famille).mot.toLowerCase())}</small></div>` : '')
+    : !incomplete && meilleur !== cle && fM >= fit + 10
     ? `<div class="ln-conseil">💡 ${D ? 'Cette paire' : 'Ce trio'} irait mieux en <button type="button" class="ln-conseil-btn" data-${attr}="${meilleur}">${nomSys(meilleur)}</button> <small>${motFit(fM).toLowerCase()}</small></div>` : '';
   // EN FACE (V2.2) : le système du trio adverse de même rang. Qui affronte qui (l'appariement) et la glace se
   // règlent dans l'onglet Équipe, au plan de match (V6) : la fenêtre d'une unité ne les répète pas.
@@ -990,23 +1010,41 @@ function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = 
     const pour = contreDeD(aF);
     enFace = `<div class="gl-adv">En face, le trio ${esc(avecArticle('de', advNom || 'Eux'))} : <b>${nomSys(aF)}</b>${S.bat === aF ? ' · <span class="ok">✓ ta paire étouffe ses actions spéciales</span>' : pour ? ` · ta paire l'étouffe en <b>${nomSys(pour)}</b>` : ''}</div>`;
   }
-  const boutons = Object.entries(SYS).map(([k, X]) => {
+  // En Rogue, les systèmes du plan seulement (V9) : un par famille, et sans système.
+  const offerts = plan ? Object.entries(SYS).filter(([k]) => k === 'hourra' || SYSTEMES_DU_PLAN[groupe].includes(k)) : Object.entries(SYS);
+  const boutons = offerts.map(([k, X]) => {
     const f = X.slots && !incomplete ? fitUnite(lineup, groupe, u, k) : null;
     const enVigueur = base && (base[u] || {})[D ? 'tacD' : 'tac'] === k;
     const net = base && !incomplete && !enVigueur ? netDuChoix(lineup, base, u, { [D ? 'tacD' : 'tac']: k }) : null;
-    return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}${aF && X.bat === aF ? ` — contre ${selonDepistage ? 'leur plan probable, selon le dépistage' : 'leur système'}` : ''}"><b>${X.ico} ${esc(X.nom)}</b><span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? (incomplete && X.slots ? 'à compléter' : 'rien à assortir') : motFit(f)}</span>${enVigueur ? '<small class="gl-net">en jeu</small>' : net != null ? motNet(net) : f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
+    const lu = plan && X.famille ? motDuPlan(js0, X.famille) : null;
+    const etiquette = lu ? `<span class="gl-tac-fit${lu.cls}">${esc(FAMILLES[X.famille].nom)} · ${esc(lu.mot.toLowerCase())}</span>`
+      : `<span class="gl-tac-fit${f == null ? '' : classeFit(f)}">${f == null ? (incomplete && X.slots ? 'à compléter' : 'rien à assortir') : motFit(f)}</span>`;
+    return `<button type="button" class="gl-tac${cle === k ? ' on' : ''}${aF && X.bat === aF ? ' contre' : ''}" data-${attr}="${k}" aria-pressed="${cle === k}" title="${esc(X.mot)}${aF && X.bat === aF ? ` — contre ${selonDepistage ? 'leur plan probable, selon le dépistage' : 'leur système'}` : ''}"><b>${X.ico} ${esc(X.nom)}</b>${etiquette}${enVigueur ? '<small class="gl-net">en jeu</small>' : net != null ? motNet(net) : f != null && chimieDe ? `<small class="gl-tac-soir">chimie ${motChimie(chimieDe(k))}</small>` : ''}</button>`;
   }).join('');
   const effets = lignes && S.slots ? chiffresSysteme(lineup, lignes, u, groupe, cle) : [];
   const etouffe = S.bat ? (D ? ` Étouffe l'action spéciale d'un trio en ${nomSys(S.bat)}.` : ` Étouffe ${nomSys(S.bat)}.`) : '';
   const cT = !D && S.slots ? contreDe(cle) : null, cD = !D && S.slots ? contreDeD(cle) : null;
   const parQui = cT || cD ? ` Étouffé par ${[cT && `un trio en ${nomSys(cT)}`, cD && `une paire en ${nomSys(cD)}`].filter(Boolean).join(' ou ')}.` : '';
   const motGain = f => (echelleFit(f) >= 1 ? 'gain complet' : echelleFit(f) <= 0 ? 'aucun gain' : 'gain partiel');
-  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets.length ? effets : [{ txt: 'à peine perceptible', bon: null }])}<span class="puce neutre" title="Le gain d'un système suit les badges qu'il demande : la moitié sans eux, tout quand chacun a le sien en Argent, un quart de plus au-delà. Son prix se paie toujours.">${motGain(fit)}</span></span>` : ''}</div>`;
+  const paie = plan && S.famille ? motDuPlan(js0, S.famille) : null;
+  const puceGain = paie
+    ? `<span class="puce neutre" title="En Rogue, un système paie une famille : ce que ses joueurs y apportent, à leurs points égaux, fait son gain — et le retourne quand ils n'y sont pas. Son prix se paie toujours.">Paie le ${esc(FAMILLES[S.famille].nom.toLowerCase())} · ${esc(paie.mot.toLowerCase())}</span>`
+    : `<span class="puce neutre" title="Le gain d'un système suit les badges qu'il demande : la moitié sans eux, tout quand chacun a le sien en Argent, un quart de plus au-delà. Son prix se paie toujours.">${motGain(fit)}</span>`;
+  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets.length ? effets : [{ txt: 'à peine perceptible', bon: null }])}${puceGain}</span>` : ''}</div>`;
   // Ce qu'il demande, poste par poste : le rôle, et si le joueur de la case l'a.
   const js = joueursDeLigne(lineup, u);
   // Les rôles tels qu'il les joue : ses ailes dans le sens où elles rendent le mieux (`rolesDuSysteme`).
   const roles = rolesDuSysteme(lineup, groupe, u, cle);
   const inverse = roles && S.slots && roles.AG !== S.slots.AG;
+  // En Rogue : ce que chacun apporte à la famille que le système paie, à ses points égaux.
+  if (plan && S.famille) {
+    const nomF = FAMILLES[S.famille].nom;
+    const apport = (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => js[r]).map(r => {
+      const m = motDeFamille(famillesDe(js[r])[S.famille]);
+      return `<span class="ln-dem${m === 'rare' || m === 'fort' ? ' fit-bon' : m === 'faible' ? ' fit-mauvais' : ''}" title="${esc(js[r].n)} : ${esc(nomF.toLowerCase())} ${esc(m)} pour ses points"><b>${r}</b> ${esc(m)}</span>`;
+    }).join('');
+    return `${enFace}<div class="gl-tacs ln-tacs">${boutons}</div>${conseil}${choisie}${apport ? `<div class="ln-demande"><span class="gl-k">${esc(nomF)}, à leurs points égaux</span>${apport}</div>` : ''}`;
+  }
   const demande = roles ? (D ? ['DG', 'DD'] : ['AG', 'C', 'AD']).filter(r => r in js && roles[r]).map(r => {
     const prof = roles[r], P = PROFILS[groupe][prof], p = js[r];
     // V2.3 : la case lit le BADGE — le bon rend son palier, le second la moitié, le mauvais la base (`fitDeCase`).
@@ -1075,11 +1113,13 @@ export function strategieDeLigne(spec, u, ouvert = true, groupe = 'F') {
   const sansFit = !S.slots || incomplete;
   const fit = fitBrut ?? 0;
   const classeFit = f => (f >= 55 ? ' bon' : f < 40 ? ' prix' : '');
+  // En Rogue, le sommaire dit ce que l'unité apporte à la famille que son système paie.
+  const paieLigne = planEnJeu() && S.famille ? motDuPlan(joueursDeLUnite(spec.lineup, groupe, u), S.famille) : null;
 
   // FERMÉ : une ligne.
   const sommaire = incomplete
     ? `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>À compléter</b></span><span class="ln-som-ouvre" aria-hidden="true"></span>`
-    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${!D ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
+    : `<span class="ln-som-k">Système</span><span class="ln-som-detail"><b>${S.ico} ${esc(S.nom)}</b>${sansFit ? '' : paieLigne ? `<span class="ln-som-fit${paieLigne.cls}">${esc(paieLigne.mot)}</span>` : `<span class="ln-som-fit${classeFit(fit)}">${motFit(fit)}</span>`}${!D ? `<span>chimie ${motChimie(chimie({}))}</span>` : ''}</span><span class="ln-som-ouvre" aria-hidden="true"></span>`;
   if (!ouvert) return { sommaire, corps: '' };
 
   const choix = systemesHtml({ lineup: spec.lineup, lignes: spec.lignes, base: spec.base || null, u, groupe, l, adv: spec.adv && spec.adv.lignes, advNom: spec.adv ? spec.adv.nom : '', selonDepistage: !!(spec.adv && spec.adv.selonDepistage),

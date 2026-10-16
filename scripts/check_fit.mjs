@@ -5,7 +5,8 @@
  * des substitutions, mais jamais dans un sens absolu que x carte est mieux : x carte fitte mieux dans le but du DG et du
  * coach*. Ce script le juge. Une vraie équipe, une case (le 2e trio, le 4e, une paire) ; des candidats du même côté et du
  * même niveau (`niveauDe`), pris dans onze saisons de 1970 à 2025 ; chacun posé dans la case, son unité jouée dans chaque
- * système (`TACTIQUES`, `SYSTEMES_D`), les autres lignes à `lignesAuMieux` ; la lecture du moteur (`chiffresDuSoir` : buts
+ * système du plan (`SYSTEMES_DU_PLAN`, un par famille), dans un club du Rogue (`courbe`), les autres lignes à
+ * `lignesAuMieux` ; la lecture du moteur (`chiffresDuSoir` : buts
  * pour moins buts contre par match, contre un club moyen), en victoires sur 82 matchs à six buts la victoire.
  *
  * Trois questions, par case, puis en moyenne :
@@ -23,7 +24,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { registerHiddenRatings, autoRoster, createTeam, lignesAuMieux, activeLineup, TACTIQUES, SYSTEMES_D, SLOTS } from '../js/sim.js';
+import { registerHiddenRatings, autoRoster, createTeam, lignesAuMieux, activeLineup, SYSTEMES_DU_PLAN, SLOTS, TACTIQUES, SYSTEMES_D, famillesDe } from '../js/sim.js';
 import { chiffresDuSoir } from '../js/impact.js';
 import { niveauDe } from '../js/niveaux.js';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -65,8 +66,7 @@ const nomDeCase = sl => `${sl.unit + 1}${sl.unit ? 'e' : sl.group === 'D' ? 're'
 function mesurer(c) {
   const sl = SLOTS[c.i];
   const D = sl.group === 'D';
-  const T = D ? SYSTEMES_D : TACTIQUES;
-  const systemes = Object.keys(T).filter(k => k !== 'hourra');
+  const systemes = SYSTEMES_DU_PLAN[D ? 'D' : 'F'];
   const roster0 = autoRoster(shard(c.saison).players.filter(p => p.t === c.club && p.gp >= 10));
   const groupe = D ? 'D' : 'F';
   const candidats = [];
@@ -77,6 +77,7 @@ function mesurer(c) {
   }
   const lu = (R, cle) => {
     const t = createTeam('Essai', 'ESS', R, { season: c.saison });
+    t.courbe = true;   // un club du Rogue : le plan paie sa famille
     const L = lignesAuMieux(R);
     L[sl.unit] = D ? { ...L[sl.unit], tacD: cle } : { ...L[sl.unit], tac: cle };
     t.lignes = L;
@@ -91,14 +92,24 @@ function mesurer(c) {
   const general = val.map(moy), iG = general.indexOf(Math.max(...general));
   const gain = moy(parSysteme.map(v => Math.max(...v) - v[iG]));
   const ecart = Math.sqrt(moy(general.map(x => (x - moy(general)) ** 2)));
-  return { c, n: candidats.length, systemes: systemes.length, rho: moy(rh), meilleurs: meilleurs.size, gain, ecart, meilleur: candidats[iG] };
+  // CE QUE LE PLAN PAIE : dans chaque système, la pente des victoires sur la famille du candidat que ce système paie.
+  const T = D ? SYSTEMES_D : TACTIQUES;
+  const pentes = systemes.map((k, s) => {
+    const z = candidats.map(p => famillesDe(p)[T[k].famille]), v = parSysteme[s];
+    const mz = moy(z), mv = moy(v);
+    let sxy = 0, sxx = 0;
+    for (let i = 0; i < z.length; i++) { sxy += (z[i] - mz) * (v[i] - mv); sxx += (z[i] - mz) ** 2; }
+    return sxx ? sxy / sxx : 0;
+  });
+  if (process.env.DETAIL) console.log(`    ${nomDeCase(sl)} : ${systemes.map((k, s) => `${k} ${pentes[s].toFixed(2)}`).join(' · ')}`);
+  return { c, n: candidats.length, systemes: systemes.length, rho: moy(rh), meilleurs: meilleurs.size, gain, ecart, meilleur: candidats[iG], paie: moy(pentes) };
 }
 
 const t0 = Date.now();
 const lus = CASES.map(mesurer);
 for (const r of lus) {
   informer(`${r.c.club} ${r.c.saison} · ${nomDeCase(SLOTS[r.c.i])} · ${['', 'Régulier', 'Pilier'][r.c.niveau]}`,
-    `${r.n} candidats · Spearman ${r.rho.toFixed(2)} · ${r.meilleurs} meilleur(s) sur ${r.systemes} systèmes · signer pour le système +${r.gain.toFixed(2)} V · écart entre candidats ${r.ecart.toFixed(2)} V · le meilleur partout : ${r.meilleur.n} ${r.meilleur.s}`);
+    `${r.n} candidats · Spearman ${r.rho.toFixed(2)} · ${r.meilleurs} meilleur(s) sur ${r.systemes} systèmes · signer pour le système +${r.gain.toFixed(2)} V · le plan paie ${r.paie.toFixed(2)} V par écart type · écart entre candidats ${r.ecart.toFixed(2)} V · le meilleur en général : ${r.meilleur.n} ${r.meilleur.s}`);
 }
 const rho = moy(lus.map(r => r.rho)), nb = moy(lus.map(r => r.meilleurs)), gain = moy(lus.map(r => r.gain));
 exiger('l\'ordre des candidats change avec le système', rho <= 0.6, `Spearman moyen ${rho.toFixed(3)} (attendu 0,6 ou moins)`);

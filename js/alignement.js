@@ -8,7 +8,7 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, lignesDe, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, lignesAuMieux, activeLineup, profilMatch, TACTIQUES, ROULEMENTS, partsDuRoulement, lienDePaire, joueursDesCoachs, lignesDeGros, planProbable, PART_UNITE, specialesDuSoir } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats, specialesEnStats } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats, specialesEnStats, clubLu } from './impact.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
 import { jambesHtml, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, puces } from './gerant.js';
@@ -622,10 +622,12 @@ const AU_MIEUX = [
 ];
 function alignerAuMieux(cle) {
   const style = cle === 'trios' || cle === 'systemes' ? 'equilibre' : cle;
+  // En Rogue, le système paie sa famille (V9) : le meilleur alignement est celui de ton plan, comme ton coach le compte.
+  const plan = G.bonus === 'ROGUE', club = clubLu(), coachs = (club && club.team && club.team.coachs) || [];
   if (cle !== 'systemes') {
     const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);
     const blesse = p => !!(G.banc && G.banc.blesses && G.banc.blesses.has(p));
-    const roster = alignementAuMieux(tous.filter(p => !blesse(p)), style);
+    const roster = alignementAuMieux(tous.filter(p => !blesse(p)), style, { plan, coachs });
     // Les autres (blessés, surplus) vont en réserve, dans les cases ouvertes ; sans place pour tous, rien ne bouge.
     const places = new Set(Object.values(roster));
     const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
@@ -641,7 +643,7 @@ function alignerAuMieux(cle) {
     Object.assign(G.roster, roster);
   }
   if (cle !== 'trios') {
-    const lignes = lignesAuMieux(G.roster, style);
+    const lignes = lignesAuMieux(G.roster, style, { plan, coachs });
     if (G.banc) G.banc.lignes = lignes; else G.lignes = lignes;
   } else if (!G.banc) G.lignes = null;   // de nouveaux trios, les systèmes que l'IA leur ferait
   saveGame();

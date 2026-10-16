@@ -11,6 +11,8 @@
  *      et le club du milieu, chacun lancé dans une saison du Rogue (31 vrais clubs, les packs, le plafond), GRAINES fois
  *      par politique, sur les mêmes graines. Les deux bouts : le club moyen bien mené finit-il parfois premier ? le bon
  *      club mal mené rate-t-il parfois les séries ?
+ *      Et l'attentif bat le robot d'avant d'au moins 5 V par saison (JP, 16 oct.) : le joueur qui lit son plan fait
+ *      mieux que celui qui laisse l'automatique jouer.
  *   2. LES CAMPAGNES : de zéro, douze runs par politique, les médailles achètent les déblocages (comme `check_rogue`).
  *      L'attentif gagne sa première Coupe entre la run 3 et la run 8 ; le distrait ne la gagne jamais.
  *
@@ -118,7 +120,9 @@ if (!isMainThread) {
   }
   for (const [nom, l] of Object.entries(ecarts)) {
     const m = moy(l), se = Math.sqrt(moy(l.map(x => (x - m) ** 2)) / Math.max(1, l.length - 1));
-    informer(`l'écart ${nom}`, `${signe(m)} V par saison (± ${v1(se)}, ${l.length} saisons appariées)`);
+    // JP, 16 oct. : le joueur qui lit son plan bat celui qui laisse l'automatique jouer, d'au moins 5 V par saison.
+    if (nom === 'attentif − défaut') exiger('l\'attentif bat le robot d\'avant d\'au moins 5 V par saison', m >= 5, `${signe(m)} V par saison (± ${v1(se)}, ${l.length} saisons appariées)`);
+    else informer(`l'écart ${nom}`, `${signe(m)} V par saison (± ${v1(se)}, ${l.length} saisons appariées)`);
   }
   const nMoyen = clubs.filter(k => k.genre === 'moyen').length * GRAINES, nBon = clubs.filter(k => k.genre === 'bon').length * GRAINES;
   exiger('un alignement moyen bien mené peut finir premier de la ligue', premiers > 0, `${premiers} fois sur ${nMoyen} (l'attentif, les clubs du milieu)`);
@@ -132,12 +136,15 @@ if (!isMainThread) {
     }
   });
   const attentif = camp[POLITIQUES.indexOf('attentif')], distrait = camp[POLITIQUES.indexOf('distrait')];
-  const premieres = attentif.map(r => r.premiere ?? RUNS_CAMPAGNE + 1).sort((a, b) => a - b);
-  const mediane = premieres.length % 2 ? premieres[(premieres.length - 1) / 2] : (premieres[premieres.length / 2 - 1] + premieres[premieres.length / 2]) / 2;
-  exiger('l\'attentif gagne sa première Coupe entre la run 3 et la run 8 (la médiane des campagnes)', mediane >= 3 && mediane <= 8,
-    `médiane ${mediane} · ${attentif.map(r => (r.premiere ? `run ${r.premiere}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
-  const coupesDistrait = distrait.reduce((a, r) => a + r.runs.filter(x => x.coupe).length, 0);
-  exiger(`le distrait ne gagne jamais la Coupe en ${RUNS_CAMPAGNE} runs`, coupesDistrait === 0, `${coupesDistrait} Coupe(s) en ${distrait.length * RUNS_CAMPAGNE} runs`);
+  // CAMPAGNES=0 : la première partie seule (l'essai d'un réglage du moteur), sans juger les campagnes.
+  if (CAMPAGNES > 0) {
+    const premieres = attentif.map(r => r.premiere ?? RUNS_CAMPAGNE + 1).sort((a, b) => a - b);
+    const mediane = premieres.length % 2 ? premieres[(premieres.length - 1) / 2] : (premieres[premieres.length / 2 - 1] + premieres[premieres.length / 2]) / 2;
+    exiger('l\'attentif gagne sa première Coupe entre la run 3 et la run 8 (la médiane des campagnes)', mediane >= 3 && mediane <= 8,
+      `médiane ${mediane} · ${attentif.map(r => (r.premiere ? `run ${r.premiere}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
+    const coupesDistrait = distrait.reduce((a, r) => a + r.runs.filter(x => x.coupe).length, 0);
+    exiger(`le distrait ne gagne jamais la Coupe en ${RUNS_CAMPAGNE} runs`, coupesDistrait === 0, `${coupesDistrait} Coupe(s) en ${distrait.length * RUNS_CAMPAGNE} runs`);
+  }
   informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${GRAINES} graines par club et par politique, ${CAMPAGNES} campagne(s) de ${RUNS_CAMPAGNE} runs par politique, ${FILS} fils)`);
   verdict('La profondeur du Rogue');
 }

@@ -22,11 +22,14 @@
  * profond si la façon de mener compte : sur les mêmes dés, un gérant attentif
  * et un gérant distrait ne finissent pas au même rang. `politique` :
  *   - 'defaut' : le robot grossier ci-dessus (check_rogue, check_robot) ;
- *   - 'attentif' : il signe pareil, mais aligne au mieux (`alignementAuMieux`,
- *     le bouton « Aligner au mieux ») au départ et après chaque signature, et
- *     joue chaque gros match de saison : la main de l'adjoint, préparée pour
- *     la piste la plus probable ;
- *   - 'distrait' : il clique sans lire. Une carte du pack au hasard, et qui
+ *   - 'attentif' : il lit le moteur. Au départ, il prend le coach dont le plan
+ *     rend le plus à son effectif (V9, parmi ceux que son prestige ouvre) ; il
+ *     signe la carte du pack qui monte le plus ses buts nets, lus au moteur,
+ *     plan compris ; il aligne au mieux (`alignementAuMieux`, le bouton
+ *     « Aligner au mieux ») au départ et après chaque signature ; il joue chaque
+ *     gros match de saison : la main de l'adjoint, préparée pour la piste la
+ *     plus probable ;
+ *   - 'distrait' : il clique sans lire. Un coach au hasard ; une carte du pack au hasard, et qui
  *     sort au hasard (le nouveau prend sa case) ; un système au hasard par
  *     ligne ; aux gros matchs et en séries, une main jouable au hasard et une
  *     piste au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
@@ -44,17 +47,18 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
-  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, PLANS_ADV,
+  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, PLANS_ADV, avecHasardIsole, lignesAuMieux, activeLineup,
 } from '../../js/sim.js';
 import { DECK_DEPART, CARTES_MATCH, mainDuMatch, mainDeLAdjoint, energieDepensee } from '../../js/combat.js';
-import { alignementAuMieux } from '../../js/impact.js';
+import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
+import { effetDePalier } from '../../js/coachs.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
   DEBLOCAGES, departDuClasseur, lotosDeSaison, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils, GARDES_DE_SAISON,
-  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE,
+  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE, coachsOuverts,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -193,6 +197,16 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 }
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
+/* L'attentif lit le moteur, le plan compris (V9 : en Rogue, le système paie sa famille, comme son coach la compte). */
+const auMieux = coachs => joueurs => alignementAuMieux(joueurs, 'equilibre', { plan: true, coachs });
+/* Les buts nets par match d'un alignement, lus au moteur sous ce coach — sous un hasard à part : la saison ne bouge pas d'un dé. */
+const lireNet = (R, coachs) => avecHasardIsole('robot', () => {
+  const t = createTeam('Lu', 'LU', R);
+  t.courbe = true; t.coachs = coachs;
+  t.lignes = lignesAuMieux(R, 'equilibre', { plan: true, coachs });
+  const m = chiffresDuSoir(t, activeLineup(t));
+  return m.butsPour - m.butsContre;
+});
 /* Les clics du distrait : un générateur à lui (null pour les deux autres). Les meilleurs d'abord, ou dans le désordre. */
 const melanger = (l, clic) => l.map(x => [clic(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
 const meilleursDabord = (l, clic, f = x => x) => (clic ? melanger(l, clic) : l.slice().sort((a, b) => v(f(b)) - v(f(a))));
@@ -247,8 +261,13 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const { variantes } = etat;
   const poser = p => { const k = getPlayerKey(p); p._carte = carteDe(variantes.get(k) || varianteTiree(COTES_VARIANTES, graine, k), p.p === 'G', graine, k); };
   Object.values(etat.roster).forEach(poser);
+  // LE COACH (V9) : l'attentif prend celui dont le plan rend le plus à son effectif ; le distrait, n'importe lequel ; le robot d'avant, aucun.
+  const ouverts = coachsOuverts(rangDePrestige(meta));
+  const coachs = attentif ? [ouverts.map(k => [k, lireNet(etat.roster, [effetDePalier(k, 1)])]).sort((a, b) => b[1] - a[1])[0][0]]
+    : clic ? [auHasard(ouverts)] : [];
+  const enPoste = coachs.map(k => effetDePalier(k, 1));
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
-  const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, alignementAuMieux) : etat.roster;
+  const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux(enPoste)) : etat.roster;
   const masse0 = masseDe(roster);
   const base = PLAFOND_ROGUE + plafondDuVestiaire(meta);
   // Chaque saison garde 12 M$ d'espace au départ : l'équipe se défait entre deux saisons (js/rogue-jeu.js `plafondDeDepart`).
@@ -256,7 +275,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus);
-  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }];
+  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, ...enPoste.map(coach => ({ jour: 0, coach }))];
   // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
   const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
   if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
@@ -308,6 +327,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         const [i, sort] = memes.length ? auHasard(memes) : [];
         if (sort && masseDe(actuel) - (sort.$ || 0) + (x.p.$ || 0) <= cap) meilleur = { x, r: { ...actuel, [i]: x.p }, sort };
       }
+      // L'attentif : la carte qui monte le plus ses buts nets, lus au moteur, plan et coach compris — contre son effectif
+      // rangé de la même façon (le rangement automatique), sinon l'alignement qu'il a déjà optimisé gagne toujours.
+      const net0 = attentif && cartes.length ? lireNet(ranger(joueurs, nRes), enPoste) : 0;
       for (const x of clic ? [] : cartes) {
         const avec = [...joueurs, x.p];
         const r = ranger(avec, nRes);
@@ -316,12 +338,12 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         if (sort === x.p) continue;
         if (masseDe(actuel) - (sort ? sort.$ || 0 : 0) + (x.p.$ || 0) > cap) continue;
         // Une case de réserve libre (débloquée) : il entre sans que personne sorte — ça vaut un peu de profondeur.
-        const gain = valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
-        if (gain > 0.5 && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
+        const gain = attentif ? lireNet(r, enPoste) - net0 + (sort ? 0 : 0.01) : valeurAlignement(r) - valeur0 + (sort ? 0 : 0.6);
+        if (gain > (attentif ? 0.01 : 0.5) && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
       }
       if (meilleur) {
         const { x, sort } = meilleur;
-        const r = attentif ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, alignementAuMieux) : meilleur.r;
+        const r = attentif ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, auMieux(enPoste)) : meilleur.r;
         variantes.set(getPlayerKey(x.p), x.rar);
         poser(x.p); connaitre(x.p);
         dansLaLigue.add(getPersonKey(x.p));
