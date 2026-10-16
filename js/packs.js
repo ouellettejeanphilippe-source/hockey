@@ -132,21 +132,9 @@ export const PACKS_JOUEURS = {
   specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes du rôle de ton choix, le quart du haut de leur saison, et deux cartes.' },
   club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et deux cartes.' },
   coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et deux cartes de sa couleur : de quoi bâtir sa confiance.' },
-  /*
-   * LES COLS BLEUS (oct. 2026). JP : *les packs donnent surtout des joueurs de premières lignes, c'est pas clair comment
-   * on peut s'améliorer par le bottom six, ce qui devrait être le but ; pas juste des étoiles, mais trouver des Steve
-   * Bégin holo pour la quatrième ligne*. Les autres packs tirent le niveau, et leur brillante va à la vedette du pack
-   * (`statureDe`) : un Soutien holo y sort une fois sur mille. Celui-ci ne tire que le bas de l'alignement (`FOND`) —
-   * des Soutien et des Réguliers dont le premier badge est un rôle de soutien, Argent ou mieux — à son barème à lui
-   * (`cotes`) : la carte brillante d'un checker monte ses badges comme celle d'une vedette (js/rarete.js), et c'est ici
-   * qu'on la trouve. Trois avants, puis un défenseur.
-   */
-  fond: { famille: 'fond', nom: 'Pack Cols bleus', ico: '👷', tier: 'argent', joueurs: 4, cartes: 1, prix: 26,
-    cotes: { commune: 52, peu: 26, hors: 12, rare: 7.5, legendaire: 2.5 },
-    texte: 'Quatre joueurs du bas de l\'alignement (checkers, plombiers, durs, défensifs), pas chers et plus souvent brillants.' },
 };
-/* Les huit packs que la boutique vend (Jalon P2, puis les Cols bleus), dans son ordre. */
-export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach', 'j:fond'];
+/* Les sept packs que la boutique vend (Jalon P2), dans son ordre. */
+export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach'];
 /* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
 export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
 export const NOMS_SKILLS = { sniper: '🎯 Francs-tireurs', passeur: '🪄 Passeurs', defensif: '❄ Défensif', dur: '🥊 Durs à cuire', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
@@ -184,19 +172,7 @@ export const RAYONS = [
   { cle: 'jour', nom: 'Le pack du jour', ico: '📆' },
   { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:bronze', 'j:argent', 'j:or'] },
   { cle: 'themes', nom: 'À ton choix', ico: '🎯', packs: ['j:epoque', 'j:specialistes', 'j:club', 'j:coach'] },
-  { cle: 'fond', nom: 'Le bas de l\'alignement', ico: '👷', packs: ['j:fond'] },
 ];
-/*
- * LE BAS DE L'ALIGNEMENT (le Pack Cols bleus) : un régulier de sa saison (FOND.min matchs), Soutien ou Régulier
- * (`niveaux`), dont le premier badge est un rôle de soutien à FOND.palier ou mieux — lu dans ses vraies stats
- * (`badgesDe`), jamais dans une cote.
- */
-export const FOND = { min: 40, niveaux: [0, 1], palier: 2, roles: { F: ['checker', 'energie', 'bagarreur', 'deuxsens', 'power'], D: ['defensif', 'physique'] } };
-const estDuFond = (p, joueurs, role) => {
-  if (p.p === 'G' || (p.gp || 0) < FOND.min || !FOND.niveaux.includes(niveauDe(p, joueurs))) return false;
-  const b = badgesDe(p)[0];
-  return !!b && b.palier >= FOND.palier && (role ? b.cle === role : FOND.roles[groupeDuJoueur(p)].includes(b.cle));
-};
 
 /*
  * LE PACK DU JOUR : un pack de la boutique, à 25 % de rabais, qui change
@@ -272,7 +248,7 @@ function formatUnSur(p) {
 /* Le barème d'une carte de ce pack, en %, avec ce que les patrons y changent. */
 export function cotesDuPack(cle, mods = {}) {
   const P = PACKS_TOUS[cle];
-  const c = { ...(P.cotes || TIERS[P.tier || 'argent'].cotes) };
+  const c = { ...TIERS[P.tier || 'argent'].cotes };
   if (mods.holo && mods.holo !== 1) {
     const gain = (c.rare + c.legendaire) * (mods.holo - 1);
     c.rare *= mods.holo; c.legendaire *= mods.holo; c.commune = Math.max(0, c.commune - gain);
@@ -293,7 +269,7 @@ export function cartesDuPack(cle, mods = {}) {
  */
 export function niveauxDuPack(cle, mods = {}) {
   const P = PACKS_TOUS[cle];
-  if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio' || P.famille === 'fond') return null;
+  if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio') return null;
   const t = { ...(P.niveaux || TIERS[P.tier || 'argent'].niveaux) };
   /*
    * LE PRESTIGE DU CLUB (v2, js/rogue.js `PRESTIGES`) : il multiplie les taux
@@ -455,22 +431,6 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
       if (!pool.length) continue;
       pool.sort((a, b) => hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(a)) - hache(graine, 'pack-joueur', cle, n, t, getPlayerKey(b)));
       out.push({ p: pool[0], niveau: niveauDe(pool[0], e.players), ...tirerVariante(cotes, graine, cle, n, t) });
-    }
-  } else if (P.famille === 'fond') {
-    // LE BAS DE L'ALIGNEMENT (`FOND`) : trois avants, puis un défenseur. Le rôle se tire d'abord, à parts égales (sinon
-    // les bagarreurs, nombreux, noieraient les plombiers) ; une saison sans personne à ce rôle prend tout le fond.
-    for (let t = 0; out.length < nb && t < nb * 6; t++) {
-      const sa = saisons[Math.floor(hache(graine, 'pack-saison', cle, n, t) * saisons.length)];
-      if (!sa) break;
-      const e = await shard(sa);
-      const groupe = out.length % 4 === 3 ? 'D' : 'F', roles = FOND.roles[groupe];
-      const role = roles[Math.floor(hache(graine, 'pack-role', cle, n, t) * roles.length)];
-      const duFond = e.players.filter(p => groupeDuJoueur(p) === groupe && dispo(p) && estDuFond(p, e.players));
-      const auRole = duFond.filter(p => badgesDe(p)[0].cle === role);
-      const pool = auRole.length ? auRole : duFond;
-      if (!pool.length) continue;
-      const p = recrue(pool, mods.coach, graine, cle, n, t);
-      out.push({ p, niveau: niveauDe(p, e.players), ...tirerVariante(cotes, graine, cle, n, t) });
     }
   } else {
     // LE NIVEAU D'ABORD : tiré aux taux du pack, puis une saison et un joueur de ce niveau.

@@ -553,8 +553,8 @@ else {
   const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
   console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
-  // Jalon P2 : la boutique vend huit packs, tous mixtes (les Cols bleus, oct. 2026).
-  if (nTout !== 8) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 8`);
+  // Jalon P2 : la boutique vend sept packs, tous mixtes.
+  if (nTout !== 7) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 7`);
   if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
   // Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
@@ -644,6 +644,16 @@ const dests = await page.$$eval('#signatureModal .pcard .pcard-dest', e => e.map
 console.log(`8. le pack Argent, en liste : ${offres.map((o, i) => `${o} → ${dests[i]}`).join(' · ')} · niveaux ${niveaux.map(x => x.mot || x.ruban).join(', ')}`);
 if (!offres.length || offres.length !== revele.joueurs) erreurs.push(`la liste de signature montre ${offres.length} joueurs, le pack ${revele.joueurs}`);
 if (!dests.some(t => / sort/.test(t))) erreurs.push(`aucune rangée ne dit où il va : ${dests.join(' | ')}`);
+// LE MEILLEUR POUR TON ALIGNEMENT (oct. 2026) : la liste se range par ce que chacun change à ton alignement ; le premier
+// qui fait gagner quelque chose passe en tête, sous son titre, cerclé d'or — jamais plus d'un.
+{
+  const titres = await page.$$eval('#signatureModal .sig-liste > .aln-titre', e => e.map(x => x.textContent.trim()));
+  const cercles = await page.$$eval('#signatureModal .sig-liste > .pcard.meilleure', e => e.length);
+  const premier = await page.$eval('#signatureModal .sig-liste > :first-child', x => x.className).catch(() => '');
+  console.log(`8m. le meilleur pour ton alignement : ${titres.join(' · ') || 'aucun titre'} · ${cercles} cerclé(s)`);
+  if (cercles > 1) erreurs.push(`${cercles} joueurs cerclés d'or dans la liste de signature`);
+  if (cercles && !(titres[0] === 'Le meilleur pour ton alignement' && /aln-titre/.test(premier))) erreurs.push('le joueur cerclé d\'or n\'est pas en tête, sous son titre');
+}
 // Toucher la rangée montre sa fiche, sans la prendre.
 await page.click('#signatureModal .pcard .pcard-qui');
 await page.waitForTimeout(600);

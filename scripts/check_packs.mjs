@@ -34,12 +34,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, FOND, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, sortDUnPack, BOUTIQUE } from '../js/packs.js';
+import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, sortDUnPack, BOUTIQUE } from '../js/packs.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
-import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe } from '../js/sim.js';
+import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { EDITIONS } from '../js/rarete.js';
 import { ageAtSeason } from '../js/ratings.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -121,9 +121,9 @@ exiger('les taux de joueur de chaque tier font 100 %', Object.values(TIERS).ever
   Object.entries(TIERS).map(([k, T]) => `${k} ${NIVEAUX.map(N => T.niveaux[N.cle]).join('/')}`).join(' · '));
 const parNiveauAffiche = CLES_J.filter(k => niveauxDuPack(k));
 const sansNiveau = CLES_J.filter(k => !niveauxDuPack(k));
-exiger('chaque pack par niveau affiche ses chances de Phénomène, les talents, le trio et les Cols bleus non',
+exiger('chaque pack par niveau affiche ses chances de Phénomène, les talents et le trio non',
   parNiveauAffiche.every(k => chancesDe(k).some(x => x.niveau && /Phénomène/.test(x.nom))) && sansNiveau.every(k => !chancesDe(k).some(x => x.niveau))
-  && sansNiveau.every(k => ['skill', 'trio', 'fond'].includes(PACKS_TOUS[k].famille)),
+  && sansNiveau.every(k => ['skill', 'trio'].includes(PACKS_TOUS[k].famille)),
   `${parNiveauAffiche.length} par niveau · ${sansNiveau.length} sans (${sansNiveau.map(k => k.slice(2)).join(', ')})`);
 
 /* 3. Un pack est pur. */
@@ -383,7 +383,7 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
  * ce que les déblocages ferment ; et aucune carte que les packs d'avant donnaient ne se perd dans la fusion.
  */
 {
-  exiger('la boutique vend huit packs, tous mixtes (des joueurs et des cartes)', BOUTIQUE.length === 8 && BOUTIQUE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs' && PACKS_TOUS[k].n >= 3 && PACKS_TOUS[k].cartes >= 1),
+  exiger('la boutique vend sept packs, tous mixtes (des joueurs et des cartes)', BOUTIQUE.length === 7 && BOUTIQUE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs' && PACKS_TOUS[k].n >= 3 && PACKS_TOUS[k].cartes >= 1),
     BOUTIQUE.map(k => `${PACKS_TOUS[k].nom} ${PACKS_TOUS[k].n}+${PACKS_TOUS[k].cartes}`).join(' · '));
   const an = x => Number(String(x.p.s).slice(0, 4));
   const ep = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
@@ -394,33 +394,20 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   exiger('le hasard d\'un thème ne tire que dans ce que les déblocages ouvrent', permis.every(r => ['sniper', 'passeur'].includes(r.reglage.skill)), permis.map(r => r.reglage.skill).join(' '));
   const cl = (await Promise.all([0, 1, 2].map(n => tirer('j:club', n, { params: { franchise: 'MTL' } })))).flatMap(r => r.cartes);
   exiger('Pack Club : la franchise choisie', cl.length >= 6 && cl.every(x => x.p.t === 'MTL'), `${cl.length} Canadiens`);
-  /*
-   * LES COLS BLEUS (oct. 2026, JP : *trouver des Steve Bégin holo pour la quatrième ligne*) : seulement le bas de
-   * l'alignement — Soutien ou Régulier, un rôle de soutien Argent ou mieux en premier badge, trois avants pour un
-   * défenseur — et ses brillantes sortent plus souvent que celles d'un Soutien des autres packs.
-   */
-  const fond = (await Promise.all(Array.from({ length: 200 }, (_, n) => tirer('j:fond', n)))).flatMap(r => r.cartes);
-  const horsFond = fond.filter(x => { const b = badgesDe(x.p)[0]; return x.p.p === 'G' || !FOND.niveaux.includes(x.niveau) || !b || b.palier < FOND.palier || !FOND.roles[groupeDuJoueur(x.p)].includes(b.cle); });
-  const partD = fond.filter(x => groupeDuJoueur(x.p) === 'D').length / Math.max(1, fond.length);
-  const rolesVus = new Set(fond.map(x => badgesDe(x.p)[0].cle));
-  exiger('Pack Cols bleus : le bas de l\'alignement, et lui seul', fond.length >= 760 && !horsFond.length, horsFond.slice(0, 3).map(x => `${x.p.n} ${x.p.s}`).join(' · ') || `${fond.length} joueurs`);
-  exiger('Pack Cols bleus : un défenseur sur quatre, chaque rôle de soutien', partD >= 0.2 && partD <= 0.3 && Object.values(FOND.roles).flat().every(r => rolesVus.has(r)), `${pc(partD)} de défenseurs · ${[...rolesVus].join(', ')}`);
-  const brillantes = fond.filter(x => x.rar === 'rare' || x.rar === 'legendaire').length / fond.length;
-  exiger('Pack Cols bleus : une Or ou une Holo plus souvent qu\'un Soutien d\'ailleurs', brillantes >= 0.05, `${pc(brillantes)} des cartes`);
   for (const coach of VOIES) {
     const r = await Promise.all([0, 1, 2].map(n => tirer('j:coach', n, { params: { coach } })));
     const joueurs = r.flatMap(x => x.cartes), cartes = [0, 1, 2].flatMap(n => tirerCartesDuPack('j:coach', `packs-${n}`, n, { coach })).filter(id => BANQUE[id].rarete !== 'maudite');
     exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs et ses cartes de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach) && cartes.length >= 4 && cartes.every(id => BANQUE[id].coach === coach),
       `${joueurs.length} joueurs, ${cartes.length} cartes`);
   }
-  // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des huit (6 000 ouvertures chacun, les coachs tous).
+  // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des sept (6 000 ouvertures chacun, les coachs tous).
   const avant = new Set(), apres = new Set();
   for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 1500; n++) for (const id of tirerCartesPack(cle, `fusion-${cle}`, n)) avant.add(id);
   for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) apres.add(id);
   const perdues = [...avant].filter(id => !apres.has(id));
   const comptees = Object.keys(BANQUE).filter(sortDUnPack);
   exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);
-  exiger('chaque carte que la banque compte sort d\'un des huit packs', comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
+  exiger('chaque carte que la banque compte sort d\'un des sept packs', comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
   // L'économie ne fuit pas : les cartes d'un pack mixte, revendues, valent au plus 40 % de son prix (majoré, la famille la plus chère).
   const fuites = BOUTIQUE.filter(k => {
     const P = PACKS_TOUS[k];
