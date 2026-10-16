@@ -711,7 +711,16 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     }
     if (C.cible === 'joueur') {
       // S80 : il se nomme par ce qu'il est, et on dit où il joue — pas « 1re paire · DG ».
-      const liste = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ p: G.roster[sl.i], sous: G.roster[sl.i] ? `${quiEst(G.roster[sl.i], { stats: false })} · ${ligneDe(sl)}` : '' })).filter(x => x.p);
+      let liste = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ p: G.roster[sl.i], ligne: ligneDe(sl), sous: G.roster[sl.i] ? `${quiEst(G.roster[sl.i], { stats: false })} · ${ligneDe(sl)}` : '' })).filter(x => x.p);
+      // JP (oct. 2026) : *si je boost ses jambes, je dois les voir*. Ses jambes ce matin et ce que la carte en fait,
+      // en premier, les plus fatigués en haut ; son rôle est déjà dit sur la rangée, reste où il joue.
+      const plus = C.gestes && C.gestes.energie;
+      if (plus) {
+        const matin = ((you.jourLignes || [])[j] || {}).energie || {};
+        const jambes = p => Math.round(matin[getPlayerKey(p)] ?? 100);
+        liste = liste.map(x => ({ ...x, sousHtml: `<span class="dest-jambes">Jambes <b>${jambes(x.p)}</b> → <b>${Math.min(100, jambes(x.p) + plus)}</b></span> · ${esc(x.ligne)}` }))
+          .sort((a, b) => jambes(a.p) - jambes(b.p));
+      }
       listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
       return;
     }

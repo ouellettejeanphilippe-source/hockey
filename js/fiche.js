@@ -11,7 +11,7 @@ import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFF
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
-import { RARETES, numeroDeCarte, sensRarete, brillante, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
+import { RARETES, numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
@@ -462,7 +462,7 @@ export function showPlayerModal(p, opts = {}) {
   const serie = serieDe(p.s);
   const joue = traitsJoueur(p);
   const roles = p.p === 'G' ? '' : barresProfils(p);
-  const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme}${brillante(rarete) ? '✦' : ''} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
+  const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete tc-${rarete}" title="${esc(sensRarete(rarete))}">${R.gemme} ${esc(NOM_VARIANTE[rarete] || R.nom)}</span>${joue.length
     ? joue.map(t => `<span class="cj-sa-trait"><b>${t.ico} ${esc(t.nom)}</b> — ${esc(t.mot)}</span>`).join('')
     : ''}</div>`;
   // La vraie saison, sur la carte : six nombres, comme au dos d'une vraie carte… mais au recto, où on les cherche.

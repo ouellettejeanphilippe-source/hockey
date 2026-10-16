@@ -127,7 +127,7 @@ export function pastilleNiveau(p) {
   if (n < 0) return p && p.s && G.shards.get(p.s) ? '<span class="niv niv-partiel" title="Trop peu de matchs dans sa saison pour un rang parmi les réguliers">Peu joué</span>' : '';
   const N = NIVEAUX[n];
   // TROIS VERDICTS, TROIS USAGES (V2.2) : le niveau dit SA SAISON (sa rareté, les packs), il ne joue pas au match.
-  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste. Il dit sa saison et sa rareté ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
+  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste. Il dit sa saison ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
 }
 brancherPastilleNiveau(pastilleNiveau);
 /*
@@ -723,7 +723,8 @@ export function ouvrirListeSignature(o) {
  * CHOISIR UN JOUEUR (Jalon U : les mêmes rangées partout). JP : *l'interface toujours en phase, cohérente, pas plein de
  * designs différents pour des fonctions pareilles*. « Pour qui ? », « qui soigner ? », « qui monte ? » : les rangées du
  * vestiaire, ce que le choix lui fait en une ligne (`sous`), et un bouton.
- *   o : { ico, titre, recit, contexte (html), joueurs [{ p, cle?, sous, desactive? }], motBouton, motFermer, onChoix(cle), onFerme }
+ *   o : { ico, titre, recit, contexte (html), joueurs [{ p, cle?, sous, sousHtml?, desactive? }], motBouton, motFermer, onChoix(cle), onFerme }
+ * `sousHtml` (déjà échappé) dit ce que la carte touche, en premier : si elle booste ses jambes, on VOIT ses jambes.
  */
 export function ouvrirListeJoueurs(o) {
   let fermer = () => {};
@@ -732,7 +733,7 @@ export function ouvrirListeJoueurs(o) {
     el.className = `pcard tc-commune${x.desactive ? ' locked' : ''}`;
     el.setAttribute('style', varsEquipe(x.p));
     el.innerHTML = rangeeHtml(x.p, { salaire: capHitDuJour(x.p),
-      dest: `<div class="pcard-dest">${x.desactive ? `<span class="dest-bad">${esc(x.desactive)}</span>` : esc(x.sous || '')}</div>`,
+      dest: `<div class="pcard-dest">${x.desactive ? `<span class="dest-bad">${esc(x.desactive)}</span>` : x.sousHtml || esc(x.sous || '')}</div>`,
       bouton: `<button class="btn-sign" ${x.desactive ? 'disabled' : ''}>${esc(o.motBouton || 'Choisir')}</button>` });
     el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(x.p); };
     if (!x.desactive) el.querySelector('.btn-sign').onclick = ev => { ev.stopPropagation(); fermer(); o.onChoix(x.cle || getPlayerKey(x.p)); };

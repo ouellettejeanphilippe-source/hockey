@@ -38,6 +38,8 @@ import { PATRONS } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
+import { RARETES } from '../js/cartes.js';
+import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE } from '../js/rarete.js';
 import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
 import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
@@ -186,7 +188,7 @@ const MOTS_RESERVES = [
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
     ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
     ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /data-agr/)],
-    ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison et sa rareté/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
+    ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison ; au match/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
     ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('alignement.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
   for (const [nom, ok] of faits) exiger(nom, ok);
@@ -248,7 +250,8 @@ const MOTS_RESERVES = [
   const mots = texte.split(' ').filter(w => /[\p{L}\d]/u.test(w)).length;
   // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
-  borne('la page des règles est courte', mots, 300, 2100, 'mots');
+  // Oct. 2026 : la page dit les raretés (JP : *spas clair les niveaux de rareté des cartes*) : 2 250 mots.
+  borne('la page des règles est courte', mots, 300, 2250, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -263,6 +266,8 @@ const MOTS_RESERVES = [
   exiger('la page ne parle plus de ce qui est parti', encore.length === 0, encore.join(' · ') || 'rien de parti');
 
   // Chaque chiffre annoncé, reconstruit depuis sa constante.
+  const RARES = ['commune', 'peu', 'rare', 'legendaire'];
+  const brille = stature => COTES_PAR_STATURE[stature].rare + COTES_PAR_STATURE[stature].legendaire;
   const minSal = Number((lire('js/game.js').match(/const MIN_SAL = ([\d_]+);/) || [])[1].replace(/_/g, ''));
   // Le ballottage vit dans js/banc.js depuis le découpage de js/game.js (1.0, J3-6).
   const coutBal = Number((lire('js/banc.js').match(/const COUT_BALLOTTAGE_ROGUE = (\d+);/) || [])[1]);
@@ -336,7 +341,16 @@ const MOTS_RESERVES = [
     [`l'allume à ${LANCEE.etincelle.buts} buts et la rend vive (précision +${pct(LANCEE.vive.finition)} %, tirs +${pct(LANCEE.vive.lancers)} %)`, 'l\'étincelle'],
     [`la garde jusqu'à ${LANCEE.braise.fenetre} matchs de plus tant qu'il marque une fois en ${LANCEE.braise.sans}`, 'la braise'],
     [`paie ${PATRONS.dir_chandails.econ.jetonsLancee} jeton par joueur sur sa lancée, chaque soir`, 'le vendeur de chandails'],
+    // Les raretés (oct. 2026) : les gemmes et les noms de la carte (js/cartes.js, js/rarete.js), les cotes d'une brillante par stature.
+    [RARES.map(r => `${RARETES[r].gemme} ${RARETES[r].nom.toLowerCase()}`).join(', '), 'les gemmes des cartes de jeu'],
+    [RARES.map(r => `${RARETES[r].gemme} ${NOM_VARIANTE[r]}`).join(', '), 'les gemmes des cartes de joueur'],
+    [`monte d'un, deux ou trois métaux`.replace('un, deux ou trois', ['peu', 'rare', 'legendaire'].map(r => ['zéro', 'un', 'deux', 'trois'][VARIANTE_PALIERS_G[r]]).join(', ').replace(/, (\S+)$/, ' ou $1')), 'les métaux d\'un gardien'],
+    [`Holo ou Or : ${nombre(brille(0))} % des cartes d'un Soutien, ${nombre(brille(NIVEAUX.findIndex(n => n.cle === 'phenomene')))} % d'un ★ Phénomène`, 'les cotes d\'une brillante'],
   ];
+  // Ce que la page dit d'une variante, en mots : la Parallèle monte le second badge d'un métal, la Holo les deux (le
+  // second rend plein), l'Or les deux de deux métaux.
+  exiger('les variantes sont celles que la page dit', JSON.stringify(VARIANTE_PALIERS) === JSON.stringify({ commune: [0, 0], peu: [0, 1], rare: [1, 1], legendaire: [2, 2] })
+    && VARIANTE_PLEINE.rare && VARIANTE_PLEINE.legendaire && !VARIANTE_PLEINE.peu, 'Parallèle · Holo · Or');
   // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
   const src = lire('js/rogue.js');
   exiger('les commanditaires valent +3 puis +2 par victoire', /victoire: 5 \+ \(aDebloque\(m, 'commanditaire1'\) \? 3 : 0\) \+ \(aDebloque\(m, 'commanditaire2'\) \? 2 : 0\)/.test(src));

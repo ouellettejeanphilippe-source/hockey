@@ -29,16 +29,18 @@ import { actionSrc } from './actions.js';
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
  * la couleur, et elle se COMPTE depuis S77 : un, deux, trois diamants, les
- * paliers d'une série à diamants des années 2000 — la légendaire est la
- * « parallèle » dorée des trois (la couleur la sépare de la rare, le compte
- * la classe). Le point, l'étoile et l'astérisque d'avant ne disaient pas
- * lequel était au-dessus de l'autre.
+ * paliers d'une série à diamants des années 2000. Le point, l'étoile et
+ * l'astérisque d'avant ne disaient pas lequel était au-dessus de l'autre.
+ * Oct. 2026 — JP : *spas clair les niveaux de rareté des cartes*. La
+ * légendaire portait les trois diamants de la rare, et seule la couleur les
+ * séparait : elle en porte quatre. Une gemme par rareté, la même partout
+ * (cartes de jeu, cartes de joueur, cartable, boutique).
  */
 export const RARETES = {
   commune: { nom: 'Commune', gemme: '◆' },
   peu: { nom: 'Peu commune', gemme: '◆◆' },
   rare: { nom: 'Rare', gemme: '◆◆◆' },
-  legendaire: { nom: 'Légendaire', gemme: '◆◆◆' },
+  legendaire: { nom: 'Légendaire', gemme: '◆◆◆◆' },
 };
 /* Les deux raretés qui brillent : l'holographique, le reflet, l'inclinaison au téléphone. */
 const brille = r => r === 'rare' || r === 'legendaire';
@@ -173,7 +175,7 @@ export function carteHtml(c) {
       ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
       ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
       ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
-      <span class="tc-pied"><span>Cap 82-0</span><span>${R.nom}</span></span>
+      <span class="tc-pied"><span>Cap 82-0</span><span class="tc-pied-rar">${R.gemme} ${R.nom}</span></span>
     </span>
   </${c.statique ? 'div' : 'button'}>`;
 }
@@ -269,8 +271,9 @@ export const brillante = r => r === 'peu' || r === 'rare' || r === 'legendaire';
 export const finiHtml = r => (brillante(r) ? '<span class="cj-fini" aria-hidden="true"></span>' : '');
 /*
  * LA GEMME D'UNE CARTE DE JOUEUR, avec ce que sa variante FAIT. Les diamants
- * disent la rareté (un à trois, l'or pour la légendaire), l'étoile ✦ qu'elle
- * est brillante, et l'icône du trait (`traitsDeCarte`, js/rarete.js) ce
+ * disent la rareté (un à quatre), le nom de la variante qu'elle est
+ * brillante (oct. 2026 : l'étoile ✦ d'avant ne se lisait pas, JP : *système
+ * plus facile à voir*), et l'icône du trait (`traitsDeCarte`, js/rarete.js) ce
  * qu'elle joue — une seule pastille, et l'infobulle dit la phrase entière.
  * Une commune ne joue rien de plus : ses diamants seuls. Le trait de la
  * RECRUE n'y entre pas : le tampon « Recrue » de la photo le porte déjà.
@@ -278,9 +281,10 @@ export const finiHtml = r => (brillante(r) ? '<span class="cj-fini" aria-hidden=
 export function gemmeJoueur(r, traits = []) {
   const R = RARETES[r];
   if (!R) return '';
-  const joue = traits.filter(t => t && t.nom !== 'Le jeune progresse');
+  // La variante s'y lit déjà, en diamants et en toutes lettres : ses icônes ne disent que les autres traits.
+  const joue = traits.filter(t => t && t.nom !== 'Le jeune progresse' && t.nom !== NOM_VARIANTE[r]);
   const titre = [`${NOM_VARIANTE[r] || R.nom} : ${sensRarete(r)}`, ...joue.map(t => `${t.ico} ${t.nom} — ${t.mot}`)].join(' · ');
-  return `<span class="cj-gemme" title="${echapper(titre)}">${R.gemme}${brillante(r) ? '<i class="cj-shiny" aria-hidden="true">✦</i>' : ''}${joue.map(t => `<b class="cj-trait">${t.ico}</b>`).join('')}</span>`;
+  return `<span class="cj-gemme" title="${echapper(titre)}">${R.gemme}${brillante(r) ? `<i class="cj-var">${NOM_VARIANTE[r]}</i>` : ''}${joue.map(t => `<b class="cj-trait">${t.ico}</b>`).join('')}</span>`;
 }
 const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 

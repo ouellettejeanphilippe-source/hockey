@@ -20,11 +20,14 @@
  * Hors du moteur : rien ici ne touche une saison. La collection du Rogue
  * (`cap82_rogue.collection`, S77) y entre une fois, en cartes de base.
  */
+import { RARETES } from './cartes.js';
+import { NOM_VARIANTE } from './rarete.js';
+
 const CLE_CARTABLE = 'cap82_cartable';
 const VIDE = () => ({ v: 1, joueurs: {}, migre: false });
-const VARIANTES = [
-  ['commune', 'Base', '◆'], ['peu', 'Parallèle', '◆◆'], ['rare', 'Holo', '✦'], ['legendaire', 'Or', '★'],
-];
+/* Les variantes, leurs noms et leurs gemmes : ceux de la carte (js/rarete.js, js/cartes.js), jamais une copie —
+ * l'Holo ✦ et l'Or ★ d'ici ne disaient pas la même chose que les diamants de la carte, et ★ est l'Étoile. */
+const VARIANTES = ['commune', 'peu', 'rare', 'legendaire'].map(r => [r, NOM_VARIANTE[r], RARETES[r].gemme]);
 const RANG = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
 /* Une feuille de cartable : neuf pochettes, comme une page de classeur. */
 const PAR_FEUILLE = 9;
@@ -62,7 +65,6 @@ export function monterLesDoublons(x) {
   return montees;
 }
 /* Ce que la boîte dit d'une montée : « Gaborik monte : Base → Parallèle (trois doublons) ». */
-const NOM_VARIANTE = Object.fromEntries(VARIANTES.map(([k, nom]) => [k, nom]));
 export const motDeMontee = (m, nom) => `${nom} monte : ${NOM_VARIANTE[m.de]} → ${NOM_VARIANTE[m.a]} (${FUSION} doublons)`;
 /*
  * DES CARTES ENTRENT AU CARTABLE. `doublons` : une copie de plus compte (un

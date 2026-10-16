@@ -1441,6 +1441,9 @@ a.spin-club:hover { background: var(--fond-2); }
 .pcard-dest .dest-ok { color: var(--bon); }
 .pcard-dest .dest-bad { color: var(--mauvais); }
 .pcard-dest .dest-warn { color: var(--attention); }
+/* Ce que la carte touche, dit en premier (« Jambes 62 → 87 ») : la valeur d'arrivée en vert. */
+.pcard-dest .dest-jambes { color: var(--encre); }
+.pcard-dest .dest-jambes b:last-child { color: var(--bon); }
 /* « Signer » : LE bouton plein de l'écran, en or. Une signature qui bloque la fin le dit en rouge et demande un second toucher. */
 .btn-sign {
   width: 100%; min-height: 44px; padding: 0 var(--esp-2); border: 1px solid var(--or); border-radius: var(--r-1);
@@ -1530,7 +1533,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .tc-peu .cj-gemme { color: #3fb0d6; }
 .tc-rare .cj-gemme { color: #e8edf2; text-shadow: 0 0 4px rgba(255, 255, 255, 0.6); }
 .tc-legendaire .cj-gemme { color: #ffd76a; text-shadow: 0 0 5px rgba(255, 200, 80, 0.8); }
-.cj-gemme .cj-shiny { font-style: normal; margin-left: 2px; font-size: 1.25em; }
+.cj-gemme .cj-var { font: 800 0.8em/1 var(--display); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; margin-left: 3px; }
 .cj-gemme .cj-trait { font-weight: 400; margin-left: 3px; font-size: var(--t-1); letter-spacing: 0; text-shadow: none; }
 
 /* ---- Le carton : ses couches (fond → parallèle → photo → décor → mots → pastilles → reflet), l'inclinaison ---- */
@@ -1630,7 +1633,7 @@ a.spin-club:hover { background: var(--fond-2); }
   font-size: 5cqw;
 }
 .carton .cj-gemme .cj-trait { font-size: 5cqw; margin-left: 1cqw; }
-@container (max-width: 130px) { .carton .cj-gemme .cj-trait { display: none; } }
+@container (max-width: 130px) { .carton .cj-gemme :is(.cj-trait, .cj-var) { display: none; } }
 
 /* LE REFLET : une tache de lumière sous le doigt, seulement sur la carte qu'on penche. */
 .carton:is(.incline, .relache, .gyro)::after {
@@ -2914,9 +2917,14 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-poche-case.jouee { opacity: 0.45; }
 .hub-poche-coach { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 .hub-poche-coach.cru { color: var(--or); }
-.hub-poche-case.tc-peu { border-color: var(--argent); }
-.hub-poche-case.tc-rare { border-color: var(--or); }
-.hub-poche-case.tc-legendaire { border-color: var(--platine); box-shadow: 0 0 12px color-mix(in srgb, var(--platine) 40%, transparent); }
+/* Les couleurs de la rareté, les mêmes que sur la carte (bleu, blanc, or) : l'argent, l'or et le platine d'avant étaient ceux des badges. */
+.hub-poche-case.tc-peu { border-color: var(--bleu); }
+.hub-poche-case.tc-rare { border-color: var(--choisi); }
+.hub-poche-case.tc-legendaire { border-color: var(--or); box-shadow: 0 0 12px color-mix(in srgb, var(--or) 40%, transparent); }
+.hub-poche-rar { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.hub-poche-case.tc-peu .hub-poche-rar { color: var(--bleu); }
+.hub-poche-case.tc-rare .hub-poche-rar { color: var(--choisi); }
+.hub-poche-case.tc-legendaire .hub-poche-rar { color: var(--or); }
 .hub-poche-ico { font-size: var(--t-5); line-height: 1; }
 /* POSER EN TOUCHANT (V8, « Ce soir ») : la carte qu'on pose se soulève ; sous elle, tes lignes, ceux qui la portent allumés. */
 .hub-poche-case.en-pose { border-color: var(--or); box-shadow: 0 0 0 2px var(--or); transform: translateY(-3px); }
@@ -3954,6 +3962,10 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc-puces .puce { display: block; padding-left: var(--esp-2); border-left: 2px solid currentColor; font-size: var(--t-1); line-height: 1.3; }
 .tc-cadre > .choix-option-non { margin: 0 var(--esp-3); }
 .tc-pied { display: flex; justify-content: space-between; margin: auto var(--esp-3) 0; padding-top: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
+/* La rareté se lit au pied, dans sa couleur (oct. 2026) : gris, bleu, blanc, or — les mêmes que la gemme d'une carte de joueur. */
+.tc-pied-rar { color: var(--tc-bord); }
+.tc.tc-commune .tc-pied-rar { color: var(--encre-3); }
+.tc.tc-legendaire .tc-pied-rar { color: var(--or); }
 /* Le dos d'une carte (elle sort d'un paquet) : opacité 0 sauf tant que le paquet est fermé, et derrière la carte du dessus de la pile ; le smoke la lit. */
 .tc-dos {
   position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; border-radius: inherit; pointer-events: none; opacity: 0;
