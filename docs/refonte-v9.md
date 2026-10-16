@@ -339,6 +339,33 @@ Les juges d'abord, mesurés sur le jeu d'aujourd'hui. Rien du jeu ne change ; ce
 
 **Proposé pour la suite** (à trancher avec JP à la tranche 3) : que `check_profondeur` exige aussi que l'attentif batte le robot d'avant. C'est ce qui prouvera que le joueur qui lit son plan fait mieux que celui qui laisse l'automatique jouer. Aujourd'hui, l'écart est de +1,8 V ; une cible de +4 à +6 V le mettrait au-dessus d'un écart type de saison.
 
+## 15. Fait le 16 octobre : la tranche 3, le plan
+
+Le plan décide quelles stats comptent, en Rogue seulement (docs/decisions.md). Le 82-0, Sur table et l'exhibition ne bougent pas.
+
+- [x] **Le profil en quatre familles** : Tir, Jeu, Défense, Robustesse, lus sur les rôles de toujours à points égaux (`famillesDe`). Chaque famille est centrée sur le joueur typique de ses points et reste dispersée chez les Piliers (`check_familles`, dans `tout.mjs`).
+- [x] **Le système paie sa famille** : chaque écart type d'un joueur multiplie le canal naturel de son unité (`PLAN_PAIE`), centré sur l'unité typique qui joue sa meilleure famille (`PLAN_REF`). La ligue garde ses buts par match (5,79 → 5,77).
+- [x] **Un système par famille** : quatre de trio, quatre de paire (JP : oui aux quatre de paire). L'IA et la ligne qu'on ne règle pas jouent la famille où leurs joueurs apportent le plus.
+- [x] **Les coachs paient une ou deux familles et en coûtent une**, plus fort à mesure que la confiance monte (`COACH_DU_PLAN`) ; le palier de plus de leur vieux système est parti (`check_coachs`).
+- [x] **L'écran** : la fenêtre du système parle en familles ; la fiche dit les quatre familles du joueur ; le coach dit son plan et combien de tes patineurs le servent ; « Aligner au mieux » lit le plan ; la page des règles dit la règle.
+- [x] **Les juges** :
+
+  | | avant | après | cible |
+  |---|---|---|---|
+  | `check_fit` · l'ordre entre deux systèmes (Spearman) | 0,98 | **0,49** | ≤ 0,6 ✓ |
+  | `check_fit` · signer pour son système | +0,01 V | **+0,52 V** | ≥ +0,4 V ✓ |
+  | `check_fit` · systèmes au meilleur différent | 1,6 | **2,7** | ≥ 3 ✗ |
+  | l'attentif contre le robot d'avant | +1,8 V | **+5,3 V** | ≥ +5 V ✓ |
+  | un club du milieu bien mené finit premier | 1 sur 16 | **7 sur 16** | ✓ |
+  | un meilleur club mal mené rate les séries | 1 sur 16 | **4 sur 16** | ✓ |
+  | le distrait gagne la Coupe | 0 sur 24 | **0 sur 24** | ✓ |
+  | la 1re Coupe de l'attentif (médiane) | run 2,5 | **run 2** | 3 à 8 ✗ |
+
+  - Le ✗ de `check_fit` vient du bas de l'alignement : un candidat complet y reste le meilleur dans les quatre systèmes, et un 4e trio paie peu (ses tirs valent peu).
+  - Le ✗ des campagnes est le constat de la tranche 2 en plus fort : bien mené, le Rogue se gagne trop tôt, puis presque à chaque run (l'attentif, 22 Coupes sur 24). C'est la tranche 4 (le plafond qui mord, un départ bien pire) et la tranche 8 (recalibrer).
+  - `check_rogue` : la Coupe par run monte plus vite au milieu de la courbe (6 déblocages : 20 % → 50 %), le robot d'avant profitant du plan que l'IA lui choisit ; sans déblocage, elle reste rare (10 %). `check_robot` (Rogue) : 7,5 %, sous sa borne.
+  - Preuves : `tout.mjs` (22 scripts), `check_mort`, `check_clarte`, `check_coachs`, `essai_rogue` (57 choix réglés, zéro erreur), `check_robot`, `check_voies`.
+
 ## Annexe · la méthode des mesures
 
 Scripts hors du dépôt, sur le moteur tel quel. La tranche 2 en fait `check_fit`, avec ses verdicts.
