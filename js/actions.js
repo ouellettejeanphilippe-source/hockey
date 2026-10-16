@@ -5,12 +5,13 @@
  * La LNH publie une photo de match pour la plupart des joueurs d'après 2005.
  * `data/actions.json` (scripts/actions.mjs) dit qui en a une : un joueur
  * absent n'est jamais demandé, et sa carte garde son portrait. Une carte
- * demande `actionSrc(id)` — une adresse d'image 5:7 (400 × 560), ou null.
+ * demande `actionSrc(id)` — une adresse d'image carrée (560 × 560), ou null.
  *
- * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/, hors
- * du dépôt : scripts/actions.mjs les refait). La liste est versionnée mais les
- * images peuvent manquer (une copie fraîche du dépôt) : au démarrage, on en
- * demande UNE ; absente, aucune carte n'en demande d'autre.
+ * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/,
+ * versionnées depuis oct. 2026 pour que GitHub Pages les serve ;
+ * scripts/actions.mjs les refait). Au démarrage, on en demande UNE ; absente,
+ * aucune carte n'en demande d'autre. Une carte ne la montre qu'en édition
+ * haute (`photoAction`, js/cartes.js).
  *
  * DANS L'APPLICATION ANDROID, l'APK n'emporte aucune photo (comme les visages,
  * js/visages.js) : l'appareil les télécharge à la LNH par le HTTP natif (le
@@ -27,7 +28,8 @@ import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
 
 const SOURCE = id => `https://assets.nhle.com/mugs/actionshots/1296x729/${id}.jpg`;
-const TIROIR = 'cap82img-actions-400';
+// Le tiroir change de nom avec le format (oct. 2026 : 5:7 → carré) : l'ancien ne se relit pas.
+const TIROIR = 'cap82img-actions-560';
 const cleDe = id => `https://cap82.appareil/actions/${id}.webp`;
 const EN_MEME_TEMPS = 2;
 

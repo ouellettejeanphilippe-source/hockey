@@ -7,14 +7,14 @@
  * 1. La liste (data/actions.json) : des joueurs du jeu, triés, sans doublon ;
  *    et si img/actions/ est là, une image par joueur listé.
  * 2. Le recadrage, dans Chromium, par le texte de la fonction (comme le script
- *    et l'appareil la reçoivent) : il rend du 400 × 560, et sa fenêtre suit un
+ *    et l'appareil la reçoivent) : il rend du 560 × 560, et sa fenêtre suit un
  *    sujet net posé à droite, à gauche ou au centre d'un fond flou.
  * 3. `actionSrc` : null pour un joueur sans photo, null tant que les images
  *    ne répondent pas, `img/actions/{id}.webp` quand elles répondent.
  * 4. (avec l'adresse du jeu) L'APPAREIL, avec un faux Capacitor : son HTTP
  *    natif passe par Node et va chercher la vraie photo à la LNH. Rien ne
  *    part hors Wi-Fi ; au retour du Wi-Fi, la carte regardée passe d'abord ;
- *    chaque photo est recadrée sur l'appareil (400 × 560), gardée dans son
+ *    chaque photo est recadrée sur l'appareil (560 × 560), gardée dans son
  *    tiroir, et `actionSrc` rend son adresse blob:.
  */
 import fs from 'node:fs';
@@ -36,7 +36,7 @@ for (const f of fs.readdirSync(path.join(ROOT, 'data', 'seasons')).filter(f => f
 }
 const ids = liste.ids;
 const etrangers = ids.filter(id => !joueurs.has(id));
-exiger('data/actions.json : 400 × 560', JSON.stringify(liste.taille) === '[400,560]', JSON.stringify(liste.taille));
+exiger('data/actions.json : 560 × 560', JSON.stringify(liste.taille) === '[560,560]', JSON.stringify(liste.taille));
 exiger('data/actions.json : des joueurs du jeu', ids.length > 0 && !etrangers.length, etrangers.length ? `${etrangers.length} inconnus : ${etrangers.slice(0, 5).join(', ')}` : `${ids.length} joueurs sur ${joueurs.size}`);
 exiger('data/actions.json : triée, sans doublon', ids.every((id, i) => i === 0 || id > ids[i - 1]), '');
 const DOSSIER = path.join(ROOT, 'img', 'actions');
@@ -73,8 +73,8 @@ for (const [nom, cx] of [['à droite', 960], ['à gauche', 170], ['au centre', 6
   const milieu = fx + fl / 2;
   // Au bord, la fenêtre bute sur l'image : elle doit alors CONTENIR le sujet, à défaut d'être centrée sur lui.
   const contient = fx <= cx - 90 && fx + fl >= cx + 90;
-  const ok = r.l === 400 && r.h === 560 && r.type === 'image/webp' && contient && (Math.abs(milieu - cx) <= 50 || fx === 0 || fx + fl === 1296) && fy <= 75;
-  exiger(`recadrage : sujet ${nom}, dans une fenêtre 5:7`, ok, `${r.l} × ${r.h} ${r.type}, fenêtre x ${fx}–${fx + fl} (sujet ${cx - 90}–${cx + 90}), haut ${fy}`);
+  const ok = r.l === 560 && r.h === 560 && r.type === 'image/webp' && contient && (Math.abs(milieu - cx) <= 50 || fx === 0 || fx + fl === 1296) && fy <= 75;
+  exiger(`recadrage : sujet ${nom}, dans une fenêtre carrée`, ok, `${r.l} × ${r.h} ${r.type}, fenêtre x ${fx}–${fx + fl} (sujet ${cx - 90}–${cx + 90}), haut ${fy}`);
 }
 
 /* 3. actionSrc, dans Node : la liste chargée par un faux fetch, les images présentes ou non. */
@@ -142,7 +142,7 @@ if (URL_JEU) {
   await p.evaluate(() => { connexionTest.type = 'cellular'; });
   await p.waitForTimeout(1500);
   const fin = await p.evaluate(async ({ vieux, recent }) => {
-    const t = await caches.open('cap82img-actions-400');
+    const t = await caches.open('cap82img-actions-560');
     const cles = await t.keys();
     const tailles = [];
     for (const k of cles.slice(0, 4)) { const b = await (await t.match(k)).blob(); const img = await createImageBitmap(b); tailles.push(`${img.width}×${img.height} ${b.type} ${Math.round(b.size / 1024)} Ko`); }
@@ -150,7 +150,7 @@ if (URL_JEU) {
   }, { vieux, recent });
   // Deux téléchargements à la fois : la carte regardée part la première, même si une autre finit avant elle.
   exiger('appareil : la carte regardée passe en tête de file', demandes[0].includes(`/${vieux}.jpg`) && String(fin.src).startsWith('blob:'), `téléchargées dans l'ordre : ${demandes.slice(0, 3).map(u => u.split('/').pop()).join(', ')}`);
-  exiger('appareil : photos recadrées sur place et gardées', fin.gardees >= 4 && fin.tailles.every(t => t.startsWith('400×560 image/webp')), `${fin.gardees} dans le tiroir : ${fin.tailles.join(' · ')}`);
+  exiger('appareil : photos recadrées sur place et gardées', fin.gardees >= 4 && fin.tailles.every(t => t.startsWith('560×560 image/webp')), `${fin.gardees} dans le tiroir : ${fin.tailles.join(' · ')}`);
   exiger('appareil : actionSrc rend une adresse blob:', String(fin.src).startsWith('blob:'), String(fin.src).slice(0, 40));
   exiger('appareil : la file s\'arrête hors Wi-Fi', demandes.length <= fin.gardees + 2, `${demandes.length} téléchargements pour ${fin.gardees} gardées`);
   informer('appareil : ordre de la file', `la carte regardée (${vieux}), puis des plus récents aux plus anciens (${recent} d'abord : ${String(fin.srcRecent).slice(0, 5) || '—'})`);

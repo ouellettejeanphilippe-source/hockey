@@ -15,9 +15,9 @@
  *   cartes-verso.png             le dos de la fiche, cinq séries ;
  *   cartes-match.png             les cartes de match, par genre (js/combat.js) ;
  *   cartes-banque.png            les cartes de la banque, par catégorie (js/banque.js) ;
- *   cartes-actions.png           avec --actions : les séries modernes avec une
- *                                photo d'action (<dossier>/<id>.webp, au format
- *                                5:7, servie sous img/actions/) ;
+ *   cartes-actions.png           avec --actions : les séries modernes, en Cadre
+ *                                (le portrait) puis en édition haute (la photo
+ *                                d'action, <dossier>/<id>.webp, au format 5:7) ;
  *   cartes-vestiaire-tel.png     le vestiaire au téléphone (390 px), tel quel.
  * Rien ne sort du réseau : une photo d'action absente retombe sur le portrait.
  */
@@ -222,8 +222,14 @@ if (ACTIONS) {
       const e = await getShard(s);
       for (const j of e.players) if (ids.includes(String(j.id)) && !trouves.has(`${j.id}|${s}`)) trouves.set(`${j.id}|${s}`, j);
     }
-    for (const j of trouves.values()) {
-      for (const avec of [true, false]) {
+    // Oct. 2026 : l'action va aux éditions hautes (js/cartes.js `photoAction`) — la même carte en Cadre, puis en Hors-cadre, Or et Holo.
+    const { getPlayerKey } = await import('/js/sim.js');
+    const G = window.cap82.G;
+    let i = 0;
+    // Dix joueurs suffisent à juger le recadrage ; la planche de tous ne se photographie pas.
+    for (const j of [...trouves.values()].slice(0, 10)) {
+      for (const avec of [false, true]) {
+        G.variantes.cartes[getPlayerKey(j)] = avec ? ['hors', 'rare', 'legendaire'][i++ % 3] : 'peu';
         const x = { ...j, actionSrc: avec ? `img/actions/${j.id}.webp` : '' };
         const d = document.createElement('div');
         d.setAttribute('style', varsEquipe(x));

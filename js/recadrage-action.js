@@ -5,7 +5,7 @@
  * La LNH publie, pour la plupart des joueurs d'après 2005, une photo de match
  * en paysage (1296 × 729) : le joueur net, au milieu d'une foule et d'une
  * bande floues. Une carte est en portrait (5:7). On y découpe donc une fenêtre
- * 5:7 centrée sur le JOUEUR, qu'on trouve par la netteté : le fond est flou
+ * centrée sur le JOUEUR, qu'on trouve par la netteté : le fond est flou
  * (faible profondeur de champ), le joueur est ce qui porte les contours.
  *
  *   1. l'image réduite en gris (324 px de large), la force de ses contours en
@@ -25,13 +25,19 @@
  * médian (une foule nette partout), la clarté du bas (des gradins sombres
  * sous la glace), la part de glace au centre, la part d'aplats.
  *
+ * OCT. 2026 — LE PLUS D'IMAGE POSSIBLE. JP : *ça me dérange pas si c'est de loin, tant qu'on voit le joueur* ;
+ * *le but est de rentrer un maximum de pourcentage de l'image dans la carte*. La fenêtre 5:7 ne gardait que 40 % de
+ * la largeur, et ratait parfois le joueur (un arbitre, un filet, une jambière). Elle est maintenant CARRÉE et prend
+ * toute la hauteur : 56 % de la largeur, le joueur avec son jeu autour. La carte la pose en haut et remplit le reste
+ * de la même photo, floutée (style.css, « LES ÉDITIONS »).
+ *
  * UNE SEULE IMPLÉMENTATION pour deux usages, comme js/recadrage.js :
  * `scripts/actions.mjs` (la version Web, recadrée une fois à la fabrication)
  * et `js/actions.js` (l'application Android, qui télécharge et recadre sur
  * l'appareil). La fonction ne lit AUCUNE variable extérieure : le script
  * l'injecte dans Chromium par son texte (`recadrerAction.toString()`).
  */
-export async function recadrerAction(blob, { largeur = 400, hauteur = 560, qualite = 0.8, serre = 0.9 } = {}) {
+export async function recadrerAction(blob, { largeur = 560, hauteur = 560, qualite = 0.8, serre = 1 } = {}) {
   const img = await createImageBitmap(blob);
   const W = img.width, H = img.height;
   // 1. L'image réduite, en gris ; la force des contours, moins le fond.

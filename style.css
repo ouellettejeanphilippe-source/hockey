@@ -1580,7 +1580,9 @@ a.spin-club:hover { background: var(--fond-2); }
   width: 72%; height: 88%; left: 14%; right: auto; top: auto; bottom: 0;
   filter: grayscale(1) contrast(2.1) brightness(0.08) drop-shadow(0 0 0.35cqw var(--band));
 }
-.carton-photo > .carton-action { object-fit: cover; object-position: 50% 30%; z-index: 1; }
+.carton-photo > .carton-action { bottom: auto; height: auto; aspect-ratio: 1; object-fit: cover; z-index: 1; -webkit-mask-image: linear-gradient(180deg, black 80%, transparent); mask-image: linear-gradient(180deg, black 80%, transparent); }
+/* La photo d'action est carrée (le plus d'image possible) : la même, floutée et assombrie, remplit le reste de la carte. */
+.carton-photo > .carton-action-flou { object-fit: cover; z-index: 0; transform: scale(1.2); filter: blur(3cqw) brightness(0.65) saturate(1.2); }
 .carton-photo:has(> .carton-action) > :is(.visage, .headshot-fallback) { display: none; }
 .carton-photo > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: end center; font-size: 62cqw; line-height: 0.95; opacity: 0.28; }
 .carton-deco { inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0.9cqw 0.5cqw -0.6cqw color-mix(in srgb, white 40%, transparent), inset 0 0 0 0.4cqw color-mix(in srgb, currentColor 26%, transparent); }
@@ -1794,7 +1796,6 @@ a.spin-club:hover { background: var(--fond-2); }
   -webkit-mask: var(--team-logo) 50% 50% / contain no-repeat; mask: var(--team-logo) 50% 50% / contain no-repeat;
 }
 .cs-ecusson .carton-photo { inset: auto 0 30cqw; height: 100cqw; -webkit-mask-image: linear-gradient(black 82%, transparent); mask-image: linear-gradient(black 82%, transparent); }
-.cs-ecusson.action-plein .carton-photo { inset: 0; height: auto; -webkit-mask-image: none; mask-image: none; }
 .cs-ecusson .carton-deco::after { left: 0; right: 0; bottom: 0; height: 48cqw; background: linear-gradient(transparent, color-mix(in srgb, var(--band) 70%, black) 55%); }
 .cs-ecusson .carton-nom { text-shadow: 0 0.1cqw 0.2cqw color-mix(in srgb, black 60%, transparent);  --nom-l: 70cqw; --nom-max: 15cqw; --prenom: 5.2cqw; left: 6cqw; right: 24cqw; bottom: 12cqw; }
 .cs-ecusson .carton-nom::before { content: ''; display: block; width: 20cqw; height: 0.9cqw; margin-bottom: 2.2cqw; background: var(--stripe); }
@@ -1819,7 +1820,6 @@ a.spin-club:hover { background: var(--fond-2); }
 }
 .cs-glace::before { inset: 27cqw 7cqw 36cqw; border: 1.1cqw solid var(--band); border-radius: 1.4cqw; background: linear-gradient(color-mix(in srgb, var(--band) 16%, transparent), color-mix(in srgb, var(--band) 4%, transparent)); }
 .cs-glace .carton-photo { inset: auto 7cqw 36cqw; height: 92cqw; }
-.cs-glace.action-fenetre .carton-photo { inset: 27cqw 7cqw 36cqw; height: auto; border-radius: 1.4cqw; }
 .cs-glace .carton-nom {
   --nom-l: 58cqw; --nom-max: 11cqw; left: 3cqw; right: 3cqw; top: 103cqw; height: 20cqw; padding: 0 5cqw 0 28cqw; color: var(--ink);
   background: linear-gradient(90deg, transparent 0 22cqw, var(--stripe) 22cqw 23.4cqw, transparent 23.4cqw 24.4cqw, var(--band) 24.4cqw), var(--band);
@@ -1851,7 +1851,6 @@ a.spin-club:hover { background: var(--fond-2); }
   -webkit-mask-image: linear-gradient(transparent, #000 35%, #000 100%); mask-image: linear-gradient(transparent, #000 35%, #000 100%);
 }
 .cs-arena .carton-photo { inset: auto 0 28cqw; height: 100cqw; -webkit-mask-image: linear-gradient(black 84%, transparent); mask-image: linear-gradient(black 84%, transparent); }
-.cs-arena.action-plein .carton-photo { inset: 0; height: auto; -webkit-mask-image: none; mask-image: none; }
 .cs-arena .carton-deco::after { left: 0; right: 0; bottom: 0; height: 40cqw; background: linear-gradient(transparent, rgba(4, 6, 10, 0.7) 60%); }
 .cs-arena .carton-nom {
   --nom-l: 62cqw; --nom-max: 11.5cqw; left: 0; right: 16cqw; top: 104cqw; height: 20cqw; padding: 1cqw 12cqw 0 6cqw; color: #0c121b;

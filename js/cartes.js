@@ -327,21 +327,20 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  * La SAISON choisit la série (`DEBUTS`), le CLUB la palette, la VARIANTE
  * (js/rarete.js) la parallèle — le même dessin, traité : voir `cartonHtml`.
  *
- * `action` : ce que la série fait d'une photo d'action (`photoAction`) —
- * 'plein', sur toute la carte ; 'fenetre', dans sa fenêtre ; rien, elle garde
- * le portrait, comme les vraies séries d'avant la photo d'action.
+ * La photo d'action (`photoAction`) n'appartient pas à une série : elle va aux
+ * éditions hautes, dont la photo prend toute la carte (oct. 2026).
  */
 export const SERIES = {
   vintage: { nom: 'Vintage 70' },
   retro: { nom: 'Rétro 80' },
-  tableau: { nom: 'Tableau', action: 'fenetre' },
-  mosaique: { nom: 'Mosaïque', action: 'fenetre' },
-  filet: { nom: 'Filet', action: 'fenetre' },
-  chrome: { nom: 'Chrome', action: 'fenetre' },
-  ecusson: { nom: 'Écusson', action: 'plein' },
-  glace: { nom: 'Glace', action: 'fenetre' },
-  arena: { nom: 'Aréna', action: 'plein' },
-  signature: { nom: 'Signature', action: 'fenetre' },
+  tableau: { nom: 'Tableau' },
+  mosaique: { nom: 'Mosaïque' },
+  filet: { nom: 'Filet' },
+  chrome: { nom: 'Chrome' },
+  ecusson: { nom: 'Écusson' },
+  glace: { nom: 'Glace' },
+  arena: { nom: 'Aréna' },
+  signature: { nom: 'Signature' },
 };
 /* La première saison de chaque série : une saison prend la série de la dernière qui l'a commencée. */
 const DEBUTS = [
@@ -368,8 +367,13 @@ export function anneeDeCarte(saison) {
  * les gabarits (le vestiaire, la carte mini, la fiche, `artJoueur`) la
  * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au
  * chargement (`onerror`) — chaque série retombe sur le portrait.
+ *
+ * L'ACTION EST UNE ÉDITION HAUTE (oct. 2026). JP : *ajouter des cartes que c'est un action shot et non juste
+ * headshot* — puis, des deux choix, *les éditions hautes*. La Base et le Cadre gardent le portrait ; le
+ * Hors-cadre, l'Or et la Holo montrent le joueur en mouvement, pleine carte : l'action se gagne et se voit.
  */
-export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
+const EN_ACTION = new Set(['hors', 'rare', 'legendaire']);
+export const photoAction = (p, rarete) => (p && EN_ACTION.has(rarete) && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
@@ -438,10 +442,12 @@ export function tirageLimite(cle, num = '/99') {
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : 'signature';
   const r = edition(c.rarete);
-  const action = c.actionSrc && SERIES[serie].action
-    ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+  // Une photo d'action n'arrive qu'à une édition haute, dont la photo prend déjà toute la carte (« LES ÉDITIONS », style.css).
+  // La photo est carrée (le plus d'image possible, js/recadrage-action.js) : nette en haut, et la même, floutée, dessous.
+  const action = c.actionSrc
+    ? `<img class="carton-action-flou" src="${echapper(c.actionSrc)}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.remove()"><img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
     : '';
-  return `<span class="carton cs-${serie} tc-${r}${action ? (SERIES[serie].action === 'plein' ? ' action-plein' : ' action-fenetre') : ''}">
+  return `<span class="carton cs-${serie} tc-${r}">
     ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
     <span class="carton-photo">${action}${c.portraitHtml || ''}</span>
     <span class="carton-deco" aria-hidden="true"></span>

@@ -37,7 +37,7 @@ const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
 const VISAGES = 'cap82img-visages-320';
 // Les tiroirs que l'application Android remplit elle-même (js/visages.js, js/actions.js) : l'activation ne les
 // jette pas (elle jetait tout « cap82img- » autre que VISAGES, donc les visages déjà recadrés par l'appareil).
-const TIROIRS = [VISAGES, 'cap82img-appareil-320', 'cap82img-actions-400'];
+const TIROIRS = [VISAGES, 'cap82img-appareil-320', 'cap82img-actions-560'];
 
 const FICHIERS = [
   './', 'index.html', 'style.css', 'site.webmanifest', 'favicon.svg',

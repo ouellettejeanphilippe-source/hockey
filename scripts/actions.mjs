@@ -17,10 +17,10 @@
  *   1. il télécharge chaque photo (le brut reste dans un cache, hors du dépôt,
  *      pour qu'une deuxième passe ne retélécharge rien ; les absents aussi
  *      sont retenus) ;
- *   2. il découpe une fenêtre 5:7 centrée sur le joueur, trouvé par la
+ *   2. il découpe une fenêtre carrée, toute la hauteur, centrée sur le joueur, trouvé par la
  *      netteté (js/recadrage-action.js, le même code que l'appareil Android) ;
- *   3. il écrit un WebP 400 × 560 (img/actions/{id}.webp, HORS DU DÉPÔT :
- *      des dizaines de Mo qui se refont) et la liste des photos qui existent
+ *   3. il écrit un WebP carré 560 × 560 (img/actions/{id}.webp, versionné depuis
+ *      oct. 2026 : ≈ 50 Mo, que GitHub Pages sert) et la liste des photos qui existent
  *      (data/actions.json, versionnée) : le jeu ne demande jamais une photo
  *      absente, et l'appareil sait quoi télécharger.
  *
@@ -36,7 +36,7 @@ import { recadrerAction } from '../js/recadrage-action.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const arg = (nom, def) => { const i = process.argv.indexOf(`--${nom}`); return i < 0 ? def : (process.argv[i + 1] ?? true); };
-const LARGEUR = 400, HAUTEUR = 560;
+const LARGEUR = 560, HAUTEUR = 560;
 const QUALITE = Number(arg('qualite', 0.8));
 const LIMITE = Number(arg('limite', 0)) || Infinity;
 const BRUT = arg('brut', path.join(os.tmpdir(), 'cap82-actions'));
@@ -130,7 +130,8 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
  */
 const vueDArena = m => m.bas < 72 && (m.glace > 0.35 || (m.contour > 25 && m.plat > 0.18));
 const GARDEES_A_L_OEIL = new Set([8475831, 8480336]);
-const ECARTEES_A_L_OEIL = new Set([8476433, 8478176]);
+// Oct. 2026 (le cadrage carré, planches-contact relues une à une) : une vue d'aréna, une épaule, un filet, une image floue — on n'y voit pas le joueur.
+const ECARTEES_A_L_OEIL = new Set([8476433, 8478176, 8477369, 8477981, 8481593, 8482447, 8460503, 8471734, 8475165, 8478971, 8446926]);
 const EMPREINTE_PROCHE = 10;
 const distance = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) { let v = a[i] ^ b[i]; while (v) { n += v & 1; v >>= 1; } } return n; };
 
