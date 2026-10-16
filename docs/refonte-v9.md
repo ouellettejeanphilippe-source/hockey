@@ -8,7 +8,7 @@
 - *Simplifier visuellement et la façon de jouer, mais gagner en profondeur et en storytelling, deux choses absentes aujourd'hui. Le Rogue est brain dead ; le 82-0, avec ses rolls, demande plus de stratégie.*
 - *Je ne suis pas attaché au jeu tel qu'il est, mais demande-moi avant un changement majeur.*
 
-**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1 et 2 sont faites (§ 13 et § 14) ; les autres attendent leur tour, une PR chacune.
+**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1, 2 et 3 sont faites (§ 13 à § 15) ; les autres attendent leur tour, une PR chacune.
 
 ## 1. Comment c'est mesuré
 
@@ -100,10 +100,10 @@ JP, 16 oct. : *Fire Emblem, XCOM, Darkest Dungeon, Alien: Dark Descent, Slay the
   - 🐝 le Frelon paie le Tir et la Robustesse et coûte du Jeu ;
   - l'Aigle paie le Tir et le Jeu et coûte de la Défense.
 
-  Les neuf se tranchent à la tranche 3. La confiance (I, II, III) monte toujours avec les cartes jouées.
+  Les neuf se tranchent à la tranche 3. La confiance (I, II, III) monte toujours avec les cartes jouées. *Tranché à la tranche 3 (§ 15) : la Tortue et le Contremaître paient la Défense, l'Aigle le Tir et le Jeu, le Frelon le Tir et la Robustesse, le Rhino et le Doc la Robustesse, l'Abbé et le Showman le Jeu.*
 - **Moins de systèmes, chacun lisible.** Sept systèmes de trio et cinq de paire deviennent quatre et trois, un par famille, plus « sans système » :
   - trios : Volume (Tir), Cycle (Jeu), Trappe (Défense), Échec avant (Robustesse) ;
-  - paires : Activer (Tir et Jeu), Maison (Défense), Nettoyer (Robustesse).
+  - paires : Activer (Tir et Jeu), Maison (Défense), Nettoyer (Robustesse). *Devenu quatre à la tranche 3 (JP : oui) : Activer (Tir), Sortie rapide (Jeu), Maison (Défense), Nettoyer (Robustesse). À points égaux, le Tir et le Jeu d'un défenseur sont complémentaires : les payer ensemble ne payait rien.*
 
   Le fit d'une unité ne compare plus des étiquettes : c'est la somme de ce que ses joueurs apportent dans la famille que son système paie.
 - **Ce que l'écran dit** : le profil de ton équipe en quatre familles, contre celui que ton coach paie. « Ton plan paie la Défense : 9 joueurs sur 18 la servent. »
@@ -262,7 +262,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 
 1. **À faire, une seule forme.** L'interface seulement, aucun moteur : tous les choix d'aujourd'hui passent par un seul composant et un seul endroit. Le gain visible est immédiat et le risque faible. Juge : `essai_rogue`.
 2. **Le juge d'abord.** `check_fit` et les deux robots, mesurés sur le jeu d'aujourd'hui, pour avoir le point de départ (attendu : Spearman 0,97, écart attentif-distrait petit hors de la signature).
-3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 3 ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
+3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 4 (§ 15) ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
 4. **Le plafond qui mord**, la liste qui classe pour ton plan, et **un départ bien pire** (JP, 16 oct. : *you should start with a way worse team*). On part d'une équipe beaucoup plus faible, et c'est le plan et le marché qui la font monter. Le mandat de la saison 1 se règle avec elle. Juge : `check_rogue` (la première run reste dure, mais une équipe faible bien menée monte).
 5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`.
 6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`.
