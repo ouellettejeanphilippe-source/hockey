@@ -1635,11 +1635,16 @@ a.spin-club:hover { background: var(--fond-2); }
 .carton .cj-gemme .cj-trait { font-size: 5cqw; margin-left: 1cqw; }
 @container (max-width: 130px) { .carton .cj-gemme { display: none; } }
 
+/* LE VERNIS : une vraie carte est glacée — une bande de lumière en biais, à peine, sur toute la carte (oct. 2026, JP : *des belles cartes*). */
+.carton::after {
+  content: ''; position: absolute; inset: 0; z-index: 6; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(122deg, color-mix(in srgb, white 34%, transparent) 0%, transparent 22% 58%, color-mix(in srgb, white 12%, transparent) 66%, transparent 78%);
+  mix-blend-mode: soft-light;
+}
 /* LE REFLET : une tache de lumière sous le doigt, seulement sur la carte qu'on penche. */
 .carton:is(.incline, .relache, .gyro)::after {
-  content: ''; position: absolute; inset: 0; z-index: 6; pointer-events: none;
   background: radial-gradient(farthest-corner circle at var(--mx) var(--my), rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.12) 24%, transparent 56%);
-  mix-blend-mode: soft-light; opacity: var(--lueur);
+  opacity: var(--lueur);
 }
 .carton.incline { transition-duration: 0.08s, 0.08s, 0.08s, 0.08s, 0.2s, 0.15s, 0s, 0.2s; --leve: -3px; box-shadow: inset 0 1px 0 color-mix(in srgb, white 24%, transparent), inset 0 0 0 1px color-mix(in srgb, var(--encre) 40%, transparent), 0 2px 2px color-mix(in srgb, var(--noir) 50%, transparent), 0 18px 26px -8px color-mix(in srgb, var(--noir) 62%, transparent); }
 .carton.relache { transition-property: --rx, --ry, --mx, --my, --lueur, --leve, box-shadow; }
@@ -1900,18 +1905,56 @@ a.spin-club:hover { background: var(--fond-2); }
 :is(.cs-vintage, .cs-retro, .cs-glace, .cs-signature, .cs-chrome) { --fini-mode: multiply; --fini-o: 0.6; }
 .cs-chrome.tc-peu { --fini-mode: overlay; --fini-o: 0.8; }
 .carton-cadre {
-  inset: 0; z-index: 3; pointer-events: none; border-radius: inherit; padding: 3.2cqw;
-  background: var(--metal-ed);
+  --ep: 3.6cqw;
+  /* Au-dessus des bandeaux du nom (z 4) : tout tient DANS le cadre ; le poste, l'édition et le tirage restent dessus (z 5, plus loin). */
+  inset: 0; z-index: 5; pointer-events: none; border-radius: inherit; padding: var(--ep);
+  background:
+    /* le biseau : la lumière tombe d'en haut, l'ombre remonte d'en bas */
+    linear-gradient(180deg, color-mix(in srgb, white 55%, transparent), transparent 9% 91%, color-mix(in srgb, black 45%, transparent)),
+    linear-gradient(90deg, color-mix(in srgb, white 30%, transparent), transparent 8% 92%, color-mix(in srgb, black 30%, transparent)),
+    /* la gravure guillochée, comme sur un billet */
+    repeating-radial-gradient(circle at 50% 50%, color-mix(in srgb, white 16%, transparent) 0 0.22cqw, transparent 0.22cqw 0.75cqw),
+    var(--metal-ed);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
   mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   filter: drop-shadow(0 0 0.5cqw color-mix(in srgb, black 60%, transparent));
 }
-/* Le biseau : un filet sombre au bord intérieur du métal, un filet clair au bord extérieur. */
 .carton-cadre::before, .carton-cadre::after { content: ''; position: absolute; border-radius: inherit; }
-.carton-cadre::before { inset: 0; box-shadow: inset 0 0 0 0.35cqw color-mix(in srgb, white 55%, transparent); }
-.carton-cadre::after { inset: 3.2cqw; border-radius: 2.4cqw; box-shadow: 0 0 0 0.45cqw color-mix(in srgb, black 55%, transparent), 0 0 0 0.8cqw color-mix(in srgb, white 30%, transparent); }
-.carton.tc-legendaire .carton-cadre { animation: ed-prisme 6s linear infinite; }
-@keyframes ed-prisme { to { background-position: 300% 0; } }
+/* Les quatre rivets, au milieu du métal dans chaque coin, et le filet clair du bord extérieur. */
+.carton-cadre::before {
+  inset: 0;
+  background:
+    radial-gradient(circle at calc(var(--ep) / 2 + 0.6cqw) calc(var(--ep) / 2 + 0.6cqw), color-mix(in srgb, white 85%, transparent) 0 0.35cqw, color-mix(in srgb, black 50%, transparent) 0.6cqw 0.9cqw, transparent 1cqw),
+    radial-gradient(circle at calc(100% - var(--ep) / 2 - 0.6cqw) calc(var(--ep) / 2 + 0.6cqw), color-mix(in srgb, white 85%, transparent) 0 0.35cqw, color-mix(in srgb, black 50%, transparent) 0.6cqw 0.9cqw, transparent 1cqw),
+    radial-gradient(circle at calc(var(--ep) / 2 + 0.6cqw) calc(100% - var(--ep) / 2 - 0.6cqw), color-mix(in srgb, white 85%, transparent) 0 0.35cqw, color-mix(in srgb, black 50%, transparent) 0.6cqw 0.9cqw, transparent 1cqw),
+    radial-gradient(circle at calc(100% - var(--ep) / 2 - 0.6cqw) calc(100% - var(--ep) / 2 - 0.6cqw), color-mix(in srgb, white 85%, transparent) 0 0.35cqw, color-mix(in srgb, black 50%, transparent) 0.6cqw 0.9cqw, transparent 1cqw);
+  box-shadow: inset 0 0 0 0.3cqw color-mix(in srgb, white 60%, transparent), inset 0 0 0 0.6cqw color-mix(in srgb, black 25%, transparent);
+}
+/* Le bord intérieur : une gorge sombre, le filet aux couleurs du club, puis un filet clair. */
+.carton-cadre::after { inset: var(--ep); border-radius: 2.2cqw; box-shadow: 0 0 0 0.4cqw color-mix(in srgb, black 60%, transparent), 0 0 0 0.85cqw var(--vive), 0 0 0 1.15cqw color-mix(in srgb, white 45%, transparent); }
+/* L'Or : une feuille plus épaisse, quadrillée en relief, et des paillettes qui scintillent sur le métal. */
+.carton.tc-rare .carton-cadre {
+  --ep: 4cqw;
+  background:
+    radial-gradient(circle at 18% 1.8%, white 0 0.25cqw, transparent 0.9cqw), radial-gradient(circle at 98% 34%, white 0 0.25cqw, transparent 0.9cqw),
+    radial-gradient(circle at 2% 71%, white 0 0.25cqw, transparent 0.9cqw), radial-gradient(circle at 63% 98.6%, white 0 0.25cqw, transparent 0.9cqw),
+    linear-gradient(180deg, color-mix(in srgb, white 50%, transparent), transparent 9% 91%, color-mix(in srgb, black 45%, transparent)),
+    repeating-linear-gradient(45deg, color-mix(in srgb, white 14%, transparent) 0 0.35cqw, transparent 0.35cqw 1cqw),
+    repeating-linear-gradient(-45deg, color-mix(in srgb, black 10%, transparent) 0 0.35cqw, transparent 0.35cqw 1cqw),
+    var(--metal-ed);
+  animation: ed-scintille 2.8s ease-in-out infinite alternate;
+}
+@keyframes ed-scintille { from { filter: drop-shadow(0 0 0.5cqw color-mix(in srgb, black 60%, transparent)) brightness(0.96); } to { filter: drop-shadow(0 0 0.5cqw color-mix(in srgb, black 60%, transparent)) brightness(1.12); } }
+/* La Holo : le prisme « en éventail » des séries de luxe — des rayons d'arc-en-ciel autour d'un centre — qui tourne. */
+.carton.tc-legendaire .carton-cadre {
+  --ep: 4cqw;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, white 45%, transparent), transparent 9% 91%, color-mix(in srgb, black 40%, transparent)),
+    repeating-conic-gradient(from var(--ry, 0deg) at 50% 42%, color-mix(in srgb, white 35%, transparent) 0deg 1.5deg, transparent 1.5deg 6deg),
+    var(--metal-ed);
+  animation: ed-prisme 6s linear infinite;
+}
+@keyframes ed-prisme { to { background-position: 0 0, 0 0, 300% 0; } }
 
 /* LE HORS-CADRE · la photo quitte sa fenêtre : elle prend toute la carte, sous le métal et sous les mots. */
 .carton:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-photo {
@@ -1942,14 +1985,21 @@ a.spin-club:hover { background: var(--fond-2); }
   background: linear-gradient(118deg, transparent 30%, color-mix(in srgb, var(--or) 75%, transparent) 45%, color-mix(in srgb, white 90%, transparent) 50%, color-mix(in srgb, var(--or) 75%, transparent) 55%, transparent 70%) var(--mx) var(--my) / 250% 250%;
 }
 .carton.tc-legendaire .carton-lueur {
-  mix-blend-mode: color-dodge; opacity: 0.45;
+  mix-blend-mode: color-dodge; opacity: 0.4;
+  -webkit-mask-image: radial-gradient(ellipse 62% 52% at 50% 40%, transparent 70%, black 100%); mask-image: radial-gradient(ellipse 62% 52% at 50% 40%, transparent 70%, black 100%);
   background:
     repeating-linear-gradient(24deg, rgba(0, 0, 0, 0.25) 0 1px, transparent 1px 2.6px),
     linear-gradient(112deg, transparent 18%, var(--prisme), transparent 82%) 0 0 / 260% 260%;
   animation: ed-balaie 4.5s ease-in-out infinite alternate;
 }
 @keyframes ed-balaie { from { background-position: 0 0, 100% 0; } to { background-position: 0 0, 0 0; } }
-@media (prefers-reduced-motion: reduce) { .carton.tc-legendaire :is(.carton-cadre, .carton-lueur) { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .carton:is(.tc-rare, .tc-legendaire) :is(.carton-cadre, .carton-lueur) { animation: none; } }
+/* L'étiquette du coin prend le métal de son édition : l'acier, l'or, le prisme. */
+.carton:is(.tc-peu, .tc-hors, .tc-rare, .tc-legendaire) .cj-gemme {
+  background: linear-gradient(180deg, color-mix(in srgb, white 45%, transparent), transparent 40%, color-mix(in srgb, black 25%, transparent)), var(--metal-ed);
+  color: color-mix(in srgb, black 85%, var(--fonce)); text-shadow: 0 0.2cqw 0 color-mix(in srgb, white 45%, transparent);
+  box-shadow: inset 0 0 0 0.4cqw color-mix(in srgb, black 30%, transparent);
+}
 .carton.tc-rare { --metal-ed: var(--stries-ed), var(--or-feuille); filter: drop-shadow(0 0 0.8cqw color-mix(in srgb, var(--or) 60%, transparent)); }
 .carton.tc-legendaire { --metal-ed: linear-gradient(115deg, var(--prisme), var(--prisme)) 0 0 / 300% 300%; filter: drop-shadow(0 0 1cqw color-mix(in srgb, var(--violet) 60%, transparent)); }
 
@@ -1967,11 +2017,11 @@ a.spin-club:hover { background: var(--fond-2); }
 @container (max-width: 130px) { .carton-relique { display: none; } }
 @container (max-width: 190px) { .carton-relique i { display: none; } }
 
-/* L'OR : le nom doré à chaud. LA HOLO : le nom irisé, la signature, le tirage.
-   Le nom prend son ombre par `filter` : un `text-shadow` se peindrait PAR-DESSUS l'or découpé dans les lettres, et le ternirait. */
-.carton.tc-rare .carton-nom .lname { color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.22cqw rgba(40, 24, 0, 0.55); text-shadow: none; filter: drop-shadow(0 0.35cqw 0 color-mix(in srgb, black 55%, transparent)) drop-shadow(0 0 0.25cqw color-mix(in srgb, black 35%, transparent)); }
+/* L'OR : le nom doré à chaud. LA HOLO : le nom irisé, la signature, le tirage. Un contour sombre le garde lisible sur
+   un bandeau clair (le jaune des Bruins). Le nom prend son ombre par `filter` : un `text-shadow` se peindrait PAR-DESSUS l'or découpé dans les lettres, et le ternirait. */
+.carton.tc-rare .carton-nom .lname { color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.4cqw color-mix(in srgb, black 85%, var(--or)); paint-order: stroke fill; text-shadow: none; filter: drop-shadow(0 0.35cqw 0 color-mix(in srgb, black 55%, transparent)) drop-shadow(0 0 0.25cqw color-mix(in srgb, black 35%, transparent)); }
 .cs-tableau.tc-rare .carton-nom .lname { background: radial-gradient(circle, #ffe08a 52%, transparent 58%) 0 0 / 0.125em 0.125em; -webkit-background-clip: text; background-clip: text; text-shadow: none; filter: drop-shadow(0 0 0.12em rgba(255, 190, 60, 0.45)); }
-.carton.tc-legendaire .carton-nom .lname { color: transparent; background: linear-gradient(100deg, var(--prisme)) 0 0 / 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.2cqw rgba(20, 10, 40, 0.5); text-shadow: none; filter: drop-shadow(0 0.35cqw 0 color-mix(in srgb, black 55%, transparent)); }
+.carton.tc-legendaire .carton-nom .lname { color: transparent; background: linear-gradient(100deg, var(--prisme)) 0 0 / 200% 100%; -webkit-background-clip: text; background-clip: text; -webkit-text-stroke: 0.4cqw color-mix(in srgb, black 85%, var(--violet)); paint-order: stroke fill; text-shadow: none; filter: drop-shadow(0 0.35cqw 0 color-mix(in srgb, black 55%, transparent)); }
 .carton-signature {
   z-index: 4; left: 10cqw; right: 10cqw; top: 70cqw; transform: rotate(-9deg); text-align: center; pointer-events: none;
   font: 400 min(11cqw, calc(150cqw / var(--sig, 12))) / 1.1 "Segoe Script", "Brush Script MT", "Dancing Script", cursive; letter-spacing: -0.01em; white-space: nowrap;
