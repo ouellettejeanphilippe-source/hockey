@@ -553,8 +553,8 @@ else {
   const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
   console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
-  // Jalon P2 : la boutique vend sept packs, tous mixtes.
-  if (nTout !== 7) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 7`);
+  // Jalon P2 : la boutique vend huit packs, tous mixtes (les Cols bleus, oct. 2026).
+  if (nTout !== 8) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 8`);
   if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
   // Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
@@ -1028,7 +1028,10 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
  * ouverte du cartable : tes cartes qui lui vont, en cartes ; celle qu'on
  * touche revient EN ATTENTE au verso, et « Poser ici » la pose.
  */
-if (posee) {
+// Une modif de gardien (un masque) peut tomber sur un bouche-trou de la ligue, qui n'est pas au cartable : l'étape attend.
+const poseeAuCartable = posee && await page.$(`[data-ct-equipe="${posee.mutation.joueur}"]`);
+if (posee && !poseeAuCartable) console.log(`12a. ${posee.mutation.joueur} est un bouche-trou de la ligue, pas une carte du cartable : l'étape du verso attend`);
+if (poseeAuCartable) {
   await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
   await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
   await page.click('#hockeyCardModal .fc-plaque .cj-retourner');

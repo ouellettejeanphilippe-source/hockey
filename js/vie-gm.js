@@ -15,8 +15,8 @@
  *              discipline, blessure, energie, F, D), sa durée en matchs, ou un
  *              `pari`, un `ensuite`, une `action` — rien de neuf, et dans les
  *              amplitudes des dilemmes voisins. Le texte dit ce que l'effet fait.
- *   ECHANGES   la causerie ou le point de presse d'après-match : une ouverture
- *              sérieuse, la question d'un journaliste, la réponse laconique.
+ *   ECHANGES   le point de presse d'après-match : la question d'un journaliste,
+ *              et les réponses de l'entraîneur à CETTE question.
  *
  * Tout est PUR : le même contexte et la même graine redonnent le même tirage
  * (comme js/recit.js), sans `hasard()` — le moteur ne consomme pas un dé de plus.
@@ -783,280 +783,216 @@ const DILEMMES = Object.fromEntries(Object.entries(DILEMMES_BRUTS).map(([cle, d]
 }));
 
 /* ======================================================================
-   LES ÉCHANGES : la causerie du vestiaire et le point de presse
-   [moment, ouverture du coach, question du journaliste, réponse du coach]
-   victoire · defaite · raclee (une défaite sans appel) · serieDefaites
-   · blanchissage (ton gardien n'a rien accordé) · derniereChance (avant un
-   match qu'on ne peut pas perdre : aucune ouverture ne dit le résultat).
+   LE POINT DE PRESSE : la question d'un journaliste, et TES réponses à elle
+   (oct. 2026). JP : *les entrevues sont pas pareilles* — la question parlait
+   de la vidéo du lendemain ou de la rondelle du match, et les réponses
+   offertes venaient d'un paquet commun à toute l'occasion (« Tourner la
+   page », « Féliciter {nom} ») : on répondait à côté. Chaque question porte
+   maintenant ses deux ou trois réponses, ce que l'entraîneur dit au micro,
+   dans la forme des options des dilemmes (`o`, plus haut) : les mêmes
+   canaux, les mêmes amplitudes, un `pari`, un `ensuite`, une `action`.
+   Trois occasions, celles que la saison tire (js/saison.js, `vieOuverte`) :
+   raclee (une défaite sans appel) · serieDefaites (trois de suite) ·
+   blanchissage (ton gardien n'a rien accordé : il est nommé, {nom}).
+   L'id (`e29`…) est celui d'avant : une saison sauvegardée retrouve sa question.
    ====================================================================== */
+/* Les effets qui reviennent, dans les amplitudes des dilemmes voisins (js/sim.js, MOMENTS). */
+const CALME = { discipline: 0.86, finition: 0.96, duree: 5 };
+const FEU = { volume: 1.08, discipline: 1.18, duree: 5 };
+const SERIEUX = { defense: 0.93, finition: 0.95, duree: 5 };
+const OUBLI = { finition: 1.05, defense: 1.06, duree: 5 };
+const DETENTE = { volume: 1.06, defense: 1.06, duree: 5 };
+const ABRI = { discipline: 0.85, volume: 0.94, duree: 5 };
+const DUR = { defense: 0.92, discipline: 1.15, duree: 5 };
+const REPOS = { energie: 0.88, finition: 0.95, duree: 5 };
+const PRATIQUE = { defense: 0.92, action: { energieTous: -10 }, duree: 5 };
+const CHOC = { F: [0.92, 1.04, 1.06, 1.03], volume: 1.06, duree: 5 };
+const BAS = { F: [0.9, 0.97, 1.05, 1.2], blessure: 0.8, duree: 5 };
+const PROMESSE = { pari: { chance: 3 / 6, gagne: { finition: 1.08, duree: 5 }, perd: { finition: 0.94, duree: 5 } } };
+const LUI = { defense: 0.93, discipline: 1.12, duree: 5 };
+const BLEUS = { defense: 0.94, blessure: 1.2, duree: 5 };
+const SOBRE = { defense: 0.95, finition: 0.96, duree: 5 };
+const CONGE = { action: { gardienAux: 1 }, ensuite: { apres: 1, duree: 5, defense: 0.94 } };
 const ECHANGES_BRUTS = [
-  // ---- Après une victoire ----
-  ['victoire', 'Les gars ont suivi le plan du début à la fin.',
-    'Le vestiaire était bruyant après la sirène. Vous lui laissez la bride sur le cou ?',
-    'Ce soir, oui. Demain matin, on regarde les erreurs.'],
-  ['victoire', 'C\'est une victoire d\'équipe, je le dis sans réserve.',
-    'Vous parlez d\'équipe, mais certains ont joué plus gros que d\'autres. Vous en nommez un ?',
-    'Je pourrais. Il le sait déjà.'],
-  ['victoire', 'On a joué un match complet, de la mise au jeu à la sirène.',
-    'On sent un groupe qui commence à y croire. Vous allez entretenir ça ?',
-    'Je vais surtout m\'assurer que ça ne brûle pas trop vite.'],
-  ['victoire', 'Je suis satisfait du travail du groupe.',
-    '« Satisfait », c\'est un mot prudent pour une victoire. Vous vous retenez ?',
-    'Je me retiens. On en reparlera au printemps.'],
-  ['victoire', 'On a bien géré les moments qui comptaient.',
-    'Une victoire comme celle-là, ça se savoure ou ça se range tout de suite ?',
-    'Ça se savoure dans l\'autobus. Après, on la range.'],
-  ['victoire', 'Les gars ont trouvé le moyen.',
-    'Certains gars ont porté l\'équipe ce soir. Vous allez le souligner publiquement ?',
-    'En privé d\'abord. Ils savent qui ils sont.'],
-  ['victoire', 'Deux points, c\'est deux points.',
-    'Vous saluez l\'adversaire, ou vous dites ce soir que vous étiez meilleurs ?',
-    'Les deux peuvent être vrais.'],
-  ['victoire', 'Je suis fier de la réponse des gars.',
-    'Le mérite revient au groupe ou à ceux qui sortent du lot ?',
-    'Au groupe. Mais le groupe sait qui pousse.'],
-  ['victoire', 'On est contents de ce qu\'on a donné à nos partisans.',
-    'Les partisans en redemandent. Vous leur en promettez plus ?',
-    'Je promets du travail. Le reste se gagne.'],
-  ['victoire', 'On n\'a pas changé grand-chose, et ça a marché.',
-    'Vous restez aussi calme que si vous aviez perdu. C\'est voulu ?',
-    'C\'est voulu. Gagner, c\'est le travail.'],
-  ['victoire', 'On prend la victoire et on passe à la suivante.',
-    'C\'est le genre de soir où on pousse l\'avantage, ou celui où on reste humble ?',
-    'Humble devant vous. Affamé dans le vestiaire.'],
-  ['victoire', 'Un match comme celui-là fait du bien au vestiaire.',
-    'Y a-t-il un joueur qui mérite d\'être nommé ce soir ?',
-    'Plus d\'un. J\'en nommerai un, et pas ici.'],
-  ['victoire', 'Les gars ont été patients.',
-    'On vous sent soulagé. Vous relâchez la pression, ou vous en remettez dès demain ?',
-    'J\'en remets. Je suis fait comme ça.'],
-  ['victoire', 'C\'est le genre de victoire qui se bâtit à l\'entraînement.',
-    'Vous parlez toujours du groupe. Une fois, juste une, vous nommez quelqu\'un ?',
-    'Une fois. Pas ce soir.'],
-
-  // ---- Après une défaite ----
-  ['defaite', 'On a perdu, et il n\'y a pas lieu d\'enrober ça.',
-    'Les officiels vous ont-ils aidés ce soir, ou nui ?',
-    'Je regarde mes joueurs. Les officiels, c\'est la ligue qui les regarde.'],
-  ['defaite', 'Je ne chercherai pas d\'excuse.',
-    'À qui la faute, ce soir : au banc ou sur la glace ?',
-    'Au banc d\'abord. C\'est là que je suis.'],
-  ['defaite', 'On n\'a pas su profiter de nos chances.',
-    'Vous pensez déjà au prochain match, ou vous avez quelque chose à dire sur celui-là ?',
-    'Celui-là, je le garde pour la vidéo.'],
-  ['defaite', 'Il y a des choses à corriger, et on s\'y met dès demain.',
-    'Honnêtement, l\'effort était-il là ce soir ?',
-    'Pas partout. Ceux qui manquaient le savent.'],
-  ['defaite', 'Les gars ont tout donné, et ce n\'était pas assez.',
-    'Le sifflet a-t-il pesé dans le résultat, selon vous ?',
-    'Je ne commente pas le travail des arbitres. Ce soir, ça me coûte.'],
-  ['defaite', 'On a manqué de constance.',
-    'Certains gars avaient-ils la tête ailleurs ?',
-    'Quelques-uns. On va la leur ramener.'],
-  ['defaite', 'On aurait pu faire mieux, et on le sait.',
-    'Qu\'est-ce que vous retenez de ce soir pour la suite ?',
-    'Que la saison est longue. Et que ce soir en faisait partie.'],
-  ['defaite', 'Le pointage est le pointage.',
-    'Vous prenez la défaite sur vous, ou vous la mettez sur le dos du vestiaire ?',
-    'Sur moi. Le vestiaire, je lui parle en privé.'],
-  ['defaite', 'Une défaite, ça reste sur l\'estomac jusqu\'au prochain match.',
-    'Y a-t-il une décision des arbitres qui vous reste en travers de la gorge ?',
-    'Une ou deux. Je les garde pour moi.'],
-  ['defaite', 'Leur gardien a fait son travail.',
-    'On a vu un groupe un peu à plat. Est-ce une question d\'effort ?',
-    'D\'effort, non. De mordant, peut-être.'],
-  ['defaite', 'Je suis déçu du résultat, pas du travail.',
-    'On tourne la page tout de suite ?',
-    'Demain matin. Ce soir, on a le droit d\'être fâchés.'],
-  ['defaite', 'Il va falloir être meilleurs dans les détails.',
-    'Quel détail, plus précisément ?',
-    'Celui qui se reconnaîtra en regardant la vidéo.'],
-  ['defaite', 'On a eu notre chance et on ne l\'a pas saisie.',
-    'Avez-vous l\'impression qu\'on vous a volé ce match ?',
-    'Volé, non. Échappé, oui.'],
-  ['defaite', 'On ne perd pas de vue ce qu\'on veut accomplir.',
-    'C\'est le genre de défaite qui se règle au tableau, ou dans le vestiaire, porte fermée ?',
-    'Porte fermée. Et ça ne sera pas long.'],
-
   // ---- Après une raclée ----
-  ['raclee', 'On a été dominés, je le dis clairement.',
-    'Une soirée comme celle-là, on l\'oublie avec un sourire ou on la regarde en face ?',
-    'En face. Mais pas ce soir.'],
-  ['raclee', 'Je m\'excuse auprès des partisans pour ce qu\'ils ont vu.',
-    'Qu\'est-ce que vous allez dire à vos joueurs en entrant dans le vestiaire ?',
-    'Pas grand-chose. Ils ont vu le tableau comme moi.'],
-  ['raclee', 'On n\'a jamais été dans le match.',
-    'À quel moment avez-vous compris que la soirée était perdue ?',
-    'Trop tôt. Bien trop tôt.'],
-  ['raclee', 'Les gars sont déçus, et moi le premier.',
-    'Demain matin, c\'est congé, vidéo, ou une pratique dont ils vont se souvenir ?',
-    'Ils le sauront en arrivant.'],
-  ['raclee', 'On va regarder la vidéo et en tirer des leçons.',
-    'Peut-on encore rire dans un vestiaire après une soirée pareille ?',
-    'Il le faut. Sinon, personne ne dort.'],
-  ['raclee', 'Notre système a craqué, et pas à un seul endroit.',
-    'Faut-il tourner la page vite, ou laisser la soirée faire mal ?',
-    'Qu\'elle fasse mal une nuit. Pas plus.'],
-  ['raclee', 'Ce n\'est pas le genre de soirée qu\'on veut revoir.',
-    'Vous allez quand même la revoir, sur vidéo ?',
-    'Oui. En accéléré.'],
-  ['raclee', 'On a joué un mauvais match, je ne le minimiserai pas.',
-    'Êtes-vous en colère ?',
-    'Oui. Ça va se voir demain.'],
-  ['raclee', 'Le pointage est sévère, mais il dit la vérité.',
-    'Trouvez-vous quelque chose de positif à retenir de ce soir ?',
-    'L\'autobus part à l\'heure.'],
-  ['raclee', 'On s\'est fait battre à plate couture.',
-    'Vos joueurs méritent-ils une journée de congé après ça ?',
-    'Ils méritent une pratique. Ils vont l\'avoir.'],
-  ['raclee', 'C\'est moi le responsable, et c\'est à moi de trouver des réponses.',
-    'Vous avez l\'air étrangement calme pour un soir comme celui-là.',
-    'Le calme, c\'est ce qui me reste.'],
-  ['raclee', 'Les gars se remettent au travail demain matin.',
-    'Qu\'est-ce qui attend vos joueurs demain matin ?',
-    'De la glace. Beaucoup de glace.'],
-  ['raclee', 'On a manqué de jambes, de lecture et de plusieurs autres choses.',
-    'Faut-il prendre une soirée pareille au sérieux, ou la mettre sur le compte d\'un mauvais soir ?',
-    'Au sérieux. Un mauvais soir, ça se répète.'],
-  ['raclee', 'Je préfère ne pas commenter les détails.',
-    'Et la suite, vous la commentez ?',
-    'La suite commence demain, à la pratique.'],
+  [29, 'raclee', 'Une soirée comme celle-là, on l\'oublie avec un sourire ou on la regarde en face ?', { options: [
+    o('sourire', '« Avec un sourire. On joue après-demain. »', 'Un vestiaire qui oublie vite : plus de précision', 'Une défensive qui reste laxiste', OUBLI),
+    o('face', '« En face. Mais pas ce soir. »', 'On revoit tout : la défense se resserre', 'Des joueurs crispés devant le but', SERIEUX),
+  ] }],
+  [30, 'raclee', 'Qu\'est-ce que vous allez dire à vos joueurs en entrant dans le vestiaire ?', { options: [
+    o('rien', '« Pas grand-chose. Ils ont vu le tableau comme moi. »', 'Un silence qui calme les têtes : moins de punitions', 'Moins de mordant devant le but', CALME),
+    o('fort', '« Ce que je pense. Porte fermée, et fort. »', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', FEU),
+  ] }],
+  [31, 'raclee', 'À quel moment avez-vous compris que la soirée était perdue ?', { options: [
+    o('tot', '« Trop tôt. Bien trop tôt. »', 'Un aveu qui pique : la défense se resserre', 'Un vestiaire vexé : plus de punitions', DUR),
+    o('jamais', '« Jamais. On a joué jusqu\'à la sirène. »', 'Un vestiaire qui y croit encore : plus de lancers', 'Rien de corrigé derrière', DETENTE),
+  ] }],
+  [32, 'raclee', 'Demain matin, c\'est congé, vidéo, ou une pratique dont ils vont se souvenir ?', { options: [
+    o('conge', '« Congé. Ils en ont besoin. »', 'Des jambes reposées', 'Une soirée qui se digère mal : moins de précision', REPOS),
+    o('video', '« Vidéo. Tout le match, sans en sauter. »', 'On voit les erreurs : la défense se resserre', 'Des heures assis : l\'usure des jambes grimpe', { defense: 0.93, energie: 1.08, duree: 5 }),
+    o('pratique', '« Une pratique. Ils vont s\'en souvenir. »', 'La défense se resserre', 'Toute l\'équipe arrive sur les jambes', PRATIQUE),
+  ] }],
+  [33, 'raclee', 'Peut-on encore rire dans un vestiaire après une soirée pareille ?', { options: [
+    o('rire', '« Il le faut. Sinon, personne ne dort. »', 'Un vestiaire détendu : plus de lancers', 'Un peu de relâchement derrière', DETENTE),
+    o('pas', '« Pas cette semaine. »', 'Un groupe sérieux : la défense se resserre', 'Des joueurs crispés devant le but', SERIEUX),
+  ] }],
+  [34, 'raclee', 'Faut-il tourner la page vite, ou laisser la soirée faire mal ?', { options: [
+    o('vite', '« Vite. Il y a un match après-demain. »', 'Un vestiaire qui oublie vite : plus de précision', 'Une défensive qui reste laxiste', OUBLI),
+    o('mal', '« Qu\'elle fasse mal une nuit. Pas plus. »', 'Un groupe piqué qui se tient : moins de punitions', 'Moins de mordant devant le but', CALME),
+  ] }],
+  [35, 'raclee', 'Vous allez quand même la revoir, sur vidéo ?', { options: [
+    o('accelere', '« Oui. En accéléré. »', 'Les erreurs se corrigent : la défense se resserre', 'Un vestiaire qui rumine devant le but', SERIEUX),
+    o('non', '« Non. Elle ne mérite pas qu\'on la revoie. »', 'Une soirée de repos : des jambes ménagées', 'Les mêmes erreurs derrière', { energie: 0.9, defense: 1.06, duree: 5 }),
+  ] }],
+  [36, 'raclee', 'Êtes-vous en colère ?', { options: [
+    o('oui', '« Oui. Ça va se voir demain. »', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', FEU),
+    o('decu', '« Déçu. La colère ne règle rien. »', 'Un vestiaire calme : moins de punitions', 'Moins d\'urgence : moins de lancers', ABRI),
+  ] }],
+  [37, 'raclee', 'Trouvez-vous quelque chose de positif à retenir de ce soir ?', { options: [
+    o('autobus', '« L\'autobus part à l\'heure. »', 'Une blague qui détend : plus de précision', 'Un relâchement derrière', OUBLI),
+    o('battus', '« Ceux qui se sont battus jusqu\'à la fin. »', 'Ils se jettent devant les tirs : la défense se resserre', 'Ils s\'usent : plus de blessures', BLEUS),
+  ] }],
+  [38, 'raclee', 'Vos joueurs méritent-ils une journée de congé après ça ?', { options: [
+    o('pratique', '« Ils méritent une pratique. Ils vont l\'avoir. »', 'La défense se resserre', 'Toute l\'équipe arrive sur les jambes', PRATIQUE),
+    o('conge', '« Oui. Des jambes neuves, une tête neuve. »', 'Des jambes reposées', 'Une journée sans rythme : moins de lancers', { energie: 0.88, volume: 0.95, duree: 5 }),
+  ] }],
+  [39, 'raclee', 'Vous avez l\'air étrangement calme pour un soir comme celui-là.', { options: [
+    o('calme', '« Le calme, c\'est ce qui me reste. »', 'Un vestiaire qui suit : moins de punitions', 'Moins de mordant devant le but', CALME),
+    o('dedans', '« Je le garde pour le vestiaire. Il ne le sera pas. »', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', FEU),
+  ] }],
+  [40, 'raclee', 'Qu\'est-ce qui attend vos joueurs demain matin ?', { options: [
+    o('glace', '« De la glace. Beaucoup de glace. »', 'Du rythme : plus de lancers', 'L\'usure des jambes grimpe', { volume: 1.08, energie: 1.1, duree: 5 }),
+    o('dormir', '« Une grasse matinée. »', 'Des jambes reposées', 'Une défensive qui s\'endort', { energie: 0.88, defense: 1.05, duree: 5 }),
+  ] }],
+  [41, 'raclee', 'Faut-il prendre une soirée pareille au sérieux, ou la mettre sur le compte d\'un mauvais soir ?', { options: [
+    o('serieux', '« Au sérieux. Un mauvais soir, ça se répète. »', 'Un groupe sérieux : la défense se resserre', 'Des joueurs crispés devant le but', SERIEUX),
+    o('mauvais', '« Un mauvais soir. Tout le monde en a. »', 'Un vestiaire qui ne doute pas : plus de précision', 'Rien ne change derrière', OUBLI),
+  ] }],
+  [42, 'raclee', 'Et la suite, vous la commentez ?', { options: [
+    o('pratique', '« La suite commence demain, à la pratique. »', 'On corrige : la défense se resserre', 'L\'usure des jambes grimpe', { defense: 0.94, energie: 1.08, duree: 5 }),
+    o('promesse', '« On gagne le prochain. Notez-le. »', 'Si la promesse tient, ça tire avec aplomb', 'Sinon, elle pèse sur les épaules', PROMESSE),
+  ] }],
 
-  // ---- Après une série de défaites ----
-  ['serieDefaites', 'On traverse une période difficile, il faut le dire.',
-    'Les défaites s\'empilent. Avez-vous encore confiance en ce groupe ?',
-    'Oui. Mais la confiance, ça se mérite aussi.'],
-  ['serieDefaites', 'Les gars travaillent fort, les résultats vont suivre.',
-    'Allez-vous brasser l\'alignement avant le prochain match ?',
-    'Tout est sur la table.'],
-  ['serieDefaites', 'On ne panique pas.',
-    'À partir de quand est-ce qu\'on panique, alors ?',
-    'Pas ce soir.'],
-  ['serieDefaites', 'Je crois en ce groupe comme au premier jour du camp.',
-    'Certains joueurs jouent-ils pour leur poste ? Allez-vous les protéger ?',
-    'Je protège ceux qui travaillent.'],
-  ['serieDefaites', 'On a changé des choses, et on en changera d\'autres.',
-    'Avez-vous dit à vos joueurs ce que vous pensez vraiment de ce qu\'on voit ?',
-    'Pas encore en public.'],
-  ['serieDefaites', 'Chaque match est une chance de renverser la vapeur.',
-    'Les partisans réclament des changements. Les entendez-vous ?',
-    'Je les entends. C\'est moi qui décide.'],
-  ['serieDefaites', 'Les gars ont encore confiance, et c\'est l\'essentiel.',
-    '« Confiance », c\'est le mot que vous répétez depuis le début de la glissade. Y croyez-vous encore ?',
-    'Plus que jamais. Sinon, je changerais de mot.'],
-  ['serieDefaites', 'Un match à la fois, parce qu\'on n\'a pas le choix.',
-    'Est-ce le vestiaire qu\'il faut protéger, ou l\'alignement qu\'il faut brasser ?',
-    'Les deux, dans cet ordre.'],
-  ['serieDefaites', 'Ce n\'est pas le talent, c\'est l\'exécution.',
-    'Si ce n\'est pas le talent, qu\'est-ce qui manque ?',
-    'Un rebond qui roule pour nous. Et un peu d\'honnêteté.'],
-  ['serieDefaites', 'On va traverser ça ensemble.',
-    'Des joueurs ont-ils perdu leur place ce soir ?',
-    'Ils l\'apprendront de moi avant de l\'apprendre de vous.'],
-  ['serieDefaites', 'Je n\'ai pas peur pour mon poste.',
-    'Le propriétaire vous a-t-il appelé ?',
-    'Ma sœur m\'a appelé. Le propriétaire, pas encore.'],
-  ['serieDefaites', 'Il fallait se parler entre nous.',
-    'Avez-vous réuni le vestiaire ce soir ?',
-    'Porte fermée. Ce qui s\'est dit y reste.'],
-  ['serieDefaites', 'Le plus important, c\'est de garder les pieds sur terre.',
-    'Qu\'est-ce qu\'on dit à un vestiaire qui ne gagne plus ?',
-    'La vérité. Elle tient en une phrase.'],
-  ['serieDefaites', 'On va se serrer les coudes.',
-    'Le moment est-il venu de donner sa chance au bas de l\'alignement ?',
-    'Il approche.'],
+  // ---- Après trois défaites de suite ----
+  [43, 'serieDefaites', 'Les défaites s\'empilent. Avez-vous encore confiance en ce groupe ?', { options: [
+    o('oui', '« Oui. Mais la confiance, ça se mérite aussi. »', 'La confiance revient au tir', 'Les trous derrière ne se bouchent pas', { finition: 1.07, defense: 1.06, duree: 5 }),
+    o('travail', '« En ceux qui travaillent, oui. »', 'Chacun défend sa place : la défense se resserre', 'Un vestiaire tendu : plus de punitions', DUR),
+  ] }],
+  [44, 'serieDefaites', 'Allez-vous brasser l\'alignement avant le prochain match ?', { options: [
+    o('table', '« Tout est sur la table. »', 'Le bas de l\'alignement joue plus : le choc', 'Ton premier trio joue moins', CHOC),
+    o('memes', '« Non. Les mêmes, qui vont faire mieux. »', 'Des joueurs soutenus : moins de punitions', 'Moins de pression : moins de lancers', ABRI),
+  ] }],
+  [45, 'serieDefaites', 'À partir de quand est-ce qu\'on panique, alors ?', { options: [
+    o('pas', '« Pas ce soir. »', 'Un vestiaire calme : moins de punitions', 'Moins de mordant devant le but', CALME),
+    o('eux', '« Moi, jamais. Eux devraient s\'inquiéter. »', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', FEU),
+  ] }],
+  [46, 'serieDefaites', 'Certains joueurs jouent-ils pour leur poste ? Allez-vous les protéger ?', { options: [
+    o('proteger', '« Je protège ceux qui travaillent. »', 'Chacun défend sa place : la défense se resserre', 'Un vestiaire sur les nerfs : plus de punitions', { defense: 0.93, discipline: 1.12, duree: 5 }),
+    o('tous', '« Tout le monde joue pour son poste. Moi aussi. »', 'Tout le monde pousse : plus de lancers', 'On joue sur les nerfs : l\'usure des jambes grimpe', { volume: 1.07, energie: 1.1, duree: 5 }),
+  ] }],
+  [47, 'serieDefaites', 'Avez-vous dit à vos joueurs ce que vous pensez vraiment de ce qu\'on voit ?', { options: [
+    o('prive', '« Pas en public. »', 'Un vestiaire protégé : moins de punitions', 'Moins d\'urgence : moins de lancers', { discipline: 0.86, volume: 0.95, duree: 5 }),
+    o('assez', '« Oui. Et je vous le dis : ce n\'est pas assez. »', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', FEU),
+  ] }],
+  [48, 'serieDefaites', 'Les partisans réclament des changements. Les entendez-vous ?', { options: [
+    o('decide', '« Je les entends. C\'est moi qui décide. »', 'Un banc qui garde son plan : la défense se resserre', 'Des joueurs crispés devant le but', SERIEUX),
+    o('bouger', '« Ils ont raison. Ça va bouger. »', 'Plus de glace au bas de l\'alignement : plus de précision', 'Ton premier trio joue moins', { F: [0.95, 1.02, 1.05, 1.06], finition: 1.04, duree: 5 }),
+  ] }],
+  [49, 'serieDefaites', '« Confiance », c\'est le mot que vous répétez depuis le début de la glissade. Y croyez-vous encore ?', { options: [
+    o('jamais', '« Plus que jamais. Sinon, je changerais de mot. »', 'Un vestiaire qui ne doute pas : plus de précision', 'Rien ne change derrière', { finition: 1.06, defense: 1.06, duree: 5 }),
+    o('travail', '« J\'ai changé de mot : travail. »', 'Des pratiques dures : la défense se resserre', 'L\'usure des jambes grimpe', { defense: 0.92, energie: 1.1, duree: 5 }),
+  ] }],
+  [50, 'serieDefaites', 'Est-ce le vestiaire qu\'il faut protéger, ou l\'alignement qu\'il faut brasser ?', { options: [
+    o('vestiaire', '« Le vestiaire. Il va se relever. »', 'Des joueurs soutenus : moins de punitions', 'Moins de pression : moins de lancers', ABRI),
+    o('alignement', '« L\'alignement. Dès demain. »', 'Le bas de l\'alignement joue plus : le choc', 'Ton premier trio joue moins', CHOC),
+  ] }],
+  [51, 'serieDefaites', 'Si ce n\'est pas le talent, qu\'est-ce qui manque ?', { options: [
+    o('rebond', '« Un rebond qui roule pour nous. »', 'Si la chance tourne, ça rentre', 'Sinon, on l\'attend encore', PROMESSE),
+    o('lancers', '« Des lancers. On ne tire pas assez. »', 'On lance de partout', 'Des trous derrière', { volume: 1.08, defense: 1.06, duree: 5 }),
+  ] }],
+  [52, 'serieDefaites', 'Des joueurs ont-ils perdu leur place ce soir ?', { options: [
+    o('moi', '« Ils l\'apprendront de moi avant de l\'apprendre de vous. »', 'Un vestiaire protégé : moins de punitions', 'Moins de mordant devant le but', CALME),
+    o('quatrieme', '« Oui. Le quatrième trio va jouer. »', 'Le quatrième trio saute sur la glace : du rythme', 'Tes vedettes jouent moins', { F: [0.92, 1, 1.04, 1.15], volume: 1.04, duree: 5 }),
+  ] }],
+  [53, 'serieDefaites', 'Le propriétaire vous a-t-il appelé ?', { options: [
+    o('soeur', '« Ma sœur m\'a appelé. Le propriétaire, pas encore. »', 'Une blague qui détend : plus de précision', 'Un relâchement derrière', OUBLI),
+    o('raison', '« Oui. Et il a raison. »', 'Le message passe : la défense se resserre', 'Un vestiaire tendu : plus de punitions', DUR),
+  ] }],
+  [54, 'serieDefaites', 'Avez-vous réuni le vestiaire ce soir ?', { options: [
+    o('porte', '« Porte fermée. Ce qui s\'est dit y reste. »', 'Un vestiaire uni : moins de punitions', 'Moins d\'urgence : moins de lancers', ABRI),
+    o('dormir', '« Non. Ce soir, ils dorment. »', 'Des jambes reposées', 'Une glissade qui se digère mal : moins de précision', REPOS),
+  ] }],
+  [55, 'serieDefaites', 'Qu\'est-ce qu\'on dit à un vestiaire qui ne gagne plus ?', { options: [
+    o('verite', '« La vérité. Elle tient en une phrase. »', 'Le message passe : la défense se resserre', 'Un vestiaire tendu : plus de punitions', DUR),
+    o('classement', '« Qu\'il vaut mieux que son classement. »', 'La confiance revient au tir', 'Les trous derrière ne se bouchent pas', { finition: 1.07, defense: 1.06, duree: 5 }),
+  ] }],
+  [56, 'serieDefaites', 'Le moment est-il venu de donner sa chance au bas de l\'alignement ?', { options: [
+    o('venu', '« Il est venu. Les plombiers vont jouer. »', 'Plus de glace au bas de l\'alignement, des corps reposés', 'Tes vedettes jouent moins', BAS),
+    o('meilleurs', '« Pas encore. Mes meilleurs vont nous sortir de là. »', 'Tes meilleurs jouent plus', 'Ils s\'usent : plus de blessures', { F: [1.15, 1.03, 0.97, 0.82], blessure: 1.25, duree: 5 }),
+  ] }],
 
-  // ---- Après un blanchissage ----
-  ['blanchissage', 'Je tiens à souligner le travail de notre gardien.',
-    'Après un blanchissage, vous renvoyez le même gardien devant le filet ou vous lui accordez un soir de repos ?',
-    'Je déciderai demain. Il a mérité qu\'on y pense.'],
-  ['blanchissage', 'On a limité leurs chances, et le gardien a fait le reste.',
-    'Le zéro revient au gardien, ou à ceux qui se sont jetés devant les tirs ?',
-    'Au gardien. Les autres ont leur part, et ils le savent.'],
-  ['blanchissage', 'Personne n\'a marqué contre nous ce soir.',
-    'Un blanchissage, c\'est un exploit ou juste une bonne soirée ?',
-    'Une bonne soirée. Les exploits, on les compte au printemps.'],
-  ['blanchissage', 'Le gardien a été solide, et le groupe devant lui l\'a épaulé.',
-    'Qui a fait le travail le plus ingrat ce soir ?',
-    'Ceux qui ont mangé des rondelles.'],
-  ['blanchissage', 'Un blanchissage, ça se bâtit à plusieurs.',
-    'Votre gardien n\'a rien laissé passer. Mérite-t-il un soir de congé ?',
-    'Il mérite surtout qu\'on continue de le protéger.'],
-  ['blanchissage', 'On a gardé notre filet propre.',
-    'Vous allez féliciter le gardien en premier, ou les défenseurs ?',
-    'Le gardien d\'abord. C\'est la tradition.'],
-  ['blanchissage', 'Ce zéro appartient à tout le monde, mais surtout à notre gardien.',
-    'Vous allez en faire tout un plat, ou rester sobre ?',
-    'Sobre. Un zéro, ça se range comme le reste.'],
-  ['blanchissage', 'On a joué solide devant notre gardien.',
-    'Votre gardien est-il en train de devenir l\'homme de la situation ?',
-    'Il l\'était déjà. Ce soir, ça s\'est vu.'],
-  ['blanchissage', 'Notre meilleur match défensif, et j\'en veux d\'autres.',
-    'Un blanchissage met de la pression sur le prochain départ. Vous y pensez ?',
-    'Lui aussi y pense. C\'est pour ça que je vais lui en parler.'],
-  ['blanchissage', 'On a fermé la porte du début à la fin.',
-    'Qui allez-vous remercier en premier dans le vestiaire ?',
-    'Le gardien. Ensuite, ceux qui ont des bleus.'],
-  ['blanchissage', 'Notre gardien ne s\'est pas laissé distraire.',
-    'Un blanchissage, ça change quelque chose pour un gardien, ou c\'est un match comme un autre ?',
-    'Pour lui, rien. Pour moi, un peu.'],
-  ['blanchissage', 'Un zéro, c\'est le plus beau chiffre pour un gardien.',
-    'Un zéro, c\'est le travail d\'un homme ou de toute l\'équipe ?',
-    'De toute l\'équipe. Le gardien compte double.'],
-  ['blanchissage', 'Le gardien et les défenseurs ont parlé d\'une seule voix.',
-    'Vous ne semblez pas très ému par ce blanchissage. C\'est voulu ?',
-    'C\'est voulu. Il y a un autre match qui s\'en vient.'],
-  ['blanchissage', 'On a donné très peu de chances, et le gardien s\'est occupé du reste.',
-    'Votre gardien va-t-il garder la rondelle du match ?',
-    'Elle est déjà dans son sac.'],
-
-  // ---- Au match de la dernière chance ----
-  ['derniereChance', 'Ce soir, il n\'y a pas de lendemain, et tout le monde le sait.',
-    'Qu\'est-ce que vous dites à vos joueurs avant un match pareil ?',
-    'Je leur parle de ceux qui ont porté ce chandail avant eux.'],
-  ['derniereChance', 'On a tout à gagner.',
-    'Allez-vous envoyer vos meilleurs dès la première présence, ou attendre votre moment ?',
-    'Mes meilleurs vont jouer. Beaucoup.'],
-  ['derniereChance', 'C\'est le match le plus important de la saison.',
-    'Allez-vous ouvrir le jeu, quitte à prendre des risques ?',
-    'On ne repartira pas avec des regrets.'],
-  ['derniereChance', 'Les joueurs savent ce qui est en jeu.',
-    'Comment est le vestiaire, à quelques heures du match ?',
-    'Calme. Trop calme, peut-être.'],
-  ['derniereChance', 'On joue pour notre saison et pour nos partisans.',
-    'Le chandail pèse-t-il plus lourd, un soir comme celui-là ?',
-    'Il pèse ce qu\'il a toujours pesé. Ce soir, on le sent.'],
-  ['derniereChance', 'Je demande aux gars de rester simples.',
-    'Rester simple, ça veut dire quoi, ce soir ?',
-    'Patiner, passer, ne pas réfléchir trop longtemps.'],
-  ['derniereChance', 'On n\'a pas d\'autre choix que de gagner.',
-    'Y a-t-il de la place pour la prudence dans un match pareil ?',
-    'Pas beaucoup.'],
-  ['derniereChance', 'Chaque présence compte.',
-    'Allez-vous raccourcir votre banc ?',
-    'Si le match le demande, oui.'],
-  ['derniereChance', 'On a dit aux gars de profiter du moment.',
-    'Pensez-vous aux équipes du club qui ont joué des soirs comme celui-là ?',
-    'Tout le temps. Les gars aussi, je pense.'],
-  ['derniereChance', 'On ne change rien à notre routine.',
-    'Vous avez l\'air serein. L\'êtes-vous vraiment ?',
-    'Assez pour ne pas le montrer.'],
-  ['derniereChance', 'Le vestiaire est calme, et c\'est ce que je voulais.',
-    'Si la saison s\'arrête ce soir, qu\'est-ce que vous voudriez qu\'on retienne ?',
-    'Qu\'on n\'est pas tombés en reculant.'],
-  ['derniereChance', 'Ce soir, on joue sans regret.',
-    'C\'est un soir pour tout donner dès le départ, ou pour attendre son moment ?',
-    'Les deux. Dans le bon ordre.'],
-  ['derniereChance', 'Le but, ce soir, c\'est notre meilleur hockey de l\'année.',
-    'Votre plan de match tient en combien de mots ?',
-    'Un seul : attaquer.'],
-  ['derniereChance', 'Tout est possible ce soir.',
-    'Sentez-vous de la nervosité chez vos joueurs ?',
-    'Un peu. C\'est bon signe.'],
+  // ---- Après un blanchissage : le gardien est nommé ----
+  [57, 'blanchissage', 'Après un blanchissage, vous renvoyez le même gardien devant le filet ou vous lui accordez un soir de repos ?', { cible: 'gardien', options: [
+    o('meme', '« Le même. On ne touche pas à ça. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+    o('repos', '« Un soir de repos pour {nom}. Il l\'a mérité. »', '{nom} revient reposé et motivé', 'Un match avec ton auxiliaire', CONGE),
+  ] }],
+  [58, 'blanchissage', 'Le zéro revient au gardien, ou à ceux qui se sont jetés devant les tirs ?', { cible: 'gardien', options: [
+    o('gardien', '« À {nom}. Les autres ont leur part. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+    o('bleus', '« À ceux qui ont des bleus. »', 'Ils se jettent devant chaque tir', 'Ils s\'usent et se blessent', BLEUS),
+  ] }],
+  [59, 'blanchissage', 'Un blanchissage, c\'est un exploit ou juste une bonne soirée ?', { cible: 'gardien', options: [
+    o('soiree', '« Une bonne soirée. Les exploits, on les compte au printemps. »', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', SOBRE),
+    o('exploit', '« Un exploit. {nom} a été parfait. »', 'Un vestiaire gonflé à bloc : plus de précision', 'On se croit à l\'abri derrière', { finition: 1.06, defense: 1.05, duree: 5 }),
+  ] }],
+  [60, 'blanchissage', 'Qui a fait le travail le plus ingrat ce soir ?', { cible: 'gardien', options: [
+    o('bleus', '« Ceux qui ont mangé des rondelles. »', 'Ils se jettent devant chaque tir', 'Ils s\'usent et se blessent', BLEUS),
+    o('quatrieme', '« Le quatrième trio. Personne ne l\'a vu, et c\'est voulu. »', 'Plus de glace au quatrième trio, qui ferme le jeu', 'Ton premier trio joue moins', { F: [0.94, 1, 1.03, 1.12], defense: 0.96, duree: 5 }),
+  ] }],
+  [61, 'blanchissage', 'Votre gardien n\'a rien laissé passer. Mérite-t-il un soir de congé ?', { cible: 'gardien', options: [
+    o('repos', '« Oui. {nom} prend congé demain. »', '{nom} revient reposé et motivé', 'Un match avec ton auxiliaire', CONGE),
+    o('proteger', '« Il mérite surtout qu\'on continue de le protéger. »', 'On protège le filet : la défense se resserre', 'Moins de monde à l\'attaque : moins de lancers', { defense: 0.93, volume: 0.95, duree: 5 }),
+  ] }],
+  [62, 'blanchissage', 'Vous allez féliciter le gardien en premier, ou les défenseurs ?', { cible: 'gardien', options: [
+    o('gardien', '« {nom} d\'abord. C\'est la tradition. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+    o('defenseurs', '« Les défenseurs. Lui, il le sait. »', 'Ils se jettent devant chaque tir', 'Ils s\'usent et se blessent', BLEUS),
+  ] }],
+  [63, 'blanchissage', 'Vous allez en faire tout un plat, ou rester sobre ?', { cible: 'gardien', options: [
+    o('sobre', '« Sobre. Un zéro, ça se range comme le reste. »', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', SOBRE),
+    o('plat', '« Tout un plat. Ça n\'arrive pas tous les soirs. »', 'Un vestiaire fier : plus de précision', 'Un peu trop fier : plus de punitions', { finition: 1.06, discipline: 1.12, duree: 5 }),
+  ] }],
+  [64, 'blanchissage', 'Votre gardien est-il en train de devenir l\'homme de la situation ?', { cible: 'gardien', options: [
+    o('deja', '« Il l\'était déjà. Ce soir, ça s\'est vu. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+    o('saison', '« Un match ne fait pas une saison. »', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', SOBRE),
+  ] }],
+  [65, 'blanchissage', 'Un blanchissage met de la pression sur le prochain départ. Vous y pensez ?', { cible: 'gardien', options: [
+    o('autre', '« Aucune pression. {nom} va en faire un autre. »', 'S\'il tient, il ferme encore la porte', 'Sinon, la pression le rattrape',
+      { pari: { chance: 3 / 6, gagne: { defense: 0.9, duree: 5 }, perd: { defense: 1.1, duree: 5 } } }),
+    o('repos', '« Il prendra le prochain sur le banc. »', 'Un soir à l\'abri : {nom} revient reposé', 'Un match avec ton auxiliaire', CONGE),
+  ] }],
+  [66, 'blanchissage', 'Qui allez-vous remercier en premier dans le vestiaire ?', { cible: 'gardien', options: [
+    o('gardien', '« {nom}. Ensuite, ceux qui ont des bleus. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+    o('groupe', '« Le groupe au complet, d\'un seul coup. »', 'Personne n\'est oublié : moins de punitions', 'Moins d\'élan devant le but', CALME),
+  ] }],
+  [67, 'blanchissage', 'Un blanchissage, ça change quelque chose pour un gardien, ou c\'est un match comme un autre ?', { cible: 'gardien', options: [
+    o('rien', '« Pour lui, rien. Pour moi, un peu. »', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', SOBRE),
+    o('bulle', '« Ça change tout. {nom} est dans sa bulle. »', 'On protège sa bulle : la défense se resserre', 'On joue serré : l\'usure des jambes grimpe', { defense: 0.92, energie: 1.08, duree: 5 }),
+  ] }],
+  [68, 'blanchissage', 'Un zéro, c\'est le travail d\'un homme ou de toute l\'équipe ?', { cible: 'gardien', options: [
+    o('equipe', '« De toute l\'équipe. Le gardien compte double. »', 'Ils se jettent devant chaque tir', 'Ils s\'usent et se blessent', BLEUS),
+    o('lui', '« De {nom}. Les autres le savent. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+  ] }],
+  [69, 'blanchissage', 'Vous ne semblez pas très ému par ce blanchissage. C\'est voulu ?', { cible: 'gardien', options: [
+    o('voulu', '« C\'est voulu. Il y a un autre match qui s\'en vient. »', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', SOBRE),
+    o('dedans', '« Je suis ému en dedans. Ça ne paraît pas. »', 'Le vestiaire le sent : plus de précision', 'Un peu de laisser-aller : plus de punitions', { finition: 1.05, discipline: 1.1, duree: 5 }),
+  ] }],
+  [70, 'blanchissage', 'Votre gardien va-t-il garder la rondelle du match ?', { cible: 'gardien', options: [
+    o('sac', '« Elle est déjà dans son sac. »', '{nom} se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', LUI),
+    o('conge', '« Avec un soir de congé en prime. »', '{nom} revient reposé et motivé', 'Un match avec ton auxiliaire', CONGE),
+  ] }],
 ];
 
-/** Les échanges : { id, quand, ouverture, question, reponse } — `quand` est l'une des six occasions. */
-const ECHANGES = ECHANGES_BRUTS.map(([quand, ouverture, question, reponse], i) => ({ id: `e${i + 1}`, quand, ouverture, question, reponse }));
+/** Les échanges : { id, quand, question, cible?, options } — `quand` est l'une des trois occasions. */
+const ECHANGES = ECHANGES_BRUTS.map(([n, quand, question, reponses]) => ({ id: `e${n}`, quand, question, ...reponses }));
 
 /* ======================================================================
    LES RÉPONSES : un courriel et un point de presse ne sont plus de la couleur.
@@ -1196,70 +1132,6 @@ const REPONSES_SUR_MESURE = {
 };
 const PAQUET_FORCE = { ag4: 1 };
 
-const PAQUETS_ECHANGE = {
-  victoire: [
-    { cible: 'vedette', options: [
-      o('sobre', 'Rester sobre', 'On ne s\'emballe pas : la défense reste en place', 'Moins de panache devant le but', { defense: 0.94, finition: 0.96, duree: 4 }),
-      o('feliciter', 'Féliciter {nom} devant tout le monde', 'Il joue avec des ailes', 'Les autres le remarquent : plus de punitions', { finition: 1.07, discipline: 1.12, duree: 4 }),
-    ] },
-    { options: [
-      o('meche', 'Allumer la mèche', 'Le vestiaire en veut plus : plus de lancers', 'On laisse des trous derrière', { volume: 1.07, defense: 1.06, duree: 4 }),
-      o('humble', 'Remercier l\'adversaire', 'Un vestiaire humble : moins de punitions', 'Moins d\'urgence devant le filet', { discipline: 0.86, volume: 0.95, duree: 4 }),
-    ] },
-  ],
-  defaite: [
-    { options: [
-      o('assumer', 'Prendre la faute sur toi', 'Le vestiaire est protégé : moins de punitions', 'Moins de mordant devant le but', { discipline: 0.86, finition: 0.96, duree: 5 }),
-      o('pointer', 'Pointer le manque d\'effort', 'Une réaction : plus de lancers', 'Des joueurs vexés : plus de punitions', { volume: 1.07, discipline: 1.15, duree: 5 }),
-    ] },
-    { options: [
-      o('suite', 'Parler de la suite', 'On regarde devant : la défense se resserre', 'Moins de lancers', { defense: 0.93, volume: 0.95, duree: 5 }),
-      o('arbitres', 'Blâmer les arbitres', 'Le vestiaire se sent défendu : ça lance', 'Les arbitres s\'en souviennent : plus de punitions', { finition: 1.06, discipline: 1.18, duree: 5 }),
-    ] },
-  ],
-  raclee: [
-    { options: [
-      o('page', 'Tourner la page', 'Un vestiaire qui oublie vite : plus de précision', 'Une défensive laxiste', { finition: 1.05, defense: 1.06, duree: 5 }),
-      o('colere', 'Piquer une colère publique', 'Ils réagissent : plus de lancers', 'Les têtes chauffent : plus de punitions', { volume: 1.08, discipline: 1.18, duree: 5 }),
-      o('punition', 'Imposer une pratique de punition', 'La défense se resserre', 'Toute l\'équipe arrive sur les jambes', { defense: 0.92, action: { energieTous: -10 }, duree: 5 }),
-    ] },
-    { options: [
-      o('rire', 'En rire', 'Un vestiaire détendu : plus de lancers', 'Un peu de relâchement derrière', { volume: 1.06, defense: 1.06, duree: 5 }),
-      o('serieux', 'En parler sérieusement', 'Une défensive qui se resserre', 'Des joueurs crispés devant le but', { defense: 0.93, finition: 0.95, duree: 5 }),
-    ] },
-  ],
-  serieDefaites: [
-    { options: [
-      o('proteger', 'Protéger le vestiaire', 'Des joueurs soutenus : moins de punitions', 'Moins de pression : moins de lancers', { discipline: 0.85, volume: 0.94, duree: 5 }),
-      o('changements', 'Annoncer des changements', 'Le bas de l\'alignement joue plus : le choc', 'Ton premier trio joue moins', { F: [0.92, 1.04, 1.06, 1.03], volume: 1.06, duree: 5 }),
-    ] },
-    { options: [
-      o('confiance', 'Dire que tu as confiance', 'La confiance revient au tir', 'Les trous derrière ne se bouchent pas', { finition: 1.07, defense: 1.06, duree: 5 }),
-      o('verite', 'Dire la vérité en face', 'Une défensive qui se resserre', 'Un vestiaire tendu : plus de punitions', { defense: 0.92, discipline: 1.15, duree: 5 }),
-    ] },
-  ],
-  blanchissage: [
-    { cible: 'gardien', options: [
-      o('feliciter', 'Féliciter {nom}', 'Il se sent invincible', 'Les défenseurs se reposent sur lui : plus de punitions', { defense: 0.93, discipline: 1.12, duree: 5 }),
-      o('defenseurs', 'Remercier ceux qui bloquent les tirs', 'Ils se jettent devant chaque tir', 'Ils s\'usent et se blessent', { defense: 0.94, blessure: 1.2, duree: 5 }),
-    ] },
-    { cible: 'gardien', options: [
-      o('repos', 'Donner un soir de repos à {nom}', '{nom} revient reposé et motivé', 'Un match avec ton auxiliaire', { action: { gardienAux: 1 }, ensuite: { apres: 1, duree: 5, defense: 0.94 } }),
-      o('sobre', 'Rester sobre : un blanchissage, ça arrive', 'Aucune pression sur le filet', 'Moins d\'élan devant le but', { defense: 0.95, finition: 0.96, duree: 5 }),
-    ] },
-  ],
-  derniereChance: [
-    { options: [
-      o('tout', 'Tout miser sur ce soir', 'Les joueurs lancent de partout', 'Les jambes paient', { finition: 1.08, volume: 1.04, energie: 1.14, duree: 3 }),
-      o('calme', 'Garder son calme', 'Une défensive solide', 'Moins de lancers', { defense: 0.93, volume: 0.95, duree: 3 }),
-    ] },
-    { options: [
-      o('histoire', 'Parler de l\'histoire du club', 'Un vestiaire qui joue pour quelque chose', 'Un peu trop de gravité : moins de lancers', { finition: 1.06, volume: 0.95, duree: 3 }),
-      o('risque', 'Dire qu\'on prend tous les risques', 'On attaque : plus de lancers', 'Des trous derrière', { volume: 1.08, defense: 1.08, duree: 3 }),
-    ] },
-  ],
-};
-
 /** Toutes les réponses, par id de courriel (`eq4`) ou d'échange (`e17`) : { ico, titre, cible?, options } — la forme d'un dilemme. */
 export const REPONSES_VIE = Object.fromEntries([
   ...COURRIELS.map(x => {
@@ -1267,7 +1139,7 @@ export const REPONSES_VIE = Object.fromEntries([
     const p = REPONSES_SUR_MESURE[x.id] || paquets[PAQUET_FORCE[x.id] ?? Number(x.id.replace(/\D/g, '')) % 2];
     return [x.id, { ico: EXPEDITEURS[x.de].ico, titre: remplir(x.sujet), ...p }];
   }),
-  ...ECHANGES.map(e => [e.id, { ico: '🎤', titre: 'Le point de presse', ...PAQUETS_ECHANGE[e.quand][Number(e.id.slice(1)) % 2] }]),
+  ...ECHANGES.map(e => [e.id, { ico: '🎤', titre: 'Le point de presse', ...(e.cible ? { cible: e.cible } : {}), options: e.options }]),
 ]);
 
 /* ======================================================================
@@ -1337,8 +1209,8 @@ export const MOMENTS_VIE = Object.fromEntries(Object.entries(DILEMMES).map(([cle
 }));
 
 /**
- * L'échange d'après-match : { id, ouverture, question, reponse } (gabarits remplis), ou null.
- * contexte : { occasion, eq, autre, deja: [ids] } — `occasion` : victoire, defaite, raclee, serieDefaites, blanchissage ou derniereChance.
+ * Le point de presse d'après-match : { id, question } (gabarit rempli), ou null ; ses réponses sont `REPONSES_VIE[id]`.
+ * contexte : { occasion, eq, autre, deja: [ids] } — `occasion` : raclee, serieDefaites ou blanchissage.
  */
 export function echangeDe(contexte, graineDuJeu) {
   const c = contexte || {};
@@ -1347,7 +1219,7 @@ export function echangeDe(contexte, graineDuJeu) {
     .sort((a, b) => a.k - b.k);
   if (!pool.length) return null;
   const e = pool[0].e;
-  return { id: e.id, ouverture: remplir(e.ouverture, c), question: remplir(e.question, c), reponse: remplir(e.reponse, c) };
+  return { id: e.id, question: remplir(e.question, c) };
 }
 
 /*
