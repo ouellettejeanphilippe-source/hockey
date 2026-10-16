@@ -715,7 +715,10 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     const C = CONSOMMABLES[c.cle];
     if (C.cible === 'blesse') {
       const bl = blessesAuJour(j);
-      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · ') })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
+      // Ce que le soin lui fait, en premier : ses matchs d'infirmerie avant → après (oct. 2026, « si je boost, je le vois »).
+      const soin = (C.gestes && C.gestes.soin) || 0;
+      listeJoueurs(`${c.nom} : qui soigner ?`, c.texte, bl.map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie`].filter(Boolean).join(' · '),
+        ...(soin ? { sousHtml: `<span class="dest-jambes">Infirmerie <b>${x.reste}</b> → <b>${Math.max(0, x.reste - soin)}</b> match${Math.max(0, x.reste - soin) > 1 ? 's' : ''}</span>${ouJoue(x.p) ? ` · ${esc(ouJoue(x.p))}` : ''}` } : {}) })), k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
         'Personne à l\'infirmerie : garde-la pour plus tard.');
       return;
     }

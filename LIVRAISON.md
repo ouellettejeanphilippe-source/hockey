@@ -675,3 +675,4 @@ L'audit (une fonction, ses dessins) a trouvé cinq façons de choisir un joueur,
 
   Preuves : `tout.mjs` (21 verts), `check_mort`, `check_packs` (75 verts), `check_rogue` avant/après, `essai_rogue` sans erreur, `planche_cartes` (séries, fiche).
 
+- 2026-10-16 — **Avant → après, partout où une carte touche un joueur** (JP : *de même quand c'est autre chose*). Poser une modif dit, sur chaque joueur, ses vrais chiffres avant → après : % au tir, tirs et passes par match, % d'arrêts d'un gardien (`avantApres`, js/repechage.js) ; une amélioration se lit au jour où on la pose (elle grandit avec la saison), une carte d'un moment dit son moment. Un soin dit « Infirmerie 12 → 10 matchs ». Les retouches disent déjà leur avant → après (badge, édition, zone). Preuve : `essai_rogue` (« Prolongation signée » : % au tir 17,1 → 16,7 sur Ron Francis).

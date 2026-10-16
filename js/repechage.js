@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre, echelleTardive } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
@@ -866,6 +866,29 @@ export const niveauHorsRuban = (p, niveau = niveauJoueur(p)) => (niveau < 0 || (
  * plus (la variante suivante d'un lustre, calculée ici, js/rarete.js). Les
  * malus sont ceux DÉJÀ arrivés : la ligue se joue au jour le jour.
  */
+/*
+ * CE QUE LA CARTE LUI FAIT, EN SES VRAIS CHIFFRES (oct. 2026). JP : *si je boost ses jambes, je dois les voir* ; puis
+ * *de même quand c'est autre chose*. Chaque canal qu'une modif touche se dit sur SA saison, avant → après : son % au
+ * tir, ses tirs, ses passes, son % d'arrêts, ses minutes de punition. Une amélioration grandit avec la saison : elle se
+ * lit au jour où on la pose (`echelleTardive`). Ses cases, son rôle et le reste suivent dans la note.
+ */
+const MOMENT_SI = { domicile: 'à domicile', visiteur: 'à l\'étranger', series: 'en séries' };
+const virgule1 = x => x.toFixed(1).replace('.', ',');
+function avantApres(cle, q, jour = 0) {
+  const M = MUTATIONS[cle];
+  if (!M || !q) return '';
+  const e = M.source === 'amelioration' ? echelleTardive({ jour }) : 1;
+  const f = c => (M[c] ? 1 + (M[c] - 1) * e : 1);
+  const gp = Math.max(1, q.gp || 0), out = [];
+  if (q.p === 'G') {
+    if (f('arrets') !== 1 && q.sv > 0) out.push(`% d'arrêts ${pct3(q.sv)} → ${pct3(1 - (1 - q.sv) * f('arrets'))}`);
+  } else {
+    if (f('finition') !== 1 && q.sh > 0) out.push(`% au tir ${virgule1((100 * q.g) / q.sh)} → ${virgule1((100 * q.g * f('finition')) / q.sh)}`);
+    if (f('lancers') !== 1 && q.sh > 0) out.push(`Tirs ${virgule1(q.sh / gp)} → ${virgule1((q.sh / gp) * f('lancers'))} par match`);
+    if (f('creation') !== 1 && q.a > 0) out.push(`Passes ${virgule1(q.a / gp)} → ${virgule1((q.a / gp) * f('creation'))} par match`);
+  }
+  return out.length && MOMENT_SI[M.si] ? `${MOMENT_SI[M.si]} : ${out.join(' · ')}` : out.join(' · ');
+}
 export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue && G.ligue.you, decisions = decisionsDeLaPartie() } = {}) {
   const M = MUTATIONS[cle];
   if (!M || !q) return { non: 'rien à poser' };
@@ -906,7 +929,7 @@ export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue
     return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte },
       mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte, g).map(b => b.mot).join(' ')}` };
   }
-  return { note: place };
+  return { note: [avantApres(cle, q, jour), place].filter(Boolean).join(' · ') };
 }
 /*
  * LES CARTES QUI JOUENT (S78) : celles de TON alignement, et de ceux qui y
