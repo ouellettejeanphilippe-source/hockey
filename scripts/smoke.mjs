@@ -207,12 +207,12 @@ async function nouvelleSaison() {
 }
 const ballottage = { fait: false, mot: null };
 /*
- * LA BOÎTE DE RÉCEPTION (S78). JP : *faire une boîte de réception et forcer
- * que le joueur agisse avant de continuer*. Tant qu'un message bloque (une
- * blessure, une case vide, un palier, un choix forcé), « Journée suivante »
- * devient « ⏳ À régler avant le match… » et « +10 » disparaît. Le parcours règle ces
- * messages comme un joueur : la réponse par défaut du message ouvert
- * (`[data-defaut]` : garder l'alignement, compris, ouvrir le choix). La case
+ * À FAIRE (S78, V9). JP : *forcer que le joueur agisse avant de continuer* ;
+ * puis *tous les choix au même endroit, même UI et UX*. Tant qu'un choix
+ * bloque (une blessure, une case vide, un palier, un choix forcé), « Journée
+ * suivante » devient « ⏳ Encore un choix… » ou « À régler… ». Le parcours règle
+ * ces choix comme un joueur : la première option du choix ouvert, puis
+ * « Trancher » envoie le coché (le jour à jour est au Rogue). La case
  * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison) ; le palier
  * reste ouvert tant que son bloc ne l'a pas éprouvé (`palierAuto`), puis se
  * joue tout seul : la carte d'effet, ou la première, et son deuxième choix.
@@ -256,18 +256,18 @@ async function versLaBoite() {
   await _click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(200);
 }
-async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal .hub-main-ouvrir'); }
+async function ouvrirLaMain() { await versLaBoite(); await _click('#hubModal :is(.hub-main-ouvrir, .hub-msg[data-msg="palier"] .af-option)'); }
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
-    if (!(await page.$('#hubModal .hub-traiter'))) return;
+    if (!(await page.$('#hubModal :is(.hub-traiter, .hub-trancher)'))) return;
     await versLaBoite();
-    if (await page.$('#hubModal .hub-msg.bloque .hub-trou-prendre')) {
+    if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"] .af-option')) {
       if (guetterTrouHook) await guetterTrouHook();
-      await toucher('#hubModal .hub-msg.bloque .hub-trou-prendre');
+      await toucher('#hubModal .hub-msg.bloque[data-msg="trou"] .af-option:not([disabled])');
       continue;
     }
-    if (await page.$('#hubModal .hub-msg.bloque .hub-main-ouvrir')) {
+    if (await page.$('#hubModal .hub-msg.bloque[data-msg="palier"]')) {
       if (!palierAuto) return;
       await prendrePalier();
       continue;
@@ -276,14 +276,15 @@ async function debloquer() {
     const avantBal = ballottage.fait;
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
-    if (await toucher('#hubModal .hub-msg.bloque.ouvert [data-defaut]')) continue;
-    // Le message à traiter est plié : « À régler avant le match » l'ouvre.
+    if (await toucher('#hubModal .hub-msg.bloque.ouvert .af-option:not([disabled]):not(.on)')) continue;
+    if (await toucher('#hubModal .hub-trancher')) continue;
+    // Le choix qui attend est plié : « Encore un choix » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }
 }
 async function guetterBallottage() {
   if (ballottage.fait) return;
-  const ouvrir = await page.$('#hubModal .hub-ballottage-ouvrir');
+  const ouvrir = await page.$('#hubModal .hub-msg[data-msg="blessure"] .af-option[data-choix="rappel"]');
   if (!ouvrir || !(await ouvrir.isVisible())) return;
   // Un choix forcé — ou n'importe quel plein écran, le sommaire de la journée compris (S78) — passe devant.
   const force = await page.$('#choixModal:not([hidden]) .choix-sheet');

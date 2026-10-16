@@ -45,7 +45,7 @@ js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, pl
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
-js/saison.js          l'écran de saison et des séries : le Bureau (le duel du soir, la main, ce qui est en jeu), la boîte, Ligue › Ta saison, les choix forcés
+js/saison.js          l'écran de saison et des séries : le Bureau (À faire, la route, hier soir), « Ce soir », Ligue › Ta saison, les choix
 js/gerant.js          la fenêtre du système d'une ligne, les choix, la main de match et le deck
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
@@ -147,7 +147,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Mobile d'abord : rien ne déborde à 390 px, tout ce qu'on touche est atteignable — smoke `sansDebordement`, `toutEstAtteignable`.
 - Jamais une longue page : chaque onglet tient en un écran, la page elle-même ne défile jamais ; hors du Rogue, quatre sections (Bureau, Joueurs, Lignes, Ligue), dans le même ordre, aucune carte (ni au 82-0, ni sur table, ni au repêchage) ; en Rogue, cinq sections rangées par intention (Bureau, Ce soir, Effectif, Marché, Ligue), tes cartes aussi à un toucher de l'en-tête ; chacune répond à UNE intention de gérant et chaque info a UNE maison (docs/refonte-v8.md) — smoke, `essai_rogue`.
 - Un seul retour, un niveau à la fois (js/pile.js) ; rien de sélectionnable, aucun lien souligné ; l'anneau du focus en mode clavier ou manette seulement — smoke.
-- La boîte de réception ne contient que ce qui se règle. Le jour par jour : en semaine, seul ce qui presse bloque « Jour suivant » (un gros match, un pack à signer, un blessé à remplacer) ; le reste attend le lundi, l'écran de la semaine : ses choix sur une page, envoyés en un lot (docs/decisions.md) — `essai_rogue`.
+- À faire ne contient que ce qui se règle, et chaque choix y a la même forme : la voix, le fait, ses options (`optionHtml`). Toucher une option la coche, « Trancher » envoie le lot ; une option › ouvre son écran (le combat, le paquet, une liste). Le jour par jour : en semaine, seul ce qui presse bloque « Jour suivant » (un gros match, un pack à signer, un blessé à remplacer, une case vide) ; le reste attend le lundi, au même endroit. Ce qui ne demande rien est une nouvelle d'Hier soir, jamais un « Compris » (docs/refonte-v9.md) — `essai_rogue`.
 - Toute commande visible doit fonctionner.
 - Une surface de base se change À LA SOURCE, jamais en fin de fichier.
 - Le noir est le décor ; la couleur vient des équipes, aux vraies couleurs, jamais délavées ; les écussons des disparues sont dessinés (`js/logos.js`), jamais empruntés.
