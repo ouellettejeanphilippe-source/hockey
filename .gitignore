@@ -6,7 +6,6 @@ server.log
 node_modules/
 package-lock.json
 package.json
-img/actions/
 
 # ── Applications locales (bureau et Android) ─────────────────────────────────
 # Le CODE de desktop/ et mobile/ est a versionner ; ce que les outils FABRIQUENT,

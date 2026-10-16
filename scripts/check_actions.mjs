@@ -37,6 +37,10 @@ for (const f of fs.readdirSync(path.join(ROOT, 'data', 'seasons')).filter(f => f
 const ids = liste.ids;
 const etrangers = ids.filter(id => !joueurs.has(id));
 exiger('data/actions.json : 400 × 560', JSON.stringify(liste.taille) === '[400,560]', JSON.stringify(liste.taille));
+// La face dans le cadre (scripts/visages_actions.py) : un centre de visage, entre 0 et 1, pour presque chaque photo.
+const visages = Object.entries(liste.visages || {});
+exiger('data/actions.json : le visage trouvé sur au moins 90 % des photos, chacun dans l\'image', visages.length >= 0.9 * ids.length && visages.every(([k, v]) => ids.includes(Number(k)) && v >= 0 && v <= 1),
+  `${visages.length} visages sur ${ids.length} photos`);
 exiger('data/actions.json : des joueurs du jeu', ids.length > 0 && !etrangers.length, etrangers.length ? `${etrangers.length} inconnus : ${etrangers.slice(0, 5).join(', ')}` : `${ids.length} joueurs sur ${joueurs.size}`);
 exiger('data/actions.json : triée, sans doublon', ids.every((id, i) => i === 0 || id > ids[i - 1]), '');
 const DOSSIER = path.join(ROOT, 'img', 'actions');
@@ -142,7 +146,7 @@ if (URL_JEU) {
   await p.evaluate(() => { connexionTest.type = 'cellular'; });
   await p.waitForTimeout(1500);
   const fin = await p.evaluate(async ({ vieux, recent }) => {
-    const t = await caches.open('cap82img-actions-400');
+    const t = await caches.open('cap82img-actions-visage');
     const cles = await t.keys();
     const tailles = [];
     for (const k of cles.slice(0, 4)) { const b = await (await t.match(k)).blob(); const img = await createImageBitmap(b); tailles.push(`${img.width}×${img.height} ${b.type} ${Math.round(b.size / 1024)} Ko`); }

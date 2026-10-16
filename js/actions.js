@@ -7,10 +7,11 @@
  * absent n'est jamais demandé, et sa carte garde son portrait. Une carte
  * demande `actionSrc(id)` — une adresse d'image 5:7 (400 × 560), ou null.
  *
- * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/, hors
- * du dépôt : scripts/actions.mjs les refait). La liste est versionnée mais les
- * images peuvent manquer (une copie fraîche du dépôt) : au démarrage, on en
- * demande UNE ; absente, aucune carte n'en demande d'autre.
+ * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/,
+ * versionnées depuis oct. 2026 pour que GitHub Pages les serve ;
+ * scripts/actions.mjs les refait). Au démarrage, on en demande UNE ; absente,
+ * aucune carte n'en demande d'autre. Une carte ne la montre qu'en édition
+ * haute (`photoAction`, js/cartes.js).
  *
  * DANS L'APPLICATION ANDROID, l'APK n'emporte aucune photo (comme les visages,
  * js/visages.js) : l'appareil les télécharge à la LNH par le HTTP natif (le
@@ -27,11 +28,13 @@ import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
 
 const SOURCE = id => `https://assets.nhle.com/mugs/actionshots/1296x729/${id}.jpg`;
-const TIROIR = 'cap82img-actions-400';
+// Le tiroir change de nom avec le cadrage (oct. 2026 : toute la hauteur, la face au centre) : l'ancien ne se relit pas.
+const TIROIR = 'cap82img-actions-visage';
 const cleDe = id => `https://cap82.appareil/actions/${id}.webp`;
 const EN_MEME_TEMPS = 2;
 
 let liste = null;            // les joueurs qui ont une photo (data/actions.json)
+let visages = {};            // le centre de leur visage, pour le recadrage sur l'appareil (scripts/visages_actions.py)
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
@@ -57,8 +60,9 @@ export function actionsDisponibles() {
     try {
       const r = await fetch('data/actions.json');
       if (!r.ok) return [];
-      const ids = (await r.json()).ids || [];
+      const lu = await r.json(), ids = lu.ids || [];
       liste = new Set(ids);
+      visages = lu.visages || {};
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
       // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
@@ -128,7 +132,7 @@ function garder(id, { reseau = true } = {}) {
       if (!reseau || !connexionLarge()) return null;
       const brut = await telecharger(id);
       if (!brut) return null;
-      webp = (await recadrerAction(brut)).webp;
+      webp = (await recadrerAction(brut, { centre: visages[id] ?? null })).webp;
       await t.put(cleDe(id), new Response(webp, { headers: { 'content-type': 'image/webp' } }));
       gardes.add(id);
     }

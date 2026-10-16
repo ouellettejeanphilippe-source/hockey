@@ -5,7 +5,7 @@
  * La LNH publie, pour la plupart des joueurs d'après 2005, une photo de match
  * en paysage (1296 × 729) : le joueur net, au milieu d'une foule et d'une
  * bande floues. Une carte est en portrait (5:7). On y découpe donc une fenêtre
- * 5:7 centrée sur le JOUEUR, qu'on trouve par la netteté : le fond est flou
+ * centrée sur le JOUEUR, qu'on trouve par la netteté : le fond est flou
  * (faible profondeur de champ), le joueur est ce qui porte les contours.
  *
  *   1. l'image réduite en gris (324 px de large), la force de ses contours en
@@ -25,13 +25,23 @@
  * médian (une foule nette partout), la clarté du bas (des gradins sombres
  * sous la glace), la part de glace au centre, la part d'aplats.
  *
+ * OCT. 2026 — TOUTE LA HAUTEUR, LA FACE AU CENTRE. JP : *rentrer soit tout le vertical ou le horizontal dans la
+ * carte* ; *j'aime les photos plus de loin qu'on voit tout le joueur au complet*. La fenêtre 5:7 garde toute la
+ * hauteur de la photo (`serre` 1 : rien du joueur n'est coupé en haut ni en bas) et se centre sur son visage
+ * (`centre`). Un carré (56 % de la largeur, la carte complétée de flou) a été essayé ; JP a choisi la photo pleine
+ * carte, en 5:7.
+ *
+ * LA FACE DANS LE CADRE (oct. 2026). `centre` : le centre du visage du joueur, en fraction de la largeur, trouvé à
+ * la fabrication (scripts/visages_actions.py, `visages` de data/actions.json). Donné, la fenêtre s'y centre et la
+ * netteté ne décide plus ; absent (aucun visage trouvé), la netteté choisit comme avant.
+ *
  * UNE SEULE IMPLÉMENTATION pour deux usages, comme js/recadrage.js :
  * `scripts/actions.mjs` (la version Web, recadrée une fois à la fabrication)
  * et `js/actions.js` (l'application Android, qui télécharge et recadre sur
  * l'appareil). La fonction ne lit AUCUNE variable extérieure : le script
  * l'injecte dans Chromium par son texte (`recadrerAction.toString()`).
  */
-export async function recadrerAction(blob, { largeur = 400, hauteur = 560, qualite = 0.8, serre = 0.9 } = {}) {
+export async function recadrerAction(blob, { largeur = 400, hauteur = 560, qualite = 0.8, serre = 1, centre = null } = {}) {
   const img = await createImageBitmap(blob);
   const W = img.width, H = img.height;
   // 1. L'image réduite, en gris ; la force des contours, moins le fond.
@@ -86,6 +96,8 @@ export async function recadrerAction(blob, { largeur = 400, hauteur = 560, quali
   let m = 0, mx = 0;
   for (let i = gx; i < gx + fl; i++) { m += col[i]; mx += col[i] * (i + 0.5); }
   if (m > 0) gx = Math.round(mx / m - fl / 2);
+  // Le visage, s'il est connu, l'emporte : la face au milieu de la fenêtre.
+  if (Number.isFinite(centre)) gx = Math.round(centre * w - fl / 2);
   gx = Math.max(0, Math.min(w - fl, gx));
 
   // 3. En hauteur : le haut juste au-dessus du premier contour fort, dans les colonnes gardées.
