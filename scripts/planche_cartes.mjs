@@ -8,8 +8,8 @@
  * Planches (dans le dossier, `scripts` par défaut) :
  *   cartes-series-1.png, -2.png  une rangée par série, à la taille du vestiaire
  *                                (la vraie carte, `playerCardEl`) : le meilleur
- *                                pointeur en base, parallèle, holo et or, le
- *                                gardien le plus utilisé en base et en or ;
+ *                                pointeur dans ses cinq éditions, le gardien le
+ *                                plus utilisé en Base et en Holo ;
  *   cartes-fiche-1.png, -2.png   le carton à la taille de la fiche, une série chacune ;
  *   cartes-mini.png              la carte mini des choix (`carteMiniHtml`) ;
  *   cartes-verso.png             le dos de la fiche, cinq séries ;
@@ -34,7 +34,8 @@ const iS = process.argv.indexOf('--seul');
 const SEUL = iS > 0 ? process.argv[iS + 1] : null;
 // Une saison au milieu de chaque série.
 const SAISONS = ['1974-75', '1981-82', '1988-89', '1992-93', '1996-97', '2000-01', '2006-07', '2010-11', '2015-16', '2022-23'];
-const RARETES = ['commune', 'peu', 'rare', 'legendaire'];
+// Les cinq éditions d'une carte de joueur (js/rarete.js `EDITIONS`).
+const RARETES = ['commune', 'peu', 'hors', 'rare', 'legendaire'];
 
 const navigateur = await chromium.launch();
 const erreurs = [];
@@ -100,7 +101,7 @@ await page.evaluate(src => { window.__joueurs = (0, eval)(`(${src})`); }, JOUEUR
 
 // 1-2. Les séries au vestiaire.
 for (const [k, tranche] of [[1, SAISONS.slice(0, 5)], [2, SAISONS.slice(5)]]) {
-  await planche(page, `series-${k}`, 6, 158, async (p, { tranche, rar }) => {
+  await planche(page, `series-${k}`, 7, 158, async (p, { tranche, rar }) => {
     const { playerCardEl } = window.cap82.dev;
     const { getPlayerKey } = await import('/js/sim.js');
     const G = window.cap82.G;
@@ -115,20 +116,20 @@ for (const [k, tranche] of [[1, SAISONS.slice(0, 5)], [2, SAISONS.slice(5)]]) {
 
 // 3-4. Le carton à la taille de la fiche.
 for (const [k, tranche] of [[1, SAISONS.slice(0, 5)], [2, SAISONS.slice(5)]]) {
-  await planche(page, `fiche-${k}`, 5, 300, async (p, { tranche }) => {
+  await planche(page, `fiche-${k}`, 5, 300, async (p, { tranche, RARETES }) => {
     const { cartonDe, varsEquipe } = await import('/js/repechage.js');
     const { getPlayerKey } = await import('/js/sim.js');
     const G = window.cap82.G;
     let i = 0;
     for (const s of tranche) {
       const [pat] = await window.__joueurs(s);
-      G.variantes.cartes[getPlayerKey(pat)] = ['commune', 'legendaire', 'peu', 'rare', 'commune'][i++ % 5];
+      G.variantes.cartes[getPlayerKey(pat)] = RARETES[i++ % 5];
       const d = document.createElement('div');
       d.setAttribute('style', varsEquipe(pat));
       d.innerHTML = cartonDe(pat, { nomClasse: 'pcard-full-name' });
       p.appendChild(d);
     }
-  }, { tranche });
+  }, { tranche, RARETES });
 }
 
 // 5. La carte mini.
@@ -141,7 +142,7 @@ await planche(page, 'mini', 10, 118, async p => {
   for (const s of saisons) {
     const [pat, gar] = await window.__joueurs(s);
     for (const j of [pat, gar]) {
-      G.variantes.cartes[getPlayerKey(j)] = ['commune', 'peu', 'commune', 'rare', 'commune', 'legendaire'][i++ % 6];
+      G.variantes.cartes[getPlayerKey(j)] = ['commune', 'peu', 'hors', 'rare', 'commune', 'legendaire'][i++ % 6];
       const d = document.createElement('div');
       d.innerHTML = carteMiniHtml(j);
       p.appendChild(d.firstElementChild);

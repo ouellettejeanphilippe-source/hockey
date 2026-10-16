@@ -40,6 +40,7 @@ import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
+import { EDITIONS } from '../js/rarete.js';
 import { ageAtSeason } from '../js/ratings.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -429,8 +430,8 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
     for (const p of e.players) { total++; if (!dedans.has(p)) manquants.push(`${p.n} ${sa} ${p.t}`); }
   }
   exiger('chaque joueur-saison-club des données peut sortir d\'un pack', !manquants.length, manquants.slice(0, 4).join(', ') || `${total} cartes de joueur, toutes au support`);
-  const variantes = ['bronze', 'argent', 'or'].every(t => ['commune', 'peu', 'rare', 'legendaire'].every(r => TIERS[t].cotes[r] > 0));
-  exiger('chaque variante (Base, Parallèle, Holo, Or) sort de chaque pack au hasard', variantes, ['bronze', 'argent', 'or'].map(t => `${TIERS[t].nom} ${Object.values(TIERS[t].cotes).join('/')}`).join(' · '));
+  const variantes = ['bronze', 'argent', 'or'].every(t => EDITIONS.every(r => TIERS[t].cotes[r] > 0));
+  exiger('chaque édition (Base, Cadre, Hors-cadre, Or, Holo) sort de chaque pack au hasard', variantes, ['bronze', 'argent', 'or'].map(t => `${TIERS[t].nom} ${Object.values(TIERS[t].cotes).join('/')}`).join(' · '));
   let hors = 0, cartes = 0;
   for (let n = 0; n < 300; n++) for (const x of (await tirer('j:bronze', n, { graine: 'p2b' })).cartes) {
     cartes++;

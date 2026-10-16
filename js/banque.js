@@ -42,7 +42,7 @@ import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS }
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
   evenement: { ico: '📰', nom: 'Événements', un: 'Événement', mot: 'Ce qui arrive à ton équipe : quelques journées, un bonus et son prix.' },
-  joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, une clause, une amélioration ou une édition : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
+  joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, une clause, une amélioration ou une retouche de l\'atelier : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
   consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Une utilisation : un soin, des jambes, le filet, les minutes, des jetons, le deck, ou un trou dans le règlement.' },
   match: { ico: '🃏', nom: 'Cartes de match', un: 'Carte de match', mot: 'Ton deck des gros matchs et des séries : jouée, elle entre dans le deck.' },
   plafond: { ico: '💵', nom: 'Masse salariale', un: 'Contrat', mot: 'Le plafond salarial se manipule, comme dans la vraie LNH : de l\'espace, une retenue, un blessé à long terme, un rachat.' },
@@ -449,7 +449,7 @@ export const CONSOMMABLES = {
 const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat'];
 const RARETE_MOD = {
   affute: 'peu', moteur: 'peu', mur: 'peu', vision: 'peu', coach: 'peu',
-  partout: 'rare', cran: 'rare', physio: 'peu', lustre: 'legendaire', enBas: 'rare', chasse: 'rare', entrainement: 'peu', mentorTrio: 'rare',
+  partout: 'rare', cran: 'rare', physio: 'peu', pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', enBas: 'rare', chasse: 'rare', entrainement: 'peu', mentorTrio: 'rare',
   domicile: 'peu', route: 'peu', printemps: 'rare', etincelle: 'rare', braise: 'rare', poudre: 'rare',
   style_sniper: 'peu', style_faiseur: 'peu', style_ancre: 'peu', style_locomotive: 'peu', style_chasseur: 'peu',
   style_architecte: 'rare', style_sentinelle: 'rare', style_canonnier: 'rare', style_buteur: 'legendaire', style_pieuvre: 'rare',
@@ -702,7 +702,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     if (e.rabais) out.push({ txt: `Packs ${Math.round((e.rabais - 1) * 100)} %`, bon: true });
     if (e.jetonsVictoire) out.push({ txt: `+${e.jetonsVictoire} 🪙 par victoire`, bon: true });
     if (e.jetonsLancee) out.push({ txt: `+${e.jetonsLancee} 🪙 par joueur sur sa lancée, chaque soir`, bon: true });
-    if (e.holo) out.push({ txt: `Packs de joueurs : holo ou mieux +${Math.round((e.holo - 1) * 100)} %`, bon: true });
+    if (e.holo) out.push({ txt: `Packs de joueurs : Or ou mieux +${Math.round((e.holo - 1) * 100)} %`, bon: true });
     if (e.carteExtra) out.push({ txt: `Packs de joueurs : +${e.carteExtra} carte`, bon: true });
     if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
     if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });

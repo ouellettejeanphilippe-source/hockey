@@ -13,6 +13,7 @@
 import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
+import { NOM_VARIANTE } from './rarete.js';
 import { esc, money as M, jaugePlafond } from './util.js';
 import { COACHS } from './coachs.js';
 import { RAYONS_CLUB } from './club.js';
@@ -113,7 +114,7 @@ export function ouvrirMagasin(ctx) {
     const bareme = B ? `<p class="pk-bareme-run" title="Ce que chaque résultat rapporte, en jetons">🪙 ${[['Victoire', B.victoire], ['prolongation', B.prolongation], ['défaite', B.defaite], ['gros match', B.grosMatch, '+'], ['objectif', B.objectif, '+'], ['ronde de séries', B.serie, '+']]
       .filter(([, v]) => v != null).map(([k, v, plus]) => `${k} ${plus || ''}${v}`).join(' · ')}</p>` : '';
     const garantie = ctx.mode === 'rogue'
-      ? `<p class="pk-garantie">🛟 Une holo ou une or au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : '';
+      ? `<p class="pk-garantie">🛟 Une Or ou une Holo au plus tard au ${PITIE + 1}e pack de joueurs${ctx.sansHolo ? ` (tu en es à ${ctx.sansHolo} sans)` : ''}.</p>` : '';
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
     const plafond = ctx.plafond
       ? jaugePlafond({ masse: ctx.plafond.cap - ctx.plafond.espace, cap: ctx.plafond.cap,
@@ -156,7 +157,7 @@ export function ouvrirMagasin(ctx) {
     const ch = chancesDe(cle, P.sorte === 'joueurs' ? ctx.mods : {});
     const cotes = P.sorte === 'joueurs' ? cotesDuPack(cle, ctx.mods) : P.cotes;
     const tot = Object.values(cotes).reduce((a, b) => a + b, 0) || 100;
-    const noms = P.sorte === 'joueurs' ? { commune: 'Base', peu: 'Parallèle', rare: 'Holo', legendaire: 'Or numérotée' } : { commune: 'Commune', peu: 'Peu commune', rare: 'Rare', legendaire: 'Légendaire' };
+    const noms = P.sorte === 'joueurs' ? { ...NOM_VARIANTE, legendaire: 'Holo numérotée' } : { commune: 'Commune', peu: 'Peu commune', rare: 'Rare', legendaire: 'Légendaire' };
     // Jalon P2 : la décennie et le rôle ; une option que les déblocages ferment se voit, grisée, avec sa raison.
     const verrous = (ctx.verrousChoix || {})[P.choix] || {};
     const option = (cle, nom) => `<option value="${esc(cle)}"${verrous[cle] ? ` disabled title="${esc(verrous[cle])}"` : ''}>${esc(nom)}${verrous[cle] ? ' 🔒' : ''}</option>`;
@@ -178,9 +179,9 @@ export function ouvrirMagasin(ctx) {
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
       ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Salaires tirés : jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait).</p>` : ''}
       ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
-      <h4>${P.sorte === 'joueurs' ? 'La finition d\'une carte' : 'Le barème d\'une carte'}</h4>
-      <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${RARETES[k] ? RARETES[k].gemme : ''} ${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
-      ${P.sorte === 'joueurs' ? `<p class="pk-num">Une or est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
+      <h4>${P.sorte === 'joueurs' ? 'L\'édition d\'une carte' : 'Le barème d\'une carte'}</h4>
+      <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${P.sorte !== 'joueurs' && RARETES[k] ? `${RARETES[k].gemme} ` : ''}${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
+      ${P.sorte === 'joueurs' ? `<p class="pk-num">Une Holo est numérotée : ${NUMEROS.map(([n, w]) => `${esc(n)} ${w} %`).join(' · ')}.</p>` : ''}
       </details>
       ${choix}
       ${verrou ? `<p class="pk-verrou">🔒 ${esc(verrou)}</p>` : ''}

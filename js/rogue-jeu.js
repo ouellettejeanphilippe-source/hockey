@@ -19,7 +19,7 @@ import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, pocheDeLaPartie, mainDeLaSemaine, SEMAINE, JOUEES_SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement } from './gerant.js';
-import { traitsDeCarte, carteDe } from './rarete.js';
+import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, serieDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
@@ -30,7 +30,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries } from './bilan.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement } from './repechage.js';
+import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, varianteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -327,7 +327,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   const vendus = [];
   let vente = 0;
   cartes.forEach((x, t) => { x.doublon = avant.has(getPlayerKey(x.p)); if (x.doublon) { vendus.push(t); vente += venteJoueur(x); } });
-  const meilleure = ['legendaire', 'rare', 'peu', 'commune'].find(r => cartes.some(x => x.rar === r)) || 'commune';
+  const meilleure = [...EDITIONS].reverse().find(r => cartes.some(x => x.rar === r)) || 'commune';
   // UN PACK MIXTE (Jalon P2) : ses cartes de la banque se tirent avec les joueurs, au même thème (la couleur du coach).
   const tc = PACKS_TOUS[cle].cartes ? cartesTirees(cle, n, reglage) : null;
   // `auCartable` : acheté passé la date limite, rien ne se signe — la boîte ne le réclame pas (Jalon P2).
@@ -406,17 +406,27 @@ function optionDeJoueurTire(x) {
     // LE WALKOUT (1.0, oct.) : si c'est la carte du pack, sa saison, son poste et son club s'annoncent avant elle (js/gerant.js).
     walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
     // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
-    texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `✦ Or numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
+    texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `Holo numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
       // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
       COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
     // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
     // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
-    desactive: dejaChezToi(x.p) ? 'Déjà dans ton équipe' : '',
+    desactive: dejaChezToi(x.p) ? dejaDansTonEquipe(x) : '',
     apercu: () => apercuJoueur(x.p),
   };
 }
 /* Le même homme est-il déjà dans ton équipe (n'importe quelle saison de lui) ? */
 const dejaChezToi = p => Object.values(G.roster || {}).some(q => q && getPersonKey(q) === getPersonKey(p));
+/*
+ * LE DOUBLON PLUS FORT (oct. 2026). JP : *monter en pigeant un doublon plus fort*. La même carte, dans une édition
+ * plus haute que celle qu'il porte : elle entre au cartable (comme toute carte du pack), et c'est elle qu'il portera
+ * à la saison suivante de la run (`meilleureVariante`). Rien ne change en pleine saison : la ligue se joue au jour le jour.
+ */
+function dejaDansTonEquipe(x) {
+  const q = Object.values(G.roster || {}).find(y => y && getPlayerKey(y) === getPlayerKey(x.p));
+  const a = q ? varianteJoueur(q) : null;
+  return a && EDITIONS.indexOf(x.rar) > EDITIONS.indexOf(a) ? `Sa carte monte au cartable : ${NOM_VARIANTE[a]} → ${NOM_VARIANTE[x.rar]}, dès la saison prochaine` : 'Déjà dans ton équipe';
+}
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
 /*
  * EN DEUX TEMPS (Jalon Q). JP : *signer un, et autres cartes jouables quand on veut*. Un pack mixte montre d'abord
@@ -433,10 +443,10 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // LA LISTE DU 82-0 (Jalon R) : les joueurs du pack en rangées, chacun avec sa meilleure case ; « Signer » l'y pose.
   const offrir = () => ouvrirListeSignature({
     ico: P.ico, titre, motFermer: 'Plus tard',
-    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une holo, au moins' : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu en signes un ; les autres vont à ton cartable.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
+    recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une Or, au moins' : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu en signes un ; les autres vont à ton cartable.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
     joueurs: cartes, roster: G.roster,
     bloque: bloqueParLePlafond,
-    desactive: x => (limite ? 'Date limite passée : au cartable' : dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
+    desactive: x => (limite ? 'Date limite passée : au cartable' : dejaChezToi(x.p) ? dejaDansTonEquipe(x) : ''),
     onSigne: (x, sortie) => {
       const k = getPlayerKey(x.p);
       G.variantes.cartes[k] = x.rar;
@@ -1523,12 +1533,12 @@ function modsAuCartable() {
   const par = {};
   for (const m of you.mutations || []) {
     const M = MUTATIONS[m.cle];
-    if (!M || !SOURCES_DURABLES.has(M.source) || m.cle === 'physio' || m.cle === 'lustre' || !m.joueur) continue;
+    if (!M || !SOURCES_DURABLES.has(M.source) || m.cle === 'physio' || M.lustre || !m.joueur) continue;
     (par[m.joueur] = par[m.joueur] || []).push(m.cle);
   }
   poserSurLesCartes(par);
-  // Le lustre : la variante que la carte a prise devient la sienne, au cartable.
-  const lustres = decisionsDeLaPartie().filter(d => d.mutation && d.mutation.cle === 'lustre' && d.mutation.carte).map(d => ({ cle: d.mutation.joueur, rar: d.mutation.carte.rar }));
+  // Une édition montée (le pinceau, la fenêtre, la dorure, le lustre) devient la sienne, au cartable.
+  const lustres = decisionsDeLaPartie().filter(d => d.mutation && MUTATIONS[d.mutation.cle] && MUTATIONS[d.mutation.cle].lustre && d.mutation.carte).map(d => ({ cle: d.mutation.joueur, rar: d.mutation.carte.rar }));
   if (lustres.length) ajouterAuCartable(lustres, { doublons: false });
 }
 /* Ce que les cartes de l'équipe portent, rejoué au jour 0 de la saison (des décisions `report`, comme le deck). */

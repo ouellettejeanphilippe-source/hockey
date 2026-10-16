@@ -9,7 +9,7 @@ import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
 import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
-import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
+import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
@@ -104,7 +104,7 @@ function carteJoueur(p) {
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
 export const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
 /* Le lustre de l'atelier (S78) : la variante que la carte prend (voir `etatPourPoser`). */
-const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
+const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'legendaire' };
 /*
  * LES SOUS-SÉRIES (S78), comme dans une vraie collection : la RECRUE (son
  * contrat d'entrée) et l'ÉTOILE — les meilleurs de leur saison, lus dans
@@ -241,7 +241,7 @@ export function sectionMods(p, attente = null) {
     else cases.push('<div class="fc-case fc-libre">Case libre</div>');
   }
   const plein = attente && posees.length >= n ? '<p class="fc-mods-vide">Ses cases sont pleines : cette carte ne peut pas aller sur lui.</p>' : '';
-  return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte holo ou or. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
+  return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte en édition Or ou Holo. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
     <div class="fc-mods fc-cases">${cases.join('')}</div>${plein}
     ${arrives.length || situ.length ? `<div class="fc-sec">Ce qui lui est arrivé</div>
     <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour), joueur: p })).join('')}${situ.join('')}</div>` : ''}`;
@@ -897,9 +897,11 @@ export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue
     const malus = siens.filter(m => m.jour >= dernier && m.cle !== 'physio' && mutationNuit(m.cle)).map(m => MUTATIONS[m.cle]);
     return malus.length ? { note: `efface ${malus.map(x => x.ico).join(' ')}` } : { non: 'aucun malus' };
   }
-  if (cle === 'lustre') {
+  // Une carte qui monte l'édition (le pinceau, la fenêtre, la dorure, le lustre) : la suivante, sous son plafond.
+  if (M.lustre) {
     const r = varianteApres(varianteJoueur(q), posees), n = VARIANTE_SUIVANTE[r];
-    if (!n) return { non: 'sa carte est déjà en or' };
+    if (!n) return { non: 'sa carte est déjà Holo' };
+    if (numeroEdition(n) > (M.jusqua || EDITIONS.length)) return { non: `déjà ${NOM_VARIANTE[r]}` };
     const carte = carteDe(n);
     return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte },
       mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte, g).map(b => b.mot).join(' ')}` };

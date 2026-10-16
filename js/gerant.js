@@ -364,7 +364,8 @@ let fermerChoixCourant = null;
  * récompense ») montre les cartes. Sous `prefers-reduced-motion`, la pile sans
  * paquet ni mouvement.
  */
-const RANG_RARETE = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
+// `hors` est une édition de carte de joueur (js/rarete.js), entre le Cadre et l'Or.
+const RANG_RARETE = { commune: 0, peu: 1, hors: 1.5, rare: 2, legendaire: 3 };
 const PAQUETS_OUVERTS = new Set();
 const DECHIRE = 460;             // ms du rabat qui se déchire
 const mouvementCalme = () => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;

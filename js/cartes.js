@@ -23,7 +23,7 @@
  */
 
 import { getTeamBand } from './logos.js';
-import { NOM_VARIANTE } from './rarete.js';
+import { NOM_VARIANTE, EDITIONS } from './rarete.js';
 import { actionSrc } from './actions.js';
 
 /*
@@ -153,7 +153,7 @@ export function carteHtml(c) {
    * se TOUCHE pour voir la fiche (`data-apercu`) ; le bouton « Signer » (ou
    * « Garder », « Choisir ») est le seul qui choisit (`data-choix`).
    */
-  if (c.joueurHtml) return `<div class="choix-option tc tc-${r} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
+  if (c.joueurHtml) return `<div class="choix-option tc tc-${edition(c.rarete)} tc-joueur${c.meilleure ? ' tc-meilleure' : ''}" data-apercu="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive ? ' aria-disabled="true"' : ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
     <span class="tcj-carte" role="button" tabindex="0" title="Voir sa fiche">${c.joueurHtml}</span>
     ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tcj-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
@@ -175,7 +175,7 @@ export function carteHtml(c) {
       ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
       ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
       ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
-      <span class="tc-pied"><span>Cap 82-0</span><span class="tc-pied-rar">${R.gemme} ${R.nom}</span></span>
+      <span class="tc-pied"><span>Cap 82-0</span><span class="tc-pied-rar">${R.nom}</span></span>
     </span>
   </${c.statique ? 'div' : 'button'}>`;
 }
@@ -249,14 +249,17 @@ export function rareteDeSalaire(p, saison) {
  * Les mots ne parlent donc plus du salaire : une brillante est de la chance.
  */
 const SENS_RARETE = {
-  commune: 'la carte de base : le joueur, rien de plus',
-  peu: 'une parallèle : son second badge monte d\'un métal',
-  rare: 'une holo : ses deux badges montent d\'un métal, et le second rend plein',
-  legendaire: 'une or : ses deux badges montent de deux métaux, et le second rend plein',
+  commune: 'l\'édition 1, la Base : le joueur, rien de plus',
+  peu: 'l\'édition 2, le Cadre : son second badge monte d\'un métal',
+  hors: 'l\'édition 3, le Hors-cadre : ses deux badges montent d\'un métal',
+  rare: 'l\'édition 4, l\'Or : ses deux badges montent d\'un métal, et le second rend plein',
+  legendaire: 'l\'édition 5, la Holo : ses deux badges montent de deux métaux, et le second rend plein',
 };
 export const sensRarete = r => SENS_RARETE[r] || SENS_RARETE.commune;
-/* Une variante BRILLANTE (peu commune et au-dessus) : le « shiny ». */
-export const brillante = r => r === 'peu' || r === 'rare' || r === 'legendaire';
+/* Une édition au-dessus de la Base : le « shiny ». */
+export const brillante = r => EDITIONS.indexOf(r) > 0;
+/* L'édition d'une carte de joueur, ou la Base : ses clés ne sont pas toutes des raretés de cartes de jeu (`hors`). */
+const edition = r => (EDITIONS.includes(r) ? r : 'commune');
 /*
  * LA FEUILLE DE FINITION (S80). JP : *les visuels des cartes sont un peu plus
  * grossiers versus une vraie carte, ça manque de détails, de vrai*. Une vraie
@@ -270,21 +273,20 @@ export const brillante = r => r === 'peu' || r === 'rare' || r === 'legendaire';
  */
 export const finiHtml = r => (brillante(r) ? '<span class="cj-fini" aria-hidden="true"></span>' : '');
 /*
- * LA GEMME D'UNE CARTE DE JOUEUR, avec ce que sa variante FAIT. Les diamants
- * disent la rareté (un à quatre), le nom de la variante qu'elle est
- * brillante (oct. 2026 : l'étoile ✦ d'avant ne se lisait pas, JP : *système
- * plus facile à voir*), et l'icône du trait (`traitsDeCarte`, js/rarete.js) ce
- * qu'elle joue — une seule pastille, et l'infobulle dit la phrase entière.
- * Une commune ne joue rien de plus : ses diamants seuls. Le trait de la
- * RECRUE n'y entre pas : le tampon « Recrue » de la photo le porte déjà.
+ * LE COIN D'UNE CARTE DE JOUEUR : le nom de son édition (Cadre, Hors-cadre,
+ * Or, Holo), et l'icône d'un autre trait qu'elle joue — l'infobulle dit la
+ * phrase entière. Oct. 2026 — JP : *les diamants, je trouve pas ça beau* ;
+ * l'édition se VOIT à la carte entière (style.css, « LES ÉDITIONS »), le coin
+ * ne fait que la nommer. Une Base n'a pas de coin. Le trait de la RECRUE n'y
+ * entre pas : le tampon « Recrue » de la photo le porte déjà.
  */
 export function gemmeJoueur(r, traits = []) {
-  const R = RARETES[r];
-  if (!R) return '';
-  // La variante s'y lit déjà, en diamants et en toutes lettres : ses icônes ne disent que les autres traits.
+  r = edition(r);
+  // L'édition s'y lit déjà en toutes lettres : ses icônes ne disent que les autres traits.
   const joue = traits.filter(t => t && t.nom !== 'Le jeune progresse' && t.nom !== NOM_VARIANTE[r]);
-  const titre = [`${NOM_VARIANTE[r] || R.nom} : ${sensRarete(r)}`, ...joue.map(t => `${t.ico} ${t.nom} — ${t.mot}`)].join(' · ');
-  return `<span class="cj-gemme" title="${echapper(titre)}">${R.gemme}${brillante(r) ? `<i class="cj-var">${NOM_VARIANTE[r]}</i>` : ''}${joue.map(t => `<b class="cj-trait">${t.ico}</b>`).join('')}</span>`;
+  if (!brillante(r) && !joue.length) return '';
+  const titre = [sensRarete(r), ...joue.map(t => `${t.ico} ${t.nom} — ${t.mot}`)].join(' · ');
+  return `<span class="cj-gemme" title="${echapper(titre)}">${brillante(r) ? `<i class="cj-var">${NOM_VARIANTE[r]}</i>` : ''}${joue.map(t => `<b class="cj-trait">${t.ico}</b>`).join('')}</span>`;
 }
 const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -409,20 +411,23 @@ export function tirageLimite(cle, num = '/99') {
  * carton, dans une bande identique pour toutes (js/repechage.js).
  *
  * LES COUCHES, du fond vers l'œil : le carton de la série (son fond et ses
- * motifs, en CSS) ; la PARALLÈLE (`.carton-fini`) ; la photo ; le décor de
- * la série par-dessus la photo (un cadre, des poteaux, des rayures) ; les
- * mots ; le reflet de l'inclinaison. Une commune ne porte aucune couche de
- * plus : trente cartes au vestiaire, vingt-deux et demie sont des communes.
+ * motifs, en CSS) ; le réfracteur du Cadre (`.carton-fini`) ; la photo ; le
+ * décor de la série par-dessus la photo (un cadre, des poteaux, des
+ * rayures) ; la lumière de l'Or et de la Holo (`.carton-lueur`) ; le métal
+ * de l'édition (`.carton-cadre`) ; les mots ; le reflet de l'inclinaison.
+ * Une Base ne porte aucune couche de plus.
  *
- * LES PARALLÈLES (la variante, js/rarete.js) traitent la série au lieu de la
- * recouvrir, comme les vraies :
- *   peu (Parallèle) — le RÉFRACTEUR : le carton devient un chrome irisé, le
- *                     filet de la série prend l'argent ;
- *   rare (Holo)     — la feuille PRISMATIQUE sur le carton, et la RELIQUE :
- *                     un carré de chandail aux couleurs du club, tissé ;
- *   legendaire (Or) — l'OR brossé, le carton DÉCOUPÉ (les coins en rondelle),
- *                     le nom doré à chaud, la signature en FAC-SIMILÉ et le
- *                     TIRAGE numéroté (« 07/25 »).
+ * LES ÉDITIONS (js/rarete.js, oct. 2026) changent la carte ENTIÈRE, à la
+ * Marvel Snap, et chacune garde ce que la précédente avait :
+ *   peu (Cadre)        — le RÉFRACTEUR sur le carton, et un cadre de métal
+ *                        épais, biseauté, tout autour ;
+ *   hors (Hors-cadre)  — la photo sort de sa fenêtre et prend toute la carte ;
+ *   rare (Or)          — le cadre et le nom en feuille d'or, la lumière
+ *                        dorée qui suit la main, la RELIQUE (un carré de
+ *                        chandail aux couleurs du club, tissé) ;
+ *   legendaire (Holo)  — le cadre en prisme qui tourne, le nom irisé,
+ *                        l'arc-en-ciel qui balaie la carte, la signature en
+ *                        FAC-SIMILÉ et le TIRAGE numéroté (« 07/25 »).
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
  * c : { serie, rarete, portraitHtml, actionSrc, pos, posClasse, gemmeHtml,
@@ -432,14 +437,16 @@ export function tirageLimite(cle, num = '/99') {
  */
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : 'signature';
-  const r = RARETES[c.rarete] ? c.rarete : 'commune';
+  const r = edition(c.rarete);
   const action = c.actionSrc && SERIES[serie].action
     ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
     : '';
   return `<span class="carton cs-${serie} tc-${r}${action ? (SERIES[serie].action === 'plein' ? ' action-plein' : ' action-fenetre') : ''}">
-    ${brillante(r) ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
+    ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
     <span class="carton-photo">${action}${c.portraitHtml || ''}</span>
     <span class="carton-deco" aria-hidden="true"></span>
+    ${r === 'rare' || r === 'legendaire' ? '<span class="carton-lueur" aria-hidden="true"></span>' : ''}
+    ${brillante(r) ? '<span class="carton-cadre" aria-hidden="true"></span>' : ''}
     ${r === 'rare' ? '<span class="carton-relique" aria-hidden="true"><i>Relique</i></span>' : ''}
     <span class="carton-pos ${c.posClasse || ''}">${c.pos || ''}</span>
     ${c.rubanHtml || ''}${c.gemmeHtml || ''}
@@ -585,7 +592,7 @@ export function brancherInclinaison(doc = document) {
   const tactile = win.matchMedia && win.matchMedia('(pointer: coarse)').matches;
   if (!Ori || typeof Ori.requestPermission === 'function' || !tactile) return;
   let base = null, lu = null, rafG = 0, avant = '';
-  const RARES = '.carton:is(.tc-rare, .tc-legendaire), .choix-option.tc:is(.tc-rare, .tc-legendaire)';
+  const RARES = '.carton:is(.tc-peu, .tc-hors, .tc-rare, .tc-legendaire), .choix-option.tc:is(.tc-rare, .tc-legendaire)';
   const pencher = () => {
     rafG = 0;
     if (!lu || calme.matches || doc.hidden) return;

@@ -134,7 +134,7 @@ export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDe
  * pack, vie courte) ; le reste vaut 1,24 🪙 en moyenne, soit au plus le tiers
  * du prix d'un pack. scripts/check_packs.mjs le mesure pour chaque pack.
  */
-export const VENTE = { commune: 1, peu: 1, rare: 2, legendaire: 5, maudite: 0 };
+export const VENTE = { commune: 1, peu: 1, hors: 1, rare: 2, legendaire: 5, maudite: 0 };
 export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
 
 /* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa couleur, sa règle. */

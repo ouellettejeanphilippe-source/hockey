@@ -7513,8 +7513,19 @@ export const MUTATIONS = {
     quoi: 'Tant qu\'il est habillé, il colle à leur meilleur joueur, même quand son trio n\'est pas sur la glace. Ce joueur-là marque moins. Lui lance un peu moins.' },
   physio: { nom: 'Le physio', ico: '🩺', cible: 'libre', source: 'atelier', physio: true,
     quoi: 'Le physio et le psy s\'en occupent : tous ses malus de carte disparaissent (un genou qui grince, une confiance ébranlée, un tir perdu).' },
-  lustre: { nom: 'Le lustre', ico: '✨', cible: 'libre', source: 'atelier', lustre: true,
-    quoi: 'Sa carte monte d\'une variante — base, parallèle, holo, or — et ses badges montent avec elle.' },
+  /*
+   * MONTER UNE ÉDITION (oct. 2026). JP : *un système d'upgrade à la Marvel Snap si tu pognes pas la holo* ; *surtout
+   * avec les cartes pas de match*. Chacune monte la carte d'UNE édition (js/rarete.js), jusqu'à son plafond (`jusqua`,
+   * le numéro de l'édition) : la commune au Cadre, la peu commune au Hors-cadre, la rare à l'Or, le lustre à la Holo.
+   */
+  pinceau: { nom: 'Le coup de pinceau', ico: '🖌', cible: 'libre', source: 'atelier', lustre: true, jusqua: 2,
+    quoi: 'Sa carte de Base passe au Cadre : un cadre de métal, et son second badge monte avec elle.' },
+  fenetre: { nom: 'La fenêtre ouverte', ico: '🪟', cible: 'libre', source: 'atelier', lustre: true, jusqua: 3,
+    quoi: 'Sa carte monte d\'une édition, jusqu\'au Hors-cadre : la photo prend toute la carte, et ses badges montent avec elle.' },
+  dorure: { nom: 'La dorure', ico: '🔆', cible: 'libre', source: 'atelier', lustre: true, jusqua: 4,
+    quoi: 'Sa carte monte d\'une édition, jusqu\'à l\'Or : la feuille d\'or, et ses badges montent avec elle.' },
+  lustre: { nom: 'Le lustre', ico: '✨', cible: 'libre', source: 'atelier', lustre: true, jusqua: 5,
+    quoi: 'Sa carte monte d\'une édition — Base, Cadre, Hors-cadre, Or, Holo — et ses badges montent avec elle.' },
   // V2.4 — MONTER UN PALIER : la carte d'entraînement (la planète de Balatro) et le mentor de trio.
   entrainement: { nom: 'L\'été de travail', ico: '🧗', cible: 'libre', source: 'atelier', palier: 1,
     quoi: 'Un été à travailler ce qu\'il fait de mieux : son badge monte au suivant (Bronze → Argent → Or → Platine).' },
@@ -7630,7 +7641,7 @@ export const mutationNuit = k => {
   const M = MUTATIONS[k];
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
-const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'lustre', 'enBas', 'chasse', 'entrainement', 'mentorTrio'];
+const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'pinceau', 'fenetre', 'dorure', 'lustre', 'enBas', 'chasse', 'entrainement', 'mentorTrio'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -7727,7 +7738,7 @@ export function motsDeMutation(cle) {
   if (M.ombre) out.push({ txt: `Leur meilleur joueur : précision ${flechesDe(M.ombre)}`, bon: true });
   if (M.abri) out.push({ txt: `Il ignore ${Math.round(M.abri * 100)} % de leur étouffement`, bon: true });
   if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
-  if (M.lustre) out.push({ txt: 'Sa carte : une variante de plus', bon: true });
+  if (M.lustre) out.push({ txt: 'Sa carte : une édition de plus', bon: true });
   if (M.palier) out.push({ txt: 'Son badge monte au suivant', bon: true, cle: 'badge' });
   if (M.mentor) out.push({ txt: 'Ses compagnons de ligne : leur badge monte au suivant', bon: true, cle: 'badge' });
   // Le feu qui s'entretient (V3.6) : ce que la carte fait à sa lancée, en mots ; les chiffres sont dans les règles.

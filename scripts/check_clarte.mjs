@@ -39,7 +39,7 @@ import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { RARETES } from '../js/cartes.js';
-import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE } from '../js/rarete.js';
+import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
 import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
@@ -343,14 +343,17 @@ const MOTS_RESERVES = [
     [`paie ${PATRONS.dir_chandails.econ.jetonsLancee} jeton par joueur sur sa lancée, chaque soir`, 'le vendeur de chandails'],
     // Les raretés (oct. 2026) : les gemmes et les noms de la carte (js/cartes.js, js/rarete.js), les cotes d'une brillante par stature.
     [RARES.map(r => `${RARETES[r].gemme} ${RARETES[r].nom.toLowerCase()}`).join(', '), 'les gemmes des cartes de jeu'],
-    [RARES.map(r => `${RARETES[r].gemme} ${NOM_VARIANTE[r]}`).join(', '), 'les gemmes des cartes de joueur'],
+    [`de 1 à ${EDITIONS.length}, qui change la carte entière : ${NOM_VARIANTE.commune} ; ${NOM_VARIANTE.peu}, un cadre de métal`, 'les éditions d\'une carte de joueur'],
+    [`; ${NOM_VARIANTE.hors}, la photo prend toute la carte`, 'le Hors-cadre'],
+    [`; ${NOM_VARIANTE.rare}, la feuille d'or`, 'l\'Or'],
+    [`; ${NOM_VARIANTE.legendaire}, le prisme`, 'la Holo'],
     [`monte d'un, deux ou trois métaux`.replace('un, deux ou trois', ['peu', 'rare', 'legendaire'].map(r => ['zéro', 'un', 'deux', 'trois'][VARIANTE_PALIERS_G[r]]).join(', ').replace(/, (\S+)$/, ' ou $1')), 'les métaux d\'un gardien'],
-    [`Holo ou Or : ${nombre(brille(0))} % des cartes d'un Soutien, ${nombre(brille(NIVEAUX.findIndex(n => n.cle === 'phenomene')))} % d'un ★ Phénomène`, 'les cotes d\'une brillante'],
+    [`Or ou Holo : ${nombre(brille(0))} % des cartes d'un Soutien, ${nombre(brille(NIVEAUX.findIndex(n => n.cle === 'phenomene')))} % d'un ★ Phénomène`, 'les cotes d\'une brillante'],
   ];
-  // Ce que la page dit d'une variante, en mots : la Parallèle monte le second badge d'un métal, la Holo les deux (le
-  // second rend plein), l'Or les deux de deux métaux.
-  exiger('les variantes sont celles que la page dit', JSON.stringify(VARIANTE_PALIERS) === JSON.stringify({ commune: [0, 0], peu: [0, 1], rare: [1, 1], legendaire: [2, 2] })
-    && VARIANTE_PLEINE.rare && VARIANTE_PLEINE.legendaire && !VARIANTE_PLEINE.peu, 'Parallèle · Holo · Or');
+  // Ce que la page dit d'une édition, en mots : le Cadre monte le second badge d'un métal, le Hors-cadre les deux, l'Or
+  // aussi et son second rend plein, la Holo les deux de deux métaux.
+  exiger('les éditions sont celles que la page dit', JSON.stringify(VARIANTE_PALIERS) === JSON.stringify({ commune: [0, 0], peu: [0, 1], hors: [1, 1], rare: [1, 1], legendaire: [2, 2] })
+    && VARIANTE_PLEINE.rare && VARIANTE_PLEINE.legendaire && !VARIANTE_PLEINE.peu && !VARIANTE_PLEINE.hors, EDITIONS.map(r => NOM_VARIANTE[r]).join(' · '));
   // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
   const src = lire('js/rogue.js');
   exiger('les commanditaires valent +3 puis +2 par victoire', /victoire: 5 \+ \(aDebloque\(m, 'commanditaire1'\) \? 3 : 0\) \+ \(aDebloque\(m, 'commanditaire2'\) \? 2 : 0\)/.test(src));

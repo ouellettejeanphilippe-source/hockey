@@ -18,7 +18,7 @@
  *   6. la saison se rejoue à l'identique avec ces décisions ;
  *   7. (S80) une amélioration prise au palier se GARDE : elle va dans la poche,
  *      la garder ne change rien au moteur, et posée au verso elle prend une
- *      case (deux, trois pour une holo ou une or).
+ *      case (deux, trois pour une Or ou une Holo).
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -139,10 +139,10 @@ console.log('\n  Le deck (S73)\n');
   const posees = poseesSur([garde, pose], cleCible);
   exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'affute' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
   const lustre = [{ jour: 30, mutation: { cle: 'lustre', joueur: 'k', carte: { rar: 'rare', bonus: [] } } }];
-  exiger('deux cases, trois pour une holo ou une or ; le lustre qui fait une holo rend sa case',
-    casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
+  exiger('deux cases, trois pour une Or ou une Holo ; le lustre qui fait une Or rend sa case',
+    casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('hors') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
     && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('partout') && sePose('baton_neuf'),
-    `base ${casesDAmelioration('commune')} · holo ${casesDAmelioration('rare')} · parallèle lustrée en holo : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
+    `Base ${casesDAmelioration('commune')} · Or ${casesDAmelioration('rare')} · Cadre lustré en Or : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
 }
 
 /*
@@ -216,18 +216,21 @@ console.log('\n  Le deck (S73)\n');
 }
 
 /*
- * LES DOUBLONS ET LE RAPPEL (Jalon P3). Trois doublons d'une variante la montent d'un cran, jusqu'à Holo ; l'Or ne se
- * fabrique pas. « Le rappel du club-école » signe un joueur de ton cartable par la décision qui existe (`ballottage`).
+ * LES DOUBLONS ET LE RAPPEL (Jalon P3). Trois doublons d'une édition la montent d'un cran, jusqu'à l'Or (l'édition 4) ;
+ * la Holo ne sort pas des doublons (oct. 2026 : l'Or et la Holo ont échangé leur place, la force de chacune est restée). « Le rappel du club-école » signe un joueur de ton cartable par la décision qui existe (`ballottage`).
  */
 {
-  // Treize Base : quatre montent (douze doublons), et ces quatre Parallèles en font une Holo.
+  // Treize Base : quatre montent (douze doublons), et ces quatre Cadres en font un Hors-cadre.
   const x = { v: { commune: 13 } };
   const m = monterLesDoublons(x);
-  exiger('trois doublons montent la carte : Base → Parallèle → Holo, jamais Or', m.length === 5 && x.v.commune === 1 && x.v.peu === 1 && x.v.rare === 1 && !x.v.legendaire,
+  exiger('trois doublons montent la carte : Base → Cadre → Hors-cadre', m.length === 5 && x.v.commune === 1 && x.v.peu === 1 && x.v.hors === 1 && !x.v.rare && !x.v.legendaire,
     `${JSON.stringify(m.map(y => `${y.de}→${y.a}`))} · reste ${JSON.stringify(x.v)}`);
-  const y = { v: { peu: 4 } };
+  const y = { v: { hors: 4 } };
   monterLesDoublons(y);
-  exiger('une Parallèle et trois doublons font une Holo', y.v.peu === 1 && y.v.rare === 1, JSON.stringify(y.v));
+  exiger('un Hors-cadre et trois doublons font une Or', y.v.hors === 1 && y.v.rare === 1, JSON.stringify(y.v));
+  const z = { v: { rare: 7 } };
+  monterLesDoublons(z);
+  exiger('la Holo ne sort pas des doublons', z.v.rare === 7 && !z.v.legendaire, JSON.stringify(z.v));
   const p = payloadDe('consommable:rappel', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
   exiger('le rappel du club-école est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
   exiger('sans joueur choisi, le rappel ne décide rien', payloadDe('consommable:rappel', {}) === null);

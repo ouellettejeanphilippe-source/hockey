@@ -30,7 +30,8 @@ import {
   appliquerMutation, unitesIdeales, getHiddenRatings, facteurGardienDe, MUTATIONS, mutationNuit, editionsDuJour, mainDuDeck,
   malusZoneUnite, getUnitSynergy, badgesDe, maitrise, profilMatch, activeLineup, joueursDeLigne,
 } from '../js/sim.js';
-import { carteDe, varianteTiree, COTES_VARIANTES, traitsDeCarte, VARIANTE_PALIERS } from '../js/rarete.js';
+import { carteDe, varianteTiree, COTES_VARIANTES, COTES_PAR_STATURE, statureDe, traitsDeCarte, VARIANTE_PALIERS, EDITIONS, NOM_VARIANTE } from '../js/rarete.js';
+import { niveauDe } from '../js/niveaux.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -145,16 +146,16 @@ delete lustre._carte;
     exiger('au-delà de Platine, le palier de trop monte le second badge', r1 === 4 && r2 > p2, `${r1}/${r2}`);
     delete deux._palier;
     const lu = {};
-    for (const r of ['peu', 'rare', 'legendaire']) { deux._carte = carteDe(r); lu[r] = badgesDe(deux).map(b => b.palier); }
+    for (const r of ['peu', 'hors', 'rare', 'legendaire']) { deux._carte = carteDe(r); lu[r] = badgesDe(deux).map(b => b.palier); }
     delete deux._carte;
-    exiger('la variante sert le joueur : parallèle le second badge, holo le premier, or les deux',
-      ['peu', 'rare', 'legendaire'].every(r => lu[r][0] === p1 + VARIANTE_PALIERS[r][0] && lu[r][1] === p2 + VARIANTE_PALIERS[r][1]),
+    exiger('l\'édition sert le joueur : le Cadre monte le second badge, le Hors-cadre et l\'Or les deux, la Holo les deux de deux',
+      ['peu', 'hors', 'rare', 'legendaire'].every(r => lu[r][0] === p1 + VARIANTE_PALIERS[r][0] && lu[r][1] === p2 + VARIANTE_PALIERS[r][1]),
       Object.entries(lu).map(([r, x]) => `${r} ${x.join('/')}`).join(' · '));
   }
   const gard = toi.roster[SLOTS.find(s => s.group === 'G').i], g0 = badgesDe(gard)[0];
   if (g0 && g0.palier === 1) {
     gard._carte = carteDe('legendaire');
-    exiger('un gardien en or monte son badge de trois', badgesDe(gard)[0].palier === 4, `${g0.nom} ${g0.palier} → ${badgesDe(gard)[0].palier}`);
+    exiger('un gardien en Holo monte son badge de trois', badgesDe(gard)[0].palier === 4, `${g0.nom} ${g0.palier} → ${badgesDe(gard)[0].palier}`);
     delete gard._carte;
   }
   // Le mentor : sa ligne monte, les autres non.
@@ -179,10 +180,17 @@ exiger('le coach des gardiens accorde moins de buts', Math.abs(facteurGardienDe(
 const cles = SAISONS.slice(0, 40).flatMap(f => shard(f).players.slice(0, 50).map(p => `${f}|${p.id}`));
 const tirees = cles.map(k => varianteTiree(COTES_VARIANTES, 'graine', k));
 const part = r => tirees.filter(x => x === r).length / tirees.length;
-informer('variantes tirées', `base ${(part('commune') * 100).toFixed(0)} % · parallèle ${(part('peu') * 100).toFixed(0)} % · holo ${(part('rare') * 100).toFixed(1)} % · or ${(part('legendaire') * 100).toFixed(1)} %`);
+informer('éditions tirées', EDITIONS.map(r => `${NOM_VARIANTE[r]} ${(part(r) * 100).toFixed(1)} %`).join(' · '));
 // Les cotes se LISENT dans js/rarete.js (docs/organisation-equilibrage.md, action 3) : elles ne se recopient plus ici.
 const CV = COTES_VARIANTES;
-exiger(`les variantes suivent leurs cotes (${CV.commune} / ${CV.peu} / ${CV.rare} / ${CV.legendaire})`, Math.abs(part("commune") - CV.commune / 100) < 0.03 && Math.abs(part("peu") - CV.peu / 100) < 0.03 && Math.abs(part("rare") - CV.rare / 100) < 0.01, '');
+exiger(`les éditions suivent leurs cotes (${EDITIONS.map(r => CV[r]).join(' / ')})`, Math.abs(part("commune") - CV.commune / 100) < 0.03 && Math.abs(part("peu") - CV.peu / 100) < 0.03 && Math.abs(part("hors") - CV.hors / 100) < 0.015 && Math.abs(part("rare") - CV.rare / 100) < 0.01, '');
+// Les cotes par stature restent, en moyenne sur la ligue, près des cotes d'une carte ordinaire (js/rarete.js le promet).
+{
+  const parStature = cles.map(k => { const [f, id] = k.split('|'); const js = shard(f).players, p = js.find(q => String(q.id) === id); return varianteTiree(COTES_PAR_STATURE[statureDe(p, niveauDe(p, js))], 'graine', k); });
+  const pS = r => parStature.filter(x => x === r).length / parStature.length;
+  informer('éditions par stature', EDITIONS.map(r => `${NOM_VARIANTE[r]} ${(pS(r) * 100).toFixed(1)} %`).join(' · '));
+  exiger('la Holo est la plus rare des éditions, par stature aussi', pS('legendaire') < pS('rare') && pS('rare') < pS('peu'), `Holo ${(pS('legendaire') * 100).toFixed(2)} % · Or ${(pS('rare') * 100).toFixed(2)} %`);
+}
 exiger('une variante est la même carte d\'un tirage à l\'autre', varianteTiree(COTES_VARIANTES, 'graine', cles[7]) === varianteTiree(COTES_VARIANTES, 'graine', cles[7])
   && JSON.stringify(carteDe('rare')) === JSON.stringify(carteDe('rare')), '');
 exiger('l\'atelier offre trois éditions différentes, pures', new Set(editionsDuJour('g', 20)).size === 3 && JSON.stringify(editionsDuJour('g', 20)) === JSON.stringify(editionsDuJour('g', 20)), editionsDuJour('g', 20).join(' · '));

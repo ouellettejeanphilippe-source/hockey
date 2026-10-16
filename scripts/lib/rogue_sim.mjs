@@ -32,7 +32,7 @@ import {
   ecoleDe, rivauxOfferts, RIVAUX,
 } from '../../js/sim.js';
 import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
-import { carteDe, varianteTiree, COTES_VARIANTES } from '../../js/rarete.js';
+import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
 import {
@@ -154,7 +154,7 @@ function tirerPack(rnd, cle, libre, role = null) {
     if (!pool.length) continue;
     const p = pool[Math.floor(rnd() * pool.length)];
     let r = rnd() * 100, rar = 'commune';
-    for (const k of ['commune', 'peu', 'rare', 'legendaire']) { r -= T.cotes[k]; if (r < 0) { rar = k; break; } }
+    for (const k of EDITIONS) { r -= T.cotes[k] || 0; if (r < 0) { rar = k; break; } }
     out.push({ p: copie(p), rar });
   }
   return out;
