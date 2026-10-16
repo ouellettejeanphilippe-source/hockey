@@ -236,6 +236,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 - **`rogue_sim` à deux robots** : l'attentif lit son plan et répond aux intentions ; le distrait choisit au hasard. Leur écart en victoires par saison est la profondeur du jeu.
   - L'attentif gagne sa première Coupe entre la run 3 et la run 8.
   - Le distrait ne la gagne jamais en 12 runs.
+  - **Les deux bouts** (JP, 16 oct.) : un alignement moyen bien mené peut finir premier de la ligue ; un bon alignement mal mené peut rater les séries. Le juge mesure les deux, sur les mêmes joueurs, et exige qu'ils arrivent.
   - C'est le « script qui juge la boucle » que la V8 avait laissé de côté.
 - **`essai_rogue`** : chaque choix vit dans À faire et a la même forme ; aucun « Compris » ne bloque.
 
@@ -251,6 +252,8 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 8. **Recalibrer la run** sur les deux robots.
 
 ## 11. Ce que JP tranche
+
+**Tranché le 16 oct.** JP : *oui à tout, commence par la tranche 1 ; l'idée est que ça ne devrait pas être facile, mais possible, de rouler sur la ligue avec les bons joueurs, stratégies et cie, ou de se planter royalement avec un bon roster, comme la vraie vie.* Le nombre de duels par saison (question 4) se tranchera à la tranche 5.
 
 1. **Le plan décide quelles stats comptent** (moteur, Rogue seulement), à environ 1 V par écart type dans le top six. Oui ? C'est le changement majeur : il lève la règle « aucune mécanique neuve » pour le Rogue.
 2. **Le profil en quatre familles** (Tir, Jeu, Défense, Robustesse), dit en badges et en vraies stats. Oui ? Ou d'autres familles ?
