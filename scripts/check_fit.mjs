@@ -19,7 +19,7 @@
  * les sept systèmes, 0,0 à 0,1 V — le script est ROUGE tant que le plan ne décide pas quelles stats comptent. C'est le
  * juge de la tranche 3, pas une vérification de la CI.
  *
- *   node scripts/check_fit.mjs            (une demi-minute)
+ *   node scripts/check_fit.mjs            (une demi-minute ; DETAIL=1 : ce que chaque système paie, case par case)
  */
 import fs from 'node:fs';
 import path from 'node:path';

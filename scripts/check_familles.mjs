@@ -4,7 +4,7 @@
  * réguliers de 40 matchs et plus de toutes les saisons, et la dispersion de ce qui reste. Une famille se lit alors à
  * niveau égal : 0 chez le joueur typique de ses points, en écarts types.
  *
- *   node scripts/familles_calibre.mjs      → imprime les constantes à recopier, et juge celles du moteur
+ *   node scripts/check_familles.mjs      → imprime les constantes à recopier, et juge celles du moteur (dans tout.mjs)
  */
 import fs from 'node:fs';
 import path from 'node:path';

@@ -1514,7 +1514,7 @@ export const FAMILLES = {
   defense: { nom: 'Défense', roles: { F: ['deuxsens', 'checker'], D: ['defensif', 'deuxsens'] } },
   robustesse: { nom: 'Robustesse', roles: { F: ['power', 'bagarreur', 'energie'], D: ['physique'] } },
 };
-/* Les familles brutes d'un joueur (le meilleur de leurs rôles) et l'écart réduit de ses points par match : scripts/familles_calibre.mjs les lit. */
+/* Les familles brutes d'un joueur (le meilleur de leurs rôles) et l'écart réduit de ses points par match : scripts/check_familles.mjs les lit. */
 export function famillesBrutes(p) {
   const b = rolesBruts(p);
   if (!b) return null;
@@ -1524,7 +1524,7 @@ export function famillesBrutes(p) {
   return out;
 }
 /*
- * CE QUE LES POINTS EXPLIQUENT DE CHAQUE FAMILLE (scripts/familles_calibre.mjs, les réguliers de 40 matchs et plus,
+ * CE QUE LES POINTS EXPLIQUENT DE CHAQUE FAMILLE (scripts/check_familles.mjs, les réguliers de 40 matchs et plus,
  * toutes saisons) : [ordonnée, pente sur l'écart réduit des points, dispersion de ce qui reste]. La famille d'un joueur
  * est ce reste, en écarts types : 0 chez le joueur typique de ses points.
  */
@@ -1788,8 +1788,8 @@ const PLAN_RANG = { F: [1, 1, 1.3, 1.6], D: [1, 1, 1.6] };
  * qu'il coûte (`familles`, js/coachs.js), selon sa confiance I, II, III. Une unité bâtie pour sa famille en tire plus ;
  * mal assortie, elle le paie plus cher aussi : le coach exige.
  */
-const COACH_DU_PLAN = { paie: [1.15, 1.3, 1.5], coute: [0.9, 0.8, 0.7] };
-function coachDuPlan(team, famille) {
+export const COACH_DU_PLAN = { paie: [1.15, 1.3, 1.5], coute: [0.9, 0.8, 0.7] };
+export function coachDuPlan(team, famille) {
   let k = 1;
   for (const c of (team && team.coachs) || []) {
     const F = COACHS[c.cle] && COACHS[c.cle].familles, i = borne(c.palier || 1, 1, 3) - 1;
@@ -2318,24 +2318,16 @@ function fitRoles(lineup, u, slots) {
  * d'une case vaut FIT_BASE + FIT_PAR_PALIER × ses paliers : « Sniper Or » est ce que le système lit, plus un
  * score de style à part. Les deux constantes gardent la ligue où elle était (mesuré sur 120 vrais clubs : le
  * meilleur système d'un trio de l'IA vaut 63,0 en moyenne, 62,9 avant), et un trio de trois Platine du bon
- * badge joue son système à 100. `bonus` : des paliers de plus par case (le système de la couleur du coach).
+ * badge joue son système à 100. (V9 : le palier de plus que le coach donnait à son système est parti — en Rogue,
+ * le plan le remplace : le coach fait compter ses familles, `coachDuPlan`.)
  */
 export const FIT_BASE = 52, FIT_PAR_PALIER = 12;
 function paliersPour(p, role) {
   const b = badgesDe(p).find(x => x.cle === role);
   return b ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0;
 }
-export const fitDeCase = (p, role, bonus = 0) => Math.min(100, FIT_BASE + FIT_PAR_PALIER * (paliersPour(p, role) + (paliersPour(p, role) > 0 ? bonus : 0)));
-/*
- * LE COACH AIME SON SYSTÈME (V2.3, docs/refonte-systeme.md § 4) : à sa confiance II, le système de sa couleur
- * (`COACHS[cle].systeme`) joue comme si chaque case avait un palier de plus — une case qui porte le bon badge.
- */
-export const PALIER_DU_COACH = 1;
-export function bonusDuCoach(team, cle) {
-  const cs = (team && team.coachs) || [];
-  return cs.some(c => c.palier >= 2 && COACHS[c.cle] && COACHS[c.cle].systeme === cle) ? PALIER_DU_COACH : 0;
-}
-export function fitUnite(lineup, groupe, u, cle, bonus = 0) {
+export const fitDeCase = (p, role) => Math.min(100, FIT_BASE + FIT_PAR_PALIER * paliersPour(p, role));
+export function fitUnite(lineup, groupe, u, cle) {
   const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
   if (!S || !S.slots || !lineup) return 0;
   const js = joueursDeLigne(lineup, u);
@@ -2346,7 +2338,7 @@ export function fitUnite(lineup, groupe, u, cle, bonus = 0) {
     // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
     // juge pas — elle comptait pour 0 et tout trio vide lisait « Mauvais fit ».
     if (p === null) return null;
-    fits.push(fitDeCase(p, prof, bonus));
+    fits.push(fitDeCase(p, prof));
   }
   return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
 }
@@ -4464,7 +4456,7 @@ export function profilMatch(team, lineup, adv = null) {
     const l = lignes[u], A = AGRESSIVITES[l.agr];
     const cle = g === 'D' ? l.tacD : l.tac;
     const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle, bonusDuCoach(team, cle)) ?? 0) : 0;
+    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle) ?? 0) : 0;
     // En Rogue, le système paie sa famille (V9) ; ailleurs, ses badges, comme toujours.
     const ecart = team && team.courbe && S && S.famille ? ecartDuPlan(x.joueurs, S.famille) : null;
     const kCoach = ecart != null ? coachDuPlan(team, S.famille) : 1;

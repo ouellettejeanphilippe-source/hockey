@@ -31,7 +31,7 @@
  *     plus probable ;
  *   - 'distrait' : il clique sans lire. Un coach au hasard ; une carte du pack au hasard, et qui
  *     sort au hasard (le nouveau prend sa case) ; un système au hasard par
- *     ligne ; aux gros matchs et en séries, une main jouable au hasard et une
+ *     ligne, parmi ceux que la fenêtre offre ; aux gros matchs et en séries, une main jouable au hasard et une
  *     piste au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
  *     clics ont leur générateur : les adversaires et les dés restent ceux des
  *     deux autres.
@@ -47,7 +47,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
-  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, PLANS_ADV, avecHasardIsole, lignesAuMieux, activeLineup,
+  ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, PLANS_ADV, avecHasardIsole, lignesAuMieux, activeLineup,
 } from '../../js/sim.js';
 import { DECK_DEPART, CARTES_MATCH, mainDuMatch, mainDeLAdjoint, energieDepensee } from '../../js/combat.js';
 import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
@@ -279,7 +279,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
   const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
   if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
-  if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: auHasard(Object.keys(TACTIQUES)), tacD: auHasard(Object.keys(SYSTEMES_D)) })) });
+  // Ce que la fenêtre du Rogue offre (V9) : les systèmes du plan, ou aucun.
+  if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: auHasard(['hourra', ...SYSTEMES_DU_PLAN.F]), tacD: auHasard(['hourra', ...SYSTEMES_DU_PLAN.D]) })) });
   // Une main jouable au hasard : le distrait pose ses cartes dans le désordre, tant que l'élan suffit, et prépare une piste au hasard.
   const mainAuHasard = main => {
     const pris = new Set();

@@ -29,7 +29,7 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, systemeDe } from './sim.js';
+import { CARTES, MUTATIONS, EDITIONS_REGLEMENT } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
@@ -970,7 +970,7 @@ export function reglesDePalier(cle, palier) {
   if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
-  const sys = palier === 2 && COACHS[cle].systeme && systemeDe(COACHS[cle].systeme);
-  if (sys) out.push({ txt: `Tes ${sys.groupe === 'D' ? 'défenseurs' : 'avants'} jouent ${sys.ico} ${sys.nom} chacun un cran plus haut (Bronze → Argent…)`, bon: true });
+  // V9 : à sa confiance II et III, son plan compte plus fort (`COACH_DU_PLAN`, js/sim.js).
+  if (palier >= 2 && COACHS[cle].familles) out.push({ txt: 'Son plan compte plus fort', bon: true });
   return out;
 }

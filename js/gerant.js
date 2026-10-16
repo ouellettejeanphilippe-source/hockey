@@ -940,7 +940,9 @@ const motFit = f => (f >= 70 ? 'Sur mesure' : f >= 55 ? 'Bon fit' : f >= 40 ? 'F
  * l'écart ; les chiffres de match sont à côté (`netDuChoix`, les effets du système).
  */
 const planEnJeu = () => { const c = clubLu(); return !!(c && c.team && c.team.courbe); };
-const motDeFamille = z => (z >= 1.25 ? 'rare' : z >= 0.5 ? 'fort' : z > -0.5 ? 'ordinaire' : 'faible');
+export const motDeFamille = z => (z >= 1.25 ? 'rare' : z >= 0.5 ? 'fort' : z > -0.5 ? 'ordinaire' : 'faible');
+/* Ce qu'un coach paie et coûte, en mots : « paie le tir et la robustesse · coûte le jeu ». */
+export const motDuCoachPlan = F => (F ? `paie ${F.paie.map(f => `le ${FAMILLES[f].nom.toLowerCase()}`).join(' et ')} · coûte le ${FAMILLES[F.coute].nom.toLowerCase()}` : '');
 function motDuPlan(js, famille) {
   if (!js.length || js.some(p => !p)) return { mot: 'à compléter', cls: '' };
   const m = ecartDuPlan(js, famille) / js.length + PLAN_REF;

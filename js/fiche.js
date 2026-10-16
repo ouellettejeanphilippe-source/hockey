@@ -7,10 +7,10 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
-import { compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
+import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
-import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml } from './gerant.js';
+import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
 import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
@@ -114,6 +114,11 @@ function surLaGlaceHtml(p) {
     if (plafondGardien(p) > 1) lignes.push(li(`Au plafond du gardien : ses cartes ne lui retirent pas plus de ${Math.round(GAIN_GARDIEN_MAX * 100)} % de ses buts accordés, une de plus n'ajoute rien.`, 'prix'));
     lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
+  }
+  // SON PROFIL (V9, le Rogue) : ses quatre familles, à ses points égaux — ce que le système de son unité paie.
+  if (G.bonus === 'ROGUE') {
+    const f = famillesDe(p);
+    lignes.push(li(`<b>À ses points égaux</b> : ${Object.keys(FAMILLES).map(k => `${esc(FAMILLES[k].nom)} ${motDeFamille(f[k])}`).join(', ')}. Un système qui paie une famille où il est fort lui va.`));
   }
   for (const b of badgesDe(p)) {
     const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * maitrise(p, b.cle);
