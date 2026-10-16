@@ -8,7 +8,7 @@
 - *Simplifier visuellement et la façon de jouer, mais gagner en profondeur et en storytelling, deux choses absentes aujourd'hui. Le Rogue est brain dead ; le 82-0, avec ses rolls, demande plus de stratégie.*
 - *Je ne suis pas attaché au jeu tel qu'il est, mais demande-moi avant un changement majeur.*
 
-**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1, 2 et 3 sont faites (§ 13 à § 15) ; les autres attendent leur tour, une PR chacune.
+**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1 à 4 sont faites (§ 13 à § 16) ; les autres attendent leur tour, une PR chacune.
 
 ## 1. Comment c'est mesuré
 
@@ -365,6 +365,30 @@ Le plan décide quelles stats comptent, en Rogue seulement (docs/decisions.md). 
   - Le ✗ des campagnes est le constat de la tranche 2 en plus fort : bien mené, le Rogue se gagne trop tôt, puis presque à chaque run (l'attentif, 22 Coupes sur 24). C'est la tranche 4 (le plafond qui mord, un départ bien pire) et la tranche 8 (recalibrer).
   - `check_rogue` : la Coupe par run monte plus vite au milieu de la courbe (6 déblocages : 20 % → 50 %), le robot d'avant profitant du plan que l'IA lui choisit ; sans déblocage, elle reste rare (10 %). `check_robot` (Rogue) : 7,5 %, sous sa borne.
   - Preuves : `tout.mjs` (22 scripts), `check_mort`, `check_clarte`, `check_coachs`, `essai_rogue` (57 choix réglés, zéro erreur), `check_robot`, `check_voies`.
+
+## 16. Fait le 16 octobre : la tranche 4, le plafond qui mord
+
+JP : *start with a way worse team* (docs/decisions.md). Le Rogue seulement.
+
+- [x] **Les pires contrats** : les bouche-trous du départ restent de la même tranche de production, mais se tirent dans le tiers le mieux payé (`PART_DES_PIRES`). Leur masse : 43 à 74 M$, 57 en médiane.
+- [x] **Le plafond d'une saison est ta masse de départ, plus 4 M$** (`ESPACE_DE_DEPART`), et ce que les déblocages ajoutent.
+- [x] **L'offre n'est plus filtrée sous le plafond** : une carte que même ton plus gros contrat ne ferait pas entrer se montre grisée, avec ce qu'il manque. Le robot ne signe que ce qu'une sortie fait entrer.
+- [x] **Les packs Spécialistes tirent par famille**, à points égaux ; la liste de signature dit les familles fortes du joueur.
+- [x] **Les juges** :
+
+  | | tranche 3 | tranche 4 | cible |
+  |---|---|---|---|
+  | l'attentif contre le robot d'avant | +5,3 V | **+7,4 V** | ≥ +5 V ✓ |
+  | l'attentif contre le distrait | — | **+20,7 V** | |
+  | un club du milieu bien mené finit premier | 7 sur 16 | **5 sur 16** | ✓ |
+  | un meilleur club mal mené rate les séries | 4 sur 16 | **5 sur 16** | ✓ |
+  | la 1re Coupe de l'attentif (médiane) | run 2 | **run 3,5** | 3 à 8 ✓ |
+  | le distrait gagne la Coupe | 0 sur 24 | **0 sur 24** | ✓ |
+  | `check_rogue` · Coupe par run, sans déblocage → tout débloqué | 10 % → 90 % | **10 % → 90 %** | ✓ |
+  | `check_robot` (Rogue) · Coupe par run | 7,5 % | **5 %** | ≤ 10 % ✓ |
+
+  - Le robot d'avant gagne sa première Coupe à la run 7 ou 8 ; l'attentif, à la 2e ou la 5e ; le distrait, jamais. Un départ pire n'a pas cassé le jeu : il a ouvert l'écart, et c'est le plan et le marché qui font remonter l'équipe.
+  - Preuves : `tout.mjs` (22 scripts), `check_mort`, `check_clarte`, `check_packs`, `essai_rogue`, `essai_packs`, `check_rogue` (32 vérifications), `check_robot`, `check_profondeur`.
 
 ## Annexe · la méthode des mesures
 

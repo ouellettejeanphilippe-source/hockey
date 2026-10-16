@@ -112,17 +112,22 @@ function estEtoile(p) {
   return p.p === 'G' ? (p.gp || 0) >= s.minG && (p.sv || 0) >= s.sv : (p.gp || 0) >= s.minP && (p.pt ?? ((p.g || 0) + (p.a || 0))) >= s.pts;
 }
 
-/* LES PLOMBIERS (js/game.js `plombiers`) : huit saisons, du 10e au 30e centile de production (30e-50e débloqué). */
+/*
+ * LES PLOMBIERS (js/rogue-jeu.js `plombiersDeLaLigue`) : huit saisons, du 10e au 30e centile de production (30e-50e
+ * débloqué), et parmi eux les pires contrats, le tiers le mieux payé (V9, tranche 4 : le plafond qui mord).
+ */
+const PART_DES_PIRES = 1 / 3;
 function plombiers(rnd, meta, exclus) {
   const saisons = SAISONS.slice(), choisies = [];
   while (choisies.length < 8) choisies.push(saisons.splice(Math.floor(rnd() * saisons.length), 1)[0]);
   const [bas, haut] = aDebloque(meta, 'plombiersPlus') ? [0.3, 0.5] : [0.1, 0.3];
+  const pires = tranche => tranche.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(tranche.length * PART_DES_PIRES)));
   const pool = [];
   for (const s of choisies) {
     const e = shard(s);
     for (const g of ['F', 'D', 'G']) {
       const reg = e.players.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !exclus.has(getPersonKey(p))).sort((a, b) => prod(a) - prod(b));
-      const tranche = reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut)));
+      const tranche = pires(reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut))));
       for (let i = 0; i < (g === 'F' ? 3 : g === 'D' ? 2 : 1) && tranche.length; i++) pool.push(copie(tranche.splice(Math.floor(rnd() * tranche.length), 1)[0]));
     }
   }
@@ -269,9 +274,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux(enPoste)) : etat.roster;
   const masse0 = masseDe(roster);
-  const base = PLAFOND_ROGUE + plafondDuVestiaire(meta);
-  // Chaque saison garde 12 M$ d'espace au départ : l'équipe se défait entre deux saisons (js/rogue-jeu.js `plafondDeDepart`).
-  const cap = Math.max(base, Math.ceil((masse0 + ESPACE_DE_DEPART) / 100_000) * 100_000);
+  // LE PLAFOND QUI MORD (V9, tranche 4 ; js/rogue-jeu.js `plafondDeDepart`) : la masse de départ, plus l'espace de départ et les déblocages.
+  const cap = Math.ceil((masse0 + ESPACE_DE_DEPART) / 100_000) * 100_000 + plafondDuVestiaire(meta);
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus);
@@ -314,8 +318,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats); achats++;
       const actuel = you.roster;
-      const salaireMax = cap - masseDe(actuel) + Math.max(...Object.values(actuel).filter(Boolean).map(p => p.$ || 0));
-      const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)), voulu.role);
+      // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
+      const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role);
       entrees.push(...cartes);
       // SIGNER (un seul du pack) : celui qui monte le plus l'alignement, sous le plafond ; qui sort : celui que l'alignement laisse.
       // Le distrait : une carte au hasard, et un joueur du même groupe au hasard lui laisse sa case.

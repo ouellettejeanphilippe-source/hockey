@@ -41,7 +41,7 @@ import { NIVEAUX } from '../js/niveaux.js';
 import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
-import { JETONS, baremeRogue, PLAFOND_ROGUE, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -323,7 +323,7 @@ const MOTS_RESERVES = [
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
     [`de ${RAPPEL_MATCHS[0]} à ${RAPPEL_MATCHS[1]} matchs dans sa saison`, 'le rappel au ballottage'],
     [`Après ton ${DATE_LIMITE_MATCH}e match, la date limite des échanges`, 'la date limite'],
-    [`${JETONS.depart} jetons et un plafond de ${nombre(PLAFOND_ROGUE / 1e6)} M$`, 'le départ Rogue'],
+    [`${JETONS.depart} jetons et ${nombre(ESPACE_DE_DEPART / 1e6)} M$ sous le plafond`, 'le départ Rogue'],
     [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un gros match gagné ${B.grosMatch}, un objectif du proprio ${B.objectif}, une ronde de séries gagnée ${B.serie}`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
     [`tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs`, 'les gardés entre deux saisons'],

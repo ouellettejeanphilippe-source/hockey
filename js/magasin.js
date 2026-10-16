@@ -118,7 +118,7 @@ export function ouvrirMagasin(ctx) {
     // LE PLAFOND (S79) : un pack de joueurs ne tire que des salaires qu'une sortie ferait entrer.
     const plafond = ctx.plafond
       ? jaugePlafond({ masse: ctx.plafond.cap - ctx.plafond.espace, cap: ctx.plafond.cap,
-        mot: `<span class="inv-pl-rien">${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond` : `${M(-ctx.plafond.espace)} au-dessus du plafond`}${ctx.plafond.tordu ? ' ✦' : ''} : salaires jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} dans un pack de joueurs.</span>` }) : '';
+        mot: `<span class="inv-pl-rien">${ctx.plafond.espace >= 0 ? `${M(ctx.plafond.espace)} sous le plafond` : `${M(-ctx.plafond.espace)} au-dessus du plafond`}${ctx.plafond.tordu ? ' ✦' : ''} : tu signes jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))}.</span>` }) : '';
     m.innerHTML = `<div class="choix-sheet pk-sheet" role="dialog" aria-modal="true" aria-label="La boutique">
       <div class="choix-tete">
         <span class="choix-ico">🛒</span>
@@ -177,7 +177,7 @@ export function ouvrirMagasin(ctx) {
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
       <details class="pk-detail"><summary>Les chances</summary>
       <table class="pk-chances">${ch.map(x => `<tr${x.maudite ? ' class="pk-maudite"' : x.niveau ? ' class="pk-niveau"' : ''}><th>${esc(x.nom)}</th><td>${esc(x.txt)}</td></tr>`).join('')}</table>
-      ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Salaires tirés : jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait).</p>` : ''}
+      ${P.sorte === 'joueurs' && ctx.plafond ? `<p class="pk-num">💵 Tu signes jusqu'à ${M(Math.max(0, ctx.plafond.salaireMax))} (ton espace, plus le plus gros contrat qu'une sortie libérerait) ; au-delà, la carte se montre, grisée.</p>` : ''}
       ${P.sorte === 'joueurs' ? niveauxHtml(cle, ctx.mods) : ''}
       <h4>${P.sorte === 'joueurs' ? 'L\'édition d\'une carte' : 'Le barème d\'une carte'}</h4>
       <table class="pk-bareme">${Object.entries(cotes).map(([k, v]) => `<tr><th>${P.sorte !== 'joueurs' && RARETES[k] ? `${RARETES[k].gemme} ` : ''}${esc(noms[k] || k)}</th><td>${(Math.round((v / tot) * 1000) / 10).toString().replace('.', ',')} %</td></tr>`).join('')}</table>
