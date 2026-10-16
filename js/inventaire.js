@@ -5,12 +5,12 @@
  * de façon permanente, et les consommables (certaines permanentes dans
  * l'inventaire, d'autres bonnes pour une saison seulement)*.
  *
- * TROIS POCHES, et chacune dit la vie de ses cartes :
- *   CETTE SAISON  ce que les packs de la partie ont donné et qu'on n'a pas
- *                 encore joué — un événement, un style, une carte de match,
- *                 un consommable « 1 utilisation ». Elle se DÉDUIT des
+ * TROIS RANGS, et chacun dit la vie de ses cartes :
+ *   TES PLACES    (V9) ce que les packs et les paliers de la partie ont donné
+ *                 et qu'on n'a pas encore joué — un style, un consommable,
+ *                 un contrat —, `PLACES` au plus. Elles se DÉDUISENT des
  *                 décisions (les achats, les cartes jouées, les ventes) : une
- *                 partie reprise retrouve exactement sa poche.
+ *                 partie reprise retrouve exactement ses places.
  *   PERMANENT     (mode Rogue) le personnel qu'on possède — on l'engage à
  *                 chaque run — et les consommables permanents, gardés d'une
  *                 run à l'autre dans le méta (\`cap82_rogue\`, js/rogue.js).
@@ -20,110 +20,71 @@
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
-import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, MOMENTS, reglesDe, carteBanque, idsDe, etiquetteBanque, coachsActifs } from './banque.js';
+import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, MOMENTS, reglesDe, carteBanque, idsDe, etiquetteBanque } from './banque.js';
 import { COACHS } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, optionDeCarteMatch, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
-import { esc, hache, money as M, jaugePlafond } from './util.js';
+import { esc, money as M, jaugePlafond } from './util.js';
 
 const $ = id => document.getElementById(id);
 
-/* Les paliers de la saison donnent un pack mixte gratuit (S79) : ses cartes de saison, jamais un permanent. */
+/*
+ * LES PLACES (V9, tranche 5b — docs/refonte-v9.md § 6.4). La poche, la main de la semaine et sa limite de deux cartes
+ * par semaine sont parties. Ce qui se joue hors du combat tient dans `PLACES` places, comme les potions de Slay the
+ * Spire : une carte de pack (un consommable, une modif à poser, un contrat) va droit à une place et se joue quand on
+ * veut, sans limite. Le personnel (le coach, les patrons) a ses postes ; les cartes de match, le cahier (le deck) ; les
+ * événements, des gestes du DG, sont devenus les routes de la semaine (js/noeuds.js). Plus de cartes que de places :
+ * À faire demande laquelle vendre (js/saison.js), et la journée attend.
+ */
+export const PLACES = 3;
+export const SEMAINE = 7;
+/*
+ * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, une carte parmi trois, pour une place.
+ * Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni carte de match, ni événement, ni
+ * personnel, ni permanent : ce qui se joue d'une place. Pur : la graine et le palier.
+ */
 export const PALIERS_PACK = [9, 18, 26];
-/*
- * LA MAIN DE LA SEMAINE (V4.3). JP : *ça pioche x cartes, pis tu choisis ce que tu joues pour la semaine, ce qui
- * force à les jouer ou pas les jouer consciemment, tout en gardant de bâtir un deck de bonnes cartes pour de bonnes
- * pioches*. La poche est ta pile : chaque semaine (`SEMAINE` jours), `MAIN_SEMAINE` de ses cartes sortent en main,
- * et tu en joues `JOUEES_SEMAINE` au plus ; les autres retournent dans la poche. Acheter ajoute des cartes à la
- * pile, vendre l'amincit : une poche de bonnes cartes pige de bonnes mains.
- */
-export const SEMAINE = 7, JOUEES_SEMAINE = 2;
-const MAIN_SEMAINE = 4;
-/*
- * JOUABLES QUAND ON VEUT (Jalon Q). JP : *main de 4 trop étroite ; les autres cartes jouables quand on veut*. La main
- * reste le choix du coach au bureau, mais toute la poche se joue, du bureau ou de Cartes : `JOUEES_SEMAINE` cartes
- * par semaine en tout, d'où qu'elles sortent. Et la poche te suit d'une saison à l'autre de la run (`poche`, une
- * décision de report : js/rogue-jeu.js `continuerRun`).
- */
+const CARTES_DU_PALIER = 3;
+export function cartesDuPalier(graine, p) {
+  const out = [];
+  for (let k = 0; out.length < CARTES_DU_PALIER && k < 12; k++) {
+    for (const id of tirerCartesPack('mixte', graine, `palier${p}${k ? `:${k}` : ''}`, { sans: ['match', 'evenement', 'patron'] })) {
+      if (out.length < CARTES_DU_PALIER && BANQUE[id] && BANQUE[id].vie !== 'permanent' && !out.includes(id)) out.push(id);
+    }
+  }
+  return out;
+}
 
 /*
- * LA POCHE DE LA PARTIE, pure : les cartes des packs achetés (\`achat.cartes\`)
- * et des paliers atteints, moins celles jouées (\`joue.ref\`) et vendues
- * (\`vend.refs\`). \`rogue\` : les permanents sont partis au méta à l'ouverture.
+ * TES PLACES, pures : les cartes des packs achetés (`achat.cartes`), du report de la saison d'avant (`poche`), d'un
+ * palier du deck gardé (`garde`) et des paliers de la saison (`place`), moins celles jouées (`joue.ref`) et vendues
+ * (`vend.refs`). `rogue` : les permanents sont partis au méta à l'ouverture. Une partie reprise retrouve ses places.
  */
-export function pocheDeLaPartie({ decisions = [], graine = 0, nMatch = 0, rogue = false } = {}) {
+export function placesDeLaPartie({ decisions = [], rogue = false } = {}) {
   const items = [];
   // Les packs de cartes, et les cartes des packs mixtes (Jalon P2), dont les revendues sont `cartesVendues`.
   const achats = decisions.filter(d => d && d.achat && Array.isArray(d.achat.cartes));
   for (const d of achats) d.achat.cartes.forEach((id, t) => {
     if (!BANQUE[id]) return;
     if (rogue && BANQUE[id].vie === 'permanent') return;
-    // Une carte de match va droit au deck à l'ouverture (`deckDe`, js/combat.js) : la poche est ce qui se joue en semaine.
+    // Une carte de match va droit au cahier à l'ouverture (`deckDe`, js/combat.js) ; un patron, au personnel.
     if (BANQUE[id].cat === 'match') return;
     if (((d.achat.sorte === 'cartes' ? d.achat.vendus : d.achat.cartesVendues) || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
-  // Jalon Q : la poche de la saison d'avant, reportée au jour 0 (ses cartes gardent leur rang : `r<i>`).
+  // Jalon Q : les places de la saison d'avant, reportées au jour 0 (leurs cartes gardent leur rang : `r<i>`).
   for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
-  // S80 : une amélioration ou une édition de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
+  // S80 : une amélioration ou une retouche de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
-  for (const p of PALIERS_PACK) {
-    if (nMatch < p) continue;
-    tirerCartesPack('mixte', graine, `palier${p}`, { sans: ['match'] }).forEach((id, t) => {
-      // V5 : un permanent ne se joue pas en semaine ; sa place se repige (même graine, autre clé) au lieu de laisser
-      // un pack gratuit de cinq cartes en donner trois. Une partie d'avant ne l'avait jamais vue : rien à rejouer.
-      for (let k = 0; k < 8 && BANQUE[id] && BANQUE[id].vie === 'permanent'; k++) id = tirerCartesPack('mixte', graine, `palier${p}:${t}:${k}`, { sans: ['match'] })[t];
-      if (!BANQUE[id] || BANQUE[id].vie === 'permanent') return;
-      items.push({ ref: `p${p}:${t}`, id, source: `Main du match ${p}` });
-    });
-  }
+  // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`).
+  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string') items.push({ ref: d.palier, id: d.place, source: `Le ${d.palier.slice(3)}e match` });
   const parties = new Set();
   for (const d of decisions) {
     if (d && d.joue && d.joue.src === 'partie') parties.add(d.joue.ref);
     if (d && d.vend && Array.isArray(d.vend.refs)) d.vend.refs.forEach(r => parties.add(r));
   }
   return items.filter(x => !parties.has(x.ref));
-}
-
-/*
- * LA MAIN DE LA SEMAINE, pure. Elle se pige dans la poche du premier jour de la semaine, dans l'ordre que la graine
- * donne à chaque carte (`hache`) ; une carte reçue en cours de semaine complète une main qui n'est pas pleine, sans
- * déplacer celles déjà là. Une carte jouée ou vendue cette semaine reste dans la main, marquée. `nMatchDebut` et
- * `nMatch` : les matchs joués au premier jour et aujourd'hui (les packs gratuits des paliers).
- * Rend { w, debut, fin, main: [{ ref, id, jouee, vendue }], taille, reste, reglee }.
- */
-export function mainDeLaSemaine({ decisions = [], graine = 0, jour = 0, nMatchDebut = 0, nMatch = 0, rogue = false } = {}) {
-  const w = Math.floor(jour / SEMAINE), debut = w * SEMAINE, fin = debut + SEMAINE;
-  /*
-   * V5 : LA MAIN SE DISTRIBUE APRÈS LA BOUTIQUE. La boutique du Rogue n'ouvre qu'au début de la semaine : ce qu'on y
-   * achète le lundi entre dans la pile où la main pige, tant qu'aucune carte de la semaine n'a été jouée ni vendue
-   * (la main est alors figée : racheter ne la rebrasse pas). Après, une carte reçue complète la main si elle a de la place.
-   */
-  const premier = decisions.findIndex(d => d && (d.jour ?? 0) >= debut && (d.jour ?? 0) < fin && (d.joue || d.vend));
-  const avant = decisions.filter((d, i) => d && ((d.jour ?? 0) < debut || ((d.jour ?? 0) === debut && d.achat && (premier < 0 || i < premier))));
-  const pile = pocheDeLaPartie({ decisions: avant, graine, nMatch: nMatchDebut, rogue });
-  /*
-   * LES COACHS PIGENT LEURS CARTES (V4.3). JP : *ce système justifie encore plus les coachs*. Une carte de la couleur
-   * d'un coach auquel l'équipe croit sort plus souvent en main : son tirage (0 à 1) est élevé à la puissance 1 + sa
-   * confiance (I, II, III), donc tiré plus tôt. Au jeu, elle grandit déjà avec ses cartes jouées (`grandi`, js/banque.js).
-   */
-  const confiance = new Map(coachsActifs(decisions, debut).map(c => [c.cle, c.palier]));
-  const tirage = x => hache(graine, 'main', w, x.ref) ** (1 + (confiance.get(BANQUE[x.id].coach) || 0));
-  const tiree = pile.map(x => ({ x, k: tirage(x) })).sort((a, b) => a.k - b.k).map(o => o.x);
-  const deja = new Set(pile.map(x => x.ref));
-  // Reçues cette semaine : sans retirer ce qu'on y a joué ou vendu, pour qu'une place ne se libère pas d'elle-même.
-  const recues = pocheDeLaPartie({ decisions: decisions.filter(d => d && ((d.jour ?? 0) < debut || ((d.jour ?? 0) < fin && !d.joue && !d.vend))), graine, nMatch, rogue })
-    .filter(x => !deja.has(x.ref));
-  const cette = decisions.filter(d => d && (d.jour ?? 0) >= debut && (d.jour ?? 0) < fin);
-  const jouees = new Set(cette.filter(d => d.joue && d.joue.src === 'partie').map(d => d.joue.ref));
-  const vendues = new Set(cette.flatMap(d => (d.vend && Array.isArray(d.vend.refs) ? d.vend.refs : [])));
-  // Une carte jouée ou vendue cette semaine n'est plus dans la poche d'aujourd'hui : on la garde dans la main, marquée.
-  const main = [...tiree, ...recues].slice(0, MAIN_SEMAINE).map(x => ({ ...x, jouee: jouees.has(x.ref), vendue: vendues.has(x.ref), confiance: confiance.get(BANQUE[x.id].coach) || 0 }));
-  // Toute carte de la poche jouée cette semaine compte, dans la main ou non (Jalon Q).
-  const nJouees = jouees.size;
-  // `taille` : les cartes où la semaine a pigé (la poche du lundi et celles reçues depuis), pour le dire à l'écran.
-  return { w, debut, fin, main, taille: pile.length + recues.length, reste: Math.max(0, JOUEES_SEMAINE - nJouees), reglee: decisions.some(d => d && d.palier === `main:${w}`) };
 }
 
 /*
@@ -181,7 +142,7 @@ export function ouvrirInventaire(ctx) {
   const m = ctx.dans || $('inventaireModal');
   if (!m) return;
   const onglets = [
-    ...(ctx.enSaison ? [['partie', 'Cette saison', ctx.partie.length]] : []),
+    ...(ctx.enSaison ? [['partie', ctx.mode === 'rogue' ? 'Tes places' : 'Cette saison', ctx.partie.length]] : []),
     ...(ctx.mode === 'rogue' ? [['permanent', 'Permanent', ctx.meta.reduce((a, x) => a + x.n, 0) + ctx.personnel.length]] : []),
     ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
     ['classeur', 'La banque', `${[...ctx.possedees].filter(sortDUnPack).length}/${Object.keys(BANQUE).filter(sortDUnPack).length}`],
@@ -203,25 +164,20 @@ export function ouvrirInventaire(ctx) {
       for (const x of ctx.partie) { if (!piles.has(x.id)) piles.set(x.id, []); piles.get(x.id).push(x); }
       const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
-      // En Rogue, `JOUEES_SEMAINE` cartes par semaine (`ctx.nonJouable` dit pourquoi pas).
-      const nonJouable = ref => (ctx.nonJouable ? ctx.nonJouable(ref) : '');
       /*
-       * CE QUI SE JOUE D'ABORD (Jalon U, JP : *trop de cartes injouables*). Les cartes jouables en tête ; les autres sous
-       * « Pas maintenant », leur raison dite une fois quand elle est la même pour toutes (la semaine est pleine).
+       * CE QUI SE JOUE D'ABORD (Jalon U, JP : *trop de cartes injouables*). Une carte en place se joue quand on veut (V9) ;
+       * hors de la saison (le menu), rien ne se joue : « Pas maintenant ».
        */
-      const rangee = ([id, pile]) => {
-        const x = pile.find(c => !nonJouable(c.ref)) || pile[0], non = nonJouable(x.ref) || (ctx.peutJouer ? '' : 'Pas maintenant');
-        return { id, pile, x, non };
-      };
+      const rangee = ([id, pile]) => ({ id, pile, x: pile[0], non: ctx.peutJouer ? '' : 'Pas maintenant' });
       const toutes = cartes.map(rangee), jouables = toutes.filter(r => !r.non), autres = toutes.filter(r => r.non);
       const raison = autres.length && autres.every(r => r.non === autres[0].non) ? autres[0].non : '';
       const carte = ({ id, pile, x, non }) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
         actions: `<p class="bq-cible">${esc(cibleDe(id))}</p><button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${non ? ' disabled' : ''}>${non ? esc(raison ? 'Plus tard' : non) : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
-      corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Joue ${JOUEES_SEMAINE} cartes de ta poche par semaine, quand tu veux. Elle te suit d'une saison à l'autre de la run.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
+      corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Tes ${PLACES} places : chaque carte se joue quand tu veux ; une de trop se vend. Elles te suivent d'une saison à l'autre de la run.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
                 ${filtres(cats)}
         ${jouables.length ? `<div class="inv-grille">${jouables.map(carte).join('')}</div>` : ''}
         ${autres.length ? `<h3 class="inv-sec">Pas maintenant · ${autres.length}${raison ? ` — ${esc(raison)}` : ''}</h3><div class="inv-grille">${autres.map(carte).join('')}</div>` : ''}
-        ${toutes.length ? '' : vide(`Rien dans ta poche : ouvre des packs à la boutique, ou attends la prochaine main (matchs ${PALIERS_PACK.join(', ')}).`)}`;
+        ${toutes.length ? '' : vide(`Aucune carte en place : ouvre des packs à la boutique, ou attends les matchs ${PALIERS_PACK.slice(0, -1).join(', ')} et ${PALIERS_PACK.at(-1)}.`)}`;
     } else if (etat.onglet === 'permanent') {
       const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
       const perso = ctx.personnel.filter(k => garde(`patron:${k}`));
@@ -246,7 +202,7 @@ export function ouvrirInventaire(ctx) {
       // Le dénominateur ne compte que ce qu'un pack peut donner (V2.2) ; le reste se gagne en jouant.
       const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => sortDUnPack(id) && ctx.possedees.has(id)).length, idsDe(c).filter(sortDUnPack).length]).filter(([, , n]) => n > 0);
       const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id) && !BANQUE[id].retire).length;
-      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).filter(sortDUnPack).length} cartes à tirer des packs, et ${horsPack} qui se gagnent en jouant (les cartes de saison, les malédictions). Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
+      corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).filter(sortDUnPack).length} cartes à tirer des packs, et ${horsPack} qui se gagnent en jouant (les cartes de saison, les événements, les malédictions). Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
         <div class="inv-progres">${par.map(([c, a, n]) => `<span class="inv-prog"><b>${CATEGORIES[c].ico} ${a}/${n}</b> ${esc(CATEGORIES[c].nom)}</span>`).join('')}</div>
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;

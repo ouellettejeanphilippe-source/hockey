@@ -154,6 +154,7 @@ C'est l'élite de Slay the Spire. L'adversaire montre son **intention** avant ch
   - trois places de consommables, qu'on joue quand on veut.
 - **L'équipement** se pose sur un joueur (Effectif) et y reste.
 - **Ce qui part** : la poche, la main de la semaine et sa limite de deux cartes par semaine. Une carte de pack va droit à sa pile ; sinon elle se vend. Les cartes Événement, des gestes du DG, deviennent des choix de la semaine (§ 6.5).
+- *Fait en tranche 5b (§ 18).*
 
 ### 6.5 Tous les choix, une seule forme : « À faire »
 
@@ -266,7 +267,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 2. **Le juge d'abord.** `check_fit` et les deux robots, mesurés sur le jeu d'aujourd'hui, pour avoir le point de départ (attendu : Spearman 0,97, écart attentif-distrait petit hors de la signature).
 3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 4 (§ 15) ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
 4. **Le plafond qui mord**, la liste qui classe pour ton plan, et **un départ bien pire** (JP, 16 oct. : *you should start with a way worse team*). On part d'une équipe beaucoup plus faible, et c'est le plan et le marché qui la font monter. Le mandat de la saison 1 se règle avec elle. Juge : `check_rogue` (la première run reste dure, mais une équipe faible bien menée monte).
-5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`. *Fait (§ 17). La poche, la main de la semaine et les places (§ 6.4) n'étaient dans aucune tranche : proposées comme tranche 5b.*
+5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`. *Fait (§ 17). La poche, la main de la semaine et les places (§ 6.4) n'étaient dans aucune tranche : faites en tranche 5b (§ 18).*
 6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`.
 7. **Graver** : l'histoire chez toi, les galons, le panthéon. Juges : `check_sauvegardes`, `essai_rogue`.
 8. **Recalibrer la run** sur les deux robots.
@@ -419,6 +420,19 @@ Le gros match du Rogue devient un duel en trois périodes (docs/decisions.md). L
   - Le duel départage les gérants : l'attentif y gagne, l'adjoint y perd. Le robot d'avant, qui laisse l'adjoint jouer ses séries, gagne moins de Coupes ; l'attentif, ses premières dès la run 3. C'est l'écart que la V9 cherchait : *rouler sur la ligue ou se planter royalement*.
   - `essai_rogue` : des duels joués jusqu'à leur 3e période, chaque période avec son geste (la consigne Basse, la vedette déplacée, un trio en Cycle), zéro erreur.
   - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_css`, `check_coquille`, `check_emojis`, `check_graine`, `check_feuilles`, `check_combat`, `check_choix`, `check_gros`, `check_duel`, `check_rogue` (32), `check_robot`, `check_profondeur` (5), `essai_rogue`.
+
+## 18. Fait le 16 octobre : la tranche 5b, tes places
+
+JP : *Continuer*, après la proposition de la tranche 5b. Ce que § 6.4 décrivait (docs/decisions.md).
+
+- [x] **Trois places** (`PLACES`, `placesDeLaPartie`, js/inventaire.js) : ce qui se joue hors du combat (un consommable, une modif à poser, un contrat). Chacune se joue quand tu veux, autant que tu veux le même jour. Elles suivent d'une saison à l'autre de la run (le report `poche` garde sa clé, pour les sauvegardes). « Ce soir » les montre, une place vide en pointillé.
+- [x] **Une carte de trop se vend** : plus de cartes que de places, À faire demande laquelle vendre (une ou plusieurs d'un coup), au prix de revente. Elle presse : « Jour suivant » l'attend, comme un pack à signer. Jouer une carte règle aussi le compte.
+- [x] **Ce qui part** : la poche, la main de la semaine (`mainDeLaSemaine`), sa limite de deux cartes et la ligne « Jouer N cartes cette semaine » d'À faire. Le personnel (le coach, les patrons) garde ses postes ; une carte de match va droit au cahier, comme avant.
+- [x] **Les paliers de la saison** (9e, 18e et 26e matchs) : une carte parmi trois pour une place (`cartesDuPalier`, `pp:<match>`), au lundi, dans À faire. Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni carte de match, ni événement, ni personnel, ni permanent : ce qui se joue d'une place.
+- [x] **Les événements** sortent des packs : ce sont les gestes du DG, que la route ❓ de la semaine offre déjà (js/noeuds.js). Elle offre aussi les quatre rares, que seuls les packs donnaient. La banque les compte avec ce qui se gagne en jouant.
+- [x] **Le cahier borné** (`CAHIER_MAX`, js/combat.js) : ton deck de match, 20 cartes au plus. Au-delà, une carte du départ cède sa place (la plus répétée), puis la plus ancienne gagnée ; une malédiction ne cède jamais. L'écran du deck dit « N sur 20 ».
+- [x] **Les juges** : `check_deck` (40) dit les places sans limite par semaine, le report, les paliers purs et la carte prise, le cahier borné ; `check_packs` (76) compte la banque sur les packs de la boutique, et chaque événement se gagne aux routes ; `essai_rogue` montre les places dans « Ce soir ». Les robots de `scripts/lib/rogue_sim.mjs` ne jouent pas de carte de place : `check_rogue` et `check_profondeur` ne bougent pas.
+  - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_css`, `check_deck` (40), `check_packs` (76), `check_noeuds`, `check_rogue` (32 ; 0 % → 70 %, inchangé), `essai_rogue`.
 
 ## Annexe · la méthode des mesures
 

@@ -4,7 +4,7 @@
  * trois routes, une seule. Se soigner, prendre de la force ou de l'argent — l'arbitrage du roguelike.
  *   🛌 le repos        : une carte de soin, de jambes ou de filet (la journée de congé, la ronde de l'infirmerie…) ;
  *   🏋 l'entraînement : une carte qui change la forme des prochains matchs (le seau de rondelles, la glace du bas…) ;
- *   ❓ l'événement     : une carte d'événement de la banque, commune ou peu commune ;
+ *   ❓ l'événement     : une carte d'événement de la banque (V9 : les packs n'en donnent plus ; les rares aussi) ;
  *   💰 la commandite   : des jetons (la vente de garage, le dépanneur, le garagiste).
  * VARIER (JP : *varier ces choix*) : chaque nœud offre trois des quatre routes, jamais les trois mêmes que le nœud
  * d'avant, et chaque route pige dans tout ce que la banque a de cette sorte.
@@ -30,7 +30,7 @@ const consommables = garde => Object.keys(CONSOMMABLES).filter(k => simple(CONSO
 const BASSINS = {
   repos: () => consommables(c => !c.gain && (c.gestes || (c.effet && Object.keys(c.effet).join() === 'blessure'))),
   entrainement: () => consommables(c => !c.gain && !c.gestes && c.effet && Object.keys(c.effet).join() !== 'blessure'),
-  evenement: () => idsDe('evenement').filter(id => (BANQUE[id].rarete === 'commune' || BANQUE[id].rarete === 'peu') && payloadDe(id)),
+  evenement: () => idsDe('evenement').filter(id => ['commune', 'peu', 'rare'].includes(BANQUE[id].rarete) && !BANQUE[id].retire && payloadDe(id)),
   // Les trois plus petites (10, 12 et 18 🪙) : la phase 4 calibre.
   commandite: () => consommables(c => c.gain && !c.effet && !c.gestes && c.gain <= 18),
 };

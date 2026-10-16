@@ -28,7 +28,7 @@ import {
 } from './sim.js';
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
-import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
+import { CARTES_MATCH, ENERGIE_MAIN, CAHIER_MAX, coutDe, energieDepensee } from './combat.js';
 import { effetsDesCartes, INTENTIONS, carteRepond, ELAN_PAR_PERIODE, IMPORTANCES, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { coachDeCarte } from './banque.js';
@@ -1666,8 +1666,8 @@ export function ouvrirDeck({ deck, titre = 'Mon deck', recit = '' }) {
   const compte = new Map();
   for (const c of tri) compte.set(c, (compte.get(c) || 0) + 1);
   return ouvrirChoix({
-    ico: '🃏', titre: `${titre} · ${deck.length} cartes`, cartes: true, genre: 'deck', fermable: true, motFermer: 'Fermer',
-    recit: recit || 'Tes cartes de match : avant chaque gros match et chaque match de séries, tu en piges cinq et tu as trois d\'élan pour les jouer.',
+    ico: '🃏', titre: `${titre} · ${deck.length} sur ${CAHIER_MAX}`, cartes: true, genre: 'deck', fermable: true, motFermer: 'Fermer',
+    recit: recit || `Tes cartes de match : à chaque duel, tu en piges cinq pour ses trois périodes. ${CAHIER_MAX} au plus : au-delà, une carte du départ cède sa place.`,
     lecture: true,
     options: [...compte.entries()].map(([c, n]) => ({ ...optionDeCarteMatch(c), cle: `vue:${c}`, nom: n > 1 ? `${CARTES_MATCH[c].nom} ×${n}` : CARTES_MATCH[c].nom })),
     onChoix: () => {},

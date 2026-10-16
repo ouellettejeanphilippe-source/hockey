@@ -210,7 +210,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * sa première option, un message bloquant sa réponse par défaut.
  */
 const des = [], evenementsDe = [];
-let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
+let pocheVendues = 0;   // V4.3 : les cartes de tes places vendues en passant
 const captures = { main: 0, combat: 0, duel: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0 };   // À faire (V9), vu au premier choix
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
@@ -288,7 +288,7 @@ async function regler() {
       continue;
     }
     /*
-     * UNE CARTE DE LA MAIN, EN GRAND (V4.3) : « Jouer » ou « Vendre ». Le joueur pressé vend, ce qui amincit la poche.
+     * UNE CARTE DE TES PLACES, EN GRAND (V4.3 ; V9) : « Jouer » ou « Vendre ». Le joueur pressé vend.
      */
     if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); pocheVendues++; await page.waitForTimeout(500); continue; }
     // Une main de palier (des cartes .tc) : la première carte jouable.
@@ -757,7 +757,7 @@ else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été of
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(500);
 }
-// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; leurs cartes vont au deck et dans la poche.
+// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; leurs cartes vont au deck et à tes places (une de trop se vend, À faire).
 await regler();
 for (const pack of ['j:or', 'j:coach']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
@@ -770,8 +770,8 @@ for (const pack of ['j:or', 'j:coach']) {
   await regler();
 }
 /*
- * LA MAIN DE LA SEMAINE (V4.3 ; V8 : dans « Ce soir », où le match se prépare) : après les packs de cartes, quatre
- * cartes de la poche au plus ; on en joue deux par semaine au plus. Chaque carte dit sa place et sa durée.
+ * TES PLACES (V9, tranche 5b ; dans « Ce soir », où le match se prépare) : après les packs de cartes, trois cartes au
+ * plus, la carte de trop vendue par À faire ; une place vide se voit. Chaque carte dit où elle joue et sa durée.
  */
 {
   await auBureau();
@@ -780,13 +780,16 @@ for (const pack of ['j:or', 'j:coach']) {
   await page.screenshot({ path: `${DOSSIER}/rogue-ce-soir.png`, fullPage: true });
   const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
   const places = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref] .hub-poche-place', e => e.length).catch(() => 0);
-  console.log(`10a. la main de la semaine, dans « Ce soir » : ${cases} carte(s), ${places} disent leur place · ${pocheVendues} vendue(s)`);
-  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('la main de la semaine ne se voit pas dans « Ce soir »');
-  else if (cases > 4) erreurs.push(`la main de la semaine montre ${cases} cartes (quatre au plus)`);
-  else if (places < cases) erreurs.push(`${cases - places} carte(s) de la main ne disent pas leur place`);
+  const libres = await page.$$eval('#hubModal .hub-poche .hub-poche-libre', e => e.length).catch(() => 0);
+  const trop = (await decisionsDuCombat()).filter(d => d.vend && !d.joue).length;
+  console.log(`10a. tes places, dans « Ce soir » : ${cases} carte(s), ${libres} libre(s), ${places} disent où elles jouent · ${pocheVendues} vendue(s) en grand, ${trop} vente(s) en tout · À faire : ${[...afaire.genres].join(', ')}`);
+  if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('tes places ne se voient pas dans « Ce soir »');
+  else if (cases > 3) erreurs.push(`« Ce soir » montre ${cases} cartes à tes places (trois au plus, la carte de trop se vend)`);
+  else if (cases && cases + libres !== 3) erreurs.push(`${cases} carte(s) et ${libres} place(s) libre(s) : il en faut trois`);
+  else if (places < cases) erreurs.push(`${cases - places} carte(s) de tes places ne disent pas où elles jouent`);
   /*
    * POSER EN TOUCHANT (V8) : une modif de joueur touchée dans « Ce soir » ouvre tes lignes, ceux qui peuvent la porter
-   * allumés ; « Annuler » les referme (l'essai ne la pose pas ici : la poche sert plus loin).
+   * allumés ; « Annuler » les referme (l'essai ne la pose pas ici : tes places servent plus loin).
    */
   const modif = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.findIndex(x => x.hasAttribute('data-pose'))).catch(() => -1);
   if (modif >= 0) {
@@ -798,7 +801,7 @@ for (const pack of ['j:or', 'j:coach']) {
     if (!cibles) erreurs.push('une modif touchée dans « Ce soir » n\'allume aucun joueur de tes lignes');
     await page.click('#hubModal .pose-zone .pose-annuler').catch(() => {}); await page.waitForTimeout(300);
     if (await page.$('#hubModal .pose-zone')) erreurs.push('« Annuler » ne referme pas les lignes de la pose');
-  } else console.log('10b. poser en touchant : aucune modif de joueur dans la main cette semaine');
+  } else console.log('10b. poser en touchant : aucune modif de joueur à tes places');
   // L'INFIRMERIE (V8) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie, en tête.
   await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
@@ -852,14 +855,13 @@ let posee = null, nomModif = '';
    */
   const nModifs = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])', e => e.length);
   /*
-   * EN ROGUE, UNE CARTE SE JOUE DE TA MAIN DE LA SEMAINE (V4.3) : les modifs achetées en semaine attendent le lundi,
-   * leur bouton le dit. L'erreur, c'est que le pack Modifs n'ait rien laissé dans l'inventaire ; qu'aucune ne soit
-   * dans la main cette semaine dépend du tirage (et des prix qui montent, V6), et l'étape du verso attend.
+   * EN ROGUE, UNE CARTE SE JOUE DE TES PLACES (V9) : quand tu veux, sans limite. Qu'aucune modif n'y soit dépend du
+   * tirage (et de la carte de trop vendue), et l'étape du verso attend.
    */
   const modifsVues = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur', e => e.length);
   // Jalon P2 : plus de pack Modifs ; une modif sort d'un pack mixte au hasard du tirage, et l'étape du verso attend sans elle.
   if (!modifsVues) console.log('7a. aucune modif de joueur dans l\'inventaire (les packs mixtes n\'en ont pas donné) : l\'étape du verso attend');
-  else if (!nModifs) console.log(`7a. ${modifsVues} modif(s) dans l'inventaire, aucune dans la main de la semaine : l'étape du verso attend`);
+  else if (!nModifs) console.log(`7a. ${modifsVues} modif(s) dans l'inventaire, aucune ne se joue : l'étape du verso attend`);
   let permis = 0, grises = 0;
   for (let k = 0; k < nModifs && !permis; k++) {
     if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }

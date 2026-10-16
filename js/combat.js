@@ -390,6 +390,11 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
 }
 
 export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 'bloquer', 'changements', 'changements', 'discours', 'video'];
+/*
+ * LE CAHIER BORNÉ (V9, tranche 5b — docs/refonte-v9.md § 6.4) : tes cartes de match, `CAHIER_MAX` au plus. Au-delà,
+ * une carte du départ cède sa place (la plus répétée), puis la plus ancienne gagnée ; une malédiction ne cède jamais.
+ */
+export const CAHIER_MAX = 20;
 
 /*
  * LE DECK À UN MOMENT DE LA SAISON : le départ, plus les récompenses, moins
@@ -471,6 +476,13 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
   const effacees = serie.filter(d => d && d.ronde < ronde && d.recompense !== undefined).length;
   for (const c of cicatrices.slice(Math.min(cicatrices.length, effacees))) deck.push(c.cle);
   for (const cle of retraits) retirer(cle);
+  while (deck.length > CAHIER_MAX) {
+    const depart = deck.filter(c => DECK_DEPART.includes(c));
+    const fois = c => depart.filter(x => x === c).length;
+    const cede = depart.sort((a, b) => fois(b) - fois(a))[0] || deck.find(c => !CARTES_MATCH[c].maudite);
+    if (!cede) break;
+    if (depart.length) retirer(cede); else deck.splice(deck.indexOf(cede), 1);
+  }
   /*
    * LES CARTES ÉPUISÉES (S76) : jouées à un match, elles quittent le deck
    * pour le reste de la course — celles des gros matchs de saison, puis

@@ -489,8 +489,9 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
 /*
  * LES CARTES D'UN PACK, quel qu'il soit (Jalon P2) : un pack de cartes d'avant, ou les \`cartes\` d'un pack mixte —
  * de toutes les familles, de la couleur du coach pour le Pack du coach, et la taxe de luxe une fois sur vingt-cinq.
+ * V9 (tranche 5b) : sans événement — les gestes du DG sont devenus les routes de la semaine (js/noeuds.js).
  */
-const CATS_MIXTES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'];
+const CATS_MIXTES = ['patron', 'joueur', 'consommable', 'plafond', 'match'];
 const MAUDITE_MIXTE = 0.04;
 export function tirerCartesDuPack(cle, graine, n, params = {}) {
   const P = PACKS_TOUS[cle];
@@ -503,7 +504,7 @@ function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
-  // `params.sans` : des familles que ce tirage ne donne pas (le pack gratuit de la poche n'a pas de carte de match).
+  // `params.sans` : des familles que ce tirage ne donne pas (le palier de la saison : ni carte de match, ni événement, ni personnel).
   const cats = (coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats).filter(c => !(params.sans || []).includes(c));
   for (let t = 0; t < P.n; t++) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
@@ -529,16 +530,17 @@ function tirerCartes(P, cleCourte, graine, n, params) {
 }
 /*
  * LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète). Une carte compte au dénominateur si un pack
- * peut la donner : sa famille est dans un pack de cartes, et une malédiction seulement si c'est la taxe que le
- * Pack Contrats cache (`maudite`). Les cartes de saison et les autres malédictions ne sortent d'aucun pack :
- * elles se gagnent en jouant, et la banque les montre à part. Une carte retirée (V6, `retire`) ne sort plus de rien :
- * elle ne compte pas, et la banque ne la montre qu'à qui l'a déjà.
+ * peut la donner : sa famille est dans les packs de la boutique (`CATS_MIXTES`), et une malédiction seulement si
+ * c'est la taxe de luxe qu'ils cachent. Les cartes de saison, les événements (V9 : les routes de la semaine,
+ * js/noeuds.js) et les autres malédictions ne sortent d'aucun pack : elles se gagnent en jouant, et la banque les
+ * montre à part. Une carte retirée (V6, `retire`) ne sort plus de rien : elle ne compte pas, et la banque ne la montre
+ * qu'à qui l'a déjà.
  */
 export function sortDUnPack(id) {
   const c = BANQUE[id];
   if (!c || c.retire) return false;
-  if (c.rarete === 'maudite') return c.cat === 'plafond' && (MAUDITE_MIXTE > 0 || Object.values(PACKS_CARTES).some(P => P.maudite && P.cats.includes('plafond')));
-  return Object.values(PACKS_CARTES).some(P => P.cats.includes(c.cat));
+  if (c.rarete === 'maudite') return c.cat === 'plafond' && MAUDITE_MIXTE > 0;
+  return CATS_MIXTES.includes(c.cat);
 }
 /* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
 export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);
