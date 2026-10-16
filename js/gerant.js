@@ -1536,7 +1536,7 @@ export function ouvrirMainDeMatch(spec) {
         </div>
         ${spec.stats ? `<details class="main-plie"><summary>📊 Les deux clubs, par match</summary>${spec.stats}</details>` : ''}
         <div class="main-boutons">
-          <button type="button" class="btn go main-jouer"${manque() ? ' disabled' : ''}>${esc(manque() || (jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer'))}</button>
+          <button type="button" class="btn go main-jouer"${manque() ? ' disabled' : ''}>${esc(manque() || (D ? D.motJouer : jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer'))}</button>
         </div>
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>

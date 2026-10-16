@@ -1222,7 +1222,7 @@ if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
-console.log(`20c. périodes de duel jouées (période:geste) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
+console.log(`20d. périodes de duel jouées (période:geste) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · lots tranchés (cochés → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');

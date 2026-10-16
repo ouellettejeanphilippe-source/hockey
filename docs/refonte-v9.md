@@ -392,6 +392,34 @@ JP : *start with a way worse team* (docs/decisions.md). Le Rogue seulement.
   - Le robot d'avant gagne sa première Coupe à la run 7 ou 8 ; l'attentif, à la 2e ou la 5e ; le distrait, jamais. Un départ pire n'a pas cassé le jeu : il a ouvert l'écart, et c'est le plan et le marché qui font remonter l'équipe.
   - Preuves : `tout.mjs` (22 scripts), `check_mort`, `check_clarte`, `check_packs`, `essai_rogue`, `essai_packs`, `check_rogue` (32 vérifications), `check_robot`, `check_profondeur`.
 
+## 17. Fait le 16 octobre : la tranche 5, le duel
+
+Le gros match du Rogue devient un duel en trois périodes (docs/decisions.md). Le 82-0 garde le gros match d'avant.
+
+- [x] **Trois périodes, trois intentions** (`INTENTIONS`, `jouerDuel`) : 🥷 l'ombre, 🦈 la chasse, ⛔ fermer le centre, 🐗 l'assaut, 🦂 les punitions. Chacune vise tes joueurs par leur nom ; elle se lit sur ton alignement et ton plan, puis sur ce qui s'est passé.
+- [x] **Y répondre** : un geste, le temps de la période, ou une carte qui porte le bon canal. Laissée là, l'intention frappe sa période ; contrée, son contrecoup joue jusqu'à la fin du match.
+- [x] **La main qui dure** : cinq cartes, deux d'élan par période ; la main tirée part avec la première décision. En séries, l'adjoint joue la main qui reste, sans geste.
+- [x] **Doubler la mise**, avant la 3e d'un duel de saison : le butin, ou les sonnés.
+- [x] **L'écran** : le combat de chaque période (l'intention, son pourquoi, tes gestes, les cartes qui y répondent), le direct qui s'arrête aux deux entractes et dit chaque intention, le hub qui annonce la première.
+- [x] **Les juges** :
+
+  | | avant | après | cible |
+  |---|---|---|---|
+  | `check_duel` · deux clubs égaux, bien et mal joué, en face à face | ±3 points | **63,9 %** | 62 à 65 % ✓ |
+  | `check_duel` · contre la même IA : bien joué · mal joué (l'adjoint) | — | **58,4 % · 44,3 %** | ≤ 70 % ✓ |
+  | `check_duel` · les intentions contrées : l'attentif · sans réponse | — | **91 % · 2 %** | |
+  | `check_gros` · les duels d'une saison de Rogue | — | **9,3** | |
+  | l'attentif contre le robot d'avant | +7,4 V | **+8,6 V** | ≥ +5 V ✓ |
+  | la 1re Coupe de l'attentif (médiane) | run 3,5 | **run 3** | 3 à 8 ✓ |
+  | le robot d'avant, sa 1re Coupe | run 7 ou 8 | **run 8, ou aucune en 12** | |
+  | le distrait gagne la Coupe | 0 sur 24 | **0 sur 24** | ✓ |
+  | `check_rogue` · Coupe par run, de rien à tout débloqué | 10 % → 90 % | **0 % → 70 %** | ✓ |
+  | `check_robot` (Rogue) | 5 % | **2,5 %** | ≤ 10 % ✓ |
+
+  - Le duel départage les gérants : l'attentif y gagne, l'adjoint y perd. Le robot d'avant, qui laisse l'adjoint jouer ses séries, gagne moins de Coupes ; l'attentif, ses premières dès la run 3. C'est l'écart que la V9 cherchait : *rouler sur la ligue ou se planter royalement*.
+  - `essai_rogue` : des duels joués jusqu'à leur 3e période, chaque période avec son geste (la consigne Basse, la vedette déplacée, un trio en Cycle), zéro erreur.
+  - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_css`, `check_coquille`, `check_emojis`, `check_graine`, `check_feuilles`, `check_combat`, `check_choix`, `check_gros`, `check_duel`, `check_rogue` (32), `check_robot`, `check_profondeur` (5), `essai_rogue`.
+
 ## Annexe · la méthode des mesures
 
 Scripts hors du dépôt, sur le moteur tel quel. La tranche 2 en fait `check_fit`, avec ses verdicts.
