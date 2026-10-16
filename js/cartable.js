@@ -12,7 +12,7 @@
  *     journées RÉVÉLÉES, jamais la fin de l'année) et leur vraie saison ;
  *   - LA COLLECTION : chaque carte tirée, signée ou alignée, par saison et par
  *     club, avec la complétion (« 1985-86 · EDM 12 / 27 »), les variantes
- *     obtenues (base, parallèle, holo, or) et les doublons.
+ *     obtenues (les cinq éditions, Base à Holo) et les doublons.
  * Une carte s'ouvre sur sa fiche.
  *
  * LE STOCKAGE (`cap82_cartable`) : clé du joueur-saison-club → les variantes
@@ -20,15 +20,14 @@
  * Hors du moteur : rien ici ne touche une saison. La collection du Rogue
  * (`cap82_rogue.collection`, S77) y entre une fois, en cartes de base.
  */
-import { RARETES } from './cartes.js';
-import { NOM_VARIANTE } from './rarete.js';
+import { NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 
 const CLE_CARTABLE = 'cap82_cartable';
 const VIDE = () => ({ v: 1, joueurs: {}, migre: false });
-/* Les variantes, leurs noms et leurs gemmes : ceux de la carte (js/rarete.js, js/cartes.js), jamais une copie —
- * l'Holo ✦ et l'Or ★ d'ici ne disaient pas la même chose que les diamants de la carte, et ★ est l'Étoile. */
-const VARIANTES = ['commune', 'peu', 'rare', 'legendaire'].map(r => [r, NOM_VARIANTE[r], RARETES[r].gemme]);
-const RANG = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
+/* Les éditions et leurs noms : ceux de la carte (js/rarete.js), jamais une copie ; le numéro dit le rang (oct. 2026 : plus de diamants). */
+const VARIANTES = EDITIONS.map(r => [r, NOM_VARIANTE[r]]);
+const sensDe = r => `Édition ${numeroEdition(r)} · ${NOM_VARIANTE[r]}`;
+const RANG = Object.fromEntries(EDITIONS.map((r, i) => [r, i]));
 /* Une feuille de cartable : neuf pochettes, comme une page de classeur. */
 const PAR_FEUILLE = 9;
 
@@ -49,13 +48,14 @@ export function lireCartable() {
 }
 /*
  * TROIS DOUBLONS MONTENT LA CARTE (Jalon P3). JP : *avoir des doublons possibles, […] mais ajouter des mécaniques
- * pour compenser*. Une variante qui compte sa carte et `FUSION` doublons de plus les échange contre la variante
- * au-dessus : Base → Parallèle → Holo (l'Or ne se fabrique pas, il se tire). Pure : rend les montées, `x` change.
+ * pour compenser*. Une édition qui compte sa carte et `FUSION` doublons de plus les échange contre l'édition
+ * au-dessus : Base → Cadre → Hors-cadre → Or (la Holo ne se fabrique pas en doublons : elle se tire, ou le lustre
+ * la pose). Pure : rend les montées, `x` change.
  */
-const FUSION = 3, MONTE = { commune: 'peu', peu: 'rare' };
+const FUSION = 3, MONTE = { commune: 'peu', peu: 'hors', hors: 'rare' };
 export function monterLesDoublons(x) {
   const montees = [];
-  for (const rar of ['commune', 'peu']) {
+  for (const rar of ['commune', 'peu', 'hors']) {
     while ((x.v[rar] || 0) > FUSION) {
       x.v[rar] -= FUSION;
       x.v[MONTE[rar]] = (x.v[MONTE[rar]] || 0) + 1;
@@ -64,7 +64,7 @@ export function monterLesDoublons(x) {
   }
   return montees;
 }
-/* Ce que la boîte dit d'une montée : « Gaborik monte : Base → Parallèle (trois doublons) ». */
+/* Ce que la boîte dit d'une montée : « Gaborik monte : Base → Cadre (trois doublons) ». */
 export const motDeMontee = (m, nom) => `${nom} monte : ${NOM_VARIANTE[m.de]} → ${NOM_VARIANTE[m.a]} (${FUSION} doublons)`;
 /*
  * DES CARTES ENTRENT AU CARTABLE. `doublons` : une copie de plus compte (un
@@ -96,7 +96,7 @@ export function ajouterAuCartable(entrees = [], { doublons = true } = {}) {
 export function donnerUnDoublon(cle) {
   const c = lireCartable(), x = c.joueurs[cle];
   if (!x || (x.n || 0) < 2) return false;
-  const rar = ['commune', 'peu', 'rare', 'legendaire'].find(r => (x.v[r] || 0) > 1) || ['commune', 'peu', 'rare', 'legendaire'].find(r => (x.v[r] || 0) > 0);
+  const rar = EDITIONS.find(r => (x.v[r] || 0) > 1) || EDITIONS.find(r => (x.v[r] || 0) > 0);
   x.v[rar] -= 1;
   if (!x.v[rar]) delete x.v[rar];
   x.n -= 1;
@@ -196,7 +196,7 @@ export function ajouterLegendesAuCartable(moments = [], saison = 0) {
   if (change) ecrire(c);
 }
 /* La meilleure variante obtenue d'une carte. */
-export const meilleureVariante = x => ['legendaire', 'rare', 'peu', 'commune'].find(r => x && x.v && x.v[r]) || 'commune';
+export const meilleureVariante = x => [...EDITIONS].reverse().find(r => x && x.v && x.v[r]) || 'commune';
 /* Les comptes du cartable : joueurs, copies, doublons, par variante, numérotées. */
 function comptesDuCartable(c = lireCartable()) {
   const xs = Object.values(c.joueurs);
@@ -218,12 +218,12 @@ const nomExtension = d => (d < 1980 ? `Vintage ${String(d).slice(2)}` : d < 2000
  * elles se lisent sur le cartable et les décennies que le jeu connaît.
  */
 const MISSIONS = [
-  { cle: 'holo', nom: 'La première Holo', texte: 'Une carte Holo ou Or.', medailles: 15, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && (x.v.rare || x.v.legendaire)).length },
+  { cle: 'holo', nom: 'La première Or', texte: 'Une carte en édition Or ou Holo.', medailles: 15, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && (x.v.rare || x.v.legendaire)).length },
   { cle: 'feuille', nom: 'Une feuille de club', texte: 'Neuf cartes d\'un même club, la même saison.', medailles: 30, but: PAR_FEUILLE,
     compte: c => Math.max(0, ...[...ensembles(c).parSaison.values()].flatMap(m => [...m.values()].map(l => l.length))) },
   { cle: 'cent', nom: 'Cent cartes', texte: 'Cent joueurs différents au cartable.', medailles: 40, but: 100, compte: c => Object.keys(c.joueurs).length },
-  { cle: 'or', nom: 'Une Or', texte: 'Une carte Or, tirée d\'un pack.', medailles: 40, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && x.v.legendaire).length },
-  { cle: 'cinqHolo', nom: 'Cinq Holo d\'une extension', texte: 'Cinq cartes Holo ou Or de la même décennie.', medailles: 60, but: 5,
+  { cle: 'or', nom: 'Une Holo', texte: 'Une carte en édition Holo, la plus haute.', medailles: 40, but: 1, compte: c => Object.values(c.joueurs).filter(x => x.v && x.v.legendaire).length },
+  { cle: 'cinqHolo', nom: 'Cinq Or d\'une extension', texte: 'Cinq cartes Or ou Holo de la même décennie.', medailles: 60, but: 5,
     compte: c => { const n = {}; for (const [k, x] of Object.entries(c.joueurs)) if (x.v && (x.v.rare || x.v.legendaire)) { const d = decennieDe(partsDe(k).s); n[d] = (n[d] || 0) + 1; } return Math.max(0, ...Object.values(n)); } },
   { cle: 'epoques', nom: 'Toutes les extensions', texte: 'Une carte de chaque décennie.', medailles: 80, but: d => d.length,
     compte: (c, d) => new Set(Object.keys(c.joueurs).map(k => decennieDe(partsDe(k).s)).filter(x => d.includes(x))).size },
@@ -295,11 +295,15 @@ export function rendreCartable(host, ctx) {
   const decennies = [...new Set((ctx.saisons || []).map(decennieDe))];
   const parDecennie = new Map();
   for (const s of parSaison.keys()) { const d = decennieDe(s); parDecennie.set(d, (parDecennie.get(d) || 0) + [...parSaison.get(s).values()].reduce((a, l) => a + l.length, 0)); }
-  const gemmes = x => VARIANTES.filter(([r]) => x && x.v && x.v[r]).map(([r, nom, g]) => `<span class="ct-gemme v-${r}" title="${esc(nom)}${x.v[r] > 1 ? ` ×${x.v[r]}` : ''}">${g}</span>`).join('');
+  // SON ÉDITION ET SA MONTÉE, à la Marvel Snap (oct. 2026) : sa meilleure édition, et la barre de ses doublons vers la suivante.
+  const gemmes = x => {
+    const b = meilleureVariante(x), suite = MONTE[b], n = Math.max(0, ((x && x.v && x.v[b]) || 1) - 1);
+    return `<span class="ct-ed v-${b}">${esc(NOM_VARIANTE[b])}</span>${suite ? `<span class="ct-prog" title="${esc(`${n} doublon${n > 1 ? 's' : ''} sur ${FUSION} : la carte monte en ${NOM_VARIANTE[suite]}`)}"><i style="width:${Math.round((n / FUSION) * 100)}%"></i></span>` : ''}`;
+  };
   const tete = `<div class="ct-tete">
       <div class="ct-comptes">
         <span class="ct-total"><b>${k.joueurs}</b> carte${k.joueurs > 1 ? 's' : ''} de joueur${k.doublons ? ` · <b>${k.doublons}</b> doublon${k.doublons > 1 ? 's' : ''}` : ''}</span>
-        <span class="ct-vars">${VARIANTES.map(([r, nom, g]) => `<span class="ct-var v-${r}" title="${esc(nom)}">${g} ${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
+        <span class="ct-vars">${VARIANTES.map(([r, nom]) => `<span class="ct-var v-${r}" title="${esc(sensDe(r))}">${esc(nom)} <b>${k.parVariante[r]}</b></span>`).join('')}${k.numerotees ? `<span class="ct-var v-num">№ Numérotées <b>${k.numerotees}</b></span>` : ''}</span>
       </div>
       <button type="button" class="btn gold ct-mes-cartes" title="Tes cartes de jeu : celles qui se gardent jusqu'au moment voulu, le personnel, le deck">🎒 Tes cartes${ctx.nCartes ? ` <span class="ct-n">${ctx.nCartes}</span>` : ''}</button>
     </div>

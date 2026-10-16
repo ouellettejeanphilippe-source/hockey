@@ -2255,3 +2255,18 @@ JP, sur sa capture de Cartes › Ta main : *pas jouer les cartes ici ; les carte
 ## Aucune carte hors du Rogue (13 oct. 2026)
 
 JP : *jeu de table, 82-0, draft sans cartes, aucune carte en dehors du roguelike*. Le 82-0, Sur table et l'exhibition, c'est les joueurs et leurs stats. La section Cartes n'y est plus (la barre en a quatre, dans le même ordre) et le Palmarès n'y offre plus « Ton album » des cartes de match. La règle « cinq sections dans tous les modes » devient : les mêmes sections dans le même ordre, Cartes en Rogue seulement.
+
+## Les éditions : la carte d'un joueur monte, à la Marvel Snap (15 oct. 2026)
+
+JP : *spas clair les niveaux de rareté des cartes* ; *système plus facile à voir* ; *un système d'upgrade à la Marvel Snap si tu pognes pas la holo* ; *Holo devrait être plus haut que or* ; *j'aime pas le classement par couleur, je préfère des niveaux avec cosmétique différents* ; *vraiment différemment, comme le changement majeur dans Marvel Snap* ; *les diamants, je trouve pas ça beau*.
+
+**Décidé.** La carte d'un joueur a une **édition**, de 1 à 5 : Base, Cadre, Hors-cadre, Or, Holo (`EDITIONS`, js/rarete.js). Chacune change la carte ENTIÈRE et garde ce que la précédente avait : le Cadre, un métal épais et biseauté tout autour ; le Hors-cadre, la photo qui quitte sa fenêtre et prend toute la carte ; l'Or, le cadre et le nom en feuille d'or et une lumière qui suit la main ; la Holo, le prisme qui tourne et l'arc-en-ciel qui balaie la carte (style.css, « LES ÉDITIONS »). La lumière ne passe jamais sur un visage (un masque garde le centre net). Le coin de la carte nomme l'édition en mots ; plus de diamants sur les cartes de joueur, et ceux des cartes de jeu sont plus petits.
+
+**Rien à migrer.** Les clés des sauvegardes restent : `rare`, l'ancienne Holo, devient l'Or et joue pareil ; `legendaire`, l'ancien Or, devient la Holo et joue pareil ; `hors` est neuve ([1, 1], sans le second plein). Une carte garde sa force ; elle change de nom et de finition. Le Hors-cadre se prend dans le Cadre aux cotes (en moyenne 13 / 3 au lieu de 16) ; un gardien monte de 1, 2, 2, 3.
+
+**Monter.** Trois doublons montent une carte d'une édition, jusqu'à l'Or ; la Holo se tire, ou ✨ le lustre la pose. Trois cartes d'atelier s'ajoutent au lustre, chacune bornée par sa rareté : 🖌 le coup de pinceau (commune, jusqu'au Cadre), 🪟 la fenêtre ouverte (peu commune, jusqu'au Hors-cadre), 🔆 la dorure (rare, jusqu'à l'Or). Un doublon plus fort tiré d'un pack, d'un joueur qu'on a déjà, entre au cartable : la rangée le dit (« Sa carte monte au cartable : Cadre → Or, dès la saison prochaine »). Il ne change rien en pleine saison, parce que la ligue se joue au jour le jour et qu'une édition qui changerait au jour 0 rejouerait autrement les journées d'avant. Le cartable montre sur chaque carte son édition et la barre de ses doublons vers la suivante.
+
+**Mesuré.** `check_rogue` (10 runs par niveau, 2 campagnes), avant → après, la Coupe par run selon les déblocages : 0 % → 0 % ; 20 → 20 ; 60 → 40 ; 60 → 80 ; 90 → 80 ; la première Coupe d'une campagne à la run 4 et 4 → 4 et 3. La première run reste dure ; la courbe ne bouge pas plus que le bruit de dix runs. `check_atelier` : la Holo reste la plus rare des éditions, par stature aussi.
+
+**Un mot par idée.** « Édition » nommait aussi les cartes de l'atelier à l'écran (« Trois éditions ») : elles s'appellent maintenant des **retouches**.
+

@@ -14,20 +14,17 @@
  * secrète toutes les soixante-dix. Nos variantes (js/rarete.js) sont posées
  * sur ces barèmes, par TIER de pack :
  *
- *   tier      cartes   base   parallèle   holo    or      (par carte, en %)
- *   bronze       3      82       14        3,6     0,4
- *   argent       4      70       22        7       1
- *   or           5      55       30       12       3
- *   premium      6      40       35       19       6
+ *   (le barème vit dans `TIERS`, plus bas : une table recopiée ici avait
+ *   vieilli. Oct. 2026 : cinq éditions, Base, Cadre, Hors-cadre, Or, Holo.)
  *
- * Et l'or est NUMÉROTÉ, comme les parallèles des séries de luxe : /99 (78 %),
- * /25 (16 %), /10 (5 %) — et le « 1 de 1 » (1 % des or : une carte sur 2 500
- * dans un pack d'argent). Le numéro est COSMÉTIQUE : l'or joue ce que l'or
- * joue (js/rarete.js), rien de plus — la chasse ne casse pas le jeu.
+ * Et la Holo est NUMÉROTÉE, comme les parallèles des séries de luxe : /99 (78 %),
+ * /25 (16 %), /10 (5 %) — et le « 1 de 1 » (1 % des Holo). Le numéro est
+ * COSMÉTIQUE : la Holo joue ce que la Holo joue (js/rarete.js), rien de plus —
+ * la chasse ne casse pas le jeu.
  *
  * CHAQUE PACK AFFICHE SES CHANCES (\`chancesDe\`), en « 1 pack sur N » —
  * comme les packs de FUT depuis 2019. Et la GARANTIE (\`PITIE\`) : en mode
- * Rogue, huit packs de joueurs d'affilée sans holo ni or, et le neuvième en
+ * Rogue, `PITIE` packs de joueurs d'affilée sans Or ni Holo, et le suivant en
  * a une. Elle est dite dans la boutique.
  *
  * TOUT EST PUR : un pack se tire de la graine de la partie, de son genre et du
@@ -67,7 +64,7 @@ import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
 import { IDENTITES } from './identites.js';
-import { statureDe } from './rarete.js';
+import { statureDe, EDITIONS } from './rarete.js';
 
 /*
  * 1.0 — MOINS D'ÉTOILES (JP : *les packs sont trop généreux en joueurs étoiles*).
@@ -75,14 +72,14 @@ import { statureDe } from './rarete.js';
  * Premium 35 % (avant : 6, 18, 34, 60 %). La part retirée va aux réguliers et aux piliers.
  */
 export const TIERS = {
-  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 84, peu: 14, rare: 1.8, legendaire: 0.2 }, niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 } },
-  argent: { nom: 'Argent', n: 4, cotes: { commune: 74, peu: 22, rare: 3.5, legendaire: 0.5 }, niveaux: { soutien: 38, regulier: 39, pilier: 21.25, etoile: 1.6, phenomene: 0.15 } },
-  or: { nom: 'Or', n: 5, cotes: { commune: 62.5, peu: 30, rare: 6, legendaire: 1.5 }, niveaux: { soutien: 26, regulier: 40, pilier: 30.6, etoile: 3, phenomene: 0.4 } },
-  premium: { nom: 'Premium', n: 6, cotes: { commune: 52, peu: 35, rare: 10, legendaire: 3 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
+  bronze: { nom: 'Bronze', n: 3, cotes: { commune: 84, peu: 11, hors: 3, rare: 1.8, legendaire: 0.2 }, niveaux: { soutien: 51, regulier: 37, pilier: 11.15, etoile: 0.8, phenomene: 0.05 } },
+  argent: { nom: 'Argent', n: 4, cotes: { commune: 74, peu: 17, hors: 5, rare: 3.5, legendaire: 0.5 }, niveaux: { soutien: 38, regulier: 39, pilier: 21.25, etoile: 1.6, phenomene: 0.15 } },
+  or: { nom: 'Or', n: 5, cotes: { commune: 62.5, peu: 23, hors: 7, rare: 6, legendaire: 1.5 }, niveaux: { soutien: 26, regulier: 40, pilier: 30.6, etoile: 3, phenomene: 0.4 } },
+  premium: { nom: 'Premium', n: 6, cotes: { commune: 52, peu: 26, hors: 9, rare: 10, legendaire: 3 }, niveaux: { soutien: 14, regulier: 40, pilier: 39, etoile: 6, phenomene: 1 } },
 };
-/* La numérotation d'une or (en % des or). */
+/* La numérotation d'une Holo (en % des Holo). */
 export const NUMEROS = [['/99', 78], ['/25', 16], ['/10', 5], ['1 de 1', 1]];
-/* En mode Rogue : huit packs de joueurs sans holo ni or, et le neuvième en a une. */
+/* En mode Rogue : PITIE packs de joueurs sans Or ni Holo, et le suivant en a une. */
 export const PITIE = 12;   // V5 : la holo est rare ; la garantie arrive plus tard aussi
 /*
  * LA DATE LIMITE DES ÉCHANGES (1.0, oct.). JP : *rendre impossible de prendre
@@ -121,7 +118,7 @@ export const PACKS_JOUEURS = {
   trio: { famille: 'trio', nom: 'Pack Trio', ico: '🔗', tier: 'or', prix: 40, texte: 'Une vraie ligne d\'un même club-saison : son centre et ses deux ailiers — ou sa paire et son gardien.' },
   etoiles: { famille: 'etoiles', nom: 'Pack Étoiles', ico: '⭐', tier: 'or', prix: 55, niveaux: { etoile: 92, phenomene: 8 }, texte: 'Cinq étoiles de leur saison : le 4 % du haut à leur poste.' },
   legendes: { famille: 'legendes', nom: 'Pack Légendes', ico: '👑', tier: 'premium', prix: 75, niveaux: { etoile: 90, phenomene: 10 }, texte: 'Six étoiles d\'avant 1995.' },
-  garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une holo ou mieux, garantie.' },
+  garanti: { famille: 'hasard', nom: 'Pack garanti', ico: '🔒', tier: 'or', prix: 45, garanti: true, texte: 'Cinq joueurs, dont une Or ou mieux, garantie.' },
   /*
    * LA BOUTIQUE DU JALON P (P2). JP : *on limite les packs, tout en gardant des thématiques* ; *je veux que les cartes
    * de match, événements, etc. soient avec les cartes de joueurs*. Sept packs (\`BOUTIQUE\`), tous MIXTES : des
@@ -147,7 +144,7 @@ const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
 export const PACKS_CARTES = {
   patrons: { nom: 'Pack Personnel', ico: '👔', n: 3, prix: 30, cats: ['patron'], cotes: { commune: 45, peu: 35, rare: 16, legendaire: 4 }, texte: 'Trois patrons : le personnel qu\'on engage pour toute la saison.' },
   evenements: { nom: 'Pack Événements', ico: '📰', n: 4, prix: 15, cats: ['evenement'], cotes: COTES_CARTES, texte: 'Quatre événements d\'équipe.' },
-  modifs: { nom: 'Pack Modifs', ico: '🧬', n: 4, prix: 20, cats: ['joueur'], cotes: COTES_CARTES, texte: 'Quatre styles, contrats, améliorations et éditions de joueur.' },
+  modifs: { nom: 'Pack Modifs', ico: '🧬', n: 4, prix: 20, cats: ['joueur'], cotes: COTES_CARTES, texte: 'Quatre styles, contrats, améliorations et retouches de joueur.' },
   consommables: { nom: 'Pack Consommables', ico: '🧴', n: 5, prix: 15, cats: ['consommable'], cotes: COTES_CARTES, texte: 'Cinq consommables : un soin, des jambes, le filet, les minutes, un trou dans le règlement.' },
   contrats: { nom: 'Pack Contrats', ico: '💵', n: 4, prix: 20, cats: ['plafond'], cotes: COTES_CARTES, maudite: 0.08, texte: 'Quatre cartes de masse salariale : de l\'espace, une retenue, un rachat… et parfois la taxe de luxe.' },
   match: { nom: 'Pack Cartes de match', ico: '🃏', n: 4, prix: 15, cats: ['match'], cotes: COTES_CARTES, texte: 'Quatre cartes pour ton deck de match.' },
@@ -202,7 +199,7 @@ export const hausseDesPacks = n => 1 + HAUSSE_PACK * (n || 0);
 /* ---------- les chances affichées ---------- */
 const unSur = p => (p <= 0 ? null : p >= 0.999 ? 1 : Math.max(2, Math.round(1 / p)));
 /*
- * « Holo ou mieux : 1 pack sur 4 », « Or : 1 pack sur 25 », « 1 de 1 : 1 pack
+ * « Or ou mieux : 1 pack sur 4 », « Holo : 1 pack sur 25 », « 1 de 1 : 1 pack
  * sur 2 500 » — la chance d'en trouver AU MOINS une dans le pack, pour son
  * nombre de cartes. \`mods\` : ce que les patrons changent (\`holo\`,
  * \`carteExtra\`, \`sansBase\`).
@@ -234,9 +231,9 @@ export function chancesDe(cle, mods = {}) {
   ].map(x => ({ ...x, txt: formatUnSur(x.p), niveau: true })) : [];
   return [
     ...joueur,
-    { nom: 'Parallèle ou mieux', txt: formatUnSur(1 - (1 - (c.peu + c.rare + c.legendaire) / 100) ** n), p: 1 - (1 - (c.peu + c.rare + c.legendaire) / 100) ** n },
-    { nom: 'Holo ou mieux', txt: P.garanti ? 'garantie' : formatUnSur(pr), p: pr },
-    { nom: 'Or numérotée', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
+    { nom: 'Cadre ou mieux', txt: formatUnSur(1 - (1 - (100 - c.commune) / 100) ** n), p: 1 - (1 - (100 - c.commune) / 100) ** n },
+    { nom: 'Or ou mieux', txt: P.garanti ? 'garantie' : formatUnSur(pr), p: pr },
+    { nom: 'Holo numérotée', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
     { nom: '1 de 1', txt: formatUnSur(1 - (1 - un) ** n), p: 1 - (1 - un) ** n },
   ];
 }
@@ -295,12 +292,13 @@ export function niveauxDuPack(cle, mods = {}) {
 }
 
 /* ---------- les tirages ---------- */
+/* Les raretés d'une carte de jeu ; une carte de joueur a ses cinq éditions (`EDITIONS`, js/rarete.js). */
 const ORDRE_VAR = ['commune', 'peu', 'rare', 'legendaire'];
-/* Une variante tirée aux cotes du pack, et son numéro si c'est une or. */
+/* Une édition tirée aux cotes du pack, et son numéro si c'est une Holo. */
 function tirerVariante(cotes, ...parts) {
   let r = hache('pack-var', ...parts) * 100;
   let rar = 'commune';
-  for (const k of ORDRE_VAR) { r -= cotes[k] || 0; if (r < 0) { rar = k; break; } }
+  for (const k of EDITIONS) { r -= cotes[k] || 0; if (r < 0) { rar = k; break; } }
   let num = null;
   if (rar === 'legendaire') {
     let x = hache('pack-num', ...parts) * 100;
@@ -464,7 +462,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
       if (carte) out.push({ ...carte, ...tirerVariante(cotes, graine, cle, n, c) });
     }
   }
-  // LA GARANTIE : le pack garanti, ou la pitié de la run (\`PITIE\`) — la dernière carte monte à holo.
+  // LA GARANTIE : le pack garanti, ou la pitié de la run (\`PITIE\`) — la dernière carte monte à l'Or.
   if ((P.garanti || garantie) && out.length && !out.some(x => x.rar === 'rare' || x.rar === 'legendaire')) out[out.length - 1].rar = 'rare';
   /*
    * V5 — LA BRILLANTE VA À LA VEDETTE DU PACK (js/rarete.js, \`statureDe\`). Les variantes tirées restent celles du pack
@@ -472,7 +470,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
    * de plus grande stature. Un holo dans un pack de Crosby et de trois Soutien, c'est le Crosby holo.
    */
   const ordre = out.map((x, i) => ({ i, s: statureDe(x.p, x.niveau) })).sort((a, b) => b.s - a.s || a.i - b.i).map(o => o.i);
-  const vars = out.map(x => ({ rar: x.rar, num: x.num })).sort((a, b) => ORDRE_VAR.indexOf(b.rar) - ORDRE_VAR.indexOf(a.rar));
+  const vars = out.map(x => ({ rar: x.rar, num: x.num })).sort((a, b) => EDITIONS.indexOf(b.rar) - EDITIONS.indexOf(a.rar));
   ordre.forEach((i, k) => { out[i].rar = vars[k].rar; out[i].num = vars[k].num; });
   return { cartes: out, reglage };
 }

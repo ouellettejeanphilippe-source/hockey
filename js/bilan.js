@@ -23,7 +23,7 @@ import { nomDuClub, courtDuClub } from './club.js';
 import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
 import { hubActif } from './coquille.js';
 import { deckDe, CARTES_MATCH } from './combat.js';
-import { RARETES, sensRarete } from './cartes.js';
+import { sensRarete } from './cartes.js';
 import { animerComptes } from './mouvement.js';
 import { jouerSon } from './sons.js';
 // La fiche RECONSTITUÉE d'un club : la même méthode que l'écran des équipes
@@ -663,7 +663,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     // js/rarete.js : la carte que la saison a posée sur lui).
     const rar = (p._carte && p._carte.rar) || 'commune';
     return `<div class="rrow rr-cj">
-      <span class="rr-carte cj-mini tc-${rar}" style="--team-band:${getTeamBand(p.t).bg}" title="${esc(`${RARETES[rar].nom} : ${sensRarete(rar)}`)}">${headshotHtml(p)}</span>
+      <span class="rr-carte cj-mini tc-${rar}" style="--team-band:${getTeamBand(p.t).bg}" title="${esc(sensRarete(rar))}">${headshotHtml(p)}</span>
       <div class="rn">${getTeamLogoHtml(p.t, 15)} ${lienJoueur(p, you, 'saison', `<span>${formatName(p.n)} <span class="sub">${esc(s.role)}</span></span>`)}</div>
       <div class="rs">${stats}${p.p === 'G' ? '' : ` · <span class="sub">${p.simSH || 0} lancers</span>`}</div>
     </div>`;

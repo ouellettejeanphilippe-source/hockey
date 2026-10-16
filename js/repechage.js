@@ -6,10 +6,10 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
-import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre } from './sim.js';
+import { registerHiddenRatings, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre, echelleTardive } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
-import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE } from './rarete.js';
+import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
@@ -104,7 +104,7 @@ function carteJoueur(p) {
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
 export const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
 /* Le lustre de l'atelier (S78) : la variante que la carte prend (voir `etatPourPoser`). */
-const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'rare', rare: 'legendaire' };
+const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'legendaire' };
 /*
  * LES SOUS-SÉRIES (S78), comme dans une vraie collection : la RECRUE (son
  * contrat d'entrée) et l'ÉTOILE — les meilleurs de leur saison, lus dans
@@ -241,7 +241,7 @@ export function sectionMods(p, attente = null) {
     else cases.push('<div class="fc-case fc-libre">Case libre</div>');
   }
   const plein = attente && posees.length >= n ? '<p class="fc-mods-vide">Ses cases sont pleines : cette carte ne peut pas aller sur lui.</p>' : '';
-  return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte holo ou or. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
+  return `<div class="fc-sec" title="Deux cases d'amélioration ; une de plus pour une carte en édition Or ou Holo. Chaque carte posée prend une case pour la saison.">Ses améliorations · ${posees.length}/${n}</div>
     <div class="fc-mods fc-cases">${cases.join('')}</div>${plein}
     ${arrives.length || situ.length ? `<div class="fc-sec">Ce qui lui est arrivé</div>
     <div class="fc-mods">${arrives.map(m => modHtml(m.cle, m.jour, { efface: efface(m.cle, m.jour), joueur: p })).join('')}${situ.join('')}</div>` : ''}`;
@@ -866,6 +866,29 @@ export const niveauHorsRuban = (p, niveau = niveauJoueur(p)) => (niveau < 0 || (
  * plus (la variante suivante d'un lustre, calculée ici, js/rarete.js). Les
  * malus sont ceux DÉJÀ arrivés : la ligue se joue au jour le jour.
  */
+/*
+ * CE QUE LA CARTE LUI FAIT, EN SES VRAIS CHIFFRES (oct. 2026). JP : *si je boost ses jambes, je dois les voir* ; puis
+ * *de même quand c'est autre chose*. Chaque canal qu'une modif touche se dit sur SA saison, avant → après : son % au
+ * tir, ses tirs, ses passes, son % d'arrêts, ses minutes de punition. Une amélioration grandit avec la saison : elle se
+ * lit au jour où on la pose (`echelleTardive`). Ses cases, son rôle et le reste suivent dans la note.
+ */
+const MOMENT_SI = { domicile: 'à domicile', visiteur: 'à l\'étranger', series: 'en séries' };
+const virgule1 = x => x.toFixed(1).replace('.', ',');
+function avantApres(cle, q, jour = 0) {
+  const M = MUTATIONS[cle];
+  if (!M || !q) return '';
+  const e = M.source === 'amelioration' ? echelleTardive({ jour }) : 1;
+  const f = c => (M[c] ? 1 + (M[c] - 1) * e : 1);
+  const gp = Math.max(1, q.gp || 0), out = [];
+  if (q.p === 'G') {
+    if (f('arrets') !== 1 && q.sv > 0) out.push(`% d'arrêts ${pct3(q.sv)} → ${pct3(1 - (1 - q.sv) * f('arrets'))}`);
+  } else {
+    if (f('finition') !== 1 && q.sh > 0) out.push(`% au tir ${virgule1((100 * q.g) / q.sh)} → ${virgule1((100 * q.g * f('finition')) / q.sh)}`);
+    if (f('lancers') !== 1 && q.sh > 0) out.push(`Tirs ${virgule1(q.sh / gp)} → ${virgule1((q.sh / gp) * f('lancers'))} par match`);
+    if (f('creation') !== 1 && q.a > 0) out.push(`Passes ${virgule1(q.a / gp)} → ${virgule1((q.a / gp) * f('creation'))} par match`);
+  }
+  return out.length && MOMENT_SI[M.si] ? `${MOMENT_SI[M.si]} : ${out.join(' · ')}` : out.join(' · ');
+}
 export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue && G.ligue.you, decisions = decisionsDeLaPartie() } = {}) {
   const M = MUTATIONS[cle];
   if (!M || !q) return { non: 'rien à poser' };
@@ -897,14 +920,16 @@ export function etatPourPoser(cle, q, sl, { jour = G.journee || 0, you = G.ligue
     const malus = siens.filter(m => m.jour >= dernier && m.cle !== 'physio' && mutationNuit(m.cle)).map(m => MUTATIONS[m.cle]);
     return malus.length ? { note: `efface ${malus.map(x => x.ico).join(' ')}` } : { non: 'aucun malus' };
   }
-  if (cle === 'lustre') {
+  // Une carte qui monte l'édition (le pinceau, la fenêtre, la dorure, le lustre) : la suivante, sous son plafond.
+  if (M.lustre) {
     const r = varianteApres(varianteJoueur(q), posees), n = VARIANTE_SUIVANTE[r];
-    if (!n) return { non: 'sa carte est déjà en or' };
+    if (!n) return { non: 'sa carte est déjà Holo' };
+    if (numeroEdition(n) > (M.jusqua || EDITIONS.length)) return { non: `déjà ${NOM_VARIANTE[r]}` };
     const carte = carteDe(n);
     return { note: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]}`, extra: { carte },
       mot: `${NOM_VARIANTE[r]} → ${NOM_VARIANTE[n]} : ${traitsDeCarte(carte, g).map(b => b.mot).join(' ')}` };
   }
-  return { note: place };
+  return { note: [avantApres(cle, q, jour), place].filter(Boolean).join(' · ') };
 }
 /*
  * LES CARTES QUI JOUENT (S78) : celles de TON alignement, et de ceux qui y
