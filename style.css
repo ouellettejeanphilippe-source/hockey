@@ -1580,9 +1580,8 @@ a.spin-club:hover { background: var(--fond-2); }
   width: 72%; height: 88%; left: 14%; right: auto; top: auto; bottom: 0;
   filter: grayscale(1) contrast(2.1) brightness(0.08) drop-shadow(0 0 0.35cqw var(--band));
 }
-.carton-photo > .carton-action { bottom: auto; height: auto; aspect-ratio: 1; object-fit: cover; z-index: 1; -webkit-mask-image: linear-gradient(180deg, black 80%, transparent); mask-image: linear-gradient(180deg, black 80%, transparent); }
-/* La photo d'action est carrée (le plus d'image possible) : la même, floutée et assombrie, remplit le reste de la carte. */
-.carton-photo > .carton-action-flou { object-fit: cover; z-index: 0; transform: scale(1.2); filter: blur(3cqw) brightness(0.65) saturate(1.2); }
+/* La photo d'action couvre la carte : 5:7, toute la hauteur de la photo, la face au centre (js/recadrage-action.js). */
+.carton-photo > .carton-action { object-fit: cover; z-index: 1; }
 .carton-photo:has(> .carton-action) > :is(.visage, .headshot-fallback) { display: none; }
 .carton-photo > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: end center; font-size: 62cqw; line-height: 0.95; opacity: 0.28; }
 .carton-deco { inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0.9cqw 0.5cqw -0.6cqw color-mix(in srgb, white 40%, transparent), inset 0 0 0 0.4cqw color-mix(in srgb, currentColor 26%, transparent); }

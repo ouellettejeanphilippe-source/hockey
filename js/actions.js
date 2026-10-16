@@ -5,7 +5,7 @@
  * La LNH publie une photo de match pour la plupart des joueurs d'après 2005.
  * `data/actions.json` (scripts/actions.mjs) dit qui en a une : un joueur
  * absent n'est jamais demandé, et sa carte garde son portrait. Une carte
- * demande `actionSrc(id)` — une adresse d'image carrée (560 × 560), ou null.
+ * demande `actionSrc(id)` — une adresse d'image 5:7 (400 × 560), ou null.
  *
  * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/,
  * versionnées depuis oct. 2026 pour que GitHub Pages les serve ;
@@ -28,8 +28,8 @@ import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
 
 const SOURCE = id => `https://assets.nhle.com/mugs/actionshots/1296x729/${id}.jpg`;
-// Le tiroir change de nom avec le format (oct. 2026 : 5:7 → carré) : l'ancien ne se relit pas.
-const TIROIR = 'cap82img-actions-560';
+// Le tiroir change de nom avec le cadrage (oct. 2026 : toute la hauteur, la face au centre) : l'ancien ne se relit pas.
+const TIROIR = 'cap82img-actions-visage';
 const cleDe = id => `https://cap82.appareil/actions/${id}.webp`;
 const EN_MEME_TEMPS = 2;
 

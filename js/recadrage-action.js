@@ -25,11 +25,11 @@
  * médian (une foule nette partout), la clarté du bas (des gradins sombres
  * sous la glace), la part de glace au centre, la part d'aplats.
  *
- * OCT. 2026 — LE PLUS D'IMAGE POSSIBLE. JP : *ça me dérange pas si c'est de loin, tant qu'on voit le joueur* ;
- * *le but est de rentrer un maximum de pourcentage de l'image dans la carte*. La fenêtre 5:7 ne gardait que 40 % de
- * la largeur, et ratait parfois le joueur (un arbitre, un filet, une jambière). Elle est maintenant CARRÉE et prend
- * toute la hauteur : 56 % de la largeur, le joueur avec son jeu autour. La carte la pose en haut et remplit le reste
- * de la même photo, floutée (style.css, « LES ÉDITIONS »).
+ * OCT. 2026 — TOUTE LA HAUTEUR, LA FACE AU CENTRE. JP : *rentrer soit tout le vertical ou le horizontal dans la
+ * carte* ; *j'aime les photos plus de loin qu'on voit tout le joueur au complet*. La fenêtre 5:7 garde toute la
+ * hauteur de la photo (`serre` 1 : rien du joueur n'est coupé en haut ni en bas) et se centre sur son visage
+ * (`centre`). Un carré (56 % de la largeur, la carte complétée de flou) a été essayé ; JP a choisi la photo pleine
+ * carte, en 5:7.
  *
  * LA FACE DANS LE CADRE (oct. 2026). `centre` : le centre du visage du joueur, en fraction de la largeur, trouvé à
  * la fabrication (scripts/visages_actions.py, `visages` de data/actions.json). Donné, la fenêtre s'y centre et la
@@ -41,7 +41,7 @@
  * l'appareil). La fonction ne lit AUCUNE variable extérieure : le script
  * l'injecte dans Chromium par son texte (`recadrerAction.toString()`).
  */
-export async function recadrerAction(blob, { largeur = 560, hauteur = 560, qualite = 0.8, serre = 1, centre = null } = {}) {
+export async function recadrerAction(blob, { largeur = 400, hauteur = 560, qualite = 0.8, serre = 1, centre = null } = {}) {
   const img = await createImageBitmap(blob);
   const W = img.width, H = img.height;
   // 1. L'image réduite, en gris ; la force des contours, moins le fond.

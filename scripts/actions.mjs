@@ -17,10 +17,10 @@
  *   1. il télécharge chaque photo (le brut reste dans un cache, hors du dépôt,
  *      pour qu'une deuxième passe ne retélécharge rien ; les absents aussi
  *      sont retenus) ;
- *   2. il découpe une fenêtre carrée, toute la hauteur, centrée sur le visage du joueur
+ *   2. il découpe une fenêtre 5:7, toute la hauteur, centrée sur le visage du joueur
  *      (scripts/visages_actions.py, lancé avant) ou, sans visage trouvé, sur le joueur, trouvé par la
  *      netteté (js/recadrage-action.js, le même code que l'appareil Android) ;
- *   3. il écrit un WebP carré 560 × 560 (img/actions/{id}.webp, versionné depuis
+ *   3. il écrit un WebP 400 × 560 (img/actions/{id}.webp, versionné depuis
  *      oct. 2026 : ≈ 50 Mo, que GitHub Pages sert) et la liste des photos qui existent
  *      (data/actions.json, versionnée) : le jeu ne demande jamais une photo
  *      absente, et l'appareil sait quoi télécharger.
@@ -37,7 +37,7 @@ import { recadrerAction } from '../js/recadrage-action.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const arg = (nom, def) => { const i = process.argv.indexOf(`--${nom}`); return i < 0 ? def : (process.argv[i + 1] ?? true); };
-const LARGEUR = 560, HAUTEUR = 560;
+const LARGEUR = 400, HAUTEUR = 560;
 const QUALITE = Number(arg('qualite', 0.8));
 const LIMITE = Number(arg('limite', 0)) || Infinity;
 const BRUT = arg('brut', path.join(os.tmpdir(), 'cap82-actions'));

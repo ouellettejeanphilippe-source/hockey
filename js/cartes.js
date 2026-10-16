@@ -443,9 +443,8 @@ export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : 'signature';
   const r = edition(c.rarete);
   // Une photo d'action n'arrive qu'à une édition haute, dont la photo prend déjà toute la carte (« LES ÉDITIONS », style.css).
-  // La photo est carrée (le plus d'image possible, js/recadrage-action.js) : nette en haut, et la même, floutée, dessous.
   const action = c.actionSrc
-    ? `<img class="carton-action-flou" src="${echapper(c.actionSrc)}" alt="" aria-hidden="true" loading="lazy" decoding="async" onerror="this.remove()"><img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+    ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
     : '';
   return `<span class="carton cs-${serie} tc-${r}">
     ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
