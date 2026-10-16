@@ -17,8 +17,8 @@
  * LES CIBLES DE LA V9 (§ 10). Mesuré le 16 oct., avant la tranche 3 : voir docs/refonte-v9.md, § 14. Le script est le
  * juge des tranches 3 à 8, pas une vérification de la CI : il est rouge tant que mener ne compte pas assez.
  *
- *   node scripts/check_profondeur.mjs                        (une vingtaine de minutes à trois fils)
- *   GRAINES=2 CAMPAGNES=1 node scripts/check_profondeur.mjs  (l'essai rapide)
+ *   node scripts/check_profondeur.mjs                                        (seize minutes à trois fils)
+ *   GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2 node scripts/check_profondeur.mjs  (l'essai, deux minutes)
  */
 import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
 import { fileURLToPath } from 'node:url';
