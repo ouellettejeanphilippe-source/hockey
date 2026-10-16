@@ -8,7 +8,7 @@
 - *Simplifier visuellement et la façon de jouer, mais gagner en profondeur et en storytelling, deux choses absentes aujourd'hui. Le Rogue est brain dead ; le 82-0, avec ses rolls, demande plus de stratégie.*
 - *Je ne suis pas attaché au jeu tel qu'il est, mais demande-moi avant un changement majeur.*
 
-**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1 et 2 sont faites (§ 13 et § 14) ; les autres attendent leur tour, une PR chacune.
+**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1, 2 et 3 sont faites (§ 13 à § 15) ; les autres attendent leur tour, une PR chacune.
 
 ## 1. Comment c'est mesuré
 
@@ -100,10 +100,10 @@ JP, 16 oct. : *Fire Emblem, XCOM, Darkest Dungeon, Alien: Dark Descent, Slay the
   - 🐝 le Frelon paie le Tir et la Robustesse et coûte du Jeu ;
   - l'Aigle paie le Tir et le Jeu et coûte de la Défense.
 
-  Les neuf se tranchent à la tranche 3. La confiance (I, II, III) monte toujours avec les cartes jouées.
+  Les neuf se tranchent à la tranche 3. La confiance (I, II, III) monte toujours avec les cartes jouées. *Tranché à la tranche 3 (§ 15) : la Tortue et le Contremaître paient la Défense, l'Aigle le Tir et le Jeu, le Frelon le Tir et la Robustesse, le Rhino et le Doc la Robustesse, l'Abbé et le Showman le Jeu.*
 - **Moins de systèmes, chacun lisible.** Sept systèmes de trio et cinq de paire deviennent quatre et trois, un par famille, plus « sans système » :
   - trios : Volume (Tir), Cycle (Jeu), Trappe (Défense), Échec avant (Robustesse) ;
-  - paires : Activer (Tir et Jeu), Maison (Défense), Nettoyer (Robustesse).
+  - paires : Activer (Tir et Jeu), Maison (Défense), Nettoyer (Robustesse). *Devenu quatre à la tranche 3 (JP : oui) : Activer (Tir), Sortie rapide (Jeu), Maison (Défense), Nettoyer (Robustesse). À points égaux, le Tir et le Jeu d'un défenseur sont complémentaires : les payer ensemble ne payait rien.*
 
   Le fit d'une unité ne compare plus des étiquettes : c'est la somme de ce que ses joueurs apportent dans la famille que son système paie.
 - **Ce que l'écran dit** : le profil de ton équipe en quatre familles, contre celui que ton coach paie. « Ton plan paie la Défense : 9 joueurs sur 18 la servent. »
@@ -262,7 +262,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 
 1. **À faire, une seule forme.** L'interface seulement, aucun moteur : tous les choix d'aujourd'hui passent par un seul composant et un seul endroit. Le gain visible est immédiat et le risque faible. Juge : `essai_rogue`.
 2. **Le juge d'abord.** `check_fit` et les deux robots, mesurés sur le jeu d'aujourd'hui, pour avoir le point de départ (attendu : Spearman 0,97, écart attentif-distrait petit hors de la signature).
-3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 3 ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
+3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 4 (§ 15) ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
 4. **Le plafond qui mord**, la liste qui classe pour ton plan, et **un départ bien pire** (JP, 16 oct. : *you should start with a way worse team*). On part d'une équipe beaucoup plus faible, et c'est le plan et le marché qui la font monter. Le mandat de la saison 1 se règle avec elle. Juge : `check_rogue` (la première run reste dure, mais une équipe faible bien menée monte).
 5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`.
 6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`.
@@ -338,6 +338,33 @@ Les juges d'abord, mesurés sur le jeu d'aujourd'hui. Rien du jeu ne change ; ce
 3. **La run s'aplatit.** Après deux ou trois runs de déblocages, le robot d'avant gagne la Coupe presque à chaque run. La première run reste dure, mais une run gagnée d'office n'a plus d'enjeu. C'est la tranche 4 (le plafond qui mord, un départ bien pire) et la tranche 8 (recalibrer).
 
 **Proposé pour la suite** (à trancher avec JP à la tranche 3) : que `check_profondeur` exige aussi que l'attentif batte le robot d'avant. C'est ce qui prouvera que le joueur qui lit son plan fait mieux que celui qui laisse l'automatique jouer. Aujourd'hui, l'écart est de +1,8 V ; une cible de +4 à +6 V le mettrait au-dessus d'un écart type de saison.
+
+## 15. Fait le 16 octobre : la tranche 3, le plan
+
+Le plan décide quelles stats comptent, en Rogue seulement (docs/decisions.md). Le 82-0, Sur table et l'exhibition ne bougent pas.
+
+- [x] **Le profil en quatre familles** : Tir, Jeu, Défense, Robustesse, lus sur les rôles de toujours à points égaux (`famillesDe`). Chaque famille est centrée sur le joueur typique de ses points et reste dispersée chez les Piliers (`check_familles`, dans `tout.mjs`).
+- [x] **Le système paie sa famille** : chaque écart type d'un joueur multiplie le canal naturel de son unité (`PLAN_PAIE`), centré sur l'unité typique qui joue sa meilleure famille (`PLAN_REF`). La ligue garde ses buts par match (5,79 → 5,77).
+- [x] **Un système par famille** : quatre de trio, quatre de paire (JP : oui aux quatre de paire). L'IA et la ligne qu'on ne règle pas jouent la famille où leurs joueurs apportent le plus.
+- [x] **Les coachs paient une ou deux familles et en coûtent une**, plus fort à mesure que la confiance monte (`COACH_DU_PLAN`) ; le palier de plus de leur vieux système est parti (`check_coachs`).
+- [x] **L'écran** : la fenêtre du système parle en familles ; la fiche dit les quatre familles du joueur ; le coach dit son plan et combien de tes patineurs le servent ; « Aligner au mieux » lit le plan ; la page des règles dit la règle.
+- [x] **Les juges** :
+
+  | | avant | après | cible |
+  |---|---|---|---|
+  | `check_fit` · l'ordre entre deux systèmes (Spearman) | 0,98 | **0,49** | ≤ 0,6 ✓ |
+  | `check_fit` · signer pour son système | +0,01 V | **+0,52 V** | ≥ +0,4 V ✓ |
+  | `check_fit` · systèmes au meilleur différent | 1,6 | **2,7** | ≥ 3 ✗ |
+  | l'attentif contre le robot d'avant | +1,8 V | **+5,3 V** | ≥ +5 V ✓ |
+  | un club du milieu bien mené finit premier | 1 sur 16 | **7 sur 16** | ✓ |
+  | un meilleur club mal mené rate les séries | 1 sur 16 | **4 sur 16** | ✓ |
+  | le distrait gagne la Coupe | 0 sur 24 | **0 sur 24** | ✓ |
+  | la 1re Coupe de l'attentif (médiane) | run 2,5 | **run 2** | 3 à 8 ✗ |
+
+  - Le ✗ de `check_fit` vient du bas de l'alignement : un candidat complet y reste le meilleur dans les quatre systèmes, et un 4e trio paie peu (ses tirs valent peu).
+  - Le ✗ des campagnes est le constat de la tranche 2 en plus fort : bien mené, le Rogue se gagne trop tôt, puis presque à chaque run (l'attentif, 22 Coupes sur 24). C'est la tranche 4 (le plafond qui mord, un départ bien pire) et la tranche 8 (recalibrer).
+  - `check_rogue` : la Coupe par run monte plus vite au milieu de la courbe (6 déblocages : 20 % → 50 %), le robot d'avant profitant du plan que l'IA lui choisit ; sans déblocage, elle reste rare (10 %). `check_robot` (Rogue) : 7,5 %, sous sa borne.
+  - Preuves : `tout.mjs` (22 scripts), `check_mort`, `check_clarte`, `check_coachs`, `essai_rogue` (57 choix réglés, zéro erreur), `check_robot`, `check_voies`.
 
 ## Annexe · la méthode des mesures
 

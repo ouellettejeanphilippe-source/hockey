@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES, POIDS_AN, POIDS_DN } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, echangesDuPlan, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES, POIDS_AN, POIDS_DN } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -171,13 +171,16 @@ export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
  */
 const POIDS_STYLE = { equilibre: [1, 1], offensif: [1.5, 0.5], defensif: [0.5, 1.5] };
 const TOURS_AU_MIEUX = 3, ECHANGES_LUS = 10;
-export function alignementAuMieux(joueurs, style = 'equilibre') {
+export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, coachs = [] } = {}) {
   const [wP, wC] = POIDS_STYLE[style] || POIDS_STYLE.equilibre;
   const saison = (joueurs.find(p => p && p.s) || {}).s;
   // Sous un hasard à part : le club lu tire sa chance de saison, et la saison en cours ne doit pas bouger d'un dé.
   const lu = R => avecHasardIsole('au mieux', () => {
     const T = createTeam('Au mieux', 'MOI', R, { season: saison });
-    T.lignes = lignesAuMieux(R, style);
+    // En Rogue, le plan paie sa famille (V9) : la lecture le joue, comme le moteur.
+    T.courbe = plan;
+    T.coachs = coachs;
+    T.lignes = lignesAuMieux(R, style, { plan, coachs });
     const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
     return wP * m.butsPour - wC * m.butsContre;
   });
@@ -188,7 +191,8 @@ export function alignementAuMieux(joueurs, style = 'equilibre') {
   }
   for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
     let mieux = false;
-    for (const [sa, sb] of echangesProposes(best, style, ECHANGES_LUS)) {
+    // En Rogue, les échanges qui rapprochent les familles s'ajoutent à ceux des badges et des zones.
+    for (const [sa, sb] of [...echangesProposes(best, style, ECHANGES_LUS), ...(plan ? echangesDuPlan(best, ECHANGES_LUS) : [])]) {
       const R = { ...best };
       [R[sa.i], R[sb.i]] = [R[sb.i], R[sa.i]];
       const v = lu(R);

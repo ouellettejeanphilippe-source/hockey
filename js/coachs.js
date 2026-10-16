@@ -101,32 +101,32 @@ export function porteParSesJoueurs(c, n) {
 /*
  * Un coach : son visage (`ico`, un totem : une icône, un coach), son surnom,
  * `de` pour les phrases (« une carte du Frelon »), sa philosophie en une
- * ligne, et ce que chaque confiance joue pour la saison. Les SYSTÈMES SE
- * TIENNENT (v2, JP : *mieux ficeler les systèmes entre eux*) : `systeme`, le
- * système que ses joueurs jouent un palier plus haut dès sa confiance II
- * (`bonusDuCoach`, js/sim.js ; V7 : la maîtrise qu'il apprenait n'existe plus). V2.3 : c'est le système qui DEMANDE ses badges
- * — l'Aigle le Volume de tirs (deux snipers), le Frelon l'enclave (deux power
- * forwards), l'Abbé et le Rhino un système de paire (manieurs, physiques) ; `recrute`, le style de joueur que son
- * dépisteur fait pencher dans les packs de joueurs de la run (js/packs.js). `econ` : comme un
+ * ligne, et ce que chaque confiance joue pour la saison. `recrute`, le style de joueur que son
+ * dépisteur fait pencher dans les packs de joueurs de la run (js/packs.js). (V9 : son système préféré, qu'il jouait
+ * un palier plus haut, est parti : ses familles le remplacent.) `econ` : comme un
  * patron (js/banque.js `modificateurs`, `plafondDe`).
+ *
+ * LE PLAN (V9, tranche 3 ; docs/refonte-v9.md § 6.1). `familles` : ce que le coach paie et ce qu'il coûte, parmi les
+ * quatre familles du profil (`FAMILLES`, js/sim.js). En Rogue, une unité qui joue le système d'une famille qu'il paie
+ * en tire plus — et paie plus cher d'y être mal assortie ; celle qu'il coûte compte moins (`COACH_DU_PLAN`, js/sim.js).
  */
 export const COACHS = {
-  essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', systeme: 'derriere', recrute: 'des power forwards et des défenseurs offensifs',
+  essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', familles: { paie: ['tir', 'robustesse'], coute: 'jeu' }, recrute: 'des power forwards et des défenseurs offensifs',
     paliers: [{ volume: 1.028 }, { volume: 1.055 }, { volume: 1.092, plafonds: { pression: 0.15 } }] },
-  rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', systeme: 'bleue', recrute: 'des snipers',
+  rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', familles: { paie: ['tir', 'jeu'], coute: 'defense' }, recrute: 'des snipers',
     paliers: [{ finition: 1.028 }, { finition: 1.056 }, { finition: 1.094, plafonds: { finition: 0.15 } }] },
-  tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', systeme: 'defensive', recrute: 'des two-way et des défenseurs défensifs',
+  tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', familles: { paie: ['defense'], coute: 'tir' }, recrute: 'des two-way et des défenseurs défensifs',
     paliers: [{ defense: 0.973 }, { defense: 0.953 }, { defense: 0.919 }] },
-  rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', systeme: 'rude', recrute: 'des bagarreurs et des défenseurs physiques',
+  rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', familles: { paie: ['robustesse'], coute: 'jeu' }, recrute: 'des bagarreurs et des défenseurs physiques',
     paliers: [{ robustesse: 0.4 }, { robustesse: 0.8 }, { robustesse: 1.3, blessure: 0.80, plafonds: { robustesse: 3.2 } }] },
-  souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', systeme: 'energie', recrute: 'des plombiers',
+  souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', familles: { paie: ['robustesse'], coute: 'tir' }, recrute: 'des plombiers',
     paliers: [{ energie: 0.79, blessure: 0.564 }, { energie: 0.694, blessure: 0.409, volume: 1.03 }, { energie: 0.607, blessure: 0.26, volume: 1.06 }] },
-  choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', systeme: 'relance', recrute: 'des manieurs de rondelle',
+  choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', familles: { paie: ['jeu'], coute: 'robustesse' }, recrute: 'des manieurs de rondelle',
     paliers: [{ discipline: 0.91 }, { discipline: 0.84 }, { discipline: 0.76, finition: 1.04, plafonds: { discipline: 0.15 } }] },
-  profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', systeme: 'echec', recrute: 'des checkers',
+  profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', familles: { paie: ['defense'], coute: 'jeu' }, recrute: 'des checkers',
     paliers: [{ F: [0.9, 1, 1.11, 1.27], energie: 0.853, blessure: 0.784 }, { F: [0.79, 1, 1.23, 1.57], energie: 0.751, blessure: 0.594, robustesse: 0.95 },
       { F: [0.68, 1, 1.34, 1.95], energie: 0.654, blessure: 0.428, robustesse: 1.71, volume: 1.097 }] },
-  etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', systeme: 'courtes', recrute: 'des passeurs',
+  etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', familles: { paie: ['jeu'], coute: 'defense' }, recrute: 'des passeurs',
     paliers: [{ F: [1.08, 1.02, 0.95, 0.92], finition: 1.021 }, { F: [1.17, 1.06, 0.92, 0.83], finition: 1.042 },
       { F: [1.28, 1.1, 0.86, 0.74], finition: 1.069 }] },
   banque: { ico: '🏦', nom: 'Le Comptable', de: 'du Comptable', mot: 'Chaque jeton, chaque dollar du plafond.', recrute: 'des aubaines pour leur salaire',
