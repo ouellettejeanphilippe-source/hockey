@@ -672,15 +672,20 @@ export function rangeeHtml(p, { rar = 'commune', num = null, doublon = false, sa
       ${bouton}
     </div>`;
 }
-function rangeeDeSignature(x, o, signer) {
+/* Où il va dans TON alignement : la case dite par l'écran qui appelle, ou sa meilleure (`meilleureSortie`). */
+function caseDeSignature(x, o) {
   const p = x.p;
   const non = o.desactive ? o.desactive(x) : '';
   // `destination` : l'écran qui appelle sait déjà où il va (le ballottage : la case du blessé, la réserve libérée).
   const fixe = !non && o.destination ? o.destination(x) : null;
   const best = non ? null : fixe || meilleureSortie(p, { roster: o.roster, bloque: o.bloque ? q => o.bloque(p, q) : null });
+  return { non, fixe, best };
+}
+function rangeeDeSignature(x, o, signer, { non, fixe, best }, meilleur = false) {
+  const p = x.p;
   const nomDe = n => String(n).split(' ').slice(-1)[0];
   const el = document.createElement('div');
-  el.className = `pcard tc-${x.rar || 'commune'}${best ? '' : ' locked'}`;
+  el.className = `pcard tc-${x.rar || 'commune'}${best ? '' : ' locked'}${meilleur ? ' meilleure' : ''}`;
   el.dataset.cle = getPlayerKey(p);
   el.setAttribute('style', varsEquipe(p));
   const stats = best && best.net ? motsDeStats(best.net, 2) : [];
@@ -710,13 +715,28 @@ function rangeeDeSignature(x, o, signer) {
  *       destination(x) → { sortie, mot } (sinon la meilleure case), genre, motFermer, onSigne(x, sortie), onFerme() }.
  *       Rend la fonction qui ferme.
  */
+/*
+ * LE MEILLEUR POUR TON ALIGNEMENT, PAS LE MEILLEUR JOUEUR (oct. 2026). JP : *un pack, on devrait pas signer le meilleur
+ * joueur, mais le meilleur joueur pour notre alignement ; ce qu'on retrouve dans le mode 82-0, ça manque dans le
+ * roguelike*. Au 82-0, une carte se lit contre la case qu'elle comble. Ici, la liste suivait l'ordre du pack (la
+ * vedette d'abord) : elle se range maintenant par ce que chacun change à ton alignement, à sa meilleure case (les
+ * tirs nets, puis la réussite et les arrêts, `valeurDeCase`). Le premier, s'il fait gagner quelque chose et qu'un
+ * autre était offert, passe en tête sous son titre, cerclé d'or : un checker qui remplace ton bouche-trou du
+ * quatrième trio peut battre l'étoile qui pousserait ton deuxième centre.
+ */
 export function ouvrirListeSignature(o) {
   for (const x of o.joueurs) ballottageVu.set(getPlayerKey(x.p), x.p);
   let fermer = () => {};
   const signer = (x, sortie) => { fermer(); o.onSigne(x, sortie); };
+  const lus = o.joueurs.map((x, k) => ({ x, k, c: caseDeSignature(x, o) }));
+  const valeur = ({ c }) => (c.best && !c.fixe ? valeurDeCase(c.best.net) : -Infinity);
+  lus.sort((a, b) => (valeur(b) - valeur(a)) || a.k - b.k);
+  const tete = lus.length > 1 && valeur(lus[0]) > 0 ? lus[0] : null;
+  const titre = t => { const h = document.createElement('h3'); h.className = 'aln-titre'; h.textContent = t; return h; };
+  const rangees = lus.map(l => rangeeDeSignature(l.x, o, signer, l.c, l === tete));
   fermer = feuilleDeJoueurs({ ...o,
     haut: jaugePlafond({ masse: capUsed(), cap: capUsed() + capLeft(), mot: `<span class="inv-pl-rien">${esc(money(capLeft()))} sous le plafond · ${signes().length} / ${totalCases()} signés</span>` }),
-    rangees: o.joueurs.map(x => rangeeDeSignature(x, o, signer)) });
+    rangees: tete ? [titre('Le meilleur pour ton alignement'), rangees[0], titre('Les autres'), ...rangees.slice(1)] : rangees });
   return fermer;
 }
 /*

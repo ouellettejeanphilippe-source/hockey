@@ -644,6 +644,16 @@ const dests = await page.$$eval('#signatureModal .pcard .pcard-dest', e => e.map
 console.log(`8. le pack Argent, en liste : ${offres.map((o, i) => `${o} → ${dests[i]}`).join(' · ')} · niveaux ${niveaux.map(x => x.mot || x.ruban).join(', ')}`);
 if (!offres.length || offres.length !== revele.joueurs) erreurs.push(`la liste de signature montre ${offres.length} joueurs, le pack ${revele.joueurs}`);
 if (!dests.some(t => / sort/.test(t))) erreurs.push(`aucune rangée ne dit où il va : ${dests.join(' | ')}`);
+// LE MEILLEUR POUR TON ALIGNEMENT (oct. 2026) : la liste se range par ce que chacun change à ton alignement ; le premier
+// qui fait gagner quelque chose passe en tête, sous son titre, cerclé d'or — jamais plus d'un.
+{
+  const titres = await page.$$eval('#signatureModal .sig-liste > .aln-titre', e => e.map(x => x.textContent.trim()));
+  const cercles = await page.$$eval('#signatureModal .sig-liste > .pcard.meilleure', e => e.length);
+  const premier = await page.$eval('#signatureModal .sig-liste > :first-child', x => x.className).catch(() => '');
+  console.log(`8m. le meilleur pour ton alignement : ${titres.join(' · ') || 'aucun titre'} · ${cercles} cerclé(s)`);
+  if (cercles > 1) erreurs.push(`${cercles} joueurs cerclés d'or dans la liste de signature`);
+  if (cercles && !(titres[0] === 'Le meilleur pour ton alignement' && /aln-titre/.test(premier))) erreurs.push('le joueur cerclé d\'or n\'est pas en tête, sous son titre');
+}
 // Toucher la rangée montre sa fiche, sans la prendre.
 await page.click('#signatureModal .pcard .pcard-qui');
 await page.waitForTimeout(600);
@@ -1028,7 +1038,10 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
  * ouverte du cartable : tes cartes qui lui vont, en cartes ; celle qu'on
  * touche revient EN ATTENTE au verso, et « Poser ici » la pose.
  */
-if (posee) {
+// Une modif de gardien (un masque) peut tomber sur un bouche-trou de la ligue, qui n'est pas au cartable : l'étape attend.
+const poseeAuCartable = posee && await page.$(`[data-ct-equipe="${posee.mutation.joueur}"]`);
+if (posee && !poseeAuCartable) console.log(`12a. ${posee.mutation.joueur} est un bouche-trou de la ligue, pas une carte du cartable : l'étape du verso attend`);
+if (poseeAuCartable) {
   await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
   await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
   await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
