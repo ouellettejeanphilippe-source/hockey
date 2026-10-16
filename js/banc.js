@@ -180,30 +180,6 @@ export async function reprendreSaison() {
  * plus tard ; on rejoue donc depuis le jour courant.
  */
 /*
- * LA CARTE QU'ON N'A PAS CHOISIE. JP : *pour les blessures, faire que si pas
- * de joueur à la position, carte random pigée*. Quand un match se joue avec
- * une case que personne ne peut remplir, le vestiaire s'ajuste — et la carte
- * est TIRÉE, pas offerte. Elle passe par exactement la même machinerie qu'un
- * palier (une décision `{ jour, carte, palier }`, donc rejouée de la graine),
- * avec un palier nommé `trou:<match>` pour qu'elle n'entre jamais en
- * collision avec les paliers 20 / 40 / 60 et qu'un même épisode ne puisse
- * pas en donner deux.
- *
- * Ce n'est PAS une compensation : toutes les cartes portent un bonus ET un
- * malus, donc celle-ci peut très bien ne pas t'arranger. C'est ce qu'est une
- * crise d'effectif — un ajustement qu'on subit. Mesuré : 1,02 épisode par
- * équipe par saison, donc le budget passe de trois cartes à quatre dans les
- * mauvaises années, jamais plus de huit au pire cas observé.
- */
-async function subirCarte(at, jour, cle) {
-  if (!G.ligue || !CARTES[cle]) return;
-  const palier = `trou:${at}`;
-  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
-  decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
-  await continuerSaison(decisions, jour, 'La saison reprend…');
-}
-
-/*
  * UN MOMENT (S66) : plan du soir, dilemme, séquence, objectif, verdict du
  * proprio. Une seule porte d'entrée : la décision entre dans la liste (en
  * remplaçant celle du même palier, ou le plan du même soir), et la saison se
@@ -808,7 +784,6 @@ function ouvrirEcranSaison(depuis = 0) {
       cartesPrises: (decisions || []).filter(d => d.carte || (d.deck && typeof d.palier === 'number'))
         .map(d => ({ palier: d.palier ?? d.jour, carte: d.carte || null })),
       onCarte: choisirCarte,
-      onTrou: subirCarte,
       // Les épisodes de case vide déjà encaissés, pour qu'un trou ne retende
       // pas sa carte à chaque reprise (voir `trousFaits`, js/saison.js).
       trousPris: (decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'))

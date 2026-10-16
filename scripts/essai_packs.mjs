@@ -55,8 +55,8 @@ await page.click('#departModal .dp-commencer');
 await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 90000 });
 await page.waitForTimeout(800);
 await page.click('#mainBtn');
-// V5 : le lundi, la carte de la semaine (ses cases) couvre le bureau ; on attend qu'UN des trois soit visible.
-await page.waitForFunction(() => [...document.querySelectorAll('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .nd-case, #choixModal:not([hidden]) .choix-option')].some(e => e.offsetParent), null, { timeout: 120000 });
+// V9 : À faire porte tous les choix ; on attend qu'UN des boutons du bureau (avancer, régler, trancher) ou une fenêtre soit visible.
+await page.waitForFunction(() => [...document.querySelectorAll('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-trancher, #choixModal:not([hidden]) .choix-option')].some(e => e.offsetParent), null, { timeout: 120000 });
 
 
 await page.evaluate(() => { window.cap82.G.rogue.depart = 5000; });
@@ -68,7 +68,7 @@ const etat = () => page.evaluate(() => ({
   sommaire: !!document.querySelector('#hubModal .hub-page[data-genre="sommaire"]'),
   traiter: !!document.querySelector('#hubModal .hub-traiter'),
   jour: !!document.querySelector('#hubModal .hub-jour:not([disabled])'),
-  noeud: [...document.querySelectorAll('#hubModal .nd-case')].some(x => x.offsetParent),
+  trancher: [...document.querySelectorAll('#hubModal .hub-trancher')].some(x => x.offsetParent),
   liste: (document.querySelector('#signatureModal:not([hidden]) .choix-titre') || {}).textContent || '',
 }));
 const rnd = (() => { let x = Number(process.env.GRAINE || 7); return () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; })();
@@ -96,16 +96,16 @@ async function regler(max = 40) {
       else await page.click('#signatureModal .choix-fermer');
       await page.waitForTimeout(500); continue;
     }
-    if (e.noeud) { await page.click('#hubModal .nd-case'); await page.waitForTimeout(400); continue; }
     if (e.sommaire) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
-    if (e.traiter) {
-      await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400);
-      const pack = await page.$('#hubModal .hub-msg.ouvert[data-msg="pack"]');
-      if (pack) return 'pack';
-      const d = await page.$('#hubModal .hub-msg.ouvert [data-defaut]'); if (d && await d.isVisible()) { await d.click(); await page.waitForTimeout(500); continue; }
-      const r = await page.$('#hubModal .hub-msg.ouvert .vie-rep'); if (r) { await r.click(); await page.waitForTimeout(500); continue; }
+    // À FAIRE (V9) : le choix ouvert prend sa première option ; un pack qui attend sa signature rend la main à l'essai.
+    const ouv = await page.$('#hubModal .hub-msg.ouvert.bloque');
+    if (ouv && await ouv.isVisible()) {
+      if (await ouv.evaluate(x => x.dataset.msg) === 'pack') return 'pack';
+      const o = await ouv.$('.af-option:not([disabled]):not(.on)'); if (o) { await o.click(); await page.waitForTimeout(500); continue; }
       return 'coince-boite';
     }
+    if (e.trancher) { await page.click('#hubModal .hub-trancher'); await page.waitForTimeout(1500); continue; }
+    if (e.traiter) { await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400); continue; }
     return 'ok';
   }
   return 'max';
@@ -193,9 +193,8 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
     if (await page.$('#signatureModal:not([hidden])')) { await page.click('#signatureModal .choix-fermer'); await page.waitForTimeout(500); }
     await club(); const r = await regler(); log('   plus tard, boîte :', r);
     if (r === 'pack') {
-      // Le lundi, le message est une case de la carte de la semaine (V5) : on la touche, puis « Signer maintenant ».
-      const caseNd = await page.$('#hubModal .nd-case'); if (caseNd && await caseNd.isVisible()) { await caseNd.click(); await page.waitForTimeout(600); }
-      const rouvrir = await page.$('#hubModal .hub-pack-rouvrir'); if (rouvrir && await rouvrir.isVisible()) await rouvrir.click();
+      // Le pack attend dans À faire (V9) : son option « Signer un joueur › » rouvre l'offre.
+      const rouvrir = await page.$('#hubModal .hub-msg[data-msg="pack"] .af-option[data-choix="signer"]'); if (rouvrir && await rouvrir.isVisible()) await rouvrir.click();
       await page.waitForTimeout(1500);
     }
     else { log('   ⚠ pas de message de pack après « Plus tard »'); pb++; continue; }
