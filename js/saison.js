@@ -3186,7 +3186,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const specs = [];
     // Chaque choix est une décision : elle entre dans la liste, et la saison
     // se rejoue depuis aujourd'hui, avec des dés neufs.
-    const decider = d => { quitter(); onDecision({ jour, ...d }, jour); };
+    const decider = d => { const j = jour; quitter(); onDecision(Array.isArray(d) ? d.map(x => ({ jour: j, ...x })) : { jour: j, ...d }, j); };
     /*
      * LE DÉ D'UNE RÉPONSE RISQUÉE (1.0, oct.) : un événement s'ouvre en fenêtre, et une réponse qui porte
      * un pari se joue au dé (js/gerant.js, `sceneDuDe`). Le sel de la décision se tire au lancer ; le dé
@@ -3211,11 +3211,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (ro) {
       const forts = ['le plus fort', 'fort', 'au milieu', 'faible', 'le plus faible'];
-      specs.push({ de: DE.proprio, ico: '⚔', titre: `Ton rival · ${ro.k + 1} sur ${RIVAUX}`,
-        recit: `Chacun de tes matchs contre lui sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
+      /*
+       * LES TROIS D'UN COUP (JP, 16 oct. : *cette version du choix marche pas, je sais pas pourquoi y'a deux versions*). Un
+       * à la fois, « 1 sur 3 » revenait en « 2 sur 3 » après chaque validation, comme si le choix n'avait pas pris. L'écran
+       * de la semaine en coche `multi` ; la décision en fait une par rival (`riv:k`), comme avant.
+       */
+      const multi = RIVAUX - ro.k;
+      specs.push({ de: DE.proprio, ico: '⚔', titre: multi > 1 ? `Tes ${multi} rivaux` : 'Ton dernier rival', multi,
+        recit: `Prends-en ${multi > 1 ? multi : 'un'}. Chacun de tes matchs contre ${multi > 1 ? 'eux' : 'lui'} sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
         options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros matchs`,
           mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
-        decision: cle => { const x = ro.offre.find(y => y.cle === cle); return { palier: `riv:${ro.k}`, rival: { cle, butin: x.butin } }; } });
+        decision: cles => [].concat(cles).map((cle, i) => ({ palier: `riv:${ro.k + i}`, rival: { cle, butin: ro.offre.find(y => y.cle === cle).butin } })) });
     }
     if (vo) {
       const o = OBJECTIFS[vo.d.objectif.cle];
@@ -3716,15 +3722,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // « Déjà en jeu » une fois, en tête, avec les joueurs que les choix visent (une fenêtre le redisait à chaque choix).
       const vises = enLigne.flatMap(sp => [sp.joueur, ...(sp.joueurs || [])]).filter(Boolean);
       const propre = sp => (sp.contexte && !sp.etat && !String(sp.contexte).startsWith('<div class="choix-encours">') ? sp.contexte : '');
-      const bloc = (sp, i) => `<section class="sem-choix" data-i="${i}">
+      // Un choix `multi` (les rivaux) se coche en plusieurs : il lui en manque tant qu'il n'a pas son compte.
+      const pris = sp => [].concat(br[sp.titre] ?? []);
+      const manque = sp => pris(sp).length < (sp.multi || 1);
+      const bloc = (sp, i) => `<section class="sem-choix${manque(sp) ? ' manque' : ''}" data-i="${i}">
           <div class="sem-choix-tete"><span class="sem-choix-ico" aria-hidden="true">${sp.ico || '❓'}</span>
-            <span class="sem-choix-titres"><b>${ctx.esc(titreDuChoix(sp))}</b><small>${ctx.esc(sp.de ? sp.de.nom : '')}${sp.irl ? ` · ${ctx.esc(sp.irl)}` : ''}</small></span></div>
+            <span class="sem-choix-titres"><b>${ctx.esc(titreDuChoix(sp))}${sp.multi ? ` · ${pris(sp).length} sur ${sp.multi}` : ''}</b><small>${ctx.esc(sp.de ? sp.de.nom : '')}${sp.irl ? ` · ${ctx.esc(sp.irl)}` : ''}</small></span></div>
           ${sp.recitHtml ? `<div class="sem-recit">${sp.recitHtml}</div>` : sp.recit ? `<p class="sem-recit">${recitDe(sp)}</p>` : ''}
           ${sp.joueur ? enteteJoueur(sp.joueur, ctx.ouJoue ? ctx.ouJoue(sp.joueur) : '') : ''}
           ${propre(sp)}
-          <div class="sem-options">${sp.options.map(o => optionHtml(o, { ...sp, cadre: cadreDuMatch() }, { classe: 'sem-option', on: br[sp.titre] === o.cle })).join('')}</div>
+          <div class="sem-options">${sp.options.map(o => optionHtml(o, { ...sp, cadre: cadreDuMatch() }, { classe: 'sem-option', on: pris(sp).includes(o.cle) })).join('')}</div>
         </section>`;
-      const manquent = enLigne.filter(sp => br[sp.titre] === undefined);
+      const manquent = enLigne.filter(manque);
       const rangee = (id, ico, sujet, de) => `<button type="button" class="nd-case" data-id="${ctx.esc(id)}"><span class="nd-ico" aria-hidden="true">${ico}</span><span class="nd-txt"><b>${ctx.esc(sujet)}</b><span>${ctx.esc(de)}</span></span></button>`;
       const corps = ui.ouvrirPage({ genre: 'noeud', ico: '🗺', titre: `Semaine ${semaineDuNoeud + 1}`,
         sousTitre: enLigne.length ? `${enLigne.length} choix pour la semaine` : autres.length || aParte.length ? `${autres.length + aParte.length} à régler` : 'Rien à décider',
@@ -3757,7 +3766,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
               if (dans) dans.click();
               return;
             }
-            br[sp.titre] = o.cle;
+            if (sp.multi) {
+              // Toucher un coché le décoche ; un de trop pousse le plus ancien.
+              const l = pris(sp).filter(c => c !== o.cle);
+              if (l.length === pris(sp).length) l.push(o.cle);
+              br[sp.titre] = l.slice(-sp.multi);
+            } else br[sp.titre] = o.cle;
             jouerSon('joue');
             // On reste où on lisait : la feuille et la page gardent leur défilement.
             const sh = page && page.closest('.hub-sheet'), hauts = [sh ? sh.scrollTop : 0, page ? page.scrollTop : 0];
@@ -3784,10 +3798,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const valider = page && page.querySelector('.sem-valider');
       if (valider) valider.onclick = () => {
         if (!enLigne.length) { archiverInfos(); ui.fermerPage(); dessiner(); return; }
-        const premier = enLigne.findIndex(sp => br[sp.titre] === undefined);
+        const premier = enLigne.findIndex(manque);
         if (premier >= 0) { const el = corps.querySelector(`.sem-choix[data-i="${premier}"]`); if (el) el.scrollIntoView({ block: 'start', behavior: 'smooth' }); return; }
         archiverInfos();
-        const ds = enLigne.map(sp => ({ jour, ...sp.decision(br[sp.titre]) }));
+        const ds = enLigne.flatMap(sp => [].concat(sp.decision(br[sp.titre])).map(d => ({ jour, ...d })));
         boite.brouillon = null;
         ui.fermerPage(true);
         const j = jour;
@@ -3802,7 +3816,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter) traiter.onclick = () => (auLundi ? ouvrirNoeud() : traiterMessage(premier));
     const rouvrir = actions.querySelector('.hub-choix-rouvrir');
-    if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : ouvrirChoix(spec));
+    // Le lundi, un choix de la semaine n'a qu'une maison : l'écran de la semaine (la fenêtre seule en était une deuxième version).
+    if (rouvrir && spec) rouvrir.onclick = () => (spec.ouvrir ? spec.ouvrir() : auLundi && spec.decision && !spec.cartes ? ouvrirNoeud() : ouvrirChoix(spec));
     const mPack = msgs.find(m => m.genre === 'pack');
     const rouvrirPack = actions.querySelector('.hub-pack-rouvrir');
     // La signature s'ouvre sur place (js/game.js écoute `cap82:marche` et rouvre l'offre).
