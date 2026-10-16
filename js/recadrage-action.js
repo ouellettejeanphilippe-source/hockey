@@ -31,13 +31,17 @@
  * toute la hauteur : 56 % de la largeur, le joueur avec son jeu autour. La carte la pose en haut et remplit le reste
  * de la même photo, floutée (style.css, « LES ÉDITIONS »).
  *
+ * LA FACE DANS LE CADRE (oct. 2026). `centre` : le centre du visage du joueur, en fraction de la largeur, trouvé à
+ * la fabrication (scripts/visages_actions.py, `visages` de data/actions.json). Donné, la fenêtre s'y centre et la
+ * netteté ne décide plus ; absent (aucun visage trouvé), la netteté choisit comme avant.
+ *
  * UNE SEULE IMPLÉMENTATION pour deux usages, comme js/recadrage.js :
  * `scripts/actions.mjs` (la version Web, recadrée une fois à la fabrication)
  * et `js/actions.js` (l'application Android, qui télécharge et recadre sur
  * l'appareil). La fonction ne lit AUCUNE variable extérieure : le script
  * l'injecte dans Chromium par son texte (`recadrerAction.toString()`).
  */
-export async function recadrerAction(blob, { largeur = 560, hauteur = 560, qualite = 0.8, serre = 1 } = {}) {
+export async function recadrerAction(blob, { largeur = 560, hauteur = 560, qualite = 0.8, serre = 1, centre = null } = {}) {
   const img = await createImageBitmap(blob);
   const W = img.width, H = img.height;
   // 1. L'image réduite, en gris ; la force des contours, moins le fond.
@@ -92,6 +96,8 @@ export async function recadrerAction(blob, { largeur = 560, hauteur = 560, quali
   let m = 0, mx = 0;
   for (let i = gx; i < gx + fl; i++) { m += col[i]; mx += col[i] * (i + 0.5); }
   if (m > 0) gx = Math.round(mx / m - fl / 2);
+  // Le visage, s'il est connu, l'emporte : la face au milieu de la fenêtre.
+  if (Number.isFinite(centre)) gx = Math.round(centre * w - fl / 2);
   gx = Math.max(0, Math.min(w - fl, gx));
 
   // 3. En hauteur : le haut juste au-dessus du premier contour fort, dans les colonnes gardées.

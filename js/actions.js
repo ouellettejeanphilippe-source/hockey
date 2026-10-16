@@ -34,6 +34,7 @@ const cleDe = id => `https://cap82.appareil/actions/${id}.webp`;
 const EN_MEME_TEMPS = 2;
 
 let liste = null;            // les joueurs qui ont une photo (data/actions.json)
+let visages = {};            // le centre de leur visage, pour le recadrage sur l'appareil (scripts/visages_actions.py)
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
@@ -59,8 +60,9 @@ export function actionsDisponibles() {
     try {
       const r = await fetch('data/actions.json');
       if (!r.ok) return [];
-      const ids = (await r.json()).ids || [];
+      const lu = await r.json(), ids = lu.ids || [];
       liste = new Set(ids);
+      visages = lu.visages || {};
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
       // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
@@ -130,7 +132,7 @@ function garder(id, { reseau = true } = {}) {
       if (!reseau || !connexionLarge()) return null;
       const brut = await telecharger(id);
       if (!brut) return null;
-      webp = (await recadrerAction(brut)).webp;
+      webp = (await recadrerAction(brut, { centre: visages[id] ?? null })).webp;
       await t.put(cleDe(id), new Response(webp, { headers: { 'content-type': 'image/webp' } }));
       gardes.add(id);
     }

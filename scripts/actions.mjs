@@ -17,7 +17,8 @@
  *   1. il télécharge chaque photo (le brut reste dans un cache, hors du dépôt,
  *      pour qu'une deuxième passe ne retélécharge rien ; les absents aussi
  *      sont retenus) ;
- *   2. il découpe une fenêtre carrée, toute la hauteur, centrée sur le joueur, trouvé par la
+ *   2. il découpe une fenêtre carrée, toute la hauteur, centrée sur le visage du joueur
+ *      (scripts/visages_actions.py, lancé avant) ou, sans visage trouvé, sur le joueur, trouvé par la
  *      netteté (js/recadrage-action.js, le même code que l'appareil Android) ;
  *   3. il écrit un WebP carré 560 × 560 (img/actions/{id}.webp, versionné depuis
  *      oct. 2026 : ≈ 50 Mo, que GitHub Pages sert) et la liste des photos qui existent
@@ -60,6 +61,9 @@ console.log(`\n  ${liste.length} joueurs · ${LARGEUR} × ${HAUTEUR} · WebP ${Q
 
 /* 1. Le téléchargement : le brut en cache, les absents (la redirection vers l'image générique) retenus. */
 const ABSENTS = path.join(BRUT, 'absents.json');
+// Le centre du visage de chaque joueur (scripts/visages_actions.py, une passe d'avant) : la face dans le cadre.
+const LU = path.join(ROOT, 'data', 'actions.json');
+const VISAGES = fs.existsSync(LU) ? (JSON.parse(fs.readFileSync(LU, 'utf8')).visages || {}) : {};
 const absents = new Set(fs.existsSync(ABSENTS) ? JSON.parse(fs.readFileSync(ABSENTS, 'utf8')) : []);
 let telecharges = 0, octetsBruts = 0;
 async function telecharger(id) {
@@ -101,9 +105,9 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
     for (let j = 0; j < 16; j++) for (let i = 0; i < 16; i++) if (g(i + 1, j) > g(i, j)) octets[(j * 16 + i) >> 3] |= 1 << (i & 7);
     return octets;
   };
-  window.recadrer = async b64 => {
+  window.recadrer = async (b64, centre) => {
     const blob = await (await fetch(`data:image/jpeg;base64,${b64}`)).blob();
-    const { webp, fenetre, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE });
+    const { webp, fenetre, mesures } = await window.recadrerActionBlob(blob, { largeur: LARGEUR, hauteur: HAUTEUR, qualite: QUALITE, centre });
     const buf = new Uint8Array(await webp.arrayBuffer());
     let s = ''; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode(...buf.subarray(i, i + 0x8000));
     return { webp: btoa(s), fenetre, mesures, empreinte: await empreinte(blob) };
@@ -148,7 +152,7 @@ async function ouvrier() {
     for (let essai = 0; essai < 2 && !r; essai++) {
       const brut = essai ? await telecharger(id) : f;
       if (!brut) break;
-      try { r = await page.evaluate(b => window.recadrer(b), fs.readFileSync(brut).toString('base64')); } catch { fs.rmSync(brut, { force: true }); }
+      try { r = await page.evaluate(([b, c]) => window.recadrer(b, c), [fs.readFileSync(brut).toString('base64'), VISAGES[id] ?? null]); } catch { fs.rmSync(brut, { force: true }); }
     }
     if (!r) { console.log(`   ${id} : image illisible, laissée de côté`); continue; }
     fenetres.set(id, r.fenetre);
@@ -178,7 +182,8 @@ for (const id of ecartees.keys()) fs.rmSync(path.join(SORTIE, `${id}.webp`), { f
 // 3. La liste des photos présentes : le jeu la lit avant de demander une photo, l'appareil pour savoir quoi télécharger.
 presents.sort((a, b) => a - b);
 if (LIMITE === Infinity && !arg('ids', null)) {
-  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents }));
+  const visages = Object.fromEntries(presents.filter(id => VISAGES[id] != null).map(id => [id, VISAGES[id]]));
+  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents, visages }));
 }
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};
