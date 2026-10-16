@@ -59,7 +59,7 @@
 import { hache } from './util.js';
 import { BANQUE, idsDe, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, VOIES } from './coachs.js';
-import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe } from './sim.js';
+import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe, famillesDe } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
 import { ageAtSeason } from './ratings.js';
 import { NIVEAUX, groupeDuJoueur, niveauDe, joueursParNiveau, joueursHorsNiveau } from './niveaux.js';
@@ -108,10 +108,10 @@ export const PACKS_JOUEURS = {
   ere00: { famille: 'ere', nom: 'Pack années 2000', ico: '📀', tier: 'argent', prix: 22, decennie: 2000, texte: 'Quatre joueurs des années 2000.' },
   ere10: { famille: 'ere', nom: 'Pack années 2010', ico: '📱', tier: 'argent', prix: 22, decennie: 2010, texte: 'Quatre joueurs des années 2010.' },
   ere20: { famille: 'ere', nom: 'Pack années 2020', ico: '🛰', tier: 'argent', prix: 22, decennie: 2020, texte: 'Quatre joueurs des années 2020.' },
-  sniper: { famille: 'skill', nom: 'Pack Francs-tireurs', ico: '🎯', tier: 'argent', prix: 28, skill: 'sniper', texte: 'Quatre marqueurs : le quart du haut aux buts par match de leur saison.' },
-  passeur: { famille: 'skill', nom: 'Pack Passeurs', ico: '🪄', tier: 'argent', prix: 28, skill: 'passeur', texte: 'Quatre passeurs : le quart du haut aux passes par match.' },
-  defensif: { famille: 'skill', nom: 'Pack Défensif', ico: '❄', tier: 'argent', prix: 25, skill: 'defensif', texte: 'Quatre joueurs au meilleur différentiel de leur saison.' },
-  dur: { famille: 'skill', nom: 'Pack Durs à cuire', ico: '🥊', tier: 'argent', prix: 22, skill: 'dur', texte: 'Quatre durs : le quart du haut aux minutes de punition.' },
+  sniper: { famille: 'skill', nom: 'Pack Francs-tireurs', ico: '🎯', tier: 'argent', prix: 28, skill: 'sniper', texte: 'Quatre joueurs du Tir : le quart du haut à leurs points égaux.' },
+  passeur: { famille: 'skill', nom: 'Pack Passeurs', ico: '🪄', tier: 'argent', prix: 28, skill: 'passeur', texte: 'Quatre joueurs du Jeu : le quart du haut à leurs points égaux.' },
+  defensif: { famille: 'skill', nom: 'Pack Défensif', ico: '❄', tier: 'argent', prix: 25, skill: 'defensif', texte: 'Quatre joueurs de la Défense : le quart du haut à leurs points égaux.' },
+  dur: { famille: 'skill', nom: 'Pack Durs à cuire', ico: '🥊', tier: 'argent', prix: 22, skill: 'dur', texte: 'Quatre joueurs de la Robustesse : le quart du haut à leurs points égaux.' },
   gardien: { famille: 'skill', nom: 'Pack Gardiens', ico: '🥅', tier: 'argent', prix: 30, skill: 'gardien', texte: 'Quatre gardiens partants au meilleur pourcentage d\'arrêts de leur saison.' },
   recrue: { famille: 'skill', nom: 'Pack Recrues', ico: '🐣', tier: 'argent', prix: 22, skill: 'recrue', texte: 'Quatre joueurs à leur contrat d\'entrée.' },
   veteran: { famille: 'skill', nom: 'Pack Vétérans', ico: '🧓', tier: 'argent', prix: 22, skill: 'veteran', texte: 'Quatre joueurs de 33 ans et plus.' },
@@ -129,7 +129,7 @@ export const PACKS_JOUEURS = {
   argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs et deux cartes, de meilleures chances.' },
   or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs et deux cartes, les meilleures chances de la boutique.' },
   epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'argent', choix: 'decennie', joueurs: 3, cartes: 2, prix: 26, texte: 'Trois joueurs de la décennie de ton choix, et deux cartes.' },
-  specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes du rôle de ton choix, le quart du haut de leur saison, et deux cartes.' },
+  specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, et deux cartes.' },
   club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et deux cartes.' },
   coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et deux cartes de sa couleur : de quoi bâtir sa confiance.' },
 };
@@ -137,7 +137,7 @@ export const PACKS_JOUEURS = {
 export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach'];
 /* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
 export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
-export const NOMS_SKILLS = { sniper: '🎯 Francs-tireurs', passeur: '🪄 Passeurs', defensif: '❄ Défensif', dur: '🥊 Durs à cuire', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
+export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: '❄ Défense', dur: '🥊 Robustesse', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
 
 /* LES PACKS DE CARTES : la banque (js/banque.js). Toutes gardées dans ton inventaire. */
 const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
@@ -560,12 +560,17 @@ export function packsSansHolo(decisions = []) {
  * LES TALENTS : lus dans les VRAIES fiches de la saison du joueur, jamais
  * dans une cote. \`score\` : plus c'est haut, mieux il correspond ; on pige
  * dans le quart du haut de sa saison (les réguliers seulement).
+ * LES QUATRE FAMILLES (V9, tranche 4) : le Tir, le Jeu, la Défense et la
+ * Robustesse se lisent à points égaux (\`famillesDe\`) — le quart du haut n'est
+ * pas le talent brut, c'est le joueur que sa famille distingue à son niveau.
+ * À tous les niveaux, donc à tous les salaires : les aubaines d'un plan. Les
+ * clés d'avant restent, pour les vieilles parties.
  */
 export const SKILLS = {
-  sniper: { groupe: 'F', min: 30, score: p => (p.g || 0) / Math.max(1, p.gp || 1) },
-  passeur: { groupe: null, min: 30, skaters: true, score: p => (p.a || 0) / Math.max(1, p.gp || 1) },
-  defensif: { groupe: null, min: 40, skaters: true, score: p => (p.pm || 0) },
-  dur: { groupe: null, min: 30, skaters: true, score: p => (p.pim || 0) / Math.max(1, p.gp || 1) },
+  sniper: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).tir },
+  passeur: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).jeu },
+  defensif: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).defense },
+  dur: { groupe: null, min: 30, skaters: true, score: p => famillesDe(p).robustesse },
   gardien: { groupe: 'G', min: 20, score: p => p.sv || 0 },
   recrue: { groupe: null, min: 20, filtre: p => !!p.elc, score: p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1) },
   veteran: { groupe: null, min: 30, filtre: (p, age) => age >= 33, score: p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1) },

@@ -150,7 +150,9 @@ function plafondPourBoutique() {
   const rem = capLeft();
   return { cap: pl.cap, espace: rem, salaireMax: salaireMaxDePack(), tordu: pl.lignes.length + pl.facteurs.size + pl.ltir.size };
 }
-/* Le plus gros salaire qu'un pack peut tirer : l'espace, plus le plus gros « cap hit » qu'une sortie libérerait. */
+/* Un joueur que même la plus grosse sortie ne ferait pas entrer (V9) : ce qu'il manque, à libérer d'abord (un réserviste ✕). */
+const tropCher = p => { const m = (p.$ || 0) - salaireMaxDePack(); return m > 0 ? `Trop cher : il manque ${money(m)}, même en libérant ton plus gros contrat` : ''; };
+/* Le plus gros salaire qu'une signature peut faire entrer : l'espace, plus le plus gros « cap hit » qu'une sortie libérerait. */
 function salaireMaxDePack() {
   const pl = G.ligue ? plafondEffectif() : null;
   return capLeft() + Math.max(0, ...signes().map(q => (pl ? capHit(q, pl) : q.$ || 0)));
@@ -286,7 +288,8 @@ async function tirerPackJoueurs(cle, n, params = {}, mods = {}, garantie = false
   const salaireMax = salaireMaxDePack();
   return tirerJoueursDuPack(cle, {
     graine: Lg.graine, n, params, mods, garantie, saisons: state.index.seasons, shard: getShard,
-    libre: p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p),
+    // V9 (tranche 4) : l'offre n'est plus filtrée sous le plafond ; un joueur trop cher se montre, grisé, avec ce qu'il manque.
+    libre: p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)) && !isPicked(p),
   });
 }
 /*
@@ -446,7 +449,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
     recit: `${cartes.length} vrais joueurs${pitie ? ' — la garantie a joué : une Or, au moins' : ''}${limite ? '. La date limite est passée : tous vont à ton cartable.' : '. Tu en signes un ; les autres vont à ton cartable.'}${vente ? ` Les doublons se revendent : +${vente} 🪙.` : ''}`,
     joueurs: cartes, roster: G.roster,
     bloque: bloqueParLePlafond,
-    desactive: x => (limite ? 'Date limite passée : au cartable' : dejaChezToi(x.p) ? dejaDansTonEquipe(x) : ''),
+    desactive: x => (limite ? 'Date limite passée : au cartable' : dejaChezToi(x.p) ? dejaDansTonEquipe(x) : tropCher(x.p)),
     onSigne: (x, sortie) => {
       const k = getPlayerKey(x.p);
       G.variantes.cartes[k] = x.rar;
@@ -925,6 +928,7 @@ async function ouvrirPacksDeDepart(roster) {
     }));
   }
 }
+const PART_DES_PIRES = 1 / 3;
 async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()) {
   // Tirés de la graine de la run (oct.) : recharger la page devant les packs de départ redonne les mêmes joueurs.
   const ordre = (liste, ...k) => liste.slice().sort((a, b) => hache(graine, 'plombiers', ...k, String(a)) - hache(graine, 'plombiers', ...k, String(b)));
@@ -932,6 +936,8 @@ async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()
   const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
   // Mesuré : le fond absolu (0-20 %) faisait 6 à 12 points, une run perdue d'avance ; 10-30 % en fait 12 à 33.
   const [bas, haut] = aDebloque(meta, 'plombiersPlus') ? [0.3, 0.5] : [0.1, 0.3];
+  // LES PIRES CONTRATS (V9, tranche 4) : le tiers le mieux payé de la tranche — un club en reconstruction, dont la masse remplit le plafond.
+  const pires = tranche => tranche.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(tranche.length * PART_DES_PIRES)));
   const gardesPersonnes = new Set(gardes.map(getPersonKey));
   const pool = [];
   for (const s of choisies) {
@@ -939,7 +945,7 @@ async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()
     for (const g of ['F', 'D', 'G']) {
       const reg = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !gardesPersonnes.has(getPersonKey(p)))
         .sort((a, b) => prod(a) - prod(b));
-      const tranche = reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut)));
+      const tranche = pires(reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut))));
       const n = g === 'F' ? 3 : g === 'D' ? 2 : 1;
       const cles = ordre(tranche.map(getPlayerKey), s, g).slice(0, n);
       pool.push(...tranche.filter(p => cles.includes(getPlayerKey(p))));
@@ -1217,14 +1223,13 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
  * budget du classeur, le plafond ne grimpe donc pas de saison en saison.
  */
 function plafondDeDepart(meta) {
-  const lignes = [];
-  let cap = PLAFOND_ROGUE;
-  const v = plafondDuVestiaire(meta);
-  if (v) { cap += v; lignes.push({ nom: 'Les déblocages', montant: v }); }
+  // V9 (tranche 4) : le plafond qui mord — ta masse de départ, plus l'espace de départ et les déblocages.
   const masse = signes().reduce((a, p) => a + (p.$ || 0), 0);
-  const min = Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
-  if (cap < min) { lignes.push({ nom: 'Ta masse de départ', montant: min - cap }); cap = min; }
-  return { cap, lignes };
+  const base = Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
+  const lignes = [{ nom: 'Ta masse de départ, plus l\'espace', montant: base }];
+  const v = plafondDuVestiaire(meta);
+  if (v) lignes.push({ nom: 'Les déblocages', montant: v });
+  return { cap: base + v, lignes };
 }
 /*
  * LA FIN D'UNE SAISON ROGUE : les écussons (payés une fois, `payerEcussons`

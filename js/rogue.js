@@ -149,12 +149,16 @@ export const DEBLOCAGES = {
 /* Le plafond que le vestiaire ajoute au départ d'une run. */
 export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0) + (aDebloque(m, 'plafond2') ? 4_000_000 : 0);
 /*
- * LE PLAFOND D'UNE RUN (S79), et l'espace qu'elle garde au départ : 82 M$,
- * et au moins 12 M$ au-dessus de la masse de départ (trois vedettes gardées
- * de la dernière run ne doivent pas bloquer la saison).
+ * LE PLAFOND D'UNE RUN (S79) : 82 M$, la référence du budget du classeur.
+ * LE PLAFOND QUI MORD (V9, tranche 4 ; docs/refonte-v9.md § 6.2). Celui d'une
+ * saison est ta masse de départ, plus `ESPACE_DE_DEPART` (et ce que les
+ * déblocages ajoutent) : on hérite d'un club en reconstruction, ses pires
+ * contrats et presque aucun espace. Chaque signature fait partir quelqu'un ou
+ * une part de la masse : le choix du 82-0, où le meilleur coûte et la place a
+ * un prix. Avant, 82 M$ et au moins 12 M$ d'espace : rien ne forçait un choix.
  */
 export const PLAFOND_ROGUE = 82_000_000;
-export const ESPACE_DE_DEPART = 12_000_000;
+export const ESPACE_DE_DEPART = 4_000_000;
 /*
  * LE DÉPART DU CLASSEUR (S80) : combien de cartes, et comment elles se
  * prennent. `hasard` : elles sont tirées, on les voit, on les prend ;
@@ -179,12 +183,13 @@ export function lotosDeSaison(m) {
 /*
  * LE BUDGET DU CLASSEUR : ce que ses cartes peuvent coûter ensemble. Le
  * plafond de la run, moins l'espace qu'elle garde au départ, moins ce que
- * coûtent des plombiers (mesuré S79 : 29 à 51 M$, on en garde 45). Sans ça,
+ * coûtent des plombiers (mesuré V9 : les pires contrats de leur tranche, 43 à
+ * 74 M$, 57 en médiane ; on en garde 53, et le budget reste à 25 M$). Sans ça,
  * trois vedettes du classeur feraient monter le plafond (`ESPACE_DE_DEPART`)
  * et la masse salariale ne voudrait plus rien dire. 25 M$ sans déblocage :
  * deux vedettes, ou quatre bons joueurs.
  */
-const RESERVE_PLOMBIERS = 45_000_000;
+const RESERVE_PLOMBIERS = 53_000_000;
 export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESPACE_DE_DEPART - RESERVE_PLOMBIERS + PRESTIGES[rangDePrestige(m)].classeur;
 /*
  * LE PRESTIGE DU CLUB (v2). JP : *favoriser que l'on peut avoir de plus en plus
