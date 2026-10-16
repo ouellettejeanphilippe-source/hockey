@@ -127,7 +127,8 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - On mesure une carte EN PAIRES, sinon on ne mesure rien — `check_cartes`.
 - Une carte peut ne jouer que dans son moment (`si` : à domicile, à l'étranger, en séries) : elle frappe alors plus fort ses soirs-là, rien hors d'eux, et sa face dit son moment en premier — `check_si`.
 - Une carte change la FORME du match, pas sa force : le net en victoires est borné par la rareté (commune ±1, peu commune ±1,5, rare ±2,5, légendaire ±4 : un maximum, jamais une cible), une rare ou une légendaire se VOIT dans la feuille (±2 tirs, ±0,3 but des deux clubs, ±0,5 punition, ±4 mises en échec ou ±3 blessures), et le style ne se paie pas en force : au plus 0,5 V par seuil franchi — `check_cartes`.
-- Les gros matchs portent leur plan, leur contre et leur pointage après deux périodes — `check_gros`.
+- Les gros matchs portent leur plan, leur contre et leur pointage après deux périodes — `check_gros`. En Rogue (V9), ce sont des duels de trois périodes, une intention chacune, et les périodes vues ne bougent pas — `check_gros`, `check_duel`.
+- Deux clubs égaux, le duel bien joué contre le mal joué : 62 à 65 % en face à face, jamais plus de 70 % — `check_duel`.
 - Le robot « premier Signer » ne gagne pas la Coupe — `check_robot`.
 - Une carte seule reste sous la borne de sa rareté et la première run reste dure ; une run qui a duré, ou un build qui s'emboîte, a le droit de casser le jeu — c'est la récompense du Rogue (docs/refonte-v3.md, principe 5).
 
@@ -181,7 +182,8 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **couleur** : le coach d'une carte, ou d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon ». Une carte sans couleur est **neutre**.
 - **confiance** : I, II, III — un seul coach en poste, choisi au début de la saison à la confiance I ; ses cartes jouées le montent à II (6) et III (9), chacune une fois, celles du deck de départ non. « Le congédiement » en installe un autre, à I, et l'ancien part avec son bonus (V5).
 - **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — médailles 🏅 gagnées à vie et un exploit par rang ; il ouvre les Étoiles et les Phénomènes des packs.
-- **élan** : la mana des cartes de match (trois par main, « 1 élan » sur une carte).
+- **élan** : la mana des cartes de match (trois par main ; au duel du Rogue, deux par période ; « 1 élan » sur une carte).
+- **duel** : le gros match du Rogue, en trois périodes (V9). **Intention** : ce que l'adversaire annonce avant une période, et qui vise tes joueurs par leur nom (🥷 l'ombre, 🦈 la chasse, ⛔ fermer le centre, 🐗 l'assaut, 🦂 les punitions). **Geste** : ta réponse sur la glace, le temps de la période ; une intention **contrée** se retourne contre eux jusqu'à la fin du match. **La mise doublée** : avant la 3e d'un duel de saison, le butin ou les sonnés doublent. La main du duel dure les trois périodes.
 - **poche** : en Rogue, tes cartes pas encore jouées (packs, paliers) ; elle suit d'une saison à l'autre de la run (Jalon Q). Tu en joues deux par semaine, d'où tu veux. **La main de la semaine** : les quatre cartes que le coach suggère au bureau (`mainDeLaSemaine`, js/inventaire.js). Une carte d'un coach auquel l'équipe croit sort plus souvent. Vendre amincit la poche.
 - **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers. Les joueurs faibles du départ d'une run sont des **bouche-trous**, pas des plombiers.
 - **vestiaire** : la pièce, et l'équipe qui y vit (« le vestiaire est galvanisé ») ; au repêchage, le vestiaire d'une vraie équipe où l'on pige. Ce que les médailles achètent, ce sont **les déblocages** ; l'équipe d'une run, c'est **ton effectif**.
@@ -236,6 +238,8 @@ Depuis la V2.3 : `node scripts/check_voies.mjs` (quarante minutes ; `VOIES=tortu
 L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scripts/check_chiffres.mjs` (une minute : ce que l'écran annonce égale ce que le moteur joue, en paires) et `node scripts/check_impact.mjs` (douze secondes : la base de la ligue, le témoin à zéro ; `COMPLET=1` le tableau de chaque choix).
 
 Depuis la V3 : `node scripts/check_si.mjs` (onze minutes, douze graines : les cartes d'un moment, en paires), `node scripts/check_lancee.mjs` (une minute : la lancée et le doute du Rogue, absents du 82-0), `node scripts/check_combo.mjs` (trois minutes et demie : le feu qui s'entretient, chaque pièce seule sous sa borne, le build complet qui casse le jeu, en paires) et `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
+
+Depuis la V9, tranche 5 : `node scripts/check_duel.mjs` (une minute et demie ; `N` matchs par club et par bras, 2500 pour la précision qu'exige la cible) — deux copies d'un même vrai club, le duel bien joué contre le mal joué, sur les mêmes dés ; les périodes vues ne bougent pas.
 
 Depuis le Jalon P : `node scripts/check_arcs.mjs` (une minute) — chaque arc naît d'un fait relu dans le journal du club, joue son effet, se rejoue pareil ; sa valeur se mesure en blocs appariés (ses matchs avec et sans son effet, les mêmes dés), jamais en saisons appariées, qui divergent au moindre écart.
 

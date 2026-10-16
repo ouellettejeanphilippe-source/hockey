@@ -27,12 +27,12 @@
  *     signe la carte du pack qui monte le plus ses buts nets, lus au moteur,
  *     plan compris ; il aligne au mieux (`alignementAuMieux`, le bouton
  *     « Aligner au mieux ») au départ et après chaque signature ; il joue chaque
- *     gros match de saison : la main de l'adjoint, préparée pour la piste la
- *     plus probable ;
+ *     gros match en duel (V9, tranche 5) : il répond à chaque intention, puis
+ *     joue ce que l'adjoint jouerait (scripts/lib/duel.mjs) ;
  *   - 'distrait' : il clique sans lire. Un coach au hasard ; une carte du pack au hasard, et qui
  *     sort au hasard (le nouveau prend sa case) ; un système au hasard par
- *     ligne, parmi ceux que la fenêtre offre ; aux gros matchs et en séries, une main jouable au hasard et une
- *     piste au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
+ *     ligne, parmi ceux que la fenêtre offre ; aux gros matchs et en séries, une réponse sur deux et une
+ *     main jouable au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
  *     clics ont leur générateur : les adversaires et les dés restent ceux des
  *     deux autres.
  *
@@ -46,10 +46,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
-  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
-  ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, PLANS_ADV, avecHasardIsole, lignesAuMieux, activeLineup,
+  createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
+  ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, avecHasardIsole, lignesAuMieux, activeLineup,
 } from '../../js/sim.js';
-import { DECK_DEPART, CARTES_MATCH, mainDuMatch, mainDeLAdjoint, energieDepensee } from '../../js/combat.js';
+import { DECK_DEPART } from '../../js/combat.js';
+import { robotDuel } from './duel.mjs';
 import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
 import { effetDePalier } from '../../js/coachs.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
@@ -285,15 +286,16 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
   // Ce que la fenêtre du Rogue offre (V9) : les systèmes du plan, ou aucun.
   if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: auHasard(['hourra', ...SYSTEMES_DU_PLAN.F]), tacD: auHasard(['hourra', ...SYSTEMES_DU_PLAN.D]) })) });
-  // Une main jouable au hasard : le distrait pose ses cartes dans le désordre, tant que l'élan suffit, et prépare une piste au hasard.
-  const mainAuHasard = main => {
-    const pris = new Set();
-    for (const i of melanger(main.map((_, k) => k), clic)) {
-      const C = CARTES_MATCH[main[i]];
-      if (C && !C.injouable && energieDepensee([...[...pris].map(k => main[k]), main[i]]) >= 0) pris.add(i);
-    }
-    return { main: { jouees: [...pris].map(k => main[k]), enMain: main.filter((c, k) => !pris.has(k) && CARTES_MATCH[c] && CARTES_MATCH[c].enMain) }, prep: [auHasard(Object.keys(PLANS_ADV))] };
-  };
+  /*
+   * LE DUEL (V9, tranche 5, scripts/lib/duel.mjs) : l'attentif lit chaque intention et y répond ; le distrait clique au
+   * hasard ; le robot d'avant laisse l'adjoint jouer ses mains en séries, et rien aux gros matchs de saison, comme avant.
+   * `mains: false`, aucun : ni geste ni carte.
+   */
+  if (mains) {
+    const r = robotDuel(attentif ? 'attentif' : clic ? 'distrait' : 'adjoint', clic || undefined);
+    you.robotDuel = attentif || clic ? r : ctx => (ctx.serie ? r(ctx) : {});
+    you.deckDuel = DECK_DEPART;
+  }
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
@@ -306,7 +308,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       const pour = m.A === you ? m.gfA : m.gfB, contre = m.A === you ? m.gfB : m.gfA;
       if (pour > contre) W++; else if (m.ot) P++; else D++;
     }
-    const gros = (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1), 0);
+    const gros = (you.minisBoss || []).filter(mb => mb.gagne).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
     const B = baremeRogue(meta);
     // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
     return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total - depense;
@@ -361,12 +363,6 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         Object.assign(actuel, r);
       }
     }
-    // LE GROS MATCH DE SAISON, annoncé d'avance : l'attentif joue la main de l'adjoint et prépare la piste probable ; le distrait, au hasard.
-    const ann = mains && politique !== 'defaut' && L.grosAnnonces[L.jour];
-    if (ann) {
-      const { main } = mainDuMatch(L.graine, `j${L.jour}`, DECK_DEPART);
-      decisions.push({ jour: L.jour, ...(clic ? mainAuHasard(main) : { main: mainDeLAdjoint(main), prep: [planProbable(ann.depistage)] }) });
-    }
     jouerJournee(L);
     // La plus longue séquence de victoires (un jalon).
     for (const m of L.calendrier[L.jour - 1] || []) {
@@ -381,20 +377,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   if (rang <= 16) {
     const decsS = [];
     const S = creerSeries(b.standings.slice(0, 16), { ligue: L, graine: L.graine, decisions: decsS, equipes: L.teams });
-    for (let garde = 0; !S.fini && garde < 200; garde++) {
-      /*
-       * LA MAIN EN SÉRIES (Jalon P0). Le robot jouait ses séries sans carte quand l'adversaire jouait la sienne : ce que
-       * le joueur vit en séries n'était pas mesuré. Il joue maintenant la main de l'adjoint (« L'adjoint joue cette
-       * série », `mainDeLAdjoint`) tirée du deck de départ, avec la piste la plus probable ; `mains: false`, sans.
-       */
-      const s = mains && S.courante.find(x => (x.A === you || x.B === you) && x.wA < 4 && x.wB < 4);
-      if (s) {
-        const pl = s.plans[S.k];
-        const { main } = mainDuMatch(S.graine, `po${S.ronde}:${S.k}`, DECK_DEPART);
-        decsS.push({ ronde: S.ronde, match_no: S.k, ...(clic ? mainAuHasard(main) : { main: mainDeLAdjoint(main), prep: pl ? [planProbable(pl.depistage)] : [] }) });
-      }
-      jouerMatchSeries(S);
-    }
+    // LA MAIN EN SÉRIES (Jalon P0) : chaque match est un duel, joué par `you.robotDuel` (plus haut).
+    for (let garde = 0; !S.fini && garde < 200; garde++) jouerMatchSeries(S);
     rondes = S.toutes.filter(s => s.winner === you).length;
     coupe = S.champion === you;
     // LE PACK D'UNE SÉRIE GAGNÉE (Jalon P1, `PACKS_DE_SERIE`) : ses joueurs vont au classeur, pas dans l'alignement des séries.

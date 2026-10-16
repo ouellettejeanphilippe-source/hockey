@@ -20,7 +20,7 @@ import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries,
   PLANS_ADV, planEstContre, planDeSerie, entractesOfferts, effetEntracte, contreDe, TACTIQUES,
   AVANT_GROS, avantDuGros, ENTRACTES, entractesDu,
-  lignesDeGros, lignesDe, planProbable, activeLineup,
+  lignesDeGros, lignesDe, planProbable, activeLineup, SONNE, MISE_DOUBLEE,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -274,6 +274,43 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
   // Sans plan, lignesDeGros = les lignes de la saison : rien ne change pour un match ordinaire.
   const t1 = teams[1];
   exiger('sans plan, les lignes d\'un match ordinaire sont celles de la saison', JSON.stringify(lignesDeGros(t1, t1.roster, null)) === JSON.stringify(lignesDe(t1, t1.roster, { duSoir: false })));
+}
+
+/*
+ * LE DUEL (V9, tranche 5 ; scripts/check_duel.mjs mesure sa force). Dans une ligue de Rogue (`courbe`), chaque gros
+ * match se joue en trois périodes, sans plan à dépister ; la décision de la 2e période garde la 1re, celle de la 3e
+ * les deux premières, et les journées d'avant ne bougent pas ; la mise doublée double les sonnés d'une défaite.
+ */
+{
+  let essais = 0, p1 = 0, p12 = 0, duels = 0, complets = 0, misesOk = 0;
+  for (let L = 0; L < LIGUES; L++) {
+    const graine = `duel-${L}`;
+    const base = ligue(9700 + L);
+    simulateLeague(base, 82, { graine, decisions: [], courbe: true });
+    const mbs = base[0].minisBoss || [];
+    duels += mbs.length;
+    complets += mbs.filter(x => x.duel && x.duel.periodes.length === 3 && x.plan == null && !x.depistage).length;
+    const mb = mbs[0];
+    if (!mb) continue;
+    const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true }); return { teams, cal: res.calendrier }; };
+    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0, reponse: null }, sel: 's0' };
+    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, reponse: null }, sel: 's1' };
+    const dp2 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 2, reponse: null, snap: true }, sel: 's2' };
+    const r0 = jouer([p0]), r1 = jouer([p0, dp1]), r2 = jouer([p0, dp1, dp2]);
+    const leSoir = r => r.cal[mb.jour].find(m => m.A === r.teams[0] || m.B === r.teams[0]);
+    const buts = (m, fin) => m.feuille.buts.filter(x => x.instant < fin).map(x => `${x.cote}@${x.instant.toFixed(3)}`).join(',');
+    essais++;
+    if (buts(leSoir(r0), 20) === buts(leSoir(r1), 20)) p1++;
+    if (buts(leSoir(r1), 40) === buts(leSoir(r2), 40)) p12++;
+    const avant = cal => cal.slice(0, mb.jour).map(j => j.map(m => `${m.gfA}-${m.gfB}`).join(' ')).join('|');
+    exiger(`ligue ${L} : les journées d'avant le duel ne bougent pas`, avant(r0.cal) === avant(r2.cal));
+    const mb2 = (r2.teams[0].minisBoss || []).find(x => x.jour === mb.jour);
+    if (mb2 && mb2.mise === MISE_DOUBLEE && (mb2.gagne || mb2.duree === SONNE.duree * MISE_DOUBLEE)) misesOk++;
+  }
+  exiger('en Rogue, chaque gros match est un duel de trois périodes, sans plan à dépister', duels > 0 && complets === duels, `${complets}/${duels}`);
+  exiger('la décision de la 2e période garde la 1re', essais > 0 && p1 === essais, `${p1}/${essais}`);
+  exiger('la décision de la 3e garde les deux premières', p12 === essais, `${p12}/${essais}`);
+  exiger('la mise doublée double les sonnés d\'une défaite', misesOk === essais, `${misesOk}/${essais}`);
 }
 
 verdict('Les gros matchs');

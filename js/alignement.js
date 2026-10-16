@@ -827,10 +827,10 @@ function aVenirDuBanc(plan = {}) {
   const b = G.banc, L = G.ligue, you = L.you, j = b.prochain.j ?? b.jour;
   // EN SÉRIES (V7), le match de ta série : ses décisions déjà prises (un ajustement, une main), sans celles que le banc règle.
   if (b.serie) {
-    return [...(L.decisionsSeries || []).filter(d => d.ronde === b.serie.ronde && d.match_no === b.serie.k && !d.entracte && !d.cases && !d.lignes && !d.match && !d.filet),
+    return [...(L.decisionsSeries || []).filter(d => d.ronde === b.serie.ronde && d.match_no === b.serie.k && !d.entracte && !(d.duel && d.duel.p > 0) && !d.cases && !d.lignes && !d.match && !d.filet),
       { lignes: b.lignes, match: b.match, filet: b.filet, speciales: b.speciales || null, ...plan }];
   }
-  return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !d.lignes && !(d.jour === j && (d.match || d.filet))),
+  return [...(L.decisions || []).filter(d => d.jour >= (you.jourCourant || 0) && d.jour <= j && !d.entracte && !(d.duel && d.duel.p > 0) && !d.lignes && !(d.jour === j && (d.match || d.filet))),
     { jour: j, lignes: b.lignes, match: b.match, filet: b.filet, speciales: b.speciales || null, ...plan }];
 }
 /*

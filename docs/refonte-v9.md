@@ -8,7 +8,7 @@
 - *Simplifier visuellement et la façon de jouer, mais gagner en profondeur et en storytelling, deux choses absentes aujourd'hui. Le Rogue est brain dead ; le 82-0, avec ses rolls, demande plus de stratégie.*
 - *Je ne suis pas attaché au jeu tel qu'il est, mais demande-moi avant un changement majeur.*
 
-**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1 à 4 sont faites (§ 13 à § 16) ; les autres attendent leur tour, une PR chacune.
+**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1 à 5 sont faites (§ 13 à § 17) ; les autres attendent leur tour, une PR chacune.
 
 ## 1. Comment c'est mesuré
 
@@ -144,6 +144,8 @@ C'est l'élite de Slay the Spire. L'adversaire montre son **intention** avant ch
 - **Cible** : deux équipes égales, un duel bien joué contre un duel mal joué, entre **62 % et 65 %** de victoires d'un côté et **35 % à 38 %** de l'autre, jamais au-delà de 70 %. Aujourd'hui, tout le gros match vaut environ ±3 points.
 - Le moteur joue déjà le gros match en deux blocs (0-40, puis 40-60). Trois blocs, un par période, c'est le même mécanisme avec un bloc de plus.
 
+*Tranché à la tranche 5 (§ 17)* : les icônes 🥷 l'ombre, 🦈 la chasse, ⛔ fermer le centre, 🐗 l'assaut, 🦂 les punitions. Le geste vaut le temps de sa période, comme l'intention ; contrée, l'intention se retourne contre eux jusqu'à la fin du match. Deux d'élan par période. Le nombre de duels : ceux d'aujourd'hui (tes rivaux et ta bête noire, une dizaine), plus chaque match de séries. Le snap se dit « doubler la mise », en saison seulement.
+
 ### 6.4 Ta main : un seul paquet
 
 - **Le cahier** : tes cartes de match. Elles se jouent en combat, c'est-à-dire aux gros matchs et aux séries. C'est le deck d'aujourd'hui, borné.
@@ -264,14 +266,14 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 2. **Le juge d'abord.** `check_fit` et les deux robots, mesurés sur le jeu d'aujourd'hui, pour avoir le point de départ (attendu : Spearman 0,97, écart attentif-distrait petit hors de la signature).
 3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 4 (§ 15) ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
 4. **Le plafond qui mord**, la liste qui classe pour ton plan, et **un départ bien pire** (JP, 16 oct. : *you should start with a way worse team*). On part d'une équipe beaucoup plus faible, et c'est le plan et le marché qui la font monter. Le mandat de la saison 1 se règle avec elle. Juge : `check_rogue` (la première run reste dure, mais une équipe faible bien menée monte).
-5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`.
+5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`. *Fait (§ 17). La poche, la main de la semaine et les places (§ 6.4) n'étaient dans aucune tranche : proposées comme tranche 5b.*
 6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`.
 7. **Graver** : l'histoire chez toi, les galons, le panthéon. Juges : `check_sauvegardes`, `essai_rogue`.
 8. **Recalibrer la run** sur les deux robots.
 
 ## 12. Ce que JP tranche
 
-**Tranché le 16 oct.** JP : *oui à tout, commence par la tranche 1 ; l'idée est que ça ne devrait pas être facile, mais possible, de rouler sur la ligue avec les bons joueurs, stratégies et cie, ou de se planter royalement avec un bon roster, comme la vraie vie.* Le nombre de duels par saison (question 4) se tranchera à la tranche 5. Puis : *start with a way worse team* — avec la tranche 4 : un départ bien pire n'a de sens que quand le plan et le marché donnent de quoi remonter (aujourd'hui, la signature est le seul levier, et une équipe bien pire perdrait sa première saison, point).
+**Tranché le 16 oct.** JP : *oui à tout, commence par la tranche 1 ; l'idée est que ça ne devrait pas être facile, mais possible, de rouler sur la ligue avec les bons joueurs, stratégies et cie, ou de se planter royalement avec un bon roster, comme la vraie vie.* Le nombre de duels par saison (question 4) se tranchera à la tranche 5 ; *tranché là (§ 17) : ceux d'aujourd'hui, une dizaine, plus les séries*. Puis : *start with a way worse team* — avec la tranche 4 : un départ bien pire n'a de sens que quand le plan et le marché donnent de quoi remonter (aujourd'hui, la signature est le seul levier, et une équipe bien pire perdrait sa première saison, point).
 
 1. **Le plan décide quelles stats comptent** (moteur, Rogue seulement), à environ 1 V par écart type dans le top six. Oui ? C'est le changement majeur : il lève la règle « aucune mécanique neuve » pour le Rogue.
 2. **Le profil en quatre familles** (Tir, Jeu, Défense, Robustesse), dit en badges et en vraies stats. Oui ? Ou d'autres familles ?
