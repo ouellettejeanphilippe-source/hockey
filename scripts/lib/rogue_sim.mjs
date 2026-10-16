@@ -18,6 +18,21 @@
  * humain fait mieux ; ce qui compte, c'est la PENTE d'un niveau de
  * déblocages à l'autre, au même robot.
  *
+ * LES TROIS POLITIQUES (V9, tranche 2 ; docs/refonte-v9.md § 10). Le jeu est
+ * profond si la façon de mener compte : sur les mêmes dés, un gérant attentif
+ * et un gérant distrait ne finissent pas au même rang. `politique` :
+ *   - 'defaut' : le robot grossier ci-dessus (check_rogue, check_robot) ;
+ *   - 'attentif' : il signe pareil, mais aligne au mieux (`alignementAuMieux`,
+ *     le bouton « Aligner au mieux ») au départ et après chaque signature, et
+ *     joue chaque gros match de saison : la main de l'adjoint, préparée pour
+ *     la piste la plus probable ;
+ *   - 'distrait' : il clique sans lire. Une carte du pack au hasard, et qui
+ *     sort au hasard (le nouveau prend sa case) ; un système au hasard par
+ *     ligne ; aux gros matchs et en séries, une main jouable au hasard et une
+ *     piste au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
+ *     clics ont leur générateur : les adversaires et les dés restent ceux des
+ *     deux autres.
+ *
  * Tout est pur : un générateur semé par la graine de la run, et le moteur
  * sous sa graine. Les tirages de packs imitent `tirerPackJoueurs`
  * (js/game.js) — la moitié productive d'une saison, le quart du haut d'un
@@ -29,9 +44,10 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement, planProbable,
-  ecoleDe, rivauxOfferts, RIVAUX,
+  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, PLANS_ADV,
 } from '../../js/sim.js';
-import { DECK_DEPART, mainDuMatch, mainDeLAdjoint } from '../../js/combat.js';
+import { DECK_DEPART, CARTES_MATCH, mainDuMatch, mainDeLAdjoint, energieDepensee } from '../../js/combat.js';
+import { alignementAuMieux } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie } from '../../js/packs.js';
 import { niveauDe } from '../../js/niveaux.js';
@@ -167,24 +183,29 @@ function valeurAlignement(roster) {
   return s;
 }
 const masseDe = roster => Object.values(roster).filter(Boolean).reduce((a, p) => a + (p.$ || 0), 0);
-/* Ranger : l'alignement automatique, puis les cases de réserve de plus — les meilleurs d'abord. */
-function ranger(joueurs, nReserves) {
-  const r = autoRoster(joueurs);
+/* Ranger : l'alignement automatique (ou au mieux), puis les cases de réserve de plus — les meilleurs d'abord. */
+function ranger(joueurs, nReserves, aligner = autoRoster) {
+  const r = aligner(joueurs);
   const dedans = new Set(Object.values(r).map(getPersonKey));
   const reste = joueurs.filter(p => !dedans.has(getPersonKey(p))).sort((a, b) => v(b) - v(a));
   for (const sl of SLOTS.filter(s => s.extra && s.extra <= nReserves)) { const p = reste.shift(); if (p) r[sl.i] = p; }
   return r;
 }
 
+export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
+/* Les clics du distrait : un générateur à lui (null pour les deux autres). Les meilleurs d'abord, ou dans le désordre. */
+const melanger = (l, clic) => l.map(x => [clic(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
+const meilleursDabord = (l, clic, f = x => x) => (clic ? melanger(l, clic) : l.slice().sort((a, b) => v(f(b)) - v(f(a))));
+
 /* Les cartes du classeur au départ : au hasard, le tri (deux fois plus, on garde les meilleures), ou le choix. */
-function tirerClasseur(rnd, meta, classeur, exclus) {
+function tirerClasseur(rnd, meta, classeur, exclus, clic = null) {
   const D = departDuClasseur(meta);
   if (!D.n || !classeur.length) return [];
   const budget = budgetDuClasseur(meta);
   const dispo = classeur.filter(x => (x.p.$ || 0) <= budget && !exclus.has(getPersonKey(x.p)));
   const melange = dispo.map(x => [rnd(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
-  const vus = D.mode === 'choix' ? dispo.slice().sort((a, b) => v(b.p) - v(a.p)) : melange.slice(0, D.vues);
-  const ordre = D.mode === 'hasard' ? vus : vus.slice().sort((a, b) => v(b.p) - v(a.p));
+  const vus = D.mode === 'choix' ? meilleursDabord(dispo, clic, x => x.p) : melange.slice(0, D.vues);
+  const ordre = D.mode === 'hasard' ? vus : meilleursDabord(vus, clic, x => x.p);
   const pris = [], personnes = new Set();
   let reste = budget;
   for (const x of ordre) {
@@ -217,12 +238,17 @@ function packVoulu(meta, jetons, n) {
  * (la saison 2 d'une run repart de l'équipe de la saison 1), les jetons de
  * départ. Rend la fiche, les séries, les jetons qui restent et l'équipe.
  */
-function jouerSaison(meta, etat, { graine, saison, mains = true }) {
+export function jouerSaison(meta, etat, { graine, saison, mains = true, politique = 'defaut' }) {
   const rnd = generateur('rogue80', graine, saison);
-  const { roster, variantes } = etat;
+  const attentif = politique === 'attentif';
+  const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine, saison) : null;
+  const auHasard = l => l[Math.floor(clic() * l.length)];
   const nRes = reservesDeLaRun(meta);
+  const { variantes } = etat;
   const poser = p => { const k = getPlayerKey(p); p._carte = carteDe(variantes.get(k) || varianteTiree(COTES_VARIANTES, graine, k), p.p === 'G', graine, k); };
-  Object.values(roster).forEach(poser);
+  Object.values(etat.roster).forEach(poser);
+  // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
+  const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, alignementAuMieux) : etat.roster;
   const masse0 = masseDe(roster);
   const base = PLAFOND_ROGUE + plafondDuVestiaire(meta);
   // Chaque saison garde 12 M$ d'espace au départ : l'équipe se défait entre deux saisons (js/rogue-jeu.js `plafondDeDepart`).
@@ -233,7 +259,17 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }];
   // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
   const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
-  if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: offre.slice(1, 1 + RIVAUX).map(x => ({ cle: x.cle, butin: x.butin })) });
+  if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
+  if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: auHasard(Object.keys(TACTIQUES)), tacD: auHasard(Object.keys(SYSTEMES_D)) })) });
+  // Une main jouable au hasard : le distrait pose ses cartes dans le désordre, tant que l'élan suffit, et prépare une piste au hasard.
+  const mainAuHasard = main => {
+    const pris = new Set();
+    for (const i of melanger(main.map((_, k) => k), clic)) {
+      const C = CARTES_MATCH[main[i]];
+      if (C && !C.injouable && energieDepensee([...[...pris].map(k => main[k]), main[i]]) >= 0) pris.add(i);
+    }
+    return { main: { jouees: [...pris].map(k => main[k]), enMain: main.filter((c, k) => !pris.has(k) && CARTES_MATCH[c] && CARTES_MATCH[c].enMain) }, prep: [auHasard(Object.keys(PLANS_ADV))] };
+  };
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
@@ -262,10 +298,17 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
       const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && p.$ <= salaireMax && !dansLaLigue.has(getPersonKey(p)), voulu.role);
       entrees.push(...cartes);
       // SIGNER (un seul du pack) : celui qui monte le plus l'alignement, sous le plafond ; qui sort : celui que l'alignement laisse.
+      // Le distrait : une carte au hasard, et un joueur du même groupe au hasard lui laisse sa case.
       let meilleur = null;
       const joueurs = Object.values(actuel).filter(Boolean);
       const valeur0 = valeurAlignement(actuel);
-      for (const x of cartes) {
+      if (clic && cartes.length) {
+        const x = auHasard(cartes);
+        const memes = Object.entries(actuel).filter(([, p]) => p && groupe(p) === groupe(x.p));
+        const [i, sort] = memes.length ? auHasard(memes) : [];
+        if (sort && masseDe(actuel) - (sort.$ || 0) + (x.p.$ || 0) <= cap) meilleur = { x, r: { ...actuel, [i]: x.p }, sort };
+      }
+      for (const x of clic ? [] : cartes) {
         const avec = [...joueurs, x.p];
         const r = ranger(avec, nRes);
         const dedans = new Set(Object.values(r).map(getPersonKey));
@@ -277,7 +320,8 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
         if (gain > 0.5 && (!meilleur || gain > meilleur.gain)) meilleur = { x, r, sort, gain };
       }
       if (meilleur) {
-        const { x, r, sort } = meilleur;
+        const { x, sort } = meilleur;
+        const r = attentif ? ranger(Object.values(meilleur.r).filter(Boolean), nRes, alignementAuMieux) : meilleur.r;
         variantes.set(getPlayerKey(x.p), x.rar);
         poser(x.p); connaitre(x.p);
         dansLaLigue.add(getPersonKey(x.p));
@@ -289,6 +333,12 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
         for (const k of Object.keys(actuel)) delete actuel[k];
         Object.assign(actuel, r);
       }
+    }
+    // LE GROS MATCH DE SAISON, annoncé d'avance : l'attentif joue la main de l'adjoint et prépare la piste probable ; le distrait, au hasard.
+    const ann = mains && politique !== 'defaut' && L.grosAnnonces[L.jour];
+    if (ann) {
+      const { main } = mainDuMatch(L.graine, `j${L.jour}`, DECK_DEPART);
+      decisions.push({ jour: L.jour, ...(clic ? mainAuHasard(main) : { main: mainDeLAdjoint(main), prep: [planProbable(ann.depistage)] }) });
     }
     jouerJournee(L);
     // La plus longue séquence de victoires (un jalon).
@@ -313,8 +363,8 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
       const s = mains && S.courante.find(x => (x.A === you || x.B === you) && x.wA < 4 && x.wB < 4);
       if (s) {
         const pl = s.plans[S.k];
-        const { jouees, enMain } = mainDeLAdjoint(mainDuMatch(S.graine, `po${S.ronde}:${S.k}`, DECK_DEPART).main);
-        decsS.push({ ronde: S.ronde, match_no: S.k, main: { jouees, enMain }, prep: pl ? [planProbable(pl.depistage)] : [] });
+        const { main } = mainDuMatch(S.graine, `po${S.ronde}:${S.k}`, DECK_DEPART);
+        decsS.push({ ronde: S.ronde, match_no: S.k, ...(clic ? mainAuHasard(main) : { main: mainDeLAdjoint(main), prep: pl ? [planProbable(pl.depistage)] : [] }) });
       }
       jouerMatchSeries(S);
     }
@@ -342,14 +392,15 @@ function jouerSaison(meta, etat, { graine, saison, mains = true }) {
  * peuvent débloquer en cours de run. Rend la run saison par saison, les
  * écussons, ce qui entre au classeur, et l'équipe finale.
  */
-export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8, joues = new Map(), mains = true } = {}) {
+export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', jalons = false, maxSaisons = 8, joues = new Map(), mains = true, politique = 'defaut' } = {}) {
   const rnd = generateur('rogue80', graine);
+  const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine) : null;
   const exclus = new Set();
-  // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs).
-  const gardes = derniere.slice().sort((a, b) => v(b) - v(a)).slice(0, nombreGardes(meta)).map(copie);
+  // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs ; le distrait, n'importe qui).
+  const gardes = meilleursDabord(derniere, clic).slice(0, nombreGardes(meta)).map(copie);
   gardes.forEach(p => exclus.add(getPersonKey(p)));
   // Les cartes du classeur au départ.
-  const tires = tirerClasseur(rnd, meta, classeur, exclus).map(x => ({ p: copie(x.p), rar: x.rar }));
+  const tires = tirerClasseur(rnd, meta, classeur, exclus, clic).map(x => ({ p: copie(x.p), rar: x.rar }));
   tires.forEach(x => exclus.add(getPersonKey(x.p)));
   const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart` });
   const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta) };
@@ -359,7 +410,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   let ecussons = 0;
   const entrees = Object.values(etat.roster).map(p => ({ p, rar: etat.variantes.get(getPlayerKey(p)) || 'commune' }));
   for (let n = 1; n <= maxSaisons; n++) {
-    const r = jouerSaison(meta, etat, { graine, saison: n, mains });
+    const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique });
     entrees.push(...r.entrees);
     let e = ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe);
     // La prime de découverte : les cartes qui finissent leur première saison (`joues` ne les connaît pas encore).
@@ -373,12 +424,12 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     if (r.coupe || !mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32 })) break;
     // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
     const equipe = Object.values(r.roster).filter(Boolean);
-    const restent = gardesDeSaison(meta, equipe);
+    const restent = gardesDeSaison(meta, equipe, clic);
     const partants = new Set(equipe.map(getPlayerKey).filter(k => !restent.some(p => getPlayerKey(p) === k)));
     // Le classeur a grossi pendant la saison : les cartes tirées des packs en sont.
     const classeurSaison = [...classeur, ...r.entrees.map(x => ({ p: x.p, rar: x.rar }))];
     // LES LOTOS DU CARTABLE (Jalon Q) : le robot signe la meilleure carte de chaque loto, sous le budget du classeur.
-    const lotos = lotosDuRobot(meta, classeurSaison, restent, partants, `${graine}:s${n + 1}`);
+    const lotos = lotosDuRobot(meta, classeurSaison, restent, partants, `${graine}:s${n + 1}`, clic);
     etat.roster = vestiaire(rnd, meta, [...restent, ...lotos.map(x => copie(x.p))], classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}` }).roster;
     etat.jetons = r.reste + jetonsDeDepart(meta);
   }
@@ -418,7 +469,7 @@ function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(),
  * la carte qui vaut le plus parmi celles qui tiennent dans ce qui reste du budget du classeur. Le classeur ouvert :
  * les meilleures de tout le cartable.
  */
-function lotosDuRobot(meta, classeur, gardes, partants, graine) {
+function lotosDuRobot(meta, classeur, gardes, partants, graine, clic = null) {
   const L = lotosDeSaison(meta);
   let budget = budgetDuClasseur(meta) - masseDe(gardes);
   const personnes = new Set(gardes.map(getPersonKey));
@@ -428,22 +479,22 @@ function lotosDuRobot(meta, classeur, gardes, partants, graine) {
   const pris = [];
   const prendre = x => { pris.push(x); personnes.add(getPersonKey(x.p)); budget -= x.p.$ || 0; };
   if (L.mode === 'choix') {
-    for (const x of cles.map(k => parCle.get(k)).sort((a, b) => v(b.p) - v(a.p))) { if (pris.length >= L.n) break; if (tient(x)) prendre(x); }
+    for (const x of meilleursDabord(cles.map(k => parCle.get(k)), clic, y => y.p)) { if (pris.length >= L.n) break; if (tient(x)) prendre(x); }
     return pris;
   }
   for (let i = 0; i < L.n && budget > 0; i++) {
     const vus = [];
     for (const k of tirageDuClasseur(cles, `${graine}:l${i}`)) { if (vus.length >= L.vues) break; const x = parCle.get(k); if (tient(x) && !vus.some(y => getPersonKey(y.p) === getPersonKey(x.p))) vus.push(x); }
-    const [meilleure] = vus.sort((a, b) => v(b.p) - v(a.p));
+    const [meilleure] = meilleursDabord(vus, clic, y => y.p);
     if (meilleure) prendre(meilleure);
   }
   return pris;
 }
 /* Ceux qui restent d'une saison à l'autre : le robot garde les meilleurs qui tiennent ensemble dans le budget du classeur. */
-function gardesDeSaison(meta, equipe) {
+function gardesDeSaison(meta, equipe, clic = null) {
   const budget = budgetDuClasseur(meta), out = [];
   let masse = 0;
-  for (const p of equipe.slice().sort((a, b) => v(b) - v(a))) {
+  for (const p of meilleursDabord(equipe, clic)) {
     if (out.length >= GARDES_DE_SAISON) break;
     if (masse + (p.$ || 0) > budget) continue;
     out.push(p); masse += p.$ || 0;

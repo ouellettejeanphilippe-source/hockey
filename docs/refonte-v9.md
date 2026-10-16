@@ -8,7 +8,7 @@
 - *Simplifier visuellement et la façon de jouer, mais gagner en profondeur et en storytelling, deux choses absentes aujourd'hui. Le Rogue est brain dead ; le 82-0, avec ses rolls, demande plus de stratégie.*
 - *Je ne suis pas attaché au jeu tel qu'il est, mais demande-moi avant un changement majeur.*
 
-**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** La tranche 1 est faite (§ 13) ; les autres attendent leur tour, une PR chacune.
+**Proposé, puis tranché le 16 oct. (§ 12) : oui à tout.** Les tranches 1 et 2 sont faites (§ 13 et § 14) ; les autres attendent leur tour, une PR chacune.
 
 ## 1. Comment c'est mesuré
 
@@ -292,6 +292,52 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
   - Plus de « Compris » : la carte qui change, le vestiaire, les mouvements et le pack gratuit sont les nouvelles d'Hier soir.
   - La case vide est une décision du lot, comme le reste.
   - Preuves : `essai_rogue` (76 choix réglés, de tous les genres ; chaque lot envoie autant de décisions que de choix ; zéro erreur), `essai_packs`, `essai_achat`, `tout.mjs`, `check_mort`, `check_css`, `check_clarte`.
+
+## 14. Fait le 16 octobre : la tranche 2, le point de départ
+
+Les juges d'abord, mesurés sur le jeu d'aujourd'hui. Rien du jeu ne change ; ce sont les chiffres que les tranches 3 à 8 devront bouger.
+
+- [x] **`check_fit`** (une demi-minute). Sept cases (2e et 4e trio AG, 3e trio C, 2e et 3e paire DG), quatre vraies équipes, trois époques ; des candidats du même côté et du même niveau.
+  - L'ordre des candidats d'un système à l'autre : Spearman **0,98** (cible : 0,6 ou moins).
+  - Systèmes qui ont un meilleur différent : **1,6** par case en moyenne (cible : 3 ou plus).
+  - Signer pour son système plutôt que le meilleur en général : **+0,01 V** par case (cible : +0,4 V).
+  - Rouge, comme prévu : c'est le juge de la tranche 3.
+- [x] **Les trois robots** (`politique`, scripts/lib/rogue_sim.mjs).
+  - **Le robot d'avant** ('defaut') : inchangé, `check_rogue` et `check_robot` le gardent.
+  - **L'attentif** : il signe comme lui, mais aligne au mieux (`alignementAuMieux`) au départ et après chaque signature. Il joue chaque gros match de saison : la main de l'adjoint, préparée pour la piste la plus probable.
+  - **Le distrait** clique sans lire :
+    - à la signature, une carte au hasard, et un joueur du même groupe au hasard lui laisse sa case ;
+    - un système au hasard par ligne ;
+    - une main jouable et une piste au hasard ;
+    - les rivaux, les gardés et les lotos au hasard.
+  - Ses clics ont leur propre générateur : les adversaires et les dés restent appariés.
+- [x] **`check_profondeur`** (seize minutes à trois fils).
+  - **Une saison, de vraies équipes.** Le meilleur club et le club du milieu de 1985-86, 1995-96, 2005-06 et 2015-16, chacun lancé dans une saison du Rogue : 31 vrais clubs, les packs, le plafond. Quatre graines appariées par politique, 32 saisons par robot.
+
+    | | victoires par saison |
+    |---|---|
+    | l'attentif contre le robot d'avant | **+1,8 V** (± 0,9) |
+    | le robot d'avant contre le distrait | **+9,8 V** (± 1,3) |
+    | l'attentif contre le distrait | **+11,6 V** (± 1,0) |
+
+  - **D'où vient l'écart du distrait** : 16 saisons appariées, un seul de ses gestes au hasard à la fois.
+    - Signer au hasard : **−5,8 V** (± 2,2).
+    - Les systèmes au hasard : −0,9 V (± 1,4), le bruit.
+    - La main au hasard plutôt que celle de l'adjoint : +1,9 V (± 2,1), le bruit.
+  - **Les deux bouts** arrivent, mais à peine.
+    - Un club du milieu bien mené finit premier 1 fois sur 16 (VAN 1995-96).
+    - Un meilleur club mal mené rate les séries 1 fois sur 16 (WSH 2015-16).
+  - **Les campagnes** : de zéro, deux campagnes de douze runs par robot.
+    - Le robot d'avant gagne sa première Coupe à la run 3 dans les deux campagnes, puis 19 Coupes en 24 runs.
+    - L'attentif : runs 3 et 2, puis 21 Coupes en 24 runs. Médiane 2,5, sous la cible de 3 à 8 : rouge, comme `check_rogue`, dont c'est le même constat.
+    - Le distrait : aucune Coupe en 24 runs (cible tenue).
+
+**Ce que ça dit.**
+1. **Aujourd'hui, mener, c'est ne pas défaire l'automatique.** L'alignement automatique, le système choisi seul et l'adjoint jouent presque juste. Un joueur qui ne fait que « Signer le meilleur » finit à 1,8 V de l'attentif, moins d'un demi écart type de saison (4,5 V). C'est le « brain dead » en un chiffre.
+2. **Seule la signature est une décision.** Le distrait perd surtout en signant au hasard. Des systèmes ou une main au hasard ne coûtent rien de mesurable : à l'écran, ce sont des choix ; dans le moteur, non. C'est ce que la tranche 3 (le plan) et la tranche 5 (le duel) doivent changer.
+3. **La run s'aplatit.** Après deux ou trois runs de déblocages, le robot d'avant gagne la Coupe presque à chaque run. La première run reste dure, mais une run gagnée d'office n'a plus d'enjeu. C'est la tranche 4 (le plafond qui mord, un départ bien pire) et la tranche 8 (recalibrer).
+
+**Proposé pour la suite** (à trancher avec JP à la tranche 3) : que `check_profondeur` exige aussi que l'attentif batte le robot d'avant. C'est ce qui prouvera que le joueur qui lit son plan fait mieux que celui qui laisse l'automatique jouer. Aujourd'hui, l'écart est de +1,8 V ; une cible de +4 à +6 V le mettrait au-dessus d'un écart type de saison.
 
 ## Annexe · la méthode des mesures
 

@@ -2292,3 +2292,15 @@ JP : *faire les choix — uniformiser tous les choix au même endroit du UI, ave
 - Rien d'autre ne change : les mêmes décisions, les mêmes paliers, le même moteur ; le combat s'ouvre encore de lui-même quand rien ne reste à cocher.
 - Vérifié : `essai_rogue` (une run au navigateur, 390 px : 76 choix réglés dans À faire, de tous les genres ; chaque lot tranché envoie autant de décisions que de choix ; la route dit l'état du club ; aucun « Compris » ; zéro erreur), `tout.mjs`, `check_mort`, `check_css`, `check_clarte`, `check_coquille`.
 
+
+## Les juges d'abord : trois robots sur les mêmes dés (V9, tranche 2 — 16 oct. 2026)
+
+JP : *ça ne devrait pas être facile, mais possible, de rouler sur la ligue avec les bons joueurs, stratégies et cie, ou se planter royalement avec un bon roster, comme la vraie vie* ; puis *go pour la tranche 2*. Avant de toucher au moteur, on mesure ce que mener vaut aujourd'hui, avec les juges que les tranches suivantes devront faire passer. **Décidé** :
+- **Trois robots, une seule boucle** (`politique`, scripts/lib/rogue_sim.mjs) plutôt qu'un harnais de plus. Le robot d'avant reste le défaut : `check_rogue` et `check_robot` ne bougent pas, à la graine près. L'attentif fait ce qu'un joueur soigneux fait avec les outils d'aujourd'hui (« Aligner au mieux », l'adjoint, la piste probable). Le distrait choisit au hasard partout où le jeu offre un choix.
+- **Le distrait a son générateur à lui** (`rogue80-distrait`) : ses clics ne mangent pas les dés des packs ni ceux des adversaires, et les trois robots jouent les mêmes clubs.
+- **Les deux bouts se mesurent sur de vraies équipes**, le meilleur club et le club du milieu de quatre saisons, au vrai pourcentage de victoires de leurs gardiens. On ne les mesure pas sur une run : une run diverge au premier écart, et elle ne dirait pas si c'est l'alignement ou la façon de le mener qui a fait le rang.
+- **Les juges ne tournent pas en CI.** `check_fit` et `check_profondeur` sont rouges par construction tant que les tranches 3 à 8 ne sont pas faites ; une CI rouge à chaque PR ne dirait plus rien.
+
+**Mesuré** (docs/refonte-v9.md § 14). L'attentif ne bat le robot d'avant que de 1,8 V par saison, et le distrait perd 9,8 V sur lui, surtout à la signature (−5,8 V) ; des systèmes ou une main au hasard ne coûtent rien de mesurable. Aujourd'hui, mener, c'est ne pas défaire l'automatique, et seule la signature est une décision. Les campagnes : la Coupe tombe dès la run 2 ou 3, puis presque à chaque run.
+
+**Pas encore** : un attentif qui règle aussi ses lignes contre le plan adverse, ou sa consigne. Préparer la piste probable fait déjà tomber le plan quand elle est juste (`prepJuste`). Le duel de la tranche 5 refera ces gestes, et l'attentif les apprendra avec lui.
