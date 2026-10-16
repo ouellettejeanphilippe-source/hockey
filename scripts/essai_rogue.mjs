@@ -238,7 +238,7 @@ async function regler() {
         await page.screenshot({ path: `${DOSSIER}/rogue-noeud.png` });
         if (!(await page.$(`${SEM} .nd-route .nd-jour`))) erreurs.push('l\'écran de la semaine ne montre pas ses sept jours');
       }
-      const blocs = await page.$$eval(`${SEM} .sem-choix`, e => e.map(x => ({ i: x.dataset.i, titre: x.querySelector('.sem-choix-titres b').textContent, coche: !!x.querySelector('.sem-option.on'), pari: [...x.querySelectorAll('.sem-option:not([disabled])')].findIndex(o => /Pari/.test((o.querySelector('.choix-forme') || {}).textContent || '')) })));
+      const blocs = await page.$$eval(`${SEM} .sem-choix`, e => e.map(x => ({ i: x.dataset.i, titre: x.querySelector('.sem-choix-titres b').textContent, coche: !x.classList.contains('manque'), pari: [...x.querySelectorAll('.sem-option:not([disabled])')].findIndex(o => /Pari/.test((o.querySelector('.choix-forme') || {}).textContent || '')) })));
       const route = blocs.find(x => /ta route/i.test(x.titre));
       if (route && !noeud.route) {
         noeud.route = await page.$eval(`${SEM} .sem-sheet > .choix-puces`, e => e.textContent).catch(() => '');
@@ -250,7 +250,7 @@ async function regler() {
       const aCocher = blocs.find(x => !x.coche);
       if (aCocher) {
         // Une réponse risquée, tant que le dé n'a pas roulé cinq fois : elle se joue au dé, sur-le-champ.
-        const opts = `${SEM} .sem-choix[data-i="${aCocher.i}"] .sem-option:not([disabled])`;
+        const opts = `${SEM} .sem-choix[data-i="${aCocher.i}"] .sem-option:not([disabled]):not(.on)`;
         if (aCocher.pari >= 0 && des.length < 5) { evenementsDe.push(aCocher.titre); await page.locator(opts).nth(aCocher.pari).click(); }
         else await page.locator(opts).first().click();
         await page.waitForTimeout(400);
