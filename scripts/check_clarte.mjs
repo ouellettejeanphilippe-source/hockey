@@ -29,7 +29,7 @@ import {
   PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, CAP, REROLLS, MODES, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
   ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
-  PREP_JUSTE, PREP_RATEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
+  INTENTIONS, PERIODES_DU_DUEL, ELAN_PAR_PERIODE, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
   POIDS_AN, POIDS_DN,
@@ -40,7 +40,7 @@ import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
-import { TAILLE_MAIN, ENERGIE_MAIN, DECK_DEPART, energieAdverse, MATCH_ADVERSE_FORT, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
+import { TAILLE_MAIN, DECK_DEPART, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
@@ -312,10 +312,10 @@ const MOTS_RESERVES = [
     [`en prend ${nombre(PART_SANS_AUX * 100)} %`, 'le gardien rappelé'],
     [`${['zéro', 'un', 'deux', 'trois', 'quatre'][GARDIEN_SUITE_LIBRE]} départs de suite ; au ${['', 'deuxième', 'troisième', 'quatrième', 'cinquième'][GARDIEN_SUITE_LIBRE]}, il en perd ${GARDIEN_JAMBES_PAS} par départ, jamais sous ${GARDIEN_JAMBES_MIN}, et chaque ${GARDIEN_JAMBES_PAS} points perdus lui coûtent ${nombre(GARDIEN_USURE * 100)} %`, 'la fatigue des gardiens'],
     [ANNONCE_GROS === 1 ? 'annoncé la veille' : `annoncé ${ANNONCE_GROS} journées d'avance`, 'l\'annonce du gros match'],
-    [`<strong>main de ${TAILLE_MAIN} cartes</strong> et tu as <strong>${ENERGIE_MAIN} d'élan</strong>`, 'la main'],
-    [`à partir du ${MATCH_ADVERSE_FORT}e match et dès la troisième ronde des séries, il a ${energieAdverse({ nMatch: MATCH_ADVERSE_FORT })} d'élan`, 'l\'élan adverse'],
-    [`précision +${pct(PREP_JUSTE.finition)} % et buts contre −${pct(PREP_JUSTE.defense)} %`, 'la préparation juste'],
-    [`précision −${pct(PREP_RATEE.finition)} % et buts contre +${pct(PREP_RATEE.defense)} %`, 'la préparation ratée'],
+    [`<strong>duel en ${['zéro', 'une', 'deux', 'trois', 'quatre'][PERIODES_DU_DUEL.length]} périodes</strong>`, 'le duel'],
+    [`${INTENTIONS.ombre.ico} l'ombre suit ta vedette, ${INTENTIONS.chasse.ico} la chasse vise ton défenseur, ${INTENTIONS.centre.ico} il ferme le centre, ${INTENTIONS.assaut.ico} il lance de partout, ${INTENTIONS.cachot.ico} il cherche tes punitions`, 'les intentions'],
+    [`<strong>main de ${TAILLE_MAIN} cartes</strong> dure le match, avec <strong>${ELAN_PAR_PERIODE} d'élan</strong> par période`, 'la main du duel'],
+    [MISE_DOUBLEE === 2 ? 'tu peux doubler la mise' : '(la mise ne double plus)', 'la mise doublée'],
     [`commence avec ${DECK_DEPART.length} cartes`, 'le deck de départ'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs, et la distraction entre dans ton deck`, 'l\'objectif raté'],

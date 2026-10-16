@@ -29,13 +29,13 @@ import {
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { effetsDesCartes, INTENTIONS, carteRepond, ELAN_PAR_PERIODE, IMPORTANCES, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { coachDeCarte } from './banque.js';
 import { COACHS } from './coachs.js';
 import { TRAITS } from './traits.js';
 import { avecArticle } from './commentaire.js';
-import { esc, cap as majuscule, glyphe, varsEquipe } from './util.js';
+import { esc, cap as majuscule, glyphe, varsEquipe, nom } from './util.js';
 
 const $ = id => document.getElementById(id);
 /* Une phrase qui suit un point commence par une majuscule. */
@@ -1439,10 +1439,13 @@ export function ouvrirMainDeMatch(spec) {
   if (!m) return () => {};
   if (fermerChoixCourant) fermerChoixCourant(true);
   let main, pioche, jouees, energie, voirDeck = false, aj = null, prep = [];
+  // LE DUEL (V9) : l'élan de la période, ton geste contre leur intention, la mise doublée avant la 3e.
+  const D = spec.duel || null, elan = D ? D.elan : ENERGIE_MAIN;
+  let geste = null, snap = false;
   const V = spec.vestiaire || null, nV = V ? nommer(V) : null;
   let vest = V ? V.pris || null : null;
   const manque = () => (spec.ajustements && !aj ? 'Choisis ton ajustement' : V && !vest ? 'Choisis ta carte de vestiaire' : '');
-  const depart = () => { main = spec.main.slice(); pioche = (spec.pioche || []).slice(); jouees = []; energie = ENERGIE_MAIN; };
+  const depart = () => { main = spec.main.slice(); pioche = (spec.pioche || []).slice(); jouees = []; energie = elan; };
   depart();
   const joue = new Set();          // les rangs de la main déjà joués
   let premier = true, pigees = new Set();
@@ -1458,13 +1461,14 @@ export function ouvrirMainDeMatch(spec) {
     const plies = [...m.querySelectorAll('details.main-plie')].map(d => d.open);
     const cartes = main.map((c, i) => {
       const C = CARTES_MATCH[c];
-      const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : energieDepensee([...jouees, c]) < 0 ? 'trop-cher' : '';
-      return carteDeMatch(c, i, [etat, pigees.has(i) ? 'pige' : ''].filter(Boolean).join(' '), joue.has(i) ? null : coutDe(c, [...jouees, c]));
+      const etat = joue.has(i) ? 'jouee' : C.injouable ? 'injouable' : energieDepensee([...jouees, c], elan) < 0 ? 'trop-cher' : '';
+      const repond = D && !joue.has(i) && D.repond(c) ? 'repond' : '';
+      return carteDeMatch(c, i, [etat, pigees.has(i) ? 'pige' : '', repond].filter(Boolean).join(' '), joue.has(i) ? null : coutDe(c, [...jouees, c]));
     }).join('');
     const sansPari = jouees.filter(c => !CARTES_MATCH[c].pari);
     // L'échelle du soir (S80) : ce que le moteur jouera, les cartes qui visent l'adversaire comprises.
     const echelle = spec.echelle || 1;
-    const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu', { echelle });
+    const fx = effetsDesCartes(spec.equipe, { jouees: sansPari, enMain: main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain) }, 'apercu', { echelle, elan });
     const mots = [...motsEnChiffres(combiner(fx.effets))];
     for (const x2 of motsEnChiffres(combiner(fx.adv), null, { eux: true })) mots.push({ txt: `Eux : ${x2.txt}`, bon: x2.bon == null ? null : !x2.bon });
     if (fx.adv.length && echelle > 1) mots.push({ txt: `📈 Ce soir, ce qui vise l'adversaire vaut ×${String(Math.round(echelle * 100) / 100).replace('.', ',')}`, bon: true });
@@ -1478,12 +1482,12 @@ export function ouvrirMainDeMatch(spec) {
     const chance = pistes.filter(x => prep.includes(x.plan)).reduce((a, x) => a + x.p, 0);
     if (prep.length) mots.push({ txt: `🎯 Préparé : ${prep.map(k => PLANS_ADV[k] ? PLANS_ADV[k].nom : k).join(' et ')} · ${chance} % de viser juste`, bon: chance >= 50 ? true : null });
     for (const c of jouees) if (CARTES_MATCH[c].pari) mots.push({ txt: `🎲 ${CARTES_MATCH[c].nom} : au match`, bon: null });
-    const orbes = Array.from({ length: Math.max(ENERGIE_MAIN, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
+    const orbes = Array.from({ length: Math.max(elan, energie) }, (_, i) => `<i class="main-orbe${i < energie ? ' plein' : ''}"></i>`).join('');
     const deck = (spec.deck || []).slice().sort((a, b) => CARTES_MATCH[a].cout - CARTES_MATCH[b].cout || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));
     // LES CARTES DE VESTIAIRE : l'avant-match, deux cartes à 0 élan ; on en garde une (déjà gardée : elle reste dite).
     // L'ÉCRAN DE COMBAT EN ÉTAPES (JP : *simplifier le UI du jour de match*) : leur plan, ta carte de vestiaire, ta main —
     // numérotées dans l'ordre où on les règle ; ce qui se consulte (leur main, le tableau des deux clubs) se plie.
-    const etapes = [spec.depistage && 'plan', V && 'vest', spec.ajustements && 'aj', 'main'].filter(Boolean);
+    const etapes = [spec.depistage && 'plan', D && 'duel', V && 'vest', spec.ajustements && 'aj', 'main'].filter(Boolean);
     const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
     const vestiaire = V ? `<div class="main-vestiaire">
       ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
@@ -1503,6 +1507,17 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx, etape: etape('plan', '🔎 Leur plan · prépare-toi') }) : ''}
+        ${D ? `<div class="duel-intention">
+          ${etape('duel', `${D.ico} ${esc(D.nom)} · leur intention`)}
+          ${D.tableau || ''}
+          <p class="duel-fait">${esc(D.fait)}</p>
+          ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
+          ${D.mots && D.mots.length ? `<div class="choix-puces">${puces(D.mots)}</div>` : ''}
+          ${D.deja ? `<p class="duel-deja">✓ ${esc(D.deja)}</p>` : ''}
+          <div class="duel-gestes">${D.gestes.map(o => optionHtml(o, {}, { classe: 'duel-geste', attr: `data-geste="${esc(o.cle)}"`, on: geste === o.cle, mots: [] })).join('')}</div>
+          ${D.cartes ? `<p class="duel-cartes">${esc(D.cartes)}</p>` : ''}
+          ${D.mise ? `<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${esc(D.mise)}</button>` : ''}
+        </div>` : ''}
         ${spec.contexte ? `<details class="main-plie"><summary>Ce qu'ils jouent ce soir</summary>${spec.contexte}</details>` : ''}
         ${vestiaire}
         ${spec.ajustements ? `<div class="main-ajuste">${etape('aj', 'Ton ajustement pour ce match')}<div class="main-ajuste-rang">${spec.ajustements.map(o => {
@@ -1521,7 +1536,7 @@ export function ouvrirMainDeMatch(spec) {
         </div>
         ${spec.stats ? `<details class="main-plie"><summary>📊 Les deux clubs, par match</summary>${spec.stats}</details>` : ''}
         <div class="main-boutons">
-          <button type="button" class="btn go main-jouer"${manque() ? ' disabled' : ''}>${esc(manque() || (jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer'))}</button>
+          <button type="button" class="btn go main-jouer"${manque() ? ' disabled' : ''}>${esc(manque() || (D ? D.motJouer : jouees.length ? (spec.motJouer || 'Jouer ces cartes') : 'Ne rien jouer'))}</button>
         </div>
         <div class="main-outils">
           <button type="button" class="btn main-reprendre"${jouees.length ? '' : ' disabled'}>Recommencer la main</button>
@@ -1541,11 +1556,11 @@ export function ouvrirMainDeMatch(spec) {
     m.querySelectorAll('.main-carte').forEach(b => {
       b.onclick = () => {
         const i = Number(b.dataset.choix), c = main[i], C = CARTES_MATCH[c];
-        if (joue.has(i) || C.injouable || energieDepensee([...jouees, c]) < 0) { jouerSon('refus'); return; }
+        if (joue.has(i) || C.injouable || energieDepensee([...jouees, c], elan) < 0) { jouerSon('refus'); return; }
         jouerSon('joue');
         joue.add(i); jouees.push(c);
         // Le coût se relit sur TOUTE la main : un rabais joué après rend l'énergie des cartes d'avant (S76).
-        energie = energieDepensee(jouees);
+        energie = energieDepensee(jouees, elan);
         if (C.pioche) { const n0 = main.length; main.push(...pioche.splice(0, C.pioche)); for (let k = n0; k < main.length; k++) pigees.add(k); }
         dessiner();
       };
@@ -1553,7 +1568,8 @@ export function ouvrirMainDeMatch(spec) {
     m.querySelector('.main-jouer').onclick = () => {
       if (manque()) return;
       const enMain = main.filter((c, i) => !joue.has(i) && CARTES_MATCH[c].enMain);
-      const args = [jouees.slice(), enMain, aj, prep.slice()];
+      // Le duel : la place de la préparation porte ton geste et ta mise ; la main tirée part avec (elle dure trois périodes).
+      const args = [jouees.slice(), enMain, aj, D ? { reponse: geste, snap, tirage: spec.main.slice(), pile: (spec.pioche || []).slice() } : prep.slice()];
       // Une carte de vestiaire neuve qui est un pari : le dé d'abord, puis tout part ensemble.
       const ov = V && !V.pris && V.options.find(o => o.cle === vest);
       if (ov && ov.pari && typeof V.lancer === 'function') { sceneDuDe(m, { lancer: c => V.lancer(c, args), onChoix: c => spec.onJouer(...args, c) }, ov, nV.sub, fermer, dessiner); return; }
@@ -1571,7 +1587,11 @@ export function ouvrirMainDeMatch(spec) {
       };
     });
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
-    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; vest = V ? V.pris || null : null; dessiner(); };
+    // Ton geste : le toucher le prend, le toucher encore le laisse.
+    m.querySelectorAll('.duel-geste[data-geste]').forEach(b => { b.onclick = () => { geste = geste === b.dataset.geste ? null : b.dataset.geste; jouerSon('joue'); dessiner(); }; });
+    const bs = m.querySelector('.duel-snap');
+    if (bs) bs.onclick = () => { snap = !snap; jouerSon('joue'); dessiner(); };
+    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; geste = null; snap = false; vest = V ? V.pris || null : null; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
     // LES CHIFFRES (V3) : la préparation se lit en mots ; ses chiffres se déplient, comme dans un choix.
     const bc = m.querySelector('.main-chiffres');
@@ -1593,6 +1613,51 @@ export function ouvrirMainDeMatch(spec) {
   jouerSon('donne');
   dessiner();
   return () => fermer(true);
+}
+
+/*
+ * LE DUEL EN MOTS (V9, tranche 5). Ce que `ouvrirMainDeMatch` montre d'une période : leur intention (le fait, son
+ * pourquoi, ce qu'elle frappe à ton club et au leur, le temps de la période), ce qui y répond déjà sur ta glace, tes
+ * gestes, et les cartes de ta main qui y répondent. `P` : `{ intention, reponses, contree }` (le moteur), `main` : ce
+ * qui reste en main. `mise` : la ligne de la mise doublée, avant la 3e d'un duel de saison.
+ */
+const PERIODE_MOT = ['1re', '2e', '3e'];
+export function specDuDuel(P, { k = 0, main = [], domicile = true, mise = null, cadre = null, deja = false } = {}) {
+  const I = P.intention, J = INTENTIONS[I.cle], c = nom(I.cible), par = nom(I.par);
+  const fait = {
+    ombre: `${par || 'Leur meilleur défensif'} suit ${c} toute la période`,
+    chasse: `${par || 'Leur dur'} va frapper ${c}`,
+    centre: 'Ils ferment le centre : les tirs du milieu ne passeront pas',
+    assaut: 'Ils lancent de partout',
+    cachot: 'Ils cherchent à te faire punir',
+  }[I.cle];
+  const w = I.pourquoi || {};
+  const pourquoi = {
+    vedette: `${c} est ta vedette.`, sansDur: `Personne ne protège ${c}.`, brigadier: `${c} lance l'attaque de ta brigade.`,
+    planTir: 'Ton plan paie le Tir.', planDefense: 'Ton plan paie la Défense : ils veulent la tester.', indiscipline: 'Ton club écope plus que le leur.',
+    garde: 'Ça a marché la période d\'avant.', mene: 'Tu mènes : ils n\'ont plus rien à perdre.', traine: 'Ils mènent : ils protègent l\'avance.',
+    punitions: `Tu as pris ${w.n} punitions.`, cartes: `Tu as joué ${w.n} cartes d'attaque.`,
+    trio: `Ton ${w.u + 1}e trio a marqué ${w.n} fois.`, marqueur: `${c} a marqué ${w.n} fois.`,
+  }[w.cle] || '';
+  const mots = [...motsEnChiffres(J.malus.toi || {}, null, cadre)];
+  for (const x of motsEnChiffres(J.malus.adv || {}, null, cadre)) mots.push({ txt: `Eux : ${x.txt}`, bon: x.bon == null ? null : !x.bon });
+  if (J.malus.joueur) mots.push({ txt: I.cle === 'ombre' ? `${c} : presque plus de tirs` : `${c} : moins de tirs, des buts contre, des jambes en moins`, bon: false });
+  const GESTE = {
+    deplacer: o => ({ nom: `${nom(o.joueur)} au ${o.vers + 1}e trio`, bon: domicile ? 'Tu as le dernier changement : l\'ombre le perd' : 'Au loin, l\'ombre le suit encore à moitié', prix: `${nom(o.avec)} prend sa place le temps de la période` }),
+    garde: o => ({ nom: `${nom(o.joueur)} à côté de ${nom(o.avec)}`, bon: 'Il dissuade leur dur', prix: `${nom(o.sort)} change de place le temps de la période` }),
+    cycle: o => ({ nom: `Ton ${o.u + 1}e trio en ${TACTIQUES.courtes.ico} ${TACTIQUES.courtes.nom}`, bon: 'Ton Jeu rend quand le centre ferme', prix: 'Il quitte son système le temps de la période' }),
+    maison: o => ({ nom: `Ta ${o.u + 1}e paire en ${SYSTEMES_D.maison.ico} ${SYSTEMES_D.maison.nom}`, bon: 'Leurs tirs viennent de loin', prix: 'Elle ne monte plus le temps de la période' }),
+    basse: () => ({ nom: `La consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom}`, bon: 'Les bâtons en bas', prix: 'Un peu moins de finition le temps de la période' }),
+  };
+  const gestes = (P.reponses || []).filter(o => GESTE[o.cle]).map(o => ({ cle: o.cle, ...GESTE[o.cle](o) }));
+  const repond = cle => carteRepond(J, cle);
+  const qui = [...new Set(main.filter(repond))].map(x => `${CARTES_MATCH[x].ico} ${CARTES_MATCH[x].nom}`);
+  return {
+    k, elan: ELAN_PAR_PERIODE, ico: J.ico, nom: J.nom, fait, pourquoi, mots, gestes, repond, mise,
+    deja: deja ? 'Ta glace y répond déjà : contrée, elle se retournera contre eux.' : '',
+    cartes: qui.length ? `Une carte y répond : ${qui.join(', ')}.` : '',
+    motJouer: `Jouer la ${PERIODE_MOT[k]} période`,
+  };
 }
 
 /* Mon deck, à lire : toutes les cartes, rangées par coût. */

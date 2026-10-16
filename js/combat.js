@@ -574,8 +574,8 @@ export function coutDe(cle, jouees = []) {
   return Math.max(0, C.cout - (rabais ? 1 : 0));
 }
 /* Une main est-elle jouable telle quelle ? Le coût, l'énergie gagnée et les cartes injouables. */
-export function energieDepensee(jouees) {
-  let e = ENERGIE_MAIN;
+export function energieDepensee(jouees, elan = ENERGIE_MAIN) {
+  let e = elan;
   for (const c of jouees) { const C = CARTES_MATCH[c]; if (!C) continue; e -= coutDe(c, jouees); e += C.energiePlus || 0; }
   return e;
 }
@@ -594,11 +594,11 @@ function gainDeCarte(cle) {
     + (C.parGenre ? ecartDe(C.parGenre.effet) : 0) + (C.selonLeurMain ? ecartDe(C.selonLeurMain.effet) : 0)
     + (C.synergie ? 0.04 : 0) + (C.lire || C.annule || C.contre || C.revele || C.planB || C.ecarte ? 0.03 : 0) + (C.energieTous ? 0.03 : 0);
 }
-export function mainDeLAdjoint(main = []) {
+export function mainDeLAdjoint(main = [], elan = ENERGIE_MAIN) {
   const ordre = main.map((c, i) => ({ c, i, C: CARTES_MATCH[c], g: gainDeCarte(c) }))
     .filter(x => x.C && !x.C.injouable && !x.C.pari && !x.C.pioche && !x.C.epuise && x.g > 0)
     .sort((a, b) => b.g - a.g || a.i - b.i);
   const jouees = [], pris = new Set();
-  for (const x of ordre) if (energieDepensee([...jouees, x.c]) >= 0) { jouees.push(x.c); pris.add(x.i); }
+  for (const x of ordre) if (energieDepensee([...jouees, x.c], elan) >= 0) { jouees.push(x.c); pris.add(x.i); }
   return { jouees, enMain: main.filter((c, i) => !pris.has(i) && CARTES_MATCH[c] && CARTES_MATCH[c].enMain) };
 }

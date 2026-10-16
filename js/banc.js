@@ -221,6 +221,8 @@ async function deciderMaintenant(ds, depuis) {
   if (prises.some(d => d.ballottage || d.plafond || d.patron || d.achat)) renderCap();
   prises.forEach(confirmerDecision);
 }
+/* La période d'une décision de duel (V9) : 0 pour la main du soir, 1 et 2 pour les entractes ; -1 pour le reste. */
+const periodeDuDuel = d => (d && d.duel ? d.duel.p || 0 : d && d.main ? 0 : -1);
 function ajouterDecision(avant, d) {
   // Le joueur réclamé doit être connu du moteur AVANT la saison rejouée.
   if (d.ballottage) connaitre(ballottageVu.get(d.ballottage.entre));
@@ -233,7 +235,10 @@ function ajouterDecision(avant, d) {
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.
-    && !(d.avant && x.avant && x.jour === d.jour) && !(x.entracte && (d.entracte ? x.jour === d.jour : x.jour >= d.jour)));
+    && !(d.avant && x.avant && x.jour === d.jour) && !(x.entracte && (d.entracte ? x.jour === d.jour : x.jour >= d.jour))
+    // LE DUEL (V9) : la 2e et la 3e période se rejouent sur ce qui précède ; une décision du soir ou d'avant les défait,
+    // une période les suivantes, jamais celles d'avant.
+    && !(periodeDuDuel(x) > 0 && (periodeDuDuel(d) > 0 ? x.jour === d.jour && periodeDuDuel(x) >= periodeDuDuel(d) : x.jour >= d.jour)));
   // UNE DÉCISION QUI NE TOUCHE QUE LE DECK DE MATCH (une récompense, un
   // ménage) ne tire pas de dés neufs : le moteur ne la lit pas, les matchs ne
   // doivent pas bouger (S74).
@@ -487,8 +492,10 @@ export async function deciderSerie(d) {
   if (!G.ligue) return;
   const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
     (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement)
-    // S74 : une main par match, une récompense par série.
-    || (d.main && x.main) || (d.recompense !== undefined && x.recompense !== undefined)
+    // S74 : une main par match, une récompense par série. Le duel (V9) : une main par période.
+    || (d.main && x.main && periodeDuDuel(d) === periodeDuDuel(x)) || (d.recompense !== undefined && x.recompense !== undefined)
+    // Le duel : toute décision pour ce match défait les périodes d'après, jamais celles d'avant.
+    || (periodeDuDuel(x) > 0 && !(periodeDuDuel(d) > 0 && periodeDuDuel(x) < periodeDuDuel(d)))
     // Reprendre la série retire ce que l'adjoint a posé pour ce match ; la lui redonner retire la reprise.
     || (d.reprise && x.auto) || (d.auto && x.reprise)
     // S70 : un entracte par match, et toute autre décision pour ce match l'annule.

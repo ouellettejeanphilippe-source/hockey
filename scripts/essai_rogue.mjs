@@ -211,10 +211,11 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  */
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de la main vendues en passant
-const captures = { main: 0, combat: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
+const captures = { main: 0, combat: 0, duel: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0 };   // À faire (V9), vu au premier choix
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
+const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
   for (let i = 0; i < 30; i++) {
@@ -252,8 +253,31 @@ async function regler() {
       }
       // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
       if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
+      /*
+       * LE DUEL (V9, tranche 5) : chaque période dit leur intention ; on prend le premier geste offert, et la décision
+       * doit porter sa période et ce geste.
+       */
+      const duel = await page.$('#choixModal .duel-intention');
+      let geste = null;
+      if (duel) {
+        const fait = ((await page.textContent('#choixModal .duel-fait').catch(() => '')) || '').trim();
+        if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
+        const g = await page.$('#choixModal .duel-geste[data-geste]:not([disabled])');
+        if (g) { geste = await g.getAttribute('data-geste'); await g.click(); await page.waitForTimeout(200); }
+        if (!captures.duel++) { await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
+      }
       const mains0 = (await decisionsDuCombat()).filter(d => d.main).length;
       await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500);
+      if (duel && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
+        const ds = await decisionsDuCombat();
+        const dn = ds.slice().reverse().find(d => d.main && d.duel);
+        if (!dn) erreurs.push('la période du duel jouée n\'entre pas dans la sauvegarde');
+        else {
+          periodes.push(`${dn.duel.p + 1}${geste ? `:${geste}` : ''}`);
+          if (geste && dn.duel.reponse !== geste) erreurs.push(`le geste « ${geste} » n'entre pas dans la décision de la période`);
+          if (dn.duel.p === 0 && !(dn.main && Array.isArray(dn.main.tirage) && dn.main.tirage.length)) erreurs.push('la main tirée du duel ne part pas avec la décision');
+        }
+      }
       if (enjeu && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
         const ds = await decisionsDuCombat();
         const iM = ds.findLastIndex(d => d.main), iA = iM >= 0 ? ds.findLastIndex(d => d.avant && d.jour === ds[iM].jour) : -1;
@@ -1198,6 +1222,7 @@ if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
+console.log(`20d. périodes de duel jouées (période:geste) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · lots tranchés (cochés → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
@@ -1206,6 +1231,8 @@ if (afaire.formes.length) erreurs.push(`des choix d'À faire n'ont pas la forme 
 if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offerte dans À faire');
 console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
+// LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
+if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);

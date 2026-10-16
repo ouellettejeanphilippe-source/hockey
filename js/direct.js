@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure } from './sim.js';
+import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure, INTENTIONS } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
@@ -211,10 +211,11 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  *   ctx        { esc, teamLabel, teamShort, tagCourt, logo, band, mug }
  */
 /*
- * LE DEUXIÈME ENTRACTE D'UN GROS MATCH (S70). `arret` : le direct s'arrête à
- * la fin de la deuxième période et rend la main (`onArret`) sans révéler la
- * suite — le choix de l'entracte rejoue la troisième. `depuis` : le direct
- * reprend à cette minute, ce qui précède posé d'un coup dans le fil.
+ * LE DEUXIÈME ENTRACTE D'UN GROS MATCH (S70). `arret` : la minute où le direct
+ * s'arrête — 40, la fin de la deuxième période ; 20 aussi pour le duel (V9) — et
+ * rend la main (`onArret`) sans révéler la suite : le choix rejoue la période
+ * qui vient. `depuis` : le direct reprend à cette minute, ce qui précède posé
+ * d'un coup dans le fil.
  */
 export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0 }) {
   const modal = document.getElementById('liveModal');
@@ -360,8 +361,19 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   feed.innerHTML = '';
   etat.innerHTML = '';
   ligne('debut', `${ctx.esc(com.debut())} <b>${ctx.esc(cap(ctx.teamShort(A)))}</b> contre <b>${ctx.esc(ctx.teamShort(B))}</b>${titre ? `, ${ctx.esc(titre.toLowerCase())}` : ''}${sousTitre ? `, ${ctx.esc(sousTitre.toLowerCase())}` : ''}.`);
+  /*
+   * LE DUEL (V9) : chaque période dit leur intention, si elle est contrée, et tes cartes de la période — la 1re avant
+   * la mise au jeu, les suivantes au début de leur période.
+   */
+  const du = f.duel || null;
+  const motPeriode = k => {
+    const h = du.periodes[k], I = INTENTIONS[h.intention.cle];
+    const c = (h.cartes || []).filter(x => CARTES_MATCH[x]).map(x => `${CARTES_MATCH[x].ico} ${ctx.esc(CARTES_MATCH[x].nom)}`);
+    return `⚔ <b>${['1re', '2e', '3e'][k]} période</b> · ${I.ico} ${ctx.esc(I.nom)}${h.intention.cible ? ` sur ${ctx.esc(nom(h.intention.cible))}` : ''} — ${h.contree === 'pleine' ? 'contrée' : h.contree === 'demi' ? 'à moitié contrée' : 'elle frappe'}${c.length ? ` · tu joues ${c.join(' · ')}` : ''}.`;
+  };
+  if (du && du.periodes[0]) ligne('debut cartes', motPeriode(0));
   // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.
-  const cartesDuSoir = f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
+  const cartesDuSoir = !du && f.cartes && f.cartes.jouees ? f.cartes.jouees.filter(c => CARTES_MATCH[c]) : [];
   if (cartesDuSoir.length) {
     const paris = (f.cartes.paris || []).map(p => `${CARTES_MATCH[p.cle].ico} 🎲 ${p.face ? `${p.face} : ` : ''}${p.gagne ? 'le pari rentre' : 'le pari ne rentre pas'}`);
     const suite = [f.cartes.lu ? '📼 leur plan tombe' : '', ...paris].filter(Boolean);
@@ -405,8 +417,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const enOT = f.ot && t >= 60;
     // Arrêté au deuxième entracte (t = 40), c'est la FIN de la 2e — pas la
     // 3e à 20:00, qui annonçait une période pas encore jouée (QA S74b).
-    const entracte = enArret && t >= 40 && t < 60;
-    const per = enOT ? 4 : t >= 60 ? 3 : entracte ? 2 : periodeDe(t);
+    // Le duel (V9) s'arrête aussi au premier entracte (t = 20) : c'est la fin de la 1re.
+    const entracte = enArret && t >= arret && t < 60;
+    const per = enOT ? 4 : t >= 60 ? 3 : entracte ? arret / 20 : periodeDe(t);
     const temps = (!enOT && t >= 60) || entracte ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
     // L'avantage en cours : la fenêtre de deux minutes d'une punition, ou
     // moins si un but l'a fermée — c'est le tableau indicateur qui le dit.
@@ -568,7 +581,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       });
       ligne('periode', `${P.tete} <b>${gA}-${gB}</b> · tirs ${tA_} – ${tB_}. ${P.couleur}`);
       son('periode');
-      if (arret != null && e.per === 2 && onArret) { arreter(); return 0; }
+      if (arret != null && e.per === arret / 20 && onArret) { arreter(); return 0; }
+      if (du && du.periodes[e.per]) ligne('periode cartes', motPeriode(e.per));
       return PAUSE_PERIODE;
     }
     if (e.type === 'fin') {
@@ -597,7 +611,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const p = appliquer(ev[iEv++]);
       if (p) { pause = p; t = Math.max(t, ev[iEv - 1].instant); break; }
     }
-    if (enArret) { t = 40; majBoard(); return; }
+    if (enArret) { t = arret; majBoard(); return; }
     if (!fini) { majBoard(); timer = requestAnimationFrame(tick); }
   };
 
@@ -609,14 +623,15 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     muet = true;
     while (iEv < ev.length && !fini && !enArret) appliquer(ev[iEv++]);
     muet = false;
-    t = enArret ? 40 : f.ot ? 65 : 60;
+    t = enArret ? arret : f.ot ? 65 : 60;
     majBoard();
   };
   /* L'ARRÊT AU DEUXIÈME ENTRACTE : la main passe au choix, rien de plus n'est révélé. */
   function arreter() {
     enArret = true;
     stop();
-    ligne('periode ent2-marque', '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : la troisième période se jouera sur ton choix.');
+    ligne('periode ent2-marque', arret === 20 ? '<b>🎬 Premier entracte.</b> Le vestiaire t\'attend : la deuxième période se jouera sur ton choix.'
+      : '<b>🎬 Deuxième entracte.</b> Le vestiaire t\'attend : la troisième période se jouera sur ton choix.');
     boutons(`<button class="btn gold live-entracte">Au vestiaire — ton choix</button>`);
     controls.querySelector('.live-entracte').onclick = () => {
       if (termine) return;
@@ -668,7 +683,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     while (iEv < ev.length && ev[iEv].instant <= depuis && !fini) appliquer(ev[iEv++]);
     muet = false;
     t = depuis;
-    ligne('periode ent2-marque', '<b>🎬 Troisième période.</b> Ton choix est sur la glace.');
+    ligne('periode ent2-marque', `<b>🎬 ${depuis < 40 ? 'Deuxième' : 'Troisième'} période.</b> Ton choix est sur la glace.`);
     majBoard();
   }
   dernier = performance.now();

@@ -401,7 +401,9 @@ async function repondreAuxChoix() {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) {
       const n = await page.$$eval('#choixModal .main-carte', e => e.length);
       const orbes = await page.$$eval('#choixModal .main-orbe.plein', e => e.length);
-      if (n < 5 || orbes !== 3) errors.push(`la main du match offre ${n} cartes et ${orbes} d'énergie au lieu de cinq et trois`);
+      // LE DUEL (V9, Rogue) : deux d'élan par période, une main qui dure ; ni dépistage ni préparation.
+      const duel = !!(await page.$('#choixModal .duel-intention'));
+      if ((!duel && n < 5) || orbes !== (duel ? 2 : 3)) errors.push(`la main du match offre ${n} cartes et ${orbes} d'élan au lieu de cinq et ${duel ? 'deux' : 'trois'}`);
       // ENTRE DEUX MATCHS (S74b) : l'ajustement est une rangée de la main — on prend le premier.
       const titreMain = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
       if (await page.$('#choixModal .main-aj')) {
@@ -413,7 +415,8 @@ async function repondreAuxChoix() {
        * pour la première — elle doit s'allumer et partir avec la décision.
        */
       const pistes = await page.$$eval('#choixModal .dep-piste[data-plan]', e => e.length);
-      if (!pistes) errors.push('la main d\'un match n\'offre pas le dépistage (aucune piste à préparer)');
+      if (!pistes && !duel) errors.push('la main d\'un match n\'offre pas le dépistage (aucune piste à préparer)');
+      else if (!pistes) { /* le duel n'a pas de dépistage */ }
       else {
         await _click('#choixModal .dep-piste[data-plan]:not([disabled])');
         if (!(await page.$('#choixModal .dep-piste.on'))) errors.push('toucher une piste du dépistage ne la prépare pas');
