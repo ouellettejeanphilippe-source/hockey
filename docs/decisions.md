@@ -2401,3 +2401,15 @@ JP : *fusionne, et go pour la tranche 8* ; puis *les exigences* (au choix propos
 - **Le résultat** (`check_profondeur`, deux campagnes de douze runs) : la première Coupe de l'attentif à la run 3 dans les deux ; après elle, 8 Coupes en 18 runs (44 %) — il monte au cran 4 ou 5 et bute, en runs de deux à cinq saisons. L'attentif bat toujours le robot d'avant (+7,1 V), les deux bouts arrivent, le distrait ne gagne jamais. Le juge est nouveau : `APRES`, 25 à 67 % des runs après la première Coupe.
 - **Les sauvegardes** : les adversaires se rebâtissent par leurs clés, puis la ligue se rhabille au niveau de la run (`G.rogue.prestige`, `G.rogue.exigence`, fixés au départ) ; une ligue d'un autre mode se déshabille, pour qu'aucune carte n'y traîne. `VERSION_MOTEUR` S115.
 
+
+## Clair au pouce : les boutons et les polices (Jalon M, tranche 2 — 17 oct. 2026)
+
+JP : *refondre le look des boutons et cie pour faire plus clair sur mobile, même chose pour fonts et cie*. Les captures à 390 px disaient trois choses : les boutons secondaires étaient un contour sur la photo voilée, qu'on prenait pour un bouton éteint, et deux styles de contour voisinaient (« Regarder », « Jusqu'à lundi ») ; les petites capitales condensées (12 px, interlettrées) portaient ce qu'il y a de plus dense à lire — les puces de chiffres, les rôles, ce qui va se passer — et coupaient les mots (« BAGARREUR ARGE… ») ; le gris du troisième niveau tombait sous 4,5:1 sur le noir voilé.
+
+- **Trois rangs de boutons** : l'action de l'écran pleine (vert ou or), en capitales, 48 px ; les autres pleins d'un fond sombre (`--fond-3`, un filet d'encre à 14 %), en casse de phrase ; le lien › en texte. Les rayons des boutons, des cases et des puces passent de 4 à 8 px (`--r-1`) : une touche, pas une page web.
+- **Les capitales gardées là où elles servent** : titres, étiquettes de section, onglets, barre, action principale. La casse de phrase partout ailleurs : le segment, Retour, les entrées du menu, les étiquettes d'un joueur, ce qui va se passer (`.pcard-dest`).
+- **Les chiffres en phrase** : une puce (« ≈ −0,4 tir la période ») est dans la police du texte, Manrope 650, plus en condensée ; de même le gain et le prix d'une option.
+- **L'encre** : le texte courant en 500 (la Manrope à 400 s'amincit sur le noir d'un téléphone), les deux gris montent d'un cran (`--encre-2` #b6bdc8, `--encre-3` #8a929e : plus de 6:1), dans les trois palettes.
+- **Au téléphone**, les trois petites tailles montent d'un demi-cran à la source (12,5 · 13,5 · 15 ; 17 pour `--t-4`) : le plancher est 12,5. JP avait demandé *texte plus petit* au bureau (1.0) ; c'est au téléphone que ça ne se lisait plus.
+- **Un choix ouvert d'À faire porte son fond** : la photo de la scène passait derrière ses phrases.
+- **Écarté** : passer toute la condensée en casse de phrase (les titres et les étiquettes de section y perdaient leur allure de bandeau télé) ; mettre ce qui va se passer dans la Manrope (plus large d'un tiers : la ligne se coupait plus tôt) ; un quatrième rayon pour les boutons (trois rayons, c'est la règle 2).

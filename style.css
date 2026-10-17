@@ -53,10 +53,11 @@
   --fond-3: color-mix(in srgb, var(--club-vif) 10%, #1f232c);
   --filet: color-mix(in srgb, var(--club-vif) 16%, #272b35);
   --filet-2: rgba(39, 43, 53, 0.6);
-  /* L'encre : trois niveaux. */
+  /* L'encre : trois niveaux. CLAIR AU POUCE (oct.) : les deux gris montent d'un cran — sur le noir voilé d'une photo,
+     #737b87 tombait sous 4,5:1 ; il passe au-dessus de 6:1, et le second gris reste à part du blanc. */
   --encre: #f2f4f7;
-  --encre-2: #a9b0bb;
-  --encre-3: #737b87;
+  --encre-2: #b6bdc8;
+  --encre-3: #8a929e;
   /* Le sens : ce qui rapporte, ce qui coûte, ce qui se gagne, ce qui attend. */
   --bon: #46c98b;
   --mauvais: #e5707a;
@@ -114,7 +115,9 @@
   --t-7: 54px;
   /* Les trois rayons. */
   --r-0: 0;
-  --r-1: 4px;
+  /* CLAIR AU POUCE (oct.) : un bouton, une case, une puce s'arrondissent — 4 px se lisait comme une page web, 8 comme une
+     touche. */
+  --r-1: 8px;
   --r-2: 12px;
   /* Les espacements. */
   --esp-1: 4px;
@@ -221,14 +224,14 @@
 /* ---- Les palettes : elles ne repeignent que des jetons (js/game.js pose data-palette) ---- */
 :root[data-palette="oled"] {
   --noir: #000000; --fond-1: color-mix(in srgb, var(--club-vif) 5%, #0c0c0e); --fond-2: color-mix(in srgb, var(--club-vif) 7%, #15151a); --fond-3: color-mix(in srgb, var(--club-vif) 9%, #1f1f26); --filet: color-mix(in srgb, var(--club-vif) 14%, #26262a); --filet-2: rgba(38, 38, 42, 0.7);
-  --encre: #f6f7f8; --encre-2: #a8a9ad; --encre-3: #737579;
+  --encre: #f6f7f8; --encre-2: #b5b6ba; --encre-3: #8a8c90;
   --or: #cdb489; --bleu: #9fb4cc; --bon: #4cc98d; --mauvais: #e0737c; --attention: #d79a63; --live: #c92f55; --violet: #b1a3d6;
   --choisi: #ffffff; --sur-choisi: #000000; --sur-or: #171208;
   --blue-deep: #3a444f; --neutre-eq: #141416; --verrou: #232326; --verrou-liseré: #3a3a3f; --zone-clair: #c9ced6;
 }
 :root[data-palette="glace"] {
   --noir: #04070a; --fond-1: color-mix(in srgb, var(--club-vif) 5%, #0f161e); --fond-2: color-mix(in srgb, var(--club-vif) 7%, #172029); --fond-3: color-mix(in srgb, var(--club-vif) 9%, #222d39); --filet: color-mix(in srgb, var(--club-vif) 14%, #25323f); --filet-2: rgba(37, 50, 63, 0.7);
-  --encre: #eef4f8; --encre-2: #9fb0bd; --encre-3: #6f8290;
+  --encre: #eef4f8; --encre-2: #adbdc9; --encre-3: #8395a3;
   --or: #bcd2e4; --bleu: #79a8cc; --bon: #4bc59a; --mauvais: #e0757e; --attention: #d89a67; --live: #c93a6a; --violet: #a9a8e0;
   --choisi: #e7f0f6; --sur-choisi: #070b0f; --sur-or: #0a1218;
   --blue-deep: #35566e; --neutre-eq: #16202a; --verrou: #22303c; --verrou-liseré: #35485a; --zone-clair: #9dc3de;
@@ -244,7 +247,8 @@ html { -webkit-text-size-adjust: 100%; height: 100%; overflow: hidden; overscrol
 body {
   margin: 0; min-height: 100vh; overflow-x: hidden;
   background: var(--scene), var(--noir); color: var(--encre);
-  font-family: var(--corps); font-size: var(--t-3); line-height: 1.45;
+  /* Le texte courant en 500 : la Manrope à 400 s'amincit sur le noir d'un téléphone. */
+  font-family: var(--corps); font-size: var(--t-3); font-weight: 500; line-height: 1.45;
   /* Un jeu ne se sélectionne pas comme un texte. */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
 }
@@ -269,7 +273,9 @@ a { color: var(--bleu); text-decoration: none; }
    trop gros pour 390 px — tout paraissait zoomé et empilé. Rien sous 12 px, rien sous 44 px de cible. ---- */
 @media (max-width: 679.98px) {
   :root {
-    --t-2: 12.5px; --t-3: 14px; --t-4: 16px; --t-5: 20px; --t-6: 26px; --t-7: 38px;
+    /* CLAIR AU POUCE (oct.) — JP : *refondre le look des boutons et cie pour faire plus clair sur mobile, même chose pour
+       fonts*. Les trois petites tailles montent d'un demi-cran : 12,5 au plancher, le corps à 15. */
+    --t-1: 12.5px; --t-2: 13.5px; --t-3: 15px; --t-4: 17px; --t-5: 20px; --t-6: 26px; --t-7: 38px;
     --esp-3: 10px; --esp-4: 12px; --esp-5: 16px; --esp-6: 20px;
     --actionbar-h: 64px; --navbar-h: 56px;
     /* La photo de fond, centrée : le portrait 5:7 couvre presque toute la largeur d'un téléphone. */
@@ -380,8 +386,8 @@ body:not(.au-repechage) #capGauge { display: none; }
 .retour-btn {
   display: inline-flex; align-items: center; gap: 2px; flex: none;
   min-height: 40px; padding: 0 var(--esp-3) 0 var(--esp-1); border-radius: var(--r-1);
-  border: 1px solid var(--filet); background: transparent; color: var(--encre);
-  font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); background: var(--fond-3); color: var(--encre);
+  font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em;
   transition: background var(--t-vite), transform var(--t-vite);
 }
 .retour-btn .ico { width: 20px; height: 20px; transition: transform var(--t-lent) var(--e-ressort); }
@@ -665,13 +671,16 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
    la couleur dit le sens (vert rapporte, rouge coûte, or se gagne).
    ===================================================================== */
 
-/* ---- Les boutons ---- */
+/* ---- Les boutons ----
+   CLAIR AU POUCE (oct.). Trois rangs qu'on ne confond pas au doigt : l'action de l'écran, pleine (vert ou or), en capitales ;
+   les autres, PLEINS aussi mais d'un fond sombre, en casse de phrase — un contour sur la photo voilée avait l'air d'un
+   bouton éteint, et deux lignes de capitales se lisaient mal ; le lien › en texte. */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-2);
-  min-height: 44px; padding: 0 var(--esp-4);
-  border: 1px solid var(--filet); border-radius: var(--r-1);
-  background: transparent; color: var(--encre);
-  font: 800 var(--t-3)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
+  min-height: 44px; padding: var(--esp-1) var(--esp-4);
+  border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1);
+  background: var(--fond-3); color: var(--encre);
+  font: 700 var(--t-4)/1.1 var(--display); letter-spacing: 0.01em; text-align: center;
   transition: transform var(--t-lent) var(--e-ressort), background var(--t-vite), border-color var(--t-vite), color var(--t-vite), box-shadow var(--t-lent) var(--e-sortie), filter var(--t-vite);
 }
 .btn .ico { width: 18px; height: 18px; transition: transform var(--t-lent) var(--e-ressort); }
@@ -686,6 +695,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn:active:not(:disabled) { transform: translateY(1px) scale(0.95); filter: brightness(1.25); transition-duration: 60ms; }
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
+.btn:is(.go, .gold) { min-height: 48px; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
 .btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, var(--blanc)), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); box-shadow: var(--lueur-bon); }
 @media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
 /* Seule l'action de l'écran respire (la barre d'action, « Journée suivante ») : l'écran titre en a trois, côte à côte. */
@@ -701,9 +711,9 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, var(--blanc)), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--blanc) 35%, transparent); }
 @media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
-.btn.danger { border-color: var(--mauvais); color: var(--mauvais); }
+.btn.danger { border-color: color-mix(in srgb, var(--mauvais) 60%, var(--fond-3)); color: var(--mauvais); }
 @media (hover: hover) { .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); } }
-.btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-2); }
+.btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-3); }
 /* Un bouton-icône : rond, sans fond, le mot à côté dès qu'il y a la place. */
 .icon-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-2);
@@ -730,7 +740,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .seg button {
   flex: 1; min-height: 40px; padding: 0 var(--esp-2); border: 0; border-radius: var(--r-1);
   background: none; color: var(--encre-2);
-  font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; white-space: nowrap;
   transition: background var(--t-vite), color var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
 .seg button:hover { color: var(--encre); background: var(--fond-3); }
@@ -787,12 +797,13 @@ input[type="range"] { accent-color: var(--or); }
   .seg { flex: none; }
 }
 
-/* ---- Les étiquettes : du texte en condensée, une couleur par sens, presque jamais un fond ---- */
+/* ---- Les étiquettes : du texte en condensée, une couleur par sens, presque jamais un fond ----
+   CLAIR AU POUCE (oct.) : en casse de phrase — « Bagarreur Argent » tient où « BAGARREUR ARGE… » se coupait. */
 .tags { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .tag {
   display: inline-flex; align-items: center; gap: 3px; padding: 0;
   border: 0; border-radius: 0; background: none; color: var(--encre-2);
-  font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+  font: 700 var(--t-2)/1.35 var(--display); letter-spacing: 0.01em; white-space: nowrap;
 }
 .tag-trait { color: var(--or); }
 .tag-trait.est-finaliste { color: var(--encre-2); }
@@ -816,9 +827,11 @@ input[type="range"] { accent-color: var(--or); }
 .tag-table { color: var(--encre); }
 /* Les puces d'un effet (« Tirs +6 % ») : du texte, vert ou rouge. */
 .choix-puces { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); margin-top: 2px; }
+/* CLAIR AU POUCE (oct.) : un chiffre se lit en phrase, dans la police du texte — « ≈ −0,4 tir la période » en petites
+   capitales condensées était la ligne la plus dure à lire du jeu. */
 .puce {
   display: inline-flex; align-items: center; gap: 3px; padding: 0; border-radius: 0; background: none;
-  font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre-2);
+  font: 650 var(--t-1)/1.35 var(--corps); color: var(--encre-2);
   white-space: normal; max-width: 100%; overflow-wrap: anywhere; text-align: left;
 }
 .puce.bon { color: var(--bon); }
@@ -1026,8 +1039,8 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .choix-forme { align-self: flex-start; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
 .choix-option-sous { font-size: var(--t-2); color: var(--encre-2); line-height: 1.4; }
-.choix-option-bon { font: 700 var(--t-2)/1.3 var(--display); color: var(--bon); }
-.choix-option-prix { font: 700 var(--t-2)/1.3 var(--display); color: var(--live); }
+.choix-option-bon { font: 650 var(--t-2)/1.35 var(--corps); color: var(--bon); }
+.choix-option-prix { font: 650 var(--t-2)/1.35 var(--corps); color: var(--live); }
 .choix-option-mut { font-size: var(--t-2); color: var(--encre-2); line-height: 1.35; font-style: italic; }
 .choix-option-non { font-size: var(--t-1); color: var(--encre-3); }
 .choix-suite { display: block; width: 100%; min-height: 48px; margin-top: var(--esp-3); }
@@ -1181,8 +1194,8 @@ body.menu-ouvert { overflow: hidden; }
 .menu-pied { display: flex; justify-content: center; flex-wrap: wrap; gap: var(--esp-3); margin-top: var(--esp-5); }
 .menu-entree {
   display: inline-flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-5);
-  border: 1px solid var(--filet); border-radius: var(--r-1); background: transparent; color: var(--encre);
-  font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; transition: border-color var(--t-vite), transform var(--t-vite);
+  border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre);
+  font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; transition: border-color var(--t-vite), transform var(--t-vite);
 }
 .menu-entree:hover { border-color: var(--or); }
 .menu-entree:active { transform: scale(0.97); }
@@ -1442,7 +1455,9 @@ a.spin-club:hover { background: var(--fond-2); }
 .pcard-mid .tags { flex: 1; min-width: 0; flex-wrap: nowrap; transform-origin: left center; }
 .pcard-mid .tags > * { flex: none; }
 .pcard-mid .tags.en-deux { flex-wrap: wrap; row-gap: 2px; }
-.pcard-dest { min-width: 0; font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Ce qui va se passer, en casse de phrase (clair au pouce, oct.) : « Robustesse fort · 1er trio · Graves sort » tient où
+   les capitales se coupaient ; la condensée reste, sur une ligne. */
+.pcard-dest { min-width: 0; font: 700 var(--t-2)/1.3 var(--display); letter-spacing: 0.01em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pcard-dest .dest-target { color: var(--or); }
 .pcard-dest .dest-ok { color: var(--bon); }
 .pcard-dest .dest-bad { color: var(--mauvais); }
@@ -2301,7 +2316,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .fc-mods-vide { margin: 0 2px; font-size: var(--t-2); color: var(--cj-encre-2); }
 /* Les cases d'amélioration : pleine, la carte posée ; vide, « Case libre », ou le geste qui la remplit (en or). */
 .fc-case.fc-libre { display: flex; align-items: center; justify-content: center; min-height: 44px; padding: var(--esp-2); border-radius: var(--r-1); border: 1px dashed color-mix(in srgb, currentColor 30%, transparent); color: var(--cj-encre-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
-.fc-plus { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: var(--esp-2); border-radius: var(--r-1); cursor: pointer; border: 1px dashed var(--or); background: transparent; color: inherit; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
+.fc-plus { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; padding: var(--esp-2); border-radius: var(--r-1); cursor: pointer; border: 1px dashed var(--or); background: transparent; color: inherit; font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
 .fc-plus:hover, .fc-plus:focus-visible { background: color-mix(in srgb, var(--or) 14%, transparent); outline: none; }
 .fc-poser { display: flex; align-items: flex-start; gap: var(--esp-2); width: 100%; padding: var(--esp-2); text-align: left; cursor: pointer; border: 2px solid var(--or); border-radius: var(--r-1); background: color-mix(in srgb, var(--or) 12%, transparent); color: inherit; font: inherit; animation: fc-attend 1.6s ease-in-out infinite; }
 .fc-poser-mot { flex: none; align-self: center; margin-left: auto; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--or); color: var(--sur-or); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
@@ -2342,7 +2357,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* ---- Le pied : les liens en contour, et LE bouton Signer, pleine largeur, toujours sous le pouce ---- */
 .pcard-full-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
 .ext-links { display: flex; flex-wrap: wrap; gap: var(--esp-2); }
-.ext-link { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); color: var(--encre-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+.ext-link { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.01em; white-space: nowrap; }
 .ext-link .ico { width: 16px; height: 16px; }
 .ext-link:hover { color: var(--encre); border-color: var(--encre-3); }
 #modalSignBtn { order: -1; flex: 1 1 100%; min-height: 52px; font-size: var(--t-4); }
@@ -3042,7 +3057,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-actions .hub-traiter { justify-content: flex-start; text-align: left; white-space: normal; line-height: 1.2; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); border-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 12%, transparent); }
 .hub-actions-rang { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions-rang:empty { display: none; }
-.hub-actions-rang .btn { flex: 1 1 120px; min-width: 0; padding: 0 var(--esp-2); font-size: var(--t-2); }
+.hub-actions-rang .btn { flex: 1 1 120px; min-width: 0; padding: 0 var(--esp-2); font-size: var(--t-3); }
 .hub-deck { white-space: normal; }
 /* Le tournoi Sur table : le niveau de l'adversaire, une rangée à lui sous les boutons. */
 .hub-niveau { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: var(--esp-2); }
@@ -3060,6 +3075,8 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-boite-compte .a-jour { color: var(--encre-3); }
 .hub-msgs { display: flex; flex-direction: column; }
 .hub-msg { border: 1px solid transparent; border-bottom-color: var(--filet-2); border-left: 3px solid transparent; }
+/* Ouvert, il porte son fond : la photo de la scène ne passe plus derrière ses phrases (audit mobile, oct.). */
+.hub-msg:is(.ouvert, .bloque, .pret) { background: var(--fond-1); }
 .hub-msg.bloque { border-color: var(--mauvais); border-radius: var(--r-1); }
 .hub-msg-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-3); min-height: 52px; padding: var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: left; transition: background var(--t-vite); }
 .hub-msg-tete:hover { background: var(--fond-2); }
@@ -3282,7 +3299,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-table th.tri-on { color: var(--or); }
 .hub-table th.tri-on i { font-style: normal; font-size: var(--t-1); margin-left: 2px; }
 .hub-table td.tri-on { color: var(--encre); font-weight: 800; }
-.hub-plus { width: 100%; min-height: 44px; border: 0; border-top: 1px solid var(--filet-2); background: var(--fond-1); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.hub-plus { width: 100%; min-height: 44px; border: 0; border-top: 1px solid var(--filet-2); background: var(--fond-1); color: var(--encre-2); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
 .hub-plus:hover { color: var(--encre); background: var(--fond-2); }
 .hub-table-note { padding: var(--esp-2) 0; font-size: var(--t-1); color: var(--encre-3); }
 /* Le classement au téléphone : le nom court sous 480 px, jamais coupé ; les deux premières colonnes collent. */
@@ -4591,7 +4608,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions .btn 
 body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #playoffsBtn { display: inline-flex; flex: 0 1 auto; min-height: 44px; padding: 0 var(--esp-4); font-size: var(--t-2); }
 
 /* ---- L'écran des équipes (#pageEquipes) : la barre d'outils et le bandeau du club sont ancrés, seul .eq-scroll défile ---- */
-.eq-retour { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3) 0 var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: transparent; color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.eq-retour { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3) 0 var(--esp-2); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
 .eq-retour:hover { color: var(--or); border-color: var(--or); }
 .eq-retour .ico { width: 16px; height: 16px; }
 .eq-source { flex: 0 0 auto; }
@@ -4846,7 +4863,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .ct-folio b { color: var(--encre-2); font-weight: 800; }
 .ct-folio span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ct-folio span:last-child { margin-left: auto; }
-.ct-autres { align-self: center; min-height: 44px; padding: 0 var(--esp-4); border: 1px solid var(--filet); border-radius: var(--r-1); background: transparent; color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.ct-autres { align-self: center; min-height: 44px; padding: 0 var(--esp-4); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
 .ct-autres:hover, .ct-autres:focus-visible { border-color: var(--or); color: var(--or); }
 .ct-stats { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-1); line-height: 1.3; font-variant-numeric: tabular-nums; }
 .ct-ligne { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
