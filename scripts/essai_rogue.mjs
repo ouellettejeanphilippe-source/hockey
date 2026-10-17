@@ -708,6 +708,8 @@ await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { time
 await page.waitForTimeout(300);
 const titre = (await page.textContent('#choixModal .choix-titre')).trim();
 const libreOfferte = !!(await page.$('#choixModal .sig-libre:not([disabled])'));
+// V9 (tranche 4, le plafond qui mord) : une case libre que le plafond refuse se montre grisée, avec sa raison.
+const libreRefus = libreOfferte ? '' : await page.$eval('#choixModal .sig-libre[disabled]', b => b.getAttribute('title') || '').catch(() => '');
 const rangees = await page.$$eval('#choixModal .sig-liste .pcard', e => e.length);
 if (rangees < 20) erreurs.push(`« qui sort ? » ne montre que ${rangees} joueurs`);
 const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.length);
@@ -738,9 +740,9 @@ let d = await decisions();
 // 1.0 (J1-B) : l'achat est la décision `k:n` ; la signature, une seconde décision `k:n:signe` (sans l'achat).
 const signe = d.filter(x => x.ballottage && (x.achat || /^k:\d+:signe$/.test(x.palier || '')))
   .map(x => ({ ...x, achat: x.achat || (d.find(a => a.achat && a.palier === x.palier.replace(/:signe$/, '')) || {}).achat || {} }));
-console.log(`9. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, entre: x.ballottage.entre, sort: x.ballottage.sort, i: x.ballottage.i, rar: x.ballottage.rar })))} · « ${titre} » · case libre offerte : ${libreOfferte} · ${refusees} case(s) grisée(s) (pas sa position, ou le plafond) · barre : ${await jauge()}`);
+console.log(`9. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, entre: x.ballottage.entre, sort: x.ballottage.sort, i: x.ballottage.i, rar: x.ballottage.rar })))} · « ${titre} » · case libre offerte : ${libreOfferte}${libreRefus ? ` (refusée : ${libreRefus})` : ''} · ${refusees} case(s) grisée(s) (pas sa position, ou le plafond) · barre : ${await jauge()}`);
 if (!signe.length) erreurs.push('le pack de joueurs n\'a rien signé');
-else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été offerte (« ${titre} »)`);
+else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n'a pas été offerte, ni refusée avec sa raison (« ${titre} »)`);
 /*
  * LE JOUEUR SIGNÉ EST DANS L'ALIGNEMENT TOUT DE SUITE (S79). JP : *les cartes
  * que j'ouvre des packs s'ajoutent pas dans mon équipe ?*. La décision ne
@@ -1165,6 +1167,23 @@ if (!blocRun || rejouer) erreurs.push('le bilan ne montre pas la run, ou garde �
 const meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const nCartable = (await cartable()).length;
 console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run · ${meta.saisons} saison · jalons ${Object.keys(meta.jalons || {}).join(', ') || '(aucun)'} · collection ${(meta.collection || []).length} joueurs · cartable ${nCartable} cartes · personnel ${(meta.personnel || []).length} · inventaire permanent ${Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0)} · dernière équipe ${(meta.derniereEquipe || []).length}`);
+/*
+ * GRAVER (V9, tranche 7) : la saison finie, chaque joueur de ton équipe a sa ligne « chez toi » au cartable (run 1,
+ * saison 1, ses matchs et ses points), ses galons s'il en a, et le panthéon garde au moins le record du club.
+ */
+{
+  const g = await page.evaluate(() => {
+    const c = JSON.parse(localStorage.getItem('cap82_cartable') || '{}'), m = JSON.parse(localStorage.getItem('cap82_rogue') || '{}');
+    const lignes = Object.values(c.joueurs || {}).map(x => (x.chez || []).find(e => e.run === 1 && e.s === 1)).filter(Boolean);
+    return { lignes: lignes.length, joues: lignes.filter(e => e.gp > 0).length, galons: lignes.reduce((a, e) => a + (e.galons || []).length, 0), pantheon: m.pantheon || null };
+  });
+  const P = g.pantheon || { records: {}, trophees: [], chandails: [] };
+  console.log(`14b. graver : ${g.lignes} ligne(s) « chez toi » (${g.joues} avec des matchs) · ${g.galons} galon(s) · panthéon : ${Object.keys(P.records).join(', ') || 'aucun record'} · ${P.trophees.length} trophée(s)`);
+  if (g.lignes < 18) erreurs.push(`la saison gravée ne garde que ${g.lignes} ligne(s) « chez toi »`);
+  if (!P.records.club) erreurs.push('le panthéon ne garde pas le record du club');
+  // Un galon se mérite : une poignée par saison, jamais tout l'alignement (la première règle des grands soirs en donnait 18).
+  if (g.galons > 8) erreurs.push(`${g.galons} galons en une saison : un galon se mérite`);
+}
 await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart');
 await page.screenshot({ path: `${DOSSIER}/rogue-menu.png` });

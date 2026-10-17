@@ -15,7 +15,8 @@ import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieD
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
-import { LEGENDES, legendesDe } from './cartable.js';
+import { LEGENDES, legendesDe, histoireChezToi } from './cartable.js';
+import { GALONS, ICO_GALON, texteDuGalon } from './galons.js';
 import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
@@ -414,7 +415,10 @@ export function showPlayerModal(p, opts = {}) {
   const glace = surLaGlaceHtml(p);
   // GRAVÉ SUR SA CARTE (V2.2) : les moments légendaires d'une run se relisent ici, pas seulement dans un toast.
   const legendes = surTable() ? [] : legendesDe(getPlayerKey(p));
-  const grave = legendes.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
+  // V9 (tranche 7) : son histoire chez toi (`histoireChezToi`, js/cartable.js) et ses galons, gravés avec leur match et leur adversaire.
+  const chez = surTable() || G.bonus !== 'ROGUE' ? [] : histoireChezToi(getPlayerKey(p));
+  const galons = chez.flatMap(e => (e.galons || []).map(g => ({ ...g, run: e.run, s: e.s })));
+  const grave = legendes.length || galons.length ? `<div class="section-label">Gravé sur sa carte</div><ul class="glace">${galons.map(g => `<li class="bon">${ICO_GALON} <b>${esc(GALONS[g.cle].nom)}</b> · ${esc(texteDuGalon(g))} · run ${g.run}, saison ${g.s}</li>`).join('')}${legendes.map(l => `<li class="bon">${LEGENDES[l.type].ico} <b>${esc(LEGENDES[l.type].nom)}</b>${l.saison ? ` · saison ${l.saison} d'une run` : ''}</li>`).join('')}</ul>` : '';
   const profil = grave + (glace ? `<div class="section-label">Sur la glace</div>${glace}` : '');
   // SES JAMBES, JOURNÉE PAR JOURNÉE (1.0, le suivi des jambes) : l'instantané du moteur de son club.
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';
@@ -491,6 +495,7 @@ export function showPlayerModal(p, opts = {}) {
   const td = (v, i) => `<td${i === enOr ? ' class="hl"' : ''}>${v}</td>`;
   const statsCarte = `<div class="cjv-table-wrap"><table class="cjv-table cjv-saisons"><thead><tr><th scope="col">Saison</th>${tetes.map((t, i) => `<th scope="col"${i === enOr ? ' class="hl"' : ''}>${t}</th>`).join('')}</tr></thead><tbody>
     <tr><th scope="row">${esc([p.s, p.t].filter(Boolean).join(' '))}</th>${vraie.map(td).join('')}</tr>
+    ${chez.filter(e => !(chezToi && G.rogue && e.run === G.rogue.numero && e.s === (G.rogue.saison || 1))).map(e => `<tr><th scope="row">Run ${e.run}, saison ${e.s}</th>${(G_ ? [e.gp, e.w, '—', e.so, '—', '—'] : [e.gp, e.g, e.a, e.pts, '—', '—']).map(td).join('')}</tr>`).join('')}
     ${chezToi ? `<tr><th scope="row">${esc(opts.team ? teamLabel(opts.team) : opts.sim === 'series' ? 'Séries' : 'Chez toi')}</th>${chezToi.map(td).join('')}</tr>` : ''}
   </tbody></table></div>${reste.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${reste.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${reste.map(([, v]) => `<td>${v}</td>`).join('')}</tr></tbody></table></div>` : ''}`;
   const etiquettes = `${traitTags(p, true)}${surTable() && !apres ? '' : identiteTag(p, true) + zoneTag(p) + coachTag(p)}${realTag(p)}`;

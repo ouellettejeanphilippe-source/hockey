@@ -180,11 +180,13 @@ function equipeEtoiles(teams) {
   return [parRole.AG, parRole.C, parRole.AD, d1, d2, g].filter(Boolean);
 }
 
+/* Les gagnants des trophées, ce que les colonnes décident : [{ d, x }] (V9, tranche 7 : le panthéon les garde). */
+export const gagnantsDesTrophees = stats => TROPHEES.map(d => {
+  const x = (stats[d.cle] || [])[0];
+  return x ? { d, x } : null;
+}).filter(Boolean);
 function tropheesHtml(stats, teams) {
-  const gagnants = TROPHEES.map(d => {
-    const x = (stats[d.cle] || [])[0];
-    return x ? { d, x } : null;
-  }).filter(Boolean);
+  const gagnants = gagnantsDesTrophees(stats);
   if (!gagnants.length) return '';
   const carte = ({ d, x }) => `<div class="tro-carte${x.t.isPlayer ? ' tien' : ''}">
     <div class="tro-nom">${esc(d.nom)}</div>

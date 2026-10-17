@@ -2005,14 +2005,14 @@ const BADGES_CACHE = new WeakMap();
  * MONTER UN PALIER (V2.4, docs/refonte-systeme.md § 10) : trois façons, et aucune « en jouant ». La carte
  * d'entraînement (`_palier`, une modif) monte son premier badge ; la variante de sa carte (`_carte`, posée sur TES
  * joueurs seulement, js/rarete.js `VARIANTE_PALIERS`) — parallèle le second, holo le premier, or les deux ; le
- * mentor de trio (`_palierTrio`, posé au début de chaque match sur ses compagnons de ligne) leur premier. Ce qui
- * passe Platine monte l'autre badge. Rend [premier, second].
+ * mentor de trio (`_palierTrio`, posé au début de chaque match sur ses compagnons de ligne) leur premier ; ses galons
+ * de la run (`_galon`, V9 tranche 7, js/galons.js) aussi. Ce qui passe Platine monte l'autre badge. Rend [premier, second].
  */
 const paliersEnPlus = p => {
   const [a, b] = VARIANTE_PALIERS[(p._carte && p._carte.rar) || 'commune'] || [0, 0];
-  return [a + (p._palier || 0) + (p._palierTrio || 0), b];
+  return [a + (p._palier || 0) + (p._palierTrio || 0) + (p._galon || 0), b];
 };
-const monteBadge = p => !!(p && (p._palier || p._palierTrio || (p._carte && p._carte.rar && p._carte.rar !== 'commune')));
+const monteBadge = p => !!(p && (p._palier || p._palierTrio || p._galon || (p._carte && p._carte.rar && p._carte.rar !== 'commune')));
 export function badgesDe(p) {
   // Les systèmes lisent les badges à chaque case (V2.3) : sans changement de carte, un joueur garde les siens.
   const fixe = p && !p._mutProfils && !monteBadge(p);
@@ -3179,8 +3179,8 @@ export function effetDeMoment(d, team = null) {
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
@@ -4110,7 +4110,7 @@ export function badgeGardien(g) {
   const [e, S] = cle === 'fer' ? [g.gp / seasonGames(g.s), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
   const brut = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
   // Monter un palier (V2.4) : la variante de sa carte (un, deux ou trois) et la carte d'entraînement.
-  const palier = Math.min(4, brut + (VARIANTE_PALIERS_G[(g._carte && g._carte.rar) || 'commune'] || 0) + (g._palier || 0));
+  const palier = Math.min(4, brut + (VARIANTE_PALIERS_G[(g._carte && g._carte.rar) || 'commune'] || 0) + (g._palier || 0) + (g._galon || 0));
   return { cle, palier, gagne: palier - brut, second: false, gardien: true, ...BADGES_G[cle] };
 }
 /* Ce que son badge fait à ses arrêts dans une situation (`mode` : FE, AN, DN ; `series` ; `charge` : les lancers attendus ce
@@ -5993,8 +5993,10 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     }
     // Le journal de la saison : ce qu'il faut pour raconter une séquence,
     // un début de saison, une raclée. Le moteur n'y lit jamais rien.
-    if (A.journal) A.journal.push({ n: A.games + 1, adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
-    if (B.journal) B.journal.push({ n: B.games + 1, adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
+    // V9 (tranche 7) : la journée du match, pour qu'un galon retrouve son gros match (js/galons.js).
+    const jourJ = t => (Number.isFinite(t.jourCourant) ? t.jourCourant : null);
+    if (A.journal) A.journal.push({ n: A.games + 1, jour: jourJ(A), adv: B, gf: gfA, ga: gfB, ot, win: winA, gardien: gA, feuille: journal });
+    if (B.journal) B.journal.push({ n: B.games + 1, jour: jourJ(B), adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
   applyInjuries(A, LA, heavy, journal, 'A', pA, pB); applyInjuries(B, LB, heavy, journal, 'B', pB, pA);
   if (track) { A.games++; B.games++; }
@@ -6528,6 +6530,11 @@ function appliquerDecision(team, d, graine = 0) {
   // V9 (tranche 6) : le jouer blessé, ou le ramener plus tôt (`jouerBlesse`) ; les commotions des saisons d'avant de la run.
   if (d.blesse && d.blesse.joueur) jouerBlesse(team, d.blesse.joueur, d.jour);
   if (d.commotions && typeof d.commotions === 'object') team.commotions = { ...d.commotions };
+  // V9 (tranche 7) : les galons de la run (js/galons.js), un palier de badge chacun, lus par `badgesDe`.
+  if (d.galons && typeof d.galons === 'object') for (const [k, n] of Object.entries(d.galons)) {
+    const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === k) || CONNUS.get(k);
+    if (p) p._galon = Math.max(0, Number(n) || 0);
+  }
   if (d.avant && AVANT_GROS[d.avant.cle]) {
     const o = AVANT_GROS[d.avant.cle].options.find(x => x.cle === d.avant.choix);
     if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, cleDuPari(d), AVANT_GROS[d.avant.cle].titre);
@@ -6797,7 +6804,7 @@ function remettreAZero(p) {
   initSimStats(p);
   p.energie = 100; delete p._reserve; delete p._suite; delete p._aine;
   delete p._adapt; delete p._situ; delete p._recents; delete p._lancee;
-  delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu;
+  delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._feu;
 }
 
 export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null, arcs = courbe } = {}) {
@@ -6874,7 +6881,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null; t.effetsCibles = [];
       t.suivis = []; t.retours = []; t.blessesQuiJouent = []; t.commotions = null;
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null; t.rivaux = null; t.beteNoire = null;
@@ -7942,7 +7949,8 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   p._mutProfils = p._mutProfils || {};
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
-  (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source });
+  // `saison` (V9, tranche 7) : une modif offerte pour la saison seulement (le vétéran mentor d'un fil) ne va pas sur sa carte.
+  (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}) });
 }
 
 /* Les accidents : cinq fenêtres, une chance sur deux par club, tirés de la graine. */

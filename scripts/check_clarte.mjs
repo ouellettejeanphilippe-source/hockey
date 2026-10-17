@@ -42,6 +42,7 @@ import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { TAILLE_MAIN, DECK_DEPART, BLESSURE_TRAINEE, CICATRICES_MAX, CAHIER_MAX } from '../js/combat.js';
 import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
+import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
@@ -318,6 +319,8 @@ const MOTS_RESERVES = [
     [`<strong>main de ${TAILLE_MAIN} cartes</strong> dure le match, avec <strong>${ELAN_PAR_PERIODE} d'élan</strong> par période`, 'la main du duel'],
     [MISE_DOUBLEE === 2 ? 'tu peux doubler la mise' : '(la mise ne double plus)', 'la mise doublée'],
     [`commence avec ${DECK_DEPART.length} cartes, ${CAHIER_MAX} au plus`, 'le deck de départ et le cahier borné'],
+    // V9, tranche 7 : les galons (js/galons.js) et le chandail retiré (`CHANDAIL_GALONS`, js/rogue.js).
+    [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, ${GALONS.grandsSoirs.seuil} points en gros match ou ${GALONS.recrue.seuil} points d'une recrue chez toi montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V9, tranche 5b : tes places et les paliers de la saison.

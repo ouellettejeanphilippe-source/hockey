@@ -269,7 +269,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 4. **Le plafond qui mord**, la liste qui classe pour ton plan, et **un départ bien pire** (JP, 16 oct. : *you should start with a way worse team*). On part d'une équipe beaucoup plus faible, et c'est le plan et le marché qui la font monter. Le mandat de la saison 1 se règle avec elle. Juge : `check_rogue` (la première run reste dure, mais une équipe faible bien menée monte).
 5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`. *Fait (§ 17). La poche, la main de la semaine et les places (§ 6.4) n'étaient dans aucune tranche : faites en tranche 5b (§ 18).*
 6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`. *Fait (§ 19) ; son juge : `check_retours`.*
-7. **Graver** : l'histoire chez toi, les galons, le panthéon. Juges : `check_sauvegardes`, `essai_rogue`.
+7. **Graver** : l'histoire chez toi, les galons, le panthéon. Juges : `check_sauvegardes`, `essai_rogue`. *Fait (§ 20) ; son juge : `check_galons`.*
 8. **Recalibrer la run** sur les deux robots.
 
 ## 12. Ce que JP tranche
@@ -456,6 +456,34 @@ JP : *Continuer*. Ce que § 6.6 et § 6.7 décrivaient, sur les canaux qui exist
 - [x] **Ce qui n'est pas fait** : le vétéran mentor de la recrue (§ 6.7) attend les galons (tranche 7) ; le joueur délogé ne fait pas encore un second choix, il boude ; les robots de `rogue_sim` ne prennent ni ces choix ni le jouer blessé.
 - [x] **Les juges** : `check_retours` (nouveau, deux minutes, trois ligues) : 15 vertes — neuf choix de fils (🥶 3, 🤝 3, 🔥 2, 🐣 1), chacun sans toucher aux journées d'avant, son retour le bon matin et recompté dans ses feuilles ; trois blessés joués blessés, une aggravation ; trois commotions avec mémoire, aucune hors du Rogue.
   - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_emojis`, `check_retours`, `check_arcs` (8, chaque arc sous 0,32 V), `check_packs` (76), `check_rogue` (32 ; 0 % → 70 %, la première Coupe des deux campagnes à la run 4).
+
+## 20. Fait le 17 octobre : la tranche 7, graver
+
+JP : *Go pour la tranche 7*. Ce que § 6.8 décrivait, sur les canaux qui existent (docs/decisions.md).
+
+- [x] **Son histoire chez toi** (js/cartable.js `graverLaSaison`) : à la fin de chaque saison de Rogue, une ligne par joueur et par saison de run, gardée sur sa carte d'une run à l'autre : ses matchs, buts, passes et points (un gardien, ses victoires et ses blanchissages), ses gros matchs gagnés habillé. Elle ne repart jamais à zéro ; une saison rechargée réécrit sa ligne. La fiche la montre, saison par saison, et « Ceux qui restent » la dit en une ligne avant que tu tranches.
+- [x] **Les galons** (`GALONS`, js/galons.js), lus dans le journal de ton club, gravés avec leur match et leur adversaire :
+
+  | Le galon | Ce qu'il faut, chez toi, dans une saison |
+  |---|---|
+  | Le marqueur | 40 buts |
+  | Le passeur | 50 passes |
+  | Le mur | 30 victoires d'un gardien |
+  | Les grands soirs | 5 points dans des gros matchs gagnés |
+  | La recrue de l'année | 40 points d'une recrue |
+
+  Chacun monte son badge d'un métal pour le reste de la run, deux au plus (`GALONS_MAX`) : une décision de report, `galons`, que le moteur lit comme la carte d'entraînement (`_galon`, `badgesDe`). Aucune cote neuve. « 🏵 Galon : Lecavalier, 40e but, au 74e match, contre Calgary. »
+- [x] **La carte monte par ses exploits** : chaque galon neuf donne une copie de plus de sa meilleure édition ; trois copies, et elle monte (`monterLesDoublons`).
+- [x] **Le panthéon du club** (js/rogue.js `graverAuPantheon`, au vestiaire) : les records d'une saison chez toi (buts, passes, points, victoires d'un gardien, points du club), les trophées que tes joueurs gagnent (ce que les colonnes décident, js/bilan.js), les chandails retirés — trois galons chez toi, toutes runs confondues. La vitrine de la Coupe nomme maintenant ceux qui ont produit chez toi, plutôt que les vedettes de leur vraie saison.
+- [x] **Le vétéran mentor** (laissé à la tranche 6) : une option du fil de la recrue. Ton plus vieux patineur habillé (33 ans ou plus) devient son mentor (`mentorTrio`) pour la saison, et la recrue passe sur sa ligne. Son badge y monte d'un métal (`poserMentors`). Offert pour la saison seulement (`saison`), il ne va pas sur la carte du vétéran et ne prend aucune case de son verso.
+- [x] `VERSION_MOTEUR` passe à S114 : une saison de Rogue sauvegardée se rejoue avec la V9, et le jeu le dit.
+- [x] **Les juges** : `check_galons` (nouveau, dans `tout.mjs`, quatorze secondes) : 11 vertes. Il vérifie que :
+  - chaque galon se recompte dans le journal (son match, son adversaire, son seuil) et ne va qu'à tes joueurs ;
+  - un galon monte le badge d'un métal, deux de deux, jamais au-delà de Platine, le gardien aussi ; une ligue sans la décision n'en garde rien ;
+  - la même saison gravée deux fois ne double rien ; les galons d'une run ne comptent pas dans l'autre ; trois galons montent une carte seule d'une édition ;
+  - un record ne change que s'il est battu, un trophée et un chandail s'inscrivent une fois ;
+  - le mentor monte la ligne de la recrue sans prendre de case.
+  - Preuves : `check_galons` (11), `tout.mjs` (23), `check_mort`, `check_clarte`, `check_coquille`, `check_emojis`, `check_empreinte`.
 
 ## Annexe · la méthode des mesures
 

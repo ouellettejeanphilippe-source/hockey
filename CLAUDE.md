@@ -62,6 +62,7 @@ js/equipes.js         l'écran des équipes et leurs vraies statistiques
 js/combat.js          le deck de match : cartes, main, élan, main adverse
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
 js/rarete.js          les variantes de carte et leur bonus
+js/galons.js          les galons d'une saison de Rogue (40 buts, 50 passes…), lus dans le journal du club
 js/banque.js          la banque de cartes (patrons, événements, modifs, consommables, contrats), le build : la couleur et le compte de chaque coach
 js/coachs.js          les coachs (v2) : neuf philosophies, la couleur d'une carte lue sur ses canaux, la confiance à 3, 6 et 9 cartes
 js/packs.js           les packs de joueurs et de cartes, leurs taux
@@ -199,6 +200,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **voix** : qui écrit dans la boîte (le proprio, l'entraîneur, l'analyste à la télé, les partisans, le capitaine, le physio, le joueur lui-même…) — une seule distribution, `EXPEDITEURS` (js/vie-gm.js). Une voix dit le fait d'un fil et y ajoute une opinion, jamais un chiffre — `check_fils`. En Rogue, le soir où un fil rare naît (le Cheechoo, la recrue, 40 buts, un rythme de 50), sa voix paie une **prime** en jetons (`primesDesFils`, js/rogue.js).
 - **lancée** : en Rogue, un joueur qui vient de marquer beaucoup finit mieux tant que ça dure ; le **doute**, le vrai marqueur en panne qui finit moins bien (`lanceeDe`, js/sim.js — `check_lancee`). Pas « confiance », qui est aux coachs ; jamais dans le 82-0. La lancée **vive** est celle de ☄️ l'étincelle ; la braise, la traînée de poudre et le vendeur de chandails l'entretiennent (le premier combo du Rogue, `check_combo`).
 - **trait** : ce qu'un vote ou une réputation donne au joueur (🛡️ Selke, ⚡ vitesse) ; un **trophée** se décerne au bilan, sur les colonnes.
+- **galon** 🏵 : en Rogue, ce qu'un joueur a fait chez toi dans une saison (40 buts, 50 passes, 30 victoires, 5 points dans des gros matchs gagnés, 40 points d'une recrue), gravé avec son match et son adversaire (`GALONS`, js/galons.js) ; son badge monte d'un métal pour le reste de la run, deux au plus, et sa carte en garde une copie de plus. **Son histoire chez toi** : ses saisons de run, sur sa carte (`graverLaSaison`, js/cartable.js). **Le panthéon** : les records, les trophées et les chandails retirés du club, d'une run à l'autre (`graverAuPantheon`, js/rogue.js) — `check_galons`.
 - **unités spéciales** : AN 1 et AN 2 (l'avantage numérique), DN 1 et DN 2 (le désavantage) ; le moteur les range, l'onglet AN · DN des Lignes les change (`speciales`, `check_speciales`).
 - **consigne** : 😌 Basse, 🎚️ Normale, 🌡️ Haute ; **agressivité** : 🕊️ Prudente, ⚖️ Moyenne, 💥 Musclée, 🪓 Rentre-dedans.
 - **contrat** : une carte de masse salariale (💵) ; une modif de joueur qui touche son contrat est une **clause**.

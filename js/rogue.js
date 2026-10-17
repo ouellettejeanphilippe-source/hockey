@@ -327,6 +327,37 @@ export function lireMeta() {
 }
 export function ecrireMeta(m) { try { localStorage.setItem(CLE_META, JSON.stringify(m)); } catch { /* ignore */ } }
 export const aDebloque = (m, cle) => (m.deblocages || []).includes(cle);
+/*
+ * LE PANTHÉON DU CLUB (V9, tranche 7 — docs/refonte-v9.md § 6.8), d'une run à l'autre (`meta.pantheon`) : les records
+ * d'une saison chez toi, les trophées que tes joueurs ont gagnés (ce que les colonnes décident, js/bilan.js), et les
+ * chandails retirés — un joueur qui compte `CHANDAIL_GALONS` galons chez toi, toutes runs confondues. La même saison
+ * gravée deux fois (un rechargement) ne double rien. Rend ce qui est neuf.
+ */
+const CHANDAIL_GALONS = 3;
+export const RECORDS = {
+  buts: { nom: 'Buts en une saison', de: j => (j.gardien ? 0 : j.g) },
+  passes: { nom: 'Passes en une saison', de: j => (j.gardien ? 0 : j.a) },
+  points: { nom: 'Points en une saison', de: j => (j.gardien ? 0 : j.pts) },
+  victoires: { nom: 'Victoires d\'un gardien', de: j => (j.gardien ? j.w : 0) },
+};
+export function graverAuPantheon({ run = 0, saison = 1, joueurs = [], trophees = [], pts = 0 } = {}) {
+  const m = lireMeta();
+  const P = m.pantheon = { records: {}, trophees: [], chandails: [], ...(m.pantheon || {}) };
+  const ici = { run, saison }, neuf = { records: [], trophees: [], chandails: [] };
+  for (const [k, R] of Object.entries(RECORDS)) {
+    const j = joueurs.slice().sort((a, b) => (R.de(b) || 0) - (R.de(a) || 0))[0];
+    const n = j ? R.de(j) || 0 : 0;
+    if (n > 0 && (!P.records[k] || n > P.records[k].n)) { P.records[k] = { n, nom: j.nom, cle: j.cle, ...ici }; neuf.records.push(k); }
+  }
+  if (pts > 0 && (!P.records.club || pts > P.records.club.n)) { P.records.club = { n: pts, ...ici }; neuf.records.push('club'); }
+  for (const t of trophees) if (!P.trophees.some(x => x.run === run && x.saison === saison && x.nom === t.nom)) { P.trophees.push({ ...t, ...ici }); neuf.trophees.push(t); }
+  for (const j of joueurs) if ((j.galonsCarriere || 0) >= CHANDAIL_GALONS && !P.chandails.some(x => x.cle === j.cle)) {
+    const c = { cle: j.cle, nom: j.nom, galons: j.galonsCarriere, ...ici };
+    P.chandails.push(c); neuf.chandails.push(c);
+  }
+  ecrireMeta(m);
+  return neuf;
+}
 /* Combien de joueurs on garde : zéro, un, deux, trois selon les déblocages. */
 export const nombreGardes = m => (aDebloque(m, 'garder3') ? 3 : aDebloque(m, 'garder2') ? 2 : aDebloque(m, 'garder1') ? 1 : 0);
 export const jetonsDeDepart = m => JETONS.depart + (aDebloque(m, 'caisse1') ? 20 : 0) + (aDebloque(m, 'caisse2') ? 20 : 0);
