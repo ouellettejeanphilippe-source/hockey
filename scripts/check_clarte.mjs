@@ -43,7 +43,7 @@ import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, CO
 import { TAILLE_MAIN, DECK_DEPART, BLESSURE_TRAINEE, CICATRICES_MAX, CAHIER_MAX } from '../js/combat.js';
 import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, LIGUE_PARTS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -253,7 +253,8 @@ const MOTS_RESERVES = [
   // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   // Oct. 2026 : la page dit les raretés (JP : *spas clair les niveaux de rareté des cartes*) : 2 250 mots.
-  borne('la page des règles est courte', mots, 300, 2250, 'mots');
+  // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*), et la ligue qui monte : 2 400 mots.
+  borne('la page des règles est courte', mots, 300, 2400, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -320,7 +321,7 @@ const MOTS_RESERVES = [
     [MISE_DOUBLEE === 2 ? 'tu peux doubler la mise' : '(la mise ne double plus)', 'la mise doublée'],
     [`commence avec ${DECK_DEPART.length} cartes, ${CAHIER_MAX} au plus`, 'le deck de départ et le cahier borné'],
     // V9, tranche 7 : les galons (js/galons.js) et le chandail retiré (`CHANDAIL_GALONS`, js/rogue.js).
-    [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, ${GALONS.grandsSoirs.seuil} points en gros match ou ${GALONS.recrue.seuil} points d'une recrue chez toi montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
+    [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, un point dans ${GALONS.grandsSoirs.seuil} gros matchs gagnés ou ${GALONS.recrue.seuil} points d'une recrue montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V9, tranche 5b : tes places et les paliers de la saison.
@@ -336,6 +337,11 @@ const MOTS_RESERVES = [
     [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un gros match gagné ${B.grosMatch}, un objectif du proprio ${B.objectif}, une ronde de séries gagnée ${B.serie}`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
     [`tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs`, 'les gardés entre deux saisons'],
+    [`<strong>Les exigences</strong> ${ICO_EXIGENCE} :`, 'l\'icône des exigences'],
+    [`paie ${nombre(PRIME_EXIGENCE * 100)} % de médailles de plus : ${EXIGENCES.map(E => E.texte).join(' ; ')}.`, 'les exigences'],
+    // La ligue qui monte (tranche 8) : « deux fois », puis « un tiers » plus large — les parts 1/2 et 3/4 du tirage.
+    [JSON.stringify(LIGUE_PARTS) === '[0.5,0.75]' ? 'les plus faibles d\'un tirage deux fois plus large, puis d\'un tirage un tiers plus large' : '(les parts de la ligue ont changé)', 'les premières ligues'],
+    [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
@@ -364,8 +370,9 @@ const MOTS_RESERVES = [
   exiger('les éditions sont celles que la page dit', JSON.stringify(VARIANTE_PALIERS) === JSON.stringify({ commune: [0, 0], peu: [0, 1], hors: [1, 1], rare: [1, 1], legendaire: [2, 2] })
     && VARIANTE_PLEINE.rare && VARIANTE_PLEINE.legendaire && !VARIANTE_PLEINE.peu && !VARIANTE_PLEINE.hors, EDITIONS.map(r => NOM_VARIANTE[r]).join(' · '));
   // Les commanditaires : +3 puis +2 (js/rogue.js, `baremeRogue`).
-  const src = lire('js/rogue.js');
-  exiger('les commanditaires valent +3 puis +2 par victoire', /victoire: 5 \+ \(aDebloque\(m, 'commanditaire1'\) \? 3 : 0\) \+ \(aDebloque\(m, 'commanditaire2'\) \? 2 : 0\)/.test(src));
+  const parVictoire = d => baremeRogue({ deblocages: d }).victoire;
+  exiger('les commanditaires valent +3 puis +2 par victoire', parVictoire([]) === B.victoire && parVictoire(['commanditaire1']) === B.victoire + 3 && parVictoire(['commanditaire1', 'commanditaire2']) === B.victoire + 5,
+    `${parVictoire([])} · ${parVictoire(['commanditaire1'])} · ${parVictoire(['commanditaire1', 'commanditaire2'])}`);
   const manquants = ecrits.filter(([t]) => !brut.includes(t)).map(([t, nom]) => `${nom} (« ${t.slice(0, 70)} »)`);
   exiger('chaque chiffre de la page vient de sa constante', manquants.length === 0, manquants.join(' · ') || `${ecrits.length} chiffres vérifiés`);
   const mandats = MANDATS.map(m => m.mot);

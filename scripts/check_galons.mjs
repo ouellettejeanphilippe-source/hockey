@@ -96,8 +96,8 @@ for (const { you } of bases) {
         if (g.cle === 'buts' && b.marqueur === p) n++;
         if (g.cle === 'passes') n += (b.passeurs || []).filter(q => q === p).length;
         if (g.cle === 'recrue') n += point(b);
-        if (g.cle === 'grandsSoirs' && gros.has(`${e.jour}|${e.adv.name}`)) n += point(b);
       }
+      if (g.cle === 'grandsSoirs' && gros.has(`${e.jour}|${e.adv.name}`) && f.buts.some(x => x.cote === cote && point(x))) n++;
       if (g.cle === 'victoires' && e.win && e.gardien === p) n++;
       if (avant < GALONS[g.cle].seuil && n >= GALONS[g.cle].seuil && !passe) passe = e;
     }

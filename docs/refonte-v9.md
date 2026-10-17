@@ -270,7 +270,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`. *Fait (§ 17). La poche, la main de la semaine et les places (§ 6.4) n'étaient dans aucune tranche : faites en tranche 5b (§ 18).*
 6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`. *Fait (§ 19) ; son juge : `check_retours`.*
 7. **Graver** : l'histoire chez toi, les galons, le panthéon. Juges : `check_sauvegardes`, `essai_rogue`. *Fait (§ 20) ; son juge : `check_galons`.*
-8. **Recalibrer la run** sur les deux robots.
+8. **Recalibrer la run** sur les deux robots. *Fait (§ 21) : les exigences et la ligue qui monte.*
 
 ## 12. Ce que JP tranche
 
@@ -484,6 +484,69 @@ JP : *Go pour la tranche 7*. Ce que § 6.8 décrivait, sur les canaux qui existe
   - un record ne change que s'il est battu, un trophée et un chandail s'inscrivent une fois ;
   - le mentor monte la ligne de la recrue sans prendre de case.
   - Preuves : `check_galons` (11), `tout.mjs` (23), `check_mort`, `check_clarte`, `check_coquille`, `check_emojis`, `check_empreinte`.
+
+## 21. Fait le 17 octobre : la tranche 8, la run qui ne s'aplatit plus
+
+JP : *fusionne, et go pour la tranche 8* ; puis, devant les mesures, *les exigences* ; puis *tu pourrais faire que les clubs des premières runs sont globalement plus faibles et monter — t'as le droit de jouer avec l'équilibrage des packs, stratégies, coach, etc.* (docs/decisions.md).
+
+- [x] **Les robots reportent leurs galons** d'une saison à l'autre de la run, comme le jeu (`rogue_sim`).
+- [x] **Le point de départ, mesuré** (deux campagnes de douze runs par robot, galons compris) :
+  - la première Coupe de l'attentif aux runs 3 et 2 : médiane 2,5 (cible 3 à 8) ;
+  - après elle, **19 Coupes en 19 runs**, presque toutes dès la première saison, à 130 à 160 points ;
+  - le robot d'avant : une Coupe en douze runs au mieux ; le distrait, jamais.
+- [x] **D'où vient la facilité** (une première saison de Dynastie, quatre graines, l'attentif) :
+
+  | | points | Coupes |
+  |---|---|---|
+  | tout | 137 | 3 sur 4 |
+  | sans packs en saison | 117 | 2 sur 4 |
+  | sans classeur ni gardés | 120 | 2 sur 4 |
+  | sans les deux | 95 | 0 sur 4 |
+  | le robot d'avant, la même équipe | 124 | 0 sur 4 |
+
+  Mesuré et écarté, parce que ça ne bougeait presque rien :
+  - un plafond borné à 82 ou 76 M$ (il ne mord pas en campagne) ;
+  - la Coupe et la finale payées en médailles, sans déblocage offert ;
+  - le prestige sans argent au classeur ni quota de Soutien ;
+  - une ligue des meilleurs vrais clubs à leur vrai bilan (137 → 132 points).
+
+  Ce qui mord, ce sont les cartes des adversaires : des cartes Cadre chez tous coûtent 17 points à la Dynastie, des cartes Or 34.
+- [x] **Les packs montent de 25 % par achat** dans la saison (`HAUSSE_PACK`, c'était 10 %) : l'attentif en ouvrait 20 à 24 par saison ; il en ouvre une dizaine, et sa première Coupe passe à la run 3.
+- [x] **Les exigences** (`EXIGENCES`, js/rogue.js ; JP : *les exigences*). Après ta première Coupe, au départ d'une run, tu montes celles du proprio d'un cran ; la Coupe gagnée au plus haut cran ouvre le suivant. Huit crans cumulatifs, chacun par un canal qui existe, chacun 15 % de médailles de plus :
+
+  | Cran | Ce qu'il exige |
+  |---|---|
+  | 1 · La ceinture | 3 M$ d'espace de moins sous le plafond |
+  | 2 · Les agents | les packs coûtent 25 % de plus |
+  | 3 · Le classeur fermé | une carte de moins du classeur, et un loto de moins |
+  | 4 · Le vestiaire mince | 3 cartes Soutien de plus au départ de chaque saison |
+  | 5 · Les commanditaires boudent | 2 jetons de moins par victoire |
+  | 6 · Le proprio impatient | chaque mandat arrive une saison plus tôt |
+  | 7 · Ceux qui partent | 2 joueurs gardés de moins entre deux saisons |
+  | 8 · La ceinture serrée | 3 M$ d'espace de moins encore |
+
+  Seuls, ils ne suffisaient pas : l'attentif montait les six premiers crans en gagnant chaque run.
+- [x] **La ligue qui monte** (`niveauDeLigue`, `ligueDe`, `habillerLaLigue` ; JP : *les clubs des premières runs plus faibles, et monter*). Le niveau de ta ligue suit ton prestige, et chaque cran d'exigence le monte de deux :
+  - au Club de garage, tes 31 adversaires sont les plus faibles, à leur force au moteur, d'un tirage deux fois plus large ; au Club de quartier, d'un tirage un tiers plus large ;
+  - ensuite, toute l'histoire, et chaque niveau monte d'une édition un tiers de plus de chaque club, ses meilleurs d'abord (Cadre, Hors-cadre, Or, Holo), jusqu'à la Holo pour tous.
+
+  C'est le canal des cartes du joueur, leurs badges. Aucune cote neuve. Le départ d'une run dit sa ligue ; la page des règles la décrit. Une ligue qui n'est pas du Rogue n'a aucune carte.
+- [x] `VERSION_MOTEUR` passe à S115 : une saison de Rogue sauvegardée se rejoue, et le jeu le dit.
+- [x] **Les juges** :
+
+  | | avant | après | cible |
+  |---|---|---|---|
+  | la 1re Coupe de l'attentif (médiane) | run 2,5 | **run 3** (3 et 3) | 3 à 8 ✓ |
+  | après sa 1re Coupe, l'attentif la regagne | 19 sur 19 | **8 sur 18 (44 %)** | 25 à 67 % ✓ |
+  | l'attentif contre le robot d'avant | +8,3 V | **+7,1 V** | ≥ +5 V ✓ |
+  | un club du milieu bien mené finit premier | 6 sur 16 | **5 sur 16** | ✓ |
+  | un meilleur club mal mené rate les séries | 3 sur 16 | **3 sur 16** | ✓ |
+  | le distrait gagne la Coupe | 0 sur 24 | **0 sur 24** | ✓ |
+
+  - Après sa première Coupe, l'attentif monte au cran 4 ou 5 (une ligue où ses adversaires portent de l'Or) et bute : des runs de deux à cinq saisons, des Coupes qui ne tombent plus d'office.
+  - Le robot d'avant : une campagne sans Coupe, l'autre en gagne deux à partir de la run 10.
+  - `check_rogue` (39 vertes) : la Coupe par run du robot d'avant, de rien à tout débloqué, 0 % → 70 % ; sa première Coupe à la run 7 dans les deux campagnes. `check_robot` (Rogue) : le robot « premier Signer » ne gagne aucune Coupe, même dans la ligue de garage.
+  - Preuves : `check_profondeur` (6, nouveau juge : la run qui ne s'aplatit pas), `check_rogue` (39 : les exigences et la ligue, invariants), `check_robot`, `check_clarte`, `check_mort`, `check_emojis`, `check_empreinte`, `tout.mjs` (23), `essai_rogue` (le départ offre le cran ouvert).
 
 ## Annexe · la méthode des mesures
 

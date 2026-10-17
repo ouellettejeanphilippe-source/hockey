@@ -32,6 +32,7 @@
 import { hache } from './util.js';
 import { VOIES } from './coachs.js';
 import { filsDeSaison } from './recit.js';
+import { EDITIONS, NOM_VARIANTE } from './rarete.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -104,7 +105,7 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
  * (`G.rogue.bareme`) : un déblocage acheté en cours de route ne change pas
  * les jetons déjà gagnés.
  */
-export const baremeRogue = m => ({ ...JETONS, victoire: 5 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) });
+export const baremeRogue = (m, exigence = 0) => ({ ...JETONS, victoire: Math.max(1, 5 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) + exigencesDe(exigence).victoire) });
 
 /* ---------- les déblocages (le vestiaire) ---------- */
 export const DEBLOCAGES = {
@@ -165,8 +166,8 @@ export const ESPACE_DE_DEPART = 4_000_000;
  * `tri` : deux fois plus sont tirées, on garde celles qu'on veut ; `choix` :
  * tout le classeur, on choisit.
  */
-export function departDuClasseur(m) {
-  const n = 1 + ['classeur1', 'classeur2', 'classeur3'].filter(k => aDebloque(m, k)).length;
+export function departDuClasseur(m, exigence = 0) {
+  const n = Math.max(0, 1 + ['classeur1', 'classeur2', 'classeur3'].filter(k => aDebloque(m, k)).length + exigencesDe(exigence).classeur);
   const mode = aDebloque(m, 'classeurChoix') ? 'choix' : aDebloque(m, 'classeurTri') ? 'tri' : 'hasard';
   return { n, mode, vues: mode === 'tri' ? n * 2 : n };
 }
@@ -176,8 +177,8 @@ export function departDuClasseur(m) {
  * ouvert en fait le choix dans tout : autant de cartes, prises dans tout le cartable.
  */
 const LOTOS_DE_SAISON = 3, CARTES_PAR_LOTO = 3, CARTES_PAR_LOTO_TRI = 5;
-export function lotosDeSaison(m) {
-  const D = departDuClasseur(m);
+export function lotosDeSaison(m, exigence = 0) {
+  const D = departDuClasseur(m, exigence);
   return { n: D.n - 1 + LOTOS_DE_SAISON, mode: D.mode, vues: D.mode === 'tri' ? CARTES_PAR_LOTO_TRI : CARTES_PAR_LOTO };
 }
 /*
@@ -266,7 +267,7 @@ export function tirageDuClasseur(cles, graine) {
  */
 export const COMPOSITION_DEPART = { F: 14, D: 7, G: 2 };
 export const SOUTIENS_DEPART = 23, SOUTIENS_MOINS_RANG = 3, SOUTIENS_MOINS_SAISON = 3, SOUTIENS_MIN = 5;
-export const soutiensDuDepart = (rang, saison = 1) => Math.max(SOUTIENS_MIN, SOUTIENS_DEPART - SOUTIENS_MOINS_RANG * (rang || 0) - SOUTIENS_MOINS_SAISON * ((saison || 1) - 1));
+export const soutiensDuDepart = (rang, saison = 1, exigence = 0) => Math.min(SOUTIENS_DEPART, Math.max(SOUTIENS_MIN, SOUTIENS_DEPART - SOUTIENS_MOINS_RANG * (rang || 0) - SOUTIENS_MOINS_SAISON * ((saison || 1) - 1)) + exigencesDe(exigence).soutiens);
 /* Soutien : le niveau 0, ou pas de niveau (−1, un joueur de moins d'une demi-saison). */
 export const estSoutien = niveau => niveau <= 0;
 /*
@@ -450,6 +451,8 @@ export function payerEcussons(cleRun, etape, n, { equipe = null, bilan = null } 
   // S80 : une run dure plusieurs saisons — on compte les saisons ici, les runs à leur départ.
   if (etape === 'saison') m.saisons = (m.saisons || 0) + 1;
   if (etape === 'series' && bilan && bilan.coupe) m.coupes = (m.coupes || 0) + 1;
+  // Les exigences (tranche 8) : la Coupe gagnée à un cran ouvre le suivant.
+  if (etape === 'series' && bilan && bilan.coupe) m.exigence = Math.max(m.exigence || 0, bilan.exigence || 0);
   if (equipe) m.derniereEquipe = equipe;
   if (bilan && (!m.meilleur || (bilan.pts || 0) > (m.meilleur.pts || 0) || (bilan.ronde || 0) > (m.meilleur.ronde || 0))) m.meilleur = { ...(m.meilleur || {}), ...bilan };
   // Les vieilles runs payées s'oublient : la liste ne doit pas grossir sans fin.
@@ -472,6 +475,8 @@ export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe 
  * eux ; leurs salaires ensemble tiennent dans le budget du classeur.
  */
 export const GARDES_DE_SAISON = 5;
+/* Ceux qui restent d'une saison à l'autre, au cran d'exigence de la run (« Ceux qui partent »). */
+export const gardesDeLaRun = (exigence = 0) => Math.max(0, GARDES_DE_SAISON + exigencesDe(exigence).gardes);
 /*
  * UNE RUN DURE PLUSIEURS SAISONS. JP : *en roguelike, nouvelle saison veut
  * dire continuer avec base des cartes ramassé qui sont pas des consommables,
@@ -500,15 +505,89 @@ export const MANDATS = [
   { top: 6, mot: 'finir dans les six premiers' },
   { top: 3, mot: 'finir dans les trois premiers' },
 ];
-/* Le mandat de la saison `n` (1 = la première de la run). */
-export const mandatDe = n => MANDATS[Math.max(0, Math.min(MANDATS.length, n || 1) - 1)];
+/* Le mandat de la saison `n` (1 = la première de la run) ; « Le proprio impatient » (les exigences) l'avance. */
+export const mandatDe = (n, exigence = 0) => MANDATS[Math.max(0, Math.min(MANDATS.length, (n || 1) + exigencesDe(exigence).mandat) - 1)];
 /* Le rang à atteindre pour le mandat `M` dans une ligue de `nEquipes` clubs (null : faire les séries). */
 export const rangDuMandat = (M, nEquipes = 32) => (M.top ? Math.min(M.top, nEquipes) : null);
 /* La saison a-t-elle rempli son mandat ? `series` : qualifiée ; `rang` : au classement ; `nEquipes` : la taille de la ligue. */
-export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32 } = {}) => {
-  const seuil = rangDuMandat(mandatDe(n), nEquipes);
+export const mandatRempli = (n, { series = false, rang = Infinity, nEquipes = 32, exigence = 0 } = {}) => {
+  const seuil = rangDuMandat(mandatDe(n, exigence), nEquipes);
   return !!series && (seuil == null || rang <= seuil);
 };
+
+/*
+ * LES EXIGENCES (V9, tranche 8 ; JP, 17 oct. : *les exigences*). Mesuré (scripts/check_profondeur.mjs) : après sa
+ * première Coupe, le gérant attentif gagnait la Coupe à chaque run, 19 sur 19, souvent dès la première saison. Ni un
+ * plafond borné, ni des jalons sans cadeau, ni une ligue des meilleurs vrais clubs n'y changeaient presque rien : ce qui
+ * pèse, ce sont ses packs en saison et son classeur, et sa façon de mener. Comme l'Ascension de Slay the Spire : après
+ * ta première Coupe, au départ d'une run, tu montes les exigences du proprio d'un cran. Chaque cran ajoute la sienne à
+ * celles d'avant, par un canal qui existe (le plafond, le prix des packs, le classeur, le quota de Soutien, le barème,
+ * le mandat, les gardés), et paie `PRIME_EXIGENCE` de médailles de plus. La Coupe gagnée à un cran ouvre le suivant
+ * (`m.exigence`, le plus haut cran gagné). Celui qui découvre le jeu n'en voit rien ; l'expert garde un défi.
+ */
+export const ICO_EXIGENCE = '🔺';
+export const PRIME_EXIGENCE = 0.15;
+export const EXIGENCES = [
+  { cle: 'ceinture', nom: 'La ceinture', texte: '3 M$ d\'espace de moins sous le plafond', espace: -3_000_000 },
+  { cle: 'agents', nom: 'Les agents', texte: 'les packs coûtent 25 % de plus', prixPacks: 0.25 },
+  { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une carte de moins du classeur, et un loto de moins', classeur: -1 },
+  { cle: 'vestiaire', nom: 'Le vestiaire mince', texte: '3 cartes Soutien de plus au départ de chaque saison', soutiens: 3 },
+  { cle: 'commanditaires', nom: 'Les commanditaires boudent', texte: '2 jetons de moins par victoire', victoire: -2 },
+  { cle: 'impatient', nom: 'Le proprio impatient', texte: 'chaque mandat arrive une saison plus tôt', mandat: 1 },
+  { cle: 'partants', nom: 'Ceux qui partent', texte: '2 joueurs gardés de moins entre deux saisons', gardes: -2 },
+  { cle: 'serree', nom: 'La ceinture serrée', texte: '3 M$ d\'espace de moins encore', espace: -3_000_000 },
+];
+/* Ce que `n` crans exigent ensemble : chaque canal additionné, et le multiple des médailles. */
+export function exigencesDe(n = 0) {
+  const k = Math.max(0, Math.min(EXIGENCES.length, Math.floor(n || 0)));
+  const out = { n: k, espace: 0, prixPacks: 1, classeur: 0, soutiens: 0, victoire: 0, mandat: 0, gardes: 0, medailles: 1 + PRIME_EXIGENCE * k };
+  for (const E of EXIGENCES.slice(0, k)) for (const c of ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'mandat', 'gardes']) out[c] += E[c] || 0;
+  return out;
+}
+/* Le plus haut cran qu'une run peut prendre : aucun avant ta première Coupe, puis un de plus que le plus haut gagné. */
+export const exigencesOuvertes = m => ((m && m.coupes) ? Math.min(EXIGENCES.length, (m.exigence || 0) + 1) : 0);
+/*
+ * LA LIGUE QUI MONTE (V9, tranche 8 ; JP, 17 oct. : *les clubs des premières runs sont globalement plus faibles et
+ * montent*). Le niveau de ta ligue suit ton prestige, et chaque cran d'exigence le monte de `ETAPES_PAR_CRAN`
+ * (`niveauDeLigue`). Aux premiers niveaux, tes 31 adversaires sont les plus faibles, à leur force au moteur, d'un
+ * tirage plus large (`LIGUE_PARTS` : la moitié, puis les trois quarts) ; ensuite, toute l'histoire, et chaque niveau
+ * monte d'une édition (Cadre, Hors-cadre, Or, Holo) un tiers de plus de chaque club, ses meilleurs d'abord
+ * (`editionDansLaLigue`) — le canal de tes cartes, leurs badges. Mesuré (une Dynastie de l'attentif, 4 saisons) : des
+ * cartes Cadre chez tous les adversaires lui coûtent 17 points, des cartes Or 34 ; choisir les clubs à leur vrai bilan
+ * ne bougeait presque rien.
+ */
+export const LIGUE_PARTS = [0.5, 0.75];
+export const ETAPES_PAR_CRAN = 2;
+export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
+/* La part la plus faible d'un tirage où la ligue prend ses clubs (1 : tout le tirage), et l'étape des éditions. */
+export const ligueDe = niveau => ({ part: LIGUE_PARTS[niveau] ?? 1, etape: Math.max(0, (niveau || 0) - LIGUE_PARTS.length) });
+/* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */
+export function editionDansLaLigue(etape, r, n) {
+  const tiers = r < n / 3 ? 2 : r < (2 * n) / 3 ? 1 : 0;
+  return EDITIONS[Math.min(EDITIONS.length - 1, Math.floor(((etape || 0) + (etape ? tiers : 0)) / 3))];
+}
+/* La ligue en mots, pour le départ d'une run : « la moitié la plus faible des clubs tirés », « 8 Hors-cadre et 15 Cadre par club ». */
+export function motDeLaLigue(niveau, n = 23) {
+  const { part, etape } = ligueDe(niveau);
+  if (part < 1) return `les clubs les plus faibles d'un tirage ${part <= 0.5 ? 'deux fois' : 'un tiers'} plus large`;
+  if (!etape) return 'des clubs de toute l\'histoire';
+  const compte = new Map();
+  for (let r = 0; r < n; r++) { const e = editionDansLaLigue(etape, r, n); if (e !== 'commune') compte.set(e, (compte.get(e) || 0) + 1); }
+  return `des clubs de toute l'histoire, et leurs cartes : ${[...compte].map(([e, k]) => `${k} ${NOM_VARIANTE[e]}`).join(', ')} par club`;
+}
+/* Habiller la ligue : les cartes des adversaires, selon le niveau ; `valeur(p)` classe chaque club, son meilleur d'abord. */
+export function habillerLaLigue(adversaires, niveau, valeur) {
+  const { etape } = ligueDe(niveau);
+  for (const t of adversaires || []) {
+    const js = Object.values((t && t.roster) || {}).filter(Boolean).sort((a, b) => valeur(b) - valeur(a));
+    js.forEach((p, r) => { const e = editionDansLaLigue(etape, r, js.length); if (e === 'commune') delete p._carte; else p._carte = { rar: e }; });
+  }
+}
+/*
+ * LE PLAFOND D'UNE SAISON (V9, tranche 4, « le plafond qui mord ») : ta masse de départ, plus l'espace de départ et ce
+ * que les déblocages ajoutent, moins ce que les exigences en retirent (jamais sous ta masse). Le jeu et les robots.
+ */
+export const plafondDeSaison = (masse, m, exigence = 0) => Math.ceil(((masse || 0) + Math.max(0, ESPACE_DE_DEPART + plafondDuVestiaire(m) + exigencesDe(exigence).espace)) / 100_000) * 100_000;
 
 /* ---------- les jalons (S80) ---------- */
 /*

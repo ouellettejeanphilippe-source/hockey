@@ -188,11 +188,12 @@ export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cl
 /*
  * LES PRIX MONTENT (JP : *trop de cartes, trop de cash, ça vire rapidement à être trop et j'ai rien à faire*). En
  * Rogue, chaque pack acheté dans la saison fait monter les suivants de `HAUSSE_PACK` de leur prix, comme la
- * relance de Balatro : le premier garde son prix, le quatrième pack d'une même journée coûte 30 % de plus, et la
- * saison suivante repart au prix de base. L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md,
- * phase 4 : les packs ramenés à ~8 par saison). Un achat de ton club (un nom, un écusson) ne compte pas.
+ * relance de Balatro : le premier garde son prix, le cinquième de la saison coûte le double, et la saison suivante
+ * repart au prix de base. L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md, phase 4 : les packs
+ * ramenés à ~8 par saison). V9, tranche 8 : à 10 %, le gérant attentif en ouvrait encore 20 à 24 par saison, et sa
+ * première Coupe tombait à la run 2 ; à 25 %, une dizaine. Un achat de ton club (un nom, un écusson) ne compte pas.
  */
-const HAUSSE_PACK = 0.1;
+const HAUSSE_PACK = 0.25;
 export const achatsDePacks = (decisions = []) => decisions.filter(d => d && d.achat && d.achat.prix > 0 && (d.achat.sorte === 'joueurs' || d.achat.sorte === 'cartes')).length;
 export const hausseDesPacks = n => 1 + HAUSSE_PACK * (n || 0);
 

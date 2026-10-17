@@ -14,7 +14,8 @@
  *      Et l'attentif bat le robot d'avant d'au moins 5 V par saison (JP, 16 oct.) : le joueur qui lit son plan fait
  *      mieux que celui qui laisse l'automatique jouer.
  *   2. LES CAMPAGNES : de zéro, douze runs par politique, les médailles achètent les déblocages (comme `check_rogue`).
- *      L'attentif gagne sa première Coupe entre la run 3 et la run 8 ; le distrait ne la gagne jamais.
+ *      L'attentif gagne sa première Coupe entre la run 3 et la run 8 ; le distrait ne la gagne jamais. Après sa première
+ *      Coupe, l'attentif la regagne, mais pas d'office : une run sur quatre à deux sur trois (tranche 8, `APRES`).
  *
  * LES CIBLES DE LA V9 (§ 10). Mesuré le 16 oct., avant la tranche 3 : voir docs/refonte-v9.md, § 14. Le script est le
  * juge des tranches 3 à 8, pas une vérification de la CI : il est rouge tant que mener ne compte pas assez.
@@ -27,12 +28,15 @@ import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import { getPlayerKey, autoRoster } from '../js/sim.js';
 import { jouerSaison, jouerRun, acheterDans, metaAuNiveau, shard, groupe, POLITIQUES } from './lib/rogue_sim.mjs';
+import { exigencesOuvertes, LIGUE_PARTS } from '../js/rogue.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const GRAINES = Number(process.env.GRAINES ?? 4);
 const CAMPAGNES = Number(process.env.CAMPAGNES ?? 2);
 const RUNS_CAMPAGNE = Number(process.env.RUNS_CAMPAGNE ?? 12);
 const SAISONS_CLUBS = ['1985-86', '1995-96', '2005-06', '2015-16'];
+/* Après sa première Coupe, la part des runs que l'attentif gagne encore (tranche 8) : ni jamais, ni d'office. */
+const APRES = [0.25, 2 / 3];
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 
 /* Le vrai bilan d'un club : les victoires et les défaites de ses gardiens. */
@@ -58,7 +62,8 @@ if (!isMainThread) {
       const joueurs = shard(t.saison).byTeam[t.club].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }));
       const meta = metaAuNiveau(0);
       const etat = { roster: autoRoster(joueurs), variantes: new Map(), jetons: 0 };
-      const r = jouerSaison(meta, etat, { graine, saison: 1, politique: t.politique });
+      // La ligue de toute l'histoire, sans éditions (js/rogue.js `ligueDe`) : mener une vraie équipe dans une ligue ordinaire.
+      const r = jouerSaison(meta, etat, { graine, saison: 1, politique: t.politique, ligue: LIGUE_PARTS.length });
       out.push({ graine, W: r.W, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, signes: r.signes });
     }
     parentPort.postMessage({ cle: t.cle, politique: t.politique, out });
@@ -69,12 +74,14 @@ if (!isMainThread) {
     let derniere = [], premiere = null;
     const runs = [];
     for (let r = 0; r < t.runs; r++) {
-      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `profondeur${t.c}-run${r}`, jalons: true, joues, politique: t.politique });
+      // LES EXIGENCES (tranche 8) : chaque robot monte au plus haut cran que ses Coupes ont ouvert.
+      const exigence = exigencesOuvertes(meta);
+      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `profondeur${t.c}-run${r}`, jalons: true, joues, politique: t.politique, exigence });
       for (const x of res.entrees) if (!classeur.has(getPlayerKey(x.p))) classeur.set(getPlayerKey(x.p), x);
       derniere = res.equipe;
       meta.ecussons += res.ecussons;
       acheterDans(meta);
-      runs.push({ nSaisons: res.nSaisons, coupe: res.coupe });
+      runs.push({ nSaisons: res.nSaisons, coupe: res.coupe, exigence, ligue: res.ligue });
       if (res.coupe && premiere === null) premiere = r + 1;
     }
     parentPort.postMessage({ c: t.c, politique: t.politique, runs, premiere, deblocages: meta.deblocages.length });
@@ -132,7 +139,7 @@ if (!isMainThread) {
   const camp = POLITIQUES.map(politique => resultats.filter(r => r.c !== undefined && r.politique === politique).sort((x, y) => x.c - y.c));
   POLITIQUES.forEach((politique, i) => {
     for (const r of camp[i]) {
-      informer(`campagne ${r.c + 1}, ${politique}`, `${r.premiere ? `1re Coupe à la run ${r.premiere}` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.runs.filter(x => x.coupe).length} Coupe(s) · ${r.deblocages} déblocages au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}`).join(' ')}`);
+      informer(`campagne ${r.c + 1}, ${politique}`, `${r.premiere ? `1re Coupe à la run ${r.premiere}` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.runs.filter(x => x.coupe).length} Coupe(s) · ${r.deblocages} déblocages au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}${x.exigence ? `🔺${x.exigence}` : ''}·L${x.ligue}`).join(' ')}`);
     }
   });
   const attentif = camp[POLITIQUES.indexOf('attentif')], distrait = camp[POLITIQUES.indexOf('distrait')];
@@ -142,6 +149,15 @@ if (!isMainThread) {
     const mediane = premieres.length % 2 ? premieres[(premieres.length - 1) / 2] : (premieres[premieres.length / 2 - 1] + premieres[premieres.length / 2]) / 2;
     exiger('l\'attentif gagne sa première Coupe entre la run 3 et la run 8 (la médiane des campagnes)', mediane >= 3 && mediane <= 8,
       `médiane ${mediane} · ${attentif.map(r => (r.premiere ? `run ${r.premiere}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
+    /*
+     * LA RUN NE S'APLATIT PAS (V9, tranche 8 ; § 14, « ce que ça dit », 3) : après sa première Coupe, l'attentif ne la
+     * gagne plus à chaque run — une run gagnée d'office n'a plus d'enjeu — mais il la regagne : rouler sur la ligue
+     * reste possible, et une run qui a duré a le droit de casser le jeu (principe 5).
+     */
+    const apres = attentif.flatMap(r => (r.premiere ? r.runs.slice(r.premiere) : []));
+    const taux = apres.filter(x => x.coupe).length / Math.max(1, apres.length);
+    exiger(`après sa première Coupe, l'attentif la regagne, sans la gagner d'office (${Math.round(100 * APRES[0])} à ${Math.round(100 * APRES[1])} % des runs)`, apres.length > 0 && taux >= APRES[0] && taux <= APRES[1],
+      `${apres.filter(x => x.coupe).length} Coupe(s) en ${apres.length} runs (${Math.round(100 * taux)} %)`);
     const coupesDistrait = distrait.reduce((a, r) => a + r.runs.filter(x => x.coupe).length, 0);
     exiger(`le distrait ne gagne jamais la Coupe en ${RUNS_CAMPAGNE} runs`, coupesDistrait === 0, `${coupesDistrait} Coupe(s) en ${distrait.length * RUNS_CAMPAGNE} runs`);
   }
