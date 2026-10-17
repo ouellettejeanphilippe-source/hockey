@@ -38,6 +38,7 @@ import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, nivea
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
+import { noeudsDeLaSemaine } from '../js/noeuds.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { EDITIONS } from '../js/rarete.js';
@@ -361,19 +362,19 @@ for (const k of ['j:etoiles', 'j:legendes']) {
 for (const l of lignesTaux) informer('mesuré (affiché)', l);
 informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
 /*
- * LA BANQUE SE COMPLÈTE (V2.2). Son dénominateur ne compte que ce qu'un pack peut donner (`sortDUnPack`) : chaque
- * carte tirée d'un pack en est, et aucune carte « hors pack » (les cartes de saison, les malédictions qui ne sont
- * pas la taxe du Pack Contrats) n'en sort jamais, sur des milliers d'ouvertures.
+ * LA BANQUE SE COMPLÈTE (V2.2). Son dénominateur ne compte que ce qu'un pack de la boutique peut donner
+ * (`sortDUnPack`) : chaque carte tirée d'un pack en est, et aucune carte « hors pack » (les cartes de saison, les
+ * événements, les malédictions qui ne sont pas la taxe de luxe) n'en sort jamais, sur des milliers d'ouvertures.
  */
 {
   const tirees = new Set();
-  for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 400; n++) for (const id of tirerCartesPack(cle, `banque-${cle}`, n)) tirees.add(id);
+  for (const cle of BOUTIQUE) for (let n = 0; n < 1500; n++) for (const id of tirerCartesDuPack(cle, `banque-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) tirees.add(id);
   const horsPackTirees = [...tirees].filter(id => !sortDUnPack(id));
   exiger('aucune carte « hors pack » ne sort d\'un pack', horsPackTirees.length === 0, horsPackTirees.slice(0, 5).join(', ') || `${tirees.size} cartes différentes tirées`);
   const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
   exiger('les cartes de saison ne comptent pas au dénominateur', horsPack.some(id => BANQUE[id].cat === 'saison') && Object.keys(BANQUE).filter(id => BANQUE[id].cat === 'saison').every(id => !sortDUnPack(id)), `${horsPack.length} cartes se gagnent en jouant`);
   const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
-  informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (400 ouvertures par pack)`);
+  informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (1 500 ouvertures par pack)`);
 }
 
 /*
@@ -400,11 +401,17 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
     exiger(`Pack du coach ${COACHS[coach].nom} : ses joueurs et ses cartes de sa couleur`, joueurs.length >= 6 && joueurs.every(x => coachDuJoueur(x.p) === coach) && cartes.length >= 4 && cartes.every(id => BANQUE[id].coach === coach),
       `${joueurs.length} joueurs, ${cartes.length} cartes`);
   }
-  // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des sept (6 000 ouvertures chacun, les coachs tous).
+  // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des sept (6 000 ouvertures chacun, les coachs tous),
+  // sauf les événements (V9, tranche 5b), devenus les routes de la semaine : chacun s'y gagne (js/noeuds.js).
   const avant = new Set(), apres = new Set();
   for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 1500; n++) for (const id of tirerCartesPack(cle, `fusion-${cle}`, n)) avant.add(id);
   for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) apres.add(id);
-  const perdues = [...avant].filter(id => !apres.has(id));
+  const perdues = [...avant].filter(id => !apres.has(id) && BANQUE[id].cat !== 'evenement');
+  const routes = new Set();
+  for (let g = 0; g < 300; g++) for (const n of noeudsDeLaSemaine(`routes-${g}`, 25)) if (n.route === 'evenement') routes.add(n.id);
+  const sansRoute = [...avant].filter(id => BANQUE[id].cat === 'evenement' && !routes.has(id));
+  exiger('aucun événement ne se perd : chacun se gagne aux routes de la semaine', !sansRoute.length && ![...apres].some(id => BANQUE[id].cat === 'evenement'),
+    sansRoute.slice(0, 5).join(', ') || `${routes.size} événements aux routes, aucun dans les packs`);
   const comptees = Object.keys(BANQUE).filter(sortDUnPack);
   exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);
   exiger('chaque carte que la banque compte sort d\'un des sept packs', comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);

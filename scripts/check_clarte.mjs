@@ -40,7 +40,8 @@ import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
-import { TAILLE_MAIN, DECK_DEPART, BLESSURE_TRAINEE, CICATRICES_MAX } from '../js/combat.js';
+import { TAILLE_MAIN, DECK_DEPART, BLESSURE_TRAINEE, CICATRICES_MAX, CAHIER_MAX } from '../js/combat.js';
+import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
@@ -316,7 +317,10 @@ const MOTS_RESERVES = [
     [`${INTENTIONS.ombre.ico} l'ombre suit ta vedette, ${INTENTIONS.chasse.ico} la chasse vise ton défenseur, ${INTENTIONS.centre.ico} il ferme le centre, ${INTENTIONS.assaut.ico} il lance de partout, ${INTENTIONS.cachot.ico} il cherche tes punitions`, 'les intentions'],
     [`<strong>main de ${TAILLE_MAIN} cartes</strong> dure le match, avec <strong>${ELAN_PAR_PERIODE} d'élan</strong> par période`, 'la main du duel'],
     [MISE_DOUBLEE === 2 ? 'tu peux doubler la mise' : '(la mise ne double plus)', 'la mise doublée'],
-    [`commence avec ${DECK_DEPART.length} cartes`, 'le deck de départ'],
+    [`commence avec ${DECK_DEPART.length} cartes, ${CAHIER_MAX} au plus`, 'le deck de départ et le cahier borné'],
+    // V9, tranche 5b : tes places et les paliers de la saison.
+    [`tes <strong>${PLACES} places</strong>`, 'les places'],
+    [`aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, une carte parmi trois`, 'les paliers de la saison'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs, et la distraction entre dans ton deck`, 'l\'objectif raté'],
     [`une blessure de ${BLESSURE_TRAINEE} matchs glisse une malédiction dans le deck, ${['zéro', 'un', 'deux', 'trois'][CICATRICES_MAX]} au plus`, 'les cicatrices'],

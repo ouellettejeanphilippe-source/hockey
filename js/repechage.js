@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
-import { registerHiddenRatings, famillesDe, FAMILLES, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, matchsEntre, echelleTardive } from './sim.js';
+import { registerHiddenRatings, famillesDe, FAMILLES, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
@@ -16,7 +16,7 @@ import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction,
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
-import { pocheDeLaPartie, mainDeLaSemaine, SEMAINE } from './inventaire.js';
+import { placesDeLaPartie } from './inventaire.js';
 import { ajouterAuCartable } from './cartable.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { scoreIdentite, IDENTITES } from './identites.js';
@@ -285,18 +285,14 @@ function situationsDe(p) {
  */
 const peutPoserEnSaison = () => { const hub = hubActif(); return !!(hub && hub.decider && G.ligue && G.ligue.you && !G.banc); };
 const jourDuHub = () => { const hub = hubActif(); return hub && hub.jour ? hub.jour() : (G.journee || 0); };
-/* Les modifs de ta poche qui vont à ce joueur (son groupe, une case libre, une édition qui lui fait quelque chose), empilées. */
+/* Les modifs de tes places qui vont à ce joueur (son groupe, une case libre, une édition qui lui fait quelque chose), empilées. */
 function cartesAPoserSur(p) {
   const L = G.ligue;
   if (!L || !p) return [];
   const j = jourDuHub();
   const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
   const piles = new Map();
-  const debut = Math.floor(j / SEMAINE) * SEMAINE;
-  const m = G.bonus === 'ROGUE' ? mainDeLaSemaine({ decisions: decisionsDeLaPartie(), graine: L.graine, jour: j, nMatchDebut: matchsEntre(L.you, 0, debut), nMatch: matchsEntre(L.you, 0, j), rogue: true }) : null;
-  // Jalon Q : toute la poche se joue, tant qu'il reste des cartes à jouer cette semaine.
-  if (m && !m.reste) return [];
-  for (const x of pocheDeLaPartie({ decisions: decisionsDeLaPartie(), graine: L.graine, nMatch: matchsEntre(L.you, 0, j), rogue: G.bonus === 'ROGUE' })) {
+  for (const x of placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: G.bonus === 'ROGUE' })) {
     const c = BANQUE[x.id];
     if (!c || c.cat !== 'joueur' || etatPourPoser(c.cle, p, sl, { jour: j }).non) continue;
     if (!piles.has(x.id)) piles.set(x.id, []);

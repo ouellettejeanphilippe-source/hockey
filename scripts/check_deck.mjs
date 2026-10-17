@@ -16,9 +16,12 @@
  *   5. les nouveaux rôles offerts visent trois joueurs différents de
  *      l'alignement, chacun avec un changement de carte réel ;
  *   6. la saison se rejoue à l'identique avec ces décisions ;
- *   7. (S80) une amélioration prise au palier se GARDE : elle va dans la poche,
+ *   7. (S80) une amélioration prise au palier se GARDE : elle va à une place,
  *      la garder ne change rien au moteur, et posée au verso elle prend une
- *      case (deux, trois pour une Or ou une Holo).
+ *      case (deux, trois pour une Or ou une Holo) ;
+ *   8. (V9, tranche 5b) tes places : une carte se joue quand on veut, sans limite
+ *      par semaine ; le palier de la saison en offre une parmi trois ; le cahier
+ *      (le deck) tient en CAHIER_MAX cartes, et le départ cède sa place d'abord.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -30,8 +33,9 @@ import {
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte, payloadDe } from '../js/banque.js';
 import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
-import { deckDe, DECK_DEPART, CICATRICES_MAX, CARTES_MATCH, signaturesDe } from '../js/combat.js';
-import { pocheDeLaPartie, mainDeLaSemaine, PALIERS_PACK } from '../js/inventaire.js';
+import { deckDe, DECK_DEPART, CICATRICES_MAX, CAHIER_MAX, CARTES_MATCH, signaturesDe } from '../js/combat.js';
+import { placesDeLaPartie, cartesDuPalier, PALIERS_PACK, PLACES } from '../js/inventaire.js';
+import { BANQUE } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -123,15 +127,15 @@ console.log('\n  Le deck (S73)\n');
   /*
    * 7. L'AMÉLIORATION SE GARDE, ET SE POSE AU VERSO (S80). JP : *je veux que
    * les upgrades de joueurs se fassent au verso de la carte, pas
-   * nécessairement quand on la pige*. Prise au palier, elle va dans la poche
+   * nécessairement quand on la pige*. Prise au palier, elle va à une place
    * (`garde`) ; posée, elle en sort et prend une case. La garder ne touche
    * pas le moteur : la saison est celle d'avant, au but près.
    */
   const garde = { jour: J0, equipe: 0, palier: J0, deck: 'amelioration', garde: 'joueur:affute' };
   const pose = { jour: J0 + 5, equipe: 0, joue: { src: 'partie', ref: `deck:${J0}`, id: 'joueur:affute' }, mutation: { cle: 'affute', joueur: cleCible } };
-  const poche1 = pocheDeLaPartie({ decisions: [garde], graine: 'deck', jour: J0 + 1 });
-  const poche2 = pocheDeLaPartie({ decisions: [garde, pose], graine: 'deck', jour: J0 + 6 });
-  exiger('une amélioration prise au palier va dans la poche, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:affute') && !poche2.some(x => x.ref === `deck:${J0}`),
+  const poche1 = placesDeLaPartie({ decisions: [garde] });
+  const poche2 = placesDeLaPartie({ decisions: [garde, pose] });
+  exiger('une amélioration prise au palier va à une place, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:affute') && !poche2.some(x => x.ref === `deck:${J0}`),
     `${poche1.filter(x => x.ref.startsWith('deck:')).map(x => x.id).join(', ')} puis ${poche2.filter(x => x.ref.startsWith('deck:')).length} carte(s) du palier`);
   const t3 = ligue(7300);
   simulateLeague(t3, 82, { graine: 'deck', decisions: [{ ...garde }] });
@@ -174,18 +178,16 @@ console.log('\n  Le deck (S73)\n');
 }
 
 /*
- * LES CARTES DE MATCH NE SONT PAS DANS LA POCHE (oct.). JP : *les poches de cartes, faut pas que les cartes de match
+ * LES CARTES DE MATCH NE SONT PAS À TES PLACES (oct. ; V9). JP : *les poches de cartes, faut pas que les cartes de match
  * soient là, ça n'a pas de sens*. Elles se jouent au deck, aux gros matchs : un pack les y met à l'ouverture, elles ne
- * prennent jamais une place de la main de la semaine. Une partie d'avant (la carte envoyée « Au deck » depuis la poche)
- * ne la compte pas deux fois, ni au deck ni pour son coach.
+ * prennent jamais une place. Une partie d'avant (la carte envoyée « Au deck » depuis la poche) ne la compte pas deux
+ * fois, ni au deck ni pour son coach.
  */
 {
   const m = idsDe('match').find(id => coachDeCarte(id) && !DECK_DEPART.includes(id.slice(6))), autre = idsDe('evenement')[0], cle = m.slice(6);
   const achat = { jour: 3, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: [m, autre] } };
-  const poche = pocheDeLaPartie({ decisions: [achat], graine: 7, nMatch: PALIERS_PACK.at(-1) + 1, rogue: true });
-  exiger('la poche n\'a aucune carte de match (packs achetés et packs gratuits des paliers)', poche.every(x => !x.id.startsWith('match:')) && poche.some(x => x.id === autre), `${poche.length} cartes`);
-  const main = mainDeLaSemaine({ decisions: [achat], graine: 7, jour: 7, nMatchDebut: 5, nMatch: 6, rogue: true });
-  exiger('la main de la semaine n\'en pige aucune', main.main.every(x => !x.id.startsWith('match:')));
+  const poche = placesDeLaPartie({ decisions: [achat], rogue: true });
+  exiger('tes places n\'ont aucune carte de match', poche.every(x => !x.id.startsWith('match:')) && poche.some(x => x.id === autre), `${poche.length} cartes`);
   const avant = deckDe([]).filter(k => k === cle).length;
   exiger('la carte de match du pack est au deck dès l\'ouverture', deckDe([achat]).filter(k => k === cle).length === avant + 1);
   const vieux = [achat, { jour: 4, joue: { src: 'partie', ref: '1:0', id: m }, recompense: cle }];
@@ -197,22 +199,47 @@ console.log('\n  Le deck (S73)\n');
 }
 
 /*
- * LA POCHE SE JOUE QUAND ON VEUT, ET ELLE SUIT (Jalon Q). JP : *main de 4 trop étroite ; perdues en fin de saison*.
- * Une carte hors de la main se joue et compte dans les deux de la semaine ; la poche reportée au jour 0 d'une saison
- * neuve (`poche`) entre dans la poche, et une carte jouée de là en sort.
+ * TES PLACES (V9, tranche 5b — docs/refonte-v9.md § 6.4). La poche, la main de la semaine et ses deux cartes par
+ * semaine sont parties : une carte se joue quand on veut, autant qu'on veut. Plus de cartes que de places se voit
+ * (À faire demande laquelle vendre) ; les places reportées au jour 0 d'une saison neuve (`poche`) y entrent. Le palier
+ * de la saison (`pp:<match>`) offre une carte parmi trois, pure, sans carte de match, ni événement, ni personnel, ni
+ * permanent ; la prise va à une place.
  */
 {
-  const ev = idsDe('evenement').slice(0, 6);
+  const ev = idsDe('consommable').filter(id => BANQUE[id].vie !== 'permanent').slice(0, 5);
   const achat = { jour: 0, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: ev } };
-  const m0 = mainDeLaSemaine({ decisions: [achat], graine: 7, jour: 7, nMatchDebut: 5, nMatch: 6, rogue: true });
-  const dehors = pocheDeLaPartie({ decisions: [achat], graine: 7, nMatch: 6, rogue: true }).find(x => !m0.main.some(y => y.ref === x.ref));
-  const joue = { jour: 8, joue: { src: 'partie', ref: dehors.ref, id: dehors.id } };
-  const m1 = mainDeLaSemaine({ decisions: [achat, joue], graine: 7, jour: 8, nMatchDebut: 5, nMatch: 6, rogue: true });
-  exiger('une carte hors de la main se joue, et compte dans les cartes de la semaine', m0.reste === 2 && m1.reste === 1, `${m0.reste} → ${m1.reste}`);
+  const p0 = placesDeLaPartie({ decisions: [achat], rogue: true });
+  const joue = (ref, jour) => ({ jour, joue: { src: 'partie', ref, id: p0.find(x => x.ref === ref).id } });
+  const p1 = placesDeLaPartie({ decisions: [achat, joue(p0[0].ref, 8), joue(p0[1].ref, 8), joue(p0[2].ref, 8)], rogue: true });
+  exiger('trois cartes se jouent le même jour : aucune limite par semaine', p0.length === ev.length && p1.length === ev.length - 3, `${p0.length} → ${p1.length}`);
+  exiger('plus de cartes que de places se compte', p0.length - PLACES === ev.length - PLACES && PLACES === 3, `${p0.length} cartes, ${PLACES} places`);
   const report = { jour: 0, poche: ev.slice(0, 2), report: true };
-  const poche = pocheDeLaPartie({ decisions: [report], graine: 7, nMatch: 0, rogue: true });
-  const apres = pocheDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], graine: 7, nMatch: 0, rogue: true });
-  exiger('la poche de la saison d\'avant entre au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
+  const poche = placesDeLaPartie({ decisions: [report], rogue: true });
+  const apres = placesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
+  exiger('les places de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
+  const offres = PALIERS_PACK.map(p => cartesDuPalier('deck', p));
+  const propres = offres.flat().every(id => BANQUE[id] && !['match', 'evenement', 'patron'].includes(BANQUE[id].cat) && BANQUE[id].vie !== 'permanent');
+  exiger('chaque palier offre trois cartes distinctes, pures, qui se jouent d\'une place', offres.every(o => o.length === 3 && new Set(o).size === 3) && propres
+    && PALIERS_PACK.every(p => cartesDuPalier('deck', p).join() === cartesDuPalier('deck', p).join()), offres.map((o, i) => `${PALIERS_PACK[i]} : ${o.join(', ')}`).join(' · '));
+  const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, place: offres[0][1] };
+  const avec = placesDeLaPartie({ decisions: [prise], rogue: true });
+  exiger('la carte prise au palier va à une place', avec.length === 1 && avec[0].id === offres[0][1] && avec[0].ref === prise.palier, avec.map(x => `${x.ref} ${x.id}`).join(' · '));
+}
+
+/*
+ * LE CAHIER BORNÉ (V9, tranche 5b). Le deck tient en CAHIER_MAX cartes : au-delà, une carte du départ cède sa place
+ * (la plus répétée), puis la plus ancienne gagnée ; une malédiction ne cède jamais.
+ */
+{
+  const gagnees = idsDe('match').map(id => id.slice(6)).filter(k => !DECK_DEPART.includes(k) && !CARTES_MATCH[k].maudite && !k.endsWith('+')).slice(0, CAHIER_MAX);
+  const gains = gagnees.map((k, i) => ({ jour: i + 1, palier: `r:${i}`, recompense: k }));
+  const d = deckDe(gains, { pertes: [3, 9] });
+  exiger(`le cahier tient en ${CAHIER_MAX} cartes`, d.length === CAHIER_MAX, `${d.length} cartes`);
+  exiger('le départ cède sa place avant ce qui a été gagné, et les malédictions restent', d.filter(c => c === 'doute').length === 2 && !d.some(c => DECK_DEPART.includes(c)) && gagnees.slice(-(CAHIER_MAX - 2)).every(k => d.includes(k)),
+    `${d.filter(c => DECK_DEPART.includes(c)).length} carte(s) du départ, ${d.filter(c => c === 'doute').length} doute(s)`);
+  const peu = deckDe(gains.slice(0, CAHIER_MAX - DECK_DEPART.length + 2));
+  const restent = DECK_DEPART.filter((c, i) => DECK_DEPART.indexOf(c) === i).map(c => `${c} ${peu.filter(x => x === c).length}`);
+  exiger('la carte du départ la plus répétée cède la première', peu.length === CAHIER_MAX && peu.filter(c => c === 'lancer').length === 2 && peu.filter(c => c === 'bloquer').length === 2, restent.join(' · '));
 }
 
 /*
