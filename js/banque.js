@@ -521,6 +521,9 @@ function coachDeLaFamille(cat, cle) {
   if (cat === 'match') {
     const C = CARTES_MATCH[cle];
     if (C.synergie && SYNERGIES[C.synergie]) return SYNERGIES[C.synergie];
+    // Le cahier neuf (V10, js/cahier.js) : le deck de départ est neutre ; un pari est au Comptable.
+    if (DECK_DEPART.includes(cle)) return null;
+    if (C.si && C.pari) return 'banque';
     const e = { ...(C.effet || {}) };
     for (const x of [C.parGenre && C.parGenre.effet, C.selonLeurMain && C.selonLeurMain.effet, C.apres40 && C.apres40.siMene, C.pari && C.pari.gagne, C.improvise, C.piege, C.siVide]) {
       if (x) for (const [k, v] of Object.entries(x)) if (typeof v === 'number') e[k] = k === 'robustesse' ? (e[k] || 0) + v : (e[k] ?? 1) * v;
@@ -542,7 +545,7 @@ function construire() {
   for (const [cle, C] of Object.entries(CONTRATS)) mettre(fait('plafond', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
   for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (estPlus(cle)) continue;
-    mettre(fait('match', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: 'saison', cout: C.cout, genre: C.genre }));
+    mettre(fait('match', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: 'saison', cout: C.cout, genre: C.genre, ...(C.retire ? { retire: true } : {}) }));
   }
   for (const [cle, C] of Object.entries(CARTES)) mettre(fait('saison', cle, { nom: C.nom, ico: C.ico, rarete: 'rare', texte: `${C.bon}. ${C.prix}.`, vie: 'saison' }));
   return B;

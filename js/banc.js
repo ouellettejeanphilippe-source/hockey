@@ -625,7 +625,7 @@ export async function runSeason(opts = {}) {
     ? opts.decisions
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
       // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + » — à la première saison d'une run.
-      ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancer', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'bloquer', rogue: { depart: true } }] : []),
+      ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancerAuFilet', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'serrerLesRangs', rogue: { depart: true } }] : []),
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées et le deck continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
       // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois cartes au compteur, sa confiance I allumée — à la première saison d'une run.

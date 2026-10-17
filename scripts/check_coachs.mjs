@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, coachDuPlan, COACH_DU_PLAN, FAMILLES } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, EVENEMENTS, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { DECK_DEPART } from '../js/combat.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
@@ -101,10 +102,10 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter.
   exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['gachettes+'], enMain: [] } }]).rapaces === 1, 'Les gâchettes+');
   exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'gachettes+' }]).rapaces === 0, 'Les gâchettes+');
-  // La run de JP gagnée du premier coup : « Changements » rejoué huit fois montait le Doc à III.
-  const huit = Array.from({ length: 8 }, (_, i) => ({ jour: 10 + i * 10, main: { jouees: ['gachettes', 'changements', 'bloquer+'], enMain: [] } }));
-  const b8 = buildDe(huit);
-  exiger('une carte de match rejouée ne compte qu\'une fois, et le deck de départ ne compte pas', b8.rapaces === 1 && b8.souffle === 0 && b8.tortue === 0, `Aigle ${b8.rapaces} · Doc ${b8.souffle} · Tortue ${b8.tortue}`);
+  // La run de JP gagnée du premier coup : « Changements » rejoué huit fois montait le Doc à III. Le départ (V10) est neutre.
+  const huit = Array.from({ length: 8 }, (_, i) => ({ jour: 10 + i * 10, main: { jouees: ['gachettes', ...DECK_DEPART.slice(0, 2), `${DECK_DEPART[4]}+`], enMain: [] } }));
+  const b8 = buildDe(huit), autres = Object.entries(b8).filter(([k, n]) => k !== 'rapaces' && n > 0);
+  exiger('une carte de match rejouée ne compte qu\'une fois, et le deck de départ ne compte pas', b8.rapaces === 1 && !autres.length, `Aigle ${b8.rapaces}${autres.map(([k, n]) => ` · ${k} ${n}`).join('')}`);
   const gach = Array.from({ length: 3 }, (_, i) => ({ jour: 10 + i, main: { jouees: ['gachettes'], enMain: [] } }));
   exiger('rejouée trois fois, elle n\'allume pas la confiance I', !palierAllume(gach.slice(0, 2), gach[2]));
 }

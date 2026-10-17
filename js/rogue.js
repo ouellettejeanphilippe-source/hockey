@@ -121,7 +121,7 @@ export const DEBLOCAGES = {
   packGardiens: { ico: '🥅', nom: 'Les spécialistes gardiens', prix: 50, texte: 'Le Pack Spécialistes offre le rôle Gardiens : les partants au meilleur pourcentage d\'arrêts.' },
   packAnnees80: { ico: '📼', nom: 'Les années 80', prix: 60, texte: 'Le Pack Époque offre les années 80, l\'époque des 400 buts par saison.' },
   packVedettes: { ico: '🌟', nom: 'Les vedettes des séries', prix: 150, texte: 'Une série gagnée donne un pack d\'un cran plus haut : l\'Or dès le premier tour, les Étoiles au deuxième, les Légendes en finale.' },
-  deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer de la pointe+ » et « Bloquer des tirs+ ».' },
+  deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer au filet+ » et « Serrer les rangs+ ».' },
   plombiersPlus: { ico: '🛠', nom: 'Des bouche-trous moins pires', prix: 80, texte: 'Tes bouche-trous de départ sortent du bas de la ligue, pas du fond du baril.' },
   // S79 : la masse salariale se débloque aussi.
   plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3\u00a0M$ de plafond au début de chaque run.' },

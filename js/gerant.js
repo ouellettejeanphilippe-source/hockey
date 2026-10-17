@@ -29,7 +29,7 @@ import {
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, CAHIER_MAX, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, INTENTIONS, carteRepond, ELAN_PAR_PERIODE, IMPORTANCES, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { effetsDesCartes, INTENTIONS, MOMENTS_SI, carteRepond, ELAN_PAR_PERIODE, IMPORTANCES, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { coachDeCarte } from './banque.js';
 import { COACHS } from './coachs.js';
@@ -1308,6 +1308,13 @@ const EN_3E = { part: 1 / 3, par: 'en 3e' };
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
+  /*
+   * SON MOMENT D'ABORD (V10, js/cahier.js) : une réponse contre son intention, le temps de la période ; un coup de 3e,
+   * en 3e ; une soirée, son soir. Hors de lui, elle ne fait rien. Ses chiffres se disent sur ce temps-là.
+   */
+  const M = C.si && MOMENTS_SI[C.si];
+  const cadre = !M ? null : INTENTIONS[C.si] ? { part: 1 / 3, par: 'la période' } : M.duel ? EN_3E : null;
+  if (M) out.push({ txt: INTENTIONS[C.si] ? `${M.mot} : elle la contre, le temps de la période` : `${M.mot} seulement`, bon: null });
   const txt = e => motsEnChiffres(e).map(m => m.txt).join(', ');
   // Ce qui s'ajoute à chaque carte (jouée, ou dans une main) : le chiffre de match d'un pas, dit « par carte … ».
   // Un pas trop petit pour un chiffre se dit à trois cartes (JP, 17 oct. : *encore beaucoup de « à peine perceptible »*).
@@ -1321,8 +1328,8 @@ function regleDeCarte(C) {
     const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
     out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
   } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
-  out.push(...motsEnChiffres(C.effet || null));
-  for (const m of motsEnChiffres(C.adv || null, null, { eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
+  out.push(...motsEnChiffres(C.effet || null, null, cadre));
+  for (const m of motsEnChiffres(C.adv || null, null, { ...(cadre || {}), eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
    * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise
    * l'adversaire GRANDIT (×1,5 au dernier soir de la saison, ×2 en finale) ;

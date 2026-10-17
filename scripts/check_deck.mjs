@@ -166,7 +166,7 @@ console.log('\n  Le deck (S73)\n');
   exiger('une série gagnée efface une cicatrice, et seulement à partir de la ronde suivante', dSerie.filter(c => c === 'doute').length === 1 && dSerieAvant.filter(c => c === 'doute').length === 2,
     `ronde 1 : ${dSerie.filter(c => c === 'doute').length} doute · ronde 0 : ${dSerieAvant.filter(c => c === 'doute').length}`);
   // LE BUTIN À TROIS CHOIX (V5) : un gros match ou une série gagnée retire ou améliore une carte au lieu d'en ajouter une.
-  const k0 = DECK_DEPART.find(k => CARTES_MATCH[`${k}+`]);
+  const k0 = DECK_DEPART.find(k => k !== DECK_DEPART[0] && CARTES_MATCH[`${k}+`]);
   const parGros = deckDe([{ jour: 10, palier: 'r:8', recompense: null, deck: 'menage', retrait: DECK_DEPART[0] }, { jour: 20, palier: 'r:18', recompense: null, deck: 'camp', aiguise: k0 }]);
   exiger('le butin d\'un gros match retire ou améliore une carte du deck', parGros.length === DECK_DEPART.length - 1 && parGros.includes(`${k0}+`), parGros.join(' · '));
   const parSerie = r => deckDe([], { serie: [{ ronde: 0, match_no: -1, recompense: null, deck: 'menage', retrait: DECK_DEPART[0] }, { ronde: 1, match_no: -1, recompense: null, deck: 'camp', aiguise: k0 }], ronde: r });
@@ -239,7 +239,7 @@ console.log('\n  Le deck (S73)\n');
     `${d.filter(c => DECK_DEPART.includes(c)).length} carte(s) du départ, ${d.filter(c => c === 'doute').length} doute(s)`);
   const peu = deckDe(gains.slice(0, CAHIER_MAX - DECK_DEPART.length + 2));
   const restent = DECK_DEPART.filter((c, i) => DECK_DEPART.indexOf(c) === i).map(c => `${c} ${peu.filter(x => x === c).length}`);
-  exiger('la carte du départ la plus répétée cède la première', peu.length === CAHIER_MAX && peu.filter(c => c === 'lancer').length === 2 && peu.filter(c => c === 'bloquer').length === 2, restent.join(' · '));
+  exiger('les dernières cartes du départ (celles de tous les soirs) cèdent les premières', peu.length === CAHIER_MAX && !peu.includes(DECK_DEPART.at(-1)) && !peu.includes(DECK_DEPART.at(-2)) && DECK_DEPART.slice(0, -2).every(c => peu.includes(c)), restent.join(' · '));
 }
 
 /*

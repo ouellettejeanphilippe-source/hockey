@@ -59,11 +59,11 @@ console.log('\n  Le deck de match (S74)\n');
 /* ---------- 1 et 2. le deck, la main, les récompenses ---------- */
 {
   const d = deckDe([
-    { jour: 5, recompense: 'miracle' }, { jour: 9, retrait: 'lancer' }, { jour: 12, palier: 'v:0', effet: { energie: 1.12 } },
+    { jour: 5, recompense: 'miracle' }, { jour: 9, retrait: 'lancerAuFilet' }, { jour: 12, palier: 'v:0', effet: { energie: 1.12 } },
     { jour: 50, recompense: 'legende' },
   ], { avant: 40 });
   exiger('le deck suit les décisions (récompense, retrait, malédiction, et rien après le jour demandé)',
-    d.length === DECK_DEPART.length + 1 && d.includes('miracle') && d.filter(c => c === 'lancer').length === 2 && d.includes('distraction') && !d.includes('legende'),
+    d.length === DECK_DEPART.length + 1 && d.includes('miracle') && !d.includes('lancerAuFilet') && d.includes('distraction') && !d.includes('legende'),
     d.join(' · '));
   const m1 = mainDuMatch('g', 'j30', DECK_DEPART), m2 = mainDuMatch('g', 'j30', DECK_DEPART), m3 = mainDuMatch('g', 'j31', DECK_DEPART);
   exiger('la main est pure : cinq cartes, le reste en pioche, dans le même ordre', JSON.stringify(m1) === JSON.stringify(m2) && m1.main.length === 5 && m1.pioche.length === 5, m1.main.join(' · '));
@@ -78,13 +78,13 @@ console.log('\n  Le deck de match (S74)\n');
   exiger('plus rares après une série', rares.serie > 3 * rares.saison, `rares : ${rares.saison} en saison, ${rares.serie} en séries (sur 900 cartes chacun)`);
   // LES CARTES « + » (S74) : moitié plus fortes, ou une énergie de moins, et le camp les pose dans le deck.
   {
-    const P = CARTES_MATCH['lancer+'], M = CARTES_MATCH['miracle+'];
-    const plus = deckDe([{ jour: 1, aiguise: 'lancer' }]);
+    const L = CARTES_MATCH.lancerAuFilet, P = CARTES_MATCH['lancerAuFilet+'], M = CARTES_MATCH['miracle+'];
+    const plus = deckDe([{ jour: 1, aiguise: 'lancerAuFilet' }]);
     const toutes = Object.keys(CARTES_MATCH).filter(k => !CARTES_MATCH[k].maudite && !k.endsWith('+'));
     exiger('chaque carte a sa version « + », plus forte ou moins chère', toutes.every(k => CARTES_MATCH[`${k}+`])
-      && P.effet.volume > CARTES_MATCH.lancer.effet.volume && M.cout < CARTES_MATCH.miracle.cout
-      && plus.includes('lancer+') && plus.filter(c => c === 'lancer').length === 2,
-      `${toutes.length} versions · lancers ${CARTES_MATCH.lancer.effet.volume} → ${P.effet.volume.toFixed(2)} · miracle ${CARTES_MATCH.miracle.cout} → ${M.cout} énergie`);
+      && P.effet.volume > L.effet.volume && M.cout < CARTES_MATCH.miracle.cout
+      && plus.includes('lancerAuFilet+') && !plus.includes('lancerAuFilet'),
+      `${toutes.length} versions · lancers ${L.effet.volume} → ${P.effet.volume.toFixed(2)} · miracle ${CARTES_MATCH.miracle.cout} → ${M.cout} énergie`);
   }
   exiger('l\'énergie se compte : trois, moins les coûts, plus l\'adrénaline', energieDepensee(['miracle']) === 0 && energieDepensee(['adrenaline', 'miracle', 'discours']) === 0 && ENERGIE_MAIN === 3, '');
   /*
