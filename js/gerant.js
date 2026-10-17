@@ -1521,7 +1521,7 @@ export function ouvrirMainDeMatch(spec) {
           ${D.deja ? `<p class="duel-deja">✓ ${esc(D.deja)}</p>` : ''}
           <div class="duel-gestes">${D.gestes.map(o => optionHtml(o, {}, { classe: 'duel-geste', attr: `data-geste="${esc(o.cle)}"`, on: geste === o.cle, mots: o.mots || [] })).join('')}</div>
           ${D.cartes ? `<p class="duel-cartes">${esc(D.cartes)}</p>` : ''}
-          ${D.mise ? `<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${esc(D.mise)}</button>` : ''}
+          ${D.mise ? `<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise)}</button>` : ''}
         </div>` : ''}
         ${spec.contexte ? `<details class="main-plie"><summary>Ce qu'ils jouent ce soir</summary>${spec.contexte}</details>` : ''}
         ${vestiaire}
