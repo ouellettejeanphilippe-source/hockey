@@ -59,13 +59,14 @@ import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
 import { effetDePalier } from '../../js/coachs.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie } from '../../js/packs.js';
-import { niveauDe } from '../../js/niveaux.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
+import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
   DEBLOCAGES, departDuClasseur, lotosDeSaison, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
-  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
+  soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
+  packsOuverts, monteeDesPacks,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -176,10 +177,17 @@ function adversaires(rnd, exclus, n = 31, niveau = LIGUE_PARTS.length) {
  * pige, le tier dit la variante. `libre` : un salaire qu'une sortie ferait
  * entrer, personne de la ligue.
  */
-function tirerPack(rnd, cle, libre, role = null) {
+function tirerPack(rnd, cle, libre, role = null, meta = null) {
   const P = PACKS_JOUEURS[cle];
-  const T = TIERS[P.tier];
-  const nb = P.joueurs || T.n + (P.famille === 'trio' ? -2 : 0);
+  // V10 : les crans du pack (js/rogue.js `monteeDesPacks`) — un joueur de plus, puis le métal du dessus.
+  const mods = meta ? { montee: monteeDesPacks(meta), prestige: PRESTIGES[rangDePrestige(meta)] } : {};
+  // LE NIVEAU D'ABORD, comme le vrai tirage (V10) : un pack au hasard, d'époque ou de club tire son niveau à ses taux
+  // (`niveauxDuPack`, le prestige compris), puis un joueur de ce niveau — un Bronze sort un Soutien une fois sur deux.
+  // Avant, le robot pigeait toujours dans la moitié du haut : il surestimait les petits packs.
+  const taux = ['hasard', 'ere', 'equipe', 'coach'].includes(P.famille) ? niveauxDuPack(`j:${cle}`, mods) : null;
+  const niveauTire = () => { let r = rnd() * 100; for (let k = 0; k < NIVEAUX.length; k++) { r -= taux[NIVEAUX[k].cle] || 0; if (r < 0) return k; } return 0; };
+  const T = TIERS[tierDuPack(`j:${cle}`, mods)];
+  const nb = (P.joueurs || TIERS[P.tier].n + (P.famille === 'trio' ? -2 : 0)) + (P.famille !== 'trio' && (mods.montee || {})[`j:${cle}`] >= 1 ? 1 : 0);
   const out = [];
   for (let t = 0; out.length < nb && t < nb * 6; t++) {
     const e = shard(SAISONS[Math.floor(rnd() * SAISONS.length)]);
@@ -189,6 +197,7 @@ function tirerPack(rnd, cle, libre, role = null) {
       const c = e.players.filter(p => (p.gp || 0) >= S.min && (!S.groupe || groupe(p) === S.groupe) && (!S.skaters || p.p !== 'G')).sort((a, b) => S.score(b) - S.score(a));
       pool = c.slice(0, Math.ceil(c.length / 4));
     } else if (P.famille === 'etoiles' || P.famille === 'legendes') pool = e.players.filter(p => estEtoile(p) && (P.famille !== 'legendes' || Number(p.s.slice(0, 4)) < 1995));
+    else if (taux) { const par = joueursParNiveau(e.players), k = niveauTire(); pool = (par[k] || []).length ? par[k] : par.slice(0, k).reverse().find(l => l && l.length) || []; }
     else pool = ['F', 'D', 'G'].flatMap(g => { const r = e.players.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 15 : 30)).sort((a, b) => prod(b) - prod(a)); return r.slice(0, Math.ceil(r.length / 2)); });
     pool = pool.filter(p => libre(p) && !out.some(x => getPersonKey(x.p) === getPersonKey(p)));
     if (!pool.length) continue;
@@ -261,9 +270,13 @@ const VERROUS = { defensif: 'packDefenseurs', gardien: 'packGardiens' };
 const prixAuAchat = (k, n, exigence = 0) => Math.max(1, Math.round(PACKS_JOUEURS[k].prix * hausseDesPacks(n) * exigencesDe(exigence).prixPacks));
 function packVoulu(meta, jetons, n, exigence = 0) {
   const roles = ['sniper', 'passeur', 'defensif', 'gardien'].filter(r => !VERROUS[r] || aDebloque(meta, VERROUS[r]));
-  if (n % 3 === 2 && jetons >= prixAuAchat('or', n, exigence)) return { cle: 'or' };
-  if (jetons >= prixAuAchat('specialistes', n, exigence)) return { cle: 'specialistes', role: roles[n % roles.length] };
-  if (jetons >= prixAuAchat('argent', n, exigence)) return { cle: 'argent' };
+  // V10 : seulement ce que la boutique vend — le Bronze et l'Époque d'abord, le reste à son jalon (js/rogue.js `packsOuverts`).
+  const ouverts = packsOuverts(meta), peut = k => ouverts[`j:${k}`] === true && jetons >= prixAuAchat(k, n, exigence);
+  if (n % 3 === 2 && peut('or')) return { cle: 'or' };
+  if (peut('specialistes')) return { cle: 'specialistes', role: roles[n % roles.length] };
+  if (peut('argent')) return { cle: 'argent' };
+  if (peut('epoque')) return { cle: 'epoque' };
+  if (peut('bronze')) return { cle: 'bronze' };
   return null;
 }
 
@@ -338,7 +351,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
       const actuel = you.roster;
       // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
-      const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role);
+      const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role, meta);
       entrees.push(...cartes);
       // SIGNER (un seul du pack) : celui qui monte le plus l'alignement, sous le plafond ; qui sort : celui que l'alignement laisse.
       // Le distrait : une carte au hasard, et un joueur du même groupe au hasard lui laisse sa case.
@@ -561,7 +574,7 @@ export function classeurSynthetique(meta, nRuns, graine = 'classeur') {
   const out = [];
   for (let r = 0; r < nRuns; r++) {
     out.push(...plombiers(rnd, meta, new Set()).map(p => ({ p, rar: 'commune' })));
-    for (let n = 0; n < 28; n++) { const v = packVoulu(meta, 999, n); out.push(...tirerPack(rnd, v.cle, p => p.$ > 0, v.role)); }
+    for (let n = 0; n < 28; n++) { const v = packVoulu(meta, 999, n); out.push(...tirerPack(rnd, v.cle, p => p.$ > 0, v.role, meta)); }
   }
   const vus = new Map();
   for (const x of out) if (!vus.has(getPlayerKey(x.p))) vus.set(getPlayerKey(x.p), x);
@@ -573,6 +586,8 @@ export const ORDRE_DEBLOCAGES = [
   'caisse1', 'commanditaire1', 'classeur1', 'plafond1', 'garder1', 'banc1', 'plombiersPlus', 'classeurTri', 'classeur2', 'commanditaire2', 'caisse2',
   'packGardiens', 'packDefenseurs', 'plafond2', 'garder2', 'classeur3', 'packVedettes', 'banc2', 'classeurChoix',
   'deckPlus', 'dgFlexible', 'packAnnees80', 'garder3',
+  // V10 : les crans des packs qu'il achète, le premier de chacun, puis les seconds.
+  'monte_epoque_1', 'monte_bronze_1', 'monte_argent_1', 'monte_specialistes_1', 'monte_or_1', 'monte_epoque_2', 'monte_argent_2', 'monte_specialistes_2', 'monte_or_2',
 ].filter(k => DEBLOCAGES[k]);
 /* Acheter ce qu'on peut, dans l'ordre (un déblocage qui en demande un autre attend son tour). */
 export function acheterDans(meta) {
@@ -580,7 +595,7 @@ export function acheterDans(meta) {
     fait = false;
     for (const k of ORDRE_DEBLOCAGES) {
       const D = DEBLOCAGES[k];
-      if (aDebloque(meta, k) || (D.requis && !aDebloque(meta, D.requis)) || meta.ecussons < D.prix) continue;
+      if (aDebloque(meta, k) || (D.requis && !aDebloque(meta, D.requis)) || (D.pack && packsOuverts(meta)[D.pack] !== true) || meta.ecussons < D.prix) continue;
       meta.ecussons -= D.prix; meta.deblocages.push(k); fait = true;
       break;
     }

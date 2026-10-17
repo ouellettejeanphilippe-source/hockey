@@ -33,6 +33,7 @@ import { hache } from './util.js';
 import { VOIES } from './coachs.js';
 import { filsDeSaison } from './recit.js';
 import { EDITIONS, NOM_VARIANTE } from './rarete.js';
+import { PACKS_TOUS, BOUTIQUE } from './packs.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -107,6 +108,17 @@ export function jetonsDe(res, depenses, depart = JETONS.depart, bareme = JETONS)
  */
 export const baremeRogue = (m, exigence = 0) => ({ ...JETONS, victoire: Math.max(1, 5 + (aDebloque(m, 'commanditaire1') ? 3 : 0) + (aDebloque(m, 'commanditaire2') ? 2 : 0) + exigencesDe(exigence).victoire) });
 
+/*
+ * L'UPGRADE, EN MÉDAILLES : chaque pack de la boutique monte de deux crans au vestiaire, au même prix en jetons —
+ * un joueur de plus à choisir, puis les taux du métal du dessus (js/packs.js `tierDuPack`). Un cran se prend quand
+ * le pack est ouvert. `monteeDesPacks` : le cran de chaque pack, FIXÉ au départ de la run (`G.rogue.montee`).
+ */
+const cinq = x => Math.round(x / 5) * 5;
+const CRANS_DE_PACK = [
+  { mot: 'un joueur de plus', texte: P => `Le ${P.nom} tire un joueur de plus, au même prix.`, prix: P => cinq(30 + 2 * P.prix) },
+  { mot: 'le métal du dessus', texte: P => `Le ${P.nom} tire aux taux du métal du dessus, au même prix.`, prix: P => cinq(2 * (30 + 2 * P.prix)) },
+];
+const cleDeCran = (pack, i) => `monte_${pack.slice(2)}_${i + 1}`;
 /* ---------- les déblocages (le vestiaire) ---------- */
 export const DEBLOCAGES = {
   garder1: { ico: '🤝', nom: 'Garder un joueur', prix: 40, texte: 'Au début d\'une run, garde un joueur de ta dernière équipe.' },
@@ -147,6 +159,14 @@ export const DEBLOCAGES = {
   banc1: { ico: '🪑', nom: 'Une case de réserve de plus', prix: 60, texte: 'Quatre réservistes au lieu de trois : un joueur de plus sans que personne sorte.' },
   banc2: { ico: '🪑', nom: 'Deux cases de réserve de plus', prix: 150, requis: 'banc1', texte: 'Cinq réservistes.' },
 };
+// V10 : les crans de chaque pack de la boutique (`CRANS_DE_PACK`, plus bas), le second après le premier, quand le pack est ouvert.
+for (const k of BOUTIQUE) {
+  const P = PACKS_TOUS[k];
+  CRANS_DE_PACK.forEach((C, i) => {
+    DEBLOCAGES[cleDeCran(k, i)] = { ico: P.ico, nom: `${P.nom} : ${C.mot}`, prix: C.prix(P), pack: k, texte: C.texte(P), ...(i ? { requis: cleDeCran(k, i - 1) } : {}) };
+  });
+}
+
 /* Le plafond que le vestiaire ajoute au départ d'une run. */
 export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0) + (aDebloque(m, 'plafond2') ? 4_000_000 : 0);
 /*
@@ -202,8 +222,10 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  * il faut des runs, et il faut aller loin.
  *
  * Ce qu'il ouvre : les Étoiles et les Phénomènes des packs de joueurs
- * (`etoile`, `phenomene` multiplient leurs taux ; ce qu'on leur retire va aux
- * piliers, js/packs.js `niveauxDuPack`), et le budget du classeur
+ * (`etoile`, `phenomene` multiplient leurs taux ; ce qu'on leur ajoute vient des
+ * piliers, js/packs.js `niveauxDuPack`). V10 (JP : *sans empêcher un random
+ * Crosby saison 1*) : aucun rang ne retire rien — le Club de garage tire aux taux
+ * de base de ses packs, le prestige ajoute à partir du Club respecté —, et le budget du classeur
  * (`classeur`, en dollars de plus au départ d'une run). Le rang est FIXÉ au
  * départ de la run (`G.rogue.prestige`) : un rang gagné en cours de route
  * sert la run suivante, et une run reprise retrouve les mêmes packs.
@@ -215,11 +237,11 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
  * deux patrons imposés au départ — des passifs neutres, utiles à tous (js/banque.js `patronsDeDepart`).
  */
 export const PRESTIGES = [
-  { nom: 'Club de garage', min: 0, etoile: 0.4, phenomene: 0, classeur: 0, coachs: 3, postes: 2, raretes: ['commune'], texte: 'Les vedettes ne décrochent pas le téléphone.' },
-  { nom: 'Club de quartier', min: 120, etoile: 0.7, phenomene: 0.3, classeur: 3_000_000, coachs: 4, postes: 2, raretes: ['commune', 'peu'], texte: 'On commence à parler de toi au dépanneur.' },
-  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1, phenomene: 0.7, classeur: 6_000_000, coachs: 5, postes: 3, raretes: ['commune', 'peu'], texte: 'Les agents rappellent.' },
-  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.15, phenomene: 1, classeur: 10_000_000, coachs: 6, postes: 3, raretes: ['commune', 'peu', 'rare'], texte: 'Les joueurs autonomes regardent ton club en premier.' },
-  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.3, classeur: 15_000_000, coachs: 8, postes: 4, raretes: ['commune', 'peu', 'rare'], texte: 'Tout le monde veut jouer pour toi.' },
+  { nom: 'Club de garage', min: 0, etoile: 1, phenomene: 1, classeur: 0, coachs: 3, postes: 2, raretes: ['commune'], texte: 'Personne ne te connaît encore.' },
+  { nom: 'Club de quartier', min: 120, etoile: 1, phenomene: 1, classeur: 3_000_000, coachs: 4, postes: 2, raretes: ['commune', 'peu'], texte: 'On commence à parler de toi au dépanneur.' },
+  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1.1, phenomene: 1.15, classeur: 6_000_000, coachs: 5, postes: 3, raretes: ['commune', 'peu'], texte: 'Les agents rappellent.' },
+  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.2, phenomene: 1.3, classeur: 10_000_000, coachs: 6, postes: 3, raretes: ['commune', 'peu', 'rare'], texte: 'Les joueurs autonomes regardent ton club en premier.' },
+  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.5, classeur: 15_000_000, coachs: 8, postes: 4, raretes: ['commune', 'peu', 'rare'], texte: 'Tout le monde veut jouer pour toi.' },
 ];
 /* Les coachs qu'une run de ce rang peut choisir, et ses postes de patron. */
 export const coachsOuverts = rang => VOIES.slice(0, (PRESTIGES[rang] || PRESTIGES[0]).coachs);
@@ -367,6 +389,7 @@ export function peutAcheter(m, cle) {
   const D = DEBLOCAGES[cle];
   if (!D || aDebloque(m, cle)) return false;
   if (D.requis && !aDebloque(m, D.requis)) return false;
+  if (D.pack && packsOuverts(m)[D.pack] !== true) return false;
   return (m.ecussons || 0) >= D.prix;
 }
 export function acheterDeblocage(cle) {
@@ -602,27 +625,45 @@ export const plafondDeSaison = (masse, m, exigence = 0) => Math.ceil(((masse || 
  * serieMax (la plus longue séquence de victoires), cartes (au cartable) }.
  */
 export const JALONS = [
-  { cle: 'series', ico: '🎟', nom: 'Faire les séries', texte: 'Qualifie-toi pour les séries.', si: f => f.series, recompense: { deblocage: 'classeur1', ecussons: 30 } },
-  { cle: 'ronde', ico: '🥊', nom: 'Gagner une ronde', texte: 'Gagne une série des séries.', si: f => (f.rondes || 0) >= 1, recompense: { deblocage: 'banc1', ecussons: 40 } },
+  { cle: 'series', ico: '🎟', nom: 'Faire les séries', texte: 'Qualifie-toi pour les séries.', si: f => f.series, recompense: { deblocage: 'classeur1', ecussons: 30 }, pack: 'j:argent' },
+  { cle: 'ronde', ico: '🥊', nom: 'Gagner une ronde', texte: 'Gagne une série des séries.', si: f => (f.rondes || 0) >= 1, recompense: { deblocage: 'banc1', ecussons: 40 }, pack: 'j:specialistes' },
   { cle: 'dixDeSuite', ico: '🔥', nom: 'Dix de suite', texte: 'Gagne dix matchs de suite en saison.', si: f => (f.serieMax || 0) >= 10, recompense: { ecussons: 35 } },
-  { cle: 'cent', ico: '💯', nom: 'Cent points', texte: 'Fais 100 points en une saison.', si: f => (f.pts || 0) >= 100, recompense: { deblocage: 'classeurTri', ecussons: 50 } },
+  { cle: 'cent', ico: '💯', nom: 'Cent points', texte: 'Fais 100 points en une saison.', si: f => (f.pts || 0) >= 100, recompense: { deblocage: 'classeurTri', ecussons: 50 }, pack: 'j:club' },
   { cle: 'deuxSaisons', ico: '📅', nom: 'La deuxième saison', texte: 'Joue la deuxième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 2, recompense: { ecussons: 30 } },
   { cle: 'troisSaisons', ico: '🗓', nom: 'La troisième saison', texte: 'Joue la troisième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 3, recompense: { deblocage: 'garder1', ecussons: 45 } },
   { cle: 'premier', ico: '🥇', nom: 'Premier de la ligue', texte: 'Finis une saison au premier rang.', si: f => !!f.premier, recompense: { ecussons: 60 } },
-  { cle: 'finale', ico: '🏟', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 } },
-  { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeurChoix', ecussons: 120 } },
+  { cle: 'finale', ico: '🏟', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 }, pack: 'j:or' },
+  { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeurChoix', ecussons: 120 }, pack: 'j:vedettes' },
   { cle: 'cartable', ico: '📒', nom: 'Cent cartes', texte: 'Aie 100 cartes de joueur dans ton cartable.', si: f => (f.cartes || 0) >= 100, recompense: { ecussons: 20 } },
   // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.
   { cle: 'essais', ico: '🧪', nom: 'Cinquante essais', texte: 'Fais jouer 50 cartes différentes en Rogue.', si: f => (f.joues || 0) >= 50, recompense: { ecussons: 40 } },
+  // V10 : le Pack du coach s'ouvre quand un coach a toute ta confiance.
+  { cle: 'coachIII', ico: '📋', nom: 'La confiance III', texte: 'Monte un coach à sa confiance III.', si: f => !!f.coachIII, recompense: { ecussons: 40 }, pack: 'j:coach' },
   { cle: 'tousNiveaux', ico: '🌈', nom: 'Tous les niveaux', texte: 'Finis une saison avec un joueur de chaque niveau, de Soutien à Phénomène.', si: f => (f.niveaux || 0) >= 5, recompense: { ecussons: 50 } },
 ];
+/*
+ * LES PACKS QUI MONTENT (V10 — docs/refonte-v10.md § 12). JP : *tu commences avec des packs un peu poches, pis plus
+ * ça avance, tu débloques de meilleurs packs, ou bien t'as un système d'upgrade de packs, ou les bons packs arrivent
+ * quand tu réussis x, ou tout ça*. La boutique d'une première run vend `BOUTIQUE_DE_DEPART` ; un pack de plus s'ouvre
+ * avec son jalon (`pack`), une fois pour toutes, et sa clé se voit (« 🔒 Qualifie-toi pour les séries. »). Rend, pour
+ * chaque pack de la boutique, true ou la raison du verrou ; un pack hors boutique (une vieille partie, une série
+ * gagnée) reste ouvert.
+ */
+const BOUTIQUE_DE_DEPART = ['j:bronze', 'j:epoque'];
+export function packsOuverts(m = {}) {
+  const out = Object.fromEntries(Object.keys(PACKS_TOUS).map(k => [k, true]));
+  for (const J of JALONS) if (J.pack && !BOUTIQUE_DE_DEPART.includes(J.pack) && !(m.jalons || {})[J.cle]) out[J.pack] = J.texte;
+  return out;
+}
+export const monteeDesPacks = m => Object.fromEntries(BOUTIQUE.map(k => [k, CRANS_DE_PACK.filter((_, i) => aDebloque(m, cleDeCran(k, i))).length]));
 /* Les jalons que ces faits atteignent et qui n'ont pas encore payé. */
 export const jalonsAtteints = (m, faits) => JALONS.filter(J => !(m.jalons || {})[J.cle] && J.si(faits || {}));
 /* Ce qu'un jalon donnera, en mots, selon ce que tu possèdes déjà. */
 export function recompenseDe(m, J) {
   const d = J.recompense.deblocage && DEBLOCAGES[J.recompense.deblocage];
   const offert = d && !aDebloque(m, J.recompense.deblocage) && (!d.requis || aDebloque(m, d.requis));
-  return offert ? { deblocage: J.recompense.deblocage, mot: `${d.ico} ${d.nom}, offert` } : { ecussons: J.recompense.ecussons || 0, mot: `+${J.recompense.ecussons || 0} 🏅` };
+  const pack = J.pack && PACKS_TOUS[J.pack] ? ` · ${PACKS_TOUS[J.pack].ico} le ${PACKS_TOUS[J.pack].nom} s'ouvre` : '';
+  return offert ? { deblocage: J.recompense.deblocage, mot: `${d.ico} ${d.nom}, offert${pack}` } : { ecussons: J.recompense.ecussons || 0, mot: `+${J.recompense.ecussons || 0} 🏅${pack}` };
 }
 /*
  * PAYER LES JALONS atteints : une fois chacun (`m.jalons`). Rend ce qui a

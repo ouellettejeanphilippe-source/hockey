@@ -34,7 +34,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, sortDUnPack, BOUTIQUE } from '../js/packs.js';
+import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
+import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
@@ -219,7 +220,7 @@ for (const k of ['j:ere70', 'j:ere20']) {
   exiger('Pack d\'équipe choisi : tous du club choisi', (await Promise.all([0, 1, 2].map(async n => (await tirer('j:equipe', n, { params: { franchise: 'MTL' } })).cartes))).flat().every(x => x.p.t === 'MTL'), 'Canadiens de Montréal');
   informer('Pack d\'équipe (Canadiens)', NIVEAUX.map((N, k) => `${N.nom} ${pc(mtl.compte[k] / mtl.cartes)}`).join(' · '));
 }
-for (const k of ['j:etoiles', 'j:legendes']) {
+for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
   const m = await mesurer(k, Math.round(PACKS / 2), { saisons: k === 'j:legendes' ? s => Number(s.slice(0, 4)) < 1995 : null });
   const P = PACKS_TOUS[k];
   exiger(`${P.nom} : que des étoiles${k === 'j:legendes' ? ', d\'avant 1995' : ''}`, m.compte.slice(0, ETOILE).every(c => !c) && !m.horsSaisons, `${m.cartes} cartes`);
@@ -384,11 +385,11 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
  * ce que les déblocages ferment ; et aucune carte que les packs d'avant donnaient ne se perd dans la fusion.
  */
 {
-  exiger('la boutique vend sept packs, tous mixtes (des joueurs et des cartes)', BOUTIQUE.length === 7 && BOUTIQUE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs' && PACKS_TOUS[k].n >= 3 && PACKS_TOUS[k].cartes >= 1),
+  exiger(`la boutique vend ${BOUTIQUE.length} packs, tous mixtes (des joueurs et des cartes)`, BOUTIQUE.length === 8 && BOUTIQUE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs' && PACKS_TOUS[k].n >= 2 && PACKS_TOUS[k].cartes >= 1),
     BOUTIQUE.map(k => `${PACKS_TOUS[k].nom} ${PACKS_TOUS[k].n}+${PACKS_TOUS[k].cartes}`).join(' · '));
   const an = x => Number(String(x.p.s).slice(0, 4));
   const ep = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:epoque', n, { params: { decennie: 1980 } })))).flatMap(r => r.cartes);
-  exiger('Pack Époque : la décennie choisie', ep.length >= 10 && ep.every(x => an(x) >= 1980 && an(x) < 1990), `${ep.length} joueurs des années 80`);
+  exiger('Pack Époque : la décennie choisie', ep.length >= 4 * PACKS_TOUS['j:epoque'].n - 2 && ep.every(x => an(x) >= 1980 && an(x) < 1990), `${ep.length} joueurs des années 80`);
   const sp = (await Promise.all([0, 1, 2, 3].map(n => tirer('j:specialistes', n, { params: { skill: 'gardien' } })))).flatMap(r => r.cartes);
   exiger('Pack Spécialistes : le rôle choisi', sp.length >= 10 && sp.every(x => x.p.p === 'G'), `${sp.length} gardiens`);
   const permis = await Promise.all(Array.from({ length: 12 }, (_, n) => tirer('j:specialistes', n, { params: { permis: ['sniper', 'passeur'] } })));
@@ -414,7 +415,7 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
     sansRoute.slice(0, 5).join(', ') || `${routes.size} événements aux routes, aucun dans les packs`);
   const comptees = Object.keys(BANQUE).filter(sortDUnPack);
   exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);
-  exiger('chaque carte que la banque compte sort d\'un des sept packs', comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
+  exiger(`chaque carte que la banque compte sort d'un des ${BOUTIQUE.length} packs`, comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);
   // L'économie ne fuit pas : les cartes d'un pack mixte, revendues, valent au plus 40 % de son prix (majoré, la famille la plus chère).
   const fuites = BOUTIQUE.filter(k => {
     const P = PACKS_TOUS[k];
@@ -447,4 +448,30 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   borne('les joueurs sans niveau sortent, à petit poids (part des cartes d\'un Pack Bronze)', hors / cartes, 0.01, 0.1);
 }
 
+/*
+ * LES PACKS QUI MONTENT (V10 — docs/refonte-v10.md § 12). JP : *tu commences avec des packs un peu poches, pis plus
+ * ça avance, tu débloques de meilleurs packs … ou tout ça* ; *sans empêcher un random Crosby saison 1*.
+ */
+{
+  const avecNiveaux = Object.keys(PACKS_TOUS).filter(k => niveauxDuPack(k));
+  const fermes = PRESTIGES.flatMap((Pr, r) => avecNiveaux.filter(k => !(niveauxDuPack(k, { prestige: Pr }).phenomene > 0)).map(k => `${Pr.nom} · ${PACKS_TOUS[k].nom}`));
+  exiger('aucun rang ne ferme le hasard : un Phénomène peut sortir de chaque pack, dès le Club de garage', !fermes.length,
+    fermes.slice(0, 3).join(' · ') || `Bronze au garage : ${niveauxDuPack('j:bronze', { prestige: PRESTIGES[0] }).phenomene.toFixed(2).replace('.', ',')} % par carte`);
+  exiger('le prestige ajoute, il ne retire rien', PRESTIGES.every(Pr => Pr.etoile >= 1 && Pr.phenomene >= 1), PRESTIGES.map(Pr => `${Pr.etoile}/${Pr.phenomene}`).join(' · '));
+  const neuf = packsOuverts({});
+  const ouverts0 = BOUTIQUE.filter(k => neuf[k] === true);
+  exiger('une première run : la boutique vend le Bronze et l\'Époque, le reste est sous clé', ouverts0.join() === 'j:bronze,j:epoque', ouverts0.map(k => PACKS_TOUS[k].nom).join(' · '));
+  const cles = BOUTIQUE.filter(k => neuf[k] !== true).map(k => ({ k, J: JALONS.find(J => J.pack === k) }));
+  exiger('chaque pack sous clé dit son jalon, et s\'ouvre avec lui', cles.every(({ k, J }) => J && neuf[k] === J.texte && packsOuverts({ jalons: { [J.cle]: true } })[k] === true),
+    cles.map(({ k, J }) => `${PACKS_TOUS[k].ico} ${J ? J.nom : '?'}`).join(' · '));
+  const un = { 'j:bronze': 1 }, deux = { 'j:bronze': 2 };
+  exiger('le premier cran : un joueur de plus, au même prix', cartesDuPack('j:bronze', { montee: un }) === cartesDuPack('j:bronze') + 1 && prixDe('j:bronze', 1) === PACKS_TOUS['j:bronze'].prix,
+    `${cartesDuPack('j:bronze')} → ${cartesDuPack('j:bronze', { montee: un })} joueurs`);
+  exiger('le second : les taux du métal du dessus', tierDuPack('j:bronze', { montee: deux }) === 'argent' && niveauxDuPack('j:bronze', { montee: deux }).etoile === niveauxDuPack('j:argent').etoile,
+    `Bronze ++ : ${TIERS[tierDuPack('j:bronze', { montee: deux })].nom}`);
+  const m = { ecussons: 9999, deblocages: [], jalons: {} };
+  exiger('un cran ne s\'achète que sur un pack ouvert, et le second après le premier', peutAcheter(m, 'monte_bronze_1') && !peutAcheter(m, 'monte_bronze_2') && !peutAcheter(m, 'monte_argent_1')
+    && peutAcheter({ ...m, jalons: { series: true } }, 'monte_argent_1') && monteeDesPacks({ deblocages: ['monte_bronze_1', 'monte_bronze_2'] })['j:bronze'] === 2,
+    `${Object.keys(DEBLOCAGES).filter(k => DEBLOCAGES[k].pack).length} crans`);
+}
 verdict('Les packs selon le niveau des joueurs');
