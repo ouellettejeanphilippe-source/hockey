@@ -106,6 +106,9 @@ jobs:
       - name: Les cartes d'un moment, en paires
         run: node scripts/check_si.mjs
 
+      - name: Les moments se lisent sur le passé, et reviennent
+        run: node scripts/check_moments_si.mjs
+
       - name: Le feu qui s'entretient, en paires
         run: node scripts/check_combo.mjs
 

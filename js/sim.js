@@ -1277,7 +1277,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
   const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...coachsJoues(team),
-    ROULEMENTS[roulementDe(team)], ...actifs];
+    ROULEMENTS[roulementDe(team)], ...actifs].filter(c => joueCeSoir(team, c));
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
@@ -2681,10 +2681,11 @@ export function recupererEnergie(team, part = ENERGIE_RECUP) {
 export function effetsActifs(team) {
   const j = team && team.jourCourant;
   // En séries, seule la consigne du match qui vient joue (S69).
-  const duMatch = (team && team._effetMatch) || [];
-  if (j === Infinity) return [...((team && team.effetsSerie) || []), ...duMatch];
+  // V10 : un effet d'un moment (`si`) ne joue que le soir où ce moment est vrai (`joueCeSoir`).
+  const duMatch = ((team && team._effetMatch) || []).filter(x => joueCeSoir(team, x));
+  if (j === Infinity) return [...((team && team.effetsSerie) || []).filter(x => joueCeSoir(team, x)), ...duMatch];
   if (j === undefined || j === null || !team.effets || !team.effets.length) return duMatch;
-  return [...team.effets.filter(x => j >= x.debut && j < x.fin), ...duMatch];
+  return [...team.effets.filter(x => j >= x.debut && j < x.fin && joueCeSoir(team, x)), ...duMatch];
 }
 
 /*
@@ -2724,7 +2725,7 @@ function poserStyles(teams) {
 /*
  * LES DILEMMES. Des histoires vraies de la LNH — drôles, marquantes, parfois
  * tragiques — et quelques-unes inventées. Chaque option achète quelque chose
- * et le paie ; aucune n'est gratuite, et `check_moments.mjs` mesure qu'aucune
+ * et le paie ; aucune n'est gratuite, et `check_moments_si.mjs` mesure qu'aucune
  * ne vaut une victoire à elle seule. La durée est en journées.
  */
 const DUREE_MOMENT = 10;
@@ -5845,8 +5846,14 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // récupération se fait au début de chaque journée (`simulateLeague`).
   if (series) { recupererEnergie(A); recupererEnergie(B); }
   const LA = activeLineup(A), LB = activeLineup(B);
-  // LE MOMENT DU SOIR (V3.4) : ce qu'une modif d'un moment (`si`) lit — qui reçoit, qui voyage, les séries.
-  for (const [Lx, chez] of [[LA, true], [LB, false]]) for (const p of Object.values(Lx)) if (p) p._soir = { domicile: chez, visiteur: !chez, series: !!series };
+  // LES MOMENTS DU SOIR (V3.4 ; V10, `MOMENTS_SI`) : ce qu'une carte d'un moment (`si`) lit, sur le club et sur ses
+  // joueurs — le même objet, que le duel complète période après période. La feuille les garde (`check_moments_si`).
+  for (const [T, Lx, chez, O] of [[A, LA, true, B], [B, LB, false, A]]) {
+    const m = momentsDuSoir(T, O, Lx, { chez, series, jour: gameIdx });
+    T._soir = m;
+    for (const p of Object.values(Lx)) if (p) p._soir = m;
+  }
+  if (journal) journal.moments = { A: Object.keys(A._soir).filter(k => A._soir[k]), B: Object.keys(B._soir).filter(k => B._soir[k]) };
   // LA LANCÉE ET LE DOUTE (V3.6) : une ligue Rogue (`courbe`) les lit sur les feuilles d'avant de chacun.
   for (const [T, Lx] of [[A, LA], [B, LB]]) poserLancees(T, Lx);
   // LE JOURNAL DES CASES VIDES. `activeLineup` promeut le premier réserviste
@@ -5999,7 +6006,11 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     if (B.journal) B.journal.push({ n: B.games + 1, jour: jourJ(B), adv: A, gf: gfB, ga: gfA, ot, win: !winA, gardien: gB, feuille: journal });
   }
   applyInjuries(A, LA, heavy, journal, 'A', pA, pB); applyInjuries(B, LB, heavy, journal, 'B', pB, pA);
-  if (track) { A.games++; B.games++; }
+  if (track) {
+    A.games++; B.games++;
+    // La suite (V10, les moments « après une défaite », « après trois victoires ») : +n victoires, −n défaites.
+    for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
+  }
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -7572,7 +7583,65 @@ export function lignesAuMieux(lineup, style = 'equilibre', { plan = false, coach
  * une or de TON alignement ; 1 pour tout autre joueur). S80 : une AMÉLIORATION
  * (`p._amel`) grandit avec le soir — voir `echelleTardive`.
  */
-/* Une modif qui ne joue que certains soirs (V3.4, `si` : domicile, visiteur, series) : `p._soir` est posé par `playGame` au début du match. */
+/*
+ * LES MOMENTS (V10, docs/refonte-v10.md § 3). JP, 17 oct. : des cartes *plus circonstancielles*. Une carte, un effet,
+ * une modif qui portent `si` ne jouent que le soir où leur moment est vrai — et rien hors de lui. Chaque moment se lit
+ * sur ce qui est DÉJÀ connu au moment du match (la cédule, les jambes du matin, les rivaux, les matchs d'avant) : rien
+ * d'avance, aucun appel à `hasard()`. `playGame` pose les moments du soir sur l'équipe (`T._soir`) et sur chacun de
+ * ses joueurs ; le duel y ajoute l'intention annoncée de la période, et le pointage avant la troisième.
+ * `mot` est ce que la face d'une carte dit en premier (« Un soir de dos-à-dos : … »). La fréquence a été mesurée sur des
+ * saisons de run du robot attentif (`check_moments_si`) : un moment `rare` (les séries, la bête noire, le duel) arrive
+ * quelques fois par saison et vaut plus par soir ; un moment `choix` dépend d'un geste du joueur (jouer un blessé).
+ * Les jambes se lisent sur le patineur le plus fatigué de l'alignement : la moyenne du club ne bouge presque pas (90 à
+ * 96), le plus fatigué va de 81 à 93 — ses seuils sont les quartiles du bas et du haut.
+ */
+export const MOMENTS_SI = {
+  domicile: { mot: 'À domicile' },
+  visiteur: { mot: 'À l\'étranger' },
+  series: { mot: 'En séries', rare: true },
+  dosADos: { mot: 'Un soir de dos-à-dos' },
+  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86 },
+  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 92 },
+  rival: { mot: 'Contre un rival' },
+  beteNoire: { mot: 'Contre ta bête noire', rare: true },
+  apresDefaite: { mot: 'Après une défaite' },
+  enFeu: { mot: 'Après trois victoires', suite: 3 },
+  infirmerie: { mot: 'L\'infirmerie déborde', blesses: 2 },
+  amoche: { mot: 'Un blessé qui joue amoché', choix: true },
+  // Le duel (V9) : l'intention annoncée, le temps de sa période.
+  ombre: { mot: 'Quand ils annoncent l\'ombre', duel: true, rare: true },
+  chasse: { mot: 'Quand ils annoncent la chasse', duel: true, rare: true },
+  centre: { mot: 'Quand ils ferment le centre', duel: true, rare: true },
+  assaut: { mot: 'Quand ils annoncent l\'assaut', duel: true, rare: true },
+  cachot: { mot: 'Quand ils cherchent les punitions', duel: true, rare: true },
+  // La troisième période d'un duel, selon le pointage après deux.
+  mene: { mot: 'En 3e, en avance', duel: true, rare: true },
+  egal: { mot: 'En 3e, à égalité', duel: true, rare: true },
+  derriere: { mot: 'En 3e, en retard', duel: true, rare: true },
+};
+/** Les moments du soir d'un club : `L` son alignement, `adv` l'adversaire, `chez` s'il reçoit. */
+function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } = {}) {
+  const pat = Object.values(L || {}).filter(p => p && p.p !== 'G');
+  const pire = Math.min(100, ...pat.map(energieDe));
+  const suite = (T && T._suite) || 0;
+  // L'infirmerie : les joueurs de l'effectif encore blessés ce soir (le registre des blessures, compté en matchs du
+  // club). Un seul blessé, c'est presque tous les soirs : le moment, c'est quand elle déborde.
+  const n = (T && T.games) || 0;
+  const blesses = T && T.injuriesLog ? new Set(T.injuriesLog.filter(b => b.at <= n + 1 && b.at + b.games - (n + 1) > 0).map(b => b.player)).size : 0;
+  const infirmerie = blesses >= MOMENTS_SI.infirmerie.blesses;
+  return {
+    domicile: !!chez, visiteur: !chez, series: !!series,
+    dosADos: !series && jour !== null && dosADos(T, jour),
+    jambesLourdes: pire < MOMENTS_SI.jambesLourdes.seuil, jambesFraiches: pire >= MOMENTS_SI.jambesFraiches.seuil,
+    rival: !!rivalChoisi(T, adv), beteNoire: !!adv && !!T && T.beteNoire === adv,
+    apresDefaite: suite < 0, enFeu: suite >= MOMENTS_SI.enFeu.suite, infirmerie,
+    amoche: !!(T && T.effetsCibles && jour !== null && T.effetsCibles.some(x => x.source === 'blesse' && jour >= x.debut && jour < x.fin && pat.includes(x.joueur))),
+  };
+}
+/** Ce qui ne joue que dans son moment joue-t-il ce soir ? Sans `si`, toujours. */
+const joueCeSoir = (T, x) => !x || !x.si || !!(T && T._soir && T._soir[x.si]);
+
+/* Une modif qui ne joue que certains soirs (`si`, V3.4 ; tous les moments de `MOMENTS_SI` depuis la V10) : `p._soir` est posé par `playGame` au début du match. */
 function siDe(p, champ) {
   if (!p || !p._si || !p._soir) return 1;
   let f = 1;
@@ -9465,6 +9534,13 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     toi._lignesMatch = lk;
     toi._effetMatch = [...base, ...bk, ...effToi];
     adv._effetMatch = [...baseAdv, ...effAdv];
+    // LES MOMENTS DU DUEL (V10, `MOMENTS_SI`) : l'intention annoncée, le temps de sa période ; à la 3e, le pointage après
+    // deux. Le même objet que celui des joueurs (`playGame`) : une carte d'équipe ou une modif d'un moment les lit pareil.
+    if (toi._soir) {
+      for (const [k2, M] of Object.entries(MOMENTS_SI)) if (M.duel) delete toi._soir[k2];
+      toi._soir[I.cle] = true;
+      if (k === 2) { const moi = toiA ? gfA : gfB, lui = toiA ? gfB : gfA; toi._soir[moi > lui ? 'mene' : moi === lui ? 'egal' : 'derriere'] = true; }
+    }
     const qToi = profilMatch(toi, Lk, adv); qToi.rob = teamStrength(toi, Lk).rob; qToi.domicile = toiA;
     const qAdv = profilMatch(adv, Ladv, toi); qAdv.rob = teamStrength(adv, Ladv).rob; qAdv.domicile = !toiA;
     const [qA, qB] = toiA ? [qToi, qAdv] : [qAdv, qToi];

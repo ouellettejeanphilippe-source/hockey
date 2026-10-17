@@ -409,7 +409,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // Le robot ne laisse pas de cartes posées sur des joueurs partagés : chaque saison repart propre.
   for (const p of Object.values(you.roster)) if (p) delete p._carte;
   for (const x of entrees) delete x.p._carte;
-  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster } };
+  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments).
+  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you };
 }
 
 /*
