@@ -611,7 +611,9 @@ body:has(#game.bilan:not(.banc)) { --actionbar-h: 0px; }
 /* Sa hauteur, `--flottant-h`, le volet du bureau la réserve sous sa dernière rangée (sinon le dernier du classement passe dessous).
    `.btn.go.hub-flottant` : `.btn.go` (deux classes) pose `position: relative` plus bas ; à une classe, le bouton ne flottait pas
    et se posait en haut de l'écran, sur les premières rangées (CI, graine h13l7m : « bouton 35-79, rangée 64-108 »). */
-.btn.go.hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: var(--flottant-h); box-shadow: var(--ombre); }
+/* Sa hauteur à lui est fixe : la mesure ne sert qu'à la réserve du volet. Lue ici, elle bouclait — masqué par une règle
+   d'affichage, il mesurait 0, puis 16 px à son retour, et restait coincé à 230 × 16 (audit mobile, oct.). */
+.btn.go.hub-flottant { position: fixed; z-index: 60; left: 50%; transform: translateX(-50%); bottom: calc(var(--bas-coquille, 70px) + var(--esp-3)); min-width: 230px; min-height: 48px; box-shadow: var(--ombre); }
 body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouvert .hub-flottant, body:has(.hub-sheet[data-page]:not([data-page-ailleurs])) .hub-flottant { display: none; }
 /* Pressé, il garde son centrage (le `transform` de `.btn.go:active` le perdait). */
 .btn.go.hub-flottant:active:not(:disabled) { transform: translateX(-50%) translateY(2px) scale(0.96); }
@@ -675,13 +677,17 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn .ico { width: 18px; height: 18px; transition: transform var(--t-lent) var(--e-ressort); }
 /* LE BOUTON SOUS LE POUCE (1.0, oct.). JP : *les boutons aussi, tout est dull, ya pas de juice, d'animation*. Au survol, il
    monte et s'allume du club ; sous le doigt, il s'écrase vite et rebondit au retour (le ressort est dans la transition). */
-.btn:hover:not(:disabled) { background: var(--fond-2); border-color: color-mix(in srgb, var(--club-vif) 70%, var(--encre-3)); transform: translateY(-2px); box-shadow: var(--lueur-club); }
-.btn:hover:not(:disabled) .ico { transform: scale(1.15); }
+/* Au doigt, pas de survol : un toucher le laissait collé, et le bouton touché prenait le fond du survol (la mise doublée
+   d'un duel avait l'air éteinte une fois prise, audit mobile). */
+@media (hover: hover) {
+  .btn:hover:not(:disabled) { background: var(--fond-2); border-color: color-mix(in srgb, var(--club-vif) 70%, var(--encre-3)); transform: translateY(-2px); box-shadow: var(--lueur-club); }
+  .btn:hover:not(:disabled) .ico { transform: scale(1.15); }
+}
 .btn:active:not(:disabled) { transform: translateY(1px) scale(0.95); filter: brightness(1.25); transition-duration: 60ms; }
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
 .btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, var(--blanc)), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); box-shadow: var(--lueur-bon); }
-.btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); }
+@media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
 /* Seule l'action de l'écran respire (la barre d'action, « Journée suivante ») : l'écran titre en a trois, côte à côte. */
 /* Une lumière qui bat DANS le bouton, en opacité seulement : le compositeur la joue seul, sans repeindre (une ombre animée
    repeignait l'écran à chaque image, derrière le plateau Sur table aussi, et son smoke le mesurait). */
@@ -694,9 +700,9 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 @keyframes go-reflet { 0%, 78% { transform: translateX(-140%) skewX(-18deg); } 100% { transform: translateX(440%) skewX(-18deg); } }
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, var(--blanc)), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--blanc) 35%, transparent); }
-.btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); }
+@media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
 .btn.danger { border-color: var(--mauvais); color: var(--mauvais); }
-.btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); }
+@media (hover: hover) { .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); } }
 .btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-2); }
 /* Un bouton-icône : rond, sans fond, le mot à côté dès qu'il y a la place. */
 .icon-btn {
@@ -4153,7 +4159,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .duel-gestes { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
 @media (min-width: 700px) { .duel-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .duel-snap { align-self: flex-start; }
-.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
+.btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
 .choix-option.tc.main-carte.repond { box-shadow: 0 0 0 2px var(--bon), var(--relief); }
 .duel-avant { font-size: var(--t-2); line-height: 1.35; color: var(--encre); }
 .duel-avant small { color: var(--encre-2); }

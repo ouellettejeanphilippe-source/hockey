@@ -623,7 +623,8 @@ function boutonFlottant(actions, termine) {
   // le cliquer rejouerait un vieux geste — « Ronde 5 · 0 série » (QA S74b).
   f.onclick = () => { f.hidden = true; if (cible.isConnected) cible.click(); };
   // Sa VRAIE hauteur (« ⏳ À régler avant le match : … » passe sur deux lignes) : le volet la réserve sous sa dernière rangée.
-  const mesurer = () => { if (!f.hidden) document.documentElement.style.setProperty('--flottant-h', `${Math.ceil(f.getBoundingClientRect().height)}px`); };
+  // Masqué par une règle d'affichage sans être `hidden`, il mesure 0 : on garde alors la dernière hauteur vraie.
+  const mesurer = () => { const h = f.hidden ? 0 : Math.ceil(f.getBoundingClientRect().height); if (h) document.documentElement.style.setProperty('--flottant-h', `${h}px`); };
   f._io = new IntersectionObserver(([e]) => { f.hidden = e.isIntersecting || window.innerWidth >= 1200; mesurer(); }, { threshold: 0.6 });
   f._io.observe(cible);
 }
@@ -3895,7 +3896,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const { main, pioche } = d0 && d0.main && Array.isArray(d0.main.tirage) ? mainDuDuel(d0.main.tirage, d0.main.pile || [], joueesAvant) : { main: [], pioche: [] };
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
     const prime = Math.round(((run && run.bareme) || JETONS).grosMatch * (mb.butin || 1));
-    const mise = k === 2 ? `Doubler la mise · victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` : null;
+    const mise = k === 2 ? `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` : null;
     const P = du.periodes[k];
     const D = specDuDuel(P, { k, main, domicile: moiA, mise, cadre: cadreDuMatch(1 / 3, 'la période'), deja: !!P.contree });
     const tirs = c => [1, 2].slice(0, k).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);

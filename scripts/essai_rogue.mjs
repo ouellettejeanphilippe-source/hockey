@@ -22,7 +22,8 @@ const { chromium } = pw;
 const BASE = process.argv[2] || 'http://localhost:8000';
 const DOSSIER = process.argv[3] || 'scripts';
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+// Au doigt (audit mobile, oct.) : un téléphone n'a pas de survol, et un toucher ne doit pas laisser un bouton dans son état survolé.
+const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasTouch: true });
 /*
  * v2 : la boutique et tes cartes n'ont plus qu'une porte, la section Marché (la rangée de liens du bureau doublait
  * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
@@ -52,11 +53,27 @@ const passerLaPile = async () => {
  * Une décision prise de la boutique ou de « Tes cartes » rejoue la saison en coulisse et rouvre la même page DANS le
  * Marché. Pour retrouver le bureau, on touche « Club » dans la barre.
  */
-/* « Ce soir » (V8) : la section, puis son premier onglet — elle rouvre sinon la page qu'on y lisait (les Lignes). */
+/*
+ * LE BOUTON FLOTTANT (audit mobile, oct.) : quand « Jour suivant » sort de l'écran, son double flotte au-dessus de la
+ * barre. Il se mesurait lui-même et restait coincé à 230 × 16 après avoir été masqué : partout où il paraît, 44 px au moins.
+ */
+const flottant = { vus: 0, petits: [] };
+async function garderLeFlottant(ou) {
+  const f = await page.$eval('#hubFlottant', b => { const r = b.getBoundingClientRect(); return { vu: !b.hidden && b.checkVisibility() && r.height > 0, w: r.width, h: r.height }; }).catch(() => null);
+  if (!f || !f.vu) return;
+  flottant.vus++;
+  if (f.h < 44) flottant.petits.push(`${ou} ${Math.round(f.w)}×${Math.round(f.h)}`);
+}
+/* « Ce soir » (V8) : la section, puis son premier onglet — elle rouvre sinon la page qu'on y lisait (les Lignes). On
+   la défile au bout : le bouton du jour sort de l'écran, son double doit flotter, à sa vraie taille. */
 const versCeSoir = async () => {
   await page.click('#navbar .navtab[data-section="soir"]').catch(() => {});
   await page.click('#sousNav .soustab[data-page="soir"]', { timeout: 3000 }).catch(() => {});
   await page.waitForTimeout(500);
+  const defile = bas => page.evaluate(b => { for (const e of document.querySelectorAll('#hubModal *')) if (e.scrollHeight > e.clientHeight + 40 && /auto|scroll/.test(getComputedStyle(e).overflowY)) e.scrollTop = b ? e.scrollHeight : 0; }, bas);
+  await defile(true); await page.waitForTimeout(400);
+  await garderLeFlottant('ce soir, au bout');
+  await defile(false); await page.waitForTimeout(200);
 };
 const auBureau = async (timeout = 120000) => {
   await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-trancher'), null, { timeout });
@@ -222,6 +239,7 @@ const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), fo
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
+const mise = { vue: false, lu: '' };   // la mise doublée, touchée une fois
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
   for (let i = 0; i < 30; i++) {
@@ -276,6 +294,24 @@ async function regler() {
         const g = await page.$('#choixModal .duel-geste[data-geste]:not([disabled])');
         if (g) { geste = await g.getAttribute('data-geste'); await g.click(); await page.waitForTimeout(200); }
         if (!captures.duel++) { await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
+      }
+      /*
+       * LA MISE DOUBLÉE AU DOIGT (audit mobile, oct.) : touchée, elle prend l'or et sa coche — le survol collé d'un
+       * toucher lui donnait le fond sombre d'un bouton éteint. Touchée encore, elle se laisse (le robot ne double pas).
+       */
+      if (!mise.vue && await page.$('#choixModal .duel-snap')) {
+        mise.vue = true;
+        await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
+        const lu = await page.$eval('#choixModal .duel-snap', b => {
+          const t = document.createElement('i'); t.style.background = 'var(--or)'; document.body.appendChild(t);
+          const or = getComputedStyle(t).backgroundColor; t.remove();
+          return { on: b.classList.contains('on'), fond: getComputedStyle(b).backgroundColor, or, txt: b.textContent.trim() };
+        });
+        mise.lu = `${lu.txt} · ${lu.fond}`;
+        if (!lu.on || !lu.txt.startsWith('✓')) erreurs.push(`la mise doublée touchée ne se coche pas (« ${lu.txt} »)`);
+        if (lu.fond !== lu.or) erreurs.push(`la mise doublée touchée n'a pas le fond de l'or (${lu.fond}, l'or ${lu.or})`);
+        await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
+        if (await page.$('#choixModal .duel-snap.on')) erreurs.push('la mise doublée touchée deux fois reste doublée');
       }
       const mains0 = (await decisionsDuCombat()).filter(d => d.main).length;
       await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500);
@@ -461,6 +497,7 @@ async function prochaineDecision() {
   const s = await page.$('#hubModal .hub-semaine');
   const p = s && await s.isVisible() ? s : await page.$('#hubModal .hub-jour');
   if (!p || !(await p.isVisible()) || await p.isDisabled()) return false;
+  await garderLeFlottant('au bureau');
   await p.click();
   await page.waitForFunction(() => !document.querySelector('#hubModal :is(.hub-jour, .hub-semaine)[disabled]'), null, { timeout: 120000 }).catch(() => {});
   await page.waitForTimeout(300);
@@ -475,6 +512,7 @@ async function unJour() {
   const b = await page.$('#hubModal .hub-jour:not(.hub-vers-soir)');
   if (!b || !(await b.isVisible())) return null;
   const j0 = ((await lireSauvegarde()).partie || {}).journee;
+  await garderLeFlottant('au bureau');
   await b.click();
   await page.waitForFunction(() => !document.querySelector('#hubModal .hub-jour[disabled]'), null, { timeout: 60000 }).catch(() => {});
   await page.waitForTimeout(400);
@@ -1268,6 +1306,10 @@ if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucu
 // LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
 console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
 if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
+console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
+if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
+if (!flottant.vus) erreurs.push('le bouton flottant n\'a jamais paru (« Ce soir » défilé au bout)');
+if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);
