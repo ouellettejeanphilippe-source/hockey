@@ -1,8 +1,8 @@
-# V10 · Le jeu de cartes neuf (devis à trancher)
+# V10 · Le jeu de cartes neuf
 
 JP, 17 oct. : *en dehors des joueurs, on devrait jeter toutes les cartes et créer de zéro avec la nouvelle philosophie en tête au lieu d'ajuster ce qui était là avant. Ça permettrait d'avoir des cartes plus circonstancielles et plus proches de ce qu'on veut faire.* Tranché le même jour : **les cartes d'abord, puis les écrans du Rogue** ; **le « si » s'élargit** à de nouveaux moments.
 
-Ce document est le devis. Rien n'est codé ; ce que JP doit trancher est au § 10.
+Ce document est le devis, tranché par JP le 17 oct. (§ 10) ; ce qui est fait est au § 11.
 
 ## 1. Ce qu'on jette, mesuré
 
@@ -32,19 +32,22 @@ On garde : **les cartes de joueur** (le cartable, les éditions, les galons), **
 
 Chaque moment se lit sur ce qui est **déjà connu** le jour où la carte se joue (`deDuJour`, `grosAnnonces` : rien d'avance — `check_graine`). Aujourd'hui, seul un joueur porte un moment (`p._si`, lu par `siDe` sur `p._soir`, posé par `playGame`). La tranche 1 pose le même drapeau pour une carte d'équipe (un filtre dans `effetsActifs`, sur le modèle d'`effetsCibles`) et ajoute les moments ci-dessous ; aucun nouvel appel à `hasard()`.
 
-| Famille | Moments | Lu sur |
-|---|---|---|
-| **Le lieu** | à domicile · à l'étranger | existe |
-| **Les séries** | en séries · en finale | existe (séries) |
-| **Le duel** | quand ils annoncent 🥷 l'ombre, 🦈 la chasse, ⛔ fermer le centre, 🐗 l'assaut ou 🦂 les punitions · en 3e période en avance, à égalité ou en retard · la mise doublée | `INTENTIONS`, l'intention de la période dans `jouerDuel` ; le pointage des deux périodes jouées (le duel seulement : un match ordinaire n'a pas d'arrêt à 40:00) |
-| **Le calendrier** | un soir de dos-à-dos · le premier match après un congé | `dosADos`, le calendrier |
-| **Les jambes** | jambes du club sous 70 · au-dessus de 85 | les jambes du matin |
-| **L'adversaire** | contre un rival · contre ta bête noire 😤 · contre plus fort que toi au classement | les rivaux, `beteNoire`, le classement du matin |
-| **La forme** | après une défaite · après trois victoires · un joueur sur sa lancée · un joueur dans le doute | les feuilles jouées, `lanceeDe` ; « après une défaite » demande un champ neuf (le dernier résultat), le moteur n'en garde pas |
-| **L'infirmerie** | un blessé qui joue amoché · un joueur de moins dans l'alignement | `jouerBlesse`, l'alignement |
-| **Le plan** | une unité « bâtie pour » son système · une unité mal assortie | `famillesDe`, `PLAN_PAIE` |
+Implantés (`MOMENTS_SI`, js/sim.js), mesurés sur des saisons de run du robot attentif (`check_moments_si`, quatre clubs) :
 
-Un moment qui n'arrive pas ne sert à rien : chaque moment doit revenir **au moins trois fois par saison** dans une run type (le juge neuf, `check_moments`, § 8).
+| Famille | Moments (`si`) | Lu sur | Soirs par saison |
+|---|---|---|---|
+| **Le lieu** | `domicile` · `visiteur` | qui reçoit | 41 · 38 |
+| **Les séries** | `series` (rare) | les séries | `check_si` |
+| **Le calendrier** | `dosADos` | `dosADos`, la cédule | 15 |
+| **Les jambes** | `jambesLourdes` (un patineur sous 86) · `jambesFraiches` (tous à 92 ou plus) | le patineur le plus fatigué de l'alignement : la moyenne du club ne bouge presque pas (90 à 96), le plus fatigué va de 81 à 93 | 18 · 11 |
+| **L'adversaire** | `rival` · `beteNoire` (rare) | `rivalChoisi`, `beteNoire` | 6 · 10 en quatre saisons |
+| **La forme** | `apresDefaite` · `enFeu` (trois victoires de suite) | `_suite`, posée après chaque match | 28 · 24 |
+| **L'infirmerie** | `infirmerie` (deux blessés ou plus) · `amoche` (un blessé qui joue amoché : un choix du joueur, que les robots ne font pas) | le registre des blessures ; `jouerBlesse` | 49 · — |
+| **Le duel** | `ombre` · `chasse` · `centre` · `assaut` · `cachot` (l'intention de la période) ; `mene` · `egal` · `derriere` (la 3e, selon le pointage après deux) — tous rares | `jouerDuel`, période par période | 23 · 8 · 11 · 23 · 34 ; 23 · 4 · 6 en quatre saisons |
+
+Écartés à la mesure : « un seul blessé » (vrai 76 soirs sur 82 : ce n'est plus un moment), « les jambes du club sous 70 » (jamais), « contre plus fort que toi au classement » (le classement change au fil de la journée : pas lu sans un instantané du matin), le plan d'une unité (il ne change pas d'un soir à l'autre : c'est une condition, pas un moment ; les cartes du plan passent par `PLAN_PAIE`).
+
+Un moment qui n'arrive pas ne sert à rien : un moment courant revient **au moins trois fois par saison** dans une run type, sans être vrai plus des trois quarts des soirs ; un moment rare arrive au moins une fois (le juge neuf, `check_moments_si`, § 8). Un moment rare vaut plus par soir.
 
 ## 4. Le jeu neuf, par où il se joue
 
@@ -91,10 +94,10 @@ Dix cartes pour donner le ton. Les chiffres sont à mesurer en paires (§ 8) ; l
 
 Les sauvegardes rejouent la saison avec les identifiants des cartes : les décisions (`d.carte`, `place`, `vend.refs`, `main.tirage`, `retrait`), le cahier, les places, l'inventaire permanent (`cap82_rogue.inventaire`). Un identifiant parti ne se rejoue pas.
 
-Proposé :
+Tranché (JP : *reset toute*) :
 - `VERSION_MOTEUR` monte ; l'empreinte du moteur se réécrit (`EMPREINTE=ecrire`).
-- **Une run commencée avant** reprend sa saison en cours **au début** avec le jeu neuf : ses cartes anciennes sont remboursées en jetons, à leur valeur de revente (`valeurDe`) ; son effectif, ses jetons et son cartable restent.
-- **L'inventaire permanent** (le congédiement, le rappel…) : chaque carte ancienne a sa remplaçante désignée, ou se rembourse en médailles 🏅.
+- **Toutes les runs en cours repartent de zéro** avec le jeu neuf.
+- **L'inventaire de cartes** (le méta : `inventaire`, `personnel`, `cartes`) se vide.
 - **Le cartable des joueurs** ne bouge pas.
 - Le 82-0, Sur table et l'exhibition n'ont pas de cartes : rien n'y change.
 
@@ -106,7 +109,7 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 |---|---|
 | `check_cartes` | chaque carte mesurée **en paires**, sous la borne de sa rareté ; une rare ou une légendaire se voit dans la feuille |
 | `check_si` | étendu à **tous les moments** : dans son moment, plus fort qu'une carte de tous les soirs ; hors de lui, rien |
-| **`check_moments`** (neuf) | chaque moment se lit sur le passé seulement (rien d'avance) ; chacun revient au moins trois fois par saison dans une run type ; aucune carte dont le moment n'arrive jamais |
+| **`check_moments_si`** (neuf) | chaque moment se lit sur le passé seulement (rien d'avance) ; chacun revient au moins trois fois par saison dans une run type ; aucune carte dont le moment n'arrive jamais |
 | `check_combat` | chaque carte jouable est lue par le moteur |
 | `check_coachs`, `check_voies` | la couleur de chaque carte sur ses canaux ; chaque coach à sa III vaut +6 à +8 V sur une équipe bâtie pour lui |
 | `check_combo` | réécrit sur les combos neufs : chaque pièce seule sous sa borne, le build complet qui casse le jeu |
@@ -119,8 +122,8 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 
 ## 9. Les tranches, une PR chacune
 
-1. **Les moments dans le moteur** : le « si » élargi aux cartes d'équipe et aux moments du § 3, sans aucune carte neuve ; `check_moments` et `check_si` étendus ; les robots apprennent à jouer une carte. Les cartes d'aujourd'hui ne bougent pas.
-2. **Le cahier neuf** (le duel) et les robots qui le jouent ; l'ancien deck de match part.
+1. **Les moments dans le moteur** : le « si » élargi aux cartes d'équipe et aux moments du § 3, sans aucune carte neuve ; `check_moments_si`. Les cartes d'aujourd'hui ne bougent pas (l'empreinte du moteur est la même). *Fait (§ 11).*
+2. **Le cahier neuf** (le duel) et les robots qui le jouent — ils n'en jouent aucune aujourd'hui, sauf le deck de départ ; l'ancien deck de match part.
 3. **Les places et l'équipement**.
 4. **Le personnel et les contrats**.
 5. **Les événements deviennent des choix d'À faire**, dits par leurs voix (la suite des scènes du Jalon M, A3 à A6).
@@ -128,11 +131,22 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 
 Ensuite, **les écrans du Rogue refaits à neuf** (le Bureau, À faire, Ce soir, le duel), maquettes d'abord. Le Jalon M en cours finit ses tranches 1 à 4 (les correctifs mobiles, le look, les cibles, les scènes) ; ses tranches 6 à 8 attendent ces écrans.
 
-## 10. Ce que JP tranche
+## 10. Ce que JP a tranché (17 oct.)
 
-1. **Les événements** sortent de la banque et deviennent des choix d'À faire (une vingtaine de situations) ?
-2. **Le compte** : ~120 cartes, environ douze par coach, est-ce assez de variété d'une run à l'autre ?
-3. **Les maudites** : cinq contrats lourds, ou aucune ?
-4. **Les runs en cours** : reprises au début de leur saison, les cartes remboursées en jetons (proposé), ou finies au bilan ?
-5. **Les cartes de saison** se fondent dans le personnel ?
-6. **Les moments du § 3** : en manque-t-il un que tu veux voir (une rivalité de série, le match des anciens, la date limite des échanges) ?
+1. **Les événements** sortent de la banque et deviennent des choix d'À faire : *oui*.
+2. **Le compte**, ~120 cartes : *oui, si elles sont variées, impactantes et liées aux coachs*. Chaque carte a sa couleur de coach, ses moments variés, et pèse dans son moment (la borne de sa rareté est un maximum, pas une cible ; une rare et une légendaire se voient dans la feuille).
+3. **Les maudites** : *si elles sont pertinentes* — une maudite a un moment et une raison de la prendre (son argent, son effet dans un autre moment).
+4. **Les runs en cours** : *reset toute* (§ 7).
+5. **Les cartes de saison** se fondent dans le personnel : *oui*.
+6. **Les moments** : ceux du § 3 ; *go*.
+
+## 11. Fait le 17 octobre : la tranche 1, les moments
+
+- **Le moteur** : `MOMENTS_SI` et `momentsDuSoir` (js/sim.js). `playGame` pose les moments du soir sur le club (`T._soir`) et sur ses joueurs — le même objet ; le duel y ajoute l'intention de la période et, à la 3e, le pointage après deux. La feuille garde les moments du soir (`feuille.moments`). Un effet, une carte, un patron qui portent `si` ne jouent que leur soir (`joueCeSoir`, dans `effetsActifs` et `effetsDeSaison`) ; une modif de joueur, comme avant (`siDe`). La suite de victoires ou de défaites (`_suite`) se pose après chaque match. Aucun appel à `hasard()`.
+- **Rien ne change** tant qu'aucune carte ne lit un moment neuf : l'empreinte du moteur est la même (`check_empreinte`), `tout.mjs` vert.
+- **Le juge** `check_moments_si` (une minute, au CI) :
+  - la porte : un effet d'un moment joue son soir, rien hors de lui ;
+  - dans une vraie ligue, un patron d'un moment ne change rien avant son premier soir, et la saison diverge exactement ce soir-là, pour les huit moments de la ligue ordinaire ;
+  - rien d'avance : les moments d'un soir sont ceux d'une ligue jouée jusqu'à lui ;
+  - chaque moment revient : neuf moments courants au moins trois fois par saison et au plus les trois quarts des soirs ; neuf moments rares au moins une fois en quatre saisons.
+- **Mesuré, et changé** : les jambes du club ne descendent jamais sous 70 (la moyenne va de 90 à 96) — le moment se lit sur le patineur le plus fatigué ; un seul blessé, c'est 76 soirs sur 82 — le moment est l'infirmerie qui déborde (deux blessés ou plus, 49 soirs).
