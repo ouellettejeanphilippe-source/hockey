@@ -123,7 +123,7 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 ## 9. Les tranches, une PR chacune
 
 1. **Les moments dans le moteur** : le « si » élargi aux cartes d'équipe et aux moments du § 3, sans aucune carte neuve ; `check_moments_si`. Les cartes d'aujourd'hui ne bougent pas (l'empreinte du moteur est la même). *Fait (§ 11).*
-2. **Le cahier neuf** (le duel) et les robots qui le jouent — ils n'en jouent aucune aujourd'hui, sauf le deck de départ ; l'ancien deck de match part.
+2. **Le cahier neuf** (le duel) et les robots qui le jouent — ils n'en jouent aucune aujourd'hui, sauf le deck de départ ; l'ancien deck de match part. *Fait (§ 13).*
 3. **Les places et l'équipement**.
 4. **Le personnel et les contrats**.
 5. **Les événements deviennent des choix d'À faire**, dits par leurs voix (la suite des scènes du Jalon M, A3 à A6).
@@ -150,3 +150,22 @@ Ensuite, **les écrans du Rogue refaits à neuf** (le Bureau, À faire, Ce soir,
   - rien d'avance : les moments d'un soir sont ceux d'une ligue jouée jusqu'à lui ;
   - chaque moment revient : neuf moments courants au moins trois fois par saison et au plus les trois quarts des soirs ; neuf moments rares au moins une fois en quatre saisons.
 - **Mesuré, et changé** : les jambes du club ne descendent jamais sous 70 (la moyenne va de 90 à 96) — le moment se lit sur le patineur le plus fatigué ; un seul blessé, c'est 76 soirs sur 82 — le moment est l'infirmerie qui déborde (deux blessés ou plus, 49 soirs).
+
+## 12. Les packs qui montent, sans fermer le hasard (JP, 17 oct. — à trancher)
+
+JP : *le type de carte dans les packs s'upgrade, ou tu peux débloquer des nouveaux types de packs, mais sans empêcher un random Crosby saison 1*. Aujourd'hui, le prestige multiplie les taux des Étoiles et des Phénomènes (`PRESTIGES`, js/rogue.js ; `niveauxDuPack`, js/packs.js), et le Club de garage les ferme presque : Étoile ×0,4, **Phénomène ×0** — le Crosby de 2005-06 ne peut pas sortir d'une première run.
+
+Ce que je propose, en deux morceaux :
+
+1. **Le hasard reste ouvert dès la première run** : aucun rang ne met un taux à zéro. Le Club de garage garde le taux de base de ses packs pour les Phénomènes (0,05 % par carte au Bronze, 1 % au Premium : rare, mais possible) ; le prestige ne retire plus rien, il ajoute.
+2. **Ce qui monte, c'est le catalogue** : chaque rang ouvre des sortes de packs (les packs par famille, puis Étoiles, puis Légendes) et monte d'un métal le pack de base au même prix (le Bronze du quartier devient l'Argent du club respecté). Le joueur voit son magasin grandir, au lieu de taux cachés qui bougent.
+
+Les juges : `check_packs` (la revente, les taux affichés), `check_profondeur` (la première Coupe pas avant la run 3 — un Phénomène chanceux ne doit pas la donner d'office).
+
+## 13. Fait le 17 octobre : la tranche 2, le cahier neuf
+
+- **Le cahier** (`CAHIER`, js/cahier.js) : 44 cartes. Le départ (`DEPART_DU_CAHIER`), neutre : une réponse par intention, *Tenir le fort* et *Le dernier effort* en 3e, trois cartes de tous les soirs. Les coachs, quatre cartes chacun (le Comptable, deux paris) ; leurs soirées : à domicile, à l'étranger, un dos-à-dos, les jambes lourdes, un rival, la bête noire, les séries.
+- **Le moteur** : `carteRepond` lit le moment d'une carte ; `effetsDesCartes` pose son moment sur ses effets (`si`, et `siToi` sur l'adversaire) ; `jouerDuel` pose les moments de la période avant la décision, borne une réponse à sa période, et filtre ce qui vise l'adversaire sur ton moment.
+- **La face** dit le moment d'abord (`regleDeCarte`, js/gerant.js), et ses chiffres sur ce temps-là (la période, la 3e).
+- **L'ancien deck** est retiré des tirages (`retire`) ; il joue encore pour une run en cours jusqu'à la tranche 6.
+- **Les juges** : `check_cahier` (nouveau), `check_duel` (63,9 %), `check_combat`, `check_coachs`, `check_deck`, `check_emojis` (les pictogrammes neufs dessinés au trait).

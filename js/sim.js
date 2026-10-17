@@ -9147,6 +9147,7 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
   jouees.forEach((c, i) => {
     const C = CARTES_MATCH[c];
     if (!C || C.injouable) return;
+    const n0 = out.effets.length, a0 = out.adv.length;
     if (C.effet) out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...C.effet });
     // S80 : une carte qui VISE L'ADVERSAIRE grandit avec le soir (`echelleTardive`).
     if (C.adv) out.adv.push({ source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(C.adv, echelle) });
@@ -9173,6 +9174,12 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
       const { gagne, face } = deDeMise(hacherMise(cle, 'carte', i, c), C.pari.chance);
       out.effets.push({ source: 'carte', nom: C.nom, ico: C.ico, ...(gagne ? C.pari.gagne : C.pari.perd) });
       out.paris.push({ cle: c, gagne, face });
+    }
+    // UNE CARTE D'UN MOMENT (V10) : ses effets portent son moment, et ne jouent que là (`joueCeSoir`). Sur l'adversaire,
+    // c'est TON moment qui compte (`siToi`, lu par `jouerDuel`), pas le sien.
+    if (C.si) {
+      for (const e of out.effets.slice(n0)) e.si = C.si;
+      for (const e of out.adv.slice(a0)) e.siToi = C.si;
     }
   });
   // Une malédiction restée dans la main coûte, elle aussi.
@@ -9283,6 +9290,8 @@ const LIT_LEUR_JEU = C => !!(C && (C.lire || C.annule || C.contre || C.revele ||
 export function carteRepond(I, cle) {
   const C = CARTES_MATCH[cle];
   if (!C || C.injouable) return false;
+  // Une carte d'un moment (V10, js/cahier.js) ne répond qu'à SON intention ; un autre moment ne répond à aucune.
+  if (C.si) return INTENTIONS[C.si] === I;
   if (LIT_LEUR_JEU(C)) return true;
   const e = C.effet || {};
   const [canal, sens] = I.carte;
@@ -9460,11 +9469,22 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     const dec = (gros.periodes || [])[k] || null;
     if (k > 0 && dec && dec.graine) grainerHasard(dec.graine);
     const I = intentionDuDuel({ toi, adv, L: Ltoi, Ladv, lignes, base, k, hist, graine: gros.graineMain, cle: gros.cleMain });
+    // LES MOMENTS DU DUEL (V10, `MOMENTS_SI`) : l'intention annoncée, le temps de sa période ; à la 3e, le pointage après
+    // deux. Le même objet que celui des joueurs (`playGame`) : une carte d'équipe ou une modif d'un moment les lit pareil.
+    if (toi._soir) {
+      for (const [k2, M] of Object.entries(MOMENTS_SI)) if (M.duel) delete toi._soir[k2];
+      toi._soir[I.cle] = true;
+      if (k === 2) { const moi = toiA ? gfA : gfB, lui = toiA ? gfB : gfA; toi._soir[moi > lui ? 'mene' : moi === lui ? 'egal' : 'derriere'] = true; }
+    }
+    const soir = { ...(toi._soir || {}) };
+    const dansSonMoment = c => { const C = CARTES_MATCH[c]; return !!C && (!C.si || !!soir[C.si]); };
+    // L'adjoint répond à ce qu'il voit, mais ne joue pas le coup de 3e : c'est ta décision, selon le pointage.
+    const pourLAdjoint = c => dansSonMoment(c) && !(CARTES_MATCH[c].si && MOMENTS_SI[CARTES_MATCH[c].si].duel && !INTENTIONS[CARTES_MATCH[c].si]);
     const opts = reponsesDuDuel(I, { toi, L: Ltoi, lignes });
     let d = dec;
     // « L'adjoint joue cette série » : il joue la main qui reste, période après période, sans geste.
-    if (!d && k > 0 && d0 && d0.adjoint && tenue) d = { cartes: mainDeLAdjoint(tenue.main, ELAN_PAR_PERIODE).jouees };
-    if (!d && robot) d = robot({ k, intention: I, reponses: opts, main: tenue ? tenue.main.slice() : [], elan: ELAN_PAR_PERIODE, pointage: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, domicile: toiA, serie: !!gros.serie }) || null;
+    if (!d && k > 0 && d0 && d0.adjoint && tenue) d = { cartes: mainDeLAdjoint(tenue.main, ELAN_PAR_PERIODE, pourLAdjoint).jouees };
+    if (!d && robot) d = robot({ k, intention: I, reponses: opts, main: tenue ? tenue.main.slice() : [], elan: ELAN_PAR_PERIODE, pointage: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, domicile: toiA, serie: !!gros.serie, dansSonMoment, pourLAdjoint }) || null;
     d = d || {};
     // LE GESTE SUR LA GLACE : le temps de la période, comme l'intention à laquelle il répond.
     const Lk = { ...Ltoi }, lk = lignes.map(l => ({ ...l })), bk = [];
@@ -9482,9 +9502,12 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     const cartes = (d.cartes || []).filter(c => CARTES_MATCH[c]);
     const fx = cartes.length || (k === 0 && (d.enMain || []).length)
       ? effetsDesCartes(toi, { jouees: cartes, enMain: k === 0 ? d.enMain || [] : [] }, `${gros.cleCartes || ''}:p${k}`, { echelle, elan: ELAN_PAR_PERIODE }) : null;
+    // Une carte d'une intention (V10) ne joue que SA période : ses effets vont avec ceux de l'intention, pas au reste du match.
+    const deLaPeriode = e => !!INTENTIONS[e.si || e.siToi];
+    const perToi = fx ? fx.effets.filter(deLaPeriode) : [], perAdv = fx ? fx.adv.filter(deLaPeriode) : [];
     if (fx) {
-      base.push(...fx.effets);
-      baseAdv.push(...fx.adv);
+      base.push(...fx.effets.filter(e => !deLaPeriode(e)));
+      baseAdv.push(...fx.adv.filter(e => !deLaPeriode(e)));
       if (fx.energieTous) for (const sl of SLOTS) { const p = toi.roster[sl.i]; if (p && p.p !== 'G') rendreJambes(p, fx.energieTous); }
       paris.push(...fx.paris);
     }
@@ -9532,15 +9555,9 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
       } else if (!fort && J.contre.joueur) viser(I.cible, forcer(J.contre.joueur, FORCE_CONTRE));
     }
     toi._lignesMatch = lk;
-    toi._effetMatch = [...base, ...bk, ...effToi];
-    adv._effetMatch = [...baseAdv, ...effAdv];
-    // LES MOMENTS DU DUEL (V10, `MOMENTS_SI`) : l'intention annoncée, le temps de sa période ; à la 3e, le pointage après
-    // deux. Le même objet que celui des joueurs (`playGame`) : une carte d'équipe ou une modif d'un moment les lit pareil.
-    if (toi._soir) {
-      for (const [k2, M] of Object.entries(MOMENTS_SI)) if (M.duel) delete toi._soir[k2];
-      toi._soir[I.cle] = true;
-      if (k === 2) { const moi = toiA ? gfA : gfB, lui = toiA ? gfB : gfA; toi._soir[moi > lui ? 'mene' : moi === lui ? 'egal' : 'derriere'] = true; }
-    }
+    toi._effetMatch = [...base, ...bk, ...effToi, ...perToi];
+    // Sur eux, une carte d'un moment joue TON moment (`siToi`).
+    adv._effetMatch = [...baseAdv, ...effAdv, ...perAdv].filter(e => !e.siToi || !!soir[e.siToi]);
     const qToi = profilMatch(toi, Lk, adv); qToi.rob = teamStrength(toi, Lk).rob; qToi.domicile = toiA;
     const qAdv = profilMatch(adv, Ladv, toi); qAdv.rob = teamStrength(adv, Ladv).rob; qAdv.domicile = !toiA;
     const [qA, qB] = toiA ? [qToi, qAdv] : [qAdv, qToi];

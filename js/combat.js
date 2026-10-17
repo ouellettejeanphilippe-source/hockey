@@ -32,6 +32,7 @@
  * malédictions) ; la main d'un match se tire de la graine et du match ; les
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
+import { CAHIER, DEPART_DU_CAHIER } from './cahier.js';
 import { hache, SENS_DES_CANAUX } from './util.js';
 import { CARTES_MATCH_VIE } from './cartes-vie.js';
 
@@ -301,6 +302,8 @@ export const CARTES_MATCH = {
     texte: 'Cinq joueurs sur la rondelle, partout à la fois.', effet: { volume: 1.09, finition: 0.98 } },
 
   ...CARTES_MATCH_VIE,
+  // Le cahier neuf (V10, tranche 2 — js/cahier.js) : les cartes d'un moment.
+  ...CAHIER,
   // ---- malédictions ----
   distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
     texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },
@@ -388,11 +391,18 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   P.texte = `${C.texte} — Améliorée : ${quoi}.`;
   CARTES_MATCH[`${cle}+`] = P;
 }
+/*
+ * L'ANCIEN DECK SE RETIRE (V10, tranche 2) : une carte d'avant le cahier neuf ne s'offre plus (récompenses, packs,
+ * banque), mais une run qui l'a encore la joue pareil jusqu'à la conversion (tranche 6). Les malédictions restent.
+ */
+for (const [cle, C] of Object.entries(CARTES_MATCH)) if (!C.maudite && !CAHIER[carteDeBase(cle)]) C.retire = true;
 
-export const DECK_DEPART = ['lancer', 'lancer', 'lancer', 'bloquer', 'bloquer', 'bloquer', 'changements', 'changements', 'discours', 'video'];
+/* Le deck de départ (V10) : une réponse neutre par intention, deux coups de 3e, trois cartes de tous les soirs (js/cahier.js). */
+export const DECK_DEPART = DEPART_DU_CAHIER;
 /*
  * LE CAHIER BORNÉ (V9, tranche 5b — docs/refonte-v9.md § 6.4) : tes cartes de match, `CAHIER_MAX` au plus. Au-delà,
- * une carte du départ cède sa place (la plus répétée), puis la plus ancienne gagnée ; une malédiction ne cède jamais.
+ * une carte du départ cède sa place (la plus répétée, puis la dernière du départ), puis la plus ancienne gagnée ; une
+ * malédiction ne cède jamais.
  */
 export const CAHIER_MAX = 20;
 
@@ -479,7 +489,8 @@ export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = I
   while (deck.length > CAHIER_MAX) {
     const depart = deck.filter(c => DECK_DEPART.includes(c));
     const fois = c => depart.filter(x => x === c).length;
-    const cede = depart.sort((a, b) => fois(b) - fois(a))[0] || deck.find(c => !CARTES_MATCH[c].maudite);
+    // La plus répétée, puis la dernière du départ : les cartes de tous les soirs cèdent avant les réponses (V10).
+    const cede = depart.sort((a, b) => fois(b) - fois(a) || DECK_DEPART.indexOf(b) - DECK_DEPART.indexOf(a))[0] || deck.find(c => !CARTES_MATCH[c].maudite);
     if (!cede) break;
     if (depart.length) retirer(cede); else deck.splice(deck.indexOf(cede), 1);
   }
@@ -509,7 +520,7 @@ export function mainDuMatch(graine, cle, deck, n = TAILLE_MAIN) {
  */
 export function recompensesOffertes(graine, cle, { serie = false } = {}) {
   const poids = serie ? { commune: 0, peu: 50, rare: 42, legendaire: 8 } : { commune: 60, peu: 30, rare: 10, legendaire: 0 };
-  const pool = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
+  const pool = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !CARTES_MATCH[k].retire && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
   const out = [];
   for (let t = 0; out.length < 3 && t < 40; t++) {
     const r = hache(graine, 'recompense', cle, t) * 100;
@@ -541,6 +552,8 @@ const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   // Ni une carte d'origine (1.0) : une vraie équipe est d'un seul club et d'une saison, elle les aurait toutes au maximum.
   if (C.origine) return false;
   if (C.horsAdverse) return false;
+  // Ni une carte du cahier neuf (V10) : elle attend un moment de TON duel.
+  if (CAHIER[k]) return false;
   return !C.maudite && !C.lire && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });
@@ -595,7 +608,8 @@ export function energieDepensee(jouees, elan = ENERGIE_MAIN) {
 /*
  * L'ADJOINT JOUE LA MAIN (1.0, J2-13) : les cartes qui rapportent le plus,
  * tant que l'élan suffit. Il ne joue ni pari, ni pioche, ni carte qui
- * s'épuise : il ne décide pas à ta place de ce qui ne revient pas.
+ * s'épuise : il ne décide pas à ta place de ce qui ne revient pas. Ni une carte
+ * hors de son moment (V10, `dansSonMoment`) : elle attend le sien.
  */
 const ecartDe = o => Object.entries(o || {}).reduce((a, [k, v]) => a + (typeof v !== 'number' ? 0 : k === 'energie' ? 1 - v : Math.abs(v - 1)), 0);
 function gainDeCarte(cle) {
@@ -606,9 +620,9 @@ function gainDeCarte(cle) {
     + (C.parGenre ? ecartDe(C.parGenre.effet) : 0) + (C.selonLeurMain ? ecartDe(C.selonLeurMain.effet) : 0)
     + (C.synergie ? 0.04 : 0) + (C.lire || C.annule || C.contre || C.revele || C.planB || C.ecarte ? 0.03 : 0) + (C.energieTous ? 0.03 : 0);
 }
-export function mainDeLAdjoint(main = [], elan = ENERGIE_MAIN) {
+export function mainDeLAdjoint(main = [], elan = ENERGIE_MAIN, dansSonMoment = () => true) {
   const ordre = main.map((c, i) => ({ c, i, C: CARTES_MATCH[c], g: gainDeCarte(c) }))
-    .filter(x => x.C && !x.C.injouable && !x.C.pari && !x.C.pioche && !x.C.epuise && x.g > 0)
+    .filter(x => x.C && !x.C.injouable && !x.C.pari && !x.C.pioche && !x.C.epuise && x.g > 0 && dansSonMoment(x.c))
     .sort((a, b) => b.g - a.g || a.i - b.i);
   const jouees = [], pris = new Set();
   for (const x of ordre) if (energieDepensee([...jouees, x.c], elan) >= 0) { jouees.push(x.c); pris.add(x.i); }
