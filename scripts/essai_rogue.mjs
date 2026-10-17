@@ -1179,6 +1179,8 @@ console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run 
   console.log(`14b. graver : ${g.lignes} ligne(s) « chez toi » (${g.joues} avec des matchs) · ${g.galons} galon(s) · panthéon : ${Object.keys(P.records).join(', ') || 'aucun record'} · ${P.trophees.length} trophée(s)`);
   if (g.lignes < 18) erreurs.push(`la saison gravée ne garde que ${g.lignes} ligne(s) « chez toi »`);
   if (!P.records.club) erreurs.push('le panthéon ne garde pas le record du club');
+  // Un galon se mérite : une poignée par saison, jamais tout l'alignement (la première règle des grands soirs en donnait 18).
+  if (g.galons > 8) erreurs.push(`${g.galons} galons en une saison : un galon se mérite`);
 }
 await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart');

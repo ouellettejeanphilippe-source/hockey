@@ -2,7 +2,8 @@
  * GRAVER (V9, tranche 7 — docs/refonte-v9.md § 6.8). Ce qu'un joueur fait chez toi lui reste. De vraies ligues de
  * 32 vestiaires, ton club en Rogue. Ce qu'on exige :
  *   1. chaque galon se RECOMPTE dans le journal de ton club : au match qu'il nomme, son compte passe le seuil, contre
- *      l'adversaire qu'il nomme ; il ne va qu'à tes joueurs ; le même journal rend les mêmes galons ;
+ *      l'adversaire qu'il nomme ; il ne va qu'à tes joueurs ; le même journal rend les mêmes galons ; une saison n'en
+ *      donne qu'une poignée (`GALONS_PAR_SAISON` au plus en moyenne) : un galon se mérite ;
  *   2. le galon passe par un canal qui existe : la décision de report `galons` monte son badge d'un palier par galon,
  *      jamais au-delà de Platine ; une ligue sans la décision n'en garde rien ;
  *   3. son histoire chez toi (js/cartable.js) : une ligne par saison de run, réécrite si la saison se rejoue, sans
@@ -90,13 +91,14 @@ for (const { you } of bases) {
     for (const e of you.journal) {
       const f = e.feuille, cote = (f.alignes.A || []).some(q => miens.has(q)) ? 'A' : 'B';
       const avant = n;
+      const point = b => (b.marqueur === p ? 1 : 0) + (b.passeurs || []).filter(q => q === p).length;
       for (const b of f.buts.filter(x => x.cote === cote)) {
         if (g.cle === 'buts' && b.marqueur === p) n++;
         if (g.cle === 'passes') n += (b.passeurs || []).filter(q => q === p).length;
-        if (g.cle === 'recrue') n += (b.marqueur === p ? 1 : 0) + (b.passeurs || []).filter(q => q === p).length;
+        if (g.cle === 'recrue') n += point(b);
+        if (g.cle === 'grandsSoirs' && gros.has(`${e.jour}|${e.adv.name}`)) n += point(b);
       }
       if (g.cle === 'victoires' && e.win && e.gardien === p) n++;
-      if (g.cle === 'grandsSoirs' && gros.has(`${e.jour}|${e.adv.name}`) && (f.alignes[cote] || []).includes(p)) n++;
       if (avant < GALONS[g.cle].seuil && n >= GALONS[g.cle].seuil && !passe) passe = e;
     }
     if (passe && passe.n === g.match && passe.adv.name === g.adv && g.n === GALONS[g.cle].seuil) recomptes++;
@@ -106,6 +108,8 @@ for (const { you } of bases) {
 exiger('chaque galon se recompte dans le journal : son match, son adversaire, son seuil', galons > 0 && recomptes === galons, `${recomptes} sur ${galons}`);
 exiger('un galon ne va qu\'à tes joueurs', aMoi === galons, `${aMoi} sur ${galons}`);
 exiger('le même journal rend les mêmes galons', deterministes === bases.length, `${deterministes} sur ${bases.length}`);
+const GALONS_PAR_SAISON = 6;
+exiger('un galon se mérite : une poignée par saison, pas tout l\'alignement', galons / bases.length <= GALONS_PAR_SAISON, `${(galons / bases.length).toFixed(1).replace('.', ',')} par saison (au plus ${GALONS_PAR_SAISON})`);
 
 /* ---------- 2. le canal : un palier de badge par galon, borné ---------- */
 {

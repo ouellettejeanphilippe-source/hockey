@@ -469,7 +469,7 @@ JP : *Go pour la tranche 7*. Ce que § 6.8 décrivait, sur les canaux qui existe
   | Le marqueur | 40 buts |
   | Le passeur | 50 passes |
   | Le mur | 30 victoires d'un gardien |
-  | Les grands soirs | 5 gros matchs gagnés, habillé |
+  | Les grands soirs | 5 points dans des gros matchs gagnés |
   | La recrue de l'année | 40 points d'une recrue |
 
   Chacun monte son badge d'un métal pour le reste de la run, deux au plus (`GALONS_MAX`) : une décision de report, `galons`, que le moteur lit comme la carte d'entraînement (`_galon`, `badgesDe`). Aucune cote neuve. « 🏵 Galon : Lecavalier, 40e but, au 74e match, contre Calgary. »

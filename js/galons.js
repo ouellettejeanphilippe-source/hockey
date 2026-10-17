@@ -1,8 +1,8 @@
 /*
  * LES GALONS (V9, tranche 7 — docs/refonte-v9.md § 6.8). JP : *ce que ta run a fait devient ce que ta run est*. Ce
  * qu'un joueur a fait CHEZ TOI, dans une saison de la run, lu dans le journal de ton club (ses matchs joués, leurs
- * feuilles) : le 40e but, la 50e passe, la 30e victoire d'un gardien, le 5e gros match gagné habillé, les 40 points
- * d'une recrue. Chacun se grave avec son match et son adversaire (« 40e but, au 71e match, contre Boston »).
+ * feuilles) : le 40e but, la 50e passe, la 30e victoire d'un gardien, le 5e point dans des gros matchs gagnés, les 40
+ * points d'une recrue. Chacun se grave avec son match et son adversaire (« 40e but, au 71e match, contre Boston »).
  *
  * CE QU'IL DONNE, par les canaux qui existent :
  *   - pour le reste de la run, son badge monte d'un palier par galon, `GALONS_MAX` au plus (une décision de report,
@@ -18,7 +18,8 @@ export const GALONS = {
   buts: { nom: 'Le marqueur', seuil: 40, unite: 'but' },
   passes: { nom: 'Le passeur', seuil: 50, unite: 'passe' },
   victoires: { nom: 'Le mur', seuil: 30, unite: 'victoire', gardien: true },
-  grandsSoirs: { nom: 'Les grands soirs', seuil: 5, unite: 'gros match gagné' },
+  // Ses points dans les gros matchs gagnés, pas ses soirs habillé : une équipe qui gagne ses duels ne galonne pas tout son alignement.
+  grandsSoirs: { nom: 'Les grands soirs', seuil: 5, unite: 'point en gros match' },
   recrue: { nom: 'La recrue de l\'année', seuil: 40, unite: 'point', recrue: true },
 };
 
@@ -29,17 +30,14 @@ export const texteDuGalon = g => `${ordinal(g.n)} ${GALONS[g.cle].unite}, au ${o
 /*
  * LES GALONS D'UNE SAISON, dans l'ordre où ils tombent. `you` : ton club (son `journal`, ses `minisBoss`) ;
  * `joueurs` : ceux qui peuvent en gagner (tes joueurs à la fin de la saison) ; `cle(p)` : sa clé de carte.
- * Rend [{ cle: le galon, joueur: sa clé, nom, n, match, adv }]. `parcourir` compte aussi, galon par galon.
+ * Rend [{ cle: le galon, joueur: sa clé, nom, n, match, adv }] ; `parcourir` compte aussi ses gros matchs gagnés habillé.
  */
 export const galonsDeLaSaison = (you, joueurs = [], cle = p => p.id) => parcourir(you, joueurs, cle).out;
 /* Ses gros matchs gagnés habillé, par clé : ce que son histoire chez toi garde (`gros`). */
-export function grosGagnesDe(you, joueurs = [], cle = p => p.id) {
-  const { compte } = parcourir(you, joueurs, cle);
-  return new Map([...compte].filter(([k]) => k.endsWith('|grandsSoirs')).map(([k, n]) => [k.slice(0, -'|grandsSoirs'.length), n]));
-}
+export const grosGagnesDe = (you, joueurs = [], cle = p => p.id) => parcourir(you, joueurs, cle).habille;
 function parcourir(you, joueurs, cle) {
   const miens = new Set(joueurs);
-  const compte = new Map(), out = [];
+  const compte = new Map(), habille = new Map(), out = [];
   const gros = new Set(((you && you.minisBoss) || []).filter(mb => mb.gagne).map(mb => `${mb.jour}|${mb.adv && mb.adv.name}`));
   const ajouter = (p, galon, e, n = 1) => {
     if (!miens.has(p)) return;
@@ -52,13 +50,17 @@ function parcourir(you, joueurs, cle) {
     const f = e.feuille;
     if (!f) continue;
     const cote = (f.alignes && (f.alignes.A || []).some(p => miens.has(p))) ? 'A' : 'B';
+    const grosGagne = Number.isFinite(e.jour) && gros.has(`${e.jour}|${e.adv && e.adv.name}`);
     for (const b of f.buts || []) {
       if (b.cote !== cote) continue;
-      if (b.marqueur) { ajouter(b.marqueur, 'buts', e); if (b.marqueur.rk) ajouter(b.marqueur, 'recrue', e); }
-      for (const a of b.passeurs || []) { ajouter(a, 'passes', e); if (a.rk) ajouter(a, 'recrue', e); }
+      for (const p of [b.marqueur, ...(b.passeurs || [])].filter(Boolean)) {
+        ajouter(p, p === b.marqueur ? 'buts' : 'passes', e);
+        if (p.rk) ajouter(p, 'recrue', e);
+        if (grosGagne) ajouter(p, 'grandsSoirs', e);
+      }
     }
     if (e.win && e.gardien) ajouter(e.gardien, 'victoires', e);
-    if (Number.isFinite(e.jour) && gros.has(`${e.jour}|${e.adv && e.adv.name}`)) for (const p of (f.alignes && f.alignes[cote]) || []) if (p.p !== 'G') ajouter(p, 'grandsSoirs', e);
+    if (grosGagne) for (const p of (f.alignes && f.alignes[cote]) || []) if (miens.has(p)) habille.set(cle(p), (habille.get(cle(p)) || 0) + 1);
   }
-  return { out, compte };
+  return { out, habille };
 }
