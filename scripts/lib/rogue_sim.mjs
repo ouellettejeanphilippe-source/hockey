@@ -51,6 +51,7 @@ import {
 } from '../../js/sim.js';
 import { DECK_DEPART } from '../../js/combat.js';
 import { robotDuel } from './duel.mjs';
+import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
 import { effetDePalier } from '../../js/coachs.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
@@ -281,6 +282,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus);
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, ...enPoste.map(coach => ({ jour: 0, coach }))];
+  // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
+  const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
+  if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
   // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
   const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
   if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
@@ -387,10 +391,12 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     finale = S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A === you || s.B === you));
   }
   const reste = Math.max(0, jetons());
+  // Les galons gagnés cette saison, par ceux qui la finissent (js/rogue-jeu.js `graverLaSaisonRogue`).
+  const galonsNeufs = galonsDeLaSaison(you, Object.values(you.roster).filter(Boolean), getPlayerKey);
   // Le robot ne laisse pas de cartes posées sur des joueurs partagés : chaque saison repart propre.
   for (const p of Object.values(you.roster)) if (p) delete p._carte;
   for (const x of entrees) delete x.p._carte;
-  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, roster: { ...you.roster } };
+  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster } };
 }
 
 /*
@@ -414,7 +420,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   const tires = tirerClasseur(rnd, meta, classeur, exclus, clic).map(x => ({ p: copie(x.p), rar: x.rar }));
   tires.forEach(x => exclus.add(getPersonKey(x.p)));
   const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart` });
-  const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta) };
+  const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta), galons: new Map() };
   for (const x of classeur) if (!etat.variantes.has(getPlayerKey(x.p))) etat.variantes.set(getPlayerKey(x.p), x.rar);
   const jouees = new Set();
   const saisons = [];
@@ -423,6 +429,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   for (let n = 1; n <= maxSaisons; n++) {
     const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique });
     entrees.push(...r.entrees);
+    for (const g of r.galons) etat.galons.set(g.joueur, (etat.galons.get(g.joueur) || 0) + 1);
     let e = ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe);
     // La prime de découverte : les cartes qui finissent leur première saison (`joues` ne les connaît pas encore).
     const fin = Object.values(r.roster).filter(Boolean).map(getPlayerKey);
@@ -430,7 +437,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     for (const k of [...Object.values(etat.roster).filter(Boolean).map(getPlayerKey), ...fin]) jouees.add(k);
     if (jalons) e += payerJalonsSim(meta, { ...r, saisonDeLaRun: n, cartes: classeur.length + entrees.length });
     ecussons += e;
-    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes });
+    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length });
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.
     if (r.coupe || !mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32 })) break;
     // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
