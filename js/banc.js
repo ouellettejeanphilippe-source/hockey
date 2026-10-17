@@ -13,7 +13,7 @@ import { BANQUE, palierAllume, payloadDe } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
-import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
+import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue } from './rogue.js';
@@ -727,7 +727,7 @@ function ouvrirEcranSaison(depuis = 0) {
       // LA LIGUE EN MÉMOIRE (S79) : l'écran joue chaque journée au moment de la révéler.
       ligue: M,
       ctx: {
-        esc, teamLabel, teamShort, tagCourt, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml, rarete: rareteJoueur,
+        esc, teamLabel, teamShort, tagCourt, sommaireDuSoir, logo: getTeamLogoHtml, band: getTeamBand, mug: headshotHtml, rarete: rareteJoueur,
         // Le bouton du son du plateau bascule la même préférence que les options.
         basculerSons: () => { setOption('sons', G.sons ? 'off' : 'on'); syncOptionsUI(); },
         /*

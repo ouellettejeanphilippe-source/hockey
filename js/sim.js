@@ -7985,7 +7985,8 @@ export function motsDeMutation(cle) {
   if (M.cran) out.push({ txt: `Trios possibles : +${M.cran} vers le haut`, bon: true });
   if (M.enBas) out.push({ txt: '4e trio et 3e paire : pénalité de zone 0', bon: true });
   if (M.ombre) out.push({ txt: `Leur meilleur joueur : précision ${flechesDe(M.ombre)}`, bon: true });
-  if (M.abri) out.push({ txt: `Il ignore ${Math.round(M.abri * 100)} % de leur étouffement`, bon: true });
+  // En mots, pas en « % » : l'écran le dit tel quel, à côté de ses chiffres de match.
+  if (M.abri) out.push({ txt: `Il échappe à ${({ 0.25: 'un quart', 0.5: 'la moitié', 0.75: 'trois quarts', 1: 'tout' })[M.abri] || 'une part'} de leur étouffement`, bon: true });
   if (M.physio) out.push({ txt: 'Ses malus de carte : effacés', bon: true });
   if (M.lustre) out.push({ txt: 'Sa carte : une édition de plus', bon: true });
   if (M.palier) out.push({ txt: 'Son badge monte au suivant', bon: true, cle: 'badge' });
@@ -9341,11 +9342,11 @@ function reponsesDuDuel(I, { toi, L, lignes = null }) {
   const unite = (g, u) => SLOTS.filter(s => !s.scratch && s.group === g && s.unit === u).map(s => L[s.i]).filter(Boolean);
   if (I.cle === 'centre') {
     const u = meilleure('F', [0, 1].filter(x => lg[x] && lg[x].tac !== 'courtes'), 'jeu');
-    return u == null ? [] : [{ cle: 'cycle', u, tac: 'courtes' }];
+    return u == null ? [] : [{ cle: 'cycle', u, tac: 'courtes', de: lg[u].tac }];
   }
   if (I.cle === 'assaut') {
     const u = meilleure('D', [0, 1, 2].filter(x => lg[x] && lg[x].tacD !== 'maison'), 'defense');
-    return u == null ? [] : [{ cle: 'maison', u, tacD: 'maison' }];
+    return u == null ? [] : [{ cle: 'maison', u, tacD: 'maison', de: lg[u].tacD }];
   }
   if (I.cle === 'cachot') return [{ cle: 'basse', consigne: 'basse' }];
   return [];

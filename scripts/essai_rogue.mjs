@@ -216,6 +216,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  */
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de tes places vendues en passant
+const soirs = { pages: 0, match: 0 };   // les pages du soir, et celles qui sont le sommaire d'un match
 const captures = { main: 0, combat: 0, duel: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0 };   // À faire (V9), vu au premier choix
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
@@ -229,7 +230,12 @@ async function regler() {
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
     if (pq && await pq.isVisible()) { await passerLaPile(); continue; }
     // Le sommaire de la journée est une page du Club (1.0, R3) : « Retour au bureau » — une fois réglé ce qui le couvre.
-    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue; }
+    if (await page.$('#hubModal .hub-page[data-genre="sommaire"]') && !(await page.$('#choixModal:not([hidden])'))) {
+      // Le soir d'un seul match (JP, 17 oct.) : la page est son sommaire — ses buts par période —, pas une page « Victoire ».
+      const pg = await page.$eval('#hubModal .hub-page[data-genre="sommaire"]', el => ({ match: !!el.querySelector('.som-per'), titre: (el.querySelector('.hub-page-titre, h2') || {}).textContent || '' }));
+      soirs.pages++; if (pg.match) { soirs.match++; if (soirs.match === 1) await page.screenshot({ path: `${DOSSIER}/rogue-sommaire-soir.png` }); }
+      await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
+    }
     if (await page.$('#choixModal:not([hidden]) .main-jouer')) {
       /*
        * L'ÉCRAN DE COMBAT (V5) : l'avant-match n'est plus un arrêt à part. Dans un gros match, l'écran dit l'enjeu
@@ -1259,6 +1265,9 @@ console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.ret
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
 if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
+// LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
+console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
+if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);
