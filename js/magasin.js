@@ -10,7 +10,7 @@
  * « Acheter ». L'achat est une décision (js/game.js) ; l'ouverture, le
  * paquet qui se déchire (js/gerant.js).
  */
-import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE } from './packs.js';
+import { PACKS_TOUS, RAYONS, TIERS, NUMEROS, PITIE, chancesDe, cotesDuPack, cartesDuPack, niveauxDuPack, prixDe, hausseDesPacks, BOUTIQUE, tierDuPack } from './packs.js';
 import { NIVEAUX, ETOILE } from './niveaux.js';
 import { RARETES } from './cartes.js';
 import { NOM_VARIANTE } from './rarete.js';
@@ -44,7 +44,7 @@ function niveauxHtml(cle, mods = {}) {
   return `<h4>Le joueur d'une carte</h4>
       <table class="pk-bareme pk-niveaux">${lignes.map(({ N, k, v }) => `<tr><th>${k >= ETOILE ? '★ ' : ''}${esc(N.nom)}</th><td class="pk-rang">${esc(N.rang)}</td><td>${pct(v)}</td></tr>`).join('')}</table>
       <p class="pk-num">Son rang dans sa vraie saison, à son poste. Sans ce niveau ${manque} : le plus proche.</p>
-      ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ouvre les Étoiles et les Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
+      ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ajoute des Étoiles et des Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
 }
 export function ouvrirMagasin(ctx) {
   // Dans une page du Marché (`ctx.dans`, `ctx.fermer`, js/game.js) ou dans sa fenêtre.
@@ -59,19 +59,20 @@ export function ouvrirMagasin(ctx) {
     if (!P) return '';
     const verrou = ctx.ouverts[cle] === true ? '' : (ctx.ouverts[cle] || 'Verrouillé');
     const prix = prixDe(cle, rabaisDe(cle));
-    const tier = P.sorte === 'cartes' ? 'cartes' : P.tier;
+    const tier = P.sorte === 'cartes' ? 'cartes' : tierDuPack(cle, ctx.mods);
     const n = cartesDuPack(cle, ctx.mods);
     // 1.0 (R5) : un pack impayable se grise et dit ce qui manque ; il s'ouvre encore (sa fiche explique).
     const manque = !verrou && ctx.jetons < prix ? prix - ctx.jetons : 0;
     return `<button type="button" class="pk-tuile pk-${tier}${jour ? ' pk-jour' : ''}${verrou ? ' verrou' : ''}${manque ? ' pk-cher' : ''}" data-pack="${esc(cle)}"${verrou ? ` title="${esc(verrou)}"` : manque ? ` title="Il te manque ${manque} 🪙"` : ''}>
-      <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[P.tier].nom)}</span></span>
+      <span class="pk-sachet" aria-hidden="true"><span class="pk-dent"></span><span class="pk-ico">${P.ico}</span><span class="pk-tier">${esc(tier === 'cartes' ? 'Cartes' : TIERS[tier].nom)}</span></span>
       <span class="pk-nom">${esc(P.nom)}</span>
       <span class="pk-n">${P.cartes ? `${n} joueurs · ${P.cartes} carte${P.cartes > 1 ? 's' : ''}` : `${n} carte${n > 1 ? 's' : ''}`}</span>
       <span class="pk-prix">${verrou ? '🔒' : `${rabaisDe(cle) < 1 ? `<s>${P.prix}</s> ` : ''}${prix} 🪙`}${manque ? `<span class="pk-manque">il te manque ${manque} 🪙</span>` : ''}</span>
     </button>`;
   };
-  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ».
-  const DEBUT = ['j:bronze', 'j:argent', 'j:or', 'j:coach'];
+  // 1.0 (R5) : à la première run, la boutique commence par quatre packs ; le reste attend « Voir les N packs ». V10 : les
+  // deux de départ, puis les deux premiers sous clé, qui disent leur jalon.
+  const DEBUT = ['j:bronze', 'j:epoque', 'j:argent', 'j:or'];
   let tout = !ctx.debutant;
   let ongletClub = 'club';
   const dessiner = () => {
@@ -172,7 +173,7 @@ export function ouvrirMagasin(ctx) {
     const peut = !verrou && ctx.jetons >= prix;
     const d = document.createElement('div');
     d.className = 'pk-fiche';
-    d.innerHTML = `<div class="pk-fiche-carte pk-${P.sorte === 'cartes' ? 'cartes' : P.tier}">
+    d.innerHTML = `<div class="pk-fiche-carte pk-${P.sorte === 'cartes' ? 'cartes' : tierDuPack(cle, ctx.mods)}">
       <div class="pk-fiche-tete"><span class="pk-ico">${P.ico}</span><div><div class="pk-fiche-nom">${esc(P.nom)}</div><div class="pk-fiche-sous">${cartesDuPack(cle, P.sorte === 'joueurs' ? ctx.mods : {})} cartes · ${prix} 🪙</div></div></div>
       <p class="pk-fiche-texte">${esc(P.texte)}</p>
       <details class="pk-detail"><summary>Les chances</summary>

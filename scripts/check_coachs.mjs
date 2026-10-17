@@ -154,7 +154,10 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const lire = (cle, r) => niveauxDuPack(cle, { prestige: PRESTIGES[r] });
   const somme = t => Object.values(t).reduce((a, b) => a + b, 0);
   const or = PRESTIGES.map((_, r) => lire('j:hasard_or', r));
-  exiger('au garage, aucun Phénomène ; les Étoiles montent avec chaque rang', or[0].phenomene === 0 && or.every((t, r) => !r || (t.etoile > or[r - 1].etoile && t.phenomene >= or[r - 1].phenomene)),
+  // V10 (JP : *sans empêcher un random Crosby saison 1*) : le garage tire aux taux de base ; le prestige ajoute, à partir du Club respecté.
+  const base = niveauxDuPack('j:hasard_or');
+  exiger('au garage, les taux de base (un Phénomène reste possible) ; le prestige ajoute, rang après rang', or[0].phenomene === base.phenomene && base.phenomene > 0
+    && or.every((t, r) => !r || (t.etoile >= or[r - 1].etoile && t.phenomene >= or[r - 1].phenomene)) && or[or.length - 1].etoile > base.etoile,
     or.map(t => `${t.etoile.toFixed(1)}/${t.phenomene.toFixed(2)}`).join(' → ') + ' % (Étoile/Phénomène, pack Or)');
   exiger('les taux font toujours 100 %, pack d\'étoiles compris', PRESTIGES.every((_, r) => Math.abs(somme(lire('j:hasard_bronze', r)) - 100) < 1e-9 && Math.abs(somme(lire('j:etoiles', r)) - 100) < 1e-9 && lire('j:etoiles', r).pilier === 0),
     `Étoiles au garage : ${lire('j:etoiles', 0).etoile.toFixed(0)} % d'étoiles, ${lire('j:etoiles', 0).phenomene.toFixed(0)} % de Phénomènes`);

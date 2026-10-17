@@ -128,13 +128,16 @@ export const PACKS_JOUEURS = {
   bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques, et une carte.' },
   argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs et deux cartes, de meilleures chances.' },
   or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs et deux cartes, les meilleures chances de la boutique.' },
-  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'argent', choix: 'decennie', joueurs: 3, cartes: 2, prix: 26, texte: 'Trois joueurs de la décennie de ton choix, et deux cartes.' },
+  // V10 : le pack à thème de la première run, au métal du Bronze ; ses crans le montent (js/rogue.js `CRANS_DE_PACK`).
+  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', joueurs: 3, cartes: 2, prix: 20, texte: 'Trois joueurs de la décennie de ton choix, et deux cartes.' },
   specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, et deux cartes.' },
   club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et deux cartes.' },
+  // V10 : le pack d'étoiles de la boutique, mixte comme les autres, que la Coupe ouvre (js/rogue.js `packsOuverts`).
+  vedettes: { famille: 'etoiles', nom: 'Pack Vedettes', ico: '🌟', tier: 'or', niveaux: { etoile: 92, phenomene: 8 }, joueurs: 3, cartes: 2, prix: 70, texte: 'Trois étoiles de leur saison, le 4 % du haut à leur poste, et deux cartes.' },
   coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et deux cartes de sa couleur : de quoi bâtir sa confiance.' },
 };
-/* Les sept packs que la boutique vend (Jalon P2), dans son ordre. */
-export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach'];
+/* Les packs que la boutique vend (Jalon P2 ; V10 : les Vedettes, que la Coupe ouvre), dans son ordre. */
+export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach', 'j:vedettes'];
 /* Les décennies du Pack Époque, et les rôles du Pack Spécialistes, avec leur nom. */
 export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
 export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: '❄ Défense', dur: '🥊 Robustesse', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
@@ -170,7 +173,7 @@ export const PACKS_DE_SERIE = ['j:hasard_argent', 'j:hasard_or', 'j:etoiles', 'j
 export const packDeSerie = (r, vedettes = false) => PACKS_DE_SERIE[Math.min(PACKS_DE_SERIE.length - 1, r + (vedettes ? 1 : 0))];
 export const RAYONS = [
   { cle: 'jour', nom: 'Le pack du jour', ico: '📆' },
-  { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:bronze', 'j:argent', 'j:or'] },
+  { cle: 'hasard', nom: 'Au hasard', ico: '🎲', packs: ['j:bronze', 'j:argent', 'j:or', 'j:vedettes'] },
   { cle: 'themes', nom: 'À ton choix', ico: '🎯', packs: ['j:epoque', 'j:specialistes', 'j:club', 'j:coach'] },
 ];
 
@@ -246,10 +249,18 @@ function formatUnSur(p) {
   if (p >= 0.5) return p >= 0.995 ? 'dans presque chaque pack' : `${Math.round(p * 100)} % des packs`;
   return `1 pack sur ${n.toLocaleString('fr-CA')}`;
 }
+/*
+ * LE MÉTAL D'UN PACK (V10, les packs qui montent) : le sien, ou celui du dessus quand son second cran est pris
+ * (`mods.montee`, js/rogue.js `monteeDesPacks`) — le Bronze tire alors aux taux de l'Argent, au même prix.
+ */
+const METAUX = ['bronze', 'argent', 'or', 'premium'];
+export function tierDuPack(cle, mods = {}) {
+  const P = PACKS_TOUS[cle], t = (P && P.tier) || 'argent';
+  return ((mods.montee || {})[cle] || 0) >= 2 ? METAUX[Math.min(METAUX.length - 1, METAUX.indexOf(t) + 1)] : t;
+}
 /* Le barème d'une carte de ce pack, en %, avec ce que les patrons y changent. */
 export function cotesDuPack(cle, mods = {}) {
-  const P = PACKS_TOUS[cle];
-  const c = { ...TIERS[P.tier || 'argent'].cotes };
+  const c = { ...TIERS[tierDuPack(cle, mods)].cotes };
   if (mods.holo && mods.holo !== 1) {
     const gain = (c.rare + c.legendaire) * (mods.holo - 1);
     c.rare *= mods.holo; c.legendaire *= mods.holo; c.commune = Math.max(0, c.commune - gain);
@@ -257,11 +268,14 @@ export function cotesDuPack(cle, mods = {}) {
   if (mods.sansBase) { c.peu += c.commune; c.commune = 0; }
   return c;
 }
-/* Le nombre de cartes d'un pack, avec la carte de plus d'un patron (jamais pour un trio : une ligne a trois joueurs). */
+/*
+ * Le nombre de cartes d'un pack, avec la carte de plus d'un patron et celle de son premier cran (V10) — jamais pour
+ * un trio : une ligne a trois joueurs.
+ */
 export function cartesDuPack(cle, mods = {}) {
   const P = PACKS_TOUS[cle];
   if (!P) return 0;
-  return P.n + (P.sorte === 'joueurs' && P.famille !== 'trio' ? (mods.carteExtra || 0) : 0);
+  return P.n + (P.sorte === 'joueurs' && P.famille !== 'trio' ? (mods.carteExtra || 0) + (((mods.montee || {})[cle] || 0) >= 1 ? 1 : 0) : 0);
 }
 /*
  * LES TAUX DU JOUEUR d'un pack (S80), par niveau, en % d'une carte — ou null
@@ -271,11 +285,11 @@ export function cartesDuPack(cle, mods = {}) {
 export function niveauxDuPack(cle, mods = {}) {
   const P = PACKS_TOUS[cle];
   if (!P || P.sorte !== 'joueurs' || P.famille === 'skill' || P.famille === 'trio') return null;
-  const t = { ...(P.niveaux || TIERS[P.tier || 'argent'].niveaux) };
+  const t = { ...(P.niveaux || TIERS[tierDuPack(cle, mods)].niveaux) };
   /*
    * LE PRESTIGE DU CLUB (v2, js/rogue.js `PRESTIGES`) : il multiplie les taux
-   * des Étoiles et des Phénomènes. Ce qu'on leur retire (ou ajoute) passe aux
-   * piliers ; un pack d'étoiles, qui n'a pas de piliers, ne touche qu'à ses
+   * des Étoiles et des Phénomènes — V10 : jamais sous 1, aucun rang ne ferme le
+   * hasard. Ce qu'on leur ajoute vient des piliers ; un pack d'étoiles, qui n'a pas de piliers, ne touche qu'à ses
    * Phénomènes, et la différence va à ses Étoiles.
    */
   const pr = mods.prestige;

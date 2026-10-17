@@ -651,8 +651,11 @@ else {
   const jetonsB = Number(((await page.textContent('#pageMarche .hub-page[data-genre="boutique"] .choix-irl')) || '').replace(/\D+/g, ' ').trim().split(' ')[0]) || 0;
   const prixMax = Math.max(...await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-tuile:not(.verrou) .pk-prix', e => e.map(x => Number((x.textContent.match(/(\d+)\s*🪙/) || [])[1]) || 0)));
   console.log(`7b. tout : ${nTout} packs · caisse ${jetonsB} 🪙, le plus cher ${prixMax} 🪙 · ${chers.length} impayable(s) (${chers.slice(0, 2).join(' · ')})`);
-  // Jalon P2 : la boutique vend sept packs, tous mixtes.
-  if (nTout !== 7) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 7`);
+  // Jalon P2 : la boutique vend ses packs, tous mixtes ; V10 (les packs qui montent) : huit, dont deux ouverts à la première run.
+  if (nTout !== 8) erreurs.push(`« Voir les N packs » montre ${nTout} packs, il en faut 8`);
+  const sousCle = await page.$$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-rayon:not(.pk-rayon-jour):not(.pk-rayon-club) .pk-tuile.verrou[data-pack]', e => e.map(x => `${x.dataset.pack} : ${x.title}`));
+  console.log(`7c. sous clé : ${sousCle.length} · ${sousCle.slice(0, 2).join(' · ')}`);
+  if (sousCle.length !== 6 || !sousCle.some(t => /^j:argent : Qualifie-toi pour les séries/.test(t))) erreurs.push(`à la première run, six packs sous clé, l'Argent aux séries : ${sousCle.join(' · ')}`);
   if (prixMax > jetonsB && (!chers.length || !chers.every(t => /il te manque \d+/.test(t)))) erreurs.push('un pack impayable ne dit pas ce qui manque');
   // Échap ferme la boutique (1.0, R5 ; U21 : c'est un sous-onglet, le retour mène au Bureau) ; on la rouvre pour continuer comme avant.
   await page.keyboard.press('Escape'); await page.waitForTimeout(300);
@@ -715,11 +718,11 @@ await page.$eval('#pageMarche .hub-page[data-genre="boutique"] .pk-fiche-carte',
 console.log(`3b. la fiche du Pack Bronze : ${fiche3.chances.join(' · ')} · ${fiche3.niveaux.join(' · ')}`);
 if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !== 5 || !fiche3.chances.some(x => /Phénomène/.test(x))) erreurs.push(`la fiche du pack ne dit pas le joueur d'une carte : ${JSON.stringify(fiche3)}`);
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
-await acheter('j:argent', 'rogue-pack-fiche');
+await acheter('j:epoque', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
 // Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer).
 const revele = await page.$$eval('#choixModal .choix-option.tc', e => ({ joueurs: e.filter(x => x.querySelector('.cj-mini-carte')).length, jeu: e.filter(x => !x.querySelector('.cj-mini-carte')).length, signer: e.filter(x => x.querySelector('.tcj-signer')).length }));
-if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Argent ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
+if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Époque ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
 const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => {
@@ -840,9 +843,9 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(500);
 }
-// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; leurs cartes vont au deck et à tes places (une de trop se vend, À faire).
+// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; leurs cartes vont au deck et à tes places (une de trop se vend, À faire). V10 : les deux de la première run.
 await regler();
-for (const pack of ['j:or', 'j:coach']) {
+for (const pack of ['j:bronze', 'j:epoque']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
   await page.screenshot({ path: `${DOSSIER}/rogue-${pack.slice(2)}.png` });
   // Jalon Q : le paquet entier, puis la signature, joueurs seuls ; « Plus tard » laisse l'offre à la boîte.

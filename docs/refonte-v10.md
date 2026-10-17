@@ -151,16 +151,22 @@ Ensuite, **les écrans du Rogue refaits à neuf** (le Bureau, À faire, Ce soir,
   - chaque moment revient : neuf moments courants au moins trois fois par saison et au plus les trois quarts des soirs ; neuf moments rares au moins une fois en quatre saisons.
 - **Mesuré, et changé** : les jambes du club ne descendent jamais sous 70 (la moyenne va de 90 à 96) — le moment se lit sur le patineur le plus fatigué ; un seul blessé, c'est 76 soirs sur 82 — le moment est l'infirmerie qui déborde (deux blessés ou plus, 49 soirs).
 
-## 12. Les packs qui montent, sans fermer le hasard (JP, 17 oct. — à trancher)
+## 12. Les packs qui montent, sans fermer le hasard (JP, 17 oct.)
 
-JP : *le type de carte dans les packs s'upgrade, ou tu peux débloquer des nouveaux types de packs, mais sans empêcher un random Crosby saison 1*. Aujourd'hui, le prestige multiplie les taux des Étoiles et des Phénomènes (`PRESTIGES`, js/rogue.js ; `niveauxDuPack`, js/packs.js), et le Club de garage les ferme presque : Étoile ×0,4, **Phénomène ×0** — le Crosby de 2005-06 ne peut pas sortir d'une première run.
+JP : *le type de carte dans les packs s'upgrade, ou tu peux débloquer des nouveaux types de packs, mais sans empêcher un random Crosby saison 1* ; puis : *tu commences avec des packs un peu poches, pis plus ça avance, tu débloques de meilleurs packs, ou bien t'as un système d'upgrade de packs, ou les bons packs arrivent quand tu réussis x, ou tout ça*.
 
-Ce que je propose, en deux morceaux :
+Aujourd'hui, la boutique vend ses sept packs dès la première run (`BOUTIQUE`, js/packs.js), et c'est le prestige qui bride, en cachette : il multiplie les taux des Étoiles et des Phénomènes (`PRESTIGES`, js/rogue.js), et le Club de garage met le Phénomène à **zéro**. Le Crosby de 2005-06 ne peut pas sortir d'une première run.
 
-1. **Le hasard reste ouvert dès la première run** : aucun rang ne met un taux à zéro. Le Club de garage garde le taux de base de ses packs pour les Phénomènes (0,05 % par carte au Bronze, 1 % au Premium : rare, mais possible) ; le prestige ne retire plus rien, il ajoute.
-2. **Ce qui monte, c'est le catalogue** : chaque rang ouvre des sortes de packs (les packs par famille, puis Étoiles, puis Légendes) et monte d'un métal le pack de base au même prix (le Bronze du quartier devient l'Argent du club respecté). Le joueur voit son magasin grandir, au lieu de taux cachés qui bougent.
+Le plan, *tout ça*, en quatre morceaux qui passent par des canaux qui existent :
 
-Les juges : `check_packs` (la revente, les taux affichés), `check_profondeur` (la première Coupe pas avant la run 3 — un Phénomène chanceux ne doit pas la donner d'office).
+1. **Le hasard reste ouvert.** Aucun rang ne met un taux à zéro : le Club de garage tire aux taux de base de ses packs (un Phénomène : 0,05 % par carte au Bronze). Le prestige n'ôte plus rien ; il ajoute, à partir du Club respecté.
+2. **On commence poche.** La boutique d'une première run : le Bronze et l'Époque. Le reste est sous clé, et la clé se voit (« 🔒 Fais les séries »).
+3. **Les bons packs arrivent quand tu réussis x** (les `JALONS`, payés une fois pour toujours) : l'Argent en faisant les séries ; les Spécialistes en gagnant une ronde ; le Club à cent points ; le Pack du coach quand un coach atteint sa confiance III ; l'Or en finale ; les Étoiles en boutique avec la Coupe.
+4. **L'upgrade, en médailles** (les `DEBLOCAGES`) : chaque pack monte de deux crans au vestiaire — un joueur de plus à choisir, puis les taux du métal du dessus, au même prix. Le Bronze ++ vaut l'Argent d'aujourd'hui.
+
+*Fait le 17 octobre* (decisions.md, « Les packs qui montent ») : le Pack Étoiles de la boutique est le **Pack Vedettes**, mixte comme les autres (trois étoiles et deux cartes, 70 🪙) ; l'Époque descend au Bronze (20 🪙).
+
+Les juges : `check_packs` (les taux affichés, aucun à zéro, la revente), `check_rogue` (la courbe des runs), `check_profondeur` (la première Coupe pas avant la run 3 ; un Phénomène chanceux ne la donne pas d'office), `essai_rogue` (la boutique de départ, la clé qui se voit, le pack qui s'ouvre au jalon).
 
 ## 13. Fait le 17 octobre : la tranche 2, le cahier neuf
 
