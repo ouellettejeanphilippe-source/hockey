@@ -452,9 +452,10 @@ JP : *Continuer*. Ce que § 6.6 et § 6.7 décrivaient, sur les canaux qui exist
   - **Le jouer blessé** : une option du choix de la blessure (ni commotion, ni fracture, ni ligaments ; 8 matchs ou moins à faire, `JOUER_BLESSE_MAX`). Il sort de l'infirmerie le jour même et joue diminué, « Il joue amoché », le temps qu'il lui restait. S'il se blesse encore pendant ce temps, l'aggravation : il manque aussi ce temps-là (`jouerBlesse`, `applyInjuries`).
   - **L'avis du physio** : un blessé d'au moins six matchs, à mi-chemin, peut revenir plus tôt, par le même geste. Une fois par blessure ; il attend le lundi.
   - **La commotion se garde** : en Rogue, chaque commotion d'avant d'un joueur allonge la suivante de moitié (`COMMOTION_MEMOIRE`), cette saison et les saisons d'avant de la run (le report `commotions`).
+- [x] **Le Pack Événements est retiré** (JP, 17 oct. : *retire*), et aucun pack d'avant ne donne plus d'événement : les gestes du DG se gagnent aux routes de la semaine. Une vieille partie garde les cartes qu'elle en a tirées.
 - [x] **Ce qui n'est pas fait** : le vétéran mentor de la recrue (§ 6.7) attend les galons (tranche 7) ; le joueur délogé ne fait pas encore un second choix, il boude ; les robots de `rogue_sim` ne prennent ni ces choix ni le jouer blessé.
 - [x] **Les juges** : `check_retours` (nouveau, deux minutes, trois ligues) : 15 vertes — neuf choix de fils (🥶 3, 🤝 3, 🔥 2, 🐣 1), chacun sans toucher aux journées d'avant, son retour le bon matin et recompté dans ses feuilles ; trois blessés joués blessés, une aggravation ; trois commotions avec mémoire, aucune hors du Rogue.
-  - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_emojis`, `check_retours`.
+  - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_emojis`, `check_retours`, `check_arcs` (8, chaque arc sous 0,32 V), `check_packs` (76), `check_rogue` (32 ; 0 % → 70 %, la première Coupe des deux campagnes à la run 4).
 
 ## Annexe · la méthode des mesures
 
