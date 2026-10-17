@@ -19,6 +19,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
+import { ciblesTropPetites } from './lib/cibles.mjs';
 
 // Playwright peut être installé globalement (npm root -g) plutôt que dans le dépôt
 const require = createRequire(import.meta.url);
@@ -1087,6 +1088,18 @@ async function toutEstAtteignable(ou) {
 }
 
 /*
+ * LES CIBLES DE 44 PX (Jalon M, B5 — docs/mise-en-scene-et-mobile.md). L'audit à 390 px en a mesuré à 16, 28, 32,
+ * 36 et 40 : la croix d'une case, le nom d'un joueur, « Déjà en jeu », les boutons du bureau, ✕. Tout ce qu'un
+ * doigt atteint à l'écran (un bouton, un résumé, un `[role=button]`, que rien ne couvre) offre 44 × 44, ou une zone
+ * agrandie autour de son dessin ; scripts/lib/cibles.mjs nomme les exceptions et leur raison.
+ */
+async function cibles44(ou) {
+  const f = await ciblesTropPetites(page);
+  if (f.length) errors.push(`cible sous 44 px — ${ou} : ${f.slice(0, 3).join(' | ')}${f.length > 3 ? ` (+${f.length - 3})` : ''}`);
+  return f.length;
+}
+
+/*
  * JAMAIS UNE LONGUE PAGE. JP : *jamais longue pages, fait onglets si
  * nécessaire* ; *vraiment assurer interface clean, facile à naviguer, peu
  * importe petit écran ou 4k pc*.
@@ -1338,7 +1351,7 @@ console.log(`2. ${signed}/23 signés`);
 // Le vestiaire est plein : c'est le moment où le DOM porte le plus de cartes,
 // donc le moment où une cote qui fuit se verrait, et où la mise en page est
 // la plus chargée.
-console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM, ${await toutEstAtteignable('vestiaire plein')} hors de portée`);
+console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM, ${await toutEstAtteignable('vestiaire plein')} hors de portée, ${await cibles44('vestiaire plein')} cible(s) sous 44 px`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 // LE GARDIEN DIT SA PART DES DÉPARTS (V2.2) : la case de chaque gardien habillé, dans l'Effectif.
 {
@@ -1448,6 +1461,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
       if (!r.vu || r.haut > r.fenetre + 1) errors.push(`les règles ne s'ouvrent pas du Menu sur un écran : ${JSON.stringify(r)}`);
       await sansDebordement('les règles');
       await toutEstAtteignable('les règles');
+      await cibles44('les règles');
       await page.keyboard.press('Escape');
       await page.waitForTimeout(250);
       if (!(await page.$('#pageRegles[hidden]'))) errors.push('Échap ne referme pas les règles');
@@ -1462,6 +1476,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
     if (e.ecrans > 1.05) errors.push(`l'onglet « ${cle} » fait ${e.ecrans} écrans : une page est une boîte bornée dont le CORPS défile`);
     await sansDebordement(`l'onglet ${cle}`);
     await toutEstAtteignable(`l'onglet ${cle}`);
+    await cibles44(`l'onglet ${cle}`);
     if (cle === 'alignement') {
       const intrus = ['spin', 'dash', 'pool'].filter(k => e[k]);
       if (intrus.length) errors.push(`l'onglet de l'alignement porte aussi ${intrus.join(', ')} : un onglet, une raison d'être`);
@@ -1909,6 +1924,7 @@ if (enabled) {
     hauteurs[v] = await pasUneLonguePage(`le bilan · ${v}`);
     await sansDebordement(`le bilan · ${v}`);
     await toutEstAtteignable(`le bilan · ${v}`);
+    await cibles44(`le bilan · ${v}`);
   }
   console.log(`   jamais une longue page : ${Object.entries(hauteurs).map(([k, n]) => `${k} ${n}×`).join(' · ')}`);
   await redimensionner('le bilan');
