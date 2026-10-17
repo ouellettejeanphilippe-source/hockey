@@ -761,8 +761,9 @@ function ouvrirEcranSaison(depuis = 0) {
         rogue: G.bonus === 'ROGUE' ? {
           // S80 : la saison de la run, le mandat du proprio, et celui d'après ; le barème de la run, tel que `jetonsRogue`
           // le compte (`G.rogue.bareme`) — le sommaire y lit la prime d'un gros match.
-          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison()).mot,
-            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1).mot : null,
+          // V9 (tranche 8) : « Le proprio impatient » avance le mandat (`G.rogue.exigence`).
+          mandat: () => ({ saison: numeroDeSaison(), mot: mandatDe(numeroDeSaison(), (G.rogue && G.rogue.exigence) || 0).mot,
+            suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1, (G.rogue && G.rogue.exigence) || 0).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j) } : null,

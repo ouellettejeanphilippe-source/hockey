@@ -2129,7 +2129,7 @@ function remplirVide(cle) {
     if (cle === 'match') {
       msg = manque > 0
         ? `Encore <b>${manque}</b> case${manque > 1 ? 's' : ''} à combler.`
-        : `Ta formation est complète.${G.bonus === 'ROGUE' && G.rogue ? ` Le proprio veut : ${esc(mandatDe(G.rogue.saison).mot)}.` : ''}`;
+        : `Ta formation est complète.${G.bonus === 'ROGUE' && G.rogue ? ` Le proprio veut : ${esc(mandatDe(G.rogue.saison, G.rogue.exigence || 0).mot)}.` : ''}`;
       btns = manque > 0
         ? (auVestiaire() ? bouton('repechage', MODE().loto ? 'Au loto' : 'Au vestiaire', true) : bouton('alignement', 'Aux lignes', true))
         : bouton('lancer', G.bonus === 'TABLE' ? 'Lancer le tournoi' : 'Lancer la saison', true);

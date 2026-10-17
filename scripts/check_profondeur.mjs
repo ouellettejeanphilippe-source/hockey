@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import { getPlayerKey, autoRoster } from '../js/sim.js';
 import { jouerSaison, jouerRun, acheterDans, metaAuNiveau, shard, groupe, POLITIQUES } from './lib/rogue_sim.mjs';
+import { exigencesOuvertes } from '../js/rogue.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const GRAINES = Number(process.env.GRAINES ?? 4);
@@ -72,12 +73,14 @@ if (!isMainThread) {
     let derniere = [], premiere = null;
     const runs = [];
     for (let r = 0; r < t.runs; r++) {
-      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `profondeur${t.c}-run${r}`, jalons: true, joues, politique: t.politique });
+      // LES EXIGENCES (tranche 8) : chaque robot monte au plus haut cran que ses Coupes ont ouvert.
+      const exigence = exigencesOuvertes(meta);
+      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `profondeur${t.c}-run${r}`, jalons: true, joues, politique: t.politique, exigence });
       for (const x of res.entrees) if (!classeur.has(getPlayerKey(x.p))) classeur.set(getPlayerKey(x.p), x);
       derniere = res.equipe;
       meta.ecussons += res.ecussons;
       acheterDans(meta);
-      runs.push({ nSaisons: res.nSaisons, coupe: res.coupe });
+      runs.push({ nSaisons: res.nSaisons, coupe: res.coupe, exigence });
       if (res.coupe && premiere === null) premiere = r + 1;
     }
     parentPort.postMessage({ c: t.c, politique: t.politique, runs, premiere, deblocages: meta.deblocages.length });
@@ -135,7 +138,7 @@ if (!isMainThread) {
   const camp = POLITIQUES.map(politique => resultats.filter(r => r.c !== undefined && r.politique === politique).sort((x, y) => x.c - y.c));
   POLITIQUES.forEach((politique, i) => {
     for (const r of camp[i]) {
-      informer(`campagne ${r.c + 1}, ${politique}`, `${r.premiere ? `1re Coupe à la run ${r.premiere}` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.runs.filter(x => x.coupe).length} Coupe(s) · ${r.deblocages} déblocages au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}`).join(' ')}`);
+      informer(`campagne ${r.c + 1}, ${politique}`, `${r.premiere ? `1re Coupe à la run ${r.premiere}` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.runs.filter(x => x.coupe).length} Coupe(s) · ${r.deblocages} déblocages au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}${x.exigence ? `🔺${x.exigence}` : ''}`).join(' ')}`);
     }
   });
   const attentif = camp[POLITIQUES.indexOf('attentif')], distrait = camp[POLITIQUES.indexOf('distrait')];

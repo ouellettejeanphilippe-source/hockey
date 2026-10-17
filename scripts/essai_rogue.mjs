@@ -116,7 +116,8 @@ await page.addInitScript(cartes => {
   // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
   // « Une caisse de départ » (+20 jetons) : les Harfangs puis le Pack Argent s'achètent quel que soit le tirage de la saison
   // (sans elle, une caisse de 22 ou 36 jetons laissait l'essai en panne de jetons devant le Pack Argent : une loterie).
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1'], collection: [], cartes: [], runs: 0, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
+  // V9 (tranche 8) : une Coupe déjà gagnée ouvre le premier cran des exigences ; l'essai le voit, et part au cran 0.
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -129,7 +130,11 @@ await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout:
 await page.screenshot({ path: `${DOSSIER}/rogue-intro.png` });
 const intro = (await page.textContent('#choixModal .choix-sheet')).replace(/\s+/g, ' ');
 if (!/proprio/.test(intro) || !/classeur/.test(intro)) erreurs.push('l\'écran de la run ne dit ni le mandat du proprio ni le classeur');
-await choix();
+// LES EXIGENCES (V9, tranche 8) : une Coupe au méta ouvre le premier cran, offert à côté du départ ordinaire.
+const crans = await page.$$eval('#choixModal .choix-option[data-choix^="e"]', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+console.log(`0. les exigences : ${crans.length} cran(s) offert(s) · ${crans.map(t => t.slice(0, 60)).join(' | ')}`);
+if (crans.length !== 1 || !/Exigence 1/.test(crans[0]) || !/médailles/.test(crans[0])) erreurs.push(`le départ d'une run offre ${crans.length} cran(s) d'exigence après une Coupe (attendu : 1, avec sa prime de médailles)`);
+await choix('.choix-option[data-choix="go"]');
 /*
  * TON COACH (v2, js/coachs.js) : les coachs que le prestige ouvre (V2.3 : ce méta est un Club de quartier,
  * donc quatre), un à prendre — sa confiance I est allumée dès le premier soir (une décision du jour 0) —, et

@@ -45,7 +45,8 @@ import fs from 'node:fs';
 import { deckDe, DECK_DEPART, CARTES_MATCH } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
-  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron,
+  JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron, exigencesOuvertes,
+  EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, gardesDeLaRun, GARDES_DE_SAISON, ESPACE_DE_DEPART, soutiensDuDepart,
 } from '../js/rogue.js';
 import { BANQUE, PATRONS_IMPOSES, patronsDeDepart } from '../js/banque.js';
 import { VOIES } from '../js/coachs.js';
@@ -147,7 +148,8 @@ if (!isMainThread) {
     const runs = [];
     for (let r = 0; r < t.runs; r++) {
       const niv = meta.deblocages.length;
-      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `campagne${t.c}-run${r}`, jalons: true, joues });
+      // Les exigences (tranche 8) : le robot monte au plus haut cran que ses Coupes ont ouvert.
+      const res = jouerRun(meta, { classeur: [...classeur.values()], derniere, graine: `campagne${t.c}-run${r}`, jalons: true, joues, exigence: exigencesOuvertes(meta) });
       for (const x of res.entrees) if (!classeur.has(getPlayerKey(x.p))) classeur.set(getPlayerKey(x.p), x);
       derniere = res.equipe;
       meta.ecussons += res.ecussons;
@@ -274,6 +276,37 @@ if (!isMainThread) {
     const deja = recompenseDe({ deblocages: ['classeur1'] }, JALONS.find(J => J.cle === 'series'));
     exiger('les jalons se lisent dans les résultats, et offrent un déblocage ou des écussons', a.join() === 'series,ronde,cent' && offert.deblocage === 'classeur1' && deja.ecussons === 30
       && JALONS.every(J => !J.recompense.deblocage || DEBLOCAGES[J.recompense.deblocage]), `${JALONS.length} jalons · ${a.join(', ')}`);
+  }
+
+  /*
+   * LES EXIGENCES (V9, tranche 8) : neutres au cran 0 ; chaque cran ajoute la sienne, par son canal, à celles d'avant,
+   * et paie PRIME_EXIGENCE de médailles de plus ; aucune avant la première Coupe, puis un cran de plus que le plus haut
+   * gagné ; le plafond n'en descend jamais sous la masse ; le texte d'un cran dit ses vrais chiffres.
+   */
+  {
+    const m0 = { deblocages: [] }, z = exigencesDe(0);
+    const neutre = z.espace === 0 && z.prixPacks === 1 && z.medailles === 1 && plafondDeSaison(60e6, m0, 0) === 64e6 && baremeRogue(m0, 0).victoire === baremeRogue(m0).victoire
+      && mandatDe(1, 0) === MANDATS[0] && soutiensDuDepart(0, 1, 0) === soutiensDuDepart(0, 1) && departDuClasseur(m0, 0).n === departDuClasseur(m0).n && gardesDeLaRun(0) === GARDES_DE_SAISON;
+    exiger('au cran 0, les exigences ne changent rien', neutre);
+    const canaux = ['espace', 'prixPacks', 'classeur', 'soutiens', 'victoire', 'mandat', 'gardes'];
+    const fautes = [];
+    EXIGENCES.forEach((E, i) => {
+      const avant = exigencesDe(i), apres = exigencesDe(i + 1);
+      const changes = canaux.filter(c => apres[c] !== avant[c]);
+      if (changes.length !== 1 || (E[changes[0]] || 0) === 0) fautes.push(`${E.nom} : ${changes.join(', ') || 'rien'}`);
+      if (Math.abs(apres.medailles - (1 + PRIME_EXIGENCE * (i + 1))) > 1e-9) fautes.push(`${E.nom} : médailles`);
+      const chiffre = E.espace ? Math.abs(E.espace) / 1e6 : E.prixPacks ? Math.round(E.prixPacks * 100) : Math.abs(E.soutiens || E.victoire || E.gardes || 0);
+      if (chiffre && !new RegExp(`\\b${chiffre}\\b`).test(E.texte)) fautes.push(`${E.nom} : le texte ne dit pas ${chiffre}`);
+    });
+    exiger('chaque cran d\'exigence change un seul canal, s\'ajoute aux précédents et paie plus de médailles', !fautes.length, fautes.join(' · ') || EXIGENCES.map(E => E.nom).join(' · '));
+    const n = EXIGENCES.length, X = exigencesDe(n);
+    const tout = plafondDeSaison(60e6, m0, n) === 60e6 && plafondDeSaison(60e6, { deblocages: ['plafond1', 'plafond2'] }, n) === 60e6 + ESPACE_DE_DEPART + 7e6 + X.espace
+      && plafondDeSaison(60e6, m0, 1) === 61e6 && mandatDe(1, n) === MANDATS[1] && soutiensDuDepart(4, 1, n) === soutiensDuDepart(4, 1) + 3 && departDuClasseur(m0, n).n === 0
+      && baremeRogue(m0, n).victoire === baremeRogue(m0).victoire - 2 && gardesDeLaRun(n) === GARDES_DE_SAISON - 2;
+    exiger('au plus haut cran, chaque canal mord (et le plafond jamais sous la masse)', tout,
+      `plafond ${plafondDeSaison(60e6, m0, n) / 1e6} M$ pour 60 M$ · mandat de la 1re saison : ${mandatDe(1, n).mot} · ${baremeRogue(m0, n).victoire} 🪙 par victoire · ${gardesDeLaRun(n)} gardés · médailles ×${String(X.medailles).replace('.', ',')}`);
+    const o = [exigencesOuvertes({}), exigencesOuvertes({ coupes: 1 }), exigencesOuvertes({ coupes: 4, exigence: 2 }), exigencesOuvertes({ coupes: 40, exigence: 99 })];
+    exiger('les exigences s\'ouvrent à la première Coupe, puis un cran par Coupe gagnée au plus haut', o.join() === `0,1,3,${n}`, o.join(' · '));
   }
 
   /* ---------- 2, 3, 4 : les runs, les campagnes et les moments, en parallèle ---------- */
