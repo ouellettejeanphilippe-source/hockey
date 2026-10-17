@@ -1247,7 +1247,7 @@ const VOIX_DES_FILS = {
  * SUIVI : `apres` matchs plus tard, le moteur relit les feuilles (`mesure` : ses buts, ses points, les buts du duo) et
  * pose ce que le seuil décide — `gagne` ou `perd`, des effets de quelques matchs sur le joueur nommé (`sur`), jamais
  * un dé (js/sim.js `retoursDuMatin`). Le retour se lit à la une, avec ses vrais chiffres (`texteDuRetour`).
- * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur.
+ * Les mots : `{nom}` le joueur du fil, `{deplace}` celui qu'il déloge, `{passeur}` son passeur, `{vieux}` le vétéran mentor.
  */
 export const CHOIX_DES_FILS = {
   feu: { ico: '🔥', titre: 'Le Cheechoo', question: 'Le monter au 1er trio ?',
@@ -1284,10 +1284,12 @@ export const CHOIX_DES_FILS = {
           gagne: { mot: 'il s\'impose pour de bon', duree: 82, effets: [{ sur: 'joueur', finition: 1.05, creation: 1.05 }] },
           perd: { mot: 'un trou de mémoire', duree: 6, effets: [{ sur: 'joueur', finition: 0.9, creation: 0.9 }] } } },
       { cle: 'proteger', nom: 'Le protéger', bon: 'Des jambes neuves', prix: 'Il apprend moins vite', action: { energie: 20 } },
+      // V9 (tranche 7) : le vétéran mentor (`mentorTrio`, js/sim.js), le temps de la saison, sur la ligne de la recrue.
+      { cle: 'mentor', nom: 'Le confier à {vieux}', bon: 'Sur la ligne du vétéran, son badge monte d\'un métal', prix: 'Il change de ligne', mentor: true },
     ] },
 };
 const UNITES_DU_SUIVI = { buts: 'but', points: 'point', duo: 'but' };
-export const avecNoms = (t, x) => String(t || '').replace(/\{nom\}/g, x.nom || '').replace(/\{deplace\}/g, x.deplace || 'son remplaçant').replace(/\{passeur\}/g, x.passeur || 'son passeur');
+export const avecNoms = (t, x) => String(t || '').replace(/\{nom\}/g, x.nom || '').replace(/\{deplace\}/g, x.deplace || 'son remplaçant').replace(/\{passeur\}/g, x.passeur || 'son passeur').replace(/\{vieux\}/g, x.vieux || 'un vétéran');
 /** L'engagement d'une option, en mots : « Dans 10 matchs, 4 buts : il garde le feu ; sinon, X demande à jouer. » */
 export function motDuSuivi(s, x = {}) {
   if (!s) return '';

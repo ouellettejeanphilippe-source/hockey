@@ -34,7 +34,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, com
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, mainDuDuel, MISE_DOUBLEE, ELAN_PAR_PERIODE, INTENTIONS } from './sim.js';
-import { seasonLancers } from './ratings.js';
+import { seasonLancers, ageAtSeason } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
@@ -1405,6 +1405,22 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!X || (you.injured && you.injured.has(X))) return null;
     return { cases: echange(sP.i, t.i), deplace: X };
   };
+  /*
+   * LE VÉTÉRAN MENTOR (V9, tranche 7) : ton plus vieux patineur habillé, 33 ans ou plus ; la recrue passe sur sa ligne
+   * (le trio et la paire du même rang, `poserMentors`, js/sim.js), dans la case de même rôle, si elle n'y est pas.
+   */
+  const VETERAN = 33;
+  const mentorDe = R => {
+    const sR = SLOTS.find(s => you.roster[s.i] === R);
+    if (!sR || sR.scratch || sR.group === 'G') return null;
+    const v = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => ({ s, p: you.roster[s.i] }))
+      .filter(x => x.p && x.p !== R && !(you.injured && you.injured.has(x.p)) && ageAtSeason(x.p.bd, x.p.s) >= VETERAN)
+      .sort((x, y) => ageAtSeason(y.p.bd, y.p.s) - ageAtSeason(x.p.bd, x.p.s))[0];
+    if (!v) return null;
+    if (sR.unit === v.s.unit) return { vieux: v.p, cases: null };
+    const t = SLOTS.find(s => !s.scratch && s.group === sR.group && s.unit === v.s.unit && s.role === sR.role);
+    return t ? { vieux: v.p, cases: echange(sR.i, t.i) } : null;
+  };
   function filOuvert() {
     if (!onDecision) return null;
     const aMoi = new Set(Object.values(you.roster).filter(Boolean));
@@ -1415,8 +1431,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (!C || a.fini || pris.has(`fil:${a.sorte}`) || !aMoi.has(a.joueur) || (a.passeur && !aMoi.has(a.passeur))) continue;
         const m = a.sorte === 'feu' ? monteeDe(a.joueur) : null;
         if (a.sorte === 'feu' && !m) continue;
-        const noms = { nom: nomCourt(a.joueur.n), deplace: m ? nomCourt(m.deplace.n) : '', passeur: a.passeur ? nomCourt(a.passeur.n) : '' };
-        return { a, C, noms, cases: m ? m.cases : null, deplace: m ? m.deplace : null };
+        const mentor = a.sorte === 'recrue' ? mentorDe(a.joueur) : null;
+        const noms = { nom: nomCourt(a.joueur.n), deplace: m ? nomCourt(m.deplace.n) : '', passeur: a.passeur ? nomCourt(a.passeur.n) : '', vieux: mentor ? nomCourt(mentor.vieux.n) : '' };
+        return { a, C, noms, cases: m ? m.cases : null, deplace: m ? m.deplace : null, mentor };
       }
     }
     return null;
@@ -3570,11 +3587,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const { a, C, noms, cases } = fo, cle = getPlayerKey(a.joueur), x = messageDuFil(a);
       out.push({ id: `fil:${a.sorte}`, genre: 'fil', bloque: true, de: x.de, sujet: a.texte, joueur: a.joueur,
         choix: { recit: `« ${x.mot} » ${C.question}`, joueur: a.joueur,
-          options: C.options.filter(o => !o.monte || cases).map(o => ({ cle: o.cle, nom: avecNoms(o.nom, noms), bon: avecNoms(o.bon, noms), prix: avecNoms(o.prix, noms),
+          options: C.options.filter(o => (!o.monte || cases) && (!o.mentor || fo.mentor)).map(o => ({ cle: o.cle, nom: avecNoms(o.nom, noms), bon: avecNoms(o.bon, noms), prix: avecNoms(o.prix, noms),
             ...(o.action ? { action: o.action } : {}), ...(o.rien ? { rien: true } : {}), ...(o.suivi ? { sous: motDuSuivi(o.suivi, noms) } : {}) })),
           decision: k => ({ palier: `fil:${a.sorte}`, moment: { famille: 'fil', cle: a.sorte, choix: k, joueur: cle, joueurs: [cle],
             ...(fo.deplace ? { deplace: getPlayerKey(fo.deplace) } : {}), ...(a.passeur ? { passeur: getPlayerKey(a.passeur) } : {}) },
-            ...(C.options.find(o => o.cle === k)?.monte && cases ? { cases } : {}) }) } });
+            ...(C.options.find(o => o.cle === k)?.monte && cases ? { cases } : {}),
+            ...(k === 'mentor' && fo.mentor ? { mutation: { cle: 'mentorTrio', joueur: getPlayerKey(fo.mentor.vieux), saison: true }, ...(fo.mentor.cases ? { cases: fo.mentor.cases } : {}) } : {}) }) } });
     }
     /*
      * L'AVIS DU PHYSIO (V9, tranche 6) : un blessé à mi-chemin, qui n'a plus que quelques matchs à faire, pourrait revenir

@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions } from './rogue.js';
+import { lireMeta, GARDES_DE_SAISON, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
@@ -17,7 +17,7 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, SEMAINE, PLACES } from './inventaire.js';
-import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES } from './cartable.js';
+import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement, motDuCoachPlan } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -27,7 +27,8 @@ import { deckDe, CARTES_MATCH } from './combat.js';
 import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
-import { nombreEnSeries } from './bilan.js';
+import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
+import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON } from './galons.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, varianteJoueur } from './repechage.js';
@@ -1322,9 +1323,43 @@ export function finDeSaisonRogue() {
   compterEcussonsRun(d);
   const moments = detecterLegendaires();
   if (moments.length) { ajouterLegendesAuCartable(moments, (G.rogue && G.rogue.saison) || 1); afficherLegendaires(moments); }
+  graverLaSaisonRogue(t);
   direJalons(payerJalons({ ...f, joues: cartesJouees() }));
   majRunRogue();
 }
+/*
+ * GRAVER LA SAISON (V9, tranche 7 — js/galons.js, js/cartable.js `graverLaSaison`, js/rogue.js `graverAuPantheon`) :
+ * l'histoire de chacun chez toi, ses galons (un palier de badge pour le reste de la run, une copie de plus de sa
+ * carte), et le panthéon du club. Une saison rechargée réécrit les mêmes lignes : rien ne compte deux fois.
+ */
+function graverLaSaisonRogue(t) {
+  const run = (G.rogue && G.rogue.numero) || 0, saison = numeroDeSaison();
+  const joueurs = Object.values(t.roster || {}).filter(Boolean);
+  const galons = galonsDeLaSaison(t, joueurs, getPlayerKey);
+  const gros = grosGagnesDe(t, joueurs, getPlayerKey);
+  const lignes = joueurs.map(p => {
+    const k = getPlayerKey(p);
+    const stats = p.p === 'G' ? { gp: p.simGP || 0, w: p.simW || 0, so: p.simSO || 0 } : { gp: p.simGP || 0, g: p.simG || 0, a: p.simA || 0, pts: p.simPTS || 0 };
+    return { cle: k, stats: { ...stats, ...(gros.get(k) ? { gros: gros.get(k) } : {}) }, galons: galons.filter(g => g.joueur === k).map(({ cle, n, match, adv }) => ({ cle, n, match, adv })) };
+  });
+  const { neufs, montees } = graverLaSaison(lignes, run, saison);
+  neufs.forEach((x, i) => setTimeout(() => toast(`${ICO_GALON} Galon : ${nomDe(x.cle)}, ${texteDuGalon(x.galon)}. Son badge monte d'un métal pour la run.`), 3200 + 900 * i));
+  for (const m of montees) setTimeout(() => toast(`✨ ${motDeMontee(m, nomDe(m.cle))}`), 3200 + 900 * neufs.length);
+  const L = G.ligue, stats = leagueStats(L.teams || [t]);
+  const trophees = gagnantsDesTrophees(stats).filter(o => o.x.t === t).map(o => ({ nom: o.d.nom, joueur: o.x.p.n, val: o.d.val(o.x) }));
+  const neuf = graverAuPantheon({ run, saison, pts: t.PTS || 0, trophees,
+    joueurs: lignes.map(l => ({ cle: l.cle, nom: nomDe(l.cle), gardien: !!joueurs.find(p => getPlayerKey(p) === l.cle && p.p === 'G'), ...l.stats, galonsCarriere: galonsDe(l.cle).length })) });
+  const mots = [...neuf.records.map(k => (k === 'club' ? 'un record de points du club' : `le record : ${RECORDS[k].nom.toLowerCase()}`)), ...neuf.trophees.map(x => `${x.nom} (${x.joueur})`), ...neuf.chandails.map(x => `le chandail de ${x.nom} est retiré`)];
+  if (mots.length) setTimeout(() => toast(`Au panthéon : ${mots.join(' · ')}.`), 3600 + 900 * (neufs.length + 1));
+}
+const nomDe = cle => ((Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).find(p => p && getPlayerKey(p) === cle)) || {}).n || cle;
+/* Son histoire chez toi, en une ligne, avant de trancher qui reste (V9, tranche 7) : ses saisons, ses chiffres, ses galons. */
+const histoireCourte = p => {
+  const h = histoireChezToi(getPlayerKey(p));
+  if (!h.length) return '';
+  const t = h.reduce((a, e) => ({ g: a.g + (e.g || 0), pts: a.pts + (e.pts || 0), w: a.w + (e.w || 0), galons: a.galons + (e.galons || []).length }), { g: 0, pts: 0, w: 0, galons: 0 });
+  return `Chez toi : ${h.length} saison${h.length > 1 ? 's' : ''}, ${p.p === 'G' ? `${t.w} victoires` : `${t.g} buts, ${t.pts} points`}${t.galons ? ` · ${ICO_GALON} ${t.galons}` : ''}`;
+};
 /* Et ceux des séries : dix par ronde gagnée, vingt de plus pour la Coupe ; les jalons des séries ; le sort de la run. */
 export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
   if (G.bonus !== 'ROGUE' || !G.ligue) return;
@@ -1443,9 +1478,9 @@ function montrerTaRun(sort, n, s) {
   const entrees = G.rogue.cartableDepart != null ? Math.max(0, nCartable - G.rogue.cartableDepart) : null;
   G.rogue.taRunVue = true;
   meta.derniereRun = d;
-  // LA VITRINE (1.0) : chaque Coupe y entre, avec ses vedettes — les meilleurs pointeurs de leur vraie saison.
-  const pts = p => (p.p === 'G' ? (p.w || 0) : (p.pt ?? ((p.g || 0) + (p.a || 0))) || 0);
-  const vedettes = sort === 'gagnee' ? signes().filter(Boolean).sort((a, b) => pts(b) - pts(a)).slice(0, 3) : [];
+  // LA VITRINE (1.0) : chaque Coupe y entre, avec ses vedettes — V9 (tranche 7) : ce qu'ils ont fait CHEZ TOI, leurs points (un gardien, ses victoires).
+  const pts = p => (p.p === 'G' ? p.simW || 0 : p.simPTS || 0);
+  const vedettes = sort === 'gagnee' ? Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).filter(Boolean).sort((a, b) => pts(b) - pts(a)).slice(0, 3) : [];
   if (sort === 'gagnee') meta.vitrine = [...(meta.vitrine || []), { run: d.numero, saison: n, coach: G.rogue.coach || null, vedettes: vedettes.map(p => p.n) }];
   ecrireMeta(meta);
   saveGame();
@@ -1523,7 +1558,7 @@ function modsAuCartable() {
   const par = {};
   for (const m of you.mutations || []) {
     const M = MUTATIONS[m.cle];
-    if (!M || !SOURCES_DURABLES.has(M.source) || m.cle === 'physio' || M.lustre || !m.joueur) continue;
+    if (!M || !SOURCES_DURABLES.has(M.source) || m.cle === 'physio' || M.lustre || !m.joueur || m.saison) continue;
     (par[m.joueur] = par[m.joueur] || []).push(m.cle);
   }
   poserSurLesCartes(par);
@@ -1552,7 +1587,7 @@ function choisirGardesDeSaison(saison) {
   const n = GARDES_DE_SAISON;
   return new Promise(resolve => ouvrirDepartClasseur({
     mode: 'choix', n, budget: budgetDuClasseur(meta), run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats,
-    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
+    esc, money, groupe: groupeDe, qui: p => [quiEst(p), histoireCourte(p)].filter(Boolean).join(' · '), apercu: p => apercuJoueur(p),
     textes: {
       ico: '🤝', titre: 'Ceux qui restent', irl: `Saison ${saison} de la run · jusqu'à ${n} joueurs`,
       recit: `Ton équipe se défait. Garde jusqu'à ${n} joueurs ; les autres partent, et ton classeur comble les trous.`,
@@ -1665,6 +1700,10 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   const commotions = { ...((decsSaison.find(d => d && d.commotions) || {}).commotions || {}) };
   for (const b of (L.you && L.you.injuriesLog) || []) if (b.genre === 'commotion') commotions[getPlayerKey(b.player)] = (commotions[getPlayerKey(b.player)] || 0) + 1;
   if (Object.keys(commotions).length) report.push({ jour: 0, commotions, report: true });
+  // V9 (tranche 7) : les galons de la run — un palier de badge chacun, `GALONS_MAX` au plus (js/galons.js).
+  const run = G.rogue.numero || 0;
+  const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, galonsDe(getPlayerKey(p), run).length)]).filter(([, n]) => n > 0));
+  if (Object.keys(galons).length) report.push({ jour: 0, galons, report: true });
   // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
   packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
@@ -1747,7 +1786,20 @@ export function ouvrirVestiaire(apres = null) {
   // 1.0 : LA VITRINE — tes Coupes, la run, la saison, le coach et les vedettes.
   const vitrine = (meta.vitrine || []).length ? `<p class="vs-sec">🏆 Ta vitrine · ${meta.vitrine.length} Coupe${meta.vitrine.length > 1 ? 's' : ''}</p>
     <div class="vs-jalons">${meta.vitrine.slice().reverse().map(V => `<div class="vs-jalon fait"><span class="vs-ico" aria-hidden="true">🏆</span><b>Run ${V.run} · saison ${V.saison}${COACHS[V.coach] ? ` · ${COACHS[V.coach].ico} ${esc(COACHS[V.coach].nom)}` : ''}</b><span>${esc((V.vedettes || []).join(' · '))}</span></div>`).join('')}</div>` : '';
-  const jalons = `${vitrine}${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
+  /*
+   * LE PANTHÉON (V9, tranche 7 — js/rogue.js `graverAuPantheon`) : les records d'une saison chez toi, les trophées de
+   * tes joueurs, les chandails retirés. Les mêmes rangées que la vitrine.
+   */
+  const P = meta.pantheon || { records: {}, trophees: [], chandails: [] };
+  const quand = x => `run ${x.run}, saison ${x.saison}`;
+  const recs = [...Object.entries(RECORDS).filter(([k]) => P.records[k]).map(([k, R]) => ({ nom: R.nom, x: P.records[k], qui: P.records[k].nom })),
+    ...(P.records.club ? [{ nom: 'Points du club en une saison', x: P.records.club, qui: '' }] : [])];
+  const rangee = (ico, titre, texte) => `<div class="vs-jalon fait"><span class="vs-ico" aria-hidden="true">${ico}</span><b>${esc(titre)}</b><span>${esc(texte)}</span></div>`;
+  const pantheon = recs.length || P.trophees.length || P.chandails.length ? `<p class="vs-sec">Le panthéon</p>
+    <div class="vs-jalons">${recs.map(r => rangee('📈', `${r.nom} : ${r.x.n}`, [r.qui, quand(r.x)].filter(Boolean).join(' · '))).join('')}
+      ${P.chandails.map(c => rangee('👕', `Chandail retiré : ${c.nom}`, `${c.galons} galons · ${quand(c)}`)).join('')}
+      ${P.trophees.slice().reverse().slice(0, 12).map(t => rangee('🏆', t.nom, `${t.joueur} · ${t.val} · ${quand(t)}`)).join('')}</div>` : '';
+  const jalons = `${vitrine}${pantheon}${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
     <div class="vs-jalons">${JALONS.map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;

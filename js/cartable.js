@@ -197,6 +197,32 @@ export function ajouterLegendesAuCartable(moments = [], saison = 0) {
 }
 /* La meilleure variante obtenue d'une carte. */
 export const meilleureVariante = x => [...EDITIONS].reverse().find(r => x && x.v && x.v[r]) || 'commune';
+/*
+ * SON HISTOIRE CHEZ TOI (V9, tranche 7 — docs/refonte-v9.md § 6.8). Une ligne par saison de run (`chez`) :
+ * { run, s, gp, g, a, pts } (un gardien : { gp, w, so }), ses gros matchs gagnés habillé (`gros`) et ses galons
+ * (`galons`, js/galons.js), gravés avec leur match et leur adversaire. Elle ne repart jamais à zéro. La même saison
+ * rejouée (un rechargement) réécrit sa ligne : rien ne compte deux fois. Un galon neuf donne une copie de plus de sa
+ * meilleure édition — la carte monte par ses exploits (`monterLesDoublons`). Rend { neufs, montees }.
+ */
+export function graverLaSaison(lignes = [], run = 0, s = 1) {
+  const c = lireCartable(), neufs = [];
+  for (const l of lignes) {
+    const x = c.joueurs[l.cle];
+    if (!x) continue;
+    const chez = x.chez = x.chez || [];
+    const i = chez.findIndex(e => e.run === run && e.s === s);
+    const avant = i >= 0 ? chez[i] : null;
+    const ligne = { run, s, ...l.stats, ...((l.galons || []).length ? { galons: l.galons } : {}) };
+    if (i >= 0) chez[i] = ligne; else chez.push(ligne);
+    for (const g of l.galons || []) if (!(avant && (avant.galons || []).some(y => y.cle === g.cle))) neufs.push({ cle: l.cle, galon: g });
+  }
+  ecrire(c);
+  const montees = ajouterAuCartable(neufs.map(x => ({ cle: x.cle, rar: meilleureVariante(c.joueurs[x.cle]) })));
+  return { neufs, montees };
+}
+/* Son histoire chez toi, saison après saison ; ses galons d'une run (le report de la saison suivante), ou de toute sa carrière. */
+export const histoireChezToi = (cle, c = lireCartable()) => ((c.joueurs[cle] || {}).chez || []).slice();
+export const galonsDe = (cle, run = null, c = lireCartable()) => histoireChezToi(cle, c).filter(e => run === null || e.run === run).flatMap(e => e.galons || []);
 /* Les comptes du cartable : joueurs, copies, doublons, par variante, numérotées. */
 function comptesDuCartable(c = lireCartable()) {
   const xs = Object.values(c.joueurs);

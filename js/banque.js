@@ -485,7 +485,8 @@ export const sePose = cle => !!MUTATIONS[cle] && SOURCES_MOD.includes(MUTATIONS[
 export const pourCeJoueur = (cle, estGardien) => !!MUTATIONS[cle] && !!MUTATIONS[cle].gardien === !!estGardien;
 /* Les modifs posées sur un joueur, dans l'ordre : `{ cle, jour, carte }` (la variante d'un lustre). */
 export function poseesSur(decisions = [], joueur) {
-  return decisions.filter(d => d && d.mutation && d.mutation.joueur === joueur && sePose(d.mutation.cle))
+  // V9 (tranche 7) : une modif offerte pour la saison seulement (`saison`, le vétéran mentor d'un fil) ne prend pas de case.
+  return decisions.filter(d => d && d.mutation && d.mutation.joueur === joueur && sePose(d.mutation.cle) && !d.mutation.saison)
     .sort((a, b) => (a.jour || 0) - (b.jour || 0))
     .map(d => ({ cle: d.mutation.cle, jour: d.jour || 0, carte: d.mutation.carte || null, joue: d.joue || null, deck: d.deck || null }));
 }
