@@ -708,6 +708,8 @@ await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { time
 await page.waitForTimeout(300);
 const titre = (await page.textContent('#choixModal .choix-titre')).trim();
 const libreOfferte = !!(await page.$('#choixModal .sig-libre:not([disabled])'));
+// V9 (tranche 4, le plafond qui mord) : une case libre que le plafond refuse se montre grisée, avec sa raison.
+const libreRefus = libreOfferte ? '' : await page.$eval('#choixModal .sig-libre[disabled]', b => b.getAttribute('title') || '').catch(() => '');
 const rangees = await page.$$eval('#choixModal .sig-liste .pcard', e => e.length);
 if (rangees < 20) erreurs.push(`« qui sort ? » ne montre que ${rangees} joueurs`);
 const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.length);
@@ -738,9 +740,9 @@ let d = await decisions();
 // 1.0 (J1-B) : l'achat est la décision `k:n` ; la signature, une seconde décision `k:n:signe` (sans l'achat).
 const signe = d.filter(x => x.ballottage && (x.achat || /^k:\d+:signe$/.test(x.palier || '')))
   .map(x => ({ ...x, achat: x.achat || (d.find(a => a.achat && a.palier === x.palier.replace(/:signe$/, '')) || {}).achat || {} }));
-console.log(`9. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, entre: x.ballottage.entre, sort: x.ballottage.sort, i: x.ballottage.i, rar: x.ballottage.rar })))} · « ${titre} » · case libre offerte : ${libreOfferte} · ${refusees} case(s) grisée(s) (pas sa position, ou le plafond) · barre : ${await jauge()}`);
+console.log(`9. signé : ${JSON.stringify(signe.map(x => ({ pack: x.achat.pack, entre: x.ballottage.entre, sort: x.ballottage.sort, i: x.ballottage.i, rar: x.ballottage.rar })))} · « ${titre} » · case libre offerte : ${libreOfferte}${libreRefus ? ` (refusée : ${libreRefus})` : ''} · ${refusees} case(s) grisée(s) (pas sa position, ou le plafond) · barre : ${await jauge()}`);
 if (!signe.length) erreurs.push('le pack de joueurs n\'a rien signé');
-else if (!libreOfferte) erreurs.push(`la case de réserve libre n'a pas été offerte (« ${titre} »)`);
+else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n'a pas été offerte, ni refusée avec sa raison (« ${titre} »)`);
 /*
  * LE JOUEUR SIGNÉ EST DANS L'ALIGNEMENT TOUT DE SUITE (S79). JP : *les cartes
  * que j'ouvre des packs s'ajoutent pas dans mon équipe ?*. La décision ne
