@@ -1032,7 +1032,7 @@ function systemesHtml({ lineup, lignes = null, base = null, u, groupe, l, adv = 
   const puceGain = paie
     ? `<span class="puce neutre" title="En Rogue, un système paie une famille : ce que ses joueurs y apportent, à leurs points égaux, fait son gain — et le retourne quand ils n'y sont pas. Son prix se paie toujours.">Paie le ${esc(FAMILLES[S.famille].nom.toLowerCase())} · ${esc(paie.mot.toLowerCase())}</span>`
     : `<span class="puce neutre" title="Le gain d'un système suit les badges qu'il demande : la moitié sans eux, tout quand chacun a le sien en Argent, un quart de plus au-delà. Son prix se paie toujours.">${motGain(fit)}</span>`;
-  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets.length ? effets : [{ txt: 'à peine perceptible', bon: null }])}${puceGain}</span>` : ''}</div>`;
+  const choisie = `<div class="ln-choisie"><span class="gl-mot">${esc(S.mot)}${etouffe}${parQui}</span>${S.slots ? `<span class="choix-puces">${puces(effets)}${puceGain}</span>` : ''}</div>`;
   // Ce qu'il demande, poste par poste : le rôle, et si le joueur de la case l'a.
   const js = joueursDeLigne(lineup, u);
   // Les rôles tels qu'il les joue : ses ailes dans le sens où elles rendent le mieux (`rolesDuSysteme`).
@@ -1302,7 +1302,12 @@ function regleDeCarte(C) {
   const out = [];
   const txt = e => motsEnChiffres(e).map(m => m.txt).join(', ');
   // Ce qui s'ajoute à chaque carte (jouée, ou dans une main) : le chiffre de match d'un pas, dit « par carte … ».
-  const parCarte = (e, quand) => { const m = motsEnChiffres(e, null, { par: quand }).filter(x => x.cle !== 'rien'); return m.length ? m.map(x => x.txt).join(', ') : `à peine perceptible ${quand}`; };
+  // Un pas trop petit pour un chiffre se dit à trois cartes (JP, 17 oct. : *encore beaucoup de « à peine perceptible »*).
+  const fois = (e, n) => Object.fromEntries(Object.entries(e || {}).map(([k, v]) => [k, typeof v !== 'number' ? v : k === 'robustesse' ? v * n : v ** n]));
+  const parCarte = (e, quand) => {
+    const lu = (x, q) => motsEnChiffres(x, null, { par: q }).filter(y => y.cle !== 'rien').map(y => y.txt).join(', ');
+    return lu(e, quand) || lu(fois(e, 3), quand.replace(/^par carte/, 'pour 3 cartes')) || `à peine perceptible ${quand}`;
+  };
   if (C.plein) {
     // Une synergie : sa condition, puis ce qu'elle rapporte à son maximum, en chiffres de match pour ton club.
     const m = motsEnChiffres(C.plein).filter(x => x.cle !== 'rien');
@@ -1514,7 +1519,7 @@ export function ouvrirMainDeMatch(spec) {
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${puces(D.mots)}</div>` : ''}
           ${D.deja ? `<p class="duel-deja">✓ ${esc(D.deja)}</p>` : ''}
-          <div class="duel-gestes">${D.gestes.map(o => optionHtml(o, {}, { classe: 'duel-geste', attr: `data-geste="${esc(o.cle)}"`, on: geste === o.cle, mots: [] })).join('')}</div>
+          <div class="duel-gestes">${D.gestes.map(o => optionHtml(o, {}, { classe: 'duel-geste', attr: `data-geste="${esc(o.cle)}"`, on: geste === o.cle, mots: o.mots || [] })).join('')}</div>
           ${D.cartes ? `<p class="duel-cartes">${esc(D.cartes)}</p>` : ''}
           ${D.mise ? `<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${esc(D.mise)}</button>` : ''}
         </div>` : ''}
@@ -1642,14 +1647,24 @@ export function specDuDuel(P, { k = 0, main = [], domicile = true, mise = null, 
   const mots = [...motsEnChiffres(J.malus.toi || {}, null, cadre)];
   for (const x of motsEnChiffres(J.malus.adv || {}, null, cadre)) mots.push({ txt: `Eux : ${x.txt}`, bon: x.bon == null ? null : !x.bon });
   if (J.malus.joueur) mots.push({ txt: I.cle === 'ombre' ? `${c} : presque plus de tirs` : `${c} : moins de tirs, des buts contre, des jambes en moins`, bon: false });
+  /*
+   * UN GESTE SE LIT EN TROIS TEMPS (JP, 17 oct. : *je comprends pas ce choix*) : ce qu'il fait sur la glace et pourquoi
+   * leur intention n'y mord plus (`sous`) ; ce que la contrer rapporte, en vraies stats, d'ici la fin du match (le
+   * contrecoup de l'intention, `J.contre`) ; puis son prix, le temps de la période, avec le système qu'il quitte.
+   */
+  const reste = { ...(cadre || {}), part: (3 - k) / 3, par: 'd\'ici la fin du match' };
+  const retour = [...motsEnChiffres(J.contre.toi || {}, null, reste),
+    ...motsEnChiffres(J.contre.adv || {}, null, reste).map(x => ({ txt: `Eux : ${x.txt}`, bon: x.bon == null ? null : !x.bon }))].filter(x => x.cle !== 'rien');
+  const quitte = (T, de, quoi) => (T[de] ? `${quoi} son ${T[de].ico} ${T[de].nom} le temps de la période` : `${quoi} son système le temps de la période`);
   const GESTE = {
-    deplacer: o => ({ nom: `${nom(o.joueur)} au ${o.vers + 1}e trio`, bon: domicile ? 'Tu as le dernier changement : l\'ombre le perd' : 'Au loin, l\'ombre le suit encore à moitié', prix: `${nom(o.avec)} prend sa place le temps de la période` }),
-    garde: o => ({ nom: `${nom(o.joueur)} à côté de ${nom(o.avec)}`, bon: 'Il dissuade leur dur', prix: `${nom(o.sort)} change de place le temps de la période` }),
-    cycle: o => ({ nom: `Ton ${o.u + 1}e trio en ${TACTIQUES.courtes.ico} ${TACTIQUES.courtes.nom}`, bon: 'Ton Jeu rend quand le centre ferme', prix: 'Il quitte son système le temps de la période' }),
-    maison: o => ({ nom: `Ta ${o.u + 1}e paire en ${SYSTEMES_D.maison.ico} ${SYSTEMES_D.maison.nom}`, bon: 'Leurs tirs viennent de loin', prix: 'Elle ne monte plus le temps de la période' }),
-    basse: () => ({ nom: `La consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom}`, bon: 'Les bâtons en bas', prix: 'Un peu moins de finition le temps de la période' }),
+    deplacer: o => ({ nom: `${nom(o.joueur)} passe au ${o.vers + 1}e trio`, sous: domicile ? 'Tu as le dernier changement : leur ombre le perd de vue.' : 'Au loin, ils ont le dernier changement : l\'ombre le suit encore à moitié.', prix: `${nom(o.avec)} prend sa place le temps de la période` }),
+    garde: o => ({ nom: `${nom(o.joueur)} vient à côté de ${nom(o.avec)}`, sous: 'Leur dur y pensera deux fois avant de frapper.', prix: `${nom(o.sort)} change de trio le temps de la période` }),
+    cycle: o => ({ nom: `Ton ${o.u + 1}e trio passe en ${TACTIQUES.courtes.ico} ${TACTIQUES.courtes.nom}`, sous: 'Il garde la rondelle le long des bandes et ne tire plus du milieu : leur centre fermé ne le touche pas.', prix: quitte(TACTIQUES, o.de, 'Il quitte') }),
+    maison: o => ({ nom: `Ta ${o.u + 1}e paire reste ${SYSTEMES_D.maison.ico} à la maison`, sous: 'Elle ne monte plus : leur assaut ne trouve que des tirs de loin.', prix: quitte(SYSTEMES_D, o.de, 'Elle quitte') }),
+    basse: () => ({ nom: `La consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom}`, sous: 'Les bâtons en bas : ils ne t\'attirent plus au banc des punitions.',
+      prix: `${motsEnChiffres({ finition: IMPORTANCES.basse.finition }, null, cadre).filter(x => x.cle !== 'rien').map(x => x.txt).join(', ') || 'Un peu moins de finition'}, le temps de la période` }),
   };
-  const gestes = (P.reponses || []).filter(o => GESTE[o.cle]).map(o => ({ cle: o.cle, ...GESTE[o.cle](o) }));
+  const gestes = (P.reponses || []).filter(o => GESTE[o.cle]).map(o => ({ cle: o.cle, ...GESTE[o.cle](o), ...(retour.length ? {} : { bon: 'Contrée, leur intention se retourne contre eux' }), mots: retour.map(x => ({ ...x, txt: `Contrée : ${x.txt}` })) }));
   const repond = cle => carteRepond(J, cle);
   const qui = [...new Set(main.filter(repond))].map(x => `${CARTES_MATCH[x].ico} ${CARTES_MATCH[x].nom}`);
   return {

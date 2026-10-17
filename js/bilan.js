@@ -1248,7 +1248,7 @@ function showGameModal(iSerie, iMatch) {
 }
 
 /** Le sommaire d'un match de saison, depuis le calendrier : le compte d'avant, ce sont les journées d'avant. */
-function sommaireDeSaison(jour, k) {
+function sommaireDeSaison(jour, k, soir = {}) {
   const cal = G.ligue && G.ligue.calendrier;
   const m = cal && cal[jour] && cal[jour][k];
   if (!m || !m.feuille) return;
@@ -1261,7 +1261,21 @@ function sommaireDeSaison(jour, k) {
     const gagne = x.feuille.vainqueur === (x.A === suivi ? 'A' : 'B');
     if (gagne) fiche.v++; else if (x.feuille.ot) fiche.pr++; else fiche.d++;
   }
-  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: porteeRevele('saison'), avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière', fiche, jour });
+  sommaireDeMatch({ f: m.feuille, A: m.A, B: m.B, mode: porteeRevele('saison'), avant, titre: `Journée ${jour + 1}`, pied: 'saison régulière', fiche, jour, ...soir });
+}
+/*
+ * LE SOIR D'UN MATCH, AU BUREAU (JP, 17 oct. : *au lieu de modal de victoire, montrer sommaire ?*) : la page du soir
+ * est le sommaire du match lui-même — ses cartons, ses buts par période — et ce que le soir a changé pour ton club
+ * (`apres` : le rang, les jetons, le gros match, les blessures, les nouvelles) monte sous le pointage, avec son bouton
+ * (`boutons`) et sa fermeture (`onFerme`). Rend false hors du bureau : la page d'avant prend le relais.
+ */
+export function sommaireDuSoir(jour, k, { apres = '', boutons = '', onFerme = null } = {}) {
+  const hub = hubActif();
+  const m = G.ligue && G.ligue.calendrier && (G.ligue.calendrier[jour] || [])[k];
+  if (!hub || !hub.ouvrirPage || document.body.dataset.zone !== 'hub' || !m || !m.feuille) return false;
+  // La page du soir garde son genre (`sommaire`) : c'est elle qu'on ferme avant la journée suivante.
+  sommaireDeSaison(jour, k, { apres, boutons, onFerme, genre: 'sommaire' });
+  return true;
 }
 
 // Tout ce qui porte `data-sommaire` ouvre un sommaire : « saison|jour|k »
@@ -1350,7 +1364,7 @@ function differenceHtml(f, A, B) {
     || '<p>Ce soir, rien n\'a renversé un lancer : chaque but serait entré, chaque arrêt se serait fait.</p>'}</div>`;
 }
 
-function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null, jour = null }) {
+function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null, jour = null, apres = '', boutons = '', onFerme = null, genre = 'sommaire-match' }) {
   const tirsA = tirsTotal(f, 'A'), tirsB = tirsTotal(f, 'B');
   const compte = new Map();
   const rang = (p, cle) => { const c = avant.get(p); const k = `${cle}|${getPlayerKey(p)}`; compte.set(k, (compte.get(k) || 0) + 1); return (c ? c[cle] : 0) + compte.get(k); };
@@ -1457,6 +1471,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(A.tag))}"><span>${teamCell(A, 15)}</span><span>${f.gfA}</span><span>${tirsA} tirs</span></div>
       <div class="som-ligne som-ligne-eq" style="${varsEquipe(getTeamBand(B.tag))}"><span>${teamCell(B, 15)}</span><span>${f.gfB}</span><span>${tirsB} tirs</span></div>
     </div>
+    ${apres}
     ${buildDuSoirHtml(f, A, B, jour)}
     ${(pm => (pm.resume.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le résumé du match</span></div><p class="som-plateau-titre">${esc(pm.resume[0])}</p>${pm.resume.slice(1).map(x => `<p>${esc(x)}</p>`).join('')}<details class="som-detail"><summary>Le fil complet du match</summary>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</details></div>` : ''))(
       apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
@@ -1471,7 +1486,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
   // AU BUREAU, UNE PAGE DU CLUB (1.0, R3) ; ailleurs (le bilan, le calendrier de la Ligue), la fenêtre.
   const hub = hubActif();
   if (hub && hub.ouvrirPage && document.body.dataset.zone === 'hub') {
-    brancherEntractes(hub.ouvrirPage({ genre: 'sommaire-match', ico: '📋', titre: enTete, html: corps }));
+    brancherEntractes(hub.ouvrirPage({ genre, ico: '📋', titre: enTete, html: corps, ...(boutons ? { pied: boutons } : {}), ...(onFerme ? { onFerme } : {}) }));
     return;
   }
   $('gameModalTitle').innerHTML = enTete;

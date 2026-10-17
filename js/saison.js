@@ -1951,18 +1951,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     retenir = true;
     // UNE PAGE DU CLUB (1.0, R3), plus un plein écran. UN SEUL BOUTON (JP : *jamais dédoubler information*) :
     // retour au bureau, ou à la boîte s'il y a du courrier à régler.
-    ui.ouvrirPage({
-      genre: 'sommaire', ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓', titre,
-      html: `<div class="som">${blocs.join('')}</div>${attend.length ? `<div class="som-attente">✅ ${attend.length} choix t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : ''}`,
-      pied: `<button type="button" class="btn go hub-page-fermer">${attend.length ? '✅ À faire' : 'Retour au bureau'}</button>`,
-      onFerme: () => {
-        retenir = false;
-        // Ce que le sommaire a dit est lu : la boîte ne le redemande pas (V5).
-        for (const [id] of infos) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); }
-        if (mv.length) boite.archives.add(`mv:${miens.length}:${mv.length}`);
-        dessiner(); if (attend.length) tabs.montrer('journee');
-      },
-    });
+    const attente = attend.length ? `<div class="som-attente">✅ ${attend.length} choix t'attend${attend.length > 1 ? 'ent' : ''} au bureau : ${ctx.esc(attend[0].sujet)}</div>` : '';
+    const pied = `<button type="button" class="btn go hub-page-fermer">${attend.length ? '✅ À faire' : 'Retour au bureau'}</button>`;
+    const onFerme = () => {
+      retenir = false;
+      // Ce que le sommaire a dit est lu : la boîte ne le redemande pas (V5).
+      for (const [id] of infos) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); }
+      if (mv.length) boite.archives.add(`mv:${miens.length}:${mv.length}`);
+      dessiner(); if (attend.length) tabs.montrer('journee');
+    };
+    // UN SEUL MATCH : son sommaire, plutôt qu'une page « Victoire » (JP, 17 oct.) ; ce que le soir a changé monte sous le pointage.
+    if (un && ctx.sommaireDuSoir && ctx.sommaireDuSoir(un.j, un.k, { apres: `<div class="som">${blocs.slice(1).join('')}</div>${attente}`, boutons: pied, onFerme })) return true;
+    ui.ouvrirPage({ genre: 'sommaire', ico: un ? (gagne(un.m, you) ? '✅' : '❌') : '🗓', titre, html: `<div class="som">${blocs.join('')}</div>${attente}`, pied, onFerme });
     return true;
   }
 

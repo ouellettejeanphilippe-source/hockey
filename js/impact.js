@@ -268,20 +268,17 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
   if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, pctTir: -d.pctArr, pctArr: -d.pctTir, punitions: d.punitionsEux, coups: 0 };
   const out = [];
-  if (CANAUX_MATCH.some(k => k in e)) {
-    const l = lignesDe(surLaPart(d, part), par);
-    out.push(...(l.length ? l : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]));
-  }
+  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par));
+  // Une blessure ou des jambes trop petites pour se compter ne prennent pas de puce (JP, 17 oct. : *encore beaucoup de
+  // « à peine perceptible »*) ; un effet qui ne fait rien de lisible le dit une fois, plus bas.
   if (e.blessure != null && !eux) {
     const sur = duree || 82, n = d.blessures * sur;
     if (Math.abs(n) >= 0.1) out.push({ txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${duree ? `sur ${duree} match${duree > 1 ? 's' : ''}` : 'par saison'}`, bon: n < 0, cle: 'blessure' });
-    else out.push({ txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
   }
   if (e.energie != null) {
     // Les jambes d'un club qu'on ne voit pas (eux) : l'usure d'un club comme le tien, sous le même effet.
     const usure = eux ? lire(team, lineup, adv, { effets: [{ energie: e.energie }], n: N_EFFET }).usure - sans.usure : d.usure;
     if (Math.abs(usure) >= 0.1) out.push({ txt: `≈ ${signeDe(usure)}${nb(usure, 1)} ${mot(usure, 'jambe', 'jambes')} d'usure ${par}`, bon: usure < 0, cle: 'jambes' });
-    else out.push({ txt: 'jambes : à peine perceptible', bon: null, cle: 'rien' });
   }
   /*
    * LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée). Elle disait une rangée par trio et par paire touchés,
@@ -294,7 +291,7 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
     const bouts = [plus, moins].filter(b => Math.abs(b.x) >= SEUILS.minutes).map(b => `${b.nom} ≈ ${signeDe(b.x)}${nb(b.x, 1)} min`);
     out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} ${par}` : `${sens}, à peine`, bon: null, cle: 'glace' });
   }
-  return out;
+  return out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
 }
 
 /**
@@ -496,12 +493,17 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
   for (const [x, quoi, cle] of [[d.pctTir, 'de précision', 'pctTir'], [d.pctArr * filet, 'd\'arrêts', 'pctArr']]) {
     if (Math.abs(x) >= SEUILS.pct) out.push({ txt: `Ton club : ≈ ${pt(x)} ${quoi} ${quand}`, bon: x > 0, cle });
   }
+  // Sa blessure : un joueur seul se blesse rarement (mesuré : +20 % de risque, ≈ +0,03 blessure sur une saison). Trop peu
+  // pour un chiffre, elle se dit en un mot, son sens ; à rien, elle se tait.
   if (M.blessure) {
     const n = d.blessures * reste;
-    out.push(Math.abs(n) >= 0.1 ? { txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${quand}`, bon: n < 0, cle: 'blessure' } : { txt: 'blessures : à peine perceptible', bon: null, cle: 'rien' });
+    if (Math.abs(n) >= 0.1) out.push({ txt: `≈ ${signeDe(n)}${nb(n, 1)} ${mot(n, 'blessure', 'blessures')} ${quand}`, bon: n < 0, cle: 'blessure' });
+    else if (Math.abs(n) >= 0.01) out.push({ txt: n > 0 ? 'Un peu plus fragile' : 'Un peu moins fragile', bon: n < 0, cle: 'blessure' });
   }
   const qui = joueur || !p ? [] : [{ txt: M.gardien ? `sur ${p.n}, le partant` : `sur ${p.n}`, bon: null, duree: true }];
-  return [...(out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...badges, ...qui, ...base];
+  // « À peine perceptible » seulement quand rien d'autre ne se dit : ni chiffre, ni badge, ni geste en mots.
+  const ditQuelqueChose = out.length || badges.length || base.some(m => !/^🔗/.test(m.txt || ''));
+  return [...(ditQuelqueChose ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...badges, ...qui, ...base];
 }
 
 /* ---- le club qu'on lit ---- */
