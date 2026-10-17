@@ -3778,7 +3778,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const primaire = trancher
       ? `<button type="button" class="btn go hub-trancher" title="Envoie tes choix d'un coup ; la saison se rejoue une fois">✓ Trancher · ${prets.length} choix</button>`
       : attente
-        ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend ce choix">⏳ ${mot} : ${ctx.esc(attente.sujet)}</button>`
+        // B4 (audit mobile) : une ligne, le compte et le sujet coupé au besoin — le sujet entier se lit dans le choix.
+        ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend ce choix"><span class="hub-traiter-mot">⏳ ${mot} · ${ctx.esc(attente.sujet)}</span></button>`
         // UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas de saut de jour*. V8 : l'avance dit où elle s'arrête.
         : `<button class="btn go hub-jour" title="Une journée ; ce qui se décide attend le lundi">${ctx.rogue ? ctx.esc(motDuJour()) : 'Jour suivant'}</button>`;
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; À faire à part.
@@ -3852,7 +3853,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (tabs.courant() !== 'journee') tabs.montrer('journee');
       redessinerBoite();
       const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(attente.id)}"]`);
-      if (el) { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); const d = el.querySelector('.af-option:not([disabled])'); if (d) d.focus({ preventScroll: true }); }
+      // En haut du volet, pas « au plus près » : au plus près, la barre collée couvrait ses options (audit mobile, B4).
+      if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); const d = el.querySelector('.af-option:not([disabled])'); if (d) d.focus({ preventScroll: true }); }
     };
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();

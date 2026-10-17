@@ -240,6 +240,7 @@ const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une 
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
 const mise = { vue: false, lu: '' };   // la mise doublée, touchée une fois
+const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : le choix déplié au-dessus de la barre (B4)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
   for (let i = 0; i < 30; i++) {
@@ -454,7 +455,21 @@ async function regler() {
         await page.screenshot({ path: png }).catch(() => {});
         throw new Error(`« À régler » existe mais n'est pas visible. Boutons visibles : ${vus || 'aucun'} (capture : ${png})`);
       }
-      await t.click(); await page.waitForTimeout(400); continue;
+      /*
+       * LA BARRE NE CACHE PLUS LE CHOIX (Jalon M, B4) : « ⏳ Encore un choix · … » tient sur une ligne, et le toucher
+       * pose le choix en haut du volet — sa première option au-dessus de la barre collée.
+       */
+      const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
+      if (!mot.txt.startsWith('⏳') || mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
+      await t.click(); await page.waitForTimeout(900);
+      const sb = await page.evaluate(() => {
+        const m = document.querySelector('#hubModal .hub-msg.ouvert'), b = document.querySelector('#hubModal .hub-barre');
+        if (!m || !b || document.querySelector('#choixModal:not([hidden])')) return null;
+        const o = m.querySelector('.af-option');
+        return { sujet: (m.querySelector('.hub-msg-sujet') || {}).textContent || '', opt: o ? o.getBoundingClientRect().bottom : null, barre: b.getBoundingClientRect().top };
+      });
+      if (sb) { barreA.vus++; if (sb.opt != null && sb.opt > sb.barre + 1) barreA.sous.push(`« ${sb.sujet.slice(0, 30)} » : sa 1re option finit à ${Math.round(sb.opt)}, la barre commence à ${Math.round(sb.barre)}`); }
+      continue;
     }
     return;
   }
@@ -1309,6 +1324,9 @@ if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été 
 console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
 if (!flottant.vus) erreurs.push('le bouton flottant n\'a jamais paru (« Ce soir » défilé au bout)');
+console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix dépliés${barreA.sous.length ? `, ${barreA.sous.length} sous la barre` : ', la 1re option au-dessus de la barre chaque fois'}`);
+if (barreA.sous.length) erreurs.push(`la barre collée cache le choix qu'elle ouvre : ${barreA.sous.slice(0, 3).join(' · ')}`);
+if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
 if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();

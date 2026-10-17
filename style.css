@@ -329,7 +329,8 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 /* UN MOT SE TOUCHE (V8) : la bulle d'une étiquette touchée, sous elle, par-dessus tout. */
 .bulle-def { position: fixed; z-index: 900; max-width: min(320px, calc(100vw - 16px)); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 600 var(--t-1)/1.4 var(--corps); box-shadow: var(--relief); pointer-events: none; }
 /* V8 : la cellule « Cartes » de l'en-tête est un bouton (le Rogue) : elle ouvre tes cartes d'où qu'on soit. */
-.tete-cartes { border-top: 0; border-right: 0; border-bottom: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tete-cartes { position: relative; border-top: 0; border-right: 0; border-bottom: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.tete-cartes::before { content: ""; position: absolute; inset: -5px 0; }
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .tete-ch-v { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #menuBtn { grid-area: menu; }
@@ -385,7 +386,7 @@ body:not(.au-repechage) #capGauge { display: none; }
 /* ---- Le retour : une flèche et un mot, comme Échap, B ou le bouton d'Android (js/pile.js) ---- */
 .retour-btn {
   display: inline-flex; align-items: center; gap: 2px; flex: none;
-  min-height: 40px; padding: 0 var(--esp-3) 0 var(--esp-1); border-radius: var(--r-1);
+  min-height: 44px; padding: 0 var(--esp-3) 0 var(--esp-1); border-radius: var(--r-1);
   border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); background: var(--fond-3); color: var(--encre);
   font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em;
   transition: background var(--t-vite), transform var(--t-vite);
@@ -727,7 +728,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .icon-btn:active { transform: scale(0.88); transition-duration: 60ms; }
 .icon-lbl { display: none; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
 .close-btn {
-  flex: none; width: 40px; height: 40px; display: grid; place-items: center; z-index: 3;
+  flex: none; width: 44px; height: 44px; display: grid; place-items: center; z-index: 3;
   border-radius: var(--r-1); border: 1px solid var(--filet); background: transparent; color: var(--encre-2);
   font: 700 var(--t-3)/1 var(--display);
   transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite), background var(--t-vite);
@@ -738,7 +739,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 /* ---- Le segment : une rangée de choix, l'ouvert en blanc cassé ---- */
 .seg { display: flex; gap: 2px; padding: 2px; border-radius: var(--r-1); background: var(--fond-2); }
 .seg button {
-  flex: 1; min-height: 40px; padding: 0 var(--esp-2); border: 0; border-radius: var(--r-1);
+  flex: 1; min-height: 44px; padding: 0 var(--esp-2); border: 0; border-radius: var(--r-1);
   background: none; color: var(--encre-2);
   font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; white-space: nowrap;
   transition: background var(--t-vite), color var(--t-vite), transform var(--t-lent) var(--e-ressort);
@@ -748,7 +749,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .seg button.on { background: var(--choisi); color: var(--sur-choisi); box-shadow: 0 4px 14px -6px var(--choisi); animation: choisi-pop var(--t-lent) var(--e-ressort); }
 @keyframes choisi-pop { from { transform: scale(0.9); } }
 .seg-view { flex: none; }
-.seg-view button { display: inline-flex; align-items: center; gap: var(--esp-1); flex: none; min-height: 36px; padding: 0 var(--esp-3); }
+.seg-view button { display: inline-flex; align-items: center; gap: var(--esp-1); flex: none; min-height: 44px; padding: 0 var(--esp-3); }
 .seg-view .ico { width: 16px; height: 16px; }
 .seg-wrap { flex-wrap: wrap; }
 .seg-wrap button { display: flex; flex-direction: column; align-items: center; gap: 2px; line-height: 1.1; min-height: 48px; padding: var(--esp-2); }
@@ -761,7 +762,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .filters::-webkit-scrollbar, .inv-filtres::-webkit-scrollbar { display: none; }
 .chip, .inv-filtre {
   flex: none; display: inline-flex; align-items: center; gap: var(--esp-1);
-  min-height: 40px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: none; color: var(--encre-2);
+  min-height: 44px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: none; color: var(--encre-2);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; white-space: nowrap;
   transition: background var(--t-vite), color var(--t-vite), transform var(--t-lent) var(--e-ressort);
 }
@@ -775,12 +776,12 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .chip .chip-need.full { color: var(--bon); opacity: 1; }
 
 /* ---- Les champs ---- */
-.search { flex: 1 1 120px; display: flex; align-items: center; gap: var(--esp-2); min-height: 40px; padding: 0 var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border: 1px solid transparent; color: var(--encre-3); }
+.search { flex: 1 1 120px; display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border: 1px solid transparent; color: var(--encre-3); }
 .search:focus-within { border-color: var(--choisi); }
 .search .ico { width: 18px; height: 18px; }
-.search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; padding: 0; font-size: var(--t-2); color: var(--encre); }
+.search input { flex: 1; align-self: stretch; min-width: 0; background: none; border: 0; outline: none; padding: 0; font-size: var(--t-2); color: var(--encre); }
 .search input::placeholder { color: var(--encre-3); }
-.select, .opt-select { flex: 0 1 auto; min-height: 40px; padding: 0 var(--esp-3); border-radius: var(--r-1); border: 1px solid transparent; background: var(--fond-2); color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; }
+.select, .opt-select { flex: 0 1 auto; min-height: 44px; padding: 0 var(--esp-3); border-radius: var(--r-1); border: 1px solid transparent; background: var(--fond-2); color: var(--encre); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; }
 .select:focus, .opt-select:focus { border-color: var(--choisi); outline: none; }
 .opt-select { flex: 1 1 100%; }
 input[type="range"] { accent-color: var(--or); }
@@ -925,7 +926,10 @@ table.data td small { font-size: var(--t-1); color: var(--encre-3); }
   background: none; border: 0; padding: 0; margin: 0; font: inherit; color: inherit;
   text-align: left; cursor: pointer; min-width: 0; display: inline-flex; align-items: center; gap: var(--esp-2);
   border-radius: var(--r-1); transition: color var(--t-vite), background var(--t-vite), transform var(--t-vite);
+  position: relative;
 }
+/* Un nom se touche sur 44 px de haut, centrés sur lui, sans grandir sa rangée (B5) : il n'a que 13 à 22 px de texte. */
+:is(.lien-joueur, .lien-equipe, .eq-joueur)::before { content: ""; position: absolute; inset: calc(50% - 22px) 0; }
 .lien-joueur:hover, .lien-equipe:hover { color: var(--or); }
 .lien-joueur:active, .lien-equipe:active { transform: scale(0.97); }
 .lien-joueur > span, .lien-equipe > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -975,7 +979,7 @@ img.visage.brut { object-position: 50% 12%; }
 body.choix-ouvert { overflow: hidden; }
 body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet { display: flex; flex-direction: column; width: 100%; max-width: 980px; height: 100%; max-height: 100dvh; background: var(--noir); }
-.choix-chiffres { align-self: center; margin-top: var(--esp-2); padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: transparent; color: var(--encre-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.choix-chiffres { align-self: center; min-height: 44px; margin-top: var(--esp-2); padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: transparent; color: var(--encre-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
 .choix-chiffres[aria-pressed="true"] { border-color: var(--or); color: var(--or); }
 /* La tête de TOUTE fenêtre (Jalon U) : l'icône, le titre, sa sous-ligne, le ✕ au bout. */
 .choix-tete { flex: none; display: flex; align-items: center; gap: var(--esp-3); padding: var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); box-shadow: inset 0 3px 0 var(--or); }
@@ -1332,7 +1336,7 @@ a.spin-club:hover { background: var(--fond-2); }
   .spin-name { margin-top: 2px; font-size: var(--t-5); }
   .spin-full, .spin-instruction { display: none; }
   .spin-ext { width: 40px; height: 40px; }
-  .reroll { flex-direction: row; gap: var(--esp-2); min-height: 40px; font-size: var(--t-1); }
+  .reroll { flex-direction: row; gap: var(--esp-2); min-height: 44px; font-size: var(--t-1); }
   /* Deux chiffres : la case qu'on comble et le budget du choix ; les signables sont le badge de l'onglet Marché. */
   .dash { padding: var(--esp-1) var(--esp-3); justify-content: space-between; gap: var(--esp-3); }
   .dash-card { flex: 0 1 auto; display: flex; align-items: baseline; gap: var(--esp-2); padding: 0; border-left: 0; }
@@ -1505,14 +1509,15 @@ a.spin-club:hover { background: var(--fond-2); }
   .pcard-mid { grid-area: mid; }
   .pcard-dest { grid-area: dest; }
   .pcard-dest:empty { display: none; }
-  .pcard .btn-sign { grid-area: sign; width: auto; min-width: 96px; min-height: 40px; font-size: var(--t-2); }
+  .pcard .btn-sign { grid-area: sign; width: auto; min-width: 96px; min-height: 44px; font-size: var(--t-2); }
   .pcard.locked .pcard-mug { opacity: 0.45; }
   .pcard.signed .pcard-mug { outline: 2px solid var(--bon); }
 }
 
 /* ---- La liste de signature du Rogue (Jalon R) : les rangées du vestiaire, la destination calculée, qui se touche ---- */
 .sig-liste { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--esp-3); }
-.sig-changer { display: block; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
+/* Sa zone de toucher, 44 px de haut, autour de la ligne (B5) : des marges négatives, la rangée garde sa hauteur. */
+.sig-changer { display: block; width: 100%; padding: 7px 0; margin: -7px 0; border: 0; background: none; color: inherit; text-align: left; cursor: pointer; }
 /* « Qui sort ? » par trios (JP) : le titre d'une ligne sur toute la largeur, comme dans « Où joue X ? ». */
 .sig-liste > .aln-titre { grid-column: 1 / -1; margin: var(--esp-2) 2px 0; }
 @media (max-width: 679.98px) {
@@ -2357,7 +2362,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* ---- Le pied : les liens en contour, et LE bouton Signer, pleine largeur, toujours sous le pouce ---- */
 .pcard-full-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
 .ext-links { display: flex; flex-wrap: wrap; gap: var(--esp-2); }
-.ext-link { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.01em; white-space: nowrap; }
+.ext-link { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-3); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.01em; white-space: nowrap; }
 .ext-link .ico { width: 16px; height: 16px; }
 .ext-link:hover { color: var(--encre); border-color: var(--encre-3); }
 #modalSignBtn { order: -1; flex: 1 1 100%; min-height: 52px; font-size: var(--t-4); }
@@ -2428,7 +2433,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .ej-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
-.ej-r.a-detail { cursor: pointer; }
+.ej-r.a-detail { min-height: 44px; cursor: pointer; }
 .ej-r.a-detail .ej-nom::after { content: ' ›'; color: var(--encre-3); }
 .ej-r.ouvert .ej-nom::after { content: ' ⌄'; }
 .ej-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
@@ -2461,7 +2466,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pm-tete span { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); text-transform: none; letter-spacing: 0; text-align: right; }
 .pm-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .pm-seg { display: flex; gap: 2px; flex-wrap: wrap; }
-.pm-btn { flex: 1 1 0; min-width: 40px; min-height: 40px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2, transparent); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); white-space: nowrap; }
+.pm-btn { flex: 1 1 0; min-width: 44px; min-height: 44px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2, transparent); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); white-space: nowrap; }
 .pm-btn.on { background: var(--choisi); color: var(--fond-1); border-color: var(--choisi); }
 .pm-consigne .pm-btn, .pm-filet .pm-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--esp-2); min-width: 0; }
 .pm-consigne .pm-btn small, .pm-filet .pm-btn small { font: 600 var(--t-1)/1.2 var(--display); opacity: 0.8; }
@@ -2508,6 +2513,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
   display: grid; place-items: center; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--noir);
   font: 700 var(--t-2)/1 var(--display); white-space: nowrap; cursor: pointer;
 }
+.lien::before { content: ""; position: absolute; inset: -8px; }
 /* Les deux ailiers : sur la case du centre, qui est entre eux — en bas de la carte en colonnes, au bord du bandeau en rangée. */
 .slot > .lien-ailes { z-index: 3; left: 54px; top: 50%; bottom: auto; transform: translate(0, -50%); }
 .line-slots.pair { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -2569,6 +2575,8 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
   font: 700 var(--t-2)/1 var(--display); transition: opacity var(--t-vite), color var(--t-vite); top: 50%; transform: translateY(-50%);
   width: 28px; height: 28px; border-radius: var(--r-1); opacity: 1;
 }
+/* La croix garde ses 28 px ; sa zone de toucher en fait 44 (B5). */
+.slot-remove::before { content: ""; position: absolute; inset: -8px; }
 .slot:hover .slot-remove, .slot.selected .slot-remove { opacity: 1; }
 .slot-remove:hover { color: var(--mauvais); }
 .slot-remove.slot-relacher { opacity: 1; color: var(--mauvais); }
@@ -2627,7 +2635,7 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .slot-tags .tag-table { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
 /* ---- La rangée « Système » au pied d'un trio ou d'une paire : une ligne de 44 px, « Régler › » en or ---- */
-.ln-strat { display: flex; align-items: center; gap: var(--esp-2); width: 100%; padding: 0 var(--esp-3); border: 0; border-top: 1px solid var(--filet); background: none; color: var(--encre-2); text-align: left; font: 600 var(--t-2)/1.2 var(--display); cursor: pointer; transition: background var(--t-vite); min-height: 36px; }
+.ln-strat { display: flex; align-items: center; gap: var(--esp-2); width: 100%; padding: 0 var(--esp-3); border: 0; border-top: 1px solid var(--filet); background: none; color: var(--encre-2); text-align: left; font: 600 var(--t-2)/1.2 var(--display); cursor: pointer; transition: background var(--t-vite); min-height: 44px; }
 .ln-strat:hover { background: var(--fond-2); }
 /* Aligner au mieux (oct.) : un bouton au-dessus des trios, pleine largeur sur mobile. */
 .ln-auto { width: 100%; min-height: 44px; margin: 0 0 var(--esp-2); }
@@ -2822,7 +2830,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .rt-ico { display: grid; place-items: center; }
 /* Les derniers matchs : le résultat à droite, teint ; la rangée ouvre le sommaire. */
 .rt-passes { margin-bottom: var(--esp-3); }
-.rt-joue { cursor: pointer; border-radius: var(--r-1); }
+.rt-joue { min-height: 44px; cursor: pointer; border-radius: var(--r-1); }
 .rt-joue:hover { background: var(--fond-2); }
 .rt-res { font: 700 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); white-space: nowrap; }
 .rt-joue.v .rt-res b { color: var(--bon); }
@@ -2843,7 +2851,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
   /* « À régler » amène le choix au-dessus de la barre collée, ses options comprises (V7 : À faire vit au Bureau). */
-  body.hub-docke .hub-sheet .hub-msg { scroll-margin-bottom: 140px; }
+  body.hub-docke .hub-sheet .hub-msg { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
@@ -2854,7 +2862,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   .hub-eq { padding: var(--esp-2) var(--esp-3); }
   .soir-drame { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; padding-bottom: 0; margin-bottom: var(--esp-2); }
   .hub-barre .hub-jour, .hub-barre .hub-suite { min-height: 48px; font-size: var(--t-3); }
-  .hub-barre .hub-actions-rang .btn { min-height: 36px; }
+  .hub-barre .hub-actions-rang .btn { min-height: 44px; }
   /* Sous le volet, la place du bouton flottant (`.hub-flottant`) : défilé au bout, le dernier rang se lit. */
   body.hub-docke .hub-sheet .hub-volet { order: 3; flex: 1 0 auto; overflow: visible; padding-bottom: calc(var(--flottant-h) + 2 * var(--esp-3)); }
   /* Hors de « Match », le volet seul : l'affiche, la boîte et les boutons appartiennent au Bureau. */
@@ -3054,7 +3062,10 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions .btn { flex: 1 1 140px; }
 .hub-actions .hub-jour, .hub-actions .hub-traiter, .hub-actions .hub-trancher, .hub-actions .hub-suite { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
-.hub-actions .hub-traiter { justify-content: flex-start; text-align: left; white-space: normal; line-height: 1.2; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); border-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 12%, transparent); }
+/* « ⏳ Encore un choix · Tes rivaux » : une ligne, d'une teinte neutre — sur deux lignes en rouge, elle couvrait les
+   options du choix qu'elle annonçait (audit mobile, B4). */
+.hub-actions .hub-traiter { justify-content: flex-start; text-align: left; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); }
+.hub-traiter-mot { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-actions-rang { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions-rang:empty { display: none; }
 .hub-actions-rang .btn { flex: 1 1 120px; min-width: 0; padding: 0 var(--esp-2); font-size: var(--t-3); }
@@ -3062,7 +3073,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 /* Le tournoi Sur table : le niveau de l'adversaire, une rangée à lui sous les boutons. */
 .hub-niveau { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: var(--esp-2); }
 .hub-niveau-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-.hub-niveau .seg button { min-height: 36px; }
+.hub-niveau .seg button { min-height: 44px; }
 
 /* ---- À faire (V9) : une pile de choix du même dessin, pliés sauf celui qu'on règle ---- */
 .hub-boite { flex: 1 1 100%; min-width: 0; display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
@@ -3102,7 +3113,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
 @media (min-width: 700px) { .af-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
 .af-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
-.af-encours > summary { list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); min-height: 32px; display: flex; align-items: center; }
+.af-encours > summary { list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); min-height: 44px; display: flex; align-items: center; }
 .af-encours > summary::-webkit-details-marker { display: none; }
 .af-encours > summary::after { content: " ›"; margin-left: var(--esp-1); }
 .af-encours[open] > summary { color: var(--encre); }
@@ -3788,7 +3799,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .ent-eq { grid-column: 2; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 /* Les points sous la piste : où on en est, et un raccourci pour y aller ; la cible est plus large que le point. */
 .ent-points { display: flex; justify-content: center; margin-top: var(--esp-1); }
-.ent-points button { display: grid; place-items: center; min-width: 44px; height: 36px; padding: 0; border: 0; background: none; }
+.ent-points button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border: 0; background: none; }
 .ent-points button::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--filet); transition: width var(--t-vite), background var(--t-vite); }
 .ent-points button.on::before { width: 20px; border-radius: var(--r-1); background: var(--or); }
 
@@ -4206,7 +4217,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .main-boutons .main-jouer:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 85%, var(--encre)); }
 .main-boutons .main-jouer:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .main-outils { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
-.main-outils .btn { min-height: 40px; padding: 0 var(--esp-3); font-size: var(--t-2); }
+.main-outils .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); }
 /* Mon deck : une ligne par carte, le coût dans un rond d'or, la rareté au flanc ; une maudite, au flanc rouge. */
 .deck-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--esp-2); }
 .deck-mini { display: flex; align-items: center; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border-left: 3px solid var(--tc-bord); font-size: var(--t-2); }
@@ -4250,7 +4261,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 /* Les sauts de ligne : une rangée de boutons collée en haut du corps de la fenêtre. */
 .aln-sauts { flex: none; position: sticky; top: calc(-1 * var(--esp-4)); z-index: 2; display: flex; gap: var(--esp-1); margin: 0 calc(-1 * var(--esp-4)) var(--esp-2); padding: var(--esp-2) var(--esp-4); overflow-x: auto; scrollbar-width: none; background: var(--fond-1); border-bottom: 1px solid var(--filet); }
 .aln-sauts::-webkit-scrollbar { display: none; }
-.aln-saut { flex: 1 0 auto; min-width: 40px; min-height: 36px; padding: 0 var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite), border-color var(--t-vite); }
+.aln-saut { flex: 1 0 auto; min-width: 44px; min-height: 44px; padding: 0 var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre-2); font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.04em; transition: transform var(--t-lent) var(--e-ressort), color var(--t-vite), border-color var(--t-vite); }
 .aln-saut:hover { color: var(--encre); border-color: var(--club-vif); }
 .aln-saut:active { transform: scale(0.92); }
 .aln-rangee { scroll-margin-top: 56px; }
@@ -4608,7 +4619,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions .btn 
 body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #playoffsBtn { display: inline-flex; flex: 0 1 auto; min-height: 44px; padding: 0 var(--esp-4); font-size: var(--t-2); }
 
 /* ---- L'écran des équipes (#pageEquipes) : la barre d'outils et le bandeau du club sont ancrés, seul .eq-scroll défile ---- */
-.eq-retour { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 40px; padding: 0 var(--esp-3) 0 var(--esp-2); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
+.eq-retour { display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-3) 0 var(--esp-2); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
 .eq-retour:hover { color: var(--or); border-color: var(--or); }
 .eq-retour .ico { width: 16px; height: 16px; }
 .eq-source { flex: 0 0 auto; }
@@ -4661,7 +4672,7 @@ body[data-zone="jeu"]:not([data-page="match"]) #game.bilan .result-actions #play
 .eq-table td.stat { text-align: right; font: 700 var(--t-2)/1.2 var(--display); }
 .eq-table td.heros, .eq-table th.heros { color: var(--or); }
 .eq-table td.sub-cell { color: var(--encre-3); font: 700 var(--t-1)/1 var(--display); }
-.eq-joueur { padding: 0; border: 0; background: none; color: var(--encre); font: inherit; text-align: left; cursor: pointer; }
+.eq-joueur { position: relative; padding: 0; border: 0; background: none; color: var(--encre); font: inherit; text-align: left; cursor: pointer; }
 .eq-joueur:hover { color: var(--or); }
 /* Ma ligue : le simulé en tête, la vraie saison sous lui dans la même cellule. */
 .eq-table.eq-double td.stat { line-height: 1.1; }
@@ -4768,7 +4779,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-scroll { overflow-x: auto; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .jr-table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 .jr-table th, .jr-table td { padding: var(--esp-2); text-align: right; white-space: nowrap; border-bottom: 1px solid var(--filet-2); }
-.jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); cursor: pointer; }
+.jr-table th { position: sticky; top: 0; z-index: 1; background: var(--fond-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); height: 44px; cursor: pointer; }
 .jr-table th.on { color: var(--or); }
 .jr-table td { font: 700 var(--t-3)/1.1 var(--display); }
 /* La colonne qui trie se lit en gros, comme les points du prototype : le chiffre qu'on cherche saute aux yeux. */
@@ -4779,7 +4790,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-qui-txt { min-width: 0; }
 .jr-visage { width: 40px; height: 40px; }
 .jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
-.jr-nom { display: block; max-width: 100%; padding: 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 700 var(--t-3)/1.25 var(--corps); }
+.jr-nom { display: block; max-width: 100%; padding: 13px 0; margin: -13px 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 700 var(--t-3)/1.25 var(--corps); }
 .jr-sous { display: block; overflow: hidden; text-overflow: ellipsis; font: 500 var(--t-1)/1.35 var(--corps); color: var(--encre-2); }
 .jr-table tr.reserve td { opacity: 0.6; }
 .jr-bl { font-size: var(--t-1); color: var(--mauvais); }
