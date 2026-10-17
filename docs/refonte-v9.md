@@ -545,7 +545,8 @@ JP : *fusionne, et go pour la tranche 8* ; puis, devant les mesures, *les exigen
 
   - Après sa première Coupe, l'attentif monte au cran 4 ou 5 (une ligue où ses adversaires portent de l'Or) et bute : des runs de deux à cinq saisons, des Coupes qui ne tombent plus d'office.
   - Le robot d'avant : une campagne sans Coupe, l'autre en gagne deux à partir de la run 10.
-  - Preuves : `check_profondeur` (6, nouveau juge : la run qui ne s'aplatit pas), `check_rogue` (les exigences et la ligue, invariants), `check_robot`, `check_clarte`, `check_mort`, `check_emojis`, `check_empreinte`, `tout.mjs` (23), `essai_rogue` (le départ offre le cran ouvert).
+  - `check_rogue` (39 vertes) : la Coupe par run du robot d'avant, de rien à tout débloqué, 0 % → 70 % ; sa première Coupe à la run 7 dans les deux campagnes. `check_robot` (Rogue) : le robot « premier Signer » ne gagne aucune Coupe, même dans la ligue de garage.
+  - Preuves : `check_profondeur` (6, nouveau juge : la run qui ne s'aplatit pas), `check_rogue` (39 : les exigences et la ligue, invariants), `check_robot`, `check_clarte`, `check_mort`, `check_emojis`, `check_empreinte`, `tout.mjs` (23), `essai_rogue` (le départ offre le cran ouvert).
 
 ## Annexe · la méthode des mesures
 
