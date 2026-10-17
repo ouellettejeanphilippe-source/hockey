@@ -409,8 +409,8 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   const perdues = [...avant].filter(id => !apres.has(id) && BANQUE[id].cat !== 'evenement');
   const routes = new Set();
   for (let g = 0; g < 300; g++) for (const n of noeudsDeLaSemaine(`routes-${g}`, 25)) if (n.route === 'evenement') routes.add(n.id);
-  const sansRoute = [...avant].filter(id => BANQUE[id].cat === 'evenement' && !routes.has(id));
-  exiger('aucun événement ne se perd : chacun se gagne aux routes de la semaine', !sansRoute.length && ![...apres].some(id => BANQUE[id].cat === 'evenement'),
+  const sansRoute = idsDe('evenement').filter(id => !BANQUE[id].retire && BANQUE[id].rarete !== 'maudite' && !routes.has(id));
+  exiger('aucun événement ne se perd : chacun se gagne aux routes de la semaine, aucun pack n\'en donne', !sansRoute.length && ![...avant, ...apres].some(id => BANQUE[id].cat === 'evenement'),
     sansRoute.slice(0, 5).join(', ') || `${routes.size} événements aux routes, aucun dans les packs`);
   const comptees = Object.keys(BANQUE).filter(sortDUnPack);
   exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);

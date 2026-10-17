@@ -318,6 +318,8 @@ const MOTS_RESERVES = [
     [`<strong>main de ${TAILLE_MAIN} cartes</strong> dure le match, avec <strong>${ELAN_PAR_PERIODE} d'élan</strong> par période`, 'la main du duel'],
     [MISE_DOUBLEE === 2 ? 'tu peux doubler la mise' : '(la mise ne double plus)', 'la mise doublée'],
     [`commence avec ${DECK_DEPART.length} cartes, ${CAHIER_MAX} au plus`, 'le deck de départ et le cahier borné'],
+    // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
+    [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V9, tranche 5b : tes places et les paliers de la saison.
     [`tes <strong>${PLACES} places</strong>`, 'les places'],
     [`aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, une carte parmi trois`, 'les paliers de la saison'],

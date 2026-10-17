@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
+import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -48,14 +48,14 @@ import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { BANQUE, reglesDe, payloadDe, placeDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
-import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT } from './recit.js';
+import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -1391,6 +1391,49 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   /* L'alignement où le blessé et un autre échangent leurs cases. */
   const echange = (a, b) => { const c = photoAlignement(you.roster), k = c[a]; c[a] = c[b]; c[b] = k; return c; };
+  /*
+   * LES FILS ET LES BLESSÉS DE LA V9 (tranche 6). `filOuvert` : le fil le plus frais des deux dernières semaines qui
+   * ouvre un choix (`CHOIX_DES_FILS`), une fois par sorte et par saison, son joueur encore à toi. Le Cheechoo monte au
+   * 1er trio dans la case de même rôle (`monteeDe`), et celui qui l'occupait prend la sienne ; déjà au 1er trio, son
+   * fil reste une histoire.
+   */
+  const monteeDe = p => {
+    const sP = SLOTS.find(s => you.roster[s.i] === p);
+    if (!sP || sP.group !== 'F' || sP.scratch || sP.unit === 0) return null;
+    const t = SLOTS.find(s => s.group === 'F' && !s.scratch && s.unit === 0 && s.role === sP.role);
+    const X = t ? you.roster[t.i] : null;
+    if (!X || (you.injured && you.injured.has(X))) return null;
+    return { cases: echange(sP.i, t.i), deplace: X };
+  };
+  function filOuvert() {
+    if (!onDecision) return null;
+    const aMoi = new Set(Object.values(you.roster).filter(Boolean));
+    for (const e of filsAuJour().journal.slice().reverse()) {
+      if (e.j < jour - 2 * SEMAINE) break;
+      for (const a of e.fils) {
+        const C = CHOIX_DES_FILS[a.sorte];
+        if (!C || a.fini || pris.has(`fil:${a.sorte}`) || !aMoi.has(a.joueur) || (a.passeur && !aMoi.has(a.passeur))) continue;
+        const m = a.sorte === 'feu' ? monteeDe(a.joueur) : null;
+        if (a.sorte === 'feu' && !m) continue;
+        const noms = { nom: nomCourt(a.joueur.n), deplace: m ? nomCourt(m.deplace.n) : '', passeur: a.passeur ? nomCourt(a.passeur.n) : '' };
+        return { a, C, noms, cases: m ? m.cases : null, deplace: m ? m.deplace : null };
+      }
+    }
+    return null;
+  }
+  /*
+   * JOUER BLESSÉ (js/sim.js `jouerBlesse`) : un patineur, ni commotion, ni fracture, ni ligaments, au plus
+   * `JOUER_BLESSE_MAX` matchs à faire. L'avis du physio (`physioOuvert`) : une absence d'au moins `PHYSIO_MIN` matchs,
+   * à mi-chemin, deux matchs ou plus à faire, une fois par blessure — pas celle qu'À faire règle déjà.
+   */
+  const PHYSIO_MIN = 6;
+  const peutJouerBlesse = b => !!b && b.player.p !== 'G' && !JAMAIS_BLESSE.includes(b.genre) && !!(you.injured && you.injured.has(b.player)) && restantDe(b) <= JOUER_BLESSE_MAX;
+  function physioOuvert() {
+    if (!onDecision) return null;
+    return (you.injuriesLog || []).find(b => b.games >= PHYSIO_MIN && b.at + b.games > miens.length && miens.length - b.at >= b.games / 2 && restantDe(b) >= 2
+      && peutJouerBlesse(b) && (!alerte || alerte.player !== b.player) && !pris.has(`ph:${b.at}:${getPlayerKey(b.player)}`)
+      && SLOTS.some(s => you.roster[s.i] === b.player)) || null;
+  }
 
   /* ---------- la boîte de réception, le dépistage, le sommaire (S78) ---------- */
 
@@ -2281,7 +2324,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * UN ARC À LA UNE (Jalon P, E, js/arcs.js) : son épisode est né d'un fait du moteur et joue ses matchs ; il passe
    * devant le fil s'il est plus frais. Ce qui se lit est déjà arrivé (`a.jour <= jour`).
    */
-  const arcsDeLaSemaine = debut => (you.arcs || []).filter(a => a.jour >= debut && a.jour <= jour);
+  // V9 (tranche 6) : le retour d'un fil se lit comme un arc (js/sim.js `retoursDuMatin`) : sa voix, ses vrais chiffres, son effet.
+  const arcsDeLaSemaine = debut => [...(you.arcs || []), ...(you.retours || [])].filter(a => a.jour >= debut && a.jour <= jour).sort((a, b) => a.jour - b.jour);
   const arcHtml = (a, une) => {
     const x = EXPEDITEURS[a.de] || EXPEDITEURS.en;
     const mots = motsEnChiffres(a.effet).filter(m => m.cle !== 'rien');
@@ -3459,7 +3503,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (alerte) {
       // Le blessé qui s'impose passe devant une annonce plus vieille (le même ordre que l'avance).
       alerte = blessureOuverte() || alerte;
-      const idB = `b:${alerte.at}:${getPlayerKey(alerte.player)}`;
+      const cleBl = getPlayerKey(alerte.player), idB = `b:${alerte.at}:${cleBl}`;
       const n = restantDe(alerte);
       const sl = caseHabillee(you.roster, alerte.player);
       const bal = sl && ctx.ballottage && !pris.has(idB) ? ctx.ballottage(alerte.player, alerte.at) : null;
@@ -3473,10 +3517,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         bal && bal.candidats.length ? { cle: 'rappel', ico: '📋', nom: `Rappel : ${bal.candidats.length} joueurs`, sous: `Au ballottage, moins bons que lui${bal.cout ? ` · ${bal.cout} 🪙` : ''}`, ouvre: true } : null,
         ecole && !reserves.length ? { cle: 'ecole', ico: '📟', nom: `Club-école : ${ecole.p.n}`, sous: 'Gratuit, hors plafond', ouvre: true } : null,
         onBanc && sl ? { cle: 'banc', nom: 'Remanier derrière le banc', sous: 'Tes lignes, la case à combler', ouvre: true } : null,
+        // V9 (tranche 6) : il joue diminué le temps qu'il lui restait ; s'il se blesse encore, l'absence s'allonge.
+        ctx.rogue && sl && peutJouerBlesse(alerte) ? { cle: 'blesse', ico: SITUATIONS.amoche.ico, nom: 'Le jouer blessé', bon: 'Il garde sa case', prix: `Diminué ${n} match${n > 1 ? 's' : ''} ; s'il se blesse encore, l'absence s'allonge` } : null,
       ].filter(Boolean);
       const note = `${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${alerte.games >= BLESSURE_TRAINEE ? cicatriceMot('trainee') : ''}${caseDe(alerte.player) ? ` · ${caseDe(alerte.player)}` : ''}${forcer ? ' · il sort de ton alignement : qui joue sa case ?' : ` · ${remplacant(alerte.player)}`}`;
       out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB: idB, sl, reserves,
-        choix: { recit: note, options, agir: cle => soignerLeBlesse(out.find(m => m.id === idB), cle) } });
+        choix: { recit: note, options, agir: cle => soignerLeBlesse(out.find(m => m.id === idB), cle),
+          decision: () => ({ palier: idB, blesse: { joueur: cleBl } }) } });
     }
     /*
      * LE RETOUR : qui revient, d'où il part et où il va, qui lui cède sa case et où celui-là retourne — deux lignes,
@@ -3512,6 +3559,35 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
             const o = fam.options.find(x => x.cle === cle);
             return { palier: vie.palier, moment: { famille: 'vie', cle: vie.cle, choix: o.cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) }, ...(o.pari ? { sel: nouvelleGraine() } : {}) };
           } } });
+    }
+    /*
+     * UN FIL FORT, UN CHOIX QUI REVIENT (V9, tranche 6 — js/vie-gm.js `CHOIX_DES_FILS`). Le fil des deux dernières
+     * semaines, dit par sa voix : le Cheechoo, la disette, le duo, la recrue, une fois chacun par saison. Chaque option
+     * dit son engagement (`motDuSuivi`) ; le moteur le relit dans les feuilles, et le retour arrive à la une.
+     */
+    const fo = ctx.rogue ? filOuvert() : null;
+    if (fo) {
+      const { a, C, noms, cases } = fo, cle = getPlayerKey(a.joueur), x = messageDuFil(a);
+      out.push({ id: `fil:${a.sorte}`, genre: 'fil', bloque: true, de: x.de, sujet: a.texte, joueur: a.joueur,
+        choix: { recit: `« ${x.mot} » ${C.question}`, joueur: a.joueur,
+          options: C.options.filter(o => !o.monte || cases).map(o => ({ cle: o.cle, nom: avecNoms(o.nom, noms), bon: avecNoms(o.bon, noms), prix: avecNoms(o.prix, noms),
+            ...(o.action ? { action: o.action } : {}), ...(o.rien ? { rien: true } : {}), ...(o.suivi ? { sous: motDuSuivi(o.suivi, noms) } : {}) })),
+          decision: k => ({ palier: `fil:${a.sorte}`, moment: { famille: 'fil', cle: a.sorte, choix: k, joueur: cle, joueurs: [cle],
+            ...(fo.deplace ? { deplace: getPlayerKey(fo.deplace) } : {}), ...(a.passeur ? { passeur: getPlayerKey(a.passeur) } : {}) },
+            ...(C.options.find(o => o.cle === k)?.monte && cases ? { cases } : {}) }) } });
+    }
+    /*
+     * L'AVIS DU PHYSIO (V9, tranche 6) : un blessé à mi-chemin, qui n'a plus que quelques matchs à faire, pourrait revenir
+     * diminué — le même geste que « Le jouer blessé » (`jouerBlesse`, js/sim.js). Une fois par blessure ; il attend le lundi.
+     */
+    const ph = ctx.rogue ? physioOuvert() : null;
+    if (ph) {
+      const n = restantDe(ph), cleP = getPlayerKey(ph.player);
+      out.push({ id: `ph:${ph.at}:${cleP}`, genre: 'physio', bloque: true, de: EXPEDITEURS.ph, joueur: ph.player, sujet: `${ph.player.n} : encore ${n} match${n > 1 ? 's' : ''} d'absence`,
+        choix: { recit: 'Il pourrait revenir tout de suite, pas encore à pleine forme. Moi, j\'attendrais ; c\'est toi qui décides.', joueur: ph.player,
+          options: [{ cle: 'ramener', nom: 'Le ramener maintenant', bon: 'Il rejoue dès ce soir', prix: `Diminué ${n} match${n > 1 ? 's' : ''} ; s'il se blesse encore, l'absence s'allonge` },
+            { cle: 'attendre', nom: 'Attendre', bon: 'Il revient guéri' }],
+          decision: k => (k === 'ramener' ? { palier: `ph:${ph.at}:${cleP}`, blesse: { joueur: cleP } } : { palier: `ph:${ph.at}:${cleP}`, attend: true }) } });
     }
     // V5 : hors du lundi, seul ce qui presse bloque (le gros match, un pack à signer, un blessé à remplacer, une case vide).
     if (!auNoeud()) for (const m of out) if (!PRESSE.has(m.genre)) m.bloque = false;

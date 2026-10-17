@@ -41,15 +41,15 @@ export const PLACES = 3;
 export const SEMAINE = 7;
 /*
  * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, une carte parmi trois, pour une place.
- * Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni carte de match, ni événement, ni
- * personnel, ni permanent : ce qui se joue d'une place. Pur : la graine et le palier.
+ * Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni carte de match, ni personnel, ni
+ * permanent : ce qui se joue d'une place (et aucun pack ne donne plus d'événement). Pur : la graine et le palier.
  */
 export const PALIERS_PACK = [9, 18, 26];
 const CARTES_DU_PALIER = 3;
 export function cartesDuPalier(graine, p) {
   const out = [];
   for (let k = 0; out.length < CARTES_DU_PALIER && k < 12; k++) {
-    for (const id of tirerCartesPack('mixte', graine, `palier${p}${k ? `:${k}` : ''}`, { sans: ['match', 'evenement', 'patron'] })) {
+    for (const id of tirerCartesPack('mixte', graine, `palier${p}${k ? `:${k}` : ''}`, { sans: ['match', 'patron'] })) {
       if (out.length < CARTES_DU_PALIER && BANQUE[id] && BANQUE[id].vie !== 'permanent' && !out.includes(id)) out.push(id);
     }
   }

@@ -139,19 +139,19 @@ export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:speciali
 export const DECENNIES = [1920, 1930, 1940, 1950, 1960, 1970, 1980, 1990, 2000, 2010, 2020];
 export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: '❄ Défense', dur: '🥊 Robustesse', gardien: '🥅 Gardiens', recrue: '🐣 Recrues', veteran: '🧓 Vétérans' };
 
-/* LES PACKS DE CARTES : la banque (js/banque.js). Toutes gardées dans ton inventaire. */
+/* LES PACKS DE CARTES : la banque (js/banque.js). Toutes gardées dans ton inventaire. V9 (JP, 17 oct. : *retire*) : ni
+   Pack Événements, ni événement dans un pack — les gestes du DG sont les routes de la semaine (js/noeuds.js). */
 const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
 export const PACKS_CARTES = {
   patrons: { nom: 'Pack Personnel', ico: '👔', n: 3, prix: 30, cats: ['patron'], cotes: { commune: 45, peu: 35, rare: 16, legendaire: 4 }, texte: 'Trois patrons : le personnel qu\'on engage pour toute la saison.' },
-  evenements: { nom: 'Pack Événements', ico: '📰', n: 4, prix: 15, cats: ['evenement'], cotes: COTES_CARTES, texte: 'Quatre événements d\'équipe.' },
   modifs: { nom: 'Pack Modifs', ico: '🧬', n: 4, prix: 20, cats: ['joueur'], cotes: COTES_CARTES, texte: 'Quatre styles, contrats, améliorations et retouches de joueur.' },
   consommables: { nom: 'Pack Consommables', ico: '🧴', n: 5, prix: 15, cats: ['consommable'], cotes: COTES_CARTES, texte: 'Cinq consommables : un soin, des jambes, le filet, les minutes, un trou dans le règlement.' },
   contrats: { nom: 'Pack Contrats', ico: '💵', n: 4, prix: 20, cats: ['plafond'], cotes: COTES_CARTES, maudite: 0.08, texte: 'Quatre cartes de masse salariale : de l\'espace, une retenue, un rachat… et parfois la taxe de luxe.' },
   match: { nom: 'Pack Cartes de match', ico: '🃏', n: 4, prix: 15, cats: ['match'], cotes: COTES_CARTES, texte: 'Quatre cartes pour ton deck de match.' },
-  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
+  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
   // v2 : le pack d'un coach (js/coachs.js) — quatre cartes de sa couleur, de toutes les familles. Le coach se choisit à l'achat.
-  coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
-  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles, au prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
+  coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
+  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles, au prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
 };
 
 /* Tous les packs, par clé : \`j:\` les joueurs, \`c:\` les cartes. */
@@ -504,7 +504,7 @@ function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
-  // `params.sans` : des familles que ce tirage ne donne pas (le palier de la saison : ni carte de match, ni événement, ni personnel).
+  // `params.sans` : des familles que ce tirage ne donne pas (le palier de la saison : ni carte de match, ni personnel).
   const cats = (coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats).filter(c => !(params.sans || []).includes(c));
   for (let t = 0; t < P.n; t++) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];

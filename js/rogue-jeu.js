@@ -1661,6 +1661,10 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   // Jalon Q : tes places te suivent — leurs cartes pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = placesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });
+  // V9 (tranche 6) : une commotion se garde — d'une saison à l'autre de la run, la suivante s'allonge (`COMMOTION_MEMOIRE`, js/sim.js).
+  const commotions = { ...((decsSaison.find(d => d && d.commotions) || {}).commotions || {}) };
+  for (const b of (L.you && L.you.injuriesLog) || []) if (b.genre === 'commotion') commotions[getPlayerKey(b.player)] = (commotions[getPlayerKey(b.player)] || 0) + 1;
+  if (Object.keys(commotions).length) report.push({ jour: 0, commotions, report: true });
   // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
   packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));

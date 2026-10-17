@@ -248,7 +248,8 @@ function ajouterDecision(avant, d) {
   const allume = (d.joue || d.main) && !d.coach ? palierAllume(avant, d) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
-  const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || (!!d.garde && !d.mutation));
+  // V9 : ni la carte prise à un palier (`place`, elle va à une place), ni « Attendre » le physio (`attend`).
+  const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
   decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
   return { liste: decisions, d };
