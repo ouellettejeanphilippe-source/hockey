@@ -1165,6 +1165,21 @@ if (!blocRun || rejouer) erreurs.push('le bilan ne montre pas la run, ou garde �
 const meta = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
 const nCartable = (await cartable()).length;
 console.log(`14. fin de saison : ${meta.ecussons} écussons · ${meta.runs} run · ${meta.saisons} saison · jalons ${Object.keys(meta.jalons || {}).join(', ') || '(aucun)'} · collection ${(meta.collection || []).length} joueurs · cartable ${nCartable} cartes · personnel ${(meta.personnel || []).length} · inventaire permanent ${Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0)} · dernière équipe ${(meta.derniereEquipe || []).length}`);
+/*
+ * GRAVER (V9, tranche 7) : la saison finie, chaque joueur de ton équipe a sa ligne « chez toi » au cartable (run 1,
+ * saison 1, ses matchs et ses points), ses galons s'il en a, et le panthéon garde au moins le record du club.
+ */
+{
+  const g = await page.evaluate(() => {
+    const c = JSON.parse(localStorage.getItem('cap82_cartable') || '{}'), m = JSON.parse(localStorage.getItem('cap82_rogue') || '{}');
+    const lignes = Object.values(c.joueurs || {}).map(x => (x.chez || []).find(e => e.run === 1 && e.s === 1)).filter(Boolean);
+    return { lignes: lignes.length, joues: lignes.filter(e => e.gp > 0).length, galons: lignes.reduce((a, e) => a + (e.galons || []).length, 0), pantheon: m.pantheon || null };
+  });
+  const P = g.pantheon || { records: {}, trophees: [], chandails: [] };
+  console.log(`14b. graver : ${g.lignes} ligne(s) « chez toi » (${g.joues} avec des matchs) · ${g.galons} galon(s) · panthéon : ${Object.keys(P.records).join(', ') || 'aucun record'} · ${P.trophees.length} trophée(s)`);
+  if (g.lignes < 18) erreurs.push(`la saison gravée ne garde que ${g.lignes} ligne(s) « chez toi »`);
+  if (!P.records.club) erreurs.push('le panthéon ne garde pas le record du club');
+}
 await page.click('#menuBtn');
 await page.waitForSelector('#menuDepart');
 await page.screenshot({ path: `${DOSSIER}/rogue-menu.png` });
