@@ -239,7 +239,10 @@ const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), fo
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
-const mise = { vue: false, lu: '' };   // la mise doublée, touchée une fois
+const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
+// LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
+const SCENES = ['cartes', 'places'];
+const scenes = new Map();
 const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : le choix déplié au-dessus de la barre (B4)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 async function regler() {
@@ -302,6 +305,13 @@ async function regler() {
        */
       if (!mise.vue && await page.$('#choixModal .duel-snap')) {
         mise.vue = true;
+        // LA SCÈNE (Jalon M, A1) : le capitaine la demande, entre guillemets, et le fait nomme le rival.
+        const sc = await page.$eval('#choixModal', m => ({ voix: (m.querySelector('.duel-intention .scene-de') || {}).textContent || '',
+          mot: (m.querySelector('.duel-intention .scene-mot') || {}).textContent || '', fait: (m.querySelector('.duel-intention .scene-fait') || {}).textContent || '',
+          rival: ((m.querySelector('.choix-irl') || {}).textContent || '').replace(/^Contre\s+/, '').trim() }));
+        mise.scene = `${sc.voix.trim()} ${sc.mot.trim()} — ${sc.fait.trim()}`;
+        if (!/^«.+»$/.test(sc.mot.trim()) || !/capitaine/i.test(sc.voix)) erreurs.push(`la mise doublée ne cite pas le capitaine (« ${sc.voix} ${sc.mot} »)`);
+        if (!sc.rival || !sc.fait.includes(sc.rival)) erreurs.push(`le fait de la mise doublée ne nomme pas le rival « ${sc.rival} » (« ${sc.fait} »)`);
         await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
         const lu = await page.$eval('#choixModal .duel-snap', b => {
           const t = document.createElement('i'); t.style.background = 'var(--or)'; document.body.appendChild(t);
@@ -413,11 +423,18 @@ async function regler() {
         forme: !!el.querySelector('.hub-msg-corps > .af-options .choix-option.af-option'),
         compris: [...el.querySelectorAll('button')].some(b => /^\s*Compris\s*$/.test(b.textContent)),
         etat: (el.querySelector('.hub-msg-corps > .choix-puces') || {}).textContent || '',
+        scene: ((el.querySelector('.hub-msg-corps > .scene .scene-mot') || {}).textContent || '').trim(),
+        fait: ((el.querySelector('.hub-msg-corps > .scene .scene-fait') || {}).textContent || '').trim(),
+        de: ((el.querySelector('.hub-msg-de') || {}).textContent || '').trim(),
         sous: [...el.querySelectorAll('.af-option .choix-option-sous')].map(x => x.textContent.trim()),
         opts: [...el.querySelectorAll('.af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
       afaire.genres.add(lu.genre); afaire.ouverts++;
       if (!lu.forme) afaire.formes.push(`${lu.genre} « ${lu.sujet} »`);
       if (lu.compris) erreurs.push(`« ${lu.sujet} » demande encore « Compris » dans À faire`);
+      if (SCENES.includes(lu.genre)) {
+        if (!/^«.+»$/.test(lu.scene) || !lu.fait) erreurs.push(`« ${lu.sujet} » (${lu.genre}) ne cite pas sa voix (« ${lu.scene} »)`);
+        if (!scenes.has(lu.genre)) scenes.set(lu.genre, `${lu.de} ${lu.scene} — ${lu.fait}`);
+      }
       if (!afaire.vu) { afaire.vu = true; await page.screenshot({ path: `${DOSSIER}/rogue-afaire.png` }); }
       if (/ta route/i.test(lu.sujet) && !afaire.route) {
         afaire.route = lu.etat; afaire.sous = lu.sous;
@@ -1328,6 +1345,7 @@ console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix dépliés$
 if (barreA.sous.length) erreurs.push(`la barre collée cache le choix qu'elle ouvre : ${barreA.sous.slice(0, 3).join(' · ')}`);
 if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
 if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
+console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);

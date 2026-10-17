@@ -58,6 +58,10 @@ export const EXPEDITEURS = {
   li: { ico: '🪪', nom: 'La ligue' },
   pa: { ico: '🧣', nom: 'Un partisan fidèle' },
   ma: { ico: '🗳', nom: 'Le maire' },
+  // Les voix d'À faire (Jalon M) : elles vivaient à part dans js/saison.js (`DE`) ; une seule distribution.
+  me: { ico: '🩺', nom: 'Le médecin' },
+  dg: { ico: '📋', nom: 'Le DG' },
+  dp: { ico: '🔎', nom: 'Le dépisteur' },
 };
 
 const TOUS = MOMENTS_DE_SAISON.join(' ');
