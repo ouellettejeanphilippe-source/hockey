@@ -300,7 +300,7 @@ export const FIL_MARQUANT = 5;
 const oublier = (e, sorte) => { for (const c of [...e.crans]) if (c.startsWith(`${sorte}:`)) e.crans.delete(c); };
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 /** « de Oates » → « d'Oates ». */
-const deNom = nom => (/^[AEIOUYÉÈÊÎ]/.test(nom) ? `d'${nom}` : `de ${nom}`);
+export const deNom = nom => (/^[AEIOUYÉÈÊÎ]/.test(nom) ? `d'${nom}` : `de ${nom}`);
 
 export function filsDeSaison(calendrier, you, jusqua = Infinity) {
   const etat = new Map();

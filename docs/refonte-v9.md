@@ -268,7 +268,7 @@ Chaque tranche a son script, et chacun passe par `scripts/verdict.mjs` :
 3. **Le plan et le profil** (moteur, Rogue seulement) : les familles payées par le coach et le système ; les systèmes ramenés à 4 et 4 (§ 15) ; l'écran du profil. Juges : `check_fit`, `check_ratings`, `check_graine`, `check_voies`.
 4. **Le plafond qui mord**, la liste qui classe pour ton plan, et **un départ bien pire** (JP, 16 oct. : *you should start with a way worse team*). On part d'une équipe beaucoup plus faible, et c'est le plan et le marché qui la font monter. Le mandat de la saison 1 se règle avec elle. Juge : `check_rogue` (la première run reste dure, mais une équipe faible bien menée monte).
 5. **Le duel en trois périodes**, les intentions, la main qui dure. Juges : `check_duel`, `check_gros`, `check_robot`. *Fait (§ 17). La poche, la main de la semaine et les places (§ 6.4) n'étaient dans aucune tranche : faites en tranche 5b (§ 18).*
-6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`.
+6. **Raconter et blesser** : les fils et les blessures deviennent des choix qui reviennent. Juges : `check_fils`, `check_vie`, `check_arcs`. *Fait (§ 19) ; son juge : `check_retours`.*
 7. **Graver** : l'histoire chez toi, les galons, le panthéon. Juges : `check_sauvegardes`, `essai_rogue`.
 8. **Recalibrer la run** sur les deux robots.
 
@@ -433,6 +433,28 @@ JP : *Continuer*, après la proposition de la tranche 5b. Ce que § 6.4 décriva
 - [x] **Le cahier borné** (`CAHIER_MAX`, js/combat.js) : ton deck de match, 20 cartes au plus. Au-delà, une carte du départ cède sa place (la plus répétée), puis la plus ancienne gagnée ; une malédiction ne cède jamais. L'écran du deck dit « N sur 20 ».
 - [x] **Les juges** : `check_deck` (40) dit les places sans limite par semaine, le report, les paliers purs et la carte prise, le cahier borné ; `check_packs` (76) compte la banque sur les packs de la boutique, et chaque événement se gagne aux routes ; `essai_rogue` montre les places dans « Ce soir ». Les robots de `scripts/lib/rogue_sim.mjs` ne jouent pas de carte de place : `check_rogue` et `check_profondeur` ne bougent pas.
   - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_css`, `check_deck` (40), `check_packs` (76), `check_noeuds`, `check_rogue` (32 ; 0 % → 70 %, inchangé), `essai_rogue`.
+
+## 19. Fait le 17 octobre : la tranche 6, raconter et blesser
+
+JP : *Continuer*. Ce que § 6.6 et § 6.7 décrivaient, sur les canaux qui existent (docs/decisions.md).
+
+- [x] **Un fil fort, un choix qui revient** (`CHOIX_DES_FILS`, js/vie-gm.js). En Rogue, le fil des deux dernières semaines ouvre un choix dans À faire, dit par sa voix, une fois par sorte et par saison :
+
+  | Le fil | Les options | Le retour (relu dans les feuilles) |
+  |---|---|---|
+  | 🔥 Le Cheechoo | le monter au 1er trio (il prend la case de même rôle) ; ne rien changer | 10 matchs : 4 buts, il garde le feu ; sinon, celui qu'il a délogé demande à jouer |
+  | 🥶 La disette | le reposer deux matchs ; lui parler ; le laisser jouer | 8 matchs : 2 buts, la lancée revient ; lui parler et rien : le doute s'installe |
+  | 🤝 Le duo | les garder ensemble ; ne rien promettre | 10 matchs : 3 buts du duo, leur lien est nommé pour la saison ; sinon, ils se lassent |
+  | 🐣 La recrue | lui faire confiance ; le protéger (des jambes neuves) | 10 matchs : 6 points, il s'impose pour la saison ; sinon, un trou de mémoire |
+
+  Le retour est un SUIVI que le moteur engage au choix (`engagerSuivi`) et relit le matin qui suit son dernier match (`retoursDuMatin`) : ses buts, ses points ou les buts du duo, dans ces feuilles-là et seulement elles. Le seuil décide ; l'effet se pose sur le joueur nommé (ses canaux à lui, comme un arc), le temps de ses matchs. Aucun dé. Le retour se lit à la une, dit par la voix du fil, avec ses vrais chiffres (`texteDuRetour`) : « Ladd : 4 buts en 10 matchs depuis qu'il est monté. Il garde le feu. »
+- [x] **Les blessures, un prix et une mémoire** (js/sim.js) :
+  - **Le jouer blessé** : une option du choix de la blessure (ni commotion, ni fracture, ni ligaments ; 8 matchs ou moins à faire, `JOUER_BLESSE_MAX`). Il sort de l'infirmerie le jour même et joue diminué, « Il joue amoché », le temps qu'il lui restait. S'il se blesse encore pendant ce temps, l'aggravation : il manque aussi ce temps-là (`jouerBlesse`, `applyInjuries`).
+  - **L'avis du physio** : un blessé d'au moins six matchs, à mi-chemin, peut revenir plus tôt, par le même geste. Une fois par blessure ; il attend le lundi.
+  - **La commotion se garde** : en Rogue, chaque commotion d'avant d'un joueur allonge la suivante de moitié (`COMMOTION_MEMOIRE`), cette saison et les saisons d'avant de la run (le report `commotions`).
+- [x] **Ce qui n'est pas fait** : le vétéran mentor de la recrue (§ 6.7) attend les galons (tranche 7) ; le joueur délogé ne fait pas encore un second choix, il boude ; les robots de `rogue_sim` ne prennent ni ces choix ni le jouer blessé.
+- [x] **Les juges** : `check_retours` (nouveau, deux minutes, trois ligues) : 15 vertes — neuf choix de fils (🥶 3, 🤝 3, 🔥 2, 🐣 1), chacun sans toucher aux journées d'avant, son retour le bon matin et recompté dans ses feuilles ; trois blessés joués blessés, une aggravation ; trois commotions avec mémoire, aucune hors du Rogue.
+  - Preuves : `tout.mjs` (22), `check_mort`, `check_clarte`, `check_emojis`, `check_retours`.
 
 ## Annexe · la méthode des mesures
 

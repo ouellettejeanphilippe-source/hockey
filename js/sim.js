@@ -19,7 +19,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
-import { MOMENTS_VIE, REPONSES_VIE } from './vie-gm.js';
+import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
+import { nomCourt } from './recit.js';
 
 export const CAP = 95_500_000;
 /*
@@ -3040,10 +3041,10 @@ export const MOMENTS = {
 
 /*
  * LA FAMILLE D'UNE DÉCISION DE MOMENT : un dilemme (`moment`), une séquence, ou la réponse à un courriel ou
- * à un point de presse (`vie`, js/vie-gm.js). Les trois ont la même forme { ico, titre, options } et passent
+ * à un point de presse (`vie`, js/vie-gm.js), ou le choix d'un fil (`fil`, V9). Tous ont la même forme { ico, titre, options } et passent
  * par les mêmes fonctions : `effetDeMoment`, `appliquerGestes`, `pariDeDecision`.
  */
-export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : MOMENTS[m.cle]);
+export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : m.famille === 'fil' ? CHOIX_DES_FILS[m.cle] : MOMENTS[m.cle]);
 
 export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];
 /* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
@@ -3178,8 +3179,8 @@ export function effetDeMoment(d, team = null) {
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
@@ -5785,12 +5786,17 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
     delete p._sonne; delete p._bagarrePerdue;
     const plein = Math.max(0.25, 1 - 0.25 * Math.max(0, team.injured.size - INFIRMERIE_PLEINE));
     if (hasard() < injuryChance(p, heavy) * frappe * plein * dissuasion * soiree * effetsDeSaison(team).blessure * situDe(p, 'blessure') * usee * mutDe(p, 'blessure')) {
-      const n = injuryLength();
-      const genre = genreDeBlessure(p, team, n, causes);
+      const tire = injuryLength();
+      const genre = genreDeBlessure(p, team, tire, causes);
+      // V9 (tranche 6) : la commotion qui se souvient des autres ; l'aggravation d'un joueur qui jouait blessé.
+      const memoire = team.courbe && genre === 'commotion' ? commotionsDe(team, p) : 0;
+      const jb = (team.blessesQuiJouent || []).find(x => x.p === p && (team.jourCourant ?? 0) < x.fin);
+      const n = Math.min(40, Math.round(tire * (1 + COMMOTION_MEMOIRE * memoire)) + (jb ? jb.dette : 0));
       team.injured.set(p, n);
       p.simInj = (p.simInj || 0) + n;
       // `avant` : l'alignement du soir où il s'est blessé (sa case d'avant, pour son retour — `retourDuBlesse`, js/ballottage.js). Aucun hasard.
-      team.injuriesLog.push({ player: p, games: n, genre, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null, avant: photoAlignement(team.roster) });
+      team.injuriesLog.push({ player: p, games: n, genre, at: team.games + 1, jour: Number.isFinite(team.jourCourant) ? team.jourCourant : null, avant: photoAlignement(team.roster),
+        ...(memoire ? { memoire } : {}), ...(jb ? { aggrave: jb.dette } : {}) });
       if (feuille && cote) (feuille.blessures = feuille.blessures || []).push({ cote, joueur: p, matchs: n, genre, instant: instantDeBlessure(feuille, p, team) });
     }
   }
@@ -6517,7 +6523,11 @@ function appliquerDecision(team, d, graine = 0) {
     const fam = familleDeMoment(d.moment);
     const o = fam && fam.options.find(x => x.cle === d.moment.choix);
     if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, cleDuPari(d), fam.titre);
+    if (o && o.suivi && d.moment.famille === 'fil') engagerSuivi(team, d, o, fam);
   }
+  // V9 (tranche 6) : le jouer blessé, ou le ramener plus tôt (`jouerBlesse`) ; les commotions des saisons d'avant de la run.
+  if (d.blesse && d.blesse.joueur) jouerBlesse(team, d.blesse.joueur, d.jour);
+  if (d.commotions && typeof d.commotions === 'object') team.commotions = { ...d.commotions };
   if (d.avant && AVANT_GROS[d.avant.cle]) {
     const o = AVANT_GROS[d.avant.cle].options.find(x => x.cle === d.avant.choix);
     if (o) appliquerGestes(team, o, d.jour, d.avant.joueurs, graine, cleDuPari(d), AVANT_GROS[d.avant.cle].titre);
@@ -6866,6 +6876,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
       for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null; t.effetsCibles = [];
+      t.suivis = []; t.retours = []; t.blessesQuiJouent = []; t.commotions = null;
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null; t.rivaux = null; t.beteNoire = null;
       for (const s of SLOTS) if (t.roster[s.i]) { delete t.roster[s.i]._situ; delete t.roster[s.i]._recents; delete t.roster[s.i]._lancee; }
     }
@@ -7002,6 +7013,7 @@ function preludeDuJour(L) {
       if (e.cible === 'equipe') toi.effets.push(x);
       else (toi.effetsCibles = toi.effetsCibles || []).push({ ...x, joueur: e.joueur, contre: e.contre });
     }
+    retoursDuMatin(toi, r);
     effetsDesJoueurs(toi, r);
   }
 }
@@ -7017,6 +7029,84 @@ export function effetsDesJoueurs(team, jour) {
     for (const c of CANAUX_MUT) if (typeof e[c] === 'number') fx[c] = (fx[c] || 1) * e[c];
   }
 }
+/*
+ * LES FILS QUI REVIENNENT (V9, tranche 6 — docs/refonte-v9.md § 6.7, js/vie-gm.js `CHOIX_DES_FILS`). Le choix d'un fil
+ * engage un SUIVI, à partir du nombre de matchs déjà au journal du club ; `apres` matchs plus tard, `retoursDuMatin`
+ * relit ces feuilles-là, et seulement elles : les buts du joueur nommé, ses points, ou les buts du duo. Le seuil
+ * décide de ce qui arrive (`gagne`, `perd`), posé sur les joueurs nommés, le temps de ses matchs. Aucun dé : la
+ * saison rejouée relit les mêmes feuilles. `t.retours` garde ce qui est arrivé, pour la une.
+ */
+function engagerSuivi(team, d, o, fam) {
+  const qui = k => (k ? Object.values(team.roster || {}).find(x => x && getPlayerKey(x) === k) || CONNUS.get(k) || null : null);
+  const joueur = qui(d.moment.joueur);
+  if (!joueur) return;
+  (team.suivis = team.suivis || []).push({ cle: d.moment.cle, choix: o.cle, titre: fam.titre, ico: fam.ico, jour: d.jour, matchs0: (team.journal || []).length,
+    joueur, deplace: qui(d.moment.deplace), passeur: qui(d.moment.passeur), suivi: o.suivi, fait: false });
+}
+/* Ce que les feuilles d'un suivi disent : ses buts, ses points, ou les buts du duo. */
+function mesureDuSuivi(s, feuilles) {
+  let n = 0;
+  for (const f of feuilles) for (const b of (f && f.buts) || []) {
+    const passe = (b.passeurs || []).includes(s.joueur);
+    if (s.suivi.mesure === 'buts' && b.marqueur === s.joueur) n++;
+    else if (s.suivi.mesure === 'points' && (b.marqueur === s.joueur || passe)) n++;
+    else if (s.suivi.mesure === 'duo' && b.marqueur === s.joueur && s.passeur && (b.passeurs || []).includes(s.passeur)) n++;
+  }
+  return n;
+}
+function retoursDuMatin(t, jour) {
+  const j = t.journal || [];
+  for (const s of t.suivis || []) {
+    if (s.fait || j.length - s.matchs0 < s.suivi.apres) continue;
+    s.fait = true;
+    const n = mesureDuSuivi(s, j.slice(s.matchs0, s.matchs0 + s.suivi.apres).map(e => e.feuille));
+    const gagne = n >= s.suivi.seuil, B = gagne ? s.suivi.gagne : s.suivi.perd;
+    const noms = { nom: nomCourt(s.joueur.n), deplace: s.deplace ? nomCourt(s.deplace.n) : '', passeur: s.passeur ? nomCourt(s.passeur.n) : '' };
+    const effet = {};
+    if (B) for (const e of B.effets || []) {
+      const { sur, ...canaux } = e, cible = s[sur];
+      if (!cible) continue;
+      (t.effetsCibles = t.effetsCibles || []).push({ debut: jour, fin: apresMatchs(t, jour, B.duree), source: 'fil', nom: s.titre, joueur: cible, ...canaux });
+      Object.assign(effet, canaux);
+    }
+    (t.retours = t.retours || []).push({ cle: s.cle, choix: s.choix, jour, titre: `${s.ico} ${s.titre} : le retour`, de: voixDuFil(s.cle), texte: texteDuRetour(s.suivi, gagne, n, noms),
+      effet, matchs: B ? B.duree : 0, cible: B ? 'joueur' : 'equipe', pour: B ? noms.nom : null, joueur: s.joueur, n, gagne, debut: s.jour, matchs0: s.matchs0 });
+  }
+}
+
+/*
+ * JOUER BLESSÉ (V9, tranche 6 — docs/refonte-v9.md § 6.6). Au lieu de l'infirmerie, il joue diminué le temps qu'il lui
+ * restait — le profil « Il joue amoché » (`SITUATIONS.amoche`) : il tire moins bien et se blesse plus. S'il se blesse
+ * encore pendant ce temps, l'AGGRAVATION : sa nouvelle absence s'allonge de ce qu'il avait emprunté (`applyInjuries`).
+ * Le même geste ramène plus tôt un blessé en voie de guérir (l'avis du physio). Le physio refuse une commotion, une
+ * fracture, des ligaments, ou plus de `JOUER_BLESSE_MAX` matchs à faire. Aucun dé : le tirage des blessures reste le même.
+ */
+export const JOUER_BLESSE_MAX = 8;
+export const JAMAIS_BLESSE = ['commotion', 'fracture', 'ligaments'];
+function jouerBlesse(team, cle, jour) {
+  const p = [...team.injured.keys()].find(x => getPlayerKey(x) === cle);
+  const n = p ? team.injured.get(p) : 0;
+  const b = p ? (team.injuriesLog || []).filter(x => x.player === p).at(-1) : null;
+  if (!p || !b || n > JOUER_BLESSE_MAX || JAMAIS_BLESSE.includes(b.genre)) return;
+  team.injured.delete(p);
+  // L'infirmerie se relit dans le journal (l'écran, le retour) : il en sort ce matin, et il joue blessé `n` matchs.
+  b.games = Math.max(0, team.games - b.at);
+  b.joueBlesse = n;
+  p.simInj = Math.max(0, (p.simInj || 0) - n);
+  const fin = apresMatchs(team, jour, n);
+  const { finition, lancers, blessure } = SITUATIONS.amoche;
+  (team.effetsCibles = team.effetsCibles || []).push({ debut: jour, fin, source: 'blesse', nom: SITUATIONS.amoche.nom, joueur: p, finition, lancers, blessure });
+  (team.blessesQuiJouent = team.blessesQuiJouent || []).push({ p, fin, dette: n });
+  effetsDesJoueurs(team, jour);
+}
+/*
+ * LA COMMOTION SE GARDE (V9, tranche 6). En Rogue, chaque commotion d'avant — cette saison, ou les saisons d'avant de
+ * la run (`commotions`, le report) — allonge la suivante de `COMMOTION_MEMOIRE`. La durée tirée reste la même.
+ */
+const COMMOTION_MEMOIRE = 0.5;
+const commotionsDe = (team, p) => ((team.commotions && team.commotions[getPlayerKey(p)]) || 0)
+  + (team.injuriesLog || []).filter(b => b.player === p && b.genre === 'commotion').length;
+
 /* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
 const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));
 
