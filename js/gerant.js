@@ -393,6 +393,14 @@ function nommer({ joueur = null, joueurs = [], ouDe = null }) {
   return { nom, ou, noms, sub };
 }
 /*
+ * UNE SCÈNE (Jalon M, js/scenes.js) : la réplique d'une voix entre guillemets, et le fait sous elle. Dans À faire, la
+ * voix est déjà dans la bande du choix ; ailleurs (le duel), `voix` la dit en tête.
+ */
+export function sceneHtml(sc, { voix = false } = {}) {
+  return `<blockquote class="scene">${voix ? `<span class="scene-de">${glyphe(sc.de.ico)} ${esc(sc.de.nom)}</span>` : ''}<p class="scene-mot">« ${esc(sc.mot)} »</p><p class="scene-fait">${esc(sc.fait)}</p></blockquote>`;
+}
+
+/*
  * UNE OPTION, UN DESSIN (JP : *le UI est convoluted, ça pourrait être plus streamlined*). Le nom, sa forme (Cadeau,
  * Échange, Pari), ce qu'elle change en vraies stats sur une ligne, puis le bon et le prix en mots : le même bouton
  * pour un événement, la route de la semaine, le proprio, une carte de vestiaire et l'écran de la semaine.
@@ -1521,7 +1529,7 @@ export function ouvrirMainDeMatch(spec) {
           ${D.deja ? `<p class="duel-deja">✓ ${esc(D.deja)}</p>` : ''}
           <div class="duel-gestes">${D.gestes.map(o => optionHtml(o, {}, { classe: 'duel-geste', attr: `data-geste="${esc(o.cle)}"`, on: geste === o.cle, mots: o.mots || [] })).join('')}</div>
           ${D.cartes ? `<p class="duel-cartes">${esc(D.cartes)}</p>` : ''}
-          ${D.mise ? `<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise)}</button>` : ''}
+          ${D.mise ? `${sceneHtml(D.mise, { voix: true })}<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise.chiffres)}</button>` : ''}
         </div>` : ''}
         ${spec.contexte ? `<details class="main-plie"><summary>Ce qu'ils jouent ce soir</summary>${spec.contexte}</details>` : ''}
         ${vestiaire}

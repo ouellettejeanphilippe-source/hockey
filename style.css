@@ -3107,6 +3107,11 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-msg-corps { display: none; flex-direction: column; gap: var(--esp-2); padding: 0 var(--esp-3) var(--esp-3); }
 .hub-msg.ouvert .hub-msg-corps { display: flex; }
 .hub-msg-mot, .hub-msg-note { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+/* LA SCÈNE (Jalon M) : la voix qui demande, sa réplique entre guillemets, le fait dessous — un filet d'or à gauche. */
+.scene { display: flex; flex-direction: column; gap: 2px; margin: 0; padding-left: var(--esp-3); border-left: 3px solid var(--or); }
+.scene-de { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.scene-mot { margin: 0; font-size: var(--t-3); line-height: 1.4; color: var(--encre); }
+.scene-fait { margin: 0; font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .hub-msg-note { color: var(--encre-3); }
 /* Les options d'un choix : le bouton `optionHtml`, serré, une colonne au téléphone. Une option › ouvre son écran (le combat, le
    paquet, une liste) au lieu de se cocher. */

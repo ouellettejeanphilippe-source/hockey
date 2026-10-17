@@ -54,6 +54,7 @@ js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lu
 js/direct.js          un match en direct, rejoué depuis sa feuille
 js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match
+js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
 js/causes.js          ce qui a fait le match : les causes qui ont décidé d'un lancer, dites à ton club (sommaire, direct, bilan)
 js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
@@ -159,6 +160,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son club (un nom et SON écusson, vendus ensemble) et ses couleurs s'achètent en jetons à la boutique, comme les packs, et se portent aux déblocages (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 - Ce qu'un texte affirme d'un match (un rythme, une disette, trois punitions en deux matchs) est arrivé dans les feuilles déjà jouées, et il dit les vrais chiffres — `check_fils`, `check_vie`.
+- Un choix du Rogue dit qui le demande (une voix d'`EXPEDITEURS`), pourquoi maintenant (le fait, en vrais chiffres) et ce qu'elle en pense (une réplique sans chiffre) : une scène de `js/scenes.js` — `check_clarte` § 5, `essai_rogue`.
 
 **Le code et les tests**
 - Modules ES natifs, pas de build step, aucune dépendance npm.
@@ -199,6 +201,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **rival** : un club à deux rangs ou moins ; la **bête noire** 😤 : celui qui t'a battu deux fois ; **ta rivalité** : le club le plus croisé en gros match.
 - **fil** : une histoire de ta saison lue dans les feuilles jouées (la course, le Cheechoo, la disette, le duo…, `filsDeSaison`, js/recit.js) ; **la une** : le fil le plus lourd d'hier soir, au bureau. En Rogue (V9), un fil fort (le Cheechoo, la disette, le duo, la recrue) ouvre un choix dans À faire (`CHOIX_DES_FILS`, js/vie-gm.js) ; son **retour** se relit dans les feuilles quelques matchs plus tard, à la une, avec ses vrais chiffres (`retoursDuMatin`, js/sim.js) — `check_retours`.
 - **jouer blessé** : en Rogue, un blessé (ni commotion, ni fracture, ni ligaments ; 8 matchs ou moins à faire) joue diminué — « Il joue amoché » — le temps qu'il lui restait ; blessé encore, il manque aussi ce temps-là (`jouerBlesse`, js/sim.js). Le physio peut aussi ramener plus tôt un blessé à mi-chemin. Une commotion se garde : la suivante s'allonge, d'une saison à l'autre de la run.
+- **scène** : la mise en scène d'un choix du Rogue — la voix qui le demande, sa réplique entre guillemets, le fait sous elle (`sceneDeLaMise`, `sceneDuPalier`… js/scenes.js) ; le prix et le gain restent aux options.
 - **voix** : qui écrit dans la boîte (le proprio, l'entraîneur, l'analyste à la télé, les partisans, le capitaine, le physio, le joueur lui-même…) — une seule distribution, `EXPEDITEURS` (js/vie-gm.js). Une voix dit le fait d'un fil et y ajoute une opinion, jamais un chiffre — `check_fils`. En Rogue, le soir où un fil rare naît (le Cheechoo, la recrue, 40 buts, un rythme de 50), sa voix paie une **prime** en jetons (`primesDesFils`, js/rogue.js).
 - **lancée** : en Rogue, un joueur qui vient de marquer beaucoup finit mieux tant que ça dure ; le **doute**, le vrai marqueur en panne qui finit moins bien (`lanceeDe`, js/sim.js — `check_lancee`). Pas « confiance », qui est aux coachs ; jamais dans le 82-0. La lancée **vive** est celle de ☄️ l'étincelle ; la braise, la traînée de poudre et le vendeur de chandails l'entretiennent (le premier combo du Rogue, `check_combo`).
 - **trait** : ce qu'un vote ou une réputation donne au joueur (🛡️ Selke, ⚡ vitesse) ; un **trophée** se décerne au bilan, sur les colonnes.

@@ -17,6 +17,9 @@
  *   4. SES CHIFFRES SONT CEUX DU CODE : chaque nombre qu'elle annonce se
  *      reconstruit ici depuis sa constante — une règle recopiée est une règle
  *      qui ment tôt ou tard.
+ *   5. CHAQUE CHOIX DIT QUI LE DEMANDE (Jalon M, js/scenes.js) : une scène
+ *      parle par une voix d'EXPEDITEURS, sa réplique ne dit aucun chiffre, et
+ *      son fait porte chaque nombre qu'elle a reçu.
  *
  *   node scripts/check_clarte.mjs
  */
@@ -47,6 +50,8 @@ import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTI
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
+import { EXPEDITEURS } from '../js/vie-gm.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop } from '../js/scenes.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -378,6 +383,34 @@ const MOTS_RESERVES = [
   const mandats = MANDATS.map(m => m.mot);
   exiger('les mandats du proprio sont ceux du code', /faire les séries, puis finir dans les dix premiers, puis les six, puis les trois premiers/.test(texte) && mandats.length === 4,
     mandats.join(' → '));
+}
+
+/*
+ * ---------- 5. chaque choix dit qui le demande ----------
+ * Chaque scène, sur des faits fabriqués (toutes les situations, quarante graines) : sa voix est une voix d'EXPEDITEURS,
+ * sa réplique n'est pas vide et ne dit ni chiffre ni gabarit (le motif de check_fils), son fait porte chaque nombre
+ * reçu. Et chaque réplique écrite, pas seulement celles que les graines pigent.
+ */
+{
+  const voix = new Set(Object.values(EXPEDITEURS));
+  const fautes = [];
+  const juger = (nom, sc, nombres) => {
+    if (!voix.has(sc.de)) fautes.push(`${nom} : la voix « ${sc.de && sc.de.nom} » n'est pas d'EXPEDITEURS`);
+    if (!sc.mot || /\d|\{/.test(sc.mot)) fautes.push(`${nom} : « ${sc.mot} »`);
+    for (const x of nombres) if (!sc.fait.includes(String(x))) fautes.push(`${nom} : le fait « ${sc.fait} » ne dit pas ${x}`);
+  };
+  let n = 0;
+  for (let g = 0; g < 40; g++) {
+    for (const [moi, lui] of [[3, 1], [2, 2], [0, 4]]) { juger('la mise', sceneDeLaMise({ moi, lui, rival: 'Bruins 1995-96', graine: g }), [moi, lui, 'Bruins 1995-96']); n++; }
+    for (const rang of [2, 16, 31]) { juger('le palier', sceneDuPalier({ n: 18, fiche: { V: 7, D: 9, DP: 2 }, rang, equipes: 32, mandat: 'faire les séries', graine: g }), [18, '7-9-2', `${rang}e`, 'faire les séries']); n++; }
+    for (const gros of [null, { adv: 'Wild 2010-11', dans: 0 }, { adv: 'Wild 2010-11', dans: 3 }]) {
+      juger('la carte de trop', sceneDeLaCarteDeTrop({ cartes: 4, places: PLACES, gros, graine: g }), [4, PLACES, ...(gros ? [gros.adv] : []), ...(gros && gros.dans > 1 ? [gros.dans] : [])]); n++;
+    }
+  }
+  const repliques = Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m])));
+  for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
+  informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
+  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop');
 }
 
 verdict('La clarté');

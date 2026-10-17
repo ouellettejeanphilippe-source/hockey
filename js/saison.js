@@ -41,11 +41,12 @@ import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance
 import { artJoueur, photoAction, RARETES } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, PLACES, cartesDuPalier, optionDeBanque, valeurDe } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
-import { ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
+import { ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, signaturesDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
+import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop } from './scenes.js';
 import { BANQUE, reglesDe, payloadDe, placeDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
@@ -3220,11 +3221,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
 
   // Les voix de la boîte : une seule distribution avec les courriels et les fils (EXPEDITEURS, js/vie-gm.js).
   const DE = {
-    medecin: { ico: '🩺', nom: 'Le médecin' },
-    dg: { ico: '📋', nom: 'Le DG' },
+    medecin: EXPEDITEURS.me,
+    dg: EXPEDITEURS.dg,
     proprio: EXPEDITEURS.pr,
     coach: EXPEDITEURS.en,
-    depisteur: { ico: '🔎', nom: 'Le dépisteur' },
+    depisteur: EXPEDITEURS.dp,
   };
 
   /*
@@ -3494,8 +3495,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      */
     const pp = ctx.rogue && ctx.inventaire ? PALIERS_PACK.find(x => miens.length >= x && !pris.has(`pp:${x}`)) : undefined;
     if (pp !== undefined) {
-      out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: DE.dg, sujet: `Le ${pp}e match : une carte parmi trois`,
-        choix: { recit: `Elle va à une place, et se joue quand tu veux.`,
+      // LA SCÈNE (Jalon M, A2) : le proprio la demande, sur la fiche et le rang déjà joués, et ce que le mandat veut.
+      const f = fiche.get(you), run = ctx.rogue.mandat ? ctx.rogue.mandat() : null;
+      const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
+      out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : une carte parmi trois`,
+        choix: { scene, recit: `Elle va à une place, et se joue quand tu veux.`,
           options: cartesDuPalier(graine, pp).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `pp:${pp}`, place: id }) } });
     }
@@ -3505,8 +3509,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      */
     const pl = ctx.rogue && ctx.inventaire && ctx.inventaire.places ? ctx.inventaire.places(jour) : null;
     if (pl && pl.trop > 0) {
-      out.push({ id: `trop:${pl.places.length}`, genre: 'places', bloque: true, de: DE.dg, sujet: `${pl.trop === 1 ? 'Une carte' : `${pl.trop} cartes`} de trop : ${PLACES} places`,
-        choix: { recit: pl.trop === 1 ? 'Laquelle vendre ? Ou joues-en une ce soir.' : `Vends-en ${pl.trop}, ou joue-les ce soir.`,
+      // LA SCÈNE (Jalon M, A7) : le préposé à l'équipement, et le gros match s'il est annoncé (ce soir ou demain).
+      const g = [0, 1].map(d => ({ dans: d, mb: grosDuJour(jour + d) })).find(x => x.mb && !x.mb.joue);
+      const scene = sceneDeLaCarteDeTrop({ cartes: pl.places.length, places: PLACES, gros: g ? { adv: ctx.teamShort(g.mb.adv), dans: g.dans } : null, graine });
+      out.push({ id: `trop:${pl.places.length}`, genre: 'places', bloque: true, de: scene.de, sujet: `${pl.trop === 1 ? 'Une carte' : `${pl.trop} cartes`} de trop : ${PLACES} places`,
+        choix: { scene,
           options: pl.places.map(x => ({ ...optionDeBanque(x.id), cle: x.ref, etiquette: valeurDe(x.id) ? `+${valeurDe(x.id)} 🪙` : 'Jetée' })),
           ...(pl.trop > 1 ? { multi: pl.trop } : {}),
           decision: refs => ({ vend: { refs: [].concat(refs), jetons: [].concat(refs).reduce((a, r) => a + valeurDe((pl.places.find(x => x.ref === r) || {}).id), 0) } }) } });
@@ -3749,7 +3756,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     };
     const corpsDe = m => {
       const C = m.choix, sp = { ...C, cadre: cadreDuMatch(), ouDe: ctx.ouJoue };
-      return `${C.recitHtml || (C.recit ? `<p class="hub-msg-mot">${ctx.esc(sub(C, C.recit))}</p>` : '')}
+      return `${C.scene ? sceneHtml(C.scene) : ''}${C.recitHtml || (C.recit ? `<p class="hub-msg-mot">${ctx.esc(sub(C, C.recit))}</p>` : '')}
         ${C.joueur ? enteteJoueur(C.joueur, ctx.ouJoue ? ctx.ouJoue(C.joueur) : '') : ''}
         ${C.contexte || ''}
         <div class="af-options">${C.options.map(o => optionHtml(o, sp, { classe: `af-option${o.ouvre ? ' ouvre' : ''}`, on: coche(m, o) })).join('')}</div>`;
@@ -3898,7 +3905,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const { main, pioche } = d0 && d0.main && Array.isArray(d0.main.tirage) ? mainDuDuel(d0.main.tirage, d0.main.pile || [], joueesAvant) : { main: [], pioche: [] };
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
     const prime = Math.round(((run && run.bareme) || JETONS).grosMatch * (mb.butin || 1));
-    const mise = k === 2 ? `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` : null;
+    // LA SCÈNE (Jalon M, A1) : le capitaine, sur le pointage contre le rival ; les chiffres de la mise au bouton.
+    const mise = k === 2 ? { ...sceneDeLaMise({ moi, lui, rival: ctx.teamShort(adv), graine: `${graine}|${p.j}` }),
+      chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` } : null;
     const P = du.periodes[k];
     const D = specDuDuel(P, { k, main, domicile: moiA, mise, cadre: cadreDuMatch(1 / 3, 'la période'), deja: !!P.contree });
     const tirs = c => [1, 2].slice(0, k).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);
