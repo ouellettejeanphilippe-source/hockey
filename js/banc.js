@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, getHiddenRatings, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -16,7 +16,7 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue } from './rogue.js';
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
@@ -601,11 +601,15 @@ export async function runSeason(opts = {}) {
   await new Promise(r => setTimeout(r, 20));
 
   let opponents = [];
+  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, son niveau suit le prestige et les exigences de la run.
+  const niveau = G.bonus === 'ROGUE' && G.rogue ? niveauDeLigue(G.rogue.prestige || 0, G.rogue.exigence || 0) : 0;
   if (opts.adversaires) {
     opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season, ecole: a.ecole || [] }));
   } else {
-    try { opponents = await buildOpponents(31); } catch { opponents = []; }
+    try { opponents = await buildOpponents(31, G.bonus === 'ROGUE' ? { part: ligueDe(niveau).part } : {}); } catch { opponents = []; }
   }
+  // Leurs cartes : les éditions de la ligue en Rogue, aucune ailleurs (une ligue d'avant n'en laisse pas).
+  habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v);
   // TU ES LA 33e ÉQUIPE. Une saison fixée met dans la ligue TOUS ses vrais
   // clubs, et la tienne par-dessus : trente-trois en 2024-25, vingt-deux en
   // 1985-86. C'était le club le plus faible qui cédait sa place pour garder

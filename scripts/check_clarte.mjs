@@ -43,7 +43,7 @@ import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, CO
 import { TAILLE_MAIN, DECK_DEPART, BLESSURE_TRAINEE, CICATRICES_MAX, CAHIER_MAX } from '../js/combat.js';
 import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE } from '../js/rogue.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, LIGUE_PARTS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
@@ -253,8 +253,8 @@ const MOTS_RESERVES = [
   // V2.2 : la page dit ce qu'elle taisait (l'avantage numérique, la prolongation, le loto et ses retraits, l'ajustement
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   // Oct. 2026 : la page dit les raretés (JP : *spas clair les niveaux de rareté des cartes*) : 2 250 mots.
-  // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*) : 2 350 mots.
-  borne('la page des règles est courte', mots, 300, 2350, 'mots');
+  // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*), et la ligue qui monte : 2 400 mots.
+  borne('la page des règles est courte', mots, 300, 2400, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -339,6 +339,9 @@ const MOTS_RESERVES = [
     [`tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs`, 'les gardés entre deux saisons'],
     [`<strong>Les exigences</strong> ${ICO_EXIGENCE} :`, 'l\'icône des exigences'],
     [`paie ${nombre(PRIME_EXIGENCE * 100)} % de médailles de plus : ${EXIGENCES.map(E => E.texte).join(' ; ')}.`, 'les exigences'],
+    // La ligue qui monte (tranche 8) : « deux fois », puis « un tiers » plus large — les parts 1/2 et 3/4 du tirage.
+    [JSON.stringify(LIGUE_PARTS) === '[0.5,0.75]' ? 'les plus faibles d\'un tirage deux fois plus large, puis d\'un tirage un tiers plus large' : '(les parts de la ligue ont changé)', 'les premières ligues'],
+    [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],

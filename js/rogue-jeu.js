@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun } from './rogue.js';
+import { lireMeta, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
@@ -1022,7 +1022,10 @@ export async function ouvrirRogue() {
   const nCartable = Object.keys(lireCartable().joueurs).length;
   // LES EXIGENCES (tranche 8) : après ta première Coupe, un cran de plus à chaque Coupe gagnée au plus haut.
   const ouvertes = exigencesOuvertes(meta);
+  // La ligue qui monte (tranche 8) : ton prestige la règle, chaque cran la monte ; le départ la dit.
+  const rangRun = rangDePrestige(meta);
   const crans = Array.from({ length: ouvertes }, (_, i) => i + 1).map(n => ({ cle: `e${n}`, ico: ICO_EXIGENCE, nom: `Exigence ${n} : ${EXIGENCES[n - 1].nom}`,
+    sous: `Ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, n))}`,
     bon: `${Math.round(100 * PRIME_EXIGENCE * n)} % de médailles de plus`, prix: `${EXIGENCES[n - 1].texte}${n > 1 ? ', en plus des précédentes' : ''}` }));
   const go = await new Promise(resolve => ouvrirChoix({
     ico: '💀', titre: 'Le mode Rogue', fermable: true, motFermer: 'Pas maintenant', compact: crans.length > 2,
@@ -1033,7 +1036,7 @@ export async function ouvrirRogue() {
         nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `${BOUTIQUE.length} packs à la boutique`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
-        aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`].filter(Boolean).join(' · '),
+        aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }, ...crans],
     onChoix: cle => resolve(cle === 'go' ? 0 : Number(String(cle).slice(1))),
     onFerme: () => resolve(false),

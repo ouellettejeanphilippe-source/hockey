@@ -28,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import { getPlayerKey, autoRoster } from '../js/sim.js';
 import { jouerSaison, jouerRun, acheterDans, metaAuNiveau, shard, groupe, POLITIQUES } from './lib/rogue_sim.mjs';
-import { exigencesOuvertes } from '../js/rogue.js';
+import { exigencesOuvertes, LIGUE_PARTS } from '../js/rogue.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const GRAINES = Number(process.env.GRAINES ?? 4);
@@ -62,7 +62,8 @@ if (!isMainThread) {
       const joueurs = shard(t.saison).byTeam[t.club].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }));
       const meta = metaAuNiveau(0);
       const etat = { roster: autoRoster(joueurs), variantes: new Map(), jetons: 0 };
-      const r = jouerSaison(meta, etat, { graine, saison: 1, politique: t.politique });
+      // La ligue de toute l'histoire, sans éditions (js/rogue.js `ligueDe`) : mener une vraie équipe dans une ligue ordinaire.
+      const r = jouerSaison(meta, etat, { graine, saison: 1, politique: t.politique, ligue: LIGUE_PARTS.length });
       out.push({ graine, W: r.W, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, signes: r.signes });
     }
     parentPort.postMessage({ cle: t.cle, politique: t.politique, out });
@@ -80,7 +81,7 @@ if (!isMainThread) {
       derniere = res.equipe;
       meta.ecussons += res.ecussons;
       acheterDans(meta);
-      runs.push({ nSaisons: res.nSaisons, coupe: res.coupe, exigence });
+      runs.push({ nSaisons: res.nSaisons, coupe: res.coupe, exigence, ligue: res.ligue });
       if (res.coupe && premiere === null) premiere = r + 1;
     }
     parentPort.postMessage({ c: t.c, politique: t.politique, runs, premiere, deblocages: meta.deblocages.length });
@@ -138,7 +139,7 @@ if (!isMainThread) {
   const camp = POLITIQUES.map(politique => resultats.filter(r => r.c !== undefined && r.politique === politique).sort((x, y) => x.c - y.c));
   POLITIQUES.forEach((politique, i) => {
     for (const r of camp[i]) {
-      informer(`campagne ${r.c + 1}, ${politique}`, `${r.premiere ? `1re Coupe à la run ${r.premiere}` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.runs.filter(x => x.coupe).length} Coupe(s) · ${r.deblocages} déblocages au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}${x.exigence ? `🔺${x.exigence}` : ''}`).join(' ')}`);
+      informer(`campagne ${r.c + 1}, ${politique}`, `${r.premiere ? `1re Coupe à la run ${r.premiere}` : `pas de Coupe en ${RUNS_CAMPAGNE} runs`} · ${r.runs.filter(x => x.coupe).length} Coupe(s) · ${r.deblocages} déblocages au bout · saisons par run : ${r.runs.map(x => `${x.nSaisons}${x.coupe ? '🏆' : ''}${x.exigence ? `🔺${x.exigence}` : ''}·L${x.ligue}`).join(' ')}`);
     }
   });
   const attentif = camp[POLITIQUES.indexOf('attentif')], distrait = camp[POLITIQUES.indexOf('distrait')];

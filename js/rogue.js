@@ -32,6 +32,7 @@
 import { hache } from './util.js';
 import { VOIES } from './coachs.js';
 import { filsDeSaison } from './recit.js';
+import { EDITIONS, NOM_VARIANTE } from './rarete.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -545,6 +546,43 @@ export function exigencesDe(n = 0) {
 }
 /* Le plus haut cran qu'une run peut prendre : aucun avant ta première Coupe, puis un de plus que le plus haut gagné. */
 export const exigencesOuvertes = m => ((m && m.coupes) ? Math.min(EXIGENCES.length, (m.exigence || 0) + 1) : 0);
+/*
+ * LA LIGUE QUI MONTE (V9, tranche 8 ; JP, 17 oct. : *les clubs des premières runs sont globalement plus faibles et
+ * montent*). Le niveau de ta ligue suit ton prestige, et chaque cran d'exigence le monte de `ETAPES_PAR_CRAN`
+ * (`niveauDeLigue`). Aux premiers niveaux, tes 31 adversaires sont les plus faibles, à leur force au moteur, d'un
+ * tirage plus large (`LIGUE_PARTS` : la moitié, puis les trois quarts) ; ensuite, toute l'histoire, et chaque niveau
+ * monte d'une édition (Cadre, Hors-cadre, Or, Holo) un tiers de plus de chaque club, ses meilleurs d'abord
+ * (`editionDansLaLigue`) — le canal de tes cartes, leurs badges. Mesuré (une Dynastie de l'attentif, 4 saisons) : des
+ * cartes Cadre chez tous les adversaires lui coûtent 17 points, des cartes Or 34 ; choisir les clubs à leur vrai bilan
+ * ne bougeait presque rien.
+ */
+export const LIGUE_PARTS = [0.5, 0.75];
+export const ETAPES_PAR_CRAN = 2;
+export const niveauDeLigue = (rang = 0, exigence = 0) => Math.max(0, (rang || 0) + ETAPES_PAR_CRAN * (exigence || 0));
+/* La part la plus faible d'un tirage où la ligue prend ses clubs (1 : tout le tirage), et l'étape des éditions. */
+export const ligueDe = niveau => ({ part: LIGUE_PARTS[niveau] ?? 1, etape: Math.max(0, (niveau || 0) - LIGUE_PARTS.length) });
+/* L'édition d'un adversaire, au rang `r` de son club (0 : son meilleur) sur `n` : un tiers de plus du club par étape. */
+export function editionDansLaLigue(etape, r, n) {
+  const tiers = r < n / 3 ? 2 : r < (2 * n) / 3 ? 1 : 0;
+  return EDITIONS[Math.min(EDITIONS.length - 1, Math.floor(((etape || 0) + (etape ? tiers : 0)) / 3))];
+}
+/* La ligue en mots, pour le départ d'une run : « la moitié la plus faible des clubs tirés », « 8 Hors-cadre et 15 Cadre par club ». */
+export function motDeLaLigue(niveau, n = 23) {
+  const { part, etape } = ligueDe(niveau);
+  if (part < 1) return `les clubs les plus faibles d'un tirage ${part <= 0.5 ? 'deux fois' : 'un tiers'} plus large`;
+  if (!etape) return 'des clubs de toute l\'histoire';
+  const compte = new Map();
+  for (let r = 0; r < n; r++) { const e = editionDansLaLigue(etape, r, n); if (e !== 'commune') compte.set(e, (compte.get(e) || 0) + 1); }
+  return `des clubs de toute l'histoire, et leurs cartes : ${[...compte].map(([e, k]) => `${k} ${NOM_VARIANTE[e]}`).join(', ')} par club`;
+}
+/* Habiller la ligue : les cartes des adversaires, selon le niveau ; `valeur(p)` classe chaque club, son meilleur d'abord. */
+export function habillerLaLigue(adversaires, niveau, valeur) {
+  const { etape } = ligueDe(niveau);
+  for (const t of adversaires || []) {
+    const js = Object.values((t && t.roster) || {}).filter(Boolean).sort((a, b) => valeur(b) - valeur(a));
+    js.forEach((p, r) => { const e = editionDansLaLigue(etape, r, js.length); if (e === 'commune') delete p._carte; else p._carte = { rar: e }; });
+  }
+}
 /*
  * LE PLAFOND D'UNE SAISON (V9, tranche 4, « le plafond qui mord ») : ta masse de départ, plus l'espace de départ et ce
  * que les déblocages ajoutent, moins ce que les exigences en retirent (jamais sous ta masse). Le jeu et les robots.

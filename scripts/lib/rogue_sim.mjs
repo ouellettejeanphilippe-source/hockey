@@ -51,7 +51,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
-  ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, avecHasardIsole, lignesAuMieux, activeLineup,
+  ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
 } from '../../js/sim.js';
 import { DECK_DEPART } from '../../js/combat.js';
 import { robotDuel } from './duel.mjs';
@@ -65,6 +65,7 @@ import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
   DEBLOCAGES, departDuClasseur, lotosDeSaison, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
+  LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -140,10 +141,16 @@ function plombiers(rnd, meta, exclus) {
   return pool;
 }
 
-/* 31 vrais clubs, comme `buildOpponents` : un club-saison entier, aligné par `autoRoster`, sans tes joueurs. */
-function adversaires(rnd, exclus, n = 31) {
+/*
+ * 31 vrais clubs, comme `buildOpponents` : un club-saison entier, aligné par `autoRoster`, sans tes joueurs. LA LIGUE QUI
+ * MONTE (tranche 8, js/rogue.js `ligueDe`) : aux premiers niveaux, les plus faibles (`teamStrength`) d'un tirage plus
+ * large ; puis leurs cartes montent d'édition (`habillerLaLigue`).
+ */
+function adversaires(rnd, exclus, n = 31, niveau = LIGUE_PARTS.length) {
+  const { part } = ligueDe(niveau);
+  const m = Math.ceil(n / part);
   const out = [], vus = new Set();
-  while (out.length < n) {
+  while (out.length < m) {
     const e = shard(SAISONS[Math.floor(rnd() * SAISONS.length)]);
     const tags = Object.keys(e.byTeam);
     const tag = tags[Math.floor(rnd() * tags.length)];
@@ -159,7 +166,9 @@ function adversaires(rnd, exclus, n = 31) {
     for (const p of ecole) exclus.add(getPersonKey(p));
     out.push(createTeam(`${tag} ${e.season}`, tag, roster, { season: e.season, ecole }));
   }
-  return out;
+  const ligue = m > n ? out.map(t => [teamStrength(t), t]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]) : out;
+  habillerLaLigue(ligue, niveau, v);
+  return ligue;
 }
 
 /*
@@ -263,7 +272,7 @@ function packVoulu(meta, jetons, n, exigence = 0) {
  * (la saison 2 d'une run repart de l'équipe de la saison 1), les jetons de
  * départ. Rend la fiche, les séries, les jetons qui restent et l'équipe.
  */
-export function jouerSaison(meta, etat, { graine, saison, mains = true, politique = 'defaut', exigence = 0 }) {
+export function jouerSaison(meta, etat, { graine, saison, mains = true, politique = 'defaut', exigence = 0, ligue = niveauDeLigue(rangDePrestige(meta), exigence) }) {
   const rnd = generateur('rogue80', graine, saison);
   const attentif = politique === 'attentif';
   const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine, saison) : null;
@@ -284,7 +293,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const cap = plafondDeSaison(masse0, meta, exigence);
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
-  const opps = adversaires(rnd, exclus);
+  const opps = adversaires(rnd, exclus, 31, ligue);
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, ...enPoste.map(coach => ({ jour: 0, coach }))];
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
@@ -428,10 +437,12 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   for (const x of classeur) if (!etat.variantes.has(getPlayerKey(x.p))) etat.variantes.set(getPlayerKey(x.p), x.rar);
   const jouees = new Set();
   const saisons = [];
+  // La ligue de la run (tranche 8) : son niveau est fixé au départ, comme le prestige au jeu (`G.rogue.prestige`).
+  const ligue = niveauDeLigue(rangDePrestige(meta), exigence);
   let ecussons = 0;
   const entrees = Object.values(etat.roster).map(p => ({ p, rar: etat.variantes.get(getPlayerKey(p)) || 'commune' }));
   for (let n = 1; n <= maxSaisons; n++) {
-    const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique, exigence });
+    const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique, exigence, ligue });
     entrees.push(...r.entrees);
     for (const g of r.galons) etat.galons.set(g.joueur, (etat.galons.get(g.joueur) || 0) + 1);
     let e = (ecussonsDeLaSaison(r.pts) + ecussonsDesSeries(r.rondes, r.coupe)) * exigencesDe(exigence).medailles;
@@ -461,7 +472,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
   const fin = saisons[saisons.length - 1];
   return {
-    saisons, nSaisons: saisons.length, coupe: !!fin.coupe, ecussons, depart: tires.length, exigence,
+    saisons, nSaisons: saisons.length, coupe: !!fin.coupe, ecussons, depart: tires.length, exigence, ligue,
     pts1: saisons[0].pts, series1: saisons[0].rang <= 16,
     entrees: entrees.map(x => ({ p: x.p, rar: x.rar })),
     equipe: Object.values(etat.roster).filter(Boolean),
