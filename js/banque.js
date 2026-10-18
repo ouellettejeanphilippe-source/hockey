@@ -29,7 +29,9 @@
  * (légendaire) pour toute la saison ; trois postes au plus. Un événement ne
  * dure que quelques journées : il change la FORME d'un bout de saison.
  */
-import { CARTES, MUTATIONS, EDITIONS_REGLEMENT } from './sim.js';
+import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI } from './sim.js';
+import { PLACES_NEUVES } from './places.js';
+import { EQUIPEMENT } from './equipement.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
@@ -428,6 +430,8 @@ export const CONSOMMABLES = {
   epingles: { nom: 'Les épingles du tableau', ico: '🧷', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'profondeur', effet: { F: [0.952, 1, 1.048, 1.128], energie: 0.978 }, duree: 5, parJoueur: { par: { energie: -0.016 }, max: 5 }, texte: 'Tes checkers ont chacun leur épingle au tableau des présences.' },
   disco: { nom: 'La boule disco', ico: '🪩', rarete: 'commune', vie: 'usage', cible: 'aucune', coach: 'etoiles', effet: { F: [1.08, 1.032, 0.968, 0.92], finition: 1.011 }, duree: 5, parJoueur: { par: { finition: 0.0096 }, max: 5 }, texte: 'Tes passeurs allument le vestiaire après chaque victoire.' },
   ...CONSOMMABLES_VIE,
+  // Les places neuves (V10, tranche 3 — js/places.js) : chacune attend un moment de la semaine.
+  ...PLACES_NEUVES,
   // V5 : comme dans la LNH, on change de coach en cours de saison en congédiant l'entraîneur — le nouveau arrive avec
   // sa philosophie, à la confiance I, et l'ancienne part avec son bonus. Le seul chemin vers un autre coach en saison.
   congediement: { nom: 'Le congédiement', ico: '📋', rarete: 'peu', vie: 'usage', cible: 'coach', texte: 'L\'entraîneur vide son bureau au matin. Le nouveau arrive avec son cahier de jeux, et tout est à rebâtir.' },
@@ -446,7 +450,17 @@ export const CONSOMMABLES = {
 };
 
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
-const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat'];
+const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat', 'equipement'];
+/*
+ * L'ANCIEN JEU SE RETIRE (V10, tranche 3) : il ne s'offre plus (packs, banque), mais une run en cours le joue encore
+ * jusqu'à la conversion (tranche 6). Partent les places de tous les soirs (`cible` aucune ou un joueur) et les modifs
+ * de tous les soirs (les améliorations, les styles, l'atelier générique). Restent les outils qui ont déjà leur moment :
+ * les soins d'un blessé, le congédiement, les rappels du cartable, l'exorciste, le camp express ; les retouches
+ * d'édition, les trois modifs d'un moment d'avant, le feu qui s'entretient ; et les contrats, qui attendent la tranche 4.
+ */
+const GARDES_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre', 'domicile', 'route', 'printemps', 'etincelle', 'braise', 'poudre'];
+const placeRetiree = (cle, C) => !PLACES_NEUVES[cle] && ['aucune', 'joueur'].includes(C.cible);
+const modifRetiree = (cle, M) => !EQUIPEMENT[cle] && (M.source === 'amelioration' || M.source === 'style' || (M.source === 'atelier' && !GARDES_ATELIER.includes(cle)));
 const RARETE_MOD = {
   affute: 'peu', moteur: 'peu', mur: 'peu', vision: 'peu', coach: 'peu',
   partout: 'rare', cran: 'rare', physio: 'peu', pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', enBas: 'rare', chasse: 'rare', entrainement: 'peu', mentorTrio: 'rare',
@@ -539,9 +553,9 @@ function construire() {
   for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}), ...(E.retire ? { retire: true } : {}) }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
-    mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
+    mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || M.rarete || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source, ...(modifRetiree(cle, M) ? { retire: true } : {}) }));
   }
-  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.regle ? { regle: true } : {}), ...(C.echange ? { echange: true } : {}) }));
+  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.regle ? { regle: true } : {}), ...(C.echange ? { echange: true } : {}), ...(placeRetiree(cle, C) ? { retire: true } : {}) }));
   for (const [cle, C] of Object.entries(CONTRATS)) mettre(fait('plafond', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
   for (const [cle, C] of Object.entries(CARTES_MATCH)) {
     if (estPlus(cle)) continue;
@@ -727,7 +741,9 @@ export function reglesDe(id, { joueur = null } = {}) {
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     const out = [...motsDesGestes(C.gestes || {})];
-    if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
+    // V10 : son moment d'abord, et ses chiffres un soir de ce moment.
+    if (C.si && MOMENTS_SI[C.si]) out.push({ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, les ${C.duree} prochains matchs`, bon: null, duree: true }, ...motsEnChiffres(C.effet || {}));
+    else if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
     if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
     if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
@@ -857,7 +873,8 @@ export function payloadDe(id, { joueur = null, carte = null, coach = null, patro
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build, joueurs).effet, ...(C.regle ? { regle: true } : {}) } : null;
+    // V10 : une place d'un moment (`si`) porte son moment sur son effet ; le moteur ne le joue que ses soirs (`joueCeSoir`).
+    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build, joueurs).effet, ...(C.regle ? { regle: true } : {}), ...(C.si ? { si: C.si } : {}) } : null;
     if (C.cible === 'blesse' || C.cible === 'joueur') {
       if (!joueur) return null;
       return { gestes: { ...C.gestes, joueurs: [joueur] }, ...(effet ? { effet } : {}) };

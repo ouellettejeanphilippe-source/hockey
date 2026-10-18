@@ -69,8 +69,11 @@ console.log('\n  Les coachs (v2)\n');
 const tous = Object.values(BANQUE);
 const neutres = tous.filter(c => !c.coach);
 informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].ico} ${idsDuCoach(k).length}`).join(' · ')} · neutres ${neutres.length}`);
-const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < 13 || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 3);
-exiger('chaque coach a au moins 13 cartes, dans au moins trois familles', !minces.length,
+// V10 (docs/refonte-v10.md § 8) : le plancher suit le jeu neuf — quatre cartes de cahier et trois places par coach, plus
+// l'équipement ou le personnel ; l'ancien jeu de tous les soirs ne compte plus (retiré, tranche 3).
+const PLANCHER_COACH = 10;
+const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 3);
+exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins trois familles`, !minces.length,
   ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
 // v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : une carte sur cinq environ reste neutre.
 borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.12, 0.3);

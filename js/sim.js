@@ -19,6 +19,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
+import { EQUIPEMENT } from './equipement.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
 
@@ -7594,30 +7595,32 @@ export function lignesAuMieux(lineup, style = 'equilibre', { plan = false, coach
  * quelques fois par saison et vaut plus par soir ; un moment `choix` dépend d'un geste du joueur (jouer un blessé).
  * Les jambes se lisent sur le patineur le plus fatigué de l'alignement : la moyenne du club ne bouge presque pas (90 à
  * 96), le plus fatigué va de 81 à 93 — ses seuils sont les quartiles du bas et du haut.
+ * `parSaison` (V10, tranche 3) : combien de soirs d'une saison de run le moment est vrai, la médiane de cette mesure
+ * (docs/refonte-v10.md § 3) — ce qu'une carte de saison dit de ses chiffres, et la borne de sa rareté (check_places).
  */
 export const MOMENTS_SI = {
-  domicile: { mot: 'À domicile' },
-  visiteur: { mot: 'À l\'étranger' },
-  series: { mot: 'En séries', rare: true },
-  dosADos: { mot: 'Un soir de dos-à-dos' },
-  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86 },
-  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 92 },
-  rival: { mot: 'Contre un rival' },
-  beteNoire: { mot: 'Contre ta bête noire', rare: true },
-  apresDefaite: { mot: 'Après une défaite' },
-  enFeu: { mot: 'Après trois victoires', suite: 3 },
-  infirmerie: { mot: 'L\'infirmerie déborde', blesses: 2 },
+  domicile: { mot: 'À domicile', parSaison: 41 },
+  visiteur: { mot: 'À l\'étranger', parSaison: 41 },
+  series: { mot: 'En séries', rare: true, parSaison: 10 },
+  dosADos: { mot: 'Un soir de dos-à-dos', parSaison: 15 },
+  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86, parSaison: 18 },
+  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 92, parSaison: 11 },
+  rival: { mot: 'Contre un rival', parSaison: 6 },
+  beteNoire: { mot: 'Contre ta bête noire', rare: true, parSaison: 3 },
+  apresDefaite: { mot: 'Après une défaite', parSaison: 28 },
+  enFeu: { mot: 'Après trois victoires', suite: 3, parSaison: 24 },
+  infirmerie: { mot: 'L\'infirmerie déborde', blesses: 2, parSaison: 49 },
   amoche: { mot: 'Un blessé qui joue amoché', choix: true },
   // Le duel (V9) : l'intention annoncée, le temps de sa période.
-  ombre: { mot: 'Quand ils annoncent l\'ombre', duel: true, rare: true },
-  chasse: { mot: 'Quand ils annoncent la chasse', duel: true, rare: true },
-  centre: { mot: 'Quand ils ferment le centre', duel: true, rare: true },
-  assaut: { mot: 'Quand ils annoncent l\'assaut', duel: true, rare: true },
-  cachot: { mot: 'Quand ils cherchent les punitions', duel: true, rare: true },
+  ombre: { mot: 'Quand ils annoncent l\'ombre', duel: true, rare: true, parSaison: 6 },
+  chasse: { mot: 'Quand ils annoncent la chasse', duel: true, rare: true, parSaison: 2 },
+  centre: { mot: 'Quand ils ferment le centre', duel: true, rare: true, parSaison: 3 },
+  assaut: { mot: 'Quand ils annoncent l\'assaut', duel: true, rare: true, parSaison: 6 },
+  cachot: { mot: 'Quand ils cherchent les punitions', duel: true, rare: true, parSaison: 9 },
   // La troisième période d'un duel, selon le pointage après deux.
-  mene: { mot: 'En 3e, en avance', duel: true, rare: true },
-  egal: { mot: 'En 3e, à égalité', duel: true, rare: true },
-  derriere: { mot: 'En 3e, en retard', duel: true, rare: true },
+  mene: { mot: 'En 3e, en avance', duel: true, rare: true, parSaison: 6 },
+  egal: { mot: 'En 3e, à égalité', duel: true, rare: true, parSaison: 1 },
+  derriere: { mot: 'En 3e, en retard', duel: true, rare: true, parSaison: 2 },
 };
 /** Les moments du soir d'un club : `L` son alignement, `adv` l'adversaire, `chez` s'il reçoit. */
 function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } = {}) {
@@ -7629,6 +7632,10 @@ function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } =
   const n = (T && T.games) || 0;
   const blesses = T && T.injuriesLog ? new Set(T.injuriesLog.filter(b => b.at <= n + 1 && b.at + b.games - (n + 1) > 0).map(b => b.player)).size : 0;
   const infirmerie = blesses >= MOMENTS_SI.infirmerie.blesses;
+  // LA LECTURE D'UN MOMENT (V10, tranche 3) : une lecture hors partie (la fiche, la mesure en paires) peut poser le
+  // moment qu'elle lit (`T._lireMoment`) ; une partie ne le pose jamais.
+  const lu = T && T._lireMoment && !MOMENTS_SI[T._lireMoment].duel ? { [T._lireMoment]: true } : {};
+  if (lu.domicile || lu.visiteur) chez = !!lu.domicile;
   return {
     domicile: !!chez, visiteur: !chez, series: !!series,
     dosADos: !series && jour !== null && dosADos(T, jour),
@@ -7636,6 +7643,7 @@ function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } =
     rival: !!rivalChoisi(T, adv), beteNoire: !!adv && !!T && T.beteNoire === adv,
     apresDefaite: suite < 0, enFeu: suite >= MOMENTS_SI.enFeu.suite, infirmerie,
     amoche: !!(T && T.effetsCibles && jour !== null && T.effetsCibles.some(x => x.source === 'blesse' && jour >= x.debut && jour < x.fin && pat.includes(x.joueur))),
+    ...lu,
   };
 }
 /** Ce qui ne joue que dans son moment joue-t-il ce soir ? Sans `si`, toujours. */
@@ -7944,6 +7952,8 @@ export const MUTATIONS = {
   style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.928,
     quoi: 'Leur paire ne le trouve pas : la moitié de leur étouffement ne compte pas sur ses lancers. Il joue seul, alors il crée moins.' },
   ...MODIFS_VIE,
+  // L'équipement neuf (V10, tranche 3 — js/equipement.js) : une carte posée sur un joueur, qui attend son moment.
+  ...EQUIPEMENT,
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
