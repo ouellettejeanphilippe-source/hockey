@@ -1632,7 +1632,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const phrase = !pour.length && !contre.length ? 'Deux clubs à armes égales : aucun écart qui compte.'
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
-    return { mot: duelHtml(adv), detail: `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>` + `<div class="hub-forces">
+    const phraseHtml = `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`;
+    return { mot: duelHtml(adv), phrase: phraseHtml, detail: phraseHtml + `<div class="hub-forces">
       <table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
         <tbody>
@@ -1647,7 +1648,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * côte à côte : leur saison à ce jour, lue sur les feuilles jouées (trois matchs chacun au moins), sinon ce que le
    * moteur attend de ce match-ci (`chiffresDuSoir`). Le meilleur des deux s'allume.
    */
-  function duelHtml(adv) {
+  /*
+   * CE SOIR EN TROIS CHIFFRES (docs/ecrans-rogue.md, E5) : au Rogue, l'affiche garde les tirs, la précision et le
+   * % d'arrêts, en barres face à face ; le tableau complet (`complet`) vit au dépistage.
+   */
+  function duelHtml(adv, { complet = !soirEnVolet } = {}) {
     const S = saisonDesFeuilles(calendrier.slice(0, jour));
     const a = S.get(you), b = S.get(adv);
     const v1 = x => (x == null ? '—' : String(x.toFixed(1)).replace('.', ','));
@@ -1664,10 +1669,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const c = chiffresDuSoir(you, null, adv);
       lignes = [['Tirs', c.tirsPour, c.tirsContre, v1, 1], ['Précision', par(c.butsPour, c.tirsPour), par(c.butsContre, c.tirsContre), p1, 1], ['Punitions', c.punitions, c.punitionsEux, v1, -1]];
     }
-    // Dans l'ordre de l'affiche : le club à domicile à gauche.
-    const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}">${f(x)}</td>`;
+    if (!complet) lignes = lignes.filter(([k]) => ['Tirs', 'Précision', '% d\'arrêts'].includes(k));
+    // Dans l'ordre de l'affiche : le club à domicile à gauche. La barre dit l'écart entre les deux, grossi (×4) pour se voir.
+    const barre = (x, y) => (x != null && y != null && x + y > 0 ? ` style="--part:${Math.max(8, Math.min(92, 50 + 400 * (x / (x + y) - 0.5))).toFixed(0)}%"` : '');
+    const cell = (x, y, f, sens, cote) => `<td class="${cote}${x != null && y != null && Math.abs(x - y) > 1e-9 && (sens > 0 ? x > y : x < y) ? ' mieux' : ''}"${complet ? '' : barre(x, y)}>${f(x)}</td>`;
     const chezNous = (prochain() || {}).m ? prochain().m.A === you : true;
-    return `<div class="hub-duel-titre">${titre}</div><table class="hub-duel"><tbody>${lignes.map(([k, x, y, f, sens]) => (chezNous
+    const mP = (prochain() || {}).m, couleurs = mP && !complet ? ` style="--a-duel:${ctx.band(mP.A.tag).duel};--b-duel:${ctx.band(mP.B.tag).duel}"` : '';
+    return `<div class="hub-duel-titre">${titre}</div><table class="hub-duel${complet ? '' : ' barres'}"${couleurs}><tbody>${lignes.map(([k, x, y, f, sens]) => (chezNous
       ? `<tr>${cell(x, y, f, sens, 'g')}<th scope="row">${k}</th>${cell(y, x, f, sens, 'd')}</tr>`
       : `<tr>${cell(y, x, f, sens, 'g')}<th scope="row">${k}</th>${cell(x, y, f, sens, 'd')}</tr>`)).join('')}</tbody></table>`;
   }
@@ -2131,7 +2139,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const lignes = uneDuJour().map(x => ctx.esc(x));
     const r = panelDuSoir().repliques[0];
     if (r) lignes.push(`<span class="hub-une-voix">${ctx.esc(r.nom)}, ${ctx.esc(r.titre.toLowerCase())} : « ${ctx.esc(r.t)} »</span>`);
-    return lignes.length ? `<div class="hub-autour"><span class="hub-une-t">Autour de la ligue</span>${lignes.map(x => `<p>${x}</p>`).join('')}</div>` : '';
+    // Plié (docs/ecrans-rogue.md, E4) : le Bureau tient à l'écran ; la ligue se déplie au toucher.
+    return lignes.length ? `<details class="hub-autour"><summary class="hub-une-t">Autour de la ligue</summary>${lignes.map(x => `<p>${x}</p>`).join('')}</details>` : '';
   };
 
   function passage(avant) {
@@ -2474,24 +2483,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const passes = miens.filter(x => x.j < jour - 1).slice(-ROUTE_PASSES).map(({ j, k, m }) => {
       const adv = m.A === you ? m.B : m.A, v = gagne(m, you), moi = m.A === you ? m.gfA : m.gfB, eux = m.A === you ? m.gfB : m.gfA;
       const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
-      return `<li class="rt-arret rt-joue ${v ? 'v' : 'd'}"${somm}><span class="rt-ico" aria-hidden="true">${ctx.logo(adv.tag, 18)}</span>
-        <span class="rt-txt">J${j + 1} · ${m.A === you ? '' : 'chez '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res"><b>${v ? 'V' : 'D'}</b> ${moi}–${eux}${m.ot ? ' <small>prolongation</small>' : ''}</span></li>`;
+      // EN PUCES (docs/ecrans-rogue.md, E4) : la route se lit d'un coup d'œil, de gauche à droite, et le Bureau tient à l'écran.
+      return `<li class="rt-arret rt-joue ${v ? 'v' : 'd'}"${somm} aria-label="Journée ${j + 1}"><span class="rt-ico" aria-hidden="true">${ctx.logo(adv.tag, 18)}</span>
+        <span class="rt-txt">${m.A === you ? '' : 'chez '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res"><b>${v ? 'V' : 'D'}</b> ${moi}–${eux}${m.ot ? '<small>prolongation</small>' : ''}</span></li>`;
     });
     let n = miens.length;
     for (let j = jour; j < fin; j++) {
-      if (j > jour && j % SEMAINE === 0) arrets.push(`<li class="rt-arret rt-lundi"><span class="rt-ico" aria-hidden="true">📅</span><span class="rt-txt">Lundi</span></li>`);
+      if (j > jour && j % SEMAINE === 0) arrets.push('<li class="rt-arret rt-lundi" aria-label="Lundi"><span class="rt-ico" aria-hidden="true">📅</span></li>');
       const m = monMatch(j);
       if (!m) continue;
       n++;
       const adv = m.A === you ? m.B : m.A;
       const gros = grosDuJour(j) || (gros10(j) && (rivalChoisiDe(adv) ? { raison: 'choisi' } : you.beteNoire === adv ? { raison: 'nemesis' } : null));
       const pack = PALIERS_PACK.includes(n) ? '<span class="rt-pack" title="Une carte parmi trois après ce match">🎁</span>' : '';
-      arrets.push(`<li class="rt-arret${gros ? ' rt-gros' : ''}${j === jour ? ' rt-ce-soir' : ''}">
+      arrets.push(`<li class="rt-arret${gros ? ' rt-gros' : ''}${j === jour ? ' rt-ce-soir' : ''}"${gros && MINI_BOSS[gros.raison] ? ` title="Gros match · ${ctx.esc(MINI_BOSS[gros.raison].nom)}"` : ''}>
         <span class="rt-ico" aria-hidden="true">${gros && MINI_BOSS[gros.raison] ? MINI_BOSS[gros.raison].ico : ctx.logo(adv.tag, 18)}</span>
-        <span class="rt-txt">${j === jour ? 'Ce soir' : `J${j + 1}`} · ${m.A === you ? '' : '@ '}${ctx.esc(ctx.tagCourt(adv))}${gros && MINI_BOSS[gros.raison] ? ` · <b>${ctx.esc(MINI_BOSS[gros.raison].nom)}</b>` : ''}</span>${pack}</li>`);
+        <span class="rt-txt">${m.A === you ? '' : 'chez '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res">${j === jour ? 'Ce soir' : `J${j + 1}`}</span>${pack}</li>`);
     }
     if (!arrets.length && !passes.length) return '';
-    const avant = passes.length ? `<div class="bu-route-t">Derniers matchs</div><ol class="rt-liste rt-passes">${passes.join('')}</ol>` : '';
+    const avant = passes.length ? `<div class="bu-route-t">D'où tu viens</div><ol class="rt-liste rt-passes">${passes.join('')}</ol>` : '';
     return `<section class="bu-route" aria-label="La route">${avant}${arrets.length ? `<div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol>` : ''}</section>`;
   };
   const voletJourneeSeul = () => {
@@ -3165,7 +3175,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Le dépistage : une page du Club, calculée à l'ouverture.
       const ouvrirDepistage = () => {
         const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`,
-          html: `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>` });
+          html: `<div class="hub-dep-corps">${soirEnVolet ? duelHtml(adv, { complet: true }) : ''}${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>` });
         brancherConseils(corps);
         // Un conseil appliqué ferme la page avant de rejouer la saison depuis ce soir.
         corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { ui.fermerPage(true); if (f) f.call(b, e); }; });
@@ -3176,7 +3186,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
          * l'intention*. Préparer le match est une intention : l'affiche, leur plan, ce qui est en jeu, tes cartes du soir
          * et tes lignes vivent ensemble dans « Ce soir ». Le Bureau ne garde du match qu'une ligne qui y mène.
          */
-        soir = { jour, html: `${miniBoss}<div class="hub-match hub-match-soir">${affiche}${planSoir}${gestes}</div>`, detail: `${detailDuSoir}${grosDepistage}`, ouvrirDepistage };
+        soir = { jour, html: `${miniBoss}<div class="hub-match hub-match-soir">${affiche}${planSoir}${gestes}</div>`, detail: forces.phrase, ouvrirDepistage };
         carte.innerHTML = `${etatHtml()}${prochainHtml(p, adv, quand, domicile, mb)}`;
         carte.querySelector('[data-ouvre-soir]').onclick = () => tabs.montrer('soir');
       } else {
@@ -3807,6 +3817,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${C.contexte || ''}
         <div class="af-options">${C.options.map(o => optionHtml(o, sp, { classe: `af-option${o.ouvre ? ' ouvre' : ''}`, on: coche(m, o) })).join('')}</div>`;
     };
+    /*
+     * L'ENVELOPPE OUVERTE (docs/ecrans-rogue.md, E4). À faire ne se déplie plus dans la page, qui défilait : chaque choix
+     * est une enveloppe (la voix, le sujet, sa réplique), et l'ouverte devient une feuille par-dessus le Bureau — la voix,
+     * le fait, les options, puis « Plus tard » ou l'enveloppe suivante. Elle se coche comme avant ; complète, la suivante
+     * qui attend s'ouvre, et la dernière rend le Bureau et son « Trancher ».
+     */
+    const feuilleDe = m => {
+      const suivant = msgs.find(x => x !== m && manque(x));
+      return `<div class="af-voile" data-af-fermer aria-hidden="true"></div>
+        <div class="hub-msg-corps" role="dialog" aria-label="${ctx.esc(m.sujet)}">
+          <div class="af-feuille-tete"><span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span><span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="af-feuille-sujet">${ctx.esc(m.sujet)}</span></span><button type="button" class="close-btn" data-af-fermer aria-label="Plus tard">✕</button></div>
+          ${corpsDe(m)}
+          <div class="af-feuille-pied"><button type="button" class="btn" data-af-fermer>${complet(m) ? 'Garder ce choix' : 'Plus tard'}</button>${suivant ? `<button type="button" class="btn af-suivant" data-af-suivant="${ctx.esc(suivant.id)}"><span>Ensuite : ${ctx.esc(suivant.sujet)}</span> ›</button>` : ''}</div>
+        </div>`;
+    };
     const boiteHtml = `<section class="hub-boite${msgs.length ? '' : ' vide'}${chiffresOuverts() ? ' chiffres' : ''}" aria-label="À faire">
       <div class="hub-boite-tete"><span class="hub-boite-titre">✅ À faire</span><span class="hub-boite-compte">${compteur}</span></div>
       ${encours}
@@ -3818,10 +3843,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         return `<article class="hub-msg${o ? ' ouvert' : ''}${m.bloque && !complet(m) ? ' bloque' : ''}${complet(m) ? ' pret' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
           <button type="button" class="hub-msg-tete" aria-expanded="${o}">
             ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
-            <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${prisHtml(m)}</span>
+            <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene && !complet(m) ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
             <span class="hub-msg-etat">${etat}</span>
           </button>
-          <div class="hub-msg-corps">${corpsDe(m)}</div>
+          ${o ? feuilleDe(m) : ''}
         </article>`;
       }).join('')}</div>` : ''}
       <button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
@@ -3843,6 +3868,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div></div>
       ${boiteHtml}`;
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
+    actions.querySelectorAll('[data-af-fermer]').forEach(b => { b.onclick = () => { boite.ouvert = false; redessinerBoite(); }; });
+    actions.querySelectorAll('[data-af-suivant]').forEach(b => { b.onclick = () => { boite.ouvert = b.dataset.afSuivant; redessinerBoite(); }; });
     // Plier et déplier un choix.
     actions.querySelectorAll('.hub-msg-tete').forEach(b => {
       b.onclick = () => {
@@ -3962,6 +3989,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     D.tableau = `<div class="ent2">
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
       <div class="ent2-note">Après ${k === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')}</div>
+      <ol class="ent2-periodes" aria-label="Les trois périodes">${[0, 1, 2].map(i => `<li class="${i < k ? 'faite' : i === k ? 'a-jouer' : ''}">${i ? `${i + 1}e` : '1re'}${i < k ? ` · ${faites[i].pointage.moi}–${faites[i].pointage.lui}` : i === k ? ' · à jouer' : ''}</li>`).join('')}</ol>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
     </div>`;
     ouvrirMainDeMatch({

@@ -508,10 +508,14 @@ async function regler() {
       const sb = await page.evaluate(() => {
         const m = document.querySelector('#hubModal .hub-msg.ouvert'), b = document.querySelector('#hubModal .hub-barre');
         if (!m || !b || document.querySelector('#choixModal:not([hidden])')) return null;
+        // L'enveloppe ouverte est une feuille (E4) : sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
         const o = m.querySelector('.af-option');
-        return { sujet: (m.querySelector('.hub-msg-sujet') || {}).textContent || '', opt: o ? o.getBoundingClientRect().bottom : null, barre: b.getBoundingClientRect().top };
+        if (o) o.scrollIntoView({ block: 'nearest' });
+        const r = o ? o.getBoundingClientRect() : null;
+        const dessus = r ? document.elementFromPoint(r.left + r.width / 2, Math.min(innerHeight - 1, r.top + r.height / 2)) : null;
+        return { sujet: (m.querySelector('.hub-msg-sujet') || {}).textContent || '', opt: r ? r.bottom : null, barre: b.getBoundingClientRect().top, libre: !o || (dessus && o.contains(dessus)) };
       });
-      if (sb) { barreA.vus++; if (sb.opt != null && sb.opt > sb.barre + 1) barreA.sous.push(`« ${sb.sujet.slice(0, 30)} » : sa 1re option finit à ${Math.round(sb.opt)}, la barre commence à ${Math.round(sb.barre)}`); }
+      if (sb) { barreA.vus++; if (!sb.libre) barreA.sous.push(`« ${sb.sujet.slice(0, 30)} » : sa 1re option est couverte (elle finit à ${Math.round(sb.opt)})`); }
       continue;
     }
     return;
@@ -888,8 +892,15 @@ for (const pack of ['j:bronze', 'j:epoque']) {
 {
   await auBureau();
   await page.screenshot({ path: `${DOSSIER}/rogue-bureau.png` });
+  // LE BUREAU À UN ÉCRAN (docs/ecrans-rogue.md, E4) : la route en puces, À faire en enveloppes ; on mesure ce qui défile encore.
+  const bu = await page.$eval('#hubModal .hub-sheet', e => ({ h: e.scrollHeight, v: e.clientHeight, blocs: [...e.querySelectorAll('.hub-volet > *, .hub-carte > *, .hub-boite')].map(x => `${x.className.split(' ')[0]} ${Math.round(x.getBoundingClientRect().height)}`).join(' · ') })).catch(() => null);
+  if (bu) console.log(`10c. le Bureau : ${(bu.h / Math.max(1, bu.v)).toFixed(2).replace('.', ',')} écran · ${bu.blocs}`);
   await versCeSoir();
   await page.screenshot({ path: `${DOSSIER}/rogue-ce-soir.png`, fullPage: true });
+  // CE SOIR EN TROIS CHIFFRES (E5) : les barres face à face, et ce qui défile encore.
+  const cs = await page.$eval('#hubModal .hub-sheet', e => ({ h: e.scrollHeight, v: e.clientHeight, barres: e.querySelectorAll('.hub-duel.barres tr').length })).catch(() => null);
+  if (cs) console.log(`10d. Ce soir : ${(cs.h / Math.max(1, cs.v)).toFixed(2).replace('.', ',')} écran · ${cs.barres} rangée(s) en barres`);
+  if (cs && cs.barres && cs.barres !== 3) erreurs.push(`Ce soir montre ${cs.barres} rangées en barres, pas trois`);
   // Deux copies d'une même carte se groupent en une tuile « ×2 » (Jalon M, B9) : on compte les copies.
   const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.reduce((a, x) => a + Number(((x.querySelector('.hub-poche-n') || {}).textContent || '×1').slice(1)), 0)).catch(() => -1);
   // UN VERBE PAR TUILE, ET LES PLACES SOUS L'AFFICHE (B9) : chaque tuile dit ce qu'un toucher fait, et la section est à moins d'un écran du haut du volet.

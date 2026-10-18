@@ -1532,9 +1532,9 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx, etape: etape('plan', '🔎 Leur plan · prépare-toi') }) : ''}
+        ${D && D.tableau ? `<div class="duel-tete">${D.tableau}</div>` : ''}
         ${D && geste && !ouverts.has('duel') ? `<div class="duel-intention plie">${pli('duel', `${D.ico} ${esc(D.nom)} · ✓ ${esc((D.gestes.find(o => o.cle === geste) || {}).nom || '')}`)}</div>` : D ? `<div class="duel-intention">
           ${etape('duel', `${D.ico} ${esc(D.nom)} · leur intention`)}
-          ${D.tableau || ''}
           <p class="duel-fait">${esc(D.fait)}</p>
           ${D.pourquoi ? `<p class="duel-pourquoi">${esc(D.pourquoi)}</p>` : ''}
           ${D.mots && D.mots.length ? `<div class="choix-puces">${puces(D.mots)}</div>` : ''}
