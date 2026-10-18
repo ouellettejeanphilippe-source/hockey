@@ -69,9 +69,10 @@ console.log('\n  Les coachs (v2)\n');
 const tous = Object.values(BANQUE);
 const neutres = tous.filter(c => !c.coach);
 informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].ico} ${idsDuCoach(k).length}`).join(' · ')} · neutres ${neutres.length}`);
-// V10 (docs/refonte-v10.md § 8) : le plancher suit le jeu neuf — quatre cartes de cahier et trois places par coach, plus
-// l'équipement ou le personnel ; l'ancien jeu de tous les soirs ne compte plus (retiré, tranche 3).
-const PLANCHER_COACH = 10;
+// V10 (docs/refonte-v10.md § 8) : le plancher suit le jeu neuf — quatre cartes de cahier, trois places et deux postes de
+// personnel par coach ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur (js/equipement.js).
+// L'ancien jeu de tous les soirs ne compte plus (retiré, tranches 3 à 5).
+const PLANCHER_COACH = 9;
 const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 3);
 exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins trois familles`, !minces.length,
   ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
@@ -86,7 +87,8 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
 
 /* 2. La confiance. */
 {
-  const cartes = idsDuCoach('tortue').filter(id => BANQUE[id].cat === 'evenement');
+  // V10 : les événements ne se tirent plus ; les cartes de la Tortue qui se jouent hors du combat.
+  const cartes = idsDuCoach('tortue').filter(id => BANQUE[id].cat !== 'match');
   const decs = [];
   const allumes = [];
   for (let i = 0; i < 10; i++) {
@@ -120,8 +122,8 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
  */
 {
   const depart = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
-  // V6 : l'Aigle n'a plus que huit événements qui se tirent ; ses consommables complètent les neuf cartes jouées.
-  const deLAigle = idsDuCoach('rapaces').filter(id => ['evenement', 'consommable'].includes(BANQUE[id].cat));
+  // V10 : les cartes de l'Aigle qui se jouent hors du combat.
+  const deLAigle = idsDuCoach('rapaces').filter(id => BANQUE[id].cat !== 'match');
   const aigle = deLAigle.slice(0, 6).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id, ref: `a${i}` } }));
   const decs = [];
   for (const d of aigle) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
