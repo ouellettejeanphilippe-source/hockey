@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, getHiddenRatings, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, CARTES, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, getHiddenRatings, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -333,8 +333,6 @@ function confirmerDecision(d) {
   else if (d.ballottage && d.ballottage.ecole) mot = `📟 ${qui(d.ballottage.entre)} monte du club-école : gratuit, hors plafond.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   else if (d.ballottage && d.ballottage.entre) mot = d.ballottage.sort ? `📒 ${qui(d.ballottage.entre)} prend la place de ${qui(d.ballottage.sort)} : la carte de ${qui(d.ballottage.sort)} va à ton cartable.` : `🪑 ${qui(d.ballottage.entre)} entre dans une case de réserve libre : personne ne sort.`;
   else if ((d.deck === 'amelioration' || d.deck === 'profil' || d.deck === 'atelier') && M) mot = `${M.ico} ${qui(d.mutation.joueur)} : ${M.nom.toLowerCase()}.`;
-  // La carte du proprio (objectif atteint) : la seule carte prise sans un mot (QA S74b).
-  else if (d.carte && CARTES[d.carte]) mot = `${CARTES[d.carte].ico} ${CARTES[d.carte].nom} : pour le reste de la saison.`;
   // v2 : la carte qui fait croire le vestiaire à un coach le dit, avec ce que sa confiance joue.
   if (d.coach && COACHS[d.coach.cle]) {
     const C = COACHS[d.coach.cle];
@@ -546,13 +544,6 @@ export function bancSerie(ronde, k, soir = null) {
   }
 }
 
-async function choisirCarte(palier, jour, cle, depuis = jour) {
-  if (!G.ligue || !CARTES[cle]) return;
-  const decisions = (G.ligue.decisions || []).filter(x => !(x.carte && x.palier === palier));
-  decisions.push({ jour, carte: cle, palier, sel: nouvelleGraine() });
-  await continuerSaison(decisions, Math.min(depuis, jour), 'La saison reprend avec ta carte…');
-  toast(`${CARTES[cle].ico} ${CARTES[cle].nom} : pour le reste de la saison.`);
-}
 
 /*
  * REPRENDRE LES SÉRIES APRÈS UN RAFRAÎCHISSEMENT. La saison vient d'être
@@ -788,15 +779,11 @@ function ouvrirEcranSaison(depuis = 0) {
       // À chaque journée révélée, la sauvegarde suit. C'est le seul état que
       // la reprise a besoin de connaître.
       onJour: j => { G.journee = j; saveGame(); if (G.bonus === 'ROGUE') renderCap(); majEntete(); },
-      // LES CARTES DE SAISON : la graine décide de la main offerte à chaque
-      // palier (sans toucher au hasard du moteur), et les paliers déjà pris
-      // se lisent dans les décisions — il n'y a pas d'autre état.
+      // LA MAIN D'UN PALIER : la graine décide de la main offerte (sans toucher au hasard du moteur), et les paliers
+      // déjà pris se lisent dans les décisions — il n'y a pas d'autre état. Elle se ferme par n'importe laquelle de ses
+      // cartes (S73) : une recrue, un rôle, le ménage, le camp, l'atelier (`deck`).
       graine,
-      // Une main de palier se ferme par n'importe laquelle de ses cartes (S73) :
-      // un effet (`carte`), ou une recrue, une amélioration, un rôle, un stage (`deck`).
-      cartesPrises: (decisions || []).filter(d => d.carte || (d.deck && typeof d.palier === 'number'))
-        .map(d => ({ palier: d.palier ?? d.jour, carte: d.carte || null })),
-      onCarte: choisirCarte,
+      paliersPris: (decisions || []).filter(d => d.deck && typeof d.palier === 'number').map(d => d.palier),
       // Les épisodes de case vide déjà encaissés, pour qu'un trou ne retende
       // pas sa carte à chaque reprise (voir `trousFaits`, js/saison.js).
       trousPris: (decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('trou:'))

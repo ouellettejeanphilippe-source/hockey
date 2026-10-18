@@ -125,7 +125,7 @@ const DESSIN_DE = {
   quitteOuDouble: 'des', placement: 'des',
 };
 /* Les catégories de la banque qui ont leur costume (js/banque.js `CATEGORIES`). */
-const FAMILLES = ['patron', 'evenement', 'joueur', 'consommable', 'plafond', 'saison'];
+const FAMILLES = ['patron', 'joueur', 'consommable', 'plafond'];
 const DESSIN_DU_GENRE = { attaque: 'rondelle', defense: 'bouclier', tactique: 'tableau', synergie: 'lien', malediction: 'nuage' };
 function dessinHtml(cle, genre) {
   const d = DESSINS[DESSIN_DE[String(cle).replace(/\+$/, '')]] || DESSINS[DESSIN_DU_GENRE[genre]];

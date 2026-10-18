@@ -932,244 +932,7 @@ export const PART_UNITE = {
   D: lireListe('PART_D', [0.390, 0.315, 0.295]),
 };
 
-/* =====================================================================
-   LES CARTES DE SAISON — un bonus payé par un malus
-
-   JP : *plus de moment roguelike dans la saison [...] bonus et malus à
-   choisir*. À trois paliers de la saison, on prend une carte parmi trois.
-   Chacune achète quelque chose et le PAIE : il n'y en a pas de gratuite, et
-   c'est ce qui en fait un choix plutôt qu'un cadeau.
-
-   ELLES NE CRÉENT AUCUNE MÉCANIQUE NEUVE. Chaque carte n'est qu'un facteur
-   sur une quantité que le profil de match porte DÉJÀ — le volume de lancers
-   (`pression`), la finition d'équipe (`finitionFacteur`), la défensive
-   (`traitDef`, le même canal que le Selke), la robustesse (`traitRob`, le
-   canal des soirs éreintants et des séries) et le risque de blessure. Rien
-   à recalibrer : ce sont les curseurs du moteur, bougés de quelques pour
-   cent.
-
-   ET ELLES SE REJOUENT. Une carte est une DÉCISION (`{ jour, carte }`),
-   donc elle vit dans la sauvegarde avec les autres et la saison se rejoue
-   de la graine avec elle — comme un changement de trio derrière le banc.
-   `check_graine.mjs` l'exige.
-
-   Les magnitudes sont petites EXPRÈS. Trois cartes par saison à ±6 % sur un
-   seul canal laissent le plafond du jeu où il est ; le plaisir est dans le
-   choix, pas dans l'empilement.
-   ===================================================================== */
-/*
- * LES MAGNITUDES SONT RÉGLÉES SUR LA MESURE, jamais sur l'intuition — et la
- * première lecture en a corrigé deux d'un coup.
- *
- * COMMENT ON MESURE. Une saison à 82 matchs a un écart type de 4,5 victoires
- * autour de son espérance, et une équipe tirée au hasard dans 55 saisons en
- * a bien plus : comparer deux ligues indépendantes demanderait des centaines
- * d'essais pour lire UNE victoire. On joue donc la même ligue deux fois sous
- * la MÊME graine, la carte aux équipes de rang pair au premier passage et
- * aux impaires au second : chaque équipe est mesurée avec et sans, contre le
- * même champ, et la force de l'équipe — la plus grosse source de variance —
- * s'annule. Douze ligues font 384 paires, soit ±0,3 victoire.
- *
- * LE PRIX DE CHAQUE CANAL, mesuré un canal à la fois (les six cartes en
- * bougent deux ou trois, on ne peut rien en déduire sans résoudre un système
- * à l'aveugle sur du bruit) :
- *
- *   canal              +5 % (ou +1)   −5 % (ou −1)
- *   finition            +0,9 V         −1,3 V
- *   défensive           +1,2 V         −1,6 V
- *   volume              +0,9 V         −1,3 V
- *   robustesse          +0,5 V         −0,8 V
- *   blessures  ×0,5 :   −0,2 V     ×2 : −0,9 V
- *
- * TROIS CHOSES QUE CE TABLEAU DIT, et qu'on ne devinait pas.
- *
- * (1) LE MAUVAIS CÔTÉ COÛTE PLUS QUE LE BON NE RAPPORTE, sur les quatre
- * canaux. C'est le rendement décroissant des plafonds : `FINITION_MAX` et
- * `PRESSION_MAX` mangent une partie du bonus, rien n'amortit le malus. Une
- * carte qui a l'air symétrique ne l'est donc pas, et il faut la peser.
- *
- * (2) LA DÉFENSIVE PÈSE PLUS QUE LA FINITION (0,24 contre 0,18 la victoire
- * par pour cent). Un « cadenas » à −7 % de buts alloués valait +8,3 victoires
- * quand un « bloc » à +6 % de finition en valait ZÉRO.
- *
- * (3) LES BLESSURES SONT UN CANAL À SENS UNIQUE : deux fois moins de
- * blessures ne rapporte RIEN de mesurable (−0,2 ± 0,3), deux fois plus coûte
- * 0,9 victoire. Un alignement de 23 avec ses réservistes encaisse sa charge
- * ordinaire sans broncher ; c'est en la doublant qu'on manque de monde.
- * « L'infirmerie » n'est donc pas une carte qui fait gagner : c'est une
- * ASSURANCE, elle coupe la saison où ton premier centre rate vingt matchs.
- * Elle se paie en conséquence — presque rien.
- *
- * CE QU'UNE CARTE DOIT FAIRE : changer la FORME de ton match, pas sa force.
- * Ce qui bouge, ce sont les tirs, les buts marqués et alloués, les punitions,
- * l'infirmerie, et ce qui reste en séries. Les six premières forment TROIS
- * PAIRES OPPOSÉES — finition contre défensive, volume contre blessures,
- * volume contre robustesse — pour qu'aucune n'en double une autre.
- *
- * LES AMPLITUDES D'AUJOURD'HUI (1.0, étape 3 de docs/impact-des-choix.md) sont
- * celles qui se VOIENT. Les anciennes (3 à 5 % du match) gardaient chaque carte
- * sous une victoire et la rendaient invisible dans la feuille : JP, *plus fort,
- * ça veut pas dire plus gagner ; ça doit être clair que le build a un impact
- * pour vrai*. Chaque carte a gardé son prix — le bonus et le malus ont monté
- * ensemble, d'un facteur d'environ 1,5 à 2 — et le net en victoires reste celui
- * du style, pas de la force : `check_cartes.mjs` le borne par la RARETÉ (commune
- * ±1, peu commune ±1,5, rare ±2,5, légendaire ±4, un maximum et jamais une
- * cible), exige qu'une rare se voie dans la feuille (±2 tirs, ±0,3 but des deux
- * clubs, ±0,5 punition, ±3 blessures) et ne laisse pas plus de 0,5 V par seuil
- * franchi. Les chiffres du tableau plus bas sont ceux d'avant : le tableau
- * d'aujourd'hui est la sortie du script.
- *
- * MESURÉ AU RÉGLAGE RETENU (`node scripts/check_cartes.mjs`, 12 ligues) :
- *
- *   carte                ΔV     ΔBP    ΔBC   Δblessures
- *   Bloc de départ      +0,2    +14    +14     −0,3      l'attaque qui saigne
- *   Le cadenas          −0,6    −13     −9     −0,0      le contraire
- *   Roulement court     +0,4     +3     −1     +3,9      du volume payé cher
- *   L'infirmerie        −0,2     −2     +1     −2,2      l'assurance
- *   Les vétérans        +0,4     −1     −4     +0,1      plus les séries
- *   La jeunesse         −0,3     +1     +4     −0,0      moins les séries
- *
- * ET LA VRAIE INCERTITUDE EST PLUS GRANDE QUE L'ÉCART TYPE INTERNE. Celui-ci
- * dit ±0,2 sur 384 paires, mais deux lectures indépendantes de la même carte
- * — douze ligues sous une graine, dix-huit sous une autre — ont donné −0,6 et
- * +0,5 pour « Le cadenas ». Les paires d'une même ligue ne sont pas
- * indépendantes (les victoires d'une ligue sont à somme fixe), donc l'écart
- * type interne ment vers le bas. Compte une DEMI-VICTOIRE d'incertitude par
- * lecture, et c'est exactement pourquoi la borne de `check_cartes.mjs` est à
- * ±1 : elle attrape une carte devenue un cadeau ou un piège, pas un écart de
- * deux dixièmes. Ne retouche jamais une carte sur une seule lecture.
- *
- * UN DIFFÉRENTIEL ÉGAL NE VAUT PAS LE MÊME NOMBRE DE VICTOIRES, et c'est du
- * vrai hockey : le « bloc » et le « cadenas » bougent leurs deux colonnes de
- * la même quantité, en sens inverse, et ne rendent pas la même chose.
- * Pythagore en est la raison — à différentiel égal, une équipe qui joue des
- * 2-1 gagne un plus gros pourcentage qu'une qui joue des 6-5. C'est une
- * propriété exacte du hockey à faible pointage, pas un défaut à corriger.
- */
-export const CARTES = {
-  // finition contre défensive. 8 % de finition (+1,44) payés par 4,5 % de
-  // buts alloués (−1,44).
-  bloc: {
-    nom: 'Bloc de départ', ico: '🚀',
-    bon: 'Ton attaque finit mieux', prix: 'Tu encaisses davantage',
-    finition: 1.12, defense: 1.10,
-  },
-  // l'inverse : 6 % de buts alloués (+1,44) payés par 5,5 % de finition.
-  cadenas: {
-    nom: 'Le cadenas', ico: '🔒',
-    bon: 'Tu alloues moins de buts', prix: 'Ton attaque finit moins bien',
-    defense: 0.915, finition: 0.90,
-  },
-  // volume contre blessures : 5 % de lancers (+0,90) payés par des blessures
-  // DOUBLÉES (−0,90). Il fallait les doubler : à ×1,45 la carte était gratuite.
-  roulement: {
-    nom: 'Roulement court', ico: '🔁',
-    bon: 'Tes meilleurs jouent plus : plus de lancers', prix: 'Ils se blessent bien plus souvent',
-    volume: 1.10, blessure: 2.60,
-  },
-  // l'assurance. Le bonus ne vaut rien en victoires et tout en tranquillité ;
-  // le prix est donc d'un pour cent de lancers, et pas davantage.
-  infirmerie: {
-    nom: "L'infirmerie", ico: '🏥',
-    bon: 'Plus de trois fois moins de blessures : ta saison ne déraille pas', prix: 'Moins de lancers',
-    blessure: 0.28, volume: 0.985,
-  },
-  // volume contre robustesse. Ce que les vétérans achètent se paie surtout en
-  // AVRIL, et la mesure de saison ne le voit pas : la carte est donc réglée
-  // un cheveu sous zéro en saison (+0,50 contre −0,65), et les séries sont le
-  // reste.
-  veterans: {
-    nom: 'Les vétérans', ico: '🧭',
-    bon: 'Plus robuste, moins de punitions : les soirs éreintants et les séries', prix: 'Moins de lancers',
-    // 1.0, le tempo : la lenteur coûte moins (l'adversaire tire moins aussi) — la robustesse redescend (0,6 → 0,3).
-    robustesse: 0.3, discipline: 0.80, volume: 0.92,
-  },
-  // l'inverse, et le même déséquilibre à l'envers : un départ canon payé en
-  // avril (+0,90 contre −0,80, plus ce que les séries prendront).
-  jeunesse: {
-    nom: 'La jeunesse', ico: '⚡',
-    bon: 'Des jambes fraîches : plus de lancers, et on s\'use moins', prix: 'Moins robuste quand ça brasse',
-    // 1.0, le tempo : la vitesse rapporte moins (l'adversaire tire plus aussi) — le prix en robustesse baisse (−1,5 → −0,9).
-    volume: 1.10, robustesse: -0.9, energie: 0.85,
-  },
-  /*
-   * QUATRE CARTES DE PLUS (S62), et la variété était la raison : JP voulait
-   * l'aspect roguelike *plus varié*. À six cartes, trois paliers et parfois
-   * une case vide, on revoyait toujours les mêmes ; à dix, une partie ne
-   * montre plus la moitié du paquet. Chacune reste un bonus payé par un
-   * malus, sur les canaux qui existent déjà — dont L'INDISCIPLINE, qui est
-   * arrivée avec le plan de match et qui ouvre une famille neuve : une carte
-   * qui joue sur l'arbitre plutôt que sur le tir.
-   */
-  sangfroid: {
-    nom: 'Le sang-froid', ico: '🧊',
-    bon: 'Tu prends moins de punitions', prix: 'Moins de lancers',
-    discipline: 0.75, volume: 0.93,
-  },
-  vague: {
-    nom: 'La vague', ico: '🌊',
-    bon: "L'attaque s'emballe : ça rentre plus souvent", prix: 'Le rythme se paie à l\'infirmerie',
-    finition: 1.06, volume: 1.01, blessure: 2.60,
-  },
-  grandjeu: {
-    nom: 'Le grand jeu', ico: '🎲',
-    bon: 'Des matchs fous : tu marques beaucoup', prix: 'Et tu encaisses beaucoup',
-    finition: 1.13, defense: 1.13,
-  },
-  chasse: {
-    nom: 'La chasse', ico: '🏒',
-    bon: 'Tu lances de partout', prix: 'De moins bonnes occasions',
-    volume: 1.11, finition: 0.915,
-  },
-  /*
-   * HUIT DE PLUS (S74b). À dix, la main du palier (un effet parmi trois
-   * sortes) et les objectifs revoyaient vite les mêmes. Même contrat — un
-   * bonus payé par un malus, sur des canaux qui existent, réglés près de zéro
-   * avec les poids mesurés ici (1 % de finition ou de lancers ≈ 0,18 victoire,
-   * 1 % de buts alloués ≈ 0,32) — et même juge : `check_cartes.mjs`.
-   */
-  newjersey: {
-    nom: 'Le système du New Jersey', ico: '🧱',
-    bon: 'Presque rien ne passe', prix: 'Tu lances beaucoup moins',
-    // S80 : 0,955 et 0,92 se mesuraient à −0,8 victoire (−1,03 sur 12 ligues, hors de ±1) : recentrée.
-    defense: 0.92, volume: 0.90,
-  },
-  ouvert: {
-    nom: 'Le jeu ouvert', ico: '🏃',
-    bon: 'Tu lances de partout, tout le temps', prix: 'Tu laisses des trous derrière',
-    volume: 1.11, defense: 1.07,
-  },
-  ecole: {
-    nom: 'L\'école de tir', ico: '🎯',
-    bon: 'Chaque lancer est meilleur', prix: 'Tu en prends moins',
-    finition: 1.10, volume: 0.89,
-  },
-  durs: {
-    nom: 'Les durs à cuire', ico: '🦍',
-    bon: 'Plus robuste : les soirs éreintants et les séries', prix: 'Des mains moins fines, et des punitions',
-    robustesse: 1.8, discipline: 1.25, finition: 0.96,
-  },
-  physio: {
-    nom: 'Le préparateur physique', ico: '🏋',
-    bon: 'Moins de blessures', prix: 'Des pratiques moins intenses : moins de lancers',
-    blessure: 0.35, volume: 0.955,
-  },
-  gardiens: {
-    nom: 'L\'entraîneur des gardiens', ico: '🥅',
-    bon: 'Tu alloues moins de buts', prix: 'Tout le monde recule : moins de lancers',
-    defense: 0.935, volume: 0.92,
-  },
-  montent: {
-    nom: 'Les défenseurs montent', ico: '🚀',
-    bon: 'Ton attaque a cinq joueurs', prix: 'Et ta défense en a trois',
-    finition: 1.06, volume: 1.03, defense: 1.07,
-  },
-  fougue: {
-    nom: 'La fougue', ico: '🔥',
-    bon: 'Ça pousse fort : plus de lancers, et ça rentre', prix: 'Des punitions bêtes',
-    finition: 1.05, volume: 1.05, discipline: 1.30,
-  },
-};
+/* V10 (tranche 6) : les cartes de saison (un bonus payé par un malus) sont parties ; le personnel en a pris la place (js/personnel.js). */
 
 /* =====================================================================
    LE ROULEMENT — une décision qu'on porte toute la saison, et qu'on
@@ -1278,7 +1041,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   const actifs = [...effetsActifs(team), ...contreLui];
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
-  const sources = [...((team && team.cartes) || []).map(c => CARTES[c]), ...((team && team.patrons) || []), ...coachsJoues(team),
+  const sources = [...((team && team.patrons) || []), ...coachsJoues(team),
     ROULEMENTS[roulementDe(team)], ...actifs].filter(c => joueCeSoir(team, c));
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
@@ -1610,7 +1373,7 @@ export function origineUnite(lineup, groupe, u) {
 export function lienDePaire(a, b) {
   return { coequipiers: clubSaison(a) === clubSaison(b), famille: franchiseDe(a) === franchiseDe(b) };
 }
-export function originesDe(team) {
+function originesDe(team) {
   const lineup = team && team.roster;
   const habilles = SLOTS.filter(s => !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
   const top = SLOTS.filter(s => !s.scratch && s.unit <= 1 && (s.group === 'F' || s.group === 'D')).map(s => lineup && lineup[s.i]).filter(Boolean);
@@ -2602,9 +2365,9 @@ function usureLigne(l, part, partMoy, groupe = 'F') {
   const prix = S && S.prix && S.prix.energie ? S.prix.energie : 1;
   return (part / (partMoy || part || 1)) * AGRESSIVITES[l.agr].energie * prix;
 }
-/* Le multiplicateur d'usure des effets, des cartes de saison et des patrons. */
+/* Le multiplicateur d'usure des effets, des patrons et des coachs. */
 function kUsure(team) {
-  const src = [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team), ...((team && team.cartes) || []).map(c => CARTES[c])];
+  const src = [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team)];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
 /* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */
@@ -3210,10 +2973,12 @@ export const PALIERS_CARTES = [20, 40, 60];
  * joueurs, tu en prends un), une amélioration, un nouveau rôle. Tirée de la
  * graine, pure.
  */
+/*
+ * V10 (tranche 6) : la carte d'effet (une carte de saison) et l'amélioration (une modif d'avant) quittent la main ; elle
+ * tire trois des cinq sortes qui restent.
+ */
 export const SORTES_DECK = {
-  effet: { ico: '🃏', nom: 'Carte d\'effet', mot: 'Un effet pour le reste de la saison' },
   recrue: { ico: '🎟', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
-  amelioration: { ico: '⬆', nom: 'Amélioration', mot: 'Une amélioration à poser au verso d\'un de tes joueurs' },
   profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de rôle' },
   // LE MÉNAGE (S74) : une carte de moins dans le deck de match (js/combat.js) — l'autre moitié d'un deckbuilder.
   menage: { ico: '🗑', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
@@ -3222,16 +2987,8 @@ export const SORTES_DECK = {
   // L'ATELIER (S78) : éditer un joueur — son poste, ses trios possibles, ses malus, sa carte.
   atelier: { ico: '🛠', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
 };
-export function mainDuDeck(graine, jour, prises = []) {
-  const effet = mainDeCartes(graine, jour, prises)[0];
-  const autres = ['recrue', 'amelioration', 'profil', 'menage', 'camp', 'atelier']
-    .map(k => [k, hacherMise(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).map(([k]) => k);
-  const ameliorations = Object.keys(MUTATIONS).filter(k => MUTATIONS[k].source === 'amelioration');
-  const main = [{ sorte: 'effet', cle: effet }];
-  for (const k of autres.slice(0, 2)) main.push(k === 'amelioration'
-    ? { sorte: k, cle: ameliorations[Math.floor(hacherMise(graine, 'amelioration', jour) * ameliorations.length)] }
-    : { sorte: k });
-  return main;
+export function mainDuDeck(graine, jour) {
+  return Object.keys(SORTES_DECK).map(k => [k, hacherMise(graine, 'deck', jour, k)]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(([sorte]) => ({ sorte }));
 }
 /* L'atelier : trois éditions tirées de la graine ; le joueur, tu le choisis. */
 export function editionsDuJour(graine, jour) {
@@ -3249,24 +3006,6 @@ export function rolesOfferts(team, graine, jour) {
     if (out.length === 3) break;
   }
   return out;
-}
-export function mainDeCartes(graine, jour, prises = []) {
-  // UNE CARTE NE SE PREND QU'UNE FOIS. Sans ça le pire cas est trois fois la
-  // même, et c'est ce pire cas qu'il faut équilibrer plutôt que le choix
-  // réel — mesuré, trois « cadenas » valaient +8,3 victoires quand un seul
-  // en vaut le tiers. Trois cartes DIFFÉRENTES, c'est aussi un meilleur
-  // choix : on compose une saison au lieu d'empiler un curseur.
-  const cles = Object.keys(CARTES).filter(c => !prises.includes(c));
-  // sfc32 n'est pas nécessaire ici : un mélangeur entier suffit, et il doit
-  // surtout être PUR — même graine, même jour, même main.
-  let x = (Number(graine) >>> 0) ^ (jour * 0x9e3779b1);
-  const suivant = () => {
-    x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
-    return x / 0x100000000;
-  };
-  const reste = cles.slice(), main = [];
-  while (main.length < 3 && reste.length) main.push(reste.splice(Math.floor(suivant() * reste.length), 1)[0]);
-  return main;
 }
 
 /* =====================================================================
@@ -6144,7 +5883,7 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // `rien` : la modif n'est pas posée, mais son joueur est lu (le même gardien devant le filet des deux côtés d'une différence).
       posee = mutation && !mutation.rien ? poserMutationLue(team, lineup, mutation) : null;
       // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
-      if (nu) { team.cartes = []; team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
+      if (nu) { team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
       // `neutre` : { badges, chimie, jambes, systemes } remis au neutre pour TON club (ses habillés), toute la lecture durant.
       if (neutre) { NEUTRE = { ...neutre, team, joueurs: new Set(Object.values(lu).filter(Boolean)) }; MEMO_MATCH++; }
@@ -6501,7 +6240,6 @@ export function simulate(roster, { graine = null } = {}) {
 function appliquerDecision(team, d, graine = 0) {
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
-  if (d.carte && CARTES[d.carte]) (team.cartes = team.cartes || []).push(d.carte);
   if ('fermeture' in d) team.fermeture = d.fermeture;
   // TES RIVAUX (V8) : choisis au premier jour, ils font les gros matchs de la saison (`grosMatchAvant`).
   // Au jeu, ils se prennent un à la fois (`rival`) ; le robot les pose d'un coup (`rivaux`).
@@ -6888,7 +6626,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.cartes = []; t.patrons = []; t.coachs = [];
+      t.patrons = []; t.coachs = [];
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -7378,7 +7116,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.cartes = []; t.patrons = []; t.coachs = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.patrons = []; t.coachs = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -7815,16 +7553,6 @@ export const colonnesProfil = p => ({ L: lancersBrut(p), T: tirBrut(p), P: passe
    ===================================================================== */
 export const MUTATIONS = {
   // ---- les améliorations du deck (S73) : un cadeau, au joueur de ton choix ----
-  affute: { nom: 'Le tir affûté', ico: '🎯', cible: 'libre', source: 'amelioration',
-    quoi: 'Des heures au filet après les pratiques : il marque plus.', profils: { sniper: 12, offensif: 10 }, finition: 1.176 },
-  moteur: { nom: 'Le moteur', ico: '⚡', cible: 'libre', source: 'amelioration',
-    quoi: 'Un été de cardio : il lance plus, et plus longtemps.', profils: { energie: 10 }, lancers: 1.154 },
-  mur: { nom: 'Le mur', ico: '🧱', cible: 'libre', source: 'amelioration',
-    quoi: 'Il lit le jeu adverse une seconde plus tôt.', profils: { deuxsens: 12, defensif: 12 }, defense: 0.898 },
-  vision: { nom: 'La vision', ico: '🪄', cible: 'libre', source: 'amelioration',
-    quoi: 'Il trouve des passes que personne ne voit.', profils: { passeur: 12, manieur: 10 }, creation: 1.176 },
-  coach: { nom: 'L\'entraîneur des gardiens', ico: '🧤', cible: 'libre', source: 'amelioration', gardien: true,
-    quoi: 'Un été avec l\'entraîneur des gardiens : il place mieux ses jambières.', arrets: 0.925 },
   /*
    * ---- L'ATELIER (S78) : éditer un joueur ----
    * JP : *ajouter cartes pour éditer joueur, genre ajouter position, changer
@@ -7832,16 +7560,6 @@ export const MUTATIONS = {
    * l'amélioration (plus haut) ; l'atelier fait le reste, au joueur de ton
    * choix, pour le reste de la saison.
    */
-  partout: { nom: 'Joue partout', ico: '🔀', cible: 'libre', source: 'atelier', partout: true,
-    quoi: 'Il apprend les autres postes de son groupe : plus aucune pénalité hors position (centre ou ailes ; les deux côtés en défense).' },
-  cran: { nom: 'Monte d\'un cran', ico: '⏫', cible: 'libre', source: 'atelier', cran: 1,
-    quoi: 'Il rend à 100 % une ligne plus haut : un trio (ou une paire) de plus où il est à sa place.' },
-  enBas: { nom: 'Joue en bas', ico: '⏬', cible: 'libre', source: 'atelier', enBas: true, lancers: 0.928,
-    quoi: 'Un franc-tireur de premier trio qui rend au quatrième : la pénalité de joueur trop bas ne le touche plus, là seulement. Un cran plus haut, elle mord encore. Il lance un peu moins.' },
-  chasse: { nom: 'La chasse à la vedette', ico: '👤', cible: 'libre', source: 'atelier', ombre: 0.86, lancers: 0.946,
-    quoi: 'Tant qu\'il est habillé, il colle à leur meilleur joueur, même quand son trio n\'est pas sur la glace. Ce joueur-là marque moins. Lui lance un peu moins.' },
-  physio: { nom: 'Le physio', ico: '🩺', cible: 'libre', source: 'atelier', physio: true,
-    quoi: 'Le physio et le psy s\'en occupent : tous ses malus de carte disparaissent (un genou qui grince, une confiance ébranlée, un tir perdu).' },
   /*
    * MONTER UNE ÉDITION (oct. 2026). JP : *un système d'upgrade à la Marvel Snap si tu pognes pas la holo* ; *surtout
    * avec les cartes pas de match*. Chacune monte la carte d'UNE édition (js/rarete.js), jusqu'à son plafond (`jusqua`,
@@ -7856,8 +7574,6 @@ export const MUTATIONS = {
   lustre: { nom: 'Le lustre', ico: '✨', cible: 'libre', source: 'atelier', lustre: true, jusqua: 5,
     quoi: 'Sa carte monte d\'une édition — Base, Cadre, Hors-cadre, Or, Holo — et ses badges montent avec elle.' },
   // V2.4 — MONTER UN PALIER : la carte d'entraînement (la planète de Balatro) et le mentor de trio.
-  entrainement: { nom: 'L\'été de travail', ico: '🧗', cible: 'libre', source: 'atelier', palier: 1,
-    quoi: 'Un été à travailler ce qu\'il fait de mieux : son badge monte au suivant (Bronze → Argent → Or → Platine).' },
   mentorTrio: { nom: 'Le mentor', ico: '🦉', cible: 'libre', source: 'atelier', mentor: true,
     quoi: 'Il prend ses compagnons de ligne sous son aile : tant qu\'ils jouent avec lui, leur badge monte au suivant.' },
   /*
@@ -7935,26 +7651,10 @@ export const MUTATIONS = {
    * contrats : ce qu'une signature change chez lui, avec son prix. Même
    * contrat que les améliorations : un joueur, quelques pour cent.
    */
-  style_sniper: { nom: 'Style : franc-tireur', ico: '🎯', cible: 'libre', source: 'style', quoi: 'Il ne cherche plus la passe : il cherche le coin.', profils: { sniper: 15 }, finition: 1.11 },
-  style_faiseur: { nom: 'Style : faiseur de jeu', ico: '🪄', cible: 'libre', source: 'style', quoi: 'Il voit trois jeux d\'avance.', profils: { passeur: 15, manieur: 12 }, creation: 1.132 },
-  style_ancre: { nom: 'Style : ancre', ico: '⚓', cible: 'libre', source: 'style', quoi: 'Il ne quitte plus sa zone.', profils: { defensif: 15, checker: 12 }, defense: 0.949 },
-  style_locomotive: { nom: 'Style : locomotive', ico: '🚂', cible: 'libre', source: 'style', quoi: 'Il part avant la rondelle et arrive avant tout le monde.', profils: { energie: 12 }, lancers: 1.11 },
-  style_chasseur: { nom: 'Style : chasseur', ico: '🐺', cible: 'libre', source: 'style', quoi: 'Il écrase le porteur et repart avec la rondelle.', profils: { power: 10, physique: 10 }, lancers: 1.066, finition: 1.044 },
-  style_architecte: { nom: 'Style : architecte', ico: '📐', cible: 'libre', source: 'style', quoi: 'Chaque présence est un plan dessiné au tableau.', profils: { passeur: 12, manieur: 12 }, creation: 1.09, finition: 1.036 },
-  style_sentinelle: { nom: 'Style : sentinelle', ico: '🛡', cible: 'libre', source: 'style', quoi: 'Personne ne passe par son côté.', profils: { defensif: 15, deuxsens: 10 }, defense: 0.94 },
-  style_canonnier: { nom: 'Style : canonnier', ico: '💣', cible: 'libre', source: 'style', quoi: 'Il décoche de la ligne bleue à chaque remise.', profils: { offensif: 15 }, lancers: 1.108 },
-  style_buteur: { nom: 'Style : buteur né', ico: '👑', cible: 'libre', source: 'style', quoi: 'Il sent le but comme d\'autres sentent la pluie.', profils: { sniper: 20 }, finition: 1.112, lancers: 1.032 },
-  style_pieuvre: { nom: 'Style : pieuvre', ico: '🐙', cible: 'libre', source: 'style', gardien: true, quoi: 'Des bras et des jambières partout dans le demi-cercle.', arrets: 0.955, blessure: 0.8 },
-  masque_neuf: { nom: 'Le masque neuf', ico: '🎭', cible: 'libre', source: 'style', gardien: true, quoi: 'Un masque peint à ses couleurs : il se sent invincible.', arrets: 0.964 },
-  baton_neuf: { nom: 'Le bâton neuf', ico: '🏒', cible: 'libre', source: 'style', quoi: 'La bonne courbe, enfin.', profils: { sniper: 5 }, finition: 1.075 },
   contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
   contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
   contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.09, creation: 1.054, blessure: 1.3 },
   contrat_leader: { nom: 'Le « C » cousu', ico: '©', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
-  style_courbe: { nom: 'Style : la courbe', ico: '📏', cible: 'libre', source: 'style', quoi: 'La courbe que le gabarit n\'aime pas : le lancer trompe, il passe moins.', profils: { sniper: 10, passeur: -6 }, finition: 1.088, creation: 0.956 },
-  style_accrocheur: { nom: 'Style : l\'accrocheur', ico: '🪝', cible: 'libre', source: 'style', quoi: 'Il retient le bâton dans les coins, comme avant la règle. Moins de jeux, moins de lancers.', profils: { checker: 10, defensif: 8 }, defense: 0.949, lancers: 0.934 },
-  style_fantome: { nom: 'Style : le fantôme', ico: '👻', cible: 'libre', source: 'style', abri: 0.5, creation: 0.928,
-    quoi: 'Leur paire ne le trouve pas : la moitié de leur étouffement ne compte pas sur ses lancers. Il joue seul, alors il crée moins.' },
   ...MODIFS_VIE,
   // L'équipement neuf (V10, tranche 3 — js/equipement.js) : une carte posée sur un joueur, qui attend son moment.
   ...EQUIPEMENT,
@@ -7972,7 +7672,8 @@ export const mutationNuit = k => {
   const M = MUTATIONS[k];
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
-const MUTATIONS_ATELIER = ['partout', 'cran', 'physio', 'pinceau', 'fenetre', 'dorure', 'lustre', 'enBas', 'chasse', 'entrainement', 'mentorTrio'];
+// V10 (tranche 6) : les retouches de la carte seulement ; les éditions d'avant (le poste, la zone, l'été, le mentor) sont parties avec l'ancien jeu.
+const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -8208,7 +7909,6 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   const serie = team.jourCourant === Infinity;
   const ajouter = x => { if (serie) team.effetsSerie = [...(team.effetsSerie || []), x]; else team.effets = [...(team.effets || []), x]; };
   for (const d of aVenir || []) {
-    if (d.carte && CARTES[d.carte]) team.cartes = [...(team.cartes || []), d.carte];
     if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
     if ('speciales' in d) team.speciales = specialesValides(d.speciales);
     if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));

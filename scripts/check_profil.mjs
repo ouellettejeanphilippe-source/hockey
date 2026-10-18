@@ -22,10 +22,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue } from '../js/sim.js';
-import { payloadDe } from '../js/banque.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, chiffresDuMatch, buildDuSoir, buildVide, ecartsDuSoir, N_PROFIL, MIN_MATCHS, MIN_LIGUE, SEUILS } from '../js/profil-style.js';
 import { cartesDeStyle } from '../js/entracte.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { temoin } from './lib/temoins.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -51,9 +51,10 @@ function ligue(seed, n = 32) {
 }
 
 const decisions = [
-  { jour: 0, equipe: 0, carte: 'bloc' },
-  { jour: 3, equipe: 0, carte: 'fougue' },
-  { jour: 0, equipe: 0, ...payloadDe('patron:att_adjoint') },
+  // V10 : des patrons témoins (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
+  { jour: 0, equipe: 0, ...temoin('bloc') },
+  { jour: 3, equipe: 0, ...temoin('fougue') },
+  { jour: 0, equipe: 0, ...temoin('attaque') },
   { jour: 6, equipe: 0, match: { importance: 'basse', ad: -1 } },
   { jour: 10, equipe: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: 'defensive', tacD: 'maison' })) },
 ];
@@ -136,8 +137,7 @@ exiger('une feuille sans mises en échec ne les affiche pas', !/Mises en échec/
 
 // 6. Ton build ce soir.
 const b2 = buildDuSoir(toi, L.decisions, 2), b3 = buildDuSoir(toi, L.decisions, 3), b6 = buildDuSoir(toi, L.decisions, 6), b7 = buildDuSoir(toi, L.decisions, 7), b12 = buildDuSoir(toi, L.decisions, 12);
-exiger('une carte prise au jour 3 n\'était pas active au jour 2, et l\'est au jour 3', b2.cartes.length === 1 && b3.cartes.length === 2, `${b2.cartes.join(', ')} → ${b3.cartes.join(', ')}`);
-exiger('le patron pris au jour 0 est actif', b2.patrons.length === 1, b2.patrons.join(', '));
+exiger('un patron pris au jour 3 n\'était pas actif au jour 2, et l\'est au jour 3', b2.patrons.length === 2 && b3.patrons.length === 3, `${b2.patrons.join(', ')} → ${b3.patrons.join(', ')}`);
 exiger('la consigne ne vaut que le soir où elle est réglée', !!b6.consigne && !b7.consigne, `${b6.consigne}`);
 exiger('les systèmes ne comptent qu\'après la décision des lignes', !b7.systemes.length && b12.systemes.length >= 2, b12.systemes.join(', '));
 exiger('un soir sans rien de réglé se dit vide', buildVide(buildDuSoir(toi, [], 4)) && !buildVide(b3));

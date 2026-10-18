@@ -25,13 +25,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, playGame, feuilleVierge,
-  grainerHasard, activeLineup, profilMatch, coupsAttendus, CARTES, MUTATIONS } from '../js/sim.js';
+  grainerHasard, activeLineup, profilMatch, coupsAttendus, MUTATIONS } from '../js/sim.js';
 import { chiffresDuSoir, effetEnChiffres, motsDuSoir, systemeEnChiffres, motsEnChiffres, motsDeMutationEnChiffres, poserClubLu } from '../js/impact.js';
 import { BANQUE, reglesDe } from '../js/banque.js';
 import { CARTES_MATCH } from '../js/combat.js';
 import { optionDeCarteMatch, pucesDeFace, FACE_MAX } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
+import { temoin } from './lib/temoins.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
@@ -91,8 +92,9 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
 /* 1. Le niveau du soir contre des milliers de vrais matchs. */
 {
   const clubs = ligue(31337, 12);
-  const avecCartes = [['bloc', 'fougue'], ['chasse', 'cadenas'], ['newjersey', 'vagues']];
-  clubs.forEach((t, i) => { if (i >= 3 && i < 6) t.cartes = avecCartes[i - 3].filter(c => CARTES[c]); });
+  // V10 : des patrons témoins de toute la saison (scripts/lib/temoins.mjs) ; les cartes de saison sont parties.
+  const avecCartes = [['bloc', 'fougue'], ['chasse', 'defense'], ['ecole', 'attaque']];
+  clubs.forEach((t, i) => { if (i >= 3 && i < 6) t.patrons = avecCartes[i - 3].map(k => temoin(k).patron); });
   const ecarts = [];
   for (let i = 0; i < 6; i++) {
     const A = clubs[i], B = clubs[i + 6];
@@ -234,7 +236,7 @@ console.log('\n  L\'IMPACT EN CHIFFRES DE MATCH\n');
 
 /* 4. Lire ne change rien. */
 {
-  const decisions = [{ jour: 0, equipe: 0, carte: 'bloc' }, { jour: 0, equipe: 0, carte: 'fougue' }];
+  const decisions = [{ jour: 0, equipe: 0, ...temoin('bloc') }, { jour: 0, equipe: 0, ...temoin('fougue') }];
   let rendue = true;
   const joue = lire => {
     const teams = ligue(7800, 32);

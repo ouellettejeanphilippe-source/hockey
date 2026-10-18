@@ -17,8 +17,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
          creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge,
-         generateur, photoAlignement, CARTES, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES, connaitre, getPlayerKey, poserAlignementDuJour } from '../js/sim.js';
+         generateur, photoAlignement, SITUATIONS, JOURS_SITUATIONS, ROULEMENTS, TACTIQUES, AGRESSIVITES, connaitre, getPlayerKey, poserAlignementDuJour } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
 import { prevision } from '../js/pronostic.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -118,25 +119,27 @@ const ag0 = SLOTS.find(s => s.group === 'F' && s.unit === 0 && s.role === 'AG' &
 dire(f1.equipes[0].roster[ag0] !== a.equipes[0].roster[ag0] || f1.equipes[0].roster[ag0].n !== a.equipes[0].roster[ag0].n,
   `l'alignement final porte la décision (${f1.equipes[0].roster[ag0].n} au 1er trio)`);
 
-/* ---------- les cartes de saison ---------- */
+/* ---------- une décision de toute la saison ---------- */
 /*
  * UNE CARTE EST UNE DÉCISION, donc elle doit se comporter comme telle : les
  * journées d'avant identiques, la suite changée, et la même carte rejouée à
  * l'identique. Et elle doit VRAIMENT faire quelque chose — une carte qui ne
  * déplace pas une feuille est une carte morte, et c'est exactement le genre
- * de chose qu'on ne voit pas à l'oeil.
+ * de chose qu'on ne voit pas à l'oeil. V10 : les cartes de saison sont parties ; des patrons témoins, à chiffres
+ * connus (scripts/lib/temoins.mjs), jouent leur rôle. Chaque carte du jeu neuf change la feuille dans son moment :
+ * `check_places`, `check_cartes`.
  */
 const JOUR_CARTE = 20;
-const carte = cle => () => [{ jour: JOUR_CARTE, carte: cle }];
+const carte = cle => () => [{ jour: JOUR_CARTE, ...temoin(cle) }];
 const g1 = jouer('la-meme-graine', carte('bloc'));
 const g2 = jouer('la-meme-graine', carte('bloc'));
 dire(a.jours.slice(0, JOUR_CARTE).join('\n') === g1.jours.slice(0, JOUR_CARTE).join('\n'),
   `une carte au jour ${JOUR_CARTE} laisse les ${JOUR_CARTE} journées d'avant identiques`);
 dire(a.jours.slice(JOUR_CARTE).join('\n') !== g1.jours.slice(JOUR_CARTE).join('\n'), 'et change ce qui suit');
 dire(g1.feuilles === g2.feuilles && g1.joueurs === g2.joueurs, 'la même carte se rejoue à l\'identique');
-// Chaque carte du jeu doit déplacer la saison : aucune n'est décorative.
-const mortes = Object.keys(CARTES).filter(cle => jouer('la-meme-graine', carte(cle)).feuilles === a.feuilles);
-dire(!mortes.length, mortes.length ? `cartes sans effet : ${mortes.join(', ')}` : `les ${Object.keys(CARTES).length} cartes déplacent la saison`);
+// Chaque témoin doit déplacer la saison : une décision n'est jamais décorative.
+const mortes = TEMOINS_DE_SAISON.filter(cle => jouer('la-meme-graine', carte(cle)).feuilles === a.feuilles);
+dire(!mortes.length, mortes.length ? `décisions sans effet : ${mortes.join(', ')}` : `les ${TEMOINS_DE_SAISON.length} témoins déplacent la saison`);
 
 /* ---------- le plan de match et le roulement ---------- */
 /*

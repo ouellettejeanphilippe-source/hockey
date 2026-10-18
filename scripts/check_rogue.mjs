@@ -201,14 +201,7 @@ if (!isMainThread) {
   exiger('l\'échelle de la fin de partie : ×0,5 au premier soir, ×1 à la mi-saison, ×1,5 au dernier, ×2 en finale', e0 === 0.5 && Math.abs(e81 - 1.5) < 1e-9 && eS[3] === 2 && Math.abs(e40 - 1) < 0.01,
     `jour 1 ×${e0.toFixed(2)} · jour 41 ×${e40.toFixed(2)} · jour 82 ×${e81.toFixed(2)} · séries ${eS.map(x => `×${x.toFixed(2)}`).join(' ')}`);
   monte('elle ne redescend jamais, de la saison aux séries', [e0, e40, e81, ...eS]);
-  {
-    const p = { ...quarante[0] }, q = { ...quarante[1] };
-    const t = createTeam('Essai', 'ESS', { 0: p, 1: q });
-    appliquerMutation(t, p, 'affute', 0, 'choix');
-    appliquerMutation(t, q, 'style_sniper', 0, 'choix');
-    exiger('une amélioration grandit à part (`_amel`), un style ne grandit pas (`_mut`)', p._amel && p._amel.finition === MUTATIONS.affute.finition && !(p._mut && p._mut.finition)
-      && q._mut && q._mut.finition === MUTATIONS.style_sniper.finition && !q._amel, `affûté ${p._amel && p._amel.finition} · franc-tireur ${q._mut && q._mut.finition}`);
-  }
+  // V10 (tranche 6) : les améliorations qui grandissaient avec la saison sont parties avec l'ancien jeu.
   {
     const fx1 = effetsDesCartes(null, { jouees: ['provoquer'] }, 'x');
     const fx2 = effetsDesCartes(null, { jouees: ['provoquer'] }, 'x', { echelle: 2 });
@@ -422,8 +415,8 @@ if (!isMainThread) {
     const a = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 0.5 }), b = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 2 });
     exiger('une carte de trio du deck ne grandit pas : ses effets sont les mêmes à ×0,5 et à ×2', JSON.stringify(a.effets) === JSON.stringify(b.effets), `${a.effets.length} effet(s)`);
   }
-  exiger('une amélioration et une carte sur l\'adversaire valent au moins deux fois plus en finale qu\'au jour 3', finale.amelioration.parCarte > 2 * debut.amelioration.parCarte && finale.adversaire.parCarte > 2 * debut.adversaire.parCarte,
-    `amélioration ${signe(debut.amelioration.parCarte, 3)} → ${signe(finale.amelioration.parCarte, 3)} · adversaire ${signe(debut.adversaire.parCarte, 3)} → ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
+  exiger('une carte sur l\'adversaire vaut au moins deux fois plus en finale qu\'au jour 3', finale.adversaire.parCarte > 2 * debut.adversaire.parCarte,
+    `adversaire ${signe(debut.adversaire.parCarte, 3)} → ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
   exiger('en finale, une carte sur l\'adversaire bat une carte de trio du deck', finale.adversaire.parCarte > finale.synergie.parCarte,
     `synergie ${signe(finale.synergie.parCarte, 3)} · amélioration ${signe(finale.amelioration.parCarte, 3)} · adversaire ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
   // Ce qui se lit sans se juger : au troisième soir, une carte de trio du deck contre une amélioration — l'écart dépend de la formation.

@@ -344,6 +344,15 @@ export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infini
  * qui ont payé ; `sel`, tiré une fois, sème le tirage du classeur de chaque
  * run (le même tant que la run n'a pas commencé : recharger ne retire pas).
  */
+/*
+ * LA CONVERSION AU JEU NEUF (V10, tranche 6 — docs/refonte-v10.md § 7 ; JP : *reset toute*). Les sauvegardes rejouent
+ * une saison avec les identifiants de ses cartes, et l'ancien jeu est parti : une run d'avant rejouerait un autre passé.
+ * Une fois, au démarrage : les runs en cours repartent de zéro (js/sauvegardes.js `retirerLesRuns`) et l'inventaire de
+ * cartes du méta se vide (l'inventaire, le personnel, les cartes). Le cartable des joueurs, les médailles, les
+ * déblocages et le panthéon restent. Rend le méta converti, ou null s'il l'était déjà.
+ */
+const JEU_DE_CARTES = 'v10';
+export const convertirAuJeuNeuf = m => (m.jeu === JEU_DE_CARTES ? null : { ...m, inventaire: {}, personnel: [], cartes: [], jeu: JEU_DE_CARTES });
 const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, personnel: [], inventaire: {}, recus: {}, jalons: {}, sel: null });
 export function lireMeta() {
   try { return { ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }; } catch { return META_VIDE(); }

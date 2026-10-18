@@ -18,8 +18,7 @@
  * vote : sans assez de matchs, il n'y a pas de mot.
  */
 
-import { tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, IMPORTANCES } from './sim.js';
-import { PATRONS } from './banque.js';
+import { tirsTotal, TACTIQUES, SYSTEMES_D, IMPORTANCES } from './sim.js';
 import { CARTES_MATCH } from './combat.js';
 import { virgule } from './util.js';
 
@@ -118,7 +117,7 @@ export function motDeStyle(p, l) {
 export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 
 /**
- * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les cartes de saison, les
+ * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les
  * patrons, les effets en cours (événements, dilemmes, séquences, paris), les
  * systèmes réglés, la consigne du soir, les cartes de match
  * jouées. Tout se relit des décisions et des effets datés de l'équipe : rien
@@ -127,12 +126,12 @@ export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 export function buildDuSoir(team, decisions, jour, feuille = null) {
   const ds = (decisions || []).filter(d => d && (d.equipe || 0) === 0 && Number.isFinite(d.jour) && d.jour <= jour).sort((a, b) => a.jour - b.jour);
   const nomIco = x => `${x.ico ? `${x.ico} ` : ''}${x.nom}`;
-  const cartes = ds.filter(d => d.carte && CARTES[d.carte]).map(d => nomIco(CARTES[d.carte]));
   let patrons = [];
   for (const d of ds) {
     if (!d.patron || !d.patron.cle) continue;
+    // La décision porte son patron (son nom, son rôle) : on le lit là, comme le moteur.
     const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
-    patrons = [...patrons.filter(c => !rempl.has(c) && !(d.patron.role && PATRONS[c] && PATRONS[c].role === d.patron.role)), d.patron.cle];
+    patrons = [...patrons.filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), d.patron];
   }
   const effets = ((team && team.effets) || []).filter(e => e.nom && e.source !== 'match' && jour >= e.debut && jour < e.fin).map(nomIco);
   const lignes = ds.filter(d => Array.isArray(d.lignes)).pop();
@@ -148,7 +147,7 @@ export function buildDuSoir(team, decisions, jour, feuille = null) {
   const consigne = I && (soir.match.importance !== 'normale' || ad) ? `${I.ico} Consigne ${I.nom}${ad > 0 ? ' · attaque' : ad < 0 ? ' · défense' : ''}` : null;
   const jouees = ((feuille && feuille.cartes && feuille.cartes.jouees) || []).filter(c => CARTES_MATCH[c]).map(c => nomIco(CARTES_MATCH[c]));
   return {
-    cartes, patrons: patrons.filter(c => PATRONS[c]).map(c => nomIco(PATRONS[c])), effets: unique(effets),
+    patrons: patrons.filter(x => x.nom).map(nomIco), effets: unique(effets),
     systemes: unique(systemes), consigne, jouees,
   };
 }

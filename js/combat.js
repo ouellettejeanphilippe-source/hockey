@@ -82,22 +82,14 @@ export const CARTES_MATCH = {
     texte: 'Les défenseurs décochent à la moindre ouverture.', effet: { volume: 1.06 } },
   bloquer: { nom: 'Bloquer des tirs', ico: '🛡', cout: 1, rarete: 'commune', genre: 'defense',
     texte: 'Tout le monde se jette devant la rondelle.', effet: { defense: 0.95 } },
-  changements: { nom: 'Changements courts', ico: '⏱', cout: 0, rarete: 'commune', genre: 'tactique',
-    texte: 'Des présences de trente secondes : des jambes fraîches toute la soirée.', effet: { energie: 0.9 } },
-  discours: { nom: 'Le discours du capitaine', ico: '🧭', cout: 1, rarete: 'commune', genre: 'tactique',
-    texte: 'Il se lève, et le vestiaire se tait.', pioche: 2 },
   // LE DÉPISTAGE (S76) : la vidéo n'abat plus leur plan, elle ÉCARTE une piste
   // du rapport — c'est à toi de viser juste avec ce qui reste.
-  video: { nom: 'La vidéo de l\'adversaire', ico: '📼', cout: 1, rarete: 'commune', genre: 'tactique',
-    texte: 'Trois soirs de leurs matchs, image par image.', ecarte: 1 },
 
   // ---- communes ----
   echecAvant: { nom: 'Échec avant', ico: '🥊', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Deux attaquants au fond de leur zone, et le défenseur n\'a pas le temps de lever la tête.', effet: { volume: 1.08, discipline: 1.1 } },
   trappe: { nom: 'La trappe', ico: '🧊', cout: 1, rarete: 'commune', genre: 'defense',
     texte: 'Cinq joueurs en zone neutre. Personne ne passe.', effet: { defense: 0.93, volume: 0.95 } },
-  sagesse: { nom: 'Pas de punition bête', ico: '🧘', cout: 0, rarete: 'commune', genre: 'defense',
-    texte: 'Les bâtons en bas, les mains à soi.', effet: { discipline: 0.8 } },
   frapper: { nom: 'On frappe tout ce qui bouge', ico: '🦍', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Chaque présence, une mise en échec.', effet: { robustesse: 1.4, discipline: 1.1 } },
   partout: { nom: 'Tirer de partout', ico: '🎯', cout: 1, rarete: 'commune', genre: 'attaque',
@@ -106,12 +98,8 @@ export const CARTES_MATCH = {
     texte: 'Deux joueurs dans l\'enclave, à chaque lancer.', effet: { finition: 1.05, energie: 1.05 } },
   conge: { nom: 'Matinée de congé', ico: '😴', cout: 1, rarete: 'commune', genre: 'tactique',
     texte: 'La pratique du matin est annulée : les gars dorment jusqu\'à midi.', energieTous: 15 },
-  prudence: { nom: 'Jouer de prudence', ico: '🔒', cout: 0, rarete: 'commune', genre: 'defense',
-    texte: 'Des dégagements le long de la bande, et pas une passe au centre.', effet: { defense: 0.95, finition: 0.97 } },
   provoquer: { nom: 'Les provoquer', ico: '😈', cout: 1, rarete: 'commune', genre: 'tactique',
     texte: 'Un mot de trop après chaque sifflet : ils vont au banc des punitions.', adv: { discipline: 1.25 } },
-  quatrieme: { nom: 'Le trio de plombiers', ico: '🔋', cout: 0, rarete: 'commune', genre: 'tactique',
-    texte: 'Ton quatrième trio joue plus, et tes vedettes respirent.', effet: { F: [0.95, 0.95, 1, 1.25], energie: 0.93 } },
   enclave: { nom: 'Devant le filet', ico: '🏗', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Un gros bonhomme plante sa tente devant leur gardien.', effet: { finition: 1.04, robustesse: 1.2 } },
   poignets: { nom: 'Le tir des poignets', ico: '🌀', cout: 1, rarete: 'commune', genre: 'attaque',
@@ -125,8 +113,6 @@ export const CARTES_MATCH = {
   doublePresence: { nom: 'Double présence', ico: '🔥', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Ta première ligne saute sur la glace un tour sur deux.', effet: { F: [1.3, 1, 0.9, 0.8], energie: 1.05 } },
   // Le contre parfait (S74) devient le PLAN B (S76) : deux pistes préparées au lieu d'une.
-  contrePlan: { nom: 'Le plan B', ico: '🧠', cout: 1, rarete: 'peu', genre: 'tactique',
-    texte: 'Deux cahiers de jeux sur le tableau du vestiaire.', planB: true },
   gardienFeu: { nom: 'Le gardien en feu', ico: '🧤', cout: 2, rarete: 'peu', genre: 'defense',
     texte: 'Il a vu la rondelle grosse comme un ballon toute la journée.', effet: { defense: 0.92 } },
   avantage: { nom: 'L\'avantage numérique en or', ico: '💥', cout: 2, rarete: 'peu', genre: 'attaque',
@@ -142,33 +128,14 @@ export const CARTES_MATCH = {
   // LES CARTES D'ORIGINE (1.0) : JP, *des cartes qui activent bonus s'il même équipe*. Elles lisent d'où viennent tes joueurs
   // (js/sim.js `originesDe`) ; l'alignement montre la puce d'une unité qui les déclenche. `origine` : l'adversaire ne les joue
   // pas — une vraie équipe est tout entière d'un club et d'une saison, elle les aurait toutes au maximum.
-  coequipiers: { nom: 'Les vrais coéquipiers', ico: '👬', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Des saisons dans le même vestiaire : la passe part avant que l\'autre se retourne.', regle: 'Précision +2 % par paire de vrais coéquipiers (même club, même saison) dans tes deux premiers trios et tes deux premières paires (jusqu\'à +6 %).', synergie: 'coequipiers', quand: 'Par paire de vrais coéquipiers (même club, même saison) dans tes deux premiers trios et tes deux premières paires', plein: { finition: 1.06 } },
-  famille: { nom: 'La même famille', ico: '🎽', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Le même chandail, d\'une génération à l\'autre.', regle: 'Buts contre −2 % par joueur habillé de ta franchise la plus nombreuse, à partir du troisième (jusqu\'à −6 %).', synergie: 'famille', quand: 'Par joueur habillé de ta franchise la plus nombreuse, à partir du troisième', plein: { defense: 0.94 } },
-  decennie: { nom: 'La décennie', ico: '🕰', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Ils ont appris le même hockey.', regle: 'Tirs +2 % par trio dont les trois joueurs sont de la même décennie (jusqu\'à +8 %).', synergie: 'decennie', quand: 'Par trio dont les trois joueurs sont de la même décennie', plein: { volume: 1.08 } },
-  vieilleGarde: { nom: 'La vieille garde', ico: '🪖', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Ils ont tout vu, et ils ne paniquent plus.', regle: 'Buts contre −1 % par joueur habillé de 31 ans et plus (jusqu\'à −6 %).', synergie: 'vieilleGarde', quand: 'Par joueur habillé de 31 ans et plus', plein: { defense: 0.94 } },
-  releve: { nom: 'La relève', ico: '🔰', cout: 1, rarete: 'peu', genre: 'synergie', origine: true,
-    texte: 'Des jambes de vingt ans.', regle: 'Tirs +1 % par joueur habillé de 23 ans et moins (jusqu\'à +8 %).', synergie: 'releve', quand: 'Par joueur habillé de 23 ans et moins', plein: { volume: 1.08 } },
-  ligneOrigine: { nom: 'La ligne d\'origine', ico: '🧩', cout: 1, rarete: 'rare', genre: 'synergie', origine: true,
-    texte: 'La ligne telle qu\'elle a joué, remontée d\'un bloc.', regle: 'Tirs +4 % et précision +2 % par ligne d\'origine — un trio ou une paire d\'un même club, la même saison (jusqu\'à deux lignes).', synergie: 'ligneOrigine', quand: 'Par ligne d\'origine — un trio ou une paire d\'un même club, la même saison', plein: { volume: 1.08, finition: 1.04 } },
-  des: { nom: 'Coup de dés', ico: '🎲', cout: 0, rarete: 'peu', genre: 'tactique',
-    texte: 'Une soirée où tout rentre, ou une soirée où rien ne tient.',
-    pari: { chance: 0.5, gagne: { finition: 1.1 }, perd: { defense: 1.08 } } },
   user: { nom: 'Les user', ico: '😮‍💨', cout: 1, rarete: 'peu', genre: 'tactique',
     texte: 'On les fait patiner : leurs jambes brûlent plus vite ce soir.', adv: { energie: 1.15 } },
   ombre: { nom: 'Une ombre sur leur vedette', ico: '👤', cout: 2, rarete: 'peu', genre: 'defense',
     texte: 'Ton meilleur défensif la suit jusqu\'au banc.', adv: { finition: 0.94 } },
-  adrenaline: { nom: 'Adrénaline', ico: '💉', cout: 0, rarete: 'peu', genre: 'tactique',
-    texte: 'Le cœur bat dans les oreilles dès l\'hymne national.', energiePlus: 1, effet: { energie: 1.08 } },
   fermeture: { nom: 'La paire de fermeture', ico: '🔐', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Ta première paire joue la moitié du match.', effet: { D: [1.25, 1, 0.8], defense: 0.95 } },
   barrage: { nom: 'Le barrage', ico: '🚧', cout: 2, rarete: 'peu', genre: 'defense',
     texte: 'Cinq joueurs entre la rondelle et ton filet, toute la soirée.', effet: { defense: 0.9, volume: 0.92, energie: 1.05 } },
-  zamboni: { nom: 'La glace molle', ico: '🧽', cout: 0, rarete: 'peu', genre: 'tactique',
-    texte: 'Le préposé à la surfaceuse est un ami : la rondelle roule mal pour tout le monde.', effet: { volume: 0.97 }, adv: { volume: 0.94 } },
   vieux: { nom: 'Le vétéran parle', ico: '🧓', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Pas de panique : on joue notre match, on ne donne rien.', effet: { discipline: 0.85, defense: 0.97 } },
   tueur: { nom: 'L\'instinct du tueur', ico: '🗡', cout: 2, rarete: 'peu', genre: 'attaque',
@@ -181,24 +148,12 @@ export const CARTES_MATCH = {
     texte: 'Le genre de soirée qu\'on raconte trente ans plus tard.', effet: { defense: 0.88 } },
   chapeau: { nom: 'Le soir du tour du chapeau', ico: '🎩', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Les chapeaux vont pleuvoir.', effet: { finition: 1.1, discipline: 1.1 } },
-  coach: { nom: 'L\'entraîneur dans leur tête', ico: '🎙', cout: 2, rarete: 'rare', genre: 'tactique',
-    texte: 'Leur plan tombe, et ils perdent leur calme.', lire: true, adv: { discipline: 1.3 } },
-  preparation: { nom: 'Préparation totale', ico: '📋', cout: 1, rarete: 'rare', genre: 'tactique',
-    texte: 'Chaque scénario a sa page dans le cahier.', pioche: 3 },
-  espion: { nom: 'Leur cahier de jeux', ico: '🕵', cout: 2, rarete: 'rare', genre: 'tactique',
-    texte: 'Tu connais leur cahier par cœur.', annule: true },
   capitaine: { nom: 'Le capitaine prend le match', ico: '©', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Il saute sur la glace un tour sur deux, et tout le monde le suit.', effet: { F: [1.35, 1, 0.9, 0.75], finition: 1.04, energie: 1.08 } },
   mur: { nom: 'Le mur de briques', ico: '🧱', cout: 3, rarete: 'rare', genre: 'defense',
     texte: 'Qu\'ils tirent toute la soirée : rien ne passe.', effet: { defense: 0.85, volume: 0.95 } },
 
   // ---- légendaires (seulement après une série gagnée) ----
-  butEnOr: { nom: 'Le but en or', ico: '🥇', cout: 3, rarete: 'legendaire', genre: 'attaque',
-    texte: 'Le genre de soirée qui finit sur une affiche dans une chambre d\'enfant.', effet: { finition: 1.12, defense: 0.92 } },
-  dynastie: { nom: 'La dynastie', ico: '👑', cout: 2, rarete: 'legendaire', genre: 'synergie',
-    texte: 'Tes lignes jouent leur système les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', annule: true, quand: 'Si deux de tes lignes jouent le même système', plein: { finition: 1.06 }, seuil: true },
-  dynastieClub: { nom: 'La dynastie de club', ico: '🏛', cout: 2, rarete: 'legendaire', genre: 'synergie', origine: true,
-    texte: 'Les bannières au plafond, et leurs noms dessus.', regle: 'Si 5 joueurs habillés ou plus viennent de la même franchise : précision +6 % et buts contre −4 %.', synergie: 'dynastieClub', quand: 'Si 5 joueurs habillés ou plus viennent de la même franchise', plein: { finition: 1.06, defense: 0.96 }, seuil: true },
   ferveur: { nom: 'La ferveur', ico: '📣', cout: 1, rarete: 'rare', genre: 'attaque',
     texte: 'L\'aréna tremble dès la mise au jeu.', effet: { finition: 1.05, volume: 1.05, energie: 1.1 } },
 
@@ -207,35 +162,17 @@ export const CARTES_MATCH = {
    * Le dépistage : ta préparation contre LEUR plan, qu'on ne connaît qu'en
    * probabilités (voir `depistageDe`, js/sim.js).
    */
-  filature: { nom: 'La filature', ico: '🔎', cout: 1, rarete: 'peu', genre: 'tactique',
-    texte: 'Ton dépisteur a dormi dans leur hôtel.', revele: true },
-  improvisation: { nom: 'L\'improvisation', ico: '🎷', cout: 0, rarete: 'commune', genre: 'tactique',
-    texte: 'Pas de plan ? On en fait un sur le banc.', improvise: { volume: 1.05 } },
-  piege: { nom: 'Le piège tendu', ico: '🕸', cout: 1, rarete: 'rare', genre: 'tactique',
-    texte: 'On leur laisse croire que ça marche.', piege: { finition: 1.05, defense: 0.95 } },
   // Les combos : ce que les autres cartes de la main font monter.
   elan: { nom: 'La lancée', ico: '🌊', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Une vague, puis une autre, puis une autre.', parGenre: { genre: 'attaque', effet: { volume: 1.03 } } },
   forteresse: { nom: 'La forteresse', ico: '🏰', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Chaque planche de la bande est un mur.', parGenre: { genre: 'defense', effet: { defense: 0.97 } } },
-  toutOuRien: { nom: 'Tout ou rien', ico: '🎰', cout: 0, rarete: 'rare', genre: 'attaque',
-    texte: 'On vide le réservoir dès la première période.', siVide: { finition: 1.07 } },
   // Répondre à LEUR main, qu'on connaît d'avance.
   riposte: { nom: 'La riposte', ico: '🤺', cout: 1, rarete: 'peu', genre: 'defense',
     texte: 'Ils vont attaquer ? On les attend.', selonLeurMain: { genre: 'attaque', effet: { defense: 0.96 } } },
   contreAttaque: { nom: 'La contre-attaque', ico: '🏹', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Ils se replient ? On passe par-dessus.', selonLeurMain: { genre: 'defense', effet: { volume: 1.04 } } },
-  systemeDef: { nom: 'Le système défensif', ico: '📐', cout: 1, rarete: 'peu', genre: 'tactique',
-    texte: 'Tout le monde sait où se placer.', rabais: 'defense', effet: { defense: 0.96 } },
-  lecture: { nom: 'La lecture du jeu', ico: '👀', cout: 0, rarete: 'commune', genre: 'tactique',
-    texte: 'Un coup d\'œil au banc d\'en face.', pioche: 1 },
   // ÉPUISÉES : fortes, une seule fois dans la course.
-  grandSoir: { nom: 'Le grand soir', ico: '🌟', cout: 1, rarete: 'rare', genre: 'attaque', epuise: true,
-    texte: 'Tu gardais celle-là pour le bon moment.', effet: { finition: 1.1, volume: 1.06 } },
-  sacrifice: { nom: 'Le sacrifice', ico: '🩸', cout: 0, rarete: 'peu', genre: 'defense', epuise: true,
-    texte: 'Un joueur bloque un tir avec le visage.', effet: { defense: 0.9 } },
-  cartouche: { nom: 'La dernière cartouche', ico: '🧨', cout: 0, rarete: 'peu', genre: 'tactique', epuise: true,
-    texte: 'Tout ce qui restait dans le coffre.', energiePlus: 2 },
 
   // ---- LA BANQUE (S79) : dix de plus, sur les mécaniques que le moteur joue déjà ----
   pressionHaute: { nom: 'La pression haute', ico: '🌪', cout: 1, rarete: 'commune', genre: 'attaque',
@@ -248,16 +185,10 @@ export const CARTES_MATCH = {
     texte: 'Il arrête la rondelle derrière le filet et repart l\'attaque tout de suite.', effet: { defense: 0.95, energie: 0.97 } },
   cinqPuissance: { nom: 'Le cinq de puissance', ico: '⚡', cout: 2, rarete: 'peu', genre: 'attaque',
     texte: 'Tes cinq meilleurs, en avantage comme à forces égales.', effet: { finition: 1.06, volume: 1.04 } },
-  tempsArret: { nom: 'Le temps d\'arrêt', ico: '⏸', cout: 0, rarete: 'peu', genre: 'tactique', epuise: true,
-    texte: 'Trente secondes pour respirer, au bon moment.', energiePlus: 1, effet: { energie: 0.95 } },
-  coupGenie: { nom: 'Le coup de génie', ico: '💡', cout: 1, rarete: 'rare', genre: 'tactique', epuise: true,
-    texte: 'Une idée griffonnée sur une serviette de table.', pioche: 2, energiePlus: 1 },
   rideauFer: { nom: 'Le rideau de fer', ico: '🧱', cout: 2, rarete: 'rare', genre: 'defense',
     texte: 'Cinq joueurs sous les cercles de mise au jeu.', effet: { defense: 0.9, volume: 0.94 } },
   feuSacre: { nom: 'Le feu sacré', ico: '🔥', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Ce soir, ils jouent comme en avril.', effet: { finition: 1.08, volume: 1.05, energie: 1.1 } },
-  nuitMagique: { nom: 'La nuit magique', ico: '🌌', cout: 2, rarete: 'legendaire', genre: 'tactique', epuise: true,
-    texte: 'Tout le monde s\'en souviendra encore dans trente ans.', effet: { finition: 1.07, defense: 0.93, energie: 0.95 } },
 
   /*
    * CONTOURNER LE RÈGLEMENT. Les mêmes canaux, un prix à chaque trou :
@@ -269,8 +200,6 @@ export const CARTES_MATCH = {
   courbeIllegale: { nom: 'La courbe illégale', ico: '📏', cout: 1, rarete: 'peu', genre: 'attaque',
     texte: 'Le tir tombe. L\'arbitre a un gabarit dans la poche.',
     pari: { chance: 0.5, gagne: { finition: 1.08 }, perd: { discipline: 1.22 } } },
-  paragraphe: { nom: 'Le paragraphe oublié', ico: '📖', cout: 1, rarete: 'peu', genre: 'tactique',
-    texte: 'Ce jeu n\'est dans aucun livre. Tes cartes d\'attaque coûtent moins cher.', rabais: 'attaque', effet: { volume: 1.04 } },
   filetDesert: { nom: 'Le filet désert', ico: '🚪', cout: 2, rarete: 'rare', genre: 'attaque',
     texte: 'Le sixième attaquant sort trop tôt, et il reste sorti.', effet: { volume: 1.08, finition: 1.04, defense: 1.08 } },
   retardement: { nom: 'Retarder le jeu', ico: '🕐', cout: 1, rarete: 'peu', genre: 'defense',
@@ -284,22 +213,6 @@ export const CARTES_MATCH = {
    * `horsAdverse` : l'adversaire ne les pige pas — sa main est calibrée
    * (check_gros, check_robot), et la v2 ne change pas la difficulté.
    */
-  rouleau: { nom: 'Le rouleau compresseur', ico: '🦴', cout: 2, rarete: 'peu', genre: 'attaque', horsAdverse: true,
-    texte: 'Chaque présence finit dans la bande.', effet: { robustesse: 2, volume: 1.03, energie: 1.08 } },
-  vicieux: { nom: 'La mise en échec vicieuse', ico: '🦷', cout: 1, rarete: 'commune', genre: 'attaque', horsAdverse: true,
-    texte: 'Le coude un peu haut, l\'épaule un peu tard.', effet: { robustesse: 1.6, discipline: 1.15 } },
-  quatreTrios: { nom: 'Les quatre trios', ico: '🍀', cout: 1, rarete: 'peu', genre: 'tactique', horsAdverse: true,
-    texte: 'Tout le monde joue, et personne ne se fatigue.', effet: { F: [0.9, 1, 1.08, 1.2], energie: 0.9 } },
-  tableau: { nom: 'Le tableau des changements', ico: '🧮', cout: 0, rarete: 'commune', genre: 'tactique', horsAdverse: true,
-    texte: 'Des présences au chronomètre, affichées derrière le banc.', effet: { F: [0.96, 1, 1.02, 1.08], energie: 0.95 } },
-  heros: { nom: 'Le héros du soir', ico: '🦸', cout: 2, rarete: 'rare', genre: 'attaque', horsAdverse: true,
-    texte: 'Il veut la rondelle, et le banc la lui donne.', effet: { F: [1.4, 1, 0.85, 0.7], finition: 1.05, energie: 1.1 } },
-  priere: { nom: 'La prière', ico: '🙏', cout: 0, rarete: 'peu', genre: 'defense', horsAdverse: true,
-    texte: 'Mains jointes au banc : personne ne touchera à un bâton adverse.', effet: { discipline: 0.75, volume: 0.98 } },
-  provocationC: { nom: 'La provocation du capitaine', ico: '🗯', cout: 1, rarete: 'peu', genre: 'tactique', horsAdverse: true,
-    texte: 'Un mot à l\'oreille de leur vedette, à chaque mise au jeu.', adv: { discipline: 1.2, finition: 0.98 } },
-  nuee: { nom: 'La nuée', ico: '🐜', cout: 1, rarete: 'commune', genre: 'attaque', horsAdverse: true,
-    texte: 'Cinq joueurs sur la rondelle, partout à la fois.', effet: { volume: 1.09, finition: 0.98 } },
 
   ...CARTES_MATCH_VIE,
   // Le cahier neuf (V10, tranche 2 — js/cahier.js) : les cartes d'un moment.
@@ -392,10 +305,11 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   CARTES_MATCH[`${cle}+`] = P;
 }
 /*
- * L'ANCIEN DECK SE RETIRE (V10, tranche 2) : une carte d'avant le cahier neuf ne s'offre plus (récompenses, packs,
- * banque), mais une run qui l'a encore la joue pareil jusqu'à la conversion (tranche 6). Les malédictions restent.
+ * LA MAIN DE L'ADVERSAIRE (V10, tranche 6). L'ancien deck est parti ; restent, à part du cahier, les cartes que pige
+ * l'adversaire d'un gros match (`POOL_ADVERSE`) — sa main est calibrée (`check_gros`, `check_robot`), et le cahier
+ * neuf attend les moments de TON duel. Elles ne s'offrent jamais à toi : ni récompense, ni pack, ni banque.
  */
-for (const [cle, C] of Object.entries(CARTES_MATCH)) if (!C.maudite && !CAHIER[carteDeBase(cle)]) C.retire = true;
+for (const [cle, C] of Object.entries(CARTES_MATCH)) if (!C.maudite && !CAHIER[carteDeBase(cle)]) C.adverse = true;
 
 /* Le deck de départ (V10) : une réponse neutre par intention, deux coups de 3e, trois cartes de tous les soirs (js/cahier.js). */
 export const DECK_DEPART = DEPART_DU_CAHIER;
@@ -429,10 +343,11 @@ const cartesDeMatchDuPack = d => {
  * déjà, celle de son premier rôle (un sniper : « Le tir des poignets ») — tant qu'il est habillé : blessé, rayé ou
  * parti, sa carte quitte le deck. Aucune carte neuve : chacune est déjà mesurée en paires (check_cartes).
  */
+// V10 (tranche 6) : la signature est une carte du cahier neuf, et elle attend son moment comme les autres.
 const SIGNATURE_DU_ROLE = {
-  sniper: 'poignets', power: 'enclave', passeur: 'avantage', manieur: 'contreAttaque', offensif: 'lancer', energie: 'quatrieme',
-  checker: 'echecAvant', deuxsens: 'trappe', defensif: 'bloquer', physique: 'frapper', bagarreur: 'provoquer',
-  mur: 'gardienFeu', acrobate: 'gardienFeu', constant: 'gardienFeu', fer: 'gardienFeu',
+  sniper: 'lucarne', power: 'dansLeTas', passeur: 'surReception', manieur: 'vedetteSeLibere', offensif: 'lancerAuFilet', energie: 'presencesEclair',
+  checker: 'doubleEchec', deuxsens: 'patience', defensif: 'leMur', physique: 'coudesSerres', bagarreur: 'autreJoue',
+  mur: 'serrerLesRangs', acrobate: 'serrerLesRangs', constant: 'serrerLesRangs', fer: 'serrerLesRangs',
 };
 const VARIANTES_SIGNEES = new Set(['rare', 'legendaire']);
 /* Les cartes signature de ces joueurs habillés ; `badges(p)` : ses badges (js/sim.js `badgesDe`), le premier décide. */
@@ -520,7 +435,7 @@ export function mainDuMatch(graine, cle, deck, n = TAILLE_MAIN) {
  */
 export function recompensesOffertes(graine, cle, { serie = false } = {}) {
   const poids = serie ? { commune: 0, peu: 50, rare: 42, legendaire: 8 } : { commune: 60, peu: 30, rare: 10, legendaire: 0 };
-  const pool = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !CARTES_MATCH[k].retire && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
+  const pool = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !CARTES_MATCH[k].adverse && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
   const out = [];
   for (let t = 0; out.length < 3 && t < 40; t++) {
     const r = hache(graine, 'recompense', cle, t) * 100;

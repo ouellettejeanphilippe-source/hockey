@@ -546,14 +546,12 @@ function tirerCartes(P, cleCourte, graine, n, params) {
 /*
  * LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète). Une carte compte au dénominateur si un pack
  * peut la donner : sa famille est dans les packs de la boutique (`CATS_MIXTES`), et une malédiction seulement si
- * c'est la taxe de luxe qu'ils cachent. Les cartes de saison, les événements (V9 : les routes de la semaine,
- * js/noeuds.js) et les autres malédictions ne sortent d'aucun pack : elles se gagnent en jouant, et la banque les
- * montre à part. Une carte retirée (V6, `retire`) ne sort plus de rien : elle ne compte pas, et la banque ne la montre
- * qu'à qui l'a déjà.
+ * c'est la taxe de luxe qu'ils cachent. Les autres malédictions ne sortent d'aucun pack : elles se gagnent en jouant,
+ * et la banque les montre à part.
  */
 export function sortDUnPack(id) {
   const c = BANQUE[id];
-  if (!c || c.retire) return false;
+  if (!c) return false;
   if (c.rarete === 'maudite') return c.cat === 'plafond' && MAUDITE_MIXTE > 0;
   return CATS_MIXTES.includes(c.cat);
 }

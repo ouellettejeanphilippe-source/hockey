@@ -77,8 +77,8 @@ export function placesDeLaPartie({ decisions = [], rogue = false } = {}) {
   for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
   // S80 : une amélioration ou une retouche de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
-  // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`).
-  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string') items.push({ ref: d.palier, id: d.place, source: `Le ${d.palier.slice(3)}e match` });
+  // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`).
+  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string') items.push({ ref: d.palier, id: d.place, source: d.palier.startsWith('v:') ? 'Le proprio' : d.palier.startsWith('trou:') ? 'La case vide' : `Le ${d.palier.slice(3)}e match` });
   const parties = new Set();
   for (const d of decisions) {
     if (d && d.joue && d.joue.src === 'partie') parties.add(d.joue.ref);
@@ -117,7 +117,6 @@ function cibleDe(id) {
   const c = BANQUE[id];
   if (!c) return '';
   if (c.cat === 'joueur') return CIBLES.joueur;
-  if (c.cat === 'evenement') return '🏒 Toute l\'équipe, dès ce soir';
   if (c.cat === 'patron') return '👔 Un poste de ton personnel';
   if (c.echange) return '📟 Un doublon contre un joueur de sa série';
   return CIBLES[c.cible] || (c.cat === 'plafond' ? '💵 Ta masse salariale, tout de suite' : '⚡ Tout de suite');
@@ -162,7 +161,7 @@ export function ouvrirInventaire(ctx) {
       // Les cartes identiques s'empilent : une carte, son compte, et ses références (on joue la première).
       const piles = new Map();
       for (const x of ctx.partie) { if (!piles.has(x.id)) piles.set(x.id, []); piles.get(x.id).push(x); }
-      const cats = ORDRE_CATEGORIES.filter(c => c !== 'saison' && [...piles.keys()].some(id => BANQUE[id].cat === c));
+      const cats = ORDRE_CATEGORIES.filter(c => [...piles.keys()].some(id => BANQUE[id].cat === c));
       const cartes = [...piles.entries()].filter(([id]) => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a[0]].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b[0]].cat));
       /*
        * CE QUI SE JOUE D'ABORD (Jalon U, JP : *trop de cartes injouables*). Une carte en place se joue quand on veut (V9) ;
@@ -198,10 +197,10 @@ export function ouvrirInventaire(ctx) {
         <div class="inv-grille">${[...piles.entries()].map(([k, n]) => carteBanqueHtml(`match:${String(k).replace(/\+$/, '')}`, { compte: n })).join('')}</div>`;
     } else {
       // V6 : une carte retirée (elle ne se tire plus) ne se montre qu'à qui l'a déjà.
-      const ids = Object.keys(BANQUE).filter(id => garde(id) && (!BANQUE[id].retire || ctx.possedees.has(id))).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
+      const ids = Object.keys(BANQUE).filter(id => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));
       // Le dénominateur ne compte que ce qu'un pack peut donner (V2.2) ; le reste se gagne en jouant.
       const par = ORDRE_CATEGORIES.map(c => [c, idsDe(c).filter(id => sortDUnPack(id) && ctx.possedees.has(id)).length, idsDe(c).filter(sortDUnPack).length]).filter(([, , n]) => n > 0);
-      const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id) && !BANQUE[id].retire).length;
+      const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id)).length;
       corps = `<p class="inv-mot">Toute la banque : ${Object.keys(BANQUE).filter(sortDUnPack).length} cartes à tirer des packs, et ${horsPack} qui se gagnent en jouant (les cartes de saison, les événements, les malédictions). Celles que tu as déjà tirées sont en couleur.${ctx.joueursCollection ? ` Tes ${ctx.joueursCollection} cartes de joueur sont dans ton cartable (la section Collection).` : ''}</p>
         <div class="inv-progres">${par.map(([c, a, n]) => `<span class="inv-prog"><b>${CATEGORIES[c].ico} ${a}/${n}</b> ${esc(CATEGORIES[c].nom)}</span>`).join('')}</div>
         ${filtres(ORDRE_CATEGORIES)}${rars}

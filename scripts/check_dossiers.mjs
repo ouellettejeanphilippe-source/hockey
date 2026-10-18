@@ -1,8 +1,8 @@
 /*
  * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js). Les événements quittent la banque : ce qui arrive à
  * ton club est un choix d'À faire, dit par une voix. Ce qu'on exige :
- *   1. les événements sont partis : aucun ne se tire (ni pack, ni palier, ni route de la semaine), et chacun rend
- *      encore sa décision (une vieille partie le rejoue, jusqu'à la conversion de la tranche 6) ;
+ *   1. les événements sont partis (V10, tranche 6) : leur famille n'existe plus, et rien n'en tire (ni pack, ni palier,
+ *      ni route de la semaine) ;
  *   2. la forme : une voix d'`EXPEDITEURS`, deux répliques au moins, deux ou trois réponses nommées, chacune un bon
  *      côté, sur des champs que la porte des dilemmes lit déjà (`effetDeMoment`, `appliquerGestes`, `gain`), un moment
  *      que le moteur connaît, hors du duel ;
@@ -14,7 +14,7 @@
  */
 import { DOSSIERS, dossierDeLaSemaine } from '../js/dossiers.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { BANQUE, idsDe, payloadDe } from '../js/banque.js';
+import { BANQUE, ORDRE_CATEGORIES } from '../js/banque.js';
 import { PACKS_CARTES, tirerCartesPack } from '../js/packs.js';
 import { noeudsDeLaSemaine } from '../js/noeuds.js';
 import { MOMENTS_SI, effetDeMoment } from '../js/sim.js';
@@ -28,11 +28,8 @@ import { exiger, informer, verdict } from './verdict.mjs';
     for (const p of [9, 18, 26]) tirerCartesPack('mixte', `ev${n}`, `palier${p}`, { sans: ['match'] }).forEach(id => tires.add(id));
   }
   for (let g = 0; g < 40; g++) for (let w = 1; w <= 26; w += 2) noeudsDeLaSemaine(`ev${g}`, w).forEach(x => tires.add(x.id));
-  const sortis = [...tires].filter(id => BANQUE[id] && BANQUE[id].cat === 'evenement');
-  exiger('aucun événement ne se tire : ni pack, ni palier, ni route de la semaine', !idsDe('evenement').length && !sortis.length, sortis.slice(0, 4).join(', ') || `${tires.size} cartes tirées, aucun événement`);
-  const evenements = Object.values(BANQUE).filter(c => c.cat === 'evenement');
-  const muets = evenements.filter(c => { const p = payloadDe(c.id); return !p || !p.effet; });
-  exiger('un événement retiré rend encore sa décision (une vieille partie le rejoue)', !muets.length, muets.slice(0, 4).map(c => c.cle).join(', ') || `${evenements.length} événements`);
+  const restes = [...tires, ...Object.keys(BANQUE)].filter(id => id.startsWith('evenement:'));
+  exiger('les événements sont partis : ni famille, ni pack, ni palier, ni route', !ORDRE_CATEGORIES.includes('evenement') && !restes.length, restes.slice(0, 4).join(', ') || `${tires.size} cartes tirées, aucun événement`);
 }
 
 /* ---------- 2. la forme ---------- */

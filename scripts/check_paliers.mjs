@@ -13,7 +13,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey } from '../js/sim.js';
-import { payloadDe } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, informer, verdict } from './verdict.mjs';
 
@@ -52,7 +51,7 @@ function paires(cle) {
     for (const parite of [0, 1]) {
       const teams = ligue(6100 + Lg);
       const decisions = teams.map((t, i) => [t, i]).filter(([t, i]) => i % 2 === parite && t.roster[CENTRE.i])
-        .map(([t, equipe]) => ({ jour: 0, equipe, ...payloadDe(`joueur:${cle}`, { joueur: getPlayerKey(t.roster[CENTRE.i]) }) }));
+        .map(([t, equipe]) => ({ jour: 0, equipe, mutation: { cle, joueur: getPlayerKey(t.roster[CENTRE.i]) } }));
       simulateLeague(teams, 82, { graine: `paliers-${Lg}`, decisions });
       bras.push(teams.map(t => t.W));
     }
@@ -62,9 +61,8 @@ function paires(cle) {
 }
 
 console.log(`\n  MONTER UN PALIER · ${LIGUES} ligues × 32 équipes, en paires\n`);
-const ete = paires('entrainement'), mentor = paires('mentorTrio');
-informer('l\'été de travail, sur le centre du premier trio', `${signe(ete)} V`);
+// V10 (tranche 6) : l'été de travail est parti avec l'ancien jeu ; reste le mentor, le choix d'un fil.
+const mentor = paires('mentorTrio');
 informer('le mentor, sur le centre du premier trio', `${signe(mentor)} V`);
-borne('l\'été de travail : jamais un piège, borné comme une peu commune', ete, -0.5, 1.5, ' V');
 borne('le mentor : jamais un piège, borné comme une rare', mentor, -0.5, 2.5, ' V');
 verdict();

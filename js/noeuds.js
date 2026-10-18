@@ -13,7 +13,7 @@
  * est pur : la graine de la partie et la semaine (`hache`), donc une saison reprise retrouve les mêmes routes.
  * Le gros match reste annoncé par le moteur au fil de la saison (`annoncerGros`, JP : *décidés au fur et à mesure*).
  */
-import { BANQUE, CONSOMMABLES, payloadDe } from './banque.js';
+import { CONSOMMABLES, payloadDe } from './banque.js';
 import { hache } from './util.js';
 
 export const ROUTES = {
@@ -25,8 +25,7 @@ const SORTES = Object.keys(ROUTES);
 const piger = (liste, graine, w, sorte) => liste[Math.floor(hache(graine, 'noeud', sorte, w) * liste.length)];
 /* Les cartes qu'une route peut offrir : communes ou peu communes, sans cible (elles touchent l'équipe), sans pari ni règlement. */
 const simple = c => c.cible === 'aucune' && (c.rarete === 'commune' || c.rarete === 'peu') && !c.pari && !c.regle && !c.espace && !c.maitrise && !c.cout;
-// V10 : une carte retirée (js/banque.js) ne sort plus d'une route.
-const consommables = garde => Object.keys(CONSOMMABLES).filter(k => simple(CONSOMMABLES[k]) && !(BANQUE[`consommable:${k}`] || {}).retire && garde(CONSOMMABLES[k])).map(k => `consommable:${k}`);
+const consommables = garde => Object.keys(CONSOMMABLES).filter(k => simple(CONSOMMABLES[k]) && garde(CONSOMMABLES[k])).map(k => `consommable:${k}`);
 /* Le repos : des gestes, ou un effet qui ne touche qu'aux jambes et aux blessures. */
 const deRepos = c => c.gestes || (c.effet && Object.keys(c.effet).every(k => k === 'blessure' || k === 'energie'));
 const BASSINS = {

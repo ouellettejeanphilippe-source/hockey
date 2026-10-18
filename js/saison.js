@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, CARTES, PALIERS_CARTES, mainDeCartes, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
+import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
@@ -684,7 +684,7 @@ function autresButins(deck, prendre, retour) {
 const PRESSE = new Set(['choix', 'pack', 'places', 'blessure', 'trou']);
 /* Les accès de la carte de la semaine (V5) : ce qu'un roguelike garde à un toucher de sa carte. La boutique n'y est
    pas (JP : *rien de la boutique dans le Club*) : elle est au Marché, à un toucher de la barre, ouverte en tout temps. */
-export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, cartesPrises = [], onCarte = null, trousPris = [], decisions = [], onDecision = null }) {
+export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
   const { modal, head, carte, actions, barre, volet } = ui;
@@ -796,8 +796,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * `BLESSURE_MOMENT` matchs, la saison continue sans rien dire.
    */
   /*
-   * LES CARTES DE SAISON. À trois paliers, on prend une carte parmi trois —
-   * un bonus payé par un malus (`CARTES`, js/sim.js). La main offerte se
+   * LA MAIN D'UN PALIER. À trois paliers, on prend une carte parmi trois
+   * (`mainDuDeck`, js/sim.js). La main offerte se
    * tire de la GRAINE et du jour, donc la même partie rejouée offre
    * exactement les mêmes trois cartes ; et prendre une carte est une
    * DÉCISION, donc la saison se rejoue de la graine avec elle.
@@ -815,10 +815,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * confondre rembobinerait la saison au palier — on perdrait les journées
    * déjà lues pour une carte prise après coup.
    */
-  const prises = new Set(cartesPrises.map(x => x.palier));
-  // Les cartes DÉJÀ prises ne reparaissent pas dans une main : on compose
-  // une saison, on n'empile pas trois fois le même curseur.
-  const dejaPrises = cartesPrises.map(x => x.carte).filter(Boolean);
+  const prises = new Set(paliersPris);
   /*
    * LES DATES EN MATCHS (1.0, oct., le vrai calendrier). `PALIERS_CARTES`,
    * `JOURS_MOMENTS`, `JOURS_OBJECTIFS` se disent en matchs de ta formation ;
@@ -827,7 +824,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * gardent le numéro : une sauvegarde se rejoue pareil.
    */
   const jEv = k => jourEvenement(you, k);
-  const palierOuvert = () => (onCarte ? PALIERS_CARTES.find(j => jour >= jEv(j) && !prises.has(j)) : undefined);
+  const palierOuvert = () => (onDecision ? PALIERS_CARTES.find(j => jour >= jEv(j) && !prises.has(j)) : undefined);
   const paliersVus = new Set();      // les paliers qui ont déjà arrêté l'avance
   const packsVus = new Set();        // V4 : les packs gratuits (matchs 9, 18, 26) qui ont déjà arrêté l'avance
   /*
@@ -878,14 +875,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * nuisance, et le budget de cartes passe de trois à quatre dans les
    * mauvaises années.
    *
-   * LA CARTE EST TIRÉE, PAS CHOISIE, et c'est tout l'intérêt : tu n'as pas
-   * décidé de perdre ton auxiliaire, tu ne décides pas de la compensation.
-   * Comme toutes les cartes portent un bonus ET un malus, ce n'est même pas
-   * un cadeau — c'est un ajustement qui peut ne pas te convenir, ce qui est
-   * exactement ce qu'est une crise d'effectif.
-   *
-   * Le tirage passe par `mainDeCartes`, donc il est PUR (même graine, même
-   * épisode, même carte) et il ne retend jamais une carte déjà prise.
+   * V8 : trois cartes, et tu choisis. V10 : une carte parmi trois, pour une
+   * place (`cartesDuPalier`, js/inventaire.js) ; le tirage est PUR (même
+   * graine, même épisode, mêmes cartes).
    */
   /*
    * LES ÉPISODES DÉJÀ ENCAISSÉS survivent à la reprise. Encaisser la carte
@@ -899,7 +891,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     .filter(t => !trousVus.has(t) && !trousFaits.has(t.at) && t.at <= miens.length);
   let trou = null;
   // V8 (JP : *aucun moment où je ne suis pas en contrôle*) : la case vide offre trois cartes, et tu choisis.
-  const cartesDuTrou = t => mainDeCartes(graine, 1000 + t.at, dejaPrises);
+  // V10 (tranche 6) : une carte parmi trois, pour une place (les cartes de saison sont parties).
+  const cartesDuTrou = t => cartesDuPalier(graine, `trou${t.at}`);
   const carteDuTrou = t => cartesDuTrou(t)[0] || null;
 
   /*
@@ -2577,7 +2570,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (d.jour == null || d.jour > jour) continue;
       if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 Le proprio exige : <b>${ctx.esc(OBJECTIFS[d.objectif.cle].nom)}</b>` });
       else if (d.recompense && CARTES_MATCH[d.recompense] && typeof d.palier === 'string') ev.push({ j: d.jour, t: `🎁 Nouvelle carte dans ton deck : ${CARTES_MATCH[d.recompense].ico} <b>${ctx.esc(CARTES_MATCH[d.recompense].nom)}</b>` });
-      else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.carte && CARTES[d.carte] ? `🏆 Objectif atteint — le proprio paie : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
+      else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.place && BANQUE[d.place] ? `🏆 Objectif atteint — le proprio paie : ${BANQUE[d.place].ico} <b>${ctx.esc(BANQUE[d.place].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
       else if (d.moment) {
         const cat = familleDeMoment(d.moment);
         if (!cat) continue;
@@ -2597,7 +2590,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
             : T ? `Stage de système : ${T.ico} <b>${ctx.esc(T.nom)}</b>` : ctx.esc(S.nom);
         ev.push({ j: d.jour, t: `${S.ico} ${t}` });
       } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} posée au verso de <b>${ctx.esc(nomJoueur(d.mutation.joueur) || 'un joueur')}</b>` });
-      else if (d.carte && typeof d.palier === 'number' && CARTES[d.carte]) ev.push({ j: d.jour, t: `🎁 La main de la journée : ${CARTES[d.carte].ico} <b>${ctx.esc(CARTES[d.carte].nom)}</b>` });
       else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
     }
     for (const m of you.mutations || []) if (m.jour < jour && m.source !== 'choix' && MUTATIONS[m.cle]) ev.push({ j: m.jour, t: `${MUTATIONS[m.cle].ico} Le hasard s'en mêle : ${ctx.esc(m.p ? m.p.n : '')} — ${ctx.esc(MUTATIONS[m.cle].nom)}` });
@@ -2891,7 +2883,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
    * portant son palier : c'est ce qui ferme la main.
    */
-  const RARETE_SORTE = { effet: 'rare', recrue: 'legendaire', amelioration: 'peu', profil: 'peu', menage: 'peu', camp: 'peu', atelier: 'rare' };
+  const RARETE_SORTE = { recrue: 'legendaire', profil: 'peu', menage: 'peu', camp: 'peu', atelier: 'rare' };
   /*
    * UNE CARTE DU DECK SE DATE DU SOIR DU PROCHAIN MATCH (S74), pas d'aujourd'hui.
    * Son sel tire des dés neufs à partir de sa journée : datée d'aujourd'hui,
@@ -2905,23 +2897,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // Le visage du joueur, l'écusson en médaillon (S74, l'agent de test : « le logo au lieu du visage »).
   const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug && ctx.rarete ? photoAction(p, ctx.rarete(p)) : '' });
   function ouvrirMain(p0) {
-    const main = mainDuDeck(graine, p0, dejaPrises);
+    const main = mainDuDeck(graine, p0);
     const recrues = ctx.recrues ? (ctx.recrues(p0) || []) : [];
     const roles = rolesOfferts(you, graine, p0);
     const options = main.map(c => {
       const S = SORTES_DECK[c.sorte], rarete = RARETE_SORTE[c.sorte];
-      if (c.sorte === 'effet') {
-        const C = CARTES[c.cle];
-        return { cle: `effet:${c.cle}`, rarete, ico: C.ico, nom: C.nom, type: `${S.nom} · toute la saison`, bon: C.bon, prix: C.prix, effet: C };
-      }
       if (c.sorte === 'recrue') return { cle: 'recrue', rarete, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
         texte: 'Trois vrais joueurs de clubs absents de ta ligue : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.',
         desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
-      if (c.sorte === 'amelioration') {
-        const M = MUTATIONS[c.cle];
-        // S80 : elle va dans ton inventaire, et se pose au verso d'un joueur quand tu veux.
-        return { cle: `amelioration:${c.cle}`, rarete, ico: M.ico, nom: M.nom, type: `${S.nom} · se pose au verso`, mutation: c.cle };
-      }
       if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
         desactive: roles.length ? '' : 'Personne à convertir' };
@@ -2935,7 +2918,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     });
     ouvrirChoix({
       ico: '🎁', titre: `La main de la journée ${p0}`, cartes: true, genre: 'palier', fermable: true, motFermer: 'Plus tard',
-      recit: 'Trois cartes, trois sortes. Touche celle que tu gardes pour le reste de la saison ; les deux autres retournent dans le jeu.',
+      recit: 'Trois cartes, trois sortes. Touche celle que tu gardes ; les deux autres retournent dans le jeu.',
       contexte: dejaEnJeu(),
       options,
       onChoix: cle => suiteDeLaMain(p0, cle, recrues, roles),
@@ -2943,8 +2926,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   function suiteDeLaMain(p0, cle, recrues, roles) {
     const retour = () => ouvrirMain(p0);
-    const [sorte, arg] = cle.split(':');
-    if (sorte === 'effet') { const j = jour, s = soirDuProchain(); quitter(); onCarte(p0, s, arg, j); return; }
+    const [sorte] = cle.split(':');
     const suite = { cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour aux trois cartes', onFerme: retour };
     if (sorte === 'recrue') {
       /*
@@ -2962,10 +2944,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       return;
     }
     /*
-     * L'AMÉLIORATION ET L'ATELIER SE GARDENT (S80). JP : *je veux que les
+     * L'ATELIER SE GARDE (S80). JP : *je veux que les
      * upgrades de joueurs se fassent au verso de la carte, pas nécessairement
-     * quand on la pige*. La carte prise au palier (l'amélioration, ou
-     * l'édition gardée des trois de l'atelier) va dans ton inventaire
+     * quand on la pige*. La retouche gardée des trois de l'atelier va dans ton inventaire
      * (`garde`, lu par `pocheDeLaPartie`) ; on la pose au verso d'un joueur
      * quand on veut. La décision ferme le palier et ne touche pas le moteur.
      */
@@ -2976,7 +2957,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         onChoix: k => deciderDeck(p0, { deck: 'atelier', garde: `joueur:${k}` }) });
       return;
     }
-    if (sorte === 'amelioration') { deciderDeck(p0, { deck: 'amelioration', garde: `joueur:${arg}` }); return; }
     if (sorte === 'profil') {
       // Jalon U : les rangées du vestiaire ; la ligne dit le rôle offert, où il joue et ce que ça change.
       ctx.listeJoueurs({ ico: '🔄', titre: 'Nouveau rôle', motFermer: 'Retour aux trois cartes', motBouton: 'Choisir',
@@ -3236,13 +3216,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * courent et, quand le choix vise des joueurs, ce que chacun porte déjà.
    */
   function dejaEnJeu(joueurs = []) {
-    const cartes = decs.filter(d => d.carte && CARTES[d.carte] && d.jour <= jour).map(d => `${CARTES[d.carte].ico} ${CARTES[d.carte].nom}`);
     const effets = effetsEnCours(you, jour).effets.filter(e => e.nom && e.reste > 0)
       .map(e => `${e.ico || '✨'} ${e.nom} · ${e.reste} match${e.reste > 1 ? 's' : ''}`);
     const cles = new Set(joueurs.filter(Boolean).map(getPlayerKey));
     const marques = (you.mutations || []).filter(m => m.jour <= jour && cles.has(m.joueur) && MUTATIONS[m.cle])
       .map(m => `${MUTATIONS[m.cle].ico} ${m.p ? `${m.p.n} : ` : ''}${MUTATIONS[m.cle].nom}`);
-    const tout = [...cartes, ...effets, ...marques];
+    const tout = [...effets, ...marques];
     return `<div class="choix-encours"><b>Déjà en jeu</b> ${tout.length ? tout.map(x => ctx.esc(x)).join(' · ') : 'rien encore'}</div>`;
   }
 
@@ -3320,10 +3299,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const o = OBJECTIFS[vo.d.objectif.cle];
       specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
-          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.val} ${o.unite}). Il sort son carnet de chèques : pige une carte. Elle vaut pour le reste de la saison.`,
-          contexte: dejaEnJeu(),
-          options: mainDeCartes(graine, 2000 + vo.j0, dejaPrises).map(cle => ({ cle, ico: CARTES[cle].ico, nom: CARTES[cle].nom, bon: CARTES[cle].bon, prix: CARTES[cle].prix, effet: CARTES[cle] })),
-          decision: cle => ({ palier: `v:${vo.j0}`, carte: cle }) }
+          // V10 (tranche 6) : les cartes de saison sont fondues dans le personnel ; le proprio donne une carte parmi trois, pour une place.
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.val} ${o.unite}). Il sort son carnet de chèques : une carte parmi trois, pour une place.`,
+          options: cartesDuPalier(graine, `v${vo.j0}`).map(id => optionDeBanque(id)),
+          decision: id => ({ palier: `v:${vo.j0}`, place: id }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: `Le proprio coupe les vols nolisés : les voyages fatiguent ; ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} entre dans ton deck`, energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
@@ -3345,7 +3324,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           return { cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom, sous: raisonObjectif(cle),
             mots: m ? [{ txt: `${m.mot} · ${x < 0.05 ? 'moins de 1 chance sur 10' : `environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`}`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
         }),
-        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs · ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} au deck</span></div>`,
+        contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte, pour une place</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs · ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} au deck</span></div>`,
         decision: cle => ({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) });
     }
     if (sq) {
@@ -3520,16 +3499,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (trou && carteDuTrou(trou)) {
       const t = trou;
       out.push({ id: `t:${t.at}`, genre: 'trou', bloque: true, de: DE.dg, sujet: nomsDesCases(t.cases),
-        choix: { recit: 'Aucun réserviste ne peut prendre la place. Le vestiaire s\'ajuste : à toi de choisir comment.',
-          options: cartesDuTrou(t).map(c => ({ cle: c, ico: CARTES[c].ico, nom: CARTES[c].nom, bon: CARTES[c].bon, prix: CARTES[c].prix, effet: CARTES[c] })),
-          decision: c => ({ carte: c, palier: `trou:${t.at}`, sel: nouvelleGraine() }) } });
+        choix: { recit: 'Aucun réserviste ne peut prendre la place. Le vestiaire s\'ajuste : une carte parmi trois, pour une place.',
+          options: cartesDuTrou(t).map(id => optionDeBanque(id)),
+          decision: id => ({ place: id, palier: `trou:${t.at}` }) } });
     }
     // LE PALIER : une main de trois cartes, une à garder. Elle se joue en plein écran (S73) ; le choix en montre le dos.
     const pal = palierOuvert();
     if (pal !== undefined) {
       out.push({ id: `p:${pal}`, genre: 'palier', bloque: true, de: DE.dg, sujet: `La main de la journée ${pal} : trois cartes`, pal,
-        choix: { recitHtml: `<div class="hub-dos-rang" role="group" aria-label="Une main de trois cartes">${mainDuDeck(graine, pal, dejaPrises).map(c => `<span class="hub-dos tc-${RARETE_SORTE[c.sorte]}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>`,
-          options: [{ cle: 'voir', nom: 'Voir les trois cartes', sous: 'Tu en gardes une pour le reste de la saison', ouvre: true }],
+        choix: { recitHtml: `<div class="hub-dos-rang" role="group" aria-label="Une main de trois cartes">${mainDuDeck(graine, pal).map(c => `<span class="hub-dos tc-${RARETE_SORTE[c.sorte]}" data-sorte="${c.sorte}" title="${ctx.esc(SORTES_DECK[c.sorte].nom)}">${SORTES_DECK[c.sorte].ico}</span>`).join('')}</div>`,
+          options: [{ cle: 'voir', nom: 'Voir les trois cartes', sous: 'Tu en gardes une', ouvre: true }],
           agir: () => ouvrirMain(pal) } });
     }
     /*

@@ -55,6 +55,8 @@ import {
 } from '../../js/sim.js';
 import { DECK_DEPART } from '../../js/combat.js';
 import { robotDuel } from './duel.mjs';
+import { lundiDuRobot } from './cartes_robot.mjs';
+import { patronsDeDepart, payloadDe } from '../../js/banque.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
 import { effetDePalier } from '../../js/coachs.js';
@@ -308,6 +310,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
   const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, ...enPoste.map(coach => ({ jour: 0, coach }))];
+  // V10 (tranche 6) : les deux patrons que le départ d'une run impose (js/banque.js `patronsDeDepart`), comme au jeu.
+  for (const id of patronsDeDepart(`rogue80:${graine}`, PRESTIGES[rangDePrestige(meta)].raretes)) decisions.push({ jour: 0, ...payloadDe(id, { patrons: [] }) });
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
@@ -343,7 +347,13 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     // V3.6 : la prime des fils (le Cheechoo, le jalon…), comme au jeu (`resultatsRogue`, js/rogue-jeu.js).
     return etat.jetons + W * B.victoire + P * B.prolongation + D * B.defaite + gros * B.grosMatch + primesDesFils(L.calendrier, you, L.jour).total - depense;
   };
+  // V10 : le lundi du robot — la route, le dossier, la carte d'un palier (scripts/lib/cartes_robot.mjs).
+  const etatCartes = { dossiers: [], paliers: new Set() };
   while (!L.fini) {
+    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique, clic, jetons: jetons(), etat: etatCartes })) {
+      decisions.push(d);
+      depense -= d.gain || 0;
+    }
     // La boutique, le matin : tant qu'il y a de quoi acheter.
     for (let garde = 0; garde < 4; garde++) {
       const voulu = packVoulu(meta, jetons(), achats, exigence);
