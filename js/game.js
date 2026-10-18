@@ -1143,15 +1143,30 @@ export function headshotHtml(p) {
 
 /* ---------- toast ---------- */
 
-let toastTimer = null;
+/*
+ * UNE FILE D'ATTENTE (Jalon M, B8) : un seul élément, et chaque message effaçait celui d'avant — de trois galons en
+ * 900 ms, seul le dernier se lisait. Les messages attendent leur tour, chacun le temps qu'on le lise ; un avertissement
+ * passe devant (il répond au geste qu'on vient de faire), et un message déjà affiché ou en attente ne se répète pas.
+ */
+let toastTimer = null, toastCourant = null;
+const fileDesToasts = [];
+const TOASTS_EN_ATTENTE = 4;
 export function toast(msg, kind = '') {
+  if (!$('toast')) return;
+  if (toastCourant && toastCourant.msg === msg) return;
+  if (fileDesToasts.some(x => x.msg === msg)) return;
+  if (kind === 'warn' || kind === 'bad' || !toastCourant) { montrerToast({ msg, kind }); return; }
+  if (fileDesToasts.length < TOASTS_EN_ATTENTE) fileDesToasts.push({ msg, kind });
+}
+function montrerToast(x) {
   const el = $('toast');
-  if (!el) return;
-  el.className = 'toast on' + (kind ? ' ' + kind : '');
-  el.textContent = msg;
   clearTimeout(toastTimer);
-  // Un long message reste le temps qu'on le lise.
-  toastTimer = setTimeout(() => { el.className = 'toast'; }, Math.min(6000, Math.max(1800, msg.length * 45)));
+  if (!x || !el) { toastCourant = null; return; }
+  toastCourant = x;
+  el.className = 'toast on' + (x.kind ? ' ' + x.kind : '');
+  el.textContent = x.msg;
+  // Un long message reste le temps qu'on le lise ; le suivant attend que celui-ci soit parti.
+  toastTimer = setTimeout(() => { el.className = 'toast'; toastTimer = setTimeout(() => montrerToast(fileDesToasts.shift()), 250); }, Math.min(6000, Math.max(1800, x.msg.length * 45)));
 }
 
 /* =====================================================================

@@ -234,6 +234,13 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
 const des = [], evenementsDe = [];
 let pocheVendues = 0;   // V4.3 : les cartes de tes places vendues en passant
 const soirs = { pages: 0, match: 0 };   // les pages du soir, et celles qui sont le sommaire d'un match
+const duelCourt = { n: 0, max: 0, longs: 0 };
+// UNE SEULE FEUILLE À LA FOIS (Jalon M, B7) : à chaque capture qui en montre une, au plus une `.choix-sheet` se voit.
+const feuilles = { vues: 0, empilees: [] };
+const compterFeuilles = async ou => {
+  const vues = await page.$$eval('.choix-sheet', ls => ls.filter(e => e.checkVisibility({ visibilityProperty: true })).map(e => (e.closest('[id]') || {}).id || e.className));
+  feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
+};
 const captures = { main: 0, combat: 0, duel: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0 };   // À faire (V9), vu au premier choix
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
@@ -298,6 +305,22 @@ async function regler() {
         if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
         const g = await page.$('#choixModal .duel-geste[data-geste]:not([disabled])');
         if (g) { geste = await g.getAttribute('data-geste'); await g.click(); await page.waitForTimeout(200); }
+        /*
+         * LE GROS MATCH PLUS COURT (Jalon M, B3) : le geste pris, l'intention se plie en une ligne ; la feuille tient à
+         * 1,3 écran au plus, et « Jouer » reste à l'écran.
+         */
+        if (g) {
+          const h = await page.$eval('#choixModal', m => {
+            const els = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].filter(Boolean);
+            const r = Math.max(...els.map(e => e.scrollHeight / Math.max(1, e.clientHeight)));
+            const j = m.querySelector('.main-jouer').getBoundingClientRect();
+            return { r, plie: !!m.querySelector('.duel-intention.plie .main-pli'), jouer: j.bottom <= innerHeight + 1 && j.top >= 0 };
+          });
+          duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h.r);
+          if (!h.plie) erreurs.push('le geste pris, l\'intention du duel ne se plie pas');
+          if (h.r > 1.3) duelCourt.longs++;
+          if (!h.jouer) erreurs.push('« Jouer » n\'est pas à l\'écran une fois le geste pris');
+        }
         if (!captures.duel++) { await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
       }
       /*
@@ -307,8 +330,8 @@ async function regler() {
       if (!mise.vue && await page.$('#choixModal .duel-snap')) {
         mise.vue = true;
         // LA SCÈNE (Jalon M, A1) : le capitaine la demande, entre guillemets, et le fait nomme le rival.
-        const sc = await page.$eval('#choixModal', m => ({ voix: (m.querySelector('.duel-intention .scene-de') || {}).textContent || '',
-          mot: (m.querySelector('.duel-intention .scene-mot') || {}).textContent || '', fait: (m.querySelector('.duel-intention .scene-fait') || {}).textContent || '',
+        const sc = await page.$eval('#choixModal', m => ({ voix: (m.querySelector('.duel-mise .scene-de') || {}).textContent || '',
+          mot: (m.querySelector('.duel-mise .scene-mot') || {}).textContent || '', fait: (m.querySelector('.duel-mise .scene-fait') || {}).textContent || '',
           rival: ((m.querySelector('.choix-irl') || {}).textContent || '').replace(/^Contre\s+/, '').trim() }));
         mise.scene = `${sc.voix.trim()} ${sc.mot.trim()} — ${sc.fait.trim()}`;
         if (!/^«.+»$/.test(sc.mot.trim()) || !/capitaine/i.test(sc.voix)) erreurs.push(`la mise doublée ne cite pas le capitaine (« ${sc.voix} ${sc.mot} »)`);
@@ -776,7 +799,7 @@ if (!/personne ne sort/.test(destSigner)) {
   else {
     const tete = await page.$$eval('#choixModal .sig-liste .pcard', e => ({ n: e.filter(x => x.classList.contains('meilleure')).length, premiere: e[0].classList.contains('meilleure') }));
     if (tete.n !== 1 || !tete.premiere) erreurs.push(`« qui sort ? » après « Signer » : la meilleure sortie n'est pas seule en tête, cerclée d'or (${JSON.stringify(tete)})`);
-    await page.screenshot({ path: `${DOSSIER}/rogue-signer-qui-sort.png` });
+    await page.screenshot({ path: `${DOSSIER}/rogue-signer-qui-sort.png` }); await compterFeuilles('signer-qui-sort');
     await page.click('#choixModal .choix-fermer');
     await page.waitForTimeout(400);
     if (!(await page.$('#signatureModal:not([hidden]) .pcard'))) erreurs.push('fermer « qui sort ? » referme aussi la liste de signature');
@@ -805,7 +828,7 @@ const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.len
 const AUTRE = '#choixModal .sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])';
 const barreSortie = await page.$eval(AUTRE, b => b.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim());
 if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(barreSortie)) erreurs.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${barreSortie} »`);
-await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` });
+await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` }); await compterFeuilles('qui-sort');
 await page.click(AUTRE);
 // Où joue l'arrivant : sa case, et ce qui glisse.
 await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
@@ -867,7 +890,18 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   await page.screenshot({ path: `${DOSSIER}/rogue-bureau.png` });
   await versCeSoir();
   await page.screenshot({ path: `${DOSSIER}/rogue-ce-soir.png`, fullPage: true });
-  const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.length).catch(() => -1);
+  // Deux copies d'une même carte se groupent en une tuile « ×2 » (Jalon M, B9) : on compte les copies.
+  const cases = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.reduce((a, x) => a + Number(((x.querySelector('.hub-poche-n') || {}).textContent || '×1').slice(1)), 0)).catch(() => -1);
+  // UN VERBE PAR TUILE, ET LES PLACES SOUS L'AFFICHE (B9) : chaque tuile dit ce qu'un toucher fait, et la section est à moins d'un écran du haut du volet.
+  const b9 = await page.$eval('#hubModal', m => {
+    const ts = [...m.querySelectorAll('.hub-poche .hub-poche-case[data-ref]')];
+    const sec = m.querySelector('.hub-poche'), v = sec && sec.closest('.hub-volet, .coq-volet, [data-volet]') || m;
+    return { sansVerbe: ts.filter(t => !/Jouer|Poser/.test((t.querySelector('.hub-poche-verbe') || {}).textContent || '')).length,
+      haut: sec ? sec.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop : -1, ecran: innerHeight };
+  }).catch(() => ({ sansVerbe: 0, haut: -1, ecran: 844 }));
+  console.log(`10b. tes places : ${b9.sansVerbe} tuile(s) sans verbe · à ${Math.round(b9.haut)} px du haut du volet (un écran : ${b9.ecran})`);
+  if (b9.sansVerbe) erreurs.push(`${b9.sansVerbe} tuile(s) de tes places ne disent pas ce qu'un toucher fait`);
+  if (b9.haut > b9.ecran) erreurs.push(`tes places sont à ${Math.round(b9.haut)} px du haut de « Ce soir », plus d'un écran`);
   const places = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref] .hub-poche-place', e => e.length).catch(() => 0);
   const libres = await page.$$eval('#hubModal .hub-poche .hub-poche-libre', e => e.length).catch(() => 0);
   const trop = (await decisionsDuCombat()).filter(d => d.vend && !d.joue).length;
@@ -1232,12 +1266,22 @@ await page.waitForTimeout(2500);
   const finie = /Mandat manqué|run est gagnée/.test(sort);
   const metaR = await page.evaluate(() => JSON.parse(localStorage.getItem('cap82_rogue') || '{}'));
   console.log(`12c. « Ta run » : ${ecranRun ? 'ouvert' : 'fermé'} · run ${finie ? 'finie' : 'en cours'} · dernière run au méta : ${metaR.derniereRun ? JSON.stringify(metaR.derniereRun) : '(aucune)'}`);
+  // LES GALONS AU BILAN (Jalon M, A8 et B8) : ceux que le cartable a gravés pour cette saison, un par ligne, sous le capitaine.
+  const nGalons = await page.evaluate(() => Object.values((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {})
+    .flatMap(x => (x.chez || []).filter(e => e.run === 1 && e.s === 1)).reduce((a, e) => a + (e.galons || []).length, 0));
+  const auBilan = await page.$$eval('#resultHost .rg-run .run-galons-l li', ls => ls.length);
+  console.log(`12d. les galons au bilan : ${auBilan} ligne(s) pour ${nGalons} galon(s) gravé(s)`);
+  if (auBilan !== nGalons) erreurs.push(`le bilan montre ${auBilan} galon(s), le cartable en a gravé ${nGalons}`);
+  if (nGalons && !/Le capitaine/.test(await page.textContent('#resultHost .rg-run .run-galons').catch(() => ''))) erreurs.push('les galons du bilan ne disent pas la voix du capitaine');
   if (finie && !ecranRun) erreurs.push('la run est finie et l\'écran « Ta run » ne s\'est pas ouvert');
   if (!finie && ecranRun) erreurs.push('la run continue et l\'écran « Ta run » s\'est ouvert quand même');
   if (ecranRun) {
     await page.screenshot({ path: `${DOSSIER}/rogue-ta-run.png` });
     const txt = (await ecranRun.textContent()).replace(/\s+/g, ' ');
     const d = metaR.derniereRun || {};
+    if (/Mandat manqué/.test(sort) && !/Le proprio\s*« [^»]+ »/.test(txt)) erreurs.push(`« Ta run » ne cite pas le proprio : ${txt.slice(0, 160)}`);
+    const galonsRun = await ecranRun.$$eval('.run-galons-l li', ls => ls.length);
+    if (galonsRun !== nGalons) erreurs.push(`« Ta run » montre ${galonsRun} galon(s), le cartable en a gravé ${nGalons}`);
     if (!new RegExp(`${d.saisons}\\s*saison`).test(txt) || !txt.includes(`+${d.ecussons}`) || !txt.includes(`🏅 ${metaR.ecussons}`)) erreurs.push(`« Ta run » ne dit pas les chiffres du méta : ${txt.slice(0, 160)}`);
     if (!(svR.partie && svR.partie.rogue && svR.partie.rogue.taRunVue) && !(svR.rogue && svR.rogue.taRunVue)) erreurs.push('« Ta run » vu n\'est pas dans la sauvegarde (il se rouvrirait au rechargement)');
     await page.click('#choixModal:not([hidden]) .choix-fermer');
@@ -1350,6 +1394,10 @@ if (!flottant.vus) erreurs.push('le bouton flottant n\'a jamais paru (« Ce soir
 console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix dépliés${barreA.sous.length ? `, ${barreA.sous.length} sous la barre` : ', la 1re option au-dessus de la barre chaque fois'}`);
 if (barreA.sous.length) erreurs.push(`la barre collée cache le choix qu'elle ouvre : ${barreA.sous.slice(0, 3).join(' · ')}`);
 if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
+console.log(`20k. une feuille à la fois : ${feuilles.vues} capture(s) · ${feuilles.empilees.length ? `empilées : ${feuilles.empilees.join(', ')}` : 'jamais deux'}`);
+if (feuilles.empilees.length) erreurs.push(`des feuilles s'empilent à l'écran : ${feuilles.empilees.join(', ')}`);
+console.log(`20j. le gros match plus court : ${duelCourt.n} période(s) au geste pris · la plus longue à ${duelCourt.max.toFixed(2).replace('.', ',')} écran · ${duelCourt.longs} au-dessus de 1,3`);
+if (duelCourt.longs) erreurs.push(`${duelCourt.longs} période(s) du duel font plus de 1,3 écran une fois le geste pris (${duelCourt.max.toFixed(2)})`);
 if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');

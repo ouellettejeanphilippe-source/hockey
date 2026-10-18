@@ -1462,6 +1462,9 @@ export function ouvrirMainDeMatch(spec) {
   // LE DUEL (V9) : l'élan de la période, ton geste contre leur intention, la mise doublée avant la 3e.
   const D = spec.duel || null, elan = D ? D.elan : ENERGIE_MAIN;
   let geste = null, snap = false;
+  // UNE LIGNE, UNE FOIS RÉPONDU (Jalon M, B3) : l'intention et la carte de vestiaire se plient dès qu'on y a répondu
+  // (la feuille d'une période faisait deux écrans) ; les toucher les rouvre.
+  const ouverts = new Set();
   const V = spec.vestiaire || null, nV = V ? nommer(V) : null;
   let vest = V ? V.pris || null : null;
   const manque = () => (spec.ajustements && !aj ? 'Choisis ton ajustement' : V && !vest ? 'Choisis ta carte de vestiaire' : '');
@@ -1509,7 +1512,9 @@ export function ouvrirMainDeMatch(spec) {
     // numérotées dans l'ordre où on les règle ; ce qui se consulte (leur main, le tableau des deux clubs) se plie.
     const etapes = [spec.depistage && 'plan', D && 'duel', V && 'vest', spec.ajustements && 'aj', 'main'].filter(Boolean);
     const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
-    const vestiaire = V ? `<div class="main-vestiaire">
+    const pli = (k, txt) => `<button type="button" class="main-pli" data-deplier="${k}"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span><span class="main-pli-ouvrir" aria-hidden="true">›</span></button>`;
+    const vestPris = V && vest && V.options.find(o => o.cle === vest);
+    const vestiaire = vestPris && !ouverts.has('vest') ? pli('vest', `${V.ico} ${esc(V.titre)} · ✓ ${nV.sub(vestPris.nom)}`) : V ? `<div class="main-vestiaire">
       ${etape('vest', `${V.ico} ${esc(V.titre)} · garde une carte`)}
       ${V.recit ? `<p class="main-vest-recit">${nV.sub(V.recit)}</p>` : ''}
       <div class="main-vest-rang">${V.options.map(o => {
@@ -1527,7 +1532,7 @@ export function ouvrirMainDeMatch(spec) {
         ${spec.recit ? `<p class="choix-recit">${esc(spec.recit)}</p>` : ''}
         ${spec.enjeu ? `<div class="main-enjeu choix-puces">${spec.enjeu(vest)}</div>` : ''}
         ${spec.depistage ? depistageHtml(pistes, { nomAdv: spec.nomAdv || 'Eux', prep, choisir: true, fx, etape: etape('plan', '🔎 Leur plan · prépare-toi') }) : ''}
-        ${D ? `<div class="duel-intention">
+        ${D && geste && !ouverts.has('duel') ? `<div class="duel-intention plie">${pli('duel', `${D.ico} ${esc(D.nom)} · ✓ ${esc((D.gestes.find(o => o.cle === geste) || {}).nom || '')}`)}</div>` : D ? `<div class="duel-intention">
           ${etape('duel', `${D.ico} ${esc(D.nom)} · leur intention`)}
           ${D.tableau || ''}
           <p class="duel-fait">${esc(D.fait)}</p>
@@ -1536,8 +1541,8 @@ export function ouvrirMainDeMatch(spec) {
           ${D.deja ? `<p class="duel-deja">✓ ${esc(D.deja)}</p>` : ''}
           <div class="duel-gestes">${D.gestes.map(o => optionHtml(o, {}, { classe: 'duel-geste', attr: `data-geste="${esc(o.cle)}"`, on: geste === o.cle, mots: o.mots || [] })).join('')}</div>
           ${D.cartes ? `<p class="duel-cartes">${esc(D.cartes)}</p>` : ''}
-          ${D.mise ? `${sceneHtml(D.mise, { voix: true })}<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise.chiffres)}</button>` : ''}
         </div>` : ''}
+        ${D && D.mise ? `<div class="duel-mise">${sceneHtml(D.mise, { voix: true })}<button type="button" class="btn duel-snap${snap ? ' on' : ''}" aria-pressed="${snap}">${snap ? '✓ Mise doublée' : 'Doubler la mise'} · ${esc(D.mise.chiffres)}</button></div>` : ''}
         ${spec.contexte ? `<details class="main-plie"><summary>Ce qu'ils jouent ce soir</summary>${spec.contexte}</details>` : ''}
         ${vestiaire}
         ${spec.ajustements ? `<div class="main-ajuste">${etape('aj', 'Ton ajustement pour ce match')}<div class="main-ajuste-rang">${spec.ajustements.map(o => {
@@ -1596,7 +1601,8 @@ export function ouvrirMainDeMatch(spec) {
       fermer(true);
       spec.onJouer(...args, V && !V.pris ? vest : null);
     };
-    m.querySelectorAll('.main-vest[data-vest]').forEach(b => { b.onclick = () => { vest = b.dataset.vest; jouerSon('joue'); dessiner(); }; });
+    m.querySelectorAll('.main-vest[data-vest]').forEach(b => { b.onclick = () => { vest = b.dataset.vest; ouverts.delete('vest'); jouerSon('joue'); dessiner(); }; });
+    m.querySelectorAll('.main-pli[data-deplier]').forEach(b => { b.onclick = () => { ouverts.add(b.dataset.deplier); dessiner(); }; });
     // Me préparer : toucher une piste. Une seule (deux avec « Le plan B ») ; la dernière touchée reste.
     m.querySelectorAll('.dep-piste[data-plan]').forEach(b => {
       b.onclick = () => {
@@ -1608,10 +1614,10 @@ export function ouvrirMainDeMatch(spec) {
     });
     m.querySelectorAll('.main-aj').forEach(b => { b.onclick = () => { aj = b.dataset.aj; jouerSon('joue'); dessiner(); }; });
     // Ton geste : le toucher le prend, le toucher encore le laisse.
-    m.querySelectorAll('.duel-geste[data-geste]').forEach(b => { b.onclick = () => { geste = geste === b.dataset.geste ? null : b.dataset.geste; jouerSon('joue'); dessiner(); }; });
+    m.querySelectorAll('.duel-geste[data-geste]').forEach(b => { b.onclick = () => { geste = geste === b.dataset.geste ? null : b.dataset.geste; ouverts.delete('duel'); jouerSon('joue'); dessiner(); }; });
     const bs = m.querySelector('.duel-snap');
     if (bs) bs.onclick = () => { snap = !snap; jouerSon('joue'); dessiner(); };
-    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; geste = null; snap = false; vest = V ? V.pris || null : null; dessiner(); };
+    m.querySelector('.main-reprendre').onclick = () => { depart(); joue.clear(); premier = true; aj = null; prep = []; geste = null; snap = false; ouverts.clear(); vest = V ? V.pris || null : null; dessiner(); };
     m.querySelector('.main-deck').onclick = () => { voirDeck = !voirDeck; dessiner(); };
     // LES CHIFFRES (V3) : la préparation se lit en mots ; ses chiffres se déplient, comme dans un choix.
     const bc = m.querySelector('.main-chiffres');
