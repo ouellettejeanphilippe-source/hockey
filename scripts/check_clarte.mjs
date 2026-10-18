@@ -51,7 +51,7 @@ import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -153,6 +153,13 @@ const MOTS_RESERVES = [
     '(🕊️ basse, ⚖️ moyenne)', 'la consigne 😌 Basse'],
   ['médailles', 'la monnaie des déblocages ; l\'écusson est un logo', /\d+ écussons|écussons (à dépenser|pour ta saison|pour tes séries|de découverte|gagnés)|Tes écussons/i,
     '🏅 +12 écussons pour ta saison', 'Le nom, les couleurs et l\'écusson'],
+  // LE JARGON (Jalon M, B10) : le % d'arrêts et les matchs se disent en mots ; la route dit « chez », pas « @ » ni « DP ».
+  ['arrêts', 'le % d\'arrêts se dit en mots, pas « arr. » ni « (ligue ,904) »', /\d arr\.|\} arr\.|\(ligue (,\d|\$\{)/,
+    'Badges +,005 arr.', '+,005 au % d\'arrêts'],
+  ['matchs', 'un match se dit en entier, pas « m. »', /\d m\.($|<)|\} m\.($|<)/,
+    '${x.reste} m.</small>', '5 matchs'],
+  ['la route', 'chez eux se dit « chez », une défaite en prolongation en mots', /^@ $|\bDP \d/,
+    '@ ', 'chez PHI \'13'],
   ['contrat', 'une carte de masse salariale ; la modif de joueur est une clause', /Un style, un contrat|une modif de contrat/i,
     'Un style, un contrat, une amélioration', 'Pack Contrats'],
 ];
@@ -419,6 +426,9 @@ const MOTS_RESERVES = [
     for (const [k, t] of [[3, 3], [9, 12]]) { juger('la blessure', sceneDeLaBlessure({ joueur: 'Al Secord', n: k, total: t, ou: 'T2 · ailier gauche', adv: 'Wild 2010-11', graine: g }), ['Al Secord', k, ...(t > k ? [t] : []), 'T2 · ailier gauche', 'Wild 2010-11']); n++; }
     for (const multi of [3, 1]) { juger('les rivaux', sceneDesRivaux({ multi, offerts: 5, graine: g }), [multi, 5]); n++; }
     for (const cartes of [11, 18]) { juger('le butin', sceneDuButin({ pour: 4, contre: 2, adv: 'Bruins 1995-96', cartes, max: 20, graine: g }), [4, 2, 'Bruins 1995-96', cartes, 20]); n++; }
+    // A8 (Jalon M) : le proprio dit le mandat, le capitaine les galons.
+    for (const sort of ['rate', 'rempli', 'coupe']) { juger('le mandat', sceneDuMandat({ sort, fiche: { V: 21, D: 52, DP: 9 }, rang: 30, equipes: 32, mandat: 'faire les séries', graine: g }), ['21-52-9', '30e', 32, 'faire les séries']); n++; }
+    for (const noms of [['Radek Dvorak'], ['Radek Dvorak', 'Hampus Lindholm', 'Radek Dvorak']]) { juger('les galons', sceneDesGalons({ noms, graine: g }), [noms.length, ...new Set(noms)]); n++; }
   }
   /*
    * LES DOSSIERS (V10, tranche 5) : sur des faits fabriqués, chacun aux nombres distincts, le fait d'un dossier ne dit que
@@ -440,7 +450,7 @@ const MOTS_RESERVES = [
     ...Object.entries(DOSSIERS).flatMap(([cle, D]) => D.mots.map(m => [`dossier/${cle}`, m]))];
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
   informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, les dossiers');
+  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers');
 }
 
 verdict('La clarté');

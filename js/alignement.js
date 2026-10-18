@@ -749,7 +749,7 @@ function unitesSpecialesEl() {
   const statDe = (sit, i) => {
     const x = st && st[sit] && st[sit][i];
     if (!x) return '';
-    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % de précision` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} arr.`;
+    return sit === 'AN' ? `≈ ${mmss(x.minutes)} · ${v1(x.tirs)} tirs · ${v1(x.pctTir * 100)} % de précision` : `≈ ${mmss(x.minutes)} · ${v1(x.contre)} tirs contre · ${pct3(x.pctArr)} d'arrêts`;
   };
   const rangee = (sit, i, j, p) => {
     const S = SIT[sit], n = S.stat(p);
@@ -799,7 +799,7 @@ function unitesSpecialesEl() {
           const fl = (x, y, f) => `${f(x)} → <b>${f(y)}</b>`;
           return `${S.court} ${i + 1} : ${sit === 'AN'
             ? `${fl(d.tirs, a.tirs, v1)} tirs · ${fl(d.pctTir * 100, a.pctTir * 100, v1)} % de précision`
-            : `${fl(d.contre, a.contre, v1)} tirs contre · ${fl(d.pctArr, a.pctArr, pct3)} arr.`} par match`;
+            : `${fl(d.contre, a.contre, v1)} tirs contre · ${fl(d.pctArr, a.pctArr, pct3)} d'arrêts`} par match`;
         },
         onChoix: q => { b.speciales = avec(q); render(); },
       });

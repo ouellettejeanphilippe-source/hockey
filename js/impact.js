@@ -39,7 +39,7 @@ export function motsDeStats(d, max = 4) {
     tirs: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')}`,
     pctTir: x => `${signeDe(x)}${pts(x)} pt de précision`,
     contre: x => `${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir contre', 'tirs contre')}`,
-    pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} arr.`,
+    pctArr: x => `${signeDe(x)}${pct3(Math.abs(x))} au % d'arrêts`,
   };
   return Object.keys(mots).filter(k => Math.abs(d[k]) >= SEUIL_STAT[k])
     .sort((a, b) => Math.abs(d[b]) / PAS_STAT[b] - Math.abs(d[a]) / PAS_STAT[a]).slice(0, max)

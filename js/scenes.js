@@ -89,6 +89,22 @@ export const MOTS_DES_SCENES = {
     dernier: ['Il m\'en manque un. Choisissez-le bien.',
       'Un dernier nom, et je fais imprimer les affiches.'],
   },
+  // LE MANDAT, À LA FIN DE LA SAISON (A8) : le proprio, qui vouvoie.
+  mandat: {
+    rate: ['Pas de séries. Je ne vous ai pas payé pour regarder le printemps à la télé.',
+      'J\'avais été clair. On reprendra tout à zéro, avec quelqu\'un d\'autre en tête.'],
+    rempli: ['C\'est ce que je voulais. L\'an prochain, j\'en demanderai plus.',
+      'Mandat rempli. Ne vous habituez pas : la barre monte.'],
+    coupe: ['La Coupe. Je n\'ai plus rien à vous demander, sauf de recommencer.',
+      'Vous l\'avez ramenée. Je vais m\'en souvenir longtemps.'],
+  },
+  // LES GALONS DE LA SAISON (A8) : le capitaine, qui les a vus se gagner.
+  galons: {
+    un: ['On va s\'en souvenir dans le vestiaire.',
+      'Celui-là, il l\'a gagné soir après soir.'],
+    plusieurs: ['On va s\'en souvenir dans le vestiaire.',
+      'Des saisons comme ça, on les raconte aux recrues.'],
+  },
   // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
   butin: {
     mince: ['On a gagné avec ce cahier-là. Moi, j\'y ajouterais une page.',
@@ -198,5 +214,31 @@ export function sceneDuButin({ pour, contre, adv, cartes, max, graine = '' }) {
     de: EXPEDITEURS.en,
     mot: piger(MOTS_DES_SCENES.butin[cartes >= max * 0.75 ? 'epais' : 'mince'], graine, 'butin', adv),
     fait: `${pour}–${contre} contre ${adv} · ${cartes} cartes au cahier sur ${max}`,
+  };
+}
+
+/*
+ * A8 · LE MANDAT. Le proprio, à la fin de la saison. Le fait : la fiche, le rang, et ce que le mandat demandait.
+ *   sort     'rate', 'rempli' ou 'coupe' ; fiche : { V, D, DP } ; rang, equipes : la place au classement ;
+ *   mandat   le mot du mandat (`mandatDe(...).mot`)
+ */
+export function sceneDuMandat({ sort, fiche, rang, equipes = 32, mandat = '', graine = '' }) {
+  return {
+    de: EXPEDITEURS.pr,
+    mot: piger(MOTS_DES_SCENES.mandat[sort], graine, 'mandat', rang),
+    fait: `${fiche.V}-${fiche.D}-${fiche.DP} · ${rangMot(rang)} sur ${equipes}${mandat ? ` · ${sort === 'rate' ? 'il fallait' : 'le mandat :'} ${mandat}` : ''}`,
+  };
+}
+
+/*
+ * A8 · LES GALONS DE LA SAISON. Le capitaine. Le fait : combien de galons, et à qui.
+ *   noms   les joueurs galonnés, dans l'ordre où leurs galons sont tombés (un nom par galon)
+ */
+export function sceneDesGalons({ noms, graine = '' }) {
+  const n = noms.length, uniques = [...new Set(noms)];
+  return {
+    de: EXPEDITEURS.ca,
+    mot: piger(MOTS_DES_SCENES.galons[n > 1 ? 'plusieurs' : 'un'], graine, 'galons', n),
+    fait: `${n} galon${n > 1 ? 's' : ''} cette saison · ${uniques.join(', ')}`,
   };
 }

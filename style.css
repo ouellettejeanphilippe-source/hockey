@@ -976,6 +976,11 @@ img.visage.brut { object-position: 50% 12%; }
 
 /* ---- Les feuilles de choix (une décision, une main de cartes, une boutique) ---- */
 .choix-modal { position: fixed; inset: var(--safe-top) 0 var(--safe-bas); z-index: 96; display: flex; align-items: stretch; justify-content: center; background: color-mix(in srgb, var(--noir) 88%, transparent); }
+/* UNE SEULE FEUILLE À LA FOIS (Jalon M, B7) : les fenêtres s'empilent dans l'ordre du document, la dernière ouverte
+   par-dessus ; celles qu'elle couvre se cachent (elles gardent leur état) et reviennent quand elle se ferme. */
+.choix-modal:not([hidden]):has(~ .choix-modal:not([hidden])) { visibility: hidden; }
+/* La boutique et les pages du club portent aussi une feuille, hors des fenêtres : une fenêtre ouverte la couvre. */
+body:has(.choix-modal:not([hidden])) .choix-sheet:not(.choix-modal .choix-sheet) { visibility: hidden; }
 body.choix-ouvert { overflow: hidden; }
 body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-sheet { display: flex; flex-direction: column; width: 100%; max-width: 980px; height: 100%; max-height: 100dvh; background: var(--noir); }
@@ -1461,7 +1466,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .pcard-mid .tags.en-deux { flex-wrap: wrap; row-gap: 2px; }
 /* Ce qui va se passer, en casse de phrase (clair au pouce, oct.) : « Robustesse fort · 1er trio · Graves sort » tient où
    les capitales se coupaient ; la condensée reste, sur une ligne. */
-.pcard-dest { min-width: 0; font: 700 var(--t-2)/1.3 var(--display); letter-spacing: 0.01em; color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Deux lignes plutôt qu'une coupée (Jalon M, B6) : la case et la masse, puis l'effet. */
+.pcard-dest { min-width: 0; font: 700 var(--t-2)/1.3 var(--display); letter-spacing: 0.01em; color: var(--encre-3); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .pcard-dest .dest-target { color: var(--or); }
 .pcard-dest .dest-ok { color: var(--bon); }
 .pcard-dest .dest-bad { color: var(--mauvais); }
@@ -3035,6 +3041,8 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-poche-case.tc-rare .hub-poche-rar { color: var(--choisi); }
 .hub-poche-case.tc-legendaire .hub-poche-rar { color: var(--or); }
 .hub-poche-ico { font-size: var(--t-5); line-height: 1; }
+.hub-poche-n { color: var(--or); }
+.hub-poche-verbe { margin-top: auto; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--or); }
 /* POSER EN TOUCHANT (V8, « Ce soir ») : la carte qu'on pose se soulève ; sous elle, tes lignes, ceux qui la portent allumés. */
 .hub-poche-case.en-pose { border-color: var(--or); box-shadow: 0 0 0 2px var(--or); transform: translateY(-3px); }
 .pose-zone { display: grid; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-2); background: var(--fond-1); }
@@ -3101,7 +3109,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .hub-msg.bloque .hub-msg-etat { color: var(--mauvais); }
 /* Coché, il attend « Trancher » : son option se lit dans sa bande. */
 .hub-msg.pret { border-color: var(--or); border-radius: var(--r-1); }
-.hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); transition: transform var(--t-vite); }
 .hub-msg.ouvert .hub-msg-tete::after { transform: rotate(90deg); }
 .hub-msg-corps { display: none; flex-direction: column; gap: var(--esp-2); padding: 0 var(--esp-3) var(--esp-3); }
@@ -3540,7 +3548,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .live-eq-band > span { overflow: hidden; text-overflow: ellipsis; }
 .live-eq-band .team-logo-img, .live-eq-band .team-logo-inline { flex: none; }
 .live-eq.b .live-eq-band { flex-direction: row-reverse; }
-.live-eq-nom { grid-area: nom; padding: var(--esp-1) var(--esp-3) var(--esp-3); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: color-mix(in srgb, var(--eq-ink) 72%, transparent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.live-eq-nom { grid-area: nom; padding: var(--esp-1) var(--esp-3) var(--esp-3); font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: color-mix(in srgb, var(--eq-ink) 72%, transparent); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .live-eq.b .live-eq-nom { text-align: right; }
 .live-eq-buts { grid-area: buts; display: grid; place-items: center; min-width: 52px; padding: 0 var(--esp-2); font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
 .live-eq-buts > b { display: block; font: inherit; }
@@ -4024,7 +4032,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc-art-ico { font-size: var(--t-6); line-height: 1; color: var(--tc-genre); }
 .tc-type { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); margin: 0 var(--esp-3); padding-bottom: var(--esp-1); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tc-genre); }
 /* Les diamants d'une carte de jeu : petits (oct. 2026, JP : *les diamants, plus petits*). */
-.tc-gemme { flex: none; font-size: calc(var(--t-1) * 0.7); letter-spacing: 0; color: var(--tc-bord); }
+.tc-gemme { flex: none; font-size: calc(var(--t-1) * 0.85); letter-spacing: 0; color: var(--tc-bord); }
 .tc.tc-commune .tc-gemme { color: var(--encre-3); }
 .tc-texte { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0 var(--esp-3); font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
 .tc-quoi { color: var(--encre); }
@@ -4050,7 +4058,11 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
    en mini — la bannière, le dessin et le texte se resserrent, le pied s'efface ; dans la main, la phrase d'ambiance aussi (JP : *plus petites cartes pour rentrer dans l'écran*). */
 @media (max-width: 639.98px) {
   .choix-sheet:not(.main-sheet) .choix-main.trois { display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--esp-2); margin: 0; padding: var(--esp-1) 0 var(--esp-3); overflow: visible; scroll-snap-type: none; }
-  .main-sheet .choix-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); margin: 0; padding: var(--esp-1) 0 var(--esp-2); overflow: visible; scroll-snap-type: none; }
+  /* La main du duel, en éventail (Jalon M, B3 ; docs/ecrans-rogue.md, E6) : une seule rangée qui se balaie, trois cartes
+     et le bord de la quatrième ; la période tient à l'écran, sa main avec. */
+  .main-sheet .choix-main { display: grid; grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: calc((100% - 3 * var(--esp-2)) / 3.25); gap: var(--esp-2); margin: 0 calc(-1 * var(--esp-4)) 0 0; padding: var(--esp-1) var(--esp-4) var(--esp-2) 0; overflow-x: auto; scroll-snap-type: x proximity; }
+  .main-sheet .choix-main > .tc { scroll-snap-align: start; }
+  .main-sheet .choix-main > .tc .tc-quoi { -webkit-line-clamp: 4; }
   :is(.choix-main.trois, .main-sheet .choix-main) > .tc { flex: none; min-width: 0; }
   .main-sheet .choix-main > .tc .tc-texte { display: none; }
   :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-cadre { gap: var(--esp-1); }
@@ -4173,6 +4185,13 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 /* L'écran de combat en étapes : 1 leur plan, 2 ta carte de vestiaire, 3 ta main ; ce qui se consulte, plié. */
 .main-etape { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre); }
 .main-etape > b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); letter-spacing: 0; }
+/* Une étape répondue, pliée en une ligne (Jalon M, B3) : son numéro sur le vert, ce qu'on a pris ; la toucher la rouvre. */
+.main-pli { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 48px; padding: var(--esp-2) var(--esp-3); border: 1px solid color-mix(in srgb, var(--bon) 40%, var(--filet)); border-radius: var(--r-2); background: color-mix(in srgb, var(--bon) 8%, var(--fond-1)); color: var(--encre); font: 600 var(--t-2)/1.3 var(--corps); text-align: left; cursor: pointer; }
+.main-pli > b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--bon); color: var(--sur-choisi); font: 800 var(--t-1)/1 var(--display); }
+.main-pli > span:first-of-type { flex: 1; min-width: 0; }
+.main-pli-ouvrir { flex: none; color: var(--encre-3); }
+.duel-intention.plie { padding: 0; border: 0; background: none; box-shadow: none; }
+.duel-mise { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid color-mix(in srgb, var(--or) 40%, var(--filet)); }
 .main-plie { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
 .main-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 40px; padding: var(--esp-1) var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .main-plie > summary::-webkit-details-marker { display: none; }
@@ -4603,6 +4622,11 @@ a.bk-serie:hover, a.bk-serie:focus-visible { box-shadow: inset 0 0 0 1px var(--c
 .run-l { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); min-height: 40px; padding: var(--esp-2) var(--esp-3); background: var(--fond-2); }
 .run-k { font-size: var(--t-2); color: var(--encre-2); }
 .run-v { text-align: right; font: 800 var(--t-3)/1.2 var(--display); font-variant-numeric: tabular-nums; }
+/* Les galons de la saison (Jalon M, A8) : sous le mot du capitaine, un par ligne, avec son match et son adversaire. */
+.run-galons { display: flex; flex-direction: column; gap: var(--esp-2); margin: var(--esp-2) 0; }
+.run-galons-l { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; background: var(--filet); border: 1px solid var(--filet); border-radius: var(--r-1); overflow: hidden; }
+.run-galons-l li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); background: var(--fond-2); font-size: var(--t-2); }
+.run-galons-l small { flex-basis: 100%; font-size: var(--t-2); color: var(--encre-2); }
 /* La Coupe (1.0) : l'écran de la run gagnée — l'or du trophée sur le noir, le trophée qui se lève une fois. */
 .choix-sheet[data-genre="coupe"] { box-shadow: inset 0 3px 0 var(--or), 0 0 0 1px color-mix(in srgb, var(--or) 45%, transparent); }
 .choix-sheet[data-genre="coupe"] .choix-titre { color: var(--or); }
@@ -4796,7 +4820,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .jr-visage { width: 40px; height: 40px; }
 .jr-table th.jr-col-nom { z-index: 3; background: var(--fond-2); }
 .jr-nom { display: block; max-width: 100%; padding: 13px 0; margin: -13px 0; border: 0; background: none; color: var(--encre); text-align: left; overflow: hidden; text-overflow: ellipsis; cursor: pointer; font: 700 var(--t-3)/1.25 var(--corps); }
-.jr-sous { display: block; overflow: hidden; text-overflow: ellipsis; font: 500 var(--t-1)/1.35 var(--corps); color: var(--encre-2); }
+.jr-sous { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 500 var(--t-1)/1.35 var(--corps); color: var(--encre-2); }
 .jr-table tr.reserve td { opacity: 0.6; }
 .jr-bl { font-size: var(--t-1); color: var(--mauvais); }
 .jr-jambes.frais { color: var(--bon); }
@@ -4882,7 +4906,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .ct-autres { align-self: center; min-height: 44px; padding: 0 var(--esp-4); border: 1px solid color-mix(in srgb, var(--encre) 14%, var(--fond-3)); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.01em; }
 .ct-autres:hover, .ct-autres:focus-visible { border-color: var(--or); color: var(--or); }
 .ct-stats { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: var(--t-1); line-height: 1.3; font-variant-numeric: tabular-nums; }
-.ct-ligne { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-ligne { min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .ct-ligne i { margin-right: var(--esp-1); font: 700 var(--t-1)/1.2 var(--display); font-style: normal; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .ct-sim { color: var(--encre); }
 .ct-vraie { color: var(--encre-2); }
