@@ -37,7 +37,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, effetsDeSaison } from '../js/sim.js';
 import { deckDe } from '../js/combat.js';
-import { BANQUE, ORDRE_CATEGORIES, PATRONS, EVENEMENTS, CONTRATS, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
+import { BANQUE, ORDRE_CATEGORIES, PATRONS, CONTRATS, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
 import { PACKS_TOUS, TIERS, chancesDe, tirerCartesPack } from '../js/packs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -78,16 +78,16 @@ console.log('\n  La banque de cartes et les packs (S79)\n');
 const compte = compteParCategorie();
 const total = Object.keys(BANQUE).length;
 informer('les cartes', `${total} en tout · ${ORDRE_CATEGORIES.map(c => `${c} ${compte[c]}`).join(' · ')}`);
-// V10 : les cartes de saison se fondent dans le personnel (tranche 4), les événements deviennent des dossiers d'À faire
-// (tranche 5, js/dossiers.js) ; leurs familles ne se tirent plus.
-const FONDUES = ['saison', 'evenement'];
+// V10 : les cartes de saison se fondent dans le personnel (tranche 4) ; leur famille ne se tire plus. Les événements
+// sont devenus des dossiers d'À faire (tranches 5 et 6, js/dossiers.js) : leur famille n'existe plus.
+const FONDUES = ['saison'];
 const tirables = ORDRE_CATEGORIES.reduce((a, c) => a + compte[c], 0);
 exiger('plus de 100 cartes qui se tirent, dans les familles du jeu neuf', tirables >= 100 && ORDRE_CATEGORIES.every(c => (FONDUES.includes(c) ? !compte[c] : compte[c] > 0)),
   `${tirables} qui se tirent (${total} définies)`);
 const sansRegle = Object.keys(BANQUE).filter(id => BANQUE[id].cat !== 'match' && !reglesDe(id).length);
 exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
 // Le congédiement (V5) change de coach : il n'a pas de chiffre à dire.
-const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'evenement', 'consommable', 'plafond'].includes(BANQUE[id].cat) && id !== 'consommable:congediement').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
+const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'consommable', 'plafond'].includes(BANQUE[id].cat) && id !== 'consommable:congediement').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
 exiger('les patrons, événements, consommables et contrats se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'tous');
 const CHAMPS = ['patron', 'effet', 'gestes', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach', 'ballottage'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
@@ -149,18 +149,20 @@ informer('Pack Argent', chancesDe('j:hasard_argent').map(x => `${x.nom} ${x.txt}
 const t0 = ligue(79, 16), moi = t0[0];
 const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.roster[s.i]).find(Boolean);
 const decs = [
-  { jour: 5, equipe: 0, ...payloadDe('patron:def_systeme', { patrons: [] }) },
-  { jour: 10, equipe: 0, ...payloadDe('evenement:souper') },
-  { jour: 12, equipe: 0, ...payloadDe('joueur:style_sniper', { joueur: getPlayerKey(avant) }) },
-  { jour: 14, equipe: 0, ...payloadDe('match:feuSacre') },
-  { jour: 16, equipe: 0, ...payloadDe('consommable:conge') },
+  { jour: 5, equipe: 0, ...payloadDe('patron:per_gardienDuFort', { patrons: [] }) },
+  { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'zone' } },
+  { jour: 12, equipe: 0, ...payloadDe('joueur:rubanBlanc', { joueur: getPlayerKey(avant) }) },
+  { jour: 14, equipe: 0, ...payloadDe('match:lucarne') },
+  { jour: 16, equipe: 0, ...payloadDe('consommable:tableMassage') },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
-const pat = (moi.patrons || []).find(x => x.cle === 'def_systeme');
-exiger('un patron engagé joue pour la saison', !!pat && effetsDeSaison(moi).defense < 1, pat ? `buts contre ×${effetsDeSaison(moi).defense.toFixed(3)}` : 'absent');
-exiger('un événement entre dans les effets de l\'équipe', (moi.effets || []).some(e => e.nom === EVENEMENTS.souper.nom), `${(moi.effets || []).length} effet(s)`);
-exiger('un style change la carte du joueur', (avant._mutCles || []).includes('style_sniper'), avant.n);
-exiger('une carte de match entre au deck', deckDe(decs).includes('feuSacre'), `${deckDe(decs).length} cartes`);
+// V10 : un patron attend son moment ; ses soirs posés, il joue.
+const pat = (moi.patrons || []).find(x => x.cle === 'per_gardienDuFort');
+moi._soir = { apresDefaite: true };
+exiger('un patron engagé joue pour la saison, ses soirs', !!pat && pat.si === 'apresDefaite' && effetsDeSaison(moi).defense < 1, pat ? `buts contre ×${effetsDeSaison(moi).defense.toFixed(3)} après une défaite` : 'absent');
+exiger('un dossier entre dans les effets de l\'équipe', (moi.effets || []).some(e => e.nom === 'La pratique du mardi'), `${(moi.effets || []).length} effet(s)`);
+exiger('un équipement change la carte du joueur', (avant._mutCles || []).includes('rubanBlanc'), avant.n);
+exiger('une carte de match entre au deck', deckDe(decs).includes('lucarne'), `${deckDe(decs).length} cartes`);
 
 // UN SOIN RACCOURCIT UNE BLESSURE : une première saison dit qui se blesse et quand ; la même, avec un soin le lendemain, doit le rendre plus tôt.
 let soinOk = null;

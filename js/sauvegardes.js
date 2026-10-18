@@ -115,6 +115,13 @@ export function supprimer(id) {
   ecrireIndex(ix);
 }
 
+/* Les runs du Rogue en cours, retirées d'un coup (V10, la conversion au jeu neuf : js/rogue.js `convertirAuJeuNeuf`). Rend combien. */
+export function retirerLesRuns() {
+  const ix = lireIndex(), runs = ix.parties.filter(p => p.genre === 'rogue');
+  for (const p of runs) supprimer(p.id);
+  return runs.length;
+}
+
 export function copier(id) {
   const ix = lireIndex();
   const src = ix.parties.find(p => p.id === id);

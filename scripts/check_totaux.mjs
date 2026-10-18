@@ -26,10 +26,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue,
-  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, CARTES, ROULEMENTS, roulementDe, pariDeDecision } from '../js/sim.js';
-import { PATRONS, payloadDe } from '../js/banque.js';
+  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, ROULEMENTS, roulementDe, pariDeDecision } from '../js/sim.js';
 import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { temoin } from './lib/temoins.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -78,10 +78,11 @@ console.log('\n  LES TOTAUX DU SOIR\n');
 
 const JOUR = 5;
 const decisions = [
-  { jour: 0, equipe: 0, carte: 'bloc' },
-  { jour: 0, equipe: 0, carte: 'fougue' },
-  { jour: 0, equipe: 0, ...payloadDe('patron:att_adjoint') },
-  { jour: 0, equipe: 0, ...payloadDe('patron:def_adjoint') },
+  // V10 : des patrons témoins, à chiffres connus (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
+  { jour: 0, equipe: 0, ...temoin('bloc') },
+  { jour: 0, equipe: 0, ...temoin('fougue') },
+  { jour: 0, equipe: 0, ...temoin('attaque') },
+  { jour: 0, equipe: 0, ...temoin('defense') },
   { jour: JOUR, equipe: 0, match: { importance: 'haute', ad: 1 } },
 ];
 
@@ -95,9 +96,9 @@ const decisions = [
   const T = totauxDuSoir(t, null, null, aVenir);
 
   // 1. Le produit des sources.
-  const sources = [...(t.cartes || []).map(c => CARTES[c]), ...(t.patrons || []), ROULEMENTS[roulementDe(t)], ...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean)];
-  const nb = (t.cartes || []).length + (t.patrons || []).length + aVenir.length;
-  exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.cartes || []).join(', ')} · ${(t.patrons || []).map(p => p.cle).join(', ')} · consigne haute`);
+  const sources = [...(t.patrons || []), ROULEMENTS[roulementDe(t)], ...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean)];
+  const nb = (t.patrons || []).length + aVenir.length;
+  exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.patrons || []).map(p => p.cle).join(', ')} · consigne haute`);
   const produit = Object.fromEntries(CANAUX.map(k => [k, sources.reduce((a, s) => a * ((s && s[k]) ?? 1), 1)]));
   exiger('les effets se multiplient : le total brut est le produit des sources',
     CANAUX.every(k => pres(T.brut[k], produit[k])), CANAUX.map(k => `${k} ${produit[k].toFixed(4)}`).join(' · '));
@@ -120,7 +121,7 @@ const decisions = [
   // positions multiples changent les clubs tirés), mais la consigne entre quand même dans le produit.
   exiger('la consigne choisie ce matin entre dans le total du soir', !pres(sansConsigne.brut.finition, T.brut.finition) && !pres(sansConsigne.brut.defense, T.brut.defense),
     `précision brute ${flechesDe(sansConsigne.brut.finition)} → ${flechesDe(T.brut.finition)}`);
-  exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.source === 'match') && (t.cartes || []).length === 2 && (t.patrons || []).length === 2);
+  exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.source === 'match') && (t.patrons || []).length === 4);
 
   // 3. Une borne qui mord.
   const gros = [{ jour: JOUR, equipe: 0, effet: { volume: 2.2, duree: 3, nom: 'Test' } }];

@@ -28,7 +28,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS,
-  mainDuDeck, SORTES_DECK, rolesOfferts, MUTATIONS, CARTES, PALIERS_CARTES,
+  mainDuDeck, SORTES_DECK, rolesOfferts, MUTATIONS, PALIERS_CARTES,
   getPlayerKey, profilsDe,
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, buildDe, coachDeCarte, payloadDe } from '../js/banque.js';
@@ -68,24 +68,21 @@ console.log('\n  Le deck (S73)\n');
 /* ---------- 1 et 2. la main ---------- */
 {
   const compte = Object.fromEntries(Object.keys(SORTES_DECK).map(k => [k, 0]));
-  let mauvaises = 0, impures = 0, effetsPris = 0;
+  // V10 (tranche 6) : ni carte de saison ni amélioration d'avant ; trois des cinq sortes qui restent.
+  let mauvaises = 0, impures = 0;
   for (let g = 0; g < 400; g++) for (const j of PALIERS_CARTES) {
-    const main = mainDuDeck(`deck${g}`, j, []);
+    const main = mainDuDeck(`deck${g}`, j);
     const sortes = main.map(c => c.sorte);
-    if (main.length !== 3 || new Set(sortes).size !== 3 || sortes[0] !== 'effet' || !CARTES[main[0].cle]) mauvaises++;
-    if (main.some(c => c.sorte === 'amelioration' && !(MUTATIONS[c.cle] && MUTATIONS[c.cle].source === 'amelioration'))) mauvaises++;
-    if (JSON.stringify(mainDuDeck(`deck${g}`, j, [])) !== JSON.stringify(main)) impures++;
-    const prise = main[0].cle;
-    if (mainDuDeck(`deck${g}`, j, [prise])[0].cle === prise) effetsPris++;
+    if (main.length !== 3 || new Set(sortes).size !== 3 || sortes.some(s => !SORTES_DECK[s])) mauvaises++;
+    if (JSON.stringify(mainDuDeck(`deck${g}`, j)) !== JSON.stringify(main)) impures++;
     for (const s of sortes) compte[s]++;
   }
-  exiger('une main : trois sortes différentes, dont un effet', mauvaises === 0, `${mauvaises} mains fautives sur 1 200`);
+  exiger('une main : trois sortes différentes', mauvaises === 0, `${mauvaises} mains fautives sur 1 200`);
   exiger('la main est pure (même graine, même palier, même main)', impures === 0, `${impures} impures`);
-  exiger('un effet déjà pris ne revient pas', effetsPris === 0, `${effetsPris} fois`);
-  const autres = ['recrue', 'amelioration', 'profil', 'menage', 'camp', 'atelier'].map(k => compte[k] / 1200);
+  const parts = Object.values(compte).map(n => n / 1200);
   informer('fréquence des sortes', Object.entries(compte).map(([k, n]) => `${SORTES_DECK[k].ico} ${k} ${(n / 12).toFixed(0)} %`).join(' · '));
-  exiger('chaque sorte sort, aucune n\'écrase les autres', Math.min(...autres) > 0.22 && Math.max(...autres) < 0.45,
-    autres.map(x => `${(x * 100).toFixed(0)} %`).join(' / '));
+  exiger('chaque sorte sort, aucune n\'écrase les autres', Math.min(...parts) > 0.45 && Math.max(...parts) < 0.75,
+    parts.map(x => `${(x * 100).toFixed(0)} %`).join(' / '));
 }
 
 /* ---------- 4, 5, 6. les cartes jouées pour vrai ---------- */
@@ -95,23 +92,21 @@ console.log('\n  Le deck (S73)\n');
   simulateLeague(base, 82, { graine: 'deck', decisions: [] });
   const t = ligue(7300);
   const toi = t[0];
-  const cible = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => toi.roster[s.i]).find(Boolean);
-  const cleCible = getPlayerKey(cible);
-  const profilsAvant = { ...profilsDe(cible) };
+  // V10 (tranche 6) : l'amélioration d'avant est partie ; le nouveau rôle du palier change la carte d'un joueur.
   const roles = rolesOfferts(toi, 'deck', J0);
+  const [r0] = roles;
+  const cleCible = getPlayerKey(r0.p);
+  const profilsAvant = JSON.stringify(profilsDe(r0.p));
   const decisions = [
-    { jour: J0 + 1, equipe: 0, palier: 40, deck: 'amelioration', mutation: { cle: 'affute', joueur: cleCible } },
+    { jour: J0 + 1, equipe: 0, palier: 40, deck: 'profil', mutation: { cle: r0.cle, joueur: cleCible } },
   ];
   simulateLeague(t, 82, { graine: 'deck', decisions });
-  // 4. l'amélioration.
+  // 4. le nouveau rôle.
   const p = Object.values(toi.roster).find(x => x && getPlayerKey(x) === cleCible);
-  // S80 : une amélioration vit à part (`_amel`, elle grandit avec la saison dans une ligue Rogue) ; hors du Rogue elle vaut ce qu'elle dit.
-  const finitionDe = x => ((x && x._mut && x._mut.finition) || 1) * ((x && x._amel && x._amel.finition) || 1);
-  const autres = Object.values(toi.roster).filter(x => x && x !== p && finitionDe(x) !== 1);
-  const apres = profilsDe(p);
-  exiger('une amélioration change la carte du joueur choisi', p && Math.abs(finitionDe(p) - MUTATIONS.affute.finition) < 1e-9 && apres.sniper > profilsAvant.sniper,
-    `${p.n} : finition ×${finitionDe(p)}, sniper ${profilsAvant.sniper} → ${apres.sniper}`);
-  exiger('et seulement la sienne', !autres.some(x => (x._mutCles || []).includes('affute')), `${autres.length} autre(s) touché(s)`);
+  const autres = Object.values(toi.roster).filter(x => x && x !== p && (x._mutCles || []).includes(r0.cle));
+  exiger('un nouveau rôle change la carte du joueur choisi', p && (p._mutCles || []).includes(r0.cle) && JSON.stringify(profilsDe(p)) !== profilsAvant,
+    `${p.n} : ${MUTATIONS[r0.cle].nom}`);
+  exiger('et seulement la sienne', !autres.length, `${autres.length} autre(s) touché(s)`);
   // 5. les rôles.
   const cles = new Set(roles.map(r => getPlayerKey(r.p)));
   exiger('trois nouveaux rôles, trois joueurs différents de l\'alignement, trois vrais changements', roles.length === 3 && cles.size === 3
@@ -122,30 +117,30 @@ console.log('\n  Le deck (S73)\n');
   simulateLeague(t2, 82, { graine: 'deck', decisions: decisions.map(d => ({ ...d })) });
   const fiche = x => `${x[0].W}-${x[0].L}-${x[0].OTL} ${x[0].GF}-${x[0].GA}`;
   exiger('la saison se rejoue à l\'identique avec ces cartes', fiche(t) === fiche(t2), `${fiche(t)} puis ${fiche(t2)}`);
-  borne('écart de victoires que l\'amélioration a fait', t[0].W - base[0].W, -12, 12, '');
+  borne('écart de victoires que le nouveau rôle a fait', t[0].W - base[0].W, -12, 12, '');
 
   /*
-   * 7. L'AMÉLIORATION SE GARDE, ET SE POSE AU VERSO (S80). JP : *je veux que
+   * 7. UNE CARTE DE JOUEUR SE GARDE, ET SE POSE AU VERSO (S80 ; V10 : un équipement). JP : *je veux que
    * les upgrades de joueurs se fassent au verso de la carte, pas
    * nécessairement quand on la pige*. Prise au palier, elle va à une place
    * (`garde`) ; posée, elle en sort et prend une case. La garder ne touche
    * pas le moteur : la saison est celle d'avant, au but près.
    */
-  const garde = { jour: J0, equipe: 0, palier: J0, deck: 'amelioration', garde: 'joueur:affute' };
-  const pose = { jour: J0 + 5, equipe: 0, joue: { src: 'partie', ref: `deck:${J0}`, id: 'joueur:affute' }, mutation: { cle: 'affute', joueur: cleCible } };
+  const garde = { jour: J0, equipe: 0, palier: J0, deck: 'atelier', garde: 'joueur:rubanBlanc' };
+  const pose = { jour: J0 + 5, equipe: 0, joue: { src: 'partie', ref: `deck:${J0}`, id: 'joueur:rubanBlanc' }, mutation: { cle: 'rubanBlanc', joueur: cleCible } };
   const poche1 = placesDeLaPartie({ decisions: [garde] });
   const poche2 = placesDeLaPartie({ decisions: [garde, pose] });
-  exiger('une amélioration prise au palier va à une place, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:affute') && !poche2.some(x => x.ref === `deck:${J0}`),
+  exiger('une carte prise au palier va à une place, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:rubanBlanc') && !poche2.some(x => x.ref === `deck:${J0}`),
     `${poche1.filter(x => x.ref.startsWith('deck:')).map(x => x.id).join(', ')} puis ${poche2.filter(x => x.ref.startsWith('deck:')).length} carte(s) du palier`);
   const t3 = ligue(7300);
   simulateLeague(t3, 82, { graine: 'deck', decisions: [{ ...garde }] });
   exiger('la garder ne change rien à la saison (le moteur ne la lit qu\'une fois posée)', fiche(t3) === fiche(base), `${fiche(base)} sans, ${fiche(t3)} avec`);
   const posees = poseesSur([garde, pose], cleCible);
-  exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'affute' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
+  exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'rubanBlanc' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
   const lustre = [{ jour: 30, mutation: { cle: 'lustre', joueur: 'k', carte: { rar: 'rare', bonus: [] } } }];
   exiger('deux cases, trois pour une Or ou une Holo ; le lustre qui fait une Or rend sa case',
     casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('hors') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
-    && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('partout') && sePose('baton_neuf'),
+    && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('pinceau') && sePose('rubanBlanc'),
     `Base ${casesDAmelioration('commune')} · Or ${casesDAmelioration('rare')} · Cadre lustré en Or : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
 }
 
@@ -284,8 +279,8 @@ console.log('\n  Le deck (S73)\n');
 {
   const joueur = (rar, cle) => ({ _carte: { rar }, cle });
   const s = signaturesDe([joueur('rare', 'sniper'), joueur('legendaire', 'mur'), joueur('peu', 'sniper'), joueur('commune', 'passeur'), { cle: 'checker' }], p => [{ cle: p.cle }]);
-  exiger('un Holo et un Or apportent la carte de leur rôle, les autres rien', JSON.stringify(s) === JSON.stringify(['poignets', 'gardienFeu']), JSON.stringify(s));
-  exiger('chaque carte signature est une carte de match qui existe', s.every(k => CARTES_MATCH[k] && !CARTES_MATCH[k].maudite));
+  exiger('un Holo et un Or apportent la carte de leur rôle, les autres rien', JSON.stringify(s) === JSON.stringify(['lucarne', 'serrerLesRangs']), JSON.stringify(s));
+  exiger('chaque carte signature est une carte du cahier neuf', s.every(k => CARTES_MATCH[k] && !CARTES_MATCH[k].maudite && !CARTES_MATCH[k].retire));
 }
 
 verdict('Le deck');

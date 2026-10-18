@@ -263,7 +263,7 @@ const MOTS_RESERVES = [
   borne('la page des règles est courte', mots, 300, 2400, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
-    [/Une case vide ce soir-là : la carte est tirée pour toi/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
+    [/Une case vide ce soir-là : une carte parmi trois, pour une place/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
   const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
   exiger('la page dit ce qu\'elle taisait (V2.2)', encoreTu.length === 0, encoreTu.join(' · ') || `${taisait.length} sujets dits`);
   // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : un effet se lit en tirs et en buts par match ; la page le dit, et ne le dit plus en « Tirs +8 % ».
@@ -352,7 +352,7 @@ const MOTS_RESERVES = [
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
-    [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 7 ? 'un effet pour la saison, un vrai joueur, une amélioration à poser au verso d\'une carte, un nouveau rôle, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
+    [`trois cartes de ${Object.keys(SORTES_DECK).length} sortes : ${Object.values(SORTES_DECK).length === 5 ? 'un vrai joueur, un nouveau rôle, le ménage du deck, le camp d\'entraînement, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],

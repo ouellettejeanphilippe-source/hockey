@@ -2502,3 +2502,25 @@ JP : *fais tout, t'es autonome* (la tranche 5 du devis ; § 10 : *les événemen
 - **Les scènes de la semaine** (M5) vont avec : la route (l'entraîneur nomme le pire problème du lundi — les jambes sous 70, l'infirmerie, un dos-à-dos sur des jambes justes, la caisse sous 20 — et la route qui y répond), la blessure (le médecin), les rivaux (le proprio), le butin (l'entraîneur).
 - `check_evenements` part (il jugeait les événements qui se tiraient) ; `check_dossiers` le remplace dans `tout.mjs`. `check_banque` ne mesure plus que les patrons.
 
+## La conversion au jeu neuf (V10, tranche 6 — 18 oct. 2026)
+
+JP : *reset toute* (§ 7 du devis) ; *fais tout, t'es autonome*.
+
+- **Les runs repartent de zéro, une fois** (`convertirAuJeuNeuf`, js/rogue.js) : le méta porte `jeu: 'v10'` ; sans lui, au démarrage, les parties du Rogue sont retirées de l'index (`retirerLesRuns`, js/sauvegardes.js) et l'inventaire, le personnel et les cartes du méta se vident. Le cartable des joueurs, les médailles, les déblocages, le panthéon et le prestige restent. Une ligne le dit au joueur. Pas de table de correspondance : une carte absente se sauterait en silence, et la saison rejouerait un autre passé.
+- **L'ancien jeu part pour de bon.** Ce qui ne se tirait plus est supprimé, pas gardé en `retire`. Restent, parce qu'une mécanique les lit encore :
+  - **la main de l'adversaire** : les 47 cartes que pige un adversaire de gros match (`adverse`, js/combat.js). Sa main est calibrée (`check_gros`, `check_robot`) ; elle sort mot pour mot pareille (le même hachage sur 6 000 mains). Elles ne sont ni dans ta banque, ni dans tes récompenses, ni dans l'album ;
+  - **les malédictions** (le doute, la blessure qui traîne, la distraction) ;
+  - **le mentor** (`mentorTrio`) : un choix de fil, pas une carte ;
+  - **le combo de la lancée** : l'étincelle, la braise, la traînée de poudre et le vendeur de chandails (`check_combo`).
+- **Ce qui offrait encore l'ancien jeu se convertit** :
+  - l'objectif réussi du proprio et la case vide : une carte parmi trois, pour une place (`cartesDuPalier`) ;
+  - la main des 20e, 40e et 60e matchs : trois des cinq sortes qui restent (le joueur au choix, le rôle, le ménage, le camp, l'atelier) ;
+  - l'atelier : ses quatre retouches de carte ;
+  - la carte signature d'un Or ou d'un Holo : une carte du cahier, de son moment.
+- **Les robots jouent le jeu neuf** (scripts/lib/cartes_robot.mjs) :
+  - tous reçoivent les deux patrons que le départ impose (la règle du jeu) ;
+  - l'attentif suit la route que l'entraîneur recommande (`sceneDeLaRoute`), prend la réponse d'un dossier qui rend le plus sur ses soirs (les poids mesurés de js/banque.js) et joue la place d'un palier dès qu'il l'a ;
+  - le distrait clique au hasard ;
+  - le robot d'avant ne joue toujours pas de cartes : la pente de `check_rogue` et `check_robot` reste celle d'un gérant grossier.
+- **Les juges** : six juges éprouvaient le moteur avec des cartes de saison ; des patrons témoins à chiffres connus (scripts/lib/temoins.mjs) les remplacent, sans être des cartes du jeu. Les tests des mécaniques parties (les améliorations qui grandissent, les cartes qui suivent le nombre de cartes du coach, les cartes d'origine, le dépistage par cartes) sortent avec elles. Le plancher de `check_coachs` passe à 9 cartes par coach : quatre au cahier, trois places, deux postes ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur.
+

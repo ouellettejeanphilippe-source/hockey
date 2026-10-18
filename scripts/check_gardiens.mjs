@@ -31,7 +31,7 @@ import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee
   jambesGardien, usureGardien, facteurGardienDe, badgeGardien, netBadgeGardien, suiteLibreDe, coachDuJoueur, BADGES_G, EFFET_GARDIEN, BADGE_LIGUE_G,
   attenduDeCote, LANCERS_BASE, appliquerMutation, plafondGardien, gainBrutGardien, GAIN_GARDIEN_MAX,
   GARDIEN_SUITE_LIBRE } from '../js/sim.js';
-import { lectureDuMatch } from '../js/sim.js';
+import { lectureDuMatch, MUTATIONS } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
@@ -261,9 +261,12 @@ function saison(teams, graine, decisions) {
   console.log('\n  6. Le plafond du gardien');
   const g = { ...ligue(77, 1)[0].roster[SLOTS.find(s => s.group === 'G').i] }, t = {};
   const net = () => gainBrutGardien(g) * plafondGardien(g);
-  appliquerMutation(t, g, 'masque_neuf', 1, 'test');
+  // V10 : les masques d'avant sont partis ; trois modifs d'arrêts témoins, aux chiffres d'avant, posées le temps du test.
+  const temoins = { __masque1: 0.964, __masque2: 0.887, __masque3: 0.916 };
+  for (const [k, arrets] of Object.entries(temoins)) MUTATIONS[k] = { nom: 'Un masque témoin', ico: '🎭', cible: 'libre', source: 'equipement', gardien: true, arrets };
+  appliquerMutation(t, g, '__masque1', 1, 'test');
   exiger('une modif sous le plafond joue en entier', plafondGardien(g) === 1 && Math.abs(net() - 0.964) < 1e-9, `×${net().toFixed(3)}`);
-  for (const k of ['masque_cuir', 'masque_oracle']) appliquerMutation(t, g, k, 1, 'test');
+  for (const k of ['__masque2', '__masque3']) appliquerMutation(t, g, k, 1, 'test');
   g._carte = { rar: 'legendaire' };
   console.log(`  ${g.n} : trois modifs d'arrêts et une carte légendaire, ×${gainBrutGardien(g).toFixed(3)} avant le plafond, ×${net().toFixed(3)} après`);
   exiger(`empilés, ses gains ne lui retirent pas plus de ${GAIN_GARDIEN_MAX * 100} % de ses buts accordés`, gainBrutGardien(g) < 1 - GAIN_GARDIEN_MAX && Math.abs(net() - (1 - GAIN_GARDIEN_MAX)) < 1e-9, `×${net().toFixed(3)}`);

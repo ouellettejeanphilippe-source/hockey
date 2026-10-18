@@ -27,7 +27,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, coachDuPlan, COACH_DU_PLAN, FAMILLES } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
-import { BANQUE, PATRONS, CONSOMMABLES, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, EVENEMENTS, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
 import { DECK_DEPART } from '../js/combat.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
@@ -71,23 +71,23 @@ const neutres = tous.filter(c => !c.coach);
 informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].ico} ${idsDuCoach(k).length}`).join(' · ')} · neutres ${neutres.length}`);
 // V10 (docs/refonte-v10.md § 8) : le plancher suit le jeu neuf — quatre cartes de cahier, trois places et deux postes de
 // personnel par coach ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur (js/equipement.js).
-// L'ancien jeu de tous les soirs ne compte plus (retiré, tranches 3 à 5).
 const PLANCHER_COACH = 9;
 const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 3);
 exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins trois familles`, !minces.length,
   ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
 // v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : une carte sur cinq environ reste neutre.
 borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.12, 0.3);
-exiger('le registre a grandi : plus de 280 cartes', tous.length >= 280, `${tous.length}`);
-const TEMOINS = { 'match:lancer': 'essaim', 'match:bloquer': 'tortue', 'match:sagesse': 'choeur', 'match:quatrieme': 'profondeur', 'match:capitaine': 'etoiles',
-  'patron:soi_medecin': 'souffle', 'patron:phy_force': 'rhinos', 'patron:att_avantage': 'rapaces', 'plafond:ltir': 'banque', 'evenement:arbitres': 'choeur', 'saison:cadenas': 'tortue' };
+// V10 (tranche 6) : l'ancien jeu est parti ; le jeu neuf compte moins de cartes, chacune de son moment.
+exiger('le registre : plus de 150 cartes', tous.length >= 150, `${tous.length}`);
+const TEMOINS = { 'match:fouleQuiPousse': 'essaim', 'match:leMur': 'tortue', 'match:autreJoue': 'choeur', 'match:quatriemeTrio': 'profondeur', 'match:vedettesEnAvant': 'etoiles',
+  'patron:per_physioDeRoute': 'souffle', 'patron:per_preparateurCombat': 'rhinos', 'patron:per_tirsDeRoute': 'rapaces', 'plafond:ltir': 'banque', 'consommable:retraiteFermee': 'choeur', 'consommable:systemeDeRoute': 'tortue' };
 const faux = Object.entries(TEMOINS).filter(([id, k]) => coachDeCarte(id) !== k).map(([id, k]) => `${id} → ${coachDeCarte(id)} (attendu ${k})`);
 exiger('le coach d\'une carte se lit sur ce qu\'elle fait', !faux.length, faux.join(' · ') || `${Object.keys(TEMOINS).length} témoins`);
 exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.some(x => x.cat === c && x.coach)), ORDRE_CATEGORIES.join(' · '));
 
 /* 2. La confiance. */
 {
-  // V10 : les événements ne se tirent plus ; les cartes de la Tortue qui se jouent hors du combat.
+  // V10 : les cartes de la Tortue qui se jouent hors du combat (les places, l'équipement, le personnel).
   const cartes = idsDuCoach('tortue').filter(id => BANQUE[id].cat !== 'match');
   const decs = [];
   const allumes = [];
@@ -105,13 +105,13 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const d4 = palierAllume([...base, ...deux.slice(0, 2)], deux[2]);
   exiger('le coach du départ compte trois cartes, et la 6e allume II', !palierAllume(base, deux[0]) && d4 && d4.coach.palier === 2, d4 ? `II au jour ${deux[2].jour}` : 'rien');
   // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter.
-  exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['gachettes+'], enMain: [] } }]).rapaces === 1, 'Les gâchettes+');
-  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'gachettes+' }]).rapaces === 0, 'Les gâchettes+');
+  exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['lucarne+'], enMain: [] } }]).rapaces === 1, 'La lucarne+');
+  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'lucarne+' }]).rapaces === 0, 'La lucarne+');
   // La run de JP gagnée du premier coup : « Changements » rejoué huit fois montait le Doc à III. Le départ (V10) est neutre.
-  const huit = Array.from({ length: 8 }, (_, i) => ({ jour: 10 + i * 10, main: { jouees: ['gachettes', ...DECK_DEPART.slice(0, 2), `${DECK_DEPART[4]}+`], enMain: [] } }));
+  const huit = Array.from({ length: 8 }, (_, i) => ({ jour: 10 + i * 10, main: { jouees: ['lucarne', ...DECK_DEPART.slice(0, 2), `${DECK_DEPART[4]}+`], enMain: [] } }));
   const b8 = buildDe(huit), autres = Object.entries(b8).filter(([k, n]) => k !== 'rapaces' && n > 0);
   exiger('une carte de match rejouée ne compte qu\'une fois, et le deck de départ ne compte pas', b8.rapaces === 1 && !autres.length, `Aigle ${b8.rapaces}${autres.map(([k, n]) => ` · ${k} ${n}`).join('')}`);
-  const gach = Array.from({ length: 3 }, (_, i) => ({ jour: 10 + i, main: { jouees: ['gachettes'], enMain: [] } }));
+  const gach = Array.from({ length: 3 }, (_, i) => ({ jour: 10 + i, main: { jouees: ['lucarne'], enMain: [] } }));
   exiger('rejouée trois fois, elle n\'allume pas la confiance I', !palierAllume(gach.slice(0, 2), gach[2]));
 }
 
@@ -193,31 +193,9 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   exiger(`un Platine compte pour quatre Bronze, jusqu'à ${PALIERS_COACH_MAX} paliers`, Math.abs(ec(quatre) / ec(un) - (1 + 4 * JOUEUR_COACH) / (1 + JOUEUR_COACH)) < 1e-9
     && Math.abs(ec(vingt)) > Math.abs(ec(quatre)) * 1.5 && ec(trop) === ec(cap),
     `1, 4, 20 et ${3 * PALIERS_COACH_MAX} paliers : ${[un, quatre, vingt, trop].map(x => x[canal].toFixed(3)).join(' · ')}`);
-  const c5 = payloadDe('consommable:cleCoin', { joueurs: { rapaces: { joueurs: 9, paliers: 20 } } }).effet.finition, c0 = payloadDe('consommable:cleCoin', {}).effet.finition;
-  const CC = CONSOMMABLES.cleCoin;
-  exiger('une carte de vestiaire grandit avec les joueurs de sa couleur, jusqu\'à son plafond', c0 === CC.effet.finition && Math.abs(c5 - (c0 + CC.parJoueur.par.finition * CC.parJoueur.max)) < 1e-9, `précision ×${c0} sans joueur → ×${c5} (neuf joueurs, plafonné à cinq)`);
-  // L'écran lit les pas en chiffres de match pour TON club (js/impact.js) : « jusqu'à ≈ +0,6 tir par match avec 10 cartes ».
-  poserClubLu(() => ({ team: t }));
-  const pas = Object.keys(BANQUE).flatMap(id => reglesDe(id).filter(m => /^Jusqu'à |^Grandit avec chaque /.test(m.txt)).map(m => `${id} : ${m.txt}`));
-  const mauvais = pas.filter(x => /%/.test(x) || /≈ [+−]\d{2,}[,\d]* (tirs?|buts?)/.test(x) || /≈ −(?:[5-9]|\d{2,})[,\d]* (tirs?|buts?)/.test(x));
-  poserClubLu(null);
-  exiger('un pas se lit comme un pas, en chiffres de match (« jusqu\'à ≈ +0,6 tir par match avec 10 cartes »), jamais un « % »', pas.length > 0 && !mauvais.length, mauvais.slice(0, 3).join(' · ') || `${pas.length} cartes · ${(pas[0] || '').slice(0, 120)}`);
 }
 
-/* 3. Le scaling. */
-{
-  const p0 = payloadDe('patron:att_volume', { patrons: [], build: {} }).patron.volume;
-  const p5 = payloadDe('patron:att_volume', { patrons: [], build: { essaim: 5 } }).patron.volume;
-  const p30 = payloadDe('patron:att_volume', { patrons: [], build: { essaim: 30 } }).patron.volume;
-  const AV = PATRONS.att_volume, pas = AV.echelle.par.volume;
-  exiger('un adjoint de coach grandit avec les cartes de son coach, jusqu\'à son plafond', p0 === AV.effet.volume && Math.abs(p5 - (p0 + 5 * pas)) < 1e-9 && Math.abs(p30 - (p0 + AV.echelle.max * pas)) < 1e-9, `tirs ×${p0} → ×${p5} (5 cartes) → ×${p30} (30, plafonné à 10)`);
-  const e8 = payloadDe('evenement:bunker', { build: { tortue: 8 } }).effet.defense;
-  // Les valeurs viennent de l'événement lui-même : une règle recopiée est une règle qui ment tôt ou tard.
-  const BK = EVENEMENTS.bunker, base = BK.effet.defense, attendu8 = base + Math.min(8, BK.echelle.max) * BK.echelle.par.defense;
-  exiger('un événement de coach aussi, et une autre couleur ne compte pas', Math.abs(e8 - attendu8) < 1e-9 && payloadDe('evenement:bunker', { build: { essaim: 8 } }).effet.defense === base, `buts contre ×${e8} avec huit cartes de la Tortue (base ×${base})`);
-  const g = payloadDe('evenement:commanditaires', { build: { banque: 4 } }).gain;
-  exiger('les jetons d\'un événement du Comptable grandissent', g === 8 + 3 * 4, `+${g} 🪙 avec quatre cartes`);
-}
+/* 3. Le scaling : V10 (tranche 6), les cartes qui grandissaient avec celles de leur coach sont parties avec l'ancien jeu ; une carte du jeu neuf frappe dans son moment. */
 
 /* 4. La boutique, le plafond, le pack du coach. */
 {

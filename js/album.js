@@ -45,7 +45,7 @@ function lireAlbum(historique = []) {
  */
 export function albumHtml(historique, ctx) {
   const A = lireAlbum(historique);
-  const toutes = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite);
+  const toutes = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !CARTES_MATCH[k].adverse);
   const eues = toutes.filter(k => A.cartes.has(k)).length;
   const ordre = { commune: 0, peu: 1, rare: 2, legendaire: 3 };
   const tri = toutes.slice().sort((a, b) => ordre[CARTES_MATCH[a].rarete] - ordre[CARTES_MATCH[b].rarete] || CARTES_MATCH[a].nom.localeCompare(CARTES_MATCH[b].nom, 'fr'));

@@ -10,7 +10,7 @@
  * démarrage, par `brancherBilan` — le même patron de contexte que le direct.
  */
 
-import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, CARTES, SITUATIONS,
+import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS,
   ROULEMENTS, roulementDe, motDeBlessure } from './sim.js';
 import { causesDuMatch, causeDuBut, causesDeSaison } from './causes.js';
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT } from './recit.js';
@@ -696,14 +696,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   }), { cle: 'saison' }) : '';
 
   /*
-   * LES CARTES QUE TU AS PRISES. On les lit sur `you.cartes` — ce que le
-   * MOTEUR a vraiment appliqué — et jamais sur `G.ligue.decisions`, qui en
-   * serait une deuxième version : une décision refusée (une carte inconnue,
-   * un palier déjà servi) est dans les décisions et pas dans le moteur.
-   */
-  const mesCartes = (you.cartes || []).map(c => CARTES[c]).filter(Boolean);
-  /*
-   * ET LE PLAN AVEC LEQUEL TU AS FINI L'ANNÉE. Il se lit au même endroit et
+   * LE PLAN AVEC LEQUEL TU AS FINI L'ANNÉE. Il se lit au même endroit et
    * pour la même raison — l'équipe, pas les décisions — et il a sa place ici
    * parce qu'un réglage qu'on porte 82 matchs fait partie du bilan autant
    * qu'une carte. On ne montre que ce qui n'est pas le défaut : « Équilibré ·
@@ -712,9 +705,9 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   // Le plan de match a quitté le moteur en S68 : seul le roulement se porte encore (S79).
   const reglages = [ROULEMENTS[roulementDe(you)]]
     .filter(x => x && x.bon && x.prix && !/^Rien/.test(x.bon));
-  const cartesPrises = mesCartes.length || reglages.length
+  const cartesPrises = reglages.length
     ? `<div class="result-section"><h3>Tes cartes</h3>
-        <ul class="inj-list">${[...reglages, ...mesCartes].map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
+        <ul class="inj-list">${reglages.map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
       </div>`
     : '';
 
@@ -1329,7 +1322,7 @@ function buildDuSoirHtml(f, A, B, jour) {
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
   const b = buildDuSoir(toi, G.ligue.decisions, jour, f);
-  const groupes = [['Cartes', b.cartes], ['Patrons', b.patrons], ['Événements', b.effets], ['Systèmes', b.systemes], ['Consigne', b.consigne ? [b.consigne] : []], ['Cartes de match', b.jouees]]
+  const groupes = [['Patrons', b.patrons], ['Événements', b.effets], ['Systèmes', b.systemes], ['Consigne', b.consigne ? [b.consigne] : []], ['Cartes de match', b.jouees]]
     .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,

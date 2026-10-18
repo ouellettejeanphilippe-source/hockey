@@ -24,8 +24,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, originesDe, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
-import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, MATCH_ADVERSE_FORT, coutDe, mainDeLAdjoint } from '../js/combat.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
+import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, MATCH_ADVERSE_FORT, mainDeLAdjoint } from '../js/combat.js';
 import { carteDe } from '../js/rarete.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -86,7 +86,7 @@ console.log('\n  Le deck de match (S74)\n');
       && plus.includes('lancerAuFilet+') && !plus.includes('lancerAuFilet'),
       `${toutes.length} versions · lancers ${L.effet.volume} → ${P.effet.volume.toFixed(2)} · miracle ${CARTES_MATCH.miracle.cout} → ${M.cout} énergie`);
   }
-  exiger('l\'énergie se compte : trois, moins les coûts, plus l\'adrénaline', energieDepensee(['miracle']) === 0 && energieDepensee(['adrenaline', 'miracle', 'discours']) === 0 && ENERGIE_MAIN === 3, '');
+  exiger('l\'énergie se compte : trois, moins les coûts', energieDepensee(['miracle']) === 0 && energieDepensee(['lancer']) === 2 && ENERGIE_MAIN === 3, '');
   /*
    * LA CARTE DIT CE QUE LE MOTEUR JOUE (1.0, J1-G). Une carte « + » n'aggrave
    * jamais son inconvénient : sur chaque canal, la version + est à 1, ou plus
@@ -146,47 +146,7 @@ console.log('\n  Le deck de match (S74)\n');
   exiger('une malédiction restée dans la main coûte', doute.effets.length === 1 && doute.effets[0].finition < 1, JSON.stringify(doute.effets[0] || {}));
 }
 
-/* ---------- 3b. les cartes d'origine (1.0) : même club, même franchise, même décennie, même âge ---------- */
-{
-  // Une vraie équipe est tout entière d'un club et d'une saison : elle déclenche chaque carte d'origine au maximum.
-  const vraie = eq('DET 2001-02', 'DET', equipeReelle('2001-02', 'DET'), '2001-02');
-  // La même, mélangée : un club par joueur, trois décennies par trio, aucun âge connu.
-  const melange = eq('MIX', 'MIX', equipeReelle('2001-02', 'DET'), '2001-02');
-  Object.values(melange.roster).forEach((p, i) => { if (p) { p.t = `Z${i}`; p.s = `${1970 + (i % 3) * 10}-${String(71 + (i % 3) * 10).slice(-2)}`; p.bd = null; } });
-  const O = originesDe(vraie);
-  // Le canal, le compteur et le seuil de chaque carte ; les CHIFFRES viennent de sa règle écrite, jamais d'ici.
-  const REGLES = {
-    coequipiers: { canaux: ['finition'], n: O.coequipiers },
-    famille: { canaux: ['defense'], n: Math.max(0, O.franchise - 2) },
-    decennie: { canaux: ['volume'], n: O.triosDecennie },
-    vieilleGarde: { canaux: ['defense'], n: O.veterans },
-    releve: { canaux: ['volume'], n: O.jeunes },
-    ligneOrigine: { canaux: ['volume', 'finition'], n: Math.min(2, O.lignesOrigine), parLigne: true },
-    dynastieClub: { canaux: ['finition', 'defense'], n: O.franchise >= 5 ? 1 : 0, seuil: true },
-  };
-  const origines = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].origine && !k.endsWith('+'));
-  exiger('les sept cartes d\'origine sont au deck, chacune avec sa version « + »', origines.length === 7 && origines.every(k => CARTES_MATCH[`${k}+`]), origines.join(' · '));
-  const nombres = r => [...r.matchAll(/([+−-])(\d+(?:,\d+)?) %/g)].map(m => (m[1] === '+' ? 1 : -1) * Number(m[2].replace(',', '.')) / 100);
-  const fautes = [];
-  for (const k of origines) {
-    const R = REGLES[k], C = CARTES_MATCH[k], nb = nombres(C.regle);
-    const fx = effetsDesCartes(vraie, { jouees: [k] }, 'x').effets.filter(e => e.nom === C.nom);
-    const vide = effetsDesCartes(melange, { jouees: [k] }, 'x').effets.filter(e => e.nom === C.nom);
-    if (!fx.length) { fautes.push(`${k} : muette sur une vraie équipe`); continue; }
-    if (vide.length) fautes.push(`${k} : active sans sa condition`);
-    // Attendu : par unité × compteur, sous le plafond « jusqu'à » (règle simple) ; un bonus par canal (règle à deux canaux).
-    const attendu = R.canaux.length === 1
-      ? { [R.canaux[0]]: 1 + Math.sign(nb[0]) * Math.min(Math.abs(nb[1]), Math.abs(nb[0]) * R.n) }
-      : Object.fromEntries(R.canaux.map((c, j) => [c, 1 + nb[j] * (R.seuil ? 1 : R.n)]));
-    for (const [c, v] of Object.entries(attendu)) if (Math.abs((fx[0][c] ?? 1) - v) > 1e-9) fautes.push(`${k} : ${c} ${fx[0][c]} au lieu de ${v} (règle « ${C.regle} »)`);
-  }
-  exiger('chaque carte d\'origine joue exactement les chiffres de sa règle, sous son plafond, et rien sans sa condition', fautes.length === 0,
-    fautes.join(' · ') || `${origines.length} cartes · ${JSON.stringify(O)}`);
-  // L'adversaire ne les joue pas : une vraie équipe les aurait toutes au maximum, tous les soirs.
-  let vues = 0;
-  for (let i = 0; i < 400; i++) vues += mainAdverse('adv', `j${i}`).filter(c => CARTES_MATCH[c] && CARTES_MATCH[c].origine).length;
-  exiger('la main adverse ne pige jamais une carte d\'origine', vues === 0, `${vues} sur 400 mains`);
-}
+/* ---------- 3b. les cartes d'origine (1.0) : parties avec l'ancien deck (V10, tranche 6). ---------- */
 
 /* ---------- 3c. l'écran dit les synergies en chiffres de match (`quand`, `plein`) : `plein` est le maximum de leur règle écrite ---------- */
 {
@@ -217,37 +177,18 @@ console.log('\n  Le deck de match (S74)\n');
   if (J == null) informer('feuilles', 'aucun gros match cette saison : épreuve sautée');
   else {
     const avec = ligue(7400);
-    const decs = [{ jour: J, equipe: 0, main: { jouees: ['coach', 'bloquer', 'changements'] }, sel: 'm1' }];
+    const decs = [{ jour: J, equipe: 0, main: { jouees: ['leMur', 'lancerAuFilet', 'motDuCapitaine'] }, sel: 'm1' }];
     simulateLeague(avec, 82, { graine, decisions: decs });
     const m = avec[0].minisBoss.find(x => x.jour === J);
     const feuille = avec[0].journal.find(x => x.n === J + 1 || (x.feuille && x.feuille.cartes)) || null;
-    exiger('la main jouée entre dans la feuille et dans ton histoire', !!(m && m.cartes && m.cartes.jouees.length === 3 && m.cartes.lu),
-      m && m.cartes ? `${m.cartes.jouees.join(' · ')}, plan ${m.plan} ${m.cartes.lu ? 'tombé' : 'debout'}` : 'rien');
+    exiger('la main jouée entre dans la feuille et dans ton histoire', !!(m && m.cartes && m.cartes.jouees.length === 3),
+      m && m.cartes ? m.cartes.jouees.join(' · ') : 'rien');
     const rejeu = ligue(7400);
     simulateLeague(rejeu, 82, { graine, decisions: decs.map(d => ({ ...d })) });
     const f = x => `${x[0].W}-${x[0].L}-${x[0].OTL} ${x[0].GF}-${x[0].GA}`;
     exiger('le rejeu avec la même main redonne la même saison', f(avec) === f(rejeu), `${f(avec)} puis ${f(rejeu)}`);
     void feuille;
-    // 5. Le coach dans leur tête (la vidéo n'abat plus leur plan depuis S76) : le MÊME match, avec et sans lui. Sans son plan, l'adversaire
-    // reprend ses lignes de la saison — qui peuvent jouer la même tactique que
-    // le plan : on compte donc l'écart, pas un seuil.
-    const P = PLANS_ADV[m.plan];
-    const tacPlan = P && P.lignes && P.lignes[0] && P.lignes[0].tac;
-    const sans = ligue(7400);
-    simulateLeague(sans, 82, { graine, decisions: [{ jour: J, equipe: 0, main: { jouees: ['bloquer', 'lancer'] }, sel: 'm1' }] });
-    const compte = x => {
-      const fe = (x[0].journal.find(y => y.feuille && y.feuille.cartes) || {}).feuille;
-      const adv = x.find(t => t.name === m.adv.name) || m.adv;
-      // Les deux premières lignes seulement : ce sont elles que le plan règle (PLANS_ADV) ; les autres jouent la saison de toute façon.
-      const deLui = fe ? fe.lancers.filter(l => l.tireur && Object.values(adv.roster).includes(l.tireur) && l.tac && (l.ligne === 0 || l.ligne === 1)) : [];
-      return { n: deLui.length, plan: deLui.filter(l => l.tac === tacPlan).length };
-    };
-    if (!tacPlan) informer('le coach dans leur tête', `plan ${m.plan} sans tactique de ligne à faire tomber`);
-    else {
-      const a = compte(sans), b = compte(avec);
-      exiger('« Le coach dans leur tête » fait tomber leur plan : moins de leurs lancers portent sa tactique', m.cartes.lu && b.plan / Math.max(1, b.n) <= a.plan / Math.max(1, a.n),
-        `en ${tacPlan} : ${a.plan} sur ${a.n} sans le coach, ${b.plan} sur ${b.n} avec`);
-    }
+    // 5. « Le coach dans leur tête » est parti avec l'ancien deck (V10, tranche 6) : le duel répond à leurs intentions (check_duel).
   }
   // 6. Leur main : connue d'avance, jouée, et annulée par « Leur cahier de jeux ».
   {
@@ -257,12 +198,7 @@ console.log('\n  Le deck de match (S74)\n');
     const prevue = m0 ? mainAdverse(graine, `j${m0.jour}`) : [];
     exiger('l\'adversaire joue la main que l\'écran annonce', !!(m0 && m0.cartes && JSON.stringify(m0.cartes.adverses) === JSON.stringify(prevue) && prevue.length),
       m0 && m0.cartes ? `annoncée ${prevue.join(' · ')}, jouée ${(m0.cartes.adverses || []).join(' · ')}` : 'rien');
-    if (m0) {
-      const b1 = ligue(7400);
-      simulateLeague(b1, 82, { graine, decisions: [{ jour: m0.jour, equipe: 0, main: { jouees: ['espion'] }, sel: 'e1' }] });
-      const m1 = b1[0].minisBoss.find(x => x.jour === m0.jour);
-      exiger('« Leur cahier de jeux » annule leur main', !!(m1 && m1.cartes && m1.cartes.annulee), m1 && m1.cartes ? `annulée : ${m1.cartes.annulee}` : 'rien');
-    }
+    // V10 (tranche 6) : « Leur cahier de jeux » est parti avec l'ancien deck ; leur main se contre au duel (check_duel).
   }
   /*
    * UN SEUL PLEIN ÉCRAN PAR MATCH DE SÉRIES (S74b) : l'ajustement et la main
@@ -351,34 +287,20 @@ console.log('\n  Le deck de match (S74)\n');
   const dep = depistageDe('prep', 'j1', adv), plan = planDuDepistage('prep', 'j1', dep);
   const faux = dep.find(x => x.plan !== plan).plan;
   const g = o => simulerGrosMatch(toi, adv, { plan, graine: 'prep', cle: 'j1', cartes: { jouees: [] }, ...o }).gros;
-  const juste = g({ prep: plan }), rate = g({ prep: faux }), rien = g({}), revele = g({ prep: faux, cartes: { jouees: ['filature'] } }), deux = g({ prep: [faux, plan], cartes: { jouees: ['contrePlan'] } }), un = g({ prep: [faux, plan] });
+  const juste = g({ prep: plan }), rate = g({ prep: faux }), rien = g({});
   exiger('préparation juste : leur plan tombe ; fausse : il reste, et ça coûte ; rien : rien', juste.prepJuste === true && juste.contre && rate.prepJuste === false && rien.prepJuste === null
     && juste.cartesJouees && juste.cartesJouees.prepJuste === true && juste.cartesJouees.plan === plan,
     `juste ${juste.prepJuste} · fausse ${rate.prepJuste} · rien ${rien.prepJuste}`);
-  exiger('« La filature » vise juste à coup sûr ; « Le plan B » couvre deux pistes, sans lui une seule', revele.prepJuste === true && deux.prepJuste === true && un.preparation.length === 1,
-    `filature ${revele.prepJuste} · plan B ${deux.preparation.join('+')} ${deux.prepJuste} · sans plan B ${un.preparation.join('+')}`);
 
-  // Le coût au rabais, les combos, leur main, le réservoir vide.
+  // Les combos de leur main (l'élan, la riposte) : l'adversaire les joue encore (js/combat.js `adverse`).
   const t = L[0];
   const elan = effetsDesCartes(t, { jouees: ['elan', 'lancer', 'partout'] }, 'x').effets.find(e => e.nom === CARTES_MATCH.elan.nom);
   const riposte = effetsDesCartes(t, { jouees: ['riposte'] }, 'x', { mainAdv: ['lancer', 'partout', 'bloquer'] }).effets.find(e => e.nom === CARTES_MATCH.riposte.nom);
-  const vide = effetsDesCartes(t, { jouees: ['toutOuRien', 'miracle'] }, 'x').effets.some(e => e.nom === CARTES_MATCH.toutOuRien.nom);
-  const pasVide = effetsDesCartes(t, { jouees: ['toutOuRien', 'lancer'] }, 'x').effets.some(e => e.nom === CARTES_MATCH.toutOuRien.nom);
-  exiger('les combos se comptent : l\'élan par carte d\'attaque, la riposte par carte d\'attaque de leur main, tout ou rien sur un réservoir vide',
+  exiger('les combos se comptent : l\'élan par carte d\'attaque, la riposte par carte d\'attaque de leur main',
     // Trois cartes d'attaque pour l'élan (lui, « Lancer », « Tirer de partout ») ; deux dans leur main pour la riposte.
     !!elan && Math.abs(elan.volume - (1 + 3 * (CARTES_MATCH.elan.parGenre.effet.volume - 1))) < 1e-9
-      && !!riposte && Math.abs(riposte.defense - (1 + 2 * (CARTES_MATCH.riposte.selonLeurMain.effet.defense - 1))) < 1e-9 && vide && !pasVide,
-    `élan ${elan && elan.volume.toFixed(2)} · riposte ${riposte && riposte.defense.toFixed(2)} · vide ${vide} · pas vide ${pasVide}`);
-  exiger('le rabais : les cartes de défense coûtent 1 de moins avec « Le système défensif »', coutDe('bloquer', ['systemeDef']) === 0 && coutDe('bloquer', []) === 1
-    && energieDepensee(['systemeDef', 'bloquer', 'gardienFeu']) === 3 - 1 - 0 - 1, `${energieDepensee(['systemeDef', 'bloquer', 'gardienFeu'])} d'énergie restante`);
-
-  // Épuisée : jouée à un gros match, elle quitte le deck pour la suite — en séries, pour le match d'après.
-  const avant = deckDe([{ jour: 3, recompense: 'grandSoir' }], { avant: 10 });
-  const apres = deckDe([{ jour: 3, recompense: 'grandSoir' }, { jour: 6, main: { jouees: ['grandSoir'] } }], { avant: 10 });
-  const serie = [{ ronde: 0, match_no: 1, main: { jouees: ['grandSoir'] } }];
-  const s1 = deckDe([{ jour: 3, recompense: 'grandSoir' }], { serie, ronde: 0, k: 1 }), s2 = deckDe([{ jour: 3, recompense: 'grandSoir' }], { serie, ronde: 0, k: 2 });
-  exiger('une carte épuisée quitte le deck après le match où on la joue', avant.includes('grandSoir') && !apres.includes('grandSoir') && s1.includes('grandSoir') && !s2.includes('grandSoir'),
-    `avant ${avant.includes('grandSoir')} · après ${apres.includes('grandSoir')} · séries match 2 ${s1.includes('grandSoir')} · match 3 ${s2.includes('grandSoir')}`);
+      && !!riposte && Math.abs(riposte.defense - (1 + 2 * (CARTES_MATCH.riposte.selonLeurMain.effet.defense - 1))) < 1e-9,
+    `élan ${elan && elan.volume.toFixed(2)} · riposte ${riposte && riposte.defense.toFixed(2)}`);
 
   // Ce que la préparation vaut, sur des gros matchs isolés : juste > rien > fausse.
   const NN = 900;

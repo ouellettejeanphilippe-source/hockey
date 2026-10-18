@@ -127,7 +127,7 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 3. **Les places et l'équipement**. *Fait (§ 14).*
 4. **Le personnel et les contrats**. *Fait (§ 15).*
 5. **Les événements deviennent des choix d'À faire**, dits par leurs voix (la suite des scènes du Jalon M, A3 à A6). *Fait (§ 16).*
-6. **La conversion des sauvegardes, le retrait de l'ancien jeu, la recalibration de la run** (`check_profondeur`, `check_rogue`), les règles du jeu à jour.
+6. **La conversion des sauvegardes, le retrait de l'ancien jeu, la recalibration de la run** (`check_profondeur`, `check_rogue`), les règles du jeu à jour. *Fait (§ 17).*
 
 Ensuite, **les écrans du Rogue refaits à neuf** (le Bureau, À faire, Ce soir, le duel), maquettes d'abord. Le Jalon M en cours finit ses tranches 1 à 4 (les correctifs mobiles, le look, les cibles, les scènes) ; ses tranches 6 à 8 attendent ces écrans.
 
@@ -199,3 +199,11 @@ Les juges : `check_packs` (les taux affichés, aucun à zéro, la revente), `che
 - **Les événements** ne se tirent plus ; la route ❓ quitte le nœud, qui garde ses trois autres routes.
 - **Les scènes de la semaine** (M5, A3 à A6) : la route, la blessure, les rivaux, le butin.
 - **Les juges** : `check_dossiers` (remplace `check_evenements`), `check_places` (les réponses en paires), `check_clarte` § 5, `essai_rogue`.
+
+## 17. Fait le 18 octobre : la tranche 6, la conversion
+
+- **La conversion** : une fois, les runs en cours repartent de zéro et l'inventaire de cartes du méta se vide (`convertirAuJeuNeuf`) ; `VERSION_MOTEUR` S116.
+- **L'ancien jeu est supprimé** : 655 cartes définies → 192, toutes en jeu. Restent la main de l'adversaire (hors de ta banque, inchangée), les malédictions, le mentor, le combo de la lancée.
+- **Ce qui l'offrait encore** se convertit : l'objectif et la case vide donnent une place, la main des paliers garde cinq sortes, l'atelier ses retouches, la signature une carte du cahier.
+- **Les robots** jouent la route, les dossiers et les places (scripts/lib/cartes_robot.mjs) ; les juges sont réécrits sur le jeu neuf.
+- **Ensuite** : les écrans du Rogue refaits à neuf, maquettes d'abord.

@@ -30,9 +30,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, CARTES, TACTIQUES, SYSTEMES_D, activeLineup, SLOTS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, TACTIQUES, SYSTEMES_D, activeLineup, SLOTS } from '../js/sim.js';
 import { effetEnChiffres, unitesDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
+import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -143,10 +144,10 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
   exiger('le témoin : sans effet, l\'écart du profil est exactement zéro (tirs, buts, punitions, mises en échec, victoires)', pire === 0, `${r.n} équipes · plus grand écart ${pire}`);
 }
 
-/* 3. Une lecture : « La chasse » (tirs de plus), lue et mesurée. */
+/* 3. Une lecture : « La chasse » (tirs de plus, un témoin de toute la saison : scripts/lib/temoins.mjs), lue et mesurée. */
 {
-  const chasse = CARTES.chasse;
-  const r = paires({ carte: 'chasse' });
+  const chasse = temoin('chasse').patron;
+  const r = paires(temoin('chasse'));
   // La même carte, lue par l'écran : la moyenne sur les équipes traitées (les vraies équipes de la ligue de base).
   const { teams } = laBase(SEEDS[0]);
   const traites = teams.filter((_, i) => PARITES.includes(i % 2));
@@ -203,17 +204,17 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
 if (COMPLET) {
   const E = c => ({ effet: { duree: 100, nom: 'mesure', ...c } });
   const L = (tac, tacD) => ({ lignes: [0, 1, 2, 3].map(() => ({ tac, tacD, sec: 60 })) });
-  const K = ks => ks.map(carte => ({ carte }));
+  const K = ks => ks.map(temoin);
   const G = { canal: [], carte: [], systeme: [], style: [] };
   for (const v of [0.9, 1.1]) G.canal.push([`volume ×${v}`, E({ volume: v })]);
   for (const v of [0.9, 1.1]) G.canal.push([`finition ×${v}`, E({ finition: v })]);
   for (const v of [0.9, 1.1]) G.canal.push([`défense ×${v}`, E({ defense: v })]);
   for (const v of [0.7, 1.3]) G.canal.push([`discipline ×${v}`, E({ discipline: v })]);
   G.canal.push(['robustesse +1', E({ robustesse: 1 })], ['blessure ×2', E({ blessure: 2 })], ['jambes ×1,15', E({ energie: 1.15 })]);
-  for (const k of Object.keys(CARTES)) G.carte.push([`carte ${k}`, { carte: k }]);
+  for (const k of TEMOINS_DE_SAISON) G.carte.push([`témoin ${k}`, temoin(k)]);
   for (const k of Object.keys(TACTIQUES)) G.systeme.push([`système (trios) ${k}`, L(k, 'equilibre')]);
   for (const k of Object.keys(SYSTEMES_D)) G.systeme.push([`système (paires) ${k}`, L('hourra', k)]);
-  G.style.push(['défensif : cartes', K(['cadenas', 'newjersey', 'gardiens'])], ['offensif : cartes', K(['grandjeu', 'ouvert', 'chasse'])],
+  G.style.push(['défensif : cartes', K(['defense'])], ['offensif : cartes', K(['chasse', 'attaque'])],
     ['défensif : systèmes', L('defensive', 'maison')], ['offensif : systèmes', L('bleue', 'activer')]);
   for (const [groupe, liste] of Object.entries(G)) {
     if (GROUPE && GROUPE !== groupe) continue;
