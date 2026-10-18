@@ -11,6 +11,7 @@
  *   { de, mot, fait }   de : la voix ; mot : sa réplique ; fait : la ligne de chiffres sous la citation
  */
 import { EXPEDITEURS } from './vie-gm.js';
+import { DOSSIERS } from './dossiers.js';
 import { hache } from './util.js';
 
 /** La réplique d'une scène, pigée sur la graine du jeu et son moment : la même partie redit la même phrase. */
@@ -61,6 +62,40 @@ export const MOTS_DES_SCENES = {
       'Il me manque un casier. Avant le gros match, je vendrais celle qui ne servira pas.',
     ],
   },
+  // LES ROUTES DE LA SEMAINE (A3) : l'entraîneur, qui recommande la route qui répond au pire problème du lundi.
+  route: {
+    jambes: ['Les gars sont brûlés. Moi, je prendrais le repos ; c\'est toi qui décides.',
+      'Les jambes ne suivent plus. Une semaine tranquille, et je te les rends.'],
+    infirmerie: ['L\'infirmerie déborde. Moi, je prendrais le repos, pour les ramener plus vite.',
+      'Trop de gars sur la table du physio. Le repos d\'abord, le reste après.'],
+    dos: ['Deux soirs de suite s\'en viennent, et les jambes sont justes. Le repos, si tu m\'écoutes.',
+      'Le dos-à-dos va faire mal. Moi, je ménagerais les gars cette semaine.'],
+    caisse: ['La caisse est vide. La commandite, et on respire.',
+      'On roule sur la réserve. Moi, je prendrais l\'argent cette semaine.'],
+    rien: ['Tout le monde tient debout. C\'est la semaine pour travailler : l\'entraînement.',
+      'Rien ne brûle. Moi, je les ferais travailler.'],
+  },
+  // LA BLESSURE (A4) : le médecin, selon la longueur de l'absence.
+  blessure: {
+    court: ['Rien de grave. Il sera de retour avant que tu t\'ennuies de lui.',
+      'Une petite absence. Je le garde sur ma table, et je te le rends.'],
+    long: ['Ça va être long. Il faut quelqu\'un pour sa case, et vite.',
+      'Je n\'aime pas ce que je vois. Prépare-toi à jouer sans lui un bon bout.'],
+  },
+  // TES RIVAUX (A5) : le proprio, qui vouvoie, au premier lundi.
+  rivaux: {
+    tous: ['Choisissez ceux que vous voulez battre devant moi.',
+      'Je veux des noms sur mon bureau : ceux qu\'on va battre devant nos partisans.'],
+    dernier: ['Il m\'en manque un. Choisissez-le bien.',
+      'Un dernier nom, et je fais imprimer les affiches.'],
+  },
+  // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
+  butin: {
+    mince: ['On a gagné avec ce cahier-là. Moi, j\'y ajouterais une page.',
+      'Le cahier est mince, et ça marche. Une page de plus ne nuirait pas.'],
+    epais: ['On a gagné, mais le cahier est épais. Ton adjoint en arracherait une page.',
+      'Une page de plus, ou une de moins ? Ton adjoint trouve qu\'on en a déjà trop.'],
+  },
 };
 
 /** Le rang en mots courts du classement : 1er, 2e… */
@@ -103,5 +138,65 @@ export function sceneDeLaCarteDeTrop({ cartes, places, gros = null, graine = '' 
     de: EXPEDITEURS.eq,
     mot: piger(MOTS_DES_SCENES.trop[gros ? 'gros' : 'calme'], graine, 'trop', cartes),
     fait: `${cartes} cartes pour ${places} places${gros ? ` · gros match contre ${gros.adv} ${vient}` : ''}`,
+  };
+}
+
+/*
+ * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js). La voix du dossier, une de ses répliques, et le fait
+ * lu dans les faits du lundi.
+ *   cle   le dossier ; faits : ceux du lundi (js/saison.js `faitsDuLundi`) ; graine : la partie et la semaine
+ */
+export function sceneDuDossier(cle, faits, graine = '') {
+  const D = DOSSIERS[cle];
+  return { de: EXPEDITEURS[D.de], mot: piger(D.mots, graine, 'dossier', cle), fait: D.fait(faits) };
+}
+
+/*
+ * A3 · LES ROUTES DE LA SEMAINE. L'entraîneur nomme le pire problème du lundi et la route qui y répond : les jambes
+ * sous 70, l'infirmerie (deux blessés ou plus), un dos-à-dos sur des jambes justes, la caisse sous 20 jetons.
+ *   jambes   la moyenne du matin ; blesses : combien ; dos : les dos-à-dos de la semaine ; caisse : les jetons, ou null
+ * Rend aussi `route`, celle qu'il recommande.
+ */
+const ROUTE_DU_PIRE = { jambes: 'repos', infirmerie: 'repos', dos: 'repos', caisse: 'commandite', rien: 'entrainement' };
+export function sceneDeLaRoute({ jambes, blesses = 0, dos = 0, caisse = null, graine = '' }) {
+  const pire = jambes < 70 ? 'jambes' : blesses >= 2 ? 'infirmerie' : dos && jambes < 85 ? 'dos' : caisse !== null && caisse < 20 ? 'caisse' : 'rien';
+  const fait = { jambes: `Jambes ${jambes}`, infirmerie: `${blesses} blessés à l'infirmerie`, dos: `${dos} dos-à-dos cette semaine · jambes ${jambes}`,
+    caisse: `${caisse} 🪙 en caisse`, rien: `Jambes ${jambes} · ${blesses ? `${blesses} blessé` : 'personne à l\'infirmerie'}` }[pire];
+  return { de: EXPEDITEURS.en, mot: piger(MOTS_DES_SCENES.route[pire], graine, 'route', pire), fait, route: ROUTE_DU_PIRE[pire] };
+}
+
+/*
+ * A4 · LA BLESSURE. Le médecin. Le fait : le blessé, ses matchs d'absence, sa case, le prochain adversaire.
+ *   joueur   son nom ; n : les matchs qui restent ; total : la blessure entière ; ou : sa case, ou '' ; adv : le prochain club, ou ''
+ */
+export function sceneDeLaBlessure({ joueur, n, total = n, ou = '', adv = '', graine = '' }) {
+  return {
+    de: EXPEDITEURS.me,
+    mot: piger(MOTS_DES_SCENES.blessure[n >= 8 ? 'long' : 'court'], graine, 'blessure', joueur, total),
+    fait: `${joueur} : ${n} match${n > 1 ? 's' : ''} d'absence${total > n ? ` (${total} en tout)` : ''}${ou ? ` · ${ou}` : ''}${adv ? ` · prochain match contre ${adv}` : ''}`,
+  };
+}
+
+/*
+ * A5 · TES RIVAUX. Le proprio, au premier lundi. Le fait : combien en prendre, parmi combien de clubs.
+ *   multi   combien il en reste à prendre ; offerts : les clubs offerts
+ */
+export function sceneDesRivaux({ multi, offerts, graine = '' }) {
+  return {
+    de: EXPEDITEURS.pr,
+    mot: piger(MOTS_DES_SCENES.rivaux[multi > 1 ? 'tous' : 'dernier'], graine, 'rivaux', multi),
+    fait: `${multi} à choisir parmi ${offerts} clubs`,
+  };
+}
+
+/*
+ * A6 · LE BUTIN D'UN GROS MATCH GAGNÉ. L'entraîneur. Le fait : le pointage de la feuille et l'épaisseur du cahier.
+ *   pour, contre   le pointage ; adv : le club battu ; cartes : le cahier ; max : sa limite (`CAHIER_MAX`)
+ */
+export function sceneDuButin({ pour, contre, adv, cartes, max, graine = '' }) {
+  return {
+    de: EXPEDITEURS.en,
+    mot: piger(MOTS_DES_SCENES.butin[cartes >= max * 0.75 ? 'epais' : 'mince'], graine, 'butin', adv),
+    fait: `${pour}–${contre} contre ${adv} · ${cartes} cartes au cahier sur ${max}`,
   };
 }

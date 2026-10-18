@@ -39,7 +39,6 @@ import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAchete
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
-import { noeudsDeLaSemaine } from '../js/noeuds.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { EDITIONS } from '../js/rarete.js';
@@ -403,16 +402,12 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
       `${joueurs.length} joueurs, ${cartes.length} cartes`);
   }
   // Aucune carte ne se perd : tout ce que les packs d'avant pouvaient donner sort d'un des sept (6 000 ouvertures chacun, les coachs tous),
-  // sauf les événements (V9, tranche 5b), devenus les routes de la semaine : chacun s'y gagne (js/noeuds.js).
+  // sauf les événements (V9, tranche 5b ; V10, tranche 5) : ils ont quitté la banque pour les dossiers d'À faire (js/dossiers.js).
   const avant = new Set(), apres = new Set();
   for (const cle of Object.keys(PACKS_CARTES)) for (let n = 0; n < 1500; n++) for (const id of tirerCartesPack(cle, `fusion-${cle}`, n)) avant.add(id);
   for (const cle of BOUTIQUE) for (let n = 0; n < 6000; n++) for (const id of tirerCartesDuPack(cle, `fusion-${cle}`, n, cle === 'j:coach' ? { coach: VOIES[n % VOIES.length] } : {})) apres.add(id);
   const perdues = [...avant].filter(id => !apres.has(id) && BANQUE[id].cat !== 'evenement');
-  const routes = new Set();
-  for (let g = 0; g < 300; g++) for (const n of noeudsDeLaSemaine(`routes-${g}`, 25)) if (n.route === 'evenement') routes.add(n.id);
-  const sansRoute = idsDe('evenement').filter(id => !BANQUE[id].retire && BANQUE[id].rarete !== 'maudite' && !routes.has(id));
-  exiger('aucun événement ne se perd : chacun se gagne aux routes de la semaine, aucun pack n\'en donne', !sansRoute.length && ![...avant, ...apres].some(id => BANQUE[id].cat === 'evenement'),
-    sansRoute.slice(0, 5).join(', ') || `${routes.size} événements aux routes, aucun dans les packs`);
+  exiger('aucun pack ne donne un événement', ![...avant, ...apres].some(id => BANQUE[id].cat === 'evenement'), `${apres.size} cartes sorties des packs`);
   const comptees = Object.keys(BANQUE).filter(sortDUnPack);
   exiger('aucune carte des packs d\'avant ne se perd dans la fusion', !perdues.length, perdues.slice(0, 5).join(', ') || `${avant.size} cartes vues avant, toutes encore là (${apres.size} après)`);
   exiger(`chaque carte que la banque compte sort d'un des ${BOUTIQUE.length} packs`, comptees.every(id => apres.has(id)), `${comptees.filter(id => !apres.has(id)).slice(0, 5).join(', ') || `${comptees.length} sur ${comptees.length}`}`);

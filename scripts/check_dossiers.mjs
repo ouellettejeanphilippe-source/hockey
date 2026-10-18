@@ -1,0 +1,113 @@
+/*
+ * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js). Les événements quittent la banque : ce qui arrive à
+ * ton club est un choix d'À faire, dit par une voix. Ce qu'on exige :
+ *   1. les événements sont partis : aucun ne se tire (ni pack, ni palier, ni route de la semaine), et chacun rend
+ *      encore sa décision (une vieille partie le rejoue, jusqu'à la conversion de la tranche 6) ;
+ *   2. la forme : une voix d'`EXPEDITEURS`, deux répliques au moins, deux ou trois réponses nommées, chacune un bon
+ *      côté, sur des champs que la porte des dilemmes lit déjà (`effetDeMoment`, `appliquerGestes`, `gain`), un moment
+ *      que le moteur connaît, hors du duel ;
+ *   3. pur : la même graine, la même semaine et les mêmes faits rendent le même dossier ; jamais deux fois le même dans
+ *      une saison ; la pratique du mardi seulement quand rien d'autre n'est vrai ;
+ *   4. chacun s'ouvre : sur des lundis fabriqués, chaque dossier sort au moins une fois ;
+ *   5. la porte : une réponse devient un effet qui garde son moment, ses gestes et ses jetons.
+ * La valeur de chaque réponse, en paires : `check_places` (sous la borne d'une commune).
+ */
+import { DOSSIERS, dossierDeLaSemaine } from '../js/dossiers.js';
+import { EXPEDITEURS } from '../js/vie-gm.js';
+import { BANQUE, idsDe, payloadDe } from '../js/banque.js';
+import { PACKS_CARTES, tirerCartesPack } from '../js/packs.js';
+import { noeudsDeLaSemaine } from '../js/noeuds.js';
+import { MOMENTS_SI, effetDeMoment } from '../js/sim.js';
+import { exiger, informer, verdict } from './verdict.mjs';
+
+/* ---------- 1. les événements sont partis ---------- */
+{
+  const tires = new Set();
+  for (let n = 0; n < 300; n++) {
+    for (const k of Object.keys(PACKS_CARTES)) tirerCartesPack(k, `ev${n}`, n).forEach(id => tires.add(id));
+    for (const p of [9, 18, 26]) tirerCartesPack('mixte', `ev${n}`, `palier${p}`, { sans: ['match'] }).forEach(id => tires.add(id));
+  }
+  for (let g = 0; g < 40; g++) for (let w = 1; w <= 26; w += 2) noeudsDeLaSemaine(`ev${g}`, w).forEach(x => tires.add(x.id));
+  const sortis = [...tires].filter(id => BANQUE[id] && BANQUE[id].cat === 'evenement');
+  exiger('aucun événement ne se tire : ni pack, ni palier, ni route de la semaine', !idsDe('evenement').length && !sortis.length, sortis.slice(0, 4).join(', ') || `${tires.size} cartes tirées, aucun événement`);
+  const evenements = Object.values(BANQUE).filter(c => c.cat === 'evenement');
+  const muets = evenements.filter(c => { const p = payloadDe(c.id); return !p || !p.effet; });
+  exiger('un événement retiré rend encore sa décision (une vieille partie le rejoue)', !muets.length, muets.slice(0, 4).map(c => c.cle).join(', ') || `${evenements.length} événements`);
+}
+
+/* ---------- 2. la forme ---------- */
+const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', ...CANAUX]);
+const ACTIONS = new Set(['energieTous', 'gardienAux']);
+{
+  const voix = new Set(Object.keys(EXPEDITEURS));
+  const fautes = [];
+  for (const [cle, D] of Object.entries(DOSSIERS)) {
+    if (!voix.has(D.de)) fautes.push(`${cle} : la voix ${D.de}`);
+    if (!D.titre || !D.ico || (D.mots || []).length < 2) fautes.push(`${cle} : titre, icône ou répliques`);
+    if (D.options.length < 2 || D.options.length > 3) fautes.push(`${cle} : ${D.options.length} réponses`);
+    for (const o of D.options) {
+      if (!o.cle || !o.nom || !o.bon) fautes.push(`${cle}/${o.cle} : un nom et un bon côté`);
+      const inconnus = Object.keys(o).filter(k => !CHAMPS.has(k));
+      if (inconnus.length) fautes.push(`${cle}/${o.cle} : ${inconnus.join(', ')}`);
+      if (o.si && (!MOMENTS_SI[o.si] || MOMENTS_SI[o.si].duel || MOMENTS_SI[o.si].choix)) fautes.push(`${cle}/${o.cle} : le moment ${o.si}`);
+      if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
+      const canaux = CANAUX.some(k => k in o);
+      if (canaux && !o.duree) fautes.push(`${cle}/${o.cle} : un effet sans durée`);
+      if (!o.rien && !canaux && !o.action && !o.gain) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+    }
+  }
+  exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses, sur les champs que le moteur lit déjà', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
+}
+
+/* ---------- 3 et 4 : pur, une fois par saison, chacun s'ouvre ---------- */
+{
+  // Des lundis fabriqués : chaque fait balaie ses valeurs, sur une graine qui ne se répète pas.
+  let x = 7;
+  const r = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const pige = a => a[Math.floor(r() * a.length)];
+  const lundi = () => {
+    const soirs = pige([1, 2, 3, 3, 4]), visiteur = Math.floor(r() * (soirs + 1));
+    return { n: pige([0, 6, 14, 28, 50]), jambes: pige([76, 85, 90, 94]), pire: { n: 'Untel', j: pige([70, 78, 84, 92]) },
+      blesses: Array.from({ length: pige([0, 1, 2, 3]) }, (_, i) => ({ n: `B${i}`, m: 4 })), soirs, dos: pige([0, 0, 1]), visiteur, domicile: soirs - visiteur,
+      rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
+      dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32 };
+  };
+  let purs = true, uneFois = true, reserve = true;
+  const sortis = new Map();
+  for (let g = 0; g < 400; g++) {
+    const deja = [];
+    for (let w = 2; w < 26; w += 2) {
+      const f = lundi();
+      const a = dossierDeLaSemaine(g, w, f, deja), b = dossierDeLaSemaine(g, w, f, deja.slice());
+      if (a !== b) purs = false;
+      if (!a) continue;
+      if (deja.includes(a)) uneFois = false;
+      const autres = Object.keys(DOSSIERS).filter(k => k !== 'laPratique' && !deja.includes(k) && DOSSIERS[k].quand(f));
+      if (a === 'laPratique' && autres.length) reserve = false;
+      deja.push(a);
+      sortis.set(a, (sortis.get(a) || 0) + 1);
+    }
+  }
+  exiger('pur : la même graine, la même semaine et les mêmes faits rendent le même dossier', purs);
+  exiger('jamais deux fois le même dossier dans une saison', uneFois);
+  exiger('la pratique du mardi, seulement quand rien d\'autre n\'est vrai', reserve);
+  const jamais = Object.keys(DOSSIERS).filter(k => !sortis.has(k));
+  exiger('chaque dossier s\'ouvre', !jamais.length, jamais.join(', ') || `${sortis.size} dossiers sur 400 saisons`);
+  informer('le plus et le moins ouverts', [...sortis.entries()].sort((p, q) => q[1] - p[1]).filter((_, i, t) => i < 3 || i >= t.length - 3).map(([k, n]) => `${DOSSIERS[k].titre} ${n}`).join(' · '));
+}
+
+/* ---------- 5. la porte des dilemmes ---------- */
+{
+  const fautes = [];
+  for (const [cle, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
+    const e = effetDeMoment({ jour: 10, moment: { famille: 'dossier', cle, choix: o.cle } }, null);
+    const canaux = CANAUX.some(k => k in o);
+    if (canaux !== !!e) fautes.push(`${cle}/${o.cle} : l'effet`);
+    if (e && (e.si || null) !== (o.si || null)) fautes.push(`${cle}/${o.cle} : le moment se perd`);
+    if (e && 'gain' in e) fautes.push(`${cle}/${o.cle} : les jetons entrent dans l'effet`);
+  }
+  exiger('une réponse devient un effet qui garde son moment, et ses jetons restent à la décision', !fautes.length, fautes.slice(0, 4).join(' · ') || 'toutes');
+}
+
+verdict('Les dossiers de la semaine');

@@ -1,8 +1,8 @@
 /*
  * LE NŒUD DE LA SEMAINE (V5, js/noeuds.js). Ce qu'on exige :
  *   1. pur : la même graine et la même semaine rendent les mêmes routes ;
- *   2. trois routes sur quatre (le repos, l'entraînement, l'événement, la commandite), chacune une vraie carte de la
- *      banque ; VARIÉES : jamais les trois mêmes routes, ni la même carte sur une route, deux nœuds de suite ;
+ *   2. trois routes (le repos, l'entraînement, la commandite ; V10 : l'événement est devenu un dossier, js/dossiers.js),
+ *      chacune une vraie carte de la banque ; VARIÉES : jamais la même carte sur une route deux nœuds de suite ;
  *   3. aucune mécanique neuve : la décision ne porte que des champs que le moteur et la caisse lisent déjà
  *      (`gestes`, `effet`, `gain`), plus son palier et le nom de la route ;
  *   4. ce qu'une saison peut rapporter au plus en jetons par la commandite, pour le juger avec l'économie.
@@ -20,8 +20,8 @@ for (let g = 1; g <= 200; g++) {
     const a = noeudsDeLaSemaine(g, w), b = noeudsDeLaSemaine(g, w);
     if (JSON.stringify(a) !== JSON.stringify(b)) purs = false;
     const sortes = a.map(n => n.route);
-    if (sortes.length !== 3 || sortes.join() !== Object.keys(ROUTES).filter(r => sortes.includes(r)).join()) routes = false;
-    if (avant && (sortes.join() === avant.map(n => n.route).join() || a.some(n => avant.some(x => x.route === n.route && x.id === n.id)))) variees = false;
+    if (sortes.join() !== Object.keys(ROUTES).join() || sortes.length !== 3) routes = false;
+    if (avant && a.some(n => avant.some(x => x.route === n.route && x.id === n.id))) variees = false;
     avant = a;
     for (const n of a) {
       vus.add(n.id);
@@ -34,8 +34,8 @@ for (let g = 1; g <= 200; g++) {
   maxGain = Math.max(maxGain, gain);
 }
 exiger('pur : la même graine rend les mêmes routes', purs);
-exiger('trois routes sur quatre, dans l\'ordre : le repos, l\'entraînement, l\'événement, la commandite', routes);
-exiger('variées : ni les mêmes routes ni la même carte deux nœuds de suite', variees);
+exiger('trois routes, dans l\'ordre : le repos, l\'entraînement, la commandite', routes);
+exiger('variées : jamais la même carte sur une route deux nœuds de suite', variees);
 exiger('chaque route est une vraie carte de la banque', vraies, `${vus.size} cartes différentes sur 200 saisons`);
 exiger('la décision ne porte que des champs déjà lus (gestes, effet, gain)', champs);
 informer('la commandite, prise chaque fois', `au plus ${maxGain} 🪙 par saison (13 nœuds)`);

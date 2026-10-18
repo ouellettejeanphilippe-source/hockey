@@ -241,7 +241,8 @@ const combats = [];   // V5 : les combats confirmés, leur soir et la carte de v
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
 const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
 // LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
-const SCENES = ['cartes', 'places'];
+// V10 (tranche 5) : les dossiers de la semaine, la blessure (A4) ; la route (A3) se juge à son bloc.
+const SCENES = ['cartes', 'places', 'dossier', 'blessure'];
 const scenes = new Map();
 const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : le choix déplié au-dessus de la barre (B4)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
@@ -440,6 +441,8 @@ async function regler() {
         afaire.route = lu.etat; afaire.sous = lu.sous;
         await ouvertA.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${DOSSIER}/rogue-route.png` });
         if (!/Jambes \d+/.test(lu.etat) || !/en caisse/.test(lu.etat) || !/cette semaine/.test(lu.etat)) erreurs.push(`la route ne dit pas l'état du club (« ${lu.etat} »)`);
+        if (!/^«.+»$/.test(lu.scene) || !lu.fait) erreurs.push(`la route ne cite pas l'entraîneur (« ${lu.scene} »)`);
+        else scenes.set('route', `${lu.de} ${lu.scene} — ${lu.fait}`);
       }
       const libres = lu.opts.filter(o => !o.on);
       const pari = libres.find(o => o.pari);

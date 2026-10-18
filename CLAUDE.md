@@ -65,6 +65,7 @@ js/cahier.js          le cahier neuf (V10) : les cartes de duel, chacune son mom
 js/places.js          les places neuves (V10) : hors combat, chacune son moment de la semaine
 js/equipement.js      l'équipement neuf (V10) : posé sur un joueur, il attend son moment
 js/personnel.js       le personnel neuf (V10) : un poste par rôle, chacun son moment de la saison ; les contrats lourds
+js/dossiers.js        les dossiers de la semaine (V10) : ce qui arrive à ton club, dit par sa voix, un lundi sur deux — `check_dossiers`
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
 js/rarete.js          les variantes de carte et leur bonus
 js/galons.js          les galons d'une saison de Rogue (40 buts, 50 passes…), lus dans le journal du club
@@ -203,6 +204,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **relance** : seulement le dé qu'on relance (la roulette, la relance d'équipe sur table) ; la sortie de zone se dit « sortie », la passe du gardien « remise ».
 - **rejouer** : les mêmes clubs, d'autres dés (« Rejouer la saison ») ; l'historique « reprend l'alignement », une décision « reprend la saison ».
 - **rival** : un club à deux rangs ou moins ; la **bête noire** 😤 : celui qui t'a battu deux fois ; **ta rivalité** : le club le plus croisé en gros match.
+- **dossier** : en Rogue (V10), ce qui arrive à ton club un lundi sur deux, s'il arrive vraiment — trois soirs sur la route, l'infirmerie qui déborde, un rival dans la semaine, la caisse à sec (`DOSSIERS`, js/dossiers.js) ; une voix le dit, et ses réponses passent par la porte des dilemmes. Les **événements** ne sont plus des cartes. Pas « situation », qui est au vestiaire (`SITUATIONS`, js/sim.js).
 - **fil** : une histoire de ta saison lue dans les feuilles jouées (la course, le Cheechoo, la disette, le duo…, `filsDeSaison`, js/recit.js) ; **la une** : le fil le plus lourd d'hier soir, au bureau. En Rogue (V9), un fil fort (le Cheechoo, la disette, le duo, la recrue) ouvre un choix dans À faire (`CHOIX_DES_FILS`, js/vie-gm.js) ; son **retour** se relit dans les feuilles quelques matchs plus tard, à la une, avec ses vrais chiffres (`retoursDuMatin`, js/sim.js) — `check_retours`.
 - **jouer blessé** : en Rogue, un blessé (ni commotion, ni fracture, ni ligaments ; 8 matchs ou moins à faire) joue diminué — « Il joue amoché » — le temps qu'il lui restait ; blessé encore, il manque aussi ce temps-là (`jouerBlesse`, js/sim.js). Le physio peut aussi ramener plus tôt un blessé à mi-chemin. Une commotion se garde : la suivante s'allonge, d'une saison à l'autre de la run.
 - **scène** : la mise en scène d'un choix du Rogue — la voix qui le demande, sa réplique entre guillemets, le fait sous elle (`sceneDeLaMise`, `sceneDuPalier`… js/scenes.js) ; le prix et le gain restent aux options.
@@ -242,7 +244,7 @@ L'Action `verifier.yml` fait tout ça à chaque PR, plus `check_graine.mjs` et `
 
 **Avant de pousser** (JP, 13 oct. : *c'est nécessaire de tester ici et en CI ?*) : ne relance pas ici ce que `verifier` refait. Ici, seulement `node scripts/tout.mjs` et `check_mort` (quelques secondes, un rouge en CI coûte une demi-heure), plus ce que le CI ne fait pas, quand le changement touche leur terrain : `essai_rogue`, `essai_packs`, `essai_achat` pour la signature, la boutique ou le jour à jour du Rogue ; `check_rogue`, `check_banque`, `check_cartes` quand on touche au moteur ou aux cartes. Le smoke, smoke_table, `check_gros`, `check_graine`, `check_feuilles` : le CI.
 
-`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une heure et plus ; `FAMILLES=evenements PART=1/4` n'en mesure qu'une famille et qu'un quart, pour le partager entre quatre processus) se lancent à part.
+`node scripts/tout.mjs` enchaîne les vérifications rapides (moins de quinze secondes chacune) ; `node scripts/tout.mjs check_deck check_packs` n'en lance que quelques-unes. `check_packs`, `check_gardiens`, `check_combat` (une demi-minute chacun), `check_jambes` (une minute) et `check_banque` (une demi-heure et plus ; `FAMILLES=patrons PART=1/4` n'en mesure qu'un quart, pour le partager entre quatre processus) se lancent à part.
 
 Depuis la v2 : `node scripts/check_coachs.mjs` (dix minutes : la couleur des cartes, la confiance, et chaque coach mesuré en paires à six ligues ; `LIGUES=0` en CI).
 
@@ -254,7 +256,7 @@ Depuis la V3 : `node scripts/check_si.mjs` (onze minutes, douze graines : les ca
 
 Depuis la V10, tranche 1 : `node scripts/check_moments_si.mjs` (une minute, au CI) — un effet d'un moment ne joue que son soir, et dans une vraie ligue la saison diverge exactement au premier soir de son moment ; les moments d'un soir sont ceux d'une ligue jouée jusqu'à lui ; chaque moment courant revient au moins trois fois par saison de run, sans être vrai plus des trois quarts des soirs, et chaque rare au moins une fois. Le plan de la V10, le jeu de cartes neuf : `docs/refonte-v10.md`.
 
-Depuis la V10, tranche 3 (et 4, le personnel et les contrats lourds) : `node scripts/check_places.mjs` (neuf minutes ; `N` matchs par club et par carte, 1000 ; `CARTES=a,b` quelques-unes) — chaque place et chaque équipement en paires, match par match, son moment posé (`_lireMoment`) : hors de son moment, la feuille est identique ; dans son moment, sous la borne de sa rareté, sur ses soirs (`parSaison`, `MOMENTS_SI`) ; une rare se voit ; trois cartes par coach et par pile.
+Depuis la V10, tranche 3 (et 4, le personnel et les contrats lourds ; 5, les réponses des dossiers) : `node scripts/check_places.mjs` (douze minutes ; `N` matchs par club et par carte, 1000 ; `CARTES=a,b` quelques-unes) — chaque place et chaque équipement en paires, match par match, son moment posé (`_lireMoment`) : hors de son moment, la feuille est identique ; dans son moment, sous la borne de sa rareté, sur ses soirs (`parSaison`, `MOMENTS_SI`) ; une rare se voit ; trois cartes par coach et par pile.
 
 Depuis la V10, tranche 2 : `node scripts/check_cahier.mjs` (quatre minutes ; `N` duels par club, 500 ; `CARTES=a,b` quelques-unes) — chaque carte du cahier en paires, jouée à la première période de son moment ; hors de son moment, une réponse ne change rien ; dans son moment, sous la borne de sa rareté ; une rare ou une légendaire se voit dans la feuille ; quatre cartes par coach, le départ neutre.
 

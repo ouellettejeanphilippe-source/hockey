@@ -33,7 +33,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, com
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, mainDuDuel, MISE_DOUBLEE, ELAN_PAR_PERIODE, INTENTIONS } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, mainDuDuel, MISE_DOUBLEE, ELAN_PAR_PERIODE, INTENTIONS, MOMENTS_SI } from './sim.js';
 import { seasonLancers, ageAtSeason } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
@@ -42,11 +42,12 @@ import { artJoueur, photoAction, RARETES } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, PLACES, cartesDuPalier, optionDeBanque, valeurDe } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
-import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, signaturesDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
+import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, signaturesDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint, CAHIER_MAX } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop } from './scenes.js';
+import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
+import { DOSSIERS, dossierDeLaSemaine } from './dossiers.js';
 import { BANQUE, reglesDe, payloadDe, placeDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
@@ -3288,8 +3289,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (rc) {
       // LE BUTIN D'UNE VICTOIRE (S74, V5) : une carte parmi trois, retirer une carte, en améliorer une, ou passer. Il garde sa fenêtre (le paquet).
       const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, recompense: null, ...d }, j); };
-      const spec = { de: DE.dg, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer',
-        recit: `Victoire contre ${ctx.teamLabel(rc.adv)}. Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.`,
+      // LA SCÈNE (Jalon M, A6) : l'entraîneur, sur le pointage de la feuille et l'épaisseur du cahier.
+      const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you;
+      const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), cartes: deckAvant(soirDuProchain()).length, max: CAHIER_MAX, graine: `${graine}|${rc.jour}` }) : null;
+      const spec = { de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
+        recit: 'Une carte pour ton deck, ou retires-en une : un deck mince pige plus souvent ses meilleures.',
         options: recompensesOffertes(graine, `r${rc.jour}`).map(optionDeCarteMatch),
         onChoix: k => prendre({ recompense: k }),
         onFerme: () => prendre({}) };
@@ -3304,8 +3308,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * de la semaine en coche `multi` ; la décision en fait une par rival (`riv:k`), comme avant.
        */
       const multi = RIVAUX - ro.k;
+      // LA SCÈNE (Jalon M, A5) : le proprio, au premier lundi.
       specs.push({ de: DE.proprio, ico: '⚔', titre: multi > 1 ? `Tes ${multi} rivaux` : 'Ton dernier rival', multi,
-        recit: `Prends-en ${multi > 1 ? multi : 'un'}. Chacun de tes matchs contre ${multi > 1 ? 'eux' : 'lui'} sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
+        scene: sceneDesRivaux({ multi, offerts: ro.offre.length, graine }),
+        recit: `Chacun de tes matchs contre ${multi > 1 ? 'eux' : 'lui'} sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
         options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros matchs`,
           mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
         decision: cles => [].concat(cles).map((cle, i) => ({ palier: `riv:${ro.k + i}`, rival: { cle, butin: ro.offre.find(y => y.cle === cle).butin } })) });
@@ -3375,7 +3381,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const nd = noeudOuvert();
     if (nd) {
       const et = etatDuNoeud();
-      specs.push({ de: DE.coach, ico: '🗺', titre: `Semaine ${nd.w + 1} : ta route`, recit: 'Une seule des trois, pour la semaine.', contexte: et.contexte, etat: true,
+      // LA SCÈNE (Jalon M, A3) : l'entraîneur nomme le pire problème du lundi, et la route qui y répond.
+      const scene = sceneDeLaRoute({ ...et.faits, graine: `${graine}|${nd.w}` });
+      specs.push({ de: scene.de, ico: '🗺', titre: `Semaine ${nd.w + 1} : ta route`, scene, recit: 'Une seule des trois, pour la semaine.', contexte: et.contexte, etat: true,
         options: nd.routes.map(n => ({ cle: n.route, ico: ROUTES[n.route].ico, nom: `${ROUTES[n.route].nom} · ${BANQUE[n.id].nom}`, sous: et.pourToi(n.id), mots: reglesDe(n.id) })),
         decision: cle => decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle)) });
     }
@@ -3392,6 +3400,41 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const w = jour / SEMAINE;
     if (w % 2 !== 1 || decs.some(d => d.palier === `n:${w}`)) return null;
     return { w, routes: noeudsDeLaSemaine(graine, w) };
+  }
+  /*
+   * LE DOSSIER DE LA SEMAINE (V10, tranche 5 — js/dossiers.js) : le lundi où le nœud ne s'ouvre pas (les semaines
+   * paires, dès la deuxième), ce qui arrive à ton club, s'il arrive vraiment. Un dossier par saison au plus chacun.
+   */
+  function dossierOuvert() {
+    if (!onDecision || !ctx.rogue || jour >= N || jour % SEMAINE !== 0) return null;
+    const w = jour / SEMAINE;
+    if (w < 2 || w % 2 !== 0 || pris.has(`do:${w}`)) return null;
+    const faits = faitsDuLundi();
+    const cle = dossierDeLaSemaine(graine, w, faits, decs.filter(d => d.moment && d.moment.famille === 'dossier').map(d => d.moment.cle));
+    return cle ? { w, cle, faits } : null;
+  }
+  /* LES FAITS DU LUNDI : ce qui est déjà joué (les jambes du matin, l'infirmerie, le dernier match, le rang) et la cédule de la semaine, déjà connue. */
+  function faitsDuLundi() {
+    const matin = ((you.jourLignes || [])[jour] || {}).energie || {};
+    const pats = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => you.roster[sl.i]).filter(Boolean)
+      .map(p => ({ n: p.n, j: Math.round(matin[getPlayerKey(p)] ?? p.energie ?? 100) }));
+    const jours = [];
+    for (let j = jour; j < Math.min(N, jour + SEMAINE); j++) if (indexMien(j) >= 0) jours.push(j);
+    const soirs = jours.map(j => calendrier[j][indexMien(j)]), advs = soirs.map(m => (m.A === you ? m.B : m.A));
+    const bete = advs.find(a => you.beteNoire === a) || null, rival = advs.find(a => a !== bete && rivalChoisi(you, a)) || null;
+    const der = miens.length ? miens[miens.length - 1].m : null, chez = der && der.A === you;
+    return {
+      n: miens.length,
+      jambes: pats.length ? Math.round(pats.reduce((a, x) => a + x.j, 0) / pats.length) : 100,
+      pire: pats.reduce((b, x) => (!b || x.j < b.j ? x : b), null),
+      blesses: [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]).map(([p, m]) => ({ n: p.n, m })),
+      soirs: soirs.length, dos: jours.filter(j => dosADos(you, j)).length,
+      visiteur: soirs.filter(m => m.B === you).length, domicile: soirs.filter(m => m.A === you).length,
+      rival: rival ? ctx.teamShort(rival) : null, bete: bete ? ctx.teamShort(bete) : null,
+      caisse: ctx.rogue.jetons ? ctx.rogue.jetons(jour) : null,
+      dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: ctx.teamShort(chez ? der.B : der.A) } : null,
+      rang: rangDe(you), equipes: teams.length,
+    };
   }
   /*
    * CE QU'IL FAUT SAVOIR POUR CHOISIR SA ROUTE. JP : *comment je suis supposé savoir quoi prendre sans les infos
@@ -3425,7 +3468,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       if (P.gain && caisse !== null) out.push(`Caisse ${caisse} → ${caisse + P.gain} 🪙`);
       return out.join(' · ');
     };
-    return { contexte: `<div class="choix-puces">${puces(etat)}</div>`, pourToi };
+    return { contexte: `<div class="choix-puces">${puces(etat)}</div>`, pourToi, faits: { jambes: j0 ?? 100, blesses: bl.length, dos, caisse } };
   }
   const titreDuChoix = spec => String(spec.titre).replace(/\{nom\}/g, spec.joueur ? spec.joueur.n : (spec.joueurs && spec.joueurs[0] ? spec.joueurs[0].n : ''));
 
@@ -3504,6 +3547,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           decision: id => ({ palier: `pp:${pp}`, place: id }) } });
     }
     /*
+     * LE DOSSIER DE LA SEMAINE (V10, tranche 5) : sa voix et le fait (la scène), puis ses réponses. Une décision de
+     * moment (`famille: 'dossier'`), la même porte que les dilemmes ; ce qu'elle paie ou coûte en jetons, la caisse le lit.
+     */
+    const dossier = dossierOuvert();
+    if (dossier) {
+      const D = DOSSIERS[dossier.cle], { caisse } = dossier.faits;
+      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre,
+        choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`),
+          options: D.options.map(o => ({ ...o, duree: o.rien ? null : o.duree || null, ...(o.si ? { quand: `${MOMENTS_SI[o.si].mot} seulement` } : {}),
+            mots: o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : [],
+            desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null })),
+          decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle }, ...(o.gain ? { gain: o.gain } : {}) }; } } });
+    }
+    /*
      * UNE CARTE DE TROP (V9, tranche 5b) : plus de cartes que de places, À faire demande laquelle vendre, et la journée
      * attend. Jouer une carte règle aussi le compte : « Ce soir » les montre toutes.
      */
@@ -3545,9 +3602,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // V9 (tranche 6) : il joue diminué le temps qu'il lui restait ; s'il se blesse encore, l'absence s'allonge.
         ctx.rogue && sl && peutJouerBlesse(alerte) ? { cle: 'blesse', ico: SITUATIONS.amoche.ico, nom: 'Le jouer blessé', bon: 'Il garde sa case', prix: `Diminué ${n} match${n > 1 ? 's' : ''} ; s'il se blesse encore, l'absence s'allonge` } : null,
       ].filter(Boolean);
-      const note = `${n} match${n > 1 ? 's' : ''} d'absence${n < alerte.games ? ` (${alerte.games} en tout)` : ''}${alerte.games >= BLESSURE_TRAINEE ? cicatriceMot('trainee') : ''}${caseDe(alerte.player) ? ` · ${caseDe(alerte.player)}` : ''}${forcer ? ' · il sort de ton alignement : qui joue sa case ?' : ` · ${remplacant(alerte.player)}`}`;
+      // LA SCÈNE (Jalon M, A4) : le médecin, sur l'absence, la case et le prochain adversaire ; la question du remplaçant reste au récit.
+      const pr = prochain(), advB = pr ? (pr.m.A === you ? pr.m.B : pr.m.A) : null;
+      const scene = sceneDeLaBlessure({ joueur: alerte.player.n, n, total: alerte.games, ou: caseDe(alerte.player) || '', adv: advB ? ctx.teamShort(advB) : '', graine: `${graine}|${alerte.at}` });
+      const note = `${forcer ? 'Il sort de ton alignement : qui joue sa case ?' : cap(remplacant(alerte.player))}${alerte.games >= BLESSURE_TRAINEE ? cicatriceMot('trainee') : ''}`;
       out.push({ id: idB, genre: 'blessure', bloque: forcer, de: DE.medecin, joueur: alerte.player, sujet: `${alerte.player.n} est blessé : ${n} match${n > 1 ? 's' : ''}`, bal, ecole, palierB: idB, sl, reserves,
-        choix: { recit: note, options, agir: cle => soignerLeBlesse(out.find(m => m.id === idB), cle),
+        choix: { scene, recit: note, options, agir: cle => soignerLeBlesse(out.find(m => m.id === idB), cle),
           decision: () => ({ palier: idB, blesse: { joueur: cleBl } }) } });
     }
     /*

@@ -2488,3 +2488,17 @@ JP : *go* (la tranche 4 du devis ; § 10 : *les cartes de saison se fondent dans
 - **Mesuré** (`check_places`, qui juge maintenant quatre piles) : 31 500 feuilles identiques hors du moment ; chaque poste sous la borne de sa rareté sur ses soirs d'une saison (`parSaison`) ; les rares se voient ; chaque contrat lourd coûte (de −0,1 à −0,9 V sur la saison). Deux rares invisibles au départ (le dépisteur des gardiens, le metteur en scène) sont montées jusqu'à se voir.
 - **Le plancher** de `check_coachs` (10 cartes par coach, tranche 3) tient : le personnel d'avant retiré, le neuf ajoute deux postes à chacun.
 
+## Les dossiers de la semaine (V10, tranche 5 — 18 oct. 2026)
+
+JP : *fais tout, t'es autonome* (la tranche 5 du devis ; § 10 : *les événements sortent de la banque et deviennent des choix d'À faire : oui*).
+
+- **19 dossiers** (`DOSSIERS`, js/dossiers.js) au lieu de 160 cartes à tirer. Un dossier lit un fait du lundi, posé sur ce qui est déjà joué et la cédule déjà connue (`faitsDuLundi`, js/saison.js : les jambes du matin, l'infirmerie, le dernier match, le rang, les matchs de la semaine, le rival ou la bête noire qu'on y croise, la caisse). Vrai, il peut s'ouvrir.
+- **Quand** : le lundi où le nœud ne s'ouvre pas (les semaines paires, dès la deuxième) ; un dossier par saison au plus chacun, tiré par la graine parmi les vrais (`dossierDeLaSemaine`, pur). La pratique du mardi ne s'ouvre que si rien d'autre n'est vrai.
+- **Qui le dit** : une voix d'`EXPEDITEURS`, une réplique sans chiffre, le fait en vrais chiffres (`sceneDuDossier`, js/scenes.js — `check_clarte` § 5).
+- **Ses réponses** : deux ou trois, sur les canaux qui existent — un effet, souvent d'un moment (`si` : il ne joue que ses soirs), des gestes (`energieTous`, `gardienAux`), des jetons (`gain` ; un prix s'il est négatif, et la réponse se ferme si la caisse ne suffit pas), ou rien. Elles passent par la porte des dilemmes (`familleDeMoment`, famille `dossier`) : `effetDeMoment` garde le moment et laisse les jetons à la décision.
+- **Le mot** : « situation » est déjà au vestiaire (`SITUATIONS`, js/sim.js) ; un mot par idée, c'est **dossier**.
+- **Le nœud** garde trois routes (le repos, l'entraînement, la commandite), toutes offertes ; il varie par ses cartes (jamais la même deux nœuds de suite). La route ❓ est partie avec les événements.
+- **Mesuré** (`check_places`, une cinquième pile) : chaque réponse sous la borne d'une commune, de −0,1 à +0,3 V sur ses soirs. Les réponses de jambes seules mesurent zéro : la paire joue un match isolé, aux jambes fraîches (comme les places de la tranche 3).
+- **Les scènes de la semaine** (M5) vont avec : la route (l'entraîneur nomme le pire problème du lundi — les jambes sous 70, l'infirmerie, un dos-à-dos sur des jambes justes, la caisse sous 20 — et la route qui y répond), la blessure (le médecin), les rivaux (le proprio), le butin (l'entraîneur).
+- `check_evenements` part (il jugeait les événements qui se tiraient) ; `check_dossiers` le remplace dans `tout.mjs`. `check_banque` ne mesure plus que les patrons.
+
