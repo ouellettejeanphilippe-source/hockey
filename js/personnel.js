@@ -58,7 +58,7 @@ export const PERSONNEL = {
     texte: 'Il connaît chaque arbitre de la ligue, et ce qui les fait siffler.' },
 
   // ---- 🪜 le Contremaître ----
-  per_chefDAtelier: { role: 'chef', nom: 'Le chef d\'atelier', ico: '🛠', rarete: 'commune', si: 'jambesLourdes', effet: { F: [0.85, 0.95, 1.1, 1.3] },
+  per_chefDAtelier: { role: 'chef', nom: 'Le chef d\'atelier', ico: '🛠', rarete: 'commune', si: 'jambesLourdes', effet: { F: [0.85, 0.95, 1.1, 1.3], energie: 0.95 },
     texte: 'Les jambes sont lourdes ? Le quatrième trio a toujours des jambes.' },
   per_contremaitreDosADos: { role: 'physique', nom: 'Le répartiteur', ico: '🗂', rarete: 'peu', si: 'dosADos', effet: { F: [0.85, 0.95, 1.1, 1.3], energie: 0.9 },
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },

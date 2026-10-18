@@ -12,7 +12,7 @@
  *       sur 160 — les retirés ne sortent plus d'aucun tirage)
  *
  * Vérifie :
- *   1. le registre : plus de 150 cartes, sept familles, une règle chiffrée
+ *   1. le registre : plus de 100 cartes qui se tirent, les familles du jeu neuf (V10), une règle chiffrée
  *      pour chacune, une décision que le moteur (ou le plafond) lit ;
  *   2. les packs : des chances affichées pour chaque pack, des barèmes qui
  *      font 100 %, des tirages purs ; une malédiction ne sort que des packs
@@ -78,7 +78,11 @@ console.log('\n  La banque de cartes et les packs (S79)\n');
 const compte = compteParCategorie();
 const total = Object.keys(BANQUE).length;
 informer('les cartes', `${total} en tout · ${ORDRE_CATEGORIES.map(c => `${c} ${compte[c]}`).join(' · ')}`);
-exiger('plus de 150 cartes, dans sept familles', total >= 150 && ORDRE_CATEGORIES.length === 7 && ORDRE_CATEGORIES.every(c => compte[c] > 0), `${total}`);
+// V10 : les cartes de saison se fondent dans le personnel (tranche 4) ; leur famille ne se tire plus.
+const FONDUES = ['saison'];
+const tirables = ORDRE_CATEGORIES.reduce((a, c) => a + compte[c], 0);
+exiger('plus de 100 cartes qui se tirent, dans les familles du jeu neuf', tirables >= 100 && ORDRE_CATEGORIES.every(c => (FONDUES.includes(c) ? !compte[c] : compte[c] > 0)),
+  `${tirables} qui se tirent (${total} définies)`);
 const sansRegle = Object.keys(BANQUE).filter(id => BANQUE[id].cat !== 'match' && !reglesDe(id).length);
 exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
 // Le congédiement (V5) change de coach : il n'a pas de chiffre à dire.
@@ -199,6 +203,7 @@ const lignes = [];
 const vp = [];
 for (const cle of FAMILLES.includes('patrons') ? maPart(Object.keys(PATRONS)) : []) {
   if (!PATRONS[cle].effet) continue;   // les patrons de la boutique (dépistage, direction) ne jouent pas sur la glace
+  if (BANQUE[`patron:${cle}`].retire) continue;   // V10 (tranche 4) : le personnel d'avant ne s'engage plus ; on juge celui qu'on rencontre
   const v = paires(equipe => [{ jour: 0, equipe, ...payloadDe(`patron:${cle}`, { patrons: [] }) }]);
   lignes.push(`patron ${PATRONS[cle].nom} ${signe(v)} V`);
   vp.push(v);
