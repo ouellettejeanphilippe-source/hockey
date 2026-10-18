@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, MUTATIONS, appliquerMutation, joueurDeMutation } from '../js/sim.js';
 import { PLACES_NEUVES } from '../js/places.js';
 import { EQUIPEMENT } from '../js/equipement.js';
+import { PERSONNEL, CONTRATS_MAUDITS } from '../js/personnel.js';
 import { BANQUE, idsDe } from '../js/banque.js';
 import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -30,6 +31,9 @@ const ICI = fileURLToPath(import.meta.url);
 const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
 const JUMELLE = '__jumelle';
+/* Les quatre piles mesurées : les places, l'équipement, le personnel, les contrats lourds. */
+const PILE = { p: 'place', e: 'équipement', q: 'personnel', k: 'contrat lourd' };
+const carteDe = (sorte, cle) => ({ p: PLACES_NEUVES, e: EQUIPEMENT, q: PERSONNEL, k: CONTRATS_MAUDITS })[sorte][cle];
 
 const equipe = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
 /* Un match isolé : des jambes fraîches, une infirmerie vide, les dés de la graine. */
@@ -51,7 +55,7 @@ function mesurer(cles, n) {
   const out = {};
   for (const id of cles) {
     const [sorte, cle] = id.split(':');
-    const C = sorte === 'p' ? PLACES_NEUVES[cle] : EQUIPEMENT[cle];
+    const C = carteDe(sorte, cle);
     const duel = MOMENTS_SI[C.si].duel;
     if (sorte === 'e' && duel) { const { si, ...sans } = C; void si; MUTATIONS[JUMELLE] = sans; }
     const m = out[id] = { n: 0, dv: 0, dgf: 0, dga: 0, dtp: 0, dtc: 0, dpun: 0, dcoups: 0, dbl: 0, djambes: 0, hors: 0, horsPareil: 0 };
@@ -64,7 +68,9 @@ function mesurer(cles, n) {
         // Un club neuf tire sa chance de saison : semée pour chacun, elle est la même pour les deux bras.
         const club = (nom, role) => { grainerHasard(`places:${lab}:${role}`); return equipe(nom, t, un, s); };
         const sans = club('Sans', 'toi'), avec = club('Avec', 'toi'), adv = club('Eux', 'eux');
-        if (sorte === 'p') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
+        // Une place ou le prix d'un contrat lourd : un effet du soir ; un poste : un patron engagé (`team.patrons`).
+        if (sorte === 'p' || sorte === 'k') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
+        else if (sorte === 'q') avec.patrons = [{ cle, role: C.role, nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
         else { const k = duel ? JUMELLE : cle; appliquerMutation(avec, joueurDeMutation(avec, null, k), k, 0, 'equipement'); }
         for (const T of [sans, avec]) T._lireMoment = lire;
         return { sans, avec, adv };
@@ -97,7 +103,8 @@ if (process.env.PART) {
 }
 
 const t0 = Date.now();
-const toutes = [...Object.keys(PLACES_NEUVES).filter(k => PLACES_NEUVES[k].si).map(k => `p:${k}`), ...Object.keys(EQUIPEMENT).map(k => `e:${k}`)]
+const toutes = [...Object.keys(PLACES_NEUVES).filter(k => PLACES_NEUVES[k].si).map(k => `p:${k}`), ...Object.keys(EQUIPEMENT).map(k => `e:${k}`),
+  ...Object.keys(PERSONNEL).filter(k => PERSONNEL[k].si).map(k => `q:${k}`), ...Object.keys(CONTRATS_MAUDITS).map(k => `k:${k}`)]
   .filter(id => !process.env.CARTES || process.env.CARTES.split(',').includes(id.slice(2)));
 console.log(`\n  Les places et l'équipement neufs (V10) · ${toutes.length} cartes · ${N} matchs par club et par carte, ${TEMOINS.length} clubs, en paires\n`);
 
@@ -109,7 +116,9 @@ console.log(`\n  Les places et l'équipement neufs (V10) · ${toutes.length} car
   exiger('les places : trois par coach, trois neutres', Object.keys(COACHS).every(k => pl[k] === 3) && pl.neutre === 3, dit(pl));
   const AVEC_CANAL = ['essaim', 'rapaces', 'tortue', 'souffle', 'etoiles'];
   exiger('l\'équipement : trois par coach qui a un canal de joueur, trois neutres', AVEC_CANAL.every(k => eq[k] === 3) && eq.neutre === 3 && Object.keys(eq).every(k => k === 'neutre' || AVEC_CANAL.includes(k)), dit(eq));
-  exiger('chaque carte d\'un moment attend un moment que le moteur connaît', [...Object.values(PLACES_NEUVES), ...Object.values(EQUIPEMENT)].every(C => !C.si || MOMENTS_SI[C.si]), `${toutes.length} cartes`);
+  const pe = compte(PERSONNEL, 'patron');
+  exiger('le personnel : deux postes par coach, trois neutres', Object.keys(COACHS).every(k => pe[k] === 2) && pe.neutre === 3, dit(pe));
+  exiger('chaque carte d\'un moment attend un moment que le moteur connaît', [...Object.values(PLACES_NEUVES), ...Object.values(EQUIPEMENT), ...Object.values(PERSONNEL), ...Object.values(CONTRATS_MAUDITS)].every(C => !C.si || MOMENTS_SI[C.si]), `${toutes.length} cartes`);
   const offertes = [...idsDe('consommable'), ...idsDe('joueur')].map(id => BANQUE[id]);
   const vieilles = offertes.filter(c => c.cat === 'consommable' && !PLACES_NEUVES[c.cle] && ['aucune', 'joueur'].includes(c.cible));
   exiger('l\'ancien jeu de tous les soirs ne s\'offre plus', !vieilles.length, vieilles.slice(0, 4).map(c => c.nom).join(', ') || `${offertes.length} cartes offertes`);
@@ -131,12 +140,12 @@ let hors = 0, horsPareil = 0;
 const tropFortes = [], invisibles = [];
 for (const id of toutes) {
   const [sorte, cle] = id.split(':');
-  const C = sorte === 'p' ? PLACES_NEUVES[cle] : EQUIPEMENT[cle], m = res[id], Mo = MOMENTS_SI[C.si];
+  const C = carteDe(sorte, cle), m = res[id], Mo = MOMENTS_SI[C.si];
   hors += m.hors; horsPareil += m.horsPareil;
   const part = sorte === 'e' && Mo.duel ? 1 / 3 : 1;
   const par = x => (x / m.n) * part;
   // Ce qu'elle vaut en tout : une place, ses soirs dans sa fenêtre ; un équipement, ses soirs d'une saison.
-  const soirs = sorte === 'p' ? (C.duree * Mo.parSaison) / 82 : Mo.parSaison;
+  const soirs = sorte === 'p' ? (C.duree * Mo.parSaison) / 82 : Mo.parSaison;   // une place : sa fenêtre ; le reste, la saison
   const v = par(m.dv) * soirs;
   const tirs = Math.max(Math.abs(par(m.dtp)), Math.abs(par(m.dtc)), Math.abs(par(m.dtp + m.dtc)));
   const buts = Math.abs(par(m.dgf)) + Math.abs(par(m.dga));
@@ -144,8 +153,10 @@ for (const id of toutes) {
   const vu1 = x => x / m.n;
   const vu = Math.max(Math.abs(vu1(m.dtp)), Math.abs(vu1(m.dtc)), Math.abs(vu1(m.dtp + m.dtc))) >= VISIBLE.tirs || Math.abs(vu1(m.dgf)) + Math.abs(vu1(m.dga)) >= VISIBLE.buts
     || Math.abs(vu1(m.dpun)) >= VISIBLE.punitions || Math.abs(vu1(m.dcoups)) >= VISIBLE.coups || Math.abs(vu1(m.dbl) * 82) >= VISIBLE.blessures;
-  informer(`${C.ico} ${C.nom} (${sorte === 'p' ? 'place' : 'équipement'}, ${C.rarete}, ${Mo.mot.toLowerCase()})`,
+  informer(`${C.ico} ${C.nom} (${PILE[sorte]}, ${C.rarete}, ${Mo.mot.toLowerCase()})`,
     `${soirs.toFixed(1).replace('.', ',')} soirs · ${f1(v)} V · par soir : tirs ${f1(par(m.dtp))} / contre ${f1(par(m.dtc))} · buts ${f2(par(m.dgf))} / ${f2(par(m.dga))} · punitions ${f2(par(m.dpun))} · mises en échec ${f1(par(m.dcoups))} · blessures ${f2(par(m.dbl) * 82)} par saison · jambes ${f1(par(m.djambes))}`);
+  // Un contrat lourd est un prix, pas une force : il se mesure, il ne se borne pas ; il doit seulement coûter.
+  if (sorte === 'k') { if (!(v < 0)) tropFortes.push(`${C.nom} ne coûte rien (${f1(v)} V)`); continue; }
   if (Math.abs(v) > BORNE_V[C.rarete]) tropFortes.push(`${C.nom} ${f1(v)} V (borne ${BORNE_V[C.rarete]})`);
   if ((C.rarete === 'rare' || C.rarete === 'legendaire') && !vu) invisibles.push(C.nom);
 }

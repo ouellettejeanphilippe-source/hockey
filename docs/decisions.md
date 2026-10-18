@@ -2476,3 +2476,15 @@ JP : *go* (la tranche 3 du devis, docs/refonte-v10.md § 4).
 - **Le plancher de `check_coachs`** passe de 13 à 10 cartes par coach (le devis, § 8) : le jeu neuf compte quatre cartes de cahier et trois places par coach, plus l'équipement ou le personnel (tranche 4).
 - **Reporté** : les robots qui jouent les places et l'équipement (ils ne jouent aujourd'hui que le cahier au duel) vont avec la recalibration de la run, tranche 6.
 
+## Le personnel et les contrats lourds (V10, tranche 4 — 18 oct. 2026)
+
+JP : *go* (la tranche 4 du devis ; § 10 : *les cartes de saison se fondent dans le personnel, oui* ; *les maudites, si elles sont pertinentes*).
+
+- **21 postes** (`PERSONNEL`, js/personnel.js), un par rôle (`ROLES`), engagés pour la saison et les séries. Chacun travaille un moment (les soirs à l'étranger, les dos-à-dos, après une défaite, contre un rival ou ta bête noire, en séries) : il porte `si`, et `effetsDeSaison` le filtre déjà (V10-1). Deux par coach, sur son canal ; le Comptable travaille l'argent toute l'année (des jetons par victoire, un rabais), l'argent n'attend pas de moment. Trois neutres, communes, de trois rôles : ce sont eux que le départ impose (`patronsDeDepart`, qui ne tire plus un patron retiré).
+- **Le moteur** : deux lectures prenaient les patrons sans regarder leur moment — les minutes des trios (`partsDuRoulement`) et l'usure des jambes (`kUsure`). Elles filtrent maintenant par `joueCeSoir`. Aucun patron d'avant n'a de moment : l'empreinte ne bouge pas.
+- **Les cartes de saison** (18, un bonus payé par un malus) se fondent : un poste dit son prix par son moment, plutôt que par un malus. Elles ne se tirent plus.
+- **Quatre contrats lourds** (`CONTRATS_MAUDITS`), qu'on prend pour leur argent : 2 à 3 M$ d'espace tout de suite, et un prix certains soirs, toute la saison (un effet qui porte `si`, posé par `payloadDe` avec le contrat). Avec la taxe de luxe, cinq maudites, comme le devis le disait.
+- **L'ancien personnel** se retire des tirages ; le DG du plafond flexible reste : un déblocage le donne.
+- **Mesuré** (`check_places`, qui juge maintenant quatre piles) : 31 500 feuilles identiques hors du moment ; chaque poste sous la borne de sa rareté sur ses soirs d'une saison (`parSaison`) ; les rares se voient ; chaque contrat lourd coûte (de −0,1 à −0,9 V sur la saison). Deux rares invisibles au départ (le dépisteur des gardiens, le metteur en scène) sont montées jusqu'à se voir.
+- **Le plancher** de `check_coachs` (10 cartes par coach, tranche 3) tient : le personnel d'avant retiré, le neuf ajoute deux postes à chacun.
+
