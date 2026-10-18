@@ -125,7 +125,7 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 1. **Les moments dans le moteur** : le « si » élargi aux cartes d'équipe et aux moments du § 3, sans aucune carte neuve ; `check_moments_si`. Les cartes d'aujourd'hui ne bougent pas (l'empreinte du moteur est la même). *Fait (§ 11).*
 2. **Le cahier neuf** (le duel) et les robots qui le jouent — ils n'en jouent aucune aujourd'hui, sauf le deck de départ ; l'ancien deck de match part. *Fait (§ 13).*
 3. **Les places et l'équipement**. *Fait (§ 14).*
-4. **Le personnel et les contrats**.
+4. **Le personnel et les contrats**. *Fait (§ 15).*
 5. **Les événements deviennent des choix d'À faire**, dits par leurs voix (la suite des scènes du Jalon M, A3 à A6).
 6. **La conversion des sauvegardes, le retrait de l'ancien jeu, la recalibration de la run** (`check_profondeur`, `check_rogue`), les règles du jeu à jour.
 
@@ -184,3 +184,11 @@ Les juges : `check_packs` (les taux affichés, aucun à zéro, la revente), `che
 - **`parSaison`** sur chaque moment (`MOMENTS_SI`) : combien de soirs il compte dans une saison de run ; la fiche d'un équipement le dit, le juge s'en sert.
 - **Le juge** `check_places` (neuf), en paires, match par match.
 - **Reporté à la tranche 6** : les robots qui jouent les places et l'équipement.
+
+## 15. Fait le 18 octobre : la tranche 4, le personnel et les contrats
+
+- **Le personnel** (`PERSONNEL`, js/personnel.js) : 21 postes, deux par coach et trois neutres (le départ en impose deux), chacun un moment de la saison ; le Comptable, l'argent toute l'année.
+- **Les contrats lourds** (`CONTRATS_MAUDITS`) : quatre, de l'espace tout de suite et un prix certains soirs ; avec la taxe, cinq maudites.
+- **Les cartes de saison** se fondent dans le personnel et ne se tirent plus ; l'ancien personnel non plus (le DG du plafond flexible reste).
+- **Le moteur** : les minutes et l'usure qu'un patron déplace attendent son moment.
+- **Le juge** : `check_places` mesure aussi le personnel et les contrats lourds.

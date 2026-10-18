@@ -32,6 +32,7 @@
 import { CARTES, MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI } from './sim.js';
 import { PLACES_NEUVES } from './places.js';
 import { EQUIPEMENT } from './equipement.js';
+import { PERSONNEL, CONTRATS_MAUDITS } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe } from './gerant.js';
 import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
@@ -177,6 +178,8 @@ export const PATRONS = {
     effet: { robustesse: 0.35, volume: 0.993 } },
   att_premier: { role: 'attaque', nom: 'L\'adjoint du premier trio', ico: '📌', rarete: 'peu', texte: 'Il ne dessine des jeux que pour trois joueurs.',
     effet: { F: [1.14, 1.04, 0.94, 0.88], finition: 1.028 } },
+  // Le personnel neuf (V10, tranche 4 — js/personnel.js) : chacun travaille un moment de la saison.
+  ...PERSONNEL,
 };
 
 /* ---------- LA MASSE SALARIALE : le plafond se manipule (S79) ---------- */
@@ -206,6 +209,8 @@ export const CONTRATS = {
   hausse: { nom: 'La hausse du plafond', ico: '🆙', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 3_000_000, texte: 'Les revenus de la ligue montent : le plafond aussi.' },
   signature: { nom: 'Le bonus de signature', ico: '🖊', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_500_000, texte: 'Payé d\'avance, cet été : il ne compte plus cette saison.' },
   ...CONTRATS_VIE,
+  // Les contrats lourds (V10, tranche 4) : l'argent tout de suite, un prix certains soirs.
+  ...CONTRATS_MAUDITS,
   taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3\u00a0M$ cette saison.' },
 };
 /*
@@ -449,6 +454,8 @@ export const CONSOMMABLES = {
   capitaineC: { nom: 'Le C cousu en réserve', ico: '🪢', rarete: 'rare', vie: 'permanent', cible: 'aucune', effet: { discipline: 0.72, defense: 0.944, volume: 0.958 }, duree: 10, texte: 'Un deuxième capitaine, prêt quand le premier se tait.' },
 };
 
+/* Un effet de contrat lourd tient la saison : plus que ses 82 matchs, séries comprises. */
+const DUREE_SAISON = 120;
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
 const SOURCES_MOD = ['amelioration', 'atelier', 'style', 'contrat', 'equipement'];
 /*
@@ -549,7 +556,8 @@ function coachDeLaFamille(cat, cle) {
 function construire() {
   const B = {};
   const mettre = c => { B[c.id] = { ...c, coach: coachDeLaFamille(c.cat, c.cle) }; };
-  for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role }));
+  // V10 (tranche 4) : le personnel d'avant se retire des tirages ; le DG du plafond flexible reste (un déblocage le donne).
+  for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role, ...(!PERSONNEL[cle] && cle !== 'dir_flexible' ? { retire: true } : {}) }));
   for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}), ...(E.retire ? { retire: true } : {}) }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
@@ -561,7 +569,8 @@ function construire() {
     if (estPlus(cle)) continue;
     mettre(fait('match', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: 'saison', cout: C.cout, genre: C.genre, ...(C.retire ? { retire: true } : {}) }));
   }
-  for (const [cle, C] of Object.entries(CARTES)) mettre(fait('saison', cle, { nom: C.nom, ico: C.ico, rarete: 'rare', texte: `${C.bon}. ${C.prix}.`, vie: 'saison' }));
+  // V10 (tranche 4) : les cartes de saison se fondent dans le personnel ; elles ne se tirent plus.
+  for (const [cle, C] of Object.entries(CARTES)) mettre(fait('saison', cle, { nom: C.nom, ico: C.ico, rarete: 'rare', texte: `${C.bon}. ${C.prix}.`, vie: 'saison', retire: true }));
   return B;
 }
 export const BANQUE = construire();
@@ -574,7 +583,7 @@ export const carteBanque = id => BANQUE[id] || null;
 export const PATRONS_IMPOSES = 2;
 export function patronsDeDepart(graine, raretes) {
   const out = [];
-  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && raretes.includes(c.rarete))
+  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && !c.retire && (!c.coach || c.coach === 'banque') && raretes.includes(c.rarete))
     .sort((a, b) => hache(graine, 'patron', a.id) - hache(graine, 'patron', b.id));
   for (const c of pool) if (out.length < PATRONS_IMPOSES && !out.some(x => BANQUE[x].role === c.role)) out.push(c.id);
   return out;
@@ -715,7 +724,8 @@ export function reglesDe(id, { joueur = null } = {}) {
   if (!c) return [];
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    const out = [...motsEnChiffres(P.effet || {})];
+    // V10 : son moment d'abord.
+    const out = [...(P.si && MOMENTS_SI[P.si] ? [{ txt: `${MOMENTS_SI[P.si].mot} : ses soirs, toute la saison`, bon: null, duree: true }] : []), ...motsEnChiffres(P.effet || {})];
     const e = P.econ || {};
     if (e.rabais) out.push({ txt: `Packs ${Math.round((e.rabais - 1) * 100)} %`, bon: true });
     if (e.jetonsVictoire) out.push({ txt: `+${e.jetonsVictoire} 🪙 par victoire`, bon: true });
@@ -726,7 +736,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsEnChiffres(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));
-    out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
+    if (!P.si) out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
     return out;
   }
   if (c.cat === 'evenement') {
@@ -760,6 +770,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     if (C.facteur) out.push({ txt: `${C.cible === 'recrue' ? 'Une recrue (23 ans ou moins)' : 'Un joueur'} : son salaire compte ${Math.round((C.facteur - 1) * 100)} %`, bon: true });
     if (C.ltir) out.push({ txt: 'Un blessé : 100 % de son salaire hors du plafond, tant qu\'il est blessé', bon: true });
     if (C.cout) out.push({ txt: `−${C.cout} 🪙`, bon: false });
+    if (C.effet && C.si && MOMENTS_SI[C.si]) out.push({ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, toute la saison`, bon: null, duree: true }, ...motsEnChiffres(C.effet));
     return out;
   }
   if (c.cat === 'saison') return motsEnChiffres(CARTES[c.cle]);
@@ -863,7 +874,7 @@ export function payloadDe(id, { joueur = null, carte = null, coach = null, patro
       for (const [k, v] of Object.entries(P.synergie.effet)) effet[k] = k === 'robustesse' ? (effet[k] || 0) + v : (effet[k] ?? 1) * v;
     }
     const remplace = patrons.filter(x => x.role === P.role && x.cle !== c.cle).map(x => x.cle);
-    return { patron: { cle: c.cle, role: P.role, nom: P.nom, ico: P.ico, ...effet, ...(P.econ ? { econ: { ...P.econ } } : {}), ...(synergie ? { synergie: true } : {}), ...(remplace.length ? { remplace } : {}) } };
+    return { patron: { cle: c.cle, role: P.role, nom: P.nom, ico: P.ico, ...effet, ...(P.si ? { si: P.si } : {}), ...(P.econ ? { econ: { ...P.econ } } : {}), ...(synergie ? { synergie: true } : {}), ...(remplace.length ? { remplace } : {}) } };
   }
   if (c.cat === 'evenement') {
     const E = EVENEMENTS[c.cle];
@@ -895,7 +906,9 @@ export function payloadDe(id, { joueur = null, carte = null, coach = null, patro
     const C = CONTRATS[c.cle];
     if (C.cible !== 'aucune' && !joueur) return null;
     return { plafond: { cle: c.cle, nom: C.nom, ...(C.espace ? { espace: C.espace } : {}), ...(C.facteur ? { facteur: C.facteur } : {}),
-      ...(C.ltir ? { ltir: true } : {}), ...(C.cout ? { cout: C.cout } : {}), ...(joueur ? { joueur } : {}) } };
+      ...(C.ltir ? { ltir: true } : {}), ...(C.cout ? { cout: C.cout } : {}), ...(joueur ? { joueur } : {}) },
+      // V10 : un contrat lourd porte son prix, certains soirs, toute la saison.
+      ...(C.effet ? { effet: { nom: C.nom, ico: C.ico, duree: DUREE_SAISON, ...C.effet, ...(C.si ? { si: C.si } : {}) } } : {}) };
   }
   if (c.cat === 'match') return { recompense: c.cle };
   if (c.cat === 'saison') return { carte: c.cle };

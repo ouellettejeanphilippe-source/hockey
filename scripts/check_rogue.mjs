@@ -264,7 +264,9 @@ if (!isMainThread) {
       || ids.some(id => (BANQUE[id].coach && BANQUE[id].coach !== 'banque') || !PRESTIGES[r].raretes.includes(BANQUE[id].rarete)));
     exiger('deux patrons imposés, neutres, de deux rôles, aux raretés que le rang ouvre', !faux.length, faux.length ? faux[0][1].join(' ') : `${tirages.length} tirages`);
     exiger('le même départ tire les mêmes patrons', patronsDeDepart('essai:7', PRESTIGES[0].raretes).join() === patronsDeDepart('essai:7', PRESTIGES[0].raretes).join());
-    exiger('le Comptable est un patron qu\'un départ peut imposer', tirages.some(([, ids]) => ids.includes('patron:dir_comptable')), `${tirages.filter(([, ids]) => ids.includes('patron:dir_comptable')).length} tirages sur ${tirages.length}`);
+    // V10-4 : le Comptable d'avant s'est retiré ; son poste neuf (le gestionnaire de la caisse) prend sa place au départ.
+    const comptable = ids => ids.some(id => BANQUE[id].coach === 'banque');
+    exiger('le Comptable a un patron qu\'un départ peut imposer', tirages.some(([, ids]) => comptable(ids)), `${tirages.filter(([, ids]) => comptable(ids)).length} tirages sur ${tirages.length}`);
   }
   // V5 : le mandat se lit au classement (un rang qui monte), plus une série gagnée.
   const seuils = MANDATS.map(m => rangDuMandat(m, 32));

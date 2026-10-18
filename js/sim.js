@@ -1315,7 +1315,8 @@ export function partsDuRoulement(base, group, team) {
   // brasser les trios) : ses multiplicateurs s'ajoutent à ceux du roulement,
   // et la renormalisation tient toujours la somme.
   // v2 : un patron ou la confiance d'un coach (le Contremaître, le Showman) déplacent aussi les minutes, toute la saison.
-  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
+  // V10 : un patron d'un moment (`si`) ne déplace les minutes que ses soirs.
+  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
   // LES SECONDES DE PRÉSENCE DE CHAQUE LIGNE (S68), à la HockeyArena : 60 est
   // la glace que le moteur a mesurée ; 70 donne un sixième de glace de plus.
   const L = team && team.lignes;
@@ -2602,7 +2603,7 @@ function usureLigne(l, part, partMoy, groupe = 'F') {
 }
 /* Le multiplicateur d'usure des effets, des cartes de saison et des patrons. */
 function kUsure(team) {
-  const src = [...effetsActifs(team), ...((team && team.patrons) || []), ...coachsJoues(team), ...((team && team.cartes) || []).map(c => CARTES[c])];
+  const src = [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team), ...((team && team.cartes) || []).map(c => CARTES[c])];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
 /* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */
