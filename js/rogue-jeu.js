@@ -1314,7 +1314,7 @@ function faitsDeLaSaison() {
     coachIII: coachsActifs(decisionsDeLaPartie()).some(c => c.palier >= 3) };
 }
 function direJalons(payes) {
-  payes.forEach((J, i) => setTimeout(() => toast(`🏁 Jalon : ${J.nom} — ${J.mot}.`), 1800 + i * 1400));
+  payes.forEach((J, i) => setTimeout(() => toast(`🏁 Jalon : ${J.nom} — ${J.mot}.`, '', { attendre: true }), 1800 + i * 1400));
   // 1.0 (R7) : la run se souvient de ses jalons, pour l'écran « Ta run ».
   if (payes.length && G.rogue) G.rogue.jalonsRun = [...(G.rogue.jalonsRun || []), ...payes.map(J => J.nom)];
 }
@@ -1330,7 +1330,7 @@ export function finDeSaisonRogue() {
     equipe: Object.values(G.roster || {}).filter(Boolean).map(getPlayerKey),
     bilan: { pts: f.pts, W: t.W, L: t.L, OTL: t.OTL },
   });
-  if (n) setTimeout(() => toast(`🏅 +${n} médailles pour ta saison (${f.pts} points) — dépense-les aux déblocages.`), 900);
+  if (n) setTimeout(() => toast(`🏅 +${n} médailles pour ta saison (${f.pts} points) — dépense-les aux déblocages.`, '', { attendre: true }), 900);
   compterEcussonsRun(n);
   modsAuCartable();
   // 1.0 : LA PRIME DE DÉCOUVERTE — chaque carte qui finit sa première saison avec toi (une fois pour toujours).
@@ -1338,7 +1338,7 @@ export function finDeSaisonRogue() {
   marquerJouees(equipe, (G.rogue && G.rogue.numero) || 0);
   const neuves = decouvrir(equipe);
   const d = neuves.length ? payerEcussons(G.ligue.graine, 'decouverte', neuves.length * PRIME_DECOUVERTE) : 0;
-  if (d) setTimeout(() => toast(`🧪 +${d} médailles de découverte : ${neuves.length} carte${neuves.length > 1 ? 's' : ''} jouée${neuves.length > 1 ? 's' : ''} pour la première fois.`), 2400);
+  if (d) setTimeout(() => toast(`🧪 +${d} médailles de découverte : ${neuves.length} carte${neuves.length > 1 ? 's' : ''} jouée${neuves.length > 1 ? 's' : ''} pour la première fois.`, '', { attendre: true }), 2400);
   compterEcussonsRun(d);
   const moments = detecterLegendaires();
   if (moments.length) { ajouterLegendesAuCartable(moments, (G.rogue && G.rogue.saison) || 1); afficherLegendaires(moments); }
@@ -1363,13 +1363,13 @@ function graverLaSaisonRogue(t) {
   });
   // Les galons se lisent au bilan, dans la run (`galonsHtml`) : en toasts, ils s'écrasaient l'un l'autre (B8).
   const { montees } = graverLaSaison(lignes, run, saison);
-  for (const m of montees) setTimeout(() => toast(`✨ ${motDeMontee(m, nomDe(m.cle))}`), 3200);
+  for (const m of montees) setTimeout(() => toast(`✨ ${motDeMontee(m, nomDe(m.cle))}`, '', { attendre: true }), 3200);
   const L = G.ligue, stats = leagueStats(L.teams || [t]);
   const trophees = gagnantsDesTrophees(stats).filter(o => o.x.t === t).map(o => ({ nom: o.d.nom, joueur: o.x.p.n, val: o.d.val(o.x) }));
   const neuf = graverAuPantheon({ run, saison, pts: t.PTS || 0, trophees,
     joueurs: lignes.map(l => ({ cle: l.cle, nom: nomDe(l.cle), gardien: !!joueurs.find(p => getPlayerKey(p) === l.cle && p.p === 'G'), ...l.stats, galonsCarriere: galonsDe(l.cle).length })) });
   const mots = [...neuf.records.map(k => (k === 'club' ? 'un record de points du club' : `le record : ${RECORDS[k].nom.toLowerCase()}`)), ...neuf.trophees.map(x => `${x.nom} (${x.joueur})`), ...neuf.chandails.map(x => `le chandail de ${x.nom} est retiré`)];
-  if (mots.length) setTimeout(() => toast(`Au panthéon : ${mots.join(' · ')}.`), 3600);
+  if (mots.length) setTimeout(() => toast(`Au panthéon : ${mots.join(' · ')}.`, '', { attendre: true }), 3600);
 }
 /*
  * LES GALONS DE LA SAISON, AU BILAN (Jalon M, A8 et B8) : relus dans l'histoire de chacun chez toi (le cartable), dans
@@ -1403,7 +1403,7 @@ export function finDesSeriesRogue(rondes, coupe, { payer = true } = {}) {
   G.rogue.series = { rondes, coupe: !!coupe };
   if (payer) {
     const n = payerEcussons(G.ligue.graine, 'series', ecussonsDesSeries(rondes, coupe) * exigencesDe(exigenceDeLaRun()).medailles, { bilan: { ronde: rondes, coupe: !!coupe, exigence: exigenceDeLaRun() } });
-    if (n) setTimeout(() => toast(`🏅 +${n} médailles pour tes séries${coupe ? ' — et la Coupe !' : ''}`), 900);
+    if (n) setTimeout(() => toast(`🏅 +${n} médailles pour tes séries${coupe ? ' — et la Coupe !' : ''}`, '', { attendre: true }), 900);
     compterEcussonsRun(n);
     const S = G.seriesMoteur;
     const finale = !!(S && S.toutes.some(s => s.ronde === S.nRondes - 1 && (s.A.isPlayer || s.B.isPlayer)));
