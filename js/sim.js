@@ -20,6 +20,7 @@ import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
 import { EQUIPEMENT } from './equipement.js';
+import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
 
@@ -3044,10 +3045,11 @@ export const MOMENTS = {
 
 /*
  * LA FAMILLE D'UNE DÉCISION DE MOMENT : un dilemme (`moment`), une séquence, ou la réponse à un courriel ou
- * à un point de presse (`vie`, js/vie-gm.js), ou le choix d'un fil (`fil`, V9). Tous ont la même forme { ico, titre, options } et passent
+ * à un point de presse (`vie`, js/vie-gm.js), le choix d'un fil (`fil`, V9), ou un dossier de la semaine (`dossier`, V10, js/dossiers.js). Tous ont la même forme { ico, titre, options } et passent
  * par les mêmes fonctions : `effetDeMoment`, `appliquerGestes`, `pariDeDecision`.
  */
-export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : m.famille === 'fil' ? CHOIX_DES_FILS[m.cle] : MOMENTS[m.cle]);
+export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : m.famille === 'fil' ? CHOIX_DES_FILS[m.cle]
+  : m.famille === 'dossier' ? DOSSIERS[m.cle] : MOMENTS[m.cle]);
 
 export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];
 /* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
@@ -3182,8 +3184,9 @@ export function effetDeMoment(d, team = null) {
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me;
+  // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet.
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };

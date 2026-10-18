@@ -51,7 +51,8 @@ import { COACHS, SEUILS } from '../js/coachs.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from '../js/scenes.js';
+import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -407,10 +408,39 @@ const MOTS_RESERVES = [
       juger('la carte de trop', sceneDeLaCarteDeTrop({ cartes: 4, places: PLACES, gros, graine: g }), [4, PLACES, ...(gros ? [gros.adv] : []), ...(gros && gros.dans > 1 ? [gros.dans] : [])]); n++;
     }
   }
-  const repliques = Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m])));
+  // A3 à A6 (V10, tranche 5) : la route recommandée répond au pire problème (les jambes et l'infirmerie au repos, la caisse à la commandite).
+  for (let g = 0; g < 40; g++) {
+    for (const [f, route, nombres] of [[{ jambes: 64, blesses: 1, dos: 0, caisse: 50 }, 'repos', [64]], [{ jambes: 88, blesses: 3, dos: 1, caisse: 50 }, 'repos', [3]],
+      [{ jambes: 80, blesses: 0, dos: 2, caisse: 50 }, 'repos', [2, 80]], [{ jambes: 90, blesses: 1, dos: 0, caisse: 12 }, 'commandite', [12]], [{ jambes: 91, blesses: 0, dos: 1, caisse: 60 }, 'entrainement', [91]]]) {
+      const sc = sceneDeLaRoute({ ...f, graine: g });
+      juger('la route', sc, nombres); n++;
+      if (sc.route !== route) fautes.push(`la route : ${JSON.stringify(f)} recommande ${sc.route}, pas ${route}`);
+    }
+    for (const [k, t] of [[3, 3], [9, 12]]) { juger('la blessure', sceneDeLaBlessure({ joueur: 'Al Secord', n: k, total: t, ou: 'T2 · ailier gauche', adv: 'Wild 2010-11', graine: g }), ['Al Secord', k, ...(t > k ? [t] : []), 'T2 · ailier gauche', 'Wild 2010-11']); n++; }
+    for (const multi of [3, 1]) { juger('les rivaux', sceneDesRivaux({ multi, offerts: 5, graine: g }), [multi, 5]); n++; }
+    for (const cartes of [11, 18]) { juger('le butin', sceneDuButin({ pour: 4, contre: 2, adv: 'Bruins 1995-96', cartes, max: 20, graine: g }), [4, 2, 'Bruins 1995-96', cartes, 20]); n++; }
+  }
+  /*
+   * LES DOSSIERS (V10, tranche 5) : sur des faits fabriqués, chacun aux nombres distincts, le fait d'un dossier ne dit que
+   * des nombres reçus, et il en dit au moins un — ou le club nommé.
+   */
+  const F = { n: 24, jambes: 91, pire: { n: 'Doug Gilmour', j: 74 }, blesses: [{ n: 'Al Secord', m: 9 }, { n: 'Tie Domi', m: 5 }, { n: 'Rob Ray', m: 2 }],
+    soirs: 4, dos: 1, visiteur: 3, domicile: 3, rival: 'Bruins 1995-96', bete: 'Wild 2010-11', caisse: 18,
+    dernier: { pour: 0, contre: 6, adv: 'Kings 1993-94' }, rang: 30, equipes: 32 };
+  const recus = new Set(JSON.stringify(F).match(/\d+/g));
+  for (let g = 0; g < 40; g++) for (const cle of Object.keys(DOSSIERS)) {
+    const sc = sceneDuDossier(cle, F, g);
+    juger(`le dossier ${cle}`, sc, []);
+    const nombres = sc.fait.match(/\d+/g) || [];
+    if (nombres.some(x => !recus.has(x))) fautes.push(`le dossier ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
+    if (!nombres.length && !/Bruins|Wild|Kings/.test(sc.fait)) fautes.push(`le dossier ${cle} : « ${sc.fait} » ne dit aucun fait`);
+    n++;
+  }
+  const repliques = [...Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m]))),
+    ...Object.entries(DOSSIERS).flatMap(([cle, D]) => D.mots.map(m => [`dossier/${cle}`, m]))];
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
   informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop');
+  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, les dossiers');
 }
 
 verdict('La clarté');

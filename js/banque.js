@@ -364,7 +364,7 @@ const ATTENUATION_LONG = 0.85, DUREE_MAX_LONG = 8;
  * canaux qui s'additionnent (la robustesse) et la glace des trios gardent leur valeur ; rien ne passe sous la
  * moitié ni au-dessus du double (`BORNES_EVENEMENT`).
  */
-export const AMPLEUR_EVENEMENT = 2.0;   // V5 : 2 → 2,1, la médiane mesurée sur quatre paires de clubs était sous le tiers de but (0,29) ; V6 : → 2,6, la défense qui pèse deux fois plus (K_DEFENSE) l'avait ramenée à 0,28, et les bornes des canaux font monter la médiane lentement (2,4 : 0,296) ; S109 : → 2,2, sur les données refaites (les âges, les tailles, les gestes revenus) le net sur la durée montait à 2,24 (borne 2) ; la médiane par match reste à 0,37 ; V7 : → 2,0, la chimie qui ne s'apprend plus est pleine dès le premier soir (lu par check_evenements), et le net sur la durée montait à 2,15 ; la médiane par match, 0,38
+const AMPLEUR_EVENEMENT = 2.0;   // V5 : 2 → 2,1, la médiane mesurée sur quatre paires de clubs était sous le tiers de but (0,29) ; V6 : → 2,6, la défense qui pèse deux fois plus (K_DEFENSE) l'avait ramenée à 0,28, et les bornes des canaux font monter la médiane lentement (2,4 : 0,296) ; S109 : → 2,2, sur les données refaites (les âges, les tailles, les gestes revenus) le net sur la durée montait à 2,24 (borne 2) ; la médiane par match reste à 0,37 ; V7 : → 2,0, la chimie qui ne s'apprend plus est pleine dès le premier soir (lu par check_evenements), et le net sur la durée montait à 2,15 ; la médiane par match, 0,38
 const BORNES_EVENEMENT = [0.5, 2];
 const AMPLIFIES = ['volume', 'finition', 'defense', 'discipline', 'energie', 'blessure'];
 for (const E of Object.values(EVENEMENTS)) {
@@ -558,7 +558,8 @@ function construire() {
   const mettre = c => { B[c.id] = { ...c, coach: coachDeLaFamille(c.cat, c.cle) }; };
   // V10 (tranche 4) : le personnel d'avant se retire des tirages ; le DG du plafond flexible reste (un déblocage le donne).
   for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role, ...(!PERSONNEL[cle] && cle !== 'dir_flexible' ? { retire: true } : {}) }));
-  for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}), ...(E.retire ? { retire: true } : {}) }));
+  // V10 (tranche 5) : les événements quittent la banque ; ce qui arrive au club est un dossier d'À faire (js/dossiers.js).
+  for (const [cle, E] of Object.entries(EVENEMENTS)) mettre(fait('evenement', cle, { nom: E.nom, ico: E.ico, rarete: E.rarete, texte: E.texte, vie: 'saison', duree: E.duree, ...(E.regle ? { regle: true } : {}), retire: true }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || M.rarete || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source, ...(modifRetiree(cle, M) ? { retire: true } : {}) }));

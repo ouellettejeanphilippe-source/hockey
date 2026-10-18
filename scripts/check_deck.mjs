@@ -184,7 +184,8 @@ console.log('\n  Le deck (S73)\n');
  * fois, ni au deck ni pour son coach.
  */
 {
-  const m = idsDe('match').find(id => coachDeCarte(id) && !DECK_DEPART.includes(id.slice(6))), autre = idsDe('evenement')[0], cle = m.slice(6);
+  // V10 (tranche 5) : les événements ne se tirent plus ; l'autre carte du pack est une place.
+  const m = idsDe('match').find(id => coachDeCarte(id) && !DECK_DEPART.includes(id.slice(6))), autre = idsDe('consommable')[0], cle = m.slice(6);
   const achat = { jour: 3, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: [m, autre] } };
   const poche = placesDeLaPartie({ decisions: [achat], rogue: true });
   exiger('tes places n\'ont aucune carte de match', poche.every(x => !x.id.startsWith('match:')) && poche.some(x => x.id === autre), `${poche.length} cartes`);

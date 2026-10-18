@@ -4,12 +4,12 @@
  *
  *   node scripts/check_banque.mjs            (LIGUES=4 par défaut)
  *   LIGUES=8 node scripts/check_banque.mjs   (une lecture plus fine)
- *   FAMILLES=evenements PART=1/4 node scripts/check_banque.mjs
+ *   FAMILLES=patrons PART=1/4 node scripts/check_banque.mjs
  *       (l'équilibre d'une seule famille, et le quart de ses cartes : quatre
- *       processus en parallèle font les événements en un quart du temps ;
- *       la moyenne d'une famille ne se juge alors que sur la liste entière.
- *       V6 : seuls les événements qui se tirent sont mesurés, une quarantaine
- *       sur 160 — les retirés ne sortent plus d'aucun tirage)
+ *       processus en parallèle la font en un quart du temps ; la moyenne d'une
+ *       famille ne se juge alors que sur la liste entière. V10 : seuls les
+ *       patrons qui s'engagent sont mesurés ; les événements ne se tirent plus,
+ *       ce sont des dossiers d'À faire, mesurés par check_places)
  *
  * Vérifie :
  *   1. le registre : plus de 100 cartes qui se tirent, les familles du jeu neuf (V10), une règle chiffrée
@@ -46,7 +46,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 const LIGUES = Number(process.env.LIGUES ?? 4);
-const FAMILLES = (process.env.FAMILLES || 'patrons,evenements').split(',');
+const FAMILLES = (process.env.FAMILLES || 'patrons').split(',');
 const [PART_K, PART_N] = (process.env.PART || '1/1').split('/').map(Number);
 const maPart = (cles) => cles.filter((_, i) => i % PART_N === PART_K - 1);
 const C = new Map();
@@ -78,8 +78,9 @@ console.log('\n  La banque de cartes et les packs (S79)\n');
 const compte = compteParCategorie();
 const total = Object.keys(BANQUE).length;
 informer('les cartes', `${total} en tout · ${ORDRE_CATEGORIES.map(c => `${c} ${compte[c]}`).join(' · ')}`);
-// V10 : les cartes de saison se fondent dans le personnel (tranche 4) ; leur famille ne se tire plus.
-const FONDUES = ['saison'];
+// V10 : les cartes de saison se fondent dans le personnel (tranche 4), les événements deviennent des dossiers d'À faire
+// (tranche 5, js/dossiers.js) ; leurs familles ne se tirent plus.
+const FONDUES = ['saison', 'evenement'];
 const tirables = ORDRE_CATEGORIES.reduce((a, c) => a + compte[c], 0);
 exiger('plus de 100 cartes qui se tirent, dans les familles du jeu neuf', tirables >= 100 && ORDRE_CATEGORIES.every(c => (FONDUES.includes(c) ? !compte[c] : compte[c] > 0)),
   `${tirables} qui se tirent (${total} définies)`);
@@ -217,22 +218,6 @@ if (FAMILLES.includes('patrons')) {
   if (entier) exiger('en moyenne, un patron vaut de 0 à +1,5 victoire', moyP >= 0 && moyP <= 1.5, `${signe(moyP)} V`);
   else informer(`moyenne des patrons, part ${PART_K}/${PART_N}`, `${signe(moyP)} V sur ${vp.length}`);
 }
-const horsE = [];
-const lignesE = [];
-const ve = [];
-// V6 : seuls les événements qui se tirent (une quarantaine) ; un retiré n'entre plus dans une partie neuve.
-for (const cle of FAMILLES.includes('evenements') ? maPart(Object.keys(EVENEMENTS).filter(k => !EVENEMENTS[k].retire)) : []) {
-  const v = paires(equipe => [{ jour: 20, equipe, ...payloadDe(`evenement:${cle}`) }]);
-  lignesE.push(`événement ${EVENEMENTS[cle].nom} ${signe(v)} V`);
-  ve.push(v);
-  if (v < -2.5 || v > 2.5) horsE.push(`${EVENEMENTS[cle].nom} ${signe(v)}`);
-}
-const moyE = moy(ve);
-for (const l of lignesE) console.log(`  ${l}`);
-if (FAMILLES.includes('evenements')) {
-  exiger('aucun événement n\'est un cadeau ni un piège (±2,5 victoires)', !horsE.length, horsE.join(' · ') || `${lignesE.length} événements`);
-  if (entier) exiger('en moyenne, un événement est un échange (±0,6 victoire)', Math.abs(moyE) <= 0.6, `${signe(moyE)} V`);
-  else informer(`moyenne des événements, part ${PART_K}/${PART_N}`, `${signe(moyE)} V sur ${ve.length} (somme ${signe(moyE * ve.length)})`);
-}
+// V10 (tranche 5) : les événements ne se tirent plus (js/dossiers.js) ; `check_places` mesure les dossiers.
 
 verdict();
