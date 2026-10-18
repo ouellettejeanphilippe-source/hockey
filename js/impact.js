@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, echangesDuPlan, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES, POIDS_AN, POIDS_DN } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, echangesDuPlan, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, CARTES, POIDS_AN, POIDS_DN, MOMENTS_SI } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -470,12 +470,12 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
     if (deja) { avec = L(tel); sans = L({ mutation: { cle, joueur, retirer: true } }); } else { avec = L({ mutation: { cle, joueur } }); sans = L(tel); }
   } catch { return motsDeMutation(cle); }
   const d = differences(avec, sans);
-  // UNE MODIF D'UN MOMENT (V3.4, `si`) se lit un soir où son moment est vrai : la moitié des soirs pour domicile ou
-  // l'étranger ; en séries, sur un printemps (`MATCHS_DE_SERIES_LUS`).
-  const resteSaison = Math.max(1, 82 - (c.team.games || 0));
-  const reste = M.si === 'series' ? MATCHS_DE_SERIES_LUS : M.si ? Math.round(resteSaison / 2) : resteSaison;
+  // UNE MODIF D'UN MOMENT (V3.4, `si` ; V10 : tous les moments) se lit un soir où son moment est vrai, sur les soirs
+  // que ce moment compte d'ici la fin (`parSaison`, js/sim.js `MOMENTS_SI`) ; en séries, sur un printemps (`MATCHS_DE_SERIES_LUS`).
+  const resteSaison = Math.max(1, 82 - (c.team.games || 0)), Mo = M.si && MOMENTS_SI[M.si];
+  const reste = M.si === 'series' ? MATCHS_DE_SERIES_LUS : Mo ? Math.max(1, Math.round((resteSaison * Mo.parSaison) / 82)) : resteSaison;
   const quand = M.si === 'series' ? `sur ${MATCHS_DE_SERIES_LUS} matchs de séries`
-    : `${resteSaison >= 82 ? 'sur la saison' : `d'ici la fin (${resteSaison} matchs)`}${M.si === 'domicile' ? ', à domicile' : M.si === 'visiteur' ? ', à l\'étranger' : ''}`;
+    : `${resteSaison >= 82 ? 'sur la saison' : `d'ici la fin (${resteSaison} matchs)`}${Mo ? `, ses ${reste} soirs (${Mo.mot.toLowerCase()})` : ''}`;
   const out = [];
   // À LUI : ses buts et ses tirs (un patineur), ou les buts que son filet accorde (un gardien : ceux du club, c'est lui).
   if (p && p.p !== 'G') {

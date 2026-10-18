@@ -124,7 +124,7 @@ Le moteur n'a **aucune table de correspondance** d'identifiants : une carte abse
 
 1. **Les moments dans le moteur** : le « si » élargi aux cartes d'équipe et aux moments du § 3, sans aucune carte neuve ; `check_moments_si`. Les cartes d'aujourd'hui ne bougent pas (l'empreinte du moteur est la même). *Fait (§ 11).*
 2. **Le cahier neuf** (le duel) et les robots qui le jouent — ils n'en jouent aucune aujourd'hui, sauf le deck de départ ; l'ancien deck de match part. *Fait (§ 13).*
-3. **Les places et l'équipement**.
+3. **Les places et l'équipement**. *Fait (§ 14).*
 4. **Le personnel et les contrats**.
 5. **Les événements deviennent des choix d'À faire**, dits par leurs voix (la suite des scènes du Jalon M, A3 à A6).
 6. **La conversion des sauvegardes, le retrait de l'ancien jeu, la recalibration de la run** (`check_profondeur`, `check_rogue`), les règles du jeu à jour.
@@ -175,3 +175,12 @@ Les juges : `check_packs` (les taux affichés, aucun à zéro, la revente), `che
 - **La face** dit le moment d'abord (`regleDeCarte`, js/gerant.js), et ses chiffres sur ce temps-là (la période, la 3e).
 - **L'ancien deck** est retiré des tirages (`retire`) ; il joue encore pour une run en cours jusqu'à la tranche 6.
 - **Les juges** : `check_cahier` (nouveau), `check_duel` (63,9 %), `check_combat`, `check_coachs`, `check_deck`, `check_emojis` (les pictogrammes neufs dessinés au trait).
+
+## 14. Fait le 18 octobre : la tranche 3, les places et l'équipement
+
+- **Les places** (`PLACES_NEUVES`, js/places.js) : 30, trois par coach et trois neutres ; chacune un moment de la semaine, sur ses `duree` prochains matchs. Le Comptable paie tout de suite.
+- **L'équipement** (`EQUIPEMENT`, js/equipement.js) : 18, des mutations d'un moment, au Frelon, à l'Aigle, à la Tortue, au Doc et au Showman (trois chacun) et trois neutres — un joueur n'a pas de canal de robustesse, de punitions, de minutes ni d'argent qui sache attendre un moment.
+- **L'ancien jeu de tous les soirs** est retiré des tirages ; les outils qui ont déjà leur moment restent.
+- **`parSaison`** sur chaque moment (`MOMENTS_SI`) : combien de soirs il compte dans une saison de run ; la fiche d'un équipement le dit, le juge s'en sert.
+- **Le juge** `check_places` (neuf), en paires, match par match.
+- **Reporté à la tranche 6** : les robots qui jouent les places et l'équipement.

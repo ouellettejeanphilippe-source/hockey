@@ -62,6 +62,8 @@ js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
 js/combat.js          le deck de match : cartes, main, élan, main adverse
 js/cahier.js          le cahier neuf (V10) : les cartes de duel, chacune son moment, et le départ
+js/places.js          les places neuves (V10) : hors combat, chacune son moment de la semaine
+js/equipement.js      l'équipement neuf (V10) : posé sur un joueur, il attend son moment
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
 js/rarete.js          les variantes de carte et leur bonus
 js/galons.js          les galons d'une saison de Rogue (40 buts, 50 passes…), lus dans le journal du club
@@ -250,6 +252,8 @@ L'impact des choix en chiffres de match (`docs/impact-des-choix.md`) : `node scr
 Depuis la V3 : `node scripts/check_si.mjs` (onze minutes, douze graines : les cartes d'un moment, en paires), `node scripts/check_lancee.mjs` (une minute : la lancée et le doute du Rogue, absents du 82-0), `node scripts/check_combo.mjs` (trois minutes et demie : le feu qui s'entretient, chaque pièce seule sous sa borne, le build complet qui casse le jeu, en paires) et `node scripts/check_fils.mjs` (six secondes, dans `tout.mjs`) — les fils de la saison (la une, « Ton histoire », la section Histoire du bilan) citent des feuilles réelles, chaque chiffre s'y recompte, rien ne lit l'avenir. Le plan de la V3 : `docs/refonte-v3.md`.
 
 Depuis la V10, tranche 1 : `node scripts/check_moments_si.mjs` (une minute, au CI) — un effet d'un moment ne joue que son soir, et dans une vraie ligue la saison diverge exactement au premier soir de son moment ; les moments d'un soir sont ceux d'une ligue jouée jusqu'à lui ; chaque moment courant revient au moins trois fois par saison de run, sans être vrai plus des trois quarts des soirs, et chaque rare au moins une fois. Le plan de la V10, le jeu de cartes neuf : `docs/refonte-v10.md`.
+
+Depuis la V10, tranche 3 : `node scripts/check_places.mjs` (sept minutes ; `N` matchs par club et par carte, 1000 ; `CARTES=a,b` quelques-unes) — chaque place et chaque équipement en paires, match par match, son moment posé (`_lireMoment`) : hors de son moment, la feuille est identique ; dans son moment, sous la borne de sa rareté, sur ses soirs (`parSaison`, `MOMENTS_SI`) ; une rare se voit ; trois cartes par coach et par pile.
 
 Depuis la V10, tranche 2 : `node scripts/check_cahier.mjs` (quatre minutes ; `N` duels par club, 500 ; `CARTES=a,b` quelques-unes) — chaque carte du cahier en paires, jouée à la première période de son moment ; hors de son moment, une réponse ne change rien ; dans son moment, sous la borne de sa rareté ; une rare ou une légendaire se voit dans la feuille ; quatre cartes par coach, le départ neutre.
 
