@@ -3989,6 +3989,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     D.tableau = `<div class="ent2">
       <div class="ent2-score"><span>${ctx.logo(you.tag, 22)} ${ctx.esc(ctx.teamShort(you))} <b>${moi}</b></span><span class="ent2-sep">–</span><span><b>${lui}</b> ${ctx.esc(ctx.teamShort(adv))} ${ctx.logo(adv.tag, 22)}</span></div>
       <div class="ent2-note">Après ${k === 1 ? 'une période' : 'deux périodes'} · tirs ${tirs(cMoi)}–${tirs(moiA ? 'B' : 'A')}</div>
+      <ol class="ent2-periodes" aria-label="Les trois périodes">${[0, 1, 2].map(i => `<li class="${i < k ? 'faite' : i === k ? 'a-jouer' : ''}">${i ? `${i + 1}e` : '1re'}${i < k ? ` · ${faites[i].pointage.moi}–${faites[i].pointage.lui}` : i === k ? ' · à jouer' : ''}</li>`).join('')}</ol>
       ${buts ? `<div class="ent2-buts">${buts}</div>` : ''}
     </div>`;
     ouvrirMainDeMatch({
