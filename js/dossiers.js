@@ -10,16 +10,24 @@
  *            cédule déjà connue — rien d'avance) ; vrai, il peut s'ouvrir
  *   fait     la ligne de chiffres sous la citation, en vrais chiffres
  *   mots     les répliques de la voix : une opinion, aucun chiffre (check_clarte § 5)
+ *   joueur   (V11, tranche 4) le joueur que le dossier nomme, lu dans les faits (`{ n, cle }`) : sa disette, ses
+ *            punitions, ses jambes, son contrat, sa place sous sa zone — un fait de SES feuilles
  *   options  deux ou trois réponses, sur les canaux qui existent — un effet (souvent d'un moment, `si`, js/sim.js
- *            `MOMENTS_SI`, qui ne joue que ses soirs), des gestes (`action`), des jetons (`gain`, un prix s'il est
- *            négatif), ou rien
+ *            `MOMENTS_SI`, qui ne joue que ses soirs), des gestes (`action` ; `energie` va au joueur nommé), des
+ *            jetons (`gain`, un prix s'il est négatif), ou rien ; et, quand il nomme un joueur, ce qui lui arrive à
+ *            LUI (`lui` : ses tirs, sa précision, ses passes, sa défense, ses blessures — `surJoueur`, js/sim.js)
  * Elles passent par la même porte que les dilemmes (`familleDeMoment`, `effetDeMoment`, `appliquerGestes`) : aucune
  * mécanique neuve. `check_places` mesure chaque réponse en paires, sous la borne d'une commune (1 V).
  *
- *   faits : { n, jambes, pire: { n, j }, blesses: [{ n, m }], soirs, dos, visiteur, domicile, rival, bete,
- *             caisse, dernier: { pour, contre, adv }, rang, equipes }
+ *   faits : { n, jambes, pire: { n, cle, j }, blesses: [{ n, m }], soirs, dos, visiteur, domicile, rival, bete,
+ *             caisse, dernier: { pour, contre, adv }, rang, equipes,
+ *             boude: { n, cle, zone, ou, pts, m }, puni: { n, cle, pun, m }, muet: { n, cle, sal, pts, m } }
+ *   (un joueur absent des faits : null)
  */
 import { hache } from './util.js';
+
+/* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
+export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
 
 export const DOSSIERS = {
   laRoute: {
@@ -91,10 +99,12 @@ export const DOSSIERS = {
   lesJambesLourdes: {
     de: 'ph', ico: '🦵', titre: 'Les jambes lourdes',
     quand: f => !!f.pire && f.pire.j < 80,
+    joueur: f => f.pire,
     fait: f => `${f.pire.n} : jambes ${f.pire.j} · l'équipe : ${f.jambes}`,
     mots: ['Il y en a un qui patine dans le ciment. Une journée de congé, et je te le rends.',
       'Les jambes ne suivent plus. Moi, j\'annulerais la pratique ; l\'entraîneur ne sera pas content.'],
     options: [
+      { cle: 'repos', nom: 'Un congé pour lui', bon: 'Ses jambes reviennent', prix: 'Il manque la pratique', action: { energie: 20 }, duree: 4, lui: { finition: 0.95 } },
       { cle: 'conge', nom: 'Annuler la pratique', bon: 'Les jambes reviennent', prix: 'Les systèmes rouillent', action: { energieTous: 10 }, duree: 4, defense: 1.04 },
       { cle: 'bas', nom: 'La glace au bas de l\'alignement', bon: 'Les fatigués s\'assoient les soirs lourds', prix: 'Tes vedettes jouent moins', si: 'jambesLourdes', duree: 12, F: [0.88, 0.97, 1.08, 1.2] },
     ],
@@ -108,6 +118,47 @@ export const DOSSIERS = {
     options: [
       { cle: 'pousser', nom: 'On pousse', bon: 'On tire de partout les soirs frais', si: 'jambesFraiches', duree: 12, volume: 1.15 },
       { cle: 'systemes', nom: 'Les systèmes', bon: 'Une structure qui tient', si: 'jambesFraiches', duree: 12, defense: 0.9 },
+    ],
+  },
+  /*
+   * LES DOSSIERS D'UN JOUEUR (V11, tranche 4 — docs/refonte-v11.md). JP : *les bonus et malus plus importants touchent
+   * des joueurs et non l'équipe*. Le fait vient de SES feuilles (js/saison.js `faitsDuLundi`) ; le gros de chaque
+   * réponse va à lui (`lui`), l'équipe n'en garde qu'un peu.
+   */
+  ilBoude: {
+    de: 'en', ico: '😒', titre: 'Il boude',
+    quand: f => !!f.boude,
+    joueur: f => f.boude,
+    fait: f => `${f.boude.n} : ${f.boude.zone}, au ${f.boude.ou} · ${f.boude.pts} point${f.boude.pts > 1 ? 's' : ''} en ${f.boude.m} matchs`,
+    mots: ['Il ne dit plus bonjour en arrivant à l\'aréna. Il pense qu\'il mérite mieux que le bas de l\'alignement.',
+      'Il boude dans son coin du vestiaire. Moi, je lui parlerais ; ou on le laisse mijoter, et il comprendra.'],
+    options: [
+      { cle: 'parler', nom: 'Lui parler', bon: 'Il se remet au travail', prix: 'Un souper au restaurant, sur le bras du club', gain: -6, duree: 8, lui: { lancers: 1.25, finition: 1.1 } },
+      { cle: 'mijoter', nom: 'Le laisser mijoter', bon: 'Le vestiaire voit qui décide', prix: 'Il boude sur la glace aussi', duree: 8, discipline: 0.92, lui: { finition: 0.8, lancers: 0.85 } },
+    ],
+  },
+  laChicane: {
+    de: 'ca', ico: '🥊', titre: 'La chicane au vestiaire',
+    quand: f => !!f.puni,
+    joueur: f => f.puni,
+    fait: f => `${f.puni.n} : ${f.puni.pun} punitions en ${f.puni.m} matchs`,
+    mots: ['Il nous coûte des avantages numériques, et les gars commencent à le lui dire en face.',
+      'Ça a brassé dans le vestiaire après le match. Il faut que quelqu\'un tranche, et ce n\'est pas moi.'],
+    options: [
+      { cle: 'calmer', nom: 'Lui mettre la laisse', bon: 'Les bâtons restent en bas', prix: 'Il joue sur des œufs', duree: 8, discipline: 0.85, lui: { lancers: 0.85, defense: 1.06 } },
+      { cle: 'laisser', nom: 'Le laisser jouer à sa façon', bon: 'Il fait peur à leurs gars', prix: 'Et il retourne au cachot', duree: 8, robustesse: 0.5, discipline: 1.1, lui: { lancers: 1.1 } },
+    ],
+  },
+  lAgent: {
+    de: 'ag', ico: '📞', titre: 'L\'agent appelle',
+    quand: f => !!f.muet,
+    joueur: f => f.muet,
+    fait: f => `${f.muet.n} : ${f.muet.sal} · ${f.muet.pts} point${f.muet.pts > 1 ? 's' : ''} en ${f.muet.m} matchs`,
+    mots: ['Mon client est payé pour marquer, et vous le faites jouer comme un plombier. Je veux une explication.',
+      'Je reçois des appels d\'autres clubs à son sujet. Vous voulez le garder heureux, oui ou non ?'],
+    options: [
+      { cle: 'defendre', nom: 'Le défendre en public', bon: 'Il retrouve sa confiance', prix: 'Un souper avec l\'agent, sur le bras du club', gain: -10, duree: 8, lui: { finition: 1.3, lancers: 1.1 } },
+      { cle: 'defi', nom: 'Le mettre au défi', bon: 'Il tire de partout pour répondre', prix: 'Il force ses tirs', duree: 8, lui: { lancers: 1.35, finition: 0.88 } },
     ],
   },
   laCaisseVide: {

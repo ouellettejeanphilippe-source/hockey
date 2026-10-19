@@ -434,7 +434,9 @@ const MOTS_RESERVES = [
    * LES DOSSIERS (V10, tranche 5) : sur des faits fabriqués, chacun aux nombres distincts, le fait d'un dossier ne dit que
    * des nombres reçus, et il en dit au moins un — ou le club nommé.
    */
-  const F = { n: 24, jambes: 91, pire: { n: 'Doug Gilmour', j: 74 }, blesses: [{ n: 'Al Secord', m: 9 }, { n: 'Tie Domi', m: 5 }, { n: 'Rob Ray', m: 2 }],
+  const F = { n: 24, jambes: 91, pire: { n: 'Doug Gilmour', cle: 'g', j: 74 },
+    boude: { n: 'Radek Bonk', cle: 'b', zone: 'Top 6', ou: '4e trio', pts: 3, m: 10 }, puni: { n: 'Tie Domi', cle: 'd', pun: 5, m: 8 },
+    muet: { n: 'Alexei Yashin', cle: 'y', sal: '7,6 M$', pts: 1, m: 10 }, blesses: [{ n: 'Al Secord', m: 9 }, { n: 'Tie Domi', m: 5 }, { n: 'Rob Ray', m: 2 }],
     soirs: 4, dos: 1, visiteur: 3, domicile: 3, rival: 'Bruins 1995-96', bete: 'Wild 2010-11', caisse: 18,
     dernier: { pour: 0, contre: 6, adv: 'Kings 1993-94' }, rang: 30, equipes: 32 };
   const recus = new Set(JSON.stringify(F).match(/\d+/g));

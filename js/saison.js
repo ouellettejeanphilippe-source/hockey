@@ -34,20 +34,20 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, com
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, mainDuDuel, MISE_DOUBLEE, ELAN_PAR_PERIODE, INTENTIONS, MOMENTS_SI } from './sim.js';
-import { seasonLancers, ageAtSeason } from './ratings.js';
+import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, RARETES } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, PLACES, cartesDuPalier, optionDeBanque, valeurDe } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
-import { ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
+import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { CARTES_MATCH, BLESSURE_TRAINEE, deckDe, signaturesDe, mainDuMatch, recompensesOffertes, mainAdverse, energieAdverse, ENERGIE_MAIN, mainDeLAdjoint, CAHIER_MAX } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
-import { DOSSIERS, dossierDeLaSemaine } from './dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE, reglesDe, payloadDe, placeDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
@@ -55,7 +55,7 @@ import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
-import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms } from './vie-gm.js';
 
@@ -3408,7 +3408,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   function faitsDuLundi() {
     const matin = ((you.jourLignes || [])[jour] || {}).energie || {};
     const pats = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => you.roster[sl.i]).filter(Boolean)
-      .map(p => ({ n: p.n, j: Math.round(matin[getPlayerKey(p)] ?? p.energie ?? 100) }));
+      .map(p => ({ n: p.n, cle: getPlayerKey(p), j: Math.round(matin[getPlayerKey(p)] ?? p.energie ?? 100) }));
     const jours = [];
     for (let j = jour; j < Math.min(N, jour + SEMAINE); j++) if (indexMien(j) >= 0) jours.push(j);
     const soirs = jours.map(j => calendrier[j][indexMien(j)]), advs = soirs.map(m => (m.A === you ? m.B : m.A));
@@ -3425,6 +3425,33 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       caisse: ctx.rogue.jetons ? ctx.rogue.jetons(jour) : null,
       dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: ctx.teamShort(chez ? der.B : der.A) } : null,
       rang: rangDe(you), equipes: teams.length,
+      ...faitsDesJoueurs(),
+    };
+  }
+  /*
+   * LES FAITS D'UN JOUEUR (V11, tranche 4 — js/dossiers.js) : lus dans SES feuilles, ses `FENETRE_JOUEUR` derniers
+   * matchs habillé. Celui qui joue sous sa zone (le Top 6 au 4e trio), celui qui va au cachot, le gros contrat muet.
+   * Chacun est le pire de son espèce, ou personne.
+   */
+  function faitsDesJoueurs() {
+    const coteDe = m => (m.A === you ? 'A' : 'B');
+    const habilles = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => ({ sl, p: you.roster[sl.i] })).filter(x => x.p);
+    const lus = habilles.map(({ sl, p }) => {
+      const siens = miens.filter(({ m }) => (m.feuille?.alignes?.[coteDe(m)] || []).includes(p)).slice(-FENETRE_JOUEUR);
+      const compte = (champ, f) => siens.reduce((a, { m }) => a + (m.feuille[champ] || []).filter(x => x.cote === coteDe(m) && f(x)).length, 0);
+      return { sl, p, m: siens.length, pts: compte('buts', b => b.marqueur === p || (b.passeurs || []).includes(p)), pun: compte('punitions', x => x.joueur === p) };
+    });
+    const qui = x => ({ n: x.p.n, cle: getPlayerKey(x.p), m: x.m });
+    const ecart = x => x.sl.unit - Math.max(...getLineZone(x.p).idealUnits);
+    const boude = lus.filter(x => x.m >= 5 && ecart(x) >= 2).sort((a, b) => ecart(b) - ecart(a) || a.pts - b.pts)[0];
+    const puni = lus.filter(x => x.pun >= PUNITIONS_CHICANE).sort((a, b) => b.pun / b.m - a.pun / a.m)[0];
+    const gros = [...lus].sort((a, b) => (b.p.$ || 0) - (a.p.$ || 0)).slice(0, 3);
+    const muet = gros.filter(x => x.m >= FENETRE_JOUEUR - 2 && x.pts <= 1).sort((a, b) => a.pts - b.pts || (b.p.$ || 0) - (a.p.$ || 0))[0];
+    const ou = sl => (sl.group === 'D' ? `${ordF(sl.unit + 1)} paire` : `${ord(sl.unit + 1)} trio`);
+    return {
+      boude: boude ? { ...qui(boude), zone: getLineZone(boude.p).short, ou: ou(boude.sl), pts: boude.pts } : null,
+      puni: puni ? { ...qui(puni), pun: puni.pun } : null,
+      muet: muet ? { ...qui(muet), sal: money(muet.p.$ || 0), pts: muet.pts } : null,
     };
   }
   /*
@@ -3569,12 +3596,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const dossier = dossierOuvert();
     if (dossier) {
       const D = DOSSIERS[dossier.cle], { caisse } = dossier.faits;
-      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre,
-        choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`),
+      // V11 (tranche 4) : le joueur qu'il nomme, et ce que chaque réponse lui fait à lui.
+      const lui = D.joueur ? D.joueur(dossier.faits) : null;
+      const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
+      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre, ...(joueur ? { joueur } : {}),
+        choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`), ...(joueur ? { joueur } : {}),
           options: D.options.map(o => ({ ...o, duree: o.rien ? null : o.duree || null, ...(o.si ? { quand: `${MOMENTS_SI[o.si].mot} seulement` } : {}),
-            mots: o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : [],
+            mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
             desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null })),
-          decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle }, ...(o.gain ? { gain: o.gain } : {}) }; } } });
+          decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}) }; } } });
     }
     /*
      * UNE CARTE DE TROP (V9, tranche 5b) : plus de cartes que de places, À faire demande laquelle vendre, et la journée

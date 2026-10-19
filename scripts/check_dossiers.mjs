@@ -34,8 +34,10 @@ import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 2. la forme ---------- */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', ...CANAUX]);
-const ACTIONS = new Set(['energieTous', 'gardienAux']);
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', 'lui', ...CANAUX]);
+const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie']);
+/* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
+const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure']);
 {
   const voix = new Set(Object.keys(EXPEDITEURS));
   const fautes = [];
@@ -51,7 +53,10 @@ const ACTIONS = new Set(['energieTous', 'gardienAux']);
       if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
       const canaux = CANAUX.some(k => k in o);
       if (canaux && !o.duree) fautes.push(`${cle}/${o.cle} : un effet sans durée`);
-      if (!o.rien && !canaux && !o.action && !o.gain) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+      if (!o.rien && !canaux && !o.action && !o.gain && !o.lui) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+      // Le gros d'un joueur (V11) : seulement dans un dossier qui le nomme, sur ses canaux à lui, le temps d'une durée.
+      if ((o.lui || (o.action && o.action.energie)) && !D.joueur) fautes.push(`${cle}/${o.cle} : un effet sur un joueur que le dossier ne nomme pas`);
+      if (o.lui && (!o.duree || Object.keys(o.lui).some(k => !CANAUX_LUI.has(k)))) fautes.push(`${cle}/${o.cle} : ce qui va au joueur`);
     }
   }
   exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses, sur les champs que le moteur lit déjà', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
@@ -65,7 +70,9 @@ const ACTIONS = new Set(['energieTous', 'gardienAux']);
   const pige = a => a[Math.floor(r() * a.length)];
   const lundi = () => {
     const soirs = pige([1, 2, 3, 3, 4]), visiteur = Math.floor(r() * (soirs + 1));
-    return { n: pige([0, 6, 14, 28, 50]), jambes: pige([76, 85, 90, 94]), pire: { n: 'Untel', j: pige([70, 78, 84, 92]) },
+    const joueur = (p, x) => (r() < p ? { n: 'Untel', cle: 'u', m: 10, ...x } : null);
+    return { n: pige([0, 6, 14, 28, 50]), jambes: pige([76, 85, 90, 94]), pire: { n: 'Untel', cle: 'u', j: pige([70, 78, 84, 92]) },
+      boude: joueur(0.15, { zone: 'Top 6', ou: '4e trio', pts: 2 }), puni: joueur(0.15, { pun: 5 }), muet: joueur(0.1, { sal: '7,5 M$', pts: 1 }),
       blesses: Array.from({ length: pige([0, 1, 2, 3]) }, (_, i) => ({ n: `B${i}`, m: 4 })), soirs, dos: pige([0, 0, 1]), visiteur, domicile: soirs - visiteur,
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
       dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32 };
