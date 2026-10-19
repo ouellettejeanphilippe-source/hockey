@@ -443,7 +443,7 @@ export function conditions(pr, cote) {
  * objectif tient. C'est la chance que le moteur lui donne, sans rien savoir
  * de la saison déjà jouée : ce sont d'autres dés, isolés.
  */
-export function chancesDesObjectifs({ you, calendrier, jourRevele, cles, chemins = 40, graine = 'objectifs' }) {
+export function chancesDesObjectifs({ you, calendrier, jourRevele, cles, quoi = {}, chemins = 40, graine = 'objectifs' }) {
   const suite = [];
   for (let j = jourRevele; j < calendrier.length && suite.length < MATCHS_OBJECTIF; j++) {
     const m = calendrier[j].find(x => x.A === you || x.B === you);
@@ -481,9 +481,10 @@ export function chancesDesObjectifs({ you, calendrier, jourRevele, cles, chemins
         }
         for (const k of cles) {
           const O = OBJECTIFS[k];
-          if (!O) continue;
-          const val = O.mesure(matchs);
-          if (O.sens > 0 ? val >= O.cible : val <= O.cible) tient[k]++;
+          if (!O || (O.joueur && !quoi[k])) continue;
+          // Un objectif qui nomme un joueur (V11) : son joueur et sa cible, ceux de l'offre.
+          const val = O.mesure(matchs, quoi[k]), cible = O.joueur ? quoi[k].cible : O.cible;
+          if (O.sens > 0 ? val >= cible : val <= cible) tient[k]++;
         }
       }
     });

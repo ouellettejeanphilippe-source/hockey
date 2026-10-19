@@ -83,8 +83,8 @@ function resultatsRogue(j) {
   }
   // V8 : un rival choisi paie son butin (un multiple du gros match) ; les autres gros matchs, un.
   const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
-  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`).
-  const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && d.carte).length;
+  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : pour une place depuis la V10 (`place`), au deck avant.
+  const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && (d.place || d.carte)).length;
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
   const series = (G.rogue && G.rogue.series && G.rogue.series.rondes) || 0;
   // V3.6 : la prime des fils (le Cheechoo, le jalon…), en Rogue seulement.

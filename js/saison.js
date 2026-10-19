@@ -26,7 +26,7 @@
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries, echelleTardive,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
-  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF,
+  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, planProbable, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, MUTATIONS,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
@@ -57,7 +57,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -1024,14 +1024,17 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const offreObjectif = () => {
     if (!onDecision || jour >= N) return null;
     const j0 = JOURS_OBJECTIFS.find(j => jour >= jEv(j) && !pris.has(`o:${j}`));
-    return j0 === undefined ? null : { j0, offerts: objectifsOfferts(graine, j0) };
+    if (j0 === undefined) return null;
+    // V11 (tranche 5) : un objectif qui nomme un joueur le nomme au jour de l'offre ; le joueur et sa cible suivent la décision.
+    const offerts = objectifsOfferts(graine, j0), quoi = Object.fromEntries(offerts.map(k => [k, joueurDeLObjectif(k, you)]).filter(([, q]) => q));
+    return { j0, offerts: offerts.filter(k => !OBJECTIFS[k].joueur || quoi[k]), quoi };
   };
   const objectifEnCours = () => {
     for (const j0 of JOURS_OBJECTIFS) {
       const d = objectifDe(j0);
       if (!d) continue;
-      const e = etatObjectif(d.objectif.cle, mesMatchs(d.objectif.debut));
-      if (!pris.has(`v:${j0}`)) return { j0, d, e };
+      const e = etatObjectif(d.objectif.cle, mesMatchs(d.objectif.debut), d.objectif.quoi);
+      if (e && !pris.has(`v:${j0}`)) return { j0, d, e };
     }
     return null;
   };
@@ -1253,11 +1256,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const c = { moment: momentDeSaison(x.j, N), etat: nSeq >= 3 ? [seq[0] === 'V' ? 'sequence' : 'panne'] : [], eq: ctx.teamShort(you), autre: adv ? ctx.teamShort(adv) : 'la ligue', deja };
     const occasion = nSeq >= 3 && seq[0] === 'D' ? 'serieDefaites' : contre === 0 ? 'blanchissage' : contre - pour >= 4 ? 'raclee' : null;
     const e = occasion ? echangeDe({ ...c, occasion }, `${graine}|vie|${k}`) : null;
-    if (e) return { palier, cle: e.id, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match, les micros',
+    if (e) return { palier, k, cle: e.id, de: { ico: '🎤', nom: 'Le point de presse' }, sujet: 'Après le match, les micros',
       corps: `<div class="hub-msg-mot">« ${ctx.esc(e.question)} »</div>` };
     const [m] = courrielsDe(c, `${graine}|vie|${k}`, 1);
-    return m ? { palier, cle: m.id, de: m.de, sujet: m.sujet, corps: `<div class="hub-msg-mot">${ctx.esc(m.corps)}</div>` } : null;
+    return m ? { palier, k, cle: m.id, de: m.de, sujet: m.sujet, corps: `<div class="hub-msg-mot">${ctx.esc(m.corps)}</div>` } : null;
   };
+  /* Le joueur du fait d'un message (V11, tranche 5 — `joueurDuFait`, js/vie-gm.js) : les feuilles des huit matchs qu'il raconte. */
+  function cibleDuFait(sorte, k) {
+    const feuilles = miens.slice(Math.max(0, (k - 1) * VIE_CHAQUE), k * VIE_CHAQUE).map(({ m }) => ({ f: m.feuille || {}, cote: m.A === you ? 'A' : 'B' }));
+    return joueurDuFait(sorte, feuilles, new Set(SLOTS.filter(s => !s.scratch).map(s => you.roster[s.i]).filter(Boolean)));
+  }
 
   /* Les blessures survenues jusqu'ici et jamais annoncées, la plus longue en tête. */
   function blessuresNeuves() {
@@ -1819,12 +1827,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * du moteur (vingt matchs rejoués trente fois contre tes vrais prochains
    * adversaires, `chancesDesObjectifs`) ; la raison, de tes vrais chiffres.
    */
-  const chancesObjectifs = (j0, cles) => {
+  const chancesObjectifs = (j0, cles, quoi = {}) => {
     const cle = `${graine}|o${j0}|${jour}|${decs.length}`;
-    if (!PRONOS.has(cle)) PRONOS.set(cle, chancesDesObjectifs({ you, calendrier, jourRevele: jour, cles, chemins: 30 }));
+    if (!PRONOS.has(cle)) PRONOS.set(cle, chancesDesObjectifs({ you, calendrier, jourRevele: jour, cles, quoi, chemins: 30 }));
     return PRONOS.get(cle);
   };
-  function raisonObjectif(cle) {
+  function raisonObjectif(cle, quoi = null) {
     const f = fiche.get(you), gp = gpDe(you), assez = gp >= 5;
     const g = partantDe(you), lig = svLigueDe(g);
     const par = k => virgule(f[k] / Math.max(1, gp), 1);
@@ -1837,6 +1845,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (cle === 'victoires') return assez ? `Ta fiche : ${f.W}-${f.L}-${f.OTL} ; il faut 11 victoires sur 20.` : 'Il faut gagner un peu plus d\'un match sur deux.';
     if (cle === 'sequence') return assez ? `Ta plus longue séquence cette saison : ${plusLongue(true)} victoire${plusLongue(true) > 1 ? 's' : ''}.` : 'Quatre de suite, n\'importe quand dans les vingt.';
     if (cle === 'regulier') return assez ? `Ta pire glissade cette saison : ${plusLongue(false)} défaite${plusLongue(false) > 1 ? 's' : ''} de suite.` : 'Jamais trois défaites de suite, sur vingt matchs.';
+    // Le gros contrat (V11) : son salaire et son rythme de vraie saison, d'où vient sa cible.
+    if (cle === 'contrat' && quoi) {
+      const p = Object.values(you.roster).find(x => x && getPlayerKey(x) === quoi.joueur);
+      if (p) return `${p.n} : ${money(p.$ || 0)}, ${virgule(((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1), 2)} point par match dans sa vraie saison.`;
+    }
     if (cle === 'vedette') {
       const ps = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => you.roster[s.i]).filter(Boolean);
       if (assez) {
@@ -2580,7 +2593,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const ev = [];
     for (const d of decs) {
       if (d.jour == null || d.jour > jour) continue;
-      if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 Le proprio exige : <b>${ctx.esc(OBJECTIFS[d.objectif.cle].nom)}</b>` });
+      if (d.objectif && OBJECTIFS[d.objectif.cle]) ev.push({ j: d.jour, t: `🏢 Le proprio exige : <b>${ctx.esc(motsDeLObjectif(d.objectif.cle, d.objectif.quoi).nom)}</b>` });
       else if (d.recompense && CARTES_MATCH[d.recompense] && typeof d.palier === 'string') ev.push({ j: d.jour, t: `🎁 Nouvelle carte dans ton deck : ${CARTES_MATCH[d.recompense].ico} <b>${ctx.esc(CARTES_MATCH[d.recompense].nom)}</b>` });
       else if (typeof d.palier === 'string' && d.palier.startsWith('v:')) ev.push({ j: d.jour, t: d.place && BANQUE[d.place] ? `🏆 Objectif atteint — le proprio paie : ${BANQUE[d.place].ico} <b>${ctx.esc(BANQUE[d.place].nom)}</b>` : '😬 Objectif raté : le savon dans le bureau du proprio' });
       else if (d.moment) {
@@ -3022,7 +3035,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     const oc = onDecision ? objectifEnCours() : null;
     if (oc && OBJECTIFS[oc.d.objectif.cle]) {
-      const O = OBJECTIFS[oc.d.objectif.cle];
+      const O = { ...OBJECTIFS[oc.d.objectif.cle], ...motsDeLObjectif(oc.d.objectif.cle, oc.d.objectif.quoi) };
       const part = Math.max(0, Math.min(1, oc.e.val / Math.max(1, oc.e.cible)));
       const etat = oc.e.reussi ? ' fait' : oc.e.rate ? ' rate' : O.sens < 0 && part >= 0.8 ? ' serre' : '';
       lignes.push(`<div class="hub-etat-l hub-etat-proprio" title="${ctx.esc(O.nom)}">
@@ -3308,7 +3321,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         decision: cles => [].concat(cles).map((cle, i) => ({ palier: `riv:${ro.k + i}`, rival: { cle, butin: ro.offre.find(y => y.cle === cle).butin } })) });
     }
     if (vo) {
-      const o = OBJECTIFS[vo.d.objectif.cle];
+      const o = { ...OBJECTIFS[vo.d.objectif.cle], ...motsDeLObjectif(vo.d.objectif.cle, vo.d.objectif.quoi) };
       specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           // V10 (tranche 6) : les cartes de saison sont fondues dans le personnel ; le proprio donne une carte parmi trois, pour une place.
@@ -3328,16 +3341,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * chiffres. La carte gagnée et la vis serrée sont les mêmes pour les
        * trois : elles se disent une fois, en tête, pas trois.
        */
-      const ch = chancesObjectifs(oo.j0, oo.offerts);
+      const ch = chancesObjectifs(oo.j0, oo.offerts, oo.quoi);
       specs.push({ de: DE.proprio, ico: '🏢', titre: oo.j0 ? 'Le proprio veut une deuxième moitié' : 'Le proprio fixe ses attentes',
         recit: `Choisis un défi pour tes ${MATCHS_OBJECTIF} prochains matchs. Ton adjoint a rejoué ces vingt matchs contre tes vrais adversaires : voici ce que ça donne.`,
         options: oo.offerts.map(cle => {
           const x = ch[cle], m = Number.isFinite(x) ? motDeChance(x) : null;
-          return { cle, ico: OBJECTIFS[cle].ico, nom: OBJECTIFS[cle].nom, sous: raisonObjectif(cle),
+          return { cle, ico: OBJECTIFS[cle].ico, nom: motsDeLObjectif(cle, oo.quoi[cle]).nom, sous: raisonObjectif(cle, oo.quoi[cle]),
             mots: m ? [{ txt: `${m.mot} · ${x < 0.05 ? 'moins de 1 chance sur 10' : `environ ${Math.max(1, Math.round(x * 10))} chance${Math.round(x * 10) > 1 ? 's' : ''} sur 10`}`, bon: x >= 0.7 ? true : x < 0.45 ? false : undefined }] : [] };
         }),
         contexte: `<div class="choix-puces"><span class="puce bon">Réussi : 🃏 une carte, pour une place</span><span class="puce prix">Raté : les voyages fatiguent ↑ · ${OBJECTIF_RATE.duree} matchs · ${CARTES_MATCH.distraction.ico} ${CARTES_MATCH.distraction.nom} au deck</span></div>`,
-        decision: cle => ({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour } }) });
+        decision: cle => ({ palier: `o:${oo.j0}`, objectif: { cle, debut: jour, ...(oo.quoi[cle] ? { quoi: oo.quoi[cle] } : {}) } }) });
     }
     if (sq) {
       const s = SEQUENCES[sq.cle];
@@ -3678,11 +3691,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const vie = vieOuverte();
     const fam = vie ? REPONSES_VIE[vie.cle] : null;
     if (fam) {
-      const cibles = fam.cible ? ciblesDe(you, fam.cible, graine, jour) : [];
+      // V11 (tranche 5) : le joueur du fait d'abord ; sinon celui de ton alignement que la question vise (`ciblesDe`).
+      const duFait = fam.cible ? cibleDuFait(fam.cible, vie.k) : null;
+      const cibles = duFait ? [duFait.p] : fam.cible ? ciblesDe(you, fam.cible, graine, jour) : [];
       const [cible] = cibles;
       const sub = t => String(t || '').replace(/\{nom\}/g, cible ? cible.n : 'ton joueur');
       out.push({ id: vie.palier, genre: 'courriel', bloque: true, de: vie.de, sujet: vie.sujet, joueur: cible || null,
-        choix: { recitHtml: vie.corps, joueur: cible || null,
+        choix: { recitHtml: `${vie.corps}${duFait ? `<p class="scene-fait">${ctx.esc(duFait.fait)}</p>` : ''}`, joueur: cible || null,
           options: fam.options.map(o => ({ cle: o.cle, nom: sub(o.nom), bon: sub(o.bon), prix: sub(o.prix), ...(o.pari ? { etiquette: 'Pari' } : {}),
             mots: motsDeReponse(o, { joueur: cible || null, noms: cible ? cible.n : '' }).map(x => ({ ...x, txt: sub(x.txt) })),
             desactive: fam.cible && !cibles.length && (o.mutation || (o.action && (o.action.absents || o.action.energie))) ? 'Personne dans ton alignement pour ça' : null })),

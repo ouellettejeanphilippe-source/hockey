@@ -21,7 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries, generateur, lignesDe, TACTIQUES, SYSTEMES_D, joueurDeLObjectif } from '../js/sim.js';
 import { pronostic, conditions, chancesDesObjectifs, conseilsDuMatch } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 
@@ -76,7 +76,7 @@ let t0 = performance.now();
 const pr = pronostic({ A: m.A, B: m.B, calendrier: L2.calendrier, jourMatch: jm, jourRevele: jour });
 const tPr = performance.now() - t0;
 t0 = performance.now();
-const ch = chancesDesObjectifs({ you: toi, calendrier: L2.calendrier, jourRevele: jour, cles: ['victoires', 'attaque', 'brigade', 'blanchissages', 'vedette', 'sequence', 'regulier'] });
+const ch = chancesDesObjectifs({ you: toi, calendrier: L2.calendrier, jourRevele: jour, cles: ['victoires', 'attaque', 'brigade', 'blanchissages', 'vedette', 'sequence', 'regulier', 'contrat'], quoi: { contrat: joueurDeLObjectif('contrat', toi) } });
 const tOb = performance.now() - t0;
 const apres = empreinte(L2.equipes);
 // Le même match, deux fois, AVANT les séries : elles blessent et fatiguent leurs clubs (V4.4 : le club du match en était un).

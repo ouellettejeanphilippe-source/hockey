@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague,
   MOMENTS, SEQUENCES, STYLES, OBJECTIFS, JOURS_OBJECTIFS, MATCHS_OBJECTIF,
-  objectifsOfferts, etatObjectif, momentDuJour, JOURS_MOMENTS, ciblesDe, SLOTS as CASES,
+  objectifsOfferts, etatObjectif, joueurDeLObjectif, momentDuJour, JOURS_MOMENTS, ciblesDe, SLOTS as CASES,
   MUTATIONS, cibleMutation, getPlayerKey, jourEvenement,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -236,7 +236,9 @@ console.log('\n  OBJECTIFS (vraies équipes, sans rien décider)');
         matchs.push({ v: pour > contre, pour, contre, buts: (m.feuille?.buts || []).filter(b => b.cote === cote) });
       }
       for (const cle of Object.keys(OBJECTIFS)) {
-        const e = etatObjectif(cle, matchs);
+        // Un objectif qui nomme un joueur (V11) le nomme au jour où il tombe, comme l'offre.
+        const e = etatObjectif(cle, matchs, joueurDeLObjectif(cle, t));
+        if (!e) continue;
         tot[cle] = tot[cle] || { ok: 0, n: 0 };
         tot[cle].n++; if (e.reussi) tot[cle].ok++;
       }
