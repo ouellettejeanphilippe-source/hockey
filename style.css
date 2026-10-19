@@ -4011,6 +4011,32 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-main.donne > .choix-option.tc, .choix-option.tc.pige { animation: tc-donne 0.55s var(--e-sortie) backwards; animation-delay: calc(var(--tc-i, 0) * 120ms); }
 .choix-option.tc.pige { animation-delay: 0s; }
 @keyframes tc-donne { from { opacity: 0; transform: translateY(46px) rotateY(75deg) scale(0.9); } to { opacity: 1; transform: none; } }
+/* L'IMPACT EN BARRES (`barresHtml`, js/gerant.js) : une rangée par stat, la barre part du centre — à droite ce qui t'aide,
+   à gauche ce qui te nuit ; le chiffre exact paraît avec « Les chiffres ». */
+.impact { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.impact-l { display: grid; grid-template-columns: minmax(0, 7em) minmax(0, 1fr); align-items: center; column-gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
+.impact-k { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.impact-barre { position: relative; height: 8px; border-radius: var(--r-1); background: var(--fond-3); }
+.impact-barre::before { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--encre-3); }
+.impact-barre i { position: absolute; top: 0; bottom: 0; width: calc(var(--part) / 2); background: var(--encre-3); }
+.impact-barre i.d { left: 50%; border-radius: 0 var(--r-1) var(--r-1) 0; }
+.impact-barre i.g { right: 50%; border-radius: var(--r-1) 0 0 var(--r-1); }
+/*
+ * Une carte étroite (la main du duel) : ses deux plus gros effets, côte à côte, le mot sur sa barre ; les autres
+ * s'ouvrent avec « Les chiffres ». La période d'un duel tient sous 1,3 écran (`essai_rogue` 20j).
+ */
+@container (max-width: 210px) {
+  .impact { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px var(--esp-2); }
+  .impact-l { grid-template-columns: minmax(0, 1fr); row-gap: 1px; line-height: 1.1; letter-spacing: 0.02em; }
+  .impact-barre { height: 6px; }
+  .impact-l:nth-child(n+3) { display: none; }
+  .chiffres .impact-l:nth-child(n+3) { display: grid; }
+}
+.impact-l.bon .impact-barre i { background: var(--bon); }
+.impact-l.prix .impact-barre i { background: var(--mauvais); }
+.impact .impact-l .impact-v { grid-column: 1 / -1; padding: 0; border: 0; font: 600 var(--t-1)/1.2 var(--texte, inherit); text-transform: none; letter-spacing: 0; }
+.impact .impact-l.bon .impact-v { color: var(--bon); }
+.impact .impact-l.prix .impact-v { color: var(--mauvais); }
 /* Le dessin au trait (`dessinHtml`) : ses aplats et ses traits de la couleur du genre. */
 .tc-dessin { height: auto; overflow: visible; }
 .tc-dessin .a { fill: var(--tc-accent); stroke: none; opacity: 0.9; }

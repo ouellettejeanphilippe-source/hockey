@@ -170,8 +170,59 @@ function pliDeFace(lus) {
   for (const m of face) if (tete.length < FACE_MAX && (m.bon === null || m.bon === undefined || !tete.some(x => x.bon === m.bon))) tete.push(m);
   return m => !!m.chiffre || (!m.duree && !tete.includes(m));
 }
-/** La face d'une carte, en puces : au plus FACE_MAX en mots, le reste plié sous « Les chiffres ». */
-export const pucesDeFace = mots => { const lus = enMotsEtChiffres(mots || []); return puces(lus, pliDeFace(lus)); };
+/*
+ * L'IMPACT EN BARRES (oct. 2026). JP : *possible de montrer plus visuellement les impacts des cartes, genre graphique, ou
+ * hexagone à la FIFA ?* Une carte change des stats de match par rapport à ton club sans elle : c'est un écart à une base,
+ * donc une barre qui part du centre — à droite si ça t'aide, à gauche si ça te nuit, verte ou rouge, sa longueur à la
+ * taille de l'écart (`ECHELLE_IMPACT` : la barre pleine). Le mot de la stat la nomme ; son chiffre exact paraît avec
+ * « Les chiffres ». Seules les lignes sans condition deviennent des barres ; « Si tu mènes : … » reste une puce.
+ */
+const BARRES = {
+  tir: ['Tirs', 2], 'tir accordé': ['Tirs contre', 2], pctTir: ['Précision', 2], pctArr: ['Arrêts', 2],
+  punition: ['Punitions', 1], coup: ['Mises en échec', 5], blessure: ['Blessures', 4], jambes: ['Usure', 3],
+};
+const valeurDuChiffre = t => { const m = String(t).match(/^≈ ([+−])(\d+(?:,\d+)?)/); return m ? (m[1] === '−' ? -1 : 1) * parseFloat(m[2].replace(',', '.')) : null; };
+/*
+ * Hors d'une saison (pas de club pour lire le moteur), une carte se dit en canaux : « Tirs +23 % ». Ce sont aussi des
+ * écarts : la barre pleine y vaut `PLEIN_CANAL` %. La précision adverse est le % d'arrêts vu de l'autre côté.
+ */
+const PLEIN_CANAL = 25;
+const CANAL_DU_MOT = { Tirs: ['tir', 1], 'Précision': ['pctTir', 1], 'Précision adverse': ['pctArr', -1], Punitions: ['punition', 1], Blessures: ['blessure', 1], 'Usure des jambes': ['jambes', 1] };
+function lireBarre(m) {
+  if (m.chiffre && !/, (?=≈ )/.test(m.txt)) {
+    const v = valeurDuChiffre(m.txt), cle = m.cle && BARRES[m.cle] ? m.cle : cleDuTexte(m.txt);
+    return v != null && BARRES[cle] ? { cle, v, plein: BARRES[cle][1], txt: m.txt.replace(/^≈ /, '') } : null;
+  }
+  const c = !m.enMots && String(m.txt || '').match(/^(Tirs|Précision adverse|Précision|Punitions|Blessures|Usure des jambes) ([+−])(\d+) %$/);
+  if (!c) return null;
+  const [cle, sens] = CANAL_DU_MOT[c[1]];
+  return { cle, v: sens * (c[2] === '−' ? -1 : 1) * Number(c[3]), plein: PLEIN_CANAL, txt: sens < 0 ? m.txt : `${c[2]}${c[3]} %` };
+}
+function barresDe(lus) {
+  const par = new Map(), pris = new Set();
+  for (const m of lus) {
+    const l = lireBarre(m);
+    if (!l) continue;
+    const b = par.get(l.cle) || { cle: l.cle, v: 0, plein: l.plein, txt: [], bon: m.bon };
+    b.v += l.v; b.txt.push(l.txt); par.set(l.cle, b); pris.add(m);
+  }
+  // Le plus gros effet d'abord : une carte étroite (la main du duel) n'en montre que deux, le reste avec « Les chiffres ».
+  const part = b => Math.abs(b.v) / b.plein;
+  return { barres: [...par.values()].sort((a, b) => part(b) - part(a)), pris };
+}
+const barresHtml = barres => (barres.length ? `<span class="impact" role="img" aria-label="${esc(barres.map(b => `${BARRES[b.cle][0]} ${b.txt.join(', ')}`).join(' · '))}">${barres.map(b => {
+  const part = Math.max(0.06, Math.min(1, Math.abs(b.v) / b.plein)), sens = b.bon === true ? 'bon' : b.bon === false ? 'prix' : 'neutre';
+  // À droite ce qui t'aide, à gauche ce qui te nuit ; sans sens (les punitions, les mises en échec), le signe décide.
+  const droite = b.bon === true || (b.bon == null && b.v > 0);
+  return `<span class="impact-l ${sens}"><span class="impact-k">${BARRES[b.cle][0]}</span><span class="impact-barre"><i class="${droite ? 'd' : 'g'}" style="--part:${(part * 100).toFixed(0)}%"></i></span><span class="impact-v puce detail">${esc(b.txt.join(', '))}</span></span>`;
+}).join('')}</span>` : '');
+/** La face d'une carte : ses stats en barres, le reste en puces — au plus FACE_MAX en mots, le reste plié sous « Les chiffres ». */
+export const pucesDeFace = mots => {
+  const lus = enMotsEtChiffres(mots || []), { barres, pris } = barresDe(lus);
+  // Le mot d'une stat dite en barre (« Tu tires plus ») ne se redit pas en puce.
+  const reste = lus.filter(m => !pris.has(m) && !(m.enMots && barres.some(b => b.cle === m.cle)));
+  return barresHtml(barres) + puces(reste, pliDeFace(reste));
+};
 let CHIFFRES_OUVERTS = null;
 export const chiffresOuverts = () => {
   if (CHIFFRES_OUVERTS === null) { try { CHIFFRES_OUVERTS = localStorage.getItem('cap82.chiffres') === '1'; } catch { CHIFFRES_OUVERTS = false; } }
