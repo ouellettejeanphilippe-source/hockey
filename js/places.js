@@ -14,59 +14,59 @@
 const usage = { vie: 'usage', cible: 'aucune' };
 export const PLACES_NEUVES = {
   // ---- neutres ----
-  semaineChargee: { nom: 'La semaine chargée', ico: '🗓', rarete: 'commune', ...usage, si: 'dosADos', duree: 8, effet: { energie: 0.85, finition: 1.05 },
+  semaineChargee: { nom: 'La semaine chargée', ico: '🗓', rarete: 'commune', ...usage, si: 'dosADos', duree: 8, effet: { energie: 0.85, finition: 1.05, volume: 0.96 },
     texte: 'Le calendrier sur le babillard, surligné en jaune.' },
-  vestiaireUni: { nom: 'Le vestiaire uni', ico: '🫂', rarete: 'commune', ...usage, si: 'apresDefaite', duree: 6, effet: { finition: 1.06, defense: 0.94 },
+  vestiaireUni: { nom: 'Le vestiaire uni', ico: '🫂', rarete: 'commune', ...usage, si: 'apresDefaite', duree: 6, effet: { finition: 1.06, defense: 0.94, volume: 0.95 },
     texte: 'Personne ne sort avant que tout le monde ait parlé.' },
-  soireeDesAnciens: { nom: 'La soirée des anciens', ico: '🎩', rarete: 'peu', ...usage, si: 'domicile', duree: 6, effet: { volume: 1.08, defense: 0.94 },
+  soireeDesAnciens: { nom: 'La soirée des anciens', ico: '🎩', rarete: 'peu', ...usage, si: 'domicile', duree: 6, effet: { volume: 1.08, defense: 0.94, finition: 0.97 },
     texte: 'Les anciens au premier rang. Personne ne veut avoir l\'air fou devant eux.' },
 
   // ---- 🐝 le Frelon : les tirs ----
-  centTirs: { nom: 'Cent tirs après la pratique', ico: '🏹', rarete: 'commune', ...usage, si: 'jambesFraiches', duree: 8, effet: { volume: 1.12 },
+  centTirs: { nom: 'Cent tirs après la pratique', ico: '🏹', rarete: 'commune', ...usage, si: 'jambesFraiches', duree: 8, effet: { volume: 1.12, energie: 1.06 },
     texte: 'Les jambes sont là : on en profite pour vider le seau.' },
-  retourFoule: { nom: 'Le retour devant la foule', ico: '🎺', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { volume: 1.15 },
+  retourFoule: { nom: 'Le retour devant la foule', ico: '🎺', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { volume: 1.15, discipline: 1.06 },
     texte: 'La fanfare joue à chaque tir au but. Alors on tire.' },
   sprintDeMars: { nom: 'Le sprint de mars', ico: '🏃', rarete: 'rare', ...usage, si: 'enFeu', duree: 8, effet: { volume: 1.22, energie: 1.06 },
     texte: 'Trois de suite : personne ne veut lever le pied.' },
 
   // ---- 🦅 l'Aigle : la précision ----
-  videoGardien: { nom: 'La vidéo de leur gardien', ico: '📽', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { finition: 1.45 },
+  videoGardien: { nom: 'La vidéo de leur gardien', ico: '📽', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { finition: 1.45, volume: 0.88 },
     texte: 'Il laisse toujours le haut du côté de la mitaine. Toujours.' },
-  coinPeint: { nom: 'Le coin du haut, peint', ico: '🪧', rarete: 'commune', ...usage, si: 'visiteur', duree: 6, effet: { finition: 1.12 },
+  coinPeint: { nom: 'Le coin du haut, peint', ico: '🪧', rarete: 'commune', ...usage, si: 'visiteur', duree: 6, effet: { finition: 1.12, volume: 0.94 },
     texte: 'Un carré orange dans le coin du filet de pratique, à chaque arrêt du voyage.' },
   batonsNeufs: { nom: 'Les bâtons neufs', ico: '🪵', rarete: 'peu', ...usage, si: 'apresDefaite', duree: 6, effet: { finition: 1.18, volume: 0.95 },
     texte: 'Une boîte de bâtons frais, et un nouveau départ.' },
 
   // ---- 🐢 la Tortue : la défense ----
-  systemeDeRoute: { nom: 'Le système de route', ico: '🗺', rarete: 'commune', ...usage, si: 'visiteur', duree: 6, effet: { defense: 0.88 },
+  systemeDeRoute: { nom: 'Le système de route', ico: '🗺', rarete: 'commune', ...usage, si: 'visiteur', duree: 6, effet: { defense: 0.88, volume: 0.93 },
     texte: 'Loin de chez soi, on joue simple : la bande, le centre, la bande.' },
   reunionDefenseurs: { nom: 'La réunion des défenseurs', ico: '🧷', rarete: 'peu', ...usage, si: 'apresDefaite', duree: 6, effet: { defense: 0.9, volume: 0.97 },
     texte: 'Six défenseurs, un tableau, et la porte fermée.' },
-  murDuDimanche: { nom: 'Le mur du dimanche', ico: '⛓', rarete: 'peu', ...usage, si: 'dosADos', duree: 8, effet: { defense: 0.88 },
+  murDuDimanche: { nom: 'Le mur du dimanche', ico: '⛓', rarete: 'peu', ...usage, si: 'dosADos', duree: 8, effet: { defense: 0.88, volume: 0.93 },
     texte: 'Le deuxième soir, les jambes partent ; la structure, elle, reste.' },
 
   // ---- 🦏 le Rhino : la robustesse ----
-  gymSousSol: { nom: 'Le gym du sous-sol', ico: '🏋', rarete: 'commune', ...usage, si: 'jambesFraiches', duree: 8, effet: { robustesse: 1 },
+  gymSousSol: { nom: 'Le gym du sous-sol', ico: '🏋', rarete: 'commune', ...usage, si: 'jambesFraiches', duree: 8, effet: { robustesse: 1, energie: 1.05 },
     texte: 'Des poids rouillés et une radio qui ne capte qu\'une station.' },
-  soupeAuxPois: { nom: 'La soupe aux pois', ico: '🍲', rarete: 'peu', ...usage, si: 'rival', duree: 10, effet: { robustesse: 1.2 },
+  soupeAuxPois: { nom: 'La soupe aux pois', ico: '🍲', rarete: 'peu', ...usage, si: 'rival', duree: 10, effet: { robustesse: 1.2, discipline: 1.1 },
     texte: 'La recette de la mère du capitaine. Ça colle aux côtes.' },
   pacteVestiaire: { nom: 'Le pacte du vestiaire', ico: '🦴', rarete: 'rare', ...usage, si: 'beteNoire', duree: 20, effet: { robustesse: 1.6, discipline: 1.25 },
     texte: 'Ils nous ont battus deux fois. Chacun a signé la feuille sur le mur, et personne ne recule.' },
 
   // ---- 🫁 le Doc : les jambes et les blessures ----
-  tableMassage: { nom: 'La table de massage', ico: '🛏', rarete: 'commune', ...usage, si: 'dosADos', duree: 8, effet: { energie: 0.8 },
+  tableMassage: { nom: 'La table de massage', ico: '🛏', rarete: 'commune', ...usage, si: 'dosADos', duree: 8, effet: { energie: 0.8, robustesse: -0.3 },
     texte: 'Vingt minutes chacun, entre les deux matchs.' },
-  infirmiereDeGarde: { nom: 'L\'infirmière de garde', ico: '💉', rarete: 'peu', ...usage, si: 'infirmerie', duree: 8, effet: { blessure: 0.5, energie: 0.9 },
+  infirmiereDeGarde: { nom: 'L\'infirmière de garde', ico: '💉', rarete: 'peu', ...usage, si: 'infirmerie', duree: 8, effet: { blessure: 0.5, energie: 0.9, robustesse: -0.3 },
     texte: 'Elle dort à l\'aréna tant que l\'infirmerie déborde.' },
-  rideauxOpaques: { nom: 'Les rideaux opaques', ico: '😴', rarete: 'rare', ...usage, si: 'jambesLourdes', duree: 8, effet: { energie: 0.65, volume: 1.12 },
+  rideauxOpaques: { nom: 'Les rideaux opaques', ico: '😴', rarete: 'rare', ...usage, si: 'jambesLourdes', duree: 8, effet: { energie: 0.65, volume: 1.12, finition: 0.97 },
     texte: 'Douze heures de sommeil à l\'hôtel, et le téléphone dans le corridor.' },
 
   // ---- 😇 l'Abbé : les punitions ----
-  retraiteFermee: { nom: 'La retraite fermée', ico: '⛪', rarete: 'commune', ...usage, si: 'apresDefaite', duree: 6, effet: { discipline: 0.75 },
+  retraiteFermee: { nom: 'La retraite fermée', ico: '⛪', rarete: 'commune', ...usage, si: 'apresDefaite', duree: 6, effet: { discipline: 0.75, robustesse: -0.4 },
     texte: 'Une fin de semaine au monastère. On revient les mains calmes.' },
-  voeuSilence: { nom: 'Le vœu de silence', ico: '🤐', rarete: 'peu', ...usage, si: 'visiteur', duree: 6, effet: { discipline: 0.75, finition: 1.02 },
+  voeuSilence: { nom: 'Le vœu de silence', ico: '🤐', rarete: 'peu', ...usage, si: 'visiteur', duree: 6, effet: { discipline: 0.75, finition: 1.02, robustesse: -0.4 },
     texte: 'Pas un mot à leur banc, pas un mot à l\'arbitre.' },
-  arbitreASouper: { nom: 'L\'arbitre invité à souper', ico: '🍽', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { discipline: 0.65 },
+  arbitreASouper: { nom: 'L\'arbitre invité à souper', ico: '🍽', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { discipline: 0.65, robustesse: -0.5 },
     texte: 'Rien d\'illégal : un souper, des souvenirs, et un rival qui se fait siffler.' },
 
   // ---- 🪜 le Contremaître : les minutes vers le bas ----
@@ -78,11 +78,11 @@ export const PLACES_NEUVES = {
     texte: 'Des blessés partout : on rebâtit avec ce qui reste.' },
 
   // ---- 🌠 le Showman : les minutes vers le haut ----
-  microDuBanc: { nom: 'Le micro du banc', ico: '🎙', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { F: [1.25, 1.05, 0.9, 0.8], finition: 1.03 },
+  microDuBanc: { nom: 'Le micro du banc', ico: '🎙', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { F: [1.25, 1.05, 0.9, 0.8], finition: 1.03, energie: 1.03 },
     texte: 'La télé a branché le premier trio. Il joue pour la caméra.' },
   couvertureMagazine: { nom: 'La couverture du magazine', ico: '📸', rarete: 'commune', ...usage, si: 'enFeu', duree: 6, effet: { F: [1.3, 1.05, 0.9, 0.75] },
     texte: 'Trois de suite, et ta vedette fait la une. Elle veut rester là.' },
-  grandeScene: { nom: 'La grande scène', ico: '🎭', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.06 },
+  grandeScene: { nom: 'La grande scène', ico: '🎭', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.06, energie: 1.05 },
     texte: 'Contre un rival, les vedettes jouent la moitié du match.' },
 
   // ---- 🏦 le Comptable : les jetons, tout de suite ----

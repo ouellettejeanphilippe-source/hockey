@@ -14,47 +14,47 @@
  */
 export const PERSONNEL = {
   // ---- neutres : le départ en impose deux ----
-  per_gerantEquipement: { role: 'soins', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.95, finition: 1.02 },
+  per_gerantEquipement: { role: 'soins', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.95, finition: 1.02, volume: 0.98 },
     texte: 'Les chandails secs, les lacets neufs, le café prêt avant le deuxième match.' },
-  per_adjointPolyvalent: { role: 'attaque', nom: 'L\'adjoint polyvalent', ico: '🧩', rarete: 'commune', si: 'apresDefaite', effet: { finition: 1.03, defense: 0.97 },
+  per_adjointPolyvalent: { role: 'attaque', nom: 'L\'adjoint polyvalent', ico: '🧩', rarete: 'commune', si: 'apresDefaite', effet: { finition: 1.03, defense: 0.97, volume: 0.97 },
     texte: 'Il a déjà tout fait, et après une défaite, il sait quoi dire.' },
-  per_depisteurQuartier: { role: 'depistage', nom: 'Le dépisteur de quartier', ico: '🔦', rarete: 'commune', si: 'domicile', effet: { volume: 1.03, defense: 0.98 },
+  per_depisteurQuartier: { role: 'depistage', nom: 'Le dépisteur de quartier', ico: '🔦', rarete: 'commune', si: 'domicile', effet: { volume: 1.03, defense: 0.98, finition: 0.99 },
     texte: 'Il connaît chaque planche de la patinoire, et chaque partisan par son nom.' },
 
   // ---- 🐝 le Frelon ----
-  per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.08 },
+  per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.08, finition: 0.97 },
     texte: 'Chez nous, on l\'entend crier « Lance ! » de la passerelle de presse.' },
-  per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14 },
+  per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, energie: 1.06 },
     texte: 'Des départs arrêtés, encore et encore. Les jambes fraîches, ça fonce au filet.' },
 
   // ---- 🦅 l'Aigle ----
-  per_tirsDeRoute: { role: 'attaque', nom: 'Le maître des tirs de route', ico: '🧳', rarete: 'commune', si: 'visiteur', effet: { finition: 1.06 },
+  per_tirsDeRoute: { role: 'attaque', nom: 'Le maître des tirs de route', ico: '🧳', rarete: 'commune', si: 'visiteur', effet: { finition: 1.06, volume: 0.95 },
     texte: 'Il emporte son filet de pratique dans l\'autobus.' },
-  per_depisteurGardiens: { role: 'depistage', nom: 'Le dépisteur des gardiens', ico: '🔎', rarete: 'rare', si: 'rival', effet: { finition: 1.6 },
+  per_depisteurGardiens: { role: 'depistage', nom: 'Le dépisteur des gardiens', ico: '🔎', rarete: 'rare', si: 'rival', effet: { finition: 1.6, volume: 0.88 },
     texte: 'Il a vu chaque match de leur gardien depuis le junior.' },
 
   // ---- 🐢 la Tortue ----
-  per_gardienDuFort: { role: 'defense', nom: 'Le gardien du fort', ico: '🏯', rarete: 'peu', si: 'apresDefaite', effet: { defense: 0.9 },
+  per_gardienDuFort: { role: 'defense', nom: 'Le gardien du fort', ico: '🏯', rarete: 'peu', si: 'apresDefaite', effet: { defense: 0.9, volume: 0.93 },
     texte: 'Après une défaite, il reprend le système depuis le début.' },
-  per_gardiensDeRoute: { role: 'gardiens', nom: 'L\'entraîneur des gardiens de route', ico: '🧭', rarete: 'commune', si: 'visiteur', effet: { defense: 0.96 },
+  per_gardiensDeRoute: { role: 'gardiens', nom: 'L\'entraîneur des gardiens de route', ico: '🧭', rarete: 'commune', si: 'visiteur', effet: { defense: 0.96, volume: 0.97 },
     texte: 'Il arrive à l\'aréna deux heures avant tout le monde, et il mesure les filets.' },
 
   // ---- 🦏 le Rhino ----
-  per_preparateurCombat: { role: 'physique', nom: 'Le préparateur de combat', ico: '🥋', rarete: 'peu', si: 'rival', effet: { robustesse: 1 },
+  per_preparateurCombat: { role: 'physique', nom: 'Le préparateur de combat', ico: '🥋', rarete: 'peu', si: 'rival', effet: { robustesse: 1, discipline: 1.1 },
     texte: 'Contre un rival, il veut voir des chandails froissés.' },
   per_sergent: { role: 'chef', nom: 'Le sergent', ico: '🎖', rarete: 'rare', si: 'beteNoire', effet: { robustesse: 1.4, discipline: 1.3 },
     texte: 'Contre ta bête noire, personne ne recule. Pas même devant l\'arbitre.' },
 
   // ---- 🫁 le Doc ----
-  per_physioDeRoute: { role: 'soins', nom: 'Le physio de route', ico: '🩻', rarete: 'commune', si: 'visiteur', effet: { blessure: 0.7, energie: 0.92 },
+  per_physioDeRoute: { role: 'soins', nom: 'Le physio de route', ico: '🩻', rarete: 'commune', si: 'visiteur', effet: { blessure: 0.7, energie: 0.92, robustesse: -0.3 },
     texte: 'Sa table pliante voyage en soute, avec les bâtons.' },
-  per_nutritionniste: { role: 'physique', nom: 'Le nutritionniste', ico: '🥗', rarete: 'peu', si: 'dosADos', effet: { energie: 0.82 },
+  per_nutritionniste: { role: 'physique', nom: 'Le nutritionniste', ico: '🥗', rarete: 'peu', si: 'dosADos', effet: { energie: 0.82, robustesse: -0.2 },
     texte: 'Entre les deux matchs, des pâtes et pas de frites. Personne ne le remercie.' },
 
   // ---- 😇 l'Abbé ----
-  per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', si: 'apresDefaite', effet: { discipline: 0.75 },
+  per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', si: 'apresDefaite', effet: { discipline: 0.75, robustesse: -0.4 },
     texte: 'Après une défaite, il parle de patience. Les bâtons restent en bas.' },
-  per_ancienArbitre: { role: 'direction', nom: 'L\'ancien arbitre', ico: '🦓', rarete: 'rare', si: 'rival', effet: { discipline: 0.65 },
+  per_ancienArbitre: { role: 'direction', nom: 'L\'ancien arbitre', ico: '🦓', rarete: 'rare', si: 'rival', effet: { discipline: 0.65, robustesse: -0.5 },
     texte: 'Il connaît chaque arbitre de la ligue, et ce qui les fait siffler.' },
 
   // ---- 🪜 le Contremaître ----
@@ -64,9 +64,9 @@ export const PERSONNEL = {
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },
 
   // ---- 🌠 le Showman ----
-  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.15, 1.05, 0.95, 0.85], finition: 1.01 },
+  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.15, 1.05, 0.95, 0.85], finition: 1.01, energie: 1.04 },
     texte: 'Chez nous, ses clients jouent. Les caméras sont là.' },
-  per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.12 },
+  per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.12, energie: 1.08 },
     texte: 'En séries, il écrit le match pour ses vedettes.' },
 
   // ---- 🏦 le Comptable : l'argent, toute l'année ----
