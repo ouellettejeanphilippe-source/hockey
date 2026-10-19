@@ -19,7 +19,7 @@
  *      shard, donc rejouable hors ligne.
  */
 
-export const RATINGS_VERSION = 28;
+export const RATINGS_VERSION = 29;
 
 /** Plafond de référence du jeu (2025-26), en dollars. */
 const CAP_REF = 95_500_000;
@@ -606,32 +606,46 @@ export const ZONE_THRESHOLDS = {
  * de la fiche.
  */
 /*
- * L'ÉTIQUETTE DIT LE TRIO OU LA PAIRE. JP : *améliorer les tags Bottom 6 et
- * cie pour refléter au max les trios où un joueur jouerait ; Middle 6 veut
- * rien dire pour un défenseur*. `short`, sur la carte, est donc le rang des
- * unités où le joueur rend à 100 % (`idealUnits`) — « 2e-3e trio »,
- * « 1re-2e paire » — et `label`, sur la fiche, garde le mot du hockey devant.
- * Les unités et les seuils ne bougent pas : c'est le mot qui change.
+ * L'ÉTIQUETTE DIT LA FENÊTRE. Avant (JP : *Middle 6 veut rien dire pour un
+ * défenseur*), la carte disait le rang des unités, « 2e-3e trio » ; depuis le
+ * 19 oct., le mot du hockey de sa fenêtre (`nomDeFenetre`), qui dit un calibre :
+ * un défenseur « Top 4 », un attaquant « Bottom 6 ». Le défenseur garde ses
+ * mots à lui (Top 2, Top 4, Bottom 4, 3e paire).
  */
+/*
+ * LE NOM D'UNE FENÊTRE (19 oct.). JP : *est-ce que dire top 4, bottom 6, implique pas mieux le fait que c'est un déf
+ * de deuxième paire qui peut jouer sur la première mais est pas si bon, au lieu de P1-2* ; *même chose pour top 3,
+ * top 6, top 9, middle 6, bottom 9, bottom 6*. Le mot du hockey dit un calibre, pas deux cases : la fenêtre des
+ * unités où un joueur rend à 100 % porte le sien, partout (la carte, la fiche, la case, la zone montée d'un cran).
+ */
+const FENETRES = {
+  F: { '0': 'Top 3', '0,1': 'Top 6', '0,1,2': 'Top 9', '1': '2e trio', '1,2': 'Middle 6', '1,2,3': 'Bottom 9', '2': '3e trio', '2,3': 'Bottom 6', '3': '4e trio', '0,1,2,3': 'Partout' },
+  D: { '0': 'Top 2', '0,1': 'Top 4', '0,1,2': 'Partout', '1': '2e paire', '1,2': 'Bottom 4', '2': '3e paire' },
+};
+export const nomDeFenetre = (groupe, unites) => FENETRES[groupe === 'D' ? 'D' : 'F'][[...unites].sort((a, b) => a - b).join(',')] || '';
+const zone = (groupe, level, detail, idealUnits) => {
+  const nom = nomDeFenetre(groupe, idealUnits);
+  return { level, label: `${nom} · ${detail}`, short: nom, mini: nom, idealUnits };
+};
 /* Les zones des vedettes (cote 78+, 80+ pour un gardien) : une seule unité idéale.
    `getLineZone` les rend, et les étiquettes des cases (js/sim.js) les lisent (1.0 · J1-K). */
 export const ZONES_ETOILE = {
-  F: { level: 1, label: 'Top 3 · 1er trio', short: '1er trio', mini: 'T1', idealUnits: [0] },
-  D: { level: 1, label: 'Top 2 · 1re paire', short: '1re paire', mini: 'P1', idealUnits: [0] },
+  F: zone('F', 1, '1er trio', [0]),
+  D: zone('D', 1, '1re paire', [0]),
   G: { level: 1, label: 'Partant numéro un', short: 'Partant no 1', mini: 'no 1', idealUnits: [0] },
 };
 export const LINE_ZONES = {
   F: [
-    { level: 1, label: 'Top 6 · 1er ou 2e trio',     short: '1er-2e trio', mini: 'T1-2', idealUnits: [0, 1] },
-    { level: 2, label: 'Middle 6 · 2e ou 3e trio',   short: '2e-3e trio',  mini: 'T2-3', idealUnits: [1, 2] },
-    { level: 3, label: 'Bottom 6 · 3e ou 4e trio',   short: '3e-4e trio',  mini: 'T3-4', idealUnits: [2, 3] },
-    { level: 4, label: 'Profondeur · 4e trio',       short: '4e trio',     mini: 'T4',   idealUnits: [3] },
+    zone('F', 1, '1er ou 2e trio', [0, 1]),
+    zone('F', 2, '2e ou 3e trio', [1, 2]),
+    zone('F', 3, '3e ou 4e trio', [2, 3]),
+    zone('F', 4, 'la profondeur', [3]),
   ],
   D: [
-    { level: 1, label: 'Top 4 · 1re ou 2e paire',    short: '1re-2e paire', mini: 'P1-2', idealUnits: [0, 1] },
-    { level: 2, label: '2e paire, tient la 3e',      short: '2e paire',     mini: 'P2',   idealUnits: [1, 2] },
-    { level: 3, label: '3e paire, peut tenir la 2e', short: '3e paire',     mini: 'P3',   idealUnits: [1, 2] },
-    { level: 4, label: 'Profondeur · 3e paire',      short: 'Profondeur D', mini: 'P4',   idealUnits: [2] },
+    zone('D', 1, '1re ou 2e paire', [0, 1]),
+    zone('D', 2, '2e paire, tient la 3e', [1, 2]),
+    zone('D', 3, '3e paire, peut tenir la 2e', [1, 2]),
+    zone('D', 4, 'la profondeur', [2]),
   ],
   G: [
     { level: 1, label: "Partant numéro un", short: 'Partant no 1', mini: 'no 1',  idealUnits: [0] },
@@ -646,15 +660,80 @@ function zoneLevelFor(pos, v) {
   return t.length + 1;
 }
 
+/*
+ * LA ZONE DU VRAI TEMPS DE GLACE (RATINGS_VERSION 29). JP : *je veux pas changer les cotes, je veux changer les trios
+ * où le joueur peut jouer selon le irl* ; *si un gars a fait 80 points sur la quatrième ligne, il est un joueur de
+ * 3e-4e trio* ; *je suis à la chasse des meilleurs joueurs qui ont joué dans une position x*. Depuis 1997-98, l'API
+ * donne le temps de glace par match (`toi`) : chaque patineur prend son rang chez SON club (une entrée par club où il a
+ * passé), parmi les réguliers du club à son poste (25 matchs et plus), et son rang dit sa zone. Les quatre premiers
+ * attaquants : le 1er-2e trio ; du 5e au 8e : le 2e-3e ; du 9e au 11e : le 3e-4e ; les autres, le 4e. Les deux premiers
+ * défenseurs : la 1re-2e paire ; puis deux par zone. Un 78 et plus dans les trois premiers attaquants (les deux
+ * premiers défenseurs) a la zone de la vedette. La cote ne bouge pas : seule la place où il rend à 100 % suit la
+ * glace. Les gardiens gardent la zone de leur cote (`zoneLevelFor`).
+ * Mesuré sur 1997-98 à 2025-26 : Gourde 2017-18 (64 points, 9e attaquant de Tampa), van Riemsdyk 2016-17 (62, 9e de
+ * Toronto) sortent au 3e-4e trio, où ils étaient.
+ *
+ * AVANT 1997-98 (JP : *pour les zones pré temps de glace, essaie de faire que les % matchent avec avant*), sans temps
+ * de glace, le même rang chez son club, les mêmes paliers — donc les mêmes parts de chaque zone —, sur ce qui annonce
+ * le mieux le temps de glace parmi les colonnes de toutes les époques : les points, les tirs et les points en
+ * désavantage par match, et les matchs joués (`usageSansGlace`). Mesuré sur les saisons qui ont la réponse (1997-98 à
+ * 2025-26) : la vraie zone 67,5 % du temps chez les attaquants (95,5 % à un cran près), 60,8 % chez les défenseurs
+ * (92,6 %). Les sous-cotes et la cote globale sont écartées : depuis 1997-98, le temps de glace entre dans la défense.
+ */
+const RANGS_DE_ZONE = { F: [4, 8, 11], D: [2, 4, 6] };
+const RANG_ETOILE = { F: 3, D: 2 };
+const MATCHS_REGULIER = 25;
+const COTE_ETOILE = { F: 78, D: 78, G: 80 };
+const parMatch = (e, k) => (e[k] || 0) / Math.max(1, e.gp || 0);
+const usageSansGlace = (e, matchs) => parMatch(e, 'pt') + parMatch(e, 'sh') / 10 + 2 * parMatch(e, 'shp') + (e.gp || 0) / matchs;
+/*
+ * LES DÉFENSEURS DES DEUX CÔTÉS (19 oct.). JP : *avoir plus de défenseurs avec les deux côtés*. Une vraie paire a un
+ * gaucher et un droitier : un club dont le top 6 (les six réguliers les plus utilisés) comptait quatre gauchers en a
+ * fait jouer un à droite, celui qui jouait le moins des quatre. Ce surplus, d'un côté ou de l'autre, joue les deux
+ * côtés sans pénalité (`dc`, lu par `getPositionPenalty`, js/sim.js). Mesuré : 1,1 par club en moyenne, sur toutes les
+ * saisons ; rien n'est inventé, il fallait bien que quelqu'un joue là.
+ */
+const PAIRES_DU_TOP = 3;
+function deuxCotes(club, usage) {
+  const top = club.filter(e => (e.gp || 0) >= MATCHS_REGULIER).sort((a, b) => usage(b) - usage(a)).slice(0, 2 * PAIRES_DU_TOP);
+  for (const cote of ['LD', 'RD']) for (const e of top.filter(x => x.np === cote).slice(PAIRES_DU_TOP)) e.dc = 1;
+}
+function zonesDuDeploiement(entries) {
+  const glace = entries.some(e => e.toi > 0);
+  const matchs = Math.max(1, ...entries.map(e => e.gp || 0));
+  const usage = e => (glace ? e.toi : usageSansGlace(e, matchs));
+  const parClub = new Map();
+  for (const e of entries) {
+    if (e.p === 'G' || (glace && !(e.toi > 0))) continue;
+    const k = `${e.t}|${e.p === 'D' ? 'D' : 'F'}`;
+    if (!parClub.has(k)) parClub.set(k, []);
+    parClub.get(k).push(e);
+  }
+  for (const [k, club] of parClub) {
+    const pos = k.endsWith('|D') ? 'D' : 'F';
+    const reguliers = club.filter(e => (e.gp || 0) >= MATCHS_REGULIER).map(usage);
+    for (const e of club) {
+      const u = usage(e), rang = 1 + reguliers.filter(t => t > u).length;
+      const bornes = RANGS_DE_ZONE[pos];
+      const niveau = 1 + bornes.filter(b => rang > b).length;
+      e.zd = niveau === 1 && rang <= RANG_ETOILE[pos] && (e.v ?? 0) >= COTE_ETOILE[pos] ? 0 : niveau;
+      e.lz = niveau;
+    }
+    if (pos === 'D') deuxCotes(club, usage);
+  }
+  return entries;
+}
+
 /**
- * Zone de trio d'un joueur. Lit p.lz (posé par finalizeSeason) ; sinon
- * déduit de la cote globale passée en `v` (getHiddenRatings(p).v).
+ * Zone de trio d'un joueur : celle de son usage chez son club (`p.zd`, posé au build) ; sinon (un gardien, un shard
+ * d'avant RATINGS_VERSION 29) déduite de la cote globale passée en `v` (getHiddenRatings(p).v).
  */
 
 export function getLineZone(p, v = null) {
   if (!p) return LINE_ZONES.F[0];
   const isD = p.p === 'D' || p.p === 'LD' || p.p === 'RD';
   const pos = p.p === 'G' ? 'G' : isD ? 'D' : 'F';
+  if (pos !== 'G' && p.zd != null) return p.zd === 0 ? { ...ZONES_ETOILE[pos], idealUnits: [0] } : LINE_ZONES[pos][Math.min(LINE_ZONES[pos].length, p.zd) - 1];
   const ovr = v ?? (p && p.v);
 
   const rating = ovr ?? 50;
@@ -1379,7 +1458,7 @@ function collapseByTeam(entries) {
     const key = e.id != null ? `id:${e.id}` : `n:${e.n}|${e.p}`;
     let rec = byKey.get(key);
     if (!rec) {
-      const { t, s, x, ...base } = e;
+      const { t, s, x, zd, dc, ...base } = e;
       rec = { ...base, teams: [] };
       byKey.set(key, rec);
     }
@@ -1399,7 +1478,7 @@ export function buildSeasonShard(label, skaterRows, goalieRows, realtimeById, mi
   // saison (team/powerplay), quand l'API les donne. `build_lancers.mjs` en
   // tire les deux derniers nombres d'époque de SEASON_LANCERS.
   const an = opts.avantages && Object.keys(opts.avantages).length ? { an: opts.avantages } : {};
-  return { season: label, minGP, v: RATINGS_VERSION, ...an, players: expandByTeam(players, label) };
+  return { season: label, minGP, v: RATINGS_VERSION, ...an, players: zonesDuDeploiement(expandByTeam(players, label)) };
 }
 
 /**
@@ -1409,5 +1488,5 @@ export function buildSeasonShard(label, skaterRows, goalieRows, realtimeById, mi
  */
 export function rerateShard(shard, opts = {}) {
   const players = finalizeSeason(collapseByTeam(shard.players), shard.season, opts);
-  return { season: shard.season, minGP: shard.minGP, v: RATINGS_VERSION, ...(shard.an ? { an: shard.an } : {}), players: expandByTeam(players, shard.season) };
+  return { season: shard.season, minGP: shard.minGP, v: RATINGS_VERSION, ...(shard.an ? { an: shard.an } : {}), players: zonesDuDeploiement(expandByTeam(players, shard.season)) };
 }
