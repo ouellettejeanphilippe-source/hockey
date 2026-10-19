@@ -51,12 +51,13 @@ import {
   ecoleDe,
 } from '../js/sim.js';
 import { SEASON_LANCERS } from '../js/ratings.js';
-import { equipeReelle } from './lib/vestiaires.mjs';
+import { equipeReelle, saisonFinie } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
-const saisons = fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort();
+// Les saisons finies seulement : la saison en cours n'aligne aucune vraie équipe, et la tirer déplacerait les dés des autres.
+const saisons = fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort().filter(f => saisonFinie(f.replace(/\.json$/, '')));
 const LIGUES = Number(process.env.LIGUES ?? 4);
 const GRAINE = process.env.GRAINE ?? 'parts';
 

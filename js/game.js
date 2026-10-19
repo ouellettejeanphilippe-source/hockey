@@ -1666,8 +1666,11 @@ const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
  */
 /* Un volet de l'écran de saison, ou que l'écran rouvrira : derrière le banc, il est fermé, et toucher le volet l'y ramène. */
 const voletDeSaison = v => !!voletPour(v) || !!(G.banc && !G.banc.serie && G.bonus === 'ROGUE');
+/* V12 (docs/refonte-v12.md) : les maisons de la boîte, chacune un sous-onglet de sa section, un usage chacune. */
+const MAISONS_DE = { bureau: ['proprio', 'route', 'presse', 'vestiaire'], effectif: ['infirmerie'], marche: ['butin'] };
+const maisonsDe = sec => (G.bonus === 'ROGUE' ? MAISONS_DE[sec].filter(voletDeSaison) : []);
 const PAGES_DE = {
-  bureau: () => ['match'],
+  bureau: () => ['match', ...maisonsDe('bureau')],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
   // Tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun. La main se
@@ -1675,8 +1678,8 @@ const PAGES_DE = {
   cartes: () => ['poche', 'marche', 'cartable'],
   // V8, le Rogue : « Ce soir » (le volet de l'écran de saison, puis les Lignes), l'Effectif, le Marché.
   soir: () => [...(voletDeSaison('soir') ? ['soir'] : []), 'alignement'],
-  effectif: () => ['joueurs'],
-  marche: () => ['marche', 'poche', 'cartable'],
+  effectif: () => ['joueurs', ...maisonsDe('effectif')],
+  marche: () => ['marche', 'poche', ...maisonsDe('marche'), 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
@@ -1685,7 +1688,11 @@ const PAGE = {
   match: ['i-club', 'Match'], soir: ['i-list', 'Ce soir'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
+  proprio: ['i-club', 'Proprio'], route: ['i-cal', 'Route'], presse: ['i-list', 'Presse'], vestiaire: ['i-jersey', 'Vestiaire'],
+  infirmerie: ['i-jersey', 'Infirmerie'], butin: ['i-cartes', 'Butin'],
 };
+/* En Rogue, le Bureau s'ouvre sur la boîte (V12) : ses sous-onglets en sont les maisons. */
+const motDePage = p => (p === 'match' && G.bonus === 'ROGUE' ? 'Boîte' : PAGE[p][1]);
 const ALIAS_PAGE = { bilan: 'match', series: 'match', stats: 'meneurs', ligue: 'classement', jambes: 'joueurs' };
 /* Les sections du bilan que montre chaque page. */
 const VOLETS_DU_BILAN = {
@@ -1766,10 +1773,12 @@ function majSousNav(cle, sec) {
   if (!sous) return;
   const pages = PAGES_DE[sec]();
   sous.hidden = pages.length < 2;
-  const sig = sous.hidden ? '' : pages.join('|');
+  // Un sous-onglet de la boîte compte ce qui y attend (V12).
+  const h = hubActif(), n = p => (h && h.aRegler ? h.aRegler(p) : 0);
+  const sig = sous.hidden ? '' : pages.map(p => `${p}:${n(p)}`).join('|');
   if (sous.dataset.sig !== sig) {
     sous.dataset.sig = sig;
-    sous.innerHTML = sous.hidden ? '' : pages.map(p => `<button type="button" class="soustab" role="tab" data-page="${p}" aria-selected="false">${esc(PAGE[p][1])}</button>`).join('');
+    sous.innerHTML = sous.hidden ? '' : pages.map(p => `<button type="button" class="soustab" role="tab" data-page="${p}" aria-selected="false">${esc(motDePage(p))}${n(p) ? ` <span>${n(p)}</span>` : ''}</button>`).join('');
     sous.querySelectorAll('.soustab').forEach(b => { b.onclick = () => { jouerSon('valide'); montrerPage(b.dataset.page); }; });
   }
   sous.querySelectorAll('.soustab').forEach(b => {
@@ -1779,11 +1788,12 @@ function majSousNav(cle, sec) {
   });
 }
 
-/* Toucher une section rouvre la page qu'on y lisait, sinon sa première. */
+/* Toucher une section rouvre la page qu'on y lisait, sinon sa première. Le Bureau rouvre toujours sur la boîte (V12) : ses
+   sous-onglets sont les maisons où elle renvoie. */
 function ouvrirSection(sec) {
   const pages = PAGES_DE[sec]();
   jouerSon('valide');
-  montrerPage(pages.includes(dernierePage[sec]) ? dernierePage[sec] : pages[0]);
+  montrerPage(sec !== 'bureau' && pages.includes(dernierePage[sec]) ? dernierePage[sec] : pages[0]);
 }
 
 /*
@@ -2232,6 +2242,7 @@ export function montrerPage(cle) {
  * courante se recalcule (le bilan, ou l'état vide).
  */
 surCoquille(ev => {
+  if (ev.type === 'compte') { if (G.page) majSousNav(G.page, sectionDe(G.page)); return; }
   if (ev.type === 'vue') {
     // L'écran de saison se rouvre derrière le Marché (un achat, une carte jouée) : la boutique reste à l'écran, le Club n'apparaît pas.
     if (marcheOuvert) { marquerPage(marcheOuvert); return; }

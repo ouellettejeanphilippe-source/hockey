@@ -98,12 +98,15 @@ async function regler(max = 40) {
     }
     if (e.sommaire) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
     // À FAIRE (V9) : le choix ouvert prend sa première option ; un pack qui attend sa signature rend la main à l'essai.
-    const ouv = await page.$('#hubModal .hub-msg.ouvert.bloque');
+    // V12 : le choix vit dans le sous-onglet de sa maison (docs/refonte-v12.md).
+    const ouv = await page.$('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque:not(.pret)');
     if (ouv && await ouv.isVisible()) {
       if (await ouv.evaluate(x => x.dataset.msg) === 'pack') return 'pack';
       const o = await ouv.$('.af-option:not([disabled]):not(.on)'); if (o) { await o.click(); await page.waitForTimeout(500); continue; }
       return 'coince-boite';
     }
+    // Un sous-onglet sans rien qui presse : le Bureau rend la boîte et son « Trancher ».
+    if (await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet')].some(x => x.checkVisibility()))) { await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue; }
     if (e.trancher) { await page.click('#hubModal .hub-trancher'); await page.waitForTimeout(1500); continue; }
     if (e.traiter) { await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400); continue; }
     return 'ok';
@@ -194,7 +197,7 @@ for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
     await club(); const r = await regler(); log('   plus tard, boîte :', r);
     if (r === 'pack') {
       // Le pack attend dans À faire (V9) : son option « Signer un joueur › » rouvre l'offre.
-      const rouvrir = await page.$('#hubModal .hub-msg[data-msg="pack"] .af-option[data-choix="signer"]'); if (rouvrir && await rouvrir.isVisible()) await rouvrir.click();
+      const rouvrir = await page.$('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg[data-msg="pack"] .af-option[data-choix="signer"]'); if (rouvrir && await rouvrir.isVisible()) await rouvrir.click();
       await page.waitForTimeout(1500);
     }
     else { log('   ⚠ pas de message de pack après « Plus tard »'); pb++; continue; }

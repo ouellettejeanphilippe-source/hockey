@@ -840,8 +840,8 @@ input[type="range"] { accent-color: var(--or); }
 .puce.neutre { color: var(--encre-2); }
 .puce.duree { color: var(--encre-3); }
 /* Un chiffre à la fois (V3) : les chiffres de trop se plient ; « Les chiffres » les déplie pour tout le choix. */
-:is(.choix-sheet, .hub-boite):not(.chiffres) .puce.detail { display: none; }
-:is(.choix-sheet, .hub-boite).chiffres .puce.en-mots { display: none; }
+:is(.choix-sheet, .hub-boite, .af-onglet):not(.chiffres) .puce.detail { display: none; }
+:is(.choix-sheet, .hub-boite, .af-onglet).chiffres .puce.en-mots { display: none; }
 .pm-pos { color: var(--bon); font-weight: 800; }
 .pm-neg { color: var(--mauvais); font-weight: 800; }
 /* Le niveau (Soutien → Phénomène) : la seule capsule pleine, parce qu'elle est un rang. */
@@ -2858,7 +2858,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
   /* « À régler » amène le choix au-dessus de la barre collée, ses options comprises (V7 : À faire vit au Bureau). */
-  body.hub-docke .hub-sheet .hub-msg { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
+  body.hub-docke .hub-sheet :is(.hub-msg, .af-onglet .af-option) { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
@@ -3111,29 +3111,33 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hub-msg-de { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .hub-msg-sujet { font-size: var(--t-3); line-height: 1.25; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.hub-msg.ouvert .hub-msg-sujet { -webkit-line-clamp: unset; }
 .hub-msg-etat { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 .hub-msg.bloque .hub-msg-etat { color: var(--mauvais); }
 /* Coché, il attend « Trancher » : son option se lit dans sa bande. */
 .hub-msg.pret { border-color: var(--or); border-radius: var(--r-1); }
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); transition: transform var(--t-vite); }
-.hub-msg.ouvert .hub-msg-tete::after { transform: rotate(90deg); }
-/* L'ENVELOPPE OUVERTE (docs/ecrans-rogue.md, E4) : une feuille par-dessus le Bureau, entre l'en-tête et les onglets, sur un
-   voile ; sa tête et son pied restent collés pendant qu'on lit ses options. */
-.hub-msg-corps { display: none; flex-direction: column; gap: var(--esp-3); }
-.hub-msg.ouvert .hub-msg-corps {
-  position: fixed; z-index: 81; left: var(--rail-w); right: 0; bottom: var(--bas-coquille); max-width: 640px; margin: 0 auto;
-  max-height: calc(100dvh - var(--topbar-h) - var(--bas-coquille) - var(--esp-6)); overflow-y: auto; overscroll-behavior: contain;
-  display: flex; padding: 0 var(--esp-4); border: 1px solid var(--filet); border-bottom: 0; border-radius: var(--r-2) var(--r-2) 0 0;
-  background: var(--fond-1); box-shadow: var(--ombre); animation: feuille-entre 380ms var(--e-ressort);
-}
-.af-voile { position: fixed; z-index: 80; left: var(--rail-w); right: 0; top: var(--topbar-h); bottom: var(--bas-coquille); background: color-mix(in srgb, var(--noir) 72%, transparent); }
-.af-feuille-tete { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: var(--esp-3); margin: 0 calc(-1 * var(--esp-4)); padding: var(--esp-3) var(--esp-4); border-bottom: 1px solid var(--filet); background: var(--fond-1); }
+.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); }
+/* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous le sous-onglet où elles se règlent ; la
+   tête de la maison, comme chaque ligne, l'ouvre. Le gros match et la signature (`.ici`) montrent leur porte sur place. */
+.af-maison + .af-maison { margin-top: var(--esp-3); }
+.af-maison-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); border: 0; background: none; color: var(--encre-2); text-align: left; }
+.af-maison-ico { flex: none; font-size: var(--t-3); }
+.af-maison-titre { flex: 1; min-width: 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
+.af-maison-compte { flex: none; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
+.af-maison-tete::after { content: "›"; flex: none; font: 800 var(--t-3)/1 var(--display); color: var(--encre-3); }
+.af-maison.ici .af-maison-tete::after { content: none; }
+/* LE SOUS-ONGLET D'UNE MAISON : sa tête, puis chacun de ses choix en entier, l'un sous l'autre — la voix, le sujet, son
+   état, puis le corps ; « Trancher » au bas quand le lot est prêt. */
+.af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
+.af-onglet-tete { display: flex; align-items: center; gap: var(--esp-3); }
+.af-onglet-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.af-onglet-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; color: var(--encre); }
+.af-onglet-txt span { font-size: var(--t-2); color: var(--encre-2); }
+.af-onglet .af-trancher { min-height: 44px; }
+.hub-msg-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
+.af-maison .af-page-msg + .af-page-msg { margin-top: var(--esp-3); }
+.af-page-tete { display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-3) var(--esp-3) 0; }
 .af-feuille-sujet { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; color: var(--encre); }
-.af-feuille-pied { position: sticky; bottom: 0; z-index: 2; display: flex; flex-wrap: wrap; gap: var(--esp-2); margin: auto calc(-1 * var(--esp-4)) 0; padding: var(--esp-3) var(--esp-4) calc(var(--esp-3) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
-.af-feuille-pied .btn { flex: 1 1 140px; min-width: 0; }
-.af-suivant > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .hub-msg-replique { font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hub-msg-mot, .hub-msg-note { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 /* LA SCÈNE (Jalon M) : la voix qui demande, sa réplique entre guillemets, le fait dessous — un filet d'or à gauche. */

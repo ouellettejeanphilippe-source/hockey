@@ -30,11 +30,13 @@ import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { conseilDuBilan } from '../js/recit.js';
 import { fragiliteDe, FRAGILE_DES } from '../js/sim.js';
 import { seasonGames } from '../js/ratings.js';
+import { saisonFinie } from './lib/vestiaires.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS = path.join(ROOT, 'data', 'seasons');
 const saisons = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'index.json'), 'utf8'));
-const liste = Array.isArray(saisons) ? saisons : (saisons.seasons || saisons.saisons);
+// Les saisons finies seulement : celle en cours n'a que deux ou trois joueurs par club, ses fiches ne se reconstituent pas.
+const liste = (Array.isArray(saisons) ? saisons : (saisons.seasons || saisons.saisons)).filter(saisonFinie);
 
 /*
  * TROIS FICHES QUE TOUT LE MONDE CONNAÎT. Elles viennent du palmarès de la
