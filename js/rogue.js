@@ -34,6 +34,7 @@ import { VOIES } from './coachs.js';
 import { filsDeSaison } from './recit.js';
 import { EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PACKS_TOUS, BOUTIQUE } from './packs.js';
+import { ETOILE } from './niveaux.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -184,10 +185,12 @@ export const ESPACE_DE_DEPART = 4_000_000;
  * LE DÉPART DU CLASSEUR (S80) : combien de cartes, et comment elles se
  * prennent. `hasard` : elles sont tirées, on les voit, on les prend ;
  * `tri` : deux fois plus sont tirées, on garde celles qu'on veut ; `choix` :
- * tout le classeur, on choisit.
+ * tout le classeur, on choisit. Ton joueur de concession (`vedettesDeConcession`) prend la première place : il
+ * est ta carte de départ, et les pages du classeur en ajoutent (mesuré : en plus d'elle, l'attentif gagnait sa
+ * première Coupe dès la run 2 — `check_profondeur`).
  */
 export function departDuClasseur(m, exigence = 0) {
-  const n = Math.max(0, 1 + ['classeur1', 'classeur2', 'classeur3'].filter(k => aDebloque(m, k)).length + exigencesDe(exigence).classeur);
+  const n = Math.max(0, 1 + ['classeur1', 'classeur2', 'classeur3'].filter(k => aDebloque(m, k)).length + exigencesDe(exigence).classeur - (m.vedette ? 1 : 0));
   const mode = aDebloque(m, 'classeurChoix') ? 'choix' : aDebloque(m, 'classeurTri') ? 'tri' : 'hasard';
   return { n, mode, vues: mode === 'tri' ? n * 2 : n };
 }
@@ -198,7 +201,7 @@ export function departDuClasseur(m, exigence = 0) {
  */
 const LOTOS_DE_SAISON = 3, CARTES_PAR_LOTO = 3, CARTES_PAR_LOTO_TRI = 5;
 export function lotosDeSaison(m, exigence = 0) {
-  const D = departDuClasseur(m, exigence);
+  const D = departDuClasseur({ ...m, vedette: null }, exigence);
   return { n: D.n - 1 + LOTOS_DE_SAISON, mode: D.mode, vues: D.mode === 'tri' ? CARTES_PAR_LOTO_TRI : CARTES_PAR_LOTO };
 }
 /*
@@ -212,6 +215,61 @@ export function lotosDeSaison(m, exigence = 0) {
  */
 const RESERVE_PLOMBIERS = 53_000_000;
 export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESPACE_DE_DEPART - RESERVE_PLOMBIERS + PRESTIGES[rangDePrestige(m)].classeur;
+/*
+ * LES BOUCHE-TROUS DU DÉPART (JP, 18 oct. : *défenseurs trop forts sur nouvelle run, ça devrait être plus bas*).
+ * Mesuré sur 60 départs : tirés par leurs POINTS, comme les attaquants, les défenseurs sortaient au 35e rang de valeur
+ * de leur saison, deux fois les attaquants (18e) — peu de points, c'est souvent un bon défenseur défensif. Les
+ * défenseurs et les gardiens se tirent maintenant par leur VALEUR ; les attaquants, par leurs points. Dans chaque
+ * saison tirée, la même bande pour tous (du 5e au 25e centile ; « Des plombiers moins pires » : du 25e au 45e), et
+ * dans la bande, les pires contrats (le tiers le mieux payé, V9 : le plafond qui mord).
+ *   saisons   les joueurs de chaque saison tirée ; groupe(p) : 'F', 'D' ou 'G' ; valeur(p) : la valeur cachée
+ *             (js/sim.js) ; personne(p) : la personne (une par alignement) ; exclus : les personnes déjà prises ;
+ *   piger(liste, cle)   en rend un
+ */
+const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
+const PART_DES_PIRES = 1 / 3;
+const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
+export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set() }) {
+  const out = [], pris = new Set(exclus);
+  const [bas, haut] = plus ? [0.25, 0.45] : [0.05, 0.25];
+  const pires = t => t.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(t.length * PART_DES_PIRES)));
+  saisons.forEach((joueurs, i) => {
+    for (const g of ['F', 'D', 'G']) {
+      const B = BOUCHES_TROUS[g], cle = B.par === 'points' ? pointsParMatch : valeur;
+      const reg = joueurs.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !pris.has(personne(p))).sort((a, b) => cle(a) - cle(b));
+      const tranche = pires(reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut))));
+      for (let k = 0; k < B.n && tranche.length; k++) {
+        const p = piger(tranche, `${i}${g}${k}`);
+        if (!p) break;
+        out.push(p); pris.add(personne(p)); tranche.splice(tranche.indexOf(p), 1);
+      }
+    }
+  });
+  return out;
+}
+/*
+ * TON JOUEUR DE CONCESSION (JP, 18 oct. : *pour renforcer le feeling d'affection, avoir un gros joueur dès la première
+ * run, mais difficile d'en avoir d'autres* ; *tu choisis un des joueurs de concession*). À la première run, trois
+ * vraies Étoiles (pas de Phénomène, pas de gardien), une par poste d'avant ou de défense si possible, sur des contrats
+ * qui se paient : le tiers le moins cher des Étoiles tirées. Tu en prends une ; il revient au départ de chaque run et
+ * de chaque saison (`meta.vedette`, sa clé). Les autres restent rares : le prestige ouvre les packs.
+ *   candidats   [{ p, niveau }] des saisons tirées ; piger(liste, cle) : en rend un ; personne(p) : la personne
+ */
+const VEDETTES_OFFERTES = 3;
+export function vedettesDeConcession(candidats, { piger, personne }) {
+  const etoiles = candidats.filter(x => x.niveau === ETOILE && x.p.p !== 'G' && (x.p.$ || 0) > 0).map(x => x.p).sort((a, b) => (a.$ || 0) - (b.$ || 0));
+  const abordables = etoiles.slice(0, Math.max(VEDETTES_OFFERTES, Math.ceil(etoiles.length / 3)));
+  const out = [], vus = new Set();
+  // Un défenseur dans le lot quand il y en a : trois profils, pas trois fois le même.
+  const parPoste = [abordables.filter(p => !['D', 'LD', 'RD'].includes(p.p)), abordables.filter(p => ['D', 'LD', 'RD'].includes(p.p)), abordables];
+  for (const [i, l] of [parPoste[0], parPoste[1], parPoste[0], parPoste[2], parPoste[2]].entries()) {
+    if (out.length >= VEDETTES_OFFERTES) break;
+    const libres = l.filter(p => !vus.has(personne(p)));
+    const p = libres.length ? piger(libres, `v${i}`) : null;
+    if (p) { out.push(p); vus.add(personne(p)); }
+  }
+  return out;
+}
 /*
  * LE PRESTIGE DU CLUB (v2). JP : *favoriser que l'on peut avoir de plus en plus
  * de joueurs de qualité selon les runs, sans que ça soit gratuit en faisant une

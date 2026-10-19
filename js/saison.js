@@ -875,25 +875,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * nuisance, et le budget de cartes passe de trois à quatre dans les
    * mauvaises années.
    *
-   * V8 : trois cartes, et tu choisis. V10 : une carte parmi trois, pour une
-   * place (`cartesDuPalier`, js/inventaire.js) ; le tirage est PUR (même
-   * graine, même épisode, mêmes cartes).
+   * V8 : trois cartes, et tu choisis. Depuis le 18 oct. (docs/cartes-ou-choix.md),
+   * c'est un choix : qui tient la case (le club-école, tes lignes, le remplaçant).
    */
   /*
-   * LES ÉPISODES DÉJÀ ENCAISSÉS survivent à la reprise. Encaisser la carte
+   * LES ÉPISODES DÉJÀ ENCAISSÉS survivent à la reprise. Trancher la case
    * rejoue la saison depuis ce jour-là, donc `ouvrirSaison` est reconstruit
-   * et `trousVus` repart vide : sans cette liste, le même trou retendrait sa
-   * carte à l'infini, et chaque clic en ajouterait une à la partie.
+   * et `trousVus` repart vide : sans cette liste, le même trou se reposerait
+   * à l'infini, et chaque clic en ajouterait une décision à la partie.
    */
   const trousFaits = new Set(trousPris);
   const trousVus = new Set();
   const trousNeufs = () => (you.trous || [])
     .filter(t => !trousVus.has(t) && !trousFaits.has(t.at) && t.at <= miens.length);
   let trou = null;
-  // V8 (JP : *aucun moment où je ne suis pas en contrôle*) : la case vide offre trois cartes, et tu choisis.
-  // V10 (tranche 6) : une carte parmi trois, pour une place (les cartes de saison sont parties).
-  const cartesDuTrou = t => cartesDuPalier(graine, `trou${t.at}`);
-  const carteDuTrou = t => cartesDuTrou(t)[0] || null;
 
   /*
    * LES MOMENTS (S66). Tout ce qui est déjà décidé se lit dans `decisions` —
@@ -3512,13 +3507,38 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => document.dispatchEvent(new CustomEvent('cap82:marche', { detail: { signer: true } })),
           decision: () => ({ palier: palierSigne, signe: false }) } });
     }
-    // LA CASE VIDE (V8) : trois cartes, et tu choisis. La carte prise est une décision de son palier (`trou:…`).
-    if (trou && carteDuTrou(trou)) {
+    /*
+     * LA CASE VIDE (V8 ; JP, 18 oct. : *décide ce qui est des cartes et ce qui est des choix en fonction de la situation*,
+     * devant trois cartes offertes pour un filet vide). Une case sans personne est une situation : c'est un choix, qui
+     * la tient ? Un vrai joueur du club-école (gratuit, hors plafond), tes lignes remaniées, ou le remplaçant que le
+     * moteur y met. Plus de carte en compensation : une carte se garde et se joue quand tu veux (docs/cartes-ou-choix.md).
+     */
+    if (trou) {
       const t = trou;
+      const bt = [...(you.injured || new Map()).keys()].find(p => { const s = caseHabillee(you.roster, p); return s && t.cases.includes(s.i); }) || null;
+      const slT = bt ? caseHabillee(you.roster, bt) : null;
+      const E = bt && slT && ctx.rappelEcole ? ctx.rappelEcole(bt, t.at) : null;
+      const palierT = `trou:${t.at}`;
+      const rappeler = () => {
+        const decide = ({ i, sort, cases: placees }) => {
+          let cases = placees;
+          if (!cases && SLOTS[i] && SLOTS[i].scratch && fits(E.p, slT)) { cases = photoAlignement(you.roster); cases[i] = getPlayerKey(bt); cases[slT.i] = E.cle; }
+          const j = jour;
+          quitter();
+          onDecision({ jour, palier: palierT, ballottage: { i, entre: E.cle, sort, ecole: true }, ...(cases ? { cases } : {}) }, j);
+        };
+        if (ctx.quiSort) ctx.quiSort(E.p, { roster: you.roster, genre: 'ballottage', horsPlafond: true, onChoix: decide, onFerme: () => {},
+          bloque: q => (q && you.injured && you.injured.get(q) > 0 ? `Blessé : il revient dans ${you.injured.get(q)} match${you.injured.get(q) > 1 ? 's' : ''}` : '') });
+      };
       out.push({ id: `t:${t.at}`, genre: 'trou', bloque: true, de: DE.dg, sujet: nomsDesCases(t.cases),
-        choix: { recit: 'Aucun réserviste ne peut prendre la place. Le vestiaire s\'ajuste : une carte parmi trois, pour une place.',
-          options: cartesDuTrou(t).map(id => optionDeBanque(id)),
-          decision: id => ({ place: id, palier: `trou:${t.at}` }) } });
+        choix: { recit: `Aucun réserviste ne peut jouer là${bt ? ` : ${bt.n} est à l'infirmerie` : ''}. Qui tient la case ?`,
+          options: [
+            E ? { cle: 'ecole', ico: '📟', nom: `Rappeler ${E.p.n} du club-école`, sous: caseDe(E.p), bon: 'Gratuit, hors plafond', ouvre: true } : null,
+            onBanc ? { cle: 'banc', nom: 'Remanier tes lignes', sous: 'La case à combler, derrière le banc', ouvre: true } : null,
+            { cle: 'laisser', nom: 'Laisser le remplaçant', sous: 'Un joueur de la ligue tient la case le temps qu\'il faut' },
+          ].filter(Boolean),
+          agir: cle => { if (cle === 'banc') { quitter(); onBanc(jour); } else if (cle === 'ecole' && E) rappeler(); },
+          decision: () => ({ palier: palierT }) } });
     }
     // LE PALIER : une main de trois cartes, une à garder. Elle se joue en plein écran (S73) ; le choix en montre le dos.
     const pal = palierOuvert();

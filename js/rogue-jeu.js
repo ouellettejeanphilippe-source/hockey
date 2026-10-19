@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
@@ -895,16 +895,20 @@ async function joueurDeCle(cle) {
  * de la graine du classeur : recharger la page devant les packs redonne les mêmes cartes.
  */
 const PACKS_DE_DEPART = [{ g: 'F', nom: 'Les attaquants' }, { g: 'D', nom: 'Les défenseurs' }, { g: 'G', nom: 'Les gardiens' }];
-async function ouvrirPacksDeDepart(roster) {
+async function ouvrirPacksDeDepart(roster, vedette = null) {
   const joueurs = Object.values(roster).filter(Boolean);
   ajouterCollection({ joueurs: joueurs.map(getPlayerKey) });
   apresLeCartable(ajouterAuCartable(joueurs.map(p => ({ cle: getPlayerKey(p), rar: 'commune' }))), joueurs);
-  const packs = PACKS_DE_DEPART.map(P => ({ ...P, cartes: joueurs.filter(p => groupeDe(p) === P.g) })).filter(P => P.cartes.length);
+  // Ton joueur de concession sort le premier, seul dans son pack ; les autres packs ne le redonnent pas.
+  const sienne = vedette ? getPersonKey(vedette) : null;
+  const packs = [...(vedette ? [{ g: 'V', nom: 'Ton joueur de concession', cartes: [vedette] }] : []),
+    ...PACKS_DE_DEPART.map(P => ({ ...P, cartes: joueurs.filter(p => groupeDe(p) === P.g && getPersonKey(p) !== sienne) }))].filter(P => P.cartes.length);
   for (const [i, P] of packs.entries()) {
     const suite = i < packs.length - 1 ? 'Pack suivant' : 'À la run';
     await new Promise(resolve => ouvrirChoix({
-      ico: '🥉', titre: `Pack de départ · ${P.nom}`, cartes: true, genre: 'recompense', fermable: true, motFermer: suite,
-      recit: i === 0 ? `Ton équipe sort de ${packs.length} packs. Chaque carte va à ton effectif et à ton cartable.` : `${P.cartes.length} de plus.`,
+      ico: P.g === 'V' ? '★' : '🥉', titre: `Pack de départ · ${P.nom}`, cartes: true, genre: 'recompense', fermable: true, motFermer: suite,
+      recit: P.g === 'V' ? `${vedette.n}, ton joueur de concession : il revient au départ de chaque run.`
+        : i === 0 ? `Ton équipe sort de ${packs.length} packs. Chaque carte va à ton effectif et à ton cartable.` : `${P.cartes.length} de plus.`,
       options: P.cartes.map(p => {
         const g = groupeDe(p);
         return { cle: getPlayerKey(p), rarete: 'commune', nom: p.n, type: `${POSTE_GROUPE[g]} · ${p.t} ${p.s}`, coin: money(p.$),
@@ -916,30 +920,38 @@ async function ouvrirPacksDeDepart(roster) {
     }));
   }
 }
-const PART_DES_PIRES = 1 / 3;
 async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()) {
   // Tirés de la graine de la run (oct.) : recharger la page devant les packs de départ redonne les mêmes joueurs.
   const ordre = (liste, ...k) => liste.slice().sort((a, b) => hache(graine, 'plombiers', ...k, String(a)) - hache(graine, 'plombiers', ...k, String(b)));
-  const choisies = ordre(state.index.seasons, 'saison').slice(0, 8);
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1));
-  // Mesuré : le fond absolu (0-20 %) faisait 6 à 12 points, une run perdue d'avance ; 10-30 % en fait 12 à 33.
-  const [bas, haut] = aDebloque(meta, 'plombiersPlus') ? [0.3, 0.5] : [0.1, 0.3];
-  // LES PIRES CONTRATS (V9, tranche 4) : le tiers le mieux payé de la tranche — un club en reconstruction, dont la masse remplit le plafond.
-  const pires = tranche => tranche.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(tranche.length * PART_DES_PIRES)));
-  const gardesPersonnes = new Set(gardes.map(getPersonKey));
-  const pool = [];
-  for (const s of choisies) {
-    const e = await getShard(s);
-    for (const g of ['F', 'D', 'G']) {
-      const reg = e.players.filter(p => groupeDe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !gardesPersonnes.has(getPersonKey(p)))
-        .sort((a, b) => prod(a) - prod(b));
-      const tranche = pires(reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut))));
-      const n = g === 'F' ? 3 : g === 'D' ? 2 : 1;
-      const cles = ordre(tranche.map(getPlayerKey), s, g).slice(0, n);
-      pool.push(...tranche.filter(p => cles.includes(getPlayerKey(p))));
-    }
-  }
-  return pool;
+  const saisons = [];
+  for (const s of ordre(state.index.seasons, 'saison').slice(0, 8)) saisons.push((await getShard(s)).players);
+  // La composition du départ (js/rogue.js `bouchesTrousDuDepart`) : peu de bons, quelques entre-deux, beaucoup de faibles.
+  return bouchesTrousDuDepart(saisons, { groupe: groupeDe, valeur: p => getHiddenRatings(p).v, personne: getPersonKey, exclus: new Set(gardes.map(getPersonKey)),
+    plus: aDebloque(meta, 'plombiersPlus'), piger: (liste, k) => liste.find(p => getPlayerKey(p) === ordre(liste.map(getPlayerKey), k)[0]) });
+}
+/*
+ * TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : à la première run, trois Étoiles des saisons de la
+ * graine du classeur, et tu en choisis une ; sa clé reste au méta et il revient à chaque départ.
+ */
+async function vedetteDeLaRun(meta, graine = graineDuClasseur()) {
+  if (meta.vedette) return joueurDeCle(meta.vedette);
+  const ordre = (liste, ...k) => liste.slice().sort((a, b) => hache(graine, 'vedette', ...k, String(a)) - hache(graine, 'vedette', ...k, String(b)));
+  const candidats = await sousVoile('On cherche tes joueurs de concession…', async () => {
+    const l = [];
+    for (const s of ordre(state.index.seasons, 'saison').slice(0, 8)) { const e = await getShard(s); for (const p of e.players) l.push({ p, niveau: niveauDe(p, e.players) }); }
+    return l;
+  });
+  const offerts = vedettesDeConcession(candidats, { personne: getPersonKey, piger: (liste, k) => liste.find(p => getPlayerKey(p) === ordre(liste.map(getPlayerKey), k)[0]) });
+  if (!offerts.length) return null;
+  const cle = await new Promise(resolve => ouvrirListeJoueurs({
+    ico: '★', titre: 'Ton joueur de concession', motBouton: 'Le choisir', motFermer: 'Le premier',
+    recit: 'Il revient au départ de chaque run. Les autres étoiles, tu devras les gagner.',
+    joueurs: offerts.map(p => ({ p, sous: quiEst(p) })),
+    onChoix: k => resolve(k), onFerme: () => resolve(getPlayerKey(offerts[0])),
+  }));
+  const p = offerts.find(x => getPlayerKey(x) === cle) || offerts[0];
+  const m = lireMeta(); m.vedette = getPlayerKey(p); ecrireMeta(m); meta.vedette = m.vedette;
+  return p;
 }
 /*
  * LE VESTIAIRE TIRÉ DU CLASSEUR (1.0, js/rogue.js `tirageDuDepart`) : dès que
@@ -1037,7 +1049,7 @@ export async function ouvrirRogue() {
     recit: `Des bouche-trous et 🪙 ${jetonsDeDepart(meta)} jetons. Chaque saison, le proprio en veut plus ; la Coupe finit la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? '' : `🥉 ta première run : ton équipe sort de ${PACKS_DE_DEPART.length} packs de départ`, nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
-        nCartable ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
+        meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `🛒 ${BOUTIQUE.filter(k => packsOuverts(meta)[k] === true).length} packs ouverts à la boutique sur ${BOUTIQUE.length}`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
         aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
@@ -1060,12 +1072,15 @@ export async function ouvrirRogue() {
       gardes.push(p);
     }
   }
-  const tires = await choisirDuClasseur(gardes, exigence);
+  // TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : choisi à la première run, il revient à chaque départ.
+  const vedette = await vedetteDeLaRun(meta);
+  const avecVedette = vedette && !gardes.some(p => getPersonKey(p) === getPersonKey(vedette)) ? [vedette, ...gardes] : gardes;
+  const tires = await choisirDuClasseur(avecVedette, exigence);
   // Ton cartable est vide (ta première run) : ton équipe sort de tes packs de départ.
   const premiere = !nCartable && !gardes.length
-    ? await sousVoile('On scelle tes packs de départ…', async () => placerDevant(autoRoster(await plombiersDeLaLigue(meta)), [])) : null;
-  if (premiere) await ouvrirPacksDeDepart(premiere);
-  await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(gardes, tires, coach, premiere, exigence));
+    ? await sousVoile('On scelle tes packs de départ…', async () => placerDevant(autoRoster([...avecVedette, ...await plombiersDeLaLigue(meta, avecVedette)]), avecVedette)) : null;
+  if (premiere) await ouvrirPacksDeDepart(premiere, vedette);
+  await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(avecVedette, tires, coach, premiere, exigence));
 }
 /*
  * TON COACH (v2, js/coachs.js) — le personnage de Slay the Spire. Les coachs
@@ -1710,6 +1725,9 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   if (G.bonus !== 'ROGUE' || !G.ligue || sortDeLaRun() !== 'continue') return;
   const L = G.ligue, meta = lireMeta();
   const saison = numeroDeSaison() + 1;
+  // Ton joueur de concession reste d'une saison à l'autre, sans prendre la place d'un gardé.
+  const vedette = meta.vedette ? signes().find(p => p && getPlayerKey(p) === meta.vedette) : null;
+  if (vedette && !gardes.includes(vedette)) gardes = [vedette, ...gardes];
   const partants = new Set(signes().filter(Boolean).map(getPlayerKey).filter(k => !gardes.some(p => getPlayerKey(p) === k)));
   // Les gardés et les cartes des lotos passent devant ; le reste se tire du cartable (`vestiaireDeDepart`).
   const fixes = [...gardes, ...lotos];

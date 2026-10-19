@@ -265,7 +265,7 @@ async function debloquer() {
     await versLaBoite();
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"] .af-option')) {
       if (guetterTrouHook) await guetterTrouHook();
-      await toucher('#hubModal .hub-msg.bloque[data-msg="trou"] .af-option:not([disabled])');
+      await toucher('#hubModal .hub-msg.bloque[data-msg="trou"] .af-option:not([disabled]):not(.ouvre)');
       continue;
     }
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="palier"]')) {
