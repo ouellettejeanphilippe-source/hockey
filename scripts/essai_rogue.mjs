@@ -937,7 +937,9 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   console.log(`10b. tes places : ${b9.sansVerbe} tuile(s) sans verbe · à ${Math.round(b9.haut)} px du haut du volet (un écran : ${b9.ecran})`);
   if (b9.sansVerbe) erreurs.push(`${b9.sansVerbe} tuile(s) de tes places ne disent pas ce qu'un toucher fait`);
   if (b9.haut > b9.ecran) erreurs.push(`tes places sont à ${Math.round(b9.haut)} px du haut de « Ce soir », plus d'un écran`);
-  const places = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref] .hub-poche-place', e => e.length).catch(() => 0);
+  // Comptées comme les cases : une tuile « ×2 » dit où jouent ses deux copies.
+  const places = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.filter(x => x.querySelector('.hub-poche-place'))
+    .reduce((a, x) => a + Number(((x.querySelector('.hub-poche-n') || {}).textContent || '×1').slice(1)), 0)).catch(() => 0);
   const libres = await page.$$eval('#hubModal .hub-poche .hub-poche-libre', e => e.length).catch(() => 0);
   const trop = (await decisionsDuCombat()).filter(d => d.vend && !d.joue).length;
   console.log(`10a. tes places, dans « Ce soir » : ${cases} carte(s), ${libres} libre(s), ${places} disent où elles jouent · ${pocheVendues} vendue(s) en grand, ${trop} vente(s) en tout · À faire : ${[...afaire.genres].join(', ')}`);
@@ -1174,6 +1176,8 @@ for (; essais < 5 && !jouee; essais++) {
   if (!boutons[essais]) break;
   await boutons[essais].click();
   await page.waitForTimeout(600);
+  // Personne à qui la donner (Jalon U : la liste vide le dit à sa place, et reste ouverte) : on la ferme.
+  if (await page.$('#signatureModal:not([hidden]) .empty-msg')) { await page.click('#signatureModal .choix-fermer'); await page.waitForTimeout(300); }
   await regler();
   await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 120000 }).catch(() => {});
   d = await decisions();
