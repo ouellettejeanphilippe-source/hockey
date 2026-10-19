@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, echangesDuPlan, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, echangesDuPlan, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -171,6 +171,66 @@ export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
  */
 const POIDS_STYLE = { equilibre: [1, 1], offensif: [1.5, 0.5], defensif: [0.5, 1.5] };
 const TOURS_AU_MIEUX = 3, ECHANGES_LUS = 10;
+/*
+ * CHACUN À SON POSTE D'ABORD (19 oct.). JP : *le meilleur alignement devrait tout faire pour mettre les joueurs à la
+ * bonne position*. Mesuré sur douze effectifs de Rogue : le bouton laissait 10,6 points de pénalité de poste (un centre
+ * à l'aile, un gaucher à droite), quand le même effectif pouvait descendre à 4,3. Qui s'habille reste l'affaire du
+ * moteur ; OÙ il joue se décide au poste d'abord : les habillés de chaque groupe prennent l'affectation qui coûte le
+ * moins de pénalité (`getPositionPenalty`), chacun au plus près du rang où on l'avait mis (`PRES_DU_RANG`), par la
+ * méthode hongroise. Et un échange ne passe que s'il ne remet personne hors de son poste.
+ */
+const PRES_DU_RANG = 0.01;
+/* Un réserviste à son poste prend la case d'un habillé hors du sien si le moteur y perd peu : jusqu'à PRIX_DU_POSTE but par match (pesé par le style) par point de pénalité épargné. */
+const PRIX_DU_POSTE = 0.02;
+function affectation(cout) {
+  // La méthode hongroise (n cases ≤ m joueurs), en O(n² m) : rend, pour chaque case, l'indice de son joueur.
+  const n = cout.length, m = cout[0].length, u = Array(n + 1).fill(0), v = Array(m + 1).fill(0), p = Array(m + 1).fill(0), voie = Array(m + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    p[0] = i;
+    let j0 = 0;
+    const minv = Array(m + 1).fill(Infinity), pris = Array(m + 1).fill(false);
+    do {
+      pris[j0] = true;
+      const i0 = p[j0];
+      let delta = Infinity, j1 = 0;
+      for (let j = 1; j <= m; j++) if (!pris[j]) {
+        const c = cout[i0 - 1][j - 1] - u[i0] - v[j];
+        if (c < minv[j]) { minv[j] = c; voie[j] = j0; }
+        if (minv[j] < delta) { delta = minv[j]; j1 = j; }
+      }
+      for (let j = 0; j <= m; j++) if (pris[j]) { u[p[j]] += delta; v[j] -= delta; } else minv[j] -= delta;
+      j0 = j1;
+    } while (p[j0] !== 0);
+    do { const j1 = voie[j0]; p[j0] = p[j1]; j0 = j1; } while (j0);
+  }
+  const out = Array(n);
+  for (let j = 1; j <= m; j++) if (p[j]) out[p[j] - 1] = j - 1;
+  return out;
+}
+const casesDuGroupe = g => SLOTS.filter(s => !s.scratch && s.group === g);
+export function auBonPoste(R) {
+  const out = { ...R };
+  for (const g of ['F', 'D']) {
+    const cases = casesDuGroupe(g), joueurs = cases.map(s => R[s.i]);
+    if (joueurs.some(p => !p)) continue;
+    const a = affectation(cases.map(s => joueurs.map((p, k) => getPositionPenalty(p, s) + PRES_DU_RANG * Math.abs(s.unit - cases[k].unit))));
+    cases.forEach((s, i) => { out[s.i] = joueurs[a[i]]; });
+  }
+  return out;
+}
+/* Les échanges qui remettent quelqu'un à son poste : un habillé hors du sien contre un réserviste qui y joue mieux. */
+function echangesDePoste(R) {
+  const out = [];
+  const reserves = SLOTS.filter(s => s.scratch && R[s.i] && R[s.i].p !== 'G');
+  for (const s of SLOTS.filter(x => !x.scratch && (x.group === 'F' || x.group === 'D') && R[x.i])) {
+    const ici = getPositionPenalty(R[s.i], s);
+    if (!ici) continue;
+    for (const r of reserves) if (getPositionPenalty(R[r.i], s) < ici) out.push([s, r]);
+  }
+  return out;
+}
+/* Ce qu'un alignement coûte en postes : la somme des pénalités de ses habillés. */
+export const penaliteDePoste = R => ['F', 'D'].reduce((t, g) => t + casesDuGroupe(g).reduce((a, s) => a + (R[s.i] ? getPositionPenalty(R[s.i], s) : 0), 0), 0);
 export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, coachs = [] } = {}) {
   const [wP, wC] = POIDS_STYLE[style] || POIDS_STYLE.equilibre;
   const saison = (joueurs.find(p => p && p.s) || {}).s;
@@ -184,10 +244,30 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
     const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
     return wP * m.butsPour - wC * m.butsContre;
   });
-  let best = null, score = -Infinity;
-  for (const R of [trioAuMieux(joueurs, style), autoRoster(joueurs)]) {
+  // Le poste d'abord, puis le moteur : un candidat moins bien posté ne passe jamais devant.
+  let best = null, score = -Infinity, poste = Infinity;
+  const essayer = (R0, prix = 0) => {
+    const R = auBonPoste(R0), pen = penaliteDePoste(R);
+    if (pen > poste) return false;
     const v = lu(R);
-    if (v > score + 1e-9) { best = R; score = v; }
+    if ((pen < poste && v >= score - prix * (poste - pen)) || v > score + 1e-9) { best = R; score = v; poste = pen; return true; }
+    return false;
+  };
+  // Les deux candidats : le meilleur des deux au moteur, puis le mieux posté s'il ne coûte presque rien.
+  const [tri, ia] = [trioAuMieux(joueurs, style), autoRoster(joueurs)].map(auBonPoste);
+  const [vt, vi] = [lu(tri), lu(ia)];
+  [best, score] = vt >= vi ? [tri, vt] : [ia, vi];
+  poste = penaliteDePoste(best);
+  essayer(vt >= vi ? ia : tri, PRIX_DU_POSTE);
+  // Un réserviste à son poste, contre un habillé hors du sien, quand le moteur n'y perd presque rien.
+  for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
+    let mieux = false;
+    for (const [sa, sb] of echangesDePoste(best)) {
+      const R = { ...best };
+      [R[sa.i], R[sb.i]] = [R[sb.i], R[sa.i]];
+      if (essayer(R, PRIX_DU_POSTE)) { mieux = true; break; }
+    }
+    if (!mieux) break;
   }
   for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
     let mieux = false;
@@ -195,8 +275,7 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
     for (const [sa, sb] of [...echangesProposes(best, style, ECHANGES_LUS), ...(plan ? echangesDuPlan(best, ECHANGES_LUS) : [])]) {
       const R = { ...best };
       [R[sa.i], R[sb.i]] = [R[sb.i], R[sa.i]];
-      const v = lu(R);
-      if (v > score + 1e-9) { best = R; score = v; mieux = true; }
+      if (essayer(R)) mieux = true;
     }
     if (!mieux) break;
   }

@@ -6,12 +6,15 @@
  *      au centre, un ailier qui lance du côté opposé joue les deux ailes ; sans données, une seule position ;
  *   2. la pénalité de position tombe à zéro sur ces cases-là, et nulle part ailleurs ;
  *   3. dans les shards qui portent les données (`sc`, `fpg`), la part d'attaquants à deux positions reste
- *      réaliste (de 15 à 40 %), et un club réel trouve plus souvent ses quatre ailiers de chaque côté.
+ *      réaliste (de 15 à 40 %), et un club réel trouve plus souvent ses quatre ailiers de chaque côté ;
+ *   4. « Aligner au mieux » met chacun à son poste (JP, 19 oct.) : parmi ses habillés, aucun échange ne baisse la
+ *      pénalité de poste (`auBonPoste`, js/impact.js), et chacun reste au plus près de son rang.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { positionsAvant, getPositionPenalty, SLOTS } from '../js/sim.js';
+import { positionsAvant, getPositionPenalty, SLOTS, autoRoster, registerHiddenRatings } from '../js/sim.js';
+import { auBonPoste, penaliteDePoste } from '../js/impact.js';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -61,6 +64,42 @@ if (!avec) informer('les shards', 'aucun ne porte encore le côté du lancer ni 
 else {
   borne('attaquants à deux positions (20 matchs et plus)', 100 * multi / Math.max(1, n), 15, 40, ' %');
   exiger('plus de clubs trouvent quatre ailiers de chaque côté', quatreApres > quatreAvant, `${quatreAvant} → ${quatreApres} sur ${clubs} clubs, ${avec} saisons`);
+}
+
+/* 4. Aligner au mieux : chacun à son poste. */
+{
+  const cases = g => SLOTS.filter(s => !s.scratch && s.group === g);
+  const [c1, c2] = cases('F').filter(s => s.role === 'C'), [ag1] = cases('F').filter(s => s.role === 'AG'), [dg1] = cases('D').filter(s => s.role === 'DG'), [dd1] = cases('D').filter(s => s.role === 'DD');
+  // Un centre à l'aile gauche, un ailier gauche au centre, un gaucher à droite et un droitier à gauche : tout se replace.
+  const R = {};
+  const F = cases('F'), D = cases('D');
+  F.forEach((s, k) => { R[s.i] = { n: `F${k}`, p: 'F', np: s.role === 'C' ? 'C' : s.role === 'AG' ? 'L' : 'R' }; });
+  D.forEach((s, k) => { R[s.i] = { n: `D${k}`, p: 'D', np: s.role === 'DG' ? 'LD' : 'RD' }; });
+  [R[c1.i], R[ag1.i]] = [R[ag1.i], R[c1.i]];
+  [R[dg1.i], R[dd1.i]] = [R[dd1.i], R[dg1.i]];
+  const A = auBonPoste(R);
+  exiger('« Aligner au mieux » remet le centre au centre et chaque défenseur de son côté', penaliteDePoste(R) > 0 && penaliteDePoste(A) === 0 && A[c1.i] === R[ag1.i] && A[dg1.i] === R[dd1.i],
+    `pénalité ${penaliteDePoste(R)} → ${penaliteDePoste(A)}`);
+  exiger('un joueur déjà à son poste ne change pas de trio', A[c2.i] === R[c2.i]);
+  // De vrais effectifs : parmi les habillés, aucun échange ne baisse encore la pénalité.
+  let x = 11, restes = 0, avant = 0, apres = 0;
+  const rnd = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
+  const pige = a => a[Math.floor(rnd() * a.length)];
+  const shards = fichiers.slice(0, 40).map(f => JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')).players);
+  for (let k = 0; k < 20; k++) {
+    const pris = f => pige(shards).filter(f);
+    const J = [...Array.from({ length: 14 }, () => ({ ...pige(pris(p => p.p !== 'G' && p.p !== 'D' && p.gp > 30)) })),
+      ...Array.from({ length: 7 }, () => ({ ...pige(pris(p => p.p === 'D' && p.gp > 30)) })), ...Array.from({ length: 2 }, () => ({ ...pige(pris(p => p.p === 'G' && p.gp > 20)) }))];
+    J.forEach(registerHiddenRatings);
+    const R0 = autoRoster(J), B = auBonPoste(R0);
+    avant += penaliteDePoste(R0); apres += penaliteDePoste(B);
+    for (const g of ['F', 'D']) for (const a of cases(g)) for (const b of cases(g)) {
+      if (a.i >= b.i) continue;
+      const T = { ...B }; [T[a.i], T[b.i]] = [T[b.i], T[a.i]];
+      if (penaliteDePoste(T) < penaliteDePoste(B)) restes++;
+    }
+  }
+  exiger('parmi les habillés, aucun échange ne baisse encore la pénalité de poste', restes === 0, `pénalité moyenne ${(avant / 20).toFixed(1)} → ${(apres / 20).toFixed(1)} sur 20 effectifs · ${restes} échange(s) qui la baisseraient`);
 }
 
 verdict('Les positions multiples');
