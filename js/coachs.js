@@ -87,15 +87,20 @@ export const JOUEUR_COACH = 0.10;
  * canal s'amplifie EN PUISSANCE (×0,88 porté deux fois vaut ×0,77), qui reste positif.
  */
 export const PALIERS_COACH_MAX = 24;
-/* L'effet d'une confiance, porté par `n` paliers de sa couleur : chaque canal s'éloigne de 1 d'autant plus (les minutes et la boutique restent). */
+/*
+ * L'effet d'une confiance, porté par `n` paliers de sa couleur : chaque canal s'éloigne de 1 d'autant plus (les
+ * minutes et la boutique restent). SON PRIX (V11, tranche 2 — docs/refonte-v11.md ; JP : *stratégies, bonus et malus
+ * liés au style de l'équipe*) : le canal qu'un style coûte (`prix` : le Frelon tire plus et vise moins bien, l'Aigle
+ * vise mieux et tire moins…), fixe à chaque palier — il ne grandit pas avec ses joueurs, qui portent son gain.
+ */
 export function porteParSesJoueurs(c, n) {
   const k = 1 + JOUEUR_COACH * Math.min(PALIERS_COACH_MAX, n || 0);
-  if (k === 1) return c;
-  const out = { ...c };
-  for (const [cle, v] of Object.entries(c)) {
+  const { prix, ...out } = c;
+  if (k !== 1) for (const [cle, v] of Object.entries(c)) {
     if (typeof v !== 'number' || cle === 'palier') continue;
     out[cle] = cle === 'robustesse' ? v * k : Math.pow(v, k);
   }
+  for (const [cle, v] of Object.entries(prix || {})) out[cle] = cle === 'robustesse' ? (out[cle] || 0) + v : (out[cle] ?? 1) * v;
   return out;
 }
 /*
@@ -112,23 +117,23 @@ export function porteParSesJoueurs(c, n) {
  */
 export const COACHS = {
   essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', familles: { paie: ['tir', 'robustesse'], coute: 'jeu' }, recrute: 'des power forwards et des défenseurs offensifs',
-    paliers: [{ volume: 1.028 }, { volume: 1.055 }, { volume: 1.092, plafonds: { pression: 0.15 } }] },
+    paliers: [{ volume: 1.034, prix: { finition: 0.99 } }, { volume: 1.066, prix: { finition: 0.98 } }, { volume: 1.11, plafonds: { pression: 0.15 }, prix: { finition: 0.97 } }] },
   rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', familles: { paie: ['tir', 'jeu'], coute: 'defense' }, recrute: 'des snipers',
-    paliers: [{ finition: 1.028 }, { finition: 1.056 }, { finition: 1.094, plafonds: { finition: 0.15 } }] },
+    paliers: [{ finition: 1.034, prix: { volume: 0.99 } }, { finition: 1.068, prix: { volume: 0.98 } }, { finition: 1.112, plafonds: { finition: 0.22 }, prix: { volume: 0.97 } }] },
   tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', familles: { paie: ['defense'], coute: 'tir' }, recrute: 'des two-way et des défenseurs défensifs',
-    paliers: [{ defense: 0.973 }, { defense: 0.953 }, { defense: 0.919 }] },
+    paliers: [{ defense: 0.965, prix: { volume: 0.99 } }, { defense: 0.94, prix: { volume: 0.98 } }, { defense: 0.897, prix: { volume: 0.97 } }] },
   rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', familles: { paie: ['robustesse'], coute: 'jeu' }, recrute: 'des bagarreurs et des défenseurs physiques',
-    paliers: [{ robustesse: 0.4 }, { robustesse: 0.8 }, { robustesse: 1.3, blessure: 0.80, plafonds: { robustesse: 3.2 } }] },
+    paliers: [{ robustesse: 0.4, prix: { discipline: 1.04 } }, { robustesse: 0.8, prix: { discipline: 1.08 } }, { robustesse: 1.3, blessure: 0.80, plafonds: { robustesse: 3.2 }, prix: { discipline: 1.12 } }] },
   souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', familles: { paie: ['robustesse'], coute: 'tir' }, recrute: 'des plombiers',
-    paliers: [{ energie: 0.79, blessure: 0.564 }, { energie: 0.694, blessure: 0.409, volume: 1.03 }, { energie: 0.607, blessure: 0.26, volume: 1.06 }] },
+    paliers: [{ energie: 0.79, blessure: 0.564, prix: { robustesse: -0.25 } }, { energie: 0.694, blessure: 0.409, volume: 1.03, prix: { robustesse: -0.5 } }, { energie: 0.607, blessure: 0.26, volume: 1.06, prix: { robustesse: -0.75 } }] },
   choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', familles: { paie: ['jeu'], coute: 'robustesse' }, recrute: 'des manieurs de rondelle',
-    paliers: [{ discipline: 0.91 }, { discipline: 0.84 }, { discipline: 0.76, finition: 1.04, plafonds: { discipline: 0.15 } }] },
+    paliers: [{ discipline: 0.88, prix: { robustesse: -0.1 } }, { discipline: 0.79, prix: { robustesse: -0.2 } }, { discipline: 0.68, finition: 1.04, plafonds: { discipline: 0.15 }, prix: { robustesse: -0.3 } }] },
   profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', familles: { paie: ['defense'], coute: 'jeu' }, recrute: 'des checkers',
     paliers: [{ F: [0.9, 1, 1.11, 1.27], energie: 0.853, blessure: 0.784 }, { F: [0.79, 1, 1.23, 1.57], energie: 0.751, blessure: 0.594, robustesse: 0.95 },
-      { F: [0.68, 1, 1.34, 1.95], energie: 0.654, blessure: 0.428, robustesse: 1.71, volume: 1.097 }] },
+      { F: [0.68, 1, 1.34, 1.95], energie: 0.654, blessure: 0.428, robustesse: 1.71, volume: 1.085 }] },
   etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', familles: { paie: ['jeu'], coute: 'defense' }, recrute: 'des passeurs',
-    paliers: [{ F: [1.08, 1.02, 0.95, 0.92], finition: 1.021 }, { F: [1.17, 1.06, 0.92, 0.83], finition: 1.042 },
-      { F: [1.28, 1.1, 0.86, 0.74], finition: 1.069 }] },
+    paliers: [{ F: [1.08, 1.02, 0.95, 0.92], finition: 1.025, prix: { energie: 1.02 } }, { F: [1.17, 1.06, 0.92, 0.83], finition: 1.05, prix: { energie: 1.04 } },
+      { F: [1.28, 1.1, 0.86, 0.74], finition: 1.085, prix: { energie: 1.06 } }] },
   banque: { ico: '🏦', nom: 'Le Comptable', de: 'du Comptable', mot: 'Chaque jeton, chaque dollar du plafond.', recrute: 'des aubaines pour leur salaire',
     paliers: [{ econ: { rabais: 0.92 } }, { econ: { rabais: 0.86, jetonsVictoire: 2 } }, { econ: { rabais: 0.80, jetonsVictoire: 3, plafond: 0.05 } }] },
 };
