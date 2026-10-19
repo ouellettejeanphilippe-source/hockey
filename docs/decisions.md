@@ -2589,3 +2589,9 @@ JP : *interview, demandes du proprio* ; *les bonus et malus plus importants touc
 
 **La prime d'un objectif réussi revient.** Le compte des jetons cherchait la carte prise au verdict (`d.carte`) ; depuis la V10, le verdict donne une place (`d.place`), et la prime de 20 jetons ne se versait plus.
 
+## « Aligner au mieux » met chacun à son poste (19 oct. 2026)
+
+JP : *le meilleur alignement devrait tout faire pour mettre les joueurs à la bonne position*. Le bouton jugeait au moteur, sur une lecture bruitée du soir : un échange qui y gagnait un cheveu passait, même s'il envoyait un centre à l'aile ou un gaucher à droite. Mesuré sur douze effectifs de Rogue tirés au hasard : 10,6 points de pénalité de poste en moyenne, quand le même effectif pouvait descendre à 4,3.
+
+Maintenant, qui s'habille reste l'affaire du moteur ; OÙ il joue se décide au poste d'abord (`auBonPoste`, js/impact.js) : les habillés de chaque groupe prennent l'affectation qui coûte le moins de pénalité (`getPositionPenalty`), chacun au plus près du rang où on l'avait mis, par la méthode hongroise. Un échange ne passe que s'il ne remet personne hors de son poste, et un réserviste qui joue à sa place prend celle d'un habillé hors de la sienne si le moteur y perd peu (`PRIX_DU_POSTE`, 0,02 but par match par point de pénalité épargné). Mesuré : 10,6 → 6,1 sur les douze effectifs (ce qui reste vient d'effectifs à trois centres pour quatre cases) ; sur les six clubs de `check_au_mieux`, 83 → 37 points, et le bouton bat l'IA d'autant qu'avant (+0,215 but par match, contre +0,211). `check_positions` le garde : parmi les habillés, aucun échange ne baisse encore la pénalité.
+
