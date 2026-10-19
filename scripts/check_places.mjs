@@ -10,14 +10,15 @@
  *      ce qu'elle vaut en tout — une place, ses soirs dans ses `duree` matchs ; un équipement, ses soirs d'une saison
  *      (`parSaison`, js/sim.js `MOMENTS_SI`) ;
  *   3. une rare ou une légendaire se voit dans la feuille d'un soir de son moment (CLAUDE.md : ±2 tirs, ±0,3 but des
- *      deux clubs, ±0,5 punition, ±4 mises en échec, ou ±3 blessures sur une saison) ; une commune peut être discrète ;
+ *      deux clubs, ±0,5 punition, ±4 mises en échec, ou ±3 blessures sur une saison ; une place sur un joueur, V11 :
+ *      ±0,3 point à la ligne du joueur nommé) ; une commune peut être discrète ;
  *   4. trois cartes par coach et par pile (l'équipement : les coachs qui ont un canal de joueur), trois neutres ;
  *      l'ancien jeu de tous les soirs ne s'offre plus.
  * `N` : matchs par club et par carte (400). `FILS` : processus (4). `CARTES=a,b` : quelques cartes seulement.
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, MUTATIONS, appliquerMutation, joueurDeMutation } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, MUTATIONS, appliquerMutation, joueurDeMutation, activeLineup, effetsDesJoueurs, getPlayerKey } from '../js/sim.js';
 import { PLACES_NEUVES } from '../js/places.js';
 import { EQUIPEMENT } from '../js/equipement.js';
 import { PERSONNEL, CONTRATS_MAUDITS } from '../js/personnel.js';
@@ -58,6 +59,8 @@ function match(toi, adv, graine, visiteur) {
   return { v: r.winner === toi ? 1 : 0, gf: visiteur ? r.gfB : r.gfA, ga: visiteur ? r.gfA : r.gfB,
     tp: somme(f.tirs && f.tirs[moi]), tc: somme(f.tirs && f.tirs[eux]), pun: (f.punitions || []).filter(p => p.cote === moi).length,
     coups: (f.coups || {})[moi] || 0, bl: (f.blessures || []).filter(b => b.cote === moi).length,
+    // Le joueur nommé d'une place (V11) : ses points du soir, à sa ligne de la feuille.
+    pj: toi._nomme ? (f.buts || []).filter(b => b.cote === moi && [b.marqueur, ...(b.passeurs || [])].some(q => q && getPlayerKey(q) === toi._nomme)).length : 0,
     jambes: pats.reduce((a, p) => a + (p.energie ?? 100), 0) / (pats.length || 1) };
 }
 /* UN FILS : chaque carte de `cles` (« p:cle » une place, « e:cle » un équipement), `n` matchs par club. */
@@ -68,7 +71,7 @@ function mesurer(cles, n) {
     const C = carteDe(sorte, cle);
     const duel = !!C.si && MOMENTS_SI[C.si].duel;
     if (sorte === 'e' && duel) { const { si, ...sans } = C; void si; MUTATIONS[JUMELLE] = sans; }
-    const m = out[id] = { n: 0, dv: 0, dgf: 0, dga: 0, dtp: 0, dtc: 0, dpun: 0, dcoups: 0, dbl: 0, djambes: 0, hors: 0, horsPareil: 0 };
+    const m = out[id] = { n: 0, dpj: 0, dv: 0, dgf: 0, dga: 0, dtp: 0, dtc: 0, dpun: 0, dcoups: 0, dbl: 0, djambes: 0, hors: 0, horsPareil: 0 };
     for (const [lab, s, t] of TEMOINS) {
       const un = equipeReelle(s, t);
       const moment = !duel && C.si && C.si !== 'domicile' && C.si !== 'visiteur' ? C.si : null;
@@ -80,6 +83,14 @@ function mesurer(cles, n) {
         const sans = club('Sans', 'toi'), avec = club('Avec', 'toi'), adv = club('Eux', 'eux');
         // Une place ou le prix d'un contrat lourd : un effet du soir ; un poste : un patron engagé (`team.patrons`).
         if (sorte === 'p' || sorte === 'k' || sorte === 'd') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
+        // Une place sur un joueur (V11) : sur le centre du premier trio, ou le premier défenseur si elle ferme le jeu.
+        if (sorte === 'p' && C.joueur) {
+          const ferme = (C.joueur.defense ?? 1) < 1, lu = activeLineup(avec);
+          const p = lu[SLOTS.find(sl => !sl.scratch && sl.unit === 0 && (ferme ? sl.group === 'D' : sl.group === 'F' && sl.role === 'C')).i];
+          avec.effetsCibles = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, si: C.si, joueur: p, ...C.joueur }];
+          effetsDesJoueurs(avec, 0);
+          sans._nomme = avec._nomme = getPlayerKey(p);
+        }
         else if (sorte === 'q') avec.patrons = [{ cle, role: C.role, nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
         else { const k = duel ? JUMELLE : cle; appliquerMutation(avec, joueurDeMutation(avec, null, k), k, 0, 'equipement'); }
         for (const T of [sans, avec]) T._lireMoment = lire;
@@ -92,7 +103,7 @@ function mesurer(cles, n) {
         const a = match(P.sans, P.adv, g, visiteur);
         const P2 = trois(moment);
         const b = match(P2.avec, P2.adv, g, visiteur);
-        m.n++; m.dv += b.v - a.v; m.dgf += b.gf - a.gf; m.dga += b.ga - a.ga; m.dtp += b.tp - a.tp; m.dtc += b.tc - a.tc; m.dpun += b.pun - a.pun;
+        m.n++; m.dpj += b.pj - a.pj; m.dv += b.v - a.v; m.dgf += b.gf - a.gf; m.dga += b.ga - a.ga; m.dtp += b.tp - a.tp; m.dtc += b.tc - a.tc; m.dpun += b.pun - a.pun;
         m.dcoups += b.coups - a.coups; m.dbl += b.bl - a.bl; m.djambes += b.jambes - a.jambes;
         // 1. Hors de son moment : la carte posée, le moment absent (l'autre lieu, ou rien de forcé).
         if (!duel && C.si && i % 8 === 0) {
@@ -163,9 +174,11 @@ for (const id of toutes) {
   // Se voir : la règle de CLAUDE.md, un soir de son moment (au duel, la période où il joue) ; les blessures, sur une saison.
   const vu1 = x => x / m.n;
   const vu = Math.max(Math.abs(vu1(m.dtp)), Math.abs(vu1(m.dtc)), Math.abs(vu1(m.dtp + m.dtc))) >= VISIBLE.tirs || Math.abs(vu1(m.dgf)) + Math.abs(vu1(m.dga)) >= VISIBLE.buts
+    // Une place sur un joueur (V11) se voit à SA ligne : ±0,3 point au joueur nommé, un soir de son moment.
+    || Math.abs(vu1(m.dpj)) >= VISIBLE.buts
     || Math.abs(vu1(m.dpun)) >= VISIBLE.punitions || Math.abs(vu1(m.dcoups)) >= VISIBLE.coups || Math.abs(vu1(m.dbl) * 82) >= VISIBLE.blessures;
   informer(`${C.ico} ${C.nom} (${PILE[sorte]}, ${C.rarete}, ${Mo.mot.toLowerCase()})`,
-    `${soirs.toFixed(1).replace('.', ',')} soirs · ${f1(v)} V · par soir : tirs ${f1(par(m.dtp))} / contre ${f1(par(m.dtc))} · buts ${f2(par(m.dgf))} / ${f2(par(m.dga))} · punitions ${f2(par(m.dpun))} · mises en échec ${f1(par(m.dcoups))} · blessures ${f2(par(m.dbl) * 82)} par saison · jambes ${f1(par(m.djambes))}`);
+    `${soirs.toFixed(1).replace('.', ',')} soirs · ${f1(v)} V · par soir : tirs ${f1(par(m.dtp))} / contre ${f1(par(m.dtc))} · buts ${f2(par(m.dgf))} / ${f2(par(m.dga))} · punitions ${f2(par(m.dpun))} · mises en échec ${f1(par(m.dcoups))} · blessures ${f2(par(m.dbl) * 82)} par saison · jambes ${f1(par(m.djambes))}${C.joueur ? ` · le joueur nommé ${f2(m.dpj / m.n)} point` : ''}`);
   // Un contrat lourd est un prix, pas une force : il se mesure, il ne se borne pas ; il doit seulement coûter.
   if (sorte === 'k') { if (!(v < 0)) tropFortes.push(`${C.nom} ne coûte rien (${f1(v)} V)`); continue; }
   if (Math.abs(v) > BORNE_V[C.rarete]) tropFortes.push(`${C.nom} ${f1(v)} V (borne ${BORNE_V[C.rarete]})`);

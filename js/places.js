@@ -12,6 +12,14 @@
  * l'exorciste et le camp express restent ceux d'avant (js/banque.js `CONSOMMABLES`).
  */
 const usage = { vie: 'usage', cible: 'aucune' };
+/*
+ * LE GROS SUR UN JOUEUR (V11, tranche 3b — docs/refonte-v11.md). JP : *c'est vraiment plus facile de balancer le jeu
+ * et créer des histoires, si les bonus et malus plus importants touchent des joueurs et non l'équipe*. Une place
+ * `surUn` se joue sur un de tes joueurs, que tu nommes : `joueur` porte ses canaux à lui (`CANAUX_MUT`, js/sim.js —
+ * ses tirs, sa précision, ses passes, sa défense, ses blessures), le temps de ses matchs et ses soirs seulement. Ce
+ * qui reste à l'équipe (`effet`) est petit, ou rien.
+ */
+const surUn = { vie: 'usage', cible: 'joueur' };
 export const PLACES_NEUVES = {
   // ---- neutres ----
   semaineChargee: { nom: 'La semaine chargée', ico: '🗓', rarete: 'commune', ...usage, si: 'dosADos', duree: 8, effet: { energie: 0.85, finition: 1.05, volume: 0.96 },
@@ -22,26 +30,26 @@ export const PLACES_NEUVES = {
     texte: 'Les anciens au premier rang. Personne ne veut avoir l\'air fou devant eux.' },
 
   // ---- 🐝 le Frelon : les tirs ----
-  centTirs: { nom: 'Cent tirs après la pratique', ico: '🏹', rarete: 'commune', ...usage, si: 'jambesFraiches', duree: 8, effet: { volume: 1.12, energie: 1.06 },
-    texte: 'Les jambes sont là : on en profite pour vider le seau.' },
+  centTirs: { nom: 'Cent tirs après la pratique', ico: '🏹', rarete: 'commune', ...surUn, si: 'jambesFraiches', duree: 8, joueur: { lancers: 1.6, finition: 0.95 },
+    texte: 'Il reste sur la glace quand les autres sont partis, et il vide le seau.' },
   retourFoule: { nom: 'Le retour devant la foule', ico: '🎺', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { volume: 1.15, discipline: 1.06 },
     texte: 'La fanfare joue à chaque tir au but. Alors on tire.' },
   sprintDeMars: { nom: 'Le sprint de mars', ico: '🏃', rarete: 'rare', ...usage, si: 'enFeu', duree: 8, effet: { volume: 1.22, energie: 1.06 },
     texte: 'Trois de suite : personne ne veut lever le pied.' },
 
   // ---- 🦅 l'Aigle : la précision ----
-  videoGardien: { nom: 'La vidéo de leur gardien', ico: '📽', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { finition: 1.45, volume: 0.88 },
-    texte: 'Il laisse toujours le haut du côté de la mitaine. Toujours.' },
+  videoGardien: { nom: 'La vidéo de leur gardien', ico: '📽', rarete: 'rare', ...surUn, si: 'rival', duree: 10, effet: { volume: 0.95 }, joueur: { finition: 2.1, lancers: 1.4 },
+    texte: 'Il laisse toujours le haut du côté de la mitaine. Ton tireur a regardé la cassette dix fois.' },
   coinPeint: { nom: 'Le coin du haut, peint', ico: '🪧', rarete: 'commune', ...usage, si: 'visiteur', duree: 6, effet: { finition: 1.12, volume: 0.94 },
     texte: 'Un carré orange dans le coin du filet de pratique, à chaque arrêt du voyage.' },
-  batonsNeufs: { nom: 'Les bâtons neufs', ico: '🪵', rarete: 'peu', ...usage, si: 'apresDefaite', duree: 6, effet: { finition: 1.18, volume: 0.95 },
-    texte: 'Une boîte de bâtons frais, et un nouveau départ.' },
+  batonsNeufs: { nom: 'Les bâtons neufs', ico: '🪵', rarete: 'peu', ...surUn, si: 'apresDefaite', duree: 6, joueur: { finition: 1.6, lancers: 0.92 },
+    texte: 'Une boîte de bâtons frais pour celui qui ne marque plus. Il choisit ses tirs.' },
 
   // ---- 🐢 la Tortue : la défense ----
   systemeDeRoute: { nom: 'Le système de route', ico: '🗺', rarete: 'commune', ...usage, si: 'visiteur', duree: 6, effet: { defense: 0.88, volume: 0.93 },
     texte: 'Loin de chez soi, on joue simple : la bande, le centre, la bande.' },
-  reunionDefenseurs: { nom: 'La réunion des défenseurs', ico: '🧷', rarete: 'peu', ...usage, si: 'apresDefaite', duree: 6, effet: { defense: 0.9, volume: 0.97 },
-    texte: 'Six défenseurs, un tableau, et la porte fermée.' },
+  reunionDefenseurs: { nom: 'La réunion des défenseurs', ico: '🧷', rarete: 'peu', ...surUn, si: 'apresDefaite', duree: 6, joueur: { defense: 0.7, lancers: 0.9 },
+    texte: 'Lui, un tableau, et l\'entraîneur des défenseurs. Il ne monte plus : il ferme.' },
   murDuDimanche: { nom: 'Le mur du dimanche', ico: '⛓', rarete: 'peu', ...usage, si: 'dosADos', duree: 8, effet: { defense: 0.88, volume: 0.93 },
     texte: 'Le deuxième soir, les jambes partent ; la structure, elle, reste.' },
 
@@ -80,8 +88,8 @@ export const PLACES_NEUVES = {
   // ---- 🌠 le Showman : les minutes vers le haut ----
   microDuBanc: { nom: 'Le micro du banc', ico: '🎙', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { F: [1.25, 1.05, 0.9, 0.8], finition: 1.03, energie: 1.03 },
     texte: 'La télé a branché le premier trio. Il joue pour la caméra.' },
-  couvertureMagazine: { nom: 'La couverture du magazine', ico: '📸', rarete: 'commune', ...usage, si: 'enFeu', duree: 6, effet: { F: [1.3, 1.05, 0.9, 0.75] },
-    texte: 'Trois de suite, et ta vedette fait la une. Elle veut rester là.' },
+  couvertureMagazine: { nom: 'La couverture du magazine', ico: '📸', rarete: 'commune', ...surUn, si: 'enFeu', duree: 6, effet: { F: [1.15, 1.02, 0.95, 0.88] }, joueur: { creation: 1.35, lancers: 1.15 },
+    texte: 'Trois de suite, et il fait la une. Il veut rester là.' },
   grandeScene: { nom: 'La grande scène', ico: '🎭', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.06, energie: 1.05 },
     texte: 'Contre un rival, les vedettes jouent la moitié du match.' },
 

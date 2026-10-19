@@ -137,6 +137,12 @@ function enMots(m) {
 function enMotsEtChiffres(mots) {
   const vus = new Set(), out = [];
   for (const m of mots) {
+    // Un joueur nommé (V11) : son mot court sur la face, la ligne chiffrée sous « Les chiffres ».
+    if (m.cle === 'surLui') {
+      if (!vus.has(m.mot)) { vus.add(m.mot); out.push({ txt: m.mot, bon: m.bon, cle: 'lui', enMots: true }); }
+      out.push({ ...m, chiffre: true });
+      continue;
+    }
     if (!estChiffre(m) && m.cle !== 'lui' && m.cle !== 'glace') { out.push(m); continue; }
     const [txt, cle, bon = m.bon, grandit = false] = enMots(m) || [];
     if (txt && !vus.has(txt)) { vus.add(txt); out.push({ txt, bon, cle, ampleur: ampleurDe(m.txt), enMots: true, grandit }); }
@@ -1306,7 +1312,18 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
 /* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
 const EN_3E = { part: 1 / 3, par: 'en 3e' };
 const QUI_DE_LA_CARTE = { vise: 'Le joueur qu\'ils visent', vedette: 'Ta vedette', brigadier: 'Ton meilleur défenseur' };
+const QUI_COURT = { vise: 'Le visé', vedette: 'Ta vedette', brigadier: 'Ton défenseur' };
 const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false] };
+/* Sur la face, sans chiffre et court (une carte de la main a la largeur d'un pouce) : « Le visé : tire plus juste ». */
+const FACE_DU_JOUEUR = { lancers: ['tire plus', 'tire moins'], finition: ['tire plus juste', 'tire moins juste'], creation: ['passe plus', 'passe moins'],
+  defense: ['plus facile à battre', 'plus dur à battre'], blessure: ['se blesse plus', 'se blesse moins'] };
+/*
+ * Ce qui bouge chez un joueur nommé (V11), un canal par ligne : « Ton joueur : sa précision +80 % » aux règles, et
+ * « Ton joueur : tire plus juste » sur la face (`mot`, lu par `enMotsEtChiffres`).
+ */
+export const motsSurLeJoueur = (canaux, qui, quand = '', court = qui) => Object.entries(canaux).filter(([k]) => MOTS_DU_JOUEUR[k])
+  .map(([k, v]) => ({ txt: `${qui} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}${quand ? `, ${quand}` : ''}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1,
+    cle: 'surLui', mot: `${court} : ${FACE_DU_JOUEUR[k][v > 1 ? 0 : 1]}` }));
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
@@ -1335,7 +1352,7 @@ function regleDeCarte(C) {
   if (C.joueur) {
     const { qui, ...canaux } = C.joueur;
     const quand = INTENTIONS[C.si] ? 'la période' : 'jusqu\'à la fin du match';
-    for (const [k, v] of Object.entries(canaux)) if (MOTS_DU_JOUEUR[k]) out.push({ txt: `${QUI_DE_LA_CARTE[qui]} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}, ${quand}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1 });
+    out.push(...motsSurLeJoueur(canaux, QUI_DE_LA_CARTE[qui], quand, QUI_COURT[qui]));
   }
   for (const m of motsEnChiffres(C.adv || null, null, { ...(cadre || {}), eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*

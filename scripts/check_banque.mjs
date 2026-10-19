@@ -89,7 +89,7 @@ exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).jo
 // Le congédiement (V5) change de coach : il n'a pas de chiffre à dire.
 const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'consommable', 'plafond'].includes(BANQUE[id].cat) && id !== 'consommable:congediement').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
 exiger('les patrons, événements, consommables et contrats se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'tous');
-const CHAMPS = ['patron', 'effet', 'gestes', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach', 'ballottage'];
+const CHAMPS = ['patron', 'effet', 'gestes', 'surJoueur', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach', 'ballottage'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
   const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', carte: 'lancer', coach: 'essaim', patrons: [], alea: 0.2 });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
@@ -154,6 +154,7 @@ const decs = [
   { jour: 12, equipe: 0, ...payloadDe('joueur:rubanBlanc', { joueur: getPlayerKey(avant) }) },
   { jour: 14, equipe: 0, ...payloadDe('match:lucarne') },
   { jour: 16, equipe: 0, ...payloadDe('consommable:tableMassage') },
+  { jour: 18, equipe: 0, ...payloadDe('consommable:batonsNeufs', { joueur: getPlayerKey(avant) }) },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
 // V10 : un patron attend son moment ; ses soirs posés, il joue.
@@ -162,6 +163,10 @@ moi._soir = { apresDefaite: true };
 exiger('un patron engagé joue pour la saison, ses soirs', !!pat && pat.si === 'apresDefaite' && effetsDeSaison(moi).defense < 1, pat ? `buts contre ×${effetsDeSaison(moi).defense.toFixed(3)} après une défaite` : 'absent');
 exiger('un dossier entre dans les effets de l\'équipe', (moi.effets || []).some(e => e.nom === 'La pratique du mardi'), `${(moi.effets || []).length} effet(s)`);
 exiger('un équipement change la carte du joueur', (avant._mutCles || []).includes('rubanBlanc'), avant.n);
+// V11 : une place sur un joueur nommé tient sur lui, le temps de ses matchs, et attend son moment.
+const surLui = (moi.effetsCibles || []).find(e => e.nom === 'Les bâtons neufs');
+exiger('une place sur un joueur tient sur le joueur nommé', !!surLui && getPlayerKey(surLui.joueur) === getPlayerKey(avant) && surLui.si === 'apresDefaite' && surLui.finition > 1,
+  surLui ? `${surLui.joueur.n} : précision ×${surLui.finition}, ${surLui.fin - surLui.debut} jours` : 'absente');
 exiger('une carte de match entre au deck', deckDe(decs).includes('lucarne'), `${deckDe(decs).length} cartes`);
 
 // UN SOIN RACCOURCIT UNE BLESSURE : une première saison dit qui se blesse et quand ; la même, avec un soin le lendemain, doit le rendre plus tôt.

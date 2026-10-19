@@ -25,7 +25,7 @@ import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI } from './sim.js';
 import { PLACES_NEUVES } from './places.js';
 import { PERSONNEL, CONTRATS_MAUDITS } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
-import { formeDe } from './gerant.js';
+import { formeDe, motsSurLeJoueur } from './gerant.js';
 import { CARTES_MATCH, estPlus, DECK_DEPART } from './combat.js';
 import { money, hache } from './util.js';
 import { NIVEAUX } from './niveaux.js';
@@ -257,7 +257,8 @@ function coachDeLaFamille(cat, cle) {
   const lu = o => coachDesCanaux(o);
   if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ }); }
   if (cat === 'joueur') return lu({ mutation: MUTATIONS[cle] });
-  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes, gain: C.gain, pari: C.pari }); }
+  // Une place sur un joueur (V11) : ses canaux à lui se lisent comme ceux d'une modif.
+  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes, gain: C.gain, pari: C.pari, mutation: C.joueur }); }
   if (cat === 'plafond') return 'banque';
   if (cat === 'match') {
     const C = CARTES_MATCH[cle];
@@ -327,6 +328,10 @@ function formeDeConsommable(C) {
   const e = C.effet || {};
   if (Array.isArray(e.F) || Array.isArray(e.D)) return 'Minutes';
   const bits = bitsDEffet(e);
+  // Sur un joueur (V11) : ses tirs, sa précision, sa défense, ses blessures comptent comme ceux du club.
+  const J = C.joueur || {};
+  bits.push(...bitsDEffet({ volume: J.lancers, finition: J.finition, defense: J.defense, blessure: J.blessure }));
+  if (J.creation) bits.push(J.creation > 1);
   const g = C.gestes || {};
   if (g.soin) bits.push(true);
   if (g.energie) bits.push(g.energie > 0);
@@ -444,6 +449,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     // V10 : son moment d'abord, et ses chiffres un soir de ce moment.
     if (C.si && MOMENTS_SI[C.si]) out.push({ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, les ${C.duree} prochains matchs`, bon: null, duree: true }, ...motsEnChiffres(C.effet || {}));
     else if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
+    if (C.joueur) out.push(...motsSurLeJoueur(C.joueur, 'Ton joueur'));
     if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
     if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
     if (C.cible === 'malediction') out.push({ txt: 'Retire 1 malédiction du deck', bon: true });
@@ -572,7 +578,9 @@ export function payloadDe(id, { joueur = null, carte = null, coach = null, patro
     const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build, joueurs).effet, ...(C.regle ? { regle: true } : {}), ...(C.si ? { si: C.si } : {}) } : null;
     if (C.cible === 'blesse' || C.cible === 'joueur') {
       if (!joueur) return null;
-      return { gestes: { ...C.gestes, joueurs: [joueur] }, ...(effet ? { effet } : {}) };
+      // V11 : le gros d'une place sur le joueur nommé, ses soirs, le temps de ses matchs (`surJoueur`, js/sim.js).
+      const sur = C.joueur ? { surJoueur: { joueur, nom: C.nom, ico: C.ico, duree: C.duree, ...(C.si ? { si: C.si } : {}), ...C.joueur } } : {};
+      return { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}), ...sur };
     }
     if (C.cible === 'malediction') return carte ? { deck: 'menage', retrait: carte } : null;
     if (C.cible === 'carteMatch') return carte ? { deck: 'camp', aiguise: carte } : null;
