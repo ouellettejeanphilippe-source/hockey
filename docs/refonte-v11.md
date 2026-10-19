@@ -1,0 +1,36 @@
+# V11 · Le joueur porte le gros
+
+19 octobre 2026. JP :
+- *au final, les actions, ça devrait être blessures, bonus, malus, stratégies (bonus et malus liés au style de l'équipe), événements randoms auxquels joueurs précis, interview, demandes du proprio, cartes de matchs (doivent plus changer comment l'équipe joue que donner un bonus)* ;
+- *c'est vraiment plus facile de balancer le jeu et créer des histoires, si les bonus et malus plus importants touchent des joueurs et non l'équipe*.
+
+## Le principe
+
+1. **Ce qui touche l'équipe est petit et change la forme du match.** Une carte de match, un coach, un patron, une place d'équipe : un gain sur un canal, un prix sur un autre (plus de tirs, moins bien placés), ou des minutes déplacées d'un trio à l'autre. Jamais un bonus net qui monte toute l'équipe.
+2. **Le gros bonus et le gros malus vont sur un joueur nommé.** Ses tirs, sa précision, ses jambes, sa discipline, sa lancée, son doute : `MUTATIONS` (js/sim.js) les porte déjà, par joueur. Un effet sur un joueur se borne mieux (il joue 18 minutes sur 60 ; il peut se blesser, s'asseoir, être échangé) et il se raconte (« Gourde est en feu », « Dvorak boude »).
+3. **L'histoire naît d'un fait du joueur.** Un événement ou un malus qui arrive seul nomme qui, et pourquoi, en vrais chiffres de ses feuilles.
+
+## Les huit familles, et où chacune vit
+
+| Famille | Équipe ou joueur | Où | Aujourd'hui | À faire |
+|---|---|---|---|---|
+| Blessures | joueur | À faire | blessure, retour, physio, jouer blessé, case vide | complet |
+| Bonus | joueur surtout | places, équipement, butin, paliers | 30 places d'équipe, 40 cartes sur un joueur | les places d'équipe deviennent des échanges ; le gros passe sur un joueur |
+| Malus | joueur | À faire, Hier soir | 3 malédictions de cahier, 6 contrats lourds, l'objectif raté | des malus qui arrivent seuls, sur un joueur, d'un fait de ses feuilles |
+| Stratégies | équipe, petit | le coach, le plan | 9 coachs en bonus pur | chaque coach : son gain et son prix ; son gros va aux joueurs de sa couleur |
+| Événements sur un joueur | joueur | À faire | 4 fils, 1 dossier sur 19 nomme un joueur | des dossiers qui nomment un de tes joueurs |
+| Interviews | joueur ou équipe | À faire | le point de presse, les courriels aux 8 matchs | la question vise un joueur quand le fait vient de lui |
+| Demandes du proprio | équipe | À faire | le mandat, 2 objectifs, les paliers 9-18-26 | un objectif peut viser un joueur (« fais jouer la recrue ») |
+| Cartes de match | équipe, petit | le duel | 30 cartes sur 44 en bonus pur | chacune un échange, ou des minutes, ou un joueur nommé |
+
+## Les tranches
+
+Une PR chacune ; son juge est nommé.
+
+- [x] **T1 · Le cahier change la forme.** Les 30 cartes de bonus pur deviennent des échanges (un gain, un prix) ou visent un joueur nommé (« La vedette se libère » le fait déjà). Juge : `check_cartes` (une carte d'équipe porte un canal pour et un contre, ou déplace des minutes ; son net reste sous sa borne), `check_duel` (62 à 65 %).
+- [ ] **T2 · Les coachs : un style, un prix.** Chaque coach paie sa famille et coûte sur une autre (le Frelon tire plus, ses jambes s'usent ; la Tortue ferme la porte, tire moins ; le Rhino frappe, se fait punir). Son gros effet va aux joueurs de sa couleur. Juges : `check_coachs`, `check_voies`.
+- [ ] **T3 · Les places et le personnel d'équipe.** Les places d'équipe deviennent des échanges ; leur gros passe sur un joueur (« Cent tirs après la pratique » : un joueur, pas l'équipe). Juge : `check_cartes`, `check_banque`.
+- [ ] **T4 · Les malus et les événements sur un joueur.** Des dossiers qui nomment un de tes joueurs sur un fait de ses feuilles (sa disette, ses punitions, ses jambes, son contrat, son temps de glace sous sa zone) ; des malus qui arrivent seuls (il boude, une chicane au vestiaire, l'agent appelle), chacun avec sa réplique et ses options. Juges : `check_fils` (le fait est arrivé), `check_clarte` § 5, `essai_rogue`.
+- [ ] **T5 · L'interview et le proprio visent un joueur.** Le point de presse sur le joueur du fait ; un objectif du proprio sur un joueur. Juges : `check_fils`, `check_rogue`.
+
+La recalibration suit chaque tranche (`check_profondeur`, `check_rogue`) : retirer du bonus d'équipe rend la run plus dure, et le gros passé sur les joueurs la rend plus inégale. C'est voulu : le bon joueur au bon moment fait l'histoire.

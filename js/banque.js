@@ -266,7 +266,9 @@ function coachDeLaFamille(cat, cle) {
     if (DECK_DEPART.includes(cle)) return null;
     if (C.si && C.pari) return 'banque';
     const e = { ...(C.effet || {}) };
-    for (const x of [C.parGenre && C.parGenre.effet, C.selonLeurMain && C.selonLeurMain.effet, C.apres40 && C.apres40.siMene, C.pari && C.pari.gagne, C.improvise, C.piege, C.siVide]) {
+    // Une carte sur un joueur (V11) : ses tirs se lisent comme les tirs du club, le reste sur le même canal.
+    const surLui = C.joueur && { volume: C.joueur.lancers, finition: C.joueur.finition, defense: C.joueur.defense, blessure: C.joueur.blessure };
+    for (const x of [C.parGenre && C.parGenre.effet, C.selonLeurMain && C.selonLeurMain.effet, C.apres40 && C.apres40.siMene, C.pari && C.pari.gagne, C.improvise, C.piege, C.siVide, surLui]) {
       if (x) for (const [k, v] of Object.entries(x)) if (typeof v === 'number') e[k] = k === 'robustesse' ? (e[k] || 0) + v : (e[k] ?? 1) * v;
     }
     return lu({ effet: e, adv: C.adv, gestes: C.energieTous ? { energieTous: C.energieTous } : null });

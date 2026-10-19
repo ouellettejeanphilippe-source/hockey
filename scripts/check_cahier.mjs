@@ -11,7 +11,8 @@
  *      (un maximum, jamais une cible) ;
  *   3. une rare ou une légendaire se VOIT dans la feuille du duel où on la joue : ±2 tirs (pour, contre ou les
  *      deux), ±0,3 but des deux clubs, ou ±0,5 punition ;
- *   4. chaque coach a ses cartes (quatre ; le Comptable, deux), le départ est neutre et a une réponse par intention.
+ *   4. chaque coach a ses cartes (quatre ; le Comptable, deux), le départ est neutre et a une réponse par intention ;
+ *   5. chaque carte change la forme (V11) : un gain et son prix, des minutes, un joueur nommé ou un pari.
  * `N` : duels par club (500). `FILS` : processus (4). `CARTES=a,b` : quelques cartes seulement.
  */
 import { spawn } from 'node:child_process';
@@ -110,6 +111,21 @@ console.log(`\n  Le cahier neuf (V10) · ${toutes.length} cartes · ${N} duels p
     DECK_DEPART.map(k => `${CAHIER[k].ico} ${CAHIER[k].si || 'tous les soirs'}`).join(' · '));
   exiger('chaque carte du cahier attend un moment que le moteur connaît, ou joue tous les soirs', Object.values(CAHIER).every(C => !C.si || MOMENTS_SI[C.si]),
     `${Object.values(CAHIER).filter(C => C.si).length} cartes d'un moment sur ${Object.keys(CAHIER).length}`);
+  /*
+   * 5. LA FORME, PAS LA FORCE (V11, docs/refonte-v11.md). JP : *les cartes de match doivent plus changer comment
+   * l'équipe joue que donner un bonus* ; *les bonus et malus plus importants touchent des joueurs et non l'équipe*.
+   * Une carte d'équipe paie un canal et en coûte un autre (le leur compte à l'envers), ou déplace les minutes des
+   * trios ; son gros va à un joueur nommé (`joueur`) ; un pari ou un geste sans canal (piger) en est exempt.
+   */
+  const bon = (k, v) => (k === 'robustesse' ? v > 0 : ['defense', 'discipline', 'blessure', 'energie'].includes(k) ? v < 1 : v > 1);
+  const sens = C => [
+    ...Object.entries(C.effet || {}).filter(([k, v]) => typeof v === 'number' && v !== (k === 'robustesse' ? 0 : 1)).map(([k, v]) => bon(k, v)),
+    ...Object.entries(C.adv || {}).filter(([, v]) => typeof v === 'number' && v !== 1).map(([k, v]) => !bon(k, v)),
+  ];
+  const deForme = C => !!(C.pari || C.joueur || (C.effet && (C.effet.F || C.effet.D)) || (s => !s.length || (s.includes(true) && s.includes(false)))(sens(C)));
+  const cadeaux = Object.entries(CAHIER).filter(([, C]) => !deForme(C)).map(([k, C]) => `${C.ico} ${C.nom}`);
+  exiger('chaque carte change la forme : un gain et son prix, des minutes, un joueur nommé ou un pari', !cadeaux.length,
+    cadeaux.join(' · ') || `${Object.values(CAHIER).filter(C => C.joueur).length} sur un joueur, ${Object.values(CAHIER).filter(C => C.effet && (C.effet.F || C.effet.D)).length} sur les minutes`);
 }
 
 /* ---------- 1 à 3 : la mesure ---------- */
