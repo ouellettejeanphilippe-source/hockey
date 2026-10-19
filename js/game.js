@@ -30,7 +30,7 @@ import { plafondDe } from './banque.js';
 import { ecrirePartieActive, nouvellePartie, lirePartieActive, migrer, lireIndex, activer, retirerLesRuns } from './sauvegardes.js';
 import { TEAM_COLORS, couleurVive, fondEquipe, viveSurFond, getTeamBand, encreSur, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { estD as isD, esc, money, pct3, pmMatch } from './util.js';
-import { getEraFactor, getEraSalary, getLineZone, getArchetype, seasonGames } from './ratings.js';
+import { getEraFactor, getEraSalary, getLineZone, nomDeFenetre, getArchetype, seasonGames } from './ratings.js';
 import { getTraits, TRAITS } from './traits.js';
 import { surAppareil, demarrerVisages, imgVisage } from './visages.js';
 import { actionsDisponibles, demarrerActions, photoDeFond } from './actions.js';
@@ -870,6 +870,8 @@ export function positionLabel(p) {
   if (p.p === 'G') return 'G';
   let primary = 'F';
   if (isD(p)) primary = (p.np === 'RD' || p.np === 'DD' || p.np === 'R') ? 'DD' : 'DG';
+  // Un défenseur qui a joué les deux côtés dans sa vraie saison (`dc`) le dit : « DG/DD ».
+  if (isD(p) && p.dc) return primary === 'DG' ? 'DG/DD' : 'DD/DG';
   else if (p.np === 'C') primary = 'C';
   else if (p.np === 'R' || p.np === 'AD') primary = 'AD';
   else if (p.np === 'L' || p.np === 'AG') primary = 'AG';
@@ -1000,18 +1002,14 @@ export function zoneTag(p, mini = false) {
   const z = getLineZone(p, v);
   // LA ZONE QUI A GRANDI (l'atelier, S78) : « ⏫ Monte d'un cran » lui ouvre
   // une unité de plus vers le haut. L'étiquette dit la zone qu'il a
-  // MAINTENANT (`unitesIdeales`) — « T2-3 » mentirait sur un joueur qui rend
-  // désormais au 1er trio.
+  // MAINTENANT (`unitesIdeales`) — « Middle 6 » mentirait sur un joueur qui
+  // rend désormais au 1er trio : il est « Top 9 ».
   const ideal = p.p === 'G' ? z.idealUnits : unitesIdeales(p, v);
   const grandie = ideal.length !== z.idealUnits.length;
   const where = ideal.map(u => u + 1).join(', ');
   const unit = isD(p) ? 'paires' : p.p === 'G' ? 'rôles' : 'trios';
   let court = mini ? (z.mini || z.short) : z.short;
-  if (grandie) {
-    const lo = Math.min(...ideal) + 1, hi = Math.max(...ideal) + 1;
-    const ord = n => (n === 1 ? (isD(p) ? '1re' : '1er') : `${n}e`);
-    court = mini ? `${isD(p) ? 'P' : 'T'}${lo}-${hi}` : `${ord(lo)}-${ord(hi)} ${isD(p) ? 'paire' : 'trio'}`;
-  }
+  if (grandie) court = nomDeFenetre(isD(p) ? 'D' : 'F', ideal) || court;
   const enBas = p.p !== 'G' && p._enBas;
   const titreBas = enBas ? ` Le ${isD(p) ? '3e paire' : '4e trio'} ne le punit plus.` : '';
   return `<span class="tag tag-zone lz${z.level}" title="Zone : ${esc(z.label)}${grandie ? ', monté d\'un cran' : ''}.${titreBas} Rend à 100 % sur les ${unit} ${where}. Elle dit OÙ il joue ; son badge dit ce qu'il y fait.">${esc(court)}</span>`;

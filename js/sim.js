@@ -373,7 +373,7 @@ export function malusZoneUnite(group, unit, entrees, opts = {}) {
  */
 const zonesDeLaCase = (group, unit) =>
   [ZONES_ETOILE[group], ...LINE_ZONES[group]].filter(z => z.idealUnits.includes(unit));
-const etiquetteDeCase = (group, unit) => zonesDeLaCase(group, unit).map(z => z.mini).join(' · ');
+const etiquetteDeCase = (group, unit) => [...new Set(zonesDeLaCase(group, unit).map(z => z.mini))].join(' · ');
 export const SLOTS = [];
 [0, 1, 2, 3].forEach(unit => {
   const label = etiquetteDeCase('F', unit);
@@ -495,8 +495,8 @@ export function getPositionPenalty(player, slot) {
     const np = (player.np === 'RD' || player.np === 'R' || player.p === 'RD') ? 'RD' : 'LD';
     const role = slot.role; // 'DG' (LD) or 'DD' (RD)
     const targetSide = role === 'DG' ? 'LD' : 'RD';
-    // « Joue partout » (S78, l'atelier) : les deux côtés.
-    if (np === targetSide || player._partout) return 0;
+    // « Joue partout » (S78, l'atelier) : les deux côtés ; et le défenseur qui les a joués dans sa vraie saison (`dc`, js/ratings.js).
+    if (np === targetSide || player._partout || player.dc) return 0;
     return 2; // Off-side D (-2)
   }
   if (slot.group !== 'F') return 999;
