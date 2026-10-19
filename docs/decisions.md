@@ -2579,3 +2579,13 @@ JP : *événements randoms auxquels joueurs précis* ; *les malus plus important
 
 « Les jambes lourdes » nommait déjà le plus fatigué sans rien lui faire : elle lui offre maintenant un congé (ses jambes, une pratique manquée). Le moteur n'apprend rien : la réponse porte `lui`, que `poserSurJoueur` pose dans `effetsCibles` comme une place sur un joueur (tranche 3b). La disette n'a pas son dossier : le fil la porte déjà, et deux choix du même fait se marcheraient dessus. Mesuré en paires (`check_places`) : chaque réponse sous la borne d'une commune (−0,1 à +0,2 V), le joueur nommé de −0,07 à +0,12 point par soir.
 
+## L'interview et le proprio visent un joueur (V11, tranche 5 — 19 oct. 2026)
+
+JP : *interview, demandes du proprio* ; *les bonus et malus plus importants touchent des joueurs*.
+
+**La presse vise le joueur du fait.** Une question ou un courriel qui nommait un joueur le prenait sur sa carte de saison (`ciblesDe` : le partant, le plus de points, le plus de minutes de punition). Elle prend maintenant celui dont le fait vient, dans les feuilles des huit matchs que le message raconte (`joueurDuFait`, js/vie-gm.js) : le gardien qui a reçu les tirs du dernier soir (« Patrick Roy : 0 but sur 31 tirs ce soir-là » après un blanchissage), le meilleur pointeur des huit, le plus puni. Le fait se dit sous la question. Personne dans les feuilles : la cible d'avant. Les réponses gardent leurs effets ; « La mise au point » faisait déjà ainsi.
+
+**Le proprio nomme son gros contrat.** Un huitième objectif, 💼 : le patineur habillé qui coûte le plus cher fait ses points en vingt matchs, au rythme de sa vraie saison moins 10 % (`PART_DU_RYTHME`). Le joueur et sa cible voyagent dans la décision (`objectif.quoi`) ; ses points se comptent dans les feuilles, comme la vedette. Réussi, une carte ; raté, la vis serrée, comme les autres. Mesuré sur huit ligues de vrais clubs (`check_moments`) : 52 % réussis, au milieu des autres (29 à 59 %).
+
+**La prime d'un objectif réussi revient.** Le compte des jetons cherchait la carte prise au verdict (`d.carte`) ; depuis la V10, le verdict donne une place (`d.place`), et la prime de 20 jetons ne se versait plus.
+

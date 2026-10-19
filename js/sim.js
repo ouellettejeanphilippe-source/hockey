@@ -2894,7 +2894,33 @@ export const OBJECTIFS = {
     mesure: m => m.filter(x => x.contre === 0).length, cible: 2, sens: 1, unite: 'blanchissages' },
   regulier: { ico: '🧭', nom: 'Jamais trois défaites de suite en 20 matchs', court: 'Pas trois défaites de suite',
     mesure: m => { let b = 0, c = 0; for (const x of m) { c = x.v ? 0 : c + 1; b = Math.max(b, c); } return b; }, cible: 2, sens: -1, unite: 'défaites de suite au pire' },
+  /*
+   * LE GROS CONTRAT (V11, tranche 5 — docs/refonte-v11.md). JP : *demandes du proprio* ; *les bonus et malus plus
+   * importants touchent des joueurs*. Le proprio nomme le patineur qu'il paie le plus cher, habillé ce jour-là
+   * (`joueurDeLObjectif`), et lui fixe ses points au rythme de sa vraie saison (`PART_DU_RYTHME`). Le joueur et sa
+   * cible voyagent dans la décision (`quoi` : { joueur, n, cible }) ; ses points se comptent dans les feuilles.
+   */
+  contrat: { ico: '💼', nom: 'Ton gros contrat fait ses points', court: 'Le gros contrat produit', joueur: true,
+    mesure: (m, quoi) => m.reduce((a, x) => a + (x.buts || []).filter(b => [b.marqueur, ...(b.passeurs || [])].some(p => p && getPlayerKey(p) === quoi.joueur)).length, 0),
+    sens: 1, unite: 'points' },
 };
+/* La cible du gros contrat : ses points de vingt matchs au rythme de sa vraie saison, un peu moins (le proprio n'est pas fou). */
+const PART_DU_RYTHME = 0.9;
+/* Le joueur d'un objectif qui en nomme un (`joueur: true`) : le patineur habillé qui coûte le plus cher, et sa cible. Sinon null. */
+export function joueurDeLObjectif(cle, team) {
+  if (!OBJECTIFS[cle] || !OBJECTIFS[cle].joueur || !team || !team.roster) return null;
+  const p = SLOTS.filter(s => !s.scratch && s.group !== 'G').map(s => team.roster[s.i]).filter(Boolean).sort((a, b) => (b.$ || 0) - (a.$ || 0))[0];
+  if (!p) return null;
+  const rythme = ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
+  return { joueur: getPlayerKey(p), n: p.n, cible: Math.max(4, Math.round(MATCHS_OBJECTIF * rythme * PART_DU_RYTHME)) };
+}
+/* Ce que l'objectif dit à l'écran : son nom et son nom court, le joueur et sa cible quand il en nomme un. */
+export function motsDeLObjectif(cle, quoi = null) {
+  const O = OBJECTIFS[cle];
+  if (!O) return null;
+  if (!O.joueur || !quoi) return { nom: O.nom, court: O.court, cible: O.cible };
+  return { nom: `${quoi.n} fait ${quoi.cible} points en ${MATCHS_OBJECTIF} matchs`, court: `${quoi.n} à ${quoi.cible} points`, cible: quoi.cible };
+}
 /* Les trois défis offerts : PURS, comme la main des cartes. */
 export function objectifsOfferts(graine, jour) {
   const cles = Object.keys(OBJECTIFS);
@@ -2910,20 +2936,21 @@ export function objectifsOfferts(graine, jour) {
  * séquence de quatre est acquise dès qu'elle arrive) mais jamais un échec
  * avant la fin, sauf s'il est déjà mathématiquement joué.
  */
-export function etatObjectif(cle, matchs) {
+export function etatObjectif(cle, matchs, quoi = null) {
   const o = OBJECTIFS[cle];
-  if (!o) return null;
+  if (!o || (o.joueur && !quoi)) return null;
   const m = matchs.slice(0, MATCHS_OBJECTIF);
-  const val = o.mesure(m);
+  const val = o.mesure(m, quoi);
+  const cible = o.joueur ? quoi.cible : o.cible;
   const fini = m.length >= MATCHS_OBJECTIF;
-  const tient = o.sens > 0 ? val >= o.cible : val <= o.cible;
+  const tient = o.sens > 0 ? val >= cible : val <= cible;
   // Une mesure qui ne fait que monter (victoires, buts, séquence, points,
   // blanchissages) est acquise dès qu'elle passe la cible ; une qui ne fait
   // que monter vers le MAUVAIS bord (buts contre, défaites de suite) est
   // perdue dès qu'elle la dépasse.
   const reussi = o.sens > 0 ? tient : (fini && tient);
   const rate = o.sens > 0 ? (fini && !tient) : !tient;
-  return { val, cible: o.cible, fini: reussi || rate, reussi, rate, joues: m.length };
+  return { val, cible, fini: reussi || rate, reussi, rate, joues: m.length };
 }
 
 /* Les factions (S66) sont parties en S72 : JP, *les trucs genre partisans et cie, ça apporte rien*. Ce qu'elles faisaient se joue maintenant sur la glace. */

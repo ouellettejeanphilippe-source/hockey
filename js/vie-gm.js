@@ -1199,6 +1199,32 @@ const etatVrai = (e, c) => (e === 'sequence' ? c.serieV >= 3 : e === 'panne' ? c
  * tes feuilles d'avant (`faitsAvant`, js/saison.js), et il nomme le vrai joueur et les vrais chiffres.
  */
 export const PUNITIONS_SERMON = 3;
+/*
+ * LE JOUEUR DU FAIT (V11, tranche 5 — docs/refonte-v11.md). JP : *l'interview vise un joueur quand le fait vient de
+ * lui*. La question vise celui dont le fait vient, lu dans les feuilles qu'elle raconte (`feuilles` : [{ f, cote }],
+ * dans l'ordre) : le gardien qui a reçu les tirs du dernier soir, le meilleur pointeur, celui qui a pris le plus de
+ * punitions — parmi `habilles` (un Set). Personne dans les feuilles : null, et la question garde sa cible d'avant
+ * (`ciblesDe`, js/sim.js). Rend { p, fait }, le fait en vrais chiffres. Pur.
+ */
+export function joueurDuFait(sorte, feuilles, habilles) {
+  const compter = (liste, f) => { const n = new Map(); for (const x of liste) { const p = f(x); if (p && habilles.has(p)) n.set(p, (n.get(p) || 0) + 1); } return [...n].sort((a, b) => b[1] - a[1])[0] || null; };
+  if (sorte === 'gardien') {
+    const der = feuilles[feuilles.length - 1];
+    const g = der && compter((der.f.lancers || []).filter(l => l.cote !== der.cote), l => l.gardien);
+    if (!g) return null;
+    const buts = (der.f.buts || []).filter(b => b.cote !== der.cote && b.gardien === g[0]).length;
+    return { p: g[0], fait: `${g[0].n} : ${buts} but${buts > 1 ? 's' : ''} sur ${g[1]} tirs ce soir-là` };
+  }
+  if (sorte === 'vedette') {
+    const v = compter(feuilles.flatMap(({ f, cote }) => (f.buts || []).filter(b => b.cote === cote).flatMap(b => [b.marqueur, ...(b.passeurs || [])])), p => (p && p.p !== 'G' ? p : null));
+    return v ? { p: v[0], fait: `${v[0].n} : ${v[1]} point${v[1] > 1 ? 's' : ''} en ${feuilles.length} matchs` } : null;
+  }
+  if (sorte === 'dur') {
+    const d = compter(feuilles.flatMap(({ f, cote }) => (f.punitions || []).filter(x => x.cote === cote)), x => x.joueur);
+    return d ? { p: d[0], fait: `${d[0].n} : ${d[1]} punition${d[1] > 1 ? 's' : ''} en ${feuilles.length} matchs` } : null;
+  }
+  return null;
+}
 const PREUVES = {
   // Le joueur puni au moins trois fois sur ses deux à quatre derniers matchs : {n} punitions en {m} matchs.
   punitions: c => {

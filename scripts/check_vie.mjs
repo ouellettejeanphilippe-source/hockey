@@ -21,7 +21,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, MOMENTS, SEQUENCES, MUTATIONS, effetDeMoment, pariDeDecision, ciblesDe, getPlayerKey, SLOTS } from '../js/sim.js';
 import { effetEnChiffres } from '../js/impact.js';
-import { courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON } from '../js/vie-gm.js';
+import { courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, joueurDuFait } from '../js/vie-gm.js';
 import { formeDe } from '../js/gerant.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -223,6 +223,24 @@ exiger('le pari est tiré une seule fois', (t.paris || []).length === 1, `${(t.p
   exiger('« La mise au point » ne sort pas sans les punitions', sans === null, String(sans));
   exiger('« La mise au point » nomme le joueur puni et ses vrais chiffres', avec && avec.joueur === joueur && avec.n === PUNITIONS_SERMON && avec.m === 2
     && /\{n\} punitions en \{m\} matchs/.test(sermon.recit), avec ? `${avec.n} en ${avec.m}` : 'rien');
+}
+
+// LE JOUEUR DU FAIT (V11, tranche 5) : la question vise celui dont le fait vient, dans les feuilles qu'elle raconte, habillé.
+{
+  const roy = { n: 'Patrick Roy', p: 'G' }, sakic = { n: 'Joe Sakic', p: 'C' }, foote = { n: 'Adam Foote', p: 'D' }, parti = { n: 'Claude Lemieux', p: 'RW' };
+  const habilles = new Set([roy, sakic, foote]);
+  const feuilles = [
+    { cote: 'A', f: { buts: [{ cote: 'A', marqueur: sakic, passeurs: [foote] }, { cote: 'A', marqueur: parti, passeurs: [sakic] }], punitions: [{ cote: 'A', joueur: foote }], lancers: [] } },
+    { cote: 'B', f: { buts: [{ cote: 'B', marqueur: sakic, passeurs: [] }, { cote: 'A', marqueur: { n: 'Eux' }, gardien: roy }], punitions: [{ cote: 'B', joueur: foote }, { cote: 'A', joueur: sakic }],
+      lancers: [{ cote: 'A', gardien: roy }, { cote: 'A', gardien: roy }, { cote: 'A', gardien: roy }, { cote: 'B', gardien: { n: 'Eux' } }] } },
+  ];
+  const g = joueurDuFait('gardien', feuilles, habilles), v = joueurDuFait('vedette', feuilles, habilles), d = joueurDuFait('dur', feuilles, habilles);
+  exiger('la presse vise le joueur du fait, avec ses vrais chiffres', g && g.p === roy && g.fait === 'Patrick Roy : 1 but sur 3 tirs ce soir-là'
+    && v && v.p === sakic && v.fait === 'Joe Sakic : 3 points en 2 matchs' && d && d.p === foote && d.fait === 'Adam Foote : 2 punitions en 2 matchs',
+    [g, v, d].map(x => (x ? x.fait : 'rien')).join(' · '));
+  const sansSakic = joueurDuFait('vedette', feuilles, new Set([roy, foote]));
+  exiger('un joueur parti ne se fait pas viser ; personne dans les feuilles, la cible d\'avant', sansSakic && sansSakic.p === foote && joueurDuFait('dur', [], habilles) === null,
+    sansSakic ? sansSakic.fait : 'rien');
 }
 
 verdict('Courriels et points de presse');
