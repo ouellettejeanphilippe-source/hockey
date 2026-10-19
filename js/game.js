@@ -2057,7 +2057,8 @@ function remplirMarche() {
     host.innerHTML = `${signatureHtml(hub)}<section class="hub-page" data-genre="${quoi}"><div class="hub-page-corps"></div></section>`;
     host.dataset.rendu = quoi;
     brancherSignature(host, hub);
-    hub[quoi]({ dans: host.querySelector('.hub-page-corps'), fermer: () => montrerPage('match') });
+    // V12-3 : une carte qui a sa maison (un soin, un contrat) y renvoie : « À l'infirmerie › » ouvre son sous-onglet.
+    hub[quoi]({ dans: host.querySelector('.hub-page-corps'), fermer: () => montrerPage('match'), renvoyer: k => montrerPage(k) });
     return;
   }
   delete host.dataset.rendu;

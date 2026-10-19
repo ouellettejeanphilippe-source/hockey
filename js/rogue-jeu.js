@@ -15,7 +15,7 @@ import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirer
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, SEMAINE, PLACES } from './inventaire.js';
+import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, masseSalarialeHtml, SEMAINE, PLACES } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
 import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement, motDuCoachPlan, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
@@ -592,11 +592,13 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     ...(page || {}),
     titre: 'Tes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
     partie: enSaison ? placesDeLaPartie({ decisions: decs, rogue }) : [],
-    // V12-2 : le personnel et le congédiement sont chez l'entraîneur (`cartesDuPersonnel`), plus ici.
-    meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0 && !deCoaching(x.id)) : [],
+    // V12-3 : une carte qui a sa maison (le coaching, la santé, le plafond) s'y joue (`cartesDeLaMaison`), plus ici ; en place, elle y renvoie.
+    meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0 && !maisonDeLaCarte(x.id)) : [],
+    ouSeJoue: rogue ? ouSeJoue : () => null,
     deck: enSaison ? deckDe(Lg.decisions || []) : [],
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
-    plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
+    // En Rogue, la masse salariale est chez le proprio (V12-3), avec les cartes de contrat.
+    plafond: rogue ? null : plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider, page),
     vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
   });
@@ -627,7 +629,7 @@ export function placesDuJour(j) {
   // Ce qu'elle donne d'abord, puis ce qu'elle coûte, puis sa durée.
   const bref = id => { const r = reglesDe(id); return [r.find(x => x.bon === true && !x.duree), r.find(x => x.bon === false && !x.duree), r.find(x => x.duree)].filter(Boolean).map(x => ({ txt: x.txt, bon: x.duree ? null : x.bon })); };
   return { n: PLACES, trop: Math.max(0, places.length - PLACES),
-    places: places.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, confiance: confiance.get(BANQUE[x.id].coach) || 0, bref: bref(x.id), valeur: valeurDe(x.id) })) };
+    places: places.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, confiance: confiance.get(BANQUE[x.id].coach) || 0, bref: bref(x.id), valeur: valeurDe(x.id), maison: G.bonus === 'ROGUE' ? ouSeJoue(x.id) : null })) };
 }
 /* Une carte en place, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
 export function ouvrirCarteDeLaPlace(item, j, decider) {
@@ -826,26 +828,46 @@ export function personnelDuJour(j) {
     ${pa.map(x => { const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {};
       return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b>${P.texte ? `<em>${esc(P.texte)}</em>` : ''}</span></div>`; }).join('')}
     ${libres ? `<p class="perso-libre">${libres} poste${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''} : les packs Personnel en donnent, et ils s'engagent ici.</p>` : ''}
-  </section>${cartesDuPersonnel(pa)}`;
+  </section>${cartesDeLaMaison('entraineur', j)}`;
 }
 /*
- * TOUT CE QUI EST COACHING AU MÊME ENDROIT (V12-2). JP : *everything coaching should be at same place, including cards for
- * assistant or firing a coach*. Les cartes du personnel que tu as (« Engager ») et celles qui changent de coach (le
- * congédiement : « Jouer ») vivent ici, plus au Marché › Tes cartes.
+ * UNE MAISON PAR SUJET (V12-2, puis V12-3). JP : *everything coaching should be at same place, including cards for assistant
+ * or firing a coach* ; puis *that philosophy should be for everything*. Une carte se joue dans le sous-onglet de ce qu'elle
+ * touche : le personnel et le congédiement chez l'entraîneur, ce qui soigne un blessé ou refait des jambes à l'infirmerie,
+ * le plafond et les contrats chez le proprio. Ailleurs (Tes cartes, tes places de « Ce soir »), elle y renvoie.
  */
-const deCoaching = id => { const c = BANQUE[id]; return !!c && c.cat === 'consommable' && (CONSOMMABLES[c.cle] || {}).cible === 'coach'; };
-function cartesDuPersonnel(pa) {
-  const meta = lireMeta(), engages = new Set(pa.map(x => x.cle));
-  const perso = (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k));
-  const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && deCoaching(id));
-  if (!perso.length && !conso.length) return '';
+const MAISONS_DES_CARTES = {
+  entraineur: { titre: 'Tes cartes du personnel', ou: 'Chez l\'entraîneur' },
+  infirmerie: { titre: 'Tes cartes de soin', ou: 'À l\'infirmerie' },
+  proprio: { titre: 'Tes cartes de contrat', ou: 'Chez le proprio' },
+};
+/* Où une carte se joue, pour y renvoyer : sa maison et le mot du bouton (« À l'infirmerie › »). */
+const ouSeJoue = id => { const k = maisonDeLaCarte(id); return k ? { cle: k, mot: MAISONS_DES_CARTES[k].ou } : null; };
+function maisonDeLaCarte(id) {
+  const c = BANQUE[id];
+  if (!c) return null;
+  if (c.cat === 'plafond') return 'proprio';
+  if (c.cat !== 'consommable') return null;
+  const C = CONSOMMABLES[c.cle] || {};
+  return C.cible === 'coach' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : null;
+}
+export function cartesDeLaMaison(maison, j) {
+  const meta = lireMeta();
+  const engages = new Set(maison === 'entraineur' ? patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle) : []);
+  const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k)) : [];
+  const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
+  const places = G.ligue ? placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
+  const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + places.length;
+  const masse = maison === 'proprio' ? masseSalarialeHtml(plafondPourInventaire(j)) : '';
+  if (!n) return masse;
   const carte = (id, bouton) => `<div class="bq-carte">${carteDeBanqueHtml(optionDeBanque(id))}<div class="bq-actions">${bouton}</div></div>`;
-  return `<section class="perso" aria-label="Tes cartes du personnel"><h3 class="perso-t">🃏 Tes cartes du personnel · ${perso.length + conso.length}</h3>
-    <div class="inv-grille">${perso.map(k => carte(`patron:${k}`, `<button type="button" class="btn gold perso-jouer" data-src="personnel" data-id="patron:${esc(k)}">Engager</button>`)).join('')}${conso.map(([id, n]) => carte(id, `<button type="button" class="btn gold perso-jouer" data-src="meta" data-id="${esc(id)}">Jouer${n > 1 ? ` · ×${n}` : ''}</button>`)).join('')}</div>
+  const jouer = (src, id, mot, ref = '') => `<button type="button" class="btn gold maison-jouer" data-src="${src}" data-id="${esc(id)}"${ref ? ` data-ref="${esc(ref)}"` : ''}>${mot}</button>`;
+  return `${masse}<section class="perso" aria-label="${MAISONS_DES_CARTES[maison].titre}"><h3 class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</h3>
+    <div class="inv-grille">${places.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
   </section>`;
 }
-/* Engager un patron, jouer un congédiement, depuis le sous-onglet de l'entraîneur : le même chemin que Tes cartes. */
-export const jouerDuPersonnel = (item, j, decider) => jouerCarte(item, j, decider, null, () => {});
+/* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
+export const jouerDeLaMaison = (item, j, decider) => (item.vendre ? decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }) : jouerCarte(item, j, decider, null, () => {}));
 /*
  * POSER UNE MODIF EN TOUCHANT SON JOUEUR (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert*. Une
  * modif de joueur touchée allume, dans les lignes de « Ce soir », les joueurs qui peuvent la porter ; toucher l'un
