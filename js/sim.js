@@ -929,7 +929,8 @@ const VOLUME_CENTRE = Number(ENV_MESURE.VOLUME_CENTRE ?? 1);
  */
 export const PART_UNITE = {
   F: lireListe('PART_F', [0.300, 0.260, 0.235, 0.205]),
-  D: lireListe('PART_D', [0.390, 0.315, 0.295]),
+  // RATINGS_VERSION 29 (la zone du vrai temps de glace) : les paires se forment autrement ; un pas de la même méthode.
+  D: lireListe('PART_D', [0.370, 0.318, 0.312]),
 };
 
 /* V10 (tranche 6) : les cartes de saison (un bonus payé par un malus) sont parties ; le personnel en a pris la place (js/personnel.js). */
