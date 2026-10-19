@@ -26,8 +26,12 @@ const piger = (liste, graine, w, sorte) => liste[Math.floor(hache(graine, 'noeud
 /* Les cartes qu'une route peut offrir : communes ou peu communes, sans cible (elles touchent l'équipe), sans pari ni règlement. */
 const simple = c => c.cible === 'aucune' && (c.rarete === 'commune' || c.rarete === 'peu') && !c.pari && !c.regle && !c.espace && !c.maitrise && !c.cout;
 const consommables = garde => Object.keys(CONSOMMABLES).filter(k => simple(CONSOMMABLES[k]) && garde(CONSOMMABLES[k])).map(k => `consommable:${k}`);
-/* Le repos : des gestes, ou un effet qui ne touche qu'aux jambes et aux blessures. */
-const deRepos = c => c.gestes || (c.effet && Object.keys(c.effet).every(k => k === 'blessure' || k === 'energie'));
+/*
+ * Le repos : des gestes, ou un effet dont le GAIN ne touche qu'aux jambes et aux blessures (V11 : son prix peut être
+ * ailleurs — « La table de massage » coûte de la robustesse).
+ */
+const gagne = (k, v) => (k === 'robustesse' ? v > 0 : k === 'blessure' || k === 'energie' || k === 'defense' || k === 'discipline' ? v < 1 : v > 1);
+const deRepos = c => c.gestes || (c.effet && Object.entries(c.effet).filter(([k, v]) => typeof v === 'number' && gagne(k, v)).every(([k]) => k === 'blessure' || k === 'energie'));
 const BASSINS = {
   repos: () => consommables(c => !c.gain && deRepos(c)),
   entrainement: () => consommables(c => !c.gain && !c.gestes && c.effet && !deRepos(c)),
