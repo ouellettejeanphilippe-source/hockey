@@ -14,6 +14,7 @@ import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
 import { BUTIN_RIVAL } from '../js/sim.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
+import { collesAuBord, MARGE } from './lib/bords.mjs';
 const require = createRequire(import.meta.url);
 let pw;
 try { pw = require('playwright'); }
@@ -268,8 +269,34 @@ const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).de
 /* La saison se rejoue avant d'être écrite : on attend que la sauvegarde compte plus de `n` décisions (10 s au plus), plutôt que de la lire trop tôt. */
 const attendreDecisions = n => page.waitForFunction(n0 => { const ix = JSON.parse(localStorage.getItem('cap82_parties'));
   return ((JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)).partie || {}).decisions || []).length > n0; }, n, { timeout: 10000 }).catch(() => {});
+/*
+ * RIEN NE COLLE AU BORD (JP : *t'es mieux d'avoir un petit padding, que pas de padding du tout*). Chaque écran que l'essai
+ * traverse se mesure (scripts/lib/bords.mjs) ; la première capture d'une faute nouvelle se garde.
+ */
+const bords = { vus: 0, fautes: new Map() };
+async function guetterBords(ou) {
+  const f = await collesAuBord(page).catch(() => []);
+  bords.vus++;
+  let neuve = false;
+  for (const x of f) { const k = x.replace(/ à .*$/, ''); if (!bords.fautes.has(k)) { bords.fautes.set(k, `${x} — ${ou}`); neuve = true; console.log(`   ▸ au bord : ${x} — ${ou} (capture ${bords.fautes.size})`); } }
+  if (neuve && bords.fautes.size <= 12) await page.screenshot({ path: `${DOSSIER}/rogue-bord-${bords.fautes.size}.png` }).catch(() => {});
+}
+/* Chaque section et chacun de ses sous-onglets, sauf les Lignes (elles mènent derrière le banc), mesurés au bord. */
+async function tourDesBords(quand) {
+  for (const sec of ['bureau', 'soir', 'effectif', 'marche', 'ligue']) {
+    await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {}); await page.waitForTimeout(400);
+    const pages = await page.$$eval('#sousNav:not([hidden]) .soustab', b => b.map(x => x.dataset.page)).catch(() => []);
+    if (!pages.length) await guetterBords(`${quand} · ${sec}`);
+    for (const pg of pages.filter(x => x !== 'alignement')) {
+      await page.click(`#sousNav .soustab[data-page="${pg}"]`).catch(() => {}); await page.waitForTimeout(400);
+      await guetterBords(`${quand} · ${sec} › ${pg}`);
+    }
+  }
+  await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(300);
+}
 async function regler() {
   for (let i = 0; i < 30; i++) {
+    await guetterBords('en jouant');
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
     // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
@@ -573,6 +600,8 @@ async function regler() {
 // Lancer la saison
 await page.click('#mainBtn');
 await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-trancher, #choixModal:not([hidden]) .choix-option');
+await regler();
+await tourDesBords('le premier jour');
 await regler();
 // LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut — sous le sous-onglet Saison du Club (1.0, R2).
 const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
@@ -1459,6 +1488,8 @@ if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été 
 console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
 if (!flottant.vus) erreurs.push('le bouton flottant n\'a jamais paru (« Ce soir » défilé au bout)');
+console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
+if (bords.fautes.size) erreurs.push(`${bords.fautes.size} élément(s) collent au bord de l'écran : ${[...bords.fautes.values()].slice(0, 4).join(' | ')}`);
 console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix dépliés${barreA.sous.length ? `, ${barreA.sous.length} sous la barre` : ', la 1re option au-dessus de la barre chaque fois'}`);
 if (barreA.sous.length) erreurs.push(`la barre collée cache le choix qu'elle ouvre : ${barreA.sous.slice(0, 3).join(' · ')}`);
 if (barreA.longs.length) erreurs.push(`« Encore un choix » ne tient pas sur une ligne : ${barreA.longs.slice(0, 3).join(' · ')}`);
