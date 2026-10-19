@@ -137,11 +137,11 @@ function dessinHtml(cle, genre) {
  * un peu, va chercher un vrai look de cartes avec effets, etc. Rends ça plus
  * dynamique et beau*. Une carte de match est une carte d'« insert » de la
  * même collection que les joueurs : le cadre du métal de sa rareté, le coût
- * dans une rondelle, et l'holographique des rares et des légendaires SUR LE
- * CADRE ET L'ILLUSTRATION seulement — la règle chiffrée reste sur un fond
- * uni, jamais sous un reflet : on lit d'abord, on brille ensuite. La couche
- * `.tc-holo` n'existe que sur les rares et les légendaires : trente
- * communes n'en paient rien.
+ * dans le coin, et la lumière des rares et des légendaires SUR LE CARTON
+ * seulement — la règle chiffrée se lit dessous, sur un fond uni, jamais sous
+ * un reflet : on lit d'abord, on brille ensuite. Le cadre et la lumière
+ * (`.carton-cadre`, `.carton-lueur`) n'existent que sur les rares et les
+ * légendaires : trente communes n'en paient rien.
  *
  * c : { cle, rarete, i (rang dans la main, pour la donne), ico, nomHtml,
  *       typeHtml, artHtml, texteHtml, bonHtml, prixHtml, pucesHtml,
@@ -177,18 +177,32 @@ export function carteHtml(c) {
   const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
   // `statique` (Jalon U) : la même face hors d'un choix (l'inventaire), une div ; ses boutons sont dessous.
   const tag = c.statique ? 'div' : 'button type="button"';
+  /*
+   * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte
+   * de jeu est un carton comme celui d'un joueur (`cartonHtml`) : la série de la glace, aux couleurs de son genre au
+   * lieu d'un club ; son dessin dans la fenêtre, son coût dans le coin, sa rareté dans l'autre, son nom sur la plaque
+   * et son icône dans le médaillon. Sa rareté en est l'édition : le cadre de métal, l'or, le prisme. Ce qu'elle fait
+   * se lit dessous, en entier.
+   */
+  const nomTexte = String(c.nomHtml || '').replace(/<[^>]*>/g, '');
+  // Le médaillon porte l'icône ; sans icône, le dessin en petit.
+  const ico = c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico}</span>` : art;
   return `<${tag} class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive && !c.statique ? ' disabled' : ''}>
-    ${brille(r) ? '<span class="tc-holo" aria-hidden="true"></span>' : ''}
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
-    <span class="tc-cadre">
-      <span class="tc-tete"><span class="tc-nom">${c.nomHtml || ''}</span>${c.coinHtml ? `<span class="tc-coin">${c.coinHtml}</span>` : ''}</span>
-      <span class="tc-art">${art}</span>
-      <span class="tc-type"><span>${c.typeHtml || ''}</span><span class="tc-gemme" title="${R.nom}">${R.gemme}</span></span>
-      ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
-      ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
-      ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
-      <span class="tc-pied"><span>Cap 82-0</span><span class="tc-pied-rar">${R.nom}</span></span>
+    <span class="carton cs-glace cs-jeu tc-${r}">
+      ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
+      <span class="carton-photo"><span class="tcj-art">${art}</span></span>
+      <span class="carton-deco" aria-hidden="true"></span>
+      ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
+      ${c.coinHtml ? `<span class="carton-pos">${c.coinHtml}</span>` : ''}
+      <span class="cj-gemme" title="${R.nom}">${R.gemme}</span>
+      <span class="carton-nom" style="--n:${Math.max(6, nomTexte.length)}"><span class="lname tc-nom">${c.nomHtml || ''}</span>${c.typeHtml ? `<span class="carton-club-nom">${c.typeHtml}</span>` : ''}</span>
+      <span class="carton-club">${ico}</span>
+      <span class="carton-imprime"><b>Cap 82-0</b><span>${R.nom}</span></span>
     </span>
+    ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
+    ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
+    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
   </${c.statique ? 'div' : 'button'}>`;
 }
 

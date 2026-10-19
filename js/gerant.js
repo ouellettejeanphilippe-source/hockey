@@ -464,7 +464,7 @@ export function ouvrirChoix(spec) {
       ${spec.joueur ? enteteJoueur(spec.joueur, ou(spec.joueur)) : ''}
       ${spec.contexte || ''}
       ${paquet ? `<div class="paquet-scene">${paquetHtml({ n: spec.options.length, meilleure, serie: spec.titre })}</div>` : ''}
-      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}${spec.cartes && !spec.lecture && spec.options.length >= 2 && spec.options.length <= 3 && !spec.options.every(o => o.joueurHtml) ? ' trois' : ''}">${spec.options.map((o, i) => {
+      <div class="choix-options${spec.cartes ? ` choix-main${pile ? '' : ' donne'}` : ''}${spec.compact ? ' compact' : ''}">${spec.options.map((o, i) => {
         const { duree: _d, ...canaux } = o.effet || o;
         const mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
         const forme = formeDe(o);
@@ -745,7 +745,6 @@ function brancherPaquet(m, ouvert, { walkout = null, scelle = true } = {}) {
   const rangDe = c => Number(c.style.getPropertyValue('--tc-r')) || 0;
   const cartes = [...bande.children].sort((a, b) => rangDe(a) - rangDe(b));
   const n = cartes.length;
-  const trois = bande.classList.contains('trois');
   let etat = scelle ? 'ferme' : 'pile', cur = 0, minuteur = 0, glisseA = 0, x0 = null, dx = 0;
   const points = m.querySelector('.choix-points');
   const tout = document.createElement('button');
@@ -786,8 +785,6 @@ function brancherPaquet(m, ouvert, { walkout = null, scelle = true } = {}) {
     clearTimeout(minuteur);
     feuille.classList.remove('paquet-ferme', 'paquet-dechire');
     feuille.classList.add('paquet-pile');
-    // Deux ou trois cartes se rangent en mini côte à côte (`.trois`) : pas dans la pile, où elles sont en grand.
-    bande.classList.remove('trois');
     bande.tabIndex = -1;
     bande.focus({ preventScroll: true });
     suivante();
@@ -800,7 +797,6 @@ function brancherPaquet(m, ouvert, { walkout = null, scelle = true } = {}) {
     feuille.classList.remove('paquet-ferme', 'paquet-dechire', 'paquet-pile');
     feuille.classList.add('paquet-fini');
     for (const c of cartes) { delete c.dataset.pile; c.style.removeProperty('--glisse'); }
-    if (trois) bande.classList.add('trois');
     bande.removeAttribute('tabindex');
     bande.classList.add('donne');
     tout.remove();

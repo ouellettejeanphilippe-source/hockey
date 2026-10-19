@@ -2132,7 +2132,7 @@ a.spin-club:hover { background: var(--fond-2); }
 }
 
 /* ---- Pendant qu'une liste défile, les miroitements se figent (`html.cj-defile`) ---- */
-.cj-defile .tc-holo, .cj-defile .tc-holo::after, .cj-defile .tc-art::after { animation-play-state: paused; }
+.cj-defile :is(.carton-cadre, .carton-lueur) { animation-play-state: paused; }
 
 /* ---- Un joueur sur une carte de choix (`artJoueur`) : le visage sur le fond du club, le poste, la saison, l'écusson ---- */
 .tc-joueur { display: flex; flex-direction: column; align-items: center; gap: var(--esp-1); }
@@ -2143,7 +2143,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .tc-portrait img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .tc-portrait .headshot-fallback { font-size: var(--t-5); opacity: 0.45; }
 .tc-medaille { position: absolute; right: -6px; bottom: -4px; display: grid; place-items: center; }
-.tc-art > .cj-art {
+.tcj-art > .cj-art {
   position: absolute; inset: 0; display: block;
   background:
     repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.045) 0 6px, transparent 6px 12px),
@@ -3079,7 +3079,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-actions .hub-jour, .hub-actions .hub-traiter, .hub-actions .hub-trancher, .hub-actions .hub-suite { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
 /* « ⏳ Encore un choix · Tes rivaux » : une ligne, d'une teinte neutre — sur deux lignes en rouge, elle couvrait les
    options du choix qu'elle annonçait (audit mobile, B4). */
-.hub-actions .hub-traiter { justify-content: flex-start; text-align: left; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); }
+.hub-actions .hub-traiter { justify-content: flex-start; min-width: 0; text-align: left; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); }
 .hub-traiter-mot { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hub-actions-rang { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions-rang:empty { display: none; }
@@ -3956,36 +3956,33 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc.tc-f-consommable { --tc-genre: var(--fam-consommable); --tc-genre-encre: var(--fam-consommable-encre); --tc-motif: radial-gradient(circle at 30% 40%, var(--tc-trame) 0 5px, transparent 5.5px) 0 0 / 26px 22px, radial-gradient(circle at 70% 70%, var(--tc-trame) 0 3px, transparent 3.5px) 0 0 / 18px 18px; }
 .tc.tc-f-plafond { --tc-genre: var(--fam-plafond); --tc-genre-encre: var(--fam-plafond-encre); --tc-motif: repeating-radial-gradient(ellipse 60% 40% at 50% 50%, transparent 0 5px, var(--tc-trame) 5px 6px); }
 .tc.tc-f-saison { --tc-genre: var(--fam-saison); --tc-genre-encre: var(--fam-saison-encre); --tc-motif: linear-gradient(var(--tc-trame) 1px, transparent 1px) 0 0 / 100% 16px, linear-gradient(90deg, var(--tc-trame) 1px, transparent 1px) 0 0 / 18px 100%; }
-/* L'icône d'une carte de la banque, sur un médaillon : la grosse émoji tient lieu de dessin. */
-.tc:is(.tc-f-patron, .tc-f-evenement, .tc-f-joueur, .tc-f-consommable, .tc-f-plafond, .tc-f-saison) .tc-art-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; font-size: var(--t-5); font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--tc-genre) 35%, var(--fond-3)), var(--noir) 75%); box-shadow: 0 0 0 2px color-mix(in srgb, var(--tc-genre) 70%, transparent), 0 0 18px color-mix(in srgb, var(--tc-genre) 40%, transparent); }
+/*
+ * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte de
+ * jeu est un carton de la série de la glace (`.cs-glace`), aux couleurs de son genre au lieu d'un club : le genre est
+ * son club. Son dessin se pose dans la fenêtre, sur la trame du genre ; son icône dans le médaillon ; sa rareté en est
+ * l'édition (le cadre, l'or, le prisme, « LES ÉDITIONS »). Ce qu'elle fait se lit sous le carton, en entier.
+ */
+.cs-jeu {
+  --team-band: var(--tc-genre); --team-ink: var(--tc-genre-encre); --team-line: var(--tc-genre);
+  --team-stripe: color-mix(in srgb, var(--tc-genre) 45%, white); --team-fond: color-mix(in srgb, var(--tc-genre) 30%, var(--noir));
+}
+.cs-glace.cs-jeu::before { background: var(--tc-motif), linear-gradient(color-mix(in srgb, var(--band) 22%, transparent), color-mix(in srgb, var(--band) 6%, transparent)); }
+.cs-jeu .carton-photo::after { display: none; }
+.tcj-art { position: absolute; left: 0; right: 0; top: 15cqw; bottom: 0; display: grid; place-items: center; color: color-mix(in srgb, var(--band) 70%, black); }
+.cs-jeu .tcj-art .tc-dessin { width: 46cqw; max-height: none; filter: drop-shadow(0 0.6cqw 0.8cqw color-mix(in srgb, black 30%, transparent)); --tc-accent: color-mix(in srgb, var(--band) 80%, white); }
+.cs-jeu .tcj-art .tc-art-ico { font-size: 30cqw; line-height: 1; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+/* Une carte de jeu garde sa fenêtre à toutes les éditions : son dessin n'est pas une photo qui sort du cadre. */
+.cs-glace.cs-jeu:is(.tc-rare, .tc-legendaire)::before { display: block; }
+.carton.cs-jeu:is(.tc-rare, .tc-legendaire) .carton-photo { inset: auto 7cqw 36cqw; height: 92cqw; border-radius: 0; }
+.cs-jeu .carton-club .tc-dessin { width: 100%; height: 100%; color: color-mix(in srgb, var(--band) 75%, black); filter: none; }
+.tcj-ico { font-size: 11cqw; line-height: 1; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
+.cs-jeu .carton-nom .lname { font-size: min(var(--nom-max, 11cqw), calc(var(--nom-l, 58cqw) / var(--n, 8) * 2.1)); }
+/* Le bouton porte le carton et ce qu'il fait : le carton est la carte, le texte dessous la lit. */
+.choix-option.tc:not(.tc-joueur) { display: flex; flex-direction: column; gap: var(--esp-2); }
+.choix-option.tc:not(.tc-joueur) > :is(.tc-texte, .tc-puces, .choix-option-non) { margin: 0 var(--esp-1); }
 .choix-option.tc {
   position: relative; display: block; padding: 0; min-height: 0; text-align: left; isolation: isolate; container-type: inline-size;
   transition: transform var(--t-vite), border-color var(--t-vite), opacity var(--t-vite), --rx var(--t-lent) var(--e-ressort), --ry var(--t-lent) var(--e-ressort), --lueur var(--t-lent);
-}
-.choix-option.tc:not(.tc-joueur) {
-  --tc-metal: linear-gradient(var(--tc-bord), var(--tc-bord));
-  overflow: hidden; border: 2px solid transparent; border-radius: var(--r-2);
-  background:
-    var(--tc-grain, linear-gradient(transparent, transparent)) padding-box,
-    linear-gradient(180deg, color-mix(in srgb, var(--encre) 6%, var(--fond-2)), var(--fond-1) 22%) padding-box,
-    var(--tc-metal) border-box;
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--encre) 14%, transparent), 0 10px 22px -14px color-mix(in srgb, var(--tc-bord) 70%, transparent);
-}
-/*
- * LE MÉTAL DE LA RARETÉ (V3) : le cadre EST la rareté, comme sur une vraie carte d'insert. La commune est un
- * carton mat au grain fin ; la peu commune un chrome brossé ; la rare un prisme holographique qui tourne quand
- * on penche la carte (`--ry`, js/cartes.js) ; la légendaire une feuille d'or, plus épaisse, qui rayonne.
- */
-.choix-option.tc.tc-commune:not(.tc-joueur) { --tc-grain: radial-gradient(circle at 1px 1px, color-mix(in srgb, var(--encre) 6%, transparent) 0.6px, transparent 1.1px) 0 0 / 4px 4px; }
-.choix-option.tc.tc-peu:not(.tc-joueur) { --tc-metal: var(--metal-argent); }
-.choix-option.tc.tc-rare:not(.tc-joueur) {
-  border-width: 3px;
-  --tc-metal: conic-gradient(from calc(var(--ry, 0deg) * 8 + 30deg), var(--prisme));
-}
-.choix-option.tc.tc-legendaire:not(.tc-joueur) {
-  border-width: 4px;
-  --tc-metal: linear-gradient(calc(100deg + var(--ry, 0deg) * 4), var(--or-stops));
-  box-shadow: inset 0 0 0 1px var(--or-filet), 0 0 24px -6px var(--or-lueur), 0 12px 26px -14px var(--or-lueur);
 }
 .choix-option.tc:hover:not([disabled]):not(.lecture) { transform: translateY(-4px); }
 .choix-option.tc:focus-visible { transform: translateY(-4px); outline: 2px solid var(--choisi); outline-offset: 2px; }
@@ -4001,91 +3998,18 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-main.donne > .choix-option.tc, .choix-option.tc.pige { animation: tc-donne 0.55s var(--e-sortie) backwards; animation-delay: calc(var(--tc-i, 0) * 120ms); }
 .choix-option.tc.pige { animation-delay: 0s; }
 @keyframes tc-donne { from { opacity: 0; transform: translateY(46px) rotateY(75deg) scale(0.9); } to { opacity: 1; transform: none; } }
-/* L'holographique (rares et légendaires seulement) : un reflet qui balaie, et qui suit le doigt. */
-.tc-holo {
-  position: absolute; inset: 0; z-index: 1; pointer-events: none; border-radius: inherit; overflow: hidden; opacity: 0.55; mix-blend-mode: screen;
-  background: linear-gradient(115deg, transparent 32%, color-mix(in srgb, var(--choisi) 26%, transparent) 46%, color-mix(in srgb, var(--choisi) 6%, transparent) 52%, transparent 62%);
-  background-size: 260% 100%; background-position: var(--mx, 50%) 0;
-  animation: tc-reflet 5s ease-in-out infinite alternate;
-}
-.tc-legendaire > .tc-holo { background-image: linear-gradient(115deg, transparent 32%, color-mix(in srgb, var(--or) 40%, transparent) 46%, color-mix(in srgb, var(--or) 10%, transparent) 52%, transparent 62%); }
-.tc:is(.incline, .gyro) > .tc-holo { animation: none; opacity: calc(0.4 + 0.5 * var(--lueur, 0)); }
-.cj-defile .tc-holo { animation-play-state: paused; }
-@keyframes tc-reflet { from { background-position: 120% 0; } to { background-position: -20% 0; } }
-/* Le cadre : la bannière du genre en tête, le dessin, la ligne de type, la règle, les effets, le pied de série. */
-.tc-cadre { position: relative; z-index: 2; display: flex; flex-direction: column; gap: var(--esp-2); height: 100%; padding: 0 0 var(--esp-2); color: var(--encre); }
-.tc-tete { display: flex; align-items: center; min-height: 44px; padding: var(--esp-1) var(--esp-3) var(--esp-1) 48px; background: var(--tc-genre); color: var(--tc-genre-encre); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--encre) 32%, transparent), inset 0 -2px 0 color-mix(in srgb, var(--noir) 30%, transparent); }
-.tc-tete:not(:has(> .tc-coin)) { padding-left: var(--esp-3); }
-.tc-nom { font: 800 clamp(var(--t-1), 9cqw, var(--t-4))/1.05 var(--display); letter-spacing: 0.03em; text-transform: uppercase; overflow-wrap: anywhere; }
-.choix-option.tc.plus .tc-tete { border-bottom: 3px solid var(--or); }
-/* La légendaire : une bannière noire aux lettres d'or, son genre en filet dessous. */
-.choix-option.tc.tc-legendaire .tc-tete { background: var(--or-bandeau); box-shadow: inset 0 -3px 0 var(--tc-genre), inset 0 1px 0 var(--or-filet); }
-.choix-option.tc.tc-legendaire .tc-nom { color: transparent; background: var(--or-lettres); -webkit-background-clip: text; background-clip: text; }
-/* La rare : un reflet prismatique couche la bannière. */
-.choix-option.tc.tc-rare .tc-tete { background-image: linear-gradient(105deg, transparent 30%, var(--reflet-blanc) 45%, transparent 60%); }
-/* La gemme du coût : un hexagone sombre dans le coin de la bannière ; l'élan se lit avant le nom. */
-.tc-coin {
-  position: absolute; top: 4px; left: var(--esp-2); z-index: 3; display: grid; place-items: center; width: 32px; height: 36px;
-  clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
-  background: var(--noir); color: var(--encre); font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums;
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--encre) 30%, transparent);
-}
-.tc-coin s { font-size: var(--t-1); opacity: 0.6; margin-right: 1px; }
-.tc-peu .tc-coin { background: var(--gemme-argent); box-shadow: inset 0 0 0 2px var(--gemme-argent-bord); }
-.tc-rare .tc-coin { background: var(--gemme-prisme); box-shadow: inset 0 0 0 2px var(--gemme-prisme-bord); }
-.tc-legendaire .tc-coin { background: var(--gemme-or); color: var(--gemme-or-encre); box-shadow: inset 0 1px 0 var(--or-filet); }
-.tc-art {
-  --tc-accent: var(--tc-genre);
-  flex: none; position: relative; display: grid; place-items: center; height: 110px; margin: 0 var(--esp-2); border-radius: var(--r-1); overflow: hidden;
-  color: var(--encre);
-  background:
-    var(--tc-motif),
-    radial-gradient(80% 55% at 50% 118%, color-mix(in srgb, var(--tc-accent) 50%, transparent), transparent 62%),
-    linear-gradient(180deg, color-mix(in srgb, var(--tc-accent) 24%, var(--fond-3)), color-mix(in srgb, var(--noir) 55%, var(--fond-3)));
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tc-accent) 48%, transparent), inset 0 -18px 24px -18px color-mix(in srgb, var(--noir) 80%, transparent);
-}
-/* Une carte qu'on tient (pas la rangée serrée du bureau) : la fenêtre est une patinoire. */
-@container (min-width: 200px) {
-  .tc-art {
-    background:
-      linear-gradient(color-mix(in srgb, var(--tc-accent) 70%, transparent), color-mix(in srgb, var(--tc-accent) 70%, transparent)) center 22% / 78% 1px no-repeat,
-      linear-gradient(color-mix(in srgb, var(--tc-accent) 70%, transparent), color-mix(in srgb, var(--tc-accent) 70%, transparent)) center 78% / 70% 1px no-repeat,
-      radial-gradient(circle at 50% 50%, transparent 16%, color-mix(in srgb, var(--tc-accent) 55%, transparent) 17.2% 19.2%, transparent 20.4%),
-      var(--tc-motif),
-      radial-gradient(80% 55% at 50% 118%, color-mix(in srgb, var(--tc-accent) 40%, transparent), transparent 64%),
-      linear-gradient(180deg, color-mix(in srgb, var(--tc-accent) 16%, var(--fond-3)), color-mix(in srgb, var(--noir) 58%, var(--fond-3)));
-  }
-}
-.tc-art > .cj-art { position: absolute; inset: 0; }
-.tc-dessin { width: min(72px, 44cqw); height: auto; max-height: 86%; overflow: visible; filter: drop-shadow(0 0 7px color-mix(in srgb, var(--tc-accent) 45%, transparent)) drop-shadow(0 3px 2px color-mix(in srgb, var(--noir) 70%, transparent)); }
-/* La rare : une feuille prismatique sur l'illustration, qui suit le doigt. La légendaire : un soleil d'or derrière le dessin, et plus de place pour lui. */
-.choix-option.tc.tc-rare .tc-art::before, .choix-option.tc.tc-legendaire .tc-art::before { content: ''; position: absolute; inset: 0; pointer-events: none; mix-blend-mode: screen; }
-.choix-option.tc.tc-rare .tc-art::before { background: linear-gradient(calc(120deg + var(--ry, 0deg) * 6), transparent 20%, var(--prisme-voile), transparent 76%); }
-.choix-option.tc.tc-legendaire .tc-art::before { background: repeating-conic-gradient(from calc(var(--ry, 0deg) * 4) at 50% 58%, var(--or-rayon) 0deg 6deg, transparent 6deg 16deg); -webkit-mask: radial-gradient(circle at 50% 58%, black 20%, transparent 72%); mask: radial-gradient(circle at 50% 58%, black 20%, transparent 72%); }
-/* Plus faible que les rangées serrées plus bas (la main, les trois cartes au téléphone), qui gardent leur hauteur. */
-.tc-legendaire .tc-art { --tc-accent: var(--or-vif); height: 128px; }
-.tc-legendaire .tc-dessin { width: min(86px, 50cqw); }
+/* Le dessin au trait (`dessinHtml`) : ses aplats et ses traits de la couleur du genre. */
+.tc-dessin { height: auto; overflow: visible; }
 .tc-dessin .a { fill: var(--tc-accent); stroke: none; opacity: 0.9; }
 .tc-dessin .s { stroke: var(--tc-accent); }
 .tc-dessin .f { stroke-width: 1.2; opacity: 0.7; }
-.tc-art-ico { font-size: var(--t-6); line-height: 1; color: var(--tc-genre); }
-.tc-type { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); margin: 0 var(--esp-3); padding-bottom: var(--esp-1); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--tc-genre); }
-/* Les diamants d'une carte de jeu : petits (oct. 2026, JP : *les diamants, plus petits*). */
-.tc-gemme { flex: none; font-size: calc(var(--t-1) * 0.85); letter-spacing: 0; color: var(--tc-bord); }
-.tc.tc-commune .tc-gemme { color: var(--encre-3); }
-.tc-texte { display: flex; flex-direction: column; gap: var(--esp-1); margin: 0 var(--esp-3); font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
+/* Sous le carton, ce que la carte fait : sa règle, puis ses effets en lignes de couleur, un filet au flanc. */
+.tc-texte { display: flex; flex-direction: column; gap: var(--esp-1); font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
 .tc-quoi { color: var(--encre); }
 .tc-ambiance { font-style: italic; color: var(--encre-3); }
 .choix-option.tc:not(.lecture) .tc-quoi { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
-/* Les effets en lignes de couleur, pas en pastilles : un filet au flanc, le texte de la couleur de ce qu'il fait. */
-.tc-puces { flex: none; flex-direction: column; gap: 2px; margin: 0 var(--esp-3); }
+.tc-puces { flex: none; flex-direction: column; gap: 2px; }
 .tc-puces .puce { display: block; padding-left: var(--esp-2); border-left: 2px solid currentColor; font-size: var(--t-1); line-height: 1.3; }
-.tc-cadre > .choix-option-non { margin: 0 var(--esp-3); }
-.tc-pied { display: flex; justify-content: space-between; margin: auto var(--esp-3) 0; padding-top: var(--esp-1); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
-/* La rareté se lit au pied, dans sa couleur (oct. 2026) : gris, bleu, blanc, or — les mêmes que la gemme d'une carte de joueur. */
-.tc-pied-rar { color: var(--tc-bord); }
-.tc.tc-commune .tc-pied-rar { color: var(--encre-3); }
-.tc.tc-legendaire .tc-pied-rar { color: var(--or); }
 /* Le dos d'une carte (elle sort d'un paquet) : opacité 0 sauf tant que le paquet est fermé, et derrière la carte du dessus de la pile ; le smoke la lit. */
 .tc-dos {
   position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; border-radius: inherit; pointer-events: none; opacity: 0;
@@ -4093,29 +4017,11 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 .tc-dos-marque { display: flex; flex-direction: column; align-items: center; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.3em; text-transform: uppercase; color: var(--encre); }
 .tc-dos-marque b { font-size: var(--t-5); letter-spacing: 0.02em; color: var(--or); }
-/* Deux ou trois cartes (l'identité, le palier, une récompense), et les cinq de la main d'avant-match (trois par rangée) : toutes visibles à 390 px,
-   en mini — la bannière, le dessin et le texte se resserrent, le pied s'efface ; dans la main, la phrase d'ambiance aussi (JP : *plus petites cartes pour rentrer dans l'écran*). */
+/* LA MAIN DU DUEL (Jalon M, B3 ; docs/ecrans-rogue.md, E6) : une rangée de cartons qui se balaie, deux cartes et le bord
+   de la troisième ; ce qu'elles font tient dans leurs puces, la phrase d'ambiance s'efface. */
 @media (max-width: 639.98px) {
-  .choix-sheet:not(.main-sheet) .choix-main.trois { display: grid; grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: var(--esp-2); margin: 0; padding: var(--esp-1) 0 var(--esp-3); overflow: visible; scroll-snap-type: none; }
-  /* La main du duel, en éventail (Jalon M, B3 ; docs/ecrans-rogue.md, E6) : une seule rangée qui se balaie, trois cartes
-     et le bord de la quatrième ; la période tient à l'écran, sa main avec. */
-  .main-sheet .choix-main { display: grid; grid-auto-flow: column; grid-template-columns: none; grid-auto-columns: calc((100% - 3 * var(--esp-2)) / 3.25); gap: var(--esp-2); margin: 0 calc(-1 * var(--esp-4)) 0 0; padding: var(--esp-1) var(--esp-4) var(--esp-2) 0; overflow-x: auto; scroll-snap-type: x proximity; }
-  .main-sheet .choix-main > .tc { scroll-snap-align: start; }
-  .main-sheet .choix-main > .tc .tc-quoi { -webkit-line-clamp: 4; }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc { flex: none; min-width: 0; }
+  .main-sheet .choix-main > .tc { flex-basis: 40vw; }
   .main-sheet .choix-main > .tc .tc-texte { display: none; }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-cadre { gap: var(--esp-1); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-tete { min-height: 36px; padding: var(--esp-1) var(--esp-2) var(--esp-1) 38px; }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-tete:not(:has(> .tc-coin)) { padding-left: var(--esp-2); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-coin { width: 26px; height: 30px; top: 3px; left: var(--esp-1); font-size: var(--t-3); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-art { height: 56px; margin: 0 var(--esp-1); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-art-ico { font-size: var(--t-5); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc :is(.tc-type, .tc-texte, .tc-puces, .choix-option-non) { margin: 0 var(--esp-2); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-type { letter-spacing: 0.02em; white-space: normal; }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-texte { font-size: var(--t-1); line-height: 1.3; }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-puces .puce { padding-left: var(--esp-1); }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-pied { display: none; }
-  :is(.choix-main.trois, .main-sheet .choix-main) > .tc .tc-quoi { -webkit-line-clamp: 8; }
 }
 
 /* ---- Le paquet (paquetHtml, brancherPaquet) : posé PAR-DESSUS la bande, qui garde sa place, invisible et intouchable ---- */
@@ -4268,7 +4174,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 /* Dans la main, l'effet chiffré passe avant l'ambiance : à 1440 × 900, les puces restent au-dessus des boutons (le smoke le mesure). */
 .main-sheet .choix-option.tc .tc-puces { order: 1; }
 .main-sheet .choix-option.tc .tc-texte { order: 2; }
-.main-sheet .choix-option.tc .choix-option-non, .main-sheet .choix-option.tc .tc-pied { order: 3; }
+.main-sheet .choix-option.tc .choix-option-non { order: 3; }
 .main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .main-apercu { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); }
 /* Le duel (E6) : avant la première carte, l'aperçu tient en une ligne ; la carte touchée dit d'elle-même qu'elle se joue. */
@@ -4308,18 +4214,12 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .plan-adv.contre .plan-adv-contre b, .plan-adv-contre.juste b { color: var(--bon); }
 .plan-adv-contre.ratee b { color: var(--mauvais); }
 .gl-sheet .plan-adv { margin: 0 0 var(--esp-3); }
-@media (min-width: 640px) {
-  .main-sheet .tc-art { height: 64px; }
-  .main-sheet .tc-art-ico { font-size: var(--t-5); }
-}
-/* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, l'illustration basse, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
+/* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
 @media (min-width: 1000px) {
   .main-sheet .main-boutons { background: var(--fond-1); }
   .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--esp-2); padding-top: 0; }
   .main-sheet .choix-corps { gap: var(--esp-3); }
   .main-sheet .choix-recit { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }
-  .main-sheet .tc-art { height: 40px; }
-  .main-sheet .tc-art-ico { font-size: var(--t-4); }
 }
 
 /* ---- « Qui sort ? » (.choix-aln, ouvrirAlignement) : neuf rangées titrées, les cases en grille, la barre de décision en bas ---- */
@@ -4400,7 +4300,7 @@ button.dep-piste:hover:not(:disabled) { border-color: var(--encre-3); }
 
 /* ---- Le mouvement s'éteint pour qui le demande ---- */
 @media (prefers-reduced-motion: reduce) {
-  .choix-main.donne > .choix-option.tc, .choix-option.tc.pige, .tc-holo, .paquet, .paquet-lueur, .paquet-face::after, .paquet-mot { animation: none; }
+  .choix-main.donne > .choix-option.tc, .choix-option.tc.pige, .paquet, .paquet-lueur, .paquet-face::after, .paquet-mot { animation: none; }
   .choix-option.tc { transition: none; }
   .paquet-pile .choix-main > .choix-option.tc[data-pile], .paquet-pile .choix-main > .choix-option.tc > .tc-dos { animation: none; transition: none; }
 }
