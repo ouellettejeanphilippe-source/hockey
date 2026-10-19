@@ -160,7 +160,7 @@ export function saisonDesFeuilles(calendrier) {
 }
 function boiteDe(graine) {
   const k = String(graine);
-  if (!BOITES.has(k)) BOITES.set(k, { lus: new Set(), archives: new Set(), ouvert: null, infos: new Map(), semaine: null });
+  if (!BOITES.has(k)) BOITES.set(k, { lus: new Set(), archives: new Set(), page: null, infos: new Map(), semaine: null });
   return BOITES.get(k);
 }
 /* Les pronostics déjà calculés (js/pronostic.js) : une même journée ne se rejoue pas deux fois. */
@@ -216,6 +216,18 @@ const pct = (sv, sa) => pct3(sv / Math.max(1, sa));
    fond de son club, le métal de sa variante en bordure — la même vignette que le bilan (`.cj-mini`, style.css). */
 const vignette = (ctx, p) => (ctx.mug
   ? `<span class="cj-mini tc-${ctx.rarete ? ctx.rarete(p) : 'commune'}" style="--team-band:${ctx.band(p.t).bg}" aria-hidden="true">${ctx.mug(p)}</span>` : '');
+
+/* LES PAGES DE LA BOÎTE (V12 — docs/refonte-v12.md) : une maison par usage ; `maisonDe` y range chaque choix d'À faire. */
+const MAISONS = {
+  proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, et ce qu\'il paie' },
+  route: { ico: '🗺', titre: 'La route', sous: 'La semaine qui vient' },
+  presse: { ico: '🎤', titre: 'La presse', sous: 'Les micros et le courrier' },
+  vestiaire: { ico: '🚪', titre: 'Le vestiaire', sous: 'Ce qui se passe entre les gars' },
+  infirmerie: { ico: '🚑', titre: 'L\'infirmerie', sous: 'Les blessés et leurs cases' },
+  cartes: { ico: '🃏', titre: 'Tes cartes', sous: 'Ce que tu gagnes, ce qui déborde' },
+  marche: { ico: '🛒', titre: 'Le marché', sous: 'Un pack attend ta signature' },
+  match: { ico: '⚔', titre: 'Le gros match', sous: 'Leur plan, ta main' },
+};
 
 /* ---------- la coquille : en-tête, carte, actions, onglets, volet ---------- */
 
@@ -2073,7 +2085,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     } finally { enRoute = false; }
     alerte = blessureOuverte() || alerte || al; trou = trou || tr;
     dernierAvance = { joues0: avant.joues };
-    boite.ouvert = null;
+    boite.page = null;
     dessiner();
     tabs.suivre('journee');
     apresAvance(avant, sem, true);
@@ -2197,7 +2209,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     retenir = true;
     avancer(n, true);
     dernierAvance = { joues0: avant.joues };
-    boite.ouvert = null;
+    boite.page = null;
     dessiner();
     // Le résultat d'hier est en tête de l'affiche : on la remonte, sinon on relit les boutons du bas.
     for (let el = carte; el && el !== document.body; el = el.parentElement) if (el.scrollTop > 0) el.scrollTop = 0;
@@ -2819,15 +2831,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
-  // V8 : l'infirmerie de l'Effectif ouvre, au Bureau, le message d'un blessé — là où il se remplace. Faux s'il n'y en a pas.
+  // V8 : l'infirmerie de l'Effectif ouvre la page de l'infirmerie (V12), là où le blessé se remplace. Faux s'il n'y en a pas.
   if (onDecision) tabs.hub.ouvrirBlessure = cle => {
     const m = messagesCourants().find(x => x.genre === 'blessure' && x.joueur && getPlayerKey(x.joueur) === cle);
     if (!m) return false;
-    boite.ouvert = m.id;
+    boite.page = m.maison;
     tabs.montrer('journee');
     dessiner();
-    const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(m.id)}"]`);
-    if (el) el.scrollIntoView({ block: 'center' });
     return true;
   };
   /*
@@ -3738,7 +3748,27 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     // V5 : hors du lundi, seul ce qui presse bloque (le gros match, un pack à signer, un blessé à remplacer, une case vide).
     if (!auNoeud()) for (const m of out) if (!PRESSE.has(m.genre)) m.bloque = false;
+    for (const m of out) m.maison = maisonDe(m);
     return out;
+  }
+  /*
+   * LA MAISON D'UN CHOIX (V12 — docs/refonte-v12.md). JP : *plusieurs écrans avec un usage, et la boîte de réception
+   * renvoie à ces pages* ; *je préfère quinze pages claires que cinq passages clairs*. Chaque chose à régler a sa page :
+   * le proprio (ses objectifs, ses rivaux), la route, la presse, le vestiaire (les fils, les dossiers, les dilemmes),
+   * l'infirmerie, tes cartes, le marché, le gros match. La boîte la nomme et y renvoie.
+   */
+  function maisonDe(m) {
+    if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
+    if (['fil', 'dossier'].includes(m.genre)) return 'vestiaire';
+    if (m.genre === 'courriel') return 'presse';
+    if (m.genre === 'pack') return 'marche';
+    if (['cartes', 'places', 'palier'].includes(m.genre)) return 'cartes';
+    const sp = m.spec || {};
+    if (sp.ouvrir) return 'match';
+    if (sp.cartes) return 'cartes';
+    if (sp.etat) return 'route';
+    if (sp.de === DE.proprio) return 'proprio';
+    return 'vestiaire';
   }
 
   /*
@@ -3860,9 +3890,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const combat = msgs.find(m => m.spec && m.spec.ouvrir) || null;
     boite.remisPour = combat ? combat.spec.titre : null;
     if (combat && !retenir && !manquants.length && !choixOuvert() && boite.remis !== combat.spec.titre) combat.spec.ouvrir();
-    // LE CHOIX OUVERT : celui qu'on a touché, sinon le premier qui attend. Les autres, pliés.
-    const ouvert = boite.ouvert && msgs.some(m => m.id === boite.ouvert) ? boite.ouvert
-      : boite.ouvert === false ? null : (attente ? attente.id : null);
+    // LA PAGE OUVERTE (V12) : celle qu'on a touchée, tant qu'elle a quelque chose à régler.
+    const page = boite.page && msgs.some(m => m.maison === boite.page) ? boite.page : null;
+    if (!page) boite.page = null;
     // V4 : tout ce qui est dans À faire se règle ; la pastille du Bureau le dit, d'où qu'on soit (style.css, .navtab[data-section="bureau"]).
     document.body.dataset.aTraiter = String(enSuspens.length);
     const compteur = enSuspens.length ? `<b class="a-traiter">${enSuspens.length} à régler</b>` : prets.length ? `<b class="a-jour">${prets.length} prêt${prets.length > 1 ? 's' : ''}</b>` : '<span class="a-jour">À jour</span>';
@@ -3883,36 +3913,38 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="af-options">${C.options.map(o => optionHtml(o, sp, { classe: `af-option${o.ouvre ? ' ouvre' : ''}`, on: coche(m, o) })).join('')}</div>`;
     };
     /*
-     * L'ENVELOPPE OUVERTE (docs/ecrans-rogue.md, E4). À faire ne se déplie plus dans la page, qui défilait : chaque choix
-     * est une enveloppe (la voix, le sujet, sa réplique), et l'ouverte devient une feuille par-dessus le Bureau — la voix,
-     * le fait, les options, puis « Plus tard » ou l'enveloppe suivante. Elle se coche comme avant ; complète, la suivante
-     * qui attend s'ouvre, et la dernière rend le Bureau et son « Trancher ».
+     * UNE PAGE PAR MAISON (V12). L'enveloppe ouverte par-dessus le Bureau (E4) est partie : toucher une ligne de la boîte
+     * ouvre la page de sa maison (`ouvrirPage`), qui montre chacun de ses choix en entier — la voix, le fait, les options —
+     * et « ‹ La boîte » pour revenir. Elle se coche comme avant ; « Trancher » envoie le lot, de la page ou de la boîte.
      */
-    const feuilleDe = m => {
-      const suivant = msgs.find(x => x !== m && manque(x));
-      return `<div class="af-voile" data-af-fermer aria-hidden="true"></div>
-        <div class="hub-msg-corps" role="dialog" aria-label="${ctx.esc(m.sujet)}">
-          <div class="af-feuille-tete"><span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span><span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="af-feuille-sujet">${ctx.esc(m.sujet)}</span></span><button type="button" class="close-btn" data-af-fermer aria-label="Plus tard">✕</button></div>
-          ${corpsDe(m)}
-          <div class="af-feuille-pied"><button type="button" class="btn" data-af-fermer>${complet(m) ? 'Garder ce choix' : 'Plus tard'}</button>${suivant ? `<button type="button" class="btn af-suivant" data-af-suivant="${ctx.esc(suivant.id)}"><span>Ensuite : ${ctx.esc(suivant.sujet)}</span> ›</button>` : ''}</div>
-        </div>`;
-    };
+    const pageHtml = k => msgs.filter(m => m.maison === k).map(m => {
+      const etat = complet(m) ? 'Prêt' : m.bloque ? (seCoche(m) ? 'À trancher' : 'À régler') : '';
+      return `<article class="hub-msg af-page-msg${m.bloque && !complet(m) ? ' bloque' : ''}${complet(m) ? ' pret' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
+        <div class="af-page-tete"><span class="hub-msg-txt"><span class="hub-msg-de">${m.de.ico} ${ctx.esc(m.de.nom)}</span><span class="af-feuille-sujet">${ctx.esc(m.sujet)}</span></span><span class="hub-msg-etat">${etat}</span></div>
+        <div class="hub-msg-corps">${corpsDe(m)}</div>
+      </article>`;
+    }).join('');
     const boiteHtml = `<section class="hub-boite${msgs.length ? '' : ' vide'}${chiffresOuverts() ? ' chiffres' : ''}" aria-label="À faire">
       <div class="hub-boite-tete"><span class="hub-boite-titre">✅ À faire</span><span class="hub-boite-compte">${compteur}</span></div>
       ${encours}
-      ${msgs.length ? `<div class="hub-msgs">${msgs.map(m => {
-        const o = m.id === ouvert;
-        // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
-        const qui = m.joueur || null;
-        const etat = complet(m) ? 'Prêt' : m.bloque ? (seCoche(m) ? 'À trancher' : 'À régler') : '';
-        return `<article class="hub-msg${o ? ' ouvert' : ''}${m.bloque && !complet(m) ? ' bloque' : ''}${complet(m) ? ' pret' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
-          <button type="button" class="hub-msg-tete" aria-expanded="${o}">
-            ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
-            <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene && !complet(m) ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
-            <span class="hub-msg-etat">${etat}</span>
-          </button>
-          ${o ? feuilleDe(m) : ''}
-        </article>`;
+      ${msgs.length ? `<div class="hub-msgs">${[...new Set(msgs.map(m => m.maison))].map(k => {
+        const M = MAISONS[k], siens = msgs.filter(m => m.maison === k);
+        // V12 : la boîte range ses lignes par page ; chacune, et la tête de sa page, ouvre la page.
+        return `<div class="af-maison" data-maison="${k}">
+          <button type="button" class="af-maison-tete" data-maison="${k}" aria-label="Ouvrir : ${ctx.esc(M.titre)}"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-maison-titre">${ctx.esc(M.titre)}</span><span class="af-maison-compte">${siens.length > 1 ? `${siens.length} choix` : ''}</span></button>
+          ${siens.map(m => {
+            // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
+            const qui = m.joueur || null;
+            const etat = complet(m) ? 'Prêt' : m.bloque ? (seCoche(m) ? 'À trancher' : 'À régler') : '';
+            return `<article class="hub-msg${m.bloque && !complet(m) ? ' bloque' : ''}${complet(m) ? ' pret' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${k}">
+              <button type="button" class="hub-msg-tete">
+                ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
+                <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene && !complet(m) ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
+                <span class="hub-msg-etat">${etat}</span>
+              </button>
+            </article>`;
+          }).join('')}
+        </div>`;
       }).join('')}</div>` : ''}
       <button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
     </section>`;
@@ -3933,22 +3965,39 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div></div>
       ${boiteHtml}`;
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
-    actions.querySelectorAll('[data-af-fermer]').forEach(b => { b.onclick = () => { boite.ouvert = false; redessinerBoite(); }; });
-    actions.querySelectorAll('[data-af-suivant]').forEach(b => { b.onclick = () => { boite.ouvert = b.dataset.afSuivant; redessinerBoite(); }; });
-    // Plier et déplier un choix.
-    actions.querySelectorAll('.hub-msg-tete').forEach(b => {
-      b.onclick = () => {
-        const id = b.closest('.hub-msg').dataset.id;
-        boite.ouvert = ouvert === id ? false : id;
-        redessinerBoite();
-      };
+    // TRANCHER : tout ce qui est coché, en un lot (`deciderMaintenant`, js/banc.js) — la saison ne se rejoue qu'une fois.
+    const trancherTout = () => {
+      const ds = prets.flatMap(m => [].concat(m.choix.decision(m.choix.multi ? coches(m) : coches(m)[0])).map(d => ({ jour, ...d })));
+      boite.brouillon = null; boite.page = null;
+      ui.fermerPage(true);
+      const j = jour;
+      quitter();
+      onDecision(ds, j);
+    };
+    // V12 : une ligne de la boîte, ou la tête de sa page, ouvre la page de sa maison.
+    actions.querySelectorAll('.hub-msg-tete, .af-maison-tete').forEach(b => {
+      b.onclick = () => { boite.page = b.closest('[data-maison]').dataset.maison; redessinerBoite(); };
     });
+    // LA PAGE OUVERTE : ses choix en entier ; on y reste où on lisait quand elle se redessine. Plus rien à y régler, elle se ferme.
+    let racine = actions;
+    const shP = actions.closest('.hub-sheet');
+    if (!page && shP && shP.dataset.page === 'maison') ui.fermerPage(true);
+    if (page) {
+      const M = MAISONS[page], sh = actions.closest('.hub-sheet'), memePage = sh && sh.dataset.page === 'maison' && sh.dataset.maison === page, haut = memePage ? sh.scrollTop : 0;
+      const corps = ui.ouvrirPage({ genre: 'maison', ico: M.ico, titre: M.titre, sousTitre: M.sous, html: pageHtml(page),
+        pied: `<button type="button" class="btn hub-page-fermer">‹ La boîte</button>${trancher ? `<button type="button" class="btn go af-trancher">✓ Trancher · ${prets.length} choix</button>` : ''}`,
+        onFerme: () => { boite.page = null; redessinerBoite(); } });
+      if (sh) { sh.dataset.maison = page; if (memePage) sh.scrollTop = haut; }
+      racine = corps.closest('.hub-page');
+      const t = racine.querySelector('.af-trancher');
+      if (t) t.onclick = trancherTout;
+    }
     /*
      * TOUCHER UNE OPTION : elle se coche (un toucher sur la cochée la décoche ; un choix `multi`, les rivaux, en coche
      * plusieurs et un de trop pousse le plus ancien). Le choix complet se plie, le suivant qui attend s'ouvre. Une option ›
      * ouvre son écran ; un pari se joue au dé, sur-le-champ (js/gerant.js, `sceneDuDe`).
      */
-    actions.querySelectorAll('.af-option[data-choix]').forEach(b => {
+    [actions, racine].filter((x, i, a) => a.indexOf(x) === i).flatMap(r => [...r.querySelectorAll('.af-option[data-choix]')]).forEach(b => {
       b.onclick = () => {
         const m = msgs.find(x => x.id === b.closest('.hub-msg').dataset.id);
         const o = m && m.choix.options.find(x => String(x.cle) === b.dataset.choix);
@@ -3967,39 +4016,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         } else if (coche(m, o)) delete br[m.id];
         else br[m.id] = o.cle;
         jouerSon('joue');
-        if (complet(m)) { const suivant = msgs.find(x => x !== m && manque(x)); boite.ouvert = suivant ? suivant.id : false; }
-        // On reste où on lisait : la feuille garde son défilement.
-        const sh = actions.closest('.hub-sheet'), haut = sh ? sh.scrollTop : 0;
+        // La page réglée en entier rend la boîte et son « Trancher » ; sinon on y reste.
+        if (msgs.filter(x => x.maison === m.maison).every(x => x === m ? complet(m) : !manque(x))) boite.page = null;
         redessinerBoite();
-        if (sh) sh.scrollTop = haut;
       };
     });
     // LES CHIFFRES (V3) : le bouton ne paraît que s'il y a des chiffres pliés ; le choix se retient d'un écran à l'autre.
     const bc = actions.querySelector('.af-chiffres');
-    if (bc && actions.querySelector('.hub-msg.ouvert .puce.detail')) {
+    if (bc && racine !== actions && racine.querySelector('.puce.detail')) {
       bc.hidden = false;
       bc.onclick = () => { const o = basculerChiffres(); actions.querySelector('.hub-boite').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
     }
     // TRANCHER : tout ce qui est coché, en un lot (`deciderMaintenant`, js/banc.js) — la saison ne se rejoue qu'une fois.
     const btnTrancher = actions.querySelector('.hub-trancher');
-    if (btnTrancher) btnTrancher.onclick = () => {
-      const ds = prets.flatMap(m => [].concat(m.choix.decision(m.choix.multi ? coches(m) : coches(m)[0])).map(d => ({ jour, ...d })));
-      boite.brouillon = null; boite.ouvert = null;
-      const j = jour;
-      quitter();
-      onDecision(ds, j);
-    };
+    if (btnTrancher) btnTrancher.onclick = trancherTout;
     // CE QUI ATTEND : le déplier, sous l'affiche du Bureau ; un choix qui n'a qu'une porte (le combat, le paquet, la main) l'ouvre tout de suite.
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter && attente) traiter.onclick = () => {
       const portes = attente.choix.options.filter(o => !o.desactive);
       if (portes.length === 1 && portes[0].ouvre) { attente.choix.agir(portes[0].cle); return; }
-      boite.ouvert = attente.id;
+      // V12 : la page de sa maison, là où il se règle.
+      boite.page = attente.maison;
       if (tabs.courant() !== 'journee') tabs.montrer('journee');
       redessinerBoite();
-      const el = actions.querySelector(`.hub-msg[data-id="${CSS.escape(attente.id)}"]`);
-      // En haut du volet, pas « au plus près » : au plus près, la barre collée couvrait ses options (audit mobile, B4).
-      if (el) { el.scrollIntoView({ block: 'start', behavior: 'smooth' }); const d = el.querySelector('.af-option:not([disabled])'); if (d) d.focus({ preventScroll: true }); }
     };
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();

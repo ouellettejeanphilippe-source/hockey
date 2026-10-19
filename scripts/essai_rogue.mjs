@@ -254,7 +254,7 @@ const compterFeuilles = async ou => {
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
 const captures = { main: 0, combat: 0, duel: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
-const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0 };   // À faire (V9), vu au premier choix
+const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [] };   // À faire (V9), vu au premier choix
 const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
@@ -458,9 +458,13 @@ async function regler() {
      * (le combat, le paquet, la main, une liste), que les cas plus haut règlent. « Trancher » envoie tout le coché en
      * un lot : autant de décisions que de choix. Photographié une fois ; la route dit l'état du club.
      */
-    const ouvertA = await page.$('#hubModal .hub-msg.ouvert.bloque');
+    /*
+     * V12 (docs/refonte-v12.md) : la boîte renvoie à la page de sa maison, qui montre ses choix en entier. Sur la page
+     * ouverte, on règle le premier qui attend ; une page sans rien qui presse, « ‹ » rend la boîte.
+     */
+    const ouvertA = await page.$('#hubModal .hub-page[data-genre="maison"] .hub-msg.bloque:not(.pret)');
     if (ouvertA && await ouvertA.isVisible()) {
-      const lu = await ouvertA.evaluate(el => ({ genre: el.dataset.msg, sujet: (el.querySelector('.hub-msg-sujet') || {}).textContent || '',
+      const lu = await ouvertA.evaluate(el => ({ genre: el.dataset.msg, sujet: (el.querySelector('.af-feuille-sujet') || {}).textContent || '',
         forme: !!el.querySelector('.hub-msg-corps > .af-options .choix-option.af-option'),
         compris: [...el.querySelectorAll('button')].some(b => /^\s*Compris\s*$/.test(b.textContent)),
         etat: (el.querySelector('.hub-msg-corps > .choix-puces') || {}).textContent || '',
@@ -494,16 +498,16 @@ async function regler() {
       await page.waitForTimeout(400);
       continue;
     }
-    // Une enveloppe ouverte qui ne presse pas (un blessé que la réserve couvre, déjà réglé ailleurs) : « Plus tard ».
-    const ouvertL = await page.$('#hubModal .hub-msg.ouvert:not(.bloque) .af-feuille-pied [data-af-fermer]');
-    if (ouvertL && await ouvertL.isVisible()) { await ouvertL.click(); await page.waitForTimeout(300); continue; }
+    // Une page qui ne presse plus (un blessé que la réserve couvre, déjà réglé ailleurs) : « ‹ » rend la boîte.
+    const pageL = await page.$('#hubModal .hub-page[data-genre="maison"] .hub-page-retour');
+    if (pageL && await pageL.isVisible()) { afaire.pages++; await pageL.click(); await page.waitForTimeout(300); continue; }
     const trancherB = await page.$('#hubModal .hub-trancher');
     if (trancherB && await trancherB.isVisible()) {
       const prets = await page.$$eval('#hubModal .hub-msg.pret', e => e.length);
       if (afaire.lots.length === 0) await page.screenshot({ path: `${DOSSIER}/rogue-trancher.png` });
       const n0 = (await decisionsDuCombat()).length;
       await trancherB.click({ timeout: 8000 }).catch(async e => {
-        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg.ouvert')].map(x => x.className + ' ' + x.dataset.msg + ' ' + x.dataset.id + ' : ' + x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)));
+        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-page[data-genre="maison"] .hub-msg')].map(x => x.className + ' ' + x.dataset.msg + ' ' + x.dataset.id + ' : ' + x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)));
         await page.screenshot({ path: `${DOSSIER}/rogue-trancher-cache.png` }).catch(() => {});
         throw new Error(`« Trancher » est caché par une feuille : ${f.join(' | ')}`);
       }); await page.waitForTimeout(1500);
@@ -532,21 +536,25 @@ async function regler() {
       const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
       if (!mot.txt.startsWith('⏳') || mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
       await t.click({ timeout: 8000 }).catch(async () => {
-        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg.ouvert')].map(x => `${x.className} ${x.dataset.msg} ${x.dataset.id} : ${x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)}`));
+        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-page[data-genre="maison"] .hub-msg')].map(x => `${x.className} ${x.dataset.msg} ${x.dataset.id} : ${x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)}`));
         await page.screenshot({ path: `${DOSSIER}/rogue-regler-cache.png` }).catch(() => {});
         throw new Error(`« À régler » est caché par une feuille : ${f.join(' | ')}`);
       }); await page.waitForTimeout(900);
       const sb = await page.evaluate(() => {
-        const m = document.querySelector('#hubModal .hub-msg.ouvert'), b = document.querySelector('#hubModal .hub-barre');
-        if (!m || !b || document.querySelector('#choixModal:not([hidden])')) return null;
-        // L'enveloppe ouverte est une feuille (E4) : sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
+        const m = document.querySelector('#hubModal .hub-page[data-genre="maison"] .hub-msg.bloque:not(.pret)');
+        if (!m || document.querySelector('#choixModal:not([hidden])')) return null;
+        // V12 : « À régler » ouvre la page de sa maison ; sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
         const o = m.querySelector('.af-option');
         if (o) o.scrollIntoView({ block: 'nearest' });
         const r = o ? o.getBoundingClientRect() : null;
         const dessus = r ? document.elementFromPoint(r.left + r.width / 2, Math.min(innerHeight - 1, r.top + r.height / 2)) : null;
-        return { sujet: (m.querySelector('.hub-msg-sujet') || {}).textContent || '', opt: r ? r.bottom : null, barre: b.getBoundingClientRect().top, libre: !o || (dessus && o.contains(dessus)) };
+        return { sujet: (m.querySelector('.af-feuille-sujet') || {}).textContent || '', opt: r ? r.bottom : null, libre: !o || (dessus && o.contains(dessus)) };
       });
       if (sb) { barreA.vus++; if (!sb.libre) barreA.sous.push(`« ${sb.sujet.slice(0, 30)} » : sa 1re option est couverte (elle finit à ${Math.round(sb.opt)})`); }
+      // V12 : « À régler » ouvre la page de sa maison, ou l'écran d'un choix à une seule porte (le combat, le paquet).
+      const ou = await page.evaluate(() => { const pg = document.querySelector('#hubModal .hub-page[data-genre="maison"]'); return pg ? (pg.getAttribute('aria-label') || 'une page') : document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte' : ''; });
+      if (ou && ou !== 'porte') afaire.maisons.add(ou);
+      else if (!ou) afaire.sansPage.push(mot.txt.slice(0, 40));
       continue;
     }
     return;
@@ -1427,6 +1435,10 @@ if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
 if (afaire.vu && !afaire.lots.length) erreurs.push('aucun lot tranché');
 if (afaire.formes.length) erreurs.push(`des choix d'À faire n'ont pas la forme commune (options \`optionHtml\`) : ${afaire.formes.slice(0, 4).join(' · ')}`);
 if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offerte dans À faire');
+// V12 : chaque chose à régler ouvre sa page ; la boîte n'en règle aucune sur place.
+console.log(`20m. les pages de la boîte : ${[...afaire.maisons].join(' · ') || 'aucune'} · ${afaire.pages} retour(s) à la boîte`);
+if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni page ni écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
+if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a renvoyé qu'à ${afaire.maisons.size} page(s) : ${[...afaire.maisons].join(', ')}`);
 console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
