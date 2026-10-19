@@ -69,6 +69,7 @@ import {
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
   packsOuverts, monteeDesPacks,
+  bouchesTrousDuDepart, vedettesDeConcession,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -123,25 +124,28 @@ function estEtoile(p) {
 }
 
 /*
- * LES PLOMBIERS (js/rogue-jeu.js `plombiersDeLaLigue`) : huit saisons, du 10e au 30e centile de production (30e-50e
- * débloqué), et parmi eux les pires contrats, le tiers le mieux payé (V9, tranche 4 : le plafond qui mord).
+ * LES PLOMBIERS (js/rogue-jeu.js `plombiersDeLaLigue`) : huit saisons, et la composition du départ
+ * (js/rogue.js `bouchesTrousDuDepart`) — peu de bons, quelques entre-deux, beaucoup de faibles ; les défenseurs et les
+ * gardiens par leur valeur, les attaquants par leurs points, les pires contrats de chaque bande.
  */
-const PART_DES_PIRES = 1 / 3;
 function plombiers(rnd, meta, exclus) {
   const saisons = SAISONS.slice(), choisies = [];
   while (choisies.length < 8) choisies.push(saisons.splice(Math.floor(rnd() * saisons.length), 1)[0]);
-  const [bas, haut] = aDebloque(meta, 'plombiersPlus') ? [0.3, 0.5] : [0.1, 0.3];
-  const pires = tranche => tranche.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(tranche.length * PART_DES_PIRES)));
-  const pool = [];
-  for (const s of choisies) {
-    const e = shard(s);
-    for (const g of ['F', 'D', 'G']) {
-      const reg = e.players.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !exclus.has(getPersonKey(p))).sort((a, b) => prod(a) - prod(b));
-      const tranche = pires(reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut))));
-      for (let i = 0; i < (g === 'F' ? 3 : g === 'D' ? 2 : 1) && tranche.length; i++) pool.push(copie(tranche.splice(Math.floor(rnd() * tranche.length), 1)[0]));
-    }
-  }
-  return pool;
+  return bouchesTrousDuDepart(choisies.map(s => shard(s).players), { groupe, valeur: v, personne: getPersonKey, exclus, plus: aDebloque(meta, 'plombiersPlus'),
+    piger: liste => liste[Math.floor(rnd() * liste.length)] }).map(copie);
+}
+/*
+ * TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : trois offerts une fois, à la première run ; le robot
+ * prend celui qui vaut le plus (le distrait, au hasard). Sa clé au méta ; il revient à chaque départ.
+ */
+function vedetteDuRobot(rnd, meta, clic) {
+  if (meta.vedette) { const [s] = meta.vedette.split('_'); return shard(s).players.find(p => getPlayerKey(p) === meta.vedette) || null; }
+  const saisons = SAISONS.slice(), candidats = [];
+  for (let i = 0; i < 8; i++) { const e = shard(saisons.splice(Math.floor(rnd() * saisons.length), 1)[0]); for (const p of e.players) candidats.push({ p, niveau: niveauDe(p, e.players) }); }
+  const offerts = vedettesDeConcession(candidats, { personne: getPersonKey, piger: l => l[Math.floor(rnd() * l.length)] });
+  const p = clic ? offerts[Math.floor(clic() * offerts.length)] : offerts.slice().sort((a, b) => v(b) - v(a))[0];
+  if (p) meta.vedette = getPlayerKey(p);
+  return p || null;
 }
 
 /*
@@ -452,6 +456,8 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   const exclus = new Set();
   // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs ; le distrait, n'importe qui).
   const gardes = meilleursDabord(derniere, clic).slice(0, nombreGardes(meta)).map(copie);
+  const vedette = vedetteDuRobot(rnd, meta, clic);
+  if (vedette && !gardes.some(p => getPersonKey(p) === getPersonKey(vedette))) gardes.unshift(copie(vedette));
   gardes.forEach(p => exclus.add(getPersonKey(p)));
   // Les cartes du classeur au départ.
   const tires = tirerClasseur(rnd, meta, classeur, exclus, clic, exigence).map(x => ({ p: copie(x.p), rar: x.rar }));
@@ -485,6 +491,9 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
     const equipe = Object.values(r.roster).filter(Boolean);
     const restent = gardesDeSaison(meta, equipe, clic, exigence);
+    // Ton joueur de concession reste d'une saison à l'autre, sans prendre la place d'un gardé.
+    const ved = meta.vedette && equipe.find(p => getPlayerKey(p) === meta.vedette);
+    if (ved && !restent.includes(ved)) restent.unshift(ved);
     const partants = new Set(equipe.map(getPlayerKey).filter(k => !restent.some(p => getPlayerKey(p) === k)));
     // Le classeur a grossi pendant la saison : les cartes tirées des packs en sont.
     const classeurSaison = [...classeur, ...r.entrees.map(x => ({ p: x.p, rar: x.rar }))];

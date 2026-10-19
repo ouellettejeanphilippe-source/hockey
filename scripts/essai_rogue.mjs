@@ -134,7 +134,7 @@ await page.addInitScript(cartes => {
   // « Une caisse de départ » (+20 jetons) : les Harfangs puis le Pack Argent s'achètent quel que soit le tirage de la saison
   // (sans elle, une caisse de 22 ou 36 jetons laissait l'essai en panne de jetons devant le Pack Argent : une loterie).
   // V9 (tranche 8) : une Coupe déjà gagnée ouvre le premier cran des exigences ; l'essai le voit, et part au cran 0.
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v10', inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v10', inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -157,7 +157,7 @@ await choix('.choix-option[data-choix="go"]');
  * donc quatre), un à prendre — sa confiance I est allumée dès le premier soir (une décision du jour 0) —, et
  * les deux patrons imposés de la run, nommés sur le même écran.
  */
-const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1'], jalons: {} })].coachs;
+const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], jalons: {} })].coachs;
 await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
@@ -165,6 +165,18 @@ console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.sl
 if (offerts.length !== COACHS_ATTENDUS || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s) (le prestige en ouvre ${COACHS_ATTENDUS}), ou ne dit pas sa confiance I`);
 if (!/Tes patrons :/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas les patrons imposés');
 await choix();
+/*
+ * TON JOUEUR DE CONCESSION (JP, 18 oct. : *avoir un gros joueur dès la première run, mais difficile d'en avoir
+ * d'autres*) : trois Étoiles offertes à la première run, une à prendre, qui revient au départ de chaque run.
+ */
+await page.waitForFunction(() => /Ton joueur de concession/.test((document.querySelector('#signatureModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
+await page.screenshot({ path: `${DOSSIER}/rogue-concession.png` });
+const concession = await page.$$eval('#signatureModal .sig-liste .btn-sign', e => e.length);
+console.log(`0. ton joueur de concession : ${concession} offert(s)`);
+if (concession < 2 || concession > 3) erreurs.push(`le joueur de concession offre ${concession} joueur(s) (attendu : 3, au moins 2)`);
+await page.click('#signatureModal .sig-liste .btn-sign');
+const vedetteGardee = await page.waitForFunction(() => { try { return !!JSON.parse(localStorage.getItem('cap82_rogue') || '{}').vedette; } catch { return false; } }, null, { timeout: 10000 }).then(() => true, () => false);
+if (!vedetteGardee) erreurs.push('le joueur de concession choisi n\'est pas gardé au méta');
 /*
  * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
  * cartable tirée au hasard. On la voit, on touche sa carte (sa fiche), on la
@@ -451,7 +463,7 @@ async function regler() {
         fait: ((el.querySelector('.hub-msg-corps > .scene .scene-fait') || {}).textContent || '').trim(),
         de: ((el.querySelector('.hub-msg-de') || {}).textContent || '').trim(),
         sous: [...el.querySelectorAll('.af-option .choix-option-sous')].map(x => x.textContent.trim()),
-        opts: [...el.querySelectorAll('.af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
+        opts: [...el.querySelectorAll('.af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
       afaire.genres.add(lu.genre); afaire.ouverts++;
       if (!lu.forme) afaire.formes.push(`${lu.genre} « ${lu.sujet} »`);
       if (lu.compris) erreurs.push(`« ${lu.sujet} » demande encore « Compris » dans À faire`);
@@ -469,19 +481,27 @@ async function regler() {
       }
       const libres = lu.opts.filter(o => !o.on);
       const pari = libres.find(o => o.pari);
-      const o = pari && des.length < 5 ? pari : libres[0];
+      // La case vide : « tes lignes » ouvre les Lignes, qu'aucun cas plus haut ne règle ; on prend une option sur place.
+      const o = pari && des.length < 5 ? pari : (lu.genre === 'trou' && libres.find(x => !x.ouvre)) || libres[0];
       if (!o) throw new Error(`« ${lu.sujet} » attend dans À faire sans option à toucher`);
       if (o === pari) evenementsDe.push(lu.sujet.trim());
       await ouvertA.$(`.af-option[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
       await page.waitForTimeout(400);
       continue;
     }
+    // Une enveloppe ouverte qui ne presse pas (un blessé que la réserve couvre, déjà réglé ailleurs) : « Plus tard ».
+    const ouvertL = await page.$('#hubModal .hub-msg.ouvert:not(.bloque) .af-feuille-pied [data-af-fermer]');
+    if (ouvertL && await ouvertL.isVisible()) { await ouvertL.click(); await page.waitForTimeout(300); continue; }
     const trancherB = await page.$('#hubModal .hub-trancher');
     if (trancherB && await trancherB.isVisible()) {
       const prets = await page.$$eval('#hubModal .hub-msg.pret', e => e.length);
       if (afaire.lots.length === 0) await page.screenshot({ path: `${DOSSIER}/rogue-trancher.png` });
       const n0 = (await decisionsDuCombat()).length;
-      await trancherB.click(); await page.waitForTimeout(1500);
+      await trancherB.click({ timeout: 8000 }).catch(async e => {
+        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg.ouvert')].map(x => x.className + ' ' + x.dataset.msg + ' ' + x.dataset.id + ' : ' + x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)));
+        await page.screenshot({ path: `${DOSSIER}/rogue-trancher-cache.png` }).catch(() => {});
+        throw new Error(`« Trancher » est caché par une feuille : ${f.join(' | ')}`);
+      }); await page.waitForTimeout(1500);
       await page.waitForFunction(() => !document.querySelector('#hubModal .hub-msg.pret'), null, { timeout: 60000 }).catch(() => {});
       const pris = (await decisionsDuCombat()).length - n0;
       afaire.lots.push(`${prets}→${pris}`);
@@ -504,7 +524,11 @@ async function regler() {
        */
       const mot = await t.evaluate(b => ({ txt: b.textContent.trim(), h: b.getBoundingClientRect().height }));
       if (!mot.txt.startsWith('⏳') || mot.h > 60) barreA.longs.push(`« ${mot.txt.slice(0, 40)} » (${Math.round(mot.h)} px)`);
-      await t.click(); await page.waitForTimeout(900);
+      await t.click({ timeout: 8000 }).catch(async () => {
+        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg.ouvert')].map(x => `${x.className} ${x.dataset.msg} ${x.dataset.id} : ${x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)}`));
+        await page.screenshot({ path: `${DOSSIER}/rogue-regler-cache.png` }).catch(() => {});
+        throw new Error(`« À régler » est caché par une feuille : ${f.join(' | ')}`);
+      }); await page.waitForTimeout(900);
       const sb = await page.evaluate(() => {
         const m = document.querySelector('#hubModal .hub-msg.ouvert'), b = document.querySelector('#hubModal .hub-barre');
         if (!m || !b || document.querySelector('#choixModal:not([hidden])')) return null;
