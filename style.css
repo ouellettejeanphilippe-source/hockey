@@ -2459,12 +2459,22 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .ej-coach-tete small { flex-basis: 100%; font-family: inherit; font-weight: 400; font-size: var(--t-1); line-height: 1.3; text-transform: none; color: var(--encre-2); }
 .ej-coach-ico { font-size: var(--t-4); line-height: 1; }
 .ej-rang { padding: 2px 6px; border-radius: var(--r-1); background: var(--or); color: var(--encre-sur-or); font-size: var(--t-1); }
-.ej-jauge { position: relative; height: 6px; margin: var(--esp-2) 0 var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
+.ej-jauge { position: relative; height: 6px; margin: var(--esp-2) var(--esp-3) var(--esp-3); border-radius: var(--r-1); background: var(--fond-3); }
 .ej-jauge i { display: block; height: 100%; border-radius: var(--r-1); background: var(--or); }
 .ej-jauge em { position: absolute; top: -2px; width: 2px; height: 10px; margin-left: -1px; background: var(--encre-3); }
 .ej-jauge em b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 .ej-jauge em.fait { background: var(--encre); }
 .ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
+/* TON PERSONNEL (V12-2, au sous-onglet de l'entraîneur) : chaque poste et qui l'occupe, ce qu'il fait ; les postes libres. */
+.perso { display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
+.perso-t { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
+.perso-l { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); }
+.perso-ico { font-size: var(--t-5); line-height: 1; }
+.perso-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.perso-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.perso-txt b { font: 800 var(--t-3)/1.15 var(--display); color: var(--encre); }
+.perso-txt em { font-size: var(--t-2); font-style: italic; color: var(--encre-2); }
+.perso-libre { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
 .ej-coach-l.suite { opacity: 0.6; }
 .ej-coach-l .ej-k { font-size: var(--t-1); color: var(--encre-3); }
 .plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
@@ -3134,6 +3144,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-onglet-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .af-onglet-txt span { font-size: var(--t-2); color: var(--encre-2); }
 .af-onglet .af-trancher { min-height: 44px; }
+/* Ce que le sous-onglet montre toujours, sous ses choix (V12-2) : le mandat, la route, la une, ton histoire, les blessés. */
+.af-fond { display: flex; flex-direction: column; gap: var(--esp-3); }
 .hub-msg-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
 .af-maison .af-page-msg + .af-page-msg { margin-top: var(--esp-3); }
 .af-page-tete { display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-3) var(--esp-3) 0; }
@@ -3445,7 +3457,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .recit-ev b { color: var(--encre); }
 .recit-j { flex: none; min-width: 34px; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 /* La route de la saison : un filet, ce qui est fait en or, les moments dessus et dessous. */
-.hub-route { position: relative; height: 40px; margin: var(--esp-1) var(--esp-1) var(--esp-2); }
+/* Une marque se centre sur sa journée : la ligne garde une marge où la première et la dernière tiennent entières. */
+.hub-route { position: relative; height: 40px; margin: var(--esp-1) var(--esp-4) var(--esp-2); }
 .hub-route::before { content: ""; position: absolute; left: 0; right: 0; top: 18px; height: 2px; background: var(--filet); }
 .hub-route-fait { position: absolute; left: 0; top: 18px; height: 2px; background: var(--or); }
 .hub-route-m { position: absolute; top: 0; transform: translateX(-50%); font-size: var(--t-3); line-height: 1; color: var(--encre-2); }
@@ -4992,7 +5005,6 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .bq-actions .btn.gold { background: transparent; color: var(--or); border-color: var(--or); }
 .bq-actions .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 14%, transparent); }
 .inv-vendre { color: var(--encre-3); }
-.inv-engage { display: inline-flex; align-items: center; min-height: 40px; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--bon); }
 
 /* ---- L'inventaire (#inventaireModal) : des onglets en bande, des filtres, une grille par catégorie ---- */
 .inv-onglets { flex: none; display: flex; gap: var(--esp-1); padding: 0 var(--esp-3); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--filet); }
@@ -5008,7 +5020,6 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 /* Tes coachs (v2) : un coach par rangée, sa jauge aux seuils 3, 6, 9, ce que sa confiance joue et la suivante. */
 /* La masse salariale : le montant, la barre, ce qui tord le plafond. */
 .inv-sheet > .ej-coach { margin: var(--esp-3) var(--esp-4) 0; }
-.inv-personnel { margin: var(--esp-2) var(--esp-4) 0; font-size: var(--t-1); color: var(--encre-2); }
 .inv-plafond { margin: var(--esp-3) var(--esp-4) 0; padding: var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); }
 .inv-pl-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .inv-pl-tete b { color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }

@@ -1667,7 +1667,7 @@ const auVestiaire = () => enRepechage() && G.bonus !== 'ROGUE';
 /* Un volet de l'écran de saison, ou que l'écran rouvrira : derrière le banc, il est fermé, et toucher le volet l'y ramène. */
 const voletDeSaison = v => !!voletPour(v) || !!(G.banc && !G.banc.serie && G.bonus === 'ROGUE');
 /* V12 (docs/refonte-v12.md) : les maisons de la boîte, chacune un sous-onglet de sa section, un usage chacune. */
-const MAISONS_DE = { bureau: ['proprio', 'route', 'presse', 'vestiaire'], effectif: ['infirmerie'], marche: ['butin'] };
+const MAISONS_DE = { bureau: ['proprio', 'entraineur', 'presse', 'vestiaire'], effectif: ['infirmerie'], marche: ['butin'] };
 const maisonsDe = sec => (G.bonus === 'ROGUE' ? MAISONS_DE[sec].filter(voletDeSaison) : []);
 const PAGES_DE = {
   bureau: () => ['match', ...maisonsDe('bureau')],
@@ -1688,7 +1688,7 @@ const PAGE = {
   match: ['i-club', 'Match'], soir: ['i-list', 'Ce soir'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
-  proprio: ['i-club', 'Proprio'], route: ['i-cal', 'Route'], presse: ['i-list', 'Presse'], vestiaire: ['i-jersey', 'Vestiaire'],
+  proprio: ['i-club', 'Proprio'], entraineur: ['i-cal', 'Entraîneur'], presse: ['i-list', 'Presse'], vestiaire: ['i-jersey', 'Vestiaire'],
   infirmerie: ['i-jersey', 'Infirmerie'], butin: ['i-cartes', 'Butin'],
 };
 /* En Rogue, le Bureau s'ouvre sur la boîte (V12) : ses sous-onglets en sont les maisons. */

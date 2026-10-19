@@ -11,14 +11,13 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRos
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
-import { coachHtml } from './alignement.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, SEMAINE, PLACES } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
-import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement, motDuCoachPlan, sceneHtml } from './gerant.js';
+import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement, motDuCoachPlan, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, serieDe, SERIES } from './cartes.js';
@@ -592,12 +591,9 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   ouvrirInventaire({
     ...(page || {}),
     titre: 'Tes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
-    // V8 : ton coach, sa confiance et ton personnel en tête de tes cartes, que la cellule « Cartes » de l'en-tête ouvre d'où qu'on soit.
-    entete: rogue && enSaison ? `${coachHtml(decs, j, new Set(blessesAuJour(j).map(b => b.p)))}${personnelHtml(patronsActifs(decs, j + 1), postesDePatron((G.rogue && G.rogue.prestige) || 0))}` : '',
     partie: enSaison ? placesDeLaPartie({ decisions: decs, rogue }) : [],
-    meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0) : [],
-    personnel: rogue ? (meta.personnel || []).filter(k => PATRONS[k]) : [],
-    patronsActifs: enSaison ? patronsActifs(decs, j + 1) : [], maxPatrons: postesDePatron((G.rogue && G.rogue.prestige) || 0),
+    // V12-2 : le personnel et le congédiement sont chez l'entraîneur (`cartesDuPersonnel`), plus ici.
+    meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0 && !deCoaching(x.id)) : [],
     deck: enSaison ? deckDe(Lg.decisions || []) : [],
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     plafond: plafondPourInventaire(enSaison ? j : (G.journee || 0)),
@@ -818,8 +814,38 @@ function poserUneModif(item, j, decider, retour) {
     onFerme: retour,
   });
 }
-/* Ton personnel (les patrons en poste) en une ligne : qui, et combien de postes sont pris. */
-const personnelHtml = (pa, max) => `<p class="inv-personnel">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}${pa.length ? ` : ${pa.map(x => `${x.ico || ''} ${esc(x.nom)}`).join(' · ')}` : ''}</p>`;
+/*
+ * TON PERSONNEL (V12-2, au sous-onglet de l'entraîneur). JP : *faudrait un screen pour les coachs et assistants coachs*.
+ * Chaque poste occupé (l'entraîneur-chef, les adjoints, l'entraîneur des gardiens…) : qui l'occupe et ce qu'il fait ; puis
+ * combien de postes restent libres, et où s'engage le personnel.
+ */
+export function personnelDuJour(j) {
+  const pa = patronsActifs(decisionsDeLaPartie(), j + 1), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+  const libres = Math.max(0, max - pa.length);
+  return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
+    ${pa.map(x => { const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {};
+      return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b>${P.texte ? `<em>${esc(P.texte)}</em>` : ''}</span></div>`; }).join('')}
+    ${libres ? `<p class="perso-libre">${libres} poste${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''} : les packs Personnel en donnent, et ils s'engagent ici.</p>` : ''}
+  </section>${cartesDuPersonnel(pa)}`;
+}
+/*
+ * TOUT CE QUI EST COACHING AU MÊME ENDROIT (V12-2). JP : *everything coaching should be at same place, including cards for
+ * assistant or firing a coach*. Les cartes du personnel que tu as (« Engager ») et celles qui changent de coach (le
+ * congédiement : « Jouer ») vivent ici, plus au Marché › Tes cartes.
+ */
+const deCoaching = id => { const c = BANQUE[id]; return !!c && c.cat === 'consommable' && (CONSOMMABLES[c.cle] || {}).cible === 'coach'; };
+function cartesDuPersonnel(pa) {
+  const meta = lireMeta(), engages = new Set(pa.map(x => x.cle));
+  const perso = (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k));
+  const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && deCoaching(id));
+  if (!perso.length && !conso.length) return '';
+  const carte = (id, bouton) => `<div class="bq-carte">${carteDeBanqueHtml(optionDeBanque(id))}<div class="bq-actions">${bouton}</div></div>`;
+  return `<section class="perso" aria-label="Tes cartes du personnel"><h3 class="perso-t">🃏 Tes cartes du personnel · ${perso.length + conso.length}</h3>
+    <div class="inv-grille">${perso.map(k => carte(`patron:${k}`, `<button type="button" class="btn gold perso-jouer" data-src="personnel" data-id="patron:${esc(k)}">Engager</button>`)).join('')}${conso.map(([id, n]) => carte(id, `<button type="button" class="btn gold perso-jouer" data-src="meta" data-id="${esc(id)}">Jouer${n > 1 ? ` · ×${n}` : ''}</button>`)).join('')}</div>
+  </section>`;
+}
+/* Engager un patron, jouer un congédiement, depuis le sous-onglet de l'entraîneur : le même chemin que Tes cartes. */
+export const jouerDuPersonnel = (item, j, decider) => jouerCarte(item, j, decider, null, () => {});
 /*
  * POSER UNE MODIF EN TOUCHANT SON JOUEUR (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert*. Une
  * modif de joueur touchée allume, dans les lignes de « Ce soir », les joueurs qui peuvent la porter ; toucher l'un

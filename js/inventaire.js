@@ -132,7 +132,7 @@ function carteBanqueHtml(id, { compte = 0, actions = '', possede = true, vie = n
 let etat = { onglet: null, cat: 'tout', rar: 'tout' };
 /*
  * ctx : { titre, mode ('rogue' | 'saison'), enSaison, jetons, partie: [{ref, id, source}],
- *         meta: [{id, n}], personnel: [cles], patronsActifs: [{cle, role}], maxPatrons,
+ *         meta: [{id, n}],
  *         deck: [cles], possedees: Set(ids), joueursCollection: n,
  *         jouer(item), vendre(item), onFerme() }
  */
@@ -142,7 +142,7 @@ export function ouvrirInventaire(ctx) {
   if (!m) return;
   const onglets = [
     ...(ctx.enSaison ? [['partie', ctx.mode === 'rogue' ? 'Tes places' : 'Cette saison', ctx.partie.length]] : []),
-    ...(ctx.mode === 'rogue' ? [['permanent', 'Permanent', ctx.meta.reduce((a, x) => a + x.n, 0) + ctx.personnel.length]] : []),
+    ...(ctx.mode === 'rogue' ? [['permanent', 'Permanent', ctx.meta.reduce((a, x) => a + x.n, 0)]] : []),
     ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
     ['classeur', 'La banque', `${[...ctx.possedees].filter(sortDUnPack).length}/${Object.keys(BANQUE).filter(sortDUnPack).length}`],
   ];
@@ -178,15 +178,10 @@ export function ouvrirInventaire(ctx) {
         ${autres.length ? `<h3 class="inv-sec">Pas maintenant · ${autres.length}${raison ? ` — ${esc(raison)}` : ''}</h3><div class="inv-grille">${autres.map(carte).join('')}</div>` : ''}
         ${toutes.length ? '' : vide(`Aucune carte en place : ouvre des packs à la boutique, ou attends les matchs ${PALIERS_PACK.slice(0, -1).join(', ')} et ${PALIERS_PACK.at(-1)}.`)}`;
     } else if (etat.onglet === 'permanent') {
-      const engages = new Set((ctx.patronsActifs || []).map(p => p.cle));
-      const perso = ctx.personnel.filter(k => garde(`patron:${k}`));
       const conso = ctx.meta.filter(x => garde(x.id));
-      corps = `<p class="inv-mot">${VIES.permanent.mot} Le personnel ne s'use pas : tu l'engages à chaque saison, ${ctx.maxPatrons} postes au plus, un par rôle.</p>
-        ${filtres(['patron', 'consommable', 'plafond'])}
-        <h3 class="inv-sec">👔 Ton personnel · ${ctx.personnel.length}</h3>
-        <div class="inv-grille">${perso.map(k => carteBanqueHtml(`patron:${k}`, {
-          actions: engages.has(k) ? '<span class="inv-engage">✓ Engagé</span>' : `<button type="button" class="btn gold inv-engager" data-id="patron:${esc(k)}"${ctx.peutJouer ? '' : ' disabled'}>Engager</button>`,
-        })).join('') || vide('Aucun patron : les packs Personnel en donnent.')}</div>
+      // V12-2 : ton personnel et le congédiement sont au sous-onglet de l'entraîneur (Bureau › Entraîneur), avec ton coach.
+      corps = `<p class="inv-mot">${VIES.permanent.mot} Ton personnel et le congédiement sont chez l'entraîneur, au Bureau.</p>
+        ${filtres(['consommable', 'plafond'])}
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,
           actions: `<button type="button" class="btn gold inv-jouer-meta" data-id="${esc(x.id)}"${ctx.peutJouer ? '' : ' disabled'}>Jouer</button>` })).join('') || vide('Aucun consommable permanent.')}</div>`;
@@ -216,7 +211,6 @@ export function ouvrirInventaire(ctx) {
         <div class="choix-titres"><div class="choix-titre">${esc(ctx.titre)}</div>${ctx.jetons != null ? `<div class="choix-irl">🪙 ${ctx.jetons} jetons</div>` : ''}</div>
         <button type="button" class="close-btn choix-fermer" aria-label="Fermer" title="Fermer">✕</button>
       </div>
-      ${ctx.entete || ''}
       ${plafond}
       <div class="inv-onglets" role="tablist">${onglets.map(([k, nom, n]) => `<button type="button" role="tab" class="inv-onglet${etat.onglet === k ? ' on' : ''}" data-onglet="${k}" aria-selected="${etat.onglet === k}">${esc(nom)} <span>${n}</span></button>`).join('')}</div>
       <div class="choix-corps inv-corps">${corps}${corps.includes('puce') && corps.includes(' detail') ? `<button type="button" class="choix-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}</div>
@@ -230,7 +224,6 @@ export function ouvrirInventaire(ctx) {
     m.querySelectorAll('[data-rar]').forEach(b => { b.onclick = () => { etat.rar = b.dataset.rar; dessiner(); }; });
     m.querySelectorAll('.inv-jouer').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'partie', ref: b.dataset.ref, id: b.dataset.id }); }; });
     m.querySelectorAll('.inv-vendre').forEach(b => { b.onclick = () => { fermer(true); ctx.vendre({ src: 'partie', ref: b.dataset.ref, id: b.dataset.id }); }; });
-    m.querySelectorAll('.inv-engager').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'personnel', id: b.dataset.id }); }; });
     m.querySelectorAll('.inv-jouer-meta').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'meta', id: b.dataset.id }); }; });
   };
   const fermer = (silencieux = false) => {
