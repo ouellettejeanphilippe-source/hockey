@@ -294,6 +294,19 @@ async function tourDesBords(quand) {
   }
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(300);
 }
+/* UN ÉLÉMENT QUI BOUGE (« not stable ») : ce qui bouge autour de lui, image après image, et ce qui l'anime. */
+async function sonde(h) {
+  return h.evaluate(async el => {
+    const out = [];
+    for (let p = el; p; p = p.parentElement) {
+      const rs = new Set();
+      for (let f = 0; f < 20; f++) { await new Promise(r => requestAnimationFrame(r)); const r = p.getBoundingClientRect(); rs.add(`${r.x.toFixed(1)},${r.y.toFixed(1)},${r.width.toFixed(1)},${r.height.toFixed(1)}`); }
+      const an = p.getAnimations ? p.getAnimations().map(a => `${a.animationName || a.transitionProperty || a.constructor.name}:${a.playState}`) : [];
+      out.push(`${p.tagName}.${String(p.className || '').split(' ').slice(0, 4).join('.')} ${rs.size} ${[...rs].slice(0, 3).join(' | ')} anim:${an.join(',')} haut:${p.scrollTop} tf:${getComputedStyle(p).transform}`);
+    }
+    return out.join('\n');
+  });
+}
 async function regler() {
   for (let i = 0; i < 30; i++) {
     await guetterBords('en jouant');
@@ -331,7 +344,7 @@ async function regler() {
           await page.evaluate(() => document.querySelectorAll('#choixModal, #choixModal .choix-sheet, #choixModal .choix-corps').forEach(e => { e.scrollTop = 0; }));
           await page.screenshot({ path: `${DOSSIER}/rogue-combat.png` });
         }
-        if (vest.length) { await vest[0].click(); await page.waitForTimeout(250); }
+        if (vest.length) { await vest[0].click({ timeout: 10000 }).catch(async e => { console.log(`la carte de vestiaire bouge :\n${await sonde(vest[0])}`); await page.screenshot({ path: `${DOSSIER}/rogue-vest-bouge.png` }); throw e; }); await page.waitForTimeout(250); }
         if (premierCombat) await page.screenshot({ path: `${DOSSIER}/rogue-combat-vestiaire.png` });
       }
       // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
@@ -603,15 +616,33 @@ await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-tra
 await regler();
 await tourDesBords('le premier jour');
 await regler();
-// LE MANDAT DU PROPRIO (S80) : le hub dit la saison de la run et ce que le proprio veut — sous le sous-onglet Saison du Club (1.0, R2).
-const run = await page.textContent('#hubModal .hub-etat-run').catch(() => '');
-console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
+// LE MANDAT DU PROPRIO (S80) : la saison de la run et ce que le proprio veut — au sous-onglet du proprio (V12-2).
+/* V12-2 (docs/refonte-v12.md) : un sous-onglet de sa section, son contenu permanent rendu ; puis le Bureau rend la boîte. */
+const versLOnglet = async (sec, pg) => {
+  await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {});
+  await page.click(`#sousNav .soustab[data-page="${pg}"]`, { timeout: 3000 }).catch(() => {});
+  await page.waitForTimeout(400);
+};
+await versLOnglet('bureau', 'proprio');
+const run = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .hub-etat-run').catch(() => '');
+console.log(`5. le proprio : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ').trim()}`);
+if (!run) erreurs.push('le sous-onglet du proprio ne dit pas le mandat de la run');
+// LE CONTENU PERMANENT (V12-2) : la route dit les deux semaines qui viennent ; le Bureau ne les redit pas.
+await versLOnglet('bureau', 'entraineur');
+const routeOnglet = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .bu-route');
+await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
+const routeBoite = await page.$('#hubModal .hub-volet:not(:has(.af-onglet)) .bu-route, #hubModal .hub-carte .hub-etat');
+console.log(`5v. les sous-onglets : la route ${routeOnglet ? 'chez l\'entraîneur' : 'absente'} · le Bureau ${routeBoite ? 'la redit' : 'ne la redit pas'}`);
+if (!routeOnglet) erreurs.push('le sous-onglet de l\'entraîneur ne montre pas les deux semaines qui viennent');
+if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leur sous-onglet');
 {
-  // Ton coach et sa confiance vivent sous « En jeu », plié — dans « Ce soir » depuis la V8.
+  // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2 ; JP : *un screen pour les coachs et assistants coachs*).
   await versCeSoir();
-  await page.$eval('#hubModal details.ej-plie', d => { d.open = true; }).catch(() => {}); await page.waitForTimeout(300);
-  const coachs = ((await page.textContent('#hubModal .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
-  const rangCoach = ((await page.textContent('#hubModal .ej-coach .ej-rang').catch(() => '')) || '').trim();
+  await versLOnglet('bureau', 'entraineur');
+  await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
+  const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
+  const postes = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .perso-l', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim())).catch(() => []);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
@@ -620,7 +651,9 @@ console.log(`5. le hub : ${(run || '(pas de ligne de run)').replace(/\s+/g, ' ')
   const p0 = ((sv0.partie || {}).decisions || []).filter(x => x.jour === 0 && x.patron);
   console.log(`5d. les patrons imposés : ${p0.map(x => `${x.patron.ico} ${x.patron.nom}`).join(' · ') || '(aucun)'}`);
   if (p0.length !== 2) erreurs.push(`la run ne part pas avec deux patrons imposés (${p0.length})`);
-  if (rangCoach !== 'I') erreurs.push(`« Ce soir » ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
+  if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
+  console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
+  if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -1016,20 +1049,22 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await page.click('#hubModal .pose-zone .pose-annuler').catch(() => {}); await page.waitForTimeout(300);
     if (await page.$('#hubModal .pose-zone')) erreurs.push('« Annuler » ne referme pas les lignes de la pose');
   } else console.log('10b. poser en touchant : aucune modif de joueur à tes places');
-  // L'INFIRMERIE (V8) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie, en tête.
+  // L'INFIRMERIE (V8 ; son sous-onglet en V12-2) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
   await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
+  await page.click('#sousNav .soustab[data-page="joueurs"]', { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(400);
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
-  // Un blessé en case a son « Le remplacer » ; un réserviste blessé n'a pas de case à remplir et se dit dans la ligne
-  // « En réserve ». On compte donc les blessés de l'infirmerie, pas ses boutons (la run du 15 oct. : deux réservistes).
-  const inf = await page.$eval('#pageJoueursCorps .jr-infirmerie', e => ({
-    boutons: e.querySelectorAll('.jr-remplacer').length,
+  await versLOnglet('effectif', 'infirmerie');
+  await page.screenshot({ path: `${DOSSIER}/rogue-infirmerie.png` });
+  // Un réserviste blessé n'a pas de case à remplir et se dit dans la ligne « En réserve » : on compte les blessés du titre.
+  const inf = await page.$eval('#hubModal .af-onglet[data-maison="infirmerie"] .jr-infirmerie', e => ({
+    lignes: e.querySelectorAll('.jr-inf').length,
     total: Number(((e.querySelector('h3') || {}).textContent || '').match(/(\d+)\s*$/)?.[1] || 0),
-  })).catch(() => ({ boutons: 0, total: 0 }));
-  console.log(`10c. l'infirmerie : ${inf.total} blessé(s), ${inf.boutons} à remplacer, ${marques} 🩹 au tableau des avants`);
+  })).catch(() => ({ lignes: 0, total: 0 }));
+  console.log(`10c. l'infirmerie : ${inf.total} blessé(s), ${inf.lignes} en case, ${marques} 🩹 au tableau des avants`);
   if (marques > inf.total) erreurs.push(`${marques} blessé(s) au tableau de l'Effectif, ${inf.total} à l'infirmerie`);
-  await auBureau();
   // UN MOT SE TOUCHE (V8) : la ligne du mandat porte sa définition ; la toucher l'affiche dans une bulle, le toucher suivant la ferme.
+  await versLOnglet('bureau', 'proprio');
   if (await page.$('#hubModal .hub-etat-run')) {
     await page.click('#hubModal .hub-etat-run'); await page.waitForTimeout(200);
     const bulle = ((await page.textContent('.bulle-def').catch(() => '')) || '').trim();
@@ -1115,13 +1150,13 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
  * confiance I, et la sauvegarde porte le nouveau coach de la run.
  */
 {
-  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
+  // V12-2 (JP : *everything coaching should be at same place*) : il se joue chez l'entraîneur, avec ton coach et ton personnel.
   const avant = await lireSauvegarde();
   const coachAvant = (avant.rogue && avant.rogue.coach) || (avant.partie && avant.partie.rogue && avant.partie.rogue.coach);
-  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]');
-  await page.waitForTimeout(300);
-  const jouer = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:congediement"]:not([disabled])');
-  if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis l\'onglet Permanent');
+  await versLOnglet('bureau', 'entraineur');
+  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .perso-jouer[data-id="consommable:congediement"]');
+  if (await page.$('#pageMarche .inv-jouer-meta[data-id="consommable:congediement"]')) erreurs.push('« Le congédiement » est encore au Marché › Tes cartes');
+  if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis le sous-onglet de l\'entraîneur');
   else {
     await jouer.click();
     await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });

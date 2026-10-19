@@ -56,6 +56,17 @@ export async function collesAuBord(page, { marge = MARGE } = {}) {
       const k = `${nom(el)} ${cote}`, f = fautes.get(k);
       if (f) { f.n++; f.px = Math.min(f.px, px); } else fautes.set(k, { n: 1, px, large, txt: (el.textContent || '').trim().replace(/\s+/g, ' ').slice(0, 24) });
     };
+    // Ce qu'une boîte qui rogne (une ellipse, un `overflow: hidden`) cache ne se lit pas : seule compte la part visible.
+    // `depuis` : la boîte où l'on commence (celle du texte lui-même rogne aussi son texte ; un objet, ses parents).
+    const visible = (depuis, r0) => {
+      let g = r0.left, d = r0.right;
+      for (let p = depuis; p && p !== document.body; p = p.parentElement) {
+        if (getComputedStyle(p).overflowX === 'visible') continue;
+        const b = p.getBoundingClientRect();
+        g = Math.max(g, b.left); d = Math.min(d, b.right);
+      }
+      return { left: g, right: d, top: r0.top, bottom: r0.bottom, width: d - g, height: r0.height };
+    };
     // Les mots et les chiffres : chaque ligne de texte, à sa vraie place.
     const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.nodeValue.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT) });
     const range = document.createRange();
@@ -64,14 +75,7 @@ export async function collesAuBord(page, { marge = MARGE } = {}) {
       if (!el || cache(el)) continue;
       range.selectNodeContents(n);
       for (const r0 of range.getClientRects()) {
-        // Ce qu'une boîte qui rogne (une ellipse, un `overflow: hidden`) cache ne se lit pas : seule compte la part visible.
-        let g = r0.left, d = r0.right;
-        for (let p = el; p && p !== document.body; p = p.parentElement) {
-          if (getComputedStyle(p).overflowX === 'visible') continue;
-          const b = p.getBoundingClientRect();
-          g = Math.max(g, b.left); d = Math.min(d, b.right);
-        }
-        const r = { left: g, right: d, top: r0.top, bottom: r0.bottom, width: d - g, height: r0.height };
+        const r = visible(el, r0);
         if (r.width > 0 && r.bottom > 0 && r.top < innerHeight && devant(el, r)) noter(el, r);
       }
     }
@@ -80,8 +84,10 @@ export async function collesAuBord(page, { marge = MARGE } = {}) {
       const s = getComputedStyle(el);
       const objet = /^(IMG|SVG|svg|CANVAS)$/.test(el.tagName) || (parseFloat(s.borderTopLeftRadius) > 0 && (parseFloat(s.borderLeftWidth) > 0 || !/rgba\(0, 0, 0, 0\)|transparent/.test(s.backgroundColor)));
       if (!objet || cache(el)) continue;
-      const r = el.getBoundingClientRect();
-      if (!(r.width > 0 && r.height > 0) || r.bottom <= 0 || r.top >= innerHeight || r.width >= W - 1) continue;
+      const r0 = el.getBoundingClientRect();
+      if (r0.width >= W - 1) continue;
+      const r = visible(el.parentElement, r0);
+      if (!(r.width > 0 && r.height > 0) || r.bottom <= 0 || r.top >= innerHeight) continue;
       if (devant(el, r)) noter(el, r);
     }
     return [...fautes].map(([k, f]) => `${k} à ${f.px} px${f.n > 1 ? ` (×${f.n})` : ''}${f.txt ? ` « ${f.txt} »` : ''}${f.large}`);

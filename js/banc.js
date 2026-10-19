@@ -20,7 +20,7 @@ import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue } fr
 import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
-import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, placesDuJour, ouvrirCarteDeLaPlace, ouvrirInventaireJeu, ciblesDeLaModif, poserLaModif, rouvrirPackJoueurs, ouvrirPackDeSerie } from './rogue-jeu.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, placesDuJour, ouvrirCarteDeLaPlace, ouvrirInventaireJeu, ciblesDeLaModif, poserLaModif, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, jouerDuPersonnel } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -770,9 +770,9 @@ function ouvrirEcranSaison(depuis = 0) {
           carte: (item, j, decider) => ouvrirCarteDeLaPlace(item, j, decider),
           // V8 : une modif se pose en touchant son joueur dans « Ce soir ».
           cibles: (item, j) => ciblesDeLaModif(item, j), poser: (item, j, i, decider) => poserLaModif(item, j, i, decider) },
-        // v2 : les coachs auxquels le vestiaire croit à la journée `j` (js/coachs.js), et celui de la run.
-        // Ton coach et sa confiance, au Bureau, sous « En jeu ».
+        // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2).
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
+        personnel: { html: j => personnelDuJour(j), jouer: (item, j, decider) => jouerDuPersonnel(item, j, decider) },
       },
       onTermine: () => terminerSaison(),
       depuis,
