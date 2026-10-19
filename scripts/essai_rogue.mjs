@@ -265,6 +265,9 @@ const SCENES = ['cartes', 'places', 'dossier', 'blessure'];
 const scenes = new Map();
 const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : le choix déplié au-dessus de la barre (B4)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
+/* La saison se rejoue avant d'être écrite : on attend que la sauvegarde compte plus de `n` décisions (10 s au plus), plutôt que de la lire trop tôt. */
+const attendreDecisions = n => page.waitForFunction(n0 => { const ix = JSON.parse(localStorage.getItem('cap82_parties'));
+  return ((JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)).partie || {}).decisions || []).length > n0; }, n, { timeout: 10000 }).catch(() => {});
 async function regler() {
   for (let i = 0; i < 30; i++) {
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
@@ -360,8 +363,10 @@ async function regler() {
         await page.tap('#choixModal .duel-snap'); await page.waitForTimeout(300);
         if (await page.$('#choixModal .duel-snap.on')) erreurs.push('la mise doublée touchée deux fois reste doublée');
       }
-      const mains0 = (await decisionsDuCombat()).filter(d => d.main).length;
+      const avantJouer = await decisionsDuCombat(), mains0 = avantJouer.filter(d => d.main).length;
       await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1500);
+      // Un dé à lancer d'abord : la décision s'écrit après lui.
+      if (!(await page.$('#choixModal:not([hidden]) .de-scene'))) await attendreDecisions(avantJouer.length);
       if (duel && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
         const ds = await decisionsDuCombat();
         const dn = ds.slice().reverse().find(d => d.main && d.duel);
@@ -503,8 +508,10 @@ async function regler() {
         throw new Error(`« Trancher » est caché par une feuille : ${f.join(' | ')}`);
       }); await page.waitForTimeout(1500);
       await page.waitForFunction(() => !document.querySelector('#hubModal .hub-msg.pret'), null, { timeout: 60000 }).catch(() => {});
+      if (prets) await attendreDecisions(n0);
       const pris = (await decisionsDuCombat()).length - n0;
       afaire.lots.push(`${prets}→${pris}`);
+      if (prets && !pris) console.log('rien d\'écrit : le stockage', await page.evaluate(() => Object.keys(localStorage).map(k => `${k} ${Math.round(localStorage.getItem(k).length / 1024)} Ko`).join(' · ')));
       if (pris < prets) erreurs.push(`« Trancher » envoie ${pris} décision(s) pour ${prets} choix`);
       continue;
     }
