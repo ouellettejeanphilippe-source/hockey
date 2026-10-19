@@ -678,9 +678,10 @@ export function palierAllume(decisions = [], d) {
 export function reglesDePalier(cle, palier) {
   const P = effetDePalier(cle, palier);
   if (!P) return [];
-  const { cle: _c, palier: _p, nom: _n, ico: _i, econ, plafonds, ...canaux } = P;
+  const { cle: _c, palier: _p, nom: _n, ico: _i, econ, plafonds, prix, ...canaux } = P;
   void _c; void _p; void _n; void _i;
-  const out = [...motsEnChiffres(canaux)];
+  // V11 : le gain, puis le prix de son style (qui ne grandit pas avec ses joueurs).
+  const out = [...motsEnChiffres(canaux), ...motsEnChiffres(prix || null)];
   // V2.3 : la III relève le plafond du canal que la voie vise (js/sim.js `plafondsDe`).
   const MOT_PLAFOND = { finition: 'Plafond de précision relevé', pression: 'Plafond des tirs relevé', robustesse: 'Plafond de robustesse relevé', discipline: 'Plancher des punitions abaissé' };
   for (const [k, v] of Object.entries(plafonds || {})) if (v) out.push({ txt: MOT_PLAFOND[k], bon: true });
