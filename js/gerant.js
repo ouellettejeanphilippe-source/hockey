@@ -1307,6 +1307,9 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
 const EN_3E = { part: 1 / 3, par: 'en 3e' };
 const QUI_DE_LA_CARTE = { vise: 'Le joueur qu\'ils visent', vedette: 'Ta vedette', brigadier: 'Ton meilleur défenseur' };
 const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false] };
+/* Ce qui bouge chez un joueur nommé (V11), un canal par ligne : « Ton joueur : sa précision +80 % ». */
+export const motsSurLeJoueur = (canaux, qui, quand = '') => Object.entries(canaux).filter(([k]) => MOTS_DU_JOUEUR[k])
+  .map(([k, v]) => ({ txt: `${qui} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}${quand ? `, ${quand}` : ''}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1 }));
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
@@ -1335,7 +1338,7 @@ function regleDeCarte(C) {
   if (C.joueur) {
     const { qui, ...canaux } = C.joueur;
     const quand = INTENTIONS[C.si] ? 'la période' : 'jusqu\'à la fin du match';
-    for (const [k, v] of Object.entries(canaux)) if (MOTS_DU_JOUEUR[k]) out.push({ txt: `${QUI_DE_LA_CARTE[qui]} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}, ${quand}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1 });
+    out.push(...motsSurLeJoueur(canaux, QUI_DE_LA_CARTE[qui], quand));
   }
   for (const m of motsEnChiffres(C.adv || null, null, { ...(cadre || {}), eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*

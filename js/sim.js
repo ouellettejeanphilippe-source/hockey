@@ -6329,6 +6329,18 @@ function appliquerDecision(team, d, graine = 0) {
     const { duree, nom, ico, ...canaux } = d.effet;
     (team.effets = team.effets || []).push({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), source: 'decision', nom, ico, ...canaux });
   }
+  /*
+   * LE GROS SUR UN JOUEUR (V11, tranche 3b — docs/refonte-v11.md) : une place nomme un de tes joueurs ; ses canaux à
+   * lui (`CANAUX_MUT`), le temps de ses matchs et ses soirs seulement, comme un arc de joueur (`effetsCibles`).
+   */
+  if (d.surJoueur) {
+    const { joueur: k, duree, nom, ico, ...canaux } = d.surJoueur;
+    const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === k);
+    if (p) {
+      (team.effetsCibles = team.effetsCibles || []).push({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), source: 'decision', nom, ico, joueur: p, ...canaux });
+      effetsDesJoueurs(team, d.jour);
+    }
+  }
   appliquerAlignement(team, d);
 }
 
@@ -6636,7 +6648,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // LA COURBE DE LA FIN DE PARTIE (S80, `echelleTardive`) : une ligue Rogue la porte, et ses séries avec elle.
       t.courbe = !!courbe;
       for (const s of SLOTS) if (t.roster[s.i]) delete t.roster[s.i]._adapt;
-      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; }
+      for (const s of SLOTS) if (t.roster[s.i]) { const p = t.roster[s.i]; p.energie = 100; delete p._reserve; delete p._suite; delete p._aine; delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._feu; delete p._arcFx; delete p._arcSi; }
       t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map(); t.arcs = []; t._arcsVus = null; t.effetsCibles = [];
       t.suivis = []; t.retours = []; t.blessesQuiJouent = []; t.commotions = null;
       t._gros = null; t._effetMatch = null; t._entracte = null; t._advGros = null; t._dernierGros = null; t._enAttente = []; t._dernierAnnonce = null; t.rivaux = null; t.beteNoire = null;
@@ -6784,9 +6796,11 @@ function preludeDuJour(L) {
  * sur ses canaux à lui (lancers, finition, création, défense, blessure, arrêts), le temps de leurs matchs.
  */
 export function effetsDesJoueurs(team, jour) {
-  for (const p of Object.values(team.roster || {})) if (p) delete p._arcFx;
+  for (const p of Object.values(team.roster || {})) if (p) { delete p._arcFx; delete p._arcSi; }
   for (const e of team.effetsCibles || []) {
     if (!e.joueur || jour < e.debut || jour >= e.fin) continue;
+    // Une place sur un joueur (V11) attend son moment : `siDe` la lit sur son soir.
+    if (e.si) { (e.joueur._arcSi = e.joueur._arcSi || []).push(e); continue; }
     const fx = e.joueur._arcFx = e.joueur._arcFx || {};
     for (const c of CANAUX_MUT) if (typeof e[c] === 'number') fx[c] = (fx[c] || 1) * e[c];
   }
@@ -7394,9 +7408,11 @@ const joueCeSoir = (T, x) => !x || !x.si || !!(T && T._soir && T._soir[x.si]);
 
 /* Une modif qui ne joue que certains soirs (`si`, V3.4 ; tous les moments de `MOMENTS_SI` depuis la V10) : `p._soir` est posé par `playGame` au début du match. */
 function siDe(p, champ) {
-  if (!p || !p._si || !p._soir) return 1;
+  if (!p || !p._soir || (!p._si && !p._arcSi)) return 1;
   let f = 1;
-  for (const e of p._si) if (p._soir[e.si] && e[champ]) f *= e[champ];
+  for (const e of p._si || []) if (p._soir[e.si] && e[champ]) f *= e[champ];
+  // Une place sur un joueur (V11), le temps de ses matchs : ses soirs seulement (`effetsDesJoueurs`).
+  for (const e of p._arcSi || []) if (p._soir[e.si] && e[champ]) f *= e[champ];
   return f;
 }
 function mutDe(p, champ) {
@@ -9446,6 +9462,8 @@ export const EDITIONS_REGLEMENT = ['enBas', 'chasse', 'partout', 'cran', 'style_
 export function effetsEnCours(team, jour) {
   if (!team) return { effets: [], cartes: [], absents: [], trous: [] };
   const effets = (team.effets || []).filter(e => jour >= e.debut && jour < e.fin && e.source !== 'match');
+  // Une place sur un joueur (V11) court aussi, à son nom : « 📽 La vidéo de leur gardien : Gourde ».
+  for (const e of team.effetsCibles || []) if (e.source === 'decision' && e.joueur && jour >= e.debut && jour < e.fin) effets.push({ nom: `${e.nom} : ${e.joueur.n}`, ico: e.ico, debut: e.debut, fin: e.fin, source: e.source });
   // CE QUI RESTE SE COMPTE EN MATCHS (1.0, oct.) : les jours de congé ne comptent pas.
   const absents = [...(team.absents || new Map()).entries()].filter(([, j]) => j > jour).map(([p, j]) => ({ p, reste: matchsEntre(team, jour, j) }));
   const aux = team.gardienAux && team.gardienAux > jour ? matchsEntre(team, jour, team.gardienAux) : 0;

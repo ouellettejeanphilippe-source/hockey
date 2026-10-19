@@ -64,7 +64,7 @@ export const PERSONNEL = {
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },
 
   // ---- 🌠 le Showman ----
-  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.15, 1.05, 0.95, 0.85], finition: 1.01, energie: 1.04 },
+  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.12, 1.04, 0.96, 0.88], finition: 1.01, energie: 1.04 },
     texte: 'Chez nous, ses clients jouent. Les caméras sont là.' },
   per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.12, energie: 1.08 },
     texte: 'En séries, il écrit le match pour ses vedettes.' },
