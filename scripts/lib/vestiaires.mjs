@@ -12,9 +12,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CAP } from '../../js/sim.js';
+import { seasonGames } from '../../js/ratings.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
+
+/*
+ * UNE SAISON FINIE : un joueur non échangé y a joué 90 % de son calendrier (`seasonGames`). La saison en cours, que
+ * le rafraîchissement hebdomadaire ajoute dès ses premiers matchs, n'a que les joueurs de dix matchs et plus, deux ou
+ * trois par club : elle n'aligne aucune vraie équipe, et une mesure qui la tire ne fait que déplacer ses dés.
+ */
+export function saisonFinie(saison) {
+  const ps = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, `${saison}.json`), 'utf8')).players;
+  return Math.max(0, ...ps.filter(p => !p.x).map(p => p.gp || 0)) >= 0.9 * seasonGames(saison);
+}
 
 export const tri = a => a.slice().sort((x, y) => y.v - x.v);
 
