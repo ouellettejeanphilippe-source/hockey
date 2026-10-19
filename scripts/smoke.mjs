@@ -257,9 +257,9 @@ async function versLaBoite() {
   await _click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(200);
 }
-/* V12 (docs/refonte-v12.md) : la ligne d'un choix ouvre la page de sa maison ; ses options y vivent. */
+/* V12 (docs/refonte-v12.md) : la ligne d'un choix ouvre le sous-onglet de sa maison ; ses options y vivent. */
 async function versSaPage(genre) {
-  if (await page.$(`#hubModal .hub-page[data-genre="maison"] .hub-msg[data-msg="${genre}"]`)) return true;
+  if (await page.$(`#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg[data-msg="${genre}"]`)) return true;
   await versLaBoite();
   if (!(await page.$(`#hubModal .hub-boite .hub-msg[data-msg="${genre}"] .hub-msg-tete`))) return false;
   await _click(`#hubModal .hub-boite .hub-msg[data-msg="${genre}"] .hub-msg-tete`);
@@ -270,7 +270,7 @@ async function ouvrirLaMain() {
   await versLaBoite();
   if (await page.$('#hubModal .hub-main-ouvrir')) { await _click('#hubModal .hub-main-ouvrir'); return; }
   await versSaPage('palier');
-  await _click('#hubModal .hub-page[data-genre="maison"] .hub-msg[data-msg="palier"] .af-option');
+  await _click('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg[data-msg="palier"] .af-option');
 }
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
@@ -280,7 +280,7 @@ async function debloquer() {
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"]')) {
       await versSaPage('trou');
       if (guetterTrouHook) await guetterTrouHook();
-      await toucher('#hubModal .hub-page[data-genre="maison"] .hub-msg.bloque[data-msg="trou"] .af-option:not([disabled]):not(.ouvre)');
+      await toucher('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque[data-msg="trou"] .af-option:not([disabled]):not(.ouvre)');
       continue;
     }
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="palier"]')) {
@@ -292,7 +292,7 @@ async function debloquer() {
     const avantBal = ballottage.fait;
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
-    if (await toucher('#hubModal .hub-page[data-genre="maison"] .hub-msg.bloque .af-option:not([disabled]):not(.on)')) continue;
+    if (await toucher('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque .af-option:not([disabled]):not(.on)')) continue;
     if (await toucher('#hubModal .hub-trancher')) continue;
     // Le choix qui attend est plié : « Encore un choix » l'ouvre.
     await toucher('#hubModal .hub-traiter');
@@ -302,7 +302,7 @@ async function guetterBallottage() {
   if (ballottage.fait) return;
   if (!(await page.$('#hubModal .hub-msg[data-msg="blessure"]'))) return;
   await versSaPage('blessure');
-  const ouvrir = await page.$('#hubModal .hub-page[data-genre="maison"] .hub-msg[data-msg="blessure"] .af-option[data-choix="rappel"]');
+  const ouvrir = await page.$('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg[data-msg="blessure"] .af-option[data-choix="rappel"]');
   if (!ouvrir || !(await ouvrir.isVisible())) return;
   // Un choix forcé — ou n'importe quel plein écran, le sommaire de la journée compris (S78) — passe devant.
   const force = await page.$('#choixModal:not([hidden]) .choix-sheet');

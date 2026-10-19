@@ -171,16 +171,27 @@ exiger('un galon se mérite : une poignée par saison, pas tout l\'alignement', 
 
 /* ---------- 6. le vétéran mentor ---------- */
 {
-  const { seed, you } = bases[0];
+  // Le badge monte au début de chaque match, tant qu'ils jouent ensemble : on le lit un soir de match où le vétéran et la
+  // recrue partagent encore le 3e trio (une blessure, une ligne refaite ou un jour de congé ne disent rien de la règle).
   const F = SLOTS.filter(s => s.group === 'F' && !s.scratch && s.unit === 2);
-  const [v, r] = [you.roster[F[0].i], you.roster[F[1].i]];
-  const d = { jour: 3, mutation: { cle: 'mentorTrio', joueur: getPlayerKey(v), saison: true }, sel: 'mentor' };
-  const m = saison(seed, [d], 10).you;
+  let cas = null;
+  for (const { seed, you } of bases) {
+    const [v, r] = [you.roster[F[0].i], you.roster[F[1].i]];
+    const d = { jour: 3, mutation: { cle: 'mentorTrio', joueur: getPlayerKey(v), saison: true }, sel: 'mentor' };
+    for (const n of [10, 11, 12, 13]) {
+      const m = saison(seed, [d], n).you;
+      const ici = F.map(s => m.roster[s.i]).filter(Boolean).map(getPlayerKey);
+      cas = { d, v, m, rookie: joueursDe(m).find(p => getPlayerKey(p) === getPlayerKey(r)) };
+      if (ici.includes(getPlayerKey(v)) && ici.includes(getPlayerKey(r)) && cas.rookie && cas.rookie._palierTrio) break;
+    }
+    if (cas.rookie && cas.rookie._palierTrio) break;
+  }
+  const { d, v, m, rookie } = cas;
   const mu = (m.mutations || []).find(x => x.cle === 'mentorTrio');
-  const rookie = joueursDe(m).find(p => getPlayerKey(p) === getPlayerKey(r));
   exiger('le mentor d\'un fil monte le badge de sa ligne, pour la saison, sans prendre de case', !!mu && mu.saison === true && rookie && rookie._palierTrio === 1 && poseesSur([d], getPlayerKey(v)).length === 0,
     `${mu ? 'mentor posé' : 'aucun mentor'} · palier de trio ${rookie ? rookie._palierTrio || 0 : '?'} · cases prises ${poseesSur([d], getPlayerKey(v)).length}`);
 }
+
 
 if (fautes.length) informer('les fautes', fautes.join(' · '));
 informer('les galons vus', Object.entries(sortes).map(([k, n]) => `${GALONS[k].nom} ${n}`).join(' · ') || 'aucun');
