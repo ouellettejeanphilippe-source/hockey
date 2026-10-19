@@ -2949,8 +2949,9 @@ export function effetDeMoment(d, team = null) {
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
   // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet.
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g;
+  // Ce qui va au joueur nommé (`lui`, V11) n'est pas un effet d'équipe : `appliquerDecision` le pose sur lui.
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
@@ -6281,6 +6282,8 @@ function appliquerDecision(team, d, graine = 0) {
     const o = fam && fam.options.find(x => x.cle === d.moment.choix);
     if (o) appliquerGestes(team, o, d.jour, d.moment.joueurs, graine, cleDuPari(d), fam.titre);
     if (o && o.suivi && d.moment.famille === 'fil') engagerSuivi(team, d, o, fam);
+    // V11 (tranche 4) : un dossier qui nomme un joueur pose le gros de sa réponse sur lui.
+    if (o && o.lui && d.moment.joueurs && d.moment.joueurs[0]) poserSurJoueur(team, d.jour, { joueur: d.moment.joueurs[0], nom: fam.titre, ico: fam.ico, duree: o.duree, ...(o.si ? { si: o.si } : {}), ...o.lui });
   }
   // V9 (tranche 6) : le jouer blessé, ou le ramener plus tôt (`jouerBlesse`) ; les commotions des saisons d'avant de la run.
   if (d.blesse && d.blesse.joueur) jouerBlesse(team, d.blesse.joueur, d.jour);
@@ -6333,15 +6336,16 @@ function appliquerDecision(team, d, graine = 0) {
    * LE GROS SUR UN JOUEUR (V11, tranche 3b — docs/refonte-v11.md) : une place nomme un de tes joueurs ; ses canaux à
    * lui (`CANAUX_MUT`), le temps de ses matchs et ses soirs seulement, comme un arc de joueur (`effetsCibles`).
    */
-  if (d.surJoueur) {
-    const { joueur: k, duree, nom, ico, ...canaux } = d.surJoueur;
-    const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === k);
-    if (p) {
-      (team.effetsCibles = team.effetsCibles || []).push({ debut: d.jour, fin: apresMatchs(team, d.jour, duree || DUREE_MOMENT), source: 'decision', nom, ico, joueur: p, ...canaux });
-      effetsDesJoueurs(team, d.jour);
-    }
-  }
+  if (d.surJoueur) poserSurJoueur(team, d.jour, d.surJoueur);
   appliquerAlignement(team, d);
+}
+
+/* Un effet sur un joueur nommé de ton club, le temps de ses matchs (une place ou un dossier, V11) : comme un arc de joueur. */
+function poserSurJoueur(team, jour, { joueur: k, duree, nom, ico, ...canaux }) {
+  const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === k);
+  if (!p) return;
+  (team.effetsCibles = team.effetsCibles || []).push({ debut: jour, fin: apresMatchs(team, jour, duree || DUREE_MOMENT), source: 'decision', nom, ico, joueur: p, ...canaux });
+  effetsDesJoueurs(team, jour);
 }
 
 /*

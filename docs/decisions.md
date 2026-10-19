@@ -2569,3 +2569,13 @@ Mesuré en paires (`check_places`) : un effet sur un joueur double ses buts, mai
 Au passage, « L'agent des vedettes » (le personnel du Showman) passait sa borne depuis la tranche 3a : +1,7 V pour une peu commune, 41 soirs à domicile. Ses minutes vers le haut s'adoucissent (1,15 → 1,12 au premier trio, 0,85 → 0,88 au quatrième) : +1,1 V, toujours du Showman.
 
 Et la face des cartes qui visent un joueur (la tranche 1) disait ses chiffres en entier : « Le joueur qu'ils visent : sa précision +50 %, la période », deux ou trois fois, dans une carte large d'un pouce. La main du duel en devenait plus haute que 1,3 écran (`essai_rogue`, 20j : 1,37). La face dit maintenant le joueur en mots courts (« Le visé : tire plus juste », `FACE_DU_JOUEUR`), et ses chiffres attendent « Les chiffres », comme ceux de toute carte.
+
+## Les dossiers d'un joueur (V11, tranche 4 — 19 oct. 2026)
+
+JP : *événements randoms auxquels joueurs précis* ; *les malus plus importants touchent des joueurs*. Trois dossiers de la semaine nomment un de tes joueurs sur un fait de SES dix derniers matchs habillé, relu dans les feuilles déjà jouées (`faitsDesJoueurs`, js/saison.js) :
+- 😒 **Il boude** : un joueur assis deux rangs et plus sous sa zone (un Top 6 au 4e trio) ; le lui parler le relance (ses tirs, sa précision) contre un souper, le laisser mijoter calme le vestiaire et le fait bouder sur la glace.
+- 🥊 **La chicane au vestiaire** : 4 punitions et plus ; la laisse calme l'équipe et le gêne, sa façon fait peur et retourne au cachot.
+- 📞 **L'agent appelle** : un des trois plus gros contrats, un point ou moins ; le défendre lui rend sa précision contre 10 jetons, le mettre au défi le fait tirer de partout et mal.
+
+« Les jambes lourdes » nommait déjà le plus fatigué sans rien lui faire : elle lui offre maintenant un congé (ses jambes, une pratique manquée). Le moteur n'apprend rien : la réponse porte `lui`, que `poserSurJoueur` pose dans `effetsCibles` comme une place sur un joueur (tranche 3b). La disette n'a pas son dossier : le fil la porte déjà, et deux choix du même fait se marcheraient dessus. Mesuré en paires (`check_places`) : chaque réponse sous la borne d'une commune (−0,1 à +0,2 V), le joueur nommé de −0,07 à +0,12 point par soir.
+

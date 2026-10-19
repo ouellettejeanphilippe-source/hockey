@@ -155,6 +155,7 @@ const decs = [
   { jour: 14, equipe: 0, ...payloadDe('match:lucarne') },
   { jour: 16, equipe: 0, ...payloadDe('consommable:tableMassage') },
   { jour: 18, equipe: 0, ...payloadDe('consommable:batonsNeufs', { joueur: getPlayerKey(avant) }) },
+  { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'mijoter', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] } },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
 // V10 : un patron attend son moment ; ses soirs posés, il joue.
@@ -167,6 +168,10 @@ exiger('un équipement change la carte du joueur', (avant._mutCles || []).includ
 const surLui = (moi.effetsCibles || []).find(e => e.nom === 'Les bâtons neufs');
 exiger('une place sur un joueur tient sur le joueur nommé', !!surLui && getPlayerKey(surLui.joueur) === getPlayerKey(avant) && surLui.si === 'apresDefaite' && surLui.finition > 1,
   surLui ? `${surLui.joueur.n} : précision ×${surLui.finition}, ${surLui.fin - surLui.debut} jours` : 'absente');
+// V11 (tranche 4) : un dossier qui nomme un joueur pose le gros de sa réponse sur lui, et le reste sur l'équipe.
+const boude = (moi.effetsCibles || []).find(e => e.nom === 'Il boude');
+exiger('un dossier sur un joueur tient sur le joueur nommé', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.finition < 1 && (moi.effets || []).some(e => e.nom === 'Il boude' && e.discipline < 1),
+  boude ? `${boude.joueur.n} : précision ×${boude.finition}, ${boude.fin - boude.debut} jours` : 'absent');
 exiger('une carte de match entre au deck', deckDe(decs).includes('lucarne'), `${deckDe(decs).length} cartes`);
 
 // UN SOIN RACCOURCIT UNE BLESSURE : une première saison dit qui se blesse et quand ; la même, avec un soin le lendemain, doit le rendre plus tôt.

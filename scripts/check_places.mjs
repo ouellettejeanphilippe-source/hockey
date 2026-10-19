@@ -40,7 +40,7 @@ const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'ener
 /* Une réponse de dossier (« dossier.réponse ») se mesure comme une place : un effet du soir, sa durée, son moment ; une commune. */
 const reponseDe = id => {
   const [d, o] = id.split('.'), D = DOSSIERS[d], O = D.options.find(x => x.cle === o);
-  return { nom: `${D.titre} : ${O.nom}`, ico: D.ico, rarete: 'commune', si: O.si, duree: O.duree, effet: Object.fromEntries(CANAUX.filter(k => k in O).map(k => [k, O[k]])) };
+  return { nom: `${D.titre} : ${O.nom}`, ico: D.ico, rarete: 'commune', si: O.si, duree: O.duree, effet: Object.fromEntries(CANAUX.filter(k => k in O).map(k => [k, O[k]])), ...(O.lui ? { joueur: O.lui } : {}) };
 };
 const carteDe = (sorte, cle) => (sorte === 'd' ? reponseDe(cle) : ({ p: PLACES_NEUVES, e: EQUIPEMENT, q: PERSONNEL, k: CONTRATS_MAUDITS })[sorte][cle]);
 /* Une réponse de tous les soirs n'a pas de moment : sa durée entière compte. */
@@ -84,7 +84,7 @@ function mesurer(cles, n) {
         // Une place ou le prix d'un contrat lourd : un effet du soir ; un poste : un patron engagé (`team.patrons`).
         if (sorte === 'p' || sorte === 'k' || sorte === 'd') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
         // Une place sur un joueur (V11) : sur le centre du premier trio, ou le premier défenseur si elle ferme le jeu.
-        if (sorte === 'p' && C.joueur) {
+        if ((sorte === 'p' || sorte === 'd') && C.joueur) {
           const ferme = (C.joueur.defense ?? 1) < 1, lu = activeLineup(avec);
           const p = lu[SLOTS.find(sl => !sl.scratch && sl.unit === 0 && (ferme ? sl.group === 'D' : sl.group === 'F' && sl.role === 'C')).i];
           avec.effetsCibles = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, si: C.si, joueur: p, ...C.joueur }];
@@ -126,7 +126,7 @@ if (process.env.PART) {
 const t0 = Date.now();
 const toutes = [...Object.keys(PLACES_NEUVES).filter(k => PLACES_NEUVES[k].si).map(k => `p:${k}`), ...Object.keys(EQUIPEMENT).map(k => `e:${k}`),
   ...Object.keys(PERSONNEL).filter(k => PERSONNEL[k].si).map(k => `q:${k}`), ...Object.keys(CONTRATS_MAUDITS).map(k => `k:${k}`),
-  ...Object.entries(DOSSIERS).flatMap(([d, D]) => D.options.filter(o => CANAUX.some(k => k in o)).map(o => `d:${d}.${o.cle}`))]
+  ...Object.entries(DOSSIERS).flatMap(([d, D]) => D.options.filter(o => o.lui || CANAUX.some(k => k in o)).map(o => `d:${d}.${o.cle}`))]
   .filter(id => !process.env.CARTES || process.env.CARTES.split(',').some(c => id.slice(2) === c || id.slice(2).startsWith(`${c}.`)));
 console.log(`\n  Les places et l'équipement neufs (V10) · ${toutes.length} cartes · ${N} matchs par club et par carte, ${TEMOINS.length} clubs, en paires\n`);
 
