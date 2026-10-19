@@ -29,7 +29,7 @@ import {
 import { motsEnChiffres, motsDeMutationEnChiffres, clubLu, systemeEnChiffres, lignesEnStats, motsDeStats } from './impact.js';
 import { carteHtml, RARETES, paquetHtml } from './cartes.js';
 import { CARTES_MATCH, ENERGIE_MAIN, CAHIER_MAX, coutDe, energieDepensee } from './combat.js';
-import { effetsDesCartes, INTENTIONS, MOMENTS_SI, carteRepond, ELAN_PAR_PERIODE, IMPORTANCES, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
+import { effetsDesCartes, flechesDe, INTENTIONS, MOMENTS_SI, carteRepond, ELAN_PAR_PERIODE, IMPORTANCES, PREP_JUSTE, PREP_RATEE, grandirEffet, facesDuPari, niveauJambes, facteurEnergie, ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, CHIMIE_PIVOT, GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_USURE, GARDIEN_JAMBES_MIN } from './sim.js';
 import { jouerSon } from './sons.js';
 import { coachDeCarte } from './banque.js';
 import { COACHS } from './coachs.js';
@@ -1305,6 +1305,8 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
  */
 /* Un effet de troisième période seulement : le tiers du match, dit « en 3e ». */
 const EN_3E = { part: 1 / 3, par: 'en 3e' };
+const QUI_DE_LA_CARTE = { vise: 'Le joueur qu\'ils visent', vedette: 'Ta vedette', brigadier: 'Ton meilleur défenseur' };
+const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false] };
 function regleDeCarte(C) {
   if (!C) return [];
   const out = [];
@@ -1329,6 +1331,12 @@ function regleDeCarte(C) {
     out.push({ txt: `${C.quand} : ${C.seuil ? '' : 'jusqu\'à '}${m.length ? m.map(x => x.txt).join(', ') : 'à peine perceptible'}`, bon: true });
   } else if (C.regle) out.push({ txt: C.regle, bon: C.maudite ? false : true });
   out.push(...motsEnChiffres(C.effet || null, null, cadre));
+  // Une carte sur un joueur (V11) : qui, et ce qui bouge chez lui, en flèches (ses chiffres sont aux règles).
+  if (C.joueur) {
+    const { qui, ...canaux } = C.joueur;
+    const quand = INTENTIONS[C.si] ? 'la période' : 'jusqu\'à la fin du match';
+    for (const [k, v] of Object.entries(canaux)) if (MOTS_DU_JOUEUR[k]) out.push({ txt: `${QUI_DE_LA_CARTE[qui]} : ${MOTS_DU_JOUEUR[k][0]} ${flechesDe(v)}, ${quand}`, bon: MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1 });
+  }
   for (const m of motsEnChiffres(C.adv || null, null, { ...(cadre || {}), eux: true })) out.push({ txt: `Eux : ${m.txt}`, bon: m.bon == null ? null : !m.bon });
   /*
    * LES DEUX COURBES (S80, js/sim.js `echelleTardive`) : une carte qui vise

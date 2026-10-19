@@ -263,6 +263,8 @@ const canauxPlus = (e, cote = 1) => (e ? Object.fromEntries(Object.entries(e).ma
  */
 export const FRANCHISE_MATCH = 1.8;
 const PLANCHER_MATCH = 0.4;
+/* Un canal d'une carte sur un joueur (V11) ne descend pas sous lui, même amélioré : jamais un multiplicateur négatif. */
+const PLANCHER_JOUEUR = 0.1;
 const CHAMPS_DE_CANAUX = ['effet', 'adv', 'improvise', 'piege', 'siVide'];
 const plusFranche = v => Math.max(PLANCHER_MATCH, Math.round((1 + (v - 1) * FRANCHISE_MATCH) * 1000) / 1000);
 const rendreFranche = e => {
@@ -285,6 +287,8 @@ for (const [cle, C] of Object.entries(CARTES_MATCH)) {
   else {
     if (C.effet) P.effet = canauxPlus(C.effet);
     if (C.adv) P.adv = canauxPlus(C.adv, -1);
+    // V11 : une carte sur un joueur grandit chez lui (ses chiffres, déjà francs, ne passent pas par `FRANCHISE_MATCH`).
+    if (C.joueur) P.joueur = Object.fromEntries(Object.entries(canauxPlus(C.joueur)).map(([k, v]) => [k, typeof v === 'number' ? Math.max(PLANCHER_JOUEUR, Math.round(v * 1000) / 1000) : v]));
     if (C.apres40) P.apres40 = { siMene: canauxPlus(C.apres40.siMene), sinon: canauxPlus(C.apres40.sinon) };
     if (C.pioche) P.pioche = C.pioche + 1;
     if (C.energieTous) P.energieTous = C.energieTous + 10;

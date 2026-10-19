@@ -129,7 +129,9 @@ console.log('\n  Le deck de match (S74)\n');
     const siens = fx.effets.filter(e => e.nom === Cm.nom).length;
     // 1.0 : `apres40` se pose à la troisième période (js/sim.js), pas à l'avant-match — la carte n'est pas muette pour autant.
     const fait = siens || fx.adv.length || fx.lire || fx.contre || fx.annule || fx.energieTous || Cm.pioche || Cm.energiePlus
-      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais || Cm.apres40;
+      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais || Cm.apres40
+      // V11 : une carte sur un joueur (`joueur`) joue au duel, sur lui (js/sim.js `jouerDuel`).
+      || Cm.joueur;
     if (!fait) muettes.push(k);
   }
   const synergies = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].synergie);

@@ -9020,6 +9020,12 @@ const ptsDe = p => (p && p.gp ? (p.pt || 0) / p.gp : 0);
 const habillesDuGroupe = (L, g) => SLOTS.filter(s => !s.scratch && s.group === g).map(s => ({ s, p: L[s.i] })).filter(x => x.p && x.p.p !== 'G');
 const caseDe = (L, p) => SLOTS.find(s => !s.scratch && L[s.i] === p) || null;
 const robusteDe = p => (famillesDe(p) || {}).robustesse || 0;
+/* Le joueur d'une carte sur un joueur (`joueur.qui`) : celui que leur intention vise, ta vedette, ton meilleur défenseur. */
+function joueurDeLaCarte(qui, L, cible = null) {
+  if (qui === 'vise' && cible) return cible;
+  const l = habillesDuGroupe(L, qui === 'brigadier' ? 'D' : 'F').sort((a, b) => ptsDe(b.p) - ptsDe(a.p));
+  return l[0] ? l[0].p : null;
+}
 /* Le joueur de leur club le plus fort d'une famille : leur ombre (la Défense), leur dur (la Robustesse). */
 function leurMeilleur(Ladv, famille) {
   const pats = Object.values(Ladv || {}).filter(p => p && p.p !== 'G');
@@ -9176,7 +9182,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
   const d0 = (gros.periodes || [])[0];
   let tenue = robot && gros.mainRobot ? { main: gros.mainRobot.main.slice(), pioche: gros.mainRobot.pioche.slice() }
     : d0 && Array.isArray(d0.tirage) ? { main: d0.tirage.slice(), pioche: (d0.pile || []).slice() } : null;
-  const hist = [], toutes = [], paris = [];
+  const hist = [], toutes = [], paris = [], surJoueurs = [];
   let gfA = 0, gfB = 0;
   const touches = gros._duelTouches = [];
   for (let k = 0; k < PERIODES_DU_DUEL.length; k++) {
@@ -9259,7 +9265,13 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     }
     // LE JOUEUR VISÉ, et son unité, le temps de la période.
     const vises = [];
-    const viser = (p, e) => { if (p && e) { p._duelFx = { ...e }; vises.push(p); } };
+    const viser = (p, e) => {
+      if (!p || !e) return;
+      const fx = p._duelFx || {};
+      for (const [c, v] of Object.entries(e)) if (typeof v === 'number') fx[c] = (fx[c] ?? 1) * v;
+      p._duelFx = fx;
+      if (!vises.includes(p)) vises.push(p);
+    };
     if (I.cible) {
       if (fort && J.malus.joueur) {
         const { blessure, ...canaux } = forcer(J.malus.joueur, fort);
@@ -9268,6 +9280,20 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
         if (J.malus.unite && c1) for (const s of SLOTS) if (!s.scratch && s.group === c1.group && s.unit === c1.unit && Lk[s.i] && Lk[s.i] !== I.cible) viser(Lk[s.i], forcer(J.malus.unite, fort));
         if (J.malus.jambes) rendreJambes(I.cible, -Math.round(J.malus.jambes * fort));
       } else if (!fort && J.contre.joueur) viser(I.cible, forcer(J.contre.joueur, FORCE_CONTRE));
+    }
+    /*
+     * UNE CARTE SUR UN JOUEUR (V11, docs/refonte-v11.md). JP : *c'est plus facile de balancer le jeu et créer des
+     * histoires si les bonus et malus plus importants touchent des joueurs et non l'équipe*. Le gros d'une carte va à
+     * un joueur nommé, sur ses canaux (`joueur`), dans son moment : celui que leur intention vise (`vise` ; sans cible,
+     * ta vedette), ta vedette (`vedette`, le plus de points par match de tes attaquants habillés) ou ton meilleur
+     * défenseur (`brigadier`). Comme ses effets d'équipe : une réponse, le temps de sa période ; les autres, jusqu'à la
+     * fin du match.
+     */
+    const dePeriode = c => !!INTENTIONS[CARTES_MATCH[c].si];
+    for (const c of cartes) if (dansSonMoment(c) && CARTES_MATCH[c].joueur && !dePeriode(c)) surJoueurs.push(c);
+    for (const c of [...cartes.filter(x => dansSonMoment(x) && CARTES_MATCH[x].joueur && dePeriode(x)), ...surJoueurs]) {
+      const { qui, ...canaux } = CARTES_MATCH[c].joueur;
+      viser(joueurDeLaCarte(qui, Lk, I.cible), grandirEffet(canaux, echelle));
     }
     toi._lignesMatch = lk;
     toi._effetMatch = [...base, ...bk, ...effToi, ...perToi];
