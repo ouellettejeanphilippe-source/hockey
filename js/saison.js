@@ -223,11 +223,11 @@ const vignette = (ctx, p) => (ctx.mug
  * (js/game.js, `PAGES_DE`) ; le gros match et la signature gardent leur écran, et la boîte en montre la porte.
  */
 const MAISONS = {
-  proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, et ce qu\'il paie', vide: 'il exige ou offre quelque chose' },
+  proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, ce qu\'il paie, tes contrats', vide: 'il exige ou offre quelque chose' },
   entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', sous: 'Ton coach, ton personnel, la semaine qui vient', vide: 'il propose le programme de la semaine' },
   presse: { ico: '🎤', titre: 'La presse', sous: 'Les micros et le courrier', vide: 'un micro ou une lettre t\'attend' },
   vestiaire: { ico: '🚪', titre: 'Le vestiaire', sous: 'Ce qui se passe entre les gars', vide: 'un gars ou une histoire demande ton avis' },
-  infirmerie: { ico: '🚑', titre: 'L\'infirmerie', sous: 'Les blessés et leurs cases', vide: 'un blessé laisse sa case vide' },
+  infirmerie: { ico: '🚑', titre: 'L\'infirmerie', sous: 'Les blessés, leurs cases, ce qui les soigne', vide: 'un blessé laisse sa case vide' },
   butin: { ico: '🃏', titre: 'Le butin', sous: 'Les cartes gagnées, celle de trop', vide: 'une carte se gagne ou déborde' },
   marche: { ico: '🛒', titre: 'Le marché', sous: 'Un pack attend ta signature' },
   match: { ico: '⚔', titre: 'Le gros match', sous: 'Leur plan, ta main' },
@@ -2405,7 +2405,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const placesDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.places ? ctx.inventaire.places(jour) : null);
   // UN VERBE PAR TUILE, LES DOUBLES GROUPÉS (Jalon M, B9) : ce qu'un toucher fait (la poser, la jouer, ou la vendre et
   // pour combien) ; deux copies d'une même carte, une tuile « ×2 » qui ouvre la première.
-  const caseHtml = (it, n = 1) => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.ref === pose ? ' en-pose' : ''}"${sePose(it) ? ' data-pose' : ''} data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}${n > 1 ? ` <b class="hub-poche-n">×${n}</b>` : ''}</span>${RARETES[it.rarete] ? `<span class="hub-poche-rar">${RARETES[it.rarete].gemme} ${RARETES[it.rarete].nom}</span>` : ''}${placeDe(it.id) ? `<span class="hub-poche-place">${ctx.esc(placeDe(it.id).ou)} · ${ctx.esc(placeDe(it.id).duree)}</span>` : ''}${it.bref && it.bref.length ? `<span class="hub-poche-bref">${it.bref.map(x => `<span${x.bon === true ? ' class="bon"' : x.bon === false ? ' class="prix"' : ''}>${ctx.esc(x.txt)}</span>`).join('')}</span>` : ''}${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}<span class="hub-poche-verbe">${sePose(it) ? 'Poser' : 'Jouer'}${it.valeur ? ` · ou vendre +${it.valeur} 🪙` : ''}</span></button>`;
+  const caseHtml = (it, n = 1) => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.ref === pose ? ' en-pose' : ''}"${sePose(it) ? ' data-pose' : ''} data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}${n > 1 ? ` <b class="hub-poche-n">×${n}</b>` : ''}</span>${RARETES[it.rarete] ? `<span class="hub-poche-rar">${RARETES[it.rarete].gemme} ${RARETES[it.rarete].nom}</span>` : ''}${placeDe(it.id) ? `<span class="hub-poche-place">${ctx.esc(placeDe(it.id).ou)} · ${ctx.esc(placeDe(it.id).duree)}</span>` : ''}${it.bref && it.bref.length ? `<span class="hub-poche-bref">${it.bref.map(x => `<span${x.bon === true ? ' class="bon"' : x.bon === false ? ' class="prix"' : ''}>${ctx.esc(x.txt)}</span>`).join('')}</span>` : ''}${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}<span class="hub-poche-verbe">${it.maison ? `${ctx.esc(it.maison.mot)} ›` : `${sePose(it) ? 'Poser' : 'Jouer'}${it.valeur ? ` · ou vendre +${it.valeur} 🪙` : ''}`}</span></button>`;
   const placesHtml = () => {
     const m = placesDuBureau();
     if (!m) return '';
@@ -2885,6 +2885,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (c && volet.contains(c)) {
       const it = enPlace(c.dataset.ref);
       if (!it) return;
+      // V12-3 : une carte qui a sa maison (un soin, un contrat, le congédiement) s'y joue ; sa case y mène.
+      if (it.maison) { jouerSon('valide'); tabs.montrer(it.maison.cle); return; }
       // V8 : une modif de joueur s'ouvre sur tes lignes, ici ; toucher la carte posée l'y referme.
       if (sePose(it)) { pose = pose === it.ref ? null : it.ref; tabs.rafraichir(); const el = volet.querySelector('.pose-zone'); if (el) el.scrollIntoView({ block: 'nearest' }); return; }
       ctx.inventaire.carte(it, jour, decider);
@@ -2909,9 +2911,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (e.target.closest('.af-trancher') && toucherTrancher) { toucherTrancher(); return; }
     const c = e.target.closest('.af-chiffres');
     if (c && volet.contains(c)) { const o = basculerChiffres(); c.closest('.af-onglet').classList.toggle('chiffres', o); c.setAttribute('aria-pressed', String(o)); return; }
-    // Une carte du personnel s'engage, un congédiement se joue (V12-2 : tout le coaching chez l'entraîneur).
-    const pj = e.target.closest('.perso-jouer[data-id]');
-    if (pj && volet.contains(pj) && ctx.personnel) ctx.personnel.jouer({ src: pj.dataset.src, id: pj.dataset.id }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
+    // Une carte se joue dans sa maison (V12-2, V12-3) : le personnel s'engage, un soin se donne, un contrat se signe.
+    const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
+    if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
   // Ce soir (V8) : le dépistage complet et tes lignes, d'un toucher.
   const dansLeSoir = e => {
@@ -3893,13 +3895,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * la une ; le vestiaire : ton histoire ; l'infirmerie : les blessés, et qui joue leur case.
    */
   const PERMANENT = {
-    proprio: () => etatHtml(),
+    proprio: () => `${etatHtml()}${cartesIci('proprio')}`,
     entraineur: () => `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${routeDeuxSemaines()}${jour < N ? routeFiche() : ''}`,
     presse: () => uneHtml(),
     vestiaire: () => (miens.length ? recitHtml() : ''),
-    infirmerie: () => infirmerieHtml(),
+    infirmerie: () => `${infirmerieHtml()}${cartesIci('infirmerie')}`,
     butin: () => '',
   };
+  // V12-3 : les cartes d'un sujet se jouent dans sa maison (js/rogue-jeu.js `cartesDeLaMaison`) ; l'entraîneur a les siennes au personnel.
+  function cartesIci(k) { return onDecision && ctx.maison ? ctx.maison.cartes(k, jour) : ''; }
   /* L'INFIRMERIE (V8, puis son sous-onglet en V12-2) : qui est blessé, pour combien de matchs, qui joue sa case ce soir. */
   function infirmerieHtml() {
     if (!you.injured || !you.injured.size) return '';

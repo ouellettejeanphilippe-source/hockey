@@ -1018,7 +1018,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   const b9 = await page.$eval('#hubModal', m => {
     const ts = [...m.querySelectorAll('.hub-poche .hub-poche-case[data-ref]')];
     const sec = m.querySelector('.hub-poche'), v = sec && sec.closest('.hub-volet, .coq-volet, [data-volet]') || m;
-    return { sansVerbe: ts.filter(t => !/Jouer|Poser/.test((t.querySelector('.hub-poche-verbe') || {}).textContent || '')).length,
+    return { sansVerbe: ts.filter(t => !/Jouer|Poser| ›/.test((t.querySelector('.hub-poche-verbe') || {}).textContent || '')).length,
       haut: sec ? sec.getBoundingClientRect().top - v.getBoundingClientRect().top + v.scrollTop : -1, ecran: innerHeight };
   }).catch(() => ({ sansVerbe: 0, haut: -1, ecran: 844 }));
   console.log(`10b. tes places : ${b9.sansVerbe} tuile(s) sans verbe · à ${Math.round(b9.haut)} px du haut du volet (un écran : ${b9.ecran})`);
@@ -1083,9 +1083,39 @@ await versMarche('cartes');
 await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-inventaire.png` });
 const poche = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-carte', e => e.map(x => x.querySelector('.tc-nom').textContent.trim()));
-const plafond = await page.textContent('#pageMarche .hub-page[data-genre="cartes"] .inv-plafond').catch(() => '');
-console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'} · ${(plafond || '(pas de panneau)').replace(/\s+/g, ' ').trim()}`);
-if (!plafond) erreurs.push('l\'inventaire ne montre pas la masse salariale');
+console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
+/*
+ * UNE MAISON PAR SUJET (V12-3). JP : *that philosophy should be for everything*. La masse salariale et les cartes de
+ * contrat sont chez le proprio, les soins à l'infirmerie, le personnel chez l'entraîneur ; Tes cartes y renvoie
+ * (« À l'infirmerie › ») au lieu de les jouer, et ce bouton ouvre le bon sous-onglet.
+ */
+{
+  if (await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-plafond')) erreurs.push('la masse salariale est encore au Marché › Tes cartes');
+  const renvois = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .inv-renvoi', e => e.map(b => b.dataset.maison));
+  const SEC = { proprio: 'bureau', entraineur: 'bureau', infirmerie: 'effectif' };
+  const ici = {};
+  let plafond = '';
+  for (const k of Object.keys(SEC)) {
+    await versLOnglet(SEC[k], k);
+    await page.waitForSelector(`#hubModal:not([hidden]) .af-onglet[data-maison="${k}"]`, { timeout: 15000 }).catch(() => erreurs.push(`le sous-onglet « ${k} » ne s'ouvre pas`));
+    ici[k] = await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
+    // Le volet ne garde que le sous-onglet ouvert : la masse salariale se lit chez le proprio, pendant qu'on y est.
+    if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
+  }
+  if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
+  for (const k of new Set(renvois)) if (!(ici[k] || []).length) erreurs.push(`Tes cartes renvoie à « ${k} », qui n'a aucune carte à jouer`);
+  let suivi = '';
+  if (renvois.length) {
+    await versMarche('cartes');
+    await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-renvoi');
+    await page.waitForTimeout(600);
+    suivi = await page.$eval('#hubModal:not([hidden]) .af-onglet[data-maison]', e => e.dataset.maison).catch(() => '');
+    if (suivi !== renvois[0]) erreurs.push(`« ${renvois[0]} › » ouvre « ${suivi || 'rien'} »`);
+  }
+  console.log(`10m. une maison par sujet : ${(plafond || '(pas de masse salariale)').replace(/\s+/g, ' ').trim().slice(0, 60)} · renvois ${renvois.join(', ') || 'aucun'}${suivi ? ` (→ ${suivi})` : ''} · ${Object.entries(ici).map(([k, v]) => `${k} ${v.length}`).join(' · ')}`);
+  await versMarche('cartes');
+  await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
+}
 /*
  * UNE MODIF DE JOUEUR SE POSE AU VERSO (S80). JP : *donne l'alignement, je
  * clique sur le joueur, pis je dois aller au verso pour l'ajouter dans une
@@ -1154,7 +1184,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   const avant = await lireSauvegarde();
   const coachAvant = (avant.rogue && avant.rogue.coach) || (avant.partie && avant.partie.rogue && avant.partie.rogue.coach);
   await versLOnglet('bureau', 'entraineur');
-  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .perso-jouer[data-id="consommable:congediement"]');
+  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .maison-jouer[data-id="consommable:congediement"]');
   if (await page.$('#pageMarche .inv-jouer-meta[data-id="consommable:congediement"]')) erreurs.push('« Le congédiement » est encore au Marché › Tes cartes');
   if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis le sous-onglet de l\'entraîneur');
   else {

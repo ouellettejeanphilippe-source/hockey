@@ -136,6 +136,10 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
  *         deck: [cles], possedees: Set(ids), joueursCollection: n,
  *         jouer(item), vendre(item), onFerme() }
  */
+/* LA MASSE SALARIALE (S79) : le plafond effectif, et ce qui le tord — les cartes 💵 jouées, le vestiaire, le DG. En Rogue, chez le proprio (V12-3). */
+export const masseSalarialeHtml = P => (P ? jaugePlafond({ masse: P.masse, cap: P.cap,
+  mot: P.lignes.length ? puces(P.lignes.map(l => ({ txt: l.joueur ? l.nom : `${l.nom} ${l.montant > 0 ? '+' : '−'}${M(Math.abs(l.montant))}`, bon: l.joueur ? true : l.montant > 0 }))) : `<span class="inv-pl-rien">Plafond de base : ${M(P.base)}. Les cartes 💵 le tordent.</span>` }) : '');
+
 export function ouvrirInventaire(ctx) {
   // Dans une page du Marché (`ctx.dans`, `ctx.fermer`, js/game.js) ou dans sa fenêtre.
   const m = ctx.dans || $('inventaireModal');
@@ -170,8 +174,10 @@ export function ouvrirInventaire(ctx) {
       const rangee = ([id, pile]) => ({ id, pile, x: pile[0], non: ctx.peutJouer ? '' : 'Pas maintenant' });
       const toutes = cartes.map(rangee), jouables = toutes.filter(r => !r.non), autres = toutes.filter(r => r.non);
       const raison = autres.length && autres.every(r => r.non === autres[0].non) ? autres[0].non : '';
+      // V12-3 : une carte qui a sa maison (un soin, un contrat, le congédiement) s'y joue ; ici, son bouton y mène.
+      const ou = id => (ctx.renvoyer && ctx.ouSeJoue ? ctx.ouSeJoue(id) : null);
       const carte = ({ id, pile, x, non }) => carteBanqueHtml(id, { compte: pile.length, vie: ['consommable', 'plafond'].includes(BANQUE[id].cat) ? 'usage' : 'saison',
-        actions: `<p class="bq-cible">${esc(cibleDe(id))}</p><button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${non ? ' disabled' : ''}>${non ? esc(raison ? 'Plus tard' : non) : 'Jouer'}</button>${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
+        actions: `<p class="bq-cible">${esc(cibleDe(id))}</p>${ou(id) ? `<button type="button" class="btn gold inv-renvoi" data-maison="${esc(ou(id).cle)}">${esc(ou(id).mot)} ›</button>` : `<button type="button" class="btn gold inv-jouer" data-ref="${esc(x.ref)}" data-id="${esc(id)}"${non ? ' disabled' : ''}>${non ? esc(raison ? 'Plus tard' : non) : 'Jouer'}</button>`}${valeurDe(id) > 0 ? `<button type="button" class="btn inv-vendre" data-ref="${esc(pile[0].ref)}" data-id="${esc(id)}">Vendre · ${valeurDe(id)} 🪙</button>` : ''}` });
       corps = `<p class="inv-mot">${ctx.mode === 'rogue' ? `🃏 Tes ${PLACES} places : chaque carte se joue quand tu veux ; une de trop se vend. Elles te suivent d'une saison à l'autre de la run.` : `${MOMENTS.garde.ico} ${esc(MOMENTS.garde.mot)}`}</p>
                 ${filtres(cats)}
         ${jouables.length ? `<div class="inv-grille">${jouables.map(carte).join('')}</div>` : ''}
@@ -180,7 +186,7 @@ export function ouvrirInventaire(ctx) {
     } else if (etat.onglet === 'permanent') {
       const conso = ctx.meta.filter(x => garde(x.id));
       // V12-2 : ton personnel et le congédiement sont au sous-onglet de l'entraîneur (Bureau › Entraîneur), avec ton coach.
-      corps = `<p class="inv-mot">${VIES.permanent.mot} Ton personnel et le congédiement sont chez l'entraîneur, au Bureau.</p>
+      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle touche : le personnel chez l'entraîneur, les soins à l'infirmerie, les contrats chez le proprio.</p>
         ${filtres(['consommable', 'plafond'])}
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,
@@ -201,10 +207,7 @@ export function ouvrirInventaire(ctx) {
         ${filtres(ORDRE_CATEGORIES)}${rars}
         <div class="inv-grille">${ids.map(id => carteBanqueHtml(id, { possede: ctx.possedees.has(id) })).join('')}</div>`;
     }
-    // LA MASSE SALARIALE (S79) : le plafond effectif, et ce qui le tord — les cartes 💵 jouées, le vestiaire, le DG.
-    const P = ctx.plafond;
-    const plafond = P ? `${jaugePlafond({ masse: P.masse, cap: P.cap,
-      mot: P.lignes.length ? puces(P.lignes.map(l => ({ txt: l.joueur ? l.nom : `${l.nom} ${l.montant > 0 ? '+' : '−'}${M(Math.abs(l.montant))}`, bon: l.joueur ? true : l.montant > 0 }))) : `<span class="inv-pl-rien">Plafond de base : ${M(P.base)}. Les cartes 💵 le tordent.</span>` })}` : '';
+    const plafond = masseSalarialeHtml(ctx.plafond);
     m.innerHTML = `<div class="choix-sheet inv-sheet${chiffresOuverts() ? ' chiffres' : ''}" role="dialog" aria-modal="true" aria-label="${esc(ctx.titre)}">
       <div class="choix-tete">
         <span class="choix-ico">🎒</span>
@@ -224,6 +227,7 @@ export function ouvrirInventaire(ctx) {
     m.querySelectorAll('[data-rar]').forEach(b => { b.onclick = () => { etat.rar = b.dataset.rar; dessiner(); }; });
     m.querySelectorAll('.inv-jouer').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'partie', ref: b.dataset.ref, id: b.dataset.id }); }; });
     m.querySelectorAll('.inv-vendre').forEach(b => { b.onclick = () => { fermer(true); ctx.vendre({ src: 'partie', ref: b.dataset.ref, id: b.dataset.id }); }; });
+    m.querySelectorAll('.inv-renvoi').forEach(b => { b.onclick = () => { fermer(true); ctx.renvoyer(b.dataset.maison); }; });
     m.querySelectorAll('.inv-jouer-meta').forEach(b => { b.onclick = () => { fermer(true); ctx.jouer({ src: 'meta', id: b.dataset.id }); }; });
   };
   const fermer = (silencieux = false) => {
