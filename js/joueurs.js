@@ -9,6 +9,7 @@
 import { SLOTS, badgesDe, PALIERS, getPlayerKey } from './sim.js';
 import { esc, money, pct3, virgule } from './util.js';
 import { $, G, capHitDuJour, displayStats, headshotHtml } from './game.js';
+import { hubActif } from './coquille.js';
 import { compteRevele, ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 import { blessesAuJour } from './rogue-jeu.js';
 import { slotShort } from './repechage.js';
@@ -69,6 +70,9 @@ export function remplirJoueurs() {
     return `<div class="jr-qui"><span class="rond-visage jr-visage" aria-hidden="true">${headshotHtml(r.p)}</span><div class="jr-qui-txt"><button type="button" class="jr-nom" data-i="${r.s.i}"><b>${esc(r.p.n)}</b>${bl ? ` <span class="jr-bl" title="Blessé">🩹 ${bl} m.</span>` : ''}</button>
       <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}">${b.ico}</i> ${esc(PALIERS[b.palier].nom)}` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small></div></div>`;
   };
+  // V12-3 : les rappels (le club-école, un ancien, l'échange d'un doublon) se jouent ici, sous le tableau ; jouée, on revient ici.
+  const hub = enSaison ? hubActif() : null, maison = hub && hub.maison;
+  const cartes = maison ? maison.html('joueurs') : '';
   // L'infirmerie a son sous-onglet (Effectif › Infirmerie, V12-2, js/saison.js) : le tableau ne garde que la marque 🩹.
   host.innerHTML = `<div class="jr-barre">
       <div class="inv-filtres" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>
@@ -78,13 +82,16 @@ export function remplirJoueurs() {
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
       <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k]) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>
     </table></div>
-    <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>`;
+    <p class="jr-pied">${compte ? `Ta saison à ce jour, journée ${jour}.` : 'Sa vraie saison.'}${rangees.some(r => r.s.scratch) ? ' En gris : la réserve.' : ''}</p>${cartes}`;
   host.querySelectorAll('[data-groupe]').forEach(b => { b.onclick = () => { etat.groupe = b.dataset.groupe; remplirJoueurs(); }; });
   host.querySelectorAll('[data-source]').forEach(b => { b.onclick = () => { etat.source = b.dataset.source; remplirJoueurs(); }; });
   host.querySelectorAll('[data-tri]').forEach(th => {
     const trier = () => { const k = th.dataset.tri, [c0, a0] = etat.tri[g]; etat.tri[g] = [k, c0 === k ? !a0 : k === 'moy']; remplirJoueurs(); };
     th.onclick = trier;
     th.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); trier(); } };
+  });
+  host.querySelectorAll('.maison-jouer[data-id], .maison-vendre[data-id]').forEach(b => {
+    b.onclick = () => maison.jouer({ src: b.dataset.src || 'partie', id: b.dataset.id, ref: b.dataset.ref, vendre: b.classList.contains('maison-vendre') }, () => { G.pageVoulue = 'joueurs'; });
   });
   host.querySelectorAll('.jr-nom').forEach(b => {
     b.onclick = () => {

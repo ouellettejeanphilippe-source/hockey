@@ -834,12 +834,14 @@ export function personnelDuJour(j) {
  * UNE MAISON PAR SUJET (V12-2, puis V12-3). JP : *everything coaching should be at same place, including cards for assistant
  * or firing a coach* ; puis *that philosophy should be for everything*. Une carte se joue dans le sous-onglet de ce qu'elle
  * touche : le personnel et le congédiement chez l'entraîneur, ce qui soigne un blessé ou refait des jambes à l'infirmerie,
- * le plafond et les contrats chez le proprio. Ailleurs (Tes cartes, tes places de « Ce soir »), elle y renvoie.
+ * le plafond et les contrats chez le proprio, les rappels (le club-école, un ancien, l'échange d'un doublon) dans l'effectif,
+ * sous le tableau des joueurs. Ailleurs (Tes cartes, tes places de « Ce soir »), elle y renvoie.
  */
 const MAISONS_DES_CARTES = {
   entraineur: { titre: 'Tes cartes du personnel', ou: 'Chez l\'entraîneur' },
   infirmerie: { titre: 'Tes cartes de soin', ou: 'À l\'infirmerie' },
   proprio: { titre: 'Tes cartes de contrat', ou: 'Chez le proprio' },
+  joueurs: { titre: 'Tes rappels', ou: 'Dans l\'effectif' },
 };
 /* Où une carte se joue, pour y renvoyer : sa maison et le mot du bouton (« À l'infirmerie › »). */
 const ouSeJoue = id => { const k = maisonDeLaCarte(id); return k ? { cle: k, mot: MAISONS_DES_CARTES[k].ou } : null; };
@@ -849,7 +851,7 @@ function maisonDeLaCarte(id) {
   if (c.cat === 'plafond') return 'proprio';
   if (c.cat !== 'consommable') return null;
   const C = CONSOMMABLES[c.cle] || {};
-  return C.cible === 'coach' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : null;
+  return C.cible === 'coach' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : C.cible === 'cartable' ? 'joueurs' : null;
 }
 export function cartesDeLaMaison(maison, j) {
   const meta = lireMeta();
