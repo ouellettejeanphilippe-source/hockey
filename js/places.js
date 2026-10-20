@@ -8,8 +8,10 @@
  * Chaque place joue sur le canal de son coach, qui lui donne sa couleur (`coachDesCanaux`, js/coachs.js) : le Frelon
  * les tirs, l'Aigle la précision, la Tortue la défense, le Rhino la robustesse, le Doc les jambes et les blessures,
  * l'Abbé les punitions, le Contremaître et le Showman les minutes des trios, le Comptable les jetons. Trois sont
- * neutres, partagées entre deux canaux. Les soins d'un blessé, le congédiement, les rappels du cartable,
- * l'exorciste et le camp express restent ceux d'avant (js/banque.js `CONSOMMABLES`).
+ * neutres, partagées entre deux canaux. Le Rhino, l'Abbé et le Contremaître n'ont pas de canal de joueur, donc pas
+ * d'équipement (js/equipement.js) : ils ont six places au lieu de trois (V13-2, docs/refonte-v13.md), faites des
+ * cartes de duel qu'ils avaient avant que la main parte. Les soins d'un blessé, le congédiement et les rappels du
+ * cartable restent ceux d'avant (js/banque.js `CONSOMMABLES`).
  */
 const usage = { vie: 'usage', cible: 'aucune' };
 /*
@@ -60,6 +62,12 @@ export const PLACES_NEUVES = {
     texte: 'La recette de la mère du capitaine. Ça colle aux côtes.' },
   pacteVestiaire: { nom: 'Le pacte du vestiaire', ico: '🦴', rarete: 'rare', ...usage, si: 'beteNoire', duree: 20, effet: { robustesse: 1.6, discipline: 1.25 },
     texte: 'Ils nous ont battus deux fois. Chacun a signé la feuille sur le mur, et personne ne recule.' },
+  doubleEchec: { nom: 'Le double échec', ico: '👁', rarete: 'commune', ...usage, si: 'apresDefaite', duree: 6, effet: { robustesse: 0.9, discipline: 1.08 },
+    texte: 'Ils nous ont battus ? Deux de tes gars vont chercher le premier qui bouge.' },
+  dansLeTas: { nom: 'On rentre dans le tas', ico: '🪖', rarete: 'peu', ...usage, si: 'visiteur', duree: 6, effet: { robustesse: 1.1, discipline: 1.1 },
+    texte: 'Dans leur aréna, le centre est fermé. On l\'ouvre à l\'épaule.' },
+  murDeChair: { nom: 'Le mur de chair', ico: '🏛', rarete: 'rare', ...usage, si: 'series', duree: 10, effet: { robustesse: 1.4, discipline: 1.12 },
+    texte: 'Au printemps, plus personne ne passe devant le filet sans payer.' },
 
   // ---- 🫁 le Doc : les jambes et les blessures ----
   tableMassage: { nom: 'La table de massage', ico: '🛏', rarete: 'commune', ...usage, si: 'dosADos', duree: 8, effet: { energie: 0.8, robustesse: -0.3 },
@@ -76,6 +84,12 @@ export const PLACES_NEUVES = {
     texte: 'Pas un mot à leur banc, pas un mot à l\'arbitre.' },
   arbitreASouper: { nom: 'L\'arbitre invité à souper', ico: '🍽', rarete: 'rare', ...usage, si: 'rival', duree: 10, effet: { discipline: 0.65, robustesse: -0.5 },
     texte: 'Rien d\'illégal : un souper, des souvenirs, et un rival qui se fait siffler.' },
+  autreJoue: { nom: 'Tendre l\'autre joue', ico: '🌷', rarete: 'commune', ...usage, si: 'domicile', duree: 6, effet: { discipline: 0.78, robustesse: -0.35 },
+    texte: 'Devant les familles, le coup de bâton arrive ; tu souris à l\'arbitre.' },
+  chapelet: { nom: 'Le chapelet', ico: '📿', rarete: 'peu', ...usage, si: 'jambesLourdes', duree: 8, effet: { discipline: 0.75, finition: 1.02, robustesse: -0.4 },
+    texte: 'Les jambes lourdes, les bâtons partent tout seuls. Un grain à chaque présence.' },
+  messeDeMinuit: { nom: 'La messe de minuit', ico: '🪽', rarete: 'rare', ...usage, si: 'series', duree: 10, effet: { discipline: 0.65, volume: 0.96, robustesse: -0.45 },
+    texte: 'En séries, on ne répond pas : on attend qu\'ils craquent.' },
 
   // ---- 🪜 le Contremaître : les minutes vers le bas ----
   boucheTrousDuMardi: { nom: 'Les bouche-trous du mardi', ico: '🔧', rarete: 'peu', ...usage, si: 'dosADos', duree: 8, effet: { F: [0.85, 0.95, 1.1, 1.3], energie: 0.9 },
@@ -84,6 +98,12 @@ export const PLACES_NEUVES = {
     texte: 'Les vedettes s\'assoient. Les autres apprennent à porter le match.' },
   chantier: { nom: 'Le chantier', ico: '🏗', rarete: 'peu', ...usage, si: 'infirmerie', duree: 8, effet: { F: [0.85, 0.95, 1.1, 1.35], blessure: 0.85 },
     texte: 'Des blessés partout : on rebâtit avec ce qui reste.' },
+  quatriemeTrio: { nom: 'Le quatrième trio', ico: '🔀', rarete: 'commune', ...usage, si: 'domicile', duree: 6, effet: { F: [0.88, 0.95, 1.08, 1.25] },
+    texte: 'Chez toi, tu as le dernier changement : ton quatrième trio, personne ne le suit.' },
+  toutLeMonde: { nom: 'Tout le monde joue', ico: '👷', rarete: 'peu', ...usage, si: 'apresDefaite', duree: 6, effet: { F: [0.88, 0.96, 1.06, 1.22], energie: 0.93 },
+    texte: 'Après une défaite, quatre trios, et personne ne regarde le tableau des minutes.' },
+  usine: { nom: 'L\'usine', ico: '🏭', rarete: 'rare', ...usage, si: 'series', duree: 10, effet: { F: [0.75, 0.88, 1.12, 1.55], energie: 0.88, volume: 1.15 },
+    texte: 'Au printemps, les vedettes sont brûlées ; la profondeur, elle, a dormi.' },
 
   // ---- 🌠 le Showman : les minutes vers le haut ----
   microDuBanc: { nom: 'Le micro du banc', ico: '🎙', rarete: 'peu', ...usage, si: 'domicile', duree: 4, effet: { F: [1.25, 1.05, 0.9, 0.8], finition: 1.03, energie: 1.03 },

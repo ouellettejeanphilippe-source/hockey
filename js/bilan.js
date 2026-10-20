@@ -22,7 +22,6 @@ import { getTeamBand, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { nomDuClub, courtDuClub } from './club.js';
 import { ouvrirSeries, saisonDesFeuilles } from './saison.js';
 import { hubActif } from './coquille.js';
-import { deckDe, CARTES_MATCH } from './combat.js';
 import { sensRarete } from './cartes.js';
 import { animerComptes } from './mouvement.js';
 import { jouerSon } from './sons.js';
@@ -711,27 +710,6 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       </div>`
     : '';
 
-  /*
-   * TON DECK (S74) : les cartes de match avec lesquelles tu finis l'année, et
-   * celles que tu as le plus jouées dans tes gros matchs — ce que le moteur a
-   * gardé dans `minisBoss`. La fin d'une course de Slay the Spire, en hockey.
-   */
-  const deckFinal = deckDe((G.ligue && G.ligue.decisions) || [], {
-    pertes: (you.minisBoss || []).filter(m => !m.gagne && m.raison === 'nemesis').map(m => m.jour + 1),
-    blessures: (you.injuriesLog || []).filter(i => i.games >= 15 && i.jour != null).map(i => i.jour + 1),
-  });
-  const jouees = new Map();
-  for (const mb of you.minisBoss || []) for (const c of (mb.cartes && mb.cartes.jouees) || []) jouees.set(c, (jouees.get(c) || 0) + 1);
-  const grosV = (you.minisBoss || []).filter(m => m.gagne).length, grosN = (you.minisBoss || []).length;
-  const compteDeck = new Map();
-  for (const c of deckFinal) compteDeck.set(c, (compteDeck.get(c) || 0) + 1);
-  const tonDeck = G.bonus === 'ROGUE' && deckFinal.length ? `<div class="result-section"><h3>Ton deck · ${deckFinal.length} cartes</h3>
-      <div class="dash-note">Gros matchs : ${grosV} gagné${grosV > 1 ? 's' : ''} sur ${grosN}.${jouees.size ? ` Les plus jouées : ${[...jouees.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([c, n]) => `${CARTES_MATCH[c] ? CARTES_MATCH[c].ico : ''} ${esc(CARTES_MATCH[c] ? CARTES_MATCH[c].nom : c)} ×${n}`).join(' · ')}.` : ''}</div>
-      <div class="deck-grille">${[...compteDeck.entries()].filter(([c]) => CARTES_MATCH[c]).map(([c, n]) => {
-        const C = CARTES_MATCH[c];
-        return `<span class="deck-mini tc-${C.maudite ? 'commune' : C.rarete}${C.maudite ? ' maudite' : ''}" title="${esc(C.texte)}"><b>${C.injouable ? '✕' : C.cout}</b>${C.ico} ${esc(C.nom)}${n > 1 ? ` ×${n}` : ''}</span>`;
-      }).join('')}</div>
-    </div>` : '';
 
   /*
    * L'ANNÉE DU VESTIAIRE. Les situations ne sont pas des décisions — on ne
@@ -784,9 +762,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       const p = G.roster[s.i];
       return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, t: p.t, p: p.p, r: p._renfort ? 1 : 0 } : null;
     }),
-    // L'ALBUM (S74, js/album.js) se déduit de l'historique : le deck de match
-    // de fin de saison, l'identité de départ, la franchise.
-    deck: deckDe((G.ligue && G.ligue.decisions) || []),
+    // L'ALBUM (S74, js/album.js) se déduit de l'historique : l'identité de départ, la franchise.
     identite: G.identite || null,
     franchise: G.repechage === 'FRANCHISE' ? G.franchise : null,
   // L'identifiant de la saison en cours, s'il y en a un : une reprise
@@ -806,7 +782,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     rythme: rythmeHtml(you, calendrier),
     forces: forcesHtml(you, calendrier).replace('<div class="result-section">', '<div class="result-section" data-bl="forces">'),
     impact: impactHtml(you, calendrier),
-    cartes: cartesPrises || tonDeck ? `<div data-bl="cartes">${cartesPrises}${tonDeck}</div>` : '',
+    cartes: cartesPrises ? `<div data-bl="cartes">${cartesPrises}</div>` : '',
     vestiaire: `<div data-bl="vestiaire">${vestiaire}<div class="result-section"><h3>Infirmerie</h3>${injuries}</div></div>`,
   };
   const volets = {
@@ -1022,8 +998,6 @@ function finDesSeries(S, host, rogue = true) {
     const derniere = miennes[miennes.length - 1];
     const coupe = champion === toi;
     majLeaderboard(G.lbId, {
-      // Le deck après les séries : les cartes gagnées en séries comptent à l'album.
-      deck: deckDe((G.ligue && G.ligue.decisions) || [], { serie: (G.ligue && G.ligue.decisionsSeries) || [] }),
       series: {
         coupe, V, D,
         rondes: miennes.length,

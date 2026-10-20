@@ -23,13 +23,13 @@
  *      première saison, les saisons par run, la première saison ;
  *   3. LES CAMPAGNES : de zéro, run après run, les écussons et les jalons
  *      achètent les déblocages — combien de runs avant la première Coupe ;
- *   2b. LA MAIN EN SÉRIES : la même première saison, sur les mêmes dés,
- *      séries jouées avec et sans la main de l'adjoint (SAISONS_MAIN) ;
- *   4. LA FORCE DES CARTES SELON LE MOMENT : le même match, sur les mêmes
- *      dés, au jour 3, au jour 75 et en finale — des cartes de trio du
- *      deck, des améliorations, des cartes qui visent l'adversaire.
+ *   2b. LE DUEL JOUÉ : la même première saison, sur les mêmes dés, le
+ *      robot attentif qui répond aux intentions ou qui les laisse là
+ *      (SAISONS_MAIN) ;
+ *   (4. LA FORCE DES CARTES SELON LE MOMENT est partie avec la V13-2 : voir
+ *      la note au bas du fichier.)
  *
- * Les runs, les campagnes et les moments se jouent en parallèle (un
+ * Les runs et les campagnes se jouent en parallèle (un
  * travailleur chacun, FILS à la fois — 6 par défaut) : le moteur a son état
  * par module, donc par fil.
  */
@@ -38,11 +38,9 @@ import { fileURLToPath } from 'node:url';
 import { availableParallelism } from 'node:os';
 import {
   SLOTS, CASES_DE_BASE, RESERVES_EN_PLUS, casesDuMode, autoRoster, activeLineup, createTeam, getPlayerKey, getPersonKey,
-  echelleTardive, grandirEffet, effetsDesCartes, appliquerMutation, simulerGrosMatch, MUTATIONS,
-  JOURS_PAR_MATCH, registerHiddenRatings,
+  echelleTardive, grandirEffet, effetsDesCartes, JOURS_PAR_MATCH,
 } from '../js/sim.js';
-import fs from 'node:fs';
-import { deckDe, DECK_DEPART, CARTES_MATCH } from '../js/combat.js';
+import { CARTES_MATCH } from '../js/combat.js';
 import {
   DEBLOCAGES, departDuClasseur, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron, exigencesOuvertes,
@@ -59,66 +57,13 @@ import { exiger, borne, monte, informer, verdict } from './verdict.mjs';
 const RUNS = Number(process.env.RUNS ?? 10);
 const CAMPAGNES = Number(process.env.CAMPAGNES ?? 2);
 const RUNS_CAMPAGNE = Number(process.env.RUNS_CAMPAGNE ?? 14);
-const MATCHS = Number(process.env.MATCHS ?? 1500);
-/* Les premières saisons jouées deux fois, avec et sans la main en séries (Jalon P0). */
+/* Les premières saisons jouées deux fois, le duel joué puis laissé (Jalon P0, puis V13-2). */
 const SAISONS_MAIN = Number(process.env.SAISONS_MAIN ?? 12);
 /* Les niveaux : 0, puis les N premiers déblocages de l'ordre du robot ; le classeur de M runs jouées. */
 const NIVEAUX = [[0, 0], [6, 4], [11, 9], [16, 16], [ORDRE_DEBLOCAGES.length, 28]];
-const MOMENTS = [['jour 3', { jour: 2 }], ['jour 75', { jour: 74 }], ['finale', { serie: true, ronde: 3 }]];
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 
-/*
- * LA FORCE DES CARTES À UN MOMENT : le même match sur les mêmes dés
- * (`simulerGrosMatch`, avec son moment), une vraie équipe contre une autre,
- * MATCHS fois par bras (V7 : la chimie ne s'apprend plus, la formation est la
- * même à chaque moment). Trois bras, contre le même match sans carte :
- *   - TRIO DE MATCH : les synergies du deck qui lisent tes lignes, « Les
- *     gâchettes », « Les jambes » et « Le mur bleu » (trois cartes) ;
- *   - AMÉLIORATION : « Le tir affûté » sur les six avants du top 6 et « Le
- *     mur » sur les quatre défenseurs du top 4 (dix cartes) ;
- *   - ADVERSAIRE : « Les provoquer », « Une ombre sur leur vedette » et
- *     « Les user » (trois cartes).
- * L'effet se lit en BUTS PAR MATCH (l'écart pour moins l'écart contre),
- * par carte, et en points de victoire pour le bras entier.
- */
-function forceAuMoment(i, matchs) {
-  const [nom, moment] = MOMENTS[i];
-  const jours = moment.serie ? 82 : moment.jour;
-  // Des cotes fraîches, relues du shard : les runs que ce même fil a jouées avant (leurs modifs, leurs variantes) ne
-  // touchent pas la mesure — sans ça, l'ordre des tâches entre les fils la faisait bouger (Jalon Q).
-  const frais = s => JSON.parse(fs.readFileSync(fileURLToPath(new URL(`../data/seasons/${s}.json`, import.meta.url)), 'utf8')).players;
-  const equipe = (s, tag) => createTeam(tag, tag, autoRoster(frais(s).filter(p => p.t === tag && (p.gp || 0) >= 10).map(p => { registerHiddenRatings(p); return p; })));
-  const toi = equipe('2005-06', 'CAR'), adv = equipe('2005-06', 'BUF');
-  // Une ligue Rogue : la courbe de la fin de partie joue (`courbe`).
-  toi.courbe = adv.courbe = true;
-  // Tout ce qu'`appliquerMutation` pose : ses canaux, mais aussi ses profils (« sniper +12 »), ses clés et le journal du club.
-  // Sans `_mutProfils`, le tir affûté s'empilait 1 500 fois sur les mêmes avants, et les bras joués après (l'adversaire,
-  // les synergies) se mesuraient sur des profils au plafond : la carte sur l'adversaire valait ×1,6 en finale au lieu de ×8.
-  const nettoyer = t => { for (const p of Object.values(t.roster)) if (p) { delete p._amel; delete p._mut; delete p._mutProfils; delete p._mutCles; } t.mutations = []; };
-  const jouer = (bras, cartes = []) => {
-    let v = 0, ecart = 0;
-    for (let k = 0; k < matchs; k++) {
-      nettoyer(toi); nettoyer(adv);
-      if (bras === 'amelioration') for (const s of SLOTS.filter(x => !x.scratch && x.unit <= 1 && (x.group === 'F' || x.group === 'D'))) {
-        const p = toi.roster[s.i];
-        if (p) appliquerMutation(toi, p, s.group === 'F' ? 'affute' : 'mur', 0, 'choix');
-      }
-      const r = simulerGrosMatch(toi, adv, { cartes: { jouees: cartes }, graine: 'force', cle: `m${k}`, moment });
-      v += r.gagne ? 1 : 0; ecart += r.gf - r.ga;
-    }
-    return { v: v / matchs, ecart: ecart / matchs };
-  };
-  const rien = jouer('rien'), amel = jouer('amelioration'), advs = jouer('rien', ['provoquer', 'ombre', 'user']), syn = jouer('rien', ['gachettes', 'jambes', 'murBleu']);
-  nettoyer(toi); nettoyer(adv);
-  return {
-    nom, echelle: echelleTardive(moment), rien: rien.v,
-    synergie: { v: syn.v - rien.v, parCarte: (syn.ecart - rien.ecart) / 3 },
-    amelioration: { v: amel.v - rien.v, parCarte: (amel.ecart - rien.ecart) / 10 },
-    adversaire: { v: advs.v - rien.v, parCarte: (advs.ecart - rien.ecart) / 3 },
-  };
-}
-
-/* ---------- les travailleurs : un niveau, une campagne, un moment ---------- */
+/* ---------- les travailleurs : un niveau, une campagne, le duel joué ---------- */
 if (!isMainThread) {
   const t = workerData;
   if (t.genre === 'niveau') {
@@ -131,16 +76,16 @@ if (!isMainThread) {
     }
     parentPort.postMessage({ niveau: t.niveau, classeur: classeur.length, out });
   } else if (t.genre === 'main') {
-    // LA MAIN EN SÉRIES (Jalon P0) : la même première saison, sur les mêmes dés, séries jouées avec puis sans la main de l'adjoint.
+    // LE DUEL JOUÉ (Jalon P0, puis V13-2) : la même première saison, sur les mêmes dés, le robot attentif qui répond aux
+    // intentions (le geste, le tableau) puis qui les laisse là (`mains: false`). Avant la V13-2, c'était la main de
+    // l'adjoint en séries, jouée ou non, sous le robot d'avant ; elle est partie, et le robot d'avant ne répond plus à rien.
     const out = [];
     for (let i = t.de; i < t.a; i++) {
-      const jouer = mains => jouerRun(metaAuNiveau(0), { graine: `main-${i}`, maxSaisons: 1, mains }).saisons[0];
+      const jouer = mains => jouerRun(metaAuNiveau(0), { graine: `main-${i}`, maxSaisons: 1, mains, politique: 'attentif' }).saisons[0];
       const avec = jouer(true), sans = jouer(false);
       if (avec.rang <= 16) out.push({ rang: avec.rang, avec: avec.rondes, sans: sans.rondes });
     }
     parentPort.postMessage({ main: out });
-  } else if (t.genre === 'force') {
-    parentPort.postMessage({ force: forceAuMoment(t.i, t.matchs) });
   } else {
     // UNE CAMPAGNE : de zéro, les écussons et les jalons achètent les déblocages, run après run.
     const meta = { ecussons: 0, deblocages: [], jalons: {} };
@@ -168,7 +113,6 @@ if (!isMainThread) {
     w.once('message', resolve); w.once('error', reject);
   });
   const pct = x => `${Math.round(100 * x)} %`;
-  const signe = (x, d = 1) => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(d).replace('.', ',')}`;
   const t0 = Date.now();
   console.log('\n  Le Rogue (S80) : le départ du classeur, la courbe, le cartable\n');
 
@@ -212,17 +156,13 @@ if (!isMainThread) {
       && Math.abs(r.robustesse - 2.8) < 1e-9 && Math.abs(r.finition - 1.08) < 1e-9 && Math.abs(r.F[0] - 1.6) < 1e-9, `« Les provoquer » : punitions +${Math.round((d - 1) * 100)} % → +${Math.round((fx2.adv[0].discipline - 1) * 100)} % en finale`);
   }
   {
-    const base = ['lancer+', 'bloquer', 'gachettes', 'doute'];
-    const d = deckDe([{ jour: 0, deck: 'report', deckDeBase: base }, { jour: 5, recompense: 'provoquer' }]);
-    exiger('la saison suivante d\'une run repart du deck de la fin (`deckDeBase`)', d.join() === [...base, 'provoquer'].join() && deckDe([]).join() === DECK_DEPART.join(), d.join(' · '));
+    // Une carte de trio ne grandit pas, par construction : la même main à ×0,5 et à ×2 fait les mêmes effets pour toi.
+    const a = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 0.5 }), b = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 2 });
+    exiger('une carte de trio du deck ne grandit pas : ses effets sont les mêmes à ×0,5 et à ×2', JSON.stringify(a.effets) === JSON.stringify(b.effets), `${a.effets.length} effet(s)`);
   }
-  {
-    // JALON P1 : une série gagnée donne un pack de joueurs, pas une carte ; le deck des séries ne bouge pas.
-    const serie = PACKS_DE_SERIE.slice(0, 3).map((pack, r) => ({ ronde: r, match_no: -1, recompense: null, packSerie: pack }));
-    const d = deckDe([], { serie, ronde: 3, k: 0 });
-    exiger('une série gagnée donne un pack de joueurs (Argent, Or, Étoiles, puis Légendes avec la Coupe), et le deck des séries ne bouge pas',
-      PACKS_DE_SERIE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs') && d.join() === DECK_DEPART.join(), PACKS_DE_SERIE.map(k => PACKS_TOUS[k].nom).join(' · '));
-  }
+  // JALON P1 : une série gagnée donne un pack de joueurs, pas une carte.
+  exiger('une série gagnée donne un pack de joueurs (Argent, Or, Étoiles, puis Légendes avec la Coupe)',
+    PACKS_DE_SERIE.every(k => PACKS_TOUS[k] && PACKS_TOUS[k].sorte === 'joueurs'), PACKS_DE_SERIE.map(k => PACKS_TOUS[k].nom).join(' · '));
   {
     const niveaux = [[], ['classeur1'], ['classeur1', 'classeur2', 'classeurTri'], ['classeur1', 'classeur2', 'classeur3', 'classeurTri', 'classeurChoix']];
     const D = niveaux.map(d => departDuClasseur({ deblocages: d }));
@@ -337,11 +277,10 @@ if (!isMainThread) {
     exiger('une ligue de niveau 0 n\'a aucune carte ; plus haut, ses clubs en portent', nu && habille === n, `${habille} cartes sur ${n} au niveau 6`);
   }
 
-  /* ---------- 2, 3, 4 : les runs, les campagnes et les moments, en parallèle ---------- */
+  /* ---------- 2, 2b, 3 : les runs, le duel joué et les campagnes, en parallèle ---------- */
   const taches = [];
   for (const [niveau, runsAvant] of NIVEAUX) for (let de = 0; de < RUNS; de += Math.ceil(RUNS / 2)) taches.push({ genre: 'niveau', niveau, runsAvant, de, a: Math.min(RUNS, de + Math.ceil(RUNS / 2)) });
   for (let c = 0; c < CAMPAGNES; c++) taches.push({ genre: 'campagne', c, runs: RUNS_CAMPAGNE });
-  for (let i = 0; i < MOMENTS.length; i++) taches.push({ genre: 'force', i, matchs: MATCHS });
   for (let de = 0; de < SAISONS_MAIN; de += Math.ceil(SAISONS_MAIN / 2)) taches.push({ genre: 'main', de, a: Math.min(SAISONS_MAIN, de + Math.ceil(SAISONS_MAIN / 2)) });
   /*
    * Au plus FILS travailleurs à la fois (6 par défaut) : à RUNS=40 CAMPAGNES=6,
@@ -378,15 +317,16 @@ if (!isMainThread) {
   exiger('tout débloqué, la Coupe se gagne bien plus souvent qu\'au départ', lignes[lignes.length - 1].coupe >= lignes[0].coupe + 0.1, `${pct(lignes[0].coupe)} → ${pct(lignes[lignes.length - 1].coupe)}`);
 
   /*
-   * 2b. LA MAIN EN SÉRIES (Jalon P0). Mesuré le 12 oct. à 270 premières saisons (99 qualifiées) : 1,00 ronde sans
-   * main, 1,24 avec ; un 13e à 16e atteint la finale 17 % du temps même sans carte. La courbe (2.) et les campagnes
-   * (3.) se jouent maintenant AVEC la main : ce qui se lit ici, c'est ce qu'elle vaut.
+   * 2b. LE DUEL JOUÉ (Jalon P0, puis V13-2). Mesuré le 12 oct., la main de l'adjoint en séries : 1,00 ronde sans,
+   * 1,24 avec, à 270 premières saisons. Sans main (V13-2), ce qui se lit ici, c'est ce que vaut le duel bien joué
+   * (l'attentif) contre le duel laissé là, sur la même première saison. Les rangs diffèrent d'un bras à l'autre (les
+   * duels de saison comptent aussi) : on garde les saisons où le duel joué se qualifie.
    */
   {
     const q = resultats.filter(x => x.main).flatMap(x => x.main);
     const finale = k => pct(moy(q.map(o => (o[k] >= 3 ? 1 : 0))));
-    informer('la main en séries, la même première saison sur les mêmes dés', q.length
-      ? `${q.length} saisons qualifiées sur ${SAISONS_MAIN} · rondes gagnées ${moy(q.map(o => o.sans)).toFixed(2).replace('.', ',')} sans main, ${moy(q.map(o => o.avec)).toFixed(2).replace('.', ',')} avec · finale ${finale('sans')} sans, ${finale('avec')} avec`
+    informer('le duel joué, la même première saison sur les mêmes dés', q.length
+      ? `${q.length} saisons qualifiées sur ${SAISONS_MAIN} · rondes gagnées ${moy(q.map(o => o.sans)).toFixed(2).replace('.', ',')} le duel laissé, ${moy(q.map(o => o.avec)).toFixed(2).replace('.', ',')} joué · finale ${finale('sans')} laissé, ${finale('avec')} joué`
       : `aucune saison qualifiée sur ${SAISONS_MAIN}`);
   }
 
@@ -404,23 +344,17 @@ if (!isMainThread) {
   const mediane = premieres.length % 2 ? premieres[(premieres.length - 1) / 2] : (premieres[premieres.length / 2 - 1] + premieres[premieres.length / 2]) / 2;
   exiger('la première Coupe d\'une campagne demande plusieurs runs (la médiane : trois runs ou plus)', mediane >= 3, `médiane ${mediane} · ${camp.map(r => (r.premiere ? `run ${r.premiere.run}` : `> ${RUNS_CAMPAGNE}`)).join(' · ')}`);
 
-  /* 4. la force des cartes selon le moment */
-  const force = resultats.filter(x => x.force).map(x => x.force).sort((a, b) => a.echelle - b.echelle);
-  for (const f of force) {
-    informer(`les cartes, ${f.nom} (×${f.echelle.toFixed(2).replace('.', ',')})`, `sans carte ${pct(f.rien)} de victoires · SYNERGIES (3) : ${signe(f.synergie.parCarte, 3)} par carte, ${signe(100 * f.synergie.v)} pts · AMÉLIORATIONS (10) : ${signe(f.amelioration.parCarte, 3)} par carte, ${signe(100 * f.amelioration.v)} pts · ADVERSAIRE (3) : ${signe(f.adversaire.parCarte, 3)} par carte, ${signe(100 * f.adversaire.v)} pts`);
-  }
-  const [debut, , finale] = force;
-  {
-    // Une carte de trio ne grandit pas, par construction : la même main à ×0,5 et à ×2 fait les mêmes effets pour toi.
-    const a = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 0.5 }), b = effetsDesCartes(null, { jouees: ['gachettes', 'doublePresence', 'quatrieme'] }, 'x', { echelle: 2 });
-    exiger('une carte de trio du deck ne grandit pas : ses effets sont les mêmes à ×0,5 et à ×2', JSON.stringify(a.effets) === JSON.stringify(b.effets), `${a.effets.length} effet(s)`);
-  }
-  exiger('une carte sur l\'adversaire vaut au moins deux fois plus en finale qu\'au jour 3', finale.adversaire.parCarte > 2 * debut.adversaire.parCarte,
-    `adversaire ${signe(debut.adversaire.parCarte, 3)} → ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
-  exiger('en finale, une carte sur l\'adversaire bat une carte de trio du deck', finale.adversaire.parCarte > finale.synergie.parCarte,
-    `synergie ${signe(finale.synergie.parCarte, 3)} · amélioration ${signe(finale.amelioration.parCarte, 3)} · adversaire ${signe(finale.adversaire.parCarte, 3)} but/match par carte`);
-  // Ce qui se lit sans se juger : au troisième soir, une carte de trio du deck contre une amélioration — l'écart dépend de la formation.
-  informer('au jour 3, une carte de trio du deck contre une amélioration', `synergie ${signe(debut.synergie.parCarte, 3)} · amélioration ${signe(debut.amelioration.parCarte, 3)} · adversaire ${signe(debut.adversaire.parCarte, 3)} but/match par carte`);
-  informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${RUNS} runs par niveau, ${CAMPAGNES} campagne(s) de ${RUNS_CAMPAGNE} runs, ${MATCHS} matchs par bras et par moment)`);
+  /*
+   * 4. LA FORCE DES CARTES SELON LE MOMENT (S80) n'est plus mesurée. Elle jouait le même gros match au jour 3, au jour
+   * 75 et en finale avec trois bras : des améliorations (« Le tir affûté », « Le mur »), des cartes de trio du deck
+   * (« Les gâchettes »…) et des cartes sur l'adversaire (« Les provoquer »…), et jugeait JP (*les upgrade de trio
+   * aident au début, mais les downgrade upgrade sont plus forts late game*) : une carte sur l'adversaire vaut deux fois
+   * plus en finale qu'au jour 3, et y bat une carte de trio. Les améliorations qui grandissent sont parties à la V10
+   * (`MUTATIONS` n'en a plus aucune de `source: 'amelioration'` : le bras appliquait une modif qui n'existe plus) ; les
+   * deux autres bras se jouaient de la MAIN du duel, partie à la V13-2 (`simulerGrosMatch` d'une équipe `courbe` ne lit
+   * plus ses `cartes`). Les trois rendaient zéro à chaque moment : rien, dans le duel du Rogue, ne grandit plus avec le
+   * soir. L'échelle elle-même reste jugée plus haut (1.), sur `echelleTardive`, `grandirEffet` et `effetsDesCartes`.
+   */
+  informer('le temps', `${((Date.now() - t0) / 1000).toFixed(0)} s (${RUNS} runs par niveau, ${CAMPAGNES} campagne(s) de ${RUNS_CAMPAGNE} runs, ${SAISONS_MAIN} saisons pour le duel joué)`);
   verdict();
 }

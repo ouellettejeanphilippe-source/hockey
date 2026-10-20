@@ -1,5 +1,8 @@
 /**
- * LE DECK DE MATCH (S74) — des cartes qu'on JOUE, pas qu'on subit.
+ * LES CARTES DE MATCH (S74) — depuis la V13-2 (docs/refonte-v13.md), celles de l'ADVERSAIRE seulement : ta main est
+ * partie avec la main du duel, qui se jouait presque aussi bien par l'adjoint, sans rien lire. Un gros match qui n'est
+ * pas un duel (le 82-0) garde la main de l'adversaire, son plan et son dépistage. Ce qui suit dit d'où elles viennent.
+ *
  *
  * JP : *prends vraiment inspiration d'un jeu de deckbuilder avec choix et
  * cartes d'effets et autres, mais avec un simulateur de hockey en plus, et
@@ -32,16 +35,10 @@
  * malédictions) ; la main d'un match se tire de la graine et du match ; les
  * récompenses offertes aussi. Une partie reprise retrouve les mêmes mains.
  */
-import { CAHIER, DEPART_DU_CAHIER } from './cahier.js';
 import { hache, SENS_DES_CANAUX } from './util.js';
 import { CARTES_MATCH_VIE } from './cartes-vie.js';
 
 export const ENERGIE_MAIN = 3;
-export const TAILLE_MAIN = 5;
-/* Les cicatrices (le doute, une blessure qui traîne) qu'un deck porte au plus, en même temps (1.0). */
-export const CICATRICES_MAX = 2;
-/* Une blessure de ce nombre de matchs et plus laisse une cicatrice au deck (« Une blessure qui traîne »). */
-export const BLESSURE_TRAINEE = 15;
 
 /*
  * Les cartes. `cout` en énergie ; `effet` : les canaux de CE match pour ta
@@ -215,56 +212,19 @@ export const CARTES_MATCH = {
    */
 
   ...CARTES_MATCH_VIE,
-  // Le cahier neuf (V10, tranche 2 — js/cahier.js) : les cartes d'un moment.
-  ...CAHIER,
-  // ---- malédictions ----
-  distraction: { nom: 'La distraction', ico: '📰', cout: 1, rarete: 'maudite', genre: 'malediction', maudite: true,
-    texte: 'Le proprio fait les manchettes.', regle: 'Elle encombre ta main : la jouer coûte 1 élan et ne fait rien.' },
-  doute: { nom: 'Le doute', ico: '🌧', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
-    texte: 'La défaite contre ta bête noire te trotte dans la tête.', enMain: { finition: 0.97 } },
-  trainee: { nom: 'Une blessure qui traîne', ico: '🩹', cout: 0, rarete: 'maudite', genre: 'malediction', maudite: true, injouable: true,
-    texte: 'Il joue quand même, mais il boite.', enMain: { energie: 1.05 } },
 };
 
-/*
- * LES CARTES AMÉLIORÉES (S74) — les « + » de Slay the Spire. Chaque carte a sa
- * version améliorée, DÉRIVÉE, jamais écrite à la main : une carte chère
- * (deux et plus), une carte qui lit la formation ou qui défait leur plan
- * coûte une énergie de moins ; les autres font moitié plus (chaque canal
- * s'éloigne de moitié plus de 1 : lancers +6 % devient +9 %), piochent une
- * carte de plus, rendent dix d'énergie de plus, ou gagnent leur pari plus
- * souvent. Une malédiction ne s'améliore pas. La clé est celle de la carte
- * suivie de « + » : partout où une carte se lit, sa version se lit pareil.
- */
-export const estPlus = cle => String(cle).endsWith('+');
-export const carteDeBase = cle => String(cle).replace(/\+$/, '');
-/*
- * LE SENS D'UN CANAL (1.0, J1-G) : ce qui est bon quand ça monte (finition,
- * volume, robustesse) et ce qui est bon quand ça baisse (défensive, énergie,
- * discipline, blessure). Une carte « + » n'amplifie que dans le BON sens,
- * jamais son inconvénient (« Tirer de partout+ » garde précision −3 %, pas
- * −4,5 %) ; sur l'adversaire (`adv`), le bon sens est l'inverse. Les minutes
- * des lignes (F, D) restent telles quelles.
- */
+/* Les canaux qu'une carte touche (1.0, J1-G) : ce qui est bon quand ça monte, et quand ça baisse (js/util.js). */
 const SENS = SENS_DES_CANAUX;
-const plusDe = (v, k = null, cote = 1) => {
-  if (typeof v !== 'number') return v;
-  const s = k ? SENS[k] : null;
-  if (s && Math.sign(v - 1) !== s * cote) return v;
-  return 1 + (v - 1) * 1.5;
-};
-const canauxPlus = (e, cote = 1) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, plusDe(v, k, cote)])) : e);
 /*
  * DES CARTES DE MATCH PLUS FRANCHES (JP, 13 oct. : *les cartes de matchs, plus gros effet*). Une carte ne joue qu'un
  * soir : à ±6 %, on ne la voyait pas dans la feuille. Chaque écart au 1 de ses canaux (et des minutes des lignes) est
- * multiplié par `FRANCHISE_MATCH`, son prix compris, AVANT que sa version « + » en soit tirée ; un canal ne descend
+ * multiplié par `FRANCHISE_MATCH`, son prix compris ; un canal ne descend
  * jamais sous `PLANCHER_MATCH`. La face lit ces chiffres-là : ce sont eux que le moteur joue. La main ADVERSE, elle,
  * joue à l'échelle d'avant (js/sim.js, `poserGros`) : elle est calibrée, la difficulté ne bouge pas.
  */
 export const FRANCHISE_MATCH = 1.8;
 const PLANCHER_MATCH = 0.4;
-/* Un canal d'une carte sur un joueur (V11) ne descend pas sous lui, même amélioré : jamais un multiplicateur négatif. */
-const PLANCHER_JOUEUR = 0.1;
 const CHAMPS_DE_CANAUX = ['effet', 'adv', 'improvise', 'piege', 'siVide'];
 const plusFranche = v => Math.max(PLANCHER_MATCH, Math.round((1 + (v - 1) * FRANCHISE_MATCH) * 1000) / 1000);
 const rendreFranche = e => {
@@ -279,177 +239,11 @@ for (const C of Object.values(CARTES_MATCH)) {
   for (const k of ['parGenre', 'selonLeurMain']) if (C[k]) rendreFranche(C[k].effet);
   if (C.pari) { rendreFranche(C.pari.gagne); rendreFranche(C.pari.perd); }
 }
-for (const [cle, C] of Object.entries(CARTES_MATCH)) {
-  if (C.maudite) continue;
-  const moinsCher = C.cout >= 2 || C.synergie || C.lire || C.annule || C.revele || C.planB || C.rabais;
-  const P = { ...C, nom: `${C.nom}+`, plus: true };
-  if (moinsCher && C.cout > 0) P.cout = C.cout - 1;
-  else {
-    if (C.effet) P.effet = canauxPlus(C.effet);
-    if (C.adv) P.adv = canauxPlus(C.adv, -1);
-    // V11 : une carte sur un joueur grandit chez lui (ses chiffres, déjà francs, ne passent pas par `FRANCHISE_MATCH`).
-    if (C.joueur) P.joueur = Object.fromEntries(Object.entries(canauxPlus(C.joueur)).map(([k, v]) => [k, typeof v === 'number' ? Math.max(PLANCHER_JOUEUR, Math.round(v * 1000) / 1000) : v]));
-    if (C.apres40) P.apres40 = { siMene: canauxPlus(C.apres40.siMene), sinon: canauxPlus(C.apres40.sinon) };
-    if (C.pioche) P.pioche = C.pioche + 1;
-    if (C.energieTous) P.energieTous = C.energieTous + 10;
-    // Une face de plus au dé (V2.2, un seul dé) : « sur 4, 5 ou 6 » devient « sur 3, 4, 5 ou 6 ».
-    if (C.pari) P.pari = { ...C.pari, chance: Math.min(5 / 6, C.pari.chance + 1 / 6) };
-    if (C.energiePlus && !C.effet) P.energiePlus = C.energiePlus + 1;
-    // S76 : les mécaniques neuves s'améliorent comme les autres — moitié plus.
-    if (C.ecarte) P.ecarte = C.ecarte + 1;
-    if (C.improvise) P.improvise = canauxPlus(C.improvise);
-    if (C.piege) P.piege = canauxPlus(C.piege);
-    if (C.siVide) P.siVide = canauxPlus(C.siVide);
-    if (C.parGenre) P.parGenre = { ...C.parGenre, effet: canauxPlus(C.parGenre.effet) };
-    if (C.selonLeurMain) P.selonLeurMain = { ...C.selonLeurMain, effet: canauxPlus(C.selonLeurMain.effet) };
-  }
-  const quoi = P.cout < C.cout ? 'un élan de moins' : C.pioche ? 'une carte de plus'
-    : C.energieTous ? 'dix de jambes de plus' : C.pari ? 'le pari rentre plus souvent' : C.ecarte ? 'écarte un plan de plus' : 'moitié plus forte';
-  P.texte = `${C.texte} — Améliorée : ${quoi}.`;
-  CARTES_MATCH[`${cle}+`] = P;
-}
 /*
- * LA MAIN DE L'ADVERSAIRE (V10, tranche 6). L'ancien deck est parti ; restent, à part du cahier, les cartes que pige
- * l'adversaire d'un gros match (`POOL_ADVERSE`) — sa main est calibrée (`check_gros`, `check_robot`), et le cahier
- * neuf attend les moments de TON duel. Elles ne s'offrent jamais à toi : ni récompense, ni pack, ni banque.
+ * LA MAIN DE L'ADVERSAIRE (V10, tranche 6). Les cartes que pige l'adversaire d'un gros match (`POOL_ADVERSE`) — sa
+ * main est calibrée (`check_gros`, `check_robot`). Elles ne s'offrent jamais à toi : ni récompense, ni pack, ni banque.
  */
-for (const [cle, C] of Object.entries(CARTES_MATCH)) if (!C.maudite && !CAHIER[carteDeBase(cle)]) C.adverse = true;
-
-/* Le deck de départ (V10) : une réponse neutre par intention, deux coups de 3e, trois cartes de tous les soirs (js/cahier.js). */
-export const DECK_DEPART = DEPART_DU_CAHIER;
-/*
- * LE CAHIER BORNÉ (V9, tranche 5b — docs/refonte-v9.md § 6.4) : tes cartes de match, `CAHIER_MAX` au plus. Au-delà,
- * une carte du départ cède sa place (la plus répétée, puis la dernière du départ), puis la plus ancienne gagnée ; une
- * malédiction ne cède jamais.
- */
-export const CAHIER_MAX = 20;
-
-/*
- * LE DECK À UN MOMENT DE LA SAISON : le départ, plus les récompenses, moins
- * les retraits, plus les malédictions. `avant` borne les décisions de saison
- * (celles prises avant ce jour-là) ; `serie` ajoute les récompenses de séries
- * gagnées avant la ronde `ronde`.
- */
-/*
- * Les cartes de match d'un pack acheté (`achat.cartes`, des ids `match:cle`), moins celles revendues à l'ouverture.
- * Un pack mixte (Jalon P2) est un achat de joueurs qui porte aussi ses cartes ; ses cartes revendues sont
- * `cartesVendues` (`vendus`, chez lui, ce sont les joueurs).
- */
-const cartesDeMatchDuPack = d => {
-  const a = d && d.achat;
-  if (!a || !Array.isArray(a.cartes)) return [];
-  const vendus = (a.sorte === 'cartes' ? a.vendus : a.cartesVendues) || [];
-  return a.cartes.filter((id, t) => typeof id === 'string' && id.startsWith('match:') && !vendus.includes(t)).map(id => id.slice(6)).filter(k => CARTES_MATCH[k]);
-};
-/*
- * LA CARTE SIGNATURE (Jalon P5). JP : *mettre l'accent sur la collection des joueurs avec certaines cartes d'effets
- * avec les joueurs*. Un joueur habillé dont la carte est Holo ou Or apporte au deck une carte de match qui existe
- * déjà, celle de son premier rôle (un sniper : « Le tir des poignets ») — tant qu'il est habillé : blessé, rayé ou
- * parti, sa carte quitte le deck. Aucune carte neuve : chacune est déjà mesurée en paires (check_cartes).
- */
-// V10 (tranche 6) : la signature est une carte du cahier neuf, et elle attend son moment comme les autres.
-const SIGNATURE_DU_ROLE = {
-  sniper: 'lucarne', power: 'dansLeTas', passeur: 'surReception', manieur: 'vedetteSeLibere', offensif: 'lancerAuFilet', energie: 'presencesEclair',
-  checker: 'doubleEchec', deuxsens: 'patience', defensif: 'leMur', physique: 'coudesSerres', bagarreur: 'autreJoue',
-  mur: 'serrerLesRangs', acrobate: 'serrerLesRangs', constant: 'serrerLesRangs', fer: 'serrerLesRangs',
-};
-const VARIANTES_SIGNEES = new Set(['rare', 'legendaire']);
-/* Les cartes signature de ces joueurs habillés ; `badges(p)` : ses badges (js/sim.js `badgesDe`), le premier décide. */
-export const signaturesDe = (joueurs = [], badges = () => []) => joueurs
-  .filter(p => p && p._carte && VARIANTES_SIGNEES.has(p._carte.rar))
-  .map(p => SIGNATURE_DU_ROLE[((badges(p) || [])[0] || {}).cle])
-  .filter(k => k && CARTES_MATCH[k]);
-export function deckDe(decisions = [], { avant = Infinity, serie = [], ronde = Infinity, k = Infinity, pertes = [], blessures = [] } = {}) {
-  // LA SAISON SUIVANTE D'UNE RUN ROGUE (S80) : le deck repart de celui de la fin de la saison d'avant (`deckDeBase`).
-  const base = decisions.find(d => d && Array.isArray(d.deckDeBase));
-  const deck = base ? base.deckDeBase.filter(c => CARTES_MATCH[c]) : DECK_DEPART.slice();
-  const retirer = cle => { const i = deck.lastIndexOf(cle); if (i >= 0) deck.splice(i, 1); };
-  const saison = decisions.filter(d => d && d.jour != null && d.jour < avant).slice().sort((a, b) => a.jour - b.jour);
-  // Les retraits se font APRÈS tous les ajouts : « Le ménage » peut retirer une
-  // malédiction de cicatrice (le doute, une blessure qui traîne), qui s'ajoute
-  // plus bas. Le retrait vise une carte qui est dans le deck à ce moment-là.
-  const retraits = [];
-  for (const d of saison) {
-    // Une carte de match envoyée « Au deck » depuis la poche (une partie d'avant oct.) : elle y entre déjà par son pack, plus bas.
-    if (d.recompense && CARTES_MATCH[d.recompense] && !(d.joue && d.joue.src === 'partie')) deck.push(d.recompense);
-    // LES CARTES DE MATCH D'UN PACK (oct.) : elles vont droit au deck à l'ouverture, jamais dans la poche de la semaine.
-    for (const cle of cartesDeMatchDuPack(d)) deck.push(cle);
-    if (d.retrait && CARTES_MATCH[d.retrait]) retraits.push(d.retrait);
-    // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck devient sa version « + ».
-    if (d.aiguise && CARTES_MATCH[`${d.aiguise}+`]) { const i = deck.indexOf(d.aiguise); if (i >= 0) deck[i] = `${d.aiguise}+`; }
-    // Un objectif raté : le proprio fait les manchettes, et ça te suit.
-    if (typeof d.palier === 'string' && d.palier.startsWith('v:') && d.effet) deck.push('distraction');
-  }
-  // Le butin d'une série gagnée (V5) : une carte, un retrait ou une amélioration, comme celui d'un gros match.
-  for (const d of serie) {
-    if (!d || !(d.ronde < ronde)) continue;
-    if (d.recompense && CARTES_MATCH[d.recompense]) deck.push(d.recompense);
-    if (d.retrait && CARTES_MATCH[d.retrait]) retraits.push(d.retrait);
-    if (d.aiguise && CARTES_MATCH[`${d.aiguise}+`]) { const i = deck.indexOf(d.aiguise); if (i >= 0) deck[i] = `${d.aiguise}+`; }
-  }
-  /*
-   * CE QUE LA SAISON LAISSE (S74) : un gros match perdu contre ta RIVALITÉ
-   * glisse le doute dans ton deck, une blessure de quinze matchs et plus une
-   * blessure qui traîne. Ce sont des résultats du moteur — donc des faits de
-   * la graine et des décisions, comme le reste du deck.
-   */
-  /*
-   * DEUX CICATRICES AU PLUS (1.0, J1-F) : elles s'empilaient sans plafond et
-   * traversaient les saisons d'une run — un deck de dix plus quatre cicatrices
-   * tirait une malédiction dans la plupart des mains. La plus ancienne tombe
-   * au-delà de CICATRICES_MAX, et chaque série gagnée en efface une (la plus
-   * ancienne). Au report d'une run (`deckDeBase`), la saison neuve repart sans.
-   */
-  const cicatrices = [...pertes.filter(j => j < avant).map(j => ({ j, cle: 'doute' })), ...blessures.filter(j => j < avant).map(j => ({ j, cle: 'trainee' }))]
-    .sort((a, b) => a.j - b.j).slice(-CICATRICES_MAX);
-  const effacees = serie.filter(d => d && d.ronde < ronde && d.recompense !== undefined).length;
-  for (const c of cicatrices.slice(Math.min(cicatrices.length, effacees))) deck.push(c.cle);
-  for (const cle of retraits) retirer(cle);
-  while (deck.length > CAHIER_MAX) {
-    const depart = deck.filter(c => DECK_DEPART.includes(c));
-    const fois = c => depart.filter(x => x === c).length;
-    // La plus répétée, puis la dernière du départ : les cartes de tous les soirs cèdent avant les réponses (V10).
-    const cede = depart.sort((a, b) => fois(b) - fois(a) || DECK_DEPART.indexOf(b) - DECK_DEPART.indexOf(a))[0] || deck.find(c => !CARTES_MATCH[c].maudite);
-    if (!cede) break;
-    if (depart.length) retirer(cede); else deck.splice(deck.indexOf(cede), 1);
-  }
-  /*
-   * LES CARTES ÉPUISÉES (S76) : jouées à un match, elles quittent le deck
-   * pour le reste de la course — celles des gros matchs de saison, puis
-   * celles des matchs de séries joués AVANT celui-ci (ronde, puis match).
-   */
-  const joueesAvant = [
-    ...saison.filter(d => d.main && Array.isArray(d.main.jouees)).flatMap(d => d.main.jouees),
-    ...serie.filter(d => d && d.main && Array.isArray(d.main.jouees) && (d.ronde < ronde || (d.ronde === ronde && d.match_no < k))).flatMap(d => d.main.jouees),
-  ];
-  for (const c of joueesAvant) if (CARTES_MATCH[c] && CARTES_MATCH[c].epuise) retirer(c);
-  return deck;
-}
-
-/* La main d'un match : le deck battu par la graine et le match, cinq cartes, et la pioche dans l'ordre. */
-export function mainDuMatch(graine, cle, deck, n = TAILLE_MAIN) {
-  const ordre = deck.map((c, i) => [c, hache(graine, 'main', cle, i, c)]).sort((a, b) => a[1] - b[1]).map(([c]) => c);
-  return { main: ordre.slice(0, n), pioche: ordre.slice(n) };
-}
-
-/*
- * LES RÉCOMPENSES : trois cartes différentes, jamais une malédiction ni une
- * carte du départ. Après un gros match, surtout des communes ; après une
- * série gagnée, des peu communes et des rares.
- */
-export function recompensesOffertes(graine, cle, { serie = false } = {}) {
-  const poids = serie ? { commune: 0, peu: 50, rare: 42, legendaire: 8 } : { commune: 60, peu: 30, rare: 10, legendaire: 0 };
-  const pool = Object.keys(CARTES_MATCH).filter(k => !estPlus(k) && !CARTES_MATCH[k].maudite && !CARTES_MATCH[k].adverse && !DECK_DEPART.includes(k) && poids[CARTES_MATCH[k].rarete] > 0);
-  const out = [];
-  for (let t = 0; out.length < 3 && t < 40; t++) {
-    const r = hache(graine, 'recompense', cle, t) * 100;
-    const rarete = r < poids.commune ? 'commune' : r < poids.commune + poids.peu ? 'peu' : r < poids.commune + poids.peu + poids.rare ? 'rare' : 'legendaire';
-    const choix = pool.filter(k => CARTES_MATCH[k].rarete === rarete && !out.includes(k));
-    if (!choix.length) continue;
-    out.push(choix[Math.floor(hache(graine, 'recompense-carte', cle, t) * choix.length)]);
-  }
-  return out;
-}
+for (const C of Object.values(CARTES_MATCH)) C.adverse = true;
 
 /*
  * LA MAIN DE L'ADVERSAIRE (S74). JP : *les adversaires aussi ont des bonus,
@@ -465,14 +259,11 @@ export function recompensesOffertes(graine, cle, { serie = false } = {}) {
 const POIDS_ADVERSE = { commune: 3, peu: 2, rare: 1, legendaire: 0 };
 const POOL_ADVERSE = Object.keys(CARTES_MATCH).filter(k => {
   const C = CARTES_MATCH[k];
-  if (estPlus(k)) return false;
   // Ni dépistage, ni rabais, ni épuisée (S76) : ce sont des gestes de TA préparation et de TON deck.
   if (C.revele || C.ecarte || C.planB || C.improvise || C.piege || C.rabais || C.epuise || C.siVide) return false;
   // Ni une carte d'origine (1.0) : une vraie équipe est d'un seul club et d'une saison, elle les aurait toutes au maximum.
   if (C.origine) return false;
   if (C.horsAdverse) return false;
-  // Ni une carte du cahier neuf (V10) : elle attend un moment de TON duel.
-  if (CAHIER[k]) return false;
   return !C.maudite && !C.lire && !C.pioche && !C.energiePlus && !C.annule && C.cout > 0 && C.rarete !== 'legendaire'
     && (C.effet || C.adv || C.pari || C.synergie || C.energieTous || C.parGenre || C.selonLeurMain || C.apres40);
 });
@@ -511,7 +302,7 @@ export const OPTIONS_COMBAT = { adverses: true };
  * cartes de défense coûtent 1 de moins). Sans ordre : la carte au rabais
  * peut être jouée avant ou après, comme sur une table.
  */
-export function coutDe(cle, jouees = []) {
+function coutDe(cle, jouees = []) {
   const C = CARTES_MATCH[cle];
   if (!C) return 0;
   const rabais = jouees.some(x => CARTES_MATCH[x] && CARTES_MATCH[x].rabais === C.genre);
@@ -522,28 +313,4 @@ export function energieDepensee(jouees, elan = ENERGIE_MAIN) {
   let e = elan;
   for (const c of jouees) { const C = CARTES_MATCH[c]; if (!C) continue; e -= coutDe(c, jouees); e += C.energiePlus || 0; }
   return e;
-}
-
-/*
- * L'ADJOINT JOUE LA MAIN (1.0, J2-13) : les cartes qui rapportent le plus,
- * tant que l'élan suffit. Il ne joue ni pari, ni pioche, ni carte qui
- * s'épuise : il ne décide pas à ta place de ce qui ne revient pas. Ni une carte
- * hors de son moment (V10, `dansSonMoment`) : elle attend le sien.
- */
-const ecartDe = o => Object.entries(o || {}).reduce((a, [k, v]) => a + (typeof v !== 'number' ? 0 : k === 'energie' ? 1 - v : Math.abs(v - 1)), 0);
-function gainDeCarte(cle) {
-  const C = CARTES_MATCH[cle];
-  if (!C) return 0;
-  return ecartDe(C.effet) + ecartDe(C.adv) + ecartDe(C.siVide) + (ecartDe(C.piege) + ecartDe(C.improvise)) / 2
-    + (C.apres40 ? (ecartDe(C.apres40.siMene) + ecartDe(C.apres40.sinon)) / 2 : 0)
-    + (C.parGenre ? ecartDe(C.parGenre.effet) : 0) + (C.selonLeurMain ? ecartDe(C.selonLeurMain.effet) : 0)
-    + (C.synergie ? 0.04 : 0) + (C.lire || C.annule || C.contre || C.revele || C.planB || C.ecarte ? 0.03 : 0) + (C.energieTous ? 0.03 : 0);
-}
-export function mainDeLAdjoint(main = [], elan = ENERGIE_MAIN, dansSonMoment = () => true) {
-  const ordre = main.map((c, i) => ({ c, i, C: CARTES_MATCH[c], g: gainDeCarte(c) }))
-    .filter(x => x.C && !x.C.injouable && !x.C.pari && !x.C.pioche && !x.C.epuise && x.g > 0 && dansSonMoment(x.c))
-    .sort((a, b) => b.g - a.g || a.i - b.i);
-  const jouees = [], pris = new Set();
-  for (const x of ordre) if (energieDepensee([...jouees, x.c], elan) >= 0) { jouees.push(x.c); pris.add(x.i); }
-  return { jouees, enMain: main.filter((c, i) => !pris.has(i) && CARTES_MATCH[c] && CARTES_MATCH[c].enMain) };
 }

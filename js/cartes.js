@@ -110,19 +110,7 @@ const DESSIN_DE = {
   elan: 'vague', forteresse: 'bouclier', toutOuRien: 'des', riposte: 'fleches', contreAttaque: 'fleches', systemeDef: 'planchette',
   lecture: 'oeil', grandSoir: 'etoile', sacrifice: 'coeur', cartouche: 'impact', pressionHaute: 'fleches', enclaveNette: 'filet',
   tirRebond: 'rondelle', gardienRelance: 'masque', cinqPuissance: 'eclair', tempsArret: 'chrono', coupGenie: 'ampoule',
-  rideauFer: 'mur', feuSacre: 'flamme', nuitMagique: 'lune', distraction: 'journal', doute: 'nuage', trainee: 'croix',
-  // Le cahier neuf (V10, js/cahier.js).
-  changerTrios: 'fleches', coudesSerres: 'impact', tirerDeLoin: 'baton', serrerLesRangs: 'mur', mainsASoi: 'sifflet', tenirLeFort: 'cadenas',
-  dernierEffort: 'eclair', lancerAuFilet: 'rondelle', presencesEclair: 'chrono', motDuCapitaine: 'portevoix',
-  bourdonnement: 'cible', surReception: 'rondelle', pluieDeRondelles: 'vague', fouleQuiPousse: 'micro',
-  lucarne: 'cible', vedetteSeLibere: 'etoile', dernierClou: 'filet', butEnSeries: 'coupe',
-  leMur: 'mur', fermerLesLivres: 'cadenas', patience: 'sablier', chateau: 'bouclier',
-  doubleEchec: 'impact', dansLeTas: 'impact', murDeChair: 'mur', rancune: 'flamme',
-  soigneurAuBanc: 'croix', jambesDeLa3e: 'patin', bainDeGlace: 'vague', oxygene: 'coeur',
-  autreJoue: 'sifflet', chapelet: 'coeur', arbitreAToutVu: 'oeil', messeDeMinuit: 'lune',
-  quatriemeTrio: 'cle', plombiersEn3e: 'cle', toutLeMonde: 'chandail', usine: 'tableau',
-  vedettesEnAvant: 'etoile', remontee: 'fleches', uneDuJournal: 'journal', grandSoirV10: 'couronne',
-  quitteOuDouble: 'des', placement: 'des',
+  rideauFer: 'mur', feuSacre: 'flamme', nuitMagique: 'lune',
 };
 /* Les catégories de la banque qui ont leur costume (js/banque.js `CATEGORIES`). */
 const FAMILLES = ['patron', 'joueur', 'consommable', 'plafond'];
@@ -497,7 +485,7 @@ export function cartonHtml(c) {
  * et il LUIT de la couleur de la meilleure carte qu'il contient avant qu'on
  * l'ouvre (argent pour une rare, or pour une légendaire), comme la lumière
  * d'une ouverture de paquet dans les jeux de sport : la tension avant le
- * contenu. Le contenu, lui, est déjà décidé (`recompensesOffertes`) : ce n'est
+ * contenu. Le contenu, lui, est déjà décidé (la graine) : ce n'est
  * que la façon de le montrer.
  */
 export function paquetHtml({ n = 3, meilleure = 'commune', serie = 'Récompense' } = {}) {

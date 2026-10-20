@@ -881,7 +881,7 @@ input[type="range"] { accent-color: var(--or); }
 .section-label:first-child { margin-top: 0; }
 /* RIEN ICI (Jalon U : un seul dessin) : une phrase centrée, en gris, dans la liste vide ; la petite dans un volet serré. */
 .empty-msg, .eq-vide, .live-vide, .inv-vide, .ct-vide, .exh-vide { margin: 0; text-align: center; color: var(--encre-3); font-size: var(--t-2); padding: var(--esp-6) var(--esp-4); line-height: 1.6; }
-.empty-msg.small, .ej-vide, .som-vide, .main-vide, .ct-charge { margin: 0; text-align: center; color: var(--encre-3); padding: var(--esp-3) var(--esp-1); font-size: var(--t-1); line-height: 1.5; }
+.empty-msg.small, .ej-vide, .som-vide, .ct-charge { margin: 0; text-align: center; color: var(--encre-3); padding: var(--esp-3) var(--esp-1); font-size: var(--t-1); line-height: 1.5; }
 .note { font-size: var(--t-2); color: var(--encre-2); line-height: 1.5; }
 
 /* ---- Les tableaux : des bandes, des chiffres tabulaires, ta rangée en couleur de club ---- */
@@ -3106,7 +3106,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-actions-rang { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions-rang:empty { display: none; }
 .hub-actions-rang .btn { flex: 1 1 120px; min-width: 0; padding: 0 var(--esp-2); font-size: var(--t-3); }
-.hub-deck { white-space: normal; }
 /* Le tournoi Sur table : le niveau de l'adversaire, une rangée à lui sous les boutons. */
 .hub-niveau { flex: 1 1 100%; display: flex; align-items: center; justify-content: center; gap: var(--esp-2); }
 .hub-niveau-t { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
@@ -3343,7 +3342,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
   .hp-l.toi b { color: var(--or); }
   .hp-l.prix b { color: var(--mauvais); }
   .hp-n { flex: none; min-width: 2.2em; color: var(--encre-3); font-variant-numeric: tabular-nums; }
-  .hub-deck .hp-t + .hp-l b { font-size: var(--t-5); line-height: 1; }
 }
 
 /* ---- Les tableaux du bureau : des bandes de 40 px, le titre en or, ta rangée à la couleur du club ---- */
@@ -3953,10 +3951,10 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .choix-option-visage:has(> svg) { background: transparent; }
 
 /* ---- La carte de match (.tc) : le métal de sa rareté, une bannière de son genre, la gemme du coût, le dessin au trait ---- */
-:is(.tc, .deck-mini, .main-adverse-carte).tc-commune { --tc-bord: var(--filet); }
-:is(.tc, .deck-mini, .main-adverse-carte).tc-peu { --tc-bord: var(--bleu); }
-:is(.tc, .deck-mini, .main-adverse-carte).tc-rare { --tc-bord: var(--choisi); }
-:is(.tc, .deck-mini, .main-adverse-carte).tc-legendaire { --tc-bord: var(--or); }
+:is(.tc, .main-adverse-carte).tc-commune { --tc-bord: var(--filet); }
+:is(.tc, .main-adverse-carte).tc-peu { --tc-bord: var(--bleu); }
+:is(.tc, .main-adverse-carte).tc-rare { --tc-bord: var(--choisi); }
+:is(.tc, .main-adverse-carte).tc-legendaire { --tc-bord: var(--or); }
 /* Le genre : une couleur et son encre, dérivées des jetons ; sans genre (un événement, une modif, une identité), l'or. */
 .tc {
   --tc-genre: var(--or); --tc-genre-encre: var(--encre-sur-or);
@@ -4205,7 +4203,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 /* LE DUEL (V9) : leur intention, ce qui y répond, tes gestes, la mise doublée. */
 .duel-intention { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-left: 3px solid var(--mauvais); }
 .duel-fait { margin: 0; font: 800 var(--t-4)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre); }
-.duel-pourquoi, .duel-cartes { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
+.duel-pourquoi { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
 /*
  * TON TABLEAU (V13-1, à la EHM) : le verdict de leur intention, tes gestes d'échange, une rangée par unité (son système
  * en menu), la consigne ; ce qui a changé contre tes Lignes s'allume, et son prix suit en vraies stats.
@@ -4235,32 +4233,14 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 @media (min-width: 700px) { .duel-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .duel-snap { align-self: flex-start; }
 .btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
-.choix-option.tc.main-carte.repond { box-shadow: 0 0 0 2px var(--bon), var(--relief); }
 .duel-avant { font-size: var(--t-2); line-height: 1.35; color: var(--encre); }
 .duel-avant small { color: var(--encre-2); }
-/* L'élan : trois orbes, pleins en or. */
-.main-energie { display: flex; align-items: center; gap: var(--esp-3); font: 800 var(--t-4)/1 var(--display); }
-.main-orbes { display: inline-flex; gap: 6px; }
-.main-orbe { width: 20px; height: 20px; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--or) 45%, transparent); background: transparent; transition: background var(--t-vite); }
-.main-orbe.plein { background: var(--or); border-color: var(--or); }
-.main-pioche { margin-left: auto; font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-2); }
-/* Une carte jouée descend et s'efface ; une trop chère ou injouable se grise. */
-.choix-option.tc.main-carte.jouee { opacity: 0.35; transform: translateY(10px) scale(0.96); pointer-events: none; }
-.choix-option.tc.main-carte.jouee::before { content: "✓ JOUÉE"; position: absolute; z-index: 3; top: 42%; left: 50%; transform: translate(-50%, -50%) rotate(-8deg); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--noir); color: var(--encre); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.08em; }
-.choix-option.tc.main-carte:is(.trop-cher, .injouable) { opacity: 0.5; cursor: not-allowed; }
-.choix-option.tc.main-carte:is(.trop-cher, .injouable):hover { transform: none; }
 /* Dans la main, l'effet chiffré passe avant l'ambiance : à 1440 × 900, les puces restent au-dessus des boutons (le smoke le mesure). */
 .main-sheet .choix-option.tc .tc-puces { order: 1; }
 .main-sheet .choix-option.tc .tc-texte { order: 2; }
 .main-sheet .choix-option.tc .choix-option-non { order: 3; }
 .main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.main-apercu { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); }
-/* Le duel (E6) : avant la première carte, l'aperçu tient en une ligne ; la carte touchée dit d'elle-même qu'elle se joue. */
-.main-sheet .main-apercu .main-vide { display: none; }
-.main-sheet .main-apercu { gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); }
 .main-sheet .choix-corps { gap: var(--esp-3); }
-.main-jouees { display: flex; flex-wrap: wrap; gap: var(--esp-2) var(--esp-3); }
-.main-jouee { padding-left: var(--esp-2); border-left: 2px solid var(--or); font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 /* Seul « Jouer » reste collé en bas de la main, en or ; les outils suivent le contenu. */
 .main-boutons { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
 .main-sheet .main-boutons { position: sticky; bottom: 0; z-index: 3; padding: var(--esp-2) 0 var(--esp-1); background: var(--noir); }
@@ -4270,10 +4250,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .main-outils { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
 .main-outils .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); }
 /* Mon deck : une ligne par carte, le coût dans un rond d'or, la rareté au flanc ; une maudite, au flanc rouge. */
-.deck-grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: var(--esp-2); }
-.deck-mini { display: flex; align-items: center; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); border-left: 3px solid var(--tc-bord); font-size: var(--t-2); }
-.deck-mini b { flex: none; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--or); color: var(--encre-sur-or); font: 800 var(--t-1)/1 var(--display); }
-.deck-mini.maudite { --tc-bord: var(--live); }
 /* Leur main : les intentions de l'adversaire, sous son plan. */
 .main-adverse { display: flex; flex-direction: column; gap: var(--esp-2); margin-top: var(--esp-2); }
 .main-adverse-cartes { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: var(--esp-2); }
@@ -4782,19 +4758,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .album-tete > span { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0 var(--esp-3); border-left: 1px solid var(--filet); }
 .album-tete > span:first-child { padding-left: 0; border-left: 0; }
 .album-tete b { color: var(--encre); font: 800 var(--t-5)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.album-barre { height: 4px; border-radius: var(--r-1); background: var(--fond-3); overflow: hidden; }
-.album-barre i { display: block; height: 100%; background: var(--or); }
 .album-note { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.album-cartes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--esp-3); }
-/* Une carte pas encore eue : sa silhouette et sa rareté, pour savoir ce qu'on cherche. */
-.album-trou {
-  display: grid; place-items: center; align-content: center; gap: var(--esp-1); min-height: 200px; border-radius: var(--r-2);
-  border: 1px dashed color-mix(in srgb, var(--tc-bord, var(--encre-3)) 60%, transparent);
-  background: color-mix(in srgb, var(--tc-bord, var(--encre-3)) 7%, var(--fond-1));
-  color: color-mix(in srgb, var(--tc-bord, var(--encre-3)) 80%, var(--encre-3));
-}
-.album-trou b { font: 800 var(--t-6)/1 var(--display); }
-.album-trou small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; }
 .album-ids { display: flex; flex-wrap: wrap; gap: var(--esp-2) 0; }
 .album-id { padding: 0 var(--esp-3); border-left: 1px solid var(--filet); font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.03em; color: var(--encre-3); }
 .album-id:first-child { padding-left: 0; border-left: 0; }

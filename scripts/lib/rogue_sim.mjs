@@ -53,7 +53,6 @@ import {
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
 } from '../../js/sim.js';
-import { DECK_DEPART } from '../../js/combat.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot } from './cartes_robot.mjs';
 import { patronsDeDepart, payloadDe } from '../../js/banque.js';
@@ -326,14 +325,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: auHasard(['hourra', ...SYSTEMES_DU_PLAN.F]), tacD: auHasard(['hourra', ...SYSTEMES_DU_PLAN.D]) })) });
   /*
    * LE DUEL (V9, tranche 5, scripts/lib/duel.mjs) : l'attentif lit chaque intention et y répond ; le distrait clique au
-   * hasard ; le robot d'avant laisse l'adjoint jouer ses mains en séries, et rien aux gros matchs de saison, comme avant.
-   * `mains: false`, aucun : ni geste ni carte.
+   * hasard ; le robot d'avant ne répond à rien. Sans main depuis la V13-2. `mains: false`, aucun : ni geste ni tableau.
    */
-  if (mains) {
-    const r = robotDuel(attentif ? 'attentif' : clic ? 'distrait' : 'adjoint', clic || undefined);
-    you.robotDuel = attentif || clic ? r : ctx => (ctx.serie ? r(ctx) : {});
-    you.deckDuel = DECK_DEPART;
-  }
+  if (mains && (attentif || clic)) you.robotDuel = robotDuel(attentif ? 'attentif' : 'distrait', clic || undefined);
   const L = creerLigue([you, ...opps], 82, { graine: `rogue80:${graine}:${saison}`, decisions, courbe: true });
   const dansLaLigue = new Set();
   for (const t of L.teams) for (const p of Object.values(t.roster)) if (p) dansLaLigue.add(getPersonKey(p));
@@ -604,7 +598,7 @@ export function classeurSynthetique(meta, nRuns, graine = 'classeur') {
 export const ORDRE_DEBLOCAGES = [
   'caisse1', 'commanditaire1', 'classeur1', 'plafond1', 'garder1', 'banc1', 'plombiersPlus', 'classeurTri', 'classeur2', 'commanditaire2', 'caisse2',
   'packGardiens', 'packDefenseurs', 'plafond2', 'garder2', 'classeur3', 'packVedettes', 'banc2', 'classeurChoix',
-  'deckPlus', 'dgFlexible', 'packAnnees80', 'garder3',
+  'dgFlexible', 'packAnnees80', 'garder3',
   // V10 : les crans des packs qu'il achète, le premier de chacun, puis les seconds.
   'monte_epoque_1', 'monte_bronze_1', 'monte_argent_1', 'monte_specialistes_1', 'monte_or_1', 'monte_epoque_2', 'monte_argent_2', 'monte_specialistes_2', 'monte_or_2',
 ].filter(k => DEBLOCAGES[k]);

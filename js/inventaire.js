@@ -5,7 +5,7 @@
  * de façon permanente, et les consommables (certaines permanentes dans
  * l'inventaire, d'autres bonnes pour une saison seulement)*.
  *
- * TROIS RANGS, et chacun dit la vie de ses cartes :
+ * DEUX RANGS, et chacun dit la vie de ses cartes :
  *   TES PLACES    (V9) ce que les packs et les paliers de la partie ont donné
  *                 et qu'on n'a pas encore joué — un style, un consommable,
  *                 un contrat —, `PLACES` au plus. Elles se DÉDUISENT des
@@ -14,7 +14,6 @@
  *   PERMANENT     (mode Rogue) le personnel qu'on possède — on l'engage à
  *                 chaque run — et les consommables permanents, gardés d'une
  *                 run à l'autre dans le méta (\`cap82_rogue\`, js/rogue.js).
- *   LE DECK       le deck de match de la partie (js/combat.js \`deckDe\`).
  * Et le CLASSEUR : toute la banque, possédée ou non, par famille et rareté.
  *
  * Jouer une carte est une DÉCISION (js/banque.js \`payloadDe\`) : le contrôleur
@@ -24,7 +23,7 @@ import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, MOMENTS, reglesDe, carteBan
 import { COACHS } from './coachs.js';
 import { tirerCartesPack, sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
-import { puces, optionDeCarteMatch, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
+import { puces, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
 import { esc, money as M, jaugePlafond } from './util.js';
 
 const $ = id => document.getElementById(id);
@@ -33,15 +32,15 @@ const $ = id => document.getElementById(id);
  * LES PLACES (V9, tranche 5b — docs/refonte-v9.md § 6.4). La poche, la main de la semaine et sa limite de deux cartes
  * par semaine sont parties. Ce qui se joue hors du combat tient dans `PLACES` places, comme les potions de Slay the
  * Spire : une carte de pack (un consommable, une modif à poser, un contrat) va droit à une place et se joue quand on
- * veut, sans limite. Le personnel (le coach, les patrons) a ses postes ; les cartes de match, le cahier (le deck) ; les
- * événements, des gestes du DG, sont devenus les routes de la semaine (js/noeuds.js). Plus de cartes que de places :
+ * veut, sans limite. Le personnel (le coach, les patrons) a ses postes ; les cartes de match sont parties avec la main
+ * du duel (V13-2) ; les événements, des gestes du DG, sont devenus les routes de la semaine (js/noeuds.js). Plus de cartes que de places :
  * À faire demande laquelle vendre (js/saison.js), et la journée attend.
  */
 export const PLACES = 3;
 export const SEMAINE = 7;
 /*
  * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, une carte parmi trois, pour une place.
- * Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni carte de match, ni personnel, ni
+ * Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni personnel, ni
  * permanent : ce qui se joue d'une place (et aucun pack ne donne plus d'événement). Pur : la graine et le palier.
  */
 export const PALIERS_PACK = [9, 18, 26];
@@ -49,7 +48,7 @@ const CARTES_DU_PALIER = 3;
 export function cartesDuPalier(graine, p) {
   const out = [];
   for (let k = 0; out.length < CARTES_DU_PALIER && k < 12; k++) {
-    for (const id of tirerCartesPack('mixte', graine, `palier${p}${k ? `:${k}` : ''}`, { sans: ['match', 'patron'] })) {
+    for (const id of tirerCartesPack('mixte', graine, `palier${p}${k ? `:${k}` : ''}`, { sans: ['patron'] })) {
       if (out.length < CARTES_DU_PALIER && BANQUE[id] && BANQUE[id].vie !== 'permanent' && !out.includes(id)) out.push(id);
     }
   }
@@ -68,8 +67,6 @@ export function placesDeLaPartie({ decisions = [], rogue = false } = {}) {
   for (const d of achats) d.achat.cartes.forEach((id, t) => {
     if (!BANQUE[id]) return;
     if (rogue && BANQUE[id].vie === 'permanent') return;
-    // Une carte de match va droit au cahier à l'ouverture (`deckDe`, js/combat.js) ; un patron, au personnel.
-    if (BANQUE[id].cat === 'match') return;
     if (((d.achat.sorte === 'cartes' ? d.achat.vendus : d.achat.cartesVendues) || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
@@ -77,8 +74,10 @@ export function placesDeLaPartie({ decisions = [], rogue = false } = {}) {
   for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
   // S80 : une amélioration ou une retouche de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
-  // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`).
-  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string') items.push({ ref: d.palier, id: d.place, source: d.palier.startsWith('v:') ? 'Le proprio' : d.palier.startsWith('trou:') ? 'La case vide' : `Le ${d.palier.slice(3)}e match` });
+  // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`) ;
+  // V13-2 : ou au butin d'un gros match gagné (`r:<jour>`).
+  const sourceDe = k => (k.startsWith('v:') ? 'Le proprio' : k.startsWith('trou:') ? 'La case vide' : k.startsWith('r:') ? 'Un gros match gagné' : `Le ${k.slice(3)}e match`);
+  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string') items.push({ ref: d.palier, id: d.place, source: sourceDe(d.palier) });
   const parties = new Set();
   for (const d of decisions) {
     if (d && d.joue && d.joue.src === 'partie') parties.add(d.joue.ref);
@@ -101,7 +100,6 @@ export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'co
 /* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa couleur, sa règle. */
 export function optionDeBanque(id, vie = null) {
   const c = BANQUE[id];
-  if (c.cat === 'match') return optionDeCarteMatch(c.cle);
   const etiquette = etiquetteBanque(id);
   return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
     type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
@@ -112,7 +110,7 @@ export function optionDeBanque(id, vie = null) {
  * bouton : ce que « Jouer » va te demander, ou que rien ne sera demandé.
  */
 const CIBLES = { joueur: '👤 Sur un joueur de ton alignement', blesse: '🚑 Sur un blessé', recrue: '🐣 Sur une recrue de 23 ans ou moins',
-  cartable: '📟 Un joueur de ton cartable entre', coach: '🔁 Change ton coach', malediction: '🗑 Retire une malédiction de ton deck', carteMatch: '🏋 Améliore une carte de ton deck' };
+  cartable: '📟 Un joueur de ton cartable entre', coach: '🔁 Change ton coach' };
 function cibleDe(id) {
   const c = BANQUE[id];
   if (!c) return '';
@@ -133,7 +131,7 @@ let etat = { onglet: null, cat: 'tout', rar: 'tout' };
 /*
  * ctx : { titre, mode ('rogue' | 'saison'), enSaison, jetons, partie: [{ref, id, source}],
  *         meta: [{id, n}],
- *         deck: [cles], possedees: Set(ids), joueursCollection: n,
+ *         possedees: Set(ids), joueursCollection: n,
  *         jouer(item), vendre(item), onFerme() }
  */
 /* LA MASSE SALARIALE (S79) : le plafond effectif, et ce qui le tord — les cartes 💵 jouées, le vestiaire, le DG. En Rogue, chez le proprio (V12-3). */
@@ -147,7 +145,6 @@ export function ouvrirInventaire(ctx) {
   const onglets = [
     ...(ctx.enSaison ? [['partie', ctx.mode === 'rogue' ? 'Tes places' : 'Cette saison', ctx.partie.length]] : []),
     ...(ctx.mode === 'rogue' ? [['permanent', 'Permanent', ctx.meta.reduce((a, x) => a + x.n, 0)]] : []),
-    ...(ctx.enSaison ? [['deck', 'Le deck', ctx.deck.length]] : []),
     ['classeur', 'La banque', `${[...ctx.possedees].filter(sortDUnPack).length}/${Object.keys(BANQUE).filter(sortDUnPack).length}`],
   ];
   if (!etat.onglet || !onglets.some(o => o[0] === etat.onglet)) etat.onglet = onglets[0][0];
@@ -191,11 +188,6 @@ export function ouvrirInventaire(ctx) {
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,
           actions: `<button type="button" class="btn gold inv-jouer-meta" data-id="${esc(x.id)}"${ctx.peutJouer ? '' : ' disabled'}>Jouer</button>` })).join('') || vide('Aucun consommable permanent.')}</div>`;
-    } else if (etat.onglet === 'deck') {
-      const piles = new Map();
-      for (const k of ctx.deck) piles.set(k, (piles.get(k) || 0) + 1);
-      corps = `<p class="inv-mot">Ton deck de match : tu en piges cinq avant chaque gros match et chaque match de séries.</p>
-        <div class="inv-grille">${[...piles.entries()].map(([k, n]) => carteBanqueHtml(`match:${String(k).replace(/\+$/, '')}`, { compte: n })).join('')}</div>`;
     } else {
       // V6 : une carte retirée (elle ne se tire plus) ne se montre qu'à qui l'a déjà.
       const ids = Object.keys(BANQUE).filter(id => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));

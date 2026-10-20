@@ -17,12 +17,11 @@ import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, masseSalarialeHtml, SEMAINE, PLACES } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
-import { ouvrirChoix, optionDeCarteMatch, pucesEnBref, ouvrirAlignement, motDuCoachPlan, sceneHtml, carteDeBanqueHtml } from './gerant.js';
+import { ouvrirChoix, pucesEnBref, ouvrirAlignement, motDuCoachPlan, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, serieDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
-import { deckDe, CARTES_MATCH } from './combat.js';
 import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
@@ -470,7 +469,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
-    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes sont rangées : celles de match au deck, le reste à tes places, à jouer quand tu veux` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes vont à tes places, à jouer quand tu veux` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
@@ -555,8 +554,8 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'À mes places',
     recit: (rogue
-      ? `Le personnel reste d'une run à l'autre, les cartes de match vont droit à ton deck ; le reste va à tes ${PLACES} places, à jouer quand tu veux (une de trop se vend).${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Les cartes de match vont droit à ton deck ; le reste va à tes places.')
+      ? `Le personnel reste d'une run à l'autre ; le reste va à tes ${PLACES} places, à jouer quand tu veux (une de trop se vend).${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      : 'Le personnel va à son poste ; le reste va à tes places.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: optionsDeCartes(tc),
     onChoix: () => {},
@@ -587,7 +586,7 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   const rogue = G.bonus === 'ROGUE';
   const meta = lireMeta();
   const enSaison = !!(Lg && decider && j !== null);
-  const possedees = new Set((meta.cartes || []).map(k => (BANQUE[k] ? k : BANQUE[`match:${k}`] ? `match:${k}` : null)).filter(Boolean));
+  const possedees = new Set((meta.cartes || []).filter(k => BANQUE[k]));
   ouvrirInventaire({
     ...(page || {}),
     titre: 'Tes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
@@ -595,7 +594,6 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
     // V12-3 : une carte qui a sa maison (le coaching, la santé, le plafond) s'y joue (`cartesDeLaMaison`), plus ici ; en place, elle y renvoie.
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0 && !maisonDeLaCarte(x.id)) : [],
     ouSeJoue: rogue ? ouSeJoue : () => null,
-    deck: enSaison ? deckDe(Lg.decisions || []) : [],
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     // En Rogue, la masse salariale est chez le proprio (V12-3), avec les cartes de contrat.
     plafond: rogue ? null : plafondPourInventaire(enSaison ? j : (G.journee || 0)),
@@ -652,7 +650,7 @@ export function cartesAJouer(j) {
   const rogue = G.bonus === 'ROGUE';
   const meta = rogue ? lireMeta() : null;
   return placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue }).length
-    + (meta ? Object.values(meta.inventaire || {}).reduce((a, n) => a + n, 0) : 0);
+    + (meta ? Object.entries(meta.inventaire || {}).reduce((a, [id, n]) => a + (BANQUE[id] ? n : 0), 0) : 0);
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
@@ -722,16 +720,6 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
           .sort((a, b) => jambes(a.p) - jambes(b.p));
       }
       listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id));
-      return;
-    }
-    if (C.cible === 'malediction' || C.cible === 'carteMatch') {
-      const deck = deckDe(Lg.decisions || []);
-      const uniques = [...new Set(deck)].filter(k => (C.cible === 'malediction' ? CARTES_MATCH[k] && CARTES_MATCH[k].maudite : CARTES_MATCH[`${k}+`]));
-      ouvrirChoix({ ico: c.ico, titre: c.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'Retour', recit: c.texte,
-        vide: C.cible === 'malediction' ? 'Aucune malédiction dans ton deck.' : 'Tout ton deck est déjà amélioré.',
-        contexte: `${etiquetteBanque(item.id) ? `<span class="choix-forme">${esc(etiquetteBanque(item.id))}</span>` : ''}<div class="choix-puces">${pucesEnBref(reglesDe(item.id))}</div>`,
-        options: uniques.map(k => ({ ...optionDeCarteMatch(C.cible === 'carteMatch' ? `${k}+` : k), cle: k })),
-        onChoix: k => ecrire(payloadDe(item.id, { carte: k })), onFerme: retour });
       return;
     }
     if (C.cible === 'cartable') {
@@ -1102,7 +1090,7 @@ export async function ouvrirRogue() {
         meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
         `🛒 ${BOUTIQUE.filter(k => packsOuverts(meta)[k] === true).length} packs ouverts à la boutique sur ${BOUTIQUE.length}`,
         k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
-        aDebloque(meta, 'deckPlus') ? 'un deck aiguisé' : '', `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
+        `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }, ...crans],
     onChoix: cle => resolve(cle === 'go' ? 0 : Number(String(cle).slice(1))),
     onFerme: () => resolve(false),
@@ -1258,7 +1246,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   m.runs = (m.runs || 0) + 1;
   ecrireMeta(m);
   G.rogue = {
-    depart: jetonsDeDepart(meta), deckPlus: aDebloque(meta, 'deckPlus'), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence),
+    depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné ; V9 (tranche 8) : son cran d'exigence, fixé.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
     // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
@@ -1540,7 +1528,7 @@ export function majRunRogue() {
       <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
     <p class="rg-run-mot">${esc(mots[sort])}</p>
     ${sort === 'continue' ? sceneHtml(sceneDuMandat({ sort: 'rempli', fiche: { V: G.ligue.you.W || 0, D: G.ligue.you.L || 0, DP: G.ligue.you.OTL || 0 }, rang: faitsDeLaSaison().rang, equipes: (G.ligue.teams || []).length, mandat: M.mot, graine: `${G.ligue.graine}|${n}` }), { voix: true }) : ''}
-    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : tu gardes jusqu'à ${gardesDeLaRun(exigenceDeLaRun())} joueurs, tu signes une carte à chacun de tes ${lotosDeSaison(lireMeta(), exigenceDeLaRun()).n} lotos du cartable, et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : ton deck de match, tes patrons engagés, tes places, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » déjà en jeu.</p>` : ''}
+    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : tu gardes jusqu'à ${gardesDeLaRun(exigenceDeLaRun())} joueurs, tu signes une carte à chacun de tes ${lotosDeSaison(lireMeta(), exigenceDeLaRun()).n} lotos du cartable, et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : tes patrons engagés, tes places, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » déjà en jeu.</p>` : ''}
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
@@ -1644,7 +1632,6 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
  *     (`vestiaireDeDepart`), avec moins de Soutien qu'à la saison d'avant ;
  *   - les MODIFS posées vivent sur leur carte (`modsAuCartable`) : chaque carte
  *     de l'équipe neuve rejoue les siennes au jour 0 (`reportDesCartes`) ;
- *   - le DECK de match : la saison neuve part du deck de la fin (`deckDeBase`) ;
  *   - les JETONS qui restent, plus la caisse du vestiaire ;
  *   - le PLAFOND est celui d'un départ de run (`plafondDeDepart`).
  * Le personnel et les cartes permanentes vivent déjà dans le méta. La POCHE
@@ -1788,9 +1775,6 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   modsAuCartable();
   const report = reportDesCartes(roster);
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
-  // 1.0 (J1-F) : la saison neuve repart sans les cicatrices de la précédente — elles sont ce que LA saison laisse.
-  const deck = deckDe(L.decisions || [], { serie: L.decisionsSeries || [] }).filter(c => !(CARTES_MATCH[c] && CARTES_MATCH[c].maudite));
-  report.push({ jour: 0, deck: 'report', deckDeBase: deck, report: true });
   // v2 : les COACHS continuent — le compte de la fin de saison, et la confiance qu'il avait allumée.
   const decsSaison = decisionsDeLaPartie();
   const compte = buildDe(decsSaison);

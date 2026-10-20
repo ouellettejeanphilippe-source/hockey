@@ -8,7 +8,6 @@ import { lanceesDuSoir, getHiddenRatings, compterFeuilles, lignesDe, getPlayerKe
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
-import { CARTES_MATCH } from './combat.js';
 import { BANQUE, palierAllume, payloadDe } from './banque.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
@@ -249,7 +248,8 @@ function ajouterDecision(avant, d) {
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place`, elle va à une place), ni « Attendre » le physio (`attend`).
-  const deckSeul = !d.coach && (d.recompense !== undefined || d.deck === 'menage' || d.deck === 'camp' || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
+  // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
+  const deckSeul = !d.coach && (d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
   decisions.push(deckSeul ? { ...d } : { ...d, sel: d.sel || nouvelleGraine() });
   return { liste: decisions, d };
@@ -318,13 +318,11 @@ export async function sousVoile(mot, f) {
 function confirmerDecision(d) {
   const M = d.mutation && MUTATIONS[d.mutation.cle];
   const qui = cle => { const p = Object.values(G.roster).find(x => x && getPlayerKey(x) === cle) || ballottageVu.get(cle); return p ? p.n : 'ton joueur'; };
-  const C = k => CARTES_MATCH[k];
   let mot = null;
   // Le pack d'une série gagnée (Jalon P1) : il s'ouvre, et ses joueurs vont au cartable.
   if (d.packSerie) { ouvrirPackDeSerie(d.packSerie, d.ronde); return; }
-  if (d.recompense && C(d.recompense)) mot = `🎁 ${C(d.recompense).nom} rejoint ton deck.`;
-  else if (d.deck === 'menage' && C(d.retrait)) mot = `🗑 ${C(d.retrait).nom} quitte ton deck.`;
-  else if (d.deck === 'camp' && C(`${d.aiguise}+`)) mot = `🏋 ${C(`${d.aiguise}+`).nom} : ta carte est améliorée.`;
+  // V13-2 : la récompense d'une victoire va à une place.
+  if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) mot = `🎁 ${BANQUE[d.place].ico} ${BANQUE[d.place].nom} va dans tes places.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
@@ -615,9 +613,7 @@ export async function runSeason(opts = {}) {
   const decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
-      // UN DECK AIGUISÉ (Rogue, S77) : deux cartes de départ commencent en « + » — à la première saison d'une run.
-      ...(G.bonus === 'ROGUE' && G.rogue && G.rogue.deckPlus && !(G.rogue.saison > 1) ? [{ jour: 0, deck: 'camp', aiguise: 'lancerAuFilet', rogue: { depart: true } }, { jour: 0, deck: 'camp', aiguise: 'serrerLesRangs', rogue: { depart: true } }] : []),
-      // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées et le deck continuent, en décisions du jour 0.
+      // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
       // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois cartes au compteur, sa confiance I allumée — à la première saison d'une run.
       ...(G.bonus === 'ROGUE' && G.rogue && COACHS[G.rogue.coach] && !(G.rogue.saison > 1)

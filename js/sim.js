@@ -7,7 +7,7 @@
  */
 
 import { episodesDuMatin } from './arcs.js';
-import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee, FRANCHISE_MATCH, mainDuMatch, DECK_DEPART, ENERGIE_MAIN, mainDeLAdjoint } from './combat.js';
+import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, energieDepensee, FRANCHISE_MATCH, ENERGIE_MAIN } from './combat.js';
 import { effetCarte, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE } from './rarete.js';
 import { ROLES_REF } from './roles_ref.js';
 import { getLineZone, seasonGames, seasonLancers, LINE_ZONES, ZONES_ETOILE, ZONE_THRESHOLDS,
@@ -3009,10 +3009,6 @@ export const PALIERS_CARTES = [20, 40, 60];
 export const SORTES_DECK = {
   recrue: { ico: '🎟', nom: 'Joueur au choix', mot: 'Trois vrais joueurs, style loto : tu en prends un' },
   profil: { ico: '🔄', nom: 'Nouveau rôle', mot: 'Un de tes joueurs change de rôle' },
-  // LE MÉNAGE (S74) : une carte de moins dans le deck de match (js/combat.js) — l'autre moitié d'un deckbuilder.
-  menage: { ico: '🗑', nom: 'Le ménage', mot: 'Retire une carte de ton deck de match' },
-  // LE CAMP D'ENTRAÎNEMENT (S74) : une carte du deck de match devient sa version « + ».
-  camp: { ico: '🏋', nom: 'Le camp d\'entraînement', mot: 'Améliore une carte de ton deck de match' },
   // L'ATELIER (S78) : éditer un joueur — son poste, ses trios possibles, ses malus, sa carte.
   atelier: { ico: '🛠', nom: 'L\'atelier', mot: 'Édite un de tes joueurs : poste, trios, malus, carte' },
 };
@@ -6968,7 +6964,7 @@ export function jouerJournee(L) {
         const duel = !!toi.courbe;
         const depistage = duel ? null : depistageDe(graine, `j${r}`, advToi);
         gros = { jour: r, adv: advToi, raison, depistage, plan: duel ? null : planDuDepistage(graine, `j${r}`, depistage), ...(annonce.butin ? { butin: annonce.butin } : {}),
-          ...(duel ? { duel, periodes: periodesDuDuel(mainDuJour, duelDuJour, `${graine}:${r}`), mainRobot: mainDuRobot(toi, graine, `j${r}`) } : {}),
+          ...(duel ? { duel, periodes: periodesDuDuel(mainDuJour, duelDuJour, `${graine}:${r}`) } : {}),
           prep: mainDuJour ? mainDuJour.prep || null : null,
           avant: avantsDuJour.length ? avantsDuJour[avantsDuJour.length - 1].avant : null,
           effetsAvant: avantsDuJour.map(effetAvant).filter(Boolean),
@@ -8230,7 +8226,7 @@ export function jouerMatchSeries(S) {
           prep: toi._mainSerie ? toi._mainSerie.prep || null : null, effetsAvant: [],
           cartes: toi._mainSerie ? toi._mainSerie.main : null, cleCartes: toi._mainSerie ? toi._mainSerie.cle : '',
           graineMain: S.graine, cleMain: pl.cle, ronde: r,
-          ...(toi.courbe ? { duel: true, periodes: periodesDuDuel(toi._mainSerie && toi._mainSerie.decision, toi._duelSerie || [], `${S.graine}:po:${r}:${k}`), mainRobot: mainDuRobot(toi, S.graine, pl.cle) } : {}) };
+          ...(toi.courbe ? { duel: true, periodes: periodesDuDuel(toi._mainSerie && toi._mainSerie.decision, toi._duelSerie || [], `${S.graine}:po:${r}:${k}`) } : {}) };
         gros.tenues = toi._duelSerie || [];
         toi._mainSerie = null; toi._duelSerie = null;
         const entracte = toi._entracte;
@@ -8282,7 +8278,7 @@ export function jouerSeriesVues(S, revele = []) {
  * qui ne vaut que pour ce match-là. Et son sel : la suite se joue sur des dés
  * neufs, les matchs d'avant ne bougent pas.
  */
-export function appliquerDecisionSerie(team, d, graine) {
+function appliquerDecisionSerie(team, d, graine) {
   // LE DUEL (V9) : la décision d'une 2e ou d'une 3e période attend son entracte (`jouerMatchSeries`), sans rien appliquer avant.
   if (d.duel && d.duel.p > 0) { (team._duelSerie = team._duelSerie || [])[d.duel.p] = d; return; }
   appliquerDecision(team, d, graine);
@@ -8968,9 +8964,7 @@ export function simulerGrosMatch(toi, adv, { plan = 'trappe', cartes = null, gra
   const m = moment || {};
   const gros = { jour: m.serie ? 0 : (m.jour || 0), serie: !!m.serie, ronde: m.ronde || 0, adv, raison: 'rival', plan, prep, avant: null, effetsAvant: [], cartes, cleCartes: `${graine}:${cle}`, graineMain: graine, cleMain: cle,
     // LE DUEL (V9) : une équipe de Rogue (`courbe`) joue ses trois périodes ; `periodes`, ses décisions, sinon son robot.
-    // Des cartes données à la mesure (`cartes`) se jouent à la 1re période : tout le match, comme avant le duel.
-    ...(toi.courbe ? { duel: true, plan: null, mainRobot: mainDuRobot(toi, graine, cle),
-      periodes: periodes || (cartes && (cartes.jouees || []).length ? [{ reponse: null, cartes: cartes.jouees, enMain: cartes.enMain || [] }] : null) } : {}) };
+    ...(toi.courbe ? { duel: true, plan: null, periodes: periodes || null } : {}) };
   poserGros(toi, adv, gros);
   const feuille = feuilleVierge();
   // `visiteur` : le même duel au loin (le dernier changement est à eux).
@@ -8997,25 +8991,23 @@ function leverGros(toi) {
    l'ombre passe sur lui ; tu mènes, ils jouent l'assaut ; une intention contrée ne revient pas tout de suite. Rien
    n'est tiré au dé : la graine ne départage que deux intentions aussi tentantes (`intentionDuDuel`).
 
-   Ta réponse, période par période : un geste sur la glace (`reponsesDuDuel` : changer ta vedette de trio, un
-   joueur robuste à côté de celui qu'on chasse, un trio en Cycle, une paire à la maison, la consigne Basse) et les
-   cartes de ta main, qui dure les trois périodes (`ELAN_PAR_PERIODE` d'élan chacune). Une carte joue de sa période
-   à la fin du match ; un geste aussi. Contrée, l'intention se retourne contre eux le temps de la période ; laissée
-   là, elle frappe.
+   Ta réponse, période par période : ton tableau (V13-1 : le système de chaque unité, la consigne) et un geste sur la
+   glace (`reponsesDuDuel` : changer ta vedette de trio, un joueur robuste à côté de celui qu'on chasse). Sans main
+   de cartes depuis la V13-2 (docs/refonte-v13.md). Contrée, l'intention se retourne contre eux jusqu'à la fin du
+   match ; laissée là, elle frappe la période.
 
    Le moteur coupe le match à 20:00 et à 40:00, avec ou sans décision, et ne relance les dés qu'à ces instants :
    les périodes vues ne bougent pas. Sans décision, la période se joue sans réponse. L'adversaire ne pige aucune
    carte (`horsAdverse`) : ses intentions sont sa main, et il n'a plus de plan à dépister.
    ===================================================================== */
 export const PERIODES_DU_DUEL = [[0, 20], [20, 40], [40, 60]];
-export const ELAN_PAR_PERIODE = 2;
 /*
  * Les forces de la mesure (scripts/check_duel.mjs) : chaque canal de la table ci-dessous, élevé à cette puissance.
- * La table est déjà à la force qui donne la cible (deux clubs égaux, bien et mal joué : 62 à 65 % en face à face) ;
- * les deux restent à 1 hors des mesures.
+ * La cible : deux clubs égaux, bien et mal joué, 62 à 65 % en face à face. Sans main (V13-2), le contre à 1 donnait
+ * 65,4 % ; à 0,75, ce qu'une intention contrée rend d'ici la fin du match pèse un peu moins.
  */
 const FORCE_INTENTION = Number(ENV_MESURE.FORCE_INTENTION ?? 1);
-const FORCE_CONTRE = Number(ENV_MESURE.FORCE_CONTRE ?? 1);
+const FORCE_CONTRE = Number(ENV_MESURE.FORCE_CONTRE ?? 0.75);
 /* Un joueur fort en Robustesse (`famillesDe`, en écarts types à points égaux) : celui qui dissuade la chasse. */
 const ROBUSTE_DISSUADE = 1;
 /* Ce que la chasse coûte en jambes au joueur visé, laissée là. */
@@ -9023,56 +9015,32 @@ const JAMBES_DE_LA_CHASSE = 40;
 /*
  * LES INTENTIONS. `malus` : ce qu'elle fait quand rien n'y répond, le temps de SA période — à ton club (`toi`),
  * au leur (`adv`), au joueur visé (`joueur`, ses canaux) et aux autres de son unité (`unite`). `contre` : ce
- * qu'elle rend quand tu y réponds. `carte` : le canal qu'une carte jouée dans la période doit porter pour y
- * répondre (`[canal, sens]` : la défense qui baisse, la robustesse qui monte ; `lignes` : une carte qui change les
- * minutes de tes lignes). Une carte qui lit leur jeu (la vidéo, le plan B, la filature…) répond à toutes.
+ * qu'elle rend quand tu y réponds (ton tableau : `lireLeTableau`).
  */
 export const INTENTIONS = {
-  ombre: { ico: '🥷', nom: 'L\'ombre', vise: 'F', carte: ['lignes'],
+  ombre: { ico: '🥷', nom: 'L\'ombre', vise: 'F',
     malus: { joueur: { lancers: 0.15, finition: 0.4, creation: 0.4 }, unite: { lancers: 0.5, creation: 0.6 } },
     contre: { joueur: { finition: 1.6 }, toi: { finition: 1.14 } } },
-  chasse: { ico: '🦈', nom: 'La chasse', vise: 'D', carte: ['robustesse', 1],
+  chasse: { ico: '🦈', nom: 'La chasse', vise: 'D',
     malus: { joueur: { lancers: 0.4, defense: 2, blessure: 8 }, jambes: JAMBES_DE_LA_CHASSE },
     contre: { toi: { finition: 1.12 }, adv: { discipline: 2 } } },
-  centre: { ico: '⛔', nom: 'Fermer le centre', carte: ['finition', 1],
+  centre: { ico: '⛔', nom: 'Fermer le centre',
     malus: { toi: { finition: 0.5 } },
     contre: { toi: { finition: 1.3 } } },
-  assaut: { ico: '🐗', nom: 'L\'assaut', carte: ['defense', -1],
+  assaut: { ico: '🐗', nom: 'L\'assaut',
     malus: { toi: { volume: 1.35, defense: 1.15 }, adv: { volume: 2 } },
     contre: { toi: { volume: 1.15, defense: 0.6 }, adv: { volume: 1.35 } } },
-  cachot: { ico: '🦂', nom: 'Les punitions', carte: ['discipline', -1],
+  cachot: { ico: '🦂', nom: 'Les punitions',
     malus: { toi: { discipline: 2.5 }, adv: { finition: 1.25 } },
     contre: { toi: { finition: 1.12 }, adv: { discipline: 2 } } },
 };
 /* Une intention à sa force : chaque canal élevé à la puissance (la blessure aussi), la robustesse, une somme, multipliée. */
 const forcer = (e, f) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, typeof v !== 'number' ? v : k === 'robustesse' ? v * f : v ** f])) : e);
-/* Une carte qui lit leur jeu répond à toutes les intentions. */
-const LIT_LEUR_JEU = C => !!(C && (C.lire || C.annule || C.contre || C.revele || C.planB || C.ecarte));
-/* La carte `cle` répond-elle à l'intention `I` ? */
-export function carteRepond(I, cle) {
-  const C = CARTES_MATCH[cle];
-  if (!C || C.injouable) return false;
-  // Une carte d'un moment (V10, js/cahier.js) ne répond qu'à SON intention ; un autre moment ne répond à aucune.
-  if (C.si) return INTENTIONS[C.si] === I;
-  if (LIT_LEUR_JEU(C)) return true;
-  const e = C.effet || {};
-  const [canal, sens] = I.carte;
-  if (canal === 'lignes') return Array.isArray(e.F) || Array.isArray(e.D);
-  const v = e[canal];
-  if (typeof v !== 'number') return false;
-  return canal === 'robustesse' ? v > 0 : sens > 0 ? v > 1 : v < 1;
-}
 /* Les points par match d'un joueur, dans sa vraie saison : la vedette d'un club, c'est celle-là. */
 const ptsDe = p => (p && p.gp ? (p.pt || 0) / p.gp : 0);
 const habillesDuGroupe = (L, g) => SLOTS.filter(s => !s.scratch && s.group === g).map(s => ({ s, p: L[s.i] })).filter(x => x.p && x.p.p !== 'G');
 const caseDe = (L, p) => SLOTS.find(s => !s.scratch && L[s.i] === p) || null;
 const robusteDe = p => (famillesDe(p) || {}).robustesse || 0;
-/* Le joueur d'une carte sur un joueur (`joueur.qui`) : celui que leur intention vise, ta vedette, ton meilleur défenseur. */
-function joueurDeLaCarte(qui, L, cible = null) {
-  if (qui === 'vise' && cible) return cible;
-  const l = habillesDuGroupe(L, qui === 'brigadier' ? 'D' : 'F').sort((a, b) => ptsDe(b.p) - ptsDe(a.p));
-  return l[0] ? l[0].p : null;
-}
 /* Le joueur de leur club le plus fort d'une famille : leur ombre (la Défense), leur dur (la Robustesse). */
 function leurMeilleur(Ladv, famille) {
   const pats = Object.values(Ladv || {}).filter(p => p && p.p !== 'G');
@@ -9133,8 +9101,6 @@ function intentionDuDuel({ toi, adv, L, Ladv = null, lignes = null, base = [], k
     if (fin.moi < fin.lui) ajouter('centre', 1.5, 'traine');
     const punis = hist.reduce((a, h) => a + h.punitions, 0);
     if (punis >= 2) ajouter('cachot', 2, 'punitions', { n: punis });
-    const attaque = hist.reduce((a, h) => a + h.cartes.filter(c => CARTES_MATCH[c] && CARTES_MATCH[c].genre === 'attaque').length, 0);
-    if (attaque >= 2) ajouter('centre', 2, 'cartes', { n: attaque });
     // Les buts de ce match, par trio et par marqueur.
     const buts = hist.flatMap(h => h.buts);
     const parUnite = [0, 1, 2, 3].map(u => buts.filter(b => b.unite === u));
@@ -9237,15 +9203,14 @@ const PORTES_DEMI = {
  * LIRE LE TABLEAU, pur, pour le moteur ET pour l'écran (le même calcul, jamais deux). `L` : l'alignement de la période
  * (le geste d'échange déjà posé), `lignes` : ses systèmes, `depart` : tes lignes au début du match (une demi-porte est
  * un changement), `base` : les effets du match (la consigne de la période y est), `c0` : la case du joueur visé avant
- * le geste, `domicile`, `cartes` : celles de la période. Rend { niveau : 'pleine', 'demi' ou null, portes : [{ cle, poids }] }.
+ * le geste, `domicile`. Rend { niveau : 'pleine', 'demi' ou null, portes : [{ cle, poids }] }.
  */
-export function lireLeTableau(I, { toi, L, lignes, depart = lignes, base = [], c0 = null, domicile = true, cartes = [] }) {
+export function lireLeTableau(I, { toi, L, lignes, depart = lignes, base = [], c0 = null, domicile = true }) {
   const portes = [];
   const c1 = I.cible ? caseDe(L, I.cible) : null;
   if (I.cle === 'ombre') { if (c0 && c1 && c1.unit !== c0.unit) portes.push({ cle: 'deplacer', poids: domicile ? 1 : 0.5 }); }
   else if (contreeParLaGlace(I.cle, { toi, L, lignes, base, cible: I.cible })) portes.push({ cle: 'glace', poids: 1 });
   for (const p of (PORTES_DEMI[I.cle] || (() => []))({ lignes, depart, base, c1 })) portes.push({ ...p, poids: 0.5 });
-  if (cartes.some(c => carteRepond(INTENTIONS[I.cle], c))) portes.push({ cle: 'carte', poids: 1 });
   const total = portes.reduce((a, p) => a + p.poids, 0);
   return { niveau: total >= 1 ? 'pleine' : total > 0 ? 'demi' : null, portes };
 }
@@ -9258,17 +9223,6 @@ function poserLeTableau(T, lk, bk) {
     const { nom, ico, mot, ...canaux } = IMPORTANCES[T.consigne]; void mot;
     bk.push({ source: 'reponse', cle: T.consigne, nom, ico, ...canaux });
   }
-}
-/* LA MAIN QUI DURE : ce qui reste en main à la période k, et la pile — la main de départ, moins ce qui est joué, plus ce que la pioche a tiré. */
-export function mainDuDuel(main = [], pioche = [], parPeriode = [], k = parPeriode.length) {
-  let m = main.slice(), pile = pioche.slice();
-  for (let i = 0; i < Math.min(k, parPeriode.length); i++) {
-    const jouees = (parPeriode[i] || []).slice();
-    for (const c of jouees) { const j = m.indexOf(c); if (j >= 0) m.splice(j, 1); }
-    const n = jouees.reduce((a, c) => a + ((CARTES_MATCH[c] && CARTES_MATCH[c].pioche) || 0), 0);
-    m = [...m, ...pile.slice(0, n)]; pile = pile.slice(n);
-  }
-  return { main: m, pioche: pile };
 }
 /*
  * LA MISE DOUBLÉE (« snap », Marvel Snap). Avant la troisième période d'un duel de saison, tu peux doubler la mise :
@@ -9285,13 +9239,8 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
   const Ltoi = { ...(toiA ? LA : LB) }, Ladv = toiA ? LB : LA;
   const base = [...(toi._effetMatch || [])], baseAdv = [...(adv._effetMatch || [])];
   const lignes = lignesDe(toi, Ltoi, { duSoir: false }).map(l => ({ ...l }));
-  const echelle = echelleDuGros(gros, toi);
   const robot = typeof toi.robotDuel === 'function' ? toi.robotDuel : null;
-  // La main qui dure : celle du robot, ou celle que ta première décision a tirée (`tirage`, `pile`).
-  const d0 = (gros.periodes || [])[0];
-  let tenue = robot && gros.mainRobot ? { main: gros.mainRobot.main.slice(), pioche: gros.mainRobot.pioche.slice() }
-    : d0 && Array.isArray(d0.tirage) ? { main: d0.tirage.slice(), pioche: (d0.pile || []).slice() } : null;
-  const hist = [], toutes = [], paris = [], surJoueurs = [];
+  const hist = [];
   let gfA = 0, gfB = 0;
   const touches = gros._duelTouches = [];
   for (let k = 0; k < PERIODES_DU_DUEL.length; k++) {
@@ -9307,14 +9256,10 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
       if (k === 2) { const moi = toiA ? gfA : gfB, lui = toiA ? gfB : gfA; toi._soir[moi > lui ? 'mene' : moi === lui ? 'egal' : 'derriere'] = true; }
     }
     const soir = { ...(toi._soir || {}) };
-    const dansSonMoment = c => { const C = CARTES_MATCH[c]; return !!C && (!C.si || !!soir[C.si]); };
-    // L'adjoint répond à ce qu'il voit, mais ne joue pas le coup de 3e : c'est ta décision, selon le pointage.
-    const pourLAdjoint = c => dansSonMoment(c) && !(CARTES_MATCH[c].si && MOMENTS_SI[CARTES_MATCH[c].si].duel && !INTENTIONS[CARTES_MATCH[c].si]);
     const opts = reponsesDuDuel(I, { toi, L: Ltoi, lignes });
+    // Sans décision (« L'adjoint joue cette série », une période qui n'attend personne), la période se joue sans réponse.
     let d = dec;
-    // « L'adjoint joue cette série » : il joue la main qui reste, période après période, sans geste.
-    if (!d && k > 0 && d0 && d0.adjoint && tenue) d = { cartes: mainDeLAdjoint(tenue.main, ELAN_PAR_PERIODE, pourLAdjoint).jouees };
-    if (!d && robot) d = robot({ k, intention: I, reponses: opts, main: tenue ? tenue.main.slice() : [], elan: ELAN_PAR_PERIODE, pointage: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, domicile: toiA, serie: !!gros.serie, dansSonMoment, pourLAdjoint }) || null;
+    if (!d && robot) d = robot({ k, intention: I, reponses: opts, pointage: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, domicile: toiA, serie: !!gros.serie }) || null;
     d = d || {};
     // LE GESTE SUR LA GLACE : le temps de la période, comme l'intention à laquelle il répond.
     const Lk = { ...Ltoi }, lk = lignes.map(l => ({ ...l })), bk = [];
@@ -9330,46 +9275,20 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     if (R && R.consigne) { const { nom, ico, mot, ...canaux } = IMPORTANCES[R.consigne]; void mot; bk.push({ source: 'reponse', cle: 'basse', nom, ico, ...canaux }); }
     // LE TABLEAU DE L'ENTRACTE (V13-1) : tes systèmes et ta consigne de la période.
     poserLeTableau(d.tactiques, lk, bk);
-    // LES CARTES DE LA PÉRIODE : de maintenant à la fin du match.
-    const cartes = (d.cartes || []).filter(c => CARTES_MATCH[c]);
-    const fx = cartes.length || (k === 0 && (d.enMain || []).length)
-      ? effetsDesCartes(toi, { jouees: cartes, enMain: k === 0 ? d.enMain || [] : [] }, `${gros.cleCartes || ''}:p${k}`, { echelle, elan: ELAN_PAR_PERIODE }) : null;
-    // Une carte d'une intention (V10) ne joue que SA période : ses effets vont avec ceux de l'intention, pas au reste du match.
-    const deLaPeriode = e => !!INTENTIONS[e.si || e.siToi];
-    const perToi = fx ? fx.effets.filter(deLaPeriode) : [], perAdv = fx ? fx.adv.filter(deLaPeriode) : [];
-    if (fx) {
-      base.push(...fx.effets.filter(e => !deLaPeriode(e)));
-      baseAdv.push(...fx.adv.filter(e => !deLaPeriode(e)));
-      if (fx.energieTous) for (const sl of SLOTS) { const p = toi.roster[sl.i]; if (p && p.p !== 'G') rendreJambes(p, fx.energieTous); }
-      paris.push(...fx.paris);
-    }
-    toutes.push(...cartes);
-    if (tenue) tenue = mainDuDuel(tenue.main, tenue.pioche, [cartes], 1);
-    // « L'instinct du tueur » (`apres40`) : à la troisième, selon le pointage après deux.
-    if (k === 2) {
-      const mene = (toiA ? gfA : gfB) > (toiA ? gfB : gfA);
-      for (const c of toutes) {
-        const C = CARTES_MATCH[c];
-        const e = C && C.apres40 && C.apres40[mene ? 'siMene' : 'sinon'];
-        if (e && Object.keys(e).length) base.push({ source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(e, echelle) });
-      }
-    }
-    // CONTRÉE ? Les portes de ton tableau (V13-1) : ta glace, ton geste, tes systèmes, ta consigne, une carte de la période.
+    // CONTRÉE ? Les portes de ton tableau (V13-1) : ta glace, ton geste, tes systèmes, ta consigne.
     const c1 = I.cible ? caseDe(Lk, I.cible) : null;
-    const { niveau: contree, portes } = lireLeTableau(I, { toi, L: Lk, lignes: lk, depart: lignes, base: [...base, ...bk], c0, domicile: toiA, cartes });
+    const { niveau: contree, portes } = lireLeTableau(I, { toi, L: Lk, lignes: lk, depart: lignes, base: [...base, ...bk], c0, domicile: toiA });
     const J = INTENTIONS[I.cle];
-    const fort = contree === 'pleine' ? 0 : (contree === 'demi' ? 0.5 : 1) * FORCE_INTENTION * (fx && fx.improvise ? 0.5 : 1);
+    const fort = contree === 'pleine' ? 0 : (contree === 'demi' ? 0.5 : 1) * FORCE_INTENTION;
     const effToi = [], effAdv = [];
     const poser = (liste, e, f, nom) => { if (e && f) liste.push({ source: 'intention', nom, ico: J.ico, ...forcer(e, f) }); };
     if (fort) {
       poser(effToi, J.malus.toi, fort, J.nom);
       poser(effAdv, J.malus.adv, fort, J.nom);
-      if (fx && fx.improvise) effToi.push({ source: 'carte', nom: 'L\'improvisation', ico: '🎷', ...fx.improvise });
     } else {
       // CONTRÉE, elle se retourne contre eux jusqu'à la fin du match : le vent a tourné.
       poser(base, J.contre.toi, FORCE_CONTRE, J.nom);
       poser(baseAdv, J.contre.adv, FORCE_CONTRE, J.nom);
-      if (fx && fx.piege) effToi.push({ source: 'carte', nom: 'Le piège tendu', ico: '🕸', ...fx.piege });
     }
     // LE JOUEUR VISÉ, et son unité, le temps de la période.
     const vises = [];
@@ -9389,24 +9308,10 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
         if (J.malus.jambes) rendreJambes(I.cible, -Math.round(J.malus.jambes * fort));
       } else if (!fort && J.contre.joueur) viser(I.cible, forcer(J.contre.joueur, FORCE_CONTRE));
     }
-    /*
-     * UNE CARTE SUR UN JOUEUR (V11, docs/refonte-v11.md). JP : *c'est plus facile de balancer le jeu et créer des
-     * histoires si les bonus et malus plus importants touchent des joueurs et non l'équipe*. Le gros d'une carte va à
-     * un joueur nommé, sur ses canaux (`joueur`), dans son moment : celui que leur intention vise (`vise` ; sans cible,
-     * ta vedette), ta vedette (`vedette`, le plus de points par match de tes attaquants habillés) ou ton meilleur
-     * défenseur (`brigadier`). Comme ses effets d'équipe : une réponse, le temps de sa période ; les autres, jusqu'à la
-     * fin du match.
-     */
-    const dePeriode = c => !!INTENTIONS[CARTES_MATCH[c].si];
-    for (const c of cartes) if (dansSonMoment(c) && CARTES_MATCH[c].joueur && !dePeriode(c)) surJoueurs.push(c);
-    for (const c of [...cartes.filter(x => dansSonMoment(x) && CARTES_MATCH[x].joueur && dePeriode(x)), ...surJoueurs]) {
-      const { qui, ...canaux } = CARTES_MATCH[c].joueur;
-      viser(joueurDeLaCarte(qui, Lk, I.cible), grandirEffet(canaux, echelle));
-    }
     toi._lignesMatch = lk;
-    toi._effetMatch = [...base, ...bk, ...effToi, ...perToi];
+    toi._effetMatch = [...base, ...bk, ...effToi];
     // Sur eux, une carte d'un moment joue TON moment (`siToi`).
-    adv._effetMatch = [...baseAdv, ...effAdv, ...perAdv].filter(e => !e.siToi || !!soir[e.siToi]);
+    adv._effetMatch = [...baseAdv, ...effAdv].filter(e => !e.siToi || !!soir[e.siToi]);
     const qToi = profilMatch(toi, Lk, adv); qToi.rob = teamStrength(toi, Lk).rob; qToi.domicile = toiA;
     const qAdv = profilMatch(adv, Ladv, toi); qAdv.rob = teamStrength(adv, Ladv).rob; qAdv.domicile = !toiA;
     const [qA, qB] = toiA ? [qToi, qAdv] : [qAdv, qToi];
@@ -9417,7 +9322,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     const butsP = journal ? journal.buts.slice(nButs).filter(b => b.cote === cote).map(b => { const s = caseDe(Lk, b.marqueur); return { marqueur: b.marqueur, unite: s && s.group === 'F' ? s.unit : null }; }) : [];
     const punis = journal ? journal.punitions.slice(nPun).filter(e => e.cote === cote).length : 0;
     hist.push({
-      intention: I, reponse: R ? R.cle : null, reponses: opts, contree, portes, tactiques: d.tactiques || null, cartes, snap: k === 2 && !!d.snap && !gros.serie,
+      intention: I, reponse: R ? R.cle : null, reponses: opts, contree, portes, tactiques: d.tactiques || null, snap: k === 2 && !!d.snap && !gros.serie,
       pointage: toiA ? { moi: h.gfA, lui: h.gfB } : { moi: h.gfB, lui: h.gfA },
       fin: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, buts: butsP, punitions: punis,
     });
@@ -9425,26 +9330,21 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
   const snap = hist.some(x => x.snap);
   gros.snap = snap;
   gros.duelJoue = { periodes: hist.map(({ buts, ...x }) => { void buts; return x; }), snap, toi: cote };
-  gros.cartesJouees = toutes.length || paris.length ? { jouees: toutes, paris, parPeriode: hist.map(x => x.cartes) } : null;
   if (journal) journal.duel = gros.duelJoue;
   return { gfA, gfB };
 }
 /*
- * LES DÉCISIONS DES TROIS PÉRIODES, telles que `jouerDuel` les lit. La première est la main du soir (`d.main`, et
- * `d.duel.reponse`) ; les suivantes portent leur période (`d.duel.p`) et leur sel, qui ne relance les dés qu'à
- * leur entracte (`cle` : la graine et le soir, ou la ronde et le match des séries).
+ * LES DÉCISIONS DES TROIS PÉRIODES, telles que `jouerDuel` les lit. La première est celle du soir (`d.duel.reponse`,
+ * et `d.main`, vide depuis la V13-2, qui la marque) ; les suivantes portent leur période (`d.duel.p`) et leur sel, qui
+ * ne relance les dés qu'à leur entracte (`cle` : la graine et le soir, ou la ronde et le match des séries).
  */
 function periodesDuDuel(d0, suivantes, cle) {
   const de = (d, k) => (d ? {
     reponse: (d.duel && d.duel.reponse) || null, tactiques: (d.duel && d.duel.tactiques) || null,
-    cartes: (d.main && d.main.jouees) || [], enMain: (d.main && d.main.enMain) || [],
-    ...(k === 0 && d.main && Array.isArray(d.main.tirage) ? { tirage: d.main.tirage, pile: d.main.pile || [], adjoint: !!d.auto } : {}),
     snap: !!(d.duel && d.duel.snap), graine: k > 0 ? `${cle}:p${k}:${d.sel || ''}` : null,
   } : null);
   return [de(d0, 0), de(suivantes[1], 1), de(suivantes[2], 2)];
 }
-/* La main d'un robot de mesure (`toi.robotDuel`, scripts/lib/rogue_sim.mjs) : son deck, battu comme celui d'un joueur. */
-const mainDuRobot = (toi, graine, cle) => (typeof toi.robotDuel === 'function' ? mainDuMatch(graine, cle, toi.deckDuel || DECK_DEPART) : null);
 /* L'intention et les gestes de la 1re période, AVANT le match (l'écran) : lus comme le moteur les lira. */
 export function apercuDuDuel(toi, adv, { graine = 0, cle = '' } = {}) {
   const L = activeLineup(toi), Ladv = adv ? activeLineup(adv) : null;

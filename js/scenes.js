@@ -107,10 +107,10 @@ export const MOTS_DES_SCENES = {
   },
   // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
   butin: {
-    mince: ['On a gagné avec ce cahier-là. Moi, j\'y ajouterais une page.',
-      'Le cahier est mince, et ça marche. Une page de plus ne nuirait pas.'],
-    epais: ['On a gagné, mais le cahier est épais. Ton adjoint en arracherait une page.',
-      'Une page de plus, ou une de moins ? Ton adjoint trouve qu\'on en a déjà trop.'],
+    mince: ['On a gagné. Prends quelque chose pour les prochains soirs, ça ne nuira pas.',
+      'Il reste de la place sur le babillard. Une carte de plus, et on la joue au bon soir.'],
+    epais: ['On a gagné, mais tes places sont pleines. Prends-la si elle vaut mieux qu\'une des tiennes.',
+      'Une de plus, et il faudra en vendre une. Ton adjoint dit de choisir la meilleure.'],
   },
 };
 
@@ -206,14 +206,14 @@ export function sceneDesRivaux({ multi, offerts, graine = '' }) {
 }
 
 /*
- * A6 · LE BUTIN D'UN GROS MATCH GAGNÉ. L'entraîneur. Le fait : le pointage de la feuille et l'épaisseur du cahier.
- *   pour, contre   le pointage ; adv : le club battu ; cartes : le cahier ; max : sa limite (`CAHIER_MAX`)
+ * A6 · LE BUTIN D'UN GROS MATCH GAGNÉ. L'entraîneur. Le fait : le pointage de la feuille et tes places (V13-2).
+ *   pour, contre   le pointage ; adv : le club battu ; cartes : tes cartes en place ; max : tes places (`PLACES`)
  */
 export function sceneDuButin({ pour, contre, adv, cartes, max, graine = '' }) {
   return {
     de: EXPEDITEURS.en,
-    mot: piger(MOTS_DES_SCENES.butin[cartes >= max * 0.75 ? 'epais' : 'mince'], graine, 'butin', adv),
-    fait: `${pour}–${contre} contre ${adv} · ${cartes} cartes au cahier sur ${max}`,
+    mot: piger(MOTS_DES_SCENES.butin[cartes >= max ? 'epais' : 'mince'], graine, 'butin', adv),
+    fait: `${pour}–${contre} contre ${adv} · ${cartes ? `${cartes} place${cartes > 1 ? 's' : ''} prise${cartes > 1 ? 's' : ''} sur ${max}` : `${max} places libres`}`,
   };
 }
 
