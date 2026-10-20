@@ -38,7 +38,7 @@ import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
-import { artJoueur, photoAction, RARETES } from './cartes.js';
+import { artJoueur, photoAction } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, PLACES, cartesDuPalier, optionDeBanque, valeurDe } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirMainDeMatch, ouvrirDeck, optionDeCarteMatch, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
@@ -222,6 +222,8 @@ const vignette = (ctx, p) => (ctx.mug
  * JP : *des onglets ou sous-onglets, un usage par sous-onglet*. Celles qui ont `vide` sont un sous-onglet de leur section
  * (js/game.js, `PAGES_DE`) ; le gros match et la signature gardent leur écran, et la boîte en montre la porte.
  */
+/* Ton histoire (le vestiaire) montre ses derniers moments ; les autres se déplient (V12-4). */
+const RECIT_RECENTS = 8;
 const MAISONS = {
   proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, ce qu\'il paie, tes contrats', vide: 'il exige ou offre quelque chose' },
   entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', sous: 'Ton coach, ton personnel, la semaine qui vient', vide: 'il propose le programme de la semaine' },
@@ -2404,16 +2406,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const placesDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.places ? ctx.inventaire.places(jour) : null);
   // UN VERBE PAR TUILE, LES DOUBLES GROUPÉS (Jalon M, B9) : ce qu'un toucher fait (la poser, la jouer, ou la vendre et
-  // pour combien) ; deux copies d'une même carte, une tuile « ×2 » qui ouvre la première.
-  const caseHtml = (it, n = 1) => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.ref === pose ? ' en-pose' : ''}"${sePose(it) ? ' data-pose' : ''} data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}${n > 1 ? ` <b class="hub-poche-n">×${n}</b>` : ''}</span>${RARETES[it.rarete] ? `<span class="hub-poche-rar">${RARETES[it.rarete].gemme} ${RARETES[it.rarete].nom}</span>` : ''}${placeDe(it.id) ? `<span class="hub-poche-place">${ctx.esc(placeDe(it.id).ou)} · ${ctx.esc(placeDe(it.id).duree)}</span>` : ''}${it.bref && it.bref.length ? `<span class="hub-poche-bref">${it.bref.map(x => `<span${x.bon === true ? ' class="bon"' : x.bon === false ? ' class="prix"' : ''}>${ctx.esc(x.txt)}</span>`).join('')}</span>` : ''}${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}<span class="hub-poche-verbe">${it.maison ? `${ctx.esc(it.maison.mot)} ›` : `${sePose(it) ? 'Poser' : 'Jouer'}${it.valeur ? ` · ou vendre +${it.valeur} 🪙` : ''}`}</span></button>`;
+  // pour combien) ; deux copies d'une même carte, une tuile « ×2 » qui ouvre la première. V12-4 : une ligne par carte (son
+  // nom, où elle joue, son verbe) ; ce qu'elle fait se lit sur la carte, qu'un toucher ouvre.
+  const caseHtml = (it, n = 1) => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.ref === pose ? ' en-pose' : ''}"${sePose(it) ? ' data-pose' : ''} data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}${n > 1 ? ` <b class="hub-poche-n">×${n}</b>` : ''}</span>${placeDe(it.id) ? `<span class="hub-poche-place">${ctx.esc(placeDe(it.id).ou)} · ${ctx.esc(placeDe(it.id).duree)}</span>` : ''}${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}<span class="hub-poche-verbe">${it.maison ? `${ctx.esc(it.maison.mot)} ›` : `${sePose(it) ? 'Poser' : 'Jouer'}${it.valeur ? ` · ou vendre +${it.valeur} 🪙` : ''}`}</span></button>`;
   const placesHtml = () => {
     const m = placesDuBureau();
     if (!m) return '';
-    // Vides, elles tiennent en une ligne.
-    const vides = Math.max(0, m.n - m.places.length);
+    // V12-4 : les places libres ne se dessinent plus, le titre les compte (« 2 sur 3 »).
+    // V12-4 : une carte qui se joue ailleurs (un soin, un contrat) n'est pas du match de ce soir — un bouton qui y mène.
+    const ailleurs = m.places.filter(it => it.maison), ici = m.places.filter(it => !it.maison);
     const groupes = [];
-    for (const it of m.places) { const g = groupes.find(x => x.it.id === it.id && it.ref !== pose && x.it.ref !== pose); if (g) g.n++; else groupes.push({ it, n: 1 }); }
-    return `<section class="hub-poche" aria-label="Tes places"><div class="hub-poche-t">🃏 Tes places <b>${m.places.length ? `${m.places.length} sur ${m.n}` : 'vides'}</b></div>${m.places.length ? `<div class="hub-poche-rang">${groupes.map(g => caseHtml(g.it, g.n)).join('')}${'<span class="hub-poche-case hub-poche-libre" aria-hidden="true"></span>'.repeat(vides)}</div>` : ''}</section>`;
+    for (const it of ici) { const g = groupes.find(x => x.it.id === it.id && it.ref !== pose && x.it.ref !== pose); if (g) g.n++; else groupes.push({ it, n: 1 }); }
+    return `<section class="hub-poche" aria-label="Tes places"><div class="hub-poche-t">🃏 Tes places <b>${m.places.length ? `${m.places.length} sur ${m.n}` : 'vides'}</b></div>${groupes.length ? `<div class="hub-poche-rang">${groupes.map(g => caseHtml(g.it, g.n)).join('')}</div>` : ''}${ailleurs.length ? `<div class="hub-poche-ailleurs">${ailleurs.map(it => `<button type="button" class="hub-poche-vers" data-ref="${ctx.esc(it.ref)}"><span aria-hidden="true">${it.ico}</span> ${ctx.esc(it.nom)} <b>${ctx.esc(it.maison.mot)} ›</b></button>`).join('')}</div>` : ''}</section>`;
   };
   /*
    * POSER EN TOUCHANT (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert ; c'est pas clair comment
@@ -2498,7 +2502,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const ROUTE_JOURS = 14, ROUTE_PASSES = 5;
   const routeDeuxSemaines = () => {
-    if (!ctx.rogue || jour >= N) return '';
+    if (!ctx.rogue || jour >= N) return { vient: '', passe: '' };
     const fin = Math.min(N, jour + ROUTE_JOURS), arrets = [];
     // D'OÙ TU VIENS (JP : *on voit pas les matchs d'avant*) : tes cinq derniers, le plus récent en bas, chacun ouvre son
     // sommaire. Celui d'hier a déjà son bloc sous la route : il n'est pas redit.
@@ -2522,9 +2526,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <span class="rt-ico" aria-hidden="true">${gros && MINI_BOSS[gros.raison] ? MINI_BOSS[gros.raison].ico : ctx.logo(adv.tag, 18)}</span>
         <span class="rt-txt">${m.A === you ? '' : 'chez '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res">${j === jour ? 'Ce soir' : `J${j + 1}`}</span>${pack}</li>`);
     }
-    if (!arrets.length && !passes.length) return '';
+    // V12-4 : ce qui vient reste ouvert ; d'où tu viens se plie avec la route de la saison (le passé et le long terme).
     const avant = passes.length ? `<div class="bu-route-t">D'où tu viens</div><ol class="rt-liste rt-passes">${passes.join('')}</ol>` : '';
-    return `<section class="bu-route" aria-label="La route">${avant}${arrets.length ? `<div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol>` : ''}</section>`;
+    return { vient: arrets.length ? `<section class="bu-route" aria-label="La route"><div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol></section>` : '',
+      passe: avant ? `<section class="bu-route" aria-label="D'où tu viens">${avant}</section>` : '' };
   };
   const voletJourneeSeul = () => {
     if (soirEnVolet && !jour) return '';
@@ -2651,12 +2656,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!ev.length) return '';
     ev.sort((a, b) => a.j - b.j);
     const riv = rivalite();
-    const actes = ACTES.map(([d0, nom, sous], i) => {
+    const actes = liste => ACTES.map(([d0, nom, sous], i) => {
       const fin = ACTES[i + 1] ? ACTES[i + 1][0] : Infinity;
-      const ici = ev.filter(e => e.j >= d0 && e.j < fin);
+      const ici = liste.filter(e => e.j >= d0 && e.j < fin);
       return ici.length ? `<div class="recit-acte"><div class="recit-acte-t">${nom} · ${sous}</div>${ici.map(e => `<div class="recit-ev"><span class="recit-j">J${e.j + 1}</span><span>${e.t}</span></div>`).join('')}</div>` : '';
     }).join('');
-    return `<div class="recit"><div class="hub-titre">📖 Ton histoire</div>${riv ? `<div class="recit-rival">⚔ Ta rivalité : <b>${ctx.esc(ctx.teamLabel(riv.adv))}</b> · ${riv.v}-${riv.d} dans les gros matchs</div>` : ''}${actes}</div>`;
+    // V12-4 : le sous-onglet tient en un écran — les derniers moments, le début de la saison plié au-dessus.
+    const avant = ev.slice(0, -RECIT_RECENTS), recents = ev.slice(-RECIT_RECENTS);
+    return `<div class="recit"><div class="hub-titre">📖 Ton histoire</div>${riv ? `<div class="recit-rival">⚔ Ta rivalité : <b>${ctx.esc(ctx.teamLabel(riv.adv))}</b> · ${riv.v}-${riv.d} dans les gros matchs</div>` : ''}${avant.length ? `<details class="recit-avant"><summary>Plus tôt · ${avant.length} moment${avant.length > 1 ? 's' : ''}</summary>${actes(avant)}</details>` : ''}${actes(recents)}</div>`;
   };
   /*
    * LA ROUTE DE LA SAISON (S66) quitte l'écran Match (S79) : quatre rangées
@@ -2882,7 +2889,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const actif = () => !termine && hubActif() === tabs.hub;
   const dansLaMain = e => {
     if (!actif()) return;
-    const c = e.type === 'click' ? e.target.closest('.hub-poche-case[data-ref]') : null;
+    const c = e.type === 'click' ? e.target.closest('.hub-poche-case[data-ref], .hub-poche-vers[data-ref]') : null;
     const decider = d => { const j = jour; quitter(); onDecision(d, j); };
     if (c && volet.contains(c)) {
       const it = enPlace(c.dataset.ref);
@@ -3898,7 +3905,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   const PERMANENT = {
     proprio: () => `${etatHtml()}${cartesIci('proprio')}`,
-    entraineur: () => `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${routeDeuxSemaines()}${jour < N ? routeFiche() : ''}`,
+    // V12-4 : les deux semaines qui viennent restent ouvertes ; d'où tu viens et la route de la saison se plient en une ligne.
+    entraineur: () => { const r = routeDeuxSemaines(), loin = `${r.passe}${jour < N ? routeFiche() : ''}`;
+      return `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${r.vient}${loin ? `<details class="pli"><summary class="pli-t"><span class="perso-t">🗺 D'où tu viens · la route de la saison</span></summary>${loin}</details>` : ''}`; },
     presse: () => uneHtml(),
     vestiaire: () => (miens.length ? recitHtml() : ''),
     infirmerie: () => `${infirmerieHtml()}${cartesIci('infirmerie')}`,
@@ -3980,7 +3989,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="af-onglet-tete"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-onglet-txt"><b>${ctx.esc(M.titre)}</b><span>${ctx.esc(M.sous)}</span></span></div>
         ${corps || (fond ? '' : `<div class="hub-note">Rien à régler ici. La boîte t'y renvoie quand ${ctx.esc(M.vide)}.</div>`)}
         ${fond ? `<div class="af-fond">${fond}</div>` : ''}
-        ${corps.includes(' detail"') ? `<button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
+        ${(corps + fond).includes(' detail"') ? `<button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
         ${trancher ? `<button type="button" class="btn go af-trancher">✓ Trancher · ${prets.length} choix</button>` : ''}
       </section>`;
     };

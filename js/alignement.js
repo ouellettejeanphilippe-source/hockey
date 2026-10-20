@@ -518,9 +518,11 @@ function lineEl(title, slots, group, unit, cls = '') {
   const note = (group === 'F' || group === 'D') && patineurs.length === slots.length ? noteDesUnites() : null;
   const u = note ? (group === 'D' ? note.D : note.F)[unit] : null;
   // Ses vraies stats sur la glace (V7, JP : *des lancers, précision de lancer, pourcentage d'arrêt*) : à forces égales, par match.
+  // Dites en mots (oct., JP : *je comprends pas les tirs rouges et verts*) : « 5,7–8,0 » se lisait comme un intervalle, et
+  // le sens ne vivait que dans une bulle qu'un téléphone n'ouvre pas. Ses tirs, en vert s'il en tire plus qu'il en donne.
   const st = u && u.stats;
   const prodHtml = st && st.tirs + st.contre > 0
-    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % de précision), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}"><b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}–${v1(st.contre)}</b> tirs</span>`
+    ? `<span class="line-net" title="${esc(`Sur la glace, à forces égales, par match contre ${teamShort(G.banc.prochain.adv)} : ${v1(st.tirs)} tirs (${v1(st.pctTir * 100)} % de précision), ${v1(st.contre)} tirs contre (${pct3(st.pctArr)} d'arrêts).`)}">Tirs <b class="${st.tirs >= st.contre ? 'bon' : 'mauvais'}">${v1(st.tirs)}</b> pour · <b>${v1(st.contre)}</b> contre</span>`
     : patineurs.length && patineurs.length === slots.length
     ? `<span class="line-prod" title="Ce que ${group === 'D' ? 'la paire' : 'le trio'} a produit dans ses vraies saisons : les points par match des ${patineurs.length} additionnés. Une vraie stat, pas une cote.">${patineurs.reduce((a, p) => a + (displayStats(p).ppg || 0), 0).toFixed(1).replace('.', ',')} pts/m</span>`
     : '';
@@ -697,7 +699,7 @@ function planDeMatchEl() {
   // CE QUE LE PLAN FAIT À TES TRIOS (V6, JP : *si ton deuxième est contre le premier, peut-être que la 3 et 4 peuvent
   // scorer plus contre de moins bons trios*) : la note des quatre, rejouée à chaque toucher. Chez toi seulement : chez eux, leur plan joue.
   const note = b.prochain.domicile ? noteDesUnites() : null;
-  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · tirs pour–contre</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % de précision, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)}–${v1(x.stats.contre)}</span>`).join('')}</div>` : '';
+  const notesHtml = note && note.F.length ? `<div class="pm-k">Tes trios ce soir · leurs tirs</div><div class="pm-notes">${note.F.map((x, u) => `<span class="${x.stats.tirs >= x.stats.contre ? 'bon' : 'mauvais'}" title="${esc(`${v1(x.stats.pctTir * 100)} % de précision, ${pct3(x.stats.pctArr)} d'arrêts`)}">${u + 1}${ico(miennes[u])} ${v1(x.stats.tirs)} pour · ${v1(x.stats.contre)} contre</span>`).join('')}</div>` : '';
   el.innerHTML = `<div class="pm-tete"><b>Plan de match</b><span>${esc(teamShort(adv))} · ${b.prochain.domicile ? 'chez toi : ton plan joue' : 'chez eux'}${b.depistage ? ' · selon le dépistage' : ''}</span></div>
     <div class="pm-k">Glace à forces égales · minutes du 1er au 4e trio</div>
     <div class="pm-seg pm-glace">${Object.entries(ROULEMENTS).map(([k, R]) => `<button type="button" class="pm-btn${b.roulement === k ? ' on' : ''}" data-roul="${k}" aria-pressed="${b.roulement === k}" title="${esc(`${R.ico} ${R.nom} : ${R.bon}. ${R.prix}.`)}">${minutesDuRoulement(k, fe).join(' · ')}</button>`).join('')}</div>
@@ -882,7 +884,7 @@ export function coachHtml(decs, j, injured = new Set()) {
     <div class="ej-coach-l">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
     ${F ? `<div class="ej-coach-l"><span class="ej-k">Plan</span> ${esc(motDuCoachPlan(F))} · ${servent} joueur${servent > 1 ? 's' : ''} sur ${habilles.length} y ${servent > 1 ? 'sont forts' : 'est fort'}</div>` : ''}
     ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
-    ${manque ? `<div class="ej-coach-l suite"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
+    ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
   </div>`;
 }
 function equipeDuSoirEl() {

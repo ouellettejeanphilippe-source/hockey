@@ -618,6 +618,11 @@ await tourDesBords('le premier jour');
 await regler();
 // LE MANDAT DU PROPRIO (S80) : la saison de la run et ce que le proprio veut — au sous-onglet du proprio (V12-2).
 /* V12-2 (docs/refonte-v12.md) : un sous-onglet de sa section, son contenu permanent rendu ; puis le Bureau rend la boîte. */
+/* Les cartes d'une maison sont pliées (V12-4) : on touche leur ligne, comme un joueur, avant de les jouer. */
+const deplierLesCartes = async portee => {
+  for (const s of await page.$$(`${portee} details.pli:not([open]) > summary`)) await s.click().catch(() => {});
+  await page.waitForTimeout(250);
+};
 const versLOnglet = async (sec, pg) => {
   await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {});
   await page.click(`#sousNav .soustab[data-page="${pg}"]`, { timeout: 3000 }).catch(() => {});
@@ -1027,12 +1032,15 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // Comptées comme les cases : une tuile « ×2 » dit où jouent ses deux copies.
   const places = await page.$$eval('#hubModal .hub-poche .hub-poche-case[data-ref]', e => e.filter(x => x.querySelector('.hub-poche-place'))
     .reduce((a, x) => a + Number(((x.querySelector('.hub-poche-n') || {}).textContent || '×1').slice(1)), 0)).catch(() => 0);
-  const libres = await page.$$eval('#hubModal .hub-poche .hub-poche-libre', e => e.length).catch(() => 0);
+  // V12-4 : une place qui se joue ailleurs est une ligne qui y mène (`.hub-poche-vers`) ; les libres, le titre les compte (« 2 sur 3 »).
+  const ailleurs = await page.$$eval('#hubModal .hub-poche .hub-poche-vers', e => e.length).catch(() => 0);
+  const titrePlaces = ((await page.textContent('#hubModal .hub-poche-t b').catch(() => '')) || '').match(/(\d+) sur (\d+)/);
+  const libres = titrePlaces ? Number(titrePlaces[2]) - Number(titrePlaces[1]) : 3;
   const trop = (await decisionsDuCombat()).filter(d => d.vend && !d.joue).length;
-  console.log(`10a. tes places, dans « Ce soir » : ${cases} carte(s), ${libres} libre(s), ${places} disent où elles jouent · ${pocheVendues} vendue(s) en grand, ${trop} vente(s) en tout · À faire : ${[...afaire.genres].join(', ')}`);
+  console.log(`10a. tes places, dans « Ce soir » : ${cases} carte(s), ${ailleurs} ailleurs, ${libres} libre(s), ${places} disent où elles jouent · ${pocheVendues} vendue(s) en grand, ${trop} vente(s) en tout · À faire : ${[...afaire.genres].join(', ')}`);
   if (cases < 0 || !(await page.$('#hubModal .hub-poche'))) erreurs.push('tes places ne se voient pas dans « Ce soir »');
-  else if (cases > 3) erreurs.push(`« Ce soir » montre ${cases} cartes à tes places (trois au plus, la carte de trop se vend)`);
-  else if (cases && cases + libres !== 3) erreurs.push(`${cases} carte(s) et ${libres} place(s) libre(s) : il en faut trois`);
+  else if (cases + ailleurs > 3) erreurs.push(`« Ce soir » montre ${cases + ailleurs} cartes à tes places (trois au plus, la carte de trop se vend)`);
+  else if (cases + ailleurs && cases + ailleurs + libres !== 3) erreurs.push(`${cases} carte(s), ${ailleurs} ailleurs et ${libres} place(s) libre(s) : il en faut trois`);
   else if (places < cases) erreurs.push(`${cases - places} carte(s) de tes places ne disent pas où elles jouent`);
   /*
    * POSER EN TOUCHANT (V8) : une modif de joueur touchée dans « Ce soir » ouvre tes lignes, ceux qui peuvent la porter
@@ -1112,6 +1120,39 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
     suivi = await page.$eval('#hubModal:not([hidden]) .af-onglet[data-maison]', e => e.dataset.maison).catch(() => '');
     if (suivi !== renvois[0]) erreurs.push(`« ${renvois[0]} › » ouvre « ${suivi || 'rien'} »`);
   }
+  // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
+  const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
+  const ecrans = {}, avecChoix = new Set();
+  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['bureau', 'entraineur'], ['bureau', 'presse'], ['bureau', 'vestiaire'], ['effectif', 'infirmerie'], ['marche', 'butin'], ['soir', 'soir']]) {
+    await versLOnglet(sec, k);
+    await page.waitForTimeout(300);
+    ecrans[k] = await hauteur();
+    if (await page.$(`#hubModal .af-onglet[data-maison="${k}"] .hub-msg`)) avecChoix.add(k);
+  }
+  console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
+  // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
+  // un écran. La boîte, « Ce soir » et les sous-onglets qui ont des choix se mesurent : leurs choix se plieront (V12-4b).
+  for (const [k, v] of Object.entries(ecrans)) if (!['match', 'soir'].includes(k) && !avecChoix.has(k) && v > 1.3) erreurs.push(`le sous-onglet « ${k} » fait ${v.toFixed(2).replace('.', ',')} écran (1,3 au plus)`);
+  // `ARRET=10h` : on ne veut que ces hauteurs (une mise en page qu'on retouche) ; le reste de la saison attend.
+  if (process.env.ARRET === '10h') {
+    // Chaque sous-onglet en entier : l'écran grandit à sa hauteur, le temps d'une capture.
+    for (const [sec, k] of [['bureau', 'entraineur'], ['bureau', 'vestiaire'], ['effectif', 'infirmerie'], ['soir', 'soir']]) {
+      await versLOnglet(sec, k);
+      await page.setViewportSize({ width: 390, height: Math.ceil(844 * Math.max(1, ecrans[k])) + 40 });
+      await page.waitForTimeout(400);
+      await page.screenshot({ path: `${DOSSIER}/ecran-${k}.png` });
+      await page.setViewportSize({ width: 390, height: 844 });
+    }
+    await page.click('#navbar .navtab[data-section="soir"]').catch(() => {});
+    await page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {});
+    await page.waitForTimeout(800);
+    for (const t of ['Équipe', 'Attaque', 'Défense']) {
+      await page.getByRole('button', { name: t, exact: true }).first().click().catch(() => {});
+      await page.waitForTimeout(500);
+      await page.screenshot({ path: `${DOSSIER}/ecran-lignes-${t}.png`, fullPage: true });
+    }
+    await browser.close(); process.exit(erreurs.length ? 1 : 0);
+  }
   console.log(`10m. une maison par sujet : ${(plafond || '(pas de masse salariale)').replace(/\s+/g, ' ').trim().slice(0, 60)} · renvois ${renvois.join(', ') || 'aucun'}${suivi ? ` (→ ${suivi})` : ''} · ${Object.entries(ici).map(([k, v]) => `${k} ${v.length}`).join(' · ')}`);
   await versMarche('cartes');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
@@ -1184,6 +1225,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   const avant = await lireSauvegarde();
   const coachAvant = (avant.rogue && avant.rogue.coach) || (avant.partie && avant.partie.rogue && avant.partie.rogue.coach);
   await versLOnglet('bureau', 'entraineur');
+  await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
   const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .maison-jouer[data-id="consommable:congediement"]');
   if (await page.$('#pageMarche .inv-jouer-meta[data-id="consommable:congediement"]')) erreurs.push('« Le congédiement » est encore au Marché › Tes cartes');
   if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis le sous-onglet de l\'entraîneur');
@@ -1218,6 +1260,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
   };
   await versLEffectif();
+  await deplierLesCartes('#pageJoueurs');
   const rappel = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:rappel"]');
   if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
   else {
@@ -1252,6 +1295,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
    * copie et le nouveau entre au cartable.
    */
   await versLEffectif();
+  await deplierLesCartes('#pageJoueurs');
   const echange = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:echangeDoublon"]');
   if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
   else {

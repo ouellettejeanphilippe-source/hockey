@@ -626,10 +626,8 @@ export function placesDuJour(j) {
   const places = placesDeLaPartie({ decisions: decs, rogue: G.bonus === 'ROGUE' });
   // Le coach en poste dit sa confiance sur ses cartes (V4.3).
   const confiance = new Map(coachsActifs(decs, j + 1).map(c => [c.cle, c.palier]));
-  // Ce qu'elle donne d'abord, puis ce qu'elle coûte, puis sa durée.
-  const bref = id => { const r = reglesDe(id); return [r.find(x => x.bon === true && !x.duree), r.find(x => x.bon === false && !x.duree), r.find(x => x.duree)].filter(Boolean).map(x => ({ txt: x.txt, bon: x.duree ? null : x.bon })); };
   return { n: PLACES, trop: Math.max(0, places.length - PLACES),
-    places: places.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, confiance: confiance.get(BANQUE[x.id].coach) || 0, bref: bref(x.id), valeur: valeurDe(x.id), maison: G.bonus === 'ROGUE' ? ouSeJoue(x.id) : null })) };
+    places: places.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, confiance: confiance.get(BANQUE[x.id].coach) || 0, valeur: valeurDe(x.id), maison: G.bonus === 'ROGUE' ? ouSeJoue(x.id) : null })) };
 }
 /* Une carte en place, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
 export function ouvrirCarteDeLaPlace(item, j, decider) {
@@ -864,9 +862,11 @@ export function cartesDeLaMaison(maison, j) {
   if (!n) return masse;
   const carte = (id, bouton) => `<div class="bq-carte">${carteDeBanqueHtml(optionDeBanque(id))}<div class="bq-actions">${bouton}</div></div>`;
   const jouer = (src, id, mot, ref = '') => `<button type="button" class="btn gold maison-jouer" data-src="${src}" data-id="${esc(id)}"${ref ? ` data-ref="${esc(ref)}"` : ''}>${mot}</button>`;
-  return `${masse}<section class="perso" aria-label="${MAISONS_DES_CARTES[maison].titre}"><h3 class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</h3>
-    <div class="inv-grille">${places.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
-  </section>`;
+  // V12-4 : le sous-onglet tient en un écran — ses cartes se plient en une ligne (leurs icônes) ; ouvertes, une bande qui se balaie.
+  const icones = [...places.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
+  return `${masse}<details class="pli"><summary class="pli-t"><span class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</span><span class="pli-icones" aria-hidden="true">${icones}</span></summary>
+    <div class="pli-bande">${places.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
+  </details>`;
 }
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
 export const jouerDeLaMaison = (item, j, decider) => (item.vendre ? decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }) : jouerCarte(item, j, decider, null, () => {}));
