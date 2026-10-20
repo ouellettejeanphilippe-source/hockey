@@ -84,4 +84,16 @@ exiger(`le carton : ${PLAFOND_COULEURS_CARTON} couleurs de ses séries au plus, 
   `${carton.couleurs} couleurs · ${carton.tailles} tailles · ${carton.rayons} rayons`);
 exiger(`le plateau : ${PLAFOND_TAILLES_PLATEAU} tailles bornées en px au plus (elles suivent la case), aucune couleur ni rayon en px`, plateau.tailles <= PLAFOND_TAILLES_PLATEAU && !plateau.couleurs && !plateau.rayons,
   `${plateau.tailles} tailles · ${plateau.couleurs} couleurs · ${plateau.rayons} rayons`);
+/*
+ * 3. AUCUNE VARIABLE QUI N'EXISTE PAS (oct. 2026 : `var(--texte, inherit)` dans un `font:` annulait la déclaration entière —
+ * un `inherit` en repli n'est pas valide dans un raccourci — et la valeur d'une barre tombait dans la police par défaut).
+ * Chaque `var(--x)` de la feuille est défini dans la feuille, ou posé par le JS ou la page (`--part`, en ligne).
+ * Les marges sûres d'Android viennent de l'application (Capacitor) : elles ont leur repli `env()`.
+ */
+const DE_L_APPAREIL = new Set(['--safe-area-inset-top', '--safe-area-inset-bottom']);
+const definies = new Set([...src.matchAll(/(--[\w-]+)\s*:/g)].map(m => m[1]));
+for (const f of [...fs.readdirSync(path.join(ROOT, 'js')).map(x => path.join('js', x)), 'index.html'])
+  for (const m of fs.readFileSync(path.join(ROOT, f), 'utf8').matchAll(/(--[a-z][\w-]*)/g)) definies.add(m[1]);
+const inconnues = [...new Set([...src.matchAll(/var\((--[\w-]+)/g)].map(m => m[1]))].filter(v => !definies.has(v) && !DE_L_APPAREIL.has(v));
+exiger('chaque var(--x) existe (dans la feuille, ou posé par le JS)', !inconnues.length, inconnues.join(', ') || `${definies.size} définies`);
 verdict('Le CSS');

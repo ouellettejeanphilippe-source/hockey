@@ -2468,14 +2468,28 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* TON PERSONNEL (V12-2, au sous-onglet de l'entraîneur) : chaque poste et qui l'occupe, ce qu'il fait ; les postes libres. */
 .perso { display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
 .perso-t { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-.perso-l { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); }
+.perso-l { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); padding: var(--esp-1) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); }
 .perso-ico { font-size: var(--t-5); line-height: 1; }
 .perso-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .perso-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .perso-txt b { font: 800 var(--t-3)/1.15 var(--display); color: var(--encre); }
-.perso-txt em { font-size: var(--t-2); font-style: italic; color: var(--encre-2); }
+.perso-txt em { font-size: var(--t-1); font-style: italic; line-height: 1.3; color: var(--encre-2); }
 .perso-libre { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
+/* CE QUI SE PLIE D'UN SOUS-ONGLET (V12-4 : il tient en un écran) : une ligne qui s'ouvre. Les cartes d'une maison (leurs
+   icônes au bout ; ouvertes, une bande de cartons qui se balaie, la suivante au bord, comme la main du duel), la route de la saison. */
+.pli { border-top: 1px solid var(--filet); }
+.pli-t { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; list-style: none; cursor: pointer; }
+.pli-t::-webkit-details-marker { display: none; }
+.pli-t::after { content: "›"; margin-left: auto; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); transition: transform 0.15s; }
+.pli[open] > .pli-t::after { transform: rotate(90deg); }
+.pli-icones { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-3); }
+.pli-bande { display: flex; gap: var(--esp-3); padding: var(--esp-1) 0 var(--esp-3); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
+.pli-bande::-webkit-scrollbar { display: none; }
+.pli-bande > .bq-carte { flex: 0 0 min(44vw, 200px); scroll-snap-align: start; }
+.pli-bande .tc-texte { display: none; }
 .ej-coach-l.suite { opacity: 0.6; }
+/* Ce que le prochain palier jouera (V12-4) : un détail, que « Les chiffres » déplie, comme les chiffres d'un choix. */
+.af-onglet:not(.chiffres) .ej-coach-l.detail { display: none; }
 .ej-coach-l .ej-k { font-size: var(--t-1); color: var(--encre-3); }
 .plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .pm-tete { display: flex; justify-content: space-between; align-items: baseline; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
@@ -2509,7 +2523,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .us-pos { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
 .us-nom { font: 700 var(--t-3)/1.1 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .us-stat { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.line-net { flex: none; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
+.line-net { flex: none; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.02em; color: var(--encre-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .line-net b { font-size: var(--t-3); color: var(--encre); }
 .line-net b.bon { color: var(--bon); }
 .line-net b.mauvais { color: var(--mauvais); }
@@ -3041,27 +3055,24 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-poche { margin-top: var(--esp-3); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }
 .hub-poche-t { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
 .hub-poche-t b { color: var(--encre); }
-.hub-poche-rang { margin-top: var(--esp-2); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--esp-2); }
-.hub-poche-case { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-1); min-width: 0; min-height: 72px; padding: var(--esp-2) var(--esp-1); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 700 var(--t-1)/1.15 var(--display); text-align: center; }
-.hub-poche-bref { display: flex; flex-direction: column; gap: 2px; font: 400 var(--t-1)/1.25 var(--corps); color: var(--encre-2); }
-.hub-poche-bref .bon { color: var(--bon); }
-.hub-poche-bref .prix { color: var(--mauvais); }
-.hub-poche-libre { border-style: dashed; background: transparent; }
-.hub-poche-coach { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
+.hub-poche-rang { margin-top: var(--esp-2); display: flex; flex-direction: column; gap: var(--esp-1); }
+/* Une place qui se joue ailleurs (V12-4) : une ligne qui y mène, pas une tuile. */
+.hub-poche-ailleurs { margin-top: var(--esp-2); display: flex; flex-direction: column; gap: var(--esp-1); }
+.hub-poche-vers { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 600 var(--t-2)/1.2 var(--corps); text-align: left; }
+.hub-poche-vers b { margin-left: auto; flex: none; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
+/* Une place, une ligne (V12-4 : « Ce soir » tient en un écran) : l'icône, le nom et où elle joue, le coach, le verbe. */
+.hub-poche-case { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "ico nom coach" "ico place verbe"; align-items: center; column-gap: var(--esp-2); row-gap: 2px; min-width: 0; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet-2); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 700 var(--t-2)/1.15 var(--display); text-align: left; }
+.hub-poche-coach { grid-area: coach; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 .hub-poche-coach.cru { color: var(--or); }
 /* Les couleurs de la rareté, les mêmes que sur la carte (bleu, blanc, or) : l'argent, l'or et le platine d'avant étaient ceux des badges. */
 .hub-poche-case.tc-peu { border-color: var(--bleu); }
 .hub-poche-case.tc-rare { border-color: var(--choisi); }
 .hub-poche-case.tc-legendaire { border-color: var(--or); box-shadow: 0 0 12px color-mix(in srgb, var(--or) 40%, transparent); }
-.hub-poche-rar { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.hub-poche-case.tc-peu .hub-poche-rar { color: var(--bleu); }
-.hub-poche-case.tc-rare .hub-poche-rar { color: var(--choisi); }
-.hub-poche-case.tc-legendaire .hub-poche-rar { color: var(--or); }
-.hub-poche-ico { font-size: var(--t-5); line-height: 1; }
+.hub-poche-ico { grid-area: ico; font-size: var(--t-4); line-height: 1; }
 .hub-poche-n { color: var(--or); }
-.hub-poche-verbe { margin-top: auto; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--or); }
+.hub-poche-verbe { grid-area: verbe; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--or); white-space: nowrap; }
 /* POSER EN TOUCHANT (V8, « Ce soir ») : la carte qu'on pose se soulève ; sous elle, tes lignes, ceux qui la portent allumés. */
-.hub-poche-case.en-pose { border-color: var(--or); box-shadow: 0 0 0 2px var(--or); transform: translateY(-3px); }
+.hub-poche-case.en-pose { border-color: var(--or); box-shadow: 0 0 0 2px var(--or); }
 .pose-zone { display: grid; gap: var(--esp-2); padding: var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-2); background: var(--fond-1); }
 .pose-tete { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); font-size: var(--t-2); }
 .pose-rang { display: grid; gap: var(--esp-1); }
@@ -3074,9 +3085,10 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .pose-puce.vise { border-color: var(--or); box-shadow: 0 0 0 1px var(--or); }
 .pose-puce:disabled { opacity: 0.45; cursor: default; }
 .pose-autres { justify-self: start; }
+.hub-poche-place { grid-area: place; }
 .hub-poche-place, .poche-place { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 .poche-place { margin: 0 0 var(--esp-2); }
-.hub-poche-nom { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.hub-poche-nom { grid-area: nom; display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
 .poche-boutons { display: grid; grid-template-columns: 1fr 1fr; gap: var(--esp-2); margin-bottom: var(--esp-3); }
 .hub-miniboss { margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--mauvais); background: color-mix(in srgb, var(--mauvais) 10%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .hub-miniboss.gagne { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, transparent); }
@@ -3450,6 +3462,10 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 
 /* ---- Ton histoire : trois actes, une ligne par événement, la rivalité en tête ---- */
 .recit { display: flex; flex-direction: column; gap: var(--esp-2); }
+.recit-avant > summary { display: flex; align-items: center; min-height: 44px; list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.recit-avant > summary::-webkit-details-marker { display: none; }
+.recit-avant > summary::after { content: "›"; margin-left: var(--esp-2); font-size: var(--t-4); transition: transform 0.15s; }
+.recit-avant[open] > summary::after { transform: rotate(90deg); }
 .recit-rival { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .recit-acte { display: flex; flex-direction: column; gap: var(--esp-1); }
 .recit-acte-t { margin-top: var(--esp-2); padding-bottom: var(--esp-1); border-bottom: 1px solid var(--filet-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
@@ -4034,7 +4050,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 }
 .impact-l.bon .impact-barre i { background: var(--bon); }
 .impact-l.prix .impact-barre i { background: var(--mauvais); }
-.impact .impact-l .impact-v { grid-column: 1 / -1; padding: 0; border: 0; font: 600 var(--t-1)/1.2 var(--texte, inherit); text-transform: none; letter-spacing: 0; }
+.impact .impact-l .impact-v { grid-column: 1 / -1; padding: 0; border: 0; font: 600 var(--t-1)/1.2 var(--corps); text-transform: none; letter-spacing: 0; }
 .impact .impact-l.bon .impact-v { color: var(--bon); }
 .impact .impact-l.prix .impact-v { color: var(--mauvais); }
 /* Le dessin au trait (`dessinHtml`) : ses aplats et ses traits de la couleur du genre. */
