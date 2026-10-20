@@ -4190,7 +4190,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .main-pli > b { flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--bon); color: var(--sur-choisi); font: 800 var(--t-1)/1 var(--display); }
 .main-pli > span:first-of-type { flex: 1; min-width: 0; }
 .main-pli-ouvrir { flex: none; color: var(--encre-3); }
-.duel-intention.plie { padding: 0; border: 0; background: none; box-shadow: none; }
 .duel-mise { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid color-mix(in srgb, var(--or) 40%, var(--filet)); }
 .main-plie { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
 .main-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 40px; padding: var(--esp-1) var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
@@ -4207,8 +4206,32 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .duel-intention { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-left: 3px solid var(--mauvais); }
 .duel-fait { margin: 0; font: 800 var(--t-4)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .duel-pourquoi, .duel-cartes { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
-.duel-deja { margin: 0; color: var(--bon); font: 700 var(--t-2)/1.3 var(--display); }
+/*
+ * TON TABLEAU (V13-1, à la EHM) : le verdict de leur intention, tes gestes d'échange, une rangée par unité (son système
+ * en menu), la consigne ; ce qui a changé contre tes Lignes s'allume, et son prix suit en vraies stats.
+ */
+.duel-tableau { display: flex; flex-direction: column; gap: 2px; }
+.duel-verdict { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
+.duel-intention:has(.duel-tableau) { gap: var(--esp-1); }
+.duel-verdict.bon { color: var(--bon); }
+.duel-verdict.moitie { color: var(--or); }
+.duel-verdict.non { color: var(--mauvais); }
+.duel-portes { font: 600 var(--t-1)/1.3 var(--corps); letter-spacing: 0; text-transform: none; color: var(--encre-2); }
+.duel-tab-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--esp-2); }
+/* Deux unités par rangée, le nom à côté de son menu : la période tient sous 1,3 écran avec la main (`essai_rogue` 20j). */
+.duel-tab-l { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); align-items: center; gap: var(--esp-1); min-width: 0; padding: 2px; border-radius: var(--r-1); }
+.duel-tab-l.change { background: color-mix(in srgb, var(--or) 12%, transparent); }
+.duel-tab-u { min-width: 0; }
+.duel-tab-u b { display: block; font: 800 var(--t-1)/1.05 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); }
+.duel-tab-s { width: 100%; min-height: 44px; padding: 0 var(--esp-1); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; }
+.duel-tab-prix { display: flex; flex-direction: column; gap: var(--esp-1); margin-top: var(--esp-1); }
 .duel-gestes { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
+/* Un geste d'échange, en une ligne (V13-1) : ce qu'il fait, son prix ; ce que la contrer rapporte avec « Les chiffres ». */
+.duel-geste { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); text-align: left; }
+.duel-geste b { font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; }
+.duel-geste small { font-size: var(--t-1); color: var(--mauvais); }
+.duel-geste.on { border-color: var(--bon); box-shadow: 0 0 0 1px var(--bon); }
+.duel-geste.on b { color: var(--bon); }
 @media (min-width: 700px) { .duel-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .duel-snap { align-self: flex-start; }
 .btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }

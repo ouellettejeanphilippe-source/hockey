@@ -33,9 +33,9 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, badgesDe, lanceeDe, LANCEE, com
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, mainDuDuel, MISE_DOUBLEE, ELAN_PAR_PERIODE, INTENTIONS, MOMENTS_SI } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, mainDuDuel, MISE_DOUBLEE, ELAN_PAR_PERIODE, INTENTIONS, MOMENTS_SI, lireLeTableau } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats } from './impact.js';
+import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, lignesEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction } from './cartes.js';
@@ -704,6 +704,27 @@ function autresButins(deck, prendre, retour) {
 const PRESSE = new Set(['choix', 'pack', 'places', 'blessure', 'trou']);
 /* Les accès de la carte de la semaine (V5) : ce qu'un roguelike garde à un toucher de sa carte. La boutique n'y est
    pas (JP : *rien de la boutique dans le Club*) : elle est au Marché, à un toucher de la barre, ouverte en tout temps. */
+/*
+ * LE TABLEAU D'UNE PÉRIODE DE DUEL (V13-1, docs/refonte-v13.md) : tes unités et leurs systèmes, la consigne ; la
+ * lecture de leur intention, celle du moteur (`lireLeTableau`) ; et ce que tes changements coûtent, en vraies stats,
+ * contre tes Lignes (`lignesEnChiffres`, js/impact.js). `defaut` : le tableau de la période d'avant, qu'on reprend.
+ */
+function tableauDuDuel(you, P, { domicile, adv, defaut = null }) {
+  const L = activeLineup(you), lignes = lignesDe(you, L, { duSoir: false });
+  const base = { F: [0, 1, 2, 3].map(u => (lignes[u] ? lignes[u].tac : null)), D: [0, 1, 2].map(u => (lignes[u] ? lignes[u].tacD : null)), consigne: 'normale' };
+  const qui = (g, u) => SLOTS.filter(s => !s.scratch && s.group === g && s.unit === u && L[s.i]).map(s => nomCourt(L[s.i].n)).join(' · ');
+  const unites = [...[0, 1, 2, 3].filter(u => lignes[u] && base.F[u]).map(u => ({ g: 'F', u, nom: `${u + 1}${u ? 'e' : 'er'} trio`, qui: qui('F', u) })),
+    ...[0, 1, 2].filter(u => lignes[u] && base.D[u]).map(u => ({ g: 'D', u, nom: `${u + 1}${u ? 'e' : 're'} paire`, qui: qui('D', u) }))];
+  const poser = T => lignes.map((l, u) => ({ ...l, ...(T.F[u] ? { tac: T.F[u] } : {}), ...(T.D[u] ? { tacD: T.D[u] } : {}) }));
+  const c0 = P.intention.cible ? SLOTS.find(s => !s.scratch && L[s.i] === P.intention.cible) || null : null;
+  const evaluer = (T, geste) => {
+    const Lk = { ...L }, R = geste ? (P.reponses || []).find(o => o.cle === geste) : null;
+    if (R && R.echange) { const [i, j] = R.echange; [Lk[i], Lk[j]] = [Lk[j], Lk[i]]; }
+    return lireLeTableau(P.intention, { toi: you, L: Lk, lignes: poser(T), depart: lignes, base: T.consigne !== 'normale' ? [{ source: 'reponse', cle: T.consigne }] : [], c0, domicile });
+  };
+  return { unites, base, depart: defaut || base, evaluer, prix: T => lignesEnChiffres(you, L, adv, poser(T), lignes) };
+}
+
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
@@ -1161,11 +1182,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Le duel : la main tirée part avec la décision (elle dure trois périodes), et ton geste contre leur 1re intention.
     const jouer = (dA, [jouees, enMain, , prep]) => {
       const j = jour; quitter();
-      onDecision([...(dA ? [dA] : []), duel ? { jour: mo.p.j, main: { jouees, enMain, tirage: prep.tirage, pile: prep.pile }, duel: { p: 0, reponse: prep.reponse } }
+      onDecision([...(dA ? [dA] : []), duel ? { jour: mo.p.j, main: { jouees, enMain, tirage: prep.tirage, pile: prep.pile }, duel: { p: 0, reponse: prep.reponse, ...(prep.tactiques ? { tactiques: prep.tactiques } : {}) } }
         : { jour: mo.p.j, main: { jouees, enMain }, prep }], j);
     };
     const ap = duel ? apercuDuDuel(you, adv, { graine, cle: `j${mo.p.j}` }) : null;
-    const D = ap ? specDuDuel(ap, { k: 0, main, domicile: mo.p.m.A === you, cadre: cadreDuMatch(1 / 3, 'la période'), deja: ap.contree }) : null;
+    const D = ap ? specDuDuel(ap, { k: 0, main, domicile: mo.p.m.A === you, cadre: cadreDuMatch(1 / 3, 'la période') }) : null;
+    if (D) Object.assign(D, tableauDuDuel(you, ap, { domicile: mo.p.m.A === you, adv }));
     // L'ENJEU, en une ligne : les vraies constantes (le barème de la run, `SONNE`) ; une carte « à enjeu » double le contrecoup.
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
     // V8 : un rival choisi paie son butin.
@@ -4142,7 +4164,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mise = k === 2 ? { ...sceneDeLaMise({ moi, lui, rival: ctx.teamShort(adv), graine: `${graine}|${p.j}` }),
       chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` } : null;
     const P = du.periodes[k];
-    const D = specDuDuel(P, { k, main, domicile: moiA, mise, cadre: cadreDuMatch(1 / 3, 'la période'), deja: !!P.contree });
+    const D = specDuDuel(P, { k, main, domicile: moiA, mise, cadre: cadreDuMatch(1 / 3, 'la période') });
+    const avant = decisionDuDuel(p.j, k - 1);
+    Object.assign(D, tableauDuDuel(you, P, { domicile: moiA, adv, defaut: (avant && avant.duel && avant.duel.tactiques) || null }));
     const tirs = c => [1, 2].slice(0, k).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);
     const buts = f.buts.filter(b => b.instant < 20 * k)
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : adv).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
@@ -4160,7 +4184,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         suiteEntracte = { j: p.j, direct, depuis: 20 * k };
         const j = jour;
         quitter();
-        onDecision({ jour: p.j, main: { jouees }, duel: { p: k, reponse: x.reponse, snap: !!x.snap } }, j);
+        onDecision({ jour: p.j, main: { jouees }, duel: { p: k, reponse: x.reponse, snap: !!x.snap, ...(x.tactiques ? { tactiques: x.tactiques } : {}) } }, j);
       },
     });
   }
@@ -4514,7 +4538,9 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const joueesAvant = [0, 1].slice(0, p).map(i => { const d = decisionSerieDuDuel(k, i); return (d && d.main && d.main.jouees) || []; });
     const { main, pioche } = d0 && d0.main && Array.isArray(d0.main.tirage) ? mainDuDuel(d0.main.tirage, d0.main.pile || [], joueesAvant) : { main: [], pioche: [] };
     const P = du.periodes[p];
-    const D = specDuDuel(P, { k: p, main, domicile: moiA, cadre: cadreSerie(1 / 3, 'la période'), deja: !!P.contree });
+    const D = specDuDuel(P, { k: p, main, domicile: moiA, cadre: cadreSerie(1 / 3, 'la période') });
+    const avant = decisionSerieDuDuel(k, p - 1);
+    Object.assign(D, tableauDuDuel(you, P, { domicile: moiA, adv: boss, defaut: (avant && avant.duel && avant.duel.tactiques) || null }));
     const tirs = c => [1, 2].slice(0, p).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);
     const buts = f.buts.filter(b => b.instant < 20 * p)
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : boss).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
@@ -4531,7 +4557,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       onJouer: (jouees, enMain, aj, x) => {
         suiteEntracteSerie = { ronde, k, direct, depuis: 20 * p };
         const r = ronde; quitter();
-        onDecision({ ronde: r, match_no: k, main: { jouees }, duel: { p, reponse: x.reponse } });
+        onDecision({ ronde: r, match_no: k, main: { jouees }, duel: { p, reponse: x.reponse, ...(x.tactiques ? { tactiques: x.tactiques } : {}) } });
       },
     });
   }
@@ -4649,7 +4675,8 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees, enMain, ...tirage }, ...(duel ? { duel: { p: 0, reponse: null } } : { prep: piste ? [piste] : [] }), auto: true }));
       };
       const ap = duel ? apercuDuDuel(you, boss, { graine, cle: `po${ronde}:${k}` }) : null;
-      const D = ap ? specDuDuel(ap, { k: 0, main, domicile: s.A === you, cadre: cadreSerie(1 / 3, 'la période'), deja: ap.contree }) : null;
+      const D = ap ? specDuDuel(ap, { k: 0, main, domicile: s.A === you, cadre: cadreSerie(1 / 3, 'la période') }) : null;
+      if (D) Object.assign(D, tableauDuDuel(you, ap, { domicile: s.A === you, adv: boss }));
       if (serieDelegue()) { setTimeout(() => { if (!termine) parLAdjoint(); }, 0); return; }
       /*
        * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. La main
@@ -4669,7 +4696,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         ajustements: offres ? offres.map(c => ({ cle: c, ...AJUSTEMENTS[c] })) : null,
         equipe: you, main, pioche, deck, onAdjoint: parLAdjoint, couleurs: ctx.band(boss.tag),
         onJouer: (jouees, enMain, ajustement, prep) => quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}),
-          ...(duel ? { main: { jouees, enMain, ...tirage }, duel: { p: 0, reponse: prep.reponse } } : { main: { jouees, enMain }, prep }) })),
+          ...(duel ? { main: { jouees, enMain, ...tirage }, duel: { p: 0, reponse: prep.reponse, ...(prep.tactiques ? { tactiques: prep.tactiques } : {}) } } : { main: { jouees, enMain }, prep }) })),
       });
       const barre = actions.querySelector('.hub-barre');
       if (barre) barre.insertAdjacentHTML('afterbegin', `<button type="button" class="btn go hub-main-serie" data-defaut>🃏 Tes cartes · match ${k + 1}</button>`);

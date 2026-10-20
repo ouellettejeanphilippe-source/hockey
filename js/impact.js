@@ -490,7 +490,7 @@ export function unitesDuSoir(team, lineup, adv, lignes = null) {
  */
 const N_LIGNES = 500;
 /** La différence de deux jeux de lignes (quatre `{ tac, tacD, agr, sec }`), en mots de match. */
-function lignesEnChiffres(team, lineup, adv, lignes, contre) {
+export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   if (!team) return [];
   const a = lire(team, lineup, adv, { lignes, n: N_LIGNES }), b = lire(team, lineup, adv, { lignes: contre, n: N_LIGNES });
   const d = differences(a, b), out = lignesDe(d);
