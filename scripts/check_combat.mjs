@@ -1,32 +1,21 @@
 /*
- * LE DECK DE MATCH (S74) — ce qui doit tenir.
+ * LA MAIN DE L'ADVERSAIRE (S74 ; V13-2) — ce qui doit tenir.
  *
  *   node scripts/check_combat.mjs
  *
- * JP : *prends vraiment inspiration d'un jeu de deckbuilder* ; *faut le faire
- * pour vrai*. On exige :
- *   1. le deck se déduit des décisions : départ, récompenses, retraits,
- *      malédiction d'un objectif raté ; la main est pure ;
- *   2. les récompenses : trois cartes différentes, jamais une malédiction ni
- *      une carte du départ, plus rares après une série ;
- *   3. chaque carte jouable fait QUELQUE CHOSE que le moteur lit (un canal,
- *      l'adversaire, son plan, tes lignes, l'énergie, un pari, une synergie)
- *      — une carte muette est une carte menteuse ;
- *   4. jouer une main dans un gros match change la feuille de CE match, et le
- *      rejeu la redonne à l'identique ;
- *   5. « La vidéo » fait VRAIMENT tomber leur plan : leurs deux premières
- *      lignes ne jouent plus la tactique du plan ;
- *   6. l'adversaire joue aussi sa main (connue d'avance) et « Leur cahier
- *      de jeux » l'annule ;
- *   7. le calibrage : sa main coûte des victoires, une main de départ bien
- *      jouée les rend — la difficulté des gros matchs ne bouge pas.
+ * Ta main de match est partie avec la main du duel (V13-2, docs/refonte-v13.md) ; l'adversaire d'un gros match qui
+ * n'est pas un duel (le 82-0) joue encore la sienne, et son plan se dépiste. On exige :
+ *   3. chaque carte qu'il peut jouer fait QUELQUE CHOSE que le moteur lit (un canal, toi, ses lignes, l'énergie, une
+ *      synergie) — une carte muette est une carte menteuse ;
+ *   6. sa main est connue d'avance, et c'est celle qu'il joue ;
+ *   7. le calibrage : sa main coûte des victoires, et elle monte en fin de course ;
+ *   8. le dépistage : trois pistes, la préparation juste, fausse ou rien.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, playRonde, appliquerDecisionSerie, depistageDe, planDuDepistage } from '../js/sim.js';
-import { CARTES_MATCH, DECK_DEPART, deckDe, mainDuMatch, recompensesOffertes, energieDepensee, ENERGIE_MAIN, mainAdverse, OPTIONS_COMBAT, energieAdverse, MATCH_ADVERSE_FORT, mainDeLAdjoint } from '../js/combat.js';
-import { carteDe } from '../js/rarete.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDesCartes, PLANS_ADV, simulerGrosMatch, depistageDe, planDuDepistage } from '../js/sim.js';
+import { CARTES_MATCH, mainAdverse, OPTIONS_COMBAT, energieAdverse, MATCH_ADVERSE_FORT } from '../js/combat.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -54,68 +43,7 @@ function ligue(seed) {
   return out;
 }
 
-console.log('\n  Le deck de match (S74)\n');
-
-/* ---------- 1 et 2. le deck, la main, les récompenses ---------- */
-{
-  const d = deckDe([
-    { jour: 5, recompense: 'miracle' }, { jour: 9, retrait: 'lancerAuFilet' }, { jour: 12, palier: 'v:0', effet: { energie: 1.12 } },
-    { jour: 50, recompense: 'legende' },
-  ], { avant: 40 });
-  exiger('le deck suit les décisions (récompense, retrait, malédiction, et rien après le jour demandé)',
-    d.length === DECK_DEPART.length + 1 && d.includes('miracle') && !d.includes('lancerAuFilet') && d.includes('distraction') && !d.includes('legende'),
-    d.join(' · '));
-  const m1 = mainDuMatch('g', 'j30', DECK_DEPART), m2 = mainDuMatch('g', 'j30', DECK_DEPART), m3 = mainDuMatch('g', 'j31', DECK_DEPART);
-  exiger('la main est pure : cinq cartes, le reste en pioche, dans le même ordre', JSON.stringify(m1) === JSON.stringify(m2) && m1.main.length === 5 && m1.pioche.length === 5, m1.main.join(' · '));
-  exiger('et elle change d\'un match à l\'autre', JSON.stringify(m1) !== JSON.stringify(m3), m3.main.join(' · '));
-  let fautes = 0; const rares = { saison: 0, serie: 0 };
-  for (let g = 0; g < 300; g++) for (const serie of [false, true]) {
-    const r = recompensesOffertes(`g${g}`, 'x', { serie });
-    if (r.length !== 3 || new Set(r).size !== 3 || r.some(k => CARTES_MATCH[k].maudite || DECK_DEPART.includes(k))) fautes++;
-    rares[serie ? 'serie' : 'saison'] += r.filter(k => CARTES_MATCH[k].rarete === 'rare').length;
-  }
-  exiger('une récompense : trois cartes différentes, jamais maudite ni du départ', fautes === 0, `${fautes} fautives sur 600`);
-  exiger('plus rares après une série', rares.serie > 3 * rares.saison, `rares : ${rares.saison} en saison, ${rares.serie} en séries (sur 900 cartes chacun)`);
-  // LES CARTES « + » (S74) : moitié plus fortes, ou une énergie de moins, et le camp les pose dans le deck.
-  {
-    const L = CARTES_MATCH.lancerAuFilet, P = CARTES_MATCH['lancerAuFilet+'], M = CARTES_MATCH['miracle+'];
-    const plus = deckDe([{ jour: 1, aiguise: 'lancerAuFilet' }]);
-    const toutes = Object.keys(CARTES_MATCH).filter(k => !CARTES_MATCH[k].maudite && !k.endsWith('+'));
-    exiger('chaque carte a sa version « + », plus forte ou moins chère', toutes.every(k => CARTES_MATCH[`${k}+`])
-      && P.effet.volume > L.effet.volume && M.cout < CARTES_MATCH.miracle.cout
-      && plus.includes('lancerAuFilet+') && !plus.includes('lancerAuFilet'),
-      `${toutes.length} versions · lancers ${L.effet.volume} → ${P.effet.volume.toFixed(2)} · miracle ${CARTES_MATCH.miracle.cout} → ${M.cout} énergie`);
-  }
-  exiger('l\'énergie se compte : trois, moins les coûts', energieDepensee(['miracle']) === 0 && energieDepensee(['lancer']) === 2 && ENERGIE_MAIN === 3, '');
-  /*
-   * LA CARTE DIT CE QUE LE MOTEUR JOUE (1.0, J1-G). Une carte « + » n'aggrave
-   * jamais son inconvénient : sur chaque canal, la version + est à 1, ou plus
-   * loin de 1 dans le bon sens seulement (l'inverse sur l'adversaire).
-   */
-  {
-    const SENS = { finition: 1, volume: 1, robustesse: 1, defense: -1, energie: -1, discipline: -1, blessure: -1 };
-    const pires = [];
-    for (const [k, Cb] of Object.entries(CARTES_MATCH)) {
-      if (Cb.maudite || k.endsWith('+')) continue;
-      const P = CARTES_MATCH[`${k}+`];
-      for (const [champ, cote] of [['effet', 1], ['adv', -1]]) {
-        for (const [canal, v] of Object.entries(Cb[champ] || {})) {
-          if (typeof v !== 'number' || !SENS[canal]) continue;
-          const w = P[champ][canal];
-          const bon = Math.sign(v - 1) === SENS[canal] * cote;
-          if (bon ? Math.abs(w - 1) < Math.abs(v - 1) - 1e-9 : Math.abs(w - 1) > Math.abs(v - 1) + 1e-9) pires.push(`${k}+ ${champ}.${canal} ${v} → ${w}`);
-        }
-      }
-    }
-    exiger('une carte « + » n\'amplifie jamais son inconvénient', pires.length === 0, pires.join(' · ') || `${Object.keys(CARTES_MATCH).length / 2} cartes`);
-    const T = CARTES_MATCH.tueur;
-    exiger('« L\'instinct du tueur » ne joue que si on mène après deux périodes, et n\'a plus de malus caché',
-      T.apres40 && T.apres40.siMene.finition > 1 && !Object.keys(T.apres40.sinon).length && !T.effet, JSON.stringify(T.apres40));
-    // V2.4 : la carte d'un joueur n'est que sa variante — elle monte ses badges (js/sim.js `badgesDe`), aucun bonus tiré au hasard.
-    exiger('la carte d\'un joueur n\'est que sa variante, sans bonus tiré au hasard', JSON.stringify(carteDe('rare')) === JSON.stringify({ rar: 'rare' })
-      && !('bonus' in carteDe('legendaire')) && carteDe('nimporte').rar === 'commune', JSON.stringify(carteDe('legendaire')));
-  }
-}
+console.log('\n  La main de l\'adversaire (S74)\n');
 
 /* ---------- 3. chaque carte fait quelque chose ---------- */
 {
@@ -129,9 +57,7 @@ console.log('\n  Le deck de match (S74)\n');
     const siens = fx.effets.filter(e => e.nom === Cm.nom).length;
     // 1.0 : `apres40` se pose à la troisième période (js/sim.js), pas à l'avant-match — la carte n'est pas muette pour autant.
     const fait = siens || fx.adv.length || fx.lire || fx.contre || fx.annule || fx.energieTous || Cm.pioche || Cm.energiePlus
-      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais || Cm.apres40
-      // V11 : une carte sur un joueur (`joueur`) joue au duel, sur lui (js/sim.js `jouerDuel`).
-      || Cm.joueur;
+      || fx.revele || fx.ecarte || fx.planB || fx.improvise || fx.piege || Cm.rabais || Cm.apres40;
     if (!fait) muettes.push(k);
   }
   const synergies = Object.keys(CARTES_MATCH).filter(k => CARTES_MATCH[k].synergie);
@@ -144,8 +70,6 @@ console.log('\n  Le deck de match (S74)\n');
   exiger('chaque synergie se déclenche pour au moins un club de la ligue', jamais.length === 0, jamais.join(' · ') || `${synergies.length} synergies, ${clubs.length} clubs`);
   const vraiesMuettes = muettes.filter(k => !CARTES_MATCH[k].synergie);
   exiger('chaque carte jouable fait quelque chose que le moteur lit', vraiesMuettes.length === 0, vraiesMuettes.join(' · ') || `${Object.keys(CARTES_MATCH).length} cartes`);
-  const doute = effetsDesCartes(t, { jouees: [], enMain: ['doute'] }, 'x');
-  exiger('une malédiction restée dans la main coûte', doute.effets.length === 1 && doute.effets[0].finition < 1, JSON.stringify(doute.effets[0] || {}));
 }
 
 /* ---------- 3b. les cartes d'origine (1.0) : parties avec l'ancien deck (V10, tranche 6). ---------- */
@@ -168,30 +92,9 @@ console.log('\n  Le deck de match (S74)\n');
   exiger('chaque synergie se dit en chiffres de match : son maximum (`plein`) est celui de sa règle écrite', fautes.length === 0, fautes.join(' · ') || `${synergies.length} cartes`);
 }
 
-/* ---------- 4, 5, 6. dans les feuilles ---------- */
+/* ---------- 6 et 7. dans les feuilles ---------- */
 {
   const graine = 'combat';
-  const base = ligue(7400);
-  simulateLeague(base, 82, { graine, decisions: [] });
-  const gros = base[0].minisBoss || [];
-  informer('gros matchs de la saison témoin', `${gros.length} · ${gros.filter(m => m.gagne).length} gagnés`);
-  const J = gros.length ? gros[0].jour : null;
-  if (J == null) informer('feuilles', 'aucun gros match cette saison : épreuve sautée');
-  else {
-    const avec = ligue(7400);
-    const decs = [{ jour: J, equipe: 0, main: { jouees: ['leMur', 'lancerAuFilet', 'motDuCapitaine'] }, sel: 'm1' }];
-    simulateLeague(avec, 82, { graine, decisions: decs });
-    const m = avec[0].minisBoss.find(x => x.jour === J);
-    const feuille = avec[0].journal.find(x => x.n === J + 1 || (x.feuille && x.feuille.cartes)) || null;
-    exiger('la main jouée entre dans la feuille et dans ton histoire', !!(m && m.cartes && m.cartes.jouees.length === 3),
-      m && m.cartes ? m.cartes.jouees.join(' · ') : 'rien');
-    const rejeu = ligue(7400);
-    simulateLeague(rejeu, 82, { graine, decisions: decs.map(d => ({ ...d })) });
-    const f = x => `${x[0].W}-${x[0].L}-${x[0].OTL} ${x[0].GF}-${x[0].GA}`;
-    exiger('le rejeu avec la même main redonne la même saison', f(avec) === f(rejeu), `${f(avec)} puis ${f(rejeu)}`);
-    void feuille;
-    // 5. « Le coach dans leur tête » est parti avec l'ancien deck (V10, tranche 6) : le duel répond à leurs intentions (check_duel).
-  }
   // 6. Leur main : connue d'avance, jouée, et annulée par « Leur cahier de jeux ».
   {
     const b0 = ligue(7400);
@@ -201,31 +104,6 @@ console.log('\n  Le deck de match (S74)\n');
     exiger('l\'adversaire joue la main que l\'écran annonce', !!(m0 && m0.cartes && JSON.stringify(m0.cartes.adverses) === JSON.stringify(prevue) && prevue.length),
       m0 && m0.cartes ? `annoncée ${prevue.join(' · ')}, jouée ${(m0.cartes.adverses || []).join(' · ')}` : 'rien');
     // V10 (tranche 6) : « Leur cahier de jeux » est parti avec l'ancien deck ; leur main se contre au duel (check_duel).
-  }
-  /*
-   * UN SEUL PLEIN ÉCRAN PAR MATCH DE SÉRIES (S74b) : l'ajustement et la main
-   * partent en UNE décision. Le moteur doit appliquer les deux (l'effet de
-   * l'ajustement ET les cartes de la main au match), et la ronde se rejouer
-   * à l'identique avec la même décision.
-   */
-  {
-    const serie = decs => {
-      const L = ligue(7450);
-      simulateLeague(L, 82, { graine: 'serie', decisions: [] });
-      const top = L.slice().sort((a, b) => b.PTS - a.PTS).slice(0, 16);
-      if (!top.includes(L[0])) top[15] = L[0];
-      const paires = [];
-      for (let i = 0; i < 8; i++) paires.push([top[i], top[15 - i]]);
-      const toi = L[0];
-      const r = playRonde(paires, 0, k2 => { toi.effetsSerie = []; for (const d of decs) if (d.ronde === 0 && d.match_no === k2) appliquerDecisionSerie(toi, d, 'serie'); }, 'serie');
-      return r.find(x => x.A === toi || x.B === toi);
-    };
-    const d = [{ ronde: 0, match_no: 1, ajustement: 'rythme', main: { jouees: ['bloquer', 'lancer'], enMain: [] }, sel: 'combo' }];
-    const a = serie(d), b = serie(d.map(x => ({ ...x })));
-    const p1 = a.plans[1];
-    exiger('l\'ajustement et la main partent ensemble, et la ronde se rejoue', !!(p1 && p1.cartes && p1.cartes.jouees.join() === 'bloquer,lancer')
-      && JSON.stringify(a.feuilles.map(f => f.buts.length)) === JSON.stringify(b.feuilles.map(f => f.buts.length)),
-      p1 && p1.cartes ? `match 2 : ${p1.cartes.jouees.join(' · ')} joués, série ${a.wA}-${a.wB} deux fois` : 'rien');
   }
   // L'ÉNERGIE ADVERSE MONTE AVEC LA COURSE (S74b) : quatre en fin de saison et en fin de séries.
   {
@@ -241,12 +119,11 @@ console.log('\n  Le deck de match (S74)\n');
    * saisons entières il ne restait qu'une vingtaine de gros matchs appariés
    * — un gros match dépend du classement de la veille, et chaque décision
    * déplace les suivants — et l'écart sautait de 9 points d'une exécution à
-   * l'autre. Ici : le même match, sur les mêmes dés, sans cartes de part et
-   * d'autre, avec leur main seule, et avec la tienne (trois cartes de départ).
+   * l'autre. Ici : le même match, sur les mêmes dés, sans leur main, puis avec.
    */
   {
     const L = ligue(9100), plans = Object.keys(PLANS_ADV), N = 3000;
-    let sans = 0, eux = 0, deux = 0;
+    let sans = 0, eux = 0;
     for (let k = 0; k < N; k++) {
       const toi = L[k % 32], adv = L[(k * 7 + 3) % 32];
       const o = { plan: plans[k % plans.length], graine: 'calibrage', cle: `j${k}` };
@@ -254,12 +131,10 @@ console.log('\n  Le deck de match (S74)\n');
       sans += simulerGrosMatch(toi, adv, { ...o, cartes: { jouees: [] } }).gagne;
       OPTIONS_COMBAT.adverses = true;
       eux += simulerGrosMatch(toi, adv, { ...o, cartes: { jouees: [] } }).gagne;
-      deux += simulerGrosMatch(toi, adv, { ...o, cartes: { jouees: ['bloquer', 'lancer', 'bloquer'] } }).gagne;
     }
     const pct = x => `${(x / N * 100).toFixed(1)} %`;
-    informer('gros matchs isolés (victoires)', `${N} matchs : ${pct(sans)} sans cartes · ${pct(eux)} quand eux seuls jouent · ${pct(deux)} quand tu réponds avec trois cartes de départ`);
-    exiger('leur main coûte des victoires, la tienne les rend', eux < sans && deux > eux, `${pct(sans)} → ${pct(eux)} → ${pct(deux)}`);
-    borne('écart à la difficulté d\'avant avec une main de départ', (deux - sans) / N, -0.06, 0.06, '');
+    informer('gros matchs isolés (victoires)', `${N} matchs : ${pct(sans)} sans leur main · ${pct(eux)} quand ils la jouent`);
+    exiger('leur main coûte des victoires', eux < sans, `${pct(sans)} → ${pct(eux)}`);
   }
 }
 
@@ -318,22 +193,6 @@ console.log('\n  Le deck de match (S74)\n');
   const pc = x => `${(x / NN * 100).toFixed(1)} %`;
   informer('la préparation (victoires)', `${NN} matchs : juste ${pc(vJ)} · rien ${pc(vR)} · fausse ${pc(vF)}`);
   exiger('viser juste vaut plus que ne rien préparer, qui vaut plus que se tromper', vJ > vR && vR > vF, `${pc(vJ)} > ${pc(vR)} > ${pc(vF)}`);
-
-  // L'ADJOINT JOUE LA MAIN (1.0, J2-13) : jamais plus que l'élan, jamais une injouable, un pari ou une carte qui s'épuise.
-  const toutes = Object.keys(CARTES_MATCH);
-  let mainsA = 0, fautes = [], cartesA = 0;
-  for (let k = 0; k < 600; k++) {
-    const main = mainDuMatch(`adj${k}`, `po0:${k % 7}`, [...DECK_DEPART, ...toutes.filter((_, i) => (i * 7 + k) % 5 === 0)]).main;
-    const { jouees, enMain } = mainDeLAdjoint(main);
-    mainsA++; cartesA += jouees.length;
-    const reste = main.slice();
-    for (const c of jouees) { const i = reste.indexOf(c); if (i < 0) fautes.push(`${c} hors de la main`); else reste.splice(i, 1); }
-    if (energieDepensee(jouees) < 0) fautes.push(`élan ${energieDepensee(jouees)} : ${jouees.join(',')}`);
-    for (const c of jouees) if (CARTES_MATCH[c].injouable || CARTES_MATCH[c].pari || CARTES_MATCH[c].epuise || CARTES_MATCH[c].pioche) fautes.push(`${c} jouée`);
-    if (enMain.some(c => !CARTES_MATCH[c].enMain)) fautes.push('enMain sans malédiction');
-  }
-  exiger('l\'adjoint joue sa main dans l\'élan, sans pari, pioche, carte injouable ou qui s\'épuise', !fautes.length && cartesA > mainsA,
-    fautes.length ? fautes.slice(0, 3).join(' · ') : `${mainsA} mains, ${(cartesA / mainsA).toFixed(1)} carte(s) jouée(s) par main`);
 }
 
-verdict('Le deck de match');
+verdict('La main de l\'adversaire');

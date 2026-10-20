@@ -2,7 +2,7 @@
 
 ## Le projet en une phrase
 
-Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, les cartes, la boutique, la run), **Sur table** et l'exhibition.
+Jeu web statique en français québécois : la roulette sort une saison et une équipe de la LNH, tu piges un joueur dans ce vestiaire, tu bâtis un alignement de 23 sous le plafond salarial, et tu simules 82 matchs. Plusieurs modes : **le 82-0** (juste le repêchage ; la saison se simule d'un coup, les séries se regardent match par match, aucune carte), **le Rogue** (le jour à jour, le duel à ton tableau, les cartes de tes places, la boutique, la run), **Sur table** et l'exhibition.
 
 Hébergé sur GitHub Pages. Aucun backend, aucune dépendance npm, aucun framework.
 
@@ -46,7 +46,7 @@ js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour
 js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
 js/saison.js          l'écran de saison et des séries : le Bureau (À faire, la route, hier soir), « Ce soir », Ligue › Ta saison, les choix
-js/gerant.js          la fenêtre du système d'une ligne, les choix, la main de match et le deck
+js/gerant.js          la fenêtre du système d'une ligne, les choix, l'écran du duel (`ouvrirDuel`, ton tableau)
 js/bilan.js           le bilan de saison : onglets, palmarès, calendrier, séries
 js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets auprès des sections
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
@@ -60,8 +60,7 @@ js/entracte.js        le rapport d'entracte en cartons
 js/pronostic.js       le dépistage d'avant-match
 js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit pour ton club (« ≈ +1,2 tir par match »), jamais en « % » ; partagé navigateur + Node
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
-js/combat.js          le deck de match : cartes, main, élan, main adverse
-js/cahier.js          le cahier neuf (V10) : les cartes de duel, chacune son moment, et le départ
+js/combat.js          la main de l'adversaire d'un gros match qui n'est pas un duel (le 82-0) ; ta main est partie (V13-2)
 js/places.js          les places neuves (V10) : hors combat, chacune son moment de la semaine
 js/equipement.js      l'équipement neuf (V10) : posé sur un joueur, il attend son moment
 js/personnel.js       le personnel neuf (V10) : un poste par rôle, chacun son moment de la saison ; les contrats lourds
@@ -130,13 +129,13 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Ce qui a fait le match se dit cause par cause : une carte, un badge, un système, le gardien n'est dit que si, retiré seul, il changeait le lancer, avec le même dé — `check_causes`.
 - La production se répartit comme la vraie saison l'a répartie — `check_parts`.
 - Le direct, le sommaire et le bilan disent les mêmes buts, au caractère près — smoke.
-- Aucune cote neuve, aucune mécanique neuve : une carte, un trait, un effet passent par les canaux existants — `check_combat` (chaque carte jouable est lue par le moteur), `check_traits`. Une exception, voulue (V9, JP : *oui à tout*) : en Rogue, le plan décide quelles stats comptent — le système d'une unité paie sa famille, à points égaux, et le coach la fait compter (`famillesDe`, `PLAN_PAIE`, `COACH_DU_PLAN`) ; le 82-0 n'y joue pas — `check_fit`, `check_profondeur`, `check_familles`.
+- Aucune cote neuve, aucune mécanique neuve : une carte, un trait, un effet passent par les canaux existants — `check_combat` (chaque carte que l'adversaire peut jouer est lue par le moteur), `check_traits`. Une exception, voulue (V9, JP : *oui à tout*) : en Rogue, le plan décide quelles stats comptent — le système d'une unité paie sa famille, à points égaux, et le coach la fait compter (`famillesDe`, `PLAN_PAIE`, `COACH_DU_PLAN`) ; le 82-0 n'y joue pas — `check_fit`, `check_profondeur`, `check_familles`.
 - On mesure une carte EN PAIRES, sinon on ne mesure rien — `check_cartes`.
-- Une carte peut ne jouer que dans son moment (`si` : un des `MOMENTS_SI` de js/sim.js — le lieu, les séries, le dos-à-dos, les jambes, le rival ou la bête noire, la forme, l'infirmerie, l'intention annoncée d'un duel ou sa 3e période) : elle frappe alors plus fort ses soirs-là, rien hors d'eux, et sa face dit son moment en premier. Un moment se lit sur ce qui est déjà joué, jamais d'avance, et revient assez pour qu'une carte ne soit pas morte ; au duel, une réponse ne répond qu'à son intention, le temps de sa période — `check_si`, `check_moments_si`, `check_cahier`.
+- Une carte peut ne jouer que dans son moment (`si` : un des `MOMENTS_SI` de js/sim.js — le lieu, les séries, le dos-à-dos, les jambes, le rival ou la bête noire, la forme, l'infirmerie, l'intention annoncée d'un duel ou sa 3e période) : elle frappe alors plus fort ses soirs-là, rien hors d'eux, et sa face dit son moment en premier. Un moment se lit sur ce qui est déjà joué, jamais d'avance, et revient assez pour qu'une carte ne soit pas morte — `check_si`, `check_moments_si`, `check_places`.
 - Une carte change la FORME du match, pas sa force : le net en victoires est borné par la rareté (commune ±1, peu commune ±1,5, rare ±2,5, légendaire ±4 : un maximum, jamais une cible), une rare ou une légendaire se VOIT dans la feuille (±2 tirs, ±0,3 but des deux clubs, ±0,5 punition, ±4 mises en échec ou ±3 blessures ; sur un joueur nommé, ±0,3 point à sa ligne — `check_places`), et le style ne se paie pas en force : au plus 0,5 V par seuil franchi — `check_cartes`.
 - Les gros matchs portent leur plan, leur contre et leur pointage après deux périodes — `check_gros`. En Rogue (V9), ce sont des duels de trois périodes, une intention chacune, et les périodes vues ne bougent pas — `check_gros`, `check_duel`.
 - Deux clubs égaux, le duel bien joué contre le mal joué : 62 à 65 % en face à face, jamais plus de 70 % — `check_duel`.
-- Au duel, ta réponse est ton tableau de la période (V13) : une porte pleine ou deux demi-portes contrent leur intention, chaque réglage garde son prix, et aucun tableau qui ferme tout d'avance ne vaut le duel bien joué — `check_tableau`.
+- Au duel, ta réponse est ton tableau de la période (V13), sans main de cartes (V13-2) : une porte pleine ou deux demi-portes contrent leur intention, chaque réglage garde son prix, et aucun tableau qui ferme tout d'avance ne vaut le duel bien joué — `check_tableau`.
 - Le robot « premier Signer » ne gagne pas la Coupe — `check_robot`.
 - Une carte seule reste sous la borne de sa rareté et la première run reste dure ; une run qui a duré, ou un build qui s'emboîte, a le droit de casser le jeu — c'est la récompense du Rogue (docs/refonte-v3.md, principe 5).
 - Après sa première Coupe, le gérant attentif la regagne sans la gagner d'office : il monte les exigences (V9, tranche 8) — `check_profondeur`.
@@ -147,7 +146,8 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Le ballottage offre un dépanneur (niveau Régulier au plus), pas une vedette — `check_ballottage`.
 - Une carte ne se prend qu'une fois, et un palier n'arrête l'avance qu'une fois.
 - Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres, et un seul coach est en poste à la fois — `check_coachs`.
-- L'adversaire ne pige pas les cartes de match de la v2 (`horsAdverse`) : sa main est calibrée, la difficulté ne bouge pas — `check_gros`, `check_robot`.
+- L'adversaire ne pige pas les cartes de match de la v2 (`horsAdverse`) : sa main est calibrée, la difficulté ne bouge pas — `check_gros`, `check_robot`. Au duel, il n'a pas de main : ses intentions en tiennent lieu.
+- Chaque coach a au moins huit cartes, dans deux familles au moins ; le Rhino, l'Abbé et le Contremaître, sans canal de joueur ni équipement, ont six places au lieu de trois (V13-2) — `check_coachs`, `check_places`.
 
 **Sur table**
 - Les règles du plateau sont ÉCRITES DANS LE CODE (`reglesDuPlateau()`) et affichées de là ; le moteur ne les viole jamais — `check_regles`.
@@ -192,12 +192,11 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle fait l'agressivité de sa ligne, qui ne se règle pas (`agressiviteDeLigne`).
 - **coach** : une des neuf philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) ; chaque carte a la couleur d'un coach. Pas « école », pas « build » à l'écran.
 - **couleur** : le coach d'une carte, ou d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon ». Une carte sans couleur est **neutre**.
-- **confiance** : I, II, III — un seul coach en poste, choisi au début de la saison à la confiance I ; ses cartes jouées le montent à II (6) et III (9), chacune une fois, celles du deck de départ non. « Le congédiement » en installe un autre, à I, et l'ancien part avec son bonus (V5).
+- **confiance** : I, II, III — un seul coach en poste, choisi au début de la saison à la confiance I ; ses cartes jouées le montent à II (6) et III (9) ; une carte prise (un pack, un butin) ne compte qu'une fois jouée. « Le congédiement » en installe un autre, à I, et l'ancien part avec son bonus (V5).
 - **prestige** : le rang du club d'une run à l'autre (`js/rogue.js`, du Club de garage à la Dynastie) — médailles 🏅 gagnées à vie et un exploit par rang ; il ajoute des Étoiles et des Phénomènes aux packs, sans qu'aucun rang n'en ferme un (V10). **Les packs qui montent** : la boutique d'une première run vend le Bronze et l'Époque ; un pack de plus s'ouvre à son jalon (`packsOuverts`), et chaque pack monte de deux **crans** en médailles, un joueur de plus puis le métal du dessus (`CRANS_DE_PACK`, `monteeDesPacks`, js/rogue.js ; `tierDuPack`, js/packs.js) — `check_packs`.
 - **exigences** 🔺 : en Rogue, après ta première Coupe, les crans que tu montes au départ d'une run, comme l'Ascension de Slay the Spire (`EXIGENCES`, `exigencesDe`, js/rogue.js). Chaque **cran** ajoute la sienne à celles d'avant, par un canal qui existe (le plafond, le prix des packs, le classeur, le quota de Soutien, le barème, le mandat, les gardés), et paie plus de médailles ; la Coupe gagnée au plus haut cran ouvre le suivant. Pas « difficulté », pas « ascension » à l'écran — `check_rogue`, `check_profondeur`.
-- **élan** : la mana des cartes de match (trois par main ; au duel du Rogue, deux par période ; « 1 élan » sur une carte).
-- **duel** : le gros match du Rogue, en trois périodes (V9). **Intention** : ce que l'adversaire annonce avant une période, et qui vise tes joueurs par leur nom (🥷 l'ombre, 🦈 la chasse, ⛔ fermer le centre, 🐗 l'assaut, 🦂 les punitions). **Le tableau** (V13) : ta réponse, le temps de la période — le système de chaque unité, la consigne, et le **geste** qui déplace un joueur ; chaque réglage qui mord sur leur intention est une **porte**, pleine ou à moitié (`lireLeTableau`) ; une intention **contrée** se retourne contre eux jusqu'à la fin du match. **La mise doublée** : avant la 3e d'un duel de saison, le butin ou les sonnés doublent. La main du duel dure les trois périodes.
-- **places** : en Rogue, tes cartes qui se jouent hors du combat (des packs, et une parmi trois aux 9e, 18e et 26e matchs), trois au plus (`PLACES`, `placesDeLaPartie`, js/inventaire.js) ; chacune se joue quand tu veux, sans limite par semaine, et une de trop se vend (À faire). Elles suivent d'une saison à l'autre de la run (Jalon Q). « La poche » et « la main de la semaine » sont parties (V9, tranche 5b). Le **cahier** : ton deck de match, 20 cartes au plus (`CAHIER_MAX`, js/combat.js) ; au-delà, une carte du départ cède sa place.
+- **duel** : le gros match du Rogue, en trois périodes (V9). **Intention** : ce que l'adversaire annonce avant une période, et qui vise tes joueurs par leur nom (🥷 l'ombre, 🦈 la chasse, ⛔ fermer le centre, 🐗 l'assaut, 🦂 les punitions). **Le tableau** (V13) : ta réponse, le temps de la période — le système de chaque unité, la consigne, et le **geste** qui déplace un joueur ; chaque réglage qui mord sur leur intention est une **porte**, pleine ou à moitié (`lireLeTableau`) ; une intention **contrée** se retourne contre eux jusqu'à la fin du match. **La mise doublée** : avant la 3e d'un duel de saison, le butin ou les sonnés doublent. Le duel n'a plus de main de cartes (V13-2) : mesurée, l'adjoint la jouait presque aussi bien sans rien lire.
+- **places** : en Rogue, tes cartes, qui jouent leurs prochains matchs dans leur moment (des packs, une parmi trois aux 9e, 18e et 26e matchs, et le butin d'un gros match gagné), trois au plus (`PLACES`, `placesDeLaPartie`, js/inventaire.js) ; chacune se joue quand tu veux, sans limite par semaine, et une de trop se vend (À faire). Elles suivent d'une saison à l'autre de la run (Jalon Q). « La poche » et « la main de la semaine » sont parties (V9, tranche 5b) ; le cahier (le deck de match) aussi, avec la main du duel (V13-2).
 - **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers. Les joueurs faibles du départ d'une run sont des **bouche-trous**, pas des plombiers.
 - **vestiaire** : la pièce, et l'équipe qui y vit (« le vestiaire est galvanisé ») ; au repêchage, le vestiaire d'une vraie équipe où l'on pige. Ce que les médailles achètent, ce sont **les déblocages** ; l'équipe d'une run, c'est **ton effectif**.
 - **cartable** : tes cartes de joueur, d'une partie à l'autre. **classeur** : le tirage de ton cartable au départ d'une run (« Le départ du classeur »). La **banque** : toutes les cartes de jeu. Un **doublon** est un joueur déjà à ton cartable ; trois doublons montent sa carte d'une édition, jusqu'à l'Or (`monterLesDoublons`).
@@ -261,7 +260,6 @@ Depuis la V10, tranche 1 : `node scripts/check_moments_si.mjs` (une minute, au C
 
 Depuis la V10, tranche 3 (et 4, le personnel et les contrats lourds ; 5, les réponses des dossiers) : `node scripts/check_places.mjs` (douze minutes ; `N` matchs par club et par carte, 1000 ; `CARTES=a,b` quelques-unes) — chaque place et chaque équipement en paires, match par match, son moment posé (`_lireMoment`) : hors de son moment, la feuille est identique ; dans son moment, sous la borne de sa rareté, sur ses soirs (`parSaison`, `MOMENTS_SI`) ; une rare se voit ; trois cartes par coach et par pile.
 
-Depuis la V10, tranche 2 : `node scripts/check_cahier.mjs` (quatre minutes ; `N` duels par club, 500 ; `CARTES=a,b` quelques-unes) — chaque carte du cahier en paires, jouée à la première période de son moment ; hors de son moment, une réponse ne change rien ; dans son moment, sous la borne de sa rareté ; une rare ou une légendaire se voit dans la feuille ; quatre cartes par coach, le départ neutre.
 
 Depuis la V9, tranche 5 : `node scripts/check_duel.mjs` (une minute et demie ; `N` matchs par club et par bras, 2500 pour la précision qu'exige la cible) — deux copies d'un même vrai club, le duel bien joué contre le mal joué, sur les mêmes dés ; les périodes vues ne bougent pas.
 

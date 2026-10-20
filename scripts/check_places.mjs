@@ -12,7 +12,8 @@
  *   3. une rare ou une légendaire se voit dans la feuille d'un soir de son moment (CLAUDE.md : ±2 tirs, ±0,3 but des
  *      deux clubs, ±0,5 punition, ±4 mises en échec, ou ±3 blessures sur une saison ; une place sur un joueur, V11 :
  *      ±0,3 point à la ligne du joueur nommé) ; une commune peut être discrète ;
- *   4. trois cartes par coach et par pile (l'équipement : les coachs qui ont un canal de joueur), trois neutres ;
+ *   4. trois cartes par coach et par pile (l'équipement : les coachs qui ont un canal de joueur ; les trois autres, sauf
+ *      le Comptable, ont six places : V13-2), trois neutres ;
  *      l'ancien jeu de tous les soirs ne s'offre plus.
  * `N` : matchs par club et par carte (400). `FILS` : processus (4). `CARTES=a,b` : quelques cartes seulement.
  */
@@ -135,8 +136,9 @@ console.log(`\n  Les places et l'équipement neufs (V10) · ${toutes.length} car
   const compte = (src, cat) => { const o = {}; for (const k of Object.keys(src)) { const c = BANQUE[`${cat}:${k}`]; const co = (c && c.coach) || 'neutre'; o[co] = (o[co] || 0) + 1; } return o; };
   const pl = compte(PLACES_NEUVES, 'consommable'), eq = compte(EQUIPEMENT, 'joueur');
   const dit = o => Object.entries(o).map(([k, x]) => `${COACHS[k] ? COACHS[k].ico : k} ${x}`).join(' · ');
-  exiger('les places : trois par coach, trois neutres', Object.keys(COACHS).every(k => pl[k] === 3) && pl.neutre === 3, dit(pl));
   const AVEC_CANAL = ['essaim', 'rapaces', 'tortue', 'souffle', 'etoiles'];
+  exiger('les places : trois par coach, six sans canal de joueur (le Rhino, l\'Abbé, le Contremaître), trois neutres',
+    Object.keys(COACHS).every(k => pl[k] === (AVEC_CANAL.includes(k) || k === 'banque' ? 3 : 6)) && pl.neutre === 3, dit(pl));
   exiger('l\'équipement : trois par coach qui a un canal de joueur, trois neutres', AVEC_CANAL.every(k => eq[k] === 3) && eq.neutre === 3 && Object.keys(eq).every(k => k === 'neutre' || AVEC_CANAL.includes(k)), dit(eq));
   const pe = compte(PERSONNEL, 'patron');
   exiger('le personnel : deux postes par coach, trois neutres', Object.keys(COACHS).every(k => pe[k] === 2) && pe.neutre === 3, dit(pe));

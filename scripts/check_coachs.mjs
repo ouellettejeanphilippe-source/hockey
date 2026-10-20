@@ -28,7 +28,6 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, coachDuPlan, COACH_DU_PLAN, FAMILLES } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
-import { DECK_DEPART } from '../js/combat.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
@@ -69,17 +68,19 @@ console.log('\n  Les coachs (v2)\n');
 const tous = Object.values(BANQUE);
 const neutres = tous.filter(c => !c.coach);
 informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].ico} ${idsDuCoach(k).length}`).join(' · ')} · neutres ${neutres.length}`);
-// V10 (docs/refonte-v10.md § 8) : le plancher suit le jeu neuf — quatre cartes de cahier, trois places et deux postes de
-// personnel par coach ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur (js/equipement.js).
-const PLANCHER_COACH = 9;
-const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 3);
-exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins trois familles`, !minces.length,
+// V13-2 (docs/refonte-v13.md) : le cahier est parti avec la main du duel. Trois places et deux postes de personnel par
+// coach ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur (js/equipement.js), trois places de
+// plus aux trois autres (js/places.js). Huit cartes au moins, dans deux familles au moins.
+const PLANCHER_COACH = 8;
+const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 2);
+exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins deux familles`, !minces.length,
   ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
-// v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : une carte sur cinq environ reste neutre.
-borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.12, 0.3);
+// v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : des cartes neutres restent. V13-2 : les dix
+// du deck de départ sont parties avec la main du duel ; restent trois neutres par pile (places, équipement, personnel).
+borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.08, 0.3);
 // V10 (tranche 6) : l'ancien jeu est parti ; le jeu neuf compte moins de cartes, chacune de son moment.
 exiger('le registre : plus de 150 cartes', tous.length >= 150, `${tous.length}`);
-const TEMOINS = { 'match:fouleQuiPousse': 'essaim', 'match:leMur': 'tortue', 'match:autreJoue': 'choeur', 'match:quatriemeTrio': 'profondeur', 'match:vedettesEnAvant': 'etoiles',
+const TEMOINS = { 'consommable:centTirs': 'essaim', 'joueur:casqueGrille': 'tortue', 'consommable:autreJoue': 'choeur', 'consommable:quatriemeTrio': 'profondeur', 'consommable:grandeScene': 'etoiles',
   'patron:per_physioDeRoute': 'souffle', 'patron:per_preparateurCombat': 'rhinos', 'patron:per_tirsDeRoute': 'rapaces', 'plafond:ltir': 'banque', 'consommable:retraiteFermee': 'choeur', 'consommable:systemeDeRoute': 'tortue' };
 const faux = Object.entries(TEMOINS).filter(([id, k]) => coachDeCarte(id) !== k).map(([id, k]) => `${id} → ${coachDeCarte(id)} (attendu ${k})`);
 exiger('le coach d\'une carte se lit sur ce qu\'elle fait', !faux.length, faux.join(' · ') || `${Object.keys(TEMOINS).length} témoins`);
@@ -88,7 +89,7 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
 /* 2. La confiance. */
 {
   // V10 : les cartes de la Tortue qui se jouent hors du combat (les places, l'équipement, le personnel).
-  const cartes = idsDuCoach('tortue').filter(id => BANQUE[id].cat !== 'match');
+  const cartes = idsDuCoach('tortue');
   const decs = [];
   const allumes = [];
   for (let i = 0; i < 10; i++) {
@@ -104,15 +105,9 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   const deux = idsDuCoach('essaim').slice(0, 3).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id } }));
   const d4 = palierAllume([...base, ...deux.slice(0, 2)], deux[2]);
   exiger('le coach du départ compte trois cartes, et la 6e allume II', !palierAllume(base, deux[0]) && d4 && d4.coach.palier === 2, d4 ? `II au jour ${deux[2].jour}` : 'rien');
-  // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter.
-  exiger('une carte jouée dans la main d\'un gros match compte pour son coach', buildDe([{ jour: 3, main: { jouees: ['lucarne+'], enMain: [] } }]).rapaces === 1, 'La lucarne+');
-  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([{ jour: 3, recompense: 'lucarne+' }]).rapaces === 0, 'La lucarne+');
-  // La run de JP gagnée du premier coup : « Changements » rejoué huit fois montait le Doc à III. Le départ (V10) est neutre.
-  const huit = Array.from({ length: 8 }, (_, i) => ({ jour: 10 + i * 10, main: { jouees: ['lucarne', ...DECK_DEPART.slice(0, 2), `${DECK_DEPART[4]}+`], enMain: [] } }));
-  const b8 = buildDe(huit), autres = Object.entries(b8).filter(([k, n]) => k !== 'rapaces' && n > 0);
-  exiger('une carte de match rejouée ne compte qu\'une fois, et le deck de départ ne compte pas', b8.rapaces === 1 && !autres.length, `Aigle ${b8.rapaces}${autres.map(([k, n]) => ` · ${k} ${n}`).join('')}`);
-  const gach = Array.from({ length: 3 }, (_, i) => ({ jour: 10 + i, main: { jouees: ['lucarne'], enMain: [] } }));
-  exiger('rejouée trois fois, elle n\'allume pas la confiance I', !palierAllume(gach.slice(0, 2), gach[2]));
+  // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter (V13-2 : le butin d'un gros match va à une place).
+  const prise = { jour: 3, palier: 'r:2', place: 'consommable:coinPeint' };
+  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([prise]).rapaces === 0 && buildDe([prise, { jour: 4, joue: { src: 'partie', ref: 'r:2', id: 'consommable:coinPeint' } }]).rapaces === 1, 'Le coin du haut, peint');
 }
 
 /*

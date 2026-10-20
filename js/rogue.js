@@ -19,7 +19,7 @@
  *     les rondes des séries, la Coupe) ;
  *   - les DÉBLOCAGES qu'ils achètent au vestiaire : garder des joueurs de ta
  *     dernière équipe (« tu gardes des trucs de saison en saison »), des
- *     jetons de départ, des packs neufs, un deck aiguisé, de meilleurs
+ *     jetons de départ, des packs neufs, de meilleurs
  *     plombiers ;
  *   - la COLLECTION : chaque joueur tiré d'un pack entre dans ton cartable,
  *     qu'on l'ait signé ou non — c'est ça, une carte qu'on a tirée.
@@ -134,7 +134,6 @@ export const DEBLOCAGES = {
   packGardiens: { ico: '🥅', nom: 'Les spécialistes gardiens', prix: 50, texte: 'Le Pack Spécialistes offre le rôle Gardiens : les partants au meilleur pourcentage d\'arrêts.' },
   packAnnees80: { ico: '📼', nom: 'Les années 80', prix: 60, texte: 'Le Pack Époque offre les années 80, l\'époque des 400 buts par saison.' },
   packVedettes: { ico: '🌟', nom: 'Les vedettes des séries', prix: 150, texte: 'Une série gagnée donne un pack d\'un cran plus haut : l\'Or dès le premier tour, les Étoiles au deuxième, les Légendes en finale.' },
-  deckPlus: { ico: '🃏', nom: 'Un deck aiguisé', prix: 50, texte: 'Ton deck de départ commence avec « Lancer au filet+ » et « Serrer les rangs+ ».' },
   plombiersPlus: { ico: '🛠', nom: 'Des bouche-trous moins pires', prix: 80, texte: 'Tes bouche-trous de départ sortent du bas de la ligue, pas du fond du baril.' },
   // S79 : la masse salariale se débloque aussi.
   plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3\u00a0M$ de plafond au début de chaque run.' },
@@ -412,8 +411,14 @@ export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infini
 const JEU_DE_CARTES = 'v10';
 export const convertirAuJeuNeuf = m => (m.jeu === JEU_DE_CARTES ? null : { ...m, inventaire: {}, personnel: [], cartes: [], jeu: JEU_DE_CARTES });
 const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, personnel: [], inventaire: {}, recus: {}, jalons: {}, sel: null });
+/* V13-2 : « Un deck aiguisé » est parti avec le deck de match ; ses médailles reviennent (une fois : écrit, le méta ne l'a plus). */
+const PARTIS_V13 = { deckPlus: 50 };
+function rembourserLesPartis(m) {
+  const partis = (m.deblocages || []).filter(k => PARTIS_V13[k]);
+  return partis.length ? { ...m, deblocages: m.deblocages.filter(k => !PARTIS_V13[k]), ecussons: (m.ecussons || 0) + partis.reduce((a, k) => a + PARTIS_V13[k], 0) } : m;
+}
 export function lireMeta() {
-  try { return { ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }; } catch { return META_VIDE(); }
+  try { return rembourserLesPartis({ ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }); } catch { return META_VIDE(); }
 }
 export function ecrireMeta(m) { try { localStorage.setItem(CLE_META, JSON.stringify(m)); } catch { /* ignore */ } }
 export const aDebloque = (m, cle) => (m.deblocages || []).includes(cle);

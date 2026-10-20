@@ -21,7 +21,7 @@
  *      plafond flexible, la retenue, le rachat, le LTIR — chacun au dollar ;
  *   3. le moteur : un patron entre dans \`team.patrons\` (saison ET séries,
  *      \`effetsDeSaison\`), un événement dans \`team.effets\`, un style sur la
- *      carte du joueur, une carte de match au deck, et un SOIN raccourcit
+ *      carte du joueur, et un SOIN raccourcit
  *      vraiment une blessure ;
  *   4. la saison se rejoue au but près avec des cartes de toutes les familles ;
  *   5. l'équilibre, mesuré EN PAIRES (la même ligue deux fois sous la même
@@ -36,7 +36,6 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, getPlayerKey, effetsDeSaison } from '../js/sim.js';
-import { deckDe } from '../js/combat.js';
 import { BANQUE, ORDRE_CATEGORIES, PATRONS, CONTRATS, compteParCategorie, reglesDe, payloadDe, plafondDe } from '../js/banque.js';
 import { PACKS_TOUS, TIERS, chancesDe, tirerCartesPack } from '../js/packs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -84,14 +83,14 @@ const FONDUES = ['saison'];
 const tirables = ORDRE_CATEGORIES.reduce((a, c) => a + compte[c], 0);
 exiger('plus de 100 cartes qui se tirent, dans les familles du jeu neuf', tirables >= 100 && ORDRE_CATEGORIES.every(c => (FONDUES.includes(c) ? !compte[c] : compte[c] > 0)),
   `${tirables} qui se tirent (${total} définies)`);
-const sansRegle = Object.keys(BANQUE).filter(id => BANQUE[id].cat !== 'match' && !reglesDe(id).length);
+const sansRegle = Object.keys(BANQUE).filter(id => !reglesDe(id).length);
 exiger('chaque carte dit sa règle', !sansRegle.length, sansRegle.slice(0, 5).join(', ') || 'toutes');
 // Le congédiement (V5) change de coach : il n'a pas de chiffre à dire.
 const chiffres = Object.keys(BANQUE).filter(id => ['patron', 'consommable', 'plafond'].includes(BANQUE[id].cat) && id !== 'consommable:congediement').filter(id => !reglesDe(id).some(m => /\d/.test(m.txt)));
 exiger('les patrons, événements, consommables et contrats se lisent en chiffres', !chiffres.length, chiffres.slice(0, 5).join(', ') || 'tous');
-const CHAMPS = ['patron', 'effet', 'gestes', 'surJoueur', 'mutation', 'recompense', 'carte', 'retrait', 'aiguise', 'maitrise', 'gain', 'deck', 'plafond', 'coach', 'ballottage'];
+const CHAMPS = ['patron', 'effet', 'gestes', 'surJoueur', 'mutation', 'maitrise', 'gain', 'deck', 'plafond', 'coach', 'ballottage'];
 const sansDecision = Object.keys(BANQUE).filter(id => {
-  const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', carte: 'lancer', coach: 'essaim', patrons: [], alea: 0.2 });
+  const p = payloadDe(id, { joueur: 'x', tactique: 'trappe', coach: 'essaim', patrons: [], alea: 0.2 });
   return !p || !Object.keys(p).some(k => CHAMPS.includes(k));
 });
 exiger('chaque carte devient une décision que le moteur (ou le plafond) lit', !sansDecision.length, sansDecision.slice(0, 5).join(', ') || 'toutes');
@@ -152,7 +151,6 @@ const decs = [
   { jour: 5, equipe: 0, ...payloadDe('patron:per_gardienDuFort', { patrons: [] }) },
   { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'zone' } },
   { jour: 12, equipe: 0, ...payloadDe('joueur:rubanBlanc', { joueur: getPlayerKey(avant) }) },
-  { jour: 14, equipe: 0, ...payloadDe('match:lucarne') },
   { jour: 16, equipe: 0, ...payloadDe('consommable:tableMassage') },
   { jour: 18, equipe: 0, ...payloadDe('consommable:batonsNeufs', { joueur: getPlayerKey(avant) }) },
   { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'mijoter', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] } },
@@ -172,7 +170,6 @@ exiger('une place sur un joueur tient sur le joueur nommé', !!surLui && getPlay
 const boude = (moi.effetsCibles || []).find(e => e.nom === 'Il boude');
 exiger('un dossier sur un joueur tient sur le joueur nommé', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.finition < 1 && (moi.effets || []).some(e => e.nom === 'Il boude' && e.discipline < 1),
   boude ? `${boude.joueur.n} : précision ×${boude.finition}, ${boude.fin - boude.debut} jours` : 'absent');
-exiger('une carte de match entre au deck', deckDe(decs).includes('lucarne'), `${deckDe(decs).length} cartes`);
 
 // UN SOIN RACCOURCIT UNE BLESSURE : une première saison dit qui se blesse et quand ; la même, avec un soin le lendemain, doit le rendre plus tôt.
 let soinOk = null;

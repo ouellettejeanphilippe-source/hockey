@@ -254,9 +254,9 @@ const compterFeuilles = async ou => {
   const vues = await page.$$eval('.choix-sheet', ls => ls.filter(e => e.checkVisibility({ visibilityProperty: true })).map(e => (e.closest('[id]') || {}).id || e.className));
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
-const captures = { main: 0, combat: 0, duel: 0 };   // la première main d'avant-match, photographiée une fois   // les dés lancés pendant la run, et les événements qui les ont demandés
+const captures = { combat: 0, duel: 0 };   // le premier combat et le premier duel, photographiés une fois
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [] };   // À faire (V9), vu au premier choix
-const butin = { fait: false, retrait: null };   // V5 : le butin « retirer une carte », éprouvé une fois
+const butin = { vus: 0, pris: [], fautes: [] };   // V13-2 : le butin d'une victoire, une carte parmi trois pour une place
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
 const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
@@ -347,8 +347,12 @@ async function regler() {
         if (vest.length) { await vest[0].click({ timeout: 10000 }).catch(async e => { console.log(`la carte de vestiaire bouge :\n${await sonde(vest[0])}`); await page.screenshot({ path: `${DOSSIER}/rogue-vest-bouge.png` }); throw e; }); await page.waitForTimeout(250); }
         if (premierCombat) await page.screenshot({ path: `${DOSSIER}/rogue-combat-vestiaire.png` });
       }
-      // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
-      if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
+      /*
+       * SANS MAIN (V13-2, docs/refonte-v13.md) : le duel se joue à ton tableau ; ni cartes de match, ni élan, ni « Mon deck ».
+       */
+      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, details.main-duel, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
+      if (resteDeMain.length) erreurs.push(`l'écran du duel montre encore la main : ${[...new Set(resteDeMain)].join(', ')}`);
+      if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test(((await page.textContent('#choixModal .choix-sheet').catch(() => '')) || ''))) erreurs.push('l\'écran du duel parle encore d\'élan ou de deck');
       /*
        * LE DUEL (V9, tranche 5 ; V13-1, le tableau) : chaque période dit leur intention ; on prend le geste d'échange
        * offert, puis on règle le tableau comme un joueur — un système à la fois, le verdict relu à chaque fois — jusqu'à
@@ -426,7 +430,7 @@ async function regler() {
           periodes.push(`${dn.duel.p + 1}${geste ? `:${geste}` : ''}:${niveau}${tableau ? '·tableau' : ''}`);
           if (geste && dn.duel.reponse !== geste) erreurs.push(`le geste « ${geste} » n'entre pas dans la décision de la période`);
           if (tableau && !(dn.duel.tactiques && Array.isArray(dn.duel.tactiques.F))) erreurs.push('le tableau réglé n\'entre pas dans la décision de la période');
-          if (dn.duel.p === 0 && !(dn.main && Array.isArray(dn.main.tirage) && dn.main.tirage.length)) erreurs.push('la main tirée du duel ne part pas avec la décision');
+          if (dn.main.tirage || (dn.main.jouees || []).length) erreurs.push(`la période du duel part encore avec une main (${JSON.stringify(dn.main)})`);
         }
       }
       if (enjeu && !(await page.$('#choixModal:not([hidden]) .de-scene'))) {
@@ -482,25 +486,29 @@ async function regler() {
       continue;
     }
     /*
-     * LE BUTIN À TROIS CHOIX (V5) : au premier, « Retirer une carte », « Retour » (le butin revient), puis on retire pour
-     * de bon ; la décision porte le retrait et pas de carte. Les butins suivants prennent une carte, comme avant.
+     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2) : une carte parmi trois, pour une place — plus de carte de match pour le
+     * deck, ni de « Retirer une carte ». On prend la première ; la décision porte `place` et son palier `r:`, et la carte
+     * entre dans tes places. Photographié une fois.
      */
-    const autre = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-autre');
-    if (autre && !butin.fait && await autre.isVisible()) {
-      butin.fait = true;
-      const titre0 = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
-      await autre.click(); await page.waitForTimeout(300);
-      if (!/Retirer une carte/.test((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '')) { erreurs.push('« Retirer une carte » n\'ouvre pas le deck'); continue; }
-      await page.click('#choixModal .choix-fermer'); await page.waitForTimeout(300);
-      if (((await page.textContent('#choixModal:not([hidden]) .choix-titre').catch(() => '')) || '').trim() !== titre0) erreurs.push('« Retour » ne rouvre pas le butin');
-      await page.click('#choixModal:not([hidden]) .choix-autre'); await page.waitForTimeout(300);
-      const n0 = (await decisionsDuCombat()).length;
-      const cle = await page.$eval('#choixModal:not([hidden]) .choix-option:not([disabled])', b => b.dataset.choix);
-      await page.click('#choixModal:not([hidden]) .choix-option:not([disabled])'); await page.waitForTimeout(1200);
-      const d = (await decisionsDuCombat()).slice(n0).find(x => x.retrait);
-      if (!d || d.retrait !== cle || d.recompense !== null || !String(d.palier).startsWith('r:')) erreurs.push(`le butin « retirer » n'enregistre pas le retrait (${JSON.stringify(d || null)})`);
-      else butin.retrait = cle;
-      continue;
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-option:not([disabled])')) {
+      const lu = await page.$eval('#choixModal .choix-sheet[data-genre="recompense"]', m => ({
+        titre: ((m.querySelector('.choix-titre') || {}).textContent || '').trim(), recit: ((m.querySelector('.choix-recit') || {}).textContent || '').trim(),
+        cles: [...m.querySelectorAll('.choix-option:not([disabled])')].map(b => b.dataset.choix), autre: !!m.querySelector('.choix-autre') }));
+      // La récompense d'une série gagnée (un pack de joueurs) a son propre écran : on la laisse au cas général.
+      if (/Récompense/.test(lu.titre)) {
+        if (!butin.vus++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-butin.png` }); }
+        if (lu.cles.length !== 3) butin.fautes.push(`${lu.cles.length} carte(s) offertes au lieu de trois`);
+        if (!/pour une place/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas « pour une place » (« ${lu.recit} »)`);
+        if (lu.autre) butin.fautes.push('le butin offre encore « Retirer une carte »');
+        const n0 = (await decisionsDuCombat()).length;
+        await page.click(`#choixModal:not([hidden]) .choix-option[data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
+        await attendreDecisions(n0);
+        const sv = await lireSauvegarde();
+        const d = (((sv.partie || {}).decisions) || []).slice(n0).find(x => String(x.palier || '').startsWith('r:'));
+        if (!d || d.place !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas la carte pour une place (${JSON.stringify(d || null)})`);
+        else butin.pris.push(lu.cles[0]);
+        continue;
+      }
     }
     if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
     /*
@@ -1616,7 +1624,8 @@ if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offert
 console.log(`20m. les sous-onglets de la boîte : ${[...afaire.maisons].join(' · ') || 'aucun'} · ${afaire.pages} retour(s) à la boîte`);
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni page ni écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
 if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a renvoyé qu'à ${afaire.maisons.size} sous-onglet(s) : ${[...afaire.maisons].join(', ')}`);
-console.log(`20c. butin « retirer une carte » : ${butin.retrait ? `${butin.retrait} retirée` : butin.fait ? 'ouvert, rien d\'enregistré' : 'aucun butin cette run'}`);
+console.log(`20c. le butin d'une victoire (une carte parmi trois, pour une place) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
+if (butin.fautes.length) erreurs.push(`le butin d'une victoire : ${[...new Set(butin.fautes)].slice(0, 3).join(' · ')}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.
 if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);

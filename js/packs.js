@@ -150,11 +150,10 @@ export const PACKS_CARTES = {
   modifs: { nom: 'Pack Modifs', ico: '🧬', n: 4, prix: 20, cats: ['joueur'], cotes: COTES_CARTES, texte: 'Quatre styles, contrats, améliorations et retouches de joueur.' },
   consommables: { nom: 'Pack Consommables', ico: '🧴', n: 5, prix: 15, cats: ['consommable'], cotes: COTES_CARTES, texte: 'Cinq consommables : un soin, des jambes, le filet, les minutes, un trou dans le règlement.' },
   contrats: { nom: 'Pack Contrats', ico: '💵', n: 4, prix: 20, cats: ['plafond'], cotes: COTES_CARTES, maudite: 0.08, texte: 'Quatre cartes de masse salariale : de l\'espace, une retenue, un rachat… et parfois la taxe de luxe.' },
-  match: { nom: 'Pack Cartes de match', ico: '🃏', n: 4, prix: 15, cats: ['match'], cotes: COTES_CARTES, texte: 'Quatre cartes pour ton deck de match.' },
-  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
+  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'joueur', 'consommable', 'plafond'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
   // v2 : le pack d'un coach (js/coachs.js) — quatre cartes de sa couleur, de toutes les familles. Le coach se choisit à l'achat.
-  coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
-  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'joueur', 'consommable', 'plafond', 'match'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles, au prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
+  coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'joueur', 'consommable', 'plafond'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
+  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'joueur', 'consommable', 'plafond'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles, au prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
 };
 
 /* Tous les packs, par clé : \`j:\` les joueurs, \`c:\` les cartes. */
@@ -493,7 +492,7 @@ export async function tirerJoueursDuPack(cle, { graine, n, params = {}, mods = {
 /*
  * LES CARTES D'UN PACK DE CARTES : pures (graine, pack, numéro d'achat). Pour
  * chaque carte : sa FAMILLE d'abord (une des familles du pack, à parts égales —
- * sinon les 73 cartes de match noieraient un pack mixte), puis sa rareté aux
+ * sinon la famille la plus nombreuse noierait les autres), puis sa rareté aux
  * cotes du pack, puis une carte de cette famille et de cette rareté ; sans
  * carte à cette rareté, on descend d'un cran. Les malédictions ne sortent
  * jamais d'un pack.
@@ -506,7 +505,7 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
  * de toutes les familles, de la couleur du coach pour le Pack du coach, et la taxe de luxe une fois sur vingt-cinq.
  * V9 (tranche 5b) : sans événement — les gestes du DG sont devenus les routes de la semaine (js/noeuds.js).
  */
-const CATS_MIXTES = ['patron', 'joueur', 'consommable', 'plafond', 'match'];
+const CATS_MIXTES = ['patron', 'joueur', 'consommable', 'plafond'];
 const MAUDITE_MIXTE = 0.04;
 export function tirerCartesDuPack(cle, graine, n, params = {}) {
   const P = PACKS_TOUS[cle];
@@ -519,7 +518,7 @@ function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
-  // `params.sans` : des familles que ce tirage ne donne pas (le palier de la saison : ni carte de match, ni personnel).
+  // `params.sans` : des familles que ce tirage ne donne pas (le palier de la saison : pas de personnel).
   const cats = (coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats).filter(c => !(params.sans || []).includes(c));
   for (let t = 0; t < P.n; t++) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
@@ -537,7 +536,7 @@ function tirerCartes(P, cleCourte, graine, n, params) {
   // LA MALCHANCE (le jeu de hasard) : certains packs cachent une malédiction, qui prend la dernière place.
   if (P.maudite && out.length && hache(graine, 'pack-maudite', cleCourte, n) < P.maudite) {
     // 1.0 : seule la taxe de luxe (un contrat) frappe à l'ouverture — `plafondDe` (js/banque.js) la lit ;
-    // les malédictions d'événement et de match, elles, n'ont pas de consommateur à l'ouverture.
+    // les autres malédictions, elles, n'ont pas de consommateur à l'ouverture.
     const m = idsDe('plafond').filter(id => BANQUE[id].rarete === 'maudite');
     if (m.length) out[out.length - 1] = m[Math.floor(hache(graine, 'pack-maudite-carte', cleCourte, n) * m.length)];
   }

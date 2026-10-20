@@ -15,7 +15,6 @@
  *   node scripts/check_tableau.mjs      (N : matchs par club et par bras du point 3, 150 ; trois clubs témoins)
  */
 import { autoRoster, registerHiddenRatings, createTeam, simulerGrosMatch, activeLineup, lignesDe, lireLeTableau, SLOTS } from '../js/sim.js';
-import { DECK_DEPART } from '../js/combat.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { robotDuel } from './lib/duel.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -89,7 +88,7 @@ for (const [lab, s0, t0] of TEMOINS.slice(0, 3)) {
   const un0 = equipeReelle(s0, t0);
   for (const [k, f] of Object.entries(bras)) {
     const a = equipe('Toi', t0, un0, s0), b = equipe('Eux', t0, un0, s0);
-    a.isPlayer = true; a.courbe = true; b.courbe = true; a.robotDuel = f(); a.deckDuel = DECK_DEPART;
+    a.isPlayer = true; a.courbe = true; b.courbe = true; a.robotDuel = f();
     for (let i = 0; i < N; i++) if (simulerGrosMatch(a, b, { graine: `couverture-${lab}`, cle: `m${i}`, visiteur: i % 2 === 1 }).gagne) gagnes[k]++;
   }
 }

@@ -1,7 +1,7 @@
 /*
  * LE DUEL EN TROIS PÉRIODES (V9, tranche 5 — docs/refonte-v9.md § 6.3 et § 10). En Rogue, le gros match se joue
  * en trois périodes ; avant chacune, l'adversaire annonce une intention qui vise tes joueurs, et tu y réponds par
- * un geste ou une carte. Ce juge :
+ * ton tableau et un geste (sans main depuis la V13-2, docs/refonte-v13.md). Ce juge :
  *   1. le duel a trois périodes, chacune son intention, et les cinq intentions sortent ;
  *   2. les périodes vues ne bougent pas : la décision de la 2e garde la 1re à l'identique, celle de la 3e les deux
  *      premières (les buts, leurs instants, les tirs) ;
@@ -9,15 +9,14 @@
  *   4. un geste pris contre une intention la contre (à moitié, l'ombre au loin), et un duel sans réponse n'en contre
  *      presque aucune ;
  *   5. LA MESURE : deux clubs égaux — deux copies du même vrai club —, le même duel bien joué (l'attentif lit chaque
- *      intention) et mal joué (l'adjoint joue la main sans lire leurs intentions), sur les mêmes dés, à domicile
- *      et au loin. Mis en face à face (l'écart de leurs logits contre la même IA), le bien joué gagne 62 à 65 % ;
- *      jamais plus de 70 %, ni en face à face ni contre l'IA.
+ *      intention) et mal joué (rien ne répond à leurs intentions), sur les mêmes dés, à domicile et au loin. Mis en
+ *      face à face (l'écart de leurs logits contre la même IA), le bien joué gagne 62 à 65 % ; jamais plus de 70 %,
+ *      ni en face à face ni contre l'IA.
  * `N` : matchs par club et par bras (2500 ; la cible demande la précision, ±0,7 point). `FILS` : processus (2).
  */
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulerGrosMatch, apercuDuDuel, INTENTIONS, PERIODES_DU_DUEL } from '../js/sim.js';
-import { DECK_DEPART, mainDuMatch } from '../js/combat.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { robotDuel } from './lib/duel.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -42,7 +41,6 @@ function bras(politique, n) {
   for (const [lab, s, t] of TEMOINS) {
     const { toi, adv } = deuxClubs(s, t);
     toi.robotDuel = robotDuel(politique, generateur(lab.length * 97 + 13));
-    toi.deckDuel = DECK_DEPART;
     for (let i = 0; i < n; i++) {
       const r = simulerGrosMatch(toi, adv, { graine: `duel-${lab}`, cle: `m${i}`, visiteur: i % 2 === 1 });
       out.n++; if (r.gagne) out.v++;
@@ -79,10 +77,9 @@ console.log(`\n  Le duel en trois périodes (V9) · ${N} matchs par club et par 
 {
   const [lab, s, t] = TEMOINS[0];
   const { toi, adv } = deuxClubs(s, t);
-  const { main, pioche } = mainDuMatch('forme', 'f0', DECK_DEPART);
   // 2. Les périodes vues ne bougent pas.
-  const d0 = { reponse: null, cartes: main.slice(0, 1), enMain: [], tirage: main, pile: pioche };
-  const d1 = { reponse: null, cartes: [], graine: 'x:p1' }, d2 = { reponse: null, cartes: [], snap: true, graine: 'x:p2' };
+  const d0 = { reponse: null, tactiques: { F: [null, null, 'defensive', null], consigne: 'basse' } };
+  const d1 = { reponse: null, graine: 'x:p1' }, d2 = { reponse: null, snap: true, graine: 'x:p2' };
   const empreinte = (f, fin) => JSON.stringify(f.buts.filter(b => b.instant < fin).map(b => [b.cote, b.instant.toFixed(3), b.marqueur ? b.marqueur.n : '']));
   const tirs = (f, k) => [f.tirs.A.slice(1, k + 1), f.tirs.B.slice(1, k + 1)].join('|');
   let p1 = 0, p12 = 0, change = 0, essais = 0;
@@ -113,18 +110,17 @@ console.log(`\n  Le duel en trois périodes (V9) · ${N} matchs par club et par 
 }
 
 /* ---------- 5 : la mesure ---------- */
-const [bien, mal, distrait, rien] = await enParallele([
-  () => lancer('attentif', N), () => lancer('adjoint', N),
-  () => lancer('distrait', Math.ceil(N / 4)), () => lancer('rien', Math.ceil(N / 4)),
+const [bien, mal, distrait] = await enParallele([
+  () => lancer('attentif', N), () => lancer('rien', N), () => lancer('distrait', Math.ceil(N / 4)),
 ]);
 const p = x => x.v / x.n, pc = x => `${(100 * x).toFixed(1).replace('.', ',')} %`;
 const logit = x => Math.log(x / (1 - x));
 const faceAFace = 1 / (1 + Math.exp(-(logit(p(bien)) - logit(p(mal)))));
 exiger('les cinq intentions sortent', Object.keys(INTENTIONS).every(k => (bien.intentions[k] || 0) >= 0.03 * bien.periodes),
   Object.keys(INTENTIONS).map(k => `${INTENTIONS[k].ico} ${pc((bien.intentions[k] || 0) / bien.periodes)}`).join(' · '));
-exiger('l\'attentif contre presque toutes leurs intentions, un duel sans réponse presque aucune', bien.contrees / bien.periodes >= 0.8 && rien.contrees / rien.periodes <= 0.1,
-  `${pc(bien.contrees / bien.periodes)} contre ${pc(rien.contrees / rien.periodes)}`);
-informer('contre la même IA', `bien joué ${pc(p(bien))} · mal joué (l'adjoint) ${pc(p(mal))} · le distrait ${pc(p(distrait))} · sans rien ${pc(p(rien))}`);
+exiger('l\'attentif contre presque toutes leurs intentions, un duel sans réponse presque aucune', bien.contrees / bien.periodes >= 0.8 && mal.contrees / mal.periodes <= 0.1,
+  `${pc(bien.contrees / bien.periodes)} contre ${pc(mal.contrees / mal.periodes)}`);
+informer('contre la même IA', `bien joué ${pc(p(bien))} · le distrait ${pc(p(distrait))} · sans rien ${pc(p(mal))}`);
 borne('deux clubs égaux, le duel bien joué contre le mal joué, en face à face', Math.round(faceAFace * 1000) / 1000, 0.62, 0.65);
 exiger('jamais plus de 70 %', faceAFace <= 0.7 && p(bien) <= 0.7, `${pc(faceAFace)} en face à face, ${pc(p(bien))} contre l'IA`);
 informer('le temps', `${Math.round((Date.now() - t0) / 1000)} s (${FILS} fils)`);

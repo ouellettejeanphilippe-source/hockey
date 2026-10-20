@@ -92,8 +92,7 @@ async function aller(cle, clic = s => page.click(s)) {
   await clic(`#navbar .navtab[data-section="${SECTION_DE[cle]}"]`);
   if (await page.$(`#sousNav:not([hidden]) .soustab[data-page="${cle}"]`)) await clic(`#sousNav .soustab[data-page="${cle}"]`);
 }
-const mainsVues = [];   // les cartes jouées aux gros matchs et en séries (S74)
-let prepsVues = 0;      // les préparations choisies au dépistage (S76)
+const mainsVues = [];   // les périodes de duel jouées aux gros matchs et en séries (V13-2 : sans main)
 /* Le 82-0, c'est juste les joueurs (oct.) : « Commencer » mène droit à la roulette, sans carte d'identité (elle reste à Sur table). */
 async function sansIdentite() {
   await page.waitForTimeout(300);
@@ -412,68 +411,20 @@ async function repondreAuxChoix() {
       return;
     }
     /*
-     * LA MAIN D'UN GROS MATCH (S74) : cinq cartes, trois d'énergie. Le
-     * parcours joue la première carte jouable (elle doit passer dans « ce
-     * soir, sur la glace ») et confirme ; la décision doit porter la carte.
+     * LE DUEL D'UN GROS MATCH (V9 ; sans main depuis la V13-2, docs/refonte-v13.md) : leur intention et ton tableau,
+     * ni cartes de match, ni élan, ni « Mon deck ». Le parcours prend l'ajustement offert et la carte de vestiaire,
+     * puis joue la période ; la décision porte le duel et une main vide.
      */
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) {
-      const n = await page.$$eval('#choixModal .main-carte', e => e.length);
-      const orbes = await page.$$eval('#choixModal .main-orbe.plein', e => e.length);
-      // LE DUEL (V9, Rogue) : deux d'élan par période, une main qui dure ; ni dépistage ni préparation.
-      const duel = !!(await page.$('#choixModal .duel-intention'));
-      if ((!duel && n < 5) || orbes !== (duel ? 2 : 3)) errors.push(`la main du match offre ${n} cartes et ${orbes} d'élan au lieu de cinq et ${duel ? 'deux' : 'trois'}`);
-      // ENTRE DEUX MATCHS (S74b) : l'ajustement est une rangée de la main — on prend le premier.
+      const reste = await page.$$eval('#choixModal :is(.main-carte, .main-orbe, .main-energie, .main-deck, .main-reprendre, details.main-duel, .dep-piste, .deck-grille)', e => e.length);
+      if (reste) errors.push(`l'écran du duel montre encore la main (${reste} élément(s) : cartes, élan, deck ou dépistage)`);
+      if (!(await page.$('#choixModal .duel-intention'))) errors.push('l\'écran d\'un gros match ne dit pas leur intention');
+      if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test((await page.textContent('#choixModal .choix-sheet')) || '')) errors.push('l\'écran du duel parle encore d\'élan ou de deck');
+      // ENTRE DEUX MATCHS (S74b) : l'ajustement est une rangée du duel — on prend le premier.
       const titreMain = ((await page.textContent('#choixModal .choix-titre')) || '').trim();
       if (await page.$('#choixModal .main-aj')) {
         choixVus.set('hub-dilemme', [...(choixVus.get('hub-dilemme') || []), titreMain]);
         await _click('#choixModal .main-aj');
-      }
-      /*
-       * LE DÉPISTAGE (S76) : trois pistes et leurs chances, et on se prépare
-       * pour la première — elle doit s'allumer et partir avec la décision.
-       */
-      const pistes = await page.$$eval('#choixModal .dep-piste[data-plan]', e => e.length);
-      if (!pistes && !duel) errors.push('la main d\'un match n\'offre pas le dépistage (aucune piste à préparer)');
-      else if (!pistes) { /* le duel n'a pas de dépistage */ }
-      else {
-        await _click('#choixModal .dep-piste[data-plan]:not([disabled])');
-        if (!(await page.$('#choixModal .dep-piste.on'))) errors.push('toucher une piste du dépistage ne la prépare pas');
-        const somme = await page.$$eval('#choixModal .dep-piste .dep-p b', e => e.map(x => parseInt(x.textContent, 10) || 0).reduce((a, b) => a + b, 0));
-        if (Math.abs(somme - 100) > 2) errors.push(`les chances du dépistage ne font pas 100 % (${somme} %)`);
-        prepsVues++;
-        // La première : une capture, pour que JP voie le dépistage tel qu'un kid le voit.
-        if (prepsVues === 1) await page.screenshot({ path: 'scripts/smoke-main.png' });
-        /*
-         * L'EFFET AVANT L'AMBIANCE (1.0, J2-12) : à 1440 × 900, la puce chiffrée
-         * de chaque carte est au-dessus des boutons collés en bas, sans défiler.
-         */
-        if (prepsVues === 1) {
-          const vp = page.viewportSize();
-          await page.setViewportSize({ width: 1440, height: 900 });
-          await page.waitForTimeout(250);
-          const sous = await page.evaluate(() => {
-            const b = document.querySelector('#choixModal .main-boutons');
-            if (!b) return null;
-            const haut = b.getBoundingClientRect().top;
-            return [...document.querySelectorAll('#choixModal .main-carte .tc-puces')].filter(p => p.getBoundingClientRect().bottom > haut + 1).length;
-          });
-          await page.setViewportSize(vp);
-          await page.waitForTimeout(250);
-          if (sous) errors.push(`à 1440 × 900, ${sous} carte(s) de la main ont leur effet sous les boutons`);
-        }
-      }
-      const jouable = await page.$('#choixModal .main-carte:not(.trop-cher):not(.injouable):not(.jouee)');
-      let nom = null;
-      if (jouable) {
-        nom = ((await jouable.$eval('.tc-nom', e => e.textContent)) || '').trim();
-        await jouable.click();
-        const jouees = await page.$$eval('#choixModal .main-jouee', e => e.length);
-        if (jouees !== 1) errors.push(`toucher « ${nom} » ne la joue pas (${jouees} carte(s) sur la glace)`);
-        // Une carte de dépistage peut ÉCARTER la piste préparée (c'est son effet) : la préparation
-        // tombe alors, comme dans le jeu. On se prépare pour une piste qui reste (S79 : le test mentait).
-        if (pistes && !(await page.$('#choixModal .dep-piste.on')) && await page.$('#choixModal .dep-piste[data-plan]:not([disabled])')) {
-          await _click('#choixModal .dep-piste[data-plan]:not([disabled])');
-        }
       }
       // L'ÉCRAN DE COMBAT (V5) : un gros match offre deux cartes de vestiaire ; on garde celle qui n'est pas un pari (le dé ferait attendre la décision).
       const vests = await page.$$('#choixModal .main-vest:not([disabled])');
@@ -482,13 +433,15 @@ async function repondreAuxChoix() {
         const formes = await Promise.all(vests.map(v => v.$eval('.choix-forme', e => e.textContent).catch(() => '')));
         await vests[Math.max(0, formes.findIndex(f => !/Pari/.test(f)))].click();
       }
+      const motJouer = ((await page.textContent('#choixModal .main-jouer')) || '').trim();
+      if (!/^Jouer la (1re|2e|3e) période$/.test(motJouer)) errors.push(`le bouton du duel dit « ${motJouer} » au lieu de « Jouer la … période »`);
       await _click('#choixModal .main-jouer');
       await ecranPret();
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);
-      if (!d.length) errors.push('la main jouée n\'entre pas dans la sauvegarde');
-      if (pistes && !d.some(x => Array.isArray(x.prep) && x.prep.length)) errors.push('la préparation choisie n\'entre pas dans la décision de la main');
-      mainsVues.push(nom || 'rien');
+      if (!d.length || !d.some(x => x.duel)) errors.push('la période du duel jouée n\'entre pas dans la sauvegarde');
+      if (d.some(x => x.main && !x.auto && (x.main.jouees || []).length)) errors.push('une période du duel part avec des cartes jouées');
+      mainsVues.push(motJouer);
       continue;
     }
     // LA MAIN DU PALIER (S73) s'ouvre d'elle-même. Tant que son bloc (plus bas)
@@ -2061,17 +2014,20 @@ if (enabled) {
     await aller('match');
     await page.waitForTimeout(200);
     /*
-     * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. La main
-     * ne couvre plus le bureau de la série : « Tes cartes » la propose, et on la joue avant de regarder.
+     * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. Le duel
+     * ne couvre plus le bureau de la série : « 📋 Ton tableau · match N » le propose (V13-2 : sans main), et on le
+     * joue avant de regarder.
      */
     const mainSerie = await page.$('#hubModal .hub-main-serie');
     if (mainSerie) {
-      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : la main du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Tes cartes »');
-      else console.log(`   séries : l'accueil entre les matchs, « ${(await mainSerie.textContent()).trim()} »`);
+      const mot = (await mainSerie.textContent()).trim();
+      if (await page.$('#choixModal:not([hidden])')) errors.push('séries : le duel du match s\'ouvre par-dessus l\'accueil au lieu d\'attendre « Ton tableau »');
+      else console.log(`   séries : l'accueil entre les matchs, « ${mot} »`);
+      if (!/^📋 Ton tableau · match \d+$/.test(mot)) errors.push(`séries : le bouton du duel dit « ${mot} » au lieu de « 📋 Ton tableau · match N »`);
       await mainSerie.click();
       await _wait('#choixModal:not([hidden]) .main-sheet', { timeout: 5000 });
       const stats = await page.$$eval('#choixModal .ent2-stats tbody th', l => l.map(e => e.textContent.trim()));
-      if (!stats.includes('Jambes moyennes')) errors.push(`séries : la main du soir ne montre pas les stats des deux clubs (${stats.join(', ') || 'rien'})`);
+      if (!stats.includes('Jambes moyennes')) errors.push(`séries : le duel du soir ne montre pas les stats des deux clubs (${stats.join(', ') || 'rien'})`);
       await repondreAuxChoix();
       await aller('match');
       await page.waitForTimeout(200);
@@ -2089,15 +2045,15 @@ if (enabled) {
       await memesButs('séries, le match vu en direct', true);
     }
     /*
-     * L'ADJOINT JOUE CETTE SÉRIE (1.0, J2-13) : la main qui s'ouvre lui est
-     * confiée ; ses décisions portent `auto`, et la main du match d'après ne
-     * s'ouvre plus. Sans main ouverte (série finie), il n'y a rien à confier.
+     * L'ADJOINT JOUE CETTE SÉRIE (1.0, J2-13) : le duel qui s'ouvre lui est
+     * confié ; ses décisions portent `auto` (une main vide depuis la V13-2), et le
+     * duel du match d'après ne s'ouvre plus. Sans duel ouvert (série finie), rien à confier.
      */
     {
       await page.waitForTimeout(400);
       const mainOuverte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]');
       const adj = await page.$('#choixModal:not([hidden]) .main-adjoint');
-      if (mainOuverte && !adj) errors.push('la main d\'un match de séries n\'offre pas « L\'adjoint joue cette série »');
+      if (mainOuverte && !adj) errors.push('le duel d\'un match de séries n\'offre pas « L\'adjoint joue cette série »');
       else if (adj) {
         await deuxCaptures('adjoint', '#choixModal .main-adjoint');
         await adj.click();
@@ -2112,7 +2068,7 @@ if (enabled) {
           for (let i = 0; i < 8; i++) {
             const b = await page.$('#hubModal .hub-jour');
             if (!b || !(await b.isVisible()) || await page.$('#hubModal .hub-ronde')) break;
-            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) { errors.push('une main s\'ouvre encore dans une série confiée à l\'adjoint'); break; }
+            if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) { errors.push('un duel s\'ouvre encore dans une série confiée à l\'adjoint'); break; }
             if (await page.$('#choixModal:not([hidden])')) break;
             await b.click();
             await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
@@ -2120,8 +2076,9 @@ if (enabled) {
             const dsB = await page.evaluate(() => { try { return JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie.decisionsSeries || []; } catch { return []; } });
             mainsAuto = dsB.filter(d => d.auto && d.ronde === r0 && d.main).length;
           }
-          console.log(`   l'adjoint joue la série : ${mainsAuto || auto.length} main(s) décidée(s) par lui, « ${auto[0].main.jouees.join(', ') || 'rien'} » au premier match`);
-          // REPRENDRE LA SÉRIE (JP, oct. : *je pouvais plus choisir mes cartes en finale*) : la série se rend, la main revient.
+          console.log(`   l'adjoint joue la série : ${mainsAuto || auto.length} match(s) décidé(s) par lui`);
+          if (auto.some(d => (d.main.jouees || []).length)) errors.push(`l'adjoint joue encore des cartes de match : ${JSON.stringify(auto[0].main)}`);
+          // REPRENDRE LA SÉRIE (JP, oct. : *je pouvais plus choisir mes cartes en finale*) : la série se rend, le duel revient.
           const rep = await page.$('#hubModal .hub-reprendre');
           if (await page.$('#hubModal .hub-adjoint') && !rep) errors.push('une série confiée à l\'adjoint ne se reprend pas');
           else if (rep && await rep.isVisible()) {
@@ -2129,8 +2086,8 @@ if (enabled) {
             await page.waitForSelector('#hubModal .hub-jour, #hubModal .hub-suite, #hubModal .hub-ronde', { timeout: 120000 });
             await page.waitForTimeout(600);
             if (await page.$('#hubModal .hub-adjoint')) errors.push('« Reprendre la série » : l\'adjoint la joue encore');
-            else if (!(await page.$('#hubModal .hub-main-serie'))) errors.push('« Reprendre la série » : la main du match ne revient pas');
-            else console.log('   la série reprise : la main du prochain match revient');
+            else if (!(await page.$('#hubModal .hub-main-serie'))) errors.push('« Reprendre la série » : le duel du match ne revient pas');
+            else console.log('   la série reprise : le duel du prochain match revient');
           }
         }
       }
@@ -2404,7 +2361,7 @@ else if (parisPris.length) console.log(`   paris tranchés : ${parisPris.length}
 if (parisPris.length && !desLances.length) errors.push(`${parisPris.length} pari(s) pris, et aucun dé lancé`);
 else if (desLances.length) console.log(`   dés lancés : ${desLances.length} — ${desLances.slice(0, 4).join(' · ')}`);
 console.log(`   deuxièmes entractes en direct : ${entractesVus.join(' · ') || 'aucun'} ; au fil des journées : ${(choixVus.get('hub-dilemme') || []).filter(t => /entracte/i.test(t)).length}`);
-console.log(`   mains de match jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"}) · ${prepsVues} préparation(s) au dépistage`);
+console.log(`   périodes de duel jouées : ${mainsVues.length} (${mainsVues.slice(0, 6).join(" · ") || "aucune"})`);
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (actionsLNH) errors.push(`la version Web a demandé ${actionsLNH} photo(s) d'action à la LNH (elles viennent de img/actions)`);
 
