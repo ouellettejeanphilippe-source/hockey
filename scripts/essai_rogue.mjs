@@ -1206,13 +1206,20 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   }
   /*
    * LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, une signée ; la décision est un ballottage
-   * dont le joueur sort de ton cartable, au plus Régulier.
+   * dont le joueur sort de ton cartable, au plus Régulier. V12-3 : les rappels se jouent dans l'effectif, sous le tableau
+   * des joueurs (Effectif › Joueurs), plus au Marché › Tes cartes.
    */
   if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
   await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
   await page.waitForTimeout(300);
-  const rappel = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:rappel"]:not([disabled])');
-  if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas depuis l\'onglet Permanent');
+  if (await page.$('#pageMarche .inv-jouer-meta[data-id="consommable:rappel"], #pageMarche .inv-jouer-meta[data-id="consommable:echangeDoublon"]')) erreurs.push('un rappel est encore au Marché › Tes cartes');
+  const versLEffectif = async () => {
+    await versLOnglet('effectif', 'joueurs');
+    await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
+  };
+  await versLEffectif();
+  const rappel = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:rappel"]');
+  if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
   else {
     await rappel.click();
     // Jalon R : la liste, chacun à sa meilleure case ; « Signer » demande qui sort (U18), la meilleure sortie proposée.
@@ -1225,11 +1232,15 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     await page.waitForTimeout(500);
     // Qui sort, puis la boîte se règle du bureau (un message peut attendre sous la page du Marché).
     for (let k = 0; k < 6 && await page.$('#choixModal:not([hidden])'); k++) await regler().catch(() => {});
+    // Joué, on revient dans l'effectif (`G.pageVoulue`), pas au Bureau.
+    await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 20000 }).catch(() => {});
+    const revenu = await page.evaluate(() => !document.querySelector('#pageJoueurs').hidden);
     await auBureau();
     await regler();
     const d = (await decisions()).slice(n0).find(x => x.ballottage);
     const cartable = await page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
-    console.log(`10d. le rappel du club-école : ${offres} cartes offertes · ${d ? `${d.ballottage.entre} entre, ${d.ballottage.sort || 'case libre'} sort` : '(rien signé)'}`);
+    console.log(`10d. le rappel du club-école : ${offres} cartes offertes · ${d ? `${d.ballottage.entre} entre, ${d.ballottage.sort || 'case libre'} sort` : '(rien signé)'} · revenu dans l'effectif : ${revenu}`);
+    if (!revenu) erreurs.push('un rappel joué dans l\'effectif ne ramène pas dans l\'effectif');
     // Trois au plus : seulement les cartes qui tiennent sous le plafond, Pilier au plus (`offresDuCartable`) — le tirage en laisse parfois moins.
     if (offres < 1 || offres > 3) erreurs.push(`le rappel offre ${offres} cartes (d'une à trois)`);
     if (!d) erreurs.push('le rappel du club-école ne signe personne');
@@ -1240,11 +1251,9 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
    * trois joueurs de sa série de cartons (Filet : 1995-96 à 1998-99), pas encore au cartable ; signé, le doublon perd une
    * copie et le nouveau entre au cartable.
    */
-  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
-  await page.waitForTimeout(300);
-  const echange = await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-jouer-meta[data-id="consommable:echangeDoublon"]:not([disabled])');
-  if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas depuis l\'onglet Permanent');
+  await versLEffectif();
+  const echange = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:echangeDoublon"]');
+  if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
   else {
     const copies = () => page.evaluate(k => ((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs || {})[k] || {}).n || 0, CARTES[1]);
     const avant = await copies();

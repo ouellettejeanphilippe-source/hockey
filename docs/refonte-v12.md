@@ -37,7 +37,7 @@ La V8 le disait déjà (« chaque élément d'À faire ouvre l'endroit exact où
   | Le coaching | Bureau › Entraîneur | fait : le coach et sa confiance, le personnel et ses cartes, le congédiement, le programme de la semaine, la route |
   | La santé | Effectif › Infirmerie | fait : les blessés et leurs choix, les cartes qui soignent un blessé ou refont des jambes (V12-3a) |
   | Le proprio et l'argent | Bureau › Proprio | fait : le mandat, l'objectif ; la masse salariale et les cartes de contrat (V12-3a) |
-  | Les joueurs | Effectif › Joueurs | le tableau ; les modifs de joueur et les rappels (le club-école, l'échange d'un doublon) |
+  | Les joueurs | Effectif › Joueurs | les rappels (le club-école, un ancien, l'échange d'un doublon), sous le tableau (V12-3b) ; les modifs de joueur restent posées dans « Ce soir » (V8) : à trancher par JP |
   | Le match | Ce soir | l'affiche, leur plan, les cartes du soir, le deck de match, les lignes |
   | Les histoires | Bureau › Vestiaire, Presse | les fils, les dossiers, la une, les primes des fils |
   | Le marché | Marché › Boutique, Butin | les packs ; les cartes gagnées et celle de trop |

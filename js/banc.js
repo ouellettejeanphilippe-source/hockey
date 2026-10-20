@@ -17,7 +17,7 @@ import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
 import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue } from './rogue.js';
-import { $, G, MODE, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
+import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
 import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, placesDuJour, ouvrirCarteDeLaPlace, ouvrirInventaireJeu, ciblesDeLaModif, poserLaModif, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison } from './rogue-jeu.js';
@@ -774,6 +774,8 @@ function ouvrirEcranSaison(depuis = 0) {
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
         personnel: { html: j => personnelDuJour(j) },
         maison: { cartes: (k, j) => cartesDeLaMaison(k, j), jouer: (item, j, decider) => jouerDeLaMaison(item, j, decider) },
+        // Une maison hors de l'écran de saison (Effectif › Joueurs) : la coquille l'ouvre.
+        allerA: k => montrerPage(k),
       },
       onTermine: () => terminerSaison(),
       depuis,

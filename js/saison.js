@@ -2832,6 +2832,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
   if (onDecision && ctx.inventaire) tabs.hub.cartes = page => ctx.inventaire.ouvrir(jour, decideDuMarche, page);
   if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
+  // V12-3 : une page hors de l'écran de saison (Effectif › Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
+  if (onDecision && ctx.maison) tabs.hub.maison = { html: k => ctx.maison.cartes(k, jour), jouer: (item, apres) => ctx.maison.jouer(item, jour, d => { if (apres) apres(); decideDuMarche(d); }) };
   // UN JOUEUR À SIGNER (un pack ouvert, personne de signé) se traite au Marché : le Marché demande s'il y en a un, et le rouvre.
   if (onDecision && ctx.boutique && ctx.boutique.rouvrir) {
     // Pas avant que l'écran soit dessiné : la boîte lit des constantes que l'ouverture n'a pas encore posées.
@@ -2886,7 +2888,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const it = enPlace(c.dataset.ref);
       if (!it) return;
       // V12-3 : une carte qui a sa maison (un soin, un contrat, le congédiement) s'y joue ; sa case y mène.
-      if (it.maison) { jouerSon('valide'); tabs.montrer(it.maison.cle); return; }
+      if (it.maison) { jouerSon('valide'); if (MAISONS[it.maison.cle]) tabs.montrer(it.maison.cle); else if (ctx.allerA) ctx.allerA(it.maison.cle); return; }
       // V8 : une modif de joueur s'ouvre sur tes lignes, ici ; toucher la carte posée l'y referme.
       if (sePose(it)) { pose = pose === it.ref ? null : it.ref; tabs.rafraichir(); const el = volet.querySelector('.pose-zone'); if (el) el.scrollIntoView({ block: 'nearest' }); return; }
       ctx.inventaire.carte(it, jour, decider);
