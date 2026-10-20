@@ -350,32 +350,43 @@ async function regler() {
       // La première main d'avant-match, photographiée : le deck en cartes à 390 px.
       if (!captures.main++) { await page.waitForTimeout(900); await page.screenshot({ path: `${DOSSIER}/rogue-main.png` }); }
       /*
-       * LE DUEL (V9, tranche 5) : chaque période dit leur intention ; on prend le premier geste offert, et la décision
-       * doit porter sa période et ce geste.
+       * LE DUEL (V9, tranche 5 ; V13-1, le tableau) : chaque période dit leur intention ; on prend le geste d'échange
+       * offert, puis on règle le tableau comme un joueur — un système à la fois, le verdict relu à chaque fois — jusqu'à
+       * ce que l'intention soit contrée. La décision porte sa période, ce geste et ce tableau.
        */
       const duel = await page.$('#choixModal .duel-intention');
-      let geste = null;
+      let geste = null, tableau = false, niveau = '';
       if (duel) {
         const fait = ((await page.textContent('#choixModal .duel-fait').catch(() => '')) || '').trim();
         if (!fait) erreurs.push('le duel n\'annonce pas leur intention');
         const g = await page.$('#choixModal .duel-geste[data-geste]:not([disabled])');
         if (g) { geste = await g.getAttribute('data-geste'); await g.click(); await page.waitForTimeout(200); }
-        /*
-         * LE GROS MATCH PLUS COURT (Jalon M, B3) : le geste pris, l'intention se plie en une ligne ; la feuille tient à
-         * 1,3 écran au plus, et « Jouer » reste à l'écran.
-         */
-        if (g) {
-          const h = await page.$eval('#choixModal', m => {
-            const els = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].filter(Boolean);
-            const r = Math.max(...els.map(e => e.scrollHeight / Math.max(1, e.clientHeight)));
-            const j = m.querySelector('.main-jouer').getBoundingClientRect();
-            return { r, plie: !!m.querySelector('.duel-intention.plie .main-pli'), jouer: j.bottom <= innerHeight + 1 && j.top >= 0 };
-          });
-          duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h.r);
-          if (!h.plie) erreurs.push('le geste pris, l\'intention du duel ne se plie pas');
-          if (h.r > 1.3) duelCourt.longs++;
-          if (!h.jouer) erreurs.push('« Jouer » n\'est pas à l\'écran une fois le geste pris');
+        const verdict = () => page.$eval('#choixModal .duel-verdict', e => (e.classList.contains('bon') ? 'pleine' : e.classList.contains('moitie') ? 'demi' : 'frappe')).catch(() => '');
+        if (!(await verdict())) erreurs.push('le duel ne dit pas ce que ton tableau fait de leur intention');
+        // Chaque rangée, chaque système, jusqu'à la contrer : le verdict suit chaque menu (le même calcul que le moteur).
+        const menus = await page.$$eval('#choixModal .duel-tab-s', e => e.map(s => [...s.options].map(o => o.value)));
+        for (let r = 0; r < menus.length && (await verdict()) !== 'pleine'; r++) {
+          const avantR = await page.$eval(`#choixModal .duel-tab-s >> nth=${r}`, s => s.value).catch(() => null);
+          for (const v of menus[r]) {
+            await page.selectOption(`#choixModal .duel-tab-s >> nth=${r}`, v); await page.waitForTimeout(80);
+            if ((await verdict()) === 'pleine') { tableau = true; break; }
+          }
+          if ((await verdict()) !== 'pleine' && avantR != null) await page.selectOption(`#choixModal .duel-tab-s >> nth=${r}`, avantR);
         }
+        niveau = await verdict();
+        /*
+         * LE GROS MATCH PLUS COURT (Jalon M, B3) : le tableau réglé, la feuille tient à 1,3 écran au plus, et « Jouer »
+         * reste à l'écran.
+         */
+        const h = await page.$eval('#choixModal', m => {
+          const els = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].filter(Boolean);
+          const r = Math.max(...els.map(e => e.scrollHeight / Math.max(1, e.clientHeight)));
+          const j = m.querySelector('.main-jouer').getBoundingClientRect();
+          return { r, jouer: j.bottom <= innerHeight + 1 && j.top >= 0 };
+        });
+        duelCourt.n++; duelCourt.max = Math.max(duelCourt.max, h.r);
+        if (h.r > 1.3) duelCourt.longs++;
+        if (!h.jouer) erreurs.push('« Jouer » n\'est pas à l\'écran une fois le tableau réglé');
         if (!captures.duel++) { await page.waitForTimeout(400); await page.screenshot({ path: `${DOSSIER}/rogue-duel.png` }); }
       }
       /*
@@ -412,8 +423,9 @@ async function regler() {
         const dn = ds.slice().reverse().find(d => d.main && d.duel);
         if (!dn) erreurs.push('la période du duel jouée n\'entre pas dans la sauvegarde');
         else {
-          periodes.push(`${dn.duel.p + 1}${geste ? `:${geste}` : ''}`);
+          periodes.push(`${dn.duel.p + 1}${geste ? `:${geste}` : ''}:${niveau}${tableau ? '·tableau' : ''}`);
           if (geste && dn.duel.reponse !== geste) erreurs.push(`le geste « ${geste} » n'entre pas dans la décision de la période`);
+          if (tableau && !(dn.duel.tactiques && Array.isArray(dn.duel.tactiques.F))) erreurs.push('le tableau réglé n\'entre pas dans la décision de la période');
           if (dn.duel.p === 0 && !(dn.main && Array.isArray(dn.main.tirage) && dn.main.tirage.length)) erreurs.push('la main tirée du duel ne part pas avec la décision');
         }
       }
@@ -1111,13 +1123,21 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
     if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
   }
   if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
+  // Les rappels (V12-3b) vivent sous le tableau d'Effectif › Joueurs, une page hors de l'écran de saison.
+  if (renvois.includes('joueurs')) {
+    await versLOnglet('effectif', 'joueurs');
+    await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
+    ici.joueurs = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+  }
   for (const k of new Set(renvois)) if (!(ici[k] || []).length) erreurs.push(`Tes cartes renvoie à « ${k} », qui n'a aucune carte à jouer`);
   let suivi = '';
   if (renvois.length) {
     await versMarche('cartes');
     await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-renvoi');
     await page.waitForTimeout(600);
-    suivi = await page.$eval('#hubModal:not([hidden]) .af-onglet[data-maison]', e => e.dataset.maison).catch(() => '');
+    suivi = renvois[0] === 'joueurs'
+      ? (await page.$('#pageJoueurs:not([hidden]) .jr-table') ? 'joueurs' : '')
+      : await page.$eval('#hubModal:not([hidden]) .af-onglet[data-maison]', e => e.dataset.maison).catch(() => '');
     if (suivi !== renvois[0]) erreurs.push(`« ${renvois[0]} › » ouvre « ${suivi || 'rien'} »`);
   }
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
@@ -1585,7 +1605,7 @@ if ((m3.club || {}).club !== 'stars' || tete !== 'NHL Stars' || !((m3.club || {}
 console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison, poste, écusson) · ${piles} pile(s) passée(s) carte par carte`);
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
-console.log(`20d. périodes de duel jouées (période:geste) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
+console.log(`20d. périodes de duel jouées (période:geste:verdict) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · lots tranchés (cochés → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');

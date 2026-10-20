@@ -9197,6 +9197,68 @@ function reponsesDuDuel(I, { toi, L, lignes = null }) {
   if (I.cle === 'cachot') return [{ cle: 'basse', consigne: 'basse' }];
   return [];
 }
+/*
+ * LE TABLEAU DE L'ENTRACTE (V13-1, docs/refonte-v13.md). JP : *le choix de contre, c'est un bouton que tu pèses* ; *plus
+ * à la EHM*. Ta réponse n'est plus UN geste : ce sont tes réglages de la période — le système de chaque unité, la
+ * consigne, et le geste qui déplace un joueur (`reponsesDuDuel`). Chaque réglage qui mord sur leur intention est une
+ * PORTE : pleine (1), elle la contre à elle seule ; à moitié (½), il en faut deux. Les portes pleines sont celles d'avant
+ * (`contreeParLaGlace`, le geste, une carte qui y répond) ; les demi-portes, des réglages qui coûtent moins et rendent
+ * moins. Chacun garde son prix, celui de son système ou de sa consigne — le moteur ne donne rien gratuit.
+ *
+ * UNE DEMI-PORTE EST UN AJUSTEMENT : elle ne compte que si tu changes ton jeu pour cette intention — un système que
+ * tu poses à l'entracte (`depart` : tes lignes au début du match), une consigne de la période. Mesuré (`check_duel`,
+ * 20 oct.) : comptées sur les lignes telles qu'elles étaient, elles donnaient des demi-contres à qui ne faisait rien,
+ * et le mal joué remontait de 43,3 à 49,6 % ; le bien joué ne battait plus le mal joué qu'à 53,7 % en face à face.
+ */
+const posee = (lignes, depart, champ, cle) => lignes.map((l, u) => (l && l[champ] === cle && !(depart[u] && depart[u][champ] === cle) ? u : null)).filter(u => u != null);
+const consigneDeLaPeriode = (base, cle) => base.some(e => e && e.source === 'reponse' && e.cle === cle);
+const PORTES_DEMI = {
+  // L'ombre suit un numéro : un trio qui repart vite (la contre-attaque) le lui fait perdre une fois sur deux.
+  ombre: ({ lignes, depart, c1 }) => (c1 && c1.group === 'F' && posee(lignes, depart, 'tac', 'contre').includes(c1.unit) ? [{ cle: 'contre', u: c1.unit }] : []),
+  // La chasse : les bâtons en bas, ou des plombiers autour du joueur visé.
+  chasse: ({ base, lignes, depart, c1 }) => [
+    ...(consigneDeLaPeriode(base, 'basse') ? [{ cle: 'basse' }] : []),
+    ...(c1 && c1.group === 'F' && posee(lignes, depart, 'tac', 'energie').includes(c1.unit) ? [{ cle: 'energie', u: c1.unit }] : []),
+  ],
+  // Le centre fermé : un trio du bas en Cycle, ou la consigne Haute (on pousse quand même).
+  centre: ({ base, lignes, depart }) => [
+    ...posee(lignes, depart, 'tac', 'courtes').filter(u => u >= 2 && u <= 3).map(u => ({ cle: 'courtes', u })),
+    ...(consigneDeLaPeriode(base, 'haute') ? [{ cle: 'haute' }] : []),
+  ],
+  // L'assaut : un trio en trappe bouche la neutre, ou la consigne Basse (on recule).
+  assaut: ({ base, lignes, depart }) => [
+    ...posee(lignes, depart, 'tac', 'defensive').filter(u => u <= 3).map(u => ({ cle: 'defensive', u })),
+    ...(consigneDeLaPeriode(base, 'basse') ? [{ cle: 'basse' }] : []),
+  ],
+  // Les punitions : un trio en trappe joue propre.
+  cachot: ({ lignes, depart }) => posee(lignes, depart, 'tac', 'defensive').filter(u => u <= 3).map(u => ({ cle: 'defensive', u })),
+};
+/*
+ * LIRE LE TABLEAU, pur, pour le moteur ET pour l'écran (le même calcul, jamais deux). `L` : l'alignement de la période
+ * (le geste d'échange déjà posé), `lignes` : ses systèmes, `depart` : tes lignes au début du match (une demi-porte est
+ * un changement), `base` : les effets du match (la consigne de la période y est), `c0` : la case du joueur visé avant
+ * le geste, `domicile`, `cartes` : celles de la période. Rend { niveau : 'pleine', 'demi' ou null, portes : [{ cle, poids }] }.
+ */
+export function lireLeTableau(I, { toi, L, lignes, depart = lignes, base = [], c0 = null, domicile = true, cartes = [] }) {
+  const portes = [];
+  const c1 = I.cible ? caseDe(L, I.cible) : null;
+  if (I.cle === 'ombre') { if (c0 && c1 && c1.unit !== c0.unit) portes.push({ cle: 'deplacer', poids: domicile ? 1 : 0.5 }); }
+  else if (contreeParLaGlace(I.cle, { toi, L, lignes, base, cible: I.cible })) portes.push({ cle: 'glace', poids: 1 });
+  for (const p of (PORTES_DEMI[I.cle] || (() => []))({ lignes, depart, base, c1 })) portes.push({ ...p, poids: 0.5 });
+  if (cartes.some(c => carteRepond(INTENTIONS[I.cle], c))) portes.push({ cle: 'carte', poids: 1 });
+  const total = portes.reduce((a, p) => a + p.poids, 0);
+  return { niveau: total >= 1 ? 'pleine' : total > 0 ? 'demi' : null, portes };
+}
+/* Le tableau d'une période appliqué aux lignes et aux effets : les systèmes choisis, la consigne (V13-1). */
+function poserLeTableau(T, lk, bk) {
+  if (!T) return;
+  (T.F || []).forEach((tac, u) => { if (tac && lk[u] && TACTIQUES[tac]) lk[u].tac = tac; });
+  (T.D || []).forEach((tacD, u) => { if (tacD && lk[u] && SYSTEMES_D[tacD]) lk[u].tacD = tacD; });
+  if (T.consigne && T.consigne !== 'normale' && IMPORTANCES[T.consigne]) {
+    const { nom, ico, mot, ...canaux } = IMPORTANCES[T.consigne]; void mot;
+    bk.push({ source: 'reponse', cle: T.consigne, nom, ico, ...canaux });
+  }
+}
 /* LA MAIN QUI DURE : ce qui reste en main à la période k, et la pile — la main de départ, moins ce qui est joué, plus ce que la pioche a tiré. */
 export function mainDuDuel(main = [], pioche = [], parPeriode = [], k = parPeriode.length) {
   let m = main.slice(), pile = pioche.slice();
@@ -9266,6 +9328,8 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     if (R && R.tac) lk[R.u].tac = R.tac;
     if (R && R.tacD) lk[R.u].tacD = R.tacD;
     if (R && R.consigne) { const { nom, ico, mot, ...canaux } = IMPORTANCES[R.consigne]; void mot; bk.push({ source: 'reponse', cle: 'basse', nom, ico, ...canaux }); }
+    // LE TABLEAU DE L'ENTRACTE (V13-1) : tes systèmes et ta consigne de la période.
+    poserLeTableau(d.tactiques, lk, bk);
     // LES CARTES DE LA PÉRIODE : de maintenant à la fin du match.
     const cartes = (d.cartes || []).filter(c => CARTES_MATCH[c]);
     const fx = cartes.length || (k === 0 && (d.enMain || []).length)
@@ -9290,12 +9354,9 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
         if (e && Object.keys(e).length) base.push({ source: 'carte', nom: C.nom, ico: C.ico, ...grandirEffet(e, echelle) });
       }
     }
-    // CONTRÉE ? Par ta glace, par ton geste, ou par une carte de la période.
+    // CONTRÉE ? Les portes de ton tableau (V13-1) : ta glace, ton geste, tes systèmes, ta consigne, une carte de la période.
     const c1 = I.cible ? caseDe(Lk, I.cible) : null;
-    let contree = null;
-    if (I.cle === 'ombre') { if (c0 && c1 && c1.unit !== c0.unit) contree = toiA ? 'pleine' : 'demi'; }
-    else if (contreeParLaGlace(I.cle, { toi, L: Lk, lignes: lk, base: [...base, ...bk], cible: I.cible })) contree = 'pleine';
-    if (contree !== 'pleine' && cartes.some(c => carteRepond(INTENTIONS[I.cle], c))) contree = 'pleine';
+    const { niveau: contree, portes } = lireLeTableau(I, { toi, L: Lk, lignes: lk, depart: lignes, base: [...base, ...bk], c0, domicile: toiA, cartes });
     const J = INTENTIONS[I.cle];
     const fort = contree === 'pleine' ? 0 : (contree === 'demi' ? 0.5 : 1) * FORCE_INTENTION * (fx && fx.improvise ? 0.5 : 1);
     const effToi = [], effAdv = [];
@@ -9356,7 +9417,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     const butsP = journal ? journal.buts.slice(nButs).filter(b => b.cote === cote).map(b => { const s = caseDe(Lk, b.marqueur); return { marqueur: b.marqueur, unite: s && s.group === 'F' ? s.unit : null }; }) : [];
     const punis = journal ? journal.punitions.slice(nPun).filter(e => e.cote === cote).length : 0;
     hist.push({
-      intention: I, reponse: R ? R.cle : null, reponses: opts, contree, cartes, snap: k === 2 && !!d.snap && !gros.serie,
+      intention: I, reponse: R ? R.cle : null, reponses: opts, contree, portes, tactiques: d.tactiques || null, cartes, snap: k === 2 && !!d.snap && !gros.serie,
       pointage: toiA ? { moi: h.gfA, lui: h.gfB } : { moi: h.gfB, lui: h.gfA },
       fin: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, buts: butsP, punitions: punis,
     });
@@ -9375,7 +9436,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
  */
 function periodesDuDuel(d0, suivantes, cle) {
   const de = (d, k) => (d ? {
-    reponse: (d.duel && d.duel.reponse) || null,
+    reponse: (d.duel && d.duel.reponse) || null, tactiques: (d.duel && d.duel.tactiques) || null,
     cartes: (d.main && d.main.jouees) || [], enMain: (d.main && d.main.enMain) || [],
     ...(k === 0 && d.main && Array.isArray(d.main.tirage) ? { tirage: d.main.tirage, pile: d.main.pile || [], adjoint: !!d.auto } : {}),
     snap: !!(d.duel && d.duel.snap), graine: k > 0 ? `${cle}:p${k}:${d.sel || ''}` : null,
