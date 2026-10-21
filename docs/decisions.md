@@ -2668,3 +2668,18 @@ Les règles, toutes sur des canaux qui existent. La confiance du coach ouvre les
 
 Mesuré (`check_adjoints`, en paires, 1 200 matchs par adjoint) : son coach parti, la feuille est identique ; le crieur du banc passe de +1,7 à +3,3 tirs à domicile de l'échelon 1 au 3, le maître des tirs de route de +0,44 à +0,53 point de % au tir, l'entraîneur des gardiens de route de −0,11 à −0,28 but contre ; à l'échelon 1, chacun reste sous la borne de sa rareté. Le robot attentif assoit l'adjoint qui rend le plus et le monte quand le gain d'ici la fin vaut le prix (scripts/lib/cartes_robot.mjs) : `check_profondeur` le mesure à la limite de sa cible : l'attentif bat le robot d'avant de +5,0 V par saison, puis de +4,2 V une fois les adjoints sortis des patrons imposés au départ (± 0,9 chaque fois ; +4,4 V après la V13-2). Un adjoint à l'échelon 1 vaut quelques dixièmes de victoire : il donne une décision au gérant, il ne porte pas à lui seul l'écart que la main du duel donnait. V13-3b et V13-4 le reprennent.
 
+## Le personnel qui monte (V14 — 21 oct. 2026)
+
+JP, au lendemain de la V13-3 : *j'aime pas l'interface des coachs, ni le système ; je le vois comme un genre de système de materia, mais avec des cartes*. Une première maquette l'a pris au mot (des gemmes dans une crosse, des fentes liées) ; il a répondu : *que le personnel puisse être des cartes qui gagnent des niveaux, ont leurs forces, faiblesses, mais un look plus jeu de gestion* ; puis *faut pas me prendre littéral : adapter à nos besoins de jeu de gestion et de gacha*. On a pris l'idée de la materia (une pièce qu'on place, qui grandit à l'usage, avec un prix à elle, et qu'on retrouve d'une partie à l'autre) et on en a fait du personnel qui monte. Une première version donnait un nom à chacun ; JP : *je sais pas s'ils ont besoin de nom, ça peut être des cartes selon leur style*. Ils restent des cartes, nommées par leur style.
+
+Chaque poste a sa carte. Sa force et son défaut se lisent sur ses canaux (ceux qui aident, ceux qui coûtent), en vraies stats. Elle monte d'échelon en matchs à ton service (10, 25, 45, 70), deux fois plus vite à la couleur du coach. Chaque échelon est un choix d'À faire : pousser sa force (+25 % d'écart) ou corriger son défaut (−40 %). C'est la gestion : une décision qui revient, sur un personnel qu'on garde. Le gacha, ce sont les doublons : la première copie ouvre deux échelons, chaque doublon un de plus, et ils restent au méta d'une run à l'autre, alors que les échelons se regagnent à chaque run. Le moteur ne change pas : une personne est une décision `patron` qui porte ses chiffres ; un échelon, une décision de plus qui la remplace à son poste.
+
+Écartés :
+- **Le salaire hebdomadaire en jetons.** Il ajoute de la gestion, mais il mord dans les packs sans mesure derrière ; il ira à la V14b, mesuré d'abord.
+- **Les fentes liées et les soutiens de la maquette materia** (une carte qui en change une autre). Ce sont des mécaniques neuves, et JP ne les demandait pas.
+- **Les chaises et les échelons en jetons de la V13-3**, qui partent.
+
+Mesuré (`check_personnel`, en paires, 1 200 matchs par club et par bras) :
+- **Le crieur du banc.** Quatre poussées font passer sa force de +1,6 à +3,1 tirs par soir à domicile ; quatre corrections ramènent son défaut de −0,13 à +0,07 point de % au tir.
+- **L'entraîneur des gardiens de route.** Sa force passe de −0,14 à −0,27 but contre par soir ; son défaut, de −1,1 à −0,5 tir par soir.
+

@@ -479,6 +479,9 @@ export function acheterDeblocage(cle) {
  * vont au méta, UNE fois par achat (`recus[cle]`) — une ouverture ne paie pas
  * deux fois. Et un consommable permanent qu'on joue le quitte.
  */
+/* Les copies d'une personne au méta (V14) : la première, puis ses doublons ; quatre au plus ouvrent ses cinq échelons. */
+export const COPIES_MAX = 4;
+export const copiesDe = (m, cle) => ((m.personnel || []).includes(cle) ? Math.min(COPIES_MAX, (m.copiesPerso || {})[cle] || 1) : 0);
 export function recevoirPermanents(ids = [], cleRecu = '') {
   const m = lireMeta();
   m.recus = m.recus || {};
@@ -486,9 +489,11 @@ export function recevoirPermanents(ids = [], cleRecu = '') {
   if (cleRecu) m.recus[cleRecu] = true;
   const perso = new Set(m.personnel || []);
   m.inventaire = m.inventaire || {};
+  // V14 : une personne déjà à toi revient en doublon — une copie de plus, qui ouvre un échelon (js/echelons.js `ouvertsDe`).
+  m.copiesPerso = m.copiesPerso || {};
   for (const id of ids) {
     const [cat, cle] = String(id).split(':');
-    if (cat === 'patron') perso.add(cle);
+    if (cat === 'patron') { if (perso.has(cle)) m.copiesPerso[cle] = Math.min(COPIES_MAX, (m.copiesPerso[cle] || 1) + 1); perso.add(cle); }
     else m.inventaire[id] = (m.inventaire[id] || 0) + 1;
   }
   m.personnel = [...perso];

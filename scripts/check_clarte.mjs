@@ -47,11 +47,11 @@ import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, LIGUE_PARTS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
-import { ECHELONS } from '../js/adjoints.js';
+import { MATCHS_ECHELON, POUSSEE, CORRECTION } from '../js/echelons.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons, sceneDeLEchelon } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -358,8 +358,8 @@ const MOTS_RESERVES = [
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
-    // V13-3 : les adjoints du coach (js/adjoints.js `ECHELONS`), le prix et l'effet de chaque échelon.
-    [`il monte d'échelon pour ${ECHELONS[2].prix} puis ${ECHELONS[3].prix} jetons, son effet ×${nombre(ECHELONS[2].f)} puis ×${nombre(ECHELONS[3].f)}.`, 'les échelons des adjoints'],
+    // V14 : les échelons du personnel (js/echelons.js) — les matchs à ton service, ce que vaut chaque choix.
+    [`(le 2e à ${MATCHS_ECHELON[2]} matchs, le 5e à ${MATCHS_ECHELON[5]}), deux fois plus vite à la couleur de ton coach. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).
@@ -428,6 +428,7 @@ const MOTS_RESERVES = [
     // A8 (Jalon M) : le proprio dit le mandat, le capitaine les galons.
     for (const sort of ['rate', 'rempli', 'coupe']) { juger('le mandat', sceneDuMandat({ sort, fiche: { V: 21, D: 52, DP: 9 }, rang: 30, equipes: 32, mandat: 'faire les séries', graine: g }), ['21-52-9', '30e', 32, 'faire les séries']); n++; }
     for (const noms of [['Radek Dvorak'], ['Radek Dvorak', 'Hampus Lindholm', 'Radek Dvorak']]) { juger('les galons', sceneDesGalons({ noms, graine: g }), [noms.length, ...new Set(noms)]); n++; }
+    for (const defaut of [true, false]) { juger('l\'échelon', sceneDeLEchelon({ qui: 'Le gardien du fort', service: 27, echelon: 2, defaut, graine: g }), ['Le gardien du fort', 27, 2, 3]); n++; }
   }
   /*
    * LES DOSSIERS (V10, tranche 5) : sur des faits fabriqués, chacun aux nombres distincts, le fait d'un dossier ne dit que

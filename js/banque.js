@@ -134,7 +134,7 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
     }
   }
   // Le pourcentage du DG, et celui de la banque au palier III (v2) : chacun sa ligne, nommée.
-  for (const x of [...patronsEnPoste(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+  for (const x of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
     const pct = (x.econ && x.econ.plafond) || 0;
     if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: x.nom, montant: m }); }
   }
@@ -256,11 +256,7 @@ function coachDeLaFamille(cat, cle) {
 }
 function construire() {
   const B = {};
-  const mettre = c => {
-    const coach = coachDeLaFamille(c.cat, c.cle);
-    // V13-3 (js/adjoints.js) : un poste du personnel qui a la couleur d'un coach est un de ses adjoints — il vient avec lui.
-    B[c.id] = { ...c, coach, ...(c.cat === 'patron' && coach && PERSONNEL[c.cle] ? { adjoint: coach } : {}) };
-  };
+  const mettre = c => { B[c.id] = { ...c, coach: coachDeLaFamille(c.cat, c.cle) }; };
   for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
@@ -280,14 +276,26 @@ export const carteBanque = id => BANQUE[id] || null;
 export const PATRONS_IMPOSES = 2;
 export function patronsDeDepart(graine, raretes) {
   const out = [];
-  // Un adjoint (V13-3) vient avec son coach, sur son banc : il n'est jamais imposé.
-  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && !c.adjoint && raretes.includes(c.rarete))
+  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && raretes.includes(c.rarete))
     .sort((a, b) => hache(graine, 'patron', a.id) - hache(graine, 'patron', b.id));
   for (const c of pool) if (out.length < PATRONS_IMPOSES && !out.some(x => BANQUE[x].role === c.role)) out.push(c.id);
   return out;
 }
+/* Ce qu'un patron change à la boutique et aux jetons, en mots (sa carte, et sa fiche à son échelon : js/echelons.js). */
+export function motsDeLEcon(e = {}) {
+  const out = [];
+  if (!e) return out;
+  if (e.rabais) out.push({ txt: `Packs ${Math.round((e.rabais - 1) * 100)} %`, bon: true });
+  if (e.jetonsVictoire) out.push({ txt: `+${e.jetonsVictoire} 🪙 par victoire`, bon: true });
+  if (e.jetonsLancee) out.push({ txt: `+${e.jetonsLancee} 🪙 par joueur sur sa lancée, chaque soir`, bon: true });
+  if (e.holo) out.push({ txt: `Packs de joueurs : Or ou mieux +${Math.round((e.holo - 1) * 100)} %`, bon: true });
+  if (e.carteExtra) out.push({ txt: `Packs de joueurs : +${e.carteExtra} carte`, bon: true });
+  if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
+  if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });
+  return out;
+}
 /* Un canal d'équipe, du bon côté : buts contre, punitions, blessures et usure descendent. */
-const canalBon = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
+export const canalBon = (k, v) => (k === 'robustesse' ? v > 0 : (k === 'defense' || k === 'discipline' || k === 'blessure' || k === 'energie' ? v < 1 : v > 1));
 const bitsDEffet = e => {
   const out = [];
   if (!e) return out;
@@ -404,14 +412,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     const P = PATRONS[c.cle];
     // V10 : son moment d'abord.
     const out = [...(P.si && MOMENTS_SI[P.si] ? [{ txt: `${MOMENTS_SI[P.si].mot} : ses soirs, toute la saison`, bon: null, duree: true }] : []), ...motsEnChiffres(P.effet || {})];
-    const e = P.econ || {};
-    if (e.rabais) out.push({ txt: `Packs ${Math.round((e.rabais - 1) * 100)} %`, bon: true });
-    if (e.jetonsVictoire) out.push({ txt: `+${e.jetonsVictoire} 🪙 par victoire`, bon: true });
-    if (e.jetonsLancee) out.push({ txt: `+${e.jetonsLancee} 🪙 par joueur sur sa lancée, chaque soir`, bon: true });
-    if (e.holo) out.push({ txt: `Packs de joueurs : Or ou mieux +${Math.round((e.holo - 1) * 100)} %`, bon: true });
-    if (e.carteExtra) out.push({ txt: `Packs de joueurs : +${e.carteExtra} carte`, bon: true });
-    if (e.sansBase) out.push({ txt: 'Packs de joueurs : jamais une carte de base', bon: true });
-    if (e.plafond) out.push({ txt: `Plafond salarial +${Math.round(e.plafond * 100)} %`, bon: true });
+    out.push(...motsDeLEcon(P.econ));
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsEnChiffres(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));
     if (!P.si) out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
@@ -489,16 +490,11 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
   }
   return [...par.values()];
 }
-/* Les patrons qui travaillent : un adjoint (V13-3) seulement tant que son coach est en poste. */
-const patronsEnPoste = (decisions, jusqua) => {
-  const [C] = coachsActifs(decisions, jusqua);
-  return patronsActifs(decisions, jusqua).filter(p => !p.adjointDe || (C && C.cle === p.adjointDe));
-};
 /* Ce que les patrons engagés changent à la boutique (la décision d'engagement porte \`econ\`). */
 export function modificateurs(decisions = [], jusqua = Infinity) {
   const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false, jetonsVictoire: [], jetonsLancee: [] };
   // v2 : un coach qui a la confiance du vestiaire change la boutique comme un patron (le Comptable).
-  for (const p of [...patronsEnPoste(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+  for (const p of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
     const e = p.econ || {};
     if (e.rabais) m.rabais *= e.rabais;
     if (e.holo) m.holo *= e.holo;

@@ -2470,19 +2470,36 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .perso-t { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 .perso-l { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); padding: var(--esp-1) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); }
 .perso-ico { font-size: var(--t-5); line-height: 1; }
-/* Le nom et son poste (ou son moment) sur une ligne quand ils tiennent ; le reste dessous. */
-.perso-txt { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px var(--esp-2); min-width: 0; }
-.perso-txt > :not(b, small) { flex-basis: 100%; }
+.perso-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .perso-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .perso-txt b { font: 800 var(--t-3)/1.15 var(--display); color: var(--encre); }
 .perso-txt em { font-size: var(--t-1); font-style: italic; line-height: 1.3; color: var(--encre-2); }
 .perso-libre { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
-/* LE BANC DU COACH (V13-3) : un adjoint par ligne, son bouton au bout (activer, monter) ; sous 390 px, le bouton passe dessous. */
-.banc > .perso-l, .banc > .perso-libre { margin-bottom: var(--esp-2); }
-.banc-l { grid-template-columns: auto minmax(0, 1fr) auto; }
-.banc-l.actif { box-shadow: inset 3px 0 0 var(--or); }
-.banc-l .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); white-space: nowrap; }
-@media (max-width: 389px) { .banc-l { grid-template-columns: auto minmax(0, 1fr); } .banc-l .btn { grid-column: 1 / -1; } }
+/* TON PERSONNEL (V14, js/echelons.js) : une ligne de gestion — l'icône de sa carte et de son poste, son style, sa force
+   et son défaut, ses échelons ; elle se déplie sur sa fiche et, à un échelon atteint, sur le choix. */
+.gens { border-top: 0; border-radius: var(--r-1); background: var(--fond-2); }
+.gens.monte { box-shadow: inset 3px 0 0 var(--or); }
+.gens-l { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); min-height: 56px; padding: var(--esp-1) var(--esp-3); list-style: none; cursor: pointer; }
+.gens-l::-webkit-details-marker { display: none; }
+.gens-av { position: relative; width: 40px; height: 40px; border-radius: var(--r-1); display: grid; place-items: center; background: var(--fond-3); font-size: var(--t-5); line-height: 1; }
+.gens-av > span { position: absolute; right: -6px; bottom: -6px; font-size: var(--t-1); line-height: 1; }
+.gens-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gens-txt b { font: 800 var(--t-3)/1.15 var(--display); text-transform: uppercase; color: var(--encre); }
+.gens-txt small { font-size: var(--t-1); line-height: 1.25; color: var(--encre-2); }
+.gens-ff { display: flex; flex-wrap: wrap; gap: 0 var(--esp-2); font: 700 var(--t-1)/1.25 var(--display); }
+.gens-ff .bon { color: var(--bon); }
+.gens-ff .mal { color: var(--mauvais); }
+.gens-niv { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; }
+.gens-ech { display: flex; gap: 2px; }
+.gens-ech i { width: 8px; height: 8px; border-radius: var(--r-0); background: var(--fond-3); border: 1px solid var(--filet); }
+.gens-ech i.on { background: var(--or); border-color: var(--or); }
+.gens-ech i.ferme { opacity: 0.35; border-style: dashed; }
+.gens-xp { width: 48px; height: 3px; border-radius: var(--r-0); background: var(--fond-3); overflow: hidden; }
+.gens-xp i { display: block; height: 100%; background: var(--encre-2); }
+.gens-monte { color: var(--noir-pur); background: var(--or); padding: 3px 5px; border-radius: var(--r-0); }
+.gens-fiche { display: flex; flex-direction: column; gap: var(--esp-2); padding: 0 var(--esp-3) var(--esp-3); }
+.gens-choix { display: flex; flex-wrap: wrap; gap: var(--esp-2); }
+.gens-choix .btn { min-height: 44px; }
 /* CE QUI SE PLIE D'UN SOUS-ONGLET (V12-4 : il tient en un écran) : une ligne qui s'ouvre. Les cartes d'une maison (leurs
    icônes au bout ; ouvertes, une bande de cartons qui se balaie, la suivante au bord, comme la main du duel), la route de la saison. */
 .pli { border-top: 1px solid var(--filet); }
