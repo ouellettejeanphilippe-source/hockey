@@ -17,8 +17,7 @@ import { sceneDeLaRoute } from '../../js/scenes.js';
 import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
 import { BANQUE, CONSOMMABLES, payloadDe } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
-import { PERSONNEL } from '../../js/personnel.js';
-import { etatDuBanc, effetDeLAdjoint, decisionDAdjoint } from '../../js/adjoints.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
 
 /*
  * CE QU'UN EFFET RAPPORTE, grossièrement, en victoires par soir où il joue : les poids mesurés de js/banque.js (1 % de
@@ -39,12 +38,8 @@ const valeurDEffet = (e, duree) => {
   const Mo = e.si && MOMENTS_SI[e.si];
   return parSoir(e) * (duree || 0) * (Mo ? Mo.parSaison / 82 : 1);
 };
+const ROBOT_COPIES = 2;
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
-/* Ce que rend un adjoint à son échelon sur les `reste` matchs : ses canaux sur ses soirs, et ses jetons d'une victoire sur deux. */
-const valeurDAdjoint = (cle, echelon, reste) => {
-  const { econ, ...e } = effetDeLAdjoint(cle, echelon);
-  return valeurDEffet({ ...e, si: PERSONNEL[cle].si }, reste) + ((econ && econ.jetonsVictoire) || 0) * reste * 0.5 * JETON;
-};
 
 /* Les faits du lundi, comme l'écran les lit (js/saison.js `faitsDuLundi`), à partir de ce que la ligue a joué. */
 function faitsDuRobot(L, you, jetons) {
@@ -102,17 +97,20 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
     }
   }
   /*
-   * LES ADJOINTS DU COACH (V13-3, js/adjoints.js), le lundi : une chaise libre, l'attentif y assoit l'adjoint qui rend
-   * le plus ; sinon il monte d'un échelon celui dont le gain d'ici la fin vaut son prix. Le distrait clique au hasard.
+   * LES ÉCHELONS DU PERSONNEL (V14, js/echelons.js), le lundi : l'attentif prend, pour chaque personne qui monte, ce qui
+   * rend le plus d'ici la fin (sa force poussée, ou son défaut corrigé) ; le distrait, au hasard. Ses doublons : deux
+   * copies (trois échelons ouverts), un gérant qui a ouvert quelques packs.
    */
   if (lundi) {
-    const caisse = jetons + out.reduce((a, d) => a + (d.gain || 0), 0);
-    const B = etatDuBanc([...decisions, ...out], j, caisse);
     const reste = Math.max(0, 82 - ((f && f.n) || 0));
-    const coups = B ? B.adjoints.filter(a => !a.non).map(a => ({ cle: a.cle, echelon: a.echelon + 1,
-      v: valeurDAdjoint(a.cle, a.echelon + 1, reste) - (a.echelon ? valeurDAdjoint(a.cle, a.echelon, reste) : 0) - a.prix * JETON })) : [];
-    const coup = clic ? (coups.length ? auHasard(coups) : null) : coups.filter(c => c.v > 0).sort((a, b) => b.v - a.v)[0];
-    if (coup) out.push({ jour: j, ...decisionDAdjoint(coup.cle, B.coach, coup.echelon) });
+    const valeur = (cle, choix) => { const { econ: _e, ...p } = patronALEchelon(cle, { choix }); void _e; return valeurDEffet(p, reste); };
+    for (const e of etatDuPersonnel([...decisions, ...out], j, { joues: (de, a) => matchsJoues(L.calendrier, you, de, a), copies: () => ROBOT_COPIES })) {
+      if (!e.aChoisir) continue;
+      const avant = e.patron.choix || [];
+      const options = ['force', ...(aUnDefaut(e.cle) ? ['defaut'] : [])];
+      const c = clic ? auHasard(options) : options.reduce((b, x) => (valeur(e.cle, [...avant, x]) > valeur(e.cle, [...avant, b]) ? x : b), 'force');
+      out.push({ jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) });
+    }
   }
   // LA CARTE D'UN PALIER (9e, 18e, 26e matchs) : une place parmi trois, jouée tout de suite.
   const pp = f && PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));

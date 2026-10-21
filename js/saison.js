@@ -46,7 +46,7 @@ import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, signalerComptes, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
+import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLEchelon } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE, reglesDe, payloadDe, placeDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
@@ -3607,6 +3607,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}) }; } } });
     }
     /*
+     * L'ÉCHELON D'UNE CARTE DU PERSONNEL (V14, js/echelons.js) : ses matchs à ton service l'ont menée à l'échelon
+     * suivant (et un doublon l'a ouvert). Tu choisis ce qu'elle a appris ; il attend le lundi, comme les autres.
+     */
+    for (const e of ctx.rogue && ctx.personnel && ctx.personnel.echelons ? ctx.personnel.echelons(jour) : []) {
+      const scene = sceneDeLEchelon({ qui: e.qui, service: e.service, echelon: e.echelon, defaut: e.defaut, graine });
+      out.push({ id: `ech:${e.cle}:${e.echelon + 1}`, genre: 'echelon', bloque: true, de: scene.de, sujet: `${e.qui} passe à l'échelon ${e.echelon + 1}`,
+        choix: { scene, options: e.options, decision: cle => e.decision(cle) } });
+    }
+    /*
      * UNE CARTE DE TROP (V9, tranche 5b) : plus de cartes que de places, À faire demande laquelle vendre, et la journée
      * attend. Jouer une carte règle aussi le compte : « Ce soir » les montre toutes.
      */
@@ -3737,6 +3746,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   function maisonDe(m) {
     if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
     if (['fil', 'dossier'].includes(m.genre)) return 'vestiaire';
+    if (m.genre === 'echelon') return 'entraineur';
     if (m.genre === 'courriel') return 'presse';
     if (m.genre === 'pack') return 'marche';
     if (['cartes', 'places', 'palier'].includes(m.genre)) return 'butin';

@@ -667,7 +667,9 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
   const rangCoach = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach .ej-rang').catch(() => '')) || '').trim();
-  const postes = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .perso-l', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim())).catch(() => []);
+  // V14 : ton personnel (js/echelons.js) — sa carte, son poste, sa force et son défaut, ses échelons.
+  const postes = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] :is(.perso-l, .gens-l)', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim())).catch(() => []);
+  const gens = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-l', e => e.map(x => ({ nom: (x.querySelector('.gens-txt b') || {}).textContent || '', ech: x.querySelectorAll('.gens-ech i').length }))).catch(() => []);
   await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
   const sv0 = await lireSauvegarde();
   const d0 = ((sv0.partie || {}).decisions || []).find(x => x.jour === 0 && x.coach);
@@ -679,26 +681,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
   console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
   if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
-  // LES ADJOINTS DU COACH (V13-3, js/adjoints.js) : au même sous-onglet ; on en assoit un, sa ligne s'allume, sa décision porte son coach.
-  await versLOnglet('bureau', 'entraineur');
-  const banc = '#hubModal .af-onglet[data-maison="entraineur"] .banc';
-  const deplierLeBanc = async () => { await page.click(`${banc}:not([open]) > summary`, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(250); };
-  await deplierLeBanc();
-  const libres = await page.$$(`${banc} .maison-jouer:not([disabled])`);
-  if (!libres.length) erreurs.push('le banc du coach n\'offre aucun adjoint à asseoir');
-  else {
-    await libres[0].click(); await page.waitForTimeout(400);
-    await versLOnglet('bureau', 'entraineur');
-    await deplierLeBanc();
-    await page.$eval(banc, e => e.scrollIntoView({ block: 'center' })).catch(() => {});
-    await page.screenshot({ path: `${DOSSIER}/rogue-adjoints.png` });
-    const lignes = await page.$$eval(`${banc} .banc-l`, e => e.map(x => ({ actif: x.classList.contains('actif'), txt: x.textContent.replace(/\s+/g, ' ').trim() }))).catch(() => []);
-    const adj = (((await lireSauvegarde()).partie || {}).decisions || []).filter(x => x.patron && x.patron.adjointDe);
-    console.log(`5g. le banc du coach : ${lignes.map(l => `${l.actif ? '●' : '○'} ${l.txt}`).join(' | ')} · décision : ${adj.map(x => `${x.patron.nom} (${x.patron.adjointDe}, échelon ${x.patron.echelon})`).join(', ') || '(aucune)'}`);
-    if (lignes.filter(l => l.actif).length !== 1) erreurs.push(`asseoir un adjoint n'allume pas sa ligne (${lignes.filter(l => l.actif).length} actif)`);
-    if (adj.length !== 1 || adj[0].patron.adjointDe !== (d0 && d0.coach.cle)) erreurs.push('l\'adjoint assis ne s\'enregistre pas avec son coach');
-  }
-  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
+  if (gens.length < p0.length || gens.some(g => !g.nom.trim() || g.ech !== 5)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses cinq échelons (${JSON.stringify(gens)})`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -1668,6 +1651,12 @@ console.log(`20j. le gros match plus court : ${duelCourt.n} période(s) au geste
 if (duelCourt.longs) erreurs.push(`${duelCourt.longs} période(s) du duel font plus de 1,3 écran une fois le geste pris (${duelCourt.max.toFixed(2)})`);
 if (periodes.some(x => x.startsWith('3')) && !mise.vue) erreurs.push('un duel de saison s\'est rendu à sa 3e période sans offrir la mise doublée');
 console.log(`20h. les scènes : ${[...scenes].map(([g, t]) => `${g} : ${t}`).join(' | ') || 'aucun choix mis en scène ouvert'}${mise.scene ? ` | la mise : ${mise.scene}` : ''}`);
+{
+  // V14 : les échelons du personnel — un échelon atteint se tranche dans À faire (`ech:`) ou dans la fiche ; ce qu'on a choisi.
+  const sv = await lireSauvegarde().catch(() => null);
+  const ech = (((sv && sv.partie) || {}).decisions || []).filter(d => String(d.palier || '').startsWith('ech:') && d.patron);
+  console.log(`20p. les échelons du personnel : ${ech.map(d => `${d.patron.nom} → ${d.patron.echelon} (${(d.patron.choix || []).slice(-1)[0]})`).join(' · ') || 'aucun choisi cette saison'}`);
+}
 console.log('erreurs :', erreurs.length ? erreurs.join(' | ') : 'aucune');
 await browser.close();
 process.exit(erreurs.length ? 1 : 0);
