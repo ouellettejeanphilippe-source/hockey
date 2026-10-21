@@ -17,6 +17,8 @@ import { sceneDeLaRoute } from '../../js/scenes.js';
 import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
 import { BANQUE, CONSOMMABLES, payloadDe } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
+import { PERSONNEL } from '../../js/personnel.js';
+import { etatDuBanc, effetDeLAdjoint, decisionDAdjoint } from '../../js/adjoints.js';
 
 /*
  * CE QU'UN EFFET RAPPORTE, grossièrement, en victoires par soir où il joue : les poids mesurés de js/banque.js (1 % de
@@ -38,6 +40,11 @@ const valeurDEffet = (e, duree) => {
   return parSoir(e) * (duree || 0) * (Mo ? Mo.parSaison / 82 : 1);
 };
 const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche (le barème : 5 par victoire, les packs à 12 et plus)
+/* Ce que rend un adjoint à son échelon sur les `reste` matchs : ses canaux sur ses soirs, et ses jetons d'une victoire sur deux. */
+const valeurDAdjoint = (cle, echelon, reste) => {
+  const { econ, ...e } = effetDeLAdjoint(cle, echelon);
+  return valeurDEffet({ ...e, si: PERSONNEL[cle].si }, reste) + ((econ && econ.jetonsVictoire) || 0) * reste * 0.5 * JETON;
+};
 
 /* Les faits du lundi, comme l'écran les lit (js/saison.js `faitsDuLundi`), à partir de ce que la ligue a joué. */
 function faitsDuRobot(L, you, jetons) {
@@ -68,7 +75,7 @@ function faitsDuRobot(L, you, jetons) {
  * (quand le compte de matchs le franchit). Rend les décisions à pousser au jour de la ligue. `etat` : ce que la saison
  * retient (les dossiers déjà ouverts, les paliers pris).
  */
-export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) {
+export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, decisions = [] }) {
   const out = [];
   if (politique === 'defaut') return out;
   const auHasard = l => l[Math.floor(clic() * l.length)];
@@ -93,6 +100,19 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
       }, null).o;
       out.push({ jour: j, palier: `do:${w}`, moment: { famille: 'dossier', cle, choix: o.cle }, ...(o.gain ? { gain: o.gain } : {}) });
     }
+  }
+  /*
+   * LES ADJOINTS DU COACH (V13-3, js/adjoints.js), le lundi : une chaise libre, l'attentif y assoit l'adjoint qui rend
+   * le plus ; sinon il monte d'un échelon celui dont le gain d'ici la fin vaut son prix. Le distrait clique au hasard.
+   */
+  if (lundi) {
+    const caisse = jetons + out.reduce((a, d) => a + (d.gain || 0), 0);
+    const B = etatDuBanc([...decisions, ...out], j, caisse);
+    const reste = Math.max(0, 82 - ((f && f.n) || 0));
+    const coups = B ? B.adjoints.filter(a => !a.non).map(a => ({ cle: a.cle, echelon: a.echelon + 1,
+      v: valeurDAdjoint(a.cle, a.echelon + 1, reste) - (a.echelon ? valeurDAdjoint(a.cle, a.echelon, reste) : 0) - a.prix * JETON })) : [];
+    const coup = clic ? (coups.length ? auHasard(coups) : null) : coups.filter(c => c.v > 0).sort((a, b) => b.v - a.v)[0];
+    if (coup) out.push({ jour: j, ...decisionDAdjoint(coup.cle, B.coach, coup.echelon) });
   }
   // LA CARTE D'UN PALIER (9e, 18e, 26e matchs) : une place parmi trois, jouée tout de suite.
   const pp = f && PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));

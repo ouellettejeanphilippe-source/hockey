@@ -679,6 +679,26 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
   console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
   if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
+  // LES ADJOINTS DU COACH (V13-3, js/adjoints.js) : au même sous-onglet ; on en assoit un, sa ligne s'allume, sa décision porte son coach.
+  await versLOnglet('bureau', 'entraineur');
+  const banc = '#hubModal .af-onglet[data-maison="entraineur"] .banc';
+  const deplierLeBanc = async () => { await page.click(`${banc}:not([open]) > summary`, { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(250); };
+  await deplierLeBanc();
+  const libres = await page.$$(`${banc} .maison-jouer:not([disabled])`);
+  if (!libres.length) erreurs.push('le banc du coach n\'offre aucun adjoint à asseoir');
+  else {
+    await libres[0].click(); await page.waitForTimeout(400);
+    await versLOnglet('bureau', 'entraineur');
+    await deplierLeBanc();
+    await page.$eval(banc, e => e.scrollIntoView({ block: 'center' })).catch(() => {});
+    await page.screenshot({ path: `${DOSSIER}/rogue-adjoints.png` });
+    const lignes = await page.$$eval(`${banc} .banc-l`, e => e.map(x => ({ actif: x.classList.contains('actif'), txt: x.textContent.replace(/\s+/g, ' ').trim() }))).catch(() => []);
+    const adj = (((await lireSauvegarde()).partie || {}).decisions || []).filter(x => x.patron && x.patron.adjointDe);
+    console.log(`5g. le banc du coach : ${lignes.map(l => `${l.actif ? '●' : '○'} ${l.txt}`).join(' | ')} · décision : ${adj.map(x => `${x.patron.nom} (${x.patron.adjointDe}, échelon ${x.patron.echelon})`).join(', ') || '(aucune)'}`);
+    if (lignes.filter(l => l.actif).length !== 1) erreurs.push(`asseoir un adjoint n'allume pas sa ligne (${lignes.filter(l => l.actif).length} actif)`);
+    if (adj.length !== 1 || adj[0].patron.adjointDe !== (d0 && d0.coach.cle)) erreurs.push('l\'adjoint assis ne s\'enregistre pas avec son coach');
+  }
+  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');
@@ -1156,6 +1176,8 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
     await page.waitForTimeout(300);
     ecrans[k] = await hauteur();
     if (await page.$(`#hubModal .af-onglet[data-maison="${k}"] .hub-msg`)) avecChoix.add(k);
+    // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
+    if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste

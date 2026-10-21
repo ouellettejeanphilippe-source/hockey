@@ -134,7 +134,7 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
     }
   }
   // Le pourcentage du DG, et celui de la banque au palier III (v2) : chacun sa ligne, nommée.
-  for (const x of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+  for (const x of [...patronsEnPoste(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
     const pct = (x.econ && x.econ.plafond) || 0;
     if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: x.nom, montant: m }); }
   }
@@ -256,7 +256,11 @@ function coachDeLaFamille(cat, cle) {
 }
 function construire() {
   const B = {};
-  const mettre = c => { B[c.id] = { ...c, coach: coachDeLaFamille(c.cat, c.cle) }; };
+  const mettre = c => {
+    const coach = coachDeLaFamille(c.cat, c.cle);
+    // V13-3 (js/adjoints.js) : un poste du personnel qui a la couleur d'un coach est un de ses adjoints — il vient avec lui.
+    B[c.id] = { ...c, coach, ...(c.cat === 'patron' && coach && PERSONNEL[c.cle] ? { adjoint: coach } : {}) };
+  };
   for (const [cle, P] of Object.entries(PATRONS)) mettre(fait('patron', cle, { nom: P.nom, ico: P.ico, rarete: P.rarete, texte: P.texte, vie: 'permanent', role: P.role }));
   for (const cle of MODS_JOUEUR) {
     const M = MUTATIONS[cle];
@@ -276,7 +280,8 @@ export const carteBanque = id => BANQUE[id] || null;
 export const PATRONS_IMPOSES = 2;
 export function patronsDeDepart(graine, raretes) {
   const out = [];
-  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && raretes.includes(c.rarete))
+  // Un adjoint (V13-3) vient avec son coach, sur son banc : il n'est jamais imposé.
+  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && !c.adjoint && raretes.includes(c.rarete))
     .sort((a, b) => hache(graine, 'patron', a.id) - hache(graine, 'patron', b.id));
   for (const c of pool) if (out.length < PATRONS_IMPOSES && !out.some(x => BANQUE[x].role === c.role)) out.push(c.id);
   return out;
@@ -484,11 +489,16 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
   }
   return [...par.values()];
 }
+/* Les patrons qui travaillent : un adjoint (V13-3) seulement tant que son coach est en poste. */
+const patronsEnPoste = (decisions, jusqua) => {
+  const [C] = coachsActifs(decisions, jusqua);
+  return patronsActifs(decisions, jusqua).filter(p => !p.adjointDe || (C && C.cle === p.adjointDe));
+};
 /* Ce que les patrons engagés changent à la boutique (la décision d'engagement porte \`econ\`). */
 export function modificateurs(decisions = [], jusqua = Infinity) {
   const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false, jetonsVictoire: [], jetonsLancee: [] };
   // v2 : un coach qui a la confiance du vestiaire change la boutique comme un patron (le Comptable).
-  for (const p of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+  for (const p of [...patronsEnPoste(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
     const e = p.econ || {};
     if (e.rabais) m.rabais *= e.rabais;
     if (e.holo) m.holo *= e.holo;

@@ -47,6 +47,7 @@ import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, LIGUE_PARTS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
+import { ECHELONS } from '../js/adjoints.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -357,6 +358,8 @@ const MOTS_RESERVES = [
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
+    // V13-3 : les adjoints du coach (js/adjoints.js `ECHELONS`), le prix et l'effet de chaque échelon.
+    [`il monte d'échelon pour ${ECHELONS[2].prix} puis ${ECHELONS[3].prix} jetons, son effet ×${nombre(ECHELONS[2].f)} puis ×${nombre(ECHELONS[3].f)}.`, 'les échelons des adjoints'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).
