@@ -348,7 +348,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // V10 : le lundi du robot — la route, le dossier, la carte d'un palier (scripts/lib/cartes_robot.mjs).
   const etatCartes = { dossiers: [], paliers: new Set() };
   while (!L.fini) {
-    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique, clic, jetons: jetons(), etat: etatCartes })) {
+    for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique, clic, jetons: jetons(), etat: etatCartes, decisions })) {
       decisions.push(d);
       depense -= d.gain || 0;
     }

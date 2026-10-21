@@ -7431,7 +7431,8 @@ function momentsDuSoir(T, adv, L, { chez = true, series = false, jour = null } =
   };
 }
 /** Ce qui ne joue que dans son moment joue-t-il ce soir ? Sans `si`, toujours. */
-const joueCeSoir = (T, x) => !x || !x.si || !!(T && T._soir && T._soir[x.si]);
+// V13-3 : un adjoint du coach (`adjointDe`, js/adjoints.js) ne travaille que son coach en poste.
+const joueCeSoir = (T, x) => !x || ((!x.si || !!(T && T._soir && T._soir[x.si])) && (!x.adjointDe || !!(T && (T.coachs || []).some(c => c && c.cle === x.adjointDe))));
 
 /* Une modif qui ne joue que certains soirs (`si`, V3.4 ; tous les moments de `MOMENTS_SI` depuis la V10) : `p._soir` est posé par `playGame` au début du match. */
 function siDe(p, champ) {

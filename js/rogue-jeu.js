@@ -7,10 +7,11 @@
 
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, MOMENTS_SI, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach } from './banque.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
-import { motsDeMutationEnChiffres } from './impact.js';
+import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
+import { etatDuBanc, effetDeLAdjoint, decisionDAdjoint, ECHELONS } from './adjoints.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -682,7 +683,8 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     joueurs: liste, onChoix: choisir, onFerme: retour,
   });
   if (c.cat === 'patron') {
-    const actifs = patronsActifs(decs, j + 1), postes = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+    // V13-3 : les adjoints du coach ont leurs chaises (js/adjoints.js) ; ils ne prennent pas de poste.
+    const actifs = patronsActifs(decs, j + 1).filter(x => !x.adjointDe), postes = postesDePatron((G.rogue && G.rogue.prestige) || 0);
     if (!actifs.some(x => x.role === c.role) && actifs.length >= postes) {
       ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
         recit: `${postes} postes au plus (le prestige en ouvre d'autres). ${c.nom} prend la place de qui ?`,
@@ -808,13 +810,39 @@ function poserUneModif(item, j, decider, retour) {
  * combien de postes restent libres, et où s'engage le personnel.
  */
 export function personnelDuJour(j) {
-  const pa = patronsActifs(decisionsDeLaPartie(), j + 1), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+  const pa = patronsActifs(decisionsDeLaPartie(), j + 1).filter(x => !x.adjointDe), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
   const libres = Math.max(0, max - pa.length);
   return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
     ${pa.map(x => { const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {};
-      return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b>${P.texte ? `<em>${esc(P.texte)}</em>` : ''}</span></div>`; }).join('')}
-    ${libres ? `<p class="perso-libre">${libres} poste${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''} : les packs Personnel en donnent, et ils s'engagent ici.</p>` : ''}
-  </section>${cartesDeLaMaison('entraineur', j)}`;
+      return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><b>${esc(x.nom || P.nom || '')}</b><small>${esc(R.nom || '')}</small>${P.texte ? `<em>${esc(P.texte)}</em>` : ''}</span></div>`; }).join('')}
+    ${libres ? `<p class="perso-libre">${libres} poste${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''} : les packs en donnent, et ils s'engagent ici.</p>` : ''}
+  </section>${banHtml(j)}${cartesDeLaMaison('entraineur', j)}`;
+}
+/*
+ * LE BANC DU COACH (V13-3, js/adjoints.js). JP : *chaque coach devrait avoir des assistants coachs activables, avec effet
+ * et upgrades possibles*. Ses adjoints, chacun son moment et ce qu'il fait à son échelon, en vraies stats ; activer en
+ * prend une chaise (la confiance en ouvre), monter un échelon coûte des jetons.
+ */
+function banHtml(j) {
+  const B = etatDuBanc(decisionsDeLaPartie(), j + 1, jetonsRogue(j));
+  if (!B || !B.adjoints.length) return '';
+  const C = COACHS[B.coach];
+  const ligne = a => {
+    const P = PATRONS[a.cle] || {}, ech = Math.max(1, a.echelon);
+    const mots = motsEnChiffres(effetDeLAdjoint(a.cle, ech));
+    const quand = P.si && MOMENTS_SI[P.si] ? MOMENTS_SI[P.si].mot : 'Toute la saison';
+    // Ce qui l'empêche se dit au survol ; la commande garde son nom (« Monter · 25 🪙 » grisé dit déjà son prix).
+    const non = a.non ? ` disabled title="${esc(a.non)}"` : '';
+    const bouton = !a.actif ? `<button type="button" class="btn gold maison-jouer" data-src="adjoint" data-id="adjoint:${esc(a.cle)}:1"${non}>${a.non ? esc(a.non) : 'Activer'}</button>`
+      : a.echelon < ECHELONS.length - 1 ? `<button type="button" class="btn maison-jouer" data-src="adjoint" data-id="adjoint:${esc(a.cle)}:${a.echelon + 1}"${non}>Monter · ${a.prix} 🪙</button>` : '';
+    return `<div class="perso-l banc-l${a.actif ? ' actif' : ''}"><span class="perso-ico" aria-hidden="true">${P.ico || ''}</span><span class="perso-txt"><b>${esc(P.nom || '')}</b><small>${esc(quand)}${a.actif ? ` · échelon ${a.echelon}` : ''}</small>${mots.length ? `<span class="choix-puces">${pucesEnBref(mots)}</span>` : ''}</span>${bouton}</div>`;
+  };
+  // Plié comme les cartes de la maison (V12-4) : le sous-onglet tient en un écran ; la ligne dit les chaises et qui s'y assoit.
+  const libres = B.chaises - B.actifs;
+  return `<details class="pli banc"><summary class="pli-t"><span class="perso-t">🪑 Les adjoints ${esc(C.de || `de ${C.nom}`)} · ${libres > 0 ? `${libres} chaise${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''}` : `${B.actifs}/${B.chaises} chaise${B.chaises > 1 ? 's' : ''}`}</span><span class="pli-icones" aria-hidden="true">${B.adjoints.map(a => (PATRONS[a.cle] || {}).ico || '').join('')}</span></summary>
+    ${B.adjoints.map(ligne).join('')}
+    ${B.chaises < 2 ? `<p class="perso-libre">La confiance II ouvre une deuxième chaise.</p>` : ''}
+  </details>`;
 }
 /*
  * UNE MAISON PAR SUJET (V12-2, puis V12-3). JP : *everything coaching should be at same place, including cards for assistant
@@ -842,7 +870,7 @@ function maisonDeLaCarte(id) {
 export function cartesDeLaMaison(maison, j) {
   const meta = lireMeta();
   const engages = new Set(maison === 'entraineur' ? patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle) : []);
-  const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k)) : [];
+  const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k) && !(BANQUE[`patron:${k}`] || {}).adjoint) : [];
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
   const places = G.ligue ? placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
   const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + places.length;
@@ -857,7 +885,21 @@ export function cartesDeLaMaison(maison, j) {
   </details>`;
 }
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
-export const jouerDeLaMaison = (item, j, decider) => (item.vendre ? decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }) : jouerCarte(item, j, decider, null, () => {}));
+export function jouerDeLaMaison(item, j, decider) {
+  if (item.vendre) { decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }); return; }
+  // V13-3 : un adjoint du coach, activé ou monté d'un échelon (« adjoint:<clé>:<échelon> »).
+  if (item.src === 'adjoint') {
+    const [, cle, n] = String(item.id).split(':'), B = etatDuBanc(decisionsDeLaPartie(), j + 1, jetonsRogue(j));
+    const a = B && B.adjoints.find(x => x.cle === cle);
+    if (!a || a.non) return;
+    const d = decisionDAdjoint(cle, B.coach, Number(n));
+    if (!d) return;
+    toast(`${PATRONS[cle].ico} ${PATRONS[cle].nom} : ${Number(n) > 1 ? `échelon ${n}` : 'à sa chaise'}.`);
+    decider({ jour: j, ...d });
+    return;
+  }
+  jouerCarte(item, j, decider, null, () => {});
+}
 /*
  * POSER UNE MODIF EN TOUCHANT SON JOUEUR (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert*. Une
  * modif de joueur touchée allume, dans les lignes de « Ce soir », les joueurs qui peuvent la porter ; toucher l'un

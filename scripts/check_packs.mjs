@@ -372,8 +372,8 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   const horsPackTirees = [...tirees].filter(id => !sortDUnPack(id));
   exiger('aucune carte « hors pack » ne sort d\'un pack', horsPackTirees.length === 0, horsPackTirees.slice(0, 5).join(', ') || `${tirees.size} cartes différentes tirées`);
   const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
-  // V10 : les cartes de saison sont parties ; ce qui se gagne en jouant, ce sont les malédictions.
-  exiger('ce qui se gagne en jouant ne compte pas au dénominateur', horsPack.length > 0 && horsPack.every(id => BANQUE[id].rarete === 'maudite'), `${horsPack.length} cartes se gagnent en jouant`);
+  // V10 : les cartes de saison sont parties ; V13-2, les malédictions aussi. Ce qui vient autrement, ce sont les adjoints, avec leur coach (V13-3).
+  exiger('ce qui vient autrement qu\'en pack ne compte pas au dénominateur', horsPack.length > 0 && horsPack.every(id => BANQUE[id].rarete === 'maudite' || BANQUE[id].adjoint), `${horsPack.length} adjoints viennent avec leur coach`);
   const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
   informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (1 500 ouvertures par pack)`);
 }
