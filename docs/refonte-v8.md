@@ -209,7 +209,7 @@ Le juge de chaque tranche : un script joue une saison et échoue s'il trouve :
 - [x] **Tranche 3, Ce soir.** Le volet `soir` de l'écran de saison contient :
   - l'affiche, les vraies stats des deux clubs, le gros match et ce qui est en jeu ;
   - tes cartes de la semaine et ton coach ;
-  - « Le dépistage complet » et « Changer tes lignes ».
+  - « Dépistage » et « Tes lignes » (V12-4b ; « Le dépistage complet » et « Changer tes lignes » avant).
 
   Les Lignes en sont le second onglet.
 - [x] **Les cartes disent leur usage.**

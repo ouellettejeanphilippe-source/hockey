@@ -704,7 +704,9 @@ function tableauDuDuel(you, P, { domicile, adv, defaut = null }) {
   };
   // V15 : chaque unité n'offre que les styles que ses badges ouvrent (`styleOuvert`, js/sim.js).
   const ouverts = (g, u) => Object.keys(g === 'F' ? TACTIQUES : SYSTEMES_D).filter(k => styleOuvert(L, g, u, k));
-  return { unites, base, depart: defaut || base, evaluer, ouverts, prix: T => lignesEnChiffres(you, L, adv, poser(T), lignes) };
+  // Le tableau d'une période d'avant garde ses styles, sauf celui qu'un joueur sorti a fermé : il prend celui de tes lignes.
+  const depart = defaut ? { ...defaut, F: (defaut.F || base.F).map((k, u) => (k && !styleOuvert(L, 'F', u, k) ? base.F[u] : k)), D: (defaut.D || base.D).map((k, u) => (k && !styleOuvert(L, 'D', u, k) ? base.D[u] : k)) } : base;
+  return { unites, base, depart, evaluer, ouverts, prix: T => lignesEnChiffres(you, L, adv, poser(T), lignes) };
 }
 
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {
@@ -1636,7 +1638,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
     const phraseHtml = `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`;
-    return { mot: duelHtml(adv), phrase: phraseHtml, detail: phraseHtml + `<div class="hub-forces">
+    return { mot: duelHtml(adv), detail: phraseHtml + `<div class="hub-forces">
       <table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
         <tbody>
@@ -2464,7 +2466,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const jeu = enJeuDuSoir(p);
     const pastilles = (d, n) => motsDeStats(d, n).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
     const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} match${x.reste > 1 ? 's' : ''}</small>` : ''}</span><span class="ej-stats">${pastilles(x.d, 2)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
-    return `${placesHtml()}${soirEnVolet ? poseHtml() : ''}<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, 4) : ''}</span></summary>
+    return `${placesHtml()}${soirEnVolet ? poseHtml() : ''}<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, soirEnVolet ? 2 : 4) : ''}</span></summary>
       ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}</details>`;
   };
   /*
@@ -2473,7 +2475,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const voletSoir = () => {
     if (jour >= N) return '<p class="hub-vide">La saison est jouée.</p>';
     // Tes places remontent sous l'affiche (Jalon M, B9) : ce qui se joue ce soir avant ce qui se lit.
-    return soir && soir.jour === jour ? `${soir.html}${cartesDuBureau()}${soir.detail}` : cartesDuBureau();
+    return soir && soir.jour === jour ? `${soir.html}${cartesDuBureau()}` : cartesDuBureau();
   };
   /*
    * LA ROUTE (V8, à la Slay the Spire) : tes deux prochaines semaines, ce qui est connu d'avance et rien d'autre — tes
@@ -3124,11 +3126,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * l'affiche ; ce qu'on en sait (leurs pistes, leur main, l'enjeu) vit
        * dans le dépistage, qui s'ouvre au toucher.
        */
-      const miniBoss = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros aux-couleurs" style="${varsEquipe(ctx.band(mb.adv.tag))}">
-        <div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Gros match · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b> — ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>
-        ${Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : ''}
+      // V12-4 : à « Ce soir », le gros match tient en une ligne ; son pourquoi et l'événement pris vont au dépistage.
+      const grosPourquoi = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Gros match · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b>${soirEnVolet ? '' : ` — ${ctx.esc(MINI_BOSS[mb.raison].mot)}`}</div>` : '';
+      const grosAvant = Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : '';
+      const miniBoss = grosPourquoi ? `<div class="hub-gros aux-couleurs" style="${varsEquipe(ctx.band(mb.adv.tag))}">
+        ${grosPourquoi}${soirEnVolet ? '' : grosAvant}
       </div>` : '';
       const grosDepistage = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-dep">
+        ${soirEnVolet ? `<div class="hub-gros-detail">${MINI_BOSS[mb.raison].ico} ${ctx.esc(MINI_BOSS[mb.raison].mot)}</div>${grosAvant}` : ''}
         ${onDecision && you.courbe ? duelAvantHtml(ctx, apercuDuDuel(you, adv, { graine, cle: `j${p.j}` })) : ''}
         ${onDecision && !you.courbe ? depistageHtml(pistesDuRapport(mb.depistage), { nomAdv: ctx.teamShort(adv) }) + mainAdverseHtml(mainAdverse(graine, `j${p.j}`, energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) })), { nomAdv: ctx.teamShort(adv), energie: energieAdverse({ nMatch: matchsEntre(you, 0, p.j + 1) }) }) : ''}
         <div class="choix-puces">${puces([{ txt: `Victoire : ${ELAN.ico} ${ELAN.nom}, ${ditFinition(ELAN)} · ${ELAN.duree} matchs`, bon: true }, { txt: `Défaite : ${SONNE.ico} ${SONNE.nom}, ${ditFinition(SONNE)} · ${SONNE.duree} matchs`, bon: false }])}</div>
@@ -3155,7 +3160,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const detailDuSoir = `${forces.detail}${totauxHtml}${enJeuHtml}<div class="hub-match-note">${dernierMot}</div>`;
       // LE SOIR EN DEUX GESTES (V7, JP : *les 4 onglets aperçu, préparation, match, résultats sont useless*) : le
       // dépistage et les lignes, deux boutons sous l'affiche ; « Regarder » est dans la barre, hier dans le volet.
-      const gestes = `<div class="hub-soir-gestes"><button type="button" class="btn hub-dep-ouvrir">🔎 ${soirEnVolet ? 'Le dépistage complet' : 'Dépistage'}</button>${onDecision && onBanc ? `<button type="button" class="btn gold hub-vers-lignes">🏒 ${soirEnVolet ? 'Changer tes lignes' : 'Lignes'}</button>` : ''}</div>`;
+      const gestes = `<div class="hub-soir-gestes"><button type="button" class="btn hub-dep-ouvrir">🔎 Dépistage</button>${onDecision && onBanc ? `<button type="button" class="btn gold hub-vers-lignes">🏒 ${soirEnVolet ? 'Tes lignes' : 'Lignes'}</button>` : ''}</div>`;
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
       const formeA = formeHtml(p.m.A), formeB = formeHtml(p.m.B);
@@ -3183,7 +3188,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
          * l'intention*. Préparer le match est une intention : l'affiche, leur plan, ce qui est en jeu, tes cartes du soir
          * et tes lignes vivent ensemble dans « Ce soir ». Le Bureau ne garde du match qu'une ligne qui y mène.
          */
-        soir = { jour, html: `${miniBoss}<div class="hub-match hub-match-soir">${affiche}${planSoir}${gestes}</div>`, detail: forces.phrase, ouvrirDepistage };
+        // V12-4 : « Tes lignes » y mène, et « Avantage … » vit au dépistage : l'affiche tient en un écran.
+        soir = { jour, html: `${miniBoss}<div class="hub-match hub-match-soir">${affiche}${gestes}</div>`, ouvrirDepistage };
         // V12-2 : le mandat et l'objectif vivent au sous-onglet du proprio ; le Bureau ne garde du match qu'une ligne.
         carte.innerHTML = prochainHtml(p, adv, quand, domicile, mb);
         carte.querySelector('[data-ouvre-soir]').onclick = () => tabs.montrer('soir');
