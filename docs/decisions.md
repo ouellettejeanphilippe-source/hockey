@@ -2697,3 +2697,36 @@ Le metteur en scène reste visible : +0,21 et +0,19 but des deux côtés en sér
 
 **La force s'achète.** Un échelon devient possible en matchs à ton service, puis se paie : 30, 50, 80 et 120 jetons (`PRIX_ECHELON`). Il se paie dans la fiche de sa carte, chez l'entraîneur, et nulle part ailleurs : mis dans À faire, des achats en attente s'y empilaient (l'entraîneur à 2,1 écrans), contre le *plus clean et simple* de JP. Le robot attentif ne le paie que si ce qu'il rend d'ici la fin vaut son prix (une victoire vaut une centaine de jetons).
 
+
+## Les styles naissent des badges (V15 — 22 oct. 2026)
+
+JP : *le système de stratégie de ligne est débile ; les badges des joueurs devraient influencer certains styles de trio possibles. Plus de badges par joueur, plus de possibilités ; plus de contres, ou tous les trios peuvent tout faire. Ça force à bâtir les stratégies à partir des cartes.* Puis, devant la première maquette : *l'idée est de rendre l'interface et tout plus clean et simple.*
+
+Le plan de la V9 (un système paie une famille, le coach en fait compter une ou deux, l'unité est « bâtie pour », « assortie » ou « mal assortie ») s'empilait sur la force des badges. Il demandait de lire trois choses pour un seul bouton, et chaque trio pouvait quand même tout jouer. En Rogue, il cède la place à une seule règle : **un trio ne joue que les styles que ses badges ouvrent**.
+- Chaque système dit ce qu'il veut (`veut`), un ou deux groupes de rôles, pris parmi ceux que ses cases demandent déjà.
+- Un groupe se remplit par un premier ou un second badge chez n'importe quel joueur de l'unité.
+- Le Hourra reste toujours ouvert.
+- La force, elle, vient du métal, par `fitUnite`, comme au 82-0.
+
+Mesuré (`check_styles`, les meilleurs trios de 158 vrais clubs) :
+- un trio ouvre 4,0 styles sur 7 en moyenne ; aucun n'en ouvre zéro, et 1 % les ouvrent tous ;
+- une paire en ouvre 2,6 sur 5 ;
+- plus de badges différents dans un trio, plus de styles : 2,6 avec deux badges, 3,5 avec trois, 4,6 avec quatre, 5,6 avec cinq.
+
+C'est la demande de JP, en chiffres : *plus de badges, plus de possibilités*.
+
+Le duel garde son équilibre (`check_duel`) : le bien joué contre le mal joué à 63,1 % en face à face (cible 62 à 65 %), et l'attentif contre 81 % des intentions. Sa réponse se choisit parmi les unités qui ont le style ouvert ; le ⛔ fermer le centre se contre au 🌀 Cycle, et 🐗 l'assaut au 🏠 Rester à la maison.
+
+Écartés :
+- **Garder le plan à côté des badges.** C'étaient deux lectures pour un bouton, ce qui va contre le *plus clean et simple*.
+- **Fermer un style sans le montrer.** Les styles fermés se plient sous les ouverts, chacun avec le badge qui lui manque : c'est ce qui dit quelle carte aller chercher.
+- **Changer le 82-0.** Il ne joue pas le plan et ne joue pas les portes ; son empreinte ne bouge pas.
+
+La run (`check_profondeur`, huit campagnes) :
+- l'attentif bat le robot d'avant de +5,7 V par saison ;
+- sa première Coupe arrive à la run 7 en médiane (cible 3 à 8) ;
+- le distrait n'en gagne aucune en 96 runs.
+
+Après la première Coupe, l'attentif ne la regagnait plus que 24 % du temps (10 sur 41, borne 25 %) : sans le plan, un trio ne joue plus tout. Le premier cran d'exigence, 🔺 la ceinture, passe donc de 3 à 2 M$ d'espace de moins ; il ne touche rien avant la première Coupe. Résultat : 34 % (14 sur 41).
+
+Ce qui part : `PLAN_PAIE`, `COACH_DU_PLAN`, `systemeDuPlan`, `valeurDuPlan`, `echangesDuPlan`, les mots du plan dans l'écran, et `check_fit`. Les familles restent pour les packs, le profil et l'intention que l'adversaire prête à ton coach.

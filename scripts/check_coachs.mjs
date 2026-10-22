@@ -25,7 +25,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, coachDuPlan, COACH_DU_PLAN, FAMILLES } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, FAMILLES } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
@@ -133,18 +133,6 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
   exiger('trois cartes de sa couleur le montent à II', ii && ii.coach.cle === 'rapaces' && ii.coach.palier === 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
   const sansCible = payloadDe('consommable:congediement', {});
   exiger('sans coach choisi, la carte ne fait rien', sansCible === null);
-}
-
-/* 2b. Le plan monte avec la confiance (V9) : à la II, les familles du Frelon comptent plus fort qu'à la I, sans maîtrise à apprendre. */
-{
-  const cartes = idsDuCoach('essaim').slice(0, 6);
-  const decs = [];
-  let ii = null;
-  cartes.forEach((id, i) => { const d = { jour: i, joue: { src: 'partie', id } }; const a = palierAllume(decs, d); if (a && a.coach.palier === 2) ii = a; decs.push({ ...d, ...(a || {}) }); });
-  const [fam] = COACHS.essaim.familles.paie;
-  exiger('la confiance II du Frelon fait compter ses familles plus fort qu\'à la I, sans maîtrise à apprendre',
-    !!ii && !ii.maitrise && coachDuPlan({ coachs: [ii.coach] }, fam) > coachDuPlan({ coachs: [effetDePalier('essaim', 1)] }, fam),
-    ii ? `${FAMILLES[fam].nom} ×${coachDuPlan({ coachs: [effetDePalier('essaim', 1)] }, fam)} → ×${coachDuPlan({ coachs: [ii.coach] }, fam)}` : 'pas de confiance II');
 }
 
 /* 2c. Le prestige du club : il ouvre les Étoiles et les Phénomènes, run après run. */
@@ -268,8 +256,8 @@ if (LIGUES > 0) {
 
 /*
  * TOUT SE PARLE (V9). Un coach paie une ou deux familles et en coûte une autre (`familles`, js/coachs.js) : chacune
- * existe, celle qu'il coûte n'est pas une qu'il paie, et le plan suit sa confiance — ses familles comptent plus fort
- * de I à III (`COACH_DU_PLAN`), celle qu'il coûte moins fort ; un coach qui ne la paie pas n'y touche pas.
+ * existe, celle qu'il coûte n'est pas une qu'il paie. (V15 : le plan est parti ; ses familles ne disent plus que
+ * l'intention qu'un adversaire lui prête au duel.)
  */
 {
   const mal = ORDRE_COACHS.filter(k => k !== 'banque').filter(k => {
@@ -278,11 +266,6 @@ if (LIGUES > 0) {
   });
   exiger('chaque coach paie une ou deux familles et en coûte une autre', mal.length === 0,
     mal.map(k => COACHS[k].nom).join(', ') || ORDRE_COACHS.filter(k => COACHS[k].familles).map(k => `${COACHS[k].ico} ${COACHS[k].familles.paie.map(f => FAMILLES[f].nom).join('+')} / −${FAMILLES[COACHS[k].familles.coute].nom}`).join(' · '));
-  const k = 'tortue', F = COACHS[k].familles, lu = p => [1, 2, 3].map(pal => coachDuPlan({ coachs: [effetDePalier(k, pal)] }, p));
-  const paie = lu(F.paie[0]), coute = lu(F.coute), autre = lu(Object.keys(FAMILLES).find(f => !F.paie.includes(f) && f !== F.coute));
-  exiger('le plan suit la confiance : ses familles montent de I à III, celle qu\'il coûte baisse, les autres ne bougent pas',
-    paie[0] > 1 && paie[1] > paie[0] && paie[2] > paie[1] && coute[0] < 1 && coute[2] < coute[0] && autre.every(x => x === 1) && COACH_DU_PLAN.paie.length === 3,
-    `${COACHS[k].nom} : ${FAMILLES[F.paie[0]].nom} ${paie.join(' → ')} · ${FAMILLES[F.coute].nom} ${coute.join(' → ')}`);
 }
 {
   // Le dépisteur : sur 60 packs de joueurs, le coach de la run en tire plus de sa couleur qu'un club sans coach.

@@ -51,7 +51,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
-  ecoleDe, rivauxOfferts, RIVAUX, SYSTEMES_DU_PLAN, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
+  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, styleOuvert, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
 } from '../../js/sim.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot } from './cartes_robot.mjs';
@@ -231,13 +231,13 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 }
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
-/* L'attentif lit le moteur, le plan compris (V9 : en Rogue, le système paie sa famille, comme son coach la compte). */
+/* L'attentif lit le moteur, les styles compris (V15 : en Rogue, les badges les ouvrent). */
 const auMieux = coachs => joueurs => alignementAuMieux(joueurs, 'equilibre', { plan: true, coachs });
 /* Les buts nets par match d'un alignement, lus au moteur sous ce coach — sous un hasard à part : la saison ne bouge pas d'un dé. */
 const lireNet = (R, coachs) => avecHasardIsole('robot', () => {
   const t = createTeam('Lu', 'LU', R);
   t.courbe = true; t.coachs = coachs;
-  t.lignes = lignesAuMieux(R, 'equilibre', { plan: true, coachs });
+  t.lignes = lignesAuMieux(R, 'equilibre', { plan: true });
   const m = chiffresDuSoir(t, activeLineup(t));
   return m.butsPour - m.butsContre;
 });
@@ -321,8 +321,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // V8 : les rivaux choisis au premier jour. Le robot prend les trois du milieu de l'offre (ni le plus fort ni le plus faible).
   const offre = rivauxOfferts([you, ...opps], you, `rogue80:${graine}:${saison}`);
   if (offre.length >= RIVAUX) decisions.push({ jour: 0, rivaux: (clic ? melanger(offre, clic).slice(0, RIVAUX) : offre.slice(1, 1 + RIVAUX)).map(x => ({ cle: x.cle, butin: x.butin })) });
-  // Ce que la fenêtre du Rogue offre (V9) : les systèmes du plan, ou aucun.
-  if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: auHasard(['hourra', ...SYSTEMES_DU_PLAN.F]), tacD: auHasard(['hourra', ...SYSTEMES_DU_PLAN.D]) })) });
+  // Ce que la fenêtre du Rogue offre (V15) : les styles que les badges de chaque unité ouvrent.
+  const stylesOuverts = (g, u) => Object.keys(g === 'F' ? TACTIQUES : SYSTEMES_D).filter(k => styleOuvert(roster, g, u, k));
+  if (clic) decisions.push({ jour: 0, lignes: [0, 1, 2, 3].map(u => ({ tac: auHasard(stylesOuverts('F', u)), tacD: u < 3 ? auHasard(stylesOuverts('D', u)) : 'hourra' })) });
   /*
    * LE DUEL (V9, tranche 5, scripts/lib/duel.mjs) : l'attentif lit chaque intention et y répond ; le distrait clique au
    * hasard ; le robot d'avant ne répond à rien. Sans main depuis la V13-2. `mains: false`, aucun : ni geste ni tableau.

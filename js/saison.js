@@ -23,7 +23,7 @@
  * d'affichage de js/game.js (noms, écussons, échappement, portraits).
  */
 
-import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
+import { SLOTS, styleOuvert, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
@@ -702,7 +702,9 @@ function tableauDuDuel(you, P, { domicile, adv, defaut = null }) {
     if (R && R.echange) { const [i, j] = R.echange; [Lk[i], Lk[j]] = [Lk[j], Lk[i]]; }
     return lireLeTableau(P.intention, { toi: you, L: Lk, lignes: poser(T), depart: lignes, base: T.consigne !== 'normale' ? [{ source: 'reponse', cle: T.consigne }] : [], c0, domicile });
   };
-  return { unites, base, depart: defaut || base, evaluer, prix: T => lignesEnChiffres(you, L, adv, poser(T), lignes) };
+  // V15 : chaque unité n'offre que les styles que ses badges ouvrent (`styleOuvert`, js/sim.js).
+  const ouverts = (g, u) => Object.keys(g === 'F' ? TACTIQUES : SYSTEMES_D).filter(k => styleOuvert(L, g, u, k));
+  return { unites, base, depart: defaut || base, evaluer, ouverts, prix: T => lignesEnChiffres(you, L, adv, poser(T), lignes) };
 }
 
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {

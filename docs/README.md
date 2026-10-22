@@ -4,6 +4,7 @@
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
 - `organisation-equilibrage.md` — équilibrer sans casser le jeu : où vivent les chiffres, ce qui casse, et le plan en dix actions (l'empreinte du moteur d'abord).
+- `refonte-v15.md` — les styles naissent des badges (22 oct.), JP : *les badges des joueurs influencent certains styles de trio* ; un trio ne joue que les styles que ses badges ouvrent, le plan des familles part.
 - `refonte-v14.md` — le personnel qui monte (21 oct.), JP : *des cartes qui gagnent des niveaux, avec leurs forces et leurs faiblesses, un look de jeu de gestion* ; des échelons en matchs à ton service, un choix à chacun, les doublons d'un pack qui les ouvrent.
 - `refonte-v11.md` — le joueur porte le gros (19 oct.), JP : *les bonus et malus plus importants touchent des joueurs et non l'équipe* ; les huit familles d'actions (blessures, bonus, malus, stratégies, événements sur un joueur, interviews, demandes du proprio, cartes de match), où chacune vit, et cinq tranches.
 - `refonte-v12.md` — une page par usage (19 oct.), JP : *plusieurs écrans avec un usage, et la boîte de réception renvoie à ces pages* ; *quinze pages claires plutôt que cinq passages clairs* ; l'inventaire des pages et trois tranches.

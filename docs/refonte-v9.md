@@ -516,7 +516,7 @@ JP : *fusionne, et go pour la tranche 8* ; puis, devant les mesures, *les exigen
 
   | Cran | Ce qu'il exige |
   |---|---|
-  | 1 · La ceinture | 3 M$ d'espace de moins sous le plafond |
+  | 1 · La ceinture | 2 M$ d'espace de moins sous le plafond (3 M$ avant la V15) |
   | 2 · Les agents | les packs coûtent 25 % de plus |
   | 3 · Le classeur fermé | une carte de moins du classeur, et un loto de moins |
   | 4 · Le vestiaire mince | 3 cartes Soutien de plus au départ de chaque saison |

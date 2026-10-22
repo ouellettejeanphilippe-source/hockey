@@ -2752,6 +2752,9 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .gl-net.prix { color: var(--mauvais); }
 /* Le conseil, le système choisi, ce qu'il demande à chaque poste, l'état de la ligne. */
 .ln-conseil { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+/* V15 : un style que les badges de l'unité n'ouvrent pas, plié sous les autres, avec ce qui lui manque. */
+.ln-ferme { display: flex; justify-content: space-between; gap: var(--esp-2); margin: 0; padding: var(--esp-1) 0; font-size: var(--t-2); color: var(--encre-3); }
+.ln-ferme small { text-align: right; }
 .ln-conseil small { color: var(--encre-3); }
 .ln-conseil-btn { margin: calc(-1 * var(--esp-2)) 0; padding: var(--esp-2) 2px; border: 0; background: none; font: inherit; font-weight: 800; color: var(--or); cursor: pointer; }
 .ln-choisie { display: flex; flex-direction: column; gap: var(--esp-1); }

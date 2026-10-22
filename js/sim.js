@@ -1433,44 +1433,44 @@ export const TACTIQUES = {
     mot: 'Pas de système : chacun joue d\'instinct. Rien à assortir, mais ni chimie ni action spéciale.',
   },
   echec: {
-    nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes', famille: 'robustesse',
+    nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes', veut: [['checker', 'energie']], famille: 'robustesse',
     slots: { AG: 'power', C: 'energie', AD: 'checker' },
     mot: 'Deux avants vont chercher la rondelle dans leur zone : on la récupère haut.',
     gain: { volume: 1.141 }, prix: { discipline: 1.183, energie: 1.082 },
   },
   courtes: {
-    nom: 'Cycle et possession', ico: '🌀', bat: 'bleue', famille: 'jeu',
+    nom: 'Cycle et possession', ico: '🌀', bat: 'bleue', veut: [['passeur']], famille: 'jeu',
     slots: { AG: 'power', C: 'passeur', AD: 'passeur' },
     mot: 'On garde la rondelle le long des bandes et on attend la bonne passe.',
     gain: { finition: 1.089 }, prix: { volume: 0.943 },
   },
   bleue: {
-    nom: 'Volume de tirs', ico: '🌧', bat: 'defensive', famille: 'tir',
+    nom: 'Volume de tirs', ico: '🌧', bat: 'defensive', veut: [['sniper']], famille: 'tir',
     slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
     mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
     gain: { volume: 1.157 }, prix: { finition: 0.954 },
   },
   defensive: {
-    nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre', famille: 'defense',
+    nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre', veut: [['deuxsens']], famille: 'defense',
     slots: { AG: 'deuxsens', C: 'deuxsens', AD: 'checker' },
     mot: 'On bouche la zone neutre : rien ne passe au centre.',
     gain: { defense: 0.848, discipline: 0.917 }, prix: { volume: 0.939 },
   },
   contre: {
-    nom: 'Contre-attaque', ico: '🏹', bat: 'derriere',
+    nom: 'Contre-attaque', ico: '🏹', bat: 'derriere', veut: [['sniper'], ['passeur']],
     slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
     mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
     gain: { finition: 1.104 }, prix: { defense: 1.058 },
   },
   derriere: {
     // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
-    nom: 'Jeu d\'enclave', ico: '🧲', bat: 'energie',
+    nom: 'Jeu d\'enclave', ico: '🧲', bat: 'energie', veut: [['power']],
     slots: { AG: 'power', C: 'passeur', AD: 'power' },
     mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
     gain: { finition: 1.058, volume: 1.058 }, prix: { discipline: 1.104 },
   },
   energie: {
-    nom: 'Trio de plombiers', ico: '🧰', bat: 'echec',
+    nom: 'Trio de plombiers', ico: '🧰', bat: 'echec', veut: [['energie', 'bagarreur']],
     slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
     mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
     gain: { defense: 0.92, physique: 1.5 }, prix: { discipline: 1.164, energie: 1.102 },
@@ -1482,31 +1482,31 @@ export const SYSTEMES_D = {
     mot: 'La paire joue d\'instinct : rien à assortir, ni chimie.',
   },
   maison: {
-    nom: 'Rester à la maison', ico: '🏠', bat: 'contre', famille: 'defense',
+    nom: 'Rester à la maison', ico: '🏠', bat: 'contre', veut: [['defensif']], famille: 'defense',
     slots: { DG: 'defensif', DD: 'defensif' },
     mot: 'Les deux défenseurs restent derrière la rondelle : aucune échappée.',
     gain: { defense: 0.885 }, prix: { volume: 0.825 },
   },
   activer: {
-    nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes', famille: 'tir',
+    nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes', veut: [['offensif']], famille: 'tir',
     slots: { DG: 'offensif', DD: 'offensif' },
     mot: 'Les défenseurs montent et se joignent à l\'attaque, de la bleue au cercle.',
     gain: { volume: 1.256, finition: 1.046 }, prix: { defense: 1.078 },
   },
   relance: {
-    nom: 'Sortie rapide', ico: '💨', bat: 'echec', famille: 'jeu',
+    nom: 'Sortie rapide', ico: '💨', bat: 'echec', veut: [['manieur']], famille: 'jeu',
     slots: { DG: 'manieur', DD: 'manieur' },
     mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
     gain: { volume: 1.143, defense: 0.947 }, prix: { energie: 1.062 },
   },
   rude: {
-    nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere', famille: 'robustesse',
+    nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere', veut: [['physique']], famille: 'robustesse',
     slots: { DG: 'physique', DD: 'physique' },
     mot: 'Personne ne reste devant le filet : on sort les gros de l\'enclave.',
     gain: { defense: 0.911, physique: 1.5 }, prix: { discipline: 1.155 },
   },
   equilibre: {
-    nom: 'Jeu à deux sens', ico: '🌗', bat: 'bleue',
+    nom: 'Jeu à deux sens', ico: '🌗', bat: 'bleue', veut: [['deuxsens']],
     slots: { DG: 'deuxsens', DD: 'deuxsens' },
     mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
     gain: { defense: 0.959, volume: 1.041 }, prix: {},
@@ -1528,72 +1528,33 @@ function canalSysteme(S, fit, canal) {
   return g * p;
 }
 /*
- * LE PLAN DÉCIDE QUELLES STATS COMPTENT (V9, tranche 3 ; docs/refonte-v9.md § 3 et § 6.1). En Rogue (`team.courbe`),
- * un système qui a une FAMILLE la paie. Son gain ne suit plus les badges de ses cases : il joue comme celui d'une unité
- * sans badge (`FIT_BASE`), et la famille de ses joueurs, à niveau égal (`famillesDe`), multiplie son canal naturel —
- * les tirs pour le Tir, la précision pour le Jeu, les buts contre pour la Défense, la récupération (des tirs, moins de
- * buts contre) pour la Robustesse. L'écart se compte joueur par joueur, au-dessus de l'unité typique qui joue SA
- * meilleure famille (`PLAN_REF` : +0,6 écart type, mesuré sur 3 367 unités de vrais clubs) : un club de l'IA retrouve
- * la ligue d'avant, une unité bâtie pour son système en tire plus, une unité mal assortie le paie — un trio de passeurs
- * en Volume de tirs tire MOINS. Chaque écart type d'un joueur vaut `PLAN_PAIE` de son canal, en puissance (toujours
- * positif), borné à `PLAN_ECART_MAX` écarts types pour l'unité. Le prix du système reste entier. Le même joueur est une
- * aubaine dans un plan et un poids dans un autre — c'est ce que `check_fit` juge.
+ * LES STYLES S'OUVRENT PAR LES BADGES (V15, docs/refonte-v15.md). JP : *le système de stratégie de ligne est débile ; les
+ * badges des joueurs influencent certains styles de trio possibles* ; *plus de badges par joueur, plus de possibilités* ;
+ * *ça force à bâtir les stratégies à partir des cartes* ; *rendre l'interface et tout plus clean et simple*. En Rogue
+ * (`team.courbe`), une unité ne joue un système que si ses joueurs en portent les badges (`veut` : chaque groupe, un des
+ * rôles, en premier ou en second badge) ; sa force suit leurs métaux (`fitUnite`, la lecture du 82-0). Le Hourra reste
+ * toujours ouvert. Le plan de la V9 (les familles qu'un système payait, le coach qui les faisait compter) est parti.
  */
-export const SYSTEMES_DU_PLAN = {
-  F: Object.keys(TACTIQUES).filter(k => TACTIQUES[k].famille),
-  D: Object.keys(SYSTEMES_D).filter(k => SYSTEMES_D[k].famille),
-};
-export const PLAN_REF = 0.6;
-const PLAN_JOUEUR_MAX = 2.5, PLAN_FACTEUR = [0.4, 2.5];
-const PLAN_PAIE = {
-  F: { tir: { volume: 0.13 }, jeu: { finition: 0.18, defense: -0.12 }, defense: { defense: -0.21 }, robustesse: { volume: 0.08, defense: -0.055 } },
-  D: { tir: { volume: 0.37 }, jeu: { volume: 0.3, defense: -0.2 }, defense: { defense: -0.2 }, robustesse: { volume: 0.06, defense: -0.16 } },
-};
-/* LES MINUTES SONT LA MONNAIE : une unité qui joue moins, et dont les tirs valent moins, mord plus fort pendant ses présences pour que son plan compte. */
-const PLAN_RANG = { F: [1, 1, 1.3, 1.6], D: [1, 1, 1.6] };
-/*
- * LE COACH ET LE PLAN (V9, tranche 3) : le coach en poste fait compter plus fort les familles qu'il paie, et moins celle
- * qu'il coûte (`familles`, js/coachs.js), selon sa confiance I, II, III. Une unité bâtie pour sa famille en tire plus ;
- * mal assortie, elle le paie plus cher aussi : le coach exige.
- */
-export const COACH_DU_PLAN = { paie: [1.15, 1.3, 1.5], coute: [0.9, 0.8, 0.7] };
-export function coachDuPlan(team, famille) {
-  let k = 1;
-  for (const c of (team && team.coachs) || []) {
-    const F = COACHS[c.cle] && COACHS[c.cle].familles, i = borne(c.palier || 1, 1, 3) - 1;
-    if (!F) continue;
-    if (F.paie.includes(famille)) k *= COACH_DU_PLAN.paie[i];
-    if (F.coute === famille) k *= COACH_DU_PLAN.coute[i];
-  }
-  return k;
+const rolesDeLUnite = (lineup, groupe, u) => new Set(SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch)
+  .map(s => lineup && lineup[s.i]).filter(Boolean).flatMap(p => badgesDe(p).map(b => b.cle)));
+/* Un système est-il ouvert à cette unité ? Ses badges, chaque groupe de `veut` ; le Hourra, toujours. */
+export function styleOuvert(lineup, groupe, u, cle) {
+  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
+  if (!S) return false;
+  if (!S.veut) return true;
+  const r = rolesDeLUnite(lineup, groupe, u);
+  return S.veut.every(g => g.some(x => r.has(x)));
 }
-/* Ce que les joueurs d'une unité apportent à une famille, au-dessus de l'unité typique : la somme de leurs écarts (0 : l'unité typique). */
-export function ecartDuPlan(joueurs, famille) {
-  const js = (joueurs || []).filter(Boolean);
-  return js.reduce((a, p) => a + borne((famillesDe(p) || {})[famille] || 0, -PLAN_JOUEUR_MAX, PLAN_JOUEUR_MAX) - PLAN_REF, 0);
+/* Les badges qui manquent à une unité pour un système (les groupes de `veut` qu'elle n'a pas). */
+export function badgesManquants(lineup, groupe, u, cle) {
+  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
+  const r = rolesDeLUnite(lineup, groupe, u);
+  return ((S && S.veut) || []).filter(g => !g.some(x => r.has(x)));
 }
-/* Ce que la famille fait à un canal de son unité (groupe `g`, rang `u`), pour cet écart, sous ce coach (`kCoach`). */
-const facteurDuPlan = (g, u, famille, ecart, canal, kCoach = 1) => {
-  const k = ((PLAN_PAIE[g] || {})[famille] || {})[canal];
-  return k ? borne(Math.exp(k * PLAN_RANG[g][u] * kCoach * ecart), PLAN_FACTEUR[0], PLAN_FACTEUR[1]) : 1;
-};
-/*
- * Le système du plan qui va le mieux à une unité (en Rogue, l'IA et la ligne qu'on ne règle pas) : la famille où ses
- * joueurs apportent le plus, comptée comme le coach en poste la compte (`team`). `penche` : les familles d'un style
- * d'« Aligner au mieux », qui passent devant à `PLAN_PENCHANT` écart type près.
- */
-const PLAN_PENCHANT = 0.5;
-const FAMILLES_DU_STYLE = { offensif: ['tir', 'jeu'], defensif: ['defense', 'robustesse'] };
-export function systemeDuPlan(lineup, groupe, u, penche = [], team = null) {
-  const js = SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]);
-  if (js.some(p => !p)) return 'hourra';
-  const T = groupe === 'D' ? SYSTEMES_D : TACTIQUES;
-  let best = 'hourra', z = -Infinity;
-  for (const k of SYSTEMES_DU_PLAN[groupe]) {
-    const v = ecartDuPlan(js, T[k].famille) * coachDuPlan(team, T[k].famille) + (penche.includes(T[k].famille) ? PLAN_PENCHANT : 0);
-    if (v > z + 1e-9) { best = k; z = v; }
-  }
-  return best;
+/* Le meilleur style ouvert d'une unité : le meilleur fit parmi ceux que ses badges ouvrent (le Hourra sinon). */
+export function meilleurStyle(lineup, groupe, u) {
+  const rang = rangSystemes(lineup, groupe, u);
+  return (rang && rang.find(k => styleOuvert(lineup, groupe, u, k))) || 'hourra';
 }
 /*
  * CE QU'UN SYSTÈME FAIT À UNE UNITÉ, EN CHIFFRES (S79) : son gain au prorata
@@ -2086,8 +2047,8 @@ function fitRoles(lineup, u, slots) {
  * d'une case vaut FIT_BASE + FIT_PAR_PALIER × ses paliers : « Sniper Or » est ce que le système lit, plus un
  * score de style à part. Les deux constantes gardent la ligue où elle était (mesuré sur 120 vrais clubs : le
  * meilleur système d'un trio de l'IA vaut 63,0 en moyenne, 62,9 avant), et un trio de trois Platine du bon
- * badge joue son système à 100. (V9 : le palier de plus que le coach donnait à son système est parti — en Rogue,
- * le plan le remplace : le coach fait compter ses familles, `coachDuPlan`.)
+ * badge joue son système à 100. (V9 : le palier de plus que le coach donnait à son système est parti. V15 : en Rogue
+ * aussi, la force d'un système suit ces badges, et ils l'ouvrent : `styleOuvert`.)
  */
 export const FIT_BASE = 52, FIT_PAR_PALIER = 12;
 function paliersPour(p, role) {
@@ -2193,7 +2154,11 @@ let NEUTRE = null;
 const neutreDe = (team, quoi) => !!(NEUTRE && NEUTRE[quoi] && NEUTRE.team === team);
 const neutrePour = (p, quoi) => !!(NEUTRE && NEUTRE[quoi] && NEUTRE.joueurs.has(p));
 export function lignesDe(team, lineup, { duSoir = true } = {}) {
-  const rendre = out => out.map(l => (neutreDe(team, 'systemes') ? { ...l, tac: 'hourra', tacD: 'hourra' } : { ...l }));
+  // V15 : en Rogue, un système que les badges de l'unité n'ouvrent pas (une vieille sauvegarde, un joueur qui sort) joue son meilleur style ouvert.
+  const ouvrir = (l, u) => (!(team && team.courbe) || !lineup || typeof lineup !== 'object' ? l : {
+    ...l, tac: styleOuvert(lineup, 'F', u, l.tac) ? l.tac : meilleurStyle(lineup, 'F', u),
+    tacD: pairDeLigne(u) == null || styleOuvert(lineup, 'D', u, l.tacD) ? l.tacD : meilleurStyle(lineup, 'D', u) });
+  const rendre = out => out.map((l, u) => (neutreDe(team, 'systemes') ? { ...l, tac: 'hourra', tacD: 'hourra' } : ouvrir({ ...l }, u)));
   if (duSoir && team && team._lignesMatch) return rendre(team._lignesMatch);
   const memo = lineup && team ? MEMO_LIGNES.get(lineup) : null;
   if (memo && memo.match === MEMO_MATCH && memo.team === team && memo.lignes === team.lignes) return rendre(memo.out);
@@ -2203,13 +2168,13 @@ export function lignesDe(team, lineup, { duSoir = true } = {}) {
 }
 function lignesCalculees(team, lineup) {
   const L = (team && team.lignes) || [];
-  // En Rogue (V9), une ligne qu'on ne règle pas joue le système de la famille où ses joueurs apportent le plus.
+  // En Rogue (V15), une ligne qu'on ne règle pas joue le meilleur style que ses badges ouvrent.
   const plan = !!(team && team.courbe);
   return [0, 1, 2, 3].map(u => {
     const l = L[u] || {};
     return {
-      tac: TACTIQUES[l.tac] ? l.tac : (!lineup ? 'hourra' : plan ? systemeDuPlan(lineup, 'F', u, [], team) : meilleureTactique(lineup, u)),
-      tacD: pairDeLigne(u) == null ? 'hourra' : SYSTEMES_D[l.tacD] ? l.tacD : (!lineup ? 'hourra' : plan ? systemeDuPlan(lineup, 'D', u, [], team) : meilleurSystemeD(lineup, u)),
+      tac: TACTIQUES[l.tac] ? l.tac : (!lineup ? 'hourra' : plan ? meilleurStyle(lineup, 'F', u) : meilleureTactique(lineup, u)),
+      tacD: pairDeLigne(u) == null ? 'hourra' : SYSTEMES_D[l.tacD] ? l.tacD : (!lineup ? 'hourra' : plan ? meilleurStyle(lineup, 'D', u) : meilleurSystemeD(lineup, u)),
       agr: lineup ? agressiviteDeLigne(lineup, u) : 1,
       sec: Number.isFinite(l.sec) ? borne(l.sec, SEC_MIN, SEC_MAX) : SEC_DEFAUT,
     };
@@ -4228,10 +4193,8 @@ export function profilMatch(team, lineup, adv = null) {
     const cle = g === 'D' ? l.tacD : l.tac;
     const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
     const fit = S && S.slots ? (fitUnite(lineup, g, u, cle) ?? 0) : 0;
-    // En Rogue, le système paie sa famille (V9) ; ailleurs, ses badges, comme toujours.
-    const ecart = team && team.courbe && S && S.famille ? ecartDuPlan(x.joueurs, S.famille) : null;
-    const kCoach = ecart != null ? coachDuPlan(team, S.famille) : 1;
-    const c = canal => (ecart != null ? canalSysteme(S, FIT_BASE, canal) * facteurDuPlan(g, u, S.famille, ecart, canal, kCoach) : canalSysteme(S, fit, canal));
+    // V15 : partout, la force d'un système suit les badges de ses cases (en Rogue, ils l'ouvrent aussi : `lignesDe`).
+    const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
     x.ligne = u; x.tactique = cle; x.fit = fit; x.agr = l.agr;
@@ -7311,45 +7274,16 @@ export function echangesProposes(roster, style = 'equilibre', n = 12) {
   return out.sort((x, y) => y[0] - x[0]).slice(0, n).map(([, sa, sb]) => [sa, sb]);
 }
 /*
- * LES ÉCHANGES DU PLAN (V9, le Rogue) : ceux qui rapprochent les familles. Une ligne vaut, pour le plan, ce que son trio
- * et sa paire apportent à leur meilleure famille, pondéré par leur glace ; l'échange qui le monte le plus passe
- * devant. Le talent n'y est pas : le moteur tranche ensuite (js/impact.js, `alignementAuMieux`).
+ * Les systèmes d'un style, ligne par ligne ; l'agressivité et la glace par défaut (celles de l'IA). `plan` (le Rogue) :
+ * V15, seulement ceux que les badges de l'unité ouvrent (`styleOuvert`).
  */
-function valeurDuPlan(roster, u) {
-  const meilleure = g => {
-    const js = SLOTS.filter(s => s.group === g && s.unit === u && !s.scratch).map(s => roster[s.i]);
-    if (!js.length || js.some(p => !p)) return 0;
-    const T = g === 'D' ? SYSTEMES_D : TACTIQUES;
-    return Math.max(...SYSTEMES_DU_PLAN[g].map(k => ecartDuPlan(js, T[k].famille)));
-  };
-  return POIDS_TRIO[u] * meilleure('F') + (pairDeLigne(u) == null ? 0 : POIDS_PAIRE[u] * meilleure('D'));
-}
-export function echangesDuPlan(roster, n = 12) {
-  const cases = casesEchangeables(roster), val = [0, 1, 2, 3].map(u => valeurDuPlan(roster, u)), out = [];
-  for (let a = 0; a < cases.length; a++) for (let b = a + 1; b < cases.length; b++) {
-    const sa = cases[a], sb = cases[b], ua = ligneDeCase(sa), ub = ligneDeCase(sb), pa = roster[sa.i], pb = roster[sb.i];
-    if (ua === ub || ua == null || ub == null || !fits(pa, sb) || !fits(pb, sa)) continue;
-    roster[sa.i] = pb; roster[sb.i] = pa;
-    const gain = valeurDuPlan(roster, ua) - val[ua] + valeurDuPlan(roster, ub) - val[ub];
-    roster[sa.i] = pa; roster[sb.i] = pb;
-    if (gain > 1e-6) out.push([gain, sa, sb]);
-  }
-  return out.sort((x, y) => y[0] - x[0]).slice(0, n).map(([, sa, sb]) => [sa, sb]);
-}
-/*
- * Les systèmes d'un style, ligne par ligne ; l'agressivité et la glace par défaut (celles de l'IA). `plan` (le Rogue,
- * V9) : chaque ligne joue la famille où ses joueurs apportent le plus, comme le coach en poste la compte (`coachs`),
- * le style penchant vers les siennes.
- */
-export function lignesAuMieux(lineup, style = 'equilibre', { plan = false, coachs = [] } = {}) {
-  if (plan) {
-    const penche = FAMILLES_DU_STYLE[style] || [], team = { courbe: true, coachs };
-    return lignesCalculees(team, lineup).map((l, u) => ({ ...l, tac: systemeDuPlan(lineup, 'F', u, penche, team), tacD: pairDeLigne(u) == null ? l.tacD : systemeDuPlan(lineup, 'D', u, penche, team) }));
-  }
+export function lignesAuMieux(lineup, style = 'equilibre', { plan = false } = {}) {
   const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
   const choisir = (groupe, u, defaut) => {
-    const rang = rangSystemes(lineup, groupe, u);
-    if (!rang) return defaut;
+    const tous = rangSystemes(lineup, groupe, u);
+    if (!tous) return defaut;
+    const rang = plan ? tous.filter(k => styleOuvert(lineup, groupe, u, k)) : tous;
+    if (!rang.length) return 'hourra';
     const T = groupe === 'D' ? SYSTEMES_D : TACTIQUES, fit0 = fitUnite(lineup, groupe, u, rang[0]);
     let best = rang[0], s0 = St.systeme(T[rang[0]]);
     for (const k of rang.slice(1)) {
@@ -9040,6 +8974,8 @@ const forcer = (e, f) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) 
 const ptsDe = p => (p && p.gp ? (p.pt || 0) / p.gp : 0);
 const habillesDuGroupe = (L, g) => SLOTS.filter(s => !s.scratch && s.group === g).map(s => ({ s, p: L[s.i] })).filter(x => x.p && x.p.p !== 'G');
 const caseDe = (L, p) => SLOTS.find(s => !s.scratch && L[s.i] === p) || null;
+/* Le coach en poste paie-t-il cette famille (js/coachs.js `familles`) ? Ce que l'adversaire lit pour choisir son intention. */
+const coachPaie = (team, famille) => ((team && team.coachs) || []).some(c => COACHS[c.cle] && COACHS[c.cle].familles && COACHS[c.cle].familles.paie.includes(famille));
 const robusteDe = p => (famillesDe(p) || {}).robustesse || 0;
 /* Le joueur de leur club le plus fort d'une famille : leur ombre (la Défense), leur dur (la Robustesse). */
 function leurMeilleur(Ladv, famille) {
@@ -9087,8 +9023,8 @@ function intentionDuDuel({ toi, adv, L, Ladv = null, lignes = null, base = [], k
     ajouter('ombre', 1.5 * Math.min(1, Math.max(0, (p1 - p2) / Math.max(p2, 0.1))) + 0.3, 'vedette');
     const sansDur = !SLOTS.some(s => !s.scratch && L[s.i] && L[s.i].p !== 'G' && robusteDe(L[s.i]) >= ROBUSTE_DISSUADE);
     ajouter('chasse', sansDur ? 1.2 : 0.3, sansDur ? 'sansDur' : 'brigadier');
-    if (coachDuPlan(toi, 'tir') > 1) ajouter('centre', 1.2, 'planTir');
-    if (coachDuPlan(toi, 'defense') > 1) ajouter('assaut', 1.2, 'planDefense');
+    if (coachPaie(toi, 'tir')) ajouter('centre', 1.2, 'planTir');
+    if (coachPaie(toi, 'defense')) ajouter('assaut', 1.2, 'planDefense');
     // Un club qui écope plus que le leur : ils iront le chercher.
     const pim = L0 => Object.values(L0 || {}).filter(p => p && p.p !== 'G').reduce((a, p) => a + (p.pim || 0) / Math.max(1, p.gp || 1), 0);
     if (Ladv && pim(L) > 1.15 * pim(Ladv)) ajouter('cachot', 1.2, 'indiscipline');
@@ -9149,15 +9085,14 @@ function reponsesDuDuel(I, { toi, L, lignes = null }) {
     const sort = memes.find(s => s.role === dur.role) || memes.slice().sort((a, b) => robusteDe(L[a.i]) - robusteDe(L[b.i]))[0];
     return [{ cle: 'garde', joueur: L[dur.i], avec: cible, sort: L[sort.i], echange: [dur.i, sort.i] }];
   }
-  // Le trio et la paire qui y perdent le moins : ceux dont les joueurs apportent le plus au Jeu, à la Défense.
-  const meilleure = (g, us, famille) => us.slice().sort((a, b) => ecartDuPlan(unite(g, b), famille) - ecartDuPlan(unite(g, a), famille))[0];
-  const unite = (g, u) => SLOTS.filter(s => !s.scratch && s.group === g && s.unit === u).map(s => L[s.i]).filter(Boolean);
+  // Le trio et la paire qui y perdent le moins : ceux que leurs badges ouvrent au système (V15), le meilleur fit d'abord.
+  const meilleure = (g, us, cle) => us.filter(u => styleOuvert(L, g, u, cle)).sort((a, b) => (fitUnite(L, g, b, cle) ?? 0) - (fitUnite(L, g, a, cle) ?? 0))[0];
   if (I.cle === 'centre') {
-    const u = meilleure('F', [0, 1].filter(x => lg[x] && lg[x].tac !== 'courtes'), 'jeu');
+    const u = meilleure('F', [0, 1].filter(x => lg[x] && lg[x].tac !== 'courtes'), 'courtes');
     return u == null ? [] : [{ cle: 'cycle', u, tac: 'courtes', de: lg[u].tac }];
   }
   if (I.cle === 'assaut') {
-    const u = meilleure('D', [0, 1, 2].filter(x => lg[x] && lg[x].tacD !== 'maison'), 'defense');
+    const u = meilleure('D', [0, 1, 2].filter(x => lg[x] && lg[x].tacD !== 'maison'), 'maison');
     return u == null ? [] : [{ cle: 'maison', u, tacD: 'maison', de: lg[u].tacD }];
   }
   if (I.cle === 'cachot') return [{ cle: 'basse', consigne: 'basse' }];
