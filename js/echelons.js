@@ -18,6 +18,12 @@ import { PATRONS, BANQUE, patronsActifs, coachsActifs, canalBon } from './banque
 export const ECHELON_MAX = 5;
 /* Les matchs à ton service pour atteindre un échelon (l'indice) : le 2e à 10, le 5e à 70. */
 export const MATCHS_ECHELON = [0, 0, 10, 25, 45, 70];
+/*
+ * LE PRIX D'UN ÉCHELON, en jetons (V14b). JP : *au lieu de salaire, les cartes de base influencent le style de l'équipe
+ * sans la rendre vraiment plus forte, et c'est cher upgrader*. Au premier échelon, une carte change la forme du match ;
+ * la force, elle, s'achète, échelon par échelon, et chaque échelon coûte plus que le précédent.
+ */
+export const PRIX_ECHELON = [0, 0, 30, 50, 80, 120];
 /* Pousser sa force grandit l'écart de ses bons canaux d'un quart ; corriger son défaut ramène ses mauvais de 40 %. */
 export const POUSSEE = 0.25;
 export const CORRECTION = 0.6;
@@ -97,14 +103,14 @@ export function etatDuPersonnel(decisions = [], jusqua = Infinity, { joues = () 
     const echelon = p.echelon || 1, ouverts = ouvertsDe(copies(p.cle));
     const atteint = Math.min(ouverts, MATCHS_ECHELON.reduce((e, m, i) => (i >= 1 && service >= m ? i : e), 1));
     const prochain = echelon < ECHELON_MAX ? MATCHS_ECHELON[echelon + 1] : null;
-    return { cle: p.cle, qui: PATRONS[p.cle].nom, patron: p, echelon, ouverts, service, double, prochain, depuis,
+    return { cle: p.cle, qui: PATRONS[p.cle].nom, patron: p, echelon, ouverts, service, double, prochain, depuis, prix: PRIX_ECHELON[echelon + 1] || 0,
       aChoisir: atteint > echelon, ferme: prochain !== null && service >= prochain && echelon >= ouverts };
   });
 }
-/* Le choix d'un échelon : la décision qui remplace la carte, un échelon plus haut. */
+/* Le choix d'un échelon : la décision qui remplace la carte, un échelon plus haut, et son prix (un gain négatif, que la caisse lit). */
 export function decisionDEchelon(e, choix) {
-  const p = e.patron;
-  return { patron: patronALEchelon(e.cle, { choix: [...(p.choix || []), choix], depuis: e.depuis, avant: p.avant || 0 }) };
+  const p = e.patron, prix = PRIX_ECHELON[e.echelon + 1] || 0;
+  return { patron: patronALEchelon(e.cle, { choix: [...(p.choix || []), choix], depuis: e.depuis, avant: p.avant || 0 }), ...(prix ? { gain: -prix } : {}) };
 }
 /* La fin d'une saison : la carte passe à la suivante avec ses matchs à ton service, qui repartent de là. */
 export const reportDuPersonnel = e => ({ ...e.patron, depuis: 0, avant: e.service });

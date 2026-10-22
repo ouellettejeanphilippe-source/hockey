@@ -97,19 +97,24 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
     }
   }
   /*
-   * LES ÉCHELONS DU PERSONNEL (V14, js/echelons.js), le lundi : l'attentif prend, pour chaque personne qui monte, ce qui
-   * rend le plus d'ici la fin (sa force poussée, ou son défaut corrigé) ; le distrait, au hasard. Ses doublons : deux
-   * copies (trois échelons ouverts), un gérant qui a ouvert quelques packs.
+   * LES ÉCHELONS DU PERSONNEL (V14, js/echelons.js), le lundi. V14b : un échelon s'achète (`PRIX_ECHELON`). L'attentif
+   * le paie quand ce qu'il rend d'ici la fin (sa force poussée, ou son défaut corrigé) vaut son prix, et qu'il a les
+   * jetons ; le distrait, une fois sur deux, s'il les a. Ses doublons : deux copies (trois échelons ouverts).
    */
   if (lundi) {
     const reste = Math.max(0, 82 - ((f && f.n) || 0));
     const valeur = (cle, choix) => { const { econ: _e, ...p } = patronALEchelon(cle, { choix }); void _e; return valeurDEffet(p, reste); };
+    let caisse = jetons + out.reduce((a, d) => a + (d.gain || 0), 0);
     for (const e of etatDuPersonnel([...decisions, ...out], j, { joues: (de, a) => matchsJoues(L.calendrier, you, de, a), copies: () => ROBOT_COPIES })) {
-      if (!e.aChoisir) continue;
+      if (!e.aChoisir || e.prix > caisse) continue;
       const avant = e.patron.choix || [];
       const options = ['force', ...(aUnDefaut(e.cle) ? ['defaut'] : [])];
-      const c = clic ? auHasard(options) : options.reduce((b, x) => (valeur(e.cle, [...avant, x]) > valeur(e.cle, [...avant, b]) ? x : b), 'force');
-      out.push({ jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) });
+      const meilleure = options.reduce((b, x) => (valeur(e.cle, [...avant, x]) > valeur(e.cle, [...avant, b]) ? x : b), 'force');
+      const c = clic ? (clic() < 0.5 ? auHasard(options) : null) : valeur(e.cle, [...avant, meilleure]) - valeur(e.cle, avant) > e.prix * JETON ? meilleure : null;
+      if (!c) continue;
+      const d = { jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) };
+      caisse += d.gain || 0;
+      out.push(d);
     }
   }
   // LA CARTE D'UN PALIER (9e, 18e, 26e matchs) : une place parmi trois, jouée tout de suite.

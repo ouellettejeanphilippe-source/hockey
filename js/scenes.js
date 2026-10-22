@@ -105,13 +105,6 @@ export const MOTS_DES_SCENES = {
     plusieurs: ['On va s\'en souvenir dans le vestiaire.',
       'Des saisons comme ça, on les raconte aux recrues.'],
   },
-  // L'ÉCHELON D'UNE CARTE DU PERSONNEL (V14) : l'entraîneur, qui l'a vue travailler.
-  echelon: {
-    defaut: ['Ça fait des semaines qu\'on travaille ensemble. On pousse ce qu\'on fait de mieux, ou on corrige le reste ?',
-      'Le métier rentre. À toi de dire où on met l\'effort.'],
-    force: ['Le métier rentre. On pousse encore.',
-      'Ça fait des semaines qu\'on travaille ensemble. On continue dans la même direction ?'],
-  },
   // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
   butin: {
     mince: ['On a gagné. Prends quelque chose pour les prochains soirs, ça ne nuira pas.',
@@ -161,19 +154,6 @@ export function sceneDeLaCarteDeTrop({ cartes, places, gros = null, graine = '' 
     de: EXPEDITEURS.eq,
     mot: piger(MOTS_DES_SCENES.trop[gros ? 'gros' : 'calme'], graine, 'trop', cartes),
     fait: `${cartes} cartes pour ${places} places${gros ? ` · gros match contre ${gros.adv} ${vient}` : ''}`,
-  };
-}
-
-/*
- * L'ÉCHELON D'UNE CARTE DU PERSONNEL (V14, js/echelons.js). L'entraîneur, qui l'a vue travailler ; le fait : la carte,
- * ses matchs à ton service, l'échelon qu'elle atteint.
- *   qui   son style (« Le gardien du fort ») ; service : ses matchs à ton service ; echelon : celui qu'elle quitte ; defaut : a-t-elle un défaut
- */
-export function sceneDeLEchelon({ qui, service, echelon, defaut = true, graine = '' }) {
-  return {
-    de: EXPEDITEURS.en,
-    mot: piger(MOTS_DES_SCENES.echelon[defaut ? 'defaut' : 'force'], graine, 'echelon', qui, echelon),
-    fait: `${qui} · ${service} matchs à ton service · échelon ${echelon} → ${echelon + 1}`,
   };
 }
 
