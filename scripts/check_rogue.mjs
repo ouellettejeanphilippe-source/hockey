@@ -238,7 +238,7 @@ if (!isMainThread) {
     exiger('chaque cran d\'exigence change un seul canal, s\'ajoute aux précédents et paie plus de médailles', !fautes.length, fautes.join(' · ') || EXIGENCES.map(E => E.nom).join(' · '));
     const n = EXIGENCES.length, X = exigencesDe(n);
     const tout = plafondDeSaison(60e6, m0, n) === 60e6 && plafondDeSaison(60e6, { deblocages: ['plafond1', 'plafond2'] }, n) === 60e6 + ESPACE_DE_DEPART + 7e6 + X.espace
-      && plafondDeSaison(60e6, m0, 1) === 61e6 && mandatDe(1, n) === MANDATS[1] && soutiensDuDepart(4, 1, n) === soutiensDuDepart(4, 1) + 3 && departDuClasseur(m0, n).n === 0
+      && plafondDeSaison(60e6, m0, 1) === 60e6 + ESPACE_DE_DEPART + EXIGENCES[0].espace && mandatDe(1, n) === MANDATS[1] && soutiensDuDepart(4, 1, n) === soutiensDuDepart(4, 1) + 3 && departDuClasseur(m0, n).n === 0
       && baremeRogue(m0, n).victoire === baremeRogue(m0).victoire - 2 && gardesDeLaRun(n) === GARDES_DE_SAISON - 2;
     exiger('au plus haut cran, chaque canal mord (et le plafond jamais sous la masse)', tout,
       `plafond ${plafondDeSaison(60e6, m0, n) / 1e6} M$ pour 60 M$ · mandat de la 1re saison : ${mandatDe(1, n).mot} · ${baremeRogue(m0, n).victoire} 🪙 par victoire · ${gardesDeLaRun(n)} gardés · médailles ×${String(X.medailles).replace('.', ',')}`);

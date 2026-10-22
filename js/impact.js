@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, echangesDuPlan, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty } from './sim.js';
+import { lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -237,10 +237,10 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
   // Sous un hasard à part : le club lu tire sa chance de saison, et la saison en cours ne doit pas bouger d'un dé.
   const lu = R => avecHasardIsole('au mieux', () => {
     const T = createTeam('Au mieux', 'MOI', R, { season: saison });
-    // En Rogue, le plan paie sa famille (V9) : la lecture le joue, comme le moteur.
+    // En Rogue (V15), les badges ouvrent les styles : la lecture le joue, comme le moteur.
     T.courbe = plan;
     T.coachs = coachs;
-    T.lignes = lignesAuMieux(R, style, { plan, coachs });
+    T.lignes = lignesAuMieux(R, style, { plan });
     const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
     return wP * m.butsPour - wC * m.butsContre;
   });
@@ -271,8 +271,7 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
   }
   for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
     let mieux = false;
-    // En Rogue, les échanges qui rapprochent les familles s'ajoutent à ceux des badges et des zones.
-    for (const [sa, sb] of [...echangesProposes(best, style, ECHANGES_LUS), ...(plan ? echangesDuPlan(best, ECHANGES_LUS) : [])]) {
+    for (const [sa, sb] of echangesProposes(best, style, ECHANGES_LUS)) {
       const R = { ...best };
       [R[sa.i], R[sb.i]] = [R[sb.i], R[sa.i]];
       if (essayer(R)) mieux = true;

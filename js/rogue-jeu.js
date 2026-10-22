@@ -18,7 +18,7 @@ import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, masseSalarialeHtml, SEMAINE, PLACES } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
-import { ouvrirChoix, pucesEnBref, ouvrirAlignement, motDuCoachPlan, sceneHtml, carteDeBanqueHtml } from './gerant.js';
+import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, serieDe, SERIES } from './cartes.js';
@@ -1225,7 +1225,7 @@ function optionsDeCoach(cles, { cartes = true, garde = null } = {}) {
     const C = COACHS[k], g = garde && garde.cle === k;
     return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
       mots: [{ txt: g ? `On le garde · confiance ${ROMAINS[garde.palier]}` : 'Confiance I', bon: g ? true : null, duree: true },
-        ...(C.familles ? [{ txt: `Le plan : ${motDuCoachPlan(C.familles)}`, bon: null }] : []), ...reglesDePalier(k, g ? garde.palier : 1)],
+        ...reglesDePalier(k, g ? garde.palier : 1)],
       quand: cartes ? `${idsDuCoach(k).length} cartes de sa couleur` : '' };
   });
 }
