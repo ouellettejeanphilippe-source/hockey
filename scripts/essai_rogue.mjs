@@ -371,11 +371,14 @@ async function regler() {
         const menus = await page.$$eval('#choixModal .duel-tab-s', e => e.map(s => [...s.options].map(o => o.value)));
         for (let r = 0; r < menus.length && (await verdict()) !== 'pleine'; r++) {
           const avantR = await page.$eval(`#choixModal .duel-tab-s >> nth=${r}`, s => s.value).catch(() => null);
+          // V15 : le menu n'offre que les styles ouverts, plus celui que l'unité jouait ; quitté, un style fermé n'y revient pas.
+          const offert = v => page.$eval(`#choixModal .duel-tab-s >> nth=${r}`, (s, x) => [...s.options].some(o => o.value === x), v).catch(() => false);
           for (const v of menus[r]) {
+            if (!(await offert(v))) continue;
             await page.selectOption(`#choixModal .duel-tab-s >> nth=${r}`, v); await page.waitForTimeout(80);
             if ((await verdict()) === 'pleine') { tableau = true; break; }
           }
-          if ((await verdict()) !== 'pleine' && avantR != null) await page.selectOption(`#choixModal .duel-tab-s >> nth=${r}`, avantR);
+          if ((await verdict()) !== 'pleine' && avantR != null && await offert(avantR)) await page.selectOption(`#choixModal .duel-tab-s >> nth=${r}`, avantR);
         }
         niveau = await verdict();
         /*
@@ -1179,7 +1182,8 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
   // un écran. La boîte, « Ce soir » et les sous-onglets qui ont des choix se mesurent : leurs choix se plieront (V12-4b).
-  for (const [k, v] of Object.entries(ecrans)) if (!['match', 'soir'].includes(k) && !avecChoix.has(k) && v > 1.3) erreurs.push(`le sous-onglet « ${k} » fait ${v.toFixed(2).replace('.', ',')} écran (1,3 au plus)`);
+  // V12-4b : « Ce soir » aussi, un soir de gros match compris.
+  for (const [k, v] of Object.entries(ecrans)) if (k !== 'match' && !avecChoix.has(k) && v > 1.3) erreurs.push(`le sous-onglet « ${k} » fait ${v.toFixed(2).replace('.', ',')} écran (1,3 au plus)`);
   // `ARRET=10h` : on ne veut que ces hauteurs (une mise en page qu'on retouche) ; le reste de la saison attend.
   if (process.env.ARRET === '10h') {
     // Chaque sous-onglet en entier : l'écran grandit à sa hauteur, le temps d'une capture.
