@@ -2683,3 +2683,17 @@ Mesuré (`check_personnel`, en paires, 1 200 matchs par club et par bras) :
 - **Le crieur du banc.** Quatre poussées font passer sa force de +1,6 à +3,1 tirs par soir à domicile ; quatre corrections ramènent son défaut de −0,13 à +0,07 point de % au tir.
 - **L'entraîneur des gardiens de route.** Sa force passe de −0,14 à −0,27 but contre par soir ; son défaut, de −1,1 à −0,5 tir par soir.
 
+## Le style, et la force qui s'achète (V14b — 22 oct. 2026)
+
+JP : *au lieu de salaire, faire que les cartes de base influencent le style de l'équipe sans la rendre vraiment plus forte, et c'est cher upgrader*. Le salaire était la piste écartée de la V14. Il devient deux règles.
+
+**Au premier échelon, une carte de personnel change la forme du match, pas son issue.** On l'a mesuré en paires sur les dix-neuf cartes qui ont un moment (1 600 matchs chacune, `check_places`), et lu en buts plutôt qu'en victoires, parce que c'est moins bruité (six buts font une victoire). Treize tenaient déjà sous ±0,5 V sur leurs soirs d'une saison. Six donnaient trop.
+
+Le volume de tirs s'est révélé un mauvais défaut. Le gardien du fort, à 0,89 de volume, tirait trois fois de moins par soir et marquait autant. Le défaut a donc été porté sur ce qui touche les buts :
+- **la précision**, au gardien du fort (+0,8 → +0,2 V) et à l'aumônier (+0,6 → +0,5 V) ;
+- **la défensive**, à l'agent des vedettes (+0,8 → +0,4 V) et au metteur en scène (+0,6 → −0,1 V), dont la précision de 1,06 part.
+
+Le metteur en scène reste visible : +0,21 et +0,19 but des deux côtés en séries. `check_places` garde maintenant cette borne (`STYLE_V`).
+
+**La force s'achète.** Un échelon devient possible en matchs à ton service, puis se paie : 30, 50, 80 et 120 jetons (`PRIX_ECHELON`). Il se paie dans la fiche de sa carte, chez l'entraîneur, et nulle part ailleurs : mis dans À faire, des achats en attente s'y empilaient (l'entraîneur à 2,1 écrans), contre le *plus clean et simple* de JP. Le robot attentif ne le paie que si ce qu'il rend d'ici la fin vaut son prix (une victoire vaut une centaine de jetons).
+

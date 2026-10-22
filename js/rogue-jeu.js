@@ -531,7 +531,7 @@ function cartesTirees(cle, n, params) {
   ids.forEach((id, t) => {
     const c = BANQUE[id];
     if (c.cat !== 'patron' || G.bonus !== 'ROGUE') return;
-    // V14 : une personne déjà à toi ouvre un échelon de plus (`COPIES_MAX` copies) ; au-delà, elle se revend.
+    // V14 : une carte du personnel déjà à toi ouvre un échelon de plus (`COPIES_MAX` copies) ; au-delà, elle se revend.
     copies[c.cle] = (copies[c.cle] ?? copiesDe(meta, c.cle)) + 1;
     if (copies[c.cle] === 1) return;
     if (copies[c.cle] <= COPIES_MAX) doublons.push({ t, ouverts: ouvertsDe(copies[c.cle]) });
@@ -825,20 +825,25 @@ function motsDeLaPersonne(p) {
   return { force: [...(Object.keys(force).length ? motsEnChiffres(force) : []), ...motsDeLEcon(p.econ)],
     faiblesse: Object.keys(faiblesse).length ? motsEnChiffres(faiblesse) : [] };
 }
-/* Les options d'un échelon atteint : pousser sa force, corriger son défaut (s'il en a un). */
-function optionsDEchelon(e) {
+/*
+ * Les options d'un échelon atteint : pousser sa force, corriger son défaut (s'il en a un). V14b : chacune coûte le prix
+ * de l'échelon (`PRIX_ECHELON`), et se grise sans les jetons en caisse.
+ */
+function optionsDEchelon(e, caisse) {
   const apres = c => motsDeLaPersonne(patronALEchelon(e.cle, { choix: [...(e.patron.choix || []), c] }));
+  const prix = e.prix ? [{ txt: `−${e.prix} 🪙`, bon: false }] : [];
+  const non = e.prix > caisse ? 'Pas assez de jetons en caisse' : null;
   return [
-    { cle: 'force', ico: '⬆', nom: 'Pousser sa force', sous: 'Ce qu\'il fait de mieux, en plus fort', mots: apres('force').force },
-    ...(aUnDefaut(e.cle) ? [{ cle: 'defaut', ico: '🩹', nom: 'Corriger son défaut', sous: 'Sa force reste ; son prix baisse', mots: apres('defaut').faiblesse }] : []),
+    { cle: 'force', ico: '⬆', nom: 'Pousser sa force', sous: 'Ce qu\'il fait de mieux, en plus fort', mots: [...prix, ...apres('force').force], desactive: non },
+    ...(aUnDefaut(e.cle) ? [{ cle: 'defaut', ico: '🩹', nom: 'Corriger son défaut', sous: 'Sa force reste ; son prix baisse', mots: [...prix, ...apres('defaut').faiblesse], desactive: non }] : []),
   ];
 }
-/* Ce qui attend un choix d'échelon, pour À faire (js/saison.js) : la carte, ses options, et la décision. */
-export function echelonsAChoisir(j) {
+/* Ce qui attend un choix d'échelon, dans la fiche de sa carte : ses options, et la décision. */
+function echelonsAChoisir(j) {
   // La saison jouée ne prend plus de décision : l'échelon attend la saison suivante, où ses matchs à ton service le suivent.
   if (!G.ligue || G.ligue.fini) return [];
   return etatPersonnel(j).filter(e => e.aChoisir).map(e => ({ cle: e.cle, qui: e.qui, ico: e.patron.ico, style: e.patron.nom, echelon: e.echelon,
-    service: e.service, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e),
+    service: e.service, prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j)),
     decision: c => ({ palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) }) }));
 }
 export function personnelDuJour(j) {
@@ -861,14 +866,14 @@ export function personnelDuJour(j) {
         <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
         <span class="gens-txt"><b>${esc(e.qui)}</b><small>${esc(R.nom || '')} · ${esc(quand)}</small>
           <span class="gens-ff">${force[0] ? `<span class="bon">${esc(force[0].txt)}</span>` : ''}${faiblesse[0] ? `<span class="mal">${esc(faiblesse[0].txt)}</span>` : ''}</span></span>
-        <span class="gens-niv">${aChoisir.has(e.cle) ? '<span class="gens-monte">Échelon ↑</span>' : `<span>Éch. ${e.echelon}</span>`}${echelons(e)}<span class="gens-xp"><i style="width:${pct}%"></i></span></span>
+        <span class="gens-niv">${aChoisir.has(e.cle) ? `<span class="gens-monte">Prêt · ${e.prix} 🪙</span>` : `<span>Éch. ${e.echelon}</span>`}${echelons(e)}<span class="gens-xp"><i style="width:${pct}%"></i></span></span>
       </summary>
       <div class="gens-fiche">
         ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
         ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
         ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
         ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
-        ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}">${o.ico} ${esc(o.nom)}</button>`).join('')}</div>` : ''}
+        ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e, jetonsRogue(j)).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}"${o.desactive ? ` disabled title="${esc(o.desactive)}"` : ''}>${o.ico} ${esc(o.nom)}${e.prix ? ` · ${e.prix} 🪙` : ''}</button>`).join('')}</div>` : ''}
       </div></details>`;
   };
   return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
@@ -919,11 +924,11 @@ export function cartesDeLaMaison(maison, j) {
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
 export function jouerDeLaMaison(item, j, decider) {
   if (item.vendre) { decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }); return; }
-  // V14 : le choix d'un échelon atteint, dans la fiche de la personne (« echelon:<clé>:force|defaut »).
+  // V14 : le choix d'un échelon atteint, dans la fiche de la carte (« echelon:<clé>:force|defaut »).
   if (item.src === 'echelon') {
     const [, cle, c] = String(item.id).split(':');
     const e = echelonsAChoisir(j).find(x => x.cle === cle);
-    if (!e || !e.options.some(o => o.cle === c)) return;
+    if (!e || !e.options.some(o => o.cle === c && !o.desactive)) return;
     toast(`${e.ico} ${e.qui} : échelon ${e.echelon + 1}.`);
     decider({ jour: j, ...e.decision(c) });
     return;

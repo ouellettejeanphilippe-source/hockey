@@ -12,6 +12,11 @@
  * `CONTRATS_MAUDITS` : des contrats lourds, qu'on prend pour leur argent — de l'espace sous le plafond tout de suite,
  * et un prix qui tombe certains soirs.
  */
+/*
+ * V14b (JP : *les cartes de base influencent le style de l'équipe sans la rendre vraiment plus forte, et c'est cher
+ * upgrader*) : au premier échelon, ce qu'une carte donne, son défaut le reprend — ses soirs, son net en buts tient près
+ * de zéro (`check_places`, ±0,5 V). La force, elle, s'achète aux échelons (js/echelons.js `PRIX_ECHELON`).
+ */
 export const PERSONNEL = {
   // ---- neutres : le départ en impose deux ----
   per_gerantEquipement: { role: 'soins', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.95, finition: 1.02, volume: 0.98 },
@@ -24,7 +29,7 @@ export const PERSONNEL = {
   // ---- 🐝 le Frelon ----
   per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.08, finition: 0.97 },
     texte: 'Chez nous, on l\'entend crier « Lance ! » de la passerelle de presse.' },
-  per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, energie: 1.06 },
+  per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, finition: 0.97, energie: 1.06 },
     texte: 'Des départs arrêtés, encore et encore. Les jambes fraîches, ça fonce au filet.' },
 
   // ---- 🦅 l'Aigle ----
@@ -34,9 +39,9 @@ export const PERSONNEL = {
     texte: 'Il a vu chaque match de leur gardien depuis le junior.' },
 
   // ---- 🐢 la Tortue ----
-  per_gardienDuFort: { role: 'defense', nom: 'Le gardien du fort', ico: '🏯', rarete: 'peu', si: 'apresDefaite', effet: { defense: 0.9, volume: 0.93 },
+  per_gardienDuFort: { role: 'defense', nom: 'Le gardien du fort', ico: '🏯', rarete: 'peu', si: 'apresDefaite', effet: { defense: 0.9, volume: 0.93, finition: 0.95 },
     texte: 'Après une défaite, il reprend le système depuis le début.' },
-  per_gardiensDeRoute: { role: 'gardiens', nom: 'L\'entraîneur des gardiens de route', ico: '🧭', rarete: 'commune', si: 'visiteur', effet: { defense: 0.96, volume: 0.97 },
+  per_gardiensDeRoute: { role: 'gardiens', nom: 'L\'entraîneur des gardiens de route', ico: '🧭', rarete: 'commune', si: 'visiteur', effet: { defense: 0.96, volume: 0.95 },
     texte: 'Il arrive à l\'aréna deux heures avant tout le monde, et il mesure les filets.' },
 
   // ---- 🦏 le Rhino ----
@@ -52,7 +57,7 @@ export const PERSONNEL = {
     texte: 'Entre les deux matchs, des pâtes et pas de frites. Personne ne le remercie.' },
 
   // ---- 😇 l'Abbé ----
-  per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', si: 'apresDefaite', effet: { discipline: 0.75, robustesse: -0.4 },
+  per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', si: 'apresDefaite', effet: { discipline: 0.75, finition: 0.96, robustesse: -0.4 },
     texte: 'Après une défaite, il parle de patience. Les bâtons restent en bas.' },
   per_ancienArbitre: { role: 'direction', nom: 'L\'ancien arbitre', ico: '🦓', rarete: 'rare', si: 'rival', effet: { discipline: 0.65, robustesse: -0.5 },
     texte: 'Il connaît chaque arbitre de la ligue, et ce qui les fait siffler.' },
@@ -64,9 +69,9 @@ export const PERSONNEL = {
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },
 
   // ---- 🌠 le Showman ----
-  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.12, 1.04, 0.96, 0.88], finition: 1.01, energie: 1.04 },
+  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.12, 1.04, 0.96, 0.88], defense: 1.04, energie: 1.08 },
     texte: 'Chez nous, ses clients jouent. Les caméras sont là.' },
-  per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], finition: 1.12, energie: 1.08 },
+  per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], defense: 1.06, energie: 1.12 },
     texte: 'En séries, il écrit le match pour ses vedettes.' },
 
   // ---- 🏦 le Comptable : l'argent, toute l'année ----

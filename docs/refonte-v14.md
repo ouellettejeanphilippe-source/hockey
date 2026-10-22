@@ -9,7 +9,7 @@ Ce qu'on garde de l'idée : une pièce qu'on place, qui grandit à l'usage, avec
 - **Des cartes, par leur style.** Chaque poste a sa carte, nommée par ce qu'elle fait : « Le gardien du fort », « Le crieur du banc ».
 - **Sa force et son défaut.** Les canaux de sa carte qui aident sont sa force (en vert) ; ceux qui coûtent, son défaut (en rouge). En vraies stats de match, jamais en note (`forceEtFaiblesse`, js/echelons.js ; `canalBon`, js/banque.js).
 - **Les échelons, la gestion.** De 1 à 5. Une personne monte en **matchs à ton service** : le 2e échelon à 10 matchs, le 3e à 25, le 4e à 45, le 5e à 70 (`MATCHS_ECHELON`). Ils se comptent sur toute la run, d'une saison à l'autre (`reportDuPersonnel`). Quelqu'un de la couleur de ton coach apprend deux fois plus vite.
-- **Le choix d'un échelon.** Chaque échelon atteint est un choix d'À faire, mis en scène par l'entraîneur (`sceneDeLEchelon`), et aussi dans la fiche de la personne : **pousser sa force** (l'écart de ses bons canaux grandit d'un quart, `POUSSEE`) ou **corriger son défaut** (ses mauvais reviennent de 40 % vers zéro, `CORRECTION`). Quelqu'un sans défaut (l'argent, le Comptable) ne fait que pousser.
+- **Le choix d'un échelon.** Chaque échelon atteint se choisit dans la fiche de la carte (V14 le mettait aussi dans À faire ; V14b l'en retire) : **pousser sa force** (l'écart de ses bons canaux grandit d'un quart, `POUSSEE`) ou **corriger son défaut** (ses mauvais reviennent de 40 % vers zéro, `CORRECTION`). Quelqu'un sans défaut (l'argent, le Comptable) ne fait que pousser.
 - **Les doublons, le gacha.** La première copie tirée d'un pack ouvre deux échelons ; chaque doublon en ouvre un de plus, jusqu'à cinq (`ouvertsDe`, `COPIES_MAX` ; js/rogue.js `recevoirPermanents`). Les copies restent au méta, d'une run à l'autre ; les échelons, eux, se regagnent à chaque run. Un doublon de trop, ses cinq échelons ouverts, se revend comme avant.
 - **Rien de neuf dans le moteur.** Une personne est une décision `patron` qui porte ses chiffres à son échelon ; monter, c'est une décision de plus, au jour dit, qui la remplace à son poste. Une saison se rejoue pareil.
 
@@ -27,11 +27,26 @@ Bureau › Entraîneur › Ton personnel : une ligne de gestion par poste. On y 
   - les chiffres de chaque échelon ;
   - les échelons, les doublons, le report ;
   - en paires : quatre poussées grandissent la force, quatre corrections font fondre le défaut.
-- `check_clarte` : la règle, ses chiffres lus des constantes, et la scène.
+- `check_clarte` : la règle et ses chiffres, lus des constantes.
 - `essai_rogue` : chaque carte en poste et ses cinq échelons, chez l'entraîneur.
 - `check_profondeur` : le robot attentif choisit ses échelons, le distrait au hasard.
 
+## V14b · Le style, et la force qui s'achète
+
+JP, 22 oct. : *au lieu de salaire, faire que les cartes de base influencent le style de l'équipe sans la rendre vraiment plus forte, et c'est cher upgrader*.
+
+- **Au premier échelon, une carte change le style, pas la force.** Ce qu'elle donne, son défaut le reprend : ses soirs, son net en buts tient sous ±0,5 victoire sur une saison (`STYLE_V`, `check_places`). Mesuré en paires sur les dix-neuf cartes de personnel qui ont un moment, six donnaient trop. Elles ont été recalibrées, chacune par le défaut qui touche ses buts plutôt que par le volume, qui en enlève peu :
+  - le gardien du fort : la précision, ce qui le fait passer de +0,8 à +0,2 V sur ses soirs ;
+  - l'aumônier : la précision, de +0,6 à +0,5 V ;
+  - l'agent des vedettes : la défensive, de +0,8 à +0,4 V ;
+  - le metteur en scène : la défensive au lieu de la précision, de +0,6 à −0,1 V ;
+  - l'entraîneur des gardiens de route : un peu plus de volume ;
+  - le coach de sprint : un peu de précision.
+- **La force s'achète.** Monter d'échelon coûte des jetons, de plus en plus : 30, 50, 80 puis 120 (`PRIX_ECHELON`), un gain négatif que la caisse lit. Les matchs à ton service rendent l'échelon possible ; les jetons le paient.
+- **Ça ne bloque rien, et ça ne s'affiche qu'à un endroit.** L'échelon prêt se paie dans la fiche de sa carte, chez l'entraîneur (« Prêt · 30 🪙 »), plus dans À faire : JP veut *l'interface et tout plus clean et simple*, et des achats en attente empilés dans la boîte allongeaient l'entraîneur à deux écrans. Sans les jetons, ses boutons sont grisés.
+- **Le salaire est écarté** : le prix des échelons fait le même travail, une dépense qui se choisit.
+
 ## Ce qui reste
 
-- **V14b.** Le marché du personnel : les candidats qu'on compare à la personne en poste, et peut-être un salaire. On le mesure avant de le mettre au jeu.
-- **V14c.** Les places et l'équipement : est-ce qu'ils deviennent aussi des pièces qui grandissent ? On attend de voir le personnel en jeu.
+- **V14c.** Le marché du personnel : les candidats qu'on compare à la carte en poste.
+- **V14d.** Les places et l'équipement : est-ce qu'ils deviennent aussi des pièces qui grandissent ? On attend de voir le personnel en jeu.

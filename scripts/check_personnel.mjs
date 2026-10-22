@@ -3,8 +3,9 @@
  * niveaux, avec leurs forces et leurs faiblesses, un look de jeu de gestion* ; *adapter à nos besoins de gestion et de gacha*.
  *   2. les chiffres d'un échelon : la carte telle quelle au premier ; pousser sa force grandit ses bons canaux de
  *      `POUSSEE`, corriger son défaut ramène ses mauvais de `CORRECTION` ; l'argent grandit comme une force ;
- *   3. les échelons : les matchs à ton service (`MATCHS_ECHELON`), doublés à la couleur du coach, bornés par les échelons
- *      ouverts (les doublons d'un pack, `ouvertsDe`), qui se gardent au méta ; un choix remplace la personne à son
+ *   3. les échelons : les matchs à ton service (`MATCHS_ECHELON`), doublés à la couleur du coach, payés en jetons
+ *      (`PRIX_ECHELON`, V14b : la force s'achète), bornés par les échelons
+ *      ouverts (les doublons d'un pack, `ouvertsDe`), qui se gardent au méta ; un choix remplace la carte à son
  *      poste, garde d'où se comptent ses matchs, et la fin de saison les reporte ;
  *   4. le moteur, EN PAIRES (CLAUDE.md) : le même match sur les mêmes dés, sans la personne, à son premier échelon, à son
  *      cinquième (quatre poussées), et son défaut corrigé quatre fois ; l'écart sur sa force monte, celui sur son défaut
@@ -15,7 +16,7 @@ import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard,
 import { PATRONS, BANQUE } from '../js/banque.js';
 import { effetDePalier } from '../js/coachs.js';
 import { effetALEchelon, patronALEchelon, etatDuPersonnel, decisionDEchelon, reportDuPersonnel, ouvertsDe, matchsJoues,
-  MATCHS_ECHELON, POUSSEE, CORRECTION, ECHELON_MAX } from '../js/echelons.js';
+  MATCHS_ECHELON, POUSSEE, CORRECTION, ECHELON_MAX, PRIX_ECHELON } from '../js/echelons.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -51,9 +52,12 @@ const presque = (a, b) => Math.abs(a - b) < 1e-6;
   exiger('un échelon fermé attend son doublon', ferme.aChoisir && ferme.echelon === 1 && etat([...engage, { jour: 50, ...decisionDEchelon(ferme, 'force') }], 30, 1).ferme);
   const tortue = [{ jour: 0, coach: effetDePalier(couleur, 1) }, engage[1]];
   exiger('à la couleur du coach, deux fois plus vite', etat(tortue, 5).service === 10 && etat(tortue, 5).double && !etat(engage, 5).double);
-  const monte = [...engage, { jour: 40, ...decisionDEchelon(e10, 'force') }];
+  const achat = decisionDEchelon(e10, 'force');
+  exiger('monter coûte cher : chaque échelon, plus que le précédent, en jetons', achat.gain === -PRIX_ECHELON[2] && PRIX_ECHELON.slice(2).every((p, i, l) => !i || p > l[i - 1]),
+    PRIX_ECHELON.slice(2).map(p => `${p} 🪙`).join(' · '));
+  const monte = [...engage, { jour: 40, ...achat }];
   const apres = etat(monte, 10);
-  exiger('un choix remplace la personne à son poste, et garde d\'où se comptent ses matchs', apres.echelon === 2 && !apres.aChoisir && apres.depuis === 3
+  exiger('un choix remplace la carte à son poste, et garde d\'où se comptent ses matchs', apres.echelon === 2 && !apres.aChoisir && apres.depuis === 3
     && etatDuPersonnel(monte, 200, { joues: () => 0 }).length === 1);
   const rep = reportDuPersonnel(etat(monte, 30));
   exiger('la fin de saison reporte ses matchs à ton service', rep.avant === 30 && rep.depuis === 0 && rep.echelon === 2);
@@ -75,7 +79,7 @@ function match(toi, adv, graine, visiteur) {
   const somme = a => (a || []).reduce((x, y) => x + y, 0);
   return { v: r.winner === toi ? 1 : 0, gf: visiteur ? r.gfB : r.gfA, ga: visiteur ? r.gfA : r.gfB, tp: somme(f.tirs && f.tirs[moi]) };
 }
-/* Une personne d'un lieu : sa force et son défaut, lus sur ce qu'un soir montre. */
+/* Une carte d'un lieu : sa force et son défaut, lus sur ce qu'un soir montre. */
 const LIRE = { tirs: S => S.tp / S.n, pct: S => (100 * S.gf) / S.tp, contre: S => S.ga / S.n };
 const MOT = { tirs: 'tir par soir', pct: 'point de % au tir', contre: 'but contre par soir' };
 const MESURES = [

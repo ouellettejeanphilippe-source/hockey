@@ -1162,6 +1162,20 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
     // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
     if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
   }
+  // V14b : un échelon prêt s'achète dans la fiche de sa carte, chez l'entraîneur (plus dans À faire).
+  {
+    await versLOnglet('bureau', 'entraineur');
+    const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte:not([open]) > summary');
+    if (ligne) {
+      await ligne.click(); await page.waitForTimeout(250);
+      const b = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte .gens-choix .maison-jouer:not([disabled])');
+      const n0 = (await decisionsDuCombat()).length;
+      if (b) { await b.click(); await page.waitForTimeout(600); await attendreDecisions(n0); }
+      const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
+      console.log(`10p. un échelon prêt, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
+      if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
+    } else console.log('10p. un échelon prêt, chez l\'entraîneur : aucun encore');
+  }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
   // un écran. La boîte, « Ce soir » et les sous-onglets qui ont des choix se mesurent : leurs choix se plieront (V12-4b).

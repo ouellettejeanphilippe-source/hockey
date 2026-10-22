@@ -33,6 +33,12 @@ const N = Number(process.env.N ?? 400);
 const FILS = Math.max(1, Number(process.env.FILS ?? 4));
 const ICI = fileURLToPath(import.meta.url);
 const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
+/*
+ * V14b : au premier échelon, une carte du personnel change le style, pas la force (JP : *sans la rendre vraiment plus
+ * forte*). Son net, lu en buts (moins bruité que les victoires : `BUTS_PAR_V` buts font une victoire), tient sous
+ * `STYLE_V` victoire sur ses soirs d'une saison.
+ */
+const STYLE_V = 0.5, BUTS_PAR_V = 6;
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
 const JUMELLE = '__jumelle';
 /* Les piles mesurées : les places, l'équipement, le personnel, les contrats lourds, et les réponses des dossiers (V10-5). */
@@ -161,7 +167,7 @@ const res = Object.assign({}, ...(await Promise.all(lots.map(l => lancer(l, N)))
 const f1 = x => (x >= 0 ? '+' : '') + x.toFixed(1).replace('.', ',');
 const f2 = x => (x >= 0 ? '+' : '') + x.toFixed(2).replace('.', ',');
 let hors = 0, horsPareil = 0;
-const tropFortes = [], invisibles = [];
+const tropFortes = [], invisibles = [], pasStyle = [];
 for (const id of toutes) {
   const [sorte, cle] = id.split(':');
   const C = carteDe(sorte, cle), m = res[id], Mo = C.si ? MOMENTS_SI[C.si] : TOUS_LES_SOIRS;
@@ -184,10 +190,13 @@ for (const id of toutes) {
   // Un contrat lourd est un prix, pas une force : il se mesure, il ne se borne pas ; il doit seulement coûter.
   if (sorte === 'k') { if (!(v < 0)) tropFortes.push(`${C.nom} ne coûte rien (${f1(v)} V)`); continue; }
   if (Math.abs(v) > BORNE_V[C.rarete]) tropFortes.push(`${C.nom} ${f1(v)} V (borne ${BORNE_V[C.rarete]})`);
+  const vButs = (par(m.dgf - m.dga) * soirs) / BUTS_PAR_V;
+  if (sorte === 'q' && Math.abs(vButs) > STYLE_V) pasStyle.push(`${C.nom} ${f1(vButs)} V`);
   if ((C.rarete === 'rare' || C.rarete === 'legendaire') && !vu) invisibles.push(C.nom);
 }
 exiger('hors de son moment, une carte ne change rien à la feuille', hors > 0 && horsPareil === hors, `${horsPareil} feuilles identiques sur ${hors}`);
 exiger('dans son moment, chaque carte reste sous la borne de sa rareté', !tropFortes.length, tropFortes.join(' · ') || 'toutes');
 exiger('une rare ou une légendaire se voit dans la feuille d\'un soir de son moment', !invisibles.length, invisibles.join(' · ') || 'toutes');
+if (toutes.some(id => id.startsWith('q:'))) exiger(`au premier échelon, le personnel change le style, pas la force (±${String(STYLE_V).replace('.', ',')} V en buts, ses soirs)`, !pasStyle.length, pasStyle.join(' · ') || 'toutes');
 informer('le temps', `${Math.round((Date.now() - t0) / 1000)} s (${lots.length} fils)`);
 verdict();
