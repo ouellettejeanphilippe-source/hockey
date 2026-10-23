@@ -1069,6 +1069,10 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
 /* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
 :is(.main-vest, .af-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
+/* Les options d'À faire : des tuiles à coins vifs, sans halo ni saut (JP : *j'aime pas les arrondis*) ; un toucher les envoie. */
+.af-option.choix-option { border-radius: 0; box-shadow: none; animation: none; }
+.af-option.choix-option:is(:hover, :focus-visible):not([disabled]) { transform: none; box-shadow: inset 3px 0 0 var(--or); }
+.af-option.choix-option.on { background: var(--panneau); box-shadow: inset 3px 0 0 var(--or); }
 .choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .choix-forme { align-self: flex-start; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
 .choix-option-sous { font-size: var(--t-2); color: var(--encre-2); line-height: 1.4; }
@@ -4259,7 +4263,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-actions { display: flex; flex-wrap: wrap; align-items: flex-start; gap: var(--esp-2); padding: var(--esp-3); border-bottom: 1px solid var(--filet); flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .hub-barre { display: flex; flex-wrap: wrap; gap: var(--esp-2); flex: 1 1 100%; }
 .hub-actions .btn { flex: 1 1 140px; }
-.hub-actions .hub-jour, .hub-actions .hub-traiter, .hub-actions .hub-trancher, .hub-actions .hub-suite { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
+.hub-actions .hub-jour, .hub-actions .hub-traiter, .hub-actions .hub-suite { flex: 1 1 100%; min-height: 56px; font-size: var(--t-4); }
 /* « ⏳ Encore un choix · Tes rivaux » : une ligne, d'une teinte neutre — sur deux lignes en rouge, elle couvrait les
    options du choix qu'elle annonçait (audit mobile, B4). */
 .hub-actions .hub-traiter { justify-content: flex-start; min-width: 0; text-align: left; padding: var(--esp-2) var(--esp-3); font-size: var(--t-3); }
@@ -4284,8 +4288,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msgs { display: flex; flex-direction: column; }
 .hub-msg { border: 1px solid transparent; border-bottom-color: var(--filet-2); border-left: 3px solid transparent; }
 /* Ouvert, il porte son fond : la photo de la scène ne passe plus derrière ses phrases (audit mobile, oct.). */
-.hub-msg:is(.ouvert, .bloque, .pret) { background: var(--fond-1); }
-.hub-msg.bloque { border-color: var(--mauvais); border-radius: var(--r-1); }
+.hub-msg:is(.ouvert, .bloque) { background: var(--fond-1); }
+.hub-msg.bloque { border-color: var(--mauvais); }
 .hub-msg-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-3); min-height: 52px; padding: var(--esp-2) var(--esp-3); border: 0; background: none; color: var(--encre); text-align: left; transition: background var(--t-vite); }
 .hub-msg-tete:hover { background: var(--fond-2); }
 .hub-msg-ico { flex: none; font-size: var(--t-4); line-height: 1; color: var(--encre-2); }
@@ -4295,8 +4299,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg-sujet { font-size: var(--t-3); line-height: 1.25; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hub-msg-etat { flex: none; display: inline-flex; align-items: center; gap: var(--esp-1); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 .hub-msg.bloque .hub-msg-etat { color: var(--mauvais); }
-/* Coché, il attend « Trancher » : son option se lit dans sa bande. */
-.hub-msg.pret { border-color: var(--or); border-radius: var(--r-1); }
+/* Les rivaux cochés, avant le dernier, se lisent dans sa bande. */
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); }
 /* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous le sous-onglet où elles se règlent ; la
@@ -4309,13 +4312,12 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-maison-tete::after { content: "›"; flex: none; font: 800 var(--t-3)/1 var(--display); color: var(--encre-3); }
 .af-maison.ici .af-maison-tete::after { content: none; }
 /* LE SOUS-ONGLET D'UNE MAISON : sa tête, puis chacun de ses choix en entier, l'un sous l'autre — la voix, le sujet, son
-   état, puis le corps ; « Trancher » au bas quand le lot est prêt. */
+   état, puis le corps. */
 .af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
 .af-onglet-tete { display: flex; align-items: center; gap: var(--esp-3); }
 .af-onglet-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .af-onglet-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .af-onglet-txt span { font-size: var(--t-2); color: var(--encre-2); }
-.af-onglet .af-trancher { min-height: 44px; }
 /* Ce que le sous-onglet montre toujours, sous ses choix (V12-2) : le mandat, la route, la une, ton histoire, les blessés. */
 .af-fond { display: flex; flex-direction: column; gap: var(--esp-3); }
 .hub-msg-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
@@ -4924,13 +4926,16 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-build { margin-bottom: var(--esp-4); }
 .som-build p { margin: var(--esp-2) 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-build .ent-liste > div { min-height: 36px; }
-.som-plateau { margin-bottom: var(--esp-4); }
-.som-plateau p { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.som-plateau .som-plateau-titre { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre); }
+/* LES FAITS SAILLANTS : un segment de télé — la manchette en gros, le récit, puis la clé du match sous un filet d'or. */
+.som-saillants { margin-bottom: var(--esp-4); }
+.som-saillants p { margin: var(--esp-2) 0 0; font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); }
+.som-saillants .som-manchette { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--encre); }
+.som-saillants .som-cle { padding-left: var(--esp-3); border-left: 3px solid var(--or); color: var(--encre); }
+.som-saillants ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.som-saillants li.bon { color: var(--bon); }
+.som-saillants li.prix { color: var(--live); }
 .som-detail { margin-top: var(--esp-3); }
 .som-detail > summary { font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre-2); cursor: pointer; }
-.som-decide { margin-bottom: var(--esp-4); }
-.som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-difference :is(p, ul) { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-difference ul { padding-left: var(--esp-4); }
 .som-difference h4 { margin: var(--esp-3) 0 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
@@ -5148,7 +5153,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
  * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte de
  * jeu est un carton de la série de la glace (`.cs-glace`), aux couleurs de son genre au lieu d'un club : le genre est
  * son club. Son dessin se pose dans la fenêtre, sur la trame du genre ; son icône dans le médaillon ; sa rareté en est
- * l'édition (le cadre, l'or, le prisme, « LES ÉDITIONS »). Ce qu'elle fait se lit sous le carton, en entier.
+ * l'édition (le cadre, l'or, le prisme, « LES ÉDITIONS »). Ce qu'elle fait se lit à son verso, en entier.
  */
 .cs-jeu {
   --team-band: var(--tc-genre); --team-ink: var(--tc-genre-encre); --team-line: var(--tc-genre);
@@ -5165,9 +5170,25 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .cs-jeu .carton-club .tc-dessin { width: 100%; height: 100%; color: color-mix(in srgb, var(--band) 75%, black); filter: none; }
 .tcj-ico { font-size: 11cqw; line-height: 1; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
 .cs-jeu .carton-nom .lname { font-size: min(var(--nom-max, 11cqw), calc(var(--nom-l, 58cqw) / var(--n, 8) * 2.1)); }
-/* Le bouton porte le carton et ce qu'il fait : le carton est la carte, le texte dessous la lit. */
-.choix-option.tc:not(.tc-joueur) { display: flex; flex-direction: column; gap: var(--esp-2); }
-.choix-option.tc:not(.tc-joueur) > :is(.tc-texte, .tc-puces, .choix-option-non) { margin: 0 var(--esp-1); }
+/*
+ * LA CARTE ET « PRENDRE » (JP : *mettre les stats derrière la carte*). La face (`.tc-face`) porte le carton et, dans son
+ * dos, ce que la carte fait (`.tc-verso`) : un toucher la retourne (js/cartes.js, `cj-tourne-1/2`). Pas de panneau autour.
+ */
+.choix-option.tc:not(.tc-joueur) { display: flex; flex-direction: column; gap: var(--esp-2); background: none; border: 0; box-shadow: none; overflow: visible; cursor: default; }
+.choix-option.tc:not(.tc-joueur):hover { box-shadow: none; }
+.choix-option.tc:not(.tc-joueur) > .choix-option-non { margin: 0 var(--esp-1); }
+.tc-face { position: relative; display: block; width: 100%; padding: 0; border: 0; border-radius: 4.5% / 3.2%; background: none; color: inherit; font: inherit; text-align: inherit; }
+button.tc-face { cursor: pointer; }
+button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset: 2px; }
+.tc-face.tourne-1 { animation: cj-tourne-1 0.2s ease-in forwards; }
+.tc-face.tourne-2 { animation: cj-tourne-2 0.34s var(--e-ressort); }
+.tc-face:not(.au-verso) > .tc-verso, .tc-face.au-verso > .carton { visibility: hidden; }
+/* Le verso : le carton uni de la même série, le filet de son genre ; il défile en dedans s'il déborde, la carte garde sa taille. */
+.tc-verso {
+  position: absolute; inset: 0; z-index: 1; display: flex; flex-direction: column; gap: var(--esp-3); overflow-y: auto; overscroll-behavior: contain;
+  padding: var(--esp-4) var(--esp-3); border-radius: inherit; background: var(--fond-1);
+  box-shadow: inset 0 0 0 2px var(--tc-genre), inset 0 0 0 6px var(--fond-1), inset 0 0 0 7px color-mix(in srgb, var(--tc-genre) 40%, transparent), 0 12px 16px -8px color-mix(in srgb, var(--noir) 70%, transparent);
+}
 .choix-option.tc {
   position: relative; display: block; padding: 0; min-height: 0; text-align: left; isolation: isolate; container-type: inline-size;
   transition: transform var(--t-vite), border-color var(--t-vite), opacity var(--t-vite), --rx var(--t-lent) var(--e-ressort), --ry var(--t-lent) var(--e-ressort), --lueur var(--t-lent);
@@ -5217,11 +5238,10 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc-dessin .a { fill: var(--tc-accent); stroke: none; opacity: 0.9; }
 .tc-dessin .s { stroke: var(--tc-accent); }
 .tc-dessin .f { stroke-width: 1.2; opacity: 0.7; }
-/* Sous le carton, ce que la carte fait : sa règle, puis ses effets en lignes de couleur, un filet au flanc. */
+/* Au verso, ce que la carte fait : sa règle, puis ses effets en lignes de couleur, un filet au flanc. */
 .tc-texte { display: flex; flex-direction: column; gap: var(--esp-1); font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); }
 .tc-quoi { color: var(--encre); }
 .tc-ambiance { font-style: italic; color: var(--encre-3); }
-.choix-option.tc:not(.lecture) .tc-quoi { display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .tc-puces { flex: none; flex-direction: column; gap: 2px; }
 .tc-puces .puce { display: block; padding-left: var(--esp-2); border-left: 2px solid currentColor; font-size: var(--t-1); line-height: 1.3; }
 /* Le dos d'une carte (elle sort d'un paquet) : opacité 0 sauf tant que le paquet est fermé, et derrière la carte du dessus de la pile ; le smoke la lit. */
@@ -5320,7 +5340,7 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="passee"][data-sens="d"] { animation-name: pile-part-d; }
 .paquet-pile .choix-main > .choix-option.tc:is([data-pile="1"], [data-pile="2"], [data-pile="loin"]) > .tc-dos { opacity: 1; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"] > .tc-dos { animation: pile-dos 0.5s linear backwards; }
-.paquet-pile .choix-main > .tc-joueur > :is(.tcj-texte, .tcj-signer, .choix-option-non) { display: none; }
+.paquet-pile .choix-main > .tc > :is(.tcj-texte, .tcj-signer, .tc-prendre, .choix-option-non) { display: none; }
 /* Une rare luit en montant sur la pile ; la carte du pack éclate — un anneau, pas une ombre. */
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"]:is(.tc-rare, .tc-legendaire) { animation: pile-retourne 0.5s var(--e-sortie) backwards, tc-luit 1.2s ease-out 0.4s; }
 .paquet-pile .choix-main > .choix-option.tc[data-pile="0"].tc-meilleure { animation: pile-retourne 0.5s var(--e-sortie) backwards, tc-eclate 1.4s ease-out 0.4s; }

@@ -13,7 +13,7 @@
 import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS,
   ROULEMENTS, roulementDe, motDeBlessure } from './sim.js';
 import { causesDuMatch, causeDuBut, causesDeSaison } from './causes.js';
-import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT } from './recit.js';
+import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { apresMatch } from './apres-match.js';
 import { panelDe } from './panel-tv.js';
 import { deck, liste, cartesDeSaison, cartesDeMatch, brancherEntractes } from './entracte.js';
@@ -1288,7 +1288,7 @@ export function cleDeSommaire(feuille) {
 /**
  * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (cartes, patrons, événements,
  * systèmes, consigne) et ce que le match a donné, contre ta moyenne d'avant et contre la ligue.
- * Ce que chaque carte a fait se dit juste dessous (`differenceHtml`).
+ * Ce que chaque carte a fait se dit juste dessous (`saillantsHtml`).
  */
 function buildDuSoirHtml(f, A, B, jour) {
   const toi = A.isPlayer ? A : B.isPlayer ? B : null;
@@ -1307,28 +1307,36 @@ function buildDuSoirHtml(f, A, B, jour) {
 }
 
 /*
- * CE QUI A FAIT LA DIFFÉRENCE (oct., js/causes.js). JP : *le joueur doit comprendre ce qui se passe et avoir un
- * impact.* Ce qui a décidé d'un lancer de ton club ou contre lui — une carte, un badge monté, un système, le gardien,
- * les jambes —, et le pointage sans chacun de tes groupes quand il l'aurait changé. Chaque ligne se recompte dans la feuille.
+ * LES FAITS SAILLANTS (JP, 23 oct. : *la section résumé, décidé, différences, plus en texte style SportsCenter*). Un
+ * segment, comme à la télé : la manchette, le récit, puis la clé — ce qui a décidé (js/recit.js) sans redire le récit,
+ * et ce que tes choix ont changé (js/causes.js : le pointage sans chacun de tes groupes, quand il l'aurait changé).
+ * Le tir par tir et le fil complet se déplient dessous. Chaque chiffre se recompte dans la feuille.
  */
 const MAX_TIRS = 8;
-function differenceHtml(f, A, B) {
+function saillantsHtml(f, A, B, pm) {
+  const dit = pm.resume.join(' ');
+  const neuf = x => (x.cle === 'tirs' ? !/aux tirs|tiré|lancé/i.test(dit)
+    : x.cle === 'an' ? !/avantage|jeu de puissance/i.test(dit)
+      : x.nom ? !dit.includes(nomCourt(x.nom)) : true);
+  const decide = ceQuiADecide(f, teamShort(A), teamShort(B)).filter(neuf).map(x => x.txt);
   const moi = A.isPlayer ? 'A' : B.isPlayer ? 'B' : null;
   const r = moi && causesDuMatch(f, moi);
-  if (!r) return '';
-  const reel = `${moi === 'A' ? f.gfA : f.gfB}-${moi === 'A' ? f.gfB : f.gfA}`;
-  const vaut = e => `${e > 0 ? 'ça t\'a valu' : 'ça t\'a coûté'} ${Math.abs(e)} but${Math.abs(e) > 1 ? 's' : ''} d'écart`;
-  const avecEcart = r.sans.filter(x => x.ecart);
-  const sans = avecEcart.map(x => (x.change
-    ? `<li class="${x.ecart > 0 ? 'bon' : 'prix'}"><b>Sans ${esc(x.mot)}, c'était ${x.moi}-${x.eux}</b> au lieu de ${reel} : ${x.ecart > 0 ? 'ils ont fait le résultat' : 'ils ont coûté le résultat'}.</li>`
-    : `<li>Sans ${esc(x.mot)} : ${x.moi}-${x.eux} au lieu de ${reel}, ${vaut(x.ecart)}.</li>`)).join('');
-  const verdict = avecEcart.length && !avecEcart.some(x => x.change) ? '<p>Rien de ça n\'a changé le résultat.</p>' : '';
+  const reel = moi ? `${moi === 'A' ? f.gfA : f.gfB}-${moi === 'A' ? f.gfB : f.gfA}` : '';
+  const buts = n => `${Math.abs(n)} but${Math.abs(n) > 1 ? 's' : ''}`;
+  const sans = (r ? r.sans.filter(x => x.ecart) : []).map(x => (x.change
+    ? `Sans ${x.mot}, c'était ${x.moi}-${x.eux} au lieu de ${reel} : ${x.ecart > 0 ? 'ils ont fait le résultat' : 'ils ont coûté le résultat'}.`
+    : `Sans ${x.mot}, c'était ${x.moi}-${x.eux} : ${x.ecart > 0 ? 'un coup de pouce' : 'un frein'} de ${buts(x.ecart)}.`));
+  const cle = [...decide, ...sans].join(' ');
   // Les tirs changés : les buts d'abord si la liste déborde, puis dans l'ordre du match.
-  const tirs = r.tirs.length > MAX_TIRS ? r.tirs.filter(t => t.but).concat(r.tirs.filter(t => !t.but)).slice(0, MAX_TIRS).sort((a, b) => a.instant - b.instant) : r.tirs;
+  const tirs = !r ? [] : r.tirs.length > MAX_TIRS ? r.tirs.filter(t => t.but).concat(r.tirs.filter(t => !t.but)).slice(0, MAX_TIRS).sort((a, b) => a.instant - b.instant) : r.tirs;
   const parTir = tirs.map(t => `<li class="${t.aide ? 'bon' : 'prix'}">${esc(t.texte)}.</li>`).join('');
-  const corps = `${verdict}${sans ? `<ul>${sans}</ul>` : ''}${parTir ? `<h4>Tir par tir</h4><ul>${parTir}</ul>` : ''}`;
-  return `<div class="som-decide som-difference"><div class="som-per-head"><span>Ce qui a fait la différence</span></div>${corps
-    || '<p>Ce soir, rien n\'a renversé un lancer : chaque but serait entré, chaque arrêt se serait fait.</p>'}</div>`;
+  if (!pm.resume.length && !cle && !parTir) return '';
+  return `<div class="som-saillants"><div class="som-per-head"><span>Les faits saillants</span></div>
+    ${pm.resume.length ? `<p class="som-manchette">${esc(pm.resume[0])}</p>${pm.resume.length > 1 ? `<p>${esc(pm.resume.slice(1).join(' '))}</p>` : ''}` : ''}
+    ${cle ? `<p class="som-cle">${esc(cle)}</p>` : ''}
+    ${parTir ? `<details class="som-detail"><summary>Tir par tir</summary><ul>${parTir}</ul></details>` : ''}
+    ${pm.sections.length ? `<details class="som-detail"><summary>Le fil complet du match</summary>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</details>` : ''}
+  </div>`;
 }
 
 function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = '', pied = '', fiche = null, jour = null, apres = '', boutons = '', onFerme = null, genre = 'sommaire-match' }) {
@@ -1440,10 +1448,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
     </div>
     ${apres}
     ${buildDuSoirHtml(f, A, B, jour)}
-    ${(pm => (pm.resume.length ? `<div class="som-plateau"><div class="som-per-head"><span>Le résumé du match</span></div><p class="som-plateau-titre">${esc(pm.resume[0])}</p>${pm.resume.slice(1).map(x => `<p>${esc(x)}</p>`).join('')}<details class="som-detail"><summary>Le fil complet du match</summary>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</details></div>` : ''))(
-      apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
-    ${(d => (d.length ? `<div class="som-decide"><div class="som-per-head"><span>Ce qui a décidé</span></div><ul>${d.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div>` : ''))(ceQuiADecide(f, teamShort(A), teamShort(B)))}
-    ${differenceHtml(f, A, B)}
+    ${saillantsHtml(f, A, B, apresMatch(f, { eq: teamShort(B.isPlayer ? B : A), autre: teamShort(B.isPlayer ? A : B), cote: B.isPlayer ? 'B' : 'A', fiche }, `${teamShort(A)}|${teamShort(B)}|${f.gfA}-${f.gfB}|${f.buts.length}`))}
     ${parPeriode}
     <div class="som-per">
       <div class="som-per-head"><span>Gardiens</span><span class="som-tirs">${esc(pied)}</span></div>

@@ -1640,8 +1640,8 @@ const SECTIONS = [
  * LE ROGUE, RANGÉ PAR INTENTION (V8, docs/refonte-v8.md). JP : *organiser l'information de façon claire, actionnable et
  * basée sur l'intention du joueur* ; *travailler surtout le roguelike, pas le reste*. Cinq portes, une intention chacune :
  *   Bureau    qu'est-ce que j'ai à faire, qu'est-ce qui s'en vient ? (À faire, la route, hier soir, avancer)
- *   Ce soir   préparer le match (l'affiche et leur plan, tes cartes du soir, puis tes lignes)
- *   Effectif  gérer mes joueurs (le tableau, les fiches)
+ *   Ce soir   préparer le match (l'affiche et leur plan, tes cartes du soir)
+ *   Effectif  gérer mes joueurs (le tableau, les fiches, tes lignes — JP : *Lignes dans effectif, pas ce soir*)
  *   Marché    améliorer l'équipe (la boutique ; tes cartes et l'album, aussi à un toucher de l'en-tête)
  *   Ligue     où j'en suis ?
  * Les autres modes gardent les leurs (`SECTIONS`).
@@ -1676,9 +1676,9 @@ const PAGES_DE = {
   // Tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun. La main se
   // joue au Bureau, avec ce qui est en jeu (JP, oct. : *dans la page Cartes, juste les achats, le deck*).
   cartes: () => ['poche', 'marche', 'cartable'],
-  // V8, le Rogue : « Ce soir » (le volet de l'écran de saison, puis les Lignes), l'Effectif, le Marché.
-  soir: () => [...(voletDeSaison('soir') ? ['soir'] : []), 'alignement'],
-  effectif: () => ['joueurs', ...maisonsDe('effectif')],
+  // V8, le Rogue : « Ce soir » (le volet de l'écran de saison), l'Effectif et ses Lignes, le Marché.
+  soir: () => ['soir'],
+  effectif: () => ['joueurs', 'alignement', ...maisonsDe('effectif')],
   marche: () => ['marche', 'poche', ...maisonsDe('marche'), 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
@@ -1737,7 +1737,7 @@ function sectionsCourantes() {
     // En saison, le Bureau compte les cartes qui attendent d'être jouées (la main s'y joue) ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
     // V8 : en Rogue, les cartes du soir se jouent dans « Ce soir » ; la pastille y va.
     badge: !draft ? (s.cle === (G.bonus === 'ROGUE' ? 'soir' : 'bureau') ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
-      : s.cle === 'lignes' || s.cle === 'soir' ? `${signes().length}/${totalCases()}` : '',
+      : s.cle === 'lignes' || s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
 
@@ -2159,7 +2159,7 @@ function remplirVide(cle) {
   const bouton = (id, mot, go = false) => `<button type="button" class="btn ${go ? 'go' : 'gold'}" data-vide="${id}">${esc(mot)}</button>`;
   let msg = '', btns = '';
   const manque = totalCases() - signes().length;
-  const QUOI = { classement: 'Le classement du jour', calendrier: 'Tes matchs, journée par journée,', meneurs: 'Les meneurs de la ligue' };
+  const QUOI = { classement: 'Le classement du jour', calendrier: 'Tes matchs, journée par journée,', meneurs: 'Les meneurs de la ligue', soir: 'Ton prochain adversaire' };
   if (enRepechage()) {
     if (cle === 'match') {
       msg = manque > 0

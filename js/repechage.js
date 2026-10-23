@@ -102,7 +102,9 @@ function carteJoueur(p) {
   return c;
 }
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
-export const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
+const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
+/* La même chose à l'édition tirée (un pack, le classeur), quand elle n'est pas encore la sienne. */
+export const traitsAEdition = (p, rar) => (!rar || rar === rareteJoueur(p) ? traitsJoueur(p) : traitsDeCarte(Object.assign(carteDe(rar), p.elc ? { recrue: true } : {}), groupeDe(p) === 'G'));
 /* Le lustre de l'atelier (S78) : la variante que la carte prend (voir `etatPourPoser`). */
 const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'legendaire' };
 /*
@@ -137,17 +139,19 @@ brancherPastilleNiveau(pastilleNiveau);
  */
 const sansTaille = html => html.replace(/ style="width:\d+px;height:\d+px;object-fit:contain"/, '');
 export function cartonDe(p, o = {}) {
-  const rarete = rareteJoueur(p);
+  // `rar` : l'édition tirée (un pack, le classeur) passe avant celle de la saison — on signe la carte qu'on a pigée.
+  const rarete = o.rar || rareteJoueur(p);
+  const traits = traitsAEdition(p, o.rar);
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
     serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p),
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
-    gemmeHtml: gemmeJoueur(rarete, traitsJoueur(p)), rubanHtml: rubanDe(p),
+    gemmeHtml: gemmeJoueur(rarete, traits), rubanHtml: rubanDe(p),
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,
     logoHtml: sansTaille(getTeamLogoHtml(p.t, 48)), club: esc(p.t), clubNom: esc(TEAMFULL[p.t] || p.t), clubClasse: o.clubClasse,
     numero: numeroDeCarte(cle), annee: esc(anneeDeCarte(p.s)),
-    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
+    tirage: esc(tirageLimite(cle, o.num || (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
   });
 }
 /* Les couleurs du club, posées sur la carte : le carton de chaque série les lit. */
@@ -655,12 +659,12 @@ function meilleureSortie(p, { roster, bloque = null }) {
  * sa variante, son rôle et sa zone ; `dest` et `bouton` disent la suite. Le dedans d'un `.pcard`, pour la liste de
  * signature et le départ du classeur (js/depart.js).
  */
-export function rangeeHtml(p, { rar = 'commune', num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
+export function rangeeHtml(p, { rar = null, num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
   const { v, u, mot } = chiffreCle(p);
   const tags = [rar && rar !== 'commune' ? `<span class="tag" title="${esc(`${NOM_VARIANTE[rar]} : ${sensRarete(rar)}`)}">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
     doublon ? '<span class="tag">Doublon</span>' : ''].filter(Boolean).join('');
   return `<div class="pcard-rangee"><span class="pcard-mug">${headshotHtml(p)}</span><span class="pcard-qui"><b class="pcard-nom">${formatName(p.n)}</b><small>${esc(positionLabel(p).split(' / ').join('/'))} · ${esc(p.t)} ${esc(p.s || '')}</small></span></div>
-    ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team' })}
+    ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team', rar, num })}
     <div class="pcard-fiche">
       <div class="pcard-ligne"><span class="pcard-price">${money(salaire)}</span><span class="pcard-big" title="Son chiffre clé : ${esc(mot)}"><b>${v}</b><span>${u}</span></span></div>
       <div class="pcard-mid"><div class="tags">${tags}</div></div>
@@ -696,7 +700,7 @@ function rangeeDeSignature(x, o, signer, { non, fixe, best }, meilleur = false) 
   el.innerHTML = rangeeHtml(p, { ...x, salaire: capHitDuJour(p),
     dest: best ? `<button type="button" class="pcard-dest sig-changer" title="Choisir une autre case">${dest}</button>` : `<div class="pcard-dest">${dest}</div>`,
     bouton: `<button class="btn-sign" ${best ? '' : 'disabled'}>${best ? 'Signer' : 'Pas de case'}</button>` });
-  el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(p); };
+  el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(p, x); };
   // « Qui sort ? », la meilleure sortie proposée (`propose`) ; `libre` : il y a de la place, personne ne sort.
   const quiSort = propose => choisirQuiSort(p, { roster: o.roster, genre: o.genre || 'recompense', bloque: o.bloque ? q => o.bloque(p, q) : null, propose,
     onChoix: sortie => { if (sortie) signer(x, sortie); }, onFerme: () => {} });
@@ -844,7 +848,7 @@ export function relacherReserviste(s) {
   });
 }
 /* La fiche d'un joueur offert, en aperçu. */
-export const apercuJoueur = p => showPlayerModal(p, { apercu: true });
+export const apercuJoueur = (p, { rar = null, num = null } = {}) => showPlayerModal(p, { apercu: true, rar, num });
 /* La ligne d'un joueur offert : ce que la carte mini ne dit pas (elle dit déjà les points, ou les victoires). */
 export const ligneDuChoix = p => (p.p === 'G'
   ? `${p.gp} PJ · ${p.l ?? 0} D · ${pct3(p.sv || 0)}`
@@ -1676,7 +1680,7 @@ function voleAuCartable(el, rarete) {
   const src = el.querySelector('.carton-photo');
   const r = (src && src.offsetParent ? src : el).getBoundingClientRect();
   if (!r.width) return;
-  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"], .navtab[data-section="soir"]')].find(b => b.offsetParent) || $('cnt');
+  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"], .navtab[data-section="effectif"]')].find(b => b.offsetParent) || $('cnt');
   const rc = cible ? cible.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
   const img = src && src.querySelector('img.visage, img.carton-action');
   const v = document.createElement('div');
