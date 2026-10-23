@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, PLAFOND_PREMIERE, SURPAYE_DEPART, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
@@ -1042,7 +1042,8 @@ async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()
   for (const s of ordre(state.index.seasons, 'saison').slice(0, 8)) saisons.push((await getShard(s)).players);
   // La composition du départ (js/rogue.js `bouchesTrousDuDepart`) : peu de bons, quelques entre-deux, beaucoup de faibles.
   return bouchesTrousDuDepart(saisons, { groupe: groupeDe, valeur: p => getHiddenRatings(p).v, personne: getPersonKey, exclus: new Set(gardes.map(getPersonKey)),
-    plus: aDebloque(meta, 'plombiersPlus'), piger: (liste, k) => liste.find(p => getPlayerKey(p) === ordre(liste.map(getPlayerKey), k)[0]) });
+    plus: aDebloque(meta, 'plombiersPlus'), surpaye: !(meta.runs) ? SURPAYE_DEPART : 1,
+    piger: (liste, k) => liste.find(p => getPlayerKey(p) === ordre(liste.map(getPlayerKey), k)[0]) });
 }
 /*
  * TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : à la première run, trois Étoiles des saisons de la
@@ -1335,6 +1336,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // 1.0 : tes cartes arrivent avec ce qu'elles portent (js/cartable.js `mods`).
     report: reportDesCartes(G.roster),
   };
+  if (premiere) G.rogue.plafond = { cap: PLAFOND_PREMIERE, lignes: [{ nom: 'Le vrai plafond de la LNH', montant: PLAFOND_PREMIERE }] };
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];

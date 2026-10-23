@@ -181,6 +181,15 @@ export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0
 export const PLAFOND_ROGUE = 82_000_000;
 export const ESPACE_DE_DEPART = 4_000_000;
 /*
+ * LA PREMIÈRE RUN (JP, oct. 2026 : *plafond initial devrait être le plafond réel
+ * de la ligue, mais tricher en mettant des joueurs sur payé*). Le plafond de la
+ * première run est le vrai plafond de la LNH 2025-26 (95,5 M$ en dollars modernes,
+ * la référence de la normalisation). Les bouche-trous sont sur-payés de 30 % pour
+ * manger l'espace — la première run reste dure malgré le plafond plus haut.
+ */
+export const PLAFOND_PREMIERE = 95_500_000;
+export const SURPAYE_DEPART = 1.30;
+/*
  * LE DÉPART DU CLASSEUR (S80) : combien de cartes, et comment elles se
  * prennent. `hasard` : elles sont tirées, on les voit, on les prend ;
  * `tri` : deux fois plus sont tirées, on garde celles qu'on veut ; `choix` :
@@ -228,7 +237,7 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
 const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
 const PART_DES_PIRES = 1 / 3;
 const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
-export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set() }) {
+export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set(), surpaye = 1 }) {
   const out = [], pris = new Set(exclus);
   const [bas, haut] = plus ? [0.25, 0.45] : [0.05, 0.25];
   const pires = t => t.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(t.length * PART_DES_PIRES)));
@@ -244,6 +253,7 @@ export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger,
       }
     }
   });
+  if (surpaye > 1) return out.map(p => ({ ...p, $: Math.round((p.$ || 0) * surpaye / 25_000) * 25_000 }));
   return out;
 }
 /*
