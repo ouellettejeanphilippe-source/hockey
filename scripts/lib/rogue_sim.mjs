@@ -68,7 +68,7 @@ import {
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
   packsOuverts, monteeDesPacks,
-  bouchesTrousDuDepart, vedettesDeConcession,
+  bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -127,11 +127,13 @@ function estEtoile(p) {
  * (js/rogue.js `bouchesTrousDuDepart`) — peu de bons, quelques entre-deux, beaucoup de faibles ; les défenseurs et les
  * gardiens par leur valeur, les attaquants par leurs points, les pires contrats de chaque bande.
  */
-function plombiers(rnd, meta, exclus) {
-  const saisons = SAISONS.slice(), choisies = [];
+function plombiers(rnd, meta, exclus, reserve = null) {
+  // Une `reserve` à remplir, c'est la première run (js/rogue-jeu.js `equipeDeLaPremiere`) : de vrais contrats seulement.
+  const vrais = !!reserve;
+  const saisons = SAISONS.filter(s => !vrais || s >= VRAIS_CONTRATS), choisies = [];
   while (choisies.length < 8) choisies.push(saisons.splice(Math.floor(rnd() * saisons.length), 1)[0]);
-  return bouchesTrousDuDepart(choisies.map(s => shard(s).players), { groupe, valeur: v, personne: getPersonKey, exclus, plus: aDebloque(meta, 'plombiersPlus'),
-    piger: liste => liste[Math.floor(rnd() * liste.length)] }).map(copie);
+  return bouchesTrousDuDepart(choisies.map(s => shard(s).players.filter(p => !vrais || p.isReal)), { groupe, valeur: v, personne: getPersonKey, exclus, plus: aDebloque(meta, 'plombiersPlus'),
+    reserve, piger: liste => liste[Math.floor(rnd() * liste.length)] }).map(copie);
 }
 /*
  * TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : trois offerts une fois, à la première run ; le robot
@@ -457,7 +459,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   // Les cartes du classeur au départ.
   const tires = tirerClasseur(rnd, meta, classeur, exclus, clic, exigence).map(x => ({ p: copie(x.p), rar: x.rar }));
   tires.forEach(x => exclus.add(getPersonKey(x.p)));
-  const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart`, exigence });
+  const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart`, exigence, premiere: !classeur.length && !derniere.length });
   const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta), galons: new Map() };
   for (const x of classeur) if (!etat.variantes.has(getPlayerKey(x.p))) etat.variantes.set(getPlayerKey(x.p), x.rar);
   const jouees = new Set();
@@ -512,10 +514,15 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
  * classeur, les moins jouées d'abord (`joues` : clé → runs jouées) ; les
  * trous, des plombiers de la ligue. Un classeur vide : les plombiers d'avant.
  */
-function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(), joues = new Map(), graine = '', exigence = 0 } = {}) {
+function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(), joues = new Map(), graine = '', exigence = 0, premiere = false } = {}) {
   const nRes = reservesDeLaRun(meta);
   const personnes = new Set(fixes.map(getPersonKey));
   const dispo = classeur.filter(x => !exclus.has(getPlayerKey(x.p)) && !personnes.has(getPersonKey(x.p)) && (x.p.$ || 0) > 0);
+  if (premiere) {
+    const reserve = [];
+    const roster = ranger([...fixes, ...plombiers(rnd, meta, personnes, reserve)], nRes);
+    return { roster: alourdirLaPremiere(roster, reserve.map(copie), { fixes, personne: getPersonKey }), tires: [] };
+  }
   if (!dispo.length) return { roster: ranger([...fixes, ...plombiers(rnd, meta, personnes)], nRes), tires: [] };
   const decrire = p => ({ cle: getPlayerKey(p), p, groupe: groupe(p), niveau: niveauDe(p, shard(p.s).players), r: joues.get(getPlayerKey(p)) || 0 });
   const cartes = dispo.map(x => decrire(x.p)).filter(x => x.niveau <= 1);

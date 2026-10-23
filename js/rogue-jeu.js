@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, PLAFOND_PREMIERE, SURPAYE_DEPART, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
@@ -1035,15 +1035,22 @@ async function ouvrirPacksDeDepart(roster, vedette = null) {
     }));
   }
 }
-async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur()) {
+/* La première run (js/rogue.js `alourdirLaPremiere`) : de vrais contrats, trop payés pour leur valeur, jusqu'au vrai plafond. */
+async function equipeDeLaPremiere(meta, fixes) {
+  const reserve = [];
+  const roster = placerDevant(autoRoster([...fixes, ...await plombiersDeLaLigue(meta, fixes, graineDuClasseur(), reserve)]), fixes);
+  return alourdirLaPremiere(roster, reserve, { fixes, personne: getPersonKey });
+}
+async function plombiersDeLaLigue(meta, gardes = [], graine = graineDuClasseur(), reserve = null) {
   // Tirés de la graine de la run (oct.) : recharger la page devant les packs de départ redonne les mêmes joueurs.
   const ordre = (liste, ...k) => liste.slice().sort((a, b) => hache(graine, 'plombiers', ...k, String(a)) - hache(graine, 'plombiers', ...k, String(b)));
+  // Une `reserve` à remplir, c'est la première run : de vrais contrats seulement.
+  const vrais = !!reserve;
   const saisons = [];
-  for (const s of ordre(state.index.seasons, 'saison').slice(0, 8)) saisons.push((await getShard(s)).players);
+  for (const s of ordre(state.index.seasons.filter(s => !vrais || s >= VRAIS_CONTRATS), 'saison').slice(0, 8)) saisons.push((await getShard(s)).players.filter(p => !vrais || p.isReal));
   // La composition du départ (js/rogue.js `bouchesTrousDuDepart`) : peu de bons, quelques entre-deux, beaucoup de faibles.
   return bouchesTrousDuDepart(saisons, { groupe: groupeDe, valeur: p => getHiddenRatings(p).v, personne: getPersonKey, exclus: new Set(gardes.map(getPersonKey)),
-    plus: aDebloque(meta, 'plombiersPlus'), surpaye: !(meta.runs) ? SURPAYE_DEPART : 1,
-    piger: (liste, k) => liste.find(p => getPlayerKey(p) === ordre(liste.map(getPlayerKey), k)[0]) });
+    plus: aDebloque(meta, 'plombiersPlus'), reserve, piger: (liste, k) => liste.find(p => getPlayerKey(p) === ordre(liste.map(getPlayerKey), k)[0]) });
 }
 /*
  * TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : à la première run, trois Étoiles des saisons de la
@@ -1194,7 +1201,7 @@ export async function ouvrirRogue() {
   const tires = await choisirDuClasseur(avecVedette, exigence);
   // Ton cartable est vide (ta première run) : ton équipe sort de tes packs de départ.
   const premiere = !nCartable && !gardes.length
-    ? await sousVoile('On scelle tes packs de départ…', async () => placerDevant(autoRoster([...avecVedette, ...await plombiersDeLaLigue(meta, avecVedette)]), avecVedette)) : null;
+    ? await sousVoile('On scelle tes packs de départ…', () => equipeDeLaPremiere(meta, avecVedette)) : null;
   if (premiere) await ouvrirPacksDeDepart(premiere, vedette);
   await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(avecVedette, tires, coach, premiere, exigence));
 }
@@ -1336,7 +1343,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // 1.0 : tes cartes arrivent avec ce qu'elles portent (js/cartable.js `mods`).
     report: reportDesCartes(G.roster),
   };
-  if (premiere) G.rogue.plafond = { cap: PLAFOND_PREMIERE, lignes: [{ nom: 'Le vrai plafond de la LNH', montant: PLAFOND_PREMIERE }] };
+  if (premiere && G.rogue.plafond.cap <= PLAFOND_PREMIERE) G.rogue.plafond = { cap: PLAFOND_PREMIERE, lignes: [{ nom: 'Le vrai plafond de la LNH', montant: PLAFOND_PREMIERE }] };
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
