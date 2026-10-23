@@ -1727,7 +1727,7 @@ a.spin-club:hover { background: var(--fond-2); }
     repeating-linear-gradient(-21deg, rgba(255, 255, 255, 0.7) 0 1px, transparent 1px 13px),
     repeating-linear-gradient(33deg, rgba(150, 172, 194, 0.2) 0 1px, transparent 1px 19px),
     linear-gradient(172deg, #f8fbfd, #e1e9f0 58%, #cbd7e1);
-  --c-encre: #0f2239;
+  --c-encre: #0f2239; --fini-mode: multiply; --fini-o: 0.6;
 }
 .cs-glace::before { inset: 27cqw 7cqw 36cqw; border: 1.1cqw solid var(--band); border-radius: 1.4cqw; background: linear-gradient(color-mix(in srgb, var(--band) 16%, transparent), color-mix(in srgb, var(--band) 4%, transparent)); }
 .cs-glace .carton-photo { inset: auto 7cqw 36cqw; height: 92cqw; }
@@ -2763,7 +2763,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .fc-verso.cs-degrade { --v-fond: linear-gradient(160deg, color-mix(in srgb, var(--team-line, #3a4a66) 45%, black), color-mix(in srgb, var(--team-band, #243044) 55%, black)); }
 
 /* 47 · CENTENAIRE (2017-18) — l'édition d'anniversaire de la ligue centenaire : un carton noir à fines rayures, une fenêtre en arche cernée d'un double filet d'or, la couronne de laurier dorée à chaud qui tient l'écusson, le nom en didone noire dorée, centré. */
-.cs-centenaire { --c-fond: repeating-linear-gradient(90deg, rgba(215, 177, 90, .05) 0 0.2cqw, transparent 0.2cqw 2.4cqw), radial-gradient(90% 60% at 50% 30%, #1c1a17, #0a0908 75%); --c-encre: #f3dc9a;
+.cs-centenaire { --c-fond: repeating-linear-gradient(90deg, rgba(215, 177, 90, .05) 0 0.2cqw, transparent 0.2cqw 2.4cqw), radial-gradient(90% 60% at 50% 30%, #1c1a17, #0a0908 75%); --c-encre: #f3dc9a; --sig-encre: #f3dc9a;
   --laurier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 50'%3E%3Cpath d='M26.4 46.7A21 21 0 0 1 15.9 10.4M33.6 46.7A21 21 0 0 0 44.1 10.4' fill='none' stroke='%23000' stroke-width='.8'/%3E%3Cellipse cx='26' cy='45.1' rx='3.2' ry='1.25' transform='rotate(340 26 45.1)'/%3E%3Cellipse cx='25' cy='48.1' rx='3.2' ry='1.25' transform='rotate(416 25 48.1)'/%3E%3Cellipse cx='21.8' cy='43.7' rx='3.2' ry='1.25' transform='rotate(353 21.8 43.7)'/%3E%3Cellipse cx='20.1' cy='46.4' rx='3.2' ry='1.25' transform='rotate(429 20.1 46.4)'/%3E%3Cellipse cx='18' cy='41.4' rx='3.2' ry='1.25' transform='rotate(366 18 41.4)'/%3E%3Cellipse cx='15.8' cy='43.7' rx='3.2' ry='1.25' transform='rotate(442 15.8 43.7)'/%3E%3Cellipse cx='14.8' cy='38.3' rx='3.2' ry='1.25' transform='rotate(379 14.8 38.3)'/%3E%3Cellipse cx='12.2' cy='40' rx='3.2' ry='1.25' transform='rotate(455 12.2 40)'/%3E%3Cellipse cx='12.5' cy='34.6' rx='3.2' ry='1.25' transform='rotate(392 12.5 34.6)'/%3E%3Cellipse cx='9.5' cy='35.7' rx='3.2' ry='1.25' transform='rotate(468 9.5 35.7)'/%3E%3Cellipse cx='11' cy='30.4' rx='3.2' ry='1.25' transform='rotate(405 11 30.4)'/%3E%3Cellipse cx='7.8' cy='30.8' rx='3.2' ry='1.25' transform='rotate(481 7.8 30.8)'/%3E%3Cellipse cx='10.5' cy='26' rx='3.2' ry='1.25' transform='rotate(418 10.5 26)'/%3E%3Cellipse cx='7.3' cy='25.7' rx='3.2' ry='1.25' transform='rotate(494 7.3 25.7)'/%3E%3Cellipse cx='11' cy='21.6' rx='3.2' ry='1.25' transform='rotate(431 11 21.6)'/%3E%3Cellipse cx='8' cy='20.6' rx='3.2' ry='1.25' transform='rotate(507 8 20.6)'/%3E%3Cellipse cx='12.5' cy='17.5' rx='3.2' ry='1.25' transform='rotate(444 12.5 17.5)'/%3E%3Cellipse cx='9.7' cy='15.8' rx='3.2' ry='1.25' transform='rotate(520 9.7 15.8)'/%3E%3Cellipse cx='14.8' cy='13.7' rx='3.2' ry='1.25' transform='rotate(457 14.8 13.7)'/%3E%3Cellipse cx='12.6' cy='11.5' rx='3.2' ry='1.25' transform='rotate(533 12.6 11.5)'/%3E%3Cellipse cx='17.7' cy='9' rx='3' ry='1.2' transform='rotate(318 17.7 9)'/%3E%3Cellipse cx='34' cy='45.1' rx='3.2' ry='1.25' transform='rotate(200 34 45.1)'/%3E%3Cellipse cx='35' cy='48.1' rx='3.2' ry='1.25' transform='rotate(124 35 48.1)'/%3E%3Cellipse cx='38.2' cy='43.7' rx='3.2' ry='1.25' transform='rotate(187 38.2 43.7)'/%3E%3Cellipse cx='39.9' cy='46.4' rx='3.2' ry='1.25' transform='rotate(111 39.9 46.4)'/%3E%3Cellipse cx='42' cy='41.4' rx='3.2' ry='1.25' transform='rotate(174 42 41.4)'/%3E%3Cellipse cx='44.2' cy='43.7' rx='3.2' ry='1.25' transform='rotate(98 44.2 43.7)'/%3E%3Cellipse cx='45.2' cy='38.3' rx='3.2' ry='1.25' transform='rotate(161 45.2 38.3)'/%3E%3Cellipse cx='47.8' cy='40' rx='3.2' ry='1.25' transform='rotate(85 47.8 40)'/%3E%3Cellipse cx='47.5' cy='34.6' rx='3.2' ry='1.25' transform='rotate(148 47.5 34.6)'/%3E%3Cellipse cx='50.5' cy='35.7' rx='3.2' ry='1.25' transform='rotate(72 50.5 35.7)'/%3E%3Cellipse cx='49' cy='30.4' rx='3.2' ry='1.25' transform='rotate(135 49 30.4)'/%3E%3Cellipse cx='52.2' cy='30.8' rx='3.2' ry='1.25' transform='rotate(59 52.2 30.8)'/%3E%3Cellipse cx='49.5' cy='26' rx='3.2' ry='1.25' transform='rotate(122 49.5 26)'/%3E%3Cellipse cx='52.7' cy='25.7' rx='3.2' ry='1.25' transform='rotate(46 52.7 25.7)'/%3E%3Cellipse cx='49' cy='21.6' rx='3.2' ry='1.25' transform='rotate(109 49 21.6)'/%3E%3Cellipse cx='52' cy='20.6' rx='3.2' ry='1.25' transform='rotate(33 52 20.6)'/%3E%3Cellipse cx='47.5' cy='17.5' rx='3.2' ry='1.25' transform='rotate(96 47.5 17.5)'/%3E%3Cellipse cx='50.3' cy='15.8' rx='3.2' ry='1.25' transform='rotate(20 50.3 15.8)'/%3E%3Cellipse cx='45.2' cy='13.7' rx='3.2' ry='1.25' transform='rotate(83 45.2 13.7)'/%3E%3Cellipse cx='47.4' cy='11.5' rx='3.2' ry='1.25' transform='rotate(7 47.4 11.5)'/%3E%3Cellipse cx='42.3' cy='9' rx='3' ry='1.2' transform='rotate(-138 42.3 9)'/%3E%3Cpath d='M24 47.5l6-2 6 2-6 1.5z'/%3E%3C/svg%3E"); }
 .cs-centenaire::before { inset: 3cqw; border: 0.4cqw solid #b8913d; box-shadow: inset 0 0 0 0.9cqw #0d0c0a, inset 0 0 0 1.15cqw #8a6a22; border-radius: 2.4cqw; }
 .cs-centenaire .carton-photo { left: 10cqw; right: 10cqw; top: 10cqw; height: 84cqw; border-radius: 40cqw 40cqw 0 0 / 30cqw 30cqw 0 0;
@@ -2781,7 +2781,6 @@ a.spin-club:hover { background: var(--fond-2); }
   background: linear-gradient(#9c7a2c 0 0) 0 50% / 10cqw 0.25cqw no-repeat, linear-gradient(#9c7a2c 0 0) 100% 50% / 10cqw 0.25cqw no-repeat; }
 .cs-centenaire .carton-imprime { left: 7cqw; right: 7cqw; bottom: 5.4cqw; justify-content: space-between; color: #9c7a2c; font: 700 2.4cqw/1 "Playfair Display", Georgia, serif; letter-spacing: 0.12em; }
 .cs-centenaire .carton-imprime span:first-of-type { visibility: hidden; }
-.cs-centenaire { --sig-encre: #f3dc9a; }
 .cs-centenaire:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-deco { display: block; }
 .cs-centenaire .carton-signature { top: 60cqw; }
 .fc-verso.cs-centenaire { --v-fond: repeating-linear-gradient(90deg, rgba(215, 177, 90, .05) 0 1px, transparent 1px 10px), linear-gradient(#171512, #0a0908); --v-encre: #f3e6c4; --v-encre-2: #b89a5a; --v-prix: #e7c25c; }
@@ -3038,7 +3037,6 @@ a.spin-club:hover { background: var(--fond-2); }
 /* La carte mini : les petites marques (moins de 4 px) se taisent, comme les petits caractères. */
 @container (max-width: 139px) { :is(.cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-horizon, .cs-aurore) .carton-marque { display: none; } }
 
-
 /* ---------------------------------------------------------------
    LES ÉDITIONS (js/rarete.js, oct. 2026). JP : *vraiment différemment,
    comme le changement majeur dans Marvel Snap*. Chaque édition change la
@@ -3060,7 +3058,6 @@ a.spin-club:hover { background: var(--fond-2); }
   mix-blend-mode: var(--fini-mode, color-dodge); opacity: var(--fini-o, 0.85); filter: contrast(1.1);
 }
 /* Sur un carton clair (le crème, le blanc, la glace, le nacre), le réfracteur TEINTE plutôt que d'éclairer. */
-.cs-glace { --fini-mode: multiply; --fini-o: 0.6; }
 .carton-cadre {
   --ep: 3.6cqw;
   /* Au-dessus des bandeaux du nom (z 4) : tout tient DANS le cadre ; le poste, l'édition et le tirage restent dessus (z 5, plus loin). */
