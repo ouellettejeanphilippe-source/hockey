@@ -50,7 +50,7 @@ if (await page.$('#mainBtn:not([disabled])')) {
   await page.waitForTimeout(800);
 }
 for (let i = 0; i < 10 && !(await page.$('#choixModal[hidden]')); i++) {
-  const o = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
+  const o = await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])');
   if (o) await o.click(); else await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => {});
   await page.waitForTimeout(400);
 }
@@ -124,7 +124,7 @@ const restent = await enAttente();
 
 // DERRIÈRE LE BANC, en pleine saison, « Aligner au mieux » est là (JP : *le bouton de ligne automatique n'est pas
 // toujours là ?* — il se cachait dès la saison lancée, c'est-à-dire là où l'alignement se règle en Rogue).
-await page.click('#navbar .navtab[data-section="soir"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {}));
+await page.click('#navbar .navtab[data-section="effectif"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {}));
 await page.waitForFunction(() => window.cap82.G.banc, null, { timeout: 60000 });
 await page.waitForTimeout(800);
 const auBanc = !!(await page.$('#rosterBoard .ln-auto'));

@@ -211,8 +211,8 @@ const ballottage = { fait: false, mot: null };
  * puis *tous les choix au même endroit, même UI et UX*. Tant qu'un choix
  * bloque (une blessure, une case vide, un palier, un choix forcé), « Journée
  * suivante » devient « ⏳ Encore un choix… » ou « À régler… ». Le parcours règle
- * ces choix comme un joueur : la première option du choix ouvert, puis
- * « Trancher » envoie le coché (le jour à jour est au Rogue). La case
+ * ces choix comme un joueur : la première option du choix ouvert, qui part
+ * au toucher (le jour à jour est au Rogue). La case
  * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison) ; le palier
  * reste ouvert tant que son bloc ne l'a pas éprouvé (`palierAuto`), puis se
  * joue tout seul : la carte d'effet, ou la première, et son deuxième choix.
@@ -224,14 +224,14 @@ let sommairesVus = 0;
 async function prendrePalier() {
   if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
-  const eff = await page.$('#choixModal .tc[data-choix^="effet:"]:not([disabled])');
-  const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc:not([disabled])', e => e.dataset.choix);
-  await _click(`#choixModal .tc[data-choix="${nom}"]`);
+  const eff = await page.$('#choixModal .tc [data-choix^="effet:"]');
+  const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc [data-choix]', e => e.dataset.choix);
+  await _click(`#choixModal .tc [data-choix="${nom}"]`);
   // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition… et qui sort, dans l'alignement, S80).
   for (let k = 0; k < 3; k++) {
     await page.waitForTimeout(350);
     if (await page.$('#choixModal:not([hidden]) :is(.choix-sheet[data-genre="alignement"], .sig-sort)')) { await sortirDansAlignement(); continue; }
-    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, button.choix-option:not([disabled]))'))) break;
+    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, .tc-prendre, button.choix-option:not([disabled]))'))) break;
   }
   // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
   await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet, .result .score', { timeout: 120000 });
@@ -274,7 +274,7 @@ async function ouvrirLaMain() {
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
-    if (!(await page.$('#hubModal :is(.hub-traiter, .hub-trancher)'))) return;
+    if (!(await page.$('#hubModal .hub-traiter'))) return;
     await versLaBoite();
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"]')) {
       await versSaPage('trou');
@@ -292,7 +292,6 @@ async function debloquer() {
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
     if (await toucher('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque .af-option:not([disabled]):not(.on)')) continue;
-    if (await toucher('#hubModal .hub-trancher')) continue;
     // Le choix qui attend est plié : « Encore un choix » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }
@@ -384,7 +383,7 @@ async function repondreAuxChoix() {
     }
     // QUI SORT, DANS L'ALIGNEMENT (S80) : ses cases ne sont pas des `.choix-option`.
     if (await page.$('#choixModal:not([hidden]) :is(.choix-sheet[data-genre="alignement"], .sig-sort)')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
-    const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
+    const opt = await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])');
     if (!opt || !(await opt.isVisible())) {
       /*
        * UN CHOIX EN ATTENTE SE ROUVRE COMME UN JOUEUR LE ROUVRE (S77). Une
@@ -406,7 +405,7 @@ async function repondreAuxChoix() {
       // Un message qui bloque la journée (S78) : on le règle, puis on repasse.
       if (await page.$('#hubModal .hub-traiter')) {
         await debloquer();
-        if (await page.$('#choixModal:not([hidden]) .choix-option:not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
+        if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
       }
       return;
     }
@@ -552,10 +551,11 @@ async function butsDuSommaire(cle) {
   const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
   const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
   if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
-  // CE QUI A DÉCIDÉ (1.0, oct.) : quelques lignes chiffrées, et le but gagnant.
-  const decide = await page.$$eval(`${portee} .som-decide li`, l => l.map(e => e.textContent.trim()));
-  if (!decide.some(t => /^Le but gagnant : /.test(t))) errors.push(`le sommaire ne dit pas ce qui a décidé : ${decide.join(' · ') || 'rien'}`);
-  else if (!decideVu) { decideVu = true; console.log(`   ce qui a décidé : ${decide.join(' · ')}`); }
+  // LES FAITS SAILLANTS (JP, 23 oct.) : la manchette, puis le récit et la clé du match, en texte.
+  const saillants = await page.$$eval(`${portee} .som-saillants p`, l => l.map(e => e.textContent.trim()).filter(Boolean));
+  const manchette = await page.$eval(`${portee} .som-saillants .som-manchette`, e => e.textContent.trim()).catch(() => '');
+  if (!manchette || saillants.length < 2) errors.push(`le sommaire n'a pas ses faits saillants : ${saillants.join(' · ') || 'rien'}`);
+  else if (!decideVu) { decideVu = true; console.log(`   les faits saillants : ${saillants.join(' · ')}`); }
   const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);

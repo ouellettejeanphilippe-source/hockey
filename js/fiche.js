@@ -17,7 +17,7 @@ import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
 import { LEGENDES, legendesDe, histoireChezToi } from './cartable.js';
 import { GALONS, ICO_GALON, texteDuGalon } from './galons.js';
-import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsJoueur, varsEquipe } from './repechage.js';
+import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsAEdition, varsEquipe } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
@@ -465,10 +465,11 @@ export function showPlayerModal(p, opts = {}) {
    * sous la carte ne dit plus la vraie saison, seulement ce qui DÉCIDE (où il
    * ira, ou sa saison simulée).
    */
-  const rarete = rareteJoueur(p);
+  // Un joueur offert (un pack) se montre à l'édition tirée, celle qu'on signerait (`opts.rar`, `opts.num`).
+  const rarete = opts.rar || rareteJoueur(p);
   const numero = numeroDeCarte(getPlayerKey(p));
   const serie = serieDe(p.s);
-  const joue = traitsJoueur(p);
+  const joue = traitsAEdition(p, opts.rar);
   const roles = p.p === 'G' ? '' : barresProfils(p);
   // Son édition, en toutes lettres (oct. 2026 : plus de diamants), puis ce qu'elle et ses autres traits jouent.
   const saCarte = `<div class="cj-sa-carte"><span class="cj-sa-rarete" title="${esc(sensRarete(rarete))}">Édition ${numeroEdition(rarete)} · ${esc(NOM_VARIANTE[rarete] || 'Base')}</span>${joue.length
@@ -504,7 +505,7 @@ export function showPlayerModal(p, opts = {}) {
     ${etiquettes.trim() ? `<div class="tags fc-tags">${etiquettes}</div>` : ''}
     ${saCarte}
     ${sectionMods(p, opts.attente || null)}`;
-  const verso = versoDeCarte(p, numero, rarete, milieuVerso, serie);
+  const verso = versoDeCarte(p, numero, rarete, milieuVerso, serie, opts.num);
   const liens = `<div class="ext-links">
           <a class="ext-link" href="${nhlUrl}" target="_blank" rel="noopener">Fiche LNH ${ico('i-ext')}</a>
           <a class="ext-link" href="${hdbUrl}" target="_blank" rel="noopener">HockeyDB ${ico('i-ext')}</a>
@@ -516,7 +517,7 @@ export function showPlayerModal(p, opts = {}) {
       <div class="fiche-carte">
         <div class="fc-faces">
           <div class="fc-face fc-recto cs-${serie} tc-${rarete}" title="Touche la carte pour la retourner">
-            ${cartonDe(p, { nomClasse: 'pcard-full-name' })}
+            ${cartonDe(p, { nomClasse: 'pcard-full-name', rar: opts.rar, num: opts.num })}
           </div>
           ${verso}
         </div>
@@ -655,7 +656,7 @@ function rangDansLaLigue(p) {
   const r = 1 + e.players.filter(x => x.p !== 'G' && pts(x) > pts(p)).length;
   return r <= 30 ? `${ord(r)} pointeur de la ligue en ${p.s}.` : '';
 }
-function versoDeCarte(p, numero, rarete, milieu = '', serie = 'signature') {
+function versoDeCarte(p, numero, rarete, milieu = '', serie = 'signature', num = null) {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
   if (p.hgt) vit.push(['Taille', `${Math.floor(p.hgt / 12)}′${p.hgt % 12}″`]);
@@ -665,7 +666,7 @@ function versoDeCarte(p, numero, rarete, milieu = '', serie = 'signature') {
   if (age) vit.push(['Âge', `${age} ans`]);
   const faits = [rangDansLaLigue(p)].filter(Boolean);
   if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
-  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p), (G.variantes.numeros || {})[getPlayerKey(p)] || '/99')}`);
+  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p), num || (G.variantes.numeros || {})[getPlayerKey(p)] || '/99')}`);
   /*
    * LE PIED D'UN VRAI VERSO (S80) : la ligne légale de l'imprimeur, en petits
    * caractères — « © 1985 O-Pee-Chee » disait l'année de la série sans la

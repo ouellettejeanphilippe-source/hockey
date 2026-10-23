@@ -32,7 +32,7 @@ export async function traverserPaquet(page, { tout = false, delai = 120, surAnno
       continue;
     }
     const dessus = await page.$(DESSUS);
-    const lu = dessus ? await dessus.evaluate(el => ({ cle: el.dataset.choix || el.dataset.apercu || '', largeur: el.offsetWidth })) : null;
+    const lu = dessus ? await dessus.evaluate(el => ({ cle: el.dataset.choix || el.dataset.apercu || el.dataset.carte || '', largeur: el.offsetWidth })) : null;
     if (lu && (!vues.length || vues[vues.length - 1].cle !== lu.cle)) {
       vues.push(lu);
       if (surCarte) { await page.waitForTimeout(700); await surCarte(vues.length - 1); }
@@ -51,7 +51,7 @@ export async function traverserPaquet(page, { tout = false, delai = 120, surAnno
     await page.waitForTimeout(delai);
   }
   await page.waitForSelector('#choixModal .choix-sheet.paquet-fini', { timeout: 8000 }).catch(() => {});
-  const choix = await page.$$eval('#choixModal .choix-main > .choix-option.tc', els => els.map(el => el.dataset.choix || el.dataset.apercu || '')).catch(() => []);
+  const choix = await page.$$eval('#choixModal .choix-main > .choix-option.tc', els => els.map(el => el.dataset.choix || el.dataset.apercu || el.dataset.carte || '')).catch(() => []);
   return { ouvert, vues, choix, annonce, tout, fini: (await etat()) === 'fini' };
 }
 

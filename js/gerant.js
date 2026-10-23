@@ -484,6 +484,8 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
     ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}
   </button>`;
 }
+/* Le premier focus d'un choix : une option, ou la face d'une carte de jeu (la carte elle-même n'est plus un bouton). */
+const PREMIERE = 'button.choix-option:not([disabled]), button.tc-face';
 export function ouvrirChoix(spec) {
   const m = $('choixModal');
   if (!m) return () => {};
@@ -530,6 +532,7 @@ export function ouvrirChoix(spec) {
           desactive: o.desactive ? esc(o.desactive) : '',
           dos: pile, r: pile ? rangDe(i) : null, meilleure: pile && rangDe(i) === ordre.length - 1 && ((RANG_RARETE[o.rarete] || 0) >= 2 || !!o.eclat),
           joueurHtml: o.joueurHtml || '', vue: !!o.vue, motChoixHtml: o.motChoix ? esc(o.motChoix) : '', genreCarte: o.genreCarte, dessin: o.dessin, famille: o.famille,
+          lecture: !!spec.lecture,
         });
         return optionHtml(o, spec, { mots });
       }).join('')}</div>
@@ -585,7 +588,7 @@ export function ouvrirChoix(spec) {
   for (const x of m.querySelectorAll('.choix-autre')) x.onclick = () => { fermer(true); spec.autres[+x.dataset.autre].ouvrir(); };
   pointsDeBande(m);
   if (pile) brancherPaquet(m, () => PAQUETS_OUVERTS.add(clePaquet), { walkout, scelle: paquet });
-  const premier = paquet ? m.querySelector('.paquet') : pile ? null : m.querySelector('.choix-option:not([disabled])');
+  const premier = paquet ? m.querySelector('.paquet') : pile ? null : m.querySelector(PREMIERE);
   if (premier) premier.focus({ preventScroll: true });
   return () => fermer(true);
 }
@@ -854,7 +857,7 @@ function brancherPaquet(m, ouvert, { walkout = null, scelle = true } = {}) {
     window.removeEventListener('keydown', clavier, true);
     ouvert();
     pointsDeBande(m);
-    const premiere = feuille.querySelector('.choix-option:not([disabled])');
+    const premiere = feuille.querySelector(PREMIERE);
     if (premiere) premiere.focus({ preventScroll: true });
   };
   const avancer = (sens = 'g') => {

@@ -59,7 +59,7 @@ async function demarrer(largeur, hauteur) {
   await page.waitForSelector('#npGo', { timeout: 30000 });
   await page.click('#npGo');
   // La roulette peut s'ouvrir sur un choix (l'identité de départ) ou droit au vestiaire.
-  if (await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 4000 }).catch(() => null)) await page.evaluate(() => document.querySelector('#choixModal .tc').click());
+  if (await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 4000 }).catch(() => null)) await page.evaluate(() => document.querySelector('#choixModal .tc [data-choix]').click());
   await page.waitForSelector('#pool .pcard', { timeout: 30000 });
   await page.waitForTimeout(600);
   // Le 82-0 n'a aucune variante (`varianteJoueur`) : la planche montre les finitions du Rogue.
