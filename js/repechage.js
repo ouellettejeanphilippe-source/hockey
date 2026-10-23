@@ -102,7 +102,9 @@ function carteJoueur(p) {
   return c;
 }
 /* Ce que la carte d'un joueur fait sur la glace, en mots (`traitsDeCarte`) : pour l'écran. */
-export const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
+const traitsJoueur = p => (p ? traitsDeCarte(p._carte || carteJoueur(p), groupeDe(p) === 'G') : []);
+/* La même chose à l'édition tirée (un pack, le classeur), quand elle n'est pas encore la sienne. */
+export const traitsAEdition = (p, rar) => (!rar || rar === rareteJoueur(p) ? traitsJoueur(p) : traitsDeCarte(Object.assign(carteDe(rar), p.elc ? { recrue: true } : {}), groupeDe(p) === 'G'));
 /* Le lustre de l'atelier (S78) : la variante que la carte prend (voir `etatPourPoser`). */
 const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'legendaire' };
 /*
@@ -138,8 +140,8 @@ brancherPastilleNiveau(pastilleNiveau);
 const sansTaille = html => html.replace(/ style="width:\d+px;height:\d+px;object-fit:contain"/, '');
 export function cartonDe(p, o = {}) {
   // `rar` : l'édition tirée (un pack, le classeur) passe avant celle de la saison — on signe la carte qu'on a pigée.
-  const propre = rareteJoueur(p), rarete = o.rar || propre;
-  const traits = rarete === propre ? traitsJoueur(p) : traitsDeCarte(Object.assign(carteDe(rarete), p.elc ? { recrue: true } : {}), groupeDe(p) === 'G');
+  const rarete = o.rar || rareteJoueur(p);
+  const traits = traitsAEdition(p, o.rar);
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
@@ -698,7 +700,7 @@ function rangeeDeSignature(x, o, signer, { non, fixe, best }, meilleur = false) 
   el.innerHTML = rangeeHtml(p, { ...x, salaire: capHitDuJour(p),
     dest: best ? `<button type="button" class="pcard-dest sig-changer" title="Choisir une autre case">${dest}</button>` : `<div class="pcard-dest">${dest}</div>`,
     bouton: `<button class="btn-sign" ${best ? '' : 'disabled'}>${best ? 'Signer' : 'Pas de case'}</button>` });
-  el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(p); };
+  el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(p, x); };
   // « Qui sort ? », la meilleure sortie proposée (`propose`) ; `libre` : il y a de la place, personne ne sort.
   const quiSort = propose => choisirQuiSort(p, { roster: o.roster, genre: o.genre || 'recompense', bloque: o.bloque ? q => o.bloque(p, q) : null, propose,
     onChoix: sortie => { if (sortie) signer(x, sortie); }, onFerme: () => {} });
@@ -846,7 +848,7 @@ export function relacherReserviste(s) {
   });
 }
 /* La fiche d'un joueur offert, en aperçu. */
-export const apercuJoueur = p => showPlayerModal(p, { apercu: true });
+export const apercuJoueur = (p, { rar = null, num = null } = {}) => showPlayerModal(p, { apercu: true, rar, num });
 /* La ligne d'un joueur offert : ce que la carte mini ne dit pas (elle dit déjà les points, ou les victoires). */
 export const ligneDuChoix = p => (p.p === 'G'
   ? `${p.gp} PJ · ${p.l ?? 0} D · ${pct3(p.sv || 0)}`

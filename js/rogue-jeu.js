@@ -421,7 +421,7 @@ function optionDeJoueurTire(x) {
     // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
     // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
     desactive: dejaChezToi(x.p) ? dejaDansTonEquipe(x) : '',
-    apercu: () => apercuJoueur(x.p),
+    apercu: () => apercuJoueur(x.p, x),
   };
 }
 /* Le même homme est-il déjà dans ton équipe (n'importe quelle saison de lui) ? */
