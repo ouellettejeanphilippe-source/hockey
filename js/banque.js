@@ -345,24 +345,6 @@ function formeDePlafond(C) {
   return '';
 }
 /* La forme d'une carte de la banque, le mot qu'on lit avant les chiffres. Pas les cartes de joueur : elles disent leur édition. */
-/*
- * LA PLACE D'UNE CARTE (V8). JP : *chaque chose sous-entend ce à quoi elle sert ; c'est pas clair comment jouer les
- * cartes*. Où elle agit, combien de temps, et le verbe de son bouton — lus sur la carte (sa catégorie, sa cible, sa vie).
- */
-const CIBLE_MOT = { joueur: 'un joueur', blesse: 'un blessé', recrue: 'une recrue' };
-export function placeDe(id) {
-  const c = carteBanque(id);
-  if (!c) return null;
-  const sur = CIBLE_MOT[c.cible];
-  const duree = c.vie === 'usage' ? 'une fois' : c.vie === 'permanent' ? 'pour de bon' : c.duree ? `${c.duree} matchs` : 'la saison';
-  if (c.cat === 'joueur') return { ou: 'Sur un joueur', duree: 'la saison', verbe: 'Poser sur un joueur' };
-  if (c.cat === 'patron') return { ou: 'Ton personnel', duree: 'toute la run', verbe: 'Engager' };
-  if (sur) return { ou: c.cat === 'plafond' ? `Le contrat d'${sur}` : `Sur ${sur}`, duree, verbe: `Choisir ${sur}` };
-  if (c.cat === 'plafond') return { ou: 'Ton plafond', duree, verbe: 'Signer la clause' };
-  if (c.cible === 'coach') return { ou: 'Ton coach', duree, verbe: 'Choisir le coach' };
-  if (c.cible === 'cartable') return { ou: 'Ton cartable', duree, verbe: 'Choisir le joueur' };
-  return { ou: 'Ton équipe', duree, verbe: 'Jouer pour l\'équipe' };
-}
 export function etiquetteBanque(id) {
   const c = carteBanque(id);
   if (!c) return '';

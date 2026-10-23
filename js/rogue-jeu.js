@@ -8,7 +8,7 @@
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
-import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, placeDe, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
+import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
 import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, forceEtFaiblesse, aUnDefaut, ouvertsDe, reportDuPersonnel, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
@@ -634,22 +634,6 @@ export function placesDuJour(j) {
   return { n: PLACES, trop: Math.max(0, places.length - PLACES),
     places: places.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, confiance: confiance.get(BANQUE[x.id].coach) || 0, valeur: valeurDe(x.id), maison: G.bonus === 'ROGUE' ? ouSeJoue(x.id) : null })) };
 }
-/* Une carte en place, en grand : la jouer (sa cible, puis une décision) ou la vendre. */
-export function ouvrirCarteDeLaPlace(item, j, decider) {
-  // V8 : la place de la carte et le verbe de son bouton (`placeDe`, js/banque.js).
-  const v = valeurDe(item.id), rien = () => {}, pl = placeDe(item.id);
-  const jouer = () => jouerCarte({ src: 'partie', ref: item.ref, id: item.id }, j, decider, null, rien);
-  const fermer = ouvrirChoix({
-    ico: item.ico, titre: item.nom, cartes: true, genre: 'palier', fermable: true, motFermer: 'La garder',
-    options: [{ ...optionDeBanque(item.id), cle: 'jouer' }],
-    contexte: `${pl ? `<p class="poche-place">${esc(pl.ou)} · ${esc(pl.duree)}</p>` : ''}<div class="poche-boutons"><button type="button" class="btn gold poche-jouer">${esc(pl ? pl.verbe : 'Jouer')}</button><button type="button" class="btn poche-vendre">${v ? `Vendre · +${v} 🪙` : 'Jeter'}</button></div>`,
-    onChoix: jouer,
-    onFerme: rien,
-  });
-  const bj = document.querySelector('#choixModal .poche-jouer'), bv = document.querySelector('#choixModal .poche-vendre');
-  if (bj) bj.onclick = () => { fermer(); jouer(); };
-  if (bv) bv.onclick = () => { fermer(); decider({ jour: j, vend: { refs: [item.ref], jetons: v } }); };
-}
 /* Le nombre de cartes à jouer, pour le bouton du hub. */
 export function cartesAJouer(j) {
   const Lg = G.ligue;
@@ -886,7 +870,7 @@ export function personnelDuJour(j) {
  * or firing a coach* ; puis *that philosophy should be for everything*. Une carte se joue dans le sous-onglet de ce qu'elle
  * touche : le personnel et le congédiement chez l'entraîneur, ce qui soigne un blessé ou refait des jambes à l'infirmerie,
  * le plafond et les contrats chez le proprio, les rappels (le club-école, un ancien, l'échange d'un doublon) dans l'effectif,
- * sous le tableau des joueurs. Ailleurs (Tes cartes, tes places de « Ce soir »), elle y renvoie.
+ * sous le tableau des joueurs. Ailleurs (Tes cartes, tes places), elle y renvoie.
  */
 const MAISONS_DES_CARTES = {
   entraineur: { titre: 'Tes cartes du personnel', ou: 'Chez l\'entraîneur' },
@@ -934,29 +918,6 @@ export function jouerDeLaMaison(item, j, decider) {
     return;
   }
   jouerCarte(item, j, decider, null, () => {});
-}
-/*
- * POSER UNE MODIF EN TOUCHANT SON JOUEUR (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert*. Une
- * modif de joueur touchée allume, dans les lignes de « Ce soir », les joueurs qui peuvent la porter ; toucher l'un
- * d'eux la pose. Les mêmes états et la même décision que la liste de l'alignement (`poserUneModif`).
- * `ciblesDeLaModif` : null si la carte ne se pose pas sur un joueur ; sinon l'état de chaque case et le joueur visé.
- */
-export function ciblesDeLaModif(item, j) {
-  const c = BANQUE[item.id];
-  if (!c || c.cat !== 'joueur' || !MUTATIONS[c.cle]) return null;
-  const you = G.ligue && G.ligue.you;
-  const cases = new Map();
-  for (const sl of SLOTS) { const q = G.roster[sl.i]; if (q) cases.set(sl.i, etatPourPoser(c.cle, q, sl, { jour: j, you })); }
-  const vise = you ? joueurDeMutation(you, null, c.cle) : null;
-  return { nom: c.nom, ico: c.ico, cases, vise: vise ? getPlayerKey(vise) : null };
-}
-export function poserLaModif(item, j, i, decider) {
-  const c = BANQUE[item.id], M = c && MUTATIONS[c.cle], q = G.roster[i];
-  if (!M || !q) return;
-  const e = etatPourPoser(c.cle, q, SLOTS.find(sl => sl.i === i), { jour: j, you: G.ligue && G.ligue.you });
-  if (e.non) return;
-  toast(`${M.ico} ${M.nom} : posée sur ${q.n}.`);
-  decider({ jour: j, joue: { src: item.src, id: item.id, ...(item.ref ? { ref: item.ref } : {}) }, mutation: { cle: c.cle, joueur: getPlayerKey(q), ...(e.extra || {}) } });
 }
 /*
  * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : ton doublon le plus fourni (à égalité, l'ordre pur de `graine`) donne trois
