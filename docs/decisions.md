@@ -2742,3 +2742,15 @@ JP : *j'aime pas le UI pour ces trucs, les arrondis, le fait que ça reste* — 
 Écarté : **cocher, puis replier.** On gardait un seul envoi, mais l'option restait à l'écran : c'est ce que JP n'aimait pas.
 
 Le prix : une saison rejouée par choix au lieu d'une par lot.
+
+## Les faits saillants (23 oct. 2026)
+
+JP : *la section résumé, décidé, différences, plus en texte style SportsCenter*. Le sommaire d'un match empilait trois blocs : « Le résumé du match » (une ligne par phrase), « Ce qui a décidé » (une liste à puces) et « Ce qui a fait la différence » (deux listes). Ils se redisaient : les tirs, l'avantage numérique et le gardien venaient deux fois.
+
+Ce qui change :
+- **Un seul segment**, « Les faits saillants » (`saillantsHtml`, js/bilan.js) : la manchette en gros, le récit en un paragraphe, puis la clé du match sous un filet d'or.
+- **La clé** : ce qui a décidé (`ceQuiADecide`, js/recit.js) moins ce que le récit a déjà dit (chaque fait porte sa `cle`), puis le pointage sans chacun de tes groupes (js/causes.js), en phrases.
+- **Les étoiles** se disent en phrase : « Les étoiles : Hammarstrom (1 but, 1 passe), Keon (1 but, 1 passe) et Favell (19 arrêts, blanchissage). »
+- **Plié dessous** : le tir par tir et le fil complet du match.
+
+Rien ne change aux chiffres : chacun vient toujours de la feuille.

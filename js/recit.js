@@ -213,7 +213,7 @@ export function conseilDuBilan(r, you, teams = [], calendrier = []) {
  * match, les stats ou lancers de dés qui font la différence*. Toujours lu sur la feuille, jamais une
  * cote : chaque lancer y porte sa chance d'entrer (`p`), donc leur somme est le nombre de buts ATTENDUS
  * — l'écart avec les vrais buts, c'est le dé du soir. Puis les tirs, l'avantage numérique, le gardien,
- * les actions spéciales des systèmes. Les trois faits les plus lourds, puis le but gagnant.
+ * les actions spéciales des systèmes. Les trois faits les plus lourds, puis le but gagnant : { cle, txt, nom? }.
  */
 export function ceQuiADecide(f, nomA, nomB) {
   const nom = c => (c === 'A' ? nomA : nomB), autre = c => (c === 'A' ? 'B' : 'A');
@@ -227,32 +227,32 @@ export function ceQuiADecide(f, nomA, nomB) {
   if (lancers.length && lancers.filter(l => l.p != null).length >= 0.8 * lancers.length) {
     for (const c of ['A', 'B']) {
       const attendu = lancers.filter(l => l.cote === c && l.p != null).reduce((a, l) => a + l.p, 0), g = buts(c), d = g - attendu;
-      if (Math.abs(d) >= 1) faits.push({ poids: Math.abs(d), txt: `${nom(c)} : ${plur(g, 'but')} sur ${v(attendu)} attendus — ${d > 0 ? 'ses tirs ont trouvé le fond du filet' : 'ses tirs ont buté sur le gardien d\'en face'}.` });
+      if (Math.abs(d) >= 1) faits.push({ cle: 'de', poids: Math.abs(d), txt: `${nom(c)} : ${plur(g, 'but')} sur ${v(attendu)} attendus — ${d > 0 ? 'ses tirs ont trouvé le fond du filet' : 'ses tirs ont buté sur le gardien d\'en face'}.` });
     }
   }
   const dt = tirs('A') - tirs('B');
   if (Math.abs(dt) >= 8) {
     const c = dt > 0 ? 'A' : 'B';
-    faits.push({ poids: Math.abs(dt) / 8, txt: `${nom(c)} a dominé aux tirs, ${tirs(c)}–${tirs(autre(c))}${buts(c) < buts(autre(c)) ? ', sans en profiter' : ''}.` });
+    faits.push({ cle: 'tirs', poids: Math.abs(dt) / 8, txt: `${nom(c)} a dominé aux tirs, ${tirs(c)}–${tirs(autre(c))}${buts(c) < buts(autre(c)) ? ', sans en profiter' : ''}.` });
   }
   const an = c => f.buts.filter(b => b.cote === c && b.an).length, occ = c => (f.punitions || []).filter(x => x.cote === autre(c)).length;
   if (an('A') !== an('B')) {
     const c = an('A') > an('B') ? 'A' : 'B';
-    faits.push({ poids: 1.2 * Math.abs(an('A') - an('B')), txt: `Avantage numérique : ${nom(c)} ${an(c)} en ${occ(c)}, ${nom(autre(c))} ${an(autre(c))} en ${occ(autre(c))}.` });
+    faits.push({ cle: 'an', poids: 1.2 * Math.abs(an('A') - an('B')), txt: `Avantage numérique : ${nom(c)} ${an(c)} en ${occ(c)}, ${nom(autre(c))} ${an(autre(c))} en ${occ(autre(c))}.` });
   }
   for (const c of ['A', 'B']) {
     const g = f[c === 'A' ? 'gardienA' : 'gardienB'], recus = tirs(autre(c)), arrets = recus - buts(autre(c));
-    if (g && recus >= 25 && arrets / recus >= 0.94) faits.push({ poids: (arrets / recus - 0.9) * 25, txt: `${g.n} a fermé la porte : ${arrets} arrêts sur ${recus} tirs (${pct3(arrets / recus)}).` });
+    if (g && recus >= 25 && arrets / recus >= 0.94) faits.push({ cle: 'gardien', nom: g.n, poids: (arrets / recus - 0.9) * 25, txt: `${g.n} a fermé la porte : ${arrets} arrêts sur ${recus} tirs (${pct3(arrets / recus)}).` });
   }
   for (const c of ['A', 'B']) {
     const n = lancers.filter(l => l.cote === c && l.special === 'reussie').length;
-    if (n >= 2) faits.push({ poids: 0.5 * n, txt: `Les systèmes de ${nom(c)} ont tourné : ${n} actions spéciales réussies.` });
+    if (n >= 2) faits.push({ cle: 'systemes', poids: 0.5 * n, txt: `Les systèmes de ${nom(c)} ont tourné : ${n} actions spéciales réussies.` });
   }
-  const lignes = faits.sort((x, y) => y.poids - x.poids).slice(0, 3).map(x => x.txt);
+  const lignes = faits.sort((x, y) => y.poids - x.poids).slice(0, 3);
   // Le but gagnant : celui qui a mis le vainqueur devant pour de bon.
   const vainqueur = buts('A') > buts('B') ? 'A' : 'B';
   const gagnant = f.buts.slice().sort((x, y) => x.instant - y.instant).filter(b => b.cote === vainqueur)[buts(autre(vainqueur))];
-  if (gagnant && gagnant.marqueur) lignes.push(`Le but gagnant : ${gagnant.marqueur.n}, ${gagnant.instant >= 60 ? 'en prolongation' : `en ${NOM_PERIODE[Math.floor(gagnant.instant / 20) + 1]}`}.`);
+  if (gagnant && gagnant.marqueur) lignes.push({ cle: 'gagnant', nom: gagnant.marqueur.n, txt: `Le but gagnant : ${gagnant.marqueur.n}, ${gagnant.instant >= 60 ? 'en prolongation' : `en ${NOM_PERIODE[Math.floor(gagnant.instant / 20) + 1]}`}.` });
   return lignes;
 }
 

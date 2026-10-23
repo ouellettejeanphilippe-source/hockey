@@ -552,7 +552,7 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
     }
     const candidats = [...prod.values()].map(x => ({
       c: x.c, nom: nomDe(x.p), score: 3 * x.g + 1.5 * x.a,
-      court: [x.g ? `${x.g}B` : '', x.a ? `${x.a}A` : ''].filter(Boolean).join(' '),
+      court: [x.g ? pl(x.g, 'but') : '', x.a ? pl(x.a, 'passe') : ''].filter(Boolean).join(', '),
       desc: [x.g ? pl(x.g, 'but') : '', x.a ? pl(x.a, 'passe') : ''].filter(Boolean).join(', '),
     }));
     for (const c of ['A', 'B']) {
@@ -570,7 +570,8 @@ export function apresMatch(f, ctx = {}, graineDuMatch = '') {
       const liste = etoiles.map((x, i) => `${i + 1}. ${x.nom} (${nm[x.c]}) : ${x.desc}`).join(' ; ');
       const entree = etoiles.length === 3 ? pige(ETOILES_ENTREE, 'etoiles') : etoiles.length === 2 ? 'Les deux étoiles' : 'La première étoile';
       ajouter('Les étoiles', `${entree} : ${liste}.`, 0);
-      R.etoiles = `Étoiles : ${etoiles.map((x, i) => `${i + 1}. ${x.nom} ${x.court}`).join(' · ')}`;
+      const noms = etoiles.map(x => `${x.nom} (${x.court})`);
+      R.etoiles = `${etoiles.length > 1 ? 'Les étoiles' : 'La première étoile'} : ${noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0]}.`;
     }
   }
 

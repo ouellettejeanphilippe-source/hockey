@@ -551,10 +551,11 @@ async function butsDuSommaire(cle) {
   const portee = enPage ? '#hubModal .hub-page[data-genre="sommaire-match"]' : '#gameModalBody';
   const ternes = await page.$$eval(`${portee} .som-but:not(.som-pun)`, l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band')).length);
   if (ternes) errors.push(`le sommaire du match : ${ternes} but(s) sans les couleurs du club qui marque`);
-  // CE QUI A DÉCIDÉ (1.0, oct.) : quelques lignes chiffrées, et le but gagnant.
-  const decide = await page.$$eval(`${portee} .som-decide li`, l => l.map(e => e.textContent.trim()));
-  if (!decide.some(t => /^Le but gagnant : /.test(t))) errors.push(`le sommaire ne dit pas ce qui a décidé : ${decide.join(' · ') || 'rien'}`);
-  else if (!decideVu) { decideVu = true; console.log(`   ce qui a décidé : ${decide.join(' · ')}`); }
+  // LES FAITS SAILLANTS (JP, 23 oct.) : la manchette, puis le récit et la clé du match, en texte.
+  const saillants = await page.$$eval(`${portee} .som-saillants p`, l => l.map(e => e.textContent.trim()).filter(Boolean));
+  const manchette = await page.$eval(`${portee} .som-saillants .som-manchette`, e => e.textContent.trim()).catch(() => '');
+  if (!manchette || saillants.length < 2) errors.push(`le sommaire n'a pas ses faits saillants : ${saillants.join(' · ') || 'rien'}`);
+  else if (!decideVu) { decideVu = true; console.log(`   les faits saillants : ${saillants.join(' · ')}`); }
   const buts = await page.$$eval(enPage ? '#hubModal .hub-page[data-genre="sommaire-match"] .som-per' : '#gameModalBody .som-per', (pers, P) => pers.flatMap(x => {
     const per = P.indexOf(x.querySelector('.som-per-head span').textContent.trim()) + 1;
     return [...x.querySelectorAll('.som-but:not(.som-pun)')].map(b => `${per} ${b.querySelector('.som-tps').textContent.trim()} ${b.querySelector('.som-qui strong').textContent.replace(/\s+/g, ' ').trim()}`);

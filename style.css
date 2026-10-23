@@ -3793,13 +3793,16 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-build { margin-bottom: var(--esp-4); }
 .som-build p { margin: var(--esp-2) 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-build .ent-liste > div { min-height: 36px; }
-.som-plateau { margin-bottom: var(--esp-4); }
-.som-plateau p { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.som-plateau .som-plateau-titre { font: 800 var(--t-3)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre); }
+/* LES FAITS SAILLANTS : un segment de télé — la manchette en gros, le récit, puis la clé du match sous un filet d'or. */
+.som-saillants { margin-bottom: var(--esp-4); }
+.som-saillants p { margin: var(--esp-2) 0 0; font-size: var(--t-3); line-height: 1.5; color: var(--encre-2); }
+.som-saillants .som-manchette { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--encre); }
+.som-saillants .som-cle { padding-left: var(--esp-3); border-left: 3px solid var(--or); color: var(--encre); }
+.som-saillants ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
+.som-saillants li.bon { color: var(--bon); }
+.som-saillants li.prix { color: var(--live); }
 .som-detail { margin-top: var(--esp-3); }
 .som-detail > summary { font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre-2); cursor: pointer; }
-.som-decide { margin-bottom: var(--esp-4); }
-.som-decide ul { margin: var(--esp-2) 0 0; padding-left: var(--esp-4); font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-difference :is(p, ul) { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-difference ul { padding-left: var(--esp-4); }
 .som-difference h4 { margin: var(--esp-3) 0 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
