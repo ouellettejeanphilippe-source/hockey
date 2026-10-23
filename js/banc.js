@@ -9,6 +9,7 @@ import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { BANQUE, palierAllume, payloadDe } from './banque.js';
+import { matchsJoues } from './echelons.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
@@ -244,7 +245,8 @@ function ajouterDecision(avant, d) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  const allume = (d.joue || d.main) && !d.coach ? palierAllume(avant, d) : null;
+  // V16 : une décision de personnel (un adjoint engagé, un échelon) recompte la confiance, matchs à ton service compris.
+  const allume = (d.joue || d.main || d.patron) && !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) }) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place`, elle va à une place), ni « Attendre » le physio (`attend`).

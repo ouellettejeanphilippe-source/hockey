@@ -53,12 +53,29 @@ Les places (`PLACES`), la carte de trop et l'onglet « Tes places » de l'invent
 
 ## 4. La confiance, par trois chemins
 
-Les points d'un coach se comptent ainsi :
+Les points d'un coach (`buildDe`, js/banque.js) :
+- **sa base** : le coach choisi au départ, le report d'une saison, un coach neuf (`baseDesCoachs`) ;
 - **1 par adjoint de sa couleur en poste** ;
 - **1 par échelon** pris par ses adjoints ;
-- **1 par tranche de matchs à ton service** de ses adjoints (`MATCHS_CONFIANCE`, à mesurer).
+- **1 par tranche de 60 matchs à ton service** de ses adjoints (`MATCHS_CONFIANCE`), doublés à la couleur du coach en poste, comme les échelons.
 
-Les paliers II et III gardent leurs seuils (`SEUILS`), recalibrés pour qu'une run attentive atteigne la III vers le milieu de la deuxième saison. `check_voies` garde sa cible : à sa III, sur une équipe bâtie pour lui, chaque coach vaut de +6 à +8 V.
+Les cartes jouées ne comptent plus. La confiance reste une décision `coach` qui porte ses chiffres : elle se recompte à chaque décision de personnel (un adjoint engagé, un échelon pris ; `palierAllume`, js/banc.js `ajouterDecision`), matchs à ton service compris. Seul le coach en poste monte (V5).
+
+**Les seuils** passent de 3, 6 et 9 à **3, 14 et 30** (`SEUILS`, js/coachs.js), mesurés sur une run attentive :
+- un adjoint de sa couleur aux 9e, 18e et 26e matchs de chaque saison (les paliers, qui en donneront à la tranche 3) ;
+- les échelons pris dès qu'ils s'ouvrent (trois ouverts).
+
+Avec 60 matchs par point, cette run atteint la II au 39e match de sa première saison, et la III au 39e de la deuxième : la cible. À 3, 6 et 9, elle avait la III au 26e match.
+
+| Seuils | 60 matchs par point : II | III |
+|---|---|---|
+| 3 · 6 · 9 | S1, 18e match | S1, 26e |
+| 3 · 12 · 24 | S1, 31e | S2, 21e |
+| **3 · 14 · 30** | **S1, 39e** | **S2, 39e** |
+
+Sans un match joué, adjoints et échelons mènent la Tortue à 23 points au plus : la III demande leurs matchs à ton service (`check_coachs`).
+
+Le robot de `rogue_sim` ne prend pas encore d'adjoint de sa couleur : il n'a que les deux patrons neutres du départ. Ses échelons recomptent déjà la confiance (scripts/lib/cartes_robot.mjs) ; la mesure en run viendra avec les sources de la tranche 3.
 
 ## 5. Les règles fermes qui changent (CLAUDE.md)
 

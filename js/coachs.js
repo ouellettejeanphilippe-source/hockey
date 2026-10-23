@@ -24,15 +24,15 @@
  * Une carte neuve n'a rien à déclarer : elle trouve son coach seule (elle
  * peut le nommer, `coach`, quand sa lecture ne suffit pas).
  *
- * LA CONFIANCE DU VESTIAIRE. Chaque carte jouée compte pour son coach, dans
- * la saison ; à 3, 6 et 9 cartes, le vestiaire croit au coach (I, II, III)
- * et sa philosophie joue pour le reste de la saison, séries comprises — comme
- * un patron, sans prendre de poste. La confiance III contient la II. Au
- * départ d'une run, on CHOISIT son coach parmi trois (le personnage de Slay
- * the Spire) : il part avec trois cartes au compteur, sa confiance I allumée.
- * Les autres coachs peuvent prendre le vestiaire aussi, carte après carte. Et
- * une run qui continue garde ses coachs : la saison suivante repart du compte
- * de la fin (`coachsDeBase`, js/rogue-jeu.js).
+ * LA CONFIANCE DU VESTIAIRE (V16, js/banque.js `buildDe`). Ses points viennent de
+ * son personnel : 1 par adjoint de sa couleur en poste, 1 par échelon pris, 1 par
+ * tranche de matchs à ton service (`MATCHS_CONFIANCE`) ; à `SEUILS` points, le
+ * vestiaire croit au coach (I, II, III) et sa philosophie joue pour le reste de
+ * la saison, séries comprises — comme un patron, sans prendre de poste. La
+ * confiance III contient la II. Au départ d'une run, on CHOISIT son coach parmi
+ * trois (le personnage de Slay the Spire) : il part avec sa confiance I allumée.
+ * Une run qui continue garde son coach et son personnel : la saison suivante
+ * repart de sa base (`coachsDeBase`, js/rogue-jeu.js).
  *
  * AUCUNE MÉCANIQUE NEUVE (CLAUDE.md) : une confiance est une décision `coach`
  * faite des canaux que `effetsDeSaison` lit déjà (finition, volume, défense,
@@ -49,7 +49,7 @@
  */
 
 /* Les seuils de la confiance : 3 cartes (I), 6 (II), 9 (III). */
-export const SEUILS = [3, 6, 9];
+export const SEUILS = [3, 14, 30];
 export const ROMAINS = ['', 'I', 'II', 'III'];
 
 /*

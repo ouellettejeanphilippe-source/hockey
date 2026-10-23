@@ -8,7 +8,7 @@
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
-import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
+import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
@@ -1174,8 +1174,8 @@ function choisirCoach() {
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} cartes de sa couleur, III à ${SEUILS[2]}.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
-      : `Sa philosophie joue dès le premier soir ; plus tu joues ses cartes, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : ses adjoints en poste, leurs échelons, leurs matchs à ton service.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
+      : `Sa philosophie joue dès le premier soir ; plus ses adjoints travaillent chez toi, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: optionsDeCoach(ouverts, { cartes: !!meta.runs }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),
@@ -1816,7 +1816,7 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
   // v2 : les COACHS continuent — le compte de la fin de saison, et la confiance qu'il avait allumée.
   const decsSaison = decisionsDeLaPartie();
-  const compte = buildDe(decsSaison);
+  const compte = baseDesCoachs(decsSaison);
   report.push({ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(compte).filter(([, n]) => n > 0)), report: true });
   const [enPoste] = coachsActifs(decsSaison);
   if (enPoste && (!coachSaison || coachSaison === enPoste.cle)) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }

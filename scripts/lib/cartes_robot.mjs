@@ -15,7 +15,7 @@ import { MOMENTS_SI, dosADos, energieDe, SLOTS, rivalChoisi } from '../../js/sim
 import { DOSSIERS, dossierDeLaSemaine } from '../../js/dossiers.js';
 import { sceneDeLaRoute } from '../../js/scenes.js';
 import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
-import { BANQUE, CONSOMMABLES, payloadDe } from '../../js/banque.js';
+import { BANQUE, CONSOMMABLES, payloadDe, palierAllume } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
 
@@ -114,7 +114,9 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       if (!c) continue;
       const d = { jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) };
       caisse += d.gain || 0;
-      out.push(d);
+      // V16 : un échelon recompte la confiance de son coach, matchs à ton service compris (js/banque.js `palierAllume`).
+      const a = palierAllume([...decisions, ...out], d, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x) });
+      out.push({ ...d, ...(a || {}) });
     }
   }
   // LA CARTE D'UN PALIER (9e, 18e, 26e matchs) : une place parmi trois, jouée tout de suite.

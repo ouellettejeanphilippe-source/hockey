@@ -2766,3 +2766,15 @@ Ce qui change :
 - **Ce qui part**, faute de servir ailleurs : l'affiche du soir, les places de l'écran de saison, la pose d'une modif en touchant son joueur (`ciblesDeLaModif`, `poserLaModif`), la carte de la place en grand (`ouvrirCarteDeLaPlace`), et `placeDe`.
 
 Le choix des maisons : JP a pris la proposition (le match en une ligne au Bureau, le dépistage sous Effectif, les places au Marché) plutôt que « tout dans les Lignes » ou « tout au Bureau ».
+
+## La confiance par trois chemins (V16, tranche 2 — 23 oct. 2026)
+
+JP : *les assistants coachs remplacent toutes les autres cartes de bonus* ; à la question « sans les cartes jouées, comment monte la confiance ? », il a choisi les trois chemins proposés à la fois.
+
+Les points d'un coach : sa base (le départ, le report, un coach neuf), plus 1 par adjoint de sa couleur en poste, 1 par échelon pris, et 1 par 60 matchs à ton service de ses adjoints (`MATCHS_CONFIANCE`). Les cartes jouées ne comptent plus. La confiance reste une décision `coach` : elle se recompte à chaque décision de personnel. Les seuils passent à 3, 14 et 30.
+
+Mesuré sur une run attentive (un adjoint de sa couleur aux 9e, 18e et 26e matchs, les échelons dès qu'ils s'ouvrent), elle atteint la II au 39e match de sa première saison et la III au 39e de la deuxième. Aux anciens seuils, elle avait la III au 26e match.
+
+Écarté : **recompter la confiance chaque soir**, sans décision. Elle cesserait d'être une décision qui porte ses chiffres (`check_coachs`), et une journée déjà jouée pourrait changer de coach en se rejouant.
+
+Le protégé grandit avec son adjoint : pousser la force d'un adjoint à protégé grandit aussi les canaux de son joueur (`protegeALEchelon`, js/echelons.js). La décision d'échelon porte la mutation et ses canaux ; le moteur la repose sur le même joueur. `check_personnel` : le maître du ruban passe de +0,07 à +0,21 point par soir à domicile en quatre poussées, en paires.

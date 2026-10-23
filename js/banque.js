@@ -567,24 +567,39 @@ export function payloadDe(id, { joueur = null, coach = null, patrons = [], alea 
 /* Le coach d'une carte de la banque (une carte « + » du deck lit sa carte de base), ou null (neutre). */
 export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
 export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
-/* La carte qu'une décision fait JOUER : une place, le personnel (`joue.id`). Une prise (un pack, un butin) ne compte
- * pas : c'est la jouer qui fait croire le vestiaire (docs/refonte-v5.md, phase 0). */
-const carteJouee = d => (d.joue && d.joue.id && !(d.recompense && d.joue.src === 'partie') ? d.joue.id : null);
 /*
- * LE COMPTE DE CHAQUE COACH à une journée (`jusqua` exclue), pur : le report
- * d'une run (`coachsDeBase` : la saison d'avant, et le coach choisi au
- * départ), plus chaque carte jouée de sa couleur. Rend { cle: n }.
+ * LA CONFIANCE PAR TROIS CHEMINS (V16, docs/refonte-v16.md § 4 ; JP a choisi les trois). Les points d'un coach : sa
+ * BASE (le coach choisi au départ, le report d'une saison, un coach neuf : `coachsDeBase`, `coachNeuf`), puis, par
+ * adjoint de sa couleur en poste, 1 point et 1 par échelon pris, et 1 point par tranche de `MATCHS_CONFIANCE` matchs à
+ * ton service de ses adjoints (doublés à la couleur du coach en poste, comme les échelons). Les cartes jouées ne
+ * comptent plus : le personnel est la seule carte bonus.
  */
-export function buildDe(decisions = [], jusqua = Infinity) {
+export const MATCHS_CONFIANCE = 60;
+/* La base de chaque coach à une journée (`jusqua` exclue) : ce que le report et le départ lui donnent. Rend { cle: n }. */
+export function baseDesCoachs(decisions = [], jusqua = Infinity) {
   const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
   for (const d of decisions) {
     if (!d || (d.jour || 0) >= jusqua) continue;
     if (d.coachsDeBase) for (const [k, v] of Object.entries(d.coachsDeBase)) if (k in n) n[k] += v || 0;
-    // UN COACH NEUF (« Le virage », ou un autre choisi au début d'une saison) repart à la confiance I : ses cartes d'avant ne comptent plus.
+    // UN COACH NEUF (« Le congédiement », ou un autre choisi au début d'une saison) repart à la confiance I.
     if (d.coachNeuf && d.coach && d.coach.cle in n) n[d.coach.cle] = SEUILS[0];
-    const e = carteJouee(d) && coachDeCarte(carteJouee(d));
-    if (e) n[e]++;
   }
+  return n;
+}
+/*
+ * LE COMPTE DE CHAQUE COACH à une journée, pur : sa base, puis son personnel en poste. `joues(de, a)` : les matchs de
+ * ton club joués entre deux journées (js/echelons.js `matchsJoues`) ; sans lui, les matchs à ton service ne comptent pas.
+ */
+export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0 } = {}) {
+  const n = baseDesCoachs(decisions, jusqua), service = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
+  const [C] = coachsActifs(decisions, jusqua);
+  for (const p of patronsActifs(decisions, jusqua)) {
+    const k = (BANQUE[`patron:${p.cle}`] || {}).coach;
+    if (!(k in n)) continue;
+    n[k] += p.echelon || 1;
+    service[k] += (p.avant || 0) + joues(p.depuis ?? p.jour ?? 0, jusqua) * (C && C.cle === k ? 2 : 1);
+  }
+  for (const k of ORDRE_COACHS) n[k] += Math.floor(service[k] / MATCHS_CONFIANCE);
   return n;
 }
 /*
@@ -602,24 +617,17 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
 /* La décision d'un coach neuf : sa confiance I, et son compte qui repart (`coachNeuf`). */
 export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true });
 /*
- * LA CONFIANCE QU'ALLUME UNE CARTE : la décision `d` fait-elle franchir un
- * seuil au coach de sa carte ? Rend `{ coach }` à ajouter à la décision (les
- * chiffres de la confiance atteinte), ou null. Pur : les décisions d'avant et
- * celle-ci.
+ * LA CONFIANCE QU'ALLUME UNE DÉCISION DE PERSONNEL (un adjoint engagé, un échelon pris) : son coach franchit-il un
+ * seuil, avec elle et les matchs à ton service jusqu'ici ? Rend `{ coach }` à ajouter à la décision (les chiffres de la
+ * confiance atteinte), ou null. Pur : les décisions d'avant, celle-ci, et les matchs joués (`joues`).
  */
-export function palierAllume(decisions = [], d) {
-  // Le coach de la carte que cette décision fait jouer, s'il franchit un seuil.
-  const ajout = {};
-  const build = buildDe(decisions);
-  const k0 = d && carteJouee(d) && coachDeCarte(carteJouee(d));
-  if (k0) ajout[k0] = 1;
-  // Seul le coach en poste monte (V5) : les cartes d'une autre couleur jouent leur effet, sans changer de coach.
+export function palierAllume(decisions = [], d, { joues = () => 0 } = {}) {
+  const avant = buildDe(decisions, Infinity, { joues }), apres = buildDe([...decisions, d], Infinity, { joues });
+  // Seul le coach en poste monte (V5) : un adjoint d'une autre couleur joue son effet, sans changer de coach.
   const [actif] = coachsActifs(decisions);
-  const e = actif ? (ajout[actif.cle] && palierDe(build[actif.cle] + ajout[actif.cle]) > actif.palier ? actif.cle : null)
-    : Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > palierDe(build[k]));
-  if (!e) return null;
-  const p = palierDe(build[e] + ajout[e]);
-  return { coach: effetDePalier(e, p) };
+  const e = actif ? (palierDe(apres[actif.cle]) > actif.palier ? actif.cle : null)
+    : ORDRE_COACHS.find(k => palierDe(apres[k]) > palierDe(avant[k]));
+  return e ? { coach: effetDePalier(e, palierDe(apres[e])) } : null;
 }
 /* Ce qu'une confiance fait, en mots — les canaux, les minutes, la boutique. */
 export function reglesDePalier(cle, palier) {
