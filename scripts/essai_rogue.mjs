@@ -65,8 +65,7 @@ async function garderLeFlottant(ou) {
   flottant.vus++;
   if (f.h < 44) flottant.petits.push(`${ou} ${Math.round(f.w)}×${Math.round(f.h)}`);
 }
-/* « Ce soir » (V8) : la section, puis son premier onglet — elle rouvre sinon la page qu'on y lisait (les Lignes). On
-   la défile au bout : le bouton du jour sort de l'écran, son double doit flotter, à sa vraie taille. */
+/* « Ce soir » (V8) : la section, puis son onglet. On la défile au bout : le bouton du jour sort de l'écran, son double doit flotter, à sa vraie taille. */
 const versCeSoir = async () => {
   await page.click('#navbar .navtab[data-section="soir"]').catch(() => {});
   await page.click('#sousNav .soustab[data-page="soir"]', { timeout: 3000 }).catch(() => {});
@@ -119,7 +118,7 @@ const CLUBS_LISTE = RAYONS_CLUB.find(R => R.cle === 'club').liste;
 const NB_CLUBS = Object.keys(CLUBS_LISTE).length, PRIX_HARFANGS = CLUBS_LISTE.harfangs.prix;
 page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.stack); });
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
-const choix = async (sel = '.choix-option:not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
+const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 /*
  * UN MÉTA ET UN CARTABLE DE DÉPART (S80) : quatre cartes au cartable (le
  * classeur les tirera), assez d'écussons pour un déblocage, et une case de
@@ -450,7 +449,7 @@ async function regler() {
      */
     if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); pocheVendues++; await page.waitForTimeout(500); continue; }
     // Une main de palier (des cartes .tc) : la première carte jouable.
-    const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])');
+    const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]');
     if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
     // Un joueur offert (S78) : « Signer », puis « qui sort ? » — en liste (Jalon U), puis « Où joue ? » : une case, puis « Confirmer ».
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
@@ -496,7 +495,7 @@ async function regler() {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-option:not([disabled])')) {
       const lu = await page.$eval('#choixModal .choix-sheet[data-genre="recompense"]', m => ({
         titre: ((m.querySelector('.choix-titre') || {}).textContent || '').trim(), recit: ((m.querySelector('.choix-recit') || {}).textContent || '').trim(),
-        cles: [...m.querySelectorAll('.choix-option:not([disabled])')].map(b => b.dataset.choix), autre: !!m.querySelector('.choix-autre') }));
+        cles: [...m.querySelectorAll('.choix-options [data-choix]:not([disabled])')].map(b => b.dataset.choix), autre: !!m.querySelector('.choix-autre') }));
       // La récompense d'une série gagnée (un pack de joueurs) a son propre écran : on la laisse au cas général.
       if (/Récompense/.test(lu.titre)) {
         if (!butin.vus++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-butin.png` }); }
@@ -504,7 +503,7 @@ async function regler() {
         if (!/pour une place/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas « pour une place » (« ${lu.recit} »)`);
         if (lu.autre) butin.fautes.push('le butin offre encore « Retirer une carte »');
         const n0 = (await decisionsDuCombat()).length;
-        await page.click(`#choixModal:not([hidden]) .choix-option[data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
+        await page.click(`#choixModal:not([hidden]) [data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
         await attendreDecisions(n0);
         const sv = await lireSauvegarde();
         const d = (((sv.partie || {}).decisions) || []).slice(n0).find(x => String(x.palier || '').startsWith('r:'));
@@ -513,7 +512,7 @@ async function regler() {
         continue;
       }
     }
-    if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await choix('button.choix-option:not([disabled])'); continue; }
+    if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) { await choix(); continue; }
     /*
      * À FAIRE (V9, tranche 1 ; JP : *tous les choix au même endroit, même UI et UX*). Chaque choix a la même forme : sa
      * bande (la voix, le sujet), puis ses options `optionHtml`. On règle le choix ouvert comme un joueur pressé : une
@@ -1006,7 +1005,7 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await page.click('#navbar .navtab[data-section="soir"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})).catch(() => {});
+  await page.click('#navbar .navtab[data-section="effectif"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})).catch(() => {});
   await page.waitForTimeout(800);
   const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   const nom = nomSigne.split(' ').slice(-1)[0];
@@ -1194,7 +1193,7 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
       await page.screenshot({ path: `${DOSSIER}/ecran-${k}.png` });
       await page.setViewportSize({ width: 390, height: 844 });
     }
-    await page.click('#navbar .navtab[data-section="soir"]').catch(() => {});
+    await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
     await page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {});
     await page.waitForTimeout(800);
     for (const t of ['Équipe', 'Attaque', 'Défense']) {
@@ -1472,7 +1471,7 @@ if (poseeAuCartable) {
     await page.waitForTimeout(600);
     await page.screenshot({ path: `${DOSSIER}/rogue-choisir-carte.png` });
     const offertes = await page.$$eval('#choixModal .tc .tc-nom', e => e.map(x => x.textContent.trim()));
-    await page.click('#choixModal .tc');
+    await page.click('#choixModal .tc [data-choix]');
     await page.waitForSelector('#hockeyCardModal .fc-poser', { timeout: 10000 });
     const avant = (await decisions()).filter(x => x.joue && x.mutation).length;
     await page.click('#hockeyCardModal .fc-poser');

@@ -45,7 +45,7 @@ await page.click('.menu-mode[data-genre="saison"] [data-menu="nouvelle"]');
 await page.waitForSelector('#npGo', { timeout: 30000 });
 await page.evaluate(() => document.getElementById('npGo').click());
 await page.waitForSelector('#choixModal:not([hidden]) .tc', { timeout: 10000 });
-await page.evaluate(() => document.querySelector('#choixModal .tc').click());
+await page.evaluate(() => document.querySelector('#choixModal .tc [data-choix]').click());
 await page.waitForSelector('.pcard', { timeout: 30000 });
 await page.waitForTimeout(800);
 await page.evaluate(() => document.querySelector('button[data-val="LIST"]').click());

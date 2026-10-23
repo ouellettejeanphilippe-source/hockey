@@ -45,7 +45,7 @@ await page.addInitScript(() => {
 await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('#menuDepart');
 await page.click('.menu-mode[data-genre="rogue"] [data-menu="nouvelle"]');
-const choix = async (sel = '.choix-option:not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 8000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
+const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 8000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 await choix();
 await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 await choix();
@@ -81,12 +81,12 @@ async function regler(max = 40) {
       // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
       if (await page.$('#choixModal:not([hidden]) .main-jouer')) { const v = await page.$('#choixModal .main-vest:not([disabled])'); if (v && await page.$('#choixModal .main-jouer:disabled')) { await v.click(); await page.waitForTimeout(200); } await page.click('#choixModal .main-jouer'); await page.waitForTimeout(1200); continue; }
       if (await page.$('#choixModal:not([hidden]) .poche-vendre')) { await page.click('#choixModal .poche-vendre'); await page.waitForTimeout(600); continue; }
-      const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc:not([disabled])'); if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
+      const carte = await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc [data-choix]'); if (carte) { await carte.click(); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .de-lancer:not([disabled]):not(.de-suite)')) { await page.focus('#choixModal .de-lancer'); await page.keyboard.press('Enter'); await page.waitForTimeout(2500); await page.click('#choixModal .de-suite').catch(() => {}); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) .tcj-signer') && e.choix === 'ballottage') { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
       if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
       if (await page.$('#choixModal:not([hidden]) [data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) { await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue; }
-      if (await page.$('#choixModal:not([hidden]) button.choix-option:not([disabled])')) { await page.click('#choixModal:not([hidden]) button.choix-option:not([disabled])'); await page.waitForTimeout(400); continue; }
+      if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) { await page.click('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])'); await page.waitForTimeout(400); continue; }
       const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) { await f.click(); await page.waitForTimeout(300); continue; }
       return 'coince';
     }
@@ -162,7 +162,7 @@ let pb = 0;
 for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   await regler(); await club(); log('regler:', await regler());
   if (tour % 2 === 1) {
-    await page.click('#navbar .navtab[data-section="soir"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(1500);
+    await page.click('#navbar .navtab[data-section="effectif"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(1500);
     const am = await page.$('.ln-auto');
     if (am) { await am.click(); await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 5000 }); await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]'); await page.waitForTimeout(800); }
     else log('   pas de bouton au mieux');

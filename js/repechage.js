@@ -137,17 +137,19 @@ brancherPastilleNiveau(pastilleNiveau);
  */
 const sansTaille = html => html.replace(/ style="width:\d+px;height:\d+px;object-fit:contain"/, '');
 export function cartonDe(p, o = {}) {
-  const rarete = rareteJoueur(p);
+  // `rar` : l'édition tirée (un pack, le classeur) passe avant celle de la saison — on signe la carte qu'on a pigée.
+  const propre = rareteJoueur(p), rarete = o.rar || propre;
+  const traits = rarete === propre ? traitsJoueur(p) : traitsDeCarte(Object.assign(carteDe(rarete), p.elc ? { recrue: true } : {}), groupeDe(p) === 'G');
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
     serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p, rarete),
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
-    gemmeHtml: gemmeJoueur(rarete, traitsJoueur(p)), rubanHtml: rubanDe(p),
+    gemmeHtml: gemmeJoueur(rarete, traits), rubanHtml: rubanDe(p),
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,
     logoHtml: sansTaille(getTeamLogoHtml(p.t, 48)), club: esc(p.t), clubNom: esc(TEAMFULL[p.t] || p.t), clubClasse: o.clubClasse,
     numero: numeroDeCarte(cle), annee: esc(anneeDeCarte(p.s)),
-    tirage: esc(tirageLimite(cle, (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
+    tirage: esc(tirageLimite(cle, o.num || (G.variantes.numeros || {})[cle] || '/99')), signature: esc(p.n), eclat: o.eclat,
   });
 }
 /* Les couleurs du club, posées sur la carte : le carton de chaque série les lit. */
@@ -655,12 +657,12 @@ function meilleureSortie(p, { roster, bloque = null }) {
  * sa variante, son rôle et sa zone ; `dest` et `bouton` disent la suite. Le dedans d'un `.pcard`, pour la liste de
  * signature et le départ du classeur (js/depart.js).
  */
-export function rangeeHtml(p, { rar = 'commune', num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
+export function rangeeHtml(p, { rar = null, num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
   const { v, u, mot } = chiffreCle(p);
   const tags = [rar && rar !== 'commune' ? `<span class="tag" title="${esc(`${NOM_VARIANTE[rar]} : ${sensRarete(rar)}`)}">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
     doublon ? '<span class="tag">Doublon</span>' : ''].filter(Boolean).join('');
   return `<div class="pcard-rangee"><span class="pcard-mug">${headshotHtml(p)}</span><span class="pcard-qui"><b class="pcard-nom">${formatName(p.n)}</b><small>${esc(positionLabel(p).split(' / ').join('/'))} · ${esc(p.t)} ${esc(p.s || '')}</small></span></div>
-    ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team' })}
+    ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team', rar, num })}
     <div class="pcard-fiche">
       <div class="pcard-ligne"><span class="pcard-price">${money(salaire)}</span><span class="pcard-big" title="Son chiffre clé : ${esc(mot)}"><b>${v}</b><span>${u}</span></span></div>
       <div class="pcard-mid"><div class="tags">${tags}</div></div>
@@ -1676,7 +1678,7 @@ function voleAuCartable(el, rarete) {
   const src = el.querySelector('.carton-photo');
   const r = (src && src.offsetParent ? src : el).getBoundingClientRect();
   if (!r.width) return;
-  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"], .navtab[data-section="soir"]')].find(b => b.offsetParent) || $('cnt');
+  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"], .navtab[data-section="effectif"]')].find(b => b.offsetParent) || $('cnt');
   const rc = cible ? cible.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
   const img = src && src.querySelector('img.visage, img.carton-action');
   const v = document.createElement('div');

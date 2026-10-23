@@ -224,14 +224,14 @@ let sommairesVus = 0;
 async function prendrePalier() {
   if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"]'))) await ouvrirLaMain();
   await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] .tc', { timeout: 5000 });
-  const eff = await page.$('#choixModal .tc[data-choix^="effet:"]:not([disabled])');
-  const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc:not([disabled])', e => e.dataset.choix);
-  await _click(`#choixModal .tc[data-choix="${nom}"]`);
+  const eff = await page.$('#choixModal .tc [data-choix^="effet:"]');
+  const nom = eff ? await eff.getAttribute('data-choix') : await page.$eval('#choixModal .tc [data-choix]', e => e.dataset.choix);
+  await _click(`#choixModal .tc [data-choix="${nom}"]`);
   // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition… et qui sort, dans l'alignement, S80).
   for (let k = 0; k < 3; k++) {
     await page.waitForTimeout(350);
     if (await page.$('#choixModal:not([hidden]) :is(.choix-sheet[data-genre="alignement"], .sig-sort)')) { await sortirDansAlignement(); continue; }
-    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, button.choix-option:not([disabled]))'))) break;
+    if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, .tc-prendre, button.choix-option:not([disabled]))'))) break;
   }
   // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
   await _wait('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-suite, #choixModal:not([hidden]) .choix-sheet, .result .score', { timeout: 120000 });
@@ -384,7 +384,7 @@ async function repondreAuxChoix() {
     }
     // QUI SORT, DANS L'ALIGNEMENT (S80) : ses cases ne sont pas des `.choix-option`.
     if (await page.$('#choixModal:not([hidden]) :is(.choix-sheet[data-genre="alignement"], .sig-sort)')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
-    const opt = await page.$('#choixModal:not([hidden]) .choix-option:not([disabled])');
+    const opt = await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])');
     if (!opt || !(await opt.isVisible())) {
       /*
        * UN CHOIX EN ATTENTE SE ROUVRE COMME UN JOUEUR LE ROUVRE (S77). Une
@@ -406,7 +406,7 @@ async function repondreAuxChoix() {
       // Un message qui bloque la journée (S78) : on le règle, puis on repasse.
       if (await page.$('#hubModal .hub-traiter')) {
         await debloquer();
-        if (await page.$('#choixModal:not([hidden]) .choix-option:not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
+        if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled]), #hubModal .hub-page[data-genre="sommaire"]')) continue;
       }
       return;
     }

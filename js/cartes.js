@@ -163,20 +163,25 @@ export function carteHtml(c) {
   const genre = DESSIN_DU_GENRE[c.genreCarte] ? c.genreCarte : '';
   const famille = !genre && FAMILLES.includes(c.famille) ? c.famille : '';
   const art = c.artHtml || (c.dessin ? dessinHtml(c.dessin, genre) : '') || `<span class="tc-art-ico" aria-hidden="true">${c.ico || '🃏'}</span>`;
-  // `statique` (Jalon U) : la même face hors d'un choix (l'inventaire), une div ; ses boutons sont dessous.
-  const tag = c.statique ? 'div' : 'button type="button"';
+  // `statique` (Jalon U) : la même face hors d'un choix (l'inventaire), sans « Prendre » ; ses boutons sont dessous. `lecture` : à lire seulement.
   /*
    * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte
    * de jeu est un carton comme celui d'un joueur (`cartonHtml`) : la série de la glace, aux couleurs de son genre au
    * lieu d'un club ; son dessin dans la fenêtre, son coût dans le coin, sa rareté dans l'autre, son nom sur la plaque
-   * et son icône dans le médaillon. Sa rareté en est l'édition : le cadre de métal, l'or, le prisme. Ce qu'elle fait
-   * se lit dessous, en entier.
+   * et son icône dans le médaillon. Sa rareté en est l'édition : le cadre de métal, l'or, le prisme.
    */
   const nomTexte = String(c.nomHtml || '').replace(/<[^>]*>/g, '');
   // Le médaillon porte l'icône ; sans icône, le dessin en petit.
   const ico = c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico}</span>` : art;
-  return `<${tag} class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}" data-choix="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive && !c.statique ? ' disabled' : ''}>
+  /*
+   * CE QU'ELLE FAIT SE LIT À SON VERSO (JP : *mettre les stats derrière la carte*). Le recto est la carte, rien d'autre ;
+   * la toucher la retourne (`brancherInclinaison`). Toucher ne prend plus : « Prendre », dessous, prend.
+   */
+  const verso = `${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}`;
+  const face = verso ? 'button type="button" class="tc-face" aria-pressed="false" title="Toucher pour la retourner"' : 'span class="tc-face"';
+  return `<div class="choix-option tc tc-${r}${genre ? ` tc-g-${genre}` : ''}${famille ? ` tc-f-${famille}` : ''}${c.meilleure ? ' tc-meilleure' : ''}${c.lecture ? ' lecture' : ''}" data-carte="${c.cle}" style="--tc-i:${c.i || 0}${c.r != null ? `;--tc-r:${c.r}` : ''}"${c.desactive && !c.statique ? ' aria-disabled="true"' : ''}>
     ${c.dos ? '<span class="tc-dos" aria-hidden="true"><span class="tc-dos-marque">Cap<b>82-0</b></span></span>' : ''}
+    <${face}>
     <span class="carton cs-glace cs-jeu tc-${r}">
       ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
       <span class="carton-photo"><span class="tcj-art">${art}</span></span>
@@ -188,10 +193,10 @@ export function carteHtml(c) {
       <span class="carton-club">${ico}</span>
       <span class="carton-imprime"><b>Cap 82-0</b><span>${R.nom}</span></span>
     </span>
-    ${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}
-    ${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}
-    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : ''}
-  </${c.statique ? 'div' : 'button'}>`;
+    ${verso ? `<span class="tc-verso">${verso}</span>` : ''}
+    </${verso ? 'button' : 'span'}>
+    ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : c.statique || c.lecture ? '' : `<button type="button" class="btn-sign tc-prendre" data-choix="${c.cle}">${c.motChoixHtml || 'Prendre'}</button>`}
+  </div>`;
 }
 
 /*
@@ -535,6 +540,7 @@ export function paquetHtml({ n = 3, meilleure = 'commune', serie = 'Récompense'
    pas briller. */
 const INCLINABLES = '.carton, .choix-option.tc:not(.jouee), .cj-verso';
 const INCLINE_MAX = 12;
+const TOUR = [200, 340];
 const GYRO_MAX = 6;
 const PROPS = ['--mx', '--my', '--rx', '--ry', '--lueur'];
 export function brancherInclinaison(doc = document) {
@@ -542,6 +548,19 @@ export function brancherInclinaison(doc = document) {
   doc.__inclinaison = true;
   const win = doc.defaultView || window;
   const calme = win.matchMedia ? win.matchMedia('(prefers-reduced-motion: reduce)') : { matches: false };
+  // Une carte de jeu se retourne d'un toucher, et revient d'un autre : les deux moitiés du tour (style.css, `cj-tourne-1/2`).
+  doc.addEventListener('click', ev => {
+    const f = ev.target.closest && ev.target.closest('button.tc-face');
+    if (!f || f.matches('.tourne-1, .tourne-2')) return;
+    const changer = () => { const v = !f.classList.contains('au-verso'); f.classList.toggle('au-verso', v); f.setAttribute('aria-pressed', String(v)); };
+    if (calme.matches) { changer(); return; }
+    f.classList.add('tourne-1');
+    setTimeout(() => {
+      f.classList.replace('tourne-1', 'tourne-2');
+      changer();
+      setTimeout(() => f.classList.remove('tourne-2'), TOUR[1]);
+    }, TOUR[0]);
+  });
   let carte = null, x = 0, y = 0, raf = 0;
   const bornes = v => Math.min(1, Math.max(0, v));
   const poser = (c, px, py, max) => {

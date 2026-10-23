@@ -1899,7 +1899,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     </div>`;
     return '';
   }
-  function ouvrirSommaire(avant, semaine = false) {
+  function ouvrirSommaire(avant, semaine = false, regarde = false) {
     const nouveaux = miens.slice(avant.joues);
     if (!nouveaux.length) return false;
     const attendTout = messagesCourants().filter(m => m.bloque);
@@ -1922,7 +1922,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const dits = new Set(infos.map(([id]) => id));
     const attend = attendTout.filter(m => !dits.has(m.id) && m.genre !== 'mouvements');
     // V5 : en semaine, le soir d'un match ordinaire se lit à l'affiche ; ses nouvelles attendent le sommaire du lundi.
-    if (!semaine && nouveaux.length <= 1 && !grosVu && !attend.length && (!auNoeud() || (!blesse && !infos.length && !mv.length))) { hierFrais = jour; hierAnimer = true; return false; }
+    // Un match regardé finit sur son sommaire (JP : *après match, pas revenir à la boîte, mais au sommaire*).
+    if (!regarde && !semaine && nouveaux.length <= 1 && !grosVu && !attend.length && (!auNoeud() || (!blesse && !infos.length && !mv.length))) { hierFrais = jour; hierAnimer = true; return false; }
     const f = fiche.get(you), rang = rangDe(you);
     const W = nouveaux.filter(x => gagne(x.m, you)).length;
     const OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length, L = nouveaux.length - W - OTL;
@@ -2037,11 +2038,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
   /* Après une avance : le sommaire (la semaine finie, ou le soir d'un match qui compte), sinon le passage à l'écran. */
   // `enSemaine` : « Semaine suivante » arrêtée en route n'ouvre pas de sommaire (celui de la semaine viendra), sauf un gros match.
-  const apresAvance = (avant, sem, enSemaine = false) => {
+  const apresAvance = (avant, sem, enSemaine = false, regarde = false) => {
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     const fini = semaineFinie(sem);
     const grosVu = (you.minisBoss || []).some(mb => mb.jour >= avant.jour && mb.jour < jour);
-    if (fini ? ouvrirSommaire(sem, true) : (!enSemaine || grosVu) && ouvrirSommaire(avant)) return;
+    // La semaine finie au soir d'un match regardé se plie au bureau, et le sommaire du match s'ouvre quand même.
+    if (fini ? ouvrirSommaire(sem, true) || (regarde && ouvrirSommaire(avant, false, true)) : (regarde || !enSemaine || grosVu) && ouvrirSommaire(avant, false, regarde)) return;
     retenir = false;
     dessiner();
     // Le passage ne couvre jamais un message à régler (JP : *des courriels qu'on voit pas*) : il est décor, pas nouvelle.
@@ -4170,6 +4172,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Un duel s'arrête à chaque entracte qui attend sa décision : 20:00, puis 40:00.
     const kDuel = duelDuSoir(p.j) ? periodeAttendue(p.j) : 0;
     const attente = duelDuSoir(p.j) ? kDuel > 0 : !depuis && entracteAttendu(p.j);
+    const sem = debutDeSemaine();
+    const avant = { jour, joues: miens.length, rang: rangDe(you) };
     // Les journées de congé d'ici là passent d'elles-mêmes.
     dernierAvance = { joues0: miens.length };
     while (jour < p.j) appliquerJour(jour++);
@@ -4183,7 +4187,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       etat: jour ? `${f.W}-${f.L}-${f.OTL} · ${rangDe(you)}${rangDe(you) === 1 ? 'er' : 'e'}` : 'Premier match de la saison',
       graine: (p.j + 1) * 100 + p.k, avant: compte, ctx,
       arret: attente ? (kDuel ? 20 * kDuel : 40) : null, onArret: attente ? () => { dessiner(); ouvrirEntracte(true); } : null, depuis,
-      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); },
+      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); apresAvance(avant, sem, false, true); },
     });
     void apresA; void apresB;
   }
