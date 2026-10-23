@@ -3478,6 +3478,12 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* ---- Le dépistage, plié sur l'affiche : chances, forces comparées (moi / lui), quoi faire ce soir ---- */
 .hub-dep-corps, .hub-dep-calc { display: flex; flex-direction: column; gap: var(--esp-3); }
 .hub-dep-corps { padding: 0 var(--esp-3) var(--esp-3); }
+/* Le dépistage sous Effectif : tes chances et les conseils d'abord, le détail plié dessous. */
+.dep-plie { border-top: 1px solid var(--filet-2); }
+.dep-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 44px; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.dep-plie > summary::-webkit-details-marker { display: none; }
+.dep-plie > summary::after { content: ' ›'; margin-left: var(--esp-1); }
+.dep-plie[open] > summary::after { content: ' ‹'; }
 .dep2-chances { display: flex; flex-direction: column; gap: var(--esp-1); }
 .dep2-chances-mots { display: flex; align-items: baseline; justify-content: space-between; gap: var(--esp-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
 .dep2-chances-mots b { font: 800 var(--t-5)/1 var(--display); color: var(--encre); font-variant-numeric: tabular-nums; }

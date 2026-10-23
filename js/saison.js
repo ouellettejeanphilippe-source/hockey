@@ -1756,7 +1756,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="dep3-conseil-p">${ctx.esc(c.pourquoi)}</div>
         ${c.chiffres.length || (onDecision && c.genre !== 'deja') ? `<div class="dep3-conseil-pied">${c.chiffres.length ? `<span class="choix-puces">${puces(c.chiffres)}</span>` : ''}${onDecision && c.genre !== 'deja' ? `<button type="button" class="btn dep3-appliquer" data-conseil="${i}" data-j="${p.j}">Appliquer</button>` : ''}</div>` : ''}
       </div>`).join('') : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
-    return `${chances}${table}${surveiller}${conseilsHtml}`;
+    return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml };
   }
   /* « Appliquer » : le conseil devient une décision de la journée du match, et la saison se rejoue d'ici. */
   const appliquerConseil = b => {
@@ -3114,7 +3114,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
       // Le dépistage, calculé à l'ouverture : le sous-onglet d'Effectif en Rogue, une page du Club ailleurs.
-      const corpsDuDepistage = () => `<div class="hub-dep-corps">${soirEnVolet ? duelHtml(adv, { complet: true }) : ''}${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>`;
+      // Sous Effectif, il tient en un écran : tes chances et ce que tu peux faire, le reste se déplie.
+      const corpsDuDepistage = () => {
+        const d = depistageMatchHtml(p);
+        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}${d.conseils}</div></div>`;
+        return `<div class="hub-dep-corps">${d.chances}${d.conseils}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+      };
       const ouvrirDepistage = () => {
         const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
         brancherConseils(corps);
