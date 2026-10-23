@@ -2741,3 +2741,5 @@ Essayé et écarté : varier une teinte ou un angle d'une série à sa voisine (
 
 L'échange d'un doublon offrait trois joueurs de saisons de la même série ; une série d'une saison n'en offrirait qu'un. Il pige maintenant dans l'époque (`epoqueDe`, les dix anciennes bornes).
 
+**La photo d'action, dès qu'elle existe (23 oct. 2026).** JP : *plus de cartes avec photo en action, lorsque possible, les vraies cartes sont plus souvent en action*. La décision d'octobre (*les éditions hautes*) réservait l'action au Hors-cadre, à l'Or et à la Holo, pour qu'elle « se gagne et se voie ». Elle se voit toujours : en Base et en Cadre, la photo de match reste dans la fenêtre de la série ; aux éditions hautes, elle sort du cadre et prend toute la carte. Le portrait reste à qui n'a pas de photo d'action (80 à 90 % des joueurs en ont une depuis 2012-13, 8 à 15 % avant 2005). Les séries dessinées pour un portrait détouré (un halo, une fumée, un voile derrière le joueur) ont été retouchées pour une photo pleine.
+

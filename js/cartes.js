@@ -327,8 +327,8 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  * (js/rarete.js) la parallèle — le même dessin, traité : voir `cartonHtml`.
  * Une saison sans série (une saison neuve) prend celle de la dernière saison qui en a une.
  *
- * La photo d'action (`photoAction`) n'appartient pas à une série : elle va aux
- * éditions hautes, dont la photo prend toute la carte (oct. 2026).
+ * La photo d'action (`photoAction`) n'appartient pas à une série : elle remplit sa
+ * fenêtre, et toute la carte aux éditions hautes (oct. 2026).
  */
 export const SERIES = {
   fanion: { nom: 'Fanion', saison: '1970-71' },
@@ -418,12 +418,12 @@ export function anneeDeCarte(saison) {
  * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au
  * chargement (`onerror`) — chaque série retombe sur le portrait.
  *
- * L'ACTION EST UNE ÉDITION HAUTE (oct. 2026). JP : *ajouter des cartes que c'est un action shot et non juste
- * headshot* — puis, des deux choix, *les éditions hautes*. La Base et le Cadre gardent le portrait ; le
- * Hors-cadre, l'Or et la Holo montrent le joueur en mouvement, pleine carte : l'action se gagne et se voit.
+ * L'ACTION, DÈS QU'ELLE EXISTE (oct. 2026). JP : *plus de cartes avec photo en action, lorsque possible, les
+ * vraies cartes sont plus souvent en action*. Avant, seules les éditions hautes la montraient. Maintenant toute
+ * carte la prend : en Base et en Cadre, elle remplit la fenêtre de sa série ; au Hors-cadre, à l'Or et à la
+ * Holo, elle sort du cadre et prend toute la carte. Le portrait reste pour qui n'a pas de photo d'action.
  */
-const EN_ACTION = new Set(['hors', 'rare', 'legendaire']);
-export const photoAction = (p, rarete) => (p && EN_ACTION.has(rarete) && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
+export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
