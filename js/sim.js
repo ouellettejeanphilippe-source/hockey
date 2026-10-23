@@ -20,6 +20,7 @@ import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
 import { MODIFS_VIE } from './cartes-vie.js';
 import { EQUIPEMENT } from './equipement.js';
+import { PROTEGES } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -6248,7 +6249,8 @@ function appliquerDecision(team, d, graine = 0) {
     return o && o.mutation ? { cle: o.mutation, joueur: d.moment.joueur } : null;
   })());
   if (mut && MUTATIONS[mut.cle]) {
-    const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === mut.joueur) || CONNUS.get(mut.joueur);
+    // V16 : le protégé d'un adjoint que personne ne nomme est celui que le moteur désigne.
+    const p = mut.joueur ? Object.values(team.roster).find(x => x && getPlayerKey(x) === mut.joueur) || CONNUS.get(mut.joueur) : joueurDeMutation(team, null, mut.cle);
     if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
@@ -6291,6 +6293,8 @@ function appliquerDecision(team, d, graine = 0) {
    */
   if (d.patron && d.patron.cle) {
     const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
+    const partent = (team.patrons || []).filter(x => x.cle !== d.patron.cle && (rempl.has(x.cle) || (d.patron.role && x.role === d.patron.role)));
+    for (const x of partent) retirerProtege(team, x.cle);
     team.patrons = (team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role));
     const { remplace: _r, ...pat } = d.patron;
     team.patrons.push(pat);
@@ -7636,6 +7640,8 @@ export const MUTATIONS = {
   ...MODIFS_VIE,
   // L'équipement neuf (V10, tranche 3 — js/equipement.js) : une carte posée sur un joueur, qui attend son moment.
   ...EQUIPEMENT,
+  // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.
+  ...PROTEGES,
 };
 const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
@@ -7713,6 +7719,17 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   (p._mutCles = p._mutCles || []).push(cle);
   // `saison` (V9, tranche 7) : une modif offerte pour la saison seulement (le vétéran mentor d'un fil) ne va pas sur sa carte.
   (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}) });
+}
+
+/* Un adjoint qui quitte son poste (V16) emporte son protégé : ses soirs ne jouent plus, la mutation sort du journal. */
+function retirerProtege(team, cle) {
+  if (!PROTEGES[cle]) return;
+  for (const p of Object.values(team.roster || {})) {
+    if (!p) continue;
+    if (p._si) p._si = p._si.filter(e => e.cle !== cle);
+    if (p._mutCles) p._mutCles = p._mutCles.filter(k => k !== cle);
+  }
+  if (team.mutations) team.mutations = team.mutations.filter(m => m.cle !== cle);
 }
 
 /* Les accidents : cinq fenêtres, une chance sur deux par club, tirés de la graine. */

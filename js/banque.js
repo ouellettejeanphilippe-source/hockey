@@ -23,7 +23,7 @@
  */
 import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI } from './sim.js';
 import { PLACES_NEUVES } from './places.js';
-import { PERSONNEL, CONTRATS_MAUDITS } from './personnel.js';
+import { PERSONNEL, CONTRATS_MAUDITS, PROTEGES } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe, motsSurLeJoueur } from './gerant.js';
 import { money, hache } from './util.js';
@@ -247,7 +247,7 @@ const fait = (cat, cle, def) => ({ id: `${cat}:${cle}`, cat, cle, ...def });
  */
 function coachDeLaFamille(cat, cle) {
   const lu = o => coachDesCanaux(o);
-  if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ }); }
+  if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ, mutation: PROTEGES[cle] }); }
   if (cat === 'joueur') return lu({ mutation: MUTATIONS[cle] });
   // Une place sur un joueur (V11) : ses canaux à lui se lisent comme ceux d'une modif.
   if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes, gain: C.gain, pari: C.pari, mutation: C.joueur }); }
@@ -525,7 +525,9 @@ export function payloadDe(id, { joueur = null, coach = null, patrons = [], alea 
       for (const [k, v] of Object.entries(P.synergie.effet)) effet[k] = k === 'robustesse' ? (effet[k] || 0) + v : (effet[k] ?? 1) * v;
     }
     const remplace = patrons.filter(x => x.role === P.role && x.cle !== c.cle).map(x => x.cle);
-    return { patron: { cle: c.cle, role: P.role, nom: P.nom, ico: P.ico, ...effet, ...(P.si ? { si: P.si } : {}), ...(P.econ ? { econ: { ...P.econ } } : {}), ...(synergie ? { synergie: true } : {}), ...(remplace.length ? { remplace } : {}) } };
+    // V16 : un adjoint à protégé pose aussi sa mutation, pour la saison, sur le joueur nommé ou celui que le moteur désigne.
+    return { patron: { cle: c.cle, role: P.role, nom: P.nom, ico: P.ico, ...effet, ...(P.si ? { si: P.si } : {}), ...(P.econ ? { econ: { ...P.econ } } : {}), ...(synergie ? { synergie: true } : {}), ...(remplace.length ? { remplace } : {}) },
+      ...(PROTEGES[c.cle] ? { mutation: { cle: c.cle, ...(joueur ? { joueur } : {}), saison: true } } : {}) };
   }
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {

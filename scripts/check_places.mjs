@@ -22,7 +22,7 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, MUTATIONS, appliquerMutation, joueurDeMutation, activeLineup, effetsDesJoueurs, getPlayerKey } from '../js/sim.js';
 import { PLACES_NEUVES } from '../js/places.js';
 import { EQUIPEMENT } from '../js/equipement.js';
-import { PERSONNEL, CONTRATS_MAUDITS } from '../js/personnel.js';
+import { PERSONNEL, CONTRATS_MAUDITS, PROTEGES } from '../js/personnel.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { BANQUE, idsDe } from '../js/banque.js';
 import { COACHS } from '../js/coachs.js';
@@ -98,7 +98,11 @@ function mesurer(cles, n) {
           effetsDesJoueurs(avec, 0);
           sans._nomme = avec._nomme = getPlayerKey(p);
         }
-        else if (sorte === 'q') avec.patrons = [{ cle, role: C.role, nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
+        else if (sorte === 'q') {
+          avec.patrons = [{ cle, role: C.role, nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
+          // V16 : un adjoint à protégé pose aussi sa mutation, sur le joueur que le moteur désigne ; ses points se lisent à sa ligne.
+          if (PROTEGES[cle]) { const p = joueurDeMutation(avec, null, cle); appliquerMutation(avec, p, cle, 0, 'personnel'); sans._nomme = avec._nomme = getPlayerKey(p); }
+        }
         else { const k = duel ? JUMELLE : cle; appliquerMutation(avec, joueurDeMutation(avec, null, k), k, 0, 'equipement'); }
         for (const T of [sans, avec]) T._lireMoment = lire;
         return { sans, avec, adv };
@@ -146,8 +150,10 @@ console.log(`\n  Les places et l'équipement neufs (V10) · ${toutes.length} car
   exiger('les places : trois par coach, six sans canal de joueur (le Rhino, l\'Abbé, le Contremaître), trois neutres',
     Object.keys(COACHS).every(k => pl[k] === (AVEC_CANAL.includes(k) || k === 'banque' ? 3 : 6)) && pl.neutre === 3, dit(pl));
   exiger('l\'équipement : trois par coach qui a un canal de joueur, trois neutres', AVEC_CANAL.every(k => eq[k] === 3) && eq.neutre === 3 && Object.keys(eq).every(k => k === 'neutre' || AVEC_CANAL.includes(k)), dit(eq));
+  // V16 (docs/refonte-v16.md § 5) : le personnel remplace les autres cartes bonus — cinq adjoints par coach au moins, sur trois postes, six neutres.
   const pe = compte(PERSONNEL, 'patron');
-  exiger('le personnel : deux postes par coach, trois neutres', Object.keys(COACHS).every(k => pe[k] === 2) && pe.neutre === 3, dit(pe));
+  const postes = k => new Set(Object.keys(PERSONNEL).filter(c => (BANQUE[`patron:${c}`].coach || 'neutre') === k).map(c => PERSONNEL[c].role)).size;
+  exiger('le personnel : cinq adjoints par coach au moins, sur trois postes au moins ; six neutres', Object.keys(COACHS).every(k => pe[k] >= 5 && postes(k) >= 3) && pe.neutre === 6, `${dit(pe)} · postes : ${Object.keys(COACHS).map(k => `${COACHS[k].ico} ${postes(k)}`).join(' ')}`);
   exiger('chaque carte d\'un moment attend un moment que le moteur connaît', [...Object.values(PLACES_NEUVES), ...Object.values(EQUIPEMENT), ...Object.values(PERSONNEL), ...Object.values(CONTRATS_MAUDITS)].every(C => !C.si || MOMENTS_SI[C.si]), `${toutes.length} cartes`);
   const offertes = [...idsDe('consommable'), ...idsDe('joueur')].map(id => BANQUE[id]);
   const vieilles = offertes.filter(c => c.cat === 'consommable' && !PLACES_NEUVES[c.cle] && ['aucune', 'joueur'].includes(c.cible));
@@ -186,7 +192,7 @@ for (const id of toutes) {
     || Math.abs(vu1(m.dpj)) >= VISIBLE.buts
     || Math.abs(vu1(m.dpun)) >= VISIBLE.punitions || Math.abs(vu1(m.dcoups)) >= VISIBLE.coups || Math.abs(vu1(m.dbl) * 82) >= VISIBLE.blessures;
   informer(`${C.ico} ${C.nom} (${PILE[sorte]}, ${C.rarete}, ${Mo.mot.toLowerCase()})`,
-    `${soirs.toFixed(1).replace('.', ',')} soirs · ${f1(v)} V · par soir : tirs ${f1(par(m.dtp))} / contre ${f1(par(m.dtc))} · buts ${f2(par(m.dgf))} / ${f2(par(m.dga))} · punitions ${f2(par(m.dpun))} · mises en échec ${f1(par(m.dcoups))} · blessures ${f2(par(m.dbl) * 82)} par saison · jambes ${f1(par(m.djambes))}${C.joueur ? ` · le joueur nommé ${f2(m.dpj / m.n)} point` : ''}`);
+    `${soirs.toFixed(1).replace('.', ',')} soirs · ${f1(v)} V · par soir : tirs ${f1(par(m.dtp))} / contre ${f1(par(m.dtc))} · buts ${f2(par(m.dgf))} / ${f2(par(m.dga))} · punitions ${f2(par(m.dpun))} · mises en échec ${f1(par(m.dcoups))} · blessures ${f2(par(m.dbl) * 82)} par saison · jambes ${f1(par(m.djambes))}${C.joueur || C.protege ? ` · le joueur nommé ${f2(m.dpj / m.n)} point` : ''}`);
   // Un contrat lourd est un prix, pas une force : il se mesure, il ne se borne pas ; il doit seulement coûter.
   if (sorte === 'k') { if (!(v < 0)) tropFortes.push(`${C.nom} ne coûte rien (${f1(v)} V)`); continue; }
   if (Math.abs(v) > BORNE_V[C.rarete]) tropFortes.push(`${C.nom} ${f1(v)} V (borne ${BORNE_V[C.rarete]})`);
