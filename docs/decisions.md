@@ -2730,3 +2730,14 @@ La run (`check_profondeur`, huit campagnes) :
 Après la première Coupe, l'attentif ne la regagnait plus que 24 % du temps (10 sur 41, borne 25 %) : sans le plan, un trio ne joue plus tout. Le premier cran d'exigence, 🔺 la ceinture, passe donc de 3 à 2 M$ d'espace de moins ; il ne touche rien avant la première Coupe. Résultat : 34 % (14 sur 41).
 
 Ce qui part : `PLAN_PAIE`, `COACH_DU_PLAN`, `systemeDuPlan`, `valeurDuPlan`, `echangesDuPlan`, les mots du plan dans l'écran, et `check_fit`. Les familles restent pour les packs, le profil et l'intention que l'adversaire prête à ton coach.
+
+## Une série de cartes par saison (23 oct. 2026)
+
+JP : *avoir variété de design de cartes par années, pas par décennie* ; *chaque année devra être différente* ; puis, devant un premier essai : *les designs sont incomplets et pas digne d'un graphiste, peu importe l'époque, ça doit être pro et commercial, la vraie affaire* ; *toujours respecter les règles de base, genre texte visible, pas d'overlap de texte*.
+
+Dix séries couvraient chacune cinq à huit saisons. Il y en a maintenant 56, une par saison (`SERIES`, js/cartes.js), chacune inspirée des vraies cartes de son année sans en copier ni marque ni mise en page. Deux choses manquaient pour qu'un dessin ait l'air d'un produit : la typographie (une seule police condensée pour tout) et des calques à dessiner (deux pseudo-éléments). D'où 20 polices OFL hébergées (fonts/POLICES.txt, sous-ensemble latin, environ 430 Ko, chargées seulement quand une carte s'en sert) et trois calques d'ornement libres (`.carton-orne`, `display: contents`, devant ou derrière la photo) plus une marque de série (`.carton-marque`).
+
+Essayé et écarté : varier une teinte ou un angle d'une série à sa voisine (deux années se confondaient) ; un premier lot dessiné en rectangles et polices système (refusé). Retenu : changer la STRUCTURE d'une année à l'autre — la fenêtre, la plaque du nom, la bordure, l'écusson —, contrôlée par une mesure des boîtes de texte (aucun chevauchement, aucun texte coupé) sur quatre clubs par saison, à 300 et à 130 px, dans les cinq éditions.
+
+L'échange d'un doublon offrait trois joueurs de saisons de la même série ; une série d'une saison n'en offrirait qu'un. Il pige maintenant dans l'époque (`epoqueDe`, les dix anciennes bornes).
+

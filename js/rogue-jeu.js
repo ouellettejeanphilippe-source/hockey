@@ -21,7 +21,7 @@ import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, mo
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
-import { artJoueur, photoAction, serieDe, SERIES } from './cartes.js';
+import { artJoueur, photoAction, serieDe, epoqueDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
@@ -960,7 +960,7 @@ export function poserLaModif(item, j, i, decider) {
 }
 /*
  * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : ton doublon le plus fourni (à égalité, l'ordre pur de `graine`) donne trois
- * joueurs de la même série de cartons (`serieDe`, js/cartes.js) — des saisons qu'elle couvre, pas encore à ton
+ * joueurs de la même époque de cartons (`epoqueDe`, js/cartes.js) — des saisons qu'elle couvre, pas encore à ton
  * cartable, au plus du niveau de la carte, sous le plafond d'un pack, ni dans la ligue ni chez toi. Chaque offre porte
  * le doublon qu'elle coûte (`donne`) ; la signature le retire (`donnerUnDoublon`).
  */
@@ -970,8 +970,8 @@ async function offresDEchange(C, graine, c, dansLaLigue, max) {
   for (const d of doublons) {
     const q = await joueurDeCle(d);
     if (!q) continue;
-    const serie = serieDe(q.s);
-    const saisons = tirageDuClasseur(state.index.seasons.filter(s => serieDe(s) === serie), `${graine}:saisons`);
+    const epoque = epoqueDe(q.s);
+    const saisons = tirageDuClasseur(state.index.seasons.filter(s => epoqueDe(s) === epoque), `${graine}:saisons`);
     const out = [];
     for (const s of saisons) {
       if (out.length >= C.offres) break;
@@ -982,7 +982,7 @@ async function offresDEchange(C, graine, c, dansLaLigue, max) {
         const niveau = niveauDe(p, joueurs);
         if (niveau > C.niveauMax) continue;
         // Un joueur par saison : l'échange montre la série, pas un seul vestiaire.
-        out.push({ p, rar: 'commune', niveau, num: null, donne: d, donneNom: q.n, serie: SERIES[serie].nom });
+        out.push({ p, rar: 'commune', niveau, num: null, donne: d, donneNom: q.n, serie: SERIES[serieDe(q.s)].nom });
         break;
       }
     }

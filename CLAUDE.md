@@ -27,7 +27,7 @@ index.html            la page unique : l'en-tête du club, les cinq sections, ro
 style.css             tous les styles, une seule feuille écrite dans l'ordre des écrans (docs/refonte-ui.md), mobile d'abord (390 px), le rail dès 1000 px
 sw.js                 travailleur de service : la coquille hors ligne (FICHIERS), les visages en cache
 site.webmanifest, favicon.svg, icon-*.png   installation et icônes
-fonts/                Barlow Condensed (OFL), hébergée ici
+fonts/                Barlow Condensed, Manrope, Noto Emoji et les polices des séries de cartes (OFL, fonts/POLICES.txt), hébergées ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
 img/actions           photos de match recadrées en 5:7, la face au centre, pour les éditions hautes des cartes (≈ 50 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs les refait ; data/actions.json les liste)
