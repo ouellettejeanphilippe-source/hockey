@@ -12,7 +12,7 @@ import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepar
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, forceEtFaiblesse, aUnDefaut, ouvertsDe, reportDuPersonnel, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, forceEtFaiblesse, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -1825,14 +1825,14 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   // 1.0 : un patron engagé l'est pour la RUN — il reste en poste à la saison suivante, avec ses chiffres.
   // V14 : avec son échelon, ses choix et ses matchs à ton service, qui repartent de là (js/echelons.js `reportDuPersonnel`).
   const gens = new Map(etatPersonnel(Infinity).map(e => [e.cle, e]));
-  // V16 : un adjoint à protégé le garde (le même joueur s'il est encore là), sinon le moteur en désigne un.
-  const protegeDe = cle => {
+  // V16 : un adjoint à protégé le garde (le même joueur s'il est encore là, à l'échelon de l'adjoint), sinon le moteur en désigne un.
+  const protegeDe = (cle, choix = []) => {
     const d = [...decsSaison].reverse().find(x => x && x.mutation && x.mutation.cle === cle), k = d && d.mutation.joueur;
-    return { cle, ...(k && Object.values(roster).some(p => p && getPlayerKey(p) === k) ? { joueur: k } : {}), saison: true };
+    return { cle, ...(k && Object.values(roster).some(p => p && getPlayerKey(p) === k) ? { joueur: k } : {}), saison: true, ...(choix.length ? { canaux: protegeALEchelon(cle, choix) } : {}) };
   };
   for (const pa of patronsActifs(decsSaison)) {
     const { jour: _j, remplace: _r, ...patron } = gens.has(pa.cle) ? reportDuPersonnel(gens.get(pa.cle)) : pa; void _j; void _r;
-    report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: protegeDe(pa.cle) } : {}), report: true });
+    report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: protegeDe(pa.cle, patron.choix || []) } : {}), report: true });
   }
   // Jalon Q : tes places te suivent — leurs cartes pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = placesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);

@@ -6249,8 +6249,12 @@ function appliquerDecision(team, d, graine = 0) {
     return o && o.mutation ? { cle: o.mutation, joueur: d.moment.joueur } : null;
   })());
   if (mut && MUTATIONS[mut.cle]) {
-    // V16 : le protégé d'un adjoint que personne ne nomme est celui que le moteur désigne.
-    const p = mut.joueur ? Object.values(team.roster).find(x => x && getPlayerKey(x) === mut.joueur) || CONNUS.get(mut.joueur) : joueurDeMutation(team, null, mut.cle);
+    // V16 : un protégé reposé (l'échelon de son adjoint) remplace l'ancien, sur le même joueur ; celui que personne ne
+    // nomme est celui que le moteur désigne.
+    const ancien = PROTEGES[mut.cle] ? (team.mutations || []).find(m => m.cle === mut.cle) : null;
+    if (ancien) retirerProtege(team, mut.cle);
+    const qui = mut.joueur || (ancien && ancien.joueur);
+    const p = qui ? Object.values(team.roster).find(x => x && getPlayerKey(x) === qui) || CONNUS.get(qui) : joueurDeMutation(team, null, mut.cle);
     if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
@@ -7643,9 +7647,9 @@ export const MUTATIONS = {
   // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.
   ...PROTEGES,
 };
-const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
+export const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
-const estMalus = (canal, x) => (canal === 'defense' || canal === 'blessure' || canal === 'arrets' ? x > 1 : x < 1);
+export const estMalus = (canal, x) => (canal === 'defense' || canal === 'blessure' || canal === 'arrets' ? x > 1 : x < 1);
 /* Une mutation qui ne fait que nuire (un accident) : le physio l'efface de la carte. */
 const malusSeul = k => {
   const M = MUTATIONS[k];
@@ -7712,8 +7716,10 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   // S80 : une AMÉLIORATION grandit avec la saison (`echelleTardive`) ; elle vit à part, et `mutDe` la fait grandir.
   const grandit = M.source === 'amelioration';
   if (grandit) p._amel = p._amel || {};
-  if (M.si) (p._si = p._si || []).push({ cle, si: M.si, ...Object.fromEntries(CANAUX_MUT.filter(c => M[c]).map(c => [c, M[c]])) });
-  else for (const c of CANAUX_MUT) if (M[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * M[c]; else p._mut[c] = (p._mut[c] || 1) * M[c]; }
+  // V16 : le protégé d'un adjoint porte ses canaux à l'échelon de l'adjoint (`canaux`, js/echelons.js `protegeALEchelon`).
+  const can = extra && extra.canaux ? { ...M, ...extra.canaux } : M;
+  if (M.si) (p._si = p._si || []).push({ cle, si: M.si, ...Object.fromEntries(CANAUX_MUT.filter(c => can[c]).map(c => [c, can[c]])) });
+  else for (const c of CANAUX_MUT) if (can[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * can[c]; else p._mut[c] = (p._mut[c] || 1) * can[c]; }
   p._mutProfils = p._mutProfils || {};
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
