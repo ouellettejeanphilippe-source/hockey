@@ -29,8 +29,8 @@ const page = await browser.newPage({ viewport: { width: 390, height: 844 }, hasT
  * v2 : la boutique et tes cartes n'ont plus qu'une porte, la section Marché (la rangée de liens du bureau doublait
  * les étapes, la boîte, la Ligue et le Marché). Le bureau est prêt quand sa barre d'action est là.
  */
-// V9 : À faire porte tous les choix ; le bureau est prêt quand sa barre propose d'avancer, de régler ou de trancher.
-const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter, .hub-trancher)';
+// V9 : À faire porte tous les choix ; le bureau est prêt quand sa barre propose d'avancer ou de régler.
+const BUREAU = '#hubModal :is(.hub-jour, .hub-traiter)';
 /* Attendre qu'UN des éléments soit visible (le premier de la liste peut être caché sous une page du Club). */
 const unVisible = (sel, timeout = 120000) => page.waitForFunction(s => [...document.querySelectorAll(s)].some(e => e.offsetParent), sel, { timeout });
 /*
@@ -76,7 +76,7 @@ const versCeSoir = async () => {
   await defile(false); await page.waitForTimeout(200);
 };
 const auBureau = async (timeout = 120000) => {
-  await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-trancher'), null, { timeout });
+  await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter'), null, { timeout });
   await page.waitForTimeout(300);
   if (await page.evaluate(() => document.body.dataset.section !== 'bureau')) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(250); }
   await unVisible(BUREAU, timeout);
@@ -517,15 +517,15 @@ async function regler() {
      * À FAIRE (V9, tranche 1 ; JP : *tous les choix au même endroit, même UI et UX*). Chaque choix a la même forme : sa
      * bande (la voix, le sujet), puis ses options `optionHtml`. On règle le choix ouvert comme un joueur pressé : une
      * réponse risquée tant que le dé n'a pas roulé cinq fois, sinon la première option ; une option › ouvre son écran
-     * (le combat, le paquet, la main, une liste), que les cas plus haut règlent. « Trancher » envoie tout le coché en
-     * un lot : autant de décisions que de choix. Photographié une fois ; la route dit l'état du club.
+     * (le combat, le paquet, la main, une liste), que les cas plus haut règlent. Toucher une option l'envoie : une décision
+     * par choix (les rivaux, au dernier coché). Photographié une fois ; la route dit l'état du club.
      */
     /*
      * V12 (docs/refonte-v12.md) : la boîte renvoie au sous-onglet de sa maison (Bureau › Proprio, Effectif › Infirmerie…),
      * qui montre ses choix en entier ; le gros match et la signature montrent leur porte dans la boîte même. On règle le
      * premier qui attend ; un sous-onglet sans rien qui presse, le Bureau rend la boîte.
      */
-    const ouvertA = await page.evaluate(() => { const el = [...document.querySelectorAll('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque:not(.pret)')].find(x => x.checkVisibility()); if (el) el.dataset.essai = '1'; return !!el; })
+    const ouvertA = await page.evaluate(() => { const el = [...document.querySelectorAll('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque')].find(x => x.checkVisibility()); if (el) el.dataset.essai = '1'; return !!el; })
       .then(async vu => { if (!vu) return null; const el = await page.$('#hubModal .hub-msg[data-essai="1"]'); await el.evaluate(x => delete x.dataset.essai); return el; });
     if (ouvertA) {
       const lu = await ouvertA.evaluate(el => ({ genre: el.dataset.msg, sujet: (el.querySelector('.af-feuille-sujet') || {}).textContent || '',
@@ -558,31 +558,22 @@ async function regler() {
       const o = pari && des.length < 5 ? pari : (lu.genre === 'trou' && libres.find(x => !x.ouvre)) || libres[0];
       if (!o) throw new Error(`« ${lu.sujet} » attend dans À faire sans option à toucher`);
       if (o === pari) evenementsDe.push(lu.sujet.trim());
+      const n0 = o.ouvre || o === pari ? null : (await decisionsDuCombat()).length;
+      if (n0 !== null && !afaire.lots.length) await page.screenshot({ path: `${DOSSIER}/rogue-choix-touche.png` });
       await ouvertA.$(`.af-option[data-choix="${o.cle.replace(/"/g, '\\"')}"]`).then(b => b.click());
       await page.waitForTimeout(400);
+      // Un rival coché avant le dernier attend les autres ; tout autre choix touché est parti.
+      if (n0 !== null && !(await page.$('#hubModal .af-option.on'))) {
+        await attendreDecisions(n0);
+        const pris = (await decisionsDuCombat()).length - n0;
+        afaire.lots.push(`${lu.genre}→${pris}`);
+        if (!pris) erreurs.push(`« ${lu.sujet.trim()} » touché n'écrit aucune décision`);
+      }
       continue;
     }
     // Un sous-onglet qui ne presse plus (un blessé que la réserve couvre, déjà réglé ailleurs) : le Bureau rend la boîte.
     if (await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet')].some(x => x.checkVisibility()))) {
       afaire.pages++; await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue;
-    }
-    const trancherB = await page.$('#hubModal .hub-trancher');
-    if (trancherB && await trancherB.isVisible()) {
-      const prets = await page.$$eval('#hubModal .hub-msg.pret', e => e.length);
-      if (afaire.lots.length === 0) await page.screenshot({ path: `${DOSSIER}/rogue-trancher.png` });
-      const n0 = (await decisionsDuCombat()).length;
-      await trancherB.click({ timeout: 8000 }).catch(async e => {
-        const f = await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet .hub-msg')].map(x => x.className + ' ' + x.dataset.msg + ' ' + x.dataset.id + ' : ' + x.textContent.replace(/\s+/g, ' ').trim().slice(0, 300)));
-        await page.screenshot({ path: `${DOSSIER}/rogue-trancher-cache.png` }).catch(() => {});
-        throw new Error(`« Trancher » est caché par une feuille : ${f.join(' | ')}`);
-      }); await page.waitForTimeout(1500);
-      await page.waitForFunction(() => !document.querySelector('#hubModal .hub-msg.pret'), null, { timeout: 60000 }).catch(() => {});
-      if (prets) await attendreDecisions(n0);
-      const pris = (await decisionsDuCombat()).length - n0;
-      afaire.lots.push(`${prets}→${pris}`);
-      if (prets && !pris) console.log('rien d\'écrit : le stockage', await page.evaluate(() => Object.keys(localStorage).map(k => `${k} ${Math.round(localStorage.getItem(k).length / 1024)} Ko`).join(' · ')));
-      if (pris < prets) erreurs.push(`« Trancher » envoie ${pris} décision(s) pour ${prets} choix`);
-      continue;
     }
     const t = await page.$('#hubModal .hub-traiter');
     // « À régler » déplie le choix qui attend, sous l'affiche du Bureau, ou ouvre l'écran d'un choix à une seule porte.
@@ -606,7 +597,7 @@ async function regler() {
         throw new Error(`« À régler » est caché par une feuille : ${f.join(' | ')}`);
       }); await page.waitForTimeout(900);
       const sb = await page.evaluate(() => {
-        const m = [...document.querySelectorAll('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque:not(.pret)')].find(x => x.checkVisibility());
+        const m = [...document.querySelectorAll('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque')].find(x => x.checkVisibility());
         if (!m || document.querySelector('#choixModal:not([hidden])')) return null;
         // V12 : « À régler » ouvre le sous-onglet de sa maison ; sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
         const o = m.querySelector('.af-option');
@@ -634,7 +625,7 @@ async function regler() {
 }
 // Lancer la saison
 await page.click('#mainBtn');
-await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-trancher, #choixModal:not([hidden]) .choix-option');
+await unVisible('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option');
 await regler();
 await tourDesBords('le premier jour');
 await regler();
@@ -1637,9 +1628,9 @@ if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversé
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
 console.log(`20d. périodes de duel jouées (période:geste:verdict) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
-console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · lots tranchés (cochés → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
+console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · choix envoyés (genre → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
-if (afaire.vu && !afaire.lots.length) erreurs.push('aucun lot tranché');
+if (afaire.vu && !afaire.lots.length) erreurs.push('aucun choix touché n\'a été envoyé');
 if (afaire.formes.length) erreurs.push(`des choix d'À faire n'ont pas la forme commune (options \`optionHtml\`) : ${afaire.formes.slice(0, 4).join(' · ')}`);
 if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offerte dans À faire');
 // V12 : chaque chose à régler ouvre sa page ; la boîte n'en règle aucune sur place.

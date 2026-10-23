@@ -211,8 +211,8 @@ const ballottage = { fait: false, mot: null };
  * puis *tous les choix au même endroit, même UI et UX*. Tant qu'un choix
  * bloque (une blessure, une case vide, un palier, un choix forcé), « Journée
  * suivante » devient « ⏳ Encore un choix… » ou « À régler… ». Le parcours règle
- * ces choix comme un joueur : la première option du choix ouvert, puis
- * « Trancher » envoie le coché (le jour à jour est au Rogue). La case
+ * ces choix comme un joueur : la première option du choix ouvert, qui part
+ * au toucher (le jour à jour est au Rogue). La case
  * vide s'éprouve d'abord (`guetterTrouHook`, posé par la saison) ; le palier
  * reste ouvert tant que son bloc ne l'a pas éprouvé (`palierAuto`), puis se
  * joue tout seul : la carte d'effet, ou la première, et son deuxième choix.
@@ -274,7 +274,7 @@ async function ouvrirLaMain() {
 async function debloquer() {
   for (let i = 0; i < 12; i++) {
     if (await page.$('#choixModal:not([hidden]) .choix-sheet')) return;
-    if (!(await page.$('#hubModal :is(.hub-traiter, .hub-trancher)'))) return;
+    if (!(await page.$('#hubModal .hub-traiter'))) return;
     await versLaBoite();
     if (await page.$('#hubModal .hub-msg.bloque[data-msg="trou"]')) {
       await versSaPage('trou');
@@ -292,7 +292,6 @@ async function debloquer() {
     await guetterBallottage();
     if (ballottage.fait !== avantBal) continue;
     if (await toucher('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque .af-option:not([disabled]):not(.on)')) continue;
-    if (await toucher('#hubModal .hub-trancher')) continue;
     // Le choix qui attend est plié : « Encore un choix » l'ouvre.
     await toucher('#hubModal .hub-traiter');
   }

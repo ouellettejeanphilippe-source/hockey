@@ -2730,3 +2730,15 @@ La run (`check_profondeur`, huit campagnes) :
 Après la première Coupe, l'attentif ne la regagnait plus que 24 % du temps (10 sur 41, borne 25 %) : sans le plan, un trio ne joue plus tout. Le premier cran d'exigence, 🔺 la ceinture, passe donc de 3 à 2 M$ d'espace de moins ; il ne touche rien avant la première Coupe. Résultat : 34 % (14 sur 41).
 
 Ce qui part : `PLAN_PAIE`, `COACH_DU_PLAN`, `systemeDuPlan`, `valeurDuPlan`, `echangesDuPlan`, les mots du plan dans l'écran, et `check_fit`. Les familles restent pour les packs, le profil et l'intention que l'adversaire prête à ton coach.
+
+## Un choix part au toucher (23 oct. 2026)
+
+JP : *j'aime pas le UI pour ces trucs, les arrondis, le fait que ça reste* — les choix multiples d'À faire. L'option touchée restait cochée, en grand et cerclée d'or, jusqu'à « Trancher ».
+
+- **Toucher envoie.** L'option touchée part sur-le-champ (`envoyer`, js/saison.js) et la saison se rejoue avec elle ; « Trancher » et le lot sont partis, avec l'état « Prêt ».
+- **Sauf les rivaux.** Ils se cochent un à un et partent au dernier : un à la fois, « 1 sur 3 » revenait en « 2 sur 3 » et le choix semblait n'avoir pas pris (JP, 16 oct.). Le brouillon ne garde plus que ça.
+- **Des tuiles à coins vifs**, sans halo ni saut au survol ; une barre d'or à gauche marque le rival coché.
+
+Écarté : **cocher, puis replier.** On gardait un seul envoi, mais l'option restait à l'écran : c'est ce que JP n'aimait pas.
+
+Le prix : une saison rejouée par choix au lieu d'une par lot.

@@ -2889,13 +2889,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
   volet.addEventListener('click', dansLaMain);
   volet.addEventListener('keydown', dansLaMain);
-  // UN SOUS-ONGLET DE LA BOÎTE (V12) : ses options se cochent, « Trancher » envoie le lot, « Les chiffres » les déplie.
-  let toucherOption = null, toucherTrancher = null;
+  // UN SOUS-ONGLET DE LA BOÎTE (V12) : une option touchée part, « Les chiffres » les déplie.
+  let toucherOption = null;
   volet.addEventListener('click', e => {
     if (!actif() || !MAISONS[tabs.courant()]) return;
     const b = e.target.closest('.af-option[data-choix]');
     if (b && volet.contains(b) && toucherOption) { toucherOption(b); return; }
-    if (e.target.closest('.af-trancher') && toucherTrancher) { toucherTrancher(); return; }
     const c = e.target.closest('.af-chiffres');
     if (c && volet.contains(c)) { const o = basculerChiffres(); c.closest('.af-onglet').classList.toggle('chiffres', o); c.setAttribute('aria-pressed', String(o)); return; }
     // Une carte se joue dans sa maison (V12-2, V12-3) : le personnel s'engage, un soin se donne, un contrat se signe.
@@ -3503,12 +3502,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /*
    * À FAIRE, UNE SEULE FORME (V9, tranche 1 ; docs/refonte-v9.md). JP : *faire les choix, tous au même endroit du UI,
    * avec même UI et UX*. Tout ce qui se règle est un CHOIX du même dessin : qui le demande, le fait, le joueur visé,
-   * puis deux ou trois options (`optionHtml`), chacune en vraies stats. Toucher une option la coche ; « Trancher » envoie
-   * tout ce qui est coché en un lot, et la saison ne se rejoue qu'une fois. Une option qui ouvre son propre écran (le
+   * puis deux ou trois options (`optionHtml`), chacune en vraies stats. Toucher une option l'envoie (les rivaux, au
+   * dernier coché). Une option qui ouvre son propre écran (le
    * combat, le paquet, la main du palier, la liste d'un pack ou d'un blessé) le dit par son › et s'ouvre d'un toucher.
    * Ce qui ne demande rien n'est plus un message : c'est une nouvelle d'Hier soir (`nouvellesDuJour`).
-   * Tout se DÉDUIT de l'état de la saison : un choix existe tant que sa cause existe. Seuls le brouillon (ce qui est
-   * coché), « lu » et « archivé » se retiennent (`boite`).
+   * Tout se DÉDUIT de l'état de la saison : un choix existe tant que sa cause existe. Seuls le brouillon (les rivaux
+   * cochés), « lu » et « archivé » se retiennent (`boite`).
    */
   /* La part du match qu'un choix touche (une 3e période : le tiers) et comment la dire : les chiffres de match de js/impact.js (`cadre`, js/gerant.js). */
   const cadreDuMatch = (part = 1, par = 'par match') => ({ part, par });
@@ -3889,21 +3888,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
 
   /* À faire, et les boutons qui font avancer le temps. */
   function rendreActions(msgs, p) {
-    // LE BROUILLON DU JOUR : ce qui est coché attend « Trancher ». Il survit aux décisions (la boîte), pas à la journée.
+    // UN CHOIX PART AU TOUCHER (JP : *j'aime pas le fait que ça reste*). Seuls les rivaux (`multi`) se cochent un à un, et le
+    // dernier coché les envoie ensemble (JP, 16 oct.) : ce brouillon-là survit aux décisions, pas à la journée.
     if (!boite.brouillon || boite.brouillon.jour !== jour) boite.brouillon = { jour, choix: {} };
     const br = boite.brouillon.choix;
     for (const k of Object.keys(br)) if (!msgs.some(m => m.id === k)) delete br[k];
     const coches = m => [].concat(br[m.id] ?? []);
     const coche = (m, o) => coches(m).some(c => String(c) === String(o.cle));
-    // Un choix se coche s'il a une option qui ne s'ouvre pas ailleurs ; il manque tant qu'il bloque sans son compte.
+    // Un choix se touche s'il a une option qui ne s'ouvre pas ailleurs ; il manque tant qu'il bloque.
     const seCoche = m => m.choix.options.some(o => !o.ouvre);
-    const complet = m => coches(m).length >= (m.choix.multi || 1);
-    const manque = m => m.bloque && seCoche(m) && !complet(m);
-    const manquants = msgs.filter(manque);
-    const prets = msgs.filter(m => seCoche(m) && complet(m));
-    const enSuspens = msgs.filter(m => m.bloque && !complet(m));
-    const trancher = prets.length > 0 && !manquants.length;
-    const attente = trancher ? null : manquants[0] || enSuspens[0] || null;
+    const manquants = msgs.filter(m => m.bloque && seCoche(m));
+    const enSuspens = msgs.filter(m => m.bloque);
+    const attente = manquants[0] || enSuspens[0] || null;
     // LE COMBAT S'OUVRE DE LUI-MÊME, comme avant (il était sur la route) — une fois réglé ce qui se coche, et jamais derrière un sommaire.
     const combat = msgs.find(m => m.spec && m.spec.ouvrir) || null;
     boite.remisPour = combat ? combat.spec.titre : null;
@@ -3914,7 +3910,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     signalerComptes();
     // V4 : tout ce qui est dans À faire se règle ; la pastille du Bureau le dit, d'où qu'on soit (style.css, .navtab[data-section="bureau"]).
     document.body.dataset.aTraiter = String(enSuspens.length);
-    const compteur = enSuspens.length ? `<b class="a-traiter">${enSuspens.length} à régler</b>` : prets.length ? `<b class="a-jour">${prets.length} prêt${prets.length > 1 ? 's' : ''}</b>` : '<span class="a-jour">À jour</span>';
+    const compteur = enSuspens.length ? `<b class="a-traiter">${enSuspens.length} à régler</b>` : '<span class="a-jour">À jour</span>';
     // « Déjà en jeu » une fois, en tête, avec les joueurs que les choix visent (une fenêtre le redisait à chaque choix).
     const vises = msgs.filter(seCoche).flatMap(m => [m.choix.joueur, ...(m.choix.joueurs || [])]).filter(Boolean);
     const encours = msgs.some(m => seCoche(m) && (m.genre === 'choix' || m.genre === 'courriel')) ? `<details class="af-encours"><summary>Déjà en jeu</summary>${dejaEnJeu(vises)}</details>` : '';
@@ -3934,11 +3930,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     /*
      * UN SOUS-ONGLET PAR MAISON (V12). JP : *des onglets ou sous-onglets, un usage par sous-onglet*. Toucher une ligne de la
      * boîte ouvre le sous-onglet de sa maison (Bureau › Proprio, Effectif › Infirmerie…), qui montre chacun de ses choix en
-     * entier — la voix, le fait, les options. Il se coche comme avant ; « Trancher » envoie le lot, de l'onglet ou de la
-     * boîte. Le gros match et la signature, qui ont leur écran, montrent leur porte dans la boîte même.
+     * entier — la voix, le fait, les options. Une option touchée part. Le gros match et la signature, qui ont leur écran, montrent leur porte dans la boîte même.
      */
-    const etatDe = m => (complet(m) ? 'Prêt' : m.bloque ? (seCoche(m) ? 'À trancher' : 'À régler') : '');
-    const enEntier = m => `<article class="hub-msg af-page-msg${m.bloque && !complet(m) ? ' bloque' : ''}${complet(m) ? ' pret' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
+    const etatDe = m => (m.bloque ? (seCoche(m) ? 'À choisir' : 'À régler') : '');
+    const enEntier = m => `<article class="hub-msg af-page-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
         <div class="af-page-tete"><span class="hub-msg-txt"><span class="hub-msg-de">${m.de.ico} ${ctx.esc(m.de.nom)}</span><span class="af-feuille-sujet">${ctx.esc(m.sujet)}</span></span><span class="hub-msg-etat">${etatDe(m)}</span></div>
         <div class="hub-msg-corps">${corpsDe(m)}</div>
       </article>`;
@@ -3949,7 +3944,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${corps || (fond ? '' : `<div class="hub-note">Rien à régler ici. La boîte t'y renvoie quand ${ctx.esc(M.vide)}.</div>`)}
         ${fond ? `<div class="af-fond">${fond}</div>` : ''}
         ${(corps + fond).includes(' detail"') ? `<button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
-        ${trancher ? `<button type="button" class="btn go af-trancher">✓ Trancher · ${prets.length} choix</button>` : ''}
       </section>`;
     };
     const boiteHtml = `<section class="hub-boite${msgs.length ? '' : ' vide'}${chiffresOuverts() ? ' chiffres' : ''}" aria-label="À faire">
@@ -3964,10 +3958,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           ${siens.map(m => {
             // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
             const qui = m.joueur || null;
-            return `<article class="hub-msg${m.bloque && !complet(m) ? ' bloque' : ''}${complet(m) ? ' pret' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${k}">
+            return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${k}">
               <button type="button" class="hub-msg-tete">
                 ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
-                <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene && !complet(m) ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
+                <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
                 <span class="hub-msg-etat">${etatDe(m)}</span>
               </button>
             </article>`;
@@ -3976,11 +3970,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       }).join('')}</div>` : ''}
       <button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
     </section>`;
-    // UNE SEULE ACTION EN TÊTE : trancher ce qui est coché, ce qui attend encore, ou la journée suivante.
+    // UNE SEULE ACTION EN TÊTE : ce qui attend encore, ou la journée suivante.
     const mot = attente ? (manquants.length ? (manquants.length > 1 ? `Encore ${manquants.length} choix` : 'Encore un choix') : 'À régler') : '';
-    const primaire = trancher
-      ? `<button type="button" class="btn go hub-trancher" title="Envoie tes choix d'un coup ; la saison se rejoue une fois">✓ Trancher · ${prets.length} choix</button>`
-      : attente
+    const primaire = attente
         // B4 (audit mobile) : une ligne, le compte et le sujet coupé au besoin — le sujet entier se lit dans le choix.
         ? `<button type="button" class="btn hub-traiter" title="La journée suivante attend ce choix"><span class="hub-traiter-mot">⏳ ${mot} · ${ctx.esc(attente.sujet)}</span></button>`
         // UN JOUR À LA FOIS (1.0, oct.). JP : *vraiment faire un jour par jour, pas de saut de jour*. V8 : l'avance dit où elle s'arrête.
@@ -3988,27 +3980,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // LA BARRE D'ACTION (1.0, R2) : le bouton et ses seconds rôles dans une barre, collée au bas du téléphone ; À faire à part.
     actions.innerHTML = `<div class="hub-barre">${primaire}
       <div class="hub-actions-rang">
-      ${p && p.j === jour && !attente && !trancher ? '<button class="btn gold hub-regarder" title="Ton match de ce soir, lancer par lancer">Regarder</button>' : ''}
-      ${attente || trancher ? '' : `<button class="btn hub-semaine" title="Jusqu'au lundi ; seul un gros match ou un blessé à remplacer l'arrête">${ctx.rogue ? ctx.esc(motDeLaSemaine()) : 'Jusqu\'à lundi'}</button>`}
+      ${p && p.j === jour && !attente ? '<button class="btn gold hub-regarder" title="Ton match de ce soir, lancer par lancer">Regarder</button>' : ''}
+      ${attente ? '' : `<button class="btn hub-semaine" title="Jusqu'au lundi ; seul un gros match ou un blessé à remplacer l'arrête">${ctx.rogue ? ctx.esc(motDeLaSemaine()) : 'Jusqu\'à lundi'}</button>`}
       </div></div>
       ${boiteHtml}`;
     const redessinerBoite = () => rendreActions(messagesCourants(), p);
-    // TRANCHER : tout ce qui est coché, en un lot (`deciderMaintenant`, js/banc.js) — la saison ne se rejoue qu'une fois.
-    const trancherTout = () => {
-      const ds = prets.flatMap(m => [].concat(m.choix.decision(m.choix.multi ? coches(m) : coches(m)[0])).map(d => ({ jour, ...d })));
-      boite.brouillon = null;
+    // ENVOYER UN CHOIX (`deciderMaintenant`, js/banc.js) : la saison se rejoue avec lui.
+    const envoyer = (m, cles) => {
+      delete br[m.id];
       const j = jour;
       quitter();
-      onDecision(ds, j);
+      onDecision([].concat(m.choix.decision(cles)).map(d => ({ jour: j, ...d })), j);
     };
     // V12 : une ligne de la boîte, ou la tête de sa maison, ouvre son sous-onglet.
     actions.querySelectorAll('button.hub-msg-tete, button.af-maison-tete').forEach(b => {
       b.onclick = () => { jouerSon('valide'); tabs.montrer(b.closest('[data-maison]').dataset.maison); };
     });
     /*
-     * TOUCHER UNE OPTION : elle se coche (un toucher sur la cochée la décoche ; un choix `multi`, les rivaux, en coche
-     * plusieurs et un de trop pousse le plus ancien). Le choix complet se plie, le suivant qui attend s'ouvre. Une option ›
-     * ouvre son écran ; un pari se joue au dé, sur-le-champ (js/gerant.js, `sceneDuDe`).
+     * TOUCHER UNE OPTION l'envoie. Un choix `multi` (les rivaux) se coche un à un (un toucher sur la cochée la décoche) et
+     * part au dernier. Une option › ouvre son écran ; un pari se joue au dé, sur-le-champ (js/gerant.js, `sceneDuDe`).
      */
     toucherOption = b => {
         const m = msgs.find(x => x.id === b.closest('.hub-msg').dataset.id);
@@ -4021,19 +4011,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           if (dans) dans.click();
           return;
         }
-        if (m.choix.multi) {
-          const l = coches(m).filter(c => String(c) !== String(o.cle));
-          if (l.length === coches(m).length) l.push(o.cle);
-          br[m.id] = l.slice(-m.choix.multi);
-        } else if (coche(m, o)) delete br[m.id];
-        else br[m.id] = o.cle;
         jouerSon('joue');
-        // Le sous-onglet réglé en entier rend la boîte et son « Trancher » ; sinon on y reste.
-        if (tabs.courant() === m.maison && msgs.filter(x => x.maison === m.maison).every(x => x === m ? complet(m) : !manque(x))) tabs.montrer('journee');
+        if (!m.choix.multi) { envoyer(m, o.cle); return; }
+        const l = coches(m).filter(c => String(c) !== String(o.cle));
+        if (l.length === coches(m).length) l.push(o.cle);
+        br[m.id] = l;
+        if (l.length >= m.choix.multi) { envoyer(m, l); return; }
         redessinerBoite();
     };
     actions.querySelectorAll('.af-option[data-choix]').forEach(b => { b.onclick = () => toucherOption(b); });
-    toucherTrancher = trancherTout;
     // Le sous-onglet ouvert se refait sur les choix du jour ; on y reste où on lisait.
     if (MAISONS[tabs.courant()] && actif()) tabs.rafraichir();
     // LES CHIFFRES (V3) : le bouton ne paraît que s'il y a des chiffres pliés ; le choix se retient d'un écran à l'autre.
@@ -4042,9 +4028,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       bc.hidden = false;
       bc.onclick = () => { const o = basculerChiffres(); actions.querySelector('.hub-boite').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
     }
-    // TRANCHER : tout ce qui est coché, en un lot (`deciderMaintenant`, js/banc.js) — la saison ne se rejoue qu'une fois.
-    const btnTrancher = actions.querySelector('.hub-trancher');
-    if (btnTrancher) btnTrancher.onclick = trancherTout;
     // CE QUI ATTEND : le déplier, sous l'affiche du Bureau ; un choix qui n'a qu'une porte (le combat, le paquet, la main) l'ouvre tout de suite.
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter && attente) traiter.onclick = () => {

@@ -55,8 +55,8 @@ await page.click('#departModal .dp-commencer');
 await page.waitForFunction(() => document.querySelectorAll('.slot .slot-name').length >= 20, null, { timeout: 90000 });
 await page.waitForTimeout(800);
 await page.click('#mainBtn');
-// V9 : À faire porte tous les choix ; on attend qu'UN des boutons du bureau (avancer, régler, trancher) ou une fenêtre soit visible.
-await page.waitForFunction(() => [...document.querySelectorAll('#hubModal .hub-jour, #hubModal .hub-traiter, #hubModal .hub-trancher, #choixModal:not([hidden]) .choix-option')].some(e => e.offsetParent), null, { timeout: 120000 });
+// V9 : À faire porte tous les choix ; on attend qu'UN des boutons du bureau (avancer, régler) ou une fenêtre soit visible.
+await page.waitForFunction(() => [...document.querySelectorAll('#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option')].some(e => e.offsetParent), null, { timeout: 120000 });
 
 
 await page.evaluate(() => { window.cap82.G.rogue.depart = 5000; });
@@ -68,7 +68,6 @@ const etat = () => page.evaluate(() => ({
   sommaire: !!document.querySelector('#hubModal .hub-page[data-genre="sommaire"]'),
   traiter: !!document.querySelector('#hubModal .hub-traiter'),
   jour: !!document.querySelector('#hubModal .hub-jour:not([disabled])'),
-  trancher: [...document.querySelectorAll('#hubModal .hub-trancher')].some(x => x.offsetParent),
   liste: (document.querySelector('#signatureModal:not([hidden]) .choix-titre') || {}).textContent || '',
 }));
 const rnd = (() => { let x = Number(process.env.GRAINE || 7); return () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff; })();
@@ -99,15 +98,14 @@ async function regler(max = 40) {
     if (e.sommaire) { await page.click('#hubModal .hub-page[data-genre="sommaire"] .hub-page-fermer').catch(() => {}); await page.waitForTimeout(300); continue; }
     // À FAIRE (V9) : le choix ouvert prend sa première option ; un pack qui attend sa signature rend la main à l'essai.
     // V12 : le choix vit dans le sous-onglet de sa maison (docs/refonte-v12.md).
-    const ouv = await page.$('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque:not(.pret)');
+    const ouv = await page.$('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque');
     if (ouv && await ouv.isVisible()) {
       if (await ouv.evaluate(x => x.dataset.msg) === 'pack') return 'pack';
       const o = await ouv.$('.af-option:not([disabled]):not(.on)'); if (o) { await o.click(); await page.waitForTimeout(500); continue; }
       return 'coince-boite';
     }
-    // Un sous-onglet sans rien qui presse : le Bureau rend la boîte et son « Trancher ».
+    // Un sous-onglet sans rien qui presse : le Bureau rend la boîte.
     if (await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet')].some(x => x.checkVisibility()))) { await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue; }
-    if (e.trancher) { await page.click('#hubModal .hub-trancher'); await page.waitForTimeout(1500); continue; }
     if (e.traiter) { await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400); continue; }
     return 'ok';
   }
