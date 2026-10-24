@@ -256,6 +256,7 @@ function motsDAction(a, noms = '') {
 function motsDeCarte(o, noms = '') {
   const out = [];
   if (o.action) out.push(...motsDAction(o.action, noms));
+  if (o.lui) out.push(...motsSurLeJoueur(o.lui, noms || 'Ton joueur'));
   if (o.changeGardien) out.push({ txt: '🧤 L\'auxiliaire prend le filet', bon: null });
   if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
   if (o.enjeu) out.push({ txt: '⚖ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
@@ -384,7 +385,8 @@ export function formeDe(o) {
   }
   const src = o.effet || o;
   if (Array.isArray(src.F) || Array.isArray(src.D)) return 'Minutes';
-  const bits = bitsDe(src, true);
+  // Ce qui va au joueur nommé (`lui`) compte aussi : sa précision qui monte aide, ses buts accordés qui montent coûtent.
+  const bits = [...bitsDe(src, true), ...Object.entries(src.lui || {}).filter(([k]) => MOTS_DU_JOUEUR[k]).map(([k, v]) => (MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1))];
   if (!bits.length) return '';
   if (bits.every(Boolean)) return 'Cadeau';
   if (bits.every(b => !b)) return 'Moindre mal';
@@ -1350,10 +1352,10 @@ const DE_GENRE = { attaque: 'd\'attaque', defense: 'de défense', tactique: 'tac
 const EN_3E = { part: 1 / 3, par: 'en 3e' };
 const QUI_DE_LA_CARTE = { vise: 'Le joueur qu\'ils visent', vedette: 'Ta vedette', brigadier: 'Ton meilleur défenseur' };
 const QUI_COURT = { vise: 'Le visé', vedette: 'Ta vedette', brigadier: 'Ton défenseur' };
-const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false] };
+const MOTS_DU_JOUEUR = { lancers: ['ses tirs', true], finition: ['sa précision', true], creation: ['ses passes', true], defense: ['leur précision contre lui', false], blessure: ['ses blessures', false], arrets: ['les buts qu\'il accorde', false] };
 /* Sur la face, sans chiffre et court (une carte de la main a la largeur d'un pouce) : « Le visé : tire plus juste ». */
 const FACE_DU_JOUEUR = { lancers: ['tire plus', 'tire moins'], finition: ['tire plus juste', 'tire moins juste'], creation: ['passe plus', 'passe moins'],
-  defense: ['plus facile à battre', 'plus dur à battre'], blessure: ['se blesse plus', 'se blesse moins'] };
+  defense: ['plus facile à battre', 'plus dur à battre'], blessure: ['se blesse plus', 'se blesse moins'], arrets: ['accorde plus', 'accorde moins'] };
 /*
  * Ce qui bouge chez un joueur nommé (V11), un canal par ligne : « Ton joueur : sa précision +80 % » aux règles, et
  * « Ton joueur : tire plus juste » sur la face (`mot`, lu par `enMotsEtChiffres`).

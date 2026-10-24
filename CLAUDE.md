@@ -169,6 +169,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son club (un nom et SON écusson, vendus ensemble) et ses couleurs s'achètent en jetons à la boutique, comme les packs, et se portent aux déblocages (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 - Ce qu'un texte affirme d'un match (un rythme, une disette, trois punitions en deux matchs) est arrivé dans les feuilles déjà jouées, et il dit les vrais chiffres — `check_fils`, `check_vie`.
+- Un dilemme ne sort que si son fait est vrai (`FAITS`, js/sim.js : un joueur parti, une séquence, l'infirmerie…), lu sur ce qui est déjà joué ; il nomme les joueurs du fait, et chaque mot de stat de ses options dit un canal que l'effet bouge, dans son sens (« ton quatrième trio joue plus » passe par `F`) — `check_dilemmes`.
 - Un choix du Rogue dit qui le demande (une voix d'`EXPEDITEURS`), pourquoi maintenant (le fait, en vrais chiffres) et ce qu'elle en pense (une réplique sans chiffre) : une scène de `js/scenes.js` — `check_clarte` § 5, `essai_rogue`.
 
 **Le code et les tests**

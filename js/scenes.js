@@ -12,6 +12,7 @@
  */
 import { EXPEDITEURS } from './vie-gm.js';
 import { DOSSIERS } from './dossiers.js';
+import { MOMENTS, FAITS } from './sim.js';
 import { hache } from './util.js';
 
 /** La réplique d'une scène, pigée sur la graine du jeu et son moment : la même partie redit la même phrase. */
@@ -112,6 +113,41 @@ export const MOTS_DES_SCENES = {
     epais: ['On a gagné, mais tes places sont pleines. Prends-la si elle vaut mieux qu\'une des tiennes.',
       'Une de plus, et il faudra en vendre une. Ton adjoint dit de choisir la meilleure.'],
   },
+  // LES DILEMMES (oct. 2026) : la voix du dilemme, sur ce que son fait vient de dire. Une réplique par sorte de fait.
+  dilemme: {
+    domicile: ['Ça s\'est passé devant notre monde. Ils vont s\'en souvenir au prochain match.', 'La foule a parlé. À toi de décider quoi en faire.'],
+    butDomicile: ['La foule ne l\'oubliera pas de sitôt.', 'Un but comme ça, devant notre monde, ça laisse des traces.'],
+    double: ['Il a la main chaude. Le vestiaire veut y croire.', 'Un soir comme ça, tout le monde en parle le lendemain.'],
+    gardienBattu: ['Il est en furie, et il n\'a pas tout à fait tort.', 'On l\'a laissé là trop longtemps. Il faut lui répondre.'],
+    punitionTard: ['On ne peut pas se faire prendre comme ça en fin de match.', 'Une erreur de banc. Ça se corrige, ou ça se répète.'],
+    gardienBlesse: ['Je ne joue pas avec sa santé. Le reste, c\'est à toi.', 'Il est sonné, et le vestiaire aussi.'],
+    gardienCharge: ['Il ne sort plus du filet. Un jour, le corps va dire non.', 'Il joue tout, et il commence à le sentir.'],
+    sequence: ['On gagne, et personne ne veut rien changer.', 'Tout roule. Le danger, c\'est de s\'en apercevoir.'],
+    sequenceTrio: ['Ils sont en feu. Le reste du banc les regarde jouer.', 'Ce trio-là gagne des matchs à lui seul, pour l\'instant.'],
+    panne: ['Ça glisse, et tout le monde le sent.', 'Il faut casser quelque chose. Reste à savoir quoi.'],
+    panneDoyen: ['Il a vu des glissades pires. Il veut aider.', 'Le plus vieux du vestiaire prend les choses en main.'],
+    panneGardien: ['Il doute, et le filet le sait.', 'Un gardien qui doute, ça se voit de la galerie de presse.'],
+    punitions: ['On ne peut plus le défendre devant l\'arbitre.', 'Il joue sur la ligne, et la ligne recule.'],
+    blesses: ['Mes tables sont pleines. Il faut alléger ou serrer les dents.', 'Je manque de chaises, et de patience.'],
+    route: ['Les valises ne se défont plus. Ça use un homme.', 'On vit à l\'hôtel. Il faut trouver comment souffler.'],
+    jambes: ['Il dit que ça va. Ses jambes disent autre chose.', 'Je l\'ai mesuré ce matin. Il est vidé.'],
+    jambesEquipe: ['Toute la bande est fatiguée. Ça se voit en troisième.', 'Les gars traînent les patins. Il faut du repos.'],
+    chaud: ['Tout le monde veut un morceau de lui.', 'Il est en feu, et ça attire les caméras.'],
+    disetteMarqueur: ['Il cherche une excuse. Donne-lui une solution.', 'Un marqueur qui ne marque plus, ça finit par lui peser.'],
+    recrue: ['Il est jeune et pressé. Les vétérans, moins.', 'Il veut sa place. Il faut lui dire laquelle.'],
+    parti: ['Un casier vide, ça fait toujours un vide dans le vestiaire.', 'Il est parti, mais les gars ne l\'ont pas encore laissé partir.'],
+    doyen: ['On ne sait pas combien de saisons il lui reste. Les gars veulent le fêter.', 'C\'est lui qui a tout vu ici. Ça mérite un geste.'],
+    quatrieme: ['Ils regardent le match du banc. Ça commence à paraître.', 'Ils veulent jouer, et ils ont raison de le dire.'],
+    passoire: ['Ça rentre de partout. Il faut fermer quelque chose.', 'On donne trop. Il faut décider comment arrêter le sang.'],
+    passoirePaire: ['Ça rentre de partout. Ta première paire peut en prendre plus, pas pour toujours.', 'On donne trop. Je laisserais mes deux meilleurs sur la glace.'],
+    disette: ['Ça ne rentre plus. Il faut trouver un truc.', 'On tire et ça ne rentre pas. Les gars se renferment.'],
+    tirsContre: ['Il reçoit tout. On le laisse seul là-bas.', 'Il fait le travail de cinq. Il veut s\'aider lui-même.'],
+    avantagesRares: ['L\'arbitre ne nous voit plus. Il faut le lui rappeler, ou pas.', 'Ils accrochent et personne ne siffle.'],
+    defaiteParUn: ['Un but. Il nous a manqué un seul but.', 'On l\'avait. Le banc veut prendre plus de risques.'],
+    plombier: ['Il travaille fort, mais ça ne rentre pas. La pause peut changer ça.', 'Trois jours, c\'est assez pour apprendre un tir.'],
+    veteranD: ['Il a des choses à transmettre. Reste à savoir à qui.', 'Le vétéran veut laisser quelque chose derrière lui.'],
+    tirsD: ['Il veut la ligne bleue. Il pense qu\'il l\'a méritée.', 'Il lance de partout. Il demande plus.'],
+  },
 };
 
 /** Le rang en mots courts du classement : 1er, 2e… */
@@ -155,6 +191,16 @@ export function sceneDeLaCarteDeTrop({ cartes, places, gros = null, graine = '' 
     mot: piger(MOTS_DES_SCENES.trop[gros ? 'gros' : 'calme'], graine, 'trop', cartes),
     fait: `${cartes} cartes pour ${places} places${gros ? ` · gros match contre ${gros.adv} ${vient}` : ''}`,
   };
+}
+
+/*
+ * LES DILEMMES (oct. 2026). La voix du dilemme (`de`), une réplique sur la sorte de son fait, et le fait en vrais
+ * chiffres (`FAITS[...].dire`, js/sim.js).
+ *   cle   la clé du dilemme dans `MOMENTS` ; faits : ce que son fait a lu ; graine : la partie et la journée
+ */
+export function sceneDuDilemme(cle, faits, graine = '') {
+  const M = MOMENTS[cle];
+  return { de: EXPEDITEURS[M.de], mot: piger(MOTS_DES_SCENES.dilemme[M.fait], graine, 'dilemme', cle), fait: FAITS[M.fait].dire(faits) };
 }
 
 /*
