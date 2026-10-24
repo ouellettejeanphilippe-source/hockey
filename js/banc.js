@@ -16,7 +16,7 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
@@ -229,6 +229,8 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
   // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
+  // V16 : un adjoint pris à un palier ou au butin rejoint ton personnel, une fois (la clé du palier le garde d'un doublon).
+  if (G.bonus === 'ROGUE' && G.ligue && d.place && BANQUE[d.place] && BANQUE[d.place].vie === 'permanent') recevoirPermanents([d.place], `${G.ligue.graine}:${d.palier}`);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
@@ -245,8 +247,8 @@ function ajouterDecision(avant, d) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  // V16 : une décision de personnel (un adjoint engagé, un échelon) recompte la confiance, matchs à ton service compris.
-  const allume = (d.joue || d.main || d.patron) && !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) }) : null;
+  // V16 : chaque décision recompte la confiance, matchs à ton service compris — ils montent seuls, entre deux engagements.
+  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) }) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place`, elle va à une place), ni « Attendre » le physio (`attend`).

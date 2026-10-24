@@ -39,17 +39,26 @@ Le format ne change pas : un poste (`ROLES`), un moment (`si`, `MOMENTS_SI`), un
 
 **La borne** : au premier échelon, son net en buts tient sous ±0,5 V, ses soirs (V14b) ; la force s'achète aux échelons.
 
-## 3. D'où vient un adjoint
+## 3. D'où vient un adjoint (tranche 3, faite)
+
+Ce qui sort encore d'un pack, d'un butin ou d'un palier : le personnel et les outils de gérant (`sortEncore`, js/banque.js) — la masse salariale, les soins, les retouches d'édition (`MUTATIONS_ATELIER`), le congédiement, les rappels et l'échange d'un doublon. Les places, l'équipement, les clauses et le feu n'entrent plus ; ceux déjà pris se jouent jusqu'à la tranche 4.
 
 | Source | Avant | V16 |
 |---|---|---|
 | Pack Personnel | 3 adjoints | inchangé |
-| Packs de cartes (`PACKS_CARTES`) | des cartes de la banque | des adjoints, par coach ou par poste ; la revente reste sous 40 % (`check_packs`) |
-| Packs de joueurs | 1 ou 2 cartes | 1 adjoint |
-| Butin d'un gros match, paliers des 9e, 18e et 26e matchs | une carte parmi trois, pour une place | un adjoint parmi trois |
-| Un doublon | — | un échelon de plus (comme aujourd'hui) |
+| Packs de cartes (`PACKS_CARTES`) | des cartes de la banque | seulement ce qui sort encore (`tirerCartes`, js/packs.js) ; le Pack Modifs donne des retouches, le Pack Consommables des outils de gérant |
+| Packs de joueurs | 1 ou 2 cartes | la 1re est un adjoint, la 2e un outil de gérant, que la taxe de luxe peut prendre (`tirerCartesDuPack`) ; le Pack du coach donne deux adjoints de sa couleur |
+| Butin d'un gros match, verdict du proprio, paliers des 9e, 18e et 26e matchs | une carte parmi trois, pour une place | un adjoint parmi trois, tiré comme au Pack Personnel (`cartesDuPalier`, js/inventaire.js) |
+| Un doublon | un échelon de plus | inchangé |
 
-Les places (`PLACES`), la carte de trop et l'onglet « Tes places » de l'inventaire partent. Un adjoint neuf pour un poste occupé : tu choisis qui garde le poste ; l'autre attend à ta collection, d'une run à l'autre.
+Un adjoint pris au palier ou au butin rejoint ton personnel au moment où sa décision est reçue (`recevoirPermanents`, js/banc.js `ajouterDecision`, une fois par palier) ; il ne prend pas de place (`placesDeLaPartie`). Un adjoint neuf pour un poste occupé attend à ta collection : l'engager chez l'entraîneur remplace celui du poste, qui y reste, d'une run à l'autre.
+
+Le robot (scripts/lib/cartes_robot.mjs `engagerDuRobot`) engage ses adjoints comme un gérant :
+- l'attentif, le premier de la couleur de son coach à un poste que sa couleur ne tient pas encore ;
+- le distrait, une fois sur deux, n'importe lequel ;
+- le robot d'avant, aucun.
+
+Il le fait aux paliers et à chaque pack qu'il achète (scripts/lib/rogue_sim.mjs). D'une saison à l'autre de la run, il reporte comme le jeu la base de ses coachs, son coach en poste et son personnel (`reportDeSaison`) ; avant, il repartait chaque saison à la confiance I, avec les deux adjoints du départ.
 
 ## 4. La confiance, par trois chemins
 
@@ -59,23 +68,20 @@ Les points d'un coach (`buildDe`, js/banque.js) :
 - **1 par échelon** pris par ses adjoints ;
 - **1 par tranche de 60 matchs à ton service** de ses adjoints (`MATCHS_CONFIANCE`), doublés à la couleur du coach en poste, comme les échelons.
 
-Les cartes jouées ne comptent plus. La confiance reste une décision `coach` qui porte ses chiffres : elle se recompte à chaque décision de personnel (un adjoint engagé, un échelon pris ; `palierAllume`, js/banc.js `ajouterDecision`), matchs à ton service compris. Seul le coach en poste monte (V5).
+Les cartes jouées ne comptent plus. La confiance reste une décision `coach` qui porte ses chiffres. Elle se recompte à chaque décision, quelle qu'elle soit (`palierAllume`, js/banc.js `ajouterDecision`), et au lundi du robot : les matchs à ton service montent seuls, entre deux engagements. Avant la tranche 3, seule une décision de personnel la recomptait, et un compte passé à 23 points restait à la I. Seul le coach en poste monte (V5).
 
-**Les seuils** passent de 3, 6 et 9 à **3, 14 et 30** (`SEUILS`, js/coachs.js), mesurés sur une run attentive :
-- un adjoint de sa couleur aux 9e, 18e et 26e matchs de chaque saison (les paliers, qui en donneront à la tranche 3) ;
-- les échelons pris dès qu'ils s'ouvrent (trois ouverts).
+**Les seuils : 3, 7 et 15** (`SEUILS`, js/coachs.js). La tranche 2 avait mis 3, 14 et 30, calculés sur un calendrier idéal : un adjoint de sa couleur aux trois paliers, chaque échelon dès qu'il s'ouvre. La tranche 3 les mesure sur le robot attentif, qui engage les adjoints de sa couleur aux paliers et dans ses packs (§ 3), et reporte d'une saison à l'autre. Quatre vrais clubs, deux saisons chacun (une mesure ponctuelle, pas un script de vérification) :
 
-Avec 60 matchs par point, cette run atteint la II au 39e match de sa première saison, et la III au 39e de la deuxième : la cible. À 3, 6 et 9, elle avait la III au 26e match.
-
-| Seuils | 60 matchs par point : II | III |
+| Club | 1re saison : points au 41e · 82e | 2e saison : points au 20e · 41e · 82e |
 |---|---|---|
-| 3 · 6 · 9 | S1, 18e match | S1, 26e |
-| 3 · 12 · 24 | S1, 31e | S2, 21e |
-| **3 · 14 · 30** | **S1, 39e** | **S2, 39e** |
+| Rangers 1995-96 | 8 · 12 | 15 · 18 · 23 |
+| Bruins 1985-86 | 4 · 5 | 7 · 9 · 11 |
+| Sénateurs 2005-06 | 7 · 9 | 12 · 14 · 18 |
+| Blackhawks 1990-91 | 6 · 10 | 12 · 15 · 19 |
 
-Sans un match joué, adjoints et échelons mènent la Tortue à 23 points au plus : la III demande leurs matchs à ton service (`check_coachs`).
+À 14 et 30, trois clubs sur quatre n'avaient la II qu'en deuxième saison, et aucun la III. À 7 et 15, la II arrive entre le 41e et le 61e match de la première saison, et la III entre le 20e et le 61e de la deuxième : la cible. Les Bruins, un seul adjoint de leur couleur en un an, n'y arrivent pas. Un gérant qui achète le Pack du coach (deux adjoints de sa couleur) va plus vite.
 
-Le robot de `rogue_sim` ne prend pas encore d'adjoint de sa couleur : il n'a que les deux patrons neutres du départ. Ses échelons recomptent déjà la confiance (scripts/lib/cartes_robot.mjs) ; la mesure en run viendra avec les sources de la tranche 3.
+Adjoints et échelons seuls peuvent maintenant mener à la III : cinq adjoints de sa couleur, à leur 3e échelon, valent 3 + 15 points.
 
 ## 5. Les règles fermes qui changent (CLAUDE.md)
 

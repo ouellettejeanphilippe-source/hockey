@@ -49,7 +49,7 @@
  */
 
 /* Les seuils de la confiance : 3 cartes (I), 6 (II), 9 (III). */
-export const SEUILS = [3, 14, 30];
+export const SEUILS = [3, 7, 15];
 export const ROMAINS = ['', 'I', 'II', 'III'];
 
 /*

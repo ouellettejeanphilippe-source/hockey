@@ -54,13 +54,15 @@ import {
   ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, styleOuvert, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
 } from '../../js/sim.js';
 import { robotDuel } from './duel.mjs';
-import { lundiDuRobot } from './cartes_robot.mjs';
-import { patronsDeDepart, payloadDe } from '../../js/banque.js';
+import { lundiDuRobot, engagerDuRobot } from './cartes_robot.mjs';
+import { matchsJoues, etatDuPersonnel, reportDuPersonnel, protegeALEchelon } from '../../js/echelons.js';
+import { patronsDeDepart, payloadDe, baseDesCoachs, coachsActifs, patronsActifs, buildDe, BANQUE } from '../../js/banque.js';
+import { PROTEGES } from '../../js/personnel.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
-import { effetDePalier } from '../../js/coachs.js';
+import { effetDePalier, SEUILS as SEUILS_CONFIANCE } from '../../js/coachs.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
-import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
+import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack, tirerCartesDuPack } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
   JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
@@ -301,9 +303,11 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   Object.values(etat.roster).forEach(poser);
   // LE COACH (V9) : l'attentif prend celui dont le plan rend le plus à son effectif ; le distrait, n'importe lequel ; le robot d'avant, aucun.
   const ouverts = coachsOuverts(rangDePrestige(meta));
-  const coachs = attentif ? [ouverts.map(k => [k, lireNet(etat.roster, [effetDePalier(k, 1)])]).sort((a, b) => b[1] - a[1])[0][0]]
+  // V16 : d'une saison à l'autre de la run, le coach, sa confiance et le personnel continuent (`etat.report`, comme au jeu).
+  const reporte = etat.report ? (etat.report.find(d => d.coach) || {}).coach || null : null;
+  const coachs = reporte ? [reporte.cle] : attentif ? [ouverts.map(k => [k, lireNet(etat.roster, [effetDePalier(k, 1)])]).sort((a, b) => b[1] - a[1])[0][0]]
     : clic ? [auHasard(ouverts)] : [];
-  const enPoste = coachs.map(k => effetDePalier(k, 1));
+  const enPoste = reporte ? [reporte] : coachs.map(k => effetDePalier(k, 1));
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux(enPoste)) : etat.roster;
   const masse0 = masseDe(roster);
@@ -312,9 +316,11 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
-  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' }, ...enPoste.map(coach => ({ jour: 0, coach }))];
+  // Le coach de la première saison part à la confiance I (`coachsDeBase`, js/banc.js), comme au jeu.
+  const decisions = [{ jour: 0, cases: photoAlignement(roster), fermeture: 'auto' },
+    ...(etat.report ? etat.report.map(d => ({ ...d })) : enPoste.map(coach => ({ jour: 0, coachsDeBase: { [coach.cle]: SEUILS_CONFIANCE[0] }, coach })))];
   // V10 (tranche 6) : les deux patrons que le départ d'une run impose (js/banque.js `patronsDeDepart`), comme au jeu.
-  for (const id of patronsDeDepart(`rogue80:${graine}`, PRESTIGES[rangDePrestige(meta)].raretes)) decisions.push({ jour: 0, ...payloadDe(id, { patrons: [] }) });
+  if (!etat.report) for (const id of patronsDeDepart(`rogue80:${graine}`, PRESTIGES[rangDePrestige(meta)].raretes)) decisions.push({ jour: 0, ...payloadDe(id, { patrons: [] }) });
   // LES GALONS DE LA RUN (V9, tranche 7, js/galons.js) : ce que le jeu reporte seul d'une saison à l'autre, un métal de badge chacun.
   const galons = Object.fromEntries(Object.values(roster).filter(Boolean).map(p => [getPlayerKey(p), Math.min(GALONS_MAX, (etat.galons && etat.galons.get(getPlayerKey(p))) || 0)]).filter(([, n]) => n > 0));
   if (Object.keys(galons).length) decisions.push({ jour: 0, galons, report: true });
@@ -358,6 +364,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       const voulu = packVoulu(meta, jetons(), achats, exigence);
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
+      // V16 : la carte d'un pack de joueurs est un adjoint ; le robot l'engage selon sa politique (`engagerDuRobot`).
+      for (const d of engagerDuRobot({ ids: tirerCartesDuPack(`j:${voulu.cle}`, `rogue80:${graine}:${saison}`, achats), decisions, politique, clic, jour: L.jour, joues: (de, a) => matchsJoues(L.calendrier, you, de, a) })) decisions.push(d);
       const actuel = you.roster;
       // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
       const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role, meta);
@@ -431,8 +439,33 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // Le robot ne laisse pas de cartes posées sur des joueurs partagés : chaque saison repart propre.
   for (const p of Object.values(you.roster)) if (p) delete p._carte;
   for (const x of entrees) delete x.p._carte;
-  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments).
-  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you };
+  // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments). `report` : ce que la saison suivante reprend.
+  return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you, decisions, report: reportDeSaison(decisions, L, you) };
+}
+
+/* Le compte de confiance du coach en poste à la fin d'une saison, et ses adjoints en poste (V16, pour la mesure). */
+function pointsDuCoach(r) {
+  const [C] = coachsActifs(r.decisions);
+  if (!C) return { points: 0, adjoints: 0 };
+  const n = buildDe(r.decisions, Infinity, { joues: (de, a) => matchsJoues(r.L.calendrier, r.you, de, a) });
+  return { points: n[C.cle], adjoints: patronsActifs(r.decisions).filter(p => (BANQUE[`patron:${p.cle}`] || {}).coach === C.cle).length };
+}
+/*
+ * CE QU'UNE SAISON LAISSE À LA SUIVANTE (V16 ; js/rogue-jeu.js, la saison neuve d'une run) : la base de chaque coach, le
+ * coach en poste et sa confiance, et le personnel en poste — son échelon, ses choix, ses matchs à ton service, son protégé.
+ */
+function reportDeSaison(decisions, L, you) {
+  const joues = (de, a) => matchsJoues(L.calendrier, you, de, a);
+  const report = [{ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(baseDesCoachs(decisions)).filter(([, n]) => n > 0)), report: true }];
+  const [enPoste] = coachsActifs(decisions);
+  if (enPoste) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }
+  const gens = new Map(etatDuPersonnel(decisions, Infinity, { joues, copies: () => 2 }).map(e => [e.cle, e]));
+  for (const pa of patronsActifs(decisions)) {
+    const { jour: _j, remplace: _r, ...patron } = gens.has(pa.cle) ? reportDuPersonnel(gens.get(pa.cle)) : pa; void _j; void _r;
+    const choix = patron.choix || [];
+    report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: { cle: pa.cle, saison: true, ...(choix.length ? { canaux: protegeALEchelon(pa.cle, choix) } : {}) } } : {}), report: true });
+  }
+  return report;
 }
 
 /*
@@ -478,7 +511,10 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     if (jalons) e += payerJalonsSim(meta, { ...r, saisonDeLaRun: n, cartes: classeur.length + entrees.length });
     e = Math.round(e);
     ecussons += e;
-    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length });
+    // V16 : le match de la saison où chaque confiance s'allume (`confiance[palier]`), lu sur les décisions de coach.
+    const confiance = {};
+    for (const d of r.decisions) if (d && d.coach && d.coach.palier > 1 && !d.report && !(d.coach.palier in confiance)) confiance[d.coach.palier] = matchsJoues(r.L.calendrier, r.you, 0, d.jour || 0);
+    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, confiance, palierFin: (coachsActifs(r.decisions)[0] || {}).palier || 0, ...pointsDuCoach(r) });
     // La Coupe (tranche 8) : elle compte, et le cran d'exigence gagné ouvre le suivant (js/rogue.js `payerEcussons`).
     if (r.coupe) { meta.coupes = (meta.coupes || 0) + 1; meta.exigence = Math.max(meta.exigence || 0, exigence); }
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.
@@ -496,6 +532,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     const lotos = lotosDuRobot(meta, classeurSaison, restent, partants, `${graine}:s${n + 1}`, clic, exigence);
     etat.roster = vestiaire(rnd, meta, [...restent, ...lotos.map(x => copie(x.p))], classeurSaison, { saison: n + 1, exclus: partants, joues, graine: `${graine}:s${n + 1}`, exigence }).roster;
     etat.jetons = r.reste + jetonsDeDepart(meta);
+    etat.report = r.report;
   }
   for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
   const fin = saisons[saisons.length - 1];

@@ -37,7 +37,7 @@ import {
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
   POIDS_AN, POIDS_DN,
 } from '../js/sim.js';
-import { PATRONS } from '../js/banque.js';
+import { PATRONS, MATCHS_CONFIANCE } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
 import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
@@ -337,7 +337,7 @@ const MOTS_RESERVES = [
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
     // V9, tranche 5b : tes places et les paliers de la saison.
     [`tes <strong>${PLACES} places</strong>`, 'les places'],
-    [`aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, une carte parmi trois`, 'les paliers de la saison'],
+    [`aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, un adjoint parmi trois`, 'les paliers de la saison'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
     [`sous ${nombre(plafBal * 100)} % du plafond`, 'le plafond du ballottage'],
@@ -357,7 +357,8 @@ const MOTS_RESERVES = [
     [`la couleur d'un de ${Object.keys(COACHS).length} coachs`, 'le nombre de coachs'],
     [`ses <strong>${MODES.LOTO.relances}</strong> relances relancent les trois d'un coup`, 'les relances du loto'],
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
-    [`ses cartes jouées le montent à II (${SEUILS[1]}) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
+    [`son personnel le monte à II (${SEUILS[1]} points) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
+    [`par ${MATCHS_CONFIANCE} matchs à ton service`, 'les matchs à ton service'],
     // V14 : les échelons du personnel (js/echelons.js) — les matchs à ton service, ce que vaut chaque choix.
     [`(le 2e à ${MATCHS_ECHELON[2]} matchs, le 5e à ${MATCHS_ECHELON[5]}), deux fois plus vite à la couleur de ton coach ; monter coûte ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[5]} jetons. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.

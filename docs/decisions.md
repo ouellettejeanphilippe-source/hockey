@@ -2778,3 +2778,17 @@ Mesuré sur une run attentive (un adjoint de sa couleur aux 9e, 18e et 26e match
 Écarté : **recompter la confiance chaque soir**, sans décision. Elle cesserait d'être une décision qui porte ses chiffres (`check_coachs`), et une journée déjà jouée pourrait changer de coach en se rejouant.
 
 Le protégé grandit avec son adjoint : pousser la force d'un adjoint à protégé grandit aussi les canaux de son joueur (`protegeALEchelon`, js/echelons.js). La décision d'échelon porte la mutation et ses canaux ; le moteur la repose sur le même joueur. `check_personnel` : le maître du ruban passe de +0,07 à +0,21 point par soir à domicile en quatre poussées, en paires.
+
+## D'où vient un adjoint (V16, tranche 3 — 24 oct. 2026)
+
+Plus rien de neuf n'entre aux places ; ce qui sort d'un pack, d'un butin ou d'un palier, c'est du personnel ou un outil de gérant (`sortEncore`, js/banque.js).
+
+- **Les packs de joueurs** : leur première carte est un adjoint, la deuxième un outil de gérant, celle que la taxe de luxe peut prendre. Garder un outil dans les packs de deux cartes nourrit la masse salariale et les soins, que plus rien d'autre ne vend en boutique. Le Pack du coach donne deux adjoints de sa couleur.
+- **Le butin, le verdict du proprio, les paliers** : un adjoint parmi trois, tiré comme au Pack Personnel. Pris, il rejoint ton personnel quand la décision est reçue (js/banc.js), une fois par palier ; il ne prend pas de place.
+- **Le robot engage** (`engagerDuRobot`, scripts/lib/cartes_robot.mjs) : l'attentif, l'adjoint de la couleur de son coach à un poste que sa couleur ne tient pas ; le distrait, au hasard. D'une saison à l'autre, il reporte son coach et son personnel comme le jeu (`reportDeSaison`, scripts/lib/rogue_sim.mjs).
+
+**Deux trous de la tranche 2 :**
+- **La recompte.** Elle n'avait lieu qu'à une décision de personnel : les matchs à ton service, qui montent seuls, n'allumaient rien. Un robot à 23 points restait à la I. Chaque décision recompte maintenant la confiance, et le lundi du robot aussi. Ce n'est pas la recompte de chaque soir écartée à la tranche 2 : la confiance reste une décision `coach` qui porte ses chiffres.
+- **Les seuils.** Mesurés sur le robot attentif qui engage et reporte, 14 et 30 donnaient la II en deuxième saison et jamais la III. À **3, 7 et 15**, la II arrive entre le 41e et le 61e match de la première saison, et la III entre le 20e et le 61e de la deuxième (quatre vrais clubs, docs/refonte-v16.md § 4).
+
+Écarté : **les deux cartes d'un pack de joueurs en adjoints.** La boutique ne vend que des packs de joueurs ; sans leur deuxième carte, plus rien n'aurait donné de masse salariale ni de soins hors des récompenses scellées.

@@ -39,17 +39,17 @@ const $ = id => document.getElementById(id);
 export const PLACES = 3;
 export const SEMAINE = 7;
 /*
- * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, une carte parmi trois, pour une place.
- * Avant, un pack gratuit de cinq cartes, qui aurait débordé trois places d'un coup. Ni personnel, ni
- * permanent : ce qui se joue d'une place (et aucun pack ne donne plus d'événement). Pur : la graine et le palier.
+ * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, au verdict du proprio et au butin d'un gros
+ * match gagné. V16 (docs/refonte-v16.md § 3) : un adjoint parmi trois, tiré comme au Pack Personnel ; pris, il rejoint
+ * ton personnel, d'une run à l'autre (un doublon ouvre un échelon). Pur : la graine et le palier.
  */
 export const PALIERS_PACK = [9, 18, 26];
 const CARTES_DU_PALIER = 3;
 export function cartesDuPalier(graine, p) {
   const out = [];
   for (let k = 0; out.length < CARTES_DU_PALIER && k < 12; k++) {
-    for (const id of tirerCartesPack('mixte', graine, `palier${p}${k ? `:${k}` : ''}`, { sans: ['patron'] })) {
-      if (out.length < CARTES_DU_PALIER && BANQUE[id] && BANQUE[id].vie !== 'permanent' && !out.includes(id)) out.push(id);
+    for (const id of tirerCartesPack('patrons', graine, `palier${p}${k ? `:${k}` : ''}`)) {
+      if (out.length < CARTES_DU_PALIER && BANQUE[id] && !out.includes(id)) out.push(id);
     }
   }
   return out;
@@ -77,7 +77,8 @@ export function placesDeLaPartie({ decisions = [], rogue = false } = {}) {
   // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`) ;
   // V13-2 : ou au butin d'un gros match gagné (`r:<jour>`).
   const sourceDe = k => (k.startsWith('v:') ? 'Le proprio' : k.startsWith('trou:') ? 'La case vide' : k.startsWith('r:') ? 'Un gros match gagné' : `Le ${k.slice(3)}e match`);
-  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string') items.push({ ref: d.palier, id: d.place, source: sourceDe(d.palier) });
+  // V16 : un adjoint pris là rejoint ton personnel (js/banc.js `ajouterDecision`), pas une place.
+  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string' && !(rogue && BANQUE[d.place].vie === 'permanent')) items.push({ ref: d.palier, id: d.place, source: sourceDe(d.palier) });
   const parties = new Set();
   for (const d of decisions) {
     if (d && d.joue && d.joue.src === 'partie') parties.add(d.joue.ref);

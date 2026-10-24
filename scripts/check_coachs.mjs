@@ -111,12 +111,12 @@ const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
   const pas = [...T.map((id, i) => engager(id, 1 + i)), ...[1, 2, 3, 4].flatMap(n => T.map((id, i) => monter(id, 10 * n + i, n)))];
   const decs = [...base], allumes = [];
   for (const d of pas) { const a = palierAllume(decs, d); if (a) allumes.push(`${buildDe([...decs, d]).tortue}:${a.coach.palier}`); decs.push({ ...d, ...(a || {}) }); }
-  exiger(`une décision de personnel allume II à ${SEUILS[1]} points, une fois`, allumes.length === 1 && allumes[0] === `${SEUILS[1]}:2`, allumes.join(' ') || 'rien');
-  // Sans un match, adjoints et échelons ne mènent pas à la III : il faut leurs matchs à ton service.
-  const joues = jusquA(60), iii = palierAllume(decs, monter(T[0], 60, 4), { joues });
-  exiger(`la III à ${SEUILS[2]} points, à la décision qui suit leurs matchs à ton service`, buildDe(decs).tortue < SEUILS[2] && !!iii && iii.coach.palier === 3,
-    `${buildDe(decs).tortue} points sans match · ${buildDe(decs, Infinity, { joues }).tortue} après 60 matchs`);
-  exiger('les confiances actives gardent la plus haute', coachsActifs([...decs, { ...monter(T[0], 60, 4), ...iii }]).length === 1 && coachsActifs([...decs, { ...monter(T[0], 60, 4), ...iii }])[0].palier === 3);
+  exiger(`ses adjoints allument II à ${SEUILS[1]} points et III à ${SEUILS[2]}, une fois chacune`, allumes.join(' ') === `${SEUILS[1]}:2 ${SEUILS[2]}:3`, allumes.join(' ') || 'rien');
+  exiger('les confiances actives gardent la plus haute', coachsActifs(decs).length === 1 && coachsActifs(decs)[0].palier === 3);
+  // Ses matchs à ton service montent seuls : la décision qui suit, quelle qu'elle soit, allume la confiance atteinte.
+  const manque = SEUILS[1] - buildDe(un).tortue, jours = 1 + manque * MATCHS_CONFIANCE / 2;
+  const ii = palierAllume(un, { jour: jours }, { joues: jusquA(jours) });
+  exiger(`les matchs à ton service allument la II, à la décision qui suit`, !palierAllume(un, { jour: jours - 1 }, { joues: jusquA(jours - 1) }) && !!ii && ii.coach.palier === 2, `${jours - 1} matchs à ton service`);
 }
 
 /*

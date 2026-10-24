@@ -4,8 +4,8 @@
  * run (les deux patrons que le départ impose, js/banque.js `patronsDeDepart`) et, selon la politique
  * (scripts/lib/rogue_sim.mjs) :
  *   - l'attentif lit : il prend la route que l'entraîneur recommande (`sceneDeLaRoute`, js/scenes.js), la réponse
- *     d'un dossier qui rend le plus sur ses soirs, et, aux paliers des 9e, 18e et 26e matchs, la place qui rend le
- *     plus, qu'il joue tout de suite (elle attend son moment d'elle-même) ;
+ *     d'un dossier qui rend le plus sur ses soirs, et, aux paliers des 9e, 18e et 26e matchs comme dans ses packs, un
+ *     adjoint de la couleur de son coach, qu'il engage (V16, `engagerDuRobot`) ;
  *   - le distrait clique au hasard, sur son propre générateur ;
  *   - le robot d'avant ('defaut') ne joue pas de cartes en saison : la pente de check_rogue et de check_robot reste
  *     celle d'un gérant grossier.
@@ -15,7 +15,7 @@ import { MOMENTS_SI, dosADos, energieDe, SLOTS, rivalChoisi } from '../../js/sim
 import { DOSSIERS, dossierDeLaSemaine } from '../../js/dossiers.js';
 import { sceneDeLaRoute } from '../../js/scenes.js';
 import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
-import { BANQUE, CONSOMMABLES, payloadDe, palierAllume } from '../../js/banque.js';
+import { BANQUE, PATRONS, payloadDe, palierAllume, patronsActifs, coachsActifs } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
 
@@ -119,21 +119,39 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       out.push({ ...d, ...(a || {}) });
     }
   }
-  // LA CARTE D'UN PALIER (9e, 18e, 26e matchs) : une place parmi trois, jouée tout de suite.
+  // V16 : le lundi recompte aussi la confiance — les matchs à ton service la montent entre deux engagements.
+  if (lundi && politique !== 'defaut') {
+    const a = palierAllume([...decisions, ...out], { jour: j }, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x) });
+    if (a) out.push({ jour: j, ...a });
+  }
+  // L'ADJOINT D'UN PALIER (9e, 18e, 26e matchs, V16) : un parmi trois ; celui qu'il engage, sinon le premier.
   const pp = f && PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
   if (pp !== undefined && pp !== null && f) {
     etat.paliers.add(pp);
-    const ids = cartesDuPalier(graine, pp).filter(id => BANQUE[id] && BANQUE[id].cat === 'consommable' && CONSOMMABLES[BANQUE[id].cle] && CONSOMMABLES[BANQUE[id].cle].cible === 'aucune');
-    if (ids.length) {
-      const C = id => CONSOMMABLES[BANQUE[id].cle];
-      const id = clic ? auHasard(ids) : ids.reduce((b, x) => {
-        const v = valeurDEffet(C(x).effet && { ...C(x).effet, si: C(x).si }, C(x).duree) + (C(x).gain || 0) * JETON;
-        return !b || v > b.v ? { id: x, v } : b;
-      }, null).id;
-      const P = payloadDe(id);
-      out.push({ jour: j, palier: `pp:${pp}`, place: id });
-      if (P) out.push({ jour: j, joue: { src: 'partie', ref: `pp:${pp}`, id }, ...P });
-    }
+    const ids = cartesDuPalier(graine, pp);
+    const eng = engagerDuRobot({ ids, decisions: [...decisions, ...out], politique, clic, jour: j, joues: (de, a) => matchsJoues(L.calendrier, you, de, a) });
+    const pris = eng.length ? `patron:${eng[0].patron.cle}` : ids[0];
+    if (pris) out.push({ jour: j, palier: `pp:${pp}`, place: pris }, ...eng);
   }
   return out;
+}
+
+/*
+ * UN ADJOINT TIRÉ (V16, docs/refonte-v16.md § 3 : un palier, un pack) : l'attentif engage le premier de la couleur de
+ * son coach à un poste que sa couleur ne tient pas encore — sa confiance compte ses adjoints en poste ; le distrait, une
+ * fois sur deux, n'importe lequel ; le robot d'avant n'engage rien. Rend la décision d'engagement, confiance recomptée.
+ */
+export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour, joues = () => 0 }) {
+  if (politique === 'defaut') return [];
+  const adjoints = ids.filter(id => BANQUE[id] && BANQUE[id].cat === 'patron');
+  const enPoste = patronsActifs(decisions);
+  const [coach] = coachsActifs(decisions);
+  const couleur = cle => BANQUE[`patron:${cle}`] && BANQUE[`patron:${cle}`].coach;
+  const tenu = role => enPoste.find(x => x.role === role) || null;
+  const id = clic ? (adjoints.length && clic() < 0.5 ? adjoints[Math.floor(clic() * adjoints.length)] : null)
+    : adjoints.find(x => coach && BANQUE[x].coach === coach.cle && !(tenu(BANQUE[x].role) && couleur(tenu(BANQUE[x].role).cle) === coach.cle)) || null;
+  if (!id || (tenu(BANQUE[id].role) || {}).cle === BANQUE[id].cle) return [];
+  const d = { jour, ...payloadDe(id, { patrons: enPoste.map(x => ({ cle: x.cle, role: x.role || PATRONS[x.cle].role })) }) };
+  const a = palierAllume(decisions, d, { joues });
+  return [{ ...d, ...(a || {}) }];
 }

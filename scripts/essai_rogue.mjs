@@ -255,7 +255,7 @@ const compterFeuilles = async ou => {
 };
 const captures = { combat: 0, duel: 0 };   // le premier combat et le premier duel, photographiés une fois
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [] };   // À faire (V9), vu au premier choix
-const butin = { vus: 0, pris: [], fautes: [] };   // V13-2 : le butin d'une victoire, une carte parmi trois pour une place
+const butin = { vus: 0, pris: [], fautes: [] };   // V16 : le butin d'une victoire, un adjoint parmi trois pour ton personnel
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le geste pris
 const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
@@ -484,9 +484,8 @@ async function regler() {
       continue;
     }
     /*
-     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2) : une carte parmi trois, pour une place — plus de carte de match pour le
-     * deck, ni de « Retirer une carte ». On prend la première ; la décision porte `place` et son palier `r:`, et la carte
-     * entre dans tes places. Photographié une fois.
+     * LE BUTIN D'UNE VICTOIRE (V5 ; V13-2 ; V16) : un adjoint parmi trois, pour ton personnel — ni « Retirer une
+     * carte ». On prend le premier ; la décision porte `place` et son palier `r:`. Photographié une fois.
      */
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="recompense"] .choix-option:not([disabled])')) {
       const lu = await page.$eval('#choixModal .choix-sheet[data-genre="recompense"]', m => ({
@@ -496,7 +495,7 @@ async function regler() {
       if (/Récompense/.test(lu.titre)) {
         if (!butin.vus++) { await page.waitForTimeout(500); await page.screenshot({ path: `${DOSSIER}/rogue-butin.png` }); }
         if (lu.cles.length !== 3) butin.fautes.push(`${lu.cles.length} carte(s) offertes au lieu de trois`);
-        if (!/pour une place/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas « pour une place » (« ${lu.recit} »)`);
+        if (!/ton personnel/.test(lu.recit)) butin.fautes.push(`le butin ne dit pas « ton personnel » (« ${lu.recit} »)`);
         if (lu.autre) butin.fautes.push('le butin offre encore « Retirer une carte »');
         const n0 = (await decisionsDuCombat()).length;
         await page.click(`#choixModal:not([hidden]) [data-choix="${lu.cles[0]}"]`); await page.waitForTimeout(1200);
@@ -1623,7 +1622,7 @@ if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offert
 console.log(`20m. les sous-onglets de la boîte : ${[...afaire.maisons].join(' · ') || 'aucun'} · ${afaire.pages} retour(s) à la boîte`);
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni page ni écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
 if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a renvoyé qu'à ${afaire.maisons.size} sous-onglet(s) : ${[...afaire.maisons].join(', ')}`);
-console.log(`20c. le butin d'une victoire (une carte parmi trois, pour une place) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
+console.log(`20c. le butin d'une victoire (un adjoint parmi trois, pour ton personnel) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
 if (butin.fautes.length) erreurs.push(`le butin d'une victoire : ${[...new Set(butin.fautes)].slice(0, 3).join(' · ')}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);
 // LE DUEL (V9) : un gros match joué se rend à sa troisième période, chacune décidée.

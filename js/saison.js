@@ -3221,14 +3221,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     };
     const plusTard = { fermable: true, motFermer: 'Plus tard', onFerme: () => { boite.remis = boite.remisPour; } };
     if (rc) {
-      // LE BUTIN D'UNE VICTOIRE (S74, V5 ; V13-2) : une carte parmi trois pour une place — elle joue ses prochains matchs,
-      // dans son moment — ou passer. Les cartes de match sont parties avec la main du duel (docs/refonte-v13.md).
+      // LE BUTIN D'UNE VICTOIRE (S74, V5 ; V13-2 ; V16) : un adjoint parmi trois, qui rejoint ton personnel, ou passer.
       const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, ...d }, j); };
       // LA SCÈNE (Jalon M, A6) : l'entraîneur, sur le pointage de la feuille et tes places.
       const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you, pl = tesPlaces();
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), cartes: pl ? pl.places.length : 0, max: PLACES, graine: `${graine}|${rc.jour}` }) : null;
       specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
-        recit: `Une carte parmi trois, pour une place. ${PLACES} places : une de trop se vend.`,
+        recit: 'Un adjoint parmi trois : il rejoint ton personnel, et s\'engage chez l\'entraîneur.',
         options: cartesDuPalier(graine, `r${rc.jour}`).map(id => optionDeBanque(id)),
         onChoix: id => prendre({ place: id }),
         onFerme: () => prendre({}) });
@@ -3253,8 +3252,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const o = { ...OBJECTIFS[vo.d.objectif.cle], ...motsDeLObjectif(vo.d.objectif.cle, vo.d.objectif.quoi) };
       specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
-          // V10 (tranche 6) : les cartes de saison sont fondues dans le personnel ; le proprio donne une carte parmi trois, pour une place.
-          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.val} ${o.unite}). Il sort son carnet de chèques : une carte parmi trois, pour une place.`,
+          // V16 : le proprio paie un adjoint parmi trois, qui rejoint ton personnel.
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.val} ${o.unite}). Il sort son carnet de chèques : un adjoint parmi trois, pour ton personnel.`,
           options: cartesDuPalier(graine, `v${vo.j0}`).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `v:${vo.j0}`, place: id }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
@@ -3518,7 +3517,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           agir: () => ouvrirMain(pal) } });
     }
     /*
-     * LE PALIER DE LA SAISON (V9, tranche 5b) : aux matchs 9, 18 et 26, une carte parmi trois, pour une place
+     * LE PALIER DE LA SAISON (V9, tranche 5b ; V16) : aux matchs 9, 18 et 26, un adjoint parmi trois, pour ton personnel
      * (`cartesDuPalier`, js/inventaire.js). Il attend le lundi, comme les autres.
      */
     const pp = ctx.rogue && ctx.inventaire ? PALIERS_PACK.find(x => miens.length >= x && !pris.has(`pp:${x}`)) : undefined;
@@ -3526,8 +3525,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LA SCÈNE (Jalon M, A2) : le proprio la demande, sur la fiche et le rang déjà joués, et ce que le mandat veut.
       const f = fiche.get(you), run = ctx.rogue.mandat ? ctx.rogue.mandat() : null;
       const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
-      out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : une carte parmi trois`,
-        choix: { scene, recit: `Elle va à une place, et se joue quand tu veux.`,
+      out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : un adjoint parmi trois`,
+        choix: { scene, recit: 'Il rejoint ton personnel, et s\'engage chez l\'entraîneur.',
           options: cartesDuPalier(graine, pp).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `pp:${pp}`, place: id }) } });
     }

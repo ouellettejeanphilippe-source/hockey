@@ -21,7 +21,7 @@
  * un point de robustesse ≈ 0,5. Chaque carte se mesure en paires, sur les soirs de son moment (`check_places`,
  * `check_cartes`).
  */
-import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI } from './sim.js';
+import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI, MUTATIONS_ATELIER } from './sim.js';
 import { PLACES_NEUVES } from './places.js';
 import { PERSONNEL, CONTRATS_MAUDITS, PROTEGES } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
@@ -360,6 +360,18 @@ export function etiquetteBanque(id) {
 }
 /* Les cartes d'une famille. V10 (tranche 6) : l'ancien jeu est parti, chaque carte de la banque se tire. */
 export const idsDe = cat => Object.values(BANQUE).filter(c => c.cat === cat).map(c => c.id);
+/*
+ * CE QUI SORT ENCORE D'UN PACK, D'UN BUTIN OU D'UN PALIER (V16, docs/refonte-v16.md § 3) : le personnel, et les outils de
+ * gérant — la masse salariale, les soins, les retouches d'édition, le congédiement, les rappels et l'échange d'un doublon.
+ * Les places, l'équipement, les clauses et le feu n'entrent plus ; ceux déjà pris se jouent jusqu'à la tranche 4.
+ */
+export function sortEncore(id) {
+  const c = BANQUE[id];
+  if (!c) return false;
+  if (c.cat === 'patron' || c.cat === 'plafond') return true;
+  if (c.cat === 'joueur') return MUTATIONS_ATELIER.includes(c.cle);
+  return c.cat === 'consommable' && ['blesse', 'coach', 'cartable'].includes(c.cible);
+}
 export const compteParCategorie = () => Object.fromEntries(ORDRE_CATEGORIES.map(c => [c, idsDe(c).length]));
 
 /* Les étiquettes de durée de vie, telles que l'inventaire les affiche. */

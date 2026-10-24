@@ -146,9 +146,9 @@ console.log('\n  Le deck (S73)\n');
 /*
  * TES PLACES (V9, tranche 5b — docs/refonte-v9.md § 6.4). La poche, la main de la semaine et ses deux cartes par
  * semaine sont parties : une carte se joue quand on veut, autant qu'on veut. Plus de cartes que de places se voit
- * (À faire demande laquelle vendre) ; les places reportées au jour 0 d'une saison neuve (`poche`) y entrent. Le palier
- * de la saison (`pp:<match>`) offre une carte parmi trois, pure, sans événement, ni personnel, ni permanent ; la prise
- * va à une place. Le butin d'un gros match gagné (`r:<jour>`, V13-2) aussi.
+ * (À faire demande laquelle vendre) ; les places reportées au jour 0 d'une saison neuve (`poche`) y entrent. V16 : le
+ * palier de la saison (`pp:<match>`) offre un adjoint parmi trois ; pris, il rejoint ton personnel (js/banc.js), pas une
+ * place. Le butin d'un gros match gagné (`r:<jour>`, V13-2) aussi.
  */
 {
   const ev = idsDe('consommable').filter(id => BANQUE[id].vie !== 'permanent').slice(0, 5);
@@ -163,15 +163,15 @@ console.log('\n  Le deck (S73)\n');
   const apres = placesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
   exiger('les places de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
   const offres = PALIERS_PACK.map(p => cartesDuPalier('deck', p));
-  const propres = offres.flat().every(id => BANQUE[id] && !['evenement', 'patron'].includes(BANQUE[id].cat) && BANQUE[id].vie !== 'permanent');
-  exiger('chaque palier offre trois cartes distinctes, pures, qui se jouent d\'une place', offres.every(o => o.length === 3 && new Set(o).size === 3) && propres
+  const adjoints = offres.flat().every(id => BANQUE[id] && BANQUE[id].cat === 'patron');
+  exiger('chaque palier offre trois adjoints distincts, purs', offres.every(o => o.length === 3 && new Set(o).size === 3) && adjoints
     && PALIERS_PACK.every(p => cartesDuPalier('deck', p).join() === cartesDuPalier('deck', p).join()), offres.map((o, i) => `${PALIERS_PACK[i]} : ${o.join(', ')}`).join(' · '));
   const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, place: offres[0][1] };
   const avec = placesDeLaPartie({ decisions: [prise], rogue: true });
-  exiger('la carte prise au palier va à une place', avec.length === 1 && avec[0].id === offres[0][1] && avec[0].ref === prise.palier, avec.map(x => `${x.ref} ${x.id}`).join(' · '));
+  exiger('l\'adjoint pris au palier ne prend pas de place', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune place');
   const butin = { jour: 31, palier: 'r:30', place: offres[1][0] };
   const apresButin = placesDeLaPartie({ decisions: [butin], rogue: true });
-  exiger('le butin d\'un gros match gagné va à une place', apresButin.length === 1 && apresButin[0].id === offres[1][0] && apresButin[0].source === 'Un gros match gagné', apresButin.map(x => `${x.ref} ${x.source}`).join(' · '));
+  exiger('l\'adjoint du butin d\'un gros match gagné ne prend pas de place', apresButin.length === 0, apresButin.map(x => `${x.ref} ${x.source}`).join(' · ') || 'aucune place');
 }
 
 /*

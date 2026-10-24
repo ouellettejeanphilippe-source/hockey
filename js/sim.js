@@ -7661,7 +7661,7 @@ export const mutationNuit = k => {
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
 // V10 (tranche 6) : les retouches de la carte seulement ; les éditions d'avant (le poste, la zone, l'été, le mentor) sont parties avec l'ancien jeu.
-const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
+export const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
