@@ -224,8 +224,8 @@
 - **Tes plombiers** — les cartes prises entrent dans le vestiaire et gardent leur meilleure variante et leurs mods
 - **Carton Base** — variante
 *Ça dépend de :*
-- **Le vestiaire des déblocages** — classeur1–3 : 1 à 4 cartes ; classeurTri : deux fois plus montrées ; classeurChoix : tout le classeur
-- **🏁 Les jalons** — series offre classeur1, cent offre classeurTri, coupe offre classeurChoix
+- **Le vestiaire des déblocages** — une case Régulier sans rien ; classeur1 et classeur3 : une case Pilier, classeur2 et classeur4 : une case ★ Étoile ; classeurTri : cinq cartes par loto au lieu de trois
+- **🏁 Les jalons** — series offre classeur1, cent offre classeurTri, coupe offre classeur4
 - **📈 Club de garage … Dynastie** — +0/3/6/10/15 M$ au budget
 - **📈 Club de garage … Dynastie** — budget = 82 M$ + vestiaire − 12 M$ − 45 M$ + prestige (25 M$ sans rien
 - **(ce que le repêchage y envoie)** — cartable
@@ -1935,7 +1935,7 @@
 #### 🏁 Les jalons · `jalons`
 *Tu vois, tu fais :* au vestiaire, « texte → récompense » ou « ✓ Atteint » ; un toast « 🏁 Jalon : … ».
 *Ça change :*
-- **Le vestiaire des déblocages** — offert s'il n'est pas déjà pris et si son prérequis l'est : series → classeur1, ronde → banc1, cent → classeurTri, troisSaisons → garder1, finale → plafond1, coupe → classeurChoix
+- **Le vestiaire des déblocages** — offert s'il n'est pas déjà pris et si son prérequis l'est : series → classeur1, ronde → banc1, cent → classeurTri, troisSaisons → garder1, finale → plafond1, coupe → classeur4
 - **🏅 écussons** — sinon ecussons (20 à 120
 - **📈 Club de garage … Dynastie** — series, ronde et finale sont exigés pour les rangs 2, 3 et 4
 *Ça dépend de :*
@@ -1975,13 +1975,13 @@
 *Fichiers :* js/game.js:2393-2411 ; js/bilan.js:851, 910
 
 #### Ceux qui restent · `nouveau:gardes-de-saison`
-*Tu vois, tu fais :* l'écran du classeur ouvert sur ton équipe finie : « Garde jusqu'à 5 joueurs », barre « 🤝 Budget des gardés ».
+*Tu vois, tu fais :* un loto par case, tiré de ton équipe finie : « Ceux qui restent · Pilier », trois de tes joueurs de ce niveau, tu en gardes un ; barre « 🤝 Budget des gardés ».
 *Ça change :*
 - **Le départ du classeur** — le budget suivant = budget du classeur − masse des gardés
 - **Le repêchage** — repechage-rogue
 - **🧬 Modif de joueur** — chaque carte rejoue ses mods
 *Ça dépend de :*
-- GARDES_DE_SAISON = 5
+- GARDES_DE_SAISON = [Pilier, Régulier] (`gardesDeLaRun`)
 - budgetDuClasseur
 *Fichiers :* js/rogue.js:370 ; js/rogue-jeu.js:1184-1199
 
@@ -2064,7 +2064,7 @@
 - **Tes plombiers** — plombiersPlus 80
 - **Plafond restant …** — plafond1/2 : 45/110
 - **L'adjoint joue cette série** — dgFlexible 70 met dir_flexible dans le personnel
-- **Le départ du classeur** — classeur1–3 : 50/130/240, classeurTri 90, classeurChoix 280
+- **Le départ du classeur** — classeur1–4 : 50/130/240/280, classeurTri 90
 - **🪑 N réservistes** — banc1/2 : 60/150
 *Ça dépend de :*
 - **🏅 écussons** — ecussons

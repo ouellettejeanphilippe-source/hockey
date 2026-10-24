@@ -1,6 +1,6 @@
 /*
  * ESSAI DU MODE ROGUE (S77, S79, S80) — à la main : une run du menu jusqu'au
- * bilan : le départ du classeur (les cartes du cartable tirées au hasard, on
+ * bilan : le départ du classeur (une case, un loto de ton cartable, on
  * en prend), une case de réserve débloquée, un réserviste relâché (sa carte
  * va au cartable), la boutique à la HUT, un pack signé dans la case libre,
  * un pack de cartes et un pack Contrats, l'inventaire (une carte jouée), le
@@ -121,12 +121,12 @@ page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.st
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
 const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 /*
- * UN MÉTA ET UN CARTABLE DE DÉPART (S80) : quatre cartes au cartable (le
- * classeur les tirera), assez d'écussons pour un déblocage, et une case de
+ * UN MÉTA ET UN CARTABLE DE DÉPART (S80) : quatre cartes au cartable, et
+ * trois Réguliers que la case Régulier du classeur tirera (24 oct.), assez d'écussons pour un déblocage, et une case de
  * réserve déjà débloquée. Une seule fois : les rechargements de la page
  * (changer de partie recharge) ne les écrasent pas.
  */
-const CARTES = ['1985-86_MNS_8445724', '1995-96_PIT_8446951', '2007-08_DET_8468083', '1985-86_MTL_8449796'];
+const CARTES = ['1985-86_MNS_8445724', '1995-96_PIT_8446951', '2007-08_DET_8468083', '1985-86_MTL_8449796', '1985-86_NJD_8446484', '1985-86_NJD_8452516', '1985-86_NYI_8450314'];
 await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
@@ -179,9 +179,10 @@ await page.click('#signatureModal .sig-liste .btn-sign');
 const vedetteGardee = await page.waitForFunction(() => { try { return !!JSON.parse(localStorage.getItem('cap82_rogue') || '{}').vedette; } catch { return false; } }, null, { timeout: 10000 }).then(() => true, () => false);
 if (!vedetteGardee) erreurs.push('le joueur de concession choisi n\'est pas gardé au méta');
 /*
- * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
- * cartable tirée au hasard. On la voit, on touche sa carte (sa fiche), on la
- * prend, on commence.
+ * LE DÉPART DU CLASSEUR (S80, js/depart.js) : une page Pilier et le joueur de
+ * concession, qui prend la case du haut : reste une case Régulier, un loto de
+ * trois cartes au plus (24 oct.). On les voit, on touche une carte (sa fiche),
+ * on en prend une, on commence.
  */
 await page.waitForSelector('#departModal:not([hidden]) .pcard', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-depart-classeur.png` });
@@ -203,7 +204,7 @@ let sv = await lireSauvegarde();
 const pris = (sv.rogue && sv.rogue.classeur && sv.rogue.classeur.pris) || [];
 const dansAlignement = pris.length > 0 && pris.every(k => clesDe(sv).includes(k));
 console.log(`1. le classeur (${entete}) : tirée ${tiree.join(', ')} · prise ${pris.join(', ') || '(aucune)'} · dans l'alignement : ${dansAlignement} · fiche au toucher : ${ficheClasseur}`);
-if (tiree.length !== 1 || !dansAlignement) erreurs.push(`le départ du classeur : ${tiree.length} tirée(s), ${pris.length} prise(s), dans l'alignement ${dansAlignement}`);
+if (tiree.length < 1 || tiree.length > 3 || pris.length !== 1 || !dansAlignement) erreurs.push(`le départ du classeur : ${tiree.length} tirée(s) (une case, un loto de trois au plus), ${pris.length} prise(s), dans l'alignement ${dansAlignement}`);
 const equipe = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()).filter(Boolean));
 const barre = (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`2. plombiers : ${equipe.length} joueurs (${equipe.slice(0, 4).join(', ')}…) · barre : ${barre} · cases de réserve de plus : ${sv.rogue.reserves}`);

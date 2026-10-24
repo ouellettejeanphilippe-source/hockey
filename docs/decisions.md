@@ -2766,3 +2766,25 @@ Ce qui change :
 - **Ce qui part**, faute de servir ailleurs : l'affiche du soir, les places de l'écran de saison, la pose d'une modif en touchant son joueur (`ciblesDeLaModif`, `poserLaModif`), la carte de la place en grand (`ouvrirCarteDeLaPlace`), et `placeDe`.
 
 Le choix des maisons : JP a pris la proposition (le match en une ligne au Bureau, le dépistage sous Effectif, les places au Marché) plutôt que « tout dans les Lignes » ou « tout au Bureau ».
+
+## Le classeur en lotos par niveau (24 oct. 2026)
+
+JP : *garder des joueurs de run en run devrait être fait dans une loto, pas genre tu peux prendre qui tu veux* ; puis *hasard ou genre choix d'un joueur Pilier, un Régulier, etc. Peut-être débloquer les Piliers et plus* ; et, sur sa run 2 : *la saison suivante me permettait de prendre cinq joueurs, c'est brisé*. Trois portes laissaient choisir qui te suit : « Le classeur ouvert » (`classeurChoix`, le choix dans tout le cartable, au départ et entre deux saisons), et « Ceux qui restent » (cinq joueurs de ton équipe finie, au choix).
+
+Ce qui change :
+- **Une case, un loto.** Chaque carte du classeur est une case d'un niveau : trois cartes de ce niveau (cinq au tri), tirées au hasard dans ton cartable, tu en gardes une ou aucune (`departDuClasseur`, `lotoDeCase`, js/rogue.js ; `lotosParCase`, js/rogue-jeu.js ; js/depart.js n'a plus qu'un écran, une case). Un niveau absent ou qui ne tient plus dans le budget : la case prend celui d'en dessous. La case ★ Étoile prend aussi les Phénomènes.
+- **Les niveaux se débloquent.** Sans rien, une case Régulier. `classeur1` ajoute une case Pilier, `classeur2` une ★ Étoile, `classeur3` une deuxième Pilier, `classeur4` (neuf, 280 🏅) une deuxième Étoile. Le joueur de concession et « Le classeur fermé » retirent des cases, par le haut.
+- **Entre deux saisons**, les lotos du cartable suivent la même règle : trois lotos Régulier, et un par page, à son niveau (`lotosDeSaison`).
+- **Ceux qui restent** : un loto Pilier et un loto Régulier tirés de ton équipe finie (`gardesDeLaRun`, `GARDES_DE_SAISON`) au lieu de cinq au choix ; « Ceux qui partent » en retire un, par le haut. Le joueur de concession reste à part, sans loto.
+- **La Coupe** offre `classeur4`, la deuxième page Étoile (requis : la première), au lieu du classeur ouvert ; sinon ses 120 🏅.
+- **Les métas qui l'avaient** : `classeurChoix` part à la lecture du méta, et ses 280 🏅 reviennent, toujours (le méta ne dit pas s'il venait de la Coupe ou d'un achat ; `PARTIS`, js/rogue.js).
+
+Mesuré (check_rogue, 24 runs par niveau, le robot sur les mêmes dés), avant → après :
+- la première run reste dure : sans déblocage, 0 % de Coupe et 45 points, comme avant ;
+- la valeur des cartes du classeur au départ monte (la somme de leur valeur : 54 → 69 à six déblocages, 127 → 157 à onze, 184 → 243 à seize, 297 → 336 à tout) : une case Pilier tire un Pilier, là où le tri tirait surtout des Soutien ; la première saison n'en gagne presque rien (87 → 88 points à onze) ;
+- la saison 2 reste un défi : l'équipe y vaut autant (59,1 → 60,2 de valeur moyenne à onze déblocages ; 60,6 → 60,2 à seize ; 60,0 → 60,8 à tout), et le mandat se tient 58 → 64 % à onze, 75 → 71 % à seize, 86 → 100 % à tout ;
+- la Coupe par run : 4 → 4 % à onze déblocages, 4 → 8 % à seize, 42 → 29 % à tout.
+
+Écarté : **une case ★ Étoile chez ceux qui restent**, ouverte par la page Étoile. Mesurée, elle menait la Coupe de 4 % à 38 % des runs à onze déblocages, et le mandat de la saison 2 à 100 % : c'était garder sa vedette chaque saison. Écarté aussi : deux lotos Régulier entre deux saisons au lieu de trois, qui ne changeait rien à la Coupe.
+
+Reste au choix : « Garder un joueur » (`garder1` à `garder3`), au départ d'une run, parmi ta dernière équipe.
