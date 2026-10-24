@@ -53,6 +53,7 @@ let liste = null;            // les joueurs qui ont une photo (data/actions.json
 let visages = {};            // le centre de leur visage, pour le recadrage sur l'appareil (scripts/visages_actions.py)
 let libres = {};             // id → la photo libre (Commons ou Openverse) : sa vignette, son auteur, sa licence
 let cadres = {};             // id → le centre du visage dans la photo 5:7 [x, y], pour la fenêtre de chaque série
+let clubs = {};              // id → le ou les clubs de sa photo générale (scripts/actions_clubs.mjs)
 let saisons = {};            // id → { saison → [fichier, dossier, largeur de la vignette, auteur, licence, centre du visage, cadre, club ?] }
 let auteurs = [], licences = [];   // les auteurs et les licences des photos de saison, par index
 let chargement = null;       // la promesse de actionsDisponibles()
@@ -85,6 +86,7 @@ export function actionsDisponibles() {
       visages = lu.visages || {};
       libres = { ...(lu.libres || {}), ...(lu.commons || {}) };
       cadres = lu.cadres || {};
+      clubs = lu.clubs || {};
       saisons = lu.saisons || {};
       auteurs = lu.auteurs || [];
       licences = lu.licences || [];
@@ -109,6 +111,13 @@ function deSaison(id, saison, club) {
   const e = saison && saisons[Number(id)] && saisons[Number(id)][saison];
   return e && (!e[7] || !club || e[7] === club) ? e : null;
 }
+/*
+ * LA PHOTO GÉNÉRALE, DE SON CLUB SEULEMENT (oct. 2026, JP : *les photos d'actions sont souvent d'un autre club que le
+ * joueur a joué* ; il a choisi le portrait plutôt qu'un autre chandail). Sans photo de sa saison, une carte ne prend
+ * la photo générale que si elle porte le club de la carte (`clubs`, scripts/actions_clubs.mjs) ; sans club demandé,
+ * toujours.
+ */
+const deSonClub = (id, club) => !club || (clubs[Number(id)] || '').split(' ').includes(club);
 const nomCommons = f => encodeURIComponent(f.replace(/ /g, '_'));
 const pageCommons = f => `https://commons.wikimedia.org/wiki/File:${nomCommons(f)}`;
 /* La vignette de Commons d'une photo de saison : la même adresse pour la fabrication et pour l'appareil. */
@@ -123,28 +132,28 @@ export function creditPhoto(id, saison, club) {
   const ps = deSaison(id, saison, club);
   if (ps) return { auteur: auteurs[ps[3]], licence: licences[ps[4]], url: pageCommons(ps[0]) };
   const c = libres[Number(id)];
-  if (!c) return null;
+  if (!c || !deSonClub(id, club)) return null;
   return { auteur: c.a, licence: c.l, url: c.f ? pageCommons(c.f) : c.p };
 }
 
 /* Le centre du visage dans sa photo d'action, [x, y] en fractions, ou null (aucun visage sûr : la série cadre seule). */
 export function cadreAction(id, saison, club) {
   const ps = deSaison(id, saison, club);
-  return (ps ? ps[6] : cadres[Number(id)]) || null;
+  return (ps ? ps[6] : deSonClub(id, club) && cadres[Number(id)]) || null;
 }
 
-/* L'image d'action d'un joueur, 5:7, ou null (la carte garde son portrait) ; avec sa saison (et son club), celle de cette saison d'abord. */
+/* L'image d'action d'un joueur, 5:7, ou null (la carte garde son portrait) ; avec sa saison (et son club), celle de cette saison d'abord, sinon la générale si elle est de son club. */
 export function actionSrc(id, saison, club) {
   id = Number(id);
   const ps = deSaison(id, saison, club);
-  if (!ps && (!liste || !liste.has(id))) return null;
+  if (!ps && (!liste || !liste.has(id) || !deSonClub(id, club))) return null;
   const cle = ps ? `${id}-${saison}` : id;
   if (!surAppareil()) return surLeWeb ? `img/actions/${cle}.webp` : null;
   const src = prets.get(cle);
   if (src) return src;
   demander(cle);
   // En attendant celle de la saison, la générale si elle est déjà gardée (sans la demander).
-  return ps ? prets.get(id) || null : null;
+  return ps && deSonClub(id, club) ? prets.get(id) || null : null;
 }
 
 /* ---------- l'appareil Android ---------- */
