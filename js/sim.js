@@ -7841,6 +7841,18 @@ export function flechesDe(x, seuils = null) {
  * La moitié du haut contre la moitié du bas, pondérée par l'écart de chaque rang à 1 : « Le haut joue plus »,
  * « Le bas joue plus », ou « La glace se brasse » quand les deux bouts bougent pareil. Rend '' sans glace.
  */
+/* Les noms des unités à forces égales, dans l'ordre de `PART_UNITE`. */
+export const RANGS_DE_GLACE = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire', '2e paire', '3e paire'] };
+/* Les minutes qu'un effet de glace déplace, unité par unité, sur un match de 60 : ses parts de base, multipliées puis
+   ramenées à 1. */
+function minutesDeLaGlace(e) {
+  return ['F', 'D'].flatMap(g => {
+    if (!Array.isArray(e[g])) return [];
+    const b = PART_UNITE[g], m = b.map((x, i) => x * (e[g][i] ?? 1));
+    const s = m.reduce((a, x) => a + x, 0), s0 = b.reduce((a, x) => a + x, 0);
+    return m.map((x, i) => ({ nom: RANGS_DE_GLACE[g][i], x: 60 * (x / s - b[i] / s0) }));
+  });
+}
 export function sensDeLaGlace(e) {
   let haut = 0, bas = 0, bouge = false;
   for (const g of ['F', 'D']) {
@@ -7863,9 +7875,16 @@ export function motsDEffet(e, duree = null) {
   if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
   if (e.energie && e.energie !== 1) out.push({ txt: `Usure des jambes ${pct(e.energie)}`, bon: e.energie < 1 });
   if (e.robustesse) out.push({ txt: `Robustesse ${e.robustesse > 0 ? '+' : '−'}${String(Math.abs(Math.round(e.robustesse * 10) / 10)).replace('.', ',')}`, bon: e.robustesse > 0 });
-  // LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée) : sept rangées « 1er trio : glace ↑ » disaient une seule idée.
+  // LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée) : son sens, puis l'unité qui gagne le plus et celle qui
+  // perd le plus, en minutes d'un match de 60 (les parts de base `PART_UNITE`, comme js/impact.js les mesure).
   const sens = sensDeLaGlace(e);
-  if (sens) out.push({ txt: sens, bon: null, cle: 'glace' });
+  if (sens) {
+    const ecarts = minutesDeLaGlace(e);
+    const plus = ecarts.reduce((a, b) => (b.x > a.x ? b : a), { x: 0 }), moins = ecarts.reduce((a, b) => (b.x < a.x ? b : a), { x: 0 });
+    const dit = x => `${x > 0 ? '+' : '−'}${String(Math.abs(Math.round(x * 10) / 10)).replace('.', ',')} min`;
+    const bouts = [plus, moins].filter(b => Math.abs(b.x) >= 0.1).map(b => `${b.nom} ≈ ${dit(b.x)}`);
+    out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} par match` : sens, bon: null, cle: 'glace' });
+  }
   if (e.mutation && MUTATIONS[e.mutation]) out.push({ txt: `Change sa carte : ${MUTATIONS[e.mutation].ico} ${MUTATIONS[e.mutation].nom}`, bon: null });
   if (duree) out.push({ txt: `${duree} match${duree > 1 ? 's' : ''}`, bon: null, duree: true });
   return out;
