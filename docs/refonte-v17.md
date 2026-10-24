@@ -16,14 +16,16 @@ Les mêmes leviers que l'adversaire, sur les canaux qui existent : les intention
 
 | Plan | Ce qu'il fait | Son prix |
 |---|---|---|
-| ⚖ Ton match | rien : ton alignement tel quel | — |
-| 🌧 Tirer de partout | plus de tirs | moins de précision, plus d'usure des jambes |
-| 🥷 Coller leur vedette | leur meilleur marqueur, nommé, tire moins et finit moins bien | ton joueur qui le colle crée moins |
-| ⛔ Fermer le centre | moins de tirs contre, et de moins bonne qualité | moins de tirs pour toi |
-| 🐗 Forechecker fort | plus de tirs, de la pression | plus de punitions, plus d'usure, plus de tirs contre en échappée |
-| 🧊 Rester discipliné | moins de punitions | moins de mises en échec, moins de tirs |
+| 🏒 Ton match | rien : ton alignement tel quel | — |
+| 🌧 Tirer de partout | plus de tirs (volume ×1,15) | moins de précision (×0,965), plus d'usure des jambes |
+| 🥷 Coller leur vedette | leur meilleur marqueur habillé tire deux fois moins, finit et crée moins | ton attaquant le plus fort en Défense, qui le suit, tire et crée moins ; ton club tire un peu moins |
+| ⛔ Fermer le centre | moins de tirs contre (×0,92), et de moins bonne qualité | moins de tirs pour toi (×0,88) |
+| 🐗 Forechecker fort | plus de tirs (×1,12), de la pression | plus de punitions (×1,25), plus d'usure |
+| 🧘 Rester discipliné | moins de punitions (×0,7) | moins de mises en échec, un peu moins de tirs |
 
-**La borne** : un plan change la FORME du match, pas sa force. Sur une saison, joué tous les soirs, le net d'un plan tient sous la borne d'une commune (±1 V), et il se voit dans la feuille (au moins ±2 tirs, ou ±0,5 punition, ou ±0,3 point à la ligne de la vedette collée). Aucun plan ne domine : chacun est le meilleur contre au moins un type d'adversaire (`check_plans`).
+Mesuré (`check_plan_de_match`, NYI 92-93 contre six vrais adversaires, 4000 matchs en paires par plan) : chacun tient entre +0,2 et +0,9 V sur une saison, en moyenne des adversaires. Chacun se voit : 🌧 ±2,6 tirs, 🥷 ±0,37 point à leur vedette, ⛔ ±2,3 tirs de chaque côté, 🐗 ±0,75 punition, 🧘 ±0,73 punition. Le meilleur contre chacun : ⛔ contre les attaques (BOS, PHI, MTL), 🥷 contre une vedette (NJD, MTL, PHI), 🐗 contre le faible (DET), 🧘 contre Gretzky, 🌧 contre la trappe.
+
+**La borne** : un plan change la FORME du match, pas sa force. Sur une saison, joué tous les soirs, le net d'un plan tient sous la borne d'une commune (±1 V), et il se voit dans la feuille (au moins ±2 tirs, ou ±0,5 punition, ou ±0,3 point à la ligne de la vedette collée). Aucun plan ne domine : chacun est le meilleur contre au moins un type d'adversaire (`check_plan_de_match`).
 
 ## 3. Où ça se joue
 
@@ -39,7 +41,7 @@ Le tableau du duel (`lireLeTableau` pour le joueur, l'écran de huit menus, les 
 
 | Tranche | Ce qu'elle fait | Ce qui la prouve |
 |---|---|---|
-| 1. Les plans | `PLANS` dans le moteur, la décision `plan` d'un match et d'une période | `check_plans` (en paires : la borne, se voit, aucun ne domine), `check_graine` |
+| 1. Les plans | `PLANS` dans le moteur, la décision `plan` d'un match et d'une période | `check_plan_de_match` (en paires : la borne, se voit, aucun ne domine), `check_graine` |
 | 2. Avant le match | « Ton plan » sous Effectif › Dépistage ; le robot choisit le sien | `essai_rogue`, `check_rogue` |
 | 3. Pendant | le direct s'arrête aux entractes ; le duel au plan, le tableau part | `check_duel` récrit, `check_gros`, `essai_rogue` |
 | 4. Les règles | CLAUDE.md, docs/decisions.md, le journal | `check_mort`, `tout.mjs` |

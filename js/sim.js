@@ -5595,6 +5595,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // pas une nuisance — et le gros pourvoyeur est le filet : deux cases
   // seulement, et l'auxiliaire n'est pas toujours remplaçable.
   noterTrous(A, LA); noterTrous(B, LB);
+  // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
+  const retirerPlans = (A._gros || B._gros || {}).duel ? () => {} : poserLesPlans(A, B, LA, LB);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
   const partantA = gA, partantB = gB;
@@ -5743,6 +5745,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // La suite (V10, les moments « après une défaite », « après trois victoires ») : +n victoires, −n défaites.
     for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
   }
+  retirerPlans();
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -6229,6 +6232,8 @@ function appliquerDecision(team, d, graine = 0) {
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
   if ('fermeture' in d) team.fermeture = d.fermeture;
+  // LE PLAN DE MATCH (V17) : il dure jusqu'au suivant ; Ton match le retire.
+  if ('plan' in d) team.plan = planLu(d.plan);
   // TES RIVAUX (V8) : choisis au premier jour, ils font les gros matchs de la saison (`grosMatchAvant`).
   // Au jeu, ils se prennent un à la fois (`rival`) ; le robot les pose d'un coup (`rivaux`).
   for (const x of Array.isArray(d.rivaux) ? d.rivaux : d.rival ? [d.rival] : []) {
@@ -6629,7 +6634,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.patrons = []; t.coachs = [];
+      t.patrons = []; t.coachs = []; t.plan = null;
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -7121,7 +7126,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.patrons = []; t.coachs = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.patrons = []; t.coachs = []; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -7890,6 +7895,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
     if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
     if ('speciales' in d) team.speciales = specialesValides(d.speciales);
     if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
+    if ('plan' in d) team.plan = planLu(d.plan);
     const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
     if (eff) ajouter(eff);
     if (d.effet && !serie) {
@@ -7911,7 +7917,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   }
 }
 export function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
-  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'speciales', 'lignes', ...(cases ? ['roster'] : [])];
+  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'speciales', 'lignes', 'plan', ...(cases ? ['roster'] : [])];
   const avant = champs.map(k => [k, k in team, team[k]]);
   try {
     poserAVenir(team, aVenir, { cases });
@@ -8968,6 +8974,80 @@ export const INTENTIONS = {
     malus: { toi: { discipline: 2.5 }, adv: { finition: 1.25 } },
     contre: { toi: { finition: 1.12 }, adv: { discipline: 2 } } },
 };
+/*
+ * LE PLAN DE MATCH (V17, docs/refonte-v17.md). JP : *des choix avant le match et pendant, plus stratégiques, genre
+ * tirer plus, suivre un joueur de près, qqchose qui change vraiment le match, mais sans briser les équipes*. Les
+ * mêmes leviers que les intentions, posés par TON club, sur ses canaux qui existent : `toi` sur ton club, `adv` sur
+ * le leur, `vedette` sur leur meilleur marqueur (`ptsDe`) et `colle` sur ton attaquant qui le suit (le plus fort en
+ * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_plans`).
+ * La décision `plan` dure jusqu'à la suivante ; au duel, une période peut le changer pour elle (`jouerDuel`).
+ */
+export const PLANS = {
+  match: { ico: '🏒', nom: 'Ton match', bon: 'Ton alignement tel quel', prix: '' },
+  tirer: { ico: '🌧', nom: 'Tirer de partout', bon: 'Plus de tirs', prix: 'Moins de précision, des jambes qui s\'usent',
+    toi: { volume: 1.15, finition: 0.965, energie: 1.1 } },
+  ombre: { ico: '🥷', nom: 'Coller leur vedette', bon: 'Leur meilleur marqueur tire moins et rate plus', prix: 'Ton attaquant qui le suit crée moins',
+    vedette: { lancers: 0.5, finition: 0.75, creation: 0.75 }, colle: { lancers: 0.65, creation: 0.6 }, toi: { volume: 0.93 } },
+  centre: { ico: '⛔', nom: 'Fermer le centre', bon: 'Moins de tirs contre, et de moins bonne qualité', prix: 'Moins de tirs pour toi',
+    toi: { volume: 0.88 }, adv: { volume: 0.92, finition: 0.98 } },
+  assaut: { ico: '🐗', nom: 'Forechecker fort', bon: 'Plus de tirs, de la pression', prix: 'Plus de punitions et d\'usure',
+    toi: { volume: 1.12, finition: 1.02, discipline: 1.25, energie: 1.12 } },
+  discipline: { ico: '🧘', nom: 'Rester discipliné', bon: 'Moins de punitions', prix: 'Moins de mises en échec, un peu moins de tirs',
+    toi: { discipline: 0.7, robustesse: -0.4, volume: 0.97 } },
+};
+/* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
+const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null } : null);
+/* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
+const planDe = team => (team && team.plan && PLANS[team.plan.cle] ? team.plan : null);
+/* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
+function cibleDuPlan(Ltoi, Ladv, vise = null) {
+  const leurs = habillesDuGroupe(Ladv || {}, 'F').map(x => x.p);
+  const vedette = (vise && leurs.find(p => getPlayerKey(p) === vise)) || leurs.sort((a, b) => ptsDe(b) - ptsDe(a))[0] || null;
+  const colle = habillesDuGroupe(Ltoi || {}, 'F').map(x => x.p).sort((a, b) => ((famillesDe(b) || {}).defense || 0) - ((famillesDe(a) || {}).defense || 0))[0] || null;
+  return { vedette, colle };
+}
+/*
+ * CE QU'UN PLAN POSE sur un match ou une période : les effets des deux clubs et les canaux des deux joueurs, dans les
+ * formes que le moteur lit déjà (`_effetMatch`, `_duelFx`). Rien si le plan est Ton match.
+ */
+function effetsDuPlan(plan, { Ltoi, Ladv }) {
+  const P = plan && PLANS[plan.cle];
+  if (!P || plan.cle === 'match') return null;
+  const eff = (e, ou) => (e ? [{ source: 'plan', cle: plan.cle, nom: P.nom, ico: P.ico, ...e, ...(ou ? { ou } : {}) }] : []);
+  const { vedette, colle } = P.vedette || P.colle ? cibleDuPlan(Ltoi, Ladv, plan.vise) : {};
+  return { toi: eff(P.toi), adv: eff(P.adv), joueurs: [[vedette, P.vedette], [colle, P.colle]].filter(([p, e]) => p && e), vedette: vedette || null };
+}
+/*
+ * LES PLANS D'UN MATCH ORDINAIRE (`playGame`) : chaque club qui en a un pose ses effets et ses canaux de joueur pour
+ * le match, jusqu'aux blessures et à l'usure d'après ; rend la fonction qui remet tout comme avant.
+ */
+function poserLesPlans(A, B, LA, LB) {
+  const retraits = [];
+  for (const [T, O, LT, LO] of [[A, B, LA, LB], [B, A, LB, LA]]) {
+    const fx = effetsDuPlan(planDe(T), { Ltoi: LT, Ladv: LO });
+    if (!fx) continue;
+    for (const [X, e] of [[T, fx.toi], [O, fx.adv]]) {
+      if (!e.length) continue;
+      const avait = '_effetMatch' in X, avant = X._effetMatch;
+      X._effetMatch = [...(avant || []), ...e];
+      retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
+    }
+    retraits.push(poserFxDeJoueurs(fx.joueurs));
+  }
+  return () => { for (const r of retraits.reverse()) r(); };
+}
+/* Poser des canaux de joueur le temps d'un match ou d'une période ; rend la fonction qui les retire. */
+function poserFxDeJoueurs(joueurs) {
+  const poses = [];
+  for (const [p, e] of joueurs || []) {
+    const avant = p._duelFx;
+    const fx = { ...(avant || {}) };
+    for (const [c, v] of Object.entries(e)) if (typeof v === 'number') fx[c] = (fx[c] ?? 1) * v;
+    p._duelFx = fx;
+    poses.push([p, avant]);
+  }
+  return () => { for (const [p, avant] of poses.reverse()) { if (avant) p._duelFx = avant; else delete p._duelFx; } };
+}
 /* Une intention à sa force : chaque canal élevé à la puissance (la blessure aussi), la robustesse, une somme, multipliée. */
 const forcer = (e, f) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, typeof v !== 'number' ? v : k === 'robustesse' ? v * f : v ** f])) : e);
 /* Les points par match d'un joueur, dans sa vraie saison : la vedette d'un club, c'est celle-là. */
@@ -9243,6 +9323,9 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
         if (J.malus.jambes) rendreJambes(I.cible, -Math.round(J.malus.jambes * fort));
       } else if (!fort && J.contre.joueur) viser(I.cible, forcer(J.contre.joueur, FORCE_CONTRE));
     }
+    // TON PLAN DE LA PÉRIODE (V17) : celui que la période choisit, sinon celui du club.
+    const fxPlan = effetsDuPlan(d.plan ? d.plan : planDe(toi), { Ltoi: Lk, Ladv });
+    if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [p, e] of fxPlan.joueurs) viser(p, e); }
     toi._lignesMatch = lk;
     toi._effetMatch = [...base, ...bk, ...effToi];
     // Sur eux, une carte d'un moment joue TON moment (`siToi`).
@@ -9275,7 +9358,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
  */
 function periodesDuDuel(d0, suivantes, cle) {
   const de = (d, k) => (d ? {
-    reponse: (d.duel && d.duel.reponse) || null, tactiques: (d.duel && d.duel.tactiques) || null,
+    reponse: (d.duel && d.duel.reponse) || null, tactiques: (d.duel && d.duel.tactiques) || null, plan: (d.duel && d.duel.plan) || null,
     snap: !!(d.duel && d.duel.snap), graine: k > 0 ? `${cle}:p${k}:${d.sel || ''}` : null,
   } : null);
   return [de(d0, 0), de(suivantes[1], 1), de(suivantes[2], 2)];
