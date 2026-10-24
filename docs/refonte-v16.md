@@ -126,6 +126,34 @@ Après deux poussées de sa force (`LIGNES_DU_FEU`, js/personnel.js), un feu tie
 
 **Les minutes d'un trio se disent en chiffres** (`check_banque`, « se lisent en chiffres ») : l'entraîneur du bas et le costumier ne faisaient que déplacer des minutes de trio, et leur puce ne portait aucun chiffre. La puce de la glace (`motsDEffet`) dit maintenant l'unité qui gagne le plus et celle qui perd le plus, en minutes d'un match de 60, sur les parts de base du moteur (`PART_UNITE`, `RANGS_DE_GLACE`) : « Le bas joue plus : 4e trio ≈ +2,8 min, 1er trio ≈ −2,5 min par match ».
 
+## 4d. L'essence : des cartes de joueurs (tranche 6)
+
+JP, 24 oct. 2026 : *en gros, remplacer toutes les cartes et cie par les adjoints et les événements avec choix* ; puis *à la limite, possibilité d'avoir des cartes qui upgradent joueurs, coachs et assistants coachs, et quelques consommables, mais rares, pas genre le main gimmick* ; *on avait tellement tout compliqué que je veux ramener le jeu à son essence de cartes*. La boussole : *quelqu'un qui a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement* ; pas de passifs de joueurs maintenant.
+
+**Le cœur** : les cartes de JOUEURS (packs, cartable, classeur, éditions) et le personnel (un adjoint par poste, comme le personnel d'EHM). Le reste devient un choix d'À faire (une voix, le fait, les options) ou part.
+
+**Une seule petite famille de cartes rares** (`RARES`, js/banque.js), comme les cartes d'objet de MLB The Show : dix cartes, qui sortent rarement, et qui se jouent à la maison de ce qu'elles montent.
+
+| Carte | Ce qu'elle monte | Où elle se joue | Le canal |
+|---|---|---|---|
+| 🖌 🪟 🔆 ✨ les quatre retouches | l'édition d'un joueur | au verso de sa carte | la mutation d'atelier (inchangée) |
+| 🎓 Le stage du coach (neuve) | la confiance du coach en poste, d'un cran | chez l'entraîneur | `coachsDeBase` : les points qui manquent au seuil suivant |
+| 📚 La formation (neuve) | un échelon de plus ouvert pour un adjoint | chez l'entraîneur | une copie de plus (`copiesPerso`, comme un doublon) |
+| 🧊 💆 🏥 trois soins | le retour d'un blessé | à l'infirmerie | les gestes de soin (inchangés) |
+| 📟 L'échange d'un doublon | ton doublon le plus fourni contre un joueur de son époque | Effectif › Joueurs | une décision `ballottage` (inchangée) |
+
+**D'où elles sortent** : la deuxième carte d'un pack de joueurs, une fois sur quatre (`RARE_DU_PACK`) ; sinon le pack ne donne que son adjoint. Le butin, les paliers des 9e, 18e et 26e matchs et le verdict du proprio offrent trois adjoints, comme avant.
+
+**Ce qui devient un choix** (js/dossiers.js, la porte des dilemmes) :
+- **La masse salariale** (37 cartes, dont les contrats lourds et la taxe de luxe) → le dossier du proprio **« La masse salariale »**, qui s'ouvre quand ton espace sous le plafond est mince (le fait : ta masse, ton plafond, ton contrat le plus lourd, nommé). Ses réponses : une retenue sur ce contrat, un contrat lourd (de l'espace tout de suite, un prix ses soirs), ou rien ; chacune passe par la décision `plafond` qui existe (`plafondDe`).
+- **Le congédiement** → le dossier du proprio **« La tête de l'entraîneur »**, quand la série de défaites est vraie (quatre de suite, ou plus) : congédier pour l'un de deux coachs (un coach neuf, `coachNeuf`), ou le garder.
+- **Les rappels du club-école** → déjà un remède de la blessure (À faire › Infirmerie) ; la carte part, et ses variantes (le pilier, l'ancien) aussi.
+- **Les autres soins** (le ruban, l'acupuncteur, le baume, le deuxième avis, le chirurgien du lundi) partent : trois soins suffisent.
+
+**Ce qui part de l'écran** : le Marché › Tes cartes (chaque carte qui reste a sa maison), l'inventaire de cartes, la revente d'une carte, les packs de cartes autres que le Pack Personnel (`PACKS_CARTES`) et la malédiction d'un pack. Le Marché garde la boutique (les packs de joueurs, le personnel, ton club).
+
+**Une méta d'avant** : chaque carte de son inventaire qui n'existe plus rend `REMBOURSEMENT_CARTE` 🏅 (lu une fois, `lireMeta`) ; une partie en cours relit ses décisions jouées, qui portent leurs chiffres.
+
 ## 5. Les règles fermes qui changent (CLAUDE.md)
 
 - « Chaque coach a au moins huit cartes, dans deux familles au moins ; le Rhino, l'Abbé et le Contremaître… six places » devient : chaque coach a au moins cinq adjoints, sur trois postes au moins.
@@ -142,3 +170,4 @@ Après deux poussées de sa force (`LIGNES_DU_FEU`, js/personnel.js), un feu tie
 | 3. Les sources | packs, butin, paliers, doublons | `check_packs`, `check_rogue`, `essai_packs` |
 | 4. Le grand départ (faite) | places.js, equipement.js, les clauses, le feu, l'onglet « Tes places », les règles de CLAUDE.md | `check_mort`, `check_banque`, `check_combo`, `check_sauvegardes` |
 | 5. L'écran et la run | l'entraîneur montre tes postes et ta collection ; la run se joue | `essai_rogue`, `check_profondeur`, `check_robot` |
+| 6. L'essence (§ 4d) | les cartes rares, la masse salariale et le congédiement en dossiers, le Marché › Tes cartes part | `check_banque`, `check_dossiers`, `check_sauvegardes`, `check_rogue`, `essai_rogue` |
