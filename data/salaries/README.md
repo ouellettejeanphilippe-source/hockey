@@ -59,6 +59,14 @@ Résultat : équipe médiane des années 1990 à 64-68 M$, équipe la plus riche
 à 96-112 M$, Gretzky 1995-96 à 15,4 M$, Brett Hull 1989-90 toujours une
 aubaine. La carte affiche le montant réel de l'époque dans tous les cas.
 
+## Une saison sans source
+
+Une saison sans source publiée (la saison en cours, avant que MarkerZone la couvre) reprend, pour chaque
+joueur qui en avait un, le vrai salaire de la saison d'avant : un contrat court d'une année à l'autre
+(`reprendre_les_contrats`, scripts/build_salaries.py). L'estimation d'après la valeur ne sert plus qu'aux
+joueurs sans contrat connu. Sans ça, Brayden McNabb valait 18,5 M$ en 2026-27 sur dix matchs, pour un vrai
+contrat de 3,65 M$. Une saison qui a sa propre source n'est jamais touchée.
+
 ## Refaire
 
 ```bash

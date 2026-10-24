@@ -28,11 +28,13 @@
  *     plan compris ; il aligne au mieux (`alignementAuMieux`, le bouton
  *     « Aligner au mieux ») au départ et après chaque signature ; il joue chaque
  *     gros match en duel (V9, tranche 5) : il répond à chaque intention, puis
- *     joue ce que l'adjoint jouerait (scripts/lib/duel.mjs) ;
+ *     joue ce que l'adjoint jouerait (scripts/lib/duel.mjs) ; chaque soir, son plan
+ *     de match (V17) : contre chaque club, celui qui rend le plus de buts nets
+ *     lus au moteur (`planDuRobot`) ;
  *   - 'distrait' : il clique sans lire. Un coach au hasard ; une carte du pack au hasard, et qui
  *     sort au hasard (le nouveau prend sa case) ; un système au hasard par
  *     ligne, parmi ceux que la fenêtre offre ; aux gros matchs et en séries, une réponse sur deux et une
- *     main jouable au hasard ; des rivaux, des gardés et des lotos au hasard. Ses
+ *     main jouable au hasard ; un plan de match au hasard chaque soir ; des rivaux, des gardés et des lotos au hasard. Ses
  *     clics ont leur générateur : les adversaires et les dés restent ceux des
  *     deux autres.
  *
@@ -51,13 +53,13 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
-  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, styleOuvert, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
+  ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, styleOuvert, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength, PLANS,
 } from '../../js/sim.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot } from './cartes_robot.mjs';
 import { patronsDeDepart, payloadDe } from '../../js/banque.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
-import { alignementAuMieux, chiffresDuSoir } from '../../js/impact.js';
+import { alignementAuMieux, chiffresDuSoir, planEnChiffres } from '../../js/impact.js';
 import { effetDePalier } from '../../js/coachs.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
@@ -73,7 +75,8 @@ import {
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
-export const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')).sort();
+// Les saisons du jeu sont celles de l'index (scripts/build_shards.py `saison_jouable`) : la saison en cours n'y entre qu'à la mi-saison.
+export const SAISONS = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'index.json'), 'utf8')).seasons;
 const CACHE = new Map();
 export function shard(s) {
   if (!CACHE.has(s)) {
@@ -350,6 +353,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   };
   // V10 : le lundi du robot — la route, le dossier, la carte d'un palier (scripts/lib/cartes_robot.mjs).
   const etatCartes = { dossiers: [], paliers: new Set() };
+  const plans = new Map();
+  let planPose = 'match';
   while (!L.fini) {
     for (const d of lundiDuRobot({ L, you, graine: `rogue80:${graine}:${saison}`, politique, clic, jetons: jetons(), etat: etatCartes, decisions })) {
       decisions.push(d);
@@ -404,6 +409,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
         Object.assign(actuel, r);
       }
     }
+    // LE PLAN DE MATCH (V17) : le plan de ce soir, posé s'il change.
+    const plan = planDuRobot(L, you, plans, attentif, clic);
+    if (plan !== undefined && plan !== planPose) { decisions.push({ jour: L.jour, plan: { cle: plan } }); planPose = plan; }
     jouerJournee(L);
     // La plus longue séquence de victoires (un jalon).
     for (const m of L.calendrier[L.jour - 1] || []) {
@@ -435,6 +443,25 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   for (const x of entrees) delete x.p._carte;
   // `L` et `you` : la ligue jouée, pour qui veut relire ses feuilles (check_moments).
   return { pts: you.PTS, W: you.W, rang, series: rang <= 16, rondes, coupe, finale, premier: rang === 1, serieMax, achats, signes, reste, entrees, galons: galonsNeufs, roster: { ...you.roster }, L, you };
+}
+
+/*
+ * LE PLAN DU ROBOT (V17, docs/refonte-v17.md § 3), ce soir. L'attentif lit le moteur à la première rencontre d'un club
+ * (`planEnChiffres`, js/impact.js : chaque plan contre « Ton match », en paires) et garde, contre lui, celui qui rend
+ * le plus de buts nets, « Ton match » si aucun ne rend ; le distrait en tire un au hasard chaque soir ; le robot
+ * d'avant n'en pose aucun (`undefined`). `plans` : la lecture de l'attentif, club par club, pour la saison.
+ */
+function planDuRobot(L, you, plans, attentif, clic) {
+  const m = (L.calendrier[L.jour] || []).find(x => x.A === you || x.B === you);
+  if (!m || (!attentif && !clic)) return undefined;
+  const cles = Object.keys(PLANS);
+  if (clic) return cles[Math.floor(clic() * cles.length)];
+  const adv = m.A === you ? m.B : m.A;
+  if (!plans.has(adv)) {
+    const lu = avecHasardIsole('robot', () => cles.filter(k => k !== 'match').map(k => [k, planEnChiffres(you, null, adv, k).net])).sort((a, b) => b[1] - a[1])[0];
+    plans.set(adv, lu && lu[1] > 0 ? lu[0] : 'match');
+  }
+  return plans.get(adv);
 }
 
 /*

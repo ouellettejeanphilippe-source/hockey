@@ -35,7 +35,7 @@ import {
   INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
-  POIDS_AN, POIDS_DN,
+  POIDS_AN, POIDS_DN, PLANS,
 } from '../js/sim.js';
 import { PATRONS } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
@@ -267,7 +267,8 @@ const MOTS_RESERVES = [
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   // Oct. 2026 : la page dit les raretés (JP : *spas clair les niveaux de rareté des cartes*) : 2 250 mots.
   // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*), et la ligue qui monte : 2 400 mots.
-  borne('la page des règles est courte', mots, 300, 2400, 'mots');
+  // V17 : la page dit les six plans de match, chacun avec ses chiffres : 2 500 mots.
+  borne('la page des règles est courte', mots, 300, 2500, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : une carte parmi trois, pour une place/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -376,6 +377,18 @@ const MOTS_RESERVES = [
     [`; ${NOM_VARIANTE.legendaire}, le prisme`, 'la Holo'],
     [`monte d'un, deux ou trois métaux`.replace('un, deux ou trois', ['peu', 'rare', 'legendaire'].map(r => ['zéro', 'un', 'deux', 'trois'][VARIANTE_PALIERS_G[r]]).join(', ').replace(/, (\S+)$/, ' ou $1')), 'les métaux d\'un gardien'],
     [`Or ou Holo : ${nombre(brille(0))} % des cartes d'un Soutien, ${nombre(brille(NIVEAUX.findIndex(n => n.cle === 'phenomene')))} % d'un ★ Phénomène`, 'les cotes d\'une brillante'],
+    // V17 : les plans de match, chacun depuis PLANS (js/sim.js) ; un facteur se dit en écart (×0,88 : −12 %).
+    ...(() => {
+      const ec = x => `${x > 1 ? '+' : '−'}${nombre(Math.round(Math.abs(x - 1) * 1000) / 10)} %`;
+      const { tirer, ombre, centre, assaut, discipline } = PLANS;
+      return [
+        [`${tirer.ico} ${tirer.nom} : tirs ${ec(tirer.toi.volume)}, précision ${ec(tirer.toi.finition)}, usure des jambes ${ec(tirer.toi.energie)}`, 'le plan 🌧'],
+        [`${ombre.ico} ${ombre.nom} : leur meilleur marqueur, tirs ${ec(ombre.vedette.lancers)}, précision et jeu ${ec(ombre.vedette.finition)} ; ton attaquant le plus défensif le suit, tirs ${ec(ombre.colle.lancers)} et jeu ${ec(ombre.colle.creation)} ; tes tirs ${ec(ombre.toi.volume)}`, 'le plan 🥷'],
+        [`${centre.ico} ${centre.nom} : leurs tirs ${ec(centre.adv.volume)}, leur précision ${ec(centre.adv.finition)}, tes tirs ${ec(centre.toi.volume)}`, 'le plan ⛔'],
+        [`${assaut.ico} ${assaut.nom} : tirs ${ec(assaut.toi.volume)}, précision ${ec(assaut.toi.finition)}, punitions ${ec(assaut.toi.discipline)}, usure des jambes ${ec(assaut.toi.energie)}`, 'le plan 🐗'],
+        [`${discipline.ico} ${discipline.nom} : punitions ${ec(discipline.toi.discipline)}, robustesse −${nombre(-discipline.toi.robustesse)}, tirs ${ec(discipline.toi.volume)}`, 'le plan 🧘'],
+      ];
+    })(),
   ];
   // Ce que la page dit d'une édition, en mots : le Cadre monte le second badge d'un métal, le Hors-cadre les deux, l'Or
   // aussi et son second rend plein, la Holo les deux de deux métaux.

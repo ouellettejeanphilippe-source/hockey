@@ -139,7 +139,7 @@ function cle(team, lu, adv, opts) {
     return J([team.name, team.jourCourant, team.games, joueurs, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
       team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.speciales, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
-      opts.nu, opts.neutre, opts.n, opts.series]);
+      opts.nu, opts.neutre, opts.n, opts.series, opts.plan]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
 }
 function lire(team, lu, adv, opts) {
@@ -513,6 +513,16 @@ export function systemeEnChiffres(team, lineup, adv, lignes, u, groupe, cle) {
   return lignesEnChiffres(team, lineup, adv, surLigne(lignes, u, { [champ]: cle }), surLigne(lignes, u, { [champ]: 'hourra' }));
 }
 
+/*
+ * UN PLAN DE MATCH, EN VRAIES STATS (V17) : le soir lu avec le plan contre le même soir en « Ton match », les mêmes
+ * dés, CE club contre CET adversaire. `net` : les buts pour moins les buts contre qu'il change — ce que le robot
+ * attentif lit pour choisir (scripts/lib/rogue_sim.mjs) ; l'écran, lui, ne dit que les stats.
+ */
+export function planEnChiffres(team, lineup, adv, cle) {
+  if (!team) return null;
+  const avec = lire(team, lineup, adv, { plan: cle, n: N_EFFET }), sans = lire(team, lineup, adv, { plan: 'match', n: N_EFFET });
+  return { stats: statsEntre(avec, sans), net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
+}
 
 /*
  * UN CHANGEMENT DE CARTE, EN CHIFFRES. JP : *les events de modifications de joueur, « +25 déf », ça veut rien

@@ -121,13 +121,12 @@ ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)}
     // Une ligne mal réglée exprès (le 2e trio en énergie) : il doit y avoir quoi dire.
     const lignes = lignesDe(toi, toi.roster, { duSoir: false }).map((l, u) => (u === 1 ? { ...l, tac: 'energie' } : l));
     const cs = conseilsDuMatch({ lineup: toi.roster, lignes, fermeture: toi.fermeture, energie: snap(toi).energie || {},
-      adv: { lignes: lignesDe(adv, adv.roster, { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
-      forces: { moi: { attaque: { rang: 3, sur: 32 }, defense: { rang: 20, sur: 32 } }, lui: { attaque: { rang: 15, sur: 32 }, gardien: { rang: 30, sur: 32 } } }, consigne: null });
+      adv: { lignes: lignesDe(adv, adv.roster, { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster } });
     for (const c of cs) {
       genres.add(c.genre);
       if (/\b(?:[odrcv]|sp)\s*[:=]\s*\d/.test(`${c.titre} ${c.pourquoi} ${c.chiffres.map(y => y.txt).join(' ')}`)) cotes++;
       if (c.genre === 'deja') continue;
-      if (!c.lignes && c.fermeture == null && !c.match) { sansDecision++; continue; }
+      if (!c.lignes && c.fermeture == null) { sansDecision++; continue; }
       if (c.lignes && !(c.lignes.length === 4 && c.lignes.every((l, u) => TACTIQUES[l.tac] && (u === 3 || SYSTEMES_D[l.tacD]) && Number.isFinite(l.sec)))) invalides++;
       vus.push({ j, c });
     }
@@ -138,7 +137,7 @@ ok(tOb < 6000, 'les chances des objectifs se calculent vite', `${tOb.toFixed(0)}
   ok(!cotes, 'aucun conseil ne montre une cote cachée', `${cotes}`);
   // Appliqué, un conseil change la saison : la même ligue, avec la décision au jour de son match.
   const { j, c } = vus.find(v => v.c.lignes) || vus[0];
-  const d = c.lignes ? { jour: j, equipe: 0, lignes: c.lignes } : c.match ? { jour: j, equipe: 0, match: c.match } : { jour: j, equipe: 0, fermeture: c.fermeture };
+  const d = c.lignes ? { jour: j, equipe: 0, lignes: c.lignes } : { jour: j, equipe: 0, fermeture: c.fermeture };
   const L3 = ligue(), L4 = (() => { const eq = vestiaires.map((v, i) => { const pool = v.pool.map(p => ({ ...p })); pool.forEach(registerHiddenRatings); return createTeam(`${v.tag} ${v.season}`, v.tag, autoRoster(pool), { season: v.season, isPlayer: i === 0 }); }); return { equipes: eq, ...simulateLeague(eq, 82, { graine: 'pronostic-graine', decisions: [d] }) }; })();
   const f3 = [L3.equipes[0].W, L3.equipes[0].GF, L3.equipes[0].GA].join('-'), f4 = [L4.equipes[0].W, L4.equipes[0].GF, L4.equipes[0].GA].join('-');
   ok(f3 !== f4, 'appliqué, un conseil change la saison', `« ${c.titre} » : ${f3} puis ${f4}`);

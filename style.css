@@ -1757,7 +1757,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-glace .carton-imprime { left: 7cqw; right: 7cqw; bottom: 5cqw; justify-content: space-between; color: #395067; }
 
 /* ---------------------------------------------------------------
-   LES SÉRIES : une par saison, de 1970-71 à 2026-27 (js/cartes.js `SERIES`). JP (oct. 2026) : *chaque année
+   LES SÉRIES : une par saison au jeu, de 1970-71 à 2025-26 (js/cartes.js `SERIES`). JP (oct. 2026) : *chaque année
    devra être différente* ; *ça doit être pro et commercial, la vraie affaire*. Chacune s'inspire des cartes de
    son année sans en copier aucune ; ses polices sont en tête de feuille, ses ornements dans `.carton-orne`.
    --------------------------------------------------------------- */
@@ -3018,27 +3018,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-apogee:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(3) { left: 0; right: 0; top: 84cqw; bottom: 0; z-index: 3; background: linear-gradient(transparent, rgba(7, 7, 7, 0.86) 28%, #070707); }
 .fc-verso.cs-apogee { --v-fond: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px), radial-gradient(90% 60% at 50% 0%, #241d10, transparent 70%), #070707; --v-encre: #efe2bf; --v-encre-2: #b39556; --v-prix: #e7c25c; }
 
-/* 55 · HORIZON (2025-26) — le moderne à fond perdu : le ciel du club du haut en bas, le joueur posé net sur une seule ligne d'horizon fine qui traverse la carte, la marque sur la ligne, le nom en très grandes capitales condensées dans le sol, l'écusson seul à droite ; beaucoup d'air, rien de trop. */
-.cs-horizon { --c-fond: linear-gradient(180deg, color-mix(in srgb, var(--fonce) 55%, black) 0%, color-mix(in srgb, var(--band) 88%, black) 50%, color-mix(in srgb, var(--band) 80%, white) 68.4%, color-mix(in srgb, var(--band) 40%, black) 68.6%, color-mix(in srgb, var(--band) 22%, black) 100%); --c-encre: #ffffff; }
-.cs-horizon::before { left: 0; right: 0; top: 70cqw; height: 52cqw; background: radial-gradient(50% 26% at 50% 50%, color-mix(in srgb, var(--vive) 45%, white 20%), transparent 100%); opacity: 0.55; }
-.cs-horizon .carton-photo { left: 0; right: 0; top: 6cqw; height: 90cqw; background: none; }
-.cs-horizon .carton-photo > img.visage:not(.silhouette) { filter: contrast(1.06) saturate(1.05) drop-shadow(0 0 3cqw rgba(0, 0, 0, 0.35)); -webkit-mask-image: none; mask-image: none; }
-.cs-horizon .carton-photo::after { background: linear-gradient(transparent 82%, rgba(0, 0, 0, 0.18)); }
-.cs-horizon:not(.tc-hors, .tc-rare, .tc-legendaire) .carton-photo:has(> .carton-action) { top: 0; height: 96cqw; }
-.cs-horizon .carton-deco { box-shadow: none; }
-.cs-horizon .carton-deco::before { left: 0; right: 0; top: 95.8cqw; height: 0.4cqw; background: linear-gradient(90deg, color-mix(in srgb, white 30%, transparent), #ffffff 8% 92%, color-mix(in srgb, white 30%, transparent)); box-shadow: 0 0 1.6cqw 0.2cqw color-mix(in srgb, var(--vive) 60%, white); }
-.cs-horizon .carton-marque { display: block; left: 7cqw; top: 91.6cqw; color: #ffffff; font: 800 2.9cqw/1 "Big Shoulders Display", "Barlow Condensed", sans-serif; letter-spacing: 0.5em; text-transform: uppercase; text-shadow: 0 0.2cqw 0.8cqw rgba(0, 0, 0, 0.6); }
-.cs-horizon .carton-nom { --nom-l: 74cqw; --nom-max: 17cqw; --prenom: 3.8cqw; left: 7cqw; right: 24cqw; top: 100.5cqw; height: 27cqw; font-family: "Big Shoulders Display", "Barlow Condensed", sans-serif; }
-.cs-horizon .carton-nom .fname { font-weight: 700; letter-spacing: 0.32em; opacity: 0.8; }
-.cs-horizon .carton-nom .lname { font-weight: 900; letter-spacing: 0.01em; line-height: 0.9; margin-top: 1cqw; }
-.cs-horizon .carton-club-nom { display: none; }
-.cs-horizon .carton-club { right: 7cqw; top: 101.5cqw; width: 13cqw; height: 13cqw; filter: drop-shadow(0 0 0.15cqw rgba(255, 255, 255, 0.9)) drop-shadow(0 0.6cqw 1cqw rgba(0, 0, 0, 0.5)); }
-.cs-horizon .carton-imprime { left: 7cqw; right: 7cqw; bottom: 4.6cqw; justify-content: space-between; color: color-mix(in srgb, white 70%, transparent); font-family: "Big Shoulders Display", "Barlow Condensed", sans-serif; opacity: 1; }
-.cs-horizon:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(1) { left: 0; right: 0; top: 96cqw; bottom: 0; z-index: 3; background: linear-gradient(color-mix(in srgb, var(--band) 40%, black), color-mix(in srgb, var(--band) 22%, black)); }
-.cs-horizon:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(1)::before { left: 0; right: 0; top: 0; height: 0.3cqw; background: linear-gradient(90deg, transparent, #ffffff 12% 88%, transparent); }
-.fc-verso.cs-horizon { --v-fond: linear-gradient(180deg, color-mix(in srgb, var(--team-band, #243044) 70%, black) 0 30%, color-mix(in srgb, var(--team-band, #243044) 22%, black) 30.3%); }
-
-/* 56 · AURORE (2026-27) — le futur sous une aurore boréale : un ciel de nuit étoilé où ondulent des rideaux verts, violets et aux couleurs du club, le joueur dans une capsule de verre au liseré lumineux, le nom technique qui monte à la verticale, la marque allumée au sommet. */
+/* 55 · AURORE (2025-26) — le futur sous une aurore boréale : un ciel de nuit étoilé où ondulent des rideaux verts, violets et aux couleurs du club, le joueur dans une capsule de verre au liseré lumineux, le nom technique qui monte à la verticale, la marque allumée au sommet. */
 .cs-aurore { --c-fond: radial-gradient(circle, rgba(255, 255, 255, 0.55) 0 0.5px, transparent 1px) 0 0 / 23px 31px, radial-gradient(circle, rgba(255, 255, 255, 0.35) 0 0.5px, transparent 1px) 9px 13px / 17px 19px, linear-gradient(180deg, #050a1a, #0a1430 45%, #060914); --c-encre: #eafff6; }
 .cs-aurore::before {
   inset: 0;
@@ -3070,10 +3050,10 @@ a.spin-club:hover { background: var(--fond-2); }
 .fc-verso.cs-aurore { --v-fond: radial-gradient(70% 25% at 30% 10%, rgba(60, 255, 170, 0.25), transparent), radial-gradient(60% 20% at 75% 5%, rgba(150, 90, 255, 0.25), transparent), linear-gradient(180deg, #071029, #050812); --v-encre: #eafff6; --v-encre-2: #8fd8c0; --v-prix: #7dffcf; }
 
 /* La photo d'action (5:7, son propre fond) se cale par le haut dans une fenêtre plus large qu'elle : la tête n'est jamais coupée. */
-:is(.cs-bulle, .cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-horizon, .cs-aurore) .carton-photo > .carton-action { filter: contrast(1.05) saturate(1.06); }
+:is(.cs-bulle, .cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-aurore) .carton-photo > .carton-action { filter: contrast(1.05) saturate(1.06); }
 
 /* La carte mini : les petites marques (moins de 4 px) se taisent, comme les petits caractères. */
-@container (max-width: 139px) { :is(.cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-horizon, .cs-aurore) .carton-marque { display: none; } }
+@container (max-width: 139px) { :is(.cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-aurore) .carton-marque { display: none; } }
 
 /* ---------------------------------------------------------------
    LES ÉDITIONS (js/rarete.js, oct. 2026). JP : *vraiment différemment,
@@ -4660,6 +4640,13 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .dep3-av { text-align: center; font: 800 var(--t-2)/1 var(--display); color: var(--encre-3); }
 .dep3-table tr:has(td.av) .dep3-av { color: var(--bon); }
 .dep3-surveiller { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+/* Ton plan (V17) : six tuiles d'À faire, deux par rangée au téléphone, trois dès 700 px ; le nom et deux stats. */
+.dep-plans { display: flex; flex-direction: column; gap: var(--esp-2); }
+.dep-plans .af-options { grid-template-columns: 1fr 1fr; }
+@media (min-width: 700px) { .dep-plans .af-options { grid-template-columns: repeat(3, 1fr); } }
+.dep-plan.choix-option { padding: var(--esp-2); gap: 2px; }
+.dep-plan .choix-option-nom { font-size: var(--t-3); }
+.dep-plan :is(.choix-option-sous, .puce) { font-size: var(--t-1); line-height: 1.25; }
 .dep3-conseils { display: flex; flex-direction: column; gap: var(--esp-2); }
 .dep3-conseil { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); border-radius: 0 var(--r-1) var(--r-1) 0; background: var(--fond-2); }
 .dep3-conseil.deja { border-left-color: var(--bon); }

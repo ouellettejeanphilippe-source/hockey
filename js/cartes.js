@@ -390,8 +390,8 @@ export const SERIES = {
   spectre: { nom: 'Spectre', saison: '2022-23' },
   velocite: { nom: 'Vélocité', saison: '2023-24' },
   apogee: { nom: 'Apogée', saison: '2024-25' },
-  horizon: { nom: 'Horizon', saison: '2025-26' },
-  aurore: { nom: 'Aurore', saison: '2026-27' },
+  // L'Aurore était dessinée pour 2026-27 ; la saison en cours n'est pas encore au jeu (scripts/build_shards.py `MATCHS_POUR_JOUER`) : elle habille 2025-26 (JP, 24 oct.).
+  aurore: { nom: 'Aurore', saison: '2025-26' },
 };
 const PAR_SAISON = Object.entries(SERIES).map(([cle, s]) => [s.saison, cle]);
 export function serieDe(saison) {

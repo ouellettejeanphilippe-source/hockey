@@ -240,7 +240,54 @@ def main():
         written += 1
         print(f"{season}: {len(players)} joueurs ({', '.join(f'{k} {v}' for k, v in counts.items())}), "
               f"{unmatched} lignes non appariees")
+    written += reprendre_les_contrats(per, only)
     print(f"{written} fichier(s) ecrit(s) dans data/salaries/")
+
+
+def reprendre_les_contrats(per, only):
+    """UNE SAISON SANS SOURCE REPREND LES VRAIS CONTRATS DE LA PRECEDENTE (JP, 24 oct. 2026 : *Hein le salaire ?*,
+    Brayden McNabb a 18,5 M$ en 2026-27, pour un vrai contrat de 3,65 M$). Sans fichier de salaires, l'etage 2 estime
+    chaque salaire d'apres la valeur, et la valeur d'une saison neuve se lit sur dix matchs. Un contrat court d'une
+    annee a l'autre : chaque joueur qui avait un vrai salaire la saison d'avant le garde ; l'estimation ne sert plus
+    qu'a ceux sans contrat connu. Une saison qui a sa propre source n'est jamais touchee."""
+    written = 0
+    labels = sorted(f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json"))
+    for season in labels:
+        # Une source PUBLIEE pour la saison (MarkerZone, nhlnumbers, Kaggle, un fichier manuel) : rien a reprendre.
+        # Les contrats CaPredictor qui la couvrent ne sont qu'une poignee de prolongations : ils passent d'abord.
+        if only and season not in only or any(src != "capredictor contrat" for _, src, *_ in per.get(season, [])):
+            continue
+        prev = season_label(int(season[:4]) - 1)
+        path_prev = os.path.join(SAL_DIR, f"{prev}.json")
+        if not os.path.exists(path_prev):
+            continue
+        with open(path_prev, encoding="utf-8") as f:
+            avant = json.load(f)
+        with open(os.path.join(SEASONS_DIR, f"{season}.json"), encoding="utf-8") as f:
+            ids = {str(p["id"]) for p in json.load(f)["players"] if p.get("id") is not None}
+        path = os.path.join(SAL_DIR, f"{season}.json")
+        deja = {}
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                deja = json.load(f)
+        players = dict(deja.get("players", {}))
+        repris = {pid: amount for pid, amount in avant.get("players", {}).items() if pid in ids and pid not in players}
+        if not repris:
+            continue
+        players.update(repris)
+        src = f"contrat de {prev} repris"
+        out = {
+            "season": season,
+            "cap": ERA_CAP.get(season) or avant.get("cap"),
+            "note": f"Aucune source publiee pour {season} : les vrais salaires de {prev}, repris pour les joueurs qui en avaient un. Voir data/salaries/README.md.",
+            "sources": {**deja.get("sources", {}), src: len(repris)},
+            "players": dict(sorted(players.items(), key=lambda kv: -kv[1])),
+        }
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(out, f, ensure_ascii=False, indent=1)
+        written += 1
+        print(f"{season}: {len(repris)} vrais salaires repris de {prev}, {len(players)} en tout, sur {len(ids)} joueurs au shard")
+    return written
 
 
 if __name__ == "__main__":
