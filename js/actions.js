@@ -10,8 +10,8 @@
  * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/,
  * versionnées depuis oct. 2026 pour que GitHub Pages les serve ;
  * scripts/actions.mjs les refait). Au démarrage, on en demande UNE ; absente,
- * aucune carte n'en demande d'autre. Une carte ne la montre qu'en édition
- * haute (`photoAction`, js/cartes.js).
+ * aucune carte n'en demande d'autre. Toute carte la montre dès qu'elle existe
+ * (`photoAction`, js/cartes.js).
  *
  * DANS L'APPLICATION ANDROID, l'APK n'emporte aucune photo (comme les visages,
  * js/visages.js) : l'appareil les télécharge à la LNH par le HTTP natif (le

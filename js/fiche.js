@@ -656,7 +656,7 @@ function rangDansLaLigue(p) {
   const r = 1 + e.players.filter(x => x.p !== 'G' && pts(x) > pts(p)).length;
   return r <= 30 ? `${ord(r)} pointeur de la ligue en ${p.s}.` : '';
 }
-function versoDeCarte(p, numero, rarete, milieu = '', serie = 'signature', num = null) {
+function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
   if (p.hgt) vit.push(['Taille', `${Math.floor(p.hgt / 12)}′${p.hgt % 12}″`]);

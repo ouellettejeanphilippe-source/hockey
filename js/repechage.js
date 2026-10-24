@@ -145,7 +145,7 @@ export function cartonDe(p, o = {}) {
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
-    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p, rarete),
+    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p),
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
     gemmeHtml: gemmeJoueur(rarete, traits), rubanHtml: rubanDe(p),
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,

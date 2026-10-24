@@ -84,8 +84,8 @@ for (const m of html.matchAll(/(?:href|src)="((?!https?:|data:|#)[^"]+)"/g)) {
 }
 for (const m of lire('style.css').matchAll(/url\(([^)]+)\)/g)) {
   const p = normaliser(m[1].replace(/['"]/g, '').trim());
-  // Un `url(#id)` est un motif SVG de la page (la maille des filets), pas un fichier.
-  if (p.startsWith('data:') || p.startsWith('http') || p.startsWith('#')) continue;
+  // Un `url(#id)` est un motif SVG de la page (la maille des filets), pas un fichier ; dans un SVG en data-URI, le `#` s'écrit `%23`.
+  if (p.startsWith('data:') || p.startsWith('http') || p.startsWith('#') || p.startsWith('%23')) continue;
   statiques.add(p);
 }
 const absents = [...statiques].filter(f => !FICHIERS.has(f)).sort();
