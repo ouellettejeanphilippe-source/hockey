@@ -12,7 +12,7 @@
  * packs (trois vrais joueurs, tu en signes un ; trois cartes de match, tu en
  * gardes une). S79 : la MASSE SALARIALE reste (JP : *garder aspect masse
  * salariale même en roguelike, mais avec cartes qui peuvent le manipuler*) —
- * un plafond de 82 M$, et des cartes pour le tordre (js/banque.js `CONTRATS`).
+ * un plafond de 82 M$, et le proprio pour le tordre (V16, tranche 6 : js/dossiers.js `laMasse`).
  *
  * CE QUI RESTE D'UNE RUN À L'AUTRE (le « méta », `cap82_rogue`) :
  *   - les ÉCUSSONS 🏅 gagnés à la fin de chaque run (les points de la saison,

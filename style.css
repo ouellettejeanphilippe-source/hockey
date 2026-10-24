@@ -195,7 +195,6 @@
   --fam-evenement: #e8dfc8; --fam-evenement-encre: #1f1a10;
   --fam-joueur: #63d2c6; --fam-joueur-encre: #08201d;
   --fam-consommable: #f0a868; --fam-consommable-encre: #241306;
-  --fam-plafond: #9ad59a; --fam-plafond-encre: #0b1f0d;
   --fam-saison: #9fb2ff; --fam-saison-encre: #10173a;
   --relief-haut: var(--reflet), 0 0 0 1px color-mix(in srgb, var(--club-vif) 45%, transparent), 0 16px 36px -14px color-mix(in srgb, var(--club-vif) 45%, transparent);
   --lueur-club: 0 0 0 1px color-mix(in srgb, var(--club-vif) 55%, transparent), 0 6px 18px -8px color-mix(in srgb, var(--club-vif) 70%, transparent);
@@ -5119,7 +5118,6 @@ table.tbl tbody tr:last-child td { border-bottom: 0; }
 .tc.tc-f-evenement { --tc-genre: var(--fam-evenement); --tc-genre-encre: var(--fam-evenement-encre); --tc-motif: radial-gradient(circle, var(--tc-trame) 1.1px, transparent 1.6px) 0 0 / 6px 6px; }
 .tc.tc-f-joueur { --tc-genre: var(--fam-joueur); --tc-genre-encre: var(--fam-joueur-encre); --tc-motif: repeating-linear-gradient(28deg, transparent 0 8px, var(--tc-trame) 8px 9.5px), repeating-linear-gradient(-28deg, transparent 0 8px, var(--tc-trame) 8px 9.5px); }
 .tc.tc-f-consommable { --tc-genre: var(--fam-consommable); --tc-genre-encre: var(--fam-consommable-encre); --tc-motif: radial-gradient(circle at 30% 40%, var(--tc-trame) 0 5px, transparent 5.5px) 0 0 / 26px 22px, radial-gradient(circle at 70% 70%, var(--tc-trame) 0 3px, transparent 3.5px) 0 0 / 18px 18px; }
-.tc.tc-f-plafond { --tc-genre: var(--fam-plafond); --tc-genre-encre: var(--fam-plafond-encre); --tc-motif: repeating-radial-gradient(ellipse 60% 40% at 50% 50%, transparent 0 5px, var(--tc-trame) 5px 6px); }
 .tc.tc-f-saison { --tc-genre: var(--fam-saison); --tc-genre-encre: var(--fam-saison-encre); --tc-motif: linear-gradient(var(--tc-trame) 1px, transparent 1px) 0 0 / 100% 16px, linear-gradient(90deg, var(--tc-trame) 1px, transparent 1px) 0 0 / 18px 100%; }
 /*
  * LE FORMAT CARTE DE HOCKEY (oct. 2026). JP : *j'aime vraiment le format carte de hockey, pas les autres*. Une carte de

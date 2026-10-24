@@ -348,7 +348,7 @@ export const isPicked = p => {
   return picked().some(x => getPersonKey(x) === k);
 };
 /*
- * LA MASSE SALARIALE MANIPULÉE (S79, js/banque.js `CONTRATS`). Avant la
+ * LA MASSE SALARIALE MANIPULÉE (S79 ; V16, tranche 6 : le dossier du proprio, js/dossiers.js `laMasse`). Avant la
  * saison, le plafond du mode et la somme des salaires, comme toujours. En
  * saison, le plafond EFFECTIF de la journée (l'espace gagné, la taxe, le DG
  * du plafond flexible) et le « cap hit » de chacun : sa retenue, son rachat,

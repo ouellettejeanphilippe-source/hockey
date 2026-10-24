@@ -1,5 +1,5 @@
 /*
- * LE PERSONNEL, CARTE PAR CARTE (V10, tranches 3 à 5 ; V16, seule carte bonus — js/personnel.js, les contrats lourds,
+ * LE PERSONNEL, CARTE PAR CARTE (V10, tranches 3 à 5 ; V16, seule carte bonus — js/personnel.js,
  * les réponses des dossiers, js/dossiers.js, et les cartes des routes de la semaine, js/noeuds.js). Chaque carte attend son moment ; on la mesure EN PAIRES (CLAUDE.md),
  * match par match : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois sans la carte, une fois
  * avec, son moment posé (`_lireMoment`, js/sim.js — la lecture d'un moment, qu'une partie ne pose jamais), à domicile
@@ -18,7 +18,7 @@
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, MUTATIONS_ATELIER, appliquerMutation, joueurDeMutation, activeLineup, effetsDesJoueurs, getPlayerKey } from '../js/sim.js';
-import { PERSONNEL, CONTRATS_MAUDITS, PROTEGES } from '../js/personnel.js';
+import { PERSONNEL, PROTEGES } from '../js/personnel.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { CARTES_DE_ROUTE } from '../js/noeuds.js';
 import { BANQUE, idsDe } from '../js/banque.js';
@@ -37,8 +37,8 @@ const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
  */
 const STYLE_V = 0.5, BUTS_PAR_V = 6;
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
-/* Les piles mesurées : le personnel, les contrats lourds, les réponses des dossiers (V10-5) et les cartes des routes. */
-const PILE = { q: 'personnel', k: 'contrat lourd', d: 'dossier', r: 'route' };
+/* Les piles mesurées : le personnel, les réponses des dossiers (V10-5 ; V16, tranche 6 : le contrat lourd en est une) et les cartes des routes. */
+const PILE = { q: 'personnel', d: 'dossier', r: 'route' };
 const ROUTE = Object.assign({}, ...Object.values(CARTES_DE_ROUTE));
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 /* Une réponse de dossier (« dossier.réponse ») : un effet du soir, sa durée, son moment ; une commune. */
@@ -46,7 +46,7 @@ const reponseDe = id => {
   const [d, o] = id.split('.'), D = DOSSIERS[d], O = D.options.find(x => x.cle === o);
   return { nom: `${D.titre} : ${O.nom}`, ico: D.ico, rarete: 'commune', si: O.si, duree: O.duree, effet: Object.fromEntries(CANAUX.filter(k => k in O).map(k => [k, O[k]])), ...(O.lui ? { joueur: O.lui } : {}) };
 };
-const carteDe = (sorte, cle) => (sorte === 'd' ? reponseDe(cle) : ({ q: PERSONNEL, k: CONTRATS_MAUDITS, r: ROUTE })[sorte][cle]);
+const carteDe = (sorte, cle) => (sorte === 'd' ? reponseDe(cle) : ({ q: PERSONNEL, r: ROUTE })[sorte][cle]);
 /* Une réponse de tous les soirs n'a pas de moment : sa durée entière compte. */
 const TOUS_LES_SOIRS = { mot: 'Tous les soirs', parSaison: 82 };
 
@@ -67,7 +67,7 @@ function match(toi, adv, graine, visiteur) {
     pj: toi._nomme ? (f.buts || []).filter(b => b.cote === moi && [b.marqueur, ...(b.passeurs || [])].some(q => q && getPlayerKey(q) === toi._nomme)).length : 0,
     jambes: pats.reduce((a, p) => a + (p.energie ?? 100), 0) / (pats.length || 1) };
 }
-/* UN FILS : chaque carte de `cles` (« q:cle » un adjoint, « k:cle » un contrat lourd, « d:dossier.réponse », « r:cle » une route), `n` matchs par club. */
+/* UN FILS : chaque carte de `cles` (« q:cle » un adjoint, « d:dossier.réponse », « r:cle » une route), `n` matchs par club. */
 function mesurer(cles, n) {
   const out = {};
   for (const id of cles) {
@@ -83,7 +83,7 @@ function mesurer(cles, n) {
         // Un club neuf tire sa chance de saison : semée pour chacun, elle est la même pour les deux bras.
         const club = (nom, role) => { grainerHasard(`places:${lab}:${role}`); return equipe(nom, t, un, s); };
         const sans = club('Sans', 'toi'), avec = club('Avec', 'toi'), adv = club('Eux', 'eux');
-        // Une réponse, une route ou le prix d'un contrat lourd : un effet du soir ; un poste : un patron engagé (`team.patrons`).
+        // Une réponse ou une route : un effet du soir ; un poste : un patron engagé (`team.patrons`).
         if (sorte === 'k' || sorte === 'd' || sorte === 'r') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
         // Une réponse sur un joueur (V11) : sur le centre du premier trio, ou le premier défenseur si elle ferme le jeu.
         if (sorte === 'd' && C.joueur) {
@@ -129,7 +129,7 @@ if (process.env.PART) {
 }
 
 const t0 = Date.now();
-const toutes = [...Object.keys(PERSONNEL).filter(k => PERSONNEL[k].si).map(k => `q:${k}`), ...Object.keys(CONTRATS_MAUDITS).map(k => `k:${k}`),
+const toutes = [...Object.keys(PERSONNEL).filter(k => PERSONNEL[k].si).map(k => `q:${k}`), 
   ...Object.keys(ROUTE).filter(k => ROUTE[k].effet).map(k => `r:${k}`),
   ...Object.entries(DOSSIERS).flatMap(([d, D]) => D.options.filter(o => o.lui || CANAUX.some(k => k in o)).map(o => `d:${d}.${o.cle}`))]
   .filter(id => !process.env.CARTES || process.env.CARTES.split(',').some(c => id.slice(2) === c || id.slice(2).startsWith(`${c}.`)));
@@ -143,11 +143,11 @@ console.log(`\n  Le personnel (V16) · ${toutes.length} cartes · ${N} matchs pa
   const pe = compte(PERSONNEL, 'patron');
   const postes = k => new Set(Object.keys(PERSONNEL).filter(c => (BANQUE[`patron:${c}`].coach || 'neutre') === k).map(c => PERSONNEL[c].role)).size;
   exiger('le personnel : cinq adjoints par coach au moins, sur trois postes au moins ; six neutres', Object.keys(COACHS).every(k => pe[k] >= 5 && postes(k) >= 3) && pe.neutre === 6, `${dit(pe)} · postes : ${Object.keys(COACHS).map(k => `${COACHS[k].ico} ${postes(k)}`).join(' ')}`);
-  exiger('chaque carte d\'un moment attend un moment que le moteur connaît', [...Object.values(PERSONNEL), ...Object.values(CONTRATS_MAUDITS)].every(C => !C.si || MOMENTS_SI[C.si]), `${toutes.length} cartes`);
+  exiger('chaque carte d\'un moment attend un moment que le moteur connaît', Object.values(PERSONNEL).every(C => !C.si || MOMENTS_SI[C.si]), `${toutes.length} cartes`);
   // V16, tranche 4 : les places, l'équipement et les clauses sont partis. Restent au joueur les retouches d'édition (l'atelier),
   // et aux consommables les gestes de gérant : un blessé, un coach, un joueur du cartable.
   const offertes = [...idsDe('consommable'), ...idsDe('joueur')].map(id => BANQUE[id]);
-  const vieilles = offertes.filter(c => (c.cat === 'joueur' && !MUTATIONS_ATELIER.includes(c.cle)) || (c.cat === 'consommable' && !['blesse', 'coach', 'cartable'].includes(c.cible)));
+  const vieilles = offertes.filter(c => (c.cat === 'joueur' && !MUTATIONS_ATELIER.includes(c.cle)) || (c.cat === 'consommable' && !['blesse', 'coach', 'adjoint', 'cartable'].includes(c.cible)));
   exiger('ni place, ni équipement, ni clause ne reste dans la banque', !vieilles.length, vieilles.slice(0, 4).map(c => c.nom).join(', ') || `${offertes.length} outils de gérant`);
 }
 
@@ -183,8 +183,6 @@ for (const id of toutes) {
     || Math.abs(vu1(m.dpun)) >= VISIBLE.punitions || Math.abs(vu1(m.dcoups)) >= VISIBLE.coups || Math.abs(vu1(m.dbl) * 82) >= VISIBLE.blessures;
   informer(`${C.ico} ${C.nom} (${PILE[sorte]}, ${C.rarete}, ${Mo.mot.toLowerCase()})`,
     `${soirs.toFixed(1).replace('.', ',')} soirs · ${f1(v)} V · par soir : tirs ${f1(par(m.dtp))} / contre ${f1(par(m.dtc))} · buts ${f2(par(m.dgf))} / ${f2(par(m.dga))} · punitions ${f2(par(m.dpun))} · mises en échec ${f1(par(m.dcoups))} · blessures ${f2(par(m.dbl) * 82)} par saison · jambes ${f1(par(m.djambes))}${C.joueur || C.protege ? ` · le joueur nommé ${f2(m.dpj / m.n)} point` : ''}`);
-  // Un contrat lourd est un prix, pas une force : il se mesure, il ne se borne pas ; il doit seulement coûter.
-  if (sorte === 'k') { if (!(v < 0)) tropFortes.push(`${C.nom} ne coûte rien (${f1(v)} V)`); continue; }
   if (Math.abs(v) > BORNE_V[C.rarete]) tropFortes.push(`${C.nom} ${f1(v)} V (borne ${BORNE_V[C.rarete]})`);
   const vButs = (par(m.dgf - m.dga) * soirs) / BUTS_PAR_V;
   if (sorte === 'q' && Math.abs(vButs) > STYLE_V) pasStyle.push(`${C.nom} ${f1(vButs)} V`);

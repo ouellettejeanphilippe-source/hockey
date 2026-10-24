@@ -2813,6 +2813,25 @@ Depuis la tranche 3, un adjoint pris au hasard aidait encore, là où une place 
 
 **Les minutes d'un trio se disent en minutes** : l'entraîneur du bas et le costumier ne faisaient que déplacer des minutes de trio, et `check_banque` refusait leur puce sans chiffre. La puce de la glace dit l'unité qui gagne le plus et celle qui perd le plus, en minutes d'un match de 60, sur `PART_UNITE` (`RANGS_DE_GLACE`, partagé avec js/impact.js).
 
+## L'essence : des cartes de joueurs (V16, tranche 6 — 24 oct. 2026)
+
+JP : *en gros, remplacer toutes les cartes et cie par les adjoints et les événements avec choix* ; puis *à la limite, possibilité d'avoir des cartes qui upgradent joueurs, coachs et assistants coachs, et quelques consommables, mais rares, pas genre le main gimmick* ; *on avait tellement tout compliqué que je veux ramener le jeu à son essence de cartes*. La boussole : *quelqu'un qui a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement*.
+
+**Décision** : le cœur du Rogue, ce sont les cartes de joueurs et le personnel (un adjoint par poste, comme le personnel d'EHM). Il reste une seule petite famille de dix **cartes rares** qui montent, comme les cartes d'objet de MLB The Show : les quatre retouches d'édition, 🎞 le stage du coach (les points qui manquent à son cran suivant, `coachsDeBase`), 🖊 la formation (une copie de plus d'un adjoint, comme un doublon : `recevoirPermanents`), trois soins (🧊 💆 🏥) et l'échange d'un doublon. Elles sont la deuxième carte d'un pack de joueurs une fois sur quatre (`RARE_DU_PACK`, js/packs.js) et se jouent chez ce qu'elles montent : une retouche et l'échange à l'effectif, le stage et la formation chez l'entraîneur, un soin à l'infirmerie.
+
+**Ce qui devient un choix** (js/dossiers.js, la porte des dilemmes) :
+- **La masse salariale** (37 cartes, dont les contrats lourds et la taxe de luxe) : le dossier du proprio « La masse salariale », quand l'espace sous le plafond passe sous 1,5 M$ (le fait : l'espace, le contrat le plus lourd, nommé). Ses réponses passent par la décision `plafond` qui existait (`plafondDe`) : racheter une part du contrat le plus lourd (son salaire compte 83,3 %, contre 10 jetons), signer le contrat de télé (+2,5 M$, ses dos-à-dos coûtent toute la saison), ou rien. Mesuré (`check_places`, en paires) : le contrat de télé coûte −0,3 V sur ses 15 soirs.
+- **Le congédiement** : le dossier « La tête de l'entraîneur », après quatre défaites de suite ; le proprio nomme deux autres coachs (`coachNeuf`), ou personne ne part.
+- **Le rappel du club-école** était déjà un remède de la blessure (À faire › Infirmerie) ; la carte et ses variantes (le pilier, l'ancien) partent. Le ruban, l'acupuncteur, le baume, le deuxième avis et le chirurgien du lundi aussi : trois soins suffisent.
+
+**Ce qui part de l'écran** : le Marché › Tes cartes (chaque carte qui reste a sa maison), son raccourci 🃏 dans l'en-tête et sa pastille, la section « Cartes » que plus aucun mode n'affichait, les packs de cartes autres que le Pack Personnel et la malédiction d'un pack. Le Marché garde la boutique et l'album ; la collection des cartes de jeu se lit encore, en lecture, depuis l'album et le menu.
+
+**Une méta d'avant** rend 3 médailles par carte partie de son inventaire (`REMBOURSEMENT_CARTE`, js/rogue.js) ; une partie en cours relit ses décisions jouées, qui portent leurs chiffres — `check_sauvegardes`.
+
+**Mesuré** : `check_rogue` (8 runs par niveau, une campagne de 14) rend la même courbe avant et après, au pour cent près (0 % de Coupe sans déblocage ni à 16, 13 % à 31 ; la campagne sans Coupe en 14 runs) : le robot n'a jamais joué la deuxième carte d'un pack, et ne lit ni la masse ni la tête de l'entraîneur. La première run reste dure.
+
+**Écarté** : garder la masse salariale en cartes rares (elle n'est pas une carte qui monte : c'est un choix du proprio) ; un écran « Inventaire » au Marché (chaque carte rare a sa maison ; un écran de plus que JP ne voulait plus) ; une carte rare dans chaque pack (elle redevenait le gros du pack).
+
 ## Une série de cartes par saison (23 oct. 2026)
 
 JP : *avoir variété de design de cartes par années, pas par décennie* ; *chaque année devra être différente* ; puis, devant un premier essai : *les designs sont incomplets et pas digne d'un graphiste, peu importe l'époque, ça doit être pro et commercial, la vraie affaire* ; *toujours respecter les règles de base, genre texte visible, pas d'overlap de texte*.

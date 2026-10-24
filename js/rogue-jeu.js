@@ -7,7 +7,7 @@
 
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
-import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
+import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, assortiPour, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
@@ -805,7 +805,9 @@ function echelonsAChoisir(j) {
     decision: c => ({ palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) }) }));
 }
 export function personnelDuJour(j) {
-  const pa = patronsActifs(decisionsDeLaPartie(), j + 1), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+  const decs = decisionsDeLaPartie(), pa = patronsActifs(decs, j + 1), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+  // V16 (tranche 5b) : un adjoint d'une autre couleur que ton coach se lit tel que le moteur le joue (`assortiPour`).
+  const [coach] = coachsActifs(decs, j + 1);
   const etats = new Map(etatPersonnel(j).map(e => [e.cle, e]));
   const aChoisir = new Set(echelonsAChoisir(j).map(e => e.cle));
   const libres = Math.max(0, max - pa.length);
@@ -813,7 +815,8 @@ export function personnelDuJour(j) {
   const ligne = x => {
     const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {}, e = etats.get(x.cle);
     if (!e) return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b></span></div>`;
-    const { force, faiblesse } = motsDeLaPersonne(x);
+    const vu = assortiPour(coach && coach.cle, x), contre = vu !== x;
+    const { force, faiblesse } = motsDeLaPersonne(vu);
     const quand = P.si && MOMENTS_SI[P.si] ? MOMENTS_SI[P.si].mot : 'Toute la saison';
     const pct = e.prochain === null ? 100 : Math.max(0, Math.min(100, Math.round(100 * (e.service - MATCHS_ECHELON[e.echelon]) / (e.prochain - MATCHS_ECHELON[e.echelon]))));
     const suite = aChoisir.has(e.cle) ? '' : e.prochain === null ? 'Au sommet de son métier.'
@@ -828,6 +831,7 @@ export function personnelDuJour(j) {
       </summary>
       <div class="gens-fiche">
         ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
+        ${contre ? `<p class="perso-libre">Pas de la couleur de ${esc(COACHS[coach.cle].nom)} : il joue à contre-courant, ses chiffres le disent.</p>` : ''}
         ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
         ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
         ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}

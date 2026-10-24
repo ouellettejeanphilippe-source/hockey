@@ -122,7 +122,7 @@ Après deux poussées de sa force (`LIGNES_DU_FEU`, js/personnel.js), un feu tie
 | attentif − robot d'avant | +5,0 V | +5,0 V ✓ |
 | le distrait des bons clubs rate les séries | 0 fois sur 4 ✗ | 1 fois sur 4 ✓ |
 
-**À faire, à l'écran** (tranche 5b) : les vraies stats d'un adjoint (`statsDe`, js/impact.js) ne disent pas encore le prix d'un adjoint mal assorti ; la fiche de l'entraîneur doit le dire avant l'engagement.
+**À l'écran** (tranche 5b, faite) : chez l'entraîneur, un adjoint d'une autre couleur que le coach en poste se lit tel que le moteur le joue (`assortiPour`, js/sim.js, partagé par le moteur et la fiche), et une ligne le dit.
 
 **Les minutes d'un trio se disent en chiffres** (`check_banque`, « se lisent en chiffres ») : l'entraîneur du bas et le costumier ne faisaient que déplacer des minutes de trio, et leur puce ne portait aucun chiffre. La puce de la glace (`motsDEffet`) dit maintenant l'unité qui gagne le plus et celle qui perd le plus, en minutes d'un match de 60, sur les parts de base du moteur (`PART_UNITE`, `RANGS_DE_GLACE`) : « Le bas joue plus : 4e trio ≈ +2,8 min, 1er trio ≈ −2,5 min par match ».
 
@@ -170,4 +170,4 @@ JP, 24 oct. 2026 : *en gros, remplacer toutes les cartes et cie par les adjoints
 | 3. Les sources | packs, butin, paliers, doublons | `check_packs`, `check_rogue`, `essai_packs` |
 | 4. Le grand départ (faite) | places.js, equipement.js, les clauses, le feu, l'onglet « Tes places », les règles de CLAUDE.md | `check_mort`, `check_banque`, `check_combo`, `check_sauvegardes` |
 | 5. L'écran et la run | l'entraîneur montre tes postes et ta collection ; la run se joue | `essai_rogue`, `check_profondeur`, `check_robot` |
-| 6. L'essence (§ 4d) | les cartes rares, la masse salariale et le congédiement en dossiers, le Marché › Tes cartes part | `check_banque`, `check_dossiers`, `check_sauvegardes`, `check_rogue`, `essai_rogue` |
+| 6. L'essence (§ 4d, faite) | les cartes rares, la masse salariale et le congédiement en dossiers, le Marché › Tes cartes part | `check_banque`, `check_dossiers`, `check_sauvegardes`, `check_rogue`, `essai_rogue` |

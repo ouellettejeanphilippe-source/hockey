@@ -138,9 +138,9 @@ export function ouvrirInventaire(ctx) {
     let corps = '';
     if (etat.onglet === 'permanent') {
       const conso = ctx.meta.filter(x => garde(x.id));
-      // V12-2 : ton personnel et le congédiement sont au sous-onglet de l'entraîneur (Bureau › Entraîneur), avec ton coach.
-      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle touche : le personnel chez l'entraîneur, les soins à l'infirmerie, les contrats chez le proprio.</p>
-        ${filtres(['consommable', 'plafond'])}
+      // V12-2 ; V16, tranche 6 : chaque carte rare se joue chez ce qu'elle monte ; ici, elle se lit.
+      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle monte : le stage et la formation chez l'entraîneur, les soins à l'infirmerie, les cartes de joueur à l'effectif.</p>
+        ${filtres(['consommable'])}
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,
           actions: `<button type="button" class="btn gold inv-jouer-meta" data-id="${esc(x.id)}"${ctx.peutJouer ? '' : ' disabled'}>Jouer</button>` })).join('') || vide('Aucun consommable permanent.')}</div>`;

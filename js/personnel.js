@@ -7,10 +7,8 @@
  *
  * Deux postes par coach, sur son canal (`coachDesCanaux`, js/coachs.js) ; le Comptable, lui, travaille l'argent toute
  * l'année. Trois postes neutres, des communes de trois rôles différents : ce sont eux que le départ d'une run impose
- * (`patronsDeDepart`).
- *
- * `CONTRATS_MAUDITS` : des contrats lourds, qu'on prend pour leur argent — de l'espace sous le plafond tout de suite,
- * et un prix qui tombe certains soirs.
+ * (`patronsDeDepart`). Les contrats lourds sont partis (V16, tranche 6) : le contrat de télé est une réponse du dossier
+ * de la masse salariale (js/dossiers.js `laMasse`).
  */
 /*
  * V14b (JP : *les cartes de base influencent le style de l'équipe sans la rendre vraiment plus forte, et c'est cher

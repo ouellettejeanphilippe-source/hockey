@@ -1032,17 +1032,19 @@ function couleurDuPersonnel(cle) {
 }
 /* Le côté qui nuit d'un canal d'équipe : moins de tirs, de précision ; plus de buts contre, de punitions, de blessures, d'usure. */
 const NUIT_A_L_EQUIPE = { volume: v => v < 1, finition: v => v < 1, defense: v => v > 1, discipline: v => v > 1, blessure: v => v > 1, energie: v => v > 1 };
-const estMalAssorti = (team, p) => {
-  const coach = ((team && team.coachs) || [])[0], c = p && couleurDuPersonnel(p.cle);
-  return !!(coach && c && c !== coach.cle);
-};
-function assortir(team, p) {
-  if (!estMalAssorti(team, p)) return p;
+/*
+ * Un adjoint tel que le coach `coach` (sa clé) le reçoit : tel quel s'il est de sa couleur, neutre ou sans coach ; à
+ * contre-courant sinon. Pur : le moteur (`assortir`) et la fiche de l'entraîneur (js/rogue-jeu.js) lisent les mêmes chiffres.
+ */
+export function assortiPour(coach, p) {
+  const c = p && couleurDuPersonnel(p.cle);
+  if (!coach || !c || c === coach) return p;
   const out = { ...p };
   for (const [k, nuit] of Object.entries(NUIT_A_L_EQUIPE)) if (typeof p[k] === 'number') out[k] = p[k] ** (nuit(p[k]) ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
   if (typeof p.robustesse === 'number') out.robustesse = p.robustesse * (p.robustesse < 0 ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
   return out;
 }
+const assortir = (team, p) => assortiPour((((team && team.coachs) || [])[0] || {}).cle, p);
 /* Le personnel qui joue ce soir, chacun tel que son coach le reçoit (`assortir`). */
 const patronsDuSoir = team => ((team && team.patrons) || []).filter(c => joueCeSoir(team, c)).map(p => assortir(team, p));
 function coachsJoues(team) {
