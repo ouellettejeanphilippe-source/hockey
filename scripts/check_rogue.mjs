@@ -42,7 +42,7 @@ import {
 } from '../js/sim.js';
 import { CARTES_MATCH } from '../js/combat.js';
 import {
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
+  DEBLOCAGES, departDuClasseur, lotosDeSaison, gardesDeLaDerniere, lotoDeCase, lireMeta, budgetDuClasseur, reservesDeLaRun, tirageDuClasseur, MANDATS, mandatDe, mandatRempli, rangDuMandat,
   JALONS, jalonsAtteints, recompenseDe, baremeRogue, JETONS, jetonsDe, PRESTIGES, coachsOuverts, postesDePatron, exigencesOuvertes,
   EXIGENCES, PRIME_EXIGENCE, exigencesDe, plafondDeSaison, gardesDeLaRun, GARDES_DE_SAISON, ESPACE_DE_DEPART, soutiensDuDepart,
   ligueDe, niveauDeLigue, editionDansLaLigue, habillerLaLigue, ETAPES_PAR_CRAN,
@@ -180,6 +180,10 @@ if (!isMainThread) {
     exiger('entre deux saisons, trois lotos Régulier et un par page ; ceux qui restent : un Pilier et un Régulier, cinq au tri',
       nom(L[0].cases) === 'Régulier+Régulier+Régulier' && nom(L[2].cases) === 'Étoile+Pilier+Régulier+Régulier+Régulier' && nom(R[0].cases) === 'Pilier+Régulier' && nom(R[3].cases) === 'Pilier+Régulier' && R[0].vues === 3 && R[2].vues === 5,
       `${nom(L[2].cases)} · ${nom(R[2].cases)}`);
+    const Gd = [[], ['garder1'], ['garder1', 'garder2'], ['garder1', 'garder2', 'garder3', 'classeurTri']].map(d => gardesDeLaDerniere({ deblocages: d }));
+    exiger('de ta dernière équipe, un loto par case : Pilier, un deuxième Pilier, puis Étoile ; rien sans déblocage',
+      nom(Gd[0].cases) === '' && nom(Gd[1].cases) === 'Pilier' && nom(Gd[2].cases) === 'Pilier+Pilier' && nom(Gd[3].cases) === 'Étoile+Pilier+Pilier' && Gd[3].vues === 5,
+      Gd.map(x => nom(x.cases) || '—').join(' · '));
     const cartes = [{ niveau: 4, c: 'a' }, { niveau: 1, c: 'b' }, { niveau: 2, c: 'c' }, { niveau: 1, c: 'd' }, { niveau: -1, c: 'e' }, { niveau: 1, c: 'f' }, { niveau: 1, c: 'g' }];
     const l = k => lotoDeCase(cartes, k, 3);
     exiger('le loto d\'une case : son niveau dans l\'ordre du tirage, trois au plus ; la case Étoile prend les Phénomènes ; un niveau absent descend',

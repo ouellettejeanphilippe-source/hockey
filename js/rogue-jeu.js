@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
@@ -1089,17 +1089,30 @@ function placerDevant(roster, prioritaires = []) {
   }
   return roster;
 }
-/* Le choix d'un joueur à garder de la dernière run : les rangées du vestiaire (Jalon U). */
-function choisirGarde(joueurs, i, total) {
-  return new Promise(resolve => {
-    ouvrirListeJoueurs({
-      ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, motFermer: 'Personne', motBouton: 'Garder',
-      recit: 'Ta dernière équipe : celui que tu gardes te suit dans cette run, avec ta nouvelle bande de bouche-trous.',
-      joueurs: joueurs.map(p => ({ p, sous: quiEst(p) })),
-      onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
-      onFerme: () => resolve(null),
-    });
+/*
+ * CEUX QUI TE SUIVENT DE TA DERNIÈRE RUN (JP, 24 oct. : *garder des joueurs de run en run devrait être fait dans une
+ * loto*) : les cases de `gardesDeLaDerniere` (js/rogue.js), chacune un loto de ta dernière équipe, sous le budget du
+ * classeur. Ton joueur de concession n'y est pas : il revient de toute façon.
+ */
+async function gardesDeLaRunDavant(meta) {
+  const R = gardesDeLaDerniere(meta);
+  const cles = (meta.derniereEquipe || []).filter(cle => cle !== meta.vedette);
+  if (!R.cases.length || !cles.length) return [];
+  const cartes = await sousVoile('On rappelle ta dernière équipe…', async () => (await Promise.all(cles.map(async cle => {
+    const p = await joueurDeCle(cle);
+    return p && { cle, p, niveau: niveauDe(p, (await getShard(p.s)).players) };
+  }))).filter(Boolean));
+  const run = (meta.runs || 0) + 1;
+  const pris = await lotosParCase({
+    cases: R.cases, vues: R.vues, cartes, graine: `${graineDuClasseur()}:d`, budget: budgetDuClasseur(meta), personnes: new Set(), qui: p => quiEst(p),
+    textes: ({ i, n, k, niveau, vus, dernier }) => ({
+      ico: '🤝', titre: `Ta dernière équipe · ${nomDeCase(k)}`, irl: `Run ${run}${n > 1 ? ` · case ${i + 1} de ${n}` : ''}`,
+      recit: `${motDeLaDescente(k, niveau, 'joueur')}Le loto tire ${vus} joueur${vus > 1 ? 's' : ''} ${nomDeCase(niveau)} de ta dernière équipe : celui que tu gardes te suit dans cette run.`,
+      budget: '🤝 Budget des gardés', plein: 'Tu gardes déjà ton joueur de ce loto',
+      partir: prise => (prise ? (dernier ? 'Il me suit' : 'Loto suivant') : 'Personne de ce loto'),
+    }),
   });
+  return pris.map(x => x.p);
 }
 /*
  * UNE RUN QUI COMMENCE : l'écran de la run (ce qu'on a débloqué, ce que le
@@ -1108,7 +1121,7 @@ function choisirGarde(joueurs, i, total) {
  */
 export async function ouvrirRogue() {
   const meta = lireMeta();
-  const k = nombreGardes(meta);
+  const R = gardesDeLaDerniere(meta);
   const D = departDuClasseur(meta);
   const nCartable = Object.keys(lireCartable().joueurs).length;
   // LES EXIGENCES (tranche 8) : après ta première Coupe, un cran de plus à chaque Coupe gagnée au plus haut.
@@ -1126,7 +1139,7 @@ export async function ouvrirRogue() {
       bon: [nCartable ? '' : `🥉 ta première run : ton équipe sort de ${PACKS_DE_DEPART.length} packs de départ`, nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
         meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ton classeur : ${motDesCases(D.cases)}` : '',
         `🛒 ${BOUTIQUE.filter(k => packsOuverts(meta)[k] === true).length} packs ouverts à la boutique sur ${BOUTIQUE.length}`,
-        k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
+        R.cases.length && (meta.derniereEquipe || []).length ? `🤝 ta dernière équipe : ${motDesCases(R.cases)}` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
         `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }, ...crans],
     onChoix: cle => resolve(cle === 'go' ? 0 : Number(String(cle).slice(1))),
@@ -1138,15 +1151,7 @@ export async function ouvrirRogue() {
   const exigence = go;
   const coach = await choisirCoach();
   if (!coach) { auMenu(); return; }
-  const gardes = [];
-  if (k && (meta.derniereEquipe || []).length) {
-    const joueurs = (await Promise.all(meta.derniereEquipe.map(joueurDeCle))).filter(Boolean);
-    for (let i = 0; i < k; i++) {
-      const p = await choisirGarde(joueurs.filter(x => !gardes.includes(x)), i, k);
-      if (!p) break;
-      gardes.push(p);
-    }
-  }
+  const gardes = await gardesDeLaRunDavant(meta);
   // TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : choisi à la première run, il revient à chaque départ.
   const vedette = await vedetteDeLaRun(meta);
   const avecVedette = vedette && !gardes.some(p => getPersonKey(p) === getPersonKey(vedette)) ? [vedette, ...gardes] : gardes;

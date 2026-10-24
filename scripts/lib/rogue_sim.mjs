@@ -63,7 +63,7 @@ import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rare
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
-  JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
+  JETONS, jetonsDeDepart, gardesDeLaDerniere, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
   DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
@@ -458,10 +458,11 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   const rnd = generateur('rogue80', graine);
   const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine) : null;
   const exclus = new Set();
-  // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs ; le distrait, n'importe qui).
-  const gardes = meilleursDabord(derniere, clic).slice(0, nombreGardes(meta)).map(copie);
+  // Ceux de la dernière équipe : un loto par case (le robot garde le meilleur de chaque loto ; le distrait, n'importe qui).
   const vedette = vedetteDuRobot(rnd, meta, clic);
-  if (vedette && !gardes.some(p => getPersonKey(p) === getPersonKey(vedette))) gardes.unshift(copie(vedette));
+  const gardes = lotosParCase(gardesDeLaDerniere(meta), derniere.map(p => ({ p })), `${graine}:derniere`, budgetDuClasseur(meta),
+    new Set(vedette ? [getPersonKey(vedette)] : []), clic).map(x => copie(x.p));
+  if (vedette) gardes.unshift(copie(vedette));
   gardes.forEach(p => exclus.add(getPersonKey(p)));
   // Les cartes du classeur au départ.
   const tires = tirerClasseur(meta, classeur, exclus, graine, clic, exigence).map(x => ({ p: copie(x.p), rar: x.rar }));

@@ -214,7 +214,7 @@
 - **Plafond restant …** — le plafond monte à masse + 12 M$, ligne « Ta masse de départ »
 - **Le départ du classeur** — une même personne ne revient pas
 *Ça dépend de :*
-- **Le vestiaire des déblocages** — deblocages garder1/2/3 (40/120/240 🏅, de 1 à 3 joueurs
+- **Le vestiaire des déblocages** — deblocages garder1/2/3 (40/120/240 🏅, une case Pilier, Pilier puis ★ Étoile de ta dernière équipe, un loto chacune
 - **Le dé du pari** — meta.derniereEquipe (écrite à la fin de chaque saison
 *Fichiers :* js/rogue-jeu.js:679-691, 720-728, 855-864 ; js/rogue.js:275
 
@@ -2057,7 +2057,7 @@
 #### Le vestiaire des déblocages · `deblocages`
 *Tu vois, tu fais :* une liste « Nom · prix 🏅 » avec « Demande d'abord : … » ou « Il te manque N 🏅 ». Tu touches pour acheter.
 *Ça change :*
-- **Garder un joueur** — garder1–3 : 40/120/240
+- **Garder un Pilier, un deuxième Pilier, une Étoile** — garder1–3 : 40/120/240, une case de ta dernière équipe chacun
 - **🪙 N jetons** — caisse1/2 : 30/100 ; commanditaire1/2 : 60/150
 - **Pack Bronze/Argent/Or/Premium** — packDefenseurs 35, packGardiens 50, packAnnees80 60, packVedettes 150 déverrouillent les packs
 - **Avant le match » : la main** — deckPlus 50 : Lancer de la pointe+ et Bloquer des tirs+, saison 1

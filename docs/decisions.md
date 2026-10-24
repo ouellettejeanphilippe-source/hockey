@@ -2787,4 +2787,12 @@ Mesuré (check_rogue, 24 runs par niveau, le robot sur les mêmes dés), avant �
 
 Écarté : **une case ★ Étoile chez ceux qui restent**, ouverte par la page Étoile. Mesurée, elle menait la Coupe de 4 % à 38 % des runs à onze déblocages, et le mandat de la saison 2 à 100 % : c'était garder sa vedette chaque saison. Écarté aussi : deux lotos Régulier entre deux saisons au lieu de trois, qui ne changeait rien à la Coupe.
 
-Reste au choix : « Garder un joueur » (`garder1` à `garder3`), au départ d'une run, parmi ta dernière équipe.
+**De run en run** (le cœur de la demande) : « Garder un joueur » (`garder1` à `garder3`) laissait prendre qui tu voulais de ta dernière équipe. Chacun ouvre maintenant une case, un loto de ta dernière équipe (`gardesDeLaDerniere`, js/rogue.js) : `garder1` un Pilier, `garder2` un deuxième Pilier, `garder3` une ★ Étoile. Ton joueur de concession n'y est pas : il revient de toute façon. Rien d'écrit d'avance au méta (`derniereEquipe` reste la liste de l'équipe), donc rien à migrer : un méta qui a les déblocages les garde, avec leur sens neuf.
+
+Mesuré, trois campagnes de 14 runs (check_rogue `RUNS=14 CAMPAGNES=3`), saisons par run :
+- avant : une Coupe (run 11), puis deux campagnes sans Coupe ;
+- `garder1` en case Régulier (la demande d'abord) : aucune campagne ne gagne de Coupe, et deux sur trois ne jouent jamais une deuxième saison ;
+- `garder1` en case Pilier : une Coupe (run 14), les deux autres sans Coupe, et autant de longues runs qu'avant. C'est ce qui est gardé. `garder3` en ★ Étoile ne casse pas la run d'après : la run 13 de la campagne qui gagne dure sept saisons, sans Coupe.
+- `garder2` en ★ Étoile au lieu d'un deuxième Pilier : la même courbe, à la run près ; écarté pour garder l'Étoile au bout.
+
+Aux niveaux (14 runs chacun), avant → après : la Coupe par run 0 → 0 % sans déblocage, 0 → 0 % à onze, 7 → 7 % à seize, 36 → 43 % à tout ; la première saison 43 → 43 points sans déblocage.

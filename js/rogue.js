@@ -122,9 +122,10 @@ const CRANS_DE_PACK = [
 const cleDeCran = (pack, i) => `monte_${pack.slice(2)}_${i + 1}`;
 /* ---------- les déblocages (le vestiaire) ---------- */
 export const DEBLOCAGES = {
-  garder1: { ico: '🤝', nom: 'Garder un joueur', prix: 40, texte: 'Au début d\'une run, garde un joueur de ta dernière équipe.' },
-  garder2: { ico: '🤝', nom: 'Garder deux joueurs', prix: 120, requis: 'garder1', texte: 'Deux joueurs de ta dernière équipe te suivent.' },
-  garder3: { ico: '🤝', nom: 'Garder trois joueurs', prix: 240, requis: 'garder2', texte: 'Trois joueurs de ta dernière équipe te suivent.' },
+  // 24 oct. (JP : *garder des joueurs de run en run devrait être fait dans une loto*) : chacun ouvre une case d'un niveau (`gardesDeLaDerniere`).
+  garder1: { ico: '🤝', nom: 'Garder un Pilier', prix: 40, texte: 'Au début d\'une run, un loto de trois Piliers de ta dernière équipe : tu en gardes un.' },
+  garder2: { ico: '🤝', nom: 'Garder un deuxième Pilier', prix: 120, requis: 'garder1', texte: 'Un deuxième loto Pilier, de ta dernière équipe.' },
+  garder3: { ico: '🤝', nom: 'Garder une Étoile', prix: 240, requis: 'garder2', texte: 'Un loto ★ Étoile de plus, de ta dernière équipe.' },
   caisse1: { ico: '🪙', nom: 'Une caisse de départ', prix: 30, texte: '+20 jetons au début de chaque run.' },
   caisse2: { ico: '🪙', nom: 'Une grosse caisse', prix: 100, requis: 'caisse1', texte: '+20 jetons de plus au départ (+40 en tout).' },
   // S80 : le barème d'une run (`baremeRogue`) — 5 🪙 par victoire sans commanditaire.
@@ -481,7 +482,14 @@ export function graverAuPantheon({ run = 0, saison = 1, joueurs = [], trophees =
   return neuf;
 }
 /* Combien de joueurs on garde : zéro, un, deux, trois selon les déblocages. */
-export const nombreGardes = m => (aDebloque(m, 'garder3') ? 3 : aDebloque(m, 'garder2') ? 2 : aDebloque(m, 'garder1') ? 1 : 0);
+/*
+ * CEUX QUI TE SUIVENT D'UNE RUN À L'AUTRE (24 oct.) : comme le classeur, une case d'un niveau par déblocage, un loto
+ * de ta dernière équipe (`lotoDeCase`), du plus haut niveau au plus bas ; plus rien au choix. Mesuré (check_rogue,
+ * trois campagnes de 14 runs) : une première case Régulier laissait deux campagnes sur trois sans une saison 2 de
+ * toute la campagne ; une case Pilier rend la courbe d'avant (une Coupe, à la run 14 au lieu de la 11).
+ */
+const CASES_DE_LA_DERNIERE = [['garder1', PILIER], ['garder2', PILIER], ['garder3', ETOILE]];
+export const gardesDeLaDerniere = m => ({ cases: CASES_DE_LA_DERNIERE.filter(([k]) => aDebloque(m, k)).map(([, n]) => n).sort((a, b) => b - a), vues: vuesDuLoto(m) });
 export const jetonsDeDepart = m => JETONS.depart + (aDebloque(m, 'caisse1') ? 20 : 0) + (aDebloque(m, 'caisse2') ? 20 : 0);
 /* Un déblocage s'achète si on en a les moyens et si ce qu'il demande est déjà pris. */
 export function peutAcheter(m, cle) {
