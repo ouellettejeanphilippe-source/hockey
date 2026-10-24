@@ -5355,37 +5355,17 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
 .main-vest-rang { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
 @media (min-width: 700px) { .main-vest-rang { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-/* LE DUEL (V9) : leur intention, ce qui y répond, tes gestes, la mise doublée. */
+/* LE DUEL (V9) : leur intention, ton adjoint, la mise doublée. */
 .duel-intention { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-left: 3px solid var(--mauvais); }
 .duel-fait { margin: 0; font: 800 var(--t-4)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .duel-pourquoi { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
 /*
- * TON TABLEAU (V13-1, à la EHM) : le verdict de leur intention, tes gestes d'échange, une rangée par unité (son système
- * en menu), la consigne ; ce qui a changé contre tes Lignes s'allume, et son prix suit en vraies stats.
+ * TON ADJOINT À L'ENTRACTE (V17, à la EHM) : sa scène, puis ses plans en tuiles à coins vifs, deux par rangée au
+ * téléphone ; « Garder » est la dernière. Toucher une tuile joue la période.
  */
-.duel-tableau { display: flex; flex-direction: column; gap: 2px; }
-.duel-verdict { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; }
-.duel-intention:has(.duel-tableau) { gap: var(--esp-1); }
-.duel-verdict.bon { color: var(--bon); }
-.duel-verdict.moitie { color: var(--or); }
-.duel-verdict.non { color: var(--mauvais); }
-.duel-portes { font: 600 var(--t-1)/1.3 var(--corps); letter-spacing: 0; text-transform: none; color: var(--encre-2); }
-.duel-tab-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px var(--esp-2); }
-/* Deux unités par rangée, le nom à côté de son menu : la période tient sous 1,3 écran avec la main (`essai_rogue` 20j). */
-.duel-tab-l { display: grid; grid-template-columns: 3.4em minmax(0, 1fr); align-items: center; gap: var(--esp-1); min-width: 0; padding: 2px; border-radius: var(--r-1); }
-.duel-tab-l.change { background: color-mix(in srgb, var(--or) 12%, transparent); }
-.duel-tab-u { min-width: 0; }
-.duel-tab-u b { display: block; font: 800 var(--t-1)/1.05 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); }
-.duel-tab-s { width: 100%; min-height: 44px; padding: 0 var(--esp-1); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-3); color: var(--encre); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.02em; }
-.duel-tab-prix { display: flex; flex-direction: column; gap: var(--esp-1); margin-top: var(--esp-1); }
-.duel-gestes { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
-/* Un geste d'échange, en une ligne (V13-1) : ce qu'il fait, son prix ; ce que la contrer rapporte avec « Les chiffres ». */
-.duel-geste { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-height: 44px; padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); text-align: left; }
-.duel-geste b { font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; }
-.duel-geste small { font-size: var(--t-1); color: var(--mauvais); }
-.duel-geste.on { border-color: var(--bon); box-shadow: 0 0 0 1px var(--bon); }
-.duel-geste.on b { color: var(--bon); }
-@media (min-width: 700px) { .duel-gestes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.duel-adjoint { display: flex; flex-direction: column; gap: var(--esp-2); }
+.duel-props { grid-template-columns: 1fr 1fr; }
+@media (min-width: 700px) { .duel-props { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 .duel-snap { align-self: flex-start; }
 .btn.duel-snap.on { background: var(--or); color: var(--encre-sur-or); border-color: var(--or); }
 .duel-avant { font-size: var(--t-2); line-height: 1.35; color: var(--encre); }
@@ -5396,12 +5376,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .main-sheet .choix-option.tc .choix-option-non { order: 3; }
 .main-sheet .choix-option.tc .tc-quoi { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .main-sheet .choix-corps { gap: var(--esp-3); }
-/* Seul « Jouer » reste collé en bas de la main, en or ; les outils suivent le contenu. */
-.main-boutons { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
-.main-sheet .main-boutons { position: sticky; bottom: 0; z-index: 3; padding: var(--esp-2) 0 var(--esp-1); background: var(--noir); }
-.main-boutons .main-jouer { flex: 1 1 auto; min-width: 200px; background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
-.main-boutons .main-jouer:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 85%, var(--encre)); }
-.main-boutons .main-jouer:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .main-outils { display: flex; flex-wrap: wrap; gap: var(--esp-2); justify-content: center; }
 .main-outils .btn { min-height: 44px; padding: 0 var(--esp-3); font-size: var(--t-2); }
 /* Mon deck : une ligne par carte, le coût dans un rond d'or, la rareté au flanc ; une maudite, au flanc rouge. */
@@ -5425,7 +5399,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .gl-sheet .plan-adv { margin: 0 0 var(--esp-3); }
 /* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
 @media (min-width: 1000px) {
-  .main-sheet .main-boutons { background: var(--fond-1); }
   .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--esp-2); padding-top: 0; }
   .main-sheet .choix-corps { gap: var(--esp-3); }
   .main-sheet .choix-recit { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0; }

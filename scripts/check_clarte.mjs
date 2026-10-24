@@ -51,7 +51,7 @@ import { MATCHS_ECHELON, POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelon
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons, sceneDeLAdjoint } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -440,6 +440,10 @@ const MOTS_RESERVES = [
     for (const cartes of [11, 18]) { juger('le butin', sceneDuButin({ pour: 4, contre: 2, adv: 'Bruins 1995-96', cartes, max: 20, graine: g }), [4, 2, 'Bruins 1995-96', cartes, 20]); n++; }
     // A8 (Jalon M) : le proprio dit le mandat, le capitaine les galons.
     for (const sort of ['rate', 'rempli', 'coupe']) { juger('le mandat', sceneDuMandat({ sort, fiche: { V: 21, D: 52, DP: 9 }, rang: 30, equipes: 32, mandat: 'faire les séries', graine: g }), ['21-52-9', '30e', 32, 'faire les séries']); n++; }
+    // V17 : ton adjoint, à chaque entracte d'un duel ; le fait nomme leur intention, ton visé, le rival et le pointage.
+    for (const raison of Object.keys(MOTS_DES_SCENES.adjoint)) for (const k of [0, 2]) {
+      juger('l\'adjoint', sceneDeLAdjoint({ intention: { ico: '🥷', nom: 'L\'ombre' }, cible: 'Sundin', raison, moi: 2, lui: 1, k, rival: 'Bruins 1995-96', graine: g }), ['Sundin', 'Bruins 1995-96', ...(k ? [2, 1] : [])]); n++;
+    }
     for (const noms of [['Radek Dvorak'], ['Radek Dvorak', 'Hampus Lindholm', 'Radek Dvorak']]) { juger('les galons', sceneDesGalons({ noms, graine: g }), [noms.length, ...new Set(noms)]); n++; }
   }
   /*

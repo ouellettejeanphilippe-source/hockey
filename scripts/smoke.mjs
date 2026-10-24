@@ -410,9 +410,9 @@ async function repondreAuxChoix() {
       return;
     }
     /*
-     * LE DUEL D'UN GROS MATCH (V9 ; sans main depuis la V13-2, docs/refonte-v13.md) : leur intention et ton tableau,
+     * LE DUEL D'UN GROS MATCH (V9 ; sans main depuis la V13-2, docs/refonte-v13.md) : leur intention et les plans de ton adjoint (V17),
      * ni cartes de match, ni élan, ni « Mon deck ». Le parcours prend l'ajustement offert et la carte de vestiaire,
-     * puis joue la période ; la décision porte le duel et une main vide.
+     * puis prend sa première idée ; la décision porte le duel et une main vide.
      */
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) {
       const reste = await page.$$eval('#choixModal :is(.main-carte, .main-orbe, .main-energie, .main-deck, .main-reprendre, details.main-duel, .dep-piste, .deck-grille)', e => e.length);
@@ -428,13 +428,15 @@ async function repondreAuxChoix() {
       // L'ÉCRAN DE COMBAT (V5) : un gros match offre deux cartes de vestiaire ; on garde celle qui n'est pas un pari (le dé ferait attendre la décision).
       const vests = await page.$$('#choixModal .main-vest:not([disabled])');
       if (vests.length) {
-        if (!(await page.$('#choixModal .main-jouer:disabled'))) errors.push('le combat laisse jouer sans garder de carte de vestiaire');
+        if (!(await page.$('#choixModal .duel-prop:disabled'))) errors.push('le combat laisse jouer sans garder de carte de vestiaire');
         const formes = await Promise.all(vests.map(v => v.$eval('.choix-forme', e => e.textContent).catch(() => '')));
         await vests[Math.max(0, formes.findIndex(f => !/Pari/.test(f)))].click();
       }
-      const motJouer = ((await page.textContent('#choixModal .main-jouer')) || '').trim();
-      if (!/^Jouer la (1re|2e|3e) période$/.test(motJouer)) errors.push(`le bouton du duel dit « ${motJouer} » au lieu de « Jouer la … période »`);
-      await _click('#choixModal .main-jouer');
+      // V17 : ton adjoint propose deux ou trois plans, et « Garder » ; on prend sa première idée.
+      const idees = await page.$$eval('#choixModal .duel-prop', e => e.map(b => b.dataset.prop).filter(k => k !== 'garder'));
+      if (idees.length < 2 || idees.length > 3) errors.push(`l'adjoint propose ${idees.length} plan(s) au duel au lieu de deux ou trois`);
+      const motJouer = idees[0] || 'garder';
+      await _click(`#choixModal .duel-prop[data-prop="${motJouer}"]`);
       await ecranPret();
       await page.waitForTimeout(350);
       const d = (await page.evaluate(() => { try { const p = JSON.parse(localStorage.getItem('cap82_partie_' + (JSON.parse(localStorage.getItem('cap82_parties') || '{}').actif))).partie; return [...(p.decisions || []), ...(p.decisionsSeries || [])]; } catch { return []; } })).filter(x => x.main);

@@ -293,9 +293,9 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
     const mb = mbs[0];
     if (!mb) continue;
     const jouer = decisions => { const teams = ligue(9700 + L); const res = simulateLeague(teams, 82, { graine, decisions, courbe: true }); return { teams, cal: res.calendrier }; };
-    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0, reponse: null }, sel: 's0' };
-    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, reponse: null }, sel: 's1' };
-    const dp2 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 2, reponse: null, snap: true }, sel: 's2' };
+    const p0 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 0 }, sel: 's0' };
+    const dp1 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 1, plan: { cle: 'centre' } }, sel: 's1' };
+    const dp2 = { jour: mb.jour, main: { jouees: [] }, duel: { p: 2, snap: true }, sel: 's2' };
     const r0 = jouer([p0]), r1 = jouer([p0, dp1]), r2 = jouer([p0, dp1, dp2]);
     const leSoir = r => r.cal[mb.jour].find(m => m.A === r.teams[0] || m.B === r.teams[0]);
     const buts = (m, fin) => m.feuille.buts.filter(x => x.instant < fin).map(x => `${x.cote}@${x.instant.toFixed(3)}`).join(',');
