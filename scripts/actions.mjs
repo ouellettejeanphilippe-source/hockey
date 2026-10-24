@@ -65,7 +65,10 @@ console.log(`\n  ${liste.length} joueurs · ${LARGEUR} × ${HAUTEUR} · WebP ${Q
 const ABSENTS = path.join(BRUT, 'absents.json');
 // Le centre du visage de chaque joueur (scripts/visages_actions.py, une passe d'avant) : la face dans le cadre.
 const LU = path.join(ROOT, 'data', 'actions.json');
-const VISAGES = fs.existsSync(LU) ? (JSON.parse(fs.readFileSync(LU, 'utf8')).visages || {}) : {};
+const LU_AVANT = fs.existsSync(LU) ? JSON.parse(fs.readFileSync(LU, 'utf8')) : {};
+const VISAGES = LU_AVANT.visages || {};
+// Les photos libres (scripts/actions_commons.mjs) : ce script les garde, sauf pour un joueur que la LNH montre enfin.
+const LIBRES = { ...(LU_AVANT.commons || {}), ...(LU_AVANT.libres || {}) };
 const absents = new Set(fs.existsSync(ABSENTS) ? JSON.parse(fs.readFileSync(ABSENTS, 'utf8')) : []);
 let telecharges = 0, octetsBruts = 0;
 async function telecharger(id) {
@@ -168,7 +171,7 @@ for (const [h, qui] of parMd5) {
   for (const id of qui) {
     absents.add(id); bruts.delete(id); generiquesEcartees++;
     fs.rmSync(path.join(BRUT, `${id}.jpg`), { force: true });
-    fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
+    if (!LIBRES[id]) fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
   }
 }
 fs.writeFileSync(GENERIQUES, JSON.stringify([...generiques].sort()));
@@ -210,13 +213,17 @@ for (let a = 0; a < presents.length; a++) {
 for (const id of communes) { ecartees.set(id, 'commune'); octets -= fs.statSync(path.join(SORTIE, `${id}.webp`)).size; }
 presents.splice(0, presents.length, ...presents.filter(id => !communes.has(id)));
 // Une photo écartée ne reste pas dans img/actions (une passe d'avant a pu l'écrire).
-for (const id of ecartees.keys()) fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
+for (const id of ecartees.keys()) if (!LIBRES[id]) fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
 
 // 3. La liste des photos présentes : le jeu la lit avant de demander une photo, l'appareil pour savoir quoi télécharger.
 presents.sort((a, b) => a - b);
 if (LIMITE === Infinity && !arg('ids', null)) {
-  const visages = Object.fromEntries(presents.filter(id => VISAGES[id] != null).map(id => [id, VISAGES[id]]));
-  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: presents, visages }));
+  const lnh = new Set(presents);
+  const garde = cle => Object.fromEntries(Object.entries(LU_AVANT[cle] || {}).filter(([id]) => !lnh.has(Number(id))));
+  const commons = garde('commons'), libres = garde('libres');
+  const tous = [...new Set([...presents, ...Object.keys(LIBRES).map(Number).filter(id => commons[id] || libres[id])])].sort((a, b) => a - b);
+  const visages = Object.fromEntries(tous.filter(id => VISAGES[id] != null).map(id => [id, VISAGES[id]]));
+  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: tous, visages, commons, ...(Object.keys(libres).length ? { libres } : {}) }));
 }
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};

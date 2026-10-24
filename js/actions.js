@@ -23,11 +23,19 @@
  * demande d'économiser les données ; une carte qu'on regarde passe en tête de
  * file. Une photo gardée devient une adresse blob: ; l'événement
  * `cap82:action` ({ id, src }) le dit à qui veut redessiner.
+ *
+ * LES PHOTOS LIBRES (oct. 2026, scripts/actions_commons.mjs). Pour un joueur que
+ * la LNH ne montre pas, une photo de son époque sous licence libre : Wikimedia
+ * Commons (`commons`) ou Openverse (`libres`). Le Web lit le même
+ * img/actions/{id}.webp ; l'appareil télécharge `s`, leur vignette, en se
+ * nommant (Wikimedia exige un User-Agent). `creditPhoto(id)` rend l'auteur, la
+ * licence et la page de l'œuvre, pour le crédit que la licence demande.
  */
 import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
 
 const SOURCE = id => `https://assets.nhle.com/mugs/actionshots/1296x729/${id}.jpg`;
+const UA = 'Cap82-0/1.0 (https://github.com/ouellettejeanphilippe-source/hockey)';
 // Le tiroir change de nom avec le cadrage (oct. 2026 : toute la hauteur, la face au centre) : l'ancien ne se relit pas.
 const TIROIR = 'cap82img-actions-visage';
 const cleDe = id => `https://cap82.appareil/actions/${id}.webp`;
@@ -35,6 +43,7 @@ const EN_MEME_TEMPS = 2;
 
 let liste = null;            // les joueurs qui ont une photo (data/actions.json)
 let visages = {};            // le centre de leur visage, pour le recadrage sur l'appareil (scripts/visages_actions.py)
+let libres = {};             // id → la photo libre (Commons ou Openverse) : sa vignette, son auteur, sa licence
 let cadres = {};             // id → le centre du visage dans la photo 5:7 [x, y], pour la fenêtre de chaque série
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
@@ -64,6 +73,7 @@ export function actionsDisponibles() {
       const lu = await r.json(), ids = lu.ids || [];
       liste = new Set(ids);
       visages = lu.visages || {};
+      libres = { ...(lu.libres || {}), ...(lu.commons || {}) };
       cadres = lu.cadres || {};
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
@@ -75,6 +85,16 @@ export function actionsDisponibles() {
     } catch { return []; }
   })();
   return chargement;
+}
+
+/*
+ * Le crédit d'une photo libre : { auteur, licence, url } (la page de l'œuvre), ou null pour une photo de la
+ * LNH ou un joueur sans photo.
+ */
+export function creditPhoto(id) {
+  const c = libres[Number(id)];
+  if (!c) return null;
+  return { auteur: c.a, licence: c.l, url: c.f ? `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(c.f.replace(/ /g, '_'))}` : c.p };
 }
 
 /* Le centre du visage dans sa photo d'action, [x, y] en fractions, ou null (aucun visage sûr : la série cadre seule). */
@@ -114,13 +134,14 @@ function connexionLarge() {
   return !c.effectiveType || c.effectiveType === '4g';
 }
 
-/* Les octets d'une photo de la LNH, par le HTTP natif (hors des règles CORS). */
+/* Les octets d'une photo (la LNH, ou sa photo libre), par le HTTP natif (hors des règles CORS). */
 async function telecharger(id) {
   const http = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
   if (!http) throw new Error('CapacitorHttp absent');
-  const r = await http.request({ url: SOURCE(id), method: 'GET', responseType: 'blob' });
+  const libre = libres[id];
+  const r = await http.request(libre ? { url: libre.s, method: 'GET', responseType: 'blob', headers: { 'User-Agent': UA, 'Api-User-Agent': UA } } : { url: SOURCE(id), method: 'GET', responseType: 'blob' });
   // Sans photo, la LNH redirige vers une image générique : ce n'est pas LUI.
-  if (r.status !== 200 || !r.data || /default\.jpg/.test(r.url || '')) return null;
+  if (r.status !== 200 || !r.data || (!libre && /default\.jpg/.test(r.url || ''))) return null;
   const bin = atob(String(r.data).replace(/^data:[^,]*,/, ''));
   const octets = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) octets[i] = bin.charCodeAt(i);
@@ -172,7 +193,8 @@ function lancer() {
         if (id === undefined) break;
         if (prets.has(id)) continue;
         await garder(id);
-        await new Promise(r => setTimeout(r, 60));   // laisse respirer l'interface
+        // Laisse respirer l'interface ; Wikimedia et Openverse limitent les requêtes : on y va plus doucement.
+        await new Promise(r => setTimeout(r, libres[id] ? 600 : 60));
       }
     })().finally(() => { ouvriers--; });
   }
