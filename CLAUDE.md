@@ -30,7 +30,7 @@ site.webmanifest, favicon.svg, icon-*.png   installation et icônes
 fonts/                Barlow Condensed, Manrope, Noto Emoji et les polices des séries de cartes (OFL, fonts/POLICES.txt), hébergées ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
-img/actions           photos de match recadrées en 5:7, la face au centre (≈ 80 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos ; data/actions.json les liste)
+img/actions           photos de match recadrées en 5:7, la face au centre (≈ 145 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos, scripts/actions_saisons.mjs une photo par saison, {id}-{saison}.webp ; data/actions.json les liste)
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
@@ -83,7 +83,7 @@ js/album.js           l'album d'une partie à l'autre
 js/ballottage.js      le ballottage, en fonction pure (Node et navigateur)
 js/visages.js         l'application Android : télécharge et recadre les visages sur l'appareil
 js/recadrage.js       le recadrage d'un portrait (partagé par scripts/portraits.mjs et js/visages.js)
-js/actions.js         les photos d'action : actionSrc(id) pour une carte ; l'appareil Android les télécharge et les recadre
+js/actions.js         les photos d'action : actionSrc(id, saison, club) pour une carte, celle de sa saison d'abord ; l'appareil Android les télécharge et les recadre
 js/recadrage-action.js le recadrage 5:7 d'une photo de match (partagé par scripts/actions.mjs et js/actions.js)
 js/identites.js       l'identité de départ
 js/traits.js          les traits, tirés des votes de data/trophees.js

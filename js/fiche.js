@@ -695,7 +695,7 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
    * Flickr) se crédite comme sa licence le demande : l'auteur, la licence, un lien vers l'œuvre — au dos, où une vraie
    * carte imprime le sien. Une photo de la LNH n'en porte pas.
    */
-  const credit = photoAction(p) && creditPhoto(p.id);
+  const credit = photoAction(p) && creditPhoto(p.id, p.s, p.t);
   return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} fc-cachee" aria-hidden="true">
     ${finiHtml(rarete)}
     <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span><span class="cjv-logo">${getTeamLogoHtml(p.t, 22)}</span></div>
