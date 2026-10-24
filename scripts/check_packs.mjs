@@ -34,11 +34,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
+import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, niveauxDuPack, tirerJoueursDuPack, packDuJour, tirerCartesPack, tirerCartesDuPack, RARE_DU_PACK, sortDUnPack, BOUTIQUE, tierDuPack, prixDe } from '../js/packs.js';
 import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
-import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
+import { BANQUE, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { EDITIONS } from '../js/rarete.js';
@@ -347,16 +347,20 @@ for (const k of ['j:etoiles', 'j:legendes', 'j:vedettes']) {
   exiger('le pack du jour n\'est jamais un pack verrouillé, et il est pur (même date, même pack)', cadenas.length === 0 && tires.every((k, i) => packDuJour(dates[i], ouverts).pack === k) && new Set(tires).size > 5,
     `${new Set(tires).size} packs différents sur 60 dates · ${cadenas.length} cadenas`);
 }
-/* LES MALÉDICTIONS DU LOT ONT UN CONSOMMATEUR (1.0, J1-E) : la seule qui frappe à l'ouverture est un contrat (`plafondDe` la lit). */
+/*
+ * LES CARTES RARES SONT RARES (V16, tranche 6 — docs/refonte-v16.md § 4d) : un pack de joueurs donne son adjoint, et sa
+ * deuxième carte, une carte qui monte, une fois sur `1 / RARE_DU_PACK` — jamais le gros du pack.
+ */
 {
-  let vues = 0, mortes = 0;
-  for (let n = 0; n < 500; n++) for (const cle of ['lot', 'contrats']) {
-    for (const id of tirerCartesPack(cle, `lot-${n}`, n).filter(x => BANQUE[x].rarete === 'maudite')) {
-      vues++;
-      if (!CONTRATS[String(id).split(':')[1]]) mortes++;
-    }
+  let packs = 0, rares = 0, horsFamille = 0;
+  for (const cle of BOUTIQUE.filter(k => PACKS_TOUS[k].cartes > 1 && PACKS_TOUS[k].choix !== 'coach')) for (let n = 0; n < 1000; n++) {
+    const ids = tirerCartesDuPack(cle, `rares-${cle}`, n);
+    packs++;
+    if (ids.length > 1) rares++;
+    if (ids.slice(1).some(id => !['joueur', 'consommable'].includes(BANQUE[id].cat))) horsFamille++;
   }
-  exiger('chaque malédiction tirée d\'un pack est un contrat, que le plafond applique', vues > 20 && mortes === 0, `${vues} malédictions sur 1 000 packs, ${mortes} sans consommateur`);
+  exiger('une carte rare sort d\'un pack de joueurs une fois sur quatre, et c\'est une carte qui monte', Math.abs(rares / packs - RARE_DU_PACK) < 0.03 && !horsFamille,
+    `${(100 * rares / packs).toFixed(1)} % des packs (cible ${100 * RARE_DU_PACK} %) · ${horsFamille} hors famille`);
 }
 
 for (const l of lignesTaux) informer('mesuré (affiché)', l);

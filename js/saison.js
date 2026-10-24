@@ -48,14 +48,14 @@ import { inscrireHub, retirerHub, signalerVue, signalerComptes, hubActif } from 
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
-import { BANQUE } from './banque.js';
+import { BANQUE, coachNeuf } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud, carteDeRoute, chargeDeRoute } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
-import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
+import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money, hache } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
 
@@ -2747,7 +2747,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   let boitePrete = false;
   const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
-  if (onDecision && ctx.inventaire) tabs.hub.cartes = page => ctx.inventaire.ouvrir(jour, decideDuMarche, page);
   if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
   // V12-3 : une page hors de l'écran de saison (Effectif › Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
   if (onDecision && ctx.maison) tabs.hub.maison = { html: k => ctx.maison.cartes(k, jour), jouer: (item, apres) => ctx.maison.jouer(item, jour, d => { if (apres) apres(); decideDuMarche(d); }) };
@@ -3329,6 +3328,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const cle = dossierDeLaSemaine(graine, w, faits, decs.filter(d => d.moment && d.moment.famille === 'dossier').map(d => d.moment.cle));
     return cle ? { w, cle, faits } : null;
   }
+  /* Les mots d'une réponse de dossier, ses noms posés : le joueur qu'il nomme ({nom}), les coachs que le proprio nomme ({coach0}, {coach1}). */
+  function motsDuDossier(o, f, lui) {
+    const c = (f.coachs || []).map(x => `${x.ico} ${x.nom}`);
+    const poser = t => String(t).replace('{nom}', lui ? lui.n : '').replace('{coach0}', c[0] || '').replace('{coach1}', c[1] || '');
+    return Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, poser(o[k])]));
+  }
   /* LES FAITS DU LUNDI : ce qui est déjà joué (les jambes du matin, l'infirmerie, le dernier match, le rang) et la cédule de la semaine, déjà connue. */
   function faitsDuLundi() {
     const matin = ((you.jourLignes || [])[jour] || {}).energie || {};
@@ -3350,8 +3355,23 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       caisse: ctx.rogue.jetons ? ctx.rogue.jetons(jour) : null,
       dernier: der ? { pour: chez ? der.gfA : der.gfB, contre: chez ? der.gfB : der.gfA, adv: ctx.teamShort(chez ? der.B : der.A) } : null,
       rang: rangDe(you), equipes: teams.length,
-      ...faitsDesJoueurs(),
+      ...faitsDesJoueurs(), ...faitsDuProprio(),
     };
+  }
+  /*
+   * CE QUE LE PROPRIO LIT LE LUNDI (V16, tranche 6 — js/dossiers.js `laMasse`, `laTete`) : l'espace sous le plafond et
+   * le contrat le plus lourd, nommé ; les défaites de suite, le coach en poste et deux autres qu'il nommerait.
+   */
+  function faitsDuProprio() {
+    let defaites = 0;
+    for (let i = miens.length - 1; i >= 0; i--) {
+      const { m } = miens[i], chez = m.A === you;
+      if ((chez ? m.gfA : m.gfB) < (chez ? m.gfB : m.gfA)) defaites++; else break;
+    }
+    const masse = ctx.rogue.masse ? ctx.rogue.masse(jour) : null;
+    const lesCoachs = ctx.rogue.coachs ? ctx.rogue.coachs(jour) : null;
+    const coachs = lesCoachs ? lesCoachs.autres.slice().sort((a, b) => hache(graine, 'tete', jour, a.cle) - hache(graine, 'tete', jour, b.cle)).slice(0, 2) : [];
+    return { masse, defaites, coach: lesCoachs && lesCoachs.actuel ? lesCoachs.actuel.nom : null, coachs };
   }
   /*
    * LES FAITS D'UN JOUEUR (V11, tranche 4 — js/dossiers.js) : lus dans SES feuilles, ses `FENETRE_JOUEUR` derniers
@@ -3520,10 +3540,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
       out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre, ...(joueur ? { joueur } : {}),
         choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`), ...(joueur ? { joueur } : {}),
-          options: D.options.map(o => ({ ...o, duree: o.rien ? null : o.duree || null, ...(o.si ? { quand: `${MOMENTS_SI[o.si].mot} seulement` } : {}),
+          options: D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien ? null : o.duree || null, ...(o.si ? { quand: `${MOMENTS_SI[o.si].mot} seulement` } : {}),
             mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
             desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null })),
-          decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}) }; } } });
+          decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),
+            // V16 (tranche 6) : la masse salariale et le congédiement passent par leurs décisions (`plafond`, `coachNeuf`).
+            ...(o.plafond ? { plafond: { cle: `${dossier.cle}.${cle}`, nom: motsDuDossier(o, dossier.faits, lui).nom, ...o.plafond, ...(o.plafond.facteur && lui ? { joueur: lui.cle } : {}) } } : {}),
+            ...(o.coachNeuf != null && dossier.faits.coachs[o.coachNeuf] ? coachNeuf(dossier.faits.coachs[o.coachNeuf].cle) : {}) }; } } });
     }
     /*
      * LA BLESSURE ET SES REMÈDES, en un seul choix (JP : *y'avait aussi un ballottage, c'est beaucoup pour un écran*) :

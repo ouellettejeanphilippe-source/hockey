@@ -8,7 +8,7 @@
 import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
-import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
+import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
@@ -24,7 +24,6 @@ import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, cadrePhoto, serieDe, epoqueDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
-import { ageAtSeason } from './ratings.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
@@ -342,7 +341,7 @@ async function ouvrirPackJoueurs(cle, prix, params, j, n, decider, de = null) {
   const tc = PACKS_TOUS[cle].cartes ? cartesTirees(cle, n, reglage) : null;
   // `auCartable` : acheté passé la date limite, rien ne se signe — la boîte ne le réclame pas (Jalon P2).
   const achat = { pack: cle, n, prix, sorte: 'joueurs', params: reglage, meilleure, vente: vente + (tc ? tc.vente : 0), ...(vendus.length ? { vendus } : {}), ...(pitie ? { pitie: true } : {}), ...(de ? { de } : {}), ...(apresDateLimite(j) ? { auCartable: true } : {}),
-    ...(tc ? { cartes: tc.ids, ...(tc.vendus.length ? { cartesVendues: tc.vendus } : {}), ...(tc.maudites.length ? { maudites: tc.maudites } : {}) } : {}) };
+    ...(tc ? { cartes: tc.ids, ...(tc.vendus.length ? { cartesVendues: tc.vendus } : {}) } : {}) };
   /*
    * L'ACHAT D'ABORD (1.0, J1-B). Avant, le butin entrait au méta (collection,
    * cartable) AVANT que la décision n'enregistre l'achat : recharger la page
@@ -401,7 +400,7 @@ export async function rouvrirPackJoueurs(achat, j, decider) {
   const mods = modsDesPacks(decs, j);
   const { cartes, reglage } = await tirerPackJoueurs(achat.pack, achat.n, achat.params || {}, mods, !!achat.pitie);
   cartes.forEach((x, t) => { x.doublon = (achat.vendus || []).includes(t); });
-  const tc = Array.isArray(achat.cartes) ? { ids: achat.cartes, maudites: achat.maudites || [], vendus: achat.cartesVendues || [] } : null;
+  const tc = Array.isArray(achat.cartes) ? { ids: achat.cartes, vendus: achat.cartesVendues || [] } : null;
   offrirPackJoueurs({ cle: achat.pack, cartes, reglage, pitie: !!achat.pitie, vente: achat.vente || 0, n: achat.n, j, decider, tc });
 }
 /* Un joueur tiré d'un pack, en option d'`ouvrirChoix` : sa carte à la variante du tirage, son niveau, sa couleur. */
@@ -466,7 +465,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
     // « Plus tard » : rien ne s'écrit, l'offre attend dans la boîte (`packOuvert`, js/saison.js).
     onFerme: () => {},
   });
-  const nc = tc ? tc.ids.length + tc.maudites.length : 0;
+  const nc = tc ? tc.ids.length : 0;
   if (!montrerCartes) { offrir(); return; }
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
@@ -516,15 +515,11 @@ export function bloqueParLePlafond(p, q) {
  * L'OUVERTURE D'UN PACK DE CARTES : tout va dans l'inventaire. En Rogue, le
  * personnel et les consommables permanents partent au MÉTA (gardés d'une run
  * à l'autre) — une fois, par achat (`recevoirPermanents`) ; un patron qu'on
- * possède déjà est un doublon, revendu. Le reste (un outil de gérant) se joue chez ce qu'il touche (V16).
- * UNE MALÉDICTION (la taxe de luxe, que certains packs cachent) ne se range
- * pas : elle frappe à l'ouverture (`achat.maudites`, lu par `plafondDe`).
+ * possède déjà est un doublon, revendu. Une carte rare (V16, § 4d) se joue chez ce qu'elle monte.
  */
-/* Les cartes tirées d'un pack (de cartes, ou mixte) : les rangées, les malédictions, et les patrons doublons revendus. */
+/* Les cartes tirées d'un pack (le Pack Personnel, ou un pack de joueurs) : les rangées, et les patrons doublons revendus. */
 function cartesTirees(cle, n, params) {
-  const tirees = tirerCartesDuPack(cle, G.ligue.graine, n, params);
-  const ids = tirees.filter(id => BANQUE[id].rarete !== 'maudite');
-  const maudites = tirees.filter(id => BANQUE[id].rarete === 'maudite');
+  const ids = tirerCartesDuPack(cle, G.ligue.graine, n, params);
   const meta = lireMeta();
   const vendus = [], doublons = [];
   const copies = {};
@@ -538,33 +533,31 @@ function cartesTirees(cle, n, params) {
     if (copies[c.cle] <= COPIES_MAX) doublons.push({ t, ouverts: ouvertsDe(copies[c.cle]) });
     else { vendus.push(t); vente += valeurDe(id); }
   });
-  return { ids, maudites, vendus, vente, doublons };
+  return { ids, vendus, vente, doublons };
 }
 /* Une fois l'achat écrit : le personnel au méta, les cartes à la collection. */
 function rangerCartes({ ids, vendus }, n) {
   if (G.bonus === 'ROGUE') recevoirPermanents(ids.filter((id, t) => !vendus.includes(t) && BANQUE[id].vie === 'permanent'), `${G.ligue.graine}:k:${n}`);
   ajouterCollection({ cartes: ids });
 }
-/* Les cartes d'un pack en options d'`ouvrirChoix` : ce qui se revend, ce qui frappe. */
-const optionsDeCartes = ({ ids, maudites, vendus, doublons = [] }, pre = '') => [
+/* Les cartes d'un pack en options d'`ouvrirChoix` : ce qui se revend. */
+const optionsDeCartes = ({ ids, vendus, doublons = [] }, pre = '') => [
   ...ids.map((id, t) => { const d = doublons.find(x => x.t === t);
-    return { ...optionDeBanque(id), cle: `${pre}${t}`, prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : d ? `Doublon : il ouvre son échelon ${d.ouverts}` : '' }; }),
-  ...maudites.map((id, t) => ({ ...optionDeBanque(id), cle: `${pre}m${t}`, prix: 'Malédiction : elle frappe tout de suite' }))];
+    return { ...optionDeBanque(id), cle: `${pre}${t}`, prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : d ? `Doublon : il ouvre son échelon ${d.ouverts}` : '' }; })];
 function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   const P = PACKS_TOUS[cle], Lg = G.ligue;
   const tc = cartesTirees(cle, n, params);
-  const { ids, maudites, vendus, vente } = tc;
+  const { ids, vendus, vente } = tc;
   const rogue = G.bonus === 'ROGUE';
-  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(P.choix === 'coach' ? { params: { coach: coachDuPack(Lg.graine, n, params) } } : {}), ...(vendus.length ? { vendus, vente } : {}), ...(maudites.length ? { maudites } : {}), ...(de ? { de } : {}) };
+  const achat = { pack: cle, n, prix, sorte: 'cartes', cartes: ids, ...(P.choix === 'coach' ? { params: { coach: coachDuPack(Lg.graine, n, params) } } : {}), ...(vendus.length ? { vendus, vente } : {}), ...(de ? { de } : {}) };
   // 1.0 (J1-B) : l'achat est une décision AVANT que le butin n'entre au méta — recharger la page ne donne plus les cartes gratis.
   decider({ jour: j, palier: `k:${n}`, achat });
   rangerCartes(tc, n);
   ouvrirChoix({
     ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Ranger',
     recit: (rogue
-      ? `Le personnel reste d'une run à l'autre ; un outil se joue chez ce qu'il touche, quand tu veux.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Le personnel va à son poste ; un outil se joue chez ce qu\'il touche.')
-      + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
+      ? `Le personnel reste d'une run à l'autre.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      : 'Le personnel va à son poste.'),
     options: optionsDeCartes(tc),
     onChoix: () => {},
     onFerme: () => {},
@@ -618,10 +611,22 @@ function plafondPourInventaire(j) {
       ...[...pl.ltir].map(k => ({ nom: `${nom(k)} : blessé à long terme${pl.blesses.has(k) ? ', hors du plafond' : ', revenu au jeu'}`, joueur: true }))],
   };
 }
-/* Le nombre de cartes à jouer au Marché › Tes cartes (V16 : celles qui n'ont pas d'autre maison), pour sa pastille. */
-export function cartesAJouer() {
-  if (!G.ligue || G.bonus !== 'ROGUE') return 0;
-  return Object.entries(lireMeta().inventaire || {}).reduce((a, [id, n]) => a + (BANQUE[id] && !maisonDeLaCarte(id) ? n : 0), 0);
+/*
+ * CE QUE LE PROPRIO LIT LE LUNDI (V16, tranche 6 — js/dossiers.js `laMasse`, `laTete`). L'espace sous ton plafond et ton
+ * contrat le plus lourd que rien ne retouche encore ; ton coach en poste et ceux que le prestige ouvre.
+ */
+export function masseDuLundi(j) {
+  const pl = plafondEffectif(j);
+  if (pl.cap >= 1e11 || !signes().length) return null;
+  const lourd = signes().filter(p => !pl.facteurs.has(getPlayerKey(p))).sort((a, b) => capHit(b, pl) - capHit(a, pl))[0];
+  const espace = pl.cap - capUsed(pl);
+  return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)) } : null };
+}
+export function coachsDuLundi(j) {
+  const [actif] = coachsActifs(decisionsDeLaPartie(), j + 1);
+  const de = k => ({ cle: k, nom: COACHS[k].nom, ico: COACHS[k].ico });
+  return { actuel: actif && COACHS[actif.cle] ? de(actif.cle) : null,
+    autres: coachsOuverts((G.rogue && G.rogue.prestige) || 0).filter(k => COACHS[k] && (!actif || k !== actif.cle)).map(de) };
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
@@ -707,36 +712,25 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       return;
     }
     if (C.cible === 'coach') {
-      // LE CONGÉDIEMENT (V5) : un autre coach, à la confiance I ; celui en poste part avec la sienne.
+      // LE STAGE DU COACH (V16, tranche 6) : le coach en poste reçoit les points qui lui manquent pour son cran suivant.
       const [actif] = coachsActifs(decs, j + 1);
-      ouvrirChoix({ ico: c.ico, titre: c.nom, fermable: true, motFermer: 'Retour',
-        recit: `${c.texte}${actif && COACHS[actif.cle] ? ` ${COACHS[actif.cle].ico} ${COACHS[actif.cle].nom} part, avec sa confiance ${ROMAINS[actif.palier]}.` : ''}`,
-        options: optionsDeCoach(coachsOuverts((G.rogue && G.rogue.prestige) || 0).filter(k => !actif || k !== actif.cle)),
-        onChoix: k => { if (G.rogue) G.rogue.coach = k; ecrire(payloadDe(item.id, { coach: k })); }, onFerme: retour });
+      const n = actif ? buildDe(decs, j + 1, { joues: (de, a) => matchsJoues(Lg.calendrier, Lg.you, de, a) })[actif.cle] : 0;
+      const seuil = actif ? SEUILS.find(x => x > n) : null;
+      if (!actif || seuil == null) { toast(actif ? 'Ton coach est déjà à sa confiance III.' : 'Aucun coach en poste.', 'bad'); retour(); return; }
+      ecrire(payloadDe(item.id, { coach: actif.cle, points: seuil - n }));
+      return;
+    }
+    if (C.cible === 'adjoint') {
+      // LA FORMATION (V16, tranche 6) : un adjoint de ta collection, une copie de plus — un échelon de plus ouvert.
+      const meta = lireMeta();
+      const liste = (meta.personnel || []).filter(k => PATRONS[k] && copiesDe(meta, k) < COPIES_MAX);
+      if (!liste.length) { toast('Tous tes adjoints ont leurs cinq échelons ouverts.', 'bad'); retour(); return; }
+      ouvrirChoix({ ico: c.ico, titre: `${c.nom} : pour qui ?`, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
+        options: liste.map(k => ({ cle: k, ico: PATRONS[k].ico, nom: PATRONS[k].nom, sous: `${ROLES[PATRONS[k].role].nom} · échelons ouverts ${ouvertsDe(copiesDe(meta, k))} → ${ouvertsDe(copiesDe(meta, k) + 1)}` })),
+        onChoix: k => { recevoirPermanents([`patron:${k}`], `formation:${Lg.graine}:${j}:${item.ref || item.id}`); ecrire(payloadDe(item.id, { adjoint: k })); }, onFerme: retour });
       return;
     }
     ecrire(payloadDe(item.id, { alea: hache(Lg.graine, 'billet', item.ref || item.id, j), build, joueurs }));
-    return;
-  }
-  if (c.cat === 'plafond') {
-    // LA MASSE SALARIALE : un joueur (sa retenue, son rachat, ses bonis), une recrue (son contrat d'entrée), un blessé (le LTIR).
-    const C = CONTRATS[c.cle];
-    if (C.cout && jetonsRogue(j) < C.cout) { toast(`Il faut ${C.cout} 🪙 pour ce rachat.`, 'bad'); retour(); return; }
-    if (C.cible === 'aucune') { ecrire(payloadDe(item.id)); return; }
-    const pl = plafondEffectif(j);
-    const deja = k => pl.facteurs.has(k) || pl.ltir.has(k);
-    const apres = p => `${money(capHit(p, pl))} → ${money(Math.round(capHit(p, pl) * (C.facteur || 0)))}`;
-    let liste;
-    if (C.cible === 'blesse') {
-      liste = blessesAuJour(j).filter(x => signes().some(q => getPlayerKey(q) === getPlayerKey(x.p)) && !deja(getPlayerKey(x.p)))
-        .map(x => ({ p: x.p, sous: [ouJoue(x.p), `${x.reste} match${x.reste > 1 ? 's' : ''} d'infirmerie · ${money(x.p.$)} hors du plafond`].filter(Boolean).join(' · ') }));
-    } else {
-      liste = signes().filter(p => !deja(getPlayerKey(p)) && (C.cible !== 'recrue' || ageAtSeason(p.bd, p.s) <= 23))
-        .sort((a, b) => (b.$ || 0) - (a.$ || 0)).map(p => ({ p, sous: `${ouJoue(p) ? `${ouJoue(p)} · ` : ''}${apres(p)}${C.cible === 'recrue' ? ` · ${ageAtSeason(p.bd, p.s)} ans` : ''}` }));
-    }
-    listeJoueurs(`${c.nom} : pour qui ?`, c.texte, liste, k => ecrire(payloadDe(item.id, { joueur: k })), reglesDe(item.id),
-      C.cible === 'blesse' ? 'Personne à l\'infirmerie sous contrat : garde-la pour plus tard.'
-        : C.cible === 'recrue' ? 'Aucune recrue de 23 ans ou moins dans ton alignement.' : 'Tous tes contrats sont déjà retouchés.');
     return;
   }
   ecrire(payloadDe(item.id, { build, joueurs }));
@@ -855,16 +849,16 @@ export function personnelDuJour(j) {
 const MAISONS_DES_CARTES = {
   entraineur: { titre: 'Tes cartes du personnel' },
   infirmerie: { titre: 'Tes cartes de soin' },
-  proprio: { titre: 'Tes cartes de contrat' },
-  joueurs: { titre: 'Tes rappels' },
+  joueurs: { titre: 'Tes cartes de joueur' },
 };
 function maisonDeLaCarte(id) {
   const c = BANQUE[id];
   if (!c) return null;
-  if (c.cat === 'plafond') return 'proprio';
+  // V16 (tranche 6) : chaque carte rare a sa maison — une retouche à l'effectif, le reste chez ce qu'il monte.
+  if (c.cat === 'joueur') return 'joueurs';
   if (c.cat !== 'consommable') return null;
   const C = CONSOMMABLES[c.cle] || {};
-  return C.cible === 'coach' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : C.cible === 'cartable' ? 'joueurs' : null;
+  return C.cible === 'coach' || C.cible === 'adjoint' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : C.cible === 'cartable' ? 'joueurs' : null;
 }
 export function cartesDeLaMaison(maison, j) {
   const meta = lireMeta();

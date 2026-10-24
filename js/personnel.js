@@ -223,15 +223,3 @@ export const PROTEGES = Object.fromEntries(Object.entries(PERSONNEL).filter(([, 
   nom: P.nom, ico: P.ico, cible: P.vise || 'libre', source: 'personnel', si: P.si, quoi: P.texte, ...(P.gardien ? { gardien: true } : {}), ...P.protege,
 }]));
 
-/* Les contrats lourds : l'argent tout de suite, un prix certains soirs, toute la saison. */
-const lourd = { rarete: 'maudite', vie: 'saison', cible: 'aucune' };
-export const CONTRATS_MAUDITS = {
-  clauseDuVieux: { nom: 'La clause du vieux', ico: '👴', ...lourd, espace: 3_000_000, si: 'jambesLourdes', effet: { energie: 1.15, defense: 1.05 },
-    texte: 'Trois millions d\'espace, en échange d\'un vétéran qui joue sur une jambe les soirs lourds.' },
-  contratTele: { nom: 'Le contrat de télé', ico: '📡', ...lourd, espace: 2_500_000, si: 'dosADos', effet: { energie: 1.12, finition: 0.96 },
-    texte: 'La télé paie bien, et elle choisit les heures : les dos-à-dos tombent mal.' },
-  commanditeCasino: { nom: 'La commandite du casino', ico: '♠', ...lourd, espace: 3_000_000, si: 'rival', effet: { discipline: 1.4, finition: 0.96 },
-    texte: 'Le logo sur l\'épaule, et les rivaux qui en rient. Les têtes chaudes répondent.' },
-  bailArena: { nom: 'Le bail de l\'aréna', ico: '🏚', ...lourd, espace: 2_000_000, si: 'domicile', effet: { defense: 1.05 },
-    texte: 'Le loyer baisse, la glace aussi : chez nous, les rondelles sautent.' },
-};

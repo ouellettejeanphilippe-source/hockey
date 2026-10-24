@@ -92,4 +92,17 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   exiger('ses places, son équipement et ses clauses ne jouent plus', a === sans, a === sans ? 'la même saison que sans elles' : `${a} contre ${sans}`);
 }
 
+/*
+ * UNE MÉTA D'AVANT LA TRANCHE 6 (V16, docs/refonte-v16.md § 4d) : ses cartes de masse salariale, ses soins de trop,
+ * son congédiement et ses rappels sont partis de la banque. Chacun rend ses médailles, une fois ; les cartes rares
+ * qui restent, elle les garde.
+ */
+{
+  const { lireMeta, ecrireMeta } = await import('../js/rogue.js');
+  ecrireMeta({ ecussons: 10, inventaire: { 'plafond:grosEspace': 2, 'consommable:congediement': 1, 'consommable:chirurgie': 1 } });
+  const m = lireMeta();
+  exiger('une méta d\'avant la tranche 6 : ses cartes parties rendent leurs médailles, les rares restent',
+    m.ecussons === 19 && Object.keys(m.inventaire).join() === 'consommable:chirurgie', `${m.ecussons} 🏅 · ${Object.keys(m.inventaire).join(', ')}`);
+}
+
 verdict('Le fichier transférable');

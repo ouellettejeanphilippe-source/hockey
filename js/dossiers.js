@@ -20,7 +20,7 @@
  * mécanique neuve. `check_places` mesure chaque réponse en paires, sous la borne d'une commune (1 V).
  *
  *   faits : { n, jambes, pire: { n, cle, j }, blesses: [{ n, m }], soirs, dos, visiteur, domicile, rival, bete,
- *             caisse, dernier: { pour, contre, adv }, rang, equipes,
+ *             caisse, masse: { espace, libre, lourd: { n, cle, sal } }, defaites, coach, coachs: [{ cle, nom }], dernier: { pour, contre, adv }, rang, equipes,
  *             boude: { n, cle, zone, ou, pts, m }, puni: { n, cle, pun, m }, muet: { n, cle, sal, pts, m } }
  *   (un joueur absent des faits : null)
  */
@@ -28,6 +28,8 @@ import { hache } from './util.js';
 
 /* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
 export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
+/* La masse salariale s'ouvre sous `ESPACE_MINCE` d'espace ; la tête de l'entraîneur, à `DEFAITES_TETE` défaites de suite. */
+const ESPACE_MINCE = 1_500_000, DEFAITES_TETE = 4;
 
 export const DOSSIERS = {
   laRoute: {
@@ -171,6 +173,42 @@ export const DOSSIERS = {
       { cle: 'soiree', nom: 'La soirée des commanditaires', bon: 'La caisse respire', prix: 'Les jambes, le lendemain', gain: 20, duree: 3, energie: 1.1 },
       { cle: 'autobus', nom: 'L\'autobus au lieu de l\'avion', bon: 'Quelques jetons d\'économie', prix: 'Les voyages fatiguent', gain: 10, si: 'visiteur', duree: 8, energie: 1.06 },
       { cle: 'non', nom: 'Refuser', bon: 'Rien ne change', rien: true },
+    ],
+  },
+  /*
+   * LA MASSE SALARIALE (V16, tranche 6 — docs/refonte-v16.md § 4d). Les cartes du plafond sont parties ; quand l'espace
+   * est mince, le proprio met deux portes sur la table, chacune une décision `plafond` (js/banque.js `plafondDe`) : le
+   * rachat d'une part du contrat le plus lourd, payé en jetons, ou un contrat lourd qui donne de l'espace et coûte ses
+   * soirs, toute la saison.
+   */
+  laMasse: {
+    de: 'pr', ico: '💵', titre: 'La masse salariale',
+    quand: f => !!f.masse && f.masse.espace < ESPACE_MINCE && !!f.masse.lourd,
+    fait: f => `${f.masse.libre} sous le plafond · ${f.masse.lourd.n} : ${f.masse.lourd.sal}`,
+    joueur: f => f.masse.lourd,
+    mots: ['Le plafond nous étouffe. Je peux racheter une part d\'un contrat, ou vendre une soirée à la télé.',
+      'Il n\'y a plus d\'air sous le plafond. Choisis ce que tu sacrifies : des jetons, ou des soirs.'],
+    options: [
+      { cle: 'rachat', nom: 'Racheter une part du contrat de {nom}', bon: 'Il compte 17 % de moins au plafond', prix: 'Les frais de rachat', gain: -10, plafond: { facteur: 0.833 } },
+      { cle: 'tele', nom: 'Signer le contrat de télé', bon: '+2,5 M$ sous le plafond', prix: 'Les dos-à-dos fatiguent plus', si: 'dosADos', duree: 82, energie: 1.12, finition: 0.96, plafond: { espace: 2_500_000 } },
+      { cle: 'non', nom: 'Ne rien signer', bon: 'Rien ne change', rien: true },
+    ],
+  },
+  /*
+   * LA TÊTE DE L'ENTRAÎNEUR (V16, tranche 6). Le congédiement n'est plus une carte : quatre défaites de suite, et le
+   * proprio veut une tête. Un coach neuf, à la confiance I (`coachNeuf`, js/banque.js), parmi deux qu'il nomme ; ou
+   * personne ne part.
+   */
+  laTete: {
+    de: 'pr', ico: '📋', titre: 'La tête de l\'entraîneur',
+    quand: f => f.defaites >= DEFAITES_TETE && !!f.coach && (f.coachs || []).length >= 2,
+    fait: f => `${f.defaites} défaites de suite · ${f.coach} en poste`,
+    mots: ['Je ne paie pas un entraîneur pour perdre. Dis-moi si on change, et pour qui.',
+      'La patience a des limites. La mienne est atteinte, la tienne, je ne sais pas.'],
+    options: [
+      { cle: 'premier', nom: 'Congédier : place à {coach0}', bon: 'Un coach neuf, à la confiance I', prix: 'Le coach en poste part avec sa confiance', coachNeuf: 0 },
+      { cle: 'second', nom: 'Congédier : place à {coach1}', bon: 'Un coach neuf, à la confiance I', prix: 'Le coach en poste part avec sa confiance', coachNeuf: 1 },
+      { cle: 'garder', nom: 'Le garder', bon: 'Rien ne change', rien: true },
     ],
   },
   laCaisseDeborde: {

@@ -51,7 +51,7 @@ import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';
 import { ouvrirEquipes } from './equipes.js';
 import { albumHtml } from './album.js';
-import { blessesAuJour, cartesAJouer, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
+import { blessesAuJour, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire } from './rogue-jeu.js';
 import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, varianteJoueur } from './repechage.js';
 import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
@@ -1633,7 +1633,6 @@ const SECTIONS = [
   { cle: 'bureau', ico: 'i-club', titre: 'Bureau' },
   { cle: 'joueurs', ico: 'i-jersey', titre: 'Joueurs' },
   { cle: 'lignes', ico: 'i-list', titre: 'Lignes' },
-  { cle: 'cartes', ico: 'i-cartes', titre: 'Cartes' },
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
 ];
 /*
@@ -1642,7 +1641,7 @@ const SECTIONS = [
  *   Bureau    qu'est-ce que j'ai à faire, qu'est-ce qui s'en vient ? (À faire, la route, hier soir, avancer)
  *   Effectif  gérer mes joueurs (le tableau, les fiches, tes lignes, le dépistage de ton prochain adversaire)
  *             JP, 23 oct. : *Lignes dans effectif, pas ce soir* ; *pas besoin d'écran par match* ; *organise plus comme EHM*
- *   Marché    améliorer l'équipe (la boutique ; tes cartes et l'album, aussi à un toucher de l'en-tête)
+ *   Marché    améliorer l'équipe (la boutique, l'album)
  *   Ligue     où j'en suis ?
  * Les autres modes gardent les leurs (`SECTIONS`).
  */
@@ -1672,18 +1671,16 @@ const PAGES_DE = {
   bureau: () => ['match', ...maisonsDe('bureau')],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
-  // Tes cartes (toute la poche, le permanent, le deck, la banque), la boutique, l'album : un toucher chacun. La main se
-  // joue au Bureau, avec ce qui est en jeu (JP, oct. : *dans la page Cartes, juste les achats, le deck*).
-  cartes: () => ['poche', 'marche', 'cartable'],
   // Le Rogue : l'Effectif, ses Lignes et le dépistage (le volet de l'écran de saison), le Marché.
   effectif: () => ['joueurs', 'alignement', ...(voletDeSaison('depistage') ? ['depistage'] : []), ...maisonsDe('effectif')],
-  marche: () => ['marche', 'poche', ...maisonsDe('marche'), 'cartable'],
+  // V16 (tranche 6) : « Tes cartes » est parti — chaque carte rare se joue chez ce qu'elle monte.
+  marche: () => ['marche', ...maisonsDe('marche'), 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
   ligue: () => ['classement', ...(hubActif() && !bilanPret() && !voletPour('calendrier') ? [] : ['calendrier']), ...(voletDeSaison('saison') ? ['saison'] : []), 'meneurs', 'equipes', 'historique'],
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], depistage: ['i-list', 'Dépistage'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], poche: ['i-cartes', 'Tes cartes'], marche: ['i-marche', 'Boutique'],
+  match: ['i-club', 'Match'], depistage: ['i-list', 'Dépistage'], saison: ['i-saison', 'Ta saison'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
   proprio: ['i-club', 'Proprio'], entraineur: ['i-cal', 'Entraîneur'], presse: ['i-list', 'Presse'], vestiaire: ['i-jersey', 'Vestiaire'],
@@ -1716,15 +1713,14 @@ export const enRepechage = () => !G.done && !bilanPret() && !hubActif();
  * AUCUNE CARTE HORS DU ROGUE (JP, oct. : *jeu de table, 82-0, draft sans cartes, aucune carte en dehors du roguelike*).
  * Le 82-0, Sur table et l'exhibition, c'est les joueurs et leurs stats : la section Cartes n'y est pas.
  */
-const sectionsDuMode = () => (G.bonus === 'ROGUE' ? SECTIONS_ROGUE : SECTIONS.filter(s => s.cle !== 'cartes'));
+const sectionsDuMode = () => (G.bonus === 'ROGUE' ? SECTIONS_ROGUE : SECTIONS);
 const sectionDe = cle => (sectionsDuMode().find(s => PAGES_DE[s.cle]().includes(cle)) || SECTIONS[0]).cle;
 const PAGES = () => sectionsDuMode().flatMap(s => PAGES_DE[s.cle]());
 /* La dernière page ouverte de chaque section : la Ligue rouvre sur le calendrier qu'on lisait. */
 const dernierePage = {};
-/* La page du Marché ouverte ('poche', 'marche'), ou null. Elle survit à la saison rejouée (un achat, une carte jouée). */
+/* La page du Marché ouverte ('marche'), ou null. Elle survit à la saison rejouée (un achat, une carte jouée). */
 let marcheOuvert = null;
 
-const cartesEnAttente = () => { const h = hubActif(); const n = h && h.cartes && G.ligue ? cartesAJouer() : 0; return n ? String(n) : ''; };
 function sectionsCourantes() {
   const draft = enRepechage();
   return sectionsDuMode().map(s => ({
@@ -1732,9 +1728,8 @@ function sectionsCourantes() {
     // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
     // premier match et le dit d'un coup d'oeil. La toucher reste permis.
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
-    // En saison, le Marché du Rogue compte les cartes qui attendent d'être jouées ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
-    // En Rogue, tes cartes se jouent au Marché › Tes cartes ; la pastille y va.
-    badge: !draft ? (s.cle === (G.bonus === 'ROGUE' ? 'marche' : 'bureau') ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
+    // Au repêchage, les Joueurs comptent ce qui se signe, les Lignes ce qui est signé.
+    badge: !draft ? '' : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
       : s.cle === 'lignes' || s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
@@ -1973,10 +1968,6 @@ export function majEntete() {
   poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`);
   // V5 : la caisse du Rogue se lit en saison, au téléphone aussi (la jauge du repêchage, qui la portait, y est cachée).
   poser('teteJetons', G.bonus === 'ROGUE' && fr ? `🪙 ${jetonsRogue()}` : null);
-  // V8 : tes cartes à un toucher de partout, comme le deck de Slay the Spire ; le chiffre dit ce qui reste à jouer cette semaine.
-  poser('teteCartes', G.bonus === 'ROGUE' && fr && hubActif() ? `🃏 ${cartesEnAttente() || '·'}` : null);
-  const tc = $('teteCartes');
-  if (tc && !tc.onclick) tc.onclick = () => montrerPage('poche');
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
   document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');
@@ -2029,8 +2020,8 @@ document.addEventListener('cap82:marche', ev => {
   const cle = Object.keys(PAGES_DU_MARCHE).find(k => PAGES_DU_MARCHE[k] === d.page);
   if (cle) montrerPage(cle);
 });
-/* Les deux pages du Marché, chacune son sous-onglet des Cartes, et ce que l'écran de saison y rend (`hub.cartes`, `hub.boutique`). */
-const PAGES_DU_MARCHE = { poche: 'cartes', marche: 'boutique' };
+/* La page du Marché, et ce que l'écran de saison y rend (`hub.boutique`). */
+const PAGES_DU_MARCHE = { marche: 'boutique' };
 /* « Un joueur à signer » : un pack ouvert, personne de signé — il se traite ici, au Marché. */
 function brancherSignature(host, hub) {
   const b = host.querySelector('.marche-signer');
@@ -2060,11 +2051,8 @@ function remplirMarche() {
     return;
   }
   delete host.dataset.rendu;
-  // Hors saison : tes cartes se regardent (le permanent, la banque) ; la boutique attend la saison.
-  if (quoi === 'cartes') {
-    host.innerHTML = `<section class="hub-page" data-genre="cartes"><div class="hub-page-corps"></div></section>`;
-    ouvrirInventaireJeu(null, null, { dans: host.querySelector('.hub-page-corps') });
-  } else host.innerHTML = '<p class="empty-msg">La boutique ouvre avec la saison.</p>';
+  // Hors saison, la boutique attend la saison.
+  host.innerHTML = '<p class="empty-msg">La boutique ouvre avec la saison.</p>';
 }
 
 /*
@@ -2121,12 +2109,8 @@ function remplirCartable() {
     esc,
     equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
     titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
-    nCartes: L ? cartesAJouer() : 0,
-    ouvrirCartes: () => {
-      // En pleine saison : l'inventaire du Marché, qui joue une carte comme décision du jour.
-      if (G.bonus === 'ROGUE') { montrerPage('poche'); return; }
-      ouvrirInventaireJeu(null, null);
-    },
+    // Tes cartes de jeu, en lecture : la collection du personnel et de la banque (V16 : elles se jouent chez ce qu'elles montent).
+    ouvrirCartes: () => ouvrirInventaireJeu(null, null),
     ficheEquipe: p => (L ? ouvrirFiche(p, L.you, portee === 'jour' ? 'jour' : 'saison') : showPlayerModal(p, { apercu: true })),
     fiche: (cle, p) => showPlayerModal(p, { apercu: true }),
     charger: s => getShard(s),

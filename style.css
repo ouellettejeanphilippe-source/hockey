@@ -352,8 +352,6 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 /* UN MOT SE TOUCHE (V8) : la bulle d'une étiquette touchée, sous elle, par-dessus tout. */
 .bulle-def { position: fixed; z-index: 900; max-width: min(320px, calc(100vw - 16px)); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 600 var(--t-1)/1.4 var(--corps); box-shadow: var(--relief); pointer-events: none; }
 /* V8 : la cellule « Cartes » de l'en-tête est un bouton (le Rogue) : elle ouvre tes cartes d'où qu'on soit. */
-.tete-cartes { position: relative; border-top: 0; border-right: 0; border-bottom: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.tete-cartes::before { content: ""; position: absolute; inset: -5px 0; }
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
 .tete-ch-v { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #menuBtn { grid-area: menu; }
@@ -5977,7 +5975,6 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .ct-var b { color: var(--encre); font-variant-numeric: tabular-nums; }
 .ct-var.v-num { color: var(--or); }
 .ct-mes-cartes { flex: none; }
-.ct-n { font-variant-numeric: tabular-nums; opacity: 0.85; }
 .ct-vues { flex: none; display: flex; gap: var(--esp-1); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--filet); }
 .ct-vues::-webkit-scrollbar { display: none; }
 .ct-nav { flex: none; display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); }

@@ -109,9 +109,9 @@ const verifClubSansBoutique = async etape => {
   });
   if (r.mots.length || r.tuiles) erreurs.push(`${etape} : le Club parle de boutique (${r.mots.join(', ')}) ou en rend (${r.tuiles})`);
 };
-// Tes cartes et la boutique sont chacune un sous-onglet des Cartes (« Tes cartes », « Boutique ») : un toucher, sans liste.
+// La boutique, le sous-onglet du Marché (V16, tranche 6 : « Tes cartes » est parti) : un toucher, sans liste.
 const versMarche = async quoi => {
-  await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click(`#sousNav .soustab[data-page="${quoi === 'cartes' ? 'poche' : 'marche'}"]`, { timeout: 3000 }).catch(() => {}));
+  await page.click('#navbar .navtab[data-section="marche"]').then(() => page.click('#sousNav .soustab[data-page="marche"]', { timeout: 3000 }).catch(() => {}));
   await page.waitForSelector(`#pageMarcheCorps .hub-page[data-genre="${quoi}"]`, { timeout: 10000 });
 };
 const erreurs = [];
@@ -131,11 +131,11 @@ await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
   localStorage.setItem('cap82_cartable', JSON.stringify({ v: 1, migre: true, hist: true, joueurs: Object.fromEntries(cartes.map((k, i) => [k, i === 1 ? { v: { commune: 3 }, n: 3 } : { v: i === 0 ? { rare: 1 } : { commune: 1 }, n: 1 }])) }));
-  // V5 : « Le congédiement » attend dans l'inventaire permanent, pour changer de coach en saison (plus bas, 10c).
+  // V16 (tranche 6) : « Le stage du coach » attend dans l'inventaire permanent, pour monter le coach d'un cran (plus bas, 10c).
   // « Une caisse de départ » (+20 jetons) : les Harfangs puis le Pack Argent s'achètent quel que soit le tirage de la saison
   // (sans elle, une caisse de 22 ou 36 jetons laissait l'essai en panne de jetons devant le Pack Argent : une loterie).
   // V9 (tranche 8) : une Coupe déjà gagnée ouvre le premier cran des exigences ; l'essai le voit, et part au cran 0.
-  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v10', inventaire: { 'consommable:congediement': 1, 'consommable:rappel': 1, 'consommable:echangeDoublon': 1 } }));
+  localStorage.setItem('cap82_rogue', JSON.stringify({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], collection: [], cartes: [], runs: 0, coupes: 1, jalons: {}, jeu: 'v10', inventaire: { 'consommable:stage': 1, 'consommable:echangeDoublon': 1 } }));
 }, CARTES);
 const lireSauvegarde = () => page.evaluate(() => { const ix = JSON.parse(localStorage.getItem('cap82_parties')); return JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)); });
 const cartable = () => page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
@@ -1060,17 +1060,12 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
     if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`la ligne du match, au Bureau, ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
   }
-  // TES CARTES, AU MARCHÉ : plus d'onglet « Tes places » ; « Permanent » compte ce qui n'a pas d'autre maison.
-  await versMarche('cartes');
-  await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }).catch(() => {});
-  await page.screenshot({ path: `${DOSSIER}/rogue-cartes.png`, fullPage: true });
-  const pl = await page.$eval('#pageMarche .hub-page[data-genre="cartes"]', h => ({ places: !!h.querySelector('.inv-onglet[data-onglet="partie"]'),
-    aJouer: Number(((h.querySelector('.inv-onglet[data-onglet="permanent"] span') || {}).textContent || '0').trim()) || 0 })).catch(() => null);
-  const pastille = Number(((await page.textContent('#navbar .navtab[data-section="marche"] .navtab-badge').catch(() => '')) || '0').trim()) || 0;
-  console.log(`10a. tes cartes, au Marché : ${pl ? `${pl.aJouer} à jouer` : '(page absente)'} · pastille du Marché ${pastille} · À faire : ${[...afaire.genres].join(', ')}`);
-  if (!pl) erreurs.push('« Tes cartes » ne s\'ouvre pas au Marché');
-  else if (pl.places) erreurs.push('l\'onglet « Tes places » est encore au Marché › Tes cartes');
-  else if (pl.aJouer && pastille < pl.aJouer) erreurs.push(`la pastille du Marché dit ${pastille} pour ${pl.aJouer} carte(s) à jouer`);
+  // LE MARCHÉ (V16, tranche 6) : la boutique et l'album ; « Tes cartes » est parti, chaque carte rare se joue chez ce qu'elle monte.
+  await page.click('#navbar .navtab[data-section="marche"]').catch(() => {}); await page.waitForTimeout(400);
+  const sousMarche = await page.$$eval('#sousNav:not([hidden]) .soustab', e => e.map(b => b.dataset.page)).catch(() => []);
+  console.log(`10a. le Marché : ${sousMarche.join(', ')} · À faire : ${[...afaire.genres].join(', ')}`);
+  if (sousMarche.includes('poche')) erreurs.push('« Tes cartes » est encore un sous-onglet du Marché');
+  if (await page.$('#teteCartes')) erreurs.push('l\'en-tête garde le raccourci de « Tes cartes »');
   if (afaire.genres.has('places')) erreurs.push('À faire demande encore laquelle vendre (la carte de trop)');
   // L'INFIRMERIE (V8 ; son sous-onglet en V12-2) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
   await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
@@ -1098,23 +1093,11 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   }
 }
 /*
- * L'INVENTAIRE (S79, js/inventaire.js) : les cartes de la saison (elles SE
- * GARDENT jusqu'au moment voulu), les permanentes, le deck, le classeur, et
- * la masse salariale. On joue une carte : une décision datée du jour.
- */
-await versMarche('cartes');
-await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
-await page.screenshot({ path: `${DOSSIER}/rogue-inventaire.png` });
-const poche = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-carte', e => e.map(x => x.querySelector('.tc-nom').textContent.trim()));
-console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
-/*
- * UNE MAISON PAR SUJET (V12-3). JP : *that philosophy should be for everything*. La masse salariale et les cartes de
- * contrat sont chez le proprio, les soins à l'infirmerie, le personnel chez l'entraîneur ; Tes cartes y renvoie
- * (« À l'infirmerie › ») au lieu de les jouer, et ce bouton ouvre le bon sous-onglet.
+ * UNE MAISON PAR SUJET (V12-3 ; V16, tranche 6). JP : *that philosophy should be for everything*. La masse salariale est
+ * chez le proprio, les soins à l'infirmerie, le personnel et le stage du coach chez l'entraîneur, les cartes de joueur
+ * à l'effectif ; il n'y a plus de « Tes cartes » qui y renvoie.
  */
 {
-  if (await page.$('#pageMarche .hub-page[data-genre="cartes"] .inv-plafond')) erreurs.push('la masse salariale est encore au Marché › Tes cartes');
-  const renvois = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .inv-renvoi', e => e.map(b => b.dataset.maison));
   const SEC = { proprio: 'bureau', entraineur: 'bureau', infirmerie: 'effectif' };
   const ici = {};
   let plafond = '';
@@ -1126,23 +1109,14 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
     if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
   }
   if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
-  // Les rappels (V12-3b) vivent sous le tableau d'Effectif › Joueurs, une page hors de l'écran de saison.
-  if (renvois.includes('joueurs')) {
+  // Les cartes de joueur (une retouche, l'échange d'un doublon) vivent sous le tableau d'Effectif › Joueurs.
+  {
     await versLOnglet('effectif', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
     ici.joueurs = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
   }
-  for (const k of new Set(renvois)) if (!(ici[k] || []).length) erreurs.push(`Tes cartes renvoie à « ${k} », qui n'a aucune carte à jouer`);
-  let suivi = '';
-  if (renvois.length) {
-    await versMarche('cartes');
-    await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-renvoi');
-    await page.waitForTimeout(600);
-    suivi = renvois[0] === 'joueurs'
-      ? (await page.$('#pageJoueurs:not([hidden]) .jr-table') ? 'joueurs' : '')
-      : await page.$eval('#hubModal:not([hidden]) .af-onglet[data-maison]', e => e.dataset.maison).catch(() => '');
-    if (suivi !== renvois[0]) erreurs.push(`« ${renvois[0]} › » ouvre « ${suivi || 'rien'} »`);
-  }
+  if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
+  if (!(ici.joueurs || []).includes('consommable:echangeDoublon')) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif');
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
   const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
   const ecrans = {}, avecChoix = new Set();
@@ -1193,87 +1167,35 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
     }
     await browser.close(); process.exit(erreurs.length ? 1 : 0);
   }
-  console.log(`10m. une maison par sujet : ${(plafond || '(pas de masse salariale)').replace(/\s+/g, ' ').trim().slice(0, 60)} · renvois ${renvois.join(', ') || 'aucun'}${suivi ? ` (→ ${suivi})` : ''} · ${Object.entries(ici).map(([k, v]) => `${k} ${v.length}`).join(' · ')}`);
-  await versMarche('cartes');
-  await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
+  console.log(`10m. une maison par sujet : ${(plafond || '(pas de masse salariale)').replace(/\s+/g, ' ').trim().slice(0, 60)} · ${Object.entries(ici).map(([k, v]) => `${k} ${v.length}`).join(' · ')}`);
 }
 // V16 : une retouche ne se joue plus au Marché (l'onglet « Tes places » est parti) : elle se pose au verso de son joueur (12b).
 let posee = null, nomModif = '';
-if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
 /*
- * LE CONGÉDIEMENT (V5). JP : *juste un coach peut être actif à la fois* ; *changé avec une carte qui enlève l'autre
- * bonus*. La carte offre les autres coachs (pas celui en poste) ; le choix entre comme une décision `coachNeuf` à la
- * confiance I, et la sauvegarde porte le nouveau coach de la run.
+ * LE STAGE DU COACH (V16, tranche 6) : une carte rare qui monte le coach en poste d'un cran. Elle se joue chez
+ * l'entraîneur ; sa décision porte les points qui manquent (`coachsDeBase`), et la confiance s'allume (`coach`). Le
+ * congédiement, lui, est un dossier du proprio (`laTete`) : check_dossiers.
  */
 {
-  // V12-2 (JP : *everything coaching should be at same place*) : il se joue chez l'entraîneur, avec ton coach et ton personnel.
-  const avant = await lireSauvegarde();
-  const coachAvant = (avant.rogue && avant.rogue.coach) || (avant.partie && avant.partie.rogue && avant.partie.rogue.coach);
   await versLOnglet('bureau', 'entraineur');
   await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
-  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .maison-jouer[data-id="consommable:congediement"]');
-  if (await page.$('#pageMarche .inv-jouer-meta[data-id="consommable:congediement"]')) erreurs.push('« Le congédiement » est encore au Marché › Tes cartes');
-  if (!jouer) erreurs.push('« Le congédiement » ne se joue pas depuis le sous-onglet de l\'entraîneur');
+  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .maison-jouer[data-id="consommable:stage"]');
+  if (!jouer) erreurs.push('« Le stage du coach » ne se joue pas depuis le sous-onglet de l\'entraîneur');
   else {
-    await jouer.click();
-    await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 10000 });
-    await page.screenshot({ path: `${DOSSIER}/rogue-congediement.png` });
-    const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.dataset.choix));
     const n0 = (await decisions()).length;
-    await page.click('#choixModal .choix-option');
+    const avant = (await decisions()).filter(x => x.coach && x.coach.palier).map(x => x.coach.palier).pop() || 1;
+    await jouer.click();
     await page.waitForTimeout(800);
     await regler();
-    const dc = (await decisions()).slice(n0).find(x => x.coachNeuf);
-    const apres = await lireSauvegarde();
-    const coachApres = (apres.rogue && apres.rogue.coach) || (apres.partie && apres.partie.rogue && apres.partie.rogue.coach);
-    console.log(`10c. le congédiement : ${coachAvant} → ${dc ? `${dc.coach.cle} ${dc.coach.palier}` : '(rien)'} · offerts ${offerts.join(', ')} · coach de la run ${coachApres}`);
-    if (offerts.includes(coachAvant)) erreurs.push('« Le congédiement » offre le coach déjà en poste');
-    if (!dc || dc.coach.palier !== 1 || dc.coach.cle === coachAvant) erreurs.push(`« Le congédiement » n'installe pas un autre coach à la confiance I (${JSON.stringify(dc ? dc.coach : null)})`);
-    else if (coachApres !== dc.coach.cle) erreurs.push(`la sauvegarde garde ${coachApres} comme coach de la run, pas ${dc.coach.cle}`);
+    const ds = (await decisions()).slice(n0).find(x => x.coachsDeBase && x.joue);
+    console.log(`10c. le stage du coach : ${ds ? `${JSON.stringify(ds.coachsDeBase)} · confiance ${avant} → ${ds.coach ? ds.coach.palier : avant}` : '(rien)'}`);
+    if (!ds) erreurs.push('« Le stage du coach » n\'écrit pas sa décision');
+    else if (!ds.coach || ds.coach.palier !== avant + 1) erreurs.push(`« Le stage du coach » ne monte pas la confiance d'un cran (${avant} → ${ds.coach ? ds.coach.palier : '—'})`);
   }
-  /*
-   * LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, une signée ; la décision est un ballottage
-   * dont le joueur sort de ton cartable, au plus Régulier. V12-3 : les rappels se jouent dans l'effectif, sous le tableau
-   * des joueurs (Effectif › Joueurs), plus au Marché › Tes cartes.
-   */
-  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
-  await page.waitForTimeout(300);
-  if (await page.$('#pageMarche .inv-jouer-meta[data-id="consommable:rappel"], #pageMarche .inv-jouer-meta[data-id="consommable:echangeDoublon"]')) erreurs.push('un rappel est encore au Marché › Tes cartes');
   const versLEffectif = async () => {
     await versLOnglet('effectif', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
   };
-  await versLEffectif();
-  await deplierLesCartes('#pageJoueurs');
-  const rappel = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:rappel"]');
-  if (!rappel) erreurs.push('« Le rappel du club-école » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
-  else {
-    await rappel.click();
-    // Jalon R : la liste, chacun à sa meilleure case ; « Signer » demande qui sort (U18), la meilleure sortie proposée.
-    await page.waitForSelector('#signatureModal:not([hidden]) .btn-sign', { timeout: 30000 });
-    await page.waitForTimeout(400);
-    await page.screenshot({ path: `${DOSSIER}/rogue-rappel.png` });
-    const offres = await page.$$eval('#signatureModal .pcard', e => e.length);
-    const n0 = (await decisions()).length;
-    await page.click('#signatureModal .btn-sign:not([disabled])');
-    await page.waitForTimeout(500);
-    // Qui sort, puis la boîte se règle du bureau (un message peut attendre sous la page du Marché).
-    for (let k = 0; k < 6 && await page.$('#choixModal:not([hidden])'); k++) await regler().catch(() => {});
-    // Joué, on revient dans l'effectif (`G.pageVoulue`), pas au Bureau.
-    await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 20000 }).catch(() => {});
-    const revenu = await page.evaluate(() => !document.querySelector('#pageJoueurs').hidden);
-    await auBureau();
-    await regler();
-    const d = (await decisions()).slice(n0).find(x => x.ballottage);
-    const cartable = await page.evaluate(() => Object.keys((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs) || {}));
-    console.log(`10d. le rappel du club-école : ${offres} cartes offertes · ${d ? `${d.ballottage.entre} entre, ${d.ballottage.sort || 'case libre'} sort` : '(rien signé)'} · revenu dans l'effectif : ${revenu}`);
-    if (!revenu) erreurs.push('un rappel joué dans l\'effectif ne ramène pas dans l\'effectif');
-    // Trois au plus : seulement les cartes qui tiennent sous le plafond, Pilier au plus (`offresDuCartable`) — le tirage en laisse parfois moins.
-    if (offres < 1 || offres > 3) erreurs.push(`le rappel offre ${offres} cartes (d'une à trois)`);
-    if (!d) erreurs.push('le rappel du club-école ne signe personne');
-    else if (!cartable.includes(d.ballottage.entre)) erreurs.push('le joueur rappelé ne vient pas du cartable');
-  }
   /*
    * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : le doublon le plus fourni du cartable (trois copies de CARTES[1], 1995-96) donne
    * trois joueurs de son époque (1995-96 à 1998-99, `epoqueDe`), pas encore au cartable, et nomme sa série (une par saison : Réfracteur) ; signé, le doublon perd une
@@ -1313,42 +1235,11 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
       if (!au) erreurs.push('le joueur reçu à l\'échange n\'entre pas au cartable');
     }
   }
-  // Les cartes de la saison, pour la suite (11).
-  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
-  await page.waitForTimeout(300);
 }
-/*
- * UNE CARTE SANS CIBLE VALABLE (« Blessé à long terme » sans blessé) rouvre
- * l'inventaire au lieu de se jouer : les plombiers sont tirés au hasard, donc
- * la première carte ne se joue pas toujours. On essaie les cartes une à une
- * jusqu'à ce qu'une décision entre dans la sauvegarde.
- */
-// Une autre famille que les modifs (elles se posent au verso, plus haut).
-const avantJouees = (await decisions()).filter(x => x.joue).length;
-let jouee = false, essais = 0;
-for (; essais < 5 && !jouee; essais++) {
-  if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-  const boutons = await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-carte:not(.bq-joueur) .inv-jouer-meta:not([disabled])');
-  if (!boutons[essais]) break;
-  await boutons[essais].click();
-  await page.waitForTimeout(600);
-  // Personne à qui la donner (Jalon U : la liste vide le dit à sa place, et reste ouverte) : on la ferme.
-  if (await page.$('#signatureModal:not([hidden]) .empty-msg')) { await page.click('#signatureModal .choix-fermer'); await page.waitForTimeout(300); }
-  await regler();
-  await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 120000 }).catch(() => {});
-  d = await decisions();
-  jouee = d.filter(x => x.joue).length > avantJouees;
-  // REVENIR OÙ L'ON ÉTAIT (1.0, oct.) : une carte jouée rouvre « Tes cartes », pas le bureau.
-  if (jouee && !(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) erreurs.push('une carte jouée ramène au bureau au lieu de « Tes cartes », au Marché');
-}
-if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')) await page.click('#navbar .navtab[data-section="bureau"]');
+// UNE CARTE JOUÉE (V16, tranche 6) : chaque carte rare se joue chez ce qu'elle monte — le stage, l'échange, plus haut.
 d = await decisions();
-console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
-// Une carte jouée dans sa maison (le congédiement, 10c) est déjà une carte jouée, et le Marché ne tient parfois rien
-// d'autre (V16). L'erreur, c'est qu'AUCUNE carte n'ait pu se jouer.
-if (!jouee && !d.some(x => x.joue)) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
-else if (!jouee) console.log('    (rien à jouer au Marché : la carte jouée dans sa maison compte)');
+console.log(`11. jouées : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
+if (!d.some(x => x.joue)) erreurs.push('aucune carte rare n\'a pu se jouer dans sa maison');
 // LE CARTABLE (S79) : dans la Collection (1.0, R1), à côté de tes saisons.
 await page.click('#navbar .navtab[data-section="marche"]');
 await page.click('#sousNav .soustab[data-page="cartable"]');

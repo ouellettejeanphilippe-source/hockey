@@ -447,7 +447,9 @@ const MOTS_RESERVES = [
     boude: { n: 'Radek Bonk', cle: 'b', zone: 'Top 6', ou: '4e trio', pts: 3, m: 10 }, puni: { n: 'Tie Domi', cle: 'd', pun: 5, m: 8 },
     muet: { n: 'Alexei Yashin', cle: 'y', sal: '7,6 M$', pts: 1, m: 10 }, blesses: [{ n: 'Al Secord', m: 9 }, { n: 'Tie Domi', m: 5 }, { n: 'Rob Ray', m: 2 }],
     soirs: 4, dos: 1, visiteur: 3, domicile: 3, rival: 'Bruins 1995-96', bete: 'Wild 2010-11', caisse: 18,
-    dernier: { pour: 0, contre: 6, adv: 'Kings 1993-94' }, rang: 30, equipes: 32 };
+    dernier: { pour: 0, contre: 6, adv: 'Kings 1993-94' }, rang: 30, equipes: 32,
+    masse: { espace: 800_000, libre: '0,8 M$', lourd: { n: 'Alexei Yashin', cle: 'y', sal: '7,6 M$' } }, defaites: 5, coach: 'La Tortue',
+    coachs: [{ cle: 'essaim', nom: 'Le Frelon', ico: '🐝' }, { cle: 'aigle', nom: 'L\'Aigle', ico: '🦅' }] };
   const recus = new Set(JSON.stringify(F).match(/\d+/g));
   for (let g = 0; g < 40; g++) for (const cle of Object.keys(DOSSIERS)) {
     const sc = sceneDuDossier(cle, F, g);

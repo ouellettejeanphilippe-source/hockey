@@ -137,8 +137,8 @@ JP, 24 oct. 2026 : *en gros, remplacer toutes les cartes et cie par les adjoints
 | Carte | Ce qu'elle monte | Où elle se joue | Le canal |
 |---|---|---|---|
 | 🖌 🪟 🔆 ✨ les quatre retouches | l'édition d'un joueur | au verso de sa carte | la mutation d'atelier (inchangée) |
-| 🎓 Le stage du coach (neuve) | la confiance du coach en poste, d'un cran | chez l'entraîneur | `coachsDeBase` : les points qui manquent au seuil suivant |
-| 📚 La formation (neuve) | un échelon de plus ouvert pour un adjoint | chez l'entraîneur | une copie de plus (`copiesPerso`, comme un doublon) |
+| 🎞 Le stage du coach (neuve) | la confiance du coach en poste, d'un cran | chez l'entraîneur | `coachsDeBase` : les points qui manquent au seuil suivant |
+| 🖊 La formation (neuve) | un échelon de plus ouvert pour un adjoint | chez l'entraîneur | une copie de plus (`copiesPerso`, comme un doublon) |
 | 🧊 💆 🏥 trois soins | le retour d'un blessé | à l'infirmerie | les gestes de soin (inchangés) |
 | 📟 L'échange d'un doublon | ton doublon le plus fourni contre un joueur de son époque | Effectif › Joueurs | une décision `ballottage` (inchangée) |
 

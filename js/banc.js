@@ -20,7 +20,7 @@ import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, rec
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
-import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison } from './rogue-jeu.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { niveauDe, ETOILE } from './niveaux.js';
@@ -216,6 +216,8 @@ async function deciderMaintenant(ds, depuis) {
     const { liste, d } = ajouterDecision(decisions, d0);
     decisions = liste;
     prises.push(d);
+    // Un coach neuf (la tête de l'entraîneur, V16) devient celui de la run, comme au départ.
+    if (d && d.coachNeuf && d.coach && G.rogue) G.rogue.coach = d.coach.cle;
   }
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
@@ -768,12 +770,14 @@ function ouvrirEcranSaison(depuis = 0) {
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1, (G.rogue && G.rogue.exigence) || 0).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
-          jetons: j => jetonsRogue(j) } : null,
+          jetons: j => jetonsRogue(j),
+          // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête de l'entraîneur.
+          masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
-        // Tes cartes (V16 : celles qui n'ont pas d'autre maison), au Marché.
-        inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page) },
+        // Le jeu de cartes du Rogue (V16 : le personnel et les cartes rares) : les paliers et le Bureau en lisent la présence.
+        inventaire: true,
         // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2).
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
         personnel: { html: j => personnelDuJour(j) },

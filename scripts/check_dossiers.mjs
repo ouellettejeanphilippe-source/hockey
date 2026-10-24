@@ -34,7 +34,8 @@ import { exiger, informer, verdict } from './verdict.mjs';
 
 /* ---------- 2. la forme ---------- */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', 'lui', ...CANAUX]);
+// V16 (tranche 6) : la masse salariale (`plafond`, lu par `plafondDe`) et le congédiement (`coachNeuf`), deux décisions qui existent.
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', 'lui', 'plafond', 'coachNeuf', ...CANAUX]);
 const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie']);
 /* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
 const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure']);
@@ -53,10 +54,12 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
       const canaux = CANAUX.some(k => k in o);
       if (canaux && !o.duree) fautes.push(`${cle}/${o.cle} : un effet sans durée`);
-      if (!o.rien && !canaux && !o.action && !o.gain && !o.lui) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+      if (!o.rien && !canaux && !o.action && !o.gain && !o.lui && !o.plafond && o.coachNeuf == null) fautes.push(`${cle}/${o.cle} : ne fait rien`);
       // Le gros d'un joueur (V11) : seulement dans un dossier qui le nomme, sur ses canaux à lui, le temps d'une durée.
       if ((o.lui || (o.action && o.action.energie)) && !D.joueur) fautes.push(`${cle}/${o.cle} : un effet sur un joueur que le dossier ne nomme pas`);
       if (o.lui && (!o.duree || Object.keys(o.lui).some(k => !CANAUX_LUI.has(k)))) fautes.push(`${cle}/${o.cle} : ce qui va au joueur`);
+      // Un rachat vise le contrat que le dossier nomme ; de l'espace, lui, va au club.
+      if (o.plafond && (Object.keys(o.plafond).some(k => !['espace', 'facteur'].includes(k)) || (o.plafond.facteur && !D.joueur))) fautes.push(`${cle}/${o.cle} : le plafond`);
     }
   }
   exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses, sur les champs que le moteur lit déjà', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
@@ -75,7 +78,9 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       boude: joueur(0.15, { zone: 'Top 6', ou: '4e trio', pts: 2 }), puni: joueur(0.15, { pun: 5 }), muet: joueur(0.1, { sal: '7,5 M$', pts: 1 }),
       blesses: Array.from({ length: pige([0, 1, 2, 3]) }, (_, i) => ({ n: `B${i}`, m: 4 })), soirs, dos: pige([0, 0, 1]), visiteur, domicile: soirs - visiteur,
       rival: r() < 0.2 ? 'Rival' : null, bete: r() < 0.08 ? 'Bête' : null, caisse: pige([5, 40, 60, 120]),
-      dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32 };
+      dernier: { pour: pige([0, 2, 4]), contre: pige([1, 3, 6]), adv: 'Eux' }, rang: pige([1, 5, 16, 30]), equipes: 32,
+      masse: { espace: pige([-500_000, 800_000, 4_000_000, 9_000_000]), libre: '0,8 M$', lourd: { n: 'Lourd', cle: 'l', sal: '9,5 M$' } },
+      defaites: pige([0, 0, 1, 2, 4, 5]), coach: 'La Tortue', coachs: [{ cle: 'a', nom: 'Le Frelon', ico: '🐝' }, { cle: 'b', nom: "L'Aigle", ico: '🦅' }] };
   };
   let purs = true, uneFois = true, reserve = true;
   const sortis = new Map();

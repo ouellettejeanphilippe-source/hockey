@@ -175,7 +175,7 @@ console.log('\n  Le deck (S73)\n');
 
 /*
  * LES DOUBLONS ET LE RAPPEL (Jalon P3). Trois doublons d'une édition la montent d'un cran, jusqu'à l'Or (l'édition 4) ;
- * la Holo ne sort pas des doublons (oct. 2026 : l'Or et la Holo ont échangé leur place, la force de chacune est restée). « Le rappel du club-école » signe un joueur de ton cartable par la décision qui existe (`ballottage`).
+ * la Holo ne sort pas des doublons (oct. 2026 : l'Or et la Holo ont échangé leur place, la force de chacune est restée). « L'échange d'un doublon » signe un joueur par la décision qui existe (`ballottage`) ; le rappel du club-école, lui, est un remède de la blessure (V16, tranche 6).
  */
 {
   // Treize Base : quatre montent (douze doublons), et ces quatre Cadres en font un Hors-cadre.
@@ -189,9 +189,9 @@ console.log('\n  Le deck (S73)\n');
   const z = { v: { rare: 7 } };
   monterLesDoublons(z);
   exiger('la Holo ne sort pas des doublons', z.v.rare === 7 && !z.v.legendaire, JSON.stringify(z.v));
-  const p = payloadDe('consommable:rappel', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
-  exiger('le rappel du club-école est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
-  exiger('sans joueur choisi, le rappel ne décide rien', payloadDe('consommable:rappel', {}) === null);
+  const p = payloadDe('consommable:echangeDoublon', { joueur: 'k', sortie: { i: 21, sort: 's' }, rar: 'peu' });
+  exiger('l\'échange d\'un doublon est une signature au ballottage', p && p.ballottage && p.ballottage.entre === 'k' && p.ballottage.i === 21 && p.ballottage.sort === 's', JSON.stringify(p));
+  exiger('sans joueur choisi, l\'échange ne décide rien', payloadDe('consommable:echangeDoublon', {}) === null);
 }
 
 /*
