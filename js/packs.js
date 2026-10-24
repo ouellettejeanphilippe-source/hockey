@@ -125,16 +125,16 @@ export const PACKS_JOUEURS = {
    * joueurs (\`joueurs\`) et des cartes de la banque (\`cartes\`), le thème choisi à l'achat (\`choix\`). Les packs
    * d'avant restent définis : une vieille partie les ouvre encore ; ils ne se vendent plus.
    */
-  bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques, et une carte.' },
-  argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs et deux cartes, de meilleures chances.' },
-  or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs et deux cartes, les meilleures chances de la boutique.' },
+  bronze: { famille: 'hasard', nom: 'Pack Bronze', ico: '🥉', tier: 'bronze', joueurs: 3, cartes: 1, prix: 14, texte: 'Trois vrais joueurs de toutes les époques, et un adjoint.' },
+  argent: { famille: 'hasard', nom: 'Pack Argent', ico: '🥈', tier: 'argent', joueurs: 3, cartes: 2, prix: 22, texte: 'Trois vrais joueurs, un adjoint, et parfois une carte rare, de meilleures chances.' },
+  or: { famille: 'hasard', nom: 'Pack Or', ico: '🥇', tier: 'or', joueurs: 4, cartes: 2, prix: 38, texte: 'Quatre vrais joueurs, un adjoint, et parfois une carte rare, les meilleures chances de la boutique.' },
   // V10 : le pack à thème de la première run, au métal du Bronze ; ses crans le montent (js/rogue.js `CRANS_DE_PACK`).
-  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', joueurs: 3, cartes: 2, prix: 20, texte: 'Trois joueurs de la décennie de ton choix, et deux cartes.' },
-  specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, et deux cartes.' },
-  club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, et deux cartes.' },
+  epoque: { famille: 'ere', nom: 'Pack Époque', ico: '📼', tier: 'bronze', choix: 'decennie', joueurs: 3, cartes: 2, prix: 20, texte: 'Trois joueurs de la décennie de ton choix, un adjoint, et parfois une carte rare.' },
+  specialistes: { famille: 'skill', nom: 'Pack Spécialistes', ico: '🎯', tier: 'argent', choix: 'skill', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois spécialistes de la famille de ton choix, le quart du haut à leurs points égaux, un adjoint, et parfois une carte rare.' },
+  club: { famille: 'equipe', nom: 'Pack Club', ico: '🏟', tier: 'argent', choix: 'franchise', joueurs: 3, cartes: 2, prix: 28, texte: 'Trois joueurs de la franchise de ton choix, toutes époques confondues, un adjoint, et parfois une carte rare.' },
   // V10 : le pack d'étoiles de la boutique, mixte comme les autres, que la Coupe ouvre (js/rogue.js `packsOuverts`).
-  vedettes: { famille: 'etoiles', nom: 'Pack Vedettes', ico: '🌟', tier: 'or', niveaux: { etoile: 92, phenomene: 8 }, joueurs: 3, cartes: 2, prix: 70, texte: 'Trois étoiles de leur saison, le 4 % du haut à leur poste, et deux cartes.' },
-  coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et deux cartes de sa couleur : de quoi bâtir sa confiance.' },
+  vedettes: { famille: 'etoiles', nom: 'Pack Vedettes', ico: '🌟', tier: 'or', niveaux: { etoile: 92, phenomene: 8 }, joueurs: 3, cartes: 2, prix: 70, texte: 'Trois étoiles de leur saison, le 4 % du haut à leur poste, un adjoint, et parfois une carte rare.' },
+  coach: { famille: 'coach', nom: 'Pack du coach', ico: '📋', tier: 'argent', choix: 'coach', joueurs: 3, cartes: 2, prix: 30, texte: 'Trois joueurs de la couleur d\'un coach, et deux adjoints de sa couleur : de quoi bâtir sa confiance.' },
 };
 /* Les packs que la boutique vend (Jalon P2 ; V10 : les Vedettes, que la Coupe ouvre), dans son ordre. */
 export const BOUTIQUE = ['j:bronze', 'j:argent', 'j:or', 'j:epoque', 'j:specialistes', 'j:club', 'j:coach', 'j:vedettes'];
@@ -147,13 +147,6 @@ export const NOMS_SKILLS = { sniper: '🎯 Tir', passeur: '🪄 Jeu', defensif: 
 const COTES_CARTES = { commune: 55, peu: 30, rare: 12, legendaire: 3 };
 export const PACKS_CARTES = {
   patrons: { nom: 'Pack Personnel', ico: '👔', n: 3, prix: 30, cats: ['patron'], cotes: { commune: 45, peu: 35, rare: 16, legendaire: 4 }, texte: 'Trois patrons : le personnel qu\'on engage pour toute la saison.' },
-  modifs: { nom: 'Pack Modifs', ico: '🧬', n: 4, prix: 20, cats: ['joueur'], cotes: COTES_CARTES, texte: 'Quatre styles, contrats, améliorations et retouches de joueur.' },
-  consommables: { nom: 'Pack Consommables', ico: '🧴', n: 5, prix: 15, cats: ['consommable'], cotes: COTES_CARTES, texte: 'Cinq consommables : un soin, des jambes, le filet, les minutes, un trou dans le règlement.' },
-  contrats: { nom: 'Pack Contrats', ico: '💵', n: 4, prix: 20, cats: ['plafond'], cotes: COTES_CARTES, maudite: 0.08, texte: 'Quatre cartes de masse salariale : de l\'espace, une retenue, un rachat… et parfois la taxe de luxe.' },
-  mixte: { nom: 'Pack Mixte', ico: '🎴', n: 5, prix: 25, cats: ['patron', 'joueur', 'consommable', 'plafond'], cotes: COTES_CARTES, texte: 'Cinq cartes de toutes les familles.' },
-  // v2 : le pack d'un coach (js/coachs.js) — quatre cartes de sa couleur, de toutes les familles. Le coach se choisit à l'achat.
-  coach: { nom: 'Pack du coach', ico: '📋', n: 4, prix: 22, cats: ['patron', 'joueur', 'consommable', 'plafond'], cotes: COTES_CARTES, choix: 'coach', texte: 'Quatre cartes de la couleur d\'un coach, de toutes les familles : de quoi bâtir sa confiance.' },
-  lot: { nom: 'Le lot du vestiaire', ico: '📦', n: 12, prix: 55, cats: ['patron', 'joueur', 'consommable', 'plafond'], cotes: COTES_CARTES, maudite: 0.1, texte: 'Douze cartes de toutes les familles, au prix de deux packs mixtes et demi. Une chance sur dix d\'y trouver la taxe de luxe.' },
 };
 
 /* Tous les packs, par clé : \`j:\` les joueurs, \`c:\` les cartes. */
@@ -218,8 +211,6 @@ export function chancesDe(cle, mods = {}) {
     return [
       { nom: 'Rare ou mieux', txt: formatUnSur(1 - (1 - r) ** n), p: 1 - (1 - r) ** n },
       { nom: 'Légendaire', txt: formatUnSur(1 - (1 - l) ** n), p: 1 - (1 - l) ** n },
-      // Le jeu de hasard dit aussi sa malchance.
-      ...(P.maudite ? [{ nom: 'Une malédiction', txt: formatUnSur(P.maudite), p: P.maudite, maudite: true }] : []),
     ];
   }
   const c = cotesDuPack(cle, mods);
@@ -501,28 +492,39 @@ export function tirerCartesPack(cleCourte, graine, n, params = {}) {
   return PACKS_CARTES[cleCourte] ? tirerCartes(PACKS_CARTES[cleCourte], cleCourte, graine, n, params) : [];
 }
 /*
- * LES CARTES D'UN PACK, quel qu'il soit (Jalon P2) : un pack de cartes d'avant, ou les \`cartes\` d'un pack mixte —
- * de toutes les familles, de la couleur du coach pour le Pack du coach, et la taxe de luxe une fois sur vingt-cinq.
- * V9 (tranche 5b) : sans événement — les gestes du DG sont devenus les routes de la semaine (js/noeuds.js).
+ * LES CARTES D'UN PACK, quel qu'il soit (Jalon P2) : le Pack Personnel, ou les \`cartes\` d'un pack de joueurs.
+ * V16 (docs/refonte-v16.md § 3 et § 4d) : la première carte d'un pack de joueurs est un adjoint ; la deuxième, s'il en a
+ * deux, une carte rare qui monte (une retouche, le stage, la formation, un soin, l'échange d'un doublon), une fois sur
+ * `1 / RARE_DU_PACK` — jamais le gros du pack. Le Pack du coach, lui, ne donne que des adjoints de sa couleur : c'est sa
+ * raison d'être, bâtir sa confiance.
  */
-const CATS_MIXTES = ['patron', 'joueur', 'consommable', 'plafond'];
-const MAUDITE_MIXTE = 0.04;
+const CATS_MIXTES = ['patron', 'joueur', 'consommable'];
+const CATS_RARES = ['joueur', 'consommable'];
+export const RARE_DU_PACK = 0.25;
 export function tirerCartesDuPack(cle, graine, n, params = {}) {
   const P = PACKS_TOUS[cle];
   if (!P) return [];
   if (P.sorte === 'cartes') return tirerCartesPack(P.cle, graine, n, params);
   if (!P.cartes) return [];
-  return tirerCartes({ n: P.cartes, cats: CATS_MIXTES, cotes: COTES_CARTES, choix: P.choix === 'coach' ? 'coach' : null, maudite: MAUDITE_MIXTE }, cle, graine, n, params);
+  const choix = P.choix === 'coach' ? 'coach' : null;
+  const adjoint = tirerCartes({ n: choix ? P.cartes : 1, cats: ['patron'], cotes: COTES_CARTES, choix }, cle, graine, n, params);
+  const rare = P.cartes > 1 && !choix && hache(graine, 'pack-rare', cle, n) < RARE_DU_PACK
+    ? tirerCartes({ n: 1, cats: CATS_RARES, cotes: COTES_CARTES }, `${cle}:outils`, graine, n, params) : [];
+  return [...adjoint, ...rare];
 }
 function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
-  // `params.sans` : des familles que ce tirage ne donne pas (le palier de la saison : pas de personnel).
-  const cats = (coach ? P.cats.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : P.cats).filter(c => !(params.sans || []).includes(c));
+  // `params.sans` : des familles que ce tirage ne donne pas. V16 : un coach sans carte dans ces familles (les outils de
+  // gérant n'ont presque pas de couleur) laisse tirer sans couleur.
+  const libres = P.cats.filter(c => !(params.sans || []).includes(c) && idsDe(c).length);
+  const siens = coach ? libres.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : [];
+  const teint = coach && siens.length > 0;
+  const cats = teint ? siens : libres;
   for (let t = 0; t < P.n; t++) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
-    const pool = idsDe(cat).filter(id => BANQUE[id].rarete !== 'maudite' && (!coach || BANQUE[id].coach === coach));
+    const pool = idsDe(cat).filter(id => !teint || BANQUE[id].coach === coach);
     let r = hache(graine, 'pack-cartes', cleCourte, n, t) * 100;
     let rar = 'commune';
     for (const k of ORDRE_VAR) { r -= P.cotes[k] || 0; if (r < 0) { rar = k; break; } }
@@ -533,26 +535,12 @@ function tirerCartes(P, cleCourte, graine, n, params) {
       break;
     }
   }
-  // LA MALCHANCE (le jeu de hasard) : certains packs cachent une malédiction, qui prend la dernière place.
-  if (P.maudite && out.length && hache(graine, 'pack-maudite', cleCourte, n) < P.maudite) {
-    // 1.0 : seule la taxe de luxe (un contrat) frappe à l'ouverture — `plafondDe` (js/banque.js) la lit ;
-    // les autres malédictions, elles, n'ont pas de consommateur à l'ouverture.
-    const m = idsDe('plafond').filter(id => BANQUE[id].rarete === 'maudite');
-    if (m.length) out[out.length - 1] = m[Math.floor(hache(graine, 'pack-maudite-carte', cleCourte, n) * m.length)];
-  }
   return out;
 }
-/*
- * LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète). Une carte compte au dénominateur si un pack
- * peut la donner : sa famille est dans les packs de la boutique (`CATS_MIXTES`), et une malédiction seulement si
- * c'est la taxe de luxe qu'ils cachent. Les autres malédictions ne sortent d'aucun pack : elles se gagnent en jouant,
- * et la banque les montre à part.
- */
+/* LA BANQUE QU'ON PEUT COMPLÉTER (V2.2, la collection se complète) : une carte compte si un pack peut la donner (`CATS_MIXTES`). */
 export function sortDUnPack(id) {
   const c = BANQUE[id];
-  if (!c) return false;
-  if (c.rarete === 'maudite') return c.cat === 'plafond' && MAUDITE_MIXTE > 0;
-  return CATS_MIXTES.includes(c.cat);
+  return !!c && CATS_MIXTES.includes(c.cat);
 }
 /* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
 export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);

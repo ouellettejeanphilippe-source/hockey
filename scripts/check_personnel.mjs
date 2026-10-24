@@ -9,13 +9,16 @@
  *      poste, garde d'où se comptent ses matchs, et la fin de saison les reporte ;
  *   4. le moteur, EN PAIRES (CLAUDE.md) : le même match sur les mêmes dés, sans la personne, à son premier échelon, à son
  *      cinquième (quatre poussées), et son défaut corrigé quatre fois ; l'écart sur sa force monte, celui sur son défaut
- *      fond.
+ *      fond ;
+ *   5. le protégé (V16) : ses canaux de joueur grandissent avec la force, la décision d'échelon les porte, et ses
+ *      points à sa ligne montent, en paires.
  * `N` : matchs par club (300).
  */
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, appliquerMutation, joueurDeMutation, getPlayerKey } from '../js/sim.js';
+import { PROTEGES } from '../js/personnel.js';
 import { PATRONS, BANQUE } from '../js/banque.js';
 import { effetDePalier } from '../js/coachs.js';
-import { effetALEchelon, patronALEchelon, etatDuPersonnel, decisionDEchelon, reportDuPersonnel, ouvertsDe, matchsJoues,
+import { effetALEchelon, patronALEchelon, etatDuPersonnel, decisionDEchelon, reportDuPersonnel, ouvertsDe, matchsJoues, protegeALEchelon,
   MATCHS_ECHELON, POUSSEE, CORRECTION, ECHELON_MAX, PRIX_ECHELON } from '../js/echelons.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -70,14 +73,15 @@ const presque = (a, b) => Math.abs(a - b) < 1e-6;
 
 /* ---------- 4 : le moteur, en paires ---------- */
 const equipe = (nom, tag, un, s) => { const p = un.flat().map(x => ({ ...x })); p.forEach(registerHiddenRatings); return createTeam(nom, tag, autoRoster(p), { season: s }); };
-function match(toi, adv, graine, visiteur) {
+function match(toi, adv, graine, visiteur, nomme = null) {
   for (const t of [toi, adv]) { for (const sl of SLOTS) { const p = t.roster[sl.i]; if (p) p.energie = 100; } if (t.injured) t.injured.clear(); t.jourCourant = 0; }
   grainerHasard(graine);
   const f = feuilleVierge();
   const r = visiteur ? playGame(adv, toi, 1, false, false, f) : playGame(toi, adv, 1, false, false, f);
   const moi = visiteur ? 'B' : 'A';
   const somme = a => (a || []).reduce((x, y) => x + y, 0);
-  return { v: r.winner === toi ? 1 : 0, gf: visiteur ? r.gfB : r.gfA, ga: visiteur ? r.gfA : r.gfB, tp: somme(f.tirs && f.tirs[moi]) };
+  const pts = nomme ? (f.buts || []).reduce((a, b) => a + (b.marqueur && getPlayerKey(b.marqueur) === nomme ? 1 : 0) + (b.passeurs || []).filter(q => getPlayerKey(q) === nomme).length, 0) : 0;
+  return { v: r.winner === toi ? 1 : 0, gf: visiteur ? r.gfB : r.gfA, ga: visiteur ? r.gfA : r.gfB, tp: somme(f.tirs && f.tirs[moi]), pts };
 }
 /* Une carte d'un lieu : sa force et son défaut, lus sur ce qu'un soir montre. */
 const LIRE = { tirs: S => S.tp / S.n, pct: S => (100 * S.gf) / S.tp, contre: S => S.ga / S.n };
@@ -111,6 +115,38 @@ for (const M of MESURES) {
   exiger(`${P.ico} ${P.nom} : ses quatre corrections font fondre son défaut (${cd})`, Math.abs(ecart('defaut', cd)) < Math.abs(ecart('un', cd)),
     `${f2(ecart('un', cd))} → ${f2(ecart('defaut', cd))} ${MOT[cd]}`);
   informer(`${P.ico} ${P.nom} : en victoires, sur ses soirs d'une saison`, `échelon 1 ${f2(((S.un.v - S.sans.v) / S.sans.n) * 41)} V · quatre poussées ${f2(((S.force.v - S.sans.v) / S.sans.n) * 41)} V`);
+}
+
+/* ---------- 5 : le protégé (V16) ---------- */
+{
+  const k = 'per_maitreRuban', P = PATRONS[k], M = PROTEGES[k];   // à domicile : sa finition et ses tirs, sur sa meilleure gâchette
+  const deux = protegeALEchelon(k, ['force', 'force']);
+  exiger('le protégé : au premier échelon, la carte telle quelle ; deux poussées grandissent ses canaux', presque(protegeALEchelon(k, []).finition, M.finition)
+    && presque(deux.finition, 1 + (M.finition - 1) * (1 + 2 * POUSSEE)) && presque(deux.lancers, 1 + (M.lancers - 1) * (1 + 2 * POUSSEE)), `finition ${M.finition} → ${deux.finition}`);
+  const e = etatDuPersonnel([{ jour: 0, patron: patronALEchelon(k, {}) }], 200, { joues: () => 30, copies: () => 4 })[0];
+  const d = decisionDEchelon(e, 'force');
+  exiger('la décision d\'échelon repose le protégé, ses canaux à l\'échelon', d.mutation && d.mutation.cle === k && presque(d.mutation.canaux.finition, protegeALEchelon(k, ['force']).finition));
+  const vide = () => ({ n: 0, pts: 0 });
+  const bras = { sans: null, un: [], force: ['force', 'force', 'force', 'force'] };
+  const S = Object.fromEntries(Object.keys(bras).map(x => [x, vide()]));
+  for (const [lab, s, t] of TEMOINS) {
+    const un = equipeReelle(s, t);
+    for (let i = 0; i < N; i++) {
+      let nomme = null;
+      for (const [x, choix] of Object.entries(bras)) {
+        grainerHasard(`personnel:${lab}:toi`); const toi = equipe('Toi', t, un, s);
+        grainerHasard(`personnel:${lab}:eux`); const adv = equipe('Eux', t, un, s);
+        const p = joueurDeMutation(toi, null, k);
+        nomme = getPlayerKey(p);
+        if (choix) { toi.patrons = [patronALEchelon(k, { choix })]; appliquerMutation(toi, p, k, 0, 'personnel', { canaux: protegeALEchelon(k, choix) }); }
+        const r = match(toi, adv, `personnel:${lab}:${k}:${i}`, false, nomme);
+        S[x].n++; S[x].pts += r.pts;
+      }
+    }
+  }
+  const par = x => S[x].pts / S[x].n - S.sans.pts / S.sans.n;
+  exiger(`${P.ico} ${P.nom} : quatre poussées grandissent les points de son protégé`, par('force') > par('un') && par('un') > 0,
+    `${f2(par('un'))} → ${f2(par('force'))} point par soir à domicile`);
 }
 
 verdict('le personnel qui monte');

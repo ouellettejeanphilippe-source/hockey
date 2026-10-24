@@ -7,14 +7,14 @@
  * JP : *ajouter cartes pour éditer joueur* ; et *rareté = bonus random*. V10 : les éditions d'avant (joue partout,
  * monte d'un cran, joue en bas, la chasse, le physio, l'été de travail, le coach des gardiens) sont parties avec
  * l'ancien jeu ; l'atelier garde ses retouches de carte. Vérifie :
- *   1. un accident nuit, un équipement non ;
+ *   1. un accident nuit, le protégé d'un adjoint non (V16 : l'équipement est parti) ;
  *   2. « Le lustre » pose la carte suivante, et ses badges montent avec elle ;
  *   3. MONTER UN PALIER (V2.4) : au-delà de Platine, le palier de trop monte le second badge ; l'édition monte les
  *      siens — Cadre le second, Hors-cadre et Or les deux, Holo les deux de deux, un gardien de un à trois ; le
  *      mentor (le choix d'un fil) monte ses compagnons de ligne, et eux seulement ;
  *   4. une variante tire toujours la même carte, aux cotes de js/rarete.js ;
  *   5. l'atelier offre trois retouches différentes, pures, et sort au palier ;
- *   6. une saison avec un équipement et le mentor se rejoue au but près, et la remise à zéro les efface d'une saison
+ *   6. une saison avec un protégé et le mentor se rejoue au but près, et la remise à zéro les efface d'une saison
  *      à l'autre.
  */
 import fs from 'node:fs';
@@ -58,8 +58,8 @@ const t = ligue(78);
 const toi = t[0];
 const avants = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => ({ s, p: toi.roster[s.i] })).filter(x => x.p);
 
-// 1. Un accident nuit, un équipement non.
-exiger('un accident nuit, un équipement non', mutationNuit('genou') && mutationNuit('lame') && !mutationNuit('rubanBlanc') && !mutationNuit('pinceau'), '');
+// 1. Un accident nuit, le protégé d'un adjoint non.
+exiger('un accident nuit, le protégé d\'un adjoint non', mutationNuit('genou') && mutationNuit('lame') && !mutationNuit('per_maitreRuban') && !mutationNuit('pinceau'), '');
 
 // 2. Le lustre : la carte suivante, et ses badges montent avec elle.
 const lustre = avants[0].p;
@@ -135,12 +135,12 @@ const saison = decisions => {
   return { moi, fiche: `${moi.W}-${moi.L}-${moi.OTL} ${moi.GF}-${moi.GA}` };
 };
 const cibleCle = getPlayerKey(SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => ligue(78)[0].roster[s.i]).find(Boolean));
-const decisions = [{ jour: 20, equipe: 0, mutation: { cle: 'rubanBlanc', joueur: cibleCle } },
+const decisions = [{ jour: 20, equipe: 0, mutation: { cle: 'per_maitreRuban', joueur: cibleCle } },
   { jour: 30, equipe: 0, mutation: { cle: 'mentorTrio', joueur: cibleCle } }];
 const A = saison(decisions), B = saison(decisions);
 const cible = Object.values(A.moi.roster).find(p => p && getPlayerKey(p) === cibleCle);
-const poses = p => ['rubanBlanc', 'mentorTrio'].filter(k => (p._mutCles || []).includes(k));
-exiger('la saison avec un équipement et le mentor se rejoue au but près', A.fiche === B.fiche && poses(cible).length === 2, `${A.fiche} puis ${B.fiche} · ${poses(cible).join(', ')}`);
+const poses = p => ['per_maitreRuban', 'mentorTrio'].filter(k => (p._mutCles || []).includes(k));
+exiger('la saison avec un protégé et le mentor se rejoue au but près', A.fiche === B.fiche && poses(cible).length === 2, `${A.fiche} puis ${B.fiche} · ${poses(cible).join(', ')}`);
 // Les mêmes objets rejoués sans décision : les éditions de la saison d'avant disparaissent.
 simulateLeague([A.moi, ...ligue(78).slice(1)], 82, { graine: 'atelier', decisions: [] });
 exiger('et la remise à zéro les efface', !poses(cible).length, `${cible.n} : ${poses(cible).join(', ') || 'rien'}`);

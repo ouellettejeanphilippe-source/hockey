@@ -9,17 +9,18 @@ import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { BANQUE, palierAllume, payloadDe } from './banque.js';
+import { matchsJoues } from './echelons.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
-import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, placesDuJour, ouvrirInventaireJeu, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison } from './rogue-jeu.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 import { niveauDe, ETOILE } from './niveaux.js';
@@ -215,6 +216,8 @@ async function deciderMaintenant(ds, depuis) {
     const { liste, d } = ajouterDecision(decisions, d0);
     decisions = liste;
     prises.push(d);
+    // Un coach neuf (la tête de l'entraîneur, V16) devient celui de la run, comme au départ.
+    if (d && d.coachNeuf && d.coach && G.rogue) G.rogue.coach = d.coach.cle;
   }
   await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
@@ -229,6 +232,8 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.entre) ajouterAuCartable([{ cle: d.ballottage.entre, rar: d.ballottage.rar || 'commune', num: d.ballottage.num || null }], { doublons: false });
   // S80 : celui qui laisse sa place n'est pas perdu — sa carte va au cartable (JP : *envoyer cartes au cartable quand discard*).
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
+  // V16 : un adjoint pris à un palier ou au butin rejoint ton personnel, une fois (la clé du palier le garde d'un doublon).
+  if (G.bonus === 'ROGUE' && G.ligue && d.place && BANQUE[d.place] && BANQUE[d.place].vie === 'permanent') recevoirPermanents([d.place], `${G.ligue.graine}:${d.palier}`);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
     && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour) && !(d.plan && x.plan && x.jour === d.jour)
@@ -245,10 +250,11 @@ function ajouterDecision(avant, d) {
   // S79 : ni une carte de masse salariale, ni une vente, ni un pack ouvert sans signature — le moteur ne les lit pas.
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
-  const allume = (d.joue || d.main) && !d.coach ? palierAllume(avant, d) : null;
+  // V16 : chaque décision recompte la confiance, matchs à ton service compris — ils montent seuls, entre deux engagements.
+  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) }) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
-  // V9 : ni la carte prise à un palier (`place`, elle va à une place), ni « Attendre » le physio (`attend`).
+  // V9 : ni la carte prise à un palier (`place` : V16, un adjoint, qui rejoint ton personnel), ni « Attendre » le physio (`attend`).
   // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
   const deckSeul = !d.coach && (d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
@@ -322,8 +328,8 @@ function confirmerDecision(d) {
   let mot = null;
   // Le pack d'une série gagnée (Jalon P1) : il s'ouvre, et ses joueurs vont au cartable.
   if (d.packSerie) { ouvrirPackDeSerie(d.packSerie, d.ronde); return; }
-  // V13-2 : la récompense d'une victoire va à une place.
-  if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) mot = `🎁 ${BANQUE[d.place].ico} ${BANQUE[d.place].nom} va dans tes places.`;
+  // V16 : la récompense d'une victoire est un adjoint, qui rejoint ton personnel.
+  if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) mot = `🎁 ${BANQUE[d.place].ico} ${BANQUE[d.place].nom} rejoint ton personnel.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
@@ -764,12 +770,14 @@ function ouvrirEcranSaison(depuis = 0) {
             suivant: numeroDeSaison() < MANDATS.length ? mandatDe(numeroDeSaison() + 1, (G.rogue && G.rogue.exigence) || 0).mot : null,
             bareme: (G.rogue && G.rogue.bareme) || JETONS }),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
-          jetons: j => jetonsRogue(j) } : null,
+          jetons: j => jetonsRogue(j),
+          // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête de l'entraîneur.
+          masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
-        // Tes places se jouent au Marché › Tes cartes ; le butin et la carte de trop en lisent le compte.
-        inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page), places: j => placesDuJour(j) },
+        // Le jeu de cartes du Rogue (V16 : le personnel et les cartes rares) : les paliers et le Bureau en lisent la présence.
+        inventaire: true,
         // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2).
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
         personnel: { html: j => personnelDuJour(j) },

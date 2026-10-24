@@ -2,13 +2,14 @@
  * LE FEU QUI S'ENTRETIENT — le premier combo du Rogue (V3.6). JP : *équilibré
  * ne veut pas dire impossible d'avoir des combinaisons mortelles ; je veux
  * juste éviter que ce soit facile*. Quatre pièces autour de la lancée
- * (`LANCEE`, js/sim.js) : ☄️ l'étincelle l'allume, 🪔 la braise la garde,
- * 💫 la traînée de poudre la propage dans la ligne, 🛍️ le vendeur de
- * chandails la paie. Ce qu'on exige, en paires (la même ligue Rogue sous la
+ * (`LANCEE`, js/sim.js), quatre adjoints depuis la V16 (js/personnel.js) :
+ * ☄️ l'allumeur l'allume, 🪔 le gardien de la braise la garde, 💫 le semeur
+ * de poudre la propage dans la ligne, 🛍️ le vendeur de chandails la paie.
+ * Un adjoint du feu vise une ligne ; au troisième échelon, deux. Ce qu'on exige, en paires (la même ligue Rogue sous la
  * même graine, la moitié des clubs traités, chacun lu contre le témoin) :
  *   1. chaque pièce SEULE reste sous la borne d'une rare (2,5 V) ;
  *   2. le combo vaut plus que la somme de ses pièces (il s'emboîte) ;
- *   3. le build complet (le feu sur les deux premières lignes) casse le jeu :
+ *   3. le build complet (le feu sur les deux premières lignes, au troisième échelon) casse le jeu :
  *      des soirs de lancée par dizaines, des jetons par dizaines, des victoires
  *      que les pièces seules ne donnent pas — c'est la récompense du Rogue ;
  *   4. dans le 82-0, rien : sans la courbe du Rogue, pas un but ne bouge.
@@ -16,8 +17,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, joueursDeLigne, activeLineup, getPlayerKey } from '../js/sim.js';
-import { BANQUE, PATRONS } from '../js/banque.js';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
+import { BANQUE, PATRONS, payloadDe } from '../js/banque.js';
+import { LIGNES_DU_FEU } from '../js/personnel.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -45,31 +47,23 @@ function ligue(seed, n = 32) {
 }
 
 /*
- * LES BUILDS : sur la ligne u, le meilleur marqueur (au vrai rythme) porte ses cartes `tete`, ses compagnons
- * patineurs les cartes `autres`. `lignes` : combien de lignes, à partir du haut.
+ * LES BUILDS : les adjoints du feu engagés au premier jour ; chacun pose son feu sur ses `lignes` premières lignes
+ * (le moteur choisit les joueurs : `porteeDuFeu`, js/sim.js). Le build complet : les trois au troisième échelon.
  */
+const FEU = { etincelle: 'per_allumeur', braise: 'per_gardienBraise', poudre: 'per_semeurPoudre' };
 const BUILDS = {
-  etincelle: { lignes: 1, tete: ['etincelle'], autres: [] },
-  braise: { lignes: 1, tete: ['braise'], autres: [] },
-  poudre: { lignes: 1, tete: [], autres: ['poudre'], seul: true },
-  combo: { lignes: 1, tete: ['etincelle', 'braise'], autres: ['poudre'], seul: true },
-  complet: { lignes: 2, tete: ['etincelle', 'braise'], autres: ['poudre'] },
+  etincelle: { lignes: 1, adjoints: [FEU.etincelle] },
+  braise: { lignes: 1, adjoints: [FEU.braise] },
+  poudre: { lignes: 1, adjoints: [FEU.poudre] },
+  combo: { lignes: 1, adjoints: Object.values(FEU) },
+  complet: { lignes: 2, adjoints: Object.values(FEU) },
 };
-const rythme = p => ((p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0);
 function decisionsDu(team, e, build) {
-  const B = BUILDS[build], lu = activeLineup(team), out = [];
-  for (let u = 0; u < B.lignes; u++) {
-    const js = Object.values(joueursDeLigne(lu, u)).filter(p => p && p.p !== 'G');
-    const avants = js.filter(p => p.p !== 'D').sort((a, b) => rythme(b) - rythme(a));
-    const tete = avants[0];
-    if (!tete) continue;
-    const mut = (p, cle) => out.push({ jour: 0, equipe: e, deck: 'atelier', mutation: { cle, joueur: getPlayerKey(p) } });
-    for (const cle of B.tete) mut(tete, cle);
-    // La traînée de poudre seule : sur le seul compagnon d'avant le plus près de la tête, comme une carte qu'on pose.
-    const autres = js.filter(p => p !== tete);
-    for (const p of B.seul ? autres.filter(p => p.p !== 'D').slice(0, 1) : autres) for (const cle of B.autres) mut(p, cle);
-  }
-  return out;
+  const B = BUILDS[build];
+  return B.adjoints.map(cle => {
+    const d = payloadDe(`patron:${cle}`);
+    return { jour: 0, equipe: e, ...d, mutation: { ...d.mutation, lignes: B.lignes } };
+  });
 }
 function saison(seed, par, build, courbe = true) {
   const teams = ligue(seed);
@@ -124,11 +118,14 @@ const M = {};
 for (const b of Object.keys(BUILDS)) { M[b] = mesurer(b); informer(b, lire(M[b])); }
 
 // 1. Chaque pièce seule : sous la borne d'une rare, et chacune fait ce qu'elle dit.
-for (const cle of ['etincelle', 'braise', 'poudre']) {
-  exiger(`${BANQUE[`joueur:${cle}`].ico} ${BANQUE[`joueur:${cle}`].nom} est une rare`, BANQUE[`joueur:${cle}`].rarete === 'rare', BANQUE[`joueur:${cle}`].rarete);
-  borne(`${BANQUE[`joueur:${cle}`].nom} seule : le net en victoires reste sous la borne d'une rare`, Math.abs(M[cle].v), 0, BORNE_RARE);
-  borne(`${BANQUE[`joueur:${cle}`].nom} seule : plus de soirs de lancée que le témoin`, M[cle].lancees - M[cle].lanceesTemoin, 0.5, 40);
+for (const [cle, adj] of Object.entries(FEU)) {
+  const c = BANQUE[`patron:${adj}`];
+  exiger(`${c.ico} ${c.nom} est une rare de l'Aigle`, c.rarete === 'rare' && c.coach === 'rapaces', `${c.rarete} · ${c.coach}`);
+  borne(`${c.nom} seul : le net en victoires reste sous la borne d'une rare`, Math.abs(M[cle].v), 0, BORNE_RARE);
+  borne(`${c.nom} seul : plus de soirs de lancée que le témoin`, M[cle].lancees - M[cle].lanceesTemoin, 0.5, 40);
 }
+exiger('les trois adjoints du feu tiennent trois postes différents, hors de la direction du vendeur', new Set(Object.values(FEU).map(k => PATRONS[k].role).concat('direction')).size === 4, Object.values(FEU).map(k => PATRONS[k].role).join(', '));
+exiger('le feu gagne sa deuxième ligne au troisième échelon', LIGNES_DU_FEU.poussees === 2, `${LIGNES_DU_FEU.poussees} poussées`);
 exiger('🛍️ Le vendeur de chandails est une rare de la direction', PATRONS.dir_chandails.rarete === 'rare' && PATRONS.dir_chandails.role === 'direction', `${PATRONS.dir_chandails.rarete} · ${PATRONS.dir_chandails.role}`);
 // Le vendeur seul paie les lancées du témoin : pas plus que l'autre rare de la direction, le proprio généreux (+2 🪙 par victoire, ≈ 80 🪙).
 borne('🛍️ seul, sans autre pièce : 🪙 par saison (les lancées d\'un club ordinaire)', M.combo.lanceesTemoin * PATRONS.dir_chandails.econ.jetonsLancee, 2, 80);

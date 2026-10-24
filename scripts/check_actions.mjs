@@ -209,6 +209,17 @@ const charger = async (imagesLa) => {
       exiger('saisons : un échangé, la photo à la carte de son club seulement', m.actionSrc(ie, se, ee[7]) === `img/actions/${ie}-${se}.webp` && m.actionSrc(ie, se, autreClub) !== `img/actions/${ie}-${se}.webp`, `${ie} ${se} ${ee[7]} / ${autreClub}`);
     }
   }
+  // La photo générale, de son club seulement (scripts/actions_clubs.mjs) : la carte d'un autre club garde son portrait, sans crédit ni cadre.
+  const clubs = liste.clubs || {};
+  const g = ids.find(i => clubs[i] && !(liste.saisons || {})[i]);
+  if (g) {
+    const sien = clubs[g].split(' ')[0];
+    exiger('clubs : la photo générale à la carte de son club, le portrait ailleurs',
+      m.actionSrc(g, '2000-01', sien) === `img/actions/${g}.webp` && m.actionSrc(g, '2000-01', 'XXX') === null
+        && m.cadreAction(g, '2000-01', 'XXX') === null && m.creditPhoto(g, '2000-01', 'XXX') === null && m.actionSrc(g) === `img/actions/${g}.webp`,
+      `${g} ${clubs[g]} : ${m.actionSrc(g, '2000-01', sien)} / ${m.actionSrc(g, '2000-01', 'XXX')}`);
+  }
+  exiger('clubs : chaque club est un club de nos saisons', Object.values(clubs).every(v => v.split(' ').every(t => /^[A-Z]{2,3}$/.test(t))), `${Object.keys(clubs).length} photos générales avec leur club`);
 }
 
 globalThis.fetch = vraiFetch;
