@@ -4630,6 +4630,13 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .dep3-av { text-align: center; font: 800 var(--t-2)/1 var(--display); color: var(--encre-3); }
 .dep3-table tr:has(td.av) .dep3-av { color: var(--bon); }
 .dep3-surveiller { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
+/* Ton plan (V17) : six tuiles d'À faire, deux par rangée au téléphone, trois dès 700 px ; le nom et deux stats. */
+.dep-plans { display: flex; flex-direction: column; gap: var(--esp-2); }
+.dep-plans .af-options { grid-template-columns: 1fr 1fr; }
+@media (min-width: 700px) { .dep-plans .af-options { grid-template-columns: repeat(3, 1fr); } }
+.dep-plan.choix-option { padding: var(--esp-2); gap: 2px; }
+.dep-plan .choix-option-nom { font-size: var(--t-3); }
+.dep-plan :is(.choix-option-sous, .puce) { font-size: var(--t-1); line-height: 1.25; }
 .dep3-conseils { display: flex; flex-direction: column; gap: var(--esp-2); }
 .dep3-conseil { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); border-radius: 0 var(--r-1) var(--r-1) 0; background: var(--fond-2); }
 .dep3-conseil.deja { border-left-color: var(--bon); }

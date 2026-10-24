@@ -11,7 +11,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { BUTIN_RIVAL } from '../js/sim.js';
+import { BUTIN_RIVAL, PLANS } from '../js/sim.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 import { collesAuBord, MARGE } from './lib/bords.mjs';
@@ -1039,6 +1039,28 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (cs) console.log(`10d. le dépistage : ${(cs.h / Math.max(1, cs.v)).toFixed(2).replace('.', ',')} écran · ${cs.barres} rangée(s) en barres · pronostic ${cs.chances ? 'oui' : 'non'} · « Tes lignes » ${cs.lignes ? 'oui' : 'non'}`);
   if (cs && cs.barres && cs.barres !== 3) erreurs.push(`le dépistage montre ${cs.barres} rangées en barres, pas trois`);
   if (cs && (!cs.chances || !cs.lignes)) erreurs.push('Effectif › Dépistage ne montre pas le pronostic du match ou « Tes lignes »');
+  // TON PLAN (V17) : six tuiles sous les chances, celle en force à l'or, 🥷 nomme les deux joueurs ; en toucher une écrit la décision.
+  {
+    const pl = await page.$$eval('#hubModal .dep-plans .dep-plan[data-plan]', bs => bs.map(b => ({ cle: b.dataset.plan, on: b.classList.contains('on'), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce').length }))).catch(() => []);
+    const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
+    const autre = pl.find(x => !x.on && x.cle !== 'match');
+    let ecrit = null;
+    if (autre) {
+      const n0 = (await decisionsDuCombat()).length;
+      await page.click(`#hubModal .dep-plan[data-plan="${autre.cle}"]`).catch(() => {});
+      await page.waitForTimeout(600); await attendreDecisions(n0);
+      ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
+    }
+    await auBureau();
+    const ligne = await page.$eval('#hubModal .bu-prochain small', e => e.textContent).catch(() => '');
+    console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
+    if (pl.length !== 6) erreurs.push(`le dépistage montre ${pl.length} plans, pas six`);
+    if (on.length !== 1) erreurs.push(`le dépistage marque ${on.length} plans en force, pas un`);
+    if (ombre && !/ suit /.test(ombre.sous)) erreurs.push('le plan 🥷 ne nomme pas leur vedette et ton joueur qui la suit');
+    if (pl.filter(x => x.cle !== 'match' && !x.stats).length) erreurs.push('un plan ne dit pas ses stats de match');
+    if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
+    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`la ligne du match, au Bureau, ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+  }
   // TES PLACES, AU MARCHÉ › TES CARTES : l'onglet « Tes places » de l'inventaire.
   await versMarche('cartes');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }).catch(() => {});

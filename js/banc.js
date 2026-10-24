@@ -230,7 +230,7 @@ function ajouterDecision(avant, d) {
   if (d.ballottage && d.ballottage.sort) carteAuCartable(d.ballottage.sort);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
+    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour) && !(d.plan && x.plan && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.

@@ -5857,8 +5857,9 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
  * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700, plan = null } = {}) {
   return avecAVenir(team, aVenir, () => {
+    let retirerPlan = null;
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
     const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
     const lignesAvant = team.lignes, lignesMatch = team._lignesMatch, avaitL = 'lignes' in team, avaitM = '_lignesMatch' in team;
@@ -5876,6 +5877,14 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
       if (nu) { team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
+      // `plan` (V17) : un plan de match posé le temps de la lecture, comme `playGame` le pose (« Ton match » : aucun).
+      const fxPlan = plan ? effetsDuPlan(planLu(typeof plan === 'string' ? { cle: plan } : plan), { Ltoi: lu, Ladv: adv ? activeLineup(adv) : null }) : null;
+      if (fxPlan) {
+        if (fxPlan.toi.length) team._effetMatch = [...(team._effetMatch || []), ...fxPlan.toi];
+        if (adv && fxPlan.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fxPlan.adv];
+        else if (!adv) effetsAdv = [...effetsAdv, ...fxPlan.adv];
+        retirerPlan = poserFxDeJoueurs(fxPlan.joueurs);
+      }
       // `neutre` : { badges, chimie, jambes, systemes } remis au neutre pour TON club (ses habillés), toute la lecture durant.
       if (neutre) { NEUTRE = { ...neutre, team, joueurs: new Set(Object.values(lu).filter(Boolean)) }; MEMO_MATCH++; }
       const A = profilMatch(team, lu, adv);
@@ -5926,7 +5935,8 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       return { A, B, occasions, p, joueurs, unites, speciales, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
-      if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
+      if (adv) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
+      if (retirerPlan) retirerPlan();
       if (lignes) {
         if (avaitL) team.lignes = lignesAvant; else delete team.lignes;
         if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;
@@ -8979,20 +8989,21 @@ export const INTENTIONS = {
  * tirer plus, suivre un joueur de près, qqchose qui change vraiment le match, mais sans briser les équipes*. Les
  * mêmes leviers que les intentions, posés par TON club, sur ses canaux qui existent : `toi` sur ton club, `adv` sur
  * le leur, `vedette` sur leur meilleur marqueur (`ptsDe`) et `colle` sur ton attaquant qui le suit (le plus fort en
- * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_plans`).
+ * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_plan_de_match`).
+ * `mot` : le plan en un mot, sur la ligne du match au Bureau (js/saison.js).
  * La décision `plan` dure jusqu'à la suivante ; au duel, une période peut le changer pour elle (`jouerDuel`).
  */
 export const PLANS = {
-  match: { ico: '🏒', nom: 'Ton match', bon: 'Ton alignement tel quel', prix: '' },
-  tirer: { ico: '🌧', nom: 'Tirer de partout', bon: 'Plus de tirs', prix: 'Moins de précision, des jambes qui s\'usent',
+  match: { ico: '🏒', nom: 'Ton match', mot: 'Ton match', bon: 'Ton alignement tel quel', prix: '' },
+  tirer: { ico: '🌧', nom: 'Tirer de partout', mot: 'Tirer', bon: 'Plus de tirs', prix: 'Moins de précision, des jambes qui s\'usent',
     toi: { volume: 1.15, finition: 0.965, energie: 1.1 } },
-  ombre: { ico: '🥷', nom: 'Coller leur vedette', bon: 'Leur meilleur marqueur tire moins et rate plus', prix: 'Ton attaquant qui le suit crée moins',
+  ombre: { ico: '🥷', nom: 'Coller leur vedette', mot: 'Coller', bon: 'Leur meilleur marqueur tire moins et rate plus', prix: 'Ton attaquant qui le suit crée moins',
     vedette: { lancers: 0.5, finition: 0.75, creation: 0.75 }, colle: { lancers: 0.65, creation: 0.6 }, toi: { volume: 0.93 } },
-  centre: { ico: '⛔', nom: 'Fermer le centre', bon: 'Moins de tirs contre, et de moins bonne qualité', prix: 'Moins de tirs pour toi',
+  centre: { ico: '⛔', nom: 'Fermer le centre', mot: 'Fermer', bon: 'Moins de tirs contre, et de moins bonne qualité', prix: 'Moins de tirs pour toi',
     toi: { volume: 0.88 }, adv: { volume: 0.92, finition: 0.98 } },
-  assaut: { ico: '🐗', nom: 'Forechecker fort', bon: 'Plus de tirs, de la pression', prix: 'Plus de punitions et d\'usure',
+  assaut: { ico: '🐗', nom: 'Forechecker fort', mot: 'Forechecker', bon: 'Plus de tirs, de la pression', prix: 'Plus de punitions et d\'usure',
     toi: { volume: 1.12, finition: 1.02, discipline: 1.25, energie: 1.12 } },
-  discipline: { ico: '🧘', nom: 'Rester discipliné', bon: 'Moins de punitions', prix: 'Moins de mises en échec, un peu moins de tirs',
+  discipline: { ico: '🧘', nom: 'Rester discipliné', mot: 'Discipline', bon: 'Moins de punitions', prix: 'Moins de mises en échec, un peu moins de tirs',
     toi: { discipline: 0.7, robustesse: -0.4, volume: 0.97 } },
 };
 /* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
@@ -9000,7 +9011,7 @@ const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise
 /* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
 const planDe = team => (team && team.plan && PLANS[team.plan.cle] ? team.plan : null);
 /* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
-function cibleDuPlan(Ltoi, Ladv, vise = null) {
+export function cibleDuPlan(Ltoi, Ladv, vise = null) {
   const leurs = habillesDuGroupe(Ladv || {}, 'F').map(x => x.p);
   const vedette = (vise && leurs.find(p => getPlayerKey(p) === vise)) || leurs.sort((a, b) => ptsDe(b) - ptsDe(a))[0] || null;
   const colle = habillesDuGroupe(Ltoi || {}, 'F').map(x => x.p).sort((a, b) => ((famillesDe(b) || {}).defense || 0) - ((famillesDe(a) || {}).defense || 0))[0] || null;

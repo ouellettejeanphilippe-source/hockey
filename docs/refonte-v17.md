@@ -29,7 +29,10 @@ Mesuré (`check_plan_de_match`, NYI 92-93 contre six vrais adversaires, 4000 mat
 
 ## 3. Où ça se joue
 
-- **Avant le match** : Effectif › Dépistage, sous tes chances, « Ton plan » en tuiles à coins vifs ; toucher l'envoie. Le plan reste celui de la veille tant que tu n'y touches pas. Une décision `match` du jour, qui porte `plan` (et `vise`, le joueur collé).
+- **Avant le match** (tranche 2, faite) : Effectif › Dépistage, sous tes chances et avant les conseils, « Ton plan » en six tuiles à coins vifs (`planHtml`, js/saison.js ; la forme des options d'À faire, `optionHtml`), deux par rangée au téléphone. Chacune dit deux vraies stats de CE match (`planEnChiffres`, js/impact.js : le moteur lit le soir avec le plan contre « Ton match », les mêmes dés, `lectureDuMatch({ plan })`) ; 🥷 nomme les deux joueurs (« Hogue suit Gretzky », `cibleDuPlan`). Le plan en force porte l'or ; toucher un autre envoie la décision `{ jour, plan: { cle, vise } }` datée du soir du match, et la saison se rejoue. Il tient jusqu'à la suivante ; une autre du même soir le remplace (`ajouterDecision`, js/banc.js). Au Bureau, la ligne du match le dit en un mot (`PLANS[k].mot`).
+  - **Ce qui part** : le conseil « 🎯 Consigne : attaque / 🛡 défense » du dépistage (js/pronostic.js) — il disait ce que ⛔ et 🌧 disent mieux, avec leurs chiffres. La consigne reste réglable aux Lignes.
+  - **Le robot** (scripts/lib/rogue_sim.mjs, `planDuRobot`) : l'attentif lit le moteur à la première rencontre de chaque club (`planEnChiffres`, chaque plan contre « Ton match ») et garde contre lui celui qui rend le plus de buts nets, « Ton match » si aucun ne rend ; le distrait en tire un au hasard chaque soir ; le robot d'avant n'en pose aucun : la pente de check_rogue et check_robot reste celle d'un gérant grossier.
+  - **Les règles** : un paragraphe, chaque chiffre lu dans `PLANS` (`check_clarte`).
 - **Pendant** : un match regardé en direct s'arrête aux deux entractes, le temps de dire « Garder » ou de changer de plan pour la période qui vient. Les périodes vues ne bougent pas : c'est la mécanique des périodes du duel, étendue à tout match regardé.
 - **Le gros match** : ses trois périodes restent, et l'enjeu aussi (le butin, ou sonnés). Avant chacune, leur plan s'annonce et tu choisis le tien. Plus de tableau, plus de portes, plus de « contrée ».
 
@@ -42,6 +45,6 @@ Le tableau du duel (`lireLeTableau` pour le joueur, l'écran de huit menus, les 
 | Tranche | Ce qu'elle fait | Ce qui la prouve |
 |---|---|---|
 | 1. Les plans | `PLANS` dans le moteur, la décision `plan` d'un match et d'une période | `check_plan_de_match` (en paires : la borne, se voit, aucun ne domine), `check_graine` |
-| 2. Avant le match | « Ton plan » sous Effectif › Dépistage ; le robot choisit le sien | `essai_rogue`, `check_rogue` |
+| 2. Avant le match ✓ | « Ton plan » sous Effectif › Dépistage ; le robot choisit le sien | `essai_rogue` (10d : six tuiles, une en force, 🥷 nomme, la décision écrite, le Bureau la dit), `check_rogue` |
 | 3. Pendant | le direct s'arrête aux entractes ; le duel au plan, le tableau part | `check_duel` récrit, `check_gros`, `essai_rogue` |
 | 4. Les règles | CLAUDE.md, docs/decisions.md, le journal | `check_mort`, `tout.mjs` |

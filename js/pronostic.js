@@ -29,10 +29,10 @@
 import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF,
   poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR,
   TACTIQUES, SYSTEMES_D, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD,
-  effetDeMoment, identiteUnite, joueursDeLigne, profilsDe,
+  identiteUnite, joueursDeLigne, profilsDe,
   SEC_MIN, SPEC_BASE, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET } from './sim.js';
 import { virgule } from './util.js';
-import { clubLu, systemeEnChiffres, motsEnChiffres } from './impact.js';
+import { clubLu, systemeEnChiffres } from './impact.js';
 
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
@@ -265,10 +265,11 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
  *                de tes trios : il passe au meilleur système qu'ils n'étouffent pas ;
  *   fit          l'unité la plus loin de son meilleur système y passe ;
  *   fermeture    ton trio le plus défensif (ses rôles) prend leur 1er trio ;
- *   glace        un des deux premiers trios est usé : moins de glace ;
- *   consigne     attaque ou défense, selon les forces comparées.
+ *   glace        un des deux premiers trios est usé : moins de glace.
+ * La consigne d'attaque ou de défense est partie (V17) : le plan de match la
+ * remplace, sous les chances (js/saison.js, « Ton plan »).
  * Chaque conseil porte la décision que l'écran applique d'un toucher
- * (`lignes`, `fermeture` ou `match`) — une décision comme une autre, qui
+ * (`lignes` ou `fermeture`) — une décision comme une autre, qui
  * se rejoue — et ses chiffres sont ceux du moteur : ce que le système fait à
  * CE fit (les deux versions des lignes jouées par le moteur, en chiffres de match : js/impact.js), la chance d'action spéciale (`SPEC_BASE` × chimie)
  * et ce qu'elle vaut (`SPEC_MULT`), l'énergie du matin.
@@ -280,15 +281,13 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
  *
  * Entrées : `lineup` (tes cases), `lignes` (tes lignes de la saison),
  * `fermeture` ('auto', null ou un rang), `energie` (clé → %), `adv`
- * ({ lignes, chimie, lineup }), `forces` ({ moi: { attaque, defense },
- * lui: { attaque, gardien } }, chacun { rang, sur } ou null) et `consigne`
- * (celle déjà prise pour ce match, ou null).
+ * ({ lignes, chimie, lineup }).
  */
 const RANG_TRIO = ['1er trio', '2e trio', '3e trio', '4e trio'];
 const RANG_PAIRE = ['1re paire', '2e paire', '3e paire'];
 const nomSysteme = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${S.nom}` : ''; };
 const motFit = f => (f >= 70 ? 'sur mesure' : f >= 55 ? 'bon fit' : f >= 40 ? 'fit moyen' : 'mauvais fit');
-export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null, forces = null, consigne = null }) {
+export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null }) {
   const out = [];
   const avec = (u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : { ...l }));
   const fitDe = (g, u, k) => (k && k !== 'hourra' && (g === 'D' ? SYSTEMES_D : TACTIQUES)[k] ? (fitUnite(lineup, g, u, k) ?? 0) : 0);
@@ -387,20 +386,6 @@ export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = 
       pourquoi: `Il traîne la patte : ${Math.round(moy)} de jambes (sur 100) ce matin. Sous ${ENERGIE_REF}, un joueur rend ${String(ENERGIE_EFFET).replace('.', ',')} % de moins par point ; moins de glace ce soir, c'est plus de jambes au prochain.`,
       chiffres: [{ txt: `Jambes ${Math.round(moy)}`, bon: false }] });
     break;
-  }
-  // LA CONSIGNE, selon les forces comparées (rangs de la ligue).
-  const tiers = r => (r && r.sur > 1 ? (r.rang - 1) / (r.sur - 1) : null);
-  if (consigne == null && forces) {
-    const gL = tiers(forces.lui && forces.lui.gardien), aM = tiers(forces.moi && forces.moi.attaque);
-    const aL = tiers(forces.lui && forces.lui.attaque), dM = tiers(forces.moi && forces.moi.defense);
-    const ad = gL != null && aM != null && gL >= 2 / 3 && aM <= 0.5 ? 1 : aL != null && dM != null && aL <= 1 / 3 && dM >= 0.5 ? -1 : 0;
-    if (ad) {
-      const match = { importance: 'normale', ad };
-      out.push({ genre: 'consigne', match, titre: ad > 0 ? '🎯 Consigne : attaque' : '🛡 Consigne : défense',
-        pourquoi: ad > 0 ? `Leur gardien de ce soir est ${forces.lui.gardien.rang}e de la ligue, ton attaque ${forces.moi.attaque.rang}${forces.moi.attaque.rang === 1 ? 're' : 'e'} : fais-le travailler.`
-          : `Leur attaque est ${forces.lui.attaque.rang}${forces.lui.attaque.rang === 1 ? 're' : 'e'} de la ligue, ta défense ${forces.moi.defense.rang}e : ferme le jeu.`,
-        chiffres: motsEnChiffres(effetDeMoment({ jour: 0, match })).filter(m => m.cle !== 'rien') });
-    }
   }
   return out;
 }

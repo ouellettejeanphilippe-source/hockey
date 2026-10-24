@@ -33,9 +33,9 @@ import { SLOTS, styleOuvert, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, 
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, lireLeTableau } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, lireLeTableau, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, lignesEnChiffres } from './impact.js';
+import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, lignesEnChiffres, planEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
@@ -1743,26 +1743,55 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const surveiller = b ? `<div class="dep3-surveiller">👀 Chez eux : <b>${ctx.esc(b.p.n)}</b>${ctx.quiEst ? ` · ${ctx.esc(ctx.quiEst(b.p, { stats: false }))}` : ''} — ${b.c.g} but${b.c.g > 1 ? 's' : ''} en ${gpDe(adv)} matchs.</div>` : '';
     // CE QUE TU PEUX FAIRE CE SOIR.
     const snap = t => (t.jourLignes && t.jourLignes[Math.max(0, Math.min(jour, t.jourLignes.length - 1))]) || {};
-    const matchPris = decs.find(d => d.match && d.jour === p.j);
     const conseils = conseilsDuMatch({
       lineup: you.roster, lignes: lignesDe(you, you.roster, { duSoir: false }), fermeture: you.fermeture, energie: snap(you).energie || {},
       adv: { lignes: lignesDe(adv, activeLineup(adv), { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
-      forces: { moi: { attaque: axes[0].a, defense: axes[1].a }, lui: { attaque: axes[0].b, gardien: axes[2].b } },
-      consigne: matchPris ? matchPris.match.ad : null,
     });
     conseilsVus.set(p.j, conseils);
-    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${conseils.length ? conseils.map((c, i) => `<div class="dep3-conseil${c.genre === 'deja' ? ' deja' : ''}">
+    const conseilHtml = (c, i) => `<div class="dep3-conseil${c.genre === 'deja' ? ' deja' : ''}">
         <div class="dep3-conseil-t">${c.genre === 'deja' ? '✓ ' : ''}<b>${ctx.esc(c.titre)}</b></div>
         <div class="dep3-conseil-p">${ctx.esc(c.pourquoi)}</div>
         ${c.chiffres.length || (onDecision && c.genre !== 'deja') ? `<div class="dep3-conseil-pied">${c.chiffres.length ? `<span class="choix-puces">${puces(c.chiffres)}</span>` : ''}${onDecision && c.genre !== 'deja' ? `<button type="button" class="btn dep3-appliquer" data-conseil="${i}" data-j="${p.j}">Appliquer</button>` : ''}</div>` : ''}
-      </div>`).join('') : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
-    return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml };
+      </div>`;
+    // V17 : sous Ton plan, le conseil qui compte le plus ; les autres, et ce qui est déjà fait, attendent au détail.
+    const rangs = conseils.map((c, i) => [c, i]), tete = rangs.find(([c]) => c.genre !== 'deja');
+    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${tete ? conseilHtml(...tete) : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
+    const autres = rangs.filter(x => x !== tete);
+    const conseilsPlus = autres.length ? `<div class="dep3-conseils">${autres.map(x => conseilHtml(...x)).join('')}</div>` : '';
+    return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml, conseilsPlus, plan: planHtml(p, adv) };
   }
+  /*
+   * TON PLAN (V17, docs/refonte-v17.md § 3). JP : *des choix avant le match, plus stratégiques, genre tirer plus, suivre
+   * un joueur de près*. Six tuiles à coins vifs, chacune en vraies stats de CE match (`planEnChiffres` : le moteur, le
+   * plan contre « Ton match », les mêmes dés) ; 🥷 nomme leur vedette et ton joueur qui la suit. Le plan en force porte
+   * l'or ; toucher un autre l'envoie, une décision du soir du match, qui tient jusqu'à la suivante.
+   */
+  const planEnForce = j => {
+    const d = decs.filter(x => x.plan && x.jour <= j).sort((a, b) => a.jour - b.jour).pop();
+    return d && PLANS[d.plan.cle] ? d.plan.cle : 'match';
+  };
+  function planHtml(p, adv) {
+    const enForce = planEnForce(p.j);
+    const { vedette, colle } = cibleDuPlan(activeLineup(you), activeLineup(adv));
+    const tuiles = Object.entries(PLANS).map(([k, P]) => {
+      const mots = k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2);
+      const sous = k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '';
+      const vise = P.vedette && vedette ? ` data-vise="${ctx.esc(getPlayerKey(vedette))}"` : '';
+      return optionHtml({ cle: k, ico: P.ico, nom: P.nom, sous }, {}, { mots, classe: 'af-option dep-plan', attr: `data-plan="${k}" data-j="${p.j}"${vise}`, on: k === enForce });
+    });
+    return `<div class="dep-plans"><div class="gl-k">Ton plan</div><div class="af-options">${tuiles.join('')}</div></div>`;
+  }
+  /* Une tuile touchée : le plan devient une décision du soir du match, et la saison se rejoue d'ici. */
+  const appliquerPlan = b => {
+    if (b.classList.contains('on')) return;
+    const j = Number(b.dataset.j), cle = b.dataset.plan;
+    const ici = jour; quitter(); onDecision({ jour: j, plan: { cle, ...(b.dataset.vise ? { vise: b.dataset.vise } : {}) } }, ici);
+  };
   /* « Appliquer » : le conseil devient une décision de la journée du match, et la saison se rejoue d'ici. */
   const appliquerConseil = b => {
     const j = Number(b.dataset.j), c = (conseilsVus.get(j) || [])[Number(b.dataset.conseil)];
     if (!c) return;
-    const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : c.match ? { jour: j, match: c.match } : null;
+    const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : null;
     if (!d) return;
     const ici = jour; quitter(); onDecision(d, ici);
   };
@@ -2838,11 +2867,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
     if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
-  // Effectif › Dépistage : un conseil s'applique, « Tes lignes » mène derrière le banc.
+  // Effectif › Dépistage : un plan part, un conseil s'applique, « Tes lignes » mène derrière le banc.
   const dansLeDepistage = e => {
     if (!actif()) return;
-    const c = e.target.closest('.dep3-appliquer');
+    const c = e.target.closest('.dep3-appliquer'), t = e.target.closest('.dep-plan[data-plan]');
     if (c && volet.contains(c)) appliquerConseil(c);
+    else if (t && volet.contains(t) && onDecision) appliquerPlan(t);
     else if (e.target.closest('.hub-vers-lignes') && onBanc) { quitter(); onBanc(jour); }
   };
   if (soirEnVolet) volet.addEventListener('click', dansLeDepistage);
@@ -2986,7 +3016,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const G0 = mb && MINI_BOSS[mb.raison];
     return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" data-ouvre-depistage>
       <span class="bu-prochain-logo" aria-hidden="true">${ctx.logo(adv.tag, 28)}</span>
-      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'}</small>
+      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'} · ${PLANS[planEnForce(p.j)].ico} ${PLANS[planEnForce(p.j)].mot}</small>
         <b>${ctx.esc(ctx.teamShort(adv))}</b>${G0 ? `<small class="bu-prochain-gros">${G0.ico} Gros match · ${ctx.esc(G0.nom)}</small>` : ''}</span>
       <span class="bu-prochain-aller">Préparer ›</span>
     </button>`;
@@ -3117,8 +3147,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Sous Effectif, il tient en un écran : tes chances et ce que tu peux faire, le reste se déplie.
       const corpsDuDepistage = () => {
         const d = depistageMatchHtml(p);
-        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}${d.conseils}</div></div>`;
-        return `<div class="hub-dep-corps">${d.chances}${d.conseils}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}${d.conseils}${d.conseilsPlus}</div></div>`;
+        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}${d.conseils}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${d.conseilsPlus}${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
       };
       const ouvrirDepistage = () => {
         const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
