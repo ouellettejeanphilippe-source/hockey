@@ -11,7 +11,8 @@ import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
-import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
+import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction } from './cartes.js';
+import { creditPhoto } from './actions.js';
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
@@ -689,6 +690,12 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
    * le nombre de cartes. Rien que le recto dise déjà en toutes lettres.
    */
   const anneeSerie = String(p.s || '').slice(0, 4);
+  /*
+   * LE CRÉDIT DE LA PHOTO (oct. 2026, JP : *un mini lien qui crédite l'auteur dans l'app*). Une photo libre (Commons,
+   * Flickr) se crédite comme sa licence le demande : l'auteur, la licence, un lien vers l'œuvre — au dos, où une vraie
+   * carte imprime le sien. Une photo de la LNH n'en porte pas.
+   */
+  const credit = photoAction(p) && creditPhoto(p.id);
   return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} fc-cachee" aria-hidden="true">
     ${finiHtml(rarete)}
     <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span><span class="cjv-logo">${getTeamLogoHtml(p.t, 22)}</span></div>
@@ -696,6 +703,7 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
+    ${credit ? `<a class="cjv-credit" href="${esc(credit.url)}" target="_blank" rel="noopener">Photo : ${esc(credit.auteur)} · ${esc(credit.licence)}</a>` : ''}
     <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span>${tirage ? `<span class="cjv-tirage" title="Tirage limité">Tirage ${tirage}</span>` : ''}</div>
   </div>`;
 }
