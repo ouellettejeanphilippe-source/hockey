@@ -4,9 +4,10 @@
  * JP : *créer une vraie banque de cartes […] digne d'un vrai deck builder* ; puis (V10) *jeter toutes les cartes et
  * créer de zéro avec la nouvelle philosophie en tête*.
  *
- * UN SEUL REGISTRE pour tout ce qui se joue, en trois piles : les PLACES (les consommables, js/places.js),
- * l'ÉQUIPEMENT (les changements de carte d'un joueur, MUTATIONS, js/equipement.js) et le PERSONNEL (les patrons,
- * js/personnel.js), plus les contrats du plafond. Les cartes de match sont parties avec la main du duel (V13-2,
+ * UN SEUL REGISTRE pour tout ce qui se joue. Depuis la V16 (docs/refonte-v16.md), le PERSONNEL (les patrons,
+ * js/personnel.js) est la seule carte bonus ; restent à côté dix cartes rares qui montent (tranche 6, § 4d) : les
+ * retouches d'édition de l'atelier, le stage du coach, la formation d'un adjoint, trois soins et l'échange d'un doublon.
+ * La masse salariale et le congédiement sont des dossiers du proprio (js/dossiers.js). Les cartes de match sont parties avec la main du duel (V13-2,
  * docs/refonte-v13.md). Presque chaque carte attend son MOMENT (`si`, `MOMENTS_SI`, js/sim.js). Chaque carte a un identifiant
  * (\`cat:cle\`), une catégorie, une rareté, une durée de vie, et sa RÈGLE en chiffres de match (\`reglesDe\`) :
  * « ≈ +0,2 but marqué par match », « ≈ −2 blessures par saison », jamais un pourcentage, jamais « un peu ».
@@ -21,23 +22,20 @@
  * un point de robustesse ≈ 0,5. Chaque carte se mesure en paires, sur les soirs de son moment (`check_places`,
  * `check_cartes`).
  */
-import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI } from './sim.js';
-import { PLACES_NEUVES } from './places.js';
-import { PERSONNEL, CONTRATS_MAUDITS } from './personnel.js';
+import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI, LANCEE } from './sim.js';
+import { PERSONNEL, PROTEGES, LIGNES_DU_FEU } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
-import { formeDe, motsSurLeJoueur } from './gerant.js';
-import { money, hache } from './util.js';
+import { formeDe } from './gerant.js';
+import { hache } from './util.js';
 import { NIVEAUX } from './niveaux.js';
-import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS } from './coachs.js';
 
 export const CATEGORIES = {
   patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
   joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, une clause, une amélioration ou une retouche de l\'atelier : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
   consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Une utilisation : un soin, des jambes, le filet, les minutes, des jetons, ou un trou dans le règlement.' },
-  plafond: { ico: '💵', nom: 'Masse salariale', un: 'Contrat', mot: 'Le plafond salarial se manipule, comme dans la vraie LNH : de l\'espace, une retenue, un blessé à long terme, un rachat.' },
 };
-export const ORDRE_CATEGORIES = ['patron', 'joueur', 'consommable', 'plafond'];
+export const ORDRE_CATEGORIES = ['patron', 'joueur', 'consommable'];
 
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
 
@@ -76,37 +74,6 @@ export const PATRONS = {
   ...PERSONNEL,
 };
 
-/* ---------- LA MASSE SALARIALE : le plafond se manipule (S79) ---------- */
-/*
- * JP : *garder aspect masse salariale même en roguelike, mais avec cartes qui
- * peuvent le manipuler*. Les vrais mécanismes de la convention collective,
- * chacun une décision (`plafond`) : de l'espace de plus cette saison, une
- * RETENUE salariale (son ancien club en paie une part), un joueur blessé à
- * long terme (LTIR : son salaire sort du plafond tant qu'il est à
- * l'infirmerie), un RACHAT de contrat (un rabais, contre des
- * jetons), le contrat d'entrée d'une recrue, une clause de bonis. Et une
- * malédiction : la taxe de luxe. `cible` : un joueur, un blessé, une recrue.
- */
-export const CONTRATS = {
-  espace: { nom: 'Espace sous le plafond', ico: '💵', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 2_000_000, texte: 'Une clause d\'indexation négociée en ta faveur.' },
-  grosEspace: { nom: 'La marge de manœuvre', ico: '💰', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 5_000_000, texte: 'Le proprio signe un chèque pour l\'espace sous le plafond.' },
-  retenue: { nom: 'Retenue salariale', ico: '✂', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.65, texte: 'Son ancien club paie une part de son salaire.' },
-  ltir: { nom: 'Blessé à long terme', ico: '🏥', rarete: 'peu', vie: 'usage', cible: 'blesse', ltir: true, texte: 'Son salaire sort du plafond tant qu\'il est à l\'infirmerie.' },
-  rachat: { nom: 'Rachat de contrat', ico: '🧾', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.833, cout: 10, texte: 'Le reste de son contrat étalé : moins cette saison, 10 jetons de frais.' },
-  entree: { nom: 'Le contrat d\'entrée', ico: '🐣', rarete: 'commune', vie: 'usage', cible: 'recrue', facteur: 0.72, texte: 'Une recrue sous contrat d\'entrée compte pour moins.' },
-  bonis: { nom: 'La clause de bonis', ico: '🎯', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.895, texte: 'Une part de son salaire devient des bonis de performance, hors du plafond.' },
-  enterre: { nom: 'Le contrat enterré', ico: '🗃', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.86, texte: 'Une part de son salaire est réputée au club-école. Il compte pour moins, et il joue encore.' },
-  // v2 : cinq de plus.
-  aRabais: { nom: 'Le contrat à rabais', ico: '🏷', rarete: 'commune', vie: 'usage', cible: 'joueur', facteur: 0.93, texte: 'Il signe sous sa valeur pour courir après une bague.' },
-  clubEcole: { nom: 'Le passage au club-école', ico: '🚍', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.825, cout: 5, texte: 'Trois jours dans la ligue américaine, le temps que la paperasse passe. 5 jetons de frais.' },
-  anticipee: { nom: 'La prolongation anticipée', ico: '✍', rarete: 'peu', vie: 'usage', cible: 'joueur', facteur: 0.895, texte: 'Signé un an d\'avance, à l\'ancien prix.' },
-  hausse: { nom: 'La hausse du plafond', ico: '🆙', rarete: 'rare', vie: 'permanent', cible: 'aucune', espace: 3_000_000, texte: 'Les revenus de la ligue montent : le plafond aussi.' },
-  signature: { nom: 'Le bonus de signature', ico: '🖊', rarete: 'commune', vie: 'usage', cible: 'aucune', espace: 1_500_000, texte: 'Payé d\'avance, cet été : il ne compte plus cette saison.' },
-  ...CONTRATS_VIE,
-  // Les contrats lourds (V10, tranche 4) : l'argent tout de suite, un prix certains soirs.
-  ...CONTRATS_MAUDITS,
-  taxe: { nom: 'La taxe de luxe', ico: '💸', rarete: 'maudite', vie: 'saison', cible: 'aucune', espace: -3_000_000, texte: 'La ligue sévit : ton plafond fond de 3\u00a0M$ cette saison.' },
-};
 /*
  * LE PLAFOND EFFECTIF À UNE JOURNÉE, pur : la base, l'espace gagné, la taxe,
  * le pourcentage du DG, et le « cap hit » de chaque joueur (sa retenue, son
@@ -127,10 +94,6 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
       if (p.espace) { cap += p.espace; lignes.push({ nom: p.nom || 'Espace', montant: p.espace }); }
       if (p.joueur && p.facteur) facteurs.set(p.joueur, (facteurs.get(p.joueur) || 1) * p.facteur);
       if (p.joueur && p.ltir) ltir.add(p.joueur);
-    }
-    for (const id of (d.achat && d.achat.maudites) || []) {
-      const C = CONTRATS[String(id).split(':')[1]];
-      if (C && C.espace) { cap += C.espace; lignes.push({ nom: C.nom, montant: C.espace }); }
     }
   }
   // Le pourcentage du DG, et celui de la banque au palier III (v2) : chacun sa ligne, nommée.
@@ -154,47 +117,22 @@ export const CONSOMMABLES = {
   glace: { nom: 'Glace et compression', ico: '🧊', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 2 }, texte: 'Vingt minutes, trois fois par jour.' },
   physio: { nom: 'La séance de physio', ico: '💆', rarete: 'peu', vie: 'usage', cible: 'blesse', gestes: { soin: 5 }, texte: 'Des ultrasons et de la patience.' },
   chirurgie: { nom: 'La chirurgie éclair', ico: '🏥', rarete: 'rare', vie: 'permanent', cible: 'blesse', gestes: { soin: 12 }, effet: { blessure: 1.56 }, duree: 5, texte: 'Le meilleur chirurgien a une plage libre. Le retour presse, et les corps le paient.' },
-  // ---- v2 : treize de plus ----
-  ruban: { nom: 'Le ruban magique', ico: '🎗', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 3 }, effet: { blessure: 1.35 }, duree: 3, texte: 'Trois rouleaux autour de la cheville, et il retourne au jeu.' },
-  aiguilles: { nom: 'L\'acupuncteur', ico: '🪡', rarete: 'peu', vie: 'usage', cible: 'blesse', gestes: { soin: 4 }, texte: 'Quarante aiguilles, et le dos se replace.' },
+  // L'échange d'un doublon (P3) : ton doublon le plus fourni part ; trois joueurs de son époque, hors de ton cartable (`echange`).
+  echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', rarete: 'peu', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, echange: true, texte: 'Un doublon de trop, contre un joueur de son époque.' },
   /*
-   * v2 — LES CARTES DE VESTIAIRE : une par coach (le Comptable n'a pas de
-   * joueurs), qui grandit avec les JOUEURS de sa couleur habillés quand on la
-   * joue (`parJoueur`, js/coachs.js `coachDesRoles`) : cinq snipers font de
-   * « La clé du coin supérieur » une vraie semaine. Des cartes de joueurs qui
-   * font vivre des cartes de banque.
+   * V16 (tranche 6, docs/refonte-v16.md § 4d) : les cartes qui montent, rares. Le stage monte la confiance du coach en
+   * poste d'un cran (les points qui lui manquent, sa base : `coachsDeBase`) ; la formation ouvre un échelon de plus à un
+   * adjoint de ta collection (une copie, comme un doublon : `recevoirPermanents`, js/rogue.js).
    */
-  ...CONSOMMABLES_VIE,
-  // Les places neuves (V10, tranche 3 — js/places.js) : chacune attend un moment de la semaine.
-  ...PLACES_NEUVES,
-  // V5 : comme dans la LNH, on change de coach en cours de saison en congédiant l'entraîneur — le nouveau arrive avec
-  // sa philosophie, à la confiance I, et l'ancienne part avec son bonus. Le seul chemin vers un autre coach en saison.
-  congediement: { nom: 'Le congédiement', ico: '📋', rarete: 'peu', vie: 'usage', cible: 'coach', texte: 'L\'entraîneur vide son bureau au matin. Le nouveau arrive avec son cahier de jeux, et tout est à rebâtir.' },
-  /*
-   * LE RAPPEL DU CLUB-ÉCOLE (Jalon P3). JP : *ajouter des cartes qui permettent de piger dans tes cartes pour signer* ;
-   * *les cartes sont genre le club-école*. Trois joueurs de TON cartable (`offres`), au plus de leur niveau
-   * (`niveauMax`, js/niveaux.js), sous le plafond ; un se signe comme au ballottage (une décision `ballottage`).
-   */
-  rappel: { nom: 'Le rappel du club-école', ico: '📟', rarete: 'commune', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 1, texte: 'Un coup de fil à la ferme : trois de tes cartes répondent.' },
-  rappelPilier: { nom: 'Le rappel d\'un pilier', ico: '📟', rarete: 'rare', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, texte: 'Celui-là, il n\'aurait jamais dû descendre.' },
-  // Le retour d'un ancien (P3) : trois cartes de ton cartable qui ont porté tes couleurs dans une run d'avant (`anciens`).
-  // L'échange d'un doublon (P3) : ton doublon le plus fourni part ; trois joueurs de la même série de cartons, hors de ton cartable (`echange`).
-  echangeDoublon: { nom: 'L\'échange d\'un doublon', ico: '📟', rarete: 'peu', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, echange: true, texte: 'Un doublon de trop, contre un joueur de sa série.' },
-  rappelAncien: { nom: 'Le retour d\'un ancien', ico: '📟', rarete: 'peu', vie: 'usage', cible: 'cartable', offres: 3, niveauMax: 2, anciens: true, texte: 'Il a déjà porté tes couleurs. Il connaît le vestiaire.' },
+  stage: { nom: 'Le stage du coach', ico: '🎞', rarete: 'rare', vie: 'permanent', cible: 'coach', texte: 'Une semaine de vidéo chez les meilleurs. Il revient avec un cahier neuf.' },
+  formation: { nom: 'La formation', ico: '🖊', rarete: 'peu', vie: 'permanent', cible: 'adjoint', texte: 'Un cours du soir, et ton adjoint en sait un peu plus.' },
 };
 
-/* Un effet de contrat lourd tient la saison : plus que ses 82 matchs, séries comprises. */
-const DUREE_SAISON = 120;
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
-const SOURCES_MOD = ['atelier', 'contrat', 'equipement'];
-/* V10 (tranche 6) : l'ancien jeu est parti — les améliorations, les styles, l'atelier générique. Restent l'équipement, les
- * retouches d'édition, les modifs d'un moment d'avant, le feu qui s'entretient et les clauses de contrat. */
-const RARETE_MOD = {
-  pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', mentorTrio: 'rare',
-  domicile: 'peu', route: 'peu', printemps: 'rare', etincelle: 'rare', braise: 'rare', poudre: 'rare',
-  contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
-  ...RARETE_MODIFS_VIE,
-};
+const SOURCES_MOD = ['atelier'];
+/* V16 (docs/refonte-v16.md) : de l'atelier, seules les retouches d'édition restent des cartes ; l'équipement, les clauses,
+ * le feu et les modifs d'un moment sont devenus des adjoints (js/personnel.js). */
+const RARETE_MOD = { pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', mentorTrio: 'rare' };
 // Le mentor (`mentorTrio`) n'est pas une carte : il vient du choix d'un fil (js/vie-gm.js `CHOIX_DES_FILS`).
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source) && !MUTATIONS[k].mentor);
 
@@ -247,11 +185,9 @@ const fait = (cat, cle, def) => ({ id: `${cat}:${cle}`, cat, cle, ...def });
  */
 function coachDeLaFamille(cat, cle) {
   const lu = o => coachDesCanaux(o);
-  if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ }); }
+  if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ, mutation: PROTEGES[cle] }); }
   if (cat === 'joueur') return lu({ mutation: MUTATIONS[cle] });
-  // Une place sur un joueur (V11) : ses canaux à lui se lisent comme ceux d'une modif.
-  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes, gain: C.gain, pari: C.pari, mutation: C.joueur }); }
-  if (cat === 'plafond') return 'banque';
+  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes }); }
   return null;
 }
 function construire() {
@@ -262,8 +198,7 @@ function construire() {
     const M = MUTATIONS[cle];
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || M.rarete || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
   }
-  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.regle ? { regle: true } : {}), ...(C.echange ? { echange: true } : {}) }));
-  for (const [cle, C] of Object.entries(CONTRATS)) mettre(fait('plafond', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
+  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.echange ? { echange: true } : {}) }));
   return B;
 }
 export const BANQUE = construire();
@@ -309,53 +244,24 @@ const bitsDEffet = e => {
 /* La forme d'un consommable, lue sur toute la carte. Le mot dit le verbe, pas « un peu ». */
 function formeDeConsommable(C) {
   if (!C) return '';
-  if (C.pari) return 'Pari';
-  if (C.regle) return 'Règlement';
-  const e = C.effet || {};
-  if (Array.isArray(e.F) || Array.isArray(e.D)) return 'Minutes';
-  const bits = bitsDEffet(e);
-  // Sur un joueur (V11) : ses tirs, sa précision, sa défense, ses blessures comptent comme ceux du club.
-  const J = C.joueur || {};
-  bits.push(...bitsDEffet({ volume: J.lancers, finition: J.finition, defense: J.defense, blessure: J.blessure }));
-  if (J.creation) bits.push(J.creation > 1);
-  const g = C.gestes || {};
-  if (g.soin) bits.push(true);
-  if (g.energie) bits.push(g.energie > 0);
-  if (g.energieTous) bits.push(g.energieTous > 0);
-  if (C.gain) bits.push(true);
+  const soin = !!(C.gestes && C.gestes.soin), bits = [...bitsDEffet(C.effet), ...(soin ? [true] : [])];
   if (bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
-  if (C.cible === 'malediction') return 'Malédiction';
-  if (C.cible === 'carteMatch') return 'Plus';
-  if (C.cible === 'coach') return 'Coach';
-  if (C.cible === 'cartable') return 'Rappel';
-  if (C.gain) return 'Jetons';
-  if (g.gardienAux) return 'Filet';
-  if (g.soin) return 'Soin';
-  if (g.energie || g.energieTous) return 'Jambes';
+  if (C.cible === 'coach' || C.cible === 'adjoint') return 'Monte';
+  if (C.cible === 'cartable') return 'Échange';
+  if (soin) return 'Soin';
   if (!bits.length) return '';
-  if (bits.every(Boolean)) return 'Cadeau';
-  return 'Moindre mal';
-}
-function formeDePlafond(C) {
-  if (!C) return '';
-  if (C.espace < 0) return 'Moindre mal';
-  if (C.cout) return 'Échange';
-  if (C.espace || C.ltir) return 'Plafond';
-  if (C.facteur) return 'Salaire';
-  return '';
+  return bits.every(Boolean) ? 'Cadeau' : 'Moindre mal';
 }
 /* La forme d'une carte de la banque, le mot qu'on lit avant les chiffres. Pas les cartes de joueur : elles disent leur édition. */
 export function etiquetteBanque(id) {
   const c = carteBanque(id);
   if (!c) return '';
   if (c.cat === 'joueur') return (c.regle || EDITIONS_REGLEMENT.includes(c.cle)) ? 'Règlement' : '';
-  if (c.regle) return 'Règlement';
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle] || {};
     return formeDe({ effet: P.effet || {} }) || (P.econ ? 'Boutique' : '');
   }
   if (c.cat === 'consommable') return formeDeConsommable(CONSOMMABLES[c.cle]);
-  if (c.cat === 'plafond') return formeDePlafond(CONTRATS[c.cle]);
   return '';
 }
 /* Les cartes d'une famille. V10 (tranche 6) : l'ancien jeu est parti, chaque carte de la banque se tire. */
@@ -368,17 +274,6 @@ export const VIES = {
   // S80 : une run dure plusieurs saisons — une carte « cette saison » expire à la fin de SA saison, pas de la run.
   saison: { nom: 'Cette saison', mot: 'Vaut pour la saison en cours ; elle expire à la fin de la saison.' },
   usage: { nom: '1 utilisation', mot: 'S\'use en la jouant, cette saison.' },
-};
-/*
- * QUAND UNE CARTE JOUE (S79). JP : *tu dois pouvoir toujours voir tes cartes
- * et certaines se gardent jusqu'au moment voulu dans la saison*. Une carte
- * de pack SE GARDE : elle attend dans l'inventaire que tu la joues (une
- * décision datée du jour, qui se rejoue). Une malédiction et une carte de
- * saison (prise à un palier) sont JOUÉES IMMÉDIATEMENT.
- */
-export const MOMENTS = {
-  garde: { nom: 'Se garde', ico: '⏳', mot: 'À une place jusqu\'à ce que tu la joues.' },
-  immediat: { nom: 'Jouée immédiatement', ico: '⚡', mot: 'Jouée immédiatement : elle s\'applique dès que tu la reçois.' },
 };
 
 /*
@@ -397,6 +292,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     out.push(...motsDeLEcon(P.econ));
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsEnChiffres(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));
+    if (PROTEGES[c.cle] && PROTEGES[c.cle].feu) out.push(...motsDuFeu(PROTEGES[c.cle]));
     if (!P.si) out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
     return out;
   }
@@ -404,28 +300,22 @@ export function reglesDe(id, { joueur = null } = {}) {
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     const out = [...motsDesGestes(C.gestes || {})];
-    // V10 : son moment d'abord, et ses chiffres un soir de ce moment.
-    if (C.si && MOMENTS_SI[C.si]) out.push({ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, les ${C.duree} prochains matchs`, bon: null, duree: true }, ...motsEnChiffres(C.effet || {}));
-    else if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
-    if (C.joueur) out.push(...motsSurLeJoueur(C.joueur, 'Ton joueur'));
-    if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
-    if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
-    if (C.cible === 'coach') out.push({ txt: 'Un autre coach, à la confiance I', bon: true }, { txt: 'Ton coach part, avec sa confiance', bon: false });
-    if (C.cible === 'cartable') out.push({ txt: `${C.offres} joueurs de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus : un signé`, bon: true });
-    if (C.parJoueur) out.push(motDeJoueurs(C.parJoueur, c.coach));
-    return out;
-  }
-  if (c.cat === 'plafond') {
-    const C = CONTRATS[c.cle];
-    const out = [];
-    if (C.espace) out.push({ txt: `Plafond ${C.espace > 0 ? '+' : '−'}${money(Math.abs(C.espace))} cette saison`, bon: C.espace > 0 });
-    if (C.facteur) out.push({ txt: `${C.cible === 'recrue' ? 'Une recrue (23 ans ou moins)' : 'Un joueur'} : son salaire compte ${Math.round((C.facteur - 1) * 100)} %`, bon: true });
-    if (C.ltir) out.push({ txt: 'Un blessé : 100 % de son salaire hors du plafond, tant qu\'il est blessé', bon: true });
-    if (C.cout) out.push({ txt: `−${C.cout} 🪙`, bon: false });
-    if (C.effet && C.si && MOMENTS_SI[C.si]) out.push({ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, toute la saison`, bon: null, duree: true }, ...motsEnChiffres(C.effet));
+    if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
+    if (C.cible === 'coach') out.push({ txt: 'Ton coach en poste : un cran de confiance de plus', bon: true });
+    if (C.cible === 'adjoint') out.push({ txt: 'Un adjoint de ta collection : un échelon de plus ouvert', bon: true });
+    if (C.cible === 'cartable') out.push({ txt: `Ton doublon le plus fourni part : ${C.offres} joueurs de son époque, ${NIVEAUX[C.niveauMax].nom} au plus, un signé`, bon: true });
     return out;
   }
   return [];
+}
+/* LE FEU D'UN ADJOINT (V16, `LANCEE`, js/sim.js) : ce qu'il fait à la lancée de sa 1re ligne, et la 2e ligne qu'il gagne. */
+function motsDuFeu(F) {
+  const qui = F.portee === 'tete' ? 'Le meilleur marqueur de ta 1re ligne' : 'Un compagnon de ton meilleur marqueur, en 1re ligne';
+  const fait = { etincelle: `sur sa lancée dès ${LANCEE.etincelle.buts} buts en ${LANCEE.matchs} matchs, et plus vive`,
+    braise: `sa lancée tient ${LANCEE.braise.fenetre} matchs de plus, s'il marque une fois en ${LANCEE.braise.sans}`,
+    poudre: 'il prend la lancée de celui qui l\'a' }[F.feu];
+  const deux = F.portee === 'tete' ? 'la 2e ligne aussi' : 'tous les patineurs des 2 premières lignes';
+  return [{ txt: `${qui} : ${fait}`, bon: true }, { txt: `Sa force poussée ${LIGNES_DU_FEU.poussees} fois aux échelons : ${deux}`, bon: true }];
 }
 /*
  * UN PAS, EN MOTS. Un pas s'AJOUTE à l'effet (js/banque.js `grandi`) : ce qu'une carte de coach gagne avec chaque
@@ -442,12 +332,6 @@ function motDEchelle(E, coach) {
   const Ec = COACHS[coach] || { ico: '', nom: '' };
   const pas = [...auPlafond(E.par, E.max), ...(E.gain ? [`+${E.gain} 🪙 par carte`] : [])].join(', ');
   return { txt: pas ? `Jusqu'à ${pas} avec ${E.max} cartes ${Ec.ico} ${Ec.de} jouées` : `Grandit avec chaque carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
-}
-/* « jusqu'à ≈ +0,4 pt de précision par match avec 5 joueurs de l'Aigle habillés » : ce qu'une carte gagne de tes joueurs. */
-function motDeJoueurs(J, coach) {
-  const Ec = COACHS[coach] || { de: '' };
-  const pas = auPlafond(J.par, J.max).join(', ');
-  return { txt: pas ? `Jusqu'à ${pas} avec ${J.max} joueurs ${Ec.de} habillés` : `Grandit avec chaque joueur ${Ec.de} habillé (au plus ${J.max})`, bon: true };
 }
 function motsDesGestes(g) {
   const out = [];
@@ -494,18 +378,14 @@ export function modificateurs(decisions = [], jusqua = Infinity) {
  * jetons (`gain`, plus `echelle.gain` par carte). Une carte sans échelle rend
  * son effet tel quel. Les chiffres entrent dans la décision.
  */
-function grandi(X, coach, build = {}, joueurs = {}) {
+function grandi(X, coach, build = {}) {
   const effet = { ...(X.effet || {}) };
   let gain = X.gain || 0;
   const ajouter = (par, n) => { for (const [k, v] of Object.entries(par || {})) effet[k] = Math.round(((effet[k] ?? (k === 'robustesse' ? 0 : 1)) + v * n) * 10000) / 10000; };
   const E = X.echelle;
   const n = E ? Math.min(E.max || Infinity, (build && build[X.coach || coach]) || 0) : 0;
   if (n) { ajouter(E.par, n); gain += (E.gain || 0) * n; }
-  // v2 : ses JOUEURS — ceux de la couleur de la carte, habillés quand on la joue.
-  const J = X.parJoueur;
-  const nj = J ? Math.min(J.max || Infinity, ((joueurs && joueurs[X.coach || coach]) || {}).joueurs || 0) : 0;
-  if (nj) ajouter(J.par, nj);
-  return { effet, gain, n, nj };
+  return { effet, gain, n };
 }
 /*
  * LA DÉCISION D'UNE CARTE JOUÉE : les champs que le moteur connaît, et ses
@@ -513,48 +393,33 @@ function grandi(X, coach, build = {}, joueurs = {}) {
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {}, sortie = null, rar = null } = {}) {
+export function payloadDe(id, { joueur = null, coach = null, points = 0, adjoint = null, patrons = [], build = {}, sortie = null, rar = null } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    const effet = grandi(P, c.coach, build, joueurs).effet;
+    const effet = grandi(P, c.coach, build).effet;
     let synergie = false;
     if (P.synergie && patrons.some(x => x.role === P.synergie.avec)) {
       synergie = true;
       for (const [k, v] of Object.entries(P.synergie.effet)) effet[k] = k === 'robustesse' ? (effet[k] || 0) + v : (effet[k] ?? 1) * v;
     }
     const remplace = patrons.filter(x => x.role === P.role && x.cle !== c.cle).map(x => x.cle);
-    return { patron: { cle: c.cle, role: P.role, nom: P.nom, ico: P.ico, ...effet, ...(P.si ? { si: P.si } : {}), ...(P.econ ? { econ: { ...P.econ } } : {}), ...(synergie ? { synergie: true } : {}), ...(remplace.length ? { remplace } : {}) } };
+    // V16 : un adjoint à protégé pose aussi sa mutation, pour la saison, sur le joueur nommé ou celui que le moteur désigne.
+    return { patron: { cle: c.cle, role: P.role, nom: P.nom, ico: P.ico, ...effet, ...(P.si ? { si: P.si } : {}), ...(P.econ ? { econ: { ...P.econ } } : {}), ...(synergie ? { synergie: true } : {}), ...(remplace.length ? { remplace } : {}) },
+      ...(PROTEGES[c.cle] ? { mutation: { cle: c.cle, ...(joueur ? { joueur } : {}), saison: true } } : {}) };
   }
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    // V10 : une place d'un moment (`si`) porte son moment sur son effet ; le moteur ne le joue que ses soirs (`joueCeSoir`).
-    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build, joueurs).effet, ...(C.regle ? { regle: true } : {}), ...(C.si ? { si: C.si } : {}) } : null;
-    if (C.cible === 'blesse' || C.cible === 'joueur') {
-      if (!joueur) return null;
-      // V11 : le gros d'une place sur le joueur nommé, ses soirs, le temps de ses matchs (`surJoueur`, js/sim.js).
-      const sur = C.joueur ? { surJoueur: { joueur, nom: C.nom, ico: C.ico, duree: C.duree, ...(C.si ? { si: C.si } : {}), ...C.joueur } } : {};
-      return { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}), ...sur };
-    }
-    if (C.cible === 'coach') return coach && COACHS[coach] ? coachNeuf(coach) : null;
-    // Le rappel : le joueur du cartable entre à la case que `sortie` libère, comme au ballottage.
-    if (C.cible === 'cartable') return joueur ? { ballottage: { entre: joueur, i: sortie ? sortie.i : null, sort: sortie ? sortie.sort : null, ...(rar ? { rar } : {}) }, ...(sortie && sortie.cases ? { cases: sortie.cases } : {}) } : null;
-    const out = {};
-    if (C.gestes) out.gestes = { ...C.gestes };
-    if (effet) out.effet = effet;
-    if (C.gain) out.gain = C.gain;
-    if (C.pari) out.gain = alea !== null && alea < C.pari.chance ? C.pari.gain : 0;
-    return out;
-  }
-  if (c.cat === 'plafond') {
-    const C = CONTRATS[c.cle];
-    if (C.cible !== 'aucune' && !joueur) return null;
-    return { plafond: { cle: c.cle, nom: C.nom, ...(C.espace ? { espace: C.espace } : {}), ...(C.facteur ? { facteur: C.facteur } : {}),
-      ...(C.ltir ? { ltir: true } : {}), ...(C.cout ? { cout: C.cout } : {}), ...(joueur ? { joueur } : {}) },
-      // V10 : un contrat lourd porte son prix, certains soirs, toute la saison.
-      ...(C.effet ? { effet: { nom: C.nom, ico: C.ico, duree: DUREE_SAISON, ...C.effet, ...(C.si ? { si: C.si } : {}) } } : {}) };
+    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build).effet } : null;
+    if (C.cible === 'blesse') return joueur ? { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}) } : null;
+    // Le stage : les points qui manquent au coach en poste pour son cran suivant (`points`, lu par qui le joue).
+    if (C.cible === 'coach') return coach && COACHS[coach] && points > 0 ? { coachsDeBase: { [coach]: points } } : null;
+    // La formation : une copie de plus d'un adjoint de ta collection ; la décision la dit, le méta la garde.
+    if (C.cible === 'adjoint') return adjoint && PATRONS[adjoint] ? { formation: { cle: adjoint } } : null;
+    // L'échange : le joueur du cartable entre à la case que `sortie` libère, comme au ballottage.
+    return joueur ? { ballottage: { entre: joueur, i: sortie ? sortie.i : null, sort: sortie ? sortie.sort : null, ...(rar ? { rar } : {}) }, ...(sortie && sortie.cases ? { cases: sortie.cases } : {}) } : null;
   }
   return null;
 }
@@ -565,24 +430,39 @@ export function payloadDe(id, { joueur = null, coach = null, patrons = [], alea 
 /* Le coach d'une carte de la banque (une carte « + » du deck lit sa carte de base), ou null (neutre). */
 export const coachDeCarte = id => { const c = BANQUE[id] || BANQUE[String(id).replace(/\+$/, '')]; return c ? c.coach : null; };
 export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach === coach).map(c => c.id);
-/* La carte qu'une décision fait JOUER : une place, le personnel (`joue.id`). Une prise (un pack, un butin) ne compte
- * pas : c'est la jouer qui fait croire le vestiaire (docs/refonte-v5.md, phase 0). */
-const carteJouee = d => (d.joue && d.joue.id && !(d.recompense && d.joue.src === 'partie') ? d.joue.id : null);
 /*
- * LE COMPTE DE CHAQUE COACH à une journée (`jusqua` exclue), pur : le report
- * d'une run (`coachsDeBase` : la saison d'avant, et le coach choisi au
- * départ), plus chaque carte jouée de sa couleur. Rend { cle: n }.
+ * LA CONFIANCE PAR TROIS CHEMINS (V16, docs/refonte-v16.md § 4 ; JP a choisi les trois). Les points d'un coach : sa
+ * BASE (le coach choisi au départ, le report d'une saison, un coach neuf : `coachsDeBase`, `coachNeuf`), puis, par
+ * adjoint de sa couleur en poste, 1 point et 1 par échelon pris, et 1 point par tranche de `MATCHS_CONFIANCE` matchs à
+ * ton service de ses adjoints (doublés à la couleur du coach en poste, comme les échelons). Les cartes jouées ne
+ * comptent plus : le personnel est la seule carte bonus.
  */
-export function buildDe(decisions = [], jusqua = Infinity) {
+export const MATCHS_CONFIANCE = 60;
+/* La base de chaque coach à une journée (`jusqua` exclue) : ce que le report et le départ lui donnent. Rend { cle: n }. */
+export function baseDesCoachs(decisions = [], jusqua = Infinity) {
   const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
   for (const d of decisions) {
     if (!d || (d.jour || 0) >= jusqua) continue;
     if (d.coachsDeBase) for (const [k, v] of Object.entries(d.coachsDeBase)) if (k in n) n[k] += v || 0;
-    // UN COACH NEUF (« Le virage », ou un autre choisi au début d'une saison) repart à la confiance I : ses cartes d'avant ne comptent plus.
+    // UN COACH NEUF (« Le congédiement », ou un autre choisi au début d'une saison) repart à la confiance I.
     if (d.coachNeuf && d.coach && d.coach.cle in n) n[d.coach.cle] = SEUILS[0];
-    const e = carteJouee(d) && coachDeCarte(carteJouee(d));
-    if (e) n[e]++;
   }
+  return n;
+}
+/*
+ * LE COMPTE DE CHAQUE COACH à une journée, pur : sa base, puis son personnel en poste. `joues(de, a)` : les matchs de
+ * ton club joués entre deux journées (js/echelons.js `matchsJoues`) ; sans lui, les matchs à ton service ne comptent pas.
+ */
+export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0 } = {}) {
+  const n = baseDesCoachs(decisions, jusqua), service = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
+  const [C] = coachsActifs(decisions, jusqua);
+  for (const p of patronsActifs(decisions, jusqua)) {
+    const k = (BANQUE[`patron:${p.cle}`] || {}).coach;
+    if (!(k in n)) continue;
+    n[k] += p.echelon || 1;
+    service[k] += (p.avant || 0) + joues(p.depuis ?? p.jour ?? 0, jusqua) * (C && C.cle === k ? 2 : 1);
+  }
+  for (const k of ORDRE_COACHS) n[k] += Math.floor(service[k] / MATCHS_CONFIANCE);
   return n;
 }
 /*
@@ -600,24 +480,17 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
 /* La décision d'un coach neuf : sa confiance I, et son compte qui repart (`coachNeuf`). */
 export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true });
 /*
- * LA CONFIANCE QU'ALLUME UNE CARTE : la décision `d` fait-elle franchir un
- * seuil au coach de sa carte ? Rend `{ coach }` à ajouter à la décision (les
- * chiffres de la confiance atteinte), ou null. Pur : les décisions d'avant et
- * celle-ci.
+ * LA CONFIANCE QU'ALLUME UNE DÉCISION DE PERSONNEL (un adjoint engagé, un échelon pris) : son coach franchit-il un
+ * seuil, avec elle et les matchs à ton service jusqu'ici ? Rend `{ coach }` à ajouter à la décision (les chiffres de la
+ * confiance atteinte), ou null. Pur : les décisions d'avant, celle-ci, et les matchs joués (`joues`).
  */
-export function palierAllume(decisions = [], d) {
-  // Le coach de la carte que cette décision fait jouer, s'il franchit un seuil.
-  const ajout = {};
-  const build = buildDe(decisions);
-  const k0 = d && carteJouee(d) && coachDeCarte(carteJouee(d));
-  if (k0) ajout[k0] = 1;
-  // Seul le coach en poste monte (V5) : les cartes d'une autre couleur jouent leur effet, sans changer de coach.
+export function palierAllume(decisions = [], d, { joues = () => 0 } = {}) {
+  const avant = buildDe(decisions, Infinity, { joues }), apres = buildDe([...decisions, d], Infinity, { joues });
+  // Seul le coach en poste monte (V5) : un adjoint d'une autre couleur joue son effet, sans changer de coach.
   const [actif] = coachsActifs(decisions);
-  const e = actif ? (ajout[actif.cle] && palierDe(build[actif.cle] + ajout[actif.cle]) > actif.palier ? actif.cle : null)
-    : Object.keys(ajout).find(k => palierDe(build[k] + ajout[k]) > palierDe(build[k]));
-  if (!e) return null;
-  const p = palierDe(build[e] + ajout[e]);
-  return { coach: effetDePalier(e, p) };
+  const e = actif ? (palierDe(apres[actif.cle]) > actif.palier ? actif.cle : null)
+    : ORDRE_COACHS.find(k => palierDe(apres[k]) > palierDe(avant[k]));
+  return e ? { coach: effetDePalier(e, palierDe(apres[e])) } : null;
 }
 /* Ce qu'une confiance fait, en mots — les canaux, les minutes, la boutique. */
 export function reglesDePalier(cle, palier) {
