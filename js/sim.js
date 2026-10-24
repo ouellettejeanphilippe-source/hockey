@@ -20,7 +20,7 @@ import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
 import { PERSONNEL, PROTEGES } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
-import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
+import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
 
 export const CAP = 95_500_000;
@@ -2423,8 +2423,8 @@ export function recupererEnergie(team, part = ENERGIE_RECUP) {
 
      LE PLAN DU SOIR   un plan de match pour UN match, contre un adversaire
                        dont on lit le style ; le bon contre-plan paie
-     LES DILEMMES      à quatre journées fixes, une histoire et deux options,
-                       et on ne continue pas sans choisir
+     LES DILEMMES      aux journées des moments, quand leur fait est vrai :
+                       une histoire, ses joueurs nommés, deux options
      LES SÉQUENCES     trois défaites de suite, ou quatre victoires : on
                        touche aux trios, et on ne continue pas sans choisir
      LES OBJECTIFS     le proprio propose trois défis ; réussi, on pige une
@@ -2507,297 +2507,290 @@ const DUREE_MOMENT = 10;
  * Plus de factions (S72) : ce qu'une option coûte ou rapporte se joue sur la
  * glace.
  */
+/*
+ * CE QUI EST VRAIMENT ARRIVÉ (oct. 2026). JP, sur « Les adieux au casier » : *seulement si un joueur x est voté out
+ * de l'équipe. Toutes ces choses doivent être vraies, donc si choix que quatrième trio joue plus, il joue plus pour
+ * vrai. Toujours nommer les joueurs impliqués.* Chaque dilemme porte un `fait` : une entrée de `FAITS`, lue sur
+ * tes matchs d'AVANT sa journée et sur ton effectif (`faitsDuClub`). Sans son fait, il ne se tire pas ; avec lui,
+ * il nomme les joueurs que le fait nomme (`joueur`, `joueurs`) et dit ses vrais chiffres (`n`, `m`). Le calendrier
+ * (`quand`) peut s'ajouter au fait, jamais le remplacer. `scripts/check_dilemmes.mjs` recompte chaque fait dans les
+ * feuilles.
+ */
+const FENETRE_FAIT = 10;
+const pl = (n, un, des = `${un}s`) => `${n} ${n > 1 ? des : un}`;
+/* Les moments de la saison où un dilemme peut se dire (son `quand`), selon la journée sur la saison. */
+const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'decembre', f >= 0.45 && f < 0.72 && 'echeance', f >= 0.6 && 'mars'].filter(Boolean);
+/* L'autre gardien de ton alignement, celui qui prendrait le filet ({aux}). */
+const auxDe = (c, g) => ((c.gardiens || []).find(x => x !== g) || {}).n || null;
+/* Chaque fait : `lire` le trouve dans le contexte (ou rend null), `dire` l'écrit en vrais chiffres, sous la voix. */
+export const FAITS = {
+  gardienBattu: { lire: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 && auxDe(c, c.dernier.gardien) ? { joueur: c.dernier.gardien, n: c.dernier.contre, aux: auxDe(c, c.dernier.gardien) } : null),
+    dire: r => `${r.joueur.n} : ${r.n} buts accordés au dernier match` },
+  punitionTard: { lire: c => (c.dernier && c.dernier.punisTard.length ? { joueur: c.dernier.punisTard[0], n: c.dernier.punisTard.length } : null),
+    dire: r => `${r.joueur.n} au cachot dans les cinq dernières minutes · ${pl(r.n, 'punition')} en fin de match` },
+  gardienCharge: { lire: c => (c.gardienSuite && c.gardienSuite.n >= 4 && auxDe(c, c.gardienSuite.p) ? { joueur: c.gardienSuite.p, n: c.gardienSuite.n, aux: auxDe(c, c.gardienSuite.p) } : null),
+    dire: r => `${r.joueur.n} : ${r.n} départs de suite` },
+  panneGardien: { lire: c => (c.serieD >= 3 && c.gardienSerie && auxDe(c, c.gardienSerie.p) ? { n: c.serieD, joueur: c.gardienSerie.p, m: c.gardienSerie.buts, aux: auxDe(c, c.gardienSerie.p) } : null),
+    dire: r => `${r.n} défaites de suite · ${r.joueur.n} : ${pl(r.m, 'but')} accordés` },
+  punitions: { lire: c => { const x = (c.punis || []).find(y => y.n >= PUNITIONS_SERMON); return x ? { joueur: x.p, n: x.n, m: x.m } : null; },
+    dire: r => `${r.joueur.n} : ${r.n} punitions en ${r.m} matchs` },
+  blesses: { lire: c => (c.blesses && c.blesses.length >= 2 ? { joueurs: c.blesses.map(x => x.p), n: c.blesses.length } : null),
+    dire: r => `${r.n} blessés : ${r.joueurs.map(p => p.n).join(', ')}` },
+  route: { lire: c => (c.route >= 3 ? { n: c.route } : null), dire: r => `${r.n} matchs de suite sur la route` },
+  jambes: { lire: c => { const x = (c.jambes || []).filter(y => y.haut && y.j < 82).sort((a, b) => a.j - b.j)[0]; return x ? { joueur: x.p, n: x.j } : null; },
+    dire: r => `${r.joueur.n} : jambes ${r.n}` },
+  jambesEquipe: { lire: c => (c.jambes && c.jambes.length && c.moyenneJambes < 90 ? { n: c.moyenneJambes } : null), dire: r => `Jambes ${r.n} en moyenne` },
+  chaud: { lire: c => (c.chaud && c.chaud.pts >= 7 ? { joueur: c.chaud.p, n: c.chaud.pts, m: c.chaud.m } : null), dire: r => `${r.joueur.n} : ${r.n} points en ${r.m} matchs` },
+  disetteMarqueur: { lire: c => {
+    const x = (c.joueurs || []).filter(j => j.marqueur && c.recents >= 10 && j.butsRecents <= 2).sort((a, b) => (b.p.g || 0) - (a.p.g || 0))[0];
+    return x ? { joueur: x.p, n: x.butsRecents === 0 ? 'aucun but' : x.butsRecents === 1 ? 'un seul but' : `${x.butsRecents} buts`, m: c.recents } : null;
+  }, dire: r => `${r.joueur.n} : ${r.n} en ${r.m} matchs` },
+  recrue: { lire: c => { const x = (c.recrues || [])[0]; return x ? { joueur: x.p, n: x.n, m: x.pts } : null; },
+    dire: r => `${r.joueur.n}, recrue : ${pl(r.m, 'point')} en ${r.n} matchs` },
+  parti: { lire: c => { const x = (c.partis || [])[0]; return x ? { joueur: x.p, n: x.n, m: x.m } : null; },
+    dire: r => `${r.joueur.n} : ${r.n} de tes ${r.m} derniers matchs, plus dans ton effectif` },
+  quatrieme: { lire: c => (c.quatrieme && c.quatrieme.joueurs.length >= 2 && c.quatrieme.m >= FENETRE_FAIT && c.quatrieme.pts <= 2 ? { joueurs: c.quatrieme.joueurs, n: c.quatrieme.pts, m: c.quatrieme.m } : null),
+    dire: r => `Ton quatrième trio, ${r.joueurs.map(p => p.n).join(', ')} : ${pl(r.n, 'point')} en ${r.m} matchs` },
+  passoire: { lire: c => (c.cinq && c.cinq.contre >= 17 ? { n: c.cinq.contre, m: c.cinq.m } : null), dire: r => `${r.n} buts accordés en ${r.m} matchs` },
+  passoirePaire: { lire: c => (c.cinq && c.cinq.contre >= 17 && c.paire1.length === 2 ? { n: c.cinq.contre, m: c.cinq.m, joueurs: c.paire1 } : null),
+    dire: r => `${r.n} buts accordés en ${r.m} matchs · ta première paire : ${r.joueurs.map(p => p.n).join(' et ')}` },
+  disette: { lire: c => (c.cinq && c.cinq.pour <= 8 ? { n: c.cinq.pour, m: c.cinq.m } : null), dire: r => `${pl(r.n, 'but')} pour toi en ${r.m} matchs` },
+  tirsContre: { lire: c => (c.trois && c.trois.tirsContre >= 105 && c.trois.gardien ? { joueur: c.trois.gardien, n: c.trois.tirsContre, m: c.trois.m } : null),
+    dire: r => `${r.n} tirs contre toi en ${r.m} matchs · ${r.joueur.n} en a reçu le plus` },
+  avantagesRares: { lire: c => (c.quatre && c.quatre.punisEux <= 10 ? { n: c.quatre.punisEux, m: c.quatre.m } : null),
+    dire: r => `${pl(r.n, 'punition')} contre eux en ${r.m} matchs` },
+  defaiteParUn: { lire: c => (c.dernier && c.dernier.contre === c.dernier.pour + 1 ? { n: c.dernier.pour, m: c.dernier.contre } : null),
+    dire: r => `Battus ${r.m}-${r.n} au dernier match` },
+  plombier: { lire: c => (c.plombier ? { joueur: c.plombier.p, n: c.plombier.buts, m: c.plombier.m } : null), dire: r => `${r.joueur.n} : ${pl(r.n, 'but')} en ${r.m} matchs` },
+  veteranD: { lire: c => (c.veteransD && c.veteransD.length && c.eleve && c.eleve !== c.veteransD[0].p ? { vieux: c.veteransD[0].p.n, n: c.veteransD[0].age, joueur: c.eleve } : null),
+    dire: r => `${r.vieux} : ${r.n} ans, le plus vieux de tes défenseurs · ${r.joueur.n}, son élève` },
+  tirsD: { lire: c => (c.tirsD && c.tirsD.n >= 15 ? { joueur: c.tirsD.p, n: c.tirsD.n, m: c.tirsD.m } : null), dire: r => `${r.joueur.n} : ${r.n} tirs en ${r.m} matchs` },
+};
+/* Le fait d'un dilemme dans ce contexte : son calendrier d'abord (s'il en a un), puis son fait, ou null. */
+function faitDuDilemme(m, c) {
+  if (!m || !c || !FAITS[m.fait]) return null;
+  if (m.quand && !(c.N > 0 && momentsOuverts(c.J / c.N).some(x => m.quand.includes(x)))) return null;
+  return FAITS[m.fait].lire(c);
+}
+/*
+ * LE CONTEXTE DES FAITS : ce que tes matchs d'avant la journée `J` et ton effectif disent. PUR : la même saison
+ * rejouée redonne le même contexte. `matchs` : tes matchs joués, [{ j, m }] dans l'ordre.
+ */
+export function faitsDuClub(team, matchs, J, N) {
+  const avant = matchs.filter(x => x.j < J);
+  const coteDe = m => (m.A === team ? 'A' : 'B');
+  const fe = m => m.feuille || { buts: [], lancers: [], punitions: [], blessures: [], alignes: {} };
+  const gagne = m => (m.A === team) === (m.gfA > m.gfB);
+  const pour = m => (m.A === team ? m.gfA : m.gfB), contre = m => (m.A === team ? m.gfB : m.gfA);
+  const sesButs = (m, p) => (fe(m).buts || []).filter(b => b.cote === coteDe(m) && b.marqueur === p).length;
+  const sesPoints = (m, p) => (fe(m).buts || []).filter(b => b.cote === coteDe(m) && (b.marqueur === p || (b.passeurs || []).includes(p))).length;
+  const alignes = m => fe(m).alignes?.[coteDe(m)] || [];
+  // Ton gardien d'un soir : celui qui a reçu le plus de tirs d'en face.
+  const gardienDe = m => { const n = new Map(); for (const l of fe(m).lancers || []) if (l.cote !== coteDe(m) && l.gardien) n.set(l.gardien, (n.get(l.gardien) || 0) + 1); return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
+  const cases = (g, u = null) => SLOTS.filter(s => !s.scratch && s.group === g && (u === null || s.unit === u)).map(s => team.roster[s.i]).filter(Boolean);
+  const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
+  const dans = new Set(Object.values(team.roster || {}).filter(Boolean).map(getPlayerKey));
+  const d = avant[avant.length - 1];
+  let dernier = null;
+  if (d) {
+    const m = d.m, f = fe(m), cote = coteDe(m);
+    dernier = {
+      domicile: cote === 'A', pour: pour(m), contre: contre(m), gardien: gardienDe(m),
+      punisTard: (f.punitions || []).filter(x => x.cote === cote && x.joueur && x.instant >= 55 && x.instant < 60).map(x => x.joueur),
+    };
+  }
+  let serieV = 0, serieD = 0;
+  for (let i = avant.length - 1; i >= 0 && gagne(avant[i].m); i--) serieV++;
+  for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m); i--) serieD++;
+  const serie = avant.slice(avant.length - serieD);
+  const somme = (liste, f) => liste.reduce((a, { m }) => a + f(m), 0);
+  // Le meilleur pointeur d'une fenêtre ; le gardien de la glissade.
+  const meilleur = (liste, f, qui) => qui.map(p => ({ p, x: somme(liste, m => f(m, p)) })).filter(y => y.x > 0).sort((a, b) => b.x - a.x)[0] || null;
+  const patineurs = [...cases('F'), ...cases('D')];
+  const trio1 = cases('F', 0);
+  const gs = serieD >= 3 ? (() => { const n = new Map(); for (const { m } of serie) { const g = gardienDe(m); if (g) n.set(g, (n.get(g) || 0) + 1); } const g = [...n].sort((a, b) => b[1] - a[1])[0]?.[0];
+    return g && dans.has(getPlayerKey(g)) ? { p: g, buts: somme(serie, m => (fe(m).buts || []).filter(b => b.cote !== coteDe(m) && b.gardien === g).length) } : null; })() : null;
+  // Les douze derniers : les buts de chacun.
+  const recents = avant.slice(-12), butsRecents = new Map();
+  for (const { m } of recents) for (const b of fe(m).buts || []) if (b.cote === coteDe(m) && b.marqueur) butsRecents.set(b.marqueur, (butsRecents.get(b.marqueur) || 0) + 1);
+  // Les punitions de chacun (V3) : la plus courte fenêtre de deux à quatre de SES matchs qui en compte trois.
+  const punis = [];
+  for (const p of patineurs) {
+    const siens = avant.filter(({ m }) => alignes(m).includes(p));
+    for (let n = 2; n <= 4 && n <= siens.length; n++) {
+      const k = siens.slice(-n).reduce((s, { m }) => s + (fe(m).punitions || []).filter(x => x.cote === coteDe(m) && x.joueur === p).length, 0);
+      if (k >= PUNITIONS_SERMON) { punis.push({ p, n: k, m: n }); break; }
+    }
+  }
+  punis.sort((a, b) => b.n / b.m - a.n / a.m);
+  // Partis : habillés chez toi dans tes dix derniers matchs, et plus dans ton effectif.
+  const fen = avant.slice(-FENETRE_FAIT), vus = new Map();
+  for (const { m } of fen) for (const p of [...alignes(m), gardienDe(m)].filter(Boolean)) vus.set(p, (vus.get(p) || 0) + 1);
+  // Le gardien de rappel et les rappelés du club-école dépannent sans jamais avoir été de ton effectif : ils ne partent pas.
+  const partis = [...vus].filter(([p]) => !dans.has(getPlayerKey(p)) && !p._rappel && !(team.ecole || []).includes(p)).map(([p, n]) => ({ p, n, m: fen.length })).sort((a, b) => b.n - a.n);
+  // Ton infirmerie, ce matin.
+  const blesses = [...(team.injured || new Map())].filter(([p, n]) => p && n > 0 && dans.has(getPlayerKey(p))).map(([p, n]) => ({ p, n })).sort((a, b) => b.n - a.n);
+  let route = 0;
+  for (let i = avant.length - 1; i >= 0 && avant[i].m.B === team; i--) route++;
+  let gardienSuite = null;
+  for (let i = avant.length - 1; i >= 0; i--) { const g = gardienDe(avant[i].m); if (!g || (gardienSuite && g !== gardienSuite.p)) break; gardienSuite = { p: g, n: (gardienSuite ? gardienSuite.n : 0) + 1 }; }
+  if (gardienSuite && !dans.has(getPlayerKey(gardienSuite.p))) gardienSuite = null;
+  // Les jambes de ce matin-là (le haut : tes deux premiers trios).
+  const matin = ((team.jourLignes || [])[J] || {}).energie || {};
+  const haut = new Set([...cases('F', 0), ...cases('F', 1)]);
+  const jambes = patineurs.map(p => ({ p, j: Math.round(matin[getPlayerKey(p)] ?? energieDe(p)), haut: haut.has(p) }));
+  const fenetre = k => (avant.length >= k ? avant.slice(-k) : null);
+  // Le gardien de ton effectif qui a reçu le plus de tirs sur ces matchs.
+  const plusRecu = liste => { const n = new Map(); for (const { m } of liste) for (const l of fe(m).lancers || []) if (l.cote !== coteDe(m) && l.gardien && dans.has(getPlayerKey(l.gardien))) n.set(l.gardien, (n.get(l.gardien) || 0) + 1);
+    return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
+  const f5 = fenetre(5), f3 = fenetre(3), f4 = fenetre(4);
+  const chaud = f5 ? meilleur(f5, sesPoints, cases('F')) : null;
+  const q4 = cases('F', 3);
+  const qFen = avant.slice(-FENETRE_FAIT);
+  const plomb = qFen.length >= FENETRE_FAIT ? q4.map(p => ({ p, buts: somme(qFen, m => sesButs(m, p)) })).filter(x => x.buts <= 1)
+    .sort((a, b) => a.buts - b.buts || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1))[0] : null;
+  const tirsDe = (liste, p) => somme(liste, m => (fe(m).lancers || []).filter(l => l.cote === coteDe(m) && l.tireur === p).length);
+  const tD = qFen.length >= FENETRE_FAIT ? cases('D').map(p => ({ p, n: tirsDe(qFen, p) })).sort((a, b) => b.n - a.n || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1))[0] : null;
+  const recrues = cases('F').filter(p => p.rk && !trio1.includes(p)).map(p => { const siens = avant.filter(({ m }) => alignes(m).includes(p)); return { p, n: siens.length, pts: somme(siens, m => sesPoints(m, p)) }; })
+    .filter(x => x.n >= FENETRE_FAIT).sort((a, b) => b.pts - a.pts || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1));
+  return {
+    J, N, n: avant.length, dernier, serieV, serieD, recents: recents.length, punis,
+    joueurs: cases('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
+    // L'élève du vétéran : celui que « L'école du vétéran » viserait (`cibleMutation`, la carte `dur`).
+    eleve: cibleMutation(team, 'dur'),
+    veteransD: cases('D').map(p => ({ p, age: age(p) })).filter(x => x.age >= 33).sort((a, b) => b.age - a.age),
+    gardienSerie: gs,
+    partis, blesses, route, gardiens: cases('G'), gardienSuite, jambes,
+    moyenneJambes: jambes.length ? Math.round(jambes.reduce((a, x) => a + x.j, 0) / jambes.length) : 100,
+    chaud: chaud ? { p: chaud.p, pts: chaud.x, m: 5 } : null,
+    quatrieme: { joueurs: q4, pts: q4.reduce((a, p) => a + somme(qFen, m => sesPoints(m, p)), 0), m: qFen.length },
+    paire1: cases('D', 0),
+    cinq: f5 ? { pour: somme(f5, pour), contre: somme(f5, contre), m: 5 } : null,
+    trois: f3 ? { tirsContre: somme(f3, m => (fe(m).lancers || []).filter(l => l.cote !== coteDe(m)).length), gardien: plusRecu(f3), m: 3 } : null,
+    quatre: f4 ? { punisEux: somme(f4, m => (fe(m).punitions || []).filter(x => x.cote !== coteDe(m)).length), m: 4 } : null,
+    plombier: plomb ? { p: plomb.p, buts: plomb.buts, m: qFen.length } : null,
+    tirsD: tD ? { p: tD.p, n: tD.n, m: qFen.length } : null,
+    recrues,
+  };
+}
+/* Le texte d'un dilemme rempli de son fait : {n}, {m}, {vieux}… et {n:but} (« 1 but », « 3 buts ») ; {nom} et {noms} restent à `nommer` (js/gerant.js). */
+export const texteDuFait = (t, f) => String(t || '').replace(/\{(\w+)(?::([^}]+))?\}/g, (tout, k, mot) => (k === 'nom' || k === 'noms' || !f || f[k] == null ? tout : mot ? pl(f[k], mot) : String(f[k])));
+
+/*
+ * RIEN QUE CE QUI EST ARRIVÉ, ET CE QUE L'OPTION FAIT (24 oct. 2026). JP : *tous ces éléments doivent être liés à
+ * quelque chose qui arrive avant ou que ça cause dans la simulation*. Un dilemme n'a plus de récit : sa scène dit le
+ * fait (`FAITS[...].dire`, les joueurs nommés, les vrais chiffres) et la voix qui en pense quelque chose
+ * (js/scenes.js) ; le nom d'une option dit le geste, son gain et son prix disent ce que le moteur en fait.
+ */
 export const MOMENTS = {
-  pieuvre: {
-    ico: '🐙', titre: 'Une pieuvre sur la glace', irl: 'Détroit, 1952',
-    recit: 'Un partisan lance une pieuvre sur la glace après ton but. L\'aréna devient fou. Deux bonnes nouvelles : laquelle tu prends ?',
-    // S80 : ton dernier match, chez toi, avec au moins un but.
-    faits: c => (c.dernier && c.dernier.domicile && c.dernier.pour >= 1 ? {} : null),
-    options: [
-      { cle: 'tradition', nom: 'En faire une tradition', bon: 'La foule pousse, ça rentre', finition: 1.088, duree: 6 },
-      { cle: 'calme', nom: 'Remercier la foule, garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.81, duree: 6 },
-    ],
-  },
-  rats: {
-    ico: '🐀', titre: 'Le rat du vestiaire', irl: 'Floride, 1996',
-    recit: '{nom} écrase un rat dans le vestiaire avant le match, puis marque {n} buts. Les partisans lancent des rats en plastique.',
-    // S80 : un de tes avants a vraiment marqué deux buts ou plus à ton dernier match.
-    faits: c => { const x = c.dernier && c.dernier.buteurs.filter(b => b.avant && b.buts >= 2).sort((a, b) => b.buts - a.buts)[0]; return x ? { joueur: x.p, n: x.buts } : null; },
-    options: [
-      { cle: 'mascotte', nom: 'Adopter la mascotte', bon: 'Si le rat porte chance, ça rentre de partout', prix: 'Sinon, la glace est jonchée de rats et l\'arbitre perd patience',
-        pari: { chance: 0.5, gagne: { finition: 1.125, duree: 6 }, perd: { discipline: 1.288, duree: 6 } } },
-      { cle: 'serieux', nom: 'Rester sérieux', bon: 'Une défensive concentrée', defense: 0.92, duree: 6 },
-    ],
-  },
-  dernier: {
-    ico: '🧳', titre: '« C\'est mon dernier match ici »', irl: 'Montréal, 1995', cible: 'gardien',
-    recit: 'Laissé devant le filet pour {n} buts, {nom} passe devant le banc et lance au président qu\'il a joué son dernier match ici.',
-    // S80 : ton gardien a vraiment accordé six buts ou plus à ton dernier match (JP : *après neuf buts encaissés… faut que ça soit arrivé pour vrai*).
-    faits: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 ? { joueur: c.dernier.gardien, n: c.dernier.contre } : null),
-    options: [
-      { cle: 'reposer', nom: 'Le reposer trois matchs', bon: 'Ton auxiliaire prend le filet, {nom} revient la tête froide', prix: 'Trois matchs sans ton partant',
-        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } },
-      { cle: 'soutenir', nom: 'Le renvoyer dans la mêlée', bon: 'Il veut se venger', prix: 'S\'il craque encore, ça coule',
-        pari: { chance: 0.5, gagne: { defense: 0.89, duree: 5 }, perd: { defense: 1.11, duree: 5 } } },
-    ],
-  },
   tropdejoueurs: {
-    ico: '🧢', titre: 'Trop de joueurs sur la glace', irl: 'Boston, 1979',
-    recit: 'Ton banc s\'emmêle dans un changement en fin de match : six patineurs sur la glace, et la punition tombe dans les dernières minutes.',
-    // S80 : une punition à toi dans les cinq dernières minutes de ton dernier match.
-    faits: c => (c.dernier && c.dernier.punitionsTard >= 1 ? {} : null),
+    ico: '🧢', titre: 'Pris en fin de match', fait: 'punitionTard', de: 'ad',
     options: [
-      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Plus de fautes bêtes', prix: 'Des présences plus longues, moins de jus', discipline: 0.788, volume: 0.913 },
-      { cle: 'rythme', nom: 'Garder le rythme rapide', bon: 'Des jambes fraîches, plus de lancers', prix: 'Ça va se reproduire', volume: 1.095, discipline: 1.213 },
+      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.788, volume: 0.913 },
+      { cle: 'rythme', nom: 'Garder des changements rapides', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213 },
     ],
   },
   zamboni: {
-    ico: '🚜', titre: 'Le conducteur de surfaceuse', irl: 'Toronto, 2020', cible: 'gardien',
-    recit: 'Le gardien d\'urgence de l\'aréna, le conducteur de la surfaceuse, 42 ans, a gagné un match dans la LNH. {nom} dit qu\'il pourrait prendre une soirée de congé, lui aussi.',
+    ico: '🧤', titre: 'Le gardien qui ne sort plus', fait: 'gardienCharge', de: 'en',
     options: [
-      { cle: 'conge', nom: 'Donner deux matchs de congé à {nom}', bon: 'Il revient reposé', prix: 'Deux matchs avec l\'auxiliaire',
+      { cle: 'conge', nom: 'Donner deux matchs à {aux}', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Deux matchs sans {nom}',
         action: { gardienAux: 2 }, ensuite: { apres: 2, duree: 10, defense: 0.94 } },
-      { cle: 'legende', nom: 'Inviter le conducteur au vestiaire', bon: 'Le vestiaire rit, la pression tombe', finition: 1.08, duree: 5 },
+      { cle: 'garder', nom: 'Garder {nom} devant le filet', prix: 'Plus de buts contre', defense: 1.06, duree: 5 },
     ],
   },
-  richard: {
-    ico: '🔥', titre: 'La ville gronde', irl: 'Montréal, 1955', cible: 'vedette',
-    recit: '{nom} écope d\'une suspension que la ville juge injuste. Des partisans promettent de descendre dans la rue.',
+  dernier: {
+    ico: '🧳', titre: 'Une soirée à oublier', fait: 'gardienBattu', de: 'en',
     options: [
-      { cle: 'purger', nom: 'Purger la suspension sans faire de vagues', bon: 'La ligue te laisse tranquille', prix: '{nom} manque deux matchs, un réserviste joue',
-        action: { absents: 2 }, discipline: 0.825, duree: 6 },
-      { cle: 'defendre', nom: 'Contester en public', bon: 'Si la ligue recule, {nom} joue et la ville explose de joie', prix: 'Sinon, il manque quatre matchs',
-        pari: { chance: 2 / 6, gagne: { finition: 1.095, duree: 6 }, perd: { action: { absents: 4 } } } },
-    ],
-  },
-  malarchuk: {
-    ico: '🕯', titre: 'Un accident terrible', irl: 'Buffalo, 1989', cible: 'gardien',
-    recit: 'Un patin tranche la gorge de {nom} pendant le match. Il survit grâce au soigneur, mais les deux vestiaires sont sous le choc. Aucun bon choix ici.',
-    // S80 : ton gardien s\'est vraiment blessé à ton dernier match.
-    faits: c => (c.dernier && c.dernier.gardienBlesse ? { joueur: c.dernier.gardienBlesse } : null),
-    options: [
-      { cle: 'temps', nom: 'Lui donner tout le temps qu\'il faut', bon: 'Il revient quand il est prêt', prix: 'Cinq matchs avec l\'auxiliaire',
-        action: { absents: 5 } },
-      { cle: 'pourlui', nom: 'Jouer pour lui', bon: 'Tout le monde se donne', prix: 'On joue sur les nerfs : ça fait mal', finition: 1.08, blessure: 1.5, duree: 6 },
-    ],
-  },
-  lemieux: {
-    ico: '💪', titre: 'Le traitement du matin', irl: 'Pittsburgh, 1993', cible: 'vedette',
-    recit: '{nom} termine sa dernière séance de radiothérapie ce matin. Il veut jouer ce soir.',
-    options: [
-      { cle: 'jouer', nom: 'Il joue', bon: 'Le vestiaire est galvanisé', prix: '{nom} joue épuisé', action: { energie: -35 }, finition: 1.095, duree: 3 },
-      { cle: 'menager', nom: 'Deux matchs de repos', bon: '{nom} revient frais', prix: 'Deux matchs sans lui, un réserviste joue', action: { absents: 2 } },
-    ],
-  },
-  echange: {
-    ico: '📞', titre: 'Les rumeurs d\'échange', irl: 'Edmonton, 1988', cible: 'vedette',
-    recit: 'Un journaliste annonce que {nom} va être échangé à Los Angeles. Il n\'en sait rien.',
-    options: [
-      { cle: 'dementir', nom: 'Démentir tout de suite', bon: '{nom} respire', defense: 0.92, duree: 6 },
-      { cle: 'planer', nom: 'Laisser planer le doute', bon: 'S\'il se sent menacé, il se défonce', prix: 'S\'il se sent trahi, il boude',
-        pari: { chance: 0.5, gagne: { volume: 1.11, duree: 8 }, perd: { finition: 0.905, duree: 8 } } },
-    ],
-  },
-  hextall: {
-    ico: '🥅', titre: 'Le gardien veut marquer', irl: 'Philadelphie, 1987', cible: 'gardien',
-    recit: '{nom} est convaincu qu\'il peut marquer dans le filet désert. Il sort jouer la rondelle à chaque occasion.',
-    options: [
-      { cle: 'laisser', nom: 'Le laisser essayer', bon: 'Une chance sur trois : il marque et l\'équipe s\'envole', prix: 'Sinon, il se fait prendre hors de son filet',
-        pari: { chance: 2 / 6, gagne: { finition: 1.11, duree: 6 }, perd: { defense: 1.088, duree: 4 } } },
-      { cle: 'filet', nom: 'Qu\'il reste dans son filet', bon: 'Un gardien concentré', defense: 0.94, duree: 5 },
-    ],
-  },
-  avery: {
-    ico: '🎭', titre: 'L\'agitateur', irl: 'New York, 2008', cible: 'dur',
-    recit: '{nom} se plante devant le gardien adverse, dos au jeu, et agite son bâton devant son masque. La ligue écrit une règle le lendemain.',
-    options: [
-      { cle: 'laisser', nom: 'Le laisser faire', bon: 'Il les rend fous', prix: 'L\'arbitre le guette', finition: 1.095, discipline: 1.3 },
-      { cle: 'galerie', nom: 'Deux matchs sur la galerie de presse', bon: 'Le message passe : discipline', prix: '{nom} regarde de là-haut, un réserviste joue',
-        action: { absents: 2 }, discipline: 0.788, duree: 6 },
-    ],
-  },
-  commotion: {
-    ico: '🤕', titre: 'Un coup à la tête', irl: 'Pittsburgh, 2011', cible: 'vedette',
-    recit: '{nom} a pris deux coups à la tête en quatre jours. Il dit qu\'il se sent bien.',
-    options: [
-      { cle: 'menager', nom: 'Le protocole, quatre matchs', bon: 'Aucun risque', prix: '{nom} manque quatre matchs, un réserviste joue', action: { absents: 4 } },
-      { cle: 'jouer', nom: 'Le croire', bon: 'Deux fois sur trois, il a raison', prix: 'Sinon, il manque dix matchs',
-        pari: { chance: 4 / 6, gagne: {}, perd: { action: { absents: 10 } } } },
-    ],
-  },
-  tortorella: {
-    ico: '🎙', titre: 'L\'entraîneur pète une coche', irl: 'Inspiré de plusieurs points de presse',
-    recit: 'Ton entraîneur insulte un journaliste en direct et promet que « ça va changer ». La vidéo fait le tour du continent.',
-    options: [
-      { cle: 'appuyer', nom: 'L\'appuyer', bon: 'Si le vestiaire embarque, ça brasse', prix: 'Sinon, ça dégénère en punitions',
-        pari: { chance: 0.5, gagne: { volume: 1.11, duree: 8 }, perd: { discipline: 1.288, duree: 8 } } },
-      { cle: 'recadrer', nom: 'Le recadrer', bon: 'On revient au système', prix: 'Moins d\'intensité', defense: 0.913, volume: 0.913 },
-    ],
-  },
-  tempete: {
-    ico: '🌨', titre: 'La tempête de neige', irl: 'Buffalo, 2014',
-    recit: 'Deux mètres de neige. L\'avion ne décolle pas, et le match est dans deux jours à l\'autre bout du continent. Les deux options font mal : laquelle moins ?',
-    options: [
-      { cle: 'autobus', nom: 'Vingt heures d\'autobus', prix: 'Toute l\'équipe arrive épuisée', action: { energieTous: -15 } },
-      { cle: 'attendre', nom: 'Attendre l\'avion à l\'hôtel', prix: 'On arrive le matin du match, sans réchauffement', finition: 0.913, volume: 0.913, duree: 3 },
-    ],
-  },
-  barbe: {
-    ico: '🧔', titre: 'La barbe porte-bonheur', irl: null,
-    recit: '{n} victoires de suite. Les vétérans refusent de se raser tant que la séquence dure. Le capitaine a l\'air d\'un trappeur.',
-    // S80 : une vraie séquence de trois victoires ou plus.
-    faits: c => (c.serieV >= 3 ? { n: c.serieV } : null),
-    options: [
-      { cle: 'pousser', nom: 'Laisser pousser', bon: 'Dans cinq matchs, la barbe fait peur à tout le monde', ensuite: { apres: 5, duree: 10, finition: 1.08 } },
-      { cle: 'raser', nom: 'Raser tout le monde ce soir', bon: 'Un vestiaire propre et motivé', finition: 1.06, duree: 5 },
-    ],
-  },
-  film: {
-    ico: '🎬', titre: 'Un film dans ton aréna', irl: null,
-    recit: 'Un studio veut tourner une comédie de hockey dans ton aréna. Les caméras suivraient l\'équipe pendant dix jours.',
-    options: [
-      { cle: 'accepter', nom: 'Accepter', bon: 'Des gars qui se prennent pour des vedettes : ils lancent de partout', prix: 'Des pratiques écourtées', volume: 1.095, energie: 1.192, duree: 8 },
-      { cle: 'refuser', nom: 'Refuser', bon: 'Rien ne change', rien: true },
+      { cle: 'reposer', nom: 'Trois matchs de repos : {aux} au filet', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Trois matchs sans {nom}',
+        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } },
+      { cle: 'soutenir', nom: 'Renvoyer {nom} devant le filet', bon: 'Une chance sur deux : moins de buts contre', prix: 'Sinon : plus de buts contre',
+        pari: { chance: 0.5, gagne: { defense: 0.89, duree: 5 }, perd: { defense: 1.11, duree: 5 } } },
     ],
   },
   baton: {
-    ico: '🏒', titre: 'Le bâton maudit', irl: null, cible: 'vedette',
-    recit: '{nom} jure que son nouveau modèle de bâton lui porte malheur. Il a {n} en {m} matchs.',
-    // S80 : un vrai marqueur (25 buts et plus dans sa vraie saison) qui n'a presque rien marqué chez toi ces derniers matchs.
-    faits: c => {
-      const x = c.joueurs.filter(j => j.marqueur && c.recents >= 10 && j.butsRecents <= 2).sort((a, b) => (b.p.g || 0) - (a.p.g || 0))[0];
-      if (!x) return null;
-      return { joueur: x.p, n: x.butsRecents === 0 ? 'aucun but' : x.butsRecents === 1 ? 'un seul but' : `${x.butsRecents} buts`, m: c.recents };
-    },
+    ico: '🏒', titre: 'La disette', fait: 'disetteMarqueur', de: 'an',
     options: [
-      { cle: 'ancien', nom: 'Ressortir ses vieux bâtons', bon: 'Si c\'était bien le bâton, ça rentre', prix: 'Sinon, rien ne change et il le sait',
-        pari: { chance: 0.5, gagne: { finition: 1.11, duree: 8 }, perd: { finition: 0.94, duree: 4 } } },
-      { cle: 'travail', nom: 'Le travail, pas la magie', bon: 'On lance plus', volume: 1.08, duree: 6 },
-    ],
-  },
-  poutine: {
-    ico: '🍟', titre: 'La poutine d\'après-match', irl: null,
-    recit: 'Un restaurateur offre la poutine à vie à l\'équipe. Les gars y vont tous les soirs.',
-    options: [
-      { cle: 'fete', nom: 'Laisser faire', bon: 'Le moral est au plafond', prix: 'Les jambes, moins', finition: 1.088, energie: 1.192, duree: 8 },
-      { cle: 'diete', nom: 'Diète de séries dès maintenant', bon: 'Dans cinq matchs, des jambes neuves', prix: 'D\'ici là, ça grogne',
-        finition: 0.94, duree: 5, ensuite: { apres: 5, duree: 12, energie: 0.76 } },
+      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.25, lancers: 0.9 } },
+      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.25, finition: 0.92 } },
     ],
   },
   /*
-   * LES DILEMMES QUI CHANGENT UNE CARTE (S68). Le joueur visé est nommé avant
-   * le choix (`{nom}` dans le texte, résolu par `cibleMutation`), et l'option
-   * qui porte `mutation` le change pour le reste de la saison.
+   * LES DILEMMES QUI CHANGENT UNE CARTE (S68). Le joueur visé est celui que le fait nomme, et l'option qui porte
+   * `mutation` le change pour le reste de la saison.
    */
   camp: {
-    ico: '🏕', titre: 'Le camp de mi-saison', irl: null,
-    recit: 'La pause du Match des étoiles : trois jours d\'entraînement. Qui travaille quoi ?',
-    // S80 : à la mi-saison seulement, quand la pause arrive vraiment.
-    faits: c => (c.J >= 38 && c.J <= 55 ? {} : null),
+    ico: '🎯', titre: 'Le tir du plombier', fait: 'plombier', de: 'ad',
     options: [
-      { cle: 'gun', nom: 'Envoyer {nom} tirer du gun', mutation: 'tir_gun', bon: 'Ton plombier apprend à viser', prix: 'Trois jours sans repos pour les autres', blessure: 1.24 },
-      { cle: 'repos', nom: 'Repos pour tout le monde', bon: 'Des jambes neuves', blessure: 0.5 },
-    ],
-  },
-  lame: {
-    ico: '🏒', titre: 'La lame qui ne se fait plus', irl: null,
-    recit: 'Le fabricant arrête le modèle de lame de {nom}. Rien d\'autre ne lui convient : il ne sent plus sa rondelle.',
-    options: [
-      { cle: 'defensif', nom: 'En faire un joueur défensif', mutation: 'lame', bon: 'Il devient fiable sans la rondelle', prix: 'Ton meilleur tireur ne marquera plus' },
-      { cle: 'marche', nom: 'Chercher la lame au marché noir', bon: 'Il reste lui-même', prix: 'Des lames refaites à la main : ça casse', finition: 0.913 },
-    ],
-  },
-  patinage: {
-    ico: '⛸', titre: 'L\'entraîneur de patinage', irl: null,
-    recit: 'Une ancienne patineuse olympique offre ses services pour la saison. Elle ne prend qu\'un élève : {nom}.',
-    options: [
-      { cle: 'oui', nom: 'Oui, pour {nom}', mutation: 'patin', bon: 'Il arrivera avant la rondelle' },
-      { cle: 'non', nom: 'Non : l\'argent va à la physio', bon: 'Des jambes neuves pour tout le monde', energie: 0.872, duree: 6 },
-    ],
-  },
-  cassettes: {
-    ico: '📼', titre: 'Les cassettes de Gretzky', irl: null,
-    recit: '{nom} a trouvé une boîte de vieilles cassettes dans le sous-sol de l\'aréna. Il veut passer ses soirées à les étudier.',
-    options: [
-      { cle: 'etudier', nom: 'Qu\'il étudie', mutation: 'video', bon: 'Il verra le jeu une passe d\'avance', prix: 'Il tirera moins lui-même' },
-      { cle: 'dormir', nom: 'Qu\'il dorme', bon: 'Frais pour le prochain match', volume: 1.06 },
+      { cle: 'gun', nom: 'Faire travailler son tir à {nom}', mutation: 'tir_gun', bon: '{nom} : plus de précision, plus de tirs' },
+      { cle: 'repos', nom: 'Du repos pour tout le monde', bon: 'Moins de blessures', blessure: 0.5 },
     ],
   },
   pointe: {
-    ico: '💣', titre: 'La pointe de l\'avantage', irl: null,
-    recit: '{nom} demande sa chance à la ligne bleue en avantage numérique. Il jure qu\'il a un canon.',
+    ico: '💣', titre: 'La pointe de l\'avantage', fait: 'tirsD', de: 'ad',
     options: [
-      { cle: 'chance', nom: 'Lui donner la pointe', mutation: 'pointe', bon: 'Un défenseur qui décoche' },
-      { cle: 'attendre', nom: 'Qu\'il attende son tour', bon: 'Il travaille sa défensive en attendant', defense: 0.94, duree: 6 },
+      { cle: 'chance', nom: 'Donner la pointe de l\'avantage à {nom}', mutation: 'pointe', bon: '{nom} : plus de tirs' },
+      { cle: 'attendre', nom: 'Le garder à la défensive', bon: 'Moins de buts contre', defense: 0.94, duree: 6 },
     ],
   },
   ecole: {
-    ico: '🧓', titre: 'L\'école du vétéran', irl: null,
-    recit: '{vieux}, ton vieux défenseur, prend sa retraite dans deux ans. Il propose de prendre {nom} sous son aile.',
-    // S80 : tu as vraiment un défenseur de 33 ans ou plus.
-    faits: c => (c.veteransD.length ? { vieux: c.veteransD[0].n } : null),
+    ico: '🧓', titre: 'L\'école du vétéran', fait: 'veteranD', de: 'ca',
     options: [
-      { cle: 'oui', nom: 'Qu\'il lui apprenne à défendre', mutation: 'dur', bon: '{nom} ne montera plus, il bloquera', prix: 'Moins de premières passes' },
+      { cle: 'oui', nom: 'Confier {nom} à {vieux}', mutation: 'dur', bon: '{nom} : plus de défense', prix: '{nom} : moins de passes' },
       { cle: 'non', nom: '{nom} garde son style', bon: 'Rien ne change', rien: true },
     ],
   },
   /*
-   * CONTOURNER LE RÈGLEMENT (JP). Pas un cadeau : chaque trou dans le livre
-   * a son prix, sur les canaux qui existent déjà. La courbe, le trapèze,
-   * l'embellissement, le filet désert, l'obstruction, les minutes de trop.
+   * CONTOURNER LE RÈGLEMENT (JP). Pas un cadeau : chaque trou dans le livre a son prix, sur les canaux qui existent
+   * déjà. Chacun répond à ce que tes matchs viennent de dire : les buts qui ne rentrent plus, les tirs reçus, les
+   * punitions qu'ils ne prennent pas, la défaite par un but, les buts accordés.
    */
   courbe: {
-    ico: '📏', titre: 'La courbe illégale', irl: 'La LNH mesure les courbes depuis 1990', regle: true,
-    recit: 'Le préposé à l\'équipement te tend un bâton. La courbe dépasse le gabarit, « juste assez pour que le tir tombe ».',
+    ico: '📏', titre: 'La courbe illégale', regle: true, fait: 'disette', de: 'eq',
     options: [
-      { cle: 'laisser', nom: 'Laisser la courbe', bon: 'Une chance sur deux : le tir trompe', prix: 'Sinon, l\'arbitre sort le gabarit',
+      { cle: 'laisser', nom: 'Laisser passer les courbes illégales', bon: 'Une chance sur deux : plus de précision', prix: 'Sinon : plus de punitions',
         pari: { chance: 0.5, gagne: { finition: 1.095, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
-      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions bêtes', prix: 'Des lancers plus honnêtes, donc moins dangereux', discipline: 0.825, volume: 0.94, duree: 6 },
+      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.825, volume: 0.94, duree: 6 },
     ],
   },
   trapeze: {
-    ico: '🥅', titre: 'Hors du trapèze', irl: 'Martin Brodeur, avant la règle de 2005', cible: 'gardien', regle: true,
-    recit: '{nom} joue la rondelle partout derrière le filet. La règle qui l\'en empêchera n\'est pas encore écrite — ou tu fais comme si.',
+    ico: '🥅', titre: 'Hors du trapèze', regle: true, fait: 'tirsContre', de: 'ad',
     options: [
-      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent', prix: 'Il se fait prendre, et l\'arbitre s\'en mêle', defense: 0.92, discipline: 1.19, duree: 6, trou: true },
-      { cle: 'filet', nom: 'Le garder dans la peinture', bon: 'Un gardien à sa place', defense: 0.96, duree: 5 },
+      { cle: 'sortir', nom: 'Laisser {nom} jouer la rondelle partout', bon: 'Moins de buts contre', prix: 'Plus de punitions', defense: 0.92, discipline: 1.19, duree: 6, trou: true },
+      { cle: 'filet', nom: 'Garder {nom} dans sa zone', bon: 'Moins de buts contre', defense: 0.96, duree: 5 },
     ],
   },
   embellir: {
-    ico: '🎭', titre: 'L\'embellissement', irl: null, regle: true,
-    recit: 'Ton ailier sait tomber. Un mot de trop après le contact, et l\'arbitre lève le bras. La ligue, elle, regarde les reprises.',
+    ico: '🎭', titre: 'L\'embellissement', regle: true, fait: 'avantagesRares', de: 'an',
     options: [
-      { cle: 'plonger', nom: 'Le laisser vendre le contact', bon: 'Sur un 5 ou un 6, la punition tombe de ton côté', prix: 'Le reste du temps, c\'est toi qu\'on siffle',
+      { cle: 'plonger', nom: 'Vendre les contacts', bon: 'Une fois sur trois : plus de précision', prix: 'Sinon : plus de punitions',
         pari: { chance: 2 / 6, gagne: { finition: 1.088, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
-      { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre', discipline: 0.825, duree: 6 },
+      { cle: 'debout', nom: 'Rester debout', bon: 'Moins de punitions', discipline: 0.825, duree: 6 },
     ],
   },
   desert: {
-    ico: '🚪', titre: 'Le gardien sort trop tôt', irl: null, regle: true,
-    recit: 'Il reste dix minutes. Le banc veut déjà le sixième attaquant. Ce n\'est pas le moment, et tout le monde le sait.',
+    ico: '🚪', titre: 'Le filet désert', regle: true, fait: 'defaiteParUn', de: 'ad',
     options: [
-      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps', prix: 'Le filet est vide bien trop tôt', volume: 1.095, defense: 1.095, duree: 4, trou: true },
-      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'On ne donne pas le filet', defense: 0.96, duree: 4 },
+      { cle: 'sortir', nom: 'Sortir le gardien plus tôt', bon: 'Plus de tirs', prix: 'Plus de buts contre', volume: 1.095, defense: 1.095, duree: 4, trou: true },
+      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'Moins de buts contre', defense: 0.96, duree: 4 },
     ],
   },
   mort: {
-    ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005', regle: true,
-    recit: 'Tes vétérans veulent le hockey d\'avant : accrocher dans les coins, retenir le bâton, tuer le jeu au centre. La ligue a écrit une règle contre ça.',
+    ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005', regle: true, fait: 'passoire', de: 'ca',
     options: [
-      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe', prix: 'Tu ne tires plus, et les punitions s\'accumulent', defense: 0.913, volume: 0.913, discipline: 1.19, duree: 8, trou: true },
-      { cle: 'aujourd', nom: 'Jouer le hockey d\'aujourd\'hui', bon: 'De l\'espace, des lancers', prix: 'Des trous derrière', volume: 1.08, defense: 1.06, duree: 6 },
+      { cle: 'accrocher', nom: 'Accrocher, retenir, tuer le jeu au centre', bon: 'Moins de buts contre', prix: 'Moins de tirs, plus de punitions', defense: 0.913, volume: 0.913, discipline: 1.19, duree: 8, trou: true },
+      { cle: 'aujourd', nom: 'Ouvrir le jeu', bon: 'Plus de tirs', prix: 'Plus de buts contre', volume: 1.08, defense: 1.06, duree: 6 },
     ],
   },
   minutes: {
-    ico: '⏱', titre: 'La paire qui ne descend plus', irl: null, regle: true,
-    recit: 'Le règlement ne limite pas les minutes. Ton adjoint, lui, dit que vingt-huit minutes par défenseur, c\'est déjà trop.',
+    ico: '⏱', titre: 'La paire qui ne descend plus', regle: true, fait: 'passoirePaire', de: 'ad',
     options: [
-      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue le gros des soirs', prix: 'Elle finit à plat, et la troisième ne joue plus', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
-      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent', prix: 'Un peu moins de lancers', blessure: 0.76, volume: 0.96, duree: 6 },
+      { cle: 'doubler', nom: 'Laisser {noms} sur la glace', bon: 'Ta première paire joue plus', prix: 'Ta troisième paire joue moins ; plus de blessures, plus d\'usure des jambes', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
+      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Moins de blessures, moins d\'usure des jambes', prix: 'Moins de tirs', blessure: 0.76, energie: 0.872, volume: 0.96, duree: 6 },
     ],
   },
   ...MOMENTS_VIE,
 };
+for (const m of Object.values(MOMENTS)) m.faits = c => faitDuDilemme(m, c);
 
 /*
  * LA FAMILLE D'UNE DÉCISION DE MOMENT : un dilemme (`moment`), une séquence, ou la réponse à un courriel ou
@@ -2807,15 +2800,14 @@ export const MOMENTS = {
 export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle] : m.famille === 'vie' ? REPONSES_VIE[m.cle] : m.famille === 'fil' ? CHOIX_DES_FILS[m.cle]
   : m.famille === 'dossier' ? DOSSIERS[m.cle] : MOMENTS[m.cle]);
 
-export const JOURS_MOMENTS = [14, 25, 33, 51, 60, 70];
+export const JOURS_MOMENTS = [8, 14, 25, 33, 42, 51, 60, 70];
 /* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
 /*
- * `faits` (S80) : ce qui est VRAIMENT arrivé avant la journée du dilemme (tes matchs, ta
- * séquence, tes joueurs). Un dilemme qui affirme un fait de match ne se tire que si ce fait
- * est vrai (`MOMENTS[c].faits`) ; sans faits (une vérification en Node), il ne se tire pas.
+ * `faits` (S80, oct. 2026) : ce qui est VRAIMENT arrivé avant la journée du dilemme (`faitsDuClub`).
+ * Chaque dilemme a son fait (`FAITS`) et ne se tire que s'il est vrai ; sans faits, rien ne se tire.
  */
 export function momentDuJour(graine, jour, deja = [], faits = null) {
-  const cles = Object.keys(MOMENTS).filter(c => !deja.includes(c) && (!MOMENTS[c].faits || (faits && MOMENTS[c].faits(faits))));
+  const cles = faits ? Object.keys(MOMENTS).filter(c => !deja.includes(c) && MOMENTS[c].faits(faits)) : [];
   if (!cles.length) return null;
   let x = ((Number(graine) >>> 0) ^ (jour * 0x85ebca6b) ^ 0x5bd1e995) >>> 0;
   x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
@@ -3869,7 +3861,7 @@ export function badgeGardien(g) {
   const cle = STYLE_DU_GARDIEN[archetypeKey(g)];
   if (!cle) return null;
   const svLigue = 1 - seasonLancers(g.s)[1] / 100;
-  const [e, S] = cle === 'fer' ? [g.gp / seasonGames(g.s), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
+  const [e, S] = cle === 'fer' ? [Math.min(1, g.gp / matchsDeSaSaison(g)), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
   const brut = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
   // Monter un palier (V2.4) : la variante de sa carte (un, deux ou trois) et la carte d'entraînement.
   const palier = Math.min(4, brut + (VARIANTE_PALIERS_G[(g._carte && g._carte.rar) || 'commune'] || 0) + (g._palier || 0) + (g._galon || 0));
@@ -5114,8 +5106,19 @@ const shuffle = a => {
 };
 
 /** Part des matchs joués par le joueur dans sa vraie saison (0-1). */
+/*
+ * LES MATCHS DE SON ÉQUIPE (oct., JP : *on peut pas dire qu'un joueur est fragile s'il a joué dix matchs sur dix*). La
+ * part de sa saison se compte sur les matchs que SON équipe a joués cette saison-là, lus du shard (`an[équipe].gp` :
+ * 6 à 10 en 2026-27, qui se joue encore ; 80 en 1985-86) ; `seasonGames` en repli, pour un shard qui ne les porte pas.
+ * Le chargeur d'un shard les retient (`retenirMatchsDuShard` : js/repechage.js `getShard`, scripts/lib/rogue_sim.mjs).
+ */
+const MATCHS_D_EQUIPE = new Map();
+export function retenirMatchsDuShard(shard) {
+  for (const [t, x] of Object.entries((shard && shard.an) || {})) if (x && x.gp > 0) MATCHS_D_EQUIPE.set(`${shard.season}|${t}`, x.gp);
+}
+export const matchsDeSaSaison = p => MATCHS_D_EQUIPE.get(`${p.s}|${p.t}`) || seasonGames(p.s);
 function gpShare(p) {
-  return Math.max(0, Math.min(1, (p.gp || 0) / seasonGames(p.s)));
+  return Math.max(0, Math.min(1, (p.gp || 0) / matchsDeSaSaison(p)));
 }
 
 /** Probabilité de blessure à un match donné. */
@@ -5311,6 +5314,9 @@ function lineupQuiMonte(team, reserves, absent) {
   }
   return lineup;
 }
+
+/* La part des présences de chaque trio et de chaque paire d'un profil de match, arrondie pour la feuille. */
+const glaceDe = q => (q && q.unites ? { F: q.unites.F.map(u => Math.round(u.presence * 1e4) / 1e4), D: q.unites.D.map(u => Math.round(u.presence * 1e4) / 1e4) } : null);
 
 function unitAvgLineup(team, lineup, group, unit, key) {
   const slots = SLOTS.filter(s => s.group === group && s.unit === unit && !s.scratch);
@@ -5622,6 +5628,8 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   // pas une nuisance — et le gros pourvoyeur est le filet : deux cases
   // seulement, et l'auxiliaire n'est pas toujours remplaçable.
   noterTrous(A, LA); noterTrous(B, LB);
+  // LE PLAN DE MATCH (V17) : posé avant le profil du match, retiré après ; au duel, chaque période pose le sien.
+  const retirerPlans = (A._gros || B._gros || {}).duel ? () => {} : poserLesPlans(A, B, LA, LB);
   const sA = teamStrength(A, LA), sB = teamStrength(B, LB);
   let gA = pickGoalie(LA, A.games, A), gB = pickGoalie(LB, B.games, B);
   const partantA = gA, partantB = gB;
@@ -5726,6 +5734,9 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
         A: Object.values(LA).filter(p => p && p.p !== 'G'),
         B: Object.values(LB).filter(p => p && p.p !== 'G'),
       },
+      // LA GLACE DE CHAQUE TRIO ET DE CHAQUE PAIRE CE SOIR-LÀ (oct. 2026) : leur part des présences à forces égales, telle
+      // que le moteur l'a jouée. C'est là que « ton quatrième trio joue plus » se recompte (scripts/check_dilemmes.mjs).
+      glace: { A: glaceDe(pA), B: glaceDe(pB) },
     });
     // LES JOUEURS SUR LEUR LANCÉE CE SOIR (V3.6), dans une ligue Rogue : ce que le vendeur de chandails paie.
     if (A.courbe || B.courbe) journal.lancees = { A: Object.values(LA).filter(p => p && p._lancee && p._lancee !== LANCEE.doute), B: Object.values(LB).filter(p => p && p._lancee && p._lancee !== LANCEE.doute) };
@@ -5770,6 +5781,7 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     // La suite (V10, les moments « après une défaite », « après trois victoires ») : +n victoires, −n défaites.
     for (const [T, w] of [[A, winA], [B, !winA]]) T._suite = w ? Math.max(1, (T._suite || 0) + 1) : Math.min(-1, (T._suite || 0) - 1);
   }
+  retirerPlans();
   return { gfA, gfB, ot, winner: winA ? A : B };
 }
 
@@ -5881,8 +5893,9 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
  * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700 } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700, plan = null } = {}) {
   return avecAVenir(team, aVenir, () => {
+    let retirerPlan = null;
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
     const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
     const lignesAvant = team.lignes, lignesMatch = team._lignesMatch, avaitL = 'lignes' in team, avaitM = '_lignesMatch' in team;
@@ -5900,6 +5913,14 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
       if (nu) { team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
+      // `plan` (V17) : un plan de match posé le temps de la lecture, comme `playGame` le pose (« Ton match » : aucun).
+      const fxPlan = plan ? effetsDuPlan(planLu(typeof plan === 'string' ? { cle: plan } : plan), { Ltoi: lu, Ladv: adv ? activeLineup(adv) : null }) : null;
+      if (fxPlan) {
+        if (fxPlan.toi.length) team._effetMatch = [...(team._effetMatch || []), ...fxPlan.toi];
+        if (adv && fxPlan.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fxPlan.adv];
+        else if (!adv) effetsAdv = [...effetsAdv, ...fxPlan.adv];
+        retirerPlan = poserFxDeJoueurs(fxPlan.joueurs);
+      }
       // `neutre` : { badges, chimie, jambes, systemes } remis au neutre pour TON club (ses habillés), toute la lecture durant.
       if (neutre) { NEUTRE = { ...neutre, team, joueurs: new Set(Object.values(lu).filter(Boolean)) }; MEMO_MATCH++; }
       const A = profilMatch(team, lu, adv);
@@ -5950,7 +5971,8 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       return { A, B, occasions, p, joueurs, unites, speciales, partDuFilet, blessures, usure, bagarres: phys ? phys.bagarres : 0 };
     } finally {
       if (avait) team._effetMatch = sauve; else delete team._effetMatch;
-      if (adv && effetsAdv.length) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
+      if (adv) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
+      if (retirerPlan) retirerPlan();
       if (lignes) {
         if (avaitL) team.lignes = lignesAvant; else delete team.lignes;
         if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;
@@ -6256,6 +6278,8 @@ function appliquerDecision(team, d, graine = 0) {
   // UNE CARTE EST UNE DÉCISION comme une autre : elle s'applique au jour où
   // elle a été prise et vaut pour le reste de la saison.
   if ('fermeture' in d) team.fermeture = d.fermeture;
+  // LE PLAN DE MATCH (V17) : il dure jusqu'au suivant ; Ton match le retire.
+  if ('plan' in d) team.plan = planLu(d.plan);
   // TES RIVAUX (V8) : choisis au premier jour, ils font les gros matchs de la saison (`grosMatchAvant`).
   // Au jeu, ils se prennent un à la fois (`rival`) ; le robot les pose d'un coup (`rivaux`).
   for (const x of Array.isArray(d.rivaux) ? d.rivaux : d.rival ? [d.rival] : []) {
@@ -6666,7 +6690,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
       // Une ligue neuve part de zéro : les cartes, les situations, les cases
       // vides, les effets, les gestes réels, la chimie et l'énergie, les
       // changements de carte, les gros matchs.
-      t.patrons = []; t.coachs = [];
+      t.patrons = []; t.coachs = []; t.plan = null;
       t.situations = [];
       t.trous = []; t.trouEnCours = false;
       t.effets = []; t.jourCourant = 0;
@@ -7158,7 +7182,7 @@ function remettreANeuf(t) {
   t.W = 0; t.L = 0; t.OTL = 0; t.GF = 0; t.GA = 0; t.PTS = 0; t.games = 0;
   t.strength = teamStrength(t);
   t.luck = 0;   // un soir, pas une saison : la chance est celle du match (LUCK_GAME)
-  t.patrons = []; t.coachs = []; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
+  t.patrons = []; t.coachs = []; t.plan = null; t.situations = []; t.trous = []; t.trouEnCours = false; t.effets = []; t.jourCourant = 0;
   t.absents = new Map(); t.gardienAux = 0; t.paris = []; t._gardienAuxMatch = false; t._filetForce = null; t._filetMatch = null;
   t.chimie = [0, 0, 0, 0];
   t.mutations = []; t.jourLignes = []; t.minisBoss = []; t.defaitesContre = new Map();
@@ -7952,6 +7976,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
     if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
     if ('speciales' in d) team.speciales = specialesValides(d.speciales);
     if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
+    if ('plan' in d) team.plan = planLu(d.plan);
     const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
     if (eff) ajouter(eff);
     if (d.effet && !serie) {
@@ -7973,7 +7998,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   }
 }
 export function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
-  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'speciales', 'lignes', ...(cases ? ['roster'] : [])];
+  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'speciales', 'lignes', 'plan', ...(cases ? ['roster'] : [])];
   const avant = champs.map(k => [k, k in team, team[k]]);
   try {
     poserAVenir(team, aVenir, { cases });
@@ -9030,6 +9055,81 @@ export const INTENTIONS = {
     malus: { toi: { discipline: 2.5 }, adv: { finition: 1.25 } },
     contre: { toi: { finition: 1.12 }, adv: { discipline: 2 } } },
 };
+/*
+ * LE PLAN DE MATCH (V17, docs/refonte-v17.md). JP : *des choix avant le match et pendant, plus stratégiques, genre
+ * tirer plus, suivre un joueur de près, qqchose qui change vraiment le match, mais sans briser les équipes*. Les
+ * mêmes leviers que les intentions, posés par TON club, sur ses canaux qui existent : `toi` sur ton club, `adv` sur
+ * le leur, `vedette` sur leur meilleur marqueur (`ptsDe`) et `colle` sur ton attaquant qui le suit (le plus fort en
+ * Défense, `famillesDe`). Un plan change la FORME du match, pas sa force : chacun paie ce qu'il donne (`check_plan_de_match`).
+ * `mot` : le plan en un mot, sur la ligne du match au Bureau (js/saison.js).
+ * La décision `plan` dure jusqu'à la suivante ; au duel, une période peut le changer pour elle (`jouerDuel`).
+ */
+export const PLANS = {
+  match: { ico: '🏒', nom: 'Ton match', mot: 'Ton match', bon: 'Ton alignement tel quel', prix: '' },
+  tirer: { ico: '🌧', nom: 'Tirer de partout', mot: 'Tirer', bon: 'Plus de tirs', prix: 'Moins de précision, des jambes qui s\'usent',
+    toi: { volume: 1.15, finition: 0.965, energie: 1.1 } },
+  ombre: { ico: '🥷', nom: 'Coller leur vedette', mot: 'Coller', bon: 'Leur meilleur marqueur tire moins et rate plus', prix: 'Ton attaquant qui le suit crée moins',
+    vedette: { lancers: 0.5, finition: 0.75, creation: 0.75 }, colle: { lancers: 0.65, creation: 0.6 }, toi: { volume: 0.93 } },
+  centre: { ico: '⛔', nom: 'Fermer le centre', mot: 'Fermer', bon: 'Moins de tirs contre, et de moins bonne qualité', prix: 'Moins de tirs pour toi',
+    toi: { volume: 0.88 }, adv: { volume: 0.92, finition: 0.98 } },
+  assaut: { ico: '🐗', nom: 'Forechecker fort', mot: 'Forechecker', bon: 'Plus de tirs, de la pression', prix: 'Plus de punitions et d\'usure',
+    toi: { volume: 1.12, finition: 1.02, discipline: 1.25, energie: 1.12 } },
+  discipline: { ico: '🧘', nom: 'Rester discipliné', mot: 'Discipline', bon: 'Moins de punitions', prix: 'Moins de mises en échec, un peu moins de tirs',
+    toi: { discipline: 0.7, robustesse: -0.4, volume: 0.97 } },
+};
+/* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
+const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null } : null);
+/* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
+const planDe = team => (team && team.plan && PLANS[team.plan.cle] ? team.plan : null);
+/* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
+export function cibleDuPlan(Ltoi, Ladv, vise = null) {
+  const leurs = habillesDuGroupe(Ladv || {}, 'F').map(x => x.p);
+  const vedette = (vise && leurs.find(p => getPlayerKey(p) === vise)) || leurs.sort((a, b) => ptsDe(b) - ptsDe(a))[0] || null;
+  const colle = habillesDuGroupe(Ltoi || {}, 'F').map(x => x.p).sort((a, b) => ((famillesDe(b) || {}).defense || 0) - ((famillesDe(a) || {}).defense || 0))[0] || null;
+  return { vedette, colle };
+}
+/*
+ * CE QU'UN PLAN POSE sur un match ou une période : les effets des deux clubs et les canaux des deux joueurs, dans les
+ * formes que le moteur lit déjà (`_effetMatch`, `_duelFx`). Rien si le plan est Ton match.
+ */
+function effetsDuPlan(plan, { Ltoi, Ladv }) {
+  const P = plan && PLANS[plan.cle];
+  if (!P || plan.cle === 'match') return null;
+  const eff = (e, ou) => (e ? [{ source: 'plan', cle: plan.cle, nom: P.nom, ico: P.ico, ...e, ...(ou ? { ou } : {}) }] : []);
+  const { vedette, colle } = P.vedette || P.colle ? cibleDuPlan(Ltoi, Ladv, plan.vise) : {};
+  return { toi: eff(P.toi), adv: eff(P.adv), joueurs: [[vedette, P.vedette], [colle, P.colle]].filter(([p, e]) => p && e), vedette: vedette || null };
+}
+/*
+ * LES PLANS D'UN MATCH ORDINAIRE (`playGame`) : chaque club qui en a un pose ses effets et ses canaux de joueur pour
+ * le match, jusqu'aux blessures et à l'usure d'après ; rend la fonction qui remet tout comme avant.
+ */
+function poserLesPlans(A, B, LA, LB) {
+  const retraits = [];
+  for (const [T, O, LT, LO] of [[A, B, LA, LB], [B, A, LB, LA]]) {
+    const fx = effetsDuPlan(planDe(T), { Ltoi: LT, Ladv: LO });
+    if (!fx) continue;
+    for (const [X, e] of [[T, fx.toi], [O, fx.adv]]) {
+      if (!e.length) continue;
+      const avait = '_effetMatch' in X, avant = X._effetMatch;
+      X._effetMatch = [...(avant || []), ...e];
+      retraits.push(() => { if (avait) X._effetMatch = avant; else delete X._effetMatch; });
+    }
+    retraits.push(poserFxDeJoueurs(fx.joueurs));
+  }
+  return () => { for (const r of retraits.reverse()) r(); };
+}
+/* Poser des canaux de joueur le temps d'un match ou d'une période ; rend la fonction qui les retire. */
+function poserFxDeJoueurs(joueurs) {
+  const poses = [];
+  for (const [p, e] of joueurs || []) {
+    const avant = p._duelFx;
+    const fx = { ...(avant || {}) };
+    for (const [c, v] of Object.entries(e)) if (typeof v === 'number') fx[c] = (fx[c] ?? 1) * v;
+    p._duelFx = fx;
+    poses.push([p, avant]);
+  }
+  return () => { for (const [p, avant] of poses.reverse()) { if (avant) p._duelFx = avant; else delete p._duelFx; } };
+}
 /* Une intention à sa force : chaque canal élevé à la puissance (la blessure aussi), la robustesse, une somme, multipliée. */
 const forcer = (e, f) => (e ? Object.fromEntries(Object.entries(e).map(([k, v]) => [k, typeof v !== 'number' ? v : k === 'robustesse' ? v * f : v ** f])) : e);
 /* Les points par match d'un joueur, dans sa vraie saison : la vedette d'un club, c'est celle-là. */
@@ -9305,6 +9405,9 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
         if (J.malus.jambes) rendreJambes(I.cible, -Math.round(J.malus.jambes * fort));
       } else if (!fort && J.contre.joueur) viser(I.cible, forcer(J.contre.joueur, FORCE_CONTRE));
     }
+    // TON PLAN DE LA PÉRIODE (V17) : celui que la période choisit, sinon celui du club.
+    const fxPlan = effetsDuPlan(d.plan ? d.plan : planDe(toi), { Ltoi: Lk, Ladv });
+    if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [p, e] of fxPlan.joueurs) viser(p, e); }
     toi._lignesMatch = lk;
     toi._effetMatch = [...base, ...bk, ...effToi];
     // Sur eux, une carte d'un moment joue TON moment (`siToi`).
@@ -9337,7 +9440,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
  */
 function periodesDuDuel(d0, suivantes, cle) {
   const de = (d, k) => (d ? {
-    reponse: (d.duel && d.duel.reponse) || null, tactiques: (d.duel && d.duel.tactiques) || null,
+    reponse: (d.duel && d.duel.reponse) || null, tactiques: (d.duel && d.duel.tactiques) || null, plan: (d.duel && d.duel.plan) || null,
     snap: !!(d.duel && d.duel.snap), graine: k > 0 ? `${cle}:p${k}:${d.sel || ''}` : null,
   } : null);
   return [de(d0, 0), de(suivantes[1], 1), de(suivantes[2], 2)];

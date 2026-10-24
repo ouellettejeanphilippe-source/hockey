@@ -12,6 +12,7 @@ Bâtit les shards de saison a partir de l'API officielle de la LNH.
     python3 scripts/build_shards.py --rerate                 # sans API : refaire
         # cote globale, salaires, archetypes, zones et contrats d'entree
         # sur les shards existants (scripts/rerate.mjs), puis index et seed
+    python3 scripts/build_shards.py --index-only             # sans API : juste data/index.json
 
 Ecrit data/seasons/<saison>.json, data/index.json et data/seed.json.
 Aucune dependance Python. Requiert Node pour le calcul des cotes
@@ -44,6 +45,21 @@ SEASONS_DIR = os.path.join(DATA, "seasons")
 SALARIES_DIR = os.path.join(DATA, "salaries")
 BASE = "https://api.nhle.com/stats/rest/en"
 UA = {"User-Agent": "Mozilla/5.0 (cap82-build)"}
+
+# UNE SAISON N'ENTRE AU JEU QU'UNE FOIS ASSEZ JOUEE (JP, 24 oct. 2026 : *pas avoir de cartes de cette annee*).
+# A dix matchs, la carte d'un joueur se lit fausse : un blanchi d'une semaine est un Soutien, un absent est
+# fragile, une seule bonne semaine fait une Etoile. A la mi-saison, les rangs d'une saison (js/niveaux.js) et la
+# part de matchs joues se stabilisent. Le shard de la saison en cours reste sur le disque (l'Action le rafraichit
+# chaque lundi, une vieille sauvegarde le relit) ; l'index, que lit le jeu, ne la liste qu'a ce seuil : la
+# mediane des matchs joues par ses equipes (`an`). Le repli sans shards (js/data.js `allSeasonLabels`) suit
+# la meme regle par la date.
+MATCHS_POUR_JOUER = 41
+
+
+def saison_jouable(shard):
+    gps = sorted(v["gp"] for v in (shard.get("an") or {}).values() if isinstance(v, dict) and v.get("gp"))
+    return not gps or gps[len(gps) // 2] >= MATCHS_POUR_JOUER
+
 
 # Saisons du seed hors ligne : varier les epoques et inclure des franchises disparues
 SEED_SEASONS = [
@@ -421,6 +437,8 @@ def main():
                     help="reecrire meme si le shard existe deja et est a jour")
     ap.add_argument("--refresh-current", action="store_true",
                     help="refaire la saison en cours seulement (rafraichissement hebdomadaire)")
+    ap.add_argument("--index-only", action="store_true",
+                    help="sans API ni recalcul : reecrire seulement data/index.json")
     ap.add_argument("--rerate", action="store_true",
                     help="sans API : refaire l'etage 2 des cotes sur les shards existants")
     ap.add_argument("--bios-only", action="store_true",
@@ -441,7 +459,7 @@ def main():
         patch_actions(labels)
         args.rerate = True
 
-    if args.rerate:
+    if args.rerate or args.index_only:
         years = []
     elif args.only:
         years = [int(s[:4]) for s in args.only]
@@ -517,15 +535,14 @@ def main():
         verifier_dates(rebuilt)
 
     # ---- etage 2 : contrats d'entree et salaires reels, sur tous les shards ----
-    if args.rerate or (fetched and not args.seed_only):
+    if not args.index_only and (args.rerate or (fetched and not args.seed_only)):
         print("\nrecalcul de l'etage 2 (cote globale, salaires, archetypes, zones)...")
         rerate_all()
 
     # ---- index ----
     if not args.seed_only:
-        existing = sorted(
-            f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json")
-        )
+        existing = []
+        teams_seen = set()
         # L'index decrit TOUT le jeu de donnees, pas seulement ce qu'on vient
         # de rebatir : on rebalaye donc les 55 shards a chaque fois. Ce
         # rebalayage etait garde derriere `if args.rerate`, si bien qu'un
@@ -533,9 +550,14 @@ def main():
         # seules saisons traitees -- 18 equipes au lieu de 44 apres un
         # --only 1976-77 -- et retrecissait le bassin de la roulette en
         # silence.
-        for label in existing:
+        for label in sorted(f[:-5] for f in os.listdir(SEASONS_DIR) if f.endswith(".json")):
             with open(os.path.join(SEASONS_DIR, f"{label}.json"), encoding="utf-8") as f:
-                teams_seen.update(p["t"] for p in json.load(f)["players"])
+                shard = json.load(f)
+            if not saison_jouable(shard):
+                print(f"{label}  (pas encore au jeu : moins de {MATCHS_POUR_JOUER} matchs joues par equipe)")
+                continue
+            existing.append(label)
+            teams_seen.update(p["t"] for p in shard["players"])
         index = {
             "generated": time.strftime("%Y-%m-%d"),
             "minGP": args.min_gp,
@@ -545,6 +567,9 @@ def main():
         with open(os.path.join(DATA, "index.json"), "w", encoding="utf-8") as f:
             json.dump(index, f, ensure_ascii=False, indent=1)
         print(f"\nindex.json : {len(existing)} saisons, {len(teams_seen)} equipes")
+
+    if args.index_only:
+        return
 
     # ---- seed ----
     seed_players, seed_labels = [], []

@@ -35,7 +35,7 @@ import {
   INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
-  POIDS_AN, POIDS_DN,
+  POIDS_AN, POIDS_DN, PLANS, MOMENTS,
 } from '../js/sim.js';
 import { PATRONS, MATCHS_CONFIANCE } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
@@ -51,7 +51,7 @@ import { MATCHS_ECHELON, POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelon
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -267,7 +267,8 @@ const MOTS_RESERVES = [
   // de série, l'adjoint, les sept sortes de la main, la case vide, ce qui ne vit qu'au Rogue) : 2 100 mots, pas plus.
   // Oct. 2026 : la page dit les raretés (JP : *spas clair les niveaux de rareté des cartes*) : 2 250 mots.
   // V9, tranche 8 : la page dit les exigences, cran par cran (JP : *les exigences*), et la ligue qui monte : 2 400 mots.
-  borne('la page des règles est courte', mots, 300, 2400, 'mots');
+  // V17 : la page dit les six plans de match, chacun avec ses chiffres : 2 500 mots.
+  borne('la page des règles est courte', mots, 300, 2500, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
     [/Une case vide ce soir-là : un adjoint parmi trois/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
@@ -345,7 +346,7 @@ const MOTS_RESERVES = [
     [`${JETONS.depart} jetons et ${nombre(ESPACE_DE_DEPART / 1e6)} M$ sous le plafond`, 'le départ Rogue'],
     [`une victoire ${B.victoire} jetons (${B.victoire + 3}, puis ${B.victoire + 5} avec les commanditaires), une défaite en prolongation ${B.prolongation}, une défaite ${B.defaite}, un gros match gagné ${B.grosMatch}, un objectif du proprio ${B.objectif}, une ronde de séries gagnée ${B.serie}`, 'le barème des jetons'],
     [`une réclamation coûte ${coutBal} jetons`, 'la réclamation Rogue'],
-    [`tu gardes jusqu'à ${GARDES_DE_SAISON} joueurs`, 'les gardés entre deux saisons'],
+    [`tu gardes ${GARDES_DE_SAISON.map(k => `un ${NIVEAUX[k].nom}`).join(' et ')}, chacun tiré au loto de ton équipe`, 'les gardés entre deux saisons'],
     [`<strong>Les exigences</strong> ${ICO_EXIGENCE} :`, 'l\'icône des exigences'],
     [`paie ${nombre(PRIME_EXIGENCE * 100)} % de médailles de plus : ${EXIGENCES.map(E => E.texte).join(' ; ')}.`, 'les exigences'],
     // La ligue qui monte (tranche 8) : « deux fois », puis « un tiers » plus large — les parts 1/2 et 3/4 du tirage.
@@ -376,6 +377,18 @@ const MOTS_RESERVES = [
     [`; ${NOM_VARIANTE.legendaire}, le prisme`, 'la Holo'],
     [`monte d'un, deux ou trois métaux`.replace('un, deux ou trois', ['peu', 'rare', 'legendaire'].map(r => ['zéro', 'un', 'deux', 'trois'][VARIANTE_PALIERS_G[r]]).join(', ').replace(/, (\S+)$/, ' ou $1')), 'les métaux d\'un gardien'],
     [`Or ou Holo : ${nombre(brille(0))} % des cartes d'un Soutien, ${nombre(brille(NIVEAUX.findIndex(n => n.cle === 'phenomene')))} % d'un ★ Phénomène`, 'les cotes d\'une brillante'],
+    // V17 : les plans de match, chacun depuis PLANS (js/sim.js) ; un facteur se dit en écart (×0,88 : −12 %).
+    ...(() => {
+      const ec = x => `${x > 1 ? '+' : '−'}${nombre(Math.round(Math.abs(x - 1) * 1000) / 10)} %`;
+      const { tirer, ombre, centre, assaut, discipline } = PLANS;
+      return [
+        [`${tirer.ico} ${tirer.nom} : tirs ${ec(tirer.toi.volume)}, précision ${ec(tirer.toi.finition)}, usure des jambes ${ec(tirer.toi.energie)}`, 'le plan 🌧'],
+        [`${ombre.ico} ${ombre.nom} : leur meilleur marqueur, tirs ${ec(ombre.vedette.lancers)}, précision et jeu ${ec(ombre.vedette.finition)} ; ton attaquant le plus défensif le suit, tirs ${ec(ombre.colle.lancers)} et jeu ${ec(ombre.colle.creation)} ; tes tirs ${ec(ombre.toi.volume)}`, 'le plan 🥷'],
+        [`${centre.ico} ${centre.nom} : leurs tirs ${ec(centre.adv.volume)}, leur précision ${ec(centre.adv.finition)}, tes tirs ${ec(centre.toi.volume)}`, 'le plan ⛔'],
+        [`${assaut.ico} ${assaut.nom} : tirs ${ec(assaut.toi.volume)}, précision ${ec(assaut.toi.finition)}, punitions ${ec(assaut.toi.discipline)}, usure des jambes ${ec(assaut.toi.energie)}`, 'le plan 🐗'],
+        [`${discipline.ico} ${discipline.nom} : punitions ${ec(discipline.toi.discipline)}, robustesse −${nombre(-discipline.toi.robustesse)}, tirs ${ec(discipline.toi.volume)}`, 'le plan 🧘'],
+      ];
+    })(),
   ];
   // Ce que la page dit d'une édition, en mots : le Cadre monte le second badge d'un métal, le Hors-cadre les deux, l'Or
   // aussi et son second rend plein, la Holo les deux de deux métaux.
@@ -444,11 +457,24 @@ const MOTS_RESERVES = [
     if (!nombres.length && !/Bruins|Wild|Kings/.test(sc.fait)) fautes.push(`le dossier ${cle} : « ${sc.fait} » ne dit aucun fait`);
     n++;
   }
+  /*
+   * LES DILEMMES (oct. 2026) : sur un fait fabriqué, la voix du dilemme, une réplique de son fait, et un fait qui ne
+   * dit que des nombres reçus et nomme quelqu'un ou dit un nombre. Le vrai fait de chacun : scripts/check_dilemmes.mjs.
+   */
+  const FD = { joueur: { n: 'Al Secord' }, joueurs: [{ n: 'Al Secord' }, { n: 'Tie Domi' }], n: 7, m: 3, vieux: 'Larry Robinson', aux: 'Ron Hextall' };
+  for (let g = 0; g < 40; g++) for (const cle of Object.keys(MOMENTS)) {
+    const sc = sceneDuDilemme(cle, FD, g);
+    juger(`le dilemme ${cle}`, sc, []);
+    const nombres = sc.fait.match(/\d+/g) || [];
+    if (nombres.some(x => !['7', '3'].includes(x))) fautes.push(`le dilemme ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
+    if (!nombres.length && !/Secord|Domi|Robinson/.test(sc.fait)) fautes.push(`le dilemme ${cle} : « ${sc.fait} » ne dit aucun fait`);
+    n++;
+  }
   const repliques = [...Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m]))),
     ...Object.entries(DOSSIERS).flatMap(([cle, D]) => D.mots.map(m => [`dossier/${cle}`, m]))];
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
   informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers');
+  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
 }
 
 verdict('La clarté');

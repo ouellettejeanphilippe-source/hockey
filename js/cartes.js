@@ -24,7 +24,7 @@
 
 import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE, EDITIONS } from './rarete.js';
-import { actionSrc } from './actions.js';
+import { actionSrc, cadreAction } from './actions.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -319,64 +319,100 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  * Avant, une carte s'assemblait de cinq modules tirés d'une table (le cadre,
  * la photo, le nom, le motif, l'accent) : cinquante combinaisons qui se
  * ressemblaient toutes, parce que la MISE EN PAGE ne changeait jamais. Une
- * vraie collection change de DESSIN d'une série à l'autre. Il y en a dix,
- * chacune complète — le carton, la fenêtre de la photo, la plaque du nom, la
- * typographie, les petits caractères — et chacune inspirée des cartes de son
- * époque sans en copier aucune (ni marque, ni logo de fabricant) :
- *   vintage   1970-78  le carton crème, la fenêtre aux coins ronds cernée de
- *                      la couleur du club, le fanion du nom, le médaillon ;
- *   retro     1978-86  le bord blanc, la photo carrée, la bande du nom en
- *                      biais entre deux rayures du club ;
- *   tableau   1986-91  le tableau indicateur : le noir, la photo cernée
- *                      d'ampoules, le nom en points lumineux ;
- *   mosaique  1991-95  le graphisme du début des années 90 : une colonne de
- *                      tuiles aux couleurs du club, le nom à la verticale ;
- *   filet     1995-99  le filet : les poteaux et la barre rouges autour de la
- *                      photo, les mailles derrière, le nom en italique ;
- *   chrome    1999-03  le métal brossé, la fenêtre biseautée, la capsule du
- *                      nom estampée ;
- *   ecusson   2003-08  le ton sur ton : l'écusson géant embossé dans le
- *                      carton, le joueur détouré, le nom sur deux lignes ;
- *   glace     2008-13  la glace rayée et ses lignes, le joueur qui sort de
- *                      son cadre, la plaque du nom en biais ;
- *   arena     2013-19  l'aréna dans le noir : les projecteurs, la foule en
- *                      trame, la plaque blanche ;
- *   signature 2019-    le haut de gamme sobre : le carton nacré, les marges,
- *                      le nom espacé, l'écusson doré à chaud.
- * La SAISON choisit la série (`DEBUTS`), le CLUB la palette, la VARIANTE
+ * vraie collection change de DESSIN d'une année à l'autre. JP (oct. 2026) :
+ * *avoir variété de design de cartes par années, pas par décennie* ; *chaque
+ * année devra être différente* ; *ça doit être pro et commercial, la vraie
+ * affaire*. Une série par saison, chacune complète — le carton, la fenêtre de
+ * la photo, la plaque du nom, sa typographie (fonts/), ses ornements
+ * (`.carton-orne`), sa marque (`.carton-marque`), les petits caractères — et
+ * chacune inspirée des cartes de son année sans en copier aucune (ni marque,
+ * ni logo de fabricant). Le dessin de chacune est décrit sur sa règle, dans
+ * style.css « LES SÉRIES ».
+ * La SAISON choisit la série (`SERIES`), le CLUB la palette, la VARIANTE
  * (js/rarete.js) la parallèle — le même dessin, traité : voir `cartonHtml`.
+ * Une saison sans série (une saison neuve) prend celle de la dernière saison qui en a une.
  *
- * La photo d'action (`photoAction`) n'appartient pas à une série : elle va aux
- * éditions hautes, dont la photo prend toute la carte (oct. 2026).
+ * La photo d'action (`photoAction`) n'appartient pas à une série : elle remplit sa
+ * fenêtre, et toute la carte aux éditions hautes (oct. 2026).
  */
 export const SERIES = {
-  vintage: { nom: 'Vintage 70' },
-  retro: { nom: 'Rétro 80' },
-  tableau: { nom: 'Tableau' },
-  mosaique: { nom: 'Mosaïque' },
-  filet: { nom: 'Filet' },
-  chrome: { nom: 'Chrome' },
-  ecusson: { nom: 'Écusson' },
-  glace: { nom: 'Glace' },
-  arena: { nom: 'Aréna' },
-  signature: { nom: 'Signature' },
+  fanion: { nom: 'Fanion', saison: '1970-71' },
+  almanach: { nom: 'Almanach', saison: '1971-72' },
+  affiche: { nom: 'L\'affiche', saison: '1972-73' },
+  bordure: { nom: 'Bordure', saison: '1973-74' },
+  crosse: { nom: 'La crosse', saison: '1974-75' },
+  tricolore: { nom: 'Tricolore', saison: '1975-76' },
+  losange: { nom: 'Losange', saison: '1976-77' },
+  kraft: { nom: 'Kraft', saison: '1977-78' },
+  rayure: { nom: 'Rayure', saison: '1978-79' },
+  vif: { nom: 'Cadre vif', saison: '1979-80' },
+  medaillon: { nom: 'Médaillon', saison: '1980-81' },
+  pointille: { nom: 'Pointillé', saison: '1981-82' },
+  ecran: { nom: 'Écran', saison: '1982-83' },
+  bandes: { nom: 'Les bandes', saison: '1983-84' },
+  quadrillage: { nom: 'Quadrillage', saison: '1984-85' },
+  neon: { nom: 'Néon', saison: '1985-86' },
+  marquoir: { nom: 'Le marquoir', saison: '1986-87' },
+  punaise: { nom: 'Punaise', saison: '1987-88' },
+  vague: { nom: 'La vague', saison: '1988-89' },
+  geant: { nom: 'Le géant', saison: '1989-90' },
+  patinoire: { nom: 'Patinoire', saison: '1990-91' },
+  marbre: { nom: 'Marbre', saison: '1991-92' },
+  pleine: { nom: 'Pleine glace', saison: '1992-93' },
+  ultra: { nom: 'Ultra', saison: '1993-94' },
+  dorure: { nom: 'Dorure', saison: '1994-95' },
+  refracteur: { nom: 'Réfracteur', saison: '1995-96' },
+  eclat: { nom: 'Éclat', saison: '1996-97' },
+  ardoise: { nom: 'Ardoise', saison: '1997-98' },
+  circuit: { nom: 'Circuit', saison: '1998-99' },
+  millenaire: { nom: 'Millénaire', saison: '1999-00' },
+  acier: { nom: 'Acier', saison: '2000-01' },
+  decoupe: { nom: 'Découpe', saison: '2001-02' },
+  miroir: { nom: 'Miroir', saison: '2002-03' },
+  blason: { nom: 'Blason', saison: '2003-04' },
+  releve: { nom: 'La relève', saison: '2005-06' },
+  souvenir: { nom: 'Souvenir', saison: '2006-07' },
+  vitre: { nom: 'La baie vitrée', saison: '2007-08' },
+  givre: { nom: 'Givre', saison: '2008-09' },
+  prisme: { nom: 'Prisme', saison: '2009-10' },
+  filigrane: { nom: 'Filigrane', saison: '2010-11' },
+  contrejour: { nom: 'Contre-jour', saison: '2011-12' },
+  lame: { nom: 'La lame', saison: '2012-13' },
+  projecteur: { nom: 'Projecteur', saison: '2013-14' },
+  pixel: { nom: 'Pixel', saison: '2014-15' },
+  encre: { nom: 'Encre', saison: '2015-16' },
+  degrade: { nom: 'Dégradé', saison: '2016-17' },
+  centenaire: { nom: 'Centenaire', saison: '2017-18' },
+  brume: { nom: 'Brume', saison: '2018-19' },
+  perle: { nom: 'Perle', saison: '2019-20' },
+  bulle: { nom: 'La bulle', saison: '2020-21' },
+  origine: { nom: 'Origine', saison: '2021-22' },
+  spectre: { nom: 'Spectre', saison: '2022-23' },
+  velocite: { nom: 'Vélocité', saison: '2023-24' },
+  apogee: { nom: 'Apogée', saison: '2024-25' },
+  // L'Aurore était dessinée pour 2026-27 ; la saison en cours n'est pas encore au jeu (scripts/build_shards.py `MATCHS_POUR_JOUER`) : elle habille 2025-26 (JP, 24 oct.).
+  aurore: { nom: 'Aurore', saison: '2025-26' },
 };
-/* La première saison de chaque série : une saison prend la série de la dernière qui l'a commencée. */
-const DEBUTS = [
-  ['1970-71', 'vintage'], ['1978-79', 'retro'], ['1986-87', 'tableau'], ['1991-92', 'mosaique'], ['1995-96', 'filet'],
-  ['1999-00', 'chrome'], ['2003-04', 'ecusson'], ['2008-09', 'glace'], ['2013-14', 'arena'], ['2019-20', 'signature'],
-];
+const PAR_SAISON = Object.entries(SERIES).map(([cle, s]) => [s.saison, cle]);
 export function serieDe(saison) {
   const s = String(saison || '');
-  let serie = DEBUTS[0][1];
-  for (const [debut, cle] of DEBUTS) if (s >= debut) serie = cle;
+  let serie = PAR_SAISON[0][1];
+  for (const [debut, cle] of PAR_SAISON) if (s >= debut) serie = cle;
   return serie;
 }
-/* L'année imprimée, dans le style de sa série : « '77-78 » sur un carton
-   des années 70-80 (le millésime), « 1993-94 » ensuite. */
+/*
+ * LES ÉPOQUES : les saisons qu'une série couvrait avant qu'il y en ait une par saison. L'échange d'un doublon
+ * (js/rogue-jeu.js `offresDEchange`) offre trois joueurs de saisons voisines, une par joueur.
+ */
+const EPOQUES = ['1970-71', '1978-79', '1986-87', '1991-92', '1995-96', '1999-00', '2003-04', '2008-09', '2013-14', '2019-20'];
+export function epoqueDe(saison) {
+  const s = String(saison || '');
+  return EPOQUES.filter(e => s >= e).pop() || EPOQUES[0];
+}
+/* L'année imprimée, dans le style de son année : « '77-78 » sur un carton d'avant 1990 (le millésime), « 1993-94 » ensuite. */
 export function anneeDeCarte(saison) {
   const s = String(saison || '');
-  return ['vintage', 'retro'].includes(serieDe(s)) ? `'${s.slice(2)}` : s;
+  return s && s < '1990-91' ? `'${s.slice(2)}` : s;
 }
 /*
  * LA PHOTO D'ACTION. Le contrat : l'adresse d'une image au format carte
@@ -387,12 +423,20 @@ export function anneeDeCarte(saison) {
  * reçoivent par ce seul endroit. Sans elle — ou si l'image manque au
  * chargement (`onerror`) — chaque série retombe sur le portrait.
  *
- * L'ACTION EST UNE ÉDITION HAUTE (oct. 2026). JP : *ajouter des cartes que c'est un action shot et non juste
- * headshot* — puis, des deux choix, *les éditions hautes*. La Base et le Cadre gardent le portrait ; le
- * Hors-cadre, l'Or et la Holo montrent le joueur en mouvement, pleine carte : l'action se gagne et se voit.
+ * L'ACTION, DÈS QU'ELLE EXISTE (oct. 2026). JP : *plus de cartes avec photo en action, lorsque possible, les
+ * vraies cartes sont plus souvent en action*. Avant, seules les éditions hautes la montraient. Maintenant toute
+ * carte la prend : en Base et en Cadre, elle remplit la fenêtre de sa série ; au Hors-cadre, à l'Or et à la
+ * Holo, elle sort du cadre et prend toute la carte. Le portrait reste pour qui n'a pas de photo d'action.
  */
-const EN_ACTION = new Set(['hors', 'rare', 'legendaire']);
-export const photoAction = (p, rarete) => (p && EN_ACTION.has(rarete) && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
+// La photo de SA saison (`p.s`, à son club `p.t`) d'abord, s'il y en a une (scripts/actions_saisons.mjs) ; sinon la générale.
+export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id, p.s, p.t)))) || '';
+/*
+ * LE CADRE DE LA PHOTO (oct. 2026, JP : *try fit according to the space the picture will be in*). Le centre du visage
+ * dans la photo d'action (`cadreAction`, js/actions.js), ou null ; la fenêtre de chaque série y pose la face
+ * (`.photo-cadree`, style.css).
+ */
+export const cadrePhoto = p => (p && p.id && cadreAction(p.id, p.s, p.t)) || null;
+const styleCadre = c => (c ? ` style="--fx:${c[0]};--fy:${c[1]}"` : '');
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
@@ -453,22 +497,23 @@ export function tirageLimite(cle, num = '/99') {
  *                        FAC-SIMILÉ et le TIRAGE numéroté (« 07/25 »).
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
- * c : { serie, rarete, portraitHtml, actionSrc, pos, posClasse, gemmeHtml,
+ * c : { serie, rarete, portraitHtml, actionSrc, cadre, pos, posClasse, gemmeHtml,
  *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
  *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
  *       annee, tirage, signature, clubClasse, eclat }
  */
 export function cartonHtml(c) {
-  const serie = SERIES[c.serie] ? c.serie : 'signature';
+  const serie = SERIES[c.serie] ? c.serie : serieDe('');
   const r = edition(c.rarete);
-  // Une photo d'action n'arrive qu'à une édition haute, dont la photo prend déjà toute la carte (« LES ÉDITIONS », style.css).
   const action = c.actionSrc
-    ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+    ? `<img class="carton-action photo-cadree" src="${echapper(c.actionSrc)}"${styleCadre(c.cadre)} alt="" loading="lazy" decoding="async" onerror="this.remove()">`
     : '';
   return `<span class="carton cs-${serie} tc-${r}">
     ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
+    <span class="carton-orne" aria-hidden="true"><i></i><i></i><i></i></span>
     <span class="carton-photo">${action}${c.portraitHtml || ''}</span>
     <span class="carton-deco" aria-hidden="true"></span>
+    <span class="carton-marque" aria-hidden="true">${SERIES[serie].nom}</span>
     ${r === 'rare' || r === 'legendaire' ? '<span class="carton-lueur" aria-hidden="true"></span>' : ''}
     ${brillante(r) ? '<span class="carton-cadre" aria-hidden="true"></span>' : ''}
     ${r === 'rare' ? '<span class="carton-relique" aria-hidden="true"><i>Relique</i></span>' : ''}
@@ -668,7 +713,7 @@ export function brancherInclinaison(doc = document) {
  * 1.0 : une photo d'action (`photoAction`) prend toute l'illustration quand
  * elle est là ; si elle manque au chargement, le portrait revient.
  */
-export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '' }) {
+export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '', cadre = null }) {
   if (!portraitHtml) return `<span class="tc-joueur">
     <span class="tc-logo">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
@@ -676,7 +721,7 @@ export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison =
   </span>`;
   const fond = club ? getTeamBand(club).bg : '';
   return `<span class="tc-joueur cj-art"${fond ? ` style="--cj-fond:${fond}"` : ''}>
-    <span class="tc-portrait">${actionSrc ? `<img class="tc-action" src="${echapper(actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}${portraitHtml}</span>
+    <span class="tc-portrait">${actionSrc ? `<img class="tc-action photo-cadree" src="${echapper(actionSrc)}"${styleCadre(cadre)} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}${portraitHtml}</span>
     <span class="tc-medaille">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
     <span class="tc-saison">${club ? `${club} · ` : ''}${saison}</span>

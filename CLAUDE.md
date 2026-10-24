@@ -27,10 +27,10 @@ index.html            la page unique : l'en-tête du club, les sections, roulett
 style.css             tous les styles, une seule feuille écrite dans l'ordre des écrans (docs/refonte-ui.md), mobile d'abord (390 px), le rail dès 1000 px
 sw.js                 travailleur de service : la coquille hors ligne (FICHIERS), les visages en cache
 site.webmanifest, favicon.svg, icon-*.png   installation et icônes
-fonts/                Barlow Condensed (OFL), hébergée ici
+fonts/                Barlow Condensed, Manrope, Noto Emoji et les polices des séries de cartes (OFL, fonts/POLICES.txt), hébergées ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
-img/actions           photos de match recadrées en 5:7, la face au centre, pour les éditions hautes des cartes (≈ 50 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs les refait ; data/actions.json les liste)
+img/actions           photos de match recadrées en 5:7, la face au centre (≈ 145 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos, scripts/actions_saisons.mjs une photo par saison, {id}-{saison}.webp ; data/actions.json les liste)
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes
@@ -81,7 +81,7 @@ js/album.js           l'album d'une partie à l'autre
 js/ballottage.js      le ballottage, en fonction pure (Node et navigateur)
 js/visages.js         l'application Android : télécharge et recadre les visages sur l'appareil
 js/recadrage.js       le recadrage d'un portrait (partagé par scripts/portraits.mjs et js/visages.js)
-js/actions.js         les photos d'action : actionSrc(id) pour une carte ; l'appareil Android les télécharge et les recadre
+js/actions.js         les photos d'action : actionSrc(id, saison, club) pour une carte, celle de sa saison d'abord ; l'appareil Android les télécharge et les recadre
 js/recadrage-action.js le recadrage 5:7 d'une photo de match (partagé par scripts/actions.mjs et js/actions.js)
 js/identites.js       l'identité de départ
 js/traits.js          les traits, tirés des votes de data/trophees.js
@@ -144,6 +144,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - L'achat s'enregistre avant le butin ; la prime de série est versée — `check_rogue`.
 - Le ballottage offre un dépanneur (niveau Régulier au plus), pas une vedette — `check_ballottage`.
 - Une carte ne se prend qu'une fois, et un palier n'arrête l'avance qu'une fois.
+- Aucun joueur ne te suit au choix (JP : *garder des joueurs de run en run devrait être fait dans une loto, pas genre tu peux prendre qui tu veux*) : le classeur, les lotos du cartable et ceux qui restent sont des lotos par niveau (`lotoDeCase`) — `check_rogue`.
 - Une carte trouve son coach sur ce qu'elle fait (ses canaux), jamais sur une étiquette collée ; la confiance d'un coach est une décision `coach` qui porte ses chiffres, et un seul coach est en poste à la fois — `check_coachs`.
 - L'adversaire ne pige pas les cartes de match de la v2 (`horsAdverse`) : sa main est calibrée, la difficulté ne bouge pas — `check_gros`, `check_robot`. Au duel, il n'a pas de main : ses intentions en tiennent lieu.
 - Le personnel est la seule carte bonus (V16, JP : *les assistants coachs remplacent toutes les autres cartes de bonus*) : les places, l'équipement, les clauses et le feu de l'atelier sont partis ; restent les outils de gérant (la masse salariale, les soins, les retouches d'édition, le congédiement, les rappels, l'échange d'un doublon). Chaque coach a au moins cinq adjoints, sur trois postes au moins — `check_coachs`, `check_places`.
@@ -168,6 +169,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Ton équipe commence en NHL Stars (noir, blanc, orange, l'étoile) ; son club (un nom et SON écusson, vendus ensemble) et ses couleurs s'achètent en jetons à la boutique, comme les packs, et se portent aux déblocages (`js/club.js`), tous inventés et dessinés, jamais empruntés à un vrai club — `essai_rogue`.
 - On ne décerne que ce que les colonnes décident, jamais ce qu'un vote déciderait.
 - Ce qu'un texte affirme d'un match (un rythme, une disette, trois punitions en deux matchs) est arrivé dans les feuilles déjà jouées, et il dit les vrais chiffres — `check_fils`, `check_vie`.
+- Un dilemme ne sort que si son fait est vrai (`FAITS`, js/sim.js : un joueur parti, l'infirmerie, le gardien qui joue tout…), lu sur ce qui est déjà joué ; il n'a pas de récit : ce qu'il affirme est ce fait (sa scène, qui nomme les joueurs) ou ce que ses options font ensuite au moteur, et chaque mot de stat dit un canal que l'effet bouge, dans son sens ; une promesse sur des joueurs (« ton quatrième trio joue plus », « {aux} prend le filet ») se recompte dans les feuilles d'après — `check_dilemmes`.
 - Un choix du Rogue dit qui le demande (une voix d'`EXPEDITEURS`), pourquoi maintenant (le fait, en vrais chiffres) et ce qu'elle en pense (une réplique sans chiffre) : une scène de `js/scenes.js` — `check_clarte` § 5, `essai_rogue`.
 
 **Le code et les tests**
@@ -200,7 +202,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **places** : parties à la V16 (docs/refonte-v16.md), avec la carte de trop et l'onglet « Tes places » ; leurs idées sont devenues des adjoints. Les paliers des 9e, 18e et 26e matchs, le verdict du proprio et le butin d'un gros match gagné offrent un adjoint parmi trois (`cartesDuPalier`, js/inventaire.js) ; les cartes des routes de la semaine vivent avec elles (`CARTES_DE_ROUTE`, js/noeuds.js). Une partie d'avant la V16 se relit : ce que la banque ne connaît plus s'ignore — `check_sauvegardes`.
 - **plombier** : le rôle 🪠 d'un attaquant de quatrième trio qui lance et frappe en peu de minutes ; le système 🧰 Trio de plombiers. Les joueurs faibles du départ d'une run sont des **bouche-trous**, pas des plombiers.
 - **vestiaire** : la pièce, et l'équipe qui y vit (« le vestiaire est galvanisé ») ; au repêchage, le vestiaire d'une vraie équipe où l'on pige. Ce que les médailles achètent, ce sont **les déblocages** ; l'équipe d'une run, c'est **ton effectif**.
-- **cartable** : tes cartes de joueur, d'une partie à l'autre. **classeur** : le tirage de ton cartable au départ d'une run (« Le départ du classeur »). La **banque** : toutes les cartes de jeu. Un **doublon** est un joueur déjà à ton cartable ; trois doublons montent sa carte d'une édition, jusqu'à l'Or (`monterLesDoublons`).
+- **cartable** : tes cartes de joueur, d'une partie à l'autre. **classeur** : le tirage de ton cartable au départ d'une run (« Le départ du classeur ») : des **cases**, chacune d'un niveau (une Régulier sans rien, Pilier et ★ Étoile aux pages), un loto de trois cartes de ce niveau (cinq au tri) dont tu gardes une ; un niveau absent, la case prend celui d'en dessous (`departDuClasseur`, `lotoDeCase`, js/rogue.js). Les lotos du cartable entre deux saisons, ceux qui restent (un Pilier et un Régulier de ton équipe finie, `gardesDeLaRun`) et ceux qui te suivent de ta dernière run (Pilier, Pilier, ★ Étoile, un par déblocage « Garder », `gardesDeLaDerniere`) se tirent pareil. La **banque** : toutes les cartes de jeu. Un **doublon** est un joueur déjà à ton cartable ; trois doublons montent sa carte d'une édition, jusqu'à l'Or (`monterLesDoublons`).
 - **édition** : la carte d'un joueur, de 1 à 5 — Base, Cadre, Hors-cadre, Or, Holo (`EDITIONS`, js/rarete.js) ; chacune change la carte entière et monte ses badges. Elle se monte par les doublons, par un doublon plus fort tiré d'un pack, et par les cartes de l'atelier (🖌 🪟 🔆 ✨). La **rareté** (commune → légendaire, en diamants) est aux cartes de jeu seulement ; « édition » n'est plus le nom d'une carte de l'atelier, qui est une **retouche**.
 - **médailles** 🏅 : la monnaie des déblocages ; **jetons** 🪙 : celle de la boutique. L'**écusson** est un logo, jamais une monnaie.
 - **coach** : seulement la philosophie ; la personne derrière le banc est **l'entraîneur** (« L'entraîneur des gardiens »).

@@ -1,6 +1,6 @@
 /*
  * ESSAI DU MODE ROGUE (S77, S79, S80) — à la main : une run du menu jusqu'au
- * bilan : le départ du classeur (les cartes du cartable tirées au hasard, on
+ * bilan : le départ du classeur (une case, un loto de ton cartable, on
  * en prend), une case de réserve débloquée, un réserviste relâché (sa carte
  * va au cartable), la boutique à la HUT, un pack signé dans la case libre,
  * un pack de cartes et un pack Contrats, l'inventaire (une carte jouée), le
@@ -11,7 +11,7 @@
 import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
-import { BUTIN_RIVAL } from '../js/sim.js';
+import { BUTIN_RIVAL, PLANS } from '../js/sim.js';
 import { RAYONS_CLUB } from '../js/club.js';
 import { traverserPaquet, fautesDePile } from './lib/paquet.mjs';
 import { collesAuBord, MARGE } from './lib/bords.mjs';
@@ -121,12 +121,12 @@ page.on('pageerror', e => { erreurs.push(e.message); console.log('PAGEERR', e.st
 page.on('console', m => { if (m.type() === 'error' && !/Failed to load resource|net::ERR/.test(m.text())) erreurs.push(m.text()); });
 const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 60000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
 /*
- * UN MÉTA ET UN CARTABLE DE DÉPART (S80) : quatre cartes au cartable (le
- * classeur les tirera), assez d'écussons pour un déblocage, et une case de
+ * UN MÉTA ET UN CARTABLE DE DÉPART (S80) : quatre cartes au cartable, et
+ * trois Réguliers que la case Régulier du classeur tirera (24 oct.), assez d'écussons pour un déblocage, et une case de
  * réserve déjà débloquée. Une seule fois : les rechargements de la page
  * (changer de partie recharge) ne les écrasent pas.
  */
-const CARTES = ['1985-86_MNS_8445724', '1995-96_PIT_8446951', '2007-08_DET_8468083', '1985-86_MTL_8449796'];
+const CARTES = ['1985-86_MNS_8445724', '1995-96_PIT_8446951', '2007-08_DET_8468083', '1985-86_MTL_8449796', '1985-86_NJD_8446484', '1985-86_NJD_8452516', '1985-86_NYI_8450314'];
 await page.addInitScript(cartes => {
   if (localStorage.getItem('essai80')) return;
   localStorage.setItem('essai80', '1');
@@ -179,9 +179,10 @@ await page.click('#signatureModal .sig-liste .btn-sign');
 const vedetteGardee = await page.waitForFunction(() => { try { return !!JSON.parse(localStorage.getItem('cap82_rogue') || '{}').vedette; } catch { return false; } }, null, { timeout: 10000 }).then(() => true, () => false);
 if (!vedetteGardee) erreurs.push('le joueur de concession choisi n\'est pas gardé au méta');
 /*
- * LE DÉPART DU CLASSEUR (S80, js/depart.js) : sans déblocage, une carte du
- * cartable tirée au hasard. On la voit, on touche sa carte (sa fiche), on la
- * prend, on commence.
+ * LE DÉPART DU CLASSEUR (S80, js/depart.js) : une page Pilier et le joueur de
+ * concession, qui prend la case du haut : reste une case Régulier, un loto de
+ * trois cartes au plus (24 oct.). On les voit, on touche une carte (sa fiche),
+ * on en prend une, on commence.
  */
 await page.waitForSelector('#departModal:not([hidden]) .pcard', { timeout: 60000 });
 await page.screenshot({ path: `${DOSSIER}/rogue-depart-classeur.png` });
@@ -203,7 +204,7 @@ let sv = await lireSauvegarde();
 const pris = (sv.rogue && sv.rogue.classeur && sv.rogue.classeur.pris) || [];
 const dansAlignement = pris.length > 0 && pris.every(k => clesDe(sv).includes(k));
 console.log(`1. le classeur (${entete}) : tirée ${tiree.join(', ')} · prise ${pris.join(', ') || '(aucune)'} · dans l'alignement : ${dansAlignement} · fiche au toucher : ${ficheClasseur}`);
-if (tiree.length !== 1 || !dansAlignement) erreurs.push(`le départ du classeur : ${tiree.length} tirée(s), ${pris.length} prise(s), dans l'alignement ${dansAlignement}`);
+if (tiree.length < 1 || tiree.length > 3 || pris.length !== 1 || !dansAlignement) erreurs.push(`le départ du classeur : ${tiree.length} tirée(s) (une case, un loto de trois au plus), ${pris.length} prise(s), dans l'alignement ${dansAlignement}`);
 const equipe = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.trim()).filter(Boolean));
 const barre = (await page.textContent('#capGauge')).replace(/\s+/g, ' ').trim();
 console.log(`2. plombiers : ${equipe.length} joueurs (${equipe.slice(0, 4).join(', ')}…) · barre : ${barre} · cases de réserve de plus : ${sv.rogue.reserves}`);
@@ -1037,6 +1038,28 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (cs) console.log(`10d. le dépistage : ${(cs.h / Math.max(1, cs.v)).toFixed(2).replace('.', ',')} écran · ${cs.barres} rangée(s) en barres · pronostic ${cs.chances ? 'oui' : 'non'} · « Tes lignes » ${cs.lignes ? 'oui' : 'non'}`);
   if (cs && cs.barres && cs.barres !== 3) erreurs.push(`le dépistage montre ${cs.barres} rangées en barres, pas trois`);
   if (cs && (!cs.chances || !cs.lignes)) erreurs.push('Effectif › Dépistage ne montre pas le pronostic du match ou « Tes lignes »');
+  // TON PLAN (V17) : six tuiles sous les chances, celle en force à l'or, 🥷 nomme les deux joueurs ; en toucher une écrit la décision.
+  {
+    const pl = await page.$$eval('#hubModal .dep-plans .dep-plan[data-plan]', bs => bs.map(b => ({ cle: b.dataset.plan, on: b.classList.contains('on'), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce').length }))).catch(() => []);
+    const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
+    const autre = pl.find(x => !x.on && x.cle !== 'match');
+    let ecrit = null;
+    if (autre) {
+      const n0 = (await decisionsDuCombat()).length;
+      await page.click(`#hubModal .dep-plan[data-plan="${autre.cle}"]`).catch(() => {});
+      await page.waitForTimeout(600); await attendreDecisions(n0);
+      ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
+    }
+    await auBureau();
+    const ligne = await page.$eval('#hubModal .bu-prochain small', e => e.textContent).catch(() => '');
+    console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
+    if (pl.length !== 6) erreurs.push(`le dépistage montre ${pl.length} plans, pas six`);
+    if (on.length !== 1) erreurs.push(`le dépistage marque ${on.length} plans en force, pas un`);
+    if (ombre && !/ suit /.test(ombre.sous)) erreurs.push('le plan 🥷 ne nomme pas leur vedette et ton joueur qui la suit');
+    if (pl.filter(x => x.cle !== 'match' && !x.stats).length) erreurs.push('un plan ne dit pas ses stats de match');
+    if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
+    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`la ligne du match, au Bureau, ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+  }
   // TES CARTES, AU MARCHÉ : plus d'onglet « Tes places » ; « Permanent » compte ce qui n'a pas d'autre maison.
   await versMarche('cartes');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }).catch(() => {});
@@ -1253,7 +1276,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   }
   /*
    * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : le doublon le plus fourni du cartable (trois copies de CARTES[1], 1995-96) donne
-   * trois joueurs de sa série de cartons (Filet : 1995-96 à 1998-99), pas encore au cartable ; signé, le doublon perd une
+   * trois joueurs de son époque (1995-96 à 1998-99, `epoqueDe`), pas encore au cartable, et nomme sa série (une par saison : Réfracteur) ; signé, le doublon perd une
    * copie et le nouveau entre au cartable.
    */
   await versLEffectif();
@@ -1271,7 +1294,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     const horsSerie = lu.cles.filter(k => !['1995-96', '1996-97', '1997-98', '1998-99'].includes(k.split('_')[0]));
     if (lu.cles.length !== 3) erreurs.push(`l'échange offre ${lu.cles.length} joueurs au lieu de trois`);
     if (horsSerie.length) erreurs.push(`l'échange offre des joueurs hors de la série du doublon : ${horsSerie.join(', ')}`);
-    if (!/Il part : .+, série Filet/.test(lu.recit)) erreurs.push(`l'échange ne dit pas quel doublon part : « ${lu.recit} »`);
+    if (!/Il part : .+, série Réfracteur/.test(lu.recit)) erreurs.push(`l'échange ne dit pas quel doublon part : « ${lu.recit} »`);
     const n0 = (await decisions()).length;
     const signable = await page.$('#signatureModal .pcard:not(.locked) .btn-sign:not([disabled])');
     if (signable) {

@@ -23,6 +23,7 @@ import { renderMain, coachHtml } from './alignement.js';
 import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
+import { niveauDe, ETOILE } from './niveaux.js';
 
 /* ======================================================================
    DERRIÈRE LE BANC — les choix en saison
@@ -233,7 +234,7 @@ function ajouterDecision(avant, d) {
   if (G.bonus === 'ROGUE' && G.ligue && d.place && BANQUE[d.place] && BANQUE[d.place].vie === 'permanent') recevoirPermanents([d.place], `${G.ligue.graine}:${d.palier}`);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour)
+    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour) && !(d.plan && x.plan && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.
@@ -409,8 +410,13 @@ function rappelEcole(blesse, at) {
  * reste : des saisons de la ligue, des clubs qui n'y sont pas, personne qui y
  * joue déjà. La recrue prend la case de réserve de sa position ; c'est une
  * décision de ballottage, donc la reprise la retrouve comme les autres.
+ * AU PLUS UN PILIER (oct., JP : *rendre moins forte la carte, ça donne toujours des Étoiles*) : tout l'espace du
+ * plafond et les huit meilleurs producteurs sortaient presque toujours une Étoile. La carte offre maintenant les
+ * meilleurs Piliers de la saison (`NIVEAU_MAX_RECRUE`, lu par `niveauDe`, js/niveaux.js), jamais une Étoile ni un Phénomène — comme le
+ * ballottage plafonne au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
  */
 const RECRUE_MEILLEURS = 8;
+const NIVEAU_MAX_RECRUE = ETOILE - 1;   // Pilier
 function candidatsRecrue(palier) {
   const L = G.ligue;
   if (!L || !L.cles) return [];
@@ -435,6 +441,7 @@ function candidatsRecrue(palier) {
         if (clubs.has(`${sa}|${tag}`)) continue;
         for (const p of joueurs) {
           if ((p.gp || 0) < (g === 'G' ? 20 : 40) || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p)) || isPicked(p)) continue;
+          if (niveauDe(p, e.players) > NIVEAU_MAX_RECRUE) continue;
           pool.push(p);
         }
       }

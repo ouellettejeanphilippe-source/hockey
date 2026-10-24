@@ -25,7 +25,7 @@
 
 import { SLOTS, styleOuvert, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
   JOURS_SITUATIONS,
-  MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
+  MOMENTS, JOURS_MOMENTS, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, MUTATIONS,
@@ -33,12 +33,12 @@ import { SLOTS, styleOuvert, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, 
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, lireLeTableau } from './sim.js';
+  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, lireLeTableau, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, lignesEnChiffres } from './impact.js';
+import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, lignesEnChiffres, planEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
-import { artJoueur, photoAction } from './cartes.js';
+import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, cartesDuPalier, optionDeBanque } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
@@ -46,7 +46,7 @@ import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, signalerComptes, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
+import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud, carteDeRoute, chargeDeRoute } from './noeuds.js';
@@ -57,7 +57,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -962,60 +962,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return { J, cle, faits: MOMENTS[cle].faits ? MOMENTS[cle].faits(faits) : null };
   };
   /*
-   * CE QUI EST VRAIMENT ARRIVÉ AVANT UN DILEMME (S80). JP : *les trucs comme,
-   * après neuf buts encaissés… faut que ça soit arrivé pour vrai*. Un dilemme
-   * qui affirme un fait de match (le gardien laissé devant le filet, le doublé
-   * de l'ailier, la séquence de la barbe) ne se tire que si ce fait est vrai,
-   * lu sur tes matchs d'AVANT la journée prévue — le même avant et après un
-   * report —, et il dit les vrais chiffres (`MOMENTS[c].faits`, js/sim.js).
+   * CE QUI EST VRAIMENT ARRIVÉ AVANT UN DILEMME (S80, oct. 2026). JP : *les trucs comme, après neuf buts encaissés…
+   * faut que ça soit arrivé pour vrai* ; *toujours nommer les joueurs impliqués*. Lu sur tes matchs d'AVANT la journée
+   * prévue — le même avant et après un report — et sur ton effectif (`faitsDuClub`, js/sim.js).
    */
-  const faitsAvant = J => {
-    const avant = miens.filter(x => x.j < J);
-    const coteDe = m => (m.A === you ? 'A' : 'B');
-    const d = avant[avant.length - 1];
-    let dernier = null;
-    if (d) {
-      const m = d.m, cote = coteDe(m), f = m.feuille || { buts: [], lancers: [], punitions: [] };
-      const buteurs = new Map();
-      for (const b of f.buts) if (b.cote === cote && b.marqueur) buteurs.set(b.marqueur, (buteurs.get(b.marqueur) || 0) + 1);
-      // Ton gardien : celui qui a reçu les tirs d'en face.
-      const recus = new Map();
-      for (const l of f.lancers || []) if (l.cote !== cote && l.gardien) recus.set(l.gardien, (recus.get(l.gardien) || 0) + 1);
-      const gardien = [...recus].sort((a, b) => b[1] - a[1])[0];
-      const blesses = (f.blessures || []).filter(x => x.cote === cote).map(x => x.joueur);
-      dernier = {
-        domicile: cote === 'A', pour: cote === 'A' ? m.gfA : m.gfB, contre: cote === 'A' ? m.gfB : m.gfA,
-        gardien: gardien ? gardien[0] : null,
-        buteurs: [...buteurs].map(([p, buts]) => ({ p, buts, avant: p.p !== 'G' && !/D$/.test(p.p || '') })),
-        punitionsTard: (f.punitions || []).filter(x => x.cote === cote && x.instant >= 55 && x.instant < 60).length,
-        gardienBlesse: blesses.find(p => p && p.p === 'G') || null,
-      };
-    }
-    let serieV = 0;
-    for (let i = avant.length - 1; i >= 0 && gagne(avant[i].m, you); i--) serieV++;
-    // Les buts de chacun sur tes douze derniers matchs.
-    const recents = avant.slice(-12), butsRecents = new Map();
-    for (const { m } of recents) for (const b of (m.feuille ? m.feuille.buts : [])) if (b.cote === coteDe(m) && b.marqueur) butsRecents.set(b.marqueur, (butsRecents.get(b.marqueur) || 0) + 1);
-    const habilles = g => SLOTS.filter(s => !s.scratch && s.group === g).map(s => you.roster[s.i]).filter(Boolean);
-    const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
-    let serieD = 0;
-    for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m, you); i--) serieD++;
-    // Les punitions de chacun sur ses derniers matchs (V3) : la plus courte fenêtre de deux à quatre matchs qui en compte trois.
-    const punis = [];
-    for (const p of habilles('F').concat(habilles('D'))) {
-      const siens = avant.filter(({ m }) => (m.feuille?.alignes?.[coteDe(m)] || []).includes(p));
-      for (let n = 2; n <= 4 && n <= siens.length; n++) {
-        const k = siens.slice(-n).reduce((s, { m }) => s + (m.feuille.punitions || []).filter(x => x.cote === coteDe(m) && x.joueur === p).length, 0);
-        if (k >= PUNITIONS_SERMON) { punis.push({ p, n: k, m: n }); break; }
-      }
-    }
-    punis.sort((a, b) => b.n / b.m - a.n / a.m);
-    return {
-      J, N, dernier, serieV, serieD, recents: recents.length, punis,
-      joueurs: habilles('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
-      veteransD: habilles('D').filter(p => age(p) >= 33).sort((a, b) => age(b) - age(a)),
-    };
-  };
+  const faitsAvant = J => faitsDuClub(you, miens, J, N);
   /* Tes matchs sous la forme que les objectifs lisent. */
   const mesMatchs = depuisJ => miens.filter(x => x.j >= depuisJ).map(({ m }) => {
     const cote = m.A === you ? 'A' : 'B';
@@ -1743,26 +1694,55 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const surveiller = b ? `<div class="dep3-surveiller">👀 Chez eux : <b>${ctx.esc(b.p.n)}</b>${ctx.quiEst ? ` · ${ctx.esc(ctx.quiEst(b.p, { stats: false }))}` : ''} — ${b.c.g} but${b.c.g > 1 ? 's' : ''} en ${gpDe(adv)} matchs.</div>` : '';
     // CE QUE TU PEUX FAIRE CE SOIR.
     const snap = t => (t.jourLignes && t.jourLignes[Math.max(0, Math.min(jour, t.jourLignes.length - 1))]) || {};
-    const matchPris = decs.find(d => d.match && d.jour === p.j);
     const conseils = conseilsDuMatch({
       lineup: you.roster, lignes: lignesDe(you, you.roster, { duSoir: false }), fermeture: you.fermeture, energie: snap(you).energie || {},
       adv: { lignes: lignesDe(adv, activeLineup(adv), { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
-      forces: { moi: { attaque: axes[0].a, defense: axes[1].a }, lui: { attaque: axes[0].b, gardien: axes[2].b } },
-      consigne: matchPris ? matchPris.match.ad : null,
     });
     conseilsVus.set(p.j, conseils);
-    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${conseils.length ? conseils.map((c, i) => `<div class="dep3-conseil${c.genre === 'deja' ? ' deja' : ''}">
+    const conseilHtml = (c, i) => `<div class="dep3-conseil${c.genre === 'deja' ? ' deja' : ''}">
         <div class="dep3-conseil-t">${c.genre === 'deja' ? '✓ ' : ''}<b>${ctx.esc(c.titre)}</b></div>
         <div class="dep3-conseil-p">${ctx.esc(c.pourquoi)}</div>
         ${c.chiffres.length || (onDecision && c.genre !== 'deja') ? `<div class="dep3-conseil-pied">${c.chiffres.length ? `<span class="choix-puces">${puces(c.chiffres)}</span>` : ''}${onDecision && c.genre !== 'deja' ? `<button type="button" class="btn dep3-appliquer" data-conseil="${i}" data-j="${p.j}">Appliquer</button>` : ''}</div>` : ''}
-      </div>`).join('') : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
-    return `${chances}${table}${surveiller}${conseilsHtml}`;
+      </div>`;
+    // V17 : sous Ton plan, le conseil qui compte le plus ; les autres, et ce qui est déjà fait, attendent au détail.
+    const rangs = conseils.map((c, i) => [c, i]), tete = rangs.find(([c]) => c.genre !== 'deja');
+    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${tete ? conseilHtml(...tete) : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
+    const autres = rangs.filter(x => x !== tete);
+    const conseilsPlus = autres.length ? `<div class="dep3-conseils">${autres.map(x => conseilHtml(...x)).join('')}</div>` : '';
+    return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml, conseilsPlus, plan: planHtml(p, adv) };
   }
+  /*
+   * TON PLAN (V17, docs/refonte-v17.md § 3). JP : *des choix avant le match, plus stratégiques, genre tirer plus, suivre
+   * un joueur de près*. Six tuiles à coins vifs, chacune en vraies stats de CE match (`planEnChiffres` : le moteur, le
+   * plan contre « Ton match », les mêmes dés) ; 🥷 nomme leur vedette et ton joueur qui la suit. Le plan en force porte
+   * l'or ; toucher un autre l'envoie, une décision du soir du match, qui tient jusqu'à la suivante.
+   */
+  const planEnForce = j => {
+    const d = decs.filter(x => x.plan && x.jour <= j).sort((a, b) => a.jour - b.jour).pop();
+    return d && PLANS[d.plan.cle] ? d.plan.cle : 'match';
+  };
+  function planHtml(p, adv) {
+    const enForce = planEnForce(p.j);
+    const { vedette, colle } = cibleDuPlan(activeLineup(you), activeLineup(adv));
+    const tuiles = Object.entries(PLANS).map(([k, P]) => {
+      const mots = k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2);
+      const sous = k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '';
+      const vise = P.vedette && vedette ? ` data-vise="${ctx.esc(getPlayerKey(vedette))}"` : '';
+      return optionHtml({ cle: k, ico: P.ico, nom: P.nom, sous }, {}, { mots, classe: 'af-option dep-plan', attr: `data-plan="${k}" data-j="${p.j}"${vise}`, on: k === enForce });
+    });
+    return `<div class="dep-plans"><div class="gl-k">Ton plan</div><div class="af-options">${tuiles.join('')}</div></div>`;
+  }
+  /* Une tuile touchée : le plan devient une décision du soir du match, et la saison se rejoue d'ici. */
+  const appliquerPlan = b => {
+    if (b.classList.contains('on')) return;
+    const j = Number(b.dataset.j), cle = b.dataset.plan;
+    const ici = jour; quitter(); onDecision({ jour: j, plan: { cle, ...(b.dataset.vise ? { vise: b.dataset.vise } : {}) } }, ici);
+  };
   /* « Appliquer » : le conseil devient une décision de la journée du match, et la saison se rejoue d'ici. */
   const appliquerConseil = b => {
     const j = Number(b.dataset.j), c = (conseilsVus.get(j) || [])[Number(b.dataset.conseil)];
     if (!c) return;
-    const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : c.match ? { jour: j, match: c.match } : null;
+    const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : null;
     if (!d) return;
     const ici = jour; quitter(); onDecision(d, ici);
   };
@@ -2835,11 +2815,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
     if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
-  // Effectif › Dépistage : un conseil s'applique, « Tes lignes » mène derrière le banc.
+  // Effectif › Dépistage : un plan part, un conseil s'applique, « Tes lignes » mène derrière le banc.
   const dansLeDepistage = e => {
     if (!actif()) return;
-    const c = e.target.closest('.dep3-appliquer');
+    const c = e.target.closest('.dep3-appliquer'), t = e.target.closest('.dep-plan[data-plan]');
     if (c && volet.contains(c)) appliquerConseil(c);
+    else if (t && volet.contains(t) && onDecision) appliquerPlan(t);
     else if (e.target.closest('.hub-vers-lignes') && onBanc) { quitter(); onBanc(jour); }
   };
   if (soirEnVolet) volet.addEventListener('click', dansLeDepistage);
@@ -2869,7 +2850,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const deciderDeck = (p0, d) => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: p0, ...d }, j); };
   const POSTE_CARTE = { G: 'Gardien', D: 'Défenseur', LD: 'Défenseur', RD: 'Défenseur', C: 'Centre', LW: 'Ailier', RW: 'Ailier' };
   // Le visage du joueur, l'écusson en médaillon (S74, l'agent de test : « le logo au lieu du visage »).
-  const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug && ctx.rarete ? photoAction(p, ctx.rarete(p)) : '' });
+  const joueurArt = p => artJoueur({ portraitHtml: ctx.mug ? ctx.mug(p) : '', logoHtml: ctx.logo(p.t, ctx.mug ? 24 : 60), pos: ctx.esc(POSTE_CARTE[p.p] || 'Avant'), saison: ctx.esc(p.s), club: ctx.esc(p.t), actionSrc: ctx.mug ? photoAction(p) : '', cadre: cadrePhoto(p) });
   function ouvrirMain(p0) {
     const main = mainDuDeck(graine, p0);
     const recrues = ctx.recrues ? (ctx.recrues(p0) || []) : [];
@@ -2877,7 +2858,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const options = main.map(c => {
       const S = SORTES_DECK[c.sorte], rarete = RARETE_SORTE[c.sorte];
       if (c.sorte === 'recrue') return { cle: 'recrue', rarete, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
-        texte: 'Trois vrais joueurs de clubs absents de ta ligue : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.',
+        texte: 'Trois vrais joueurs de clubs absents de ta ligue, des Piliers au plus : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.',
         desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
       if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
@@ -2983,7 +2964,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const G0 = mb && MINI_BOSS[mb.raison];
     return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" data-ouvre-depistage>
       <span class="bu-prochain-logo" aria-hidden="true">${ctx.logo(adv.tag, 28)}</span>
-      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'}</small>
+      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'} · ${PLANS[planEnForce(p.j)].ico} ${PLANS[planEnForce(p.j)].mot}</small>
         <b>${ctx.esc(ctx.teamShort(adv))}</b>${G0 ? `<small class="bu-prochain-gros">${G0.ico} Gros match · ${ctx.esc(G0.nom)}</small>` : ''}</span>
       <span class="bu-prochain-aller">Préparer ›</span>
     </button>`;
@@ -3111,7 +3092,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
       // Le dépistage, calculé à l'ouverture : le sous-onglet d'Effectif en Rogue, une page du Club ailleurs.
-      const corpsDuDepistage = () => `<div class="hub-dep-corps">${soirEnVolet ? duelHtml(adv, { complet: true }) : ''}${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>`;
+      // Sous Effectif, il tient en un écran : tes chances et ce que tu peux faire, le reste se déplie.
+      const corpsDuDepistage = () => {
+        const d = depistageMatchHtml(p);
+        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}${d.conseils}${d.conseilsPlus}</div></div>`;
+        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}${d.conseils}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${d.conseilsPlus}${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+      };
       const ouvrirDepistage = () => {
         const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
         brancherConseils(corps);
@@ -3294,14 +3280,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LE JOUEUR VISÉ est nommé avant le choix : c'est lui dont la carte change.
       const optMut = m.options.find(o => o.mutation);
       const cible = optMut ? (f.joueur || cibleMutation(you, optMut.mutation)) : null;
-      // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix — celui des faits d'abord.
-      const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
-      const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
+      // LES JOUEURS DU FAIT (oct. 2026) : ceux qu'il nomme, et que ses gestes touchent.
+      const cibles = f.joueurs || (f.joueur ? [f.joueur] : []);
+      // LA SCÈNE : la voix du dilemme, sa réplique, et le fait en vrais chiffres.
+      const scene = sceneDuDilemme(dl.cle, f, `${graine}|${dl.J}`);
       const dDl = cle => ({ jour, palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } });
-      specs.push({ de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
+      specs.push({ de: scene.de, scene, ico: m.ico, titre: m.titre, irl: m.irl, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
         contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
-        options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
-          desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
+        options: m.options.map(o => ({ ...o, ...Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, texteDuFait(o[k], f)])), duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
+          desactive: (o.mutation && !cible) || ((o.action || o.lui) && !cibles.length) ? 'Personne dans ton alignement pour ça' : null })),
         lancer: cle => auDe({ ...dDl(cle), sel: nouvelleGraine() }, decider),
         decision: dDl });
     }
