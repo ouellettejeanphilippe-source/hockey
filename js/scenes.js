@@ -52,17 +52,6 @@ export const MOTS_DES_SCENES = {
       'Ça va bien, et je veux que ça dure. Choisissez celle qui nous garde en avant.',
     ],
   },
-  // UNE CARTE DE TROP (A7) : le préposé à l'équipement, quand les places débordent.
-  trop: {
-    calme: [
-      'Mes casiers débordent. On en vend une, ou on la sort ce soir ?',
-      'Il me manque un casier. Dis-moi laquelle part, ou laquelle sert ce soir.',
-    ],
-    gros: [
-      'Mes casiers débordent, et un gros match s\'en vient. Garde celle qui va servir contre eux.',
-      'Il me manque un casier. Avant le gros match, je vendrais celle qui ne servira pas.',
-    ],
-  },
   // LES ROUTES DE LA SEMAINE (A3) : l'entraîneur, qui recommande la route qui répond au pire problème du lundi.
   route: {
     jambes: ['Les gars sont brûlés. Moi, je prendrais le repos ; c\'est toi qui décides.',
@@ -108,10 +97,10 @@ export const MOTS_DES_SCENES = {
   },
   // LE BUTIN D'UN GROS MATCH GAGNÉ (A6) : l'entraîneur veut une page de plus, ton adjoint trouve le cahier épais.
   butin: {
-    mince: ['On a gagné. Prends quelque chose pour les prochains soirs, ça ne nuira pas.',
-      'Il reste de la place sur le babillard. Une carte de plus, et on la joue au bon soir.'],
-    epais: ['On a gagné, mais tes places sont pleines. Prends-la si elle vaut mieux qu\'une des tiennes.',
-      'Une de plus, et il faudra en vendre une. Ton adjoint dit de choisir la meilleure.'],
+    serre: ['On l\'a arraché. Prends quelqu\'un pour les prochains soirs, on en aura besoin.',
+      'Ça s\'est joué à rien. Un adjoint de plus, et le prochain sera moins serré.'],
+    large: ['On les a déclassés. Prends celui qui garde la machine en marche.',
+      'Une soirée de même, ça se récompense. Choisis qui vient m\'aider derrière le banc.'],
   },
   // LES DILEMMES (oct. 2026) : la voix du dilemme, sur ce que son fait vient de dire. Une opinion, jamais un événement : le fait est sous elle.
   dilemme: {
@@ -167,20 +156,6 @@ export function sceneDuPalier({ n, fiche, rang, equipes = 32, mandat = '', grain
     de: EXPEDITEURS.pr,
     mot: piger(MOTS_DES_SCENES.palier[sit], graine, 'palier', n),
     fait: `${fiche.V}-${fiche.D}-${fiche.DP} après ${n} matchs · ${rangMot(rang)}${mandat ? ` · le mandat : ${mandat}` : ''}`,
-  };
-}
-
-/*
- * A7 · UNE CARTE DE TROP. Le préposé à l'équipement. Le fait : les cartes et les places, et le prochain gros match
- * s'il vient.
- *   cartes, places   combien tu en as, combien en tiennent ; gros : { adv, dans } — le prochain gros match, ou null
- */
-export function sceneDeLaCarteDeTrop({ cartes, places, gros = null, graine = '' }) {
-  const vient = gros ? `${gros.dans === 0 ? 'ce soir' : gros.dans === 1 ? 'demain' : `dans ${gros.dans} jours`}` : '';
-  return {
-    de: EXPEDITEURS.eq,
-    mot: piger(MOTS_DES_SCENES.trop[gros ? 'gros' : 'calme'], graine, 'trop', cartes),
-    fait: `${cartes} cartes pour ${places} places${gros ? ` · gros match contre ${gros.adv} ${vient}` : ''}`,
   };
 }
 
@@ -243,14 +218,14 @@ export function sceneDesRivaux({ multi, offerts, graine = '' }) {
 }
 
 /*
- * A6 · LE BUTIN D'UN GROS MATCH GAGNÉ. L'entraîneur. Le fait : le pointage de la feuille et tes places (V13-2).
- *   pour, contre   le pointage ; adv : le club battu ; cartes : tes cartes en place ; max : tes places (`PLACES`)
+ * A6 · LE BUTIN D'UN GROS MATCH GAGNÉ. L'entraîneur. Le fait : le pointage de la feuille (un adjoint parmi trois, V16).
+ *   pour, contre   le pointage ; adv : le club battu
  */
-export function sceneDuButin({ pour, contre, adv, cartes, max, graine = '' }) {
+export function sceneDuButin({ pour, contre, adv, graine = '' }) {
   return {
     de: EXPEDITEURS.en,
-    mot: piger(MOTS_DES_SCENES.butin[cartes >= max ? 'epais' : 'mince'], graine, 'butin', adv),
-    fait: `${pour}–${contre} contre ${adv} · ${cartes ? `${cartes} place${cartes > 1 ? 's' : ''} prise${cartes > 1 ? 's' : ''} sur ${max}` : `${max} places libres`}`,
+    mot: piger(MOTS_DES_SCENES.butin[pour - contre >= 3 ? 'large' : 'serre'], graine, 'butin', adv),
+    fait: `${pour}–${contre} contre ${adv}`,
   };
 }
 

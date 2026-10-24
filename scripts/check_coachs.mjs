@@ -27,7 +27,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDeSaison, partsDuRoulement, joueursDesCoachs, activeLineup, coachDuJoueur, FAMILLES } from '../js/sim.js';
 import { POIDS_TRIO } from '../js/ratings.js';
-import { BANQUE, ORDRE_CATEGORIES, buildDe, palierAllume, coachsActifs, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { BANQUE, PATRONS, ORDRE_CATEGORIES, buildDe, baseDesCoachs, MATCHS_CONFIANCE, palierAllume, coachsActifs, coachNeuf, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
+import { patronALEchelon } from '../js/echelons.js';
 import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
@@ -68,71 +69,85 @@ console.log('\n  Les coachs (v2)\n');
 const tous = Object.values(BANQUE);
 const neutres = tous.filter(c => !c.coach);
 informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].ico} ${idsDuCoach(k).length}`).join(' · ')} · neutres ${neutres.length}`);
-// V13-2 (docs/refonte-v13.md) : le cahier est parti avec la main du duel. Trois places et deux postes de personnel par
-// coach ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur (js/equipement.js), trois places de
-// plus aux trois autres (js/places.js). Huit cartes au moins, dans deux familles au moins.
-const PLANCHER_COACH = 8;
-const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 2);
-exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins deux familles`, !minces.length,
-  ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
+// V16 (docs/refonte-v16.md § 5) : le personnel est la seule carte bonus. Les places, l'équipement et les clauses sont
+// partis ; chaque coach a au moins cinq adjoints, sur trois postes au moins.
+const PLANCHER_COACH = 5, POSTES_COACH = 3;
+const adjointsDe = k => idsDuCoach(k).filter(id => BANQUE[id].cat === 'patron' && PATRONS[BANQUE[id].cle]);
+const postesDe = k => new Set(adjointsDe(k).map(id => PATRONS[BANQUE[id].cle].role)).size;
+const minces = ORDRE_COACHS.filter(k => adjointsDe(k).length < PLANCHER_COACH || postesDe(k) < POSTES_COACH);
+exiger(`chaque coach a au moins ${PLANCHER_COACH} adjoints, sur au moins ${POSTES_COACH} postes`, !minces.length,
+  ORDRE_COACHS.map(k => `${COACHS[k].nom} ${adjointsDe(k).length}/${postesDe(k)}`).join(' · '));
 // v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : des cartes neutres restent. V13-2 : les dix
-// du deck de départ sont parties avec la main du duel ; restent trois neutres par pile (places, équipement, personnel).
+// du deck de départ sont parties avec la main du duel ; V16, les places et l'équipement : restent les adjoints neutres et
+// les outils de gérant.
 borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.08, 0.3);
-// V10 (tranche 6) : l'ancien jeu est parti ; le jeu neuf compte moins de cartes, chacune de son moment.
-exiger('le registre : plus de 150 cartes', tous.length >= 150, `${tous.length}`);
-const TEMOINS = { 'consommable:centTirs': 'essaim', 'joueur:casqueGrille': 'tortue', 'consommable:autreJoue': 'choeur', 'consommable:quatriemeTrio': 'profondeur', 'consommable:grandeScene': 'etoiles',
-  'patron:per_physioDeRoute': 'souffle', 'patron:per_preparateurCombat': 'rhinos', 'patron:per_tirsDeRoute': 'rapaces', 'plafond:ltir': 'banque', 'consommable:retraiteFermee': 'choeur', 'consommable:systemeDeRoute': 'tortue' };
+// V10 (tranche 6) : l'ancien jeu est parti ; V16, les places, l'équipement et les clauses (75 cartes) : le registre tient
+// encore une centaine de cartes ; la tranche 6, la masse salariale, les soins de trop, le congédiement et les rappels :
+// le personnel et dix cartes rares.
+exiger('le registre : au moins 60 cartes', tous.length >= 60, `${tous.length}`);
+const TEMOINS = { 'patron:per_crieurDuBanc': 'essaim', 'patron:per_gardienDuFort': 'tortue', 'patron:per_aumonier': 'choeur', 'patron:per_chefDAtelier': 'profondeur', 'patron:per_metteurEnScene': 'etoiles',
+  'patron:per_physioDeRoute': 'souffle', 'patron:per_preparateurCombat': 'rhinos', 'patron:per_tirsDeRoute': 'rapaces', 'patron:per_moine': 'choeur', 'patron:per_macon': 'tortue', 'patron:per_allumeur': 'rapaces' };
 const faux = Object.entries(TEMOINS).filter(([id, k]) => coachDeCarte(id) !== k).map(([id, k]) => `${id} → ${coachDeCarte(id)} (attendu ${k})`);
 exiger('le coach d\'une carte se lit sur ce qu\'elle fait', !faux.length, faux.join(' · ') || `${Object.keys(TEMOINS).length} témoins`);
 exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.some(x => x.cat === c && x.coach)), ORDRE_CATEGORIES.join(' · '));
 
-/* 2. La confiance. */
+/*
+ * 2. LA CONFIANCE PAR TROIS CHEMINS (V16, docs/refonte-v16.md § 4) : la base (le départ, le report, un coach neuf),
+ * puis, par adjoint de sa couleur en poste, 1 point et 1 par échelon, et 1 par tranche de `MATCHS_CONFIANCE` matchs à
+ * ton service (doublés à la couleur du coach en poste). Les cartes jouées ne comptent plus.
+ */
+const unParPoste = k => { const vus = new Set(); return idsDuCoach(k).filter(id => BANQUE[id].cat === 'patron' && !vus.has(PATRONS[BANQUE[id].cle].role) && vus.add(PATRONS[BANQUE[id].cle].role)); };
+const engager = (id, jour) => ({ jour, ...payloadDe(id, { patrons: [] }) });
+const monter = (id, jour, n) => ({ jour, patron: patronALEchelon(BANQUE[id].cle, { choix: Array(n).fill('force'), depuis: 1 }) });
+const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
 {
-  // V10 : les cartes de la Tortue qui se jouent hors du combat (les places, l'équipement, le personnel).
-  const cartes = idsDuCoach('tortue');
-  const decs = [];
-  const allumes = [];
-  for (let i = 0; i < 10; i++) {
-    const d = { jour: i, joue: { src: 'partie', id: cartes[i % cartes.length], ref: `x${i}` } };
-    const a = palierAllume(decs, d);
-    if (a) allumes.push(`${i + 1}:${a.coach.palier}`);
-    decs.push({ ...d, ...(a || {}) });
-  }
-  exiger('les cartes 3, 6 et 9 allument I, II, III, une fois chacune', allumes.join(' ') === '3:1 6:2 9:3', allumes.join(' ') || 'rien');
-  exiger('les confiances actives gardent la plus haute', coachsActifs(decs).length === 1 && coachsActifs(decs)[0].palier === 3, JSON.stringify(coachsActifs(decs).map(x => [x.cle, x.palier])));
-  exiger('une journée à venir ne compte pas encore', buildDe(decs, 5).tortue === 5, `${buildDe(decs, 5).tortue} au matin du jour 5`);
-  const base = [{ jour: 0, coachsDeBase: { essaim: SEUILS[0] }, coach: effetDePalier('essaim', 1) }];
-  const deux = idsDuCoach('essaim').slice(0, 3).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id } }));
-  const d4 = palierAllume([...base, ...deux.slice(0, 2)], deux[2]);
-  exiger('le coach du départ compte trois cartes, et la 6e allume II', !palierAllume(base, deux[0]) && d4 && d4.coach.palier === 2, d4 ? `II au jour ${deux[2].jour}` : 'rien');
-  // V5 : c'est jouer la carte qui compte, pas la gagner ni l'acheter (V13-2 : le butin d'un gros match va à une place).
-  const prise = { jour: 3, palier: 'r:2', place: 'consommable:coinPeint' };
-  exiger('une carte gagnée à un gros match ne compte pas tant qu\'elle n\'est pas jouée', buildDe([prise]).rapaces === 0 && buildDe([prise, { jour: 4, joue: { src: 'partie', ref: 'r:2', id: 'consommable:coinPeint' } }]).rapaces === 1, 'Le coin du haut, peint');
+  const base = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
+  const T = unParPoste('tortue');
+  exiger('la base : le coach du départ à la confiance I, sans personnel', buildDe(base).tortue === SEUILS[0], `${buildDe(base).tortue} points`);
+  const un = [...base, engager(T[0], 1)];
+  exiger('un adjoint de sa couleur en poste : 1 point ; à son 3e échelon, 3', buildDe(un).tortue === SEUILS[0] + 1 && buildDe([...base, monter(T[0], 1, 2)]).tortue === SEUILS[0] + 3, PATRONS[BANQUE[T[0]].cle].nom);
+  const demi = MATCHS_CONFIANCE / 2;
+  exiger(`ses matchs à ton service : 1 point par ${MATCHS_CONFIANCE}, doublés à la couleur du coach`, buildDe(un, Infinity, { joues: jusquA(1 + demi) }).tortue === SEUILS[0] + 2
+    && buildDe(un, Infinity, { joues: jusquA(demi) }).tortue === SEUILS[0] + 1, `${demi} matchs joués : +1`);
+  exiger('les cartes jouées ne comptent plus', buildDe([...base, { jour: 1, joue: { src: 'partie', id: 'joueur:pinceau', ref: 'x' } }]).tortue === SEUILS[0]);
+  exiger('une journée à venir ne compte pas encore', buildDe([...base, engager(T[0], 10)], 5).tortue === SEUILS[0]);
+  // Le personnel de la Tortue, engagé puis monté échelon après échelon : la confiance s'allume à ses seuils, une fois chacun.
+  const pas = [...T.map((id, i) => engager(id, 1 + i)), ...[1, 2, 3, 4].flatMap(n => T.map((id, i) => monter(id, 10 * n + i, n)))];
+  const decs = [...base], allumes = [];
+  for (const d of pas) { const a = palierAllume(decs, d); if (a) allumes.push(`${buildDe([...decs, d]).tortue}:${a.coach.palier}`); decs.push({ ...d, ...(a || {}) }); }
+  exiger(`ses adjoints allument II à ${SEUILS[1]} points et III à ${SEUILS[2]}, une fois chacune`, allumes.join(' ') === `${SEUILS[1]}:2 ${SEUILS[2]}:3`, allumes.join(' ') || 'rien');
+  exiger('les confiances actives gardent la plus haute', coachsActifs(decs).length === 1 && coachsActifs(decs)[0].palier === 3);
+  // Ses matchs à ton service montent seuls : la décision qui suit, quelle qu'elle soit, allume la confiance atteinte.
+  const manque = SEUILS[1] - buildDe(un).tortue, jours = 1 + manque * MATCHS_CONFIANCE / 2;
+  const ii = palierAllume(un, { jour: jours }, { joues: jusquA(jours) });
+  exiger(`les matchs à ton service allument la II, à la décision qui suit`, !palierAllume(un, { jour: jours - 1 }, { joues: jusquA(jours - 1) }) && !!ii && ii.coach.palier === 2, `${jours - 1} matchs à ton service`);
 }
 
 /*
  * 2a. UN SEUL COACH EN POSTE (V5, JP : *juste un coach peut être actif à la fois* ; *choisi au début de la saison,
- * ou changé avec une carte qui enlève l'autre bonus*). Les cartes d'une autre couleur ne montent personne ;
- * « Le congédiement » installe un autre coach à la confiance I, son compte repart, et l'ancien quitte le moteur.
+ * ou changé avec une carte qui enlève l'autre bonus*). Les adjoints d'une autre couleur ne montent personne ;
+ * le congédiement (V16 : un dossier du proprio, `laTete` — la décision `coachNeuf`) installe un autre coach à la
+ * confiance I, sa base repart, et l'ancien quitte le moteur.
  */
 {
   const depart = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
-  // V10 : les cartes de l'Aigle qui se jouent hors du combat.
-  const deLAigle = idsDuCoach('rapaces').filter(id => BANQUE[id].cat !== 'match');
-  const aigle = deLAigle.slice(0, 6).map((id, i) => ({ jour: 1 + i, joue: { src: 'partie', id, ref: `a${i}` } }));
+  const A = unParPoste('rapaces');
   const decs = [];
-  for (const d of aigle) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
-  exiger('six cartes d\'une autre couleur ne changent pas de coach', !decs.some(d => d.coach) && coachsActifs([...depart, ...decs]).map(c => c.cle).join() === 'tortue', coachsActifs([...depart, ...decs]).map(c => `${c.cle} ${c.palier}`).join());
-  const cg = payloadDe('consommable:congediement', { coach: 'rapaces' });
-  const apres = [...depart, ...decs, { jour: 8, joue: { src: 'partie', id: 'consommable:congediement', ref: 'c' }, ...cg }];
+  for (const d of [...A.map((id, i) => engager(id, 1 + i)), ...A.map((id, i) => monter(id, 5 + i, 4))]) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
+  exiger('les adjoints d\'une autre couleur ne changent pas de coach', !decs.some(d => d.coach) && coachsActifs([...depart, ...decs]).map(c => c.cle).join() === 'tortue', coachsActifs([...depart, ...decs]).map(c => `${c.cle} ${c.palier}`).join());
+  const cg = coachNeuf('rapaces');
+  const apres = [...depart, ...decs, { jour: 20, palier: 'do:3', moment: { famille: 'dossier', cle: 'laTete', choix: 'premier' }, ...cg }];
   const actifs = coachsActifs(apres);
-  exiger('« Le congédiement » installe un autre coach à la confiance I, seul', actifs.length === 1 && actifs[0].cle === 'rapaces' && actifs[0].palier === 1 && cg.coachNeuf === true, actifs.map(c => `${c.cle} ${c.palier}`).join());
-  exiger('son compte repart à la confiance I : les cartes d\'avant ne comptent plus', buildDe(apres).rapaces === SEUILS[0], `${buildDe(apres).rapaces} cartes`);
-  const plus = deLAigle.slice(6, 9).map((id, i) => ({ jour: 9 + i, joue: { src: 'partie', id, ref: `b${i}` } }));
-  const ii = palierAllume([...apres, ...plus.slice(0, 2)], plus[2]);
-  exiger('trois cartes de sa couleur le montent à II', ii && ii.coach.cle === 'rapaces' && ii.coach.palier === 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
-  const sansCible = payloadDe('consommable:congediement', {});
-  exiger('sans coach choisi, la carte ne fait rien', sansCible === null);
+  exiger('le congédiement installe un autre coach à la confiance I, seul', actifs.length === 1 && actifs[0].cle === 'rapaces' && actifs[0].palier === 1 && cg.coachNeuf === true, actifs.map(c => `${c.cle} ${c.palier}`).join());
+  exiger('sa base repart à la confiance I ; ses adjoints en poste, eux, comptent', baseDesCoachs(apres).rapaces === SEUILS[0] && buildDe(apres).rapaces === SEUILS[0] + 5 * A.length,
+    `base ${baseDesCoachs(apres).rapaces} · ${buildDe(apres).rapaces} points`);
+  const ii = palierAllume(apres, engager(A[0], 21));
+  exiger('sa prochaine décision de personnel le monte à son palier', !!ii && ii.coach.cle === 'rapaces' && ii.coach.palier >= 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
+  // LE STAGE DU COACH (V16, tranche 6) : la carte rare donne au coach en poste les points qui manquent à son cran suivant.
+  const st = payloadDe('consommable:stage', { coach: 'rapaces', points: 3 });
+  const avecStage = [...apres, { jour: 22, joue: { src: 'meta', id: 'consommable:stage' }, ...st }];
+  exiger('le stage du coach ajoute ses points à la base du coach en poste, et rien sans lui', st && st.coachsDeBase.rapaces === 3 && baseDesCoachs(avecStage).rapaces === SEUILS[0] + 3
+    && payloadDe('consommable:stage', {}) === null, st ? JSON.stringify(st) : 'null');
 }
 
 /* 2c. Le prestige du club : il ouvre les Étoiles et les Phénomènes, run après run. */
