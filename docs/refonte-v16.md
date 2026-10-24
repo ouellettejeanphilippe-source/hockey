@@ -60,7 +60,7 @@ Le robot (scripts/lib/cartes_robot.mjs `engagerDuRobot`) engage ses adjoints com
 
 Il le fait aux paliers et à chaque pack qu'il achète (scripts/lib/rogue_sim.mjs). D'une saison à l'autre de la run, il reporte comme le jeu la base de ses coachs, son coach en poste et son personnel (`reportDeSaison`) ; avant, il repartait chaque saison à la confiance I, avec les deux adjoints du départ.
 
-**Ce que la profondeur en dit** (`check_profondeur`, `GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2`, contre la tranche 2 sur les mêmes dés) : l'écart attentif − distrait tombe de +15,0 à +11,1 V par saison, et le distrait des bons clubs ne rate plus les séries (0 fois sur 4, contre 3). Ce n'est pas le recompte du lundi (le retirer au distrait ne change rien) : ce sont ses adjoints pris au hasard (s'il n'engage rien, l'écart revient à +15,9 et 1 fois sur 4). Un adjoint mal choisi aide encore, là où une place jouée au hasard coûtait. À régler à la tranche 5 : le défaut d'un adjoint hors de la couleur doit mordre. L'attentif − défaut passe de +5,3 à +4,6 V (± 2,1), dans le bruit.
+**Ce que la profondeur en dit** (`check_profondeur`, `GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2`, contre la tranche 2 sur les mêmes dés) : l'écart attentif − distrait tombe de +15,0 à +11,1 V par saison, et le distrait des bons clubs ne rate plus les séries (0 fois sur 4, contre 3). Ce n'est pas le recompte du lundi (le retirer au distrait ne change rien) : ce sont ses adjoints pris au hasard (s'il n'engage rien, l'écart revient à +15,9 et 1 fois sur 4). Un adjoint mal choisi aide encore, là où une place jouée au hasard coûtait. À régler à la tranche 5 : le défaut d'un adjoint hors de la couleur doit mordre. L'attentif − défaut passe de +5,3 à +4,6 V (± 2,1), dans le bruit. Réglé à la tranche 5a (§ 4c).
 
 ## 4. La confiance, par trois chemins
 
@@ -104,6 +104,27 @@ Après deux poussées de sa force (`LIGNES_DU_FEU`, js/personnel.js), un feu tie
 **`check_si`** mesure trois adjoints d'un moment à la place des modifs d'un lieu : 🧥 l'ancien capitaine à domicile, 🧭 l'entraîneur des gardiens de route à l'étranger, ⚙ le directeur de l'usine en séries (la saison identique au but près).
 
 **Une partie d'avant la V16** se relit : une carte que la banque ne connaît plus ne se montre plus (`cartesDeLaPartie`), ne prend pas de case au verso (`poseesSur`), une mutation inconnue ne joue pas, et un effet déjà joué porte ses chiffres et se rejoue. `check_sauvegardes` le prouve sur une partie fabriquée (une place jouée, un équipement posé, une clause, un feu gardé, une carte de palier, un report).
+
+## 4c. Mal assorti (tranche 5a, faite)
+
+**D'où venait l'avantage du distrait.** Mesuré sur les mêmes dés (`check_profondeur`, le petit, le distrait seul changé) : sans ses échelons achetés au hasard, l'écart défaut − distrait passe de +6,4 à +12,3 V et le distrait rate les séries 2 fois sur 4 ; sans ses engagements au hasard, +11,3 V et 1 fois sur 4 ; sans la confiance, rien ne bouge (+5,8 V). Un échelon pris sans réfléchir valait donc +6 V par saison : il poussait toujours une force, et aucune force ne coûtait hors de sa couleur.
+
+**Le correctif, dans le moteur** (`assortir`, `patronsDuSoir`, js/sim.js) : un adjoint d'une autre couleur que le coach en poste joue à contre-courant. Sa force rend la moitié de ce qu'elle rend chez son coach (un canal à ×1,1 devient ×1,1^0,5), et son défaut mord une fois et demie plus (`MAL_ASSORTI`). Ses échelons suivent : ils poussent une force qui ne rend qu'à moitié. Un adjoint neutre, ou un soir sans coach, joue tel quel ; les minutes d'un trio (`F`, `D`) ne bougent pas. La couleur d'un adjoint est celle de ses canaux (`coachDesCanaux`), comme à la banque.
+
+**Ce qui ne bouge pas** : `check_places` et `check_personnel` mesurent chaque adjoint sans coach en poste, donc tel quel, sous sa borne. Sur 54 adjoints, 11 sont neutres ; les autres se partagent les huit coachs (de 5 à 8 chacun).
+
+**Mesuré** (`GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2`, mêmes dés) :
+
+| | avant | après |
+|---|---|---|
+| attentif − distrait | +11,4 V | +13,9 V |
+| défaut − distrait | +6,4 V | +8,9 V |
+| attentif − robot d'avant | +5,0 V | +5,0 V ✓ |
+| le distrait des bons clubs rate les séries | 0 fois sur 4 ✗ | 1 fois sur 4 ✓ |
+
+**À faire, à l'écran** (tranche 5b) : les vraies stats d'un adjoint (`statsDe`, js/impact.js) ne disent pas encore le prix d'un adjoint mal assorti ; la fiche de l'entraîneur doit le dire avant l'engagement.
+
+**Les minutes d'un trio se disent en chiffres** (`check_banque`, « se lisent en chiffres ») : l'entraîneur du bas et le costumier ne faisaient que déplacer des minutes de trio, et leur puce ne portait aucun chiffre. La puce de la glace (`motsDEffet`) dit maintenant l'unité qui gagne le plus et celle qui perd le plus, en minutes d'un match de 60, sur les parts de base du moteur (`PART_UNITE`, `RANGS_DE_GLACE`) : « Le bas joue plus : 4e trio ≈ +2,8 min, 1er trio ≈ −2,5 min par match ».
 
 ## 5. Les règles fermes qui changent (CLAUDE.md)
 

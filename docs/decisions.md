@@ -2802,3 +2802,14 @@ JP : *les assistants coachs remplacent toutes les autres cartes de bonus* ; il a
 **Les routes de la semaine restent.** Leurs 25 cartes étaient des places ; elles vivent dans js/noeuds.js (`CARTES_DE_ROUTE`), aux mêmes chiffres et aux mêmes tirages (aucune différence sur 7 800 routes), mesurées par `check_places`. Écarté : en faire des dossiers à une réponse (la route perd sa variété) ou des adjoints (une route dure une semaine, un adjoint tient un poste). C'est le seul « bonus de jeu » hors du personnel qui reste : à JP de dire s'il part aussi.
 
 **Une partie d'avant la V16 se relit** : une carte inconnue s'ignore (`cartesDeLaPartie`, `poseesSur`), une mutation inconnue ne joue pas, un effet déjà joué porte ses chiffres et se rejoue — `check_sauvegardes`.
+
+## Mal assorti (V16, tranche 5a — 24 oct. 2026)
+
+Depuis la tranche 3, un adjoint pris au hasard aidait encore, là où une place jouée au hasard coûtait : dans `check_profondeur`, le distrait des bons clubs ne ratait plus les séries. Mesuré en retirant une à une ses habitudes, sur les mêmes dés : ses échelons achetés au hasard valaient +6 V par saison (une poussée de force rendait toujours), ses engagements au hasard peu, la confiance rien.
+
+**Décision** : un adjoint d'une autre couleur que le coach en poste rend la moitié de sa force (le canal à la puissance 0,5) et son défaut mord une fois et demie plus (`MAL_ASSORTI`, `assortir`, js/sim.js). Le neutre et le soir sans coach jouent tel quel ; les minutes de trio aussi. Le distrait rate de nouveau les séries (1 fois sur 4), l'attentif garde ses +5,0 V sur le robot d'avant, et chaque adjoint, mesuré seul sans coach, reste sous sa borne (`check_places`, `check_personnel`).
+
+**Écarté** : rendre les échelons plus chers (le distrait les achète quand même, l'attentif paie aussi) ; un malus fixe hors couleur (il frappait les adjoints faibles autant que les forts) ; toucher aux minutes de trio (elles n'ont pas de côté qui nuit).
+
+**Les minutes d'un trio se disent en minutes** : l'entraîneur du bas et le costumier ne faisaient que déplacer des minutes de trio, et `check_banque` refusait leur puce sans chiffre. La puce de la glace dit l'unité qui gagne le plus et celle qui perd le plus, en minutes d'un match de 60, sur `PART_UNITE` (`RANGS_DE_GLACE`, partagé avec js/impact.js).
+

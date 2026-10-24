@@ -17,8 +17,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
-import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
-import { PROTEGES } from './personnel.js';
+import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
+import { PERSONNEL, PROTEGES } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -1017,6 +1017,34 @@ function plafondsDe(team) {
   for (const c of (team && team.coachs) || []) for (const [k, v] of Object.entries(c.plafonds || {})) out[k] = Math.max(out[k], v);
   return out;
 }
+/*
+ * MAL ASSORTI (V16, tranche 5a ; JP : *un mauvais choix doit coûter*). Un adjoint d'une autre couleur que le coach en
+ * poste joue à contre-courant : sa force rend `MAL_ASSORTI.force` de ce qu'elle rend chez son coach (un canal à ×1,1
+ * devient ×1,1^0,5), et son défaut mord `MAL_ASSORTI.defaut` fois plus. Ses échelons suivent : ils poussent une force
+ * qui ne rend qu'à moitié. Un adjoint neutre, ou un soir sans coach, joue tel quel. Mesuré : un échelon acheté au
+ * hasard valait +6 V par saison au gérant distrait, qui ne payait jamais un adjoint mal choisi (check_profondeur).
+ */
+const MAL_ASSORTI = { force: 0.5, defaut: 1.5 };
+const COULEURS_DU_PERSONNEL = new Map();
+function couleurDuPersonnel(cle) {
+  if (!COULEURS_DU_PERSONNEL.has(cle)) COULEURS_DU_PERSONNEL.set(cle, PERSONNEL[cle] ? coachDesCanaux({ effet: PERSONNEL[cle].effet, mutation: PROTEGES[cle] }) : null);
+  return COULEURS_DU_PERSONNEL.get(cle);
+}
+/* Le côté qui nuit d'un canal d'équipe : moins de tirs, de précision ; plus de buts contre, de punitions, de blessures, d'usure. */
+const NUIT_A_L_EQUIPE = { volume: v => v < 1, finition: v => v < 1, defense: v => v > 1, discipline: v => v > 1, blessure: v => v > 1, energie: v => v > 1 };
+const estMalAssorti = (team, p) => {
+  const coach = ((team && team.coachs) || [])[0], c = p && couleurDuPersonnel(p.cle);
+  return !!(coach && c && c !== coach.cle);
+};
+function assortir(team, p) {
+  if (!estMalAssorti(team, p)) return p;
+  const out = { ...p };
+  for (const [k, nuit] of Object.entries(NUIT_A_L_EQUIPE)) if (typeof p[k] === 'number') out[k] = p[k] ** (nuit(p[k]) ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
+  if (typeof p.robustesse === 'number') out.robustesse = p.robustesse * (p.robustesse < 0 ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
+  return out;
+}
+/* Le personnel qui joue ce soir, chacun tel que son coach le reçoit (`assortir`). */
+const patronsDuSoir = team => ((team && team.patrons) || []).filter(c => joueCeSoir(team, c)).map(p => assortir(team, p));
 function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;
@@ -1041,7 +1069,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   const actifs = [...effetsActifs(team), ...contreLui];
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
-  const sources = [...((team && team.patrons) || []), ...coachsJoues(team),
+  const sources = [...patronsDuSoir(team), ...coachsJoues(team),
     ROULEMENTS[roulementDe(team)], ...actifs].filter(c => joueCeSoir(team, c));
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
@@ -1080,7 +1108,7 @@ export function partsDuRoulement(base, group, team) {
   // et la renormalisation tient toujours la somme.
   // v2 : un patron ou la confiance d'un coach (le Contremaître, le Showman) déplacent aussi les minutes, toute la saison.
   // V10 : un patron d'un moment (`si`) ne déplace les minutes que ses soirs.
-  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
+  for (const x of [...effetsActifs(team), ...patronsDuSoir(team), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
   // LES SECONDES DE PRÉSENCE DE CHAQUE LIGNE (S68), à la HockeyArena : 60 est
   // la glace que le moteur a mesurée ; 70 donne un sixième de glace de plus.
   const L = team && team.lignes;
@@ -2332,7 +2360,7 @@ function usureLigne(l, part, partMoy, groupe = 'F') {
 }
 /* Le multiplicateur d'usure des effets, des patrons et des coachs. */
 function kUsure(team) {
-  const src = [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team)];
+  const src = [...effetsActifs(team), ...patronsDuSoir(team), ...coachsJoues(team)];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
 /* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */
