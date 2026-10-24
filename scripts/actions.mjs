@@ -8,7 +8,8 @@
  * JP : *pense à des cartes complexes, trouve des images, pas juste des faces,
  * si tu peux*. La LNH publie une photo de match pour la plupart des joueurs
  * d'après 2005 (assets.nhle.com/mugs/actionshots/1296x729/{id}.jpg ; un
- * joueur sans photo est redirigé vers une image générique). Mesuré sur nos
+ * joueur sans photo est redirigé vers une image générique, ou se la fait servir
+ * directement : le même fichier chez plusieurs joueurs). Mesuré sur nos
  * joueurs : ≈ 95 % depuis 2010, ≈ 58 % dans les années 2000, presque aucun
  * avant 1990 — une carte d'un joueur sans photo garde son portrait.
  *
@@ -28,6 +29,7 @@
  * Le traitement se fait dans Chromium (Playwright) : le décodage JPEG, le
  * canevas et l'encodage WebP y sont natifs, sans dépendance de plus.
  */
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -135,18 +137,50 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
 const vueDArena = m => m.bas < 72 && (m.glace > 0.35 || (m.contour > 25 && m.plat > 0.18));
 const GARDEES_A_L_OEIL = new Set([8475831, 8480336]);
 // Oct. 2026 (le cadrage carré, planches-contact relues une à une) : une vue d'aréna, une épaule, un filet, une image floue — on n'y voit pas le joueur.
-const ECARTEES_A_L_OEIL = new Set([8476433, 8478176, 8477369, 8477981, 8481593, 8482447, 8460503, 8471734, 8475165, 8478971, 8446926]);
+const ECARTEES_A_L_OEIL = new Set([8476433, 8478176, 8477369, 8477981, 8481593, 8482447, 8460503, 8471734, 8475165, 8478971, 8446926, 8480901]);
 const EMPREINTE_PROCHE = 10;
 const distance = (a, b) => { let n = 0; for (let i = 0; i < a.length; i++) { let v = a[i] ^ b[i]; while (v) { n += v & 1; v >>= 1; } } return n; };
 
+// Tout se télécharge d'abord : une image générique ne se reconnaît qu'à plusieurs.
+const bruts = new Map(), aTelecharger = liste.slice();
+await Promise.all(Array.from({ length: PARALLELE }, async () => {
+  while (aTelecharger.length) { const id = aTelecharger.shift(); const f = await telecharger(id); if (f) bruts.set(id, f); }
+}));
+
+/*
+ * L'IMAGE GÉNÉRIQUE QUI RÉPOND 200 (oct. 2026). Sans redirection, la LNH sert
+ * parfois le même fichier à plusieurs joueurs (8477384 et 8478854 : une vue de
+ * l'aréna d'Edmonton, au même octet près). Un brut dont le md5 revient chez
+ * deux joueurs ou plus n'est la photo d'aucun : ils sont retenus comme absents,
+ * et le md5 est gardé (generiques.json, avec les bruts) pour les passes suivantes.
+ */
+const GENERIQUES = path.join(BRUT, 'generiques.json');
+const generiques = new Set(fs.existsSync(GENERIQUES) ? JSON.parse(fs.readFileSync(GENERIQUES, 'utf8')) : []);
+const parMd5 = new Map();
+for (const [id, f] of bruts) {
+  const h = createHash('md5').update(fs.readFileSync(f)).digest('hex');
+  parMd5.set(h, [...(parMd5.get(h) || []), id]);
+}
+let generiquesEcartees = 0;
+for (const [h, qui] of parMd5) {
+  if (qui.length > 1) generiques.add(h);
+  if (!generiques.has(h)) continue;
+  for (const id of qui) {
+    absents.add(id); bruts.delete(id); generiquesEcartees++;
+    fs.rmSync(path.join(BRUT, `${id}.jpg`), { force: true });
+    fs.rmSync(path.join(SORTIE, `${id}.webp`), { force: true });
+  }
+}
+fs.writeFileSync(GENERIQUES, JSON.stringify([...generiques].sort()));
+fs.writeFileSync(ABSENTS, JSON.stringify([...absents].sort((a, b) => a - b)));
+
 const presents = [], fenetres = new Map(), empreintes = new Map(), ecartees = new Map();
 let faits = 0, octets = 0;
-const file = liste.slice();
+const file = [...bruts.keys()];
 async function ouvrier() {
   while (file.length) {
     const id = file.shift();
-    const f = await telecharger(id);
-    if (!f) continue;
+    const f = bruts.get(id);
     // Un brut illisible (coupé, ou pas une image) : on le jette et on le retélécharge une fois.
     let r = null;
     for (let essai = 0; essai < 2 && !r; essai++) {
@@ -165,7 +199,6 @@ async function ouvrier() {
   }
 }
 await Promise.all(Array.from({ length: PARALLELE }, ouvrier));
-fs.writeFileSync(ABSENTS, JSON.stringify([...absents].sort((a, b) => a - b)));
 
 // 1. Les images qui reviennent chez plusieurs joueurs : l'image de l'équipe, pas la leur.
 const communes = new Set();
@@ -188,8 +221,9 @@ if (LIMITE === Infinity && !arg('ids', null)) {
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};
 for (const r of ecartees.values()) parRaison[r] = (parRaison[r] || 0) + 1;
-console.log(`\n  ${presents.length} photos d'action écrites sur ${liste.length} joueurs ; ${liste.length - presents.length - ecartees.size} sans photo à la LNH`);
+console.log(`\n  ${presents.length} photos d'action écrites sur ${liste.length} joueurs ; ${liste.length - presents.length - ecartees.size - generiquesEcartees} sans photo à la LNH`);
 console.log(`  ${ecartees.size} écartées, pas une photo du joueur : ${Object.entries(parRaison).map(([k, n]) => `${k} ${n}`).join(' · ')}`);
+console.log(`  ${generiquesEcartees} images génériques (le même fichier chez plusieurs joueurs, ${generiques.size} md5), retenues comme absentes`);
 console.log(`  ${(octets / 1048576).toFixed(1)} Mo en tout, ${(octets / Math.max(1, presents.length) / 1024).toFixed(1)} Ko en moyenne`);
 console.log(`  bruts : ${(brutsTotal / 1048576).toFixed(0)} Mo (${telecharges} téléchargés cette fois, ${(octetsBruts / 1048576).toFixed(0)} Mo) — ce que l'appareil téléchargerait`);
 console.log(`  ${Math.round((Date.now() - t0) / 1000)} s\n`);

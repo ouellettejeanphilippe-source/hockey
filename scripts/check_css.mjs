@@ -55,11 +55,15 @@ informer('la feuille', `${(Buffer.byteLength(src) / 1024).toFixed(0)} Ko · ${rs
  *
  * R5, la peau (oct.) : AUCUN écart dans l'interface. Deux blocs ont leurs
  * propres règles et leurs propres plafonds, qui ne montent pas : le carton de
- * collection (4b, ses dix séries : le papier, le chrome, l'or — des palettes
+ * collection (4b, ses séries : le papier, le chrome, l'or — des palettes
  * de cartes, pas des couleurs d'écran) et le plateau de Sur table (10, ses
- * tailles suivent la case, `--tcell`).
+ * tailles suivent la case, `--tcell`). Le carton se borne PAR SÉRIE : dix
+ * séries tenaient en 301 couleurs, une par saison (oct. 2026, JP : *chaque
+ * année devra être différente*) garde la même densité, 32 par série
+ * (`SERIES`, js/cartes.js, plus la glace des cartes de jeu).
  */
-const PLAFOND_COULEURS_CARTON = Number(process.env.PLAFOND_COULEURS_CARTON ?? 301);
+const SERIES = (fs.readFileSync(path.join(ROOT, 'js', 'cartes.js'), 'utf8').match(/^ {2}\w+: \{ nom: '.*', saison: '\d{4}-\d\d' \},$/gm) || []).length + 1;
+const PLAFOND_COULEURS_CARTON = Number(process.env.PLAFOND_COULEURS_CARTON ?? 32 * SERIES);
 const PLAFOND_TAILLES_PLATEAU = Number(process.env.PLAFOND_TAILLES_PLATEAU ?? 6);
 const bloc = (debut, fin) => {
   const i = src.indexOf(debut), j = fin ? src.indexOf(fin, i) : src.length;

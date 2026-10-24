@@ -27,7 +27,7 @@
  * racine d'un domaine que dans le sous-dossier de GitHub Pages.
  */
 
-const VERSION = 'cap82-2.6.0';  // 2.6.0 : la V13, le duel à ton tableau, sans main ni cahier. 2.5.0 : la V10, le cahier neuf (js/cahier.js). 2.4.0 : la V9 complète, les exigences et la ligue qui monte (js/rogue.js). 2.3.0 : la V9, les galons (js/galons.js). 2.2.3 : Manrope pour le texte (fonts/Manrope-*.woff2). 2.2.2 : tes unités spéciales (l'onglet AN · DN des Lignes). 2.2.1 : les émojis au trait en tranches (fonts/NotoEmoji-*.woff2). 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
+const VERSION = 'cap82-2.7.1';  // 2.7.1 : la photo d'action cadrée dans sa fenêtre (data/actions.json, ses cadres). 2.7.0 : une série de cartes par saison et leurs polices (fonts/POLICES.txt). 2.6.0 : la V13, le duel à ton tableau, sans main ni cahier. 2.5.0 : la V10, le cahier neuf (js/cahier.js). 2.4.0 : la V9 complète, les exigences et la ligue qui monte (js/rogue.js). 2.3.0 : la V9, les galons (js/galons.js). 2.2.3 : Manrope pour le texte (fonts/Manrope-*.woff2). 2.2.2 : tes unités spéciales (l'onglet AN · DN des Lignes). 2.2.1 : les émojis au trait en tranches (fonts/NotoEmoji-*.woff2). 2.2.0 : la V7, les cinq onglets refaits (js/joueurs.js). 2.1.0 : la V5, le nœud de la semaine (js/noeuds.js). 2.0.2 : ce qui a fait la différence (js/causes.js). 2.0.1 : ton club (js/club.js). 2.0.0 : les cartes de la v2 et les coachs (js/coachs.js). 1.0.0 : la version livrable (LIVRAISON.md). v26 et avant : voir docs/journal/.
 const COQUILLE = `${VERSION}-coquille`;
 const PORTRAITS = `${VERSION}-portraits`;
 const PORTRAITS_MAX = 600;   // à peu près deux ligues de visages
@@ -64,6 +64,8 @@ const FICHIERS = [
   'fonts/NotoEmoji-1.woff2', 'fonts/NotoEmoji-2.woff2', 'fonts/NotoEmoji-3.woff2', 'fonts/NotoEmoji-4.woff2',
   'fonts/NotoEmoji-5.woff2', 'fonts/NotoEmoji-6.woff2', 'fonts/NotoEmoji-7.woff2', 'fonts/NotoEmoji-8.woff2',
   'fonts/NotoEmoji-9.woff2',
+  // Les polices des séries de cartes (style.css, une voix par année).
+  'fonts/AbrilFatface-400-latin.woff2', 'fonts/AlfaSlabOne-400-latin.woff2', 'fonts/Anton-400-latin.woff2', 'fonts/ArchivoBlack-400-latin.woff2', 'fonts/BebasNeue-400-latin.woff2', 'fonts/BigShouldersDisplay-700-latin.woff2', 'fonts/Bungee-400-latin.woff2', 'fonts/Exo2-800i-latin.woff2', 'fonts/Graduate-400-latin.woff2', 'fonts/Kanit-900i-latin.woff2', 'fonts/Michroma-400-latin.woff2', 'fonts/Monoton-400-latin.woff2', 'fonts/Orbitron-700-latin.woff2', 'fonts/Oswald-500-latin.woff2', 'fonts/PlayfairDisplay-700-latin.woff2', 'fonts/PlayfairDisplay-700i-latin.woff2', 'fonts/Rajdhani-700-latin.woff2', 'fonts/Righteous-400-latin.woff2', 'fonts/RussoOne-400-latin.woff2', 'fonts/Teko-500-latin.woff2', 'fonts/Ultra-400-latin.woff2',
 ];
 
 self.addEventListener('install', ev => {

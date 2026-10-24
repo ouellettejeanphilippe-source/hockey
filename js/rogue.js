@@ -181,6 +181,33 @@ export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0
 export const PLAFOND_ROGUE = 82_000_000;
 export const ESPACE_DE_DEPART = 4_000_000;
 /*
+ * LA PREMIÈRE RUN (JP, oct. 2026 : *plafond initial devrait être le plafond réel de la ligue, mais tricher en
+ * mettant des joueurs sur payé* ; puis *ça doit être de vrais joueurs, trop payés pour leur valeur*). Son plafond est
+ * le vrai plafond de la LNH 2025-26 (95,5 M$, la référence des salaires en dollars d'aujourd'hui). Ses bouche-trous
+ * ont de vrais contrats (`VRAIS_CONTRATS` et après, `isReal`), les pires de leur bande de valeur ; puis
+ * `alourdirLaPremiere` échange le moins payé contre un plus payé du même poste, de la même bande et des mêmes
+ * saisons, tant qu'il reste plus de `ESPACE_DE_DEPART` dessous. Aucun salaire n'est touché. Mesuré sur 150 départs :
+ * la pige des vrais contrats seule laissait de 4 à 28 M$ d'espace (7 en médiane), à valeur égale (50 contre 51).
+ */
+export const PLAFOND_PREMIERE = 95_500_000;
+export const VRAIS_CONTRATS = '1990-91';
+export function alourdirLaPremiere(roster, reserve, { fixes, personne, cible = PLAFOND_PREMIERE - ESPACE_DE_DEPART }) {
+  const siens = new Set(fixes.map(personne));
+  const pris = new Set(Object.values(roster).filter(Boolean).map(personne));
+  const vus = new Set();
+  let masse = Object.values(roster).reduce((a, p) => a + ((p && p.$) || 0), 0);
+  for (;;) {
+    const [i, p] = Object.entries(roster).filter(([k, q]) => q && !vus.has(k) && !siens.has(personne(q)))
+      .sort((a, b) => (a[1].$ || 0) - (b[1].$ || 0) || (a[0] < b[0] ? -1 : 1))[0] || [];
+    if (!p) return roster;
+    vus.add(i);
+    const q = reserve.filter(x => x.p === p.p && x.np === p.np && !pris.has(personne(x)) && (x.$ || 0) > (p.$ || 0) && masse - (p.$ || 0) + (x.$ || 0) <= cible)
+      .sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1))[0];
+    if (!q) continue;
+    roster[i] = q; pris.delete(personne(p)); pris.add(personne(q)); masse += (q.$ || 0) - (p.$ || 0);
+  }
+}
+/*
  * LE DÉPART DU CLASSEUR (S80) : combien de cartes, et comment elles se
  * prennent. `hasard` : elles sont tirées, on les voit, on les prend ;
  * `tri` : deux fois plus sont tirées, on garde celles qu'on veut ; `choix` :
@@ -228,7 +255,7 @@ export const budgetDuClasseur = m => PLAFOND_ROGUE + plafondDuVestiaire(m) - ESP
 const BOUCHES_TROUS = { F: { par: 'points', n: 3 }, D: { par: 'valeur', n: 2 }, G: { par: 'valeur', n: 1 } };
 const PART_DES_PIRES = 1 / 3;
 const pointsParMatch = p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 1);
-export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set() }) {
+export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger, plus = false, exclus = new Set(), reserve = null }) {
   const out = [], pris = new Set(exclus);
   const [bas, haut] = plus ? [0.25, 0.45] : [0.05, 0.25];
   const pires = t => t.slice().sort((a, b) => (b.$ || 0) - (a.$ || 0) || (personne(a) < personne(b) ? -1 : 1)).slice(0, Math.max(1, Math.ceil(t.length * PART_DES_PIRES)));
@@ -236,7 +263,10 @@ export function bouchesTrousDuDepart(saisons, { groupe, valeur, personne, piger,
     for (const g of ['F', 'D', 'G']) {
       const B = BOUCHES_TROUS[g], cle = B.par === 'points' ? pointsParMatch : valeur;
       const reg = joueurs.filter(p => groupe(p) === g && (p.gp || 0) >= (g === 'G' ? 10 : 30) && !pris.has(personne(p))).sort((a, b) => cle(a) - cle(b));
-      const tranche = pires(reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut))));
+      const bande = reg.slice(Math.floor(reg.length * bas), Math.max(1, Math.floor(reg.length * haut)));
+      // `reserve` : toute la bande, pour `alourdirLaPremiere`.
+      if (reserve) reserve.push(...bande);
+      const tranche = pires(bande);
       for (let k = 0; k < B.n && tranche.length; k++) {
         const p = piger(tranche, `${i}${g}${k}`);
         if (!p) break;

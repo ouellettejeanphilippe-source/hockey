@@ -10,8 +10,8 @@
  * SUR LE WEB, les photos sont recadrées à la fabrication (img/actions/,
  * versionnées depuis oct. 2026 pour que GitHub Pages les serve ;
  * scripts/actions.mjs les refait). Au démarrage, on en demande UNE ; absente,
- * aucune carte n'en demande d'autre. Une carte ne la montre qu'en édition
- * haute (`photoAction`, js/cartes.js).
+ * aucune carte n'en demande d'autre. Toute carte la montre dès qu'elle existe
+ * (`photoAction`, js/cartes.js).
  *
  * DANS L'APPLICATION ANDROID, l'APK n'emporte aucune photo (comme les visages,
  * js/visages.js) : l'appareil les télécharge à la LNH par le HTTP natif (le
@@ -35,6 +35,7 @@ const EN_MEME_TEMPS = 2;
 
 let liste = null;            // les joueurs qui ont une photo (data/actions.json)
 let visages = {};            // le centre de leur visage, pour le recadrage sur l'appareil (scripts/visages_actions.py)
+let cadres = {};             // id → le centre du visage dans la photo 5:7 [x, y], pour la fenêtre de chaque série
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
@@ -63,6 +64,7 @@ export function actionsDisponibles() {
       const lu = await r.json(), ids = lu.ids || [];
       liste = new Set(ids);
       visages = lu.visages || {};
+      cadres = lu.cadres || {};
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
       // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
@@ -73,6 +75,11 @@ export function actionsDisponibles() {
     } catch { return []; }
   })();
   return chargement;
+}
+
+/* Le centre du visage dans sa photo d'action, [x, y] en fractions, ou null (aucun visage sûr : la série cadre seule). */
+export function cadreAction(id) {
+  return cadres[Number(id)] || null;
 }
 
 /* L'image d'action d'un joueur, 5:7, ou null (la carte garde son portrait). */

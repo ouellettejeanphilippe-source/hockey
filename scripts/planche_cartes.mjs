@@ -222,7 +222,7 @@ if (ACTIONS) {
       const e = await getShard(s);
       for (const j of e.players) if (ids.includes(String(j.id)) && !trouves.has(`${j.id}|${s}`)) trouves.set(`${j.id}|${s}`, j);
     }
-    // Oct. 2026 : l'action va aux éditions hautes (js/cartes.js `photoAction`) — la même carte en Cadre, puis en Hors-cadre, Or et Holo.
+    // Oct. 2026 : l'action va à toute carte qui en a une (js/cartes.js `photoAction`) — dans sa fenêtre en Cadre, pleine carte en Hors-cadre, Or et Holo.
     const { getPlayerKey } = await import('/js/sim.js');
     const G = window.cap82.G;
     let i = 0;
