@@ -1,22 +1,19 @@
 /*
- * FORTE, MAIS DANS SON MOMENT (V3.4). JP : *un joueur est plus robuste à
- * domicile* ; *ce genre de trucs complexes, mais pas trop*. Une modif d'un
- * moment (`si` : domicile, visiteur, series) ne joue que ses soirs, et ses
- * soirs-là elle se VOIT. Mesuré en paires, match par match : le même club
- * joue les mêmes matchs, sous les mêmes dés, avec puis sans la carte.
- *   1. ses soirs, l'effet se voit dans la feuille (au moins un dixième de but
- *      par match, dans le sens promis) ;
- *   2. hors de ses soirs, rien : l'homme des séries ne change pas un seul
- *      but de la saison ;
- *   3. sur une saison (41 soirs à domicile ou à l'étranger), le net en
- *      victoires reste sous la borne de sa rareté (peu commune 1,5 V, rare
- *      2,5 V — CLAUDE.md, check_cartes).
+ * FORTE, MAIS DANS SON MOMENT (V3.4 ; V16, sur le personnel). JP : *un joueur est plus robuste à domicile* ; *ce genre
+ * de trucs complexes, mais pas trop*. Un adjoint d'un moment (`si` : domicile, visiteur, series) ne joue que ses soirs,
+ * et ses soirs-là il se VOIT. Mesuré en paires, match par match : le même club joue les mêmes matchs, sous les mêmes
+ * dés, avec puis sans l'adjoint engagé au jour 0 (les places de la V3.4, le gardien du château, le joueur de route et
+ * l'homme des séries, sont parties à la V16 ; ces trois adjoints les reprennent).
+ *   1. ses soirs, l'effet se voit dans la feuille (au moins un dixième de but par match, pour ou contre) ;
+ *   2. hors de ses soirs, rien : l'adjoint des séries ne change pas un seul but de la saison ;
+ *   3. sur une saison (41 soirs à domicile ou à l'étranger), le net en victoires reste sous la borne de sa rareté
+ *      (commune 1 V, rare 2,5 V — CLAUDE.md, check_cartes).
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, playGame, joueurDeMutation, getPlayerKey } from '../js/sim.js';
-import { BANQUE } from '../js/banque.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, playGame } from '../js/sim.js';
+import { BANQUE, payloadDe } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -50,14 +47,13 @@ const SEEDS = (process.env.SEEDS || '1000,1001,1002,1003,1004,1005,1006,1007,100
 const BORNE = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
 
 /*
- * EN PAIRES, comme check_impact : la même ligue deux fois sous la même graine, la carte posée au jour 0 sur le
- * joueur qu'elle vise chez la moitié des clubs (`par`), chacun lu contre les clubs non traités, à domicile et à
- * l'étranger. Puis, sur le même fil de dés, des matchs de séries entre traités et non traités.
+ * EN PAIRES, comme check_impact : la même ligue deux fois sous la même graine, l'adjoint engagé au jour 0 chez la
+ * moitié des clubs (`par`), chacun lu contre les clubs non traités, à domicile et à l'étranger. Puis, sur le même fil de dés, des matchs de séries entre traités et non traités.
  */
 function saison(seed, par, cle) {
   const teams = ligue(seed, 32);
   const traites = cle ? teams.map((_, i) => i).filter(i => i % 2 === par) : [];
-  const decisions = traites.map(e => ({ jour: 0, equipe: e, deck: 'atelier', mutation: { cle, joueur: getPlayerKey(joueurDeMutation(teams[e], null, cle)) } }));
+  const decisions = traites.map(e => ({ jour: 0, equipe: e, ...payloadDe(`patron:${cle}`) }));
   simulateLeague(teams, 82, { graine: `si${seed}`, decisions });
   const lu = teams.map(() => ({ dom: { gf: 0, ga: 0, v: 0, n: 0 }, ext: { gf: 0, ga: 0, v: 0, n: 0 } }));
   teams.forEach((t, i) => {
@@ -102,26 +98,28 @@ const lire = d => `à domicile : buts ${f(d.dom.gf)} / ${f(d.dom.ga)}, victoires
 console.log('\n  FORTE, MAIS DANS SON MOMENT\n');
 
 const victoires = d => (d.dom.v + d.ext.v) * 41;
-// Le gardien du château : à domicile, il défend ; à l'étranger, rien.
+const nom = cle => { const c = BANQUE[`patron:${cle}`]; return `${c.ico} ${c.nom}`; };
+const seVoit = o => Math.abs(o.gf) + Math.abs(o.ga);
+// L'ancien capitaine (il reprend le gardien du château) : à domicile, il se voit.
 {
-  const d = mesurer('domicile'), rar = BANQUE['joueur:domicile'].rarete;
-  informer('🏯 Le gardien du château', lire(d));
-  borne('à domicile, il fait accorder moins de buts (par match)', -d.dom.ga, 0.1, 1);
+  const cle = 'per_ancienCapitaine', d = mesurer(cle), rar = BANQUE[`patron:${cle}`].rarete;
+  informer(nom(cle), lire(d));
+  borne('à domicile, il change le pointage (buts pour et contre, par match)', seVoit(d.dom), 0.1, 1);
   borne(`sur une saison, le net en victoires reste sous la borne d'une ${rar}`, Math.abs(victoires(d)), 0, BORNE[rar]);
 }
-// Le joueur de route : à l'étranger, il marque ; à domicile, rien.
+// L'entraîneur des gardiens de route (il reprend le joueur de route) : à l'étranger, il se voit.
 {
-  const d = mesurer('route'), rar = BANQUE['joueur:route'].rarete;
-  informer('🛤️ Le joueur de route', lire(d));
-  borne('à l\'étranger, il fait marquer plus (buts par match)', d.ext.gf, 0.1, 1);
+  const cle = 'per_gardiensDeRoute', d = mesurer(cle), rar = BANQUE[`patron:${cle}`].rarete;
+  informer(nom(cle), lire(d));
+  borne('à l\'étranger, il change le pointage (buts pour et contre, par match)', seVoit(d.ext), 0.1, 1);
   borne(`sur une saison, le net en victoires reste sous la borne d'une ${rar}`, Math.abs(victoires(d)), 0, BORNE[rar]);
 }
-// L'homme des séries : en saison, pas un but ne change ; en séries, il se voit.
+// Le directeur de l'usine (il reprend l'homme des séries) : en saison, pas un but ne change ; en séries, il se voit.
 {
-  const d = mesurer('printemps'), rar = BANQUE['joueur:printemps'].rarete;
-  informer('🌋 L\'homme des séries, en séries', `buts ${f(d.series.gf)} / ${f(d.series.ga)}, victoires ${f(d.series.v)} par match`);
-  exiger('en saison, l\'homme des séries ne change pas un seul but de la ligue', d.saisonIdentique, d.saisonIdentique ? 'les 32 fiches identiques' : 'une fiche a bougé');
-  borne('en séries, il fait marquer plus (buts par match)', d.series.gf, 0.1, 1);
+  const cle = 'per_directeurUsine', d = mesurer(cle), rar = BANQUE[`patron:${cle}`].rarete;
+  informer(`${nom(cle)}, en séries`, `buts ${f(d.series.gf)} / ${f(d.series.ga)}, victoires ${f(d.series.v)} par match`);
+  exiger('en saison, l\'adjoint des séries ne change pas un seul but de la ligue', d.saisonIdentique, d.saisonIdentique ? 'les 32 fiches identiques' : 'une fiche a bougé');
+  borne('en séries, il change le pointage (buts pour et contre, par match)', seVoit(d.series), 0.1, 1);
   borne(`sur vingt matchs de séries, le net en victoires reste sous la borne d'une ${rar}`, Math.abs(d.series.v * 20), 0, BORNE[rar]);
 }
 verdict();

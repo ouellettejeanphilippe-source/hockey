@@ -17,9 +17,8 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          facteurAttaqueEquipe, facteurLancersJoueur, facteurFinitionJoueur,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
-import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
-import { MODIFS_VIE } from './cartes-vie.js';
-import { EQUIPEMENT } from './equipement.js';
+import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
+import { PERSONNEL, PROTEGES } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -1018,6 +1017,36 @@ function plafondsDe(team) {
   for (const c of (team && team.coachs) || []) for (const [k, v] of Object.entries(c.plafonds || {})) out[k] = Math.max(out[k], v);
   return out;
 }
+/*
+ * MAL ASSORTI (V16, tranche 5a ; JP : *un mauvais choix doit coûter*). Un adjoint d'une autre couleur que le coach en
+ * poste joue à contre-courant : sa force rend `MAL_ASSORTI.force` de ce qu'elle rend chez son coach (un canal à ×1,1
+ * devient ×1,1^0,5), et son défaut mord `MAL_ASSORTI.defaut` fois plus. Ses échelons suivent : ils poussent une force
+ * qui ne rend qu'à moitié. Un adjoint neutre, ou un soir sans coach, joue tel quel. Mesuré : un échelon acheté au
+ * hasard valait +6 V par saison au gérant distrait, qui ne payait jamais un adjoint mal choisi (check_profondeur).
+ */
+const MAL_ASSORTI = { force: 0.5, defaut: 1.5 };
+const COULEURS_DU_PERSONNEL = new Map();
+function couleurDuPersonnel(cle) {
+  if (!COULEURS_DU_PERSONNEL.has(cle)) COULEURS_DU_PERSONNEL.set(cle, PERSONNEL[cle] ? coachDesCanaux({ effet: PERSONNEL[cle].effet, mutation: PROTEGES[cle] }) : null);
+  return COULEURS_DU_PERSONNEL.get(cle);
+}
+/* Le côté qui nuit d'un canal d'équipe : moins de tirs, de précision ; plus de buts contre, de punitions, de blessures, d'usure. */
+const NUIT_A_L_EQUIPE = { volume: v => v < 1, finition: v => v < 1, defense: v => v > 1, discipline: v => v > 1, blessure: v => v > 1, energie: v => v > 1 };
+/*
+ * Un adjoint tel que le coach `coach` (sa clé) le reçoit : tel quel s'il est de sa couleur, neutre ou sans coach ; à
+ * contre-courant sinon. Pur : le moteur (`assortir`) et la fiche de l'entraîneur (js/rogue-jeu.js) lisent les mêmes chiffres.
+ */
+export function assortiPour(coach, p) {
+  const c = p && couleurDuPersonnel(p.cle);
+  if (!coach || !c || c === coach) return p;
+  const out = { ...p };
+  for (const [k, nuit] of Object.entries(NUIT_A_L_EQUIPE)) if (typeof p[k] === 'number') out[k] = p[k] ** (nuit(p[k]) ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
+  if (typeof p.robustesse === 'number') out.robustesse = p.robustesse * (p.robustesse < 0 ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
+  return out;
+}
+const assortir = (team, p) => assortiPour((((team && team.coachs) || [])[0] || {}).cle, p);
+/* Le personnel qui joue ce soir, chacun tel que son coach le reçoit (`assortir`). */
+const patronsDuSoir = team => ((team && team.patrons) || []).filter(c => joueCeSoir(team, c)).map(p => assortir(team, p));
 function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;
@@ -1042,7 +1071,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   const actifs = [...effetsActifs(team), ...contreLui];
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
-  const sources = [...((team && team.patrons) || []), ...coachsJoues(team),
+  const sources = [...patronsDuSoir(team), ...coachsJoues(team),
     ROULEMENTS[roulementDe(team)], ...actifs].filter(c => joueCeSoir(team, c));
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
@@ -1081,7 +1110,7 @@ export function partsDuRoulement(base, group, team) {
   // et la renormalisation tient toujours la somme.
   // v2 : un patron ou la confiance d'un coach (le Contremaître, le Showman) déplacent aussi les minutes, toute la saison.
   // V10 : un patron d'un moment (`si`) ne déplace les minutes que ses soirs.
-  for (const x of [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
+  for (const x of [...effetsActifs(team), ...patronsDuSoir(team), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
   // LES SECONDES DE PRÉSENCE DE CHAQUE LIGNE (S68), à la HockeyArena : 60 est
   // la glace que le moteur a mesurée ; 70 donne un sixième de glace de plus.
   const L = team && team.lignes;
@@ -2333,7 +2362,7 @@ function usureLigne(l, part, partMoy, groupe = 'F') {
 }
 /* Le multiplicateur d'usure des effets, des patrons et des coachs. */
 function kUsure(team) {
-  const src = [...effetsActifs(team), ...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)), ...coachsJoues(team)];
+  const src = [...effetsActifs(team), ...patronsDuSoir(team), ...coachsJoues(team)];
   return src.reduce((a, x) => a * ((x && x.energie) || 1), 1);
 }
 /* L'usure de chaque ligne ce soir : { F: [4], D: [3] }. */
@@ -2945,10 +2974,11 @@ export function effetDeMoment(d, team = null) {
   const o = fam && fam.options.find(x => x.cle === m.choix);
   if (!o) return null;
   const duree = o.duree || (m.famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
-  // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet.
+  // Un dossier (V10) paie ou coûte des jetons (`gain`) : la caisse les lit sur la décision, pas l'effet ; son plafond
+  // (`plafond`) et son coach neuf (`coachNeuf`, V16) aussi.
   // Ce qui va au joueur nommé (`lui`, V11) n'est pas un effet d'équipe : `appliquerDecision` le pose sur lui.
-  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, ...canaux } = o;
-  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l;
+  const { cle, nom, bon, prix, duree: _d, mutation: _m, pari: _p, ensuite: _e, action: _a, rien: _r, enjeu: _n, trou: _t, suivi: _s, monte: _mo, mentor: _me, gain: _g, lui: _l, plafond: _pl, coachNeuf: _cn, ...canaux } = o;
+  void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _cn;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
   return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
@@ -6285,8 +6315,16 @@ function appliquerDecision(team, d, graine = 0) {
     return o && o.mutation ? { cle: o.mutation, joueur: d.moment.joueur } : null;
   })());
   if (mut && MUTATIONS[mut.cle]) {
-    const p = Object.values(team.roster).find(x => x && getPlayerKey(x) === mut.joueur) || CONNUS.get(mut.joueur);
-    if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
+    // V16 : un protégé reposé (l'échelon de son adjoint) remplace l'ancien, sur le même joueur ; celui que personne ne
+    // nomme est celui que le moteur désigne.
+    const ancien = PROTEGES[mut.cle] ? (team.mutations || []).find(m => m.cle === mut.cle) : null;
+    if (ancien) retirerProtege(team, mut.cle);
+    if (MUTATIONS[mut.cle].portee) for (const q of porteeDuFeu(team, MUTATIONS[mut.cle].portee, mut.lignes || 1)) appliquerMutation(team, q, mut.cle, d.jour, 'choix', mut);
+    else {
+      const qui = mut.joueur || (ancien && ancien.joueur);
+      const p = qui ? Object.values(team.roster).find(x => x && getPlayerKey(x) === qui) || CONNUS.get(qui) : joueurDeMutation(team, null, mut.cle);
+      if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
+    }
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
   if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
@@ -6328,6 +6366,8 @@ function appliquerDecision(team, d, graine = 0) {
    */
   if (d.patron && d.patron.cle) {
     const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
+    const partent = (team.patrons || []).filter(x => x.cle !== d.patron.cle && (rempl.has(x.cle) || (d.patron.role && x.role === d.patron.role)));
+    for (const x of partent) retirerProtege(team, x.cle);
     team.patrons = (team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role));
     const { remplace: _r, ...pat } = d.patron;
     team.patrons.push(pat);
@@ -7614,29 +7654,6 @@ export const MUTATIONS = {
   // V2.4 — MONTER UN PALIER : la carte d'entraînement (la planète de Balatro) et le mentor de trio.
   mentorTrio: { nom: 'Le mentor', ico: '🦉', cible: 'libre', source: 'atelier', mentor: true,
     quoi: 'Il prend ses compagnons de ligne sous son aile : tant qu\'ils jouent avec lui, leur badge monte au suivant.' },
-  /*
-   * V3.4 — FORTE, MAIS DANS SON MOMENT. JP : *un joueur est plus robuste à domicile* ; *ce genre de trucs
-   * complexes, mais pas trop*. Une modif peut ne jouer que certains soirs (`si`) : à domicile, à
-   * l'étranger, en séries (`siDe`). Elle est plus forte qu'une modif de tous les soirs, parce qu'elle ne
-   * s'additionne pas aux autres chaque soir ; sa face dit son moment en premier.
-   */
-  domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
-    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.83 },   // S108 : 0,8 → 0,83, l'entente des coéquipiers l'avait poussé au-dessus de la borne d'une peu (1,52 V, check_si)
-  route: { nom: 'Le joueur de route', ico: '🛤', cible: 'libre', source: 'atelier', si: 'visiteur',
-    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.22, finition: 1.22 },   // S109 : 1,2 → 1,22, le 1er centre qu'elle vise par défaut tire moins depuis que le Two-way lit la défense (0,08 à 0,11 but, borne 0,1, check_si)
-  printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
-    quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
-  /*
-   * V3.6 — LE FEU QUI S'ENTRETIENT, le premier combo du Rogue (`LANCEE`, `lanceesDeLigne`). Faibles seules : la
-   * lancée ne touche qu'un joueur sur vingt, un soir sur vingt. Ensemble, sur un trio qui marque, et avec le vendeur
-   * de chandails (js/banque.js) : le feu prend, tient, se propage et paie.
-   */
-  etincelle: { nom: 'L\'étincelle', ico: '☄', cible: 'libre', source: 'atelier', feu: 'etincelle',
-    quoi: 'Sa lancée part plus vite et brûle plus fort : trois buts en six matchs l\'allument, quel que soit son rythme.' },
-  braise: { nom: 'La braise', ico: '🪔', cible: 'libre', source: 'atelier', feu: 'braise',
-    quoi: 'Sa lancée ne s\'éteint pas : allumée, elle tient tant qu\'il marque une fois en trois matchs.' },
-  poudre: { nom: 'La traînée de poudre', ico: '💫', cible: 'libre', source: 'atelier', feu: 'poudre',
-    quoi: 'Il prend feu avec sa ligne : quand un compagnon de ligne est sur sa lancée, il l\'est aussi.' },
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
@@ -7687,19 +7704,18 @@ export const MUTATIONS = {
    * deck builder*. Les « styles » à la FUT : ce qu'un joueur devient pour la
    * saison — son profil (donc le fit de sa ligne) et un canal réel. Les
    * contrats : ce qu'une signature change chez lui, avec son prix. Même
-   * contrat que les améliorations : un joueur, quelques pour cent.
+   * contrat que les améliorations : un joueur, quelques pour cent. V16 : plus des cartes ; les choix d'un fil
+   * (js/vie-gm.js) les posent encore.
    */
   contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
   contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
-  contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.09, creation: 1.054, blessure: 1.3 },
   contrat_leader: { nom: 'Le « C » cousu', ico: '©', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
-  ...MODIFS_VIE,
-  // L'équipement neuf (V10, tranche 3 — js/equipement.js) : une carte posée sur un joueur, qui attend son moment.
-  ...EQUIPEMENT,
+  // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.
+  ...PROTEGES,
 };
-const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
+export const CANAUX_MUT = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets'];
 /* Un facteur qui NUIT : moins de tirs, de précision, de création ; plus de buts contre, de blessures, de buts accordés. */
-const estMalus = (canal, x) => (canal === 'defense' || canal === 'blessure' || canal === 'arrets' ? x > 1 : x < 1);
+export const estMalus = (canal, x) => (canal === 'defense' || canal === 'blessure' || canal === 'arrets' ? x > 1 : x < 1);
 /* Une mutation qui ne fait que nuire (un accident) : le physio l'efface de la carte. */
 const malusSeul = k => {
   const M = MUTATIONS[k];
@@ -7711,7 +7727,7 @@ export const mutationNuit = k => {
   return !!M && (CANAUX_MUT.some(c => M[c] && estMalus(c, M[c])) || Object.values(M.profils || {}).some(d => d < 0));
 };
 // V10 (tranche 6) : les retouches de la carte seulement ; les éditions d'avant (le poste, la zone, l'été, le mentor) sont parties avec l'ancien jeu.
-const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
+export const MUTATIONS_ATELIER = ['pinceau', 'fenetre', 'dorure', 'lustre'];
 
 /*
  * QUI UNE MUTATION VISE, tiré des PROFILS de l'alignement — jamais d'une cote.
@@ -7766,13 +7782,43 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   // S80 : une AMÉLIORATION grandit avec la saison (`echelleTardive`) ; elle vit à part, et `mutDe` la fait grandir.
   const grandit = M.source === 'amelioration';
   if (grandit) p._amel = p._amel || {};
-  if (M.si) (p._si = p._si || []).push({ cle, si: M.si, ...Object.fromEntries(CANAUX_MUT.filter(c => M[c]).map(c => [c, M[c]])) });
-  else for (const c of CANAUX_MUT) if (M[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * M[c]; else p._mut[c] = (p._mut[c] || 1) * M[c]; }
+  // V16 : le protégé d'un adjoint porte ses canaux à l'échelon de l'adjoint (`canaux`, js/echelons.js `protegeALEchelon`).
+  const can = extra && extra.canaux ? { ...M, ...extra.canaux } : M;
+  if (M.si) (p._si = p._si || []).push({ cle, si: M.si, ...Object.fromEntries(CANAUX_MUT.filter(c => can[c]).map(c => [c, can[c]])) });
+  else for (const c of CANAUX_MUT) if (can[c]) { if (grandit) p._amel[c] = (p._amel[c] || 1) * can[c]; else p._mut[c] = (p._mut[c] || 1) * can[c]; }
   p._mutProfils = p._mutProfils || {};
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
   // `saison` (V9, tranche 7) : une modif offerte pour la saison seulement (le vétéran mentor d'un fil) ne va pas sur sa carte.
   (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}) });
+}
+
+/* Un adjoint qui quitte son poste (V16) emporte son protégé : ses soirs ne jouent plus, la mutation sort du journal. */
+function retirerProtege(team, cle) {
+  if (!PROTEGES[cle]) return;
+  for (const p of Object.values(team.roster || {})) {
+    if (!p) continue;
+    if (p._si) p._si = p._si.filter(e => e.cle !== cle);
+    if (p._mutCles) p._mutCles = p._mutCles.filter(k => k !== cle);
+    if (PROTEGES[cle].feu && p._feu) p._feu = p._feu.filter(x => x !== PROTEGES[cle].feu);
+  }
+  if (team.mutations) team.mutations = team.mutations.filter(m => m.cle !== cle);
+}
+/*
+ * LA PORTÉE D'UN FEU (V16) : un adjoint du feu ne vise pas un joueur, il vise ses `lignes` premières lignes — le
+ * meilleur marqueur de chacune (`tete`, au rythme de sa vraie saison), ou ses compagnons (`compagnons`) : le plus près
+ * de lui sur une ligne, tous les patineurs de la ligne, défenseurs compris, quand le feu en tient deux.
+ */
+function porteeDuFeu(team, portee, lignes = 1) {
+  const lu = activeLineup(team), out = [];
+  const rythme = p => ((p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0);
+  for (let u = 0; u < lignes; u++) {
+    const js = Object.values(joueursDeLigne(lu, u)).filter(p => p && p.p !== 'G');
+    const avants = js.filter(p => p.p !== 'D').sort((a, b) => rythme(b) - rythme(a) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1));
+    if (portee === 'tete') out.push(...avants.slice(0, 1));
+    else out.push(...(lignes > 1 ? js.filter(p => p !== avants[0]) : avants.slice(1, 2)));
+  }
+  return out;
 }
 
 /* Les accidents : cinq fenêtres, une chance sur deux par club, tirés de la graine. */
@@ -7886,6 +7932,18 @@ export function flechesDe(x, seuils = null) {
  * La moitié du haut contre la moitié du bas, pondérée par l'écart de chaque rang à 1 : « Le haut joue plus »,
  * « Le bas joue plus », ou « La glace se brasse » quand les deux bouts bougent pareil. Rend '' sans glace.
  */
+/* Les noms des unités à forces égales, dans l'ordre de `PART_UNITE`. */
+export const RANGS_DE_GLACE = { F: ['1er trio', '2e trio', '3e trio', '4e trio'], D: ['1re paire', '2e paire', '3e paire'] };
+/* Les minutes qu'un effet de glace déplace, unité par unité, sur un match de 60 : ses parts de base, multipliées puis
+   ramenées à 1. */
+function minutesDeLaGlace(e) {
+  return ['F', 'D'].flatMap(g => {
+    if (!Array.isArray(e[g])) return [];
+    const b = PART_UNITE[g], m = b.map((x, i) => x * (e[g][i] ?? 1));
+    const s = m.reduce((a, x) => a + x, 0), s0 = b.reduce((a, x) => a + x, 0);
+    return m.map((x, i) => ({ nom: RANGS_DE_GLACE[g][i], x: 60 * (x / s - b[i] / s0) }));
+  });
+}
 export function sensDeLaGlace(e) {
   let haut = 0, bas = 0, bouge = false;
   for (const g of ['F', 'D']) {
@@ -7908,9 +7966,16 @@ export function motsDEffet(e, duree = null) {
   if (e.blessure && e.blessure !== 1) out.push({ txt: `Blessures ${pct(e.blessure)}`, bon: e.blessure < 1 });
   if (e.energie && e.energie !== 1) out.push({ txt: `Usure des jambes ${pct(e.energie)}`, bon: e.energie < 1 });
   if (e.robustesse) out.push({ txt: `Robustesse ${e.robustesse > 0 ? '+' : '−'}${String(Math.abs(Math.round(e.robustesse * 10) / 10)).replace('.', ',')}`, bon: e.robustesse > 0 });
-  // LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée) : sept rangées « 1er trio : glace ↑ » disaient une seule idée.
+  // LA GLACE EN UNE PUCE (V6, phase 4 : une carte, une idée) : son sens, puis l'unité qui gagne le plus et celle qui
+  // perd le plus, en minutes d'un match de 60 (les parts de base `PART_UNITE`, comme js/impact.js les mesure).
   const sens = sensDeLaGlace(e);
-  if (sens) out.push({ txt: sens, bon: null, cle: 'glace' });
+  if (sens) {
+    const ecarts = minutesDeLaGlace(e);
+    const plus = ecarts.reduce((a, b) => (b.x > a.x ? b : a), { x: 0 }), moins = ecarts.reduce((a, b) => (b.x < a.x ? b : a), { x: 0 });
+    const dit = x => `${x > 0 ? '+' : '−'}${String(Math.abs(Math.round(x * 10) / 10)).replace('.', ',')} min`;
+    const bouts = [plus, moins].filter(b => Math.abs(b.x) >= 0.1).map(b => `${b.nom} ≈ ${dit(b.x)}`);
+    out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} par match` : sens, bon: null, cle: 'glace' });
+  }
   if (e.mutation && MUTATIONS[e.mutation]) out.push({ txt: `Change sa carte : ${MUTATIONS[e.mutation].ico} ${MUTATIONS[e.mutation].nom}`, bon: null });
   if (duree) out.push({ txt: `${duree} match${duree > 1 ? 's' : ''}`, bon: null, duree: true });
   return out;

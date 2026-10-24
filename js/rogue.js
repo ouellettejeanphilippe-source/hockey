@@ -12,7 +12,7 @@
  * packs (trois vrais joueurs, tu en signes un ; trois cartes de match, tu en
  * gardes une). S79 : la MASSE SALARIALE reste (JP : *garder aspect masse
  * salariale même en roguelike, mais avec cartes qui peuvent le manipuler*) —
- * un plafond de 82 M$, et des cartes pour le tordre (js/banque.js `CONTRATS`).
+ * un plafond de 82 M$, et le proprio pour le tordre (V16, tranche 6 : js/dossiers.js `laMasse`).
  *
  * CE QUI RESTE D'UNE RUN À L'AUTRE (le « méta », `cap82_rogue`) :
  *   - les ÉCUSSONS 🏅 gagnés à la fin de chaque run (les points de la saison,
@@ -34,6 +34,7 @@ import { VOIES } from './coachs.js';
 import { filsDeSaison } from './recit.js';
 import { EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PACKS_TOUS, BOUTIQUE } from './packs.js';
+import { BANQUE } from './banque.js';
 import { REGULIER, PILIER, ETOILE } from './niveaux.js';
 
 const CLE_META = 'cap82_rogue';
@@ -471,9 +472,17 @@ const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: 
  * ou offert par la Coupe (le méta ne le dit pas), il rend son prix.
  */
 const PARTIS = { deckPlus: 50, classeurChoix: 280 };
+/*
+ * Les cartes parties de la banque (V16, tranche 6 : la masse salariale, les soins de trop, le congédiement, les
+ * rappels) : chacune qu'un inventaire gardait rend `REMBOURSEMENT_CARTE` médailles, une fois.
+ */
+const REMBOURSEMENT_CARTE = 3;
 function rembourserLesPartis(m) {
   const partis = (m.deblocages || []).filter(k => PARTIS[k]);
-  return partis.length ? { ...m, deblocages: m.deblocages.filter(k => !PARTIS[k]), ecussons: (m.ecussons || 0) + partis.reduce((a, k) => a + PARTIS[k], 0) } : m;
+  const cartes = Object.entries(m.inventaire || {}).filter(([id]) => !BANQUE[id]);
+  if (!partis.length && !cartes.length) return m;
+  return { ...m, deblocages: (m.deblocages || []).filter(k => !PARTIS[k]), inventaire: Object.fromEntries(Object.entries(m.inventaire || {}).filter(([id]) => BANQUE[id])),
+    ecussons: (m.ecussons || 0) + partis.reduce((a, k) => a + PARTIS[k], 0) + cartes.reduce((a, [, n]) => a + (n || 0), 0) * REMBOURSEMENT_CARTE };
 }
 export function lireMeta() {
   try { return rembourserLesPartis({ ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }); } catch { return META_VIDE(); }

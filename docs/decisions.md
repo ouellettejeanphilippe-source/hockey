@@ -2767,6 +2767,71 @@ Ce qui change :
 
 Le choix des maisons : JP a pris la proposition (le match en une ligne au Bureau, le dépistage sous Effectif, les places au Marché) plutôt que « tout dans les Lignes » ou « tout au Bureau ».
 
+## La confiance par trois chemins (V16, tranche 2 — 23 oct. 2026)
+
+JP : *les assistants coachs remplacent toutes les autres cartes de bonus* ; à la question « sans les cartes jouées, comment monte la confiance ? », il a choisi les trois chemins proposés à la fois.
+
+Les points d'un coach : sa base (le départ, le report, un coach neuf), plus 1 par adjoint de sa couleur en poste, 1 par échelon pris, et 1 par 60 matchs à ton service de ses adjoints (`MATCHS_CONFIANCE`). Les cartes jouées ne comptent plus. La confiance reste une décision `coach` : elle se recompte à chaque décision de personnel. Les seuils passent à 3, 14 et 30.
+
+Mesuré sur une run attentive (un adjoint de sa couleur aux 9e, 18e et 26e matchs, les échelons dès qu'ils s'ouvrent), elle atteint la II au 39e match de sa première saison et la III au 39e de la deuxième. Aux anciens seuils, elle avait la III au 26e match.
+
+Écarté : **recompter la confiance chaque soir**, sans décision. Elle cesserait d'être une décision qui porte ses chiffres (`check_coachs`), et une journée déjà jouée pourrait changer de coach en se rejouant.
+
+Le protégé grandit avec son adjoint : pousser la force d'un adjoint à protégé grandit aussi les canaux de son joueur (`protegeALEchelon`, js/echelons.js). La décision d'échelon porte la mutation et ses canaux ; le moteur la repose sur le même joueur. `check_personnel` : le maître du ruban passe de +0,07 à +0,21 point par soir à domicile en quatre poussées, en paires.
+
+## D'où vient un adjoint (V16, tranche 3 — 24 oct. 2026)
+
+Plus rien de neuf n'entre aux places ; ce qui sort d'un pack, d'un butin ou d'un palier, c'est du personnel ou un outil de gérant (`sortEncore`, js/banque.js).
+
+- **Les packs de joueurs** : leur première carte est un adjoint, la deuxième un outil de gérant, celle que la taxe de luxe peut prendre. Garder un outil dans les packs de deux cartes nourrit la masse salariale et les soins, que plus rien d'autre ne vend en boutique. Le Pack du coach donne deux adjoints de sa couleur.
+- **Le butin, le verdict du proprio, les paliers** : un adjoint parmi trois, tiré comme au Pack Personnel. Pris, il rejoint ton personnel quand la décision est reçue (js/banc.js), une fois par palier ; il ne prend pas de place.
+- **Le robot engage** (`engagerDuRobot`, scripts/lib/cartes_robot.mjs) : l'attentif, l'adjoint de la couleur de son coach à un poste que sa couleur ne tient pas ; le distrait, au hasard. D'une saison à l'autre, il reporte son coach et son personnel comme le jeu (`reportDeSaison`, scripts/lib/rogue_sim.mjs).
+
+**Deux trous de la tranche 2 :**
+- **La recompte.** Elle n'avait lieu qu'à une décision de personnel : les matchs à ton service, qui montent seuls, n'allumaient rien. Un robot à 23 points restait à la I. Chaque décision recompte maintenant la confiance, et le lundi du robot aussi. Ce n'est pas la recompte de chaque soir écartée à la tranche 2 : la confiance reste une décision `coach` qui porte ses chiffres.
+- **Les seuils.** Mesurés sur le robot attentif qui engage et reporte, 14 et 30 donnaient la II en deuxième saison et jamais la III. À **3, 7 et 15**, la II arrive entre le 41e et le 61e match de la première saison, et la III entre le 20e et le 61e de la deuxième (quatre vrais clubs, docs/refonte-v16.md § 4).
+
+Écarté : **les deux cartes d'un pack de joueurs en adjoints.** La boutique ne vend que des packs de joueurs ; sans leur deuxième carte, plus rien n'aurait donné de masse salariale ni de soins hors des récompenses scellées.
+
+## Le grand départ (V16, tranche 4 — 24 oct. 2026)
+
+JP : *les assistants coachs remplacent toutes les autres cartes de bonus* ; il a tranché « tout bonus de jeu ». Les places (js/places.js), l'équipement (js/equipement.js), les clauses (`MODIFS_VIE`, `contrat_bonus`), le feu de l'atelier et les trois modifs d'un lieu partent : 75 cartes, la banque passe de 182 à 110. Avec elles, `PLACES`, la carte de trop (son choix d'À faire et sa scène), l'onglet « Tes places », le butin « pour une place », et `sortEncore`, qui ne triait plus rien. Les outils de gérant restent : la masse salariale, les soins, les retouches d'édition, le congédiement, les rappels, l'échange d'un doublon.
+
+**Le feu devient trois adjoints de l'Aigle** (☄ l'allumeur, 🪔 le gardien de la braise, 💫 le semeur de poudre), à trois postes hors de la direction du vendeur de chandails. Un adjoint ne nomme pas son joueur : il vise sa ligne (`portee`, `porteeDuFeu`, js/sim.js), et la 2e après deux poussées de sa force (`LIGNES_DU_FEU`). Mesuré (`check_combo`, en paires) : chacun seul sous la borne d'une rare (+0,7, +0,4, +0,4 V), le combo d'une ligne à 1,46 fois ses pièces, le build complet à 5,8 fois les soirs de lancée du témoin et +2,7 V. Écarté : la poudre sur les deux compagnons d'une ligne seule — 42 soirs de lancée de plus, au-dessus de la borne, et un complet moins fort que l'allumeur seul.
+
+**Les routes de la semaine restent.** Leurs 25 cartes étaient des places ; elles vivent dans js/noeuds.js (`CARTES_DE_ROUTE`), aux mêmes chiffres et aux mêmes tirages (aucune différence sur 7 800 routes), mesurées par `check_places`. Écarté : en faire des dossiers à une réponse (la route perd sa variété) ou des adjoints (une route dure une semaine, un adjoint tient un poste). C'est le seul « bonus de jeu » hors du personnel qui reste : à JP de dire s'il part aussi.
+
+**Une partie d'avant la V16 se relit** : une carte inconnue s'ignore (`cartesDeLaPartie`, `poseesSur`), une mutation inconnue ne joue pas, un effet déjà joué porte ses chiffres et se rejoue — `check_sauvegardes`.
+
+## Mal assorti (V16, tranche 5a — 24 oct. 2026)
+
+Depuis la tranche 3, un adjoint pris au hasard aidait encore, là où une place jouée au hasard coûtait : dans `check_profondeur`, le distrait des bons clubs ne ratait plus les séries. Mesuré en retirant une à une ses habitudes, sur les mêmes dés : ses échelons achetés au hasard valaient +6 V par saison (une poussée de force rendait toujours), ses engagements au hasard peu, la confiance rien.
+
+**Décision** : un adjoint d'une autre couleur que le coach en poste rend la moitié de sa force (le canal à la puissance 0,5) et son défaut mord une fois et demie plus (`MAL_ASSORTI`, `assortir`, js/sim.js). Le neutre et le soir sans coach jouent tel quel ; les minutes de trio aussi. Le distrait rate de nouveau les séries (1 fois sur 4), l'attentif garde ses +5,0 V sur le robot d'avant, et chaque adjoint, mesuré seul sans coach, reste sous sa borne (`check_places`, `check_personnel`).
+
+**Écarté** : rendre les échelons plus chers (le distrait les achète quand même, l'attentif paie aussi) ; un malus fixe hors couleur (il frappait les adjoints faibles autant que les forts) ; toucher aux minutes de trio (elles n'ont pas de côté qui nuit).
+
+**Les minutes d'un trio se disent en minutes** : l'entraîneur du bas et le costumier ne faisaient que déplacer des minutes de trio, et `check_banque` refusait leur puce sans chiffre. La puce de la glace dit l'unité qui gagne le plus et celle qui perd le plus, en minutes d'un match de 60, sur `PART_UNITE` (`RANGS_DE_GLACE`, partagé avec js/impact.js).
+
+## L'essence : des cartes de joueurs (V16, tranche 6 — 24 oct. 2026)
+
+JP : *en gros, remplacer toutes les cartes et cie par les adjoints et les événements avec choix* ; puis *à la limite, possibilité d'avoir des cartes qui upgradent joueurs, coachs et assistants coachs, et quelques consommables, mais rares, pas genre le main gimmick* ; *on avait tellement tout compliqué que je veux ramener le jeu à son essence de cartes*. La boussole : *quelqu'un qui a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement*.
+
+**Décision** : le cœur du Rogue, ce sont les cartes de joueurs et le personnel (un adjoint par poste, comme le personnel d'EHM). Il reste une seule petite famille de dix **cartes rares** qui montent, comme les cartes d'objet de MLB The Show : les quatre retouches d'édition, 🎞 le stage du coach (les points qui manquent à son cran suivant, `coachsDeBase`), 🖊 la formation (une copie de plus d'un adjoint, comme un doublon : `recevoirPermanents`), trois soins (🧊 💆 🏥) et l'échange d'un doublon. Elles sont la deuxième carte d'un pack de joueurs une fois sur quatre (`RARE_DU_PACK`, js/packs.js) et se jouent chez ce qu'elles montent : une retouche et l'échange à l'effectif, le stage et la formation chez l'entraîneur, un soin à l'infirmerie.
+
+**Ce qui devient un choix** (js/dossiers.js, la porte des dilemmes) :
+- **La masse salariale** (37 cartes, dont les contrats lourds et la taxe de luxe) : le dossier du proprio « La masse salariale », quand l'espace sous le plafond passe sous 1,5 M$ (le fait : l'espace, le contrat le plus lourd, nommé). Ses réponses passent par la décision `plafond` qui existait (`plafondDe`) : racheter une part du contrat le plus lourd (son salaire compte 83,3 %, contre 10 jetons), signer le contrat de télé (+2,5 M$, ses dos-à-dos coûtent toute la saison), ou rien. Mesuré (`check_places`, en paires) : le contrat de télé coûte −0,3 V sur ses 15 soirs.
+- **Le congédiement** : le dossier « La tête de l'entraîneur », après quatre défaites de suite ; le proprio nomme deux autres coachs (`coachNeuf`), ou personne ne part.
+- **Le rappel du club-école** était déjà un remède de la blessure (À faire › Infirmerie) ; la carte et ses variantes (le pilier, l'ancien) partent. Le ruban, l'acupuncteur, le baume, le deuxième avis et le chirurgien du lundi aussi : trois soins suffisent.
+
+**Ce qui part de l'écran** : le Marché › Tes cartes (chaque carte qui reste a sa maison), son raccourci 🃏 dans l'en-tête et sa pastille, la section « Cartes » que plus aucun mode n'affichait, les packs de cartes autres que le Pack Personnel et la malédiction d'un pack. Le Marché garde la boutique et l'album ; la collection des cartes de jeu se lit encore, en lecture, depuis l'album et le menu.
+
+**Une méta d'avant** rend 3 médailles par carte partie de son inventaire (`REMBOURSEMENT_CARTE`, js/rogue.js) ; une partie en cours relit ses décisions jouées, qui portent leurs chiffres — `check_sauvegardes`.
+
+**Mesuré** : `check_rogue` (8 runs par niveau, une campagne de 14) rend la même courbe avant et après, au pour cent près (0 % de Coupe sans déblocage ni à 16, 13 % à 31 ; la campagne sans Coupe en 14 runs) : le robot n'a jamais joué la deuxième carte d'un pack, et ne lit ni la masse ni la tête de l'entraîneur. La première run reste dure.
+
+**Écarté** : garder la masse salariale en cartes rares (elle n'est pas une carte qui monte : c'est un choix du proprio) ; un écran « Inventaire » au Marché (chaque carte rare a sa maison ; un écran de plus que JP ne voulait plus) ; une carte rare dans chaque pack (elle redevenait le gros du pack).
+
 ## Une série de cartes par saison (23 oct. 2026)
 
 JP : *avoir variété de design de cartes par années, pas par décennie* ; *chaque année devra être différente* ; puis, devant un premier essai : *les designs sont incomplets et pas digne d'un graphiste, peu importe l'époque, ça doit être pro et commercial, la vraie affaire* ; *toujours respecter les règles de base, genre texte visible, pas d'overlap de texte*.

@@ -11,6 +11,7 @@ import { IMPORTANCES, AD_DE_CONSIGNE, badgesDe, getPlayerKey, penaliteAffichee, 
 import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats, specialesEnStats, clubLu } from './impact.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
+import { matchsJoues } from './echelons.js';
 import { jambesHtml, motDuBadge, strategieDeLigne, ouvrirStrategie, ouvrirChoix, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
@@ -864,7 +865,7 @@ const ecartDuSoir = plan => avecLeBanc((you, lu, adv, aVenir) => {
   return { tirs: a.tirs - b.tirs, pctTir: a.pctTir - b.pctTir, contre: a.contre - b.contre, pctArr: a.pctArr - b.pctArr };
 });
 /*
- * TON COACH ET SA CONFIANCE (il vit au Bureau, sous « En jeu », avec les cartes qui le font monter). `injured` : les
+ * TON COACH ET SA CONFIANCE (V16 : ses points, ses adjoints en poste, leurs échelons et leurs matchs à ton service). `injured` : les
  * blessés du jour, qui ne portent pas sa confiance.
  */
 export function coachHtml(decs, j, injured = new Set()) {
@@ -872,13 +873,13 @@ export function coachHtml(decs, j, injured = new Set()) {
   const [actif] = coachsActifs(decs, j + 1);
   const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
   if (!C) return '';
-  const n = buildDe(decs, j + 1)[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
+  const n = buildDe(decs, j + 1, { joues: (de, a) => (G.ligue ? matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) : 0) })[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
   const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
   const fin = SEUILS[SEUILS.length - 1];
   return `<div class="ej-coach">
     <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="ej-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
-    <div class="ej-jauge" role="img" aria-label="${n} carte${n > 1 ? 's' : ''} de sa couleur jouée${n > 1 ? 's' : ''}"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
-    <div class="ej-coach-l">${n} carte${n > 1 ? 's' : ''} jouée${n > 1 ? 's' : ''}${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
+    <div class="ej-jauge" role="img" aria-label="${n} point${n > 1 ? 's' : ''} de confiance"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
+    <div class="ej-coach-l">${n} point${n > 1 ? 's' : ''} de confiance${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
     ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
     ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
   </div>`;
