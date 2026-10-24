@@ -382,215 +382,78 @@ const COURRIELS = COURRIELS_BRUTS.map(([de, quand, etat, sujet, corps]) => {
 
 /* ======================================================================
    LES DILEMMES
-   Même forme que `MOMENTS` (js/sim.js) : { ico, titre, irl, recit, options }.
-   En plus : `fait`, ce qui est vraiment arrivé et le rend vrai (`FAITS`,
-   js/sim.js), lu sur tes matchs d'avant ; `quand`, les moments de la saison
-   où il peut se dire, en plus du fait ; `de`, la voix qui le demande
-   (`EXPEDITEURS`). Les joueurs du fait sont nommés ({nom}, {noms}) et ses
-   chiffres dits ({n}, {m}). Une option : [cle, nom, bon, prix, effet].
-   L'effet n'utilise que les canaux déjà lus par `effetDeMoment` : finition,
-   volume, defense, discipline, blessure, energie (un chiffre sous 1 = moins
-   d'usure des jambes), F et D (les minutes), `duree` en matchs, `pari`,
-   `ensuite`, `action` ; ce qui vise le joueur nommé passe par ses canaux à
-   lui (`lui`). Ses mots disent ces canaux, et eux seuls
+   Même forme que `MOMENTS` (js/sim.js) : { ico, titre, fait, de, options }.
+   `fait`, ce qui est vraiment arrivé et le rend vrai (`FAITS`, js/sim.js),
+   lu sur tes matchs d'avant ; `quand`, les moments de la saison où il peut
+   se dire, en plus du fait ; `de`, la voix qui le demande (`EXPEDITEURS`).
+   Pas de récit : la scène dit le fait (js/scenes.js), et une option ne dit
+   que son geste et ce que le moteur en fait (JP : *tous ces éléments
+   doivent être liés à quelque chose qui arrive avant ou que ça cause dans la
+   simulation*). Une option : [cle, nom, bon, prix, effet]. L'effet n'utilise
+   que les canaux déjà lus par `effetDeMoment` : finition, volume, defense,
+   discipline, blessure, energie (un chiffre sous 1 = moins d'usure des
+   jambes), F et D (les minutes), `duree` en matchs, `pari`, `ensuite`,
+   `action` ; ce qui vise le joueur nommé passe par ses canaux à lui
+   (`lui`). Ses mots disent ces canaux, et eux seuls
    (`scripts/check_dilemmes.mjs`).
    ====================================================================== */
 const o = (cle, nom, bon, prix, fx = {}) => ({ cle, nom, ...(bon ? { bon } : {}), ...(prix ? { prix } : {}), ...fx });
 
 const DILEMMES_BRUTS = {
-  // ---- Un joueur qui part ----
-  echeance_depart: { ico: '👋', titre: 'Les adieux au casier', fait: 'parti', de: 'ca',
-    recit: '{nom} ne fait plus partie de l\'équipe. Il revient chercher ses gants et reste un long moment devant son casier. Ses anciens coéquipiers font semblant d\'être occupés avec leurs lacets.',
+  echeance_depart: { ico: '👋', titre: 'Le départ', fait: 'parti', de: 'ca',
     options: [
-      o('fete', 'Organiser un petit au revoir', 'Un vestiaire solidaire : moins de punitions', 'Une soirée écourtée : plus d\'usure des jambes', { discipline: 0.84, energie: 1.096, duree: 5 }),
-      o('silence', 'Laisser faire discrètement', 'Un vestiaire concentré : moins de buts contre', 'Un malaise qui traîne : moins de précision', { defense: 0.94, finition: 0.94, duree: 5 }),
+      o('fete', 'Souligner son départ devant le groupe', 'Moins de punitions', null, { discipline: 0.84, duree: 5 }),
+      o('silence', 'Tourner la page tout de suite', 'Moins de buts contre', 'Moins de précision', { defense: 0.94, finition: 0.94, duree: 5 }),
     ] },
-  chanson: { ico: '🎵', titre: 'La chanson de l\'autobus', fait: 'parti', de: 'eq',
-    recit: 'C\'est {nom} qui choisissait la musique de l\'autobus, la même chanson à chaque voyage. Il ne fait plus partie de l\'équipe, et le vestiaire réclame déjà un tour de rôle, par écrit.',
+  gardien_panne: { ico: '🥅', titre: 'Le gardien dans la glissade', fait: 'panneGardien', de: 'en',
     options: [
-      o('tour', 'Instaurer un tour de rôle', 'Un vestiaire apaisé : moins de punitions', 'Des voyages plus longs à négocier : plus d\'usure des jambes', { discipline: 0.84, energie: 1.08, duree: 6 }),
-      o('laisser', 'Garder sa chanson, en son honneur', 'Le rituel tient : plus de précision', 'Le vestiaire bout : plus de punitions', { finition: 1.08, discipline: 1.19, duree: 6 }),
-    ] },
-  // ---- En séquence de victoires ----
-  photo_victoire: { ico: '🖼', titre: 'La photo de la séquence', fait: 'sequence', de: 'co',
-    recit: 'Les communications veulent une photo de groupe ; {nom} refuse de poser avant la fin de la séquence : ça porte malheur, tout le monde le sait.',
-    options: [
-      o('prendre', 'La prendre maintenant', 'Un groupe fier : plus de précision', 'La poisse a rendez-vous : plus de buts contre', { finition: 1.088, defense: 1.08, duree: 4 }),
-      o('attendre', 'L\'attendre après la séquence', 'Une équipe sans distraction : moins de buts contre', 'Un groupe un peu tendu : moins de précision', { defense: 0.92, finition: 0.96, duree: 4 }),
-    ] },
-  doubler_trio: { ico: '🔥', titre: 'Le trio qui ne se trompe plus', fait: 'sequenceTrio', de: 'ad',
-    recit: 'Le trio de {noms} a le vent dans les voiles et réclame plus de glace. Au bout du banc, le quatrième trio commence à compter les lumières du plafond.',
-    options: [
-      o('allonger', 'Allonger ses présences', 'Ton premier trio joue plus', 'Ton quatrième trio joue moins ; plus de blessures', { F: [1.25, 1.02, 0.95, 0.72], blessure: 1.48 }),
-      o('partager', 'Partager les minutes', 'Ton quatrième trio joue plus ; ta troisième paire joue plus ; moins de blessures', 'Ton premier trio joue moins ; ta première paire joue moins', { F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.68 }),
-    ] },
-  chandail_victoire: { ico: '👔', titre: 'Le chandail de la chance', fait: 'sequence', de: 'eq',
-    recit: '{nom} porte le même sous-chandail depuis le premier soir de la séquence. Le préposé n\'ose plus s\'en approcher ; les voisins de casier se plaignent de l\'odeur, poliment.',
-    options: [
-      o('garder', 'Le garder tel quel', '{nom} garde la chance : plus de précision', 'Un vestiaire qui s\'échauffe : plus de punitions', { discipline: 1.175, duree: 5, lui: { finition: 1.15 } }),
-      o('laver', 'Le laver en douce', 'Un vestiaire respirable : moins de punitions', 'Si la chance s\'en va, {nom} : moins de précision', { discipline: 0.825, duree: 5, lui: { finition: 0.88 } }),
-    ] },
-  radio: { ico: '📻', titre: 'L\'entrevue à la radio', fait: 'sequence', de: 'co',
-    recit: 'La radio du matin veut l\'entraîneur en studio avec {nom}, entre la météo et la circulation. Les communications y voient « un rendez-vous naturel ».',
-    options: [
-      o('accepter', 'Y aller', 'Le vestiaire se sent soutenu : plus de tirs', 'Un matin entier perdu : plus d\'usure des jambes', { volume: 1.08, energie: 1.08, duree: 4 }),
-      o('decliner', 'Décliner poliment', 'Une semaine concentrée : moins de buts contre', 'Une radio fâchée, des têtes chaudes : plus de punitions', { defense: 0.94, discipline: 1.1, duree: 4 }),
-    ] },
-  // ---- En panne ----
-  repas_panne: { ico: '🍲', titre: 'Le repas de la dernière chance', fait: 'panneDoyen', de: 'ca',
-    recit: '{nom}, le plus vieux du vestiaire, invite toute l\'équipe chez lui pour un ragoût. Sa femme a déjà acheté les carottes.',
-    options: [
-      o('aller', 'Accepter l\'invitation', 'Un groupe qui se retrouve : plus de tirs', 'Une soirée sans repos : plus d\'usure des jambes', { volume: 1.088, energie: 1.112, duree: 5 }),
-      o('repos', 'Dire non et dormir', 'Moins d\'usure des jambes ; moins de buts contre', 'Le vestiaire prend le parti de {nom}, froissé : plus de punitions', { energie: 0.872, defense: 0.94, discipline: 1.1, duree: 5 }),
-    ] },
-  video_panne: { ico: '🎥', titre: 'La séance de vidéo de quatre heures', fait: 'panne', de: 'ad',
-    recit: 'L\'adjoint veut revoir toute la glissade, sans en sauter une. Les joueurs demandent s\'il y aura du maïs soufflé.',
-    options: [
-      o('tout', 'Tout revoir', 'On comprend ce qui n\'allait pas : moins de buts contre', 'Des heures assis : plus d\'usure des jambes', { defense: 0.913, energie: 1.08, duree: 5 }),
-      o('courte', 'Dix minutes, pas plus', 'Un message simple : plus de tirs', 'Des erreurs qui reviennent : plus de buts contre', { volume: 1.088, defense: 1.06, duree: 5 }),
-    ] },
-  reunion_joueurs: { ico: '🪑', titre: 'La réunion des joueurs', fait: 'panne', de: 'ca',
-    recit: 'Les joueurs se sont réunis sans l\'entraîneur, dans le local du fond. Ils en ressortent avec une feuille de deux lignes ; la deuxième est raturée.',
-    options: [
-      o('ecouter', 'Écouter leur plan', 'Un vestiaire responsable : moins de punitions', 'Un plan que personne ne comprend : moins de tirs', { discipline: 0.825, volume: 0.92, duree: 5 }),
-      o('imposer', 'Imposer le tien', 'Le système revient : moins de buts contre', 'Un vestiaire qui grince : moins de précision', { defense: 0.913, finition: 0.94, duree: 5 }),
-    ] },
-  gardien_panne: { ico: '🥅', titre: 'Le gardien dans le doute', fait: 'panneGardien', de: 'en',
-    recit: '{nom} confie que le filet lui paraît plus petit depuis le début de la glissade. Le soigneur l\'a mesuré : le filet n\'a pas bougé.',
-    options: [
-      o('soutenir', 'Le soutenir et le laisser jouer', 'S\'il retrouve ses angles : moins de buts contre', 'S\'il continue de douter : plus de buts contre',
+      o('soutenir', 'Garder {nom} devant le filet', 'Une chance sur deux : moins de buts contre', 'Sinon : plus de buts contre',
         { pari: { chance: 3 / 6, gagne: { defense: 0.898, duree: 5 }, perd: { defense: 1.103, duree: 5 } } }),
-      o('repos', 'Lui donner trois matchs de repos', '{aux} prend le filet ; ensuite, moins de buts contre', 'Trois matchs sans {nom}', { action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } }),
+      o('repos', 'Trois matchs de repos : {aux} au filet', '{aux} prend le filet ; ensuite, moins de buts contre', 'Trois matchs sans {nom}', { action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } }),
     ] },
-  // ---- Le cachot ----
-  dur_sermon: { ico: '🗨', titre: 'La mise au point avec {nom}', quand: 'octobre decembre mars', fait: 'punitions', de: 'li',
-    recit: '{nom} a écopé de {n} punitions en {m} matchs. L\'arbitre en chef lui a fait passer le message, par écrit.',
+  dur_sermon: { ico: '🗨', titre: 'La mise au point', fait: 'punitions', de: 'li',
     options: [
-      o('galerie', 'Un match à la galerie de presse', 'Le message passe : moins de punitions', '{nom} manque un match', { action: { absents: 1 }, discipline: 0.825, duree: 6 }),
-      o('confiance', 'Lui faire confiance', '{nom} joue avec fougue : plus de précision', 'L\'arbitre le guette encore : plus de punitions', { discipline: 1.19, duree: 5, lui: { finition: 1.15 } }),
+      o('galerie', 'Un match à la galerie de presse pour {nom}', 'Moins de punitions', '{nom} manque un match', { action: { absents: 1 }, discipline: 0.825, duree: 6 }),
+      o('confiance', 'Le laisser jouer à sa façon', '{nom} : plus de précision', 'Plus de punitions', { discipline: 1.19, duree: 5, lui: { finition: 1.15 } }),
     ] },
-  // ---- L'infirmerie ----
   infirmerie_pleine: { ico: '🩹', titre: 'L\'infirmerie déborde', fait: 'blesses', de: 'ph',
-    recit: '{noms} : il y a plus de blessés que de chaises à l\'infirmerie. Le physio veut alléger les entraînements ; l\'adjoint veut garder le rythme.',
     options: [
-      o('reduire', 'Réduire la charge', 'Moins de blessures ; moins d\'usure des jambes', 'Un rythme plus lent : moins de tirs', { blessure: 0.76, energie: 0.888, volume: 0.913, duree: 7 }),
-      o('maintenir', 'Maintenir la charge', 'Le rythme reste vif : plus de tirs', 'Plus de blessures', { volume: 1.088, blessure: 1.32, duree: 6 }),
+      o('reduire', 'Alléger les entraînements', 'Moins de blessures, moins d\'usure des jambes', 'Moins de tirs', { blessure: 0.76, energie: 0.888, volume: 0.913, duree: 7 }),
+      o('maintenir', 'Garder la charge d\'entraînement', 'Plus de tirs', 'Plus de blessures', { volume: 1.088, blessure: 1.32, duree: 6 }),
     ] },
-  rappel_clubecole: { ico: '📞', titre: 'Les jeunes du club-école', fait: 'blesses', de: 'dg',
-    recit: '{noms} à l\'infirmerie. Le club-école dit que ses jeunes ont un coup de patin électrisant et une mémoire très approximative du système.',
+  mars_tournee: { ico: '🗺', titre: 'Sur la route', fait: 'route', de: 'ad',
     options: [
-      o('jeunes', 'Jouer le rythme des jeunes', 'Du rythme : plus de tirs', 'Des erreurs de système : plus de buts contre', { volume: 1.088, defense: 1.088, duree: 6 }),
-      o('vieux', 'Serrer le système avec ceux qui restent', 'Un système respecté : moins de buts contre', 'Ceux qui restent jouent beaucoup : plus d\'usure des jambes', { defense: 0.913, energie: 1.128, duree: 6 }),
+      o('repos', 'Ajouter une journée de repos', 'Moins d\'usure des jambes, moins de blessures', 'Moins de tirs', { energie: 0.84, blessure: 0.84, volume: 0.913, duree: 6 }),
+      o('serre', 'Garder l\'horaire serré', null, 'Plus d\'usure des jambes', { energie: 1.16, duree: 6 }),
     ] },
-  visite_medecin: { ico: '🧑‍⚕', titre: 'La visite du spécialiste', fait: 'blesses', de: 'me',
-    recit: 'Un spécialiste de passage offre d\'examiner {noms} en une journée. En échange, il veut que l\'entraîneur vante sa méthode devant les micros.',
+  vedette_repos: { ico: '🛌', titre: 'Des jambes vides', fait: 'jambes', de: 'ph',
     options: [
-      o('accepter', 'Accepter son offre', 'Un diagnostic net : moins de blessures', 'Un entraîneur qui promet trop devant la presse : plus de punitions', { blessure: 0.808, discipline: 1.16, duree: 8 }),
-      o('refuser', 'Faire confiance au physio', 'Un groupe soudé : moins de punitions', 'Des rechutes possibles : plus de blessures', { discipline: 0.84, blessure: 1.16, duree: 8 }),
+      o('repos', 'Un match de repos pour {nom}', '{nom} : plus de jambes', '{nom} manque un match', { action: { absents: 1, energie: 15 } }),
+      o('garder', 'Le garder dans l\'alignement', 'Rien ne change', null, { rien: true }),
     ] },
-  // ---- Sur la route ----
-  mars_tournee: { ico: '🗺', titre: 'La dernière tournée', quand: 'mars', fait: 'route', de: 'ad',
-    recit: 'La tournée n\'est pas finie. Le responsable de l\'horaire jure que la prochaine ville existe.',
+  sieste: { ico: '😴', titre: 'Les jambes du groupe', fait: 'jambesEquipe', de: 'ph',
     options: [
-      o('serre', 'Garder l\'horaire serré', 'Un groupe dans sa bulle : plus de tirs', 'Plus d\'usure des jambes', { volume: 1.088, energie: 1.16, duree: 6 }),
-      o('repos', 'Ajouter une journée de repos', 'Moins d\'usure des jambes ; moins de blessures', 'Un rythme interrompu : moins de tirs', { energie: 0.84, blessure: 0.84, volume: 0.913, duree: 6 }),
+      o('imposer', 'Imposer une sieste avant les matchs', 'Moins d\'usure des jambes, moins de blessures', 'Moins de tirs', { energie: 0.84, blessure: 0.84, volume: 0.913, duree: 6 }),
+      o('libre', 'Pousser le rythme des pratiques', 'Plus de tirs', 'Plus de buts contre', { volume: 1.08, defense: 1.06, duree: 6 }),
     ] },
-  vol_retarde: { ico: '🛫', titre: 'Le vol retardé', fait: 'route', de: 'eq',
-    recit: 'Le vol du retour est retardé de quatre heures, pour une raison que la compagnie qualifie de « circonstancielle ». Personne n\'a mangé depuis midi.',
+  vedette_photo: { ico: '🔥', titre: 'Le joueur en feu', fait: 'chaud', de: 'an',
     options: [
-      o('attendre', 'Attendre à l\'aéroport', 'Le groupe reste uni : moins de punitions', 'Une arrivée tardive : moins de tirs', { discipline: 0.84, volume: 0.913, duree: 3 }),
-      o('voitures', 'Louer des voitures', 'On arrive à l\'heure : plus de tirs', 'La route fatigue : plus d\'usure des jambes', { volume: 1.08, energie: 1.128, duree: 3 }),
+      o('accepter', 'Le laisser tirer à volonté', '{nom} : plus de tirs', '{nom} : moins de précision', { duree: 6, lui: { lancers: 1.2, finition: 0.93 } }),
+      o('refuser', 'Lui demander de faire jouer ses ailiers', '{nom} : plus de passes', '{nom} : moins de tirs', { duree: 6, lui: { creation: 1.2, lancers: 0.9 } }),
     ] },
-  ascenseur: { ico: '🛗', titre: 'L\'ascenseur de l\'hôtel', fait: 'route', de: 'eq',
-    recit: 'L\'ascenseur de l\'hôtel est en panne : l\'équipe loge au quatorzième. La réception promet une réparation « en soirée », sans préciser laquelle.',
+  echeance_jeune: { ico: '🌱', titre: 'La recrue', quand: 'echeance mars', fait: 'recrue', de: 'ag',
     options: [
-      o('escaliers', 'Monter à pied', 'Des joueurs éveillés : plus de tirs', 'Quatorze étages : plus d\'usure des jambes', { volume: 1.088, energie: 1.128, duree: 3 }),
-      o('hotel', 'Changer d\'hôtel', 'Moins d\'usure des jambes', 'Un souper tardif, une nuit courte : moins de précision', { energie: 0.872, finition: 0.92, duree: 3 }),
+      o('donner', 'Donner plus de glace au bas de l\'alignement', 'Tes deuxième, troisième et quatrième trios jouent plus ; plus de tirs', 'Ton premier trio joue moins', { F: [0.9, 1.05, 1.08, 1.05], volume: 1.088 }),
+      o('attendre', 'Garder les minutes comme elles sont', 'Rien ne change', null, { rien: true }),
     ] },
-  // ---- Le gardien qui joue tout ----
-  gardien_demande: { ico: '🧤', titre: 'Le gardien demande un congé', fait: 'gardienCharge', de: 'en',
-    recit: '{nom} demande à sauter le prochain match : son beau-frère se marie et il a promis un discours.',
+  dossards: { ico: '🎽', titre: 'Le quatrième trio', fait: 'quatrieme', de: 'ad',
     options: [
-      o('conge', 'Lui accorder le congé', '{aux} prend le filet ; ensuite, moins de buts contre', 'Un match sans {nom}', { action: { gardienAux: 1 }, ensuite: { apres: 1, duree: 6, defense: 0.94 } }),
-      o('refuser', 'Refuser poliment', 'Le message est clair : moins de punitions', '{nom} répète son discours devant son filet : plus de buts accordés', { discipline: 0.84, duree: 4, lui: { arrets: 1.06 } }),
-    ] },
-  chaussettes: { ico: '🧦', titre: 'Les chaussettes de {nom}', fait: 'gardienCharge', de: 'eq',
-    recit: '{nom} porte les mêmes chaussettes à chaque départ et refuse qu\'elles passent au lavage. Le préposé à l\'équipement a rédigé une note de trois pages, qu\'il tient à bout de bras.',
-    options: [
-      o('rituel', 'Respecter le rituel', '{nom} se sent invincible : moins de buts accordés', 'Le vestiaire s\'en ressent : plus de punitions', { discipline: 1.175, duree: 5, lui: { arrets: 0.92 } }),
-      o('nuit', 'Les laver pendant la nuit', 'S\'il ne remarque rien : moins de punitions', 'S\'il remarque, il joue contrarié : plus de buts contre',
-        { pari: { chance: 3 / 6, gagne: { discipline: 0.84, duree: 5 }, perd: { defense: 1.095, duree: 4 } } }),
-    ] },
-  // ---- Les jambes ----
-  vedette_repos: { ico: '🛌', titre: 'Les jambes de {nom}', fait: 'jambes', de: 'ph',
-    recit: '{nom} avoue en riant qu\'il ne sent plus ses jambes. Le physio, lui, ne rit pas.',
-    options: [
-      o('repos', 'Un match de repos', '{nom} revient frais', '{nom} manque un match', { action: { absents: 1 } }),
-      o('jouer', 'Le faire jouer quand même', '{nom} joue et il le sait : plus de précision', '{nom} joue les jambes vides', { action: { energie: -30 }, duree: 3, lui: { finition: 1.12 } }),
-    ] },
-  sieste: { ico: '😴', titre: 'La sieste obligatoire', fait: 'jambesEquipe', de: 'ph',
-    recit: 'Un nutritionniste de passage a vu les jambes de ce matin : il recommande une sieste obligatoire avant chaque match.',
-    options: [
-      o('imposer', 'Imposer la sieste', 'Moins d\'usure des jambes ; moins de blessures', 'Un départ lent : moins de tirs', { energie: 0.84, blessure: 0.84, volume: 0.913, duree: 6 }),
-      o('libre', 'La laisser facultative', 'Chacun à son rythme : plus de tirs', 'Quelques joueurs mal réveillés : plus de buts contre', { volume: 1.08, defense: 1.06, duree: 6 }),
-    ] },
-  // ---- Le joueur en feu ----
-  vedette_photo: { ico: '🎞', titre: 'Le documentaire sur {nom}', fait: 'chaud', de: 'co',
-    recit: 'Une maison de production veut suivre {nom} au quotidien pour une série documentaire ; l\'équipe de tournage arrive à six heures.',
-    options: [
-      o('accepter', 'Accepter le tournage', '{nom} se sent regardé : plus de tirs', '{nom} : des soirées écourtées, les jambes qui paient', { duree: 6, action: { energie: -15 }, lui: { lancers: 1.15 } }),
-      o('refuser', 'Refuser le tournage', 'Une routine préservée : moins d\'usure des jambes', '{nom}, un peu boudeur : moins de précision', { energie: 0.872, duree: 6, lui: { finition: 0.92 } }),
-    ] },
-  // ---- La recrue ----
-  echeance_jeune: { ico: '🌱', titre: 'La recrue qui veut jouer', quand: 'echeance mars', fait: 'recrue', de: 'ag',
-    recit: '{nom}, recrue, réclame plus de temps de glace avant la fin de la saison. Il dit qu\'il « sent les séries » ; les vétérans, eux, le sentent venir.',
-    options: [
-      o('donner', 'Lui donner du temps de glace', 'Tes deuxième, troisième et quatrième trios jouent plus ; plus de tirs', 'Ton premier trio joue moins', { F: [0.9, 1.05, 1.08, 1.05], volume: 1.088 }),
-      o('attendre', 'Lui demander d\'attendre son tour', 'Les vétérans gardent le système : moins de buts contre', 'Le vestiaire sent {nom} bouillir : plus de punitions', { defense: 0.92, discipline: 1.12, duree: 6 }),
-    ] },
-  // ---- Le doyen ----
-  fete_mars: { ico: '🎂', titre: 'Le gâteau du doyen', quand: 'mars', fait: 'doyen', de: 'ca',
-    recit: '{nom} joue peut-être sa dernière saison. Le comité social a commandé un gâteau de six étages ; il doit être mangé cette semaine, si possible pas la veille d\'un match.',
-    options: [
-      o('fete', 'Fêter à fond', 'Un vestiaire en fête : plus de tirs', 'Une soirée courte : plus d\'usure des jambes', { volume: 1.088, energie: 1.112, duree: 4 }),
-      o('apres', 'Garder le gâteau pour le lendemain', 'Moins d\'usure des jambes ; moins de punitions', 'Une fête à moitié, et {nom} le sent : moins de précision', { energie: 0.888, discipline: 0.88, finition: 0.96, duree: 4 }),
-    ] },
-  // ---- Le quatrième trio ----
-  dossards: { ico: '🎽', titre: 'Le quatrième trio s\'impatiente', fait: 'quatrieme', de: 'ad',
-    recit: 'Au quatrième trio, {noms} ont des présences de plus en plus courtes. Ils demandent à jouer, par la voix du plus vieux.',
-    options: [
-      o('donner', 'Leur donner la glace', 'Ton quatrième trio joue plus', 'Ton premier trio joue moins', { F: [0.92, 1, 1.04, 1.25], duree: 6 }),
-      o('garder', 'Garder les minutes comme elles sont', 'Le système tient : moins de buts contre', 'Ils bouillent sur le banc : plus de punitions', { defense: 0.94, discipline: 1.12, duree: 5 }),
-    ] },
-  micro: { ico: '🎙', titre: 'Le micro est resté ouvert', fait: 'quatrieme', de: 'an',
-    recit: 'Ton entraîneur parle du quatrième trio de {noms} sans savoir que ça enregistre. La bande sort le lendemain.',
-    options: [
-      o('assumer', 'Il assume devant eux', 'Si le vestiaire embarque : plus de tirs', 'Sinon, le quatrième boude : moins de précision',
-        { pari: { chance: 0.5, gagne: { volume: 1.095, duree: 6 }, perd: { finition: 0.92, duree: 6 } } }),
-      o('excuses', 'Des excuses, et on passe', 'Ton quatrième trio joue plus', 'Ton premier trio joue moins', { F: [0.95, 1, 1.02, 1.15], duree: 4 }),
-    ] },
-  // ---- Les buts ----
-  tableau: { ico: '🧽', titre: 'Le tableau blanc effacé', fait: 'passoire', de: 'ad',
-    recit: 'Ce matin, le nouveau plan défensif était au tableau blanc ; à midi, c\'était le menu du souper. L\'adjoint jure qu\'il s\'en souvient « à peu près ».',
-    options: [
-      o('reconstituer', 'Reconstituer le plan de mémoire', 'Des positions nettes : moins de buts contre', 'On pense trop : moins de tirs', { defense: 0.92, volume: 0.92, duree: 5 }),
-      o('improviser', 'Laisser les joueurs improviser', 'Moins de gêne : plus de tirs', 'Des trous derrière : plus de buts contre', { volume: 1.095, defense: 1.08, duree: 4 }),
-    ] },
-  casque_bruit: { ico: '🎧', titre: 'Les écouteurs dans le vestiaire', fait: 'disette', de: 'ad',
-    recit: 'Avant le match, huit gars ont des écouteurs sur les oreilles ; l\'adjoint trouve qu\'on ne se parle plus.',
-    options: [
-      o('interdire', 'Les interdire avant le match', 'Le groupe se parle : moins de buts contre', 'Quelques gars se renferment : moins de tirs', { defense: 0.92, volume: 0.92, duree: 5 }),
-      o('tolerer', 'Les tolérer', 'Chacun se concentre à sa façon : plus de précision', 'La communication en prend un coup : plus de buts contre', { finition: 1.08, defense: 1.08, duree: 5 }),
-    ] },
-  mascotte: { ico: '🦫', titre: 'Le nouveau numéro de la mascotte', fait: 'domicile', de: 'co',
-    recit: 'La mascotte propose un nouveau numéro d\'avant-match, avec une rampe et un trampoline ; l\'assureur n\'a pas encore été consulté.',
-    options: [
-      o('autoriser', 'Autoriser le numéro', 'La foule s\'enflamme : plus de précision', 'Les joueurs se déconcentrent : plus de buts contre', { finition: 1.08, defense: 1.06, duree: 4 }),
-      o('annuler', 'Remercier la mascotte, sans numéro', 'Rien ne change', null, { rien: true }),
+      o('donner', 'Donner plus de glace à {noms}', 'Ton quatrième trio joue plus', 'Ton premier trio joue moins', { F: [0.92, 1, 1.04, 1.25], duree: 6 }),
+      o('garder', 'Garder les minutes comme elles sont', 'Rien ne change', null, { rien: true }),
     ] },
 };
 
-/** Les dilemmes, entrées de `MOMENTS` (js/sim.js) : { vie_cle: { ico, titre, irl, recit, fait, quand?, de, options } }. */
+/** Les dilemmes, entrées de `MOMENTS` (js/sim.js) : { vie_cle: { ico, titre, irl, fait, quand?, de, options } }. */
 export const MOMENTS_VIE = Object.fromEntries(Object.entries(DILEMMES_BRUTS).map(([cle, d]) => {
   const { quand, ...reste } = d;
   return [`vie_${cle}`, { irl: null, ...reste, ...(quand ? { quand: mots(quand) } : {}) }];

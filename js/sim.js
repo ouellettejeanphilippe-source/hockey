@@ -2490,7 +2490,6 @@ const DUREE_MOMENT = 10;
  * feuilles.
  */
 const FENETRE_FAIT = 10;
-const auDomicile = (n, m) => `${n}-${m} au dernier match à domicile`;
 const pl = (n, un, des = `${un}s`) => `${n} ${n > 1 ? des : un}`;
 /* Les moments de la saison où un dilemme peut se dire (son `quand`), selon la journée sur la saison. */
 const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'decembre', f >= 0.45 && f < 0.72 && 'echeance', f >= 0.6 && 'mars'].filter(Boolean);
@@ -2498,25 +2497,12 @@ const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'dec
 const auxDe = (c, g) => ((c.gardiens || []).find(x => x !== g) || {}).n || null;
 /* Chaque fait : `lire` le trouve dans le contexte (ou rend null), `dire` l'écrit en vrais chiffres, sous la voix. */
 export const FAITS = {
-  domicile: { lire: c => (c.dernier && c.dernier.domicile ? { n: c.dernier.pour, m: c.dernier.contre } : null), dire: r => auDomicile(r.n, r.m) },
-  butDomicile: { lire: c => { const b = c.dernier && c.dernier.domicile && c.dernier.buteurs[0]; return b ? { joueur: b.p, n: c.dernier.pour, m: c.dernier.contre } : null; },
-    dire: r => `${r.joueur.n} a marqué · ${auDomicile(r.n, r.m)}` },
-  double: { lire: c => { const x = c.dernier && c.dernier.buteurs.filter(b => b.avant && b.buts >= 2).sort((a, b) => b.buts - a.buts)[0]; return x ? { joueur: x.p, n: x.buts } : null; },
-    dire: r => `${r.joueur.n} : ${r.n} buts au dernier match` },
   gardienBattu: { lire: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 && auxDe(c, c.dernier.gardien) ? { joueur: c.dernier.gardien, n: c.dernier.contre, aux: auxDe(c, c.dernier.gardien) } : null),
     dire: r => `${r.joueur.n} : ${r.n} buts accordés au dernier match` },
   punitionTard: { lire: c => (c.dernier && c.dernier.punisTard.length ? { joueur: c.dernier.punisTard[0], n: c.dernier.punisTard.length } : null),
     dire: r => `${r.joueur.n} au cachot dans les cinq dernières minutes · ${pl(r.n, 'punition')} en fin de match` },
-  gardienBlesse: { lire: c => (c.dernier && c.dernier.gardienBlesse ? { joueur: c.dernier.gardienBlesse } : null), dire: r => `${r.joueur.n} : blessé au dernier match` },
   gardienCharge: { lire: c => (c.gardienSuite && c.gardienSuite.n >= 4 && auxDe(c, c.gardienSuite.p) ? { joueur: c.gardienSuite.p, n: c.gardienSuite.n, aux: auxDe(c, c.gardienSuite.p) } : null),
     dire: r => `${r.joueur.n} : ${r.n} départs de suite` },
-  sequence: { lire: c => (c.serieV >= 3 && c.buteurSerie ? { n: c.serieV, joueur: c.buteurSerie.p, m: c.buteurSerie.buts } : null),
-    dire: r => `${r.n} victoires de suite · ${r.joueur.n} : ${pl(r.m, 'but')}` },
-  sequenceTrio: { lire: c => (c.serieV >= 3 && c.trio1.joueurs.length ? { n: c.serieV, joueurs: c.trio1.joueurs, m: c.trio1.pts } : null),
-    dire: r => `${r.n} victoires de suite · ton premier trio : ${pl(r.m, 'point')}` },
-  panne: { lire: c => (c.serieD >= 3 ? { n: c.serieD, m: c.butsSerie } : null), dire: r => `${r.n} défaites de suite · ${pl(r.m, 'but')} pour toi` },
-  panneDoyen: { lire: c => (c.serieD >= 3 && c.doyen ? { n: c.serieD, joueur: c.doyen.p, m: c.doyen.age } : null),
-    dire: r => `${r.n} défaites de suite · ${r.joueur.n}, ${r.m} ans` },
   panneGardien: { lire: c => (c.serieD >= 3 && c.gardienSerie && auxDe(c, c.gardienSerie.p) ? { n: c.serieD, joueur: c.gardienSerie.p, m: c.gardienSerie.buts, aux: auxDe(c, c.gardienSerie.p) } : null),
     dire: r => `${r.n} défaites de suite · ${r.joueur.n} : ${pl(r.m, 'but')} accordés` },
   punitions: { lire: c => { const x = (c.punis || []).find(y => y.n >= PUNITIONS_SERMON); return x ? { joueur: x.p, n: x.n, m: x.m } : null; },
@@ -2536,9 +2522,8 @@ export const FAITS = {
     dire: r => `${r.joueur.n}, recrue : ${pl(r.m, 'point')} en ${r.n} matchs` },
   parti: { lire: c => { const x = (c.partis || [])[0]; return x ? { joueur: x.p, n: x.n, m: x.m } : null; },
     dire: r => `${r.joueur.n} : ${r.n} de tes ${r.m} derniers matchs, plus dans ton effectif` },
-  doyen: { lire: c => (c.doyen && c.doyen.age >= 34 ? { joueur: c.doyen.p, n: c.doyen.age } : null), dire: r => `${r.joueur.n} : ${r.n} ans, le plus vieux du vestiaire` },
   quatrieme: { lire: c => (c.quatrieme && c.quatrieme.joueurs.length >= 2 && c.quatrieme.m >= FENETRE_FAIT && c.quatrieme.pts <= 2 ? { joueurs: c.quatrieme.joueurs, n: c.quatrieme.pts, m: c.quatrieme.m } : null),
-    dire: r => `Ton quatrième trio : ${pl(r.n, 'point')} en ${r.m} matchs` },
+    dire: r => `Ton quatrième trio, ${r.joueurs.map(p => p.n).join(', ')} : ${pl(r.n, 'point')} en ${r.m} matchs` },
   passoire: { lire: c => (c.cinq && c.cinq.contre >= 17 ? { n: c.cinq.contre, m: c.cinq.m } : null), dire: r => `${r.n} buts accordés en ${r.m} matchs` },
   passoirePaire: { lire: c => (c.cinq && c.cinq.contre >= 17 && c.paire1.length === 2 ? { n: c.cinq.contre, m: c.cinq.m, joueurs: c.paire1 } : null),
     dire: r => `${r.n} buts accordés en ${r.m} matchs · ta première paire : ${r.joueurs.map(p => p.n).join(' et ')}` },
@@ -2550,7 +2535,8 @@ export const FAITS = {
   defaiteParUn: { lire: c => (c.dernier && c.dernier.contre === c.dernier.pour + 1 ? { n: c.dernier.pour, m: c.dernier.contre } : null),
     dire: r => `Battus ${r.m}-${r.n} au dernier match` },
   plombier: { lire: c => (c.plombier ? { joueur: c.plombier.p, n: c.plombier.buts, m: c.plombier.m } : null), dire: r => `${r.joueur.n} : ${pl(r.n, 'but')} en ${r.m} matchs` },
-  veteranD: { lire: c => (c.veteransD && c.veteransD.length ? { vieux: c.veteransD[0].p.n, n: c.veteransD[0].age } : null), dire: r => `${r.vieux} : ${r.n} ans` },
+  veteranD: { lire: c => (c.veteransD && c.veteransD.length && c.eleve && c.eleve !== c.veteransD[0].p ? { vieux: c.veteransD[0].p.n, n: c.veteransD[0].age, joueur: c.eleve } : null),
+    dire: r => `${r.vieux} : ${r.n} ans, le plus vieux de tes défenseurs · ${r.joueur.n}, son élève` },
   tirsD: { lire: c => (c.tirsD && c.tirsD.n >= 15 ? { joueur: c.tirsD.p, n: c.tirsD.n, m: c.tirsD.m } : null), dire: r => `${r.joueur.n} : ${r.n} tirs en ${r.m} matchs` },
 };
 /* Le fait d'un dilemme dans ce contexte : son calendrier d'abord (s'il en a un), puis son fait, ou null. */
@@ -2580,24 +2566,20 @@ export function faitsDuClub(team, matchs, J, N) {
   const d = avant[avant.length - 1];
   let dernier = null;
   if (d) {
-    const m = d.m, f = fe(m), cote = coteDe(m), buteurs = new Map();
-    for (const b of f.buts || []) if (b.cote === cote && b.marqueur) buteurs.set(b.marqueur, (buteurs.get(b.marqueur) || 0) + 1);
+    const m = d.m, f = fe(m), cote = coteDe(m);
     dernier = {
       domicile: cote === 'A', pour: pour(m), contre: contre(m), gardien: gardienDe(m),
-      buteurs: [...buteurs].map(([p, buts]) => ({ p, buts, avant: p.p !== 'G' && !/D$/.test(p.p || '') })),
       punisTard: (f.punitions || []).filter(x => x.cote === cote && x.joueur && x.instant >= 55 && x.instant < 60).map(x => x.joueur),
-      gardienBlesse: (f.blessures || []).filter(x => x.cote === cote).map(x => x.joueur).find(p => p && p.p === 'G') || null,
     };
   }
   let serieV = 0, serieD = 0;
   for (let i = avant.length - 1; i >= 0 && gagne(avant[i].m); i--) serieV++;
   for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m); i--) serieD++;
-  const serie = avant.slice(avant.length - Math.max(serieV, serieD));
+  const serie = avant.slice(avant.length - serieD);
   const somme = (liste, f) => liste.reduce((a, { m }) => a + f(m), 0);
-  // Le meilleur buteur de la séquence ; le premier trio et ses points ; le gardien de la glissade.
+  // Le meilleur pointeur d'une fenêtre ; le gardien de la glissade.
   const meilleur = (liste, f, qui) => qui.map(p => ({ p, x: somme(liste, m => f(m, p)) })).filter(y => y.x > 0).sort((a, b) => b.x - a.x)[0] || null;
   const patineurs = [...cases('F'), ...cases('D')];
-  const bs = serieV >= 3 ? meilleur(serie, sesButs, patineurs) : null;
   const trio1 = cases('F', 0);
   const gs = serieD >= 3 ? (() => { const n = new Map(); for (const { m } of serie) { const g = gardienDe(m); if (g) n.set(g, (n.get(g) || 0) + 1); } const g = [...n].sort((a, b) => b[1] - a[1])[0]?.[0];
     return g && dans.has(getPlayerKey(g)) ? { p: g, buts: somme(serie, m => (fe(m).buts || []).filter(b => b.cote !== coteDe(m) && b.gardien === g).length) } : null; })() : null;
@@ -2636,7 +2618,6 @@ export function faitsDuClub(team, matchs, J, N) {
     return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
   const f5 = fenetre(5), f3 = fenetre(3), f4 = fenetre(4);
   const chaud = f5 ? meilleur(f5, sesPoints, cases('F')) : null;
-  const doyenP = [...patineurs].sort((a, b) => age(b) - age(a) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1))[0];
   const q4 = cases('F', 3);
   const qFen = avant.slice(-FENETRE_FAIT);
   const plomb = qFen.length >= FENETRE_FAIT ? q4.map(p => ({ p, buts: somme(qFen, m => sesButs(m, p)) })).filter(x => x.buts <= 1)
@@ -2648,14 +2629,13 @@ export function faitsDuClub(team, matchs, J, N) {
   return {
     J, N, n: avant.length, dernier, serieV, serieD, recents: recents.length, punis,
     joueurs: cases('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
+    // L'élève du vétéran : celui que « L'école du vétéran » viserait (`cibleMutation`, la carte `dur`).
+    eleve: cibleMutation(team, 'dur'),
     veteransD: cases('D').map(p => ({ p, age: age(p) })).filter(x => x.age >= 33).sort((a, b) => b.age - a.age),
-    buteurSerie: bs ? { p: bs.p, buts: bs.x } : null,
-    trio1: { joueurs: trio1, pts: serieV >= 3 ? trio1.reduce((a, p) => a + somme(serie, m => sesPoints(m, p)), 0) : 0 },
-    butsSerie: serieD >= 3 ? somme(serie, pour) : 0, gardienSerie: gs,
+    gardienSerie: gs,
     partis, blesses, route, gardiens: cases('G'), gardienSuite, jambes,
     moyenneJambes: jambes.length ? Math.round(jambes.reduce((a, x) => a + x.j, 0) / jambes.length) : 100,
     chaud: chaud ? { p: chaud.p, pts: chaud.x, m: 5 } : null,
-    doyen: doyenP ? { p: doyenP, age: age(doyenP) } : null,
     quatrieme: { joueurs: q4, pts: q4.reduce((a, p) => a + somme(qFen, m => sesPoints(m, p)), 0), m: qFen.length },
     paire1: cases('D', 0),
     cinq: f5 ? { pour: somme(f5, pour), contre: somme(f5, contre), m: 5 } : null,
@@ -2669,183 +2649,116 @@ export function faitsDuClub(team, matchs, J, N) {
 /* Le texte d'un dilemme rempli de son fait : {n}, {m}, {vieux}… et {n:but} (« 1 but », « 3 buts ») ; {nom} et {noms} restent à `nommer` (js/gerant.js). */
 export const texteDuFait = (t, f) => String(t || '').replace(/\{(\w+)(?::([^}]+))?\}/g, (tout, k, mot) => (k === 'nom' || k === 'noms' || !f || f[k] == null ? tout : mot ? pl(f[k], mot) : String(f[k])));
 
+/*
+ * RIEN QUE CE QUI EST ARRIVÉ, ET CE QUE L'OPTION FAIT (24 oct. 2026). JP : *tous ces éléments doivent être liés à
+ * quelque chose qui arrive avant ou que ça cause dans la simulation*. Un dilemme n'a plus de récit : sa scène dit le
+ * fait (`FAITS[...].dire`, les joueurs nommés, les vrais chiffres) et la voix qui en pense quelque chose
+ * (js/scenes.js) ; le nom d'une option dit le geste, son gain et son prix disent ce que le moteur en fait.
+ */
 export const MOMENTS = {
-  pieuvre: {
-    ico: '🐙', titre: 'Une pieuvre sur la glace', irl: 'Détroit, 1952', fait: 'butDomicile', de: 'pt',
-    recit: 'Un partisan lance une pieuvre sur la glace après le but de {nom}. L\'aréna devient fou. Deux bonnes nouvelles : laquelle tu prends ?',
-    options: [
-      { cle: 'tradition', nom: 'En faire une tradition', bon: 'La foule pousse : plus de précision', finition: 1.088, duree: 6 },
-      { cle: 'calme', nom: 'Remercier la foule, garder la tête froide', bon: 'Moins de punitions', discipline: 0.81, duree: 6 },
-    ],
-  },
-  rats: {
-    ico: '🐀', titre: 'Le rat du vestiaire', irl: 'Floride, 1996', fait: 'double', de: 'eq',
-    recit: '{nom} écrase un rat dans le vestiaire avant le match, puis marque {n} buts. Les partisans lancent des rats en plastique.',
-    options: [
-      { cle: 'mascotte', nom: 'Adopter la mascotte', bon: 'Si le rat porte chance : plus de précision', prix: 'Sinon, la glace est jonchée de rats : plus de punitions',
-        pari: { chance: 0.5, gagne: { finition: 1.125, duree: 6 }, perd: { discipline: 1.288, duree: 6 } } },
-      { cle: 'serieux', nom: 'Rester sérieux', bon: 'Une défense concentrée : moins de buts contre', defense: 0.92, duree: 6 },
-    ],
-  },
-  dernier: {
-    ico: '🧳', titre: '« C\'est mon dernier match ici »', irl: 'Montréal, 1995', fait: 'gardienBattu', de: 'ca',
-    recit: 'Laissé devant le filet pour {n} buts, {nom} passe devant le banc et lance au président qu\'il a joué son dernier match ici.',
-    options: [
-      { cle: 'reposer', nom: 'Le reposer trois matchs', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Trois matchs sans {nom} devant le filet',
-        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } },
-      { cle: 'soutenir', nom: 'Le renvoyer dans la mêlée', bon: 'S\'il se venge : moins de buts contre', prix: 'S\'il craque encore : plus de buts contre',
-        pari: { chance: 0.5, gagne: { defense: 0.89, duree: 5 }, perd: { defense: 1.11, duree: 5 } } },
-    ],
-  },
   tropdejoueurs: {
-    ico: '🧢', titre: 'Trop de joueurs sur la glace', irl: 'Boston, 1979', fait: 'punitionTard', de: 'ad',
-    recit: 'Le banc s\'emmêle dans un changement en fin de match : six patineurs sur la glace, et {nom} file au cachot dans les dernières minutes.',
+    ico: '🧢', titre: 'Pris en fin de match', fait: 'punitionTard', de: 'ad',
     options: [
-      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Moins de punitions', prix: 'Des présences plus longues : moins de tirs', discipline: 0.788, volume: 0.913 },
-      { cle: 'rythme', nom: 'Garder le rythme rapide', bon: 'Plus de tirs', prix: 'Ça va se reproduire : plus de punitions', volume: 1.095, discipline: 1.213 },
+      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.788, volume: 0.913 },
+      { cle: 'rythme', nom: 'Garder des changements rapides', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213 },
     ],
   },
   zamboni: {
-    ico: '🚜', titre: 'Le conducteur de surfaceuse', irl: 'Toronto, 2020', fait: 'gardienCharge', de: 'eq',
-    recit: 'Le gardien d\'urgence de l\'aréna, le conducteur de la surfaceuse, 42 ans, a déjà gagné un match dans la LNH : {nom} dit qu\'il pourrait prendre une soirée de congé, lui aussi.',
+    ico: '🧤', titre: 'Le gardien qui ne sort plus', fait: 'gardienCharge', de: 'en',
     options: [
-      { cle: 'conge', nom: 'Donner deux matchs de congé à {nom}', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Deux matchs sans {nom}',
+      { cle: 'conge', nom: 'Donner deux matchs à {aux}', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Deux matchs sans {nom}',
         action: { gardienAux: 2 }, ensuite: { apres: 2, duree: 10, defense: 0.94 } },
-      { cle: 'legende', nom: 'Inviter le conducteur au vestiaire', bon: 'Le vestiaire rit, la pression tombe : plus de précision', finition: 1.08, duree: 5 },
+      { cle: 'garder', nom: 'Garder {nom} devant le filet', prix: 'Plus de buts contre', defense: 1.06, duree: 5 },
     ],
   },
-  malarchuk: {
-    ico: '🕯', titre: 'Un accident terrible', irl: 'Buffalo, 1989', fait: 'gardienBlesse', de: 'me',
-    recit: '{nom} s\'est blessé devant son filet au dernier match. Les deux vestiaires sont sous le choc. Aucun bon choix ici.',
+  dernier: {
+    ico: '🧳', titre: 'Une soirée à oublier', fait: 'gardienBattu', de: 'en',
     options: [
-      { cle: 'temps', nom: 'Lui donner tout le temps qu\'il faut', bon: '{nom} revient quand il est prêt', prix: '{nom} manque cinq matchs de plus', action: { absents: 5 } },
-      { cle: 'pourlui', nom: 'Jouer pour lui', bon: 'Tout le monde se donne : plus de précision', prix: 'On joue sur les nerfs : plus de blessures', finition: 1.08, blessure: 1.5, duree: 6 },
-    ],
-  },
-  tortorella: {
-    ico: '🎙', titre: 'L\'entraîneur pète une coche', irl: 'Inspiré de plusieurs points de presse', fait: 'panne', de: 'an',
-    recit: 'Ton entraîneur insulte un journaliste en direct et promet que « ça va changer ». La vidéo fait le tour du continent.',
-    options: [
-      { cle: 'appuyer', nom: 'L\'appuyer', bon: 'Si le vestiaire embarque : plus de tirs', prix: 'Sinon, ça dégénère : plus de punitions',
-        pari: { chance: 0.5, gagne: { volume: 1.11, duree: 8 }, perd: { discipline: 1.288, duree: 8 } } },
-      { cle: 'recadrer', nom: 'Le recadrer', bon: 'On revient au système : moins de buts contre', prix: 'Moins d\'intensité : moins de tirs', defense: 0.913, volume: 0.913 },
-    ],
-  },
-  tempete: {
-    ico: '🌨', titre: 'La tempête de neige', irl: 'Buffalo, 2014', fait: 'route', de: 'ad',
-    recit: 'Deux mètres de neige, et l\'équipe est encore sur la route. L\'avion ne décolle pas. Les deux options font mal : laquelle moins ?',
-    options: [
-      { cle: 'autobus', nom: 'Vingt heures d\'autobus', prix: 'Toute l\'équipe arrive les jambes à plat', action: { energieTous: -15 } },
-      { cle: 'attendre', nom: 'Attendre l\'avion à l\'hôtel', prix: 'On arrive le matin du match, sans réchauffement : moins de tirs, moins de précision', finition: 0.913, volume: 0.913, duree: 3 },
-    ],
-  },
-  barbe: {
-    ico: '🧔', titre: 'La barbe porte-bonheur', irl: null, fait: 'sequence', de: 'ca',
-    recit: '{nom} refuse de se raser tant que la séquence dure, et le vestiaire suit.',
-    options: [
-      { cle: 'pousser', nom: 'Laisser pousser', bon: 'Dans cinq matchs, la barbe fait peur à tout le monde : plus de précision', ensuite: { apres: 5, duree: 10, finition: 1.08 } },
-      { cle: 'raser', nom: 'Raser tout le monde ce soir', bon: 'Un vestiaire propre et motivé : plus de précision tout de suite', finition: 1.06, duree: 5 },
+      { cle: 'reposer', nom: 'Trois matchs de repos : {aux} au filet', bon: '{aux} prend le filet ; ensuite, moins de buts contre', prix: 'Trois matchs sans {nom}',
+        action: { gardienAux: 3 }, ensuite: { apres: 3, duree: 8, defense: 0.92 } },
+      { cle: 'soutenir', nom: 'Renvoyer {nom} devant le filet', bon: 'Une chance sur deux : moins de buts contre', prix: 'Sinon : plus de buts contre',
+        pari: { chance: 0.5, gagne: { defense: 0.89, duree: 5 }, perd: { defense: 1.11, duree: 5 } } },
     ],
   },
   baton: {
-    ico: '🏒', titre: 'Le bâton maudit', irl: null, fait: 'disetteMarqueur', de: 'eq',
-    recit: '{nom} jure que son nouveau modèle de bâton lui porte malheur.',
+    ico: '🏒', titre: 'La disette', fait: 'disetteMarqueur', de: 'an',
     options: [
-      { cle: 'ancien', nom: 'Ressortir ses vieux bâtons', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs, il choisit ses coups', duree: 8, lui: { finition: 1.25, lancers: 0.9 } },
-      { cle: 'travail', nom: 'Le travail, pas la magie', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision, il force', duree: 8, lui: { lancers: 1.25, finition: 0.92 } },
-    ],
-  },
-  poutine: {
-    ico: '🍟', titre: 'La poutine d\'après-match', irl: null, fait: 'sequence', de: 'pa',
-    recit: 'Un restaurateur offre la poutine à vie à l\'équipe, et à {nom} en premier. Les gars y vont tous les soirs.',
-    options: [
-      { cle: 'fete', nom: 'Laisser faire', bon: 'Le moral est au plafond : plus de précision', prix: 'Plus d\'usure des jambes', finition: 1.088, energie: 1.192, duree: 8 },
-      { cle: 'diete', nom: 'Diète de séries dès maintenant', bon: 'Dans cinq matchs : moins d\'usure des jambes', prix: 'D\'ici là, ça grogne : moins de précision',
-        finition: 0.94, duree: 5, ensuite: { apres: 5, duree: 12, energie: 0.76 } },
+      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.25, lancers: 0.9 } },
+      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.25, finition: 0.92 } },
     ],
   },
   /*
-   * LES DILEMMES QUI CHANGENT UNE CARTE (S68). Le joueur visé est nommé avant le choix (`{nom}`) : celui du fait,
-   * sinon celui que la carte vise (`cibleMutation`), et l'option qui porte `mutation` le change pour le reste de la
-   * saison.
+   * LES DILEMMES QUI CHANGENT UNE CARTE (S68). Le joueur visé est celui que le fait nomme, et l'option qui porte
+   * `mutation` le change pour le reste de la saison.
    */
   camp: {
-    ico: '🏕', titre: 'Le camp de mi-saison', irl: null, fait: 'plombier', quand: ['echeance'], de: 'ad',
-    recit: 'La pause du Match des étoiles : trois jours d\'entraînement, et {nom} cherche encore son tir. Qui travaille quoi ?',
+    ico: '🎯', titre: 'Le tir du plombier', fait: 'plombier', de: 'ad',
     options: [
-      { cle: 'gun', nom: 'Envoyer {nom} tirer du gun', mutation: 'tir_gun', bon: '{nom} : plus de précision, plus de tirs', prix: 'Trois jours sans repos pour les autres : plus de blessures', blessure: 1.24 },
-      { cle: 'repos', nom: 'Repos pour tout le monde', bon: 'Moins de blessures', blessure: 0.5 },
+      { cle: 'gun', nom: 'Faire travailler son tir à {nom}', mutation: 'tir_gun', bon: '{nom} : plus de précision, plus de tirs' },
+      { cle: 'repos', nom: 'Du repos pour tout le monde', bon: 'Moins de blessures', blessure: 0.5 },
     ],
   },
   pointe: {
-    ico: '💣', titre: 'La pointe de l\'avantage', irl: null, fait: 'tirsD', de: 'ad',
-    recit: '{nom} demande sa chance à la ligne bleue en avantage numérique. Il jure qu\'il a un canon.',
+    ico: '💣', titre: 'La pointe de l\'avantage', fait: 'tirsD', de: 'ad',
     options: [
-      { cle: 'chance', nom: 'Lui donner la pointe', mutation: 'pointe', bon: '{nom} : plus de tirs' },
-      { cle: 'attendre', nom: 'Qu\'il attende son tour', bon: 'Il travaille sa défensive en attendant : moins de buts contre', defense: 0.94, duree: 6 },
+      { cle: 'chance', nom: 'Donner la pointe de l\'avantage à {nom}', mutation: 'pointe', bon: '{nom} : plus de tirs' },
+      { cle: 'attendre', nom: 'Le garder à la défensive', bon: 'Moins de buts contre', defense: 0.94, duree: 6 },
     ],
   },
   ecole: {
-    ico: '🧓', titre: 'L\'école du vétéran', irl: null, fait: 'veteranD', de: 'ca',
-    recit: '{vieux} propose de prendre {nom} sous son aile.',
+    ico: '🧓', titre: 'L\'école du vétéran', fait: 'veteranD', de: 'ca',
     options: [
-      { cle: 'oui', nom: 'Qu\'il lui apprenne à défendre', mutation: 'dur', bon: '{nom} : plus de défense', prix: '{nom} : moins de passes' },
+      { cle: 'oui', nom: 'Confier {nom} à {vieux}', mutation: 'dur', bon: '{nom} : plus de défense', prix: '{nom} : moins de passes' },
       { cle: 'non', nom: '{nom} garde son style', bon: 'Rien ne change', rien: true },
     ],
   },
   /*
    * CONTOURNER LE RÈGLEMENT (JP). Pas un cadeau : chaque trou dans le livre a son prix, sur les canaux qui existent
    * déjà. Chacun répond à ce que tes matchs viennent de dire : les buts qui ne rentrent plus, les tirs reçus, les
-   * avantages qui ne viennent pas, la défaite par un but, les buts accordés.
+   * punitions qu'ils ne prennent pas, la défaite par un but, les buts accordés.
    */
   courbe: {
-    ico: '📏', titre: 'La courbe illégale', irl: 'La LNH mesure les courbes depuis 1990', regle: true, fait: 'disette', de: 'eq',
-    recit: 'Le préposé à l\'équipement te tend un bâton : la courbe dépasse le gabarit, « juste assez pour que le tir tombe ».',
+    ico: '📏', titre: 'La courbe illégale', regle: true, fait: 'disette', de: 'eq',
     options: [
-      { cle: 'laisser', nom: 'Laisser la courbe', bon: 'Si le tir trompe : plus de précision', prix: 'Sinon, l\'arbitre sort le gabarit : plus de punitions',
+      { cle: 'laisser', nom: 'Laisser passer les courbes illégales', bon: 'Une chance sur deux : plus de précision', prix: 'Sinon : plus de punitions',
         pari: { chance: 0.5, gagne: { finition: 1.095, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
-      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions', prix: 'Des lancers plus honnêtes : moins de tirs', discipline: 0.825, volume: 0.94, duree: 6 },
+      { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.825, volume: 0.94, duree: 6 },
     ],
   },
   trapeze: {
-    ico: '🥅', titre: 'Hors du trapèze', irl: 'Martin Brodeur, avant la règle de 2005', regle: true, fait: 'tirsContre', de: 'ad',
-    recit: '{nom} veut jouer la rondelle partout derrière le filet. La règle qui l\'en empêchera n\'est pas encore écrite — ou tu fais comme si.',
+    ico: '🥅', titre: 'Hors du trapèze', regle: true, fait: 'tirsContre', de: 'ad',
     options: [
-      { cle: 'sortir', nom: 'Le laisser sortir', bon: 'Il coupe les jeux avant qu\'ils naissent : moins de buts contre', prix: 'L\'arbitre s\'en mêle : plus de punitions', defense: 0.92, discipline: 1.19, duree: 6, trou: true },
-      { cle: 'filet', nom: 'Le garder dans la peinture', bon: 'Un gardien à sa place : moins de buts contre', defense: 0.96, duree: 5 },
+      { cle: 'sortir', nom: 'Laisser {nom} jouer la rondelle partout', bon: 'Moins de buts contre', prix: 'Plus de punitions', defense: 0.92, discipline: 1.19, duree: 6, trou: true },
+      { cle: 'filet', nom: 'Garder {nom} dans sa zone', bon: 'Moins de buts contre', defense: 0.96, duree: 5 },
     ],
   },
   embellir: {
-    ico: '🎭', titre: 'L\'embellissement', irl: null, regle: true, fait: 'avantagesRares', de: 'an',
-    recit: 'L\'arbitre ne lève plus le bras pour toi. Un mot de trop après le contact, une chute bien vendue, et il le lèverait. La ligue, elle, regarde les reprises.',
+    ico: '🎭', titre: 'L\'embellissement', regle: true, fait: 'avantagesRares', de: 'an',
     options: [
-      { cle: 'plonger', nom: 'Vendre le contact', bon: 'Une fois sur trois : plus de précision', prix: 'Le reste du temps, c\'est toi qu\'on siffle : plus de punitions',
+      { cle: 'plonger', nom: 'Vendre les contacts', bon: 'Une fois sur trois : plus de précision', prix: 'Sinon : plus de punitions',
         pari: { chance: 2 / 6, gagne: { finition: 1.088, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
-      { cle: 'debout', nom: 'Rester debout', bon: 'Une réputation propre : moins de punitions', discipline: 0.825, duree: 6 },
+      { cle: 'debout', nom: 'Rester debout', bon: 'Moins de punitions', discipline: 0.825, duree: 6 },
     ],
   },
   desert: {
-    ico: '🚪', titre: 'Le gardien sort trop tôt', irl: null, regle: true, fait: 'defaiteParUn', de: 'ad',
-    recit: 'Il a manqué un but. Au prochain match serré, le banc veut le sixième attaquant à dix minutes de la fin. Ce n\'est pas le moment, et tout le monde le sait.',
+    ico: '🚪', titre: 'Le filet désert', regle: true, fait: 'defaiteParUn', de: 'ad',
     options: [
-      { cle: 'sortir', nom: 'Le sortir quand même', bon: 'Un attaquant de plus, longtemps : plus de tirs', prix: 'Le filet est vide bien trop tôt : plus de buts contre', volume: 1.095, defense: 1.095, duree: 4, trou: true },
-      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'On ne donne pas le filet : moins de buts contre', defense: 0.96, duree: 4 },
+      { cle: 'sortir', nom: 'Sortir le gardien plus tôt', bon: 'Plus de tirs', prix: 'Plus de buts contre', volume: 1.095, defense: 1.095, duree: 4, trou: true },
+      { cle: 'attendre', nom: 'Attendre la dernière minute', bon: 'Moins de buts contre', defense: 0.96, duree: 4 },
     ],
   },
   mort: {
     ico: '🪝', titre: 'Le hockey qu\'on a interdit', irl: 'La règle de l\'obstruction, 2005', regle: true, fait: 'passoire', de: 'ca',
-    recit: 'Au vestiaire, on parle du hockey d\'avant : accrocher dans les coins, retenir le bâton, tuer le jeu au centre. La ligue a écrit une règle contre ça.',
     options: [
-      { cle: 'accrocher', nom: 'Jouer comme en 1998', bon: 'Presque rien ne passe : moins de buts contre', prix: 'Moins de tirs, et plus de punitions', defense: 0.913, volume: 0.913, discipline: 1.19, duree: 8, trou: true },
-      { cle: 'aujourd', nom: 'Jouer le hockey d\'aujourd\'hui', bon: 'De l\'espace : plus de tirs', prix: 'Des trous derrière : plus de buts contre', volume: 1.08, defense: 1.06, duree: 6 },
+      { cle: 'accrocher', nom: 'Accrocher, retenir, tuer le jeu au centre', bon: 'Moins de buts contre', prix: 'Moins de tirs, plus de punitions', defense: 0.913, volume: 0.913, discipline: 1.19, duree: 8, trou: true },
+      { cle: 'aujourd', nom: 'Ouvrir le jeu', bon: 'Plus de tirs', prix: 'Plus de buts contre', volume: 1.08, defense: 1.06, duree: 6 },
     ],
   },
   minutes: {
-    ico: '⏱', titre: 'La paire qui ne descend plus', irl: null, regle: true, fait: 'passoirePaire', de: 'ad',
-    recit: 'Le règlement ne limite pas les minutes : ton adjoint veut laisser {noms} sur la glace, même si vingt-huit minutes par défenseur, c\'est déjà trop.',
+    ico: '⏱', titre: 'La paire qui ne descend plus', regle: true, fait: 'passoirePaire', de: 'ad',
     options: [
-      { cle: 'doubler', nom: 'Les laisser sur la glace', bon: 'Ta première paire joue plus', prix: 'Ta troisième paire joue moins ; plus de blessures, plus d\'usure des jambes', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
-      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Les corps tiennent : moins de blessures, moins d\'usure des jambes', prix: 'Moins de tirs', blessure: 0.76, energie: 0.872, volume: 0.96, duree: 6 },
+      { cle: 'doubler', nom: 'Laisser {noms} sur la glace', bon: 'Ta première paire joue plus', prix: 'Ta troisième paire joue moins ; plus de blessures, plus d\'usure des jambes', D: [1.22, 1, 0.72], blessure: 1.32, energie: 1.128, duree: 6, trou: true },
+      { cle: 'roulement', nom: 'Respecter le roulement', bon: 'Moins de blessures, moins d\'usure des jambes', prix: 'Moins de tirs', blessure: 0.76, energie: 0.872, volume: 0.96, duree: 6 },
     ],
   },
   ...MOMENTS_VIE,
@@ -5364,6 +5277,9 @@ function lineupQuiMonte(team, reserves, absent) {
   return lineup;
 }
 
+/* La part des présences de chaque trio et de chaque paire d'un profil de match, arrondie pour la feuille. */
+const glaceDe = q => (q && q.unites ? { F: q.unites.F.map(u => Math.round(u.presence * 1e4) / 1e4), D: q.unites.D.map(u => Math.round(u.presence * 1e4) / 1e4) } : null);
+
 function unitAvgLineup(team, lineup, group, unit, key) {
   const slots = SLOTS.filter(s => s.group === group && s.unit === unit && !s.scratch);
   let sum = 0;
@@ -5778,6 +5694,9 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
         A: Object.values(LA).filter(p => p && p.p !== 'G'),
         B: Object.values(LB).filter(p => p && p.p !== 'G'),
       },
+      // LA GLACE DE CHAQUE TRIO ET DE CHAQUE PAIRE CE SOIR-LÀ (oct. 2026) : leur part des présences à forces égales, telle
+      // que le moteur l'a jouée. C'est là que « ton quatrième trio joue plus » se recompte (scripts/check_dilemmes.mjs).
+      glace: { A: glaceDe(pA), B: glaceDe(pB) },
     });
     // LES JOUEURS SUR LEUR LANCÉE CE SOIR (V3.6), dans une ligue Rogue : ce que le vendeur de chandails paie.
     if (A.courbe || B.courbe) journal.lancees = { A: Object.values(LA).filter(p => p && p._lancee && p._lancee !== LANCEE.doute), B: Object.values(LB).filter(p => p && p._lancee && p._lancee !== LANCEE.doute) };

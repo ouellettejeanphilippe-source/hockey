@@ -3259,7 +3259,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LA SCÈNE : la voix du dilemme, sa réplique, et le fait en vrais chiffres.
       const scene = sceneDuDilemme(dl.cle, f, `${graine}|${dl.J}`);
       const dDl = cle => ({ jour, palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } });
-      specs.push({ de: scene.de, scene, ico: m.ico, titre: m.titre, irl: m.irl, recit: texteDuFait(m.recit, f), genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
+      specs.push({ de: scene.de, scene, ico: m.ico, titre: m.titre, irl: m.irl, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
         contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
         options: m.options.map(o => ({ ...o, ...Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, texteDuFait(o[k], f)])), duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
           desactive: (o.mutation && !cible) || ((o.action || o.lui) && !cibles.length) ? 'Personne dans ton alignement pour ça' : null })),

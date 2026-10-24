@@ -10,7 +10,7 @@
  *      dit (« plus de tirs », « ton quatrième trio joue plus »), et chaque canal bougé est dit (LEXIQUE, plus bas) ;
  *   4. sur de vraies ligues jouées au jour le jour : un dilemme ne se tire jamais sans son fait, et chaque fait se
  *      recompte dans les feuilles d'avant sa journée ; un joueur parti nomme le vrai parti, et sans départ,
- *      « Les adieux au casier » ne sort jamais ;
+ *      « Le départ » (ex-« Les adieux au casier ») ne sort jamais ;
  *   5. les chiffres de l'écran sont ceux que le moteur joue : l'effet posé porte les canaux de l'option, il dure
  *      les matchs que l'écran annonce, et ce qui vise le joueur nommé est posé sur lui.
  *   node scripts/check_dilemmes.mjs            GRAINES=11,12,13 (les ligues ; les impaires voient un départ)
@@ -60,9 +60,10 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
 console.log('\n  LES DILEMMES SONT VRAIS\n');
 const t0 = Date.now();
 const DILEMMES = Object.entries(MOMENTS);
-const fautes = { cat: [], noms: [], lex: [], faits: [], parti: [], ecran: [] };
+const fautes = { cat: [], noms: [], lex: [], faits: [], parti: [], ecran: [], promesse: [] };
+let promesses = 0;
 const faute = (k, t) => { if (fautes[k].length < 8) fautes[k].push(t); };
-const textes = M => [M.titre, M.recit, ...M.options.flatMap(o => [o.nom, o.bon, o.prix])].filter(Boolean);
+const textes = M => [M.titre, ...M.options.flatMap(o => [o.nom, o.bon, o.prix])].filter(Boolean);
 
 /* ---------- 1. le catalogue : un fait, une voix, une scène, un calendrier qui n'est jamais seul ---------- */
 const QUAND = new Set(['octobre', 'decembre', 'echeance', 'mars']);
@@ -72,9 +73,11 @@ for (const [k, M] of DILEMMES) {
   if (!(MOTS_DES_SCENES.dilemme[M.fait] || []).length) faute('cat', `${k} : aucune réplique pour son fait`);
   if (typeof M.faits !== 'function') faute('cat', `${k} : pas de lecture des faits`);
   if (M.quand && !M.quand.every(q => QUAND.has(q))) faute('cat', `${k} : un moment inconnu (${M.quand})`);
+  // Aucun récit : ce qu'un dilemme affirme est son fait (la scène) ou ce que ses options font au moteur, rien d'autre.
+  if (M.recit) faute('cat', `${k} : un récit (« ${M.recit.slice(0, 40)}… ») affirme ce que ni le fait ni l'effet ne disent`);
 }
 const titres = DILEMMES.map(([, M]) => M.titre);
-exiger('chaque dilemme a son fait, sa voix et ses répliques ; un calendrier ne vient qu\'en plus', !fautes.cat.length && new Set(titres).size === titres.length,
+exiger('chaque dilemme a son fait, sa voix et ses répliques, et aucun récit ; un calendrier ne vient qu\'en plus', !fautes.cat.length && new Set(titres).size === titres.length,
   fautes.cat.join(' · ') || `${DILEMMES.length} dilemmes, ${new Set(DILEMMES.map(([, M]) => M.fait)).size} sortes de faits`);
 
 /* ---------- 2. les noms (le catalogue ; les faits vrais suivent en 4) ---------- */
@@ -171,17 +174,9 @@ function recompte(fait, r, V) {
   const habille = p => cases.F.concat(cases.D).includes(p);
   const aux = g => cases.G.some(x => x !== g && x.n === r.aux);
   switch (fait) {
-    case 'domicile': return der && der.A === you && r.n === pour(der) && r.m === contre(der);
-    case 'butDomicile': return der && der.A === you && buts(der, r.joueur) >= 1 && r.n === pour(der);
-    case 'double': return der && buts(der, r.joueur) === r.n && r.n >= 2 && r.joueur.p !== 'G';
     case 'gardienBattu': return der && contre(der) === r.n && r.n >= 6 && gardienDe(der) === r.joueur && aux(r.joueur);
     case 'punitionTard': return der && fe(der).punitions.some(x => x.cote === cote(der) && x.joueur === r.joueur && x.instant >= 55 && x.instant < 60);
-    case 'gardienBlesse': return der && r.joueur.p === 'G' && (fe(der).blessures || []).some(x => x.cote === cote(der) && x.joueur === r.joueur);
     case 'gardienCharge': return r.n >= 4 && av.slice(-r.n).every(({ m }) => gardienDe(m) === r.joueur) && aux(r.joueur);
-    case 'sequence': return suite(r.n, gagne) && r.n >= 3 && sur(r.n, m => buts(m, r.joueur)) === r.m && cases.F.concat(cases.D).every(p => sur(r.n, m => buts(m, p)) <= r.m);
-    case 'sequenceTrio': return suite(r.n, gagne) && r.n >= 3 && r.joueurs.every(p => cases.F1.includes(p)) && r.joueurs.reduce((a, p) => a + sur(r.n, m => points(m, p)), 0) === r.m;
-    case 'panne': return suite(r.n, m => !gagne(m)) && r.n >= 3 && sur(r.n, pour) === r.m;
-    case 'panneDoyen': return suite(r.n, m => !gagne(m)) && r.n >= 3 && age(r.joueur) === r.m && cases.F.concat(cases.D).every(p => age(p) <= r.m);
     case 'panneGardien': return suite(r.n, m => !gagne(m)) && sur(r.n, m => fe(m).buts.filter(b => b.cote !== cote(m) && b.gardien === r.joueur).length) === r.m && aux(r.joueur);
     case 'punitions': {
       const siens = av.filter(({ m }) => (fe(m).alignes[cote(m)] || []).includes(r.joueur)).slice(-r.m);
@@ -195,7 +190,6 @@ function recompte(fait, r, V) {
     case 'disetteMarqueur': { const k = sur(12, m => buts(m, r.joueur)); return (r.joueur.g || 0) >= 25 && k <= 2 && r.n === (k === 0 ? 'aucun but' : k === 1 ? 'un seul but' : `${k} buts`); }
     case 'recrue': { const siens = av.filter(({ m }) => (fe(m).alignes[cote(m)] || []).includes(r.joueur)); return !!r.joueur.rk && habille(r.joueur) && !cases.F1.includes(r.joueur) && siens.length === r.n && siens.reduce((a, { m }) => a + points(m, r.joueur), 0) === r.m; }
     case 'parti': return !dans.has(getPlayerKey(r.joueur)) && !r.joueur._rappel && !(you.ecole || []).includes(r.joueur) && r.n >= 1 && av.slice(-10).filter(({ m }) => (fe(m).alignes[cote(m)] || []).includes(r.joueur) || gardienDe(m) === r.joueur).length === r.n;
-    case 'doyen': return r.n >= 34 && age(r.joueur) === r.n && cases.F.concat(cases.D).every(p => age(p) <= r.n);
     case 'quatrieme': return r.m === 10 && r.joueurs.every(p => cases.F4.includes(p)) && r.joueurs.reduce((a, p) => a + sur(10, m => points(m, p)), 0) === r.n && r.n <= 2;
     case 'passoire': return r.m === 5 && sur(5, contre) === r.n && r.n >= 17;
     case 'passoirePaire': return r.m === 5 && sur(5, contre) === r.n && r.n >= 17 && r.joueurs.length === 2 && r.joueurs.every(p => cases.D1.includes(p));
@@ -204,7 +198,7 @@ function recompte(fait, r, V) {
     case 'avantagesRares': return r.m === 4 && sur(4, m => fe(m).punitions.filter(x => x.cote !== cote(m)).length) === r.n && r.n <= 10;
     case 'defaiteParUn': return der && contre(der) === pour(der) + 1 && r.m === contre(der) && r.n === pour(der);
     case 'plombier': return cases.F4.includes(r.joueur) && sur(10, m => buts(m, r.joueur)) === r.n && r.n <= 1;
-    case 'veteranD': return cases.D.some(p => p.n === r.vieux && age(p) === r.n) && r.n >= 33 && cases.D.every(p => age(p) <= r.n);
+    case 'veteranD': return cases.D.some(p => p.n === r.vieux && age(p) === r.n) && r.n >= 33 && cases.D.every(p => age(p) <= r.n) && r.joueur === cibleMutation(you, 'dur') && r.joueur.n !== r.vieux;
     case 'tirsD': { const t = p => sur(10, m => fe(m).lancers.filter(l => l.cote === cote(m) && l.tireur === p).length); return cases.D.includes(r.joueur) && t(r.joueur) === r.n && r.n >= 15 && cases.D.every(p => t(p) <= r.n); }
     default: return false;
   }
@@ -247,7 +241,8 @@ for (const seed of GRAINES) {
       if (!recompte(M.fait, r, V)) faute('faits', `${k} (${M.fait}), ligue ${seed}, journée ${jEv} : ${JSON.stringify({ ...r, joueur: r.joueur && r.joueur.n, joueurs: r.joueurs && r.joueurs.map(p => p.n) })}`);
       // Les noms : le fait nomme qui le texte nomme, et chaque {…} se remplit.
       const mut = M.options.find(o => o.mutation);
-      const cible = mut ? (r.joueur || cibleMutation(you, mut.mutation)) : r.joueur;
+      const cible = r.joueur;
+      if (mut && !r.joueur) faute('noms', `${k} : la carte change un joueur que le fait ne nomme pas`);
       for (const t of textes(M)) {
         const rempli = texteDuFait(t, r);
         if (/\{nom\}/.test(rempli) && !cible) faute('noms', `${k} : {nom} sans joueur`);
@@ -255,8 +250,9 @@ for (const seed of GRAINES) {
         const reste = rempli.replace(/\{noms?\}/g, '');
         if (/[{}]/.test(reste)) faute('noms', `${k} : « ${reste} » ne se remplit pas`);
       }
-      if (r.joueur && !mut && !/\{nom\}/.test(M.recit + M.titre)) faute('noms', `${k} : le fait nomme ${r.joueur.n}, le récit non`);
-      if (r.joueurs && r.joueurs.length && !/\{noms\}/.test(M.recit)) faute('noms', `${k} : le fait nomme ${r.joueurs.length} joueurs, le récit non`);
+      // Chaque joueur que le fait nomme est dit dans le fait de la scène ; un joueur nommé ailleurs vient du fait ({nom}, {noms}, {aux}, {vieux}).
+      const dit = FAITS[M.fait].dire(r);
+      for (const nm of [r.joueur && r.joueur.n, ...(r.joueurs || []).map(p => p.n), r.vieux].filter(Boolean)) if (!dit.includes(nm)) faute('noms', `${k} : le fait nomme ${nm}, la scène non`);
       // La scène : sa voix, sa réplique sans chiffre, son fait qui porte ses nombres.
       const sc = sceneDuDilemme(k, r, `${seed}|${J}`);
       if (!Object.values(EXPEDITEURS).includes(sc.de) || !sc.mot || /\d|\{/.test(sc.mot)) faute('noms', `${k} : la scène « ${sc.mot} »`);
@@ -277,7 +273,7 @@ informer('jamais vrais sur ces ligues', Object.keys(FAITS).filter(f => !sorties[
 exiger('un dilemme ne sort jamais sans son fait, recompté dans les feuilles d\'avant sa journée', !fautes.faits.length && tires > 0,
   fautes.faits.join(' · ') || `${lectures} lectures, ${tires} tirages, ${vus.size} dilemmes vrais au moins une fois sur ${GRAINES.length} ligues`);
 exiger('ses textes nomment les joueurs du fait, et chaque {…} se remplit ; jamais un joueur sans son nom', !fautes.noms.length, fautes.noms.join(' · ') || 'nommés');
-exiger('« Les adieux au casier » ne sort que si un joueur est vraiment parti, et c\'est lui qu\'il nomme', !fautes.parti.length && partisAttendus > 0 && partisVus === partisAttendus,
+exiger('« Le départ » ne sort que si un joueur a vraiment quitté ton effectif, et c\'est lui qu\'il nomme', !fautes.parti.length && partisAttendus > 0 && partisVus === partisAttendus,
   fautes.parti.join(' · ') || `${partisVus} sur ${partisAttendus} journées après un départ`);
 exiger('la moitié des dilemmes au moins se rencontre sur ces ligues', vus.size >= DILEMMES.length / 2, `${vus.size} sur ${DILEMMES.length}`);
 
@@ -290,11 +286,15 @@ exiger('la moitié des dilemmes au moins se rencontre sur ces ligues', vus.size 
     const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => you.roster[s.i])[0];
     const choix = DILEMMES.map(([k, M]) => [k, M, M.options[Math.min(rang, M.options.length - 1)]]).filter(([, , o]) => !o.mutation);
     const decisions = choix.map(([k, M, o]) => {
-      const p = /gardien|Gardien/.test(M.fait) ? gardien : avant;
+      const p = /gardien|Gardien|tirsContre/.test(M.fait) ? gardien : avant;
       return { jour: J0, equipe: 0, moment: { famille: 'moment', cle: k, choix: o.cle, joueur: null, joueurs: [getPlayerKey(p)] } };
     });
     const L = creerLigue(teams, 82, { graine: `ecran-${rang}`, decisions });
-    jouerJusqua(L, J0 + 1);
+    jouerJusqua(L, J0 + 12);
+    // Tes matchs à partir du jour de la décision : ce qu'une option promet sur un joueur s'y recompte.
+    const apres = tes(L, you).filter(x => x.j >= J0).map(x => x.m);
+    const habille = (m, p) => (fe(m).alignes[coteDe(m, you)] || []).includes(p);
+    const recoit = (m, g) => (fe(m).lancers || []).some(l => l.cote !== coteDe(m, you) && l.gardien === g);
     const matchsEntre = (a, b) => L.calendrier.slice(a, b).filter(jour => jour.some(m => m.A === you || m.B === you)).length;
     for (const [k, M, o] of choix) {
       const nom = M.titre;
@@ -312,6 +312,12 @@ exiger('la moitié des dilemmes au moins se rencontre sur ces ligues', vus.size 
         const { duree: _d, action: _a, ...ch } = attendu || {};
         if (!pari || (Object.keys(ch).length && (!e || Object.entries(ch).some(([c, v]) => !meme(e[c], v))))) faute('ecran', `${k}.${o.cle} : le pari ne pose pas ce que l'écran dit`);
       }
+      // « {nom} manque un match » : il n'est pas habillé ces soirs-là ; « {aux} prend le filet » : le partant ne reçoit pas un tir.
+      const a = o.action || {};
+      if (a.absents && apres.slice(0, a.absents).some(m => habille(m, avant))) faute('promesse', `${k}.${o.cle} : ${avant.n} devait manquer ${a.absents} match(s), il a joué`);
+      if (a.gardienAux && apres.slice(0, a.gardienAux).some(m => recoit(m, gardien))) faute('promesse', `${k}.${o.cle} : ${gardien.n} devait céder le filet ${a.gardienAux} match(s), il l'a gardé`);
+      if (a.absents) promesses++;
+      if (a.gardienAux) promesses++;
       if (o.lui) {
         const e = (you.effetsCibles || []).find(x => x.nom === nom && x.debut === J0);
         if (!e || getPlayerKey(e.joueur) !== decisions.find(d => d.moment.cle === k).moment.joueurs[0] || Object.entries(o.lui).some(([c, v]) => e[c] !== v)) faute('ecran', `${k}.${o.cle} : ce qui va à {nom} n'est pas posé sur lui`);
@@ -319,6 +325,49 @@ exiger('la moitié des dilemmes au moins se rencontre sur ces ligues', vus.size 
     }
   }
   exiger('l\'effet posé porte les canaux et la durée que l\'écran annonce ; ce qui vise le joueur nommé est posé sur lui', !fautes.ecran.length, fautes.ecran.join(' · ') || 'les deux options de chaque dilemme');
+}
+
+/* ---------- 6. ce qu'une option promet à des trios et des paires, recompté dans les feuilles d'après ---------- */
+/*
+ * « Ton quatrième trio joue plus », « ta première paire joue plus » : la même ligue jouée avec et sans l'option ; à
+ * chacun de tes matchs qu'elle couvre, la part de glace de chaque trio (ou paire) qu'elle pousse monte dans la
+ * feuille (`glace`), celle qu'elle retient descend, et rien ne bouge ailleurs. Les absences et le filet cédé se
+ * recomptent en 5.
+ */
+{
+  const J0 = 10;
+  const jouer = (decisions, k = null) => {
+    const teams = ligue(GRAINES[0]), you = teams[0];
+    const L = creerLigue(teams, 82, { graine: `promesses-${k}`, decisions });
+    jouerJusqua(L, J0 + 24);
+    return tes(L, you).filter(x => x.j >= J0).map(({ m }) => fe(m).glace && fe(m).glace[coteDe(m, you)]);
+  };
+  for (const [k, M] of DILEMMES) for (const o of M.options) {
+    if (!Array.isArray(o.F) && !Array.isArray(o.D)) continue;
+    const n = dureeOption(o, 'moment');
+    const sans = jouer([], k).slice(0, n), avec = jouer([{ jour: J0, equipe: 0, moment: { famille: 'moment', cle: k, choix: o.cle, joueur: null, joueurs: [] } }], k).slice(0, n);
+    for (const g of ['F', 'D']) for (const [u, v] of (o[g] || []).entries()) {
+      if (v === 1) continue;
+      promesses++;
+      const mal = avec.findIndex((x, i) => !x || !sans[i] || (v > 1 ? x[g][u] <= sans[i][g][u] : x[g][u] >= sans[i][g][u]));
+      if (mal >= 0) faute('promesse', `${k}.${o.cle} : ${g === 'F' ? 'trio' : 'paire'} ${u + 1} à ×${v}, au match ${mal + 1} : ${avec[mal] && avec[mal][g][u]} de la glace contre ${sans[mal] && sans[mal][g][u]} sans l'option`);
+    }
+  }
+  // « {nom} : plus de jambes » : le matin d'après, ses jambes sont plus hautes qu'elles ne l'auraient été sans l'option.
+  for (const [k, M] of DILEMMES) for (const o of M.options) {
+    if (!(o.action && o.action.energie)) continue;
+    const jambes = avecOption => {
+      const teams = ligue(GRAINES[0]), you = teams[0], p = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => you.roster[s.i])[0];
+      const L = creerLigue(teams, 82, { graine: `jambes-${k}`, decisions: avecOption ? [{ jour: J0, equipe: 0, moment: { famille: 'moment', cle: k, choix: o.cle, joueur: null, joueurs: [getPlayerKey(p)] } }] : [] });
+      jouerJusqua(L, J0 + 1);
+      return energieDe(p);
+    };
+    const x = jambes(true), y = jambes(false);
+    promesses++;
+    if (o.action.energie > 0 ? x <= y : x >= y) faute('promesse', `${k}.${o.cle} : jambes ${Math.round(x)} avec l'option, ${Math.round(y)} sans`);
+  }
+  exiger('ce qu\'une option promet à des joueurs arrive dans les feuilles d\'après : ils manquent leurs matchs, cèdent le filet, leur trio joue plus ou moins, leurs jambes remontent', !fautes.promesse.length && promesses > 0,
+    fautes.promesse.join(' · ') || `${promesses} promesses recomptées, match par match`);
 }
 
 console.log(`\n  (${((Date.now() - t0) / 1000).toFixed(1)} s)`);
