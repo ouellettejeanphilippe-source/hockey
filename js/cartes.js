@@ -24,7 +24,7 @@
 
 import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE, EDITIONS } from './rarete.js';
-import { actionSrc } from './actions.js';
+import { actionSrc, cadreAction } from './actions.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -429,6 +429,13 @@ export function anneeDeCarte(saison) {
  * Holo, elle sort du cadre et prend toute la carte. Le portrait reste pour qui n'a pas de photo d'action.
  */
 export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
+/*
+ * LE CADRE DE LA PHOTO (oct. 2026, JP : *try fit according to the space the picture will be in*). Le centre du visage
+ * dans la photo d'action (`cadreAction`, js/actions.js), ou null ; la fenêtre de chaque série y pose la face
+ * (`.photo-cadree`, style.css).
+ */
+export const cadrePhoto = p => (p && p.id && cadreAction(p.id)) || null;
+const styleCadre = c => (c ? ` style="--fx:${c[0]};--fy:${c[1]}"` : '');
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
@@ -489,7 +496,7 @@ export function tirageLimite(cle, num = '/99') {
  *                        FAC-SIMILÉ et le TIRAGE numéroté (« 07/25 »).
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
- * c : { serie, rarete, portraitHtml, actionSrc, pos, posClasse, gemmeHtml,
+ * c : { serie, rarete, portraitHtml, actionSrc, cadre, pos, posClasse, gemmeHtml,
  *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
  *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
  *       annee, tirage, signature, clubClasse, eclat }
@@ -497,9 +504,8 @@ export function tirageLimite(cle, num = '/99') {
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : serieDe('');
   const r = edition(c.rarete);
-  // Une photo d'action n'arrive qu'à une édition haute, dont la photo prend déjà toute la carte (« LES ÉDITIONS », style.css).
   const action = c.actionSrc
-    ? `<img class="carton-action" src="${echapper(c.actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">`
+    ? `<img class="carton-action photo-cadree" src="${echapper(c.actionSrc)}"${styleCadre(c.cadre)} alt="" loading="lazy" decoding="async" onerror="this.remove()">`
     : '';
   return `<span class="carton cs-${serie} tc-${r}">
     ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
@@ -706,7 +712,7 @@ export function brancherInclinaison(doc = document) {
  * 1.0 : une photo d'action (`photoAction`) prend toute l'illustration quand
  * elle est là ; si elle manque au chargement, le portrait revient.
  */
-export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '' }) {
+export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison = '', club = '', actionSrc = '', cadre = null }) {
   if (!portraitHtml) return `<span class="tc-joueur">
     <span class="tc-logo">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
@@ -714,7 +720,7 @@ export function artJoueur({ logoHtml = '', portraitHtml = '', pos = '', saison =
   </span>`;
   const fond = club ? getTeamBand(club).bg : '';
   return `<span class="tc-joueur cj-art"${fond ? ` style="--cj-fond:${fond}"` : ''}>
-    <span class="tc-portrait">${actionSrc ? `<img class="tc-action" src="${echapper(actionSrc)}" alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}${portraitHtml}</span>
+    <span class="tc-portrait">${actionSrc ? `<img class="tc-action photo-cadree" src="${echapper(actionSrc)}"${styleCadre(cadre)} alt="" loading="lazy" decoding="async" onerror="this.remove()">` : ''}${portraitHtml}</span>
     <span class="tc-medaille">${logoHtml}</span>
     <span class="tc-pos">${pos}</span>
     <span class="tc-saison">${club ? `${club} · ` : ''}${saison}</span>

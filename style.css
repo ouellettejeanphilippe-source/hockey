@@ -1640,8 +1640,21 @@ a.spin-club:hover { background: var(--fond-2); }
   width: 72%; height: 88%; left: 14%; right: auto; top: auto; bottom: 0;
   filter: grayscale(1) contrast(2.1) brightness(0.08) drop-shadow(0 0 0.35cqw var(--band));
 }
-/* La photo d'action couvre la carte : 5:7, toute la hauteur de la photo, la face au centre (js/recadrage-action.js). */
-.carton-photo > .carton-action { object-fit: cover; z-index: 1; }
+/*
+ * La photo d'action couvre la fenêtre de sa série, la face où la fenêtre la montre (oct. 2026, JP : *try fit according to
+ * the space the picture will be in*). La photo est 5:7 (js/recadrage-action.js) ; une fenêtre plus large la rogne en hauteur,
+ * une plus étroite en largeur ; le carton et la carte de jeu (`artJoueur`) font pareil. La fenêtre est un conteneur :
+ * `cqw`/`cqh` y sont SA largeur et SA hauteur. `--fx`/`--fy`, le centre du visage dans la photo (`cadres`, data/actions.json), sont posés sur l'image. Le décalage pose la face au milieu
+ * en largeur et au tiers du haut en hauteur, borné pour que la photo couvre toujours la fenêtre.
+ */
+:is(.carton-photo, .tc-portrait):has(> .photo-cadree) { container-type: size; }
+.photo-cadree {
+  --cadre-l: max(100cqw, 71.43cqh); --cadre-h: max(100cqh, 140cqw);
+  --cadre-pos: clamp(100cqw - var(--cadre-l), 50cqw - var(--fx, 0.5) * var(--cadre-l), 0px)
+    clamp(100cqh - var(--cadre-h), 30cqh - var(--fy, 0.25) * var(--cadre-h), 0px);
+  object-fit: cover; object-position: var(--cadre-pos);
+}
+.carton-photo > .carton-action { z-index: 1; }
 .carton-photo:has(> .carton-action) > :is(.visage, .headshot-fallback) { display: none; }
 .carton-photo > .headshot-fallback { position: absolute; inset: 0; display: grid; place-items: end center; font-size: 62cqw; line-height: 0.95; opacity: 0.28; }
 .carton-deco { inset: 0; z-index: 3; pointer-events: none; box-shadow: inset 0 0.9cqw 0.5cqw -0.6cqw color-mix(in srgb, white 40%, transparent), inset 0 0 0 0.4cqw color-mix(in srgb, currentColor 26%, transparent); }
@@ -1762,7 +1775,7 @@ a.spin-club:hover { background: var(--fond-2); }
 :is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-rayure) { --fini-mode: multiply; --fini-o: 0.6; }
 :is(.cs-fanion, .cs-almanach, .cs-affiche, .cs-bordure, .cs-crosse, .cs-tricolore, .cs-losange, .cs-kraft, .cs-rayure, .cs-vif) .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; filter: sepia(0.16) saturate(0.94) contrast(1.06); }
 /* La photo de match garde la tête : sa fenêtre, moins haute qu'un 5:7, rogne les patins plutôt que le casque. */
-:is(.cs-fanion, .cs-almanach, .cs-affiche, .cs-bordure, .cs-crosse, .cs-tricolore, .cs-losange, .cs-kraft, .cs-rayure, .cs-vif) .carton-photo > img.carton-action { object-position: 50% 12%; filter: sepia(0.12) saturate(0.95) contrast(1.05); }
+:is(.cs-fanion, .cs-almanach, .cs-affiche, .cs-bordure, .cs-crosse, .cs-tricolore, .cs-losange, .cs-kraft, .cs-rayure, .cs-vif) .carton-photo > img.carton-action { filter: sepia(0.12) saturate(0.95) contrast(1.05); }
 :is(.cs-fanion, .cs-almanach, .cs-affiche, .cs-bordure, .cs-crosse, .cs-tricolore, .cs-losange, .cs-kraft, .cs-rayure, .cs-vif) .carton-photo::after { background: radial-gradient(circle, rgba(40, 25, 10, 0.12) 0 0.18cqw, transparent 0.28cqw) 0 0 / 0.9cqw 0.9cqw, radial-gradient(120% 90% at 50% 35%, transparent 60%, rgba(30, 20, 8, 0.28)); }
 /* Hors cadre, la photo couvre le carton : les petits caractères passent en clair, et les marques du bord cèdent la place au métal de l'édition. */
 :is(.cs-fanion, .cs-almanach, .cs-affiche, .cs-bordure, .cs-crosse, .cs-tricolore, .cs-losange, .cs-kraft, .cs-rayure, .cs-vif):is(.tc-hors, .tc-rare, .tc-legendaire) .carton-photo { background: linear-gradient(color-mix(in srgb, var(--fonce) 70%, black), #0b0906); }
@@ -1966,7 +1979,7 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 11 · MÉDAILLON (1980-81) — le carton blanc glacé du début des années 80 : la photo pleine largeur au filet du club, l'écusson dans une rondelle moletée qui mord le coin de la photo, le nom sur une fine barre du club (Oswald). */
 .cs-medaillon { --c-fond: linear-gradient(172deg, #ffffff, #f5f4f0 55%, #e7e5df); --c-encre: #1d1d1f; --fini-mode: multiply; --fini-o: .55; }
 .cs-medaillon .carton-photo { inset: 4.5cqw 4.5cqw auto; height: 96cqw; background: radial-gradient(80% 60% at 50% 28%, #e4edf2, #a7b9c5 70%, #8197a6); box-shadow: 0 0 0 .55cqw var(--band), 0 0 0 1.15cqw #fff, 0 0 0 1.45cqw color-mix(in srgb, var(--stripe) 70%, #000); }
-.cs-medaillon .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 14%; -webkit-mask-image: none; mask-image: none; }
+.cs-medaillon .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-medaillon .carton-deco { box-shadow: none; }
 .cs-medaillon .carton-nom { --nom-l: 51cqw; --nom-max: 12cqw; --prenom: 3.8cqw; left: 19cqw; right: 4.5cqw; top: 104cqw; font-family: "Oswald", "Barlow Condensed", sans-serif; }
 .cs-medaillon .carton-nom .fname { color: #55565a; font-weight: 500; letter-spacing: .26em; opacity: 1; padding-left: 14cqw; }
@@ -1987,7 +2000,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-pointille { --c-fond: radial-gradient(circle, rgba(60, 50, 30, .05) 0 .25cqw, transparent .4cqw) 0 0 / 1.3cqw 1.3cqw, linear-gradient(165deg, #faf7ee, #efe9da); --c-encre: #222; --fini-mode: multiply; --fini-o: .55; }
 .cs-pointille::before { inset: 2.2cqw; padding: 2.4cqw; box-sizing: border-box; border-radius: 2.6cqw; background: radial-gradient(circle, var(--band) 0 .62cqw, transparent .72cqw) 0 0 / 2.4cqw 2.4cqw; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
 .cs-pointille .carton-photo { inset: 9cqw 10cqw auto 8cqw; height: 83cqw; background: radial-gradient(90% 70% at 50% 25%, #f4efe2, #c9c0ab); }
-.cs-pointille .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 14%; -webkit-mask-image: none; mask-image: none; }
+.cs-pointille .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-pointille .carton-orne > i:nth-child(1) { left: 10.4cqw; top: 11.4cqw; width: 82cqw; height: 83cqw; background: radial-gradient(circle, color-mix(in srgb, var(--stripe) 60%, #000) 0 .38cqw, transparent .5cqw) 0 0 / 1.3cqw 1.3cqw, var(--stripe); }
 .cs-pointille .carton-deco { box-shadow: none; }
 .cs-pointille .carton-deco::before { left: 6.2cqw; top: 7.2cqw; width: 85.6cqw; height: 86.6cqw; box-sizing: border-box; border: .7cqw dotted #222; border-radius: 1cqw; }
@@ -2008,7 +2021,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-ecran { --c-fond: repeating-linear-gradient(90deg, rgba(255, 255, 255, .025) 0 .3cqw, rgba(0, 0, 0, .03) .3cqw .6cqw), linear-gradient(180deg, color-mix(in srgb, var(--band) 80%, #fff) 0%, var(--band) 10% 82%, color-mix(in srgb, var(--band) 70%, #000)); --c-encre: var(--ink); }
 .cs-ecran .carton-orne > i:nth-child(1) { left: 3.5cqw; top: 3.5cqw; width: 75cqw; height: 91cqw; border-radius: 6cqw; background: linear-gradient(160deg, #3a3d42, #16181b 40%, #0b0c0e); box-shadow: inset 0 .5cqw .4cqw rgba(255, 255, 255, .22), inset 0 -.5cqw .6cqw rgba(0, 0, 0, .6), 0 .8cqw 1.2cqw rgba(0, 0, 0, .45); }
 .cs-ecran .carton-photo { left: 6.5cqw; top: 6.5cqw; width: 69cqw; height: 85cqw; border-radius: 10cqw / 8cqw; background: radial-gradient(70% 60% at 50% 35%, #5e7d8f, #233540 70%, #0c1418); box-shadow: 0 0 0 .6cqw #050506; }
-.cs-ecran .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 14%; -webkit-mask-image: none; mask-image: none; filter: contrast(1.1) saturate(1.25); }
+.cs-ecran .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; filter: contrast(1.1) saturate(1.25); }
 .cs-ecran .carton-photo::after { background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .16) 0 .3cqw, transparent .3cqw .75cqw), radial-gradient(120% 95% at 50% 50%, transparent 55%, rgba(0, 0, 0, .7)); }
 .cs-ecran .carton-deco { box-shadow: none; }
 .cs-ecran .carton-deco::before { left: 6.5cqw; top: 6.5cqw; width: 69cqw; height: 85cqw; border-radius: 10cqw / 8cqw; background: radial-gradient(60% 34% at 30% 14%, rgba(255, 255, 255, .34), transparent 70%), linear-gradient(200deg, transparent 62%, rgba(255, 255, 255, .1) 63% 70%, transparent 71%); }
@@ -2033,7 +2046,7 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 14 · LES BANDES (1983-84) — la photo à fond perdu sur le haut et, dessous, quatre bandes de vitesse aux couleurs du club qui filent vers la droite et s'effilent en traits ; le nom en Kanit noir italique sur la plus large. */
 .cs-bandes { --c-fond: linear-gradient(175deg, #ffffff, #f3f3f1); --c-encre: #111; --fini-mode: multiply; --fini-o: .55; }
 .cs-bandes .carton-photo { inset: 0 0 auto; height: 92cqw; background: radial-gradient(90% 70% at 50% 30%, #d9e2e8, #8a9ba8); }
-.cs-bandes .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 16%; -webkit-mask-image: none; mask-image: none; }
+.cs-bandes .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 16%); -webkit-mask-image: none; mask-image: none; }
 .cs-bandes .carton-deco { box-shadow: none; }
 .cs-bandes .carton-deco::before { left: 0; right: 0; top: 91.6cqw; height: .8cqw; background: #111; }
 .cs-bandes .carton-orne > i { left: -2cqw; z-index: 3; transform: skewX(-24deg); transform-origin: 0 0; }
@@ -2055,7 +2068,7 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 15 · QUADRILLAGE (1984-85) — la nuit synthétique : le joueur dans un soleil couchant tranché de fentes, un plancher de grille en perspective qui luit à la couleur vive du club, des étoiles, le nom en Kanit italique chromé. */
 .cs-quadrillage { --neon: color-mix(in srgb, var(--vive) 70%, #fff); --c-fond: radial-gradient(circle at 18% 22%, #fff 0 .25cqw, transparent .45cqw), radial-gradient(circle at 84% 30%, #fff 0 .2cqw, transparent .4cqw), radial-gradient(circle at 70% 9%, #fff 0 .18cqw, transparent .35cqw), radial-gradient(circle at 9% 58%, #fff 0 .2cqw, transparent .4cqw), radial-gradient(circle at 93% 64%, #fff 0 .22cqw, transparent .42cqw), linear-gradient(180deg, #090418 0%, #1d0b3a 40%, #4a1257 66%, #9c2a6a 68.5%, #120624 69%, #07020f 100%); --c-encre: #fff; }
 .cs-quadrillage .carton-photo { left: 14cqw; top: 18cqw; width: 72cqw; height: 72cqw; border-radius: 50%; background: linear-gradient(180deg, #ffe066, #ff9a3c 45%, #ff3d7f 85%); box-shadow: 0 0 3cqw color-mix(in srgb, #ff6a5a 70%, transparent), 0 0 9cqw color-mix(in srgb, #ff2d7a 45%, transparent); }
-.cs-quadrillage .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 10%; -webkit-mask-image: none; mask-image: none; }
+.cs-quadrillage .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 10%); -webkit-mask-image: none; mask-image: none; }
 .cs-quadrillage .carton-photo::after { background: linear-gradient(180deg, rgba(255, 214, 90, .35), rgba(255, 70, 130, .35)); mix-blend-mode: soft-light; }
 .cs-quadrillage .carton-deco { box-shadow: none; }
 .cs-quadrillage .carton-deco::before { left: 14cqw; top: 18cqw; width: 72cqw; height: 72cqw; border-radius: 50%; background: linear-gradient(180deg, transparent 0 73%, #1d0b3a 73% 74.6%, transparent 74.6% 79%, #24093f 79% 81.6%, transparent 81.6% 85.4%, #2c0c46 85.4% 89%, transparent 89% 92%, #34104e 92%); }
@@ -2074,7 +2087,7 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 16 · NÉON (1985-86) — l'enseigne de bar sur un mur de briques noires : un tube de néon à la couleur vive du club cerne la photo en arche et luit, ses attaches, le nom en Monoton allumé, l'écusson dans une petite enseigne. */
 .cs-neon { --neon: color-mix(in srgb, var(--vive) 72%, #fff); --c-fond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10'%3E%3Cpath d='M0 .25H20M0 5.25H20M5 0v5M15 5v5' stroke='%23fff' stroke-opacity='.07' stroke-width='.5'/%3E%3C/svg%3E") 0 0 / 12cqw 6cqw, radial-gradient(70% 50% at 50% 38%, color-mix(in srgb, var(--vive) 22%, transparent), transparent 70%), linear-gradient(180deg, #121014, #08070a); --c-encre: #fff; }
 .cs-neon .carton-photo { left: 14cqw; right: 14cqw; top: 12cqw; height: 80cqw; border-radius: 36cqw 36cqw 2cqw 2cqw; background: radial-gradient(80% 60% at 50% 30%, color-mix(in srgb, var(--vive) 35%, #1a1a22), #08080b); }
-.cs-neon .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 10%; -webkit-mask-image: none; mask-image: none; }
+.cs-neon .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 10%); -webkit-mask-image: none; mask-image: none; }
 .cs-neon .carton-deco { box-shadow: none; }
 .cs-neon .carton-deco::before { left: 11.6cqw; right: 11.6cqw; top: 9.6cqw; height: 84.8cqw; box-sizing: border-box; border: 1.1cqw solid #fff; border-radius: 38cqw 38cqw 3.4cqw 3.4cqw; box-shadow: 0 0 .5cqw .2cqw var(--neon), 0 0 2.4cqw .4cqw var(--vive), 0 0 6cqw var(--vive), inset 0 0 .5cqw .2cqw var(--neon), inset 0 0 2.4cqw var(--vive); }
 .cs-neon .carton-deco::after { left: 9.8cqw; right: 9.8cqw; top: 48cqw; height: 3cqw; background: linear-gradient(90deg, #5a5d63 0 3.4cqw, transparent 3.4cqw calc(100% - 3.4cqw), #5a5d63 calc(100% - 3.4cqw)); }
@@ -2095,7 +2108,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-marquoir { --c-fond: repeating-linear-gradient(90deg, rgba(255, 255, 255, .03) 0 .3cqw, transparent .3cqw .7cqw), linear-gradient(180deg, #2c2f34, #1a1c20 60%, #111316); --c-encre: #ffb13b; }
 .cs-marquoir::before { inset: 0; border: 2.6cqw solid var(--band); border-radius: inherit; box-shadow: inset 0 0 0 .5cqw rgba(0, 0, 0, .55), inset 0 .8cqw 1.2cqw rgba(0, 0, 0, .5); }
 .cs-marquoir .carton-photo { left: 7cqw; right: 7cqw; top: 7cqw; height: 76cqw; border-radius: 1cqw; background: radial-gradient(90% 70% at 50% 25%, #3a4654, #10151b); box-shadow: 0 0 0 1.2cqw #050506, 0 0 0 1.6cqw #44484f; }
-.cs-marquoir .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 14%; -webkit-mask-image: none; mask-image: none; }
+.cs-marquoir .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-marquoir .carton-orne > i:nth-child(1) { inset: 4.4cqw 4.4cqw auto; height: 82cqw; z-index: 3; background: radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 0 0 / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 100% 0 / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 0 100% / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 100% 100% / 1.6cqw 1.6cqw no-repeat; }
 .cs-marquoir .carton-orne > i:nth-child(2) { left: 5cqw; right: 5cqw; top: 91cqw; height: 37cqw; border-radius: 1.4cqw; background: radial-gradient(circle, rgba(255, 160, 40, .11) 0 .45cqw, transparent .55cqw) 0 0 / 1.5cqw 1.5cqw, #050506; box-shadow: inset 0 0 0 .5cqw #2c2e33, inset 0 0 0 1.1cqw #050506, inset 0 0 0 1.4cqw #3a3d43, 0 .8cqw 1.6cqw rgba(0, 0, 0, .6); }
 .cs-marquoir .carton-orne > i:nth-child(2)::before { content: 'LOCAL'; left: 3.6cqw; top: -3.2cqw; padding: 1cqw 2.4cqw; border-radius: .6cqw; font: 400 3.2cqw/1 "Bungee", sans-serif; letter-spacing: .12em; color: var(--ink); background: var(--band); box-shadow: 0 0 0 .4cqw #050506; }
@@ -2116,7 +2129,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-punaise { --c-fond: radial-gradient(circle at 30% 40%, rgba(0, 0, 0, .3) 0 .16cqw, transparent .3cqw) 0 0 / 1.3cqw 1.1cqw, radial-gradient(circle at 70% 20%, rgba(0, 0, 0, .22) 0 .22cqw, transparent .4cqw) .3cqw .5cqw / 1.9cqw 1.7cqw, radial-gradient(circle at 20% 70%, rgba(255, 240, 210, .25) 0 .14cqw, transparent .28cqw) 0 0 / 1.1cqw 1.5cqw, radial-gradient(circle at 60% 50%, rgba(255, 240, 210, .16) 0 .3cqw, transparent .5cqw) .7cqw .2cqw / 2.9cqw 2.3cqw, radial-gradient(ellipse at 40% 60%, rgba(0, 0, 0, .12) 0 .5cqw, transparent .9cqw) 0 0 / 4.3cqw 3.7cqw, radial-gradient(130% 90% at 50% 40%, transparent 50%, rgba(0, 0, 0, .35)), color-mix(in srgb, var(--band) 42%, #a87b4c); --c-encre: #fff; }
 .cs-punaise .carton-orne > i:nth-child(1) { left: 8cqw; top: 13cqw; width: 84cqw; height: 92cqw; transform: rotate(-3deg); background: linear-gradient(170deg, #fbfaf6, #ecebe4); box-shadow: 0 .3cqw .4cqw rgba(0, 0, 0, .3), 1cqw 1.8cqw 2.4cqw rgba(0, 0, 0, .4); }
 .cs-punaise .carton-photo { left: 12.5cqw; top: 17.5cqw; width: 75cqw; height: 70cqw; transform-origin: 37.5cqw 41.5cqw; transform: rotate(-3deg); background: radial-gradient(90% 70% at 50% 25%, #c8d2d8, #75868f); box-shadow: inset 0 0 0 .3cqw rgba(0, 0, 0, .25); }
-.cs-punaise .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 12%; -webkit-mask-image: none; mask-image: none; filter: contrast(1.04) saturate(.92) sepia(.12); }
+.cs-punaise .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 12%); -webkit-mask-image: none; mask-image: none; filter: contrast(1.04) saturate(.92) sepia(.12); }
 .cs-punaise .carton-photo::after { background: linear-gradient(135deg, rgba(255, 255, 255, .18), transparent 40%), radial-gradient(120% 100% at 50% 40%, transparent 60%, rgba(60, 30, 0, .25)); }
 .cs-punaise .carton-deco { box-shadow: none; }
 .cs-punaise .carton-deco::before, .cs-punaise .carton-deco::after { width: 7cqw; height: 7cqw; border-radius: 50%; background: radial-gradient(circle at 36% 30%, rgba(255, 255, 255, .85) 0 .6cqw, transparent 1.6cqw), radial-gradient(circle at 50% 50%, var(--stripe) 0 58%, color-mix(in srgb, var(--stripe) 60%, #000) 70%); box-shadow: .9cqw 1.4cqw 1cqw rgba(0, 0, 0, .45), inset 0 -.5cqw .8cqw rgba(0, 0, 0, .35); }
@@ -2136,7 +2149,7 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 19 · LA VAGUE (1988-89) — l'aérographe de la fin des années 80 : des vagues peintes au pistolet aux couleurs du club balaient le bas de la photo, leur crête blanche, la bruine ; le nom en Righteous rempli d'un chrome. */
 .cs-vague { --vague: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60' preserveAspectRatio='none'%3E%3Cpath d='M0 22C14 6 30 2 46 14S78 34 100 6V60H0Z'/%3E%3C/svg%3E"); --houle: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 60' preserveAspectRatio='none'%3E%3Cpath d='M0 8C16 26 34 30 54 18S86 2 100 12V60H0Z'/%3E%3C/svg%3E"); --c-fond: radial-gradient(120% 60% at 0% 0%, rgba(255, 255, 255, .9), transparent 60%), linear-gradient(160deg, #f7f8fc, #e3e8f1 60%, #d3dae6); --c-encre: #fff; --fini-mode: multiply; --fini-o: .55; }
 .cs-vague .carton-photo { inset: 4.5cqw 4.5cqw auto; height: 100cqw; border-radius: 3cqw 3cqw 0 0; background: radial-gradient(90% 70% at 50% 25%, #eef2f7, #9fb0c4); }
-.cs-vague .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 14%; -webkit-mask-image: none; mask-image: none; }
+.cs-vague .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-vague .carton-deco { box-shadow: none; }
 .cs-vague .carton-orne > i { left: -6cqw; right: -6cqw; z-index: 3; -webkit-mask: var(--vague) 0 0 / 100% 100% no-repeat; mask: var(--vague) 0 0 / 100% 100% no-repeat; }
 .cs-vague .carton-orne > i:nth-child(1) { top: 79cqw; bottom: 0; -webkit-mask-image: var(--houle); mask-image: var(--houle); background: radial-gradient(40% 30% at 55% 22%, color-mix(in srgb, var(--stripe) 40%, #fff), transparent 80%), linear-gradient(180deg, var(--stripe), color-mix(in srgb, var(--stripe) 70%, #000) 40%); filter: blur(.2cqw); }
@@ -2156,7 +2169,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-geant .carton-club :is(img, svg) { position: absolute; left: 4.5cqw; bottom: 0; width: 22cqw; height: 22cqw; filter: drop-shadow(0 0 .25cqw #fff) drop-shadow(0 0 .25cqw #fff) drop-shadow(.8cqw .8cqw 0 rgba(0, 0, 0, .4)); }
 .cs-geant .carton-sigle { display: block; position: absolute; left: 3cqw; top: 82cqw; width: 82cqw; transform-origin: 0 0; transform: rotate(-90deg); text-align: center; font: 400 40cqw/30cqw "Anton", sans-serif; letter-spacing: .02em; color: var(--ink); text-shadow: .5cqw .5cqw 0 color-mix(in srgb, var(--band) 50%, #000), 1cqw 1cqw 0 color-mix(in srgb, var(--band) 50%, #000), 1.5cqw 1.5cqw 0 color-mix(in srgb, var(--band) 50%, #000); }
 .cs-geant .carton-photo { left: 27cqw; right: 4cqw; top: 14cqw; height: 82cqw; background: radial-gradient(90% 70% at 50% 25%, #e7ecef, #98a7b2); box-shadow: 0 0 0 .9cqw #fff, 1.8cqw 1.8cqw 0 .9cqw rgba(0, 0, 0, .45); }
-.cs-geant .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: 50% 14%; -webkit-mask-image: none; mask-image: none; }
+.cs-geant .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-geant .carton-deco { box-shadow: none; }
 .cs-geant .carton-nom { --nom-l: 70cqw; --nom-max: 17cqw; --prenom: 4cqw; left: 31cqw; right: 4cqw; top: 100cqw; height: 30cqw; justify-content: flex-start; align-items: flex-end; text-align: right; font-family: "Anton", "Barlow Condensed", sans-serif; color: #fff; }
 .cs-geant .carton-nom .fname { font: 400 var(--prenom)/1 "Anton", sans-serif; letter-spacing: .3em; margin-right: -.3em; color: var(--ink); opacity: 1; }
@@ -2353,7 +2366,6 @@ a.spin-club:hover { background: var(--fond-2); }
 
 :is(.cs-patinoire, .cs-marbre, .cs-pleine, .cs-ultra, .cs-dorure, .cs-refracteur, .cs-eclat, .cs-ardoise, .cs-circuit, .cs-millenaire) { --sig-encre: white; }
 /* La photo d'action est cadrée la tête en haut : une fenêtre plus courte qu'elle garde le visage, pas les patins. */
-:is(.cs-patinoire, .cs-marbre, .cs-pleine, .cs-ultra, .cs-dorure, .cs-refracteur, .cs-eclat, .cs-ardoise, .cs-circuit, .cs-millenaire) .carton-photo > img.carton-action { object-position: 50% 18%; }
 
 /* 31 · ACIER (2000-01) — une plaque d'acier brossé, la fenêtre chanfreinée creusée dedans, des rivets, une plaque de nom vissée et gravée au laser, l'écusson dans un écrou ; l'esprit des cartes de métal de l'an 2000. */
 .cs-acier {
@@ -2592,7 +2604,6 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-prisme .carton-imprime span:first-of-type { display: none; }
 .fc-verso.cs-prisme { --v-fond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 50 70' preserveAspectRatio='none' shape-rendering='crispEdges'%3E%3Cpath fill='%23000' fill-opacity='.03' d='M0 11L13 13L12 31ZM21 14L34 13L39 32ZM34 13L50 11L50 29ZM26 55L26 70L10 70Z'/%3E%3Cpath fill='%23000' fill-opacity='.07' d='M11 0L22 0L13 13ZM35 39L50 40L50 52ZM0 59L10 70L0 70Z'/%3E%3Cpath fill='%23000' fill-opacity='.11' d='M13 13L21 14L12 31ZM21 14L39 32L22 26ZM34 13L50 29L39 32Z'/%3E%3Cpath fill='%23000' fill-opacity='.15' d='M0 0L11 0L13 13ZM22 0L39 0L21 14ZM0 25L12 31L0 41ZM39 32L50 29L50 40ZM16 38L26 55L10 57Z'/%3E%3Cpath fill='%23000' fill-opacity='.19' d='M0 11L12 31L0 25ZM21 14L22 26L12 31ZM0 41L10 57L0 59ZM26 55L38 53L37 70Z'/%3E%3Cpath fill='%23fff' fill-opacity='.03' d='M39 0L34 13L21 14ZM35 39L50 52L38 53ZM38 53L50 70L37 70Z'/%3E%3Cpath fill='%23fff' fill-opacity='.07' d='M0 0L13 13L0 11ZM22 26L35 39L28 40ZM0 41L16 38L10 57ZM28 40L35 39L26 55ZM35 39L38 53L26 55Z'/%3E%3Cpath fill='%23fff' fill-opacity='.11' d='M22 0L21 14L13 13ZM39 0L50 0L50 11ZM22 26L39 32L35 39ZM16 38L28 40L26 55Z'/%3E%3Cpath fill='%23fff' fill-opacity='.15' d='M39 0L50 11L34 13ZM12 31L16 38L0 41ZM12 31L22 26L16 38ZM39 32L50 40L35 39ZM26 55L37 70L26 70ZM38 53L50 52L50 70Z'/%3E%3Cpath fill='%23fff' fill-opacity='.19' d='M22 26L28 40L16 38ZM0 59L10 57L10 70ZM10 57L26 55L10 70Z'/%3E%3C/svg%3E") 0 0 / 100% 100%, linear-gradient(170deg, color-mix(in srgb, var(--team-band, #243044) 70%, black), color-mix(in srgb, var(--team-band, #243044) 40%, black)); }
 
-:is(.cs-acier, .cs-decoupe, .cs-miroir, .cs-blason, .cs-releve, .cs-souvenir, .cs-vitre, .cs-givre, .cs-prisme) .carton-photo > img.carton-action { object-position: 50% 18%; }
 @container (max-width: 139px) { :is(.cs-acier, .cs-decoupe, .cs-miroir, .cs-releve, .cs-souvenir, .cs-vitre, .cs-prisme) .carton-marque { display: none; } }
 
 /* Sur un carton foncé, la signature se signe en blanc ; à la carte mini, la marque se tait (comme l'imprimé). */
@@ -2807,7 +2818,6 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-brume .carton-photo > img.visage:not(.silhouette) { inset: 15cqw 0 auto; width: 100cqw; height: 100cqw; filter: saturate(.75) contrast(1.05); -webkit-mask: radial-gradient(70% 75% at 50% 38%, black 55%, transparent 92%); mask: radial-gradient(70% 75% at 50% 38%, black 55%, transparent 92%); }
 .cs-brume .carton-photo::after { background: none; }
 .cs-brume:is(.tc-commune, .tc-peu) .carton-photo:has(> .carton-action) { top: 20cqw; height: 96cqw; -webkit-mask: linear-gradient(transparent, black 9%); mask: linear-gradient(transparent, black 9%); }
-.cs-brume:is(.tc-commune, .tc-peu) .carton-photo > .carton-action { object-position: 50% 0; }
 .cs-brume .carton-deco { box-shadow: none; }
 .cs-brume .carton-orne > i:nth-child(2) { z-index: 3; inset: 0; background: linear-gradient(color-mix(in srgb, var(--vive) 25%, #e8eef4), color-mix(in srgb, var(--vive) 40%, #b9c3ce));
   -webkit-mask: var(--fumee) 30% 60% / 140% 120%, radial-gradient(62% 52% at 50% 40%, transparent 45%, black 85%); -webkit-mask-composite: source-in; mask: var(--fumee) 30% 60% / 140% 120%, radial-gradient(62% 52% at 50% 40%, transparent 45%, black 85%); mask-composite: intersect; opacity: .8; }
@@ -3060,7 +3070,7 @@ a.spin-club:hover { background: var(--fond-2); }
 .fc-verso.cs-aurore { --v-fond: radial-gradient(70% 25% at 30% 10%, rgba(60, 255, 170, 0.25), transparent), radial-gradient(60% 20% at 75% 5%, rgba(150, 90, 255, 0.25), transparent), linear-gradient(180deg, #071029, #050812); --v-encre: #eafff6; --v-encre-2: #8fd8c0; --v-prix: #7dffcf; }
 
 /* La photo d'action (5:7, son propre fond) se cale par le haut dans une fenêtre plus large qu'elle : la tête n'est jamais coupée. */
-:is(.cs-bulle, .cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-horizon, .cs-aurore) .carton-photo > .carton-action { object-position: 50% 4%; filter: contrast(1.05) saturate(1.06); }
+:is(.cs-bulle, .cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-horizon, .cs-aurore) .carton-photo > .carton-action { filter: contrast(1.05) saturate(1.06); }
 
 /* La carte mini : les petites marques (moins de 4 px) se taisent, comme les petits caractères. */
 @container (max-width: 139px) { :is(.cs-origine, .cs-spectre, .cs-velocite, .cs-apogee, .cs-horizon, .cs-aurore) .carton-marque { display: none; } }
@@ -3303,7 +3313,7 @@ a.spin-club:hover { background: var(--fond-2); }
   mask-image: linear-gradient(90deg, transparent 0, #000 16%, #000 84%, transparent 100%);
 }
 .cj-art .tc-portrait .headshot-fallback { font-size: var(--t-6); }
-.cj-art .tc-portrait > .tc-action { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; object-position: 50% 30%; }
+.cj-art .tc-portrait > .tc-action { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; aspect-ratio: auto; transform: none; }
 .cj-art .tc-portrait:has(> .tc-action) > :not(.tc-action) { display: none; }
 /* Le médaillon : l'écusson, un liseré clair découpé à sa forme (jamais un cercle autour d'un logo). */
 .cj-art .tc-medaille { top: 6px; right: 6px; bottom: auto; width: 30px; height: 30px; filter: drop-shadow(0 0 0.6px #fff) drop-shadow(0 0 0.6px #fff) drop-shadow(0 1px 3px rgba(0, 0, 0, 0.65)); }
