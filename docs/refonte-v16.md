@@ -60,6 +60,8 @@ Le robot (scripts/lib/cartes_robot.mjs `engagerDuRobot`) engage ses adjoints com
 
 Il le fait aux paliers et à chaque pack qu'il achète (scripts/lib/rogue_sim.mjs). D'une saison à l'autre de la run, il reporte comme le jeu la base de ses coachs, son coach en poste et son personnel (`reportDeSaison`) ; avant, il repartait chaque saison à la confiance I, avec les deux adjoints du départ.
 
+**Ce que la profondeur en dit** (`check_profondeur`, `GRAINES=1 CAMPAGNES=1 RUNS_CAMPAGNE=2`, contre la tranche 2 sur les mêmes dés) : l'écart attentif − distrait tombe de +15,0 à +11,1 V par saison, et le distrait des bons clubs ne rate plus les séries (0 fois sur 4, contre 3). Ce n'est pas le recompte du lundi (le retirer au distrait ne change rien) : ce sont ses adjoints pris au hasard (s'il n'engage rien, l'écart revient à +15,9 et 1 fois sur 4). Un adjoint mal choisi aide encore, là où une place jouée au hasard coûtait. À régler à la tranche 5 : le défaut d'un adjoint hors de la couleur doit mordre. L'attentif − défaut passe de +5,3 à +4,6 V (± 2,1), dans le bruit.
+
 ## 4. La confiance, par trois chemins
 
 Les points d'un coach (`buildDe`, js/banque.js) :
