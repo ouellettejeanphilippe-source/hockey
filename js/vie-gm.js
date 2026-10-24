@@ -985,6 +985,11 @@ export function texteDuRetour(s, gagne, n, x = {}) {
   const mot = b ? avecNoms(b.mot, x) : '';
   return `${x.nom} : ${quoi} en ${s.apres} matchs depuis ${s.depuis}.${mot ? ` ${mot[0].toUpperCase()}${mot.slice(1)}.` : ''}`;
 }
+/** Un suivi en cours, en une ligne de vrais chiffres : « 🐣 La recrue · Demitra : 3 / 6 points · 4/10 matchs ». */
+export function motDuSuiviEnCours(x) {
+  const u = UNITES_DU_SUIVI[x.suivi.mesure];
+  return `${x.ico} ${x.titre} · ${nomCourt(x.joueur.n)} : ${x.n} / ${x.suivi.seuil} ${u}${x.suivi.seuil > 1 ? 's' : ''} · ${x.joues}/${x.suivi.apres} matchs`;
+}
 /** La voix qui raconte le retour d'un fil : celle du fil. */
 export const voixDuFil = sorte => (VOIX_DES_FILS[sorte] || {}).de || 'an';
 

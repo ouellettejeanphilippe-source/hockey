@@ -307,9 +307,23 @@ async function sonde(h) {
     return out.join('\n');
   });
 }
+/*
+ * CE QUI COURT SE SUIT (oct. 2026, JP : *ça le confirme bon, mais aucun suivi*). L'objectif du proprio se lit chaque
+ * matin où il bouge dans Hier soir (« 🏢 … · Martin : 5 / 21 points · 5/20 matchs ») ; son verdict arrive comme un
+ * message de la boîte, aux vrais chiffres.
+ */
+const suivi = { pas: new Set(), verdict: '' };
+async function lireLeSuivi() {
+  const l = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-soir .som-l')].map(e => e.textContent.trim()).filter(t => /^🏢 .+ · \d+\/20 matchs$/.test(t)));
+  for (const t of l) suivi.pas.add(t);
+  // La ligne de la boîte, puis le message en entier chez le proprio (son récit, ses vrais chiffres) : on garde le plus long.
+  const v = await page.evaluate(() => [...document.querySelectorAll('#hubModal .hub-msg')].map(a => a.textContent.replace(/\s+/g, ' ').trim()).filter(x => /Objectif (atteint|raté|levé)/.test(x)).sort((a, b) => b.length - a.length)[0] || '');
+  if (v.length > suivi.verdict.length) { suivi.verdict = v; if (/ en \d+ matchs/.test(v)) await page.screenshot({ path: `${DOSSIER}/rogue-verdict-proprio.png` }); }
+}
 async function regler() {
   for (let i = 0; i < 30; i++) {
     await guetterBords('en jouant');
+    await lireLeSuivi();
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
     // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
@@ -1637,6 +1651,9 @@ if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversé
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
 console.log(`20d. périodes de duel jouées (période:geste:verdict) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
+console.log(`20s. ce qui court : ${suivi.pas.size} pas de l'objectif dits dans Hier soir (${[...suivi.pas].slice(0, 3).join(' | ') || 'aucun'}) · verdict : ${suivi.verdict.slice(0, 160) || 'aucun'}`);
+if (suivi.pas.size < 2) erreurs.push(`l'objectif du proprio ne se suit pas dans Hier soir (${suivi.pas.size} pas)`);
+if (!/Objectif (atteint|raté|levé)[^]* en \d+ matchs/.test(suivi.verdict)) erreurs.push(`le verdict du proprio ne dit pas ses vrais chiffres : « ${suivi.verdict.slice(0, 160)} »`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · choix envoyés (genre → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
 if (afaire.vu && !afaire.lots.length) erreurs.push('aucun choix touché n\'a été envoyé');
