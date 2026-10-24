@@ -261,7 +261,7 @@ const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le 
 const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
 // LES SCÈNES (Jalon M) : les choix d'À faire mis en scène citent leur voix ; on garde la première de chaque genre.
 // V10 (tranche 5) : les dossiers de la semaine, la blessure (A4) ; la route (A3) se juge à son bloc.
-const SCENES = ['cartes', 'places', 'dossier', 'blessure'];
+const SCENES = ['cartes', 'dossier', 'blessure'];
 const scenes = new Map();
 const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : le choix déplié au-dessus de la barre (B4)
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
@@ -502,7 +502,7 @@ async function regler() {
         await attendreDecisions(n0);
         const sv = await lireSauvegarde();
         const d = (((sv.partie || {}).decisions) || []).slice(n0).find(x => String(x.palier || '').startsWith('r:'));
-        if (!d || d.place !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas la carte pour une place (${JSON.stringify(d || null)})`);
+        if (!d || d.place !== lu.cles[0] || d.recompense !== undefined || d.retrait !== undefined) butin.fautes.push(`le butin n'enregistre pas l'adjoint pris (${JSON.stringify(d || null)})`);
         else butin.pris.push(lu.cles[0]);
         continue;
       }
@@ -1000,7 +1000,7 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
   await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
   await page.waitForTimeout(500);
 }
-// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; leurs cartes vont au deck et à tes places (une de trop se vend, À faire). V10 : les deux de la première run.
+// Jalon P2 : des packs mixtes (des joueurs ET des cartes) ; V16, leur carte est un adjoint ou un outil de gérant. V10 : les deux de la première run.
 await regler();
 for (const pack of ['j:bronze', 'j:epoque']) {
   if (!(await acheter(pack))) { console.log(`   (pas assez de jetons pour ${pack})`); continue; }
@@ -1013,9 +1013,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   await regler();
 }
 /*
- * TES PLACES (V9, tranche 5b ; au Marché › Tes cartes depuis le 23 oct.) : après les packs de cartes, trois cartes au
- * plus, la carte de trop vendue par À faire. Chaque carte dit sur quoi elle joue et ce qu'un toucher fait ; la pastille
- * du Marché compte ce qui attend d'être joué.
+ * TES CARTES, AU MARCHÉ (V16) : les places et la carte de trop sont parties. Ce qui a une maison s'y joue (10m) ; le
+ * Marché garde le reste, et sa pastille compte ce qui attend d'être joué.
  */
 {
   await auBureau();
@@ -1038,26 +1037,18 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (cs) console.log(`10d. le dépistage : ${(cs.h / Math.max(1, cs.v)).toFixed(2).replace('.', ',')} écran · ${cs.barres} rangée(s) en barres · pronostic ${cs.chances ? 'oui' : 'non'} · « Tes lignes » ${cs.lignes ? 'oui' : 'non'}`);
   if (cs && cs.barres && cs.barres !== 3) erreurs.push(`le dépistage montre ${cs.barres} rangées en barres, pas trois`);
   if (cs && (!cs.chances || !cs.lignes)) erreurs.push('Effectif › Dépistage ne montre pas le pronostic du match ou « Tes lignes »');
-  // TES PLACES, AU MARCHÉ › TES CARTES : l'onglet « Tes places » de l'inventaire.
+  // TES CARTES, AU MARCHÉ : plus d'onglet « Tes places » ; « Permanent » compte ce qui n'a pas d'autre maison.
   await versMarche('cartes');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }).catch(() => {});
-  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="partie"]').catch(() => {}); await page.waitForTimeout(400);
-  await page.screenshot({ path: `${DOSSIER}/rogue-places.png`, fullPage: true });
-  const pl = await page.$eval('#pageMarche .hub-page[data-genre="cartes"]', h => {
-    const cartes = [...h.querySelectorAll('.inv-grille .bq-carte')];
-    const n = x => Number(((x.querySelector('.bq-compte') || {}).textContent || '×1').slice(1)) || 1;
-    return { onglet: !!h.querySelector('.inv-onglet[data-onglet="partie"].on'), cases: cartes.reduce((a, x) => a + n(x), 0),
-      sansVerbe: cartes.filter(x => !x.querySelector('.inv-jouer, .inv-renvoi')).length,
-      sansCible: cartes.filter(x => !((x.querySelector('.bq-cible') || {}).textContent || '').trim()).length };
-  }).catch(() => null);
+  await page.screenshot({ path: `${DOSSIER}/rogue-cartes.png`, fullPage: true });
+  const pl = await page.$eval('#pageMarche .hub-page[data-genre="cartes"]', h => ({ places: !!h.querySelector('.inv-onglet[data-onglet="partie"]'),
+    aJouer: Number(((h.querySelector('.inv-onglet[data-onglet="permanent"] span') || {}).textContent || '0').trim()) || 0 })).catch(() => null);
   const pastille = Number(((await page.textContent('#navbar .navtab[data-section="marche"] .navtab-badge').catch(() => '')) || '0').trim()) || 0;
-  const trop = (await decisionsDuCombat()).filter(d => d.vend && !d.joue).length;
-  console.log(`10a. tes places, au Marché › Tes cartes : ${pl ? `${pl.cases} carte(s), ${pl.sansVerbe} sans verbe, ${pl.sansCible} sans cible` : '(page absente)'} · pastille du Marché ${pastille} · ${trop} vente(s) de la carte de trop · À faire : ${[...afaire.genres].join(', ')}`);
-  if (!pl || !pl.onglet) erreurs.push('tes places ne se voient pas au Marché › Tes cartes');
-  else if (pl.cases > 3) erreurs.push(`le Marché montre ${pl.cases} cartes à tes places (trois au plus, la carte de trop se vend)`);
-  else if (pl.sansVerbe) erreurs.push(`${pl.sansVerbe} carte(s) de tes places ne disent pas ce qu'un toucher fait`);
-  else if (pl.sansCible) erreurs.push(`${pl.sansCible} carte(s) de tes places ne disent pas sur quoi elles jouent`);
-  else if (pl.cases && pastille < pl.cases) erreurs.push(`la pastille du Marché dit ${pastille} pour ${pl.cases} carte(s) à jouer`);
+  console.log(`10a. tes cartes, au Marché : ${pl ? `${pl.aJouer} à jouer` : '(page absente)'} · pastille du Marché ${pastille} · À faire : ${[...afaire.genres].join(', ')}`);
+  if (!pl) erreurs.push('« Tes cartes » ne s\'ouvre pas au Marché');
+  else if (pl.places) erreurs.push('l\'onglet « Tes places » est encore au Marché › Tes cartes');
+  else if (pl.aJouer && pastille < pl.aJouer) erreurs.push(`la pastille du Marché dit ${pastille} pour ${pl.aJouer} carte(s) à jouer`);
+  if (afaire.genres.has('places')) erreurs.push('À faire demande encore laquelle vendre (la carte de trop)');
   // L'INFIRMERIE (V8 ; son sous-onglet en V12-2) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
   await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
   await page.click('#sousNav .soustab[data-page="joueurs"]', { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(400);
@@ -1183,63 +1174,8 @@ console.log(`10. inventaire : ${poche.join(' · ') || '(vide)'}`);
   await versMarche('cartes');
   await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 });
 }
-/*
- * UNE MODIF DE JOUEUR SE POSE AU VERSO (S80). JP : *donne l'alignement, je
- * clique sur le joueur, pis je dois aller au verso pour l'ajouter dans une
- * des slots joueurs?* ; *je veux que les upgrades de joueurs se fassent au
- * verso de la carte*. « Jouer » ouvre l'alignement ; toucher un joueur ouvre
- * sa fiche retournée au verso, la carte en attente sur sa case libre ;
- * « Poser ici » décide — une décision `{ joue, mutation }`.
- */
+// V16 : une retouche ne se joue plus au Marché (l'onglet « Tes places » est parti) : elle se pose au verso de son joueur (12b).
 let posee = null, nomModif = '';
-{
-  /*
-   * UNE MODIF QUE PERSONNE NE PEUT RECEVOIR (« Le physio » sans malus, un
-   * masque sans gardien…) ouvre l'alignement tout grisé, avec la raison : on
-   * la referme et on essaie la suivante (S80, la fusion : le premier tirage
-   * n'en donnait pas toujours une qui se pose).
-   */
-  const nModifs = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])', e => e.length);
-  /*
-   * EN ROGUE, UNE CARTE SE JOUE DE TES PLACES (V9) : quand tu veux, sans limite. Qu'aucune modif n'y soit dépend du
-   * tirage (et de la carte de trop vendue), et l'étape du verso attend.
-   */
-  const modifsVues = await page.$$eval('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur', e => e.length);
-  // Jalon P2 : plus de pack Modifs ; une modif sort d'un pack mixte au hasard du tirage, et l'étape du verso attend sans elle.
-  if (!modifsVues) console.log('7a. aucune modif de joueur dans l\'inventaire (les packs mixtes n\'en ont pas donné) : l\'étape du verso attend');
-  else if (!nModifs) console.log(`7a. ${modifsVues} modif(s) dans l'inventaire, aucune ne se joue : l'étape du verso attend`);
-  let permis = 0, grises = 0;
-  for (let k = 0; k < nModifs && !permis; k++) {
-    if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-    const jouer = (await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-joueur .inv-jouer:not([disabled])'))[k];
-    if (!jouer) break;
-    nomModif = await jouer.evaluate(b => (((b.closest('.bq-joueur') || b).querySelector('.tc-nom') || {}).textContent || '').trim());
-    await jouer.click();
-    await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
-    await page.waitForTimeout(400);
-    permis = await page.$$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', e => e.length);
-    grises = await page.$$eval('#choixModal .aln-ligne .aln-choisir[disabled]', e => e.length);
-    if (!permis) {
-      console.log(`   « ${nomModif} » : personne ne peut la recevoir (${grises} grisés), on essaie la suivante`);
-      await page.click('#choixModal:not([hidden]) .choix-fermer').catch(() => page.keyboard.press('Escape'));
-      await page.waitForTimeout(500);
-    }
-  }
-  if (nModifs && !permis) console.log('7a. aucune modif ne se pose sur cet alignement : l\'étape du verso est sautée');
-  else if (nModifs) {
-    await page.screenshot({ path: `${DOSSIER}/rogue-poser-alignement.png` });
-    // Jalon U : « Poser » sur la rangée décide tout de suite (plus de détour par la fiche au verso).
-    const nomJoueur = await page.$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', b => b.closest('.aln-ligne').querySelector('.pcard-nom').textContent.trim());
-    await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
-    await auBureau();
-    await page.waitForTimeout(800);
-    await regler();
-    d = await decisions();
-    posee = d.find(x => x.joue && x.mutation) || null;
-    if (!posee) erreurs.push(`« ${nomModif} » n'a pas été posée`);
-    console.log(`7a. « ${nomModif} » posée sur ${nomJoueur} (${permis} joueurs permis, ${grises} grisés) : ${JSON.stringify(posee && { joue: posee.joue.id, mutation: posee.mutation })}`);
-  }
-}
 if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
 /*
  * LE CONGÉDIEMENT (V5). JP : *juste un coach peut être actif à la fois* ; *changé avec une carte qui enlève l'autre
@@ -1356,7 +1292,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   }
   // Les cartes de la saison, pour la suite (11).
   if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="partie"]').catch(() => {});
+  await page.click('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet[data-onglet="permanent"]').catch(() => {});
   await page.waitForTimeout(300);
 }
 /*
@@ -1370,7 +1306,7 @@ const avantJouees = (await decisions()).filter(x => x.joue).length;
 let jouee = false, essais = 0;
 for (; essais < 5 && !jouee; essais++) {
   if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]'))) { await versMarche('cartes'); await page.waitForSelector('#pageMarche .hub-page[data-genre="cartes"] .inv-onglet', { timeout: 10000 }); }
-  const boutons = await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-carte:not(.bq-joueur) .inv-jouer:not([disabled])');
+  const boutons = await page.$$('#pageMarche .hub-page[data-genre="cartes"] .bq-carte:not(.bq-joueur) .inv-jouer-meta:not([disabled])');
   if (!boutons[essais]) break;
   await boutons[essais].click();
   await page.waitForTimeout(600);
@@ -1386,10 +1322,10 @@ for (; essais < 5 && !jouee; essais++) {
 if (await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')) await page.click('#navbar .navtab[data-section="bureau"]');
 d = await decisions();
 console.log(`11. jouée (${essais} essai(s)) : ${JSON.stringify(d.filter(x => x.joue).map(x => ({ id: x.joue.id, champs: Object.keys(x).filter(k => !['jour', 'joue', 'sel'].includes(k)) })))} · barre : ${await jauge()}`);
-// Une modif posée au verso (7a) est déjà une carte jouée : le Rogue paie moins (S80), et l'inventaire
-// ne tient parfois que des modifs. L'erreur, c'est qu'AUCUNE carte n'ait pu se jouer.
+// Une carte jouée dans sa maison (le congédiement, 10c) est déjà une carte jouée, et le Marché ne tient parfois rien
+// d'autre (V16). L'erreur, c'est qu'AUCUNE carte n'ait pu se jouer.
 if (!jouee && !d.some(x => x.joue)) erreurs.push('aucune carte de l\'inventaire n\'a pu se jouer (cinq essais)');
-else if (!jouee) console.log('    (rien d\'autre que des modifs dans l\'inventaire : la modif posée au verso compte)');
+else if (!jouee) console.log('    (rien à jouer au Marché : la carte jouée dans sa maison compte)');
 // LE CARTABLE (S79) : dans la Collection (1.0, R1), à côté de tes saisons.
 await page.click('#navbar .navtab[data-section="marche"]');
 await page.click('#sousNav .soustab[data-page="cartable"]');
@@ -1412,28 +1348,9 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
   await page.waitForTimeout(300);
 }
 /*
- * LE VERSO GARDE LA CARTE POSÉE (S80) : la fiche du joueur, retournée, la
- * montre dans une case pleine. Puis « + Poser une amélioration » d'une fiche
- * ouverte du cartable : tes cartes qui lui vont, en cartes ; celle qu'on
- * touche revient EN ATTENTE au verso, et « Poser ici » la pose.
+ * « + POSER UNE AMÉLIORATION » d'une fiche ouverte du cartable (S80 ; V16, le seul chemin d'une retouche) : tes cartes
+ * qui lui vont, en cartes ; celle qu'on touche revient EN ATTENTE au verso, et « Poser ici » la pose.
  */
-// Une modif de gardien (un masque) peut tomber sur un bouche-trou de la ligue, qui n'est pas au cartable : l'étape attend.
-const poseeAuCartable = posee && await page.$(`[data-ct-equipe="${posee.mutation.joueur}"]`);
-if (posee && !poseeAuCartable) console.log(`12a. ${posee.mutation.joueur} est un bouche-trou de la ligue, pas une carte du cartable : l'étape du verso attend`);
-if (poseeAuCartable) {
-  await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
-  await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
-  await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
-  await page.waitForTimeout(700);
-  const pleines = await page.$$eval('#hockeyCardModal .fc-case.pleine', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
-  const titre = await page.$$eval('#hockeyCardModal .fc-sec', e => e.map(x => x.textContent.trim()).find(t => /améliorations/i.test(t)) || '');
-  if (!pleines.some(t => t.includes(nomModif))) erreurs.push(`le verso ne montre pas « ${nomModif} » dans une case : ${pleines.join(' | ') || 'aucune case pleine'}`);
-  await page.evaluate(() => document.querySelector('#hockeyCardModal .fc-cases').scrollIntoView({ block: 'center' }));
-  await page.screenshot({ path: `${DOSSIER}/rogue-verso-cases.png` });
-  console.log(`12a. son verso : « ${titre} » — ${pleines.join(' | ')}`);
-  await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
-}
 {
   let fait = false;
   for (const cle of (await page.$$eval('[data-ct-equipe]', e => e.map(x => x.dataset.ctEquipe))).slice(0, 23)) {
@@ -1457,11 +1374,38 @@ if (poseeAuCartable) {
     const apres = (await decisions()).filter(x => x.joue && x.mutation).length;
     if (apres !== avant + 1) erreurs.push(`« + Poser une amélioration » n'a rien posé (${avant} puis ${apres})`);
     console.log(`12b. « + Poser une amélioration » : ${offertes.join(' · ')} offertes, la première posée (${apres} modif(s) posée(s))`);
+    posee = (await decisions()).filter(x => x.joue && x.mutation).at(-1) || null;
+    nomModif = offertes[0] || '';
     fait = true;
     break;
   }
   if (!fait) console.log('12b. plus de modif à poser (ou personne à qui elles vont)');
   if (!(await page.$(BUREAU))) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); }
+}
+/*
+ * LE VERSO GARDE LA CARTE POSÉE (S80) : la fiche du joueur, retournée, montre la retouche de 12b dans une case pleine.
+ */
+if (posee) {
+  await page.click('#navbar .navtab[data-section="marche"]');
+  await page.click('#sousNav .soustab[data-page="cartable"]');
+  await page.waitForSelector('#pageCartable:not([hidden]) .ct-carte', { timeout: 20000 });
+}
+// Une modif de gardien (un masque) peut tomber sur un bouche-trou de la ligue, qui n'est pas au cartable : l'étape attend.
+const poseeAuCartable = posee && await page.$(`[data-ct-equipe="${posee.mutation.joueur}"]`);
+if (posee && !poseeAuCartable) console.log(`12a. ${posee.mutation.joueur} est un bouche-trou de la ligue, pas une carte du cartable : l'étape du verso attend`);
+if (poseeAuCartable) {
+  await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
+  await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
+  await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
+  await page.waitForTimeout(700);
+  const pleines = await page.$$eval('#hockeyCardModal .fc-case.pleine', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+  const titre = await page.$$eval('#hockeyCardModal .fc-sec', e => e.map(x => x.textContent.trim()).find(t => /améliorations/i.test(t)) || '');
+  if (!pleines.some(t => t.includes(nomModif))) erreurs.push(`le verso ne montre pas « ${nomModif} » dans une case : ${pleines.join(' | ') || 'aucune case pleine'}`);
+  await page.evaluate(() => document.querySelector('#hockeyCardModal .fc-cases').scrollIntoView({ block: 'center' }));
+  await page.screenshot({ path: `${DOSSIER}/rogue-verso-cases.png` });
+  console.log(`12a. son verso : « ${titre} » — ${pleines.join(' | ')}`);
+  await page.keyboard.press('Escape');
+  await page.waitForTimeout(300);
 }
 await page.click('#navbar .navtab[data-section="bureau"]');
 await unVisible(BUREAU, 20000);

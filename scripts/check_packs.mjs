@@ -38,7 +38,7 @@ import { PACKS_TOUS, PACKS_CARTES, TIERS, SKILLS, chancesDe, cartesDuPack, nivea
 import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAcheter } from '../js/rogue.js';
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
-import { BANQUE, CONTRATS, idsDe, sortEncore } from '../js/banque.js';
+import { BANQUE, CONTRATS, idsDe } from '../js/banque.js';
 import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { EDITIONS } from '../js/rarete.js';
@@ -372,9 +372,9 @@ informer('durée', `${((Date.now() - t0) / 1000).toFixed(1)} s`);
   const horsPackTirees = [...tirees].filter(id => !sortDUnPack(id));
   exiger('aucune carte « hors pack » ne sort d\'un pack', horsPackTirees.length === 0, horsPackTirees.slice(0, 5).join(', ') || `${tirees.size} cartes différentes tirées`);
   const horsPack = Object.keys(BANQUE).filter(id => !sortDUnPack(id));
-  // V10 : les cartes de saison sont parties ; V13-2, les malédictions aussi. V16 : les places, l'équipement, les clauses et
-  // le feu n'entrent plus (`sortEncore`, js/banque.js). Ce qui n'en sort pas ne compte pas au dénominateur.
-  exiger('ce qui se gagne en jouant ne compte pas au dénominateur', horsPack.every(id => BANQUE[id].rarete === 'maudite' || !sortEncore(id)), `${horsPack.length} carte(s) hors pack, dont ${horsPack.filter(id => !sortEncore(id)).length} qui n'entrent plus (V16)`);
+  // V10 : les cartes de saison sont parties ; V13-2, les malédictions aussi ; V16, les places, l'équipement, les clauses et
+  // le feu. Ce qui n'en sort pas ne compte pas au dénominateur.
+  exiger('ce qui se gagne en jouant ne compte pas au dénominateur', horsPack.every(id => BANQUE[id].rarete === 'maudite'), `${horsPack.length} carte(s) hors pack`);
   const jamais = Object.keys(BANQUE).filter(id => sortDUnPack(id) && !tirees.has(id));
   informer('cartes comptées qu\'on n\'a pas encore vu sortir', `${jamais.length} sur ${Object.keys(BANQUE).filter(sortDUnPack).length} (1 500 ouvertures par pack)`);
 }

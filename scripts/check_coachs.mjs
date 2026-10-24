@@ -69,20 +69,23 @@ console.log('\n  Les coachs (v2)\n');
 const tous = Object.values(BANQUE);
 const neutres = tous.filter(c => !c.coach);
 informer('les cartes', `${tous.length} · ${ORDRE_COACHS.map(k => `${COACHS[k].ico} ${idsDuCoach(k).length}`).join(' · ')} · neutres ${neutres.length}`);
-// V13-2 (docs/refonte-v13.md) : le cahier est parti avec la main du duel. Trois places et deux postes de personnel par
-// coach ; l'équipement en ajoute trois aux cinq coachs qui ont un canal de joueur (js/equipement.js), trois places de
-// plus aux trois autres (js/places.js). Huit cartes au moins, dans deux familles au moins.
-const PLANCHER_COACH = 8;
-const minces = ORDRE_COACHS.filter(k => idsDuCoach(k).length < PLANCHER_COACH || new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size < 2);
-exiger(`chaque coach a au moins ${PLANCHER_COACH} cartes, dans au moins deux familles`, !minces.length,
-  ORDRE_COACHS.map(k => `${COACHS[k].nom} ${idsDuCoach(k).length}/${new Set(idsDuCoach(k).map(id => BANQUE[id].cat)).size}`).join(' · '));
+// V16 (docs/refonte-v16.md § 5) : le personnel est la seule carte bonus. Les places, l'équipement et les clauses sont
+// partis ; chaque coach a au moins cinq adjoints, sur trois postes au moins.
+const PLANCHER_COACH = 5, POSTES_COACH = 3;
+const adjointsDe = k => idsDuCoach(k).filter(id => BANQUE[id].cat === 'patron' && PATRONS[BANQUE[id].cle]);
+const postesDe = k => new Set(adjointsDe(k).map(id => PATRONS[BANQUE[id].cle].role)).size;
+const minces = ORDRE_COACHS.filter(k => adjointsDe(k).length < PLANCHER_COACH || postesDe(k) < POSTES_COACH);
+exiger(`chaque coach a au moins ${PLANCHER_COACH} adjoints, sur au moins ${POSTES_COACH} postes`, !minces.length,
+  ORDRE_COACHS.map(k => `${COACHS[k].nom} ${adjointsDe(k).length}/${postesDe(k)}`).join(' · '));
 // v2 (JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : des cartes neutres restent. V13-2 : les dix
-// du deck de départ sont parties avec la main du duel ; restent trois neutres par pile (places, équipement, personnel).
+// du deck de départ sont parties avec la main du duel ; V16, les places et l'équipement : restent les adjoints neutres et
+// les outils de gérant.
 borne('les cartes neutres (sans signal, à peine, ou à parts égales)', neutres.length / tous.length, 0.08, 0.3);
-// V10 (tranche 6) : l'ancien jeu est parti ; le jeu neuf compte moins de cartes, chacune de son moment.
-exiger('le registre : plus de 150 cartes', tous.length >= 150, `${tous.length}`);
-const TEMOINS = { 'consommable:centTirs': 'essaim', 'joueur:casqueGrille': 'tortue', 'consommable:autreJoue': 'choeur', 'consommable:quatriemeTrio': 'profondeur', 'consommable:grandeScene': 'etoiles',
-  'patron:per_physioDeRoute': 'souffle', 'patron:per_preparateurCombat': 'rhinos', 'patron:per_tirsDeRoute': 'rapaces', 'plafond:ltir': 'banque', 'consommable:retraiteFermee': 'choeur', 'consommable:systemeDeRoute': 'tortue' };
+// V10 (tranche 6) : l'ancien jeu est parti ; V16, les places, l'équipement et les clauses (75 cartes) : le registre tient
+// encore une centaine de cartes.
+exiger('le registre : au moins 100 cartes', tous.length >= 100, `${tous.length}`);
+const TEMOINS = { 'patron:per_crieurDuBanc': 'essaim', 'patron:per_gardienDuFort': 'tortue', 'patron:per_aumonier': 'choeur', 'patron:per_chefDAtelier': 'profondeur', 'patron:per_metteurEnScene': 'etoiles',
+  'patron:per_physioDeRoute': 'souffle', 'patron:per_preparateurCombat': 'rhinos', 'patron:per_tirsDeRoute': 'rapaces', 'plafond:ltir': 'banque', 'patron:per_moine': 'choeur', 'patron:per_macon': 'tortue', 'patron:per_allumeur': 'rapaces' };
 const faux = Object.entries(TEMOINS).filter(([id, k]) => coachDeCarte(id) !== k).map(([id, k]) => `${id} → ${coachDeCarte(id)} (attendu ${k})`);
 exiger('le coach d\'une carte se lit sur ce qu\'elle fait', !faux.length, faux.join(' · ') || `${Object.keys(TEMOINS).length} témoins`);
 exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.some(x => x.cat === c && x.coach)), ORDRE_CATEGORIES.join(' · '));
@@ -105,7 +108,7 @@ const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
   const demi = MATCHS_CONFIANCE / 2;
   exiger(`ses matchs à ton service : 1 point par ${MATCHS_CONFIANCE}, doublés à la couleur du coach`, buildDe(un, Infinity, { joues: jusquA(1 + demi) }).tortue === SEUILS[0] + 2
     && buildDe(un, Infinity, { joues: jusquA(demi) }).tortue === SEUILS[0] + 1, `${demi} matchs joués : +1`);
-  exiger('les cartes jouées ne comptent plus', buildDe([...base, { jour: 1, joue: { src: 'partie', id: 'joueur:casqueGrille', ref: 'x' } }]).tortue === SEUILS[0]);
+  exiger('les cartes jouées ne comptent plus', buildDe([...base, { jour: 1, joue: { src: 'partie', id: 'joueur:pinceau', ref: 'x' } }]).tortue === SEUILS[0]);
   exiger('une journée à venir ne compte pas encore', buildDe([...base, engager(T[0], 10)], 5).tortue === SEUILS[0]);
   // Le personnel de la Tortue, engagé puis monté échelon après échelon : la confiance s'allume à ses seuils, une fois chacun.
   const pas = [...T.map((id, i) => engager(id, 1 + i)), ...[1, 2, 3, 4].flatMap(n => T.map((id, i) => monter(id, 10 * n + i, n)))];

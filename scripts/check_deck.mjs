@@ -16,12 +16,12 @@
  *   5. les nouveaux rôles offerts visent trois joueurs différents de
  *      l'alignement, chacun avec un changement de carte réel ;
  *   6. la saison se rejoue à l'identique avec ces décisions ;
- *   7. (S80) une amélioration prise au palier se GARDE : elle va à une place,
+ *   7. (S80) une retouche prise au palier se GARDE : elle attend dans tes cartes,
  *      la garder ne change rien au moteur, et posée au verso elle prend une
  *      case (deux, trois pour une Or ou une Holo) ;
- *   8. (V9, tranche 5b) tes places : une carte se joue quand on veut, sans limite
- *      par semaine ; le palier de la saison en offre une parmi trois, le butin
- *      d'un gros match gagné aussi (V13-2).
+ *   8. (V9, tranche 5b ; V16) tes cartes : une carte se joue quand on veut, sans limite
+ *      par semaine ; le palier de la saison offre un adjoint parmi trois, le butin
+ *      d'un gros match gagné aussi (V13-2), et l'adjoint pris rejoint ton personnel.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -33,7 +33,7 @@ import {
 } from '../js/sim.js';
 import { CASES_DE_BASE, casesDAmelioration, casesLibres, poseesSur, sePose, idsDe, payloadDe } from '../js/banque.js';
 import { monterLesDoublons, missionsDuCartable, decennieDe } from '../js/cartable.js';
-import { placesDeLaPartie, cartesDuPalier, PALIERS_PACK, PLACES } from '../js/inventaire.js';
+import { cartesDeLaPartie, cartesDuPalier, PALIERS_PACK } from '../js/inventaire.js';
 import { BANQUE } from '../js/banque.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -119,59 +119,58 @@ console.log('\n  Le deck (S73)\n');
   borne('écart de victoires que le nouveau rôle a fait', t[0].W - base[0].W, -12, 12, '');
 
   /*
-   * 7. UNE CARTE DE JOUEUR SE GARDE, ET SE POSE AU VERSO (S80 ; V10 : un équipement). JP : *je veux que
+   * 7. UNE CARTE DE JOUEUR SE GARDE, ET SE POSE AU VERSO (S80 ; V16 : une retouche de l'atelier). JP : *je veux que
    * les upgrades de joueurs se fassent au verso de la carte, pas
-   * nécessairement quand on la pige*. Prise au palier, elle va à une place
+   * nécessairement quand on la pige*. Prise au palier, elle attend dans tes cartes
    * (`garde`) ; posée, elle en sort et prend une case. La garder ne touche
    * pas le moteur : la saison est celle d'avant, au but près.
    */
-  const garde = { jour: J0, equipe: 0, palier: J0, deck: 'atelier', garde: 'joueur:rubanBlanc' };
-  const pose = { jour: J0 + 5, equipe: 0, joue: { src: 'partie', ref: `deck:${J0}`, id: 'joueur:rubanBlanc' }, mutation: { cle: 'rubanBlanc', joueur: cleCible } };
-  const poche1 = placesDeLaPartie({ decisions: [garde] });
-  const poche2 = placesDeLaPartie({ decisions: [garde, pose] });
-  exiger('une carte prise au palier va à une place, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:rubanBlanc') && !poche2.some(x => x.ref === `deck:${J0}`),
+  const garde = { jour: J0, equipe: 0, palier: J0, deck: 'atelier', garde: 'joueur:pinceau' };
+  const pose = { jour: J0 + 5, equipe: 0, joue: { src: 'partie', ref: `deck:${J0}`, id: 'joueur:pinceau' }, mutation: { cle: 'pinceau', joueur: cleCible } };
+  const poche1 = cartesDeLaPartie({ decisions: [garde] });
+  const poche2 = cartesDeLaPartie({ decisions: [garde, pose] });
+  exiger('une carte prise au palier attend dans tes cartes, et en sort une fois posée', poche1.some(x => x.ref === `deck:${J0}` && x.id === 'joueur:pinceau') && !poche2.some(x => x.ref === `deck:${J0}`),
     `${poche1.filter(x => x.ref.startsWith('deck:')).map(x => x.id).join(', ')} puis ${poche2.filter(x => x.ref.startsWith('deck:')).length} carte(s) du palier`);
   const t3 = ligue(7300);
   simulateLeague(t3, 82, { graine: 'deck', decisions: [{ ...garde }] });
   exiger('la garder ne change rien à la saison (le moteur ne la lit qu\'une fois posée)', fiche(t3) === fiche(base), `${fiche(base)} sans, ${fiche(t3)} avec`);
   const posees = poseesSur([garde, pose], cleCible);
-  exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'rubanBlanc' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
+  exiger('posée, elle prend une case de son verso', posees.length === 1 && posees[0].cle === 'pinceau' && casesLibres('commune', posees) === CASES_DE_BASE - 1, `${posees.length} posée, ${casesLibres('commune', posees)} libre`);
   const lustre = [{ jour: 30, mutation: { cle: 'lustre', joueur: 'k', carte: { rar: 'rare', bonus: [] } } }];
   exiger('deux cases, trois pour une Or ou une Holo ; le lustre qui fait une Or rend sa case',
     casesDAmelioration('commune') === 2 && casesDAmelioration('peu') === 2 && casesDAmelioration('hors') === 2 && casesDAmelioration('rare') === 3 && casesDAmelioration('legendaire') === 3
-    && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('pinceau') && sePose('rubanBlanc'),
+    && casesLibres('peu', poseesSur(lustre, 'k')) === 2 && !sePose('genou') && !sePose('tir_gun') && sePose('pinceau') && sePose('lustre'),
     `Base ${casesDAmelioration('commune')} · Or ${casesDAmelioration('rare')} · Cadre lustré en Or : ${casesLibres('peu', poseesSur(lustre, 'k'))} libres`);
 }
 
 /*
- * TES PLACES (V9, tranche 5b — docs/refonte-v9.md § 6.4). La poche, la main de la semaine et ses deux cartes par
- * semaine sont parties : une carte se joue quand on veut, autant qu'on veut. Plus de cartes que de places se voit
- * (À faire demande laquelle vendre) ; les places reportées au jour 0 d'une saison neuve (`poche`) y entrent. V16 : le
- * palier de la saison (`pp:<match>`) offre un adjoint parmi trois ; pris, il rejoint ton personnel (js/banc.js), pas une
- * place. Le butin d'un gros match gagné (`r:<jour>`, V13-2) aussi.
+ * TES CARTES (V9, tranche 5b — docs/refonte-v9.md § 6.4 ; V16). La poche, la main de la semaine et ses deux cartes par
+ * semaine sont parties : une carte se joue quand on veut, autant qu'on veut ; les places et la carte de trop aussi
+ * (V16). Les cartes reportées au jour 0 d'une saison neuve (`poche`) y entrent. Le palier de la saison (`pp:<match>`)
+ * offre un adjoint parmi trois ; pris, il rejoint ton personnel (js/banc.js). Le butin d'un gros match gagné
+ * (`r:<jour>`, V13-2) aussi.
  */
 {
   const ev = idsDe('consommable').filter(id => BANQUE[id].vie !== 'permanent').slice(0, 5);
   const achat = { jour: 0, palier: 'k:1', achat: { pack: 'mixte', n: 1, prix: 25, sorte: 'cartes', cartes: ev } };
-  const p0 = placesDeLaPartie({ decisions: [achat], rogue: true });
+  const p0 = cartesDeLaPartie({ decisions: [achat], rogue: true });
   const joue = (ref, jour) => ({ jour, joue: { src: 'partie', ref, id: p0.find(x => x.ref === ref).id } });
-  const p1 = placesDeLaPartie({ decisions: [achat, joue(p0[0].ref, 8), joue(p0[1].ref, 8), joue(p0[2].ref, 8)], rogue: true });
+  const p1 = cartesDeLaPartie({ decisions: [achat, joue(p0[0].ref, 8), joue(p0[1].ref, 8), joue(p0[2].ref, 8)], rogue: true });
   exiger('trois cartes se jouent le même jour : aucune limite par semaine', p0.length === ev.length && p1.length === ev.length - 3, `${p0.length} → ${p1.length}`);
-  exiger('plus de cartes que de places se compte', p0.length - PLACES === ev.length - PLACES && PLACES === 3, `${p0.length} cartes, ${PLACES} places`);
   const report = { jour: 0, poche: ev.slice(0, 2), report: true };
-  const poche = placesDeLaPartie({ decisions: [report], rogue: true });
-  const apres = placesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
-  exiger('les places de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
+  const poche = cartesDeLaPartie({ decisions: [report], rogue: true });
+  const apres = cartesDeLaPartie({ decisions: [report, { jour: 2, joue: { src: 'partie', ref: 'r0', id: ev[0] } }], rogue: true });
+  exiger('les cartes de la saison d\'avant entrent au jour 0, et une carte jouée de là en sort', poche.length === 2 && apres.length === 1 && apres[0].id === ev[1], `${poche.length} · ${apres.length}`);
   const offres = PALIERS_PACK.map(p => cartesDuPalier('deck', p));
   const adjoints = offres.flat().every(id => BANQUE[id] && BANQUE[id].cat === 'patron');
   exiger('chaque palier offre trois adjoints distincts, purs', offres.every(o => o.length === 3 && new Set(o).size === 3) && adjoints
     && PALIERS_PACK.every(p => cartesDuPalier('deck', p).join() === cartesDuPalier('deck', p).join()), offres.map((o, i) => `${PALIERS_PACK[i]} : ${o.join(', ')}`).join(' · '));
   const prise = { jour: 21, palier: `pp:${PALIERS_PACK[0]}`, place: offres[0][1] };
-  const avec = placesDeLaPartie({ decisions: [prise], rogue: true });
-  exiger('l\'adjoint pris au palier ne prend pas de place', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune place');
+  const avec = cartesDeLaPartie({ decisions: [prise], rogue: true });
+  exiger('l\'adjoint pris au palier rejoint ton personnel, pas tes cartes', avec.length === 0, avec.map(x => `${x.ref} ${x.id}`).join(' · ') || 'aucune carte');
   const butin = { jour: 31, palier: 'r:30', place: offres[1][0] };
-  const apresButin = placesDeLaPartie({ decisions: [butin], rogue: true });
-  exiger('l\'adjoint du butin d\'un gros match gagné ne prend pas de place', apresButin.length === 0, apresButin.map(x => `${x.ref} ${x.source}`).join(' · ') || 'aucune place');
+  const apresButin = cartesDeLaPartie({ decisions: [butin], rogue: true });
+  exiger('l\'adjoint du butin d\'un gros match gagné rejoint ton personnel, pas tes cartes', apresButin.length === 0, apresButin.map(x => `${x.ref} ${x.source}`).join(' · ') || 'aucune carte');
 }
 
 /*

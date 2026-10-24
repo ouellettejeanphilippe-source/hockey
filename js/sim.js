@@ -18,8 +18,6 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs } from './coachs.js';
-import { MODIFS_VIE } from './cartes-vie.js';
-import { EQUIPEMENT } from './equipement.js';
 import { PROTEGES } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil } from './vie-gm.js';
@@ -6253,9 +6251,12 @@ function appliquerDecision(team, d, graine = 0) {
     // nomme est celui que le moteur désigne.
     const ancien = PROTEGES[mut.cle] ? (team.mutations || []).find(m => m.cle === mut.cle) : null;
     if (ancien) retirerProtege(team, mut.cle);
-    const qui = mut.joueur || (ancien && ancien.joueur);
-    const p = qui ? Object.values(team.roster).find(x => x && getPlayerKey(x) === qui) || CONNUS.get(qui) : joueurDeMutation(team, null, mut.cle);
-    if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
+    if (MUTATIONS[mut.cle].portee) for (const q of porteeDuFeu(team, MUTATIONS[mut.cle].portee, mut.lignes || 1)) appliquerMutation(team, q, mut.cle, d.jour, 'choix', mut);
+    else {
+      const qui = mut.joueur || (ancien && ancien.joueur);
+      const p = qui ? Object.values(team.roster).find(x => x && getPlayerKey(x) === qui) || CONNUS.get(qui) : joueurDeMutation(team, null, mut.cle);
+      if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
+    }
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
   if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
@@ -7562,29 +7563,6 @@ export const MUTATIONS = {
   // V2.4 — MONTER UN PALIER : la carte d'entraînement (la planète de Balatro) et le mentor de trio.
   mentorTrio: { nom: 'Le mentor', ico: '🦉', cible: 'libre', source: 'atelier', mentor: true,
     quoi: 'Il prend ses compagnons de ligne sous son aile : tant qu\'ils jouent avec lui, leur badge monte au suivant.' },
-  /*
-   * V3.4 — FORTE, MAIS DANS SON MOMENT. JP : *un joueur est plus robuste à domicile* ; *ce genre de trucs
-   * complexes, mais pas trop*. Une modif peut ne jouer que certains soirs (`si`) : à domicile, à
-   * l'étranger, en séries (`siDe`). Elle est plus forte qu'une modif de tous les soirs, parce qu'elle ne
-   * s'additionne pas aux autres chaque soir ; sa face dit son moment en premier.
-   */
-  domicile: { nom: 'Le gardien du château', ico: '🏯', cible: 'libre', source: 'atelier', si: 'domicile',
-    quoi: 'À domicile seulement : devant les siens, il ne se blesse plus et il défend comme un mur.', blessure: 0.5, defense: 0.83 },   // S108 : 0,8 → 0,83, l'entente des coéquipiers l'avait poussé au-dessus de la borne d'une peu (1,52 V, check_si)
-  route: { nom: 'Le joueur de route', ico: '🛤', cible: 'libre', source: 'atelier', si: 'visiteur',
-    quoi: 'À l\'étranger seulement : la foule hostile le pique, il tire et il marque.', lancers: 1.22, finition: 1.22 },   // S109 : 1,2 → 1,22, le 1er centre qu'elle vise par défaut tire moins depuis que le Two-way lit la défense (0,08 à 0,11 but, borne 0,1, check_si)
-  printemps: { nom: 'L\'homme des séries', ico: '🌋', cible: 'libre', source: 'atelier', si: 'series',
-    quoi: 'En séries seulement : le printemps le réveille, il tire plus et il finit mieux.', lancers: 1.2, finition: 1.45 },
-  /*
-   * V3.6 — LE FEU QUI S'ENTRETIENT, le premier combo du Rogue (`LANCEE`, `lanceesDeLigne`). Faibles seules : la
-   * lancée ne touche qu'un joueur sur vingt, un soir sur vingt. Ensemble, sur un trio qui marque, et avec le vendeur
-   * de chandails (js/banque.js) : le feu prend, tient, se propage et paie.
-   */
-  etincelle: { nom: 'L\'étincelle', ico: '☄', cible: 'libre', source: 'atelier', feu: 'etincelle',
-    quoi: 'Sa lancée part plus vite et brûle plus fort : trois buts en six matchs l\'allument, quel que soit son rythme.' },
-  braise: { nom: 'La braise', ico: '🪔', cible: 'libre', source: 'atelier', feu: 'braise',
-    quoi: 'Sa lancée ne s\'éteint pas : allumée, elle tient tant qu\'il marque une fois en trois matchs.' },
-  poudre: { nom: 'La traînée de poudre', ico: '💫', cible: 'libre', source: 'atelier', feu: 'poudre',
-    quoi: 'Il prend feu avec sa ligne : quand un compagnon de ligne est sur sa lancée, il l\'est aussi.' },
   // ---- par choix ----
   tir_gun: { nom: 'Précision au gun', ico: '🎯', cible: 'plombier', source: 'choix',
     quoi: 'Il a passé ses soirées à tirer du gun : il vise, maintenant.',
@@ -7635,15 +7613,12 @@ export const MUTATIONS = {
    * deck builder*. Les « styles » à la FUT : ce qu'un joueur devient pour la
    * saison — son profil (donc le fit de sa ligne) et un canal réel. Les
    * contrats : ce qu'une signature change chez lui, avec son prix. Même
-   * contrat que les améliorations : un joueur, quelques pour cent.
+   * contrat que les améliorations : un joueur, quelques pour cent. V16 : plus des cartes ; les choix d'un fil
+   * (js/vie-gm.js) les posent encore.
    */
   contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
   contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
-  contrat_bonus: { nom: 'Clause de performance', ico: '💰', cible: 'libre', source: 'contrat', quoi: 'Un boni à trente buts : il force tout, même quand il ne faut pas.', finition: 1.09, creation: 1.054, blessure: 1.3 },
   contrat_leader: { nom: 'Le « C » cousu', ico: '©', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
-  ...MODIFS_VIE,
-  // L'équipement neuf (V10, tranche 3 — js/equipement.js) : une carte posée sur un joueur, qui attend son moment.
-  ...EQUIPEMENT,
   // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.
   ...PROTEGES,
 };
@@ -7734,8 +7709,25 @@ function retirerProtege(team, cle) {
     if (!p) continue;
     if (p._si) p._si = p._si.filter(e => e.cle !== cle);
     if (p._mutCles) p._mutCles = p._mutCles.filter(k => k !== cle);
+    if (PROTEGES[cle].feu && p._feu) p._feu = p._feu.filter(x => x !== PROTEGES[cle].feu);
   }
   if (team.mutations) team.mutations = team.mutations.filter(m => m.cle !== cle);
+}
+/*
+ * LA PORTÉE D'UN FEU (V16) : un adjoint du feu ne vise pas un joueur, il vise ses `lignes` premières lignes — le
+ * meilleur marqueur de chacune (`tete`, au rythme de sa vraie saison), ou ses compagnons (`compagnons`) : le plus près
+ * de lui sur une ligne, tous les patineurs de la ligne, défenseurs compris, quand le feu en tient deux.
+ */
+function porteeDuFeu(team, portee, lignes = 1) {
+  const lu = activeLineup(team), out = [];
+  const rythme = p => ((p.gp || 0) > 0 ? (p.g || 0) / p.gp : 0);
+  for (let u = 0; u < lignes; u++) {
+    const js = Object.values(joueursDeLigne(lu, u)).filter(p => p && p.p !== 'G');
+    const avants = js.filter(p => p.p !== 'D').sort((a, b) => rythme(b) - rythme(a) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1));
+    if (portee === 'tete') out.push(...avants.slice(0, 1));
+    else out.push(...(lignes > 1 ? js.filter(p => p !== avants[0]) : avants.slice(1, 2)));
+  }
+  return out;
 }
 
 /* Les accidents : cinq fenêtres, une chance sur deux par club, tirés de la graine. */

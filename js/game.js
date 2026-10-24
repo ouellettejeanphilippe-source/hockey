@@ -1724,7 +1724,7 @@ const dernierePage = {};
 /* La page du Marché ouverte ('poche', 'marche'), ou null. Elle survit à la saison rejouée (un achat, une carte jouée). */
 let marcheOuvert = null;
 
-const cartesEnAttente = () => { const h = hubActif(); const n = h && h.cartes && G.ligue ? cartesAJouer(G.journee || 0) : 0; return n ? String(n) : ''; };
+const cartesEnAttente = () => { const h = hubActif(); const n = h && h.cartes && G.ligue ? cartesAJouer() : 0; return n ? String(n) : ''; };
 function sectionsCourantes() {
   const draft = enRepechage();
   return sectionsDuMode().map(s => ({
@@ -1732,8 +1732,8 @@ function sectionsCourantes() {
     // ESTOMPÉE PENDANT LE REPÊCHAGE (1.0, J2-6e) : la Ligue n'a rien avant le
     // premier match et le dit d'un coup d'oeil. La toucher reste permis.
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
-    // En saison, le Bureau compte les cartes qui attendent d'être jouées (la main s'y joue) ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
-    // En Rogue, tes places se jouent au Marché › Tes cartes ; la pastille y va.
+    // En saison, le Marché du Rogue compte les cartes qui attendent d'être jouées ; au repêchage, les Joueurs ce qui se signe, les Lignes ce qui est signé.
+    // En Rogue, tes cartes se jouent au Marché › Tes cartes ; la pastille y va.
     badge: !draft ? (s.cle === (G.bonus === 'ROGUE' ? 'marche' : 'bureau') ? cartesEnAttente() : '') : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
       : s.cle === 'lignes' || s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
   }));
@@ -2121,7 +2121,7 @@ function remplirCartable() {
     esc,
     equipe: signes().map(p => ({ p, cle: getPlayerKey(p), mini: carteMiniHtml(p), saison: ligneDeSaison(p, statsDe(p)), vraie: ligneVraieSaison(p) })),
     titreSaison: !L ? 'La saison n\'a pas commencé.' : portee === 'jour' ? `Cette saison : jusqu'à la journée ${G.journee || 0}.` : 'Cette saison : les 82 matchs.',
-    nCartes: L ? cartesAJouer(G.journee || 0) : 0,
+    nCartes: L ? cartesAJouer() : 0,
     ouvrirCartes: () => {
       // En pleine saison : l'inventaire du Marché, qui joue une carte comme décision du jour.
       if (G.bonus === 'ROGUE') { montrerPage('poche'); return; }

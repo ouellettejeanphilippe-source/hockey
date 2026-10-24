@@ -20,7 +20,7 @@ import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, rec
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
-import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, placesDuJour, ouvrirInventaireJeu, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison } from './rogue-jeu.js';
+import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, ouvrirInventaireJeu, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
 
@@ -251,7 +251,7 @@ function ajouterDecision(avant, d) {
   const allume = !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) }) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
-  // V9 : ni la carte prise à un palier (`place`, elle va à une place), ni « Attendre » le physio (`attend`).
+  // V9 : ni la carte prise à un palier (`place` : V16, un adjoint, qui rejoint ton personnel), ni « Attendre » le physio (`attend`).
   // V13-2 : ni le butin d'un gros match, pris (`place`) ou passé (`r:<jour>` seul).
   const deckSeul = !d.coach && (d.recompense !== undefined || (typeof d.palier === 'string' && d.palier.startsWith('r:')) || !!d.plafond || !!d.vend || (!!d.achat && !d.ballottage) || d.signe === false || d.retour === 'garde' || !!d.place || !!d.attend || (!!d.garde && !d.mutation));
   // Le sel d'un pari est tiré au lancer du dé (js/gerant.js, `sceneDuDe`) : la décision le porte déjà, et le dé a montré ce qu'il donne.
@@ -325,8 +325,8 @@ function confirmerDecision(d) {
   let mot = null;
   // Le pack d'une série gagnée (Jalon P1) : il s'ouvre, et ses joueurs vont au cartable.
   if (d.packSerie) { ouvrirPackDeSerie(d.packSerie, d.ronde); return; }
-  // V13-2 : la récompense d'une victoire va à une place.
-  if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) mot = `🎁 ${BANQUE[d.place].ico} ${BANQUE[d.place].nom} va dans tes places.`;
+  // V16 : la récompense d'une victoire est un adjoint, qui rejoint ton personnel.
+  if (typeof d.palier === 'string' && d.palier.startsWith('r:') && d.place && BANQUE[d.place]) mot = `🎁 ${BANQUE[d.place].ico} ${BANQUE[d.place].nom} rejoint ton personnel.`;
   else if (d.deck === 'recrue' && d.ballottage) mot = `🎟 ${qui(d.ballottage.entre)} arrive en réserve. Monte-le dans un trio : derrière le banc.${d.ballottage.sort ? ` La carte de ${qui(d.ballottage.sort)} va à ton cartable.` : ''}`;
   // S80 : l'amélioration et l'édition du palier vont dans l'inventaire ; une modif posée se pose AU VERSO.
   else if (d.garde && BANQUE[d.garde]) mot = `🎒 ${BANQUE[d.garde].ico} ${BANQUE[d.garde].nom} va dans tes cartes : pose-la au verso d'un joueur, quand tu veux.`;
@@ -765,8 +765,8 @@ function ouvrirEcranSaison(depuis = 0) {
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.
         boutique: { ouvrir: (j, decider, page) => ouvrirBoutique(j, decider, page), rouvrir: (achat, j, decider) => rouvrirPackJoueurs(achat, j, decider) },
-        // Tes places se jouent au Marché › Tes cartes ; le butin et la carte de trop en lisent le compte.
-        inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page), places: j => placesDuJour(j) },
+        // Tes cartes (V16 : celles qui n'ont pas d'autre maison), au Marché.
+        inventaire: { ouvrir: (j, decider, page) => ouvrirInventaireJeu(j, decider, page) },
         // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2).
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
         personnel: { html: j => personnelDuJour(j) },

@@ -12,12 +12,12 @@ import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepar
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, forceEtFaiblesse, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, forceEtFaiblesse, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
-import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, masseSalarialeHtml, SEMAINE, PLACES } from './inventaire.js';
+import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, masseSalarialeHtml, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
@@ -83,7 +83,7 @@ function resultatsRogue(j) {
   }
   // V8 : un rival choisi paie son butin (un multiple du gros match) ; les autres gros matchs, un.
   const gros = ((toi && toi.minisBoss) || []).filter(mb => mb.gagne && mb.jour < j).reduce((n, mb) => n + (mb.butin || 1) * (mb.mise || 1), 0);
-  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : pour une place depuis la V10 (`place`), au deck avant.
+  // Un objectif du proprio réussi, c'est une carte prise à son verdict (`v:`) : un adjoint depuis la V16 (`place`), une place à la V10, au deck avant.
   const objectifs = (L.decisions || []).filter(d => typeof d.palier === 'string' && d.palier.startsWith('v:') && (d.place || d.carte)).length;
   // 1.0 (J1-C) : les rondes de séries gagnées (`finDesSeriesRogue` les pose) — la prime `JETONS.serie` se verse enfin.
   const series = (G.rogue && G.rogue.series && G.rogue.series.rondes) || 0;
@@ -440,7 +440,7 @@ function dejaDansTonEquipe(x) {
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */
 /*
  * EN DEUX TEMPS (Jalon Q). JP : *signer un, et autres cartes jouables quand on veut*. Un pack mixte montre d'abord
- * ses cartes de jeu, rangées (le deck, tes places) ; puis ses joueurs, seuls, à signer. « Plus tard » : la boîte
+ * ses cartes de jeu, rangées (ton personnel, tes outils) ; puis ses joueurs, seuls, à signer. « Plus tard » : la boîte
  * rouvre l'offre sur place, sans les cartes déjà vues.
  */
 function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, tc = null, montrerCartes = false }) {
@@ -471,7 +471,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
-    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Les cartes vont à tes places, à jouer quand tu veux` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; un outil se joue chez ce qu'il touche` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
@@ -516,7 +516,7 @@ export function bloqueParLePlafond(p, q) {
  * L'OUVERTURE D'UN PACK DE CARTES : tout va dans l'inventaire. En Rogue, le
  * personnel et les consommables permanents partent au MÉTA (gardés d'une run
  * à l'autre) — une fois, par achat (`recevoirPermanents`) ; un patron qu'on
- * possède déjà est un doublon, revendu. Le reste va à tes places (V9).
+ * possède déjà est un doublon, revendu. Le reste (un outil de gérant) se joue chez ce qu'il touche (V16).
  * UNE MALÉDICTION (la taxe de luxe, que certains packs cachent) ne se range
  * pas : elle frappe à l'ouverture (`achat.maudites`, lu par `plafondDe`).
  */
@@ -560,10 +560,10 @@ function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   decider({ jour: j, palier: `k:${n}`, achat });
   rangerCartes(tc, n);
   ouvrirChoix({
-    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'À mes places',
+    ico: P.ico, titre: P.nom, cartes: true, genre: 'recompense', fermable: true, motFermer: 'Ranger',
     recit: (rogue
-      ? `Le personnel reste d'une run à l'autre ; le reste va à tes ${PLACES} places, à jouer quand tu veux (une de trop se vend).${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
-      : 'Le personnel va à son poste ; le reste va à tes places.')
+      ? `Le personnel reste d'une run à l'autre ; un outil se joue chez ce qu'il touche, quand tu veux.${vente ? ` Doublons revendus : +${vente} 🪙.` : ''}`
+      : 'Le personnel va à son poste ; un outil se joue chez ce qu\'il touche.')
       + (maudites.length ? ` Pas de chance : ${maudites.map(id => `« ${BANQUE[id].nom} »`).join(', ')} frappe tout de suite.` : ''),
     options: optionsDeCartes(tc),
     onChoix: () => {},
@@ -598,15 +598,12 @@ export function ouvrirInventaireJeu(j = null, decider = null, page = null) {
   ouvrirInventaire({
     ...(page || {}),
     titre: 'Tes cartes', mode: rogue ? 'rogue' : 'saison', enSaison, peutJouer: enSaison, jetons: enSaison ? jetonsRogue(j) : null,
-    partie: enSaison ? placesDeLaPartie({ decisions: decs, rogue }) : [],
-    // V12-3 : une carte qui a sa maison (le coaching, la santé, le plafond) s'y joue (`cartesDeLaMaison`), plus ici ; en place, elle y renvoie.
+    // V12-3 : une carte qui a sa maison (le coaching, la santé, le plafond) s'y joue (`cartesDeLaMaison`), plus ici.
     meta: rogue ? Object.entries(meta.inventaire || {}).map(([id, n]) => ({ id, n })).filter(x => BANQUE[x.id] && x.n > 0 && !maisonDeLaCarte(x.id)) : [],
-    ouSeJoue: rogue ? ouSeJoue : () => null,
     possedees, joueursCollection: Object.keys(lireCartable().joueurs).length,
     // En Rogue, la masse salariale est chez le proprio (V12-3), avec les cartes de contrat.
     plafond: rogue ? null : plafondPourInventaire(enSaison ? j : (G.journee || 0)),
     jouer: item => jouerCarte(item, j, decider, page),
-    vendre: item => decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }),
   });
 }
 /* Le plafond, pour l'inventaire : la masse, le plafond effectif, et ce qui le tord (nommé). */
@@ -621,33 +618,15 @@ function plafondPourInventaire(j) {
       ...[...pl.ltir].map(k => ({ nom: `${nom(k)} : blessé à long terme${pl.blesses.has(k) ? ', hors du plafond' : ', revenu au jeu'}`, joueur: true }))],
   };
 }
-/*
- * TES PLACES DU JOUR (V9, tranche 5b ; js/inventaire.js `placesDeLaPartie`), sous le match du soir. Chaque case dit ce
- * que sa carte fait en peu de mots (ce qu'elle donne, ce qu'elle coûte, sa durée : `reglesDe`, V4.4) ; `trop` : les
- * cartes de plus que tes places, qu'À faire demande de vendre.
- */
-export function placesDuJour(j) {
-  if (!G.ligue) return null;
-  const decs = decisionsDeLaPartie();
-  const places = placesDeLaPartie({ decisions: decs, rogue: G.bonus === 'ROGUE' });
-  // Le coach en poste dit sa confiance sur ses cartes (V4.3).
-  const confiance = new Map(coachsActifs(decs, j + 1).map(c => [c.cle, c.palier]));
-  return { n: PLACES, trop: Math.max(0, places.length - PLACES),
-    places: places.map(x => ({ ...x, ico: BANQUE[x.id].ico, nom: BANQUE[x.id].nom, rarete: BANQUE[x.id].rarete, coach: COACHS[BANQUE[x.id].coach] || null, confiance: confiance.get(BANQUE[x.id].coach) || 0, valeur: valeurDe(x.id), maison: G.bonus === 'ROGUE' ? ouSeJoue(x.id) : null })) };
-}
-/* Le nombre de cartes à jouer, pour le bouton du hub. */
-export function cartesAJouer(j) {
-  const Lg = G.ligue;
-  if (!Lg) return 0;
-  const rogue = G.bonus === 'ROGUE';
-  const meta = rogue ? lireMeta() : null;
-  return placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue }).length
-    + (meta ? Object.entries(meta.inventaire || {}).reduce((a, [id, n]) => a + (BANQUE[id] ? n : 0), 0) : 0);
+/* Le nombre de cartes à jouer au Marché › Tes cartes (V16 : celles qui n'ont pas d'autre maison), pour sa pastille. */
+export function cartesAJouer() {
+  if (!G.ligue || G.bonus !== 'ROGUE') return 0;
+  return Object.entries(lireMeta().inventaire || {}).reduce((a, [id, n]) => a + (BANQUE[id] && !maisonDeLaCarte(id) ? n : 0), 0);
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
  * malédiction du deck, une carte à améliorer, un système), puis UNE décision
- * datée d'aujourd'hui (`joue` dit d'où elle sort, pour les places). Un
+ * datée d'aujourd'hui (`joue` dit d'où elle sort, pour la partie). Un
  * consommable permanent quitte le méta à ce moment-là.
  */
 function jouerCarte(item, j, decider, page = null, auRetour = null) {
@@ -871,16 +850,14 @@ export function personnelDuJour(j) {
  * or firing a coach* ; puis *that philosophy should be for everything*. Une carte se joue dans le sous-onglet de ce qu'elle
  * touche : le personnel et le congédiement chez l'entraîneur, ce qui soigne un blessé ou refait des jambes à l'infirmerie,
  * le plafond et les contrats chez le proprio, les rappels (le club-école, un ancien, l'échange d'un doublon) dans l'effectif,
- * sous le tableau des joueurs. Ailleurs (Tes cartes, tes places), elle y renvoie.
+ * sous le tableau des joueurs. Une retouche se pose au verso de son joueur.
  */
 const MAISONS_DES_CARTES = {
-  entraineur: { titre: 'Tes cartes du personnel', ou: 'Chez l\'entraîneur' },
-  infirmerie: { titre: 'Tes cartes de soin', ou: 'À l\'infirmerie' },
-  proprio: { titre: 'Tes cartes de contrat', ou: 'Chez le proprio' },
-  joueurs: { titre: 'Tes rappels', ou: 'Dans l\'effectif' },
+  entraineur: { titre: 'Tes cartes du personnel' },
+  infirmerie: { titre: 'Tes cartes de soin' },
+  proprio: { titre: 'Tes cartes de contrat' },
+  joueurs: { titre: 'Tes rappels' },
 };
-/* Où une carte se joue, pour y renvoyer : sa maison et le mot du bouton (« À l'infirmerie › »). */
-const ouSeJoue = id => { const k = maisonDeLaCarte(id); return k ? { cle: k, mot: MAISONS_DES_CARTES[k].ou } : null; };
 function maisonDeLaCarte(id) {
   const c = BANQUE[id];
   if (!c) return null;
@@ -894,16 +871,16 @@ export function cartesDeLaMaison(maison, j) {
   const engages = new Set(maison === 'entraineur' ? patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle) : []);
   const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k)) : [];
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
-  const places = G.ligue ? placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
-  const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + places.length;
+  const partie = G.ligue ? cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
+  const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + partie.length;
   const masse = maison === 'proprio' ? masseSalarialeHtml(plafondPourInventaire(j)) : '';
   if (!n) return masse;
   const carte = (id, bouton) => `<div class="bq-carte">${carteDeBanqueHtml(optionDeBanque(id))}<div class="bq-actions">${bouton}</div></div>`;
   const jouer = (src, id, mot, ref = '') => `<button type="button" class="btn gold maison-jouer" data-src="${src}" data-id="${esc(id)}"${ref ? ` data-ref="${esc(ref)}"` : ''}>${mot}</button>`;
   // V12-4 : le sous-onglet tient en un écran — ses cartes se plient en une ligne (leurs icônes) ; ouvertes, une bande qui se balaie.
-  const icones = [...places.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
+  const icones = [...partie.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
   return `${masse}<details class="pli"><summary class="pli-t"><span class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</span><span class="pli-icones" aria-hidden="true">${icones}</span></summary>
-    <div class="pli-bande">${places.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
+    <div class="pli-bande">${partie.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
   </details>`;
 }
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
@@ -1675,7 +1652,7 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
  *   - le PLAFOND est celui d'un départ de run (`plafondDeDepart`).
  * Le personnel et les cartes permanentes vivent déjà dans le méta. La POCHE
  * (Jalon Q) suit aussi : ses cartes pas jouées entrent au jour 0 de la saison
- * neuve (`poche`, une décision de report, js/inventaire.js `placesDeLaPartie`).
+ * neuve (`poche`, une décision de report, js/inventaire.js `cartesDeLaPartie`).
  */
 /*
  * LES MODIFS QUI VIVENT SUR LA CARTE (1.0, js/cartable.js `poserSurLesCartes`) :
@@ -1828,14 +1805,14 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   // V16 : un adjoint à protégé le garde (le même joueur s'il est encore là, à l'échelon de l'adjoint), sinon le moteur en désigne un.
   const protegeDe = (cle, choix = []) => {
     const d = [...decsSaison].reverse().find(x => x && x.mutation && x.mutation.cle === cle), k = d && d.mutation.joueur;
-    return { cle, ...(k && Object.values(roster).some(p => p && getPlayerKey(p) === k) ? { joueur: k } : {}), saison: true, ...(choix.length ? { canaux: protegeALEchelon(cle, choix) } : {}) };
+    return { cle, ...(k && Object.values(roster).some(p => p && getPlayerKey(p) === k) ? { joueur: k } : {}), saison: true, ...(choix.length ? { canaux: protegeALEchelon(cle, choix) } : {}), ...(lignesDuFeu(cle, choix) ? { lignes: lignesDuFeu(cle, choix) } : {}) };
   };
   for (const pa of patronsActifs(decsSaison)) {
     const { jour: _j, remplace: _r, ...patron } = gens.has(pa.cle) ? reportDuPersonnel(gens.get(pa.cle)) : pa; void _j; void _r;
     report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: protegeDe(pa.cle, patron.choix || []) } : {}), report: true });
   }
-  // Jalon Q : tes places te suivent — leurs cartes pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
-  const poche = placesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
+  // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
+  const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });
   // V9 (tranche 6) : une commotion se garde — d'une saison à l'autre de la run, la suivante s'allonge (`COMMOTION_MEMOIRE`, js/sim.js).
   const commotions = { ...((decsSaison.find(d => d && d.commotions) || {}).commotions || {}) };

@@ -17,6 +17,8 @@
  * upgrader*) : au premier échelon, ce qu'une carte donne, son défaut le reprend — ses soirs, son net en buts tient près
  * de zéro (`check_places`, ±0,5 V). La force, elle, s'achète aux échelons (js/echelons.js `PRIX_ECHELON`).
  */
+/* Le feu d'un adjoint (`portee`) prend sa deuxième ligne après deux poussées de sa force : à son troisième échelon. */
+export const LIGNES_DU_FEU = { poussees: 2 };
 export const PERSONNEL = {
   // ---- neutres : le départ en impose deux ----
   per_gerantEquipement: { role: 'soins', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.95, finition: 1.02, volume: 0.98 },
@@ -118,6 +120,21 @@ export const PERSONNEL = {
   // reprend le ruban blanc et les bâtons neufs
   per_maitreRuban: { role: 'soins', nom: 'Le maître du ruban', ico: '🪢', rarete: 'peu', si: 'domicile', effet: { volume: 0.97 }, vise: 'franc',
     protege: { finition: 1.25, lancers: 1.08 }, texte: 'Le même ruban depuis le junior, refait à chaque match chez nous.' },
+  /*
+   * LE FEU QUI S'ENTRETIENT (V3.6, le premier combo : `LANCEE`, js/sim.js ; `check_combo`) : trois adjoints de l'Aigle
+   * et le vendeur de chandails. Chacun pose son feu sur une ligne (`portee`) : le meilleur marqueur de la ligne, ou ses
+   * compagnons. Au troisième échelon, le feu gagne la deuxième ligne, et la poudre tous les patineurs de ses deux lignes
+   * (`lignesDuFeu`, js/echelons.js ; `porteeDuFeu`, js/sim.js).
+   */
+  // reprend l'étincelle
+  per_allumeur: { role: 'attaque', nom: 'L\'allumeur', ico: '☄', rarete: 'rare', protege: { feu: 'etincelle', portee: 'tete' },
+    texte: 'Il repère celui qui a la main chaude, et il lui donne la rondelle. Trois buts, et ça s\'allume.' },
+  // reprend la braise
+  per_gardienBraise: { role: 'physique', nom: 'Le gardien de la braise', ico: '🪔', rarete: 'rare', protege: { feu: 'braise', portee: 'tete' },
+    texte: 'Quand un joueur est en feu, il ne change rien : la même routine, le même siège dans l\'autobus.' },
+  // reprend la traînée de poudre
+  per_semeurPoudre: { role: 'chef', nom: 'Le semeur de poudre', ico: '💫', rarete: 'rare', protege: { feu: 'poudre', portee: 'compagnons' },
+    texte: 'Il met ses compagnons de ligne dans la même chambre que celui qui marque. Ça se propage.' },
 
   // ---- 🐢 la Tortue ----
   // reprend le mur du dimanche

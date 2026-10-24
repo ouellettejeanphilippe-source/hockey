@@ -41,7 +41,7 @@ Le format ne change pas : un poste (`ROLES`), un moment (`si`, `MOMENTS_SI`), un
 
 ## 3. D'où vient un adjoint (tranche 3, faite)
 
-Ce qui sort encore d'un pack, d'un butin ou d'un palier : le personnel et les outils de gérant (`sortEncore`, js/banque.js) — la masse salariale, les soins, les retouches d'édition (`MUTATIONS_ATELIER`), le congédiement, les rappels et l'échange d'un doublon. Les places, l'équipement, les clauses et le feu n'entrent plus ; ceux déjà pris se jouent jusqu'à la tranche 4.
+Ce qui sort encore d'un pack, d'un butin ou d'un palier : le personnel et les outils de gérant — la masse salariale, les soins, les retouches d'édition (`MUTATIONS_ATELIER`), le congédiement, les rappels et l'échange d'un doublon. Les places, l'équipement, les clauses et le feu n'entraient plus (`sortEncore`, js/banque.js) ; la tranche 4 les a retirés de la banque, et `sortEncore`, qui ne triait plus rien, avec eux.
 
 | Source | Avant | V16 |
 |---|---|---|
@@ -85,6 +85,26 @@ Les cartes jouées ne comptent plus. La confiance reste une décision `coach` qu
 
 Adjoints et échelons seuls peuvent maintenant mener à la III : cinq adjoints de sa couleur, à leur 3e échelon, valent 3 + 15 points.
 
+## 4b. Le grand départ (tranche 4, faite)
+
+**Ce qui part** : js/places.js et js/equipement.js, les clauses (`MODIFS_VIE`, js/cartes-vie.js ; `contrat_bonus`), le feu de l'atelier et les trois modifs d'un lieu (le gardien du château, le joueur de route, l'homme des séries) : 75 cartes. Trois adjoints du feu arrivent ; la banque passe de 182 à 110 cartes. Avec elles, `PLACES`, la carte de trop (son choix d'À faire, sa scène `sceneDeLaCarteDeTrop`), l'onglet « Tes places » du Marché, le butin « pour une place », `sortEncore`. Les clés de mutation `contrat_annee`, `contrat_prolonge` et `contrat_leader` restent : ce sont les réponses d'un fil (js/vie-gm.js), pas des cartes.
+
+**Le feu** (`check_combo`, en paires) : trois adjoints rares de l'Aigle, chacun à son poste, hors de la direction du vendeur de chandails.
+
+| Adjoint | Reprend | Poste | Portée | Seul |
+|---|---|---|---|---|
+| ☄ L'allumeur | l'étincelle | attaque | le meilleur marqueur de la 1re ligne | +0,7 V, 91 soirs de lancée (témoin 72) |
+| 🪔 Le gardien de la braise | la braise | physique | le meilleur marqueur de la 1re ligne | +0,4 V, 79 soirs |
+| 💫 Le semeur de poudre | la traînée de poudre | chef | un compagnon du meilleur marqueur | +0,4 V, 90 soirs |
+
+Après deux poussées de sa force (`LIGNES_DU_FEU`, js/personnel.js), un feu tient aussi la 2e ligne, et la poudre tous les patineurs des deux premières (`porteeDuFeu`, js/sim.js). Le combo d'une ligne fait 1,46 fois les soirs de lancée de ses pièces ; le build complet (les trois à deux lignes, et le vendeur) 5,8 fois ceux du témoin, +2,7 V, et 418 🪙 par saison au vendeur. La poudre sur les deux compagnons d'une seule ligne passait la borne des soirs (42) et faisait un complet moins fort que l'allumeur seul : un compagnon à une ligne, toute la ligne à deux.
+
+**Les routes de la semaine** : leurs 25 cartes étaient des places. Elles vivent maintenant dans js/noeuds.js (`CARTES_DE_ROUTE`), les mêmes chiffres et les mêmes tirages (aucune différence sur 7 800 routes de 200 graines), et `check_places` les mesure avec les réponses des dossiers. Écarté : en faire des dossiers à une réponse (la route perd sa variété) ou des adjoints (une route dure une semaine, un adjoint un poste).
+
+**`check_si`** mesure trois adjoints d'un moment à la place des modifs d'un lieu : 🧥 l'ancien capitaine à domicile, 🧭 l'entraîneur des gardiens de route à l'étranger, ⚙ le directeur de l'usine en séries (la saison identique au but près).
+
+**Une partie d'avant la V16** se relit : une carte que la banque ne connaît plus ne se montre plus (`cartesDeLaPartie`), ne prend pas de case au verso (`poseesSur`), une mutation inconnue ne joue pas, et un effet déjà joué porte ses chiffres et se rejoue. `check_sauvegardes` le prouve sur une partie fabriquée (une place jouée, un équipement posé, une clause, un feu gardé, une carte de palier, un report).
+
 ## 5. Les règles fermes qui changent (CLAUDE.md)
 
 - « Chaque coach a au moins huit cartes, dans deux familles au moins ; le Rhino, l'Abbé et le Contremaître… six places » devient : chaque coach a au moins cinq adjoints, sur trois postes au moins.
@@ -99,5 +119,5 @@ Adjoints et échelons seuls peuvent maintenant mener à la III : cinq adjoints d
 | 1. Les adjoints neufs | la trentaine d'adjoints, le protégé | `check_places` (en paires, sous la borne, la rare se voit), `check_personnel`, `check_si` |
 | 2. La confiance | les trois chemins (`palierAllume`, js/banque.js ; js/coachs.js) | `check_coachs`, `check_voies` |
 | 3. Les sources | packs, butin, paliers, doublons | `check_packs`, `check_rogue`, `essai_packs` |
-| 4. Le grand départ | places.js, equipement.js, les clauses, le feu, l'onglet « Tes places », les règles de CLAUDE.md | `check_mort`, `check_banque`, `check_combo` |
+| 4. Le grand départ (faite) | places.js, equipement.js, les clauses, le feu, l'onglet « Tes places », les règles de CLAUDE.md | `check_mort`, `check_banque`, `check_combo`, `check_sauvegardes` |
 | 5. L'écran et la run | l'entraîneur montre tes postes et ta collection ; la run se joue | `essai_rogue`, `check_profondeur`, `check_robot` |

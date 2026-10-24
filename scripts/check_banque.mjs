@@ -150,9 +150,7 @@ const avant = SLOTS.filter(s => !s.scratch && s.group === 'F').map(s => moi.rost
 const decs = [
   { jour: 5, equipe: 0, ...payloadDe('patron:per_gardienDuFort', { patrons: [] }) },
   { jour: 10, equipe: 0, moment: { famille: 'dossier', cle: 'laPratique', choix: 'zone' } },
-  { jour: 12, equipe: 0, ...payloadDe('joueur:rubanBlanc', { joueur: getPlayerKey(avant) }) },
-  { jour: 16, equipe: 0, ...payloadDe('consommable:tableMassage') },
-  { jour: 18, equipe: 0, ...payloadDe('consommable:batonsNeufs', { joueur: getPlayerKey(avant) }) },
+  { jour: 12, equipe: 0, ...payloadDe('patron:per_maitreRuban', { joueur: getPlayerKey(avant), patrons: [] }) },
   { jour: 20, equipe: 0, moment: { famille: 'dossier', cle: 'ilBoude', choix: 'mijoter', joueur: getPlayerKey(avant), joueurs: [getPlayerKey(avant)] } },
 ];
 simulateLeague(t0, 82, { graine: 'banque', decisions: decs });
@@ -161,11 +159,8 @@ const pat = (moi.patrons || []).find(x => x.cle === 'per_gardienDuFort');
 moi._soir = { apresDefaite: true };
 exiger('un patron engagé joue pour la saison, ses soirs', !!pat && pat.si === 'apresDefaite' && effetsDeSaison(moi).defense < 1, pat ? `buts contre ×${effetsDeSaison(moi).defense.toFixed(3)} après une défaite` : 'absent');
 exiger('un dossier entre dans les effets de l\'équipe', (moi.effets || []).some(e => e.nom === 'La pratique du mardi'), `${(moi.effets || []).length} effet(s)`);
-exiger('un équipement change la carte du joueur', (avant._mutCles || []).includes('rubanBlanc'), avant.n);
-// V11 : une place sur un joueur nommé tient sur lui, le temps de ses matchs, et attend son moment.
-const surLui = (moi.effetsCibles || []).find(e => e.nom === 'Les bâtons neufs');
-exiger('une place sur un joueur tient sur le joueur nommé', !!surLui && getPlayerKey(surLui.joueur) === getPlayerKey(avant) && surLui.si === 'apresDefaite' && surLui.finition > 1,
-  surLui ? `${surLui.joueur.n} : précision ×${surLui.finition}, ${surLui.fin - surLui.debut} jours` : 'absente');
+// V16 : l'équipement et les places sur un joueur sont partis ; un adjoint à protégé change la carte du joueur nommé.
+exiger('un adjoint à protégé change la carte de son joueur', (avant._mutCles || []).includes('per_maitreRuban') && (moi.patrons || []).some(x => x.cle === 'per_maitreRuban'), avant.n);
 // V11 (tranche 4) : un dossier qui nomme un joueur pose le gros de sa réponse sur lui, et le reste sur l'équipe.
 const boude = (moi.effetsCibles || []).find(e => e.nom === 'Il boude');
 exiger('un dossier sur un joueur tient sur le joueur nommé', !!boude && getPlayerKey(boude.joueur) === getPlayerKey(avant) && boude.finition < 1 && (moi.effets || []).some(e => e.nom === 'Il boude' && e.discipline < 1),

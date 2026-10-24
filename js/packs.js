@@ -57,7 +57,7 @@
  * leur filtre et le Trio, sa vraie ligne : ni l'un ni l'autre ne tire de niveau.
  */
 import { hache } from './util.js';
-import { BANQUE, idsDe, idsDuCoach, sortEncore } from './banque.js';
+import { BANQUE, idsDe, idsDuCoach } from './banque.js';
 import { COACHS, ORDRE_COACHS, VOIES } from './coachs.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur, badgesDe, famillesDe } from './sim.js';
 import { FRANCHISES, codeDeFranchise, saisonsDeFranchise } from './franchises.js';
@@ -527,15 +527,15 @@ function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.
   const coach = P.choix === 'coach' ? coachDuPack(graine, n, params) : null;
-  // `params.sans` : des familles que ce tirage ne donne pas. V16 : seul ce qui sort encore (`sortEncore`) ; un coach sans
-  // carte dans ces familles (les outils de gérant n'ont presque pas de couleur) laisse tirer sans couleur.
-  const libres = P.cats.filter(c => !(params.sans || []).includes(c) && idsDe(c).some(sortEncore));
-  const siens = coach ? libres.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c && sortEncore(id))) : [];
+  // `params.sans` : des familles que ce tirage ne donne pas. V16 : un coach sans carte dans ces familles (les outils de
+  // gérant n'ont presque pas de couleur) laisse tirer sans couleur.
+  const libres = P.cats.filter(c => !(params.sans || []).includes(c) && idsDe(c).length);
+  const siens = coach ? libres.filter(c => idsDuCoach(coach).some(id => BANQUE[id].cat === c)) : [];
   const teint = coach && siens.length > 0;
   const cats = teint ? siens : libres;
   for (let t = 0; t < P.n; t++) {
     const cat = cats[Math.floor(hache(graine, 'pack-famille', cleCourte, n, t) * cats.length)];
-    const pool = idsDe(cat).filter(id => sortEncore(id) && BANQUE[id].rarete !== 'maudite' && (!teint || BANQUE[id].coach === coach));
+    const pool = idsDe(cat).filter(id => BANQUE[id].rarete !== 'maudite' && (!teint || BANQUE[id].coach === coach));
     let r = hache(graine, 'pack-cartes', cleCourte, n, t) * 100;
     let rar = 'commune';
     for (const k of ORDRE_VAR) { r -= P.cotes[k] || 0; if (r < 0) { rar = k; break; } }
@@ -565,7 +565,7 @@ export function sortDUnPack(id) {
   const c = BANQUE[id];
   if (!c) return false;
   if (c.rarete === 'maudite') return c.cat === 'plafond' && MAUDITE_MIXTE > 0;
-  return CATS_MIXTES.includes(c.cat) && sortEncore(id);
+  return CATS_MIXTES.includes(c.cat);
 }
 /* Le coach d'un pack du coach : celui choisi à l'achat, sinon un tiré de la graine et du numéro d'achat. */
 export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);

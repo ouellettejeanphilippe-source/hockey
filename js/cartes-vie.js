@@ -1,47 +1,21 @@
 /**
  * « UNE SAISON DANS LA VIE D'UN DG-COACH » — les cartes neuves de la banque.
  *
- * Quatre tables, dans les MÊMES formats que celles qu'elles rejoignent. Aucun
+ * Trois tables, dans les MÊMES formats que celles qu'elles rejoignent. Aucun
  * canal neuf, aucune mécanique neuve : chaque carte passe par les champs que
  * le moteur lit déjà, dans les amplitudes de ses voisines de même rareté. La
  * couleur d'une carte (son coach) n'est écrite nulle part : `coachDesCanaux`
  * (js/coachs.js) la lit sur ce que la carte fait ; une carte qui ne bouge
  * presque rien est neutre.
  *
- *   MODIFS_VIE          au format de MUTATIONS (js/sim.js), sources `style` et `contrat`
- *   RARETE_MODIFS_VIE   leur rareté, au format de RARETE_MOD (js/banque.js)
  *   CONSOMMABLES_VIE    au format de CONSOMMABLES (js/banque.js)
  *   CONTRATS_VIE        au format de CONTRATS (js/banque.js)
  *   CARTES_MATCH_VIE    au format de CARTES_MATCH (js/combat.js), toutes `horsAdverse`
  *
- * Ce fichier n'importe rien : il est de la donnée, et sim.js, banque.js et
- * combat.js peuvent l'importer sans cycle.
+ * Ce fichier n'importe rien : il est de la donnée, et banque.js et combat.js
+ * peuvent l'importer sans cycle. V16 : les clauses (`MODIFS_VIE`) sont parties, devenues le fiscaliste
+ * (js/personnel.js).
  */
-
-/* ---------- LES MODIFS DE JOUEURS (au verso, pour la saison) ---------- */
-export const MODIFS_VIE = {
-  // commune : un canal, deux ou trois pour cent
-  contrat_proximite: { nom: 'Clause de proximité', ico: '🏘', cible: 'libre', source: 'contrat', quoi: 'Il a exigé une maison à dix minutes de chez sa mère. Il y soupe tous les dimanches, sans exception.', finition: 1.07, blessure: 1.14 },
-  contrat_cafetiere: { nom: 'Clause de la cafetière', ico: '🫗', cible: 'libre', source: 'contrat', quoi: 'Une cafetière dans son casier, aux frais du club. Il en vide une pleine avant chaque match.', lancers: 1.105, blessure: 1.14 },
-  // peu commune : un canal à cinq pour cent, ou deux plus petits
-  contrat_assiduite: { nom: 'Clause d\'assiduité', ico: '📆', cible: 'libre', source: 'contrat', quoi: 'Un boni par match joué. Il jouerait grippé, et il l\'a déjà fait.', lancers: 1.092, blessure: 1.336 },
-  contrat_deplacement: { nom: 'Clause de non-déplacement', ico: '📄', cible: 'libre', source: 'contrat', quoi: 'Il refuse de prendre l\'avion. Il voyage en autobus, seul à l\'avant, et descend raide comme un piquet.', defense: 0.952, finition: 0.969 },
-  // rare : un vrai bonus, et son prix
-  contrat_profits: { nom: 'Clause de participation aux profits', ico: '🏧', cible: 'libre', source: 'contrat', quoi: 'Il touche une part des ventes du bar de l\'aréna. Il salue la foule à chaque arrêt de jeu.', finition: 1.101, lancers: 1.076, blessure: 1.42 },
-  contrat_avril: { nom: 'Clause de fin de saison', ico: '🗓', cible: 'libre', source: 'contrat', quoi: 'Il garde ses forces pour avril. En octobre, on le cherche encore sur la glace.', defense: 0.937, lancers: 0.924, blessure: 0.664 },
-  // légendaire : le plus gros bonus du lot, un prix qui se sent
-
-  // Nouveaux styles et contrats (ajouts)
-  contrat_glace: { nom: 'Clause de glace à l\'année', ico: '🧊', cible: 'libre', source: 'contrat', quoi: 'Il a fait écrire à son contrat une patinoire dans sa cour. Il y patine chaque matin avant l\'entraînement.', lancers: 1.05, blessure: 1.05 },
-  contrat_animaux: { nom: 'Clause des mascottes', ico: '🐕', cible: 'libre', source: 'contrat', quoi: 'Son contrat lui permet d\'amener ses trois huskies au vestiaire le mardi. Le soigneur les promène.', finition: 1.04, lancers: 1.04, blessure: 1.15 },
-
-};
-export const RARETE_MODIFS_VIE = {
-  contrat_proximite: 'commune', contrat_cafetiere: 'commune',
-  contrat_assiduite: 'peu', contrat_deplacement: 'peu',
-  contrat_profits: 'rare', contrat_avril: 'rare',
-  contrat_glace: 'commune', contrat_animaux: 'commune',
-};
 
 /* ---------- LES CONSOMMABLES (une utilisation) ---------- */
 export const CONSOMMABLES_VIE = {

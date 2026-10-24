@@ -43,7 +43,7 @@ import { ARCHETYPES } from '../js/ratings.js';
 import { NIVEAUX } from '../js/niveaux.js';
 import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
-import { PLACES, PALIERS_PACK } from '../js/inventaire.js';
+import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, LIGUE_PARTS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
@@ -51,7 +51,7 @@ import { MATCHS_ECHELON, POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelon
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -270,7 +270,7 @@ const MOTS_RESERVES = [
   borne('la page des règles est courte', mots, 300, 2400, 'mots');
   const taisait = [[/avantage numérique<\/strong> se joue avec tes unités spéciales/, 'l\'avantage numérique'], [/en <strong>prolongation<\/strong>, au premier but/, 'la prolongation'],
     [/le tour est dû/, 'le retrait au loto'], [/ajustement de série/, 'l\'ajustement de série'], [/L'adjoint peut jouer la série/, 'l\'adjoint en séries'],
-    [/Une case vide ce soir-là : une carte parmi trois, pour une place/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
+    [/Une case vide ce soir-là : un adjoint parmi trois/, 'la carte de la case vide'], [/ne vivent qu'au Rogue/, 'ce qui ne vit qu\'au Rogue']];
   const encoreTu = taisait.filter(([re]) => !re.test(brut)).map(([, nom]) => nom);
   exiger('la page dit ce qu\'elle taisait (V2.2)', encoreTu.length === 0, encoreTu.join(' · ') || `${taisait.length} sujets dits`);
   // L'IMPACT EN CHIFFRES DE MATCH (js/impact.js) : un effet se lit en tirs et en buts par match ; la page le dit, et ne le dit plus en « Tirs +8 % ».
@@ -335,8 +335,7 @@ const MOTS_RESERVES = [
     [`${GALONS.buts.seuil} buts, ${GALONS.passes.seuil} passes, ${GALONS.victoires.seuil} victoires, un point dans ${GALONS.grandsSoirs.seuil} gros matchs gagnés ou ${GALONS.recrue.seuil} points d'une recrue montent son badge d'un métal pour la run (${['zéro', 'un', 'deux', 'trois'][GALONS_MAX]} au plus) ; ${['zéro', 'un', 'deux', 'trois', 'quatre'][Number((lire('js/rogue.js').match(/const CHANDAIL_GALONS = (\d+);/) || [])[1])]} retirent son chandail`, 'les galons'],
     // V9, tranche 6 : la commotion qui se souvient (`COMMOTION_MEMOIRE`, js/sim.js) — « de moitié » pour 0,5.
     [`Une commotion allonge la suivante de ${{ 0.5: 'moitié', 1: 'son double' }[Number((lire('js/sim.js').match(/const COMMOTION_MEMOIRE = ([\d.]+);/) || [])[1])] || '?'}`, 'la commotion'],
-    // V9, tranche 5b : tes places et les paliers de la saison.
-    [`tes <strong>${PLACES} places</strong>`, 'les places'],
+    // V9, tranche 5b, puis V16 : tes adjoints et les paliers de la saison.
     [`aux ${PALIERS_PACK.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_PACK.at(-1)}e matchs, un adjoint parmi trois`, 'les paliers de la saison'],
     [`${PALIERS_CARTES.slice(0, -1).map(k => `${k}e`).join(', ')} et ${PALIERS_CARTES[PALIERS_CARTES.length - 1]}e matchs`, 'les paliers'],
     [`de ${pct(OBJECTIF_RATE.energie)} % de plus pendant ${OBJECTIF_RATE.duree} matchs.`, 'l\'objectif raté'],
@@ -411,9 +410,6 @@ const MOTS_RESERVES = [
   for (let g = 0; g < 40; g++) {
     for (const [moi, lui] of [[3, 1], [2, 2], [0, 4]]) { juger('la mise', sceneDeLaMise({ moi, lui, rival: 'Bruins 1995-96', graine: g }), [moi, lui, 'Bruins 1995-96']); n++; }
     for (const rang of [2, 16, 31]) { juger('le palier', sceneDuPalier({ n: 18, fiche: { V: 7, D: 9, DP: 2 }, rang, equipes: 32, mandat: 'faire les séries', graine: g }), [18, '7-9-2', `${rang}e`, 'faire les séries']); n++; }
-    for (const gros of [null, { adv: 'Wild 2010-11', dans: 0 }, { adv: 'Wild 2010-11', dans: 3 }]) {
-      juger('la carte de trop', sceneDeLaCarteDeTrop({ cartes: 4, places: PLACES, gros, graine: g }), [4, PLACES, ...(gros ? [gros.adv] : []), ...(gros && gros.dans > 1 ? [gros.dans] : [])]); n++;
-    }
   }
   // A3 à A6 (V10, tranche 5) : la route recommandée répond au pire problème (les jambes et l'infirmerie au repos, la caisse à la commandite).
   for (let g = 0; g < 40; g++) {
@@ -425,7 +421,7 @@ const MOTS_RESERVES = [
     }
     for (const [k, t] of [[3, 3], [9, 12]]) { juger('la blessure', sceneDeLaBlessure({ joueur: 'Al Secord', n: k, total: t, ou: 'T2 · ailier gauche', adv: 'Wild 2010-11', graine: g }), ['Al Secord', k, ...(t > k ? [t] : []), 'T2 · ailier gauche', 'Wild 2010-11']); n++; }
     for (const multi of [3, 1]) { juger('les rivaux', sceneDesRivaux({ multi, offerts: 5, graine: g }), [multi, 5]); n++; }
-    for (const cartes of [11, 18]) { juger('le butin', sceneDuButin({ pour: 4, contre: 2, adv: 'Bruins 1995-96', cartes, max: 20, graine: g }), [4, 2, 'Bruins 1995-96', cartes, 20]); n++; }
+    for (const [pour, contre] of [[4, 2], [6, 1]]) { juger('le butin', sceneDuButin({ pour, contre, adv: 'Bruins 1995-96', graine: g }), [pour, contre, 'Bruins 1995-96']); n++; }
     // A8 (Jalon M) : le proprio dit le mandat, le capitaine les galons.
     for (const sort of ['rate', 'rempli', 'coupe']) { juger('le mandat', sceneDuMandat({ sort, fiche: { V: 21, D: 52, DP: 9 }, rang: 30, equipes: 32, mandat: 'faire les séries', graine: g }), ['21-52-9', '30e', 32, 'faire les séries']); n++; }
     for (const noms of [['Radek Dvorak'], ['Radek Dvorak', 'Hampus Lindholm', 'Radek Dvorak']]) { juger('les galons', sceneDesGalons({ noms, graine: g }), [noms.length, ...new Set(noms)]); n++; }

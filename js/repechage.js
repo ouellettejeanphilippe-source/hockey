@@ -16,7 +16,7 @@ import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction,
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
-import { placesDeLaPartie } from './inventaire.js';
+import { cartesDeLaPartie } from './inventaire.js';
 import { ajouterAuCartable } from './cartable.js';
 import { LOGOS_LOCAUX } from './logos_locaux.js';
 import { scoreIdentite, IDENTITES } from './identites.js';
@@ -289,14 +289,14 @@ function situationsDe(p) {
  */
 const peutPoserEnSaison = () => { const hub = hubActif(); return !!(hub && hub.decider && G.ligue && G.ligue.you && !G.banc); };
 const jourDuHub = () => { const hub = hubActif(); return hub && hub.jour ? hub.jour() : (G.journee || 0); };
-/* Les modifs de tes places qui vont à ce joueur (son groupe, une case libre, une édition qui lui fait quelque chose), empilées. */
+/* Les retouches de tes cartes qui vont à ce joueur (son groupe, une case libre, une édition qui lui fait quelque chose), empilées. */
 function cartesAPoserSur(p) {
   const L = G.ligue;
   if (!L || !p) return [];
   const j = jourDuHub();
   const sl = SLOTS.find(s => G.roster[s.i] && getPlayerKey(G.roster[s.i]) === getPlayerKey(p));
   const piles = new Map();
-  for (const x of placesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: G.bonus === 'ROGUE' })) {
+  for (const x of cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: G.bonus === 'ROGUE' })) {
     const c = BANQUE[x.id];
     if (!c || c.cat !== 'joueur' || etatPourPoser(c.cle, p, sl, { jour: j }).non) continue;
     if (!piles.has(x.id)) piles.set(x.id, []);

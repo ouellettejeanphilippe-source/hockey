@@ -5042,7 +5042,6 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .bq-actions .btn { flex: 1; min-height: 40px; padding: 0 var(--esp-2); font-size: var(--t-2); white-space: nowrap; }
 .bq-actions .btn.gold { background: transparent; color: var(--or); border-color: var(--or); }
 .bq-actions .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 14%, transparent); }
-.inv-vendre { color: var(--encre-3); }
 
 /* ---- L'inventaire (#inventaireModal) : des onglets en bande, des filtres, une grille par catégorie ---- */
 .inv-onglets { flex: none; display: flex; gap: var(--esp-1); padding: 0 var(--esp-3); overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--filet); }

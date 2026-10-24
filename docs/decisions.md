@@ -2792,3 +2792,13 @@ Plus rien de neuf n'entre aux places ; ce qui sort d'un pack, d'un butin ou d'un
 - **Les seuils.** Mesurés sur le robot attentif qui engage et reporte, 14 et 30 donnaient la II en deuxième saison et jamais la III. À **3, 7 et 15**, la II arrive entre le 41e et le 61e match de la première saison, et la III entre le 20e et le 61e de la deuxième (quatre vrais clubs, docs/refonte-v16.md § 4).
 
 Écarté : **les deux cartes d'un pack de joueurs en adjoints.** La boutique ne vend que des packs de joueurs ; sans leur deuxième carte, plus rien n'aurait donné de masse salariale ni de soins hors des récompenses scellées.
+
+## Le grand départ (V16, tranche 4 — 24 oct. 2026)
+
+JP : *les assistants coachs remplacent toutes les autres cartes de bonus* ; il a tranché « tout bonus de jeu ». Les places (js/places.js), l'équipement (js/equipement.js), les clauses (`MODIFS_VIE`, `contrat_bonus`), le feu de l'atelier et les trois modifs d'un lieu partent : 75 cartes, la banque passe de 182 à 110. Avec elles, `PLACES`, la carte de trop (son choix d'À faire et sa scène), l'onglet « Tes places », le butin « pour une place », et `sortEncore`, qui ne triait plus rien. Les outils de gérant restent : la masse salariale, les soins, les retouches d'édition, le congédiement, les rappels, l'échange d'un doublon.
+
+**Le feu devient trois adjoints de l'Aigle** (☄ l'allumeur, 🪔 le gardien de la braise, 💫 le semeur de poudre), à trois postes hors de la direction du vendeur de chandails. Un adjoint ne nomme pas son joueur : il vise sa ligne (`portee`, `porteeDuFeu`, js/sim.js), et la 2e après deux poussées de sa force (`LIGNES_DU_FEU`). Mesuré (`check_combo`, en paires) : chacun seul sous la borne d'une rare (+0,7, +0,4, +0,4 V), le combo d'une ligne à 1,46 fois ses pièces, le build complet à 5,8 fois les soirs de lancée du témoin et +2,7 V. Écarté : la poudre sur les deux compagnons d'une ligne seule — 42 soirs de lancée de plus, au-dessus de la borne, et un complet moins fort que l'allumeur seul.
+
+**Les routes de la semaine restent.** Leurs 25 cartes étaient des places ; elles vivent dans js/noeuds.js (`CARTES_DE_ROUTE`), aux mêmes chiffres et aux mêmes tirages (aucune différence sur 7 800 routes), mesurées par `check_places`. Écarté : en faire des dossiers à une réponse (la route perd sa variété) ou des adjoints (une route dure une semaine, un adjoint tient un poste). C'est le seul « bonus de jeu » hors du personnel qui reste : à JP de dire s'il part aussi.
+
+**Une partie d'avant la V16 se relit** : une carte inconnue s'ignore (`cartesDeLaPartie`, `poseesSur`), une mutation inconnue ne joue pas, un effet déjà joué porte ses chiffres et se rejoue — `check_sauvegardes`.

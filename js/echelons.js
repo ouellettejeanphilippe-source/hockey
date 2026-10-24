@@ -14,7 +14,7 @@
  * d'échelon, c'est une décision de plus, au jour dit, qui la remplace à son poste.
  */
 import { PATRONS, BANQUE, patronsActifs, coachsActifs, canalBon } from './banque.js';
-import { PROTEGES } from './personnel.js';
+import { PROTEGES, LIGNES_DU_FEU } from './personnel.js';
 import { CANAUX_MUT, estMalus } from './sim.js';
 
 export const ECHELON_MAX = 5;
@@ -70,6 +70,8 @@ export function protegeALEchelon(cle, choix = []) {
   const fF = 1 + POUSSEE * nF, fD = CORRECTION ** nD;
   return Object.fromEntries(CANAUX_MUT.filter(c => M[c]).map(c => [c, rond(grandir(M[c], estMalus(c, M[c]) ? fD : fF))]));
 }
+/* Le feu d'un adjoint (`portee`) prend sa deuxième ligne à son troisième échelon : deux poussées de sa force (`LIGNES_DU_FEU`). */
+export const lignesDuFeu = (cle, choix = []) => (PROTEGES[cle] && PROTEGES[cle].portee ? (choix.filter(c => c === 'force').length >= LIGNES_DU_FEU.poussees ? 2 : 1) : null);
 /* La force et la faiblesse, séparées : ce que la fiche dit en vert et en rouge. */
 export function forceEtFaiblesse(effet) {
   const force = {}, faiblesse = {};
@@ -124,7 +126,7 @@ export function etatDuPersonnel(decisions = [], jusqua = Infinity, { joues = () 
 export function decisionDEchelon(e, choix) {
   const p = e.patron, prix = PRIX_ECHELON[e.echelon + 1] || 0, tous = [...(p.choix || []), choix];
   return { patron: patronALEchelon(e.cle, { choix: tous, depuis: e.depuis, avant: p.avant || 0 }),
-    ...(PROTEGES[e.cle] ? { mutation: { cle: e.cle, saison: true, canaux: protegeALEchelon(e.cle, tous) } } : {}), ...(prix ? { gain: -prix } : {}) };
+    ...(PROTEGES[e.cle] ? { mutation: { cle: e.cle, saison: true, canaux: protegeALEchelon(e.cle, tous), ...(lignesDuFeu(e.cle, tous) ? { lignes: lignesDuFeu(e.cle, tous) } : {}) } } : {}), ...(prix ? { gain: -prix } : {}) };
 }
 /* La fin d'une saison : la carte passe à la suivante avec ses matchs à ton service, qui repartent de là. */
 export const reportDuPersonnel = e => ({ ...e.patron, depuis: 0, avant: e.service });

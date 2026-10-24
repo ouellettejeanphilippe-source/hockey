@@ -55,7 +55,7 @@ import {
 } from '../../js/sim.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, engagerDuRobot } from './cartes_robot.mjs';
-import { matchsJoues, etatDuPersonnel, reportDuPersonnel, protegeALEchelon } from '../../js/echelons.js';
+import { matchsJoues, etatDuPersonnel, reportDuPersonnel, protegeALEchelon, lignesDuFeu } from '../../js/echelons.js';
 import { patronsDeDepart, payloadDe, baseDesCoachs, coachsActifs, patronsActifs, buildDe, BANQUE } from '../../js/banque.js';
 import { PROTEGES } from '../../js/personnel.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
@@ -463,7 +463,7 @@ function reportDeSaison(decisions, L, you) {
   for (const pa of patronsActifs(decisions)) {
     const { jour: _j, remplace: _r, ...patron } = gens.has(pa.cle) ? reportDuPersonnel(gens.get(pa.cle)) : pa; void _j; void _r;
     const choix = patron.choix || [];
-    report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: { cle: pa.cle, saison: true, ...(choix.length ? { canaux: protegeALEchelon(pa.cle, choix) } : {}) } } : {}), report: true });
+    report.push({ jour: 0, patron, ...(PROTEGES[pa.cle] ? { mutation: { cle: pa.cle, saison: true, ...(choix.length ? { canaux: protegeALEchelon(pa.cle, choix) } : {}), ...(lignesDuFeu(pa.cle, choix) ? { lignes: lignesDuFeu(pa.cle, choix) } : {}) } } : {}), report: true });
   }
   return report;
 }

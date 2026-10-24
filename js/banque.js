@@ -4,9 +4,9 @@
  * JP : *créer une vraie banque de cartes […] digne d'un vrai deck builder* ; puis (V10) *jeter toutes les cartes et
  * créer de zéro avec la nouvelle philosophie en tête*.
  *
- * UN SEUL REGISTRE pour tout ce qui se joue, en trois piles : les PLACES (les consommables, js/places.js),
- * l'ÉQUIPEMENT (les changements de carte d'un joueur, MUTATIONS, js/equipement.js) et le PERSONNEL (les patrons,
- * js/personnel.js), plus les contrats du plafond. Les cartes de match sont parties avec la main du duel (V13-2,
+ * UN SEUL REGISTRE pour tout ce qui se joue. Depuis la V16 (docs/refonte-v16.md), le PERSONNEL (les patrons,
+ * js/personnel.js) est la seule carte bonus ; restent à côté les outils du gérant : les soins, le congédiement, les
+ * rappels du cartable, les retouches d'édition de l'atelier et les contrats du plafond. Les cartes de match sont parties avec la main du duel (V13-2,
  * docs/refonte-v13.md). Presque chaque carte attend son MOMENT (`si`, `MOMENTS_SI`, js/sim.js). Chaque carte a un identifiant
  * (\`cat:cle\`), une catégorie, une rareté, une durée de vie, et sa RÈGLE en chiffres de match (\`reglesDe\`) :
  * « ≈ +0,2 but marqué par match », « ≈ −2 blessures par saison », jamais un pourcentage, jamais « un peu ».
@@ -21,14 +21,13 @@
  * un point de robustesse ≈ 0,5. Chaque carte se mesure en paires, sur les soirs de son moment (`check_places`,
  * `check_cartes`).
  */
-import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI, MUTATIONS_ATELIER } from './sim.js';
-import { PLACES_NEUVES } from './places.js';
-import { PERSONNEL, CONTRATS_MAUDITS, PROTEGES } from './personnel.js';
+import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI, LANCEE } from './sim.js';
+import { PERSONNEL, CONTRATS_MAUDITS, PROTEGES, LIGNES_DU_FEU } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
-import { formeDe, motsSurLeJoueur } from './gerant.js';
+import { formeDe } from './gerant.js';
 import { money, hache } from './util.js';
 import { NIVEAUX } from './niveaux.js';
-import { CONSOMMABLES_VIE, CONTRATS_VIE, RARETE_MODIFS_VIE } from './cartes-vie.js';
+import { CONSOMMABLES_VIE, CONTRATS_VIE } from './cartes-vie.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS } from './coachs.js';
 
 export const CATEGORIES = {
@@ -157,16 +156,9 @@ export const CONSOMMABLES = {
   // ---- v2 : treize de plus ----
   ruban: { nom: 'Le ruban magique', ico: '🎗', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 3 }, effet: { blessure: 1.35 }, duree: 3, texte: 'Trois rouleaux autour de la cheville, et il retourne au jeu.' },
   aiguilles: { nom: 'L\'acupuncteur', ico: '🪡', rarete: 'peu', vie: 'usage', cible: 'blesse', gestes: { soin: 4 }, texte: 'Quarante aiguilles, et le dos se replace.' },
-  /*
-   * v2 — LES CARTES DE VESTIAIRE : une par coach (le Comptable n'a pas de
-   * joueurs), qui grandit avec les JOUEURS de sa couleur habillés quand on la
-   * joue (`parJoueur`, js/coachs.js `coachDesRoles`) : cinq snipers font de
-   * « La clé du coin supérieur » une vraie semaine. Des cartes de joueurs qui
-   * font vivre des cartes de banque.
-   */
+  // Les soins d'ailleurs : le baume de grand-maman, le deuxième avis, le chirurgien du lundi (js/cartes-vie.js).
   ...CONSOMMABLES_VIE,
-  // Les places neuves (V10, tranche 3 — js/places.js) : chacune attend un moment de la semaine.
-  ...PLACES_NEUVES,
+  // V16 (docs/refonte-v16.md) : les places sont parties ; leurs idées sont devenues des adjoints (js/personnel.js).
   // V5 : comme dans la LNH, on change de coach en cours de saison en congédiant l'entraîneur — le nouveau arrive avec
   // sa philosophie, à la confiance I, et l'ancienne part avec son bonus. Le seul chemin vers un autre coach en saison.
   congediement: { nom: 'Le congédiement', ico: '📋', rarete: 'peu', vie: 'usage', cible: 'coach', texte: 'L\'entraîneur vide son bureau au matin. Le nouveau arrive avec son cahier de jeux, et tout est à rebâtir.' },
@@ -186,15 +178,10 @@ export const CONSOMMABLES = {
 /* Un effet de contrat lourd tient la saison : plus que ses 82 matchs, séries comprises. */
 const DUREE_SAISON = 120;
 /* ---------- LES MODIFS DE JOUEURS : des MUTATIONS au joueur de ton choix ---------- */
-const SOURCES_MOD = ['atelier', 'contrat', 'equipement'];
-/* V10 (tranche 6) : l'ancien jeu est parti — les améliorations, les styles, l'atelier générique. Restent l'équipement, les
- * retouches d'édition, les modifs d'un moment d'avant, le feu qui s'entretient et les clauses de contrat. */
-const RARETE_MOD = {
-  pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', mentorTrio: 'rare',
-  domicile: 'peu', route: 'peu', printemps: 'rare', etincelle: 'rare', braise: 'rare', poudre: 'rare',
-  contrat_annee: 'peu', contrat_prolonge: 'commune', contrat_bonus: 'rare', contrat_leader: 'rare',
-  ...RARETE_MODIFS_VIE,
-};
+const SOURCES_MOD = ['atelier'];
+/* V16 (docs/refonte-v16.md) : de l'atelier, seules les retouches d'édition restent des cartes ; l'équipement, les clauses,
+ * le feu et les modifs d'un moment sont devenus des adjoints (js/personnel.js). */
+const RARETE_MOD = { pinceau: 'commune', fenetre: 'peu', dorure: 'rare', lustre: 'legendaire', mentorTrio: 'rare' };
 // Le mentor (`mentorTrio`) n'est pas une carte : il vient du choix d'un fil (js/vie-gm.js `CHOIX_DES_FILS`).
 const MODS_JOUEUR = Object.keys(MUTATIONS).filter(k => SOURCES_MOD.includes(MUTATIONS[k].source) && !MUTATIONS[k].mentor);
 
@@ -249,8 +236,7 @@ function coachDeLaFamille(cat, cle) {
   const lu = o => coachDesCanaux(o);
   if (cat === 'patron') { const P = PATRONS[cle]; return P.coach || lu({ effet: P.effet, econ: P.econ, mutation: PROTEGES[cle] }); }
   if (cat === 'joueur') return lu({ mutation: MUTATIONS[cle] });
-  // Une place sur un joueur (V11) : ses canaux à lui se lisent comme ceux d'une modif.
-  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes, gain: C.gain, pari: C.pari, mutation: C.joueur }); }
+  if (cat === 'consommable') { const C = CONSOMMABLES[cle]; return C.coach || lu({ effet: C.effet, gestes: C.gestes }); }
   if (cat === 'plafond') return 'banque';
   return null;
 }
@@ -262,7 +248,7 @@ function construire() {
     const M = MUTATIONS[cle];
     mettre(fait('joueur', cle, { nom: M.nom, ico: M.ico, rarete: RARETE_MOD[cle] || M.rarete || 'peu', texte: M.quoi, vie: 'saison', gardien: !!M.gardien, source: M.source }));
   }
-  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.regle ? { regle: true } : {}), ...(C.echange ? { echange: true } : {}) }));
+  for (const [cle, C] of Object.entries(CONSOMMABLES)) mettre(fait('consommable', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible, ...(C.echange ? { echange: true } : {}) }));
   for (const [cle, C] of Object.entries(CONTRATS)) mettre(fait('plafond', cle, { nom: C.nom, ico: C.ico, rarete: C.rarete, texte: C.texte, vie: C.vie, cible: C.cible }));
   return B;
 }
@@ -309,32 +295,13 @@ const bitsDEffet = e => {
 /* La forme d'un consommable, lue sur toute la carte. Le mot dit le verbe, pas « un peu ». */
 function formeDeConsommable(C) {
   if (!C) return '';
-  if (C.pari) return 'Pari';
-  if (C.regle) return 'Règlement';
-  const e = C.effet || {};
-  if (Array.isArray(e.F) || Array.isArray(e.D)) return 'Minutes';
-  const bits = bitsDEffet(e);
-  // Sur un joueur (V11) : ses tirs, sa précision, sa défense, ses blessures comptent comme ceux du club.
-  const J = C.joueur || {};
-  bits.push(...bitsDEffet({ volume: J.lancers, finition: J.finition, defense: J.defense, blessure: J.blessure }));
-  if (J.creation) bits.push(J.creation > 1);
-  const g = C.gestes || {};
-  if (g.soin) bits.push(true);
-  if (g.energie) bits.push(g.energie > 0);
-  if (g.energieTous) bits.push(g.energieTous > 0);
-  if (C.gain) bits.push(true);
+  const soin = !!(C.gestes && C.gestes.soin), bits = [...bitsDEffet(C.effet), ...(soin ? [true] : [])];
   if (bits.some(Boolean) && bits.some(b => !b)) return 'Échange';
-  if (C.cible === 'malediction') return 'Malédiction';
-  if (C.cible === 'carteMatch') return 'Plus';
   if (C.cible === 'coach') return 'Coach';
   if (C.cible === 'cartable') return 'Rappel';
-  if (C.gain) return 'Jetons';
-  if (g.gardienAux) return 'Filet';
-  if (g.soin) return 'Soin';
-  if (g.energie || g.energieTous) return 'Jambes';
+  if (soin) return 'Soin';
   if (!bits.length) return '';
-  if (bits.every(Boolean)) return 'Cadeau';
-  return 'Moindre mal';
+  return bits.every(Boolean) ? 'Cadeau' : 'Moindre mal';
 }
 function formeDePlafond(C) {
   if (!C) return '';
@@ -349,7 +316,6 @@ export function etiquetteBanque(id) {
   const c = carteBanque(id);
   if (!c) return '';
   if (c.cat === 'joueur') return (c.regle || EDITIONS_REGLEMENT.includes(c.cle)) ? 'Règlement' : '';
-  if (c.regle) return 'Règlement';
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle] || {};
     return formeDe({ effet: P.effet || {} }) || (P.econ ? 'Boutique' : '');
@@ -360,18 +326,6 @@ export function etiquetteBanque(id) {
 }
 /* Les cartes d'une famille. V10 (tranche 6) : l'ancien jeu est parti, chaque carte de la banque se tire. */
 export const idsDe = cat => Object.values(BANQUE).filter(c => c.cat === cat).map(c => c.id);
-/*
- * CE QUI SORT ENCORE D'UN PACK, D'UN BUTIN OU D'UN PALIER (V16, docs/refonte-v16.md § 3) : le personnel, et les outils de
- * gérant — la masse salariale, les soins, les retouches d'édition, le congédiement, les rappels et l'échange d'un doublon.
- * Les places, l'équipement, les clauses et le feu n'entrent plus ; ceux déjà pris se jouent jusqu'à la tranche 4.
- */
-export function sortEncore(id) {
-  const c = BANQUE[id];
-  if (!c) return false;
-  if (c.cat === 'patron' || c.cat === 'plafond') return true;
-  if (c.cat === 'joueur') return MUTATIONS_ATELIER.includes(c.cle);
-  return c.cat === 'consommable' && ['blesse', 'coach', 'cartable'].includes(c.cible);
-}
 export const compteParCategorie = () => Object.fromEntries(ORDRE_CATEGORIES.map(c => [c, idsDe(c).length]));
 
 /* Les étiquettes de durée de vie, telles que l'inventaire les affiche. */
@@ -380,17 +334,6 @@ export const VIES = {
   // S80 : une run dure plusieurs saisons — une carte « cette saison » expire à la fin de SA saison, pas de la run.
   saison: { nom: 'Cette saison', mot: 'Vaut pour la saison en cours ; elle expire à la fin de la saison.' },
   usage: { nom: '1 utilisation', mot: 'S\'use en la jouant, cette saison.' },
-};
-/*
- * QUAND UNE CARTE JOUE (S79). JP : *tu dois pouvoir toujours voir tes cartes
- * et certaines se gardent jusqu'au moment voulu dans la saison*. Une carte
- * de pack SE GARDE : elle attend dans l'inventaire que tu la joues (une
- * décision datée du jour, qui se rejoue). Une malédiction et une carte de
- * saison (prise à un palier) sont JOUÉES IMMÉDIATEMENT.
- */
-export const MOMENTS = {
-  garde: { nom: 'Se garde', ico: '⏳', mot: 'À une place jusqu\'à ce que tu la joues.' },
-  immediat: { nom: 'Jouée immédiatement', ico: '⚡', mot: 'Jouée immédiatement : elle s\'applique dès que tu la reçois.' },
 };
 
 /*
@@ -409,6 +352,7 @@ export function reglesDe(id, { joueur = null } = {}) {
     out.push(...motsDeLEcon(P.econ));
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsEnChiffres(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));
+    if (PROTEGES[c.cle] && PROTEGES[c.cle].feu) out.push(...motsDuFeu(PROTEGES[c.cle]));
     if (!P.si) out.push({ txt: 'Toute la saison, séries comprises', bon: null, duree: true });
     return out;
   }
@@ -416,15 +360,9 @@ export function reglesDe(id, { joueur = null } = {}) {
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
     const out = [...motsDesGestes(C.gestes || {})];
-    // V10 : son moment d'abord, et ses chiffres un soir de ce moment.
-    if (C.si && MOMENTS_SI[C.si]) out.push({ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, les ${C.duree} prochains matchs`, bon: null, duree: true }, ...motsEnChiffres(C.effet || {}));
-    else if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
-    if (C.joueur) out.push(...motsSurLeJoueur(C.joueur, 'Ton joueur'));
-    if (C.gain) out.push({ txt: `+${C.gain} 🪙`, bon: true });
-    if (C.pari) out.push({ txt: `${Math.round(C.pari.chance * 100)} % : +${C.pari.gain} 🪙`, bon: true });
+    if (C.effet) out.push(...motsEnChiffres(C.effet, C.duree));
     if (C.cible === 'coach') out.push({ txt: 'Un autre coach, à la confiance I', bon: true }, { txt: 'Ton coach part, avec sa confiance', bon: false });
     if (C.cible === 'cartable') out.push({ txt: `${C.offres} joueurs de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus : un signé`, bon: true });
-    if (C.parJoueur) out.push(motDeJoueurs(C.parJoueur, c.coach));
     return out;
   }
   if (c.cat === 'plafond') {
@@ -438,6 +376,15 @@ export function reglesDe(id, { joueur = null } = {}) {
     return out;
   }
   return [];
+}
+/* LE FEU D'UN ADJOINT (V16, `LANCEE`, js/sim.js) : ce qu'il fait à la lancée de sa 1re ligne, et la 2e ligne qu'il gagne. */
+function motsDuFeu(F) {
+  const qui = F.portee === 'tete' ? 'Le meilleur marqueur de ta 1re ligne' : 'Un compagnon de ton meilleur marqueur, en 1re ligne';
+  const fait = { etincelle: `sur sa lancée dès ${LANCEE.etincelle.buts} buts en ${LANCEE.matchs} matchs, et plus vive`,
+    braise: `sa lancée tient ${LANCEE.braise.fenetre} matchs de plus, s'il marque une fois en ${LANCEE.braise.sans}`,
+    poudre: 'il prend la lancée de celui qui l\'a' }[F.feu];
+  const deux = F.portee === 'tete' ? 'la 2e ligne aussi' : 'tous les patineurs des 2 premières lignes';
+  return [{ txt: `${qui} : ${fait}`, bon: true }, { txt: `Sa force poussée ${LIGNES_DU_FEU.poussees} fois aux échelons : ${deux}`, bon: true }];
 }
 /*
  * UN PAS, EN MOTS. Un pas s'AJOUTE à l'effet (js/banque.js `grandi`) : ce qu'une carte de coach gagne avec chaque
@@ -454,12 +401,6 @@ function motDEchelle(E, coach) {
   const Ec = COACHS[coach] || { ico: '', nom: '' };
   const pas = [...auPlafond(E.par, E.max), ...(E.gain ? [`+${E.gain} 🪙 par carte`] : [])].join(', ');
   return { txt: pas ? `Jusqu'à ${pas} avec ${E.max} cartes ${Ec.ico} ${Ec.de} jouées` : `Grandit avec chaque carte ${Ec.ico} ${Ec.de} jouée (au plus ${E.max})`, bon: true };
-}
-/* « jusqu'à ≈ +0,4 pt de précision par match avec 5 joueurs de l'Aigle habillés » : ce qu'une carte gagne de tes joueurs. */
-function motDeJoueurs(J, coach) {
-  const Ec = COACHS[coach] || { de: '' };
-  const pas = auPlafond(J.par, J.max).join(', ');
-  return { txt: pas ? `Jusqu'à ${pas} avec ${J.max} joueurs ${Ec.de} habillés` : `Grandit avec chaque joueur ${Ec.de} habillé (au plus ${J.max})`, bon: true };
 }
 function motsDesGestes(g) {
   const out = [];
@@ -506,18 +447,14 @@ export function modificateurs(decisions = [], jusqua = Infinity) {
  * jetons (`gain`, plus `echelle.gain` par carte). Une carte sans échelle rend
  * son effet tel quel. Les chiffres entrent dans la décision.
  */
-function grandi(X, coach, build = {}, joueurs = {}) {
+function grandi(X, coach, build = {}) {
   const effet = { ...(X.effet || {}) };
   let gain = X.gain || 0;
   const ajouter = (par, n) => { for (const [k, v] of Object.entries(par || {})) effet[k] = Math.round(((effet[k] ?? (k === 'robustesse' ? 0 : 1)) + v * n) * 10000) / 10000; };
   const E = X.echelle;
   const n = E ? Math.min(E.max || Infinity, (build && build[X.coach || coach]) || 0) : 0;
   if (n) { ajouter(E.par, n); gain += (E.gain || 0) * n; }
-  // v2 : ses JOUEURS — ceux de la couleur de la carte, habillés quand on la joue.
-  const J = X.parJoueur;
-  const nj = J ? Math.min(J.max || Infinity, ((joueurs && joueurs[X.coach || coach]) || {}).joueurs || 0) : 0;
-  if (nj) ajouter(J.par, nj);
-  return { effet, gain, n, nj };
+  return { effet, gain, n };
 }
 /*
  * LA DÉCISION D'UNE CARTE JOUÉE : les champs que le moteur connaît, et ses
@@ -525,12 +462,12 @@ function grandi(X, coach, build = {}, joueurs = {}) {
  * engagés (pour le remplacement et la synergie). \`sel\` : de quoi tirer un
  * pari (le billet de loterie), pur.
  */
-export function payloadDe(id, { joueur = null, coach = null, patrons = [], alea = null, build = {}, joueurs = {}, sortie = null, rar = null } = {}) {
+export function payloadDe(id, { joueur = null, coach = null, patrons = [], build = {}, sortie = null, rar = null } = {}) {
   const c = carteBanque(id);
   if (!c) return null;
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    const effet = grandi(P, c.coach, build, joueurs).effet;
+    const effet = grandi(P, c.coach, build).effet;
     let synergie = false;
     if (P.synergie && patrons.some(x => x.role === P.synergie.avec)) {
       synergie = true;
@@ -544,23 +481,11 @@ export function payloadDe(id, { joueur = null, coach = null, patrons = [], alea 
   if (c.cat === 'joueur') return joueur ? { mutation: { cle: c.cle, joueur } } : null;
   if (c.cat === 'consommable') {
     const C = CONSOMMABLES[c.cle];
-    // V10 : une place d'un moment (`si`) porte son moment sur son effet ; le moteur ne le joue que ses soirs (`joueCeSoir`).
-    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build, joueurs).effet, ...(C.regle ? { regle: true } : {}), ...(C.si ? { si: C.si } : {}) } : null;
-    if (C.cible === 'blesse' || C.cible === 'joueur') {
-      if (!joueur) return null;
-      // V11 : le gros d'une place sur le joueur nommé, ses soirs, le temps de ses matchs (`surJoueur`, js/sim.js).
-      const sur = C.joueur ? { surJoueur: { joueur, nom: C.nom, ico: C.ico, duree: C.duree, ...(C.si ? { si: C.si } : {}), ...C.joueur } } : {};
-      return { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}), ...sur };
-    }
+    const effet = C.effet ? { nom: C.nom, ico: C.ico, duree: C.duree, ...grandi(C, c.coach, build).effet } : null;
+    if (C.cible === 'blesse') return joueur ? { ...(C.gestes ? { gestes: { ...C.gestes, joueurs: [joueur] } } : {}), ...(effet ? { effet } : {}) } : null;
     if (C.cible === 'coach') return coach && COACHS[coach] ? coachNeuf(coach) : null;
     // Le rappel : le joueur du cartable entre à la case que `sortie` libère, comme au ballottage.
-    if (C.cible === 'cartable') return joueur ? { ballottage: { entre: joueur, i: sortie ? sortie.i : null, sort: sortie ? sortie.sort : null, ...(rar ? { rar } : {}) }, ...(sortie && sortie.cases ? { cases: sortie.cases } : {}) } : null;
-    const out = {};
-    if (C.gestes) out.gestes = { ...C.gestes };
-    if (effet) out.effet = effet;
-    if (C.gain) out.gain = C.gain;
-    if (C.pari) out.gain = alea !== null && alea < C.pari.chance ? C.pari.gain : 0;
-    return out;
+    return joueur ? { ballottage: { entre: joueur, i: sortie ? sortie.i : null, sort: sortie ? sortie.sort : null, ...(rar ? { rar } : {}) }, ...(sortie && sortie.cases ? { cases: sortie.cases } : {}) } : null;
   }
   if (c.cat === 'plafond') {
     const C = CONTRATS[c.cle];
