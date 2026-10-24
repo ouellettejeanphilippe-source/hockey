@@ -12,6 +12,7 @@
  */
 import { EXPEDITEURS } from './vie-gm.js';
 import { DOSSIERS } from './dossiers.js';
+import { MOMENTS, FAITS } from './sim.js';
 import { hache } from './util.js';
 
 /** La réplique d'une scène, pigée sur la graine du jeu et son moment : la même partie redit la même phrase. */
@@ -112,6 +113,32 @@ export const MOTS_DES_SCENES = {
     epais: ['On a gagné, mais tes places sont pleines. Prends-la si elle vaut mieux qu\'une des tiennes.',
       'Une de plus, et il faudra en vendre une. Ton adjoint dit de choisir la meilleure.'],
   },
+  // LES DILEMMES (oct. 2026) : la voix du dilemme, sur ce que son fait vient de dire. Une opinion, jamais un événement : le fait est sous elle.
+  dilemme: {
+    punitionTard: ['Une punition en fin de match, ça se paie cher. Moi, je ne la laisserais pas passer.', 'Ça ne doit pas se répéter. À toi de voir comment.'],
+    gardienCharge: ['Il joue tout. Un jour, ça va se voir.', 'Je lui donnerais un soir, mais c\'est ton gardien.'],
+    gardienBattu: ['On ne peut pas en rester là. Repos ou revanche, il faut choisir.', 'Ce genre de soirée, ça se règle tout de suite.'],
+    panneGardien: ['Un gardien qui glisse avec l\'équipe, il faut décider si on y croit.', 'Moi, je le sortirais un peu. Mais c\'est toi qui signes.'],
+    punitions: ['On ne peut plus le défendre devant l\'arbitre.', 'Il joue sur la ligne, et la ligne recule.'],
+    blesses: ['Mes tables sont pleines. Il faut alléger ou serrer les dents.', 'Je manque de chaises, et de patience.'],
+    route: ['Les valises ne se défont plus. Ça use un homme.', 'Il faut trouver comment souffler.'],
+    jambes: ['Je l\'aurais assis un soir.', 'Ses jambes parlent plus fort que lui.'],
+    jambesEquipe: ['Toute la bande est fatiguée. Ça se voit en troisième.', 'Il faut du repos, ou du courage.'],
+    chaud: ['Il est en feu. La question, c\'est comment s\'en servir.', 'Un joueur comme ça, on lui donne la rondelle ou on lui donne des ailiers.'],
+    disetteMarqueur: ['Un marqueur qui ne marque plus, ça finit par lui peser.', 'Il faut lui donner une consigne, n\'importe laquelle.'],
+    recrue: ['Il est jeune. Il faut lui dire quelle place est la sienne.', 'Moi, je lui donnerais du temps de glace.'],
+    parti: ['Un casier vide, ça fait toujours un vide dans le vestiaire.', 'Il faut dire quelque chose au groupe, ou rien du tout.'],
+    quatrieme: ['Ils regardent le match du banc. Ça commence à paraître.', 'Ils méritent plus de glace, ou une explication.'],
+    passoire: ['Ça rentre de partout. Il faut fermer quelque chose.', 'On donne trop. Il faut décider comment arrêter le sang.'],
+    passoirePaire: ['Ta première paire peut en prendre plus, pas pour toujours.', 'Je laisserais mes deux meilleurs sur la glace.'],
+    disette: ['Ça ne rentre plus. Il faut trouver un truc.', 'On tire et ça ne rentre pas.'],
+    tirsContre: ['Il reçoit tout. On le laisse seul là-bas.', 'Il fait le travail de cinq.'],
+    avantagesRares: ['L\'arbitre ne nous voit plus. Il faut le lui rappeler, ou pas.', 'Ils accrochent et personne ne siffle.'],
+    defaiteParUn: ['Un but. Il nous a manqué un seul but.', 'Le banc veut prendre plus de risques.'],
+    plombier: ['Il travaille fort, mais ça ne rentre pas.', 'Un tir, ça s\'apprend.'],
+    veteranD: ['Il a des choses à transmettre.', 'Le vétéran pourrait laisser quelque chose derrière lui.'],
+    tirsD: ['Il lance de partout. La ligne bleue de l\'avantage lui irait.', 'Moi, je lui donnerais la pointe.'],
+  },
 };
 
 /** Le rang en mots courts du classement : 1er, 2e… */
@@ -155,6 +182,16 @@ export function sceneDeLaCarteDeTrop({ cartes, places, gros = null, graine = '' 
     mot: piger(MOTS_DES_SCENES.trop[gros ? 'gros' : 'calme'], graine, 'trop', cartes),
     fait: `${cartes} cartes pour ${places} places${gros ? ` · gros match contre ${gros.adv} ${vient}` : ''}`,
   };
+}
+
+/*
+ * LES DILEMMES (oct. 2026). La voix du dilemme (`de`), une réplique sur la sorte de son fait, et le fait en vrais
+ * chiffres (`FAITS[...].dire`, js/sim.js).
+ *   cle   la clé du dilemme dans `MOMENTS` ; faits : ce que son fait a lu ; graine : la partie et la journée
+ */
+export function sceneDuDilemme(cle, faits, graine = '') {
+  const M = MOMENTS[cle];
+  return { de: EXPEDITEURS[M.de], mot: piger(MOTS_DES_SCENES.dilemme[M.fait], graine, 'dilemme', cle), fait: FAITS[M.fait].dire(faits) };
 }
 
 /*

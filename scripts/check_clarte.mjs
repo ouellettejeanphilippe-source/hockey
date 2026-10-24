@@ -35,7 +35,7 @@ import {
   INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
   EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
-  POIDS_AN, POIDS_DN, PLANS,
+  POIDS_AN, POIDS_DN, PLANS, MOMENTS,
 } from '../js/sim.js';
 import { PATRONS } from '../js/banque.js';
 import { TRAITS } from '../js/traits.js';
@@ -51,7 +51,7 @@ import { MATCHS_ECHELON, POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelon
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -460,11 +460,24 @@ const MOTS_RESERVES = [
     if (!nombres.length && !/Bruins|Wild|Kings/.test(sc.fait)) fautes.push(`le dossier ${cle} : « ${sc.fait} » ne dit aucun fait`);
     n++;
   }
+  /*
+   * LES DILEMMES (oct. 2026) : sur un fait fabriqué, la voix du dilemme, une réplique de son fait, et un fait qui ne
+   * dit que des nombres reçus et nomme quelqu'un ou dit un nombre. Le vrai fait de chacun : scripts/check_dilemmes.mjs.
+   */
+  const FD = { joueur: { n: 'Al Secord' }, joueurs: [{ n: 'Al Secord' }, { n: 'Tie Domi' }], n: 7, m: 3, vieux: 'Larry Robinson', aux: 'Ron Hextall' };
+  for (let g = 0; g < 40; g++) for (const cle of Object.keys(MOMENTS)) {
+    const sc = sceneDuDilemme(cle, FD, g);
+    juger(`le dilemme ${cle}`, sc, []);
+    const nombres = sc.fait.match(/\d+/g) || [];
+    if (nombres.some(x => !['7', '3'].includes(x))) fautes.push(`le dilemme ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
+    if (!nombres.length && !/Secord|Domi|Robinson/.test(sc.fait)) fautes.push(`le dilemme ${cle} : « ${sc.fait} » ne dit aucun fait`);
+    n++;
+  }
   const repliques = [...Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m]))),
     ...Object.entries(DOSSIERS).flatMap(([cle, D]) => D.mots.map(m => [`dossier/${cle}`, m]))];
   for (const [ou, m] of repliques) if (!m || /\d|\{/.test(m)) fautes.push(`${ou} : « ${m} »`);
   informer('les scènes', `${n} scènes jouées, ${repliques.length} répliques écrites`);
-  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers');
+  exiger('chaque choix dit qui le demande : une voix, une réplique sans chiffre, un fait qui porte ses nombres', fautes.length === 0, fautes.slice(0, 4).join(' · ') || 'la mise, le palier, la carte de trop, la route, la blessure, les rivaux, le butin, le mandat, les galons, les dossiers, les dilemmes');
 }
 
 verdict('La clarté');

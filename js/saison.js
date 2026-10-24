@@ -25,7 +25,7 @@
 
 import { SLOTS, styleOuvert, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
   JOURS_SITUATIONS,
-  MOMENTS, JOURS_MOMENTS, momentDuJour, SEQUENCES, RECUL_SEQUENCE,
+  MOMENTS, JOURS_MOMENTS, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, MUTATIONS,
@@ -46,7 +46,7 @@ import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
 import { inscrireHub, retirerHub, signalerVue, signalerComptes, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
-import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
+import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE, reglesDe, payloadDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
@@ -57,7 +57,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -962,60 +962,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return { J, cle, faits: MOMENTS[cle].faits ? MOMENTS[cle].faits(faits) : null };
   };
   /*
-   * CE QUI EST VRAIMENT ARRIVÉ AVANT UN DILEMME (S80). JP : *les trucs comme,
-   * après neuf buts encaissés… faut que ça soit arrivé pour vrai*. Un dilemme
-   * qui affirme un fait de match (le gardien laissé devant le filet, le doublé
-   * de l'ailier, la séquence de la barbe) ne se tire que si ce fait est vrai,
-   * lu sur tes matchs d'AVANT la journée prévue — le même avant et après un
-   * report —, et il dit les vrais chiffres (`MOMENTS[c].faits`, js/sim.js).
+   * CE QUI EST VRAIMENT ARRIVÉ AVANT UN DILEMME (S80, oct. 2026). JP : *les trucs comme, après neuf buts encaissés…
+   * faut que ça soit arrivé pour vrai* ; *toujours nommer les joueurs impliqués*. Lu sur tes matchs d'AVANT la journée
+   * prévue — le même avant et après un report — et sur ton effectif (`faitsDuClub`, js/sim.js).
    */
-  const faitsAvant = J => {
-    const avant = miens.filter(x => x.j < J);
-    const coteDe = m => (m.A === you ? 'A' : 'B');
-    const d = avant[avant.length - 1];
-    let dernier = null;
-    if (d) {
-      const m = d.m, cote = coteDe(m), f = m.feuille || { buts: [], lancers: [], punitions: [] };
-      const buteurs = new Map();
-      for (const b of f.buts) if (b.cote === cote && b.marqueur) buteurs.set(b.marqueur, (buteurs.get(b.marqueur) || 0) + 1);
-      // Ton gardien : celui qui a reçu les tirs d'en face.
-      const recus = new Map();
-      for (const l of f.lancers || []) if (l.cote !== cote && l.gardien) recus.set(l.gardien, (recus.get(l.gardien) || 0) + 1);
-      const gardien = [...recus].sort((a, b) => b[1] - a[1])[0];
-      const blesses = (f.blessures || []).filter(x => x.cote === cote).map(x => x.joueur);
-      dernier = {
-        domicile: cote === 'A', pour: cote === 'A' ? m.gfA : m.gfB, contre: cote === 'A' ? m.gfB : m.gfA,
-        gardien: gardien ? gardien[0] : null,
-        buteurs: [...buteurs].map(([p, buts]) => ({ p, buts, avant: p.p !== 'G' && !/D$/.test(p.p || '') })),
-        punitionsTard: (f.punitions || []).filter(x => x.cote === cote && x.instant >= 55 && x.instant < 60).length,
-        gardienBlesse: blesses.find(p => p && p.p === 'G') || null,
-      };
-    }
-    let serieV = 0;
-    for (let i = avant.length - 1; i >= 0 && gagne(avant[i].m, you); i--) serieV++;
-    // Les buts de chacun sur tes douze derniers matchs.
-    const recents = avant.slice(-12), butsRecents = new Map();
-    for (const { m } of recents) for (const b of (m.feuille ? m.feuille.buts : [])) if (b.cote === coteDe(m) && b.marqueur) butsRecents.set(b.marqueur, (butsRecents.get(b.marqueur) || 0) + 1);
-    const habilles = g => SLOTS.filter(s => !s.scratch && s.group === g).map(s => you.roster[s.i]).filter(Boolean);
-    const age = p => (p.bd && p.s ? parseInt(p.s, 10) - parseInt(p.bd, 10) : 0);
-    let serieD = 0;
-    for (let i = avant.length - 1; i >= 0 && !gagne(avant[i].m, you); i--) serieD++;
-    // Les punitions de chacun sur ses derniers matchs (V3) : la plus courte fenêtre de deux à quatre matchs qui en compte trois.
-    const punis = [];
-    for (const p of habilles('F').concat(habilles('D'))) {
-      const siens = avant.filter(({ m }) => (m.feuille?.alignes?.[coteDe(m)] || []).includes(p));
-      for (let n = 2; n <= 4 && n <= siens.length; n++) {
-        const k = siens.slice(-n).reduce((s, { m }) => s + (m.feuille.punitions || []).filter(x => x.cote === coteDe(m) && x.joueur === p).length, 0);
-        if (k >= PUNITIONS_SERMON) { punis.push({ p, n: k, m: n }); break; }
-      }
-    }
-    punis.sort((a, b) => b.n / b.m - a.n / a.m);
-    return {
-      J, N, dernier, serieV, serieD, recents: recents.length, punis,
-      joueurs: habilles('F').map(p => ({ p, marqueur: (p.g || 0) >= 25, butsRecents: butsRecents.get(p) || 0 })),
-      veteransD: habilles('D').filter(p => age(p) >= 33).sort((a, b) => age(b) - age(a)),
-    };
-  };
+  const faitsAvant = J => faitsDuClub(you, miens, J, N);
   /* Tes matchs sous la forme que les objectifs lisent. */
   const mesMatchs = depuisJ => miens.filter(x => x.j >= depuisJ).map(({ m }) => {
     const cote = m.A === you ? 'A' : 'B';
@@ -3333,14 +3284,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LE JOUEUR VISÉ est nommé avant le choix : c'est lui dont la carte change.
       const optMut = m.options.find(o => o.mutation);
       const cible = optMut ? (f.joueur || cibleMutation(you, optMut.mutation)) : null;
-      // LES JOUEURS QU'UN GESTE TOUCHE (S72) : nommés avant le choix — celui des faits d'abord.
-      const cibles = m.cible ? (f.joueur ? [f.joueur] : ciblesDe(you, m.cible, graine, dl.J)) : [];
-      const recit = String(m.recit).replace(/\{n\}/g, f.n ?? '').replace(/\{m\}/g, f.m ?? '').replace(/\{vieux\}/g, f.vieux || 'Ton vieux défenseur');
+      // LES JOUEURS DU FAIT (oct. 2026) : ceux qu'il nomme, et que ses gestes touchent.
+      const cibles = f.joueurs || (f.joueur ? [f.joueur] : []);
+      // LA SCÈNE : la voix du dilemme, sa réplique, et le fait en vrais chiffres.
+      const scene = sceneDuDilemme(dl.cle, f, `${graine}|${dl.J}`);
       const dDl = cle => ({ jour, palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } });
-      specs.push({ de: DE.coach, ico: m.ico, titre: m.titre, irl: m.irl, recit, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
+      specs.push({ de: scene.de, scene, ico: m.ico, titre: m.titre, irl: m.irl, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
         contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
-        options: m.options.map(o => ({ ...o, duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
-          desactive: (o.mutation && !cible) || (m.cible && !cibles.length && o.action) ? 'Personne dans ton alignement pour ça' : null })),
+        options: m.options.map(o => ({ ...o, ...Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, texteDuFait(o[k], f)])), duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
+          desactive: (o.mutation && !cible) || ((o.action || o.lui) && !cibles.length) ? 'Personne dans ton alignement pour ça' : null })),
         lancer: cle => auDe({ ...dDl(cle), sel: nouvelleGraine() }, decider),
         decision: dDl });
     }

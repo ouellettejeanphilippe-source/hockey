@@ -15,11 +15,6 @@
 import { lireIndex, partieActive, partiesDuGenre, derniereDuGenre, GENRES, copier, supprimer, exporter, importer } from './sauvegardes.js';
 import { esc } from './util.js';
 import { surAppareil } from './visages.js';
-import { MOMENTS, JOURS_MOMENTS } from './sim.js';
-import { brancherMoments } from './situations.js';
-
-brancherMoments(MOMENTS, JOURS_MOMENTS);
-
 /*
  * LE FICHIER SORT (1.0). Sur le web, un lien `download` suffit. Dans
  * l'application Android, la WebView n'enregistre pas un tel lien : on passe
