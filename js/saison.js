@@ -26,7 +26,7 @@
 import { SLOTS, styleOuvert, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
   JOURS_SITUATIONS,
   MOMENTS, JOURS_MOMENTS, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
-  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
+  OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, MUTATIONS,
   contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
@@ -57,7 +57,7 @@ import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entra
 import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money } from './util.js';
 import { panelDe } from './panel-tv.js';
-import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, avecNoms, joueurDuFait } from './vie-gm.js';
+import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
 
 /*
  * APRÈS LE CHOIX DU DEUXIÈME ENTRACTE (S70), la saison se rejoue et l'écran
@@ -1009,7 +1009,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const j0 of JOURS_OBJECTIFS) {
       const d = objectifDe(j0);
       if (!d) continue;
-      const e = etatObjectif(d.objectif.cle, mesMatchs(d.objectif.debut), d.objectif.quoi);
+      const e = etatObjectif(d.objectif.cle, mesMatchs(d.objectif.debut), d.objectif.quoi, you);
       if (e && !pris.has(`v:${j0}`)) return { j0, d, e };
     }
     return null;
@@ -2465,8 +2465,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
     // V9 : le lundi, la semaine passée pliée en tête du volet ; les nouvelles (ce qui arrive sans rien demander) après la une.
     // V12-2 : la route a son sous-onglet, la une celui de la presse ; Hier soir garde le résultat et les nouvelles.
-    if (soirEnVolet) return `${semainePasseeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${nouvellesHtml()}${autourHtml()}</section>`;
-    return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
+    const bouge = promessesQuiBougent().map(t => `<div class="som-l">${ctx.esc(t)}</div>`).join('');
+    if (soirEnVolet) return `${semainePasseeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${nouvellesHtml()}${autourHtml()}</section>`;
+    return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };
 
   /*
@@ -2951,7 +2952,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const etat = oc.e.reussi ? ' fait' : oc.e.rate ? ' rate' : O.sens < 0 && part >= 0.8 ? ' serre' : '';
       lignes.push(`<div class="hub-etat-l hub-etat-proprio" title="${ctx.esc(O.nom)}">
         <span class="hub-etat-k">🏢 Le proprio</span>
-        <span class="hub-etat-v">${O.ico} ${ctx.esc(O.court)} · <b class="chiffre" data-compte="t-obj">${oc.e.val}</b> / ${oc.e.cible} ${ctx.esc(O.unite)}</span>
+        <span class="hub-etat-v">${O.ico} ${ctx.esc(O.court)} · ${oc.e.meneur ? `${ctx.esc(nomCourt(oc.e.meneur.n))} : ` : ''}<b class="chiffre" data-compte="t-obj">${oc.e.val}</b> / ${oc.e.cible} ${ctx.esc(O.unite)}</span>
         <span class="tuile-jauge${O.sens < 0 ? ' mur' : ''}${etat}" aria-hidden="true"><span style="width:${(100 * part).toFixed(1)}%"></span></span>
         <small>${oc.e.joues}/${MATCHS_OBJECTIF} matchs</small>
       </div>`);
@@ -3237,14 +3238,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     if (vo) {
       const o = { ...OBJECTIFS[vo.d.objectif.cle], ...motsDeLObjectif(vo.d.objectif.cle, vo.d.objectif.quoi) };
-      specs.push(vo.e.reussi
+      // Le joueur nommé est parti : le proprio raye la ligne, sans gain ni prix (rien ne se perd : ça se dit et se tranche).
+      if (vo.e.parti) specs.push({ de: DE.proprio, ico: '🏢', titre: `Objectif levé : ${o.court}`,
+        recit: `${vo.d.objectif.quoi.n} n'est plus dans ton effectif (${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Le proprio raye la ligne.`,
+        options: [{ cle: 'rayer', nom: 'Tourner la page', rien: true }],
+        decision: () => ({ palier: `v:${vo.j0}`, leve: true }) });
+      else specs.push(vo.e.reussi
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           // V10 (tranche 6) : les cartes de saison sont fondues dans le personnel ; le proprio donne une carte parmi trois, pour une place.
-          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.val} ${o.unite}). Il sort son carnet de chèques : une carte parmi trois, pour une place.`,
+          recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et une carte parmi trois, pour une place.`,
           options: cartesDuPalier(graine, `v${vo.j0}`).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `v:${vo.j0}`, place: id }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
-          recit: `${o.ico} ${vo.e.val} ${o.unite}, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
+          recit: `${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
           options: [{ cle: 'encaisser', nom: 'Encaisser', prix: 'Le proprio coupe les vols nolisés : les voyages fatiguent', energie: OBJECTIF_RATE.energie, duree: OBJECTIF_RATE.duree }],
           decision: () => ({ palier: `v:${vo.j0}`, effet: { ...OBJECTIF_RATE } }) });
     }
@@ -3764,6 +3770,34 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     return out;
   }
+  /*
+   * CE QUI COURT (oct. 2026, JP : *ça le confirme bon, mais aucun suivi*). Un choix qui promet pour plus tard se suit à sa
+   * maison, chaque matin, en vrais chiffres : le fil chez le vestiaire (`suivisEnCours`, js/sim.js), l'objectif chez le
+   * proprio (`etatHtml`). Le verdict arrive comme un message : le retour à la une, le proprio dans la boîte.
+   */
+  const enCours = () => (ctx.rogue ? suivisEnCours(you) : []);
+  function suivisHtml() {
+    // Les fils suivis, puis ce que tes réponses du vestiaire jouent encore (un dilemme, une séquence), et pour combien de matchs.
+    const effets = ctx.rogue ? effetsEnCours(you, jour).effets.filter(e => ['moment', 'sequence'].includes(e.source) && e.reste > 0)
+      .map(e => `${e.ico || '✨'} ${e.nom}${e.choix ? ` · ${e.choix}` : ''} · encore ${e.reste} match${e.reste > 1 ? 's' : ''}`) : [];
+    const l = [...enCours().map(motDuSuiviEnCours), ...effets];
+    return l.length ? `<div class="hub-etat" role="group" aria-label="Ce qui court">${l.map(t => `<div class="hub-etat-l"><span class="hub-etat-k">⏳ Ce qui court</span><span class="hub-etat-v">${ctx.esc(t)}</span></div>`).join('')}</div>` : '';
+  }
+  /* Ce qui a bougé hier soir : un pas d'un fil suivi ou de l'objectif du proprio, en une ligne chacun. */
+  function promessesQuiBougent() {
+    const hier = miens.length && miens[miens.length - 1].j === jour - 1;
+    if (!hier) return [];
+    const out = enCours().filter(x => x.joues && x.n > x.avant).map(x => motDuSuiviEnCours(x));
+    const oc = onDecision ? objectifEnCours() : null;
+    if (oc && !oc.e.fini && OBJECTIFS[oc.d.objectif.cle]) {
+      const avant = etatObjectif(oc.d.objectif.cle, mesMatchs(oc.d.objectif.debut).slice(0, -1), oc.d.objectif.quoi, you);
+      if (avant && oc.e.val !== avant.val) {
+        const O = { ...OBJECTIFS[oc.d.objectif.cle], ...motsDeLObjectif(oc.d.objectif.cle, oc.d.objectif.quoi) };
+        out.push(`🏢 ${O.court} · ${oc.e.meneur ? `${nomCourt(oc.e.meneur.n)} : ` : ''}${oc.e.val} / ${oc.e.cible} ${O.unite} · ${oc.e.joues}/${MATCHS_OBJECTIF} matchs`);
+      }
+    }
+    return out;
+  }
   const nouvellesHtml = () => {
     const n = nouvellesDuJour();
     return n.length ? `<div class="hub-nouvelles"><span class="hub-une-t">Nouvelles</span>${n.map(x => x.html).join('')}</div>` : '';
@@ -3787,7 +3821,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     entraineur: () => { const r = routeDeuxSemaines(), loin = `${r.passe}${jour < N ? routeFiche() : ''}`;
       return `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${r.vient}${loin ? `<details class="pli"><summary class="pli-t"><span class="perso-t">🗺 D'où tu viens · la route de la saison</span></summary>${loin}</details>` : ''}`; },
     presse: () => uneHtml(),
-    vestiaire: () => (miens.length ? recitHtml() : ''),
+    vestiaire: () => `${suivisHtml()}${miens.length ? recitHtml() : ''}`,
     infirmerie: () => `${infirmerieHtml()}${cartesIci('infirmerie')}`,
     butin: () => '',
   };
