@@ -526,6 +526,28 @@ export function planEnChiffres(team, lineup, adv, cle) {
 }
 
 /*
+ * LEUR INTENTION, EN VRAIES STATS DE LA PÉRIODE (V17). Leur plan se lit comme le tien : la période avec leur
+ * intention contre la même période sans elle, au duel (`FORCE_DUEL`), le tiers d'un match. Le canal qui le définit
+ * vient en premier (🦂 tes punitions, ⛔ tes tirs, 🐗 leurs tirs, 🦈 leurs punitions, 🥷 tes tirs), puis son prix ;
+ * ce qui est à eux se dit « Eux : ». Rend [{ cle, txt, bon }].
+ */
+const ORDRE_DE_LINTENTION = { cachot: ['punitions', 'contre', 'punitionsEux'], centre: ['tirs', 'contre'], assaut: ['contre', 'punitionsEux', 'tirs'], chasse: ['punitionsEux', 'tirs', 'contre'], ombre: ['tirs', 'contre'] };
+const SEUIL_INTENTION = { tirs: 0.1, contre: 0.1, punitions: 0.05, punitionsEux: 0.05 };
+export function intentionEnChiffres(team, adv, intention, { n = N_EFFET } = {}) {
+  if (!team || !intention || !ORDRE_DE_LINTENTION[intention.cle]) return [];
+  const avec = lire(team, null, adv, { intention, duel: true, n }), sans = lire(team, null, adv, { duel: true, n });
+  const d = { tirs: (avec.tirsPour - sans.tirsPour) / 3, contre: (avec.tirsContre - sans.tirsContre) / 3,
+    punitions: (avec.punitions - sans.punitions) / 3, punitionsEux: (avec.punitionsEux - sans.punitionsEux) / 3 };
+  const dire = {
+    tirs: x => ({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')} pour toi la période`, bon: x > 0 }),
+    contre: x => ({ txt: `Eux : ≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')} la période`, bon: x < 0 }),
+    punitions: x => ({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} pour toi la période`, bon: x < 0 }),
+    punitionsEux: x => ({ txt: `Eux : ≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} la période`, bon: x > 0 }),
+  };
+  return ORDRE_DE_LINTENTION[intention.cle].filter(k => Math.abs(d[k]) >= SEUIL_INTENTION[k]).map(k => ({ cle: k, ...dire[k](d[k]) }));
+}
+
+/*
  * CE QUE TON ADJOINT PROPOSE À L'ENTRACTE (V17, docs/refonte-v17.md § 3). JP : *les gros matchs, je veux que mon adjoint
  * propose des ajustements à chaque période, j'en choisis un, il impacte la simulation* ; et la boussole : *quelqu'un qui
  * a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement*. Un écran court : l'adjoint parle, deux ou

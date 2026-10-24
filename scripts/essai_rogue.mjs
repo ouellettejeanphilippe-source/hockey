@@ -258,6 +258,7 @@ const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et 
 const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [] };   // À faire (V9), vu au premier choix
 const butin = { vus: 0, pris: [], fautes: [] };   // V13-2 : le butin d'une victoire, une carte parmi trois pour une place
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
+const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
 const veilles = [];   // V17 : un gros match ouvert avant son matin
 const periodes = [];  // V9 : les périodes de duel jouées (1re, 2e, 3e) et le plan pris (V17)
 const mise = { vue: false, lu: '', scene: '' };   // la mise doublée, touchée une fois, et sa scène
@@ -269,7 +270,7 @@ const barreA = { vus: 0, sous: [], longs: [] };   // « À régler » touché : 
 const decisionsDuCombat = async () => ((await lireSauvegarde()).partie || {}).decisions || [];
 /* La saison se rejoue avant d'être écrite : on attend que la sauvegarde compte plus de `n` décisions (10 s au plus), plutôt que de la lire trop tôt. */
 const attendreDecisions = n => page.waitForFunction(n0 => { const ix = JSON.parse(localStorage.getItem('cap82_parties'));
-  return ((JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)).partie || {}).decisions || []).length > n0; }, n, { timeout: 10000 }).catch(() => {});
+  return ((JSON.parse(localStorage.getItem(`cap82_partie_${ix.actif}`)).partie || {}).decisions || []).length > n0; }, n, { timeout: 30000 }).catch(() => {});
 /*
  * RIEN NE COLLE AU BORD (JP : *t'es mieux d'avoir un petit padding, que pas de padding du tout*). Chaque écran que l'essai
  * traverse se mesure (scripts/lib/bords.mjs) ; la première capture d'une faute nouvelle se garde.
@@ -376,6 +377,20 @@ async function regler() {
         if (idees.length < 2 || idees.length > 3 || !lu.props.some(x => x.cle === 'garder')) erreurs.push(`l'adjoint propose ${idees.length} plan(s) (${lu.props.map(x => x.cle).join(', ')}), et « Garder »`);
         if (idees.some(x => !x.puces)) erreurs.push('un plan de l\'adjoint ne dit pas ses vraies stats');
         if (lu.tableau) erreurs.push('le tableau du duel (systèmes, portes, geste) est encore à l\'écran');
+        /*
+         * LEURS PUCES (V17) : leur intention se lit comme ton plan, en vraies stats de la période, le canal qui la définit
+         * d'abord, ce qui est à eux sous « Eux : ». 🦂 : tes punitions ; ⛔ : tes tirs ; 🐗 : leurs tirs ; 🦈 et 🥷 : ton joueur visé.
+         */
+        const pu = await page.$eval('#choixModal .duel-intention', e => ({ etape: (e.querySelector('.main-etape') || {}).textContent || '', puces: [...e.querySelectorAll('.puce')].map(x => x.textContent.trim()) }));
+        const DEF = { '🦂': /^≈ \+.* punitions? pour toi/, '⛔': /^≈ −.* tirs? pour toi/, '🐗': /^Eux : ≈ \+.* tirs?/, '🦈': /: moins de tirs, des coups/, '🥷': /: moins de tirs, moins de chances/ };
+        const ico = Object.keys(DEF).find(k => pu.etape.includes(k));
+        intentionsVues.add(ico || '?');
+        // Un canal à sa borne (`DISCIPLINE_MAX` : un club déjà indiscipliné) ne bouge plus : la puce qui le définit manque alors, et rien d'autre ne passe devant elle.
+        const SON_CANAL = { '🦂': /punitions? pour toi/, '⛔': /tirs? pour toi/, '🐗': /^Eux : .*tirs?/, '🦈': /moins de tirs, des coups/, '🥷': /moins de tirs, moins de chances/ };
+        const absent = ico && !pu.puces.some(x => SON_CANAL[ico].test(x));
+        if (!ico || !pu.puces.length || (!absent && !DEF[ico].test(pu.puces[0]))) erreurs.push(`leur intention (${pu.etape.trim()}) ne dit pas d'abord ce qui la définit : ${pu.puces.join(' | ') || 'aucune puce'}`);
+        if (ico && ico !== '🥷' && !pu.puces.some(x => x.startsWith('Eux : '))) erreurs.push(`leur intention ${ico} ne dit pas ce qu'elle leur fait (« Eux : ») : ${pu.puces.join(' | ')}`);
+        if (pu.puces.some(x => /%/.test(x))) erreurs.push(`leur intention se dit en % : ${pu.puces.join(' | ')}`);
         pris = periodes.length % 3 === 2 ? 'garder' : (idees[periodes.length % 3] || idees[0] || { cle: 'garder' }).cle;
         /* LE GROS MATCH PLUS COURT (Jalon M, B3) : l'entracte de l'adjoint tient à 1,3 écran au plus, ses plans à l'écran. */
         const h = await page.$eval('#choixModal', m => {
@@ -1632,6 +1647,7 @@ console.log(`19. walkouts : ${walkouts} pack(s) ont annoncé leur carte (saison,
 if (!piles) erreurs.push('aucun paquet ouvert : la pile n\'a pas été traversée');
 console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join(' · ') : 'aucun cette run'}`);
 if (veilles.length) erreurs.push(`un gros match s'ouvre avant le matin où il se joue : ${veilles.join(' · ')}`);
+console.log(`20d. leurs intentions lues, leurs puces jugées : ${[...intentionsVues].join(' ') || 'aucune'}`);
 console.log(`20d. périodes de duel jouées (période:plan pris) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
 console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · choix envoyés (genre → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);

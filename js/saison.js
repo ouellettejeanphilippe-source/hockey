@@ -35,7 +35,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel } from './impact.js';
+import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
@@ -689,12 +689,12 @@ const PRESSE = new Set(['choix', 'pack', 'places', 'blessure', 'trou']);
  * (`propositionsDuDuel`, js/impact.js : deux ou trois plans, en vraies stats de la période) et sa scène
  * (`sceneDeLAdjoint`). `enForce` : la clé de ton plan en force ; `pointage` : avant la période.
  */
-function duelDeLAdjoint(ctx, you, adv, P, { k = 0, enForce = 'match', pointage = { moi: 0, lui: 0 }, mise = null, cadre = null, graine = '' }) {
+function duelDeLAdjoint(ctx, you, adv, P, { k = 0, enForce = 'match', pointage = { moi: 0, lui: 0 }, mise = null, graine = '' }) {
   const I = P.intention, J = INTENTIONS[I.cle];
   const props = propositionsDuDuel(you, adv, { intention: I, plan: enForce === 'match' ? null : { cle: enForce }, pointage, k });
   const scene = sceneDeLAdjoint({ intention: J, cible: I.cible ? nomCourt(I.cible.n) : '', raison: props.length ? props[0].raison : 'vedette',
     moi: pointage.moi, lui: pointage.lui, k, rival: ctx.teamShort(adv), graine });
-  return specDuDuel(P, { k, mise, cadre, propositions: props, enForce, scene });
+  return specDuDuel(P, { k, mise, propositions: props, enForce, scene, enChiffres: intentionEnChiffres(you, adv, I) });
 }
 
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {
@@ -1094,7 +1094,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       onDecision([...(dA ? [dA] : []), { jour: mo.p.j, main: { jouees: [] }, duel: { p: 0, ...(x.plan ? { plan: x.plan } : {}) } }], j);
     };
     const ap = apercuDuDuel(you, adv, { graine, cle: `j${mo.p.j}` });
-    const D = duelDeLAdjoint(ctx, you, adv, ap, { k: 0, enForce: planEnForce(mo.p.j), cadre: cadreDuMatch(1 / 3, 'la période'), graine: `${graine}|${mo.p.j}` });
+    const D = duelDeLAdjoint(ctx, you, adv, ap, { k: 0, enForce: planEnForce(mo.p.j), graine: `${graine}|${mo.p.j}` });
     // L'ENJEU, en une ligne : les vraies constantes (le barème de la run, `SONNE`) ; une carte « à enjeu » double le contrecoup.
     const run = ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat() : null;
     // V8 : un rival choisi paie son butin.
@@ -3993,7 +3993,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const mise = k === 2 ? { ...sceneDeLaMise({ moi, lui, rival: ctx.teamShort(adv), graine: `${graine}|${p.j}` }),
       chiffres: `victoire : +${prime * MISE_DOUBLEE} 🪙 · défaite : ${SONNE.ico} sonnés ${SONNE.duree * MISE_DOUBLEE} matchs` } : null;
     const P = du.periodes[k];
-    const D = duelDeLAdjoint(ctx, you, adv, P, { k, enForce: faites[k - 1].plan || 'match', pointage: { moi, lui }, mise, cadre: cadreDuMatch(1 / 3, 'la période'), graine: `${graine}|${p.j}` });
+    const D = duelDeLAdjoint(ctx, you, adv, P, { k, enForce: faites[k - 1].plan || 'match', pointage: { moi, lui }, mise, graine: `${graine}|${p.j}` });
     const tirs = c => [1, 2].slice(0, k).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);
     const buts = f.buts.filter(b => b.instant < 20 * k)
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : adv).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
@@ -4363,7 +4363,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
     const faites = du.periodes.slice(0, p);
     const moi = faites.reduce((a, h) => a + h.pointage.moi, 0), lui = faites.reduce((a, h) => a + h.pointage.lui, 0);
     const P = du.periodes[p];
-    const D = duelDeLAdjoint(ctx, you, boss, P, { k: p, enForce: faites[p - 1].plan || 'match', pointage: { moi, lui }, cadre: cadreSerie(1 / 3, 'la période'), graine: `${graine}|po${ronde}:${k}` });
+    const D = duelDeLAdjoint(ctx, you, boss, P, { k: p, enForce: faites[p - 1].plan || 'match', pointage: { moi, lui }, graine: `${graine}|po${ronde}:${k}` });
     const tirs = c => [1, 2].slice(0, p).reduce((a, per) => a + ((f.tirs[c] || [])[per] || 0), 0);
     const buts = f.buts.filter(b => b.instant < 20 * p)
       .map(b => `<span class="ent2-but but-eq" style="${varsEquipe(ctx.band((b.cote === cMoi ? you : boss).tag))}">${instantMot(b.instant)} · ${ctx.esc(b.marqueur ? b.marqueur.n : '')}</span>`).join('');
@@ -4484,7 +4484,7 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
         quitterPour(r => onDecision({ ronde: r, match_no: k, ...(ajustement ? { ajustement } : {}), main: { jouees: [] }, duel: { p: 0 }, auto: true }));
       };
       const ap = apercuDuDuel(you, boss, { graine, cle: `po${ronde}:${k}` });
-      const D = duelDeLAdjoint(ctx, you, boss, ap, { k: 0, cadre: cadreSerie(1 / 3, 'la période'), graine: `${graine}|po${ronde}:${k}` });
+      const D = duelDeLAdjoint(ctx, you, boss, ap, { k: 0, graine: `${graine}|po${ronde}:${k}` });
       if (serieDelegue()) { setTimeout(() => { if (!termine) parLAdjoint(); }, 0); return; }
       /*
        * L'ACCUEIL ENTRE LES MATCHS (1.0, oct.). JP : *en séries, montrer l'accueil entre les matchs*. Le duel

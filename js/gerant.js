@@ -1600,12 +1600,13 @@ export function ouvrirDuel(spec) {
 /*
  * LE DUEL EN MOTS (V9 ; V17). Ce que `ouvrirDuel` montre d'une période : leur intention (le fait, son pourquoi, ce
  * qu'elle fait aux deux clubs, le temps de la période), la scène de ton adjoint et ses plans. `P` : `{ intention }`
- * (le moteur) ; `propositions` : ce que `propositionsDuDuel` (js/impact.js) rend ; `enForce` : la clé de ton plan en
+ * (le moteur) ; `propositions` : ce que `propositionsDuDuel` (js/impact.js) rend ; `enChiffres` : leurs puces
+ * (`intentionEnChiffres`) ; `enForce` : la clé de ton plan en
  * force ; `scene` : `sceneDeLAdjoint` (js/scenes.js) ; `mise` : la ligne de la mise doublée, avant la 3e d'un duel de
  * saison.
  */
 const PERIODE_MOT = ['1re', '2e', '3e'];
-export function specDuDuel(P, { k = 0, mise = null, cadre = null, propositions = [], enForce = 'match', scene = null } = {}) {
+export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce = 'match', scene = null, enChiffres = [] } = {}) {
   const I = P.intention, J = INTENTIONS[I.cle], c = nom(I.cible), par = nom(I.par);
   const fait = {
     ombre: `${par || 'Leur meilleur défensif'} suit ${c} toute la période`,
@@ -1621,9 +1622,8 @@ export function specDuDuel(P, { k = 0, mise = null, cadre = null, propositions =
     garde: 'Ça a marché la période d\'avant.', mene: 'Tu mènes : ils n\'ont plus rien à perdre.', traine: 'Ils mènent : ils protègent l\'avance.',
     punitions: `Tu as pris ${w.n} punitions.`, trio: `Ton ${w.u + 1}e trio a marqué ${w.n} fois.`, marqueur: `${c} a marqué ${w.n} fois.`,
   }[w.cle] || '';
-  const mots = [...motsEnChiffres(J.toi || {}, null, cadre)];
-  for (const x of motsEnChiffres(J.adv || {}, null, cadre)) mots.push({ txt: `Eux : ${x.txt}`, bon: x.bon == null ? null : !x.bon });
-  if (J.joueur && c) mots.push({ txt: I.cle === 'ombre' ? `${c} : moins de tirs, moins de chances` : `${c} : moins de tirs, des coups, des jambes en moins`, bon: false });
+  // Leurs puces (`intentionEnChiffres`, js/impact.js), le joueur visé d'abord : c'est lui que leur plan définit.
+  const mots = [...(J.joueur && c ? [{ txt: I.cle === 'ombre' ? `${c} : moins de tirs, moins de chances` : `${c} : moins de tirs, des coups, des jambes en moins`, bon: false }] : []), ...enChiffres];
   // Ses plans : le nom et l'icône du plan, qui suit qui pour 🥷, et ses vraies stats de la période.
   const tuile = x => {
     const PL = PLANS[x.cle];
