@@ -11,7 +11,8 @@ import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
-import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES } from './cartes.js';
+import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction } from './cartes.js';
+import { creditPhoto } from './actions.js';
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
@@ -595,6 +596,20 @@ function montrerFace(carte, auVerso) {
   recto.setAttribute('aria-hidden', String(auVerso));
   dos.setAttribute('aria-hidden', String(!auVerso));
   if (bouton) { bouton.textContent = auVerso ? '↻ Recto' : '↻ Verso'; bouton.setAttribute('aria-label', auVerso ? 'Revenir au recto' : 'Retourner la carte'); }
+  if (auVerso) serrerVerso(dos);
+}
+/*
+ * LE DOS TIENT DANS SA CARTE (oct. 2026, JP : *améliorer un peu les arrières de cartes pour que ça fitte plus*). Le dos
+ * a la taille du recto, 5:7 ; ce qu'il porte varie (une Holo, une carte qui joue, ses saisons de run). Trop plein, il
+ * descend ses tailles d'un cran, puis d'un autre (`serre-1`, `serre-2`, style.css) ; au-delà, il défile.
+ */
+function serrerVerso(dos) {
+  dos.classList.remove('serre-1', 'serre-2');
+  for (const k of ['serre-1', 'serre-2']) {
+    if (dos.scrollHeight <= dos.clientHeight + 1) return;
+    dos.classList.remove('serre-1');
+    dos.classList.add(k);
+  }
 }   // les deux moitiés du tour, en ms (style.css, `cj-tourne-1/2`)
 function brancherRetournement(carte) {
   if (!carte) return;
@@ -665,8 +680,9 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
   const age = ageAtSeason(p.bd, p.s);
   if (age) vit.push(['Âge', `${age} ans`]);
   const faits = [rangDansLaLigue(p)].filter(Boolean);
-  if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
-  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p), num || (G.variantes.numeros || {})[getPlayerKey(p)] || '/99')}`);
+  if (p.x) faits.push('Échangé en cours de saison : deux chandails cette année-là.');
+  // Le tirage d'une Holo se lit au pied, à droite, comme le numéro estampé d'une vraie carte numérotée.
+  const tirage = rarete === 'legendaire' ? tirageLimite(getPlayerKey(p), num || (G.variantes.numeros || {})[getPlayerKey(p)] || '/99') : '';
   /*
    * LE PIED D'UN VRAI VERSO (S80) : la ligne légale de l'imprimeur, en petits
    * caractères — « © 1985 O-Pee-Chee » disait l'année de la série sans la
@@ -674,6 +690,12 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
    * le nombre de cartes. Rien que le recto dise déjà en toutes lettres.
    */
   const anneeSerie = String(p.s || '').slice(0, 4);
+  /*
+   * LE CRÉDIT DE LA PHOTO (oct. 2026, JP : *un mini lien qui crédite l'auteur dans l'app*). Une photo libre (Commons,
+   * Flickr) se crédite comme sa licence le demande : l'auteur, la licence, un lien vers l'œuvre — au dos, où une vraie
+   * carte imprime le sien. Une photo de la LNH n'en porte pas.
+   */
+  const credit = photoAction(p) && creditPhoto(p.id);
   return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} fc-cachee" aria-hidden="true">
     ${finiHtml(rarete)}
     <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span><span class="cjv-logo">${getTeamLogoHtml(p.t, 22)}</span></div>
@@ -681,7 +703,8 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
-    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span></div>
+    ${credit ? `<a class="cjv-credit" href="${esc(credit.url)}" target="_blank" rel="noopener">Photo : ${esc(credit.auteur)} · ${esc(credit.licence)}</a>` : ''}
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span>${tirage ? `<span class="cjv-tirage" title="Tirage limité">Tirage ${tirage}</span>` : ''}</div>
   </div>`;
 }
 

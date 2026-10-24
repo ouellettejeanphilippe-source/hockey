@@ -5,7 +5,10 @@
  *   node scripts/check_actions.mjs http://localhost:8000    plus l'appareil Android, simulé (réseau requis)
  *
  * 1. La liste (data/actions.json) : des joueurs du jeu, triés, sans doublon ;
- *    et si img/actions/ est là, une image par joueur listé.
+ *    et si img/actions/ est là, une image par joueur listé, aucune en double.
+ *    Les photos libres (scripts/actions_commons.mjs, `commons` et `libres`) :
+ *    chacune listée, une licence permise (jamais ND), un auteur, une vignette
+ *    https ; `creditPhoto` rend leur crédit, null pour une photo de la LNH.
  * 2. Le recadrage, dans Chromium, par le texte de la fonction (comme le script
  *    et l'appareil la reçoivent) : il rend du 400 × 560, et sa fenêtre suit un
  *    sujet net posé à droite, à gauche ou au centre d'un fond flou.
@@ -17,6 +20,7 @@
  *    chaque photo est recadrée sur l'appareil (400 × 560), gardée dans son
  *    tiroir, et `actionSrc` rend son adresse blob:.
  */
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -47,7 +51,34 @@ const DOSSIER = path.join(ROOT, 'img', 'actions');
 if (fs.existsSync(DOSSIER)) {
   const manquent = ids.filter(id => !fs.existsSync(path.join(DOSSIER, `${id}.webp`)));
   exiger('img/actions : une image par joueur listé', !manquent.length, manquent.length ? `${manquent.length} manquent (node scripts/actions.mjs)` : `${ids.length} images`);
+  const vus = new Map(), doubles = [];
+  for (const id of ids) {
+    const f = path.join(DOSSIER, `${id}.webp`);
+    if (!fs.existsSync(f)) continue;
+    const h = createHash('md5').update(fs.readFileSync(f)).digest('hex');
+    if (vus.has(h)) doubles.push(`${vus.get(h)}=${id}`); else vus.set(h, id);
+  }
+  exiger('img/actions : aucune image en double (md5)', !doubles.length, doubles.length ? doubles.slice(0, 5).join(', ') : `${vus.size} images distinctes`);
 } else informer('img/actions', 'absent (une copie fraîche) : node scripts/actions.mjs les refait ; le jeu montre les portraits');
+
+// Les photos libres : listées, sous une licence permise (domaine public, CC0, CC BY, CC BY-SA, CC BY-NC, CC BY-NC-SA ; jamais ND), créditées.
+const LICENCE_PERMISE = /^(Domaine public|CC0|CC BY(-NC)?(-SA)?( \d\.\d)?)$/;
+const commons = Object.entries(liste.commons || {}), libres = Object.entries(liste.libres || {});
+const fautif = (cle, [id, c]) => {
+  if (!ids.includes(Number(id))) return `${id} hors de ids`;
+  if (fs.existsSync(DOSSIER) && !fs.existsSync(path.join(DOSSIER, `${id}.webp`))) return `${id} sans WebP`;
+  if (!LICENCE_PERMISE.test(c.l || '')) return `${id} : licence « ${c.l} »`;
+  if (!String(c.a || '').trim()) return `${id} sans auteur`;
+  if (!/^https:\/\//.test(c.s || '')) return `${id} : vignette « ${c.s} »`;
+  if (cle === 'commons' && (!c.f || !/^https:\/\/(upload|thumb)\.wikimedia\.org\//.test(c.s))) return `${id} : fichier ou vignette de Commons`;
+  if (cle === 'libres' && (!/^https:\/\//.test(c.p || '') || !c.o || /wikimedia/i.test(c.o))) return `${id} : page de l'œuvre ou source`;
+  return null;
+};
+const fautesCommons = commons.map(e => fautif('commons', e)).filter(Boolean);
+exiger('commons : listées, WebP, licence permise, auteur, vignette de Commons', !fautesCommons.length, fautesCommons.length ? fautesCommons.slice(0, 4).join(' · ') : `${commons.length} photos de Commons`);
+const fautesLibres = libres.map(e => fautif('libres', e)).filter(Boolean);
+exiger('libres : listées, WebP, licence permise, auteur, page de l\'œuvre', !fautesLibres.length, fautesLibres.length ? fautesLibres.slice(0, 4).join(' · ') : `${libres.length} photos d'Openverse`);
+exiger('commons et libres : jamais un joueur que la LNH montre, ni les deux à la fois', commons.every(([id]) => !(liste.libres || {})[id]), '');
 
 /* 2. Le recadrage, sur des images de synthèse. */
 const navigateur = await chromium.launch();
@@ -102,6 +133,15 @@ const charger = async (imagesLa) => {
   const absent = [...joueurs].find(id => !ids.includes(id));
   exiger('images présentes : img/actions/{id}.webp', dispo.length === ids.length && m.actionSrc(ids[0]) === `img/actions/${ids[0]}.webp`, String(m.actionSrc(ids[0])));
   exiger('joueur sans photo : null (sa carte garde son portrait)', m.actionSrc(absent) === null, `${absent}`);
+  // Le crédit : celui de Commons pointe sa page de fichier, celui d'Openverse la page de l'œuvre ; la LNH n'en a pas.
+  const lnh = ids.find(id => !(liste.commons || {})[id] && !(liste.libres || {})[id]);
+  const [idC, c] = commons[0] || [], [idL, l] = libres[0] || [];
+  const crC = idC && m.creditPhoto(idC), crL = idL && m.creditPhoto(idL);
+  exiger('creditPhoto : auteur, licence et page de l\'œuvre ; null pour la LNH',
+    m.creditPhoto(lnh) === null && m.creditPhoto(absent) === null
+      && (!idC || (crC.auteur === c.a && crC.licence === c.l && crC.url.startsWith('https://commons.wikimedia.org/wiki/File:')))
+      && (!idL || (crL.auteur === l.a && crL.url === l.p)),
+    idC ? `${crC.auteur} · ${crC.licence} · ${crC.url}` : '');
 }
 
 globalThis.fetch = vraiFetch;
@@ -112,9 +152,10 @@ if (URL_JEU) {
   const p = await ctx.newPage();
   const demandes = [];
   // Le HTTP natif : Node va chercher la vraie photo (hors des règles CORS, comme Android).
-  await p.exposeFunction('httpNatif', async url => {
-    demandes.push(url);
-    const r = await fetch(url, { redirect: 'follow' });
+  const entetes = [];
+  await p.exposeFunction('httpNatif', async (url, headers) => {
+    demandes.push(url); entetes.push(headers || {});
+    const r = await fetch(url, { redirect: 'follow', headers: headers || {} });
     const buf = Buffer.from(await r.arrayBuffer());
     return { status: r.status, url: r.url, data: buf.toString('base64') };
   });
@@ -122,7 +163,7 @@ if (URL_JEU) {
     const connexion = { type: 'cellular', saveData: false, ecouteurs: [], addEventListener(t, f) { this.ecouteurs.push(f); } };
     Object.defineProperty(navigator, 'connection', { get: () => connexion });
     window.connexionTest = connexion;
-    window.Capacitor = { isNativePlatform: () => true, Plugins: { CapacitorHttp: { request: ({ url }) => window.httpNatif(url) } } };
+    window.Capacitor = { isNativePlatform: () => true, Plugins: { CapacitorHttp: { request: ({ url, headers }) => window.httpNatif(url, headers) } } };
   });
   // Une page vide à l'origine du jeu : les modules et data/actions.json se lisent comme dans l'application.
   const base = URL_JEU.replace(/\/?$/, '/');
@@ -130,7 +171,10 @@ if (URL_JEU) {
   await p.goto(`${base}sonde-actions.html`);
   await p.addScriptTag({ type: 'module', content: `import * as A from './js/actions.js'; window.A = A; window.evenements = []; addEventListener('cap82:action', e => evenements.push(e.detail.id));` });
   await p.waitForFunction(() => window.A);
+  // Le plus vieux joueur : une photo libre, s'il y en a (Wikimedia exige qu'on se nomme).
   const vieux = ids[0], recent = ids[ids.length - 1];
+  const libreDe = id => (liste.commons || {})[id] || (liste.libres || {})[id];
+  const sourceDe = id => libreDe(id) ? libreDe(id).s : `/${id}.jpg`;
   const res = await p.evaluate(async ({ vieux }) => {
     const dispo = await A.actionsDisponibles();
     const avant = A.actionSrc(vieux);                      // une carte regarde un vieux joueur
@@ -153,7 +197,10 @@ if (URL_JEU) {
     return { gardees: cles.length, tailles, src: A.actionSrc(vieux), srcRecent: A.actionSrc(recent), evenements: evenements.length };
   }, { vieux, recent });
   // Deux téléchargements à la fois : la carte regardée part la première, même si une autre finit avant elle.
-  exiger('appareil : la carte regardée passe en tête de file', demandes[0].includes(`/${vieux}.jpg`) && String(fin.src).startsWith('blob:'), `téléchargées dans l'ordre : ${demandes.slice(0, 3).map(u => u.split('/').pop()).join(', ')}`);
+  exiger('appareil : la carte regardée passe en tête de file', demandes[0].includes(sourceDe(vieux)) && String(fin.src).startsWith('blob:'), `téléchargées dans l'ordre : ${demandes.slice(0, 3).map(u => u.split('/').pop()).join(', ')}`);
+  const nommees = demandes.map((u, k) => [u, entetes[k]]).filter(([u]) => !u.includes('assets.nhle.com'));
+  exiger('appareil : une photo libre se télécharge en se nommant (User-Agent)', nommees.every(([, h]) => /^Cap82-0\//.test(h['User-Agent'] || '')),
+    `${nommees.length} photos libres parmi ${demandes.length}${libreDe(vieux) ? ` (dont ${vieux}, ${libreDe(vieux).l})` : ''}`);
   exiger('appareil : photos recadrées sur place et gardées', fin.gardees >= 4 && fin.tailles.every(t => t.startsWith('400×560 image/webp')), `${fin.gardees} dans le tiroir : ${fin.tailles.join(' · ')}`);
   exiger('appareil : actionSrc rend une adresse blob:', String(fin.src).startsWith('blob:'), String(fin.src).slice(0, 40));
   exiger('appareil : la file s\'arrête hors Wi-Fi', demandes.length <= fin.gardees + 2, `${demandes.length} téléchargements pour ${fin.gardees} gardées`);
