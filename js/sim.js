@@ -2846,7 +2846,9 @@ export const OBJECTIFS = {
   sequence: { ico: '📈', nom: 'Aligne 4 victoires de suite', court: '4 victoires de suite',
     mesure: m => { let b = 0, c = 0; for (const x of m) { c = x.v ? c + 1 : 0; b = Math.max(b, c); } return b; }, cible: 4, sens: 1, unite: 'de suite' },
   vedette: { ico: '⭐', nom: 'Un de tes joueurs fait 21 points en 20 matchs', court: 'Un joueur à 21 points',
-    mesure: m => { const pts = new Map(); for (const x of m) for (const b of x.buts || []) for (const p of [b.marqueur, ...(b.passeurs || [])]) if (p) pts.set(p, (pts.get(p) || 0) + 1); return Math.max(0, ...pts.values()); }, cible: 21, sens: 1, unite: 'points' },
+    mesure: m => Math.max(0, ...pointsDesMiens(m).values()),
+    // Qui mène : l'écran le nomme (« Demitra : 4 / 21 points »), comme le proprio le ferait.
+    meneur: m => [...pointsDesMiens(m)].sort((a, b) => b[1] - a[1])[0]?.[0] || null, cible: 21, sens: 1, unite: 'points' },
   blanchissages: { ico: '🥅', nom: 'Deux blanchissages en 20 matchs', court: '2 blanchissages',
     mesure: m => m.filter(x => x.contre === 0).length, cible: 2, sens: 1, unite: 'blanchissages' },
   regulier: { ico: '🧭', nom: 'Jamais trois défaites de suite en 20 matchs', court: 'Pas trois défaites de suite',
@@ -2861,6 +2863,12 @@ export const OBJECTIFS = {
     mesure: (m, quoi) => m.reduce((a, x) => a + (x.buts || []).filter(b => [b.marqueur, ...(b.passeurs || [])].some(p => p && getPlayerKey(p) === quoi.joueur)).length, 0),
     sens: 1, unite: 'points' },
 };
+/* Les points de chacun de tes joueurs sur une liste de tes matchs. */
+function pointsDesMiens(m) {
+  const pts = new Map();
+  for (const x of m) for (const b of x.buts || []) for (const p of [b.marqueur, ...(b.passeurs || [])]) if (p) pts.set(p, (pts.get(p) || 0) + 1);
+  return pts;
+}
 /* La cible du gros contrat : ses points de vingt matchs au rythme de sa vraie saison, un peu moins (le proprio n'est pas fou). */
 const PART_DU_RYTHME = 0.9;
 /* Le joueur d'un objectif qui en nomme un (`joueur: true`) : le patineur habillé qui coûte le plus cher, et sa cible. Sinon null. */
@@ -2893,11 +2901,16 @@ export function objectifsOfferts(graine, jour) {
  * séquence de quatre est acquise dès qu'elle arrive) mais jamais un échec
  * avant la fin, sauf s'il est déjà mathématiquement joué.
  */
-export function etatObjectif(cle, matchs, quoi = null) {
+export function etatObjectif(cle, matchs, quoi = null, team = null) {
   const o = OBJECTIFS[cle];
   if (!o || (o.joueur && !quoi)) return null;
   const m = matchs.slice(0, MATCHS_OBJECTIF);
   const val = o.mesure(m, quoi);
+  const meneur = o.meneur ? o.meneur(m) : null;
+  // Le joueur nommé n'est plus chez toi (échangé, relâché) : l'objectif ne peut plus se tenir, il se lève.
+  if (o.joueur && team && !Object.values(team.roster || {}).some(x => x && getPlayerKey(x) === quoi.joueur)) {
+    return { val, cible: quoi.cible, fini: true, reussi: false, rate: false, parti: true, joues: m.length, meneur };
+  }
   const cible = o.joueur ? quoi.cible : o.cible;
   const fini = m.length >= MATCHS_OBJECTIF;
   const tient = o.sens > 0 ? val >= cible : val <= cible;
@@ -2907,7 +2920,7 @@ export function etatObjectif(cle, matchs, quoi = null) {
   // perdue dès qu'elle la dépasse.
   const reussi = o.sens > 0 ? tient : (fini && tient);
   const rate = o.sens > 0 ? (fini && !tient) : !tient;
-  return { val, cible, fini: reussi || rate, reussi, rate, joues: m.length };
+  return { val, cible, fini: reussi || rate, reussi, rate, joues: m.length, meneur };
 }
 
 /* Les factions (S66) sont parties en S72 : JP, *les trucs genre partisans et cie, ça apporte rien*. Ce qu'elles faisaient se joue maintenant sur la glace. */
@@ -6844,10 +6857,33 @@ function mesureDuSuivi(s, feuilles) {
   }
   return n;
 }
+/*
+ * OÙ EN EST UN SUIVI (oct. 2026, JP : *ça le confirme bon, mais aucun suivi de ça*). Ses matchs joués depuis le choix,
+ * et ce que leurs feuilles disent déjà (`n`), avec ce qu'elles disaient avant le dernier (`avant`) : l'écran le dit
+ * chaque matin, à sa maison, et Hier soir quand il bouge. Pur : rien n'est tiré.
+ */
+export function suivisEnCours(team) {
+  const j = team.journal || [];
+  return (team.suivis || []).filter(s => !s.fait).map(s => {
+    const f = j.slice(s.matchs0, s.matchs0 + s.suivi.apres).map(e => e.feuille);
+    return { ...s, n: mesureDuSuivi(s, f), avant: mesureDuSuivi(s, f.slice(0, -1)), joues: f.length };
+  });
+}
+/* Le joueur d'un suivi est-il encore à toi ? Échangé, relâché, réclamé : la promesse ne peut plus se tenir. */
+const encoreChezToi = (t, p) => Object.values(t.roster || {}).some(x => x && getPlayerKey(x) === getPlayerKey(p));
 function retoursDuMatin(t, jour) {
   const j = t.journal || [];
   for (const s of t.suivis || []) {
-    if (s.fait || j.length - s.matchs0 < s.suivi.apres) continue;
+    if (s.fait) continue;
+    // Parti avant la fin : la promesse tombe, sans gain ni prix, et ça se dit.
+    if (!encoreChezToi(t, s.joueur)) {
+      s.fait = true;
+      (t.retours = t.retours || []).push({ cle: s.cle, choix: s.choix, jour, titre: `${s.ico} ${s.titre} : le retour`, de: voixDuFil(s.cle),
+        texte: `${nomCourt(s.joueur.n)} n'est plus dans ton effectif : la promesse tombe.`, effet: {}, matchs: 0, cible: 'equipe', pour: null,
+        joueur: s.joueur, n: mesureDuSuivi(s, j.slice(s.matchs0).map(e => e.feuille)), gagne: null, parti: true, debut: s.jour, matchs0: s.matchs0 });
+      continue;
+    }
+    if (j.length - s.matchs0 < s.suivi.apres) continue;
     s.fait = true;
     const n = mesureDuSuivi(s, j.slice(s.matchs0, s.matchs0 + s.suivi.apres).map(e => e.feuille));
     const gagne = n >= s.suivi.seuil, B = gagne ? s.suivi.gagne : s.suivi.perd;
