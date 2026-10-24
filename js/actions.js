@@ -30,6 +30,14 @@
  * img/actions/{id}.webp ; l'appareil télécharge `s`, leur vignette, en se
  * nommant (Wikimedia exige un User-Agent). `creditPhoto(id)` rend l'auteur, la
  * licence et la page de l'œuvre, pour le crédit que la licence demande.
+ *
+ * UNE PHOTO PAR SAISON (oct. 2026, scripts/actions_saisons.mjs). JP : *une photo par joueur par an pour pas
+ * toujours utiliser celle de sa dernière saison, ça a l'air fou*. Quand Commons a une photo de match libre de
+ * CETTE saison, la carte de cette saison la prend avant toute autre : `actionSrc(id, saison)`,
+ * `cadreAction(id, saison)` et `creditPhoto(id, saison)` rendent la sienne, img/actions/{id}-{saison}.webp ;
+ * une saison sans la sienne garde la photo générale. Sur l'appareil, elle se télécharge seulement quand une
+ * carte la regarde, jamais dans la file de fond (une par joueur suffit à remplir le tiroir) ; même tiroir,
+ * clé {id}-{saison}.
  */
 import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
@@ -45,6 +53,8 @@ let liste = null;            // les joueurs qui ont une photo (data/actions.json
 let visages = {};            // le centre de leur visage, pour le recadrage sur l'appareil (scripts/visages_actions.py)
 let libres = {};             // id → la photo libre (Commons ou Openverse) : sa vignette, son auteur, sa licence
 let cadres = {};             // id → le centre du visage dans la photo 5:7 [x, y], pour la fenêtre de chaque série
+let saisons = {};            // id → { saison → [fichier, dossier, largeur de la vignette, auteur, licence, centre du visage, cadre, club ?] }
+let auteurs = [], licences = [];   // les auteurs et les licences des photos de saison, par index
 let chargement = null;       // la promesse de actionsDisponibles()
 let surLeWeb = false;        // les fichiers img/actions/ répondent
 
@@ -57,8 +67,8 @@ let surLeWeb = false;        // les fichiers img/actions/ répondent
 export function photoDeFond(joueurs) {
   if (!liste) return null;
   const pts = p => (p.pt ?? ((p.g || 0) + (p.a || 0))) || 0;
-  const p = joueurs.filter(x => x && liste.has(Number(x.id))).sort((a, b) => pts(b) - pts(a))[0];
-  return p ? actionSrc(p.id) : null;
+  const p = joueurs.filter(x => x && (liste.has(Number(x.id)) || deSaison(x.id, x.s, x.t))).sort((a, b) => pts(b) - pts(a))[0];
+  return p ? actionSrc(p.id, p.s, p.t) : null;
 }
 
 /*
@@ -75,6 +85,9 @@ export function actionsDisponibles() {
       visages = lu.visages || {};
       libres = { ...(lu.libres || {}), ...(lu.commons || {}) };
       cadres = lu.cadres || {};
+      saisons = lu.saisons || {};
+      auteurs = lu.auteurs || [];
+      licences = lu.licences || [];
       if (!ids.length || surAppareil()) return ids;
       // Une vraie lecture (pas un HEAD : hors ligne, seul un GET passe par le tiroir du travailleur de service),
       // et le corps lu jusqu'au bout — une réponse laissée ouverte garde la page « occupée » pour toujours.
@@ -88,34 +101,56 @@ export function actionsDisponibles() {
 }
 
 /*
- * Le crédit d'une photo libre : { auteur, licence, url } (la page de l'œuvre), ou null pour une photo de la
- * LNH ou un joueur sans photo.
+ * La photo de CETTE saison du joueur (scripts/actions_saisons.mjs), ou null : il n'en a pas, on garde la générale.
+ * Un joueur échangé a une carte par club dans la même saison : sa photo porte alors son club (le 8e champ), et
+ * seule la carte de ce club la prend.
  */
-export function creditPhoto(id) {
+function deSaison(id, saison, club) {
+  const e = saison && saisons[Number(id)] && saisons[Number(id)][saison];
+  return e && (!e[7] || !club || e[7] === club) ? e : null;
+}
+const nomCommons = f => encodeURIComponent(f.replace(/ /g, '_'));
+const pageCommons = f => `https://commons.wikimedia.org/wiki/File:${nomCommons(f)}`;
+/* La vignette de Commons d'une photo de saison : la même adresse pour la fabrication et pour l'appareil. */
+export const vignetteCommons = ([f, dossier, largeur]) =>
+  `https://upload.wikimedia.org/wikipedia/commons/${largeur ? 'thumb/' : ''}${dossier[0]}/${dossier}/${nomCommons(f)}${largeur ? `/${largeur}px-${nomCommons(f)}` : ''}`;
+
+/*
+ * Le crédit d'une photo libre : { auteur, licence, url } (la page de l'œuvre), ou null pour une photo de la
+ * LNH ou un joueur sans photo. Avec la saison, celui de sa photo de saison s'il y en a une.
+ */
+export function creditPhoto(id, saison, club) {
+  const ps = deSaison(id, saison, club);
+  if (ps) return { auteur: auteurs[ps[3]], licence: licences[ps[4]], url: pageCommons(ps[0]) };
   const c = libres[Number(id)];
   if (!c) return null;
-  return { auteur: c.a, licence: c.l, url: c.f ? `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(c.f.replace(/ /g, '_'))}` : c.p };
+  return { auteur: c.a, licence: c.l, url: c.f ? pageCommons(c.f) : c.p };
 }
 
 /* Le centre du visage dans sa photo d'action, [x, y] en fractions, ou null (aucun visage sûr : la série cadre seule). */
-export function cadreAction(id) {
-  return cadres[Number(id)] || null;
+export function cadreAction(id, saison, club) {
+  const ps = deSaison(id, saison, club);
+  return (ps ? ps[6] : cadres[Number(id)]) || null;
 }
 
-/* L'image d'action d'un joueur, 5:7, ou null (la carte garde son portrait). */
-export function actionSrc(id) {
+/* L'image d'action d'un joueur, 5:7, ou null (la carte garde son portrait) ; avec sa saison (et son club), celle de cette saison d'abord. */
+export function actionSrc(id, saison, club) {
   id = Number(id);
-  if (!liste || !liste.has(id)) return null;
-  if (!surAppareil()) return surLeWeb ? `img/actions/${id}.webp` : null;
-  const src = prets.get(id);
+  const ps = deSaison(id, saison, club);
+  if (!ps && (!liste || !liste.has(id))) return null;
+  const cle = ps ? `${id}-${saison}` : id;
+  if (!surAppareil()) return surLeWeb ? `img/actions/${cle}.webp` : null;
+  const src = prets.get(cle);
   if (src) return src;
-  demander(id);
-  return null;
+  demander(cle);
+  // En attendant celle de la saison, la générale si elle est déjà gardée (sans la demander).
+  return ps ? prets.get(id) || null : null;
 }
 
 /* ---------- l'appareil Android ---------- */
 
-const prets = new Map();     // id → adresse blob: d'une photo gardée
+// Une clé : l'id (la photo générale) ou « id-saison » (une photo de saison, à la demande seulement).
+const prets = new Map();     // clé → adresse blob: d'une photo gardée
 const enCours = new Map();   // id → promesse
 const gardes = new Set();    // les photos déjà dans le tiroir
 const demandes = [];         // les cartes regardées : en tête de file
@@ -134,11 +169,14 @@ function connexionLarge() {
   return !c.effectiveType || c.effectiveType === '4g';
 }
 
+/* La photo de saison d'une clé « id-saison », ou null. */
+const saisonDeCle = cle => (typeof cle === 'string' ? deSaison(...cle.split(/-(.+)/)) : null);
+
 /* Les octets d'une photo (la LNH, ou sa photo libre), par le HTTP natif (hors des règles CORS). */
 async function telecharger(id) {
   const http = window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.CapacitorHttp;
   if (!http) throw new Error('CapacitorHttp absent');
-  const libre = libres[id];
+  const ps = saisonDeCle(id), libre = ps ? { s: vignetteCommons(ps) } : libres[id];
   const r = await http.request(libre ? { url: libre.s, method: 'GET', responseType: 'blob', headers: { 'User-Agent': UA, 'Api-User-Agent': UA } } : { url: SOURCE(id), method: 'GET', responseType: 'blob' });
   // Sans photo, la LNH redirige vers une image générique : ce n'est pas LUI.
   if (r.status !== 200 || !r.data || (!libre && /default\.jpg/.test(r.url || ''))) return null;
@@ -160,7 +198,8 @@ function garder(id, { reseau = true } = {}) {
       if (!reseau || !connexionLarge()) return null;
       const brut = await telecharger(id);
       if (!brut) return null;
-      webp = (await recadrerAction(brut, { centre: visages[id] ?? null })).webp;
+      const ps = saisonDeCle(id);
+      webp = (await recadrerAction(brut, { centre: (ps ? ps[5] : visages[id]) ?? null })).webp;
       await t.put(cleDe(id), new Response(webp, { headers: { 'content-type': 'image/webp' } }));
       gardes.add(id);
     }
@@ -194,7 +233,7 @@ function lancer() {
         if (prets.has(id)) continue;
         await garder(id);
         // Laisse respirer l'interface ; Wikimedia et Openverse limitent les requêtes : on y va plus doucement.
-        await new Promise(r => setTimeout(r, libres[id] ? 600 : 60));
+        await new Promise(r => setTimeout(r, libres[id] || saisonDeCle(id) ? 600 : 60));
       }
     })().finally(() => { ouvriers--; });
   }
@@ -210,13 +249,14 @@ export async function demarrerActions() {
     const ids = await actionsDisponibles();
     if (!ids.length) return;
     const t = await ouvrirTiroir();
-    for (const r of await t.keys()) { const m = r.url.match(/(\d+)\.webp$/); if (m) gardes.add(Number(m[1])); }
+    for (const r of await t.keys()) { const m = r.url.match(/\/(\d+)(-\d{4}-\d\d)?\.webp$/); if (m) gardes.add(m[2] ? m[1] + m[2] : Number(m[1])); }
     // Le reste, des joueurs les plus récents aux plus anciens (toujours le même ordre).
+    // Les photos de saison n'y entrent jamais : elles se téléchargent quand une carte les regarde.
     file = ids.filter(id => !gardes.has(id)).sort((a, b) => b - a);
     if (navigator.connection && navigator.connection.addEventListener) navigator.connection.addEventListener('change', lancer);
     window.addEventListener('online', lancer);
     lancer();
     // Pendant ce temps, les photos déjà gardées se lisent (sans réseau) : une carte les montre dès son prochain dessin.
-    for (const id of [...gardes].sort((a, b) => b - a)) await garder(id, { reseau: false });
+    for (const id of [...gardes].filter(k => typeof k === 'number').sort((a, b) => b - a)) await garder(id, { reseau: false });
   } catch { /* pas de tiroir : les cartes gardent leur portrait */ }
 }

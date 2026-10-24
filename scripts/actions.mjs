@@ -223,7 +223,9 @@ if (LIMITE === Infinity && !arg('ids', null)) {
   const commons = garde('commons'), libres = garde('libres');
   const tous = [...new Set([...presents, ...Object.keys(LIBRES).map(Number).filter(id => commons[id] || libres[id])])].sort((a, b) => a - b);
   const visages = Object.fromEntries(tous.filter(id => VISAGES[id] != null).map(id => [id, VISAGES[id]]));
-  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ taille: [LARGEUR, HAUTEUR], ids: tous, visages, commons, ...(Object.keys(libres).length ? { libres } : {}) }));
+  // Le reste du fichier (les cadres, les photos de saison de scripts/actions_saisons.mjs) se garde tel quel.
+  delete LU_AVANT.libres;
+  fs.writeFileSync(path.join(ROOT, 'data', 'actions.json'), JSON.stringify({ ...LU_AVANT, taille: [LARGEUR, HAUTEUR], ids: tous, visages, commons, ...(Object.keys(libres).length ? { libres } : {}) }));
 }
 const brutsTotal = presents.reduce((a, id) => a + fs.statSync(path.join(BRUT, `${id}.jpg`)).size, 0);
 const parRaison = {};
