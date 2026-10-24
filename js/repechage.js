@@ -12,7 +12,7 @@ import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement, motDeFamille } from './gerant.js';
-import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
+import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
@@ -145,7 +145,7 @@ export function cartonDe(p, o = {}) {
   const cle = getPlayerKey(p);
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
-    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p),
+    serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p), cadre: cadrePhoto(p),
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
     gemmeHtml: gemmeJoueur(rarete, traits), rubanHtml: rubanDe(p),
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,
