@@ -191,8 +191,10 @@ const charger = async (imagesLa) => {
     idC ? `${crC.auteur} · ${crC.licence} · ${crC.url}` : '');
   // La photo de saison : la sienne pour sa saison, la générale (ou rien) pour une autre ; le crédit et le cadre la suivent.
   if (deSaison.length) {
-    const [id, s, e] = deSaison.find(([i]) => ids.includes(i)) || deSaison[0];
-    const autre = [...clubsDe.keys()].map(k => k.split(/-(.+)/)).find(([i, x]) => Number(i) === id && x !== s && !(liste.saisons[id] || {})[x]);
+    // Un joueur qui a une photo générale, et une saison sans la sienne.
+    const sansSienne = i => [...clubsDe.keys()].map(k => k.split(/-(.+)/)).find(([j, x]) => Number(j) === i && !(liste.saisons[i] || {})[x]);
+    const [id, s, e] = deSaison.find(([i, , x]) => ids.includes(i) && !x[7] && sansSienne(i)) || deSaison[0];
+    const autre = sansSienne(id);
     const club = e[7] || clubsDe.get(`${id}-${s}`)[0];
     const cr = m.creditPhoto(id, s, club), crG = m.creditPhoto(id, autre && autre[1]);
     exiger('saisons : une carte de sa saison prend sa photo', m.actionSrc(id, s, club) === `img/actions/${id}-${s}.webp`, `${id} ${s} : ${m.actionSrc(id, s, club)}`);
