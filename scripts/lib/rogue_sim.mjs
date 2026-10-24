@@ -73,7 +73,8 @@ import {
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
 const DIR = path.join(ROOT, 'data', 'seasons');
-export const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).map(f => f.replace('.json', '')).sort();
+// Les saisons du jeu sont celles de l'index (scripts/build_shards.py `saison_jouable`) : la saison en cours n'y entre qu'à la mi-saison.
+export const SAISONS = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'index.json'), 'utf8')).seasons;
 const CACHE = new Map();
 export function shard(s) {
   if (!CACHE.has(s)) {
