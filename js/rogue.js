@@ -34,7 +34,7 @@ import { VOIES } from './coachs.js';
 import { filsDeSaison } from './recit.js';
 import { EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { PACKS_TOUS, BOUTIQUE } from './packs.js';
-import { ETOILE } from './niveaux.js';
+import { REGULIER, PILIER, ETOILE } from './niveaux.js';
 
 const CLE_META = 'cap82_rogue';
 
@@ -122,9 +122,10 @@ const CRANS_DE_PACK = [
 const cleDeCran = (pack, i) => `monte_${pack.slice(2)}_${i + 1}`;
 /* ---------- les déblocages (le vestiaire) ---------- */
 export const DEBLOCAGES = {
-  garder1: { ico: '🤝', nom: 'Garder un joueur', prix: 40, texte: 'Au début d\'une run, garde un joueur de ta dernière équipe.' },
-  garder2: { ico: '🤝', nom: 'Garder deux joueurs', prix: 120, requis: 'garder1', texte: 'Deux joueurs de ta dernière équipe te suivent.' },
-  garder3: { ico: '🤝', nom: 'Garder trois joueurs', prix: 240, requis: 'garder2', texte: 'Trois joueurs de ta dernière équipe te suivent.' },
+  // 24 oct. (JP : *garder des joueurs de run en run devrait être fait dans une loto*) : chacun ouvre une case d'un niveau (`gardesDeLaDerniere`).
+  garder1: { ico: '🤝', nom: 'Garder un Pilier', prix: 40, texte: 'Au début d\'une run, un loto de trois Piliers de ta dernière équipe : tu en gardes un.' },
+  garder2: { ico: '🤝', nom: 'Garder un deuxième Pilier', prix: 120, requis: 'garder1', texte: 'Un deuxième loto Pilier, de ta dernière équipe.' },
+  garder3: { ico: '🤝', nom: 'Garder une Étoile', prix: 240, requis: 'garder2', texte: 'Un loto ★ Étoile de plus, de ta dernière équipe.' },
   caisse1: { ico: '🪙', nom: 'Une caisse de départ', prix: 30, texte: '+20 jetons au début de chaque run.' },
   caisse2: { ico: '🪙', nom: 'Une grosse caisse', prix: 100, requis: 'caisse1', texte: '+20 jetons de plus au départ (+40 en tout).' },
   // S80 : le barème d'une run (`baremeRogue`) — 5 🪙 par victoire sans commanditaire.
@@ -141,15 +142,17 @@ export const DEBLOCAGES = {
   dgFlexible: { ico: '🧮', nom: 'Le DG du plafond flexible', prix: 70, personnel: 'dir_flexible', texte: 'Il rejoint ton personnel pour de bon : engagé, il donne 5 % de plafond de plus.' },
   /*
    * S80 : LE DÉPART DU CLASSEUR. JP : *le classeur, on peut piger x cartes aux
-   * départ, ou random, selon upgrades*. Sans rien, une carte de ton classeur
-   * au hasard ; des pages de plus en donnent plus, le tri en montre deux fois
-   * plus pour garder les meilleures, et le classeur ouvert te laisse choisir.
+   * départ, ou random, selon upgrades*. Puis, le 24 oct. : *garder des joueurs
+   * de run en run devrait être fait dans une loto, pas genre tu peux prendre qui
+   * tu veux* ; *choix d'un joueur Pilier, un Régulier, etc. Peut-être débloquer
+   * les Piliers et plus*. Chaque page ouvre une case d'un niveau (`casesDuClasseur`),
+   * le tri montre cinq cartes à chaque loto ; plus rien ne se prend au choix.
    */
-  classeur1: { ico: '📒', nom: 'Une page de plus', prix: 50, texte: 'Au départ d\'une run, une carte de plus de ton classeur : deux en tout. Entre deux saisons, un loto de plus.' },
-  classeur2: { ico: '📒', nom: 'Deux pages de plus', prix: 130, requis: 'classeur1', texte: 'Trois cartes de ton classeur au départ, et un loto de plus entre deux saisons.' },
-  classeur3: { ico: '📒', nom: 'Trois pages de plus', prix: 240, requis: 'classeur2', texte: 'Quatre cartes de ton classeur au départ, et un loto de plus entre deux saisons.' },
-  classeurTri: { ico: '🔍', nom: 'Le tri du classeur', prix: 90, texte: 'Au départ, tu vois deux fois plus de cartes de ton classeur, tirées au hasard, et tu gardes celles que tu veux. Entre deux saisons, chaque loto montre cinq cartes.' },
-  classeurChoix: { ico: '📖', nom: 'Le classeur ouvert', prix: 280, requis: 'classeurTri', texte: 'Au départ et entre deux saisons, tu choisis tes cartes dans tout ton classeur : plus de hasard.' },
+  classeur1: { ico: '📒', nom: 'Une page Pilier', prix: 50, texte: 'Au départ d\'une run, une case Pilier de plus à ton classeur : un loto de tes Piliers, tu en gardes un. Entre deux saisons, un loto Pilier de plus.' },
+  classeur2: { ico: '📒', nom: 'Une page Étoile', prix: 130, requis: 'classeur1', texte: 'Une case ★ Étoile au départ, et un loto Étoile de plus entre deux saisons.' },
+  classeur3: { ico: '📒', nom: 'Une deuxième page Pilier', prix: 240, requis: 'classeur2', texte: 'Une deuxième case Pilier au départ, et un loto Pilier de plus entre deux saisons.' },
+  classeur4: { ico: '📒', nom: 'Une deuxième page Étoile', prix: 280, requis: 'classeur2', texte: 'Une deuxième case ★ Étoile au départ, et un loto Étoile de plus entre deux saisons.' },
+  classeurTri: { ico: '🔍', nom: 'Le tri du classeur', prix: 90, texte: 'Chaque loto du classeur montre cinq cartes au lieu de trois : au départ, entre deux saisons, et chez ceux qui restent.' },
   /*
    * S80 : LES CASES DE RÉSERVE DE PLUS. JP : *débloquer des slots de
    * remplacement*. Une case de réserviste qui prend n'importe qui : un joueur
@@ -208,27 +211,48 @@ export function alourdirLaPremiere(roster, reserve, { fixes, personne, cible = P
   }
 }
 /*
- * LE DÉPART DU CLASSEUR (S80) : combien de cartes, et comment elles se
- * prennent. `hasard` : elles sont tirées, on les voit, on les prend ;
- * `tri` : deux fois plus sont tirées, on garde celles qu'on veut ; `choix` :
- * tout le classeur, on choisit. Ton joueur de concession (`vedettesDeConcession`) prend la première place : il
- * est ta carte de départ, et les pages du classeur en ajoutent (mesuré : en plus d'elle, l'attentif gagnait sa
+ * LES CASES DU CLASSEUR (JP, 24 oct.). Chaque carte que le classeur donne est une CASE d'un niveau : un loto de
+ * trois cartes de ce niveau (cinq avec le tri), tirées au hasard, dont tu gardes une — ou aucune (`lotoDeCase`).
+ * Sans rien, une case Régulier ; chaque page en ajoute une (`PAGES_DU_CLASSEUR`). Les cases se rangent du plus haut
+ * niveau au plus bas, et ce qui en retire (les exigences, ton joueur de concession) part du haut.
+ */
+const PAGES_DU_CLASSEUR = [['classeur1', PILIER], ['classeur2', ETOILE], ['classeur3', PILIER], ['classeur4', ETOILE]];
+const CARTES_PAR_LOTO = 3, CARTES_PAR_LOTO_TRI = 5;
+function casesDuClasseur(m, base, retire) {
+  const cases = [...base, ...PAGES_DU_CLASSEUR.filter(([k]) => aDebloque(m, k)).map(([, n]) => n)].sort((a, b) => b - a);
+  return cases.slice(Math.min(cases.length, Math.max(0, retire)));
+}
+const vuesDuLoto = m => (aDebloque(m, 'classeurTri') ? CARTES_PAR_LOTO_TRI : CARTES_PAR_LOTO);
+/*
+ * Le loto d'une case : dans l'ordre du tirage, jusqu'à `vues` cartes du niveau de la case (la case ★ Étoile prend
+ * aussi les Phénomènes, un joueur hors niveau compte en Soutien) ; si aucune n'est là, celles du niveau d'en
+ * dessous. `cartes` : [{ niveau, … }], déjà filtrées (le budget, les personnes). Rend { niveau, cartes }.
+ */
+export function lotoDeCase(cartes, niveau, vues) {
+  const de = x => Math.max(0, Math.min(ETOILE, x.niveau));
+  for (let k = niveau; k >= 0; k--) {
+    const l = cartes.filter(x => de(x) === k);
+    if (l.length) return { niveau: k, cartes: l.slice(0, vues) };
+  }
+  return { niveau, cartes: [] };
+}
+/*
+ * LE DÉPART DU CLASSEUR (S80) : ses cases. Ton joueur de concession (`vedettesDeConcession`) prend la case du haut :
+ * il est ta carte de départ, et les pages du classeur en ajoutent (mesuré : en plus d'elle, l'attentif gagnait sa
  * première Coupe dès la run 2 — `check_profondeur`).
  */
 export function departDuClasseur(m, exigence = 0) {
-  const n = Math.max(0, 1 + ['classeur1', 'classeur2', 'classeur3'].filter(k => aDebloque(m, k)).length + exigencesDe(exigence).classeur - (m.vedette ? 1 : 0));
-  const mode = aDebloque(m, 'classeurChoix') ? 'choix' : aDebloque(m, 'classeurTri') ? 'tri' : 'hasard';
-  return { n, mode, vues: mode === 'tri' ? n * 2 : n };
+  const cases = casesDuClasseur(m, [REGULIER], (m.vedette ? 1 : 0) - exigencesDe(exigence).classeur);
+  return { cases, n: cases.length, vues: vuesDuLoto(m) };
 }
 /*
- * LES LOTOS DU CARTABLE, ENTRE DEUX SAISONS (Jalon Q, js/rogue-jeu.js `lotoDuCartable`) : trois lotos, un de plus
- * par page du classeur ; chacun montre trois cartes du cartable (cinq avec le tri) et en signe une. Le classeur
- * ouvert en fait le choix dans tout : autant de cartes, prises dans tout le cartable.
+ * LES LOTOS DU CARTABLE, ENTRE DEUX SAISONS (Jalon Q, js/rogue-jeu.js `lotoDuCartable`) : trois lotos Régulier, et un
+ * de plus par page du classeur, à son niveau ; chacun signe une carte du cartable.
  */
-const LOTOS_DE_SAISON = 3, CARTES_PAR_LOTO = 3, CARTES_PAR_LOTO_TRI = 5;
+const LOTOS_DE_SAISON = 3;
 export function lotosDeSaison(m, exigence = 0) {
-  const D = departDuClasseur({ ...m, vedette: null }, exigence);
-  return { n: D.n - 1 + LOTOS_DE_SAISON, mode: D.mode, vues: D.mode === 'tri' ? CARTES_PAR_LOTO_TRI : CARTES_PAR_LOTO };
+  const cases = casesDuClasseur(m, Array(LOTOS_DE_SAISON).fill(REGULIER), -exigencesDe(exigence).classeur);
+  return { cases, n: cases.length, vues: vuesDuLoto(m) };
 }
 /*
  * LE BUDGET DU CLASSEUR : ce que ses cartes peuvent coûter ensemble. Le
@@ -441,11 +465,15 @@ export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infini
 const JEU_DE_CARTES = 'v10';
 export const convertirAuJeuNeuf = m => (m.jeu === JEU_DE_CARTES ? null : { ...m, inventaire: {}, personnel: [], cartes: [], jeu: JEU_DE_CARTES });
 const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, personnel: [], inventaire: {}, recus: {}, jalons: {}, sel: null });
-/* V13-2 : « Un deck aiguisé » est parti avec le deck de match ; ses médailles reviennent (une fois : écrit, le méta ne l'a plus). */
-const PARTIS_V13 = { deckPlus: 50 };
+/*
+ * Les déblocages partis : leurs médailles reviennent (une fois : écrit, le méta ne l'a plus). V13-2 : « Un deck
+ * aiguisé », avec le deck de match. 24 oct. : « Le classeur ouvert », avec le choix dans tout le classeur ; acheté
+ * ou offert par la Coupe (le méta ne le dit pas), il rend son prix.
+ */
+const PARTIS = { deckPlus: 50, classeurChoix: 280 };
 function rembourserLesPartis(m) {
-  const partis = (m.deblocages || []).filter(k => PARTIS_V13[k]);
-  return partis.length ? { ...m, deblocages: m.deblocages.filter(k => !PARTIS_V13[k]), ecussons: (m.ecussons || 0) + partis.reduce((a, k) => a + PARTIS_V13[k], 0) } : m;
+  const partis = (m.deblocages || []).filter(k => PARTIS[k]);
+  return partis.length ? { ...m, deblocages: m.deblocages.filter(k => !PARTIS[k]), ecussons: (m.ecussons || 0) + partis.reduce((a, k) => a + PARTIS[k], 0) } : m;
 }
 export function lireMeta() {
   try { return rembourserLesPartis({ ...META_VIDE(), ...(JSON.parse(localStorage.getItem(CLE_META) || 'null') || {}) }); } catch { return META_VIDE(); }
@@ -484,7 +512,14 @@ export function graverAuPantheon({ run = 0, saison = 1, joueurs = [], trophees =
   return neuf;
 }
 /* Combien de joueurs on garde : zéro, un, deux, trois selon les déblocages. */
-export const nombreGardes = m => (aDebloque(m, 'garder3') ? 3 : aDebloque(m, 'garder2') ? 2 : aDebloque(m, 'garder1') ? 1 : 0);
+/*
+ * CEUX QUI TE SUIVENT D'UNE RUN À L'AUTRE (24 oct.) : comme le classeur, une case d'un niveau par déblocage, un loto
+ * de ta dernière équipe (`lotoDeCase`), du plus haut niveau au plus bas ; plus rien au choix. Mesuré (check_rogue,
+ * trois campagnes de 14 runs) : une première case Régulier laissait deux campagnes sur trois sans une saison 2 de
+ * toute la campagne ; une case Pilier rend la courbe d'avant (une Coupe, à la run 14 au lieu de la 11).
+ */
+const CASES_DE_LA_DERNIERE = [['garder1', PILIER], ['garder2', PILIER], ['garder3', ETOILE]];
+export const gardesDeLaDerniere = m => ({ cases: CASES_DE_LA_DERNIERE.filter(([k]) => aDebloque(m, k)).map(([, n]) => n).sort((a, b) => b - a), vues: vuesDuLoto(m) });
 export const jetonsDeDepart = m => JETONS.depart + (aDebloque(m, 'caisse1') ? 20 : 0) + (aDebloque(m, 'caisse2') ? 20 : 0);
 /* Un déblocage s'achète si on en a les moyens et si ce qu'il demande est déjà pris. */
 export function peutAcheter(m, cle) {
@@ -600,13 +635,20 @@ export const ecussonsDesSeries = (rondes, coupe) => (rondes || 0) * 10 + (coupe 
 /*
  * L'ÉQUIPE SE DÉFAIT ENTRE DEUX SAISONS (1.0). JP : *pour une saison 2 d'une
  * run, pas repartir avec la même équipe, mais pouvoir garder un ou des
- * joueurs de l'ancienne équipe*. Des plombiers neufs, et tu gardes jusqu'à
- * GARDES_DE_SAISON joueurs de la saison finie, avec les modifs jouées sur
- * eux ; leurs salaires ensemble tiennent dans le budget du classeur.
+ * joueurs de l'ancienne équipe*. Des plombiers neufs, et ceux qui restent :
+ * jusqu'au 24 oct., cinq joueurs au choix (JP : *la saison suivante me
+ * permettait de prendre cinq joueurs, c'est brisé*). Maintenant, des cases,
+ * comme le classeur : un loto de trois joueurs d'un niveau de ton équipe finie
+ * (`lotoDeCase`), tu en gardes un, avec ses modifs ; leurs salaires ensemble
+ * tiennent dans le budget du classeur. Un Pilier et un Régulier ;
+ * « Ceux qui partent » en retire un, par le haut. Mesuré (check_rogue, 24
+ * runs par niveau) : une case ★ Étoile de plus, ouverte par la page Étoile,
+ * menait la Coupe de 4 % à 38 % des runs à onze déblocages ; sans elle, 4 %.
  */
-export const GARDES_DE_SAISON = 5;
-/* Ceux qui restent d'une saison à l'autre, au cran d'exigence de la run (« Ceux qui partent »). */
-export const gardesDeLaRun = (exigence = 0) => Math.max(0, GARDES_DE_SAISON + exigencesDe(exigence).gardes);
+export const GARDES_DE_SAISON = [PILIER, REGULIER];
+export function gardesDeLaRun(m, exigence = 0) {
+  return { cases: GARDES_DE_SAISON.slice(Math.min(GARDES_DE_SAISON.length, -exigencesDe(exigence).gardes)), vues: vuesDuLoto(m) };
+}
 /*
  * UNE RUN DURE PLUSIEURS SAISONS. JP : *en roguelike, nouvelle saison veut
  * dire continuer avec base des cartes ramassé qui sont pas des consommables,
@@ -660,11 +702,11 @@ export const PRIME_EXIGENCE = 0.15;
 export const EXIGENCES = [
   { cle: 'ceinture', nom: 'La ceinture', texte: '2 M$ d\'espace de moins sous le plafond', espace: -2_000_000 },
   { cle: 'agents', nom: 'Les agents', texte: 'les packs coûtent 25 % de plus', prixPacks: 0.25 },
-  { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une carte de moins du classeur, et un loto de moins', classeur: -1 },
+  { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une case de moins au classeur, et un loto de moins', classeur: -1 },
   { cle: 'vestiaire', nom: 'Le vestiaire mince', texte: '3 cartes Soutien de plus au départ de chaque saison', soutiens: 3 },
   { cle: 'commanditaires', nom: 'Les commanditaires boudent', texte: '2 jetons de moins par victoire', victoire: -2 },
   { cle: 'impatient', nom: 'Le proprio impatient', texte: 'chaque mandat arrive une saison plus tôt', mandat: 1 },
-  { cle: 'partants', nom: 'Ceux qui partent', texte: '2 joueurs gardés de moins entre deux saisons', gardes: -2 },
+  { cle: 'partants', nom: 'Ceux qui partent', texte: 'une case de moins chez ceux qui restent', gardes: -1 },
   { cle: 'serree', nom: 'La ceinture serrée', texte: '3 M$ d\'espace de moins encore', espace: -3_000_000 },
 ];
 /* Ce que `n` crans exigent ensemble : chaque canal additionné, et le multiple des médailles. */
@@ -740,7 +782,7 @@ export const JALONS = [
   { cle: 'troisSaisons', ico: '🗓', nom: 'La troisième saison', texte: 'Joue la troisième saison d\'une run.', si: f => (f.saisonDeLaRun || 1) >= 3, recompense: { deblocage: 'garder1', ecussons: 45 } },
   { cle: 'premier', ico: '🥇', nom: 'Premier de la ligue', texte: 'Finis une saison au premier rang.', si: f => !!f.premier, recompense: { ecussons: 60 } },
   { cle: 'finale', ico: '🏟', nom: 'La finale', texte: 'Atteins la finale de la Coupe.', si: f => !!f.finale, recompense: { deblocage: 'plafond1', ecussons: 60 }, pack: 'j:or' },
-  { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeurChoix', ecussons: 120 }, pack: 'j:vedettes' },
+  { cle: 'coupe', ico: '🏆', nom: 'La Coupe', texte: 'Gagne la Coupe Stanley.', si: f => !!f.coupe, recompense: { deblocage: 'classeur4', ecussons: 120 }, pack: 'j:vedettes' },
   { cle: 'cartable', ico: '📒', nom: 'Cent cartes', texte: 'Aie 100 cartes de joueur dans ton cartable.', si: f => (f.cartes || 0) >= 100, recompense: { ecussons: 20 } },
   // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.
   { cle: 'essais', ico: '🧪', nom: 'Cinquante essais', texte: 'Fais jouer 50 cartes différentes en Rogue.', si: f => (f.joues || 0) >= 50, recompense: { ecussons: 40 } },

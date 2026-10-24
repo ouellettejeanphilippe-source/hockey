@@ -49,6 +49,8 @@ export const NIVEAUX = [
   { cle: 'etoile', nom: 'Étoile', haut: 0.04, rang: 'le 4 % du haut' },
   { cle: 'phenomene', nom: 'Phénomène', haut: 0.01, rang: 'le 1 % du haut' },
 ];
+export const REGULIER = 1;
+export const PILIER = 2;
 export const ETOILE = 3;
 export const PHENOMENE = 4;
 

@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, nombreGardes, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, baremeRogue, mandatDe, PLAFOND_ROGUE, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, CONTRATS, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
@@ -20,7 +20,7 @@ import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, placesDeLaPartie, ma
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
-import { PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
+import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, cadrePhoto, serieDe, epoqueDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { ageAtSeason } from './ratings.js';
@@ -1097,27 +1097,39 @@ function placerDevant(roster, prioritaires = []) {
   }
   return roster;
 }
-/* Le choix d'un joueur à garder de la dernière run : les rangées du vestiaire (Jalon U). */
-function choisirGarde(joueurs, i, total) {
-  return new Promise(resolve => {
-    ouvrirListeJoueurs({
-      ico: '🤝', titre: `Garder un joueur · ${i + 1} sur ${total}`, motFermer: 'Personne', motBouton: 'Garder',
-      recit: 'Ta dernière équipe : celui que tu gardes te suit dans cette run, avec ta nouvelle bande de bouche-trous.',
-      joueurs: joueurs.map(p => ({ p, sous: quiEst(p) })),
-      onChoix: k => resolve(joueurs.find(p => getPlayerKey(p) === k) || null),
-      onFerme: () => resolve(null),
-    });
+/*
+ * CEUX QUI TE SUIVENT DE TA DERNIÈRE RUN (JP, 24 oct. : *garder des joueurs de run en run devrait être fait dans une
+ * loto*) : les cases de `gardesDeLaDerniere` (js/rogue.js), chacune un loto de ta dernière équipe, sous le budget du
+ * classeur. Ton joueur de concession n'y est pas : il revient de toute façon.
+ */
+async function gardesDeLaRunDavant(meta) {
+  const R = gardesDeLaDerniere(meta);
+  const cles = (meta.derniereEquipe || []).filter(cle => cle !== meta.vedette);
+  if (!R.cases.length || !cles.length) return [];
+  const cartes = await sousVoile('On rappelle ta dernière équipe…', async () => (await Promise.all(cles.map(async cle => {
+    const p = await joueurDeCle(cle);
+    return p && { cle, p, niveau: niveauDe(p, (await getShard(p.s)).players) };
+  }))).filter(Boolean));
+  const run = (meta.runs || 0) + 1;
+  const pris = await lotosParCase({
+    cases: R.cases, vues: R.vues, cartes, graine: `${graineDuClasseur()}:d`, budget: budgetDuClasseur(meta), personnes: new Set(), qui: p => quiEst(p),
+    textes: ({ i, n, k, niveau, vus, dernier }) => ({
+      ico: '🤝', titre: `Ta dernière équipe · ${nomDeCase(k)}`, irl: `Run ${run}${n > 1 ? ` · case ${i + 1} de ${n}` : ''}`,
+      recit: `${motDeLaDescente(k, niveau, 'joueur')}Le loto tire ${vus} joueur${vus > 1 ? 's' : ''} ${nomDeCase(niveau)} de ta dernière équipe : celui que tu gardes te suit dans cette run.`,
+      budget: '🤝 Budget des gardés', plein: 'Tu gardes déjà ton joueur de ce loto',
+      partir: prise => (prise ? (dernier ? 'Il me suit' : 'Loto suivant') : 'Personne de ce loto'),
+    }),
   });
+  return pris.map(x => x.p);
 }
 /*
  * UNE RUN QUI COMMENCE : l'écran de la run (ce qu'on a débloqué, ce que le
  * proprio demandera), les joueurs à garder s'il y en a, les cartes du
  * classeur (S80), puis les plombiers et l'alignement.
  */
-const MODE_CLASSEUR = { hasard: 'au hasard', tri: 'le tri', choix: 'au choix' };
 export async function ouvrirRogue() {
   const meta = lireMeta();
-  const k = nombreGardes(meta);
+  const R = gardesDeLaDerniere(meta);
   const D = departDuClasseur(meta);
   const nCartable = Object.keys(lireCartable().joueurs).length;
   // LES EXIGENCES (tranche 8) : après ta première Coupe, un cran de plus à chaque Coupe gagnée au plus haut.
@@ -1133,9 +1145,9 @@ export async function ouvrirRogue() {
     recit: `Des bouche-trous et 🪙 ${jetonsDeDepart(meta)} jetons. Chaque saison, le proprio en veut plus ; la Coupe finit la run.`,
     options: [{ cle: 'go', ico: '▶', nom: `Commencer la run ${(meta.runs || 0) + 1}`,
       bon: [nCartable ? '' : `🥉 ta première run : ton équipe sort de ${PACKS_DE_DEPART.length} packs de départ`, nCartable ? `ton effectif tiré de ton cartable : ${soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[0].nom}, ${SOUTIENS_DEPART - soutiensDuDepart(rangDePrestige(meta))} ${NIVEAUX[1].nom}, les cartes les moins jouées d'abord` : '',
-        meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ${D.n} carte${D.n > 1 ? 's' : ''} de ton classeur, ${MODE_CLASSEUR[D.mode]}` : '',
+        meta.vedette ? '★ ton joueur de concession' : '', nCartable && D.n ? `📒 ton classeur : ${motDesCases(D.cases)}` : '',
         `🛒 ${BOUTIQUE.filter(k => packsOuverts(meta)[k] === true).length} packs ouverts à la boutique sur ${BOUTIQUE.length}`,
-        k ? `tu gardes ${k} joueur${k > 1 ? 's' : ''} de ta dernière équipe` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
+        R.cases.length && (meta.derniereEquipe || []).length ? `🤝 ta dernière équipe : ${motDesCases(R.cases)}` : '', reservesDeLaRun(meta) ? `🪑 ${3 + reservesDeLaRun(meta)} réservistes` : '',
         `📈 ${PRESTIGES[rangDePrestige(meta)].nom}`, `ta ligue : ${motDeLaLigue(niveauDeLigue(rangRun, 0))}`].filter(Boolean).join(' · '),
       sous: meta.runs ? `🏅 ${meta.ecussons || 0} médailles · ${meta.runs || 0} run${(meta.runs || 0) > 1 ? 's' : ''} · 🏆 ${meta.coupes || 0} · 📒 ${nCartable} carte${nCartable > 1 ? 's' : ''} au cartable` : '' }, ...crans],
     onChoix: cle => resolve(cle === 'go' ? 0 : Number(String(cle).slice(1))),
@@ -1147,15 +1159,7 @@ export async function ouvrirRogue() {
   const exigence = go;
   const coach = await choisirCoach();
   if (!coach) { auMenu(); return; }
-  const gardes = [];
-  if (k && (meta.derniereEquipe || []).length) {
-    const joueurs = (await Promise.all(meta.derniereEquipe.map(joueurDeCle))).filter(Boolean);
-    for (let i = 0; i < k; i++) {
-      const p = await choisirGarde(joueurs.filter(x => !gardes.includes(x)), i, k);
-      if (!p) break;
-      gardes.push(p);
-    }
-  }
+  const gardes = await gardesDeLaRunDavant(meta);
   // TON JOUEUR DE CONCESSION (js/rogue.js `vedettesDeConcession`) : choisi à la première run, il revient à chaque départ.
   const vedette = await vedetteDeLaRun(meta);
   const avecVedette = vedette && !gardes.some(p => getPersonKey(p) === getPersonKey(vedette)) ? [vedette, ...gardes] : gardes;
@@ -1223,39 +1227,72 @@ function graineDuClasseur() {
   if (!m.sel) { m.sel = String(nouvelleGraine()); ecrireMeta(m); }
   return `${m.sel}:${m.runs || 0}`;
 }
+/* Le nom d'une case : « Pilier », « ★ Étoile » ; les cases en mots : « une case Pilier, une case Régulier ». */
+const nomDeCase = k => `${k >= ETOILE ? '★ ' : ''}${NIVEAUX[k].nom}`;
+const motDesCases = cases => cases.map(k => `une case ${nomDeCase(k)}`).join(', ');
+/* Les cartes de ton cartable, avec leur niveau dans leur saison et leur meilleure variante. */
+async function cartesDuCartable() {
+  const c = lireCartable(), out = [];
+  for (const cle of Object.keys(c.joueurs)) {
+    const p = await joueurDeCle(cle);
+    if (!p || !(p.$ > 0)) continue;
+    const x = c.joueurs[cle];
+    out.push({ cle, p, niveau: niveauDe(p, (await getShard(p.s)).players), rar: meilleureVariante(x), num: (x.num || [])[0] || null });
+  }
+  return out;
+}
 /*
- * LE DÉPART DU CLASSEUR (S80, js/depart.js). JP : *le classeur, on peut
- * piger x cartes aux départ, ou random, selon upgrades*. Les cartes du
- * cartable, dans l'ordre du tirage ; au hasard et au tri, les premières qui
- * tiennent dans le budget ; ouvert, toutes. Une même personne ne revient pas
- * deux fois (un joueur échangé a une carte par club), ni un joueur gardé.
+ * LES LOTOS PAR CASE (JP, 24 oct. : *garder des joueurs de run en run devrait être fait dans une loto, pas genre tu
+ * peux prendre qui tu veux*). Une case, un loto (js/depart.js) : dans l'ordre de son tirage (pur : la graine et le
+ * rang de la case), les cartes de son niveau qui tiennent dans ce qui reste du budget, une par personne — aucune,
+ * celles du niveau d'en dessous (js/rogue.js `lotoDeCase`). Tu en prends une ou tu passes, et la case suivante
+ * s'ouvre. `cartes` : [{ cle, p, niveau, rar, num }] ; `textes(case)` : les mots de son écran. Rend celles prises.
+ */
+async function lotosParCase({ cases, vues, cartes, graine, budget, personnes, qui, textes }) {
+  const pris = [];
+  for (let i = 0; i < cases.length && budget > 0; i++) {
+    const rang = new Map(tirageDuClasseur(cartes.map(x => x.cle), `${graine}:c${i}`).map((k, j) => [k, j]));
+    const vus = new Set(personnes);
+    const dispo = cartes.slice().sort((a, b) => rang.get(a.cle) - rang.get(b.cle)).filter(x => {
+      const k = getPersonKey(x.p);
+      if (!(x.p.$ > 0) || x.p.$ > budget || vus.has(k)) return false;
+      vus.add(k);
+      return true;
+    });
+    const L = lotoDeCase(dispo, cases[i], vues);
+    if (!L.cartes.length) continue;
+    const x = await new Promise(resolve => ouvrirDepartClasseur({
+      budget, candidats: L.cartes, esc, money, qui, apercu: p => apercuJoueur(p),
+      textes: textes({ i, n: cases.length, k: cases[i], niveau: L.niveau, vus: L.cartes.length, dernier: i + 1 >= cases.length }),
+      onFini: cles => resolve(L.cartes.find(y => cles.includes(y.cle)) || null),
+    }));
+    if (!x) continue;
+    pris.push(x); personnes.add(getPersonKey(x.p)); budget -= x.p.$ || 0;
+  }
+  return pris;
+}
+/* « Pas de carte Pilier qui tienne : la case prend tes cartes Régulier. » — quand une case descend d'un niveau. */
+const motDeLaDescente = (k, niveau, sorte) => (niveau < k ? `Pas de ${sorte} ${nomDeCase(k)} qui tienne : la case prend tes ${sorte}s ${nomDeCase(niveau)}. ` : '');
+/*
+ * LE DÉPART DU CLASSEUR (S80, js/depart.js) : ses cases (js/rogue.js `departDuClasseur`), du plus haut niveau au plus
+ * bas, chacune un loto de ton cartable. Une même personne ne revient pas deux fois (un joueur échangé a une carte
+ * par club), ni un joueur gardé.
  */
 async function choisirDuClasseur(gardes = [], exigence = 0) {
   const meta = lireMeta();
   const D = departDuClasseur(meta, exigence);
-  const c = lireCartable();
-  const cles = Object.keys(c.joueurs);
-  if (!D.n || !cles.length) return [];
-  const budget = budgetDuClasseur(meta);
-  const exclus = new Set(gardes.map(getPersonKey));
-  const candidats = await sousVoile('On ouvre ton classeur…', async () => {
-    const out = [], personnes = new Set(exclus);
-    for (const cle of tirageDuClasseur(cles, graineDuClasseur())) {
-      if (D.mode !== 'choix' && out.length >= D.vues) break;
-      const p = await joueurDeCle(cle);
-      if (!p || !(p.$ > 0) || p.$ > budget || personnes.has(getPersonKey(p))) continue;
-      personnes.add(getPersonKey(p));
-      const x = c.joueurs[cle];
-      out.push({ cle, p, rar: meilleureVariante(x), num: (x.num || [])[0] || null });
-    }
-    return out;
+  if (!D.n || !Object.keys(lireCartable().joueurs).length) return [];
+  const cartes = await sousVoile('On ouvre ton classeur…', cartesDuCartable);
+  const run = (meta.runs || 0) + 1;
+  return lotosParCase({
+    cases: D.cases, vues: D.vues, cartes, graine: graineDuClasseur(), budget: budgetDuClasseur(meta), personnes: new Set(gardes.map(getPersonKey)), qui: p => quiEst(p),
+    textes: ({ i, n, k, niveau, vus, dernier }) => ({
+      ico: '📒', titre: `Le classeur · case ${nomDeCase(k)}`, irl: `Run ${run}${n > 1 ? ` · case ${i + 1} de ${n}` : ''}`,
+      recit: `${motDeLaDescente(k, niveau, 'carte')}Le loto tire ${vus} carte${vus > 1 ? 's' : ''} ${nomDeCase(niveau)} de ton cartable : prends-en une, ou passe. Prise, elle rejoint tes bouche-trous.`,
+      budget: '📒 Budget du classeur', plein: 'Tu as ta carte de cette case',
+      partir: pris => (dernier ? (pris ? 'Commencer la run' : 'Commencer la run sans elle') : (pris ? 'Case suivante' : 'Passer cette case')),
+    }),
   });
-  if (!candidats.length) return [];
-  return new Promise(resolve => ouvrirDepartClasseur({
-    mode: D.mode, n: D.n, budget, run: (meta.runs || 0) + 1, candidats,
-    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
-    onFini: pris => resolve(candidats.filter(x => pris.includes(x.cle))),
-  }));
 }
 /* Ce que le départ a donné, en une ligne : « Ton effectif : 20 Soutien et 3 Réguliers de ton cartable ». */
 function motDuVestiaire(V) {
@@ -1298,7 +1335,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
     // et le prestige du club, FIXÉ pour la run (js/rogue.js `PRESTIGES`) : un rang gagné en route sert la suivante.
     ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), patrons,
-    classeur: { mode: D.mode, n: D.n, pris: tires.map(x => x.cle) },
+    classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
     // 1.0 : tes cartes arrivent avec ce qu'elles portent (js/cartable.js `mods`).
@@ -1575,7 +1612,7 @@ export function majRunRogue() {
       <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
     <p class="rg-run-mot">${esc(mots[sort])}</p>
     ${sort === 'continue' ? sceneHtml(sceneDuMandat({ sort: 'rempli', fiche: { V: G.ligue.you.W || 0, D: G.ligue.you.L || 0, DP: G.ligue.you.OTL || 0 }, rang: faitsDeLaSaison().rang, equipes: (G.ligue.teams || []).length, mandat: M.mot, graine: `${G.ligue.graine}|${n}` }), { voix: true }) : ''}
-    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : tu gardes jusqu'à ${gardesDeLaRun(exigenceDeLaRun())} joueurs, tu signes une carte à chacun de tes ${lotosDeSaison(lireMeta(), exigenceDeLaRun()).n} lotos du cartable, et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : tes patrons engagés, tes places, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » déjà en jeu.</p>` : ''}
+    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : un loto de tes joueurs par case (${motDesCases(gardesDeLaRun(lireMeta(), exigenceDeLaRun()).cases)}), un loto de ton cartable par case (${motDesCases(lotosDeSaison(lireMeta(), exigenceDeLaRun()).cases)}), et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : tes patrons engagés, tes places, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » déjà en jeu.</p>` : ''}
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
@@ -1716,87 +1753,52 @@ function reportDesCartes(roster) {
   return out;
 }
 /*
- * CEUX QUI RESTENT : l'écran du départ du classeur (js/depart.js), ouvert sur
- * ton équipe de la saison finie — jusqu'à `gardesDeLaRun` joueurs (les exigences en retirent), leurs
- * salaires ensemble dans le budget du classeur.
+ * CEUX QUI RESTENT (JP, 24 oct. : *la saison suivante me permettait de prendre cinq joueurs, c'est brisé*) : les
+ * cases de `gardesDeLaRun` (js/rogue.js), chacune un loto de trois joueurs de ton équipe de la saison finie, d'un
+ * niveau ; leurs salaires ensemble dans le budget du classeur. Ton joueur de concession reste à part, sans loto :
+ * il ouvre la liste rendue.
  */
-function choisirGardesDeSaison(saison) {
+async function choisirGardesDeSaison(saison) {
   const meta = lireMeta();
-  const candidats = signes().filter(Boolean).map(p => ({ cle: getPlayerKey(p), p }));
-  const n = gardesDeLaRun(exigenceDeLaRun());
-  return new Promise(resolve => ouvrirDepartClasseur({
-    mode: 'choix', n, budget: budgetDuClasseur(meta), run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats,
-    esc, money, groupe: groupeDe, qui: p => [quiEst(p), histoireCourte(p)].filter(Boolean).join(' · '), apercu: p => apercuJoueur(p),
-    textes: {
-      ico: '🤝', titre: 'Ceux qui restent', irl: `Saison ${saison} de la run · jusqu'à ${n} joueurs`,
-      recit: `Ton équipe se défait. Garde jusqu'à ${n} joueurs ; les autres partent, et ton classeur comble les trous.`,
-      budget: '🤝 Budget des gardés', plein: `Tu gardes déjà ${n} joueurs`,
-      partir: k => (k ? `Saison ${saison} · ${k} joueur${k > 1 ? 's' : ''} gardé${k > 1 ? 's' : ''}` : `Saison ${saison} sans personne`),
-    },
-    onFini: pris => resolve(candidats.filter(x => pris.includes(x.cle)).map(x => x.p)),
-  }));
+  const vedette = meta.vedette ? signes().find(p => p && getPlayerKey(p) === meta.vedette) : null;
+  const equipe = signes().filter(p => p && p !== vedette);
+  const cartes = await Promise.all(equipe.map(async p => ({ cle: getPlayerKey(p), p, niveau: niveauDe(p, (await getShard(p.s)).players) })));
+  const R = gardesDeLaRun(meta, exigenceDeLaRun());
+  const gardes = await lotosParCase({
+    cases: R.cases, vues: R.vues, cartes, graine: `${graineDuClasseur()}:g${saison}`, budget: budgetDuClasseur(meta),
+    personnes: new Set(vedette ? [getPersonKey(vedette)] : []), qui: p => [quiEst(p), histoireCourte(p)].filter(Boolean).join(' · '),
+    textes: ({ i, n, k, niveau, vus, dernier }) => ({
+      ico: '🤝', titre: `Ceux qui restent · ${nomDeCase(k)}`, irl: `Saison ${saison} de la run${n > 1 ? ` · case ${i + 1} de ${n}` : ''}`,
+      recit: `${motDeLaDescente(k, niveau, 'joueur')}Ton équipe se défait. Le loto tire ${vus} de tes joueurs ${nomDeCase(niveau)} : garde-en un, ou laisse-les partir.`,
+      budget: '🤝 Budget des gardés', plein: 'Tu gardes déjà ton joueur de ce loto',
+      partir: pris => (pris ? (dernier ? `Saison ${saison}` : 'Loto suivant') : 'Les laisser partir'),
+    }),
+  });
+  return [...(vedette ? [vedette] : []), ...gardes.map(x => x.p)];
 }
 /*
  * LE LOTO DU CARTABLE (Jalon Q). JP : *présentement, la grosse liste, ça suce, faque je dirais x loto à même mes
- * joueurs pis plus tard, choix dans tout*. Entre deux saisons, plus de repêchage de cinquante cartes : quelques
- * LOTOS (`lotosDeSaison`, js/rogue.js), chacun tire trois cartes de TON cartable — n'importe quel niveau, sous le
- * budget du classeur moins tes gardés — et tu en signes une, ou aucune. Le tri du classeur en montre cinq ; le
- * classeur ouvert, c'est le « choix dans tout » : tout le cartable, d'un coup. Le reste de l'équipe se tire du
- * cartable comme au départ d'une run (`vestiaireDeDepart`), comme le robot le joue (scripts/lib/rogue_sim.mjs).
- * Le tirage est pur (la graine du classeur, la saison, le loto) : recharger redonne les mêmes cartes.
+ * joueurs*. Entre deux saisons, plus de repêchage de cinquante cartes : les cases de `lotosDeSaison` (js/rogue.js),
+ * chacune un loto de TON cartable, sous le budget du classeur moins tes gardés, dont tu signes une carte, ou
+ * aucune. Le reste de l'équipe se tire du cartable comme au départ d'une run (`vestiaireDeDepart`), comme le robot
+ * le joue (scripts/lib/rogue_sim.mjs). Le tirage est pur (la graine du classeur, la saison, la case).
  */
 async function lotoDuCartable(gardes = [], saison = 2) {
   const meta = lireMeta();
   const L = lotosDeSaison(meta, exigenceDeLaRun());
-  const c = lireCartable();
-  const cles = Object.keys(c.joueurs);
-  let budget = budgetDuClasseur(meta) - gardes.reduce((a, p) => a + (p.$ || 0), 0);
-  if (!cles.length || budget <= 0) return [];
-  const personnes = new Set(gardes.map(getPersonKey));
-  const decrire = async (graine, max) => {
-    const out = [];
-    for (const cle of tirageDuClasseur(cles, graine)) {
-      if (out.length >= max) break;
-      const p = await joueurDeCle(cle);
-      if (!p || !(p.$ > 0) || p.$ > budget || personnes.has(getPersonKey(p)) || out.some(x => getPersonKey(x.p) === getPersonKey(p))) continue;
-      const x = c.joueurs[cle];
-      out.push({ cle, p, rar: meilleureVariante(x), num: (x.num || [])[0] || null });
-    }
-    return out;
-  };
-  const ouvrir = (cands, ctx) => new Promise(resolve => ouvrirDepartClasseur({
-    budget, run: (G.rogue && G.rogue.numero) || meta.runs || 1, candidats: cands,
-    esc, money, groupe: groupeDe, qui: p => quiEst(p), apercu: p => apercuJoueur(p),
-    ...ctx,
-    onFini: pris => resolve(cands.filter(x => pris.includes(x.cle)).map(x => x.p)),
-  }));
-  const graine = `${graineDuClasseur()}:s${saison}`;
-  // Le classeur ouvert : le choix dans tout, en une fois.
-  if (L.mode === 'choix') {
-    const cands = await sousVoile('On ouvre ton cartable…', () => decrire(graine, Infinity));
-    if (!cands.length) return [];
-    return ouvrir(cands, { mode: 'choix', n: L.n, textes: {
-      ico: '📖', titre: 'Le choix dans tout', irl: `Saison ${saison} de la run · jusqu'à ${L.n} carte${L.n > 1 ? 's' : ''}`,
-      recit: `Tout ton cartable est là. Choisis jusqu'à ${L.n} cartes ; ton cartable comble le reste.`,
-      budget: '📖 Budget du classeur', plein: `Tu as pris tes ${L.n} cartes`,
-      partir: k => (k ? `${k} carte${k > 1 ? 's' : ''} du cartable` : 'Sans choisir'),
-    } });
-  }
-  const pris = [];
-  for (let i = 0; i < L.n; i++) {
-    const cands = await sousVoile('On brasse le loto…', () => decrire(`${graine}:l${i}`, L.vues));
-    if (!cands.length) break;
-    const [p] = await ouvrir(cands, { mode: 'tri', n: 1, textes: {
-      ico: '🎰', titre: `Le loto du cartable · ${i + 1} de ${L.n}`, irl: `Saison ${saison} de la run · ${cands.length} cartes de ton cartable`,
-      recit: `Le loto tire ${cands.length} cartes de ton cartable : signes-en une, ou passe. Ton cartable comble le reste.`,
+  const budget = budgetDuClasseur(meta) - gardes.reduce((a, p) => a + (p.$ || 0), 0);
+  if (!L.n || budget <= 0 || !Object.keys(lireCartable().joueurs).length) return [];
+  const cartes = await sousVoile('On brasse le loto…', cartesDuCartable);
+  const pris = await lotosParCase({
+    cases: L.cases, vues: L.vues, cartes, graine: `${graineDuClasseur()}:s${saison}`, budget, personnes: new Set(gardes.map(getPersonKey)), qui: p => quiEst(p),
+    textes: ({ i, n, k, niveau, vus, dernier }) => ({
+      ico: '🎰', titre: `Le loto du cartable · ${nomDeCase(k)}`, irl: `Saison ${saison} de la run · ${i + 1} de ${n}`,
+      recit: `${motDeLaDescente(k, niveau, 'carte')}Le loto tire ${vus} carte${vus > 1 ? 's' : ''} ${nomDeCase(niveau)} de ton cartable : signes-en une, ou passe. Ton cartable comble le reste.`,
       budget: '🎰 Budget du classeur', plein: 'Tu as ta carte de ce loto',
-      partir: k => (k ? (i + 1 < L.n ? 'Loto suivant' : 'À la saison') : 'Passer ce loto'),
-    } });
-    if (!p) continue;
-    pris.push(p); personnes.add(getPersonKey(p)); budget -= p.$ || 0;
-    if (budget <= 0) break;
-  }
-  return pris;
+      partir: k2 => (k2 ? (dernier ? 'À la saison' : 'Loto suivant') : 'Passer ce loto'),
+    }),
+  });
+  return pris.map(x => x.p);
 }
 /* LA SAISON SUIVANTE : ceux qui restent, les lotos du cartable, puis le vestiaire tiré du cartable et le coach. */
 async function choisirNouvelleEquipe(saison) {

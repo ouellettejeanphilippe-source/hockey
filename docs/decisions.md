@@ -2795,3 +2795,33 @@ JP : *pas avoir de cartes de cette année, mais utiliser le design pour une autr
 **Le dos tient dans sa carte (24 oct. 2026).** JP : *améliorer un peu les arrières de cartes pour que ça fitte plus*. Le verso a la taille du recto (5:7) et défilait en dedans quand il portait trop : au téléphone, le pied (la ligne de l'imprimeur) et les faits de la saison ne se voyaient jamais sans défiler. Resserrer l'espace a suffi pour la plupart des cartes ; ce qui varie (une Holo et son tirage, une carte qui joue, l'échange, les saisons d'une run) ne se prévoit pas, d'où le cran mesuré au moment de retourner la carte (`serrerVerso`) : les jetons de taille (`--t-1` à `--t-3`) redéfinis sur le dos seul, puis, au second cran, les écarts aussi. Au-delà, il défile encore, plutôt que de cacher un fait. Le tirage d'une Holo a quitté les faits pour le pied, où les vraies cartes l'estampent.
 
 **Les photos libres des vieilles saisons (24 oct. 2026).** JP : *cherche d'autres sources pour les vieilles saisons* ; *un mini lien qui crédite l'auteur dans l'app* ; *ça peut aussi être ailleurs sur le web* ; *c'est pas un jeu commercial, il le sera jamais*. La LNH ne publie de photo de match que pour les joueurs d'après 2005 environ. Wikidata relie un joueur (son identifiant LNH, P3522) à son image Commons (P18) ; Openverse cherche ailleurs (surtout Flickr). Seules les licences qui permettent de reprendre l'œuvre ici entrent : domaine public, CC0, CC BY, CC BY-SA, et CC BY-NC(-SA) puisque le jeu ne sera jamais vendu ; jamais ND, jamais une image sans licence. Chaque photo se crédite au dos de sa carte, où une vraie carte imprime le sien. Écarté : les photos d'après sa carrière (un homme âgé, un vétéran en Europe), les portraits posés (la tête en gros plan, puis, à l'œil, les photos d'équipe en buste de la série « Chicago Blackhawks / NHL »), les civils, les bancs, les cérémonies, les groupes. Gardé : un joueur dans la Ligue américaine pendant ses années chez nous — c'est lui, en match, à son époque. La couverture d'avant 1990 reste mince (14 à 16 %) : Commons a peu de photos de match de ces années-là.
+
+## Le classeur en lotos par niveau (24 oct. 2026)
+
+JP : *garder des joueurs de run en run devrait être fait dans une loto, pas genre tu peux prendre qui tu veux* ; puis *hasard ou genre choix d'un joueur Pilier, un Régulier, etc. Peut-être débloquer les Piliers et plus* ; et, sur sa run 2 : *la saison suivante me permettait de prendre cinq joueurs, c'est brisé*. Trois portes laissaient choisir qui te suit : « Le classeur ouvert » (`classeurChoix`, le choix dans tout le cartable, au départ et entre deux saisons), et « Ceux qui restent » (cinq joueurs de ton équipe finie, au choix).
+
+Ce qui change :
+- **Une case, un loto.** Chaque carte du classeur est une case d'un niveau : trois cartes de ce niveau (cinq au tri), tirées au hasard dans ton cartable, tu en gardes une ou aucune (`departDuClasseur`, `lotoDeCase`, js/rogue.js ; `lotosParCase`, js/rogue-jeu.js ; js/depart.js n'a plus qu'un écran, une case). Un niveau absent ou qui ne tient plus dans le budget : la case prend celui d'en dessous. La case ★ Étoile prend aussi les Phénomènes.
+- **Les niveaux se débloquent.** Sans rien, une case Régulier. `classeur1` ajoute une case Pilier, `classeur2` une ★ Étoile, `classeur3` une deuxième Pilier, `classeur4` (neuf, 280 🏅) une deuxième Étoile. Le joueur de concession et « Le classeur fermé » retirent des cases, par le haut.
+- **Entre deux saisons**, les lotos du cartable suivent la même règle : trois lotos Régulier, et un par page, à son niveau (`lotosDeSaison`).
+- **Ceux qui restent** : un loto Pilier et un loto Régulier tirés de ton équipe finie (`gardesDeLaRun`, `GARDES_DE_SAISON`) au lieu de cinq au choix ; « Ceux qui partent » en retire un, par le haut. Le joueur de concession reste à part, sans loto.
+- **La Coupe** offre `classeur4`, la deuxième page Étoile (requis : la première), au lieu du classeur ouvert ; sinon ses 120 🏅.
+- **Les métas qui l'avaient** : `classeurChoix` part à la lecture du méta, et ses 280 🏅 reviennent, toujours (le méta ne dit pas s'il venait de la Coupe ou d'un achat ; `PARTIS`, js/rogue.js).
+
+Mesuré (check_rogue, 24 runs par niveau, le robot sur les mêmes dés), avant → après :
+- la première run reste dure : sans déblocage, 0 % de Coupe et 45 points, comme avant ;
+- la valeur des cartes du classeur au départ monte (la somme de leur valeur : 54 → 69 à six déblocages, 127 → 157 à onze, 184 → 243 à seize, 297 → 336 à tout) : une case Pilier tire un Pilier, là où le tri tirait surtout des Soutien ; la première saison n'en gagne presque rien (87 → 88 points à onze) ;
+- la saison 2 reste un défi : l'équipe y vaut autant (59,1 → 60,2 de valeur moyenne à onze déblocages ; 60,6 → 60,2 à seize ; 60,0 → 60,8 à tout), et le mandat se tient 58 → 64 % à onze, 75 → 71 % à seize, 86 → 100 % à tout ;
+- la Coupe par run : 4 → 4 % à onze déblocages, 4 → 8 % à seize, 42 → 29 % à tout.
+
+Écarté : **une case ★ Étoile chez ceux qui restent**, ouverte par la page Étoile. Mesurée, elle menait la Coupe de 4 % à 38 % des runs à onze déblocages, et le mandat de la saison 2 à 100 % : c'était garder sa vedette chaque saison. Écarté aussi : deux lotos Régulier entre deux saisons au lieu de trois, qui ne changeait rien à la Coupe.
+
+**De run en run** (le cœur de la demande) : « Garder un joueur » (`garder1` à `garder3`) laissait prendre qui tu voulais de ta dernière équipe. Chacun ouvre maintenant une case, un loto de ta dernière équipe (`gardesDeLaDerniere`, js/rogue.js) : `garder1` un Pilier, `garder2` un deuxième Pilier, `garder3` une ★ Étoile. Ton joueur de concession n'y est pas : il revient de toute façon. Rien d'écrit d'avance au méta (`derniereEquipe` reste la liste de l'équipe), donc rien à migrer : un méta qui a les déblocages les garde, avec leur sens neuf.
+
+Mesuré, trois campagnes de 14 runs (check_rogue `RUNS=14 CAMPAGNES=3`), saisons par run :
+- avant : une Coupe (run 11), puis deux campagnes sans Coupe ;
+- `garder1` en case Régulier (la demande d'abord) : aucune campagne ne gagne de Coupe, et deux sur trois ne jouent jamais une deuxième saison ;
+- `garder1` en case Pilier : une Coupe (run 14), les deux autres sans Coupe, et autant de longues runs qu'avant. C'est ce qui est gardé. `garder3` en ★ Étoile ne casse pas la run d'après : la run 13 de la campagne qui gagne dure sept saisons, sans Coupe.
+- `garder2` en ★ Étoile au lieu d'un deuxième Pilier : la même courbe, à la run près ; écarté pour garder l'Étoile au bout.
+
+Aux niveaux (14 runs chacun), avant → après : la Coupe par run 0 → 0 % sans déblocage, 0 → 0 % à onze, 7 → 7 % à seize, 36 → 43 % à tout ; la première saison 43 → 43 points sans déblocage.

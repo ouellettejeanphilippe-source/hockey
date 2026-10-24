@@ -8,7 +8,7 @@
  * départ, les packs achetés avec les jetons que les résultats rapportent, les
  * signatures (qui sort : le moins utile), la saison au jour le jour, les
  * séries, puis la saison suivante de la run avec des plombiers neufs et les
- * meilleurs de l'équipe finie (1.0, `GARDES_DE_SAISON`) — jusqu'à la
+ * lotos de l'équipe finie (1.0, `gardesDeLaRun`) — jusqu'à la
  * Coupe, ou jusqu'aux séries ratées. Les écussons, les jalons, les
  * déblocages qu'ils achètent, et la run suivante.
  *
@@ -51,7 +51,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
+  SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, styleOuvert, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength, PLANS,
 } from '../../js/sim.js';
@@ -65,8 +65,8 @@ import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rare
 import { TIERS, PACKS_JOUEURS, SKILLS, hausseDesPacks, packDeSerie, tierDuPack, niveauxDuPack } from '../../js/packs.js';
 import { niveauDe, NIVEAUX, joueursParNiveau } from '../../js/niveaux.js';
 import {
-  JETONS, jetonsDeDepart, nombreGardes, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
-  DEBLOCAGES, departDuClasseur, lotosDeSaison, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
+  JETONS, jetonsDeDepart, gardesDeLaDerniere, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
+  DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
   packsOuverts, monteeDesPacks,
@@ -82,6 +82,7 @@ export function shard(s) {
   if (!CACHE.has(s)) {
     const e = JSON.parse(fs.readFileSync(path.join(DIR, `${s}.json`), 'utf8'));
     e.players.forEach(registerHiddenRatings);
+    retenirMatchsDuShard(e);
     e.byTeam = {};
     for (const p of e.players) (e.byTeam[p.t] = e.byTeam[p.t] || []).push(p);
     CACHE.set(s, e);
@@ -250,24 +251,32 @@ const lireNet = (R, coachs) => avecHasardIsole('robot', () => {
 const melanger = (l, clic) => l.map(x => [clic(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
 const meilleursDabord = (l, clic, f = x => x) => (clic ? melanger(l, clic) : l.slice().sort((a, b) => v(f(b)) - v(f(a))));
 
-/* Les cartes du classeur au départ : au hasard, le tri (deux fois plus, on garde les meilleures), ou le choix. */
-function tirerClasseur(rnd, meta, classeur, exclus, clic = null, exigence = 0) {
-  const D = departDuClasseur(meta, exigence);
-  if (!D.n || !classeur.length) return [];
-  const budget = budgetDuClasseur(meta);
-  const dispo = classeur.filter(x => (x.p.$ || 0) <= budget && !exclus.has(getPersonKey(x.p)));
-  const melange = dispo.map(x => [rnd(), x]).sort((a, b) => a[0] - b[0]).map(y => y[1]);
-  const vus = D.mode === 'choix' ? meilleursDabord(dispo, clic, x => x.p) : melange.slice(0, D.vues);
-  const ordre = D.mode === 'hasard' ? vus : meilleursDabord(vus, clic, x => x.p);
-  const pris = [], personnes = new Set();
-  let reste = budget;
-  for (const x of ordre) {
-    if (pris.length >= D.n) break;
-    if ((x.p.$ || 0) > reste || personnes.has(getPersonKey(x.p))) continue;
-    pris.push(x); personnes.add(getPersonKey(x.p)); reste -= x.p.$ || 0;
+/*
+ * LES LOTOS PAR CASE DU ROBOT (js/rogue-jeu.js `lotosParCase`) : le même tirage pur, case par case ; de chaque loto,
+ * il prend la carte qui vaut le plus parmi celles du niveau de la case qui tiennent dans ce qui reste du budget.
+ * `cartes` : [{ p, rar? }] (une par clé) ; `personnes` : ceux qui ne reviennent pas. Rend celles prises.
+ */
+const niveaux = new Map();
+const niveauDuRobot = p => { const k = getPlayerKey(p); if (!niveaux.has(k)) niveaux.set(k, niveauDe(p, shard(p.s).players)); return niveaux.get(k); };
+function lotosParCase({ cases, vues }, cartes, graine, budget, personnes, clic) {
+  const parCle = new Map(cartes.map(x => [getPlayerKey(x.p), x]));
+  const pris = [];
+  for (let i = 0; i < cases.length && budget > 0; i++) {
+    const vus = new Set(personnes), dispo = [];
+    for (const k of tirageDuClasseur([...parCle.keys()], `${graine}:c${i}`)) {
+      const x = parCle.get(k), q = getPersonKey(x.p);
+      if (!((x.p.$ || 0) > 0) || x.p.$ > budget || vus.has(q)) continue;
+      vus.add(q); dispo.push({ ...x, niveau: niveauDuRobot(x.p) });
+    }
+    const [meilleure] = meilleursDabord(lotoDeCase(dispo, cases[i], vues).cartes, clic, y => y.p);
+    if (!meilleure) continue;
+    pris.push(meilleure); personnes.add(getPersonKey(meilleure.p)); budget -= meilleure.p.$ || 0;
   }
   return pris;
 }
+/* Les cartes du classeur au départ : ses cases, du plus haut niveau au plus bas, chacune un loto de son cartable. */
+const tirerClasseur = (meta, classeur, exclus, graine, clic = null, exigence = 0) =>
+  lotosParCase(departDuClasseur(meta, exigence), classeur, `${graine}:classeur`, budgetDuClasseur(meta), new Set(exclus), clic);
 
 /*
  * LA POLITIQUE D'ACHAT DU ROBOT (Jalon P2, la boutique des sept packs mixtes) : un Pack Or un achat sur trois
@@ -467,7 +476,7 @@ function planDuRobot(L, you, plans, attentif, clic) {
 /*
  * UNE RUN (S80 : PLUSIEURS SAISONS). La saison 1 part des plombiers (et des
  * gardés, et du classeur) ; chaque saison suivante repart de plombiers neufs
- * et des meilleurs de la précédente (`gardesDeSaison`), avec les jetons qui
+ * et de ceux qui restent, une case chacun (`gardesDeLaRun`), avec les jetons qui
  * restent et la caisse du vestiaire. La run
  * finit quand on rate les séries — le proprio montre la porte — ou quand on
  * gagne la Coupe. `jalons` : paie les jalons (js/rogue.js `JALONS`), qui
@@ -478,13 +487,14 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   const rnd = generateur('rogue80', graine);
   const clic = politique === 'distrait' ? generateur('rogue80-distrait', graine) : null;
   const exclus = new Set();
-  // Les joueurs gardés de la dernière équipe (le robot garde les meilleurs ; le distrait, n'importe qui).
-  const gardes = meilleursDabord(derniere, clic).slice(0, nombreGardes(meta)).map(copie);
+  // Ceux de la dernière équipe : un loto par case (le robot garde le meilleur de chaque loto ; le distrait, n'importe qui).
   const vedette = vedetteDuRobot(rnd, meta, clic);
-  if (vedette && !gardes.some(p => getPersonKey(p) === getPersonKey(vedette))) gardes.unshift(copie(vedette));
+  const gardes = lotosParCase(gardesDeLaDerniere(meta), derniere.map(p => ({ p })), `${graine}:derniere`, budgetDuClasseur(meta),
+    new Set(vedette ? [getPersonKey(vedette)] : []), clic).map(x => copie(x.p));
+  if (vedette) gardes.unshift(copie(vedette));
   gardes.forEach(p => exclus.add(getPersonKey(p)));
   // Les cartes du classeur au départ.
-  const tires = tirerClasseur(rnd, meta, classeur, exclus, clic, exigence).map(x => ({ p: copie(x.p), rar: x.rar }));
+  const tires = tirerClasseur(meta, classeur, exclus, graine, clic, exigence).map(x => ({ p: copie(x.p), rar: x.rar }));
   tires.forEach(x => exclus.add(getPersonKey(x.p)));
   const V = vestiaire(rnd, meta, [...gardes, ...tires.map(x => x.p)], classeur, { joues, graine: `${graine}:depart`, exigence, premiere: !classeur.length && !derniere.length });
   const etat = { roster: V.roster, variantes: new Map(tires.map(x => [getPlayerKey(x.p), x.rar])), jetons: jetonsDeDepart(meta), galons: new Map() };
@@ -496,6 +506,8 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   let ecussons = 0;
   const entrees = Object.values(etat.roster).map(p => ({ p, rar: etat.variantes.get(getPlayerKey(p)) || 'commune' }));
   for (let n = 1; n <= maxSaisons; n++) {
+    // La valeur moyenne de l'équipe au départ de la saison (check_rogue : la saison 2 reste un défi).
+    const valeur = (l => l.reduce((t, p) => t + v(p), 0) / (l.length || 1))(Object.values(etat.roster).filter(Boolean));
     const r = jouerSaison(meta, etat, { graine, saison: n, mains, politique, exigence, ligue });
     entrees.push(...r.entrees);
     for (const g of r.galons) etat.galons.set(g.joueur, (etat.galons.get(g.joueur) || 0) + 1);
@@ -507,17 +519,18 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
     if (jalons) e += payerJalonsSim(meta, { ...r, saisonDeLaRun: n, cartes: classeur.length + entrees.length });
     e = Math.round(e);
     ecussons += e;
-    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length });
+    const mandat = mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence });
+    saisons.push({ n, pts: r.pts, rang: r.rang, rondes: r.rondes, coupe: r.coupe, ecussons: e, achats: r.achats, signes: r.signes, galons: r.galons.length, valeur, mandat });
     // La Coupe (tranche 8) : elle compte, et le cran d'exigence gagné ouvre le suivant (js/rogue.js `payerEcussons`).
     if (r.coupe) { meta.coupes = (meta.coupes || 0) + 1; meta.exigence = Math.max(meta.exigence || 0, exigence); }
     // LE MANDAT DU PROPRIO (js/rogue.js `MANDATS`) : manqué, la run est finie ; la Coupe la gagne.
-    if (r.coupe || !mandatRempli(n, { series: r.series, rang: r.rang, nEquipes: 32, exigence })) break;
+    if (r.coupe || !mandat) break;
     // LA SAISON SUIVANTE : l'équipe se défait — les meilleurs restent, des plombiers neufs ; les jetons restent, la caisse revient.
     const equipe = Object.values(r.roster).filter(Boolean);
-    const restent = gardesDeSaison(meta, equipe, clic, exigence);
-    // Ton joueur de concession reste d'une saison à l'autre, sans prendre la place d'un gardé.
+    // Ton joueur de concession reste d'une saison à l'autre, sans loto ; les autres, une case chacun (`gardesDeLaRun`).
     const ved = meta.vedette && equipe.find(p => getPlayerKey(p) === meta.vedette);
-    if (ved && !restent.includes(ved)) restent.unshift(ved);
+    const restent = [...(ved ? [ved] : []), ...lotosParCase(gardesDeLaRun(meta, exigence), equipe.filter(p => p !== ved).map(p => ({ p })), `${graine}:g${n + 1}`,
+      budgetDuClasseur(meta), new Set(ved ? [getPersonKey(ved)] : []), clic).map(x => x.p)];
     const partants = new Set(equipe.map(getPlayerKey).filter(k => !restent.some(p => getPlayerKey(p) === k)));
     // Le classeur a grossi pendant la saison : les cartes tirées des packs en sont.
     const classeurSaison = [...classeur, ...r.entrees.map(x => ({ p: x.p, rar: x.rar }))];
@@ -529,7 +542,7 @@ export function jouerRun(meta, { classeur = [], derniere = [], graine = 'run', j
   for (const k of jouees) joues.set(k, (joues.get(k) || 0) + 1);
   const fin = saisons[saisons.length - 1];
   return {
-    saisons, nSaisons: saisons.length, coupe: !!fin.coupe, ecussons, depart: tires.length, exigence, ligue,
+    saisons, nSaisons: saisons.length, coupe: !!fin.coupe, ecussons, depart: tires.length, valeurDepart: tires.reduce((a, x) => a + v(x.p), 0), exigence, ligue,
     pts1: saisons[0].pts, series1: saisons[0].rang <= 16,
     entrees: entrees.map(x => ({ p: x.p, rar: x.rar })),
     equipe: Object.values(etat.roster).filter(Boolean),
@@ -562,43 +575,9 @@ function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(),
   }
   return { roster: ranger(pris, nRes), tires };
 }
-/*
- * LES LOTOS DU ROBOT (js/rogue-jeu.js `lotoDuCartable`) : le même tirage pur du cartable, loto par loto ; il signe
- * la carte qui vaut le plus parmi celles qui tiennent dans ce qui reste du budget du classeur. Le classeur ouvert :
- * les meilleures de tout le cartable.
- */
-function lotosDuRobot(meta, classeur, gardes, partants, graine, clic = null, exigence = 0) {
-  const L = lotosDeSaison(meta, exigence);
-  let budget = budgetDuClasseur(meta) - masseDe(gardes);
-  const personnes = new Set(gardes.map(getPersonKey));
-  const parCle = new Map(classeur.filter(x => !partants.has(getPlayerKey(x.p))).map(x => [getPlayerKey(x.p), x]));
-  const cles = [...parCle.keys()];
-  const tient = x => (x.p.$ || 0) > 0 && (x.p.$ || 0) <= budget && !personnes.has(getPersonKey(x.p));
-  const pris = [];
-  const prendre = x => { pris.push(x); personnes.add(getPersonKey(x.p)); budget -= x.p.$ || 0; };
-  if (L.mode === 'choix') {
-    for (const x of meilleursDabord(cles.map(k => parCle.get(k)), clic, y => y.p)) { if (pris.length >= L.n) break; if (tient(x)) prendre(x); }
-    return pris;
-  }
-  for (let i = 0; i < L.n && budget > 0; i++) {
-    const vus = [];
-    for (const k of tirageDuClasseur(cles, `${graine}:l${i}`)) { if (vus.length >= L.vues) break; const x = parCle.get(k); if (tient(x) && !vus.some(y => getPersonKey(y.p) === getPersonKey(x.p))) vus.push(x); }
-    const [meilleure] = meilleursDabord(vus, clic, y => y.p);
-    if (meilleure) prendre(meilleure);
-  }
-  return pris;
-}
-/* Ceux qui restent d'une saison à l'autre : le robot garde les meilleurs qui tiennent ensemble dans le budget du classeur. */
-function gardesDeSaison(meta, equipe, clic = null, exigence = 0) {
-  const budget = budgetDuClasseur(meta), out = [];
-  let masse = 0;
-  for (const p of meilleursDabord(equipe, clic)) {
-    if (out.length >= gardesDeLaRun(exigence)) break;
-    if (masse + (p.$ || 0) > budget) continue;
-    out.push(p); masse += p.$ || 0;
-  }
-  return out;
-}
+/* LES LOTOS DU ROBOT (js/rogue-jeu.js `lotoDuCartable`) : les cases de `lotosDeSaison`, sous le budget du classeur moins ses gardés. */
+const lotosDuRobot = (meta, classeur, gardes, partants, graine, clic = null, exigence = 0) =>
+  lotosParCase(lotosDeSaison(meta, exigence), classeur.filter(x => !partants.has(getPlayerKey(x.p))), graine, budgetDuClasseur(meta) - masseDe(gardes), new Set(gardes.map(getPersonKey)), clic);
 /* Les jalons, dans la mesure : les mêmes règles que le jeu (js/rogue.js `jalonsAtteints`), payés une fois. */
 function payerJalonsSim(meta, faits) {
   meta.jalons = meta.jalons || {};
@@ -632,7 +611,7 @@ export function classeurSynthetique(meta, nRuns, graine = 'classeur') {
 /* L'ORDRE DES DÉBLOCAGES du robot : ce qu'un joueur prend d'abord (le moins cher utile), puis le reste. */
 export const ORDRE_DEBLOCAGES = [
   'caisse1', 'commanditaire1', 'classeur1', 'plafond1', 'garder1', 'banc1', 'plombiersPlus', 'classeurTri', 'classeur2', 'commanditaire2', 'caisse2',
-  'packGardiens', 'packDefenseurs', 'plafond2', 'garder2', 'classeur3', 'packVedettes', 'banc2', 'classeurChoix',
+  'packGardiens', 'packDefenseurs', 'plafond2', 'garder2', 'classeur3', 'packVedettes', 'banc2', 'classeur4',
   'dgFlexible', 'packAnnees80', 'garder3',
   // V10 : les crans des packs qu'il achète, le premier de chacun, puis les seconds.
   'monte_epoque_1', 'monte_bronze_1', 'monte_argent_1', 'monte_specialistes_1', 'monte_or_1', 'monte_epoque_2', 'monte_argent_2', 'monte_specialistes_2', 'monte_or_2',
