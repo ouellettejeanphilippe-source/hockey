@@ -48,7 +48,7 @@ import { inscrireHub, retirerHub, signalerVue, signalerComptes, hubActif } from 
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDeLaCarteDeTrop, sceneDuDossier, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
-import { BANQUE, reglesDe, payloadDe, placeDe } from './banque.js';
+import { BANQUE, reglesDe, payloadDe } from './banque.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
@@ -268,7 +268,7 @@ function coquille(label) {
     const el = pageDuClub({ genre, retour: 'Retour au bureau', ico, titre, sous: sousTitre, corps: html, pied, fermer: () => fermerPage() });
     sheet.appendChild(el);
     sheet.dataset.page = genre;
-    // V8 : la page appartient à l'onglet qui l'a ouverte (la semaine au Bureau, le dépistage à « Ce soir ») : ailleurs, elle s'efface.
+    // V8 : la page appartient à l'onglet qui l'a ouverte (la semaine au Bureau) : ailleurs, elle s'efface.
     sheet.dataset.pageVue = sheet.dataset.vue || '';
     sheet.scrollTop = 0;
     pageOuverte = { el, onFerme };
@@ -1756,20 +1756,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="dep3-conseil-p">${ctx.esc(c.pourquoi)}</div>
         ${c.chiffres.length || (onDecision && c.genre !== 'deja') ? `<div class="dep3-conseil-pied">${c.chiffres.length ? `<span class="choix-puces">${puces(c.chiffres)}</span>` : ''}${onDecision && c.genre !== 'deja' ? `<button type="button" class="btn dep3-appliquer" data-conseil="${i}" data-j="${p.j}">Appliquer</button>` : ''}</div>` : ''}
       </div>`).join('') : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
-    return `${chances}${table}${surveiller}${conseilsHtml}`;
+    return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml };
   }
   /* « Appliquer » : le conseil devient une décision de la journée du match, et la saison se rejoue d'ici. */
+  const appliquerConseil = b => {
+    const j = Number(b.dataset.j), c = (conseilsVus.get(j) || [])[Number(b.dataset.conseil)];
+    if (!c) return;
+    const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : c.match ? { jour: j, match: c.match } : null;
+    if (!d) return;
+    const ici = jour; quitter(); onDecision(d, ici);
+  };
   const brancherConseils = el => {
     if (!el || !onDecision) return;
-    el.querySelectorAll('.dep3-appliquer').forEach(b => {
-      b.onclick = () => {
-        const j = Number(b.dataset.j), c = (conseilsVus.get(j) || [])[Number(b.dataset.conseil)];
-        if (!c) return;
-        const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : c.match ? { jour: j, match: c.match } : null;
-        if (!d) return;
-        const ici = jour; quitter(); onDecision(d, ici);
-      };
-    });
+    el.querySelectorAll('.dep3-appliquer').forEach(b => { b.onclick = () => appliquerConseil(b); });
   };
 
   /*
@@ -2383,55 +2382,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.texte)}</b>${a.but && a.but.marqueur ? `<span class="hub-une-but">${ctx.esc(recitDeBut(a.but))}</span>` : ''}
       <span class="hub-une-voix">${x.de.ico} ${ctx.esc(x.de.nom)} : « ${ctx.esc(x.mot)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots)}</span>` : ''}</div>`;
   };
-  /*
-   * TES PLACES, AU BUREAU (V9, tranche 5b ; js/inventaire.js `placesDeLaPartie`), sous le match du soir : les cartes qui
-   * se jouent hors du combat, `PLACES` au plus, chacune quand tu veux. Toucher une carte la montre en grand, pour la
-   * jouer ou la vendre (js/rogue-jeu.js) ; une modif de joueur s'ouvre sur tes lignes (`sePose`). Une place vide se voit.
-   */
-  const placesDuBureau = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.places ? ctx.inventaire.places(jour) : null);
-  // UN VERBE PAR TUILE, LES DOUBLES GROUPÉS (Jalon M, B9) : ce qu'un toucher fait (la poser, la jouer, ou la vendre et
-  // pour combien) ; deux copies d'une même carte, une tuile « ×2 » qui ouvre la première. V12-4 : une ligne par carte (son
-  // nom, où elle joue, son verbe) ; ce qu'elle fait se lit sur la carte, qu'un toucher ouvre.
-  const caseHtml = (it, n = 1) => `<button type="button" class="hub-poche-case tc-${ctx.esc(it.rarete)}${it.ref === pose ? ' en-pose' : ''}"${sePose(it) ? ' data-pose' : ''} data-ref="${ctx.esc(it.ref)}"><span class="hub-poche-ico" aria-hidden="true">${it.ico}</span><span class="hub-poche-nom">${ctx.esc(it.nom)}${n > 1 ? ` <b class="hub-poche-n">×${n}</b>` : ''}</span>${placeDe(it.id) ? `<span class="hub-poche-place">${ctx.esc(placeDe(it.id).ou)} · ${ctx.esc(placeDe(it.id).duree)}</span>` : ''}${it.coach ? `<span class="hub-poche-coach${it.confiance ? ' cru' : ''}" title="${ctx.esc(it.coach.nom)}${it.confiance ? ` · confiance ${'I'.repeat(it.confiance)}` : ''}">${it.coach.ico}${it.confiance ? ` ${'I'.repeat(it.confiance)}` : ''}</span>` : ''}<span class="hub-poche-verbe">${it.maison ? `${ctx.esc(it.maison.mot)} ›` : `${sePose(it) ? 'Poser' : 'Jouer'}${it.valeur ? ` · ou vendre +${it.valeur} 🪙` : ''}`}</span></button>`;
-  const placesHtml = () => {
-    const m = placesDuBureau();
-    if (!m) return '';
-    // V12-4 : les places libres ne se dessinent plus, le titre les compte (« 2 sur 3 »).
-    // V12-4 : une carte qui se joue ailleurs (un soin, un contrat) n'est pas du match de ce soir — un bouton qui y mène.
-    const ailleurs = m.places.filter(it => it.maison), ici = m.places.filter(it => !it.maison);
-    const groupes = [];
-    for (const it of ici) { const g = groupes.find(x => x.it.id === it.id && it.ref !== pose && x.it.ref !== pose); if (g) g.n++; else groupes.push({ it, n: 1 }); }
-    return `<section class="hub-poche" aria-label="Tes places"><div class="hub-poche-t">🃏 Tes places <b>${m.places.length ? `${m.places.length} sur ${m.n}` : 'vides'}</b></div>${groupes.length ? `<div class="hub-poche-rang">${groupes.map(g => caseHtml(g.it, g.n)).join('')}</div>` : ''}${ailleurs.length ? `<div class="hub-poche-ailleurs">${ailleurs.map(it => `<button type="button" class="hub-poche-vers" data-ref="${ctx.esc(it.ref)}"><span aria-hidden="true">${it.ico}</span> ${ctx.esc(it.nom)} <b>${ctx.esc(it.maison.mot)} ›</b></button>`).join('')}</div>` : ''}</section>`;
-  };
-  /*
-   * POSER EN TOUCHANT (V8, « Ce soir »). JP : *chaque chose sous-entend ce à quoi elle sert ; c'est pas clair comment
-   * jouer les cartes*. Une modif de joueur touchée ouvre tes lignes ici même : ceux qui peuvent la porter s'allument (le
-   * joueur que ses chiffres lisent, cerclé), les autres disent pourquoi pas ; toucher un joueur la pose. `pose` : la ref
-   * de la carte en main qu'on pose. Les autres cartes (l'équipe, un blessé, le plafond) gardent leur fenêtre.
-   */
-  let pose = null;
-  const enPlace = ref => ((placesDuBureau() || {}).places || []).find(x => x.ref === ref) || null;
-  const sePose = it => !!(soirEnVolet && it && ctx.inventaire.cibles && ctx.inventaire.cibles(it, jour));
-  const poseHtml = () => {
-    const it = pose ? enPlace(pose) : null;
-    const C = it && sePose(it) ? ctx.inventaire.cibles(it, jour) : null;
-    if (!C) { pose = null; return ''; }
-    const court = q => String(q.n).split(' ').slice(-1)[0];
-    const puce = sl => {
-      const q = you.roster[sl.i];
-      if (!q) return '';
-      const e = C.cases.get(sl.i) || { non: 'rien à poser' }, vise = !e.non && C.vise === getPlayerKey(q);
-      return `<button type="button" class="pose-puce${e.non ? '' : ' cible'}${vise ? ' vise' : ''}" data-slot="${sl.i}"${e.non ? ' disabled' : ''}><b>${ctx.esc(court(q))}</b><small>${ctx.esc(e.non || e.note || (vise ? 'suggéré' : 'Poser ici'))}</small></button>`;
-    };
-    const rang = (titre, sls) => { const h = sls.map(puce).join(''); return h ? `<div class="pose-rang"><span class="pose-rang-t">${ctx.esc(titre)}</span><div class="pose-puces">${h}</div></div>` : ''; };
-    const F = [0, 1, 2, 3].map(u => rang(`${ord(u + 1)} trio`, SLOTS.filter(sl => sl.group === 'F' && sl.unit === u && !sl.scratch)));
-    const D = [0, 1, 2].map(u => rang(`${ordF(u + 1)} paire`, SLOTS.filter(sl => sl.group === 'D' && sl.unit === u && !sl.scratch)));
-    return `<section class="pose-zone" aria-label="Poser ${ctx.esc(C.nom)}">
-      <div class="pose-tete"><span>${C.ico} <b>${ctx.esc(C.nom)}</b> : touche le joueur qui la porte.</span><button type="button" class="btn small pose-annuler">Annuler</button></div>
-      ${F.join('')}${D.join('')}${rang('Gardiens', SLOTS.filter(sl => sl.group === 'G' && !sl.scratch))}${rang('Réserve', SLOTS.filter(sl => sl.scratch))}
-      <button type="button" class="btn small pose-autres">La vendre ou la garder ›</button>
-    </section>`;
-  };
+  /* Tes places du jour (js/inventaire.js `placesDeLaPartie`) : le butin et la carte de trop en parlent ; elles se jouent au Marché. */
+  const tesPlaces = () => (onDecision && ctx.rogue && ctx.inventaire && ctx.inventaire.places ? ctx.inventaire.places(jour) : null);
   /* Le drame d'hier soir, en une ligne : les bagarres, les coups marquants, les blessés (les événements physiques de la feuille). */
   const drameHtml = m => {
     const f = m.feuille;
@@ -2468,16 +2420,18 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const jeu = enJeuDuSoir(p);
     const pastilles = (d, n) => motsDeStats(d, n).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
     const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} match${x.reste > 1 ? 's' : ''}</small>` : ''}</span><span class="ej-stats">${pastilles(x.d, 2)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
-    return `${placesHtml()}${soirEnVolet ? poseHtml() : ''}<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, soirEnVolet ? 2 : 4) : ''}</span></summary>
+    return `<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, 4) : ''}</span></summary>
       ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}</details>`;
   };
   /*
-   * CE SOIR (V8) : l'affiche et ce qu'on en sait, puis tes cartes du soir et ce qui est en jeu. Rien après la saison.
+   * LE DÉPISTAGE, SOUS EFFECTIF (JP, 23 oct. : *pas besoin d'écran par match, mettre les stratégies avec les lignes* ;
+   * *organise plus comme EHM, avec moins de trucs qui servent pas*). Ce que tu sais de ton prochain adversaire — son plan,
+   * les forces, ce qui est en jeu, les conseils — et « Tes lignes », à côté des Lignes. Tes places se jouent au Marché ›
+   * Tes cartes. Le pronostic se calcule à l'ouverture du sous-onglet, une fois par journée (`pronosticDe`).
    */
-  const voletSoir = () => {
+  const voletDepistage = () => {
     if (jour >= N) return '<p class="hub-vide">La saison est jouée.</p>';
-    // Tes places remontent sous l'affiche (Jalon M, B9) : ce qui se joue ce soir avant ce qui se lit.
-    return soir && soir.jour === jour ? `${soir.html}${cartesDuBureau()}` : cartesDuBureau();
+    return soir && soir.jour === jour ? soir.html() : '<p class="hub-vide">Plus de match à venir.</p>';
   };
   /*
    * LA ROUTE (V8, à la Slay the Spire) : tes deux prochaines semaines, ce qui est connu d'avance et rien d'autre — tes
@@ -2780,7 +2734,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return m;
   };
 
-  // V8 : en Rogue, « Ce soir » est un volet à lui (l'affiche, leur plan, tes cartes du soir, tes lignes) ; `soir` le garde du dernier rendu.
+  // En Rogue, le dépistage est un volet d'Effectif (leur plan, les forces, les conseils, tes lignes) ; `soir` le garde du dernier rendu.
   const soirEnVolet = !!(ctx.rogue && onDecision);
   let soir = null;
   // V12 : en Rogue, chaque maison de la boîte est un volet (un sous-onglet de sa section) ; `vueMaison` le rend, `rendreActions` le pose.
@@ -2788,7 +2742,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   let vueMaison = null, aRegler = {};
   const tabs = onglets(barre, volet, [
     { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' },
-    ...(soirEnVolet ? [{ cle: 'soir', ico: 'i-list', titre: 'Ce soir', page: 'soir' }] : []),
+    ...(soirEnVolet ? [{ cle: 'depistage', ico: 'i-list', titre: 'Dépistage', page: 'depistage' }] : []),
     { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
     { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
     // LA SAISON, sous la Ligue : le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
@@ -2796,7 +2750,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
     ...(soirEnVolet ? ONGLETS_MAISONS.map(k => ({ cle: k, ico: 'i-list', titre: MAISONS[k].titre, page: k })) : []),
   ], cle => {
-    if (cle === 'soir') return voletSoir();
+    if (cle === 'depistage') return voletDepistage();
     if (MAISONS[cle]) return vueMaison ? vueMaison(cle) : '';
     if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
@@ -2858,32 +2812,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }, 30);
   };
   volet.addEventListener('click', lancerPrevision);
-  // Tes cartes au Bureau : une carte de la main se touche ; une ligne « en jeu » se déplie sur ses chiffres de match.
+  // Une ligne « en jeu » se déplie sur ses chiffres de match.
   /*
    * LE VOLET EST PARTAGÉ (#hubModal) : un écran de saison qui n'est plus l'écran actif (rouvert par une décision) ne
-   * répond plus. Sans ça, son écouteur réécrivait le volet avec SON onglet — la V8 l'a vu : « Ce soir » touché
+   * répond plus. Sans ça, son écouteur réécrivait le volet avec SON onglet — la V8 l'a vu : un onglet touché
    * redevenait le Bureau d'avant.
    */
   const actif = () => !termine && hubActif() === tabs.hub;
   const dansLaMain = e => {
     if (!actif()) return;
-    const c = e.type === 'click' ? e.target.closest('.hub-poche-case[data-ref], .hub-poche-vers[data-ref]') : null;
-    const decider = d => { const j = jour; quitter(); onDecision(d, j); };
-    if (c && volet.contains(c)) {
-      const it = enPlace(c.dataset.ref);
-      if (!it) return;
-      // V12-3 : une carte qui a sa maison (un soin, un contrat, le congédiement) s'y joue ; sa case y mène.
-      if (it.maison) { jouerSon('valide'); if (MAISONS[it.maison.cle]) tabs.montrer(it.maison.cle); else if (ctx.allerA) ctx.allerA(it.maison.cle); return; }
-      // V8 : une modif de joueur s'ouvre sur tes lignes, ici ; toucher la carte posée l'y referme.
-      if (sePose(it)) { pose = pose === it.ref ? null : it.ref; tabs.rafraichir(); const el = volet.querySelector('.pose-zone'); if (el) el.scrollIntoView({ block: 'nearest' }); return; }
-      ctx.inventaire.carte(it, jour, decider);
-      return;
-    }
-    if (e.type !== 'click') { const r0 = e.target.closest('.ej-r.a-detail'); if (!r0) return; }
-    const puce = e.target.closest('.pose-puce[data-slot]');
-    if (puce && volet.contains(puce) && pose) { const it = enPlace(pose); pose = null; if (it) ctx.inventaire.poser(it, jour, Number(puce.dataset.slot), decider); return; }
-    if (e.target.closest('.pose-annuler')) { pose = null; tabs.rafraichir(); return; }
-    if (e.target.closest('.pose-autres')) { const it = enPlace(pose); pose = null; tabs.rafraichir(); if (it) ctx.inventaire.carte(it, jour, decider); return; }
     const r = e.target.closest('.ej-r.a-detail');
     if (r && volet.contains(r) && (e.type === 'click' || e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); r.setAttribute('aria-expanded', String(r.classList.toggle('ouvert'))); }
   };
@@ -2901,14 +2838,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
     if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
-  // Ce soir (V8) : le dépistage complet et tes lignes, d'un toucher.
-  const dansLeSoir = e => {
+  // Effectif › Dépistage : un conseil s'applique, « Tes lignes » mène derrière le banc.
+  const dansLeDepistage = e => {
     if (!actif()) return;
-    if (e.target.closest('.hub-dep-ouvrir') && soir) soir.ouvrirDepistage();
+    const c = e.target.closest('.dep3-appliquer');
+    if (c && volet.contains(c)) appliquerConseil(c);
     else if (e.target.closest('.hub-vers-lignes') && onBanc) { quitter(); onBanc(jour); }
   };
-  if (soirEnVolet) volet.addEventListener('click', dansLeSoir);
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', dansLaMain); volet.removeEventListener('keydown', dansLaMain); volet.removeEventListener('click', dansLeSoir); };
+  if (soirEnVolet) volet.addEventListener('click', dansLeDepistage);
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', dansLaMain); volet.removeEventListener('keydown', dansLaMain); volet.removeEventListener('click', dansLeDepistage); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -3041,12 +2979,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
 
   /*
-   * LE PROCHAIN MATCH, EN UNE LIGNE AU BUREAU (V8) : qui, quand, où, s'il est gros ; le toucher ouvre « Ce soir », où il
-   * se prépare.
+   * LE PROCHAIN MATCH, EN UNE LIGNE AU BUREAU (V8) : qui, quand, où, s'il est gros ; le toucher ouvre Effectif ›
+   * Dépistage, où il se prépare.
    */
   function prochainHtml(p, adv, quand, domicile, mb) {
     const G0 = mb && MINI_BOSS[mb.raison];
-    return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" data-ouvre-soir>
+    return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" data-ouvre-depistage>
       <span class="bu-prochain-logo" aria-hidden="true">${ctx.logo(adv.tag, 28)}</span>
       <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'}</small>
         <b>${ctx.esc(ctx.teamShort(adv))}</b>${G0 ? `<small class="bu-prochain-gros">${G0.ico} Gros match · ${ctx.esc(G0.nom)}</small>` : ''}</span>
@@ -3127,7 +3065,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
        * l'affiche ; ce qu'on en sait (leurs pistes, leur main, l'enjeu) vit
        * dans le dépistage, qui s'ouvre au toucher.
        */
-      // V12-4 : à « Ce soir », le gros match tient en une ligne ; son pourquoi et l'événement pris vont au dépistage.
+      // V12-4 : le gros match tient en une ligne ; son pourquoi et l'événement pris vont au dépistage.
       const grosPourquoi = mb && MINI_BOSS[mb.raison] ? `<div class="hub-gros-tete">${MINI_BOSS[mb.raison].ico} <b>Gros match · ${ctx.esc(MINI_BOSS[mb.raison].nom)}</b>${soirEnVolet ? '' : ` — ${ctx.esc(MINI_BOSS[mb.raison].mot)}`}</div>` : '';
       const grosAvant = Ao ? `<div class="hub-gros-avant">${Av.ico} Événement : ${ctx.esc(Av.titre)} — <b>${ctx.esc(Ao.nom)}</b></div>` : '';
       const miniBoss = grosPourquoi ? `<div class="hub-gros aux-couleurs" style="${varsEquipe(ctx.band(mb.adv.tag))}">
@@ -3161,7 +3099,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const detailDuSoir = `${forces.detail}${totauxHtml}${enJeuHtml}<div class="hub-match-note">${dernierMot}</div>`;
       // LE SOIR EN DEUX GESTES (V7, JP : *les 4 onglets aperçu, préparation, match, résultats sont useless*) : le
       // dépistage et les lignes, deux boutons sous l'affiche ; « Regarder » est dans la barre, hier dans le volet.
-      const gestes = `<div class="hub-soir-gestes"><button type="button" class="btn hub-dep-ouvrir">🔎 Dépistage</button>${onDecision && onBanc ? `<button type="button" class="btn gold hub-vers-lignes">🏒 ${soirEnVolet ? 'Tes lignes' : 'Lignes'}</button>` : ''}</div>`;
+      const gestes = `<div class="hub-soir-gestes"><button type="button" class="btn hub-dep-ouvrir">🔎 Dépistage</button>${onDecision && onBanc ? `<button type="button" class="btn gold hub-vers-lignes">🏒 Lignes</button>` : ''}</div>`;
       // LE VRAI CALENDRIER (1.0, oct.) : le match se dit par son numéro et par quand il tombe.
       const quand = p.j === jour ? 'ce soir' : p.j === jour + 1 ? 'demain' : `dans ${p.j - jour} jours`;
       const formeA = formeHtml(p.m.A), formeB = formeHtml(p.m.B);
@@ -3175,25 +3113,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>${surveiller}
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
-      // Le dépistage : une page du Club, calculée à l'ouverture.
+      // Le dépistage, calculé à l'ouverture : le sous-onglet d'Effectif en Rogue, une page du Club ailleurs.
+      // Sous Effectif, il tient en un écran : tes chances et ce que tu peux faire, le reste se déplie.
+      const corpsDuDepistage = () => {
+        const d = depistageMatchHtml(p);
+        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}${d.conseils}</div></div>`;
+        return `<div class="hub-dep-corps">${d.chances}${d.conseils}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+      };
       const ouvrirDepistage = () => {
-        const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`,
-          html: `<div class="hub-dep-corps">${soirEnVolet ? duelHtml(adv, { complet: true }) : ''}${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${depistageMatchHtml(p)}</div></div>` });
+        const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
         brancherConseils(corps);
         // Un conseil appliqué ferme la page avant de rejouer la saison depuis ce soir.
         corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { ui.fermerPage(true); if (f) f.call(b, e); }; });
       };
       if (soirEnVolet) {
-        /*
-         * CE SOIR (V8, docs/refonte-v8.md). JP : *organiser l'information de façon claire, actionnable et basée sur
-         * l'intention*. Préparer le match est une intention : l'affiche, leur plan, ce qui est en jeu, tes cartes du soir
-         * et tes lignes vivent ensemble dans « Ce soir ». Le Bureau ne garde du match qu'une ligne qui y mène.
-         */
-        // V12-4 : « Tes lignes » y mène, et « Avantage … » vit au dépistage : l'affiche tient en un écran.
-        soir = { jour, html: `${miniBoss}<div class="hub-match hub-match-soir">${affiche}${gestes}</div>`, ouvrirDepistage };
+        // Plus d'écran par match (JP, 23 oct.) : le Bureau garde une ligne, qui ouvre Effectif › Dépistage et « Tes lignes ».
+        soir = { jour, html: () => `${miniBoss}${onBanc ? '<div class="hub-soir-gestes"><button type="button" class="btn gold hub-vers-lignes">🏒 Tes lignes</button></div>' : ''}${corpsDuDepistage()}` };
         // V12-2 : le mandat et l'objectif vivent au sous-onglet du proprio ; le Bureau ne garde du match qu'une ligne.
         carte.innerHTML = prochainHtml(p, adv, quand, domicile, mb);
-        carte.querySelector('[data-ouvre-soir]').onclick = () => tabs.montrer('soir');
+        carte.querySelector('[data-ouvre-depistage]').onclick = () => tabs.montrer('depistage');
       } else {
         // V7 : le Bureau dit d'abord ce que le proprio attend (la run, son objectif, ton coach), puis le match.
         carte.innerHTML = `${etatHtml()}${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>`;
@@ -3206,7 +3144,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       soir = null;
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les ${ctx.esc(you.name)} ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
-    if (soirEnVolet && tabs.courant() === 'soir') tabs.rafraichir();
+    if (soirEnVolet && tabs.courant() === 'depistage') tabs.rafraichir();
     /*
      * LA BOÎTE DE RÉCEPTION (S78). JP, sur sa capture du hub : *t'as plusieurs
      * call to action, y'avait aussi un ballottage, c'est beaucoup pour un
@@ -3292,7 +3230,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // dans son moment — ou passer. Les cartes de match sont parties avec la main du duel (docs/refonte-v13.md).
       const prendre = d => { const j = jour, s = soirDuProchain(); quitter(); onDecision({ jour: s, palier: `r:${rc.jour}`, ...d }, j); };
       // LA SCÈNE (Jalon M, A6) : l'entraîneur, sur le pointage de la feuille et tes places.
-      const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you, pl = placesDuBureau();
+      const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you, pl = tesPlaces();
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), cartes: pl ? pl.places.length : 0, max: PLACES, graine: `${graine}|${rc.jour}` }) : null;
       specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
         recit: `Une carte parmi trois, pour une place. ${PLACES} places : une de trop se vend.`,
@@ -3617,9 +3555,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     /*
      * UNE CARTE DE TROP (V9, tranche 5b) : plus de cartes que de places, À faire demande laquelle vendre, et la journée
-     * attend. Jouer une carte règle aussi le compte : « Ce soir » les montre toutes.
+     * attend. Jouer une carte règle aussi le compte : le Marché › Tes cartes les montre toutes.
      */
-    const pl = ctx.rogue && ctx.inventaire && ctx.inventaire.places ? ctx.inventaire.places(jour) : null;
+    const pl = tesPlaces();
     if (pl && pl.trop > 0) {
       // LA SCÈNE (Jalon M, A7) : le préposé à l'équipement, et le gros match s'il est annoncé (ce soir ou demain).
       const g = [0, 1].map(d => ({ dans: d, mb: grosDuJour(jour + d) })).find(x => x.mb && !x.mb.joue);

@@ -2754,3 +2754,15 @@ Ce qui change :
 - **Plié dessous** : le tir par tir et le fil complet du match.
 
 Rien ne change aux chiffres : chacun vient toujours de la feuille.
+
+## Plus d'écran par match : le dépistage sous Effectif (23 oct. 2026)
+
+JP : *pas besoin d'écran par match, mettre les stratégies avec les lignes ou quelque part de même* ; *en gros, organise plus comme EHM, avec moins de trucs qui servent pas*. La V8 avait donné au match son onglet, « Ce soir » : l'affiche, le dépistage, tes places, « En jeu » et la pose en touchant.
+
+Ce qui change :
+- **Quatre sections**, comme les écrans d'un jeu de gestion : Bureau, Effectif, Marché, Ligue.
+- **Effectif › Dépistage** (`voletDepistage`, js/saison.js) : « Tes lignes » en tête, puis le dépistage complet (leur plan, les forces, ce qui est en jeu, les conseils qui s'appliquent). Le pronostic se calcule à l'ouverture, une fois par journée. La ligne du match au Bureau y mène.
+- **Tes places se jouent au Marché › Tes cartes**, que l'inventaire portait déjà (l'onglet « Tes places », Jouer et Vendre). La pastille des cartes à jouer y va.
+- **Ce qui part**, faute de servir ailleurs : l'affiche du soir, les places de l'écran de saison, la pose d'une modif en touchant son joueur (`ciblesDeLaModif`, `poserLaModif`), la carte de la place en grand (`ouvrirCarteDeLaPlace`), et `placeDe`.
+
+Le choix des maisons : JP a pris la proposition (le match en une ligne au Bureau, le dépistage sous Effectif, les places au Marché) plutôt que « tout dans les Lignes » ou « tout au Bureau ».
