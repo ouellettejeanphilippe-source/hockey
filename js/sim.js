@@ -3842,7 +3842,7 @@ export function badgeGardien(g) {
   const cle = STYLE_DU_GARDIEN[archetypeKey(g)];
   if (!cle) return null;
   const svLigue = 1 - seasonLancers(g.s)[1] / 100;
-  const [e, S] = cle === 'fer' ? [g.gp / seasonGames(g.s), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
+  const [e, S] = cle === 'fer' ? [Math.min(1, g.gp / matchsDeSaSaison(g)), SEUILS_PALIER_FER] : [(g.sv || svLigue) - svLigue, SEUILS_PALIER_G];
   const brut = e >= S[2] ? 4 : e >= S[1] ? 3 : e >= S[0] ? 2 : 1;
   // Monter un palier (V2.4) : la variante de sa carte (un, deux ou trois) et la carte d'entraînement.
   const palier = Math.min(4, brut + (VARIANTE_PALIERS_G[(g._carte && g._carte.rar) || 'commune'] || 0) + (g._palier || 0) + (g._galon || 0));
@@ -5087,8 +5087,19 @@ const shuffle = a => {
 };
 
 /** Part des matchs joués par le joueur dans sa vraie saison (0-1). */
+/*
+ * LES MATCHS DE SON ÉQUIPE (oct., JP : *on peut pas dire qu'un joueur est fragile s'il a joué dix matchs sur dix*). La
+ * part de sa saison se compte sur les matchs que SON équipe a joués cette saison-là, lus du shard (`an[équipe].gp` :
+ * 6 à 10 en 2026-27, qui se joue encore ; 80 en 1985-86) ; `seasonGames` en repli, pour un shard qui ne les porte pas.
+ * Le chargeur d'un shard les retient (`retenirMatchsDuShard` : js/repechage.js `getShard`, scripts/lib/rogue_sim.mjs).
+ */
+const MATCHS_D_EQUIPE = new Map();
+export function retenirMatchsDuShard(shard) {
+  for (const [t, x] of Object.entries((shard && shard.an) || {})) if (x && x.gp > 0) MATCHS_D_EQUIPE.set(`${shard.season}|${t}`, x.gp);
+}
+export const matchsDeSaSaison = p => MATCHS_D_EQUIPE.get(`${p.s}|${p.t}`) || seasonGames(p.s);
 function gpShare(p) {
-  return Math.max(0, Math.min(1, (p.gp || 0) / seasonGames(p.s)));
+  return Math.max(0, Math.min(1, (p.gp || 0) / matchsDeSaSaison(p)));
 }
 
 /** Probabilité de blessure à un match donné. */

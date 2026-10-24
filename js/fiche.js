@@ -6,8 +6,8 @@
 import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
-import { seasonLancers, passesRelatives, ageAtSeason, seasonGames } from './ratings.js';
-import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
+import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
+import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
@@ -105,7 +105,7 @@ function surLaGlaceHtml(p) {
   const lignes = [];
   // FRAGILE (V2.2) : ce que sa vraie saison a de matchs manqués pèse sur ses blessures — le moteur le lit, la fiche le dit.
   const fr = fragiliteDe(p);
-  if (fr >= FRAGILE_DES) lignes.push(li(`Il n'a joué que ${p.gp || 0} matchs sur ${seasonGames(p.s)} dans sa vraie saison : il se blesse environ ${Math.round(fr)} fois plus qu'un joueur qui les a tous joués.`, 'prix'));
+  if (fr >= FRAGILE_DES) lignes.push(li(`Il n'a joué que ${p.gp || 0} matchs sur ${matchsDeSaSaison(p)} dans sa vraie saison : il se blesse environ ${Math.round(fr)} fois plus qu'un joueur qui les a tous joués.`, 'prix'));
   if (p.p === 'G') {
     // SON BADGE (V2.3) : le canal que son % d'arrêts ne porte pas, avec le chiffre net que le moteur joue (`netBadgeGardien`).
     const b = badgesDe(p)[0], n = suiteLibreDe(p);

@@ -49,7 +49,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  SLOTS, autoRoster, registerHiddenRatings, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
+  SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
   ecoleDe, rivauxOfferts, RIVAUX, TACTIQUES, SYSTEMES_D, styleOuvert, avecHasardIsole, lignesAuMieux, activeLineup, teamStrength,
 } from '../../js/sim.js';
@@ -79,6 +79,7 @@ export function shard(s) {
   if (!CACHE.has(s)) {
     const e = JSON.parse(fs.readFileSync(path.join(DIR, `${s}.json`), 'utf8'));
     e.players.forEach(registerHiddenRatings);
+    retenirMatchsDuShard(e);
     e.byTeam = {};
     for (const p of e.players) (e.byTeam[p.t] = e.byTeam[p.t] || []).push(p);
     CACHE.set(s, e);
