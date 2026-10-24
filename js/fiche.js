@@ -595,6 +595,20 @@ function montrerFace(carte, auVerso) {
   recto.setAttribute('aria-hidden', String(auVerso));
   dos.setAttribute('aria-hidden', String(!auVerso));
   if (bouton) { bouton.textContent = auVerso ? '↻ Recto' : '↻ Verso'; bouton.setAttribute('aria-label', auVerso ? 'Revenir au recto' : 'Retourner la carte'); }
+  if (auVerso) serrerVerso(dos);
+}
+/*
+ * LE DOS TIENT DANS SA CARTE (oct. 2026, JP : *améliorer un peu les arrières de cartes pour que ça fitte plus*). Le dos
+ * a la taille du recto, 5:7 ; ce qu'il porte varie (une Holo, une carte qui joue, ses saisons de run). Trop plein, il
+ * descend ses tailles d'un cran, puis d'un autre (`serre-1`, `serre-2`, style.css) ; au-delà, il défile.
+ */
+function serrerVerso(dos) {
+  dos.classList.remove('serre-1', 'serre-2');
+  for (const k of ['serre-1', 'serre-2']) {
+    if (dos.scrollHeight <= dos.clientHeight + 1) return;
+    dos.classList.remove('serre-1');
+    dos.classList.add(k);
+  }
 }   // les deux moitiés du tour, en ms (style.css, `cj-tourne-1/2`)
 function brancherRetournement(carte) {
   if (!carte) return;
@@ -665,8 +679,9 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
   const age = ageAtSeason(p.bd, p.s);
   if (age) vit.push(['Âge', `${age} ans`]);
   const faits = [rangDansLaLigue(p)].filter(Boolean);
-  if (p.x) faits.push('Échangé en cours de saison : il a porté deux chandails cette année-là.');
-  if (rarete === 'legendaire') faits.push(`Tirage limité · exemplaire ${tirageLimite(getPlayerKey(p), num || (G.variantes.numeros || {})[getPlayerKey(p)] || '/99')}`);
+  if (p.x) faits.push('Échangé en cours de saison : deux chandails cette année-là.');
+  // Le tirage d'une Holo se lit au pied, à droite, comme le numéro estampé d'une vraie carte numérotée.
+  const tirage = rarete === 'legendaire' ? tirageLimite(getPlayerKey(p), num || (G.variantes.numeros || {})[getPlayerKey(p)] || '/99') : '';
   /*
    * LE PIED D'UN VRAI VERSO (S80) : la ligne légale de l'imprimeur, en petits
    * caractères — « © 1985 O-Pee-Chee » disait l'année de la série sans la
@@ -681,7 +696,7 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
-    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span></div>
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span>${tirage ? `<span class="cjv-tirage" title="Tirage limité">Tirage ${tirage}</span>` : ''}</div>
   </div>`;
 }
 
