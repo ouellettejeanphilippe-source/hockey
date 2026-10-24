@@ -428,13 +428,14 @@ export function anneeDeCarte(saison) {
  * carte la prend : en Base et en Cadre, elle remplit la fenêtre de sa série ; au Hors-cadre, à l'Or et à la
  * Holo, elle sort du cadre et prend toute la carte. Le portrait reste pour qui n'a pas de photo d'action.
  */
-export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id)))) || '';
+// La photo de SA saison (`p.s`, à son club `p.t`) d'abord, s'il y en a une (scripts/actions_saisons.mjs) ; sinon la générale.
+export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id, p.s, p.t)))) || '';
 /*
  * LE CADRE DE LA PHOTO (oct. 2026, JP : *try fit according to the space the picture will be in*). Le centre du visage
  * dans la photo d'action (`cadreAction`, js/actions.js), ou null ; la fenêtre de chaque série y pose la face
  * (`.photo-cadree`, style.css).
  */
-export const cadrePhoto = p => (p && p.id && cadreAction(p.id)) || null;
+export const cadrePhoto = p => (p && p.id && cadreAction(p.id, p.s, p.t)) || null;
 const styleCadre = c => (c ? ` style="--fx:${c[0]};--fy:${c[1]}"` : '');
 
 /*

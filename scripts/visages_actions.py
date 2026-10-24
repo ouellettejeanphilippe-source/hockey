@@ -28,7 +28,8 @@ LA FACE DANS LA FENÊTRE (oct. 2026). JP, devant Nabokov sous la rampe de Projec
 the picture will be in*. Chaque série rogne la photo 5:7 à la forme de sa fenêtre ; pour y poser la face, la carte doit
 savoir où elle est dans la photo RECADRÉE. `--cadres` passe le même détecteur sur img/actions/*.webp, après
 scripts/actions.mjs (qui réécrit data/actions.json), et écrit `cadres` : { id → [centre x, centre y] de la face, en
-fractions }. Seule une face sûre compte (confiance 0,7 ou plus, moins de 60 % de la largeur) : sans elle, la série
+fractions } ; pour une photo de saison (img/actions/{id}-{saison}.webp, scripts/actions_saisons.mjs), le 7e champ de
+son entrée dans `saisons`. Seule une face sûre compte (confiance 0,7 ou plus, moins de 60 % de la largeur) : sans elle, la série
 cadre seule. js/cartes.js le pose sur l'image (`--fx`, `--fy`), style.css la place (`.photo-cadree`).
 
     python3 scripts/visages_actions.py --cadres [modele.onnx]
@@ -93,23 +94,33 @@ if SORTIE_JSON:
 
 LISTE = os.path.join(RACINE, 'data', 'actions.json')
 liste = json.load(open(LISTE))
+def cadre(nom):
+    """Le centre de la face sûre dans une photo 5:7 de img/actions, [x, y] en fractions, ou None."""
+    im = cv2.imread(os.path.join(BRUT, f'{nom}.webp'))
+    if im is None:
+        return None
+    h, w = im.shape[:2]
+    det.setInputSize((w, h))
+    _, faces = det.detect(im)
+    if faces is None or not len(faces):
+        return None
+    f = max(faces, key=lambda r: r[2] * r[3] * r[14])
+    if f[14] >= 0.7 and f[2] <= 0.6 * w:
+        return [round(float(f[0] + f[2] / 2) / w, 2), round(float(f[1] + f[3] / 2) / h, 2)]
+    return None
+
+
 if CADRES:
-    cadres = {}
-    for i in liste['ids']:
-        im = cv2.imread(os.path.join(BRUT, f'{i}.webp'))
-        if im is None:
-            continue
-        h, w = im.shape[:2]
-        det.setInputSize((w, h))
-        _, faces = det.detect(im)
-        if faces is None or not len(faces):
-            continue
-        f = max(faces, key=lambda r: r[2] * r[3] * r[14])
-        if f[14] >= 0.7 and f[2] <= 0.6 * w:
-            cadres[str(i)] = [round(float(f[0] + f[2] / 2) / w, 2), round(float(f[1] + f[3] / 2) / h, 2)]
+    cadres = {str(i): c for i in liste['ids'] for c in [cadre(i)] if c}
     liste['cadres'] = cadres
-    json.dump(liste, open(LISTE, 'w'), separators=(',', ':'))
-    sys.exit(print(f"  {len(cadres)} faces cadrées sur {len(liste['ids'])} photos"))
+    # Les photos de saison (scripts/actions_saisons.mjs) : le cadre est le 7e champ de leur entrée.
+    n_saisons = 0
+    for i, parSaison in liste.get('saisons', {}).items():
+        for s, e in parSaison.items():
+            e[6] = cadre(f'{i}-{s}')
+            n_saisons += e[6] is not None
+    json.dump(liste, open(LISTE, 'w', encoding='utf-8'), separators=(',', ':'), ensure_ascii=False)
+    sys.exit(print(f"  {len(cadres)} faces cadrées sur {len(liste['ids'])} photos ; {n_saisons} photos de saison"))
 visages = {}
 for i in liste['ids']:
     v = visage(os.path.join(BRUT, f'{i}.jpg'))
