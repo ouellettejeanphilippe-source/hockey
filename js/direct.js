@@ -23,7 +23,7 @@
  * fonctions d'affichage de js/game.js (noms, écussons, échappement).
  */
 
-import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure, INTENTIONS } from './sim.js';
+import { periodeDe, PLANS_ADV, BAGARRE_JAMBES, ELAN_DUREE, motDeBlessure, INTENTIONS, PLANS } from './sim.js';
 import { tempsRestant, NOM_PERIODE, nomCourt, profil } from './recit.js';
 import { commentateur, nomDeMicro } from './commentaire.js';
 import { causeDuBut } from './causes.js';
@@ -362,14 +362,13 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   etat.innerHTML = '';
   ligne('debut', `${ctx.esc(com.debut())} <b>${ctx.esc(cap(ctx.teamShort(A)))}</b> contre <b>${ctx.esc(ctx.teamShort(B))}</b>${titre ? `, ${ctx.esc(titre.toLowerCase())}` : ''}${sousTitre ? `, ${ctx.esc(sousTitre.toLowerCase())}` : ''}.`);
   /*
-   * LE DUEL (V9) : chaque période dit leur intention, si elle est contrée, et tes cartes de la période — la 1re avant
-   * la mise au jeu, les suivantes au début de leur période.
+   * LE DUEL (V9 ; V17) : chaque période dit leur intention et ton plan — la 1re avant la mise au jeu, les suivantes
+   * au début de leur période.
    */
   const du = f.duel || null;
   const motPeriode = k => {
-    const h = du.periodes[k], I = INTENTIONS[h.intention.cle];
-    const c = (h.cartes || []).filter(x => CARTES_MATCH[x]).map(x => `${CARTES_MATCH[x].ico} ${ctx.esc(CARTES_MATCH[x].nom)}`);
-    return `⚔ <b>${['1re', '2e', '3e'][k]} période</b> · ${I.ico} ${ctx.esc(I.nom)}${h.intention.cible ? ` sur ${ctx.esc(nom(h.intention.cible))}` : ''} — ${h.contree === 'pleine' ? 'contrée' : h.contree === 'demi' ? 'à moitié contrée' : 'elle frappe'}${c.length ? ` · tu joues ${c.join(' · ')}` : ''}.`;
+    const h = du.periodes[k], I = INTENTIONS[h.intention.cle], P = PLANS[h.plan] || PLANS.match;
+    return `⚔ <b>${['1re', '2e', '3e'][k]} période</b> · ${I.ico} ${ctx.esc(I.nom)}${h.intention.cible ? ` sur ${ctx.esc(nom(h.intention.cible))}` : ''} — ton plan : ${P.ico} ${ctx.esc(P.nom)}`;
   };
   if (du && du.periodes[0]) ligne('debut cartes', motPeriode(0));
   // LES CARTES DU SOIR (S74) : ce que tu as joué se dit avant la mise au jeu, et ce qu'elles ont fait de leur plan.

@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty } from './sim.js';
+import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -139,7 +139,8 @@ function cle(team, lu, adv, opts) {
     return J([team.name, team.jourCourant, team.games, joueurs, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
       team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.speciales, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
-      opts.nu, opts.neutre, opts.n, opts.series, opts.plan]);
+      opts.nu, opts.neutre, opts.n, opts.series, opts.plan, opts.duel,
+      opts.intention && [opts.intention.cle, opts.intention.cible ? getPlayerKey(opts.intention.cible) : null, opts.intention.par ? getPlayerKey(opts.intention.par) : null]]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
 }
 function lire(team, lu, adv, opts) {
@@ -488,7 +489,7 @@ export function unitesDuSoir(team, lineup, adv, lignes = null) {
  */
 const N_LIGNES = 500;
 /** La différence de deux jeux de lignes (quatre `{ tac, tacD, agr, sec }`), en mots de match. */
-export function lignesEnChiffres(team, lineup, adv, lignes, contre) {
+function lignesEnChiffres(team, lineup, adv, lignes, contre) {
   if (!team) return [];
   const a = lire(team, lineup, adv, { lignes, n: N_LIGNES }), b = lire(team, lineup, adv, { lignes: contre, n: N_LIGNES });
   const d = differences(a, b), out = lignesDe(d);
@@ -521,6 +522,68 @@ export function planEnChiffres(team, lineup, adv, cle) {
   if (!team) return null;
   const avec = lire(team, lineup, adv, { plan: cle, n: N_EFFET }), sans = lire(team, lineup, adv, { plan: 'match', n: N_EFFET });
   return { stats: statsEntre(avec, sans), net: (avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre) };
+}
+
+/*
+ * LEUR INTENTION, EN VRAIES STATS DE LA PÉRIODE (V17). Leur plan se lit comme le tien : la période avec leur
+ * intention contre la même période sans elle, au duel (`FORCE_DUEL`), le tiers d'un match. Le canal qui le définit
+ * vient en premier (🦂 tes punitions, ⛔ tes tirs, 🐗 leurs tirs, 🦈 leurs punitions, 🥷 tes tirs), puis son prix ;
+ * ce qui est à eux se dit « Eux : ». Rend [{ cle, txt, bon }].
+ */
+const ORDRE_DE_LINTENTION = { cachot: ['punitions', 'contre', 'punitionsEux'], centre: ['tirs', 'contre'], assaut: ['contre', 'punitionsEux', 'tirs'], chasse: ['punitionsEux', 'tirs', 'contre'], ombre: ['tirs', 'contre'] };
+const SEUIL_INTENTION = { tirs: 0.1, contre: 0.1, punitions: 0.05, punitionsEux: 0.05 };
+export function intentionEnChiffres(team, adv, intention, { n = N_EFFET } = {}) {
+  if (!team || !intention || !ORDRE_DE_LINTENTION[intention.cle]) return [];
+  const avec = lire(team, null, adv, { intention, duel: true, n }), sans = lire(team, null, adv, { duel: true, n });
+  const d = { tirs: (avec.tirsPour - sans.tirsPour) / 3, contre: (avec.tirsContre - sans.tirsContre) / 3,
+    punitions: (avec.punitions - sans.punitions) / 3, punitionsEux: (avec.punitionsEux - sans.punitionsEux) / 3 };
+  const dire = {
+    tirs: x => ({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')} pour toi la période`, bon: x > 0 }),
+    contre: x => ({ txt: `Eux : ≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'tir', 'tirs')} la période`, bon: x < 0 }),
+    punitions: x => ({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} pour toi la période`, bon: x < 0 }),
+    punitionsEux: x => ({ txt: `Eux : ≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, 'punition', 'punitions')} la période`, bon: x > 0 }),
+  };
+  return ORDRE_DE_LINTENTION[intention.cle].filter(k => Math.abs(d[k]) >= SEUIL_INTENTION[k]).map(k => ({ cle: k, ...dire[k](d[k]) }));
+}
+
+/*
+ * CE QUE TON ADJOINT PROPOSE À L'ENTRACTE (V17, docs/refonte-v17.md § 3). JP : *les gros matchs, je veux que mon adjoint
+ * propose des ajustements à chaque période, j'en choisis un, il impacte la simulation* ; et la boussole : *quelqu'un qui
+ * a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement*. Un écran court : l'adjoint parle, deux ou
+ * trois plans nets. Ses idées viennent de son œil de hockey (`IDEES_DE_LADJOINT` : leur intention, le pointage, tes
+ * jambes), pas du moteur : il peut se tromper, ou deux idées s'équivalent. Chacune se dit ensuite en vraies stats de
+ * LA période (le tiers d'un match : la lecture avec elle contre la lecture avec ton plan en force, sous leur intention,
+ * les mêmes dés). `net` : les buts nets qu'elle change sur la période, ce que le robot attentif lit.
+ *   team, adv : les deux clubs ; intention : la leur (`apercuDuDuel`, ou la période du moteur) ; plan : ton plan en force
+ *   ({ cle } ou null : Ton match) ; pointage : { moi, lui } avant la période ; k : la période (0 à 2) ; n : les lancers lus
+ */
+const IDEES_DE_LADJOINT = { ombre: ['tirer', 'assaut'], chasse: ['discipline', 'centre'], centre: ['tirer', 'assaut'], assaut: ['centre', 'discipline'], cachot: ['discipline', 'centre'] };
+const IDEES_MAX = 3, JAMBES_LOURDES = 75;
+export function propositionsDuDuel(team, adv, { intention, plan = null, pointage = { moi: 0, lui: 0 }, k = 0, n = N_EFFET } = {}) {
+  if (!team || !intention) return [];
+  const enForce = plan && PLANS[plan.cle] ? plan.cle : 'match';
+  const idees = [];
+  const ajouter = (cle, raison) => { if (cle !== enForce && PLANS[cle] && !idees.some(x => x.cle === cle)) idees.push({ cle, raison }); };
+  // En 3e, le pointage d'abord : on protège une avance, on pousse pour remonter.
+  if (k === 2 && pointage.moi > pointage.lui) ajouter('centre', 'mene');
+  if (k === 2 && pointage.moi < pointage.lui) ajouter('assaut', 'traine');
+  const habilles = Object.values(activeLineup(team)).filter(p => p && p.p !== 'G');
+  const jambes = habilles.length ? habilles.reduce((a, p) => a + energieDe(p), 0) / habilles.length : 100;
+  for (const cle of IDEES_DE_LADJOINT[intention.cle] || []) {
+    // Des jambes lourdes : pas de plan qui use.
+    if (jambes < JAMBES_LOURDES && (cle === 'tirer' || cle === 'assaut')) { ajouter('discipline', 'jambes'); continue; }
+    ajouter(cle, intention.cle);
+  }
+  ajouter('ombre', 'vedette');
+  const lu = p => lire(team, null, adv, { plan: p, intention, duel: true, n });
+  const sans = lu(enForce);
+  const { vedette, colle } = cibleDuPlan(activeLineup(team), adv ? activeLineup(adv) : null);
+  return idees.slice(0, IDEES_MAX).map(x => {
+    const avec = lu(x.cle), d = statsEntre(avec, sans);
+    const stats = { tirs: d.tirs / 3, pctTir: d.pctTir, contre: d.contre / 3, pctArr: d.pctArr };
+    return { ...x, stats, net: ((avec.butsPour - avec.butsContre) - (sans.butsPour - sans.butsContre)) / 3,
+      ...(PLANS[x.cle].vedette && vedette ? { vise: getPlayerKey(vedette), vedette, colle } : {}) };
+  });
 }
 
 /*
