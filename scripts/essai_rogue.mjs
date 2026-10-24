@@ -1340,7 +1340,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
   }
   /*
    * L'ÉCHANGE D'UN DOUBLON (Jalon P3) : le doublon le plus fourni du cartable (trois copies de CARTES[1], 1995-96) donne
-   * trois joueurs de sa série de cartons (Filet : 1995-96 à 1998-99), pas encore au cartable ; signé, le doublon perd une
+   * trois joueurs de son époque (1995-96 à 1998-99, `epoqueDe`), pas encore au cartable, et nomme sa série (une par saison : Réfracteur) ; signé, le doublon perd une
    * copie et le nouveau entre au cartable.
    */
   await versLEffectif();
@@ -1358,7 +1358,7 @@ if (!(await page.$('#pageMarche:not([hidden]) .hub-page[data-genre="cartes"]')))
     const horsSerie = lu.cles.filter(k => !['1995-96', '1996-97', '1997-98', '1998-99'].includes(k.split('_')[0]));
     if (lu.cles.length !== 3) erreurs.push(`l'échange offre ${lu.cles.length} joueurs au lieu de trois`);
     if (horsSerie.length) erreurs.push(`l'échange offre des joueurs hors de la série du doublon : ${horsSerie.join(', ')}`);
-    if (!/Il part : .+, série Filet/.test(lu.recit)) erreurs.push(`l'échange ne dit pas quel doublon part : « ${lu.recit} »`);
+    if (!/Il part : .+, série Réfracteur/.test(lu.recit)) erreurs.push(`l'échange ne dit pas quel doublon part : « ${lu.recit} »`);
     const n0 = (await decisions()).length;
     const signable = await page.$('#signatureModal .pcard:not(.locked) .btn-sign:not([disabled])');
     if (signable) {
