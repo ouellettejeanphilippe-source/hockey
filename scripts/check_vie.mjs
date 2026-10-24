@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, MOMENTS, SEQUENCES, MUTATIONS, effetDeMoment, pariDeDecision, ciblesDe, getPlayerKey, SLOTS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, MOMENTS, FAITS, SEQUENCES, MUTATIONS, effetDeMoment, pariDeDecision, ciblesDe, getPlayerKey, SLOTS } from '../js/sim.js';
 import { effetEnChiffres } from '../js/impact.js';
 import { courrielsDe, echangeDe, REPONSES_VIE, PUNITIONS_SERMON, joueurDuFait } from '../js/vie-gm.js';
 import { formeDe } from '../js/gerant.js';
@@ -91,7 +91,7 @@ exiger('chaque courriel a une réponse dans les canaux du métier de son expédi
 /* ---------- 3. les amplitudes ---------- */
 const CANAUX = ['volume', 'finition', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const lesPlusGrosses = {};
-for (const [, fam] of [...Object.entries(MOMENTS).filter(([k]) => !k.startsWith('vie_')), ...Object.entries(SEQUENCES)]) {
+for (const fam of [...Object.values(MOMENTS), ...Object.values(SEQUENCES)]) {
   for (const o of fam.options) for (const c of CANAUX) {
     for (const v of [o[c], o.pari && o.pari.gagne[c], o.pari && o.pari.perd[c]].flat()) {
       if (typeof v === 'number' && c !== 'robustesse') { const m = lesPlusGrosses[c] || (lesPlusGrosses[c] = { min: 1, max: 1 }); m.min = Math.min(m.min, v); m.max = Math.max(m.max, v); }
@@ -221,8 +221,9 @@ exiger('le pari est tiré une seule fois', (t.paris || []).length === 1, `${(t.p
   const sans = sermon.faits({ ...base, punis: [] });
   const avec = sermon.faits({ ...base, punis: [{ p: joueur, n: PUNITIONS_SERMON, m: 2 }] });
   exiger('« La mise au point » ne sort pas sans les punitions', sans === null, String(sans));
+  const dit = avec && FAITS[sermon.fait].dire(avec);
   exiger('« La mise au point » nomme le joueur puni et ses vrais chiffres', avec && avec.joueur === joueur && avec.n === PUNITIONS_SERMON && avec.m === 2
-    && /\{n\} punitions en \{m\} matchs/.test(sermon.recit), avec ? `${avec.n} en ${avec.m}` : 'rien');
+    && dit === `Adam Foote : ${PUNITIONS_SERMON} punitions en 2 matchs`, dit || 'rien');
 }
 
 // LE JOUEUR DU FAIT (V11, tranche 5) : la question vise celui dont le fait vient, dans les feuilles qu'elle raconte, habillé.

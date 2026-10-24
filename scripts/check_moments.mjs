@@ -27,7 +27,7 @@ import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague,
   MOMENTS, SEQUENCES, STYLES, OBJECTIFS, JOURS_OBJECTIFS, MATCHS_OBJECTIF,
-  objectifsOfferts, etatObjectif, joueurDeLObjectif, momentDuJour, JOURS_MOMENTS, ciblesDe, SLOTS as CASES,
+  objectifsOfferts, etatObjectif, joueurDeLObjectif, momentDuJour, faitsDuClub, JOURS_MOMENTS, ciblesDe, SLOTS as CASES,
   MUTATIONS, cibleMutation, getPlayerKey, jourEvenement,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -96,19 +96,22 @@ console.log(`\n  ${LIGUES} ligues × 32 équipes\n`);
 const temoin = paires(null);
 exiger('sans décision, les deux passages sont identiques', temoin.v === 0 && temoin.bp === 0, `${temoin.n} paires`);
 
-/* ---------- les tirages : purs, et jamais deux fois le même dilemme ---------- */
+/* ---------- les tirages : purs, et jamais deux fois le même dilemme (sur les faits d'une vraie saison) ---------- */
 {
+  const teams = ligue(7700), L = simulateLeague(teams, 82, { graine: 'tirages' });
+  const miens = L.calendrier.flatMap((jour, j) => jour.filter(m => m.A === teams[0] || m.B === teams[0]).map(m => ({ j, m })));
+  const faits = j => faitsDuClub(teams[0], miens, j, L.calendrier.length);
   let doublon = null;
   for (let g = 1; g <= 60 && !doublon; g++) {
     const vus = [];
     for (const j of JOURS_MOMENTS) {
-      const m = momentDuJour(g, j, vus);
-      if (vus.includes(m)) doublon = `graine ${g} : ${m} deux fois`;
-      vus.push(m);
+      const m = momentDuJour(g, j, vus, faits(j));
+      if (m && vus.includes(m)) doublon = `graine ${g} : ${m} deux fois`;
+      if (m) vus.push(m);
     }
   }
   exiger('un dilemme ne revient pas dans la même partie', !doublon, doublon || '60 parties');
-  exiger('la même graine tire le même dilemme', momentDuJour(9, 33, []) === momentDuJour(9, 33, []), momentDuJour(9, 33, []));
+  exiger('la même graine tire le même dilemme', momentDuJour(9, 33, [], faits(33)) === momentDuJour(9, 33, [], faits(33)), momentDuJour(9, 33, [], faits(33)));
   exiger('la même graine offre les mêmes objectifs', objectifsOfferts(9, 41).join() === objectifsOfferts(9, 41).join(), objectifsOfferts(9, 41).join(' · '));
 }
 
@@ -152,7 +155,7 @@ exiger('sans décision, les deux passages sont identiques', temoin.v === 0 && te
   const cle = p => `${p.n}|${p.s}|${p.t}`;
   const { getPlayerKey } = await import('../js/sim.js');
   const decisions = [
-    { jour: J, equipe: 0, moment: { famille: 'moment', cle: 'lemieux', choix: 'menager', joueurs: [getPlayerKey(vedette)] } },
+    { jour: J, equipe: 0, moment: { famille: 'moment', cle: 'vie_vedette_repos', choix: 'repos', joueurs: [getPlayerKey(vedette)] } },
     { jour: J, equipe: 0, moment: { famille: 'moment', cle: 'zamboni', choix: 'conge', joueurs: [getPlayerKey(partant)] } },
   ];
   void cle;
@@ -164,15 +167,15 @@ exiger('sans décision, les deux passages sont identiques', temoin.v === 0 && te
     const cote = m.A === teams[0] ? 'A' : 'B';
     soirs.push({ habille: (m.feuille.alignes[cote] || []).includes(vedette), gardien: m.feuille[`gardien${cote}`] });
   }
-  exiger('une vedette ménagée deux matchs ne joue pas ces deux soirs-là', soirs.length === 3 && !soirs[0].habille && !soirs[1].habille, `${soirs.map(x => (x.habille ? 'habillé' : 'au vestiaire')).join(' · ')}`);
-  exiger('et revient au troisième', soirs.length === 3 && soirs[2].habille, soirs[2] ? (soirs[2].habille ? 'habillé' : 'au vestiaire') : '—');
+  exiger('une vedette ménagée un match ne joue pas ce soir-là', soirs.length === 3 && !soirs[0].habille, `${soirs.map(x => (x.habille ? 'habillé' : 'au vestiaire')).join(' · ')}`);
+  exiger('et revient au suivant', soirs.length === 3 && soirs[1].habille, soirs[1] ? (soirs[1].habille ? 'habillé' : 'au vestiaire') : '—');
   exiger('le gardien en congé laisse le filet à l\'auxiliaire deux soirs', soirs.length >= 2 && soirs[0].gardien !== partant && soirs[1].gardien !== partant,
     soirs.map(x => (x.gardien === partant ? 'le partant' : 'l\'auxiliaire')).join(' · '));
   void CASES;
 }
 
 /* ---------- les dilemmes, pris au premier jour de moment ---------- */
-// SEULEMENT=zamboni,lemieux : ne remesurer que ces clés (dilemmes et séquences).
+// SEULEMENT=zamboni,vie_vedette_repos : ne remesurer que ces clés (dilemmes et séquences).
 const SEULEMENT = process.env.SEULEMENT ? new Set(process.env.SEULEMENT.split(',')) : null;
 const garder = cle => !SEULEMENT || SEULEMENT.has(cle);
 console.log('\n  DILEMMES (dix journées)');

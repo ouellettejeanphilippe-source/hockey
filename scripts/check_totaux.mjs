@@ -190,7 +190,7 @@ const decisions = [
 {
   const teams = ligue(11);
   const paris = [];
-  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, moment: { famille: 'moment', cle: 'rats', choix: 'mascotte', joueurs: [] } });
+  for (let j = 2; j < 60; j += 3) paris.push({ jour: j, equipe: 0, moment: { famille: 'moment', cle: 'courbe', choix: 'laisser', joueurs: [] } });
   const L = creerLigue(teams, 82, { graine: 'paris', decisions: paris });
   const dits = paris.map(d => pariDeDecision(d, L.graine));
   jouerJusqua(L, 62);

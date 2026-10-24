@@ -6,7 +6,7 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
-import { registerHiddenRatings, famillesDe, FAMILLES, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
+import { registerHiddenRatings, retenirMatchsDuShard, famillesDe, FAMILLES, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
@@ -53,6 +53,7 @@ const PPG_MATCHS_MIN = 20;
 export async function getShard(label) {
   if (G.shards.has(label)) return G.shards.get(label);
   const shard = await loadSeason(label);
+  retenirMatchsDuShard(shard);
   const recrues = new Set((await chargerRecrues())[label] || []);
   const byTeam = {};
   for (const p of shard.players) {
