@@ -30,3 +30,95 @@ Une petite PR chacune ; le juge de chacune est nommé.
 
 - **Ce soir à un écran** : 1,5 à 1,8 écran selon le soir (l'affiche, les lignes et les places).
 - **Le Bureau à un écran** : 1,35 à 1,7 écran ; ce qui varie, c'est « Hier soir » (le drame, la une, les nouvelles).
+
+## La revue du 25 octobre : contre EHM, New Star Soccer et MLB The Show
+
+JP, 25 oct. : *les écrans du Rogue, je les passe un à un contre EHM, New Star Soccer et MLB The Show, et je te montre ce qui reste, ce qui part et ce qui se fusionne*. La boussole, 24 oct. : *quelqu'un qui a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement… on simplifie sans perdre la complexité*. Chaque écran a été capturé à 390 × 844 dans une run jouée du classeur au gros match de la 28e journée ; la page avec les captures : {{PAGE}}.
+
+### Ce que les trois apprennent
+
+- **EHM** : la boîte de réception où chaque message porte sa décision, et « Continuer » qui s'arrête à ce qui compte ; l'effectif en tableau triable ; les trios, l'AN et le DN dans un même écran ; le personnel ; le rapport sur l'adversaire avant le match ; la direction qui juge (sa confiance, ses attentes, l'argent) ; les changements entre les périodes. La tactique s'y règle pour l'équipe d'abord (une unité ou un joueur, pour qui le veut).
+- **New Star Soccer** : un accueil qui dit le prochain rendez-vous et l'état des gens autour de toi (le coach, les coéquipiers, les partisans, les commanditaires) ; des choix courts qui les bougent ; le match où tu ne joues que tes moments ; très peu d'écrans.
+- **MLB The Show** (Diamond Dynasty) : la collection, la boutique de packs et leurs chances, l'ouverture d'un pack, la carte recto verso ; le capitaine qui fait mieux jouer les joueurs de son genre ; Showdown, une course repêchée avec un boss au bout.
+
+Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie pas à un autre pour régler ce qu'il montre**. Le message d'EHM porte ses boutons ; l'événement de New Star Soccer s'ouvre et se règle là ; le pack de MLB s'ouvre dans la boutique. Le Rogue range chaque choix sous une maison (V12) : la Boîte le nomme, le sous-onglet le règle, et la maison n'est pas toujours celle de la voix (le proprio parle au Marché › Butin, l'entraîneur au Vestiaire).
+
+### Écran par écran
+
+**Le départ d'une run**
+
+| Écran | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| L'intro et l'exigence | Showdown : l'enjeu en une ligne | Reste, allégé | Une ligne d'enjeu ; l'inventaire (« 20 Soutien, 3 Régulier… 2 packs… 4 réservistes… ») va à la page des règles. La feuille s'ouvre par-dessus le repêchage du 82-0 (« Maple Leafs de Toronto · Autre année · Passer ») : le fond doit être le Rogue. |
+| Ton coach | DD : le capitaine | Reste | « Tes patrons » devient « Ton personnel » (fait). |
+| Ton joueur de concession | DD : la carte de départ | Se fusionne avec Ton coach | Un écran : ton coach, puis ton joueur dessous. |
+| Le classeur, case par case | Showdown : le repêchage | Reste | |
+| L'avant-saison aux Lignes | EHM : les trios avant le premier match | Reste | |
+
+**Bureau**
+
+| Sous-onglet | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| Boîte | EHM : l'accueil et la boîte ; NSS : l'accueil | Reste | Les choix se règlent dans la Boîte, ouverts sur place, comme un message d'EHM ; un matin sans choix, elle n'est pas vide : Hier soir, le prochain match, ton rang. |
+| Proprio | EHM : la direction et l'argent ; NSS : la jauge du patron | Reste | Ses dossiers (la masse salariale, la tête de l'entraîneur) se rangeaient au Vestiaire : ils sont chez lui (fait). |
+| Entraîneur | EHM : le personnel | Reste, allégé | « D'où tu viens » part (Hier soir et le calendrier disent les résultats) ; la route de la saison va au calendrier ; l'adjoint d'un palier y arrive (voir le Butin). |
+| Presse | EHM : les conférences de presse arrivent dans la boîte | Part | Vide presque tous les jours (« Rien à régler ici ») ; ses micros et ses courriels sont des messages de la Boîte, et la une est déjà dans Hier soir. |
+| Vestiaire | NSS : la jauge des coéquipiers ; EHM : la dynamique du vestiaire | Reste, allégé | Ce qu'il montre toujours (les fils suivis, ton histoire) ; ses choix s'ouvrent de la Boîte. |
+
+**Effectif**
+
+| Sous-onglet | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| Joueurs | EHM : l'effectif | Reste | Prend les blessés en filtre 🩹, à côté d'Avants, Défenseurs, Gardiens. |
+| Lignes | EHM : les trios, l'AN, le DN | Reste, allégé | Cinq onglets deviennent quatre : Équipe part (ses chiffres par match vont à l'avant-match, sa glace aux Attaque) ; sans systèmes, le pied « Système · Volume de tirs · Régler » et sa fenêtre partent (docs/sans-systemes.md). |
+| Dépistage | EHM : le rapport sur l'adversaire | Reste, allégé | Nommé « Avant-match » ; déplié, il fait 2,2 écrans : le tableau des rangs y est deux fois, les conseils de système partent avec eux ; « ton agressivité » n'était plus un réglage (fait). |
+| Infirmerie | EHM : les blessés vivent dans l'effectif | Se fusionne avec Joueurs | Le filtre 🩹 montre qui est blessé et qui joue sa case ; le choix du médecin s'ouvre de la Boîte. Défait la V12-2 (« la santé à l'infirmerie ») : à trancher. |
+
+**Marché**
+
+| Sous-onglet | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| Boutique | DD : la boutique | Reste, allégé | Les packs d'abord. Avant le premier pack, quatre blocs : les absents (l'infirmerie), la masse salariale (le proprio), le barème (la page des règles), la chance d'une Or : ils partent ou se plient. |
+| Butin | — | Part | Depuis la V16, il n'y reste que l'adjoint d'un palier, que le proprio offre et qui s'engage chez l'entraîneur : trois maisons pour un choix. Il va chez l'entraîneur ; le reste du temps, l'onglet est vide. |
+| Album | DD : la collection | Reste | |
+| L'ouverture d'un pack | DD : l'ouverture | Reste | L'en-tête dit « Butin » pour un pack acheté : « Boutique ». « Un outil se joue chez ce qu'il touche » devient « une carte rare se joue chez ce qu'elle monte » (fait). |
+| Qui sort ? | EHM : libérer un joueur | Reste | |
+
+**Le match**
+
+| Écran | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| Le direct | EHM : le match en texte | Reste | |
+| Le sommaire | EHM : la feuille et les trois étoiles | Reste | « Tes choix ce soir » : « Patrons » devient « Personnel » (fait) ; la ligne « Systèmes » part avec eux. |
+| Le gros match (le duel) | NSS : tes moments ; Showdown : le boss ; EHM : l'entracte | Reste | Avant la 1re période, deux décisions s'empilent (leur intention, puis la carte du vestiaire) avant que l'adjoint parle : la carte du vestiaire passe au matin, dans la Boîte. « Garder tirer de partout » devient « Garder ton plan » (fait). |
+| La mise doublée | Showdown : le tout pour le tout | Reste | |
+| Le dé d'un pari | NSS : le pari | Reste | |
+
+**Ligue**
+
+| Sous-onglet | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| Classement | EHM : le classement | Reste | Toucher un club ouvre son effectif (ce que fait l'onglet Équipes). |
+| Ta saison | EHM : le calendrier | Reste, allégé | Nommé « Calendrier » : c'est le calendrier. Il prend la route de la saison et « D'où tu viens » de l'entraîneur. La prévision du moteur et ton style restent dessous. |
+| Meneurs | EHM : les meneurs de la ligue | Reste | |
+| Équipes | EHM : la fiche d'un club, ouverte du classement | Se fusionne avec Classement | |
+| Palmarès | EHM : l'histoire du club | Reste, refait | En Rogue, il montre l'historique du 82-0 : « Aucune saison enregistrée. Complète un alignement de 23 et simule » et un deuxième « Ton album ». Il doit montrer le panthéon du club (records, trophées, chandails retirés) et tes runs. |
+
+### La carte qui en sort
+
+| Section | Aujourd'hui | Proposé |
+|---|---|---|
+| Bureau | Boîte · Proprio · Entraîneur · Presse · Vestiaire | Boîte · Proprio · Entraîneur · Vestiaire |
+| Effectif | Joueurs · Lignes (Équipe, Attaque, Défense, AN · DN, Filet · réserve) · Dépistage · Infirmerie | Joueurs (🩹 en filtre) · Lignes (Attaque, Défense, AN · DN, Filet · réserve) · Avant-match |
+| Marché | Boutique · Butin · Album | Boutique · Album |
+| Ligue | Classement · Ta saison · Meneurs · Équipes · Palmarès | Classement · Calendrier · Meneurs · Palmarès |
+
+Dix-sept sous-onglets et cinq onglets de Lignes, soit vingt-deux pages, deviennent treize et quatre, soit dix-sept. Rien de ce qu'on règle ne part : la Presse, le Butin et l'Infirmerie gardent leurs choix, qui s'ouvrent de la Boîte ; les Équipes s'ouvrent du Classement. Ce qui part, ce sont des pages qu'on visite pour rien : la Presse et le Butin sont vides presque tous les jours.
+
+### Ce que JP tranche
+
+1. **Régler dans la Boîte** (EHM) plutôt que la Boîte qui renvoie au sous-onglet (V12-1) : un toucher de moins par choix, et la voix reste celle qui parle. Les sous-onglets gardent ce qu'ils montrent toujours.
+2. **La Presse dans la Boîte** et **le Butin chez l'entraîneur**.
+3. **L'Infirmerie dans Joueurs** : défait la V12-2.
+4. **Équipes dans Classement**, **Ta saison devient Calendrier**, **le Palmarès refait pour le Rogue**.
+5. **Lignes › Équipe** : ses chiffres à l'avant-match, sa glace aux trios ; le Dépistage devient « Avant-match ».

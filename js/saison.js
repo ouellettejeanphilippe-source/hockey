@@ -1698,7 +1698,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       </div>`;
     // V17 : sous Ton plan, le conseil qui compte le plus ; les autres, et ce qui est déjà fait, attendent au détail.
     const rangs = conseils.map((c, i) => [c, i]), tete = rangs.find(([c]) => c.genre !== 'deja');
-    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${tete ? conseilHtml(...tete) : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture, ton agressivité et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
+    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${tete ? conseilHtml(...tete) : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
     const autres = rangs.filter(x => x !== tete);
     const conseilsPlus = autres.length ? `<div class="dep3-conseils">${autres.map(x => conseilHtml(...x)).join('')}</div>` : '';
     return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml, conseilsPlus, plan: planHtml(p, adv) };
@@ -3661,6 +3661,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   function maisonDe(m) {
     if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
+    // V16 : la masse salariale et la tête de l'entraîneur sont des dossiers du proprio ; ils se règlent chez lui (V12-3).
+    if (m.genre === 'dossier' && m.de === DE.proprio) return 'proprio';
     if (['fil', 'dossier'].includes(m.genre)) return 'vestiaire';
     if (m.genre === 'courriel') return 'presse';
     if (m.genre === 'pack') return 'marche';

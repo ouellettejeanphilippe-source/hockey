@@ -470,7 +470,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
-    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; un outil se joue chez ce qu'il touche` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; une carte rare se joue chez ce qu'elle monte` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
@@ -1161,8 +1161,8 @@ function choisirCoach() {
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : ses adjoints en poste, leurs échelons, leurs matchs à ton service.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
-      : `Sa philosophie joue dès le premier soir ; plus ses adjoints travaillent chez toi, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : ses adjoints en poste, leurs échelons, leurs matchs à ton service.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
+      : `Sa philosophie joue dès le premier soir ; plus ses adjoints travaillent chez toi, plus l'équipe y croit.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: optionsDeCoach(ouverts, { cartes: !!meta.runs }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),

@@ -164,7 +164,7 @@ const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
 console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
 if (offerts.length !== COACHS_ATTENDUS || !offerts.every(t => /Confiance I/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s) (le prestige en ouvre ${COACHS_ATTENDUS}), ou ne dit pas sa confiance I`);
-if (!/Tes patrons :/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas les patrons imposés');
+if (!/Ton personnel :/.test((await page.textContent('#choixModal .choix-sheet')) || '')) erreurs.push('le choix du coach ne nomme pas le personnel imposé');
 await choix();
 /*
  * TON JOUEUR DE CONCESSION (JP, 18 oct. : *avoir un gros joueur dès la première run, mais difficile d'en avoir

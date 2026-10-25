@@ -2281,7 +2281,7 @@ function majChimie(team, lineup) {
 // meilleures lignes, qui lancent le plus ; la part des actions spéciales revient à ~12 %.
 // SPEC_NORME recalé en refonte 1 (0,90 → 0,88) : les passeurs et les manieurs montent la chimie (BADGE_CHIMIE),
 // et une chimie ne descend pas sous zéro — la ligue gagnait 1,2 % de buts ; 12 ligues semées : 2,958 avant, 2,956 après.
-export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.88;
+export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = Number(ENV_MESURE.SPEC_NORME ?? 0.88);
 
 /* ---------- l'énergie : les JAMBES (1.0, C3) ---------- */
 /*

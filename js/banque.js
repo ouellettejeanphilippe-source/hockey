@@ -31,7 +31,7 @@ import { NIVEAUX } from './niveaux.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS } from './coachs.js';
 
 export const CATEGORIES = {
-  patron: { ico: '👔', nom: 'Patrons', un: 'Patron', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
+  patron: { ico: '👔', nom: 'Personnel', un: 'Adjoint', mot: 'Le personnel : un effet pour toute la saison, séries comprises. Un poste par rôle ; deux postes au départ, le prestige en ouvre d\'autres.' },
   joueur: { ico: '🧬', nom: 'Modifs de joueurs', un: 'Modif de joueur', mot: 'Un style, une clause, une amélioration ou une retouche de l\'atelier : elle se pose au verso d\'un joueur de ton choix, pour la saison.' },
   consommable: { ico: '🧴', nom: 'Consommables', un: 'Consommable', mot: 'Une utilisation : un soin, des jambes, le filet, les minutes, des jetons, ou un trou dans le règlement.' },
 };
@@ -506,7 +506,5 @@ export function reglesDePalier(cle, palier) {
   if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
-  // V9 : à sa confiance II et III, son plan compte plus fort (`COACH_DU_PLAN`, js/sim.js).
-  if (palier >= 2 && COACHS[cle].familles) out.push({ txt: 'Son plan compte plus fort', bon: true });
   return out;
 }
