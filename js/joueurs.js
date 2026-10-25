@@ -69,7 +69,7 @@ export function remplirJoueurs() {
   const nom = r => {
     const [b, b2] = badgesDe(r.p), bl = blesses.get(r.p);
     return `<div class="jr-qui"><span class="rond-visage jr-visage" aria-hidden="true">${headshotHtml(r.p)}</span><div class="jr-qui-txt"><button type="button" class="jr-nom" data-i="${r.s.i}"><b>${esc(r.p.n)}</b>${bl ? ` <span class="jr-bl" title="Blessé">🩹 ${bl} m.</span>` : ''}</button>
-      <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}">${b.ico}</i> ${esc(PALIERS[b.palier].nom)}` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small></div></div>`;
+      <small class="jr-sous">${esc(slotShort(r.s))}${b ? ` · <i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>` : ''}${b2 ? ` <i class="badge pal-${b2.palier}" title="Second badge">${b2.ico}</i>` : ''}</small></div></div>`;
   };
   // V12-3 : les rappels (le club-école, un ancien, l'échange d'un doublon) se jouent ici, sous le tableau ; jouée, on revient ici.
   const hub = enSaison ? hubActif() : null, maison = hub && hub.maison;

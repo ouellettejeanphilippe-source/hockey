@@ -6,12 +6,12 @@
 
 import { loadSeason, state, prefetch } from './data.js';
 import { estD as isD, esc, money, pct3, jaugePlafond } from './util.js';
-import { registerHiddenRatings, retenirMatchsDuShard, famillesDe, FAMILLES, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
+import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerKey, MUTATIONS, mutationNuit, SITUATIONS, effetDeSituation, flechesDe, SLOTS, fits, penaliteAffichee, getPositionPenalty, badgesDe, PALIERS, echelleTardive } from './sim.js';
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
-import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement, motDeFamille } from './gerant.js';
+import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, photoCouchee, cadrePhotoCouchee, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
@@ -663,7 +663,7 @@ function meilleureSortie(p, { roster, bloque = null }) {
  */
 export function rangeeHtml(p, { rar = null, num = null, doublon = false, salaire = p.$, dest = '', bouton = '' } = {}) {
   const { v, u, mot } = chiffreCle(p);
-  const tags = [rar && rar !== 'commune' ? `<span class="tag" title="${esc(`${NOM_VARIANTE[rar]} : ${sensRarete(rar)}`)}">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
+  const tags = [rar && rar !== 'commune' ? `<span class="tag tag-edition" title="${esc(`${NOM_VARIANTE[rar]} : ${sensRarete(rar)}`)}">${esc(NOM_VARIANTE[rar])}${num ? ` ${esc(num)}` : ''}</span>` : '', roleTag(p), zoneTag(p), fragileTag(p),
     doublon ? '<span class="tag">Doublon</span>' : ''].filter(Boolean).join('');
   return `<div class="pcard-rangee"><span class="pcard-mug">${headshotHtml(p)}</span><span class="pcard-qui"><b class="pcard-nom">${formatName(p.n)}</b><small>${esc(positionLabel(p).split(' / ').join('/'))} · ${esc(p.t)} ${esc(p.s || '')}</small></span></div>
     ${cartonDe(p, { nomClasse: 'pcard-name', clubClasse: 'pb-team', rar, num })}
@@ -691,11 +691,9 @@ function rangeeDeSignature(x, o, signer, { non, fixe, best }, meilleur = false) 
   el.dataset.cle = getPlayerKey(p);
   el.setAttribute('style', varsEquipe(p));
   const stats = best && best.net ? motsDeStats(best.net, 2) : [];
-  // EN ROGUE, SES FAMILLES (V9) : où il est fort à ses points égaux — ce qu'il ferait dans un autre plan.
-  const f = G.bonus === 'ROGUE' && p.p !== 'G' ? famillesDe(p) : null;
-  const fortes = f ? Object.keys(FAMILLES).filter(k => f[k] >= 0.5).sort((a, b) => f[b] - f[a]).map(k => `${FAMILLES[k].nom} ${motDeFamille(f[k])}`) : [];
-  const familles = f ? `<span class="${fortes.length ? 'dest-ok' : ''}">${esc(fortes.length ? fortes.join(' · ') : 'aucune famille forte')}</span> · ` : '';
-  const dest = familles + (non ? `<span class="dest-bad">${esc(non)}</span>`
+  // ÉPURÉE (oct., JP : *faire interface plus épurée*) : où il va, qui sort, ce que ça change. Ses familles (V9, pour le
+  // plan, parti en V15) n'y sont plus : son badge le dit.
+  const dest = (non ? `<span class="dest-bad">${esc(non)}</span>`
     : !best ? '<span class="dest-bad">Aucune case sous le plafond</span>'
       : fixe ? `${esc(fixe.mot)} ›`
       : `<span class="dest-target">${esc(ligneDe(best.B))}</span> · ${best.q0 ? `${esc(nomDe(best.q0.n))} sort` : 'case libre, personne ne sort'}${stats.length ? ` · ${stats.map(s => `<span class="${s.bon === true ? 'dest-ok' : s.bon === false ? 'dest-bad' : ''}">${esc(s.txt)}</span>`).join(', ')}` : ''} ›`);

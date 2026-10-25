@@ -225,13 +225,13 @@ const vignette = (ctx, p) => (ctx.mug
 /* Ton histoire (le vestiaire) montre ses derniers moments ; les autres se déplient (V12-4). */
 const RECIT_RECENTS = 8;
 const MAISONS = {
-  proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, ce qu\'il paie, tes contrats', vide: 'Son mandat arrive avec la saison.' },
-  entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', sous: 'Ton coach, ton personnel, la semaine qui vient', vide: 'Ton coach arrive avec la saison.' },
-  presse: { ico: '🎤', titre: 'La presse', sous: 'Les micros et le courrier' },
-  vestiaire: { ico: '🚪', titre: 'Le vestiaire', sous: 'Ce qui se passe entre les gars', vide: 'Ton histoire s\'écrit match après match.' },
-  infirmerie: { ico: '🚑', titre: 'L\'infirmerie', sous: 'Les blessés, leurs cases, ce qui les soigne' },
-  marche: { ico: '🛒', titre: 'Le marché', sous: 'Un pack attend ta signature' },
-  match: { ico: '⚔', titre: 'Le gros match', sous: 'Leur intention, ton adjoint' },
+  proprio: { ico: '🏢', titre: 'Le bureau du proprio', vide: 'Son mandat arrive avec la saison.' },
+  entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', vide: 'Ton coach arrive avec la saison.' },
+  presse: { ico: '🎤', titre: 'La presse' },
+  vestiaire: { ico: '🚪', titre: 'Le vestiaire', vide: 'Ton histoire s\'écrit match après match.' },
+  infirmerie: { ico: '🚑', titre: 'L\'infirmerie' },
+  marche: { ico: '🛒', titre: 'Le marché' },
+  match: { ico: '⚔', titre: 'Le gros match' },
 };
 /* Les maisons qui sont un sous-onglet (V12). */
 const ONGLETS_MAISONS = Object.keys(MAISONS).filter(k => MAISONS[k].vide);
@@ -1982,6 +1982,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // La semaine finie au soir d'un match regardé se plie au bureau, et le sommaire du match s'ouvre quand même.
     if (fini ? ouvrirSommaire(sem, true) || (regarde && ouvrirSommaire(avant, false, true)) : (regarde || !enSemaine || grosVu) && ouvrirSommaire(avant, false, regarde)) return;
     retenir = false;
+    // La confiance atteinte en route (les matchs à ton service) s'allume ce matin : une décision, l'écran se rouvre.
+    const confiance = onDecision && ctx.confianceDuMatin ? ctx.confianceDuMatin(jour) : null;
+    if (confiance) { onDecision(confiance, jour); return; }
     dessiner();
     // Le passage ne couvre jamais un message à régler (JP : *des courriels qu'on voit pas*) : il est décor, pas nouvelle.
     // …ni l'écran de la semaine qui vient de s'ouvrir.
@@ -2817,7 +2820,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const options = main.map(c => {
       const S = SORTES_DECK[c.sorte], rarete = RARETE_SORTE[c.sorte];
       if (c.sorte === 'recrue') return { cle: 'recrue', rarete, ico: S.ico, nom: 'Joueur au choix', type: 'Recrue · un vrai joueur',
-        texte: 'Trois vrais joueurs de clubs absents de ta ligue, des Piliers au plus : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.',
+        texte: `Trois vrais joueurs de clubs absents de ta ligue, ${(ctx.motRecrue && ctx.motRecrue()) || 'des Réguliers'} tirés au hasard : un avant, un défenseur, un gardien. Tu en signes un ; il arrive en réserve, et le plafond compte toujours.`,
         desactive: recrues.length ? '' : 'Personne ne rentre sous ton plafond' };
       if (c.sorte === 'profil') return { cle: 'profil', rarete, ico: S.ico, nom: 'Nouveau rôle', type: `${S.nom} · pour de bon`,
         texte: roles.length ? `Un de tes joueurs change de rôle pour de bon. Tu choisis lequel : ${roles.map(x => x.p.n).join(' · ')}` : '',
@@ -3845,7 +3848,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     vueMaison = k => {
       const M = MAISONS[k], fond = PERMANENT[k]();
       return `<section class="af-onglet${chiffresOuverts() ? ' chiffres' : ''}" data-maison="${k}" aria-label="${ctx.esc(M.titre)}">
-        <div class="af-onglet-tete"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-onglet-txt"><b>${ctx.esc(M.titre)}</b><span>${ctx.esc(M.sous)}</span></span></div>
         ${fond ? `<div class="af-fond">${fond}</div>` : `<div class="hub-note">${ctx.esc(M.vide)}</div>`}
         ${fond.includes(' detail"') ? `<button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
       </section>`;

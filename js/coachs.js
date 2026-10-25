@@ -48,7 +48,7 @@
  * c'est un engagement, et il se paie en cartes qu'on n'a pas prises ailleurs.
  */
 
-/* Les seuils de la confiance : 3 cartes (I), 6 (II), 9 (III). */
+/* Les seuils de la confiance, en points (V16 : ses adjoints en poste, leurs échelons, leurs matchs à ton service) : 3 (I), 7 (II), 15 (III). */
 export const SEUILS = [3, 7, 15];
 export const ROMAINS = ['', 'I', 'II', 'III'];
 

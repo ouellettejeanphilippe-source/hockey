@@ -5,7 +5,7 @@
  * règle et le méta vivent dans js/rogue.js ; ici, ce que l'écran en fait.
  */
 
-import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, copiesDe, COPIES_MAX } from './rogue.js';
+import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPART, SOUTIENS_DEPART, soutiensDuDepart, estSoutien, tirageDuDepart, PRIME_DECOUVERTE, JETONS, jetonsDe, aDebloque, DEBLOCAGES, ajouterCollection, recevoirPermanents, retirerDuMeta, gardesDeLaDerniere, departDuClasseur, lotosDeSaison, jetonsDeDepart, reservesDeLaRun, ecrireMeta, budgetDuClasseur, tirageDuClasseur, lotoDeCase, PLAFOND_PREMIERE, VRAIS_CONTRATS, alourdirLaPremiere, baremeRogue, mandatDe, PLAFOND_ROGUE, plafondDuVestiaire, ESPACE_DE_DEPART, payerEcussons, ecussonsDeLaSaison, payerJalons, ecussonsDesSeries, mandatRempli, JALONS, recompenseDe, peutAcheter, acheterDeblocage, PRESTIGES, rangDePrestige, ecussonsAVie, coachsOuverts, postesDePatron, primesDesFils, payerMissions, graverAuPantheon, RECORDS, EXIGENCES, ICO_EXIGENCE, PRIME_EXIGENCE, exigencesDe, exigencesOuvertes, plafondDeSaison, gardesDeLaRun, motDeLaLigue, niveauDeLigue, packsOuverts, monteeDesPacks, cranDeLaRecrue, copiesDe, COPIES_MAX } from './rogue.js';
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, assortiPour, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
@@ -19,10 +19,10 @@ import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, masseSalarialeHtml, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
-import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
+import { ouvrirChoix, motsSurLeJoueur, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
-import { artJoueur, photoAction, cadrePhoto, epoqueDe } from './cartes.js';
+import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
@@ -132,8 +132,10 @@ export function jetonsRogue(j = G.journee || 0) {
   // Un doublon signé (1.0, oct.) n'est pas revendu : sa vente, comptée à l'ouverture, se retire (`annuleVente`).
   const ventes = decs.reduce((a, d) => a + ((d.achat || {}).vente || 0) + (d.gain || 0) + ((d.vend || {}).jetons || 0) - (d.annuleVente || 0), 0);
   const mods = modificateurs(decs);
-  const direction = mods.jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, j), 0)
-    + mods.jetonsLancee.reduce((a, x) => a + x.n * lanceesEntre(x.depuis, j), 0);
+  // Une période close (`jusqua` : l'adjoint remplacé, ou monté d'un échelon) rapporte jusqu'à son dernier jour (js/banque.js `revenusDuPersonnel`).
+  const fin = x => Math.min(j, x.jusqua ?? Infinity);
+  const direction = mods.jetonsVictoire.reduce((a, x) => a + x.n * victoiresEntre(x.depuis, fin(x)), 0)
+    + mods.jetonsLancee.reduce((a, x) => a + x.n * lanceesEntre(x.depuis, fin(x)), 0);
   const depart = G.bonus === 'ROGUE' ? ((G.rogue && G.rogue.depart) || JETONS.depart) : 0;
   // S80 : le barème de la saison de la run (5 🪙 par victoire sans commanditaire) ; une vieille run garde celui de S79.
   const bareme = G.bonus === 'ROGUE' && G.rogue && G.rogue.bareme ? G.rogue.bareme : JETONS;
@@ -667,6 +669,20 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
         onFerme: retour });
       return;
     }
+    /*
+     * SON POSTE EST PRIS (oct.) : l'engager renvoie celui qui l'occupe, et ses échelons avec lui — un toucher jetait un
+     * échelon 4 et les jetons payés pour lui. On le demande, et on dit ce qui part.
+     */
+    const occupe = actifs.find(x => x.role === c.role && x.cle !== c.cle);
+    if (occupe) {
+      const ech = occupe.echelon || 1;
+      ouvrirChoix({ ico: '👔', titre: `${c.nom} : à la place de ${occupe.nom} ?`, compact: true, fermable: true, motFermer: 'Retour',
+        recit: `Un seul ${ROLES[c.role] ? ROLES[c.role].nom.toLowerCase() : 'adjoint'} à la fois. ${occupe.nom} part${ech > 1 ? `, et ses ${ech - 1} échelon${ech > 2 ? 's' : ''} pris avec lui` : ''}.`,
+        options: [{ cle: 'oui', ico: c.ico, nom: `Engager ${c.nom}`, sous: `${occupe.nom} part` }],
+        onChoix: () => ecrire(payloadDe(item.id, { patrons: actifs, build, joueurs })),
+        onFerme: retour });
+      return;
+    }
     ecrire(payloadDe(item.id, { patrons: actifs, build, joueurs }));
     return;
   }
@@ -702,7 +718,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
         // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
-        const don = offres[0] && offres[0].donne ? ` Il part : ${offres[0].donneNom} (${offres[0].saison}).` : '';
+        const don = offres[0] && offres[0].donne ? ` Il part : ${offres[0].donneNom}, série ${SERIES[serieDe(offres[0].saison)].nom} (${offres[0].saison}).` : '';
         ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: `${c.texte}${don}`, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
           vide: C.echange ? 'Aucun doublon à échanger, ou personne de sa série sous le plafond.' : C.anciens ? `Aucun ancien de tes runs d'avant, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.` : `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
           desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
@@ -777,18 +793,23 @@ function poserUneModif(item, j, decider, retour) {
 const etatPersonnel = j => (G.ligue ? etatDuPersonnel(decisionsDeLaPartie(), j + 1, {
   joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a), copies: k => copiesDe(lireMeta(), k) }) : []);
 const CANAUX_PERSONNEL = ['finition', 'volume', 'lancers', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
-/* Sa force et son défaut en mots, à son échelon. */
+/*
+ * Sa force et son défaut en mots, à son échelon. UN ADJOINT À PROTÉGÉ (oct.) : ce qu'il donne à son joueur est sa force
+ * (`protegeALEchelon`) ; sans elle, le monteur vidéo (la précision ×2 de ta meilleure gâchette) ne lisait que son défaut.
+ */
 function motsDeLaPersonne(p) {
   const { force, faiblesse } = forceEtFaiblesse(Object.fromEntries(Object.entries(p).filter(([k]) => CANAUX_PERSONNEL.includes(k))));
-  return { force: [...(Object.keys(force).length ? motsEnChiffres(force) : []), ...motsDeLEcon(p.econ)],
-    faiblesse: Object.keys(faiblesse).length ? motsEnChiffres(faiblesse) : [] };
+  const lui = PROTEGES[p.cle] ? motsSurLeJoueur(protegeALEchelon(p.cle, p.choix || []), 'Son protégé') : [];
+  return { force: [...lui.filter(m => m.bon), ...(Object.keys(force).length ? motsEnChiffres(force) : []), ...motsDeLEcon(p.econ)],
+    faiblesse: [...lui.filter(m => !m.bon), ...(Object.keys(faiblesse).length ? motsEnChiffres(faiblesse) : [])] };
 }
 /*
  * Les options d'un échelon atteint : pousser sa force, corriger son défaut (s'il en a un). V14b : chacune coûte le prix
  * de l'échelon (`PRIX_ECHELON`), et se grise sans les jetons en caisse.
  */
-function optionsDEchelon(e, caisse) {
-  const apres = c => motsDeLaPersonne(patronALEchelon(e.cle, { choix: [...(e.patron.choix || []), c] }));
+function optionsDEchelon(e, caisse, coach = null) {
+  // Un adjoint d'une autre couleur que ton coach promet ce que le moteur jouera (`assortiPour`), pas ses chiffres pleins.
+  const apres = c => motsDeLaPersonne(assortiPour(coach, patronALEchelon(e.cle, { choix: [...(e.patron.choix || []), c] })));
   const prix = e.prix ? [{ txt: `−${e.prix} 🪙`, bon: false }] : [];
   const non = e.prix > caisse ? 'Pas assez de jetons en caisse' : null;
   return [
@@ -797,11 +818,12 @@ function optionsDEchelon(e, caisse) {
   ];
 }
 /* Ce qui attend un choix d'échelon, dans la fiche de sa carte : ses options, et la décision. */
+const coachEnPoste = j => { const [c] = coachsActifs(decisionsDeLaPartie(), j + 1); return c ? c.cle : null; };
 function echelonsAChoisir(j) {
   // La saison jouée ne prend plus de décision : l'échelon attend la saison suivante, où ses matchs à ton service le suivent.
   if (!G.ligue || G.ligue.fini) return [];
   return etatPersonnel(j).filter(e => e.aChoisir).map(e => ({ cle: e.cle, qui: e.qui, ico: e.patron.ico, style: e.patron.nom, echelon: e.echelon,
-    service: e.service, prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j)),
+    service: e.service, prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j), coachEnPoste(j)),
     decision: c => ({ palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) }) }));
 }
 export function personnelDuJour(j) {
@@ -835,7 +857,7 @@ export function personnelDuJour(j) {
         ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
         ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
         ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
-        ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e, jetonsRogue(j)).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}"${o.desactive ? ` disabled title="${esc(o.desactive)}"` : ''}>${o.ico} ${esc(o.nom)}${e.prix ? ` · ${e.prix} 🪙` : ''}</button>`).join('')}</div>` : ''}
+        ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}"${o.desactive ? ` disabled title="${esc(o.desactive)}"` : ''}>${o.ico} ${esc(o.nom)}${e.prix ? ` · ${e.prix} 🪙` : ''}</button>`).join('')}</div>` : ''}
       </div></details>`;
   };
   return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
@@ -1310,7 +1332,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
     // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
     // et le prestige du club, FIXÉ pour la run (js/rogue.js `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), patrons,
+    ...(COACHS[coach] ? { coach } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta), patrons,
     classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],

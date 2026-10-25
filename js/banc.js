@@ -16,14 +16,14 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents, niveauxDeLaRecrue } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
 import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
-import { niveauDe, ETOILE } from './niveaux.js';
+import { niveauDe, REGULIER, PILIER } from './niveaux.js';
 
 /* ======================================================================
    DERRIÈRE LE BANC — les choix en saison
@@ -403,18 +403,20 @@ function rappelEcole(blesse, at) {
  * défenseur, gardien), parce que le choix intéressant est « où est-ce que je
  * renforce », pas « lequel des trois centres ». Mieux que le ballottage, qui
  * bouche un trou : le budget est TOUT l'espace sous le plafond plus le salaire
- * du réserviste libéré (pas 3 % du plafond), et on tire parmi les huit
- * meilleurs producteurs qui y rentrent, pas les quinze. Mêmes règles pour le
+ * du réserviste libéré (pas 3 % du plafond). Mêmes règles pour le
  * reste : des saisons de la ligue, des clubs qui n'y sont pas, personne qui y
  * joue déjà. La recrue prend la case de réserve de sa position ; c'est une
  * décision de ballottage, donc la reprise la retrouve comme les autres.
- * AU PLUS UN PILIER (oct., JP : *rendre moins forte la carte, ça donne toujours des Étoiles*) : tout l'espace du
- * plafond et les huit meilleurs producteurs sortaient presque toujours une Étoile. La carte offre maintenant les
- * meilleurs Piliers de la saison (`NIVEAU_MAX_RECRUE`, lu par `niveauDe`, js/niveaux.js), jamais une Étoile ni un Phénomène — comme le
- * ballottage plafonne au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
+ * UN LOTO DE RÉGULIERS ET DE PILIERS (oct., JP : *rendre moins forte la carte, ça donne toujours des Étoiles* ; puis
+ * *Joueur au choix donne des SUPERSTARS qui brisent le jeu*). Plafonnée au Pilier, la carte tirait encore parmi les
+ * huit meilleurs producteurs : le haut des Piliers, un avant médian au 5 % du haut de sa saison, juste sous la ligne
+ * des Étoiles (Brett Hull 1992-93, 101 points). Elle tire maintenant au hasard parmi TOUS les Réguliers et Piliers
+ * qui rentrent, aux niveaux que ses crans ouvrent (`niveauxRecrue`, lus par `niveauDe`, js/niveaux.js) : un loto,
+ * comme le classeur (`lotoDeCase`) ; le ballottage reste au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
  */
-const RECRUE_MEILLEURS = 8;
-const NIVEAU_MAX_RECRUE = ETOILE - 1;   // Pilier
+/* Ses crans au vestiaire la montent (`niveauxDeLaRecrue`, js/rogue.js) ; une run d'avant les crans, ou hors du Rogue, tire au premier cran. */
+const niveauxRecrue = () => niveauxDeLaRecrue(G.bonus === 'ROGUE' && G.rogue && G.rogue.recrue != null ? G.rogue.recrue : 1);
+const MOTS_RECRUE = { [`${REGULIER},${REGULIER}`]: 'des Réguliers', [`${REGULIER},${PILIER}`]: 'des Réguliers et des Piliers', [`${PILIER},${PILIER}`]: 'des Piliers' };
 function candidatsRecrue(palier) {
   const L = G.ligue;
   if (!L || !L.cles) return [];
@@ -423,8 +425,8 @@ function candidatsRecrue(palier) {
   const clubs = new Set(L.cles);
   const saisons = [...new Set(L.cles.map(c => String(c).split('|')[0]))];
   const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(palier + 7919, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
   const ligne = ligneDuChoix;
+  const [min, max] = niveauxRecrue();
   const out = [];
   for (const g of ['F', 'D', 'G']) {
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
@@ -439,14 +441,13 @@ function candidatsRecrue(palier) {
         if (clubs.has(`${sa}|${tag}`)) continue;
         for (const p of joueurs) {
           if ((p.gp || 0) < (g === 'G' ? 20 : 40) || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p)) || isPicked(p)) continue;
-          if (niveauDe(p, e.players) > NIVEAU_MAX_RECRUE) continue;
+          const n = niveauDe(p, e.players);
+          if (n < min || n > max) continue;
           pool.push(p);
         }
       }
     }
     if (!pool.length) continue;
-    pool.sort((a, b) => prod(b) - prod(a));
-    pool.length = Math.min(pool.length, RECRUE_MEILLEURS);
     pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
     const p = pool[0];
     ballottageVu.set(getPlayerKey(p), p);
@@ -746,6 +747,17 @@ function ouvrirEcranSaison(depuis = 0) {
         rappelEcole,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
+        /*
+         * LA CONFIANCE DU MATIN (oct.) : les matchs à ton service la montent seuls (V16), mais elle ne s'allumait qu'à ta
+         * décision suivante — l'écran de l'entraîneur disait déjà III quand le moteur jouait II. Au matin où elle est
+         * atteinte, elle devient sa décision, comme le lundi du robot (scripts/lib/cartes_robot.mjs).
+         */
+        confianceDuMatin: j => {
+          if (G.bonus !== 'ROGUE' || !G.ligue) return null;
+          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { joues: (de, x) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, x) });
+          return a ? { jour: j, ...a } : null;
+        },
+        motRecrue: () => MOTS_RECRUE[niveauxRecrue().join()],
         // OÙ IL JOUE (S80) : « 3e paire », dit à côté d'un nom (les dilemmes, le ballottage, un nouveau rôle).
         ouJoue: p => ouJoue(p),
         // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.

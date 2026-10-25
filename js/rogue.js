@@ -162,6 +162,9 @@ export const DEBLOCAGES = {
    */
   banc1: { ico: '🪑', nom: 'Une case de réserve de plus', prix: 60, texte: 'Quatre réservistes au lieu de trois : un joueur de plus sans que personne sorte.' },
   banc2: { ico: '🪑', nom: 'Deux cases de réserve de plus', prix: 150, requis: 'banc1', texte: 'Cinq réservistes.' },
+  // Oct. : « Joueur au choix » monte comme un pack (`niveauxDeLaRecrue`), jamais jusqu'à l'Étoile.
+  recrue1: { ico: '🎟', nom: 'Joueur au choix : les Piliers', prix: 70, texte: 'La carte « Joueur au choix » tire aussi parmi les Piliers, plus seulement les Réguliers.' },
+  recrue2: { ico: '🎟', nom: 'Joueur au choix : un Pilier', prix: 180, requis: 'recrue1', texte: 'La carte « Joueur au choix » ne tire plus que des Piliers.' },
 };
 // V10 : les crans de chaque pack de la boutique (`CRANS_DE_PACK`, plus bas), le second après le premier, quand le pack est ouvert.
 for (const k of BOUTIQUE) {
@@ -170,6 +173,16 @@ for (const k of BOUTIQUE) {
     DEBLOCAGES[cleDeCran(k, i)] = { ico: P.ico, nom: `${P.nom} : ${C.mot}`, prix: C.prix(P), pack: k, texte: C.texte(P), ...(i ? { requis: cleDeCran(k, i - 1) } : {}) };
   });
 }
+
+/*
+ * JOUEUR AU CHOIX QUI MONTE (oct., JP : *Joueur au choix donne des SUPERSTARS qui brisent le jeu* ; *à la limite, il
+ * pourrait être, comme les autres catégories de cartes du genre, upgradable au fil du temps*). Les niveaux que la
+ * carte tire (js/banc.js `candidatsRecrue`), selon ses crans au vestiaire, FIXÉS au départ de la run
+ * (`G.rogue.recrue`) : un Régulier, puis un Régulier ou un Pilier, puis un Pilier. Jamais une Étoile.
+ */
+const NIVEAUX_RECRUE = [[REGULIER, REGULIER], [REGULIER, PILIER], [PILIER, PILIER]];
+export const cranDeLaRecrue = m => (aDebloque(m, 'recrue1') ? 1 : 0) + (aDebloque(m, 'recrue2') ? 1 : 0);
+export const niveauxDeLaRecrue = cran => NIVEAUX_RECRUE[Math.max(0, Math.min(NIVEAUX_RECRUE.length - 1, cran | 0))];
 
 /* Le plafond que le vestiaire ajoute au départ d'une run. */
 export const plafondDuVestiaire = m => (aDebloque(m, 'plafond1') ? 3_000_000 : 0) + (aDebloque(m, 'plafond2') ? 4_000_000 : 0);

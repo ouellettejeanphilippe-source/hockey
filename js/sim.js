@@ -5877,8 +5877,9 @@ function appliquerDecision(team, d, graine = 0) {
     if (ancien) retirerProtege(team, mut.cle);
     if (MUTATIONS[mut.cle].portee) for (const q of porteeDuFeu(team, MUTATIONS[mut.cle].portee, mut.lignes || 1)) appliquerMutation(team, q, mut.cle, d.jour, 'choix', mut);
     else {
-      const qui = mut.joueur || (ancien && ancien.joueur);
-      const p = qui ? Object.values(team.roster).find(x => x && getPlayerKey(x) === qui) || CONNUS.get(qui) : joueurDeMutation(team, null, mut.cle);
+      // Un ancien protégé qui n'est plus au club ne reçoit pas l'échelon : celui que le moteur désigne le prend.
+      const auClub = k => Object.values(team.roster).find(x => x && getPlayerKey(x) === k);
+      const p = mut.joueur ? auClub(mut.joueur) || CONNUS.get(mut.joueur) : (ancien && auClub(ancien.joueur)) || joueurDeMutation(team, null, mut.cle);
       if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
     }
   }
@@ -5989,7 +5990,7 @@ function appliquerAlignement(team, d) {
     }
   }
   const cases = d.cases;
-  if (!cases) return;
+  if (!cases) { if (d.ballottage) suivreLesProteges(team, d.jour); return; }
   const parCle = new Map();
   for (const p of Object.values(team.roster)) if (p) parCle.set(getPlayerKey(p), p);
   // En place : `team.roster` est l'objet même que l'interface tient (G.roster).
@@ -6002,6 +6003,7 @@ function appliquerAlignement(team, d) {
     if (p && !parCle.has(cle) && p.simGP == null) initSimStats(p);
     if (p) team.roster[i] = p;
   }
+  suivreLesProteges(team, d.jour);
 }
 
 /*
@@ -7308,7 +7310,38 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
   // `saison` (V9, tranche 7) : une modif offerte pour la saison seulement (le vétéran mentor d'un fil) ne va pas sur sa carte.
-  (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}) });
+  (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}),
+    // Un protégé garde ses chiffres d'échelon et ses lignes : s'il part, il les passe à qui le remplace (`suivreLesProteges`).
+    ...(PROTEGES[cle] && extra && extra.canaux ? { canaux: extra.canaux } : {}), ...(PROTEGES[cle] && extra && extra.lignes ? { lignes: extra.lignes } : {}) });
+}
+/*
+ * LE PROTÉGÉ SUIT L'ALIGNEMENT (oct.). Un adjoint à protégé se posait une fois, à son engagement : son joueur échangé,
+ * relâché ou réclamé ailleurs, l'adjoint ne faisait plus rien de la saison ; un adjoint du feu restait sur la 1re ligne
+ * du jour où on l'avait engagé, même remaniée. À chaque changement d'alignement, un protégé parti passe à celui que le
+ * moteur désigne (`joueurDeMutation`), et le feu se repose sur les premières lignes d'aujourd'hui (`porteeDuFeu`).
+ */
+function suivreLesProteges(team, jour) {
+  const dans = new Set(Object.values(team.roster || {}).filter(Boolean).map(getPlayerKey));
+  const parCle = new Map();
+  for (const m of team.mutations || []) if (PROTEGES[m.cle]) parCle.set(m.cle, [...(parCle.get(m.cle) || []), m]);
+  for (const [cle, ms] of parCle) {
+    const M = MUTATIONS[cle];
+    if (!M) continue;
+    const extra = { saison: true, ...(ms[0].canaux ? { canaux: ms[0].canaux } : {}), ...(ms[0].lignes ? { lignes: ms[0].lignes } : {}) };
+    if (M.portee) {
+      const cibles = porteeDuFeu(team, M.portee, extra.lignes || 1);
+      const avant = ms.map(m => m.joueur).sort().join(), apres = cibles.map(getPlayerKey).sort().join();
+      if (avant === apres) continue;
+      for (const m of ms) if (m.p && m.p._feu && !dans.has(m.joueur)) m.p._feu = m.p._feu.filter(x => x !== M.feu);
+      retirerProtege(team, cle);
+      for (const q of cibles) appliquerMutation(team, q, cle, jour, 'choix', extra);
+    } else if (!ms.some(m => dans.has(m.joueur))) {
+      for (const m of ms) if (m.p) { if (m.p._si) m.p._si = m.p._si.filter(e => e.cle !== cle); if (m.p._mutCles) m.p._mutCles = m.p._mutCles.filter(k => k !== cle); }
+      retirerProtege(team, cle);
+      const q = joueurDeMutation(team, null, cle);
+      if (q) appliquerMutation(team, q, cle, jour, 'choix', extra);
+    }
+  }
 }
 
 /* Un adjoint qui quitte son poste (V16) emporte son protégé : ses soirs ne jouent plus, la mutation sort du journal. */

@@ -768,7 +768,7 @@ export function coachHtml(decs, j, injured = new Set()) {
   const [actif] = coachsActifs(decs, j + 1);
   const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
   if (!C) return '';
-  const n = buildDe(decs, j + 1, { joues: (de, a) => (G.ligue ? matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) : 0) })[k] || 0, pal = Math.max(palierDe(n), actif ? actif.palier : 0), manque = avantProchain(n);
+  const n = buildDe(decs, j + 1, { joues: (de, a) => (G.ligue ? matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) : 0) })[k] || 0, pal = actif ? actif.palier : palierDe(n), manque = avantProchain(n);
   const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
   const fin = SEUILS[SEUILS.length - 1];
   return `<div class="ej-coach">

@@ -1492,6 +1492,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .pcard-mid .tags { flex: 1; min-width: 0; flex-wrap: nowrap; transform-origin: left center; }
 .pcard-mid .tags > * { flex: none; }
 .pcard-mid .tags.en-deux { flex-wrap: wrap; row-gap: 2px; }
+/* Son édition se lit au coin du carton : la bande ne la redit pas. Au téléphone, sans carton, la rangée la garde. */
+@media (min-width: 680px) { .pcard-mid .tag-edition { display: none; } }
 /* Ce qui va se passer, en casse de phrase (clair au pouce, oct.) : « Robustesse fort · 1er trio · Graves sort » tient où
    les capitales se coupaient ; la condensée reste, sur une ligne. */
 /* Deux lignes plutôt qu'une coupée (Jalon M, B6) : la case et la masse, puis l'effet. */
@@ -4234,12 +4236,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-maison-ico { flex: none; font-size: var(--t-3); }
 .af-maison-titre { flex: 1; min-width: 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
 .af-maison-compte { flex: none; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
-/* LE SOUS-ONGLET D'UNE MAISON : sa tête, puis ce qu'il montre toujours (V12-2) ; ses choix se règlent dans la boîte. */
+/* LE SOUS-ONGLET D'UNE MAISON : ce qu'il montre toujours (V12-2), sans tête — l'onglet le nomme déjà ; ses choix se règlent dans la boîte. */
 .af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
-.af-onglet-tete { display: flex; align-items: center; gap: var(--esp-3); }
-.af-onglet-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.af-onglet-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; color: var(--encre); }
-.af-onglet-txt span { font-size: var(--t-2); color: var(--encre-2); }
 /* Ce que le sous-onglet montre toujours (V12-2) : le mandat, la route, ton histoire, les blessés. */
 .af-fond { display: flex; flex-direction: column; gap: var(--esp-3); }
 .hub-msg-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
