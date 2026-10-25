@@ -168,9 +168,9 @@ export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
  * un club moyen (`lectureDuMatch`, ce que `check_chiffres` prouve égal au jeu), l'affinité de ses lignes comprise.
  * L'alignement de l'IA (`autoRoster`) est toujours candidat : le bouton ne fait jamais
  * pire qu'elle. Puis, quelques tours, les échanges les plus prometteurs (`echangesProposes`), gardés si le moteur les
- * voit meilleurs. Le style pèse les buts : l'offensif compte plus ceux qu'on marque, le défensif ceux qu'on évite.
+ * voit meilleurs : les buts qu'on marque moins ceux qu'on accorde. (V18 : l'offensif et le défensif sont partis avec
+ * les systèmes qui les faisaient pencher ; sans eux, ils rendaient le même alignement, ou l'inverse de leur nom.)
  */
-const POIDS_STYLE = { equilibre: [1, 1], offensif: [1.5, 0.5], defensif: [0.5, 1.5] };
 const TOURS_AU_MIEUX = 3, ECHANGES_LUS = 10;
 /*
  * CHACUN À SON POSTE D'ABORD (19 oct.). JP : *le meilleur alignement devrait tout faire pour mettre les joueurs à la
@@ -232,8 +232,7 @@ function echangesDePoste(R) {
 }
 /* Ce qu'un alignement coûte en postes : la somme des pénalités de ses habillés. */
 export const penaliteDePoste = R => ['F', 'D'].reduce((t, g) => t + casesDuGroupe(g).reduce((a, s) => a + (R[s.i] ? getPositionPenalty(R[s.i], s) : 0), 0), 0);
-export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, coachs = [] } = {}) {
-  const [wP, wC] = POIDS_STYLE[style] || POIDS_STYLE.equilibre;
+export function alignementAuMieux(joueurs, { plan = false, coachs = [] } = {}) {
   const saison = (joueurs.find(p => p && p.s) || {}).s;
   // Sous un hasard à part : le club lu tire sa chance de saison, et la saison en cours ne doit pas bouger d'un dé.
   const lu = R => avecHasardIsole('au mieux', () => {
@@ -242,7 +241,7 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
     T.courbe = plan;
     T.coachs = coachs;
     const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
-    return wP * m.butsPour - wC * m.butsContre;
+    return m.butsPour - m.butsContre;
   });
   // Le poste d'abord, puis le moteur : un candidat moins bien posté ne passe jamais devant.
   let best = null, score = -Infinity, poste = Infinity;
@@ -254,13 +253,11 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
     return false;
   };
   // Les deux candidats : le meilleur des deux au moteur, puis le mieux posté s'il ne coûte presque rien.
-  const [tri, ia] = [trioAuMieux(joueurs, style), autoRoster(joueurs)].map(auBonPoste);
+  const [tri, ia] = [trioAuMieux(joueurs), autoRoster(joueurs)].map(auBonPoste);
   const [vt, vi] = [lu(tri), lu(ia)];
   [best, score] = vt >= vi ? [tri, vt] : [ia, vi];
   poste = penaliteDePoste(best);
   essayer(vt >= vi ? ia : tri, PRIX_DU_POSTE);
-  // Les départs des autres styles (V18) : sans systèmes, un style ne penche que par qui joue où ; il prend celui d'un autre s'il le pèse mieux.
-  for (const st of Object.keys(POIDS_STYLE)) if (st !== style) essayer(auBonPoste(trioAuMieux(joueurs, st)));
   // Un réserviste à son poste, contre un habillé hors du sien, quand le moteur n'y perd presque rien.
   for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
     let mieux = false;
@@ -273,7 +270,7 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
   }
   for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
     let mieux = false;
-    for (const [sa, sb] of echangesProposes(best, style, ECHANGES_LUS)) {
+    for (const [sa, sb] of echangesProposes(best, ECHANGES_LUS)) {
       const R = { ...best };
       [R[sa.i], R[sb.i]] = [R[sb.i], R[sa.i]];
       if (essayer(R)) mieux = true;

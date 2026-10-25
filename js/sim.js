@@ -6826,7 +6826,7 @@ export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
 const ORDRE_AUTO = CASES_DE_BASE.slice().sort((a, b) => cleAuto(a) - cleAuto(b));
 function cleAuto(s) { return s.i + (s.group === 'F' && !s.scratch && s.role === 'C' ? -1.5 : 0); }
 
-export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRatings(p).v) {
+export function autoRoster(pool, exclude = new Set()) {
   const avail = pool.filter(p => !exclude.has(getPersonKey(p)));
   const roster = {};
   const used = new Set();
@@ -6834,7 +6834,7 @@ export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRat
     let best = null, bestScore = -Infinity;
     for (const p of avail) {
       if (used.has(getPersonKey(p)) || !fits(p, s)) continue;
-      const score = mesure(p) - getPositionPenalty(p, s);
+      const score = getHiddenRatings(p).v - getPositionPenalty(p, s);
       if (score > bestScore) { best = p; bestScore = score; }
     }
     if (best) { roster[s.i] = best; used.add(getPersonKey(best)); }
@@ -6844,15 +6844,10 @@ export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRat
 
 /*
  * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
- * gossage ; plusieurs best : défensive, offensive*. Les cotes restent dans le moteur : l'écran ne voit que
- * l'alignement qu'elles font.
+ * gossage*. Les cotes restent dans le moteur : l'écran ne voit que l'alignement qu'elles font. (V18 : l'offensif et
+ * le défensif penchaient par leurs systèmes ; sans eux, ils rendaient le même alignement, ou l'inverse de ce qu'ils
+ * disaient — un seul « meilleur » reste.)
  */
-/* `att`, `def` : ce que le style pèse de l'attaque et de la défense d'une ligne (`valeurDeLigne`). */
-const STYLES_ALIGNEMENT = {
-  equilibre: { nom: 'Le meilleur', att: 1, def: 1, joueur: r => r.v },
-  offensif: { nom: 'Offensif', att: 1.5, def: 0.5, joueur: r => 0.5 * r.v + 0.5 * r.o },
-  defensif: { nom: 'Défensif', att: 0.5, def: 1.5, joueur: r => 0.5 * r.v + 0.5 * r.d },
-};
 /*
  * ALIGNER AU MIEUX, EN TOUT (oct.). JP : *aligner au mieux considéré positions, stratégie, etc.* Le glouton de l'IA
  * (`autoRoster`) ne lit qu'une chose par case : la valeur, moins la pénalité de poste. Il met la vedette en haut même
@@ -6862,43 +6857,41 @@ const STYLES_ALIGNEMENT = {
  *   - le poste et le côté (`penaliteAdaptee`, l'adaptation déjà faite comptée) ;
  *   - la zone de chacun (`getUnitSynergy` : le joueur à sa place, ou un cran, deux crans hors de ses lignes) ;
  *   - les minutes de la ligne (POIDS_TRIO, POIDS_PAIRE) : le meilleur joue où l'on joue le plus ;
- *   - l'affinité de ses joueurs : les badges qui s'accordent font la chimie de la ligne (`chimieLigne`, V18) ;
- *   - le style : l'attaque et la défense pesées comme il le dit.
+ *   - l'affinité de ses joueurs : les badges qui s'accordent font la chimie de la ligne (`chimieLigne`, V18).
  * Les gardiens restent ceux du glouton (le partant est le meilleur). Les clubs de l'IA gardent `autoRoster` : la
  * ligue ne bouge pas, seul ton bouton voit plus loin.
  */
-function valeurDeLigne(lineup, u, St) {
+function valeurDeLigne(lineup, u) {
   const moy = (g, k) => unitAvgLineup(null, lineup, g, u, k);
   const wF = POIDS_TRIO[u], wD = pairDeLigne(u) == null ? 0 : POIDS_PAIRE[u];
   let att = 0.72 * wF * moy('F', 'o'), def = 0.42 * wF * moy('F', 'd');
   if (wD) { att += 0.28 * wD * moy('D', 'o'); def += 0.58 * wD * moy('D', 'd'); }
   if (ligneComplete(lineup, u)) att += (0.72 * wF + 0.28 * wD) * (bonusChimie(chimieLigne(lineup, u)) - bonusChimie(0));
-  return St.att * att + St.def * def;
+  return att + def;
 }
 /* La ligne d'une case habillée (le trio u, ou la paire u, qui joue avec lui) ; null pour un réserviste. */
 const ligneDeCase = s => (s.scratch ? null : s.unit);
 /* Les cases qu'un échange peut toucher : les patineurs habillés et en réserve (les gardiens restent ceux du glouton). */
 const casesEchangeables = roster => ORDRE_AUTO.filter(s => s.group !== 'G' && roster[s.i] && roster[s.i].p !== 'G');
 /* Échanger deux cases rend-il la ligne meilleure ? Le gain lu par `valeurDeLigne`, et le roster laissé tel quel. */
-function gainDeLEchange(roster, sa, sb, St, val) {
+function gainDeLEchange(roster, sa, sb, val) {
   const pa = roster[sa.i], pb = roster[sb.i], ua = ligneDeCase(sa), ub = ligneDeCase(sb);
   if ((ua == null && ub == null) || !fits(pa, sb) || !fits(pb, sa)) return null;
   roster[sa.i] = pb; roster[sb.i] = pa;
   const lignes = [...new Set([ua, ub].filter(u => u != null))];
-  const neuves = lignes.map(u => valeurDeLigne(roster, u, St));
+  const neuves = lignes.map(u => valeurDeLigne(roster, u));
   roster[sa.i] = pa; roster[sb.i] = pb;
   return { gain: neuves.reduce((x, v, k) => x + v - val[lignes[k]], 0), lignes, neuves };
 }
-/* Les trios d'un style : le glouton de l'IA, mesuré comme le style le veut, puis les échanges qui rendent la ligne meilleure. */
-export function trioAuMieux(joueurs, style = 'equilibre') {
-  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
-  const roster = autoRoster(joueurs, new Set(), p => (p.p === 'G' ? getHiddenRatings(p).v : St.joueur(getHiddenRatings(p))));
+/* Les meilleurs trios : le glouton de l'IA, puis les échanges qui rendent la ligne meilleure. */
+export function trioAuMieux(joueurs) {
+  const roster = autoRoster(joueurs);
   const cases = casesEchangeables(roster);
-  const val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u, St));
+  const val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u));
   for (let tour = 0; tour < 30; tour++) {
     let mieux = false;
     for (let a = 0; a < cases.length; a++) for (let b = a + 1; b < cases.length; b++) {
-      const e = gainDeLEchange(roster, cases[a], cases[b], St, val);
+      const e = gainDeLEchange(roster, cases[a], cases[b], val);
       if (!e || e.gain <= 1e-6) continue;
       [roster[cases[a].i], roster[cases[b].i]] = [roster[cases[b].i], roster[cases[a].i]];
       e.lignes.forEach((u, k) => { val[u] = e.neuves[k]; });
@@ -6912,11 +6905,10 @@ export function trioAuMieux(joueurs, style = 'equilibre') {
  * Les échanges les plus prometteurs d'un alignement, du meilleur gain lu au moins bon (même négatif : la lecture
  * rapide se trompe parfois, et le moteur tranche ensuite — js/impact.js, `alignementAuMieux`). Rend [case, case].
  */
-export function echangesProposes(roster, style = 'equilibre', n = 12) {
-  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
-  const cases = casesEchangeables(roster), val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u, St)), out = [];
+export function echangesProposes(roster, n = 12) {
+  const cases = casesEchangeables(roster), val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u)), out = [];
   for (let a = 0; a < cases.length; a++) for (let b = a + 1; b < cases.length; b++) {
-    const e = gainDeLEchange(roster, cases[a], cases[b], St, val);
+    const e = gainDeLEchange(roster, cases[a], cases[b], val);
     if (e) out.push([e.gain, cases[a], cases[b]]);
   }
   return out.sort((x, y) => y[0] - x[0]).slice(0, n).map(([, sa, sb]) => [sa, sb]);

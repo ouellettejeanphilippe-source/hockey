@@ -577,23 +577,18 @@ function affiniteEl(unit, groupe) {
 
 /*
  * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
- * gossage ; plusieurs best : défensive, offensive*. Un bouton, une fenêtre : le meilleur alignement, penché vers
- * l'attaque ou la défense (js/impact.js `alignementAuMieux`). JP : *considérer positions, stratégie, etc.* : les trios
- * lisent le poste et le côté, la zone de chacun, les minutes de la ligne et l'affinité de ses joueurs, et le moteur
- * tranche sur les buts d'un soir ; jamais pire que l'alignement de l'IA. Derrière le banc, un blessé reste en réserve, et rien
- * ne joue avant « Retour au match ».
+ * gossage*. Un bouton : le meilleur alignement (js/impact.js `alignementAuMieux`). JP : *considérer positions,
+ * stratégie, etc.* : les trios lisent le poste et le côté, la zone de chacun, les minutes de la ligne et l'affinité de
+ * ses joueurs, et le moteur tranche sur les buts d'un soir ; jamais pire que l'alignement de l'IA. Derrière le banc, un
+ * blessé reste en réserve, et rien ne joue avant « Retour au match ». (V18 : l'offensif et le défensif sont partis avec
+ * les systèmes qui les faisaient pencher.)
  */
-const AU_MIEUX = [
-  { cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Chacun à son poste et dans sa zone, des lignes qui s\'accordent.' },
-  { cle: 'offensif', ico: '⚔', nom: 'Offensif', sous: 'Tes marqueurs en haut.' },
-  { cle: 'defensif', ico: '🛡', nom: 'Défensif', sous: 'Tes défensifs en haut.' },
-];
-function alignerAuMieux(cle) {
+function alignerAuMieux() {
   // En Rogue, la lecture joue le moteur du Rogue, ton coach compris.
   const plan = G.bonus === 'ROGUE', club = clubLu(), coachs = (club && club.team && club.team.coachs) || [];
   const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);
   const blesse = p => !!(G.banc && G.banc.blesses && G.banc.blesses.has(p));
-  const roster = alignementAuMieux(tous.filter(p => !blesse(p)), cle, { plan, coachs });
+  const roster = alignementAuMieux(tous.filter(p => !blesse(p)), { plan, coachs });
   // Les autres (blessés, surplus) vont en réserve, dans les cases ouvertes ; sans place pour tous, rien ne bouge.
   const places = new Set(Object.values(roster));
   const reste = tous.filter(p => !places.has(p)), libres = SLOTS.filter(s => s.scratch && caseOuverte(s) && !roster[s.i]);
@@ -609,7 +604,7 @@ function alignerAuMieux(cle) {
   Object.assign(G.roster, roster);
   saveGame();
   render();
-  toast(`${AU_MIEUX.find(x => x.cle === cle).nom} : c'est fait.${G.banc ? ' Il joue dès que tu quittes les Lignes.' : ''}`);
+  toast(`Le meilleur alignement : c'est fait.${G.banc ? ' Il joue dès que tu quittes les Lignes.' : ''}`);
 }
 function boutonAuMieux() {
   const b = document.createElement('button');
@@ -619,7 +614,7 @@ function boutonAuMieux() {
   b.onclick = () => ouvrirChoix({
     ico: '🤖', titre: 'Aligner au mieux', fermable: true, motFermer: 'Retour',
     recit: 'Poste, côté, zone et affinité, pesés ensemble. Tu peux tout retoucher après.',
-    options: AU_MIEUX.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: x.sous })),
+    options: [{ cle: 'equilibre', ico: '🤖', nom: 'Le meilleur alignement', sous: 'Chacun à son poste et dans sa zone, des lignes qui s\'accordent.' }],
     onChoix: alignerAuMieux,
   });
   return b;

@@ -3,15 +3,14 @@
  *
  *   node scripts/check_au_mieux.mjs
  *
- * JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le gossage ; plusieurs best :
- * défensive, offensive*. Sur des vraies équipes, vérifie que :
+ * JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le gossage*. Sur des vraies équipes,
+ * vérifie que :
  *   1. « Le meilleur » voit plus loin que l'IA (`autoRoster`) — JP : *considérer positions, stratégie, etc.* : sur
  *      les buts d'un soir que le moteur joue (`chiffresDuSoir`, poste, côté, zone, minutes et affinité compris), il ne
  *      fait jamais pire (sauf ce que coûte remettre chacun à son poste, `PRIX_DU_POSTE`), et mieux en moyenne ;
- *   2. chaque style remplit les 23 cases, sans doublon, et garde tout le monde ;
- *   3. « Offensif » marque plus que « Défensif », et « Défensif » en accorde moins — jamais l'inverse au-delà d'un
- *      vingtième de but (`PENCHANT`) : sans systèmes (V18), un style ne penche que par qui joue où, et un effectif qui
- *      ne laisse pas de choix donne deux fois le même alignement ;
+ *   2. il remplit les 23 cases, sans doublon, et garde tout le monde ;
+ *   (V18 : « Offensif » et « Défensif » sont partis avec les systèmes qui les faisaient pencher ; mesurés sans eux, ils
+ *   rendaient le même alignement, ou l'inverse de leur nom — Pittsburgh 2007-08 : le défensif marquait plus.)
  *   4. JP : *les équipes adverses aussi devraient optimiser leurs effectifs* : un club de l'IA s'aligne au mieux en
  *      entrant dans la ligue (`creerLigue`), les mêmes joueurs ; ton club n'est pas touché ;
  *   5. et quand un des siens manque, tout le monde monte : son centre du 1er trio blessé, la case prend le meilleur
@@ -23,38 +22,29 @@ import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
 const CLUBS = [['1995-96', 'DET'], ['1985-86', 'EDM'], ['2007-08', 'PIT'], ['1977-78', 'MTL'], ['2018-19', 'TBL'], ['1999-00', 'NJD']];
-const PENCHANT = 0.05;
 const affinite = R => [0, 1, 2, 3].reduce((a, u) => a + affiniteDeLigne(R, u), 0);
 
 console.log('\n  ALIGNER AU MIEUX\n');
-const pareil = [], gains = [], complets = [], penche = [];
+const pareil = [], gains = [], complets = [];
 for (const [s, t] of CLUBS) {
   const joueurs = equipeReelle(s, t).flat().map(x => ({ ...x }));
   joueurs.forEach(registerHiddenRatings);
-  const r = {};
-  for (const st of ['equilibre', 'offensif', 'defensif']) r[st] = alignementAuMieux(joueurs, st);
+  const mieux = alignementAuMieux(joueurs);
   const ia = autoRoster(joueurs);
   const lu = R => chiffresDuSoir(createTeam('x', t, R, { season: s }), R);
   const ecart = R => { const m = lu(R); return m.butsPour - m.butsContre; };
   const pen = R => SLOTS.filter(sl => !sl.scratch && R[sl.i]).reduce((a, sl) => a + getPositionPenalty(R[sl.i], sl), 0);
-  const [eIa, eMieux] = [ecart(ia), ecart(r.equilibre)];
+  const [eIa, eMieux] = [ecart(ia), ecart(mieux)];
   gains.push(eMieux - eIa);
   // Le poste d'abord (19 oct.) : le bouton cède au plus PRIX_DU_POSTE but par point de pénalité épargné.
-  pareil.push(eMieux >= eIa - PRIX_DU_POSTE * Math.max(0, pen(ia) - pen(r.equilibre)) - 1e-9);
-  informer(`${t} ${s} contre l'IA`, `différentiel par match ${eIa.toFixed(2)} → ${eMieux.toFixed(2)} · pénalités de poste ${pen(ia)} → ${pen(r.equilibre)} · affinité ${affinite(ia)} → ${affinite(r.equilibre)}`);
-  for (const st of Object.keys(r)) {
-    const pris = Object.values(r[st]).filter(Boolean);
-    complets.push(SLOTS.filter(sl => !sl.scratch && !sl.extra).every(sl => r[st][sl.i]) && new Set(pris.map(getPersonKey)).size === pris.length);
-  }
-  // Le penchant : l'offensif marque plus que le défensif, le défensif en accorde moins.
-  const [o, d] = [lu(r.offensif), lu(r.defensif)];
-  penche.push(o.butsPour >= d.butsPour - PENCHANT && d.butsContre <= o.butsContre + PENCHANT);
-  informer(`${t} ${s}`, `offensif ${o.butsPour.toFixed(2)}–${o.butsContre.toFixed(2)} · défensif ${d.butsPour.toFixed(2)}–${d.butsContre.toFixed(2)}`);
+  pareil.push(eMieux >= eIa - PRIX_DU_POSTE * Math.max(0, pen(ia) - pen(mieux)) - 1e-9);
+  informer(`${t} ${s} contre l'IA`, `différentiel par match ${eIa.toFixed(2)} → ${eMieux.toFixed(2)} · pénalités de poste ${pen(ia)} → ${pen(mieux)} · affinité ${affinite(ia)} → ${affinite(mieux)}`);
+  const pris = Object.values(mieux).filter(Boolean);
+  complets.push(SLOTS.filter(sl => !sl.scratch && !sl.extra).every(sl => mieux[sl.i]) && new Set(pris.map(getPersonKey)).size === pris.length);
 }
 exiger('« Le meilleur » ne fait jamais pire que l\'IA, sauf ce que coûte remettre chacun à son poste', pareil.every(Boolean), `${pareil.filter(Boolean).length}/${pareil.length} clubs`);
 borne('« Le meilleur » contre l\'IA, buts par match en moyenne', gains.reduce((a, x) => a + x, 0) / gains.length, 0.05, 1);
-exiger('chaque style remplit les 23 cases, sans doublon', complets.every(Boolean), `${complets.filter(Boolean).length}/${complets.length}`);
-exiger('« Offensif » marque plus, « Défensif » accorde moins', penche.every(Boolean), `${penche.filter(Boolean).length}/${penche.length} clubs`);
+exiger('il remplit les 23 cases, sans doublon', complets.every(Boolean), `${complets.filter(Boolean).length}/${complets.length}`);
 
 // 4 et 5 : les clubs de l'IA.
 const ligue = CLUBS.map(([s, t]) => { const j = equipeReelle(s, t).flat().map(x => ({ ...x })); j.forEach(registerHiddenRatings); return createTeam(t, t, autoRoster(j), { season: s }); });

@@ -1531,13 +1531,13 @@ if (await page.$eval('#mainBtn', b => !b.disabled)) {
   if (!(await page.$('#rosterBoard .ln-auto'))) errors.push('l\'alignement n\'offre pas « Aligner au mieux »');
   else {
     await page.click('#rosterBoard .ln-auto');
-    await _wait('#choixModal:not([hidden]) [data-choix="offensif"]', { timeout: 10000 });
+    await _wait('#choixModal:not([hidden]) [data-choix="equilibre"]', { timeout: 10000 });
     const styles = await page.$$eval('#choixModal [data-choix]', e => e.map(x => x.dataset.choix));
-    await page.click('#choixModal [data-choix="offensif"]');
+    await page.click('#choixModal [data-choix="equilibre"]');
     await page.waitForTimeout(400);
     const apres = await signes();
     if (apres !== avant) errors.push(`« Aligner au mieux » perd des joueurs : ${avant} → ${apres}`);
-    console.log(`   aligner au mieux : ${styles.join(' · ')} — « offensif » appliqué, ${apres} joueurs signés`);
+    console.log(`   aligner au mieux : ${styles.join(' · ')} — appliqué, ${apres} joueurs signés`);
   }
   await aller('repechage');
   await page.waitForTimeout(300);

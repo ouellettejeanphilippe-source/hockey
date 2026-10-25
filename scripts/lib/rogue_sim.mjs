@@ -239,7 +239,7 @@ function ranger(joueurs, nReserves, aligner = autoRoster) {
 
 export const POLITIQUES = ['defaut', 'attentif', 'distrait'];
 /* L'attentif lit le moteur, l'affinité de ses lignes comprise (V18). */
-const auMieux = coachs => joueurs => alignementAuMieux(joueurs, 'equilibre', { plan: true, coachs });
+const auMieux = coachs => joueurs => alignementAuMieux(joueurs, { plan: true, coachs });
 /* Les buts nets par match d'un alignement, lus au moteur sous ce coach — sous un hasard à part : la saison ne bouge pas d'un dé. */
 const lireNet = (R, coachs) => avecHasardIsole('robot', () => {
   const t = createTeam('Lu', 'LU', R);
