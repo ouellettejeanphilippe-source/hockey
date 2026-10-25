@@ -104,6 +104,18 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 | Équipes | EHM : la fiche d'un club, ouverte du classement | Se fusionne avec Classement | |
 | Palmarès | EHM : l'histoire du club | Reste, refait | En Rogue, il montre l'historique du 82-0 : « Aucune saison enregistrée. Complète un alignement de 23 et simule » et un deuxième « Ton album ». Il doit montrer le panthéon du club (records, trophées, chandails retirés) et tes runs. |
 
+**La fin de saison et autour**
+
+| Écran | Repère | Verdict | Ce qui change |
+|---|---|---|---|
+| Le Bureau, saison finie | EHM : la fin de saison s'ouvre d'elle-même | Part | Un bouton « Voir le bilan » et un titre « Autour de la ligue » vide : le bilan s'ouvre directement. |
+| Ta run | Showdown : l'écran de fin de course | Reste | « Rien ici. » traîne au pied de la feuille. |
+| Le bilan de saison | EHM : la revue de saison | Reste, allégé | Huit onglets (Résumé, Histoire, Chiffres, Rythme, Forces, Ton impact, Cartes, Vestiaire) ; Rythme, Forces et Ton impact vont aux Chiffres, Cartes et Vestiaire à l'Histoire : quatre. |
+| La fiche d'un joueur | DD : la carte recto verso | Reste | |
+| Le menu pause | partout | Reste | « Tes cartes » y double l'Album du Marché. |
+| Les déblocages | DD : les programmes | Reste | Son intro parlait encore des « cartes de trio (systèmes, styles, atelier, synergies) », parties à la V16 (fait). |
+| La page des règles | EHM : le manuel | Reste | 13,7 écrans : c'est sa place, le détail chiffré y vit. |
+
 ### La carte qui en sort
 
 | Section | Aujourd'hui | Proposé |
