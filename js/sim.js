@@ -7236,13 +7236,13 @@ export const MUTATIONS = {
    * LES RETOUCHES D'UN DÉFI (oct., JP : *s'il réussit un objectif, il a un upgrade permanent genre ceux à mettre derrière
    * la carte* ; *pour mises en échec, bagarres, tirs, précision, défensive, arrêts*). Un défi relevé (js/arcs.js `DEFIS`)
    * grave la sienne au verso de sa carte, pour de bon (`source: 'defi'`, gardée au cartable comme une amélioration). 🏵,
-   * comme les galons : ce qu'il a fait chez toi. Le physique n'a pas de canal à lui : son badge monte d'un palier.
+   * comme les galons : ce qu'il a fait chez toi. Le physique n'a pas de canal à lui : son badge monte d'un métal.
    */
   defi_buts: { nom: 'Le coup d\'œil', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de buteur : il voit le coin du filet.', profils: { sniper: 12 }, finition: 1.15 },
   defi_points: { nom: 'Le moteur', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de pointeur : son trio passe par lui.', profils: { passeur: 10, offensif: 6 }, creation: 1.12, finition: 1.05 },
   defi_tirs: { nom: 'Le canon', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de tireur : il tire de partout.', profils: { offensif: 10 }, lancers: 1.15 },
-  defi_coups: { nom: 'Le marteau', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de mises en échec : son badge monte d\'un palier.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
-  defi_bagarres: { nom: 'Le poids lourd', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de bagarres : son badge monte d\'un palier.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_coups: { nom: 'Le marteau', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de mises en échec : son badge monte d\'un métal.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_bagarres: { nom: 'Le poids lourd', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de bagarres : son badge monte d\'un métal.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
   defi_pm: { nom: 'Le verrou', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi défensif : on le passe moins.', profils: { defensif: 12, deuxsens: 8 }, defense: 0.9 },
   defi_arrets: { nom: 'Le mur', ico: '🏵', cible: 'libre', source: 'defi', gardien: true, quoi: 'Il a relevé son défi d\'arrêts : les buts faciles, c\'est fini.', arrets: 0.9 },
   // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.

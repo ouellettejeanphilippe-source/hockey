@@ -77,11 +77,12 @@ function poserDefi(stat, p, j, matchs) {
   const rythme = D.reel ? D.reel(p) : chezToi;
   return { stat, matchs, cible: stat === 'pm' ? D.min : Math.max(D.min, Math.ceil(rythme * matchs * 1.5)), depuis: j.length, ...(stat === 'pm' ? { pm0: p.simPM || 0 } : {}) };
 }
-/* Où en est un défi : ce qu'il a fait (`fait`), sur combien de matchs (`joues`), s'il est fini et relevé. */
-export function avanceDuDefi(t, x) {
+/* Où en est un défi : ce qu'il a fait (`fait`), sur combien de matchs (`joues`), s'il est fini et relevé. `jusqua` : le journal
+   lu jusqu'à ce match (exclu), pour relire un verdict au jour où il a été rendu. */
+export function avanceDuDefi(t, x, jusqua = Infinity) {
   const d = x && x.defi, p = x && x.p;
   if (!d || !p) return null;
-  const j = (t.journal || []).slice(d.depuis);
+  const j = (t.journal || []).slice(d.depuis, jusqua);
   if (DEFIS[d.stat].gardien) {
     const siens = j.filter(e => e.gardien === p);
     const sa = siens.reduce((a, e) => a + ((e.feuille && e.feuille.lancers) || []).filter(l => l.gardien === p).length, 0);

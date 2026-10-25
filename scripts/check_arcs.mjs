@@ -79,7 +79,9 @@ for (let k = 0; k < LIGUES; k++) {
   // LES DÉFIS (oct.) : le verdict se recompte dans les feuilles, et la retouche tombe si, et seulement si, il est relevé.
   for (const a of arcs.filter(x => x.ep === 1 && x.x && x.x.defi)) {
     defis++;
-    const v = avanceDuDefi(toi, a.x);
+    // Relu au jour du verdict (le journal jusqu'à ce matin-là) ; le différentiel, compté en cours de saison, se relit au verdict.
+    const v = a.x.defi.stat === 'pm' ? a.x.avance : avanceDuDefi(toi, a.x, a.matchsAuDebut);
+    if (v && a.x.avance && (v.fait !== a.x.avance.fait || v.reussi !== a.x.avance.reussi)) defisFaux++;
     const pose = (toi.mutations || []).some(m => m.cle === DEFIS[a.x.defi.stat].recompense && m.p === a.joueur && m.jour === a.jour);
     if (!v || !v.fini || v.reussi !== !!a.recompense || pose !== !!a.recompense) defisFaux++;
     if (a.recompense) releves++;
