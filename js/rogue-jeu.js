@@ -622,7 +622,7 @@ export function masseDuLundi(j) {
   if (pl.cap >= 1e11 || !signes().length) return null;
   const lourd = signes().filter(p => !pl.facteurs.has(getPlayerKey(p))).sort((a, b) => capHit(b, pl) - capHit(a, pl))[0];
   const espace = pl.cap - capUsed(pl);
-  return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)) } : null };
+  return { espace, libre: money(Math.max(0, espace)), lourd: lourd ? { n: lourd.n, cle: getPlayerKey(lourd), sal: money(capHit(lourd, pl)), dollars: capHit(lourd, pl) } : null };
 }
 export function coachsDuLundi(j) {
   const [actif] = coachsActifs(decisionsDeLaPartie(), j + 1);
@@ -1075,7 +1075,12 @@ async function vestiaireDeDepart(meta, fixes = [], { saison = 1, rang = rangDePr
     const ligue = await plombiersDeLaLigue(meta, pris, graine);
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
   }
-  return { roster: placerDevant(autoRoster(pris), fixes), quota, tires, nFixes: fixes.length };
+  const roster = placerDevant(autoRoster(pris), fixes);
+  // Le vrai plafond (oct.) : tes cartes restent ; tes bouche-trous prennent de vrais contrats trop payés, jusqu'à l'espace de départ.
+  const reserve = [];
+  await plombiersDeLaLigue(meta, pris, graine, reserve);
+  const cible = PLAFOND_PREMIERE + plafondDuVestiaire(meta) - Math.max(0, ESPACE_DE_DEPART + plafondDuVestiaire(meta) + exigencesDe(exigence).espace);
+  return { roster: alourdirLaPremiere(roster, reserve, { fixes: [...fixes, ...tires.map(x => x.p)], personne: getPersonKey, cible }), quota, tires, nFixes: fixes.length };
 }
 /*
  * LES CARTES QU'ON A CHOISIES PASSENT DEVANT (S80) : un joueur gardé ou tiré
@@ -1327,7 +1332,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   m.runs = (m.runs || 0) + 1;
   ecrireMeta(m);
   G.rogue = {
-    depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence),
+    depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence, { reel: true }),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné ; V9 (tranche 8) : son cran d'exigence, fixé.
     numero: m.runs, saison: 1, reserves: reservesDeLaRun(meta), bareme: baremeRogue(meta, exigence), exigence,
     // v2 : le coach choisi au départ (js/coachs.js) — sa confiance I est une décision du jour 0 (js/banc.js) —
@@ -1339,7 +1344,6 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // 1.0 : tes cartes arrivent avec ce qu'elles portent (js/cartable.js `mods`).
     report: reportDesCartes(G.roster),
   };
-  if (premiere && G.rogue.plafond.cap <= PLAFOND_PREMIERE) G.rogue.plafond = { cap: PLAFOND_PREMIERE, lignes: [{ nom: 'Le vrai plafond de la LNH', montant: PLAFOND_PREMIERE }] };
   saveGame(); syncOptionsUI(); render();
   setView('roster');
   const noms = [...gardes.map(p => p.n), ...tires.map(x => x.p.n)];
@@ -1353,11 +1357,20 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
  * la saison suivante repart comme la première : ses gardés tiennent dans le
  * budget du classeur, le plafond ne grimpe donc pas de saison en saison.
  */
-function plafondDeDepart(meta, exigence = 0) {
+function plafondDeDepart(meta, exigence = 0, { reel = false } = {}) {
   // V9 (tranche 4) : le plafond qui mord — ta masse de départ, plus l'espace de départ et les déblocages ; tranche 8 : moins les exigences.
   const masse = signes().reduce((a, p) => a + (p.$ || 0), 0);
+  /*
+   * LE VRAI PLAFOND À CHAQUE RUN (oct., JP : *on avait décidé que c'était vraie masse et mauvais contrats*). Le départ
+   * d'une run, la première comme les autres, se joue sous le vrai plafond de la LNH, tes bouche-trous alourdis de vrais
+   * contrats trop payés (`alourdirLaPremiere`). Une masse déjà plus lourde garde son espace, comme avant.
+   */
+  if (reel) {
+    const v = plafondDuVestiaire(meta), cap = Math.max(PLAFOND_PREMIERE + v, plafondDeSaison(masse, meta, exigence));
+    return { cap, lignes: [{ nom: 'Le vrai plafond de la LNH', montant: PLAFOND_PREMIERE }, ...(v ? [{ nom: 'Les déblocages', montant: v }] : []), ...(cap > PLAFOND_PREMIERE + v ? [{ nom: 'Ta masse le dépasse', montant: cap - PLAFOND_PREMIERE - v }] : [])] };
+  }
   const base = Math.ceil((masse + ESPACE_DE_DEPART) / 100_000) * 100_000;
-  const lignes = [{ nom: 'Ta masse de départ, plus l\'espace', montant: base }];
+  const lignes = [{ nom: `Ta masse (${money(masse)}), plus ${money(base - masse)} d'espace`, montant: base }];
   const v = plafondDuVestiaire(meta);
   if (v) lignes.push({ nom: 'Les déblocages', montant: v });
   const cap = plafondDeSaison(masse, meta, exigence);

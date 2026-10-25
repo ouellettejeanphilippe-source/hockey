@@ -2282,12 +2282,29 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   // V9 (tranche 6) : le retour d'un fil se lit comme un arc (js/sim.js `retoursDuMatin`) : sa voix, ses vrais chiffres, son effet.
   const arcsDeLaSemaine = debut => [...(you.arcs || []), ...(you.retours || [])].filter(a => a.jour >= debut && a.jour <= jour).sort((a, b) => a.jour - b.jour);
+  /*
+   * UN ARC DE JOUEUR SE DIT EN SES BUTS (oct., JP : *0,4 pt, ça va fuck all faire*) : ce que l'arc ajoute ou retire à SON
+   * rythme de sa vraie saison, sur ses matchs — « Zanon : ≈ +1,2 but sur 8 matchs (0,15 par match d'habitude) ». Un
+   * gardien : les buts qu'il accorde de plus ou de moins, au rythme de son club. Le reste se dit en chiffres de match.
+   */
+  const motsDeLArc = a => {
+    const p = a.cible === 'joueur' ? a.joueur : null, e = a.effet || {};
+    if (p && p.p === 'G' && e.arrets) {
+      const ga = gpDe(you) ? (fiche.get(you).GA || 0) / gpDe(you) : 3, n = (e.arrets - 1) * ga * a.matchs;
+      return [{ txt: `${nomCourt(p.n)} : ≈ ${n > 0 ? '+' : '−'}${virgule(Math.abs(n), 1)} but${Math.abs(n) >= 2 ? 's' : ''} accordé${Math.abs(n) >= 2 ? 's' : ''} sur ${a.matchs} matchs`, bon: n < 0 }];
+    }
+    if (p && (e.finition || e.lancers)) {
+      const rythme = (p.g || 0) / Math.max(1, p.gp || 0), n = rythme * ((e.finition || 1) * (e.lancers || 1) - 1) * a.matchs;
+      return [{ txt: `${nomCourt(p.n)} : ≈ ${n > 0 ? '+' : '−'}${virgule(Math.abs(n), 1)} but${Math.abs(n) >= 2 ? 's' : ''} sur ${a.matchs} matchs (${virgule(rythme, 2)} par match d'habitude)`, bon: n > 0 }];
+    }
+    return motsEnChiffres(e).filter(m => m.cle !== 'rien').map(m => ({ ...m, txt: `${m.txt} · ${a.cible === 'contre' ? `${a.pour}, le reste de la saison` : `${a.pour ? `${a.pour} · ` : ''}${a.matchs} matchs`}` }));
+  };
   const arcHtml = (a, une) => {
     const x = EXPEDITEURS[a.de] || EXPEDITEURS.en;
-    const mots = motsEnChiffres(a.effet).filter(m => m.cle !== 'rien');
+    const mots = motsDeLArc(a);
     return une
       ? `<div class="hub-une"><span class="hub-une-t">La une</span><b>${ctx.esc(a.titre)}</b>
-      <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots.map(m => ({ ...m, txt: `${m.txt} · ${a.cible === 'contre' ? `${a.pour}, le reste de la saison` : `${a.pour ? `${a.pour} · ` : ''}${a.matchs} matchs`}` })))}</span>` : ''}</div>`
+      <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span>${mots.length ? `<span class="choix-puces">${puces(mots)}</span>` : ''}</div>`
       : `<div class="som-l"><b>${ctx.esc(a.titre)}</b> <span class="hub-une-voix">${x.ico} ${ctx.esc(x.nom)} : « ${ctx.esc(a.texte)} »</span></div>`;
   };
   const uneHtml = () => {
@@ -3239,7 +3256,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (!onDecision || !ctx.rogue || jour >= N || jour % SEMAINE !== 0) return null;
     const w = jour / SEMAINE;
     if (w % 2 !== 1 || decs.some(d => d.palier === `n:${w}`)) return null;
-    return { w, routes: noeudsDeLaSemaine(graine, w) };
+    return { w, routes: noeudsDeLaSemaine(graine, w, momentPossible) };
+  }
+  /*
+   * UN MOMENT PEUT-IL ARRIVER dans les `n` prochains matchs de ton club ? Lu sur ce qui est joué (les jambes, l'infirmerie
+   * de ce matin) et sur le calendrier (les dos-à-dos, le lieu, un de tes rivaux choisis), jamais
+   * sur un résultat à venir. Ce qu'on ne peut pas lire d'avance (après une défaite) peut toujours arriver.
+   */
+  function momentPossible(si, n = 8) {
+    const P = [];
+    for (let j = jour; j < N && P.length < n; j++) { const k = indexMien(j); if (k >= 0) P.push({ j, m: calendrier[j][k] }); }
+    const f = etatDuNoeud().faits, M = MOMENTS_SI[si] || {};
+    if (si === 'dosADos') return P.some(x => dosADos(you, x.j));
+    if (si === 'domicile') return P.some(x => x.m.A === you);
+    if (si === 'visiteur') return P.some(x => x.m.B === you);
+    if (si === 'infirmerie') return f.blesses >= (M.blesses || 2);
+    if (si === 'jambesLourdes') return f.jambes < (M.seuil || 86);
+    if (si === 'jambesFraiches') return f.jambes >= (M.seuil || 92);
+    if (si === 'rival') return P.some(x => !!rivalChoisi(you, x.m.A === you ? x.m.B : x.m.A));
+    return true;
   }
   /*
    * LE DOSSIER DE LA SEMAINE (V10, tranche 5 — js/dossiers.js) : le lundi où le nœud ne s'ouvre pas (les semaines
@@ -3256,7 +3291,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /* Les mots d'une réponse de dossier, ses noms posés : le joueur qu'il nomme ({nom}), les coachs que le proprio nomme ({coach0}, {coach1}). */
   function motsDuDossier(o, f, lui) {
     const c = (f.coachs || []).map(x => `${x.ico} ${x.nom}`);
-    const poser = t => String(t).replace('{nom}', lui ? lui.n : '').replace('{coach0}', c[0] || '').replace('{coach1}', c[1] || '');
+    // Le rachat dit les vrais montants (oct., JP : *c'est moi où y'a rien de cohérent ?*), plus « 17 % de moins ».
+    const apres = lui && lui.dollars && o.plafond && o.plafond.facteur ? money(lui.dollars * o.plafond.facteur) : '';
+    const poser = t => String(t).replace('{nom}', lui ? lui.n : '').replace('{sal}', lui && lui.sal ? lui.sal : '').replace('{apres}', apres).replace('{coach0}', c[0] || '').replace('{coach1}', c[1] || '');
     return Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, poser(o[k])]));
   }
   /* LES FAITS DU LUNDI : ce qui est déjà joué (les jambes du matin, l'infirmerie, le dernier match, le rang) et la cédule de la semaine, déjà connue. */
@@ -3465,7 +3502,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
       out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre, ...(D.maison ? { maison: D.maison } : {}), ...(joueur ? { joueur } : {}),
         choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`), ...(joueur ? { joueur } : {}),
-          options: D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien ? null : o.duree || null, ...(o.si ? { quand: `${MOMENTS_SI[o.si].mot} seulement` } : {}),
+          // UNE RÉPONSE D'UN MOMENT se dit sur ses soirs : « −0,4 pt de précision par soir · Un soir de dos-à-dos : ≈ 15 soirs cette
+          // saison », plus « par match · 82 matchs » à côté de « seulement » (oct., JP : *rien de cohérent*).
+          options: D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien || o.si ? null : o.duree || null,
+            ...(o.si ? { cadre: { part: 1, par: 'par soir' }, quand: `${MOMENTS_SI[o.si].mot} : ≈ ${Math.max(1, Math.round(MOMENTS_SI[o.si].parSaison * Math.min(o.duree || 82, 82 - miens.length) / 82))} soirs${(o.duree || 82) >= 82 ? ' d\'ici la fin de la saison' : ` sur ${o.duree} matchs`}` } : {}),
             mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
             desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null })),
           decision: cle => { const o = D.options.find(x => x.cle === cle); return { palier: `do:${dossier.w}`, moment: { famille: 'dossier', cle: dossier.cle, choix: cle, ...(lui ? { joueur: lui.cle, joueurs: [lui.cle] } : {}) }, ...(o.gain ? { gain: o.gain } : {}),

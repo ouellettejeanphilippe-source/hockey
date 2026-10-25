@@ -191,7 +191,7 @@ export const DOSSIERS = {
     mots: ['Le plafond nous étouffe. Je peux racheter une part d\'un contrat, ou vendre une soirée à la télé.',
       'Il n\'y a plus d\'air sous le plafond. Choisis ce que tu sacrifies : des jetons, ou des soirs.'],
     options: [
-      { cle: 'rachat', nom: 'Racheter une part du contrat de {nom}', bon: 'Il compte 17 % de moins au plafond', prix: 'Les frais de rachat', gain: -10, plafond: { facteur: 0.833 } },
+      { cle: 'rachat', nom: 'Racheter une part du contrat de {nom}', bon: 'Il compte {apres} au plafond, plus {sal}', gain: -10, plafond: { facteur: 0.833 } },
       { cle: 'tele', nom: 'Signer le contrat de télé', bon: '+2,5 M$ sous le plafond', prix: 'Les dos-à-dos fatiguent plus', si: 'dosADos', duree: 82, energie: 1.12, finition: 0.96, plafond: { espace: 2_500_000 } },
       { cle: 'non', nom: 'Ne rien signer', bon: 'Rien ne change', rien: true },
     ],

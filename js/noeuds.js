@@ -73,11 +73,22 @@ export function chargeDeRoute(n) {
  * Les nœuds se tirent l'un après l'autre, des semaines 1 à `w` (un sur deux, les semaines impaires) : une route
  * n'offre jamais la carte qu'elle offrait au nœud d'avant.
  */
-export function noeudsDeLaSemaine(graine, w) {
+/*
+ * UNE CARTE QUI PEUT JOUER (oct., JP : *ces choix-là, c'est moi ou y'a rien de cohérent ?*). La route pigeait dans toute
+ * sa famille : « Le chantier » (les soirs où l'infirmerie déborde) sortait sous « Personne à l'infirmerie ». Le nœud du
+ * jour ne pige que les cartes dont le moment peut arriver dans leurs matchs (`possible(si, duree)`, lu par l'écran sur
+ * ce qui est déjà joué et sur le calendrier) ; s'il n'en reste aucune, toute la famille, comme avant.
+ */
+export function noeudsDeLaSemaine(graine, w, possible = () => true) {
   const avant = {};
   let routes = [];
   for (let v = 1; v <= Math.max(1, w); v += 2) {
-    routes = SORTES.map(route => ({ route, id: piger(Object.keys(CARTES_DE_ROUTE[route]).filter(id => id !== avant[route]), graine, v, route) }));
+    const ici = v + 2 > Math.max(1, w);
+    routes = SORTES.map(route => {
+      let ids = Object.keys(CARTES_DE_ROUTE[route]).filter(id => id !== avant[route]);
+      if (ici) { const C = id => CARTES_DE_ROUTE[route][id]; const vivantes = ids.filter(id => !C(id).si || possible(C(id).si, C(id).duree)); if (vivantes.length) ids = vivantes; }
+      return { route, id: piger(ids, graine, v, route) };
+    });
     for (const n of routes) avant[n.route] = n.id;
   }
   return routes;

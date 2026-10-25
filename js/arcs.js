@@ -28,6 +28,16 @@ import { franchiseDuCode } from './franchises.js';
 
 
 export const ARCS_PAR_SAISON = 5;
+/*
+ * UN JOUEUR EN FEU, POUR VRAI (oct., JP : *0,4 pt, ça va fuck all faire* ; *si un joueur qui score pas est en feu, ça veut
+ * souvent dire genre 3-4 buts en 6-10 matchs*). Les arcs d'un joueur jouaient ×1,06 sur quatre matchs : un dixième de but.
+ * En feu, il double à peu près son rythme de buts (sa précision et ses tirs) pendant huit matchs — un joueur de profondeur
+ * à 0,15 but par match en met deux ou trois au lieu d'un ; en panne, il en perd le quart pendant cinq. Un gardien chaud
+ * accorde 18 % de buts de moins, ébranlé 18 % de plus. Toujours sous la borne d'une peu commune (`check_arcs`).
+ */
+const EN_FEU = { finition: 1.45, lancers: 1.35 };
+const EN_PANNE = { finition: 0.75 };
+const FEU = 8, PANNE = 5;
 /* Des journées entre deux débuts d'arc : un arc a le temps de vivre avant le suivant. */
 const ESPACE_ARCS = 10;
 /* Les journées qu'un arc attend sa suite ; après, il se termine sans elle (le blessé de toute la saison). */
@@ -96,8 +106,8 @@ export const ARCS = {
     titre: 'La recrue fait jaser', famille: 'joueur',
     debut: f => (f.recrue ? { p: f.recrue.p, buts: f.recrue.buts } : null),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n}, encore à son contrat d'entrée, compte ${pl(x.buts, 'but')} en cinq matchs. Toute la ligue a son nom à la bouche.`, effet: { finition: 1.1, lancers: 1.05 }, matchs: 5 },
-      { de: 'ph', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} arrive à l'aréna les traits tirés. Le mur des recrues n'est jamais loin.`, effet: { finition: 0.92 }, matchs: 6 },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n}, encore à son contrat d'entrée, compte ${pl(x.buts, 'but')} en cinq matchs. Toute la ligue a son nom à la bouche.`, effet: EN_FEU, matchs: FEU },
+      { de: 'ph', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} arrive à l'aréna les traits tirés. Le mur des recrues n'est jamais loin.`, effet: EN_PANNE, matchs: PANNE },
     ],
     suite: (f, a) => f.matchs - a.matchs >= 12,
   },
@@ -105,8 +115,8 @@ export const ARCS = {
     titre: 'La relève', famille: 'joueur',
     debut: f => (f.meneurBlesse && f.second ? { p: f.second, meneur: f.meneurBlesse.p, matchs: f.meneurBlesse.matchs } : null),
     episodes: [
-      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${x.meneur.n}, ton meilleur pointeur, rate ${pl(x.matchs, 'match')}. ${x.p.n} hérite de son trio, et de ses responsabilités.`, effet: { finition: 1.08, creation: 1.06 }, matchs: 6 },
-      { de: 'pt', cible: 'joueur', qui: x => x.meneur, texte: x => `${x.meneur.n} est de retour. À sa première présence, le banc tape la bande.`, effet: { finition: 1.06, lancers: 1.05 }, matchs: 4 },
+      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${x.meneur.n}, ton meilleur pointeur, rate ${pl(x.matchs, 'match')}. ${x.p.n} hérite de son trio, et de ses responsabilités.`, effet: { ...EN_FEU, creation: 1.2 }, matchs: FEU },
+      { de: 'pt', cible: 'joueur', qui: x => x.meneur, texte: x => `${x.meneur.n} est de retour. À sa première présence, le banc tape la bande.`, effet: { finition: 1.3, lancers: 1.2 }, matchs: PANNE },
     ],
     suite: (f, a) => f.enSante(a.x.meneur),
   },
@@ -114,8 +124,8 @@ export const ARCS = {
     titre: 'Le vieux lion', famille: 'joueur',
     debut: f => (f.vieux ? { p: f.vieux.p, age: f.vieux.age, buts: f.vieux.buts } : null),
     episodes: [
-      { de: 'pa', cible: 'joueur', qui: x => x.p, texte: x => `À ${x.age} ans, ${x.p.n} en a mis ${x.buts} hier soir. Au vestiaire, les jeunes se taisent quand il parle.`, effet: { finition: 1.08 }, matchs: 5 },
-      { de: 'ph', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} se lève plus lentement le matin. À ${x.age} ans, le corps présente sa facture.`, effet: { blessure: 1.5, lancers: 0.95 }, matchs: 6 },
+      { de: 'pa', cible: 'joueur', qui: x => x.p, texte: x => `À ${x.age} ans, ${x.p.n} en a mis ${x.buts} hier soir. Au vestiaire, les jeunes se taisent quand il parle.`, effet: EN_FEU, matchs: FEU },
+      { de: 'ph', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} se lève plus lentement le matin. À ${x.age} ans, le corps présente sa facture.`, effet: { blessure: 1.5, lancers: 0.8 }, matchs: 6 },
     ],
     suite: (f, a) => f.matchs - a.matchs >= 8,
   },
@@ -123,8 +133,8 @@ export const ARCS = {
     titre: 'Le tour du chapeau', famille: 'joueur',
     debut: f => (f.chapeau ? { p: f.chapeau.p, buts: f.chapeau.buts } : null),
     episodes: [
-      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.buts, 'but')} pour ${x.p.n} hier soir. Au vestiaire, on lui a gardé la rondelle du tour du chapeau.`, effet: { finition: 1.06, lancers: 1.05 }, matchs: 4 },
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `Trois matchs sans but pour ${x.p.n} depuis son tour du chapeau. Tout le monde l'attend, et ça pèse.`, effet: { finition: 0.95 }, matchs: 3 },
+      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.buts, 'but')} pour ${x.p.n} hier soir. Au vestiaire, on lui a gardé la rondelle du tour du chapeau.`, effet: EN_FEU, matchs: FEU },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `Trois matchs sans but pour ${x.p.n} depuis son tour du chapeau. Tout le monde l'attend, et ça pèse.`, effet: EN_PANNE, matchs: PANNE },
     ],
     suite: (f, a) => f.sansBut(a.x.p) >= 3,
   },
@@ -132,8 +142,8 @@ export const ARCS = {
     titre: 'Le héros du soir', famille: 'joueur',
     debut: f => (f.heros ? { p: f.heros } : null),
     episodes: [
-      { de: 'co', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} met fin au match en prolongation. Ce matin, c'est son nom qu'on entend à la radio.`, effet: { finition: 1.06 }, matchs: 4 },
-      { de: 'ag', cible: 'joueur', qui: x => x.p, texte: x => `L'agent de ${x.p.n} parle déjà de contrat. Le joueur, lui, n'a plus marqué depuis son but en prolongation.`, effet: { finition: 0.96, defense: 1.04 }, matchs: 3 },
+      { de: 'co', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} met fin au match en prolongation. Ce matin, c'est son nom qu'on entend à la radio.`, effet: EN_FEU, matchs: FEU },
+      { de: 'ag', cible: 'joueur', qui: x => x.p, texte: x => `L'agent de ${x.p.n} parle déjà de contrat. Le joueur, lui, n'a plus marqué depuis son but en prolongation.`, effet: { ...EN_PANNE, defense: 1.04 }, matchs: PANNE },
     ],
     suite: (f, a) => f.sansBut(a.x.p) >= 5,
   },
@@ -141,8 +151,8 @@ export const ARCS = {
     titre: 'Contre son ancien club', famille: 'joueur',
     debut: f => (f.ancien ? { p: f.ancien.p, adv: f.ancien.adv } : null),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a trouvé le fond du filet contre ${x.adv.name}, son ancien club. Celui-là, il l'attendait.`, effet: { finition: 1.06, lancers: 1.04 }, matchs: 5 },
-      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${nom(x.p)} retombe sur terre : la rancune ne marque pas tous les soirs.`, effet: { finition: 0.97 }, matchs: 3 },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a trouvé le fond du filet contre ${x.adv.name}, son ancien club. Celui-là, il l'attendait.`, effet: EN_FEU, matchs: 6 },
+      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${nom(x.p)} retombe sur terre : la rancune ne marque pas tous les soirs.`, effet: EN_PANNE, matchs: 4 },
     ],
     suite: (f, a) => f.sansBut(a.x.p) >= 4,
   },
@@ -150,8 +160,8 @@ export const ARCS = {
     titre: 'Le gardien en feu', famille: 'joueur',
     debut: f => (f.gardienFeu ? { p: f.gardienFeu.p, n: f.gardienFeu.n, buts: f.gardienFeu.buts } : null),
     episodes: [
-      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${x.n} victoires de suite pour ${x.p.n}, ${pl(x.buts, 'but')} accordé${x.buts > 1 ? 's' : ''} en tout. Devant lui, les défenseurs osent monter.`, effet: { arrets: 0.92 }, matchs: 4 },
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `La séquence de ${x.p.n} s'arrête. Il cherche ses repères dans son demi-cercle.`, effet: { arrets: 1.05 }, matchs: 3 },
+      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${x.n} victoires de suite pour ${x.p.n}, ${pl(x.buts, 'but')} accordé${x.buts > 1 ? 's' : ''} en tout. Devant lui, les défenseurs osent monter.`, effet: { arrets: 0.82 }, matchs: 6 },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `La séquence de ${x.p.n} s'arrête. Il cherche ses repères dans son demi-cercle.`, effet: { arrets: 1.12 }, matchs: 4 },
     ],
     suite: f => f.dernier && !f.dernier.win,
   },
@@ -159,8 +169,8 @@ export const ARCS = {
     titre: 'Le gardien ébranlé', famille: 'joueur',
     debut: f => (f.gardienEbranle ? { p: f.gardienEbranle.p, ga: f.gardienEbranle.ga } : null),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.ga} buts dans le filet de ${x.p.n} hier soir. À chacun, on a vu ses épaules tomber un peu plus.`, effet: { arrets: 1.07 }, matchs: 3 },
-      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} signe la victoire, et le vestiaire se relève avec lui.`, effet: { arrets: 0.95 }, matchs: 4 },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.ga} buts dans le filet de ${x.p.n} hier soir. À chacun, on a vu ses épaules tomber un peu plus.`, effet: { arrets: 1.18 }, matchs: 4 },
+      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} signe la victoire, et le vestiaire se relève avec lui.`, effet: { arrets: 0.88 }, matchs: 5 },
     ],
     suite: (f, a) => f.dernier && f.dernier.win && f.dernier.gardien === a.x.p,
   },
