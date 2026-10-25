@@ -1623,11 +1623,13 @@ function montrerTaRun(sort, n, s) {
   const f = faitsDeLaSaison();
   const M = mandatDe(n, exigenceDeLaRun());
   const d = { numero: G.rogue.numero || meta.runs || 1, saisons: n, sort, series: !!f.series, rondes: (s && s.rondes) || 0, coupe: !!(s && s.coupe),
-    ecussons: G.rogue.ecussonsRun || 0, jalons: G.rogue.jalonsRun || [] };
+    ecussons: G.rogue.ecussonsRun || 0, jalons: G.rogue.jalonsRun || [], coach: G.rogue.coach || null };
   const nCartable = Object.keys(lireCartable().joueurs).length;
   const entrees = G.rogue.cartableDepart != null ? Math.max(0, nCartable - G.rogue.cartableDepart) : null;
   G.rogue.taRunVue = true;
   meta.derniereRun = d;
+  // Tes runs, au Palmarès (V18-5) : une par numéro, qu'une saison rechargée ne compte pas deux fois.
+  meta.lesRuns = { ...(meta.lesRuns || {}), [d.numero]: d };
   // LA VITRINE (1.0) : chaque Coupe y entre, avec ses vedettes — V9 (tranche 7) : ce qu'ils ont fait CHEZ TOI, leurs points (un gardien, ses victoires).
   const pts = p => (p.p === 'G' ? p.simW || 0 : p.simPTS || 0);
   const vedettes = sort === 'gagnee' ? Object.values((G.ligue && G.ligue.you && G.ligue.you.roster) || {}).filter(Boolean).sort((a, b) => pts(b) - pts(a)).slice(0, 3) : [];
@@ -1899,19 +1901,13 @@ function ouvrirClub(apres = null, onglet = 'club') {
   document.querySelectorAll('#choixModal [data-onglet]').forEach(b => { b.onclick = () => ouvrirClub(apres, b.dataset.onglet); });
 }
 
-export function ouvrirVestiaire(apres = null) {
+/*
+ * LE PALMARÈS DU CLUB (V18-5, docs/ecrans-rogue.md ; EHM : l'histoire du club) : Ligue › Palmarès, en Rogue. Ta vitrine
+ * (tes Coupes), le panthéon (les records, les chandails retirés, les trophées) et tes runs. Ils vivaient aux déblocages ;
+ * le Palmarès du Rogue montrait l'historique du 82-0.
+ */
+export function palmaresDuClubHtml() {
   const meta = lireMeta();
-  // v2 : LE PRESTIGE DU CLUB (js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
-  const rang = rangDePrestige(meta), vie = ecussonsAVie(meta);
-  const jalonDe = k => (JALONS.find(J => J.cle === k) || {}).nom || k;
-  // Les exigences (tranche 8) : le plus haut cran ouvert, une fois la première Coupe gagnée.
-  const ouvertes = exigencesOuvertes(meta);
-  const prestige = `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
-    <div class="vs-jalons">${PRESTIGES.map((P, k) => {
-      const fait = k <= rang;
-      const quoi = `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
-      return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoi) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoi)}`}</span></div>`;
-    }).join('')}</div>`;
   // 1.0 : LA VITRINE — tes Coupes, la run, la saison, le coach et les vedettes.
   const vitrine = (meta.vitrine || []).length ? `<p class="vs-sec">🏆 Ta vitrine · ${meta.vitrine.length} Coupe${meta.vitrine.length > 1 ? 's' : ''}</p>
     <div class="vs-jalons">${meta.vitrine.slice().reverse().map(V => `<div class="vs-jalon fait"><span class="vs-ico" aria-hidden="true">🏆</span><b>Run ${V.run} · saison ${V.saison}${COACHS[V.coach] ? ` · ${COACHS[V.coach].ico} ${esc(COACHS[V.coach].nom)}` : ''}</b><span>${esc((V.vedettes || []).join(' · '))}</span></div>`).join('')}</div>` : '';
@@ -1928,7 +1924,28 @@ export function ouvrirVestiaire(apres = null) {
     <div class="vs-jalons">${recs.map(r => rangee('📈', `${r.nom} : ${r.x.n}`, [r.qui, quand(r.x)].filter(Boolean).join(' · '))).join('')}
       ${P.chandails.map(c => rangee('👕', `Chandail retiré : ${c.nom}`, `${c.galons} galons · ${quand(c)}`)).join('')}
       ${P.trophees.slice().reverse().slice(0, 12).map(t => rangee('🏆', t.nom, `${t.joueur} · ${t.val} · ${quand(t)}`)).join('')}</div>` : '';
-  const jalons = `${vitrine}${pantheon}${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
+  const runs = Object.values(meta.lesRuns || (meta.derniereRun ? { 1: meta.derniereRun } : {})).sort((a, b) => b.numero - a.numero);
+  const enCours = G.rogue && G.rogue.numero && !G.rogue.taRunVue ? rangee('▶', `Run ${G.rogue.numero} · saison ${G.rogue.saison || 1}`, 'En cours') : '';
+  const lesRuns = enCours || runs.length ? `<p class="vs-sec">🗂 Tes runs · 🏆 ${meta.coupes || 0}</p>
+    <div class="vs-jalons">${enCours}${runs.map(d => rangee(d.coupe ? '🏆' : '🏁', `Run ${d.numero} · ${d.saisons} saison${d.saisons > 1 ? 's' : ''}${COACHS[d.coach] ? ` · ${COACHS[d.coach].ico} ${COACHS[d.coach].nom}` : ''}`,
+      `${motDeRun(d)} · 🏅 +${d.ecussons || 0}`)).join('')}</div>` : '';
+  return `${vitrine}${pantheon}${lesRuns}` || '<div class="empty-msg">Rien de gravé encore : tes Coupes, tes records et tes runs viendront ici.</div>';
+}
+
+export function ouvrirVestiaire(apres = null) {
+  const meta = lireMeta();
+  // v2 : LE PRESTIGE DU CLUB (js/rogue.js) — l'échelle entière, ce qui est atteint et ce qu'il faut pour la suite.
+  const rang = rangDePrestige(meta), vie = ecussonsAVie(meta);
+  const jalonDe = k => (JALONS.find(J => J.cle === k) || {}).nom || k;
+  // Les exigences (tranche 8) : le plus haut cran ouvert, une fois la première Coupe gagnée.
+  const ouvertes = exigencesOuvertes(meta);
+  const prestige = `<p class="vs-sec">📈 Le prestige du club · ${esc(PRESTIGES[rang].nom)} · 🏅 ${vie} gagnés à vie${ouvertes ? ` · ${ICO_EXIGENCE} exigences ouvertes jusqu'au cran ${ouvertes}` : ''}</p>
+    <div class="vs-jalons">${PRESTIGES.map((P, k) => {
+      const fait = k <= rang;
+      const quoi = `Étoiles ×${String(P.etoile).replace('.', ',')} · Phénomènes ×${String(P.phenomene).replace('.', ',')}${P.classeur ? ` · classeur +${money(P.classeur)}` : ''}`;
+      return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${fait ? '✓' : k}</span><b>${esc(P.nom)}</b><span>${fait ? esc(quoi) : `${P.min} 🏅 à vie${P.jalon ? ` et « ${esc(jalonDe(P.jalon))} »` : ''} → ${esc(quoi)}`}</span></div>`;
+    }).join('')}</div>`;
+  const jalons = `${prestige}<p class="vs-sec">🏁 Les jalons · ${JALONS.filter(J => (meta.jalons || {})[J.cle]).length} / ${JALONS.length}</p>
     <div class="vs-jalons">${JALONS.map(J => {
       const fait = !!(meta.jalons || {})[J.cle];
       return `<div class="vs-jalon${fait ? ' fait' : ''}"><span class="vs-ico" aria-hidden="true">${J.ico}</span><b>${esc(J.nom)}</b><span>${fait ? '✓ Atteint' : `${esc(J.texte)} → ${esc(recompenseDe(meta, J).mot)}`}</span></div>`;

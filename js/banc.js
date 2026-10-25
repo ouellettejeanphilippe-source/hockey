@@ -104,6 +104,11 @@ function ouvrirBanc(jour) {
     lancees: lanceesDuSoir(L.you, ce_soir),
   };
   $('game').classList.add('banc');
+  // V18-5 : derrière le banc, l'onglet Équipe n'existe pas (ses chiffres sont à l'Avant-match) ; on ouvre l'attaque.
+  if (document.body.dataset.effectif === 'E') {
+    document.body.dataset.effectif = 'F';
+    document.querySelectorAll('.seg-effectif button').forEach(b => b.classList.toggle('on', b.dataset.val === 'F'));
+  }
   G.selectedSlot = null; G.target = null;
   setView('roster');
   render();

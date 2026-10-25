@@ -255,7 +255,7 @@ const compterFeuilles = async ou => {
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
-const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [] };   // À faire (V9), vu au premier choix
+const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
 const butin = { vus: 0, pris: [], fautes: [] };   // V16 : le butin d'une victoire, un adjoint parmi trois pour ton personnel
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
@@ -542,14 +542,14 @@ async function regler() {
      * par choix (les rivaux, au dernier coché). Photographié une fois ; la route dit l'état du club.
      */
     /*
-     * V12 (docs/refonte-v12.md) : la boîte renvoie au sous-onglet de sa maison (Bureau › Proprio, Effectif › Infirmerie…),
-     * qui montre ses choix en entier ; le gros match et la signature montrent leur porte dans la boîte même. On règle le
-     * premier qui attend ; un sous-onglet sans rien qui presse, le Bureau rend la boîte.
+     * ON RÈGLE DANS LA BOÎTE (V18-5, docs/ecrans-rogue.md) : le choix qui attend s'ouvre sur place, sous sa maison — la
+     * voix, le fait, les options —, jamais dans un sous-onglet. On règle le premier ouvert qui attend ; un sous-onglet
+     * à l'écran (il ne montre que ce qu'il garde toujours), le Bureau rend la boîte.
      */
-    const ouvertA = await page.evaluate(() => { const el = [...document.querySelectorAll('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque')].find(x => x.checkVisibility()); if (el) el.dataset.essai = '1'; return !!el; })
+    const ouvertA = await page.evaluate(() => { const el = [...document.querySelectorAll('#hubModal .hub-boite .hub-msg.ouvert.bloque')].find(x => x.checkVisibility()); if (el) el.dataset.essai = '1'; return !!el; })
       .then(async vu => { if (!vu) return null; const el = await page.$('#hubModal .hub-msg[data-essai="1"]'); await el.evaluate(x => delete x.dataset.essai); return el; });
     if (ouvertA) {
-      const lu = await ouvertA.evaluate(el => ({ genre: el.dataset.msg, sujet: (el.querySelector('.af-feuille-sujet') || {}).textContent || '',
+      const lu = await ouvertA.evaluate(el => ({ genre: el.dataset.msg, maison: el.dataset.maison, sujet: (el.querySelector('.hub-msg-sujet') || {}).textContent || '',
         forme: !!el.querySelector('.hub-msg-corps > .af-options .choix-option.af-option'),
         compris: [...el.querySelectorAll('button')].some(b => /^\s*Compris\s*$/.test(b.textContent)),
         etat: (el.querySelector('.hub-msg-corps > .choix-puces') || {}).textContent || '',
@@ -558,7 +558,7 @@ async function regler() {
         de: ((el.querySelector('.hub-msg-de') || {}).textContent || '').trim(),
         sous: [...el.querySelectorAll('.af-option .choix-option-sous')].map(x => x.textContent.trim()),
         opts: [...el.querySelectorAll('.af-option:not([disabled])')].map(b => ({ cle: b.dataset.choix, on: b.classList.contains('on'), ouvre: b.classList.contains('ouvre'), pari: /Pari/.test((b.querySelector('.choix-forme') || {}).textContent || '') })) }));
-      afaire.genres.add(lu.genre); afaire.ouverts++;
+      afaire.genres.add(lu.genre); afaire.ouverts++; afaire.maisons.add(lu.maison);
       if (!lu.forme) afaire.formes.push(`${lu.genre} « ${lu.sujet} »`);
       if (lu.compris) erreurs.push(`« ${lu.sujet} » demande encore « Compris » dans À faire`);
       if (SCENES.includes(lu.genre)) {
@@ -592,8 +592,10 @@ async function regler() {
       }
       continue;
     }
-    // Un sous-onglet qui ne presse plus (un blessé que la réserve couvre, déjà réglé ailleurs) : le Bureau rend la boîte.
-    if (await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet')].some(x => x.checkVisibility()))) {
+    // Un sous-onglet à l'écran : aucun choix n'y vit (V18-5), et le Bureau rend la boîte.
+    const onglet = await page.evaluate(() => { const o = [...document.querySelectorAll('#hubModal .af-onglet')].find(x => x.checkVisibility()); return o ? { k: o.dataset.maison, choix: o.querySelectorAll('.hub-msg, .af-option').length } : null; });
+    if (onglet) {
+      if (onglet.choix) afaire.horsBoite.add(onglet.k);
       afaire.pages++; await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue;
     }
     const t = await page.$('#hubModal .hub-traiter');
@@ -618,27 +620,20 @@ async function regler() {
         throw new Error(`« À régler » est caché par une feuille : ${f.join(' | ')}`);
       }); await page.waitForTimeout(900);
       const sb = await page.evaluate(() => {
-        const m = [...document.querySelectorAll('#hubModal :is(.af-onglet, .af-maison.ici) .hub-msg.bloque')].find(x => x.checkVisibility());
+        const m = [...document.querySelectorAll('#hubModal .hub-boite .hub-msg.ouvert.bloque')].find(x => x.checkVisibility());
         if (!m || document.querySelector('#choixModal:not([hidden])')) return null;
-        // V12 : « À régler » ouvre le sous-onglet de sa maison ; sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
+        // V18-5 : « À régler » ouvre le choix dans la boîte ; sa première option se touche — rien ne la couvre, ni la barre ni les onglets.
         const o = m.querySelector('.af-option');
         if (o) o.scrollIntoView({ block: 'nearest' });
         const r = o ? o.getBoundingClientRect() : null;
         const dessus = r ? document.elementFromPoint(r.left + r.width / 2, Math.min(innerHeight - 1, r.top + r.height / 2)) : null;
-        return { sujet: (m.querySelector('.af-feuille-sujet') || {}).textContent || '', opt: r ? r.bottom : null, libre: !o || (dessus && o.contains(dessus)) };
+        return { sujet: (m.querySelector('.hub-msg-sujet') || {}).textContent || '', opt: r ? r.bottom : null, libre: !o || (dessus && o.contains(dessus)) };
       });
       if (sb) { barreA.vus++; if (!sb.libre) barreA.sous.push(`« ${sb.sujet.slice(0, 30)} » : sa 1re option est couverte (elle finit à ${Math.round(sb.opt)})`); }
-      // V12 : « À régler » ouvre le sous-onglet de sa maison — allumé dans la rangée de sa section —, l'écran d'un choix à
-      // une seule porte (le combat, le paquet), ou montre la porte dans la boîte (la signature).
-      const ou = await page.evaluate(() => {
-        const pg = [...document.querySelectorAll('#hubModal .af-onglet')].find(x => x.checkVisibility());
-        const on = document.querySelector('#sousNav:not([hidden]) .soustab.on');
-        if (pg) return on && on.dataset.page === pg.dataset.maison ? `${on.textContent.trim()}` : `(${pg.dataset.maison} sans sous-onglet allumé)`;
-        return document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden]), #hubModal .af-maison.ici') ? 'porte' : '';
-      });
-      if (ou.startsWith('(')) erreurs.push(`« À régler » ouvre une maison sans son sous-onglet : ${ou}`);
-      if (ou && ou !== 'porte') afaire.maisons.add(ou);
-      else if (!ou) afaire.sansPage.push(mot.txt.slice(0, 40));
+      // V18-5 : « À régler » ouvre le choix dans la boîte, ou l'écran d'un choix à une seule porte (le combat, le paquet, la signature).
+      const ou = await page.evaluate(() => (document.querySelector('#choixModal:not([hidden]), #signatureModal:not([hidden])') ? 'porte'
+        : [...document.querySelectorAll('#hubModal .hub-boite .hub-msg.ouvert')].some(x => x.checkVisibility()) ? 'boîte' : ''));
+      if (!ou) afaire.sansPage.push(mot.txt.slice(0, 40));
       continue;
     }
     return;
@@ -1092,15 +1087,17 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (sousMarche.includes('poche')) erreurs.push('« Tes cartes » est encore un sous-onglet du Marché');
   if (await page.$('#teteCartes')) erreurs.push('l\'en-tête garde le raccourci de « Tes cartes »');
   if (afaire.genres.has('places')) erreurs.push('À faire demande encore laquelle vendre (la carte de trop)');
-  // L'INFIRMERIE (V8 ; son sous-onglet en V12-2) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
+  // L'INFIRMERIE (V8 ; le filtre 🩹 de Joueurs en V18-5) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
   await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
   await page.click('#sousNav .soustab[data-page="joueurs"]', { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(400);
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
-  await versLOnglet('effectif', 'infirmerie');
+  if (await page.$('#sousNav .soustab[data-page="infirmerie"]')) erreurs.push('l\'infirmerie est encore un sous-onglet d\'Effectif');
+  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]', { timeout: 3000 }).catch(() => erreurs.push('Effectif › Joueurs n\'a pas de filtre 🩹'));
+  await page.waitForTimeout(300);
   await page.screenshot({ path: `${DOSSIER}/rogue-infirmerie.png` });
   // Un réserviste blessé n'a pas de case à remplir et se dit dans la ligne « En réserve » : on compte les blessés du titre.
-  const inf = await page.$eval('#hubModal .af-onglet[data-maison="infirmerie"] .jr-infirmerie', e => ({
+  const inf = await page.$eval('#pageJoueursCorps .jr-infirmerie', e => ({
     lignes: e.querySelectorAll('.jr-inf').length,
     total: Number(((e.querySelector('h3') || {}).textContent || '').match(/(\d+)\s*$/)?.[1] || 0),
   })).catch(() => ({ lignes: 0, total: 0 }));
@@ -1123,7 +1120,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
  * à l'effectif ; il n'y a plus de « Tes cartes » qui y renvoie.
  */
 {
-  const SEC = { proprio: 'bureau', entraineur: 'bureau', infirmerie: 'effectif' };
+  const SEC = { proprio: 'bureau', entraineur: 'bureau' };
   const ici = {};
   let plafond = '';
   for (const k of Object.keys(SEC)) {
@@ -1138,14 +1135,19 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   {
     await versLOnglet('effectif', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
+    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
     ici.joueurs = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+    // Les soins, au filtre 🩹 (V18-5).
+    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
+    ici.infirmerie = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+    await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
   if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
   if (!(ici.joueurs || []).includes('consommable:echangeDoublon')) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif');
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
   const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
   const ecrans = {}, avecChoix = new Set();
-  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['bureau', 'entraineur'], ['bureau', 'presse'], ['bureau', 'vestiaire'], ['effectif', 'infirmerie'], ['marche', 'butin'], ['effectif', 'depistage']]) {
+  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['bureau', 'entraineur'], ['bureau', 'vestiaire'], ['effectif', 'depistage']]) {
     await versLOnglet(sec, k);
     await page.waitForTimeout(300);
     ecrans[k] = await hauteur();
@@ -1175,7 +1177,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // `ARRET=10h` : on ne veut que ces hauteurs (une mise en page qu'on retouche) ; le reste de la saison attend.
   if (process.env.ARRET === '10h') {
     // Chaque sous-onglet en entier : l'écran grandit à sa hauteur, le temps d'une capture.
-    for (const [sec, k] of [['bureau', 'entraineur'], ['bureau', 'vestiaire'], ['effectif', 'infirmerie'], ['effectif', 'depistage']]) {
+    for (const [sec, k] of [['bureau', 'entraineur'], ['bureau', 'vestiaire'], ['effectif', 'depistage']]) {
       await versLOnglet(sec, k);
       await page.setViewportSize({ width: 390, height: Math.ceil(844 * Math.max(1, ecrans[k])) + 40 });
       await page.waitForTimeout(400);
@@ -1185,7 +1187,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
     await page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {});
     await page.waitForTimeout(800);
-    for (const t of ['Équipe', 'Attaque', 'Défense']) {
+    for (const t of ['Attaque', 'Défense', 'Filet · réserve']) {
       await page.getByRole('button', { name: t, exact: true }).first().click().catch(() => {});
       await page.waitForTimeout(500);
       await page.screenshot({ path: `${DOSSIER}/ecran-lignes-${t}.png`, fullPage: true });
@@ -1193,6 +1195,33 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await browser.close(); process.exit(erreurs.length ? 1 : 0);
   }
   console.log(`10m. une maison par sujet : ${(plafond || '(pas de masse salariale)').replace(/\s+/g, ' ').trim().slice(0, 60)} · ${Object.entries(ici).map(([k, v]) => `${k} ${v.length}`).join(' · ')}`);
+}
+/*
+ * LA LIGUE DU ROGUE (V18-5, docs/ecrans-rogue.md) : Classement · Calendrier · Meneurs · Palmarès. Un club s'ouvre du
+ * classement (EHM) et le retour y revient ; le Palmarès est celui du club — sa vitrine, son panthéon, tes runs —, pas
+ * l'historique du 82-0.
+ */
+{
+  await page.click('#navbar .navtab[data-section="ligue"]'); await page.waitForTimeout(400);
+  const sous = await page.$$eval('#sousNav:not([hidden]) .soustab', e => e.map(b => b.textContent.trim())).catch(() => []);
+  if (sous.includes('Équipes') || sous.includes('Ta saison') || !sous.includes('Calendrier') || !sous.includes('Palmarès')) erreurs.push(`la Ligue du Rogue n'est pas Classement · Calendrier · Meneurs · Palmarès : ${sous.join(' · ')}`);
+  await versLOnglet('ligue', 'classement');
+  const rangee = await page.$('#hubModal .hub-classement tr.a-club:not(.toi)');
+  let club = false, revenu = false;
+  if (rangee) {
+    await rangee.click(); await page.waitForTimeout(400);
+    club = !!(await page.$('#hubModal .hub-eq-entete'));
+    await page.screenshot({ path: `${DOSSIER}/rogue-club-du-classement.png` });
+    await page.keyboard.press('Escape'); await page.waitForTimeout(400);
+    revenu = !!(await page.$('#hubModal .hub-classement tr.a-club')) && !(await page.$('#hubModal .hub-eq-entete'));
+  }
+  if (!rangee || !club) erreurs.push('toucher un club du classement n\'ouvre pas sa feuille');
+  else if (!revenu) erreurs.push('le retour, d\'un club ouvert, ne rend pas le classement');
+  await versLOnglet('ligue', 'historique');
+  const pal = ((await page.textContent('#leaderboardBody').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
+  if (/Aucune saison enregistrée|Ton album/.test(pal) || !/Tes runs/.test(pal)) erreurs.push(`le Palmarès du Rogue n'est pas celui du club : « ${pal.slice(0, 80)} »`);
+  console.log(`10l. la Ligue : ${sous.join(' · ')} · un club ouvert du classement ${club ? 'oui' : 'non'}, le retour ${revenu ? 'y revient' : 'non'} · le Palmarès « ${pal.slice(0, 70)} »`);
+  await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300);
 }
 // V16 : une retouche ne se joue plus au Marché (l'onglet « Tes places » est parti) : elle se pose au verso de son joueur (12b).
 let posee = null, nomModif = '';
@@ -1507,9 +1536,10 @@ if (afaire.vu && !afaire.lots.length) erreurs.push('aucun choix touché n\'a ét
 if (afaire.formes.length) erreurs.push(`des choix d'À faire n'ont pas la forme commune (options \`optionHtml\`) : ${afaire.formes.slice(0, 4).join(' · ')}`);
 if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offerte dans À faire');
 // V12 : chaque chose à régler ouvre sa page ; la boîte n'en règle aucune sur place.
-console.log(`20m. les sous-onglets de la boîte : ${[...afaire.maisons].join(' · ') || 'aucun'} · ${afaire.pages} retour(s) à la boîte`);
-if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni page ni écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
-if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a renvoyé qu'à ${afaire.maisons.size} sous-onglet(s) : ${[...afaire.maisons].join(', ')}`);
+console.log(`20m. les maisons réglées dans la boîte : ${[...afaire.maisons].join(' · ') || 'aucune'} · ${afaire.pages} retour(s) à la boîte`);
+if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni le choix ni son écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);
+if (afaire.maisons.size < 3) erreurs.push(`la boîte n'a réglé les choix que de ${afaire.maisons.size} maison(s) : ${[...afaire.maisons].join(', ')}`);
+if (afaire.horsBoite.size) erreurs.push(`un sous-onglet porte encore des choix : ${[...afaire.horsBoite].join(', ')}`);
 console.log(`20c. le butin d'une victoire (un adjoint parmi trois, pour ton personnel) : ${butin.vus ? `${butin.vus} offert(s), pris : ${butin.pris.join(', ') || 'aucun'}` : 'aucun butin cette run'}`);
 if (butin.fautes.length) erreurs.push(`le butin d'une victoire : ${[...new Set(butin.fautes)].slice(0, 3).join(' · ')}`);
 console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette run (aucune réponse risquée choisie)'}`);

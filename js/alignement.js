@@ -8,7 +8,7 @@ import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
 import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, joueursDesCoachs, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
-import { alignementAuMieux, unitesDuSoir, alignementDuSoir, chiffresDuSoir, statsDe, motsDeStats, specialesEnStats, clubLu } from './impact.js';
+import { alignementAuMieux, unitesDuSoir, specialesEnStats, clubLu } from './impact.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
 import { matchsJoues } from './echelons.js';
@@ -720,14 +720,10 @@ function unitesSpecialesEl() {
 }
 
 /*
- * TON ÉQUIPE CE SOIR (V7, JP : *mettre le coach et l'explication des bonus dans effectif/équipe* ; *pas facile d'avoir
- * numériquement quels trucs sont déjà actifs*). En tête de l'onglet Équipe, derrière le banc : ce que vaut ton
- * alignement (badges, affinité, jambes), puis ce qui joue un par un (le coach, les patrons, les cartes, les
- * effets qui courent), chacun en vraies stats de match (tirs, réussite, tirs contre, arrêts), et ton coach avec sa confiance. Tout se lit par différence dans le
- * moteur (js/impact.js), au soir du prochain match, avec les lignes du banc.
+ * LE SOIR DU BANC (V7). Ton équipe ce soir en vraies stats (l'onglet Équipe d'avant) est partie à l'Avant-match
+ * (V18-5, docs/ecrans-rogue.md : *ses chiffres par match vont à l'avant-match*) ; derrière le banc restent ce qui se
+ * règle — le filet et les unités spéciales —, lus par différence dans le moteur (js/impact.js), avec les lignes du banc.
  */
-/* Un écart de stats en pastilles : les deux qui bougent le plus, en vert ou en rouge. */
-const pastillesDeStats = (d, max = 2) => motsDeStats(d, max).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
 const v1 = x => x.toFixed(1).replace('.', ',');
 /*
  * LE SOIR DU BANC, POSÉ LE TEMPS D'UNE LECTURE : le prochain match, avec ce qui se règle ici (le filet, les unités
@@ -763,9 +759,6 @@ function avecLeBanc(fn) {
     return auSoirDuBanc(you, () => { you.jourCourant = j; return fn(you, activeLineup({ ...you, roster: G.roster, injured: b.blesses, jourCourant: j }), b.prochain.adv, aVenir); });
   } catch { return null; }
 }
-function lectureDuBanc() {
-  return avecLeBanc((you, lu, adv, aVenir) => ({ stats: statsDe(chiffresDuSoir(you, lu, adv, aVenir)), parts: alignementDuSoir(you, lu, adv, aVenir) }));
-}
 /*
  * TON COACH ET SA CONFIANCE (V16 : ses points, ses adjoints en poste, leurs échelons et leurs matchs à ton service). `injured` : les
  * blessés du jour, qui ne portent pas sa confiance.
@@ -786,24 +779,6 @@ export function coachHtml(decs, j, injured = new Set()) {
     ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
   </div>`;
 }
-function equipeDuSoirEl() {
-  const el = document.createElement('section');
-  el.className = 'ej-soir';
-  const lu = lectureDuBanc();
-  if (!lu) return el;
-  const t = lu.stats;
-  const rangee = (nom, d) => `<li class="ej-r"><span class="ej-nom">${esc(nom)}</span><span class="ej-stats">${pastillesDeStats(d)}</span></li>`;
-  el.innerHTML = `<div class="ej-tete">Par match, ${G.banc.prochain.domicile ? 'contre' : 'chez'} ${esc(teamShort(G.banc.prochain.adv))}</div>
-    <div class="ej-feuille">
-      <div><b>${v1(t.tirs)}</b><small>Tirs</small></div><div><b>${v1(t.pctTir * 100)} %</b><small>Au tir</small></div>
-      <div><b>${v1(t.contre)}</b><small>Tirs contre</small></div><div><b>${pct3(t.pctArr)}</b><small>Arrêts</small></div>
-    </div>
-    <div class="ej-k">Ton alignement</div>
-    <ul class="ej-liste">${lu.parts.map(x => rangee({ badges: 'Badges', affinite: 'Affinité', jambes: 'Jambes' }[x.cle] || x.cle, x.d)).join('')}</ul>
-`;
-  return el;
-}
-
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */
 function filetHtml() {
   const b = G.banc, F = b.filetEtat;
@@ -826,7 +801,6 @@ export function renderRoster() {
   // Le bouton d'alignement sert partout où l'alignement se règle : au repêchage, et derrière le banc en pleine saison
   // (`G.done` y reste vrai : la saison est lancée) — jamais sur table, ni au bilan.
   if (!surTable() && (G.banc || !G.done) && SLOTS.some(s => G.roster[s.i])) host.appendChild(boutonAuMieux());
-  if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(equipeDuSoirEl());
   if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you && G.banc.filetEtat) host.appendChild(filetEl());
   if (!surTable() && G.banc && G.banc.prochain && G.ligue && G.ligue.you) host.appendChild(unitesSpecialesEl());
 

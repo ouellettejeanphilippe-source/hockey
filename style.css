@@ -3557,9 +3557,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line-id { flex: 1 1 8ch; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Ce que l'unité produit : les points par match des habillés, additionnés — une vraie stat en tête de bande. */
 .line-prod { flex: none; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.02em; color: var(--encre); font-variant-numeric: tabular-nums; white-space: nowrap; cursor: help; }
-/* La note qui bouge (V6) : le différentiel attendu de l'unité, en vert ou en rouge. */
-/* LE PLAN DE MATCH (V6) : la glace du club et l'appariement, en un panneau. */
-/* Ton équipe ce soir (V7) : l'alignement et ce qui joue, en but net par match ; le coach et sa confiance. */
+/* Le coach et sa confiance, les effets du soir (V7), en tiroirs et en rangées. */
 .ej-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .ej-soir:empty { display: none; }
 .ej-plie > summary { cursor: pointer; list-style: none; gap: var(--esp-2); }
@@ -3567,7 +3565,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .ej-plie > summary > span:first-child::after { content: ' ›'; color: var(--encre-3); }
 .ej-plie[open] > summary > span:first-child::after { content: ' ⌄'; }
 .ej-plie:not([open]) { gap: 0; }
-.ej-tete { font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); letter-spacing: 0.04em; text-transform: uppercase; }
 .ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .ej-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
@@ -3578,10 +3575,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .ej-nom small { margin-left: var(--esp-1); color: var(--encre-3); }
 .ej-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
 .st-p { padding: 2px 6px; border-radius: var(--r-1); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; }
-.ej-feuille { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--filet-2); border-radius: var(--r-1); overflow: hidden; }
-.ej-feuille > div { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--esp-2) var(--esp-1); background: var(--fond-2); }
-.ej-feuille b { font: 800 var(--t-4)/1 var(--display); font-variant-numeric: tabular-nums; }
-.ej-feuille small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .ej-soir .bon { color: var(--bon); }
 .ej-soir .mauvais { color: var(--mauvais); }
 .ej-detail { display: none; grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
@@ -3871,7 +3864,10 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 /* Un onglet à la fois — l'attaque, la défense, le filet et la réserve — pour que l'alignement tienne en un écran. */
 body[data-effectif="F"] #rosterBoard .line:not([data-groupe="F"]), body[data-effectif="D"] #rosterBoard .line:not([data-groupe="D"]), body[data-effectif="G"] #rosterBoard .line:not([data-groupe="G"]) { display: none; }
 /* L'onglet Équipe (V6) : le plan de match et le résumé d'équipe ; les unités vivent dans les trois autres. */
-body[data-effectif="E"] #rosterBoard .line, body:not([data-effectif="E"]) #rosterBoard :is(.plan-match, .ej-soir) { display: none; }
+body[data-effectif="E"] #rosterBoard .line { display: none; }
+/* V18-5 : derrière le banc (le Rogue), l'onglet Équipe part — ses chiffres sont à l'Avant-match — et « Devant le filet »
+   vit sous Filet · réserve. */
+#game.banc .seg-effectif [data-val="E"], body:not([data-effectif="G"]) #rosterBoard .plan-match { display: none; }
 /* L'onglet AN · DN (V7) : tes unités spéciales seules ; il n'existe que derrière le banc, où elles se jouent. */
 body[data-effectif="S"] #game.banc #rosterBoard .line, body:not([data-effectif="S"]) #rosterBoard .unites-speciales { display: none; }
 #game:not(.banc) .seg-effectif [data-val="S"] { display: none; }
@@ -3946,18 +3942,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .rt-arret small { display: block; font-size: var(--t-1); color: var(--encre-3); }
 .rt-arret.rt-lundi { min-width: 0; padding: 0 2px; border: 0; border-left: 1px dashed var(--filet); border-radius: 0; background: none; color: var(--encre-3); }
 .rt-ico { display: grid; place-items: center; }
-/* Les derniers matchs : le résultat à droite, teint ; la rangée ouvre le sommaire. */
-.rt-passes { margin-bottom: var(--esp-2); }
-.rt-joue { min-height: 44px; cursor: pointer; border-radius: var(--r-1); }
-.rt-joue:hover { background: var(--fond-2); }
 .rt-res { font: 700 var(--t-1)/1 var(--display); font-variant-numeric: tabular-nums; color: var(--encre-2); white-space: nowrap; }
-.rt-joue.v .rt-res b { color: var(--bon); }
-.rt-joue.d .rt-res b { color: var(--mauvais); }
-/* En large, d'où tu viens à gauche, où tu vas à droite. */
-@media (min-width: 1200px) {
-  .bu-route:has(> .rt-passes) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: auto 1fr; grid-auto-flow: column; column-gap: var(--esp-5); align-items: start; }
-  .bu-route .rt-passes { margin-bottom: 0; }
-}
 .rt-txt { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 1199.98px) {
   body.hub-docke .hub-sheet { overflow-y: auto; overscroll-behavior: contain; }
@@ -3969,7 +3954,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet .hub-barre { order: 10; flex: 0 0 auto; position: sticky; bottom: 0; z-index: 4; margin-top: auto; padding: var(--esp-2) var(--esp-3) calc(var(--esp-2) + var(--safe-bas)); border-top: 1px solid var(--filet); background: var(--fond-1); }
   body.hub-docke .hub-sheet .hub-boite { order: 2; margin: 0; padding: var(--esp-3) var(--esp-3) 0; }
   /* « À régler » amène le choix au-dessus de la barre collée, ses options comprises (V7 : À faire vit au Bureau). */
-  body.hub-docke .hub-sheet :is(.hub-msg, .af-onglet .af-option) { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
+  body.hub-docke .hub-sheet :is(.hub-msg, .hub-boite .af-option) { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
   .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
@@ -4183,29 +4168,25 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-msg.bloque .hub-msg-etat { color: var(--mauvais); }
 /* Les rivaux cochés, avant le dernier, se lisent dans sa bande. */
 .hub-msg-pris { font: 700 var(--t-1)/1.25 var(--display); letter-spacing: 0.02em; color: var(--or); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); }
-/* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous le sous-onglet où elles se règlent ; la
-   tête de la maison, comme chaque ligne, l'ouvre. Le gros match et la signature (`.ici`) montrent leur porte sur place. */
+.hub-msg-tete::after { content: "›"; flex: none; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); transition: transform var(--t-vite); }
+/* ON RÈGLE DANS LA BOÎTE (V18-5) : la ligne ouverte grossit son sujet et tourne sa flèche ; son corps suit. */
+.hub-msg.ouvert .hub-msg-tete::after { transform: rotate(90deg); }
+.hub-msg.ouvert .hub-msg-sujet { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; -webkit-line-clamp: 3; }
+/* LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : ses lignes rangées sous la maison de leur sujet. */
 .af-maison + .af-maison { margin-top: var(--esp-3); }
-.af-maison-tete { width: 100%; display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); border: 0; background: none; color: var(--encre-2); text-align: left; }
+.af-maison-tete { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-1); color: var(--encre-2); }
 .af-maison-ico { flex: none; font-size: var(--t-3); }
 .af-maison-titre { flex: 1; min-width: 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; }
 .af-maison-compte { flex: none; font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
-.af-maison-tete::after { content: "›"; flex: none; font: 800 var(--t-3)/1 var(--display); color: var(--encre-3); }
-.af-maison.ici .af-maison-tete::after { content: none; }
-/* LE SOUS-ONGLET D'UNE MAISON : sa tête, puis chacun de ses choix en entier, l'un sous l'autre — la voix, le sujet, son
-   état, puis le corps. */
+/* LE SOUS-ONGLET D'UNE MAISON : sa tête, puis ce qu'il montre toujours (V12-2) ; ses choix se règlent dans la boîte. */
 .af-onglet { display: flex; flex-direction: column; gap: var(--esp-3); }
 .af-onglet-tete { display: flex; align-items: center; gap: var(--esp-3); }
 .af-onglet-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .af-onglet-txt b { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .af-onglet-txt span { font-size: var(--t-2); color: var(--encre-2); }
-/* Ce que le sous-onglet montre toujours, sous ses choix (V12-2) : le mandat, la route, la une, ton histoire, les blessés. */
+/* Ce que le sous-onglet montre toujours (V12-2) : le mandat, la route, ton histoire, les blessés. */
 .af-fond { display: flex; flex-direction: column; gap: var(--esp-3); }
 .hub-msg-corps { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-3); }
-.af-maison .af-page-msg + .af-page-msg { margin-top: var(--esp-3); }
-.af-page-tete { display: flex; align-items: flex-start; gap: var(--esp-3); padding: var(--esp-3) var(--esp-3) 0; }
-.af-feuille-sujet { font: 800 var(--t-4)/1.15 var(--display); letter-spacing: 0.02em; color: var(--encre); }
 .hub-msg-replique { font-size: var(--t-2); line-height: 1.35; color: var(--encre-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .hub-msg-mot, .hub-msg-note { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 /* LA SCÈNE (Jalon M) : la voix qui demande, sa réplique entre guillemets, le fait dessous — un filet d'or à gauche. */
@@ -4421,6 +4402,10 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 /* Le classement au téléphone : le nom court sous 480 px, jamais coupé ; les deux premières colonnes collent. */
 .hub-classement td.nom { max-width: none; }
 .hub-classement td.nom .nom-court { display: none; }
+/* V18-5 (EHM) : en Rogue, un club se touche au Classement ; sa feuille s'ouvre à sa place, « ‹ Classement » y revient. */
+.hub-classement tr.a-club { cursor: pointer; }
+.hub-classement tr.a-club:hover td { background: var(--fond-2); }
+.hub-retour-club { min-height: 44px; margin-bottom: var(--esp-2); }
 @media (max-width: 480px) {
   .hub-classement td.nom .nom-long { display: none; }
   .hub-classement td.nom .nom-court { display: inline; }
@@ -5777,7 +5762,6 @@ body[data-zone="joueurs"] #game, body[data-zone="joueurs"] .actionbar,
 body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: none; }
 
 /* ---- L'historique des saisons (#pageHistorique) : une bande par saison, la fiche en gros, la Coupe en or ---- */
-.lb-vues { margin: 0 0 var(--esp-3); }
 .lb-tete { padding: 0 0 var(--esp-2); border-bottom: 1px solid var(--filet); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
 .lb-tete strong { color: var(--or); }
 .lb-item { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-3); padding: var(--esp-3) 0; border-bottom: 1px solid var(--filet); }
@@ -5789,35 +5773,6 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .lb-sortie { color: var(--encre-2); }
 .lb-details { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; text-align: right; font-size: var(--t-1); color: var(--encre-2); font-variant-numeric: tabular-nums; }
 .lb-details .lb-replay { margin-top: var(--esp-2); }
-
-/* ---- L'album (js/album.js) : les compteurs en cellules, les cartes de match en grille, les joueurs en vignettes ---- */
-.album { display: flex; flex-direction: column; gap: var(--esp-3); }
-.album h3 { margin: var(--esp-4) 0 0; padding-bottom: var(--esp-2); border-bottom: 1px solid var(--filet); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-.album-tete { display: flex; flex-wrap: wrap; gap: var(--esp-2) 0; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-.album-tete > span { display: flex; align-items: baseline; gap: var(--esp-1); padding: 0 var(--esp-3); border-left: 1px solid var(--filet); }
-.album-tete > span:first-child { padding-left: 0; border-left: 0; }
-.album-tete b { color: var(--encre); font: 800 var(--t-5)/1 var(--display); letter-spacing: 0; font-variant-numeric: tabular-nums; }
-.album-note { margin: 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.album-ids { display: flex; flex-wrap: wrap; gap: var(--esp-2) 0; }
-.album-id { padding: 0 var(--esp-3); border-left: 1px solid var(--filet); font: 600 var(--t-2)/1.3 var(--display); letter-spacing: 0.03em; color: var(--encre-3); }
-.album-id:first-child { padding-left: 0; border-left: 0; }
-.album-id.eue { color: var(--encre); }
-.album-id.eue b { color: var(--or); }
-.album-joueurs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: var(--esp-2); }
-.album-joueur {
-  position: relative; display: grid; grid-template-columns: 32px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--esp-2); align-items: center;
-  padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-1); border: 1px solid var(--filet); overflow: hidden;
-}
-.album-joueur.champion { border-color: var(--or); }
-.album-logo { grid-row: span 2; position: relative; display: grid; place-items: center; width: 32px; height: 42px; }
-.album-visage { position: absolute; inset: 0; display: grid; place-items: center; overflow: hidden; border-radius: var(--r-1); border: 1px solid var(--encre-3); background: var(--fond-3); }
-.album-joueur.champion .album-visage { border-color: var(--or); }
-.album-visage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.album-visage .headshot-fallback { font-size: var(--t-4); opacity: 0.4; }
-.album-ecusson { position: absolute; right: -5px; bottom: -4px; }
-.album-nom { min-width: 0; font: 800 var(--t-2)/1.15 var(--display); letter-spacing: 0.02em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.album-saison { font-size: var(--t-1); color: var(--encre-2); }
-.album-fois { position: absolute; top: var(--esp-1); right: var(--esp-2); font: 700 var(--t-1)/1 var(--display); color: var(--or); }
 
 /* ---- Les joueurs (V7, js/joueurs.js, #pageJoueurs) : l'effectif en tableau, la colonne du nom collée à gauche ---- */
 .jr-infirmerie { display: grid; gap: var(--esp-2); margin-bottom: var(--esp-3); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-1); }

@@ -2938,3 +2938,12 @@ JP, après la mesure de `docs/sans-systemes.md` : *enlever partout* ; *enlever [
 - **Les coachs recalés** (`check_voies`, chaque III sur son équipe, bande de 6 à 8 V) : sans l'étouffé, fermer la porte et cogner pesaient plus — la Tortue 8,2 V, sa défense de III ×0,897 → ×0,906 (7,6 V) ; le Rhino 8,5 V, le plafond de sa robustesse +3,2 → +2,8 écarts (7,2 V ; l'équipe bâtie pour lui touche le plafond, sa robustesse de III n'y changeait rien) ; l'Abbé, qui perdait 💨 la sortie rapide, 6,0 V, sa discipline de III ×0,68 → ×0,64 (7,0 V ; JP : *ajuste-le*). Les cinq autres restent dans la bande sans rien toucher.
 Écarté : garder la chimie des passeurs et des manieurs seule (`chimieDesBadges`, la piste de `docs/sans-systemes.md`) — JP veut que la chimie vienne des styles qui marchent ensemble, pas d'un badge seul.
 
+
+## La carte des écrans du Rogue (V18-5 — 25 oct. 2026)
+
+JP, sur la revue des écrans contre EHM, New Star Soccer et MLB The Show (`docs/ecrans-rogue.md`) : *good*. Ce que les trois ont en commun et que le Rogue n'avait pas : un écran ne renvoie pas à un autre pour régler ce qu'il montre. Décidé :
+- **On règle dans la Boîte**, comme un message d'EHM : un choix s'ouvre sur place sous sa maison, un à la fois. Défait la V12-1 (la Boîte qui renvoie au sous-onglet) : un toucher de moins par choix, et la voix reste celle qui parle. Les sous-onglets ne gardent que ce qu'ils montrent toujours.
+- **La Presse entre dans la Boîte** (vide presque tous les jours), **le Butin va chez l'entraîneur** (trois maisons pour un adjoint), **l'Infirmerie devient le filtre 🩹 de Joueurs** (défait la V12-2 : chez EHM, les blessés vivent dans l'effectif).
+- **Équipes dans Classement** (en Rogue ; le 82-0 garde son répertoire des 44 franchises), **Ta saison devient Calendrier** (elle prend la route de la saison ; « D'où tu viens » redisait les matchs joués), **le Palmarès du club** (sa vitrine, son panthéon, tes runs ; il montrait l'historique du 82-0, vide en Rogue, et un album qui redisait le cartable).
+- **L'Avant-match** : le Dépistage du Rogue prend le nom du rapport d'EHM ; Lignes › Équipe part derrière le banc, ses chiffres par match y étaient déjà.
+Vingt-deux pages en dix-sept. Écarté : garder un compte sur chaque sous-onglet (il comptait des choix qui n'y vivent plus).
