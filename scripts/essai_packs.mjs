@@ -46,9 +46,12 @@ await page.goto(BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('#menuDepart');
 await page.click('.menu-mode[data-genre="rogue"] [data-menu="nouvelle"]');
 const choix = async (sel = ':is(button.choix-option, .tc-prendre):not([disabled])') => { await page.waitForSelector(`#choixModal:not([hidden]) ${sel}`, { timeout: 8000 }); await page.click(`#choixModal:not([hidden]) ${sel}`); await page.waitForTimeout(300); };
-await choix();
-await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
-await choix();
+// Le départ d'une run, quel qu'en soit l'ordre : les choix (les exigences, ton coach), ton joueur de concession, le classeur.
+for (let i = 0; i < 12 && !(await page.$('#departModal:not([hidden])')); i++) {
+  if (await page.$('#signatureModal:not([hidden]) .sig-liste .btn-sign:not([disabled])')) await page.click('#signatureModal .sig-liste .btn-sign:not([disabled])');
+  else if (await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])')) await choix();
+  await page.waitForTimeout(1500);
+}
 await page.waitForSelector('#departModal:not([hidden])', { timeout: 60000 });
 const pr = await page.$('#departModal [data-prendre]:not([disabled])'); if (pr) await pr.click();
 await page.click('#departModal .dp-commencer');

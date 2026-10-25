@@ -1684,7 +1684,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Leur meilleur buteur : ce qu'il est (ses positions, son rôle) et ce qu'il a fait.
     const b = buteurDe(adv);
     const surveiller = b ? `<div class="dep3-surveiller">👀 Chez eux : <b>${ctx.esc(b.p.n)}</b>${ctx.quiEst ? ` · ${ctx.esc(ctx.quiEst(b.p, { stats: false }))}` : ''} — ${b.c.g} but${b.c.g > 1 ? 's' : ''} en ${gpDe(adv)} matchs.</div>` : '';
-    return { chances, detail: `${table}${surveiller}`, plan: planHtml(p, adv) };
+    return { chances, detail: `${table}${surveiller}` };
   }
   /*
    * TON PLAN (V17, docs/refonte-v17.md § 3). JP : *des choix avant le match, plus stratégiques, genre tirer plus, suivre
@@ -1705,7 +1705,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const vise = P.vedette && vedette ? ` data-vise="${ctx.esc(getPlayerKey(vedette))}"` : '';
       return optionHtml({ cle: k, ico: P.ico, nom: P.nom, sous }, {}, { mots, classe: 'af-option dep-plan', attr: `data-plan="${k}" data-j="${p.j}"${vise}`, on: k === enForce });
     });
-    return `<div class="dep-plans"><div class="gl-k">Ton plan</div><div class="af-options">${tuiles.join('')}</div></div>`;
+    return `<div class="dep-plans"><div class="af-options">${tuiles.join('')}</div></div>`;
   }
   /* Une tuile touchée : le plan devient une décision du soir du match, et la saison se rejoue d'ici. */
   const appliquerPlan = b => {
@@ -3009,12 +3009,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="hub-face" style="--a-duel:${ctx.band(p.m.A.tag).duel};--b-duel:${ctx.band(p.m.B.tag).duel}">${blocEquipe(ctx, p.m.A, fa(p.m.A), 'a')}<div class="hub-vs">VS</div>${blocEquipe(ctx, p.m.B, fa(p.m.B), 'b')}${formeA || formeB ? `<div class="hub-face-forme"><span>${formeA}</span><span>${formeB}</span></div>` : ''}</div>${surveiller}
         ${forces.mot}
         ${soirEreintant(p.j, p.m.A, p.m.B) ? `<div class="hub-match-note hub-ereintant" title="Un dos-à-dos est éreintant : la finition de chaque club suit l'écart de robustesse entre les deux, et chacun se blesse ${String(BLESSURE_EREINTANT).replace('.', ',')} fois plus. Le club qui a joué la veille ne récupère que ${Math.round(ENERGIE_RECUP_JOUR * 100)} % de ses jambes manquantes (${Math.round(ENERGIE_RECUP * 100)} % entre deux matchs d'habitude). Derrière le banc, tu peux habiller tes joueurs les plus robustes.">🥵 Dos-à-dos${dosADos(you, p.j) ? '' : ` pour ${ctx.esc(ctx.teamShort(adv))}`} : la robustesse pèse</div>` : ''}`;
-      // Le dépistage, calculé à l'ouverture : le sous-onglet d'Effectif en Rogue, une page du Club ailleurs.
-      // Sous Effectif, il tient en un écran : tes chances et ce que tu peux faire, le reste se déplie.
+      // Le dépistage, calculé à l'ouverture : une page du Club hors du Rogue (l'Avant-match du Rogue est parti, oct.).
       const corpsDuDepistage = () => {
         const d = depistageMatchHtml(p);
-        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}</div></div>`;
-        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}<details class="dep-plie"><summary>Le détail du match</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+        return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}</div></div>`;
       };
       const ouvrirDepistage = () => {
         ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
