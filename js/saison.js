@@ -702,6 +702,8 @@ function duelDeLAdjoint(ctx, you, adv, P, { k = 0, enForce = 'match', pointage =
   return specDuDuel(P, { k, mise, propositions: props, enForce, scene, enChiffres: intentionEnChiffres(you, adv, I) });
 }
 
+/* Le journal de l'ouverture se lit une fois par visite : un rechargement de la page le redonne, une décision non. */
+let journalLu = false;
 export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 16, epoque = null, ctx, onTermine, depuis = 0, onJour = null, onBanc = null, graine = 0, paliersPris = [], trousPris = [], decisions = [], onDecision = null }) {
   const ui = coquille('La saison');
   if (!ui || !calendrier.length) { onTermine(); return; }
@@ -1860,7 +1862,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const attend = attendTout.filter(m => !dits.has(m.id) && m.genre !== 'mouvements');
     // V5 : en semaine, le soir d'un match ordinaire se lit à l'affiche ; ses nouvelles attendent le sommaire du lundi.
     // Un match regardé finit sur son sommaire (JP : *après match, pas revenir à la boîte, mais au sommaire*).
-    if (!regarde && !semaine && nouveaux.length <= 1 && !grosVu && !attend.length && (!auNoeud() || (!blesse && !infos.length && !mv.length))) { hierFrais = jour; hierAnimer = true; return false; }
+    // RIEN NE S'OUVRE APRÈS « JOUR SUIVANT » (oct., JP : *j'hais le modal avec le score de la veille, mais j'aime la page de
+    // résumé de semaine*) : hors du lundi, d'un match regardé ou d'un gros match, la soirée se lit à Hier soir, au Bureau ;
+    // la blessure, le vestiaire et les mouvements attendent le résumé de la semaine.
+    if (!regarde && !semaine && !grosVu) { hierFrais = jour; hierAnimer = true; return false; }
     const f = fiche.get(you), rang = rangDe(you);
     const W = nouveaux.filter(x => gagne(x.m, you)).length;
     const OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length, L = nouveaux.length - W - OTL;
@@ -1973,22 +1978,35 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     return `Jusqu'à lundi · ${n ? `${n} match${n > 1 ? 's' : ''}` : 'congé'}`;
   };
-  /* Après une avance : le sommaire (la semaine finie, ou le soir d'un match qui compte), sinon le passage à l'écran. */
-  // `enSemaine` : « Semaine suivante » arrêtée en route n'ouvre pas de sommaire (celui de la semaine viendra), sauf un gros match.
-  const apresAvance = (avant, sem, enSemaine = false, regarde = false) => {
+  function ouvrirJournal() {
+    const der = miens[miens.length - 1], f = fiche.get(you), rang = rangDe(you);
+    const e = filsAuJour().journal.at(-1);
+    const v = gagne(der.m, you), adv = der.m.A === you ? der.m.B : der.m.A;
+    const resultat = `${v ? 'Victoire' : der.m.ot ? 'Défaite en prolongation' : 'Défaite'} ${scoreDe(der.j, der.m)} contre ${ctx.teamLabel(adv)}`;
+    const manchette = e && e.j >= jour - SEMAINE ? e.fils[0].texte : resultat;
+    const p = jour < N ? monMatch(jour) : null;
+    const breves = [
+      manchette !== resultat ? resultat : null,
+      `${rangMot(rang)} de la ligue · ${f.W}-${f.L}-${f.OTL}, ${f.PTS} pts`,
+      p ? `Ce soir : ${ctx.teamLabel(p.A === you ? p.B : p.A)}${p.A === you ? ', à domicile' : ', à l\'étranger'}` : 'Ce soir : congé',
+    ].filter(Boolean);
+    ui.ouvrirPage({ genre: 'journal', ico: '🗞', titre: `Journée ${jour}`,
+      html: `<article class="jrn"><div class="jrn-nom">La Gazette · ${ctx.esc(ctx.teamLabel(you))}</div><h2 class="jrn-titre">${ctx.esc(manchette)}</h2>
+        <ul class="jrn-breves">${breves.map(x => `<li>${ctx.esc(x)}</li>`).join('')}</ul></article>`,
+      pied: '<button type="button" class="btn go hub-page-fermer">Au bureau</button>', onFerme: () => dessiner() });
+  }
+  /* Après une avance : le sommaire de la semaine finie, d'un match regardé ou d'un gros match ; sinon, rien — Hier soir le dit. */
+  const apresAvance = (avant, sem, regarde = false) => {
     if (entracteDemande) { retenir = false; ouvrirEntracte(); return; }
     const fini = semaineFinie(sem);
     const grosVu = (you.minisBoss || []).some(mb => mb.jour >= avant.jour && mb.jour < jour);
     // La semaine finie au soir d'un match regardé se plie au bureau, et le sommaire du match s'ouvre quand même.
-    if (fini ? ouvrirSommaire(sem, true) || (regarde && ouvrirSommaire(avant, false, true)) : (regarde || !enSemaine || grosVu) && ouvrirSommaire(avant, false, regarde)) return;
+    if (fini ? ouvrirSommaire(sem, true) || (regarde && ouvrirSommaire(avant, false, true)) : (regarde || grosVu) && ouvrirSommaire(avant, false, regarde)) return;
     retenir = false;
     // La confiance atteinte en route (les matchs à ton service) s'allume ce matin : une décision, l'écran se rouvre.
     const confiance = onDecision && ctx.confianceDuMatin ? ctx.confianceDuMatin(jour) : null;
     if (confiance) { onDecision(confiance, jour); return; }
     dessiner();
-    // Le passage ne couvre jamais un message à régler (JP : *des courriels qu'on voit pas*) : il est décor, pas nouvelle.
-    // …ni l'écran de la semaine qui vient de s'ouvrir.
-    if (!messagesCourants().some(m => m.bloque) && !(carte.closest('.hub-sheet') || {}).dataset?.page) passage(avant);
   };
   async function avancerSemaine() {
     if (enRoute || jour >= N) return;
@@ -2019,7 +2037,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     dernierAvance = { joues0: avant.joues };
     dessiner();
     tabs.suivre('journee');
-    apresAvance(avant, sem, true);
+    apresAvance(avant, sem);
   }
 
   /*
@@ -2093,45 +2111,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Plié (docs/ecrans-rogue.md, E4) : le Bureau tient à l'écran ; la ligue se déplie au toucher.
     return lignes.length ? `<details class="hub-autour"><summary class="hub-une-t">Autour de la ligue</summary>${lignes.map(x => `<p>${x}</p>`).join('')}</details>` : '';
   };
-
-  function passage(avant) {
-    document.querySelector('.passage')?.remove();
-    if (jour <= avant.jour) return;
-    const nouveaux = miens.slice(avant.joues), un = nouveaux.length === 1 ? nouveaux[0] : null;
-    const matchs = calendrier[jour - 1] || [];
-    const bande = t => { const b = ctx.band(t.tag); return `--eq-band:${b.bg};--eq-ink:${b.ink};--eq-stripe:${b.stripe}`; };
-    const tete = jour - avant.jour > 1
-      ? `<span class="passage-mot">Journées ${avant.jour + 1} à</span><b class="passage-n">${jour}</b>`
-      : `<span class="passage-mot">Journée</span><b class="passage-n">${jour}</b>`;
-    let corps = '', son = null;
-    if (un) {
-      const { m } = un, v = gagne(m, you);
-      const eq = (t, buts) => `<span class="passage-eq" style="${bande(t)}">${ctx.logo(t.tag, 22)}<span>${ctx.esc(ctx.tagCourt(t))}</span><b>${buts}</b></span>`;
-      const but = butGagnant(m);
-      const bouge = avant.rang - rangDe(you);
-      corps = `<div class="passage-match">${eq(m.A, m.gfA)}<i>${m.ot ? 'P' : '–'}</i>${eq(m.B, m.gfB)}</div>
-        <div class="passage-tampon ${v ? 'v' : 'd'}">${v ? 'Victoire' : m.ot ? 'Défaite en prolongation' : 'Défaite'}</div>
-        ${but && but.marqueur ? `<p class="passage-recit">${ctx.esc(recitDeBut({ ...but, gagnant: true }))}</p>` : ''}
-        <p class="passage-rang">${rangMot(rangDe(you))} de la ligue${bouge ? ` <span class="${bouge > 0 ? 'bon' : 'prix'}">${bouge > 0 ? '▲' : '▼'} ${Math.abs(bouge)}</span>` : ''}</p>`;
-      son = v ? 'recompense' : 'rate';
-    } else if (nouveaux.length) {
-      const W = nouveaux.filter(x => gagne(x.m, you)).length, OTL = nouveaux.filter(x => !gagne(x.m, you) && x.m.ot).length;
-      corps = `<div class="passage-tampon ${2 * W >= nouveaux.length ? 'v' : 'd'}">${nouveaux.length} matchs · ${W}-${nouveaux.length - W - OTL}-${OTL}</div>
-        <p class="passage-rang">${rangMot(rangDe(you))} de la ligue</p>`;
-    } else {
-      // Un congé : la ligue joue sans toi, et le plus gros pointage du soir fait la manchette.
-      const gros = matchs.slice().sort((x, y) => Math.abs(y.gfA - y.gfB) - Math.abs(x.gfA - x.gfB) || (y.gfA + y.gfB) - (x.gfA + x.gfB))[0];
-      corps = `<div class="passage-tampon conge">Congé</div>${gros ? `<p class="passage-recit">${ctx.esc(ctx.teamLabel(gros.gfA > gros.gfB ? gros.A : gros.B))} l'emporte ${Math.max(gros.gfA, gros.gfB)}–${Math.min(gros.gfA, gros.gfB)}${gros.ot ? ' en prolongation' : ''}.</p>` : ''}`;
-    }
-    const el = document.createElement('div');
-    el.className = 'passage';
-    el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = `<div class="passage-boite"><div class="passage-tete">${tete}</div>${corps}</div>`;
-    el.addEventListener('animationend', e => { if (e.target === el) el.remove(); });
-    setTimeout(() => el.remove(), 4500);
-    document.body.appendChild(el);
-    if (son) jouerSon(son, 0.15);
-  }
 
   function avancerPuisResumer(n) {
     archiverNouvelles();
@@ -4066,7 +4045,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       etat: jour ? `${f.W}-${f.L}-${f.OTL} · ${rangDe(you)}${rangDe(you) === 1 ? 'er' : 'e'}` : 'Premier match de la saison',
       graine: (p.j + 1) * 100 + p.k, avant: compte, ctx,
       arret: attente ? (kDuel ? 20 * kDuel : 40) : null, onArret: attente ? () => { dessiner(); ouvrirEntracte(true); } : null, depuis,
-      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); apresAvance(avant, sem, false, true); },
+      onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); apresAvance(avant, sem, true); },
     });
     void apresA; void apresB;
   }
@@ -4117,6 +4096,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   dessiner();
   boitePrete = true;
   tabs.montrer('journee');
+  /*
+   * LE JOURNAL DE L'OUVERTURE (oct., JP : *version courte du sommaire style journal lors de l'ouverture initiale*). La
+   * première fois que la saison s'ouvre dans une visite, une page en une de journal : le nom du club, la manchette (la
+   * une, sinon le dernier résultat), et trois brèves — le dernier match, le classement, ce soir. Une seule fois.
+   */
+  if (!journalLu && ctx.rogue && !suiteEntracte) { journalLu = true; if (miens.length) ouvrirJournal(); }
   // LA TROISIÈME PÉRIODE (S70) : le choix de l'entracte vient d'être pris.
   if (suiteEntracte) {
     const se = suiteEntracte, p = prochain();

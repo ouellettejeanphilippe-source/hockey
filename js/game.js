@@ -1866,6 +1866,13 @@ function marquerPage(cle) {
     const el = $(id);
     if (el) el.hidden = !(zone === 'ref' && cle === p);
   }
+  /*
+   * LE PALMARÈS SE DESSINE À CHAQUE FOIS QU'IL SE MONTRE (oct., JP : *bug que je peux reloader une ancienne équipe et me
+   * soft lock dans l'ancien alignement*). Il ne se redessinait que par `montrerPage` : ouvert d'une autre porte (la barre
+   * de la section Ligue), il gardait l'historique du 82-0 dessiné plus tôt, et son « Reprendre l'alignement » effaçait
+   * la run pour l'ancienne équipe.
+   */
+  if (zone === 'ref' && cle === 'historique') showLeaderboard();
   const vide = $('pageVide');
   if (vide) {
     vide.hidden = zone !== 'vide';
@@ -2195,8 +2202,7 @@ export function montrerPage(cle) {
   else {
     marquerPage(cle);
     if (document.body.dataset.zone === 'ref') {
-      if (cle === 'historique') showLeaderboard();
-      else if (cle === 'equipes') ouvrirEquipes({
+      if (cle === 'equipes') ouvrirEquipes({
         ctx: {
           esc, ico, logo: getTeamLogoHtml, band: getTeamBand, teamSeasonUrl,
           teamFull: t => TEAMFULL[t] || t,
@@ -2563,7 +2569,8 @@ async function rejouerSaison() {
  * saison part tout de suite — contre 31 nouveaux clubs, sur de nouveaux dés.
  */
 async function reprendreAlignement(entree) {
-  if (!entree || !Array.isArray(entree.alignement)) return;
+  // Jamais en pleine run : le Rogue n'a pas d'historique d'alignements, et reprendre effacerait la partie.
+  if (!entree || !Array.isArray(entree.alignement) || G.bonus === 'ROGUE') return;
   montrerPage('repechage');   // l'historique était une modale ; c'est une page
   toast('On relit l\'alignement…');
   const roster = {};

@@ -78,6 +78,8 @@ const versLeDepistage = async () => {
 };
 const auBureau = async (timeout = 120000) => {
   await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter'), null, { timeout });
+  // Le journal de l'ouverture (oct.), après un rechargement : « Au bureau ».
+  if (await page.$('#hubModal .hub-page[data-genre="journal"] .hub-page-fermer')) { await page.click('#hubModal .hub-page[data-genre="journal"] .hub-page-fermer'); await page.waitForTimeout(250); }
   await page.waitForTimeout(300);
   if (await page.evaluate(() => document.body.dataset.section !== 'bureau')) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(250); }
   await unVisible(BUREAU, timeout);
@@ -246,6 +248,7 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * sa première option, un message bloquant sa réponse par défaut.
  */
 const des = [], evenementsDe = [];
+let journal = '';   // le journal de l'ouverture, lu une fois
 const soirs = { pages: 0, match: 0 };   // les pages du soir, et celles qui sont le sommaire d'un match
 const duelCourt = { n: 0, max: 0, longs: 0 };
 // UNE SEULE FEUILLE À LA FOIS (Jalon M, B7) : à chaque capture qui en montre une, au plus une `.choix-sheet` se voit.
@@ -326,6 +329,13 @@ async function regler() {
   for (let i = 0; i < 30; i++) {
     await guetterBords('en jouant');
     await lireLeSuivi();
+    // Rien ne passe par-dessus le Bureau après « Jour suivant » (oct., JP : *j'hais le modal avec le score de la veille*).
+    if (await page.$('.passage')) erreurs.push('le bandeau télé du passage de la journée est revenu');
+    // Le journal de l'ouverture (oct.) : une page, une fois par visite ; elle se lit, puis « Au bureau ».
+    if (await page.$('#hubModal .hub-page[data-genre="journal"]')) {
+      if (!journal) { journal = await page.$eval('#hubModal .hub-page[data-genre="journal"]', el => el.textContent.replace(/\s+/g, ' ').trim()); await page.screenshot({ path: `${DOSSIER}/rogue-journal.png` }); }
+      await page.click('#hubModal .hub-page[data-genre="journal"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
+    }
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
     // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
@@ -477,8 +487,12 @@ async function regler() {
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
     // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », puis « qui sort ? » (U18).
     if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#signatureModal:not([hidden]) .btn-sign:not([disabled])')) { await page.click('#signatureModal .btn-sign:not([disabled])'); await page.waitForTimeout(600); continue; }
-    // « Qui sort ? » en liste (Jalon U) : « Sort » sur le premier, la sortie proposée (U18).
-    if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
+    // L'échange (oct., à la Yahoo Fantasy) : la sortie proposée est touchée d'avance ; sinon le premier qui peut sortir, puis « Signer ».
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]')) {
+      if (await page.$('#choixModal .ech-signer[disabled]')) await page.click('#choixModal .ech-q:not([disabled])').catch(() => {});
+      await page.click('#choixModal .ech-signer:not([disabled])').catch(() => {}); await page.waitForTimeout(600); continue;
+    }
+    // Une autre liste de l'alignement (une retouche à poser, une unité spéciale) : la première case permise.
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) {
       await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue;
     }
@@ -946,50 +960,49 @@ await page.waitForTimeout(400);
 const destSigner = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-dest', x => x.textContent.replace(/\s+/g, ' ').trim());
 if (!/personne ne sort/.test(destSigner)) {
   await page.click('#signatureModal .pcard:not(.locked) .btn-sign');
-  const qs = await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 }).catch(() => null);
+  const qs = await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"] .ech-q', { timeout: 10000 }).catch(() => null);
   if (!qs) erreurs.push(`« Signer » pose le joueur sans demander qui sort (${destSigner})`);
   else {
-    const tete = await page.$$eval('#choixModal .sig-liste .pcard', e => ({ n: e.filter(x => x.classList.contains('meilleure')).length, premiere: e[0].classList.contains('meilleure') }));
-    if (tete.n !== 1 || !tete.premiere) erreurs.push(`« qui sort ? » après « Signer » : la meilleure sortie n'est pas seule en tête, cerclée d'or (${JSON.stringify(tete)})`);
+    // La sortie proposée : une seule, cerclée d'or, touchée d'avance — le comparatif montre les deux joueurs, « Signer » est prêt.
+    const tete = await page.evaluate(() => { const m = document.querySelector('#choixModal'); return { n: m.querySelectorAll('.ech-q.meilleure').length, on: !!m.querySelector('.ech-q.meilleure.on'),
+      deux: m.querySelectorAll('.cmp-qui:not(.vide)').length, pret: !m.querySelector('.ech-signer').disabled }; });
+    if (tete.n !== 1 || !tete.on || tete.deux !== 2 || !tete.pret) erreurs.push(`l'échange après « Signer » : la sortie proposée n'est pas seule, touchée d'avance, comparée et prête (${JSON.stringify(tete)})`);
     await page.screenshot({ path: `${DOSSIER}/rogue-signer-qui-sort.png` }); await compterFeuilles('signer-qui-sort');
     await page.click('#choixModal .choix-fermer');
     await page.waitForTimeout(400);
-    if (!(await page.$('#signatureModal:not([hidden]) .pcard'))) erreurs.push('fermer « qui sort ? » referme aussi la liste de signature');
-    console.log(`   « Signer » demande qui sort : la meilleure sortie proposée en tête (${destSigner})`);
+    if (!(await page.$('#signatureModal:not([hidden]) .pcard'))) erreurs.push('fermer l\'échange referme aussi la liste de signature');
+    console.log(`   « Signer » ouvre l'échange : la sortie proposée touchée d'avance, comparée (${destSigner})`);
   }
 }
 // Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79). On choisit sa case soi-même (« Changer »).
 const nomSigne = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-nom', x => x.textContent.replace(/\s+/g, ' ').trim());
 await page.click('#signatureModal .pcard:not(.locked) .sig-changer');
 /*
- * QUI SORT, EN LISTE (Jalon U). JP : *choisir qui est remplacé avec un menu similaire à celui pour signer le joueur*.
- * Les rangées de la liste de signature : chacune dit sa ligne et ce que sa sortie change à la masse ; « Sort » décide
- * qui part, puis « Où joue X ? » (l'alignement) place l'arrivant. La réserve libre est un bouton au-dessus.
+ * L'ÉCHANGE À LA YAHOO FANTASY (oct.). JP : *alignement simple, mais quand tu choisis un joueur, t'as un comparatif en
+ * haut entre les deux joueurs*. L'alignement en lignes simples ; toucher un joueur le met en face de l'arrivant, stat par
+ * stat, et le bilan dit où l'arrivant jouerait et la masse ; « Signer » décide. La réserve libre est une ligne de plus.
  */
-await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 });
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"] .ech-q', { timeout: 10000 });
 await page.waitForTimeout(300);
 const titre = (await page.textContent('#choixModal .choix-titre')).trim();
-const libreOfferte = !!(await page.$('#choixModal .sig-libre:not([disabled])'));
+const libre = await page.$$eval('#choixModal .ech-q', e => e.filter(b => /Case libre/.test(b.textContent)).map(b => ({ non: b.disabled, pourquoi: b.title || '' }))[0] || null);
+const libreOfferte = !!(libre && !libre.non);
 // V9 (tranche 4, le plafond qui mord) : une case libre que le plafond refuse se montre grisée, avec sa raison.
-const libreRefus = libreOfferte ? '' : await page.$eval('#choixModal .sig-libre[disabled]', b => b.getAttribute('title') || '').catch(() => '');
-const rangees = await page.$$eval('#choixModal .sig-liste .pcard', e => e.length);
-if (rangees < 20) erreurs.push(`« qui sort ? » ne montre que ${rangees} joueurs`);
-const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.length);
-// Un joueur qui sort (pas la réserve libre) : c'est le chemin qui retire quelqu'un.
-// La sortie proposée (U18) signe à sa case calculée ; un autre sortant passe par « Où joue X ? », l'étape éprouvée ici.
-const AUTRE = '#choixModal .sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])';
-const barreSortie = await page.$eval(AUTRE, b => b.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim());
-if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(barreSortie)) erreurs.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${barreSortie} »`);
-await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` }); await compterFeuilles('qui-sort');
-await page.click(AUTRE);
-// Où joue l'arrivant : sa case, et ce qui glisse.
-await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
+const libreRefus = libre && libre.non ? libre.pourquoi : '';
+const rangees = await page.$$eval('#choixModal .ech-q', e => e.length);
+if (rangees < 20) erreurs.push(`l'échange ne montre que ${rangees} lignes de l'alignement`);
+const refusees = await page.$$eval('#choixModal .ech-q[disabled]', e => e.length);
+// Un autre que la sortie proposée : le comparatif se remplit, le bilan dit sa case et la masse.
+await page.click('#choixModal .ech-q:not(.meilleure):not([disabled])');
 await page.waitForTimeout(300);
-// Où joue X ? (Jalon U) : les rangées de la signature ; chacune dit ce que sa case fait, « Ici » décide.
-const barrePlace = await page.$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', b => b.closest('.aln-ligne').querySelector('.aln-dit').textContent.replace(/\s+/g, ' ').trim());
-if (!/: .+masse/.test(barrePlace)) erreurs.push(`une rangée de « où joue ? » ne dit pas ce qui va se passer : « ${barrePlace} »`);
-console.log(`   qui sort : ${rangees} rangées, ${refusees} grisée(s) · « ${barreSortie} » · puis « ${barrePlace} »`);
-await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
+const lu = await page.evaluate(() => { const m = document.querySelector('#choixModal'); return { lignes: m.querySelectorAll('.cmp-l').length, deux: m.querySelectorAll('.cmp-qui:not(.vide)').length,
+  bilan: ((m.querySelector('.cmp-bilan') || {}).textContent || '').replace(/\s+/g, ' ').trim(), bouton: m.querySelector('.ech-signer').textContent.trim(), sw: m.querySelector('.choix-corps').scrollWidth, cw: m.querySelector('.choix-corps').clientWidth }; });
+if (lu.deux !== 2 || lu.lignes < 6) erreurs.push(`le comparatif ne met pas les deux joueurs face à face, stat par stat (${JSON.stringify(lu)})`);
+if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(lu.bilan)) erreurs.push(`le comparatif ne dit pas où il jouerait et la masse : « ${lu.bilan} »`);
+if (lu.sw > lu.cw + 1) erreurs.push(`l'échange déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
+await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` }); await compterFeuilles('qui-sort');
+console.log(`   l'échange : ${rangees} lignes, ${refusees} grisée(s) · ${lu.lignes} stats face à face · « ${lu.bilan} » · « ${lu.bouton} »`);
+await page.click('#choixModal .ech-signer:not([disabled])');
 // APRÈS UN PACK SIGNÉ : la boutique est rouverte AU MARCHÉ, le Club n'a pas paru (une capture à 390 px).
 await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 120000 });
 await page.waitForTimeout(500);
@@ -1547,6 +1560,7 @@ console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette r
 if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
 // LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
 console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
+console.log(`20q. le journal de l'ouverture : ${journal || 'pas croisé (aucun rechargement en pleine saison)'}`);
 if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
 console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);

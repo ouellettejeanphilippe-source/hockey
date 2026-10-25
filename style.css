@@ -4314,48 +4314,13 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .calj[data-sommaire]:hover { transform: translateY(-2px); }
 .calj .team-logo-img, .calj .team-logo-inline { flex: none; }
 
-/* ---- Le passage de la journée (js/saison.js, passage) : un habillage de télé, un peu plus de trois secondes, qui ne bloque rien ----
-   Le numéro de la journée qui tourne, ton match en bandeau, le tampon, le but gagnant raconté, le rang ; en bas, le fil des
-   autres résultats qui défile. pointer-events: none partout : le doigt passe à travers, la journée suivante le remplace. */
-.passage {
-  position: fixed; z-index: 85; left: var(--rail-w); right: 0; top: var(--topbar-h); bottom: var(--bas-coquille);
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--esp-4);
-  padding: var(--esp-4); overflow: hidden; pointer-events: none;
-  /* Un voile presque opaque : l'affiche dessous ne se lit pas à travers le pointage (ce qu'il raconte reste au Bureau, « Hier soir »). */
-  background: radial-gradient(70% 50% at 50% 45%, color-mix(in srgb, var(--noir) 96%, transparent), color-mix(in srgb, var(--noir) 88%, transparent) 80%);
-  -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
-  animation: passage-vie 3.2s var(--e-sortie) forwards;
-}
-@keyframes passage-vie { 0% { opacity: 0; } 8% { opacity: 1; } 78% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-.passage-boite { display: flex; flex-direction: column; align-items: center; gap: var(--esp-2); width: min(100%, 520px); text-align: center; }
-.passage-tete { display: flex; align-items: baseline; gap: var(--esp-2); font-family: var(--display); text-transform: uppercase; }
-.passage-mot { font: 700 var(--t-3)/1 var(--display); letter-spacing: 0.14em; color: var(--encre-2); animation: passage-glisse 360ms var(--e-sortie) backwards; }
-/* Le chiffre tombe d'en haut comme une palette de tableau indicateur. */
-.passage-n { display: inline-block; font: 800 var(--t-7)/0.9 var(--display); font-variant-numeric: tabular-nums; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 4px 18px color-mix(in srgb, var(--club-vif) 60%, transparent)); animation: passage-palette 520ms var(--e-ressort) 60ms backwards; }
-@keyframes passage-palette { from { opacity: 0; transform: perspective(400px) rotateX(-90deg) translateY(-20px); } }
-@keyframes passage-glisse { from { opacity: 0; transform: translateX(-24px); } }
-/* Ton match : deux bandeaux aux couleurs des clubs qui arrivent chacun de son côté. */
-.passage-match { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; width: 100%; border-radius: var(--r-1); overflow: hidden; box-shadow: var(--ombre); }
-.passage-match > i { display: grid; place-items: center; padding: 0 var(--esp-2); background: var(--noir); font: 800 var(--t-4)/1 var(--display); font-style: italic; color: var(--or); }
-.passage-eq { display: flex; align-items: center; gap: var(--esp-2); min-width: 0; padding: var(--esp-3); background: var(--eq-band); color: var(--eq-ink); box-shadow: inset 0 -4px 0 var(--eq-stripe); font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; animation: passage-gauche 420ms var(--e-ressort) 200ms backwards; }
-.passage-eq > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.passage-eq > b { font: 800 var(--t-6)/1 var(--display); font-variant-numeric: tabular-nums; }
-.passage-match > .passage-eq:last-child { flex-direction: row-reverse; text-align: right; animation-name: passage-droite; }
-@keyframes passage-gauche { from { opacity: 0; transform: translateX(-60px); } }
-@keyframes passage-droite { from { opacity: 0; transform: translateX(60px); } }
-/* Le tampon : il claque sur la table, un peu de travers. */
-.passage-tampon { padding: var(--esp-1) var(--esp-4); border: 3px solid currentColor; border-radius: var(--r-1); font: 800 var(--t-5)/1.1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; transform: rotate(-3deg); animation: passage-tampon 460ms var(--e-ressort) 480ms backwards; }
-.passage-tampon.v { color: var(--bon); text-shadow: 0 0 18px color-mix(in srgb, var(--bon) 60%, transparent); box-shadow: 0 0 24px -6px var(--bon), inset 0 0 18px -8px var(--bon); }
-.passage-tampon.d { color: var(--mauvais); }
-.passage-tampon.conge { color: var(--encre-2); }
-@keyframes passage-tampon { from { opacity: 0; transform: rotate(-12deg) scale(2.2); } }
-.passage-recit { margin: 0; max-width: 44ch; font-size: var(--t-3); line-height: 1.4; font-style: italic; color: var(--encre); animation: passage-monte 400ms var(--e-sortie) 760ms backwards; }
-.passage-rang { margin: 0; font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); animation: passage-monte 400ms var(--e-sortie) 900ms backwards; }
-.passage-rang .bon { color: var(--bon); }
-.passage-rang .prix { color: var(--mauvais); }
-@keyframes passage-monte { from { opacity: 0; transform: translateY(10px); } }
-/* La une du jour : deux nouvelles au plus, chacune sur son filet du club. */
-/* Le fil des autres résultats : un bandeau du bas qui défile, comme à la télé. */
+
+/* ---- Le journal de l'ouverture (js/saison.js, ouvrirJournal) : une une de journal, courte ---- */
+.jrn { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-4); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); }
+.jrn-nom { padding-bottom: var(--esp-2); border-bottom: 3px double var(--encre-3); font: 400 var(--t-4)/1.1 "Abril Fatface", Georgia, serif; letter-spacing: 0.02em; text-align: center; color: var(--encre); }
+.jrn-titre { margin: 0; font: 800 var(--t-6)/1.05 var(--display); letter-spacing: 0.01em; text-transform: uppercase; color: var(--encre); }
+.jrn-breves { display: flex; flex-direction: column; gap: var(--esp-2); margin: 0; padding: var(--esp-2) 0 0; list-style: none; border-top: 1px solid var(--filet); }
+.jrn-breves li { font-size: var(--t-3); line-height: 1.35; color: var(--encre-2); }
 
 /* ---- Le volet : les titres, hier soir, l'état de la saison, ce qui se plie ---- */
 .hub-titre { display: flex; align-items: center; gap: var(--esp-2); margin-top: var(--esp-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
@@ -5401,6 +5366,47 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .ech-col b { color: var(--encre); font-size: var(--t-2); }
 .ech-mot { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .ech-bilan { display: block; margin-top: var(--esp-1); font-size: var(--t-1); color: var(--encre-2); }
+/*
+ * L'ÉCHANGE À LA YAHOO FANTASY (oct.) : le comparatif collé en haut — l'arrivant à gauche, celui qu'on touche à droite,
+ * une stat par ligne, la meilleure en vert —, puis l'alignement en lignes simples ; « Signer » au pied.
+ */
+.choix-sheet[data-genre="echange"] .choix-corps { gap: var(--esp-2); }
+.cmp { position: sticky; top: calc(-1 * var(--esp-4)); z-index: 2; margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-4)) var(--esp-2); padding: var(--esp-3) var(--esp-4); background: var(--fond-1); border-bottom: 1px solid var(--filet); display: flex; flex-direction: column; gap: 2px; }
+.cmp-tetes { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: var(--esp-2); margin-bottom: var(--esp-1); }
+.cmp-qui { display: grid; grid-template-columns: 40px minmax(0, 1fr); grid-template-rows: auto auto; column-gap: var(--esp-2); align-items: center; min-width: 0; }
+.cmp-tetes > .cmp-qui:last-child { grid-template-columns: minmax(0, 1fr) 40px; text-align: right; }
+.cmp-tetes > .cmp-qui:last-child .cmp-mug { grid-column: 2; grid-row: 1 / 3; }
+.cmp-tetes > .cmp-qui:last-child b, .cmp-tetes > .cmp-qui:last-child small { grid-column: 1; }
+.cmp-tetes > .cmp-qui.vide:last-child { grid-template-columns: minmax(0, 1fr); }
+.cmp-mug { grid-row: 1 / 3; position: relative; width: 40px; height: 40px; border-radius: var(--r-1); overflow: hidden; background: var(--fond-3); }
+.cmp-mug > * { position: absolute; inset: 0; display: grid; place-items: center; }
+.cmp-mug img { width: 100%; height: 100%; object-fit: cover; object-position: 50% 0; }
+.cmp-qui b { font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.02em; text-transform: uppercase; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmp-qui small { font: 700 var(--t-1)/1.3 var(--display); color: var(--encre-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmp-qui.vide b { color: var(--encre-3); }
+.cmp-vs { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
+.cmp-mots, .cmp-l { display: grid; grid-template-columns: minmax(0, 1fr) 72px minmax(0, 1fr); align-items: center; gap: var(--esp-2); }
+.cmp-mots { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.cmp-mots span:nth-child(2), .cmp-k { text-align: center; }
+.cmp-mots span:last-child, .cmp-l .cmp-v:last-child { text-align: right; }
+.cmp-l { min-height: 22px; border-top: 1px solid var(--filet-2); }
+.cmp-k { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
+.cmp-v { font: 800 var(--t-2)/1.2 var(--display); color: var(--encre-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+.cmp-v.mieux { color: var(--bon); }
+.cmp-bilan { margin: var(--esp-1) 0 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
+.cmp-bilan .dest-ok { color: var(--bon); }
+.cmp-bilan .dest-bad { color: var(--mauvais); }
+.ech-ligne { display: flex; flex-direction: column; gap: 1px; }
+.ech-q { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto auto; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: 0 var(--esp-3); border: 1px solid transparent; border-radius: 0; background: var(--fond-2); color: var(--encre-2); text-align: left; font: 700 var(--t-2)/1.2 var(--display); cursor: pointer; }
+.ech-q:disabled { opacity: 0.45; cursor: default; }
+.ech-q.meilleure { border-color: color-mix(in srgb, var(--or) 55%, transparent); }
+.ech-q.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 14%, var(--fond-2)); color: var(--encre); }
+.ech-q-pos { font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); }
+.ech-q-nom { display: flex; align-items: center; gap: var(--esp-1); min-width: 0; }
+.ech-q-nom b { color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ech-q-nom small { color: var(--encre-3); white-space: nowrap; }
+.ech-q-chiffre, .ech-q-sal { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ech-q-sal { min-width: 56px; text-align: right; color: var(--encre-3); }
 
 /* ---- Le dépistage (depistageHtml) : trois pistes et leurs chances ; à choisir (.choisir), on touche celle pour laquelle on se prépare ---- */
 .depistage { margin: var(--esp-2) 0; padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); }

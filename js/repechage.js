@@ -440,7 +440,6 @@ function netDuRoster(roster, moves) {
   for (const [i, x] of moves) r[i] = x;
   try { return rosterEnStats(c.team, r); } catch { return null; }
 }
-const badgeCourt = q => { const b = badgesDe(q)[0]; return `${pastilleNiveau(q)}${b ? ` <i class="badge pal-${b.palier}" title="${esc(b.nom)}">${b.ico}</i>` : ''}`; };
 const motDeCase = d => { const m = d && motsDeStats(d, 1)[0]; return m ? m : { txt: '≈ pareil', bon: null }; };
 const motsDeBarre = d => motsDeStats(d, 4).map(x => x.txt).join(', ');
 /* Le classement des cases : les tirs nets, puis la réussite et les arrêts (un demi-tir vaut trois millièmes d'arrêts). */
@@ -458,74 +457,124 @@ function marquerMeilleure(rangees, nets) {
     c.meilleure = valeurDeCase(d) === max && max > 0;
   }
 }
+/*
+ * L'ÉCHANGE EN UN ÉCRAN, À LA YAHOO FANTASY (oct.). JP : *signature, au lieu d'être compliqué, tu mets alignement
+ * simple, mais quand tu choisis un joueur, t'as un comparatif en haut entre les deux joueurs, style yahoo fantasy*.
+ * Avant : une liste de grosses rangées (« qui sort ? »), puis, pour un autre que la sortie proposée, « Où joue X ? ».
+ * Maintenant l'alignement en lignes simples (sa case, son nom, sa production, son salaire), les lignes du poste de
+ * l'arrivant d'abord ; toucher un joueur le met en face de l'arrivant, en haut, stat par stat, la meilleure en vert,
+ * et dit où l'arrivant jouerait (sa case, ou la meilleure si la sienne ne lui va pas, et qui glisse), la masse et ce
+ * que ça change par match. « Signer » décide. La sortie proposée (U18, `propose`) est touchée d'avance, cerclée d'or.
+ * Des stats et des rangs : jamais une cote.
+ */
+const STATS_ECHANGE = {
+  patineur: [['PJ', s => s.gp], ['B', s => s.g], ['A', s => s.a], ['PTS', s => s.pt], ['+/-', s => s.pm], ['PTS/M', s => (s.gp ? s.pt / s.gp : 0), x => x.toFixed(2).replace('.', ',')]],
+  gardien: [['PJ', s => s.gp], ['V', s => s.w], ['%ARR', (s, q) => q.sv || 0, x => (x ? pct3(x) : '—')]],
+};
+const iconesDeRole = q => badgesDe(q).slice(0, 2).map(b => `<i class="badge pal-${b.palier}" title="${esc(`${b.nom} ${PALIERS[b.palier].nom}`)}">${b.ico}</i>`).join('');
+function comparatifHtml(p, q, place, masse) {
+  const gardien = p.p === 'G';
+  const sp = displayStats(p), sq = q ? displayStats(q) : null;
+  const memeSorte = q && (q.p === 'G') === gardien;
+  const tete = x => (x ? `<div class="cmp-qui"><span class="cmp-mug">${headshotHtml(x)}</span><b>${esc(nomCourt(x.n))}</b><small>${esc(positionLabel(x).split(' / ').join('/'))} · ${esc(x.t)} ${esc(x.s || '')}</small></div>`
+    : '<div class="cmp-qui vide"><b>Touche qui sort</b><small>dans ton alignement</small></div>');
+  const ligne = (mot, a, b, mieux = 0) => `<div class="cmp-l"><span class="cmp-v${mieux > 0 ? ' mieux' : ''}">${a}</span><span class="cmp-k">${esc(mot)}</span><span class="cmp-v${mieux < 0 ? ' mieux' : ''}">${b}</span></div>`;
+  const cmp = (x, y, plusEstMieux = true) => (y == null || x === y ? 0 : (x > y) === plusEstMieux ? 1 : -1);
+  const out = [ligne('Niveau', pastilleNiveau(p), q ? pastilleNiveau(q) : '', q ? cmp(niveauDe(p, saisonDe(p)), niveauDe(q, saisonDe(q))) : 0),
+    ligne('Rôle', iconesDeRole(p), q ? iconesDeRole(q) : ''),
+    ligne('Salaire', esc(money(capHitDuJour(p))), q ? esc(money(capHitDuJour(q))) : '', q ? cmp(capHitDuJour(p), capHitDuJour(q), false) : 0)];
+  for (const [mot, f, fmt = x => String(Math.round(x))] of STATS_ECHANGE[gardien ? 'gardien' : 'patineur']) {
+    const a = f(sp, p), b = memeSorte ? f(sq, q) : null;
+    out.push(ligne(mot, esc(fmt(a)), b == null ? (q ? '—' : '') : esc(fmt(b)), b == null ? 0 : cmp(a, b)));
+  }
+  const nomDe = n => String(n).split(' ').slice(-1)[0];
+  const stats = place && place.net ? motsDeStats(place.net, 3) : [];
+  const bilan = !place ? '' : `<p class="cmp-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(place.B))}${place.g.length ? ` · ${esc(place.g.map(([x, sl]) => `${nomDe(x.n)} → ${ligneDe(sl)}`).join(' · '))}` : ''} · masse ${esc(`${masse > 0 ? '+' : masse < 0 ? '−' : ''}${money(Math.abs(masse))}`)}${stats.length ? ` · ${stats.map(x => `<span class="${x.bon === true ? 'dest-ok' : x.bon === false ? 'dest-bad' : ''}">${esc(x.txt)}</span>`).join(', ')} par match` : ''}</p>`;
+  return `<div class="cmp-tetes">${tete(p)}<span class="cmp-vs">vs</span>${tete(q)}</div><div class="cmp-mots"><span>Arrive</span><span>Vraie saison</span><span>${q ? 'Sort' : ''}</span></div>${out.join('')}${bilan}`;
+}
+const saisonDe = q => { const e = G.shards && G.shards.get(q.s); return e ? e.players : null; };
 function choisirQuiSort(p, o) {
   const { roster, onFerme, bloque = null } = o;
   // Le rappel du club-école (oct.) ne compte pas au plafond : la masse le dit.
   const masseDe = q => (o.horsPlafond ? 0 : capHitDuJour(p)) - (q ? capHitDuJour(q) : 0);
   const nomDe = n => String(n).split(' ').slice(-1)[0];
-  const signe = x => `${x > 0 ? '+' : x < 0 ? '−' : ''}${money(Math.abs(x))}`;
   // Une case pour lui, la case du sortant `A` libérée : la sienne, une vide, ou celle d'un joueur qui peut jouer `A`.
-  const placable = (A, B) => fits(p, B) && !!quiGlisse(roster, A, B, caseOuverte);
-  const placesDe = A => SLOTS.filter(B => caseOuverte(B) && placable(A, B));
+  const placesDe = A => SLOTS.filter(B => caseOuverte(B) && fits(p, B) && !!quiGlisse(roster, A, B, caseOuverte));
   const libre = G.bonus === 'ROGUE' ? SLOTS.find(sl => sl.scratch && caseOuverte(sl) && !roster[sl.i] && fits(p, sl)) : null;
-  // Le net de chaque sortie : l'arrivant à sa meilleure case, celle du sortant libérée (au plus quelques lectures par case).
-  const netDe = A => {
-    const options = fits(p, A) ? [[[A.i, p]]] : placesDe(A).slice(0, 3).map(B => { const g = quiGlisse(roster, A, B, caseOuverte) || []; return [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]; });
-    const vals = options.map(m => netDuRoster(roster, m)).filter(Boolean);
-    return vals.length ? vals.reduce((x, y) => (valeurDeCase(y) > valeurDeCase(x) ? y : x)) : null;
+  // Où il jouerait si `A` se libère : la case même, s'il peut la jouer ; sinon la meilleure des trois premières, et qui glisse.
+  const places = new Map();
+  const placeDe = A => {
+    if (places.has(A.i)) return places.get(A.i);
+    let mieux = null;
+    if (fits(p, A)) mieux = { B: A, g: [], net: netDuRoster(roster, [[A.i, p]]) };
+    else for (const B of placesDe(A).slice(0, 3)) {
+      const g = quiGlisse(roster, A, B, caseOuverte) || [];
+      const net = netDuRoster(roster, [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]);
+      if (!mieux || valeurDeCase(net) > valeurDeCase(mieux.net)) mieux = { B, g, net };
+    }
+    places.set(A.i, mieux);
+    return mieux;
   };
-  const sorties = SLOTS.filter(A => roster[A.i]).map(A => {
-    const q = roster[A.i];
-    const non = (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`);
-    return { A, q, non, net: non ? null : netDe(A) };
-  });
-  // La sortie proposée (U18, `propose` : la meilleure de la liste de signature) passe en tête, cerclée d'or.
-  const propre = s => !!(o.propose && !s.non && s.A.i === o.propose.i);
-  let fermer = () => {};
-  // La proposée a déjà sa case (et ceux qui glissent) : « Sort » signe. Les autres passent par « Où joue X ? ».
-  const choisir = A => { fermer(); if (o.propose && A.i === o.propose.i) o.onChoix(o.propose.sortie); else placerArrivant(p, o, A, () => choisirQuiSort(p, o)); };
-  const rangeeDe = s => {
-    const { A, q, non, net } = s;
-    const el = document.createElement('div');
-    const rar = rareteJoueur(q) || 'commune';
-    el.className = `pcard tc-${rar}${non ? ' locked' : ''}${propre(s) ? ' meilleure' : ''}`;
-    el.dataset.cle = getPlayerKey(q);
-    el.setAttribute('style', varsEquipe(q));
-    const stats = net ? motsDeStats(net, 2) : [];
-    const dest = non ? `<span class="dest-bad">${esc(non)}</span>`
-      : `<span class="dest-target">${esc(ligneDe(A))}</span> · masse ${esc(signe(masseDe(q)))}${stats.length ? ` · ${stats.map(x => `<span class="${x.bon === true ? 'dest-ok' : x.bon === false ? 'dest-bad' : ''}">${esc(x.txt)}</span>`).join(', ')}` : ''}`;
-    el.innerHTML = rangeeHtml(q, { rar, salaire: capHitDuJour(q), dest: `<div class="pcard-dest">${dest}</div>`,
-      bouton: `<button type="button" class="btn-sign sig-sort"${non ? ' disabled' : ''}>Sort</button>` });
-    el.onclick = ev => { if (!ev.target.closest('button')) apercuJoueur(q); };
-    if (!non) el.querySelector('.sig-sort').onclick = ev => { ev.stopPropagation(); choisir(A); };
-    return el;
+  const sortieDe = A => {
+    if (o.propose && A.i === o.propose.i) return o.propose.sortie;
+    const q = roster[A.i] || null, pl = placeDe(A);
+    const sortie = { i: A.i, sort: q ? getPlayerKey(q) : null };
+    if (pl && pl.B.i !== A.i) {
+      const cases = {};
+      for (const [i, x] of Object.entries(roster)) if (x) cases[i] = getPlayerKey(x);
+      delete cases[A.i];
+      for (const [x, sl] of pl.g) cases[sl.i] = getPlayerKey(x);
+      cases[pl.B.i] = getPlayerKey(p);
+      sortie.cases = cases;
+    }
+    return sortie;
   };
-  /*
-   * PAR TRIOS (JP, 13 oct. : *séparer dans la page de remplacement, par trios*) : la sortie proposée en tête, puis chaque
-   * trio, paire, les gardiens et la réserve sous leur titre, ses joueurs dans l'ordre de la glace — les lignes du poste
-   * de l'arrivant d'abord.
-   */
-  const titre = t => { const h = document.createElement('h3'); h.className = 'aln-titre'; h.textContent = t; return h; };
+  const nonDe = A => { const q = roster[A.i]; return q ? (bloque && bloque(q)) || (placesDe(A).length ? '' : `${nomDe(p.n)} n'aurait aucune case`) : libre && bloque ? bloque(null) || '' : ''; };
+  // Les lignes du poste de l'arrivant d'abord, puis les autres, la réserve au bout (avec sa case libre).
   const lignes = [
     ...UNIT_NAMES_F.map((t, u) => ({ t, g: 'F', slots: SLOTS.filter(x => x.group === 'F' && x.unit === u && !x.scratch) })),
     ...UNIT_NAMES_D.map((t, u) => ({ t, g: 'D', slots: SLOTS.filter(x => x.group === 'D' && x.unit === u && !x.scratch) })),
     { t: 'Gardiens', g: 'G', slots: SLOTS.filter(x => x.group === 'G' && !x.scratch) },
   ].sort((a, b) => (b.g === groupeDe(p)) - (a.g === groupeDe(p)));
-  lignes.push({ t: 'Réserve', slots: SLOTS.filter(x => x.scratch) });
-  const rangees = [];
-  const proposee = sorties.find(propre);
-  if (proposee) rangees.push(titre('La meilleure sortie'), rangeeDe(proposee));
-  for (const l of lignes) {
-    const ici = l.slots.map(sl => sorties.find(x => x.A.i === sl.i && x !== proposee)).filter(Boolean);
-    if (ici.length) rangees.push(titre(l.t), ...ici.map(rangeeDe));
-  }
-  const libreNon = libre && bloque ? bloque(null) : '';
-  fermer = feuilleDeJoueurs({ modal: 'choixModal', ico: '🔁', titre: `${p.n} arrive : qui sort ?`, motFermer: 'Retour',
-    contexte: `<div class="ech-arrive">${colonneEchange(p, 'Arrive')}</div>`,
-    haut: libre ? `<button type="button" class="btn sig-libre"${libreNon ? ` disabled title="${esc(libreNon)}"` : ''}>Personne ne sort · la réserve libre · masse ${esc(signe(masseDe(null)))}</button>` : '',
-    rangees, onFerme });
-  const bl = $('choixModal').querySelector('.sig-libre');
-  if (bl && !libreNon) bl.onclick = () => choisir(libre);
+  lignes.push({ t: 'Réserve', slots: SLOTS.filter(x => x.scratch && (roster[x.i] || x === libre)) });
+  const chiffre = q => { const s = displayStats(q); return q.p === 'G' ? (q.sv ? `${pct3(q.sv)}` : '—') : `${s.pt} pts`; };
+  const rangee = A => {
+    const q = roster[A.i] || null, non = nonDe(A), propose = !!(o.propose && A.i === o.propose.i);
+    return `<button type="button" class="ech-q${propose ? ' meilleure' : ''}" data-i="${A.i}"${non ? ` disabled title="${esc(non)}"` : ''} aria-pressed="false">
+      <span class="ech-q-pos">${esc(A.scratch ? 'Rés.' : A.role)}</span>
+      ${q ? `<span class="ech-q-nom"><b>${esc(nomCourt(q.n))}</b>${iconesDeRole(q)}</span><span class="ech-q-chiffre">${esc(chiffre(q))}</span><span class="ech-q-sal">${esc(money(capHitDuJour(q)))}</span>`
+        : '<span class="ech-q-nom"><b>Case libre</b><small>personne ne sort</small></span>'}
+    </button>`;
+  };
+  const m = $('choixModal');
+  if (!m) return;
+  m.innerHTML = `<div class="choix-sheet" data-genre="echange" role="dialog" aria-modal="true" aria-label="${esc(`${p.n} arrive`)}">
+    <div class="choix-tete"><span class="choix-ico">🔁</span>
+      <div class="choix-titres"><div class="choix-titre">${esc(p.n)} arrive</div></div>
+      <button type="button" class="close-btn choix-fermer" aria-label="Retour" title="Retour">✕</button></div>
+    <div class="choix-corps">
+      <div class="cmp" aria-live="polite"></div>
+      ${lignes.filter(l => l.slots.length).map(l => `<section class="ech-ligne"><h3 class="aln-titre">${esc(l.t)}</h3>${l.slots.map(rangee).join('')}</section>`).join('')}
+    </div>
+    <div class="choix-pied"><button type="button" class="btn gold ech-signer" disabled>Signer</button></div>
+  </div>`;
+  m.hidden = false;
+  document.body.classList.add('choix-ouvert');
+  const fermer = () => { m.hidden = true; m.innerHTML = ''; document.body.classList.remove('choix-ouvert'); };
+  const cmp = m.querySelector('.cmp'), signer = m.querySelector('.ech-signer');
+  let choisi = null;
+  const montrer = A => {
+    choisi = A;
+    for (const b of m.querySelectorAll('.ech-q')) { const on = A && Number(b.dataset.i) === A.i; b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on)); }
+    const q = A ? roster[A.i] || null : null;
+    cmp.innerHTML = comparatifHtml(p, q, A ? placeDe(A) : null, A ? masseDe(q) : 0);
+    signer.disabled = !A;
+    signer.textContent = !A ? 'Touche qui sort' : q ? `Signer · ${nomDe(q.n)} sort` : 'Signer · personne ne sort';
+  };
+  for (const b of m.querySelectorAll('.ech-q:not([disabled])')) b.onclick = () => montrer(SLOTS[Number(b.dataset.i)]);
+  signer.onclick = () => { if (!choisi) return; const sortie = sortieDe(choisi); fermer(); o.onChoix(sortie); };
+  m.querySelector('.choix-fermer').onclick = () => { fermer(); if (onFerme) onFerme(); };
+  montrer(o.propose ? SLOTS[o.propose.i] : null);
 }
 /*
  * QUI ENTRE DANS UNE UNITÉ SPÉCIALE (V7). JP : *pourquoi le remplacement, c'est pas la même chose que quand on
@@ -558,60 +607,6 @@ export function choisirSpeciale(o) {
     },
     onChoix: k => { const q = roster[SLOTS[Number(k)].i]; if (q) o.onChoix(q); },
     onFerme: o.onFerme,
-  });
-}
-/* L'étape deux : la case de l'arrivant, `A` étant celle que le sortant (ou une case libre) laisse. */
-function placerArrivant(p, { roster, onChoix }, A, retour) {
-  const nomDe = n => String(n).split(' ').slice(-1)[0];
-  const glisseMot = g => g.map(([x, sl]) => `${nomDe(x.n)} → ${ligneDe(sl)}`).join(' · ');
-  const q0 = roster[A.i] || null;
-  let marques = false;
-  const rangees = rangeesAlignement(roster, (sl, q) => {
-    if (!fits(p, sl)) return { non: 'pas sa position' };
-    const g = quiGlisse(roster, A, sl, caseOuverte);
-    if (!g) return { non: `${nomDe(q.n)} n'a nulle part où aller` };
-    const pen = penaliteAffichee(p, sl).pen;
-    if (pen) marques = true;
-    return { sous: badgeCourt(q), marque: pen ? '↔' : '', marqueMot: pen ? `${nomDe(p.n)} y jouerait hors de sa position` : '',
-      note: sl.i === A.i ? (q0 ? `${nomDe(q0.n)} sort` : 'case libre') : glisseMot(g) || 'case libre' };
-  });
-  const nets = new Map();
-  for (const r of rangees) for (const c of r.cases) {
-    if (c.vide || c.non) continue;
-    const B = SLOTS[Number(c.cle)], g = quiGlisse(roster, A, B, caseOuverte);
-    if (g) nets.set(c.cle, netDuRoster(roster, [[A.i, null], ...g.map(([x, sl]) => [sl.i, x]), [B.i, p]]));
-  }
-  marquerMeilleure(rangees, nets);
-  ouvrirAlignement({
-    ico: '📍', titre: `Où joue ${p.n} ?`, motFermer: 'Retour', motConfirmer: 'Ici', fiche: apercuJoueur,
-    contexte: q0 ? `<span class="ech">${colonneEchange(q0, 'Sort', A)}${colonneEchange(p, 'Arrive')}</span>` : '',
-    rangees,
-    barre: k => {
-      const B = SLOTS[Number(k)];
-      if (!B) return '';
-      const pen = penaliteAffichee(p, B).pen, q = roster[B.i];
-      const ecart = capHitDuJour(p) - (q0 ? capHitDuJour(q0) : 0);
-      const g = quiGlisse(roster, A, B, caseOuverte) || [];
-      const x = nets.get(k);
-      return `<span class="ech-bilan"><b>${esc(nomDe(p.n))}</b> : ${esc(ligneDe(B))}${pen ? ', hors de sa position' : ', à sa position'}${g.length ? ` · ${esc(glisseMot(g))}` : ''} · masse ${ecart > 0 ? '+' : ecart < 0 ? '−' : ''}${esc(money(Math.abs(ecart)))}${x ? ` · <b>${esc(motsDeBarre(x) || 'pareil')} par match</b>` : ''}</span>`;
-    },
-    onChoix: k => {
-      const B = SLOTS[Number(k)];
-      const g = B && fits(p, B) ? quiGlisse(roster, A, B, caseOuverte) : null;
-      if (!g) return;
-      const sortie = { i: A.i, sort: q0 ? getPlayerKey(q0) : null };
-      if (B.i !== A.i) {
-        // Le ballottage le pose à `A` ; la photo le déplace à `B`, et ceux qui glissent (`quiGlisse`) à leurs cases.
-        const cases = {};
-        for (const [i, x] of Object.entries(roster)) if (x) cases[i] = getPlayerKey(x);
-        delete cases[A.i];
-        for (const [x, sl] of g) cases[sl.i] = getPlayerKey(x);
-        cases[B.i] = getPlayerKey(p);
-        sortie.cases = cases;
-      }
-      onChoix(sortie);
-    },
-    onFerme: retour,
   });
 }
 /*
