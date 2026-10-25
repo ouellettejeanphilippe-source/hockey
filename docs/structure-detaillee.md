@@ -149,19 +149,14 @@ scripts/check_moments.mjs   les moments (S66) : chaque dilemme et chaque répons
                             la saison, et chaque objectif du proprio se réussit
                             entre 15 et 75 % des fois — mesuré EN PAIRES
 scripts/check_gros.mjs      les gros matchs (S70) : aucun dans une ligue sans joueur,
-                            plans neutres pas contrés et payants contrés, l'entracte
+                            leur plan est un plan de match et il joue, l'entracte
                             ne touche pas aux deux premières périodes, la dose
 scripts/sonde_gros_matchs.mjs combien de gros matchs par saison (S70)
 scripts/check_commentaire.mjs le commentateur du direct (S70) : gabarits, variété, graine
-scripts/check_tactiques.mjs les lignes à la HockeyArena (S68) : mal assortir et
-                            jouer sans système coûtent, aucune glace ne décide
-                            la saison, la carrure fait l'agressivité — EN PAIRES
+scripts/check_affinite.mjs  l'affinité (V18) : les badges qui s'accordent dans une
+                            ligne font sa chimie, la ligue garde son bonus de chimie
 scripts/sonde_aptitudes.mjs l'échelle des profils sur 330 vraies équipes : ce qui
                             règle `PROFIL_REF`
-scripts/check_plans.mjs     (S62, remplacé par check_tactiques depuis S68 : le
-                            plan d'équipe n'est plus lu par le moteur) le plan de match et le roulement : ce que chacun vaut
-                            en victoires, mesuré EN PAIRES comme les cartes, et
-                            chacun doit faire ce qu'il annonce
 scripts/check_cartes.mjs    les cartes de saison : ce que chacune vaut en victoires,
                             mesuré EN PAIRES (la même ligue deux fois, la carte
                             aux pairs puis aux impairs) ; et une carte prise ne

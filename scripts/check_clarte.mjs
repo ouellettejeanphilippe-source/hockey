@@ -5,8 +5,8 @@
  * ici, c'est qu'elle se lit :
  *
  *   1. UNE ICÔNE = UN SENS dans les familles d'étiquettes qu'on voit en
- *      jouant (rôles, systèmes, traits, bonus de carte, styles de gardien,
- *      carrure, agressivité, consigne). « Two-way » en attaque et en défense,
+ *      jouant (rôles, traits, bonus de carte, styles de gardien, carrure,
+ *      agressivité). « Two-way » en attaque et en défense,
  *      c'est le même sens ; 🎯 sniper et 🎯 précision, deux.
  *   2. « ÉNERGIE » N'EST PLUS UN MOT DE L'ÉCRAN : la fatigue s'appelle les
  *      jambes, la mana des cartes l'élan, le rôle le plombier. On lit les
@@ -29,11 +29,11 @@ import { fileURLToPath } from 'node:url';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
 import {
-  PROFILS, TACTIQUES, SYSTEMES_D, AGRESSIVITES, IMPORTANCES, CAP, REROLLS, MODES, SEC_MIN, SEC_MAX, SEC_DEFAUT, PART_UNITE,
+  PROFILS, AGRESSIVITES, CAP, REROLLS, MODES, PART_UNITE, AFFINITES, SPEC_MULT,
   ENERGIE_REF, ENERGIE_EFFET, ENERGIE_BLESSURE, NIVEAUX_JAMBES, PART_AUX_MIN, PART_AUX_MAX, PART_SANS_AUX,
   GARDIEN_SUITE_LIBRE, GARDIEN_JAMBES_PAS, GARDIEN_JAMBES_MIN, GARDIEN_USURE, ANNONCE_GROS, PALIERS_CARTES, OBJECTIF_RATE,
-  INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, effetDeMoment, AD_DE_CONSIGNE, K_ROB, ROB_ORDINAIRE, DISSUASION,
-  EFFET_ROLE, EFFET_PALIER, BADGE_CHIMIE, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
+  INTENTIONS, PERIODES_DU_DUEL, MISE_DOUBLEE, ADAPT_MATCHS, SLOTS, getPositionPenalty, K_ROB, ROB_ORDINAIRE, DISSUASION,
+  EFFET_ROLE, EFFET_PALIER, COUP_JAMBES, COUP_ABSORBE, COUP_MARQUANT_JAMBES, BLESSURE_SONNE, BAGARRE_MINUTES, ELAN_BAGARRE, ELAN_BAGARRE_PERDU, ELAN_DUREE,
   BLESSURE_BAGARRE_PERDUE, MELEE_MINUTES, BAGARRE_JAMBES, SORTES_DECK, LANCEE,
   POIDS_AN, POIDS_DN, PLANS, MOMENTS,
 } from '../js/sim.js';
@@ -58,8 +58,6 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const nombre = x => String(Math.round(x * 1000) / 1000).replace('.', ',');
 const pct = x => nombre(Math.abs(x - 1) * 100);
-// Une consigne telle que le moteur la pose (importance + répartition), arrondie au point comme l'écran l'affiche.
-const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, match: { importance: k, ad: AD_DE_CONSIGNE[k] } })[canal] - 1) * 100));
 
 /* ---------- 1. une icône = un sens ---------- */
 {
@@ -71,13 +69,9 @@ const pctE = (k, canal) => String(Math.round(Math.abs(effetDeMoment({ jour: 0, m
     sens.get(k).set(quoi.toLowerCase(), famille);
   };
   for (const g of ['F', 'D']) for (const R of Object.values(PROFILS[g])) noter(R.ico, `rôle ${R.nom}`, 'rôle');
-  // « Hourra » et « Sans consigne » : le même sens, aucun système.
-  for (const [k, T] of Object.entries(TACTIQUES)) noter(T.ico, k === 'hourra' ? 'aucun système' : `système ${T.nom}`, 'système');
-  for (const [k, S] of Object.entries(SYSTEMES_D)) noter(S.ico, k === 'hourra' ? 'aucun système' : `système ${S.nom}`, 'système');
   for (const T of Object.values(TRAITS)) noter(T.icon, `trophée ${T.label}`, 'trait');
   for (const k of ['WALL', 'ACROBAT', 'WORKHORSE', 'HYBRID_G']) noter(ARCHETYPES[k].icon, `gardien ${ARCHETYPES[k].label}`, 'style de gardien');
   for (const A of AGRESSIVITES) noter(A.ico, `agressivité ${A.nom}`, 'agressivité');
-  for (const I of Object.values(IMPORTANCES)) noter(I.ico, `consigne ${I.nom}`, 'consigne');
   // La carrure vit dans js/gerant.js (`carrureDe`) : ses deux icônes, lues dans la source.
   const gerant = lire('js/gerant.js');
   const carrure = gerant.match(/^(?:export )?const carrureDe = [^\n]+/m);
@@ -149,8 +143,8 @@ const MOTS_RESERVES = [
     'La défaite contre ta rivale', 'Ta rivalité : MTL'],
   ['trophée', 'ce que le bilan décerne ; ce que le joueur porte est un trait', /Un trophée<\/strong>, rarement/i,
     '<strong>Un trophée</strong>, rarement', 'Les trophées de la saison'],
-  ['Basse', 'la consigne ; l\'agressivité dit Prudente', /agressivité (🕊️ )?basse|🕊️ basse/i,
-    '(🕊️ basse, ⚖️ moyenne)', 'la consigne 😌 Basse'],
+  ['Basse', 'l\'agressivité dit Prudente', /agressivité (🕊️ )?basse|🕊️ basse/i,
+    '(🕊️ basse, ⚖️ moyenne)', 'une agressivité 🕊️ Prudente'],
   ['médailles', 'la monnaie des déblocages ; l\'écusson est un logo', /\d+ écussons|écussons (à dépenser|pour ta saison|pour tes séries|de découverte|gagnés)|Tes écussons/i,
     '🏅 +12 écussons pour ta saison', 'Le nom, les couleurs et l\'écusson'],
   // LE JARGON (Jalon M, B10) : le % d'arrêts et les matchs se disent en mots ; la route dit « chez », pas « @ » ni « DP ».
@@ -186,9 +180,8 @@ const MOTS_RESERVES = [
  * Ce que l'écran dit des zones, de la carrure, de la glace et des jambes est
  * calculé depuis la constante que le moteur joue, jamais recopié : le malus
  * au-dessus de sa zone (ZONE_PEN_DESSUS × crans^ZONE_PUISSANCE), le coût d'un
- * coup pour CE joueur (`coutDuCoup`), la glace du plan de match au moteur
- * (`partsDuRoulement`), le conseil de jambes sur ENERGIE_REF, et
- * l'infobulle d'un gardien sur la règle des gardiens.
+ * coup pour CE joueur (`coutDuCoup`), et l'infobulle d'un gardien sur la
+ * règle des gardiens.
  */
 {
   const src = f => lire(`js/${f}`);
@@ -196,13 +189,9 @@ const MOTS_RESERVES = [
   const faits = [
     ['le malus au-dessus de sa zone vient de ZONE_PEN_DESSUS et ZONE_PUISSANCE', /ZONE_DESSUS_TITLE = `[^`]*malusDessus\(1\)/.test(src('game.js')) && /ZONE_PEN_DESSUS \* n \*\* ZONE_PUISSANCE/.test(src('game.js')) && sans('game.js', /−3 par cran/)],
     ['la fiche dit le coût d\'un coup pour CE joueur (`coutDuCoup`)', /coutDuCoup\(p\)/.test(src('fiche.js')) && sans('fiche.js', /1 - COUP_ABSORBE|1 \+ COUP_ABSORBE/)],
-    // V7 : « Préparer le match » est fondu dans les Lignes ; la glace du plan de match se lit au moteur, roulement compris.
-    ['la glace du plan de match se lit au moteur (`partsDuRoulement`)', /partsDuRoulement\(/.test(src('alignement.js')) && sans('gerant.js', /POIDS_TRIO\.map/)],
-    ['le conseil de glace dit la ligne ordinaire du moteur (ENERGIE_REF)', /Sous \$\{ENERGIE_REF\}/.test(src('pronostic.js')) && sans('pronostic.js', /Sous 90|moy >= 88/)],
     ['la fiche dit l\'effet NET d\'un badge (`maitrise`, centré sur la ligue), pas le brut', /\(EFFET_ROLE\[b\.cle\] \|\| 0\) \* maitrise\(p, b\.cle\)/.test(src('fiche.js')) && sans('fiche.js', /b\.palier \/ \(b\.second/)],
     ['un joueur sans badge qui défend le lit sur sa fiche', /Sans badge qui défend/.test(src('fiche.js'))],
-    ['l\'agressivité dit aussi les jambes qu\'elle ôte et les bagarres', /jambes ôtées à l'adversaire/.test(src('impact.js')) && /bagarre', 'bagarres'\)\} par 10 matchs/.test(src('impact.js'))],
-    ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(lineup, u\)/.test(src('gerant.js')) && sans('gerant.js', /data-agr/)],
+    ['l\'agressivité d\'une ligne est celle de ses joueurs (`agressiviteDeLigne`), sans menu', /agressiviteDeLigne\(G\.roster, unit\)/.test(src('alignement.js')) && sans('alignement.js', /data-agr/)],
     ['le niveau, la zone et le badge disent chacun à quoi ils servent', /ne joue pas au match|ne jouent? pas/.test(lire('index.html')) && /Il dit sa saison ; au match/.test(src('repechage.js')) && /Elle dit OÙ il joue/.test(src('game.js')) && /Il dit CE QU'IL FAIT au match/.test(src('gerant.js'))],
     ['les jambes d\'un gardien ont l\'infobulle des gardiens', /jambesHtml\(e, \{ gardien: true \}\)/.test(src('alignement.js')) && /GARDIEN_JAMBES_PAS/.test(src('gerant.js'))],
   ];
@@ -278,7 +267,8 @@ const MOTS_RESERVES = [
   exiger('la page dit qu\'un effet se lit en chiffres de match, par match', /chiffres de match/.test(texte) && /par match/.test(texte), 'chiffres de match · par match');
   exiger('la page ne lit plus un effet en pourcentage (« Tirs +8 % »)', !/(Tirs|Précision|Buts contre) [+−]\d+ ?%/.test(texte), 'plus de « Tirs +8 % »');
   const partis = [[/archétype/i, 'l\'archétype'], [/un match sur six/i, '« un match sur six »'], [/PENCHANT/, 'le PENCHANT'], [/franc-tireur|fabricant de jeu/i, 'les profils de S68'],
-    [/chimie de trio/i, 'la chimie de trio de S72'], [/Trio d'énergie/i, 'le Trio d\'énergie']];
+    [/chimie de trio/i, 'la chimie de trio de S72'], [/Trio d'énergie/i, 'le Trio d\'énergie'],
+    [/système/i, 'les systèmes de ligne (V18)'], [/consigne du match/i, 'la consigne du match (V18)'], [/secondes par présence/i, 'la glace en secondes (V18)'], [/\bfit\b/i, 'le fit (V18)']];
   const encore = partis.filter(([re]) => re.test(texte)).map(([, nom]) => nom);
   exiger('la page ne parle plus de ce qui est parti', encore.length === 0, encore.join(' · ') || 'rien de parti');
 
@@ -300,15 +290,17 @@ const MOTS_RESERVES = [
     [`★ Étoile (le ${nombre(NIVEAUX.find(n => n.cle === 'etoile').haut * 100)} % du haut), ★ Phénomène (le ${nombre(NIVEAUX.find(n => n.cle === 'phenomene').haut * 100)} % du haut)`, 'les niveaux'],
     [`un centre à l'aile perd ${pen({ p: 'C', np: 'C', secP: null }, 'AG')}, un ailier au centre ${pen({ p: 'LW', np: 'L', secP: null }, 'C')}, un ailier sur l'autre aile ${pen({ p: 'LW', np: 'L', secP: null }, 'AD')}, un défenseur du mauvais côté ${pen({ p: 'D', np: 'L', secP: null }, 'DD')}`, 'les pénalités de position'],
     [`des deux tiers en ${ADAPT_MATCHS} matchs`, 'l\'adaptation'],
-    [`de ${SEC_MIN} à ${SEC_MAX} secondes par présence, ${SEC_DEFAUT} par défaut`, 'la glace'],
     [`à ${PART_UNITE.F.slice(0, 3).map(x => nombre(x * 100)).join(', ')} et ${nombre(PART_UNITE.F[3] * 100)} %, les paires à ${PART_UNITE.D.slice(0, 2).map(x => nombre(x * 100)).join(', ')} et ${nombre(PART_UNITE.D[2] * 100)} %`, 'les parts de glace'],
-    // 1.0 (J2-11) : la consigne porte la répartition attaque / défense ; ses chiffres sont ceux que le moteur pose (`effetDeMoment`).
-    [`basse (précision −${pctE('basse', 'finition')} %, usure des jambes −${pctE('basse', 'energie')} %)`, 'la consigne basse'],
-    [`haute (précision +${pctE('haute', 'finition')} %, buts contre −${pctE('haute', 'defense')} %, blessures +${pctE('haute', 'blessure')} %, usure des jambes +${pctE('haute', 'energie')} %)`, 'la consigne haute'],
+    // V18 : les accords d'une ligne, dans l'ordre d'AFFINITES, et ce que fait son action spéciale (SPEC_MULT).
+    ...(() => {
+      const mot = ([g, r]) => `${PROFILS[g][r].ico} ${PROFILS[g][r].nom.toLowerCase()}`;
+      return AFFINITES.map(a => [`${mot(a.a)} et ${mot(a.b)}`, `l'accord ${a.nom}`]);
+    })(),
+    [`un tir qui entre ${nombre(SPEC_MULT)} fois plus souvent`, 'l\'action spéciale'],
     // La robustesse (1.0, le dur de quatrième trio) : un écart-type, un soir ordinaire et un soir éreintant, et la dissuasion.
     [`ta finition monte de ${nombre(Math.round((Math.exp(K_ROB * ROB_ORDINAIRE) - 1) * 1000) / 10)} % et la sienne baisse d'autant ; un soir éreintant (un dos-à-dos) de ${nombre(Math.round((Math.exp(K_ROB) - 1) * 1000) / 10)} %`, 'la robustesse'],
     [`réduit les blessures de tes joueurs de ${nombre(Math.round((1 - Math.exp(-DISSUASION)) * 100))} %`, 'la dissuasion'],
-    // Les badges (refonte 1) : chaque effet Platine, depuis EFFET_ROLE et BADGE_CHIMIE ; les coups, depuis COUP_JAMBES et COUP_ABSORBE.
+    // Les badges (refonte 1) : chaque effet Platine, depuis EFFET_ROLE ; les coups, depuis COUP_JAMBES et COUP_ABSORBE.
     [`(lancers adverses −${nombre(EFFET_ROLE.checker * 100)} %, two-way et physique −${nombre(EFFET_ROLE.deuxsens * 100)} %)`, 'les badges qui étouffent'],
     [`(finition −${nombre(EFFET_ROLE.bagarreur * 100)} %)`, 'le bagarreur'],
     [`(ses coéquipiers +${nombre(EFFET_ROLE.power * 100)} %)`, 'le power forward'],
@@ -316,7 +308,6 @@ const MOTS_RESERVES = [
     [`(${nombre(1 + EFFET_ROLE.sniper)} fois plus)`, 'le sniper'],
     [`(sa paire +${nombre(EFFET_ROLE.offensif * 100)} %)`, 'le défenseur offensif'],
     [`finition +${nombre(EFFET_PALIER.finition * 100)} %, jeu +${nombre(EFFET_PALIER.creation * 100)} %, lancers +${nombre(EFFET_PALIER.lancers * 100)} %, lancers adverses −${nombre(EFFET_PALIER.defense * 100)} %, buts accordés au gardien −${nombre(EFFET_PALIER.arrets * 100)} %`, 'un palier gagné'],
-    [`(comme ${nombre(BADGE_CHIMIE)} points de fit)`, 'le passeur et le manieur'],
     [`Chaque coup reçu coûte ${nombre(COUP_JAMBES)} jambes à un joueur moyen, de ${nombre(COUP_JAMBES * (1 - COUP_ABSORBE))} au plus costaud 🪨 à ${nombre(COUP_JAMBES * (1 + COUP_ABSORBE))} au plus léger 🪶 : la fiche dit le sien.`, 'les coups'],
     // Le jeu physique en événements (1.0).
     [`le frappé perd ${nombre(COUP_MARQUANT_JAMBES)} jambes sur-le-champ et se blesse ${nombre(BLESSURE_SONNE)} fois plus ce soir`, 'le coup marquant'],

@@ -11,7 +11,7 @@
  */
 
 import { SLOTS, getPlayerKey, creerSeries, jouerMatchSeries, jouerSeriesVues, tirsTotal, periodeDe, compterFeuilles, SITUATIONS,
-  ROULEMENTS, roulementDe, motDeBlessure } from './sim.js';
+  motDeBlessure } from './sim.js';
 import { causesDuMatch, causeDuBut, causesDeSaison } from './causes.js';
 import { recitDeBut, recitDeSerie, tempsRestant, NOM_PERIODE, conseilDuBilan, ceQuiADecide, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { apresMatch } from './apres-match.js';
@@ -309,7 +309,7 @@ function calendrierHtml(calendrier, jour) {
  * tant que son volet est vide, et c'est le DOM qui le dit (`ongletsCourants`,
  * js/game.js) — un drapeau de plus serait une deuxième vérité.
  */
-const BILAN_SAUTS = [['resume', 'Résumé'], ['histoire', 'Histoire'], ['chiffres', 'Chiffres'], ['rythme', 'Rythme'], ['forces', 'Forces'], ['impact', 'Ton impact'], ['cartes', 'Cartes'], ['vestiaire', 'Vestiaire']];
+const BILAN_SAUTS = [['resume', 'Résumé'], ['histoire', 'Histoire'], ['chiffres', 'Chiffres'], ['rythme', 'Rythme'], ['forces', 'Forces'], ['impact', 'Ton impact'], ['vestiaire', 'Vestiaire']];
 const ONGLETS_BILAN = [
   { cle: 'bilan', ico: 'i-target', titre: 'Bilan' },
   { cle: 'classement', ico: 'i-chart', titre: 'Classement' },
@@ -695,23 +695,6 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
   }), { cle: 'saison' }) : '';
 
   /*
-   * LE PLAN AVEC LEQUEL TU AS FINI L'ANNÉE. Il se lit au même endroit et
-   * pour la même raison — l'équipe, pas les décisions — et il a sa place ici
-   * parce qu'un réglage qu'on porte 82 matchs fait partie du bilan autant
-   * qu'une carte. On ne montre que ce qui n'est pas le défaut : « Équilibré ·
-   * Quatre trios » n'apprend rien.
-   */
-  // Le plan de match a quitté le moteur en S68 : seul le roulement se porte encore (S79).
-  const reglages = [ROULEMENTS[roulementDe(you)]]
-    .filter(x => x && x.bon && x.prix && !/^Rien/.test(x.bon));
-  const cartesPrises = reglages.length
-    ? `<div class="result-section"><h3>Tes cartes</h3>
-        <ul class="inj-list">${reglages.map(c => `<li>${c.ico} <strong>${esc(c.nom)}</strong> — ${esc(c.bon)}, ${esc(c.prix.toLowerCase())}</li>`).join('')}</ul>
-      </div>`
-    : '';
-
-
-  /*
    * L'ANNÉE DU VESTIAIRE. Les situations ne sont pas des décisions — on ne
    * les choisit pas — donc elles se relisent au MOTEUR (`you.situations`),
    * comme les cartes, et jamais à une liste tenue par l'écran. C'est la
@@ -782,7 +765,6 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
     rythme: rythmeHtml(you, calendrier),
     forces: forcesHtml(you, calendrier).replace('<div class="result-section">', '<div class="result-section" data-bl="forces">'),
     impact: impactHtml(you, calendrier),
-    cartes: cartesPrises ? `<div data-bl="cartes">${cartesPrises}</div>` : '',
     vestiaire: `<div data-bl="vestiaire">${vestiaire}<div class="result-section"><h3>Infirmerie</h3>${injuries}</div></div>`,
   };
   const volets = {
@@ -1286,8 +1268,8 @@ export function cleDeSommaire(feuille) {
  * la passe dans la saison ou dans les séries, comme au tableau indicateur.
  */
 /**
- * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (cartes, patrons, événements,
- * systèmes, consigne) et ce que le match a donné, contre ta moyenne d'avant et contre la ligue.
+ * « TON BUILD CE SOIR » : ce qui jouait ta formation ce soir-là (cartes, patrons, événements)
+ * et ce que le match a donné, contre ta moyenne d'avant et contre la ligue.
  * Ce que chaque carte a fait se dit juste dessous (`saillantsHtml`).
  */
 function buildDuSoirHtml(f, A, B, jour) {
@@ -1296,7 +1278,7 @@ function buildDuSoirHtml(f, A, B, jour) {
   const matchs = matchsJoues(G.ligue.calendrier);
   const moi = profilDuClub(matchs, toi, { avant: jour }), lig = profilDeLigue(matchs, toi, { avant: jour });
   const b = buildDuSoir(toi, G.ligue.decisions, jour, f);
-  const groupes = [['Personnel', b.patrons], ['Événements', b.effets], ['Systèmes', b.systemes], ['Consigne', b.consigne ? [b.consigne] : []], ['Cartes de match', b.jouees]]
+  const groupes = [['Personnel', b.patrons], ['Événements', b.effets], ['Cartes de match', b.jouees]]
     .filter(([, xs]) => xs.length).map(([k, xs]) => `<p><b>${k}</b> : ${xs.map(esc).join(' · ')}</p>`).join('');
   const lignes = ecartsDuSoir(f, A.isPlayer ? 'A' : 'B', moi, lig).map(r => ({
     k: r.nom, v: `${dire(r.soir, 0)}${r.moyenne != null ? ` · toi ${dire(r.moyenne)}` : ''}${r.ligue != null ? ` · ligue ${dire(r.ligue)}` : ''}`,

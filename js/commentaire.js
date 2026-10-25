@@ -35,43 +35,43 @@ export const CRI_ARRET = [
   'Fermé à double tour !', 'Quel duel !',
 ];
 /*
- * LES ACTIONS DU TIREUR COLLENT AU JOUEUR ET AU SYSTÈME (S71). JP : *les
+ * LES ACTIONS DU TIREUR COLLENT AU JOUEUR ET À SA LIGNE (S71, V18). JP : *les
  * phrases doivent fitter avec stats des joueurs et stratégies et cie*. Chaque
  * action porte des ÉTIQUETTES : le poste qu'elle exige (D, F) et ses
- * affinités — le style du tireur (canon, rapide, tireur, fab), la tactique
- * de sa ligne (bleue, contre, derriere, courtes, echec, defensive) et la
- * situation (AN, DN). Un défenseur ne file plus en échappée, et une ligne en
- * Ligne bleue se raconte à la pointe.
+ * affinités — le style du tireur (canon, rapide, tireur, fab), le meilleur
+ * accord de sa ligne (`AFFINITES`, js/sim.js : tir, filet, rebonds, pointe,
+ * sortie, echec, trappe) et la situation (AN, DN). Un défenseur ne file plus
+ * en échappée, et une ligne où la pointe s'accorde à l'écran se raconte à la pointe.
  */
 export const ACTIONS_TIREUR = [
-  ['{t} s\'amène seul devant le filet', 'F'], ['{t} reçoit une passe parfaite dans l\'enclave', 'F courtes'],
-  ['{t} décoche un boulet de la pointe', 'D canon bleue'], ['{t} tente sa chance du revers', 'F fab'],
-  ['{t} surgit au deuxième poteau', 'F courtes'], ['{t} fait dévier le tir de la pointe', 'F bleue'],
-  ['{t} file en échappée', 'F rapide contre'], ['{t} récupère le retour', 'F'],
-  ['{t} coupe au filet en vitesse', 'F rapide'], ['{t} lance sur réception', 'tireur canon courtes'],
-  ['{t} se faufile entre les deux défenseurs', 'F rapide'], ['{t} arme son lancer frappé', 'canon bleue'],
-  ['{t} vise la lucarne d\'un tir du poignet', 'tireur'], ['{t} contourne le filet et tente le tour du poteau', 'F rapide derriere'],
+  ['{t} s\'amène seul devant le filet', 'F'], ['{t} reçoit une passe parfaite dans l\'enclave', 'F tir'],
+  ['{t} décoche un boulet de la pointe', 'D canon pointe'], ['{t} tente sa chance du revers', 'F fab'],
+  ['{t} surgit au deuxième poteau', 'F tir'], ['{t} fait dévier le tir de la pointe', 'F pointe'],
+  ['{t} file en échappée', 'F rapide sortie'], ['{t} récupère le retour', 'F rebonds'],
+  ['{t} coupe au filet en vitesse', 'F rapide'], ['{t} lance sur réception', 'tireur canon tir'],
+  ['{t} se faufile entre les deux défenseurs', 'F rapide'], ['{t} arme son lancer frappé', 'canon pointe'],
+  ['{t} vise la lucarne d\'un tir du poignet', 'tireur'], ['{t} contourne le filet et tente le tour du poteau', 'F rapide filet'],
   ['{t} pivote dans l\'enclave et décoche', 'F tireur'], ['{t} hérite d\'une rondelle libre devant le filet', 'F'],
   ['{t} déborde son couvreur sur l\'aile', 'F rapide'], ['{t} tente une feinte du revers', 'F fab'],
   ['{t} vole la rondelle et s\'échappe', 'F rapide echec'], ['{t} décoche du haut du cercle', 'F tireur canon'],
-  ['{t} lance à travers un écran', 'D bleue'], ['{t} tente de faire dévier la rondelle', 'F bleue'],
-  ['{t} a tout le filet devant lui', 'F'], ['{t} reçoit seul au deuxième poteau', 'F courtes AN'],
-  ['{t} tente sa chance en pleine course', 'F rapide contre'], ['{t} profite d\'un revirement en zone neutre', 'F contre defensive'],
-  ['{t} lance sur un deux contre un', 'F contre'], ['{t} se retrouve seul dans l\'enclave', 'F'],
+  ['{t} lance à travers un écran', 'D pointe'], ['{t} tente de faire dévier la rondelle', 'F pointe'],
+  ['{t} a tout le filet devant lui', 'F'], ['{t} reçoit seul au deuxième poteau', 'F tir AN'],
+  ['{t} tente sa chance en pleine course', 'F rapide sortie'], ['{t} profite d\'un revirement en zone neutre', 'F sortie trappe'],
+  ['{t} lance sur un deux contre un', 'F sortie'], ['{t} se retrouve seul dans l\'enclave', 'F'],
   ['{t} fonce au filet, la rondelle sur la palette', 'F'], ['{t} ramasse une rondelle libre dans la cohue', 'F echec'],
   ['{t} vise bas, côté jambière', 'tireur'], ['{t} tente sa chance d\'un angle fermé', 'F'],
-  ['{t} décoche sans ralentir', 'rapide canon contre'], ['{t} décoche sur réception, un genou sur la glace', 'canon AN'],
-  ['{t} reçoit la passe du fond de la zone', 'F derriere'], ['{t} fait une feinte de tir et contourne le défenseur', 'F fab'],
-  ['{t} redirige la passe en plein vol', 'F courtes'], ['{t} saute sur une rondelle bondissante', 'F'],
+  ['{t} décoche sans ralentir', 'rapide canon sortie'], ['{t} décoche sur réception, un genou sur la glace', 'canon AN'],
+  ['{t} reçoit la passe du fond de la zone', 'F filet'], ['{t} fait une feinte de tir et contourne le défenseur', 'F fab'],
+  ['{t} redirige la passe en plein vol', 'F tir'], ['{t} saute sur une rondelle bondissante', 'F rebonds'],
   // Les défenseurs.
-  ['{t} s\'avance de la ligne bleue et lance', 'D'], ['{t} pince à la ligne bleue et décoche', 'D bleue'],
-  ['{t} monte en quatrième homme et tire', 'D rapide contre'], ['{t} lance sur réception à la pointe', 'D canon bleue AN'],
+  ['{t} s\'avance de la ligne bleue et lance', 'D'], ['{t} pince à la ligne bleue et décoche', 'D pointe'],
+  ['{t} monte en quatrième homme et tire', 'D rapide sortie'], ['{t} lance sur réception à la pointe', 'D canon pointe AN'],
   ['{t} tente un tir des poignets de la ligne bleue', 'D tireur'], ['{t} se glisse jusqu\'au cercle et lance', 'D rapide'],
-  // Les systèmes.
-  ['{t} surgit de derrière le filet', 'F derriere'], ['{t} reçoit une remise de derrière la ligne des buts', 'F derriere'],
-  ['{t} conclut un jeu de passes en triangle', 'F courtes'], ['{t} vole la rondelle en échec avant et lance', 'F echec'],
-  ['{t} arrache la rondelle le long de la bande en échec avant', 'F echec'], ['{t} jaillit en contre-attaque', 'F rapide contre defensive'],
-  ['{t} repart en contre après un revirement', 'F defensive'],
+  // Les accords de la ligne.
+  ['{t} surgit de derrière le filet', 'F filet'], ['{t} reçoit une remise de derrière la ligne des buts', 'F filet'],
+  ['{t} conclut un jeu de passes en triangle', 'F tir'], ['{t} vole la rondelle en échec avant et lance', 'F echec'],
+  ['{t} arrache la rondelle le long de la bande en échec avant', 'F echec'], ['{t} jaillit en contre-attaque', 'F rapide sortie trappe'],
+  ['{t} repart en contre après un revirement', 'F trappe'],
   // Les unités spéciales.
   ['{t} décoche sur l\'avantage numérique', 'AN'], ['La rondelle circule sur le jeu de puissance, {t} lance du cercle', 'F AN'],
   ['{t} s\'échappe en désavantage numérique', 'F DN'], ['{t} intercepte une passe en désavantage et fonce', 'F DN'],
@@ -227,18 +227,19 @@ export const CONTEXTE_BUT = {
     'Ils avaient un joueur de plus, et ça paraît.', 'Le jeu de puissance n\'a pas raté son coup.'],
   dn: ['En désavantage numérique, en plus !', 'Un but en infériorité numérique : l\'autre banc n\'en revient pas.',
     'Ils étaient à quatre et ils marquent !', 'Un but en désavantage : le vent vient de tourner.'],
-  special: ['Le système de {eq} fonctionne à merveille.', 'Exactement ce qu\'ils ont pratiqué.',
+  special: ['Le jeu de {eq} fonctionne à merveille.', 'Exactement ce qu\'ils ont pratiqué.',
     'Le jeu parfait, tel que dessiné au tableau.', 'La chimie de ce trio fait des ravages.',
     'Le plan de l\'entraîneur, exécuté à la lettre.'],
-  // Le système de la ligne qui marque, quand il a fait le travail (S71).
-  bleue: ['La ligne bleue frappe encore.', 'Les tirs de la pointe finissent par payer.', 'Tout part de la ligne bleue ce soir.'],
-  contre: ['La contre-attaque a fait mal.', 'Ils attendaient l\'ouverture, ils l\'ont eue.', 'Frappés en transition !'],
-  derriere: ['Le jeu derrière le filet fonctionne.', 'Tout passe par derrière la ligne des buts.',
+  // L'accord de la ligne qui marque, quand il a fait le travail (S71, V18).
+  pointe: ['La ligne bleue frappe encore.', 'Les tirs de la pointe finissent par payer.', 'Tout part de la ligne bleue ce soir.'],
+  sortie: ['La contre-attaque a fait mal.', 'Ils attendaient l\'ouverture, ils l\'ont eue.', 'Frappés en transition !'],
+  filet: ['Le jeu derrière le filet fonctionne.', 'Tout passe par derrière la ligne des buts.',
     'Le gardien ne savait plus où regarder.'],
-  courtes: ['Les passes courtes ont mystifié la défense.', 'Un jeu de passes à une touche, du grand art.',
+  tir: ['Les passes courtes ont mystifié la défense.', 'Un jeu de passes à une touche, du grand art.',
     'Ils font tourner la défense en bourrique.'],
+  rebonds: ['Le retour était là, il l\'a pris.', 'Un tir, un retour, un but.', 'Il fallait être là pour le rebond.'],
   echec: ['L\'échec avant a forcé le revirement.', 'Ils les ont étouffés dans leur zone.', 'La pression a payé.'],
-  defensive: ['Patients, ils ont frappé en contre.', 'Ils ferment le jeu et piquent au bon moment.', 'Le plan défensif paie.'],
+  trappe: ['Patients, ils ont frappé en contre.', 'Ils ferment le jeu et piquent au bon moment.', 'Le plan défensif paie.'],
   tard: ['À {r} de la fin !', 'Dans les dernières minutes !', 'Un but qui pèse une tonne !', 'Au pire moment pour {autre} !',
     'Avec {r} à jouer !'],
   prolongation: ['C\'est terminé en prolongation !', '{eq} gagne en prolongation !', '{eq} l\'emporte en prolongation !',
@@ -407,12 +408,12 @@ export function commentateur(graine) {
   /*
    * UNE PIÈCE QUI COLLE (S71). `liste` : [texte, 'étiquettes']. Le poste
    * (D, F) est exigé ; les autres étiquettes sont des affinités. Quand des
-   * pièces collent au style, à la tactique ou à la situation, on les prend
+   * pièces collent au style, à l'accord de la ligne ou à la situation, on les prend
    * deux fois sur trois ; sinon, les pièces sans affinité.
    */
   const pigeColle = (cle, liste, c) => {
     const poste = c.poste || 'F';
-    const aff = new Set([c.style, c.tac, c.mode].filter(Boolean));
+    const aff = new Set([c.style, c.acc, c.mode].filter(Boolean));
     const ok = liste.filter(([, t]) => { const e = t.split(' ').filter(Boolean); return !e.some(x => (x === 'D' || x === 'F') && x !== poste); });
     const colle = ok.filter(([, t]) => t.split(' ').some(x => aff.has(x)));
     const neutres = ok.filter(([, t]) => !t.split(' ').some(x => x !== 'D' && x !== 'F' && x));
@@ -503,7 +504,7 @@ export function commentateur(graine) {
       }
       if (b.an && oui(0.6)) ctx.push(pige('an', CONTEXTE_BUT.an));
       else if (b.dn) ctx.push(pige('dn', CONTEXTE_BUT.dn));
-      else if (b.tac && CONTEXTE_BUT[b.tac] && (b.special === 'reussie' ? oui(0.8) : oui(0.25))) ctx.push(remplir(pige(`tac:${b.tac}`, CONTEXTE_BUT[b.tac]), v));
+      else if (b.acc && CONTEXTE_BUT[b.acc] && (b.special === 'reussie' ? oui(0.8) : oui(0.25))) ctx.push(remplir(pige(`acc:${b.acc}`, CONTEXTE_BUT[b.acc]), v));
       else if (b.special === 'reussie' && oui(0.6)) ctx.push(remplir(pige('spec', CONTEXTE_BUT.special), v));
       return joindre(pige('crib', CRI_BUT), corps, ...ctx);
     },

@@ -934,54 +934,6 @@ export const PART_UNITE = {
 
 /* V10 (tranche 6) : les cartes de saison (un bonus payé par un malus) sont parties ; le personnel en a pris la place (js/personnel.js). */
 
-/* =====================================================================
-   LE ROULEMENT — une décision qu'on porte toute la saison, et qu'on
-   change quand on veut derrière le banc
-
-   JP : *plus d'opportunités pour jouer avec les lignes, joueurs,
-   stratégie*. Le ROULEMENT touche la seule quantité que rien d'autre ne
-   touchait : LA PART DE GLACE DE CHAQUE UNITÉ. C'est ce qui fait du
-   quatrième trio une décision au lieu d'un remplissage. (Le plan de match
-   qui l'accompagnait a quitté le moteur en S68 : les systèmes de chaque
-   ligne l'ont remplacé ; V2.1 en a retiré le vestige.)
-
-   ET IL SE REJOUE. C'est une décision (`{ jour, roulement }`) qui vit dans
-   la sauvegarde avec le reste, et la saison se rejoue de la graine avec
-   elle — `check_graine.mjs` l'exige. La décision 0 la porte aussi, sinon
-   un roulement choisi au jour 40 vaudrait pour les 40 journées d'avant à
-   la reprise.
-   ===================================================================== */
-/*
- * LE ROULEMENT : où passent les minutes.
- *
- * `parts` multiplie la part de glace de chaque unité, ensuite RENORMALISÉE
- * pour que la somme — donc la pression de l'équipe — ne bouge pas d'un
- * centième : raccourcir le banc ne fait pas tirer l'équipe davantage, ça
- * déplace qui tire. Le prix est la robustesse et les blessures, parce que
- * c'est ce qu'un banc court coûte vraiment : ça tient jusqu'en février.
- */
-export const ROULEMENTS = {
-  quatre: {
-    nom: 'Quatre trios', ico: '🔄',
-    bon: 'Tout le monde joue : la saison tient', prix: 'Tes meilleurs jouent moins',
-    F: [1, 1, 1, 1], D: [1, 1, 1],
-  },
-  trois: {
-    nom: 'Trois trios', ico: '⏫',
-    bon: 'Tes meilleurs jouent plus', prix: 'Moins robuste, et plus de blessures',
-    F: [1.12, 1.08, 1.03, 0.62], D: [1.10, 1.04, 0.78],
-    robustesse: -0.9, blessure: 1.30,
-  },
-  profond: {
-    nom: 'Banc profond', ico: '🔋',
-    bon: 'Des jambes fraîches, et moins de blessures', prix: 'Tes meilleurs jouent moins',
-    F: [0.92, 0.97, 1.05, 1.16], D: [0.94, 1.00, 1.11],
-    robustesse: 0.9, blessure: 0.82,
-  },
-};
-
-/** Le roulement d'une équipe, avec sa valeur par défaut. */
-export const roulementDe = t => ROULEMENTS[(t && t.roulement) || 'quatre'] ? ((t && t.roulement) || 'quatre') : 'quatre';
 
 /*
  * LES COACHS D'UNE ÉQUIPE, PORTÉS PAR SES JOUEURS (v2, js/coachs.js) : la
@@ -1055,8 +1007,8 @@ function coachsJoues(team) {
 }
 
 /**
- * Ce que la SAISON d'une équipe multiplie : ses cartes, son plan de match et
- * son roulement, sur les mêmes canaux. Un seul endroit les additionne, donc
+ * Ce que la SAISON d'une équipe multiplie : ses cartes, son personnel et
+ * son coach, sur les mêmes canaux. Un seul endroit les additionne, donc
  * un canal ne peut pas être oublié d'un côté.
  */
 export function effetsDeSaison(team, adv = null, lineup = null) {
@@ -1072,7 +1024,7 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
   // LES PATRONS (S79, js/banque.js) : le personnel engagé, comme une carte de saison — en séries aussi.
   // LES COACHS (v2, js/coachs.js) : la confiance du vestiaire, lue comme un patron.
   const sources = [...patronsDuSoir(team), ...coachsJoues(team),
-    ROULEMENTS[roulementDe(team)], ...actifs].filter(c => joueCeSoir(team, c));
+    ...actifs].filter(c => joueCeSoir(team, c));
   // V5 : les sources NOMMÉES qui touchent la finition ou la défense, pour que « ce qui a fait le match » dise chaque
   // carte par son nom (`causesDuLancer`). Non énumérable : les totaux qui lisent `e` ne la voient pas.
   Object.defineProperty(e, 'sources', { value: sources.filter(c => c && c.nom && ((c.finition ?? 1) !== 1 || (c.defense ?? 1) !== 1)).map(c => ({ nom: c.nom, ico: c.ico || '', finition: c.finition ?? 1, defense: c.defense ?? 1 })) });
@@ -1089,32 +1041,25 @@ export function effetsDeSaison(team, adv = null, lineup = null) {
 }
 
 /**
- * Les parts de glace d'une équipe, roulement appliqué et RENORMALISÉES.
- * `base` est PART_UNITE (la part offensive) ou POIDS_TRIO/POIDS_PAIRE (la
- * présence) : les deux suivent le même roulement, sinon le quatrième trio
- * tirerait moins tout en défendant autant.
+ * Les parts de glace d'une équipe, RENORMALISÉES. `base` est PART_UNITE (la part offensive) ou POIDS_TRIO/POIDS_PAIRE
+ * (la présence) : les deux bougent ensemble, sinon le quatrième trio tirerait moins tout en défendant autant. (V18 :
+ * le roulement et la glace de chaque trio ne se règlent plus ; seuls les effets — un coach, un adjoint, un moment —
+ * déplacent les minutes.)
  */
 /*
  * LA GLACE À FORCES ÉGALES D'UN SOIR (V2.2, les bons chiffres) : la part de chaque trio et de chaque paire telle
- * que le moteur la joue (`PART_UNITE`, le roulement, les moments, les patrons, les coachs, les secondes de chaque
- * ligne), avec les décisions du soir posées. « Préparer le match » la multiplie par les minutes à forces égales.
+ * que le moteur la joue (`PART_UNITE`, les moments, les patrons, les coachs), avec les décisions du soir posées. « Préparer le match » la multiplie par les minutes à forces égales.
  */
 export function glaceDesLignes(team, aVenir = []) {
   return avecAVenir(team, aVenir, () => ({ F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) }));
 }
 export function partsDuRoulement(base, group, team) {
-  const r = ROULEMENTS[roulementDe(team)];
-  const mult = ((r && r[group]) || base.map(() => 1)).slice();
-  // Un moment peut aussi déplacer les minutes (doubler le trio en feu,
-  // brasser les trios) : ses multiplicateurs s'ajoutent à ceux du roulement,
-  // et la renormalisation tient toujours la somme.
+  const mult = base.map(() => 1);
+  // Un moment peut déplacer les minutes (doubler le trio en feu, brasser les trios) : ses multiplicateurs
+  // s'appliquent, et la renormalisation tient toujours la somme.
   // v2 : un patron ou la confiance d'un coach (le Contremaître, le Showman) déplacent aussi les minutes, toute la saison.
   // V10 : un patron d'un moment (`si`) ne déplace les minutes que ses soirs.
   for (const x of [...effetsActifs(team), ...patronsDuSoir(team), ...coachsJoues(team)]) if (x[group]) x[group].forEach((m, i) => { mult[i] = (mult[i] ?? 1) * m; });
-  // LES SECONDES DE PRÉSENCE DE CHAQUE LIGNE (S68), à la HockeyArena : 60 est
-  // la glace que le moteur a mesurée ; 70 donne un sixième de glace de plus.
-  const L = team && team.lignes;
-  if (L) for (let i = 0; i < mult.length; i++) mult[i] *= borne((L[i] && L[i].sec) || SEC_DEFAUT, SEC_MIN, SEC_MAX) / SEC_DEFAUT;
   const brut = base.map((x, i) => x * (mult[i] ?? 1));
   const s = brut.reduce((a, b) => a + b, 0);
   const s0 = base.reduce((a, b) => a + b, 0);
@@ -1122,37 +1067,23 @@ export function partsDuRoulement(base, group, team) {
 }
 
 /* =====================================================================
-   LES LIGNES, À LA HOCKEYARENA (S68)
+   LES LIGNES (S68, V18)
 
-   JP : *les stratégies devraient être liées aux stats et traits des joueurs
-   par trio* ; *chaque ligne peut avoir stratégie différente, qui doit fitter
-   avec profils, style hockeyarena.net* ; *pouvoir en tout temps changer les
-   trios et cie et ça a un impact* ; puis, sur la portée : *je veux pas le
-   moteur HA complet, mais que ça feel similaire pour le joueur*.
+   JP, en S68 : *les stratégies devraient être liées aux stats et traits des joueurs par trio* ; puis, à la V18 :
+   *enlever [les stratégies de lignes] partout* ; *permettre affinité entre joueurs dont les styles marchent ensemble*.
 
-   Le moteur ne change pas de nature — il joue toujours lancer par lancer
-   sur les VRAIES colonnes. Ce qui vient de HockeyArena, c'est le poste de
-   gérant, et chaque morceau y a son équivalent documenté (ha-navod.eu) :
+   Le moteur joue toujours lancer par lancer sur les VRAIES colonnes. Une ligne, c'est un trio et sa paire (la
+   quatrième n'a que son trio) ; ce qui la fait jouer ensemble se lit sur ses joueurs, jamais sur un menu :
 
-     LE PROFIL     chaque joueur a un % d'aptitude à chaque rôle (fabricant
-                   de jeu, franc-tireur, puissant, rapide…), tiré de ses
-                   vraies stats et de ses traits — jamais d'une cote cachée
-     LA LIGNE      un trio et sa paire ; la quatrième ligne n'a que son trio
-     LA TACTIQUE   sept, dont « Hourra » (aucun système) ; chacune demande
-                   un profil par position, et le FIT en % plafonne la chimie
-     LA CHIMIE     monte avec les matchs joués ensemble, perd le quart de
-                   sa valeur par joueur changé, redescend si le fit baisse
-     L'ACTION SPÉCIALE   à chaque lancer d'une ligne, une chance (selon sa
-                   chimie) de jouer SON système : un lancer qui entre plus ;
-                   la tactique adverse qui le CONTRE l'étouffe
-     L'AGRESSIVITÉ basse → rentre-dedans : plus physique, plus d'énergie
-                   brûlée, plus de punitions (selon le sang-froid)
-     LA GLACE      les secondes de présence de chaque ligne
-     L'ÉNERGIE     par joueur, sur toute la saison : pousser une ligne l'use,
-                   et un joueur usé rend moins et se blesse plus
+     LE RÔLE        chaque joueur a son badge (sniper, passeur, checker…), lu dans ses vraies stats
+     L'AFFINITÉ     les badges qui s'accordent dans la ligne (`AFFINITES`) font sa CHIMIE
+     L'ACTION SPÉCIALE  à chaque lancer d'une ligne, une chance (selon sa chimie) de jouer SON jeu : un lancer
+                    qui entre plus
+     L'AGRESSIVITÉ  celle de sa carrure : plus physique, plus de jambes brûlées, plus de punitions
+     LES JAMBES     par joueur, sur toute la saison : pousser une ligne l'use, et un joueur usé rend moins
 
-   ET ÇA SE MESURE, comme tout le reste (`check_tactiques.mjs`) : bien
-   assortir rapporte, mal assortir coûte, et rien ne décide la saison.
+   ET ÇA SE MESURE (`check_affinite.mjs`) : les accords rendent la chimie que la ligue avait, et rien ne décide la
+   saison.
    ===================================================================== */
 
 /* ---------- les rôles (S79) ---------- */
@@ -1165,7 +1096,7 @@ export function partsDuRoulement(base, group, team) {
  * énergie, violence*. Les profils de S68 (franc-tireur, fabricant, puissant,
  * rapide, créatif, défensif…) parlaient la langue du moteur ; les rôles
  * parlent celle du hockey, et le moteur les lit à leur place : ce sont eux
- * que les systèmes de jeu demandent (`TACTIQUES`, `SYSTEMES_D`).
+ * qui s'accordent dans une ligne (`AFFINITES`, V18).
  *
  * TOUT VIENT DES VRAIES STATISTIQUES, jamais d'une cote : chaque statistique
  * se lit en ÉCART à la moyenne des réguliers de SA saison et de son groupe
@@ -1177,7 +1108,7 @@ export function partsDuRoulement(base, group, team) {
  * complètent. Chaque rôle vaut 0 à 100 ; le premier est le RÔLE du joueur,
  * le second s'affiche s'il vaut 60 et plus.
  */
-/* Une icône par chose : un rôle ne porte ni l'icône d'un trait (🪄 Créateur, 🔁 Bidirectionnel, 🛡 Selke, ⚡ Vitesse, 🥊 Colosse, 🧱 Norris) ni celle d'un système. */
+/* Une icône par chose : un rôle ne porte pas l'icône d'un trait (🪄 Créateur, 🔁 Bidirectionnel, 🛡 Selke, ⚡ Vitesse, 🥊 Colosse, 🧱 Norris). */
 export const PROFILS = {
   F: {
     sniper: { nom: 'Sniper', ico: '🎯', mot: 'ses buts par match, son % de tir, ses lancers' },
@@ -1302,8 +1233,8 @@ function profilsBase(p) {
  * valent pas […] jamais dans un sens absolu que x carte est mieux : x carte fitte mieux dans le but du DG et du
  * coach*. Les rôles de toujours (`rolesBruts`, leur décalage compris) se rangent en quatre familles, et chacune se lit
  * À NIVEAU ÉGAL : ce que les points par match du joueur n'expliquent pas. Deux Piliers aux mêmes points diffèrent :
- * l'un marque plus qu'il ne passe, l'autre défend, un troisième frappe. Le talent reste dans les points ; le plan
- * (le système de l'unité, en Rogue) paie une famille. Aucune cote neuve.
+ * l'un marque plus qu'il ne passe, l'autre défend, un troisième frappe. Le talent reste dans les points ; les packs
+ * et le profil se rangent par famille. Aucune cote neuve.
  */
 export const FAMILLES = {
   tir: { nom: 'Tir', roles: { F: ['sniper'], D: ['offensif'] } },
@@ -1428,179 +1359,6 @@ function profilPrincipal(p) {
   return { cle, fit, ...(PROFILS[estD(p) ? 'D' : 'F'][cle]) };
 }
 
-/* ---------- les systèmes de jeu (S79) ---------- */
-/*
- * UN SYSTÈME POUR LE TRIO, UN AUTRE POUR LA PAIRE. JP : *stratégie des def et
- * attaquants différents?* ; *revoir les stratégies pour que ça fitte plus
- * avec le reste du moteur et ce qu'on a comme infos sur les joueurs*.
- *
- * Chaque trio joue un système d'AVANTS (`TACTIQUES` : les clés d'avant S79
- * restent, pour que les sauvegardes et les plans adverses se relisent),
- * chaque paire un système de DÉFENSEURS (`SYSTEMES_D`, `lignes[u].tacD`).
- * Un système DEMANDE un rôle par poste (`slots`) — le fit de l'unité est la
- * moyenne de ses joueurs dans ces rôles (js/sim.js, « les rôles ») — et fait
- * deux choses, en chiffres :
- *   `gain`  ce qu'il rapporte, À PROPORTION DU FIT (`echelleFit` : rien sous
- *           30 %, tout à 75 %, un quart de plus au-delà) — un système joué
- *           par les mauvais joueurs coûte sans rapporter ;
- *   `prix`  ce qu'il coûte, toujours.
- * Les canaux sont ceux du moteur : `volume` (les lancers de l'unité),
- * `finition` (leur %), `defense` (les buts alloués pendant ses présences),
- * `discipline` (ses punitions), `energie` (son usure), `physique` (ce que
- * le jeu robuste rapporte les soirs éreintants et en séries).
- * Et chacun ÉTOUFFE un système du trio adverse (`bat`) : l'action spéciale
- * de ce trio-là ne passe pas pendant ses présences. Le cycle des trios est
- * fermé et passe par les sept (V2.2 : trois n'étouffaient rien, et le Trio de
- * plombiers ne pouvait pas être étouffé) : échec avant → cycle → volume →
- * trappe → contre-attaque → enclave → plombiers → échec avant. Chacun en
- * étouffe un et l'est par un. Chaque système de paire étouffe aussi un
- * système de trio (`check_tactiques` exige les deux).
- */
-export const TACTIQUES = {
-  hourra: {
-    nom: 'Hourra', ico: '🎲', bat: null, slots: null,
-    mot: 'Pas de système : chacun joue d\'instinct. Rien à assortir, mais ni chimie ni action spéciale.',
-  },
-  echec: {
-    nom: 'Échec avant 2-1-2', ico: '🔥', bat: 'courtes', veut: [['checker', 'energie']], famille: 'robustesse',
-    slots: { AG: 'power', C: 'energie', AD: 'checker' },
-    mot: 'Deux avants vont chercher la rondelle dans leur zone : on la récupère haut.',
-    gain: { volume: 1.141 }, prix: { discipline: 1.183, energie: 1.082 },
-  },
-  courtes: {
-    nom: 'Cycle et possession', ico: '🌀', bat: 'bleue', veut: [['passeur']], famille: 'jeu',
-    slots: { AG: 'power', C: 'passeur', AD: 'passeur' },
-    mot: 'On garde la rondelle le long des bandes et on attend la bonne passe.',
-    gain: { finition: 1.089 }, prix: { volume: 0.943 },
-  },
-  bleue: {
-    nom: 'Volume de tirs', ico: '🌧', bat: 'defensive', veut: [['sniper']], famille: 'tir',
-    slots: { AG: 'sniper', C: 'power', AD: 'sniper' },
-    mot: 'Tout ce qui passe va au filet : des tirs de partout, des rebonds.',
-    gain: { volume: 1.157 }, prix: { finition: 0.954 },
-  },
-  defensive: {
-    nom: 'Trappe 1-3-1', ico: '🪤', bat: 'contre', veut: [['deuxsens']], famille: 'defense',
-    slots: { AG: 'deuxsens', C: 'deuxsens', AD: 'checker' },
-    mot: 'On bouche la zone neutre : rien ne passe au centre.',
-    gain: { defense: 0.848, discipline: 0.917 }, prix: { volume: 0.939 },
-  },
-  contre: {
-    nom: 'Contre-attaque', ico: '🏹', bat: 'derriere', veut: [['sniper'], ['passeur']],
-    slots: { AG: 'sniper', C: 'passeur', AD: 'energie' },
-    mot: 'On laisse venir et on repart vite : la longue passe d\'une zone à l\'autre.',
-    gain: { finition: 1.104 }, prix: { defense: 1.058 },
-  },
-  derriere: {
-    // 1.0 (C1) : 🥅 est le trophée Vezina ; l'enclave attire les rebonds.
-    nom: 'Jeu d\'enclave', ico: '🧲', bat: 'energie', veut: [['power']],
-    slots: { AG: 'power', C: 'passeur', AD: 'power' },
-    mot: 'Deux gros devant le filet, un passeur derrière : écrans, rebonds, déviations.',
-    gain: { finition: 1.058, volume: 1.058 }, prix: { discipline: 1.104 },
-  },
-  energie: {
-    nom: 'Trio de plombiers', ico: '🧰', bat: 'echec', veut: [['energie', 'bagarreur']],
-    slots: { AG: 'checker', C: 'energie', AD: 'bagarreur' },
-    mot: 'On frappe tout ce qui bouge et on use l\'adversaire : ça paie les soirs durs.',
-    gain: { defense: 0.92, physique: 1.5 }, prix: { discipline: 1.164, energie: 1.102 },
-  },
-};
-export const SYSTEMES_D = {
-  hourra: {
-    nom: 'Sans consigne', ico: '🎲', bat: null, slots: null,
-    mot: 'La paire joue d\'instinct : rien à assortir, ni chimie.',
-  },
-  maison: {
-    nom: 'Rester à la maison', ico: '🏠', bat: 'contre', veut: [['defensif']], famille: 'defense',
-    slots: { DG: 'defensif', DD: 'defensif' },
-    mot: 'Les deux défenseurs restent derrière la rondelle : aucune échappée.',
-    gain: { defense: 0.885 }, prix: { volume: 0.825 },
-  },
-  activer: {
-    nom: 'Activer les défenseurs', ico: '🛫', bat: 'courtes', veut: [['offensif']], famille: 'tir',
-    slots: { DG: 'offensif', DD: 'offensif' },
-    mot: 'Les défenseurs montent et se joignent à l\'attaque, de la bleue au cercle.',
-    gain: { volume: 1.256, finition: 1.046 }, prix: { defense: 1.078 },
-  },
-  relance: {
-    nom: 'Sortie rapide', ico: '💨', bat: 'echec', veut: [['manieur']], famille: 'jeu',
-    slots: { DG: 'manieur', DD: 'manieur' },
-    mot: 'La première passe sort vite de la zone : l\'échec avant ne mord pas.',
-    gain: { volume: 1.143, defense: 0.947 }, prix: { energie: 1.062 },
-  },
-  rude: {
-    nom: 'Nettoyer l\'enclave', ico: '🧹', bat: 'derriere', veut: [['physique']], famille: 'robustesse',
-    slots: { DG: 'physique', DD: 'physique' },
-    mot: 'Personne ne reste devant le filet : on sort les gros de l\'enclave.',
-    gain: { defense: 0.911, physique: 1.5 }, prix: { discipline: 1.155 },
-  },
-  equilibre: {
-    nom: 'Jeu à deux sens', ico: '🌗', bat: 'bleue', veut: [['deuxsens']],
-    slots: { DG: 'deuxsens', DD: 'deuxsens' },
-    mot: 'Un pied en attaque, un pied en défense : rien d\'extrême.',
-    gain: { defense: 0.959, volume: 1.041 }, prix: {},
-  },
-};
-/* Un système, d'où qu'il vienne (un trio ou une paire), et son groupe. */
-export const systemeDe = k => (k && k !== 'hourra' && TACTIQUES[k] ? { ...TACTIQUES[k], cle: k, groupe: 'F' }
-  : k && k !== 'hourra' && SYSTEMES_D[k] ? { ...SYSTEMES_D[k], cle: k, groupe: 'D' } : null);
-/* Le système de trio qui étouffe CELUI-CI (un trio adverse), et le système de paire qui l'étouffe aussi. */
-export const contreDe = cle => Object.keys(TACTIQUES).find(k => TACTIQUES[k].bat === cle) || null;
-export const contreDeD = cle => Object.keys(SYSTEMES_D).find(k => SYSTEMES_D[k].bat === cle) || null;
-/* Le gain d'un système suit le fit : rien sous 30 %, tout à 75 %, un quart de plus au-delà. */
-export const echelleFit = fit => borne((fit - 30) / 45, 0, 1.25);
-/* Ce qu'un système fait à un canal, pour une unité de ce fit : son gain au prorata, son prix entier. */
-function canalSysteme(S, fit, canal) {
-  if (!S) return 1;
-  const g = S.gain && S.gain[canal] != null ? 1 + (S.gain[canal] - 1) * echelleFit(fit) : 1;
-  const p = S.prix && S.prix[canal] != null ? S.prix[canal] : 1;
-  return g * p;
-}
-/*
- * LES STYLES S'OUVRENT PAR LES BADGES (V15, docs/refonte-v15.md). JP : *le système de stratégie de ligne est débile ; les
- * badges des joueurs influencent certains styles de trio possibles* ; *plus de badges par joueur, plus de possibilités* ;
- * *ça force à bâtir les stratégies à partir des cartes* ; *rendre l'interface et tout plus clean et simple*. En Rogue
- * (`team.courbe`), une unité ne joue un système que si ses joueurs en portent les badges (`veut` : chaque groupe, un des
- * rôles, en premier ou en second badge) ; sa force suit leurs métaux (`fitUnite`, la lecture du 82-0). Le Hourra reste
- * toujours ouvert. Le plan de la V9 (les familles qu'un système payait, le coach qui les faisait compter) est parti.
- */
-const rolesDeLUnite = (lineup, groupe, u) => new Set(SLOTS.filter(s => s.group === groupe && s.unit === u && !s.scratch)
-  .map(s => lineup && lineup[s.i]).filter(Boolean).flatMap(p => badgesDe(p).map(b => b.cle)));
-/* Un système est-il ouvert à cette unité ? Ses badges, chaque groupe de `veut` ; le Hourra, toujours. */
-export function styleOuvert(lineup, groupe, u, cle) {
-  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-  if (!S) return false;
-  if (!S.veut) return true;
-  const r = rolesDeLUnite(lineup, groupe, u);
-  return S.veut.every(g => g.some(x => r.has(x)));
-}
-/* Les badges qui manquent à une unité pour un système (les groupes de `veut` qu'elle n'a pas). */
-export function badgesManquants(lineup, groupe, u, cle) {
-  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-  const r = rolesDeLUnite(lineup, groupe, u);
-  return ((S && S.veut) || []).filter(g => !g.some(x => r.has(x)));
-}
-/* Le meilleur style ouvert d'une unité : le meilleur fit parmi ceux que ses badges ouvrent (le Hourra sinon). */
-export function meilleurStyle(lineup, groupe, u) {
-  const rang = rangSystemes(lineup, groupe, u);
-  return (rang && rang.find(k => styleOuvert(lineup, groupe, u, k))) || 'hourra';
-}
-/*
- * CE QU'UN SYSTÈME FAIT À UNE UNITÉ, EN CHIFFRES (S79) : son gain au prorata
- * du fit de ses joueurs, son prix entier — `canalSysteme`, le calcul même du
- * moteur. Le jeu robuste est le canal « physique » : ce que la mise en échec
- * rapporte les soirs éreintants et en séries.
- */
-const CANAUX_SYSTEME = [['volume', 'Tirs', 1], ['finition', 'Précision', 1], ['defense', 'Précision adverse', -1], ['discipline', 'Punitions', -1], ['energie', 'Usure des jambes', -1], ['physique', 'Jeu robuste', 1]];
-export function effetsDeSysteme(S, fit) {
-  if (!S || !S.slots) return [];
-  return CANAUX_SYSTEME.map(([c, nom, sens]) => {
-    const v = canalSysteme(S, fit, c);
-    const x = Math.round(Math.abs(v - 1) * 100);
-    return x < 1 ? null : { canal: c, v, txt: `${nom} ${v >= 1 ? '+' : '−'}${x} %`, bon: sens > 0 ? v > 1 : v < 1 };
-  }).filter(Boolean);
-}
-
 /*
  * `def` : la part de buts alloués que le jeu physique retire (à une ligne
  * moyenne) ; `pun` : les punitions de trop, en punitions de ligue. RECALÉS
@@ -1618,7 +1376,6 @@ export const AGRESSIVITES = [
   { nom: 'Musclée', ico: '💥', energie: 1.04, physique: 0.7, def: 0.035, pun: 0.15 },
   { nom: 'Rentre-dedans', ico: '🪓', energie: 1.09, physique: 0.9, def: 0.07, pun: 0.30 },
 ];
-export const SEC_DEFAUT = 60, SEC_MIN = 30, SEC_MAX = 90;
 
 /*
  * LE PHYSIQUE D'UN JOUEUR ET CE QUE L'AGRESSIVITÉ EN TIRE (S71). JP :
@@ -1671,7 +1428,7 @@ function physiqueUnite(lineup, group, u) {
   const js = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch).map(s => lineup && lineup[s.i]).filter(Boolean);
   return js.length ? js.reduce((a, p) => a + physiqueDe(p), 0) / js.length : 0.5;
 }
-export function physiqueLigne(lineup, u) {
+function physiqueLigne(lineup, u) {
   const js = Object.values(joueursDeLigne(lineup, u)).filter(Boolean);
   return js.length ? js.reduce((a, p) => a + physiqueDe(p), 0) / js.length : 0.5;
 }
@@ -1713,9 +1470,10 @@ function bilanAgressivite(agr, ph) {
  *   plombier : DES JAMBES — son match lui coûte moins ;
  *   sniper : EN AVANTAGE NUMÉRIQUE, c'est lui qui tire ;
  *   défenseur offensif : DE LA POINTE — le volume de sa paire ;
- *   passeur, manieur : LA CHIMIE — leur ligne joue son système plus haut
- *     (`BADGE_CHIMIE`, un canal du jeu que ses passes ne portent pas : la
- *     création, elle, est déjà lue dans ses passes, `passesRel`).
+ *   passeur, manieur : L'AFFINITÉ — ils s'accordent avec le sniper, le power
+ *     forward, le défensif de leur ligne (`AFFINITES`, V18), et la chimie de
+ *     la ligne monte : un canal du jeu que leurs passes ne portent pas (la
+ *     création, elle, est déjà lue dans leurs passes, `passesRel`).
  *
  * CENTRÉ sur le badge moyen de la ligue (`BADGE_LIGUE`, mesuré sur 29 000
  * réguliers) : toute la ligue porte des badges, et ses buts ne bougent pas ;
@@ -1744,8 +1502,6 @@ const BADGE_LIGUE = {
  * lit que dans le badge. Le sniper, le power forward et le défenseur offensif gardent le leur : leurs buts, leurs
  * passes et leurs lancers sont déjà dans leur saison (la règle de la maîtrise, `check_parts`). */
 export const EFFET_ROLE = { checker: 0.16, deuxsens: 0.08, defensif: 0.16, physique: 0.08, bagarreur: 0.12, power: 0.08, energie: 0.6, sniper: 1.0, offensif: 0.16 };
-/* Passeur et manieur Platine : leur ligne joue son système comme si son fit valait BADGE_CHIMIE de plus (la chimie). */
-export const BADGE_CHIMIE = 12;
 export const COUP_JAMBES = Number(ENV_MESURE.COUP_JAMBES ?? 1.2), COUP_ABSORBE = 0.5, COUP_MOYEN = 1.2;
 const DEUXSENS_SANS_POINTS = 3;   // Or : voir `badgesCalcules`
 /* Un attaquant défensif (S109) : ATTAQUANT_DEFENSIF points ou moins au rythme de 82 matchs. Son Two-way se lit à sa défense seule. */
@@ -2014,26 +1770,6 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
   if (journal) { journal.coups.A += Math.round(coupsAttendus(pA) * frac); journal.coups.B += Math.round(coupsAttendus(pB) * frac); }
 }
 
-/*
- * L'IMPORTANCE DU MATCH (S68), comme HockeyArena : un gros match fait jouer
- * plus fort, et ça se paie au moral du vestiaire et à l'infirmerie ; un match
- * pris à la légère repose les jambes et le moral, et se joue un cran en
- * dessous.
- */
-export const IMPORTANCES = {
-  basse: { nom: 'Basse', ico: '😌', mot: 'on se ménage', finition: 0.97, defense: 1.02, energie: 0.8 },
-  // 1.0 (C1) : une icône par sens — 🏒 est le manieur de rondelle, 🔥 l'échec avant.
-  normale: { nom: 'Normale', ico: '🎚', mot: 'un match comme un autre' },
-  haute: { nom: 'Haute', ico: '🌡', mot: 'on joue ça comme un match des séries', finition: 1.03, defense: 0.97, blessure: 1.25, energie: 1.12 },
-};
-/*
- * UN SEUL RÉGLAGE (1.0, J2-11) : la consigne porte aussi la répartition
- * attaque / défense (`ad`, −2 à 2) qu'un curseur réglait à part. Basse penche
- * défense, Haute penche attaque. Le moteur lit toujours `match.ad` (la même
- * formule, `effetDeMoment`) : une vieille décision garde son `ad` et rejoue
- * à l'identique.
- */
-export const AD_DE_CONSIGNE = { basse: -1, normale: 0, haute: 1 };
 
 /* La ligne u : son trio, et sa paire (la quatrième ligne n'en a pas). */
 const pairDeLigne = u => (u < 3 ? u : null);
@@ -2046,112 +1782,15 @@ export function joueursDeLigne(lineup, u) {
   return out;
 }
 /*
- * LE FIT D'UNE UNITÉ À UN SYSTÈME (S79) : la moyenne, poste par poste, de ses
- * joueurs dans le rôle que le système demande. Le trio u lit un système
- * d'avants, la paire u un système de défenseurs.
- */
-/*
- * LES AILES S'ASSORTISSENT (1.0, oct.). JP : *les stratégies donnent pas la
- * chance de swap AD et AG côté rôles, ce qui est cave*. Un système demande
- * un rôle à chaque aile ; ses ailiers le jouent dans le sens où ils rendent
- * le mieux — le sniper prend l'aile du sniper, qu'elle soit gauche ou droite.
- * Les mêmes règles pour tous les clubs ; rien ne bouge dans l'alignement.
- */
-export function rolesDuSysteme(lineup, groupe, u, cle) {
-  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-  if (!S || !S.slots) return null;
-  if (groupe === 'D' || !S.slots.AG || !S.slots.AD || S.slots.AG === S.slots.AD || !lineup) return S.slots;
-  const miroir = { ...S.slots, AG: S.slots.AD, AD: S.slots.AG };
-  return fitRoles(lineup, u, miroir) > fitRoles(lineup, u, S.slots) ? miroir : S.slots;
-}
-function fitRoles(lineup, u, slots) {
-  const js = joueursDeLigne(lineup, u);
-  let n = 0;
-  for (const [role, prof] of Object.entries(slots)) { const p = js[role]; if (p) n += fitDeCase(p, prof); }
-  return n;
-}
-/*
- * LES SYSTÈMES LISENT LES BADGES (V2.3, l'étape 2 de la refonte, docs/refonte-systeme.md § 4). Une case demande
- * un badge : le bon rend son palier (Bronze 1 à Platine 4), le second badge la moitié, le mauvais rien. Le fit
- * d'une case vaut FIT_BASE + FIT_PAR_PALIER × ses paliers : « Sniper Or » est ce que le système lit, plus un
- * score de style à part. Les deux constantes gardent la ligue où elle était (mesuré sur 120 vrais clubs : le
- * meilleur système d'un trio de l'IA vaut 63,0 en moyenne, 62,9 avant), et un trio de trois Platine du bon
- * badge joue son système à 100. (V9 : le palier de plus que le coach donnait à son système est parti. V15 : en Rogue
- * aussi, la force d'un système suit ces badges, et ils l'ouvrent : `styleOuvert`.)
- */
-export const FIT_BASE = 52, FIT_PAR_PALIER = 12;
-function paliersPour(p, role) {
-  const b = badgesDe(p).find(x => x.cle === role);
-  return b ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0;
-}
-export const fitDeCase = (p, role) => Math.min(100, FIT_BASE + FIT_PAR_PALIER * paliersPour(p, role));
-export function fitUnite(lineup, groupe, u, cle) {
-  const S = groupe === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-  if (!S || !S.slots || !lineup) return 0;
-  const js = joueursDeLigne(lineup, u);
-  const fits = [];
-  for (const [role, prof] of Object.entries(rolesDuSysteme(lineup, groupe, u, cle))) {
-    const p = js[role];
-    if (p === undefined) continue;          // la 4e ligne n'a pas de paire
-    // UNE CASE VIDE N'A PAS DE FIT (1.0, J1-I) : une unité incomplète ne se
-    // juge pas — elle comptait pour 0 et tout trio vide lisait « Mauvais fit ».
-    if (p === null) return null;
-    fits.push(fitDeCase(p, prof));
-  }
-  return fits.length ? Math.round(fits.reduce((a, x) => a + x, 0) / fits.length) : 0;
-}
-/* Le fit d'une ligne à UN système (trio ou paire, selon sa clé) — ce que lisent l'écran et le stage. */
-export function fitLigne(lineup, u, cle) {
-  return SYSTEMES_D[cle] && !TACTIQUES[cle] ? fitUnite(lineup, 'D', u, cle) : fitUnite(lineup, 'F', u, cle);
-}
-/*
- * Le système où une unité a le meilleur fit : ce que joue un club de l'IA. À ÉGALITÉ (V2.3 : une unité sans
- * le badge d'aucun système les lit tous à la base), le système dont ses joueurs sont le plus près des rôles
- * demandés (`profilsDe`, la même lecture de ses vraies stats que le badge) : il ne rend rien de plus, mais
- * le choix ne retombe plus sur le premier de la liste.
- */
-function affiniteUnite(lineup, groupe, u, cle) {
-  const js = joueursDeLigne(lineup, u);
-  let t = 0;
-  for (const [role, prof] of Object.entries(rolesDuSysteme(lineup, groupe, u, cle))) t += (js[role] && (profilsDe(js[role]) || {})[prof]) || 0;
-  return t;
-}
-/* Les systèmes d'une unité, du meilleur fit au pire, l'affinité départageant les égalités ; null si l'unité est incomplète. */
-export function rangSystemes(lineup, groupe, u) {
-  const cles = Object.keys(groupe === 'D' ? SYSTEMES_D : TACTIQUES).filter(k => k !== 'hourra');
-  const lus = [];
-  for (const k of cles) {
-    const v = fitUnite(lineup, groupe, u, k);
-    if (v == null) return null;
-    lus.push([k, v, affiniteUnite(lineup, groupe, u, k)]);
-  }
-  return lus.sort((a, b) => b[1] - a[1] || b[2] - a[2]).map(x => x[0]);
-}
-const meilleurSysteme = (lineup, groupe, u) => { const r = rangSystemes(lineup, groupe, u); return r ? r[0] : 'hourra'; };
-export const meilleureTactique = (lineup, u) => meilleurSysteme(lineup, 'F', u);
-export const meilleurSystemeD = (lineup, u) => (pairDeLigne(u) == null ? 'hourra' : meilleurSysteme(lineup, 'D', u));
-/*
- * LES LIGNES D'UNE ÉQUIPE : { tac, agr, sec } × 4. Un club de l'IA joue la
- * tactique où chaque ligne a le meilleur fit, glace par défaut ; la tienne
- * part pareil, et tu changes son système et sa glace quand tu veux.
- */
-/*
+ * LES LIGNES D'UNE ÉQUIPE : { agr } × 4 — l'agressivité de leur carrure, rien qui se règle (V18 : les systèmes, la
+ * glace de chaque trio, l'appariement et la consigne du match sont partis ; docs/refonte-v18.md).
+ *
  * L'AGRESSIVITÉ EST CELLE DES JOUEURS, PAS D'UN MENU (V7). JP : *les joueurs
  * vont être robustes selon leur tendance, pas le niveau choisi ; je veux
  * ramener les mécaniques aux joueurs, pas aux menus*. Une ligne joue
  * l'agressivité de sa carrure (`agressiviteDeLigne`, le physique moyen de ses
  * cinq joueurs) : costaude, elle frappe ; légère, elle retient. On la change
- * en changeant les joueurs. Le `agr` d'une ligne réglée avant (une vieille
- * sauvegarde) ne se lit plus.
- */
-/*
- * TOUTES LES ÉQUIPES JOUENT AVEC LES MÊMES RÈGLES (S72). JP : *faire que
- * toutes les équipes ont les mêmes stratégies, stats, etc.* Une ligne qu'on
- * ne règle pas — celles de chaque club de l'IA, et les tiennes tant que tu
- * n'y touches pas — prend la tactique qui lui va le mieux ; l'agressivité,
- * elle, est toujours celle de sa carrure (`agressiviteDeLigne`). `duSoir` : le réglage d'UN match (le plan d'un
- * adversaire en gros match) passe devant ; la chimie, elle, lit les lignes de
- * la saison, pour qu'un soir de trappe ne lui coûte rien.
+ * en changeant les joueurs.
  */
 export function agressiviteDeLigne(lineup, u) {
   const ph = physiqueLigne(lineup, u);
@@ -2164,97 +1803,101 @@ export function agressiviteDeLigne(lineup, u) {
   return best;
 }
 /*
- * LA MÉMOIRE D'UN MATCH (S73) : les lignes par défaut (meilleure tactique,
- * meilleure agressivité) se calculaient des dizaines de fois par match — la
- * saison avait pris 50 % de temps. Elles se gardent le temps d'UN match
- * (`MEMO_MATCH` change à chaque `playGame`), donc rien de périmé ne survit à
- * un changement d'alignement.
+ * LA MÉMOIRE D'UN MATCH (S73) : les lignes (l'agressivité de chacune) se calculaient des dizaines de fois par
+ * match. Elles se gardent le temps d'UN match (`MEMO_MATCH` change à chaque `playGame`), donc rien de périmé ne
+ * survit à un changement d'alignement.
  */
 let MEMO_MATCH = 0;
 const MEMO_LIGNES = new WeakMap();
 /*
  * LA LECTURE NEUTRE (V2.2, les totaux du soir disent tout). Le temps d'une lecture (`lectureDuMatch`,
  * option `neutre`) — jamais pendant un match joué —, une part de ce que TON alignement apporte est remise
- * au neutre : les badges au badge moyen de la ligue (`maitrise` rend 0), la chimie au pivot (aucun bonus),
- * les jambes à la référence, chaque ligne sans système. L'adversaire reste tel quel. La différence avec la
- * lecture telle quelle dit ce que chacune rapporte ou coûte ce soir (js/impact.js, `alignementDuSoir`).
+ * au neutre : les badges au badge moyen de la ligue (`maitrise` rend 0), chaque ligne sans accord (`affinite`),
+ * les jambes à la référence. L'adversaire reste tel quel. La différence avec la lecture telle quelle dit ce
+ * que chacune rapporte ou coûte ce soir (js/impact.js, `alignementDuSoir`).
  */
 let NEUTRE = null;
 const neutreDe = (team, quoi) => !!(NEUTRE && NEUTRE[quoi] && NEUTRE.team === team);
 const neutrePour = (p, quoi) => !!(NEUTRE && NEUTRE[quoi] && NEUTRE.joueurs.has(p));
-export function lignesDe(team, lineup, { duSoir = true } = {}) {
-  // V15 : en Rogue, un système que les badges de l'unité n'ouvrent pas (une vieille sauvegarde, un joueur qui sort) joue son meilleur style ouvert.
-  const ouvrir = (l, u) => (!(team && team.courbe) || !lineup || typeof lineup !== 'object' ? l : {
-    ...l, tac: styleOuvert(lineup, 'F', u, l.tac) ? l.tac : meilleurStyle(lineup, 'F', u),
-    tacD: pairDeLigne(u) == null || styleOuvert(lineup, 'D', u, l.tacD) ? l.tacD : meilleurStyle(lineup, 'D', u) });
-  const rendre = out => out.map((l, u) => (neutreDe(team, 'systemes') ? { ...l, tac: 'hourra', tacD: 'hourra' } : ouvrir({ ...l }, u)));
-  if (duSoir && team && team._lignesMatch) return rendre(team._lignesMatch);
-  const memo = lineup && team ? MEMO_LIGNES.get(lineup) : null;
-  if (memo && memo.match === MEMO_MATCH && memo.team === team && memo.lignes === team.lignes) return rendre(memo.out);
-  const out = lignesCalculees(team, lineup);
-  if (lineup && team && typeof lineup === 'object') MEMO_LIGNES.set(lineup, { match: MEMO_MATCH, team, lignes: team.lignes, out });
-  return rendre(out);
-}
-function lignesCalculees(team, lineup) {
-  const L = (team && team.lignes) || [];
-  // En Rogue (V15), une ligne qu'on ne règle pas joue le meilleur style que ses badges ouvrent.
-  const plan = !!(team && team.courbe);
-  return [0, 1, 2, 3].map(u => {
-    const l = L[u] || {};
-    return {
-      tac: TACTIQUES[l.tac] ? l.tac : (!lineup ? 'hourra' : plan ? meilleurStyle(lineup, 'F', u) : meilleureTactique(lineup, u)),
-      tacD: pairDeLigne(u) == null ? 'hourra' : SYSTEMES_D[l.tacD] ? l.tacD : (!lineup ? 'hourra' : plan ? meilleurStyle(lineup, 'D', u) : meilleurSystemeD(lineup, u)),
-      agr: lineup ? agressiviteDeLigne(lineup, u) : 1,
-      sec: Number.isFinite(l.sec) ? borne(l.sec, SEC_MIN, SEC_MAX) : SEC_DEFAUT,
-    };
-  });
+export function lignesDe(team, lineup) {
+  const memo = lineup && typeof lineup === 'object' ? MEMO_LIGNES.get(lineup) : null;
+  if (memo && memo.match === MEMO_MATCH) return memo.out;
+  const out = [0, 1, 2, 3].map(u => ({ agr: lineup ? agressiviteDeLigne(lineup, u) : 1 }));
+  if (lineup && typeof lineup === 'object') MEMO_LIGNES.set(lineup, { match: MEMO_MATCH, out });
+  return out;
 }
 
-/* ---------- la chimie ---------- */
+/* ---------- l'affinité ---------- */
 /*
- * LA CHIMIE NE S'APPREND PLUS (V7). JP : *enlever les apprentissages de
- * stratégie et chimie*. L'entente des paires (`team.entente`) et la maîtrise
- * de chaque système (`p._maitrise`) montaient en jouant ; la chimie d'une
- * ligne vaut maintenant, dès le premier soir, ce que ses joueurs en font :
- * le plafond de son fit (et des passeurs, des manieurs) × `CHIMIE_PART`.
- * `CHIMIE_FIT` et `CHIMIE_PART` rendent aux vraies équipes la chimie moyenne
- * d'une saison apprise : 58,1 avant, 58,2 après (5 ligues de 24 vraies équipes
- * et 8 formations mêlées, leurs buts pour 295,8 → 296,6). Une formation mêlée
- * n'attend plus octobre pour s'entendre : 61,4 → 63,3, sept buts de plus sur
- * la saison. Voir docs/decisions.md.
+ * L'AFFINITÉ (V18, docs/refonte-v18.md). JP : *enlever [les stratégies de lignes] partout* ; *enlever [la chimie]
+ * comme avant, mais permettre affinité entre joueurs dont les styles marchent ensemble*. La chimie d'une ligne ne
+ * vient plus d'un système : elle vient de ses joueurs. Deux joueurs de la même ligne (son trio et sa paire) dont
+ * les badges s'accordent (`AFFINITES` : le passeur et le sniper, le power forward et le passeur, le checker et le
+ * plombier, le manieur et le défensif…) s'entendent ; leur accord vaut le plus petit de leurs deux paliers (Bronze 1
+ * à Platine 4, un second badge à moitié), et chaque accord d'une ligne s'additionne. Les accords sont ceux que les
+ * systèmes d'avant réunissaient dans leurs cases : rien de neuf sur la glace, seulement la source.
+ *
+ * Ce que l'affinité fait, c'est ce que la chimie faisait déjà : le bonus de chimie de l'unité (`bonusChimie`, autour
+ * de CHIMIE_PIVOT) et l'action spéciale de la ligne (`SPEC_BASE` × sa chimie). Il n'y a plus d'étouffé : le cycle
+ * des systèmes est parti avec eux. Une ligne sans accord joue quand même ensemble (`AFF_BASE`, le plancher qu'un
+ * système donnait à toute ligne) ; une ligne incomplète n'a pas de chimie. `AFF_BASE` et `AFF_PALIER` rendent à la
+ * ligue la chimie moyenne qu'elle avait avec ses systèmes (scripts/check_affinite.mjs).
  */
-const CHIMIE_FIT = Number(ENV_MESURE.CHIMIE_FIT ?? 12), CHIMIE_PART = Number(ENV_MESURE.CHIMIE_PART ?? 0.9);
+export const AFFINITES = [
+  { cle: 'tir', a: ['F', 'sniper'], b: ['F', 'passeur'], nom: 'La passe et le tir' },
+  { cle: 'filet', a: ['F', 'power'], b: ['F', 'passeur'], nom: 'L\'enclave' },
+  { cle: 'rebonds', a: ['F', 'sniper'], b: ['F', 'power'], nom: 'Les rebonds' },
+  { cle: 'echec', a: ['F', 'checker'], b: ['F', 'energie'], nom: 'L\'échec avant' },
+  { cle: 'energie', a: ['F', 'energie'], b: ['F', 'bagarreur'], nom: 'Les plombiers' },
+  { cle: 'trappe', a: ['F', 'deuxsens'], b: ['F', 'checker'], nom: 'La trappe' },
+  { cle: 'classique', a: ['D', 'manieur'], b: ['D', 'defensif'], nom: 'La paire classique' },
+  { cle: 'monte', a: ['D', 'offensif'], b: ['D', 'defensif'], nom: 'Un qui monte, un qui reste' },
+  { cle: 'garde', a: ['D', 'physique'], b: ['D', 'offensif'], nom: 'Le garde du corps' },
+  { cle: 'relance', a: ['D', 'deuxsens'], b: ['D', 'manieur'], nom: 'La relance' },
+  { cle: 'sortie', a: ['D', 'manieur'], b: ['F', 'sniper'], nom: 'La sortie rapide' },
+  { cle: 'pointe', a: ['D', 'offensif'], b: ['F', 'power'], nom: 'La pointe et l\'écran' },
+];
+export const AFF_BASE = Number(ENV_MESURE.AFF_BASE ?? 66.2), AFF_PALIER = Number(ENV_MESURE.AFF_PALIER ?? 4.2);
+const CHIMIE_PART = Number(ENV_MESURE.CHIMIE_PART ?? 0.9);
+/* Le plafond de chimie, RAIDE exprès : sous 35 une ligne ne bâtit presque rien, à 60 elle monte à 40, à 80 à 72. */
+export const chimieMax = x => borne(1.6 * (x - 35), 0, 100);
+/* Les paliers d'un joueur dans un rôle : son badge (Bronze 1 à Platine 4), le second à moitié, rien sans lui. */
+function paliersPour(p, role) {
+  const b = badgesDe(p).find(x => x.cle === role);
+  return b ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0;
+}
+/* Une ligne complète : trois avants et, sauf la quatrième, deux défenseurs. */
+const ligneComplete = (lineup, u) => Object.values(joueursDeLigne(lineup, u)).every(Boolean);
 /*
- * LE PLAFOND DE CHIMIE SUIT LE FIT, et il est RAIDE exprès : sous 35 % de fit
- * une ligne ne bâtit presque rien, à 60 % elle monte à 40, à 80 % à 72.
+ * Les accords d'une ligne, du plus fort au plus faible : { aff, a, b, force } — les deux joueurs qui le portent
+ * (deux joueurs différents, de leur groupe : un avant du trio, un défenseur de la paire). Un accord ne compte
+ * qu'une fois par ligne, porté par sa meilleure paire.
  */
-export const chimieMax = fit => borne(1.6 * (fit - 35), 0, 100);
-const joueursLigne = (lineup, u) => Object.values(joueursDeLigne(lineup, u)).filter(Boolean);
-/* Une ligne en systèmes : `{ tac, tacD }`, ou la clé seule d'un système de trio (l'écran d'avant S79). */
-const systemesLigne = l => (typeof l === 'string' ? { tac: l, tacD: 'hourra' } : { tac: (l && l.tac) || 'hourra', tacD: (l && l.tacD) || 'hourra' });
-/* Le fit d'une ligne entière : son trio (trois postes) et sa paire (deux), chacun dans son système. */
-export function fitDeLigne(lineup, u, l) {
-  const { tac, tacD } = systemesLigne(l);
-  const fF = tac !== 'hourra' ? fitUnite(lineup, 'F', u, tac) : 0;
-  if (fF == null) return null;              // trio incomplet (J1-I)
-  if (pairDeLigne(u) == null) return fF;
-  const fD = tacD !== 'hourra' ? fitUnite(lineup, 'D', u, tacD) : 0;
-  if (fD == null) return null;
-  return Math.round((3 * fF + 2 * fD) / 5);
+export function accordsDeLigne(lineup, u) {
+  if (!lineup) return [];
+  const js = joueursDeLigne(lineup, u);
+  const du = g => SLOTS.filter(sl => !sl.scratch && sl.group === g && (g === 'F' ? sl.unit === u : sl.unit === pairDeLigne(u))).map(sl => js[sl.role]).filter(Boolean);
+  const groupes = { F: du('F'), D: du('D') };
+  const out = [];
+  for (const aff of AFFINITES) {
+    let best = null;
+    for (const x of groupes[aff.a[0]]) for (const y of groupes[aff.b[0]]) {
+      if (x === y) continue;
+      const force = Math.min(paliersPour(x, aff.a[1]), paliersPour(y, aff.b[1]));
+      if (force > 0 && (!best || force > best.force)) best = { aff, a: x, b: y, force };
+    }
+    if (best) out.push(best);
+  }
+  return out.sort((x, y) => y.force - x.force || AFFINITES.indexOf(x.aff) - AFFINITES.indexOf(y.aff));
 }
-/* La chimie d'une ligne : le plafond de son fit × CHIMIE_PART. Sans aucun système, rien. */
-export function chimieLigne(lineup, u, l) {
-  const { tac, tacD } = systemesLigne(l);
-  if (tac === 'hourra' && tacD === 'hourra') return 0;
-  const fit = fitDeLigne(lineup, u, l);
-  if (fit == null) return 0;                // ligne incomplète : pas de chimie à lire
-  return chimieMax(fit + CHIMIE_FIT + chimieDesBadges(lineup, u)) * CHIMIE_PART;
+/* L'affinité d'une ligne : la somme de ses accords (0 sans aucun). */
+export const affiniteDeLigne = (lineup, u) => accordsDeLigne(lineup, u).reduce((a, x) => a + x.force, 0);
+/* La chimie d'une ligne : le plafond de son affinité × CHIMIE_PART. Une ligne incomplète n'en a pas. `aff` : une autre affinité (0, la ligne sans accord). */
+export function chimieLigne(lineup, u, aff = null) {
+  if (!lineup || !ligneComplete(lineup, u)) return 0;
+  return chimieMax(AFF_BASE + AFF_PALIER * (aff ?? affiniteDeLigne(lineup, u))) * CHIMIE_PART;
 }
-/* Les passeurs et les manieurs d'une ligne (refonte 1) : elle joue son système plus haut — BADGE_CHIMIE de fit par Platine, centré sur la ligue. */
-function chimieDesBadges(lineup, u) {
-  return BADGE_CHIMIE * joueursLigne(lineup, u).reduce((a, p) => a + maitrise(p, 'passeur') + maitrise(p, 'manieur'), 0);
-}
-/* Après un match : chaque joueur s'adapte à sa case, et la chimie des lignes réglées se relit. */
+/* Après un match : chaque joueur s'adapte à sa case, et la chimie des lignes se relit. */
 function majChimie(team, lineup) {
   // CHAQUE JOUEUR S'ADAPTE À SA CASE (S73).
   for (const s of SLOTS) {
@@ -2263,39 +1906,35 @@ function majChimie(team, lineup) {
     p._adapt = p._adapt || {};
     p._adapt[s.role] = (p._adapt[s.role] || 0) + 1;
   }
-  // La chimie de la SAISON (les lignes réglées), pour l'écran et la suite.
-  const saison = lignesDe(team, lineup, { duSoir: false });
-  team.chimie = [0, 1, 2, 3].map(u => chimieLigne(lineup, u, saison[u]));
+  team.chimie = [0, 1, 2, 3].map(u => chimieLigne(lineup, u));
 }
 
 /* ---------- l'action spéciale ---------- */
 /*
- * À chaque lancer à forces égales d'une ligne qui a un système : une chance,
- * `SPEC_BASE` × sa chimie, que ce soit SON jeu — et ce lancer-là entre
- * `SPEC_MULT` fois plus souvent. Si la ligne qui défend joue la tactique qui
- * la contre, l'action est étouffée. `SPEC_NORME` ramène la ligue à ses buts
- * mesurés : les actions spéciales DÉPLACENT les buts vers les lignes bien
- * bâties, elles n'en créent pas.
+ * À chaque lancer à forces égales d'une ligne complète : une chance, `SPEC_BASE` × sa chimie (son affinité), que ce
+ * soit SON jeu — et ce lancer-là entre `SPEC_MULT` fois plus souvent. `SPEC_NORME` ramène la ligue à ses buts
+ * mesurés : les actions spéciales DÉPLACENT les buts vers les lignes bien assorties, elles n'en créent pas. (V18 :
+ * plus d'étouffé — le cycle des systèmes est parti avec eux.)
  */
 // SPEC_BASE recalé en S73 (0,45 → 0,22) : la chimie apprise se concentre sur les
 // meilleures lignes, qui lancent le plus ; la part des actions spéciales revient à ~12 %.
-// SPEC_NORME recalé en refonte 1 (0,90 → 0,88) : les passeurs et les manieurs montent la chimie (BADGE_CHIMIE),
-// et une chimie ne descend pas sous zéro — la ligue gagnait 1,2 % de buts ; 12 ligues semées : 2,958 avant, 2,956 après.
+// SPEC_NORME recalé en refonte 1 (0,90 → 0,88) : les passeurs et les manieurs montaient la chimie, et une chimie ne
+// descend pas sous zéro — la ligue gagnait 1,2 % de buts ; 12 ligues semées : 2,958 avant, 2,956 après.
 export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = Number(ENV_MESURE.SPEC_NORME ?? 0.88);
 
 /* ---------- l'énergie : les JAMBES (1.0, C3) ---------- */
 /*
  * Par joueur, sur 100, sur toute la saison. JP : *je veux variété de build*.
  * Les jambes sont le levier « profondeur contre vedettes » : pousser son
- * premier trio (plus de glace, une agressivité haute, un système qui use)
+ * premier trio (plus de glace, une agressivité haute, un plan qui use)
  * lui donne plus de lancers ce soir et lui coûte des jambes demain.
  *
  * L'USURE d'une unité par match suit sa PART DE GLACE (`partsDuRoulement` :
- * les secondes de présence, le roulement, les moments qui déplacent les
- * minutes, renormalisées), rapportée à la part moyenne — le 1er trio s'use
- * 1,36 fois la moyenne à 60 s, le 4e 0,64 fois —, multipliée par
- * l'agressivité, le prix du système et les effets qui portent `energie`
- * (l'importance du match, une carte, un patron).
+ * les coachs, les adjoints et les moments qui déplacent les minutes,
+ * renormalisées), rapportée à la part moyenne — le 1er trio s'use
+ * 1,36 fois la moyenne, le 4e 0,64 fois —, multipliée par
+ * l'agressivité et les effets qui portent `energie`
+ * (un plan, une carte, un adjoint).
  *
  * UN MATCH COÛTE `ENERGIE_C` × usure² (convexe : pousser coûte de plus en
  * plus) ; CHAQUE JOURNÉE rend la moitié de ce qui manque (`ENERGIE_RECUP`).
@@ -2355,10 +1994,8 @@ export function rendreJambes(p, n) {
   if (e > 100) p._reserve = Math.min(RESERVE_MAX, (p._reserve || 0) + (e - 100));
 }
 /* L'usure par match d'une unité (1 = la part de glace moyenne, défaut). */
-function usureLigne(l, part, partMoy, groupe = 'F') {
-  const S = groupe === 'D' ? SYSTEMES_D[l.tacD] : TACTIQUES[l.tac];
-  const prix = S && S.prix && S.prix.energie ? S.prix.energie : 1;
-  return (part / (partMoy || part || 1)) * AGRESSIVITES[l.agr].energie * prix;
+function usureLigne(l, part, partMoy) {
+  return (part / (partMoy || part || 1)) * AGRESSIVITES[l.agr].energie;
 }
 /* Le multiplicateur d'usure des effets, des patrons et des coachs. */
 function kUsure(team) {
@@ -2372,8 +2009,8 @@ export function usuresDe(team, lineup) {
   const mF = pF.reduce((a, b) => a + b, 0) / pF.length, mD = pD.reduce((a, b) => a + b, 0) / pD.length;
   const k = kUsure(team);
   return {
-    F: [0, 1, 2, 3].map(u => usureLigne(lignes[u], pF[u], mF, 'F') * k),
-    D: [0, 1, 2].map(u => usureLigne(lignes[u], pD[u], mD, 'D') * k),
+    F: [0, 1, 2, 3].map(u => usureLigne(lignes[u], pF[u], mF) * k),
+    D: [0, 1, 2].map(u => usureLigne(lignes[u], pD[u], mD) * k),
   };
 }
 /* Les jambes qu'une ligne aurait au matin, à l'équilibre, jouée ainsi tous les soirs. */
@@ -2420,8 +2057,7 @@ export function recupererEnergie(team, part = ENERGIE_RECUP) {
    `{ debut, fin, ...canaux }`), posé par une décision au jour où on la prend
    et lu par `effetsDeSaison` tant que le jour courant est dans la fenêtre.
    Les canaux sont ceux des cartes (finition, défensive, volume, blessures,
-   robustesse, discipline) plus les minutes des unités (`F`, `D`, comme un
-   roulement). Aucune mécanique neuve, aucune cote neuve.
+   robustesse, discipline) plus les minutes des unités (`F`, `D`). Aucune mécanique neuve, aucune cote neuve.
 
      LE PLAN DU SOIR   un plan de match pour UN match, contre un adversaire
                        dont on lit le style ; le bon contre-plan paie
@@ -2441,7 +2077,7 @@ export function recupererEnergie(team, part = ENERGIE_RECUP) {
 /** Les effets temporaires actifs au jour courant de l'équipe. */
 export function effetsActifs(team) {
   const j = team && team.jourCourant;
-  // En séries, seule la consigne du match qui vient joue (S69).
+  // En séries, seuls les effets du match qui vient jouent (S69).
   // V10 : un effet d'un moment (`si`) ne joue que le soir où ce moment est vrai (`joueCeSoir`).
   const duMatch = ((team && team._effetMatch) || []).filter(x => joueCeSoir(team, x));
   if (j === Infinity) return [...((team && team.effetsSerie) || []).filter(x => joueCeSoir(team, x)), ...duMatch];
@@ -2959,15 +2595,7 @@ export function etatObjectif(cle, matchs, quoi = null, team = null) {
  * traduit, pour que le moteur, l'écran et la mesure lisent la même chose.
  */
 export function effetDeMoment(d, team = null) {
-  // LA CONSIGNE DU MATCH (S68) : l'importance et la répartition attaque /
-  // défense, pour UN match.
-  if (d.match) {
-    const I = IMPORTANCES[d.match.importance] || IMPORTANCES.normale;
-    const ad = borne(Number(d.match.ad) || 0, -2, 2);
-    return { debut: d.jour, fin: d.jour + 1, source: 'match', match: true, ad, nom: `Consigne : ${I.nom}`, ico: I.ico,
-      finition: (I.finition || 1) * (1 + 0.025 * ad), defense: (I.defense || 1) * (1 + 0.02 * ad),
-      blessure: I.blessure || 1, energie: I.energie || 1 };
-  }
+  // V18 : la consigne du match (`d.match`) est partie ; une vieille décision qui la porte ne joue plus rien.
   const m = d.moment;
   if (!m) return null;
   const fam = familleDeMoment(m);
@@ -3732,7 +3360,7 @@ const AN_TIRS_MIN = 0.60;      // lancers par minute de l'équipe en avantage (f
 const DN_TIRS_MIN = 0.09;      // lancers par minute de l'équipe en désavantage
 const AN_QUALITE = 1.35;       // réglé sur la mesure : part des buts d'avantage simulée = réelle (26,5 %) chez les mêmes joueurs (check_feuilles)
 const DN_QUALITE = 1.00;       // finition en désavantage
-const FE_TIRS = 1.20;          // le cinq contre cinq, réglé sur la sortie
+const FE_TIRS = 1.22;          // le cinq contre cinq, réglé sur la sortie (V18 : 1,20 → 1,22, les tirs que les systèmes ajoutaient)
 const FE_QUALITE = 1.03;       // idem, sur la finition
 /*
  * La part des lancers d'un joueur d'avantage numérique qui vient de
@@ -4142,18 +3770,18 @@ export function profilMatch(team, lineup, adv = null) {
   const speciales = unitesSpeciales(habilles, team.speciales || null);
   const membresAN = speciales.avantage.partAN;
   const unites = { F: [], D: [] };
-  // LA CHIMIE DE CE SOIR (S73), ligne par ligne, avec les tactiques jouées ce soir.
-  const lignesSoir = lignesDe(team, lineup);
-  const chimieSoir = [0, 1, 2, 3].map(u => chimieLigne(lineup, u, lignesSoir[u]));
-  // LE ROULEMENT décide de la glace, et il touche les DEUX parts : l'offensive
-  // (qui tire) et la présence (qui défend, et qui reçoit le +/-).
+  // LA CHIMIE DE CE SOIR, ligne par ligne : l'affinité de ses joueurs (V18) ; au neutre, la même ligne sans accord.
+  const accordsSoir = [0, 1, 2, 3].map(u => accordsDeLigne(lineup, u));
+  const chimieSoir = accordsSoir.map((a, u) => chimieLigne(lineup, u, neutreDe(team, 'affinite') ? 0 : a.reduce((t, x) => t + x.force, 0)));
+  // LA GLACE de chaque unité touche les DEUX parts : l'offensive (qui tire) et la présence (qui défend, et qui
+  // reçoit le +/-).
   const parts = { F: partsDuRoulement(PART_UNITE.F, 'F', team), D: partsDuRoulement(PART_UNITE.D, 'D', team) };
   const presences = { F: partsDuRoulement(POIDS_TRIO, 'F', team), D: partsDuRoulement(POIDS_PAIRE, 'D', team) };
   for (const [group, poids] of [['F', presences.F], ['D', presences.D]]) {
     for (let u = 0; u < poids.length; u++) {
       const slots = SLOTS.filter(s => s.group === group && s.unit === u && !s.scratch);
       const syn = getUnitSynergy(lineup, group, u);
-      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusChimie(neutreDe(team, 'chimie') ? CHIMIE_PIVOT : CHIMIE_FORCEE != null && team.isPlayer ? CHIMIE_FORCEE : chimieSoir[u])) / SYN_ECHELLE));
+      const mod = Math.sqrt(Math.exp(((syn.bonusOff || 0) + bonusChimie(CHIMIE_FORCEE != null && team.isPlayer ? CHIMIE_FORCEE : chimieSoir[u])) / SYN_ECHELLE));
       const volume = Math.min(VOLUME_UNITE_MAX,
         slots.reduce((a, s) => a + lancersFE(lineup[s.i], membresAN), 0) / slots.length);
       const joueurs = slots.map(s => lineup[s.i]).filter(Boolean);
@@ -4215,30 +3843,20 @@ export function profilMatch(team, lineup, adv = null) {
   }
 
   /*
-   * LES CONSIGNES PAR UNITÉ (S68), APRÈS la renormalisation : c'est voulu.
-   * Une unité en échec avant tire PLUS quand elle est sur la glace — la
-   * pression de l'équipe monte — au lieu de prendre ses lancers aux autres.
+   * LES UNITÉS SUR LA GLACE, APRÈS la renormalisation : c'est voulu. Ce que les badges d'une unité font pendant ses
+   * présences s'ajoute à la pression de l'équipe au lieu de prendre ses lancers aux autres.
    */
-  // LES LIGNES À LA HOCKEYARENA (S68) : chaque unité joue la tactique et
-  // l'agressivité de SA ligne (le trio u et la paire u forment la ligne u).
+  // Chaque unité joue l'agressivité de SA ligne, celle de sa carrure (le trio u et la paire u forment la ligne u).
   const lignes = lignesDe(team, lineup);
-  let discTac = 0, discAgr = 0, robTac = 0, sP = 0, defStyle = 0;
+  let discAgr = 0, robAgr = 0, sP = 0, defStyle = 0;
   for (const g of ['F', 'D']) unites[g].forEach((x, u) => {
-    // S79 : le trio joue le système d'avants de sa ligne, la paire celui de défenseurs,
-    // et chacun en tire ce que son FIT lui permet (`canalSysteme`).
     const l = lignes[u], A = AGRESSIVITES[l.agr];
-    const cle = g === 'D' ? l.tacD : l.tac;
-    const S = g === 'D' ? SYSTEMES_D[cle] : TACTIQUES[cle];
-    const fit = S && S.slots ? (fitUnite(lineup, g, u, cle) ?? 0) : 0;
-    // V15 : partout, la force d'un système suit les badges de ses cases (en Rogue, ils l'ouvrent aussi : `lignesDe`).
-    const c = canal => canalSysteme(S, fit, canal);
     const ph = physiqueUnite(lineup, g, u);
     const eff = rendementPhysique(ph);
-    x.ligne = u; x.tactique = cle; x.fit = fit; x.agr = l.agr;
+    x.ligne = u; x.agr = l.agr;
     x.chimie = chimieSoir[u];
-    x.poidsJ = x.poids;   // LE TEMPO : la pression des joueurs seuls, avant le système (voir attenduDeCote)
-    x.poids *= c('volume');
-    x.qualite *= c('finition');
+    // Le meilleur accord du trio qui tire (V18) : le commentateur en tire ses mots (js/commentaire.js), le moteur rien.
+    if (g === 'F') x.accord = ((accordsSoir[u].find(a => a.aff.a[0] === 'F' || a.aff.b[0] === 'F') || {}).aff || {}).cle || null;
     // LES BADGES (voir PALIERS) : ce que l'unité étouffe et intimide pendant ses présences, ce qu'elle tire de la pointe — chaque joueur le sien.
     if (g === 'F') {
       x.etouffe = Math.max(0.5, 1 - EFFET_ROLE.checker * maitriseUnite(x.joueurs, 'checker') - EFFET_ROLE.deuxsens * maitriseUnite(x.joueurs, 'deuxsens'));
@@ -4247,29 +3865,25 @@ export function profilMatch(team, lineup, adv = null) {
       x.etouffe = Math.max(0.5, 1 - EFFET_ROLE.defensif * maitriseUnite(x.joueurs, 'defensif') - EFFET_ROLE.physique * maitriseUnite(x.joueurs, 'physique'));
       x.intimide = 1;
       x.poids *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
-      x.poidsJ *= 1 + EFFET_ROLE.offensif * maitriseUnite(x.joueurs, 'offensif');
     }
     // Plus physique, on donne moins — CENTRÉ sur l'agressivité moyenne, pour
     // que le réglage par défaut ne déplace pas la ligue.
-    x.defTac = c('defense') * (1 - A.def * eff);
-    defStyle += x.presence * x.defTac;
-    discTac += x.presence * c('discipline');
+    x.defAgr = 1 - A.def * eff;
+    defStyle += x.presence * x.defAgr;
     discAgr += x.presence * A.pun * coutPhysique(ph);
-    robTac += x.presence * (1.5 * (A.physique - 0.4) + 0.3 * (c('physique') - 1)) * eff;
+    robAgr += x.presence * 1.5 * (A.physique - 0.4) * eff;
     sP += x.presence;
   });
   defStyle = sP ? defStyle / sP : 1;
-  discTac = sP ? discTac / sP : 1; discAgr = sP ? discAgr / sP : 0; robTac = sP ? robTac / sP : 0;
+  discAgr = sP ? discAgr / sP : 0; robAgr = sP ? robAgr / sP : 0;
 
   // Le trio de fermeture de cet alignement : désigné, ou le 3e trio
   // (voir FERMETURE_DEFAUT).
   const ferm = team && team.fermeture !== 'auto' && team.fermeture !== undefined ? team.fermeture : fermetureAuto(unites.F);
   for (const u of unites.F) u.fermeture = ferm != null && u.rang === ferm;
 
-  const somme = (g, k = 'poids') => unites[g].reduce((a, x) => a + x[k], 0);
+  const somme = g => unites[g].reduce((a, x) => a + x.poids, 0);
   const pression = (1 - PART_LANCERS_D) * somme('F') + PART_LANCERS_D * somme('D');
-  const pressionJ = (1 - PART_LANCERS_D) * somme('F', 'poidsJ') + PART_LANCERS_D * somme('D', 'poidsJ');
-  for (const g of ['F', 'D']) for (const x of unites[g]) delete x.poidsJ;
 
   const coteDef = 0.5 * (
     presences.F.reduce((a, w, u) => a + w * unites.F[u].coteDef, 0) +
@@ -4313,14 +3927,10 @@ export function profilMatch(team, lineup, adv = null) {
   const cartes = effetsDeSaison(team, adv, lineup), plafonds = plafondsDe(team);
   // L'indiscipline de l'alignement SANS les effets (C5) : `totauxDuSoir` en tire ce que les effets y changent, bornes comprises.
   const disciplineBase = patineurs.length
-    ? discTac * patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr : 1;
+    ? patineurs.reduce((a, p) => a + punitionsRel(p), 0) / patineurs.length + discAgr : 1;
 
-  // LE PLAN D'APPARIEMENT (V6) : le tien s'il est posé ; celui de l'IA quand elle te reçoit. Il ne joue qu'à domicile (jouerCote).
-  const plan = team && team.appariement ? team.appariement
-    : team && !team.isPlayer && adv && adv.isPlayer ? planDeLIA(unites.F, lignesSoir, lignesDe(adv, activeLineup(adv))) : null;
   return {
     unites,
-    plan,
     ...speciales,
     patineurs,
     // L'indiscipline : combien cet alignement prend de punitions, relativement
@@ -4342,15 +3952,14 @@ export function profilMatch(team, lineup, adv = null) {
     pression: borne(pression * cartes.volume, 0.40, REF.pression * (PRESSION_MAX + plafonds.pression)),
     plafonds,
     pressionBrute: pression,
-    // LE TEMPO (voir attenduDeCote) : ce que les joueurs poussent seuls, et le style qui ralentit ou ouvre le jeu.
-    pressionJ,
-    styleVol: pressionJ > 0 ? pression / pressionJ * cartes.volume / REF_STYLE_VOL : 1,
+    // LE TEMPO (voir attenduDeCote) : le style qui ralentit ou ouvre le jeu — ce que ses cartes font de sa pression, et sa défensive.
+    styleVol: cartes.volume / REF_STYLE_VOL,
     styleDef: defStyle * cartes.defense / REF_STYLE_DEF,
     finEquipe, creaEquipe,
     finitionFacteur: Math.min((FINITION_MAX + plafonds.finition) / finEquipe, cartes.finition),
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles) * cartes.defense,
-    traitRob: bonusRobustesseEquipe(habilles) + cartes.robustesse + robTac,
+    traitRob: bonusRobustesseEquipe(habilles) + cartes.robustesse + robAgr,
     traitAtt: facteurAttaqueEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
     meneur: bonusMeneurEquipe(habilles),
@@ -4452,7 +4061,7 @@ const APPARIEMENT_PROPRE = 5.0;
  * MESURE (check_pm.mjs) ; le navigateur n'a pas de `process` et prend les
  * valeurs écrites ici.
  */
-export const FERMETURE_DEFAUT = 2;   // le 3e trio
+const FERMETURE_DEFAUT = 2;   // le 3e trio
 const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
 /*
  * LA FORCE DU PLAN. Un plan STRICT (la cible du premier trio adverse est la
@@ -4479,47 +4088,6 @@ const APPARIEMENT_VISITEUR = Number(ENV_MESURE.APPARIEMENT_VISITEUR ?? 1.0);
  * adverse — « généralement 1 v 3 » — pour le même écart qu'à 0,25.
  */
 const PLAN_FERMETURE = Number(ENV_MESURE.PLAN_FERMETURE ?? 0.40);
-/*
- * LE PLAN D'APPARIEMENT (V6, docs/refonte-v6.md). JP : *donner des stratégies à chaque trio et devoir construire autour
- * de ça, avec matching de trios à domicile pour l'équipe, selon sa stratégie, humain et ai* ; *tu choisis le matching
- * de trio dans une liste… À l'étranger, l'adversaire fait de même*. Le plan, c'est quatre cases : contre leur 1er
- * trio, ton trio m0 ; contre leur 2e, m1… Seul celui de l'équipe à DOMICILE joue (le dernier changement), sur
- * PLAN_DOMICILE de ses présences à forces égales ; les autres suivent l'appariement par rang. Le trio de fermeture
- * reste le plan par défaut de tout le monde. L'IA a un plan chez elle quand elle te reçoit (`planDeLIA`).
- */
-const PLAN_DOMICILE = Number(ENV_MESURE.PLAN_DOMICILE ?? 0.80);
-/* LE CONTRE (V6, à trancher par JP) : ce que le système qui bat le leur étouffe de leurs lancers, toute la présence. 0 : seulement leur action spéciale, comme avant. */
-const CONTRE_SYSTEME = Number(ENV_MESURE.CONTRE_SYSTEME ?? 0);
-/* Un plan qui se tient : quatre rangs de trio de 0 à 3, chacun au plus une fois (une case vide : l'appariement par rang). */
-function planValide(a) {
-  if (!Array.isArray(a) || a.length !== 4) return null;
-  const vus = new Set();
-  const out = a.map(x => (Number.isInteger(x) && x >= 0 && x < 4 && !vus.has(x) ? (vus.add(x), x) : -1));
-  return out.some(x => x >= 0) ? out : null;
-}
-/*
- * LE PLAN DE L'IA, CHEZ ELLE, CONTRE TOI (V6). JP : *oui, elle contre*. Pur, sans dé : contre ton trio le plus
- * dangereux d'abord (ton 1er, puis ton 2e…), elle envoie le trio qui l'étouffe (son système bat le tien, `bat`), sinon
- * son meilleur trio en défense ; elle évite le trio que ton système bat. Elle ne change pas ses systèmes : elle les
- * envoie au bon endroit.
- */
-function planDeLIA(unitesIA, lignesIA, lignesToi) {
-  const libres = new Set(unitesIA.map((_, u) => u));
-  const plan = [-1, -1, -1, -1];
-  for (let r = 0; r < Math.min(4, lignesToi.length); r++) {
-    const tacToi = lignesToi[r] && lignesToi[r].tac;
-    let meilleur = -1, note = -Infinity;
-    for (const u of libres) {
-      const tacIA = lignesIA[u] && lignesIA[u].tac;
-      const T = TACTIQUES[tacIA], Tt = TACTIQUES[tacToi];
-      const n = (T && T.bat && T.bat === tacToi ? 2 : 0) - (Tt && Tt.bat && Tt.bat === tacIA ? 2 : 0)
-        + (unitesIA[u].coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE * (r === 0 ? 1 : 0.5);
-      if (n > note) { note = n; meilleur = u; }
-    }
-    if (meilleur >= 0) { plan[r] = meilleur; libres.delete(meilleur); }
-  }
-  return plan;
-}
 const P_MELANGE = Number(ENV_MESURE.P_MELANGE ?? 0.40);
 /*
  * LE −1 SUIT LE RYTHME : 0 le met à la présence seule, plus haut il l'incline
@@ -4736,11 +4304,11 @@ export function attenduDeCote(off, def) {
  * match défensif.* Le moteur ne le faisait pas : une carte lente coupait SES tirs et en donnait un peu à
  * l'adversaire (la possession), une carte défensive changeait la chance d'un but mais pas un tir. Le style d'un
  * club ferme (ou ouvre) maintenant le jeu DES DEUX CÔTÉS : les tirs de `off` suivent le volume de style de `def`
- * (`styleVol`, ce que ses systèmes et ses cartes font de la pression de ses joueurs), sa défensive de style
- * (`styleDef`, les systèmes, l'agressivité, les cartes), et — moins fort, pour que le style reste symétrique —
+ * (`styleVol`, ce que ses cartes, son coach et son plan font de sa pression), sa défensive de style
+ * (`styleDef`, l'agressivité de ses lignes, les cartes), et — moins fort, pour que le style reste symétrique —
  * la défensive de style de `off` lui-même (un club qui se replie tire moins). Aucune cote neuve : ce sont des
  * quantités que `profilMatch` calculait déjà. Centrées sur le style moyen d'une ligue de base (`REF_STYLE_VOL`,
- * `REF_STYLE_DEF` : les systèmes automatiques donnent un style à tous), donc à style moyen tout vaut 1 et la
+ * `REF_STYLE_DEF` : l'agressivité de ses lignes donne un style à tous), donc à style moyen tout vaut 1 et la
  * ligue ne bouge pas. Les exposants sont des MAXIMUMS DE SYMÉTRIE, pas de force : à 1, le défensif payait deux
  * fois (moins de buts ET moins de tirs, +3 V mesurés) ; à 0,5 un club tout défensif tire ~25 et en prend ~25,
  * un club tout offensif ~33 et ~32, et les victoires restent dans le bruit. Le cinq contre cinq seulement :
@@ -4749,8 +4317,8 @@ export function attenduDeCote(off, def) {
 const TAU = Number(ENV_MESURE.TAU ?? 0.3);
 const KAPPA = Number(ENV_MESURE.KAPPA ?? 0.5);
 const KAPPA_OWN = Number(ENV_MESURE.KAPPA_OWN ?? 0.5);
-const REF_STYLE_VOL = Number(ENV_MESURE.REF_STYLE_VOL ?? 1.03);
-const REF_STYLE_DEF = Number(ENV_MESURE.REF_STYLE_DEF ?? 0.962);
+const REF_STYLE_VOL = Number(ENV_MESURE.REF_STYLE_VOL ?? 1);
+const REF_STYLE_DEF = Number(ENV_MESURE.REF_STYLE_DEF ?? 0.977);
 const STYLE_BORNES = [0.6, 1.6];
 function tempoDe(def, off) {
   const s = x => borne(x ?? 1, STYLE_BORNES[0], STYLE_BORNES[1]);
@@ -4878,11 +4446,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       // Le dernier changement est à l'équipe à domicile : son appariement
       // tient, celui du visiteur est plus lâche (APPARIEMENT_VISITEUR).
       const kApp = def.domicile ? APPARIEMENT : APPARIEMENT_VISITEUR;
-      // LE PLAN DE L'ÉQUIPE À DOMICILE (V6) : elle a le dernier changement, et son plan d'appariement dit quel trio
-      // affronte lequel — le sien quand elle défend, et celui qu'elle envoie quand elle attaque. Sans plan, aucun dé de plus.
-      const plan = mode === 'FE' ? (def.domicile ? def.plan : off.domicile ? off.plan : null) : null;
-      const cibleD = plan && hasard() < PLAN_DOMICILE ? (def.domicile ? plan[rangOff] : plan.indexOf(rangOff)) : -1;
-      dTrio = cibleD >= 0 && unitesDef.F[cibleD] ? unitesDef.F[cibleD] : choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
+      dTrio = choisirApparie(unitesDef.F, rangOff, nOff, kApp, 'presence', true);
       dPaire = choisirApparie(unitesDef.D, rangOff, nOff, kApp);
       defGlace = [...dTrio.joueurs, ...dPaire.joueurs].filter(q => !auCachot(def, q, instant));
       /*
@@ -4899,13 +4463,10 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)) * facteurPresenceUnite(defGlace)
         // Un changement de carte défensif (S68) joue pendant SES présences.
         * defGlace.reduce((a, q) => a * mutDe(q, 'defense'), 1)
-        // La consigne des deux unités qui défendent (S68) : la trappe étouffe,
-        // tout en attaque laisse le champ libre — chacune pour sa moitié.
-        * Math.sqrt((dTrio.defTac ?? 1) * (dPaire.defTac ?? 1))
+        // La carrure des deux unités qui défendent (V7) : une ligne costaude frappe et donne moins — chacune pour sa moitié.
+        * Math.sqrt((dTrio.defAgr ?? 1) * (dPaire.defAgr ?? 1))
         // Les rôles maîtrisés qui défendent : le checker et le défensif étouffent, le bagarreur intimide.
-        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1)
-        // LE CONTRE (V6, à trancher) : le trio qui défend joue le système qui bat celui du trio qui attaque.
-        * (CONTRE_SYSTEME && mode === 'FE' && trioOff && dTrio.tactique && TACTIQUES[dTrio.tactique] && TACTIQUES[dTrio.tactique].bat === trioOff.tactique ? 1 - CONTRE_SYSTEME : 1);
+        * (dTrio.etouffe ?? 1) * (dPaire.etouffe ?? 1) * (dTrio.intimide ?? 1);
     } else {
       facteurDef = Math.max(0.55, 1 - K_DEFENSE * (def.zDef - REF.zDef));
     }
@@ -4925,19 +4486,14 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     const devantFilet = trioOff && tireur ? 1 + EFFET_ROLE.power * maitriseUnite(trioOff.joueurs.filter(q => q !== tireur), 'power') : 1;
 
     /*
-     * L'ACTION SPÉCIALE (S68) : à forces égales, la ligne qui a un système a
-     * une chance, selon sa chimie, de jouer SON jeu — et ce lancer entre plus.
-     * Si le trio qui défend joue la tactique qui la contre, elle est étouffée.
+     * L'ACTION SPÉCIALE (S68) : à forces égales, la ligne qui a de la chimie (V18 : son affinité) a une chance de
+     * jouer SON jeu — et ce lancer entre plus.
      */
     let special = null, attenteSpec = 1;
-    if (mode === 'FE' && trioOff && trioOff.tactique && trioOff.tactique !== 'hourra'
-      && (st?.espP || hasard() < SPEC_BASE * (trioOff.chimie || 0) / 100)) {
-      // S79 : le trio qui défend OU sa paire peut jouer le système qui l'étouffe.
-      const T = dTrio && dTrio.tactique && TACTIQUES[dTrio.tactique];
-      const D = dPaire && dPaire.tactique && SYSTEMES_D[dPaire.tactique];
-      special = (T && T.bat === trioOff.tactique) || (D && D.bat === trioOff.tactique) ? 'etouffee' : 'reussie';
+    if (mode === 'FE' && trioOff && trioOff.chimie > 0) {
       // LA LECTURE (js/impact.js) ne tire pas ce dé : elle prend son espérance, la chance de l'action × ce qu'elle rapporte.
-      if (st?.espP) { attenteSpec = 1 + SPEC_BASE * (trioOff.chimie || 0) / 100 * (special === 'reussie' ? SPEC_MULT - 1 : 0); special = null; }
+      if (st?.espP) attenteSpec = 1 + SPEC_BASE * trioOff.chimie / 100 * (SPEC_MULT - 1);
+      else if (hasard() < SPEC_BASE * trioOff.chimie / 100) special = 'reussie';
     }
     const pBrut = (
       CIBLE_PCT_TIR
@@ -4958,9 +4514,9 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
        * adversaires. JP : *un trio défensif pourrait être hyper pertinent et utile et dans les moins*. Un +/− brut
        * punit le trio de fermeture qui prend leur premier trio ; ici, chacun est jugé sur ce qu'il change au lancer.
        *   attaque (`qui` 'off') : le lancer de ton unité, contre le même lancer avec un tireur, une création, une
-       *     qualité d'unité et un système neutres (`pn`) ; son volume se juge à part (js/impact.js) ;
+       *     qualité d'unité neutres (`pn`) ; son volume se juge à part (js/impact.js) ;
        *   défense ('def') : les buts que ta défense sur la glace évite — le même lancer contre une défense neutre
-       *     (`facteurDef` à 1 : talent défensif, système, badges qui étouffent), moins le lancer réel.
+       *     (`facteurDef` à 1 : talent défensif, carrure, badges qui étouffent), moins le lancer réel.
        */
       if (st.espP.unites) {
         const u = st.espP.unites, tr = u.qui === 'off' ? trioOff : dTrio, pa = u.qui === 'off' ? paireOff : dPaire;
@@ -4982,7 +4538,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
     // ce que le direct des séries rejoue, tir par tir. Le sommaire, lui, ne
     // lit que les buts.
     // `p` (S70) : la chance que CE lancer entre. Le direct en tire ses jeux dangereux ; lu, jamais tiré.
-    const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode, special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null, p: Math.round(p * 1000) / 1000 } : null;
+    const lancer = journal ? { cote, instant, tireur, gardien, but: false, mode, special, ligne: trioOff ? trioOff.rang : null, acc: trioOff ? trioOff.accord || null : null, p: Math.round(p * 1000) / 1000 } : null;
     if (lancer) journal.lancers.push(lancer);
 
     const de = hasard();
@@ -4995,7 +4551,7 @@ function jouerCote(off, def, gardien, chance, heavy, feuille, series = false, jo
       buts++;
       if (lancer) lancer.but = true;
       if (journal && tireur) {
-        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN', special, ligne: trioOff ? trioOff.rang : null, tac: trioOff ? trioOff.tactique || null : null, causes: lancer ? lancer.causes : undefined });
+        journal.buts.push({ cote, instant, marqueur: tireur, passeurs: [], gardien, an: mode === 'AN', dn: mode === 'DN', special, ligne: trioOff ? trioOff.rang : null, acc: trioOff ? trioOff.accord || null : null, causes: lancer ? lancer.causes : undefined });
       }
       if (feuille && tireur && mode === 'AN') tireur.simPPG = (tireur.simPPG || 0) + 1;
       // Les passeurs sont tirés dès qu'il y a un but : la feuille de saison
@@ -5103,7 +4659,7 @@ export const CHIMIE_FORCEE = ENV_MESURE.CHIMIE_FORCEE == null ? null : Number(EN
 export const bonusChimie = c => CHIMIE_BONUS * (c - CHIMIE_PIVOT) / 100;
 function bonusDeChimie(team, u, lineup = null) {
   let c;
-  if (lineup && team) c = chimieLigne(lineup, u, lignesDe(team, lineup)[u]);
+  if (lineup && team) c = chimieLigne(lineup, u);
   else c = team && team.chimie ? team.chimie[u] || 0 : 0;
   return bonusChimie(c);
 }
@@ -5254,7 +4810,6 @@ export function createTeam(name, tag, roster, opts = {}) {
     isPlayer: !!opts.isPlayer,
     season: opts.season || null,
     fermeture: 'auto',       // le trio de fermeture : 'auto', null, ou le rang d'un trio (voir FERMETURE_DEFAUT)
-    roulement: opts.roulement || 'quatre', // la distribution des minutes (voir ROULEMENTS)
     injured: new Map(),      // joueur -> matchs restants
     together: new Map(),     // unité -> matchs consécutifs intacts
     togetherSig: new Map(),
@@ -5559,8 +5114,7 @@ function applyInjuries(team, lineup, heavy, feuille = null, cote = null, profil 
   const dissuasion = profil ? Math.exp(-DISSUASION * robZ(profil)) : 1;
   for (const p of Object.values(lineup)) {
     if (!p || team.injured.has(p)) continue;
-    // Le risque suit la carte, le plan et le roulement : « Roulement court » et
-    // « Trois trios » usent, « L'infirmerie » et « Banc profond » protègent.
+    // Le risque suit les cartes et les adjoints : ceux qui usent l'augmentent, « L'infirmerie » le protège.
     // Et la situation du joueur : « Il joue amoché » finit par payer.
     // L'ÉNERGIE (S68) : sous 60, le risque monte — jusqu'au double à 30.
     const usee = 1 + Math.max(0, ENERGIE_BLESSURE - energieDe(p)) / 30;
@@ -5908,28 +5462,25 @@ function jouerSoixanteMinutes(pA, pB, gA, gB, chanceA, chanceB, heavy, track, se
  * lui qu'on interroge, pas une copie — sous un hasard à part, en sommant `p` au lieu de tirer le but : le
  * tirage ne dépend plus de `p`, donc deux lectures (avec et sans un effet) se comparent sans bruit.
  * Sans adversaire, le soir se lit contre un club moyen (le profil de référence de la ligue).
- * `effets` : des canaux posés le temps de la lecture, comme une consigne de match ; `aVenir` : les décisions du jour.
+ * `effets` : des canaux posés le temps de la lecture, comme un effet du soir ; `aVenir` : les décisions du jour.
  */
 export const CADRE_DU_MATCH = { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS };
-export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], lignes = null, mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700, plan = null, intention = null, duel = false } = {}) {
+export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], effets = [], effetsAdv = [], mutation = null, nu = false, neutre = null, series = false, ronde = 0, heavy = false, n = 700, plan = null, intention = null, duel = false } = {}) {
   return avecAVenir(team, aVenir, () => {
     let retirerPlan = null, retirerIntention = null;
     const avait = '_effetMatch' in team, sauve = team._effetMatch;
     const avaitAdv = !!adv && '_effetMatch' in adv, sauveAdv = adv ? adv._effetMatch : null;
-    const lignesAvant = team.lignes, lignesMatch = team._lignesMatch, avaitL = 'lignes' in team, avaitM = '_lignesMatch' in team;
     const echelle = ECHELLE_SOIR;
     let posee = null;
     try {
       if (adv && effetsAdv.length) adv._effetMatch = [...(sauveAdv || []), ...effetsAdv];
       if (effets.length) team._effetMatch = [...(sauve || []), ...effets];
-      // `lignes` : les quatre lignes (système, agressivité, glace) à jouer à la place des tiennes — un système ou une agressivité qu'on essaie.
-      if (lignes) { team.lignes = lignes.map(l => ({ ...l })); team._lignesMatch = null; }
       // `mutation` : un changement de carte posé le temps de la lecture sur un joueur (`joueur`, ou celui que la carte vise).
       ECHELLE_SOIR = 1;
       // `rien` : la modif n'est pas posée, mais son joueur est lu (le même gardien devant le filet des deux côtés d'une différence).
       posee = mutation && !mutation.rien ? poserMutationLue(team, lineup, mutation) : null;
-      // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments, roulement) — ce que le build y change se lit par différence.
-      if (nu) { team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team.roulement = 'quatre'; team._effetMatch = []; }
+      // `nu` : le même alignement sans aucun effet (cartes, patrons, coachs, moments) — ce que le build y change se lit par différence.
+      if (nu) { team.patrons = []; team.coachs = []; team.effets = []; team.effetsSerie = []; team._effetMatch = []; }
       const lu = lineup || activeLineup(team);
       // `plan` (V17) : un plan de match posé le temps de la lecture, comme `playGame` le pose (« Ton match » : aucun).
       const fxPlan = plan ? effetsDuPlan(planLu(typeof plan === 'string' ? { cle: plan } : plan), { Ltoi: lu, Ladv: adv ? activeLineup(adv) : null }, duel ? FORCE_DUEL : 1) : null;
@@ -6001,10 +5552,6 @@ export function lectureDuMatch(team, lineup = null, adv = null, { aVenir = [], e
       if (adv) { if (avaitAdv) adv._effetMatch = sauveAdv; else delete adv._effetMatch; }
       if (retirerIntention) retirerIntention();
       if (retirerPlan) retirerPlan();
-      if (lignes) {
-        if (avaitL) team.lignes = lignesAvant; else delete team.lignes;
-        if (avaitM) team._lignesMatch = lignesMatch; else delete team._lignesMatch;
-      }
       ECHELLE_SOIR = echelle;
       if (NEUTRE) { NEUTRE = null; MEMO_MATCH++; }
       if (posee) { posee(); MEMO_MATCH++; }
@@ -6073,7 +5620,7 @@ function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joue
  * *tout ce qui a influencé le jeu. Le joueur doit comprendre ce qui se passe et avoir un impact.*
  *
  * La chance d'un lancer est un PRODUIT de facteurs ; le but tombe si le dé du lancer passe sous elle. Chaque
- * facteur se nomme (une carte, un badge monté, le système de la ligne, le gardien, les jambes…) et se retire
+ * facteur se nomme (une carte, un badge monté, l'affinité de la ligne, le gardien, les jambes…) et se retire
  * seul : sans lui, la chance aurait été `pBrut / f`. Si le dé tombe ENTRE les deux, c'est lui qui a décidé —
  * il a fait entrer ce but (`but`), ou il a fait cet arrêt (`arret`). Rien n'est estimé : le même dé, la même
  * chance, moins un facteur. Aucun dé de plus (`check_graine`), aucune cote dans la feuille — des noms de causes.
@@ -6084,7 +5631,7 @@ function pMoyenDuLancer(off, def, gardien, mode, { heavy, series, ronde, n, joue
  */
 const GROUPE_CAUSE = {
   carte: 'cartes', monte: 'cartes', plafondG: 'cartes', cartesClub: 'cartes', carteClub: 'cartes', fantome: 'cartes', ombre: 'cartes',
-  ligne: 'systemes', special: 'systemes', systemeDef: 'systemes',
+  ligne: 'affinite', special: 'affinite', carrure: 'robustesse',
   power: 'badges', badges: 'badges', badgeG: 'badges',
   jambes: 'jambes', gardien: 'gardien', defense: 'talent', plafond: 'talent', creation: 'talent', trait: 'talent', traitsClub: 'talent', traitG: 'talent',
   lancee: 'elan', elan: 'elan', situation: 'elan', arc: 'elan', accident: 'elan', robustesse: 'robustesse', chance: 'chance',
@@ -6120,7 +5667,7 @@ function causesDuLancer(x, pBrut, de) {
   }
   ajoute('creation', A, x.crea);
   ajoute('power', A, x.devantFilet);
-  const uniteDe = (u, d) => (u ? { rang: u.rang || 0, tac: u.tactique || null, d } : null);
+  const uniteDe = (u, d) => (u ? { rang: u.rang || 0, d } : null);
   if (x.unite) ajoute('ligne', A, x.unite.qualite, uniteDe(x.unite, x.uniteD));
   if (x.special === 'reussie') ajoute('special', A, SPEC_MULT, uniteDe(x.trioOff, false));
   // La finition du club : ses cartes, ou le plafond du jeu quand c'est lui qui mord (`finitionFacteur` est le plus petit des deux).
@@ -6162,14 +5709,14 @@ function causesDuLancer(x, pBrut, de) {
     ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (z - REF.zDef)));
     ajoute('traitsClub', D, facteurPresenceUnite(x.defGlace));
     for (const q of x.defGlace) { ajoute('carte', D, cartesDe(q, 'defense'), q, 'defense'); ajoute('accident', D, accidentsDe(q, 'defense'), q, 'defense'); ajoute('monte', D, effetDesPaliersGagnes(q, 'defense'), q); ajoute('arc', D, arcDe(q, 'defense'), q, 'defense'); }
-    ajoute('systemeDef', D, Math.sqrt((x.dTrio.defTac ?? 1) * (x.dPaire.defTac ?? 1)), uniteDe(x.dTrio, false));
+    ajoute('carrure', D, Math.sqrt((x.dTrio.defAgr ?? 1) * (x.dPaire.defAgr ?? 1)), uniteDe(x.dTrio, false));
     ajoute('badges', D, (x.dTrio.etouffe ?? 1) * (x.dPaire.etouffe ?? 1) * (x.dTrio.intimide ?? 1), uniteDe(x.dTrio, false));
   } else ajoute('defense', D, Math.max(0.55, 1 - K_DEFENSE * (x.def.zDef - REF.zDef)));
   // Qui a décidé du dé : retiré seul, ce facteur aurait-il changé le lancer ?
   const but = de < borne(pBrut, 0.005, PCT_TIR_MAX);
   const decide = f => { const sans = borne(pBrut / f, 0.005, PCT_TIR_MAX); return but ? (de >= sans ? 'but' : null) : (de < sans ? 'arret' : null); };
   for (const c of out) { const d = decide(c.f); if (d) c.d = d; }
-  // Les groupes, club par club : « sans tes cartes », « sans tes systèmes »…
+  // Les groupes, club par club : « sans tes cartes », « sans ton affinité »…
   const groupes = new Map();
   for (const c of out) { const k = `${c.c}|${GROUPE_CAUSE[c.k]}`; groupes.set(k, (groupes.get(k) || 1) * c.f); }
   const g2 = [];
@@ -6314,9 +5861,6 @@ function appliquerDecision(team, d, graine = 0) {
     team.rivaux = team.rivaux || [];
     if (x && x.cle && team.rivaux.length < RIVAUX && !team.rivaux.some(y => y.cle === x.cle)) team.rivaux.push({ cle: x.cle, butin: Number(x.butin) || 1 });
   }
-  // L'APPARIEMENT (V6) : contre leur trio r, ton trio `d.appariement[r]` — ou null pour revenir à l'appariement par rang.
-  if ('appariement' in d) team.appariement = planValide(d.appariement);
-  if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
   // TES UNITÉS SPÉCIALES (V7) : l'avantage et le désavantage numériques choisis derrière le banc ; null, le moteur range seul.
   if ('speciales' in d) team.speciales = specialesValides(d.speciales);
   // UN CHANGEMENT DE CARTE PAR CHOIX (S68) : direct, ou porté par l'option
@@ -6339,7 +5883,6 @@ function appliquerDecision(team, d, graine = 0) {
     }
   }
   // LES LIGNES À LA HOCKEYARENA (S68) : [{ tac, agr, sec }] × 4.
-  if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
   // DEVANT LE FILET CE SOIR (1.0, C4) : 'partant', 'aux' ou 'auto' (la rotation).
   if (d.filet && Number.isFinite(d.jour)) team._filetForce = d.filet === 'auto' ? null : { jour: d.jour, qui: d.filet };
   // UN MOMENT (S66) : un effet temporaire, du jour de la décision à sa fin.
@@ -6659,7 +6202,7 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
   if (graine === null || graine === undefined) graine = nouvelleGraine();
   /*
    * LES CLUBS DE L'IA S'ALIGNENT AU MIEUX (oct.) : les mêmes joueurs (le repêchage et les exclusions ne bougent pas),
-   * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, système).
+   * placés comme le bouton de ton alignement les placerait (`trioAuMieux` : poste, côté, zone, minutes, affinité).
    * Aucun dé : la même ligue rebâtie se réaligne pareil.
    *
    * LES MÊMES JOUEURS, DANS LE MÊME ORDRE (V4.4). `trioAuMieux` grimpe d'échange en échange depuis l'ordre qu'on lui
@@ -7283,7 +6826,7 @@ export function jouerExhibition(clubs, graine, quoi = 'match', n = 100) {
 const ORDRE_AUTO = CASES_DE_BASE.slice().sort((a, b) => cleAuto(a) - cleAuto(b));
 function cleAuto(s) { return s.i + (s.group === 'F' && !s.scratch && s.role === 'C' ? -1.5 : 0); }
 
-export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRatings(p).v) {
+export function autoRoster(pool, exclude = new Set()) {
   const avail = pool.filter(p => !exclude.has(getPersonKey(p)));
   const roster = {};
   const used = new Set();
@@ -7291,7 +6834,7 @@ export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRat
     let best = null, bestScore = -Infinity;
     for (const p of avail) {
       if (used.has(getPersonKey(p)) || !fits(p, s)) continue;
-      const score = mesure(p) - getPositionPenalty(p, s);
+      const score = getHiddenRatings(p).v - getPositionPenalty(p, s);
       if (score > bestScore) { best = p; bestScore = score; }
     }
     if (best) { roster[s.i] = best; used.add(getPersonKey(best)); }
@@ -7301,20 +6844,10 @@ export function autoRoster(pool, exclude = new Set(), mesure = p => getHiddenRat
 
 /*
  * ALIGNER AU MIEUX (oct.). JP : *ajouter bouton best lines et best strategy dans l'alignement pour éviter le
- * gossage ; plusieurs best : défensive, offensive*. Les systèmes, comme l'IA les choisit (`rangSystemes` : le fit,
- * puis l'affinité) — penchés vers l'attaque ou la défense quand le style le demande : parmi ceux à TOLERANCE_STYLE
- * de fit du meilleur, celui qui rend le plus du côté voulu, son prix compté.
- * Les cotes restent dans le moteur : l'écran ne voit que l'alignement qu'elles font.
+ * gossage*. Les cotes restent dans le moteur : l'écran ne voit que l'alignement qu'elles font. (V18 : l'offensif et
+ * le défensif penchaient par leurs systèmes ; sans eux, ils rendaient le même alignement, ou l'inverse de ce qu'ils
+ * disaient — un seul « meilleur » reste.)
  */
-const TOLERANCE_STYLE = 8;
-// Le net d'un système sur un canal : son gain ET son prix (la contre-attaque rapporte en finition, coûte en défense).
-const net = (S, c) => Math.log(((S.gain && S.gain[c]) || 1) * ((S.prix && S.prix[c]) || 1));
-/* `att`, `def` : ce que le style pèse de l'attaque et de la défense d'une ligne (`valeurDeLigne`). */
-const STYLES_ALIGNEMENT = {
-  equilibre: { nom: 'Le meilleur', att: 1, def: 1, joueur: r => r.v, systeme: () => 0 },
-  offensif: { nom: 'Offensif', att: 1.5, def: 0.5, joueur: r => 0.5 * r.v + 0.5 * r.o, systeme: S => net(S, 'volume') + net(S, 'finition') },
-  defensif: { nom: 'Défensif', att: 0.5, def: 1.5, joueur: r => 0.5 * r.v + 0.5 * r.d, systeme: S => -net(S, 'defense') },
-};
 /*
  * ALIGNER AU MIEUX, EN TOUT (oct.). JP : *aligner au mieux considéré positions, stratégie, etc.* Le glouton de l'IA
  * (`autoRoster`) ne lit qu'une chose par case : la valeur, moins la pénalité de poste. Il met la vedette en haut même
@@ -7324,45 +6857,41 @@ const STYLES_ALIGNEMENT = {
  *   - le poste et le côté (`penaliteAdaptee`, l'adaptation déjà faite comptée) ;
  *   - la zone de chacun (`getUnitSynergy` : le joueur à sa place, ou un cran, deux crans hors de ses lignes) ;
  *   - les minutes de la ligne (POIDS_TRIO, POIDS_PAIRE) : le meilleur joue où l'on joue le plus ;
- *   - le système qu'elle jouera : le meilleur fit du trio et de sa paire, ses passeurs et ses manieurs, font le
- *     plafond de la chimie (`chimieLigne`) ;
- *   - le style : l'attaque et la défense pesées comme il le dit.
+ *   - l'affinité de ses joueurs : les badges qui s'accordent font la chimie de la ligne (`chimieLigne`, V18).
  * Les gardiens restent ceux du glouton (le partant est le meilleur). Les clubs de l'IA gardent `autoRoster` : la
  * ligue ne bouge pas, seul ton bouton voit plus loin.
  */
-function valeurDeLigne(lineup, u, St) {
+function valeurDeLigne(lineup, u) {
   const moy = (g, k) => unitAvgLineup(null, lineup, g, u, k);
   const wF = POIDS_TRIO[u], wD = pairDeLigne(u) == null ? 0 : POIDS_PAIRE[u];
   let att = 0.72 * wF * moy('F', 'o'), def = 0.42 * wF * moy('F', 'd');
   if (wD) { att += 0.28 * wD * moy('D', 'o'); def += 0.58 * wD * moy('D', 'd'); }
-  const l = { tac: meilleureTactique(lineup, u), tacD: meilleurSystemeD(lineup, u) };
-  if (fitDeLigne(lineup, u, l) != null) att += (0.72 * wF + 0.28 * wD) * (bonusChimie(chimieLigne(lineup, u, l)) - bonusChimie(0));
-  return St.att * att + St.def * def;
+  if (ligneComplete(lineup, u)) att += (0.72 * wF + 0.28 * wD) * (bonusChimie(chimieLigne(lineup, u)) - bonusChimie(0));
+  return att + def;
 }
 /* La ligne d'une case habillée (le trio u, ou la paire u, qui joue avec lui) ; null pour un réserviste. */
 const ligneDeCase = s => (s.scratch ? null : s.unit);
 /* Les cases qu'un échange peut toucher : les patineurs habillés et en réserve (les gardiens restent ceux du glouton). */
 const casesEchangeables = roster => ORDRE_AUTO.filter(s => s.group !== 'G' && roster[s.i] && roster[s.i].p !== 'G');
 /* Échanger deux cases rend-il la ligne meilleure ? Le gain lu par `valeurDeLigne`, et le roster laissé tel quel. */
-function gainDeLEchange(roster, sa, sb, St, val) {
+function gainDeLEchange(roster, sa, sb, val) {
   const pa = roster[sa.i], pb = roster[sb.i], ua = ligneDeCase(sa), ub = ligneDeCase(sb);
   if ((ua == null && ub == null) || !fits(pa, sb) || !fits(pb, sa)) return null;
   roster[sa.i] = pb; roster[sb.i] = pa;
   const lignes = [...new Set([ua, ub].filter(u => u != null))];
-  const neuves = lignes.map(u => valeurDeLigne(roster, u, St));
+  const neuves = lignes.map(u => valeurDeLigne(roster, u));
   roster[sa.i] = pa; roster[sb.i] = pb;
   return { gain: neuves.reduce((x, v, k) => x + v - val[lignes[k]], 0), lignes, neuves };
 }
-/* Les trios d'un style : le glouton de l'IA, mesuré comme le style le veut, puis les échanges qui rendent la ligne meilleure. */
-export function trioAuMieux(joueurs, style = 'equilibre') {
-  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
-  const roster = autoRoster(joueurs, new Set(), p => (p.p === 'G' ? getHiddenRatings(p).v : St.joueur(getHiddenRatings(p))));
+/* Les meilleurs trios : le glouton de l'IA, puis les échanges qui rendent la ligne meilleure. */
+export function trioAuMieux(joueurs) {
+  const roster = autoRoster(joueurs);
   const cases = casesEchangeables(roster);
-  const val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u, St));
+  const val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u));
   for (let tour = 0; tour < 30; tour++) {
     let mieux = false;
     for (let a = 0; a < cases.length; a++) for (let b = a + 1; b < cases.length; b++) {
-      const e = gainDeLEchange(roster, cases[a], cases[b], St, val);
+      const e = gainDeLEchange(roster, cases[a], cases[b], val);
       if (!e || e.gain <= 1e-6) continue;
       [roster[cases[a].i], roster[cases[b].i]] = [roster[cases[b].i], roster[cases[a].i]];
       e.lignes.forEach((u, k) => { val[u] = e.neuves[k]; });
@@ -7376,36 +6905,13 @@ export function trioAuMieux(joueurs, style = 'equilibre') {
  * Les échanges les plus prometteurs d'un alignement, du meilleur gain lu au moins bon (même négatif : la lecture
  * rapide se trompe parfois, et le moteur tranche ensuite — js/impact.js, `alignementAuMieux`). Rend [case, case].
  */
-export function echangesProposes(roster, style = 'equilibre', n = 12) {
-  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
-  const cases = casesEchangeables(roster), val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u, St)), out = [];
+export function echangesProposes(roster, n = 12) {
+  const cases = casesEchangeables(roster), val = [0, 1, 2, 3].map(u => valeurDeLigne(roster, u)), out = [];
   for (let a = 0; a < cases.length; a++) for (let b = a + 1; b < cases.length; b++) {
-    const e = gainDeLEchange(roster, cases[a], cases[b], St, val);
+    const e = gainDeLEchange(roster, cases[a], cases[b], val);
     if (e) out.push([e.gain, cases[a], cases[b]]);
   }
   return out.sort((x, y) => y[0] - x[0]).slice(0, n).map(([, sa, sb]) => [sa, sb]);
-}
-/*
- * Les systèmes d'un style, ligne par ligne ; l'agressivité et la glace par défaut (celles de l'IA). `plan` (le Rogue) :
- * V15, seulement ceux que les badges de l'unité ouvrent (`styleOuvert`).
- */
-export function lignesAuMieux(lineup, style = 'equilibre', { plan = false } = {}) {
-  const St = STYLES_ALIGNEMENT[style] || STYLES_ALIGNEMENT.equilibre;
-  const choisir = (groupe, u, defaut) => {
-    const tous = rangSystemes(lineup, groupe, u);
-    if (!tous) return defaut;
-    const rang = plan ? tous.filter(k => styleOuvert(lineup, groupe, u, k)) : tous;
-    if (!rang.length) return 'hourra';
-    const T = groupe === 'D' ? SYSTEMES_D : TACTIQUES, fit0 = fitUnite(lineup, groupe, u, rang[0]);
-    let best = rang[0], s0 = St.systeme(T[rang[0]]);
-    for (const k of rang.slice(1)) {
-      if (fitUnite(lineup, groupe, u, k) < fit0 - TOLERANCE_STYLE) break;
-      const x = St.systeme(T[k]);
-      if (x > s0 + 1e-9) { best = k; s0 = x; }
-    }
-    return best;
-  };
-  return lignesCalculees(null, lineup).map((l, u) => ({ ...l, tac: choisir('F', u, l.tac), tacD: pairDeLigne(u) == null ? l.tacD : choisir('D', u, l.tacD) }));
 }
 
 /*
@@ -7994,7 +7500,7 @@ export function motsDEffet(e, duree = null) {
 }
 /*
  * LES TOTAUX DU SOIR (1.0, C5). JP : *je comprends pas plusieurs mécaniques*.
- * Les cartes, les patrons, le roulement, les moments et la consigne du match se
+ * Les cartes, les patrons, les coachs et les moments se
  * MULTIPLIENT entre eux (`effetsDeSaison`), puis `profilMatch` les passe sous
  * ses bornes : la pression sous PRESSION_MAX, la finition sous FINITION_MAX,
  * l'indiscipline entre DISCIPLINE_MIN et DISCIPLINE_MAX. Ce que l'écran annonce
@@ -8004,18 +7510,18 @@ export function motsDEffet(e, duree = null) {
  * Les systèmes et l'agressivité jouent ligne par ligne : ils vivent dans les
  * lignes, pas dans ce total.
  *
- * `aVenir` : les décisions de CE jour pas encore jouées (la consigne qu'on vient
+ * `aVenir` : les décisions de CE jour pas encore jouées (le plan qu'on vient
  * de choisir, une carte prise ce matin). Le moteur ne les applique qu'en jouant
- * la journée ; ce qu'elles ont de PUR (cartes, patrons, effets, roulement,
- * lignes) est posé le temps du calcul, puis l'équipe est remise telle quelle.
+ * la journée ; ce qu'elles ont de PUR (cartes, patrons, effets, plan, unités
+ * spéciales) est posé le temps du calcul, puis l'équipe est remise telle quelle.
  */
 export function totauxDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return null;
   return avecAVenir(team, aVenir, () => totauxBruts(team, lineup, adv));
 }
 /*
- * CE QU'UNE DÉCISION À VENIR A DE PUR, POSÉ SUR L'ÉQUIPE : ses cartes, patrons, coachs, effets, roulement,
- * lignes — et, avec `cases`, l'alignement (sur une copie des cases : `appliquerAlignement` les refait en
+ * CE QU'UNE DÉCISION À VENIR A DE PUR, POSÉ SUR L'ÉQUIPE : ses cartes, patrons, coachs, effets, unités spéciales
+ * — et, avec `cases`, l'alignement (sur une copie des cases : `appliquerAlignement` les refait en
  * place). Chaque champ est REMPLACÉ, jamais modifié : la valeur d'avant reste intacte, ce qui permet de
  * la remettre (`avecAVenir`) ou de poser sur la copie d'un club (js/pronostic.js, `jambesAVenir`).
  */
@@ -8024,11 +7530,9 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   const serie = team.jourCourant === Infinity;
   const ajouter = x => { if (serie) team.effetsSerie = [...(team.effetsSerie || []), x]; else team.effets = [...(team.effets || []), x]; };
   for (const d of aVenir || []) {
-    if ('roulement' in d && ROULEMENTS[d.roulement]) team.roulement = d.roulement;
     if ('speciales' in d) team.speciales = specialesValides(d.speciales);
-    if (Array.isArray(d.lignes)) team.lignes = d.lignes.map(l => ({ ...l }));
     if ('plan' in d) team.plan = planLu(d.plan);
-    const eff = serie ? (d.match ? effetDeMoment({ match: d.match, jour: 0 }) : null) : effetDeMoment(d, team);
+    const eff = serie ? null : effetDeMoment(d, team);
     if (eff) ajouter(eff);
     if (d.effet && !serie) {
       const { duree, nom, ico, ...canaux } = d.effet;
@@ -8049,7 +7553,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
   }
 }
 export function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
-  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'roulement', 'speciales', 'lignes', 'plan', ...(cases ? ['roster'] : [])];
+  const champs = ['cartes', 'patrons', 'coachs', 'effets', 'effetsSerie', 'speciales', 'plan', ...(cases ? ['roster'] : [])];
   const avant = champs.map(k => [k, k in team, team[k]]);
   try {
     poserAVenir(team, aVenir, { cases });
@@ -8061,7 +7565,7 @@ export function avecAVenir(team, aVenir, fn, { cases = false } = {}) {
 /*
  * L'USURE DES JAMBES CE SOIR (1.0, le suivi des jambes) : ce que les présences du match coûteront à
  * chacun (`coutsDuSoir`, la formule de `depenserEnergie`), la réserve déduite, avec les décisions du
- * soir pas encore jouées — les lignes et la consigne qu'on règle dans « Préparer le match ». Les coups
+ * soir pas encore jouées — le plan et le filet qu'on règle avant le match. Les coups
  * reçus s'y ajoutent en jouant ; ils ne se prévoient pas.
  */
 export function usureDuSoir(team, aVenir = []) {
@@ -8114,8 +7618,8 @@ export const dureeOption = (o, famille) => (o && o.duree) || (famille === 'seque
    dés des séries jouées après la tienne, matchs déjà révélés compris.
 
    `avant(k)` est appelé avant le k-ième match de la ronde (0-based) : c'est
-   là que le contrôleur applique les décisions de séries (trios, lignes,
-   consigne du match) et tire des dés neufs pour la suite.
+   là que le contrôleur applique les décisions de séries (trios, filet,
+   ajustements) et tire des dés neufs pour la suite.
    ===================================================================== */
 export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
   const series = paires.map(([A, B]) => ({ A, B, wA: 0, wB: 0, feuilles: [], plans: [] }));
@@ -8354,10 +7858,8 @@ function appliquerDecisionSerie(team, d, graine) {
   // LE DUEL (V9) : la décision d'une 2e ou d'une 3e période attend son entracte (`jouerMatchSeries`), sans rien appliquer avant.
   if (d.duel && d.duel.p > 0) { (team._duelSerie = team._duelSerie || [])[d.duel.p] = d; return; }
   appliquerDecision(team, d, graine);
-  // Les effets du match qui vient s'AJOUTENT : une consigne, un ajustement
-  // et des lignes peuvent être pris avant le même round.
+  // Les effets du match qui vient s'AJOUTENT : un ajustement et un filet peuvent être pris avant le même round.
   team.effetsSerie = team.effetsSerie || [];
-  if (d.match) team.effetsSerie.push(effetDeMoment({ match: d.match, jour: 0 }));
   if (d.filet) team._filetMatch = d.filet === 'auto' ? null : d.filet;
   if (d.ajustement && AJUSTEMENTS[d.ajustement]) {
     const { ico, nom, bon, prix, si, gardienAux, pari, ...canaux } = AJUSTEMENTS[d.ajustement];
@@ -8461,52 +7963,36 @@ function hacherMise(...parts) {
 const ESPACEMENT_GROS = 4;
 
 /*
- * LE PLAN DE L'ADVERSAIRE EST UN VRAI RÉGLAGE DE SES LIGNES (S72). JP : *tout
- * devrait être ensemble, pas plusieurs systèmes différents* ; *que toutes les
- * équipes ont les mêmes stratégies*. Le plan n'est plus un paquet de bonus :
- * pour CE match, l'adversaire règle ses lignes dans les mêmes menus que toi —
- * une tactique, de la glace — et le moteur fait le reste
- * (les tactiques, les actions spéciales, les contres, les punitions). Le
- * contre est celui du cercle des tactiques : la tactique qui étouffe la leur.
+ * LE PLAN DE L'ADVERSAIRE (S72, V18). JP : *les adversaires aussi ont des bonus, malus, stratégies et le jeu est de
+ * trouver comment contrer* ; puis, à la V18, *enlever [les stratégies de lignes] partout*. Leur plan pour CE match est
+ * un des plans de match que tout le monde a (`PLANS`, V17) — fermer le centre, forechecker fort, tirer de partout,
+ * coller ta vedette — ou leur premier trio qui joue une éternité. Le moteur le joue comme n'importe quel plan
+ * (`poserLesPlans`, `planDe`). Le contrer, c'est s'y préparer : une préparation juste le fait tomber
+ * (`poserPreparation`). Les clés d'avant (trappe, échec, canons) gardent leur nom pour les sauvegardes.
  */
 export const PLANS_ADV = {
-  trappe: { ico: '🪤', nom: 'La trappe', mot: 'Ils bouchent le centre et attendent ton erreur.', tac: 'defensive', lignes: { 0: { tac: 'defensive' }, 1: { tac: 'defensive' } } },
-  rapide: { ico: '🚀', nom: 'Le jeu rapide', mot: 'Ils laissent venir et repartent dans ton dos.', tac: 'contre', lignes: { 0: { tac: 'contre' }, 1: { tac: 'contre' } } },
-  echec: { ico: '🐺', nom: 'L\'échec avant à outrance', mot: 'Ils chassent la rondelle dans ta zone.', tac: 'echec', lignes: { 0: { tac: 'echec' }, 1: { tac: 'echec' } } },
-  possession: { ico: '🔁', nom: 'La possession', mot: 'Ils gardent la rondelle et la font tourner.', tac: 'courtes', lignes: { 0: { tac: 'courtes' }, 1: { tac: 'courtes' } } },
-  canons: { ico: '💣', nom: 'Les canons de la pointe', mot: 'Tout part de leurs défenseurs.', tac: 'bleue', lignes: { 0: { tac: 'bleue' }, 1: { tac: 'bleue' } } },
-  vedette: { ico: '⭐', nom: 'Tout passe par leur premier trio', mot: 'Leur premier trio va jouer une éternité.', lignes: { 0: { sec: 85 }, 3: { sec: 40 } },
-    contre: { ad: -1 }, pourquoi: 'la consigne Basse, qui penche défense, serre leur premier trio' },
+  // L'icône d'un levier est celle de son plan (`PLANS`) : une icône, un sens.
+  trappe: { plan: 'centre', ico: '⛔', nom: 'Fermer le centre', mot: 'Ils bouchent le centre et attendent ton erreur.' },
+  echec: { plan: 'assaut', ico: '🐗', nom: 'Forechecker fort', mot: 'Ils chassent la rondelle dans ta zone.' },
+  canons: { plan: 'tirer', ico: '🌧', nom: 'Tirer de partout', mot: 'Tout ce qui passe va au filet.' },
+  ombre: { plan: 'ombre', ico: '🥷', nom: 'Coller ta vedette', mot: 'Un homme collé à ton meilleur marqueur, toute la soirée.' },
+  vedette: { ico: '⭐', nom: 'Tout passe par leur premier trio', mot: 'Leur premier trio va jouer une éternité.', F: [1.3, 1.05, 0.9, 0.6] },
 };
-/* Ce qui contre un plan : la tactique qui étouffe la leur, ou le réglage que le plan dit. */
-const contreDuPlan = P => (P.contre ? P.contre : P.tac ? { tac: contreDe(P.tac), n: 2 } : null);
+/* Comment on contre leur plan : en s'y préparant (le dépistage). */
 export function commentContrer(cle) {
-  const P = PLANS_ADV[cle];
-  const c = P && contreDuPlan(P);
-  if (!c) return '';
-  if (c.tac) return `${c.n} lignes en ${TACTIQUES[c.tac].ico} ${TACTIQUES[c.tac].nom} — leur système est étouffé, plus d'actions spéciales`;
-  return `la consigne ${IMPORTANCES.basse.ico} ${IMPORTANCES.basse.nom} (dans les Lignes) — ${P.pourquoi}`;
+  return PLANS_ADV[cle] ? 'la bonne piste au dépistage : préparé, leur plan tombe' : '';
 }
-/* Le plan est-il contré ? Des lignes `{ tac, agr }` × 4 et la consigne du match (`ad`, −2 à 2). */
-export function planEstContre(cle, lignes, ad = 0) {
-  const P = PLANS_ADV[cle];
-  const c = P && contreDuPlan(P);
-  if (!c) return false;
-  const L = lignes || [];
-  if (c.tac) return L.filter(l => l && l.tac === c.tac).length >= c.n;
-  if (c.ad != null) return (Number(ad) || 0) <= c.ad;
-  return false;
-}
-/* Ce que le plan règle, en mots : « lignes 1 et 2 en Défensive ». */
+/* Ce que leur plan fait, en mots : « moins de tirs contre, et de moins bonne qualité ». */
 export function reglageDuPlan(cle) {
   const P = PLANS_ADV[cle];
   if (!P) return '';
-  const us = Object.keys(P.lignes).map(Number);
-  const noms = us.length === 4 ? 'toutes leurs lignes' : `leurs lignes ${us.map(u => u + 1).join(' et ')}`;
-  const l = P.lignes[us[0]];
-  if (l.tac) return `${noms} en ${TACTIQUES[l.tac].ico} ${TACTIQUES[l.tac].nom}`;
-  if (l.sec != null) return `leur premier trio à ${l.sec} s par présence, le quatrième à peine`;
-  return '';
+  return P.plan ? `${PLANS[P.plan].bon[0].toLowerCase()}${PLANS[P.plan].bon.slice(1)}` : 'leur premier trio joue plus, le quatrième à peine';
+}
+/* Leur plan posé pour CE match : un levier de `PLANS` (lu par `planDe`), ou les minutes de leur premier trio. */
+function poserPlanAdverse(adv, cle) {
+  const P = PLANS_ADV[cle];
+  adv._planMatch = P && P.plan ? { cle: P.plan } : null;
+  if (P && P.F) adv._effetMatch = [...(adv._effetMatch || []), { source: 'planAdv', nom: P.nom, ico: P.ico, F: P.F }];
 }
 
 /*
@@ -8528,23 +8014,26 @@ export function planDeSerie(graine, ronde, k, precedent = null, aPerdu = false) 
  * plan. Le rapport ne ment donc jamais : « 55 % » veut dire qu'une fois sur
  * deux et quelque, c'est bien ça.
  *
- * Ce qui fait pencher le rapport, c'est ce que le dépisteur a VU : le système
- * que leurs lignes jouent toute la saison (`lignesDe` sans le plan du soir),
- * leur agressivité, et en séries ce qui a marché la veille — un plan gagnant
- * se garde souvent, un plan perdant presque jamais. Un peu de hasard de la
- * graine par-dessus : deux adversaires semblables n'ont pas le même rapport.
- * Aucune cote : des tactiques et des agressivités, comme le banc les montre.
+ * Ce qui fait pencher le rapport, c'est ce que le dépisteur a VU : les badges
+ * de leurs joueurs qui servent un plan (V18 : `BADGES_DU_PLAN_ADV`), et en
+ * séries ce qui a marché la veille — un plan gagnant se garde souvent, un plan
+ * perdant presque jamais. Un peu de hasard de la graine par-dessus : deux
+ * adversaires semblables n'ont pas le même rapport. Aucune cote : des badges,
+ * comme la fiche les montre.
  *
  * Les chances sont le CUBE des poids, ramenées au 5 % : un favori se lit
  * (60 / 25 / 15), sans jamais dépasser 90 % — il reste toujours une chance
  * de s'être trompé. Mesuré (scripts/mesure_prep.mjs) : le favori est leur
  * plan environ six fois sur dix, et chaque chance annoncée sort à sa valeur.
  */
+/* Ce qui fait pencher le dépisteur vers un plan : les badges de leurs habillés qui le servent (V18). */
+const BADGES_DU_PLAN_ADV = { trappe: ['checker', 'deuxsens', 'defensif'], echec: ['energie', 'bagarreur', 'physique', 'power'], canons: ['sniper', 'offensif'], ombre: ['deuxsens', 'checker'], vedette: [] };
 export function depistageDe(graine, cle, adv, { precedent = null, ilsOntGagne = false } = {}) {
-  const lignes = adv && adv.roster ? lignesDe(adv, adv.roster, { duSoir: false }) : [];
-  const poids = Object.entries(PLANS_ADV).map(([k, P]) => {
+  const habilles = adv && adv.roster ? SLOTS.filter(sl => !sl.scratch).map(sl => adv.roster[sl.i]).filter(p => p && p.p !== 'G') : [];
+  const porte = roles => habilles.filter(p => badgesDe(p).some(b => !b.second && roles.includes(b.cle))).length;
+  const poids = Object.entries(PLANS_ADV).map(([k]) => {
     let w = 1 + 1.2 * hacherMise(graine, 'depistage', cle, k);
-    if (P.tac) w += 1.6 * lignes.filter(l => l.tac === P.tac).length;
+    w += 0.4 * porte(BADGES_DU_PLAN_ADV[k]);
     if (precedent === k) w *= ilsOntGagne ? 3 : 0.15;
     return { plan: k, w };
   }).sort((a, b) => b.w - a.w || (a.plan < b.plan ? -1 : 1)).slice(0, 3);
@@ -8553,8 +8042,6 @@ export function depistageDe(graine, cle, adv, { precedent = null, ilsOntGagne = 
   out[0].p += 100 - out.reduce((a, x) => a + x.p, 0);
   return out;
 }
-/* Le plan le plus PROBABLE du rapport (J1-N) : ce que l'écran peut montrer sans révéler le vrai. */
-export const planProbable = dep => (dep && dep.length ? dep.reduce((a, b) => (b.p > a.p ? b : a)).plan : null);
 /* Leur VRAI plan, tiré du rapport : pur, de la graine et du match. */
 export function planDuDepistage(graine, cle, dep) {
   let r = hacherMise(graine, 'plan-reel', cle) * 100;
@@ -8572,11 +8059,6 @@ export function planDuDepistage(graine, cle, dep) {
 export const PREP_JUSTE = { finition: 1.05, defense: 0.95 };
 export const PREP_RATEE = { finition: 0.96, defense: 1.04 };
 
-/* Ce que la consigne du match penche (`ad`), lu dans les effets actifs d'une équipe. */
-function adDeLEquipe(team) {
-  const m = effetsActifs(team).filter(e => e.source === 'match');
-  return m.length ? (m[m.length - 1].ad || 0) : 0;
-}
 
 /*
  * AVANT LE MATCH. Des histoires vraies du hockey et quelques inventées. Une
@@ -8832,30 +8314,16 @@ export function effetEntracte(e) {
  */
 /* L'échelle de la fin de partie d'un gros match (S80) : sa journée, ou sa ronde de séries. */
 const echelleDuGros = (gros, toi) => (!(toi && toi.courbe) ? 1 : echelleTardive(gros && gros.serie ? { serie: true, ronde: gros.ronde || 0 } : { jour: (gros && gros.jour) || 0 }));
-/*
- * LES LIGNES DE L'ADVERSAIRE SOUS UN PLAN (1.0, J1-N) : ses lignes de la
- * saison, puis ce que le plan y change. C'est ce que le moteur joue un soir
- * de gros match (`poserGros`), et ce que l'écran lit pour dire « tu
- * étouffes » — avec le plan le plus PROBABLE du dépistage, jamais le vrai,
- * qui reste caché jusqu'au match. Sans plan : les lignes de la saison.
- */
-export function lignesDeGros(adv, lineup, plan = null) {
-  const P = plan ? PLANS_ADV[plan] : null;
-  const base = lignesDe(adv, lineup, { duSoir: false });
-  return base.map((l, u) => ({ ...l, ...((P && P.lignes && P.lignes[u]) || {}) }));
-}
 function poserGros(toi, adv, gros) {
   toi._gros = gros; adv._gros = null;
   // LE DUEL (V9) : ni plan à dépister, ni main adverse ; ses intentions et tes cartes se posent période par période (`jouerDuel`).
   if (gros.duel) {
-    adv._lignesMatch = null; adv._effetMatch = null;
+    adv._effetMatch = null; adv._planMatch = null;
     toi._effetMatch = [...(gros.effetsAvant || [])];
     toi._advGros = adv;
     return;
   }
-  // Le plan règle VRAIMENT les lignes de l'adversaire pour ce match (S72).
-  adv._lignesMatch = lignesDeGros(adv, adv.roster, gros.plan);
-  adv._effetMatch = null;
+  adv._effetMatch = null; adv._planMatch = null;
   toi._effetMatch = [...(gros.effetsAvant || [])];
   toi._advGros = adv;
   // LEUR MAIN SE TIRE D'ABORD (S76) : tes cartes peuvent la lire (« La riposte »).
@@ -8864,9 +8332,9 @@ function poserGros(toi, adv, gros) {
   }
   const fxToi = gros.cartes && Array.isArray(gros.cartes.jouees) ? poserCartes(toi, adv, gros) : null;
   poserPreparation(toi, adv, gros, fxToi);
-  gros.contre = !!gros.prepJuste || !!gros.lu || planEstContre(gros.plan, toi._lignesMatch || lignesDe(toi, toi.roster), adDeLEquipe(toi));
-  // Plan contré : les réglages de leurs lignes tombent, peu importe la cause.
-  if (gros.contre) adv._lignesMatch = null;
+  gros.contre = !!gros.prepJuste || !!gros.lu;
+  // Leur plan joue (V18 : un levier de match, `poserPlanAdverse`), sauf s'il est contré, peu importe la cause.
+  if (!gros.contre) poserPlanAdverse(adv, gros.plan);
   // LEUR MAIN (S74, js/combat.js) : connue d'avance, jouée ici — sauf si ta main l'annule.
   if (gros.cartesAdv) {
     const annulee = !!(gros.cartes && (gros.cartes.jouees || []).some(c => CARTES_MATCH[c] && CARTES_MATCH[c].annule));
@@ -8894,9 +8362,8 @@ function poserCartes(toi, adv, gros) {
   const fx = effetsDesCartes(toi, gros.cartes, gros.cleCartes || '', { mainAdv: gros.cartesAdv || [], echelle: echelleDuGros(gros, toi) });
   toi._effetMatch.push(...fx.effets);
   if (fx.adv.length) adv._effetMatch = [...(adv._effetMatch || []), ...fx.adv];
-  if (fx.lire) { adv._lignesMatch = null; gros.lu = true; }
   // Leur plan tombé, il n'y a plus rien à contrer : le récit le dit comme une lecture parfaite.
-  if (fx.lire) gros.contre = true;
+  if (fx.lire) { gros.lu = true; gros.contre = true; }
   if (fx.energieTous) for (const sl of SLOTS) {
     const p = toi.roster[sl.i];
     if (p && p.p !== 'G') rendreJambes(p, fx.energieTous);
@@ -8915,7 +8382,6 @@ function poserPreparation(toi, adv, gros, fx) {
   if (prepa.length || gros.cartesJouees) gros.cartesJouees = { ...(gros.cartesJouees || { jouees: [] }), plan: gros.plan, preparation: prepa, prepJuste: gros.prepJuste };
   if (!prepa.length) return;
   if (gros.prepJuste) {
-    adv._lignesMatch = null;
     toi._effetMatch.push({ source: 'preparation', nom: 'Ta préparation vise juste', ico: '🎯', ...PREP_JUSTE });
     if (fx && fx.piege) toi._effetMatch.push({ source: 'carte', nom: 'Le piège tendu', ico: '🕸', ...fx.piege });
   } else if (fx && fx.improvise) {
@@ -8945,10 +8411,8 @@ export function effetsDesCartes(team, cartes, cle = '', { mainAdv = [], echelle 
   const principal = p => { const pr = profilPrincipal(p); return pr ? pr.cle : null; };
   let origines = null;
   const synergie = k => {
-    if (k === 'systeme') {
-      const tacs = lignesDe(team, team.roster, { duSoir: false }).map(l => l.tac).filter(t => t && t !== 'hourra');
-      return tacs.some(t => tacs.filter(x => x === t).length >= 2) ? { finition: 1.06 } : null;
-    }
+    // V18 : « Les lignes soudées » (la clé reste `systeme`) — deux lignes qui ont chacune un accord (`accordsDeLigne`).
+    if (k === 'systeme') return [0, 1, 2, 3].filter(u => accordsDeLigne(team.roster, u).length).length >= 2 ? { finition: 1.06 } : null;
     if (k === 'gachettes') {
       const n = dresses.filter(x => x.sl.group === 'F' && x.sl.unit <= 1 && principal(x.p) === 'sniper').length;
       return n ? { finition: 1 + Math.min(0.06, 0.02 * n) } : null;
@@ -9047,10 +8511,8 @@ export function simulerGrosMatch(toi, adv, { plan = 'trappe', cartes = null, gra
 function leverGros(toi) {
   const adv = toi._advGros;
   for (const p of (toi._gros && toi._gros._duelTouches) || []) delete p._duelBlessure;
-  if (adv) { adv._effetMatch = null; adv._lignesMatch = null; }
+  if (adv) { adv._effetMatch = null; adv._planMatch = null; }
   toi._gros = null; toi._effetMatch = null; toi._advGros = null; toi._entracte = null;
-  // Le contre parfait ne vaut que pour CE match (S74).
-  toi._lignesMatch = null;
 }
 
 /* =====================================================================
@@ -9126,7 +8588,7 @@ export const PLANS = {
 /* Une décision `plan` telle que l'équipe la garde : Ton match (ou un plan inconnu) la retire. */
 const planLu = x => (x && PLANS[x.cle] && x.cle !== 'match' ? { cle: x.cle, vise: x.vise || null } : null);
 /* Le plan d'un club ce soir : la décision posée (`team.plan`), sinon Ton match. */
-const planDe = team => (team && team.plan && PLANS[team.plan.cle] ? team.plan : null);
+const planDe = team => { const x = team && (team._planMatch || team.plan); return x && PLANS[x.cle] ? x : null; };
 /* Leur vedette (leur meilleur marqueur habillé, ou celui que tu nommes) et ton attaquant qui la colle. */
 export function cibleDuPlan(Ltoi, Ladv, vise = null) {
   const leurs = habillesDuGroupe(Ladv || {}, 'F').map(x => x.p);
@@ -9280,7 +8742,6 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
   const toiA = !!A._gros, toi = toiA ? A : B, adv = toiA ? B : A, cote = toiA ? 'A' : 'B';
   const Ltoi = { ...(toiA ? LA : LB) }, Ladv = toiA ? LB : LA;
   const base = [...(toi._effetMatch || [])], baseAdv = [...(adv._effetMatch || [])];
-  const lignes = lignesDe(toi, Ltoi, { duSoir: false }).map(l => ({ ...l }));
   const robot = typeof toi.robotDuel === 'function' ? toi.robotDuel : null;
   const hist = [];
   let gfA = 0, gfB = 0;
@@ -9303,7 +8764,7 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     // Sans décision (« L'adjoint joue cette série », une période qui n'attend personne), le robot de la mesure, s'il y en a un, décide.
     let d = dec;
     if (!d && robot) {
-      toi._effetMatch = base; adv._effetMatch = baseAdv; toi._lignesMatch = lignes;
+      toi._effetMatch = base; adv._effetMatch = baseAdv;
       d = robot({ k, intention: I, pointage: toiA ? { moi: gfA, lui: gfB } : { moi: gfB, lui: gfA }, domicile: toiA, serie: !!gros.serie, toi, adv, plan: plan === undefined ? planDe(toi) : plan }) || null;
     }
     d = d || {};
@@ -9325,7 +8786,6 @@ function jouerDuel(A, B, LA, LB, gA, gB, chanceA, chanceB, heavy, track, series,
     // TON PLAN DE LA PÉRIODE (V17) : celui que la période choisit, sinon celui d'avant.
     const fxPlan = effetsDuPlan(plan === undefined ? planDe(toi) : plan, { Ltoi, Ladv }, FORCE_DUEL);
     if (fxPlan) { effToi.push(...fxPlan.toi); effAdv.push(...fxPlan.adv); for (const [q, e] of fxPlan.joueurs) viser(q, e); }
-    toi._lignesMatch = lignes;
     toi._effetMatch = [...base, ...effToi];
     // Sur eux, une carte d'un moment joue TON moment (`siToi`).
     adv._effetMatch = [...baseAdv, ...effAdv].filter(e => !e.siToi || !!soir[e.siToi]);
@@ -9461,7 +8921,7 @@ export function pariDeDecision(d, graine, team = null) {
 
 /*
  * CE QUI JOUE SUR TA FORMATION À UNE JOURNÉE (S72) : tous les effets en cours,
- * d'où qu'ils viennent — les dilemmes, les séquences, la consigne, l'élan,
+ * d'où qu'ils viennent — les dilemmes, les séquences, l'élan,
  * les paris, les investissements, les cartes —, pour qu'ils se lisent au même
  * endroit que les stratégies. Et les absents du jour.
  */

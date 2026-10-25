@@ -7,7 +7,7 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
-import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS } from './sim.js';
+import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS, AFFINITES, PROFILS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
@@ -52,8 +52,8 @@ function ficheTable(p) {
 const pctMot = x => `${String(Math.round(x * 1000) / 10).replace('.', ',')} %`;
 const EFFETS_GLACE = {
   sniper: x => `en avantage numérique, c'est lui qui tire — ${(1 + x).toFixed(1).replace('.', ',')} fois plus souvent`,
-  passeur: () => 'il fait jouer son trio : sa chimie monte plus haut dans son système',
-  manieur: () => 'il fait jouer sa ligne : sa chimie monte plus haut dans son système',
+  passeur: () => 'il fait jouer son trio : chacun de ses accords monte la chimie de sa ligne',
+  manieur: () => 'il fait jouer sa ligne : chacun de ses accords monte la chimie de sa ligne',
   deuxsens: x => `il étouffe les lancers adverses pendant ses présences (−${pctMot(x)})`,
   checker: x => `il étouffe les lancers adverses pendant ses présences (−${pctMot(x)})`,
   defensif: x => `il étouffe les lancers adverses pendant ses présences (−${pctMot(x)})`,
@@ -63,6 +63,14 @@ const EFFETS_GLACE = {
   energie: x => `il garde ses jambes : son match lui coûte ${pctMot(x)} de moins`,
   offensif: x => `il lance de la pointe : sa paire tire ${pctMot(x)} de plus`,
 };
+/*
+ * L'AFFINITÉ (V18) : les badges avec qui le sien s'accorde dans une ligne (`AFFINITES`, js/sim.js) — un avant du trio, un
+ * défenseur de la paire. L'accord vaut le plus petit des deux badges.
+ */
+function accordsDuBadge(groupe, role) {
+  const avec = AFFINITES.flatMap(a => (a.a[0] === groupe && a.a[1] === role ? [a.b] : a.b[0] === groupe && a.b[1] === role ? [a.a] : []));
+  return avec.map(([g, r]) => `${PROFILS[g][r].ico} ${PROFILS[g][r].court || PROFILS[g][r].nom}${g !== groupe ? (g === 'D' ? ' de la paire' : ' du trio') : ''}`).join(', ');
+}
 /* Un net négatif se dit aussi : un Bronze est sous le badge moyen de la ligue. */
 const moinsPlus = x => (x >= 0 ? `${pctMot(x)} de buts de moins` : `${pctMot(-x)} de buts de plus`);
 const EFFETS_GLACE_G = {
@@ -117,15 +125,16 @@ function surLaGlaceHtml(p) {
     lignes.push(li(`Il garde ses jambes ${n} départs de suite ; au suivant, elles baissent et il accorde plus.`));
     return `<ul class="glace">${lignes.join('')}</ul>`;
   }
-  // SON PROFIL (V9, le Rogue) : ses quatre familles, à ses points égaux — ce que le système de son unité paie.
+  // SON PROFIL (V9, le Rogue) : ses quatre familles, à ses points égaux.
   if (G.bonus === 'ROGUE') {
     const f = famillesDe(p);
-    lignes.push(li(`<b>À ses points égaux</b> : ${Object.keys(FAMILLES).map(k => `${esc(FAMILLES[k].nom)} ${motDeFamille(f[k])}`).join(', ')}. Un système qui paie une famille où il est fort lui va.`));
+    lignes.push(li(`<b>À ses points égaux</b> : ${Object.keys(FAMILLES).map(k => `${esc(FAMILLES[k].nom)} ${motDeFamille(f[k])}`).join(', ')}.`));
   }
   for (const b of badgesDe(p)) {
     const E = EFFETS_GLACE[b.cle], x = (EFFET_ROLE[b.cle] || 0) * maitrise(p, b.cle);
     const raison = raisonDuBadge(b);
-    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? (b.plein ? ' — son second badge, plein (sa carte brille)' : ' — son second badge, à moitié') : ''}.` : '.'}`));
+    const acc = accordsDuBadge(estD(p) ? 'D' : 'F', b.cle);
+    lignes.push(li(`<b class="badge pal-${b.palier}">${glyphe(b.ico)} ${esc(motDuBadge(b))}${raison ? ` · ${esc(raison)}` : ''}</b>${E ? ` : ${esc(E(x))}${b.second ? (b.plein ? ' — son second badge, plein (sa carte brille)' : ' — son second badge, à moitié') : ''}.` : '.'}${acc ? ` S'accorde avec ${esc(acc)}.` : ''}`));
   }
   lignes.push(...lignesGagnees(p, li));
   // SANS BADGE QUI DÉFEND (V2.2) : le moteur centre chaque badge sur la ligue, donc un joueur qui n'en a pas tire son unité
@@ -411,7 +420,7 @@ export function showPlayerModal(p, opts = {}) {
   const hdbUrl = `https://www.hockeydb.com/ihdb/stats/findplayer.php?full_name=${encodeURIComponent(p.n)}`;
 
   const equipeSim = opts.team ? `<span class="pcard-full-club">${getTeamLogoHtml(opts.team.tag, 14)} ${esc(teamLabel(opts.team))}</span>` : '';
-  // SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, qui décide du fit dans un système, à un toucher.
+  // SES RÔLES (1.0, C2) : sa maîtrise de chaque rôle, qui décide de ses accords, à un toucher.
   // LE PROFIL EN CRANS (1.0) : d'un coup d'oeil, où il se range dans sa saison sur ce que le moteur lit — avant ses rôles.
   const glace = surLaGlaceHtml(p);
   // GRAVÉ SUR SA CARTE (V2.2) : les moments légendaires d'une run se relisent ici, pas seulement dans un toast.

@@ -55,8 +55,6 @@ const decisions = [
   { jour: 0, equipe: 0, ...temoin('bloc') },
   { jour: 3, equipe: 0, ...temoin('fougue') },
   { jour: 0, equipe: 0, ...temoin('attaque') },
-  { jour: 6, equipe: 0, match: { importance: 'basse', ad: -1 } },
-  { jour: 10, equipe: 0, lignes: [0, 1, 2, 3].map(() => ({ tac: 'defensive', tacD: 'maison' })) },
 ];
 const aplatir = x => JSON.stringify(x);
 const pres = (a, b, e = 1e-9) => Math.abs(a - b) < e;
@@ -136,10 +134,8 @@ const sansCoups = cartesDeStyle({ profil: { ...P, coups: null }, ligue: Lg, styl
 exiger('une feuille sans mises en échec ne les affiche pas', !/Mises en échec/.test(sansCoups[1].corps));
 
 // 6. Ton build ce soir.
-const b2 = buildDuSoir(toi, L.decisions, 2), b3 = buildDuSoir(toi, L.decisions, 3), b6 = buildDuSoir(toi, L.decisions, 6), b7 = buildDuSoir(toi, L.decisions, 7), b12 = buildDuSoir(toi, L.decisions, 12);
+const b2 = buildDuSoir(toi, L.decisions, 2), b3 = buildDuSoir(toi, L.decisions, 3);
 exiger('un patron pris au jour 3 n\'était pas actif au jour 2, et l\'est au jour 3', b2.patrons.length === 2 && b3.patrons.length === 3, `${b2.patrons.join(', ')} → ${b3.patrons.join(', ')}`);
-exiger('la consigne ne vaut que le soir où elle est réglée', !!b6.consigne && !b7.consigne, `${b6.consigne}`);
-exiger('les systèmes ne comptent qu\'après la décision des lignes', !b7.systemes.length && b12.systemes.length >= 2, b12.systemes.join(', '));
 exiger('un soir sans rien de réglé se dit vide', buildVide(buildDuSoir(toi, [], 4)) && !buildVide(b3));
 const lignes = ecartsDuSoir(toi === miens[0].A ? miens[0].f : miens[0].f, miens[0].A === toi ? 'A' : 'B', P, Lg);
 exiger('l\'écart du soir porte le soir, ta moyenne et la ligue', lignes.length >= 5 && lignes.every(r => Number.isFinite(r.soir) && r.moyenne != null && r.ligue != null), lignes.map(r => `${r.nom} ${r.soir}`).join(' · '));

@@ -5,8 +5,8 @@
  *
  * 1. Un match ordinaire ne change pas : une ligue SANS joueur ne voit aucun
  *    gros match, aucun plan, aucune coupure au deuxième entracte.
- * 2. Chaque plan adverse est à peu près NEUTRE quand on ne le contre pas
- *    (JP : *sans changer la difficulté*), et PAYANT quand on le contre.
+ * 2. Chaque plan adverse est un plan de match (V18 : `PLANS`, ou les minutes
+ *    de leur premier trio), et le moteur le joue.
  * 3. Le choix du deuxième entracte ne touche pas aux deux premières périodes
  *    déjà vues ; des dés neufs donnent une autre troisième période.
  * 4. En séries, l'adversaire garde le plan qui a gagné et en change après
@@ -18,9 +18,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   autoRoster, registerHiddenRatings, createTeam, simulateLeague, playRonde, creerSeries, jouerMatchSeries,
-  PLANS_ADV, planEstContre, planDeSerie, entractesOfferts, effetEntracte, contreDe, TACTIQUES,
+  PLANS_ADV, PLANS, planDeSerie, entractesOfferts, effetEntracte, reglageDuPlan, commentContrer, simulerGrosMatch,
   AVANT_GROS, avantDuGros, ENTRACTES, entractesDu,
-  lignesDeGros, lignesDe, planProbable, activeLineup, SONNE, MISE_DOUBLEE,
+  activeLineup, SONNE, MISE_DOUBLEE,
 } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
@@ -60,41 +60,30 @@ console.log(`\n  Les gros matchs mis en scène (S70) · ${LIGUES} ligues\n`);
   exiger('une ligue sans joueur ne voit aucun gros match', teams.every(t => !(t.minisBoss || []).length));
 }
 
-/* ---------- 2. les plans : de vrais réglages de lignes (S72) ---------- */
+/* ---------- 2. les plans : des plans de match, comme les tiens (S72, V18) ---------- */
 /*
- * JP : *tout devrait être ensemble, pas plusieurs systèmes différents* ; *que
- * toutes les équipes ont les mêmes stratégies*. Un plan n'est plus un paquet
- * de bonus : il règle les lignes de l'adversaire dans les mêmes menus que
- * les tiens, et son contre est celui du cercle des tactiques.
+ * JP : *que toutes les équipes ont les mêmes stratégies*. Un plan adverse n'est pas un paquet de bonus : c'est un des
+ * plans de match que tu as aussi (`PLANS` : fermer le centre, forechecker fort, tirer de partout, coller ta vedette),
+ * ou leur premier trio qui joue une éternité ; le moteur le joue comme n'importe quel plan.
  */
 for (const [cle, P] of Object.entries(PLANS_ADV)) {
-  exiger(`${P.ico} ${P.nom} · règle de vraies lignes`, P.lignes && Object.keys(P.lignes).length > 0 && !P.force && !P.faiblesse);
-  if (P.tac) {
-    const c = contreDe(P.tac);
-    const deux = [{ tac: c }, { tac: c }, { tac: 'hourra' }, { tac: 'hourra' }];
-    exiger(`${P.ico} ${P.nom} · contré par ${TACTIQUES[c].nom}, la tactique qui étouffe ${TACTIQUES[P.tac].nom}`,
-      planEstContre(cle, deux) && !planEstContre(cle, [0, 1, 2, 3].map(() => ({ tac: 'hourra' }))));
-  }
+  const levier = (P.plan && PLANS[P.plan] && P.plan !== 'match') || (Array.isArray(P.F) && P.F.length === 4);
+  exiger(`${P.ico} ${P.nom} · un plan de match ou les minutes d'un trio, dits en mots`, levier && !P.force && !P.faiblesse && !!reglageDuPlan(cle) && !!commentContrer(cle));
 }
 {
-  // Dans un vrai gros match, les lignes de l'adversaire jouent le plan : ses lancers portent sa tactique.
-  let vus = 0, ok = 0;
-  for (let L = 0; L < LIGUES && vus < 6; L++) {
-    const teams = ligue(9150 + L);
-    const { calendrier } = simulateLeague(teams, 82, { graine: `plan-${L}`, decisions: [] });
-    for (const mb of teams[0].minisBoss || []) {
-      const P = PLANS_ADV[mb.plan];
-      // Un plan contré est abandonné (`poserGros`) : ses lignes rejouent la saison, c'est voulu.
-      if (!P || !P.tac || mb.contre) continue;
-      const m = calendrier[mb.jour].find(x => x.A === teams[0] || x.B === teams[0]);
-      const coteAdv = m.A === teams[0] ? 'B' : 'A';
-      const tirs = m.feuille.lancers.filter(l => l.cote === coteAdv && (l.ligne === 0 || l.ligne === 1) && l.mode === 'FE');
-      if (!tirs.length) continue;
-      vus++;
-      if (tirs.every(l => l.tac === P.tac)) ok++;
+  // Le plan joue : les mêmes gros matchs, mêmes dés, sous « Tirer de partout » puis sous « Fermer le centre ».
+  const teams = ligue(9150);
+  const [toi, adv] = [teams[0], teams[1]];
+  const tirsAdv = plan => {
+    let n = 0;
+    for (let k = 0; k < 120; k++) {
+      const r = simulerGrosMatch(toi, adv, { plan, graine: 'plan-joue', cle: `m${k}` });
+      n += r.feuille.lancers.filter(l => l.cote === 'B').length;
     }
-  }
-  exiger('dans un gros match, les deux premières lignes adverses jouent la tactique du plan', vus > 0 && ok === vus, `${ok}/${vus} gros matchs`);
+    return n / 120;
+  };
+  const [canons, trappe] = [tirsAdv('canons'), tirsAdv('trappe')];
+  exiger('leur plan joue : « Tirer de partout » leur donne plus de tirs que « Fermer le centre »', canons > trappe * 1.1, `${canons.toFixed(1)} contre ${trappe.toFixed(1)} tirs par match`);
 }
 
 /* ---------- 3. l'entracte : les deux premières périodes ne bougent pas ---------- */
@@ -241,39 +230,16 @@ for (const [cle, P] of Object.entries(PLANS_ADV)) {
   exiger('chaque gros match porte son plan, son contre et son pointage après deux périodes', complets === total, `${complets}/${total}`);
 }
 
-/*
- * CE QUE LE HUB MONTRE D'UN GROS MATCH EST CE QUE LE MOTEUR JOUE (1.0, J1-N).
- * Les indices « tu étouffes » lisaient les lignes de saison de l'adversaire,
- * alors que le plan les remplace le soir même. Le hub lit maintenant
- * `lignesDeGros(adv, activeLineup(adv), plan probable)` : quand le plan
- * probable est le plan joué, ce sont exactement les lignes du match ; et un
- * blessé adverse n'y figure jamais.
- */
+/* Un blessé adverse ne figure jamais dans l'alignement que le hub lit (1.0, J1-N). */
 {
   const teams = ligue(9600);
   simulateLeague(teams, 82, { graine: 'hub-9600', decisions: [] });
-  const mbs = (teams[0].minisBoss || []).filter(x => x.depistage && x.plan);
-  let memes = 0, testes = 0, blesse = 0;
-  for (const mb of mbs) {
-    const adv = mb.adv;
-    if (!adv || !adv.roster) continue;
-    const probable = planProbable(mb.depistage);
-    if (probable !== mb.plan) continue;
-    testes++;
-    const hub = lignesDeGros(adv, adv.roster, probable);
-    const joue = lignesDeGros(adv, adv.roster, mb.plan);
-    if (JSON.stringify(hub) === JSON.stringify(joue)) memes++;
-  }
-  exiger('quand le plan probable est le plan joué, le hub montre les lignes du match', testes > 0 && memes === testes, `${memes}/${testes} gros matchs`);
-  // Un blessé adverse ne figure pas dans l'alignement que le hub lit.
+  let blesse = 0;
   for (const t of teams.slice(1, 6)) {
     const L = activeLineup(t);
     for (const p of Object.values(L)) if (p && t.injured.has(p)) blesse++;
   }
   exiger('aucun blessé dans l\'alignement adverse que le hub lit', blesse === 0, `${blesse} blessé(s)`);
-  // Sans plan, lignesDeGros = les lignes de la saison : rien ne change pour un match ordinaire.
-  const t1 = teams[1];
-  exiger('sans plan, les lignes d\'un match ordinaire sont celles de la saison', JSON.stringify(lignesDeGros(t1, t1.roster, null)) === JSON.stringify(lignesDe(t1, t1.roster, { duSoir: false })));
 }
 
 /*

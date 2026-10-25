@@ -109,7 +109,7 @@ export const DOSSIERS = {
       'Les jambes ne suivent plus. Moi, j\'annulerais la pratique ; l\'entraîneur ne sera pas content.'],
     options: [
       { cle: 'repos', nom: 'Un congé pour lui', bon: 'Ses jambes reviennent', prix: 'Il manque la pratique', action: { energie: 20 }, duree: 4, lui: { finition: 0.95 } },
-      { cle: 'conge', nom: 'Annuler la pratique', bon: 'Les jambes reviennent', prix: 'Les systèmes rouillent', action: { energieTous: 10 }, duree: 4, defense: 1.04 },
+      { cle: 'conge', nom: 'Annuler la pratique', bon: 'Les jambes reviennent', prix: 'La structure rouille', action: { energieTous: 10 }, duree: 4, defense: 1.04 },
       { cle: 'bas', nom: 'La glace au bas de l\'alignement', bon: 'Les fatigués s\'assoient les soirs lourds', prix: 'Tes vedettes jouent moins', si: 'jambesLourdes', duree: 12, F: [0.88, 0.97, 1.08, 1.2] },
     ],
   },
@@ -117,11 +117,11 @@ export const DOSSIERS = {
     de: 'en', ico: '🌬', titre: 'Tout le monde est frais',
     quand: f => f.jambes >= 93,
     fait: f => `Jambes ${f.jambes} · personne sous ${f.pire ? f.pire.j : f.jambes}`,
-    mots: ['Les gars volent. C\'est le temps de pousser, ou de travailler les systèmes pendant qu\'ils ont du jus.',
+    mots: ['Les gars volent. C\'est le temps de pousser, ou de travailler la structure pendant qu\'ils ont du jus.',
       'Je n\'ai jamais vu le vestiaire aussi frais. On en profite comment ?'],
     options: [
       { cle: 'pousser', nom: 'On pousse', bon: 'On tire de partout les soirs frais', si: 'jambesFraiches', duree: 12, volume: 1.15 },
-      { cle: 'systemes', nom: 'Les systèmes', bon: 'Une structure qui tient', si: 'jambesFraiches', duree: 12, defense: 0.9 },
+      { cle: 'systemes', nom: 'La structure', bon: 'Une défensive qui tient', si: 'jambesFraiches', duree: 12, defense: 0.9 },
     ],
   },
   /*
@@ -298,7 +298,7 @@ export const DOSSIERS = {
     mots: ['Une semaine creuse. On peut faire un mini-camp, ou tout le monde au chalet.',
       'Du temps libre, enfin. Moi, je les ferais travailler ; ils te diront le contraire.'],
     options: [
-      { cle: 'camp', nom: 'Le mini-camp', bon: 'Les tirs et les systèmes', prix: 'Les jambes', duree: 6, volume: 1.06, finition: 1.04, energie: 1.06 },
+      { cle: 'camp', nom: 'Le mini-camp', bon: 'Les tirs et la structure', prix: 'Les jambes', duree: 6, volume: 1.06, finition: 1.04, energie: 1.06 },
       { cle: 'chalet', nom: 'Tout le monde au chalet', bon: 'Les jambes reviennent', action: { energieTous: 12 } },
     ],
   },

@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, getHiddenRatings, compterFeuilles, lignesDe, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -87,29 +87,21 @@ function ouvrirBanc(jour) {
   /*
    * LES RÉGLAGES EN VIGUEUR SE LISENT SUR L'ÉQUIPE, jamais sur la dernière
    * décision : celle-ci peut être une CARTE, qui ne porte ni fermeture ni
-   * roulement — et le banc remettrait alors tout à « auto » en
+   * unités spéciales — et le banc remettrait alors tout à « auto » en
    * écrivant sa décision, donc effacerait un choix en silence.
    */
   G.banc = {
     jour, compte, blesses, remplace, monte, prochain, fiche, N: L.calendrier.length,
     fermeture: L.you.fermeture ?? derniere.fermeture ?? 'auto',
-    // LE PLAN DE MATCH (V6) : l'appariement de tes trios et la glace du club, en vigueur sur l'équipe.
-    appariement: L.you.appariement ? [...L.you.appariement] : null,
-    roulement: L.you.roulement || 'quatre',
     // TES UNITÉS SPÉCIALES (V7) : celles qu'on a choisies, ou null — le moteur range seul.
     speciales: L.you.speciales || null,
-    // Les lignes EN VIGUEUR et leur état au jour du banc (S68).
-    lignes: lignesDe(L.you, G.roster),
+    // Les jambes de chacun au jour du banc (S68).
     energie: ((L.you.jourLignes || [])[jour] || {}).energie || {},
-    // LE SOIR DU MATCH (V7 : « Préparer le match » vit ici) : la consigne et le filet déjà choisis pour ce soir-là.
-    match: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.match).pop() || {}).match) || { importance: 'normale', ad: 0 },
+    // LE SOIR DU MATCH (V7 : « Préparer le match » vit ici) : le filet déjà choisi pour ce soir-là.
     filet: (prochain && ((L.decisions || []).filter(d => d.jour === prochain.j && d.filet).pop() || {}).filet) || 'auto',
     filetEtat: ((L.you.jourLignes || [])[jour] || {}).filet || null,
     // LA LANCÉE (V3.6, Rogue) : qui la porte au prochain match, sur l'alignement de ce soir — la case le dit.
     lancees: lanceesDuSoir(L.you, ce_soir),
-    // UN GROS MATCH ANNONCÉ (V7) : son dépistage, pour que les Lignes lisent leurs lignes sous leur plan le plus probable.
-    depistage: (prochain && ((L.you.minisBoss || []).find(x => x.jour === prochain.j)
-      || (L.moteur && L.moteur.grosAnnonces && L.moteur.grosAnnonces[prochain.j])) || {}).depistage || null,
   };
   $('game').classList.add('banc');
   G.selectedSlot = null; G.target = null;
@@ -132,13 +124,13 @@ export async function reprendreSaison() {
   if (b.serie) {
     G.banc = null;
     $('game').classList.remove('banc');
-    // V7 : le plan de match du soir part avec l'alignement — la glace, l'appariement, la consigne, le filet.
-    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes,
-      appariement: b.appariement, roulement: b.roulement, speciales: b.speciales || null, match: b.match, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
+    // V7 : le soir part avec l'alignement — ses unités spéciales, son filet.
+    await deciderSerie({ ronde: b.serie.ronde, match_no: b.serie.k, cases: photoAlignement(G.roster), fermeture: b.fermeture,
+      speciales: b.speciales || null, filet: b.filet, ...(relaches.length ? { relache: relaches } : {}) });
     return;
   }
   // Le SEL (S68) : des dés neufs pour la suite, voir `simulateLeague`.
-  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, lignes: b.lignes, appariement: b.appariement, roulement: b.roulement, speciales: b.speciales || null, sel: nouvelleGraine() };
+  const d = { jour: b.jour, cases: photoAlignement(G.roster), fermeture: b.fermeture, speciales: b.speciales || null, sel: nouvelleGraine() };
   // Une décision de banc du même jour remplacée garde ses relâchés : ils sont partis pour de bon.
   const avant = (G.ligue.decisions || []).filter(x => x.jour === b.jour && x.jour !== 0 && x.cases && Array.isArray(x.relache)).flatMap(x => x.relache);
   if (avant.length || relaches.length) d.relache = [...avant, ...relaches];
@@ -147,15 +139,14 @@ export async function reprendreSaison() {
   // réglée porte aussi des cases, mais avec son palier : elle reste, sinon le pack redemandait sa signature.
   let decisions = (G.ligue.decisions || []).filter(x => x.jour !== b.jour || x.jour === 0 || !x.cases || x.palier !== undefined || !!x.ballottage);
   /*
-   * LA CONSIGNE ET LE FILET DU SOIR (V7) : ils valent pour le match de ce soir-là (`effetDeMoment`, `_filetForce`).
-   * Réglés derrière le banc, ils remplacent ceux du même soir ; le jour du match, ils vont dans la décision du banc.
+   * LE FILET DU SOIR (V7) : il vaut pour le match de ce soir-là (`_filetForce`). Réglé derrière le banc, il remplace
+   * celui du même soir ; le jour du match, il va dans la décision du banc.
    */
   if (b.prochain) {
-    const soir = b.prochain.j, avaient = decisions.some(x => x.jour === soir && (x.match || x.filet));
-    const match = b.match && b.match.importance !== 'normale' ? b.match : null, filet = b.filet && b.filet !== 'auto' ? b.filet : null;
-    if (match || filet || avaient) {
-      decisions = decisions.filter(x => !(x.jour === soir && (x.match || x.filet) && !x.cases && x.palier === undefined));
-      const plan = { match: b.match || { importance: 'normale', ad: 0 }, filet: b.filet || 'auto' };
+    const soir = b.prochain.j, avaient = decisions.some(x => x.jour === soir && x.filet);
+    if ((b.filet && b.filet !== 'auto') || avaient) {
+      decisions = decisions.filter(x => !(x.jour === soir && x.filet && !x.cases && x.palier === undefined));
+      const plan = { filet: b.filet || 'auto' };
       if (soir === b.jour) Object.assign(d, plan);
       else decisions.push({ jour: soir, ...plan, sel: nouvelleGraine() });
     }
@@ -236,7 +227,7 @@ function ajouterDecision(avant, d) {
   if (G.bonus === 'ROGUE' && G.ligue && d.place && BANQUE[d.place] && BANQUE[d.place].vie === 'permanent') recevoirPermanents([d.place], `${G.ligue.graine}:${d.palier}`);
   const decisions = avant.filter(x =>
     !(d.palier !== undefined && x.palier === d.palier) && !(d.soir && x.soir && x.jour === d.jour)
-    && !(d.lignes && x.lignes && !x.cases && x.jour === d.jour) && !(d.match && x.match && x.jour === d.jour) && !(d.plan && x.plan && x.jour === d.jour)
+    && !(d.plan && x.plan && x.jour === d.jour)
     // LES GROS MATCHS (S70) : un avant-match et un entracte par soir. Toute
     // autre décision rejoue le match depuis le début : l'entracte déjà choisi
     // ne vaut plus, il sera redemandé sur le nouveau pointage.
@@ -493,7 +484,7 @@ export async function connaitreBallottages(decisions) {
 }
 
 /*
- * UNE DÉCISION DE SÉRIES (S69) : trios, lignes, consigne, ajustement entre
+ * UNE DÉCISION DE SÉRIES (S69) : trios, filet, ajustement entre
  * deux rounds. Elle remplace celle du même genre au même match, porte son
  * sel, et les séries se rejouent — la saison d'abord, qui pose le
  * générateur, puis les rondes jusqu'où on les avait regardées.
@@ -501,7 +492,7 @@ export async function connaitreBallottages(decisions) {
 export async function deciderSerie(d) {
   if (!G.ligue) return;
   const meme = x => x.ronde === d.ronde && x.match_no === d.match_no && (
-    (d.cases && x.cases) || (d.lignes && !d.cases && x.lignes && !x.cases) || (d.match && x.match) || (d.ajustement && x.ajustement)
+    (d.cases && x.cases) || (d.ajustement && x.ajustement)
     // S74 : une main par match, une récompense par série. Le duel (V9) : une main par période.
     || (d.main && x.main && periodeDuDuel(d) === periodeDuDuel(x)) || (d.recompense !== undefined && x.recompense !== undefined)
     // Le duel : toute décision pour ce match défait les périodes d'après, jamais celles d'avant.
@@ -542,7 +533,7 @@ export async function deciderSerie(d) {
 /*
  * Le banc pendant les séries : l'alignement de fin de saison, et le retour renvoie aux séries. V7 : « Préparer le
  * match » y est fondu — `soir` (js/saison.js, `soirDeSerie`) dit le prochain match de ta série et ce qui y est déjà
- * réglé (la consigne, le filet, les jambes des gardiens, le dépistage), et l'onglet Lignes le règle comme en saison.
+ * réglé (le filet, les jambes des gardiens), et l'onglet Lignes le règle comme en saison.
  */
 export function bancSerie(ronde, k, soir = null) {
   if (!G.ligue || !G.ligue.calendrier) return;
@@ -551,7 +542,7 @@ export function bancSerie(ronde, k, soir = null) {
   G.banc.serie = { ronde, k };
   if (soir) {
     G.banc.prochain = { j: Infinity, adv: soir.adv, domicile: soir.domicile };
-    Object.assign(G.banc, { match: soir.match, filet: soir.filet, filetEtat: soir.filetEtat, depistage: soir.depistage, speciales: soir.speciales || null, energie: { ...G.banc.energie, ...soir.energie } });
+    Object.assign(G.banc, { filet: soir.filet, filetEtat: soir.filetEtat, speciales: soir.speciales || null, energie: { ...G.banc.energie, ...soir.energie } });
   }
 }
 
@@ -625,7 +616,7 @@ export async function runSeason(opts = {}) {
   // rejoue exactement les mêmes.
   const decisions = opts.decisions && opts.decisions.length
     ? opts.decisions
-    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto', lignes: G.lignes || undefined },
+    : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' },
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
       // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois cartes au compteur, sa confiance I allumée — à la première saison d'une run.

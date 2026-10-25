@@ -3553,8 +3553,6 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .line.bad { border-left: 3px solid var(--mauvais); }
 /* L'en-tête : le rang en gros, l'identité en or, « à leur place » en vert, sur un filet. */
 .line-head { display: flex; flex-wrap: wrap; align-items: center; gap: 2px var(--esp-2); padding: var(--esp-1) var(--esp-3); border-bottom: 1px solid var(--filet); min-height: 36px; }
-.line-head-regle { cursor: pointer; }
-.line-head-regle:hover .line-name { color: var(--or); }
 .line-name { flex: none; font: 800 var(--t-4)/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
 .line-id { flex: 1 1 8ch; min-width: 0; font: 700 var(--t-2)/1.1 var(--display); letter-spacing: 0.02em; color: var(--or); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 /* Ce que l'unité produit : les points par match des habillés, additionnés — une vraie stat en tête de bande. */
@@ -3657,19 +3655,13 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .pm-seg { display: flex; gap: 2px; flex-wrap: wrap; }
 .pm-btn { flex: 1 1 0; min-width: 44px; min-height: 44px; padding: var(--esp-1) var(--esp-2); border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2, transparent); color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); white-space: nowrap; }
 .pm-btn.on { background: var(--choisi); color: var(--fond-1); border-color: var(--choisi); }
-.pm-consigne .pm-btn, .pm-filet .pm-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--esp-2); min-width: 0; }
-.pm-consigne .pm-btn small, .pm-filet .pm-btn small { font: 600 var(--t-1)/1.2 var(--display); opacity: 0.8; }
+.pm-filet .pm-btn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: var(--esp-2); min-width: 0; }
+.pm-filet .pm-btn small { font: 600 var(--t-1)/1.2 var(--display); opacity: 0.8; }
 .pm-filet .pm-btn b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* Ses jambes (`jambesHtml`) sous le nom ; sur le gardien choisi, le texte suit la couleur du bouton. */
 .pm-filet .pm-btn .jambes { width: 100%; }
 .pm-filet .pm-btn.on .jambes, .pm-filet .pm-btn.on .jambes :is(b, .jambes-k, .jambes-mot) { color: inherit; }
-.pm-app { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); align-items: center; gap: var(--esp-2); }
-.pm-leur { font: 700 var(--t-2)/1.1 var(--display); white-space: nowrap; }
-.pm-eux-plan { font: 600 var(--t-1)/1.3 var(--display); color: var(--attention); }
-.pm-notes { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); font: 700 var(--t-2)/1.2 var(--display); font-variant-numeric: tabular-nums; }
-.pm-notes .bon { color: var(--bon); }
-.pm-notes .mauvais { color: var(--mauvais); }
-/* Tes unités spéciales (V7) : le panneau du plan de match ; une bande par unité, ses minutes et ses stats, une rangée par joueur. */
+/* Tes unités spéciales (V7) : un panneau comme celui du filet ; une bande par unité, ses minutes et ses stats, une rangée par joueur. */
 .unites-speciales { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .unites-speciales .pm-tete { align-items: center; }
 .us-auto { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-1); }
@@ -3823,20 +3815,12 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 .slot-roles:not(.cell-role) { flex: none; font-size: var(--t-2); line-height: 16px; letter-spacing: -1px; white-space: nowrap; }
 .slot-tags .tag-table { font-variant-numeric: tabular-nums; letter-spacing: 0; }
 
-/* ---- La rangée « Système » au pied d'un trio ou d'une paire : une ligne de 44 px, « Régler › » en or ---- */
-.ln-strat { display: flex; align-items: center; gap: var(--esp-2); width: 100%; padding: 0 var(--esp-3); border: 0; border-top: 1px solid var(--filet); background: none; color: var(--encre-2); text-align: left; font: 600 var(--t-2)/1.2 var(--display); cursor: pointer; transition: background var(--t-vite); min-height: 44px; }
-.ln-strat:hover { background: var(--fond-2); }
+/* ---- L'affinité au pied d'un trio ou d'une paire (V18) : l'agressivité de la ligne, puis ses accords en puces de palier ---- */
+.ln-aff { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-top: 1px solid var(--filet); }
+.ln-aff .puce small { margin-left: var(--esp-1); font-weight: 600; opacity: 0.8; }
+.ln-aff-rien { font: 600 var(--t-1)/1.3 var(--display); color: var(--encre-3); }
 /* Aligner au mieux (oct.) : un bouton au-dessus des trios, pleine largeur sur mobile. */
 .ln-auto { width: 100%; min-height: 44px; margin: 0 0 var(--esp-2); }
-.ln-som-k { flex: none; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.ln-som-detail { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 0; }
-.ln-som-detail b { color: var(--encre); font: 800 var(--t-2)/1.2 var(--display); }
-/* Le point APRÈS chaque morceau : une rangée repliée ne commence jamais par « · ». */
-.ln-som-detail > :not(:last-child)::after { content: '·'; margin: 0 var(--esp-2); color: var(--encre-3); font-weight: 400; }
-.ln-som-fit.bon { color: var(--bon); }
-.ln-som-fit.prix { color: var(--live); }
-.ln-som-ouvre { flex: none; margin-left: auto; }
-.ln-som-ouvre::after { content: 'Régler ›'; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--or); }
 
 /* ---- Derrière le banc : le panneau de la journée au-dessus de l'alignement ---- */
 #game.banc #spin, #game.banc #dash, #game.banc #panePool { display: none; }
@@ -3844,66 +3828,8 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 #game.banc #paneRoster { display: flex; flex-direction: column; overflow-y: auto; }
 #game.banc #paneRoster .roster { flex: 0 0 auto; min-height: auto; overflow: visible; }
 
-/* ---- La fenêtre du système d'une unité (#lignesModal .gl-sheet) ---- */
-.gl-sheet { max-width: 1180px; }
-.ln-fenetre .choix-corps { gap: var(--esp-3); }
-/* La glace du système (js/gerant.js, `glaceHtml`) : où le système place ses patineurs, une illustration.
-   Blanche comme la glace du plateau ; chaque joueur, son visage et une étiquette noire (son nom, ses badges
-   teints de leur palier) ; il glisse d'une place à l'autre quand on essaie un système. */
-.gl-glace { position: relative; flex: none; height: 300px; border: 3px solid var(--glace-bande); border-radius: var(--r-2); background: var(--glace-blanc); overflow: hidden; }
-.gl-glace > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.gl-pion { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; transform: translate(-50%, -50%); transition: left 500ms var(--e-sortie), top 500ms var(--e-sortie); pointer-events: none; }
-.gl-pion-visage { width: 38px; height: 38px; background: var(--glace-encre); box-shadow: 0 3px 8px color-mix(in srgb, var(--glace-encre) 35%, transparent); }
-.gl-pion-nom { display: inline-flex; align-items: center; gap: 3px; padding: 1px 5px; border-radius: var(--r-1); background: var(--glace-encre); color: var(--glace-blanc); font: 800 var(--t-1)/1.25 var(--display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
-@media (prefers-reduced-motion: reduce) { .gl-pion { transition: none; } }
-/* Chaque section est une bande sur un filet, coiffée d'une étiquette. */
-.gl-sheet .choix-corps > section { border-top: 1px solid var(--filet); padding-top: var(--esp-3); }
-.gl-sheet .choix-corps > section:first-child { border-top: 0; padding-top: 0; }
-.gl-sec-titre, .gl-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
-.gl-sec-titre { margin: var(--esp-2) 0 var(--esp-1); }
-.gl-mot { font-size: var(--t-2); line-height: 1.4; color: var(--encre-3); }
-/* En face : l'adversaire, son système, ce qui l'étouffe ; un filet d'or à gauche. */
-.gl-adv { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: var(--fond-2); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
-.gl-adv b { color: var(--encre); }
-.gl-adv .ok { color: var(--bon); }
-.gl-adv .prix { color: var(--live); }
-/* Les systèmes : une grille de cartons plats, l'ouvert cerné d'or, le fit en mot coloré, le contre en pointillé. */
-.gl-tacs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-2); }
-.gl-tac {
-  display: flex; flex-direction: column; gap: 3px; min-width: 0; min-height: 56px; padding: var(--esp-2) var(--esp-3);
-  text-align: left; cursor: pointer; color: var(--encre); background: var(--fond-2); border: 1px solid var(--filet); border-radius: var(--r-1);
-  transition: border-color var(--t-vite), background var(--t-vite);
-}
-.gl-tac b { font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
-.gl-tac:hover { border-color: var(--encre-3); }
-.gl-tac.on { border-color: var(--or); outline: 1px solid var(--or); outline-offset: -2px; }
-.gl-tac.contre { border-style: dashed; border-color: color-mix(in srgb, var(--bon) 70%, transparent); }
-.gl-tac-fit { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); }
-.gl-tac-fit.bon { color: var(--bon); }
-.gl-tac-fit.prix { color: var(--live); }
-.gl-tac-soir, .gl-net { display: block; font: 600 var(--t-1)/1.2 var(--display); color: var(--encre-3); }
-.gl-net.bon { color: var(--bon); }
-.gl-net.prix { color: var(--mauvais); }
-/* Le conseil, le système choisi, ce qu'il demande à chaque poste, l'état de la ligne. */
-.ln-conseil { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
-/* V15 : un style que les badges de l'unité n'ouvrent pas, plié sous les autres, avec ce qui lui manque. */
-.ln-ferme { display: flex; justify-content: space-between; gap: var(--esp-2); margin: 0; padding: var(--esp-1) 0; font-size: var(--t-2); color: var(--encre-3); }
-.ln-ferme small { text-align: right; }
-.ln-conseil small { color: var(--encre-3); }
-.ln-conseil-btn { margin: calc(-1 * var(--esp-2)) 0; padding: var(--esp-2) 2px; border: 0; background: none; font: inherit; font-weight: 800; color: var(--or); cursor: pointer; }
-.ln-choisie { display: flex; flex-direction: column; gap: var(--esp-1); }
-.ln-choisie .choix-puces { margin-top: 0; }
-.ln-demande { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-3); }
-.ln-demande .gl-k { flex-basis: 100%; }
-.ln-dem { display: inline-flex; align-items: center; gap: var(--esp-1); font: 700 var(--t-1)/1.4 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-2); cursor: help; }
-.ln-dem b { color: var(--encre-3); }
-.ln-dem i { font-style: normal; font-size: var(--t-2); }
-.ln-dem.fit-bon i { color: var(--bon); }
-.ln-dem.fit-mauvais i { color: var(--live); }
-.ln-etat { display: flex; flex-wrap: wrap; gap: 3px var(--esp-4); font-size: var(--t-2); color: var(--encre-2); }
-.ln-etat b { color: var(--encre); font-family: var(--display); }
-/* La glace : un curseur pleine largeur. */
-/* Le résumé des lignes sur l'affiche du match : les icônes et la chimie en points. */
+.gl-k { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
+/* Le résumé des lignes sur l'affiche du match : le rang et la chimie en points. */
 .gl-resume { display: inline-flex; align-items: baseline; gap: 1px; margin-right: var(--esp-2); font-size: var(--t-3); }
 .gl-resume small { font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 /* Le joueur d'une décision (`carteJoueur`) : son nom, son club, ses marques. */
@@ -3922,7 +3848,6 @@ i.badge, b.badge, .puce.badge { font-variant-emoji: text; }
 @media (min-width: 640px) and (max-width: 699.98px) {
   .slot-name .fname { display: inline; }
 }
-@media (min-width: 900px) { .gl-tacs { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 @media (min-width: 1000px) {
   #game.banc #paneRoster { overflow-y: visible; }
   #game.banc #paneRoster .roster { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
@@ -4185,7 +4110,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-soir-gestes { display: grid; grid-template-columns: repeat(auto-fit, minmax(0, 1fr)); gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); }
 .hub-soir-gestes .btn { min-height: 44px; }
 .hub-lignes { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3) var(--esp-3); border-top: 1px solid var(--filet-2); }
-.hub-lignes-imp { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 /* Un seul bouton plein par écran : les seconds rôles en or sont en contour. */
 .hub-actions > .btn.gold:not(.hub-suite), .hub-actions-rang .btn.gold { background: transparent; border-color: var(--or); color: var(--or); }
 .hub-actions > .btn.gold:not(.hub-suite):hover:not(:disabled), .hub-actions-rang .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 12%, transparent); }
@@ -4644,14 +4568,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .dep-plan.choix-option { padding: var(--esp-2); gap: 2px; }
 .dep-plan .choix-option-nom { font-size: var(--t-3); }
 .dep-plan :is(.choix-option-sous, .puce) { font-size: var(--t-1); line-height: 1.25; }
-.dep3-conseils { display: flex; flex-direction: column; gap: var(--esp-2); }
-.dep3-conseil { display: flex; flex-direction: column; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); border-radius: 0 var(--r-1) var(--r-1) 0; background: var(--fond-2); }
-.dep3-conseil.deja { border-left-color: var(--bon); }
-.dep3-conseil-t { font: 800 var(--t-3)/1.25 var(--display); }
-.dep3-conseil-p { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
-.dep3-conseil-pied { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); }
-.dep3-conseil-pied .choix-puces { flex: 1 1 auto; min-width: 0; }
-.dep3-appliquer { margin-left: auto; flex: none; min-height: 36px; font-size: var(--t-2); }
 
 /* ---- Le deuxième entracte : le pointage, les buts, l'incident ---- */
 .ent2 { margin: var(--esp-1) 0 var(--esp-3); }
@@ -5392,7 +5308,6 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .plan-adv-contre b { color: var(--live); }
 .plan-adv.contre .plan-adv-contre b, .plan-adv-contre.juste b { color: var(--bon); }
 .plan-adv-contre.ratee b { color: var(--mauvais); }
-.gl-sheet .plan-adv { margin: 0 0 var(--esp-3); }
 /* Au bureau, la main tient sans défiler : cinq cartes sur une rangée, le récit sur deux lignes, les puces d'effet au-dessus des boutons (le smoke le mesure à 1440 × 900). */
 @media (min-width: 1000px) {
   .main-sheet .choix-main { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: var(--esp-2); padding-top: 0; }

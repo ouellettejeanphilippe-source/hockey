@@ -7,7 +7,7 @@
  * les compte et on les dit, du point de vue de ton club. Pur (aucun DOM) : la même feuille donne les mêmes mots.
  * Rien n'est estimé : chaque chiffre se recompte dans `f.lancers`.
  */
-import { MUTATIONS, TACTIQUES, SYSTEMES_D, periodeDe } from './sim.js';
+import { MUTATIONS, periodeDe } from './sim.js';
 import { nomCourt, tempsRestant } from './recit.js';
 import { ord, ordF, pct3 } from './util.js';
 
@@ -15,9 +15,7 @@ const nomDe = p => (p && p.n ? nomCourt(p.n) : 'un joueur');
 const plur = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 function uniteDe(u) {
   if (!u) return 'une ligne';
-  const sys = u.tac && (u.d ? SYSTEMES_D : TACTIQUES)[u.tac];
-  const ligne = u.d ? `la ${ordF(u.rang + 1)} paire` : `le ${ord(u.rang + 1)} trio`;
-  return sys && u.tac !== 'hourra' ? `${ligne} (${sys.nom})` : ligne;
+  return u.d ? `la ${ordF(u.rang + 1)} paire` : `le ${ord(u.rang + 1)} trio`;
 }
 /* Les modifs d'un joueur qui touchent ce canal, par leur nom : une carte posée, une amélioration, un accident de saison. */
 function modifsDe(p, ch, accident = false) {
@@ -36,9 +34,9 @@ const SUJET = {
   plafondG: c => `le plafond du gardien (${nomDe(c.qui)})`,
   fantome: c => `le fantôme ${nomDe(c.qui)}`,
   ombre: () => 'la chasse à la vedette',
-  ligne: c => `le système et la chimie : ${uniteDe(c.qui)}`,
+  ligne: c => `l'affinité : ${uniteDe(c.qui)}`,
   special: c => `l'action spéciale : ${uniteDe(c.qui)}`,
-  systemeDef: c => `le système en défense : ${uniteDe(c.qui)}`,
+  carrure: c => `la carrure en défense : ${uniteDe(c.qui)}`,
   power: () => 'le power forward devant le filet',
   badges: c => `les badges qui étouffent : ${uniteDe(c.qui)}`,
   badgeG: c => `le badge de ${nomDe(c.qui)}`,
@@ -58,7 +56,7 @@ const SUJET = {
   chance: () => 'la chance du soir',
 };
 /* Les groupes que TU règles, dans l'ordre où l'écran les dit. */
-const GROUPES_A_TOI = [['cartes', 'tes cartes'], ['systemes', 'tes systèmes'], ['badges', 'tes badges'], ['gardien', 'ton gardien'], ['jambes', 'les jambes']];
+const GROUPES_A_TOI = [['cartes', 'tes cartes'], ['affinite', 'tes affinités'], ['badges', 'tes badges'], ['gardien', 'ton gardien'], ['jambes', 'les jambes']];
 
 /* Ce qu'une cause a fait, vue de son club : elle l'a aidé ou lui a nui, sur un but ou sur un arrêt. */
 function effet(c, attaque) {

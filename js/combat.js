@@ -26,10 +26,9 @@
  * `effetsDesCartes`) : un canal d'effet pour CE match (finition, volume,
  * défensive, discipline, énergie, robustesse, les minutes des lignes), un
  * effet sur l'ADVERSAIRE (ses punitions, son énergie, sa finition), son plan
- * de match qui tombe (« La vidéo »), tes deux premières lignes qui jouent son
- * contre, un pari tiré de la graine, de l'énergie rendue à tes joueurs, ou
+ * de match qui tombe (« La vidéo »), un pari tiré de la graine, de l'énergie rendue à tes joueurs, ou
  * une synergie qui lit ta formation (tes snipers, tes défenseurs défensifs,
- * tes lignes qui jouent le même système). Rien ne se lit d'une cote.
+ * tes lignes qui ont chacune un accord). Rien ne se lit d'une cote.
  *
  * TOUT EST PUR. Le deck se DÉDUIT des décisions (récompenses, retraits,
  * malédictions) ; la main d'un match se tire de la graine et du match ; les
@@ -114,8 +113,8 @@ export const CARTES_MATCH = {
     texte: 'Il a vu la rondelle grosse comme un ballon toute la journée.', effet: { defense: 0.92 } },
   avantage: { nom: 'L\'avantage numérique en or', ico: '💥', cout: 2, rarete: 'peu', genre: 'attaque',
     texte: 'Répété toute la semaine, jusqu\'à la dernière passe dans l\'enclave.', effet: { finition: 1.07 } },
-  systeme: { nom: 'Le système maison', ico: '📘', cout: 1, rarete: 'peu', genre: 'synergie',
-    texte: 'Tout le monde connaît sa case les yeux fermés.', regle: 'Si deux de tes lignes jouent le même système : précision +6 %.', synergie: 'systeme', quand: 'Si deux de tes lignes jouent le même système', plein: { finition: 1.06 }, seuil: true },
+  systeme: { nom: 'Les lignes soudées', ico: '📘', cout: 1, rarete: 'peu', genre: 'synergie',
+    texte: 'Tout le monde connaît sa case les yeux fermés.', regle: 'Si deux de tes lignes ont chacune un accord : précision +6 %.', synergie: 'systeme', quand: 'Si deux de tes lignes ont chacune un accord', plein: { finition: 1.06 }, seuil: true },
   gachettes: { nom: 'Les gâchettes', ico: '🎯', cout: 1, rarete: 'peu', genre: 'synergie',
     texte: 'Ils ne passent pas : ils lancent.', regle: 'Précision +2 % par sniper dans tes deux premiers trios (jusqu\'à +6 %).', synergie: 'gachettes', quand: 'Par sniper dans tes deux premiers trios', plein: { finition: 1.06 } },
   murBleu: { nom: 'Le mur bleu', ico: '🧱', cout: 1, rarete: 'peu', genre: 'synergie',

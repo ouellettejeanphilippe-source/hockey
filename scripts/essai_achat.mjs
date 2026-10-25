@@ -133,7 +133,6 @@ if (auBanc) {
   await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]');
   await page.waitForTimeout(500);
 }
-const lignesAuBanc = await page.evaluate(() => !!(window.cap82.G.banc && window.cap82.G.banc.lignes));
 informer('achats enregistrés', achats.join(' · '));
 exiger('« Acheter » ferme la fiche du pack', !ficheRestee);
 exiger('un second toucher n\'ouvre pas le même pack', !second);
@@ -142,7 +141,6 @@ informer('packs à signer', `${attendaient} avant · ${restent} après · signat
 exiger('les deux packs attendaient leur signature', attendaient === 2, `${attendaient}`);
 exiger('signés, ils quittent la boîte et le Marché', restent === 0 && !resteBoite && !resteMarche, `${restent} en attente · boîte ${resteBoite} · Marché ${resteMarche}`);
 exiger('derrière le banc, en pleine saison, « Aligner au mieux » est là', auBanc);
-exiger('il règle les lignes du banc (elles partent au « Retour au match »)', lignesAuBanc);
 exiger('zéro erreur de page', !erreurs.length, erreurs.slice(0, 2).join(' · '));
 await browser.close();
 verdict();
