@@ -22,7 +22,7 @@ import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, mo
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
-import { artJoueur, photoAction, cadrePhoto, serieDe, epoqueDe, SERIES } from './cartes.js';
+import { artJoueur, photoAction, cadrePhoto, epoqueDe } from './cartes.js';
 import { getTeamLogoHtml } from './logos.js';
 import { ouvrirDepartClasseur } from './depart.js';
 import { jouerSon } from './sons.js';
@@ -702,7 +702,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       // LE RAPPEL DU CLUB-ÉCOLE (Jalon P3) : trois cartes de ton cartable, et on signe comme d'un pack.
       sousVoile('On appelle la ferme…', () => offresDuCartable(C, `${Lg.graine}:rappel:${item.ref || item.id}:${j}`)).then(offres => {
         // La liste du 82-0 (Jalon R) : chacun avec sa meilleure case ; « Signer » l'y pose.
-        const don = offres[0] && offres[0].donne ? ` Il part : ${offres[0].donneNom}, série ${offres[0].serie}.` : '';
+        const don = offres[0] && offres[0].donne ? ` Il part : ${offres[0].donneNom} (${offres[0].saison}).` : '';
         ouvrirListeSignature({ ico: c.ico, titre: c.nom, motFermer: 'Retour', recit: `${c.texte}${don}`, joueurs: offres, roster: G.roster, bloque: bloqueParLePlafond,
           vide: C.echange ? 'Aucun doublon à échanger, ou personne de sa série sous le plafond.' : C.anciens ? `Aucun ancien de tes runs d'avant, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.` : `Aucune carte de ton cartable, ${NIVEAUX[C.niveauMax].nom} au plus, ne tient sous le plafond.`,
           desactive: x => (dejaChezToi(x.p) ? 'Déjà dans ton équipe' : ''),
@@ -919,7 +919,7 @@ async function offresDEchange(C, graine, c, dansLaLigue, max) {
         const niveau = niveauDe(p, joueurs);
         if (niveau > C.niveauMax) continue;
         // Un joueur par saison : l'échange montre la série, pas un seul vestiaire.
-        out.push({ p, rar: 'commune', niveau, num: null, donne: d, donneNom: q.n, serie: SERIES[serieDe(q.s)].nom });
+        out.push({ p, rar: 'commune', niveau, num: null, donne: d, donneNom: q.n, saison: q.s });
         break;
       }
     }
