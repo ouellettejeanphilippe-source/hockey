@@ -114,6 +114,8 @@ exiger('aucun canal au-delà des plus gros des dilemmes, aucune durée au-delà 
 
 /* ---------- 4. le moteur lit, les chiffres de match le disent, le net reste sous une victoire ---------- */
 const decisionDe = (k, o, joueurs = []) => ({ jour: 30, moment: { famille: 'vie', cle: k, choix: o.cle, joueur: joueurs[0] || null, joueurs }, sel: 'sel-de-test' });
+/* Le nom de l'option tel que l'effet le garde : son joueur nommé à la place de {nom}, l'auxiliaire à la place de {aux}. */
+const nomDuChoix = n => new RegExp(`^${String(n).replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\\\{(nom|aux)\\\}/g, '[^{}]+')}$`);
 const canauxDe = e => Object.fromEntries(Object.entries(e).filter(([c]) => CANAUX.includes(c)));
 /* Les buts nets par match (pour − contre) que valent les mots de match (le % au tir et le % d'arrêts portent les leurs) : la même moyenne que le moteur joue. */
 const netParMatch = lignes => lignes.reduce((a, l) => a + (Number.isFinite(l.buts) ? l.buts : 0), 0);
@@ -129,7 +131,7 @@ for (const { k, fam, o } of toutesLesOptions) {
   const eff = effetDeMoment(decisionDe(k, o, joueurs), toi);
   const canaux = canauxDe(o);
   if (Object.keys(canaux).length) {
-    if (!eff || eff.choix !== o.nom || !(eff.fin > eff.debut) || Object.keys(canaux).some(c => JSON.stringify(eff[c]) !== JSON.stringify(canaux[c]))) moteurFautes.push(x);
+    if (!eff || !nomDuChoix(o.nom).test(eff.choix) || !(eff.fin > eff.debut) || Object.keys(canaux).some(c => JSON.stringify(eff[c]) !== JSON.stringify(canaux[c]))) moteurFautes.push(x);
   } else if (eff) moteurFautes.push(`${x} (un effet sans canal)`);
   if (o.mutation && !MUTATIONS[o.mutation]) moteurFautes.push(`${x} (modif inconnue ${o.mutation})`);
   if (o.mutation && !fam.cible) moteurFautes.push(`${x} (une modif sans joueur nommé)`);
