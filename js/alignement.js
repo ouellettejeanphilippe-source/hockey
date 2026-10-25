@@ -15,6 +15,7 @@ import { matchsJoues } from './echelons.js';
 import { jambesHtml, motDuBadge, ouvrirChoix, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
+import { nomCourt } from './recit.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, choisirSpeciale, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
@@ -565,11 +566,11 @@ function affiniteEl(unit, groupe) {
   el.className = 'ln-aff';
   const tous = accordsDeLigne(G.roster, unit);
   const ici = tous.filter(x => (groupe === 'F' ? x.aff.a[0] === 'F' && x.aff.b[0] === 'F' : x.aff.a[0] === 'D' || x.aff.b[0] === 'D'));
-  const nom = p => esc(formatName(p.n));
+  const nom = p => esc(nomCourt(p.n));
   const A = groupe === 'F' ? AGRESSIVITES[agressiviteDeLigne(G.roster, unit)] : null;
   const agr = A ? `<span class="puce neutre" title="L'agressivité de la ligne : celle de sa carrure.">${A.ico} ${esc(A.nom)}</span>` : '';
   el.innerHTML = agr + (ici.length
-    ? ici.map(x => `<span class="puce pal-${PALIER_ACCORD(x.force)}" title="${esc(`${x.aff.nom} : ${x.a.n} et ${x.b.n}, accord ${PALIERS[PALIER_ACCORD(x.force)].nom}`)}">${esc(x.aff.nom)} <small>${nom(x.a)} · ${nom(x.b)}</small></span>`).join('')
+    ? ici.map(x => `<span class="puce badge pal-${PALIER_ACCORD(x.force)}" title="${esc(`${x.aff.nom} : ${x.a.n} et ${x.b.n}, accord ${PALIERS[PALIER_ACCORD(x.force)].nom}`)}">${esc(x.aff.nom)} <small>${nom(x.a)} · ${nom(x.b)}</small></span>`).join('')
     : `<span class="ln-aff-rien">${groupe === 'F' ? 'Aucun accord entre ces trois-là' : 'Aucun accord dans cette paire'}</span>`);
   return el;
 }
@@ -820,7 +821,7 @@ function filetHtml() {
     // Ses jambes, avec la règle des gardiens en infobulle (`jambesHtml`) : elles tombent par départs de suite.
     return `<button type="button" class="pm-btn${choix === qui ? ' on' : ''}" data-filet="${qui === F.rotation ? 'auto' : qui}" aria-pressed="${choix === qui}"><b>${g ? esc(g.n) : 'Le rappel'}</b><small>${g && Number.isFinite(g.sv) ? pct3(g.sv) : '—'}${qui === F.rotation ? ' · son tour' : ''}</small>${g ? jambesHtml(e, { gardien: true }) : ''}</button>`;
   };
-  return `<div class="pm-k">Devant le filet</div><div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
+  return `<div class="pm-seg pm-filet">${bouton('partant')}${bouton('aux')}</div>`;
 }
 
 export function renderRoster() {
