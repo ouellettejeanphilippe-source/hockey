@@ -2926,3 +2926,13 @@ Ce qui était faux : 99 dilemmes (30 du moteur, 61 de js/vie-gm.js, 8 de js/situ
 - **Le verdict** : le proprio dit le chiffre, les matchs et les jetons (`B.objectif`) ; le retour du fil reste à la une.
 - **Rien ne se perd** : un fil dont le joueur part tombe le lendemain, sans effet, et ça se dit ; l'objectif du gros contrat parti se lève (« Tourner la page »), ni carte ni vis serrée.
 Écarté : une jauge au Bureau même — il redirait ce que le proprio montre (une info, une maison).
+
+## Sans systèmes, l'affinité (V18 — 25 oct. 2026)
+
+JP, après la mesure de `docs/sans-systemes.md` : *enlever partout* ; *enlever [la chimie] comme avant, mais permettre affinité entre joueurs dont les styles marchent ensemble* ; sur le panneau « Plan de match » des Lignes : *ça aussi, enlever*. Décidé (docs/refonte-v18.md) :
+- **Partis, au 82-0 comme au Rogue** : les systèmes de trio et de paire, leur fit et leur cycle d'étouffement ; la glace de chaque trio en secondes et le roulement ; l'appariement ; la consigne du match ; les conseils d'avant-match. « Devant le filet » et les unités spéciales restent, seuls réglages du soir. Une vieille sauvegarde se relit, et ces décisions-là ne jouent plus (`check_graine`).
+- **L'affinité** : deux joueurs d'une ligne (son trio et sa paire) dont les badges s'accordent (`AFFINITES`, douze accords, ceux que les systèmes réunissaient déjà dans leurs cases) ; un accord vaut le plus petit des deux badges ; la somme fait la chimie de la ligne (`chimieLigne`), par ses canaux d'avant — le bonus de chimie et l'action spéciale, sans étouffé. Rien ne se règle : on change l'affinité en changeant les joueurs.
+- **Le plan adverse d'un gros match** est un plan de match (`PLANS`) ou les minutes de leur premier trio ; le dépisteur penche selon leurs badges.
+- **La ligue garde ses chiffres** : sur douze ligues de vrais clubs, la saison entière, 3,097 buts et 28,35 tirs par match (3,093 et 28,36 avec les systèmes), la chimie moyenne 47,7 (48,0). `AFF_BASE` est calée sur la saison, pas sur le premier soir : un blessé remplacé casse un accord plus qu'il ne cassait un système (64,5 au premier soir rendait 45,4 sur la saison).
+Écarté : garder la chimie des passeurs et des manieurs seule (`chimieDesBadges`, la piste de `docs/sans-systemes.md`) — JP veut que la chimie vienne des styles qui marchent ensemble, pas d'un badge seul.
+

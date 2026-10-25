@@ -11,7 +11,7 @@
  *
  * Aucune cote : ce sont des moyennes de profil, comme les totaux du soir, jamais la cote d'un joueur.
  */
-import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, lignesAuMieux, coupsAttendus, COUP_JAMBES, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
+import { RANGS_DE_GLACE, lectureDuMatch, attenduDeCote, autoRoster, createTeam, avecHasardIsole, trioAuMieux, echangesProposes, coupsAttendus, CADRE_DU_MATCH, getPlayerKey, energieDe, activeLineup, motsDEffet, motsDeMutation, MUTATIONS, joueurDeMutation, badgesDeMutation, sensDeLaGlace, avecAVenir, matchsEntre, POIDS_AN, POIDS_DN, MOMENTS_SI, SLOTS, getPositionPenalty, PLANS, cibleDuPlan } from './sim.js';
 import { virgule, pct3 } from './util.js';
 
 const { AN_MINUTES, AN_TIRS_MIN, DN_TIRS_MIN, FE_TIRS } = CADRE_DU_MATCH;
@@ -82,8 +82,8 @@ function moyennes(L) {
    * c'est pas influencé par la stratégie on dirait* ; puis *un trio défensif pourrait être hyper pertinent et utile et
    * dans les moins*. À forces égales, par match, ce qu'elle fait de plus qu'une unité neutre à sa place, face aux
    * mêmes adversaires :
-   *   attaque  = ses lancers, mieux (ou moins bien) convertis qu'avec un tireur, une création, une qualité et un
-   *              système neutres ; plus son volume : les lancers qu'elle prend au-delà de sa part de glace ;
+   *   attaque  = ses lancers, mieux (ou moins bien) convertis qu'avec un tireur, une création et une qualité
+   *              neutres ; plus son volume : les lancers qu'elle prend au-delà de sa part de glace ;
    *   défense  = les buts que sa défense sur la glace évite, contre une défense neutre devant les mêmes tireurs.
    * Un trio de fermeture qui prend leur premier trio se lit à la défense qu'il fait, pas au +/− qu'il subit.
    */
@@ -137,8 +137,8 @@ function cle(team, lu, adv, opts) {
   const joueurs = Object.values(lu || activeLineup(team)).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}:${p._palier || ''}:${p._mentor ? 1 : 0}:${(p._carte && p._carte.rar) || ''}` : '-'));
   try {
     return J([team.name, team.jourCourant, team.games, joueurs, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
-      team.effets, team.effetsSerie, team._effetMatch, team.roulement, team.speciales, team.lignes, team.fermeture, team.appariement, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, adv.appariement, !!adv.isPlayer],
-      opts.aVenir, opts.effets, opts.effetsAdv, opts.lignes, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
+      team.effets, team.effetsSerie, team._effetMatch, team.speciales, team.fermeture, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, !!adv.isPlayer],
+      opts.aVenir, opts.effets, opts.effetsAdv, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
       opts.nu, opts.neutre, opts.n, opts.series, opts.plan, opts.duel,
       opts.intention && [opts.intention.cle, opts.intention.cible ? getPlayerKey(opts.intention.cible) : null, opts.intention.par ? getPlayerKey(opts.intention.par) : null]]);
   } catch { return null; }   // un état qui ne se range pas en clé (une référence circulaire) : on lit sans mémoire
@@ -165,8 +165,8 @@ export function chiffresDuSoir(team, lineup = null, adv = null, aVenir = []) {
 /*
  * ALIGNER AU MIEUX, JUGÉ PAR LE MOTEUR (oct.). JP : *aligner au mieux considéré positions, stratégie, etc.* La
  * lecture rapide (`trioAuMieux`, js/sim.js) propose ; le moteur tranche, sur les buts pour et contre d'un soir contre
- * un club moyen (`lectureDuMatch`, ce que `check_chiffres` prouve égal au jeu), chaque alignement avec les systèmes
- * de son style (`lignesAuMieux`). L'alignement de l'IA (`autoRoster`) est toujours candidat : le bouton ne fait jamais
+ * un club moyen (`lectureDuMatch`, ce que `check_chiffres` prouve égal au jeu), l'affinité de ses lignes comprise.
+ * L'alignement de l'IA (`autoRoster`) est toujours candidat : le bouton ne fait jamais
  * pire qu'elle. Puis, quelques tours, les échanges les plus prometteurs (`echangesProposes`), gardés si le moteur les
  * voit meilleurs. Le style pèse les buts : l'offensif compte plus ceux qu'on marque, le défensif ceux qu'on évite.
  */
@@ -182,7 +182,7 @@ const TOURS_AU_MIEUX = 3, ECHANGES_LUS = 10;
  */
 const PRES_DU_RANG = 0.01;
 /* Un réserviste à son poste prend la case d'un habillé hors du sien si le moteur y perd peu : jusqu'à PRIX_DU_POSTE but par match (pesé par le style) par point de pénalité épargné. */
-const PRIX_DU_POSTE = 0.02;
+export const PRIX_DU_POSTE = 0.02;
 function affectation(cout) {
   // La méthode hongroise (n cases ≤ m joueurs), en O(n² m) : rend, pour chaque case, l'indice de son joueur.
   const n = cout.length, m = cout[0].length, u = Array(n + 1).fill(0), v = Array(m + 1).fill(0), p = Array(m + 1).fill(0), voie = Array(m + 1).fill(0);
@@ -238,10 +238,9 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
   // Sous un hasard à part : le club lu tire sa chance de saison, et la saison en cours ne doit pas bouger d'un dé.
   const lu = R => avecHasardIsole('au mieux', () => {
     const T = createTeam('Au mieux', 'MOI', R, { season: saison });
-    // En Rogue (V15), les badges ouvrent les styles : la lecture le joue, comme le moteur.
+    // En Rogue, la lecture joue le moteur du Rogue.
     T.courbe = plan;
     T.coachs = coachs;
-    T.lignes = lignesAuMieux(R, style, { plan });
     const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
     return wP * m.butsPour - wC * m.butsContre;
   });
@@ -260,6 +259,8 @@ export function alignementAuMieux(joueurs, style = 'equilibre', { plan = false, 
   [best, score] = vt >= vi ? [tri, vt] : [ia, vi];
   poste = penaliteDePoste(best);
   essayer(vt >= vi ? ia : tri, PRIX_DU_POSTE);
+  // Les départs des autres styles (V18) : sans systèmes, un style ne penche que par qui joue où ; il prend celui d'un autre s'il le pèse mieux.
+  for (const st of Object.keys(POIDS_STYLE)) if (st !== style) essayer(auBonPoste(trioAuMieux(joueurs, st)));
   // Un réserviste à son poste, contre un habillé hors du sien, quand le moteur n'y perd presque rien.
   for (let tour = 0; tour < TOURS_AU_MIEUX; tour++) {
     let mieux = false;
@@ -373,9 +374,9 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
 }
 
 /**
- * Ce que le BUILD change ce soir : tous les effets actifs (cartes, patrons, coachs, moments, consigne, roulement)
- * contre le même alignement sans aucun. Remplace les « Tirs +14 % · Précision −3 % » du total du soir.
- * `aVenir` : les décisions du jour pas encore jouées (la consigne qu'on vient de choisir).
+ * Ce que le BUILD change ce soir : tous les effets actifs (cartes, patrons, coachs, moments) contre le même
+ * alignement sans aucun. Remplace les « Tirs +14 % · Précision −3 % » du total du soir.
+ * `aVenir` : les décisions du jour pas encore jouées.
  */
 export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return [];
@@ -385,8 +386,8 @@ export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
   return mots.length || ![d.tirsPour, d.tirsContre, d.butsPour, d.butsContre, d.punitions, d.blessures, d.usure].some(x => Math.abs(x) > 1e-9) ? mots : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
 }
 /*
- * CE QUE LA FEUILLE NE DIT PAS (V2.2) : les blessures et l'usure des jambes jouent aussi ce soir (la consigne
- * Haute, un roulement, un dos-à-dos). Les blessures se disent sur dix matchs — un soir en compte une sur cinquante.
+ * CE QUE LA FEUILLE NE DIT PAS (V2.2) : les blessures et l'usure des jambes jouent aussi ce soir (un adjoint, un
+ * dos-à-dos). Les blessures se disent sur dix matchs — un soir en compte une sur cinquante.
  */
 function horsFeuille(d) {
   const out = [];
@@ -398,13 +399,13 @@ function horsFeuille(d) {
 
 /*
  * CE QUE TON ALIGNEMENT FAIT CE SOIR (V2.2, les totaux du soir disent tout). Les effets ne sont pas tout : tes
- * systèmes, tes badges, la chimie de tes lignes et leurs jambes jouent aussi, et une affiche qui disait « aucun
+ * badges, l'affinité de tes lignes et leurs jambes jouent aussi, et une affiche qui disait « aucun
  * effet » un soir chargé mentait par omission. Chacun se lit par différence (`neutre`, js/sim.js) : le soir tel
  * quel contre le même soir où cette part est au neutre. Un nombre par part, l'écart de buts par match — ce que
  * la part rapporte (ou coûte) au pointage.
  */
 export const PARTS_DU_SOIR = [
-  ['systemes', 'Systèmes'], ['badges', 'Badges'], ['chimie', 'Chimie'], ['jambes', 'Jambes'],
+  ['badges', 'Badges'], ['affinite', 'Affinité'], ['jambes', 'Jambes'],
 ];
 export function alignementDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return [];
@@ -467,7 +468,7 @@ export function rosterEnStats(team, roster) {
 /*
  * LA NOTE QUI BOUGE (V6, docs/refonte-v6.md). Chaque trio et chaque paire de ton club : ce qu'il fait de plus qu'une
  * unité neutre à sa place, à forces égales, par match, contre `adv` — en attaque, en défense, et les deux ensemble.
- * Il suit son système, sa chimie, ses badges, ses jambes et ses cases. `lignes` : celles à lire (le banc).
+ * Il suit l'affinité de sa ligne, ses badges, ses jambes et ses cases.
  */
 /** Tes unités spéciales ce soir, en minutes et en vraies stats (voir `speciales` dans `moyennes`), et les minutes à forces égales. */
 export function specialesEnStats(team, lineup, adv, aVenir = []) {
@@ -475,42 +476,10 @@ export function specialesEnStats(team, lineup, adv, aVenir = []) {
   const m = lire(team, lineup, adv, { aVenir, n: N_BASE });
   return m.speciales ? { ...m.speciales, minutesFE: m.minutesFE } : null;
 }
-export function unitesDuSoir(team, lineup, adv, lignes = null) {
+export function unitesDuSoir(team, lineup, adv) {
   if (!team) return null;
-  const m = lire(team, lineup, adv, { lignes, n: N_BASE });
+  const m = lire(team, lineup, adv, { n: N_BASE });
   return { F: m.unitesF, D: m.unitesD };
-}
-
-/*
- * UN RÉGLAGE DE LIGNES, EN CHIFFRES : le soir joué avec ces lignes contre le même soir joué avec les
- * autres. Le système et la glace jouent ligne par ligne dans le moteur ; on lui fait
- * jouer les deux versions, sous les mêmes dés (l'action spéciale d'un système se lit par son espérance,
- * pas par un dé : la différence n'est pas du bruit).
- */
-const N_LIGNES = 500;
-/** La différence de deux jeux de lignes (quatre `{ tac, tacD, agr, sec }`), en mots de match. */
-function lignesEnChiffres(team, lineup, adv, lignes, contre) {
-  if (!team) return [];
-  const a = lire(team, lineup, adv, { lignes, n: N_LIGNES }), b = lire(team, lineup, adv, { lignes: contre, n: N_LIGNES });
-  const d = differences(a, b), out = lignesDe(d);
-  if (Math.abs(d.usure) >= 0.1) out.push({ txt: `≈ ${signeDe(d.usure)}${nb(d.usure, 1)} ${mot(d.usure, 'jambe', 'jambes')} d'usure par match`, bon: d.usure < 0, cle: 'jambes' });
-  // CE QUE LE JEU PHYSIQUE FAIT DE PLUS (V2.2) : les jambes que tes coups ôtent à l'adversaire, et les bagarres.
-  const otees = d.coups * COUP_JAMBES;
-  if (Math.abs(otees) >= 0.5) out.push({ txt: `≈ ${signeDe(otees)}${nb(otees, 1)} jambes ôtées à l'adversaire par match`, bon: otees > 0, cle: 'coupsJambes' });
-  const bag = d.bagarres * 10;
-  if (Math.abs(bag) >= 0.05) out.push({ txt: `≈ ${signeDe(bag)}${nb(bag, 1)} ${mot(bag, 'bagarre', 'bagarres')} par 10 matchs`, bon: null, cle: 'bagarre' });
-  return out;
-}
-/** La même différence, en stats de match : ce que ces lignes changent aux tirs, à la réussite, aux tirs contre, aux arrêts. */
-export function lignesEnStats(team, lineup, adv, lignes, contre) {
-  if (!team) return null;
-  return statsEntre(lire(team, lineup, adv, { lignes, n: N_LIGNES }), lire(team, lineup, adv, { lignes: contre, n: N_LIGNES }));
-}
-const surLigne = (lignes, u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : l));
-/** Un système sur la ligne `u` (`groupe` F : le trio, D : la paire), contre aucun système sur cette ligne : ce qu'il fait à CE club CE soir. */
-export function systemeEnChiffres(team, lineup, adv, lignes, u, groupe, cle) {
-  const champ = groupe === 'D' ? 'tacD' : 'tac';
-  return lignesEnChiffres(team, lineup, adv, surLigne(lignes, u, { [champ]: cle }), surLigne(lignes, u, { [champ]: 'hourra' }));
 }
 
 /*

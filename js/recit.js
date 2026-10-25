@@ -213,7 +213,7 @@ export function conseilDuBilan(r, you, teams = [], calendrier = []) {
  * match, les stats ou lancers de dés qui font la différence*. Toujours lu sur la feuille, jamais une
  * cote : chaque lancer y porte sa chance d'entrer (`p`), donc leur somme est le nombre de buts ATTENDUS
  * — l'écart avec les vrais buts, c'est le dé du soir. Puis les tirs, l'avantage numérique, le gardien,
- * les actions spéciales des systèmes. Les trois faits les plus lourds, puis le but gagnant : { cle, txt, nom? }.
+ * les actions spéciales des lignes qui s'accordent. Les trois faits les plus lourds, puis le but gagnant : { cle, txt, nom? }.
  */
 export function ceQuiADecide(f, nomA, nomB) {
   const nom = c => (c === 'A' ? nomA : nomB), autre = c => (c === 'A' ? 'B' : 'A');
@@ -246,7 +246,7 @@ export function ceQuiADecide(f, nomA, nomB) {
   }
   for (const c of ['A', 'B']) {
     const n = lancers.filter(l => l.cote === c && l.special === 'reussie').length;
-    if (n >= 2) faits.push({ cle: 'systemes', poids: 0.5 * n, txt: `Les systèmes de ${nom(c)} ont tourné : ${n} actions spéciales réussies.` });
+    if (n >= 2) faits.push({ cle: 'affinite', poids: 0.5 * n, txt: `Les lignes de ${nom(c)} se sont trouvées : ${n} actions spéciales réussies.` });
   }
   const lignes = faits.sort((x, y) => y.poids - x.poids).slice(0, 3);
   // Le but gagnant : celui qui a mis le vainqueur devant pour de bon.

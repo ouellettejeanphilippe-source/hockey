@@ -21,7 +21,7 @@
  *     des styles composés), en `informer` — c'est un tableau de calibration, pas un repère : un
  *     intervalle inventé crierait pour du bruit (verdict.mjs). Une carte rare ou légendaire doit se VOIR dans cette
  *     colonne (docs/impact-des-choix.md §7.5). Il est long (sept secondes par configuration et par graine : de
- *     cinq à quinze minutes) : à la main, comme check_cartes. `GROUPE=carte|canal|systeme|style`
+ *     cinq à quinze minutes) : à la main, comme check_cartes. `GROUPE=carte|canal|style`
  *     n'en lit qu'un, `SEEDS=1000,1001,1002` règle les ligues, `PARITES=0,1` les deux passages (un seul par défaut).
  *
  *   node scripts/check_impact.mjs
@@ -30,7 +30,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, TACTIQUES, SYSTEMES_D, activeLineup, SLOTS } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, tirsTotal, activeLineup, SLOTS } from '../js/sim.js';
 import { effetEnChiffres, unitesDuSoir } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
@@ -172,15 +172,14 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
 /*
  * 5. LA NOTE QUI BOUGE (V6, js/impact.js `unitesDuSoir`) : chaque trio et chaque paire, ce qu'il fait de plus qu'une
  * unité neutre à sa place, contre un vrai club. JP : *un trio défensif pourrait être hyper pertinent et utile et dans
- * les moins*. Trois choses : le 1er trio permuté avec le 4e tombe, et le club avec lui (ses vedettes au 4e trio jouent
- * moins et paient la zone « trop bas ») ; un système défensif sur un trio monte la DÉFENSE de ce trio ; et la note
- * d'un trio dit sa défense à part de son attaque.
+ * les moins*. Deux choses : le 1er trio permuté avec le 4e tombe, et le club avec lui (ses vedettes au 4e trio jouent
+ * moins et paient la zone « trop bas ») ; et la note d'un trio dit sa défense à part de son attaque.
  */
 {
   const lg = ligue(SEEDS[0], 12);
   const f = r => SLOTS.filter(s => !s.scratch && s.group === 'F' && s.unit === r).map(s => s.i);
   const somme = u => u.F.reduce((a, x) => a + x.net, 0);
-  let chute = 0, defend = 0, separe = 0, n = 0;
+  let chute = 0, separe = 0, n = 0;
   for (let i = 0; i + 1 < lg.length; i += 2) {
     const t = lg[i], adv = lg[i + 1], lu = activeLineup(t);
     const u = unitesDuSoir(t, lu, adv);
@@ -190,32 +189,24 @@ console.log('\n  L\'IMPACT DES CHOIX SUR LE PROFIL DU MATCH\n');
     f(0).forEach((k, j) => { echange[k] = lu[f(3)[j]]; echange[f(3)[j]] = lu[k]; });
     const v = unitesDuSoir(t, echange, adv);
     if (v && v.F[0].net < u.F[0].net && somme(v) < somme(u)) chute++;
-    const lignes = s2 => [0, 1, 2, 3].map(k => ({ tac: k === 1 ? s2 : 'hourra', tacD: 'hourra', sec: 60 }));
-    const d = unitesDuSoir(t, lu, adv, lignes('defensive')), h = unitesDuSoir(t, lu, adv, lignes('hourra'));
-    if (d && h && d.F[1].defense > h.F[1].defense) defend++;
     if (u.F.every(x => Number.isFinite(x.attaque) && Number.isFinite(x.defense) && Math.abs(x.net - x.attaque - x.defense) < 1e-9)) separe++;
   }
   exiger('la note des unités suit les cases : le 1er trio permuté avec le 4e tombe, et le club avec lui', chute >= n - 1, `${chute}/${n} clubs`);
-  exiger('la note des unités voit la défense : un système défensif monte la défense de son trio', defend === n, `${defend}/${n} clubs`);
   exiger('la note d\'une unité, c\'est son attaque plus sa défense, chacune lisible', separe === n, `${separe}/${n} clubs`);
 }
 
 /* 4. Le tableau de chaque choix. */
 if (COMPLET) {
   const E = c => ({ effet: { duree: 100, nom: 'mesure', ...c } });
-  const L = (tac, tacD) => ({ lignes: [0, 1, 2, 3].map(() => ({ tac, tacD, sec: 60 })) });
   const K = ks => ks.map(temoin);
-  const G = { canal: [], carte: [], systeme: [], style: [] };
+  const G = { canal: [], carte: [], style: [] };
   for (const v of [0.9, 1.1]) G.canal.push([`volume ×${v}`, E({ volume: v })]);
   for (const v of [0.9, 1.1]) G.canal.push([`finition ×${v}`, E({ finition: v })]);
   for (const v of [0.9, 1.1]) G.canal.push([`défense ×${v}`, E({ defense: v })]);
   for (const v of [0.7, 1.3]) G.canal.push([`discipline ×${v}`, E({ discipline: v })]);
   G.canal.push(['robustesse +1', E({ robustesse: 1 })], ['blessure ×2', E({ blessure: 2 })], ['jambes ×1,15', E({ energie: 1.15 })]);
   for (const k of TEMOINS_DE_SAISON) G.carte.push([`témoin ${k}`, temoin(k)]);
-  for (const k of Object.keys(TACTIQUES)) G.systeme.push([`système (trios) ${k}`, L(k, 'equilibre')]);
-  for (const k of Object.keys(SYSTEMES_D)) G.systeme.push([`système (paires) ${k}`, L('hourra', k)]);
-  G.style.push(['défensif : cartes', K(['defense'])], ['offensif : cartes', K(['chasse', 'attaque'])],
-    ['défensif : systèmes', L('defensive', 'maison')], ['offensif : systèmes', L('bleue', 'activer')]);
+  G.style.push(['défensif : cartes', K(['defense'])], ['offensif : cartes', K(['chasse', 'attaque'])]);
   for (const [groupe, liste] of Object.entries(G)) {
     if (GROUPE && GROUPE !== groupe) continue;
     for (const [nom, payload] of liste) informer(nom, ligneDe(paires(payload)));

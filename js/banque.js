@@ -110,8 +110,8 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
 /*
  * \`vie\` : « usage » s'use cette saison (une utilisation) ; « permanent »
  * reste dans l'inventaire tant qu'on ne s'en sert pas, d'une run à l'autre
- * (mode Rogue). \`cible\` : ce qu'on vise en la jouant — un blessé, un joueur,
- * un système, ou rien.
+ * (mode Rogue). \`cible\` : ce qu'on vise en la jouant — un blessé, un joueur
+ * ou rien.
  */
 export const CONSOMMABLES = {
   glace: { nom: 'Glace et compression', ico: '🧊', rarete: 'commune', vie: 'usage', cible: 'blesse', gestes: { soin: 2 }, texte: 'Vingt minutes, trois fois par jour.' },

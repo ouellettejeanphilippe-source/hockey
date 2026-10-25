@@ -345,9 +345,8 @@ node scripts/check_traits.mjs        # les traits restent rares et se voient
 ESSAIS=4 LIGUES=4 node scripts/check_builds.mjs   # les bâtis défensif et robuste mènent quelque part
 LIGUES=8 node scripts/check_pm.mjs   # le +/- par rang d'unité, l'écart du haut au bas, les jumeaux
 node scripts/check_cartes.mjs        # le net de chaque carte de saison est borné par sa rareté, une rare se voit dans la feuille
-node scripts/check_plans.mjs         # chaque roulement vaut moins de deux victoires, et fait ce qu'il annonce
-LIGUES=8 node scripts/check_moments.mjs   # dilemmes, séquences, factions, consigne du match, changements de carte, objectifs
-LIGUES=6 node scripts/check_tactiques.mjs # les lignes à la HockeyArena : fit, tactiques, agressivité, glace (S68)
+LIGUES=8 node scripts/check_moments.mjs   # dilemmes, séquences, factions, changements de carte, objectifs
+node scripts/check_affinite.mjs      # l'affinité : les accords d'une ligne font sa chimie, la ligue garde la sienne (V18)
 node scripts/check_gros.mjs              # les gros matchs : plans, avant-match, deuxième entracte (S70)
 node scripts/sonde_aptitudes.mjs     # l'échelle des profils (PROFIL_REF) sur 330 vraies équipes
 node scripts/check_ballottage.mjs    # le ballottage se rejoue (S66)

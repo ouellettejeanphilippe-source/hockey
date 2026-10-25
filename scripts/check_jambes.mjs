@@ -3,16 +3,17 @@
  *
  * JP : *je veux variété de build, pas trop simple, complexe mais clair*. Les
  * jambes (sur 100) sont le prix de pousser son premier trio : plus de glace,
- * des joueurs qui frappent, un système qui use, et le trio s'use plus vite qu'il
- * ne récupère. Ce script mesure trois choses, EN PAIRES (la même ligue deux
+ * des joueurs qui frappent, et le trio s'use plus vite qu'il ne récupère. La
+ * glace ne se règle plus au banc (V18) : un coach ou un adjoint la déplace, et
+ * c'est ce qu'on pose ici, en effets. Ce script mesure trois choses, EN PAIRES (la même ligue deux
  * fois sous la même graine, le réglage aux rangs pairs puis aux impairs —
  * la méthode de check_cartes.mjs) :
  *
- *   1. les jambes du matin du 1er trio : réglé par défaut (60 s), et poussé
- *      (80 s, un soir important sur deux) — la cible est 90-95 et 75-85 ;
+ *   1. les jambes du matin du 1er trio : par défaut, et poussé (un tiers de
+ *      glace de plus, un soir chaud sur deux) — la cible est 90-95 et 75-85 ;
  *   2. un jour de congé rend des jambes (une ligue impaire en a) ;
  *   3. ce que valent, à talent égal, le 1er trio poussé et les quatre trios
- *      roulés (le banc profond, 60 s partout) : quelque chose, pas la saison.
+ *      roulés (le banc profond) : quelque chose, pas la saison.
  *
  * Et la même mesure avec les jambes SANS effet (ENERGIE_EFFET=0 dans un fils)
  * pour montrer que ce sont bien les jambes qui font payer le trio poussé.
@@ -26,7 +27,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, bilanLigue, joueursDeLigne, activeLineup,
   energieDe, facteurEnergie, jambesEquilibre, usuresDe, recupererEnergie, rendreJambes, depenserEnergie, ENERGIE_C, ENERGIE_RECUP_JOUR, JOURS_PAR_MATCH,
-  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir, glaceDesLignes, ROULEMENTS, ecoleDe } from '../js/sim.js';
+  SLOTS, getPlayerKey, fits, photoAlignement, usureDuSoir, glaceDesLignes, ecoleDe } from '../js/sim.js';
 import { jambesAVenir } from '../js/pronostic.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { borne, exiger, informer, verdict } from './verdict.mjs';
@@ -65,23 +66,29 @@ const estD = q => ['D', 'LD', 'RD'].includes(q.p);
 const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
 const signe = (x, d = 1) => (x >= 0 ? '+' : '') + x.toFixed(d);
 
-/* Les réglages mesurés. `null` : ce que l'IA joue d'elle-même. */
+/*
+ * Les réglages mesurés, en effets de toute la saison : les minutes de chaque trio (`F`, `D`), renormalisées par le
+ * moteur (`partsDuRoulement`), comme un coach ou un adjoint les déplace.
+ */
+const POUSSE = { F: [80 / 60, 58 / 60, 50 / 60, 42 / 60] };
+const PROFOND = { F: [0.92, 0.97, 1.05, 1.16], D: [0.94, 1.00, 1.11], robustesse: 0.9, blessure: 0.82 };
 const REGLAGES = {
-  // Le 1er trio poussé : 80 s (le max est 90) et un soir important sur deux (V7 : l'agressivité est celle de ses joueurs).
-  pousse: { lignes: t => [80, 58, 50, 42].map(sec => ({ tac: undefined, sec })), importance: true },
-  // Les quatre trios roulés : le banc profond, 60 s partout.
-  roule: { lignes: t => [60, 60, 60, 60].map(sec => ({ tac: undefined, sec })), roulement: 'profond' },
+  // Le 1er trio poussé : un tiers de glace de plus, et un soir chaud sur deux (V7 : l'agressivité est celle de ses joueurs).
+  pousse: { effet: POUSSE, chaud: true },
+  // Les quatre trios roulés : le banc profond.
+  roule: { effet: PROFOND },
 };
+const SOIR_CHAUD = { energie: 1.12, blessure: 1.25, duree: 1, nom: 'Un soir chaud' };
 
 /*
  * Une saison jouée au jour le jour : les jambes du 1er trio, et du 4e, au
  * matin de chaque MATCH (le vrai calendrier a des jours de congé : un matin
  * d'après-match n'est pas un soir de jeu). `importants` : les clubs dont un
- * soir sur deux est important, posé sur leurs vrais jours de match.
+ * soir sur deux est chaud, posé sur leurs vrais jours de match.
  */
 function saison(teams, graine, decisions, suivis, importants = []) {
   const L = creerLigue(teams, 82, { graine, decisions });
-  for (const i of importants) teams[i]._jours.forEach((j, k) => { if (k % 2) decisions.push({ jour: j, equipe: i, match: { importance: 'haute', ad: 0 } }); });
+  for (const i of importants) teams[i]._jours.forEach((j, k) => { if (k % 2) decisions.push({ jour: j, equipe: i, effet: SOIR_CHAUD }); });
   const matins = new Map(suivis.map(i => [i, { l1: [], l4: [], f1: [] }]));
   while (!L.fini) {
     for (const i of suivis) {
@@ -106,10 +113,10 @@ function paires(cle) {
       const traites = teams.map((t, i) => i).filter(i => i % 2 === parite);
       const decisions = [];
       for (const i of traites) {
-        decisions.push({ jour: 0, equipe: i, lignes: R.lignes(teams[i]), ...(R.roulement ? { roulement: R.roulement } : {}) });
+        decisions.push({ jour: 0, equipe: i, effet: { ...R.effet, duree: 82, nom: 'La glace' } });
       }
       const suivis = teams.map((t, i) => i);
-      const m = saison(teams, `jambes-${n}`, decisions, suivis, R.importance ? traites : []);
+      const m = saison(teams, `jambes-${n}`, decisions, suivis, R.chaud ? traites : []);
       bras.push(teams.map((t, i) => ({ W: t.W, GF: t.GF, GA: t.GA, traite: i % 2 === parite, m: m.get(i) })));
     }
     for (let i = 0; i < bras[0].length; i++) {
@@ -133,15 +140,15 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
 // 1. L'équilibre calculé : ce que la formule promet, ligne par ligne, avant de jouer.
 {
   const t = ligue(99)[0], lu = activeLineup(t);
-  t.lignes = [60, 60, 60, 60].map(() => ({ tac: undefined, sec: 60 }));
   const us = usuresDe(t, lu);
   const ms = us.F.map(jambesEquilibre);
-  console.log(`  à l'équilibre, défaut (60 s) : trios ${ms.map(x => x.toFixed(0)).join(' · ')} · paires ${us.D.map(jambesEquilibre).map(x => x.toFixed(0)).join(' · ')}`);
-  t.lignes = [80, 58, 50, 42].map(sec => ({ tac: undefined, sec }));
+  console.log(`  à l'équilibre, par défaut : trios ${ms.map(x => x.toFixed(0)).join(' · ')} · paires ${us.D.map(jambesEquilibre).map(x => x.toFixed(0)).join(' · ')}`);
+  t.effets = [{ debut: 0, fin: Infinity, ...POUSSE }];
   const up = usuresDe(t, lu);
-  console.log(`  à l'équilibre, 1er trio à 80 s : ${jambesEquilibre(up.F[0]).toFixed(0)} (un soir important : ${jambesEquilibre(up.F[0] * 1.12).toFixed(0)})`);
+  t.effets = [];
+  console.log(`  à l'équilibre, 1er trio poussé : ${jambesEquilibre(up.F[0]).toFixed(0)} (un soir chaud : ${jambesEquilibre(up.F[0] * SOIR_CHAUD.energie).toFixed(0)})`);
   // 90 : la borne de calibration d'une ligne ordinaire (les jambes comptent en continu depuis 1.0, centrées sur ENERGIE_REF).
-  exiger('à 60 s, un 1er trio dort au-dessus de 90', ms[0] > 90, ms[0].toFixed(1));
+  exiger('par défaut, un 1er trio dort au-dessus de 90', ms[0] > 90, ms[0].toFixed(1));
   // 2. Le repos : d'un match à l'autre, l'écart moyen du calendrier rend la moitié du manque ; un geste de repos garde son surplus.
   const p = Object.values(joueursDeLigne(lu, 0)).find(Boolean);
   p.energie = 80; recupererEnergie(t);
@@ -216,7 +223,7 @@ console.log(`\n  LES JAMBES — ${LIGUES} ligue(s) de 32, EN PAIRES\n`);
   while (LC.jour < r + 1) jouerJournee(LC);
   let mesures = 1;
   while (LA.jour < 100) {
-    if (LA.jour % 7 === 0) { usureDuSoir(toiA); jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: LA.jour, propositions: [{ jour: LA.jour, roulement: 'profond' }, { jour: LA.jour, cases }] }); mesures++; }
+    if (LA.jour % 7 === 0) { usureDuSoir(toiA); jambesAVenir({ toi: toiA, calendrier: LA.calendrier, jourRevele: LA.jour, propositions: [{ jour: LA.jour, plan: { cle: 'tirer' } }, { jour: LA.jour, cases }] }); mesures++; }
     jouerJournee(LA); jouerJournee(LC);
   }
   const sig = L => L.teams.map(t => `${t.W}-${t.L}-${t.OTL}-${t.GF}-${t.GA}`).join('|');
@@ -236,24 +243,25 @@ try {
   ligne('poussé, jambes sans effet', sans.pousse);
 } catch (e) { console.log('  (le fils sans jambes n\'a pas tourné : ' + e.message.split('\n')[0] + ')'); }
 
-// 4. LE ROULEMENT, UNE VRAIE DÉCISION (V2.3) : choisi pour ce soir dans « Préparer le match », la glace et l'usure
-// que l'écran montre le suivent — ce sont les mêmes fonctions que le moteur joue (`glaceDesLignes`, `usureDuSoir`).
+// 4. LA GLACE QUI SE DÉPLACE (V2.3, V18) : un effet sur les minutes, posé pour ce soir, et la glace et l'usure que l'écran
+// montre le suivent — ce sont les mêmes fonctions que le moteur joue (`glaceDesLignes`, `usureDuSoir`).
 const roul = {};
 {
   const t = ligue(7100, 2)[0];
-  const glace = r => glaceDesLignes(t, r ? [{ jour: 0, roulement: r }] : []).F;
-  const usure1 = r => { const u = usureDuSoir(t, r ? [{ jour: 0, roulement: r }] : []), L = activeLineup(t);
+  const fx = e => (e ? [{ jour: 0, effet: { ...e, duree: 1 } }] : []);
+  const glace = e => glaceDesLignes(t, fx(e)).F;
+  const usure1 = e => { const u = usureDuSoir(t, fx(e)), L = activeLineup(t);
     const k = SLOTS.filter(x => x.group === 'F' && x.unit === 0 && !x.scratch).map(x => getPlayerKey(L[x.i]));
     return k.reduce((a, x) => a + (u[x] || 0), 0) / k.length; };
-  for (const r of Object.keys(ROULEMENTS)) roul[r] = { g: glace(r), u: usure1(r) };
+  for (const [r, e] of [['quatre', null], ['trois', POUSSE], ['profond', PROFOND]]) roul[r] = { g: glace(e), u: usure1(e) };
   const q = roul.quatre, tr = roul.trois, pr = roul.profond;
-  console.log(`  glace des trios · quatre ${q.g.map(x => x.toFixed(3)).join(' ')} · trois ${tr.g.map(x => x.toFixed(3)).join(' ')} · profond ${pr.g.map(x => x.toFixed(3)).join(' ')}`);
-  console.log(`  usure du 1er trio ce soir · quatre ${q.u.toFixed(2)} · trois ${tr.u.toFixed(2)} · profond ${pr.u.toFixed(2)}`);
+  console.log(`  glace des trios · par défaut ${q.g.map(x => x.toFixed(3)).join(' ')} · poussé ${tr.g.map(x => x.toFixed(3)).join(' ')} · profond ${pr.g.map(x => x.toFixed(3)).join(' ')}`);
+  console.log(`  usure du 1er trio ce soir · par défaut ${q.u.toFixed(2)} · poussé ${tr.u.toFixed(2)} · profond ${pr.u.toFixed(2)}`);
 }
 
 console.log('');
-exiger('« Trois trios » : le 1er trio a plus de glace, le 4e moins', roul.trois.g[0] > roul.quatre.g[0] && roul.trois.g[3] < roul.quatre.g[3], `${roul.trois.g[0].toFixed(3)} / ${roul.trois.g[3].toFixed(3)}`);
-exiger('« Banc profond » : l\'inverse', roul.profond.g[0] < roul.quatre.g[0] && roul.profond.g[3] > roul.quatre.g[3], `${roul.profond.g[0].toFixed(3)} / ${roul.profond.g[3].toFixed(3)}`);
+exiger('poussé : le 1er trio a plus de glace, le 4e moins', roul.trois.g[0] > roul.quatre.g[0] && roul.trois.g[3] < roul.quatre.g[3], `${roul.trois.g[0].toFixed(3)} / ${roul.trois.g[3].toFixed(3)}`);
+exiger('le banc profond : l\'inverse', roul.profond.g[0] < roul.quatre.g[0] && roul.profond.g[3] > roul.quatre.g[3], `${roul.profond.g[0].toFixed(3)} / ${roul.profond.g[3].toFixed(3)}`);
 exiger('l\'usure du 1er trio suit sa glace', roul.trois.u > roul.quatre.u && roul.profond.u < roul.quatre.u, `${roul.trois.u.toFixed(2)} · ${roul.quatre.u.toFixed(2)} · ${roul.profond.u.toFixed(2)}`);
 // 89 : le vrai calendrier (1.0, oct.) mêle des dos-à-dos et des congés ; sa moyenne des matins de match tombe à 89,7 contre 90,0 avant.
 borne('jambes du matin, 1er trio par défaut', P.l1t, 89, 96);

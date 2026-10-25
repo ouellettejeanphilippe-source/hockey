@@ -4,8 +4,8 @@
  * JP : *je comprends pas plusieurs mécaniques*. « Préparer le match » et la
  * carte du prochain match disent « Ce soir : Tirs +14 % · Précision −3 % ·
  * Précision adverse −6 % · Punitions +10 % ». Ce script prouve, sur une vraie équipe
- * qui porte cinq effets à la fois (deux cartes de saison, deux patrons, la
- * consigne du match choisie le matin même) :
+ * qui porte cinq effets à la fois (quatre patrons, un effet du soir pris le
+ * matin même) :
  *
  *   1. les effets se MULTIPLIENT : le total brut est le produit des sources ;
  *   2. le total affiché est le rapport du profil du match AVEC les effets sur
@@ -16,7 +16,7 @@
  *   4. les mots affichés sont ces nombres, au pour cent près ;
  *   5. lire les totaux chaque matin ne change pas une seule journée ;
  *   6. ILS DISENT TOUT (V2.2) : les blessures et l'usure des jambes y sont, et
- *      ce que l'alignement fait ce soir — systèmes, badges, chimie, jambes —
+ *      ce que l'alignement fait ce soir — badges, affinité, jambes —
  *      se lit à côté des effets, chacun contre le même soir remis au neutre :
  *      l'affiche ne peut plus dire « aucun effet » un soir chargé.
  *
@@ -26,7 +26,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJournee, jouerJusqua, bilanLigue,
-  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, ROULEMENTS, roulementDe, pariDeDecision } from '../js/sim.js';
+  totauxDuSoir, motsDesTotaux, profilMatch, activeLineup, effetDeMoment, effetsActifs, flechesDe, pariDeDecision } from '../js/sim.js';
 import { motsDuSoir, alignementDuSoir, PARTS_DU_SOIR } from '../js/impact.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin } from './lib/temoins.mjs';
@@ -77,16 +77,18 @@ function rapportDuMoteur(t, enPlus) {
 console.log('\n  LES TOTAUX DU SOIR\n');
 
 const JOUR = 5;
+/* Un effet du soir, pris le matin même : la finition et la défense, des blessures et de l'usure (ce que la consigne Haute faisait avant la V18). */
+const SOIR = { finition: 1.05, defense: 0.95, blessure: 1.25, energie: 1.12 };
 const decisions = [
   // V10 : des patrons témoins, à chiffres connus (scripts/lib/temoins.mjs) ; l'ancien jeu est parti.
   { jour: 0, equipe: 0, ...temoin('bloc') },
   { jour: 0, equipe: 0, ...temoin('fougue') },
   { jour: 0, equipe: 0, ...temoin('attaque') },
   { jour: 0, equipe: 0, ...temoin('defense') },
-  { jour: JOUR, equipe: 0, match: { importance: 'haute', ad: 1 } },
+  { jour: JOUR, equipe: 0, effet: { ...SOIR, duree: 1, nom: 'Un soir chaud' } },
 ];
 
-// 1-4. Une équipe à cinq effets, au matin du jour 5 (la consigne est choisie, pas encore jouée).
+// 1-4. Une équipe à cinq effets, au matin du jour 5 (l'effet du soir est pris, pas encore joué).
 {
   const teams = ligue(7700);
   const L = creerLigue(teams, 82, { graine: 'totaux', decisions });
@@ -96,15 +98,16 @@ const decisions = [
   const T = totauxDuSoir(t, null, null, aVenir);
 
   // 1. Le produit des sources.
-  const sources = [...(t.patrons || []), ROULEMENTS[roulementDe(t)], ...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean)];
+  const soirs = aVenir.filter(d => d.effet).map(() => ({ debut: JOUR, fin: JOUR + 1, ...SOIR }));
+  const sources = [...(t.patrons || []), ...effetsActifs(t), ...aVenir.map(effetDeMoment).filter(Boolean), ...soirs];
   const nb = (t.patrons || []).length + aVenir.length;
-  exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.patrons || []).map(p => p.cle).join(', ')} · consigne haute`);
+  exiger('l\'équipe porte au moins trois effets à la fois', nb >= 3, `${nb} effets : ${(t.patrons || []).map(p => p.cle).join(', ')} · un soir chaud`);
   const produit = Object.fromEntries(CANAUX.map(k => [k, sources.reduce((a, s) => a * ((s && s[k]) ?? 1), 1)]));
   exiger('les effets se multiplient : le total brut est le produit des sources',
     CANAUX.every(k => pres(T.brut[k], produit[k])), CANAUX.map(k => `${k} ${produit[k].toFixed(4)}`).join(' · '));
 
   // 2. Le total affiché est celui que le moteur joue.
-  const R = rapportDuMoteur(t, aVenir.map(effetDeMoment).filter(Boolean));
+  const R = rapportDuMoteur(t, [...aVenir.map(effetDeMoment).filter(Boolean), ...soirs]);
   exiger('le total affiché égale le rapport du profil du moteur, canal par canal',
     CANAUX.every(k => pres(T[k], R[k])), CANAUX.map(k => `${k} ${T[k].toFixed(4)} = ${R[k].toFixed(4)}`).join(' · '));
 
@@ -115,13 +118,13 @@ const decisions = [
   exiger('les mots affichés sont ces nombres, au pour cent près', mots.join('|') === attendus.join('|'), `Ce soir : ${mots.join(' · ')}`);
   informer('la ligne, telle que l\'écran la montre', `Ce soir : ${mots.join(' · ')}`);
 
-  // La consigne choisie ce matin compte déjà.
-  const sansConsigne = totauxDuSoir(t);
-  // Le brut, avant les plafonds : une équipe déjà au plafond de précision le garde avec ou sans la consigne (V5 : les
-  // positions multiples changent les clubs tirés), mais la consigne entre quand même dans le produit.
-  exiger('la consigne choisie ce matin entre dans le total du soir', !pres(sansConsigne.brut.finition, T.brut.finition) && !pres(sansConsigne.brut.defense, T.brut.defense),
-    `précision brute ${flechesDe(sansConsigne.brut.finition)} → ${flechesDe(T.brut.finition)}`);
-  exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.source === 'match') && (t.patrons || []).length === 4);
+  // L'effet pris ce matin compte déjà.
+  const sansSoir = totauxDuSoir(t);
+  // Le brut, avant les plafonds : une équipe déjà au plafond de précision le garde avec ou sans l'effet (V5 : les
+  // positions multiples changent les clubs tirés), mais l'effet entre quand même dans le produit.
+  exiger('l\'effet pris ce matin entre dans le total du soir', !pres(sansSoir.brut.finition, T.brut.finition) && !pres(sansSoir.brut.defense, T.brut.defense),
+    `précision brute ${flechesDe(sansSoir.brut.finition)} → ${flechesDe(T.brut.finition)}`);
+  exiger('lire les totaux ne touche pas à l\'équipe', !(t.effets || []).some(e => e.nom === 'Un soir chaud') && (t.patrons || []).length === 4);
 
   // 3. Une borne qui mord.
   const gros = [{ jour: JOUR, equipe: 0, effet: { volume: 2.2, duree: 3, nom: 'Test' } }];
@@ -152,11 +155,11 @@ const decisions = [
   const t = teams[0];
   const aVenir = decisions.filter(d => d.jour === JOUR && (d.equipe || 0) === 0);
   const mots = motsDuSoir(t, null, null, aVenir), cles = new Set(mots.map(m => m.cle));
-  exiger('la consigne Haute se lit aussi en blessures et en jambes d\'usure', cles.has('blessure') && cles.has('jambes'), mots.map(m => m.txt).join(' · '));
-  const avant = JSON.stringify([t.cartes, (t.patrons || []).map(x => x.cle), t.lignes, t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
+  exiger('un soir chaud se lit aussi en blessures et en jambes d\'usure', cles.has('blessure') && cles.has('jambes'), mots.map(m => m.txt).join(' · '));
+  const avant = JSON.stringify([t.cartes, (t.patrons || []).map(x => x.cle), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
   const al = alignementDuSoir(t, null, null, aVenir);
-  exiger('l\'alignement se lit en quatre parts : systèmes, badges, chimie, jambes', al.length === PARTS_DU_SOIR.length && al.every(x => Number.isFinite(x.ecart)), al.map(x => x.txt).join(' · '));
-  exiger('tes systèmes jouent ce soir (un écart de buts mesurable)', Math.abs(al.find(x => x.cle === 'systemes').ecart) >= 0.01, al.find(x => x.cle === 'systemes').txt);
+  exiger('l\'alignement se lit en trois parts : badges, affinité, jambes', al.length === PARTS_DU_SOIR.length && al.every(x => Number.isFinite(x.ecart)), al.map(x => x.txt).join(' · '));
+  exiger('ton affinité joue ce soir (un écart de buts mesurable)', Math.abs(al.find(x => x.cle === 'affinite').ecart) >= 0.01, al.find(x => x.cle === 'affinite').txt);
   // Des badges loin de la moyenne (Gretzky, Kurri, Anderson : Sniper Platine et Or) se lisent ; une équipe moyenne peut n'en rien tirer.
   const edm = eq('EDM 1983-84', 'EDM', equipeReelle('1983-84', 'EDM'), '1983-84');
   const bEdm = alignementDuSoir(edm).find(x => x.cle === 'badges');
@@ -168,7 +171,7 @@ const decisions = [
   const lourd = alignementDuSoir(t, null, null, aVenir).find(x => x.cle === 'jambes');
   sauve.forEach(([p, avait, v]) => { if (avait) p.energie = v; else delete p.energie; });
   exiger('des jambes à 70 se lisent en buts perdus', lourd.ecart < -0.01, lourd.txt);
-  const apres = JSON.stringify([t.cartes, (t.patrons || []).map(x => x.cle), t.lignes, t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
+  const apres = JSON.stringify([t.cartes, (t.patrons || []).map(x => x.cle), t.chimie, Object.values(t.roster).map(p => p && Math.round(p.energie ?? 100))]);
   exiger('lire l\'alignement au neutre ne touche pas à l\'équipe', avant === apres);
 }
 {

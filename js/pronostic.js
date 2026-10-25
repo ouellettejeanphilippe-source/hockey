@@ -27,12 +27,7 @@
  */
 
 import { playGame, avecHasardIsole, SLOTS, getPlayerKey, feuilleVierge, OBJECTIFS, MATCHS_OBJECTIF,
-  poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR,
-  TACTIQUES, SYSTEMES_D, contreDe, contreDeD, fitUnite, meilleureTactique, meilleurSystemeD,
-  identiteUnite, joueursDeLigne, profilsDe,
-  SEC_MIN, SPEC_BASE, SPEC_MULT, ENERGIE_REF, ENERGIE_EFFET } from './sim.js';
-import { virgule } from './util.js';
-import { clubLu, systemeEnChiffres } from './impact.js';
+  poserAVenir, recupererEnergie, energieDe, ENERGIE_RECUP_JOUR } from './sim.js';
 
 /* Les joueurs qu'un match peut toucher : les deux alignements, et le gardien de rappel. */
 const joueursDe = t => [...SLOTS.map(s => t.roster[s.i]).filter(Boolean), ...(t.rappelG ? [t.rappelG] : [])];
@@ -109,9 +104,6 @@ function remettre(c) {
  * (comme au calendrier). Rend les fréquences brutes ; l'écran en tire les
  * mots. `n` = 300 donne ±3 points sur les chances de victoire.
  */
-/* Le conseil de glace attend qu'un trio soit à six points sous la ligne ordinaire (ENERGIE_REF) : 3 % de moins, ça vaut quinze secondes. */
-const JAMBES_CONSEIL = ENERGIE_REF - 6;
-
 export function pronostic({ A, B, calendrier, jourMatch, jourRevele, n = 300, graine = 'pronostic' }) {
   const ctx = t => ({ jourMatch, jourRevele, joues: matchsAvant(calendrier, t, jourMatch), connus: matchsAvant(calendrier, t, jourRevele) });
   const cA = copieDuJour(A, ctx(A)), cB = copieDuJour(B, ctx(B));
@@ -199,8 +191,8 @@ export function prevision({ toi, calendrier, jourRevele, n = 8, graine = 'previs
  * CE QUE REND UN MÉNAGEMENT (1.0, le suivi des jambes). JP : *tracking de l'énergie et optimisation de
  * l'énergie*. Comme la prévision : le vrai moteur rejoue tes matchs d'ici au prochain d'après (`horizon`,
  * son matin), ta formation au matin d'aujourd'hui, `n` fois — une fois telle quelle, puis une fois par
- * proposition. Une proposition est une DÉCISION EXISTANTE (un joueur en réserve par les cases, un
- * roulement, une consigne, des lignes), posée au jour dit comme le moteur la posera ; les décisions déjà
+ * proposition. Une proposition est une DÉCISION EXISTANTE (un joueur en réserve par les cases, un plan de
+ * match), posée au jour dit comme le moteur la posera ; les décisions déjà
  * prises pour ces journées (`aVenir`) le sont aussi. Chaque journée rend sa part du manque
  * (`recupererEnergie`, comme `preludeDuJour`), chaque soir use (`playGame`, coups compris). Le même
  * essai rejoue les mêmes dés avec ou sans la proposition : l'écart est la proposition, pas le hasard.
@@ -249,145 +241,9 @@ export function jambesAVenir({ toi, calendrier, jourRevele, aVenir = [], proposi
   try {
     const base = mesurer(aVenir);
     // Une proposition remplace la décision du même genre déjà prise ce jour-là (comme `deciderSaison`).
-    const avec = d => [...aVenir.filter(x => !(x.jour === d.jour && ((d.match && x.match) || (d.lignes && x.lignes) || (d.cases && x.cases) || ('roulement' in d && 'roulement' in x)))), d];
+    const avec = d => [...aVenir.filter(x => !(x.jour === d.jour && d.cases && x.cases)), d];
     return { horizon, prochain: mesJours[0], base, propositions: propositions.map(d => mesurer(avec(d))) };
   } finally { rendre(photos); }
-}
-
-/*
- * LES CONSEILS D'AVANT-MATCH (S79). JP, sur le dépistage : *le bas aide fuck
- * all aucun processus décisionnel*. « S'il marque quatre buts, il gagne »
- * disait une évidence ; un conseil dit QUOI FAIRE, avec un levier du jeu :
- *   contre       une unité passe au système qui ÉTOUFFE le système principal
- *                de leurs trois premiers trios (un trio : `contreDe` ; une
- *                paire : `contreDeD`) — celle qui y a le meilleur fit ;
- *   menace       leur trio ou leur paire du même rang étouffe le système d'un
- *                de tes trios : il passe au meilleur système qu'ils n'étouffent pas ;
- *   fit          l'unité la plus loin de son meilleur système y passe ;
- *   fermeture    ton trio le plus défensif (ses rôles) prend leur 1er trio ;
- *   glace        un des deux premiers trios est usé : moins de glace.
- * La consigne d'attaque ou de défense est partie (V17) : le plan de match la
- * remplace, sous les chances (js/saison.js, « Ton plan »).
- * Chaque conseil porte la décision que l'écran applique d'un toucher
- * (`lignes` ou `fermeture`) — une décision comme une autre, qui
- * se rejoue — et ses chiffres sont ceux du moteur : ce que le système fait à
- * CE fit (les deux versions des lignes jouées par le moteur, en chiffres de match : js/impact.js), la chance d'action spéciale (`SPEC_BASE` × chimie)
- * et ce qu'elle vaut (`SPEC_MULT`), l'énergie du matin.
- *
- * POURQUOI PAS « +3 POINTS DE VICTOIRE » ? Mesuré en S79 : un réglage d'une
- * ligne vaut un point ou deux sur un match, et 200 matchs rejoués en donnent
- * ±5 — le même levier sortait à +9 avec une graine et à 0 avec une autre. Le
- * chiffre aurait été du bruit présenté comme une mesure.
- *
- * Entrées : `lineup` (tes cases), `lignes` (tes lignes de la saison),
- * `fermeture` ('auto', null ou un rang), `energie` (clé → %), `adv`
- * ({ lignes, chimie, lineup }).
- */
-const RANG_TRIO = ['1er trio', '2e trio', '3e trio', '4e trio'];
-const RANG_PAIRE = ['1re paire', '2e paire', '3e paire'];
-const nomSysteme = k => { const S = TACTIQUES[k] || SYSTEMES_D[k]; return S ? `${S.ico} ${S.nom}` : ''; };
-const motFit = f => (f >= 70 ? 'sur mesure' : f >= 55 ? 'bon fit' : f >= 40 ? 'fit moyen' : 'mauvais fit');
-export function conseilsDuMatch({ lineup, lignes, fermeture = 'auto', energie = {}, adv = null }) {
-  const out = [];
-  const avec = (u, patch) => lignes.map((l, i) => (i === u ? { ...l, ...patch } : { ...l }));
-  const fitDe = (g, u, k) => (k && k !== 'hourra' && (g === 'D' ? SYSTEMES_D : TACTIQUES)[k] ? (fitUnite(lineup, g, u, k) ?? 0) : 0);
-  const nomUnite = (g, u) => (g === 'D' ? RANG_PAIRE[u] : RANG_TRIO[u]);
-  const idDe = (L, g, u) => { const id = L && identiteUnite(L, g, u); return id ? id.nom : ''; };
-  const touche = new Set();   // une unité, un conseil
-  // Les chiffres d'un conseil sont ceux du moteur, en matchs, pour TON club : il joue les deux versions des lignes (js/impact.js).
-  const club = clubLu();
-  const chiffresSys = (g, u, k) => (club && club.team ? systemeEnChiffres(club.team, lineup, null, lignes, u, g, k) : []);
-
-  if (adv && adv.lignes) {
-    // LEUR SYSTÈME PRINCIPAL : leurs trois premiers trios, pondérés 3-2-1.
-    const poids = {};
-    adv.lignes.slice(0, 3).forEach((l, u) => { if (TACTIQUES[l.tac] && TACTIQUES[l.tac].slots) poids[l.tac] = (poids[l.tac] || 0) + 3 - u; });
-    const X = (Object.entries(poids).sort((a, b) => b[1] - a[1])[0] || [])[0];
-    if (X) {
-      const leurs = [0, 1, 2].filter(u => adv.lignes[u] && adv.lignes[u].tac === X);
-      const chim = Math.max(0, ...leurs.map(u => (adv.chimie || [])[u] || 0));
-      const surN = chim >= 5 ? Math.round(100 / (SPEC_BASE * chim)) : null;
-      const leursMots = `leur ${nomSysteme(X)} (${leurs.map(u => RANG_TRIO[u]).join(', ')})`;
-      const deja = [...[0, 1, 2, 3].filter(u => TACTIQUES[lignes[u].tac] && TACTIQUES[lignes[u].tac].bat === X).map(u => `ton ${RANG_TRIO[u]}`),
-        ...[0, 1, 2].filter(u => SYSTEMES_D[lignes[u].tacD] && SYSTEMES_D[lignes[u].tacD].bat === X).map(u => `ta ${RANG_PAIRE[u]}`)];
-      const action = surN ? `son action spéciale — environ 1 tir sur ${surN} de ces trios, qui entre ${virgule(SPEC_MULT)} fois plus souvent —` : 'son action spéciale';
-      if (deja.length) out.push({ genre: 'deja', titre: `${leursMots[0].toUpperCase()}${leursMots.slice(1)} est déjà étouffé`, pourquoi: `Par ${deja.join(' et ')} : ${action} ne passe pas quand ${deja.length > 1 ? 'ils sont' : deja[0].startsWith('ta') ? 'elle est' : 'il est'} sur la glace.`, chiffres: [] });
-      else {
-        const essais = [];
-        for (const [g, cle, champ, unites] of [['F', contreDe(X), 'tac', [0, 1, 2]], ['D', contreDeD(X), 'tacD', [0, 1, 2]]]) {
-          if (!cle) continue;
-          for (const u of unites) essais.push({ g, cle, champ, u, fit: fitDe(g, u, cle), perte: fitDe(g, u, lignes[u][champ]) - fitDe(g, u, cle) });
-        }
-        // Le meilleur fit d'abord ; à fit égal, celui qui perd le moins à quitter son système.
-        const c = essais.filter(e => e.fit >= 45).sort((a, b) => b.fit - a.fit || a.perte - b.perte)[0];
-        if (c) {
-          touche.add(`${c.g}${c.u}`);
-          const avant = lignes[c.u][c.champ];
-          out.push({ genre: 'contre', lignes: avec(c.u, { [c.champ]: c.cle }),
-            titre: `${c.g === 'D' ? 'Ta' : 'Ton'} ${nomUnite(c.g, c.u)} en ${nomSysteme(c.cle)}`,
-            pourquoi: `${c.g === 'D' ? 'Elle' : 'Il'} étouffe ${leursMots} : ${action} ne passe plus quand ${c.g === 'D' ? 'ta paire' : 'ton trio'} est sur la glace. ${idDe(lineup, c.g, c.u) ? `${idDe(lineup, c.g, c.u)} : ` : ''}${motFit(c.fit)}${avant && avant !== 'hourra' ? ` (il jouait ${nomSysteme(avant)}, ${motFit(fitDe(c.g, c.u, avant))})` : ''}.`,
-            chiffres: chiffresSys(c.g, c.u, c.cle) });
-        }
-      }
-    }
-    // LEUR SYSTÈME ÉTOUFFE LE TIEN : le trio adverse du même rang, ou sa paire.
-    for (const u of [0, 1, 2]) {
-      const mien = lignes[u].tac, a = adv.lignes[u] || {};
-      if (touche.has(`F${u}`) || !TACTIQUES[mien] || !TACTIQUES[mien].slots) continue;
-      const parTrio = TACTIQUES[a.tac] && TACTIQUES[a.tac].bat === mien, parPaire = SYSTEMES_D[a.tacD] && SYSTEMES_D[a.tacD].bat === mien;
-      if (!parTrio && !parPaire) continue;
-      const libres = Object.keys(TACTIQUES).filter(k => k !== 'hourra' && k !== mien && TACTIQUES[a.tac]?.bat !== k && SYSTEMES_D[a.tacD]?.bat !== k)
-        .sort((x, y) => fitDe('F', u, y) - fitDe('F', u, x));
-      const k = libres[0];
-      // Pas pour un système où il serait mal assorti : on perdrait plus qu'une action spéciale.
-      if (!k || fitDe('F', u, k) < 40 || fitDe('F', u, k) < fitDe('F', u, mien) - 10) continue;
-      touche.add(`F${u}`);
-      out.push({ genre: 'menace', lignes: avec(u, { tac: k }), titre: `Ton ${RANG_TRIO[u]} en ${nomSysteme(k)}`,
-        pourquoi: `${parTrio ? `Leur ${RANG_TRIO[u]} en ${nomSysteme(a.tac)}` : `Leur ${RANG_PAIRE[u]} en ${nomSysteme(a.tacD)}`} étouffe ton ${nomSysteme(mien)} : ton action spéciale ne passerait pas. ${nomSysteme(k)} : ${motFit(fitDe('F', u, k))}.`,
-        chiffres: chiffresSys('F', u, k) });
-      break;
-    }
-  }
-  // LE FIT : l'unité la plus loin de son meilleur système (10 points ou plus), une par groupe.
-  for (const [g, champ, unites, meilleur] of [['F', 'tac', [0, 1, 2, 3], meilleureTactique], ['D', 'tacD', [0, 1, 2], meilleurSystemeD]]) {
-    let pire = null;
-    for (const u of unites) {
-      if (touche.has(`${g}${u}`)) continue;
-      const m = meilleur(lineup, u), cur = lignes[u][champ];
-      const ecart = fitDe(g, u, m) - fitDe(g, u, cur);
-      if (m !== cur && ecart >= 10 && (!pire || ecart > pire.ecart)) pire = { u, m, cur, ecart };
-    }
-    if (!pire) continue;
-    touche.add(`${g}${pire.u}`);
-    const id = idDe(lineup, g, pire.u);
-    out.push({ genre: 'fit', lignes: avec(pire.u, { [champ]: pire.m }), titre: `${g === 'D' ? 'Ta' : 'Ton'} ${nomUnite(g, pire.u)} en ${nomSysteme(pire.m)}`,
-      pourquoi: `${id ? `${id} : ` : ''}${motFit(fitDe(g, pire.u, pire.m))} en ${nomSysteme(pire.m)}, ${pire.cur && pire.cur !== 'hourra' ? `${motFit(fitDe(g, pire.u, pire.cur))} en ${nomSysteme(pire.cur)}` : 'sans système'}. Le gain d'un système suit le fit de ses joueurs.`,
-      chiffres: chiffresSys(g, pire.u, pire.m) });
-  }
-  // LA FERMETURE : ton trio le plus défensif — ses checkers et ses two-way, lus dans leurs vraies stats — prend leur 1er trio.
-  const ferm = fermeture === 'auto' ? 2 : fermeture;
-  const defenseDe = u => { const js = Object.entries(joueursDeLigne(lineup, u)).filter(([r, p]) => p && r !== 'DG' && r !== 'DD').map(([, p]) => profilsDe(p) || {});
-    return js.length === 3 ? js.reduce((a, pr) => a + Math.max(pr.checker || 0, pr.deuxsens || 0), 0) / 3 : 0; };
-  const defensif = [0, 1, 2, 3].sort((a, b) => defenseDe(b) - defenseDe(a))[0];
-  if (defensif !== 0 && defensif !== ferm && defenseDe(defensif) >= (ferm == null ? 0 : defenseDe(ferm)) + 10) {
-    const leur = adv && adv.lineup ? idDe(adv.lineup, 'F', 0) : '';
-    const id = idDe(lineup, 'F', defensif);
-    out.push({ genre: 'fermeture', fermeture: defensif, titre: `Ton ${RANG_TRIO[defensif]} en fermeture`,
-      pourquoi: `Le trio de fermeture prend leur 1er trio${leur ? ` (${leur})` : ''}. ${id ? `Ton ${RANG_TRIO[defensif]} est un ${id.replace(/^Trio/, 'trio')}` : `Ton ${RANG_TRIO[defensif]}`} : ses joueurs sont les plus défensifs de ta formation${ferm == null ? '' : `, plus que ton ${RANG_TRIO[ferm]}`}.`, chiffres: [] });
-  }
-  // LA GLACE : un des deux premiers trios usé — sous ENERGIE_REF, chaque point de jambes coûte (`facteurEnergie`) ;
-  // le conseil attend qu'il en manque assez pour que quinze secondes de moins vaillent la peine (JAMBES_CONSEIL).
-  for (const u of [0, 1]) {
-    const js = Object.entries(joueursDeLigne(lineup, u)).filter(([r, p]) => p && r !== 'DG' && r !== 'DD').map(([, p]) => energie[getPlayerKey(p)]).filter(Number.isFinite);
-    const moy = js.length ? js.reduce((a, x) => a + x, 0) / js.length : 100;
-    if (moy >= JAMBES_CONSEIL || lignes[u].sec <= SEC_MIN) continue;
-    const sec = Math.max(SEC_MIN, lignes[u].sec - 15);
-    out.push({ genre: 'glace', lignes: avec(u, { sec }), titre: `Ton ${RANG_TRIO[u]} : ${sec} s par présence`,
-      pourquoi: `Il traîne la patte : ${Math.round(moy)} de jambes (sur 100) ce matin. Sous ${ENERGIE_REF}, un joueur rend ${String(ENERGIE_EFFET).replace('.', ',')} % de moins par point ; moins de glace ce soir, c'est plus de jambes au prochain.`,
-      chiffres: [{ txt: `Jambes ${Math.round(moy)}`, bon: false }] });
-    break;
-  }
-  return out;
 }
 
 /*

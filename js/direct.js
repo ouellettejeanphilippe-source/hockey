@@ -127,7 +127,7 @@ function evenementsDuMatch(f, graine) {
     }
     for (const l of f.lancers) if (!l.but) {
       const seuil = seuils.get(periodeDe(l.instant));
-      ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, tac: l.tac,
+      ev.push({ type: 'arret', cote: l.cote, instant: l.instant, tireur: l.tireur, gardien: l.gardien, p: l.p, special: l.special, mode: l.mode, acc: l.acc,
         danger: seuil != null && l.p != null ? l.p >= seuil : null });
     }
   } else for (const cote of ['A', 'B']) {
@@ -453,10 +453,10 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const att = ctx.esc(ctx.teamShort(equipe(e.cote))), def = ctx.esc(ctx.teamShort(equipe(autre(e.cote))));
       const cGard = autre(e.cote);
       // CE QUE LE COMMENTATEUR SAIT DU JEU (S71) : le poste et le style du tireur,
-      // la tactique de sa ligne, la situation, ses buts de la saison.
+      // l'accord de sa ligne, la situation, ses buts de la saison.
       const style = e.tireur ? STYLE_MICRO[profil(e.tireur)] || null : null;
       const contexte = { t, g: gg, att, def, nArrets: st.arrets[cGard], r: tempsRestant(e.instant), serre: serre(e.instant),
-        poste: e.tireur && /^(D|LD|RD)$/.test(e.tireur.p) ? 'D' : 'F', style, tac: e.tac || null, mode: e.mode === 'AN' || e.mode === 'DN' ? e.mode : null,
+        poste: e.tireur && /^(D|LD|RD)$/.test(e.tireur.p) ? 'D' : 'F', style, acc: e.acc || null, mode: e.mode === 'AN' || e.mode === 'DN' ? e.mode : null,
         butsSaison: e.tireur ? ((compte.get(e.tireur) || {}).g || 0) : 0,
         pousse: (e.cote === 'A' ? gA < gB : gB < gA) && e.instant >= 40,
         blanchissage: e.instant >= 40 && (cGard === 'A' ? gB : gA) === 0 };

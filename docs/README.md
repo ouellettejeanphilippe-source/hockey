@@ -4,6 +4,7 @@
 - `moteur-recalibrer.md` — le moteur de match, les séries, la chimie, les traits et la recalibration (référence).
 - `structure-detaillee.md` — la structure du dépôt, fichier par fichier, dans sa version longue.
 - `organisation-equilibrage.md` — équilibrer sans casser le jeu : où vivent les chiffres, ce qui casse, et le plan en dix actions (l'empreinte du moteur d'abord).
+- `refonte-v18.md` — sans systèmes, l'affinité (25 oct.), JP : *enlever partout* ; *permettre affinité entre joueurs dont les styles marchent ensemble* ; les systèmes, la glace de chaque trio, l'appariement et la consigne partent, la chimie d'une ligne vient de ses accords (douze paires de badges), la ligue recalée sur ses chiffres d'avant, les coachs mesurés.
 - `sans-systemes.md` — les systèmes de ligne mesurés avant de partir (25 oct.), JP : *même les stratégies de lignes, c'est à jeter* ; chaque coach avec et sans eux, en paires sur douze ligues Rogue (le Frelon −2,5 V, l'Abbé −0,9, la Tortue +1,8, le reste dans le bruit), la chimie rendue aux joueurs mesurée, ce que chacun devient et ce que JP tranche.
 - `refonte-v15.md` — les styles naissent des badges (22 oct.), JP : *les badges des joueurs influencent certains styles de trio* ; un trio ne joue que les styles que ses badges ouvrent, le plan des familles part.
 - `refonte-v14.md` — le personnel qui monte (21 oct.), JP : *des cartes qui gagnent des niveaux, avec leurs forces et leurs faiblesses, un look de jeu de gestion* ; des échelons en matchs à ton service, un choix à chacun, les doublons d'un pack qui les ouvrent.

@@ -2,6 +2,8 @@
 
 25 octobre 2026. JP, au duel de la V17 : *même les stratégies de lignes, c'est à jeter*. Avant de les jeter : ce que chaque coach y perd, mesuré, et ce que chacun devient. Rien n'est jeté ici ; ce document est la mesure et la proposition. La mesure : `node scripts/mesure_sans_systemes.mjs`. La page, avec la revue des écrans : https://claude.ai/artifact/CXUsbFYXA6BCDiTZjhLwgC.
 
+**Tranché le jour même** (JP : *enlever partout* ; *permettre affinité entre joueurs dont les styles marchent ensemble*) : la V18, `docs/refonte-v18.md`. Les systèmes, la glace de chaque trio, l'appariement et la consigne sont partis ; la chimie d'une ligne vient de ses accords. Ce qui suit est la mesure d'avant, gardée telle quelle.
+
 ## 1. Ce que les systèmes font aujourd'hui
 
 Un système (`TACTIQUES` pour un trio, `SYSTEMES_D` pour une paire, js/sim.js) touche le moteur par six chemins. Les jeter, c'est les couper tous :
@@ -36,7 +38,7 @@ Le 🏦 Comptable n'a pas de joueurs : il paie, les systèmes ne le touchent pas
 
 ## 2. La mesure
 
-`node scripts/mesure_sans_systemes.mjs` (douze ligues Rogue de 32 vrais clubs, une demi-heure sur quatre processus). Deux mondes, les mêmes clubs, les mêmes graines :
+`scripts/mesure_sans_systemes.mjs`, parti avec la V18 (douze ligues Rogue de 32 vrais clubs, une demi-heure sur quatre processus). Deux mondes, les mêmes clubs, les mêmes graines :
 
 - **avec** : le jeu d'aujourd'hui (`courbe`, chaque unité joue le style que ses badges ouvrent) ;
 - **sans** : chaque ligne de chaque club au Hourra. La ligue y est recalée comme on la recalerait en jetant les systèmes : `SPEC_NORME` à 1 (plus d'actions spéciales à compenser) et `REF_STYLE_VOL` à 1 (le style de référence que les systèmes donnaient à tous).

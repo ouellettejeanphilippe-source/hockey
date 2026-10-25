@@ -193,18 +193,6 @@ for (const [cle, m] of Object.entries(SEQUENCES)) for (const o of m.options) {
 }
 
 
-/* ---------- la consigne du match, tous les soirs (S68) ---------- */
-/*
- * L'importance du match remplace le plan du soir : haute joue plus fort et
- * se paie à l'infirmerie et à la fatigue, basse repose. Tous les soirs, c'est
- * le pire cas — aucune ne doit décider la saison.
- */
-console.log('\n  LA CONSIGNE DU MATCH (tous les soirs)');
-for (const importance of ['haute', 'basse']) {
-  const r = paires(equipe => Array.from({ length: 90 }, (_, j) => ({ jour: j, equipe, match: { importance, ad: 0 } })));
-  lire(`importance ${importance} tous les soirs`, r, -3, 3);
-}
-
 /* ---------- les changements de carte par choix (S68) ---------- */
 /*
  * Chaque mutation posée à la journée 25 sur le joueur qu'elle vise : elle

@@ -28,16 +28,16 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   MOMENTS, JOURS_MOMENTS, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
-  lignesDe, IMPORTANCES, cibleMutation, dureeOption, TACTIQUES, SYSTEMES_D, systemeDe, MUTATIONS,
-  contreDe, AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
+  cibleMutation, dureeOption, MUTATIONS,
+  AJUSTEMENTS, ajustementsOfferts, MINI_BOSS, ELAN, SONNE,
   PLANS_ADV, AVANT_GROS, avantDuGros, ENTRACTES, INCIDENTS, entractesOfferts,
   mainDuDeck, SORTES_DECK, rolesOfferts, editionsDuJour,
-  familleDeMoment, activeLineup, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
-  ROULEMENTS, roulementDe, nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
+  familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
+  nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
 import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
-import { pronostic, prevision, conseilsDuMatch, chancesDesObjectifs, motDeChance } from './pronostic.js';
+import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE, cartesDuPalier, optionDeBanque } from './inventaire.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
@@ -915,25 +915,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /*
    * LES TOTAUX DU SOIR (1.0, C5). Ce que le moteur appliquera au match de la
    * journée `j` : les effets déjà posés, plus les décisions pas encore jouées
-   * d'ici là (le moteur ne les applique qu'en jouant la journée). `brouillon`
-   * remplace la consigne et les lignes de ce soir-là (« Préparer le match »).
+   * d'ici là (le moteur ne les applique qu'en jouant la journée).
    */
-  // Les décisions d'ici au soir `j` pas encore jouées, le brouillon de « Préparer le match » à la place des siennes.
-  const auSoirDu = (j, brouillon, fn) => {
-    const aVenir = decs.filter(d => d.jour >= jour && d.jour <= j && !d.entracte && !(d.duel && d.duel.p > 0) && !(brouillon && d.jour === j && (d.match || d.lignes)));
-    if (brouillon) aVenir.push({ jour: j, ...brouillon });
+  const auSoirDu = (j, fn) => {
+    const aVenir = decs.filter(d => d.jour >= jour && d.jour <= j && !d.entracte && !(d.duel && d.duel.p > 0));
     const jc = you.jourCourant;
     you.jourCourant = j;
     try { return fn(aVenir); } finally { you.jourCourant = jc; }
   };
-  // Le roulement d'avant ce soir (la dernière décision qui le porte, sinon celui par défaut) et celui qui joue ce soir.
-  const roulementDuSoir = j => {
-    const dernier = x => (decs.filter(d => d.roulement && ROULEMENTS[d.roulement] && x(d)).sort((a, b) => a.jour - b.jour).pop() || {}).roulement;
-    const avant = dernier(d => d.jour < j) || roulementDe(null);
-    return { avant, choix: dernier(d => d.jour <= j) || avant };
-  };
-  const totauxDuMatch = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => motsDuSoir(you, null, null, aVenir));
-  const partsDuSoirDu = (j, brouillon = null) => auSoirDu(j, brouillon, aVenir => alignementDuSoir(you, null, null, aVenir));
+  const totauxDuMatch = j => auSoirDu(j, aVenir => motsDuSoir(you, null, null, aVenir));
+  const partsDuSoirDu = j => auSoirDu(j, aVenir => alignementDuSoir(you, null, null, aVenir));
   const pris = new Set(decs.filter(d => typeof d.palier === 'string').map(d => d.palier));
   const momentsAvant = J => decs.filter(d => d.moment && d.moment.famille === 'moment'
     && typeof d.palier === 'string' && Number(d.palier.slice(2)) < J).map(d => d.moment.cle);
@@ -1647,13 +1638,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    *   2. Les forces en TABLEAU : un rang par club et par ligne, et l'avantage
    *      marqué (◀ ▶) quand l'écart compte (un huitième de la ligue, trois
    *      rangs au moins). Les unités spéciales s'y ajoutent dès trois matchs.
-   *   3. Ce que tu peux faire ce soir (`conseilsDuMatch`) : des réglages de
-   *      TES lignes, de ta fermeture ou de ta consigne, avec les chiffres du
-   *      moteur, et « Appliquer » — une décision comme une autre, qui se rejoue.
+   *   3. Ton plan (V17) : six tuiles, chacune en vraies stats de CE match. Les conseils de systèmes, de
+   *      fermeture et de glace sont partis avec eux (V18).
    * Les « conditions » (« s'il marque quatre buts, il gagne 79 % du temps »)
    * sont parties : elles ne décidaient de rien.
    */
-  const conseilsVus = new Map();   // journée → les conseils affichés, pour « Appliquer »
   function depistageMatchHtml(p) {
     const moiA = p.m.A === you, adv = moiA ? p.m.B : p.m.A;
     const pr = pronosticDe(p);
@@ -1684,24 +1673,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Leur meilleur buteur : ce qu'il est (ses positions, son rôle) et ce qu'il a fait.
     const b = buteurDe(adv);
     const surveiller = b ? `<div class="dep3-surveiller">👀 Chez eux : <b>${ctx.esc(b.p.n)}</b>${ctx.quiEst ? ` · ${ctx.esc(ctx.quiEst(b.p, { stats: false }))}` : ''} — ${b.c.g} but${b.c.g > 1 ? 's' : ''} en ${gpDe(adv)} matchs.</div>` : '';
-    // CE QUE TU PEUX FAIRE CE SOIR.
-    const snap = t => (t.jourLignes && t.jourLignes[Math.max(0, Math.min(jour, t.jourLignes.length - 1))]) || {};
-    const conseils = conseilsDuMatch({
-      lineup: you.roster, lignes: lignesDe(you, you.roster, { duSoir: false }), fermeture: you.fermeture, energie: snap(you).energie || {},
-      adv: { lignes: lignesDe(adv, activeLineup(adv), { duSoir: false }), chimie: snap(adv).chimie || [], lineup: adv.roster },
-    });
-    conseilsVus.set(p.j, conseils);
-    const conseilHtml = (c, i) => `<div class="dep3-conseil${c.genre === 'deja' ? ' deja' : ''}">
-        <div class="dep3-conseil-t">${c.genre === 'deja' ? '✓ ' : ''}<b>${ctx.esc(c.titre)}</b></div>
-        <div class="dep3-conseil-p">${ctx.esc(c.pourquoi)}</div>
-        ${c.chiffres.length || (onDecision && c.genre !== 'deja') ? `<div class="dep3-conseil-pied">${c.chiffres.length ? `<span class="choix-puces">${puces(c.chiffres)}</span>` : ''}${onDecision && c.genre !== 'deja' ? `<button type="button" class="btn dep3-appliquer" data-conseil="${i}" data-j="${p.j}">Appliquer</button>` : ''}</div>` : ''}
-      </div>`;
-    // V17 : sous Ton plan, le conseil qui compte le plus ; les autres, et ce qui est déjà fait, attendent au détail.
-    const rangs = conseils.map((c, i) => [c, i]), tete = rangs.find(([c]) => c.genre !== 'deja');
-    const conseilsHtml = `<div class="dep3-conseils"><div class="gl-k">🧭 Ce que tu peux faire ce soir</div>${tete ? conseilHtml(...tete) : '<div class="dep3-conseil-p">Rien à changer : tes systèmes, ta fermeture et ta glace sont déjà les bons pour ce match.</div>'}</div>`;
-    const autres = rangs.filter(x => x !== tete);
-    const conseilsPlus = autres.length ? `<div class="dep3-conseils">${autres.map(x => conseilHtml(...x)).join('')}</div>` : '';
-    return { chances, detail: `${table}${surveiller}`, conseils: conseilsHtml, conseilsPlus, plan: planHtml(p, adv) };
+    return { chances, detail: `${table}${surveiller}`, plan: planHtml(p, adv) };
   }
   /*
    * TON PLAN (V17, docs/refonte-v17.md § 3). JP : *des choix avant le match, plus stratégiques, genre tirer plus, suivre
@@ -1729,18 +1701,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (b.classList.contains('on')) return;
     const j = Number(b.dataset.j), cle = b.dataset.plan;
     const ici = jour; quitter(); onDecision({ jour: j, plan: { cle, ...(b.dataset.vise ? { vise: b.dataset.vise } : {}) } }, ici);
-  };
-  /* « Appliquer » : le conseil devient une décision de la journée du match, et la saison se rejoue d'ici. */
-  const appliquerConseil = b => {
-    const j = Number(b.dataset.j), c = (conseilsVus.get(j) || [])[Number(b.dataset.conseil)];
-    if (!c) return;
-    const d = c.lignes ? { jour: j, lignes: c.lignes } : c.fermeture != null ? { jour: j, fermeture: c.fermeture } : null;
-    if (!d) return;
-    const ici = jour; quitter(); onDecision(d, ici);
-  };
-  const brancherConseils = el => {
-    if (!el || !onDecision) return;
-    el.querySelectorAll('.dep3-appliquer').forEach(b => { b.onclick = () => appliquerConseil(b); });
   };
 
   /*
@@ -2279,25 +2239,25 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /*
    * LE RAPPORT DU MATCH PAR LIGNE (S68), comme HockeyArena : ce que chaque
    * ligne a fait à forces égales — ses lancers, ses buts, ceux qu'on a
-   * marqués contre elle, ses actions spéciales réussies et étouffées. C'est
-   * là qu'on apprend ce qui marche.
+   * marqués contre elle, ses actions spéciales réussies — et son affinité
+   * (V18), qui les fait. C'est là qu'on apprend ce qui marche.
    */
   const rapportLignes = m => {
     if (!m.feuille || !m.feuille.lancers) return '';
     const cote = m.A === you ? 'A' : 'B', autre = cote === 'A' ? 'B' : 'A';
-    const L = [0, 1, 2, 3].map(() => ({ t: 0, b: 0, s: 0, e: 0, bc: 0 }));
+    const L = [0, 1, 2, 3].map(() => ({ t: 0, b: 0, s: 0, bc: 0 }));
     for (const l of m.feuille.lancers) {
       if (l.ligne == null || l.mode !== 'FE') continue;
-      if (l.cote === cote) { const x = L[l.ligne]; x.t++; if (l.but) x.b++; if (l.special === 'reussie') x.s++; if (l.special === 'etouffee') x.e++; }
+      if (l.cote === cote) { const x = L[l.ligne]; x.t++; if (l.but) x.b++; if (l.special === 'reussie') x.s++; }
     }
     // Les buts contre, par la ligne d'en face qui a marqué : on n'a pas celle
     // qui défendait, alors on dit ce que la ligne adverse du même rang a fait.
     for (const b of m.feuille.buts) if (b.cote === autre && b.ligne != null && !b.an && !b.dn) L[b.ligne].bc++;
-    const lignes = lignesDe(you, you.roster);
     const noms = ['1re', '2e', '3e', '4e'];
+    const aff = u => { const a = accordsDeLigne(you.roster, u); return a.length ? `${ctx.esc(a[0].aff.nom)}${a.length > 1 ? ` +${a.length - 1}` : ''}` : '—'; };
     return `<div class="live-tableau"><div class="live-tableau-titre">Tes lignes, à forces égales</div>
-      <table class="rl-table"><thead><tr><th>Ligne</th><th>Systèmes</th><th>Tirs</th><th>Buts</th><th title="Buts de la ligne adverse du même rang">Contre</th><th title="Actions spéciales réussies">Spéc.</th><th title="Actions spéciales étouffées par le système adverse">Étouf.</th></tr></thead>
-      <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${TACTIQUES[lignes[u].tac].ico} ${ctx.esc(TACTIQUES[lignes[u].tac].nom)}${u < 3 && SYSTEMES_D[lignes[u].tacD] && lignes[u].tacD !== 'hourra' ? ` · ${SYSTEMES_D[lignes[u].tacD].ico}` : ''}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
+      <table class="rl-table"><thead><tr><th>Ligne</th><th>Affinité</th><th>Tirs</th><th>Buts</th><th title="Buts de la ligne adverse du même rang">Contre</th><th title="Actions spéciales réussies">Spéc.</th></tr></thead>
+      <tbody>${L.map((x, u) => `<tr><td>${noms[u]}</td><td>${aff(u)}</td><td>${x.t}</td><td>${x.b}</td><td>${x.bc}</td><td>${x.s}</td></tr>`).join('')}</tbody></table></div>`;
   };
 
   // LE VOLET « MATCH » (S79) : l'état de la saison (`etatHtml`), puis hier soir en une ligne.
@@ -2381,7 +2341,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   let enJeuLu = null;
   const enJeuDuSoir = p => {
-    if (!enJeuLu || enJeuLu.jour !== jour) enJeuLu = { jour, jeu: p ? auSoirDu(p.j, null, aVenir => ceQuiJoue(you, null, p.m.A === you ? p.m.B : p.m.A, aVenir)) : [] };
+    if (!enJeuLu || enJeuLu.jour !== jour) enJeuLu = { jour, jeu: p ? auSoirDu(p.j, aVenir => ceQuiJoue(you, null, p.m.A === you ? p.m.B : p.m.A, aVenir)) : [] };
     return enJeuLu.jeu;
   };
   const cartesDuBureau = () => {
@@ -2396,7 +2356,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   /*
    * LE DÉPISTAGE, SOUS EFFECTIF (JP, 23 oct. : *pas besoin d'écran par match, mettre les stratégies avec les lignes* ;
    * *organise plus comme EHM, avec moins de trucs qui servent pas*). Ce que tu sais de ton prochain adversaire — son plan,
-   * les forces, ce qui est en jeu, les conseils — et « Tes lignes », à côté des Lignes. Le pronostic se calcule à l'ouverture du sous-onglet, une fois par journée (`pronosticDe`).
+   * les forces, ce qui est en jeu, ton plan — et « Tes lignes », à côté des Lignes. Le pronostic se calcule à l'ouverture du sous-onglet, une fois par journée (`pronosticDe`).
    */
   const voletDepistage = () => {
     if (jour >= N) return '<p class="hub-vide">La saison est jouée.</p>';
@@ -2530,14 +2490,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         const choisi = o ? String(o.nom).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire') : '';
         ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(choisi)}</b>` : ''}` });
       } else if (d.deck && SORTES_DECK[d.deck]) {
-        const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle], T = d.maitrise && systemeDe(d.maitrise.tac);
+        const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle];
         const qui = d.deck === 'recrue' ? nomJoueur(d.ballottage && d.ballottage.entre) : d.mutation ? nomJoueur(d.mutation.joueur) : '';
         // S80 : la modif gardée au palier (`garde`, « joueur:affute ») attend dans l'inventaire.
         const MG = d.garde ? MUTATIONS[String(d.garde).split(':')[1]] : null;
         const t = d.deck === 'recrue' ? `Recrue : <b>${ctx.esc(qui || 'un joueur')}</b> signé`
           : MG ? `${MG.ico} <b>${ctx.esc(MG.nom)}</b> gardée dans tes cartes`
-          : M ? `${M.ico} ${ctx.esc(M.nom)} pour <b>${ctx.esc(qui || 'un joueur')}</b>`
-            : T ? `Stage de système : ${T.ico} <b>${ctx.esc(T.nom)}</b>` : ctx.esc(S.nom);
+          : M ? `${M.ico} ${ctx.esc(M.nom)} pour <b>${ctx.esc(qui || 'un joueur')}</b>` : ctx.esc(S.nom);
         ev.push({ j: d.jour, t: `${S.ico} ${t}` });
       } else if (d.joue && d.mutation && MUTATIONS[d.mutation.cle]) ev.push({ j: d.jour, t: `${MUTATIONS[d.mutation.cle].ico} ${ctx.esc(MUTATIONS[d.mutation.cle].nom)} posée au verso de <b>${ctx.esc(nomJoueur(d.mutation.joueur) || 'un joueur')}</b>` });
       else if (d.ballottage) ev.push({ j: d.jour, t: '📋 Un joueur réclamé au ballottage pour boucher un trou' });
@@ -2706,7 +2665,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return m;
   };
 
-  // En Rogue, le dépistage est un volet d'Effectif (leur plan, les forces, les conseils, tes lignes) ; `soir` le garde du dernier rendu.
+  // En Rogue, le dépistage est un volet d'Effectif (leur plan, les forces, ton plan, tes lignes) ; `soir` le garde du dernier rendu.
   const soirEnVolet = !!(ctx.rogue && onDecision);
   let soir = null;
   // V12 : en Rogue, chaque maison de la boîte est un volet (un sous-onglet de sa section) ; `vueMaison` le rend, `rendreActions` le pose.
@@ -2809,12 +2768,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
     if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
-  // Effectif › Dépistage : un plan part, un conseil s'applique, « Tes lignes » mène derrière le banc.
+  // Effectif › Dépistage : un plan part, « Tes lignes » mène derrière le banc.
   const dansLeDepistage = e => {
     if (!actif()) return;
-    const c = e.target.closest('.dep3-appliquer'), t = e.target.closest('.dep-plan[data-plan]');
-    if (c && volet.contains(c)) appliquerConseil(c);
-    else if (t && volet.contains(t) && onDecision) appliquerPlan(t);
+    const t = e.target.closest('.dep-plan[data-plan]');
+    if (t && volet.contains(t) && onDecision) appliquerPlan(t);
     else if (e.target.closest('.hub-vers-lignes') && onBanc) { quitter(); onBanc(jour); }
   };
   if (soirEnVolet) volet.addEventListener('click', dansLeDepistage);
@@ -2828,7 +2786,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * tard* ; *pense vraiment à un kid qui joue avec ses cartes Upper Deck
    * comme si c'était Slay the Spire*. Trois cartes de sortes différentes
    * (`mainDuDeck`) ; une carte qui demande un deuxième choix — quel joueur,
-   * quel rôle, quel système — l'ouvre dans le même plein écran, et « Retour à
+   * quel rôle — l'ouvre dans le même plein écran, et « Retour à
    * la main » y ramène. Toutes finissent en UNE décision datée d'aujourd'hui,
    * portant son palier : c'est ce qui ferme la main.
    */
@@ -2904,7 +2862,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (sorte === 'profil') {
       // Jalon U : les rangées du vestiaire ; la ligne dit le rôle offert, où il joue et ce que ça change.
       ctx.listeJoueurs({ ico: '🔄', titre: 'Nouveau rôle', motFermer: 'Retour aux trois cartes', motBouton: 'Choisir',
-        recit: 'Trois conversions possibles dans ton alignement. Le joueur change de rôle pour de bon : son fit dans chaque système suit.',
+        recit: 'Trois conversions possibles dans ton alignement. Le joueur change de rôle pour de bon : ses accords suivent.',
         contexte: dejaEnJeu(roles.map(x => x.p)),
         joueurs: roles.map(x => ({ p: x.p, cle: `${x.cle}|${getPlayerKey(x.p)}`,
           sous: [`${MUTATIONS[x.cle].ico} ${MUTATIONS[x.cle].nom}`, ctx.ouJoue && ctx.ouJoue(x.p), ...motsDeMutationEnChiffres(x.cle, x.p).slice(0, 2).map(m => m.txt)].filter(Boolean).join(' · ') })),
@@ -3008,20 +2966,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // moteur — c'est lui qui a le dernier changement — et une affiche le dit.
       const domicile = p.m.A === you;
       /*
-       * TES LIGNES ET LA CONSIGNE DU MATCH (S68), à la HockeyArena : la
-       * tactique et la chimie de chaque ligne se lisent sur l'affiche, et
-       * « Préparer le match » ouvre le poste de gérant en plein écran — les
-       * lignes, leurs profils, la tactique d'en face, l'importance du match.
-       * Appliquer rejoue la saison depuis aujourd'hui, avec des dés neufs.
+       * TES LIGNES (S68, V18) : l'affinité et la chimie de chaque ligne se lisent sur l'affiche ; les Lignes les
+       * changent, en changeant les joueurs.
        */
       const etat = (you.jourLignes && you.jourLignes[jour]) || { chimie: you.chimie || [0, 0, 0, 0], energie: {} };
-      const lignesToi = lignesDe(you, you.roster);
-      const matchPris = decs.find(d => d.match && d.jour === p.j);
-      const imp = IMPORTANCES[(matchPris && matchPris.match.importance) || 'normale'] || IMPORTANCES.normale;
-      const planSoir = `<div class="hub-lignes">
-        <span class="gl-k">Tes lignes</span> ${resumeLignes(lignesToi, etat.chimie)}
-        <span class="hub-lignes-imp" title="L'importance de ce match">${imp.ico} ${ctx.esc(imp.nom)}</span>
-      </div>`;
+      const planSoir = `<div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(you.roster, etat.chimie)}</div>`;
       /*
        * LE GROS MATCH (S69, S70) : annoncé avant, jamais son issue. Le plan
        * de l'adversaire se lit comme un rapport d'éclaireur — ce qu'il règle
@@ -3063,7 +3012,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const enJeuHtml = onDecision && enJeu.length ? `<div class="hub-encours" title="Le détail est dans les Lignes">En cours : ${enJeu.map(x => ctx.esc(x)).join(' · ')}</div>` : '';
       // LES TOTAUX DU SOIR (1.0, C5) : ce que le moteur appliquera, effets multipliés et bornés.
       const totJ = totauxDuMatch(p.j);
-      // TON ALIGNEMENT AUSSI (V2.2) : systèmes, badges, chimie, jambes — un soir sans carte n'est pas un soir « sans effet ».
+      // TON ALIGNEMENT AUSSI (V2.2) : badges, affinité, jambes — un soir sans carte n'est pas un soir « sans effet ».
       const alJ = partsDuSoirDu(p.j);
       const puceAl = { txt: `Ton alignement : ${alJ.map(x => x.txt).join(' · ')}`, bon: null };
       const totauxHtml = `<div class="hub-totaux" title="${ctx.esc(`Tes effets se multiplient entre eux. Ton alignement : ${alJ.map(x => x.txt).join(' · ')}. Le détail est dans les Lignes.`)}"><b>${p.j === jour ? 'Ce soir' : 'Au prochain match'} :</b> <span class="choix-puces">${puces([...totJ, puceAl])}</span></div>`;
@@ -3089,14 +3038,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // Sous Effectif, il tient en un écran : tes chances et ce que tu peux faire, le reste se déplie.
       const corpsDuDepistage = () => {
         const d = depistageMatchHtml(p);
-        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}${d.conseils}${d.conseilsPlus}</div></div>`;
-        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}${d.conseils}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${d.conseilsPlus}${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+        if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}</div></div>`;
+        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
       };
       const ouvrirDepistage = () => {
-        const corps = ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
-        brancherConseils(corps);
-        // Un conseil appliqué ferme la page avant de rejouer la saison depuis ce soir.
-        corps.querySelectorAll('.dep3-appliquer').forEach(b => { const f = b.onclick; b.onclick = e => { ui.fermerPage(true); if (f) f.call(b, e); }; });
+        ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
       };
       if (soirEnVolet) {
         // Plus d'écran par match (JP, 23 oct.) : le Bureau garde une ligne, qui ouvre Effectif › Dépistage et « Tes lignes ».
@@ -3108,7 +3054,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         // V7 : le Bureau dit d'abord ce que le proprio attend (la run, son objectif, ton coach), puis le match.
         carte.innerHTML = `${etatHtml()}${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>`;
         carte.querySelector('.hub-dep-ouvrir').onclick = ouvrirDepistage;
-        // « Préparer le match » est l'onglet Lignes (V7) : la consigne, le filet, les trios et le plan s'y règlent.
+        // « Préparer le match » est l'onglet Lignes (V7) : le filet et les trios s'y règlent.
         const versLignes = carte.querySelector('.hub-vers-lignes');
         if (versLignes) versLignes.onclick = () => { quitter(); onBanc(jour); };
       }
@@ -4322,8 +4268,6 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   function bossHtml(s) {
     const boss = s.A === you ? s.B : s.A;
     const { moi, lui } = etatSerie(s);
-    const lb = lignesDe(boss, boss.roster);
-    const lt = lignesDe(you, you.roster);
     const ved = vedetteDe(boss), gar = gardienDe(boss);
     const chim = (you.jourLignes && you.jourLignes[you.jourLignes.length - 1] && you.jourLignes[you.jourLignes.length - 1].chimie) || you.chimie || [0, 0, 0, 0];
     return `<div class="boss">
@@ -4332,14 +4276,14 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
       <div class="boss-vies"><span title="Victoires qu'il te reste à gagner">Toi ${vies(4 - moi, 'toi')}</span><span title="Victoires qu'il lui reste à gagner">${vies(4 - lui, 'lui')} ${ctx.esc(ctx.teamShort(boss))}</span></div>
       <div class="boss-eclaireur">
         <div class="gl-k">Rapport d'éclaireur</div>
-        <div class="boss-lignes">${lb.map((l, u) => { const T = TACTIQUES[l.tac], c = contreDe(l.tac), D = u < 3 && SYSTEMES_D[l.tacD] && l.tacD !== 'hourra' ? SYSTEMES_D[l.tacD] : null; return `<span title="Sa ${u + 1}${u ? 'e' : 're'} ligne : trio en ${ctx.esc(T.nom)}${D ? `, paire en ${ctx.esc(D.nom)}` : ''}${c ? ` — étouffé par ${ctx.esc(TACTIQUES[c].nom)}` : ''}">${u + 1}. ${T.ico} ${ctx.esc(T.nom)}${D ? ` · ${D.ico}` : ''}${c ? ` <small>↪ ${TACTIQUES[c].ico}</small>` : ''}</span>`; }).join('')}</div>
+        <div class="boss-lignes">${[0, 1, 2, 3].map(u => { const a = accordsDeLigne(boss.roster, u); return `<span title="Sa ${u + 1}${u ? 'e' : 're'} ligne : ${a.length ? ctx.esc(a.map(x => x.aff.nom).join(', ')) : 'aucun accord'}">${u + 1}. ${a.length ? `${ctx.esc(a[0].aff.nom)}${a.length > 1 ? ` <small>+${a.length - 1}</small>` : ''}` : '—'}</span>`; }).join('')}</div>
         ${ved ? `<div>⭐ Sa vedette : <b>${ctx.esc(ved.n)}</b> · ${ved.simPTS || 0} pts en saison</div>` : ''}
         ${gar ? `<div>🥅 Son gardien : <b>${ctx.esc(gar.n)}</b>${gar.simSA ? ` · ${pct3((gar.simSV || 0) / gar.simSA)} en saison` : ''}</div>` : ''}
       </div>
       ${planDuMatch(s) && planDuMatch(s).depistage ? depistageHtml(pistesDuRapport(planDuMatch(s).depistage), { nomAdv: ctx.teamShort(boss) }) + `<div class="dep-suite">${ctx.esc(suiteDuPlan(s))}</div>` : ''}
       ${onDecision && you.courbe ? intentionAvantHtml(boss, `po${ronde}:${revele.get(s)}`) : ''}
       ${onDecision && !you.courbe ? mainAdverseHtml(mainAdverse(graine, `po${ronde}:${revele.get(s)}`, energieAdverse({ serie: true, ronde })), { nomAdv: ctx.teamShort(boss), energie: energieAdverse({ serie: true, ronde }) }) : ''}
-      <div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(lt, chim)}</div>
+      <div class="hub-lignes"><span class="gl-k">Tes lignes</span> ${resumeLignes(you.roster, chim)}</div>
     </div>`;
   }
   /*
@@ -4699,16 +4643,15 @@ export function ouvrirSeries({ series, moteur = null, nRondes: nR = null, rondes
   tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
   /*
    * LE SOIR DE TON PROCHAIN MATCH DE SÉRIE (V7 : « Préparer le match » fondu dans les Lignes). Ce que l'onglet Lignes
-   * règle derrière le banc, comme en saison : l'adversaire, chez qui (A reçoit), la consigne et le filet déjà choisis
-   * pour ce match, les jambes des gardiens, et le dépistage (leurs lignes sous leur plan le plus probable).
+   * règle derrière le banc, comme en saison : l'adversaire, chez qui (A reçoit), le filet déjà choisi pour ce match,
+   * et les jambes des gardiens.
    */
   const soirDeSerie = (s, k) => {
     const pour = d => d.ronde === ronde && d.match_no === k;
     const derniere = champ => (decsSerie.filter(d => pour(d) && d[champ]).pop() || {})[champ];
     return {
       adv: s.A === you ? s.B : s.A, domicile: s.A === you,
-      match: derniere('match') || { importance: 'normale', ad: 0 }, filet: derniere('filet') || 'auto', filetEtat: filetDuSoir(you),
-      depistage: planDuMatch(s) ? planDuMatch(s).depistage : null,
+      filet: derniere('filet') || 'auto', filetEtat: filetDuSoir(you),
       // Tes unités spéciales déjà choisies pour ce match (la décision ne joue qu'à la mise au jeu), sinon celles en vigueur.
       speciales: (decsSerie.filter(d => pour(d) && 'speciales' in d).pop() || { speciales: you.speciales || null }).speciales,
       energie: Object.fromEntries(Object.values(you.roster).filter(g => g && g.p === 'G').map(g => [getPlayerKey(g), Math.round(jambesGardien(g))])),

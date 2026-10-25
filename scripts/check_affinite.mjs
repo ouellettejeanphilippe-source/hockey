@@ -1,27 +1,28 @@
 /*
- * LA CHIMIE (S73, V7) — ce qui doit tenir.
+ * L'AFFINITÉ ET LA CHIMIE (S73, V7, V18) — ce qui doit tenir.
  *
- *   node scripts/check_chimie.mjs
+ *   node scripts/check_affinite.mjs
  *
- * V7, JP : *enlever les apprentissages de stratégie et chimie*. La chimie
- * d'une ligne ne s'apprend plus : elle vaut ce que ses joueurs font de son
- * système (`chimieLigne`). On exige :
- *   1. rien ne s'apprend : après une saison, ni entente ni maîtrise, et les
- *      mêmes lignes lisent la même chimie qu'au premier soir ;
- *   2. s'adapter un soir ne coûte rien, et un système mieux rempli a plus de
- *      chimie ;
- *   3. (S73, toujours vrai) les joueurs s'adaptent à leur position dans l'alignement ;
- *   4. la pénalité d'un joueur hors position fond en jouant à cette case ;
- *   5. la ligue garde son bonus moyen (calibrage de CHIMIE_BONUS) ;
- *   6. (1.0 · J1-M) le levier : chimie 100 contre 0 vaut au moins 8 % de buts ;
- *   7. (1.0 · J1-K) l'étiquette d'une case nomme les zones qui y sont chez elles.
+ * V18, JP : *enlever [la chimie] comme avant, mais permettre affinité entre joueurs dont les styles marchent
+ * ensemble*. La chimie d'une ligne vient de ses accords : deux joueurs de la ligne dont les badges s'accordent
+ * (`AFFINITES`, `accordsDeLigne`), chacun au plus petit des deux badges (`chimieLigne`). On exige :
+ *   1. rien ne s'apprend : après une saison, ni entente ni maîtrise, et les mêmes lignes lisent la même chimie
+ *      qu'au premier soir ;
+ *   2. les accords : chaque rôle d'un accord existe, chaque badge en a au moins un ; un accord est porté par deux
+ *      joueurs différents de la ligne, à leur plus petit badge ; plus d'accords, plus de chimie ; une ligne sans
+ *      accord joue quand même ensemble, une ligne incomplète n'a pas de chimie ;
+ *   3. la pénalité d'un joueur hors position fond en jouant à cette case (S73) ;
+ *   4. la ligue garde son bonus moyen (AFF_BASE, AFF_PALIER : la chimie qu'elle avait avec ses systèmes) ;
+ *   5. (1.0 · J1-M) le levier : chimie 100 contre 0 vaut au moins 8 % de buts ;
+ *   6. (1.0 · J1-K) l'étiquette d'une case nomme les zones qui y sont chez elles.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, activeLineup, lignesDe, contreDe,
-  chimieLigne, penaliteAdaptee, copieDeJoueur, fitDeLigne, getPositionPenalty, bonusChimie, fits,
+  autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, activeLineup,
+  chimieLigne, penaliteAdaptee, copieDeJoueur, getPositionPenalty, bonusChimie, fits,
+  AFFINITES, PROFILS, accordsDeLigne, joueursDeLigne, badgesDe, chimieMax, AFF_BASE,
 } from '../js/sim.js';
 import { LINE_ZONES, ZONES_ETOILE } from '../js/ratings.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
@@ -70,7 +71,7 @@ if (process.env.LEVIER) {
   process.exit(0);
 }
 
-console.log('\n  La chimie (S73, V7 : elle ne s\'apprend plus)\n');
+console.log('\n  L\'affinité et la chimie (V18 : les accords de ses joueurs)\n');
 
 /*
  * PLUSIEURS SAISONS, PAS UNE (S79). Une ligue seule est un tirage : la même
@@ -91,31 +92,46 @@ const base = bases[0];
   // Les mêmes joueurs aux mêmes cases : la chimie après 82 matchs, et sur des copies neuves (rien de la saison).
   const L = activeLineup(t);
   const neuf = Object.fromEntries(Object.entries(L).map(([k, p]) => [k, p && copieDeJoueur(p)]));
-  const lignes = lignesDe(t, L, { duSoir: false });
-  const apres = [0, 1, 2, 3].map(u => chimieLigne(L, u, lignes[u])), avant = [0, 1, 2, 3].map(u => chimieLigne(neuf, u, lignes[u]));
+  const apres = [0, 1, 2, 3].map(u => chimieLigne(L, u)), avant = [0, 1, 2, 3].map(u => chimieLigne(neuf, u));
   exiger('les mêmes lignes lisent la même chimie au premier soir et au 82e', apres.every((c, u) => Math.abs(c - avant[u]) < 1e-9),
     `${avant.map(c => c.toFixed(0)).join(' · ')} → ${apres.map(c => c.toFixed(0)).join(' · ')}`);
   informer('chimie moyenne de tes lignes', `journée 5 : ${moy(bases.map(b => moy(b[0].jourLignes[5].chimie))).toFixed(0)} % · 40 : ${moy(bases.map(b => moy(b[0].jourLignes[40].chimie))).toFixed(0)} % (les blessures cassent des lignes)`);
 }
 
-/* ---------- 2. s'adapter un soir ne coûte rien ; le fit fait la chimie ---------- */
+/* ---------- 2. les accords ---------- */
 {
-  const t = ligue(8100);
-  const L = activeLineup(t[0]);
-  const saison = lignesDe(t[0], L);
-  const soir = saison.map((l, u) => (u < 2 ? { ...l, tac: contreDe(l.tac) || 'defensive' } : { ...l }));
-  const J0 = 30;
-  const u = ligue(8100);
-  simulateLeague(u, 82, { graine: GRAINES[0], decisions: [
-    { jour: J0, equipe: 0, lignes: soir.map(l => ({ ...l })) },
-    { jour: J0 + 1, equipe: 0, lignes: saison.map(l => ({ ...l })) },
-  ] });
-  const lu = x => [0, 1, 2, 3].map(k => chimieLigne(activeLineup(x[0]), k, saison[k]).toFixed(6)).join('|');
-  exiger('s\'adapter un soir ne laisse aucune trace sur la chimie', lu(u) === lu(base), 'les mêmes lignes, avec et sans le soir ajusté');
-  const fitDe = l => fitDeLigne(L, 0, l), chim = l => chimieLigne(L, 0, l);
-  const a = saison[0], b = soir[0];
-  const [mieux, pire] = fitDe(a) >= fitDe(b) ? [a, b] : [b, a];
-  exiger('un système mieux rempli a plus de chimie', chim(mieux) >= chim(pire), `fit ${fitDe(mieux)} : ${chim(mieux).toFixed(0)} % · fit ${fitDe(pire)} : ${chim(pire).toFixed(0)} %`);
+  const roles = AFFINITES.flatMap(a => [a.a, a.b]);
+  const inconnus = roles.filter(([g, r]) => !(PROFILS[g] && PROFILS[g][r])).map(x => x.join(':'));
+  exiger('chaque rôle d\'un accord est un badge de son groupe', !inconnus.length, inconnus.join(' · ') || `${AFFINITES.length} accords`);
+  const seuls = Object.entries(PROFILS).flatMap(([g, P]) => Object.keys(P).filter(r => !roles.some(([g2, r2]) => g2 === g && r2 === r)).map(r => `${g}:${r}`));
+  exiger('chaque badge s\'accorde avec au moins un autre', !seuls.length, seuls.join(' · ') || 'les douze badges');
+  // Sur les vraies lignes de six ligues : deux joueurs différents de la ligne, au plus petit de leurs deux badges.
+  const pal = (p, r) => { const b = badgesDe(p).find(x => x.cle === r); return b ? (b.second && !b.plein ? b.palier / 2 : b.palier) : 0; };
+  const faux = [];
+  let n = 0, sans = 0;
+  for (const t of bases.flat()) {
+    const L = activeLineup(t);
+    for (let u = 0; u < 4; u++) {
+      const js = joueursDeLigne(L, u), dans = new Set(Object.values(js).filter(Boolean));
+      const acc = accordsDeLigne(L, u);
+      if (!acc.length) sans++;
+      for (const x of acc) {
+        n++;
+        if (x.a === x.b || !dans.has(x.a) || !dans.has(x.b)) faux.push(`${t.name} ${u + 1} ${x.aff.cle} : hors de la ligne`);
+        else if (Math.abs(x.force - Math.min(pal(x.a, x.aff.a[1]), pal(x.b, x.aff.b[1]))) > 1e-9) faux.push(`${t.name} ${u + 1} ${x.aff.cle} : force ${x.force}`);
+      }
+    }
+  }
+  exiger('un accord : deux joueurs de la ligne, au plus petit de leurs badges', !faux.length, faux.slice(0, 4).join(' · ') || `${n} accords sur ${bases.flat().length * 4} lignes, ${sans} sans aucun`);
+  // Les cases du club, pas son alignement du dernier soir : une fin de saison a ses blessés, et une ligne trouée n'a pas de chimie.
+  const L = base[0].roster;
+  const c = [0, 1, 2, 4, 8].map(a => chimieLigne(L, 0, a));
+  exiger('plus d\'accords, plus de chimie', c.every((x, i) => !i || x > c[i - 1]), c.map(x => x.toFixed(0)).join(' < '));
+  exiger('une ligne sans accord joue quand même ensemble', c[0] > 0 && Math.abs(c[0] - chimieMax(AFF_BASE) * 0.9) < 1e-9, `${c[0].toFixed(1)}`);
+  const trou = { ...L };
+  const s0 = SLOTS.find(s => !s.scratch && s.group === 'F' && s.unit === 0);
+  trou[s0.i] = null;
+  exiger('une ligne incomplète n\'a pas de chimie', chimieLigne(trou, 0) === 0, `${chimieLigne(trou, 0)}`);
 }
 
 /* ---------- 4. la position s'apprend ---------- */
@@ -173,4 +189,4 @@ const base = bases[0];
   exiger('une zone est chez elle à une case ⇔ l\'étiquette de la case la nomme', faux.length === 0, faux.join(' · ') || [...new Set(SLOTS.filter(x => !x.scratch && x.group !== 'G').map(x => x.label))].join(' | '));
 }
 
-verdict('La chimie');
+verdict('L\'affinité');

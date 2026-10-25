@@ -1,7 +1,6 @@
 /*
- * LES VOIES BÂTIES — ce que check_voies et mesure_sans_systemes se partagent : de vraies ligues de 32 clubs, et le
- * même club rebâti aux couleurs d'un coach (chaque case reprise par le joueur de sa couleur, chez lui à cette case,
- * de salaire le plus proche). Les deux scripts doivent bâtir la même équipe, sinon ils comparent deux choses.
+ * LES VOIES BÂTIES — ce que check_voies bâtit : de vraies ligues de 32 clubs, et le même club rebâti aux couleurs
+ * d'un coach (chaque case reprise par le joueur de sa couleur, chez lui à cette case, de salaire le plus proche).
  */
 import fs from 'node:fs';
 import path from 'node:path';

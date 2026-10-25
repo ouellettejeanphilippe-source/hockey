@@ -106,11 +106,11 @@ for (const [nom, obj] of Object.entries(C).filter(([, v]) => v && typeof v === '
   const dD = Array.from({ length: 80 }, () => com.arret({ ...baseArret, t: joueur('Bourque'), poste: 'D' }));
   const fautifs = dD.filter(d => avants.some(a => d.includes(a)));
   exiger('un défenseur ne file jamais en échappée : aucune action d\'avant pour lui', fautifs.length === 0, fautifs[0] ? fautifs[0].replace(/<[^>]+>/g, '') : `${dD.length} arrêts`);
-  // Un avant rapide en contre-attaque : la plupart de ses actions collent.
-  const rapides = [...new Set([...texteDe(C.ACTIONS_TIREUR, 'rapide'), ...texteDe(C.ACTIONS_TIREUR, 'contre')])].map(g => g.replace('{t} ', '').slice(0, 22));
-  const dR = Array.from({ length: 60 }, () => com.arret({ ...baseArret, t: joueur('Bure'), poste: 'F', style: 'rapide', tac: 'contre' }));
+  // Un avant rapide sur une ligne de la sortie rapide (V18, l'accord de sa ligne) : la plupart de ses actions collent.
+  const rapides = [...new Set([...texteDe(C.ACTIONS_TIREUR, 'rapide'), ...texteDe(C.ACTIONS_TIREUR, 'sortie')])].map(g => g.replace('{t} ', '').slice(0, 22));
+  const dR = Array.from({ length: 60 }, () => com.arret({ ...baseArret, t: joueur('Bure'), poste: 'F', style: 'rapide', acc: 'sortie' }));
   const part = dR.filter(d => rapides.some(a => d.includes(a))).length / dR.length;
-  borne('un avant rapide en contre-attaque : actions qui collent', 100 * part, 50, 100, ' %');
+  borne('un avant rapide d\'une ligne de la sortie rapide : actions qui collent', 100 * part, 50, 100, ' %');
 }
 
 verdict('Le commentateur');

@@ -630,7 +630,7 @@ export function coachsDuLundi(j) {
 }
 /*
  * JOUER UNE CARTE DE L'INVENTAIRE : sa cible (un joueur, un blessé, une
- * malédiction du deck, une carte à améliorer, un système), puis UNE décision
+ * malédiction du deck, une carte à améliorer), puis UNE décision
  * datée d'aujourd'hui (`joue` dit d'où elle sort, pour la partie). Un
  * consommable permanent quitte le méta à ce moment-là.
  */
@@ -1288,7 +1288,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   for (const x of tires) { G.variantes.cartes[x.cle] = x.rar; if (x.num) G.variantes.numeros[x.cle] = x.num; }
   G.roster = {}; poserCartes(); G.tirage = []; G.echelle = {}; G.dette = 0; G.renfort = null;
   G.ligue = null; G.tournoi = null; G.relances = 0; G.left = { ...REROLLS };
-  G.target = null; G.mainCase = null; G.mainRang = null; G.selectedSlot = null; G.done = false; G.lignes = null;
+  G.target = null; G.mainCase = null; G.mainRang = null; G.selectedSlot = null; G.done = false;
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');
@@ -1834,7 +1834,7 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   // Les packs scellés pas ouverts passent à la saison suivante, déjà payés.
   packsScelles(decsSaison).forEach((d, i) => report.push({ jour: 0, palier: `k:r${i}`, achat: { pack: d.achat.pack, n: -1 - i, prix: 0, sorte: d.achat.sorte, params: d.achat.params, scelle: true }, report: true }));
   const reste = Math.max(0, jetonsRogue(L.calendrier.length));
-  G.lignes = null; G.renfort = null; G.selectedSlot = null;
+  G.renfort = null; G.selectedSlot = null;
   G.roster = roster; poserCartes();
   G.rogue = {
     ...G.rogue, saison, series: null, report,
