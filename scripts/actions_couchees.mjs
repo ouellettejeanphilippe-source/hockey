@@ -1,9 +1,9 @@
 /**
  * LES CARTES COUCHÉES : LES PHOTOS D'ACTION QUI NE TIENNENT PAS DEBOUT (oct. 2026).
  *
- *   node scripts/actions_couchees.mjs                  # toutes les photos de la LNH (≈ 1 700)
- *   node scripts/actions_couchees.mjs --limite 200 --planche
- *   node scripts/actions_couchees.mjs --seuil 0.5
+ *   node scripts/actions_couchees.mjs                  # toutes : la LNH (≈ 1 700), les libres (≈ 960), les saisons (≈ 2 500)
+ *   node scripts/actions_couchees.mjs --sources commons,saisons --planche
+ *   node scripts/actions_couchees.mjs --limite 200 --seuil 0.5
  *
  * JP : *tu pourrais faire cartes spéciales action horizontales quand t'as des photos qui gossent vertical*. Une
  * photo de match de la LNH est en paysage (1296 × 729) ; la carte en garde une fenêtre 5:7 de toute la hauteur
@@ -11,10 +11,13 @@
  * joueurs à la bande, un tir de loin —, la fenêtre en coupe la moitié. La mesure : `garde`, la part des contours
  * nets de l'image que la fenêtre debout garde (js/recadrage-action.js) ; sous le SEUIL, la planche la montre, et
  * l'œil décide (`COUCHEES_A_L_OEIL`). Couchée : une fenêtre 7:5 de toute la hauteur (79 % de la largeur), centrée sur le visage, 560 × 400 en WebP
- * (img/actions/couchees/{id}.webp), et `couchees` dans data/actions.json : id → [x, y], le centre du visage dans
- * la photo couchée. Les photos libres (Commons, Openverse) et les photos de saison restent debout.
+ * (img/actions/couchees/{clé}.webp), et `couchees` dans data/actions.json : clé → [x, y], le centre du visage dans
+ * la photo couchée.
  *
- * Les bruts se lisent dans le même cache que scripts/actions.mjs (et s'y téléchargent au besoin).
+ * TROIS SOURCES (JP : *fais aussi les photos de Commons en couchées*) : les photos de la LNH (`lnh`, clé : l'id), les
+ * photos générales libres de Commons et d'Openverse (`commons`, clé : l'id) et les photos de saison de Commons
+ * (`saisons`, clé : « id-saison »). Les bruts de la LNH se lisent dans le même cache que scripts/actions.mjs ; ceux
+ * de Wikimedia, un à la fois, en se nommant, et la file recule à chaque 429 (leurs limites).
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -60,24 +63,56 @@ fs.mkdirSync(BRUT, { recursive: true });
 fs.mkdirSync(SORTIE, { recursive: true });
 const LU = path.join(ROOT, 'data', 'actions.json');
 const A = JSON.parse(fs.readFileSync(LU, 'utf8'));
-const libres = new Set(Object.keys({ ...(A.commons || {}), ...(A.libres || {}) }).map(Number));
-let liste = (A.ids || []).filter(id => !libres.has(id));
-if (arg('ids', null)) liste = String(arg('ids')).split(',').map(Number);
+const SOURCES = String(arg('sources', 'lnh,commons,saisons')).split(',');
+const UA = 'Cap82-0/1.0 (https://github.com/ouellettejeanphilippe-source/hockey)';
+const LIBRES = { ...(A.commons || {}), ...(A.libres || {}) };
+const vignette = ([f, dossier, largeur]) => {
+  const nom = encodeURIComponent(f.replace(/ /g, '_'));
+  return `https://upload.wikimedia.org/wikipedia/commons/${largeur ? 'thumb/' : ''}${dossier[0]}/${dossier}/${nom}${largeur ? `/${largeur}px-${nom}` : ''}`;
+};
+// La vignette de 960 px d'un original de Commons (l'original peut peser plusieurs Mo) ; ailleurs (Openverse), rien.
+const vignette960 = url => {
+  const m = String(url).match(/^(https:\/\/upload\.wikimedia\.org\/wikipedia\/commons)\/(\w\/\w\w)\/([^/]+)$/);
+  return m ? `${m[1]}/thumb/${m[2]}/${m[3]}/960px-${m[3]}` : null;
+};
+// Chaque photo : sa clé, d'où elle vient, le centre du visage dans l'image entière, sa hauteur dans la carte debout.
+let liste = [];
+for (const id of A.ids || []) {
+  const libre = LIBRES[id];
+  if (libre ? !SOURCES.includes('commons') : !SOURCES.includes('lnh')) continue;
+  liste.push({ cle: id, urls: libre ? [vignette960(libre.s), libre.s].filter(Boolean) : [SOURCE(id)], wiki: !!libre, centre: A.visages?.[id] ?? null, y: A.cadres?.[id]?.[1] ?? 0.3 });
+}
+if (SOURCES.includes('saisons')) {
+  for (const [id, parSaison] of Object.entries(A.saisons || {})) {
+    for (const [saison, e] of Object.entries(parSaison)) liste.push({ cle: `${id}-${saison}`, urls: [vignette(e)], wiki: true, centre: e[5] ?? null, y: e[6]?.[1] ?? 0.3 });
+  }
+}
+if (arg('ids', null)) { const ids = new Set(String(arg('ids')).split(',')); liste = liste.filter(x => ids.has(String(x.cle))); }
 liste = liste.slice(0, LIMITE);
-console.log(`\n  ${liste.length} photos de la LNH · seuil ${SEUIL} · ${LARGEUR} × ${HAUTEUR} · brut dans ${BRUT}\n`);
+console.log(`\n  ${liste.length} photos (${SOURCES.join(', ')}) · seuil ${SEUIL} · ${LARGEUR} × ${HAUTEUR} · brut dans ${BRUT}\n`);
 
-async function telecharger(id) {
-  const f = path.join(BRUT, `${id}.jpg`);
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+let pauseWiki = 1200;
+async function telecharger(x) {
+  const f = path.join(BRUT, x.wiki ? `wiki-${x.cle}.img` : `${x.cle}.jpg`);
   if (fs.existsSync(f)) return f;
-  for (let essai = 0; essai < 4; essai++) {
+  for (let essai = 0; essai < 8; essai++) {
     try {
-      const r = await fetch(SOURCE(id), { redirect: 'manual' });
+      let r = null;
+      for (const url of x.urls) {
+        if (x.wiki) await dormir(pauseWiki);
+        r = await fetch(url, x.wiki ? { headers: { 'User-Agent': UA, 'Api-User-Agent': UA } } : { redirect: 'manual' });
+        if (r.ok || r.status === 429) break;   // une vignette refusée (l'original est plus petit) : l'original
+      }
+      // Wikimedia limite : on recule, puis on reprend plus doucement.
+      if (r.status === 429) { pauseWiki = Math.min(10000, pauseWiki * 1.5); await dormir(30000 * (essai + 1)); continue; }
       if (!r.ok) return null;
       fs.writeFileSync(`${f}.part`, Buffer.from(await r.arrayBuffer()));
       fs.renameSync(`${f}.part`, f);
       return f;
-    } catch (e) { if (essai === 3) { console.log(`   ${id} : ${e.message}`); return null; } await new Promise(r => setTimeout(r, 1000 * (essai + 1))); }
+    } catch (e) { if (essai === 7) { console.log(`   ${x.cle} : ${e.message}`); return null; } await dormir(2000 * (essai + 1)); }
   }
+  console.log(`   ${x.cle} : toujours limité, laissé debout`);
   return null;
 }
 
@@ -99,34 +134,42 @@ await page.evaluate(({ LARGEUR, HAUTEUR, QUALITE }) => {
   };
 }, { LARGEUR, HAUTEUR, QUALITE });
 
-const mesures = new Map(), file = liste.slice();
-await Promise.all(Array.from({ length: PARALLELE }, async () => {
-  while (file.length) {
-    const id = file.shift();
-    const f = await telecharger(id);
-    if (!f) continue;
-    try { mesures.set(id, await page.evaluate(([b, c]) => window.coucher(b, c), [fs.readFileSync(f).toString('base64'), A.visages?.[id] ?? null])); } catch { /* illisible : reste debout */ }
-    if (mesures.size % 250 === 0) console.log(`   ${mesures.size} mesurées · ${Math.round((Date.now() - t0) / 1000)} s`);
-  }
-}));
+// La LNH en parallèle ; Wikimedia, une à la fois.
+const mesures = new Map(), fichiers = new Map();
+const mesurer = async x => {
+  const f = await telecharger(x);
+  if (!f) return;
+  fichiers.set(x.cle, f);
+  try { mesures.set(x.cle, { ...x, ...(await page.evaluate(([b, c]) => window.coucher(b, c), [fs.readFileSync(f).toString('base64'), x.centre])) }); } catch { /* illisible : reste debout */ }
+  if (mesures.size % 250 === 0) console.log(`   ${mesures.size} mesurées · ${Math.round((Date.now() - t0) / 1000)} s`);
+};
+const lnh = liste.filter(x => !x.wiki), wiki = liste.filter(x => x.wiki);
+await Promise.all([
+  ...Array.from({ length: PARALLELE }, async () => { while (lnh.length) await mesurer(lnh.shift()); }),
+  (async () => { while (wiki.length) await mesurer(wiki.shift()); })(),
+]);
 
 // Le centre du visage dans la photo couchée : x d'après le visage dans l'image entière, y celui de la carte debout (toute la hauteur dans les deux).
-const centreCouche = (id, m) => {
-  const vx = A.visages?.[id], [sx, , sl] = m.couchee;
-  const x = Number.isFinite(vx) ? (vx * m.W - sx) / sl : 0.5;
-  const y = A.cadres?.[id]?.[1] ?? 0.3;
-  return [Math.round(Math.min(1, Math.max(0, x)) * 100) / 100, y];
+const centreCouche = m => {
+  const [sx, , sl] = m.couchee;
+  const x = Number.isFinite(m.centre) ? (m.centre * m.W - sx) / sl : 0.5;
+  return [Math.round(Math.min(1, Math.max(0, x)) * 100) / 100, m.y];
 };
-const couchees = {};
+// Les couchées des sources qu'on n'a pas relues restent ; celles qu'on a relues se refont.
+const relues = new Set(liste.map(x => String(x.cle)));
+const couchees = Object.fromEntries(Object.entries(A.couchees || {}).filter(([cle]) => !relues.has(cle)));
 let octets = 0;
-for (const [id, m] of [...mesures].sort((a, b) => a[0] - b[0])) {
-  const f = path.join(SORTIE, `${id}.webp`);
-  if (!COUCHEES_A_L_OEIL.has(id)) { fs.rmSync(f, { force: true }); continue; }
+for (const [cle, m] of [...mesures].sort((a, b) => String(a[0]).localeCompare(String(b[0])))) {
+  const f = path.join(SORTIE, `${cle}.webp`);
+  if (!COUCHEES_A_L_OEIL.has(cle)) { fs.rmSync(f, { force: true }); continue; }
   const buf = Buffer.from(m.webp, 'base64');
   fs.writeFileSync(f, buf); octets += buf.length;
-  couchees[id] = centreCouche(id, m);
+  couchees[cle] = centreCouche(m);
 }
-if (LIMITE === Infinity && !arg('ids', null)) fs.writeFileSync(LU, JSON.stringify({ ...A, couchees }));
+if (LIMITE === Infinity && !arg('ids', null)) {
+  const tri = Object.fromEntries(Object.entries(couchees).sort((a, b) => a[0].localeCompare(b[0], 'en', { numeric: true })));
+  fs.writeFileSync(LU, JSON.stringify({ ...A, couchees: tri }));
+}
 
 const gardes = [...mesures.values()].map(m => m.garde).sort((a, b) => a - b);
 const q = p => gardes[Math.floor(p * (gardes.length - 1))];
@@ -137,9 +180,8 @@ console.log(`  ${Object.keys(couchees).length} couchées (vues à l'œil) · ${a
 /* La planche : les photos sous le seuil, entières, leur fenêtre debout (jaune) et couchée (bleue), triées par `garde`, pour les voir à l'œil. */
 if (arg('planche', false)) {
   const vus = [...mesures].filter(([, m]) => m.garde < SEUIL).sort((a, b) => a[1].garde - b[1].garde);
-  const e = 220 / 1296;
-  const fig = ([id, m]) => { const [x, y, l, h] = m.debout, [cx, cy, cl, ch] = m.couchee; return `<figure style="margin:3px;display:inline-block;position:relative;color:${COUCHEES_A_L_OEIL.has(id) ? '#7cf' : '#ccc'};font:11px sans-serif">
-    <img src="data:image/jpeg;base64,${fs.readFileSync(path.join(BRUT, `${id}.jpg`)).toString('base64')}" style="width:220px;height:124px;display:block">
+  const fig = ([id, m]) => { const e = 220 / m.W, [x, y, l, h] = m.debout, [cx, cy, cl, ch] = m.couchee; return `<figure style="margin:3px;display:inline-block;vertical-align:top;position:relative;color:${COUCHEES_A_L_OEIL.has(id) ? '#7cf' : '#ccc'};font:11px sans-serif">
+    <img src="data:image/jpeg;base64,${fs.readFileSync(fichiers.get(id)).toString('base64')}" style="width:220px;height:${Math.round(m.H * e)}px;display:block">
     <div style="position:absolute;left:${cx * e}px;top:${cy * e}px;width:${cl * e}px;height:${ch * e}px;outline:2px solid #39f"></div>
     <div style="position:absolute;left:${x * e}px;top:${y * e}px;width:${l * e}px;height:${h * e}px;outline:2px solid #ff0"></div>
     <figcaption>${id} · ${m.garde}${COUCHEES_A_L_OEIL.has(id) ? ' · couchée' : ''}</figcaption></figure>`; };

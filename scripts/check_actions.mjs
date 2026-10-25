@@ -20,7 +20,7 @@
  *    saison prend la sienne, une autre saison retombe sur la générale, et le
  *    crédit et le cadre suivent la saison.
  *    LES PHOTOS COUCHÉES (scripts/actions_couchees.mjs, `couchees`) : des
- *    photos de la LNH listées, chacune son WebP, aucune de trop.
+ *    photos listées (générales ou de saison), chacune son WebP, aucune de trop.
  * 4. (avec l'adresse du jeu) L'APPAREIL, avec un faux Capacitor : son HTTP
  *    natif passe par Node et va chercher la vraie photo à la LNH. Rien ne
  *    part hors Wi-Fi ; au retour du Wi-Fi, la carte regardée passe d'abord ;
@@ -130,14 +130,14 @@ if (fs.existsSync(DOSSIER)) {
   informer('saisons : le poids', `${(octets / 1048576).toFixed(1)} Mo d'images ; data/actions.json ${(fs.statSync(path.join(ROOT, 'data', 'actions.json')).size / 1024).toFixed(0)} Ko`);
 }
 
-/* LES PHOTOS COUCHÉES (scripts/actions_couchees.mjs, `couchees`) : des photos de la LNH listées, leur visage dans l'image, un WebP chacune, aucun de trop. */
+/* LES PHOTOS COUCHÉES (scripts/actions_couchees.mjs, `couchees`) : chaque clé est une photo listée (« id », la générale ; « id-saison », celle d'une saison), son visage dans l'image, un WebP chacune, aucun de trop. */
 const couchees = Object.entries(liste.couchees || {});
 const DOSSIER_COUCHE = path.join(DOSSIER, 'couchees');
-const libresIds = new Set(Object.keys({ ...(liste.commons || {}), ...(liste.libres || {}) }));
-const fautesCouche = couchees.filter(([id, c]) => !ids.includes(Number(id)) || libresIds.has(id) || !Array.isArray(c) || c.length !== 2 || !c.every(v => v >= 0 && v <= 1)
-  || (fs.existsSync(DOSSIER) && !fs.existsSync(path.join(DOSSIER_COUCHE, `${id}.webp`)))).map(([id]) => id);
-exiger('couchées : des photos de la LNH listées, leur visage dans l\'image, un WebP chacune', !fautesCouche.length,
-  fautesCouche.length ? fautesCouche.slice(0, 5).join(', ') : `${couchees.length} photos couchées`);
+const photoListee = cle => { const [id, s] = cle.split(/-(.+)/); return s ? !!(liste.saisons || {})[id]?.[s] : ids.includes(Number(id)); };
+const fautesCouche = couchees.filter(([cle, c]) => !photoListee(cle) || !Array.isArray(c) || c.length !== 2 || !c.every(v => v >= 0 && v <= 1)
+  || (fs.existsSync(DOSSIER) && !fs.existsSync(path.join(DOSSIER_COUCHE, `${cle}.webp`)))).map(([cle]) => cle);
+exiger('couchées : des photos listées, leur visage dans l\'image, un WebP chacune', !fautesCouche.length,
+  fautesCouche.length ? fautesCouche.slice(0, 5).join(', ') : `${couchees.length} photos couchées, dont ${couchees.filter(([cle]) => cle.includes('-')).length} de saison`);
 if (fs.existsSync(DOSSIER_COUCHE)) {
   const orphelines = fs.readdirSync(DOSSIER_COUCHE).filter(f => !(liste.couchees || {})[f.replace(/\.webp$/, '')]);
   exiger('img/actions/couchees : aucune photo hors de la liste', !orphelines.length, orphelines.slice(0, 4).join(', '));

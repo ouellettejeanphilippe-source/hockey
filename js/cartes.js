@@ -434,11 +434,11 @@ export const cadrePhoto = p => (p && p.id && cadreAction(p.id, p.s, p.t)) || nul
 const styleCadre = c => (c ? ` style="--fx:${c[0]};--fy:${c[1]}"` : '');
 /*
  * LA PHOTO COUCHÉE (oct. 2026, JP : *cartes spéciales action horizontales quand t'as des photos qui gossent vertical*) :
- * sa photo 7:5 quand la fenêtre debout coupe le jeu (scripts/actions_couchees.mjs), ou rien. Une photo de saison passe
- * avant (`actionCouchee`, js/actions.js) ; avec elle, la carte se couche (`cartonHtml`).
+ * la version 7:5 de la photo que montre la carte (celle de sa saison, ou la générale) quand la fenêtre debout coupe le
+ * jeu (scripts/actions_couchees.mjs), ou rien (`actionCouchee`, js/actions.js) ; avec elle, la carte se couche.
  */
 export const photoCouchee = p => (p && p.id && !p.actionSrc && actionCouchee(p.id, p.s, p.t)) || '';
-export const cadrePhotoCouchee = p => (p && p.id && cadreCouche(p.id)) || null;
+export const cadrePhotoCouchee = p => (p && p.id && cadreCouche(p.id, p.s, p.t)) || null;
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
