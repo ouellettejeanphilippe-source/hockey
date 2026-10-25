@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue, rembobiner, rembobinerSeries } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -274,7 +274,14 @@ async function continuerSaison(decisions, depuis, mot) {
   const avant = new Set(L.decisions || []), apres = new Set(decisions);
   const touchees = [...decisions.filter(d => !avant.has(d)), ...(L.decisions || []).filter(d => !apres.has(d))];
   const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
-  if (M && jourMin >= M.jour) {
+  /*
+   * RIEN NE SE REJOUE DE LA GRAINE QUI PEUT SE REMBOBINER (oct. 2026 ; JP : *rend instantané, c'est la base*) :
+   * l'entracte d'un duel est daté de son soir, déjà joué pour être montré. Le moteur a retenu ce matin-là
+   * (`rembobiner`, js/sim.js) : il y revient, et seule cette journée se rejoue — check_instantane.
+   */
+  const rembobine = M && jourMin < M.jour && rembobiner(M, decisions, Math.min(jourMin, depuis || 0));
+  if (rembobine) jouerJusqua(M, depuis || 0);
+  if (M && (rembobine || jourMin >= M.jour)) {
     L.decisions = M.decisions = decisions;
     // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79), avec sa carte.
     poserAlignementDuJour(M);
@@ -530,6 +537,13 @@ export async function deciderSerie(d) {
     if (d.recompense !== undefined) confirmerDecision(d);
     return;
   }
+  // L'entracte d'un duel de séries : le moteur revient au matin de ce match (`rembobinerSeries`), rien d'autre ne se rejoue.
+  const avantLui = x => x.match_no >= 0 && (x.ronde < d.ronde || (x.ronde === d.ronde && x.match_no < d.match_no));
+  if (S && !retire.some(avantLui) && rembobinerSeries(S, G.ligue.decisionsSeries, d.ronde, d.match_no)) {
+    runPlayoffs(G.ligue.teams.slice(0, nombreEnSeries(G.ligue.teams.length)), { depuis: vues, moteur: S });
+    if (d.recompense !== undefined) confirmerDecision(d);
+    return;
+  }
   G.done = false;
   renderMain();
   await sousVoile('Les séries reprennent avec ton choix…', async () => {
@@ -646,7 +660,7 @@ export async function runSeason(opts = {}) {
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
     // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
-    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec });
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec, instantanes: G.bonus === 'ROGUE' });
     jouerJusqua(moteur, opts.depuis || 0);
     // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);

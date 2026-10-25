@@ -6198,7 +6198,7 @@ function remettreAZero(p) {
   delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._feu;
 }
 
-export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null, arcs = courbe } = {}) {
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null, arcs = courbe, instantanes = false } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
@@ -6231,6 +6231,8 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     grosAVenir: null, grosAnnonces: {},
     // LES ARCS (Jalon P, E, js/arcs.js) : ton club en vit en Rogue ; `arcs: false`, une mesure sans eux.
     arcs: !!arcs,
+    // L'INSTANTANÉ du matin d'un gros match (`rembobiner`) : le jeu le retient, les mesures s'en passent.
+    instantanes, _instant: null,
   };
   poserJours(L);
   avecLigue(L, () => {
@@ -6535,10 +6537,73 @@ const commotionsDe = (team, p) => ((team.commotions && team.commotions[getPlayer
 /* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
 const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));
 
+/*
+ * L'INSTANTANÉ (oct. 2026 ; JP : *rend instantané, c'est la base*). L'entracte d'un duel est une décision datée d'un
+ * soir déjà joué pour être montré : la saison se rejouait de la graine, quatre à huit secondes sur un téléphone, à
+ * chaque période. Le matin d'un gros match, le moteur retient son état — chaque objet qu'il peut atteindre, copié à
+ * plat, ses liens vers les mêmes objets —, et `rembobiner` le remet en place : la journée se rejoue seule, sur les
+ * mêmes dés, comme la saison rejouée l'aurait jouée (check_instantane). Les décisions et les dés n'en sont pas : la
+ * liste change, les dés restent.
+ */
+function retenirEtat(racines, hors) {
+  const etat = new Map(), pile = [...racines];
+  while (pile.length) {
+    const o = pile.pop();
+    if (o === null || typeof o !== 'object' || etat.has(o) || hors.has(o)) continue;
+    let c;
+    if (Array.isArray(o)) c = o.slice();
+    else if (o instanceof Map) { c = [...o]; for (const [k] of c) if (k && typeof k === 'object') pile.push(k); }
+    else if (o instanceof Set) c = [...o];
+    else {
+      const pr = Object.getPrototypeOf(o);
+      if ((pr !== Object.prototype && pr !== null) || Object.isFrozen(o)) continue;
+      c = { ...o };
+    }
+    for (const v of o instanceof Map ? o.values() : Array.isArray(o) || o instanceof Set ? o : Object.values(c)) if (v && typeof v === 'object') pile.push(v);
+    etat.set(o, c);
+  }
+  return etat;
+}
+function rendreEtat(etat) {
+  for (const [o, c] of etat) {
+    if (Array.isArray(o)) { o.length = c.length; for (let i = 0; i < c.length; i++) { if (i in c) o[i] = c[i]; else delete o[i]; } }
+    else if (o instanceof Map) { o.clear(); for (const [k, v] of c) o.set(k, v); }
+    else if (o instanceof Set) { o.clear(); for (const v of c) o.add(v); }
+    else { for (const k of Object.keys(o)) if (!(k in c)) delete o[k]; Object.assign(o, c); }
+  }
+}
+const retenirLaLigue = (L, cle) => {
+  L[cle] = null;
+  // Les séries (`L.ligue` : la saison) laissent aussi les décisions, les dés et l'instantané de la saison.
+  return retenirEtat([L, CONNUS], new Set([L.decisions, L.des, ...(L.ligue ? [L.ligue.decisions, L.ligue.des, L.ligue._instant] : [])]));
+};
+/*
+ * REMBOBINER : remettre la ligue au matin retenu, avec la liste de décisions neuve — si la plus vieille décision
+ * touchée est de ce matin-là ou d'après. Rend faux sinon : il faut rejouer de la graine.
+ */
+export function rembobiner(L, decisions, jourMin) {
+  const x = L._instant;
+  if (!x || jourMin < x.jour || jourMin >= L.jour) return false;
+  rendreEtat(x.etat);
+  L.decisions = decisions;
+  L._instant = x;
+  return true;
+}
+/* Les séries de même : le match `k` de la ronde `ronde`, s'il est celui retenu et qu'il est joué. */
+export function rembobinerSeries(S, decisions, ronde, k) {
+  const x = S._instant;
+  if (!x || x.ronde !== ronde || x.k !== k || !(S.ronde > ronde || (S.ronde === ronde && S.k > k))) return false;
+  rendreEtat(x.etat);
+  S.decisions = decisions;
+  S._instant = x;
+  return true;
+}
+
 /* UNE JOURNÉE : ses décisions, ses matchs, puis le matin du lendemain. */
 export function jouerJournee(L) {
   if (L.fini) return;
   const r = L.jour, teams = L.teams, graine = L.graine;
+  if (L.instantanes && L.grosAVenir) L._instant = { jour: r, etat: retenirLaLigue(L, '_instant') };
   avecLigue(L, () => {
     // Les décisions du jour s'appliquent AVANT les matchs : elles ne
     // consomment aucun hasard, donc une décision au jour k ne touche pas aux
@@ -7741,9 +7806,11 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
  * même suite que la saison, comme avant. Sans ligue (un script), un
  * générateur à part.
  */
-export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies, des = null } = {}) {
+export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies, des = null, instantanes = false } = {}) {
   const S = {
     graine, decisions, ligue, equipes,
+    // L'INSTANTANÉ avant chacun de tes duels de séries (`rembobinerSeries`), comme en saison.
+    instantanes, _instant: null,
     // Les dés de chaque soir de séries, par « ronde:match » (voir `deDuJour`).
     des,
     rng: ligue ? null : generateur(`${graine}:series`),
@@ -7817,6 +7884,7 @@ function cumulerSeries(teams, photo) {
 /* UN MATCH DE SÉRIES : le match k de chaque série encore ouverte de la ronde. */
 export function jouerMatchSeries(S) {
   if (S.fini) return;
+  if (S.instantanes && S.toi && S.toi.courbe && S.courante.some(s => s.wA < 4 && s.wB < 4 && (s.A === S.toi || s.B === S.toi))) S._instant = { ronde: S.ronde, k: S.k, etat: retenirLaLigue(S, '_instant') };
   const jouer = () => {
     const r = S.ronde, k = S.k;
     const photo = photoStats(S.equipes);
