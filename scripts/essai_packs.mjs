@@ -120,7 +120,11 @@ async function regler(max = 40) {
     }
     // Un sous-onglet sans rien qui presse : le Bureau rend la boîte.
     if (await page.evaluate(() => [...document.querySelectorAll('#hubModal .af-onglet')].some(x => x.checkVisibility()))) { await page.click('#navbar .navtab[data-section="bureau"]'); await page.waitForTimeout(300); continue; }
-    if (e.traiter) { await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400); continue; }
+    if (e.traiter) {
+      // « À régler » vit au Bureau : d'une autre section, on y revient d'abord.
+      if (!(await page.$('#hubModal .hub-traiter:visible'))) { await club(); continue; }
+      await page.click('#hubModal .hub-traiter'); await page.waitForTimeout(400); continue;
+    }
     return 'ok';
   }
   return 'max';

@@ -1076,7 +1076,9 @@ async function vestiaireDeDepart(meta, fixes = [], { saison = 1, rang = rangDePr
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupeDe(p) === g).slice(0, manque[g]));
   }
   const roster = placerDevant(autoRoster(pris), fixes);
-  // Le vrai plafond (oct.) : tes cartes restent ; tes bouche-trous prennent de vrais contrats trop payés, jusqu'à l'espace de départ.
+  // Le départ d'une run (oct.) : tes cartes restent ; tes bouche-trous prennent de vrais contrats trop payés, jusqu'à l'espace
+  // de départ. Entre deux saisons, l'équipe garde sa masse et l'espace du vrai plafond (JP : *du lousse, ça donne le jeu de construire*).
+  if (saison > 1) return { roster, quota, tires, nFixes: fixes.length };
   const reserve = [];
   await plombiersDeLaLigue(meta, pris, graine, reserve);
   const cible = PLAFOND_PREMIERE + plafondDuVestiaire(meta) - Math.max(0, ESPACE_DE_DEPART + plafondDuVestiaire(meta) + exigencesDe(exigence).espace);
@@ -1740,7 +1742,8 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
  * améliorations, styles, contrats et éditions de l'atelier. Le physio soigne
  * une fois ; le lustre passe par la variante de la carte.
  */
-const SOURCES_DURABLES = new Set(['amelioration', 'style', 'atelier', 'contrat']);
+// Oct. : la retouche d'un défi relevé (js/arcs.js `DEFIS`) reste sur sa carte, comme une amélioration.
+const SOURCES_DURABLES = new Set(['amelioration', 'style', 'atelier', 'contrat', 'defi']);
 function modsAuCartable() {
   const you = G.ligue && G.ligue.you;
   if (G.bonus !== 'ROGUE' || !you) return;
@@ -1879,7 +1882,8 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   };
   // La saison neuve : ni ligue, ni séries, ni entrée d'historique — `runSeason` les refera.
   G.ligue = null; G.done = false; G.journee = 0; G.seriesVues = null; G.lbId = null; G.series = null; G.seriesMoteur = null; G.banc = null;
-  G.rogue.plafond = plafondDeDepart(meta, exigenceDeLaRun());
+  // Le vrai plafond à chaque saison (oct., JP : *je m'en crisse si j'ai du lousse à mes runs suivantes*).
+  G.rogue.plafond = plafondDeDepart(meta, exigenceDeLaRun(), { reel: true });
   $('resultHost').innerHTML = '';
   $('resultHost').style.display = 'none';
   $('game').classList.remove('bilan');

@@ -6410,6 +6410,8 @@ function preludeDuJour(L) {
       const x = { debut: r, fin: apresMatchs(toi, r, e.matchs), source: 'arc', nom: e.titre, ...e.effet };
       if (e.cible === 'equipe') toi.effets.push(x);
       else (toi.effetsCibles = toi.effetsCibles || []).push({ ...x, joueur: e.joueur, contre: e.contre });
+      // UN DÉFI RELEVÉ (oct., js/arcs.js `DEFIS`) : sa retouche, au verso de sa carte, pour de bon.
+      if (e.recompense && e.joueur && MUTATIONS[e.recompense]) appliquerMutation(toi, e.joueur, e.recompense, r, 'defi');
     }
     retoursDuMatin(toi, r);
     effetsDesJoueurs(toi, r);
@@ -7230,6 +7232,19 @@ export const MUTATIONS = {
   contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
   contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
   contrat_leader: { nom: 'Le « C » cousu', ico: '©', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
+  /*
+   * LES RETOUCHES D'UN DÉFI (oct., JP : *s'il réussit un objectif, il a un upgrade permanent genre ceux à mettre derrière
+   * la carte* ; *pour mises en échec, bagarres, tirs, précision, défensive, arrêts*). Un défi relevé (js/arcs.js `DEFIS`)
+   * grave la sienne au verso de sa carte, pour de bon (`source: 'defi'`, gardée au cartable comme une amélioration). 🏵,
+   * comme les galons : ce qu'il a fait chez toi. Le physique n'a pas de canal à lui : son badge monte d'un palier.
+   */
+  defi_buts: { nom: 'Le coup d\'œil', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de buteur : il voit le coin du filet.', profils: { sniper: 12 }, finition: 1.15 },
+  defi_points: { nom: 'Le moteur', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de pointeur : son trio passe par lui.', profils: { passeur: 10, offensif: 6 }, creation: 1.12, finition: 1.05 },
+  defi_tirs: { nom: 'Le canon', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de tireur : il tire de partout.', profils: { offensif: 10 }, lancers: 1.15 },
+  defi_coups: { nom: 'Le marteau', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de mises en échec : son badge monte d\'un palier.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_bagarres: { nom: 'Le poids lourd', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de bagarres : son badge monte d\'un palier.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_pm: { nom: 'Le verrou', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi défensif : on le passe moins.', profils: { defensif: 12, deuxsens: 8 }, defense: 0.9 },
+  defi_arrets: { nom: 'Le mur', ico: '🏵', cible: 'libre', source: 'defi', gardien: true, quoi: 'Il a relevé son défi d\'arrêts : les buts faciles, c\'est fini.', arrets: 0.9 },
   // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.
   ...PROTEGES,
 };

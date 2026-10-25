@@ -49,6 +49,7 @@ import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE, coachNeuf } from './banque.js';
+import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
 import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud, carteDeRoute, chargeDeRoute } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
@@ -2283,21 +2284,38 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   // V9 (tranche 6) : le retour d'un fil se lit comme un arc (js/sim.js `retoursDuMatin`) : sa voix, ses vrais chiffres, son effet.
   const arcsDeLaSemaine = debut => [...(you.arcs || []), ...(you.retours || [])].filter(a => a.jour >= debut && a.jour <= jour).sort((a, b) => a.jour - b.jour);
   /*
+   * LES DÉFIS EN COURS (oct., js/arcs.js `DEFIS`) : chacun suivi chaque matin dans les feuilles jouées — « Zanon : 1 but sur
+   * 3 d'ici 8 matchs (5 joués) → 🏵 Le coup d'œil » —, à la une le jour où il naît, au Vestiaire tant qu'il court.
+   */
+  const defisEnCours = () => (you.arcs || []).filter(a => a.ep === 0 && a.x && a.x.defi && !(you.arcs || []).some(b => b.cle === a.cle && b.ep === 1 && b.jour >= a.jour))
+    .map(a => ({ a, v: avanceDuDefi(you, a.x) })).filter(({ v }) => v && !v.fini);
+  const motDuDefiEnCours = ({ a, v }) => {
+    const d = a.x.defi, R = MUTATIONS[DEFIS[d.stat].recompense];
+    const ou = DEFIS[d.stat].gardien ? `${v.joues} départ${v.joues > 1 ? 's' : ''} sur ${d.departs}${v.joues ? `, ${String(v.fait.toFixed(3)).replace(/^0/, '')}` : ''}` : `${v.fait} sur ${d.cible}, ${v.joues} match${v.joues > 1 ? 's' : ''} sur ${d.matchs}`;
+    return `${nomCourt(a.x.p.n)} : ${motDuDefi(d)} (${ou}) → ${R.ico} ${R.nom}`;
+  };
+  /*
    * UN ARC DE JOUEUR SE DIT EN SES BUTS (oct., JP : *0,4 pt, ça va fuck all faire*) : ce que l'arc ajoute ou retire à SON
    * rythme de sa vraie saison, sur ses matchs — « Zanon : ≈ +1,2 but sur 8 matchs (0,15 par match d'habitude) ». Un
    * gardien : les buts qu'il accorde de plus ou de moins, au rythme de son club. Le reste se dit en chiffres de match.
    */
   const motsDeLArc = a => {
     const p = a.cible === 'joueur' ? a.joueur : null, e = a.effet || {};
+    // Le défi d'abord : sa cible et sa retouche ; au verdict, la retouche gravée.
+    const d = a.x && a.x.defi, R = d ? MUTATIONS[DEFIS[d.stat].recompense] : null;
+    if (R && a.recompense) return [{ txt: `${R.ico} ${R.nom} : gravé au verso de sa carte`, bon: true }];
+    const defi = R && a.ep === 0 ? [{ txt: `Le défi : ${motDuDefi(d)} → ${R.ico} ${R.nom}, au verso de sa carte`, bon: true }] : [];
+    const avec = m => [...defi, ...m];
+    if (!Object.keys(e).length) return defi;
     if (p && p.p === 'G' && e.arrets) {
       const ga = gpDe(you) ? (fiche.get(you).GA || 0) / gpDe(you) : 3, n = (e.arrets - 1) * ga * a.matchs;
-      return [{ txt: `${nomCourt(p.n)} : ≈ ${n > 0 ? '+' : '−'}${virgule(Math.abs(n), 1)} but${Math.abs(n) >= 2 ? 's' : ''} accordé${Math.abs(n) >= 2 ? 's' : ''} sur ${a.matchs} matchs`, bon: n < 0 }];
+      return avec([{ txt: `${nomCourt(p.n)} : ≈ ${n > 0 ? '+' : '−'}${virgule(Math.abs(n), 1)} but${Math.abs(n) >= 2 ? 's' : ''} accordé${Math.abs(n) >= 2 ? 's' : ''} sur ${a.matchs} matchs`, bon: n < 0 }]);
     }
     if (p && (e.finition || e.lancers)) {
       const rythme = (p.g || 0) / Math.max(1, p.gp || 0), n = rythme * ((e.finition || 1) * (e.lancers || 1) - 1) * a.matchs;
-      return [{ txt: `${nomCourt(p.n)} : ≈ ${n > 0 ? '+' : '−'}${virgule(Math.abs(n), 1)} but${Math.abs(n) >= 2 ? 's' : ''} sur ${a.matchs} matchs (${virgule(rythme, 2)} par match d'habitude)`, bon: n > 0 }];
+      return avec([{ txt: `${nomCourt(p.n)} : ≈ ${n > 0 ? '+' : '−'}${virgule(Math.abs(n), 1)} but${Math.abs(n) >= 2 ? 's' : ''} sur ${a.matchs} matchs (${virgule(rythme, 2)} par match d'habitude)`, bon: n > 0 }]);
     }
-    return motsEnChiffres(e).filter(m => m.cle !== 'rien').map(m => ({ ...m, txt: `${m.txt} · ${a.cible === 'contre' ? `${a.pour}, le reste de la saison` : `${a.pour ? `${a.pour} · ` : ''}${a.matchs} matchs`}` }));
+    return avec(motsEnChiffres(e).filter(m => m.cle !== 'rien').map(m => ({ ...m, txt: `${m.txt} · ${a.cible === 'contre' ? `${a.pour}, le reste de la saison` : `${a.pour ? `${a.pour} · ` : ''}${a.matchs} matchs`}` })));
   };
   const arcHtml = (a, une) => {
     const x = EXPEDITEURS[a.de] || EXPEDITEURS.en;
@@ -3739,7 +3757,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // Les fils suivis, puis ce que tes réponses du vestiaire jouent encore (un dilemme, une séquence), et pour combien de matchs.
     const effets = ctx.rogue ? effetsEnCours(you, jour).effets.filter(e => ['moment', 'sequence'].includes(e.source) && e.reste > 0)
       .map(e => `${e.ico || '✨'} ${e.nom}${e.choix ? ` · ${e.choix}` : ''} · encore ${e.reste} match${e.reste > 1 ? 's' : ''}`) : [];
-    const l = [...enCours().map(motDuSuiviEnCours), ...effets];
+    const l = [...enCours().map(motDuSuiviEnCours), ...effets, ...defisEnCours().map(motDuDefiEnCours)];
     return l.length ? `<div class="hub-etat" role="group" aria-label="Ce qui court">${l.map(t => `<div class="hub-etat-l"><span class="hub-etat-k">⏳ Ce qui court</span><span class="hub-etat-v">${ctx.esc(t)}</span></div>`).join('')}</div>` : '';
   }
   /* Ce qui a bougé hier soir : un pas d'un fil suivi ou de l'objectif du proprio, en une ligne chacun. */

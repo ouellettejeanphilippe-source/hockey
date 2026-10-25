@@ -38,6 +38,75 @@ export const ARCS_PAR_SAISON = 5;
 const EN_FEU = { finition: 1.45, lancers: 1.35 };
 const EN_PANNE = { finition: 0.75 };
 const FEU = 8, PANNE = 5;
+
+/*
+ * LES DÉFIS (oct., JP : *ça doit vraiment impacter un joueur, pis j'aime le principe de s'il réussit un objectif, il a un
+ * upgrade permanent genre ceux à mettre derrière la carte* ; *pour mises en échec, bagarres, tirs, précision, défensive,
+ * arrêts*). Un arc de joueur lui fixe un défi chiffré, dans SA stat, sur ses prochains matchs : la cible part de son
+ * rythme (sa vraie saison, ou ce qu'il fait chez toi pour le physique), une fois et demie, jamais moins que `min`.
+ * Relevé, la retouche de son défi se grave au verso de sa carte (`recompense`, MUTATIONS de `source: 'defi'`, js/sim.js) et
+ * le suit d'une run à l'autre ; raté, rien de permanent. Tout se recompte dans les feuilles jouées (`avanceDuDefi`).
+ */
+export const DEFIS = {
+  buts: { un: 'but', des: 'buts', min: 3, reel: p => (p.g || 0) / Math.max(1, p.gp || 0), recompense: 'defi_buts' },
+  points: { un: 'point', des: 'points', min: 5, reel: p => ((p.pt ?? ((p.g || 0) + (p.a || 0))) || 0) / Math.max(1, p.gp || 0), recompense: 'defi_points' },
+  tirs: { un: 'tir', des: 'tirs', min: 18, reel: p => (p.sh || 0) / Math.max(1, p.gp || 0), recompense: 'defi_tirs' },
+  coups: { un: 'mise en échec', des: 'mises en échec', min: 4, recompense: 'defi_coups' },
+  bagarres: { un: 'bagarre gagnée', des: 'bagarres gagnées', min: 2, recompense: 'defi_bagarres' },
+  pm: { un: 'au différentiel', des: 'au différentiel', min: 4, recompense: 'defi_pm' },
+  arrets: { gardien: true, departs: 5, recompense: 'defi_arrets' },
+};
+/* Ce qu'un joueur fait dans une feuille, pour un défi : ses buts, ses points, ses tirs, ses mises en échec, ses bagarres gagnées. */
+function dansLaFeuille(e, p, stat) {
+  const f = e && e.feuille;
+  if (!f) return 0;
+  if (stat === 'buts') return f.buts.filter(b => b.marqueur === p).length;
+  if (stat === 'points') return f.buts.filter(b => b.marqueur === p || (b.passeurs || []).includes(p)).length;
+  if (stat === 'tirs') return (f.lancers || []).filter(l => l.tireur === p).length;
+  if (stat === 'coups') return (f.physique || []).filter(x => x.type === 'coup' && x.joueur === p).length;
+  if (stat === 'bagarres') return (f.physique || []).filter(x => x.type === 'bagarre' && (x.gagnant === 'A' ? x.joueur : x.gagnant === 'B' ? x.cible : null) === p).length;
+  return 0;
+}
+/* Le défi d'un joueur, posé ce matin : sa stat, sa cible, ses matchs. `j` : le journal du club jusqu'ici. */
+function poserDefi(stat, p, j, matchs) {
+  const D = DEFIS[stat];
+  if (D.gardien) return { stat, departs: D.departs, cible: Math.max(0.915, Math.round(((p.sv || 0.9) + 0.008) * 1000) / 1000), depuis: j.length };
+  // Le physique se lit chez toi (le moteur compte ses mises en échec et ses bagarres), le reste dans sa vraie saison.
+  const habille = j.filter(e => e.feuille && Object.values(e.feuille.alignes || {}).some(l => (l || []).includes(p)));
+  const chezToi = habille.length ? habille.reduce((a, e) => a + dansLaFeuille(e, p, stat), 0) / habille.length : 0;
+  const rythme = D.reel ? D.reel(p) : chezToi;
+  return { stat, matchs, cible: stat === 'pm' ? D.min : Math.max(D.min, Math.ceil(rythme * matchs * 1.5)), depuis: j.length, ...(stat === 'pm' ? { pm0: p.simPM || 0 } : {}) };
+}
+/* Où en est un défi : ce qu'il a fait (`fait`), sur combien de matchs (`joues`), s'il est fini et relevé. */
+export function avanceDuDefi(t, x) {
+  const d = x && x.defi, p = x && x.p;
+  if (!d || !p) return null;
+  const j = (t.journal || []).slice(d.depuis);
+  if (DEFIS[d.stat].gardien) {
+    const siens = j.filter(e => e.gardien === p);
+    const sa = siens.reduce((a, e) => a + ((e.feuille && e.feuille.lancers) || []).filter(l => l.gardien === p).length, 0);
+    const ga = siens.reduce((a, e) => a + (e.ga || 0), 0);
+    const sv = sa ? 1 - ga / sa : 0;
+    const fini = siens.length >= d.departs;
+    return { fait: sv, joues: siens.length, fini, reussi: fini && sv >= d.cible };
+  }
+  const fait = d.stat === 'pm' ? (p.simPM || 0) - (d.pm0 || 0) : j.reduce((a, e) => a + dansLaFeuille(e, p, d.stat), 0);
+  const reussi = fait >= d.cible;
+  return { fait, joues: j.length, fini: reussi || j.length >= d.matchs, reussi };
+}
+/* Le défi en mots : « 3 buts d'ici 8 matchs », « ,923 sur ses 5 prochains départs ». */
+export const motDuDefi = d => {
+  const D = DEFIS[d.stat];
+  if (D.gardien) return `${String(d.cible.toFixed(3)).replace(/^0/, '')} ou mieux sur ses ${d.departs} prochains départs`;
+  return d.stat === 'pm' ? `+${d.cible} au différentiel d'ici ${d.matchs} matchs` : `${d.cible} ${d.cible > 1 ? D.des : D.un} d'ici ${d.matchs} matchs`;
+};
+const motFait = (d, a) => (DEFIS[d.stat].gardien ? String(a.fait.toFixed(3)).replace(/^0/, '') : d.stat === 'pm' ? `${a.fait >= 0 ? '+' : ''}${a.fait}` : `${a.fait} ${a.fait > 1 ? DEFIS[d.stat].des : DEFIS[d.stat].un}`);
+/* Le second épisode d'un arc à défi : le verdict, dit avec ses vrais chiffres ; raté, `panne` le temps de quelques matchs. */
+const verdict = (de, panne = {}) => ({ de, cible: 'joueur', qui: x => x.p, verdict: true, matchs: PANNE, effet: panne,
+  texte: x => (x.avance.reussi
+    ? `${x.p.n} a relevé son défi : ${motFait(x.defi, x.avance)} en ${x.avance.joues} ${DEFIS[x.defi.stat].gardien ? 'départs' : 'matchs'}. C'est gravé au verso de sa carte.`
+    : `${x.p.n} : ${motFait(x.defi, x.avance)}, pour ${motDuDefi(x.defi).split(' d\'ici')[0].split(' ou mieux')[0]}. Le défi lui a échappé.`) });
+const finDuDefi = (f, a) => { const v = avanceDuDefi(f.club, a.x); return !!(v && v.fini); };
 /* Des journées entre deux débuts d'arc : un arc a le temps de vivre avant le suivant. */
 const ESPACE_ARCS = 10;
 /* Les journées qu'un arc attend sa suite ; après, il se termine sans elle (le blessé de toute la saison). */
@@ -101,78 +170,126 @@ export const ARCS = {
     suite: f => f.repos >= 3,
   },
 
-  /* ---------- un joueur ---------- */
+  /* ---------- un joueur : chacun pose un défi (`defi`), et son second épisode en dit le verdict ---------- */
   recrue: {
     titre: 'La recrue fait jaser', famille: 'joueur',
     debut: f => (f.recrue ? { p: f.recrue.p, buts: f.recrue.buts } : null),
+    defi: (x, f) => poserDefi('points', x.p, f.journal, FEU),
     episodes: [
       { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n}, encore à son contrat d'entrée, compte ${pl(x.buts, 'but')} en cinq matchs. Toute la ligue a son nom à la bouche.`, effet: EN_FEU, matchs: FEU },
-      { de: 'ph', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} arrive à l'aréna les traits tirés. Le mur des recrues n'est jamais loin.`, effet: EN_PANNE, matchs: PANNE },
+      verdict('ph', EN_PANNE),
     ],
-    suite: (f, a) => f.matchs - a.matchs >= 12,
+    suite: finDuDefi,
   },
   releve: {
     titre: 'La relève', famille: 'joueur',
     debut: f => (f.meneurBlesse && f.second ? { p: f.second, meneur: f.meneurBlesse.p, matchs: f.meneurBlesse.matchs } : null),
+    defi: (x, f) => poserDefi('points', x.p, f.journal, FEU),
     episodes: [
       { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${x.meneur.n}, ton meilleur pointeur, rate ${pl(x.matchs, 'match')}. ${x.p.n} hérite de son trio, et de ses responsabilités.`, effet: { ...EN_FEU, creation: 1.2 }, matchs: FEU },
-      { de: 'pt', cible: 'joueur', qui: x => x.meneur, texte: x => `${x.meneur.n} est de retour. À sa première présence, le banc tape la bande.`, effet: { finition: 1.3, lancers: 1.2 }, matchs: PANNE },
+      verdict('pt', EN_PANNE),
     ],
-    suite: (f, a) => f.enSante(a.x.meneur),
+    suite: finDuDefi,
   },
   vieuxLion: {
     titre: 'Le vieux lion', famille: 'joueur',
     debut: f => (f.vieux ? { p: f.vieux.p, age: f.vieux.age, buts: f.vieux.buts } : null),
+    defi: (x, f) => poserDefi('buts', x.p, f.journal, FEU),
     episodes: [
       { de: 'pa', cible: 'joueur', qui: x => x.p, texte: x => `À ${x.age} ans, ${x.p.n} en a mis ${x.buts} hier soir. Au vestiaire, les jeunes se taisent quand il parle.`, effet: EN_FEU, matchs: FEU },
-      { de: 'ph', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} se lève plus lentement le matin. À ${x.age} ans, le corps présente sa facture.`, effet: { blessure: 1.5, lancers: 0.8 }, matchs: 6 },
+      verdict('ph', { blessure: 1.5, lancers: 0.8 }),
     ],
-    suite: (f, a) => f.matchs - a.matchs >= 8,
+    suite: finDuDefi,
   },
   chapeau: {
     titre: 'Le tour du chapeau', famille: 'joueur',
     debut: f => (f.chapeau ? { p: f.chapeau.p, buts: f.chapeau.buts } : null),
+    defi: (x, f) => poserDefi('buts', x.p, f.journal, FEU),
     episodes: [
       { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.buts, 'but')} pour ${x.p.n} hier soir. Au vestiaire, on lui a gardé la rondelle du tour du chapeau.`, effet: EN_FEU, matchs: FEU },
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `Trois matchs sans but pour ${x.p.n} depuis son tour du chapeau. Tout le monde l'attend, et ça pèse.`, effet: EN_PANNE, matchs: PANNE },
+      verdict('an', EN_PANNE),
     ],
-    suite: (f, a) => f.sansBut(a.x.p) >= 3,
+    suite: finDuDefi,
   },
   heros: {
     titre: 'Le héros du soir', famille: 'joueur',
     debut: f => (f.heros ? { p: f.heros } : null),
+    defi: (x, f) => poserDefi('buts', x.p, f.journal, FEU),
     episodes: [
       { de: 'co', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} met fin au match en prolongation. Ce matin, c'est son nom qu'on entend à la radio.`, effet: EN_FEU, matchs: FEU },
-      { de: 'ag', cible: 'joueur', qui: x => x.p, texte: x => `L'agent de ${x.p.n} parle déjà de contrat. Le joueur, lui, n'a plus marqué depuis son but en prolongation.`, effet: { ...EN_PANNE, defense: 1.04 }, matchs: PANNE },
+      verdict('ag', { ...EN_PANNE, defense: 1.04 }),
     ],
-    suite: (f, a) => f.sansBut(a.x.p) >= 5,
+    suite: finDuDefi,
   },
   ancienClub: {
     titre: 'Contre son ancien club', famille: 'joueur',
     debut: f => (f.ancien ? { p: f.ancien.p, adv: f.ancien.adv } : null),
+    defi: (x, f) => poserDefi('buts', x.p, f.journal, FEU),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a trouvé le fond du filet contre ${x.adv.name}, son ancien club. Celui-là, il l'attendait.`, effet: EN_FEU, matchs: 6 },
-      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${nom(x.p)} retombe sur terre : la rancune ne marque pas tous les soirs.`, effet: EN_PANNE, matchs: 4 },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a trouvé le fond du filet contre ${x.adv.name}, son ancien club. Celui-là, il l'attendait.`, effet: EN_FEU, matchs: FEU },
+      verdict('en', EN_PANNE),
     ],
-    suite: (f, a) => f.sansBut(a.x.p) >= 4,
+    suite: finDuDefi,
+  },
+  mitraille: {
+    titre: 'La mitraille', famille: 'joueur',
+    debut: f => (f.mitraille ? { p: f.mitraille.p, n: f.mitraille.n } : null),
+    defi: (x, f) => poserDefi('tirs', x.p, f.journal, FEU),
+    episodes: [
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.n} tirs pour ${x.p.n} hier soir, et pas un dans le filet. Il ne lâchera pas le gardien.`, effet: { lancers: 1.35 }, matchs: FEU },
+      verdict('en', EN_PANNE),
+    ],
+    suite: finDuDefi,
+  },
+  frappeur: {
+    titre: 'Le frappeur', famille: 'joueur',
+    debut: f => (f.frappeur ? { p: f.frappeur.p, n: f.frappeur.n } : null),
+    defi: (x, f) => poserDefi('coups', x.p, f.journal, FEU),
+    episodes: [
+      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.n, 'mise en échec')} de ${x.p.n} hier soir. Leurs défenseurs regardaient par-dessus leur épaule.`, effet: { blessure: 0.85 }, matchs: FEU },
+      verdict('ph', { blessure: 1.2 }),
+    ],
+    suite: finDuDefi,
+  },
+  bagarreur: {
+    titre: 'Les poings', famille: 'joueur',
+    debut: f => (f.bagarreur ? { p: f.bagarreur.p, adv: f.bagarreur.adv } : null),
+    defi: (x, f) => poserDefi('bagarres', x.p, f.journal, 10),
+    episodes: [
+      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a gagné sa bagarre contre ${x.adv.n}. Les partisans ont scandé son nom jusqu'à la sirène.`, effet: { blessure: 0.85 }, matchs: 10 },
+      verdict('ph', { blessure: 1.2 }),
+    ],
+    suite: finDuDefi,
+  },
+  verrou: {
+    titre: 'Le verrou', famille: 'joueur',
+    debut: f => (f.verrou ? { p: f.verrou.p, ga: f.verrou.ga } : null),
+    defi: (x, f) => poserDefi('pm', x.p, f.journal, FEU),
+    episodes: [
+      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.ga, 'but')} accordé${x.ga > 1 ? 's' : ''} hier soir, et ${x.p.n} sur la glace pour les grosses présences. L'entraîneur le veut contre leur premier trio.`, effet: { defense: 0.9 }, matchs: FEU },
+      verdict('en', { defense: 1.06 }),
+    ],
+    suite: finDuDefi,
   },
   gardienFeu: {
     titre: 'Le gardien en feu', famille: 'joueur',
     debut: f => (f.gardienFeu ? { p: f.gardienFeu.p, n: f.gardienFeu.n, buts: f.gardienFeu.buts } : null),
+    defi: (x, f) => poserDefi('arrets', x.p, f.journal),
     episodes: [
       { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${x.n} victoires de suite pour ${x.p.n}, ${pl(x.buts, 'but')} accordé${x.buts > 1 ? 's' : ''} en tout. Devant lui, les défenseurs osent monter.`, effet: { arrets: 0.82 }, matchs: 6 },
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `La séquence de ${x.p.n} s'arrête. Il cherche ses repères dans son demi-cercle.`, effet: { arrets: 1.12 }, matchs: 4 },
+      verdict('an', { arrets: 1.12 }),
     ],
-    suite: f => f.dernier && !f.dernier.win,
+    suite: finDuDefi,
   },
   gardienEbranle: {
     titre: 'Le gardien ébranlé', famille: 'joueur',
     debut: f => (f.gardienEbranle ? { p: f.gardienEbranle.p, ga: f.gardienEbranle.ga } : null),
+    defi: (x, f) => poserDefi('arrets', x.p, f.journal),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.ga} buts dans le filet de ${x.p.n} hier soir. À chacun, on a vu ses épaules tomber un peu plus.`, effet: { arrets: 1.18 }, matchs: 4 },
-      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} signe la victoire, et le vestiaire se relève avec lui.`, effet: { arrets: 0.88 }, matchs: 5 },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.ga} buts dans le filet de ${x.p.n} hier soir. À chacun, on a vu ses épaules tomber un peu plus. L'entraîneur lui redonne le filet quand même.`, effet: { arrets: 1.1 }, matchs: 3 },
+      verdict('ca', { arrets: 1.1 }),
     ],
-    suite: (f, a) => f.dernier && f.dernier.win && f.dernier.gardien === a.x.p,
+    suite: finDuDefi,
   },
 
   /* ---------- un adversaire ---------- */
@@ -250,7 +367,21 @@ function faitsDuMatin(t, jour) {
   const defaitesContre = dernier && dernier.adv && !dernier.win ? j.filter(e => e.adv === dernier.adv && !e.win).length : 0;
   const coup = dernier && (t.injuriesLog || []).find(b => b.at === t.games && b.games >= 3 && ['commotion', 'epaule', 'main'].includes(b.genre));
   const recents = joues.filter(x => x >= jour - 14);
+  // LES DÉFIS PHYSIQUES ET DU TIR (oct.) : hier soir, une bagarre gagnée, une soirée à frapper, une mitraille sans but ;
+  // une victoire à un but ou moins, et le défenseur au meilleur différentiel.
+  const fd = dernier && dernier.feuille, phys = (fd && fd.physique) || [];
+  const gagnantDe = x => (x.gagnant === 'A' ? x.joueur : x.gagnant === 'B' ? x.cible : null);
+  const bag = phys.find(x => x.type === 'bagarre' && habilles.includes(gagnantDe(x)));
+  const parJoueur = (liste, cle) => { const m = new Map(); for (const x of liste) { const q = cle(x); if (habilles.includes(q)) m.set(q, (m.get(q) || 0) + 1); } return [...m].sort((a, b) => b[1] - a[1])[0] || null; };
+  const fr = parJoueur(phys.filter(x => x.type === 'coup'), x => x.joueur);
+  const tirsHier = fd ? parJoueur((fd.lancers || []).filter(l => !fd.buts.some(b => b.marqueur === l.tireur)), l => l.tireur) : null;
+  const defenseurs = habilles.filter(p => p.p === 'D' || p.p === 'LD' || p.p === 'RD').sort((a, b) => (b.simPM || 0) - (a.simPM || 0));
   return {
+    club: t, journal: j,
+    bagarreur: bag ? { p: gagnantDe(bag), adv: gagnantDe(bag) === bag.joueur ? bag.cible : bag.joueur } : null,
+    frappeur: fr && fr[1] >= 3 ? { p: fr[0], n: fr[1] } : null,
+    mitraille: tirsHier && tirsHier[1] >= 6 ? { p: tirsHier[0], n: tirsHier[1] } : null,
+    verrou: dernier && dernier.win && dernier.ga <= 1 && defenseurs[0] && (defenseurs[0].simPM || 0) > 0 ? { p: defenseurs[0], ga: dernier.ga } : null,
     matchs: j.length, dernier, dernierJour,
     victoires: deSuite(e => e.win), defaites: deSuite(e => !e.win),
     meneurBlesse: blessure ? { p: meneur, matchs: blessure.games } : null, second,
@@ -280,8 +411,13 @@ export function episodesDuMatin(t, jour, graine = '') {
   const out = [];
   const ecrire = (cle, ep, x) => {
     const A = ARCS[cle], E = A.episodes[ep];
+    // Le défi se pose au premier épisode ; au second, son verdict : relevé, la retouche au verso (`recompense`), sans panne.
+    if (ep === 0 && A.defi) x = { ...x, defi: A.defi(x, f) };
+    if (E.verdict) x = { ...x, avance: avanceDuDefi(t, x) };
+    const reussi = !!(E.verdict && x.avance && x.avance.reussi);
     const joueur = E.cible === 'joueur' ? E.qui(x) : null, contre = E.cible === 'contre' ? x.adv : null;
-    const e = { cle, ep, jour, titre: A.titre, de: E.de, texte: E.texte(x), effet: E.effet, matchs: E.matchs, cible: E.cible, joueur, contre,
+    const e = { cle, ep, jour, titre: A.titre, de: E.de, texte: E.texte(x), effet: reussi ? {} : E.effet, matchs: E.matchs, cible: E.cible, joueur, contre,
+      ...(reussi ? { recompense: DEFIS[x.defi.stat].recompense } : {}),
       pour: joueur ? joueur.n : contre ? `contre ${contre.name}` : null, x, matchsAuDebut: f.matchs };
     t.arcs.push(e);
     out.push(e);
