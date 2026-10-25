@@ -143,7 +143,7 @@ export function ouvrirInventaire(ctx) {
         ${filtres(['consommable'])}
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,
-          actions: `<button type="button" class="btn gold inv-jouer-meta" data-id="${esc(x.id)}"${ctx.peutJouer ? '' : ' disabled'}>Jouer</button>` })).join('') || vide('Aucun consommable permanent.')}</div>`;
+          actions: `<button type="button" class="btn gold inv-jouer-meta" data-id="${esc(x.id)}"${ctx.peutJouer ? '' : ' disabled'}>Jouer</button>` })).join('') || vide('Aucune carte gardée d\'une run à l\'autre.')}</div>`;
     } else {
       // V6 : une carte retirée (elle ne se tire plus) ne se montre qu'à qui l'a déjà.
       const ids = Object.keys(BANQUE).filter(id => garde(id)).sort((a, b) => ORDRE_CATEGORIES.indexOf(BANQUE[a].cat) - ORDRE_CATEGORIES.indexOf(BANQUE[b].cat));

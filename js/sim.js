@@ -2981,7 +2981,9 @@ export function effetDeMoment(d, team = null) {
   void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _cn;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
-  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
+  // Le nom de l'option nomme son joueur (« … pour {nom} »), comme à l'écran du choix : « Ce qui court » le relit tel quel.
+  const choix = String(nom || '').replace(/\{nom\}/g, (CONNUS.get(m.joueur) || {}).n || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire');
+  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix, ...canaux, ...(_t ? { regle: true } : {}) };
 }
 
 /*

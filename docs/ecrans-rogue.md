@@ -60,16 +60,16 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 | Sous-onglet | Repère | Verdict | Ce qui change |
 |---|---|---|---|
 | Boîte | EHM : l'accueil et la boîte ; NSS : l'accueil | Reste | Les choix se règlent dans la Boîte, ouverts sur place, comme un message d'EHM ; un matin sans choix, elle n'est pas vide : Hier soir, le prochain match, ton rang. |
-| Proprio | EHM : la direction et l'argent ; NSS : la jauge du patron | Reste | Ses dossiers (la masse salariale, la tête de l'entraîneur) se rangeaient au Vestiaire : ils sont chez lui (fait). |
+| Proprio | EHM : la direction et l'argent ; NSS : la jauge du patron | Reste | Ses dossiers (la masse salariale, la tête de l'entraîneur) se rangeaient au Vestiaire : ils sont chez lui, et « L'infirmerie déborde » à l'infirmerie (fait, `maison` d'un dossier). Les rivaux disaient « 1 gros matchs » (fait). |
 | Entraîneur | EHM : le personnel | Reste, allégé | « D'où tu viens » part (Hier soir et le calendrier disent les résultats) ; la route de la saison va au calendrier ; l'adjoint d'un palier y arrive (voir le Butin). |
 | Presse | EHM : les conférences de presse arrivent dans la boîte | Part | Vide presque tous les jours (« Rien à régler ici ») ; ses micros et ses courriels sont des messages de la Boîte, et la une est déjà dans Hier soir. |
-| Vestiaire | NSS : la jauge des coéquipiers ; EHM : la dynamique du vestiaire | Reste, allégé | Ce qu'il montre toujours (les fils suivis, ton histoire) ; ses choix s'ouvrent de la Boîte. |
+| Vestiaire | NSS : la jauge des coéquipiers ; EHM : la dynamique du vestiaire | Reste, allégé | Ce qu'il montre toujours (les fils suivis, ton histoire) ; ses choix s'ouvrent de la Boîte. « Ce qui court » et « Ton histoire » affichaient « Un match à la galerie de presse pour {nom} » (fait). |
 
 **Effectif**
 
 | Sous-onglet | Repère | Verdict | Ce qui change |
 |---|---|---|---|
-| Joueurs | EHM : l'effectif | Reste | Prend les blessés en filtre 🩹, à côté d'Avants, Défenseurs, Gardiens. |
+| Joueurs | EHM : l'effectif | Reste | Prend les blessés en filtre 🩹, à côté d'Avants, Défenseurs, Gardiens. Le tableau glisse aussi à l'horizontale (566 px pour 368) et coupe les noms : il garde ses colonnes de jeu, le reste à la fiche. |
 | Lignes | EHM : les trios, l'AN, le DN | Reste, allégé | Cinq onglets deviennent quatre : Équipe part (ses chiffres par match vont à l'avant-match, sa glace aux Attaque) ; sans systèmes, le pied « Système · Volume de tirs · Régler » et sa fenêtre partent (docs/sans-systemes.md). |
 | Dépistage | EHM : le rapport sur l'adversaire | Reste, allégé | Nommé « Avant-match » ; déplié, il fait 2,2 écrans : le tableau des rangs y est deux fois, les conseils de système partent avec eux ; « ton agressivité » n'était plus un réglage (fait). |
 | Infirmerie | EHM : les blessés vivent dans l'effectif | Se fusionne avec Joueurs | Le filtre 🩹 montre qui est blessé et qui joue sa case ; le choix du médecin s'ouvre de la Boîte. Défait la V12-2 (« la santé à l'infirmerie ») : à trancher. |
@@ -82,15 +82,16 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 | Butin | — | Part | Depuis la V16, il n'y reste que l'adjoint d'un palier, que le proprio offre et qui s'engage chez l'entraîneur : trois maisons pour un choix. Il va chez l'entraîneur ; le reste du temps, l'onglet est vide. |
 | Album | DD : la collection | Reste | |
 | L'ouverture d'un pack | DD : l'ouverture | Reste | L'en-tête dit « Butin » pour un pack acheté : « Boutique ». « Un outil se joue chez ce qu'il touche » devient « une carte rare se joue chez ce qu'elle monte » (fait). |
-| Qui sort ? | EHM : libérer un joueur | Reste | |
+| Qui sort ? | EHM : libérer un joueur | Reste, allégé | 4,2 écrans : toute la formation, case par case. La meilleure sortie d'abord (elle y est), les autres pliées par ligne. |
+| Tes cartes (le bouton de l'Album) | — | Part | L'inventaire d'avant la V16 : « Permanent 0 » pendant que l'entraîneur compte « Tes cartes du personnel · 1 ». Une carte rare se joue chez ce qu'elle monte ; il disait aussi « consommable » (le mot, fait). |
 
 **Le match**
 
 | Écran | Repère | Verdict | Ce qui change |
 |---|---|---|---|
-| Le direct | EHM : le match en texte | Reste | |
+| Le direct | EHM : le match en texte | Reste | Son fil fait 7 écrans à la fin : c'est un fil, ça défile. |
 | Le sommaire | EHM : la feuille et les trois étoiles | Reste | « Tes choix ce soir » : « Patrons » devient « Personnel » (fait) ; la ligne « Systèmes » part avec eux. |
-| Le gros match (le duel) | NSS : tes moments ; Showdown : le boss ; EHM : l'entracte | Reste | Avant la 1re période, deux décisions s'empilent (leur intention, puis la carte du vestiaire) avant que l'adjoint parle : la carte du vestiaire passe au matin, dans la Boîte. « Garder tirer de partout » devient « Garder ton plan » (fait). |
+| Le gros match (le duel) | NSS : tes moments ; Showdown : le boss ; EHM : l'entracte | Reste, allégé | Avant la 1re période, deux décisions s'empilent (leur intention, puis la carte du vestiaire) avant que l'adjoint parle : la carte du vestiaire passe au matin, dans la Boîte. « Garder tirer de partout » devient « Garder ton plan » (fait). Après la 3e, aucun écran de résultat : on revient au Bureau, « Gros match perdu ». Le pointage final en grand, le butin ou les sonnés, comme la fin d'un boss de Showdown. |
 | La mise doublée | Showdown : le tout pour le tout | Reste | |
 | Le dé d'un pari | NSS : le pari | Reste | |
 
@@ -110,11 +111,14 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 |---|---|---|---|
 | Le Bureau, saison finie | EHM : la fin de saison s'ouvre d'elle-même | Part | Un bouton « Voir le bilan » et un titre « Autour de la ligue » vide : le bilan s'ouvre directement. |
 | Ta run | Showdown : l'écran de fin de course | Reste | « Rien ici. » traîne au pied de la feuille. |
-| Le bilan de saison | EHM : la revue de saison | Reste, allégé | Huit onglets (Résumé, Histoire, Chiffres, Rythme, Forces, Ton impact, Cartes, Vestiaire) ; Rythme, Forces et Ton impact vont aux Chiffres, Cartes et Vestiaire à l'Histoire : quatre. |
+| Le bilan de saison | EHM : la revue de saison | Reste, allégé | Une seule page de 6 écrans (15 après des séries) et huit sauts (Résumé, Histoire, Chiffres, Rythme, Forces, Ton impact, Cartes, Vestiaire) : quatre onglets qui tiennent chacun en un écran, Rythme, Forces et Ton impact aux Chiffres, Cartes et Vestiaire à l'Histoire. Après des séries, il parlait encore de « tes patrons » et de « tes places » (fait). |
 | La fiche d'un joueur | DD : la carte recto verso | Reste | |
 | Le menu pause | partout | Reste | « Tes cartes » y double l'Album du Marché. |
 | Les déblocages | DD : les programmes | Reste | Son intro parlait encore des « cartes de trio (systèmes, styles, atelier, synergies) », parties à la V16 (fait). |
 | La page des règles | EHM : le manuel | Reste | 13,7 écrans : c'est sa place, le détail chiffré y vit. |
+
+**Les séries.** Le Bureau en séries n'a pas de sous-onglets : il garde le match en une ligne et l'adjoint peut jouer la série pour toi (« L'adjoint joue cette série »). À vérifier : entre deux matchs, la ligne du match a dit « M1 NHL Stars 2–1 · 0-1 » pendant que l'en-tête disait « mène 1-0 ».
+
 
 ### La carte qui en sort
 
@@ -125,7 +129,7 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 | Marché | Boutique · Butin · Album | Boutique · Album |
 | Ligue | Classement · Ta saison · Meneurs · Équipes · Palmarès | Classement · Calendrier · Meneurs · Palmarès |
 
-Dix-sept sous-onglets et cinq onglets de Lignes, soit vingt-deux pages, deviennent treize et quatre, soit dix-sept. Rien de ce qu'on règle ne part : la Presse, le Butin et l'Infirmerie gardent leurs choix, qui s'ouvrent de la Boîte ; les Équipes s'ouvrent du Classement. Ce qui part, ce sont des pages qu'on visite pour rien : la Presse et le Butin sont vides presque tous les jours.
+Dix-sept sous-onglets et cinq onglets de Lignes, soit vingt-deux pages, deviennent treize et quatre, soit dix-sept, et l'inventaire « Tes cartes » part. Rien de ce qu'on règle ne part : la Presse, le Butin et l'Infirmerie gardent leurs choix, qui s'ouvrent de la Boîte ; les Équipes s'ouvrent du Classement. Ce qui part, ce sont des pages qu'on visite pour rien : la Presse et le Butin sont vides presque tous les jours.
 
 ### Ce que JP tranche
 

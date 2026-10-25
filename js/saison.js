@@ -2526,7 +2526,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (!cat) continue;
         const o = (cat.options || []).find(x => x.cle === d.moment.choix);
         const titre = String(cat.titre).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'un joueur');
-        ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(o.nom)}</b>` : ''}` });
+        // « Un match à la galerie de presse pour {nom} » : l'option nomme son joueur, comme à l'écran du choix.
+        const choisi = o ? String(o.nom).replace(/\{nom\}/g, nomJoueur(d.moment.joueur) || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire') : '';
+        ev.push({ j: d.jour, t: `${cat.ico} ${ctx.esc(titre)}${o ? ` — tu as choisi : <b>${ctx.esc(choisi)}</b>` : ''}` });
       } else if (d.deck && SORTES_DECK[d.deck]) {
         const S = SORTES_DECK[d.deck], M = d.mutation && MUTATIONS[d.mutation.cle], T = d.maitrise && systemeDe(d.maitrise.tac);
         const qui = d.deck === 'recrue' ? nomJoueur(d.ballottage && d.ballottage.entre) : d.mutation ? nomJoueur(d.mutation.joueur) : '';
@@ -3219,7 +3221,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       specs.push({ de: DE.proprio, ico: '⚔', titre: multi > 1 ? `Tes ${multi} rivaux` : 'Ton dernier rival', multi,
         scene: sceneDesRivaux({ multi, offerts: ro.offre.length, graine }),
         recit: `Chacun de tes matchs contre ${multi > 1 ? 'eux' : 'lui'} sera un gros match, et tu le verras venir sur la route. Plus il est fort, plus il paie.`,
-        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros matchs`,
+        options: ro.offre.map(x => ({ cle: x.cle, nom: ctx.teamShort(x.team), sous: `${cap(forts[x.cinquieme])} de l'offre · ${matchsContre(x.team)} gros match${matchsContre(x.team) > 1 ? 's' : ''}`,
           mots: [{ txt: `+${Math.round(x.butin * primeDuGros())} 🪙 par gros match gagné`, bon: true }] })),
         decision: cles => [].concat(cles).map((cle, i) => ({ palier: `riv:${ro.k + i}`, rival: { cle, butin: ro.offre.find(y => y.cle === cle).butin } })) });
     }
@@ -3536,7 +3538,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // V11 (tranche 4) : le joueur qu'il nomme, et ce que chaque réponse lui fait à lui.
       const lui = D.joueur ? D.joueur(dossier.faits) : null;
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
-      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre, ...(joueur ? { joueur } : {}),
+      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre, ...(D.maison ? { maison: D.maison } : {}), ...(joueur ? { joueur } : {}),
         choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`), ...(joueur ? { joueur } : {}),
           options: D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien ? null : o.duree || null, ...(o.si ? { quand: `${MOMENTS_SI[o.si].mot} seulement` } : {}),
             mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
@@ -3661,8 +3663,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    */
   function maisonDe(m) {
     if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
-    // V16 : la masse salariale et la tête de l'entraîneur sont des dossiers du proprio ; ils se règlent chez lui (V12-3).
-    if (m.genre === 'dossier' && m.de === DE.proprio) return 'proprio';
+    // Une maison par sujet (V12-3) : un dossier d'argent ou de congédiement se règle chez le proprio, celui des blessés à l'infirmerie.
+    if (m.genre === 'dossier' && m.maison) return m.maison;
     if (['fil', 'dossier'].includes(m.genre)) return 'vestiaire';
     if (m.genre === 'courriel') return 'presse';
     if (m.genre === 'pack') return 'marche';
