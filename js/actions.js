@@ -38,6 +38,13 @@
  * une saison sans la sienne garde la photo générale. Sur l'appareil, elle se télécharge seulement quand une
  * carte la regarde, jamais dans la file de fond (une par joueur suffit à remplir le tiroir) ; même tiroir,
  * clé {id}-{saison}.
+ *
+ * LES PHOTOS COUCHÉES (oct. 2026, scripts/actions_couchees.mjs). JP : *cartes spéciales action horizontales quand
+ * t'as des photos qui gossent vertical*. Une photo de la LNH dont la fenêtre debout coupe le jeu a aussi sa version
+ * 7:5, la photo générale comme celle d'une saison, de la LNH comme de Commons (img/actions/couchees/{id}.webp ou
+ * {id}-{saison}.webp ; `couchees` : sa clé → le centre du visage) ; `actionCouchee(id, saison, club)` rend celle de
+ * la photo que la carte montre, et la carte se couche (`cartonHtml`, js/cartes.js). Sur l'appareil, la même photo
+ * brute se recadre couchée, clé {clé}-couchee, à la demande seulement.
  */
 import { recadrerAction } from './recadrage-action.js';
 import { surAppareil } from './visages.js';
@@ -54,6 +61,7 @@ let visages = {};            // le centre de leur visage, pour le recadrage sur 
 let libres = {};             // id → la photo libre (Commons ou Openverse) : sa vignette, son auteur, sa licence
 let cadres = {};             // id → le centre du visage dans la photo 5:7 [x, y], pour la fenêtre de chaque série
 let clubs = {};              // id → le ou les clubs de sa photo générale (scripts/actions_clubs.mjs)
+let couchees = {};           // « id » ou « id-saison » → le centre du visage dans sa photo couchée [x, y] (scripts/actions_couchees.mjs)
 let saisons = {};            // id → { saison → [fichier, dossier, largeur de la vignette, auteur, licence, centre du visage, cadre, club ?] }
 let auteurs = [], licences = [];   // les auteurs et les licences des photos de saison, par index
 let chargement = null;       // la promesse de actionsDisponibles()
@@ -87,6 +95,7 @@ export function actionsDisponibles() {
       libres = { ...(lu.libres || {}), ...(lu.commons || {}) };
       cadres = lu.cadres || {};
       clubs = lu.clubs || {};
+      couchees = lu.couchees || {};
       saisons = lu.saisons || {};
       auteurs = lu.auteurs || [];
       licences = lu.licences || [];
@@ -156,6 +165,27 @@ export function actionSrc(id, saison, club) {
   return ps && deSonClub(id, club) ? prets.get(id) || null : null;
 }
 
+/* La clé de la photo que montre la carte : « id-saison » pour une photo de saison, l'id pour la générale de son club ; null sans photo. */
+function cleDeLaPhoto(id, saison, club) {
+  id = Number(id);
+  if (deSaison(id, saison, club)) return `${id}-${saison}`;
+  return liste && liste.has(id) && deSonClub(id, club) ? id : null;
+}
+/* La photo couchée (7:5) de la photo que montre la carte, ou null : elle tient debout. */
+export function actionCouchee(id, saison, club) {
+  const cle = cleDeLaPhoto(id, saison, club);
+  if (cle === null || !couchees[cle]) return null;
+  if (!surAppareil()) return surLeWeb ? `img/actions/couchees/${cle}.webp` : null;
+  const k = `${cle}-couchee`, src = prets.get(k);
+  if (!src) demander(k);
+  return src || null;
+}
+/* Le centre du visage dans cette photo couchée, [x, y] en fractions. */
+export function cadreCouche(id, saison, club) {
+  const cle = cleDeLaPhoto(id, saison, club);
+  return (cle !== null && couchees[cle]) || null;
+}
+
 /* ---------- l'appareil Android ---------- */
 
 // Une clé : l'id (la photo générale) ou « id-saison » (une photo de saison, à la demande seulement).
@@ -178,6 +208,9 @@ function connexionLarge() {
   return !c.effectiveType || c.effectiveType === '4g';
 }
 
+/* Une clé « …-couchee » : la même photo, recadrée couchée ; `brute` rend la clé de sa photo (« id » ou « id-saison »). */
+const couche = cle => typeof cle === 'string' && cle.endsWith('-couchee');
+const brute = cle => (couche(cle) ? (k => (/^\d+$/.test(k) ? Number(k) : k))(cle.slice(0, -'-couchee'.length)) : cle);
 /* La photo de saison d'une clé « id-saison », ou null. */
 const saisonDeCle = cle => (typeof cle === 'string' ? deSaison(...cle.split(/-(.+)/)) : null);
 
@@ -205,10 +238,11 @@ function garder(id, { reseau = true } = {}) {
     let webp = deja ? await deja.blob() : null;
     if (!webp) {
       if (!reseau || !connexionLarge()) return null;
-      const brut = await telecharger(id);
+      // Une photo couchée part de la même photo brute (la LNH, Commons), recadrée en 7:5.
+      const cle = brute(id), brut = await telecharger(cle);
       if (!brut) return null;
-      const ps = saisonDeCle(id);
-      webp = (await recadrerAction(brut, { centre: (ps ? ps[5] : visages[id]) ?? null })).webp;
+      const ps = saisonDeCle(cle), centre = (ps ? ps[5] : visages[cle]) ?? null;
+      webp = (await recadrerAction(brut, couche(id) ? { largeur: 560, hauteur: 400, centre } : { centre })).webp;
       await t.put(cleDe(id), new Response(webp, { headers: { 'content-type': 'image/webp' } }));
       gardes.add(id);
     }
@@ -242,7 +276,7 @@ function lancer() {
         if (prets.has(id)) continue;
         await garder(id);
         // Laisse respirer l'interface ; Wikimedia et Openverse limitent les requêtes : on y va plus doucement.
-        await new Promise(r => setTimeout(r, libres[id] || saisonDeCle(id) ? 600 : 60));
+        await new Promise(r => setTimeout(r, libres[brute(id)] || saisonDeCle(brute(id)) ? 600 : 60));
       }
     })().finally(() => { ouvriers--; });
   }
@@ -258,7 +292,7 @@ export async function demarrerActions() {
     const ids = await actionsDisponibles();
     if (!ids.length) return;
     const t = await ouvrirTiroir();
-    for (const r of await t.keys()) { const m = r.url.match(/\/(\d+)(-\d{4}-\d\d)?\.webp$/); if (m) gardes.add(m[2] ? m[1] + m[2] : Number(m[1])); }
+    for (const r of await t.keys()) { const m = r.url.match(/\/(\d+)((?:-\d{4}-\d\d)?(?:-couchee)?)\.webp$/); if (m) gardes.add(m[2] ? m[1] + m[2] : Number(m[1])); }
     // Le reste, des joueurs les plus récents aux plus anciens (toujours le même ordre).
     // Les photos de saison n'y entrent jamais : elles se téléchargent quand une carte les regarde.
     file = ids.filter(id => !gardes.has(id)).sort((a, b) => b - a);

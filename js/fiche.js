@@ -11,7 +11,7 @@ import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
-import { numeroDeCarte, sensRarete, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction, dosDeCarton } from './cartes.js';
+import { numeroDeCarte, sensRarete, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction, photoCouchee, dosDeCarton } from './cartes.js';
 import { creditPhoto } from './actions.js';
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
@@ -526,8 +526,8 @@ export function showPlayerModal(p, opts = {}) {
     <div class="pcard-full" style="${varsEquipe(p)};--card-primary:${colors.primary};--card-accent:${colors.accent}">
       <div class="fiche-carte">
         <div class="fc-faces">
-          <div class="fc-face fc-recto cs-${serie} tc-${rarete}" title="Touche la carte pour la retourner">
-            ${cartonDe(p, { nomClasse: 'pcard-full-name', rar: opts.rar, num: opts.num })}
+          <div class="fc-face fc-recto ${photoCouchee(p) ? '' : `cs-${serie} `}tc-${rarete}" title="Touche la carte pour la retourner">
+            ${cartonDe(p, { nomClasse: 'pcard-full-name', rar: opts.rar, num: opts.num, debout: true })}
           </div>
           ${verso}
         </div>
@@ -715,8 +715,10 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
    * carte imprime le sien. Une photo de la LNH n'en porte pas.
    */
   const credit = photoAction(p) && creditPhoto(p.id, p.s, p.t);
-  return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} ${dosDeLEpoque(p.s)} ${SERIES[serie].dos || ''} fc-cachee" aria-hidden="true">
-    ${dosDeCarton(serie, rarete)}
+  // Une carte couchée (`photoCouchee`) a un dos couché, de sa série : le texte en deux colonnes sur sa coque.
+  const couchee = !!photoCouchee(p);
+  return `<div class="fc-face fc-verso cj-verso cs-${serie} ${couchee ? 'couchee' : SERIES[serie].dos || ''} tc-${rarete} ${dosDeLEpoque(p.s)} fc-cachee" aria-hidden="true">
+    ${dosDeCarton(serie, rarete, couchee)}
     <div class="cjv-panneau">
     <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span><span class="cjv-logo">${getTeamLogoHtml(p.t, 22)}</span></div>
     ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}

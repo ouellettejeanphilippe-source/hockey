@@ -30,7 +30,7 @@ site.webmanifest, favicon.svg, icon-*.png   installation et icônes
 fonts/                Barlow Condensed, Manrope, Noto Emoji et les polices des séries de cartes (OFL, fonts/POLICES.txt), hébergées ici
 data/                 shards par saison (seasons/), index, seed, portraits.json, salaires, trophées, réputations
 img/logos, img/mugs   écussons des 44 franchises et visages recadrés (scripts/logos.mjs, scripts/portraits.mjs)
-img/actions           photos de match recadrées en 5:7, la face au centre (≈ 145 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos, scripts/actions_saisons.mjs une photo par saison, {id}-{saison}.webp ; data/actions.json les liste)
+img/actions           photos de match recadrées en 5:7, la face au centre (≈ 145 Mo, versionnées depuis oct. 2026 ; scripts/actions.mjs refait celles de la LNH, scripts/actions_commons.mjs les photos libres de Commons et d'Openverse, créditées au dos, scripts/actions_saisons.mjs une photo par saison, {id}-{saison}.webp ; scripts/actions_couchees.mjs les photos couchées, de la LNH comme de Commons, couchees/{clé}.webp, pour les cartes horizontales ; data/actions.json les liste)
 
 js/game.js            le contrôleur : l'état G, render(), le démarrage, la sauvegarde, les sections et l'en-tête, l'historique
 js/repechage.js       la roulette, le vestiaire et le loto, la signature, la barre du plafond, le bassin de cartes

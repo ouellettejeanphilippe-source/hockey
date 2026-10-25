@@ -84,6 +84,9 @@
   /* Le sens : ce qui rapporte, ce qui coûte, ce qui se gagne, ce qui attend. */
   --bon: #46c98b;
   --mauvais: #e5707a;
+  /* Le vert et le rouge lisibles sur un carton clair (le verso de glace des cartes de jeu). */
+  --bon-sur-carton: #17804a;
+  --mauvais-sur-carton: #b3262c;
   --or: #d7b171;
   /* Les niveaux (Soutien → Phénomène) : la seule capsule pleine, une teinte par rang (l'Étoile prend l'or). */
   --niv-regulier: #2f6fb8;
@@ -1728,6 +1731,61 @@ a.spin-club:hover { background: var(--fond-2); }
 @media (prefers-reduced-motion: reduce) { .carton { transition: none; } }
 
 /* ---------------------------------------------------------------
+   LA CARTE COUCHÉE (`carteCouchee`, js/cartes.js ; JP : *cartes spéciales action horizontales quand t'as des photos qui
+   gossent vertical* ; *ces cartes doivent ressembler aux séries de leur année* ; *garder assez de place pour les
+   photos, pas les pogner dans un petit cadre*). La carte couchée porte SA série (`.cc-carte.cs-…`) : son carton, ses
+   encres, ses polices, la peau de sa plaque et de son médaillon. Seule la GÉOMÉTRIE se réécrit, ici : chaque série
+   pose ses pièces pour une carte debout, et une carte couchée les range en paysage — la grande fenêtre de la photo
+   (presque toute la carte, la bordure de la série autour), la plaque du nom au pied à gauche, le médaillon au pied à
+   droite. Ces positions passent avant celles de toutes les séries par leur préfixe (`.cc-carte` trois fois : plus
+   précis que la règle de série la plus précise, sans `!important`). La case reste debout (5:7) : `cqw` y est le petit côté, celui
+   d'une carte debout.
+   --------------------------------------------------------------- */
+.carton.carton-couchee { background: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte {
+  position: absolute; left: 50%; top: 50%; width: 140cqw; height: 100cqw; transform: translate(-50%, -50%) rotate(-90deg);
+  overflow: hidden; isolation: isolate; border-radius: 3.2% / 4.5%;
+  background: var(--c-fond, #1b2230); color: var(--c-encre, white); font-family: var(--display); line-height: 1; text-align: left;
+}
+.carton-couchee > .cc-carte.cc-carte.cc-carte > * { position: absolute; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte::before { content: ''; position: absolute; z-index: 0; pointer-events: none; }
+/* La fenêtre : presque toute la carte, la bordure de la série autour ; aux éditions hautes, toute la carte. Le cadre de
+   la série (son ::before) passe derrière la photo, un peu plus grand qu'elle : il n'en reste que son filet. */
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-photo { inset: 4.5cqw; width: auto; height: auto; transform: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte::before { inset: 3cqw; width: auto; height: auto; transform: none; z-index: 0; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire) > .carton-photo { inset: 0; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire)::before { display: none; }
+/*
+ * LE NOM SUR LE CARTON. Les séries qui impriment le nom à l'encre sur leur carton clair, ou en dorure (le crème des
+ * années 70, la patinoire, le marbre, le nacre…), le gardent sur leur carton : la photo leur laisse une bande au pied.
+ */
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo { inset: 4.5cqw 4.5cqw 24cqw; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle)::before { inset: 3cqw 3cqw 22.5cqw; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-nom { inset: auto auto 4cqw 6cqw; min-height: 0; padding: 0; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-club { inset: auto 6cqw 3cqw auto; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-imprime { inset: auto 28cqw 1.4cqw auto; color: inherit; text-shadow: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 18%, transparent), transparent 22%); }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-photo > .photo-couchee { object-fit: cover; object-position: calc(var(--fx, 0.5) * 100%) calc(var(--fy, 0.3) * 100%); -webkit-mask: none; mask: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 22%, transparent), transparent 20% 58%, color-mix(in srgb, black 62%, transparent)); }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-deco::before, .carton-couchee > .cc-carte.cc-carte.cc-carte .carton-deco::after { display: none; }
+/* La plaque du nom, avec sa peau de série, au pied à gauche, sur la photo. */
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-nom {
+  --nom-l: 74cqw; --nom-max: 10cqw;
+  inset: auto auto 7cqw 7cqw; width: auto; max-width: 92cqw; height: auto; min-height: 15cqw;
+  padding: 1.6cqw 6cqw 1.6cqw 4cqw; transform: none; writing-mode: horizontal-tb; rotate: none;
+}
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-nom .lname { line-height: 1; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-club-nom { display: none; }
+/* Le médaillon au pied à droite ; l'imprimé, le tirage et la relique dans les coins libres. */
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-club { inset: auto 7cqw 6cqw auto; width: 18cqw; height: 18cqw; transform: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-imprime { inset: auto auto 1.2cqw 7.5cqw; width: auto; transform: none; writing-mode: horizontal-tb; color: color-mix(in srgb, white 82%, transparent); text-shadow: 0 0.2cqw 0.6cqw black; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-tirage { inset: 14cqw 6cqw auto auto; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-relique { inset: 14cqw 6cqw auto auto; }
+/* À l'endroit (la fiche) : la case pivote d'un quart dans un cadre 7:5. */
+.carton-a-plat { position: relative; display: block; width: 100%; aspect-ratio: 7 / 5; }
+.carton-pivot { position: absolute; left: 50%; top: 50%; width: 71.43%; transform: translate(-50%, -50%) rotate(90deg); }
+
+/* ---------------------------------------------------------------
    LA GLACE (les cartes de jeu, js/cartes.js `carteHtml`) — la glace rayée par les lames, ses lignes peintes
    en biais (la rouge, la bleue, un cercle de mise au jeu), le joueur qui
    SORT DE SON CADRE, la plaque du nom en biais et son écusson.
@@ -1782,8 +1840,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-fanion { --encre-2: #6b5a3e; --c-fond: var(--grain) 0 0 / 40% auto, var(--trame) 0 0 / 1.1% 0.786%, linear-gradient(160deg, #f6efd9, #eadcb8); --c-encre: #2a2117; }
 .cs-fanion::before { inset: 0; padding: 5.5cqw; background: var(--grain) 0 0 / 40cqw 40cqw, linear-gradient(160deg, rgba(255, 255, 255, 0.16), transparent 45%, rgba(0, 0, 0, 0.18)), var(--band); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
 .cs-fanion .carton-orne > i:nth-child(1) { inset: 3.4cqw; border: 0.4cqw solid color-mix(in srgb, var(--ink) 70%, transparent); border-radius: 2.4cqw; }
-.cs-fanion .carton-photo { inset: 10cqw 10cqw auto; height: 78cqw; border-radius: 5cqw; background: radial-gradient(90% 60% at 50% 10%, #dfe6e8, #9fb0b8); box-shadow: 0 0 0 0.45cqw #2a2117, 0 1cqw 2cqw rgba(60, 40, 15, 0.35); }
-.cs-fanion .carton-nom { --nom-l: 58cqw; --nom-max: 11cqw; --prenom: 4.4cqw; left: 8cqw; right: 8cqw; top: 90.5cqw; height: 23cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
+.cs-fanion .carton-photo { inset: 9.5cqw 8.5cqw auto; height: 81cqw; border-radius: 5cqw; background: radial-gradient(90% 60% at 50% 10%, #dfe6e8, #9fb0b8); box-shadow: 0 0 0 0.45cqw #2a2117, 0 1cqw 2cqw rgba(60, 40, 15, 0.35); }
+.cs-fanion .carton-nom { --nom-l: 58cqw; --nom-max: 11cqw; --prenom: 4.4cqw; left: 8cqw; right: 8cqw; top: 92.5cqw; height: 21cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
 .cs-fanion .carton-nom .fname { font-style: italic; font-weight: 700; text-transform: none; letter-spacing: 0.04em; color: var(--encre-club); opacity: 1; }
 .cs-fanion .carton-nom .lname { font-weight: 900; text-transform: none; font-variant-caps: small-caps; letter-spacing: 0.04em; margin-top: 0; }
 .cs-fanion .carton-nom::after { content: ''; width: 46cqw; height: 1.6cqw; margin-top: 1cqw; background: radial-gradient(circle, var(--encre-club) 0 0.55cqw, transparent 0.65cqw) 50% 50% / 1.6cqw 1.6cqw no-repeat, linear-gradient(var(--encre-club) 0 0) 0 50% / 44% 0.3cqw no-repeat, linear-gradient(var(--encre-club) 0 0) 100% 50% / 44% 0.3cqw no-repeat; }
@@ -1801,16 +1859,16 @@ a.spin-club:hover { background: var(--fond-2); }
 
 /* 2 · ALMANACH (1971-72) — le papier journal, un panneau plein du club où la photo s'inscrit dans une grande fenêtre ronde, et un pied de page d'almanach : filets gras-maigres, colonnes, nom en lettrage collège, l'écusson dans un tampon dateur ; d'après les cadres ronds sur fond uni de 1971-72. */
 .cs-almanach { --encre-2: #4a463d; --c-fond: var(--grain) 0 0 / 40% auto, linear-gradient(180deg, #f2f0e8, #e5e1d4); --c-encre: #1d1b17; }
-.cs-almanach::before { inset: 7cqw 6cqw auto; height: 89cqw; background: radial-gradient(circle, rgba(0, 0, 0, 0.14) 0 0.3cqw, transparent 0.42cqw) 0 0 / 1.4cqw 1.4cqw, radial-gradient(80% 70% at 50% 40%, color-mix(in srgb, var(--band) 82%, white), var(--band) 70%); box-shadow: 0 0 0 0.3cqw #1d1b17; }
+.cs-almanach::before { inset: 7cqw 6cqw auto; height: 97cqw; background: radial-gradient(circle, rgba(0, 0, 0, 0.14) 0 0.3cqw, transparent 0.42cqw) 0 0 / 1.4cqw 1.4cqw, radial-gradient(80% 70% at 50% 40%, color-mix(in srgb, var(--band) 82%, white), var(--band) 70%); box-shadow: 0 0 0 0.3cqw #1d1b17; }
 .cs-almanach .carton-orne > i:nth-child(1) { inset: 2.4cqw; border: 0.55cqw solid #1d1b17; box-shadow: inset 0 0 0 0.6cqw #ece9df, inset 0 0 0 0.85cqw #1d1b17; }
-.cs-almanach .carton-orne > i:nth-child(2) { left: 6cqw; right: 6cqw; top: 99cqw; height: 1.5cqw; border-top: 0.7cqw solid #1d1b17; border-bottom: 0.25cqw solid #1d1b17; }
-.cs-almanach .carton-orne > i:nth-child(3) { left: 71cqw; top: 103cqw; width: 0.25cqw; height: 22cqw; background: #1d1b17; }
-.cs-almanach .carton-photo { inset: 12cqw 11.5cqw auto; height: 79cqw; border-radius: 42%; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #a2b2ba); box-shadow: 0 0 0 1.2cqw #f2f0e8, 0 0 0 1.55cqw #1d1b17, 0 1.4cqw 2.4cqw rgba(0, 0, 0, 0.35); }
-.cs-almanach .carton-nom { --nom-l: 40cqw; --nom-max: 8.4cqw; --prenom: 3.5cqw; left: 7cqw; width: 61cqw; top: 102cqw; height: 24cqw; font-family: "Graduate", "Alfa Slab One", serif; }
+.cs-almanach .carton-orne > i:nth-child(2) { left: 6cqw; right: 6cqw; top: 107cqw; height: 1.5cqw; border-top: 0.7cqw solid #1d1b17; border-bottom: 0.25cqw solid #1d1b17; }
+.cs-almanach .carton-orne > i:nth-child(3) { left: 71cqw; top: 111cqw; width: 0.25cqw; height: 22cqw; background: #1d1b17; }
+.cs-almanach .carton-photo { inset: 12cqw 11.5cqw auto; height: 87cqw; border-radius: 42%; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #a2b2ba); box-shadow: 0 0 0 1.2cqw #f2f0e8, 0 0 0 1.55cqw #1d1b17, 0 1.4cqw 2.4cqw rgba(0, 0, 0, 0.35); }
+.cs-almanach .carton-nom { --nom-l: 40cqw; --nom-max: 8.4cqw; --prenom: 3.5cqw; left: 7cqw; width: 61cqw; top: 110cqw; height: 24cqw; font-family: "Graduate", "Alfa Slab One", serif; }
 .cs-almanach .carton-nom .fname { font-weight: 400; letter-spacing: 0.12em; color: var(--encre-club); opacity: 1; }
 .cs-almanach .carton-nom .lname { font-weight: 400; letter-spacing: 0; margin-top: 1.2cqw; }
 .cs-almanach .carton-club-nom { font: 700 3.2cqw/1 "Barlow Condensed", sans-serif; letter-spacing: 0.18em; color: var(--encre-2); margin-top: 1.6cqw; }
-.cs-almanach .carton-club { right: 7.5cqw; top: 103.5cqw; width: 19cqw; height: 19cqw; padding: 3.6cqw; border-radius: 50%; transform: rotate(-9deg); box-shadow: inset 0 0 0 0.45cqw var(--encre-club), 0 0 0 0.3cqw var(--encre-club); }
+.cs-almanach .carton-club { right: 7.5cqw; top: 111.5cqw; width: 19cqw; height: 19cqw; padding: 3.6cqw; border-radius: 50%; transform: rotate(-9deg); box-shadow: inset 0 0 0 0.45cqw var(--encre-club), 0 0 0 0.3cqw var(--encre-club); }
 .cs-almanach .carton-club::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: repeating-conic-gradient(var(--encre-club) 0 2deg, transparent 2deg 9deg); -webkit-mask: radial-gradient(circle, transparent 66%, #000 67% 80%, transparent 81%); mask: radial-gradient(circle, transparent 66%, #000 67% 80%, transparent 81%); }
 .cs-almanach .carton-imprime { left: 6cqw; right: 6cqw; bottom: 5.4cqw; padding-top: 1.4cqw; border-top: 0.25cqw solid; gap: 0; color: var(--encre-2); opacity: 1; }
 .cs-almanach .carton-imprime > * { flex: 1; text-align: center; }
@@ -1820,11 +1878,11 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 3 · L'AFFICHE (1972-73) — une affiche de match collée au mur : le papier du club dans sa trame qui fonce, la photo bordée d'une couronne de points, une bande crème vieillie aux bords déchirés où le nom crie en égyptienne très grasse, un macaron étoilé pour l'écusson. */
 .cs-affiche { --c-fond: var(--grain) 0 0 / 40% auto, linear-gradient(170deg, color-mix(in srgb, var(--band) 85%, white), var(--band) 45%, color-mix(in srgb, var(--band) 80%, black)); --c-encre: var(--ink); }
 .cs-affiche::before { inset: 0; background: radial-gradient(circle, rgba(0, 0, 0, 0.3) 0 0.55cqw, transparent 0.65cqw) 0 0 / 2.2cqw 2.2cqw; -webkit-mask: linear-gradient(transparent 55%, #000); mask: linear-gradient(transparent 55%, #000); }
-.cs-affiche .carton-photo { inset: 9cqw 9cqw auto; height: 74cqw; background: radial-gradient(90% 60% at 50% 10%, #e8e4d8, #a9a395); box-shadow: 0 0 0 0.9cqw #f1e6c8; }
-.cs-affiche .carton-deco::before { inset: 4.6cqw 4.6cqw auto; height: 82.8cqw; padding: 3.4cqw; background: radial-gradient(circle, var(--ink) 0 0.6cqw, transparent 0.7cqw) 0.2cqw 0.2cqw / 2.2cqw 2.2cqw; opacity: 0.75; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.cs-affiche .carton-photo { inset: 9cqw 9cqw auto; height: 84cqw; background: radial-gradient(90% 60% at 50% 10%, #e8e4d8, #a9a395); box-shadow: 0 0 0 0.9cqw #f1e6c8; }
+.cs-affiche .carton-deco::before { inset: 4.6cqw 4.6cqw auto; height: 92.8cqw; padding: 3.4cqw; background: radial-gradient(circle, var(--ink) 0 0.6cqw, transparent 0.7cqw) 0.2cqw 0.2cqw / 2.2cqw 2.2cqw; opacity: 0.75; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
 .cs-affiche .carton-deco::after { inset: 0; background: linear-gradient(90deg, transparent 49.6%, rgba(255, 255, 255, 0.22) 49.8%, rgba(0, 0, 0, 0.12) 50.2%, transparent 50.6%), linear-gradient(180deg, transparent 49.7%, rgba(255, 255, 255, 0.2) 49.85%, rgba(0, 0, 0, 0.12) 50.15%, transparent 50.4%); mix-blend-mode: hard-light; }
 .cs-affiche .carton-nom {
-  --nom-l: 45cqw; --nom-max: 13cqw; --prenom: 3.8cqw; left: 0; right: 0; top: 91cqw; height: 31cqw; padding: 0 6cqw; align-items: center; text-align: center; color: var(--encre-club);
+  --nom-l: 45cqw; --nom-max: 13cqw; --prenom: 3.8cqw; left: 0; right: 0; top: 101cqw; height: 31cqw; padding: 0 6cqw; align-items: center; text-align: center; color: var(--encre-club);
   background: radial-gradient(40% 50% at 12% 70%, rgba(150, 105, 40, 0.18), transparent), radial-gradient(30% 40% at 88% 25%, rgba(150, 105, 40, 0.14), transparent), var(--grain) 0 0 / 40cqw 40cqw, linear-gradient(#f3e8c9, #e6d5aa);
   clip-path: polygon(0 3%, 6% 0, 10% 3%, 18% 1.5%, 25% 1.5%, 30% 0, 36% 2%, 42% 4%, 48% 1.5%, 55% 1.5%, 63% 3%, 69% 0, 77% 1.5%, 84% 2%, 90% 1%, 97% 3%, 100% 2%, 100% 98%, 94% 97%, 88% 98%, 82% 99%, 74% 97%, 68% 100%, 61% 97%, 53% 96%, 47% 97%, 39% 99%, 33% 98.5%, 28% 100%, 21% 98%, 14% 97%, 8% 98%, 3% 97%, 0 96%);
 }
@@ -1839,15 +1897,15 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 4 · BORDURE (1973-74) — la bordure pleine et vive du club, sans rien d'autre que son grain d'impression, la photo dans un filet blanc, le nom dans une capsule blanche aux bouts ronds, l'écusson dans une rondelle-macaron de l'autre côté ; d'après les bordures de couleur de 1973-74. */
 .cs-bordure { --c-fond: var(--grain) 0 0 / 40% auto, radial-gradient(circle, rgba(0, 0, 0, 0.09) 0 20%, transparent 30%) 0 0 / 1.2% 0.857%, linear-gradient(150deg, color-mix(in srgb, var(--band) 80%, white), var(--band) 40%, color-mix(in srgb, var(--band) 85%, black)); --c-encre: var(--ink); }
 .cs-bordure .carton-orne > i:nth-child(1) { inset: 2.6cqw; border: 0.35cqw solid color-mix(in srgb, var(--ink) 50%, transparent); border-radius: 2.4cqw; }
-.cs-bordure .carton-photo { inset: 10cqw 8cqw auto; height: 85cqw; border-radius: 0.6cqw; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #a2b2ba); box-shadow: 0 0 0 1.3cqw #fbfaf6, 0 0 0 1.65cqw rgba(0, 0, 0, 0.28), 0 1.6cqw 3cqw rgba(0, 0, 0, 0.4); }
+.cs-bordure .carton-photo { inset: 10cqw 8cqw auto; height: 95cqw; border-radius: 0.6cqw; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #a2b2ba); box-shadow: 0 0 0 1.3cqw #fbfaf6, 0 0 0 1.65cqw rgba(0, 0, 0, 0.28), 0 1.6cqw 3cqw rgba(0, 0, 0, 0.4); }
 .cs-bordure .carton-nom {
-  --nom-l: 37cqw; --nom-max: 8.6cqw; --prenom: 3.4cqw; left: 5.5cqw; right: 29cqw; top: 101.5cqw; height: 20cqw; padding: 0 5.5cqw; align-items: center; text-align: center; border-radius: 10cqw; color: var(--encre-club);
+  --nom-l: 37cqw; --nom-max: 8.6cqw; --prenom: 3.4cqw; left: 5.5cqw; right: 29cqw; top: 111.5cqw; height: 20cqw; padding: 0 5.5cqw; align-items: center; text-align: center; border-radius: 10cqw; color: var(--encre-club);
   background: linear-gradient(180deg, #ffffff, #ebe9e2); box-shadow: inset 0 0 0 0.5cqw #fff, inset 0 0 0 0.8cqw var(--band), 0 0.9cqw 1.6cqw rgba(0, 0, 0, 0.32);
 }
 .cs-bordure .carton-nom .fname { font-weight: 700; letter-spacing: 0.22em; color: #4a4740; opacity: 1; }
 .cs-bordure .carton-nom .lname { font-family: "Alfa Slab One", "Rockwell", serif; font-weight: 400; letter-spacing: 0.01em; margin-top: 0.6cqw; }
 .cs-bordure .carton-club-nom { display: none; }
-.cs-bordure .carton-club { right: 5cqw; top: 100cqw; width: 22cqw; height: 22cqw; padding: 4cqw; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #ffffff, #e6e1d3 75%); box-shadow: inset 0 0 0 0.5cqw var(--band), inset 0 0 0 0.9cqw #fff, inset 0 0 0 1.15cqw color-mix(in srgb, var(--band) 60%, black), 0 0.9cqw 1.6cqw rgba(0, 0, 0, 0.32); }
+.cs-bordure .carton-club { right: 5cqw; top: 110cqw; width: 22cqw; height: 22cqw; padding: 4cqw; border-radius: 50%; background: radial-gradient(circle at 38% 32%, #ffffff, #e6e1d3 75%); box-shadow: inset 0 0 0 0.5cqw var(--band), inset 0 0 0 0.9cqw #fff, inset 0 0 0 1.15cqw color-mix(in srgb, var(--band) 60%, black), 0 0.9cqw 1.6cqw rgba(0, 0, 0, 0.32); }
 .cs-bordure .carton-imprime { left: 7cqw; right: 7cqw; bottom: 6cqw; justify-content: space-between; color: var(--ink); opacity: 0.85; }
 .fc-verso.cs-bordure { --v-fond: radial-gradient(circle, rgba(0, 0, 0, 0.05) 0 0.8px, transparent 1.2px) 0 0 / 4px 4px, linear-gradient(170deg, #f7f4ea, #e4dfd0); --v-encre: #1d1c19; --v-encre-2: #57534a; --v-prix: #1f5aa8; --v-police: "Alfa Slab One", Rockwell, serif; --v-poids: 400; }
 
@@ -1893,18 +1951,18 @@ a.spin-club:hover { background: var(--fond-2); }
     radial-gradient(closest-side, rgba(255, 255, 255, 0.14), transparent) calc(var(--t) / 2) 0 / var(--t) var(--t);
 }
 .cs-losange .carton-orne > i:nth-child(1), .cs-losange .carton-orne > i:nth-child(2) { clip-path: polygon(var(--c) 0, calc(100% - var(--c)) 0, 100% var(--c), 100% calc(100% - var(--c)), calc(100% - var(--c)) 100%, var(--c) 100%, 0 calc(100% - var(--c)), 0 var(--c)); }
-.cs-losange .carton-orne > i:nth-child(1) { inset: 7.2cqw 7.2cqw auto; height: 91.6cqw; --c: 7.7cqw; background: rgba(0, 0, 0, 0.45); }
-.cs-losange .carton-orne > i:nth-child(2) { inset: 7.7cqw 7.7cqw auto; height: 90.6cqw; --c: 7.5cqw; background: linear-gradient(160deg, #ffffff, #c9cdd2 40%, #f4f5f7 60%, #a9afb6); }
-.cs-losange .carton-photo { inset: 9cqw 9cqw auto; height: 88cqw; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #9db0ba); clip-path: polygon(7cqw 0, calc(100% - 7cqw) 0, 100% 7cqw, 100% calc(100% - 7cqw), calc(100% - 7cqw) 100%, 7cqw 100%, 0 calc(100% - 7cqw), 0 7cqw); }
-.cs-losange .carton-orne > i:nth-child(3) { z-index: 3; left: 4.4cqw; width: 70.2cqw; top: 101.4cqw; height: 21.2cqw; background: linear-gradient(160deg, #ffffff, #c9cdd2 40%, #f4f5f7 60%, #a9afb6); clip-path: polygon(4.3cqw 0, calc(100% - 4.3cqw) 0, 100% 50%, calc(100% - 4.3cqw) 100%, 4.3cqw 100%, 0 50%); }
+.cs-losange .carton-orne > i:nth-child(1) { inset: 7.2cqw 7.2cqw auto; height: 101.6cqw; --c: 7.7cqw; background: rgba(0, 0, 0, 0.45); }
+.cs-losange .carton-orne > i:nth-child(2) { inset: 7.7cqw 7.7cqw auto; height: 100.6cqw; --c: 7.5cqw; background: linear-gradient(160deg, #ffffff, #c9cdd2 40%, #f4f5f7 60%, #a9afb6); }
+.cs-losange .carton-photo { inset: 9cqw 9cqw auto; height: 98cqw; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #9db0ba); clip-path: polygon(7cqw 0, calc(100% - 7cqw) 0, 100% 7cqw, 100% calc(100% - 7cqw), calc(100% - 7cqw) 100%, 7cqw 100%, 0 calc(100% - 7cqw), 0 7cqw); }
+.cs-losange .carton-orne > i:nth-child(3) { z-index: 3; left: 4.4cqw; width: 70.2cqw; top: 111.4cqw; height: 21.2cqw; background: linear-gradient(160deg, #ffffff, #c9cdd2 40%, #f4f5f7 60%, #a9afb6); clip-path: polygon(4.3cqw 0, calc(100% - 4.3cqw) 0, 100% 50%, calc(100% - 4.3cqw) 100%, 4.3cqw 100%, 0 50%); }
 .cs-losange .carton-nom {
-  --nom-l: 41cqw; --nom-max: 9.4cqw; --prenom: 3.4cqw; left: 5.4cqw; width: 68.2cqw; top: 102.4cqw; height: 19.2cqw; padding: 0 6cqw; align-items: center; text-align: center; font-family: "Russo One", "Barlow Condensed", sans-serif;
+  --nom-l: 41cqw; --nom-max: 9.4cqw; --prenom: 3.4cqw; left: 5.4cqw; width: 68.2cqw; top: 112.4cqw; height: 19.2cqw; padding: 0 6cqw; align-items: center; text-align: center; font-family: "Russo One", "Barlow Condensed", sans-serif;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 45%, rgba(0, 0, 0, 0.25)), color-mix(in srgb, var(--fonce) 55%, #08090c); clip-path: polygon(4cqw 0, calc(100% - 4cqw) 0, 100% 50%, calc(100% - 4cqw) 100%, 4cqw 100%, 0 50%);
 }
 .cs-losange .carton-nom .fname { font-weight: 400; letter-spacing: 0.2em; color: color-mix(in srgb, var(--vive) 45%, white); opacity: 1; }
 .cs-losange .carton-nom .lname { font-weight: 400; letter-spacing: 0.03em; margin-top: 0.8cqw; }
 .cs-losange .carton-club-nom { display: none; }
-.cs-losange .carton-club { right: 3.6cqw; top: 99.5cqw; width: 24cqw; height: 24cqw; padding: 6cqw; background: linear-gradient(160deg, #ffffff, #c9cdd2 40%, #f4f5f7 60%, #a9afb6); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.cs-losange .carton-club { right: 3.6cqw; top: 109.5cqw; width: 24cqw; height: 24cqw; padding: 6cqw; background: linear-gradient(160deg, #ffffff, #c9cdd2 40%, #f4f5f7 60%, #a9afb6); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .cs-losange .carton-club::before { content: ''; position: absolute; inset: 1.3cqw; background: radial-gradient(circle at 45% 35%, #ffffff, #e9e6df); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); box-shadow: inset 0 0 0 0.9cqw var(--band); }
 .cs-losange .carton-club :is(img, svg) { position: relative; }
 .cs-losange .carton-imprime { left: 6cqw; right: 6cqw; bottom: 5cqw; justify-content: center; color: var(--ink); opacity: 0.85; }
@@ -1912,17 +1970,17 @@ a.spin-club:hover { background: var(--fond-2); }
 
 /* 8 · KRAFT (1977-78) — un carton kraft brun et fibreux, la photo en tirage à bord blanc dentelé tenu d'un bout de ruban gommé, le nom tamponné à l'encre dans son cadre, un peu hors repère, l'écusson dans un tampon rond ; un coup de tampon rouge pour la marque. */
 .cs-kraft { --usure: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='u'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='2' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -5 0 0 0 3.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23u)'/%3E%3C/svg%3E"); --fibres: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .55' numOctaves='2' seed='4' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .98 0 0 0 0 .9 0 0 0 0 .75 1.6 0 0 0 -.95'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E"); --c-fond: var(--fibres) 0 0 / 50% auto, var(--grain) 0 0 / 30% auto, radial-gradient(120% 90% at 50% 40%, transparent 55%, rgba(70, 40, 10, 0.3)), linear-gradient(160deg, #c49a68, #b0844f 60%, #a07443); --c-encre: #2b1d10; --encre-2: #3e2a16; }
-.cs-kraft .carton-orne > i:nth-child(1) { inset: 5.5cqw 6cqw auto; height: 92cqw; padding: 1cqw; transform: rotate(-1.6deg); background: linear-gradient(170deg, #fbf9f3, #ebe6da); filter: drop-shadow(0 0.8cqw 0.8cqw rgba(50, 25, 5, 0.45)); -webkit-mask: linear-gradient(#000 0 0) content-box, radial-gradient(circle, #000 0.62cqw, transparent 0.68cqw) 0 0 / 1.6cqw 1.6cqw round padding-box; mask: linear-gradient(#000 0 0) content-box, radial-gradient(circle, #000 0.62cqw, transparent 0.68cqw) 0 0 / 1.6cqw 1.6cqw round padding-box; }
-.cs-kraft .carton-photo { inset: 9.5cqw 10cqw auto; height: 83cqw; transform: rotate(-1.6deg); background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #9db0ba); box-shadow: inset 0 0 0 0.25cqw rgba(0, 0, 0, 0.25); }
+.cs-kraft .carton-orne > i:nth-child(1) { inset: 5.5cqw 6cqw auto; height: 102cqw; padding: 1cqw; transform: rotate(-1.6deg); background: linear-gradient(170deg, #fbf9f3, #ebe6da); filter: drop-shadow(0 0.8cqw 0.8cqw rgba(50, 25, 5, 0.45)); -webkit-mask: linear-gradient(#000 0 0) content-box, radial-gradient(circle, #000 0.62cqw, transparent 0.68cqw) 0 0 / 1.6cqw 1.6cqw round padding-box; mask: linear-gradient(#000 0 0) content-box, radial-gradient(circle, #000 0.62cqw, transparent 0.68cqw) 0 0 / 1.6cqw 1.6cqw round padding-box; }
+.cs-kraft .carton-photo { inset: 9.5cqw 10cqw auto; height: 93cqw; transform: rotate(-1.6deg); background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #9db0ba); box-shadow: inset 0 0 0 0.25cqw rgba(0, 0, 0, 0.25); }
 .cs-kraft .carton-orne > i:nth-child(2) { z-index: 3; left: 37cqw; top: 2.6cqw; width: 26cqw; height: 7cqw; transform: rotate(2.5deg); background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent), rgba(236, 222, 186, 0.62); box-shadow: 0 0.3cqw 0.6cqw rgba(60, 35, 10, 0.2); clip-path: polygon(0 4%, 3% 20%, 0 38%, 3% 55%, 0 74%, 3% 90%, 1% 100%, 100% 96%, 97% 80%, 100% 62%, 97% 45%, 100% 27%, 97% 10%, 99% 0); }
 .cs-kraft .carton-nom {
-  --nom-l: 33cqw; --nom-max: 9cqw; --prenom: 3.4cqw; left: 6cqw; right: 31cqw; top: 101cqw; height: 22cqw; padding: 0 4cqw; justify-content: center; transform: rotate(-2deg); color: var(--encre-club);
+  --nom-l: 33cqw; --nom-max: 9cqw; --prenom: 3.4cqw; left: 6cqw; right: 31cqw; top: 111cqw; height: 22cqw; padding: 0 4cqw; justify-content: center; transform: rotate(-2deg); color: var(--encre-club);
   border: 0.55cqw solid; border-radius: 1.2cqw; outline: 0.25cqw solid; outline-offset: -1.5cqw; -webkit-mask: var(--usure) 0 0 / 30cqw 30cqw; mask: var(--usure) 0 0 / 30cqw 30cqw; mix-blend-mode: multiply;
 }
 .cs-kraft .carton-nom .fname { font: 400 var(--prenom)/1 "Alfa Slab One", serif; letter-spacing: 0.2em; opacity: 0.9; }
 .cs-kraft .carton-nom .lname { font-family: "Alfa Slab One", "Rockwell", serif; font-weight: 400; letter-spacing: 0.02em; margin-top: 2.2cqw; text-shadow: 0.45cqw 0.25cqw 0 color-mix(in srgb, var(--stripe) 45%, transparent); }
 .cs-kraft .carton-club-nom { display: none; }
-.cs-kraft .carton-club { right: 6cqw; top: 100cqw; width: 23cqw; height: 23cqw; padding: 4.6cqw; border-radius: 50%; transform: rotate(12deg); border: 0.55cqw solid var(--encre-club); outline: 0.3cqw solid var(--encre-club); outline-offset: -1.7cqw; -webkit-mask: var(--usure) 0 0 / 30cqw 30cqw; mask: var(--usure) 0 0 / 30cqw 30cqw; }
+.cs-kraft .carton-club { right: 6cqw; top: 110cqw; width: 23cqw; height: 23cqw; padding: 4.6cqw; border-radius: 50%; transform: rotate(12deg); border: 0.55cqw solid var(--encre-club); outline: 0.3cqw solid var(--encre-club); outline-offset: -1.7cqw; -webkit-mask: var(--usure) 0 0 / 30cqw 30cqw; mask: var(--usure) 0 0 / 30cqw 30cqw; }
 .cs-kraft .carton-club :is(img, svg) { filter: grayscale(1) sepia(0.5) contrast(1.3); mix-blend-mode: multiply; opacity: 0.85; }
 .cs-kraft .carton-imprime { left: 7cqw; right: 7cqw; bottom: 5cqw; justify-content: space-between; color: var(--encre-2); opacity: 0.9; }
 .cs-kraft:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-nom { mix-blend-mode: normal; -webkit-mask: none; mask: none; background: var(--fibres) 0 0 / 50cqw 50cqw, linear-gradient(160deg, #c49a68, #a87a48); box-shadow: 0 0 0 1.2cqw #b88c58, 0 1cqw 2cqw rgba(0, 0, 0, 0.5); }
@@ -1932,16 +1990,16 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 9 · RAYURE (1978-79) — le carton blanc glacé, une épaisse rayure du club qui passe derrière le bas de la photo, deux filets dessous, le nom en lettres rondes sur une étiquette blanche en biais, l'écusson sur son pendant. */
 .cs-rayure { --c-fond: var(--trame) 0 0 / 1.1% 0.786%, linear-gradient(170deg, #ffffff, #f1efe9 60%, #e6e3db); --c-encre: #1b1b1b; }
 .cs-rayure::before { left: 0; right: 0; top: 76cqw; height: 37cqw; background: linear-gradient(transparent 0 30cqw, #fff 30cqw 31cqw, var(--stripe) 31cqw 32.6cqw, transparent 32.6cqw 34cqw, var(--band) 34cqw 34.6cqw, transparent 34.6cqw), linear-gradient(180deg, rgba(255, 255, 255, 0.14), transparent 50%, rgba(0, 0, 0, 0.16)) 0 0 / 100% 30cqw no-repeat, linear-gradient(var(--band) 0 30cqw, transparent 30cqw); }
-.cs-rayure .carton-photo { inset: 7cqw 10cqw auto; height: 89cqw; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #9db0ba); box-shadow: 0 0 0 0.4cqw #1b1b1b, 0 1.2cqw 2cqw rgba(0, 0, 0, 0.3); }
+.cs-rayure .carton-photo { inset: 7cqw 10cqw auto; height: 99cqw; background: radial-gradient(90% 60% at 50% 10%, #e3e9ec, #9db0ba); box-shadow: 0 0 0 0.4cqw #1b1b1b, 0 1.2cqw 2cqw rgba(0, 0, 0, 0.3); }
 .cs-rayure .carton-nom {
-  --nom-l: 40cqw; --nom-max: 9.4cqw; --prenom: 3.4cqw; left: 6cqw; width: 64cqw; top: 99.5cqw; height: 19cqw; padding: 0 5cqw 0 6cqw; transform: skewX(-12deg); color: var(--encre-club);
+  --nom-l: 40cqw; --nom-max: 9.4cqw; --prenom: 3.4cqw; left: 6cqw; width: 64cqw; top: 109.5cqw; height: 19cqw; padding: 0 5cqw 0 6cqw; transform: skewX(-12deg); color: var(--encre-club);
   background: linear-gradient(180deg, #ffffff, #efede7); box-shadow: inset 0 0 0 0.35cqw #1b1b1b, inset 0 -1.2cqw 0 var(--stripe), 0 1cqw 1.6cqw rgba(0, 0, 0, 0.3);
 }
 .cs-rayure .carton-nom > * { transform: skewX(12deg); }
 .cs-rayure .carton-nom .fname { font-weight: 700; letter-spacing: 0.22em; color: #4a4740; opacity: 1; }
 .cs-rayure .carton-nom .lname { font-family: "Righteous", "Barlow Condensed", sans-serif; font-weight: 400; letter-spacing: 0.02em; margin-top: 0.6cqw; }
 .cs-rayure .carton-club-nom { display: none; }
-.cs-rayure .carton-club { right: 6.5cqw; top: 99.5cqw; width: 21cqw; height: 19cqw; padding: 2.6cqw 4.2cqw; transform: skewX(-12deg); background: linear-gradient(180deg, #ffffff, #efede7); box-shadow: inset 0 0 0 0.35cqw #1b1b1b, inset 0 -1.2cqw 0 var(--stripe), 0 1cqw 1.6cqw rgba(0, 0, 0, 0.3); }
+.cs-rayure .carton-club { right: 6.5cqw; top: 109.5cqw; width: 21cqw; height: 19cqw; padding: 2.6cqw 4.2cqw; transform: skewX(-12deg); background: linear-gradient(180deg, #ffffff, #efede7); box-shadow: inset 0 0 0 0.35cqw #1b1b1b, inset 0 -1.2cqw 0 var(--stripe), 0 1cqw 1.6cqw rgba(0, 0, 0, 0.3); }
 .cs-rayure .carton-club :is(img, svg) { transform: skewX(12deg); }
 .cs-rayure .carton-imprime { left: 7cqw; right: 7cqw; bottom: 6cqw; justify-content: space-between; color: #4a4740; opacity: 1; }
 .fc-verso.cs-rayure { --v-fond: linear-gradient(170deg, #ffffff, #ecebe5); --v-encre: #1b1b1b; --v-encre-2: #57534a; --v-prix: #c0392b; --v-police: Righteous, "Barlow Condensed", sans-serif; --v-poids: 400; }
@@ -1985,12 +2043,12 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 12 · POINTILLÉ (1981-82) — l'impression offset bon marché assumée : un carton journal, une bordure de points au club, la photo cernée d'un pointillé et doublée d'un aplat tramé décalé, le nom en Bungee mal repéré. */
 .cs-pointille { --c-fond: radial-gradient(circle, rgba(60, 50, 30, .05) 0 .25cqw, transparent .4cqw) 0 0 / 1.3cqw 1.3cqw, linear-gradient(165deg, #faf7ee, #efe9da); --c-encre: #222; --fini-mode: multiply; --fini-o: .55; }
 .cs-pointille::before { inset: 2.2cqw; padding: 2.4cqw; box-sizing: border-box; border-radius: 2.6cqw; background: radial-gradient(circle, var(--band) 0 .62cqw, transparent .72cqw) 0 0 / 2.4cqw 2.4cqw; -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
-.cs-pointille .carton-photo { inset: 9cqw 10cqw auto 8cqw; height: 83cqw; background: radial-gradient(90% 70% at 50% 25%, #f4efe2, #c9c0ab); }
+.cs-pointille .carton-photo { inset: 9cqw 10cqw auto 8cqw; height: 93cqw; background: radial-gradient(90% 70% at 50% 25%, #f4efe2, #c9c0ab); }
 .cs-pointille .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-pointille .carton-orne > i:nth-child(1) { left: 10.4cqw; top: 11.4cqw; width: 82cqw; height: 83cqw; background: radial-gradient(circle, color-mix(in srgb, var(--stripe) 60%, #000) 0 .38cqw, transparent .5cqw) 0 0 / 1.3cqw 1.3cqw, var(--stripe); }
 .cs-pointille .carton-deco { box-shadow: none; }
-.cs-pointille .carton-deco::before { left: 6.2cqw; top: 7.2cqw; width: 85.6cqw; height: 86.6cqw; box-sizing: border-box; border: .7cqw dotted #222; border-radius: 1cqw; }
-.cs-pointille .carton-nom { --nom-l: 58cqw; --nom-max: 10cqw; --prenom: 3.6cqw; left: 8cqw; right: 10cqw; top: 98cqw; height: 21cqw; padding: 0 4cqw; font-family: "Bungee", "Barlow Condensed", sans-serif; color: var(--ink); background: radial-gradient(circle, color-mix(in srgb, var(--ink) 14%, transparent) 0 .3cqw, transparent .42cqw) 0 0 / 1.3cqw 1.3cqw, var(--band); box-shadow: 1.6cqw 1.6cqw 0 var(--stripe); }
+.cs-pointille .carton-deco::before { left: 6.2cqw; top: 7.2cqw; width: 85.6cqw; height: 96.6cqw; box-sizing: border-box; border: .7cqw dotted #222; border-radius: 1cqw; }
+.cs-pointille .carton-nom { --nom-l: 58cqw; --nom-max: 10cqw; --prenom: 3.6cqw; left: 8cqw; right: 10cqw; top: 108cqw; height: 21cqw; padding: 0 4cqw; font-family: "Bungee", "Barlow Condensed", sans-serif; color: var(--ink); background: radial-gradient(circle, color-mix(in srgb, var(--ink) 14%, transparent) 0 .3cqw, transparent .42cqw) 0 0 / 1.3cqw 1.3cqw, var(--band); box-shadow: 1.6cqw 1.6cqw 0 var(--stripe); }
 .cs-pointille .carton-nom .fname { font-weight: 400; letter-spacing: .12em; opacity: .85; }
 .cs-pointille .carton-nom .lname { font-weight: 400; letter-spacing: 0; text-shadow: .45cqw .45cqw 0 color-mix(in srgb, var(--stripe) 85%, transparent); }
 .cs-pointille .carton-club-nom { display: none; }
@@ -2004,19 +2062,19 @@ a.spin-club:hover { background: var(--fond-2); }
 
 /* 13 · ÉCRAN (1982-83) — le joueur passe à la télé : la photo dans un écran cathodique bombé, ses lignes de balayage et son reflet, un boîtier de plastique au club avec deux boutons et la grille du haut-parleur, le nom sur une bande chromée (Russo One). */
 .cs-ecran { --c-fond: repeating-linear-gradient(90deg, rgba(255, 255, 255, .025) 0 .3cqw, rgba(0, 0, 0, .03) .3cqw .6cqw), linear-gradient(180deg, color-mix(in srgb, var(--band) 80%, #fff) 0%, var(--band) 10% 82%, color-mix(in srgb, var(--band) 70%, #000)); --c-encre: var(--ink); }
-.cs-ecran .carton-orne > i:nth-child(1) { left: 3.5cqw; top: 3.5cqw; width: 75cqw; height: 91cqw; border-radius: 6cqw; background: linear-gradient(160deg, #3a3d42, #16181b 40%, #0b0c0e); box-shadow: inset 0 .5cqw .4cqw rgba(255, 255, 255, .22), inset 0 -.5cqw .6cqw rgba(0, 0, 0, .6), 0 .8cqw 1.2cqw rgba(0, 0, 0, .45); }
-.cs-ecran .carton-photo { left: 6.5cqw; top: 6.5cqw; width: 69cqw; height: 85cqw; border-radius: 10cqw / 8cqw; background: radial-gradient(70% 60% at 50% 35%, #5e7d8f, #233540 70%, #0c1418); box-shadow: 0 0 0 .6cqw #050506; }
+.cs-ecran .carton-orne > i:nth-child(1) { left: 3.5cqw; top: 3.5cqw; width: 75cqw; height: 101cqw; border-radius: 6cqw; background: linear-gradient(160deg, #3a3d42, #16181b 40%, #0b0c0e); box-shadow: inset 0 .5cqw .4cqw rgba(255, 255, 255, .22), inset 0 -.5cqw .6cqw rgba(0, 0, 0, .6), 0 .8cqw 1.2cqw rgba(0, 0, 0, .45); }
+.cs-ecran .carton-photo { left: 6.5cqw; top: 6.5cqw; width: 69cqw; height: 95cqw; border-radius: 10cqw / 8cqw; background: radial-gradient(70% 60% at 50% 35%, #5e7d8f, #233540 70%, #0c1418); box-shadow: 0 0 0 .6cqw #050506; }
 .cs-ecran .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; filter: contrast(1.1) saturate(1.25); }
 .cs-ecran .carton-photo::after { background: repeating-linear-gradient(0deg, rgba(0, 0, 0, .16) 0 .3cqw, transparent .3cqw .75cqw), radial-gradient(120% 95% at 50% 50%, transparent 55%, rgba(0, 0, 0, .7)); }
 .cs-ecran .carton-deco { box-shadow: none; }
-.cs-ecran .carton-deco::before { left: 6.5cqw; top: 6.5cqw; width: 69cqw; height: 85cqw; border-radius: 10cqw / 8cqw; background: radial-gradient(60% 34% at 30% 14%, rgba(255, 255, 255, .34), transparent 70%), linear-gradient(200deg, transparent 62%, rgba(255, 255, 255, .1) 63% 70%, transparent 71%); }
+.cs-ecran .carton-deco::before { left: 6.5cqw; top: 6.5cqw; width: 69cqw; height: 95cqw; border-radius: 10cqw / 8cqw; background: radial-gradient(60% 34% at 30% 14%, rgba(255, 255, 255, .34), transparent 70%), linear-gradient(200deg, transparent 62%, rgba(255, 255, 255, .1) 63% 70%, transparent 71%); }
 .cs-ecran .carton-orne > i:nth-child(2) { right: 3.5cqw; top: 15cqw; width: 15cqw; height: 79cqw; border-radius: 1.6cqw; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .18) 0 .2cqw, transparent .2cqw .5cqw), linear-gradient(180deg, #e9ecef, #a5acb4 50%, #d7dbe0); box-shadow: inset 0 0 0 .3cqw rgba(0, 0, 0, .3), 0 .5cqw 1cqw rgba(0, 0, 0, .35); }
 .cs-ecran .carton-orne > i:nth-child(2)::before, .cs-ecran .carton-orne > i:nth-child(2)::after { left: 1.5cqw; width: 12cqw; height: 12cqw; border-radius: 50%; background: linear-gradient(var(--stripe), var(--stripe)) 50% 6% / .8cqw 3.4cqw no-repeat, repeating-conic-gradient(#2a2c30 0 6deg, #44474c 6deg 12deg); box-shadow: 0 0 0 .5cqw #1a1b1e, 0 .8cqw 1cqw rgba(0, 0, 0, .5), inset 0 0 0 2.4cqw rgba(0, 0, 0, .12); }
 .cs-ecran .carton-orne > i:nth-child(2)::before { top: 3cqw; }
 .cs-ecran .carton-orne > i:nth-child(2)::after { top: 19cqw; transform: rotate(130deg); }
 .cs-ecran .carton-orne > i:nth-child(3) { right: 5.5cqw; top: 51cqw; width: 11cqw; height: 22cqw; z-index: 2; background: repeating-linear-gradient(180deg, #17181b 0 1cqw, transparent 1cqw 2.3cqw); }
 .cs-ecran .carton-club { right: 4.5cqw; top: 76cqw; width: 13cqw; height: 13cqw; filter: drop-shadow(0 .3cqw .3cqw rgba(0, 0, 0, .4)); }
-.cs-ecran .carton-nom { --nom-l: 64cqw; --nom-max: 10.5cqw; --prenom: 3.6cqw; left: 3.5cqw; right: 3.5cqw; top: 97.5cqw; height: 21cqw; padding: 0 5cqw; border-radius: 1.6cqw; font-family: "Russo One", "Barlow Condensed", sans-serif; color: #15181c; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .2) 0 .2cqw, transparent .2cqw .6cqw), linear-gradient(180deg, #fbfcfd 0%, #c3cad2 44%, #7d8792 50%, #dfe4e9 78%, #9aa3ad 100%); box-shadow: inset 0 0 0 .35cqw rgba(0, 0, 0, .35), inset 0 .6cqw 0 rgba(255, 255, 255, .7), 0 .8cqw 1.2cqw rgba(0, 0, 0, .4); }
+.cs-ecran .carton-nom { --nom-l: 64cqw; --nom-max: 10.5cqw; --prenom: 3.6cqw; left: 3.5cqw; right: 3.5cqw; top: 107.5cqw; height: 21cqw; padding: 0 5cqw; border-radius: 1.6cqw; font-family: "Russo One", "Barlow Condensed", sans-serif; color: #15181c; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, .2) 0 .2cqw, transparent .2cqw .6cqw), linear-gradient(180deg, #fbfcfd 0%, #c3cad2 44%, #7d8792 50%, #dfe4e9 78%, #9aa3ad 100%); box-shadow: inset 0 0 0 .35cqw rgba(0, 0, 0, .35), inset 0 .6cqw 0 rgba(255, 255, 255, .7), 0 .8cqw 1.2cqw rgba(0, 0, 0, .4); }
 .cs-ecran .carton-nom .fname { font-weight: 400; letter-spacing: .2em; color: #3a3f46; opacity: 1; }
 .cs-ecran .carton-nom .lname { font-weight: 400; letter-spacing: .01em; text-shadow: 0 .3cqw 0 rgba(255, 255, 255, .7); }
 .cs-ecran .carton-club-nom { display: none; }
@@ -2050,11 +2108,11 @@ a.spin-club:hover { background: var(--fond-2); }
 
 /* 15 · QUADRILLAGE (1984-85) — la nuit synthétique : le joueur dans un soleil couchant tranché de fentes, un plancher de grille en perspective qui luit à la couleur vive du club, des étoiles, le nom en Kanit italique chromé. */
 .cs-quadrillage { --neon: color-mix(in srgb, var(--vive) 70%, #fff); --c-fond: radial-gradient(circle at 18% 22%, #fff 0 .25cqw, transparent .45cqw), radial-gradient(circle at 84% 30%, #fff 0 .2cqw, transparent .4cqw), radial-gradient(circle at 70% 9%, #fff 0 .18cqw, transparent .35cqw), radial-gradient(circle at 9% 58%, #fff 0 .2cqw, transparent .4cqw), radial-gradient(circle at 93% 64%, #fff 0 .22cqw, transparent .42cqw), linear-gradient(180deg, #090418 0%, #1d0b3a 40%, #4a1257 66%, #9c2a6a 68.5%, #120624 69%, #07020f 100%); --c-encre: #fff; }
-.cs-quadrillage .carton-photo { left: 14cqw; top: 18cqw; width: 72cqw; height: 72cqw; border-radius: 50%; background: linear-gradient(180deg, #ffe066, #ff9a3c 45%, #ff3d7f 85%); box-shadow: 0 0 3cqw color-mix(in srgb, #ff6a5a 70%, transparent), 0 0 9cqw color-mix(in srgb, #ff2d7a 45%, transparent); }
+.cs-quadrillage .carton-photo { left: 8cqw; top: 10cqw; width: 84cqw; height: 84cqw; border-radius: 50%; background: linear-gradient(180deg, #ffe066, #ff9a3c 45%, #ff3d7f 85%); box-shadow: 0 0 3cqw color-mix(in srgb, #ff6a5a 70%, transparent), 0 0 9cqw color-mix(in srgb, #ff2d7a 45%, transparent); }
 .cs-quadrillage .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 10%); -webkit-mask-image: none; mask-image: none; }
 .cs-quadrillage .carton-photo::after { background: linear-gradient(180deg, rgba(255, 214, 90, .35), rgba(255, 70, 130, .35)); mix-blend-mode: soft-light; }
 .cs-quadrillage .carton-deco { box-shadow: none; }
-.cs-quadrillage .carton-deco::before { left: 14cqw; top: 18cqw; width: 72cqw; height: 72cqw; border-radius: 50%; background: linear-gradient(180deg, transparent 0 73%, #1d0b3a 73% 74.6%, transparent 74.6% 79%, #24093f 79% 81.6%, transparent 81.6% 85.4%, #2c0c46 85.4% 89%, transparent 89% 92%, #34104e 92%); }
+.cs-quadrillage .carton-deco::before { left: 8cqw; top: 10cqw; width: 84cqw; height: 84cqw; border-radius: 50%; background: linear-gradient(180deg, transparent 0 73%, #1d0b3a 73% 74.6%, transparent 74.6% 79%, #24093f 79% 81.6%, transparent 81.6% 85.4%, #2c0c46 85.4% 89%, transparent 89% 92%, #34104e 92%); }
 .cs-quadrillage .carton-orne > i:nth-child(3) { left: 3cqw; right: 3cqw; top: 101cqw; height: 25cqw; z-index: 3; clip-path: polygon(4% 0, 100% 0, 96% 100%, 0 100%); background: linear-gradient(var(--neon), var(--neon)) 0 0 / 100% .5cqw no-repeat, linear-gradient(#ff3d9a, #ff3d9a) 0 100% / 100% .5cqw no-repeat, linear-gradient(180deg, rgba(16, 5, 36, .94), rgba(36, 8, 58, .88)); }
 .cs-quadrillage .carton-orne > i:nth-child(1) { left: -60cqw; right: -60cqw; top: 96cqw; height: 80cqw; transform: perspective(26cqw) rotateX(64deg); transform-origin: 50% 0; background: repeating-linear-gradient(90deg, var(--neon) 0 .45cqw, transparent .45cqw 9cqw) 50% 0, repeating-linear-gradient(180deg, var(--neon) 0 .45cqw, transparent .45cqw 9cqw); filter: drop-shadow(0 0 .8cqw var(--vive)); -webkit-mask-image: linear-gradient(#000 30%, transparent 85%); mask-image: linear-gradient(#000 30%, transparent 85%); }
 .cs-quadrillage .carton-orne > i:nth-child(2) { left: 0; right: 0; top: 95.6cqw; height: .5cqw; background: linear-gradient(90deg, transparent, var(--neon) 15% 85%, transparent); box-shadow: 0 0 1.4cqw var(--vive), 0 0 3cqw #ff3d7f; }
@@ -2069,16 +2127,16 @@ a.spin-club:hover { background: var(--fond-2); }
 
 /* 16 · NÉON (1985-86) — l'enseigne de bar sur un mur de briques noires : un tube de néon à la couleur vive du club cerne la photo en arche et luit, ses attaches, le nom en Monoton allumé, l'écusson dans une petite enseigne. */
 .cs-neon { --neon: color-mix(in srgb, var(--vive) 72%, #fff); --c-fond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='10'%3E%3Cpath d='M0 .25H20M0 5.25H20M5 0v5M15 5v5' stroke='%23fff' stroke-opacity='.07' stroke-width='.5'/%3E%3C/svg%3E") 0 0 / 12cqw 6cqw, radial-gradient(70% 50% at 50% 38%, color-mix(in srgb, var(--vive) 22%, transparent), transparent 70%), linear-gradient(180deg, #121014, #08070a); --c-encre: #fff; }
-.cs-neon .carton-photo { left: 14cqw; right: 14cqw; top: 12cqw; height: 80cqw; border-radius: 36cqw 36cqw 2cqw 2cqw; background: radial-gradient(80% 60% at 50% 30%, color-mix(in srgb, var(--vive) 35%, #1a1a22), #08080b); }
+.cs-neon .carton-photo { left: 10cqw; right: 10cqw; top: 12cqw; height: 88cqw; border-radius: 36cqw 36cqw 2cqw 2cqw; background: radial-gradient(80% 60% at 50% 30%, color-mix(in srgb, var(--vive) 35%, #1a1a22), #08080b); }
 .cs-neon .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 10%); -webkit-mask-image: none; mask-image: none; }
 .cs-neon .carton-deco { box-shadow: none; }
-.cs-neon .carton-deco::before { left: 11.6cqw; right: 11.6cqw; top: 9.6cqw; height: 84.8cqw; box-sizing: border-box; border: 1.1cqw solid #fff; border-radius: 38cqw 38cqw 3.4cqw 3.4cqw; box-shadow: 0 0 .5cqw .2cqw var(--neon), 0 0 2.4cqw .4cqw var(--vive), 0 0 6cqw var(--vive), inset 0 0 .5cqw .2cqw var(--neon), inset 0 0 2.4cqw var(--vive); }
-.cs-neon .carton-deco::after { left: 9.8cqw; right: 9.8cqw; top: 48cqw; height: 3cqw; background: linear-gradient(90deg, #5a5d63 0 3.4cqw, transparent 3.4cqw calc(100% - 3.4cqw), #5a5d63 calc(100% - 3.4cqw)); }
-.cs-neon .carton-nom { --nom-l: 40cqw; --nom-max: 11cqw; --prenom: 4cqw; left: 6cqw; right: 27cqw; top: 99cqw; height: 27cqw; font-family: "Monoton", "Barlow Condensed", sans-serif; }
+.cs-neon .carton-deco::before { left: 7.6cqw; right: 7.6cqw; top: 9.6cqw; height: 92.8cqw; box-sizing: border-box; border: 1.1cqw solid #fff; border-radius: 38cqw 38cqw 3.4cqw 3.4cqw; box-shadow: 0 0 .5cqw .2cqw var(--neon), 0 0 2.4cqw .4cqw var(--vive), 0 0 6cqw var(--vive), inset 0 0 .5cqw .2cqw var(--neon), inset 0 0 2.4cqw var(--vive); }
+.cs-neon .carton-deco::after { left: 5.8cqw; right: 5.8cqw; top: 48cqw; height: 3cqw; background: linear-gradient(90deg, #5a5d63 0 3.4cqw, transparent 3.4cqw calc(100% - 3.4cqw), #5a5d63 calc(100% - 3.4cqw)); }
+.cs-neon .carton-nom { --nom-l: 40cqw; --nom-max: 11cqw; --prenom: 4cqw; left: 6cqw; right: 27cqw; top: 107cqw; height: 27cqw; font-family: "Monoton", "Barlow Condensed", sans-serif; }
 .cs-neon .carton-nom .fname { font: 400 var(--prenom)/1 "Righteous", sans-serif; letter-spacing: .2em; color: #fff; opacity: 1; text-shadow: 0 0 .4cqw var(--stripe), 0 0 1.6cqw var(--stripe); }
 .cs-neon .carton-nom .lname { font-weight: 400; letter-spacing: 0; margin-top: 1.6cqw; color: #fff; text-shadow: 0 0 .3cqw var(--neon), 0 0 1.2cqw var(--vive), 0 0 3cqw var(--vive); }
 .cs-neon .carton-club-nom { color: color-mix(in srgb, var(--neon) 80%, transparent); letter-spacing: .3em; }
-.cs-neon .carton-club { right: 5cqw; top: 100cqw; width: 20cqw; height: 20cqw; padding: 2.6cqw; border-radius: 2.4cqw; background: #0c0b0f; box-shadow: 0 0 0 .6cqw #fff, 0 0 .6cqw .5cqw var(--stripe), 0 0 2.6cqw var(--stripe), inset 0 0 1.6cqw color-mix(in srgb, var(--stripe) 60%, transparent); }
+.cs-neon .carton-club { right: 5cqw; top: 108cqw; width: 20cqw; height: 20cqw; padding: 2.6cqw; border-radius: 2.4cqw; background: #0c0b0f; box-shadow: 0 0 0 .6cqw #fff, 0 0 .6cqw .5cqw var(--stripe), 0 0 2.6cqw var(--stripe), inset 0 0 1.6cqw color-mix(in srgb, var(--stripe) 60%, transparent); }
 .cs-neon .carton-club :is(img, svg) { filter: drop-shadow(0 0 .25cqw #fff) drop-shadow(0 0 .25cqw #fff); }
 .cs-neon .carton-club::before { content: ''; position: absolute; left: 25%; right: 25%; top: -5cqw; height: 4.4cqw; border: .35cqw solid #6a6d73; border-bottom: 0; border-radius: 1cqw 1cqw 0 0; }
 .cs-neon .carton-imprime span:nth-child(2) { display: none; }
@@ -2089,18 +2147,18 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 17 · LE MARQUOIR (1986-87) — le tableau indicateur de l'aréna : un boîtier de tôle peinte au club, l'écran géant vissé, et dessous le panneau de lampes ambrées à masque de points, son étiquette « LOCAL », le nom allumé en Bungee. */
 .cs-marquoir { --c-fond: repeating-linear-gradient(90deg, rgba(255, 255, 255, .03) 0 .3cqw, transparent .3cqw .7cqw), linear-gradient(180deg, #2c2f34, #1a1c20 60%, #111316); --c-encre: #ffb13b; }
 .cs-marquoir::before { inset: 0; border: 2.6cqw solid var(--band); border-radius: inherit; box-shadow: inset 0 0 0 .5cqw rgba(0, 0, 0, .55), inset 0 .8cqw 1.2cqw rgba(0, 0, 0, .5); }
-.cs-marquoir .carton-photo { left: 7cqw; right: 7cqw; top: 7cqw; height: 76cqw; border-radius: 1cqw; background: radial-gradient(90% 70% at 50% 25%, #3a4654, #10151b); box-shadow: 0 0 0 1.2cqw #050506, 0 0 0 1.6cqw #44484f; }
+.cs-marquoir .carton-photo { left: 7cqw; right: 7cqw; top: 7cqw; height: 82cqw; border-radius: 1cqw; background: radial-gradient(90% 70% at 50% 25%, #3a4654, #10151b); box-shadow: 0 0 0 1.2cqw #050506, 0 0 0 1.6cqw #44484f; }
 .cs-marquoir .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
-.cs-marquoir .carton-orne > i:nth-child(1) { inset: 4.4cqw 4.4cqw auto; height: 82cqw; z-index: 3; background: radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 0 0 / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 100% 0 / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 0 100% / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 100% 100% / 1.6cqw 1.6cqw no-repeat; }
-.cs-marquoir .carton-orne > i:nth-child(2) { left: 5cqw; right: 5cqw; top: 91cqw; height: 37cqw; border-radius: 1.4cqw; background: radial-gradient(circle, rgba(255, 160, 40, .11) 0 .45cqw, transparent .55cqw) 0 0 / 1.5cqw 1.5cqw, #050506; box-shadow: inset 0 0 0 .5cqw #2c2e33, inset 0 0 0 1.1cqw #050506, inset 0 0 0 1.4cqw #3a3d43, 0 .8cqw 1.6cqw rgba(0, 0, 0, .6); }
+.cs-marquoir .carton-orne > i:nth-child(1) { inset: 4.4cqw 4.4cqw auto; height: 88cqw; z-index: 3; background: radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 0 0 / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 100% 0 / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 0 100% / 1.6cqw 1.6cqw no-repeat, radial-gradient(circle, #d7dade 0 .5cqw, #6b6f76 .7cqw 1cqw, transparent 1.1cqw) 100% 100% / 1.6cqw 1.6cqw no-repeat; }
+.cs-marquoir .carton-orne > i:nth-child(2) { left: 5cqw; right: 5cqw; top: 97cqw; height: 37cqw; border-radius: 1.4cqw; background: radial-gradient(circle, rgba(255, 160, 40, .11) 0 .45cqw, transparent .55cqw) 0 0 / 1.5cqw 1.5cqw, #050506; box-shadow: inset 0 0 0 .5cqw #2c2e33, inset 0 0 0 1.1cqw #050506, inset 0 0 0 1.4cqw #3a3d43, 0 .8cqw 1.6cqw rgba(0, 0, 0, .6); }
 .cs-marquoir .carton-orne > i:nth-child(2)::before { content: 'LOCAL'; left: 3.6cqw; top: -3.2cqw; padding: 1cqw 2.4cqw; border-radius: .6cqw; font: 400 3.2cqw/1 "Bungee", sans-serif; letter-spacing: .12em; color: var(--ink); background: var(--band); box-shadow: 0 0 0 .4cqw #050506; }
 .cs-marquoir .carton-orne > i:nth-child(2)::after { left: 1.2cqw; right: 1.2cqw; top: 1.2cqw; bottom: 1.2cqw; background: radial-gradient(circle, #9aa0a8 0 .45cqw, #3c3f45 .6cqw .85cqw, transparent .95cqw) 0 0 / 1.9cqw 1.9cqw no-repeat, radial-gradient(circle, #9aa0a8 0 .45cqw, #3c3f45 .6cqw .85cqw, transparent .95cqw) 100% 0 / 1.9cqw 1.9cqw no-repeat, radial-gradient(circle, #9aa0a8 0 .45cqw, #3c3f45 .6cqw .85cqw, transparent .95cqw) 0 100% / 1.9cqw 1.9cqw no-repeat, radial-gradient(circle, #9aa0a8 0 .45cqw, #3c3f45 .6cqw .85cqw, transparent .95cqw) 100% 100% / 1.9cqw 1.9cqw no-repeat; }
-.cs-marquoir .carton-orne > i:nth-child(3) { right: 31.5cqw; top: 94cqw; width: .5cqw; height: 31cqw; z-index: 2; background: #3a3d43; }
-.cs-marquoir .carton-nom { --nom-l: 42cqw; --nom-max: 10cqw; --prenom: 3.6cqw; left: 8.5cqw; right: 31cqw; top: 95cqw; height: 25cqw; font-family: "Bungee", "Barlow Condensed", sans-serif; }
+.cs-marquoir .carton-orne > i:nth-child(3) { right: 31.5cqw; top: 100cqw; width: .5cqw; height: 31cqw; z-index: 2; background: #3a3d43; }
+.cs-marquoir .carton-nom { --nom-l: 42cqw; --nom-max: 10cqw; --prenom: 3.6cqw; left: 8.5cqw; right: 31cqw; top: 101cqw; height: 25cqw; font-family: "Bungee", "Barlow Condensed", sans-serif; }
 .cs-marquoir .carton-nom .fname { font-weight: 400; letter-spacing: .14em; color: #ff5a3c; opacity: 1; text-shadow: 0 0 .8cqw rgba(255, 70, 30, .7); }
 .cs-marquoir .carton-nom .lname { font-weight: 400; letter-spacing: .04em; margin-top: 1.4cqw; color: transparent; background: radial-gradient(circle, #ffd27a 0 46%, #ff9a1f 52%, transparent 60%) 0 0 / .11em .11em; -webkit-background-clip: text; background-clip: text; text-shadow: 0 0 .15em rgba(255, 150, 30, .75), 0 0 .4em rgba(255, 100, 0, .45); }
 .cs-marquoir .carton-club-nom { color: #ff9a1f; opacity: .8; letter-spacing: .24em; }
-.cs-marquoir .carton-club { right: 9.5cqw; top: 99cqw; width: 18cqw; height: 18cqw; filter: drop-shadow(0 0 .25cqw #f3e6cc) drop-shadow(0 0 1cqw rgba(255, 170, 60, .5)); }
+.cs-marquoir .carton-club { right: 9.5cqw; top: 105cqw; width: 18cqw; height: 18cqw; filter: drop-shadow(0 0 .25cqw #f3e6cc) drop-shadow(0 0 1cqw rgba(255, 170, 60, .5)); }
 .cs-marquoir .carton-imprime { left: 9cqw; right: 9cqw; bottom: 4.6cqw; justify-content: space-between; color: #b08a4c; font-size: 2.4cqw; }
 .cs-marquoir:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(1) { display: none; }
 .cs-marquoir:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(2) { z-index: 3; background-color: rgba(5, 5, 6, .88); }
@@ -2109,13 +2167,13 @@ a.spin-club:hover { background: var(--fond-2); }
 
 /* 18 · PUNAISE (1987-88) — le babillard du vestiaire : un liège teint au club, la photo en tirage instantané épinglé de deux punaises, le nom sur des rubans d'étiqueteuse en relief (Righteous), l'écusson en macaron. */
 .cs-punaise { --c-fond: radial-gradient(circle at 30% 40%, rgba(0, 0, 0, .3) 0 .16cqw, transparent .3cqw) 0 0 / 1.3cqw 1.1cqw, radial-gradient(circle at 70% 20%, rgba(0, 0, 0, .22) 0 .22cqw, transparent .4cqw) .3cqw .5cqw / 1.9cqw 1.7cqw, radial-gradient(circle at 20% 70%, rgba(255, 240, 210, .25) 0 .14cqw, transparent .28cqw) 0 0 / 1.1cqw 1.5cqw, radial-gradient(circle at 60% 50%, rgba(255, 240, 210, .16) 0 .3cqw, transparent .5cqw) .7cqw .2cqw / 2.9cqw 2.3cqw, radial-gradient(ellipse at 40% 60%, rgba(0, 0, 0, .12) 0 .5cqw, transparent .9cqw) 0 0 / 4.3cqw 3.7cqw, radial-gradient(130% 90% at 50% 40%, transparent 50%, rgba(0, 0, 0, .35)), color-mix(in srgb, var(--band) 42%, #a87b4c); --c-encre: #fff; }
-.cs-punaise .carton-orne > i:nth-child(1) { left: 8cqw; top: 13cqw; width: 84cqw; height: 92cqw; transform: rotate(-3deg); background: linear-gradient(170deg, #fbfaf6, #ecebe4); box-shadow: 0 .3cqw .4cqw rgba(0, 0, 0, .3), 1cqw 1.8cqw 2.4cqw rgba(0, 0, 0, .4); }
-.cs-punaise .carton-photo { left: 12.5cqw; top: 17.5cqw; width: 75cqw; height: 70cqw; transform-origin: 37.5cqw 41.5cqw; transform: rotate(-3deg); background: radial-gradient(90% 70% at 50% 25%, #c8d2d8, #75868f); box-shadow: inset 0 0 0 .3cqw rgba(0, 0, 0, .25); }
+.cs-punaise .carton-orne > i:nth-child(1) { left: 6cqw; top: 8cqw; width: 88cqw; height: 98cqw; transform: rotate(-3deg); background: linear-gradient(170deg, #fbfaf6, #ecebe4); box-shadow: 0 .3cqw .4cqw rgba(0, 0, 0, .3), 1cqw 1.8cqw 2.4cqw rgba(0, 0, 0, .4); }
+.cs-punaise .carton-photo { left: 10cqw; top: 12cqw; width: 80cqw; height: 80cqw; transform-origin: 40cqw 46cqw; transform: rotate(-3deg); background: radial-gradient(90% 70% at 50% 25%, #c8d2d8, #75868f); box-shadow: inset 0 0 0 .3cqw rgba(0, 0, 0, .25); }
 .cs-punaise .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 12%); -webkit-mask-image: none; mask-image: none; filter: contrast(1.04) saturate(.92) sepia(.12); }
 .cs-punaise .carton-photo::after { background: linear-gradient(135deg, rgba(255, 255, 255, .18), transparent 40%), radial-gradient(120% 100% at 50% 40%, transparent 60%, rgba(60, 30, 0, .25)); }
 .cs-punaise .carton-deco { box-shadow: none; }
 .cs-punaise .carton-deco::before, .cs-punaise .carton-deco::after { width: 7cqw; height: 7cqw; border-radius: 50%; background: radial-gradient(circle at 36% 30%, rgba(255, 255, 255, .85) 0 .6cqw, transparent 1.6cqw), radial-gradient(circle at 50% 50%, var(--stripe) 0 58%, color-mix(in srgb, var(--stripe) 60%, #000) 70%); box-shadow: .9cqw 1.4cqw 1cqw rgba(0, 0, 0, .45), inset 0 -.5cqw .8cqw rgba(0, 0, 0, .35); }
-.cs-punaise .carton-deco::before { right: 9cqw; top: 13.5cqw; }
+.cs-punaise .carton-deco::before { right: 7cqw; top: 8.5cqw; }
 .cs-punaise .carton-deco::after { left: 10cqw; top: 95cqw; }
 .cs-punaise .carton-nom { --nom-l: 42cqw; --nom-max: 9.5cqw; --prenom: 3.6cqw; left: 6cqw; right: 26cqw; top: 108cqw; height: 26cqw; align-items: flex-start; font-family: "Righteous", "Barlow Condensed", sans-serif; transform: rotate(1.2deg); }
 .cs-punaise .carton-nom :is(.fname, .lname) { max-width: 100%; box-sizing: border-box; color: var(--ink); font-weight: 400; text-shadow: 0 -.18cqw 0 rgba(0, 0, 0, .35), 0 .22cqw 0 rgba(255, 255, 255, .35); box-shadow: 0 .5cqw .7cqw rgba(0, 0, 0, .45), inset 0 .3cqw 0 rgba(255, 255, 255, .22), inset 0 -.3cqw 0 rgba(0, 0, 0, .25); }
@@ -2149,10 +2207,10 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-geant .carton-club { z-index: 1; left: 0; top: 22cqw; width: 28cqw; height: 106cqw; display: block; }
 .cs-geant .carton-club :is(img, svg) { position: absolute; left: 4.5cqw; bottom: 0; width: 22cqw; height: 22cqw; filter: drop-shadow(0 0 .25cqw #fff) drop-shadow(0 0 .25cqw #fff) drop-shadow(.8cqw .8cqw 0 rgba(0, 0, 0, .4)); }
 .cs-geant .carton-sigle { display: block; position: absolute; left: 3cqw; top: 82cqw; width: 82cqw; transform-origin: 0 0; transform: rotate(-90deg); text-align: center; font: 400 40cqw/30cqw "Anton", sans-serif; letter-spacing: .02em; color: var(--ink); text-shadow: .5cqw .5cqw 0 color-mix(in srgb, var(--band) 50%, #000), 1cqw 1cqw 0 color-mix(in srgb, var(--band) 50%, #000), 1.5cqw 1.5cqw 0 color-mix(in srgb, var(--band) 50%, #000); }
-.cs-geant .carton-photo { left: 27cqw; right: 4cqw; top: 14cqw; height: 82cqw; background: radial-gradient(90% 70% at 50% 25%, #e7ecef, #98a7b2); box-shadow: 0 0 0 .9cqw #fff, 1.8cqw 1.8cqw 0 .9cqw rgba(0, 0, 0, .45); }
+.cs-geant .carton-photo { left: 27cqw; right: 4cqw; top: 14cqw; height: 86cqw; background: radial-gradient(90% 70% at 50% 25%, #e7ecef, #98a7b2); box-shadow: 0 0 0 .9cqw #fff, 1.8cqw 1.8cqw 0 .9cqw rgba(0, 0, 0, .45); }
 .cs-geant .carton-photo > :is(img.visage, img.carton-action) { object-fit: cover; object-position: var(--cadre-pos, 50% 14%); -webkit-mask-image: none; mask-image: none; }
 .cs-geant .carton-deco { box-shadow: none; }
-.cs-geant .carton-nom { --nom-l: 70cqw; --nom-max: 17cqw; --prenom: 4cqw; left: 31cqw; right: 4cqw; top: 100cqw; height: 30cqw; justify-content: flex-start; align-items: flex-end; text-align: right; font-family: "Anton", "Barlow Condensed", sans-serif; color: #fff; }
+.cs-geant .carton-nom { --nom-l: 70cqw; --nom-max: 17cqw; --prenom: 4cqw; left: 31cqw; right: 4cqw; top: 104cqw; height: 30cqw; justify-content: flex-start; align-items: flex-end; text-align: right; font-family: "Anton", "Barlow Condensed", sans-serif; color: #fff; }
 .cs-geant .carton-nom .fname { font: 400 var(--prenom)/1 "Anton", sans-serif; letter-spacing: .3em; margin-right: -.3em; color: var(--ink); opacity: 1; }
 .cs-geant .carton-nom .lname { font-weight: 400; letter-spacing: .01em; margin-top: 1cqw; max-width: 100%; text-shadow: .6cqw .6cqw 0 #111, 1.2cqw 1.2cqw 0 rgba(0, 0, 0, .35); padding: 0 1.2cqw 1.2cqw 0; margin-right: -1.2cqw; -webkit-text-stroke: .2cqw #111; paint-order: stroke fill; }
 .cs-geant .carton-club-nom { color: var(--ink); opacity: .8; letter-spacing: .26em; }
@@ -2175,15 +2233,15 @@ a.spin-club:hover { background: var(--fond-2); }
     repeating-linear-gradient(-24deg, rgba(160, 182, 204, 0.22) 0 0.2cqw, transparent 0.2cqw 4.6cqw), repeating-linear-gradient(31deg, rgba(255, 255, 255, 0.9) 0 0.15cqw, transparent 0.15cqw 6.2cqw);
 }
 .cs-patinoire .carton-orne > i:nth-child(1) { z-index: 3; inset: 2.6cqw; border-radius: 13cqw / 11cqw; border: 0.7cqw solid #f0bd1f; box-shadow: 0 0 0 0.9cqw #fff, 0 0 0 1.3cqw #0d1f3c, 0 0 0 9cqw var(--band); }
-.cs-patinoire .carton-orne > i:nth-child(2) { left: 66.5cqw; top: 97.5cqw; width: 25cqw; height: 25cqw; border-radius: 50%; border: 0.7cqw solid var(--rouge); }
+.cs-patinoire .carton-orne > i:nth-child(2) { left: 66.5cqw; top: 104.5cqw; width: 25cqw; height: 25cqw; border-radius: 50%; border: 0.7cqw solid var(--rouge); }
 .cs-patinoire .carton-orne > i:nth-child(2)::before { inset: 35% -12%; background: linear-gradient(90deg, var(--rouge) 0 2.6cqw, transparent 2.6cqw calc(100% - 2.6cqw), var(--rouge) 0) top / 100% 0.5cqw no-repeat, linear-gradient(90deg, var(--rouge) 0 2.6cqw, transparent 2.6cqw calc(100% - 2.6cqw), var(--rouge) 0) bottom / 100% 0.5cqw no-repeat; }
-.cs-patinoire .carton-photo { inset: 7.5cqw 7.5cqw auto; height: 76cqw; border-radius: 1.4cqw; background: radial-gradient(90% 60% at 50% 20%, #e9eef2, #9eabb6); box-shadow: 0 0 0 0.8cqw #fff, 0 0 0 1.2cqw #0d1f3c, 0 1.6cqw 2.4cqw -0.6cqw rgba(13, 31, 60, 0.55); }
+.cs-patinoire .carton-photo { inset: 7.5cqw 7.5cqw auto; height: 83cqw; border-radius: 1.4cqw; background: radial-gradient(90% 60% at 50% 20%, #e9eef2, #9eabb6); box-shadow: 0 0 0 0.8cqw #fff, 0 0 0 1.2cqw #0d1f3c, 0 1.6cqw 2.4cqw -0.6cqw rgba(13, 31, 60, 0.55); }
 .cs-patinoire .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-patinoire .carton-nom { --nom-l: 38cqw; --nom-max: 9.6cqw; left: 8cqw; right: 37cqw; top: 96cqw; height: 31cqw; font-family: "Archivo Black", "Barlow Condensed", sans-serif; }
+.cs-patinoire .carton-nom { --nom-l: 38cqw; --nom-max: 9.6cqw; left: 8cqw; right: 37cqw; top: 103cqw; height: 31cqw; font-family: "Archivo Black", "Barlow Condensed", sans-serif; }
 .cs-patinoire .carton-nom .fname { font-family: var(--display); font-weight: 800; font-size: 4.4cqw; color: var(--rouge); opacity: 1; }
 .cs-patinoire .carton-nom .lname { font-weight: 400; letter-spacing: -0.01em; }
 .cs-patinoire .carton-club-nom { color: #5a6b80; letter-spacing: 0.2em; }
-.cs-patinoire .carton-club { left: 70.5cqw; top: 101.5cqw; width: 17cqw; height: 17cqw; padding: 1.6cqw; }
+.cs-patinoire .carton-club { left: 70.5cqw; top: 108.5cqw; width: 17cqw; height: 17cqw; padding: 1.6cqw; }
 .cs-patinoire .carton-imprime { left: 8cqw; right: 8cqw; bottom: 5.6cqw; justify-content: space-between; color: #4b5d75; opacity: 1; }
 .cs-patinoire:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(2) { z-index: 4; }
 .cs-patinoire:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(3) { z-index: 3; left: 0; right: 0; top: 86cqw; bottom: 0; background: linear-gradient(#0d1f3c 0 0.4cqw, transparent 0.4cqw 3.5cqw, var(--bleue) 3.5cqw 6.5cqw, transparent 6.5cqw 40.6cqw, var(--rouge) 40.6cqw 41.3cqw, transparent 41.3cqw), radial-gradient(9cqw 8cqw at 50% 41cqw, #c3e0f4 0 93%, var(--rouge) 94% 100%, transparent 101%) 0 0 / 100% 41cqw no-repeat, repeating-linear-gradient(31deg, rgba(255, 255, 255, 0.9) 0 0.15cqw, transparent 0.15cqw 6.2cqw), linear-gradient(176deg, #fbfdfe, #dfe8ef); }
@@ -2194,12 +2252,12 @@ a.spin-club:hover { background: var(--fond-2); }
   --c-fond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='250' height='350'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='turbulence' baseFrequency='.005 .011' numOctaves='5' seed='4'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 1 0 0 0 0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='table' tableValues='.6 .16 .03 0 0 0 0 0'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3C/svg%3E") 0 0 / 100% 100%, radial-gradient(120% 80% at 30% 20%, #2a2a2f, #0c0c0e 70%);
   --c-encre: #e9d8a6; --or-filet: #c9a24c;
 }
-.cs-marbre .carton-photo { inset: 9.5cqw 9.5cqw auto; height: 86cqw; background: radial-gradient(90% 60% at 50% 20%, #5a5c62, #1d1e22); box-shadow: 0 0 0 0.7cqw var(--band), 0 0 0 1.4cqw #0c0c0e; }
+.cs-marbre .carton-photo { inset: 9.5cqw 9.5cqw auto; height: 96cqw; background: radial-gradient(90% 60% at 50% 20%, #5a5c62, #1d1e22); box-shadow: 0 0 0 0.7cqw var(--band), 0 0 0 1.4cqw #0c0c0e; }
 .cs-marbre .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-marbre .carton-deco::before, .cs-marbre .carton-deco::after { inset: 7.4cqw 7.4cqw auto; height: 90.2cqw; padding: 0.55cqw; background: var(--or-feuille); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
-.cs-marbre .carton-deco::after { inset: 5.9cqw 5.9cqw auto; height: 93.2cqw; padding: 0.25cqw; }
+.cs-marbre .carton-deco::before, .cs-marbre .carton-deco::after { inset: 7.4cqw 7.4cqw auto; height: 100.2cqw; padding: 0.55cqw; background: var(--or-feuille); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.cs-marbre .carton-deco::after { inset: 5.9cqw 5.9cqw auto; height: 103.2cqw; padding: 0.25cqw; }
 .cs-marbre .carton-club { left: 39cqw; top: 86cqw; width: 22cqw; height: 22cqw; padding: 3.6cqw; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fffaf0, #e9dfc8); box-shadow: 0 0 0 0.5cqw #8a6a26, 0 0 0 1.2cqw #e8cf86, 0 0 0 1.6cqw #6e5218, 0 1cqw 2cqw rgba(0, 0, 0, 0.7); }
-.cs-marbre .carton-nom { --nom-l: 80cqw; --nom-max: 10.5cqw; --prenom: 4.2cqw; left: 6cqw; right: 6cqw; top: 110cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
+.cs-marbre .carton-nom { --nom-l: 80cqw; --nom-max: 10.5cqw; --prenom: 4.2cqw; left: 6cqw; right: 6cqw; top: 120cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
 .cs-marbre .carton-nom .fname { font-style: italic; font-weight: 700; letter-spacing: 0.08em; text-transform: none; color: #d8c592; opacity: 1; }
 .cs-marbre .carton-nom .lname { font-weight: 900; letter-spacing: 0.05em; margin-top: 0.4cqw; color: transparent; background: linear-gradient(180deg, #fff1bf 0%, #ebc96f 35%, #c9993a 70%, #e9c875 100%); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0.3cqw 0 rgba(0, 0, 0, 0.8)); }
 .cs-marbre .carton-club-nom { display: none; }
@@ -2246,14 +2304,14 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-dorure .carton-orne > i:nth-child(1) { inset: 5cqw; border-radius: 1.6cqw; border: 0.3cqw solid #b08a3a; }
 .cs-dorure .carton-orne > i:nth-child(1)::before, .cs-dorure .carton-orne > i:nth-child(1)::after { left: calc(50% - 1.6cqw); top: -1.9cqw; width: 3.2cqw; height: 3.2cqw; transform: rotate(45deg); background: var(--or-feuille); box-shadow: 0 0 0 0.5cqw #fffdf7, 0 0 0 0.8cqw #a07c30; }
 .cs-dorure .carton-orne > i:nth-child(1)::after { top: auto; bottom: -1.9cqw; }
-.cs-dorure .carton-photo { inset: 10cqw 10cqw auto; height: 84cqw; border-radius: 40cqw 40cqw 0.8cqw 0.8cqw / 28cqw 28cqw 0.8cqw 0.8cqw; background: radial-gradient(90% 60% at 50% 25%, #f1ebe0, #b9ad98); box-shadow: 0 0 0 0.5cqw #c9a14a, 0 0 0 1.3cqw #fffdf7, 0 0 0 1.6cqw #a07c30; }
+.cs-dorure .carton-photo { inset: 10cqw 10cqw auto; height: 92cqw; border-radius: 40cqw 40cqw 0.8cqw 0.8cqw / 28cqw 28cqw 0.8cqw 0.8cqw; background: radial-gradient(90% 60% at 50% 25%, #f1ebe0, #b9ad98); box-shadow: 0 0 0 0.5cqw #c9a14a, 0 0 0 1.3cqw #fffdf7, 0 0 0 1.6cqw #a07c30; }
 .cs-dorure .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-dorure .carton-orne > i:nth-child(2) { z-index: 3; left: 10cqw; right: 10cqw; top: 92cqw; height: 2cqw; background: linear-gradient(#a07c30 0 0.3cqw, var(--band) 0.3cqw 1.7cqw, #a07c30 1.7cqw); }
-.cs-dorure .carton-nom { --nom-l: 44cqw; --nom-max: 11cqw; --prenom: 4.3cqw; left: 10cqw; right: 31cqw; top: 98cqw; height: 28cqw; font-family: "Playfair Display", Georgia, serif; }
+.cs-dorure .carton-orne > i:nth-child(2) { z-index: 3; left: 10cqw; right: 10cqw; top: 100cqw; height: 2cqw; background: linear-gradient(#a07c30 0 0.3cqw, var(--band) 0.3cqw 1.7cqw, #a07c30 1.7cqw); }
+.cs-dorure .carton-nom { --nom-l: 44cqw; --nom-max: 11cqw; --prenom: 4.3cqw; left: 10cqw; right: 31cqw; top: 106cqw; height: 28cqw; font-family: "Playfair Display", Georgia, serif; }
 .cs-dorure .carton-nom .fname { font-style: italic; text-transform: none; letter-spacing: 0.06em; color: #7a6235; opacity: 1; }
 .cs-dorure .carton-nom .lname { font-family: "Abril Fatface", "Playfair Display", Georgia, serif; font-weight: 400; letter-spacing: 0.03em; color: transparent; background: linear-gradient(180deg, #c3933a 0%, #8f6418 60%, #74500f 100%); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0.22cqw 0 #fff) drop-shadow(0 -0.12cqw 0 rgba(60, 40, 5, 0.45)); }
 .cs-dorure .carton-club-nom { color: #8a7650; }
-.cs-dorure .carton-club { right: 10cqw; top: 99cqw; width: 18cqw; height: 23cqw; padding: 2.6cqw; border-radius: 50%; background: #fff; box-shadow: 0 0 0 0.5cqw #c9a14a, 0 0 0 1.1cqw #fffdf7, 0 0 0 1.4cqw #a07c30, 0 0.8cqw 1.4cqw rgba(90, 60, 10, 0.3); }
+.cs-dorure .carton-club { right: 10cqw; top: 107cqw; width: 18cqw; height: 23cqw; padding: 2.6cqw; border-radius: 50%; background: #fff; box-shadow: 0 0 0 0.5cqw #c9a14a, 0 0 0 1.1cqw #fffdf7, 0 0 0 1.4cqw #a07c30, 0 0.8cqw 1.4cqw rgba(90, 60, 10, 0.3); }
 .cs-dorure .carton-imprime { left: 10cqw; right: 10cqw; bottom: 8.6cqw; justify-content: space-between; color: #8a7650; opacity: 1; }
 .cs-dorure:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(3) { z-index: 3; left: 0; right: 0; top: 96cqw; bottom: 0; background: linear-gradient(#a07c30 0 0.3cqw, #fffdf7 0.3cqw 0.9cqw, #c9a14a 0.9cqw 1.4cqw, transparent 1.4cqw), radial-gradient(120% 90% at 30% 15%, #fffefa, #f3ede0 60%, #e8dec9); }
 .fc-verso.cs-dorure { --v-fond: radial-gradient(120% 90% at 30% 15%, #fffefa, #f3ede0 60%, #e8dec9); --v-encre: #2e2412; --v-encre-2: #7a6440; --v-prix: #9a6c12; --v-police: "Abril Fatface", "Playfair Display", Georgia, serif; --v-poids: 400; }
@@ -2265,46 +2323,46 @@ a.spin-club:hover { background: var(--fond-2); }
   --octo: polygon(var(--k) 0, calc(100% - var(--k)) 0, 100% var(--k), 100% calc(100% - var(--k)), calc(100% - var(--k)) 100%, var(--k) 100%, 0 calc(100% - var(--k)), 0 var(--k));
 }
 .cs-refracteur::before { inset: 0; mix-blend-mode: overlay; opacity: 0.85; background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.35) 0 0.2cqw, transparent 0.2cqw 0.6cqw), repeating-radial-gradient(circle at 50% 135%, #ff3f8e 0, #ffb347 3cqw, #e8ff6a 6cqw, #3dffb0 9cqw, #36c8ff 12cqw, #9a6bff 15cqw, #ff3f8e 18cqw); }
-.cs-refracteur .carton-photo { inset: 9cqw 9cqw auto; height: 84cqw; clip-path: var(--octo); background: radial-gradient(90% 60% at 50% 20%, #59636f, #15181d); }
+.cs-refracteur .carton-photo { inset: 9cqw 9cqw auto; height: 93.8cqw; clip-path: var(--octo); background: radial-gradient(90% 60% at 50% 20%, #59636f, #15181d); }
 .cs-refracteur .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-refracteur .carton-orne > i:nth-child(1), .cs-refracteur .carton-orne > i:nth-child(2) { inset: 7.4cqw 7.4cqw auto; height: 87.2cqw; --k: 6.7cqw; clip-path: var(--octo); background: linear-gradient(160deg, #fff 0%, #8995a2 22%, #f4f7fa 40%, #4d5864 60%, #dfe5eb 80%, #6f7a86); }
-.cs-refracteur .carton-orne > i:nth-child(2) { z-index: 0; inset: 6.2cqw 6.2cqw auto; height: 89.6cqw; --k: 7.2cqw; background: var(--vive); }
-.cs-refracteur .carton-nom { --nom-l: 31cqw; --nom-max: 8.6cqw; --prenom: 3.4cqw; --k: 3cqw; left: 6cqw; right: 6cqw; top: 100cqw; height: 21cqw; padding: 0 28cqw 0 5cqw; clip-path: var(--octo); font-family: "Orbitron", "Barlow Condensed", sans-serif; color: #11161d; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.25) 0 0.2cqw, transparent 0.2cqw 0.6cqw), linear-gradient(180deg, #f6f8fa 0%, #d2d8de 50%, #e8ecf0 100%); }
+.cs-refracteur .carton-orne > i:nth-child(1), .cs-refracteur .carton-orne > i:nth-child(2) { inset: 7.4cqw 7.4cqw auto; height: 97cqw; --k: 6.7cqw; clip-path: var(--octo); background: linear-gradient(160deg, #fff 0%, #8995a2 22%, #f4f7fa 40%, #4d5864 60%, #dfe5eb 80%, #6f7a86); }
+.cs-refracteur .carton-orne > i:nth-child(2) { z-index: 0; inset: 6.2cqw 6.2cqw auto; height: 99.4cqw; --k: 7.2cqw; background: var(--vive); }
+.cs-refracteur .carton-nom { --nom-l: 31cqw; --nom-max: 8.6cqw; --prenom: 3.4cqw; --k: 3cqw; left: 6cqw; right: 6cqw; top: 109.8cqw; height: 21cqw; padding: 0 28cqw 0 5cqw; clip-path: var(--octo); font-family: "Orbitron", "Barlow Condensed", sans-serif; color: #11161d; background: repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.25) 0 0.2cqw, transparent 0.2cqw 0.6cqw), linear-gradient(180deg, #f6f8fa 0%, #d2d8de 50%, #e8ecf0 100%); }
 .cs-refracteur .carton-nom .fname { font-weight: 700; letter-spacing: 0.2em; color: #3b4552; opacity: 1; }
 .cs-refracteur .carton-nom .lname { font-weight: 900; letter-spacing: 0.02em; text-shadow: 0 0.2cqw 0 rgba(255, 255, 255, 0.6); }
 .cs-refracteur .carton-club-nom { display: none; }
-.cs-refracteur .carton-club { right: 8cqw; top: 98.5cqw; width: 23cqw; height: 24cqw; padding: 4.4cqw; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: radial-gradient(circle at 40% 30%, #fff, #d7dde3 55%, #9aa4ae); }
-.cs-refracteur .carton-orne > i:nth-child(3) { z-index: 4; right: 6.8cqw; top: 96.8cqw; width: 25.4cqw; height: 27.4cqw; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: linear-gradient(160deg, #1b1f25, var(--vive) 50%, #1b1f25); }
+.cs-refracteur .carton-club { right: 8cqw; top: 108.3cqw; width: 23cqw; height: 24cqw; padding: 4.4cqw; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: radial-gradient(circle at 40% 30%, #fff, #d7dde3 55%, #9aa4ae); }
+.cs-refracteur .carton-orne > i:nth-child(3) { z-index: 4; right: 6.8cqw; top: 106.6cqw; width: 25.4cqw; height: 27.4cqw; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); background: linear-gradient(160deg, #1b1f25, var(--vive) 50%, #1b1f25); }
 .cs-refracteur .carton-imprime { left: 8cqw; right: 8cqw; bottom: 4.4cqw; justify-content: space-between; color: #fff; opacity: 0.8; text-shadow: 0 0 0.6cqw #000; }
 .fc-verso.cs-refracteur { --v-fond: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 3px), linear-gradient(140deg, #15181d, #3a424c 40%, #15181d); --v-police: Orbitron, "Barlow Condensed", sans-serif; --v-poids: 900; }
 
 /* 27 · ÉCLAT (1996-97) — l'énergie d'une couverture de bande dessinée : une explosion de rayons aux couleurs du club derrière une case penchée cernée de noir, la bulle du nom en lettres d'enseigne à l'ombre décalée, l'écusson dans une étoile « POW », le pied de page noir. */
 .cs-eclat { --c-fond: repeating-conic-gradient(from -3deg at 50% 44%, var(--band) 0 7.5deg, var(--stripe) 7.5deg 15deg); --c-encre: #111; --bd: #111; }
 .cs-eclat::before { inset: 0; background: radial-gradient(circle, rgba(0, 0, 0, 0.3) 0 0.45cqw, transparent 0.55cqw) 0 0 / 2.2cqw 2.2cqw; -webkit-mask-image: radial-gradient(70% 60% at 50% 44%, transparent 55%, #000); mask-image: radial-gradient(70% 60% at 50% 44%, transparent 55%, #000); }
-.cs-eclat .carton-photo { left: 12cqw; top: 15cqw; width: 76cqw; height: 71cqw; transform: rotate(-3deg); background: #d9dde2; box-shadow: 0 0 0 1.1cqw #fff, 0 0 0 1.9cqw var(--bd), 1.6cqw 1.8cqw 0 1.9cqw var(--bd); }
+.cs-eclat .carton-photo { left: 12cqw; top: 15cqw; width: 76cqw; height: 81cqw; transform: rotate(-3deg); background: #d9dde2; box-shadow: 0 0 0 1.1cqw #fff, 0 0 0 1.9cqw var(--bd), 1.6cqw 1.8cqw 0 1.9cqw var(--bd); }
 .cs-eclat .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-eclat .carton-nom { --nom-l: 44cqw; --nom-max: 10cqw; --prenom: 4cqw; left: 4cqw; right: 25cqw; top: 94cqw; height: 25cqw; padding: 0 3.4cqw; transform: rotate(-2deg); font-family: "Bungee", "Barlow Condensed", sans-serif; background: #fff; box-shadow: 0 0 0 0.9cqw var(--bd), 1.4cqw 1.4cqw 0 0.9cqw var(--bd); }
+.cs-eclat .carton-nom { --nom-l: 44cqw; --nom-max: 10cqw; --prenom: 4cqw; left: 4cqw; right: 25cqw; top: 104cqw; height: 25cqw; padding: 0 3.4cqw; transform: rotate(-2deg); font-family: "Bungee", "Barlow Condensed", sans-serif; background: #fff; box-shadow: 0 0 0 0.9cqw var(--bd), 1.4cqw 1.4cqw 0 0.9cqw var(--bd); }
 .cs-eclat .carton-nom .fname { font-family: var(--display); font-weight: 800; letter-spacing: 0.24em; opacity: 1; }
 .cs-eclat .carton-nom .lname { font-weight: 400; letter-spacing: 0; margin-top: 2.6cqw; overflow: visible; text-shadow: 0.55cqw 0.55cqw 0 var(--band); }
 .cs-eclat .carton-club-nom { display: none; }
 .cs-eclat .carton-orne > i:nth-child(1), .cs-eclat .carton-club { clip-path: polygon(58.7% 0.8%, 63.1% 21.9%, 82.1% 11.7%, 75.4% 32.2%, 97% 32.9%, 80.9% 47.3%, 99.2% 58.7%, 78.1% 63.1%, 88.3% 82.1%, 67.8% 75.4%, 67.1% 97%, 52.7% 80.9%, 41.3% 99.2%, 36.9% 78.1%, 17.9% 88.3%, 24.6% 67.8%, 3% 67.1%, 19.1% 52.7%, 0.8% 41.3%, 21.9% 36.9%, 11.7% 17.9%, 32.2% 24.6%, 32.9% 3%, 47.3% 19.1%); }
-.cs-eclat .carton-orne > i:nth-child(1) { z-index: 4; right: 0.5cqw; top: 89cqw; width: 31cqw; height: 31cqw; background: var(--bd); }
-.cs-eclat .carton-club { right: 2.5cqw; top: 91cqw; width: 27cqw; height: 27cqw; padding: 7.2cqw; background: radial-gradient(circle, #fff 0 30%, #ffd60a 31%); }
+.cs-eclat .carton-orne > i:nth-child(1) { z-index: 4; right: 0.5cqw; top: 99cqw; width: 31cqw; height: 31cqw; background: var(--bd); }
+.cs-eclat .carton-club { right: 2.5cqw; top: 101cqw; width: 27cqw; height: 27cqw; padding: 7.2cqw; background: radial-gradient(circle, #fff 0 30%, #ffd60a 31%); }
 .cs-eclat .carton-orne > i:nth-child(2) { z-index: 3; left: 0; right: 0; bottom: 0; height: 9cqw; background: var(--bd); }
 .cs-eclat .carton-imprime { left: 6cqw; right: 6cqw; bottom: 3cqw; justify-content: space-between; color: #ffd60a; opacity: 1; }
 .fc-verso.cs-eclat { --v-fond: radial-gradient(circle, rgba(0, 0, 0, 0.3) 0 1.5px, transparent 2px) 0 0 / 7px 7px, linear-gradient(160deg, color-mix(in srgb, var(--team-band, #243044) 70%, black), color-mix(in srgb, var(--team-band, #243044) 40%, black)); --v-police: Bungee, "Barlow Condensed", sans-serif; --v-poids: 400; }
 
 /* 28 · ARDOISE (1997-98) — la sobriété des séries « certifiées » de la fin des années 90 : une ardoise noire clivée, la photo tenue par quatre coins découpés en feuille d'or, un liseré du club, le nom estampé argent en capitales condensées et l'écusson frappé à l'argent. */
 .cs-ardoise { --c-fond: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='280'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.02 .09' numOctaves='4' seed='5'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 .38 0 0 0 -.13'/%3E%3C/filter%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' seed='9'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23f)'/%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E") 0 0 / 100% 100%, linear-gradient(165deg, #34383d, #1d2023 55%, #121416); --c-encre: #e6e9ec; }
-.cs-ardoise .carton-photo { inset: 15cqw 7cqw auto; height: 78cqw; background: radial-gradient(90% 60% at 50% 20%, #5d636a, #1d2023); box-shadow: 0 0 0 0.35cqw #c9ced3, 0 0 0 1cqw #0e1012, 0 1.4cqw 3cqw rgba(0, 0, 0, 0.7); }
+.cs-ardoise .carton-photo { inset: 15cqw 7cqw auto; height: 84cqw; background: radial-gradient(90% 60% at 50% 20%, #5d636a, #1d2023); box-shadow: 0 0 0 0.35cqw #c9ced3, 0 0 0 1cqw #0e1012, 0 1.4cqw 3cqw rgba(0, 0, 0, 0.7); }
 .cs-ardoise .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-ardoise .carton-deco { inset: 13.6cqw 5.6cqw auto; height: 80.8cqw; box-shadow: none; background: linear-gradient(135deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 0 0 / 11cqw 11cqw no-repeat, linear-gradient(225deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 100% 0 / 11cqw 11cqw no-repeat, linear-gradient(45deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 0 100% / 11cqw 11cqw no-repeat, linear-gradient(315deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 100% 100% / 11cqw 11cqw no-repeat; filter: drop-shadow(0 0.4cqw 0.3cqw rgba(0, 0, 0, 0.6)); }
-.cs-ardoise .carton-orne > i:nth-child(1) { left: 7cqw; right: 7cqw; top: 96.4cqw; height: 1.1cqw; background: var(--band); box-shadow: 0 0 0 0.3cqw #9aa2ab; }
-.cs-ardoise .carton-nom { --nom-l: 60cqw; --nom-max: 15cqw; --prenom: 4.4cqw; left: 7cqw; right: 31cqw; top: 99cqw; height: 29cqw; font-family: "Teko", "Barlow Condensed", sans-serif; }
+.cs-ardoise .carton-deco { inset: 13.6cqw 5.6cqw auto; height: 86.8cqw; box-shadow: none; background: linear-gradient(135deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 0 0 / 11cqw 11cqw no-repeat, linear-gradient(225deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 100% 0 / 11cqw 11cqw no-repeat, linear-gradient(45deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 0 100% / 11cqw 11cqw no-repeat, linear-gradient(315deg, #fff1b8, #d4a640 30%, #8a6216 49%, transparent 50%) 100% 100% / 11cqw 11cqw no-repeat; filter: drop-shadow(0 0.4cqw 0.3cqw rgba(0, 0, 0, 0.6)); }
+.cs-ardoise .carton-orne > i:nth-child(1) { left: 7cqw; right: 7cqw; top: 102.4cqw; height: 1.1cqw; background: var(--band); box-shadow: 0 0 0 0.3cqw #9aa2ab; }
+.cs-ardoise .carton-nom { --nom-l: 60cqw; --nom-max: 15cqw; --prenom: 4.4cqw; left: 7cqw; right: 31cqw; top: 105cqw; height: 29cqw; font-family: "Teko", "Barlow Condensed", sans-serif; }
 .cs-ardoise .carton-nom .fname { font-family: inherit; font-weight: 500; letter-spacing: 0.3em; color: color-mix(in srgb, var(--vive) 50%, white); opacity: 1; }
 .cs-ardoise .carton-nom .lname { font-weight: 700; line-height: 0.9; letter-spacing: 0.03em; margin-top: 0; padding-top: 0.12em; color: transparent; background: linear-gradient(180deg, #fff 0%, #d3d9df 35%, #98a1ab 80%, #c7ced5 100%); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 -0.18cqw 0 rgba(0, 0, 0, 0.9)) drop-shadow(0 0.2cqw 0 rgba(255, 255, 255, 0.18)); }
 .cs-ardoise .carton-club-nom { color: #9aa2ab; letter-spacing: 0.3em; }
-.cs-ardoise .carton-club { right: 7cqw; top: 101cqw; width: 21cqw; height: 21cqw; padding: 2.4cqw; border-radius: 50%; box-shadow: inset 0 0 0 0.45cqw #aab2ba, inset 0 0 0 0.9cqw #1d2023, inset 0 0 0 1.15cqw #6c757f; }
+.cs-ardoise .carton-club { right: 7cqw; top: 107cqw; width: 21cqw; height: 21cqw; padding: 2.4cqw; border-radius: 50%; box-shadow: inset 0 0 0 0.45cqw #aab2ba, inset 0 0 0 0.9cqw #1d2023, inset 0 0 0 1.15cqw #6c757f; }
 .cs-ardoise .carton-club :is(img, svg) { filter: grayscale(1) brightness(1.7) contrast(0.85) drop-shadow(0 -0.2cqw 0 rgba(0, 0, 0, 0.8)) drop-shadow(0 0.2cqw 0 rgba(255, 255, 255, 0.35)); }
 .cs-ardoise .carton-imprime { left: 7cqw; right: 7cqw; bottom: 4.4cqw; justify-content: space-between; color: #aab2ba; }
 .fc-verso.cs-ardoise { --v-fond: linear-gradient(165deg, #2e3236, #1a1c1f 55%, #111315); --v-encre: #e6e9ec; --v-encre-2: #9aa2ab; --v-prix: #d4a640; --v-police: Teko, "Barlow Condensed", sans-serif; --v-poids: 700; }
@@ -2312,24 +2370,24 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 29 · CIRCUIT (1998-99) — la carte « techno » de la fin de la décennie : un circuit imprimé dont les pistes s'allument à la couleur vive du club, la photo posée comme une puce sur ses pattes de chrome, le nom chromé en italique sur une barre en biais, l'écusson dans une pastille à souder. */
 .cs-circuit { --c-fond: radial-gradient(120% 80% at 50% 38%, #10291f, #050c09 75%); --c-encre: white; }
 .cs-circuit::before { inset: 0; opacity: 0.5; background: var(--vive); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.3'%3E%3Cpath d='M0 12h18l10 10h14l10-10h8M14 60V44l10-10V18L14 8V0M40 60V46l8-8h12M0 38h6M30 60v-8'/%3E%3Ccircle cx='8.5' cy='38' r='2.4'/%3E%3Ccircle cx='30' cy='49.5' r='2.4'/%3E%3Ccircle cx='42' cy='22' r='2'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 30cqw 30cqw; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 60'%3E%3Cg fill='none' stroke='%23000' stroke-width='1.3'%3E%3Cpath d='M0 12h18l10 10h14l10-10h8M14 60V44l10-10V18L14 8V0M40 60V46l8-8h12M0 38h6M30 60v-8'/%3E%3Ccircle cx='8.5' cy='38' r='2.4'/%3E%3Ccircle cx='30' cy='49.5' r='2.4'/%3E%3Ccircle cx='42' cy='22' r='2'/%3E%3C/g%3E%3C/svg%3E") 0 0 / 30cqw 30cqw; }
-.cs-circuit .carton-orne > i:nth-child(1) { left: 9cqw; right: 9cqw; top: 15cqw; height: 66cqw; background: repeating-linear-gradient(180deg, #e9eef2 0 0.5cqw, #8f9aa5 0.5cqw 1.5cqw, transparent 1.5cqw 3.6cqw); }
-.cs-circuit .carton-photo { left: 13cqw; right: 13cqw; top: 9cqw; height: 78cqw; border-radius: 1.2cqw; background: radial-gradient(90% 60% at 50% 20%, #3c4a44, #0c1411); box-shadow: 0 0 0 0.6cqw #050c09, 0 0 0 1.1cqw var(--vive), 0 0 3.4cqw color-mix(in srgb, var(--vive) 55%, transparent); }
+.cs-circuit .carton-orne > i:nth-child(1) { left: 5cqw; right: 5cqw; top: 15cqw; height: 66cqw; background: repeating-linear-gradient(180deg, #e9eef2 0 0.5cqw, #8f9aa5 0.5cqw 1.5cqw, transparent 1.5cqw 3.6cqw); }
+.cs-circuit .carton-photo { left: 9cqw; right: 9cqw; top: 9cqw; height: 88cqw; border-radius: 1.2cqw; background: radial-gradient(90% 60% at 50% 20%, #3c4a44, #0c1411); box-shadow: 0 0 0 0.6cqw #050c09, 0 0 0 1.1cqw var(--vive), 0 0 3.4cqw color-mix(in srgb, var(--vive) 55%, transparent); }
 .cs-circuit .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
-.cs-circuit .carton-nom { --nom-l: 44cqw; --nom-max: 11cqw; --prenom: 4cqw; left: 0; right: 25cqw; top: 96cqw; height: 22cqw; padding: 0 6cqw 0 7cqw; clip-path: polygon(0 0, 100% 0, calc(100% - 5cqw) 100%, 0 100%); font-family: "Exo 2", "Barlow Condensed", sans-serif; font-style: italic; background: linear-gradient(var(--vive) 0 0.6cqw, transparent 0.6cqw), linear-gradient(180deg, #1c2a24, #070d0b); }
+.cs-circuit .carton-nom { --nom-l: 44cqw; --nom-max: 11cqw; --prenom: 4cqw; left: 0; right: 25cqw; top: 106cqw; height: 22cqw; padding: 0 6cqw 0 7cqw; clip-path: polygon(0 0, 100% 0, calc(100% - 5cqw) 100%, 0 100%); font-family: "Exo 2", "Barlow Condensed", sans-serif; font-style: italic; background: linear-gradient(var(--vive) 0 0.6cqw, transparent 0.6cqw), linear-gradient(180deg, #1c2a24, #070d0b); }
 .cs-circuit .carton-nom .fname { font-family: inherit; font-weight: 800; letter-spacing: 0.16em; color: color-mix(in srgb, var(--vive) 50%, white); opacity: 1; }
 .cs-circuit .carton-nom .lname { font-weight: 900; padding-right: 0.12em; color: transparent; background: linear-gradient(180deg, #fff 0%, #e2e7ec 35%, #a3aeb8 80%, #d6dce2 100%); -webkit-background-clip: text; background-clip: text; }
 .cs-circuit .carton-club-nom { color: rgba(255, 255, 255, 0.6); }
-.cs-circuit .carton-club { right: 5cqw; top: 97cqw; width: 20cqw; height: 20cqw; padding: 2.6cqw; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fbfcfb, #c9d2cd); box-shadow: 0 0 0 0.8cqw #c9a24a, 0 0 0 1.4cqw #050c09, 0 0 0 1.9cqw var(--vive); }
+.cs-circuit .carton-club { right: 5cqw; top: 107cqw; width: 20cqw; height: 20cqw; padding: 2.6cqw; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fbfcfb, #c9d2cd); box-shadow: 0 0 0 0.8cqw #c9a24a, 0 0 0 1.4cqw #050c09, 0 0 0 1.9cqw var(--vive); }
 .cs-circuit .carton-imprime { left: 0; right: 0; bottom: 0; height: 10cqw; padding: 0 7cqw; align-items: center; background: linear-gradient(color-mix(in srgb, var(--vive) 70%, transparent) 0 0.3cqw, #050c09 0.3cqw); justify-content: space-between; color: rgba(255, 255, 255, 0.7); }
 .fc-verso.cs-circuit { --v-fond: radial-gradient(120% 80% at 50% 30%, #10291f, #050c09 75%); --v-police: "Exo 2", "Barlow Condensed", sans-serif; --v-style: italic; --v-poids: 900; }
 
 /* 30 · MILLÉNAIRE (1999-00) — le tourbillon holographique de l'an 2000 : un carton nacré dont la moirure irisée tourne, la photo dans un hublot ovale de chrome traversé d'une orbite, l'écusson en planète dessus, le nom techno irisé dans une capsule de verre noir. */
 .cs-millenaire { --c-fond: repeating-conic-gradient(from 0deg at 18% 26%, rgba(255, 255, 255, 0.55) 0 1.5deg, transparent 1.5deg 5deg), repeating-conic-gradient(from 0deg at 84% 70%, rgba(90, 110, 150, 0.16) 0 1.5deg, transparent 1.5deg 5deg), linear-gradient(135deg, #e9f0fb, #fbe3f4 25%, #fff6d8 45%, #d9fbe9 65%, #dcecff 85%, #f2e4ff); --c-encre: #121826; --fini-mode: multiply; --fini-o: 0.6; }
 .cs-millenaire .carton-orne > i:nth-child(1) { left: -2cqw; right: -2cqw; top: 44cqw; height: 26cqw; border-radius: 50%; border: 0.9cqw solid var(--band); box-shadow: 0 0 0 0.4cqw #fff, inset 0 0 0 0.4cqw #fff; transform: rotate(-14deg); }
-.cs-millenaire .carton-photo { left: 13cqw; right: 13cqw; top: 9cqw; height: 84cqw; border-radius: 50%; background: radial-gradient(90% 60% at 50% 25%, #dfe6ee, #8996a6); box-shadow: 0 0 0 0.7cqw #fff, 0 0 0 1.4cqw #7d8896, 0 0 0 1.8cqw #eef2f6, 0 1.5cqw 3cqw rgba(30, 40, 60, 0.35); }
+.cs-millenaire .carton-photo { left: 13cqw; right: 13cqw; top: 9cqw; height: 94cqw; border-radius: 50%; background: radial-gradient(90% 60% at 50% 25%, #dfe6ee, #8996a6); box-shadow: 0 0 0 0.7cqw #fff, 0 0 0 1.4cqw #7d8896, 0 0 0 1.8cqw #eef2f6, 0 1.5cqw 3cqw rgba(30, 40, 60, 0.35); }
 .cs-millenaire .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
 .cs-millenaire .carton-club { left: 3cqw; top: 70cqw; width: 23cqw; height: 23cqw; padding: 4cqw; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #fff, #dfe5ec 40%, #9aa5b2 75%, #eef2f6); box-shadow: 0 0 0 0.6cqw var(--band), 0 0 0 1cqw #fff, 0 1.2cqw 2cqw rgba(30, 40, 60, 0.4); }
-.cs-millenaire .carton-nom { --nom-l: 44cqw; --nom-max: 9cqw; --prenom: 3.4cqw; left: 7cqw; right: 7cqw; top: 100cqw; height: 22cqw; padding: 0 6cqw; border-radius: 11cqw; align-items: center; text-align: center; font-family: "Orbitron", "Barlow Condensed", sans-serif; background: radial-gradient(80% 60% at 50% 0%, rgba(255, 255, 255, 0.22), transparent), linear-gradient(#1d2436, #06080e); box-shadow: 0 0 0 0.6cqw #e3e8ee, 0 0 0 1cqw #7d8896, 0 1cqw 2cqw rgba(30, 40, 60, 0.35); }
+.cs-millenaire .carton-nom { --nom-l: 44cqw; --nom-max: 9cqw; --prenom: 3.4cqw; left: 7cqw; right: 7cqw; top: 110cqw; height: 22cqw; padding: 0 6cqw; border-radius: 11cqw; align-items: center; text-align: center; font-family: "Orbitron", "Barlow Condensed", sans-serif; background: radial-gradient(80% 60% at 50% 0%, rgba(255, 255, 255, 0.22), transparent), linear-gradient(#1d2436, #06080e); box-shadow: 0 0 0 0.6cqw #e3e8ee, 0 0 0 1cqw #7d8896, 0 1cqw 2cqw rgba(30, 40, 60, 0.35); }
 .cs-millenaire .carton-nom .fname { font-weight: 700; letter-spacing: 0.3em; color: #cfd8e6; opacity: 1; }
 .cs-millenaire .carton-nom .lname { font-weight: 900; letter-spacing: 0.04em; color: transparent; background: linear-gradient(100deg, #9ff3ff, #ffd0f4 30%, #fff3b0 50%, #b6ffd6 70%, #a9c8ff); -webkit-background-clip: text; background-clip: text; }
 .cs-millenaire .carton-club-nom { color: #8d99ab; }
@@ -2401,7 +2459,7 @@ a.spin-club:hover { background: var(--fond-2); }
   --c-fond: linear-gradient(transparent 0 66%, rgba(255, 255, 255, 0.3) 66%, rgba(255, 255, 255, 0.06) 66.5%, transparent 74%), radial-gradient(70% 42% at 50% 34%, #3d434c, #15181d 62%, #07080a), linear-gradient(#0b0c0f 66%, #030304 66%);
   --c-encre: #eef2f6;
 }
-.cs-miroir .carton-orne > i:nth-child(1) { left: 0; right: 0; top: 92.4cqw; bottom: 0; background: radial-gradient(55% 46% at 50% 0, color-mix(in srgb, var(--vive) 42%, transparent), transparent 75%), repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 0.3cqw, transparent 0.3cqw 2.4cqw); }
+.cs-miroir .carton-orne > i:nth-child(1) { left: 0; right: 0; top: 102.4cqw; bottom: 0; background: radial-gradient(55% 46% at 50% 0, color-mix(in srgb, var(--vive) 42%, transparent), transparent 75%), repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.025) 0 0.3cqw, transparent 0.3cqw 2.4cqw); }
 .cs-miroir .carton-orne > i:nth-child(2) { top: 0; left: 14cqw; right: 14cqw; height: 92.4cqw; clip-path: polygon(36% 0, 64% 0, 100% 100%, 0 100%); background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.02)); }
 .cs-miroir .carton-orne > i:nth-child(3) { inset: 0; }
 .cs-miroir .carton-orne > i:nth-child(3)::before, .cs-miroir .carton-orne > i:nth-child(3)::after {
@@ -2410,19 +2468,19 @@ a.spin-club:hover { background: var(--fond-2); }
   -webkit-box-reflect: below 6.8cqw linear-gradient(transparent 55%, rgba(255, 255, 255, 0.35));
 }
 .cs-miroir .carton-orne > i:nth-child(3)::after { left: auto; right: 3.2cqw; }
-.cs-miroir .carton-photo { inset: 12cqw 9cqw auto; height: 80.4cqw; overflow: visible; -webkit-box-reflect: below 0 linear-gradient(transparent 52%, rgba(255, 255, 255, 0.34)); }
+.cs-miroir .carton-photo { inset: 12cqw 9cqw auto; height: 90.4cqw; overflow: visible; -webkit-box-reflect: below 0 linear-gradient(transparent 52%, rgba(255, 255, 255, 0.34)); }
 .cs-miroir .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: radial-gradient(130% 105% at 50% 100%, #000 62%, transparent 92%); mask-image: radial-gradient(130% 105% at 50% 100%, #000 62%, transparent 92%); }
 .cs-miroir .carton-photo::after { display: none; }
 .cs-miroir .carton-photo:has(> .carton-action) { box-shadow: 0 0 0 0.45cqw rgba(255, 255, 255, 0.85), 0 0 4cqw 0.6cqw color-mix(in srgb, var(--vive) 35%, transparent); }
 .cs-miroir .carton-deco { box-shadow: inset 0 0 0 0.5cqw rgba(255, 255, 255, 0.08); }
 .cs-miroir .carton-nom {
-  --nom-l: 28.5cqw; --nom-max: 7.4cqw; --prenom: 2.8cqw; left: 7cqw; right: 27cqw; top: 103cqw; height: 18cqw;
+  --nom-l: 28.5cqw; --nom-max: 7.4cqw; --prenom: 2.8cqw; left: 7cqw; right: 27cqw; top: 113cqw; height: 18cqw;
   font-family: "Michroma", "Barlow Condensed", sans-serif; -webkit-box-reflect: below -0.6cqw linear-gradient(transparent 62%, rgba(255, 255, 255, 0.22));
 }
 .cs-miroir .carton-nom .fname { font-weight: 400; letter-spacing: 0.4em; color: color-mix(in srgb, var(--vive) 60%, white); opacity: 1; }
 .cs-miroir .carton-nom .lname { font-weight: 400; letter-spacing: 0.04em; margin-top: 1.6cqw; -webkit-text-stroke: 0.1cqw #dfe5eb; color: transparent; background: linear-gradient(180deg, #ffffff 0%, #e3e8ee 45%, #8a96a3 52%, #f4f6f8 100%); -webkit-background-clip: text; background-clip: text; }
 .cs-miroir .carton-club-nom { display: none; }
-.cs-miroir .carton-club { right: 7cqw; top: 101cqw; width: 18cqw; height: 18cqw; -webkit-box-reflect: below 0.4cqw linear-gradient(transparent 50%, rgba(255, 255, 255, 0.3)); filter: drop-shadow(0 0 1.4cqw color-mix(in srgb, var(--vive) 55%, transparent)); }
+.cs-miroir .carton-club { right: 7cqw; top: 111cqw; width: 18cqw; height: 18cqw; -webkit-box-reflect: below 0.4cqw linear-gradient(transparent 50%, rgba(255, 255, 255, 0.3)); filter: drop-shadow(0 0 1.4cqw color-mix(in srgb, var(--vive) 55%, transparent)); }
 .cs-miroir:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-orne > i:nth-child(1) { z-index: 3; background: linear-gradient(rgba(255, 255, 255, 0.45) 0 0.3cqw, rgba(255, 255, 255, 0.08) 0.3cqw 1cqw, transparent 6cqw), linear-gradient(rgba(5, 6, 8, 0.55), rgba(5, 6, 8, 0.88) 40%); }
 :is(.cs-acier, .cs-miroir):is(.tc-rare, .tc-legendaire) .carton-nom .lname { -webkit-text-stroke: 0; }
 .cs-miroir .carton-imprime { left: 7cqw; right: 7cqw; bottom: 3.8cqw; justify-content: space-between; font: 400 1.9cqw/1 "Michroma", sans-serif; color: rgba(255, 255, 255, 0.5); }
@@ -2435,19 +2493,19 @@ a.spin-club:hover { background: var(--fond-2); }
   --ecu: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 118' preserveAspectRatio='none'%3E%3Cpath d='M0 0H100V50C100 82 75 103 50 118C25 103 0 82 0 50Z'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
 }
 .cs-blason .carton-orne > i:nth-child(1) { inset: 0; background: repeating-linear-gradient(60deg, color-mix(in srgb, var(--ink) 9%, transparent) 0 0.25cqw, transparent 0.25cqw 6cqw), repeating-linear-gradient(-60deg, color-mix(in srgb, var(--ink) 9%, transparent) 0 0.25cqw, transparent 0.25cqw 6cqw); }
-.cs-blason .carton-orne > i:nth-child(2) { left: 10cqw; right: 10cqw; top: 8cqw; height: 96cqw; filter: drop-shadow(-0.35cqw -0.35cqw 0 color-mix(in srgb, white 30%, transparent)) drop-shadow(0.6cqw 0.9cqw 0.6cqw rgba(0, 0, 0, 0.45)); }
+.cs-blason .carton-orne > i:nth-child(2) { left: 10cqw; right: 10cqw; top: 8cqw; height: 103cqw; filter: drop-shadow(-0.35cqw -0.35cqw 0 color-mix(in srgb, white 30%, transparent)) drop-shadow(0.6cqw 0.9cqw 0.6cqw rgba(0, 0, 0, 0.45)); }
 .cs-blason .carton-orne > i:nth-child(2)::before { inset: 0; -webkit-mask: var(--ecu); mask: var(--ecu); background: linear-gradient(150deg, color-mix(in srgb, var(--band) 70%, white), var(--band) 50%, color-mix(in srgb, var(--band) 70%, black)); }
 .cs-blason .carton-orne > i:nth-child(2)::after {
   inset: 2.6cqw 2.6cqw 3.4cqw; -webkit-mask: var(--ecu); mask: var(--ecu);
   background: linear-gradient(color-mix(in srgb, var(--band) 72%, black) 0 17cqw, color-mix(in srgb, var(--stripe) 80%, transparent) 17cqw 18cqw, transparent 18cqw), repeating-linear-gradient(90deg, color-mix(in srgb, var(--band) 86%, black) 0 0.3cqw, color-mix(in srgb, var(--band) 94%, white) 0.3cqw 1.6cqw);
 }
-.cs-blason .carton-photo { left: 12.6cqw; right: 12.6cqw; top: 10.6cqw; height: 90cqw; -webkit-mask: var(--ecu); mask: var(--ecu); }
+.cs-blason .carton-photo { left: 12.6cqw; right: 12.6cqw; top: 10.6cqw; height: 97cqw; -webkit-mask: var(--ecu); mask: var(--ecu); }
 .cs-blason .carton-photo::after { background: linear-gradient(transparent 60%, color-mix(in srgb, var(--band) 60%, transparent)); }
-.cs-blason .carton-orne > i:nth-child(3) { left: 2.5cqw; right: 2.5cqw; top: 109cqw; height: 18cqw; z-index: 3; }
+.cs-blason .carton-orne > i:nth-child(3) { left: 2.5cqw; right: 2.5cqw; top: 116cqw; height: 18cqw; z-index: 3; }
 .cs-blason .carton-orne > i:nth-child(3)::before, .cs-blason .carton-orne > i:nth-child(3)::after { top: 0; bottom: 0; width: 15cqw; background: linear-gradient(90deg, #b9a37a, #e0d2b0 70%, #8d7a55); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 5cqw 50%); }
 .cs-blason .carton-orne > i:nth-child(3)::after { right: 0; transform: scaleX(-1); }
 .cs-blason .carton-nom {
-  --nom-l: 48cqw; --nom-max: 10cqw; --prenom: 3.7cqw; left: 11cqw; right: 11cqw; top: 104cqw; height: 19cqw; align-items: center; text-align: center;
+  --nom-l: 48cqw; --nom-max: 10cqw; --prenom: 3.7cqw; left: 11cqw; right: 11cqw; top: 111cqw; height: 19cqw; align-items: center; text-align: center;
   font-family: "Playfair Display", Georgia, serif; color: #241b10;
   background: linear-gradient(transparent 0.8cqw, color-mix(in srgb, var(--band) 75%, #241b10) 0.8cqw 1.2cqw, transparent 1.2cqw calc(100% - 1.2cqw), color-mix(in srgb, var(--band) 75%, #241b10) calc(100% - 1.2cqw) calc(100% - 0.8cqw), transparent 0), linear-gradient(#f6eedb, #e6d7b4);
   box-shadow: 0 1cqw 1.2cqw rgba(0, 0, 0, 0.4);
@@ -2485,9 +2543,9 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 36 · SOUVENIR (2006-07) — la relecture moderne des cartons du début des années 70 : le carton crème, un épais cadre arrondi du club, la photo en arche, le nom en lettrage de collège à deux tons, mais imprimé net, d'aujourd'hui. */
 .cs-souvenir { --c-fond: repeating-linear-gradient(90deg, rgba(120, 90, 40, 0.035) 0 1px, transparent 1px 4px), linear-gradient(135deg, #faf5e7, #efe5cc 70%, #e7dabb); --c-encre: #2a2218; --fini-mode: multiply; --fini-o: 0.6; }
 .cs-souvenir .carton-orne > i:nth-child(1) { inset: 3.2cqw; border: 3.4cqw solid var(--band); border-radius: 7cqw; box-shadow: inset 0 0 0 0.7cqw #faf5e7, inset 0 0 0 1.1cqw var(--stripe), 0 0 0 0.6cqw var(--stripe); }
-.cs-souvenir .carton-photo { left: 11cqw; right: 11cqw; top: 11cqw; height: 74cqw; border-radius: 39cqw 39cqw 2cqw 2cqw; background: radial-gradient(80% 60% at 50% 25%, #eef3f5, #b8c8d1 70%, #93a8b4); box-shadow: 0 0 0 0.9cqw #fffaf0, 0 0 0 1.6cqw var(--band); }
+.cs-souvenir .carton-photo { left: 9cqw; right: 9cqw; top: 11cqw; height: 84cqw; border-radius: 39cqw 39cqw 2cqw 2cqw; background: radial-gradient(80% 60% at 50% 25%, #eef3f5, #b8c8d1 70%, #93a8b4); box-shadow: 0 0 0 0.9cqw #fffaf0, 0 0 0 1.6cqw var(--band); }
 .cs-souvenir .carton-photo::after { background: linear-gradient(transparent 70%, color-mix(in srgb, var(--band) 30%, transparent)); }
-.cs-souvenir .carton-nom { --nom-l: 50cqw; --nom-max: 10.5cqw; --prenom: 3.2cqw; left: 9cqw; right: 9cqw; top: 89cqw; height: 27cqw; align-items: center; text-align: center; font-family: "Graduate", "Barlow Condensed", serif; color: #2a2218; }
+.cs-souvenir .carton-nom { --nom-l: 50cqw; --nom-max: 10.5cqw; --prenom: 3.2cqw; left: 9cqw; right: 9cqw; top: 99cqw; height: 27cqw; align-items: center; text-align: center; font-family: "Graduate", "Barlow Condensed", serif; color: #2a2218; }
 .cs-souvenir .carton-nom .fname { font-weight: 400; letter-spacing: 0.24em; opacity: 1; color: color-mix(in srgb, var(--band) 45%, #2a2218); }
 .cs-souvenir .carton-nom .lname { font-weight: 400; letter-spacing: 0.03em; margin-top: 1.4cqw; padding: 0 1cqw 0.8cqw; color: var(--band); -webkit-text-stroke: 0.55cqw #1f1a14; paint-order: stroke fill; text-shadow: 0.7cqw 0.7cqw 0 var(--stripe); }
 .cs-souvenir .carton-club-nom { font: 400 2.4cqw/1 "Graduate", serif; letter-spacing: 0.3em; color: #6b5a40; margin-top: 0.6cqw; }
@@ -2575,22 +2633,21 @@ a.spin-club:hover { background: var(--fond-2); }
   --fini-mode: multiply; --fini-o: .55;
   --filet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 900 900' fill='none' stroke='%23000'%3E%3Cpath stroke-width='6' d='M48 8H852A40 40 0 0 0 892 48V852A40 40 0 0 0 852 892H48A40 40 0 0 0 8 852V48A40 40 0 0 0 48 8Z'/%3E%3Cpath stroke-width='3' d='M58.6 20H841.4A52 52 0 0 0 880 58.6V841.4A52 52 0 0 0 841.4 880H58.6A52 52 0 0 0 20 841.4V58.6A52 52 0 0 0 58.6 20Z'/%3E%3Cg fill='%23000' stroke='none'%3E%3Ccircle cx='20' cy='20' r='7'/%3E%3Ccircle cx='880' cy='20' r='7'/%3E%3Ccircle cx='20' cy='880' r='7'/%3E%3Ccircle cx='880' cy='880' r='7'/%3E%3Cpath d='M8 430l9 20-9 20-9-20zM892 430l9 20-9 20-9-20z'/%3E%3C/g%3E%3C/svg%3E");
 }
-.cs-filigrane::before { inset: 92cqw -20cqw -40cqw 30cqw; border-radius: 50%; opacity: .5;
+.cs-filigrane::before { inset: 98cqw -20cqw -40cqw 30cqw; border-radius: 50%; opacity: .5;
   background: repeating-radial-gradient(circle, transparent 0 1.1cqw, color-mix(in srgb, var(--fonce) 9%, transparent) 1.1cqw 1.3cqw), repeating-conic-gradient(color-mix(in srgb, var(--fonce) 5%, transparent) 0 3deg, transparent 3deg 6deg);
   -webkit-mask: radial-gradient(closest-side, black 55%, transparent); mask: radial-gradient(closest-side, black 55%, transparent); }
-.cs-filigrane .carton-photo { inset: 8cqw 8cqw auto; height: 84cqw; background: radial-gradient(80% 70% at 50% 30%, #ffffff, color-mix(in srgb, var(--band) 12%, #d4d9de)); }
+.cs-filigrane .carton-photo { inset: 8cqw 8cqw auto; height: 90cqw; background: radial-gradient(80% 70% at 50% 30%, #ffffff, color-mix(in srgb, var(--band) 12%, #d4d9de)); }
 .cs-filigrane .carton-photo > img.visage:not(.silhouette) { -webkit-mask: none; mask: none; }
 .cs-filigrane .carton-photo::after { background: linear-gradient(180deg, transparent 70%, color-mix(in srgb, black 18%, transparent)); box-shadow: inset 0 0 0 0.25cqw color-mix(in srgb, black 25%, transparent); }
 .cs-filigrane .carton-deco { box-shadow: none; }
-.cs-filigrane .carton-deco::after { left: 8cqw; right: 8cqw; top: 90.6cqw; height: 1.4cqw; background: linear-gradient(90deg, var(--band) 0 62%, white 62% 63.5%, var(--stripe) 63.5%); }
-.cs-filigrane .carton-deco::before { left: 5cqw; top: 5cqw; width: 90cqw; height: 90cqw; background: var(--argent);
+.cs-filigrane .carton-deco::after { left: 8cqw; right: 8cqw; top: 96.6cqw; height: 1.4cqw; background: linear-gradient(90deg, var(--band) 0 62%, white 62% 63.5%, var(--stripe) 63.5%); }
+.cs-filigrane .carton-deco::before { left: 5cqw; top: 5cqw; width: 90cqw; height: 96cqw; background: var(--argent);
   -webkit-mask: var(--filet) 0 0 / 100% 100%; mask: var(--filet) 0 0 / 100% 100%; }
-  font: 400 3.1cqw/1 "Bebas Neue", "Barlow Condensed", sans-serif; letter-spacing: 0.42em; text-indent: 0.42em; color: #737c86; }
-.cs-filigrane .carton-nom { --nom-l: 60cqw; --nom-max: 14.5cqw; --prenom: 4.4cqw; left: 8cqw; width: 62cqw; top: 99cqw; height: 29cqw; font-family: "Bebas Neue", "Barlow Condensed", sans-serif; }
+.cs-filigrane .carton-nom { --nom-l: 60cqw; --nom-max: 14.5cqw; --prenom: 4.4cqw; left: 8cqw; width: 62cqw; top: 105cqw; height: 29cqw; font-family: "Bebas Neue", "Barlow Condensed", sans-serif; }
 .cs-filigrane .carton-nom .fname { font-weight: 400; letter-spacing: 0.3em; color: color-mix(in srgb, var(--fonce) 70%, #7d8690); opacity: 1; }
 .cs-filigrane .carton-nom .lname { font-weight: 400; letter-spacing: 0.02em; margin-top: 0.4cqw; line-height: 0.92; }
 .cs-filigrane .carton-club-nom { font-family: "Bebas Neue", sans-serif; font-weight: 400; letter-spacing: 0.3em; color: #8a939d; margin-top: 0.6cqw; }
-.cs-filigrane .carton-club { right: 8cqw; top: 101cqw; width: 19cqw; height: 19cqw; padding: 2.6cqw; background: #fff; box-shadow: 0 0 0 0.35cqw #fff, 0 0 0 0.7cqw #a3abb4, 0 0.8cqw 1.6cqw -0.6cqw color-mix(in srgb, black 35%, transparent); }
+.cs-filigrane .carton-club { right: 8cqw; top: 107cqw; width: 19cqw; height: 19cqw; padding: 2.6cqw; background: #fff; box-shadow: 0 0 0 0.35cqw #fff, 0 0 0 0.7cqw #a3abb4, 0 0.8cqw 1.6cqw -0.6cqw color-mix(in srgb, black 35%, transparent); }
 .cs-filigrane .carton-club::before { content: ''; position: absolute; left: -4.5cqw; top: 1cqw; bottom: 1cqw; width: 0.35cqw; background: var(--argent); }
 .cs-filigrane .carton-imprime { left: 8cqw; right: 8cqw; bottom: 4.4cqw; justify-content: space-between; padding-top: 1.4cqw; color: #6c747d; font-family: "Bebas Neue", sans-serif; font-weight: 400; letter-spacing: 0.24em;
   border-top: 0.3cqw solid; border-image: var(--argent) 1; }
@@ -2737,18 +2794,17 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 47 · CENTENAIRE (2017-18) — l'édition d'anniversaire de la ligue centenaire : un carton noir à fines rayures, une fenêtre en arche cernée d'un double filet d'or, la couronne de laurier dorée à chaud qui tient l'écusson, le nom en didone noire dorée, centré. */
   --laurier: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 50'%3E%3Cpath d='M26.4 46.7A21 21 0 0 1 15.9 10.4M33.6 46.7A21 21 0 0 0 44.1 10.4' fill='none' stroke='%23000' stroke-width='.8'/%3E%3Cellipse cx='26' cy='45.1' rx='3.2' ry='1.25' transform='rotate(340 26 45.1)'/%3E%3Cellipse cx='25' cy='48.1' rx='3.2' ry='1.25' transform='rotate(416 25 48.1)'/%3E%3Cellipse cx='21.8' cy='43.7' rx='3.2' ry='1.25' transform='rotate(353 21.8 43.7)'/%3E%3Cellipse cx='20.1' cy='46.4' rx='3.2' ry='1.25' transform='rotate(429 20.1 46.4)'/%3E%3Cellipse cx='18' cy='41.4' rx='3.2' ry='1.25' transform='rotate(366 18 41.4)'/%3E%3Cellipse cx='15.8' cy='43.7' rx='3.2' ry='1.25' transform='rotate(442 15.8 43.7)'/%3E%3Cellipse cx='14.8' cy='38.3' rx='3.2' ry='1.25' transform='rotate(379 14.8 38.3)'/%3E%3Cellipse cx='12.2' cy='40' rx='3.2' ry='1.25' transform='rotate(455 12.2 40)'/%3E%3Cellipse cx='12.5' cy='34.6' rx='3.2' ry='1.25' transform='rotate(392 12.5 34.6)'/%3E%3Cellipse cx='9.5' cy='35.7' rx='3.2' ry='1.25' transform='rotate(468 9.5 35.7)'/%3E%3Cellipse cx='11' cy='30.4' rx='3.2' ry='1.25' transform='rotate(405 11 30.4)'/%3E%3Cellipse cx='7.8' cy='30.8' rx='3.2' ry='1.25' transform='rotate(481 7.8 30.8)'/%3E%3Cellipse cx='10.5' cy='26' rx='3.2' ry='1.25' transform='rotate(418 10.5 26)'/%3E%3Cellipse cx='7.3' cy='25.7' rx='3.2' ry='1.25' transform='rotate(494 7.3 25.7)'/%3E%3Cellipse cx='11' cy='21.6' rx='3.2' ry='1.25' transform='rotate(431 11 21.6)'/%3E%3Cellipse cx='8' cy='20.6' rx='3.2' ry='1.25' transform='rotate(507 8 20.6)'/%3E%3Cellipse cx='12.5' cy='17.5' rx='3.2' ry='1.25' transform='rotate(444 12.5 17.5)'/%3E%3Cellipse cx='9.7' cy='15.8' rx='3.2' ry='1.25' transform='rotate(520 9.7 15.8)'/%3E%3Cellipse cx='14.8' cy='13.7' rx='3.2' ry='1.25' transform='rotate(457 14.8 13.7)'/%3E%3Cellipse cx='12.6' cy='11.5' rx='3.2' ry='1.25' transform='rotate(533 12.6 11.5)'/%3E%3Cellipse cx='17.7' cy='9' rx='3' ry='1.2' transform='rotate(318 17.7 9)'/%3E%3Cellipse cx='34' cy='45.1' rx='3.2' ry='1.25' transform='rotate(200 34 45.1)'/%3E%3Cellipse cx='35' cy='48.1' rx='3.2' ry='1.25' transform='rotate(124 35 48.1)'/%3E%3Cellipse cx='38.2' cy='43.7' rx='3.2' ry='1.25' transform='rotate(187 38.2 43.7)'/%3E%3Cellipse cx='39.9' cy='46.4' rx='3.2' ry='1.25' transform='rotate(111 39.9 46.4)'/%3E%3Cellipse cx='42' cy='41.4' rx='3.2' ry='1.25' transform='rotate(174 42 41.4)'/%3E%3Cellipse cx='44.2' cy='43.7' rx='3.2' ry='1.25' transform='rotate(98 44.2 43.7)'/%3E%3Cellipse cx='45.2' cy='38.3' rx='3.2' ry='1.25' transform='rotate(161 45.2 38.3)'/%3E%3Cellipse cx='47.8' cy='40' rx='3.2' ry='1.25' transform='rotate(85 47.8 40)'/%3E%3Cellipse cx='47.5' cy='34.6' rx='3.2' ry='1.25' transform='rotate(148 47.5 34.6)'/%3E%3Cellipse cx='50.5' cy='35.7' rx='3.2' ry='1.25' transform='rotate(72 50.5 35.7)'/%3E%3Cellipse cx='49' cy='30.4' rx='3.2' ry='1.25' transform='rotate(135 49 30.4)'/%3E%3Cellipse cx='52.2' cy='30.8' rx='3.2' ry='1.25' transform='rotate(59 52.2 30.8)'/%3E%3Cellipse cx='49.5' cy='26' rx='3.2' ry='1.25' transform='rotate(122 49.5 26)'/%3E%3Cellipse cx='52.7' cy='25.7' rx='3.2' ry='1.25' transform='rotate(46 52.7 25.7)'/%3E%3Cellipse cx='49' cy='21.6' rx='3.2' ry='1.25' transform='rotate(109 49 21.6)'/%3E%3Cellipse cx='52' cy='20.6' rx='3.2' ry='1.25' transform='rotate(33 52 20.6)'/%3E%3Cellipse cx='47.5' cy='17.5' rx='3.2' ry='1.25' transform='rotate(96 47.5 17.5)'/%3E%3Cellipse cx='50.3' cy='15.8' rx='3.2' ry='1.25' transform='rotate(20 50.3 15.8)'/%3E%3Cellipse cx='45.2' cy='13.7' rx='3.2' ry='1.25' transform='rotate(83 45.2 13.7)'/%3E%3Cellipse cx='47.4' cy='11.5' rx='3.2' ry='1.25' transform='rotate(7 47.4 11.5)'/%3E%3Cellipse cx='42.3' cy='9' rx='3' ry='1.2' transform='rotate(-138 42.3 9)'/%3E%3Cpath d='M24 47.5l6-2 6 2-6 1.5z'/%3E%3C/svg%3E"); }
 .cs-centenaire::before { inset: 3cqw; border: 0.4cqw solid #b8913d; box-shadow: inset 0 0 0 0.9cqw #0d0c0a, inset 0 0 0 1.15cqw #8a6a22; border-radius: 2.4cqw; }
-.cs-centenaire .carton-photo { left: 10cqw; right: 10cqw; top: 10cqw; height: 84cqw; border-radius: 40cqw 40cqw 0 0 / 30cqw 30cqw 0 0;
+.cs-centenaire .carton-photo { left: 10cqw; right: 10cqw; top: 10cqw; height: 89cqw; border-radius: 40cqw 40cqw 0 0 / 30cqw 30cqw 0 0;
   background: radial-gradient(70% 60% at 50% 30%, #4a4237, #1a1714 80%); box-shadow: 0 0 0 0.6cqw #0b0a09, 0 0 0 1.2cqw #d4ad55, 0 0 0 1.9cqw #0b0a09, 0 0 0 2.25cqw #9c7a2c; }
 .cs-centenaire .carton-photo > img.visage:not(.silhouette) { inset: 4cqw 0 auto; width: 80cqw; height: 80cqw; filter: contrast(1.08) saturate(.95); -webkit-mask: linear-gradient(black 80%, transparent); mask: linear-gradient(black 80%, transparent); }
 .cs-centenaire .carton-photo::after { background: linear-gradient(transparent 60%, rgba(10, 9, 8, .75)); }
 .cs-centenaire .carton-deco { box-shadow: none; }
-.cs-centenaire .carton-deco::before { left: calc(50% - 18cqw); top: 81cqw; width: 36cqw; height: 30cqw; background: var(--or-feuille); -webkit-mask: var(--laurier) 50% 50% / contain no-repeat; mask: var(--laurier) 50% 50% / contain no-repeat; filter: drop-shadow(0 0.3cqw 0.3cqw rgba(0, 0, 0, .6)); }
-.cs-centenaire .carton-club { left: calc(50% - 8.5cqw); top: 85.5cqw; width: 17cqw; height: 17cqw; padding: 2.8cqw; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #fbf6e6, #e3d6b4); box-shadow: 0 0 0 0.5cqw #0b0a09, 0 0 0 0.9cqw #d4ad55; }
-.cs-centenaire .carton-nom { --nom-l: 60cqw; --nom-max: 10.5cqw; --prenom: 3.4cqw; left: 9cqw; right: 9cqw; top: 111cqw; height: 18cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
+.cs-centenaire .carton-deco::before { left: calc(50% - 18cqw); top: 86cqw; width: 36cqw; height: 30cqw; background: var(--or-feuille); -webkit-mask: var(--laurier) 50% 50% / contain no-repeat; mask: var(--laurier) 50% 50% / contain no-repeat; filter: drop-shadow(0 0.3cqw 0.3cqw rgba(0, 0, 0, .6)); }
+.cs-centenaire .carton-club { left: calc(50% - 8.5cqw); top: 90.5cqw; width: 17cqw; height: 17cqw; padding: 2.8cqw; border-radius: 50%; background: radial-gradient(circle at 50% 35%, #fbf6e6, #e3d6b4); box-shadow: 0 0 0 0.5cqw #0b0a09, 0 0 0 0.9cqw #d4ad55; }
+.cs-centenaire .carton-nom { --nom-l: 60cqw; --nom-max: 10.5cqw; --prenom: 3.4cqw; left: 9cqw; right: 9cqw; top: 116cqw; height: 18cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
 .cs-centenaire .carton-nom .fname { font-weight: 700; letter-spacing: 0.42em; text-indent: 0.42em; color: #c9a85a; opacity: 1; }
 .cs-centenaire .carton-nom .lname { font-weight: 900; letter-spacing: 0.04em; margin-top: 0.8cqw; line-height: 1.12; color: transparent; background: var(--or-feuille); -webkit-background-clip: text; background-clip: text; filter: drop-shadow(0 0.25cqw 0 rgba(0, 0, 0, .7)); }
 .cs-centenaire .carton-club-nom { display: none; }
-  background: linear-gradient(#9c7a2c 0 0) 0 50% / 10cqw 0.25cqw no-repeat, linear-gradient(#9c7a2c 0 0) 100% 50% / 10cqw 0.25cqw no-repeat; }
 .cs-centenaire .carton-imprime { left: 7cqw; right: 7cqw; bottom: 5.4cqw; justify-content: space-between; color: #9c7a2c; font: 700 2.4cqw/1 "Playfair Display", Georgia, serif; letter-spacing: 0.12em; }
 .cs-centenaire .carton-imprime span:first-of-type { visibility: hidden; }
 .cs-centenaire:is(.tc-hors, .tc-rare, .tc-legendaire) .carton-deco { display: block; }
@@ -2780,13 +2836,13 @@ a.spin-club:hover { background: var(--fond-2); }
 .cs-perle { --c-fond: repeating-linear-gradient(45deg, rgba(90, 70, 60, .025) 0 0.2cqw, transparent 0.2cqw 0.8cqw), conic-gradient(from 210deg at 70% 30%, #f7f2ec, #ece6f3, #e4f0ec, #f5e9ec, #f2eee4, #f7f2ec), linear-gradient(#faf7f2, #ece5dc); --c-encre: #23201d;
   --perle: radial-gradient(circle at 38% 34%, #fff 0 14%, #f6f1ec 28%, #ddd3cb 55%, #b3a79c 68%, transparent 72%); }
 .cs-perle::before { inset: 4.5cqw; border: 0.25cqw solid #c9b8a3; border-radius: 2cqw; }
-.cs-perle .carton-photo { left: 15cqw; right: 15cqw; top: 15cqw; height: 74cqw; border-radius: 1.6cqw; background: radial-gradient(80% 70% at 50% 30%, #fbf9f6, color-mix(in srgb, var(--band) 16%, #e6e0d8)); box-shadow: 0 0 0 0.5cqw #fbf8f3, 0 1.4cqw 3cqw -1cqw rgba(60, 40, 20, .35); }
+.cs-perle .carton-photo { left: 11cqw; right: 11cqw; top: 15cqw; height: 84cqw; border-radius: 1.6cqw; background: radial-gradient(80% 70% at 50% 30%, #fbf9f6, color-mix(in srgb, var(--band) 16%, #e6e0d8)); box-shadow: 0 0 0 0.5cqw #fbf8f3, 0 1.4cqw 3cqw -1cqw rgba(60, 40, 20, .35); }
 .cs-perle .carton-photo > img.visage:not(.silhouette) { inset: 4cqw -1cqw auto; width: 72cqw; height: 72cqw; -webkit-mask: linear-gradient(black 85%, transparent); mask: linear-gradient(black 85%, transparent); }
 .cs-perle .carton-photo::after { background: linear-gradient(transparent 75%, rgba(60, 40, 20, .12)); }
 .cs-perle .carton-deco { box-shadow: none; }
-.cs-perle .carton-deco::before { left: 11.4cqw; right: 11.4cqw; top: 11.4cqw; height: 81.2cqw; padding: 2.4cqw; box-sizing: border-box; border-radius: 3.4cqw; background: var(--perle) 0 0 / 2.4cqw 2.4cqw space;
+.cs-perle .carton-deco::before { left: 7.4cqw; right: 7.4cqw; top: 11.4cqw; height: 91.2cqw; padding: 2.4cqw; box-sizing: border-box; border-radius: 3.4cqw; background: var(--perle) 0 0 / 2.4cqw 2.4cqw space;
   -webkit-mask: linear-gradient(black 0 0) content-box, linear-gradient(black 0 0); -webkit-mask-composite: xor; mask: linear-gradient(black 0 0) content-box exclude, linear-gradient(black 0 0); filter: drop-shadow(0 0.2cqw 0.2cqw rgba(60, 40, 20, .3)); }
-.cs-perle .carton-nom { --nom-l: 46cqw; --nom-max: 9.5cqw; --prenom: 3.6cqw; left: 10cqw; right: 10cqw; top: 97cqw; height: 22cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
+.cs-perle .carton-nom { --nom-l: 46cqw; --nom-max: 9.5cqw; --prenom: 3.6cqw; left: 10cqw; right: 10cqw; top: 107cqw; height: 22cqw; align-items: center; text-align: center; font-family: "Playfair Display", Georgia, serif; }
 .cs-perle .carton-nom .fname { font: italic 700 var(--prenom)/1 "Playfair Display", Georgia, serif; letter-spacing: 0.32em; text-indent: 0.32em; text-transform: none; color: #8c7a66; opacity: 1; }
 .cs-perle .carton-nom .lname { font-style: italic; font-weight: 700; letter-spacing: 0.16em; text-indent: 0.16em; margin-top: 1.4cqw; line-height: 1.15; }
 .cs-perle .carton-club-nom { color: #9a8b78; font-family: "Playfair Display", Georgia, serif; letter-spacing: 0.4em; text-indent: 0.4em; font-size: 2.6cqw; margin-top: 1.4cqw; }
@@ -2813,16 +2869,16 @@ a.spin-club:hover { background: var(--fond-2); }
   -webkit-mask-image: linear-gradient(#000, transparent 72%); mask-image: linear-gradient(#000, transparent 72%);
 }
 .cs-bulle .carton-orne > i:nth-child(1) { left: 0; right: 0; bottom: 0; height: 1.6cqw; background: linear-gradient(90deg, var(--band) 0 70%, var(--stripe) 70% 74%, var(--band) 74%); }
-.cs-bulle .carton-orne > i:nth-child(2) { left: 5cqw; top: 9cqw; width: 90cqw; height: 90cqw; border-radius: 50%; border: 0.4cqw solid var(--band); -webkit-mask: conic-gradient(from 196deg, #000 0 58deg, transparent 0 196deg, #000 0 238deg, transparent 0); mask: conic-gradient(from 196deg, #000 0 58deg, transparent 0 196deg, #000 0 238deg, transparent 0); }
-.cs-bulle .carton-photo { left: 12cqw; top: 16cqw; width: 76cqw; height: 76cqw; border-radius: 50%; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--band) 45%, white), var(--band) 64%, color-mix(in srgb, var(--band) 72%, black)); box-shadow: 0 0 0 1.3cqw #ffffff, 0 0 0 2cqw var(--band), 0 1.8cqw 3.4cqw -0.6cqw color-mix(in srgb, black 40%, transparent); }
+.cs-bulle .carton-orne > i:nth-child(2) { left: 5cqw; top: 9cqw; width: 90cqw; height: 100cqw; border-radius: 50%; border: 0.4cqw solid var(--band); -webkit-mask: conic-gradient(from 196deg, #000 0 58deg, transparent 0 196deg, #000 0 238deg, transparent 0); mask: conic-gradient(from 196deg, #000 0 58deg, transparent 0 196deg, #000 0 238deg, transparent 0); }
+.cs-bulle .carton-photo { left: 8cqw; top: 16cqw; width: 84cqw; height: 86cqw; border-radius: 50%; background: radial-gradient(circle at 50% 30%, color-mix(in srgb, var(--band) 45%, white), var(--band) 64%, color-mix(in srgb, var(--band) 72%, black)); box-shadow: 0 0 0 1.3cqw #ffffff, 0 0 0 2cqw var(--band), 0 1.8cqw 3.4cqw -0.6cqw color-mix(in srgb, black 40%, transparent); }
 .cs-bulle .carton-photo > img.visage:not(.silhouette) { -webkit-mask-image: none; mask-image: none; }
 .cs-bulle .carton-photo::after { border-radius: 50%; background: conic-gradient(from 30deg, #ff9fd8, #9fd6ff, #b9ffd8, #fff2a6, #ffb9e8, #9fd6ff, #ff9fd8); mix-blend-mode: screen; opacity: 0.7; -webkit-mask: radial-gradient(closest-side, transparent 87%, #000 99%); mask: radial-gradient(closest-side, transparent 87%, #000 99%); }
 .cs-bulle .carton-photo:has(> .carton-action)::after { opacity: 0.4; }
 .cs-bulle .carton-deco { box-shadow: none; }
-.cs-bulle .carton-deco::before { left: 15cqw; top: 19cqw; width: 70cqw; height: 70cqw; border-radius: 50%; box-shadow: inset 1.4cqw 2cqw 0.8cqw -0.8cqw color-mix(in srgb, white 80%, transparent); -webkit-mask: linear-gradient(135deg, #000 20%, transparent 45%); mask: linear-gradient(135deg, #000 20%, transparent 45%); }
+.cs-bulle .carton-deco::before { left: 11cqw; top: 19cqw; width: 78cqw; height: 78cqw; border-radius: 50%; box-shadow: inset 1.4cqw 2cqw 0.8cqw -0.8cqw color-mix(in srgb, white 80%, transparent); -webkit-mask: linear-gradient(135deg, #000 20%, transparent 45%); mask: linear-gradient(135deg, #000 20%, transparent 45%); }
 .cs-bulle .carton-deco::after { left: 24cqw; top: 25cqw; width: 3.4cqw; height: 2.2cqw; border-radius: 50%; background: color-mix(in srgb, white 85%, transparent); transform: rotate(-38deg); filter: blur(0.15cqw); }
 .cs-bulle .carton-club { right: 6.5cqw; top: 70cqw; width: 22cqw; height: 22cqw; padding: 3.8cqw; border-radius: 50%; background: radial-gradient(circle at 34% 28%, #ffffff, #eef1f5 62%, #d9dfe6); box-shadow: 0 0 0 0.8cqw var(--band), 0 0 0 1.4cqw #ffffff, 0 1.2cqw 2.2cqw color-mix(in srgb, black 30%, transparent); }
-.cs-bulle .carton-nom { --nom-l: 84cqw; --nom-max: 16cqw; --prenom: 4.6cqw; left: 8cqw; right: 8cqw; top: 99cqw; height: 25cqw; align-items: center; text-align: center; font-family: "Bebas Neue", "Barlow Condensed", sans-serif; }
+.cs-bulle .carton-nom { --nom-l: 84cqw; --nom-max: 16cqw; --prenom: 4.6cqw; left: 8cqw; right: 8cqw; top: 109cqw; height: 25cqw; align-items: center; text-align: center; font-family: "Bebas Neue", "Barlow Condensed", sans-serif; }
 .cs-bulle .carton-nom :is(.fname, .lname) { font-weight: 400; }
 .cs-bulle .carton-nom .fname { letter-spacing: 0.36em; padding-left: 0.36em; color: #5d6570; opacity: 1; }
 .cs-bulle .carton-nom .lname { letter-spacing: 0.03em; line-height: 0.92; margin-top: 0.4cqw; }
@@ -2838,18 +2894,18 @@ a.spin-club:hover { background: var(--fond-2); }
 /* 51 · ORIGINE (2021-22) — le retour aux sources : une épaisse bordure du club, le panneau crème tramé d'offset, la grande photo arrondie sur un ciel de studio, le nom collège en bloc sur le pied plein, souligné des rayures d'un bas de hockey, l'écusson dans un sceau dentelé. */
 .cs-origine { --c-fond: radial-gradient(140% 100% at 50% 35%, transparent 55%, rgba(0, 0, 0, 0.28)), var(--band); --c-encre: var(--ink); --fini-mode: multiply; --fini-o: 0.5; }
 .cs-origine::before {
-  left: 5.5cqw; right: 5.5cqw; top: 6.5cqw; height: 87cqw; border-radius: 3cqw;
+  left: 5.5cqw; right: 5.5cqw; top: 6.5cqw; height: 94cqw; border-radius: 3cqw;
   background: radial-gradient(circle, rgba(120, 86, 34, 0.16) 0.22cqw, transparent 0.32cqw) 0 0 / 1.3cqw 1.3cqw, radial-gradient(120% 90% at 50% 40%, #f8f1dc 55%, #e6d6b2);
   box-shadow: 0 0 0 0.7cqw color-mix(in srgb, var(--band) 60%, black), inset 0 0 0 1.1cqw #f8f1dc, inset 0 0 0 1.45cqw var(--stripe);
 }
-.cs-origine .carton-photo { left: 10.5cqw; right: 10.5cqw; top: 14cqw; height: 74cqw; border-radius: 8cqw; background: radial-gradient(circle, rgba(40, 70, 95, 0.12) 0.3cqw, transparent 0.42cqw) 0 0 / 1.6cqw 1.6cqw, radial-gradient(90% 60% at 50% 18%, #f2f6f4, transparent 70%), linear-gradient(#cdd9df, #8fa6b5); box-shadow: 0 0 0 1.5cqw var(--band), 0 0 0 2.1cqw #f8f1dc; }
+.cs-origine .carton-photo { left: 8.5cqw; right: 8.5cqw; top: 14cqw; height: 81cqw; border-radius: 8cqw; background: radial-gradient(circle, rgba(40, 70, 95, 0.12) 0.3cqw, transparent 0.42cqw) 0 0 / 1.6cqw 1.6cqw, radial-gradient(90% 60% at 50% 18%, #f2f6f4, transparent 70%), linear-gradient(#cdd9df, #8fa6b5); box-shadow: 0 0 0 1.5cqw var(--band), 0 0 0 2.1cqw #f8f1dc; }
 .cs-origine .carton-photo > img.visage:not(.silhouette) { filter: contrast(1.08) saturate(0.92) sepia(0.08); -webkit-mask-image: linear-gradient(#000 86%, transparent); mask-image: linear-gradient(#000 86%, transparent); }
 .cs-origine .carton-photo::after { background: linear-gradient(transparent 72%, color-mix(in srgb, var(--band) 30%, transparent)); }
 .cs-origine .carton-photo:has(> .carton-action)::after { background: none; box-shadow: inset 0 0 1.6cqw rgba(0, 0, 0, 0.35); }
 .cs-origine .carton-deco { box-shadow: inset 0 0 0 0.6cqw color-mix(in srgb, white 22%, transparent); }
-.cs-origine .carton-orne > i:nth-child(1) { right: 4cqw; top: 92cqw; width: 27cqw; height: 27cqw; z-index: 4; background: radial-gradient(circle, transparent 0 60%, color-mix(in srgb, var(--stripe) 55%, black) 61% 63%, transparent 64%), var(--stripe); clip-path: polygon(50% 0, 56.7% 7.5%, 65.5% 2.4%, 69.5% 11.7%, 79.4% 9.5%, 80.4% 19.6%, 90.5% 20.6%, 88.3% 30.5%, 97.6% 34.5%, 92.5% 43.3%, 100% 50%, 92.5% 56.7%, 97.6% 65.5%, 88.3% 69.5%, 90.5% 79.4%, 80.4% 80.4%, 79.4% 90.5%, 69.5% 88.3%, 65.5% 97.6%, 56.7% 92.5%, 50% 100%, 43.3% 92.5%, 34.5% 97.6%, 30.5% 88.3%, 20.6% 90.5%, 19.6% 80.4%, 9.5% 79.4%, 11.7% 69.5%, 2.4% 65.5%, 7.5% 56.7%, 0 50%, 7.5% 43.3%, 2.4% 34.5%, 11.7% 30.5%, 9.5% 20.6%, 19.6% 19.6%, 20.6% 9.5%, 30.5% 11.7%, 34.5% 2.4%, 43.3% 7.5%); filter: drop-shadow(0 0.8cqw 0.8cqw rgba(0, 0, 0, 0.35)); }
-.cs-origine .carton-club { right: 8.2cqw; top: 96.2cqw; width: 18.6cqw; height: 18.6cqw; padding: 3cqw; border-radius: 50%; background: radial-gradient(circle at 40% 32%, #fffaf0, #efe3c6); box-shadow: inset 0 0 0 0.5cqw color-mix(in srgb, var(--stripe) 60%, black), inset 0 0.8cqw 1.2cqw rgba(120, 86, 34, 0.25); }
-.cs-origine .carton-nom { --nom-l: 44cqw; --nom-max: 12.5cqw; --prenom: 3.8cqw; left: 6.5cqw; right: 31cqw; top: 97cqw; height: 30cqw; font-family: "Graduate", "Barlow Condensed", serif; color: var(--ink); }
+.cs-origine .carton-orne > i:nth-child(1) { right: 4cqw; top: 99cqw; width: 27cqw; height: 27cqw; z-index: 4; background: radial-gradient(circle, transparent 0 60%, color-mix(in srgb, var(--stripe) 55%, black) 61% 63%, transparent 64%), var(--stripe); clip-path: polygon(50% 0, 56.7% 7.5%, 65.5% 2.4%, 69.5% 11.7%, 79.4% 9.5%, 80.4% 19.6%, 90.5% 20.6%, 88.3% 30.5%, 97.6% 34.5%, 92.5% 43.3%, 100% 50%, 92.5% 56.7%, 97.6% 65.5%, 88.3% 69.5%, 90.5% 79.4%, 80.4% 80.4%, 79.4% 90.5%, 69.5% 88.3%, 65.5% 97.6%, 56.7% 92.5%, 50% 100%, 43.3% 92.5%, 34.5% 97.6%, 30.5% 88.3%, 20.6% 90.5%, 19.6% 80.4%, 9.5% 79.4%, 11.7% 69.5%, 2.4% 65.5%, 7.5% 56.7%, 0 50%, 7.5% 43.3%, 2.4% 34.5%, 11.7% 30.5%, 9.5% 20.6%, 19.6% 19.6%, 20.6% 9.5%, 30.5% 11.7%, 34.5% 2.4%, 43.3% 7.5%); filter: drop-shadow(0 0.8cqw 0.8cqw rgba(0, 0, 0, 0.35)); }
+.cs-origine .carton-club { right: 8.2cqw; top: 103.2cqw; width: 18.6cqw; height: 18.6cqw; padding: 3cqw; border-radius: 50%; background: radial-gradient(circle at 40% 32%, #fffaf0, #efe3c6); box-shadow: inset 0 0 0 0.5cqw color-mix(in srgb, var(--stripe) 60%, black), inset 0 0.8cqw 1.2cqw rgba(120, 86, 34, 0.25); }
+.cs-origine .carton-nom { --nom-l: 44cqw; --nom-max: 12.5cqw; --prenom: 3.8cqw; left: 6.5cqw; right: 31cqw; top: 104cqw; height: 30cqw; font-family: "Graduate", "Barlow Condensed", serif; color: var(--ink); }
 .cs-origine .carton-nom :is(.fname, .lname) { font-weight: 400; }
 .cs-origine .carton-nom .fname { letter-spacing: 0.16em; opacity: 0.9; }
 .cs-origine .carton-nom .lname { letter-spacing: 0; line-height: 1.05; text-shadow: 0.45cqw 0.45cqw 0 color-mix(in srgb, var(--band) 55%, black); }
@@ -3249,7 +3305,7 @@ a.spin-club:hover { background: var(--fond-2); }
  * LE DOS SUR SA COQUE (`dosDeCarton`, js/cartes.js) : le carton de la série fait le pourtour, comme au recto — son cadre,
  * le métal de l'édition —, et le texte se lit sur le panneau du dos, en retrait de la marge du cadre (`--v-marge`).
  */
-.fc-verso > .carton-dos { position: absolute; inset: 0; aspect-ratio: auto; }
+.fc-verso > :is(.carton-dos, .carton-a-plat) { position: absolute; inset: 0; aspect-ratio: auto; }
 .cjv-panneau {
   position: absolute; inset: var(--v-marge, 4.5%); z-index: 5; display: flex; flex-direction: column; gap: var(--esp-1);
   padding: var(--esp-2); overflow-y: auto; overscroll-behavior: contain; border-radius: 2.5% / 1.8%; background: var(--v-fond);
@@ -3358,6 +3414,11 @@ a.spin-club:hover { background: var(--fond-2); }
 .dos-10 .cjv-table-wrap { border-width: 1px; }
 .dos-10 .cjv-saisons tbody tr:nth-child(even) { background: color-mix(in srgb, currentColor 6%, transparent); }
 .dos-10 .fc-sec { font-size: var(--t-1); letter-spacing: 0.24em; }
+/* Le dos d'une carte couchée : couché aussi ; l'en-tête, les tableaux et le pied sur toute la largeur, le reste en deux colonnes. */
+.fc-verso.couchee .cjv-panneau { display: block; column-count: 2; column-gap: var(--esp-3); }
+.fc-verso.couchee .cjv-panneau > * { break-inside: avoid; margin-bottom: var(--esp-1); }
+.fc-verso.couchee :is(.cjv-tete, .cjv-table-wrap, .cjv-pied) { column-span: all; }
+.fc-verso.couchee .fc-filigrane { display: none; }
 /* LES DOS PAR SÉRIE (`SERIES[…].dos`, js/cartes.js) : où chaque série range son en-tête, son numéro et ses saisons. */
 .fc-verso.centre .cjv-tete { flex-wrap: wrap; justify-content: center; text-align: center; }
 .fc-verso.centre .cjv-nom { flex: 0 1 auto; }
@@ -5055,8 +5116,8 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
  */
 .carton.tc-verso {
   position: absolute; inset: 0; z-index: 1; aspect-ratio: auto;
-  --encre: var(--c-encre); --encre-2: #395067; --encre-3: #6b7f93; --fond-3: color-mix(in srgb, var(--c-encre) 14%, transparent);
-  --bon: #17804a; --mauvais: #b3262c;
+  --encre: var(--c-encre); --encre-2: color-mix(in srgb, var(--c-encre) 78%, white); --encre-3: color-mix(in srgb, var(--c-encre) 58%, white);
+  --fond-3: color-mix(in srgb, var(--c-encre) 14%, transparent); --bon: var(--bon-sur-carton); --mauvais: var(--mauvais-sur-carton);
 }
 .cs-glace.tc-verso::before { display: none; }
 .tcv-corps {

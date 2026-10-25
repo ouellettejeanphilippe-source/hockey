@@ -23,7 +23,9 @@
  * Elle rend aussi quatre MESURES de l'image entière, que la fabrication lit
  * pour écarter une vue d'aréna sans joueur (scripts/actions.mjs) : le contour
  * médian (une foule nette partout), la clarté du bas (des gradins sombres
- * sous la glace), la part de glace au centre, la part d'aplats.
+ * sous la glace), la part de glace au centre, la part d'aplats ; et une
+ * cinquième, `garde`, la part du jeu que la fenêtre garde : trop peu, et la
+ * photo devient une carte couchée (scripts/actions_couchees.mjs).
  *
  * OCT. 2026 — TOUTE LA HAUTEUR, LA FACE AU CENTRE. JP : *rentrer soit tout le vertical ou le horizontal dans la
  * carte* ; *j'aime les photos plus de loin qu'on voit tout le joueur au complet*. La fenêtre 5:7 garde toute la
@@ -99,6 +101,8 @@ export async function recadrerAction(blob, { largeur = 400, hauteur = 560, quali
   // Le visage, s'il est connu, l'emporte : la face au milieu de la fenêtre.
   if (Number.isFinite(centre)) gx = Math.round(centre * w - fl / 2);
   gx = Math.max(0, Math.min(w - fl, gx));
+  // Ce que la fenêtre garde du jeu : la part des contours de l'image entière qui tombe dedans (scripts/actions_couchees.mjs).
+  mesures.garde = r3(cumul[w] > 0 ? (cumul[gx + fl] - cumul[gx]) / cumul[w] : 1);
 
   // 3. En hauteur : le haut juste au-dessus du premier contour fort, dans les colonnes gardées.
   let gy = 0;
