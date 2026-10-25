@@ -61,7 +61,20 @@ Calibré sur douze ligues de 32 vrais clubs (scripts/lib/voies.mjs, graines 7000
 
 ## 5. Les coachs
 
-`check_voies` (chaque coach à sa III, sur une équipe bâtie pour lui, en paires) : voir le tableau ci-dessous, rempli à la mesure.
+`check_voies` (chaque coach à sa III, sur une équipe bâtie pour lui, en paires, quatre ligues de 32 clubs) : la bande est de 6 à 8 V. Sans les systèmes, trois coachs en sortaient ; leur III est recalée, rien d'autre ne bouge.
+
+| Coach | Sur son équipe, sans systèmes | V18 | Ce qui change à sa III |
+|---|---|---|---|
+| 🐢 La Tortue | 8,2 V | 7,6 V | La défense ×0,897 → ×0,906 : sans l'étouffé, fermer la porte pèse plus (docs/sans-systemes.md) |
+| 🐝 Le Frelon | 6,7 V | 6,7 V | — |
+| 🦏 Le Rhino | 8,5 V | 7,2 V | Le plafond de sa robustesse +3,2 → +2,8 écarts : sans l'étouffé, cogner pèse plus ; l'équipe bâtie pour lui touche le plafond, si bien que sa robustesse de III (+1,3 vers +1,1) n'y changeait rien (à +2,4, 5,9 V) |
+| 🦅 L'Aigle | 7,0 V | 7,0 V | — |
+| 🫁 Le Doc | 6,6 V | 6,6 V | — |
+| 😇 L'Abbé | 6,0 V | 7,0 V | La discipline ×0,68 → ×0,64 (*ajuste-le*) : ses manieurs de rondelle perdent 💨 la sortie rapide, qui était un système |
+| 🪜 Le Contremaître | 7,1 V | 7,1 V | — |
+| 🌠 Le Showman | 6,4 V | 6,4 V | — |
+
+Chaque coach vaut plus sur son équipe que sur une équipe mélangée ; les voies restent à ±1 V l'une de l'autre, deux à deux.
 
 ## 6. Les écrans du Rogue
 

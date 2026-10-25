@@ -123,7 +123,7 @@ export const COACHS = {
   tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', familles: { paie: ['defense'], coute: 'tir' }, recrute: 'des two-way et des défenseurs défensifs',
     paliers: [{ defense: 0.965, prix: { volume: 0.99 } }, { defense: 0.94, prix: { volume: 0.98 } }, { defense: 0.906, prix: { volume: 0.97 } }] },
   rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', familles: { paie: ['robustesse'], coute: 'jeu' }, recrute: 'des bagarreurs et des défenseurs physiques',
-    paliers: [{ robustesse: 0.4, prix: { discipline: 1.04 } }, { robustesse: 0.8, prix: { discipline: 1.08 } }, { robustesse: 1.1, blessure: 0.80, plafonds: { robustesse: 3.2 }, prix: { discipline: 1.12 } }] },
+    paliers: [{ robustesse: 0.4, prix: { discipline: 1.04 } }, { robustesse: 0.8, prix: { discipline: 1.08 } }, { robustesse: 1.3, blessure: 0.80, plafonds: { robustesse: 2.8 }, prix: { discipline: 1.12 } }] },
   souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', familles: { paie: ['robustesse'], coute: 'tir' }, recrute: 'des plombiers',
     paliers: [{ energie: 0.79, blessure: 0.564, prix: { robustesse: -0.25 } }, { energie: 0.694, blessure: 0.409, volume: 1.03, prix: { robustesse: -0.5 } }, { energie: 0.607, blessure: 0.26, volume: 1.06, prix: { robustesse: -0.75 } }] },
   choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', familles: { paie: ['jeu'], coute: 'robustesse' }, recrute: 'des manieurs de rondelle',
