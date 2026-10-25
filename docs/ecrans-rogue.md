@@ -33,7 +33,7 @@ Une petite PR chacune ; le juge de chacune est nommé.
 
 ## La revue du 25 octobre : contre EHM, New Star Soccer et MLB The Show
 
-JP, 25 oct. : *les écrans du Rogue, je les passe un à un contre EHM, New Star Soccer et MLB The Show, et je te montre ce qui reste, ce qui part et ce qui se fusionne*. La boussole, 24 oct. : *quelqu'un qui a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement… on simplifie sans perdre la complexité*. Chaque écran a été capturé à 390 × 844 dans une run jouée du classeur au gros match de la 28e journée ; la page avec les captures : {{PAGE}}.
+Le chantier, relancé par JP le 25 octobre : passer chaque écran du Rogue contre EHM, New Star Soccer et MLB The Show, et dire ce qui reste, ce qui part et ce qui se fusionne. La boussole, 24 oct. : *quelqu'un qui a joué à EHM, New Star Soccer, MLB The Show mobile se retrouve facilement… on simplifie sans perdre la complexité*. Chaque écran a été capturé à 390 × 844 dans une run jouée du classeur au gros match de la 28e journée ; la page avec les captures : https://claude.ai/artifact/CXUsbFYXA6BCDiTZjhLwgC.
 
 ### Ce que les trois apprennent
 

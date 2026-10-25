@@ -1,6 +1,6 @@
 # Sans les systèmes de ligne
 
-25 octobre 2026. JP, au duel de la V17 : *même les stratégies de lignes, c'est à jeter*. Avant de les jeter : ce que chaque coach y perd, mesuré, et ce que chacun devient. Rien n'est jeté ici ; ce document est la mesure et la proposition. La mesure : `node scripts/mesure_sans_systemes.mjs`.
+25 octobre 2026. JP, au duel de la V17 : *même les stratégies de lignes, c'est à jeter*. Avant de les jeter : ce que chaque coach y perd, mesuré, et ce que chacun devient. Rien n'est jeté ici ; ce document est la mesure et la proposition. La mesure : `node scripts/mesure_sans_systemes.mjs`. La page, avec la revue des écrans : https://claude.ai/artifact/CXUsbFYXA6BCDiTZjhLwgC.
 
 ## 1. Ce que les systèmes font aujourd'hui
 
@@ -74,8 +74,18 @@ Sans système, un coach est ce qu'il était déjà : sa philosophie (sa confianc
 
 - 🐝 **Le Frelon** : « tirer de partout » par ses joueurs, devant le filet (le power forward) et de la pointe (le défenseur offensif). Il perd l'élan que lui donnait 🛫, et c'est bien : il était déjà trop fort. Rien à faire.
 - 🦅 **L'Aigle** : moins de tirs, plus de précision ; il devient plus lui-même (« Chaque lancer doit rentrer »). Rien à faire.
-- 🐢 **La Tortue** et 🦏 **le Rhino** : leur III recalée pour revenir dans la bande (la défense de la III de la Tortue, ×0,897, vers ×0,91 ; la robustesse du Rhino, +1,3, vers +1,1 ; à mesurer par `check_voies`).
-- 😇 **L'Abbé** et 🌠 **le Showman** : leurs joueurs gardent leurs points, mais leur badge doit faire quelque chose sur la glace. Proposition, sans mécanique neuve : **la chimie revient aux joueurs**. Une ligne a de la chimie sans système, de ses passeurs et de ses manieurs (`chimieDesBadges`, un fit de base égal à celui d'aujourd'hui) ; l'action spéciale reste, l'étouffé part avec le cycle des systèmes. Et le ☯ two-way d'une paire étouffe comme celui d'un trio (`EFFET_ROLE.deuxsens`). {{VARIANTE}}
+- 🐢 **La Tortue** et 🦏 **le Rhino** : sans système et sans chimie, leur III sort de la bande (8,6 et 9,4 V) ; avec la chimie aux joueurs, la Tortue y revient (7,4 V). Le Rhino se remesure alors avec `check_voies` ; sinon, sa robustesse de III, +1,3, vers +1,1.
+- 😇 **L'Abbé** et 🌠 **le Showman** : leurs joueurs gardent leurs points, mais leur badge doit faire quelque chose sur la glace. Proposition, sans mécanique neuve : **la chimie revient aux joueurs**. Une ligne a de la chimie sans système, de ses passeurs et de ses manieurs (`chimieDesBadges`, un fit de base égal à celui d'aujourd'hui) ; l'action spéciale reste, l'étouffé part avec le cycle des systèmes. Et le ☯ two-way d'une paire étouffe comme celui d'un trio (`EFFET_ROLE.deuxsens`).
+
+  **Mesuré** (la même mesure, douze ligues, sur une copie du moteur hors du dépôt : la chimie d'une ligne sans système vaut celle d'un fit de 63, le fit moyen des systèmes que l'IA choisit, plus ses passeurs et ses manieurs ; `SPEC_NORME` à 0,95 ; la ligue à 3,08 buts, −2 %) :
+
+  | Coach | Avec | Sans | Chimie aux joueurs |
+  |---|---|---|---|
+  | 😇 L'Abbé | +6,3 V (III +6,2) | +5,4 V (III +6,4) | +4,7 V (III +5,8) |
+  | 🌠 Le Showman | +2,4 V (III +6,5) | +2,6 V (III +6,6) | +2,1 V (III +6,3) |
+  | 🐢 La Tortue | +10,8 V (III +7,0) | +12,6 V (III +8,6) | +12,0 V (III +7,4) |
+
+  La chimie aux joueurs ne coûte rien et ne rend rien en victoires (le Showman, dans le bruit) ; elle garde au passeur et au manieur un effet sur la glace, l'action spéciale de leur ligne. Et elle ramène la III de la Tortue dans la bande (7,4 V) : c'était l'absence d'actions spéciales qui la gonflait, pas un défaut de ses paliers. Le two-way d'une paire qui étouffe rend +0,6 V à ses joueurs. **L'Abbé reste le seul à perdre** (−1 à −1,6 V selon le monde) : ses manieurs perdent 💨 la sortie rapide (+10 % de tirs pour la paire, −4 % de buts contre), un vrai canal. Il lui faut l'un ou l'autre : le manieur garde ce canal comme le sien (les tirs de sa paire, comme le défenseur offensif, à la moitié), ou sa III monte d'un cran (sa discipline de ×0,68 vers ×0,64).
 - 🫁 **Le Doc**, 🪜 **le Contremaître** : rien ne bouge.
 - 🏦 **Le Comptable** : rien ne le touche.
 
@@ -91,5 +101,6 @@ Sans système, un coach est ce qu'il était déjà : sa philosophie (sa confianc
 ## 6. Ce que JP tranche
 
 1. **Jeter les systèmes partout, ou seulement en Rogue.** La mesure est en Rogue. Partout, le 82-0 se recale (la ligue à −4 % de buts, `check_ratings`, `check_feuilles`, `check_parts`) et le code part pour de bon ; en Rogue seulement, le 82-0 garde ses systèmes automatiques et le code reste. Recommandé : partout, pour une seule lecture du moteur.
-2. **La chimie aux joueurs** (§ 4) : oui, ou le passeur et le manieur cherchent un autre canal.
-3. **La Tortue et le Rhino recalés** dans la bande de `check_voies`.
+2. **La chimie aux joueurs** (§ 4) : recommandée. Elle ne coûte rien, garde l'action spéciale (le jeu d'une ligne, que le direct raconte) et ramène la Tortue dans la bande ; seul le cycle des contres (l'étouffé) part.
+3. **L'Abbé** : le manieur garde le canal de la sortie rapide, ou sa III monte d'un cran.
+4. **Le Rhino**, remesuré après : recalé seulement s'il sort encore de la bande.
