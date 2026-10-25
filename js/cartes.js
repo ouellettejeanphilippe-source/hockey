@@ -175,7 +175,8 @@ export function carteHtml(c) {
   const ico = c.ico ? `<span class="tcj-ico" aria-hidden="true">${c.ico}</span>` : art;
   /*
    * CE QU'ELLE FAIT SE LIT À SON VERSO (JP : *mettre les stats derrière la carte*). Le recto est la carte, rien d'autre ;
-   * la toucher la retourne (`brancherInclinaison`). Toucher ne prend plus : « Prendre », dessous, prend.
+   * la toucher la retourne (`brancherInclinaison`). Toucher ne prend plus : « Prendre », dessous, prend. Le verso est le
+   * dos du même carton : la glace, le métal de sa rareté, la bande de son genre en tête et l'imprimé au pied.
    */
   const verso = `${c.texteHtml || c.bonHtml || c.prixHtml ? `<span class="tc-texte">${c.texteHtml ? `<span class="tc-quoi">${c.texteHtml}</span>` : ''}${c.bonHtml ? `<span class="choix-option-bon">+ ${c.bonHtml}</span>` : ''}${c.prixHtml ? `<span class="choix-option-prix">− ${c.prixHtml}</span>` : ''}</span>` : ''}${c.pucesHtml ? `<span class="choix-puces tc-puces">${c.pucesHtml}</span>` : ''}`;
   const face = verso ? 'button type="button" class="tc-face" aria-pressed="false" title="Toucher pour la retourner"' : 'span class="tc-face"';
@@ -193,7 +194,10 @@ export function carteHtml(c) {
       <span class="carton-club">${ico}</span>
       <span class="carton-imprime"><b>Cap 82-0</b><span>${R.nom}</span></span>
     </span>
-    ${verso ? `<span class="tc-verso">${verso}</span>` : ''}
+    ${verso ? `<span class="carton cs-glace cs-jeu tc-${r} tc-verso">
+      ${brille(r) ? '<span class="carton-lueur" aria-hidden="true"></span><span class="carton-cadre" aria-hidden="true"></span>' : ''}
+      <span class="tcv-corps"><span class="tcv-tete">${ico}<span class="tcv-nom">${c.nomHtml || ''}</span></span>${verso}<span class="tcv-pied"><b>Cap 82-0</b><span>${R.nom}</span></span></span>
+    </span>` : ''}
     </${verso ? 'button' : 'span'}>
     ${c.desactive ? `<span class="choix-option-non">${c.desactive}</span>` : c.statique || c.lecture ? '' : `<button type="button" class="btn-sign tc-prendre" data-choix="${c.cle}">${c.motChoixHtml || 'Prendre'}</button>`}
   </div>`;
@@ -280,18 +284,6 @@ export const brillante = r => EDITIONS.indexOf(r) > 0;
 /* L'édition d'une carte de joueur, ou la Base : ses clés ne sont pas toutes des raretés de cartes de jeu (`hors`). */
 const edition = r => (EDITIONS.includes(r) ? r : 'commune');
 /*
- * LA FEUILLE DE FINITION (S80). JP : *les visuels des cartes sont un peu plus
- * grossiers versus une vraie carte, ça manque de détails, de vrai*. Une vraie
- * parallèle, une holo, une or, c'est le CARTON lui-même qui est traité — le
- * chrome coloré d'un refractor, la feuille prismatique d'une holo, l'or brossé
- * — et pas un filet de couleur autour d'une carte de base. Cette couche se
- * pose sur le carton, SOUS la photo et SOUS chaque mot (style.css, « S80 —
- * DES VRAIES CARTES ») : elle ne teint jamais un visage et ne passe jamais
- * sur un chiffre. Une carte de base n'en porte pas (rien de lourd sur une
- * commune) : les trois gabarits et le verso l'écrivent par ici.
- */
-export const finiHtml = r => (brillante(r) ? '<span class="cj-fini" aria-hidden="true"></span>' : '');
-/*
  * LE COIN D'UNE CARTE DE JOUEUR : le nom de son édition (Cadre, Hors-cadre,
  * Or, Holo), et l'icône d'un autre trait qu'elle joue — l'infobulle dit la
  * phrase entière. Oct. 2026 — JP : *les diamants, je trouve pas ça beau* ;
@@ -324,7 +316,7 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  * année devra être différente* ; *ça doit être pro et commercial, la vraie
  * affaire*. Une série par saison, chacune complète — le carton, la fenêtre de
  * la photo, la plaque du nom, sa typographie (fonts/), ses ornements
- * (`.carton-orne`), sa marque (`.carton-marque`), les petits caractères — et
+ * (`.carton-orne`), les petits caractères — et
  * chacune inspirée des cartes de son année sans en copier aucune (ni marque,
  * ni logo de fabricant). Le dessin de chacune est décrit sur sa règle, dans
  * style.css « LES SÉRIES ».
@@ -334,64 +326,67 @@ const echapper = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '
  *
  * La photo d'action (`photoAction`) n'appartient pas à une série : elle remplit sa
  * fenêtre, et toute la carte aux éditions hautes (oct. 2026).
+ * `dos` range son verso (JP : *varie plus le positionnement des éléments derrière selon les séries*) : `centre` et
+ * `logo-g` reprennent son recto (le nom centré, l'écusson à gauche) ; `tete-bas` (l'en-tête au pied) et `stats-bas`
+ * (les saisons sous les badges) font qu'une année ne range pas son dos comme la précédente (style.css, « LES DOS »).
  */
 export const SERIES = {
-  fanion: { nom: 'Fanion', saison: '1970-71' },
-  almanach: { nom: 'Almanach', saison: '1971-72' },
-  affiche: { nom: 'L\'affiche', saison: '1972-73' },
-  bordure: { nom: 'Bordure', saison: '1973-74' },
-  crosse: { nom: 'La crosse', saison: '1974-75' },
-  tricolore: { nom: 'Tricolore', saison: '1975-76' },
+  fanion: { nom: 'Fanion', saison: '1970-71', dos: 'centre logo-g' },
+  almanach: { nom: 'Almanach', saison: '1971-72', dos: 'tete-bas stats-bas' },
+  affiche: { nom: 'L\'affiche', saison: '1972-73', dos: 'centre logo-g' },
+  bordure: { nom: 'Bordure', saison: '1973-74', dos: 'stats-bas' },
+  crosse: { nom: 'La crosse', saison: '1974-75', dos: 'tete-bas' },
+  tricolore: { nom: 'Tricolore', saison: '1975-76', dos: 'stats-bas' },
   losange: { nom: 'Losange', saison: '1976-77' },
-  kraft: { nom: 'Kraft', saison: '1977-78' },
+  kraft: { nom: 'Kraft', saison: '1977-78', dos: 'tete-bas stats-bas' },
   rayure: { nom: 'Rayure', saison: '1978-79' },
-  vif: { nom: 'Cadre vif', saison: '1979-80' },
-  medaillon: { nom: 'Médaillon', saison: '1980-81' },
-  pointille: { nom: 'Pointillé', saison: '1981-82' },
+  vif: { nom: 'Cadre vif', saison: '1979-80', dos: 'stats-bas' },
+  medaillon: { nom: 'Médaillon', saison: '1980-81', dos: 'logo-g tete-bas' },
+  pointille: { nom: 'Pointillé', saison: '1981-82', dos: 'stats-bas' },
   ecran: { nom: 'Écran', saison: '1982-83' },
-  bandes: { nom: 'Les bandes', saison: '1983-84' },
+  bandes: { nom: 'Les bandes', saison: '1983-84', dos: 'tete-bas stats-bas' },
   quadrillage: { nom: 'Quadrillage', saison: '1984-85' },
-  neon: { nom: 'Néon', saison: '1985-86' },
-  marquoir: { nom: 'Le marquoir', saison: '1986-87' },
-  punaise: { nom: 'Punaise', saison: '1987-88' },
+  neon: { nom: 'Néon', saison: '1985-86', dos: 'stats-bas' },
+  marquoir: { nom: 'Le marquoir', saison: '1986-87', dos: 'tete-bas' },
+  punaise: { nom: 'Punaise', saison: '1987-88', dos: 'stats-bas' },
   vague: { nom: 'La vague', saison: '1988-89' },
-  geant: { nom: 'Le géant', saison: '1989-90' },
+  geant: { nom: 'Le géant', saison: '1989-90', dos: 'logo-g tete-bas stats-bas' },
   patinoire: { nom: 'Patinoire', saison: '1990-91' },
-  marbre: { nom: 'Marbre', saison: '1991-92' },
-  pleine: { nom: 'Pleine glace', saison: '1992-93' },
-  ultra: { nom: 'Ultra', saison: '1993-94' },
+  marbre: { nom: 'Marbre', saison: '1991-92', dos: 'centre stats-bas' },
+  pleine: { nom: 'Pleine glace', saison: '1992-93', dos: 'tete-bas' },
+  ultra: { nom: 'Ultra', saison: '1993-94', dos: 'stats-bas' },
   dorure: { nom: 'Dorure', saison: '1994-95' },
-  refracteur: { nom: 'Réfracteur', saison: '1995-96' },
+  refracteur: { nom: 'Réfracteur', saison: '1995-96', dos: 'tete-bas stats-bas' },
   eclat: { nom: 'Éclat', saison: '1996-97' },
-  ardoise: { nom: 'Ardoise', saison: '1997-98' },
-  circuit: { nom: 'Circuit', saison: '1998-99' },
-  millenaire: { nom: 'Millénaire', saison: '1999-00' },
+  ardoise: { nom: 'Ardoise', saison: '1997-98', dos: 'stats-bas' },
+  circuit: { nom: 'Circuit', saison: '1998-99', dos: 'tete-bas' },
+  millenaire: { nom: 'Millénaire', saison: '1999-00', dos: 'centre logo-g stats-bas' },
   acier: { nom: 'Acier', saison: '2000-01' },
-  decoupe: { nom: 'Découpe', saison: '2001-02' },
+  decoupe: { nom: 'Découpe', saison: '2001-02', dos: 'tete-bas stats-bas' },
   miroir: { nom: 'Miroir', saison: '2002-03' },
-  blason: { nom: 'Blason', saison: '2003-04' },
-  releve: { nom: 'La relève', saison: '2005-06' },
-  souvenir: { nom: 'Souvenir', saison: '2006-07' },
+  blason: { nom: 'Blason', saison: '2003-04', dos: 'centre stats-bas' },
+  releve: { nom: 'La relève', saison: '2005-06', dos: 'tete-bas' },
+  souvenir: { nom: 'Souvenir', saison: '2006-07', dos: 'centre stats-bas' },
   vitre: { nom: 'La baie vitrée', saison: '2007-08' },
-  givre: { nom: 'Givre', saison: '2008-09' },
+  givre: { nom: 'Givre', saison: '2008-09', dos: 'tete-bas stats-bas' },
   prisme: { nom: 'Prisme', saison: '2009-10' },
-  filigrane: { nom: 'Filigrane', saison: '2010-11' },
-  contrejour: { nom: 'Contre-jour', saison: '2011-12' },
-  lame: { nom: 'La lame', saison: '2012-13' },
-  projecteur: { nom: 'Projecteur', saison: '2013-14' },
-  pixel: { nom: 'Pixel', saison: '2014-15' },
+  filigrane: { nom: 'Filigrane', saison: '2010-11', dos: 'stats-bas' },
+  contrejour: { nom: 'Contre-jour', saison: '2011-12', dos: 'centre tete-bas' },
+  lame: { nom: 'La lame', saison: '2012-13', dos: 'stats-bas' },
+  projecteur: { nom: 'Projecteur', saison: '2013-14', dos: 'logo-g' },
+  pixel: { nom: 'Pixel', saison: '2014-15', dos: 'tete-bas stats-bas' },
   encre: { nom: 'Encre', saison: '2015-16' },
-  degrade: { nom: 'Dégradé', saison: '2016-17' },
-  centenaire: { nom: 'Centenaire', saison: '2017-18' },
-  brume: { nom: 'Brume', saison: '2018-19' },
-  perle: { nom: 'Perle', saison: '2019-20' },
-  bulle: { nom: 'La bulle', saison: '2020-21' },
+  degrade: { nom: 'Dégradé', saison: '2016-17', dos: 'stats-bas' },
+  centenaire: { nom: 'Centenaire', saison: '2017-18', dos: 'centre tete-bas' },
+  brume: { nom: 'Brume', saison: '2018-19', dos: 'stats-bas' },
+  perle: { nom: 'Perle', saison: '2019-20', dos: 'centre' },
+  bulle: { nom: 'La bulle', saison: '2020-21', dos: 'centre tete-bas stats-bas' },
   origine: { nom: 'Origine', saison: '2021-22' },
-  spectre: { nom: 'Spectre', saison: '2022-23' },
-  velocite: { nom: 'Vélocité', saison: '2023-24' },
-  apogee: { nom: 'Apogée', saison: '2024-25' },
+  spectre: { nom: 'Spectre', saison: '2022-23', dos: 'centre stats-bas' },
+  velocite: { nom: 'Vélocité', saison: '2023-24', dos: 'tete-bas' },
+  apogee: { nom: 'Apogée', saison: '2024-25', dos: 'centre stats-bas' },
   // L'Aurore était dessinée pour 2026-27 ; la saison en cours n'est pas encore au jeu (scripts/build_shards.py `MATCHS_POUR_JOUER`) : elle habille 2025-26 (JP, 24 oct.).
-  aurore: { nom: 'Aurore', saison: '2025-26' },
+  aurore: { nom: 'Aurore', saison: '2025-26', dos: 'logo-g' },
 };
 const PAR_SAISON = Object.entries(SERIES).map(([cle, s]) => [s.saison, cle]);
 export function serieDe(saison) {
@@ -493,15 +488,31 @@ export function tirageLimite(cle, num = '/99') {
  *                        dorée qui suit la main, la RELIQUE (un carré de
  *                        chandail aux couleurs du club, tissé) ;
  *   legendaire (Holo)  — le cadre en prisme qui tourne, le nom irisé,
- *                        l'arc-en-ciel qui balaie la carte, la signature en
- *                        FAC-SIMILÉ et le TIRAGE numéroté (« 07/25 »).
+ *                        l'arc-en-ciel qui balaie la carte et le TIRAGE
+ *                        numéroté (« 07/25 »). Pas de signature (JP : *c'est laid*).
  * Le tout reste sous les mots : on lit d'abord, on brille ensuite.
  *
  * c : { serie, rarete, portraitHtml, actionSrc, cadre, pos, posClasse, gemmeHtml,
  *       rubanHtml, nomHtml (`formatName`), nomLettres (le nom de famille, pour
  *       la taille de la plaque), nomClasse, logoHtml, club, clubNom, numero,
- *       annee, tirage, signature, clubClasse, eclat }
+ *       annee, tirage, clubClasse, eclat }
  */
+/*
+ * LE DOS DU CARTON (oct. 2026, JP : *chaque série de cartes, joueur et personnel, devrait avoir un style qui fitte des
+ * deux bords*). Le verso pose son texte sur la même coque que le recto — le carton de la série, son cadre, ses ornements,
+ * le métal de son édition, aux couleurs du club — sans la photo ni la plaque : le pourtour d'un dos est celui de sa face.
+ */
+export function dosDeCarton(serie, rarete) {
+  const s = SERIES[serie] ? serie : serieDe('');
+  const r = edition(rarete);
+  return `<span class="carton cs-${s} tc-${r} carton-dos" aria-hidden="true">
+    ${r === 'peu' ? '<span class="carton-fini"></span>' : ''}
+    <span class="carton-orne"><i></i><i></i><i></i></span>
+    <span class="carton-deco"></span>
+    ${r === 'rare' || r === 'legendaire' ? '<span class="carton-lueur"></span>' : ''}
+    ${brillante(r) ? '<span class="carton-cadre"></span>' : ''}
+  </span>`;
+}
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : serieDe('');
   const r = edition(c.rarete);
@@ -513,16 +524,14 @@ export function cartonHtml(c) {
     <span class="carton-orne" aria-hidden="true"><i></i><i></i><i></i></span>
     <span class="carton-photo">${action}${c.portraitHtml || ''}</span>
     <span class="carton-deco" aria-hidden="true"></span>
-    <span class="carton-marque" aria-hidden="true">${SERIES[serie].nom}</span>
     ${r === 'rare' || r === 'legendaire' ? '<span class="carton-lueur" aria-hidden="true"></span>' : ''}
     ${brillante(r) ? '<span class="carton-cadre" aria-hidden="true"></span>' : ''}
     ${r === 'rare' ? '<span class="carton-relique" aria-hidden="true"><i>Relique</i></span>' : ''}
     <span class="carton-pos ${c.posClasse || ''}">${c.pos || ''}</span>
     ${c.rubanHtml || ''}${c.gemmeHtml || ''}
     <span class="carton-nom ${c.nomClasse || ''}" style="--n:${Math.max(4, c.nomLettres || 8)}">${c.nomHtml || ''}${c.clubNom ? `<span class="carton-club-nom">${c.clubNom}</span>` : ''}</span>
-    ${r === 'legendaire' && c.signature ? `<span class="carton-signature" aria-hidden="true" style="--sig:${Math.max(8, c.signature.length)}">${c.signature}<small>fac-similé</small></span>` : ''}
     <span class="carton-club ${c.clubClasse || ''}">${c.logoHtml || ''}<span class="carton-sigle">${c.club || ''}</span></span>
-    <span class="carton-imprime"><b>Nº ${c.numero || ''}</b><span>${SERIES[serie].nom}</span><span>${c.annee || ''}</span></span>
+    <span class="carton-imprime"><b>Nº ${c.numero || ''}</b><span>${c.annee || ''}</span></span>
     ${r === 'legendaire' && c.tirage ? `<span class="carton-tirage">${c.tirage}</span>` : ''}
     ${c.eclat ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}
   </span>`;

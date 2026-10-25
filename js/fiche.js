@@ -11,7 +11,7 @@ import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
-import { numeroDeCarte, sensRarete, finiHtml, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction } from './cartes.js';
+import { numeroDeCarte, sensRarete, tirageLimite, TAILLE_SERIE, serieDe, SERIES, photoAction, dosDeCarton } from './cartes.js';
 import { creditPhoto } from './actions.js';
 import { NOM_VARIANTE, numeroEdition } from './rarete.js';
 import { motDeClub } from './equipes.js';
@@ -613,9 +613,10 @@ function montrerFace(carte, auVerso) {
  * descend ses tailles d'un cran, puis d'un autre (`serre-1`, `serre-2`, style.css) ; au-delà, il défile.
  */
 function serrerVerso(dos) {
+  const panneau = dos.querySelector('.cjv-panneau') || dos;
   dos.classList.remove('serre-1', 'serre-2');
   for (const k of ['serre-1', 'serre-2']) {
-    if (dos.scrollHeight <= dos.clientHeight + 1) return;
+    if (panneau.scrollHeight <= panneau.clientHeight + 1) return;
     dos.classList.remove('serre-1');
     dos.classList.add(k);
   }
@@ -680,6 +681,15 @@ function rangDansLaLigue(p) {
   const r = 1 + e.players.filter(x => x.p !== 'G' && pts(x) > pts(p)).length;
   return r <= 30 ? `${ord(r)} pointeur de la ligue en ${p.s}.` : '';
 }
+/*
+ * LA MISE EN PAGE DU DOS SUIT SON ÉPOQUE (oct. 2026, JP : *changer aussi le layout selon les époques*). Le même contenu,
+ * rangé comme les dos de sa décennie : le vintage des années 70, la grille des années 80, la bande des années 90, les
+ * tuiles des années 2000, l'épuré d'après (style.css, « LES DOS PAR ÉPOQUE »).
+ */
+const dosDeLEpoque = saison => {
+  const an = Number(String(saison || '').slice(0, 4)) || 2010;
+  return `dos-${String(Math.min(2010, Math.max(1970, an - an % 10))).slice(2)}`;
+};
 function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
   const prim = positionLabel(p).split(' / ')[0];
   const vit = [];
@@ -705,15 +715,17 @@ function versoDeCarte(p, numero, rarete, milieu, serie, num = null) {
    * carte imprime le sien. Une photo de la LNH n'en porte pas.
    */
   const credit = photoAction(p) && creditPhoto(p.id, p.s, p.t);
-  return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} fc-cachee" aria-hidden="true">
-    ${finiHtml(rarete)}
+  return `<div class="fc-face fc-verso cj-verso cs-${serie} tc-${rarete} ${dosDeLEpoque(p.s)} ${SERIES[serie].dos || ''} fc-cachee" aria-hidden="true">
+    ${dosDeCarton(serie, rarete)}
+    <div class="cjv-panneau">
     <div class="cjv-tete"><span class="cjv-no" title="Numéro de la carte dans la série"><small aria-hidden="true">Nº</small>${numero}</span><span class="cjv-nom">${esc(p.n)}</span><span class="cjv-pos">${esc(POSTE_MOT[prim] || 'Joueur')}</span><span class="cjv-logo">${getTeamLogoHtml(p.t, 22)}</span></div>
     ${vit.length ? `<div class="cjv-table-wrap"><table class="cjv-table"><thead><tr>${vit.map(([k]) => `<th scope="col">${k}</th>`).join('')}</tr></thead><tbody><tr>${vit.map(([, v]) => `<td>${esc(v)}</td>`).join('')}</tr></tbody></table></div>` : ''}
     ${milieu}
     ${faits.map(f => `<p class="cjv-bio">${esc(f)}</p>`).join('')}
     <div class="fc-filigrane" aria-hidden="true">${getTeamLogoHtml(p.t, 120)}</div>
     ${credit ? `<a class="cjv-credit" href="${esc(credit.url)}" target="_blank" rel="noopener">Photo : ${esc(credit.auteur)} · ${esc(credit.licence)}</a>` : ''}
-    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${SERIES[serie].nom} · série de ${TAILLE_SERIE} cartes</span>${tirage ? `<span class="cjv-tirage" title="Tirage limité">Tirage ${tirage}</span>` : ''}</div>
+    <div class="cjv-pied"><span class="cjv-legal">© ${anneeSerie} Cap 82-0 · ${TAILLE_SERIE} cartes</span>${tirage ? `<span class="cjv-tirage" title="Tirage limité">Tirage ${tirage}</span>` : ''}</div>
+    </div>
   </div>`;
 }
 
