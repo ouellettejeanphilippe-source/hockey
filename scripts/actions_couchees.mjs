@@ -80,13 +80,39 @@ let liste = [];
 for (const id of A.ids || []) {
   const libre = LIBRES[id];
   if (libre ? !SOURCES.includes('commons') : !SOURCES.includes('lnh')) continue;
-  liste.push({ cle: id, urls: libre ? [vignette960(libre.s), libre.s].filter(Boolean) : [SOURCE(id)], wiki: !!libre, centre: A.visages?.[id] ?? null, y: A.cadres?.[id]?.[1] ?? 0.3 });
+  liste.push({ cle: id, urls: libre ? [vignette960(libre.s), libre.s].filter(Boolean) : [SOURCE(id)], wiki: !!libre, fichier: libre && libre.f, centre: A.visages?.[id] ?? null, y: A.cadres?.[id]?.[1] ?? 0.3 });
 }
 if (SOURCES.includes('saisons')) {
   for (const [id, parSaison] of Object.entries(A.saisons || {})) {
-    for (const [saison, e] of Object.entries(parSaison)) liste.push({ cle: `${id}-${saison}`, urls: [vignette(e)], wiki: true, centre: e[5] ?? null, y: e[6]?.[1] ?? 0.3 });
+    for (const [saison, e] of Object.entries(parSaison)) liste.push({ cle: `${id}-${saison}`, urls: [vignette(e)], wiki: true, fichier: e[0], centre: e[5] ?? null, y: e[6]?.[1] ?? 0.3 });
   }
 }
+/*
+ * COMMONS, AU RATIO (JP : *pour Commons, que les photos soient bon ratio à peu près, pas besoin de recadrer ou trouver
+ * la face*). Une photo libre est déjà cadrée par son photographe : en paysage (`RATIO_LIBRE`), elle se couche, rognée
+ * au 7:5 sur son visage connu ou au centre ; en portrait, elle reste debout. Sa taille se lit à l'API de Commons,
+ * cinquante fichiers par requête ; seules les photos en paysage se téléchargent.
+ */
+const RATIO_LIBRE = 1.25;
+const TAILLES = path.join(BRUT, 'tailles-commons.json');
+const tailles = fs.existsSync(TAILLES) ? JSON.parse(fs.readFileSync(TAILLES, 'utf8')) : {};
+const titre = f => String(f).replace(/_/g, ' ');
+const aLire = [...new Set(liste.filter(x => x.wiki && x.fichier && !tailles[titre(x.fichier)]).map(x => titre(x.fichier)))];
+for (let k = 0; k < aLire.length; k += 50) {
+  const lot = aLire.slice(k, k + 50);
+  const url = `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=size&format=json&formatversion=2&titles=${encodeURIComponent(lot.map(t => `File:${t}`).join('|'))}`;
+  for (let essai = 0; essai < 6; essai++) {
+    const r = await fetch(url, { headers: { 'User-Agent': UA, 'Api-User-Agent': UA } });
+    if (r.status === 429) { await new Promise(res => setTimeout(res, 30000 * (essai + 1))); continue; }
+    if (!r.ok) break;
+    for (const pg of (await r.json()).query?.pages || []) { const ii = pg.imageinfo?.[0]; if (ii) tailles[pg.title.replace(/^File:/, '')] = [ii.width, ii.height]; }
+    break;
+  }
+  await new Promise(res => setTimeout(res, 1000));
+}
+fs.writeFileSync(TAILLES, JSON.stringify(tailles));
+const enPaysage = x => { const t = tailles[titre(x.fichier)]; return !!t && t[0] / t[1] >= RATIO_LIBRE; };
+liste = liste.filter(x => !x.wiki || enPaysage(x));
 if (arg('ids', null)) { const ids = new Set(String(arg('ids')).split(',')); liste = liste.filter(x => ids.has(String(x.cle))); }
 liste = liste.slice(0, LIMITE);
 console.log(`\n  ${liste.length} photos (${SOURCES.join(', ')}) · seuil ${SEUIL} · ${LARGEUR} × ${HAUTEUR} · brut dans ${BRUT}\n`);
@@ -140,7 +166,7 @@ const mesurer = async x => {
   const f = await telecharger(x);
   if (!f) return;
   fichiers.set(x.cle, f);
-  try { mesures.set(x.cle, { ...x, ...(await page.evaluate(([b, c]) => window.coucher(b, c), [fs.readFileSync(f).toString('base64'), x.centre])) }); } catch { /* illisible : reste debout */ }
+  try { mesures.set(x.cle, { ...x, ...(await page.evaluate(([b, c]) => window.coucher(b, c), [fs.readFileSync(f).toString('base64'), x.centre ?? (x.wiki ? 0.5 : null)])) }); } catch { /* illisible : reste debout */ }
   if (mesures.size % 250 === 0) console.log(`   ${mesures.size} mesurées · ${Math.round((Date.now() - t0) / 1000)} s`);
 };
 const lnh = liste.filter(x => !x.wiki), wiki = liste.filter(x => x.wiki);
@@ -161,7 +187,7 @@ const couchees = Object.fromEntries(Object.entries(A.couchees || {}).filter(([cl
 let octets = 0;
 for (const [cle, m] of [...mesures].sort((a, b) => String(a[0]).localeCompare(String(b[0])))) {
   const f = path.join(SORTIE, `${cle}.webp`);
-  if (!COUCHEES_A_L_OEIL.has(cle)) { fs.rmSync(f, { force: true }); continue; }
+  if (!m.wiki && !COUCHEES_A_L_OEIL.has(cle)) { fs.rmSync(f, { force: true }); continue; }
   const buf = Buffer.from(m.webp, 'base64');
   fs.writeFileSync(f, buf); octets += buf.length;
   couchees[cle] = centreCouche(m);
@@ -174,12 +200,12 @@ if (LIMITE === Infinity && !arg('ids', null)) {
 const gardes = [...mesures.values()].map(m => m.garde).sort((a, b) => a - b);
 const q = p => gardes[Math.floor(p * (gardes.length - 1))];
 console.log(`\n  ${mesures.size} mesurées · garde : 10 % ${q(0.1)} · médiane ${q(0.5)} · 90 % ${q(0.9)}`);
-const aVoir = [...mesures].filter(([id, m]) => m.garde < SEUIL && !COUCHEES_A_L_OEIL.has(id)).length;
-console.log(`  ${Object.keys(couchees).length} couchées (vues à l'œil) · ${aVoir} sous ${SEUIL} restées debout · ${(octets / 1048576).toFixed(1)} Mo · ${Math.round((Date.now() - t0) / 1000)} s\n`);
+const aVoir = [...mesures].filter(([id, m]) => !m.wiki && m.garde < SEUIL && !COUCHEES_A_L_OEIL.has(id)).length;
+console.log(`  ${Object.keys(couchees).length} couchées (la LNH vue à l'œil, Commons en paysage) · ${aVoir} sous ${SEUIL} restées debout · ${(octets / 1048576).toFixed(1)} Mo · ${Math.round((Date.now() - t0) / 1000)} s\n`);
 
 /* La planche : les photos sous le seuil, entières, leur fenêtre debout (jaune) et couchée (bleue), triées par `garde`, pour les voir à l'œil. */
 if (arg('planche', false)) {
-  const vus = [...mesures].filter(([, m]) => m.garde < SEUIL).sort((a, b) => a[1].garde - b[1].garde);
+  const vus = [...mesures].filter(([, m]) => !m.wiki && m.garde < SEUIL).sort((a, b) => a[1].garde - b[1].garde);
   const fig = ([id, m]) => { const e = 220 / m.W, [x, y, l, h] = m.debout, [cx, cy, cl, ch] = m.couchee; return `<figure style="margin:3px;display:inline-block;vertical-align:top;position:relative;color:${COUCHEES_A_L_OEIL.has(id) ? '#7cf' : '#ccc'};font:11px sans-serif">
     <img src="data:image/jpeg;base64,${fs.readFileSync(fichiers.get(id)).toString('base64')}" style="width:220px;height:${Math.round(m.H * e)}px;display:block">
     <div style="position:absolute;left:${cx * e}px;top:${cy * e}px;width:${cl * e}px;height:${ch * e}px;outline:2px solid #39f"></div>
