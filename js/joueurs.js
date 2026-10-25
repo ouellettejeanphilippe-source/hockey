@@ -2,7 +2,8 @@
  * LES JOUEURS (V7, docs/refonte-v7.md). JP : *même EHM, qui a cent fois plus d'infos, est plus clair*. Une question :
  * qui j'ai, et dans quel état ? L'effectif en un tableau, à la EHM : où il joue, ses jambes, ce qu'il a fait (ta saison
  * à ce jour, ou sa vraie saison), son salaire. Les avants, les défenseurs, les gardiens. Un en-tête trie ; un nom
- * ouvre la fiche. Rien d'autre : les lignes se règlent dans l'onglet Lignes.
+ * ouvre la fiche. Rien d'autre : les lignes se règlent dans l'onglet Lignes. En Rogue, le filtre 🩹 est l'infirmerie (V18-5,
+ * docs/ecrans-rogue.md ; EHM : les blessés vivent dans l'effectif) : qui est blessé, qui joue sa case, ce qui le soigne.
  *
  * Des vraies stats seulement (PJ, B, A, PTS, +/−, tirs, précision ; V, D, % d'arrêts, moyenne), jamais une cote.
  */
@@ -15,7 +16,7 @@ import { blessesAuJour } from './rogue-jeu.js';
 import { slotShort } from './repechage.js';
 
 const GROUPES = [['F', 'Avants'], ['D', 'Défenseurs'], ['G', 'Gardiens']];
-const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false] } };
+const etat = { groupe: 'F', source: 'saison', tri: { F: ['pts', false], D: ['pts', false], G: ['pctArr', false], B: ['pts', false] } };
 
 const pct1 = x => `${virgule((x * 100).toFixed(1))}`;
 /* Ce qu'il a fait : ta saison à ce jour (les feuilles révélées), sinon sa vraie saison. */
@@ -72,12 +73,17 @@ export function remplirJoueurs() {
   };
   // V12-3 : les rappels (le club-école, un ancien, l'échange d'un doublon) se jouent ici, sous le tableau ; jouée, on revient ici.
   const hub = enSaison ? hubActif() : null, maison = hub && hub.maison;
-  const cartes = maison ? maison.html('joueurs') : '';
-  // L'infirmerie a son sous-onglet (Effectif › Infirmerie, V12-2, js/saison.js) : le tableau ne garde que la marque 🩹.
-  host.innerHTML = `<div class="jr-barre">
-      <div class="inv-filtres" role="tablist">${GROUPES.map(([k, t]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${rangees.filter(r => groupeDe(r) === k).length}</span></button>`).join('')}</div>
-      ${enSaison ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
-    </div>
+  // V18-5 : l'infirmerie (l'écran de saison prête ses blessés du jour, js/saison.js `infirmerieHtml`) et ses cartes de soin.
+  const infirmerie = hub && hub.infirmerie;
+  if (g === 'B' && !infirmerie) etat.groupe = 'F';
+  if (etat.groupe !== g) { remplirJoueurs(); return; }
+  const filtres = [...GROUPES.map(([k, t]) => [k, t, rangees.filter(r => groupeDe(r) === k).length]), ...(infirmerie ? [['B', '🩹 Blessés', blesses.size]] : [])];
+  const barre = `<div class="jr-barre">
+      <div class="inv-filtres" role="tablist">${filtres.map(([k, t, n]) => `<button type="button" role="tab" data-groupe="${k}" class="inv-filtre${k === g ? ' on' : ''}" aria-selected="${k === g}">${t} <span>${n}</span></button>`).join('')}</div>
+      ${enSaison && g !== 'B' ? `<div class="seg jr-source">${[['saison', 'Cette saison'], ['vraie', 'Vraie saison']].map(([k, t]) => `<button type="button" data-source="${k}" class="${etat.source === k ? 'on' : ''}">${t}</button>`).join('')}</div>` : ''}
+    </div>`;
+  const cartes = maison ? maison.html(g === 'B' ? 'infirmerie' : 'joueurs') : '';
+  host.innerHTML = g === 'B' ? `${barre}${infirmerie() || '<p class="jr-pied">Personne à l\'infirmerie.</p>'}${cartes}` : `${barre}
     <div class="jr-scroll"><table class="jr-table">
       <thead><tr><th class="jr-col-nom">Joueur</th>${cols.map(([k, t]) => `<th data-tri="${k}" class="${k === cle ? 'on' : ''}" role="button" tabindex="0">${t}${k === cle ? (asc ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
       <tbody>${vues.map(r => `<tr class="${r.s.scratch ? 'reserve' : ''}${blesses.has(r.p) ? ' blesse' : ''}"><td class="jr-col-nom">${nom(r)}</td>${cols.map(([k]) => `<td${k === cle ? ' class="on"' : ''}>${FORMAT[k] ? FORMAT[k](r.st[k]) : r.st[k] ?? '—'}</td>`).join('')}</tr>`).join('')}</tbody>

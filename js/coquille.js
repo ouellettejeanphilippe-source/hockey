@@ -55,9 +55,4 @@ export function signalerVue() {
   if (ecouteur) ecouteur({ type: 'vue', page: pageDuHub() });
 }
 
-/* Ce qui attend dans les volets a changé (V12 : le compte des sous-onglets de la boîte). */
-export function signalerComptes() {
-  if (ecouteur) ecouteur({ type: 'compte' });
-}
-
 export function surCoquille(fn) { ecouteur = fn; }

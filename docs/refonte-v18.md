@@ -78,7 +78,7 @@ Chaque coach vaut plus sur son équipe que sur une équipe mélangée ; les voie
 
 ## 6. Les écrans du Rogue
 
-La carte tranchée par JP (`docs/ecrans-rogue.md`, « La carte qui en sort ») suit dans une PR à elle : la Presse dans la Boîte, le Butin chez l'entraîneur, l'Infirmerie en filtre de Joueurs, les Équipes dans le Classement, Ta saison devient Calendrier, le Palmarès refait pour le Rogue, le Dépistage devient « Avant-match » et reprend les chiffres de Lignes › Équipe, et on règle dans la Boîte. Ici, Lignes › Équipe ne garde que ton équipe ce soir, « Devant le filet » et les unités spéciales.
+La carte tranchée par JP (`docs/ecrans-rogue.md`, « La carte qui en sort ») a suivi dans une PR à elle, V18-5 (« Fait (V18-5) ») : on règle dans la Boîte, la Presse y entre, le Butin va chez l'entraîneur, l'Infirmerie est le filtre 🩹 de Joueurs, les Équipes s'ouvrent du Classement, Ta saison devient Calendrier, le Palmarès est celui du club, le Dépistage devient l'Avant-match, et Lignes › Équipe part derrière le banc (« Devant le filet » sous Filet · réserve).
 
 ## 7. Les preuves
 

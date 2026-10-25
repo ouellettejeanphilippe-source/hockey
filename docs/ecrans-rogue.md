@@ -138,3 +138,22 @@ Dix-sept sous-onglets et cinq onglets de Lignes, soit vingt-deux pages, devienne
 3. **L'Infirmerie dans Joueurs** : défait la V12-2.
 4. **Équipes dans Classement**, **Ta saison devient Calendrier**, **le Palmarès refait pour le Rogue**.
 5. **Lignes › Équipe** : ses chiffres à l'avant-match, sa glace aux trios ; le Dépistage devient « Avant-match ».
+
+JP, 25 octobre : *good* — les cinq, tels quels.
+
+### Fait (V18-5)
+
+| Ce qui change | Où | Ce qui le tient |
+|---|---|---|
+| **On règle dans la Boîte.** Un choix s'ouvre sur place sous sa maison, un à la fois — au matin, celui qui attend ; « ⏳ Encore un choix » l'ouvre là. Les sous-onglets Proprio, Entraîneur et Vestiaire ne montrent plus que leur part (`PERMANENT`), sans choix ; le compte des sous-onglets part avec eux. | js/saison.js `rendreActions`, `vueMaison` ; js/game.js `majSousNav` ; js/coquille.js | `essai_rogue` : chaque choix réglé l'est dans la boîte, aucun sous-onglet n'en porte, trois maisons au moins |
+| **La Presse dans la Boîte.** Ses micros et ses courriels sont des lignes de la boîte, sous « La presse » ; la une revient à Hier soir. | js/saison.js `MAISONS`, `voletJourneeSeul` | |
+| **Le Butin chez l'entraîneur.** L'adjoint d'un palier se choisit sous l'entraîneur, qui l'engage. | js/saison.js `maisonDe` | |
+| **L'Infirmerie dans Joueurs.** Le filtre 🩹 d'Effectif › Joueurs : qui est blessé, qui joue sa case, les cartes de soin. Défait la V12-2. | js/joueurs.js ; js/saison.js `infirmerieHtml`, prêtée par `tabs.hub.infirmerie` | `essai_rogue` 10c |
+| **Équipes dans Classement.** En Rogue, toucher un club du classement ouvre sa feuille ; « ‹ Classement » et le retour y reviennent. Le 82-0 garde son onglet Équipes (les 44 franchises). | js/saison.js `voletClassement`, `clubsAuClassement` | |
+| **Ta saison devient Calendrier.** La route de la saison et tes matchs joués ; « D'où tu viens » part de chez l'entraîneur, qui garde les deux semaines qui viennent. | js/saison.js `voletFiche`, `routeDeuxSemaines` | |
+| **Le Palmarès du club.** En Rogue : ta vitrine, le panthéon (records, chandails retirés, trophées) et tes runs (`meta.lesRuns`). Ils vivaient aux déblocages ; l'historique du 82-0 et l'album qu'il déduisait (js/album.js) partent du Rogue. | js/rogue-jeu.js `palmaresDuClubHtml` ; js/game.js `showLeaderboard` | |
+| **L'Avant-match.** Le Dépistage du Rogue s'appelle l'Avant-match ; son tableau des rangs n'est plus redit. Lignes › Équipe part derrière le banc : ses chiffres par match y étaient déjà (« Attendu ce soir », « Ton alignement ») ; « Devant le filet » passe sous Filet · réserve. | js/saison.js `forcesHtml` ; js/alignement.js `renderRoster` ; js/banc.js ; style.css | |
+
+Vingt-deux pages deviennent dix-sept : Bureau (Boîte · Proprio · Entraîneur · Vestiaire), Effectif (Joueurs · Lignes · Avant-match ; Lignes : Attaque · Défense · AN · DN · Filet · réserve), Marché (Boutique · Album), Ligue (Classement · Calendrier · Meneurs · Palmarès).
+
+Restent, de l'écran par écran plus haut : l'intro sur le fond du Rogue et le coach fusionné avec le joueur de concession ; le tableau de Joueurs qui glisse ; la boutique, les packs d'abord ; « Qui sort ? » plié par ligne ; l'en-tête « Butin » d'un pack acheté ; « Tes cartes » (l'inventaire d'avant la V16, au bouton de l'Album et au menu pause) ; la carte du vestiaire d'un duel au matin et son écran de fin ; le Bureau d'une saison finie qui ouvre le bilan ; « Rien ici. » au pied de Ta run ; le bilan en quatre onglets ; la ligne du match en séries.

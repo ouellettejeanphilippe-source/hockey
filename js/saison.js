@@ -44,7 +44,7 @@ import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, motsDeReponse, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
 import { mainAdverse, energieAdverse } from './combat.js';
 import { diffuserMatch, pastilles } from './direct.js';
-import { inscrireHub, retirerHub, signalerVue, signalerComptes, hubActif } from './coquille.js';
+import { inscrireHub, retirerHub, signalerVue, hubActif } from './coquille.js';
 import { primesDesFils, JETONS, lireMeta, aDebloque } from './rogue.js';
 import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDeLAdjoint } from './scenes.js';
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
@@ -216,19 +216,20 @@ const vignette = (ctx, p) => (ctx.mug
   ? `<span class="cj-mini tc-${ctx.rarete ? ctx.rarete(p) : 'commune'}" style="--team-band:${ctx.band(p.t).bg}" aria-hidden="true">${ctx.mug(p)}</span>` : '');
 
 /*
- * LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md) : un usage chacune ; `maisonDe` y range chaque choix d'À faire.
- * JP : *des onglets ou sous-onglets, un usage par sous-onglet*. Celles qui ont `vide` sont un sous-onglet de leur section
- * (js/game.js, `PAGES_DE`) ; le gros match et la signature gardent leur écran, et la boîte en montre la porte.
+ * LES MAISONS DE LA BOÎTE (V12 — docs/refonte-v12.md ; V18-5, docs/ecrans-rogue.md) : `maisonDe` y range chaque choix
+ * d'À faire, sous la voix qui parle. Les choix se règlent dans la boîte, comme un message d'EHM (JP : *good*) ; celles
+ * qui ont `vide` sont aussi un sous-onglet de leur section (js/game.js, `PAGES_DE`), qui montre ce qu'elle garde
+ * toujours (`PERMANENT`) — `vide` dit ce qu'il montre avant qu'il y ait quelque chose. Le gros match et la signature
+ * gardent leur écran, et la boîte en montre la porte.
  */
 /* Ton histoire (le vestiaire) montre ses derniers moments ; les autres se déplient (V12-4). */
 const RECIT_RECENTS = 8;
 const MAISONS = {
-  proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, ce qu\'il paie, tes contrats', vide: 'il exige ou offre quelque chose' },
-  entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', sous: 'Ton coach, ton personnel, la semaine qui vient', vide: 'il propose le programme de la semaine' },
-  presse: { ico: '🎤', titre: 'La presse', sous: 'Les micros et le courrier', vide: 'un micro ou une lettre t\'attend' },
-  vestiaire: { ico: '🚪', titre: 'Le vestiaire', sous: 'Ce qui se passe entre les gars', vide: 'un gars ou une histoire demande ton avis' },
-  infirmerie: { ico: '🚑', titre: 'L\'infirmerie', sous: 'Les blessés, leurs cases, ce qui les soigne', vide: 'un blessé laisse sa case vide' },
-  butin: { ico: '🃏', titre: 'Le butin', sous: 'Les cartes gagnées, celle de trop', vide: 'une carte se gagne ou déborde' },
+  proprio: { ico: '🏢', titre: 'Le bureau du proprio', sous: 'Ce qu\'il exige, ce qu\'il paie, tes contrats', vide: 'Son mandat arrive avec la saison.' },
+  entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', sous: 'Ton coach, ton personnel, la semaine qui vient', vide: 'Ton coach arrive avec la saison.' },
+  presse: { ico: '🎤', titre: 'La presse', sous: 'Les micros et le courrier' },
+  vestiaire: { ico: '🚪', titre: 'Le vestiaire', sous: 'Ce qui se passe entre les gars', vide: 'Ton histoire s\'écrit match après match.' },
+  infirmerie: { ico: '🚑', titre: 'L\'infirmerie', sous: 'Les blessés, leurs cases, ce qui les soigne' },
   marche: { ico: '🛒', titre: 'Le marché', sous: 'Un pack attend ta signature' },
   match: { ico: '⚔', titre: 'Le gros match', sous: 'Leur intention, ton adjoint' },
 };
@@ -400,7 +401,7 @@ const COLS_DE = { meneursPAT: COL_PAT, meneursGAR: COL_GAR, eqPat: COL_PAT, eqGa
 
 /** L'état d'un menu : la vue des meneurs, les tris, l'équipe ouverte, la limite. */
 const menuNeuf = () => ({
-  vue: 'PAT', limite: 60, equipe: null,
+  vue: 'PAT', limite: 60, equipe: null, club: false,
   tris: {
     meneursPAT: triDe(COL_PAT, 'pts'), meneursGAR: triDe(COL_GAR, 'v'),
     eqPat: triDe(COL_PAT, 'pts'), eqGar: triDe(COL_GAR, 'v'),
@@ -563,7 +564,7 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
 function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, carte = null) {
   const zones = [volet, carte].filter(Boolean);
   const agir = ev => {
-    const el = ev.target.closest('[data-tri], [data-vue], [data-equipe], [data-plus]');
+    const el = ev.target.closest('[data-tri], [data-vue], [data-equipe], [data-plus], [data-club-retour]');
     if (!el || !zones.some(z => z.contains(el))) return;
     const d = el.dataset;
     if (d.tri) {
@@ -573,8 +574,10 @@ function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, car
       const t = menu.tris[id];
       menu.tris[id] = t && t.cle === cle ? { cle, asc: !t.asc } : triDe(colonnes, cle);
     } else if (d.vue) menu.vue = d.vue === 'GAR' ? 'GAR' : 'PAT';
+    else if ('clubRetour' in d) menu.club = false;
     else if (d.equipe) {
       menu.equipe = equipes().find(t => cleEquipe(t) === d.equipe) || menu.equipe;
+      if (d.club) menu.club = true;
       // Le code d'équipe d'un tableau de meneurs vient d'un AUTRE onglet :
       // changer le club sans changer d'onglet ne montrerait rien.
       if (d.ouvrir && ouvrirOnglet) { ev.preventDefault(); ouvrirOnglet(d.ouvrir); return; }
@@ -1572,13 +1575,14 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
     const phraseHtml = `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`;
+    // V18-5 : à l'Avant-match du Rogue, le tableau des rangs est déjà au dépistage calculé (`depistageMatchHtml`) : il n'est pas redit.
     return { mot: duelHtml(adv), detail: phraseHtml + `<div class="hub-forces">
-      <table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
+      ${soirEnVolet ? '' : `<table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
         <tbody>
           <tr><th scope="row">${ctx.esc(nomMoi)}</th>${axes.map((x, i) => cell(x, 'moi', i)).join('')}</tr>
           <tr><th scope="row">${ctx.esc(nomLui)}</th>${axes.map((x, i) => cell(x, 'lui', i)).join('')}</tr>
-        </tbody></table>
+        </tbody></table>`}
       ${decideHtml(axes, nomMoi, nomLui)}
     </div>` };
   }
@@ -2367,19 +2371,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * matchs (chez toi ou chez eux), le gros match contre un rival choisi ou ta bête noire, le lundi, le pack gratuit.
    * Ce qui naîtra en route (une blessure, un événement) n'y est pas : il arrivera dans À faire.
    */
-  const ROUTE_JOURS = 14, ROUTE_PASSES = 5;
+  const ROUTE_JOURS = 14;
+  // EN PUCES (docs/ecrans-rogue.md, E4) : la route se lit d'un coup d'œil, de gauche à droite. D'où tu viens est parti au
+  // Calendrier, qui dit tes matchs joués (V18-5).
   const routeDeuxSemaines = () => {
-    if (!ctx.rogue || jour >= N) return { vient: '', passe: '' };
+    if (!ctx.rogue || jour >= N) return '';
     const fin = Math.min(N, jour + ROUTE_JOURS), arrets = [];
-    // D'OÙ TU VIENS (JP : *on voit pas les matchs d'avant*) : tes cinq derniers, le plus récent en bas, chacun ouvre son
-    // sommaire. Celui d'hier a déjà son bloc sous la route : il n'est pas redit.
-    const passes = miens.filter(x => x.j < jour - 1).slice(-ROUTE_PASSES).map(({ j, k, m }) => {
-      const adv = m.A === you ? m.B : m.A, v = gagne(m, you), moi = m.A === you ? m.gfA : m.gfB, eux = m.A === you ? m.gfB : m.gfA;
-      const somm = m.feuille ? ` data-sommaire="saison|${j}|${k}" role="button" tabindex="0" title="Le sommaire du match"` : '';
-      // EN PUCES (docs/ecrans-rogue.md, E4) : la route se lit d'un coup d'œil, de gauche à droite, et le Bureau tient à l'écran.
-      return `<li class="rt-arret rt-joue ${v ? 'v' : 'd'}"${somm} aria-label="Journée ${j + 1}"><span class="rt-ico" aria-hidden="true">${ctx.logo(adv.tag, 18)}</span>
-        <span class="rt-txt">${m.A === you ? '' : 'chez '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res"><b>${v ? 'V' : 'D'}</b> ${moi}–${eux}${m.ot ? '<small>prolongation</small>' : ''}</span></li>`;
-    });
     let n = miens.length;
     for (let j = jour; j < fin; j++) {
       if (j > jour && j % SEMAINE === 0) arrets.push('<li class="rt-arret rt-lundi" aria-label="Lundi"><span class="rt-ico" aria-hidden="true">📅</span></li>');
@@ -2393,10 +2390,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <span class="rt-ico" aria-hidden="true">${gros && MINI_BOSS[gros.raison] ? MINI_BOSS[gros.raison].ico : ctx.logo(adv.tag, 18)}</span>
         <span class="rt-txt">${m.A === you ? '' : 'chez '}${ctx.esc(ctx.tagCourt(adv))}</span><span class="rt-res">${j === jour ? 'Ce soir' : `J${j + 1}`}</span>${pack}</li>`);
     }
-    // V12-4 : ce qui vient reste ouvert ; d'où tu viens se plie avec la route de la saison (le passé et le long terme).
-    const avant = passes.length ? `<div class="bu-route-t">D'où tu viens</div><ol class="rt-liste rt-passes">${passes.join('')}</ol>` : '';
-    return { vient: arrets.length ? `<section class="bu-route" aria-label="La route"><div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol></section>` : '',
-      passe: avant ? `<section class="bu-route" aria-label="D'où tu viens">${avant}</section>` : '' };
+    return arrets.length ? `<section class="bu-route" aria-label="La route"><div class="bu-route-t">La route · deux semaines</div><ol class="rt-liste">${arrets.join('')}</ol></section>` : '';
   };
   const voletJourneeSeul = () => {
     if (soirEnVolet && !jour) return '';
@@ -2413,9 +2407,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // HIER SOIR, EN UN BLOC (JP : *narration, limiter d'avoir à chercher*) : le résultat et son but gagnant, le drame, le
     // gros match, la une, puis autour de la ligue. Un congé hier : la une de la semaine et la ligue seulement.
     // V9 : le lundi, la semaine passée pliée en tête du volet ; les nouvelles (ce qui arrive sans rien demander) après la une.
-    // V12-2 : la route a son sous-onglet, la une celui de la presse ; Hier soir garde le résultat et les nouvelles.
+    // V12-2 : la route a son sous-onglet ; la une revient à Hier soir quand la presse part dans la boîte (V18-5).
     const bouge = promessesQuiBougent().map(t => `<div class="som-l">${ctx.esc(t)}</div>`).join('');
-    if (soirEnVolet) return `${semainePasseeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${nouvellesHtml()}${autourHtml()}</section>`;
+    if (soirEnVolet) return `${semainePasseeHtml()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${nouvellesHtml()}${autourHtml()}</section>`;
     return `${cartesDuBureau()}<section class="hub-soir" aria-label="Hier soir">${mien}${mbMot}${bouge}${uneHtml()}${autourHtml()}</section>${portailHtml()}`;
   };
 
@@ -2451,10 +2445,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
 
   const voletClassement = () => {
+    // V18-5 (EHM : la fiche d'un club s'ouvre du classement) : un club touché montre sa feuille ici, et « ‹ Classement » y revient.
+    if (clubsAuClassement && menu.club) return `<button type="button" class="btn hub-retour-club" data-club-retour>‹ Classement</button>${equipesDuHub()}`;
     // LE CLASSEMENT COMME DANS LE JOURNAL (S30) : la fiche, les points, les
     // buts, et les deux colonnes qui disent la forme du moment — la séquence
     // en cours et les dix derniers matchs.
-    const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}"><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} <span class="nom-long">${ctx.esc(ctx.teamShort(t))}</span><span class="nom-court">${ctx.esc(ctx.tagCourt(t))}</span></td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${sequenceDe(t)}</td><td>${dixDerniers(t)}</td></tr>`; };
+    const ouvre = t => (clubsAuClassement ? ` data-equipe="${ctx.esc(cleEquipe(t))}" data-club="1" role="button" tabindex="0" title="L'alignement de ${ctx.esc(ctx.teamLabel(t))} à ce jour"` : '');
+    const rangee = (t, i) => { const g = fiche.get(t); return `<tr class="${t === you ? 'toi' : ''}${i === enSeries - 1 ? ' cut' : ''}${clubsAuClassement ? ' a-club' : ''}"${ouvre(t)}><td>${i + 1}</td><td class="nom">${ctx.logo(t.tag, 14)} <span class="nom-long">${ctx.esc(ctx.teamShort(t))}</span><span class="nom-court">${ctx.esc(ctx.tagCourt(t))}</span></td><td>${g.W + g.L + g.OTL}</td><td>${g.W}</td><td>${g.L}</td><td>${g.OTL}</td><td class="heros">${g.PTS}</td><td>${g.GF}</td><td>${g.GA}</td><td>${g.GF - g.GA > 0 ? '+' : ''}${g.GF - g.GA}</td><td>${sequenceDe(t)}</td><td>${dixDerniers(t)}</td></tr>`; };
     return `${resultatsDuJour()}<div class="live-tableau hub-classement"><div class="live-tableau-titre">Classement · journée ${jour} · les ${enSeries} premiers vont en séries</div>
       <table><thead><tr><th>#</th><th>Équipe</th><th>PJ</th><th>V</th><th>D</th><th>DP</th><th class="heros">PTS</th><th>BP</th><th>BC</th><th>Diff</th><th title="La séquence en cours">Séq.</th><th title="Les dix derniers matchs : V-D-DP">10 derniers</th></tr></thead>
       <tbody>${classement().map(rangee).join('')}</tbody></table></div>`;
@@ -2634,8 +2631,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return deckDeCartons(cartesDeStyle({ profil: p, ligue: l, style: motDeStyle(p, l) }), { cle: 'style' });
   };
   const voletFiche = () => {
-    // V12-2 : en Rogue, la route de la saison est au sous-onglet de la route, ton histoire à celui du vestiaire.
-    const route = soirEnVolet ? '' : routeFiche(), histoire = soirEnVolet ? '' : recitHtml();
+    // V18-5 : le Calendrier — la route de la saison, puis tes matchs joués ; en Rogue, ton histoire est au vestiaire.
+    const route = jour < N ? routeFiche() : '', histoire = soirEnVolet ? '' : recitHtml();
     if (!miens.length) return `${route}${calendrierFiche()}<div class="hub-note">Aucun match joué encore.</div>`;
     const lignes = miens.slice().reverse().map(({ j, k, m }) => {
       const adv = m.A === you ? m.B : m.A;
@@ -2664,33 +2661,39 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     }
     return m;
   };
+  // La feuille d'un club : l'onglet Équipes, ou (V18-5, en Rogue) le club ouvert du Classement.
+  const equipesDuHub = () => equipesHtml(ctx, {
+    teams: classement(), compte, you, menu, matchsDe, blessesDe,
+    anciens: t => (t === you ? [...compte.keys()].filter(p => !equipeDe.has(p) && (compte.get(p).gp || 0) > 0) : []),
+    ficheDe: t => { const g = fiche.get(t); return `${g.W}-${g.L}-${g.OTL} · ${g.PTS} pts · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'} · ${g.GF} BP · ${g.GA} BC`; },
+  });
 
   // En Rogue, le dépistage est un volet d'Effectif (leur plan, les forces, ton plan, tes lignes) ; `soir` le garde du dernier rendu.
   const soirEnVolet = !!(ctx.rogue && onDecision);
+  // V18-5 : en Rogue, un club s'ouvre du Classement ; l'onglet Équipes est parti.
+  const clubsAuClassement = soirEnVolet;
   let soir = null;
-  // V12 : en Rogue, chaque maison de la boîte est un volet (un sous-onglet de sa section) ; `vueMaison` le rend, `rendreActions` le pose.
-  const maisonEnVolet = k => soirEnVolet && ONGLETS_MAISONS.includes(k);
-  let vueMaison = null, aRegler = {};
+  // V12 : en Rogue, les maisons qui ont un sous-onglet sont un volet ; `vueMaison` le rend, `rendreActions` le pose.
+  let vueMaison = null;
   const tabs = onglets(barre, volet, [
     { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' },
-    ...(soirEnVolet ? [{ cle: 'depistage', ico: 'i-list', titre: 'Dépistage', page: 'depistage' }] : []),
+    // V18-5 : le dépistage du Rogue s'appelle l'Avant-match (EHM : le rapport d'avant-match).
+    ...(soirEnVolet ? [{ cle: 'depistage', ico: 'i-list', titre: 'Avant-match', page: 'depistage' }] : []),
     { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
-    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' }, { cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' },
-    // LA SAISON, sous la Ligue : le proprio, la run, l'infirmerie, puis « Ma fiche » : la route, ton histoire, tes matchs.
+    { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' },
+    ...(clubsAuClassement ? [] : [{ cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' }]),
+    // LE CALENDRIER (V18-5 ; c'était « Ta saison ») : la route de la saison, ton style, la prévision, tes matchs joués.
     // La boîte de réception n'a plus d'onglet (V7) : elle vit au Bureau, sous l'affiche (rendue dans .hub-actions).
-    { cle: 'saison', ico: 'i-saison', titre: 'Saison', page: 'saison' },
+    { cle: 'saison', ico: 'i-saison', titre: 'Calendrier', page: 'saison' },
     ...(soirEnVolet ? ONGLETS_MAISONS.map(k => ({ cle: k, ico: 'i-list', titre: MAISONS[k].titre, page: k })) : []),
   ], cle => {
+    if (cle !== 'classement') menu.club = false;
     if (cle === 'depistage') return voletDepistage();
     if (MAISONS[cle]) return vueMaison ? vueMaison(cle) : '';
     if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
     if (cle === 'meneurs') return meneursHtml(ctx, compte, equipeDe, you, `journée ${jour}`, menu);
-    if (cle === 'equipes') return equipesHtml(ctx, {
-      teams: classement(), compte, you, menu, matchsDe, blessesDe,
-      anciens: t => (t === you ? [...compte.keys()].filter(p => !equipeDe.has(p) && (compte.get(p).gp || 0) > 0) : []),
-      ficheDe: t => { const g = fiche.get(t); return `${g.W}-${g.L}-${g.OTL} · ${g.PTS} pts · ${rangDe(t)}${rangDe(t) === 1 ? 'er' : 'e'} · ${g.GF} BP · ${g.GA} BC`; },
-    });
+    if (cle === 'equipes') return equipesDuHub();
     return voletJournee();
   });
   /*
@@ -2704,6 +2707,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
   // V12-3 : une page hors de l'écran de saison (Effectif › Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
   if (onDecision && ctx.maison) tabs.hub.maison = { html: k => ctx.maison.cartes(k, jour), jouer: (item, apres) => ctx.maison.jouer(item, jour, d => { if (apres) apres(); decideDuMarche(d); }) };
+  // V18-5 : l'infirmerie est le filtre 🩹 d'Effectif › Joueurs ; l'écran de saison lui prête ses blessés du jour.
+  if (soirEnVolet) tabs.hub.infirmerie = () => infirmerieHtml();
   // UN JOUEUR À SIGNER (un pack ouvert, personne de signé) se traite au Marché : le Marché demande s'il y en a un, et le rouvre.
   if (onDecision && ctx.boutique && ctx.boutique.rouvrir) {
     // Pas avant que l'écran soit dessiné : la boîte lit des constantes que l'ouverture n'a pas encore posées.
@@ -2713,8 +2718,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
   // LA DÉCISION DU JOUR, PRÊTÉE (S80) : une carte posée au verso d'une fiche ouverte n'importe où pendant la saison.
   if (onDecision) { tabs.hub.decider = d => { const j = jour; quitter(); onDecision({ jour: j, ...d }, j); }; tabs.hub.jour = () => jour; }
-  // Le compte de chaque sous-onglet (V12) : ce qui attend d'y être réglé.
-  tabs.hub.aRegler = k => aRegler[k] || 0;
   /*
    * UNE TUILE S'OUVRE SUR SA CARTE (S77) : la forme sur « Ma fiche », le
    * classement sur le classement, le deck sur le deck. Un seul écouteur,
@@ -2727,10 +2730,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (t.dataset.ouvre) tabs.montrer(t.dataset.ouvre);
   };
   volet.addEventListener('click', ouvrirTuile);
-  const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), cle => tabs.montrer(cle), carte);
-  // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre.
+  // Un lien d'équipe (les meneurs) ouvre son club : l'onglet Équipes, ou en Rogue le Classement, où il s'ouvre (V18-5).
+  const versOnglet = cle => { if (cle === 'equipes' && clubsAuClassement) { menu.club = true; tabs.montrer('classement'); } else tabs.montrer(cle); };
+  const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), versOnglet, carte);
+  // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre. Un club
+  // ouvert au Classement est un niveau de plus : le retour rend le classement.
   tabs.hub.ouvrirPage = ui.ouvrirPage;
-  tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux);
+  const fermerClub = () => { if (!menu.club || tabs.courant() !== 'classement') return false; menu.club = false; tabs.rafraichir(); return true; };
+  tabs.hub.fermerPage = (silencieux = false) => ui.fermerPage(silencieux) || (!silencieux && fermerClub());
+  tabs.hub.clubsAuClassement = clubsAuClassement;
   // La prévision se lance au toucher (une seconde de calcul) et reste jusqu'à la prochaine journée ou décision.
   const lancerPrevision = e => {
     const b = e.target.closest('.hub-prev-lancer');
@@ -2756,12 +2764,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
   volet.addEventListener('click', dansLaMain);
   volet.addEventListener('keydown', dansLaMain);
-  // UN SOUS-ONGLET DE LA BOÎTE (V12) : une option touchée part, « Les chiffres » les déplie.
-  let toucherOption = null;
+  // UN SOUS-ONGLET D'UNE MAISON (V12) : « Les chiffres » les déplie, une carte s'y joue.
   volet.addEventListener('click', e => {
     if (!actif() || !MAISONS[tabs.courant()]) return;
-    const b = e.target.closest('.af-option[data-choix]');
-    if (b && volet.contains(b) && toucherOption) { toucherOption(b); return; }
     const c = e.target.closest('.af-chiffres');
     if (c && volet.contains(c)) { const o = basculerChiffres(); c.closest('.af-onglet').classList.toggle('chiffres', o); c.setAttribute('aria-pressed', String(o)); return; }
     // Une carte se joue dans sa maison (V12-2, V12-3) : le personnel s'engage, un soin se donne, un contrat se signe.
@@ -3039,7 +3044,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const corpsDuDepistage = () => {
         const d = depistageMatchHtml(p);
         if (!soirEnVolet) return `<div class="hub-dep-corps">${detailDuSoir}${grosDepistage}<div class="hub-dep-calc">${d.chances}${d.detail}</div></div>`;
-        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}<details class="dep-plie"><summary>Le détail du dépistage</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
+        return `<div class="hub-dep-corps">${d.chances}${onDecision ? d.plan : ''}<details class="dep-plie"><summary>Le détail du match</summary><div class="hub-dep-calc">${duelHtml(adv, { complet: true })}${detailDuSoir}${grosDepistage}${d.detail}</div></details></div>`;
       };
       const ouvrirDepistage = () => {
         ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
@@ -3602,10 +3607,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return out;
   }
   /*
-   * LA MAISON D'UN CHOIX (V12 — docs/refonte-v12.md). JP : *plusieurs écrans avec un usage, et la boîte de réception
-   * renvoie à ces pages* ; *je préfère quinze pages claires que cinq passages clairs*. Chaque chose à régler a sa page :
-   * le proprio (ses objectifs, ses rivaux), la route, la presse, le vestiaire (les fils, les dossiers, les dilemmes),
-   * l'infirmerie, tes cartes, le marché, le gros match. La boîte la nomme et y renvoie.
+   * LA MAISON D'UN CHOIX (V12 — docs/refonte-v12.md). Le sujet d'un choix : le proprio (ses objectifs, ses rivaux, son
+   * argent), l'entraîneur (la route, le personnel, l'adjoint d'un palier — le Butin y est venu, V18-5), la presse, le
+   * vestiaire (les fils, les dossiers, les dilemmes), l'infirmerie, le marché, le gros match. La boîte range ses choix
+   * sous elle, et ils s'y règlent.
    */
   function maisonDe(m) {
     if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
@@ -3614,11 +3619,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (['fil', 'dossier'].includes(m.genre)) return 'vestiaire';
     if (m.genre === 'courriel') return 'presse';
     if (m.genre === 'pack') return 'marche';
-    if (['cartes', 'palier'].includes(m.genre)) return 'butin';
+    // L'adjoint d'un palier va à ton personnel : il se choisit sous l'entraîneur.
+    if (['cartes', 'palier'].includes(m.genre)) return 'entraineur';
     const sp = m.spec || {};
     if (sp.ouvrir) return 'match';
-    if (sp.cartes) return 'butin';
-    if (sp.etat) return 'entraineur';
+    if (sp.cartes || sp.etat) return 'entraineur';
     if (sp.de === DE.proprio) return 'proprio';
     return 'vestiaire';
   }
@@ -3750,24 +3755,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
 
   /*
-   * CE QU'UN SOUS-ONGLET MONTRE TOUJOURS (V12-2 — docs/refonte-v12.md), sous ses choix : chaque info a une maison. Le
-   * proprio : son mandat et son objectif en cours ; l'entraîneur : ton coach et sa confiance, ton personnel, les deux semaines
- * qui viennent et la route de la saison ; la presse :
-   * la une ; le vestiaire : ton histoire ; l'infirmerie : les blessés, et qui joue leur case.
+   * CE QU'UN SOUS-ONGLET MONTRE TOUJOURS (V12-2 — docs/refonte-v12.md) : chaque info a une maison ; ses choix, eux, se
+   * règlent dans la boîte (V18-5). Le proprio : son mandat et son objectif en cours ; l'entraîneur : ton coach et sa
+   * confiance, ton personnel, les deux semaines qui viennent ; le vestiaire : ton histoire. La route de la saison est au
+   * Calendrier (Ligue › Calendrier, `voletFiche`). La
+   * une est à Hier soir ; les blessés, au filtre 🩹 d'Effectif › Joueurs (`infirmerieHtml`, prêtée par `tabs.hub`).
    */
   const PERMANENT = {
     proprio: () => `${etatHtml()}${cartesIci('proprio')}`,
-    // V12-4 : les deux semaines qui viennent restent ouvertes ; d'où tu viens et la route de la saison se plient en une ligne.
-    entraineur: () => { const r = routeDeuxSemaines(), loin = `${r.passe}${jour < N ? routeFiche() : ''}`;
-      return `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${r.vient}${loin ? `<details class="pli"><summary class="pli-t"><span class="perso-t">🗺 D'où tu viens · la route de la saison</span></summary>${loin}</details>` : ''}`; },
-    presse: () => uneHtml(),
+    // V18-5 : les deux semaines qui viennent ; la route de la saison et tes matchs joués sont au Calendrier.
+    entraineur: () => `${ctx.coachHtml ? ctx.coachHtml(jour) : ''}${ctx.personnel ? ctx.personnel.html(jour) : ''}${routeDeuxSemaines()}`,
     vestiaire: () => `${suivisHtml()}${miens.length ? recitHtml() : ''}`,
-    infirmerie: () => `${infirmerieHtml()}${cartesIci('infirmerie')}`,
-    butin: () => '',
   };
   // V12-3 : les cartes d'un sujet se jouent dans sa maison (js/rogue-jeu.js `cartesDeLaMaison`) ; l'entraîneur a les siennes au personnel.
   function cartesIci(k) { return onDecision && ctx.maison ? ctx.maison.cartes(k, jour) : ''; }
-  /* L'INFIRMERIE (V8, puis son sous-onglet en V12-2) : qui est blessé, pour combien de matchs, qui joue sa case ce soir. */
+  /* L'INFIRMERIE (V8 ; V18-5, le filtre 🩹 de Joueurs) : qui est blessé, pour combien de matchs, qui joue sa case ce soir. */
   function infirmerieHtml() {
     if (!you.injured || !you.injured.size) return '';
     const ceSoir = activeLineup({ ...you, jourCourant: jour });
@@ -3798,10 +3800,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const combat = msgs.find(m => m.spec && m.spec.ouvrir) || null;
     boite.remisPour = combat ? combat.spec.titre : null;
     if (combat && !retenir && !manquants.length && !choixOuvert() && boite.remis !== combat.spec.titre) combat.spec.ouvrir();
-    // LE COMPTE DE CHAQUE SOUS-ONGLET (V12) : ce qui y attend encore.
-    aRegler = {};
-    for (const m of enSuspens) aRegler[m.maison] = (aRegler[m.maison] || 0) + 1;
-    signalerComptes();
     // V4 : tout ce qui est dans À faire se règle ; la pastille du Bureau le dit, d'où qu'on soit (style.css, .navtab[data-section="bureau"]).
     document.body.dataset.aTraiter = String(enSuspens.length);
     const compteur = enSuspens.length ? `<b class="a-traiter">${enSuspens.length} à régler</b>` : '<span class="a-jour">À jour</span>';
@@ -3822,22 +3820,32 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         <div class="af-options">${C.options.map(o => optionHtml(o, sp, { classe: `af-option${o.ouvre ? ' ouvre' : ''}`, on: coche(m, o) })).join('')}</div>`;
     };
     /*
-     * UN SOUS-ONGLET PAR MAISON (V12). JP : *des onglets ou sous-onglets, un usage par sous-onglet*. Toucher une ligne de la
-     * boîte ouvre le sous-onglet de sa maison (Bureau › Proprio, Effectif › Infirmerie…), qui montre chacun de ses choix en
-     * entier — la voix, le fait, les options. Une option touchée part. Le gros match et la signature, qui ont leur écran, montrent leur porte dans la boîte même.
+     * ON RÈGLE DANS LA BOÎTE (V18-5, docs/ecrans-rogue.md ; JP : *good*). Comme un message d'EHM, un choix s'ouvre sur
+     * place — la voix, le fait, les options — et une option touchée part ; la V12 renvoyait au sous-onglet de sa maison,
+     * un toucher de plus pour chaque choix. Un seul s'ouvre à la fois : celui qui attend, au matin ; toucher une autre
+     * ligne l'ouvre à sa place. Les lignes restent rangées sous leur maison.
      */
     const etatDe = m => (m.bloque ? (seCoche(m) ? 'À choisir' : 'À régler') : '');
-    const enEntier = m => `<article class="hub-msg af-page-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}">
-        <div class="af-page-tete"><span class="hub-msg-txt"><span class="hub-msg-de">${m.de.ico} ${ctx.esc(m.de.nom)}</span><span class="af-feuille-sujet">${ctx.esc(m.sujet)}</span></span><span class="hub-msg-etat">${etatDe(m)}</span></div>
-        <div class="hub-msg-corps">${corpsDe(m)}</div>
+    if (!boite.ouvert || boite.ouvert.jour !== jour || (boite.ouvert.id && !msgs.some(m => m.id === boite.ouvert.id))) boite.ouvert = { jour, id: attente ? attente.id : null };
+    const ouvert = boite.ouvert.id;
+    const msgHtml = m => {
+      // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
+      const qui = m.joueur || null, on = m.id === ouvert;
+      return `<article class="hub-msg${m.bloque ? ' bloque' : ''}${on ? ' ouvert' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${m.maison}">
+        <button type="button" class="hub-msg-tete" aria-expanded="${on}">
+          ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
+          <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene && !on ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
+          <span class="hub-msg-etat">${etatDe(m)}</span>
+        </button>
+        ${on ? `<div class="hub-msg-corps">${corpsDe(m)}</div>` : ''}
       </article>`;
+    };
     vueMaison = k => {
-      const M = MAISONS[k], corps = msgs.filter(m => m.maison === k).map(enEntier).join(''), fond = PERMANENT[k]();
+      const M = MAISONS[k], fond = PERMANENT[k]();
       return `<section class="af-onglet${chiffresOuverts() ? ' chiffres' : ''}" data-maison="${k}" aria-label="${ctx.esc(M.titre)}">
         <div class="af-onglet-tete"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-onglet-txt"><b>${ctx.esc(M.titre)}</b><span>${ctx.esc(M.sous)}</span></span></div>
-        ${corps || (fond ? '' : `<div class="hub-note">Rien à régler ici. La boîte t'y renvoie quand ${ctx.esc(M.vide)}.</div>`)}
-        ${fond ? `<div class="af-fond">${fond}</div>` : ''}
-        ${(corps + fond).includes(' detail"') ? `<button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
+        ${fond ? `<div class="af-fond">${fond}</div>` : `<div class="hub-note">${ctx.esc(M.vide)}</div>`}
+        ${fond.includes(' detail"') ? `<button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>` : ''}
       </section>`;
     };
     const boiteHtml = `<section class="hub-boite${msgs.length ? '' : ' vide'}${chiffresOuverts() ? ' chiffres' : ''}" aria-label="À faire">
@@ -3845,21 +3853,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${encours}
       ${msgs.length ? `<div class="hub-msgs">${[...new Set(msgs.map(m => m.maison))].map(k => {
         const M = MAISONS[k], siens = msgs.filter(m => m.maison === k);
-        // V12 : la boîte range ses lignes par maison ; chacune, et la tête de sa maison, ouvre son sous-onglet. Sans sous-onglet, la porte est ici.
-        if (!maisonEnVolet(k)) return `<div class="af-maison ici" data-maison="${k}"><div class="af-maison-tete"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-maison-titre">${ctx.esc(M.titre)}</span></div>${siens.map(enEntier).join('')}</div>`;
         return `<div class="af-maison" data-maison="${k}">
-          <button type="button" class="af-maison-tete" data-maison="${k}" aria-label="Ouvrir : ${ctx.esc(M.titre)}"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-maison-titre">${ctx.esc(M.titre)}</span><span class="af-maison-compte">${siens.length > 1 ? `${siens.length} choix` : ''}</span></button>
-          ${siens.map(m => {
-            // Un choix sur un joueur montre son visage à la place de l'icône de la voix (le prototype, oct.).
-            const qui = m.joueur || null;
-            return `<article class="hub-msg${m.bloque ? ' bloque' : ''}" data-msg="${m.genre}" data-id="${ctx.esc(m.id)}" data-maison="${k}">
-              <button type="button" class="hub-msg-tete">
-                ${qui ? `<span class="rond-visage hub-msg-visage" aria-hidden="true">${ctx.mug(qui)}</span>` : `<span class="hub-msg-ico" aria-hidden="true">${m.de.ico}</span>`}
-                <span class="hub-msg-txt"><span class="hub-msg-de">${ctx.esc(m.de.nom)}</span><span class="hub-msg-sujet">${ctx.esc(m.sujet)}</span>${m.choix.scene ? `<span class="hub-msg-replique">« ${ctx.esc(m.choix.scene.mot)} »</span>` : ''}${prisHtml(m)}</span>
-                <span class="hub-msg-etat">${etatDe(m)}</span>
-              </button>
-            </article>`;
-          }).join('')}
+          <div class="af-maison-tete"><span class="af-maison-ico" aria-hidden="true">${M.ico}</span><span class="af-maison-titre">${ctx.esc(M.titre)}</span><span class="af-maison-compte">${siens.length > 1 ? `${siens.length} choix` : ''}</span></div>
+          ${siens.map(msgHtml).join('')}
         </div>`;
       }).join('')}</div>` : ''}
       <button type="button" class="choix-chiffres af-chiffres" aria-pressed="${chiffresOuverts()}" hidden>Les chiffres</button>
@@ -3886,15 +3882,21 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       quitter();
       onDecision([].concat(m.choix.decision(cles)).map(d => ({ jour: j, ...d })), j);
     };
-    // V12 : une ligne de la boîte, ou la tête de sa maison, ouvre son sous-onglet.
-    actions.querySelectorAll('button.hub-msg-tete, button.af-maison-tete').forEach(b => {
-      b.onclick = () => { jouerSon('valide'); tabs.montrer(b.closest('[data-maison]').dataset.maison); };
+    // Toucher une ligne l'ouvre sur place, ou la referme ; la ligne ouverte vient en haut de la boîte.
+    const ouvrirIci = id => {
+      boite.ouvert = { jour, id };
+      redessinerBoite();
+      const el = id && actions.querySelector(`.hub-msg[data-id="${CSS.escape(id)}"]`);
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    };
+    actions.querySelectorAll('button.hub-msg-tete').forEach(b => {
+      b.onclick = () => { jouerSon('valide'); const id = b.closest('.hub-msg').dataset.id; ouvrirIci(id === ouvert ? null : id); };
     });
     /*
      * TOUCHER UNE OPTION l'envoie. Un choix `multi` (les rivaux) se coche un à un (un toucher sur la cochée la décoche) et
      * part au dernier. Une option › ouvre son écran ; un pari se joue au dé, sur-le-champ (js/gerant.js, `sceneDuDe`).
      */
-    toucherOption = b => {
+    const toucherOption = b => {
         const m = msgs.find(x => x.id === b.closest('.hub-msg').dataset.id);
         const o = m && m.choix.options.find(x => String(x.cle) === b.dataset.choix);
         if (!o || o.desactive) return;
@@ -3914,7 +3916,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         redessinerBoite();
     };
     actions.querySelectorAll('.af-option[data-choix]').forEach(b => { b.onclick = () => toucherOption(b); });
-    // Le sous-onglet ouvert se refait sur les choix du jour ; on y reste où on lisait.
+    // Le sous-onglet ouvert se refait sur la journée ; on y reste où on lisait.
     if (MAISONS[tabs.courant()] && actif()) tabs.rafraichir();
     // LES CHIFFRES (V3) : le bouton ne paraît que s'il y a des chiffres pliés ; le choix se retient d'un écran à l'autre.
     const bc = actions.querySelector('.af-chiffres');
@@ -3922,15 +3924,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       bc.hidden = false;
       bc.onclick = () => { const o = basculerChiffres(); actions.querySelector('.hub-boite').classList.toggle('chiffres', o); bc.setAttribute('aria-pressed', String(o)); };
     }
-    // CE QUI ATTEND : le déplier, sous l'affiche du Bureau ; un choix qui n'a qu'une porte (le combat, le paquet, la main) l'ouvre tout de suite.
+    // CE QUI ATTEND : l'ouvrir dans la boîte, sous l'affiche du Bureau ; un choix qui n'a qu'une porte (le combat, le paquet) l'ouvre tout de suite.
     const traiter = actions.querySelector('.hub-traiter');
     if (traiter && attente) traiter.onclick = () => {
       const portes = attente.choix.options.filter(o => !o.desactive);
       if (portes.length === 1 && portes[0].ouvre) { attente.choix.agir(portes[0].cle); return; }
-      // V12 : le sous-onglet de sa maison, là où il se règle ; sans sous-onglet, sa porte est dans la boîte.
-      if (maisonEnVolet(attente.maison) && tabs.courant() !== attente.maison) tabs.montrer(attente.maison);
-      const el = (maisonEnVolet(attente.maison) ? volet : actions).querySelector(`.hub-msg[data-id="${CSS.escape(attente.id)}"]`);
-      if (el) el.scrollIntoView({ block: 'nearest' });
+      if (tabs.courant() !== 'journee') tabs.montrer('journee');
+      ouvrirIci(attente.id);
     };
     const regarder = actions.querySelector('.hub-regarder');
     if (regarder) regarder.onclick = () => regarderProchain();

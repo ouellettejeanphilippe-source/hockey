@@ -745,7 +745,7 @@ export function renderResult(r, you, teams, leaders, calendrier = []) {
       const p = G.roster[s.i];
       return p ? { i: s.i, s: p.s, k: getPlayerKey(p), n: p.n, t: p.t, p: p.p, r: p._renfort ? 1 : 0 } : null;
     }),
-    // L'ALBUM (S74, js/album.js) se déduit de l'historique : l'identité de départ, la franchise.
+    // L'identité de départ et la franchise de la saison (l'album du S74 les lisait ; il est parti en V18-5).
     identite: G.identite || null,
     franchise: G.repechage === 'FRANCHISE' ? G.franchise : null,
   // L'identifiant de la saison en cours, s'il y en a un : une reprise
