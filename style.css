@@ -84,6 +84,9 @@
   /* Le sens : ce qui rapporte, ce qui coûte, ce qui se gagne, ce qui attend. */
   --bon: #46c98b;
   --mauvais: #e5707a;
+  /* Le vert et le rouge lisibles sur un carton clair (le verso de glace des cartes de jeu). */
+  --bon-sur-carton: #17804a;
+  --mauvais-sur-carton: #b3262c;
   --or: #d7b171;
   /* Les niveaux (Soutien → Phénomène) : la seule capsule pleine, une teinte par rang (l'Étoile prend l'or). */
   --niv-regulier: #2f6fb8;
@@ -1734,50 +1737,50 @@ a.spin-club:hover { background: var(--fond-2); }
    encres, ses polices, la peau de sa plaque et de son médaillon. Seule la GÉOMÉTRIE se réécrit, ici : chaque série
    pose ses pièces pour une carte debout, et une carte couchée les range en paysage — la grande fenêtre de la photo
    (presque toute la carte, la bordure de la série autour), la plaque du nom au pied à gauche, le médaillon au pied à
-   droite. Ces positions passent avant celles de toutes les séries (`!important`, ici seulement) ; les ornements d'une
-   série, dessinés pour une carte debout, se taisent. La case reste debout (5:7) : `cqw` y est le petit côté, celui
+   droite. Ces positions passent avant celles de toutes les séries par leur préfixe (`.cc-carte` trois fois : plus
+   précis que la règle de série la plus précise, sans `!important`). La case reste debout (5:7) : `cqw` y est le petit côté, celui
    d'une carte debout.
    --------------------------------------------------------------- */
 .carton.carton-couchee { background: none; }
-.cc-carte {
+.carton-couchee > .cc-carte.cc-carte.cc-carte {
   position: absolute; left: 50%; top: 50%; width: 140cqw; height: 100cqw; transform: translate(-50%, -50%) rotate(-90deg);
   overflow: hidden; isolation: isolate; border-radius: 3.2% / 4.5%;
   background: var(--c-fond, #1b2230); color: var(--c-encre, white); font-family: var(--display); line-height: 1; text-align: left;
 }
-.cc-carte > * { position: absolute; }
-.cc-carte::before { content: ''; position: absolute; z-index: 0; pointer-events: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > * { position: absolute; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte::before { content: ''; position: absolute; z-index: 0; pointer-events: none; }
 /* La fenêtre : presque toute la carte, la bordure de la série autour ; aux éditions hautes, toute la carte. Le cadre de
    la série (son ::before) passe derrière la photo, un peu plus grand qu'elle : il n'en reste que son filet. */
-.cc-carte > .carton-photo { inset: 4.5cqw !important; width: auto !important; height: auto !important; transform: none !important; }
-.cc-carte::before { inset: 3cqw !important; width: auto !important; height: auto !important; transform: none !important; z-index: 0 !important; }
-.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire) > .carton-photo { inset: 0 !important; }
-.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire)::before { display: none !important; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-photo { inset: 4.5cqw; width: auto; height: auto; transform: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte::before { inset: 3cqw; width: auto; height: auto; transform: none; z-index: 0; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire) > .carton-photo { inset: 0; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire)::before { display: none; }
 /*
  * LE NOM SUR LE CARTON. Les séries qui impriment le nom à l'encre sur leur carton clair, ou en dorure (le crème des
  * années 70, la patinoire, le marbre, le nacre…), le gardent sur leur carton : la photo leur laisse une bande au pied.
  */
-.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo { inset: 4.5cqw 4.5cqw 24cqw !important; }
-.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle)::before { inset: 3cqw 3cqw 22.5cqw !important; }
-.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-nom { inset: auto auto 4cqw 6cqw !important; min-height: 0; padding: 0 !important; }
-.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-club { inset: auto 6cqw 3cqw auto !important; }
-.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-imprime { inset: auto 28cqw 1.4cqw auto !important; color: inherit !important; text-shadow: none; }
-.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 18%, transparent), transparent 22%) !important; }
-.cc-carte .carton-photo > .photo-couchee { object-fit: cover; object-position: calc(var(--fx, 0.5) * 100%) calc(var(--fy, 0.3) * 100%); -webkit-mask: none; mask: none; }
-.cc-carte .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 22%, transparent), transparent 20% 58%, color-mix(in srgb, black 62%, transparent)) !important; }
-.cc-carte .carton-deco::before, .cc-carte .carton-deco::after { display: none !important; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo { inset: 4.5cqw 4.5cqw 24cqw; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle)::before { inset: 3cqw 3cqw 22.5cqw; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-nom { inset: auto auto 4cqw 6cqw; min-height: 0; padding: 0; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-club { inset: auto 6cqw 3cqw auto; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-imprime { inset: auto 28cqw 1.4cqw auto; color: inherit; text-shadow: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 18%, transparent), transparent 22%); }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-photo > .photo-couchee { object-fit: cover; object-position: calc(var(--fx, 0.5) * 100%) calc(var(--fy, 0.3) * 100%); -webkit-mask: none; mask: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 22%, transparent), transparent 20% 58%, color-mix(in srgb, black 62%, transparent)); }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-deco::before, .carton-couchee > .cc-carte.cc-carte.cc-carte .carton-deco::after { display: none; }
 /* La plaque du nom, avec sa peau de série, au pied à gauche, sur la photo. */
-.cc-carte > .carton-nom {
-  --nom-l: 74cqw !important; --nom-max: 10cqw !important;
-  inset: auto auto 7cqw 7cqw !important; width: auto !important; max-width: 92cqw !important; height: auto !important; min-height: 15cqw;
-  padding: 1.6cqw 6cqw 1.6cqw 4cqw !important; transform: none !important; writing-mode: horizontal-tb !important; rotate: none !important;
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-nom {
+  --nom-l: 74cqw; --nom-max: 10cqw;
+  inset: auto auto 7cqw 7cqw; width: auto; max-width: 92cqw; height: auto; min-height: 15cqw;
+  padding: 1.6cqw 6cqw 1.6cqw 4cqw; transform: none; writing-mode: horizontal-tb; rotate: none;
 }
-.cc-carte > .carton-nom .lname { line-height: 1; }
-.cc-carte .carton-club-nom { display: none !important; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-nom .lname { line-height: 1; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte .carton-club-nom { display: none; }
 /* Le médaillon au pied à droite ; l'imprimé, le tirage et la relique dans les coins libres. */
-.cc-carte > .carton-club { inset: auto 7cqw 6cqw auto !important; width: 18cqw !important; height: 18cqw !important; transform: none !important; }
-.cc-carte > .carton-imprime { inset: auto auto 1.2cqw 7.5cqw !important; width: auto !important; transform: none !important; writing-mode: horizontal-tb !important; color: color-mix(in srgb, white 82%, transparent) !important; text-shadow: 0 0.2cqw 0.6cqw black; }
-.cc-carte > .carton-tirage { inset: 14cqw 6cqw auto auto !important; }
-.cc-carte > .carton-relique { inset: 14cqw 6cqw auto auto !important; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-club { inset: auto 7cqw 6cqw auto; width: 18cqw; height: 18cqw; transform: none; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-imprime { inset: auto auto 1.2cqw 7.5cqw; width: auto; transform: none; writing-mode: horizontal-tb; color: color-mix(in srgb, white 82%, transparent); text-shadow: 0 0.2cqw 0.6cqw black; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-tirage { inset: 14cqw 6cqw auto auto; }
+.carton-couchee > .cc-carte.cc-carte.cc-carte > .carton-relique { inset: 14cqw 6cqw auto auto; }
 /* À l'endroit (la fiche) : la case pivote d'un quart dans un cadre 7:5. */
 .carton-a-plat { position: relative; display: block; width: 100%; aspect-ratio: 7 / 5; }
 .carton-pivot { position: absolute; left: 50%; top: 50%; width: 71.43%; transform: translate(-50%, -50%) rotate(90deg); }
@@ -5113,8 +5116,8 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
  */
 .carton.tc-verso {
   position: absolute; inset: 0; z-index: 1; aspect-ratio: auto;
-  --encre: var(--c-encre); --encre-2: #395067; --encre-3: #6b7f93; --fond-3: color-mix(in srgb, var(--c-encre) 14%, transparent);
-  --bon: #17804a; --mauvais: #b3262c;
+  --encre: var(--c-encre); --encre-2: color-mix(in srgb, var(--c-encre) 78%, white); --encre-3: color-mix(in srgb, var(--c-encre) 58%, white);
+  --fond-3: color-mix(in srgb, var(--c-encre) 14%, transparent); --bon: var(--bon-sur-carton); --mauvais: var(--mauvais-sur-carton);
 }
 .cs-glace.tc-verso::before { display: none; }
 .tcv-corps {

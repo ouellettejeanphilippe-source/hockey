@@ -62,7 +62,7 @@ informer('la feuille', `${(Buffer.byteLength(src) / 1024).toFixed(0)} Ko · ${rs
  * année devra être différente*) garde la même densité, 32 par série
  * (`SERIES`, js/cartes.js, plus la glace des cartes de jeu).
  */
-const SERIES = (fs.readFileSync(path.join(ROOT, 'js', 'cartes.js'), 'utf8').match(/^ {2}\w+: \{ nom: '.*', saison: '\d{4}-\d\d' \},$/gm) || []).length + 1;
+const SERIES = (fs.readFileSync(path.join(ROOT, 'js', 'cartes.js'), 'utf8').match(/^ {2}\w+: \{ nom: '.*', saison: '\d{4}-\d\d'[^}]* \},$/gm) || []).length + 1;
 const PLAFOND_COULEURS_CARTON = Number(process.env.PLAFOND_COULEURS_CARTON ?? 32 * SERIES);
 const PLAFOND_TAILLES_PLATEAU = Number(process.env.PLAFOND_TAILLES_PLATEAU ?? 6);
 const bloc = (debut, fin) => {
