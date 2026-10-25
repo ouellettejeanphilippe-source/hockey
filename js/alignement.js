@@ -625,7 +625,7 @@ const AU_MIEUX = [
 ];
 function alignerAuMieux(cle) {
   const style = cle === 'trios' || cle === 'systemes' ? 'equilibre' : cle;
-  // En Rogue, le système paie sa famille (V9) : le meilleur alignement est celui de ton plan, comme ton coach le compte.
+  // En Rogue, les badges ouvrent les styles (V15) : le meilleur alignement lit ceux qui s'ouvrent, ton coach compris.
   const plan = G.bonus === 'ROGUE', club = clubLu(), coachs = (club && club.team && club.team.coachs) || [];
   if (cle !== 'systemes') {
     const tous = SLOTS.map(s => G.roster[s.i]).filter(Boolean);

@@ -1634,7 +1634,8 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   return {
     k, ico: J.ico, nom: J.nom, fait, pourquoi, mots, mise, scene, periode: PERIODE_MOT[k],
     propositions: propositions.map(tuile),
-    garder: { cle: 'garder', ico: PE.ico, nom: `Garder ${enForce === 'match' ? 'ton match' : PE.nom.toLowerCase()}`, sous: 'Ton plan en force, tel quel', mots: [], plan: null },
+    // « Garder tirer de partout » se lisait mal : le verbe du plan reste à sa ligne du dessous.
+    garder: { cle: 'garder', ico: PE.ico, nom: enForce === 'match' ? 'Garder ton match' : 'Garder ton plan', sous: enForce === 'match' ? 'Ton alignement, tel quel' : `${PE.nom}, tel quel`, mots: [], plan: null },
   };
 }
 

@@ -470,7 +470,7 @@ function offrirPackJoueurs({ cle, cartes, reglage, pitie, vente, n, j, decider, 
   // Le paquet se déchire une fois, sur tout ce qu'il contient ; la signature suit, joueurs seuls.
   ouvrirChoix({
     ico: P.ico, titre, cartes: true, genre: 'recompense', fermable: true, motFermer: limite ? 'Fermer' : 'Signer un joueur', suite: true,
-    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; un outil se joue chez ce qu'il touche` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
+    recit: `${cartes.length} joueurs${nc ? ` et ${nc} carte${nc > 1 ? 's' : ''} de jeu. Le personnel rejoint ta collection ; une carte rare se joue chez ce qu'elle monte` : ''}.${limite ? ' Les joueurs vont à ton cartable.' : ' Ensuite, tu signes un joueur.'}`,
     options: [...cartes.map(x => ({ ...optionDeJoueurTire(x), vue: true })), ...(tc ? optionsDeCartes(tc, 'c').map(o => ({ ...o, vue: true })) : [])],
     onChoix: () => {},
     onFerme: limite ? () => {} : offrir,
@@ -1161,8 +1161,8 @@ function choisirCoach() {
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : ses adjoints en poste, leurs échelons, leurs matchs à ton service.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
-      : `Sa philosophie joue dès le premier soir ; plus ses adjoints travaillent chez toi, plus l'équipe y croit.${plus} Tes patrons : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : ses adjoints en poste, leurs échelons, leurs matchs à ton service.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
+      : `Sa philosophie joue dès le premier soir ; plus ses adjoints travaillent chez toi, plus l'équipe y croit.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: optionsDeCoach(ouverts, { cartes: !!meta.runs }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),
@@ -1588,7 +1588,7 @@ export function majRunRogue() {
       <small>${s ? `${s.rondes} ronde${s.rondes > 1 ? 's' : ''} gagnée${s.rondes > 1 ? 's' : ''}` : ''}</small></div>
     <p class="rg-run-mot">${esc(mots[sort])}</p>
     ${sort === 'continue' ? sceneHtml(sceneDuMandat({ sort: 'rempli', fiche: { V: G.ligue.you.W || 0, D: G.ligue.you.L || 0, DP: G.ligue.you.OTL || 0 }, rang: faitsDeLaSaison().rang, equipes: (G.ligue.teams || []).length, mandat: M.mot, graine: `${G.ligue.graine}|${n}` }), { voix: true }) : ''}
-    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : un loto de tes joueurs par case (${motDesCases(gardesDeLaRun(lireMeta(), exigenceDeLaRun()).cases)}), un loto de ton cartable par case (${motDesCases(lotosDeSaison(lireMeta(), exigenceDeLaRun()).cases)}), et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : tes patrons engagés, tes places, tes jetons qui restent (plus ta caisse) et tes cartes permanentes. Ce qui expire : les cartes « cette saison » déjà en jeu.</p>` : ''}
+    ${sort === 'continue' ? `<p class="rg-run-suite">Ton équipe se défait : un loto de tes joueurs par case (${motDesCases(gardesDeLaRun(lireMeta(), exigenceDeLaRun()).cases)}), un loto de ton cartable par case (${motDesCases(lotosDeSaison(lireMeta(), exigenceDeLaRun()).cases)}), et le reste vient de ton cartable, avec moins de ${NIVEAUX[0].nom} qu'à la saison d'avant. Chaque carte garde ses modifs. Ce qui te suit aussi : ton coach et ton personnel, tes jetons qui restent (plus ta caisse) et tes cartes rares.</p>` : ''}
     <div class="rg-run-boutons">
       ${sort === 'continue' ? `<button type="button" class="btn gold rg-suivante">▶ Saison ${n + 1} de la run</button>` : ''}
       ${sort === 'finie' || sort === 'gagnee' ? '<button type="button" class="btn gold rg-nouvelle">▶ Nouvelle run</button>' : ''}
@@ -1936,7 +1936,7 @@ export function ouvrirVestiaire(apres = null) {
     <p class="vs-sec">🏅 Les déblocages</p>`;
   ouvrirChoix({
     ico: '🏅', titre: `Les déblocages · ${meta.ecussons || 0} médailles`, fermable: true, motFermer: 'Fermer',
-    recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs. Les cartes de trio (systèmes, styles, atelier, synergies) aident tout de suite, puis plafonnent ; les améliorations d'un joueur et les cartes qui visent l'adversaire grandissent avec la saison, jusqu'en finale.`,
+    recit: `Tes médailles se gagnent à chaque saison : une par tranche de deux points, dix par ronde de séries gagnée, vingt de plus pour la Coupe. Les jalons se gagnent en jouant. Ce que tu débloques reste pour toutes les runs.`,
     contexte: jalons,
     options: [{ cle: 'club', visage: ecussonDe(choixDuClub(meta)), nom: `Ton club : ${nomDuClub()}`, bon: 'Le club (son nom et son écusson) et ses couleurs : ceux que tu portes, et ceux qui se débloquent.' },
       // V10 : le cran d'un pack se montre quand le pack est ouvert, et le second après le premier.

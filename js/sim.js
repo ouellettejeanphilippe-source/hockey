@@ -2281,7 +2281,7 @@ function majChimie(team, lineup) {
 // meilleures lignes, qui lancent le plus ; la part des actions spéciales revient à ~12 %.
 // SPEC_NORME recalé en refonte 1 (0,90 → 0,88) : les passeurs et les manieurs montent la chimie (BADGE_CHIMIE),
 // et une chimie ne descend pas sous zéro — la ligue gagnait 1,2 % de buts ; 12 ligues semées : 2,958 avant, 2,956 après.
-export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = 0.88;
+export const SPEC_BASE = 0.22, SPEC_MULT = 1.8, SPEC_NORME = Number(ENV_MESURE.SPEC_NORME ?? 0.88);
 
 /* ---------- l'énergie : les JAMBES (1.0, C3) ---------- */
 /*
@@ -2981,7 +2981,9 @@ export function effetDeMoment(d, team = null) {
   void cle; void bon; void prix; void _d; void _m; void _p; void _e; void _a; void _r; void _n; void _t; void _s; void _mo; void _me; void _g; void _l; void _pl; void _cn;
   if (!Object.keys(canaux).length) return null;
   // UNE DURÉE SE DIT EN MATCHS (1.0, oct.) : avec le vrai calendrier, elle finit le lendemain du N-e match du club.
-  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix: nom, ...canaux, ...(_t ? { regle: true } : {}) };
+  // Le nom de l'option nomme son joueur (« … pour {nom} »), comme à l'écran du choix : « Ce qui court » le relit tel quel.
+  const choix = String(nom || '').replace(/\{nom\}/g, (CONNUS.get(m.joueur) || {}).n || 'lui').replace(/\{aux\}/g, 'l\'auxiliaire');
+  return { debut: d.jour, fin: apresMatchs(team, d.jour, duree), source: m.famille || 'moment', nom: fam.titre, ico: fam.ico, choix, ...canaux, ...(_t ? { regle: true } : {}) };
 }
 
 /*

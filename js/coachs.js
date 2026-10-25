@@ -111,9 +111,9 @@ export function porteParSesJoueurs(c, n) {
  * un palier plus haut, est parti : ses familles le remplacent.) `econ` : comme un
  * patron (js/banque.js `modificateurs`, `plafondDe`).
  *
- * LE PLAN (V9, tranche 3 ; docs/refonte-v9.md § 6.1). `familles` : ce que le coach paie et ce qu'il coûte, parmi les
- * quatre familles du profil (`FAMILLES`, js/sim.js). En Rogue, une unité qui joue le système d'une famille qu'il paie
- * en tire plus — et paie plus cher d'y être mal assortie ; celle qu'il coûte compte moins (`COACH_DU_PLAN`, js/sim.js).
+ * `familles` (V9, tranche 3 ; docs/refonte-v9.md § 6.1) : ce que le coach paie et ce qu'il coûte, parmi les quatre
+ * familles du profil (`FAMILLES`, js/sim.js). Le plan qui les faisait compter est parti à la V15 ; reste ce que
+ * l'adversaire en lit pour choisir son intention au duel (`coachPaie`, js/sim.js).
  */
 export const COACHS = {
   essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', familles: { paie: ['tir', 'robustesse'], coute: 'jeu' }, recrute: 'des power forwards et des défenseurs offensifs',

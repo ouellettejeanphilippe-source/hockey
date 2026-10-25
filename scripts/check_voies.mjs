@@ -18,78 +18,20 @@
  *   4. chaque coach vaut plus sur son équipe que sur une équipe mélangée.
  * Et dit la composition : l'équipe bâtie contre le club, sans coach (le prix des rôles, à salaire égal).
  */
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, SLOTS, fits, getHiddenRatings, coachDuJoueur, getPersonKey, joueursDesCoachs, unitesIdeales } from '../js/sim.js';
+import { simulateLeague, SLOTS, getHiddenRatings, joueursDesCoachs, coachDuJoueur } from '../js/sim.js';
 import { COACHS, VOIES, effetDePalier } from '../js/coachs.js';
-import { equipeReelle } from './lib/vestiaires.mjs';
+import { vestiaires, club, rosterDe, bassinsDesCouleurs, batir as batirDe, moy, signe } from './lib/voies.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
-const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const DIR = path.join(ROOT, 'data', 'seasons');
-const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 const LIGUES = Number(process.env.LIGUES ?? 4);
 // `VOIES=tortue,essaim` : n'en mesurer que quelques-unes (pour partager le travail entre plusieurs processus).
 const MESUREES = process.env.VOIES ? process.env.VOIES.split(',') : VOIES;
 // Chaque case s'apparie sur le SALAIRE (ce que le Rogue paie sous son plafond) ; `PAR=valeur` sur la valeur cachée. `SANS=1` : la composition seule.
 const PAR = process.env.PAR === 'valeur' ? (p => getHiddenRatings(p).v) : (p => p.$ || 0);
 const SANS = process.env.SANS === '1';
-const C = new Map();
-const shard = f => { if (!C.has(f)) C.set(f, JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8'))); return C.get(f); };
-const moy = a => a.reduce((s, x) => s + x, 0) / (a.length || 1);
-const signe = x => `${x >= 0 ? '+' : '−'}${Math.abs(x).toFixed(1)}`;
-
-/* Les vraies équipes d'une ligue, en joueurs (pas encore en clubs) : chaque bras de la paire en refait des clubs neufs. */
-function vestiaires(seed, n = 32) {
-  let x = seed; const rnd = () => (x = (x * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
-  const out = [], vus = new Set();
-  while (out.length < n) {
-    const f = SAISONS[Math.floor(rnd() * SAISONS.length)];
-    const sh = shard(f);
-    const tags = [...new Set(sh.players.map(p => p.t))];
-    const tag = tags[Math.floor(rnd() * tags.length)];
-    if (vus.has(`${sh.season}|${tag}`)) continue;
-    let un; try { un = equipeReelle(sh.season, tag); } catch { continue; }
-    if (un[0].length < 12 || un[1].length < 6 || !un[2].length) continue;
-    vus.add(`${sh.season}|${tag}`);
-    out.push({ nom: `${tag} ${sh.season}`, tag, s: sh.season, joueurs: un.flat() });
-  }
-  return out;
-}
-const club = (V, roster) => createTeam(V.nom, V.tag, roster, { season: V.s });
-const rosterDe = V => { const p = V.joueurs.map(x => ({ ...x })); p.forEach(registerHiddenRatings); return autoRoster(p); };
-
-/* Le bassin de chaque couleur : tous les joueurs-saisons d'un vrai rôle (quinze matchs), leur valeur lue une fois. */
-const BASSIN = new Map(VOIES.map(k => [k, []]));
-for (const f of SAISONS) for (const p of shard(f).players) {
-  if ((p.gp || 0) < 15) continue;
-  const q = { ...p };
-  registerHiddenRatings(q);
-  const k = coachDuJoueur(q);
-  if (BASSIN.has(k)) BASSIN.get(k).push({ p: q, v: PAR(q) });
-}
-/* Le même club, chaque case reprise par le joueur de la couleur `k` de valeur la plus proche (une personne une fois). */
-function batir(roster, k) {
-  const out = {}, pris = new Set(), B = BASSIN.get(k);
-  for (const s of SLOTS) {
-    const p = roster[s.i];
-    if (!p) continue;
-    const v = PAR(p);
-    let best = null, d = Infinity;
-    for (const x of B) {
-      // Chez lui à cette case : sa position, et sa zone (un plombier ne prend pas la place d'un joueur de premier trio).
-      if (pris.has(getPersonKey(x.p)) || !fits(x.p, s) || (s.group !== 'G' && !unitesIdeales(x.p, getHiddenRatings(x.p).v).includes(s.unit))) continue;
-      const e = Math.abs(x.v - v);
-      if (e < d) { d = e; best = x; }
-    }
-    const q = best ? { ...best.p } : p;
-    registerHiddenRatings(q);
-    if (best) pris.add(getPersonKey(best.p));
-    out[s.i] = q;
-  }
-  return out;
-}
+/* Le bassin de chaque couleur, et le même club repris par ses joueurs (scripts/lib/voies.mjs). */
+const BASSIN = bassinsDesCouleurs(PAR);
+const batir = (roster, k) => batirDe(roster, k, BASSIN, PAR);
 const valeur = roster => SLOTS.reduce((a, s) => a + (roster[s.i] ? getHiddenRatings(roster[s.i]).v : 0), 0);
 const masse = roster => SLOTS.reduce((a, s) => a + (roster[s.i] ? roster[s.i].$ || 0 : 0), 0);
 

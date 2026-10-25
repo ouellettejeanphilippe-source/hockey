@@ -12,6 +12,8 @@
  *   mots     les répliques de la voix : une opinion, aucun chiffre (check_clarte § 5)
  *   joueur   (V11, tranche 4) le joueur que le dossier nomme, lu dans les faits (`{ n, cle }`) : sa disette, ses
  *            punitions, ses jambes, son contrat, sa place sous sa zone — un fait de SES feuilles
+ *   maison   (oct.) le sous-onglet où il se règle quand son sujet a sa maison (V12-3 : l'argent et le congédiement au
+ *            proprio, les blessés à l'infirmerie) ; sans elle, au vestiaire
  *   options  deux ou trois réponses, sur les canaux qui existent — un effet (souvent d'un moment, `si`, js/sim.js
  *            `MOMENTS_SI`, qui ne joue que ses soirs), des gestes (`action` ; `energie` va au joueur nommé), des
  *            jetons (`gain`, un prix s'il est négatif), ou rien ; et, quand il nomme un joueur, ce qui lui arrive à
@@ -66,7 +68,7 @@ export const DOSSIERS = {
     ],
   },
   lInfirmerie: {
-    de: 'me', ico: '🚑', titre: 'L\'infirmerie déborde',
+    de: 'me', ico: '🚑', titre: 'L\'infirmerie déborde', maison: 'infirmerie',
     quand: f => f.blesses.length >= 2,
     fait: f => `🚑 ${f.blesses.slice(0, 3).map(b => `${b.n} ${b.m} m.`).join(', ')}${f.blesses.length > 3 ? ` et ${f.blesses.length - 3} autre${f.blesses.length > 4 ? 's' : ''}` : ''}`,
     mots: ['Ma table est pleine. Il y a un spécialiste à Toronto, mais il ne travaille pas gratuitement.',
@@ -182,7 +184,7 @@ export const DOSSIERS = {
    * soirs, toute la saison.
    */
   laMasse: {
-    de: 'pr', ico: '💵', titre: 'La masse salariale',
+    de: 'pr', ico: '💵', titre: 'La masse salariale', maison: 'proprio',
     quand: f => !!f.masse && f.masse.espace < ESPACE_MINCE && !!f.masse.lourd,
     fait: f => `${f.masse.libre} sous le plafond · ${f.masse.lourd.n} : ${f.masse.lourd.sal}`,
     joueur: f => f.masse.lourd,
@@ -200,7 +202,7 @@ export const DOSSIERS = {
    * personne ne part.
    */
   laTete: {
-    de: 'pr', ico: '📋', titre: 'La tête de l\'entraîneur',
+    de: 'pr', ico: '📋', titre: 'La tête de l\'entraîneur', maison: 'proprio',
     quand: f => f.defaites >= DEFAITES_TETE && !!f.coach && (f.coachs || []).length >= 2,
     fait: f => `${f.defaites} défaites de suite · ${f.coach} en poste`,
     mots: ['Je ne paie pas un entraîneur pour perdre. Dis-moi si on change, et pour qui.',
