@@ -215,7 +215,9 @@ async function deciderMaintenant(ds, depuis) {
     // Un coach neuf (la tête de l'entraîneur, V16) devient celui de la run, comme au départ.
     if (d && d.coachNeuf && d.coach && G.rogue) G.rogue.coach = d.coach.cle;
   }
-  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
+  // Un entracte de gros match ne « reprend » pas la saison : la période suivante commence (on vit le match).
+  const k = Math.max(-1, ...prises.map(periodeDuDuel));
+  await continuerSaison(decisions, depuis, k === 1 ? 'La deuxième période commence…' : k === 2 ? 'La troisième période commence…' : 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (prises.some(d => d.ballottage || d.plafond || d.patron || d.achat)) renderCap();
   prises.forEach(confirmerDecision);
@@ -790,7 +792,7 @@ function ouvrirEcranSaison(depuis = 0) {
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
         personnel: { html: j => personnelDuJour(j) },
         maison: { cartes: (k, j) => cartesDeLaMaison(k, j), jouer: (item, j, decider) => jouerDeLaMaison(item, j, decider) },
-        // Une maison hors de l'écran de saison (Effectif › Joueurs) : la coquille l'ouvre.
+        // Une maison hors de l'écran de saison (Joueurs) : la coquille l'ouvre.
         allerA: k => montrerPage(k),
       },
       onTermine: () => terminerSaison(),

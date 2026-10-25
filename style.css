@@ -3984,6 +3984,15 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 .hub-volet > * { flex: none; }
 /* LE PROCHAIN MATCH EN UNE LIGNE (V8, le Bureau du Rogue) : le toucher ouvre Effectif › Dépistage. */
 .bu-prochain { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); width: 100%; min-height: 56px; margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-2); color: var(--encre); text-align: left; cursor: pointer; }
+
+/* Ton plan d'avant-match, au Bureau (oct.) : une ligne pliée sous le match, les six tuiles quand elle se déplie. */
+.bu-plan { margin-top: var(--esp-2); border: 1px solid var(--filet); background: var(--fond-2); }
+.bu-plan > summary { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); list-style: none; cursor: pointer; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
+.bu-plan > summary::-webkit-details-marker { display: none; }
+.bu-plan-t { letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.bu-plan > summary b { flex: 1; min-width: 0; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bu-plan-aller { color: var(--or); }
+.bu-plan-corps { padding: 0 var(--esp-3) var(--esp-3); }
 .bu-prochain.gros { border-color: var(--or); }
 .bu-prochain-txt { display: grid; min-width: 0; line-height: 1.25; }
 .bu-prochain-txt b { font: 800 var(--t-4)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

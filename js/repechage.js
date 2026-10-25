@@ -1675,7 +1675,7 @@ function voleAuCartable(el, rarete) {
   const src = el.querySelector('.carton-photo');
   const r = (src && src.offsetParent ? src : el).getBoundingClientRect();
   if (!r.width) return;
-  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"], .navtab[data-section="effectif"]')].find(b => b.offsetParent) || $('cnt');
+  const cible = [...document.querySelectorAll('.navtab[data-section="lignes"]')].find(b => b.offsetParent) || $('cnt');
   const rc = cible ? cible.getBoundingClientRect() : { left: innerWidth / 2, top: innerHeight - 40, width: 0, height: 0 };
   const img = src && src.querySelector('img.visage, img.carton-action');
   const v = document.createElement('div');

@@ -1088,6 +1088,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const av = avantDuCombat(mo.p.j, mo.mb);
     const dAvant = cle => ({ jour: mo.p.j, avant: { cle: av.cle, choix: cle, joueurs: av.cibles.map(getPlayerKey) } });
     const jouer = (dA, x) => {
+      // On vit le match (oct., JP : *une fois un match important commencé, on vit le match, rien d'autre*) : ton plan pris,
+      // le direct part, sans repasser par le Bureau.
+      suiteEntracte = { j: mo.p.j, direct: true, debut: true };
       const j = jour; quitter();
       onDecision([...(dA ? [dA] : []), { jour: mo.p.j, main: { jouees: [] }, duel: { p: 0, ...(x.plan ? { plan: x.plan } : {}) } }], j);
     };
@@ -1579,7 +1582,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       : [pour.length ? `${nomMoi} ${et(pour)}` : '', contre.length ? `${nomLui} ${et(contre)}` : ''].filter(Boolean).join(' · ');
     // V7 — L'AFFICHE EN VRAIES STATS : les deux clubs côte à côte (`duelHtml`) ; les rangs et la phrase vont au dépistage.
     const phraseHtml = `<div class="hub-forces-mot">${pour.length || contre.length ? '<b>Avantage</b> ' : ''}${ctx.esc(phrase)}</div>`;
-    // V18-5 : à l'Avant-match du Rogue, le tableau des rangs est déjà au dépistage calculé (`depistageMatchHtml`) : il n'est pas redit.
+    // En Rogue, le tableau des rangs n'est pas redit (V18-5).
     return { mot: duelHtml(adv), detail: phraseHtml + `<div class="hub-forces">
       ${soirEnVolet ? '' : `<table><caption>${gpDe(you) >= 3 && gpDe(adv) >= 3 ? 'Forces cette saison' : 'Forces sur papier'} · rang dans la ligue</caption>
         <thead><tr><th></th>${axes.map(x => `<th scope="col" title="${ctx.esc(x.nom)}">${x.ico}</th>`).join('')}</tr></thead>
@@ -2342,15 +2345,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}</details>`;
   };
   /*
-   * LE DÉPISTAGE, SOUS EFFECTIF (JP, 23 oct. : *pas besoin d'écran par match, mettre les stratégies avec les lignes* ;
-   * *organise plus comme EHM, avec moins de trucs qui servent pas*). Ce que tu sais de ton prochain adversaire — son plan,
-   * les forces, ce qui est en jeu, ton plan — et « Tes lignes », à côté des Lignes. Le pronostic se calcule à l'ouverture du sous-onglet, une fois par journée (`pronosticDe`).
-   */
-  const voletDepistage = () => {
-    if (jour >= N) return '<p class="hub-vide">La saison est jouée.</p>';
-    return soir && soir.jour === jour ? soir.html() : '<p class="hub-vide">Plus de match à venir.</p>';
-  };
-  /*
    * LA ROUTE (V8, à la Slay the Spire) : tes deux prochaines semaines, ce qui est connu d'avance et rien d'autre — tes
    * matchs (chez toi ou chez eux), le gros match contre un rival choisi ou ta bête noire, le lundi, le pack gratuit.
    * Ce qui naîtra en route (une blessure, un événement) n'y est pas : il arrivera dans À faire.
@@ -2656,13 +2650,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   const soirEnVolet = !!(ctx.rogue && onDecision);
   // V18-5 : en Rogue, un club s'ouvre du Classement ; l'onglet Équipes est parti.
   const clubsAuClassement = soirEnVolet;
-  let soir = null;
   // V12 : en Rogue, les maisons qui ont un sous-onglet sont un volet ; `vueMaison` le rend, `rendreActions` le pose.
   let vueMaison = null;
   const tabs = onglets(barre, volet, [
     { cle: 'journee', ico: 'i-cal', titre: 'Journée', page: 'match' },
-    // V18-5 : le dépistage du Rogue s'appelle l'Avant-match (EHM : le rapport d'avant-match).
-    ...(soirEnVolet ? [{ cle: 'depistage', ico: 'i-list', titre: 'Avant-match', page: 'depistage' }] : []),
     { cle: 'classement', ico: 'i-chart', titre: 'Classement', page: 'classement' },
     { cle: 'meneurs', ico: 'i-star', titre: 'Meneurs', page: 'meneurs' },
     ...(clubsAuClassement ? [] : [{ cle: 'equipes', ico: 'i-jersey', titre: 'Équipes', page: 'equipes' }]),
@@ -2672,7 +2663,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     ...(soirEnVolet ? ONGLETS_MAISONS.map(k => ({ cle: k, ico: 'i-list', titre: MAISONS[k].titre, page: k })) : []),
   ], cle => {
     if (cle !== 'classement') menu.club = false;
-    if (cle === 'depistage') return voletDepistage();
     if (MAISONS[cle]) return vueMaison ? vueMaison(cle) : '';
     if (cle === 'saison') return rapportPlie() + previsionHtml() + voletFiche();
     if (cle === 'classement') return voletClassement();
@@ -2689,9 +2679,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   let boitePrete = false;
   const decideDuMarche = d => { const j = jour; quitter(); onDecision(d, j); };
   if (onDecision && ctx.boutique) tabs.hub.boutique = page => ctx.boutique.ouvrir(jour, decideDuMarche, page);
-  // V12-3 : une page hors de l'écran de saison (Effectif › Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
+  // V12-3 : une page hors de l'écran de saison (Joueurs) montre et joue les cartes de sa maison ; `apres` dit où revenir.
   if (onDecision && ctx.maison) tabs.hub.maison = { html: k => ctx.maison.cartes(k, jour), jouer: (item, apres) => ctx.maison.jouer(item, jour, d => { if (apres) apres(); decideDuMarche(d); }) };
-  // V18-5 : l'infirmerie est le filtre 🩹 d'Effectif › Joueurs ; l'écran de saison lui prête ses blessés du jour.
+  // V18-5 : l'infirmerie est le filtre 🩹 d'Joueurs ; l'écran de saison lui prête ses blessés du jour.
   if (soirEnVolet) tabs.hub.infirmerie = () => infirmerieHtml();
   // UN JOUEUR À SIGNER (un pack ouvert, personne de signé) se traite au Marché : le Marché demande s'il y en a un, et le rouvre.
   if (onDecision && ctx.boutique && ctx.boutique.rouvrir) {
@@ -2757,15 +2747,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pj = e.target.closest('.maison-jouer[data-id], .maison-vendre[data-id]');
     if (pj && volet.contains(pj) && ctx.maison) ctx.maison.jouer({ src: pj.dataset.src || 'partie', id: pj.dataset.id, ref: pj.dataset.ref, vendre: pj.classList.contains('maison-vendre') }, jour, d => { const j = jour; quitter(); onDecision(d, j); });
   });
-  // Effectif › Dépistage : un plan part, « Tes lignes » mène derrière le banc.
-  const dansLeDepistage = e => {
-    if (!actif()) return;
-    const t = e.target.closest('.dep-plan[data-plan]');
-    if (t && volet.contains(t) && onDecision) appliquerPlan(t);
-    else if (e.target.closest('.hub-vers-lignes') && onBanc) { quitter(); onBanc(jour); }
-  };
-  if (soirEnVolet) volet.addEventListener('click', dansLeDepistage);
-  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', dansLaMain); volet.removeEventListener('keydown', dansLaMain); volet.removeEventListener('click', dansLeDepistage); };
+  const debrancherMenu = () => { debrancherMenuSeul(); volet.removeEventListener('click', ouvrirTuile); volet.removeEventListener('click', lancerPrevision); volet.removeEventListener('click', dansLaMain); volet.removeEventListener('keydown', dansLaMain); };
 
   /* ---------- l'en-tête, la carte, les actions ---------- */
 
@@ -2898,16 +2880,20 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   }
 
   /*
-   * LE PROCHAIN MATCH, EN UNE LIGNE AU BUREAU (V8) : qui, quand, où, s'il est gros ; le toucher ouvre Effectif ›
-   * Dépistage, où il se prépare.
+   * LE PROCHAIN MATCH, EN UNE LIGNE AU BUREAU (V8) : qui, quand, où, s'il est gros ; le toucher ouvre tes Lignes.
    */
+  /* Ton plan d'avant-match, au Bureau (oct.) : plié sur le plan en force ; il se déplie sur les six tuiles (`planHtml`). */
+  const planDuBureauHtml = p => {
+    const P = PLANS[planEnForce(p.j)];
+    return `<details class="bu-plan"><summary><span class="bu-plan-t">Ton plan</span><b>${P.ico} ${ctx.esc(P.mot)}</b><span class="bu-plan-aller">Changer ›</span></summary><div class="bu-plan-corps"></div></details>`;
+  };
   function prochainHtml(p, adv, quand, domicile, mb) {
     const G0 = mb && MINI_BOSS[mb.raison];
-    return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}" data-ouvre-depistage>
+    return `<button type="button" class="bu-prochain${G0 ? ' gros' : ''}">
       <span class="bu-prochain-logo" aria-hidden="true">${ctx.logo(adv.tag, 28)}</span>
-      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'} · ${PLANS[planEnForce(p.j)].ico} ${PLANS[planEnForce(p.j)].mot}</small>
+      <span class="bu-prochain-txt"><small>Match ${miens.length + 1} · ${ctx.esc(quand)} · ${domicile ? 'à domicile' : 'à l\'étranger'}</small>
         <b>${ctx.esc(ctx.teamShort(adv))}</b>${G0 ? `<small class="bu-prochain-gros">${G0.ico} Gros match · ${ctx.esc(G0.nom)}</small>` : ''}</span>
-      <span class="bu-prochain-aller">Préparer ›</span>
+      <span class="bu-prochain-aller">Tes lignes ›</span>
     </button>`;
   }
 
@@ -3034,11 +3020,19 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ui.ouvrirPage({ genre: 'depistage', ico: '🔎', titre: 'Le dépistage', sousTitre: `Journée ${p.j + 1} · ${ctx.esc(ctx.teamShort(adv))}`, html: corpsDuDepistage() });
       };
       if (soirEnVolet) {
-        // Plus d'écran par match (JP, 23 oct.) : le Bureau garde une ligne, qui ouvre Effectif › Dépistage et « Tes lignes ».
-        soir = { jour, html: () => `${miniBoss}${onBanc ? '<div class="hub-soir-gestes"><button type="button" class="btn gold hub-vers-lignes">🏒 Tes lignes</button></div>' : ''}${corpsDuDepistage()}` };
-        // V12-2 : le mandat et l'objectif vivent au sous-onglet du proprio ; le Bureau ne garde du match qu'une ligne.
-        carte.innerHTML = prochainHtml(p, adv, quand, domicile, mb);
-        carte.querySelector('[data-ouvre-depistage]').onclick = () => tabs.montrer('depistage');
+        /*
+         * Plus d'écran par match (JP, 23 oct.) : le Bureau garde une ligne, qui ouvre tes Lignes. L'Avant-match est parti
+         * (oct., JP : *Dépistage, je vais jamais sur cette page*) ; ton plan d'avant-match vient au Bureau, sous la ligne
+         * du match (JP : *dans bureau ?*), plié : ses tuiles et leurs vraies stats se calculent quand il se déplie.
+         */
+        carte.innerHTML = `${prochainHtml(p, adv, quand, domicile, mb)}${onDecision ? planDuBureauHtml(p) : ''}`;
+        const ligne = carte.querySelector('.bu-prochain');
+        if (ligne && onBanc) ligne.onclick = () => { quitter(); onBanc(jour); };
+        const pli = carte.querySelector('.bu-plan');
+        if (pli) {
+          pli.addEventListener('toggle', () => { if (pli.open && !pli.dataset.lu) { pli.dataset.lu = '1'; pli.querySelector('.bu-plan-corps').innerHTML = planHtml(p, adv); } });
+          pli.addEventListener('click', e => { const t = e.target.closest('.dep-plan[data-plan]'); if (t && actif()) appliquerPlan(t); });
+        }
       } else {
         // V7 : le Bureau dit d'abord ce que le proprio attend (la run, son objectif, ton coach), puis le match.
         carte.innerHTML = `${etatHtml()}${miniBoss}<div class="hub-match">${affiche}${planSoir}${gestes}</div>`;
@@ -3048,10 +3042,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         if (versLignes) versLignes.onclick = () => { quitter(); onBanc(jour); };
       }
     } else {
-      soir = null;
       carte.innerHTML = `<div class="hub-match"><div class="hub-match-titre">Congé</div><div class="hub-match-note">Les ${ctx.esc(you.name)} ne jouent plus d'ici la fin de la saison.</div></div>`;
     }
-    if (soirEnVolet && tabs.courant() === 'depistage') tabs.rafraichir();
     /*
      * LA BOÎTE DE RÉCEPTION (S78). JP, sur sa capture du hub : *t'as plusieurs
      * call to action, y'avait aussi un ballottage, c'est beaucoup pour un
@@ -3743,7 +3735,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * règlent dans la boîte (V18-5). Le proprio : son mandat et son objectif en cours ; l'entraîneur : ton coach et sa
    * confiance, ton personnel, les deux semaines qui viennent ; le vestiaire : ton histoire. La route de la saison est au
    * Calendrier (Ligue › Calendrier, `voletFiche`). La
-   * une est à Hier soir ; les blessés, au filtre 🩹 d'Effectif › Joueurs (`infirmerieHtml`, prêtée par `tabs.hub`).
+   * une est à Hier soir ; les blessés, au filtre 🩹 d'Joueurs (`infirmerieHtml`, prêtée par `tabs.hub`).
    */
   const PERMANENT = {
     proprio: () => `${etatHtml()}${cartesIci('proprio')}`,
@@ -4045,6 +4037,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       etat: jour ? `${f.W}-${f.L}-${f.OTL} · ${rangDe(you)}${rangDe(you) === 1 ? 'er' : 'e'}` : 'Premier match de la saison',
       graine: (p.j + 1) * 100 + p.k, avant: compte, ctx,
       arret: attente ? (kDuel ? 20 * kDuel : 40) : null, onArret: attente ? () => { dessiner(); ouvrirEntracte(true); } : null, depuis,
+      sansSortie: !!grosDuJour(p.j),
       onTermine: () => { if (termine) return; avancer(1); dessiner(); tabs.suivre('journee'); apresAvance(avant, sem, true); },
     });
     void apresA; void apresB;
@@ -4108,7 +4101,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     suiteEntracte = null;
     // Le duel (V9) : après la 2e période, la 3e attend encore son choix — le direct reprend jusqu'à 40:00, l'avance le rouvre.
     if (p && p.j === se.j) {
-      if (se.direct) { if (se.depuis || !entracteAttendu(p.j)) regarderProchain(se.depuis || 40); }
+      if (se.debut) regarderProchain(0);
+      else if (se.direct) { if (se.depuis || !entracteAttendu(p.j)) regarderProchain(se.depuis || 40); }
       else if (!entracteAttendu(p.j)) avancerPuisResumer(1);
       else if (se.depuis) ouvrirEntracte(false);
     }

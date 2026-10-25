@@ -75,6 +75,12 @@ const rnd = (() => { let x = Number(process.env.GRAINE || 7); return () => (x = 
 async function regler(max = 40) {
   for (let i = 0; i < max; i++) {
     const e = await etat();
+    // Le gros match se vit en direct (oct.) : au vestiaire à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
+    if (await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })) {
+      const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
+      if (b) await b.click().catch(() => {});
+      await page.waitForTimeout(600); continue;
+    }
     if (e.choix) {
       if (await page.$('#choixModal:not([hidden]) .paquet')) { await passerLaPile({ tout: true }); await page.waitForTimeout(800); const f = await page.$('#choixModal:not([hidden]) .choix-fermer'); if (f) await f.click(); continue; }
       // L'écran de combat (V5) : une carte de vestiaire à garder avant « Jouer » (la première ; un pari passe par le dé, plus bas).
@@ -156,7 +162,7 @@ let pb = 0;
 for (let tour = 0; tour < Number(process.env.TOURS || 4); tour++) {
   await regler(); await club(); log('regler:', await regler());
   if (tour % 2 === 1) {
-    await page.click('#navbar .navtab[data-section="effectif"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})); await page.waitForTimeout(1500);
+    await page.click('#navbar .navtab[data-section="lignes"]'); await page.waitForTimeout(1500);
     const am = await page.$('.ln-auto');
     if (am) { await am.click(); await page.waitForSelector('#choixModal:not([hidden]) .choix-option', { timeout: 5000 }); await page.click('#choixModal:not([hidden]) .choix-option[data-choix="equilibre"]'); await page.waitForTimeout(800); }
     else log('   pas de bouton au mieux');

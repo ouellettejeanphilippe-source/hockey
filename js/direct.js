@@ -209,6 +209,7 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  *   avant      le compte des feuilles d'avant (compterFeuilles), pour « (12e but) »
  *   apres      un mot sur ce qui vient après (« La série se poursuit. »), facultatif
  *   ctx        { esc, teamLabel, teamShort, tagCourt, logo, band, mug }
+ *   sansSortie un gros match : pas de ✕
  */
 /*
  * LE DEUXIÈME ENTRACTE D'UN GROS MATCH (S70). `arret` : la minute où le direct
@@ -217,7 +218,7 @@ export const pastilles = w => `<span class="live-pastilles">${'●'.repeat(w)}${
  * qui vient. `depuis` : le direct reprend à cette minute, ce qui précède posé
  * d'un coup dans le fil.
  */
-export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0 }) {
+export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', etat: etatTexte = '', tally = null, graine = 1, avant = new Map(), apres = '', ctx, onTermine, arret = null, onArret = null, depuis = 0, sansSortie = false }) {
   const modal = document.getElementById('liveModal');
   if (!modal || !f) { onTermine(); return; }
   const $ = id => modal.querySelector(id);
@@ -259,6 +260,9 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     document.body.style.overflow = '';
     onTermine();
   };
+  // UN GROS MATCH SE VIT JUSQU'AU BOUT (oct., JP : *une fois un match important commencé, pas de retour en dehors du match*) :
+  // pas de ✕ ; « Passer à la fin » mène à l'entracte ou au sifflet final, jamais hors du match.
+  $('.live-close').hidden = sansSortie;
   $('.live-close').onclick = fermer;
   // La barre d'espace met en pause et repart, comme un lecteur vidéo.
   const clavier = ev => {

@@ -1636,17 +1636,19 @@ const SECTIONS = [
 ];
 /*
  * LE ROGUE, RANGÉ PAR INTENTION (V8, docs/refonte-v8.md). JP : *organiser l'information de façon claire, actionnable et
- * basée sur l'intention du joueur* ; *travailler surtout le roguelike, pas le reste*. Quatre portes, une intention chacune :
- *   Bureau    qu'est-ce que j'ai à faire, qu'est-ce qui s'en vient ? (À faire, la route, hier soir, avancer)
- *   Effectif  gérer mes joueurs (le tableau, les fiches, tes lignes, le dépistage de ton prochain adversaire)
- *             JP, 23 oct. : *Lignes dans effectif, pas ce soir* ; *pas besoin d'écran par match* ; *organise plus comme EHM*
+ * basée sur l'intention du joueur* ; *travailler surtout le roguelike, pas le reste*. Cinq portes, une intention chacune
+ * (oct., JP : *tu peux avoir cinq menus icons dans le bas sur mobile, profites-en* ; les Lignes ont la leur) :
+ *   Bureau    qu'est-ce que j'ai à faire, qu'est-ce qui s'en vient ? (À faire, la route, hier soir, ton plan, avancer)
+ *   Joueurs   qui j'ai, et dans quel état ? (le tableau, les fiches, l'infirmerie)
+ *   Lignes    comment on joue ? (les trios, les paires, le filet) — l'Avant-match est parti (JP : *je vais jamais sur cette page*)
  *   Marché    améliorer l'équipe (la boutique, l'album)
  *   Ligue     où j'en suis ?
  * Les autres modes gardent les leurs (`SECTIONS`).
  */
 const SECTIONS_ROGUE = [
   { cle: 'bureau', ico: 'i-club', titre: 'Bureau' },
-  { cle: 'effectif', ico: 'i-jersey', titre: 'Effectif' },
+  { cle: 'joueurs', ico: 'i-jersey', titre: 'Joueurs' },
+  { cle: 'lignes', ico: 'i-list', titre: 'Lignes' },
   { cle: 'marche', ico: 'i-marche', titre: 'Marché' },
   { cle: 'ligue', ico: 'i-chart', titre: 'Ligue' },
 ];
@@ -1670,8 +1672,6 @@ const PAGES_DE = {
   bureau: () => ['match', ...(G.bonus === 'ROGUE' ? MAISONS_DU_BUREAU.filter(voletDeSaison) : [])],
   joueurs: () => [auVestiaire() ? 'repechage' : 'joueurs'],
   lignes: () => ['alignement'],
-  // Le Rogue : l'Effectif, ses Lignes et le dépistage (le volet de l'écran de saison), le Marché.
-  effectif: () => ['joueurs', 'alignement', ...(voletDeSaison('depistage') ? ['depistage'] : [])],
   // V16 (tranche 6) : « Tes cartes » est parti — chaque carte rare se joue chez ce qu'elle monte.
   marche: () => ['marche', 'cartable'],
   // En saison, le calendrier n'a pas de volet (ta route et tes matchs sont dans « Ta saison ») : l'onglet attend le bilan.
@@ -1685,7 +1685,7 @@ const PAGES_DE = {
 };
 /* L'icône et le titre de chaque page : l'onglet interne, l'état vide. */
 const PAGE = {
-  match: ['i-club', 'Match'], depistage: ['i-list', 'Avant-match'], saison: ['i-saison', 'Calendrier'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
+  match: ['i-club', 'Match'], saison: ['i-saison', 'Calendrier'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
   proprio: ['i-club', 'Proprio'], entraineur: ['i-cal', 'Entraîneur'], vestiaire: ['i-jersey', 'Vestiaire'],
@@ -1734,7 +1734,7 @@ function sectionsCourantes() {
     mort: draft && s.cle === 'ligue' ? 'Dès le premier match' : '',
     // Au repêchage, les Joueurs comptent ce qui se signe, les Lignes ce qui est signé.
     badge: !draft ? '' : s.cle === 'joueurs' && auVestiaire() ? String(compteSignables())
-      : s.cle === 'lignes' || s.cle === 'effectif' ? `${signes().length}/${totalCases()}` : '',
+      : s.cle === 'lignes' ? `${signes().length}/${totalCases()}` : '',
   }));
 }
 
