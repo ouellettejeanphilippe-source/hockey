@@ -561,9 +561,11 @@ function equipesHtml(ctx, { teams, compte, you, menu, ficheDe, matchsDe, blesses
  * voir tout le monde. Un seul écouteur par écran, posé sur le volet — c'est
  * le contenu du volet qui est refait à chaque journée, pas le volet.
  */
-function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, carte = null) {
+function brancherMenu(volet, menu, equipes, rafraichir, ouvrirOnglet = null, carte = null, actif = () => true) {
   const zones = [volet, carte].filter(Boolean);
   const agir = ev => {
+    // Le volet est partagé : un écran de saison qui n'est plus l'actif ne répond plus (il réécrivait le volet avec son onglet).
+    if (!actif()) return;
     const el = ev.target.closest('[data-tri], [data-vue], [data-equipe], [data-plus], [data-club-retour]');
     if (!el || !zones.some(z => z.contains(el))) return;
     const d = el.dataset;
@@ -2732,7 +2734,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   volet.addEventListener('click', ouvrirTuile);
   // Un lien d'équipe (les meneurs) ouvre son club : l'onglet Équipes, ou en Rogue le Classement, où il s'ouvre (V18-5).
   const versOnglet = cle => { if (cle === 'equipes' && clubsAuClassement) { menu.club = true; tabs.montrer('classement'); } else tabs.montrer(cle); };
-  const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), versOnglet, carte);
+  const debrancherMenuSeul = brancherMenu(volet, menu, () => classement(), () => tabs.rafraichir(), versOnglet, carte, () => actif());
   // LES PAGES DU CLUB (1.0, R3) : le retour (js/pile.js) les ferme, le sommaire d'un match (js/bilan.js) s'y ouvre. Un club
   // ouvert au Classement est un niveau de plus : le retour rend le classement.
   tabs.hub.ouvrirPage = ui.ouvrirPage;
