@@ -12,7 +12,7 @@ import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
 import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement, motDeFamille } from './gerant.js';
-import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
+import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, photoCouchee, cadrePhotoCouchee, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { poseesSur, sePose, casesDAmelioration, varianteApres, BANQUE, CATEGORIES, reglesDe, pourCeJoueur, casesLibres, CASES_DE_BASE, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
@@ -136,7 +136,7 @@ brancherPastilleNiveau(pastilleNiveau);
 /*
  * LE CARTON D'UN JOUEUR (1.0) : ce que le gabarit (`cartonHtml`, js/cartes.js)
  * pose dans le dessin de sa série — le même au vestiaire, dans la carte mini
- * et dans la fiche. o : { nomClasse, clubClasse, eclat }
+ * et dans la fiche. o : { nomClasse, clubClasse, eclat, debout (la carte couchée à l'endroit, la fiche) }
  */
 const sansTaille = html => html.replace(/ style="width:\d+px;height:\d+px;object-fit:contain"/, '');
 export function cartonDe(p, o = {}) {
@@ -147,6 +147,7 @@ export function cartonDe(p, o = {}) {
   const mots = String(p.n || '').trim().split(' ');
   return cartonHtml({
     serie: serieDe(p.s), rarete, portraitHtml: headshotHtml(p), actionSrc: photoAction(p), cadre: cadrePhoto(p),
+    couchee: photoCouchee(p), cadreCouche: cadrePhotoCouchee(p), debout: o.debout,
     pos: esc(positionLabel(p)), posClasse: positionClass(p),
     gemmeHtml: gemmeJoueur(rarete, traits), rubanHtml: rubanDe(p),
     nomHtml: formatName(p.n), nomLettres: mots[mots.length - 1].length, nomClasse: o.nomClasse,

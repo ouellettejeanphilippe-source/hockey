@@ -1728,6 +1728,61 @@ a.spin-club:hover { background: var(--fond-2); }
 @media (prefers-reduced-motion: reduce) { .carton { transition: none; } }
 
 /* ---------------------------------------------------------------
+   LA CARTE COUCHÉE (`carteCouchee`, js/cartes.js ; JP : *cartes spéciales action horizontales quand t'as des photos qui
+   gossent vertical* ; *ces cartes doivent ressembler aux séries de leur année* ; *garder assez de place pour les
+   photos, pas les pogner dans un petit cadre*). La carte couchée porte SA série (`.cc-carte.cs-…`) : son carton, ses
+   encres, ses polices, la peau de sa plaque et de son médaillon. Seule la GÉOMÉTRIE se réécrit, ici : chaque série
+   pose ses pièces pour une carte debout, et une carte couchée les range en paysage — la grande fenêtre de la photo
+   (presque toute la carte, la bordure de la série autour), la plaque du nom au pied à gauche, le médaillon au pied à
+   droite. Ces positions passent avant celles de toutes les séries (`!important`, ici seulement) ; les ornements d'une
+   série, dessinés pour une carte debout, se taisent. La case reste debout (5:7) : `cqw` y est le petit côté, celui
+   d'une carte debout.
+   --------------------------------------------------------------- */
+.carton.carton-couchee { background: none; }
+.cc-carte {
+  position: absolute; left: 50%; top: 50%; width: 140cqw; height: 100cqw; transform: translate(-50%, -50%) rotate(-90deg);
+  overflow: hidden; isolation: isolate; border-radius: 3.2% / 4.5%;
+  background: var(--c-fond, #1b2230); color: var(--c-encre, white); font-family: var(--display); line-height: 1; text-align: left;
+}
+.cc-carte > * { position: absolute; }
+.cc-carte::before { content: ''; position: absolute; z-index: 0; pointer-events: none; }
+/* La fenêtre : presque toute la carte, la bordure de la série autour ; aux éditions hautes, toute la carte. Le cadre de
+   la série (son ::before) passe derrière la photo, un peu plus grand qu'elle : il n'en reste que son filet. */
+.cc-carte > .carton-photo { inset: 4.5cqw !important; width: auto !important; height: auto !important; transform: none !important; }
+.cc-carte::before { inset: 3cqw !important; width: auto !important; height: auto !important; transform: none !important; z-index: 0 !important; }
+.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire) > .carton-photo { inset: 0 !important; }
+.cc-carte:is(.tc-hors, .tc-rare, .tc-legendaire)::before { display: none !important; }
+/*
+ * LE NOM SUR LE CARTON. Les séries qui impriment le nom à l'encre sur leur carton clair, ou en dorure (le crème des
+ * années 70, la patinoire, le marbre, le nacre…), le gardent sur leur carton : la photo leur laisse une bande au pied.
+ */
+.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo { inset: 4.5cqw 4.5cqw 24cqw !important; }
+.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle)::before { inset: 3cqw 3cqw 22.5cqw !important; }
+.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-nom { inset: auto auto 4cqw 6cqw !important; min-height: 0; padding: 0 !important; }
+.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-club { inset: auto 6cqw 3cqw auto !important; }
+.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-imprime { inset: auto 28cqw 1.4cqw auto !important; color: inherit !important; text-shadow: none; }
+.cc-carte:is(.cs-fanion, .cs-almanach, .cs-crosse, .cs-kraft, .cs-vague, .cs-patinoire, .cs-marbre, .cs-pleine, .cs-dorure, .cs-miroir, .cs-souvenir, .cs-filigrane, .cs-encre, .cs-centenaire, .cs-perle, .cs-bulle) > .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 18%, transparent), transparent 22%) !important; }
+.cc-carte .carton-photo > .photo-couchee { object-fit: cover; object-position: calc(var(--fx, 0.5) * 100%) calc(var(--fy, 0.3) * 100%); -webkit-mask: none; mask: none; }
+.cc-carte .carton-photo::after { background: linear-gradient(180deg, color-mix(in srgb, black 22%, transparent), transparent 20% 58%, color-mix(in srgb, black 62%, transparent)) !important; }
+.cc-carte .carton-deco::before, .cc-carte .carton-deco::after { display: none !important; }
+/* La plaque du nom, avec sa peau de série, au pied à gauche, sur la photo. */
+.cc-carte > .carton-nom {
+  --nom-l: 74cqw !important; --nom-max: 10cqw !important;
+  inset: auto auto 7cqw 7cqw !important; width: auto !important; max-width: 92cqw !important; height: auto !important; min-height: 15cqw;
+  padding: 1.6cqw 6cqw 1.6cqw 4cqw !important; transform: none !important; writing-mode: horizontal-tb !important; rotate: none !important;
+}
+.cc-carte > .carton-nom .lname { line-height: 1; }
+.cc-carte .carton-club-nom { display: none !important; }
+/* Le médaillon au pied à droite ; l'imprimé, le tirage et la relique dans les coins libres. */
+.cc-carte > .carton-club { inset: auto 7cqw 6cqw auto !important; width: 18cqw !important; height: 18cqw !important; transform: none !important; }
+.cc-carte > .carton-imprime { inset: auto auto 1.2cqw 7.5cqw !important; width: auto !important; transform: none !important; writing-mode: horizontal-tb !important; color: color-mix(in srgb, white 82%, transparent) !important; text-shadow: 0 0.2cqw 0.6cqw black; }
+.cc-carte > .carton-tirage { inset: 14cqw 6cqw auto auto !important; }
+.cc-carte > .carton-relique { inset: 14cqw 6cqw auto auto !important; }
+/* À l'endroit (la fiche) : la case pivote d'un quart dans un cadre 7:5. */
+.carton-a-plat { position: relative; display: block; width: 100%; aspect-ratio: 7 / 5; }
+.carton-pivot { position: absolute; left: 50%; top: 50%; width: 71.43%; transform: translate(-50%, -50%) rotate(90deg); }
+
+/* ---------------------------------------------------------------
    LA GLACE (les cartes de jeu, js/cartes.js `carteHtml`) — la glace rayée par les lames, ses lignes peintes
    en biais (la rouge, la bleue, un cercle de mise au jeu), le joueur qui
    SORT DE SON CADRE, la plaque du nom en biais et son écusson.
@@ -3249,7 +3304,7 @@ a.spin-club:hover { background: var(--fond-2); }
  * LE DOS SUR SA COQUE (`dosDeCarton`, js/cartes.js) : le carton de la série fait le pourtour, comme au recto — son cadre,
  * le métal de l'édition —, et le texte se lit sur le panneau du dos, en retrait de la marge du cadre (`--v-marge`).
  */
-.fc-verso > .carton-dos { position: absolute; inset: 0; aspect-ratio: auto; }
+.fc-verso > :is(.carton-dos, .carton-a-plat) { position: absolute; inset: 0; aspect-ratio: auto; }
 .cjv-panneau {
   position: absolute; inset: var(--v-marge, 4.5%); z-index: 5; display: flex; flex-direction: column; gap: var(--esp-1);
   padding: var(--esp-2); overflow-y: auto; overscroll-behavior: contain; border-radius: 2.5% / 1.8%; background: var(--v-fond);
@@ -3358,6 +3413,11 @@ a.spin-club:hover { background: var(--fond-2); }
 .dos-10 .cjv-table-wrap { border-width: 1px; }
 .dos-10 .cjv-saisons tbody tr:nth-child(even) { background: color-mix(in srgb, currentColor 6%, transparent); }
 .dos-10 .fc-sec { font-size: var(--t-1); letter-spacing: 0.24em; }
+/* Le dos d'une carte couchée : couché aussi ; l'en-tête, les tableaux et le pied sur toute la largeur, le reste en deux colonnes. */
+.fc-verso.couchee .cjv-panneau { display: block; column-count: 2; column-gap: var(--esp-3); }
+.fc-verso.couchee .cjv-panneau > * { break-inside: avoid; margin-bottom: var(--esp-1); }
+.fc-verso.couchee :is(.cjv-tete, .cjv-table-wrap, .cjv-pied) { column-span: all; }
+.fc-verso.couchee .fc-filigrane { display: none; }
 /* LES DOS PAR SÉRIE (`SERIES[…].dos`, js/cartes.js) : où chaque série range son en-tête, son numéro et ses saisons. */
 .fc-verso.centre .cjv-tete { flex-wrap: wrap; justify-content: center; text-align: center; }
 .fc-verso.centre .cjv-nom { flex: 0 1 auto; }

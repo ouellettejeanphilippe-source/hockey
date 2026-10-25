@@ -24,7 +24,7 @@
 
 import { getTeamBand } from './logos.js';
 import { NOM_VARIANTE, EDITIONS } from './rarete.js';
-import { actionSrc, cadreAction } from './actions.js';
+import { actionSrc, cadreAction, actionCouchee, cadreCouche } from './actions.js';
 
 /*
  * Les quatre raretés, de la plus commune à la plus rare. La gemme se lit sans
@@ -432,6 +432,13 @@ export const photoAction = p => (p && (p.actionSrc || (p.id && actionSrc(p.id, p
  */
 export const cadrePhoto = p => (p && p.id && cadreAction(p.id, p.s, p.t)) || null;
 const styleCadre = c => (c ? ` style="--fx:${c[0]};--fy:${c[1]}"` : '');
+/*
+ * LA PHOTO COUCHÉE (oct. 2026, JP : *cartes spéciales action horizontales quand t'as des photos qui gossent vertical*) :
+ * sa photo 7:5 quand la fenêtre debout coupe le jeu (scripts/actions_couchees.mjs), ou rien. Une photo de saison passe
+ * avant (`actionCouchee`, js/actions.js) ; avec elle, la carte se couche (`cartonHtml`).
+ */
+export const photoCouchee = p => (p && p.id && !p.actionSrc && actionCouchee(p.id, p.s, p.t)) || '';
+export const cadrePhotoCouchee = p => (p && p.id && cadreCouche(p.id)) || null;
 
 /*
  * LE NUMÉRO DE LA CARTE ET LE TIRAGE LIMITÉ (S77). Une vraie série numérote
@@ -502,9 +509,16 @@ export function tirageLimite(cle, num = '/99') {
  * deux bords*). Le verso pose son texte sur la même coque que le recto — le carton de la série, son cadre, ses ornements,
  * le métal de son édition, aux couleurs du club — sans la photo ni la plaque : le pourtour d'un dos est celui de sa face.
  */
-export function dosDeCarton(serie, rarete) {
+export function dosDeCarton(serie, rarete, couchee = false) {
   const s = SERIES[serie] ? serie : serieDe('');
   const r = edition(rarete);
+  // Le dos d'une carte couchée est couché aussi : le carton de sa série, à plat, son métal.
+  if (couchee) return aPlat(`<span class="carton carton-couchee tc-${r} carton-dos" aria-hidden="true"><span class="cc-carte cs-${s} tc-${r}">
+    ${r === 'peu' ? '<span class="carton-fini"></span>' : ''}
+    <span class="carton-deco"></span>
+    ${r === 'rare' || r === 'legendaire' ? '<span class="carton-lueur"></span>' : ''}
+    ${brillante(r) ? '<span class="carton-cadre"></span>' : ''}
+  </span></span>`);
   return `<span class="carton cs-${s} tc-${r} carton-dos" aria-hidden="true">
     ${r === 'peu' ? '<span class="carton-fini"></span>' : ''}
     <span class="carton-orne"><i></i><i></i><i></i></span>
@@ -516,6 +530,7 @@ export function dosDeCarton(serie, rarete) {
 export function cartonHtml(c) {
   const serie = SERIES[c.serie] ? c.serie : serieDe('');
   const r = edition(c.rarete);
+  if (c.couchee) return carteCouchee(c, serie, r);
   const action = c.actionSrc
     ? `<img class="carton-action photo-cadree" src="${echapper(c.actionSrc)}"${styleCadre(c.cadre)} alt="" loading="lazy" decoding="async" onerror="this.remove()">`
     : '';
@@ -536,6 +551,37 @@ export function cartonHtml(c) {
     ${c.eclat ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}
   </span>`;
 }
+
+/*
+ * LA CARTE COUCHÉE (oct. 2026, JP : *cartes spéciales action horizontales quand t'as des photos qui gossent vertical* ;
+ * *ces cartes doivent ressembler aux séries de leur année, pas être une série à part, c'est un upgrade de série
+ * existante*). La carte de sa saison, couchée : le carton, le cadre, la plaque, les polices, le médaillon et les
+ * encres de SA série (`.cs-…` sur la carte couchée), le métal de son édition ; seule la mise en page passe en paysage
+ * (style.css, « LA CARTE COUCHÉE »). Dans une case (le vestiaire, un pack, un choix), elle se range tournée d'un
+ * quart, comme une carte horizontale dans un classeur ; dans la fiche (`debout`), toute la case pivote et elle se lit
+ * à l'endroit. Dans les deux, la case est une carte debout : ses tailles se prennent sur son petit côté.
+ */
+function carteCouchee(c, serie, r) {
+  const carte = `<span class="carton carton-couchee tc-${r}"><span class="cc-carte cs-${serie} tc-${r}">
+    ${r === 'peu' ? '<span class="carton-fini" aria-hidden="true"></span>' : ''}
+    <span class="carton-orne" aria-hidden="true"><i></i><i></i><i></i></span>
+    <span class="carton-photo"><img class="carton-action photo-couchee" src="${echapper(c.couchee)}"${styleCadre(c.cadreCouche)} alt="" loading="lazy" decoding="async" onerror="this.remove()">${c.portraitHtml || ''}</span>
+    <span class="carton-deco" aria-hidden="true"></span>
+    ${r === 'rare' || r === 'legendaire' ? '<span class="carton-lueur" aria-hidden="true"></span>' : ''}
+    ${brillante(r) ? '<span class="carton-cadre" aria-hidden="true"></span>' : ''}
+    ${r === 'rare' ? '<span class="carton-relique" aria-hidden="true"><i>Relique</i></span>' : ''}
+    <span class="carton-pos ${c.posClasse || ''}">${c.pos || ''}</span>
+    ${c.rubanHtml || ''}${c.gemmeHtml || ''}
+    <span class="carton-nom ${c.nomClasse || ''}" style="--n:${Math.max(4, c.nomLettres || 8)}">${c.nomHtml || ''}${c.clubNom ? `<span class="carton-club-nom">${c.clubNom}</span>` : ''}</span>
+    <span class="carton-club ${c.clubClasse || ''}">${c.logoHtml || ''}<span class="carton-sigle">${c.club || ''}</span></span>
+    <span class="carton-imprime"><b>Nº ${c.numero || ''}</b><span>${c.annee || ''}</span></span>
+    ${r === 'legendaire' && c.tirage ? `<span class="carton-tirage">${c.tirage}</span>` : ''}
+    ${c.eclat ? '<span class="cj-eclat" aria-hidden="true"></span>' : ''}
+  </span></span>`;
+  return c.debout ? aPlat(carte) : carte;
+}
+/* À l'endroit : la case pivote d'un quart, la carte couchée en elle aussi ; le tout se lit à plat, en 7:5. */
+const aPlat = carte => `<span class="carton-a-plat"><span class="carton-pivot">${carte}</span></span>`;
 
 /*
  * LE PAQUET (S77) : une récompense s'ouvre comme un paquet de cartes. JP :
