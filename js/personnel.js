@@ -27,7 +27,7 @@ export const PERSONNEL = {
     texte: 'Il connaît chaque planche de la patinoire, et chaque partisan par son nom.' },
 
   // ---- 🐝 le Frelon ----
-  per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.12, finition: 0.93 },
+  per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.12, finition: 0.92 },
     texte: 'Chez nous, on l\'entend crier « Lance ! » de la passerelle de presse.' },
   per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, finition: 0.97, energie: 1.06 },
     texte: 'Des départs arrêtés, encore et encore. Les jambes fraîches, ça fonce au filet.' },
@@ -172,7 +172,7 @@ export const PERSONNEL = {
   per_moine: { role: 'soins', nom: 'Le moine du vestiaire', ico: '🙏', rarete: 'peu', si: 'visiteur', effet: { discipline: 0.85, robustesse: -0.5, finition: 0.96 },
     texte: 'Sur la route, il impose le silence dans l\'autobus. Sur la glace, personne ne répond aux provocations.' },
   // reprend tendre l'autre joue
-  per_pacifiste: { role: 'defense', nom: 'Le pacifiste', ico: '☮', rarete: 'commune', si: 'domicile', effet: { discipline: 0.85, finition: 0.98, robustesse: -0.3 },
+  per_pacifiste: { role: 'defense', nom: 'Le pacifiste', ico: '☮', rarete: 'commune', si: 'domicile', effet: { discipline: 0.85, finition: 0.975, robustesse: -0.35 },
     texte: 'Chez nous, devant les enfants, on ne se bat pas. On recule, et on joue.' },
   // reprend la messe de minuit
   per_organiste: { role: 'chef', nom: 'L\'organiste de minuit', ico: '🎹', rarete: 'rare', si: 'series', effet: { discipline: 0.65, volume: 0.96, robustesse: -0.45 },
@@ -194,7 +194,7 @@ export const PERSONNEL = {
   per_photographe: { role: 'attaque', nom: 'Le photographe des magazines', ico: '🎦', rarete: 'commune', si: 'enFeu', effet: { F: [1.1, 1.02, 0.96, 0.9], defense: 1.08 },
     protege: { creation: 1.47, lancers: 1.19 }, texte: 'Trois victoires de suite, et son centre fait la couverture. Il passe, il tire, il pose.' },
   // reprend le micro du banc
-  per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', si: 'rival', effet: { F: [1.4, 1.1, 0.8, 0.65], finition: 1.11, energie: 1.16 },
+  per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', si: 'rival', effet: { F: [1.4, 1.1, 0.8, 0.65], finition: 1.09, energie: 1.16 },
     texte: 'Contre le rival, il branche un micro sur le banc. Les vedettes jouent pour la télé.' },
   // reprend les plumes du paon et les gants lumineux
   per_costumier: { role: 'soins', nom: 'Le costumier', ico: '👘', rarete: 'rare', si: 'series', effet: { F: [1.1, 1.02, 0.96, 0.9] },

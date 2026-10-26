@@ -8822,8 +8822,12 @@ function intentionDuDuel({ toi, L, Ladv = null, k = 0, hist = [], graine = 0, cl
     }
     const marqueurs = new Map();
     for (const b of buts) if (b.marqueur) marqueurs.set(b.marqueur, (marqueurs.get(b.marqueur) || 0) + 1);
+    // UN MARQUEUR CHAUD APPELLE LA CHASSE (oct. 2026, S125) : ses deux buts sont aussi ceux de son trio, et l'ombre du trio
+    // (+2,5) passait toujours devant la chasse (+1,8) ; la chasse ne sortait qu'à un défenseur qui marque deux fois, jamais
+    // dans huit saisons de run (`check_moments_si`). Un joueur qui a marqué deux fois, on le chasse ; un trio dont les buts se
+    // partagent, on l'ombre.
     const chaud = [...marqueurs.entries()].filter(([p, n]) => n >= 2 && caseDe(L, p)).sort((a, b) => b[1] - a[1])[0];
-    if (chaud) { cible.chasse = chaud[0]; ajouter('chasse', 1.8, 'marqueur', { n: chaud[1] }); }
+    if (chaud) { cible.chasse = chaud[0]; ajouter('chasse', 2.8, 'marqueur', { n: chaud[1] }); }
   }
   const choix = Object.keys(INTENTIONS).filter(c => !INTENTIONS[c].vise || cible[c])
     .sort((a, b) => score[b] - score[a] || (a < b ? -1 : 1))[0];
