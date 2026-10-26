@@ -31,7 +31,7 @@ import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GA
 import { sceneDuMandat, sceneDesGalons } from './scenes.js';
 import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
-import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, varianteJoueur } from './repechage.js';
+import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
 import { syncOptionsUI } from './partie.js';
 import { afficherMenu } from './menu.js';
@@ -435,7 +435,7 @@ const dejaChezToi = p => Object.values(G.roster || {}).some(q => q && getPersonK
  */
 function dejaDansTonEquipe(x) {
   const q = Object.values(G.roster || {}).find(y => y && getPlayerKey(y) === getPlayerKey(x.p));
-  const a = q ? varianteJoueur(q) : null;
+  const a = q ? rareteJoueur(q) : null;
   return a && EDITIONS.indexOf(x.rar) > EDITIONS.indexOf(a) ? `Sa carte monte au cartable : ${NOM_VARIANTE[a]} → ${NOM_VARIANTE[x.rar]}, dès la saison prochaine` : 'Déjà dans ton équipe';
 }
 /* Le paquet se déchire (js/gerant.js) ; on en signe UN (« Signer », puis QUI SORT — `choisirQuiSort`), ou personne. */

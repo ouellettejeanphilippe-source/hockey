@@ -51,7 +51,7 @@ import { brancherEntractes } from './entracte.js';
 import { migrerHistorique, rendreCartable, ajouterAuCartable, marquerJouees } from './cartable.js';
 import { ouvrirEquipes } from './equipes.js';
 import { blessesAuJour, decisionsDeLaPartie, finDesSeriesRogue, jetonsRogue, miniAvecVariante, motDeRun, ouvrirInventaireJeu, ouvrirRogue, ouvrirVestiaire, palmaresDuClubHtml } from './rogue-jeu.js';
-import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, varianteJoueur } from './repechage.js';
+import { ajusterCartes, carteMiniHtml, clesDesMods, compteSignables, getShard, nextSpin, playerCardEl, poserCartes, renderCap, renderDash, renderFilters, renderPool, renderPoolMeta, renderSpin, syncAgeControls, rareteJoueur } from './repechage.js';
 import { ballottageVu, bancSerie, connaitreBallottages, deciderSerie, personneDeCle, reprendreSaison, reprendreSeries, runSeason, sousVoile } from './banc.js';
 import { compteEnGrille, compteRevele, lienEquipe, lienJoueur, ouvrirFiche, porteeRevele, showPlayerModal, statsSim } from './fiche.js';
 import { actionDuBouton, choisirIdentite, majPiedPartie, oublierBrouillon, ouvrirNouvellePartie, poserBrouillon, resoudreHasard, semerBrouillon, syncOptionsUI } from './partie.js';
@@ -2132,7 +2132,7 @@ function remplirCartable() {
 }
 /* L'alignement entre au cartable au départ d'une saison (une variante neuve compte, pas un doublon). */
 export const alignementAuCartable = () => {
-  ajouterAuCartable(signes().map(p => ({ cle: getPlayerKey(p), rar: varianteJoueur(p), num: (G.variantes.numeros || {})[getPlayerKey(p)] || null })), { doublons: false });
+  ajouterAuCartable(signes().map(p => ({ cle: getPlayerKey(p), rar: rareteJoueur(p), num: (G.variantes.numeros || {})[getPlayerKey(p)] || null })), { doublons: false });
   // 1.0 : en Rogue, chaque carte de l'alignement compte une run jouée de plus (js/cartable.js `marquerJouees`).
   if (G.bonus === 'ROGUE' && G.rogue) marquerJouees(signes().map(getPlayerKey), G.rogue.numero || 0);
 };
