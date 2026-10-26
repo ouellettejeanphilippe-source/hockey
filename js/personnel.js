@@ -69,7 +69,7 @@ export const PERSONNEL = {
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },
 
   // ---- 🌠 le Showman ----
-  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.12, 1.04, 0.96, 0.88], defense: 1.05, energie: 1.16 },
+  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.2, 1.06, 0.92, 0.8], defense: 1.05, energie: 1.16 },
     texte: 'Chez nous, ses clients jouent. Les caméras sont là.' },
   per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], defense: 1.06, energie: 1.12 },
     texte: 'En séries, il écrit le match pour ses vedettes.' },
@@ -194,7 +194,7 @@ export const PERSONNEL = {
   per_photographe: { role: 'attaque', nom: 'Le photographe des magazines', ico: '🎦', rarete: 'commune', si: 'enFeu', effet: { F: [1.1, 1.02, 0.96, 0.9], defense: 1.08 },
     protege: { creation: 1.47, lancers: 1.19 }, texte: 'Trois victoires de suite, et son centre fait la couverture. Il passe, il tire, il pose.' },
   // reprend le micro du banc
-  per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', si: 'rival', effet: { F: [1.35, 1.08, 0.85, 0.7], finition: 1.1, energie: 1.16 },
+  per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', si: 'rival', effet: { F: [1.4, 1.1, 0.8, 0.65], finition: 1.11, energie: 1.16 },
     texte: 'Contre le rival, il branche un micro sur le banc. Les vedettes jouent pour la télé.' },
   // reprend les plumes du paon et les gants lumineux
   per_costumier: { role: 'soins', nom: 'Le costumier', ico: '👘', rarete: 'rare', si: 'series', effet: { F: [1.1, 1.02, 0.96, 0.9] },

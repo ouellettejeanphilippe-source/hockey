@@ -7,8 +7,8 @@
  *   1. il se voit dans la feuille d'un soir où il joue : ±2 tirs (un bord ou le rythme), ±0,3 but des deux clubs,
  *      ±0,5 punition, ±4 mises en échec, ±3 blessures par saison, ±3 de jambes ; sur un joueur nommé, à sa ligne :
  *      ±0,3 point, ±0,15 but ou ±1 tir (une récompense de toute la saison : quatre points sur sa durée). Les minutes (`F`, `D`) se recomptent ailleurs (check_dilemmes), l'argent aussi ;
- *   2. sa force reste bornée : un adjoint, au premier échelon, ±0,5 V en buts sur ses soirs d'une saison (V14b) ;
- *      le reste, la borne de sa rareté sur ses soirs (une commune ±1).
+ *   2. sa force reste sous la borne de sa rareté sur ses soirs (une commune ±1) ; le style d'un adjoint au premier
+ *      échelon (±0,5 V en buts, V14b) se juge dans check_places, à 400 matchs par club.
  * `N` : matchs par club et par effet (200). `FILS` : processus (4). `IDS=q:,a:` quelques familles. Une vingtaine de
  * minutes : à la main, comme check_places.
  */
@@ -110,7 +110,7 @@ const lancer = l => new Promise((ok, ko) => { const p = spawn(process.execPath, 
 const lots = Array.from({ length: FILS }, (_, i) => toutes.filter((_, j) => j % FILS === i)).filter(l => l.length);
 const res = Object.assign({}, ...(await Promise.all(lots.map(lancer))));
 const meta = Object.fromEntries(items().map(x => [x.id, x]));
-const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 }, STYLE_V = 0.5, BUTS_PAR_V = 6;
+const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
 const f1 = x => (x >= 0 ? '+' : '') + x.toFixed(1).replace('.', ',');
 const f2 = x => (x >= 0 ? '+' : '') + x.toFixed(2).replace('.', ',');
 const invisibles = [], tropForts = [];
@@ -129,12 +129,13 @@ for (const id of toutes) {
     soirs >= 40 ? (Math.abs(x.pj) * soirs) / 4 : 0);
   const ligne = `${C.nom} : ${soirs.toFixed(1).replace('.', ',')} soirs · par soir : tirs ${f1(x.tp)} / ${f1(x.tc)} · buts ${f2(x.gf)} / ${f2(x.ga)} · punitions ${f2(x.pun)} · mises en échec ${f1(x.coups)} · jambes ${f1(x.jambes)}${x.pj || x.tj ? ` · le joueur ${f2(x.pj)} pt, ${f1(x.tj)} tir` : ''}`;
   if (R < 1) { invisibles.push(C.nom); informer(`✗ ${id}`, ligne); }
-  const v = id.startsWith('q:') ? ((x.gf - x.ga) * soirs) / BUTS_PAR_V : x.v * soirs;
-  const lim = id.startsWith('q:') ? STYLE_V : BORNE_V[C.rarete || 'commune'];
+  // Un adjoint : le style, pas la force, se juge dans check_places (400 matchs par club : à 200, le bruit d'un adjoint de
+  // 41 soirs vaut la borne). Ici, sa rareté.
+  const v = x.v * soirs, lim = BORNE_V[C.rarete || 'commune'];
   // Une récompense de fil (un défi relevé, un pari gagné) dure la saison : c'est la récompense (CLAUDE.md, la run qui casse le jeu).
   if (Math.abs(v) > lim && !id.startsWith('f:')) tropForts.push(`${C.nom} ${f1(v)} V (borne ${String(lim).replace('.', ',')})`);
 }
 exiger('chaque effet se voit dans la feuille d\'un soir où il joue', !invisibles.length, invisibles.length ? `${invisibles.length} sur ${mesures} : ${invisibles.slice(0, 12).join(' · ')}` : `${mesures} effets`);
-exiger('chaque effet reste sous sa borne de force (un adjoint : le style, pas la force)', !tropForts.length, tropForts.join(' · ') || 'tous');
+exiger('chaque effet reste sous la borne de sa rareté (le style d\'un adjoint : check_places)', !tropForts.length, tropForts.join(' · ') || 'tous');
 if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify({ res, meta }));
 verdict('Chaque effet se voit');
