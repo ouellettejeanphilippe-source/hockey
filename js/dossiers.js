@@ -74,7 +74,7 @@ export const DOSSIERS = {
     mots: ['Ma table est pleine. Il y a un spécialiste à Toronto, mais il ne travaille pas gratuitement.',
       'Je manque de lits. Ou on paie le spécialiste, ou on joue plus prudent le temps qu\'ils reviennent.'],
     options: [
-      { cle: 'specialiste', nom: 'Le spécialiste de Toronto', bon: 'Moins de blessures tant que l\'infirmerie déborde', gain: -15, si: 'infirmerie', duree: 10, blessure: 0.55 },
+      { cle: 'specialiste', nom: 'Le spécialiste de Toronto', bon: 'Moins de blessures', gain: -15, si: 'infirmerie', duree: 10, blessure: 0.55 },
       { cle: 'prudent', nom: 'Jouer prudent', bon: 'On ferme le jeu sans eux', prix: 'L\'attaque s\'éteint', si: 'infirmerie', duree: 10, defense: 0.92, volume: 0.94 },
     ],
   },
@@ -121,7 +121,7 @@ export const DOSSIERS = {
       'Je n\'ai jamais vu le vestiaire aussi frais. On en profite comment ?'],
     options: [
       { cle: 'pousser', nom: 'On pousse', bon: 'On tire de partout les soirs frais', si: 'jambesFraiches', duree: 12, volume: 1.15 },
-      { cle: 'systemes', nom: 'La structure', bon: 'Une défensive qui tient', si: 'jambesFraiches', duree: 12, defense: 0.9 },
+      { cle: 'systemes', nom: 'La structure', bon: 'Une défensive qui tient', prix: 'On tire moins, nous aussi', si: 'jambesFraiches', duree: 12, defense: 0.9 },
     ],
   },
   /*
@@ -243,7 +243,7 @@ export const DOSSIERS = {
     mots: ['Je ne veux plus jamais voir ça. Fermez la porte du vestiaire, ou fermez votre zone.',
       'J\'ai eu honte dans ma loge. Vous allez me dire ce que vous comptez faire.'],
     options: [
-      { cle: 'porte', nom: 'La porte fermée', bon: 'Après une défaite, on ferme le jeu', si: 'apresDefaite', duree: 10, defense: 0.88 },
+      { cle: 'porte', nom: 'La porte fermée', bon: 'On ferme le jeu', prix: 'On tire moins, nous aussi', si: 'apresDefaite', duree: 10, defense: 0.88 },
       { cle: 'tourner', nom: 'Tourner la page', bon: 'On repart à zéro', prix: 'Le proprio retient son chèque', gain: -5, duree: 4, finition: 1.15, volume: 1.1 },
     ],
   },
@@ -255,7 +255,7 @@ export const DOSSIERS = {
       'On joue comme une équipe qui a déjà fait ses valises. Il faut faire quelque chose.'],
     options: [
       { cle: 'joueurs', nom: 'La réunion des joueurs', bon: 'Les bâtons restent en bas', duree: 8, discipline: 0.75 },
-      { cle: 'capitaine', nom: 'Le capitaine prend la parole', bon: 'Après une défaite, on se relève', si: 'apresDefaite', duree: 12, finition: 1.23, defense: 0.89 },
+      { cle: 'capitaine', nom: 'Le capitaine prend la parole', bon: 'On se relève', si: 'apresDefaite', duree: 12, finition: 1.23, defense: 0.89 },
     ],
   },
   leSommet: {
@@ -265,8 +265,8 @@ export const DOSSIERS = {
     mots: ['Tout le monde vous regarde. Je me demande si vos vedettes vont aimer les caméras.',
       'Les projecteurs sont sur vous. On verra si ça monte à la tête.'],
     options: [
-      { cle: 'show', nom: 'Le spectacle', bon: 'Chez nous, les vedettes jouent', prix: 'Le bas de l\'alignement rouille', si: 'domicile', duree: 10, F: [1.25, 1.05, 0.9, 0.78] },
-      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', duree: 8, defense: 0.93 },
+      { cle: 'show', nom: 'Le spectacle', bon: 'Les vedettes jouent', prix: 'Le bas de l\'alignement rouille', si: 'domicile', duree: 10, F: [1.25, 1.05, 0.9, 0.78] },
+      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', prix: 'On tire moins, nous aussi', duree: 8, defense: 0.93 },
     ],
   },
   leMaire: {
@@ -309,8 +309,8 @@ export const DOSSIERS = {
     mots: ['Ça fait trente ans que j\'ai mes billets. Ce soir, j\'ai hué. Je n\'en suis pas fier.',
       'On a hué, oui. Montrez-nous qu\'on a eu tort, chez nous.'],
     options: [
-      { cle: 'parler', nom: 'Leur parler', bon: 'Chez nous, on garde son calme', si: 'domicile', duree: 10, discipline: 0.75 },
-      { cle: 'jouer', nom: 'Jouer pour eux', bon: 'Chez nous, on attaque', prix: 'La porte s\'ouvre derrière', si: 'domicile', duree: 10, volume: 1.1, defense: 1.04 },
+      { cle: 'parler', nom: 'Leur parler', bon: 'On garde son calme', si: 'domicile', duree: 10, discipline: 0.75 },
+      { cle: 'jouer', nom: 'Jouer pour eux', bon: 'On attaque', prix: 'La porte s\'ouvre derrière', si: 'domicile', duree: 10, volume: 1.1, defense: 1.04 },
     ],
   },
   laPratique: {
@@ -321,7 +321,7 @@ export const DOSSIERS = {
       'Rien qui brûle. Les tirs, ou la zone : à toi de choisir.'],
     options: [
       { cle: 'tirs', nom: 'Les tirs', bon: 'Plus de rondelles au filet', duree: 5, volume: 1.11 },
-      { cle: 'zone', nom: 'La zone', bon: 'Moins de chances contre', duree: 5, defense: 0.89 },
+      { cle: 'zone', nom: 'La zone', bon: 'Moins de chances contre', prix: 'On tire moins, nous aussi', duree: 5, defense: 0.89 },
     ],
   },
 };

@@ -12,7 +12,7 @@ import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepar
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, forceEtFaiblesse, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -796,12 +796,17 @@ const CANAUX_PERSONNEL = ['finition', 'volume', 'lancers', 'defense', 'disciplin
 /*
  * Sa force et son défaut en mots, à son échelon. UN ADJOINT À PROTÉGÉ (oct.) : ce qu'il donne à son joueur est sa force
  * (`protegeALEchelon`) ; sans elle, le monteur vidéo (la précision ×2 de ta meilleure gâchette) ne lisait que son défaut.
+ * UNE SEULE LECTURE (oct., JP : *ça a aucun sens*) : la force et le défaut se lisaient chacun à part dans le moteur, et le
+ * défaut (moins de tirs) rendait un « +0,2 pt de précision » vert sous sa ligne rouge, à côté du « +1,5 pt » de la force.
+ * Le moteur joue les deux ensemble : une lecture, le vert d'un côté, le rouge de l'autre, le reste (la glace, les
+ * punitions) à part. Ses chiffres se disent par soir quand il a un moment, jamais « par match ».
  */
 function motsDeLaPersonne(p) {
-  const { force, faiblesse } = forceEtFaiblesse(Object.fromEntries(Object.entries(p).filter(([k]) => CANAUX_PERSONNEL.includes(k))));
+  const canaux = Object.fromEntries(Object.entries(p).filter(([k]) => CANAUX_PERSONNEL.includes(k)));
   const lui = PROTEGES[p.cle] ? motsSurLeJoueur(protegeALEchelon(p.cle, p.choix || []), 'Son protégé') : [];
-  return { force: [...lui.filter(m => m.bon), ...(Object.keys(force).length ? motsEnChiffres(force) : []), ...motsDeLEcon(p.econ)],
-    faiblesse: [...lui.filter(m => !m.bon), ...(Object.keys(faiblesse).length ? motsEnChiffres(faiblesse) : [])] };
+  const lus = Object.keys(canaux).length ? motsEnChiffres(canaux, null, p.si ? { par: 'par soir' } : null) : [];
+  return { force: [...lui.filter(m => m.bon), ...lus.filter(m => m.bon === true), ...motsDeLEcon(p.econ)],
+    faiblesse: [...lui.filter(m => !m.bon), ...lus.filter(m => m.bon === false)], autres: lus.filter(m => m.bon == null) };
 }
 /*
  * Les options d'un échelon atteint : pousser sa force, corriger son défaut (s'il en a un). V14b : chacune coûte le prix
@@ -838,8 +843,9 @@ export function personnelDuJour(j) {
     const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {}, e = etats.get(x.cle);
     if (!e) return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b></span></div>`;
     const vu = assortiPour(coach && coach.cle, x), contre = vu !== x;
-    const { force, faiblesse } = motsDeLaPersonne(vu);
-    const quand = P.si && MOMENTS_SI[P.si] ? MOMENTS_SI[P.si].mot : 'Toute la saison';
+    const { force, faiblesse, autres } = motsDeLaPersonne(vu);
+    // Son moment, et combien de soirs il revient (JP : *c'est useless, c'est juste contre rivaux* — qu'on le sache avant d'engager).
+    const quand = P.si && MOMENTS_SI[P.si] ? `${MOMENTS_SI[P.si].mot} · ≈ ${MOMENTS_SI[P.si].parSaison} soirs par saison` : 'Toute la saison';
     const pct = e.prochain === null ? 100 : Math.max(0, Math.min(100, Math.round(100 * (e.service - MATCHS_ECHELON[e.echelon]) / (e.prochain - MATCHS_ECHELON[e.echelon]))));
     const suite = aChoisir.has(e.cle) ? '' : e.prochain === null ? 'Au sommet de son métier.'
       : e.ferme ? `Prêt pour l'échelon ${e.echelon + 1} : un doublon tiré d'un pack l'ouvre.`
@@ -848,7 +854,7 @@ export function personnelDuJour(j) {
     return `<details class="pli gens${aChoisir.has(e.cle) ? ' monte' : ''}"><summary class="gens-l">
         <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
         <span class="gens-txt"><b>${esc(e.qui)}</b><small>${esc(R.nom || '')} · ${esc(quand)}</small>
-          <span class="gens-ff">${force[0] ? `<span class="bon">${esc(force[0].txt)}</span>` : ''}${faiblesse[0] ? `<span class="mal">${esc(faiblesse[0].txt)}</span>` : ''}</span></span>
+          <span class="gens-ff">${force[0] ? `<span class="bon">${esc(force[0].txt)}</span>` : autres[0] ? `<span>${esc(autres[0].txt)}</span>` : ''}${faiblesse[0] ? `<span class="mal">${esc(faiblesse[0].txt)}</span>` : ''}</span></span>
         <span class="gens-niv">${aChoisir.has(e.cle) ? `<span class="gens-monte">Prêt · ${e.prix} 🪙</span>` : `<span>Éch. ${e.echelon}</span>`}${echelons(e)}<span class="gens-xp"><i style="width:${pct}%"></i></span></span>
       </summary>
       <div class="gens-fiche">
@@ -856,6 +862,7 @@ export function personnelDuJour(j) {
         ${contre ? `<p class="perso-libre">Pas de la couleur de ${esc(COACHS[coach.cle].nom)} : il joue à contre-courant, ses chiffres le disent.</p>` : ''}
         ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
         ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
+        ${autres.length ? `<div class="choix-puces">${pucesEnBref(autres)}</div>` : ''}
         ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
         ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}"${o.desactive ? ` disabled title="${esc(o.desactive)}"` : ''}>${o.ico} ${esc(o.nom)}${e.prix ? ` · ${e.prix} 🪙` : ''}</button>`).join('')}</div>` : ''}
       </div></details>`;

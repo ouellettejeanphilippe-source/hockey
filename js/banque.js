@@ -25,7 +25,7 @@
 import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI, LANCEE } from './sim.js';
 import { PERSONNEL, PROTEGES, LIGNES_DU_FEU } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
-import { formeDe } from './gerant.js';
+import { formeDe, motsSurLeJoueur } from './gerant.js';
 import { hache } from './util.js';
 import { NIVEAUX } from './niveaux.js';
 import { COACHS, ORDRE_COACHS, coachDesCanaux, palierDe, effetDePalier, SEUILS } from './coachs.js';
@@ -287,8 +287,13 @@ export function reglesDe(id, { joueur = null } = {}) {
   if (!c) return [];
   if (c.cat === 'patron') {
     const P = PATRONS[c.cle];
-    // V10 : son moment d'abord.
-    const out = [...(P.si && MOMENTS_SI[P.si] ? [{ txt: `${MOMENTS_SI[P.si].mot} : ses soirs, toute la saison`, bon: null, duree: true }] : []), ...motsEnChiffres(P.effet || {})];
+    // V10 : son moment d'abord. Oct. (JP : *c'est useless, c'est juste contre rivaux*) : combien de soirs il revient par
+    // saison (`parSaison`), et ses chiffres par soir, pas « par match » ; un protégé (JP : *le superstitieux est nuisible*)
+    // dit ce qu'il donne à son joueur, sans quoi la face ne montrait que le défaut d'équipe.
+    const M = P.si && MOMENTS_SI[P.si];
+    const out = [...(M ? [{ txt: `${M.mot} : ses soirs seulement, ≈ ${M.parSaison} par saison`, bon: null, duree: true }] : []),
+      ...(PROTEGES[c.cle] && !PROTEGES[c.cle].feu ? motsSurLeJoueur(PROTEGES[c.cle], 'Son protégé').map(m => ({ ...m, txt: m.mot })) : []),
+      ...motsEnChiffres(P.effet || {}, null, M ? { par: 'par soir' } : null)];
     out.push(...motsDeLEcon(P.econ));
     if (P.synergie) out.push({ txt: `Avec ${ROLES[P.synergie.avec].nom.toLowerCase()} : ${motsEnChiffres(P.synergie.effet).map(x => x.txt).join(', ')}`, bon: true });
     if (P.echelle) out.push(motDEchelle(P.echelle, c.coach));

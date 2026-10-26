@@ -373,6 +373,20 @@ export function formeDe(o) {
   if (bits.every(b => !b)) return 'Moindre mal';
   return 'Échange';
 }
+/*
+ * L'ÉTIQUETTE SUIT LES LIGNES QU'ON LIT (oct., JP : *ça a aucun sens*). `formeDe` jugeait les canaux cachés : « Cadeau »
+ * au-dessus d'un « −0,9 tir » rouge, parce qu'une défense qui ferme le jeu coûte aussi des tirs. Ce que l'option montre
+ * décide : tout vert, un cadeau ; tout rouge, un moindre mal ; les deux, un échange. Les formes de structure (Pari,
+ * Geste, Minutes, Plus tard, Règlement) restent ce qu'elles sont.
+ */
+const FORMES_LUES = ['Cadeau', 'Échange', 'Moindre mal', ''];
+function formeDesMots(o, mots) {
+  const forme = formeDe(o);
+  if (!FORMES_LUES.includes(forme)) return forme;
+  const bits = (mots || []).filter(m => m.bon === true || m.bon === false).map(m => m.bon);
+  if (!bits.length) return forme;
+  return bits.every(Boolean) ? 'Cadeau' : bits.every(b => !b) ? 'Moindre mal' : 'Échange';
+}
 function typeAvecForme(type, forme) {
   if (!forme) return type || '';
   if (!type) return forme;
@@ -453,7 +467,7 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
     const { duree: _d, ...canaux } = o.effet || o;
     mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, o.cadre || spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
   }
-  const forme = formeDe(o);
+  const forme = formeDesMots(o, mots);
   const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
   return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
@@ -461,7 +475,7 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
     ${forme ? `<span class="choix-forme">${esc(forme)}</span>` : ''}
     ${o.sous ? `<span class="choix-option-sous">${sub(o.sous)}</span>` : ''}
     ${pucesHtml ? `<span class="choix-puces">${pucesHtml}</span>` : ''}
-    ${o.bon ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
+    ${o.bon && !o.rien ? `<span class="choix-option-bon">+ ${sub(o.bon)}</span>` : ''}
     ${o.prix ? `<span class="choix-option-prix">− ${sub(o.prix)}</span>` : ''}
     ${o.mutation ? `<span class="choix-option-mut">${MUTATIONS[o.mutation].ico} ${esc(MUTATIONS[o.mutation].quoi)}</span>` : ''}
     ${o.desactive ? `<span class="choix-option-non">${esc(o.desactive)}</span>` : ''}

@@ -73,7 +73,7 @@ export function protegeALEchelon(cle, choix = []) {
 /* Le feu d'un adjoint (`portee`) prend sa deuxième ligne à son troisième échelon : deux poussées de sa force (`LIGNES_DU_FEU`). */
 export const lignesDuFeu = (cle, choix = []) => (PROTEGES[cle] && PROTEGES[cle].portee ? (choix.filter(c => c === 'force').length >= LIGNES_DU_FEU.poussees ? 2 : 1) : null);
 /* La force et la faiblesse, séparées : ce que la fiche dit en vert et en rouge. */
-export function forceEtFaiblesse(effet) {
+function forceEtFaiblesse(effet) {
   const force = {}, faiblesse = {};
   for (const [k, v] of Object.entries(effet || {})) {
     if (k === 'econ' || Array.isArray(v)) force[k] = v;

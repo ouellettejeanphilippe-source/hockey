@@ -4706,7 +4706,13 @@ const BLESSURE_BASE = 0.0015, BLESSURE_FRAGILE = 0.015;
  * dès le double : un joueur de 20 matchs sur 82 se blesse près de sept fois plus.
  */
 export const FRAGILE_DES = 2;
-export const fragiliteDe = p => { const f = 1 - gpShare(p); return (BLESSURE_BASE + BLESSURE_FRAGILE * f * f) / BLESSURE_BASE; };
+/*
+ * UN GARDIEN N'EST JAMAIS FRAGILE PAR SES MATCHS (oct., JP : *Fragile ? Y a joué 50 matchs* — Legace 2005-06, 51 départs,
+ * sortait « Fragile ×2 »). Ses matchs joués disent qui est le partant, pas sa santé : le reste, c'est l'auxiliaire qui l'a
+ * joué (`partAuxiliaire`). Sa part fragile est nulle ; il reste le risque de base, à moitié.
+ */
+const frailDe = p => (p.p === 'G' ? 0 : 1 - gpShare(p));
+export const fragiliteDe = p => { const f = frailDe(p); return (BLESSURE_BASE + BLESSURE_FRAGILE * f * f) / BLESSURE_BASE; };
 /*
  * LA ROBUSTESSE BLESSE, AU NOMBRE DE LA VRAIE LNH (Jalon P, B). JP, 12 oct. : *robustesse cause blessures, pas
  * douze blessés en même temps, mais nombre normal versus la vraie vie*. Mesuré avant, sur des ligues de vrais
@@ -4724,7 +4730,7 @@ export const fragiliteDe = p => { const f = 1 - gpShare(p); return (BLESSURE_BAS
  */
 export const BLESSURES_LNH = 9, FRAPPE = 0.12, INFIRMERIE_PLEINE = 4;
 function injuryChance(p, heavy = false) {
-  const frail = 1 - gpShare(p);
+  const frail = frailDe(p);
   let pr = BLESSURE_BASE + BLESSURES_LNH * BLESSURE_FRAGILE * frail * frail;
   if (p.p === 'G') pr *= 0.5;
   if (heavy) pr *= BLESSURE_EREINTANT;
