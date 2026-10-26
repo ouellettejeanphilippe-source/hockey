@@ -939,7 +939,8 @@ export function runPlayoffs(top16, opts = {}) {
   RONDES = RONDES_PAR_N[Math.round(Math.log2(top16.length))] || RONDES_PAR_N[4];
   const decsSeries = (G.ligue && G.ligue.decisionsSeries) || [];
   const graineSeries = (G.ligue && G.ligue.graine) || 0;
-  const S = creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16, des: G.ligue && G.ligue.des ? G.ligue.des.series : null });
+  // Un moteur rembobiné (`rembobinerSeries`, js/banc.js) se reprend tel quel ; sinon les séries naissent.
+  const S = opts.moteur || creerSeries(top16, { ligue: (G.ligue && G.ligue.moteur) || null, graine: graineSeries, decisions: decsSeries, equipes: G.ligue ? G.ligue.teams : top16, des: G.ligue && G.ligue.des ? G.ligue.des.series : null, instantanes: G.bonus === 'ROGUE' });
   G.seriesMoteur = S;
   G.series = S.toutes;
   const vus = opts.depuis && opts.depuis.revele;

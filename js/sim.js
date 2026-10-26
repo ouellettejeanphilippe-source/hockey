@@ -2348,8 +2348,8 @@ export const MOMENTS = {
   baton: {
     ico: '🏒', titre: 'La disette', fait: 'disetteMarqueur', de: 'an',
     options: [
-      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.25, lancers: 0.9 } },
-      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.25, finition: 0.92 } },
+      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.8, lancers: 0.5 } },
+      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.76, finition: 0.76 } },
     ],
   },
   /*
@@ -2386,7 +2386,7 @@ export const MOMENTS = {
     ico: '📏', titre: 'La courbe illégale', regle: true, fait: 'disette', de: 'eq',
     options: [
       { cle: 'laisser', nom: 'Laisser passer les courbes illégales', bon: 'Une chance sur deux : plus de précision', prix: 'Sinon : plus de punitions',
-        pari: { chance: 0.5, gagne: { finition: 1.095, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
+        pari: { chance: 0.5, gagne: { finition: 1.16, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
       { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.825, volume: 0.94, duree: 6 },
     ],
   },
@@ -2401,7 +2401,7 @@ export const MOMENTS = {
     ico: '🎭', titre: 'L\'embellissement', regle: true, fait: 'avantagesRares', de: 'an',
     options: [
       { cle: 'plonger', nom: 'Vendre les contacts', bon: 'Une fois sur trois : plus de précision', prix: 'Sinon : plus de punitions',
-        pari: { chance: 2 / 6, gagne: { finition: 1.088, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
+        pari: { chance: 2 / 6, gagne: { finition: 1.14, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
       { cle: 'debout', nom: 'Rester debout', bon: 'Moins de punitions', discipline: 0.825, duree: 6 },
     ],
   },
@@ -2467,7 +2467,7 @@ export const SEQUENCES = {
       { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.095 },
       { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.913 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
-        pari: { chance: 0.5, gagne: { robustesse: 1.95, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
+        pari: { chance: 0.5, gagne: { robustesse: 3, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
       { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.875, discipline: 1.235, blessure: 1.24, trou: true },
     ],
   },
@@ -5877,8 +5877,9 @@ function appliquerDecision(team, d, graine = 0) {
     if (ancien) retirerProtege(team, mut.cle);
     if (MUTATIONS[mut.cle].portee) for (const q of porteeDuFeu(team, MUTATIONS[mut.cle].portee, mut.lignes || 1)) appliquerMutation(team, q, mut.cle, d.jour, 'choix', mut);
     else {
-      const qui = mut.joueur || (ancien && ancien.joueur);
-      const p = qui ? Object.values(team.roster).find(x => x && getPlayerKey(x) === qui) || CONNUS.get(qui) : joueurDeMutation(team, null, mut.cle);
+      // Un ancien protégé qui n'est plus au club ne reçoit pas l'échelon : celui que le moteur désigne le prend.
+      const auClub = k => Object.values(team.roster).find(x => x && getPlayerKey(x) === k);
+      const p = mut.joueur ? auClub(mut.joueur) || CONNUS.get(mut.joueur) : (ancien && auClub(ancien.joueur)) || joueurDeMutation(team, null, mut.cle);
       if (p) appliquerMutation(team, p, mut.cle, d.jour, 'choix', mut);
     }
   }
@@ -5989,7 +5990,7 @@ function appliquerAlignement(team, d) {
     }
   }
   const cases = d.cases;
-  if (!cases) return;
+  if (!cases) { if (d.ballottage) suivreLesProteges(team, d.jour); return; }
   const parCle = new Map();
   for (const p of Object.values(team.roster)) if (p) parCle.set(getPlayerKey(p), p);
   // En place : `team.roster` est l'objet même que l'interface tient (G.roster).
@@ -6002,6 +6003,7 @@ function appliquerAlignement(team, d) {
     if (p && !parCle.has(cle) && p.simGP == null) initSimStats(p);
     if (p) team.roster[i] = p;
   }
+  suivreLesProteges(team, d.jour);
 }
 
 /*
@@ -6196,7 +6198,7 @@ function remettreAZero(p) {
   delete p._mut; delete p._amel; delete p._mutProfils; delete p._mutCles; delete p._partout; delete p._cran; delete p._enBas; delete p._ombre; delete p._abri; delete p._palier; delete p._mentor; delete p._palierTrio; delete p._galon; delete p._si; delete p._soir; delete p._feu;
 }
 
-export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null, arcs = courbe } = {}) {
+export function creerLigue(teams, games = 82, { graine = null, decisions = [], situations = true, accidents = situations, courbe = false, des = null, arcs = courbe, instantanes = false } = {}) {
   // La saison porte sa graine : donnée, elle rejoue la même ; absente, on en
   // tire une et on la rend, pour que « Rejouer » et l'historique la gardent.
   if (graine === null || graine === undefined) graine = nouvelleGraine();
@@ -6229,6 +6231,8 @@ export function creerLigue(teams, games = 82, { graine = null, decisions = [], s
     grosAVenir: null, grosAnnonces: {},
     // LES ARCS (Jalon P, E, js/arcs.js) : ton club en vit en Rogue ; `arcs: false`, une mesure sans eux.
     arcs: !!arcs,
+    // L'INSTANTANÉ du matin d'un gros match (`rembobiner`) : le jeu le retient, les mesures s'en passent.
+    instantanes, _instant: null,
   };
   poserJours(L);
   avecLigue(L, () => {
@@ -6408,6 +6412,8 @@ function preludeDuJour(L) {
       const x = { debut: r, fin: apresMatchs(toi, r, e.matchs), source: 'arc', nom: e.titre, ...e.effet };
       if (e.cible === 'equipe') toi.effets.push(x);
       else (toi.effetsCibles = toi.effetsCibles || []).push({ ...x, joueur: e.joueur, contre: e.contre });
+      // UN DÉFI RELEVÉ (oct., js/arcs.js `DEFIS`) : sa retouche, au verso de sa carte, pour de bon.
+      if (e.recompense && e.joueur && MUTATIONS[e.recompense]) appliquerMutation(toi, e.joueur, e.recompense, r, 'defi');
     }
     retoursDuMatin(toi, r);
     effetsDesJoueurs(toi, r);
@@ -6531,10 +6537,73 @@ const commotionsDe = (team, p) => ((team.commotions && team.commotions[getPlayer
 /* Le classement à ce jour, par rang (1 = premier) : ce que la veille dit des gros matchs. */
 const rangsDe = teams => new Map(teams.slice().sort((a, b) => b.PTS - a.PTS || b.W - a.W).map((t, i) => [t, i + 1]));
 
+/*
+ * L'INSTANTANÉ (oct. 2026 ; JP : *rend instantané, c'est la base*). L'entracte d'un duel est une décision datée d'un
+ * soir déjà joué pour être montré : la saison se rejouait de la graine, quatre à huit secondes sur un téléphone, à
+ * chaque période. Le matin d'un gros match, le moteur retient son état — chaque objet qu'il peut atteindre, copié à
+ * plat, ses liens vers les mêmes objets —, et `rembobiner` le remet en place : la journée se rejoue seule, sur les
+ * mêmes dés, comme la saison rejouée l'aurait jouée (check_instantane). Les décisions et les dés n'en sont pas : la
+ * liste change, les dés restent.
+ */
+function retenirEtat(racines, hors) {
+  const etat = new Map(), pile = [...racines];
+  while (pile.length) {
+    const o = pile.pop();
+    if (o === null || typeof o !== 'object' || etat.has(o) || hors.has(o)) continue;
+    let c;
+    if (Array.isArray(o)) c = o.slice();
+    else if (o instanceof Map) { c = [...o]; for (const [k] of c) if (k && typeof k === 'object') pile.push(k); }
+    else if (o instanceof Set) c = [...o];
+    else {
+      const pr = Object.getPrototypeOf(o);
+      if ((pr !== Object.prototype && pr !== null) || Object.isFrozen(o)) continue;
+      c = { ...o };
+    }
+    for (const v of o instanceof Map ? o.values() : Array.isArray(o) || o instanceof Set ? o : Object.values(c)) if (v && typeof v === 'object') pile.push(v);
+    etat.set(o, c);
+  }
+  return etat;
+}
+function rendreEtat(etat) {
+  for (const [o, c] of etat) {
+    if (Array.isArray(o)) { o.length = c.length; for (let i = 0; i < c.length; i++) { if (i in c) o[i] = c[i]; else delete o[i]; } }
+    else if (o instanceof Map) { o.clear(); for (const [k, v] of c) o.set(k, v); }
+    else if (o instanceof Set) { o.clear(); for (const v of c) o.add(v); }
+    else { for (const k of Object.keys(o)) if (!(k in c)) delete o[k]; Object.assign(o, c); }
+  }
+}
+const retenirLaLigue = (L, cle) => {
+  L[cle] = null;
+  // Les séries (`L.ligue` : la saison) laissent aussi les décisions, les dés et l'instantané de la saison.
+  return retenirEtat([L, CONNUS], new Set([L.decisions, L.des, ...(L.ligue ? [L.ligue.decisions, L.ligue.des, L.ligue._instant] : [])]));
+};
+/*
+ * REMBOBINER : remettre la ligue au matin retenu, avec la liste de décisions neuve — si la plus vieille décision
+ * touchée est de ce matin-là ou d'après. Rend faux sinon : il faut rejouer de la graine.
+ */
+export function rembobiner(L, decisions, jourMin) {
+  const x = L._instant;
+  if (!x || jourMin < x.jour || jourMin >= L.jour) return false;
+  rendreEtat(x.etat);
+  L.decisions = decisions;
+  L._instant = x;
+  return true;
+}
+/* Les séries de même : le match `k` de la ronde `ronde`, s'il est celui retenu et qu'il est joué. */
+export function rembobinerSeries(S, decisions, ronde, k) {
+  const x = S._instant;
+  if (!x || x.ronde !== ronde || x.k !== k || !(S.ronde > ronde || (S.ronde === ronde && S.k > k))) return false;
+  rendreEtat(x.etat);
+  S.decisions = decisions;
+  S._instant = x;
+  return true;
+}
+
 /* UNE JOURNÉE : ses décisions, ses matchs, puis le matin du lendemain. */
 export function jouerJournee(L) {
   if (L.fini) return;
   const r = L.jour, teams = L.teams, graine = L.graine;
+  if (L.instantanes && L.grosAVenir) L._instant = { jour: r, etat: retenirLaLigue(L, '_instant') };
   avecLigue(L, () => {
     // Les décisions du jour s'appliquent AVANT les matchs : elles ne
     // consomment aucun hasard, donc une décision au jour k ne touche pas aux
@@ -7228,6 +7297,19 @@ export const MUTATIONS = {
   contrat_annee: { nom: 'Année de contrat', ico: '📝', cible: 'libre', source: 'contrat', quoi: 'Il joue pour son prochain contrat : chaque présence compte, quitte à trop en faire.', finition: 1.088, lancers: 1.066, blessure: 1.2 },
   contrat_prolonge: { nom: 'Prolongation signée', ico: '🖋', cible: 'libre', source: 'contrat', quoi: 'Rassuré pour cinq ans : il se ménage un peu.', blessure: 0.7, finition: 0.975 },
   contrat_leader: { nom: 'Le « C » cousu', ico: '©', cible: 'libre', source: 'contrat', quoi: 'On lui donne le « C » : il porte l\'équipe sur son dos.', profils: { deuxsens: 8, defensif: 8 }, creation: 1.054, defense: 0.97 },
+  /*
+   * LES RETOUCHES D'UN DÉFI (oct., JP : *s'il réussit un objectif, il a un upgrade permanent genre ceux à mettre derrière
+   * la carte* ; *pour mises en échec, bagarres, tirs, précision, défensive, arrêts*). Un défi relevé (js/arcs.js `DEFIS`)
+   * grave la sienne au verso de sa carte, pour de bon (`source: 'defi'`, gardée au cartable comme une amélioration). 🏵,
+   * comme les galons : ce qu'il a fait chez toi. Le physique n'a pas de canal à lui : son badge monte d'un métal.
+   */
+  defi_buts: { nom: 'Le coup d\'œil', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de buteur : il voit le coin du filet.', profils: { sniper: 12 }, finition: 1.15 },
+  defi_points: { nom: 'Le moteur', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de pointeur : son trio passe par lui.', profils: { passeur: 10, offensif: 6 }, creation: 1.12, finition: 1.05 },
+  defi_tirs: { nom: 'Le canon', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de tireur : il tire de partout.', profils: { offensif: 10 }, lancers: 1.15 },
+  defi_coups: { nom: 'Le marteau', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de mises en échec : son badge monte d\'un métal.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_bagarres: { nom: 'Le poids lourd', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi de bagarres : son badge monte d\'un métal.', palier: 1, profils: { power: 12 }, blessure: 0.85 },
+  defi_pm: { nom: 'Le verrou', ico: '🏵', cible: 'libre', source: 'defi', quoi: 'Il a relevé son défi défensif : on le passe moins.', profils: { defensif: 12, deuxsens: 8 }, defense: 0.9 },
+  defi_arrets: { nom: 'Le mur', ico: '🏵', cible: 'libre', source: 'defi', gardien: true, quoi: 'Il a relevé son défi d\'arrêts : les buts faciles, c\'est fini.', arrets: 0.9 },
   // Le protégé d'un adjoint (V16, js/personnel.js) : ses canaux de joueur, ses soirs, le temps de son poste.
   ...PROTEGES,
 };
@@ -7308,7 +7390,38 @@ export function appliquerMutation(team, p, cle, jour, source, extra = null) {
   for (const [k, d] of Object.entries(M.profils || {})) p._mutProfils[k] = (p._mutProfils[k] || 0) + d;
   (p._mutCles = p._mutCles || []).push(cle);
   // `saison` (V9, tranche 7) : une modif offerte pour la saison seulement (le vétéran mentor d'un fil) ne va pas sur sa carte.
-  (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}) });
+  (team.mutations = team.mutations || []).push({ jour, cle, joueur: getPlayerKey(p), p, source, ...(extra && extra.saison ? { saison: true } : {}),
+    // Un protégé garde ses chiffres d'échelon et ses lignes : s'il part, il les passe à qui le remplace (`suivreLesProteges`).
+    ...(PROTEGES[cle] && extra && extra.canaux ? { canaux: extra.canaux } : {}), ...(PROTEGES[cle] && extra && extra.lignes ? { lignes: extra.lignes } : {}) });
+}
+/*
+ * LE PROTÉGÉ SUIT L'ALIGNEMENT (oct.). Un adjoint à protégé se posait une fois, à son engagement : son joueur échangé,
+ * relâché ou réclamé ailleurs, l'adjoint ne faisait plus rien de la saison ; un adjoint du feu restait sur la 1re ligne
+ * du jour où on l'avait engagé, même remaniée. À chaque changement d'alignement, un protégé parti passe à celui que le
+ * moteur désigne (`joueurDeMutation`), et le feu se repose sur les premières lignes d'aujourd'hui (`porteeDuFeu`).
+ */
+function suivreLesProteges(team, jour) {
+  const dans = new Set(Object.values(team.roster || {}).filter(Boolean).map(getPlayerKey));
+  const parCle = new Map();
+  for (const m of team.mutations || []) if (PROTEGES[m.cle]) parCle.set(m.cle, [...(parCle.get(m.cle) || []), m]);
+  for (const [cle, ms] of parCle) {
+    const M = MUTATIONS[cle];
+    if (!M) continue;
+    const extra = { saison: true, ...(ms[0].canaux ? { canaux: ms[0].canaux } : {}), ...(ms[0].lignes ? { lignes: ms[0].lignes } : {}) };
+    if (M.portee) {
+      const cibles = porteeDuFeu(team, M.portee, extra.lignes || 1);
+      const avant = ms.map(m => m.joueur).sort().join(), apres = cibles.map(getPlayerKey).sort().join();
+      if (avant === apres) continue;
+      for (const m of ms) if (m.p && m.p._feu && !dans.has(m.joueur)) m.p._feu = m.p._feu.filter(x => x !== M.feu);
+      retirerProtege(team, cle);
+      for (const q of cibles) appliquerMutation(team, q, cle, jour, 'choix', extra);
+    } else if (!ms.some(m => dans.has(m.joueur))) {
+      for (const m of ms) if (m.p) { if (m.p._si) m.p._si = m.p._si.filter(e => e.cle !== cle); if (m.p._mutCles) m.p._mutCles = m.p._mutCles.filter(k => k !== cle); }
+      retirerProtege(team, cle);
+      const q = joueurDeMutation(team, null, cle);
+      if (q) appliquerMutation(team, q, cle, jour, 'choix', extra);
+    }
+  }
 }
 
 /* Un adjoint qui quitte son poste (V16) emporte son protégé : ses soirs ne jouent plus, la mutation sort du journal. */
@@ -7693,9 +7806,11 @@ export function playRonde(paires, ronde = 0, avant = null, graine = 0) {
  * même suite que la saison, comme avant. Sans ligue (un script), un
  * générateur à part.
  */
-export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies, des = null } = {}) {
+export function creerSeries(qualifies, { ligue = null, graine = 0, decisions = [], equipes = qualifies, des = null, instantanes = false } = {}) {
   const S = {
     graine, decisions, ligue, equipes,
+    // L'INSTANTANÉ avant chacun de tes duels de séries (`rembobinerSeries`), comme en saison.
+    instantanes, _instant: null,
     // Les dés de chaque soir de séries, par « ronde:match » (voir `deDuJour`).
     des,
     rng: ligue ? null : generateur(`${graine}:series`),
@@ -7769,6 +7884,7 @@ function cumulerSeries(teams, photo) {
 /* UN MATCH DE SÉRIES : le match k de chaque série encore ouverte de la ronde. */
 export function jouerMatchSeries(S) {
   if (S.fini) return;
+  if (S.instantanes && S.toi && S.toi.courbe && S.courante.some(s => s.wA < 4 && s.wB < 4 && (s.A === S.toi || s.B === S.toi))) S._instant = { ronde: S.ronde, k: S.k, etat: retenirLaLigue(S, '_instant') };
   const jouer = () => {
     const r = S.ronde, k = S.k;
     const photo = photoStats(S.equipes);
@@ -8069,7 +8185,7 @@ export const AVANT_GROS = {
     irl: 'Mark Messier, 1994 : il garantit une victoire au 6e match contre les Devils, puis marque trois buts en troisième.',
     recit: 'Les journalistes entourent ton capitaine. Ils attendent une phrase pour la une.',
     options: [
-      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit : gagné, la lancée dure deux fois plus', prix: 'Perdu, on reste sonnés deux fois plus', finition: 1.088, enjeu: true },
+      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit : gagné, la lancée dure deux fois plus', prix: 'Perdu, on reste sonnés deux fois plus', finition: 1.14, enjeu: true },
       { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', defense: 0.96 },
     ] },
   mots: { ico: '🗣', titre: 'La guerre des mots',
@@ -8102,7 +8218,7 @@ export const AVANT_GROS = {
     irl: 'Détroit, 1952 : les frères Cusimano lancent une pieuvre sur la glace — huit tentacules, huit victoires pour la Coupe.',
     recit: 'Les partisans ont prévu quelque chose. Deux façons d\'en profiter.',
     options: [
-      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', finition: 1.06 },
+      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', finition: 1.12 },
       { cle: 'calme', nom: 'Garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.825 },
     ] },
   rat: { ico: '🐀', titre: 'Le rat du vestiaire',

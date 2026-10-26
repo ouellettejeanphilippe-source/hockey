@@ -366,10 +366,35 @@ export function modificateurs(decisions = [], jusqua = Infinity) {
     if (e.holo) m.holo *= e.holo;
     if (e.carteExtra) m.carteExtra += e.carteExtra;
     if (e.sansBase) m.sansBase = true;
-    if (e.jetonsVictoire) m.jetonsVictoire.push({ depuis: p.jour || 0, n: e.jetonsVictoire, cle: p.cle });
-    if (e.jetonsLancee) m.jetonsLancee.push({ depuis: p.jour || 0, n: e.jetonsLancee, cle: p.cle });
   }
+  for (const c of coachsActifs(decisions, jusqua)) {
+    const e = c.econ || {};
+    if (e.jetonsVictoire) m.jetonsVictoire.push({ depuis: c.jour || 0, n: e.jetonsVictoire, cle: c.cle });
+  }
+  for (const x of revenusDuPersonnel(decisions, jusqua)) m[x.sorte].push(x);
   return m;
+}
+/*
+ * CE QUE LE PERSONNEL A RAPPORTÉ, POSTE PAR POSTE (oct.). Un adjoint qui paie (le caissier, le vendeur de chandails)
+ * rapporte de son engagement au jour où il est remplacé, ou à un nouvel échelon, qui ouvre une période à son nouveau
+ * chiffre. Avant, le revenu se comptait du dernier engagement des adjoints EN POSTE : acheter un échelon le jour 50
+ * effaçait les 50 premiers jours de victoires payées, et remplacer le caissier effaçait tout ce qu'il avait rapporté —
+ * la caisse pouvait tomber sous zéro, l'argent déjà dépensé. `jusqua` : la fin d'une période, exclue.
+ */
+function revenusDuPersonnel(decisions = [], jusqua = Infinity) {
+  const out = [], ouverts = new Map();
+  const fermer = (role, jour) => { const o = ouverts.get(role); if (!o) return; ouverts.delete(role); for (const x of o.periodes) out.push({ ...x, jusqua: jour }); };
+  for (const d of [...decisions].filter(x => x && x.patron && x.patron.cle).sort((a, b) => (a.jour || 0) - (b.jour || 0))) {
+    const jour = d.jour || 0;
+    if (jour >= jusqua) continue;
+    const role = d.patron.role || (PATRONS[d.patron.cle] || {}).role;
+    for (const r of d.patron.remplace || []) for (const [k, o] of [...ouverts]) if (o.cle === r) fermer(k, jour);
+    fermer(role, jour);
+    const e = d.patron.econ || {};
+    ouverts.set(role, { cle: d.patron.cle, periodes: ['jetonsVictoire', 'jetonsLancee'].filter(k => e[k]).map(sorte => ({ sorte, depuis: jour, n: e[sorte], cle: d.patron.cle })) });
+  }
+  for (const o of ouverts.values()) out.push(...o.periodes);
+  return out;
 }
 
 /*

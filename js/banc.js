@@ -4,7 +4,7 @@
  * amélioration — et l'écran de saison qui les reçoit.
  */
 
-import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue } from './sim.js';
+import { lanceesDuSoir, getHiddenRatings, compterFeuilles, getPlayerKey, photoAlignement, nouvelleGraine, connaitre, poserAlignementDuJour, activeLineup, MUTATIONS, SLOTS, getPersonKey, createTeam, creerLigue, jouerJusqua, simulate, bilanLigue, rembobiner, rembobinerSeries } from './sim.js';
 import { ajouterAuCartable } from './cartable.js';
 import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
@@ -16,14 +16,14 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents, niveauxDeLaRecrue } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
 import { blessesAuJour, bloqueParLePlafond, jetonsRogue, finDeSaisonRogue, majRunRogue, numeroDeSaison, ouvrirBoutique, rouvrirPackJoueurs, ouvrirPackDeSerie, personnelDuJour, cartesDeLaMaison, jouerDeLaMaison, masseDuLundi, coachsDuLundi } from './rogue-jeu.js';
 import { syncOptionsUI } from './partie.js';
 import { lienJoueur, porteeRevele } from './fiche.js';
-import { niveauDe, ETOILE } from './niveaux.js';
+import { niveauDe, REGULIER, PILIER } from './niveaux.js';
 
 /* ======================================================================
    DERRIÈRE LE BANC — les choix en saison
@@ -215,7 +215,9 @@ async function deciderMaintenant(ds, depuis) {
     // Un coach neuf (la tête de l'entraîneur, V16) devient celui de la run, comme au départ.
     if (d && d.coachNeuf && d.coach && G.rogue) G.rogue.coach = d.coach.cle;
   }
-  await continuerSaison(decisions, depuis, 'La saison reprend avec ton choix…');
+  // Un entracte de gros match ne « reprend » pas la saison : la période suivante commence (on vit le match).
+  const k = Math.max(-1, ...prises.map(periodeDuDuel));
+  await continuerSaison(decisions, depuis, k === 1 ? 'La deuxième période commence…' : k === 2 ? 'La troisième période commence…' : 'La saison reprend avec ton choix…');
   // Le plafond de la barre du haut suit une recrue ou un joueur réclamé.
   if (prises.some(d => d.ballottage || d.plafond || d.patron || d.achat)) renderCap();
   prises.forEach(confirmerDecision);
@@ -272,7 +274,14 @@ async function continuerSaison(decisions, depuis, mot) {
   const avant = new Set(L.decisions || []), apres = new Set(decisions);
   const touchees = [...decisions.filter(d => !avant.has(d)), ...(L.decisions || []).filter(d => !apres.has(d))];
   const jourMin = touchees.length ? Math.min(...touchees.map(d => d.jour)) : Infinity;
-  if (M && jourMin >= M.jour) {
+  /*
+   * RIEN NE SE REJOUE DE LA GRAINE QUI PEUT SE REMBOBINER (oct. 2026 ; JP : *rend instantané, c'est la base*) :
+   * l'entracte d'un duel est daté de son soir, déjà joué pour être montré. Le moteur a retenu ce matin-là
+   * (`rembobiner`, js/sim.js) : il y revient, et seule cette journée se rejoue — check_instantane.
+   */
+  const rembobine = M && jourMin < M.jour && rembobiner(M, decisions, Math.min(jourMin, depuis || 0));
+  if (rembobine) jouerJusqua(M, depuis || 0);
+  if (M && (rembobine || jourMin >= M.jour)) {
     L.decisions = M.decisions = decisions;
     // Le joueur signé (un pack, le ballottage) entre dans l'alignement tout de suite (S79), avec sa carte.
     poserAlignementDuJour(M);
@@ -403,18 +412,20 @@ function rappelEcole(blesse, at) {
  * défenseur, gardien), parce que le choix intéressant est « où est-ce que je
  * renforce », pas « lequel des trois centres ». Mieux que le ballottage, qui
  * bouche un trou : le budget est TOUT l'espace sous le plafond plus le salaire
- * du réserviste libéré (pas 3 % du plafond), et on tire parmi les huit
- * meilleurs producteurs qui y rentrent, pas les quinze. Mêmes règles pour le
+ * du réserviste libéré (pas 3 % du plafond). Mêmes règles pour le
  * reste : des saisons de la ligue, des clubs qui n'y sont pas, personne qui y
  * joue déjà. La recrue prend la case de réserve de sa position ; c'est une
  * décision de ballottage, donc la reprise la retrouve comme les autres.
- * AU PLUS UN PILIER (oct., JP : *rendre moins forte la carte, ça donne toujours des Étoiles*) : tout l'espace du
- * plafond et les huit meilleurs producteurs sortaient presque toujours une Étoile. La carte offre maintenant les
- * meilleurs Piliers de la saison (`NIVEAU_MAX_RECRUE`, lu par `niveauDe`, js/niveaux.js), jamais une Étoile ni un Phénomène — comme le
- * ballottage plafonne au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
+ * UN LOTO DE RÉGULIERS ET DE PILIERS (oct., JP : *rendre moins forte la carte, ça donne toujours des Étoiles* ; puis
+ * *Joueur au choix donne des SUPERSTARS qui brisent le jeu*). Plafonnée au Pilier, la carte tirait encore parmi les
+ * huit meilleurs producteurs : le haut des Piliers, un avant médian au 5 % du haut de sa saison, juste sous la ligne
+ * des Étoiles (Brett Hull 1992-93, 101 points). Elle tire maintenant au hasard parmi TOUS les Réguliers et Piliers
+ * qui rentrent, aux niveaux que ses crans ouvrent (`niveauxRecrue`, lus par `niveauDe`, js/niveaux.js) : un loto,
+ * comme le classeur (`lotoDeCase`) ; le ballottage reste au Régulier (`NIVEAU_MAX_BALLOTTAGE`, js/ballottage.js).
  */
-const RECRUE_MEILLEURS = 8;
-const NIVEAU_MAX_RECRUE = ETOILE - 1;   // Pilier
+/* Ses crans au vestiaire la montent (`niveauxDeLaRecrue`, js/rogue.js) ; une run d'avant les crans, ou hors du Rogue, tire au premier cran. */
+const niveauxRecrue = () => niveauxDeLaRecrue(G.bonus === 'ROGUE' && G.rogue && G.rogue.recrue != null ? G.rogue.recrue : 1);
+const MOTS_RECRUE = { [`${REGULIER},${REGULIER}`]: 'des Réguliers', [`${REGULIER},${PILIER}`]: 'des Réguliers et des Piliers', [`${PILIER},${PILIER}`]: 'des Piliers' };
 function candidatsRecrue(palier) {
   const L = G.ligue;
   if (!L || !L.cles) return [];
@@ -423,8 +434,8 @@ function candidatsRecrue(palier) {
   const clubs = new Set(L.cles);
   const saisons = [...new Set(L.cles.map(c => String(c).split('|')[0]))];
   const h = str => { let x = ((Number(L.graine) >>> 0) ^ Math.imul(palier + 7919, 2654435761)) >>> 0; for (const c of str) x = Math.imul(x ^ c.charCodeAt(0), 16777619) >>> 0; return x; };
-  const prod = p => (p.p === 'G' ? (p.sv || 0) : ((p.pt ?? (p.g + p.a)) || 0) / Math.max(1, p.gp));
   const ligne = ligneDuChoix;
+  const [min, max] = niveauxRecrue();
   const out = [];
   for (const g of ['F', 'D', 'G']) {
     const slot = SLOTS.find(sl => sl.scratch && sl.role === RESERVE_DE[g]);
@@ -439,14 +450,13 @@ function candidatsRecrue(palier) {
         if (clubs.has(`${sa}|${tag}`)) continue;
         for (const p of joueurs) {
           if ((p.gp || 0) < (g === 'G' ? 20 : 40) || !(p.$ > 0) || p.$ > budget || groupeDe(p) !== g || dansLaLigue.has(getPersonKey(p)) || isPicked(p)) continue;
-          if (niveauDe(p, e.players) > NIVEAU_MAX_RECRUE) continue;
+          const n = niveauDe(p, e.players);
+          if (n < min || n > max) continue;
           pool.push(p);
         }
       }
     }
     if (!pool.length) continue;
-    pool.sort((a, b) => prod(b) - prod(a));
-    pool.length = Math.min(pool.length, RECRUE_MEILLEURS);
     pool.sort((a, b) => h(getPlayerKey(a)) - h(getPlayerKey(b)));
     const p = pool[0];
     ballottageVu.set(getPlayerKey(p), p);
@@ -524,6 +534,13 @@ export async function deciderSerie(d) {
   if (pasJoue && !retireJoue) {
     S.decisions = G.ligue.decisionsSeries;
     ouvrirEcranSeries(vues);
+    if (d.recompense !== undefined) confirmerDecision(d);
+    return;
+  }
+  // L'entracte d'un duel de séries : le moteur revient au matin de ce match (`rembobinerSeries`), rien d'autre ne se rejoue.
+  const avantLui = x => x.match_no >= 0 && (x.ronde < d.ronde || (x.ronde === d.ronde && x.match_no < d.match_no));
+  if (S && !retire.some(avantLui) && rembobinerSeries(S, G.ligue.decisionsSeries, d.ronde, d.match_no)) {
+    runPlayoffs(G.ligue.teams.slice(0, nombreEnSeries(G.ligue.teams.length)), { depuis: vues, moteur: S });
     if (d.recompense !== undefined) confirmerDecision(d);
     return;
   }
@@ -643,7 +660,7 @@ export async function runSeason(opts = {}) {
   let r = null, teams, leaders = [], calendrier = [], graine = null, moteur = null;
   if (opponents.length) {
     // S80 : une ligue Rogue porte la courbe de la fin de partie (js/sim.js `echelleTardive`).
-    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec });
+    moteur = creerLigue([you, ...opponents], 82, { graine: opts.graine || null, decisions, courbe: G.bonus === 'ROGUE', des: desPrec, instantanes: G.bonus === 'ROGUE' });
     jouerJusqua(moteur, opts.depuis || 0);
     // Un joueur signé aujourd'hui est dans l'alignement dès maintenant, pas au matin (S79).
     poserAlignementDuJour(moteur);
@@ -746,6 +763,17 @@ function ouvrirEcranSaison(depuis = 0) {
         rappelEcole,
         // LA RECRUE DU DECK (S73) : trois vrais joueurs, un par position.
         recrues: candidatsRecrue,
+        /*
+         * LA CONFIANCE DU MATIN (oct.) : les matchs à ton service la montent seuls (V16), mais elle ne s'allumait qu'à ta
+         * décision suivante — l'écran de l'entraîneur disait déjà III quand le moteur jouait II. Au matin où elle est
+         * atteinte, elle devient sa décision, comme le lundi du robot (scripts/lib/cartes_robot.mjs).
+         */
+        confianceDuMatin: j => {
+          if (G.bonus !== 'ROGUE' || !G.ligue) return null;
+          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { joues: (de, x) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, x) });
+          return a ? { jour: j, ...a } : null;
+        },
+        motRecrue: () => MOTS_RECRUE[niveauxRecrue().join()],
         // OÙ IL JOUE (S80) : « 3e paire », dit à côté d'un nom (les dilemmes, le ballottage, un nouveau rôle).
         ouJoue: p => ouJoue(p),
         // LA CARTE MINI (S78) : un joueur offert se voit en carte de joueur.
@@ -778,7 +806,7 @@ function ouvrirEcranSaison(depuis = 0) {
         coachHtml: j => coachHtml(G.ligue ? G.ligue.decisions || [] : [], j, new Set(blessesAuJour(j).map(b => b.p))),
         personnel: { html: j => personnelDuJour(j) },
         maison: { cartes: (k, j) => cartesDeLaMaison(k, j), jouer: (item, j, decider) => jouerDeLaMaison(item, j, decider) },
-        // Une maison hors de l'écran de saison (Effectif › Joueurs) : la coquille l'ouvre.
+        // Une maison hors de l'écran de saison (Joueurs) : la coquille l'ouvre.
         allerA: k => montrerPage(k),
       },
       onTermine: () => terminerSaison(),

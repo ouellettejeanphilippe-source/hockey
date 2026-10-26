@@ -107,84 +107,57 @@ async function sansIdentite() {
  */
 /*
  * UN JOUEUR OFFERT SE SIGNE, PUIS ON CHOISIT QUI SORT (S78). Toucher sa carte
- * ouvre sa fiche (un aperçu) : c'est « Signer » qui le prend, puis « qui sort ? »
+ * ouvre sa fiche (un aperçu) : c'est « Signer » qui le prend, puis l'échange
  * (U18, JP : *signer doit toujours demander qui part*) — la meilleure sortie y est
- * proposée, en tête et cerclée d'or ; une case libre où personne ne sort se signe
- * sans question.
+ * proposée, cerclée d'or et touchée d'avance ; une case libre où personne ne sort
+ * se signe sans question.
  */
+const ECHANGE = '#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]';
 async function signerPuisSortir(portee = '#choixModal:not([hidden])') {
   const rangee = '#signatureModal:not([hidden]) .pcard:not(.locked)';
   if (!(await page.$(`${rangee} .btn-sign:not([disabled])`))) { await _click(`${portee} .tcj-signer`); await sortirDansAlignement(); return; }
   const libre = /personne ne sort/.test(await page.$eval(`${rangee} .pcard-dest`, x => x.textContent));
   await _click(`${rangee} .btn-sign:not([disabled])`);
-  const qs = await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 5000 }).catch(() => null);
+  const qs = await page.waitForSelector(`${ECHANGE} .ech-q`, { timeout: 5000 }).catch(() => null);
   if (libre) { if (qs) errors.push('une case libre, et « Signer » demande quand même qui sort'); else return; }
   if (!qs) { errors.push('« Signer » pose le joueur sans demander qui sort'); return; }
   await sortirDansAlignement();
 }
 /*
- * QUI SORT, EN LISTE (Jalon U, JP : *un menu similaire à celui pour signer*). « Qui sort ? » est la liste de
- * signature : une rangée par joueur de l'alignement (visage, nom, sa ligne et la masse), rien qui déborde à
- * 390 px, « Sort » sur ceux qui peuvent sortir. Puis « Où joue X ? » : les mêmes rangées, rangées sous leurs
- * neuf lignes titrées par ce qu'elles sont, chacune disant ce que sa case fait ; « Ici » décide. Le parcours
- * prend le premier proposé.
+ * L'ÉCHANGE À LA YAHOO FANTASY (oct., JP : *alignement simple, mais quand tu choisis un joueur, t'as un comparatif en
+ * haut entre les deux joueurs*). L'alignement en lignes simples, rien qui déborde à 390 px ; la sortie proposée, seule
+ * cerclée d'or, est touchée d'avance ; toucher un autre joueur le met face à l'arrivant, stat par stat, et le bilan
+ * dit sa case et la masse ; « Signer » décide. Une autre liste de l'alignement (une carte à poser) : la première case.
  */
 const alignementsVus = [];
 async function sortirDansAlignement() {
-  // La liste « qui sort ? » d'abord (attendue si aucun alignement n'est déjà ouvert), puis l'alignement s'il vient.
-  if (!(await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"]')) && !(await quiSortEnListe())) return false;
-  if (!(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 3000 }).catch(() => null))) return true;
-  return alignementDuChoix();
-}
-async function quiSortEnListe() {
-  await _wait('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 5000 });
-  await page.waitForTimeout(150);
-  const lu = await page.evaluate(() => {
-    const m = document.querySelector('#choixModal');
-    const rangees = [...m.querySelectorAll('.sig-liste .pcard')];
-    const incompletes = rangees.filter(r => !(r.querySelector('.pcard-nom') || {}).textContent || !((r.querySelector('.pcard-dest') || {}).textContent || '').trim()).length;
-    const corps = m.querySelector('.choix-corps');
-    const premiere = m.querySelector('.sig-sort:not([disabled])');
-    return { n: rangees.length, permises: m.querySelectorAll('.sig-sort:not([disabled])').length, incompletes, sw: corps.scrollWidth, cw: corps.clientWidth,
-      proposees: m.querySelectorAll('.sig-liste .pcard.meilleure').length, enTete: !!(rangees[0] && rangees[0].classList.contains('meilleure')),
-      autre: !!m.querySelector('.sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])'),
-      dest: premiere ? premiere.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim() : '' };
-  });
-  if (lu.n < 6) errors.push(`« qui sort ? » ne montre que ${lu.n} joueurs de l'alignement`);
-  if (lu.incompletes) errors.push(`« qui sort ? » : ${lu.incompletes} rangée(s) sans nom ou sans ligne`);
-  if (lu.sw > lu.cw + 1) errors.push(`« qui sort ? » déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
-  if (!lu.permises) { errors.push('« qui sort ? » : personne ne peut sortir'); await _click('#choixModal .choix-fermer'); return false; }
-  if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(lu.dest)) errors.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${lu.dest} »`);
-  if (lu.proposees > 1 || (lu.proposees && !lu.enTete)) errors.push(`« qui sort ? » : la sortie proposée n'est pas seule en tête (${lu.proposees}, en tête : ${lu.enTete})`);
-  alignementsVus.push(lu.dest);
-  // Un autre que la sortie proposée, s'il y en a un : c'est le chemin qui passe par « Où joue X ? ».
-  await _click(lu.autre ? '#choixModal .sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])' : '#choixModal .sig-sort:not([disabled])');
+  if (await page.$(ECHANGE)) return echangeDuChoix();
+  if (!(await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 3000 }).catch(() => null))) return false;
+  await _click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
   return true;
 }
-async function alignementDuChoix() {
-  await _wait('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 5000 });
+async function echangeDuChoix() {
+  await _wait(`${ECHANGE} .ech-q`, { timeout: 5000 });
   await page.waitForTimeout(150);
-  // Jalon U : « Où joue X ? » en rangées de la signature, titrées par ligne ; chacune dit ce que sa case fait, « Ici » décide.
   const lu = await page.evaluate(() => {
     const m = document.querySelector('#choixModal');
-    const titres = [...m.querySelectorAll('.aln-titre')].map(t => (t.firstChild ? t.firstChild.textContent : t.textContent).trim());
-    const lignes = [...m.querySelectorAll('.aln-ligne[data-aln]')];
-    const incompletes = lignes.filter(c => !(c.querySelector('.pcard-nom') || {}).textContent || !((c.querySelector('.aln-dit') || {}).textContent || '').trim()).length;
     const corps = m.querySelector('.choix-corps');
-    const premiere = m.querySelector('.aln-ligne .aln-choisir:not([disabled])');
-    return { titres, n: lignes.length, permises: m.querySelectorAll('.aln-ligne .aln-choisir:not([disabled])').length, incompletes, sw: corps.scrollWidth, cw: corps.clientWidth,
-      dit: premiere ? premiere.closest('.aln-ligne').querySelector('.aln-dit').textContent.replace(/\s+/g, ' ').trim() : '' };
+    return { n: m.querySelectorAll('.ech-q').length, permises: m.querySelectorAll('.ech-q:not([disabled])').length, sw: corps.scrollWidth, cw: corps.clientWidth,
+      proposees: m.querySelectorAll('.ech-q.meilleure').length, touchee: !!m.querySelector('.ech-q.meilleure.on'),
+      autre: !!m.querySelector('.ech-q:not(.meilleure):not([disabled])') };
   });
-  const attendus = ['1er trio', '2e trio', '3e trio', '4e trio', '1re paire', '2e paire', '3e paire', 'Gardiens', 'Réserve'];
-  if (JSON.stringify(lu.titres) !== JSON.stringify(attendus)) errors.push(`« où joue ? » ne titre pas ses rangées par ce qu'elles sont : ${lu.titres.join(' · ')}`);
-  if (lu.n < 20) errors.push(`« où joue ? » ne montre que ${lu.n} joueurs de l'alignement`);
-  if (lu.incompletes) errors.push(`« où joue ? » : ${lu.incompletes} rangée(s) sans nom ou sans ce qu'elle fait`);
-  if (lu.sw > lu.cw + 1) errors.push(`« où joue ? » déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
-  if (!lu.permises) { errors.push('« où joue ? » : aucune case permise'); await _click('#choixModal .choix-fermer'); return false; }
-  // « Roenick : 1er trio, hors de sa position · masse −1,98 M$ »
-  if (!/: (\d+(er|re|e) (trio|paire)|partant|auxiliaire|réserve).+masse/.test(lu.dit)) errors.push(`une rangée de « où joue ? » ne dit pas ce qui va se passer : « ${lu.dit} »`);
-  alignementsVus.push(lu.dit);
-  await _click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
+  if (lu.n < 6) errors.push(`l'échange ne montre que ${lu.n} lignes de l'alignement`);
+  if (lu.sw > lu.cw + 1) errors.push(`l'échange déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
+  if (!lu.permises) { errors.push('l\'échange : personne ne peut sortir'); await _click('#choixModal .choix-fermer'); return false; }
+  if (lu.proposees > 1 || (lu.proposees && !lu.touchee)) errors.push(`l'échange : la sortie proposée n'est pas seule et touchée d'avance (${lu.proposees}, touchée : ${lu.touchee})`);
+  await _click(lu.autre ? '#choixModal .ech-q:not(.meilleure):not([disabled])' : '#choixModal .ech-q:not([disabled])');
+  await page.waitForTimeout(150);
+  const cmp = await page.evaluate(() => { const m = document.querySelector('#choixModal'); return { deux: m.querySelectorAll('.cmp-qui:not(.vide)').length, lignes: m.querySelectorAll('.cmp-l').length,
+    bilan: ((m.querySelector('.cmp-bilan') || {}).textContent || '').replace(/\s+/g, ' ').trim() }; });
+  if (cmp.deux !== 2 || cmp.lignes < 6) errors.push(`le comparatif ne met pas les deux joueurs face à face, stat par stat (${JSON.stringify(cmp)})`);
+  if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(cmp.bilan)) errors.push(`le comparatif ne dit pas où il jouerait et la masse : « ${cmp.bilan} »`);
+  alignementsVus.push(cmp.bilan);
+  await _click('#choixModal .ech-signer:not([disabled])');
   return true;
 }
 /*
@@ -230,7 +203,7 @@ async function prendrePalier() {
   // Le deuxième choix d'une carte du deck (le joueur, le rôle, l'édition… et qui sort, dans l'alignement, S80).
   for (let k = 0; k < 3; k++) {
     await page.waitForTimeout(350);
-    if (await page.$('#choixModal:not([hidden]) :is(.choix-sheet[data-genre="alignement"], .sig-sort)')) { await sortirDansAlignement(); continue; }
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet:is([data-genre="alignement"], [data-genre="echange"])')) { await sortirDansAlignement(); continue; }
     if (!(await toucher('#choixModal:not([hidden]) .choix-sheet[data-genre="palier"] :is(.tcj-signer, .tc-prendre, button.choix-option:not([disabled]))'))) break;
   }
   // Après la carte : le hub, ou un autre plein écran (un sommaire, un choix, la main suivante).
@@ -354,8 +327,8 @@ async function ouvrirPaquet() {
  * 0) ne compte pas : Playwright s'arrêtait sur lui et ne voyait pas la page.
  */
 const ecranPret = (timeout = 120000) => page.waitForFunction(() => {
-  // L'alignement aussi (1.0, oct.) : après « qui sort ? », l'arrivant se place dans ses cases.
-  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-choisir, #choixModal:not([hidden]) .sig-sort, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
+  // L'alignement aussi (1.0, oct.), et l'échange (qui sort, oct.) : ses lignes ne sont pas des `.choix-option`.
+  const sel = '#hubModal .hub-jour, #hubModal .hub-traiter, #choixModal:not([hidden]) .choix-option, #choixModal:not([hidden]) .aln-choisir, #choixModal:not([hidden]) .ech-q, #choixModal:not([hidden]) .paquet, #hubModal .hub-page[data-genre="sommaire"], #hubModal .hub-suite, #hubModal .hub-prochaine';
   return [...document.querySelectorAll(sel)].some(el => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) return false;
@@ -381,8 +354,8 @@ async function repondreAuxChoix() {
       await page.waitForTimeout(250);
       continue;
     }
-    // QUI SORT, DANS L'ALIGNEMENT (S80) : ses cases ne sont pas des `.choix-option`.
-    if (await page.$('#choixModal:not([hidden]) :is(.choix-sheet[data-genre="alignement"], .sig-sort)')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
+    // QUI SORT, DANS L'ÉCHANGE (oct.) : ses lignes ne sont pas des `.choix-option`.
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet:is([data-genre="alignement"], [data-genre="echange"])')) { await sortirDansAlignement(); await page.waitForTimeout(350); continue; }
     const opt = await page.$('#choixModal:not([hidden]) :is(button.choix-option, .tc-prendre):not([disabled])');
     if (!opt || !(await opt.isVisible())) {
       /*
@@ -2353,7 +2326,7 @@ await sansCote('express');
  * séquences dépendent des résultats, elles s'informent.
  */
 console.log(`   ballottage : ${ballottage.mot || 'aucune offre croisée (il faut une blessure de quatre matchs et plus)'}`);
-console.log(`   qui sort, en liste : ${alignementsVus.length ? `${alignementsVus.length} fois — « ${alignementsVus[0]} »` : 'pas croisé ce parcours-ci (il faut un ballottage ou une recrue)'}`);
+console.log(`   qui sort, l'échange : ${alignementsVus.length ? `${alignementsVus.length} fois — « ${alignementsVus[0]} »` : 'pas croisé ce parcours-ci (il faut un ballottage ou une recrue)'}`);
 // Un paquet dépend d'une victoire en gros match ou d'une série gagnée : on dit ce qu'on a ouvert.
 console.log(`   paquets ouverts : ${paquetsVus.length ? paquetsVus.join(' · ') : 'aucun (pas de gros match gagné ni de série gagnée)'}`);
 // LE SOMMAIRE DE LA JOURNÉE (S78) : après une avance où ton club a joué, avant le retour au hub.

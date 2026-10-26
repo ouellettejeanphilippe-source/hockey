@@ -352,7 +352,8 @@ export function formeDe(o) {
   if (o.pari) return 'Pari';
   if (o.ensuite) return 'Plus tard';
   if (o.action) return 'Geste';
-  if (o.rien) return 'Rien';
+  // Ne rien faire se dit une fois, par sa puce (« Rien ne change ») : ni étiquette, ni « + Rien ne change » de plus.
+  if (o.rien) return '';
   if (o.trou || (o.mutation && EDITIONS_REGLEMENT.includes(o.mutation))) return 'Règlement';
   if (!(o.genreCarte || o.dessin) && EDITIONS_REGLEMENT.includes(o.cle)) return 'Règlement';
   if (o.genreCarte || o.dessin) {
@@ -363,7 +364,10 @@ export function formeDe(o) {
   const src = o.effet || o;
   if (Array.isArray(src.F) || Array.isArray(src.D)) return 'Minutes';
   // Ce qui va au joueur nommé (`lui`) compte aussi : sa précision qui monte aide, ses buts accordés qui montent coûtent.
-  const bits = [...bitsDe(src, true), ...Object.entries(src.lui || {}).filter(([k]) => MOTS_DU_JOUEUR[k]).map(([k, v]) => (MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1))];
+  // Ce que le moteur ne joue pas compte aussi (oct.) : des jetons gagnés ou payés, de l'espace sous le plafond. Le contrat de
+  // télé (+2,5 M$) se lisait « Moindre mal ».
+  const bits = [...bitsDe(src, true), ...Object.entries(src.lui || {}).filter(([k]) => MOTS_DU_JOUEUR[k]).map(([k, v]) => (MOTS_DU_JOUEUR[k][1] ? v > 1 : v < 1)),
+    ...(o.gain ? [o.gain > 0] : []), ...(o.plafond ? [true] : [])];
   if (!bits.length) return '';
   if (bits.every(Boolean)) return 'Cadeau';
   if (bits.every(b => !b)) return 'Moindre mal';
@@ -447,7 +451,7 @@ export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', 
   const { nom, noms, sub } = nommer(spec);
   if (!mots) {
     const { duree: _d, ...canaux } = o.effet || o;
-    mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
+    mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, o.cadre || spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
   }
   const forme = formeDe(o);
   const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;

@@ -58,26 +58,17 @@ const passerLaPile = async () => {
  * LE BOUTON FLOTTANT (audit mobile, oct.) : quand « Jour suivant » sort de l'écran, son double flotte au-dessus de la
  * barre. Il se mesurait lui-même et restait coincé à 230 × 16 après avoir été masqué : partout où il paraît, 44 px au moins.
  */
-const flottant = { vus: 0, petits: [] };
+const flottant = { vus: 0, petits: [], defiles: 0 };
 async function garderLeFlottant(ou) {
   const f = await page.$eval('#hubFlottant', b => { const r = b.getBoundingClientRect(); return { vu: !b.hidden && b.checkVisibility() && r.height > 0, w: r.width, h: r.height }; }).catch(() => null);
   if (!f || !f.vu) return;
   flottant.vus++;
   if (f.h < 44) flottant.petits.push(`${ou} ${Math.round(f.w)}×${Math.round(f.h)}`);
 }
-/* Effectif › Dépistage (JP, 23 oct. : plus d'écran par match) : la section, puis son sous-onglet. On le défile au bout : le
-   bouton du jour n'y est pas, son double doit flotter, à sa vraie taille. */
-const versLeDepistage = async () => {
-  await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
-  await page.click('#sousNav .soustab[data-page="depistage"]', { timeout: 3000 }).catch(() => {});
-  await page.waitForTimeout(500);
-  const defile = bas => page.evaluate(b => { for (const e of document.querySelectorAll('#hubModal *')) if (e.scrollHeight > e.clientHeight + 40 && /auto|scroll/.test(getComputedStyle(e).overflowY)) e.scrollTop = b ? e.scrollHeight : 0; }, bas);
-  await defile(true); await page.waitForTimeout(400);
-  await garderLeFlottant('le dépistage, au bout');
-  await defile(false); await page.waitForTimeout(200);
-};
 const auBureau = async (timeout = 120000) => {
   await page.waitForFunction(() => document.querySelector('#hubModal .hub-jour, #hubModal .hub-traiter'), null, { timeout });
+  // Le journal de l'ouverture (oct.), après un rechargement : « Au bureau ».
+  if (await page.$('#hubModal .hub-page[data-genre="journal"] .hub-page-fermer')) { await page.click('#hubModal .hub-page[data-genre="journal"] .hub-page-fermer'); await page.waitForTimeout(250); }
   await page.waitForTimeout(300);
   if (await page.evaluate(() => document.body.dataset.section !== 'bureau')) { await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {}); await page.waitForTimeout(250); }
   await unVisible(BUREAU, timeout);
@@ -246,6 +237,8 @@ await page.screenshot({ path: `${DOSSIER}/rogue-apres-relache.png` });
  * sa première option, un message bloquant sa réponse par défaut.
  */
 const des = [], evenementsDe = [];
+let journal = '';   // le journal de l'ouverture, lu une fois
+let directs = 0;   // les gestes faits dans le direct d'un gros match
 const soirs = { pages: 0, match: 0 };   // les pages du soir, et celles qui sont le sommaire d'un match
 const duelCourt = { n: 0, max: 0, longs: 0 };
 // UNE SEULE FEUILLE À LA FOIS (Jalon M, B7) : à chaque capture qui en montre une, au plus une `.choix-sheet` se voit.
@@ -285,7 +278,7 @@ async function guetterBords(ou) {
 }
 /* Chaque section et chacun de ses sous-onglets, sauf les Lignes (elles mènent derrière le banc), mesurés au bord. */
 async function tourDesBords(quand) {
-  for (const sec of ['bureau', 'effectif', 'marche', 'ligue']) {
+  for (const sec of ['bureau', 'joueurs', 'marche', 'ligue']) {
     await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {}); await page.waitForTimeout(400);
     const pages = await page.$$eval('#sousNav:not([hidden]) .soustab', b => b.map(x => x.dataset.page)).catch(() => []);
     if (!pages.length) await guetterBords(`${quand} · ${sec}`);
@@ -326,6 +319,21 @@ async function regler() {
   for (let i = 0; i < 30; i++) {
     await guetterBords('en jouant');
     await lireLeSuivi();
+    // Le gros match se vit en direct (oct.) : au vestiaire à l'entracte, sinon « Passer à la fin », puis « Continuer » ; jamais de ✕.
+    if (await page.evaluate(() => { const m = document.getElementById('liveModal'); return !!m && m.style.display === 'flex'; })) {
+      if (await page.$('#liveModal .live-close:not([hidden])')) erreurs.push('le direct d\'un gros match garde son ✕');
+    directs++;
+    const b = await page.$('#liveModal .live-entracte') || await page.$('#liveModal .live-suite') || await page.$('#liveModal .live-fin');
+      if (b) await b.click().catch(() => {});
+      await page.waitForTimeout(600); continue;
+    }
+    // Rien ne passe par-dessus le Bureau après « Jour suivant » (oct., JP : *j'hais le modal avec le score de la veille*).
+    if (await page.$('.passage')) erreurs.push('le bandeau télé du passage de la journée est revenu');
+    // Le journal de l'ouverture (oct.) : une page, une fois par visite ; elle se lit, puis « Au bureau ».
+    if (await page.$('#hubModal .hub-page[data-genre="journal"]')) {
+      if (!journal) { journal = await page.$eval('#hubModal .hub-page[data-genre="journal"]', el => el.textContent.replace(/\s+/g, ' ').trim()); await page.screenshot({ path: `${DOSSIER}/rogue-journal.png` }); }
+      await page.click('#hubModal .hub-page[data-genre="journal"] .hub-page-fermer'); await page.waitForTimeout(250); continue;
+    }
     // Une récompense arrive en paquet scellé (S77) : on le déchire, puis on passe la pile, carte par carte. Elle passe
     // devant le sommaire de la journée, qu'elle couvre : un joueur ouvre d'abord ce qui est sur le dessus.
     const pq = await page.$('#choixModal:not([hidden]) .paquet');
@@ -477,8 +485,12 @@ async function regler() {
     if (await page.$('#choixModal:not([hidden]) .tcj-signer')) { await page.click('#choixModal:not([hidden]) .tcj-signer'); await page.waitForTimeout(400); continue; }
     // Jalon R : la liste de signature (un pack rouvert de la boîte, un ballottage) : « Signer », puis « qui sort ? » (U18).
     if (!(await page.$('#choixModal:not([hidden])')) && await page.$('#signatureModal:not([hidden]) .btn-sign:not([disabled])')) { await page.click('#signatureModal .btn-sign:not([disabled])'); await page.waitForTimeout(600); continue; }
-    // « Qui sort ? » en liste (Jalon U) : « Sort » sur le premier, la sortie proposée (U18).
-    if (await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])')) { await page.click('#choixModal .sig-sort:not([disabled])'); await page.waitForTimeout(500); continue; }
+    // L'échange (oct., à la Yahoo Fantasy) : la sortie proposée est touchée d'avance ; sinon le premier qui peut sortir, puis « Signer ».
+    if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]')) {
+      if (await page.$('#choixModal .ech-signer[disabled]')) await page.click('#choixModal .ech-q:not([disabled])').catch(() => {});
+      await page.click('#choixModal .ech-signer:not([disabled])').catch(() => {}); await page.waitForTimeout(600); continue;
+    }
+    // Une autre liste de l'alignement (une retouche à poser, une unité spéciale) : la première case permise.
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-mode="choix"] .aln-ligne .aln-choisir:not([disabled])')) {
       await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])'); await page.waitForTimeout(600); continue;
     }
@@ -671,7 +683,6 @@ if (!routeOnglet) erreurs.push('le sous-onglet de l\'entraîneur ne montre pas l
 if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leur sous-onglet');
 {
   // Ton coach et sa confiance, ton personnel : au sous-onglet de l'entraîneur (V12-2 ; JP : *un screen pour les coachs et assistants coachs*).
-  await versLeDepistage();
   await versLOnglet('bureau', 'entraineur');
   await page.screenshot({ path: `${DOSSIER}/rogue-entraineur.png` });
   const coachs = ((await page.textContent('#hubModal .af-onglet[data-maison="entraineur"] .ej-coach-tete').catch(() => '')) || '').replace(/\s+/g, ' ').trim();
@@ -946,50 +957,49 @@ await page.waitForTimeout(400);
 const destSigner = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-dest', x => x.textContent.replace(/\s+/g, ' ').trim());
 if (!/personne ne sort/.test(destSigner)) {
   await page.click('#signatureModal .pcard:not(.locked) .btn-sign');
-  const qs = await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 }).catch(() => null);
+  const qs = await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"] .ech-q', { timeout: 10000 }).catch(() => null);
   if (!qs) erreurs.push(`« Signer » pose le joueur sans demander qui sort (${destSigner})`);
   else {
-    const tete = await page.$$eval('#choixModal .sig-liste .pcard', e => ({ n: e.filter(x => x.classList.contains('meilleure')).length, premiere: e[0].classList.contains('meilleure') }));
-    if (tete.n !== 1 || !tete.premiere) erreurs.push(`« qui sort ? » après « Signer » : la meilleure sortie n'est pas seule en tête, cerclée d'or (${JSON.stringify(tete)})`);
+    // La sortie proposée : une seule, cerclée d'or, touchée d'avance — le comparatif montre les deux joueurs, « Signer » est prêt.
+    const tete = await page.evaluate(() => { const m = document.querySelector('#choixModal'); return { n: m.querySelectorAll('.ech-q.meilleure').length, on: !!m.querySelector('.ech-q.meilleure.on'),
+      deux: m.querySelectorAll('.cmp-qui:not(.vide)').length, pret: !m.querySelector('.ech-signer').disabled }; });
+    if (tete.n !== 1 || !tete.on || tete.deux !== 2 || !tete.pret) erreurs.push(`l'échange après « Signer » : la sortie proposée n'est pas seule, touchée d'avance, comparée et prête (${JSON.stringify(tete)})`);
     await page.screenshot({ path: `${DOSSIER}/rogue-signer-qui-sort.png` }); await compterFeuilles('signer-qui-sort');
     await page.click('#choixModal .choix-fermer');
     await page.waitForTimeout(400);
-    if (!(await page.$('#signatureModal:not([hidden]) .pcard'))) erreurs.push('fermer « qui sort ? » referme aussi la liste de signature');
-    console.log(`   « Signer » demande qui sort : la meilleure sortie proposée en tête (${destSigner})`);
+    if (!(await page.$('#signatureModal:not([hidden]) .pcard'))) erreurs.push('fermer l\'échange referme aussi la liste de signature');
+    console.log(`   « Signer » ouvre l'échange : la sortie proposée touchée d'avance, comparée (${destSigner})`);
   }
 }
 // Le nom du joueur qu'on signe : il doit être dans l'alignement tout de suite (S79). On choisit sa case soi-même (« Changer »).
 const nomSigne = await page.$eval('#signatureModal .pcard:not(.locked) .pcard-nom', x => x.textContent.replace(/\s+/g, ' ').trim());
 await page.click('#signatureModal .pcard:not(.locked) .sig-changer');
 /*
- * QUI SORT, EN LISTE (Jalon U). JP : *choisir qui est remplacé avec un menu similaire à celui pour signer le joueur*.
- * Les rangées de la liste de signature : chacune dit sa ligne et ce que sa sortie change à la masse ; « Sort » décide
- * qui part, puis « Où joue X ? » (l'alignement) place l'arrivant. La réserve libre est un bouton au-dessus.
+ * L'ÉCHANGE À LA YAHOO FANTASY (oct.). JP : *alignement simple, mais quand tu choisis un joueur, t'as un comparatif en
+ * haut entre les deux joueurs*. L'alignement en lignes simples ; toucher un joueur le met en face de l'arrivant, stat par
+ * stat, et le bilan dit où l'arrivant jouerait et la masse ; « Signer » décide. La réserve libre est une ligne de plus.
  */
-await page.waitForSelector('#choixModal:not([hidden]) .sig-liste .pcard', { timeout: 10000 });
+await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"] .ech-q', { timeout: 10000 });
 await page.waitForTimeout(300);
 const titre = (await page.textContent('#choixModal .choix-titre')).trim();
-const libreOfferte = !!(await page.$('#choixModal .sig-libre:not([disabled])'));
+const libre = await page.$$eval('#choixModal .ech-q', e => e.filter(b => /Case libre/.test(b.textContent)).map(b => ({ non: b.disabled, pourquoi: b.title || '' }))[0] || null);
+const libreOfferte = !!(libre && !libre.non);
 // V9 (tranche 4, le plafond qui mord) : une case libre que le plafond refuse se montre grisée, avec sa raison.
-const libreRefus = libreOfferte ? '' : await page.$eval('#choixModal .sig-libre[disabled]', b => b.getAttribute('title') || '').catch(() => '');
-const rangees = await page.$$eval('#choixModal .sig-liste .pcard', e => e.length);
-if (rangees < 20) erreurs.push(`« qui sort ? » ne montre que ${rangees} joueurs`);
-const refusees = await page.$$eval('#choixModal .sig-sort[disabled]', e => e.length);
-// Un joueur qui sort (pas la réserve libre) : c'est le chemin qui retire quelqu'un.
-// La sortie proposée (U18) signe à sa case calculée ; un autre sortant passe par « Où joue X ? », l'étape éprouvée ici.
-const AUTRE = '#choixModal .sig-liste .pcard:not(.meilleure) .sig-sort:not([disabled])';
-const barreSortie = await page.$eval(AUTRE, b => b.closest('.pcard').querySelector('.pcard-dest').textContent.replace(/\s+/g, ' ').trim());
-if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(barreSortie)) erreurs.push(`une rangée de « qui sort ? » ne dit pas sa ligne et la masse : « ${barreSortie} »`);
-await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` }); await compterFeuilles('qui-sort');
-await page.click(AUTRE);
-// Où joue l'arrivant : sa case, et ce qui glisse.
-await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="alignement"] .aln-ligne', { timeout: 10000 });
+const libreRefus = libre && libre.non ? libre.pourquoi : '';
+const rangees = await page.$$eval('#choixModal .ech-q', e => e.length);
+if (rangees < 20) erreurs.push(`l'échange ne montre que ${rangees} lignes de l'alignement`);
+const refusees = await page.$$eval('#choixModal .ech-q[disabled]', e => e.length);
+// Un autre que la sortie proposée : le comparatif se remplit, le bilan dit sa case et la masse.
+await page.click('#choixModal .ech-q:not(.meilleure):not([disabled])');
 await page.waitForTimeout(300);
-// Où joue X ? (Jalon U) : les rangées de la signature ; chacune dit ce que sa case fait, « Ici » décide.
-const barrePlace = await page.$eval('#choixModal .aln-ligne .aln-choisir:not([disabled])', b => b.closest('.aln-ligne').querySelector('.aln-dit').textContent.replace(/\s+/g, ' ').trim());
-if (!/: .+masse/.test(barrePlace)) erreurs.push(`une rangée de « où joue ? » ne dit pas ce qui va se passer : « ${barrePlace} »`);
-console.log(`   qui sort : ${rangees} rangées, ${refusees} grisée(s) · « ${barreSortie} » · puis « ${barrePlace} »`);
-await page.click('#choixModal .aln-ligne .aln-choisir:not([disabled])');
+const lu = await page.evaluate(() => { const m = document.querySelector('#choixModal'); return { lignes: m.querySelectorAll('.cmp-l').length, deux: m.querySelectorAll('.cmp-qui:not(.vide)').length,
+  bilan: ((m.querySelector('.cmp-bilan') || {}).textContent || '').replace(/\s+/g, ' ').trim(), bouton: m.querySelector('.ech-signer').textContent.trim(), sw: m.querySelector('.choix-corps').scrollWidth, cw: m.querySelector('.choix-corps').clientWidth }; });
+if (lu.deux !== 2 || lu.lignes < 6) erreurs.push(`le comparatif ne met pas les deux joueurs face à face, stat par stat (${JSON.stringify(lu)})`);
+if (!/(trio|paire|partant|auxiliaire|réserve).*masse/i.test(lu.bilan)) erreurs.push(`le comparatif ne dit pas où il jouerait et la masse : « ${lu.bilan} »`);
+if (lu.sw > lu.cw + 1) erreurs.push(`l'échange déborde à 390 px (${lu.sw} px pour ${lu.cw})`);
+await page.screenshot({ path: `${DOSSIER}/rogue-qui-sort.png` }); await compterFeuilles('qui-sort');
+console.log(`   l'échange : ${rangees} lignes, ${refusees} grisée(s) · ${lu.lignes} stats face à face · « ${lu.bilan} » · « ${lu.bouton} »`);
+await page.click('#choixModal .ech-signer:not([disabled])');
 // APRÈS UN PACK SIGNÉ : la boutique est rouverte AU MARCHÉ, le Club n'a pas paru (une capture à 390 px).
 await page.waitForSelector('#pageMarche:not([hidden]) .hub-page[data-genre="boutique"] .pk-tuile', { timeout: 120000 });
 await page.waitForTimeout(500);
@@ -1012,7 +1022,7 @@ else if (!libreOfferte && !libreRefus) erreurs.push(`la case de réserve libre n
  * alignement jusque-là (`poserAlignementDuJour`, js/sim.js).
  */
 {
-  await page.click('#navbar .navtab[data-section="effectif"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {})).catch(() => {});
+  await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
   await page.waitForTimeout(800);
   const noms = await page.$$eval('.slot .slot-name', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
   const nom = nomSigne.split(' ').slice(-1)[0];
@@ -1043,42 +1053,44 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // LE BUREAU À UN ÉCRAN (docs/ecrans-rogue.md, E4) : la route en puces, À faire en enveloppes ; on mesure ce qui défile encore.
   const bu = await page.$eval('#hubModal .hub-sheet', e => ({ h: e.scrollHeight, v: e.clientHeight, blocs: [...e.querySelectorAll('.hub-volet > *, .hub-carte > *, .hub-boite')].map(x => `${x.className.split(' ')[0]} ${Math.round(x.getBoundingClientRect().height)}`).join(' · ') })).catch(() => null);
   if (bu) console.log(`10c. le Bureau : ${(bu.h / Math.max(1, bu.v)).toFixed(2).replace('.', ',')} écran · ${bu.blocs}`);
-  // La ligne du match, au Bureau, ouvre Effectif › Dépistage.
-  const ligneMatch = await page.$('#hubModal .bu-prochain[data-ouvre-depistage]');
-  if (ligneMatch && await ligneMatch.isVisible()) {
-    await ligneMatch.click(); await page.waitForTimeout(600);
-    const ou = await page.evaluate(() => `${document.body.dataset.section} › ${document.body.dataset.page}`);
-    if (ou !== 'effectif › depistage') erreurs.push(`la ligne du match, au Bureau, ouvre « ${ou} », pas Effectif › Dépistage`);
-  }
-  await versLeDepistage();
-  await page.screenshot({ path: `${DOSSIER}/rogue-depistage.png`, fullPage: true });
-  // LE DÉPISTAGE (E5) : les barres face à face, le pronostic, « Tes lignes » ; et ce qui défile encore.
-  const cs = await page.$eval('#hubModal .hub-sheet', e => ({ h: e.scrollHeight, v: e.clientHeight, barres: e.querySelectorAll('.hub-duel.barres tr').length,
-    chances: !!e.querySelector('.hub-dep-corps .dep2-chances'), lignes: !!e.querySelector('.hub-vers-lignes') })).catch(() => null);
-  if (cs) console.log(`10d. le dépistage : ${(cs.h / Math.max(1, cs.v)).toFixed(2).replace('.', ',')} écran · ${cs.barres} rangée(s) en barres · pronostic ${cs.chances ? 'oui' : 'non'} · « Tes lignes » ${cs.lignes ? 'oui' : 'non'}`);
-  if (cs && cs.barres && cs.barres !== 3) erreurs.push(`le dépistage montre ${cs.barres} rangées en barres, pas trois`);
-  if (cs && (!cs.chances || !cs.lignes)) erreurs.push('Effectif › Dépistage ne montre pas le pronostic du match ou « Tes lignes »');
-  // TON PLAN (V17) : six tuiles sous les chances, celle en force à l'or, 🥷 nomme les deux joueurs ; en toucher une écrit la décision.
+  // CINQ PORTES EN BAS (oct., JP : *tu peux avoir cinq menus icons*) : Bureau, Joueurs, Lignes, Marché, Ligue ; l'Avant-match est parti.
+  const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
+  console.log(`10b. la barre : ${portes.join(' · ')}`);
+  if (portes.join() !== 'bureau,joueurs,lignes,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes : ${portes.join(' · ')}`);
+  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?*) : plié sous la ligne du match,
+  // les six tuiles quand il se déplie, celle en force à l'or, 🥷 nomme les deux joueurs ; en toucher une écrit la décision.
   {
-    const pl = await page.$$eval('#hubModal .dep-plans .dep-plan[data-plan]', bs => bs.map(b => ({ cle: b.dataset.plan, on: b.classList.contains('on'), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce').length }))).catch(() => []);
+    await page.click('#hubModal .bu-plan > summary').catch(() => {});
+    await page.waitForTimeout(800);
+    const pl = await page.$$eval('#hubModal .bu-plan .dep-plan[data-plan]', bs => bs.map(b => ({ cle: b.dataset.plan, on: b.classList.contains('on'), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce').length }))).catch(() => []);
+    await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
     const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
     const autre = pl.find(x => !x.on && x.cle !== 'match');
     let ecrit = null;
     if (autre) {
       const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#hubModal .dep-plan[data-plan="${autre.cle}"]`).catch(() => {});
+      await page.click(`#hubModal .bu-plan .dep-plan[data-plan="${autre.cle}"]`).catch(() => {});
       await page.waitForTimeout(600); await attendreDecisions(n0);
       ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
     }
     await auBureau();
-    const ligne = await page.$eval('#hubModal .bu-prochain small', e => e.textContent).catch(() => '');
+    const ligne = await page.$eval('#hubModal .bu-plan > summary', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
     console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
-    if (pl.length !== 6) erreurs.push(`le dépistage montre ${pl.length} plans, pas six`);
-    if (on.length !== 1) erreurs.push(`le dépistage marque ${on.length} plans en force, pas un`);
+    if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
+    if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);
     if (ombre && !/ suit /.test(ombre.sous)) erreurs.push('le plan 🥷 ne nomme pas leur vedette et ton joueur qui la suit');
     if (pl.filter(x => x.cle !== 'match' && !x.stats).length) erreurs.push('un plan ne dit pas ses stats de match');
     if (autre && !(ecrit && ecrit.plan.cle === autre.cle)) erreurs.push(`toucher le plan « ${autre.cle} » n'écrit pas sa décision`);
-    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`la ligne du match, au Bureau, ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+    if (autre && !ligne.includes(PLANS[autre.cle].mot)) erreurs.push(`le Bureau ne dit pas le plan en force (« ${PLANS[autre.cle].mot} »)`);
+  }
+  // La ligne du match, au Bureau, ouvre tes Lignes.
+  const ligneMatch = await page.$('#hubModal .bu-prochain');
+  if (ligneMatch && await ligneMatch.isVisible()) {
+    await ligneMatch.click(); await page.waitForTimeout(1200);
+    const ou = await page.evaluate(() => document.body.dataset.section);
+    if (ou !== 'lignes') erreurs.push(`la ligne du match, au Bureau, ouvre « ${ou} », pas les Lignes`);
+    await page.click('#navbar .navtab[data-section="bureau"]').catch(() => {});
+    await auBureau();
   }
   // LE MARCHÉ (V16, tranche 6) : la boutique et l'album ; « Tes cartes » est parti, chaque carte rare se joue chez ce qu'elle monte.
   await page.click('#navbar .navtab[data-section="marche"]').catch(() => {}); await page.waitForTimeout(400);
@@ -1088,8 +1100,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (await page.$('#teteCartes')) erreurs.push('l\'en-tête garde le raccourci de « Tes cartes »');
   if (afaire.genres.has('places')) erreurs.push('À faire demande encore laquelle vendre (la carte de trop)');
   // L'INFIRMERIE (V8 ; le filtre 🩹 de Joueurs en V18-5) : un blessé du tableau de l'Effectif est aussi dans l'infirmerie.
-  await page.click('#navbar .navtab[data-section="effectif"]'); await page.waitForTimeout(500);
-  await page.click('#sousNav .soustab[data-page="joueurs"]', { timeout: 3000 }).catch(() => {}); await page.waitForTimeout(400);
+  await page.click('#navbar .navtab[data-section="joueurs"]'); await page.waitForTimeout(500);
   await page.screenshot({ path: `${DOSSIER}/rogue-effectif.png`, fullPage: true });
   const marques = await page.$$eval('#pageJoueursCorps .jr-bl', e => e.length).catch(() => 0);
   if (await page.$('#sousNav .soustab[data-page="infirmerie"]')) erreurs.push('l\'infirmerie est encore un sous-onglet d\'Effectif');
@@ -1133,7 +1144,7 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   if (!plafond) erreurs.push('le proprio ne montre pas la masse salariale');
   // Les cartes de joueur (une retouche, l'échange d'un doublon) vivent sous le tableau d'Effectif › Joueurs.
   {
-    await versLOnglet('effectif', 'joueurs');
+    await versLOnglet('joueurs', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
     ici.joueurs = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
@@ -1147,10 +1158,17 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // V12-4 : chaque sous-onglet tient en un écran (390 × 844) ; on mesure chacun, la feuille entière.
   const hauteur = () => page.$eval('#hubModal .hub-sheet', e => e.scrollHeight / Math.max(1, e.clientHeight)).catch(() => 0);
   const ecrans = {}, avecChoix = new Set();
-  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['bureau', 'entraineur'], ['bureau', 'vestiaire'], ['effectif', 'depistage']]) {
+  for (const [sec, k] of [['bureau', 'match'], ['bureau', 'proprio'], ['bureau', 'entraineur'], ['bureau', 'vestiaire']]) {
     await versLOnglet(sec, k);
     await page.waitForTimeout(300);
     ecrans[k] = await hauteur();
+    // Défilé au bout, le bouton du jour sort de l'écran : son double doit flotter, à sa vraie taille.
+    if (ecrans[k] > 1.02) {
+      flottant.defiles++;
+      await page.$eval('#hubModal .hub-sheet', e => { e.scrollTop = e.scrollHeight; }).catch(() => {}); await page.waitForTimeout(400);
+      await garderLeFlottant(`${k}, au bout`);
+      await page.$eval('#hubModal .hub-sheet', e => { e.scrollTop = 0; }).catch(() => {});
+    }
     if (await page.$(`#hubModal .af-onglet[data-maison="${k}"] .hub-msg`)) avecChoix.add(k);
     // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
     if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
@@ -1177,15 +1195,14 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // `ARRET=10h` : on ne veut que ces hauteurs (une mise en page qu'on retouche) ; le reste de la saison attend.
   if (process.env.ARRET === '10h') {
     // Chaque sous-onglet en entier : l'écran grandit à sa hauteur, le temps d'une capture.
-    for (const [sec, k] of [['bureau', 'entraineur'], ['bureau', 'vestiaire'], ['effectif', 'depistage']]) {
+    for (const [sec, k] of [['bureau', 'entraineur'], ['bureau', 'vestiaire']]) {
       await versLOnglet(sec, k);
       await page.setViewportSize({ width: 390, height: Math.ceil(844 * Math.max(1, ecrans[k])) + 40 });
       await page.waitForTimeout(400);
       await page.screenshot({ path: `${DOSSIER}/ecran-${k}.png` });
       await page.setViewportSize({ width: 390, height: 844 });
     }
-    await page.click('#navbar .navtab[data-section="effectif"]').catch(() => {});
-    await page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {});
+    await page.click('#navbar .navtab[data-section="lignes"]').catch(() => {});
     await page.waitForTimeout(800);
     for (const t of ['Attaque', 'Défense', 'Filet · réserve']) {
       await page.getByRole('button', { name: t, exact: true }).first().click().catch(() => {});
@@ -1247,7 +1264,7 @@ let posee = null, nomModif = '';
     else if (!ds.coach || ds.coach.palier !== avant + 1) erreurs.push(`« Le stage du coach » ne monte pas la confiance d'un cran (${avant} → ${ds.coach ? ds.coach.palier : '—'})`);
   }
   const versLEffectif = async () => {
-    await versLOnglet('effectif', 'joueurs');
+    await versLOnglet('joueurs', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
   };
   /*
@@ -1547,10 +1564,13 @@ console.log(`20. dés lancés : ${des.length ? des.join(' · ') : 'aucun cette r
 if (combats.length && !periodes.some(x => x.startsWith('3'))) erreurs.push(`aucun duel ne s'est rendu à sa troisième période (${periodes.join(' · ') || 'aucune période'})`);
 // LE SOIR D'UN MATCH (JP, 17 oct.) : une page du soir qui suit un gros match est le sommaire du match.
 console.log(`20f. les pages du soir : ${soirs.pages}, dont ${soirs.match} sommaire(s) de match`);
+console.log(`20r. le gros match en direct : ${directs} geste(s) dans le direct`);
+if (combats.length && !directs) erreurs.push('un gros match a été joué sans son direct');
+console.log(`20q. le journal de l'ouverture : ${journal || 'pas croisé (aucun rechargement en pleine saison)'}`);
 if (combats.length && !soirs.match) erreurs.push(`aucune page du soir n'a été le sommaire d'un match (${soirs.pages} page(s) du soir)`);
 console.log(`20g. le bouton flottant : vu ${flottant.vus} fois${flottant.petits.length ? `, écrasé : ${flottant.petits.slice(0, 4).join(' · ')}` : ', 44 px au moins chaque fois'} · la mise doublée touchée : ${mise.lu || 'jamais offerte'}`);
 if (flottant.petits.length) erreurs.push(`le bouton flottant est écrasé sous 44 px (${flottant.petits.length} fois : ${flottant.petits.slice(0, 3).join(' · ')})`);
-if (!flottant.vus) erreurs.push('le bouton flottant n\'a jamais paru (le dépistage défilé au bout)');
+// Depuis le départ de l'Avant-match (oct.), aucun écran ne cache « Jour suivant » à coup sûr : le flottant se juge quand il paraît.
 console.log(`20n. rien ne colle au bord (${MARGE} px) : ${bords.vus} écrans mesurés${bords.fautes.size ? `, ${bords.fautes.size} faute(s) : ${[...bords.fautes.values()].slice(0, 12).join(' | ')}` : ', aucun ne colle'}`);
 if (bords.fautes.size) erreurs.push(`${bords.fautes.size} élément(s) collent au bord de l'écran : ${[...bords.fautes.values()].slice(0, 4).join(' | ')}`);
 console.log(`20i. « Encore un choix » touché : ${barreA.vus} choix dépliés${barreA.sous.length ? `, ${barreA.sous.length} sous la barre` : ', la 1re option au-dessus de la barre chaque fois'}`);

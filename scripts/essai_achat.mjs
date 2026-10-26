@@ -91,7 +91,7 @@ await page.waitForTimeout(900);
 /*
  * SIGNÉ, IL QUITTE LA BOÎTE (oct.). JP : *j'achète un pack, je choisis, pis y a encore un pack dans la boîte*.
  * Les deux packs attendent leur signature ; chacun se signe comme le joueur le fait — « Aller au Marché » du
- * message (l'événement `cap82:marche`), le paquet, « Signer », qui sort, où il joue —, et la boîte se vide.
+ * message (l'événement `cap82:marche`), le paquet, « Signer », l'échange (qui sort) —, et la boîte se vide.
  */
 const enAttente = () => page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => d.achat && d.achat.sorte === 'joueurs' && !d.achat.scelle)
   .filter(d => !(window.cap82.G.ligue.decisions || []).some(x => x.palier === `${d.palier}:signe`)).length);
@@ -107,12 +107,10 @@ for (let k = 0; k < 2; k++) {
   if (!b) break;
   await b.click();
   await page.waitForTimeout(600);
-  // U18 : qui sort (la sortie proposée en tête), puis, pour un autre, où il joue : la première case permise.
-  for (let i = 0; i < 4 && /qui sort|Où joue/.test(await titre()); i++) {
-    const sort = await page.$('#choixModal:not([hidden]) .sig-sort:not([disabled])');
-    if (sort) { await sort.click(); await page.waitForTimeout(600); continue; }
-    const c = await page.$('#choixModal:not([hidden]) .aln-ligne .aln-choisir:not([disabled])');
-    if (c) await c.click();
+  // L'échange (oct., à la Yahoo Fantasy) : la sortie proposée est touchée d'avance ; sinon la première qui peut sortir ; « Signer ».
+  if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="echange"]')) {
+    if (await page.$('#choixModal .ech-signer[disabled]')) await page.click('#choixModal .ech-q:not([disabled])').catch(() => {});
+    await page.click('#choixModal .ech-signer:not([disabled])').catch(() => {});
     await page.waitForTimeout(1200);
   }
   signes.push(await page.evaluate(() => (window.cap82.G.ligue.decisions || []).filter(d => /:signe$/.test(d.palier || '') && d.ballottage).length));
@@ -124,7 +122,7 @@ const restent = await enAttente();
 
 // DERRIÈRE LE BANC, en pleine saison, « Aligner au mieux » est là (JP : *le bouton de ligne automatique n'est pas
 // toujours là ?* — il se cachait dès la saison lancée, c'est-à-dire là où l'alignement se règle en Rogue).
-await page.click('#navbar .navtab[data-section="effectif"]').then(() => page.click('#sousNav .soustab[data-page="alignement"]', { timeout: 3000 }).catch(() => {}));
+await page.click('#navbar .navtab[data-section="lignes"]');
 await page.waitForFunction(() => window.cap82.G.banc, null, { timeout: 60000 });
 await page.waitForTimeout(800);
 const auBanc = !!(await page.$('#rosterBoard .ln-auto'));

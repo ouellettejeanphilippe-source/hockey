@@ -71,7 +71,7 @@ import {
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
   LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
   packsOuverts, monteeDesPacks,
-  bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS,
+  bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS, PLAFOND_PREMIERE,
 } from '../../js/rogue.js';
 
 const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
@@ -323,8 +323,9 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux(enPoste)) : etat.roster;
   const masse0 = masseDe(roster);
-  // LE PLAFOND QUI MORD (V9, tranche 4 ; js/rogue-jeu.js `plafondDeDepart`) : la masse de départ, plus l'espace de départ et les déblocages.
-  const cap = plafondDeSaison(masse0, meta, exigence);
+  // LE VRAI PLAFOND (oct., js/rogue-jeu.js `plafondDeDepart` en `reel`) : celui de la LNH et les déblocages ; une masse plus
+  // lourde garde son espace (V9, tranche 4).
+  const cap = Math.max(PLAFOND_PREMIERE + plafondDuVestiaire(meta), plafondDeSaison(masse0, meta, exigence));
   const exclus = new Set(Object.values(roster).map(getPersonKey));
   const you = createTeam('Rogue', 'YOU', roster, { isPlayer: true });
   const opps = adversaires(rnd, exclus, 31, ligue);
@@ -605,7 +606,13 @@ function vestiaire(rnd, meta, fixes, classeur, { saison = 1, exclus = new Set(),
     const ligue = plombiers(rnd, meta, new Set(pris.map(getPersonKey)));
     for (const g of ['F', 'D', 'G']) pris.push(...ligue.filter(p => groupe(p) === g).slice(0, manque[g]));
   }
-  return { roster: ranger(pris, nRes), tires };
+  // Le vrai plafond à chaque run (oct., js/rogue-jeu.js `vestiaireDeDepart`) : au départ, les bouche-trous prennent de vrais
+  // contrats trop payés ; entre deux saisons, l'équipe garde sa masse.
+  if (saison > 1) return { roster: ranger(pris, nRes), tires };
+  const reserve = [];
+  plombiers(rnd, meta, new Set(pris.map(getPersonKey)), reserve);
+  const v = plafondDuVestiaire(meta), cible = PLAFOND_PREMIERE + v - Math.max(0, ESPACE_DE_DEPART + v + exigencesDe(exigence).espace);
+  return { roster: alourdirLaPremiere(ranger(pris, nRes), reserve.map(copie), { fixes: [...fixes, ...tires.map(x => x.p)], personne: getPersonKey, cible }), tires };
 }
 /* LES LOTOS DU ROBOT (js/rogue-jeu.js `lotoDuCartable`) : les cases de `lotosDeSaison`, sous le budget du classeur moins ses gardés. */
 const lotosDuRobot = (meta, classeur, gardes, partants, graine, clic = null, exigence = 0) =>

@@ -21,7 +21,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, grainerHasard, playGame, recupererEnergie, effetsDesJoueurs } from '../js/sim.js';
-import { ARCS, ARCS_PAR_SAISON } from '../js/arcs.js';
+import { ARCS, ARCS_PAR_SAISON, DEFIS, avanceDuDefi } from '../js/arcs.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, borne, informer, verdict } from './verdict.mjs';
 
@@ -41,7 +41,7 @@ function ligue(saison, toiIdx, opts) {
 
 const butsDe = (e, p) => (e && e.feuille ? e.feuille.buts.filter(b => b.marqueur === p).length : 0);
 const rangees = [], suites = new Set(), familles = new Set();
-let faux = 0, total = 0, sansEffet = 0, trop = 0;
+let faux = 0, total = 0, sansEffet = 0, trop = 0, defis = 0, defisFaux = 0, releves = 0;
 const diffs = [];
 for (let k = 0; k < LIGUES; k++) {
   const saison = SAISONS[k % SAISONS.length], graine = `arcs-${k}`;
@@ -69,8 +69,22 @@ for (let k = 0; k < LIGUES; k++) {
                           : a.cle === 'rancune' ? j.at(-1).adv === a.x.adv && toi.injuriesLog.some(b => b.player === a.x.p && b.games === a.x.matchs && b.at === a.matchsAuDebut)
                           : a.cle === 'ancienClub' ? j.at(-1).adv === a.x.adv && butsDe(j.at(-1), a.x.p) >= 1
                             : a.cle === 'remontee' ? j.at(-1).win
-                              : a.cle === 'calendrier';
+                              : a.cle === 'mitraille' ? j.at(-1).feuille.lancers.filter(l => l.tireur === a.x.p).length === a.x.n && a.x.n >= 6 && !butsDe(j.at(-1), a.x.p)
+                                : a.cle === 'frappeur' ? j.at(-1).feuille.physique.filter(x => x.type === 'coup' && x.joueur === a.x.p).length === a.x.n && a.x.n >= 3
+                                  : a.cle === 'bagarreur' ? j.at(-1).feuille.physique.some(x => x.type === 'bagarre' && (x.gagnant === 'A' ? x.joueur : x.gagnant === 'B' ? x.cible : null) === a.x.p)
+                                    : a.cle === 'verrou' ? j.at(-1).win && j.at(-1).ga === a.x.ga && a.x.ga <= 1
+                                      : a.cle === 'calendrier';
     if (!ok) faux++;
+  }
+  // LES DÉFIS (oct.) : le verdict se recompte dans les feuilles, et la retouche tombe si, et seulement si, il est relevé.
+  for (const a of arcs.filter(x => x.ep === 1 && x.x && x.x.defi)) {
+    defis++;
+    // Relu au jour du verdict (le journal jusqu'à ce matin-là) ; le différentiel, compté en cours de saison, se relit au verdict.
+    const v = a.x.defi.stat === 'pm' ? a.x.avance : avanceDuDefi(toi, a.x, a.matchsAuDebut);
+    if (v && a.x.avance && (v.fait !== a.x.avance.fait || v.reussi !== a.x.avance.reussi)) defisFaux++;
+    const pose = (toi.mutations || []).some(m => m.cle === DEFIS[a.x.defi.stat].recompense && m.p === a.joueur && m.jour === a.jour);
+    if (!v || !v.fini || v.reussi !== !!a.recompense || pose !== !!a.recompense) defisFaux++;
+    if (a.recompense) releves++;
   }
   // 2. Chaque épisode a posé son effet, au jour dit.
   for (const a of arcs) if (![...toi.effets, ...(toi.effetsCibles || [])].some(e => e.source === 'arc' && e.debut === a.jour && e.nom === a.titre)) sansEffet++;
@@ -90,6 +104,7 @@ for (let k = 0; k < LIGUES; k++) {
 for (const r of rangees) informer('une ligue', r);
 exiger('chaque arc naît d\'un fait relu dans le journal du club, avec ses vrais chiffres', total > 0 && !faux, `${total} débuts d'arc, ${faux} sans leur fait`);
 exiger('chaque épisode pose son effet dans le moteur, au jour dit', !sansEffet, `${sansEffet} épisode(s) sans effet`);
+exiger('un défi se recompte dans les feuilles, et sa retouche tombe si, et seulement si, il est relevé', !defisFaux, `${defis} verdicts, ${releves} relevés, ${defisFaux} faux`);
 exiger(`au plus ${ARCS_PAR_SAISON} arcs par saison`, !trop, `${trop} saison(s) de trop`);
 exiger(`${Object.keys(ARCS).length} arcs, deux épisodes chacun, de trois familles`, Object.values(ARCS).every(A => A.episodes.length === 2) && new Set(Object.values(ARCS).map(A => A.famille)).size === 3, Object.keys(ARCS).join(', '));
 exiger('varié : chaque saison vit sa propre suite d\'arcs, et plus d\'une famille se voit', suites.size === LIGUES && familles.size >= 2, `${suites.size} suites sur ${LIGUES} · familles ${[...familles].join(', ')}`);
