@@ -36,7 +36,7 @@ export const ARCS_PAR_SAISON = 5;
  * accorde 18 % de buts de moins, ébranlé 18 % de plus. Toujours sous la borne d'une peu commune (`check_arcs`).
  */
 const EN_FEU = { finition: 1.45, lancers: 1.35 };
-const EN_PANNE = { finition: 0.75 };
+const EN_PANNE = { finition: 0.53 };
 const FEU = 8, PANNE = 5;
 
 /*
@@ -139,7 +139,7 @@ export const ARCS = {
     debut: f => (f.defaites === 4 ? { n: 4 } : null),
     episodes: [
       { de: 'ca', cible: 'equipe', texte: x => `${x.n} défaites de suite. Les joueurs s'enferment au vestiaire, sans les entraîneurs : plus une punition bête.`, effet: { discipline: 0.88, finition: 0.95 }, matchs: 4 },
-      { de: 'en', cible: 'equipe', texte: () => 'Enfin une victoire. Le vestiaire respire, et les avants retrouvent le chemin du filet.', effet: { finition: 1.03 }, matchs: 4 },
+      { de: 'en', cible: 'equipe', texte: () => 'Enfin une victoire. Le vestiaire respire, et les avants retrouvent le chemin du filet.', effet: { finition: 1.4 }, matchs: 4 },
     ],
     suite: f => f.dernier && f.dernier.win,
   },
@@ -148,7 +148,7 @@ export const ARCS = {
     debut: f => (f.dernier && !f.dernier.win && f.dernier.ga - f.dernier.gf >= 5 ? { gf: f.dernier.gf, ga: f.dernier.ga } : null),
     episodes: [
       { de: 'an', cible: 'equipe', texte: x => `Une raclée, ${x.ga}-${x.gf}. Le vestiaire veut se racheter, quitte à jouer des coudes.`, effet: { volume: 1.03, discipline: 1.15 }, matchs: 3 },
-      { de: 'pt', cible: 'equipe', texte: () => 'La revanche est servie. On souffle un peu, et la garde baisse derrière.', effet: { defense: 1.04 }, matchs: 3 },
+      { de: 'pt', cible: 'equipe', texte: () => 'La revanche est servie. On souffle un peu, et la garde baisse derrière.', effet: { defense: 1.08 }, matchs: 3 },
     ],
     suite: f => f.dernier && f.dernier.win,
   },
@@ -156,8 +156,8 @@ export const ARCS = {
     titre: 'La remontée', famille: 'equipe',
     debut: f => (f.remontee ? { retard: f.remontee.retard, gf: f.dernier.gf, ga: f.dernier.ga } : null),
     episodes: [
-      { de: 'pt', cible: 'equipe', texte: x => `Menés par ${x.retard}, gagnants ${x.gf}-${x.ga}. Plus personne ne quitte l'aréna avant la sirène.`, effet: { finition: 1.04, volume: 1.03 }, matchs: 4 },
-      { de: 'en', cible: 'equipe', texte: () => 'Une défaite, et l\'entraîneur en profite : fini de courir après le pointage, on resserre derrière.', effet: { defense: 1.03 }, matchs: 3 },
+      { de: 'pt', cible: 'equipe', texte: x => `Menés par ${x.retard}, gagnants ${x.gf}-${x.ga}. Plus personne ne quitte l'aréna avant la sirène.`, effet: { finition: 1.1, volume: 1.09 }, matchs: 4 },
+      { de: 'en', cible: 'equipe', texte: () => 'Une défaite, et l\'entraîneur en profite : fini de courir après le pointage, on resserre derrière.', effet: { defense: 1.08 }, matchs: 3 },
     ],
     suite: f => f.dernier && !f.dernier.win,
   },
@@ -165,8 +165,8 @@ export const ARCS = {
     titre: 'Le calendrier de fou', famille: 'equipe',
     debut: f => (f.dosADos >= 3 ? { n: f.dosADos } : null),
     episodes: [
-      { de: 'ph', cible: 'equipe', texte: x => `${x.n} dos-à-dos en deux semaines. Au vestiaire, les sacs de glace font le tour des cuisses.`, effet: { energie: 1.15 }, matchs: 3 },
-      { de: 'en', cible: 'equipe', texte: x => `Enfin ${pl(x.repos, 'journée')} sans match. Les jambes reviennent ; la touche, un peu moins.`, effet: { energie: 0.85, finition: 0.98 }, matchs: 3 },
+      { de: 'ph', cible: 'equipe', texte: x => `${x.n} dos-à-dos en deux semaines. Au vestiaire, les sacs de glace font le tour des cuisses.`, effet: { energie: 1.42 }, matchs: 3 },
+      { de: 'en', cible: 'equipe', texte: x => `Enfin ${pl(x.repos, 'journée')} sans match. Les jambes reviennent ; la touche, un peu moins.`, effet: { energie: 0.52, finition: 0.94 }, matchs: 3 },
     ],
     suite: f => f.repos >= 3,
   },
@@ -198,7 +198,7 @@ export const ARCS = {
     defi: (x, f) => poserDefi('buts', x.p, f.journal, FEU),
     episodes: [
       { de: 'pa', cible: 'joueur', qui: x => x.p, texte: x => `À ${x.age} ans, ${x.p.n} en a mis ${x.buts} hier soir. Au vestiaire, les jeunes se taisent quand il parle.`, effet: EN_FEU, matchs: FEU },
-      verdict('ph', { blessure: 1.5, lancers: 0.8 }),
+      verdict('ph', { blessure: 2.28, lancers: 0.49 }),
     ],
     suite: finDuDefi,
   },
@@ -218,7 +218,7 @@ export const ARCS = {
     defi: (x, f) => poserDefi('buts', x.p, f.journal, FEU),
     episodes: [
       { de: 'co', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} met fin au match en prolongation. Ce matin, c'est son nom qu'on entend à la radio.`, effet: EN_FEU, matchs: FEU },
-      verdict('ag', { ...EN_PANNE, defense: 1.04 }),
+      verdict('ag', { ...EN_PANNE, defense: 1.08 }),
     ],
     suite: finDuDefi,
   },
@@ -237,7 +237,7 @@ export const ARCS = {
     debut: f => (f.mitraille ? { p: f.mitraille.p, n: f.mitraille.n } : null),
     defi: (x, f) => poserDefi('tirs', x.p, f.journal, FEU),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.n} tirs pour ${x.p.n} hier soir, et pas un dans le filet. Il ne lâchera pas le gardien.`, effet: { lancers: 1.35 }, matchs: FEU },
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.n} tirs pour ${x.p.n} hier soir, et pas un dans le filet. Il ne lâchera pas le gardien.`, effet: { lancers: 1.61 }, matchs: FEU },
       verdict('en', EN_PANNE),
     ],
     suite: finDuDefi,
@@ -247,8 +247,8 @@ export const ARCS = {
     debut: f => (f.frappeur ? { p: f.frappeur.p, n: f.frappeur.n } : null),
     defi: (x, f) => poserDefi('coups', x.p, f.journal, FEU),
     episodes: [
-      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.n, 'mise en échec')} de ${x.p.n} hier soir. Leurs défenseurs regardaient par-dessus leur épaule.`, effet: { blessure: 0.85 }, matchs: FEU },
-      verdict('ph', { blessure: 1.2 }),
+      { de: 'ca', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.n, 'mise en échec')} de ${x.p.n} hier soir. Leurs défenseurs regardaient par-dessus leur épaule.`, effet: { lancers: 1.7, creation: 1.5 }, matchs: FEU },
+      verdict('ph', { lancers: 0.45, creation: 0.74 }),
     ],
     suite: finDuDefi,
   },
@@ -257,8 +257,8 @@ export const ARCS = {
     debut: f => (f.bagarreur ? { p: f.bagarreur.p, adv: f.bagarreur.adv } : null),
     defi: (x, f) => poserDefi('bagarres', x.p, f.journal, 10),
     episodes: [
-      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a gagné sa bagarre contre ${x.adv.n}. Les partisans ont scandé son nom jusqu'à la sirène.`, effet: { blessure: 0.85 }, matchs: 10 },
-      verdict('ph', { blessure: 1.2 }),
+      { de: 'pt', cible: 'joueur', qui: x => x.p, texte: x => `${x.p.n} a gagné sa bagarre contre ${x.adv.n}. Les partisans ont scandé son nom jusqu'à la sirène.`, effet: { lancers: 1.3, finition: 1.25 }, matchs: 10 },
+      verdict('ph', { finition: 0.57 }),
     ],
     suite: finDuDefi,
   },
@@ -267,8 +267,8 @@ export const ARCS = {
     debut: f => (f.verrou ? { p: f.verrou.p, ga: f.verrou.ga } : null),
     defi: (x, f) => poserDefi('pm', x.p, f.journal, FEU),
     episodes: [
-      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.ga, 'but')} accordé${x.ga > 1 ? 's' : ''} hier soir, et ${x.p.n} sur la glace pour les grosses présences. L'entraîneur le veut contre leur premier trio.`, effet: { defense: 0.9 }, matchs: FEU },
-      verdict('en', { defense: 1.06 }),
+      { de: 'en', cible: 'joueur', qui: x => x.p, texte: x => `${pl(x.ga, 'but')} accordé${x.ga > 1 ? 's' : ''} hier soir, et ${x.p.n} sur la glace pour les grosses présences. L'entraîneur le veut contre leur premier trio.`, effet: { defense: 0.71 }, matchs: FEU },
+      verdict('en', { defense: 1.46 }),
     ],
     suite: finDuDefi,
   },
@@ -287,8 +287,8 @@ export const ARCS = {
     debut: f => (f.gardienEbranle ? { p: f.gardienEbranle.p, ga: f.gardienEbranle.ga } : null),
     defi: (x, f) => poserDefi('arrets', x.p, f.journal),
     episodes: [
-      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.ga} buts dans le filet de ${x.p.n} hier soir. À chacun, on a vu ses épaules tomber un peu plus. L'entraîneur lui redonne le filet quand même.`, effet: { arrets: 1.1 }, matchs: 3 },
-      verdict('ca', { arrets: 1.1 }),
+      { de: 'an', cible: 'joueur', qui: x => x.p, texte: x => `${x.ga} buts dans le filet de ${x.p.n} hier soir. À chacun, on a vu ses épaules tomber un peu plus. L'entraîneur lui redonne le filet quand même.`, effet: { arrets: 1.16 }, matchs: 3 },
+      verdict('ca', { arrets: 1.16 }),
     ],
     suite: finDuDefi,
   },
@@ -299,7 +299,7 @@ export const ARCS = {
     debut: f => (f.beteNoire ? { adv: f.beteNoire.adv, n: f.beteNoire.n } : null),
     episodes: [
       { de: 'pt', cible: 'contre', texte: x => `${pl(x.n, 'défaite')} contre ${x.adv.name} cette saison. Au vestiaire, le prochain duel est encerclé au calendrier.`, effet: { finition: 1.05, discipline: 1.12 }, matchs: SAISON },
-      { de: 'ca', cible: 'contre', texte: x => `Enfin une victoire contre ${x.adv.name}. Le vestiaire n'a plus peur de ce chandail-là.`, effet: { volume: 1.04 }, matchs: SAISON },
+      { de: 'ca', cible: 'contre', texte: x => `Enfin une victoire contre ${x.adv.name}. Le vestiaire n'a plus peur de ce chandail-là.`, effet: { volume: 1.13 }, matchs: SAISON },
     ],
     suite: (f, a) => f.dernier && f.dernier.win && f.dernier.adv === a.x.adv,
   },
@@ -308,7 +308,7 @@ export const ARCS = {
     debut: f => (f.rancune ? { adv: f.rancune.adv, p: f.rancune.p, matchs: f.rancune.matchs } : null),
     episodes: [
       { de: 'ca', cible: 'contre', texte: x => `${x.p.n} se blesse sur un coup contre ${x.adv.name} : ${pl(x.matchs, 'match')} à l'écart. Le vestiaire n'oubliera pas.`, effet: { robustesse: 1.5, discipline: 1.2 }, matchs: SAISON },
-      { de: 'pt', cible: 'contre', texte: x => `Battus, ${x.adv.name}. Celle-là, c'était pour ${nom(x.p)}.`, effet: { finition: 1.03 }, matchs: SAISON },
+      { de: 'pt', cible: 'contre', texte: x => `Battus, ${x.adv.name}. Celle-là, c'était pour ${nom(x.p)}.`, effet: { finition: 1.4 }, matchs: SAISON },
     ],
     suite: (f, a) => f.dernier && f.dernier.win && f.dernier.adv === a.x.adv,
   },

@@ -438,8 +438,8 @@ const DILEMMES_BRUTS = {
     ] },
   vedette_photo: { ico: '🔥', titre: 'Le joueur en feu', fait: 'chaud', de: 'an',
     options: [
-      o('accepter', 'Le laisser tirer à volonté', '{nom} : plus de tirs', '{nom} : moins de précision', { duree: 6, lui: { lancers: 1.2, finition: 0.93 } }),
-      o('refuser', 'Lui demander de faire jouer ses ailiers', '{nom} : plus de passes', '{nom} : moins de tirs', { duree: 6, lui: { creation: 1.2, lancers: 0.9 } }),
+      o('accepter', 'Le laisser tirer à volonté', '{nom} : plus de tirs', '{nom} : moins de précision', { duree: 6, lui: { lancers: 1.75, finition: 0.73 } }),
+      o('refuser', 'Lui demander de faire jouer ses ailiers', '{nom} : plus de passes', '{nom} : moins de tirs', { duree: 6, lui: { creation: 2.22, lancers: 0.39 } }),
     ] },
   echeance_jeune: { ico: '🌱', titre: 'La recrue', quand: 'echeance mars', fait: 'recrue', de: 'ag',
     options: [
@@ -485,7 +485,7 @@ const REPOS = { energie: 0.88, finition: 0.95, duree: 5 };
 const PRATIQUE = { defense: 0.92, action: { energieTous: -10 }, duree: 5 };
 const CHOC = { F: [0.92, 1.04, 1.06, 1.03], volume: 1.06, duree: 5 };
 const BAS = { F: [0.9, 0.97, 1.05, 1.2], blessure: 0.8, duree: 5 };
-const PROMESSE = { pari: { chance: 3 / 6, gagne: { finition: 1.08, duree: 5 }, perd: { finition: 0.94, duree: 5 } } };
+const PROMESSE = { pari: { chance: 3 / 6, gagne: { finition: 1.16, duree: 5 }, perd: { finition: 0.94, duree: 5 } } };
 const LUI = { defense: 0.93, discipline: 1.12, duree: 5 };
 const BLEUS = { defense: 0.94, blessure: 1.2, duree: 5 };
 const SOBRE = { defense: 0.95, finition: 0.96, duree: 5 };
@@ -573,7 +573,7 @@ const ECHANGES_BRUTS = [
   ] }],
   [48, 'serieDefaites', 'Les partisans réclament des changements. Les entendez-vous ?', { options: [
     o('decide', '« Je les entends. C\'est moi qui décide. »', 'Un banc qui garde son plan : la défense se resserre', 'Des joueurs crispés devant le but', SERIEUX),
-    o('bouger', '« Ils ont raison. Ça va bouger. »', 'Plus de glace au bas de l\'alignement : plus de précision', 'Ton premier trio joue moins', { F: [0.95, 1.02, 1.05, 1.06], finition: 1.04, duree: 5 }),
+    o('bouger', '« Ils ont raison. Ça va bouger. »', 'Plus de glace au bas de l\'alignement : plus de précision et de lancers', 'Ton premier trio joue moins', { F: [0.95, 1.02, 1.05, 1.06], finition: 1.16, volume: 1.04, duree: 5 }),
   ] }],
   [49, 'serieDefaites', '« Confiance », c\'est le mot que vous répétez depuis le début de la glissade. Y croyez-vous encore ?', { options: [
     o('jamais', '« Plus que jamais. Sinon, je changerais de mot. »', 'Un vestiaire qui ne doute pas : plus de précision', 'Rien ne change derrière', { finition: 1.06, defense: 1.06, duree: 5 }),
@@ -589,7 +589,7 @@ const ECHANGES_BRUTS = [
   ] }],
   [52, 'serieDefaites', 'Des joueurs ont-ils perdu leur place ce soir ?', { options: [
     o('moi', '« Ils l\'apprendront de moi avant de l\'apprendre de vous. »', 'Un vestiaire protégé : moins de punitions', 'Moins de mordant devant le but', CALME),
-    o('quatrieme', '« Oui. Le quatrième trio va jouer. »', 'Le quatrième trio saute sur la glace : du rythme', 'Tes vedettes jouent moins', { F: [0.92, 1, 1.04, 1.15], volume: 1.04, duree: 5 }),
+    o('quatrieme', '« Oui. Le quatrième trio va jouer. »', 'Le quatrième trio saute sur la glace : du rythme', 'Tes vedettes jouent moins', { F: [0.92, 1, 1.04, 1.15], volume: 1.05, duree: 5 }),
   ] }],
   [53, 'serieDefaites', 'Le propriétaire vous a-t-il appelé ?', { options: [
     o('soeur', '« Ma sœur m\'a appelé. Le propriétaire, pas encore. »', 'Une blague qui détend : plus de précision', 'Un relâchement derrière', OUBLI),
@@ -715,14 +715,14 @@ const PAQUETS_COURRIEL = {
       o('quatre', 'Faire rouler les quatre trios', 'Les corps se reposent et le 4e trio goûte à la glace', 'Tes vedettes jouent moins', { F: [0.92, 1, 1.03, 1.12], blessure: 0.8, duree: 5 }),
     ] },
     { options: [
-      o('paire', 'Allonger la première paire', 'Ta première paire joue davantage', 'Elle finit à plat', { D: [1.15, 1, 0.82], energie: 1.08, duree: 5 }),
+      o('paire', 'Allonger la première paire', 'Ta première paire joue davantage', 'Elle finit à plat', { D: [1.15, 1, 0.82], energie: 1.15, duree: 5 }),
       o('troisieme', 'Donner du temps à la 3e paire', 'La première paire retrouve ses jambes', 'Moins de talent sur la glace : moins de lancers', { D: [0.92, 1, 1.15], energie: 0.92, volume: 0.96, duree: 5 }),
     ] },
   ],
   ag: [
     { cible: 'vedette', options: [
       o('annee', 'Lui dire que c\'est son année', '{nom} joue pour son prochain contrat', 'Il force, et il se blesse plus souvent', { mutation: 'contrat_annee' }),
-      o('conge', 'Lui donner un soir de congé', '{nom} revient frais et content', 'Un match sans lui : un réserviste joue', { action: { absents: 1 }, ensuite: { apres: 1, duree: 4, finition: 1.06 } }),
+      o('conge', 'Lui donner un soir de congé', '{nom} revient frais et content', 'Un match sans lui : un réserviste joue', { action: { absents: 1 }, ensuite: { apres: 1, duree: 4, finition: 1.12 } }),
     ] },
     { cible: 'vedette', options: [
       o('prolonge', 'Lui parler de prolongation', '{nom} est rassuré pour des années : il se ménage', 'Un peu moins fougueux devant le but', { mutation: 'contrat_prolonge' }),
@@ -732,7 +732,7 @@ const PAQUETS_COURRIEL = {
   ph: [
     { options: [
       o('etirements', 'Imposer ses étirements', 'Moins de blessures', 'Des échauffements longs : moins de lancers', { blessure: 0.78, volume: 0.95, duree: 6 }),
-      o('conge', 'Accorder une journée de congé à tout le monde', 'Toute l\'équipe retrouve ses jambes', 'Un entraînement perdu : moins de précision', { action: { energieTous: 12 }, finition: 0.96, duree: 4 }),
+      o('conge', 'Accorder une journée de congé à tout le monde', 'Toute l\'équipe retrouve ses jambes', 'Un entraînement perdu : moins de précision', { action: { energieTous: 12 }, finition: 0.94, duree: 4 }),
     ] },
     { options: [
       o('hydrater', 'Hydrater tout le monde', 'Des jambes fraîches', 'Des pauses à répétition : le rythme tombe', { energie: 0.88, volume: 0.95, duree: 5 }),
@@ -776,14 +776,14 @@ const PAQUETS_COURRIEL = {
     ] },
     { options: [
       o('victoire', 'Lui promettre une victoire', 'S\'il y croit, ça rentre', 'Sinon, la pression se paie derrière',
-        { pari: { chance: 3 / 6, gagne: { finition: 1.09, duree: 5 }, perd: { defense: 1.09, duree: 5 } } }),
+        { pari: { chance: 3 / 6, gagne: { finition: 1.15, duree: 5 }, perd: { defense: 1.09, duree: 5 } } }),
       o('merci', 'Le remercier sobrement', 'Une défensive concentrée', 'Moins de panache devant le but', { defense: 0.94, volume: 0.95, duree: 5 }),
     ] },
   ],
   ma: [
     { options: [
       o('ceremonie', 'Y aller en grande pompe', 'La ville pousse : plus de lancers', 'Des jambes lourdes de protocole', { volume: 1.07, energie: 1.1, duree: 5 }),
-      o('excuser', 'S\'excuser poliment', 'Des jambes au repos', 'Une foule déçue : moins de précision', { energie: 0.9, finition: 0.96, duree: 5 }),
+      o('excuser', 'S\'excuser poliment', 'Des jambes au repos', 'Une foule déçue : moins de précision', { energie: 0.85, finition: 0.94, duree: 5 }),
     ] },
     { options: [
       o('accepter', 'Accepter le geste', 'La ville est derrière nous : plus de lancers', 'Le vestiaire se disperse : plus de punitions', { volume: 1.06, discipline: 1.12, duree: 5 }),
@@ -800,10 +800,10 @@ const REPONSES_SUR_MESURE = {
   ] },
   ad7: { options: [
     o('tableau', 'Suivre son tableau vert', 'Les premiers trios se ménagent', 'Moins de talent sur la glace : moins de lancers', { F: [0.93, 1.02, 1.04, 1.04], blessure: 0.82, volume: 0.96, duree: 5 }),
-    o('serrer', 'Serrer la vis aux premiers trios', 'Tes meilleurs jouent plus', 'Ils s\'usent', { F: [1.12, 1.02, 0.97, 0.88], energie: 1.08, duree: 5 }),
+    o('serrer', 'Serrer la vis aux premiers trios', 'Tes meilleurs jouent plus', 'Ils s\'usent', { F: [1.12, 1.02, 0.97, 0.88], energie: 1.14, duree: 5 }),
   ] },
   ag2: { cible: 'vedette', options: [
-    o('glace', 'Lui donner plus de glace', '{nom} joue plus et il le sait', 'Les autres trios jouent moins', { F: [1.1, 1.02, 0.96, 0.9], energie: 1.08, duree: 5 }),
+    o('glace', 'Lui donner plus de glace', '{nom} joue plus et il le sait', 'Les autres trios jouent moins', { F: [1.1, 1.02, 0.96, 0.9], energie: 1.15, duree: 5 }),
     o('patience', 'Lui demander de la patience', '{nom} veut le prouver : plus de précision', 'Il force les mises en échec : plus de punitions', { finition: 1.05, discipline: 1.15, duree: 5 }),
   ] },
 };
@@ -936,35 +936,35 @@ export const CHOIX_DES_FILS = {
     options: [
       { cle: 'monter', nom: 'Le monter au 1er trio', bon: 'Plus de glace au gars en feu', prix: '{deplace} descend à sa place', monte: true,
         suivi: { apres: 10, mesure: 'buts', seuil: 4, depuis: 'qu\'il est monté',
-          gagne: { mot: 'il garde le feu', duree: 10, effets: [{ sur: 'joueur', finition: 1.1 }] },
-          perd: { mot: '{deplace} demande à jouer', duree: 8, effets: [{ sur: 'deplace', finition: 0.9 }] } } },
+          gagne: { mot: 'il garde le feu', duree: 10, effets: [{ sur: 'joueur', finition: 1.4 }] },
+          perd: { mot: '{deplace} demande à jouer', duree: 8, effets: [{ sur: 'deplace', finition: 0.6 }] } } },
       { cle: 'laisser', nom: 'Ne rien changer', bon: 'On ne brise pas ce qui marche', rien: true },
     ] },
   disette: { ico: '🥶', titre: 'La disette', question: 'Que faire de lui ?',
     options: [
       { cle: 'reposer', nom: 'Le reposer deux matchs', bon: 'Il revient la tête vidée', prix: 'Deux matchs sans lui', action: { absents: 2 },
         suivi: { apres: 8, mesure: 'buts', seuil: 2, depuis: 'son repos',
-          gagne: { mot: 'la lancée revient', duree: 8, effets: [{ sur: 'joueur', finition: 1.1 }] } } },
+          gagne: { mot: 'la lancée revient', duree: 8, effets: [{ sur: 'joueur', finition: 1.4 }] } } },
       { cle: 'parler', nom: 'Lui parler', bon: 'Il sait que tu crois en lui', prix: 'S\'il ne marque pas, il doute',
         suivi: { apres: 8, mesure: 'buts', seuil: 2, depuis: 'votre discussion',
-          gagne: { mot: 'il respire', duree: 8, effets: [{ sur: 'joueur', finition: 1.1 }] },
-          perd: { mot: 'le doute s\'installe', duree: 8, effets: [{ sur: 'joueur', finition: 0.9 }] } } },
+          gagne: { mot: 'il respire', duree: 8, effets: [{ sur: 'joueur', finition: 1.4 }] },
+          perd: { mot: 'le doute s\'installe', duree: 8, effets: [{ sur: 'joueur', finition: 0.6 }] } } },
       { cle: 'laisser', nom: 'Le laisser jouer', bon: 'Les rondelles vont finir par rentrer', rien: true },
     ] },
   duo: { ico: '🤝', titre: 'Le duo', question: 'Les garder ensemble ?',
     options: [
       { cle: 'souder', nom: 'Les garder ensemble', bon: 'Un duo qu\'on nomme', prix: 'S\'il s\'essouffle, ils se tapent sur les nerfs',
         suivi: { apres: 10, mesure: 'duo', seuil: 3, depuis: 'qu\'on les garde ensemble',
-          gagne: { mot: 'leur lien est nommé, pour la saison', duree: 82, effets: [{ sur: 'joueur', finition: 1.06 }, { sur: 'passeur', creation: 1.06 }] },
-          perd: { mot: 'ils se lassent l\'un de l\'autre', duree: 6, effets: [{ sur: 'joueur', finition: 0.94 }, { sur: 'passeur', creation: 0.94 }] } } },
+          gagne: { mot: 'leur lien est nommé, pour la saison', duree: 82, effets: [{ sur: 'joueur', finition: 1.45 }, { sur: 'passeur', creation: 1.15 }] },
+          perd: { mot: 'ils se lassent l\'un de l\'autre', duree: 6, effets: [{ sur: 'joueur', finition: 0.57 }, { sur: 'passeur', creation: 0.8 }] } } },
       { cle: 'laisser', nom: 'Ne rien promettre', bon: 'Chacun son jeu', rien: true },
     ] },
   recrue: { ico: '🐣', titre: 'La recrue', question: 'Lui faire confiance, ou le protéger ?',
     options: [
       { cle: 'confiance', nom: 'Lui faire confiance', bon: 'S\'il produit, il s\'impose pour la saison', prix: 'S\'il cale, un trou de mémoire',
         suivi: { apres: 10, mesure: 'points', seuil: 6, depuis: 'qu\'on lui fait confiance',
-          gagne: { mot: 'il s\'impose pour de bon', duree: 82, effets: [{ sur: 'joueur', finition: 1.05, creation: 1.05 }] },
-          perd: { mot: 'un trou de mémoire', duree: 6, effets: [{ sur: 'joueur', finition: 0.9, creation: 0.9 }] } } },
+          gagne: { mot: 'il s\'impose pour de bon', duree: 82, effets: [{ sur: 'joueur', finition: 1.25, creation: 1.25 }] },
+          perd: { mot: 'un trou de mémoire', duree: 6, effets: [{ sur: 'joueur', finition: 0.6, creation: 0.6 }] } } },
       { cle: 'proteger', nom: 'Le protéger', bon: 'Des jambes neuves', prix: 'Il apprend moins vite', action: { energie: 20 } },
       // V9 (tranche 7) : le vétéran mentor (`mentorTrio`, js/sim.js), le temps de la saison, sur la ligne de la recrue.
       { cle: 'mentor', nom: 'Le confier à {vieux}', bon: 'Sur la ligne du vétéran, son badge monte d\'un métal', prix: 'Il change de ligne', mentor: true },

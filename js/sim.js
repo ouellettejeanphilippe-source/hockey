@@ -2348,8 +2348,8 @@ export const MOMENTS = {
   baton: {
     ico: '🏒', titre: 'La disette', fait: 'disetteMarqueur', de: 'an',
     options: [
-      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.25, lancers: 0.9 } },
-      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.25, finition: 0.92 } },
+      { cle: 'ancien', nom: 'Lui demander de choisir ses coups', bon: '{nom} : plus de précision', prix: '{nom} : moins de tirs', duree: 8, lui: { finition: 1.8, lancers: 0.5 } },
+      { cle: 'travail', nom: 'Lui demander de tirer plus', bon: '{nom} : plus de tirs', prix: '{nom} : moins de précision', duree: 8, lui: { lancers: 1.76, finition: 0.76 } },
     ],
   },
   /*
@@ -2386,7 +2386,7 @@ export const MOMENTS = {
     ico: '📏', titre: 'La courbe illégale', regle: true, fait: 'disette', de: 'eq',
     options: [
       { cle: 'laisser', nom: 'Laisser passer les courbes illégales', bon: 'Une chance sur deux : plus de précision', prix: 'Sinon : plus de punitions',
-        pari: { chance: 0.5, gagne: { finition: 1.095, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
+        pari: { chance: 0.5, gagne: { finition: 1.16, duree: 6 }, perd: { discipline: 1.265, duree: 6 } }, trou: true },
       { cle: 'mesurer', nom: 'Tout passer au gabarit', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.825, volume: 0.94, duree: 6 },
     ],
   },
@@ -2401,7 +2401,7 @@ export const MOMENTS = {
     ico: '🎭', titre: 'L\'embellissement', regle: true, fait: 'avantagesRares', de: 'an',
     options: [
       { cle: 'plonger', nom: 'Vendre les contacts', bon: 'Une fois sur trois : plus de précision', prix: 'Sinon : plus de punitions',
-        pari: { chance: 2 / 6, gagne: { finition: 1.088, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
+        pari: { chance: 2 / 6, gagne: { finition: 1.14, duree: 5 }, perd: { discipline: 1.288, duree: 8 } }, trou: true },
       { cle: 'debout', nom: 'Rester debout', bon: 'Moins de punitions', discipline: 0.825, duree: 6 },
     ],
   },
@@ -2467,7 +2467,7 @@ export const SEQUENCES = {
       { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.095 },
       { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.913 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
-        pari: { chance: 0.5, gagne: { robustesse: 1.95, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
+        pari: { chance: 0.5, gagne: { robustesse: 3, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
       { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.875, discipline: 1.235, blessure: 1.24, trou: true },
     ],
   },
@@ -8185,7 +8185,7 @@ export const AVANT_GROS = {
     irl: 'Mark Messier, 1994 : il garantit une victoire au 6e match contre les Devils, puis marque trois buts en troisième.',
     recit: 'Les journalistes entourent ton capitaine. Ils attendent une phrase pour la une.',
     options: [
-      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit : gagné, la lancée dure deux fois plus', prix: 'Perdu, on reste sonnés deux fois plus', finition: 1.088, enjeu: true },
+      { cle: 'garantir', nom: 'Il garantit la victoire', bon: 'Le vestiaire y croit : gagné, la lancée dure deux fois plus', prix: 'Perdu, on reste sonnés deux fois plus', finition: 1.14, enjeu: true },
       { cle: 'humble', nom: 'Un match à la fois', bon: 'Personne ne s\'emballe', defense: 0.96 },
     ] },
   mots: { ico: '🗣', titre: 'La guerre des mots',
@@ -8218,7 +8218,7 @@ export const AVANT_GROS = {
     irl: 'Détroit, 1952 : les frères Cusimano lancent une pieuvre sur la glace — huit tentacules, huit victoires pour la Coupe.',
     recit: 'Les partisans ont prévu quelque chose. Deux façons d\'en profiter.',
     options: [
-      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', finition: 1.06 },
+      { cle: 'foule', nom: 'Laisser la foule s\'exprimer', bon: 'L\'amphithéâtre pousse', finition: 1.12 },
       { cle: 'calme', nom: 'Garder la tête froide', bon: 'Une équipe disciplinée', discipline: 0.825 },
     ] },
   rat: { ico: '🐀', titre: 'Le rat du vestiaire',

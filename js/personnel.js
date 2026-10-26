@@ -19,27 +19,27 @@
 export const LIGNES_DU_FEU = { poussees: 2 };
 export const PERSONNEL = {
   // ---- neutres : le départ en impose deux ----
-  per_gerantEquipement: { role: 'soins', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.95, finition: 1.02, volume: 0.98 },
+  per_gerantEquipement: { role: 'soins', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.8, finition: 1.08, volume: 0.92 },
     texte: 'Les chandails secs, les lacets neufs, le café prêt avant le deuxième match.' },
-  per_adjointPolyvalent: { role: 'attaque', nom: 'L\'adjoint polyvalent', ico: '🧩', rarete: 'commune', si: 'apresDefaite', effet: { finition: 1.03, defense: 0.97, volume: 0.97 },
+  per_adjointPolyvalent: { role: 'attaque', nom: 'L\'adjoint polyvalent', ico: '🧩', rarete: 'commune', si: 'apresDefaite', effet: { finition: 1.04, defense: 0.96, volume: 0.9 },
     texte: 'Il a déjà tout fait, et après une défaite, il sait quoi dire.' },
-  per_depisteurQuartier: { role: 'depistage', nom: 'Le dépisteur de quartier', ico: '🔦', rarete: 'commune', si: 'domicile', effet: { volume: 1.03, defense: 0.98, finition: 0.99 },
+  per_depisteurQuartier: { role: 'depistage', nom: 'Le dépisteur de quartier', ico: '🔦', rarete: 'commune', si: 'domicile', effet: { volume: 1.13, defense: 0.98, finition: 0.89, energie: 0.78 },
     texte: 'Il connaît chaque planche de la patinoire, et chaque partisan par son nom.' },
 
   // ---- 🐝 le Frelon ----
-  per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.08, finition: 0.97 },
+  per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.12, finition: 0.9 },
     texte: 'Chez nous, on l\'entend crier « Lance ! » de la passerelle de presse.' },
   per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, finition: 0.97, energie: 1.06 },
     texte: 'Des départs arrêtés, encore et encore. Les jambes fraîches, ça fonce au filet.' },
 
   // ---- 🦅 l'Aigle ----
-  per_tirsDeRoute: { role: 'attaque', nom: 'Le maître des tirs de route', ico: '🧳', rarete: 'commune', si: 'visiteur', effet: { finition: 1.06, volume: 0.95 },
+  per_tirsDeRoute: { role: 'attaque', nom: 'Le maître des tirs de route', ico: '🧳', rarete: 'commune', si: 'visiteur', effet: { finition: 1.11, volume: 0.88 },
     texte: 'Il emporte son filet de pratique dans l\'autobus.' },
   per_depisteurGardiens: { role: 'depistage', nom: 'Le dépisteur des gardiens', ico: '🔎', rarete: 'rare', si: 'rival', effet: { finition: 1.6, volume: 0.88 },
     texte: 'Il a vu chaque match de leur gardien depuis le junior.' },
 
   // ---- 🐢 la Tortue ----
-  per_gardienDuFort: { role: 'defense', nom: 'Le gardien du fort', ico: '🏯', rarete: 'peu', si: 'apresDefaite', effet: { defense: 0.9, volume: 0.93, finition: 0.95 },
+  per_gardienDuFort: { role: 'defense', nom: 'Le gardien du fort', ico: '🏯', rarete: 'peu', si: 'apresDefaite', effet: { defense: 0.9, volume: 0.93, finition: 0.9 },
     texte: 'Après une défaite, il reprend le système depuis le début.' },
   per_gardiensDeRoute: { role: 'gardiens', nom: 'L\'entraîneur des gardiens de route', ico: '🧭', rarete: 'commune', si: 'visiteur', effet: { defense: 0.96, volume: 0.95 },
     texte: 'Il arrive à l\'aréna deux heures avant tout le monde, et il mesure les filets.' },
@@ -53,23 +53,23 @@ export const PERSONNEL = {
   // ---- 🫁 le Doc ----
   per_physioDeRoute: { role: 'soins', nom: 'Le physio de route', ico: '🩻', rarete: 'commune', si: 'visiteur', effet: { blessure: 0.7, energie: 0.92, robustesse: -0.3 },
     texte: 'Sa table pliante voyage en soute, avec les bâtons.' },
-  per_nutritionniste: { role: 'physique', nom: 'Le nutritionniste', ico: '🥗', rarete: 'peu', si: 'dosADos', effet: { energie: 0.82, robustesse: -0.2 },
+  per_nutritionniste: { role: 'physique', nom: 'Le nutritionniste', ico: '🥗', rarete: 'peu', si: 'dosADos', effet: { energie: 0.51, robustesse: -0.5 },
     texte: 'Entre les deux matchs, des pâtes et pas de frites. Personne ne le remercie.' },
 
   // ---- 😇 l'Abbé ----
-  per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', si: 'apresDefaite', effet: { discipline: 0.75, finition: 0.96, robustesse: -0.4 },
+  per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', si: 'apresDefaite', effet: { discipline: 0.75, finition: 0.93, robustesse: -0.4 },
     texte: 'Après une défaite, il parle de patience. Les bâtons restent en bas.' },
   per_ancienArbitre: { role: 'direction', nom: 'L\'ancien arbitre', ico: '🦓', rarete: 'rare', si: 'rival', effet: { discipline: 0.65, robustesse: -0.5 },
     texte: 'Il connaît chaque arbitre de la ligue, et ce qui les fait siffler.' },
 
   // ---- 🪜 le Contremaître ----
-  per_chefDAtelier: { role: 'chef', nom: 'Le chef d\'atelier', ico: '🛠', rarete: 'commune', si: 'jambesLourdes', effet: { F: [0.85, 0.95, 1.1, 1.3], energie: 0.95 },
+  per_chefDAtelier: { role: 'chef', nom: 'Le chef d\'atelier', ico: '🛠', rarete: 'commune', si: 'jambesLourdes', effet: { F: [0.85, 0.95, 1.1, 1.3] },
     texte: 'Les jambes sont lourdes ? Le quatrième trio a toujours des jambes.' },
-  per_contremaitreDosADos: { role: 'physique', nom: 'Le répartiteur', ico: '🗂', rarete: 'peu', si: 'dosADos', effet: { F: [0.85, 0.95, 1.1, 1.3], energie: 0.9 },
+  per_contremaitreDosADos: { role: 'physique', nom: 'Le répartiteur', ico: '🗂', rarete: 'peu', si: 'dosADos', effet: { F: [0.85, 0.95, 1.1, 1.3] },
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },
 
   // ---- 🌠 le Showman ----
-  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.12, 1.04, 0.96, 0.88], defense: 1.04, energie: 1.08 },
+  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', si: 'domicile', effet: { F: [1.12, 1.04, 0.96, 0.88], defense: 1.05, energie: 1.16 },
     texte: 'Chez nous, ses clients jouent. Les caméras sont là.' },
   per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', si: 'series', effet: { F: [1.45, 1.05, 0.8, 0.6], defense: 1.06, energie: 1.12 },
     texte: 'En séries, il écrit le match pour ses vedettes.' },
@@ -88,24 +88,24 @@ export const PERSONNEL = {
    */
   // ---- neutres ----
   // reprend la casquette de la victoire
-  per_superstitieux: { role: 'chef', nom: 'Le superstitieux', ico: '🍀', rarete: 'commune', si: 'apresDefaite', effet: { defense: 1.03 },
-    protege: { lancers: 1.15, finition: 1.12 }, texte: 'Après une défaite, il choisit qui portera la casquette. Personne ne discute.' },
+  per_superstitieux: { role: 'chef', nom: 'Le superstitieux', ico: '🍀', rarete: 'commune', si: 'apresDefaite', effet: { defense: 1.06 },
+    protege: { lancers: 1.32, finition: 1.25 }, texte: 'Après une défaite, il choisit qui portera la casquette. Personne ne discute.' },
   // reprend la semaine chargée
-  per_maitreCalendrier: { role: 'physique', nom: 'Le maître du calendrier', ico: '🗒', rarete: 'commune', si: 'dosADos', effet: { energie: 0.85, finition: 1.05, volume: 0.96 },
+  per_maitreCalendrier: { role: 'physique', nom: 'Le maître du calendrier', ico: '🗒', rarete: 'commune', si: 'dosADos', effet: { energie: 0.6, finition: 1.13, volume: 0.89 },
     texte: 'Le calendrier sur le babillard, surligné en jaune. Le deuxième soir, il avait tout prévu.' },
   // reprend la soirée des anciens
-  per_ancienCapitaine: { role: 'defense', nom: 'L\'ancien capitaine', ico: '🧥', rarete: 'peu', si: 'domicile', effet: { volume: 1.04, defense: 0.97, finition: 0.96 },
+  per_ancienCapitaine: { role: 'defense', nom: 'L\'ancien capitaine', ico: '🧥', rarete: 'peu', si: 'domicile', effet: { volume: 1.06, defense: 0.96, finition: 0.91 },
     texte: 'Son chandail est au plafond. Chez nous, il parle aux jeunes avant la période.' },
 
   // ---- 🐝 le Frelon ----
   // reprend les patins aiguisés
-  per_aiguiseur: { role: 'soins', nom: 'L\'aiguiseur', ico: '🪒', rarete: 'commune', si: 'jambesFraiches', effet: { energie: 1.04 }, vise: 'rapide',
-    protege: { lancers: 1.3, finition: 1.1 }, texte: 'Une lame neuve les soirs de jambes fraîches : son patineur le plus vite fonce au filet.' },
+  per_aiguiseur: { role: 'soins', nom: 'L\'aiguiseur', ico: '🪒', rarete: 'commune', si: 'jambesFraiches', effet: { energie: 1.12 }, vise: 'rapide',
+    protege: { lancers: 1.75, finition: 1.1 }, texte: 'Une lame neuve les soirs de jambes fraîches : son patineur le plus vite fonce au filet.' },
   // reprend le sprint de mars
-  per_maniaqueVolume: { role: 'chef', nom: 'Le maniaque du volume', ico: '🔊', rarete: 'rare', si: 'enFeu', effet: { volume: 1.2, finition: 0.92, energie: 1.04 },
+  per_maniaqueVolume: { role: 'chef', nom: 'Le maniaque du volume', ico: '🔊', rarete: 'rare', si: 'enFeu', effet: { volume: 1.2, finition: 0.88, energie: 1.04 },
     texte: 'Trois victoires de suite ? Il veut quarante tirs. Pas un de moins.' },
   // reprend le retour devant la foule
-  per_animateurFoule: { role: 'direction', nom: 'L\'animateur de foule', ico: '🥁', rarete: 'peu', si: 'domicile', effet: { volume: 1.1, discipline: 1.06, finition: 0.98 },
+  per_animateurFoule: { role: 'direction', nom: 'L\'animateur de foule', ico: '🥁', rarete: 'peu', si: 'domicile', effet: { volume: 1.1, discipline: 1.06, finition: 0.95 },
     texte: 'Le tambour dans la section 300. Chez nous, on lance de partout, et on s\'énerve un peu.' },
 
   // ---- 🦅 l'Aigle ----
@@ -113,11 +113,11 @@ export const PERSONNEL = {
   per_monteurVideo: { role: 'depistage', nom: 'Le monteur vidéo', ico: '📹', rarete: 'rare', si: 'rival', effet: { volume: 0.95 }, vise: 'franc',
     protege: { finition: 2, lancers: 1.4 }, texte: 'Chaque but que leur gardien a accordé, monté en dix minutes pour ta meilleure gâchette.' },
   // reprend le coin du haut, peint
-  per_peintreDesCoins: { role: 'chef', nom: 'Le géomètre du tir', ico: '📐', rarete: 'commune', si: 'apresDefaite', effet: { finition: 1.07, volume: 0.95 },
+  per_peintreDesCoins: { role: 'chef', nom: 'Le géomètre du tir', ico: '📐', rarete: 'commune', si: 'apresDefaite', effet: { finition: 1.11, volume: 0.92 },
     texte: 'Après une défaite, il trace les angles au ruban sur la bande. On tire moins, on vise mieux.' },
   // reprend le ruban blanc et les bâtons neufs
-  per_maitreRuban: { role: 'soins', nom: 'Le maître du ruban', ico: '🪢', rarete: 'peu', si: 'domicile', effet: { volume: 0.97 }, vise: 'franc',
-    protege: { finition: 1.25, lancers: 1.08 }, texte: 'Le même ruban depuis le junior, refait à chaque match chez nous.' },
+  per_maitreRuban: { role: 'soins', nom: 'Le maître du ruban', ico: '🪢', rarete: 'peu', si: 'domicile', effet: { volume: 0.95 }, vise: 'franc',
+    protege: { finition: 1.41, lancers: 1.13 }, texte: 'Le même ruban depuis le junior, refait à chaque match chez nous.' },
   /*
    * LE FEU QUI S'ENTRETIENT (V3.6, le premier combo : `LANCEE`, js/sim.js ; `check_combo`) : trois adjoints de l'Aigle
    * et le vendeur de chandails. Chacun pose son feu sur une ligne (`portee`) : le meilleur marqueur de la ligne, ou ses
@@ -139,15 +139,15 @@ export const PERSONNEL = {
   per_macon: { role: 'physique', nom: 'Le maçon', ico: '🪣', rarete: 'peu', si: 'dosADos', effet: { defense: 0.92, volume: 0.9 },
     texte: 'Le deuxième soir, il monte le mur une brique à la fois. On ne sort plus de la zone.' },
   // reprend le casque grillagé et la réunion des défenseurs
-  per_professeurBlocage: { role: 'chef', nom: 'Le professeur de blocage', ico: '🤲', rarete: 'commune', si: 'rival', effet: { volume: 0.97 }, vise: 'mou',
-    protege: { defense: 0.8 }, texte: 'Contre un rival, il prend son défenseur le plus mou et lui apprend à se coucher devant les tirs.' },
+  per_professeurBlocage: { role: 'chef', nom: 'Le professeur de blocage', ico: '🤲', rarete: 'commune', si: 'rival', effet: { volume: 0.95 }, vise: 'mou',
+    protege: { defense: 0.73 }, texte: 'Contre un rival, il prend son défenseur le plus mou et lui apprend à se coucher devant les tirs.' },
   // reprend le masque peint et les jambières du chalet
-  per_artisteMasque: { role: 'gardiens', nom: 'L\'artiste du masque', ico: '🫥', rarete: 'rare', si: 'series', effet: { volume: 0.96 }, gardien: true,
+  per_artisteMasque: { role: 'gardiens', nom: 'L\'artiste du masque', ico: '🫥', rarete: 'rare', si: 'series', effet: { volume: 0.9 }, gardien: true,
     protege: { arrets: 0.88 }, texte: 'Un masque neuf pour le printemps, peint à la main. Le partant ne voit plus que la rondelle.' },
 
   // ---- 🦏 le Rhino ----
   // reprend la soupe aux pois
-  per_cuisinier: { role: 'soins', nom: 'Le cuisinier du rival', ico: '🥘', rarete: 'peu', si: 'rival', effet: { robustesse: 1.2, discipline: 1.1 },
+  per_cuisinier: { role: 'soins', nom: 'Le cuisinier du rival', ico: '🥘', rarete: 'peu', si: 'rival', effet: { robustesse: 1.8, discipline: 1.15 },
     texte: 'La soupe aux pois de sa mère, le midi d\'un match contre le rival. Ça frappe fort, le soir.' },
   // reprend le mur de chair
   per_sergentTranchees: { role: 'defense', nom: 'Le sergent des tranchées', ico: '⛏', rarete: 'rare', si: 'series', effet: { robustesse: 1.6, discipline: 1.18 },
@@ -158,21 +158,21 @@ export const PERSONNEL = {
 
   // ---- 🫁 le Doc ----
   // reprend la table de massage
-  per_masseur: { role: 'soins', nom: 'Le masseur', ico: '🧖', rarete: 'commune', si: 'dosADos', effet: { energie: 0.85, robustesse: -0.3 },
+  per_masseur: { role: 'soins', nom: 'Le masseur', ico: '🧖', rarete: 'commune', si: 'dosADos', effet: { energie: 0.52, robustesse: -1 },
     texte: 'Entre les deux soirs, une heure sur la table pour chacun. Les gars repartent mous, et frais.' },
   // reprend l'infirmière de garde
-  per_infirmiere: { role: 'physique', nom: 'L\'infirmière de garde', ico: '💊', rarete: 'peu', si: 'infirmerie', effet: { blessure: 0.6, energie: 0.92, robustesse: -0.3 },
+  per_infirmiere: { role: 'physique', nom: 'L\'infirmière de garde', ico: '💊', rarete: 'peu', si: 'infirmerie', effet: { blessure: 0.6, energie: 0.92, robustesse: -0.2 },
     texte: 'Quand l\'infirmerie déborde, elle dort à l\'aréna. Personne ne se blesse bêtement.' },
   // reprend les rideaux opaques
-  per_hotelier: { role: 'direction', nom: 'Le réservateur d\'hôtels', ico: '🏨', rarete: 'rare', si: 'jambesLourdes', effet: { energie: 0.65, volume: 1.12, finition: 0.95 },
+  per_hotelier: { role: 'direction', nom: 'Le réservateur d\'hôtels', ico: '🏨', rarete: 'rare', si: 'jambesLourdes', effet: { energie: 0.65, volume: 1.12, finition: 0.9 },
     texte: 'Les rideaux opaques, le dernier étage, pas de réveil. Les jambes lourdes repartent.' },
 
   // ---- 😇 l'Abbé ----
   // reprend le vœu de silence
-  per_moine: { role: 'soins', nom: 'Le moine du vestiaire', ico: '🙏', rarete: 'peu', si: 'visiteur', effet: { discipline: 0.8, robustesse: -0.5 },
+  per_moine: { role: 'soins', nom: 'Le moine du vestiaire', ico: '🙏', rarete: 'peu', si: 'visiteur', effet: { discipline: 0.8, robustesse: -0.5, finition: 0.97 },
     texte: 'Sur la route, il impose le silence dans l\'autobus. Sur la glace, personne ne répond aux provocations.' },
   // reprend tendre l'autre joue
-  per_pacifiste: { role: 'defense', nom: 'Le pacifiste', ico: '☮', rarete: 'commune', si: 'domicile', effet: { discipline: 0.85, finition: 0.98, robustesse: -0.45 },
+  per_pacifiste: { role: 'defense', nom: 'Le pacifiste', ico: '☮', rarete: 'commune', si: 'domicile', effet: { discipline: 0.85, finition: 0.95, robustesse: -0.45 },
     texte: 'Chez nous, devant les enfants, on ne se bat pas. On recule, et on joue.' },
   // reprend la messe de minuit
   per_organiste: { role: 'chef', nom: 'L\'organiste de minuit', ico: '🎹', rarete: 'rare', si: 'series', effet: { discipline: 0.65, volume: 0.96, robustesse: -0.45 },
@@ -183,7 +183,7 @@ export const PERSONNEL = {
   per_entraineurDuBas: { role: 'attaque', nom: 'L\'entraîneur du bas', ico: '🔩', rarete: 'commune', si: 'jambesLourdes', effet: { F: [0.88, 0.95, 1.08, 1.25] },
     texte: 'Les jambes lourdes ? Il a fait patiner le quatrième trio toute la semaine.' },
   // reprend le chantier
-  per_chefDeChantier: { role: 'soins', nom: 'Le chef de chantier', ico: '🦺', rarete: 'peu', si: 'infirmerie', effet: { F: [0.85, 0.95, 1.1, 1.35], blessure: 0.88 },
+  per_chefDeChantier: { role: 'soins', nom: 'Le chef de chantier', ico: '🦺', rarete: 'peu', si: 'infirmerie', effet: { F: [0.85, 0.95, 1.1, 1.35], blessure: 0.75, finition: 1.05 },
     texte: 'Quand l\'infirmerie déborde, il bâtit avec ce qui reste. Et ceux qui restent jouent.' },
   // reprend l'usine
   per_directeurUsine: { role: 'direction', nom: 'Le directeur de l\'usine', ico: '⚙', rarete: 'rare', si: 'series', effet: { F: [0.75, 0.88, 1.12, 1.55], energie: 0.88, volume: 1.16 },
@@ -191,10 +191,10 @@ export const PERSONNEL = {
 
   // ---- 🌠 le Showman ----
   // reprend la couverture du magazine
-  per_photographe: { role: 'attaque', nom: 'Le photographe des magazines', ico: '🎦', rarete: 'commune', si: 'enFeu', effet: { F: [1.1, 1.02, 0.96, 0.9], defense: 1.04 },
-    protege: { creation: 1.25, lancers: 1.1 }, texte: 'Trois victoires de suite, et son centre fait la couverture. Il passe, il tire, il pose.' },
+  per_photographe: { role: 'attaque', nom: 'Le photographe des magazines', ico: '🎦', rarete: 'commune', si: 'enFeu', effet: { F: [1.1, 1.02, 0.96, 0.9], defense: 1.08 },
+    protege: { creation: 1.47, lancers: 1.19 }, texte: 'Trois victoires de suite, et son centre fait la couverture. Il passe, il tire, il pose.' },
   // reprend le micro du banc
-  per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', si: 'rival', effet: { F: [1.2, 1.04, 0.92, 0.82], finition: 1.02, energie: 1.04 },
+  per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', si: 'rival', effet: { F: [1.35, 1.08, 0.85, 0.7], finition: 1.1, energie: 1.16 },
     texte: 'Contre le rival, il branche un micro sur le banc. Les vedettes jouent pour la télé.' },
   // reprend les plumes du paon et les gants lumineux
   per_costumier: { role: 'soins', nom: 'Le costumier', ico: '👘', rarete: 'rare', si: 'series', effet: { F: [1.1, 1.02, 0.96, 0.9] },
