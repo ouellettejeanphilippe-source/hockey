@@ -302,7 +302,7 @@ const mot = (x, un, plusieurs) => (Math.abs(x) < 2 ? un : plusieurs);
  */
 const SEUILS = { tirs: 1, pct: 0.005, punitions: 0.3, coups: 1, minutes: 0.3 };
 const pt = x => `${signeDe(x)}${virgule((Math.abs(x) * 100).toFixed(1))} pt`;
-function lignesDe(d, par = 'par match', part = 1) {
+function lignesDe(d, par = 'par match', part = 1, eux = false) {
   const out = [];
   const tirs = (x, un, plur, bon, cle = un) => {
     if (Math.abs(x) < SEUILS.tirs * part) return;
@@ -316,7 +316,8 @@ function lignesDe(d, par = 'par match', part = 1) {
   tirs(d.tirsContre, 'tir contre', 'tirs contre', false, 'tir accordé');
   taux(d.pctTir, 'de précision', 'pctTir', d.butsPour);
   taux(d.pctArr, 'd\'arrêts', 'pctArr', -d.butsContre);
-  if (Math.abs(d.punitions) >= SEUILS.punitions * part) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: null, cle: 'punition' });
+  // Tes punitions ont un sens (oct.) : en prendre moins t'aide ; lues de leur côté (`eux`), ce sont les leurs, et plus t'aide.
+  if (Math.abs(d.punitions) >= SEUILS.punitions * part) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: eux ? d.punitions > 0 : d.punitions < 0, cle: 'punition' });
   if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(Math.round(d.coups), 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
   return out;
 }
@@ -351,7 +352,7 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
   if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, pctTir: -d.pctArr, pctArr: -d.pctTir, punitions: d.punitionsEux, coups: 0 };
   const out = [];
-  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par, part));
+  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par, part, eux));
   // Une blessure ou des jambes trop petites pour se compter ne prennent pas de puce (JP, 17 oct. : *encore beaucoup de
   // « à peine perceptible »*) ; un effet qui ne fait rien de lisible le dit une fois, plus bas.
   if (e.blessure != null && !eux) {

@@ -49,7 +49,8 @@ export const CARTES_DE_ROUTE = {
     murDuDimanche: { nom: 'Le mur du dimanche', ico: '⛓', rarete: 'peu', si: 'dosADos', duree: 8, effet: { defense: 0.88, volume: 0.93 }, texte: 'Le deuxième soir, les jambes partent ; la structure, elle, reste.' },
     gymSousSol: { nom: 'Le gym du sous-sol', ico: '🏋', rarete: 'commune', si: 'jambesFraiches', duree: 8, effet: { robustesse: 3.4, energie: 1.17 }, texte: 'Des poids rouillés et une radio qui ne capte qu\'une station.' },
     soupeAuxPois: { nom: 'La soupe aux pois', ico: '🍲', rarete: 'peu', si: 'rival', duree: 10, effet: { robustesse: 1.8, discipline: 1.15 }, texte: 'La recette de la mère du capitaine. Ça colle aux côtes.' },
-    doubleEchec: { nom: 'Le double échec', ico: '👁', rarete: 'commune', si: 'apresDefaite', duree: 6, effet: { robustesse: 0.9, discipline: 1.08 }, texte: 'Ils nous ont battus ? Deux de tes gars vont chercher le premier qui bouge.' },
+    // La robustesse seule ne se lit pas dans une feuille (oct., `check_mots`) : on rentre dedans, donc on tire aussi, et on paie au cachot.
+    doubleEchec: { nom: 'Le double échec', ico: '👁', rarete: 'commune', si: 'apresDefaite', duree: 6, effet: { volume: 1.07, robustesse: 0.9, discipline: 1.1 }, texte: 'Ils nous ont battus ? Deux de tes gars vont chercher le premier qui bouge.' },
     dansLeTas: { nom: 'On rentre dans le tas', ico: '🪖', rarete: 'peu', si: 'visiteur', duree: 6, effet: { robustesse: 1.6, discipline: 1.15 }, texte: 'Dans leur aréna, le centre est fermé. On l\'ouvre à l\'épaule.' },
     retraiteFermee: { nom: 'La retraite fermée', ico: '⛪', rarete: 'commune', si: 'apresDefaite', duree: 6, effet: { discipline: 0.75, robustesse: -0.4 }, texte: 'Une fin de semaine au monastère. On revient les mains calmes.' },
     voeuSilence: { nom: 'Le vœu de silence', ico: '🤐', rarete: 'peu', si: 'visiteur', duree: 6, effet: { discipline: 0.75, finition: 1.02, robustesse: -0.4 }, texte: 'Pas un mot à leur banc, pas un mot à l\'arbitre.' },

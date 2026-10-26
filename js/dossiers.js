@@ -14,7 +14,8 @@
  *            punitions, ses jambes, son contrat, sa place sous sa zone — un fait de SES feuilles
  *   maison   (oct.) le sous-onglet où il se règle quand son sujet a sa maison (V12-3 : l'argent et le congédiement au
  *            proprio, les blessés à l'infirmerie) ; sans elle, au vestiaire
- *   options  deux ou trois réponses, sur les canaux qui existent — un effet (souvent d'un moment, `si`, js/sim.js
+ *   options  deux ou trois réponses, sur les canaux qui existent ; leur `bon` nomme les lignes vertes que le moteur montre
+ *            (tirs, tirs contre, précision, arrêts, punitions, jambes, blessures), leur `prix` les rouges — `check_mots` — un effet (souvent d'un moment, `si`, js/sim.js
  *            `MOMENTS_SI`, qui ne joue que ses soirs), des gestes (`action` ; `energie` va au joueur nommé), des
  *            jetons (`gain`, un prix s'il est négatif), ou rien ; et, quand il nomme un joueur, ce qui lui arrive à
  *            LUI (`lui` : ses tirs, sa précision, ses passes, sa défense, ses blessures — `surJoueur`, js/sim.js)
@@ -42,7 +43,7 @@ export const DOSSIERS = {
       'L\'autobus, l\'avion, l\'hôtel. Si on ne fait rien, on va arriver au troisième soir sur les genoux.'],
     options: [
       { cle: 'compression', nom: 'Les bas de compression', bon: 'Les jambes tiennent sur la route', si: 'visiteur', duree: 6, energie: 0.52 },
-      { cle: 'pratique', nom: 'Pratiquer à chaque arrêt', bon: 'Les mains restent chaudes', prix: 'Les jambes paient', si: 'visiteur', duree: 6, finition: 1.4, energie: 1.31 },
+      { cle: 'pratique', nom: 'Pratiquer à chaque arrêt', bon: 'Plus de précision : les mains restent chaudes', prix: 'Les jambes paient', si: 'visiteur', duree: 6, finition: 1.4, energie: 1.31 },
     ],
   },
   laSemaineChezNous: {
@@ -52,8 +53,8 @@ export const DOSSIERS = {
     mots: ['Toute la semaine chez nous : les commanditaires veulent voir les gars, et la foule veut du spectacle.',
       'On a la glace à nous pour une semaine. Dis-moi si on vend des billets ou si on ferme les portes.'],
     options: [
-      { cle: 'famille', nom: 'La soirée familiale', bon: 'La caisse se remplit', prix: 'Les gars signent des autographes au lieu de se concentrer', gain: 12, si: 'domicile', duree: 6, defense: 1.09 },
-      { cle: 'huis', nom: 'Les pratiques à huis clos', bon: 'Le plan de match, répété sur notre glace', si: 'domicile', duree: 6, finition: 1.44 },
+      { cle: 'famille', nom: 'La soirée familiale', bon: 'La caisse se remplit', prix: 'Moins de précision : les gars signent des autographes', gain: 12, si: 'domicile', duree: 6, finition: 0.93 },
+      { cle: 'huis', nom: 'Les pratiques à huis clos', bon: 'Plus de précision : le plan de match, répété', si: 'domicile', duree: 6, finition: 1.44 },
     ],
   },
   leDosADos: {
@@ -63,7 +64,7 @@ export const DOSSIERS = {
     mots: ['Le deuxième soir, c\'est là qu\'on perd des matchs. Je veux savoir qui joue avant de monter dans l\'autobus.',
       'Deux soirs de suite. Moi, je partagerais la glace ; les vedettes vont chialer.'],
     options: [
-      { cle: 'partager', nom: 'Partager la glace', bon: 'Le quatrième trio porte le deuxième soir', prix: 'Tes vedettes jouent moins', si: 'dosADos', duree: 10, F: [0.88, 0.97, 1.08, 1.25], energie: 0.51 },
+      { cle: 'partager', nom: 'Partager la glace', bon: 'Le quatrième trio porte le deuxième soir, les jambes tiennent', prix: 'Tes vedettes jouent moins', si: 'dosADos', duree: 10, F: [0.88, 0.97, 1.08, 1.25], energie: 0.51 },
       { cle: 'vedettes', nom: 'Les vedettes, les deux soirs', bon: 'Le premier trio ne sort pas', prix: 'Les jambes lâchent le deuxième soir', si: 'dosADos', duree: 10, F: [1.2, 1.05, 0.9, 0.8], energie: 1.3 },
     ],
   },
@@ -75,7 +76,7 @@ export const DOSSIERS = {
       'Je manque de lits. Ou on paie le spécialiste, ou on joue plus prudent le temps qu\'ils reviennent.'],
     options: [
       { cle: 'specialiste', nom: 'Le spécialiste de Toronto', bon: 'Moins de blessures', gain: -15, si: 'infirmerie', duree: 10, blessure: 0.55 },
-      { cle: 'prudent', nom: 'Jouer prudent', bon: 'On ferme le jeu sans eux', prix: 'L\'attaque s\'éteint', si: 'infirmerie', duree: 10, defense: 0.92, volume: 0.94 },
+      { cle: 'prudent', nom: 'Jouer prudent', bon: 'Moins de tirs contre, plus d\'arrêts : on ferme le jeu sans eux', prix: 'Moins de tirs : l\'attaque s\'éteint', si: 'infirmerie', duree: 10, defense: 0.92, volume: 0.94 },
     ],
   },
   leRival: {
@@ -85,8 +86,8 @@ export const DOSSIERS = {
     mots: ['Contre eux, on veut voir du sang sur la glace. Pas une partie de cartes.',
       'On a nos billets depuis un mois. Faites-leur mal, ou au moins faites-les tirer de loin.'],
     options: [
-      { cle: 'chauffer', nom: 'Chauffer la foule', bon: 'On les bombarde', prix: 'Les têtes chaudes vont au cachot', si: 'rival', duree: 12, volume: 1.15, discipline: 1.3 },
-      { cle: 'froid', nom: 'Garder la tête froide', bon: 'Personne ne mord à l\'hameçon', si: 'rival', duree: 12, discipline: 0.7 },
+      { cle: 'chauffer', nom: 'Chauffer la foule', bon: 'Plus de tirs : on les bombarde', prix: 'Plus de punitions : les têtes chaudes au cachot', si: 'rival', duree: 12, volume: 1.15, discipline: 1.3 },
+      { cle: 'froid', nom: 'Garder la tête froide', bon: 'Moins de punitions : personne ne mord à l\'hameçon', si: 'rival', duree: 12, discipline: 0.7 },
     ],
   },
   laBeteNoire: {
@@ -96,8 +97,8 @@ export const DOSSIERS = {
     mots: ['Ils nous ont battus deux fois. Le vestiaire ne veut pas d\'une troisième.',
       'Je n\'ai pas oublié, et les gars non plus. Dis-moi comment on les règle.'],
     options: [
-      { cle: 'comptes', nom: 'Régler nos comptes', bon: 'On frappe tout ce qui bouge', prix: 'Et l\'arbitre le voit', si: 'beteNoire', duree: 30, robustesse: 1.6, discipline: 1.3 },
-      { cle: 'tableau', nom: 'Les battre au tableau', bon: 'Leur gardien, on l\'a étudié', si: 'beteNoire', duree: 30, finition: 1.48 },
+      { cle: 'comptes', nom: 'Régler nos comptes', bon: 'Plus de tirs : on rentre dedans', prix: 'Plus de punitions : l\'arbitre le voit', si: 'beteNoire', duree: 30, volume: 1.12, robustesse: 1.6, discipline: 1.3 },
+      { cle: 'tableau', nom: 'Les battre au tableau', bon: 'Plus de précision : leur gardien, on l\'a étudié', si: 'beteNoire', duree: 30, finition: 1.48 },
     ],
   },
   lesJambesLourdes: {
@@ -109,8 +110,8 @@ export const DOSSIERS = {
       'Les jambes ne suivent plus. Moi, j\'annulerais la pratique ; l\'entraîneur ne sera pas content.'],
     options: [
       { cle: 'repos', nom: 'Un congé pour lui', bon: 'Ses jambes reviennent', prix: 'Il manque la pratique', action: { energie: 20 }, duree: 4, lui: { finition: 0.57 } },
-      { cle: 'conge', nom: 'Annuler la pratique', bon: 'Les jambes reviennent', prix: 'La structure rouille', action: { energieTous: 10 }, duree: 4, defense: 1.09 },
-      { cle: 'bas', nom: 'La glace au bas de l\'alignement', bon: 'Les fatigués s\'assoient les soirs lourds', prix: 'Tes vedettes jouent moins', si: 'jambesLourdes', duree: 12, F: [0.88, 0.97, 1.08, 1.2] },
+      { cle: 'conge', nom: 'Annuler la pratique', bon: 'Les jambes reviennent', prix: 'Moins de précision : la structure rouille', action: { energieTous: 10 }, duree: 4, finition: 0.93 },
+      { cle: 'bas', nom: 'La glace au bas de l\'alignement', bon: 'Les fatigués s\'assoient : le quatrième trio joue plus', prix: 'Tes vedettes jouent moins', si: 'jambesLourdes', duree: 12, F: [0.88, 0.97, 1.08, 1.2] },
     ],
   },
   lesJambesFraiches: {
@@ -120,8 +121,8 @@ export const DOSSIERS = {
     mots: ['Les gars volent. C\'est le temps de pousser, ou de travailler la structure pendant qu\'ils ont du jus.',
       'Je n\'ai jamais vu le vestiaire aussi frais. On en profite comment ?'],
     options: [
-      { cle: 'pousser', nom: 'On pousse', bon: 'On tire de partout les soirs frais', si: 'jambesFraiches', duree: 12, volume: 1.15 },
-      { cle: 'systemes', nom: 'La structure', bon: 'Une défensive qui tient', prix: 'On tire moins, nous aussi', si: 'jambesFraiches', duree: 12, defense: 0.9 },
+      { cle: 'pousser', nom: 'On pousse', bon: 'Plus de tirs, de partout, les soirs frais', si: 'jambesFraiches', duree: 12, volume: 1.15 },
+      { cle: 'systemes', nom: 'La structure', bon: 'Moins de tirs contre, plus d\'arrêts', prix: 'Moins de tirs, nous aussi', si: 'jambesFraiches', duree: 12, defense: 0.9 },
     ],
   },
   /*
@@ -138,7 +139,7 @@ export const DOSSIERS = {
       'Il boude dans son coin du vestiaire. Moi, je lui parlerais ; ou on le laisse mijoter, et il comprendra.'],
     options: [
       { cle: 'parler', nom: 'Lui parler', bon: 'Il se remet au travail', prix: 'Un souper au restaurant, sur le bras du club', gain: -6, duree: 8, lui: { lancers: 1.43, finition: 1.17 } },
-      { cle: 'mijoter', nom: 'Le laisser mijoter', bon: 'Le vestiaire voit qui décide', prix: 'Il boude sur la glace aussi', duree: 8, discipline: 0.87, lui: { finition: 0.69, lancers: 0.76 } },
+      { cle: 'mijoter', nom: 'Le laisser mijoter', bon: 'Moins de punitions : le vestiaire voit qui décide', prix: 'Il boude sur la patinoire aussi', duree: 8, discipline: 0.87, lui: { finition: 0.69, lancers: 0.76 } },
     ],
   },
   laChicane: {
@@ -149,8 +150,8 @@ export const DOSSIERS = {
     mots: ['Il nous coûte des avantages numériques, et les gars commencent à le lui dire en face.',
       'Ça a brassé dans le vestiaire après le match. Il faut que quelqu\'un tranche, et ce n\'est pas moi.'],
     options: [
-      { cle: 'calmer', nom: 'Lui mettre la laisse', bon: 'Les bâtons restent en bas', prix: 'Il joue sur des œufs', duree: 8, discipline: 0.85, lui: { lancers: 0.85, defense: 1.06 } },
-      { cle: 'laisser', nom: 'Le laisser jouer à sa façon', bon: 'Il fait peur à leurs gars', prix: 'Et il retourne au cachot', duree: 8, robustesse: 0.7, discipline: 1.15, lui: { lancers: 1.15 } },
+      { cle: 'calmer', nom: 'Lui mettre la laisse', bon: 'Moins de punitions : les bâtons restent en bas', prix: 'Il joue sur des œufs', duree: 8, discipline: 0.85, lui: { lancers: 0.85, defense: 1.06 } },
+      { cle: 'laisser', nom: 'Le laisser jouer à sa façon', bon: 'Il fait peur à leurs gars', prix: 'Plus de punitions : il retourne au cachot', duree: 8, robustesse: 0.7, discipline: 1.15, lui: { lancers: 1.15 } },
     ],
   },
   lAgent: {
@@ -173,7 +174,7 @@ export const DOSSIERS = {
       'Les comptes ne balancent pas. Je peux vendre une soirée aux commanditaires, mais les gars vont se coucher tard.'],
     options: [
       { cle: 'soiree', nom: 'La soirée des commanditaires', bon: 'La caisse respire', prix: 'Les jambes, le lendemain', gain: 20, duree: 3, energie: 1.4 },
-      { cle: 'autobus', nom: 'L\'autobus au lieu de l\'avion', bon: 'Quelques jetons d\'économie', prix: 'Les voyages fatiguent', gain: 10, si: 'visiteur', duree: 8, energie: 1.4 },
+      { cle: 'autobus', nom: 'L\'autobus au lieu de l\'avion', bon: 'Quelques jetons d\'économie', prix: 'Les jambes : les voyages fatiguent', gain: 10, si: 'visiteur', duree: 8, energie: 1.4 },
       { cle: 'non', nom: 'Refuser', bon: 'Rien ne change', rien: true },
     ],
   },
@@ -192,7 +193,7 @@ export const DOSSIERS = {
       'Il n\'y a plus d\'air sous le plafond. Choisis ce que tu sacrifies : des jetons, ou des soirs.'],
     options: [
       { cle: 'rachat', nom: 'Racheter une part du contrat de {nom}', bon: 'Il compte {apres} au plafond, plus {sal}', gain: -10, plafond: { facteur: 0.833 } },
-      { cle: 'tele', nom: 'Signer le contrat de télé', bon: '+2,5 M$ sous le plafond', prix: 'Les dos-à-dos fatiguent plus', si: 'dosADos', duree: 82, energie: 1.3, finition: 0.94, plafond: { espace: 2_500_000 } },
+      { cle: 'tele', nom: 'Signer le contrat de télé', bon: '+2,5 M$ sous le plafond', prix: 'Moins de précision et des jambes lourdes, les dos-à-dos', si: 'dosADos', duree: 82, energie: 1.3, finition: 0.94, plafond: { espace: 2_500_000 } },
       { cle: 'non', nom: 'Ne rien signer', bon: 'Rien ne change', rien: true },
     ],
   },
@@ -220,7 +221,7 @@ export const DOSSIERS = {
     mots: ['Pour une fois, il reste de l\'argent. L\'entraîneur veut une salle de vidéo, le physio un bain froid.',
       'L\'argent dort dans le compte. Investis-le, ou garde-le pour la boutique.'],
     options: [
-      { cle: 'video', nom: 'La salle de vidéo', bon: 'On connaît leurs gardiens', gain: -25, duree: 12, finition: 1.56 },
+      { cle: 'video', nom: 'La salle de vidéo', bon: 'Plus de précision : on connaît leurs gardiens', gain: -25, duree: 12, finition: 1.56 },
       { cle: 'bain', nom: 'Le bain froid', bon: 'Les jambes lourdes récupèrent', gain: -20, si: 'jambesLourdes', duree: 20, energie: 0.51 },
       { cle: 'garder', nom: 'Garder l\'argent', bon: 'La caisse reste pleine', rien: true },
     ],
@@ -232,8 +233,8 @@ export const DOSSIERS = {
     mots: ['Pas un but. Moi, je dirais qu\'ils ont oublié où était le filet, mais je ne suis qu\'à la télé.',
       'Un blanchissage, ça laisse des traces. On va voir s\'ils tirent plus, ou s\'ils visent mieux.'],
     options: [
-      { cle: 'partout', nom: 'Tirer de partout', bon: 'Plus de rondelles au filet', prix: 'Des tirs de loin', duree: 5, volume: 1.12, finition: 0.95 },
-      { cle: 'devant', nom: 'Le travail devant le filet', bon: 'Des tirs de près', prix: 'Moins de tirs', duree: 5, finition: 1.21, volume: 0.89 },
+      { cle: 'partout', nom: 'Tirer de partout', bon: 'Plus de tirs, de partout', prix: 'Moins de précision, de loin', duree: 5, volume: 1.12, finition: 0.95 },
+      { cle: 'devant', nom: 'Le travail devant le filet', bon: 'Plus de précision : des chances de près', prix: 'Moins de tirs', duree: 5, finition: 1.21, volume: 0.89 },
     ],
   },
   laRaclee: {
@@ -243,8 +244,8 @@ export const DOSSIERS = {
     mots: ['Je ne veux plus jamais voir ça. Fermez la porte du vestiaire, ou fermez votre zone.',
       'J\'ai eu honte dans ma loge. Vous allez me dire ce que vous comptez faire.'],
     options: [
-      { cle: 'porte', nom: 'La porte fermée', bon: 'On ferme le jeu', prix: 'On tire moins, nous aussi', si: 'apresDefaite', duree: 10, defense: 0.88 },
-      { cle: 'tourner', nom: 'Tourner la page', bon: 'On repart à zéro', prix: 'Le proprio retient son chèque', gain: -5, duree: 4, finition: 1.15, volume: 1.1 },
+      { cle: 'porte', nom: 'La porte fermée', bon: 'Moins de tirs contre, plus d\'arrêts : on ferme le jeu', prix: 'Moins de tirs, nous aussi', si: 'apresDefaite', duree: 10, defense: 0.88 },
+      { cle: 'tourner', nom: 'Tourner la page', bon: 'Plus de tirs, plus de précision : on repart à zéro', prix: 'Le proprio retient son chèque', gain: -5, duree: 4, finition: 1.15, volume: 1.1 },
     ],
   },
   leFond: {
@@ -254,8 +255,8 @@ export const DOSSIERS = {
     mots: ['Le vestiaire est à plat. Laisse-moi leur parler, ou parle-leur toi-même.',
       'On joue comme une équipe qui a déjà fait ses valises. Il faut faire quelque chose.'],
     options: [
-      { cle: 'joueurs', nom: 'La réunion des joueurs', bon: 'Les bâtons restent en bas', duree: 8, discipline: 0.75 },
-      { cle: 'capitaine', nom: 'Le capitaine prend la parole', bon: 'On se relève', si: 'apresDefaite', duree: 12, finition: 1.23, defense: 0.89 },
+      { cle: 'joueurs', nom: 'La réunion des joueurs', bon: 'Moins de punitions : les bâtons restent en bas', duree: 8, discipline: 0.75 },
+      { cle: 'capitaine', nom: 'Le capitaine prend la parole', bon: 'Plus de précision : on se relève', si: 'apresDefaite', duree: 12, finition: 1.23 },
     ],
   },
   leSommet: {
@@ -266,7 +267,7 @@ export const DOSSIERS = {
       'Les projecteurs sont sur vous. On verra si ça monte à la tête.'],
     options: [
       { cle: 'show', nom: 'Le spectacle', bon: 'Les vedettes jouent', prix: 'Le bas de l\'alignement rouille', si: 'domicile', duree: 10, F: [1.25, 1.05, 0.9, 0.78] },
-      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', prix: 'On tire moins, nous aussi', duree: 8, defense: 0.93 },
+      { cle: 'humble', nom: 'Rester humble', bon: 'Moins de tirs contre, plus d\'arrêts : rien ne se relâche derrière', duree: 8, defense: 0.93 },
     ],
   },
   leMaire: {
@@ -276,7 +277,7 @@ export const DOSSIERS = {
     mots: ['La ville est fière de vous. J\'aimerais remettre la clé au capitaine, devant les caméras.',
       'Une cérémonie à l\'hôtel de ville, une photo, un chèque. Ça ne prend qu\'un après-midi.'],
     options: [
-      { cle: 'cle', nom: 'La cérémonie', bon: 'Un chèque de la ville', prix: 'Un après-midi debout', gain: 15, duree: 3, energie: 1.32 },
+      { cle: 'cle', nom: 'La cérémonie', bon: 'Un chèque de la ville', prix: 'Les jambes : un après-midi debout', gain: 15, duree: 3, energie: 1.32 },
       { cle: 'non', nom: 'Poliment refuser', bon: 'Les gars se reposent', rien: true },
     ],
   },
@@ -298,7 +299,7 @@ export const DOSSIERS = {
     mots: ['Une semaine creuse. On peut faire un mini-camp, ou tout le monde au chalet.',
       'Du temps libre, enfin. Moi, je les ferais travailler ; ils te diront le contraire.'],
     options: [
-      { cle: 'camp', nom: 'Le mini-camp', bon: 'Les tirs et la structure', prix: 'Les jambes', duree: 6, volume: 1.08, finition: 1.05, energie: 1.08 },
+      { cle: 'camp', nom: 'Le mini-camp', bon: 'Plus de tirs, plus de précision', prix: 'Les jambes', duree: 6, volume: 1.08, finition: 1.05, energie: 1.08 },
       { cle: 'chalet', nom: 'Tout le monde au chalet', bon: 'Les jambes reviennent', action: { energieTous: 12 } },
     ],
   },
@@ -309,8 +310,8 @@ export const DOSSIERS = {
     mots: ['Ça fait trente ans que j\'ai mes billets. Ce soir, j\'ai hué. Je n\'en suis pas fier.',
       'On a hué, oui. Montrez-nous qu\'on a eu tort, chez nous.'],
     options: [
-      { cle: 'parler', nom: 'Leur parler', bon: 'On garde son calme', si: 'domicile', duree: 10, discipline: 0.75 },
-      { cle: 'jouer', nom: 'Jouer pour eux', bon: 'On attaque', prix: 'La porte s\'ouvre derrière', si: 'domicile', duree: 10, volume: 1.1, defense: 1.04 },
+      { cle: 'parler', nom: 'Leur parler', bon: 'Moins de punitions : on garde son calme', si: 'domicile', duree: 10, discipline: 0.75 },
+      { cle: 'jouer', nom: 'Jouer pour eux', bon: 'Plus de tirs : on attaque', prix: 'Plus de tirs contre : la porte s\'ouvre derrière', si: 'domicile', duree: 10, volume: 1.1, defense: 1.04 },
     ],
   },
   laPratique: {
@@ -320,8 +321,8 @@ export const DOSSIERS = {
     mots: ['Une semaine ordinaire. Dis-moi sur quoi on travaille mardi.',
       'Rien qui brûle. Les tirs, ou la zone : à toi de choisir.'],
     options: [
-      { cle: 'tirs', nom: 'Les tirs', bon: 'Plus de rondelles au filet', duree: 5, volume: 1.11 },
-      { cle: 'zone', nom: 'La zone', bon: 'Moins de chances contre', prix: 'On tire moins, nous aussi', duree: 5, defense: 0.89 },
+      { cle: 'tirs', nom: 'Les tirs', bon: 'Plus de tirs au filet', duree: 5, volume: 1.11 },
+      { cle: 'zone', nom: 'La zone', bon: 'Moins de tirs contre, plus d\'arrêts', prix: 'Moins de tirs, nous aussi', duree: 5, defense: 0.89 },
     ],
   },
 };
