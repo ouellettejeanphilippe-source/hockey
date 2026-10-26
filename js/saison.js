@@ -234,6 +234,13 @@ const MAISONS = {
   marche: { ico: '🛒', titre: 'Le marché' },
   match: { ico: '⚔', titre: 'Le gros match' },
 };
+/*
+ * UN DOSSIER SANS MAISON DE SUJET SE RANGE SOUS SA VOIX (oct., JP : *ça a aucun sens* — « Le proprio · Une raclée »
+ * s'ouvrait sous « Le vestiaire ») : le proprio et les finances chez le proprio, l'entraîneur et les communications chez
+ * l'entraîneur, le médecin à l'infirmerie, le capitaine, le physio et l'équipement au vestiaire ; les voix de dehors
+ * (l'analyste, les partisans, un agent, la ligue, le maire), à la presse.
+ */
+const MAISON_DE_VOIX = { pr: 'proprio', fi: 'proprio', en: 'entraineur', co: 'entraineur', ad: 'entraineur', me: 'infirmerie', ph: 'vestiaire', ca: 'vestiaire', eq: 'vestiaire', dg: 'vestiaire' };
 /* Les maisons qui sont un sous-onglet (V12). */
 const ONGLETS_MAISONS = Object.keys(MAISONS).filter(k => MAISONS[k].vide);
 
@@ -3259,7 +3266,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LA SCÈNE (Jalon M, A3) : l'entraîneur nomme le pire problème du lundi, et la route qui y répond.
       const scene = sceneDeLaRoute({ ...et.faits, graine: `${graine}|${nd.w}` });
       specs.push({ de: scene.de, ico: '🗺', titre: `Semaine ${nd.w + 1} : ta route`, scene, recit: 'Une seule des trois, pour la semaine.', contexte: et.contexte, etat: true,
-        options: nd.routes.map(n => ({ cle: n.route, ico: ROUTES[n.route].ico, nom: `${ROUTES[n.route].nom} · ${carteDeRoute(n).nom}`, sous: et.pourToi(chargeDeRoute(n)), mots: motsDeRoute(carteDeRoute(n)) })),
+        // Chaque route dit sa phrase (oct., JP : *ça a aucun sens* — « Le chantier » n'était qu'un chiffre) ; la commandite, ce qu'elle fait à ta caisse.
+        options: nd.routes.map(n => ({ cle: n.route, ico: ROUTES[n.route].ico, nom: `${ROUTES[n.route].nom} · ${carteDeRoute(n).nom}`, sous: et.pourToi(chargeDeRoute(n)) || carteDeRoute(n).texte || '', mots: motsDeRoute(carteDeRoute(n)) })),
         decision: cle => decisionDeNoeud(nd.w, nd.routes.find(n => n.route === cle)) });
     }
     // Un choix qui se décide d'un toucher passe par sa décision : la boîte et l'écran de la semaine écrivent la même.
@@ -3518,7 +3526,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // V11 (tranche 4) : le joueur qu'il nomme, et ce que chaque réponse lui fait à lui.
       const lui = D.joueur ? D.joueur(dossier.faits) : null;
       const joueur = lui ? Object.values(you.roster).find(p => p && getPlayerKey(p) === lui.cle) || null : null;
-      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], sujet: D.titre, ...(D.maison ? { maison: D.maison } : {}), ...(joueur ? { joueur } : {}),
+      out.push({ id: `do:${dossier.w}`, genre: 'dossier', bloque: true, de: EXPEDITEURS[D.de], voix: D.de, sujet: D.titre, ...(D.maison ? { maison: D.maison } : {}), ...(joueur ? { joueur } : {}),
         choix: { scene: sceneDuDossier(dossier.cle, dossier.faits, `${graine}|${dossier.w}`), ...(joueur ? { joueur } : {}),
           // UNE RÉPONSE D'UN MOMENT se dit sur ses soirs : « −0,4 pt de précision par soir · Un soir de dos-à-dos : ≈ 15 soirs cette
           // saison », plus « par match · 82 matchs » à côté de « seulement » (oct., JP : *rien de cohérent*).
@@ -3648,7 +3656,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     if (['blessure', 'physio', 'retour', 'trou'].includes(m.genre)) return 'infirmerie';
     // Une maison par sujet (V12-3) : un dossier d'argent ou de congédiement se règle chez le proprio, celui des blessés à l'infirmerie.
     if (m.genre === 'dossier' && m.maison) return m.maison;
-    if (['fil', 'dossier'].includes(m.genre)) return 'vestiaire';
+    if (m.genre === 'dossier') return MAISON_DE_VOIX[m.voix] || 'presse';
+    if (m.genre === 'fil') return 'vestiaire';
     if (m.genre === 'courriel') return 'presse';
     if (m.genre === 'pack') return 'marche';
     // L'adjoint d'un palier va à ton personnel : il se choisit sous l'entraîneur.

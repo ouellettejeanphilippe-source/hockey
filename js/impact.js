@@ -293,12 +293,19 @@ const mot = (x, un, plusieurs) => (Math.abs(x) < 2 ? un : plusieurs);
  * touche : les tirs, la précision, les tirs contre, le % d'arrêts (`statsDe`), en points de pourcentage
  * (« ≈ +0,4 pt de précision par match »). Les quatre mots de l'écran (JP, oct.) : Tirs, Tirs contre, Précision, % d'arrêts. La ligne garde les buts qu'elle vaut (`buts`), pour la preuve seulement.
  */
-const SEUILS = { tirs: 0.15, pct: 0.0005, punitions: 0.1, coups: 1, minutes: 0.3 };
+/*
+ * CE QUI VAUT UNE LIGNE (oct., JP : *0,4 pt, ça va fuck all faire* ; *ça a aucun sens*). Sous ces seuils, une ligne disait le
+ * contrecoup d'un autre canal (« +0,1 pt de précision » parce qu'on tire moins) et changeait de signe d'un club à l'autre :
+ * du bruit, lu comme une promesse. Un tir par match, un demi-point de précision ou d'arrêts, un tiers de punition : la
+ * moitié de ce que `check_effets` exige d'un effet pour se voir. Les tirs et les punitions se comptent sur la part du
+ * match qu'on lit (une 3e période : le tiers).
+ */
+const SEUILS = { tirs: 1, pct: 0.005, punitions: 0.3, coups: 1, minutes: 0.3 };
 const pt = x => `${signeDe(x)}${virgule((Math.abs(x) * 100).toFixed(1))} pt`;
-function lignesDe(d, par = 'par match') {
+function lignesDe(d, par = 'par match', part = 1, eux = false) {
   const out = [];
   const tirs = (x, un, plur, bon, cle = un) => {
-    if (Math.abs(x) < SEUILS.tirs) return;
+    if (Math.abs(x) < SEUILS.tirs * part) return;
     out.push({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, un, plur)} ${par}`, bon: bon ? x > 0 : x < 0, cle });
   };
   const taux = (x, quoi, cle, buts) => {
@@ -309,7 +316,8 @@ function lignesDe(d, par = 'par match') {
   tirs(d.tirsContre, 'tir contre', 'tirs contre', false, 'tir accordé');
   taux(d.pctTir, 'de précision', 'pctTir', d.butsPour);
   taux(d.pctArr, 'd\'arrêts', 'pctArr', -d.butsContre);
-  if (Math.abs(d.punitions) >= SEUILS.punitions) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: null, cle: 'punition' });
+  // Tes punitions ont un sens (oct.) : en prendre moins t'aide ; lues de leur côté (`eux`), ce sont les leurs, et plus t'aide.
+  if (Math.abs(d.punitions) >= SEUILS.punitions * part) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: eux ? d.punitions > 0 : d.punitions < 0, cle: 'punition' });
   if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(Math.round(d.coups), 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
   return out;
 }
@@ -344,7 +352,7 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
   if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, pctTir: -d.pctArr, pctArr: -d.pctTir, punitions: d.punitionsEux, coups: 0 };
   const out = [];
-  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par));
+  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par, part, eux));
   // Une blessure ou des jambes trop petites pour se compter ne prennent pas de puce (JP, 17 oct. : *encore beaucoup de
   // « à peine perceptible »*) ; un effet qui ne fait rien de lisible le dit une fois, plus bas.
   if (e.blessure != null && !eux) {
@@ -562,6 +570,8 @@ export function propositionsDuDuel(team, adv, { intention, plan = null, pointage
  * premier trio, celle qui vise un profil sur le joueur qu'elle choisirait.
  */
 const CANAUX_MUTATION = ['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets', 'ombre', 'abri'];
+/* Ce qu'UN joueur rend à son club se compte en dixièmes de point sur la saison : son seuil n'est pas celui d'un effet d'équipe. */
+const SEUIL_PCT_JOUEUR = 0.0005;
 const N_MUTATION = 2000;   // un joueur tire un lancer sur vingt : il en faut plus pour lire les siens
 const auMatch = x => (Math.abs(x) >= 9.5 ? String(Math.round(Math.abs(x))) : virgule(Math.abs(x).toFixed(1)));
 /* Un printemps qui va loin : quatre rondes de cinq matchs. */
@@ -606,7 +616,7 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
   // garde le filet : son % d'arrêts se dit sur la saison du club, à sa part des départs.
   const filet = M.gardien ? avec.partDuFilet : 1;
   for (const [x, quoi, cle] of [[d.pctTir, 'de précision', 'pctTir'], [d.pctArr * filet, 'd\'arrêts', 'pctArr']]) {
-    if (Math.abs(x) >= SEUILS.pct) out.push({ txt: `Ton club : ≈ ${pt(x)} ${quoi} ${quand}`, bon: x > 0, cle });
+    if (Math.abs(x) >= SEUIL_PCT_JOUEUR) out.push({ txt: `Ton club : ≈ ${pt(x)} ${quoi} ${quand}`, bon: x > 0, cle });
   }
   // Sa blessure : un joueur seul se blesse rarement (mesuré : +20 % de risque, ≈ +0,03 blessure sur une saison). Trop peu
   // pour un chiffre, elle se dit en un mot, son sens ; à rien, elle se tait.

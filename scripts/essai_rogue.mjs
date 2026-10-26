@@ -1336,6 +1336,8 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
  * « + POSER UNE AMÉLIORATION » d'une fiche ouverte du cartable (S80 ; V16, le seul chemin d'une retouche) : tes cartes
  * qui lui vont, en cartes ; celle qu'on touche revient EN ATTENTE au verso, et « Poser ici » la pose.
  */
+const editionDe = async () => ((await page.$eval('#hockeyCardModal .carton', e => [...e.classList].find(c => /^tc-/.test(c)) || '').catch(() => '')));
+let editionAvant = '';
 {
   let fait = false;
   for (const cle of (await page.$$eval('[data-ct-equipe]', e => e.map(x => x.dataset.ctEquipe))).slice(0, 23)) {
@@ -1344,6 +1346,8 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
     if (!(await page.$('#hockeyCardModal .fc-plus'))) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); continue; }
     await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
     await page.waitForTimeout(700);
+    // L'ÉDITION SE VOIT (oct., JP : *les upgrades de cartes changent pas le look*) : le carton de la fiche porte sa classe tc-… ; après une retouche d'édition, elle monte, le jour même.
+    editionAvant = await editionDe();
     await page.click('#hockeyCardModal .fc-plus');
     await page.waitForSelector('#choixModal:not([hidden]) .choix-sheet[data-genre="poser"] .tc', { timeout: 10000 });
     await page.waitForTimeout(600);
@@ -1381,6 +1385,12 @@ if (posee && !poseeAuCartable) console.log(`12a. ${posee.mutation.joueur} est un
 if (poseeAuCartable) {
   await page.click(`[data-ct-equipe="${posee.mutation.joueur}"]`);
   await page.waitForSelector('#hockeyCardModal .fc-cases', { state: 'attached', timeout: 10000 });
+  // L'ÉDITION SE VOIT (oct., JP : *les upgrades de cartes changent pas le look*) : une retouche d'édition monte la classe tc-… du carton le jour même.
+  if (posee.mutation.carte && posee.mutation.carte.rar) {
+    const editionApres = await editionDe();
+    console.log(`12a'. l'édition de sa carte : ${editionAvant || '?'} → ${editionApres || '?'} (${posee.mutation.cle} → ${posee.mutation.carte.rar})`);
+    if (editionApres !== `tc-${posee.mutation.carte.rar}`) erreurs.push(`la retouche ${posee.mutation.cle} monte la carte à ${posee.mutation.carte.rar}, mais la fiche la montre encore ${editionApres || '(sans édition)'}`);
+  }
   await page.click('#hockeyCardModal .fc-plaque .cj-retourner');
   await page.waitForTimeout(700);
   const pleines = await page.$$eval('#hockeyCardModal .fc-case.pleine', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));

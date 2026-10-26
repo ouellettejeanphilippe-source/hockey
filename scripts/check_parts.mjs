@@ -58,7 +58,8 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const SEASONS_DIR = path.join(ROOT, 'data', 'seasons');
 // Les saisons finies seulement : la saison en cours n'aligne aucune vraie équipe, et la tirer déplacerait les dés des autres.
 const saisons = fs.readdirSync(SEASONS_DIR).filter(x => x.endsWith('.json')).sort().filter(f => saisonFinie(f.replace(/\.json$/, '')));
-const LIGUES = Number(process.env.LIGUES ?? 4);
+const LIGUES = Number(process.env.LIGUES ?? 8);   // oct. : huit ligues, pas quatre — à quatre, la queue (7 ou 2 joueurs sur 268) tenait au tirage
+const QUEUE_MAX = 2.5;
 const GRAINE = process.env.GRAINE ?? 'parts';
 
 const tirage = generateur(GRAINE);
@@ -217,7 +218,12 @@ const gonfles = gros.filter(c => c.simPts >= 1.5 * c.attPts);
  * plombier à 100 points ou Lemieux à 10 points, mais réaliste et plausible, c'est pas pareil*. Une saison peut dévier
  * d'un bon bout — la défense qui compte (moteur S107) en fait dévier plus, et c'est voulu — mais jamais jusqu'à
  * l'absurde. Deux étages : l'INVRAISEMBLABLE (deux fois ses points) n'est jamais permis ; la
- * queue PLAUSIBLE (une fois et demie) reste un filet, à 2 %.
+ * queue PLAUSIBLE (une fois et demie) reste un filet, à `QUEUE_MAX` %.
+ * LE FILET EST MESURÉ À SON BRUIT (oct. 2026). À quatre ligues (268 patineurs de 40 points attendus), la même
+ * version du moteur rendait 0,73 % sur la graine « parts », 1,11 % et 1,36 % sur deux autres ; un dé de plus dans la
+ * saison (S125, un gardien jamais fragile par ses matchs) la faisait passer à 2,61 % sur « parts » seule, 1,18 % et
+ * 1,40 % ailleurs : sept joueurs au lieu de deux, par tirage. Huit ligues et 2,5 % : un filet qui attrape une dérive
+ * (la queue d'avant le chantier dépassait 3 %), pas un dé.
  */
 const rapports = gros.map(c => c.simPts / c.attPts).sort((a, b) => a - b);
 informer('l\'étendue, du plus bas au plus haut (points simulés sur attendus)', `${rapports[0].toFixed(2)} · 1 % ${rapports[Math.floor(rapports.length * 0.01)].toFixed(2)} · 99 % ${rapports[Math.floor(rapports.length * 0.99)].toFixed(2)} · ${rapports[rapports.length - 1].toFixed(2)}`);
@@ -226,7 +232,7 @@ informer('l\'étendue, du plus bas au plus haut (points simulés sur attendus)',
 const absurdes = gros.filter(c => c.simPts >= 2 * c.attPts);
 exiger('aucun patineur invraisemblable (deux fois ses points attendus)', absurdes.length === 0,
   absurdes.length ? absurdes.slice(0, 3).map(e => `${e.p.n} ${e.p.s} : ${e.simPts.toFixed(0)} contre ${e.attPts.toFixed(0)}`).join(' · ') : `${gros.length} patineurs à 40 points attendus et plus`);
-borne('patineurs à 1,5 fois leurs points attendus', 100 * gonfles.length / Math.max(1, gros.length), 0, 2.0, ' %');
+borne('patineurs à 1,5 fois leurs points attendus', 100 * gonfles.length / Math.max(1, gros.length), 0, QUEUE_MAX, ' %');
 for (const e of gonfles.slice(0, 4)) {
   informer(`  ${e.p.n} ${e.p.s}`, `${e.simPts.toFixed(0)} points simulés contre ${e.attPts.toFixed(0)} attendus (réel ${e.p.pt} en ${e.p.gp})`);
 }

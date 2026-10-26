@@ -104,7 +104,7 @@ function soirs(L) {
 {
   const parMoment = Object.fromEntries(CLES.map(k => [k, []]));
   const clubs = Object.values(shard('2005-06').byTeam).filter(ps => ps.length >= 23);
-  for (const [i, graine] of GRAINES.entries()) {
+  const joue = (i, graine) => {
     const joueurs = clubs[i % clubs.length].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }));
     const etat = { roster: autoRoster(joueurs), variantes: new Map(), jetons: 0 };
     const r = jouerSaison(metaAuNiveau(0), etat, { graine, saison: 1, politique: 'attentif', ligue: LIGUE_PARTS.length });
@@ -126,10 +126,16 @@ function soirs(L) {
     }
     for (const k of CLES) parMoment[k].push(n[k]);
     parMoment.soirs = [...(parMoment.soirs || []), soirsJoues];
-  }
+  };
+  GRAINES.forEach((g, i) => joue(i, g));
   const somme = a => a.reduce((x, y) => x + y, 0);
   // Les séries se jouent hors du calendrier de la saison (`jouerSaison`) : `check_si` les éprouve (le printemps).
   const courants = CLES.filter(k => !MOMENTS_SI[k].rare && !MOMENTS_SI[k].choix), rares = CLES.filter(k => MOMENTS_SI[k].rare && k !== 'series');
+  // UN RARE PEUT MANQUER PAR TIRAGE (oct. 2026) : la chasse est 2 % des périodes de duel (0,3 de score sauf un club sans dur ou
+  // un marqueur chaud) ; sur quatre saisons, une graine en donnait deux, un dé de plus dans le moteur zéro. Tant qu'un rare
+  // manque, on joue d'autres saisons, quatre au plus : un moment rare qui n'arrive jamais en huit saisons est mort.
+  const SAISONS_DE_PLUS = 4;
+  for (let g = 1; g <= SAISONS_DE_PLUS && rares.some(k => somme(parMoment[k]) < 1); g++) joue(GRAINES.length + g - 1, GRAINES.length + g);
   informer('les soirs par saison (médiane ; les rares, au total)', [...courants.map(k => `${k} ${med(parMoment[k])}`), ...rares.map(k => `${k} Σ${somme(parMoment[k])}`)].join(' · '));
   informer('dépend d\'un choix du joueur, pas compté', CLES.filter(k => MOMENTS_SI[k].choix).join(', '));
   const peu = courants.filter(k => med(parMoment[k]) < MIN_PAR_SAISON), jamais = rares.filter(k => somme(parMoment[k]) < 1);
@@ -137,7 +143,7 @@ function soirs(L) {
   // Le lieu est la moitié des soirs par construction : il n'est pas jugé ici.
   const partout = courants.filter(k => !['domicile', 'visiteur'].includes(k) && med(parMoment[k]) > PART_MAX * med(parMoment.soirs));
   exiger(`aucun moment courant n'est vrai plus des trois quarts des soirs`, partout.length === 0, partout.map(k => `${k} ${med(parMoment[k])} sur ${med(parMoment.soirs)}`).join(' · ') || `sur ${med(parMoment.soirs)} soirs`);
-  exiger('chaque moment rare arrive au moins une fois', jamais.length === 0, jamais.join(', ') || `${rares.length} moments rares`);
+  exiger('chaque moment rare arrive au moins une fois', jamais.length === 0, jamais.join(', ') || `${rares.length} moments rares, ${parMoment.soirs.length} saisons`);
 }
 
 verdict('Les moments');

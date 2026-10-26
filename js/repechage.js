@@ -82,7 +82,7 @@ function graineVariantes() {
   if (!G.variantes.graine) G.variantes.graine = nouvelleGraine();
   return G.variantes.graine;
 }
-export function varianteJoueur(p) {
+function varianteJoueur(p) {
   // LE 82-0 CLASSIQUE, C'EST JUSTE LES JOUEURS (oct.) : aucune variante, aucun bonus de carte.
   if (!p || G.bonus === 'SAISON') return 'commune';
   // La carte posée pour la saison dit la vérité, lustre compris (l'atelier).
@@ -91,7 +91,24 @@ export function varianteJoueur(p) {
   // V5 : ses cotes suivent sa stature (son niveau, recrue, vétéran, meneur) — la brillante va aux vedettes.
   return G.variantes.cartes[cle] || varianteTiree(COTES_PAR_STATURE[statureDe(p, niveauJoueur(p))], graineVariantes(), cle);
 }
-export const rareteJoueur = varianteJoueur;
+/*
+ * L'ÉDITION QU'ON MONTRE (oct. 2026 ; JP : *les upgrades de cartes changent pas le look de la carte*). Une retouche
+ * d'édition (le pinceau, la fenêtre, la dorure, le lustre) est une décision que le moteur ne joue qu'au matin de sa
+ * journée : la carte restait Base jusqu'au lendemain, et une copie du joueur lue ailleurs que dans l'alignement (le
+ * cartable, une liste) ne portait jamais `_carte`. L'écran lit donc aussi les retouches décidées sur lui, la plus haute ;
+ * le moteur, lui, garde `varianteJoueur` : sa carte du jour 0 ne bouge pas, et les journées d'avant non plus.
+ */
+export function rareteJoueur(p) {
+  const r = varianteJoueur(p);
+  if (!p || G.bonus === 'SAISON' || !G.ligue || !Array.isArray(G.ligue.decisions)) return r;
+  const cle = getPlayerKey(p);
+  let haut = r;
+  for (const d of G.ligue.decisions) {
+    const m = d && d.mutation;
+    if (m && m.joueur === cle && m.carte && m.carte.rar && EDITIONS.indexOf(m.carte.rar) > EDITIONS.indexOf(haut)) haut = m.carte.rar;
+  }
+  return haut;
+}
 /*
  * La carte d'un joueur : sa variante, ses bonus, et la recrue qui progresse.
  * V2.4 : la variante monte ses badges (js/rarete.js `VARIANTE_PALIERS`) ;
