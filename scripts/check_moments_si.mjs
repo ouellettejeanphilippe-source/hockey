@@ -19,7 +19,7 @@
 import { MOMENTS_SI, effetsDeSaison, autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { jouerSaison, shard, metaAuNiveau } from './lib/rogue_sim.mjs';
-import { LIGUE_PARTS } from '../js/rogue.js';
+import { NIVEAUX_PLEINS } from '../js/rogue.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const MIN_PAR_SAISON = 3;
@@ -107,7 +107,7 @@ function soirs(L) {
   const joue = (i, graine) => {
     const joueurs = clubs[i % clubs.length].filter(p => (p.gp || 0) >= 10).map(p => ({ ...p }));
     const etat = { roster: autoRoster(joueurs), variantes: new Map(), jetons: 0 };
-    const r = jouerSaison(metaAuNiveau(0), etat, { graine, saison: 1, politique: 'attentif', ligue: LIGUE_PARTS.length });
+    const r = jouerSaison(metaAuNiveau(0), etat, { graine, saison: 1, politique: 'attentif', ligue: NIVEAUX_PLEINS });
     const n = Object.fromEntries(CLES.map(k => [k, 0]));
     let soirsJoues = 0;
     for (const jour of r.L.calendrier) for (const m of jour) {

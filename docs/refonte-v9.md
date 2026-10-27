@@ -527,7 +527,7 @@ JP : *fusionne, et go pour la tranche 8* ; puis, devant les mesures, *les exigen
 
   Seuls, ils ne suffisaient pas : l'attentif montait les six premiers crans en gagnant chaque run.
 - [x] **La ligue qui monte** (`niveauDeLigue`, `ligueDe`, `habillerLaLigue` ; JP : *les clubs des premières runs plus faibles, et monter*). Le niveau de ta ligue suit ton prestige, et chaque cran d'exigence le monte de deux :
-  - au Club de garage, tes 31 adversaires sont les plus faibles, à leur force au moteur, d'un tirage deux fois plus large ; au Club de quartier, d'un tirage un tiers plus large ;
+  - au Club de garage, tes 31 adversaires sont les plus faibles, à leur force au moteur, d'un tirage deux fois plus large ; au Club de quartier, d'un tirage un tiers plus large ; *(27 oct. : retiré — le tri n'a jamais trié, et trié pour vrai il donnait la Coupe dès la run 1 ; les deux premiers rangs prennent toute l'histoire, `NIVEAUX_PLEINS`, docs/decisions.md)*
   - ensuite, toute l'histoire, et chaque niveau monte d'une édition un tiers de plus de chaque club, ses meilleurs d'abord (Cadre, Hors-cadre, Or, Holo), jusqu'à la Holo pour tous.
 
   C'est le canal des cartes du joueur, leurs badges. Aucune cote neuve. Le départ d'une run dit sa ligue ; la page des règles la décrit. Une ligue qui n'est pas du Rogue n'a aucune carte.

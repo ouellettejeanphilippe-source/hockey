@@ -52,7 +52,7 @@ import { fileURLToPath } from 'node:url';
 import {
   SLOTS, autoRoster, registerHiddenRatings, retenirMatchsDuShard, getHiddenRatings, getPositionPenalty, getPlayerKey, getPersonKey,
   createTeam, creerLigue, jouerJournee, bilanLigue, creerSeries, jouerMatchSeries, connaitre, photoAlignement,
-  ecoleDe, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, teamStrength, PLANS,
+  batirLesClubs, rivauxOfferts, RIVAUX, avecHasardIsole, activeLineup, PLANS,
 } from '../../js/sim.js';
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, engagerDuRobot } from './cartes_robot.mjs';
@@ -69,7 +69,7 @@ import {
   JETONS, jetonsDeDepart, gardesDeLaDerniere, aDebloque, plafondDuVestiaire, ecussonsDeLaSaison, ecussonsDesSeries,
   DEBLOCAGES, departDuClasseur, lotosDeSaison, lotoDeCase, tirageDuClasseur, budgetDuClasseur, reservesDeLaRun, PLAFOND_ROGUE, ESPACE_DE_DEPART, jalonsAtteints, mandatRempli, baremeRogue, primesDesFils,
   soutiensDuDepart, tirageDuDepart, rangDePrestige, PRESTIGES, PRIME_DECOUVERTE, coachsOuverts, exigencesDe, plafondDeSaison, gardesDeLaRun,
-  LIGUE_PARTS, ligueDe, niveauDeLigue, habillerLaLigue,
+  NIVEAUX_PLEINS, niveauDeLigue, habillerLaLigue,
   packsOuverts, monteeDesPacks,
   bouchesTrousDuDepart, vedettesDeConcession, alourdirLaPremiere, VRAIS_CONTRATS, PLAFOND_PREMIERE,
 } from '../../js/rogue.js';
@@ -155,15 +155,13 @@ function vedetteDuRobot(rnd, meta, clic) {
 }
 
 /*
- * 31 vrais clubs, comme `buildOpponents` : un club-saison entier, aligné par `autoRoster`, sans tes joueurs. LA LIGUE QUI
- * MONTE (tranche 8, js/rogue.js `ligueDe`) : aux premiers niveaux, les plus faibles (`teamStrength`) d'un tirage plus
- * large ; puis leurs cartes montent d'édition (`habillerLaLigue`).
+ * 31 vrais clubs, comme `buildOpponents` : un club-saison entier, aligné par `autoRoster`, sans tes joueurs
+ * (`batirLesClubs`, js/sim.js). LA LIGUE QUI MONTE (tranche 8, js/rogue.js `ligueDe`) : passé les premiers niveaux,
+ * leurs cartes montent d'édition (`habillerLaLigue`).
  */
-function adversaires(rnd, exclus, n = 31, niveau = LIGUE_PARTS.length) {
-  const { part } = ligueDe(niveau);
-  const m = Math.ceil(n / part);
-  const out = [], vus = new Set();
-  while (out.length < m) {
+function adversaires(rnd, exclus, n = 31, niveau = NIVEAUX_PLEINS) {
+  const cands = [], vus = new Set();
+  while (cands.length < n) {
     const e = shard(SAISONS[Math.floor(rnd() * SAISONS.length)]);
     const tags = Object.keys(e.byTeam);
     const tag = tags[Math.floor(rnd() * tags.length)];
@@ -171,15 +169,10 @@ function adversaires(rnd, exclus, n = 31, niveau = LIGUE_PARTS.length) {
     const pool = e.byTeam[tag];
     if (pool.filter(p => groupe(p) === 'F').length < 12 || pool.filter(p => groupe(p) === 'D').length < 6 || pool.filter(p => p.p === 'G').length < 2) continue;
     vus.add(`${e.season}|${tag}`);
-    const copies = pool.map(copie);
-    const roster = autoRoster(copies, exclus);
-    for (const p of Object.values(roster)) exclus.add(getPersonKey(p));
-    // Son club-école (Jalon P, B) : les vrais joueurs de ce club-saison hors de ses 23.
-    const ecole = ecoleDe(copies.filter(p => !exclus.has(getPersonKey(p))), roster);
-    for (const p of ecole) exclus.add(getPersonKey(p));
-    out.push(createTeam(`${tag} ${e.season}`, tag, roster, { season: e.season, ecole }));
+    cands.push({ season: e.season, team: tag, pool: pool.map(copie) });
   }
-  const ligue = m > n ? out.map(t => [teamStrength(t), t]).sort((a, b) => a[0] - b[0]).slice(0, n).map(x => x[1]) : out;
+  const ligue = batirLesClubs(cands, exclus);
+  for (const t of ligue) { for (const p of Object.values(t.roster)) if (p) exclus.add(getPersonKey(p)); for (const p of t.ecole) exclus.add(getPersonKey(p)); }
   habillerLaLigue(ligue, niveau, v);
   return ligue;
 }

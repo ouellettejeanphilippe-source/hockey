@@ -17,7 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, playSeries,
          creerLigue, jouerJournee, jouerJusqua, bilanLigue, avecHasardIsole, playGame, feuilleVierge,
-         generateur, photoAlignement, SITUATIONS, JOURS_SITUATIONS, PLANS, connaitre, getPlayerKey, poserAlignementDuJour } from '../js/sim.js';
+         generateur, photoAlignement, SITUATIONS, JOURS_SITUATIONS, PLANS, connaitre, getPlayerKey, poserAlignementDuJour, batirLesClubs } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { temoin, TEMOINS_DE_SAISON } from './lib/temoins.mjs';
 import { prevision } from '../js/pronostic.js';
@@ -466,6 +466,35 @@ const joueursDe = teams => teams.flatMap(t => SLOTS.map(s => t.roster[s.i]).filt
     jouerJusqua(L, 25);
     dire(Number.isFinite(y.simGP) && y.simGP > 0, `un joueur signé en saison compte ses matchs (${y.simGP})`);
   }
+}
+
+/*
+ * (7) LA LIGUE SE REBÂTIT DE SES CLÉS (oct. 2026). `buildOpponents` (js/game.js) bâtit 31 clubs dans l'ordre du
+ * tirage (`batirLesClubs`, l'exclusion cumulée), et la sauvegarde ne porte que leurs clés, dans l'ordre : rebâtir ces
+ * clés seules doit redonner les mêmes alignements et les mêmes clubs-écoles.
+ */
+{
+  const tirage = generateur('check_graine:ligue');
+  const cands = [], pris = new Set();
+  while (cands.length < 31) {
+    const f = saisons[Math.floor(tirage() * saisons.length)];
+    const shard = JSON.parse(fs.readFileSync(path.join(SEASONS_DIR, f), 'utf8'));
+    const tags = [...new Set(shard.players.map(p => p.t))];
+    const tag = tags[Math.floor(tirage() * tags.length)];
+    if (pris.has(`${shard.season}|${tag}`)) continue;
+    let u;
+    try { u = equipeReelle(shard.season, tag); } catch { continue; }
+    if (u[0].length < 12 || u[1].length < 6 || !u[2].length) continue;
+    pris.add(`${shard.season}|${tag}`);
+    const pool = u.flat().map(p => ({ ...p }));
+    pool.forEach(registerHiddenRatings);
+    cands.push({ season: shard.season, team: tag, pool });
+  }
+  const empreinte = ts => ts.map(t => `${t.name}:${Object.values(t.roster).filter(Boolean).map(getPlayerKey).join(',')}|${t.ecole.map(getPlayerKey).join(',')}`).join('\n');
+  const ligue = batirLesClubs(cands);
+  const cles = ligue.map(t => `${t.season}|${t.tag}`);
+  const rebatie = batirLesClubs(cles.map(k => cands.find(c => `${c.season}|${c.team}` === k)));
+  dire(ligue.length === 31 && empreinte(rebatie) === empreinte(ligue), 'les 31 clés d\'une ligue, rebâties dans l\'ordre, redonnent les mêmes alignements et les mêmes clubs-écoles');
 }
 
 console.log(echecs ? `\n${echecs} échec(s)` : '\ntout se rejoue');

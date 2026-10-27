@@ -4809,6 +4809,25 @@ export const ecoleDe = (pool, roster) => {
   return (pool || []).filter(p => p && p.p !== 'G' && !dedans.has(getPersonKey(p)))
     .sort((a, b) => (b.gp || 0) - (a.gp || 0) || (getPlayerKey(a) < getPlayerKey(b) ? -1 : 1)).slice(0, ECOLE_MAX);
 };
+/*
+ * LES CLUBS D'UNE LIGUE, DANS L'ORDRE DU TIRAGE (oct. 2026) : le jeu (`buildOpponents`, js/game.js), la reprise
+ * (`rebatirAdversaires`) et le simulateur de run (scripts/lib/rogue_sim.mjs) bâtissent par ici, et par ici seulement.
+ * L'exclusion s'accumule d'un club au suivant (deux clubs ne peuvent pas habiller le même joueur-saison), donc le
+ * même tirage dans le même ordre redonne les mêmes alignements et les mêmes clubs-écoles : la sauvegarde ne garde
+ * que les clés des clubs, dans l'ordre — check_graine (7).
+ */
+export function batirLesClubs(cands, exclude = new Set()) {
+  const ex = new Set(exclude);
+  return cands.map(c => {
+    const roster = autoRoster(c.pool, ex);
+    // Ses cartes se posent à chaque saison (`habillerLaLigue`, js/rogue.js) : un club bâti n'en garde aucune d'une ligue d'avant.
+    for (const p of Object.values(roster)) if (p) { delete p._carte; ex.add(getPersonKey(p)); }
+    // Son club-école (Jalon P, B, `ecoleDe`) : les vrais joueurs de ce club-saison hors de ses 23.
+    const ecole = ecoleDe(c.pool.filter(p => !ex.has(getPersonKey(p))), roster);
+    for (const p of ecole) ex.add(getPersonKey(p));
+    return createTeam(`${c.team} ${c.season}`, c.team, roster, { season: c.season, ecole });
+  });
+}
 export function createTeam(name, tag, roster, opts = {}) {
   return {
     name, tag, roster,

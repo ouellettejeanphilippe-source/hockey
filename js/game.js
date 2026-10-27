@@ -20,7 +20,7 @@
  * lui-même le brouillard de guerre dans les options.
  */
 
-import { REROLLS, MODES, AFFICHAGE_COURBE, teamStrength, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, ecoleDe } from './sim.js';
+import { REROLLS, MODES, AFFICHAGE_COURBE, batirLesClubs, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES, matchsDeSaSaison } from './sim.js';
 import { COACHS, JOUEUR_COACH } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta, ecrireMeta, mandatDe, convertirAuJeuNeuf } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
@@ -2405,9 +2405,7 @@ function showLeaderboard() {
  * ligue d'une saison — plutôt que `count` clubs tirés au hasard : le tournoi
  * dans les 55 saisons, ou l'exhibition dans une saison donnée.
  */
-export async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque, part = 1 } = {}) {
-  // LA LIGUE QUI MONTE (V9, tranche 8, js/rogue.js `ligueDe`) : en Rogue, aux premiers niveaux, les plus faibles d'un tirage plus large.
-  const tirage = tous ? count : Math.ceil(count / part);
+export async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque } = {}) {
   // Par joueur-SAISON : sans ça, un adversaire pouvait aligner le même homme
   // que toi sous les couleurs de l'autre équipe où il a passé cette année-là.
   const exclude = new Set(picked().map(getPersonKey));
@@ -2431,28 +2429,15 @@ export async function buildOpponents(count, { epoque = G.epoque, tous = !!epoque
   };
   collect();
   let tries = 0;
-  while (!epoque && cands.length < tirage && tries++ < 12) {
+  while (!epoque && cands.length < count && tries++ < 12) {
     try { await getShard(rnd(state.index.seasons)); } catch { /* on réessaie */ }
     collect();
   }
-  // `exclude` s'accumule : deux équipes de la ligue ne peuvent pas habiller
-  // le même joueur-saison, ce qui arrivait pour un joueur échangé quand les
-  // deux clubs de la transaction sortaient tous les deux au tirage.
-  // Une saison fixée prend TOUS ses clubs, dans l'ordre du shard, et personne
+  // L'exclusion s'accumule d'un club au suivant (`batirLesClubs`, js/sim.js) : deux équipes de la ligue ne peuvent
+  // pas habiller le même joueur-saison, ce qui arrivait pour un joueur échangé quand les deux clubs de la transaction
+  // sortaient tous les deux au tirage. Une saison fixée prend TOUS ses clubs, dans l'ordre du shard, et personne
   // n'est retranché : ta formation est la 33e équipe (voir runSeason).
-  const out = [];
-  for (const c of tous ? cands : cands.sort(() => Math.random() - 0.5)) {
-    if (!tous && out.length >= tirage) break;
-    const roster = autoRoster(c.pool, exclude);
-    // Ses cartes se posent à chaque saison (`habillerLaLigue`) : un club bâti n'en garde aucune d'une ligue d'avant.
-    for (const p of Object.values(roster)) if (p) delete p._carte;
-    for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
-    // SON CLUB-ÉCOLE (Jalon P, B, `ecoleDe`) : les vrais joueurs de ce club-saison hors de ses 23, rappelés quand les blessés manquent.
-    const ecole = ecoleDe(c.pool.filter(p => !exclude.has(getPersonKey(p))), roster);
-    for (const p of ecole) exclude.add(getPersonKey(p));
-    out.push(createTeam(`${c.team} ${c.season}`, c.team, roster, { season: c.season, ecole }));
-  }
-  return !tous && out.length > count ? out.map(t => [teamStrength(t), t]).sort((a, b) => a[0] - b[0]).slice(0, count).map(x => x[1]) : out;
+  return batirLesClubs(tous ? cands : cands.sort(() => Math.random() - 0.5).slice(0, count), exclude);
 }
 
 /**
@@ -2489,23 +2474,18 @@ export async function rebatirAdversaires(cles, decisions = []) {
     if (d.cases) for (const cle of Object.values(d.cases)) if (cle) exclude.add(personneDeCle(cle));
     for (const x of d.relache || []) if (x && x.sort) exclude.add(personneDeCle(x.sort));
   }
-  const out = [];
+  const cands = [];
   for (const cle of cles) {
     const [season, team] = String(cle).split('|');
     if (!season || !team) continue;
     let entry = G.shards.get(season);
     if (!entry) { try { entry = await getShard(season); } catch { continue; } }
     const pool = entry?.byTeam?.[team];
-    if (!pool) continue;
-    const roster = autoRoster(pool, exclude);
-    for (const p of Object.values(roster)) if (p) delete p._carte;
-    for (const p of Object.values(roster)) exclude.add(getPersonKey(p));
-    // Son club-école, comme `buildOpponents` l'a bâti (B) : sans lui, la reprise jouait d'autres séries.
-    const ecole = ecoleDe(pool.filter(p => !exclude.has(getPersonKey(p))), roster);
-    for (const p of ecole) exclude.add(getPersonKey(p));
-    out.push({ name: `${team} ${season}`, tag: team, roster, season, ecole });
+    if (pool) cands.push({ season, team, pool });
   }
-  return out;
+  // Les mêmes clubs, dans le même ordre, l'exclusion repartie de zéro : exactement ce que `buildOpponents` a gardé
+  // (`batirLesClubs`), club-école compris — sans lui, la reprise jouait d'autres séries.
+  return batirLesClubs(cands, exclude).map(t => ({ name: t.name, tag: t.tag, roster: t.roster, season: t.season, ecole: t.ecole }));
 }
 
 /**

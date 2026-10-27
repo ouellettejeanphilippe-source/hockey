@@ -45,7 +45,7 @@ import { RARETES } from '../js/cartes.js';
 import { NOM_VARIANTE, VARIANTE_PALIERS, VARIANTE_PALIERS_G, VARIANTE_PLEINE, COTES_PAR_STATURE, EDITIONS } from '../js/rarete.js';
 import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
-import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, LIGUE_PARTS, ETAPES_PAR_CRAN } from '../js/rogue.js';
+import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
 import { MATCHS_ECHELON, POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelons.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
@@ -340,8 +340,8 @@ const MOTS_RESERVES = [
     [`tu gardes ${GARDES_DE_SAISON.map(k => `un ${NIVEAUX[k].nom}`).join(' et ')}, chacun tiré au loto de ton équipe`, 'les gardés entre deux saisons'],
     [`<strong>Les exigences</strong> ${ICO_EXIGENCE} :`, 'l\'icône des exigences'],
     [`paie ${nombre(PRIME_EXIGENCE * 100)} % de médailles de plus : ${EXIGENCES.map(E => E.texte).join(' ; ')}.`, 'les exigences'],
-    // La ligue qui monte (tranche 8) : « deux fois », puis « un tiers » plus large — les parts 1/2 et 3/4 du tirage.
-    [JSON.stringify(LIGUE_PARTS) === '[0.5,0.75]' ? 'les plus faibles d\'un tirage deux fois plus large, puis d\'un tirage un tiers plus large' : '(les parts de la ligue ont changé)', 'les premières ligues'],
+    // La ligue qui monte (tranche 8, puis le 27 oct.) : des clubs de toute l'histoire aux premiers rangs, puis les éditions.
+    [`des clubs de toute l'histoire aux ${NIVEAUX_PLEINS === 2 ? 'deux' : NIVEAUX_PLEINS} premiers rangs`, 'les premières ligues'],
     [`Un cran d'exigence en vaut ${ETAPES_PAR_CRAN}.`, 'la ligue et les exigences'],
     [SOUTIENS_MOINS_RANG === SOUTIENS_MOINS_SAISON ? `tes cartes Soutien, ${SOUTIENS_MOINS_RANG} de moins par rang de prestige et par saison` : '(le quota de Soutien change autrement par rang et par saison)', 'le quota de Soutien'],
     // v2 : les coachs (js/coachs.js) — leur nombre et les seuils de la confiance.
