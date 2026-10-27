@@ -306,3 +306,19 @@ Aujourd'hui un événement arrive à des dates qu'un joueur apprend vite : un di
 **Comment on le mesure** : `check_incidents` (tranche 5) vérifie, sur douze graines, que les jours d'incidents diffèrent d'une graine à l'autre, que le nombre par saison reste dans la fourchette d'avant, que deux incidents ne se touchent jamais, et que la même graine rejoue les mêmes jours. Ce changement touche le tirage, donc les sauvegardes d'avant : leurs décisions déjà prises se relisent telles quelles, mais les incidents à venir d'une saison en cours changent.
 
 **Ce qui ne se fait pas encore** : cette décision s'implémente avec la tranche 5 (les incidents unifiés), pas avant. Rien n'est changé dans le moteur aujourd'hui.
+
+## Idée notée (JP, 27 oct.) : *j'aime bien de voir les tirs sur la glace apparaître* (la vue de la patinoire de GM Connected)
+
+**Ce que montre GM Connected** : une patinoire vue de haut, où chaque tir et chaque mise en échec se pose à l'endroit où il est arrivé (des carrés verts pour un club, rouges pour l'autre, un cercle plus gros pour un but), avec un curseur de lecture (1×, 4×, 12×, 40×) et le jeu par jeu à droite.
+
+**Ce que notre moteur sait** (js/direct.js, MOTEUR.md) : la feuille d'un match date chaque lancer (`instant`), nomme son tireur et le gardien, dit s'il est en avantage numérique et lequel est un des plus dangereux de la période (`PART_DANGER`). Il ne calcule **aucune coordonnée** : le moteur joue des événements, pas une patinoire (la règle de MOTEUR.md : *l'événement est le lancer*).
+
+**Ce qu'on peut donc faire, honnêtement** : une glace en SVG au-dessus du direct, où un point apparaît à chaque tir au moment où il est révélé. Sa position est tirée de la graine, du match et de l'instant (`hache`, rejouable : le même tir se pose au même endroit), dans une zone qui dépend de ce que la feuille sait vraiment :
+- un tir dangereux se pose près du filet, dans la fente ; un tir ordinaire, du périmètre ou de la pointe ;
+- un but est un point plus gros, du côté de celui qui l'a marqué ; un arrêt est un point du côté du tireur ;
+- un tir en avantage numérique vient de la pointe ou du cercle, un tir de lutte au ras du filet.
+La carte est **illustrative** : le nombre de points, leur camp, leur ordre, ceux qui sont dangereux et qui a tiré sont ceux de la feuille ; leur emplacement exact ne l'est pas, et l'écran ne le prétend pas (pas de mesure en pieds, pas de « zone de tir à 12 % »). Aucune cote, aucune stat neuve (CLAUDE.md : *aucune mécanique neuve*) ; `check_feuilles` et le smoke gardent « le direct, le sommaire et le bilan disent les mêmes buts ».
+
+**Où, et comment c'est calme** : au direct et à la fin du match, sur un écran de la taille du téléphone (≈ 358 × 152 px), en aplat : une glace claire, des points aux couleurs des deux clubs, un fondu à l'arrivée d'un point (une seule fois). C'est de l'information, pas du décor : le genre de mouvement que la règle du décor calme permet.
+
+**Taille** : un composant (`js/glace.js`, partagé par le direct et le sommaire), un test (chaque point de la glace correspond à un tir de la feuille, le même match donne la même glace, un but est marqué), pas de changement au moteur ni aux sauvegardes. À confirmer par JP avant de la construire.
