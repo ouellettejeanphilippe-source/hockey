@@ -461,13 +461,11 @@ body:not(.au-repechage) #capGauge { display: none; }
 /* V7 : le Bureau dit qu'il a quelque chose à régler, d'où qu'on soit (js/saison.js pose `data-a-traiter`). */
 body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::after { content: ""; position: absolute; top: 8px; left: calc(50% + 10px); width: 8px; height: 8px; border-radius: 50%; background: var(--mauvais); }
 .navtab.on { color: var(--encre); background: radial-gradient(60% 70% at 50% 0, color-mix(in srgb, var(--or) 22%, transparent), transparent 75%); }
-.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); animation: porte-saut 420ms var(--e-ressort); }
-.navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); animation: porte-filet var(--t-lent) var(--e-sortie); }
+.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); }
+.navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); }
 .navtab.on .navtab-badge { color: var(--encre-sur-or); background: var(--or); }
 .navtab:active .ico { transform: scale(0.8); }
 .navtab:not(.on):hover .ico { transform: translateY(-2px); }
-@keyframes porte-saut { 0% { transform: scale(0.7); } 60% { transform: scale(1.18) translateY(-3px); } }
-@keyframes porte-filet { from { opacity: 0; transform: scale(0.2); } }
 @media (min-width: 600px) and (max-width: 1199.98px) { .navtab { flex: 1 1 0; min-width: 0; } }
 @media (orientation: landscape) and (min-width: 680px) and (max-width: 999.98px) {
   :root { --rail-w: 72px; --bas-coquille: 0px; }
@@ -609,13 +607,15 @@ body.hub-cache #hubModal { display: none !important; }
 /* L'entrée d'un écran, d'un volet : un fondu et une montée. */
 /* `backwards` et non `both` : un transform figé ferait d'un enfant `position: fixed` (la fiche d'un pack) un enfant de la section. */
 .ecran-entre { animation: ecran-entre 200ms var(--e-sortie) backwards; }
-@keyframes ecran-entre { from { opacity: 0; transform: translateY(8px); } }
-@keyframes panneau-monte { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+/* LE DÉCOR ENTRE EN FONDU, rien d'autre (refonte coachs-cartes-incidents, oct. 2026 ; JP : *le reste de l'interface doit être drabe, à côté des cartes qui ne le sont pas*). Un mouvement, qui dit « c'est nouveau » ; les cartes gardent le leur (`carte-entre`). `check_lisibilite` le tient. */
+@keyframes ecran-entre { from { opacity: 0; } }
+@keyframes carte-entre { from { opacity: 0; transform: translateY(8px); } }
+@keyframes panneau-monte { from { opacity: 0; } }
 .volet-entre { animation: ecran-entre 160ms var(--e-sortie) both; }
 .page:not([hidden]) > .page-corps, #game.bilan .result { animation: ecran-entre var(--t-lent) var(--e-sortie); }
-/* Une fenêtre arrive d'en bas et rebondit, comme une carte posée sur la table. */
-.modal-sheet { animation: feuille-entre 380ms var(--e-ressort); }
-@keyframes feuille-entre { from { opacity: 0; transform: translateY(40px) scale(0.96); } }
+/* Une fenêtre arrive en fondu : elle ne rebondit plus. */
+.modal-sheet { animation: feuille-entre 200ms var(--e-sortie); }
+@keyframes feuille-entre { from { opacity: 0; } }
 
 /* ---- La barre d'action : un seul bouton, pleine largeur, au-dessus des portes ---- */
 /* `--rail-w` et `--bas-coquille` (0 au téléphone, le rail dès 1000 px) : la barre se pose au-dessus de la barre d'onglets,
@@ -722,16 +722,7 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn:is(.go, .gold) { min-height: 48px; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
 .btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, var(--blanc)), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); box-shadow: var(--lueur-bon); }
 @media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
-/* Seule l'action de l'écran respire (la barre d'action, « Journée suivante ») : l'écran titre en a trois, côte à côte. */
-/* Une lumière qui bat DANS le bouton, en opacité seulement : le compositeur la joue seul, sans repeindre (une ombre animée
-   repeignait l'écran à chaque image, derrière le plateau Sur table aussi, et son smoke le mesurait). */
-:is(.actionbar, .hub-actions) .btn.go:not(:disabled)::before { content: ""; position: absolute; inset: 0; background: radial-gradient(70% 120% at 50% 0, color-mix(in srgb, var(--blanc) 40%, transparent), transparent 70%); opacity: 0; animation: go-respire 2.6s ease-in-out infinite; pointer-events: none; }
-@keyframes go-respire { 50% { opacity: 1; } }
 .btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(2px) scale(0.96); box-shadow: inset 0 2px 6px color-mix(in srgb, var(--noir-pur) 35%, transparent); animation: none; }
-/* Un reflet passe sur l'action principale, toutes les cinq secondes : l'oeil sait où appuyer. */
-.btn.go:not(:disabled)::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--blanc) 45%, transparent), transparent); transform: translateX(-140%) skewX(-18deg); animation: go-reflet 5s var(--e-sortie) 1.2s infinite; pointer-events: none; }
-/* En `transform`, pas en `left` : le reflet glisse sans relancer la mise en page. */
-@keyframes go-reflet { 0%, 78% { transform: translateX(-140%) skewX(-18deg); } 100% { transform: translateX(440%) skewX(-18deg); } }
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
 .btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, var(--blanc)), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--blanc) 35%, transparent); }
 @media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
@@ -930,7 +921,7 @@ table.data td { padding: var(--esp-2); text-align: center; border-bottom: 1px so
 :is(table.data, .eq-table, .live-tableau table) tbody tr:nth-child(7) { animation-delay: 150ms; }
 :is(table.data, .eq-table, .live-tableau table) tbody tr:nth-child(8) { animation-delay: 175ms; }
 :is(table.data, .eq-table, .live-tableau table) tbody tr:nth-child(n+9) { animation-delay: 200ms; }
-@keyframes rangee-entre { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes rangee-entre { from { opacity: 0; } }
 table.data tbody tr:last-child td { border-bottom: 0; }
 table.data td.stat, table.data td.pts { font: 700 var(--t-3)/1 var(--display); }
 table.data th.heros, table.data td.heros { color: var(--or); }
@@ -1055,7 +1046,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
   padding: var(--esp-4); min-height: 120px; color: var(--encre);
   background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2);
   transition: border-color var(--t-vite), transform var(--t-lent) var(--e-ressort), background var(--t-vite), box-shadow var(--t-lent) var(--e-sortie);
-  animation: panneau-monte 360ms var(--e-sortie) backwards;
+  animation: panneau-monte 200ms var(--e-sortie) backwards;
 }
 .choix-option:nth-child(2) { animation-delay: 60ms; }
 .choix-option:nth-child(3) { animation-delay: 120ms; }
@@ -1105,7 +1096,7 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .de-boutons .btn { min-height: 44px; min-width: 140px; }
 /* R2 : les décisions en feuille — un panneau en bas au téléphone, centré au bureau */
 .choix-modal.feuille { align-items: flex-end; }
-.choix-modal.feuille .choix-sheet { height: auto; max-height: 80dvh; border-radius: var(--r-2) var(--r-2) 0 0; background: var(--fond-1); animation: feuille-entre 380ms var(--e-ressort); }
+.choix-modal.feuille .choix-sheet { height: auto; max-height: 80dvh; border-radius: var(--r-2) var(--r-2) 0 0; background: var(--fond-1); animation: feuille-entre 200ms var(--e-ressort); }
 @media (min-width: 1000px) {
   .choix-modal { align-items: center; padding: var(--esp-5); }
   .choix-modal.feuille { align-items: center; }
@@ -1146,7 +1137,7 @@ body.menu-ouvert { overflow: hidden; }
 .menu-feuille { position: relative; max-width: 980px; margin: 0 auto; padding: calc(var(--esp-4) + var(--safe-top)) var(--esp-4) calc(var(--esp-6) + var(--safe-bas)); }
 .menu-tete { text-align: center; padding: var(--esp-5) var(--esp-2) var(--esp-3); }
 .menu-logo { font: 800 var(--t-7)/0.9 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre); text-shadow: 0 0 28px color-mix(in srgb, var(--or) 35%, transparent); animation: logo-entre 700ms var(--e-ressort) backwards; }
-@keyframes logo-entre { from { opacity: 0; transform: scale(0.8) translateY(-12px); letter-spacing: 0.3em; } }
+@keyframes logo-entre { from { opacity: 0; } }
 .menu-logo b { color: var(--or); background: linear-gradient(180deg, var(--or-pale) 0%, var(--or) 60%, color-mix(in srgb, var(--or) 70%, var(--noir-pur)) 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .menu-logo::after { content: ""; display: block; width: 96px; height: 3px; margin: var(--esp-4) auto 0; background: var(--or); }
 .menu-sous { max-width: 520px; margin: var(--esp-3) auto 0; color: var(--encre-2); font-size: var(--t-3); line-height: 1.45; }
@@ -1166,7 +1157,7 @@ body.menu-ouvert { overflow: hidden; }
 
 /* ---- Les trois modes : des cartons plats à filet ; le Rogue, premier et le plus haut (le smoke le mesure) ---- */
 .menu-modes { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-3); align-items: start; }
-.menu-mode { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-4); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: transform var(--t-lent) var(--e-ressort), box-shadow var(--t-lent) var(--e-sortie), border-color var(--t-vite); animation: panneau-monte 480ms var(--e-sortie) backwards 150ms; }
+.menu-mode { display: flex; flex-direction: column; gap: var(--esp-3); padding: var(--esp-4); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: transform var(--t-lent) var(--e-ressort), box-shadow var(--t-lent) var(--e-sortie), border-color var(--t-vite); animation: panneau-monte 200ms var(--e-sortie) backwards 150ms; }
 .menu-mode:nth-child(2) { animation-delay: 230ms; }
 .menu-mode:nth-child(3) { animation-delay: 310ms; }
 .menu-mode:nth-child(n+4) { animation-delay: 390ms; }
@@ -1291,7 +1282,7 @@ body.menu-ouvert { overflow: hidden; }
 @media (min-width: 680px) { .draft { margin: calc(-1 * var(--esp-4)) calc(-1 * var(--esp-4)) 0; } }
 
 /* ---- La roulette : l'aplat du club, sa plaque au bord, l'écusson en filigrane ---- */
-.spin-card { position: relative; min-width: 0; animation: ecran-entre var(--t-lent) var(--e-sortie) both; }
+.spin-card { position: relative; min-width: 0; animation: carte-entre var(--t-lent) var(--e-sortie) both; }
 .spin-top { position: relative; display: flex; align-items: center; gap: var(--esp-3); overflow: hidden; padding: var(--esp-3) var(--esp-4) var(--esp-3) calc(var(--esp-4) + 12px); background: var(--team-band); color: var(--team-ink); }
 .spin-top::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 12px; background: var(--team-stripe); }
 .spin-watermark { position: absolute; right: -34px; top: 50%; transform: translateY(-50%); opacity: 0.12; pointer-events: none; }
@@ -1472,7 +1463,7 @@ a.spin-club:hover { background: var(--fond-2); }
 /* ---- La carte du vestiaire (.pcard) : le carton, puis la bande qui se compare ---- */
 .pcard { display: flex; flex-direction: column; gap: var(--esp-2); min-width: 0; cursor: pointer; container: pcard / inline-size; }
 .pcard:active .carton { transform: scale(0.99); }
-.pcard.cj-apparait { animation: ecran-entre var(--t-lent) var(--e-sortie) both; }
+.pcard.cj-apparait { animation: carte-entre var(--t-lent) var(--e-sortie) both; }
 /* Grisée : plus de case, ou hors budget. Signée : un anneau vert autour du carton. */
 .pcard.locked .carton { opacity: 0.45; }
 .pcard.locked .pcard-fiche { opacity: 0.55; }
@@ -3600,7 +3591,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 
 /* ---- Le tableau des lignes : une bande par trio, par paire, pour les gardiens et les réservistes ---- */
 .roster { display: flex; flex-direction: column; gap: var(--esp-3); }
-.line { background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-0); overflow: hidden; animation: panneau-monte 380ms var(--e-sortie) backwards; }
+.line { background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-0); overflow: hidden; animation: panneau-monte 200ms var(--e-sortie) backwards; }
 .line:nth-child(2) { animation-delay: 50ms; }
 .line:nth-child(3) { animation-delay: 100ms; }
 .line:nth-child(4) { animation-delay: 150ms; }
@@ -3775,8 +3766,7 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .slot.empty { align-items: center; text-align: center; border-style: dashed; flex-direction: row; justify-content: flex-start; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); border: 1px dashed var(--filet); background: var(--fond-1); }
 .slot-role { font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
 .slot-sub { font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; text-transform: uppercase; color: var(--encre-3); }
-.slot.empty.target { border-style: solid; border-color: var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); outline: 2px solid var(--or); outline-offset: -2px; animation: slot-cible 1.2s ease-in-out infinite; }
-@keyframes slot-cible { 50% { outline-color: color-mix(in srgb, var(--or) 25%, transparent); } }
+.slot.empty.target { border-style: solid; border-color: var(--or); background: color-mix(in srgb, var(--or) 10%, transparent); outline: 2px solid var(--or); outline-offset: -2px; }
 .slot.selected { outline: 2px solid var(--choisi); outline-offset: -2px; transform: translateY(-2px); }
 .slot.oop { border-color: color-mix(in srgb, var(--mauvais) 55%, transparent); }
 .slot.sous-zone { border-color: color-mix(in srgb, var(--attention) 70%, transparent); }
@@ -4098,7 +4088,7 @@ body.hub-docke .hub-sheet[data-page-ailleurs] > .hub-page { display: none; }
 .soir-drame { padding: var(--esp-2) var(--esp-3); font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 
 /* ---- L'affiche du match : un bandeau bicolore, les deux clubs face à face, VS au centre ---- */
-.hub-match { animation: panneau-monte 420ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
+.hub-match { animation: panneau-monte 200ms var(--e-sortie) backwards; display: flex; flex-direction: column; border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); overflow: hidden; }
 .hub-match-titre { display: flex; align-items: baseline; flex-wrap: wrap; gap: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-bottom: 1px solid var(--filet); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .hub-lieu { margin-left: auto; color: var(--or); }
 .hub-face { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: stretch; background: linear-gradient(108deg, var(--a-duel) 0 49.6%, var(--b-duel) 50.4% 100%); }
@@ -4342,8 +4332,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-hier.v.neuf .hub-hier-score { animation: score-pop 600ms var(--e-ressort) 150ms backwards; }
 .hub-hier[data-sommaire] { cursor: pointer; }
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--encre-3); }
-.hub-hier.neuf { animation: hier-neuf 400ms var(--e-ressort) both; }
-@keyframes hier-neuf { from { opacity: 0; transform: translateY(-8px); } }
+.hub-hier.neuf { animation: hier-neuf 200ms var(--e-ressort) both; }
+@keyframes hier-neuf { from { opacity: 0; } }
 .hub-hier-quand { flex: 1 1 100%; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .hub-hier-quand b { color: var(--encre); }
 .hub-hier-score { display: inline-flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; }
@@ -4384,7 +4374,7 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
   .hub-tuile:hover, .hub-tuile:focus-visible { border-color: color-mix(in srgb, var(--club-vif) 60%, var(--filet)); transform: translateY(-2px); }
   .hp-t { display: flex; align-items: center; gap: var(--esp-2); margin-bottom: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-2); }
   .hp-t::before { content: ""; flex: none; width: 3px; height: 12px; background: var(--club-vif); }
-  .hub-tuile { animation: panneau-monte 380ms var(--e-sortie) backwards; }
+  .hub-tuile { animation: panneau-monte 200ms var(--e-sortie) backwards; }
   .hub-tuile:nth-child(2) { animation-delay: 60ms; }
   .hub-tuile:nth-child(3) { animation-delay: 120ms; }
   .hub-tuile:nth-child(4) { animation-delay: 180ms; }
@@ -4701,6 +4691,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
   animation: banniere 1.6s var(--e-sortie) forwards; pointer-events: none;
 }
 /* Un reflet balaie la bannière une fois qu'elle a claqué. */
+/* Le reflet de la bannière d'un but passe UNE fois (une célébration, pas du décor). */
+@keyframes go-reflet { 0%, 78% { transform: translateX(-140%) skewX(-18deg); } 100% { transform: translateX(440%) skewX(-18deg); } }
 .live-banniere::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 30%; background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--blanc) 40%, transparent), transparent); transform: translateX(-140%) skewX(-18deg); animation: go-reflet 1.2s var(--e-sortie) 0.15s; }
 .live-banniere span { font: 700 var(--t-4)/1 var(--display); }
 .live-banniere b { font: 800 var(--t-5)/1 var(--display); }
@@ -4766,7 +4758,7 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .live-feed:not(.tous) .live-ligne.mineur { display: none; }
 /* `flex: none` : dans une colonne qui défile, une rangée qui se comprime laisse son texte déborder sur la suivante. */
 .live-ligne { flex: none; display: flex; align-items: baseline; gap: var(--esp-2); min-height: 44px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); line-height: 1.4; animation: ligneIn var(--t-lent) var(--e-sortie); }
-@keyframes ligneIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+@keyframes ligneIn { from { opacity: 0; } }
 .live-ligne .team-logo-img, .live-ligne .team-logo-inline { flex: none; align-self: center; }
 .live-txt { display: inline; }
 .live-feed .lien-joueur, .live-but-ligne .lien-joueur { display: inline; }

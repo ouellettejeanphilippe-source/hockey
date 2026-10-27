@@ -158,6 +158,10 @@ jobs:
       - name: Le lexique
         run: node scripts/check_lexique.mjs
 
+      # Le décor calme, les cartes belles : aucune boucle dans le décor, une seule entrée (un fondu), les finitions des cartes intactes. Une seconde.
+      - name: Le décor calme
+        run: node scripts/check_lisibilite.mjs
+
       # Les coachs (v2) : la couleur de chaque carte, la confiance à 3, 6 et 9
       # cartes, le scaling, le pack du coach, le moteur et la reprise. Sans
       # l'équilibre en paires (dix minutes, à la main). Cinq secondes.
