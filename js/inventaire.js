@@ -65,7 +65,7 @@ export function cartesDeLaPartie({ decisions = [], rogue = false } = {}) {
   // Jalon Q : les cartes de la saison d'avant, reportées au jour 0 (leurs cartes gardent leur rang : `r<i>`).
   for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
   // S80 : une amélioration ou une retouche de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
-  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
+  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main du ${d.palier}e match` });
   // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`) ;
   // V13-2 : ou au butin d'un gros match gagné (`r:<jour>`).
   const sourceDe = k => (k.startsWith('v:') ? 'Le proprio' : k.startsWith('trou:') ? 'La case vide' : k.startsWith('r:') ? 'Un gros match gagné' : `Le ${k.slice(3)}e match`);

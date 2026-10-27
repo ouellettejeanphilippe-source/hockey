@@ -418,7 +418,7 @@ function optionDeJoueurTire(x) {
     walkout: { saison: esc(x.p.s), pos: esc(POSTE_GROUPE[g]), logo: getTeamLogoHtml(x.p.t, 132) },
     // Son NIVEAU en un mot (S80), sauf quand le ruban de la carte le dit déjà.
     texte: [x.doublon ? `Doublon : revendu ${venteJoueur(x)} 🪙 si tu ne le signes pas` : '', niveauHorsRuban(x.p, x.niveau), ligneDuChoix(x.p), x.num ? `Holo numérotée ${x.num}` : '', ...bonus.map(b => `${b.ico} ${b.nom} — ${b.mot}`),
-      // v2 : sa couleur — il porte la confiance de ce coach et fait grandir les cartes de sa couleur.
+      // v2 : sa couleur — habillé, il porte la confiance de ce coach (`porteParSesJoueurs`).
       COACHS[coachDuJoueur(x.p)] ? `${COACHS[coachDuJoueur(x.p)].ico} Joueur ${COACHS[coachDuJoueur(x.p)].de}` : ''].filter(Boolean).join('\n'),
     // UN DOUBLON SE SIGNE PAREIL (1.0, oct.). JP : *si je pige un doublon, je devrais pouvoir le signer pareil*.
     // Pas signé, il est revendu comme avant ; signé, sa vente s'annule. Déjà dans ton équipe, non : un joueur, une case.
@@ -1211,7 +1211,7 @@ function optionsDeCoach(cles, { cartes = true, garde = null } = {}) {
     return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
       mots: [{ txt: g ? `On le garde · confiance ${ROMAINS[garde.palier]}` : 'Confiance I', bon: g ? true : null, duree: true },
         ...reglesDePalier(k, g ? garde.palier : 1)],
-      quand: cartes ? `${idsDuCoach(k).length} cartes de sa couleur` : '' };
+      quand: cartes ? `${idsDuCoach(k).filter(id => id.startsWith('patron:')).length} adjoints de sa couleur` : '' };
   });
 }
 /*

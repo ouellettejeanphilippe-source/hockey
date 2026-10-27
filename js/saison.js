@@ -2384,7 +2384,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pastilles = (d, n) => motsDeStats(d, n).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
     const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} match${x.reste > 1 ? 's' : ''}</small>` : ''}</span><span class="ej-stats">${pastilles(x.d, 2)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
     return `<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, 4) : ''}</span></summary>
-      ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}</details>`;
+      ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach et tes adjoints viennent ici.</p>'}</details>`;
   };
   /*
    * LA ROUTE (V8, à la Slay the Spire) : tes deux prochaines semaines, ce qui est connu d'avance et rien d'autre — tes

@@ -2444,10 +2444,23 @@ export const JOURS_MOMENTS = [8, 14, 25, 33, 42, 51, 60, 70];
  * `faits` (S80, oct. 2026) : ce qui est VRAIMENT arrivé avant la journée du dilemme (`faitsDuClub`).
  * Chaque dilemme a son fait (`FAITS`) et ne se tire que s'il est vrai ; sans faits, rien ne se tire.
  */
+/*
+ * LA GRAINE EN ENTIER (refonte coachs-cartes-incidents, tranche 2, oct. 2026). Les tirages purs (`momentDuJour`,
+ * `situationsDuJour`, `objectifsOfferts`, `ajustementsOfferts`) faisaient `Number(graine) >>> 0` : la graine d'une
+ * partie est en base 36 (`nouvelleGraine`) et celle du matin `graine:dé`, donc NaN, donc 0 — toutes les runs tiraient
+ * les mêmes dilemmes, situations et accidents aux mêmes jours. Un hachage de la chaîne (FNV-1a) : la même graine
+ * tire pareil, une autre tire autrement — `check_verite`.
+ */
+export function entierDeGraine(graine) {
+  let x = 2166136261;
+  for (const ch of String(graine)) x = Math.imul(x ^ ch.charCodeAt(0), 16777619) >>> 0;
+  x ^= x >>> 15; x = Math.imul(x, 0x2c1b3c6d) >>> 0; x ^= x >>> 12;
+  return x >>> 0;
+}
 export function momentDuJour(graine, jour, deja = [], faits = null) {
   const cles = faits ? Object.keys(MOMENTS).filter(c => !deja.includes(c) && MOMENTS[c].faits(faits)) : [];
   if (!cles.length) return null;
-  let x = ((Number(graine) >>> 0) ^ (jour * 0x85ebca6b) ^ 0x5bd1e995) >>> 0;
+  let x = (entierDeGraine(graine) ^ (jour * 0x85ebca6b) ^ 0x5bd1e995) >>> 0;
   x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
   // On tire parmi ce qui reste en retirant les déjà vus AVANT le tirage : deux
   // dilemmes d'une même partie ne se ressemblent jamais.
@@ -2554,7 +2567,7 @@ export function motsDeLObjectif(cle, quoi = null) {
 /* Les trois défis offerts : PURS, comme la main des cartes. */
 export function objectifsOfferts(graine, jour) {
   const cles = Object.keys(OBJECTIFS);
-  let x = ((Number(graine) >>> 0) ^ ((jour + 7) * 0xc2b2ae35)) >>> 0;
+  let x = (entierDeGraine(graine) ^ ((jour + 7) * 0xc2b2ae35)) >>> 0;
   const suivant = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 0x100000000; };
   const reste = cles.slice(), main = [];
   while (main.length < 3 && reste.length) main.push(reste.splice(Math.floor(suivant() * reste.length), 1)[0]);
@@ -2947,7 +2960,7 @@ function poserLancees(T, Lx) {
  * saison ne rejouerait pas la même, et `check_graine.mjs` le dirait.
  */
 function melangeurSitu(graine, jour, equipe) {
-  let x = ((Number(graine) >>> 0) ^ (jour * 0x9e3779b1) ^ (equipe * 0x85ebca6b)) >>> 0;
+  let x = (entierDeGraine(graine) ^ (jour * 0x9e3779b1) ^ (equipe * 0x85ebca6b)) >>> 0;
   return () => {
     x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0;
     return x / 0x100000000;
@@ -8044,7 +8057,7 @@ export const AJUSTEMENTS = {
 /* Les trois ajustements offerts avant le k-ième match (0-based) : PURS. `etat` : 'devant', 'derriere' ou 'egal'. */
 export function ajustementsOfferts(graine, ronde, k, etat) {
   const cles = Object.keys(AJUSTEMENTS).filter(c => !AJUSTEMENTS[c].si || AJUSTEMENTS[c].si === etat);
-  let x = ((Number(graine) >>> 0) ^ Math.imul(ronde + 11, 0x9e3779b1) ^ Math.imul(k + 3, 0x85ebca6b)) >>> 0;
+  let x = (entierDeGraine(graine) ^ Math.imul(ronde + 11, 0x9e3779b1) ^ Math.imul(k + 3, 0x85ebca6b)) >>> 0;
   const suivant = () => { x ^= x << 13; x >>>= 0; x ^= x >> 17; x ^= x << 5; x >>>= 0; return x / 0x100000000; };
   const reste = cles.slice(), main = [];
   while (main.length < 3 && reste.length) main.push(reste.splice(Math.floor(suivant() * reste.length), 1)[0]);

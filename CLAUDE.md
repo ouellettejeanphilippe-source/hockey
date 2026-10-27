@@ -121,7 +121,7 @@ Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe
 - Pas de scraping de hockey-reference ni hockeydb ; les salaires réels arrivent par `data/salaries/sources/`.
 
 **Le moteur**
-- Tout le hasard du moteur passe par `hasard()` ; la même graine et les mêmes dés du jour rejouent la même saison, et chaque journée tire ses dés quand elle arrive (`deDuJour`) — `check_graine`.
+- Tout le hasard du moteur passe par `hasard()` ; la même graine et les mêmes dés du jour rejouent la même saison, et chaque journée tire ses dés quand elle arrive (`deDuJour`) — `check_graine` ; un tirage pur (un dilemme, une situation, une offre) lit la graine par `entierDeGraine`, jamais par `Number(graine)` — `check_verite`.
 - La ligue se joue au jour le jour : rien n'est simulé d'avance, une décision s'applique au jour dit, et les journées d'avant ne bougent pas — `check_graine`, `check_ballottage`.
 - Une saison en cours se REJOUE plutôt qu'elle ne se relit ; les séries aussi. L'entracte d'un duel, lui, se rembobine au matin retenu de son match, sans rejouer la saison (JP : *rend instantané, c'est la base*) — `check_instantane`.
 - Les égalités de la feuille de match tiennent — `check_feuilles` (sur table : `check_table`).
