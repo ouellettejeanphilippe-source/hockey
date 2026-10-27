@@ -168,3 +168,21 @@ Le coach est LA décision de la run ; tout le reste en découle et se lit depuis
 - **Le congédier, c'est rebâtir** : un dossier du proprio, un prix lourd, et le recrutement, le staff et la confiance repartent de I.
 
 Le code : le modèle C avec le duel de B. Le jeu : les directions 1, 2 et 3, le coach au centre. Les tranches 1 et 2 partent maintenant.
+
+## Tranché (JP, 27 oct.) : *un événement peut avoir un fort impact pour un joueur, sans que ça fasse chier le reste du système*
+
+**Trois cibles, une principale.** Un incident vise d'abord un joueur nommé, le staff (le coach ou un adjoint) ou l'équipe, et il en a toujours une principale :
+
+| Cible | Ce que l'incident touche | Taille permise |
+|---|---|---|
+| **Le joueur** | ses canaux (`CANAUX_MUT` : lancers, finition, création, défense, blessure, arrêts), sa lancée, un galon, sa carte | **forte** : sa ligne peut bouger de moitié pour quelques matchs (le feu de `EN_FEU` vaut déjà ×1,45 en finition pendant huit matchs) |
+| **Le staff** | la confiance du coach, l'échelon ou le protégé d'un adjoint, un congédiement | moyenne : un cran, jamais deux |
+| **L'équipe** | les canaux d'équipe, les jambes, les punitions | **petite** : l'écho de ce qui arrive au joueur, jamais l'effet lui-même |
+
+**Pourquoi un gros effet sur un joueur ne casse rien.** La borne ne se met pas sur sa ligne, elle se met sur le net en victoires de l'équipe, qui reste sous celui de la rareté de l'incident (`check_arcs` le mesure déjà en blocs appariés : ±1,5 V pour un arc). Un joueur ne joue qu'une part de la glace : sa finition ×1,45 pendant huit matchs rapporte des buts à son compte et ne déplace l'équipe que de quelques dixièmes. La production se répartit comme la vraie saison l'a répartie (`check_parts`) : sa part monte, celle de ses compagnons de trio baisse d'autant. Il reste vrai que l'effet se voit dans Hier soir, par son nom, en vrais chiffres.
+
+**Ce que ça change dans le devis.**
+- Le format unique de la tranche 5 porte `cible: 'joueur' | 'staff' | 'equipe'` ; `check_incidents` refuse un incident sans cible principale et mesure, en paires, que le net d'équipe tient sous la borne de sa rareté.
+- Le budget d'un joueur nommé monte pour un incident (la règle de CLAUDE.md, ±0,3 point, ±0,15 but ou ±1 tir à sa ligne, vaut pour une CARTE, qui joue tous ses soirs) : un incident qui dure huit matchs a droit à ±1 point, ±0,5 but ou ±3 tirs à sa ligne. À confirmer par la mesure avant de toucher CLAUDE.md.
+- Le staff répond au joueur : le coach dit comment il le prend (sa couleur colore l'option), l'adjoint de son poste peut le protéger (`PROTEGES`). C'est ce qui lie les trois niveaux sans les additionner.
+- Les incidents d'équipe pure (la raclée, le calendrier chargé) restent petits et ne sont jamais seuls : ils viennent avec un joueur qui les porte.
