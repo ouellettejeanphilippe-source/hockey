@@ -54,7 +54,7 @@ import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomC
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
-import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
+import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, chiffresDuMatch } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money, hache } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
@@ -1900,6 +1900,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const b of (you.injuriesLog || []).filter(b => b.at > avant.joues && b.at <= miens.length)) blocs.push(`<div class="som-l prix">🚑 ${ctx.esc(b.player.n)}, ${ctx.esc(motDeBlessure(b.genre))} : ${b.games} match${b.games > 1 ? 's' : ''}</div>`);
     for (const x of mv) blocs.push(`<div class="som-l">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`);
     for (const [, { genre, x }] of infos) blocs.push(corpsDInfo(genre, x));
+    if (semaine) blocs.push(...verdictsDeLaSemaine(avant.jour));
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
       const primeGros = mb.gagne && ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat().bareme.grosMatch : 0;
       blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs${primeGros ? ` · +${primeGros} 🪙` : ''}</div>`);
@@ -3789,6 +3790,27 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return n.length ? `<div class="hub-nouvelles"><span class="hub-une-t">Nouvelles</span>${n.map(x => x.html).join('')}</div>` : '';
   };
   const archiverNouvelles = () => { for (const { id } of nouvellesDuJour()) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); } };
+  /*
+   * TA SEMAINE (V19, tranche 6 ; JP : *une seule lecture des choix*) : chaque choix de la semaine passée dit son verdict le lundi
+   * d'après, en vraies stats de match recomptées dans tes feuilles — ce que ton club a fait depuis, contre ses dix matchs d'avant.
+   * Ni victoires ni note : le bruit d'une semaine s'avoue (« ≈ »), et un choix sans effet durable (« rien ») ne dit rien.
+   */
+  function verdictsDeLaSemaine(depuisJ) {
+    const out = [];
+    const virg = x => x.toFixed(1).replace('.', ',');
+    const moy = (liste, k) => liste.reduce((a, { m }) => a + chiffresDuMatch(m.feuille, m.A === you ? 'A' : 'B')[k], 0) / liste.length;
+    for (const d of decs) {
+      if (!d.moment || !['moment', 'sequence', 'dossier', 'vie', 'fil'].includes(d.moment.famille) || !(d.jour >= depuisJ && d.jour < jour)) continue;
+      const F = familleDeMoment(d.moment);
+      const o = F && (F.options || []).find(x => x.cle === d.moment.choix);
+      if (!o || o.rien) continue;
+      const depuis = miens.filter(x => x.j >= d.jour && x.m.feuille), avantD = miens.filter(x => x.j < d.jour && x.m.feuille).slice(-10);
+      if (depuis.length < 3 || avantD.length < 5) continue;
+      const ligne = (mot, k) => `${mot} ${virg(moy(depuis, k))} (${virg(moy(avantD, k))} avant)`;
+      out.push(`<div class="som-l">🧾 <b>${ctx.esc(F.titre || '')}</b> · ${ctx.esc(o.nom || '')} : depuis ${depuis.length} matchs, ≈ ${ligne('tirs', 'tirsPour')} · ${ligne('tirs contre', 'tirsContre')} · ${ligne('buts', 'butsPour')} · ${ligne('buts contre', 'butsContre')}</div>`);
+    }
+    return out;
+  }
   /* La semaine passée (V5), pliée en tête d'Hier soir le lundi — elle tenait dans l'écran de la semaine, parti avec la V9. */
   const semainePasseeHtml = () => {
     const x = boite.semainePassee;
