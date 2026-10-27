@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SLOTS, autoRoster, registerHiddenRatings, createTeam, simulateLeague, getPlayerKey, getPersonKey, connaitre, photoAlignement, fits } from '../js/sim.js';
 import { candidatsBallottage, rappelDuClubEcole, productionDe, NIVEAU_MAX_BALLOTTAGE, RAPPEL_MATCHS, quiGlisse } from '../js/ballottage.js';
-import { niveauDe, joueursParNiveau, groupeDuJoueur } from '../js/niveaux.js';
+import { niveauDe, joueursParNiveau, niveauParDefense, groupeDuJoueur } from '../js/niveaux.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 /* Le poste naturel exact, comme `posteDe` (js/ballottage.js) : C, AG, AD, DG, DD ou G. */
@@ -125,9 +125,10 @@ exiger('les journées d’avant ne bougent pas', s1.avant === s2.avant, 'identiq
       if ((p.gp || 0) < RAPPEL_MATCHS[0] || (p.gp || 0) > RAPPEL_MATCHS[1]) horsRappel++;
       const e = shards.get(String(p.s));
       if (!e || niveauDe(p, e.players) > NIVEAU_MAX_BALLOTTAGE) vedettes++;
-      // Pas un seuil absolu (un régulier de 1981-82 fait 1,0 point par match) : sous le PLUS FAIBLE Pilier de sa saison, à son poste.
+      // Pas un seuil absolu (un régulier de 1981-82 fait 1,0 point par match) : sous le PLUS FAIBLE Pilier de sa saison, à son poste —
+      // Pilier aux points : un Pilier à la défense (oct. 2026, js/niveaux.js) peut produire moins qu'un Régulier.
       if (p.p !== 'G' && e) {
-        const piliers = joueursParNiveau(e.players)[2].filter(x => groupeDuJoueur(x) === groupeDuJoueur(p)).map(productionDe);
+        const piliers = joueursParNiveau(e.players)[2].filter(x => groupeDuJoueur(x) === groupeDuJoueur(p) && !niveauParDefense(x, e.players)).map(productionDe);
         if (piliers.length && productionDe(p) >= Math.min(...piliers)) gros++;
       }
       if (offerts.length < 3) offerts.push(`${p.n} ${p.s} (${p.gp} m, ${productionDe(p).toFixed(2)}/m, ${p.$ / 1e6} M$)`);

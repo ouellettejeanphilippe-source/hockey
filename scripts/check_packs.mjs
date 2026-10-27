@@ -39,7 +39,7 @@ import { PRESTIGES, JALONS, DEBLOCAGES, packsOuverts, monteeDesPacks, peutAchete
 import { COACHS, VOIES } from '../js/coachs.js';
 import { VENTE, valeurDe } from '../js/inventaire.js';
 import { BANQUE, idsDe } from '../js/banque.js';
-import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
+import { NIVEAUX, ETOILE, PHENOMENE, niveauDe, niveauParDefense, joueursParNiveau, joueursHorsNiveau, groupeDuJoueur, mesureDuNiveau } from '../js/niveaux.js';
 import { getPlayerKey, getPersonKey, coachDuJoueur } from '../js/sim.js';
 import { EDITIONS } from '../js/rarete.js';
 import { ageAtSeason } from '../js/ratings.js';
@@ -86,13 +86,15 @@ const t0 = Date.now();
 /* 1. Les niveaux. */
 {
   let chevauche = 0, sansPhenomene = [], parNiveau = NIVEAUX.map(() => 0), regs = 0;
-  let ancienne = 0, nouvelle = 0, communes = 0, dAvant = 0, dMaintenant = 0;
+  let ancienne = 0, nouvelle = 0, communes = 0, dAvant = 0, dMaintenant = 0, parDefense = 0;
   for (const s of SAISONS) {
     const e = await shard(s);
     const par = joueursParNiveau(e.players);
     par.forEach((a, k) => { parNiveau[k] += a.length; regs += a.length; });
     for (const g of ['F', 'D', 'G']) {
-      const m = par.map(a => a.filter(p => groupeDuJoueur(p) === g).map(p => mesureDuNiveau(p, e.players)));
+      // Aux points : un niveau gagné à la défense (oct. 2026) a le droit d'avoir moins de points que le niveau d'en dessous.
+      const m = par.map(a => a.filter(p => groupeDuJoueur(p) === g && !niveauParDefense(p, e.players)).map(p => mesureDuNiveau(p, e.players)));
+      parDefense += par.flat().filter(p => groupeDuJoueur(p) === g && niveauParDefense(p, e.players)).length;
       if (!m[PHENOMENE].length) sansPhenomene.push(`${s} ${g}`);
       for (let k = 1; k < m.length; k++) if (m[k].length && m[k - 1].length && Math.min(...m[k]) < Math.max(...m[k - 1])) chevauche++;
     }
@@ -106,7 +108,7 @@ const t0 = Date.now();
       if (groupeDuJoueur(p) === 'D') { dAvant += a; dMaintenant += b; }
     }
   }
-  exiger('les niveaux sont des rangs : aucun ne chevauche le suivant', !chevauche, `${SAISONS.length} saisons × 3 groupes, ${chevauche} chevauchement(s)`);
+  exiger('les niveaux sont des rangs : aucun ne chevauche le suivant, aux points', !chevauche, `${SAISONS.length} saisons × 3 groupes, ${chevauche} chevauchement(s) ; ${parDefense} niveaux gagnés à la défense sur ${regs} réguliers`);
   exiger('chaque groupe de chaque saison a son Phénomène', !sansPhenomene.length, sansPhenomene.slice(0, 5).join(', ') || 'avants, défenseurs, gardiens');
   informer('les réguliers par niveau', NIVEAUX.map((N, k) => `${N.nom} ${parNiveau[k]} (${pc(parNiveau[k] / regs)})`).join(' · '));
   const phenomenes = async s => joueursParNiveau((await shard(s)).players)[PHENOMENE].map(p => p.n);

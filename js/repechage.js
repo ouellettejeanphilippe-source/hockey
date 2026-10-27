@@ -10,7 +10,7 @@ import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerK
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
-import { niveauDe, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
+import { niveauDe, niveauParDefense, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, photoCouchee, cadrePhotoCouchee, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -146,8 +146,10 @@ export function pastilleNiveau(p) {
   // Moins de matchs qu'un régulier (js/niveaux.js) : pas de rang, et la pastille le dit.
   if (n < 0) return p && p.s && G.shards.get(p.s) ? '<span class="niv niv-partiel" title="Trop peu de matchs dans sa saison pour un rang parmi les réguliers">Peu joué</span>' : '';
   const N = NIVEAUX[n];
+  // UN NIVEAU GAGNÉ À LA DÉFENSE (oct. 2026, js/niveaux.js) se dit : « déf. », et l'infobulle dit sur quoi.
+  const def = niveauParDefense(p, G.shards.get(p.s).players);
   // TROIS VERDICTS, TROIS USAGES (V2.2) : le niveau dit SA SAISON (sa rareté, les packs), il ne joue pas au match.
-  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)} : ${esc(N.rang)} de sa saison, à son poste. Il dit sa saison ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}</span>`;
+  return `<span class="niv niv-${N.cle}" title="Niveau ${esc(N.nom)}${def ? ' à la défense' : ''} : ${esc(N.rang)} de sa saison, à son poste${def ? ', au +/- relatif à son club, en désavantage et en minutes' : ', aux points par match'}. Il dit sa saison ; au match, ce sont son badge et sa zone qui jouent.">${n >= ETOILE ? '★ ' : ''}${esc(N.nom)}${def ? ' déf.' : ''}</span>`;
 }
 brancherPastilleNiveau(pastilleNiveau);
 /*

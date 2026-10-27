@@ -20,6 +20,17 @@
  * est une vedette sans jamais approcher le 4 % du haut de TOUS les pointeurs
  * (avant S80, 51 défenseurs étoiles en 55 saisons ; 388 maintenant).
  *
+ * OU À SA DÉFENSE (27 oct. 2026 ; JP, devant une run de « Soutien » qui
+ * finit 12e : *clarifier la défense*). Un patineur vaut aussi ce qu'il
+ * défend : le même rang, à son poste, sur sa mesure défensive de saison
+ * (`mesuresDeSaison`, js/ratings.js — le +/- relatif à son club, les points
+ * en désavantage, les minutes ; les mêmes mots que la fiche), et il garde
+ * LE MEILLEUR des deux rangs. Jason Smith 2007-08, 10 points et 22 minutes
+ * de désavantage par soir, lisait « Soutien » et jouait comme un Pilier ;
+ * Craig Ramsay 1974-75, Régulier aux points, est une Étoile à la défense.
+ * Un niveau gagné à la défense se dit (`niveauParDefense`, la pastille
+ * « déf. ») ; les packs, le classeur et le ballottage le rangent où il joue.
+ *
  *   Phénomène   le 1 % du haut      le « brisé » : Orr 1970-71, Gretzky 1981-82
  *   Étoile      le 4 % du haut      l'étoile de S78 (le ruban ★ de la carte)
  *   Pilier      le 20 % du haut
@@ -41,6 +52,8 @@
  * TOUT EST PUR : le niveau ne dépend que des joueurs de la saison, calculé
  * une fois par saison (le tableau des joueurs d'un shard sert de clé).
  */
+
+import { mesuresDeSaison } from './ratings.js';
 
 export const NIVEAUX = [
   { cle: 'soutien', nom: 'Soutien', haut: 1, rang: 'la moitié du bas' },
@@ -93,30 +106,37 @@ function saisonDe(joueurs) {
   const regulier = p => (p.gp || 0) >= (p.p === 'G' ? minG : minP);
   const vus = new Set(), uniques = [];
   for (const p of joueurs) { const k = personne(p); if (!vus.has(k)) { vus.add(k); uniques.push(p); } }
-  // Le seuil de chaque niveau, par groupe : la mesure du dernier joueur de sa part du haut.
-  const seuils = {};
-  for (const g of ['F', 'D', 'G']) {
-    const r = uniques.filter(p => groupeDuJoueur(p) === g && regulier(p)).map(p => mesureDuNiveau(p, joueurs)).sort((a, b) => b - a);
-    seuils[g] = NIVEAUX.map(N => (r.length ? r[Math.max(0, Math.ceil(r.length * N.haut) - 1)] : Infinity));
-  }
-  const niveau = p => {
-    if (!regulier(p)) return -1;
-    const t = seuils[groupeDuJoueur(p)], m = mesureDuNiveau(p, joueurs);
-    for (let k = NIVEAUX.length - 1; k > 0; k--) if (m >= t[k]) return k;
-    return 0;
+  // Le seuil de chaque niveau, par groupe : la mesure du dernier joueur de sa part du haut — aux points
+  // (`seuils`), et à la défense (`seuilsDef`, les patineurs seulement).
+  const mes = mesuresDeSaison(joueurs);
+  const defDe = p => { const m = mes.get(p); return m && m.def != null ? m.def : null; };
+  const seuilsSur = (g, f) => {
+    const r = uniques.filter(p => groupeDuJoueur(p) === g && regulier(p)).map(f).filter(x => x != null).sort((a, b) => b - a);
+    return NIVEAUX.map(N => (r.length ? r[Math.max(0, Math.ceil(r.length * N.haut) - 1)] : Infinity));
   };
+  const seuils = {}, seuilsDef = {};
+  for (const g of ['F', 'D', 'G']) { seuils[g] = seuilsSur(g, p => mesureDuNiveau(p, joueurs)); seuilsDef[g] = g === 'G' ? null : seuilsSur(g, defDe); }
+  const rang = (t, m) => { if (m == null || !t) return 0; for (let k = NIVEAUX.length - 1; k > 0; k--) if (m >= t[k]) return k; return 0; };
+  const niveauAuxPoints = p => (regulier(p) ? rang(seuils[groupeDuJoueur(p)], mesureDuNiveau(p, joueurs)) : -1);
+  const niveauALaDefense = p => (regulier(p) ? rang(seuilsDef[groupeDuJoueur(p)], defDe(p)) : -1);
+  const niveau = p => Math.max(niveauAuxPoints(p), niveauALaDefense(p));
+  const parDefense = p => regulier(p) && niveauALaDefense(p) > niveauAuxPoints(p);
   const parNiveau = NIVEAUX.map(() => []);
   for (const p of uniques) { const k = niveau(p); if (k >= 0) parNiveau[k].push(p); }
   // CEUX QUI N'ONT PAS DE NIVEAU (Jalon P2b, tout se pige) : sous le seuil d'un régulier, ou la seconde fiche d'un
   // joueur échangé. Les packs les donnent comme des Soutien, à petit poids (`PART_HORS_NIVEAU`, js/packs.js).
   const classes = new Set(parNiveau.flat());
   const horsNiveau = joueurs.filter(p => !classes.has(p));
-  s = { niveau, parNiveau, horsNiveau };
+  s = { niveau, parDefense, seuils, parNiveau, horsNiveau };
   SAISONS.set(joueurs, s);
   return s;
 }
 /* Le niveau d'un joueur (0 à 4, ou −1 s'il n'est pas un régulier) parmi les joueurs de SA saison. */
 export const niveauDe = (p, joueurs) => (p && joueurs ? saisonDe(joueurs).niveau(p) : -1);
+/* Vrai quand c'est sa défense, pas ses points, qui lui donne son niveau : la pastille le dit (« déf. »). */
+export const niveauParDefense = (p, joueurs) => !!(p && joueurs && saisonDe(joueurs).parDefense(p));
+/* Le seuil aux points (ou aux buts évités) du niveau `k` d'un groupe : la barre d'un joueur sans niveau (le ballottage). */
+export const seuilDuNiveau = (joueurs, g, k) => saisonDe(joueurs).seuils[g][k];
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
 export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;
