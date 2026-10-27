@@ -13,8 +13,9 @@
  * et de la case courante, donc viser une autre case dans l'alignement
  * recompose la main sans relancer.
  *
- * Règle ferme : aucune cote cachée dans le DOM avant la simulation. Les
- * cotes vivent dans le coffre de js/sim.js ; seules la zone d'efficacité
+
+ * Les cotes vivent dans le coffre de js/sim.js (la règle « aucune cote à l'écran » est partie le 27 octobre
+ * 2026 : une cote affichée est dérivée par js/ratings.js) ; seules la zone d'efficacité
  * (`lz`) et l'archétype (`ak`), qui sont dans le shard et volontairement
  * publics, sont affichés. L'hexagone n'apparaît que si le joueur lève
  * lui-même le brouillard de guerre dans les options.

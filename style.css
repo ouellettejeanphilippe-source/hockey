@@ -154,6 +154,8 @@
   --esp-6: 32px;
   /* La seule ombre : ce qui flotte (une feuille, une fenêtre). */
   --ombre: 0 18px 48px rgba(0, 0, 0, 0.55);
+  /* La patinoire du direct (js/glace.js) : une glace claire, des filets rouges et bleus, comme à la télé. */
+  --patinoire: #dde6ee; --patinoire-rouge: #c8453b; --patinoire-bleu: #3a74b8; --patinoire-creux: #a9c9e6; --patinoire-blanc: #ffffff;
   /* LA PATINOIRE ÉCLAIRÉE (1.0, oct.). JP : *l'app a l'air plate, l'interface est « bland »*. Trois jetons, et c'est tout
      le relief du jeu : l'ambiance (la couleur vive du club qui tombe d'en haut sur le noir, comme les projecteurs d'un
      aréna), le panneau (un fond qui s'éclaire vers le haut, un filet de lumière en tête) et la lueur de l'action. */
@@ -164,7 +166,8 @@
   --photo: none;
   /* Le voile ne se peint que sous une photo : js/game.js pose `--voile-photo: var(--voile-noir)` avec elle. Sans photo,
      une couche de moins à repeindre à chaque image (le plateau Sur table le mesure). */
-  --voile-noir: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7));
+  /* LA PHOTO EN FILIGRANE, TEINTÉE DU CLUB (JP, 27 oct. : *garder la photo de match avec la teinte du club en filigrane, 70 % et plus*). Le voile n'est plus un noir pur : le noir du décor, teinté de la couleur vive du club, à 78 % ; la photo se devine, le club se reconnaît, le texte reste lisible. */
+  --voile-noir: linear-gradient(color-mix(in srgb, color-mix(in srgb, var(--club-vif) 22%, #000) 78%, transparent), color-mix(in srgb, color-mix(in srgb, var(--club-vif) 22%, #000) 78%, transparent));
   --voile-photo: none;
   /* La photo est un portrait 5:7 (celle de la carte) : calée à droite, pleine hauteur. */
   /* Son bord gauche (à 5/7 de la hauteur depuis la droite) se fond dans le noir ; au téléphone, il est hors de l'écran. */
@@ -4749,6 +4752,24 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 #choixModal .live-buteurs { max-height: none; overflow: visible; }
 
 /* ---- Le filtre du fil : les jeux marquants ou tous les tirs ; en pause, il s'efface ---- */
+/* LA GLACE DU DIRECT (js/glace.js) : de l'information, pas du décor — un aplat clair, des filets, des points aux couleurs des deux clubs ; un point arrive en fondu, une fois. Trop basse pour la patinoire, la fenêtre la cache. */
+.live-glace { flex: none; padding: var(--esp-2) var(--esp-3) 0; }
+.live-glace[hidden] { display: none; }
+.gl-svg { display: block; width: 100%; height: auto; max-height: 150px; }
+.gl-glace { fill: var(--patinoire); stroke: color-mix(in srgb, var(--encre) 35%, transparent); stroke-width: 1; }
+.gl-rouge, .gl-but { stroke: var(--patinoire-rouge); stroke-width: 0.8; fill: none; }
+.gl-bleue { stroke: var(--patinoire-bleu); stroke-width: 1.4; }
+.gl-cercle { fill: none; stroke: color-mix(in srgb, var(--patinoire-rouge) 55%, transparent); stroke-width: 0.6; }
+.gl-creux { fill: var(--patinoire-creux); stroke: var(--patinoire-bleu); stroke-width: 0.5; }
+.gl-filet { fill: var(--patinoire-rouge); }
+.gl-pt { stroke: var(--patinoire-blanc); stroke-width: 0.5; animation: ecran-entre 200ms var(--e-sortie) both; }
+.gl-pt.a { fill: var(--gl-a); }
+.gl-pt.b { fill: var(--gl-b); }
+.gl-pt.but { stroke: var(--noir); stroke-width: 1; }
+.gl-pt.fixe { animation: none; }
+.som-glace { padding: var(--esp-2) var(--esp-3) 0; }
+.gl-dit { min-height: 1.5em; padding-top: var(--esp-1, 4px); font-size: var(--t-1); line-height: 1.3; color: var(--encre-3); text-align: center; }
+@media (max-height: 699px) { .live-glace { display: none; } }
 .live-filtre { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); flex-wrap: wrap; padding: var(--esp-2) var(--esp-3) 0; font-size: var(--t-1); color: var(--encre-3); }
 .live-filtre .btn { flex: none; font-size: var(--t-2); }
 .en-pause .live-filtre { display: none; }

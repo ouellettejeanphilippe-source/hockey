@@ -138,8 +138,7 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'le
 const niveauJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? niveauDe(p, e.players) : -1; };
 /*
  * LA PASTILLE DE NIVEAU (1.0, les lignes) : ce qui se lit à la place d'une cote
- * générale — son rang dans sa vraie saison, à son poste. Aucune cote n'entre
- * dans le DOM (`sansCote`) : le niveau est un rang, lu dans ses stats.
+ * générale — son rang dans sa vraie saison, à son poste, lu dans ses stats.
  */
 export function pastilleNiveau(p) {
   const n = niveauJoueur(p);

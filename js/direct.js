@@ -30,6 +30,7 @@ import { causeDuBut } from './causes.js';
 import { CARTES_MATCH } from './combat.js';
 import { jouerSon } from './sons.js';
 import { ord, ordF, cap, nom, varsEquipe } from './util.js';
+import { creerGlace } from './glace.js';
 
 /*
  * L'HORLOGE DESCEND. Un tableau indicateur de hockey compte à rebours,
@@ -327,6 +328,13 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
 
   const ev = evenementsDuMatch(f, graine);
   /*
+   * LA GLACE (js/glace.js ; JP : *j'aime bien de voir les tirs sur la glace apparaître*) : un point par tir, posé à son
+   * moment ; sa position est illustrative (le danger du lancer, les icônes du tireur, l'accord de son trio, le texte du
+   * sommaire). Sans conteneur (un autre écran), rien.
+   */
+  const zoneGlace = modal.querySelector('.live-glace');
+  const glace = zoneGlace ? (zoneGlace.hidden = false, creerGlace(zoneGlace, { couleurs: { A: ctx.band(A.tag).duel, B: ctx.band(B.tag).duel }, nomDe: p => (p && p.n ? nomCourt(p.n) : '') })) : null;
+  /*
    * LES SONS DU DIRECT (S74b) : la sirène d'un but, le sifflet d'une punition
    * et d'une fin de période, un coup mat sur un arrêt dangereux — ceux du
    * plateau (js/sons.js), coupés par l'option « Sons ». Pas pendant l'avance
@@ -446,6 +454,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   };
 
   const appliquer = e => {
+    if (glace && (e.type === 'arret' || e.type === 'but')) glace.ajouter(e, { muet });
     if (e.type === 'arret') {
       if (e.cote === 'A') tA++; else tB++;
       st.tirs[e.cote][periodeDe(Math.min(e.instant, 64.999))]++;

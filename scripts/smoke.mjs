@@ -505,11 +505,18 @@ const butsDuDirect = () => page.$$eval('#liveModal .live-feed .live-ligne', els 
   }
   return out;
 });
+let glaceDuDirect = 0;
 async function lireLeDirect(entracte) {
   butsVusEnDirect = { buts: await butsDuDirect(), entracte };
   // UN BUT PORTE LES COULEURS DU CLUB QUI MARQUE, partout (JP).
   const ternes = await page.$$eval('#liveModal :is(.live-ligne.but, .live-but-ligne)', l => l.filter(e => !e.classList.contains('but-eq') || !e.style.getPropertyValue('--eq-band') && !e.closest('[style*="--eq-band"]')).length);
   if (ternes) errors.push(`le direct : ${ternes} but(s) sans les couleurs du club qui marque`);
+  // LA GLACE (js/glace.js) : un point par tir au tableau, ni plus ni moins.
+  const points = await page.$$eval('#liveModal .live-glace:not([hidden]) .gl-pt', e => e.length);
+  const tirs = await page.$eval('#liveModal .live-tirs', e => (e.textContent.match(/\d+/g) || []).map(Number).reduce((x, y) => x + y, 0)).catch(() => -1);
+  if (!points) errors.push('le direct : la glace n\'a posé aucun tir');
+  else if (tirs >= 0 && points !== tirs) errors.push(`le direct : ${points} points sur la glace pour ${tirs} tirs au tableau`);
+  glaceDuDirect = points;
 }
 /* Le « Sommaire du match » d'une clé `saison|j|k` ou `series|i|k` : ses buts, période, heure et marqueur. */
 async function butsDuSommaire(cle) {
@@ -893,23 +900,13 @@ console.log('   écran « Nouvelle partie » : ouvert à la première visite, re
 }
 
 /*
- * DEUX RÈGLES FERMES QUE RIEN NE VÉRIFIAIT.
+ * UNE RÈGLE FERME QUE RIEN NE VÉRIFIAIT (la seconde, « aucune cote dans le DOM », est partie le 27 octobre 2026).
  *
  * `sansDebordement` — « rien ne doit déborder horizontalement de
  * `document.documentElement` ; seuls les conteneurs prévus défilent en x ».
  * Le mode bonus l'avait déjà, le jeu principal non : on pouvait donc casser
  * la mise en page à 390 px et sortir du vert.
- *
- * `sansCote` — « aucune cote dans le DOM, jamais. Un joueur curieux qui ouvre
- * l'inspecteur ne doit rien pouvoir en tirer. » Ce que ça prouve : aucun
- * élément ne porte un attribut nommé comme une sous-cote, et le document ne
- * contient aucun `data-` qui les nomme. Ce que ça ne prouve pas : qu'un
- * gabarit n'écrive pas une cote dans du TEXTE sous un autre nom — les cotes
- * vivent dans un coffre privé, la page ne peut pas les redonner pour qu'on
- * compare. C'est le mode de régression réel (`data-v="${p.v}"` glissé dans un
- * gabarit) qui est couvert, pas la malveillance.
  */
-const COTES = ['o', 'd', 'r', 'c', 'v', 'sp'];
 /*
  * AU REPOS (1.0). La case du dernier joueur signé se pose en s'agrandissant
  * (`cj-arrive`, scale 1,04 à mi-course) et l'animation ne part que quand le
@@ -1106,28 +1103,6 @@ async function pasUneLonguePage(ou, max = 3) {
   if (n > max) errors.push(`longue page : ${ou} fait ${n} écrans (au plus ${max})`);
   return n;
 }
-async function sansCote(ou) {
-  const fautes = await page.evaluate(cotes => {
-    const out = [];
-    // Pas `data-cote` : dans `js/direct.js` le mot veut dire CÔTÉ (A ou B), pas
-    // cote. Deux mots homographes en québécois, et le premier jet du garde-fou
-    // a rougi sur le tableau indicateur du direct.
-    const interdits = new Set([...cotes, ...cotes.map(k => `data-${k}`), 'data-valeur', 'data-rating']);
-    const SVG = 'http://www.w3.org/2000/svg';
-    for (const el of document.querySelectorAll('*')) {
-      // Le SVG a ses propres `d`, `r` et `c` — la géométrie d'un tracé n'est
-      // pas une cote, et les icônes du sprite en sont pleines.
-      if (el.namespaceURI === SVG || el.closest('svg')) continue;
-      for (const at of el.attributes) {
-        if (interdits.has(at.name)) out.push(`<${el.tagName.toLowerCase()} ${at.name}="${at.value}">`);
-      }
-    }
-    return out.slice(0, 3);
-  }, COTES);
-  for (const f of fautes) errors.push(`une cote dans le DOM — ${ou} : ${f}`);
-  return fautes.length;
-}
-
 /*
  * LA BARRE D'ONGLETS FLOTTE (S59), et le garde-fou suit la règle neuve.
  *
@@ -1296,7 +1271,7 @@ console.log(`2. ${signed}/23 signés`);
 // Le vestiaire est plein : c'est le moment où le DOM porte le plus de cartes,
 // donc le moment où une cote qui fuit se verrait, et où la mise en page est
 // la plus chargée.
-console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await sansCote('vestiaire plein')} cote(s) dans le DOM, ${await toutEstAtteignable('vestiaire plein')} hors de portée, ${await cibles44('vestiaire plein')} cible(s) sous 44 px`);
+console.log(`   à 390 px, alignement complet : ${await sansDebordement('vestiaire plein')} px de débordement, ${await toutEstAtteignable('vestiaire plein')} hors de portée, ${await cibles44('vestiaire plein')} cible(s) sous 44 px`);
 await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
 // LE GARDIEN DIT SA PART DES DÉPARTS (V2.2) : la case de chaque gardien habillé, dans l'Effectif.
 {
@@ -1362,7 +1337,7 @@ await page.screenshot({ path: 'scripts/smoke-roster.png', fullPage: false });
   const dessous = await page.$eval('#pageEquipes', e => !e.hidden);
   if (!ficheOuverte) errors.push("la fiche d'un joueur ne s'ouvre pas depuis l'écran des équipes");
   if (!dessous) errors.push("Échap ferme l'écran des équipes SOUS la fiche d'un joueur : une modale du dessous ne doit pas partir avec celle du dessus");
-  console.log(`   les équipes : ${clubs} clubs en ${annee}, écran ancré, ${await sansDebordement('écran des équipes')} px de débordement, ${await sansCote('écran des équipes')} cote(s)`);
+  console.log(`   les équipes : ${clubs} clubs en ${annee}, écran ancré, ${await sansDebordement('écran des équipes')} px de débordement`);
   await aller('repechage');
   await page.waitForTimeout(250);
 }
@@ -1827,7 +1802,6 @@ if (enabled) {
         console.log(`   ma ligue : ${clubsLigue} clubs, un club rend ${m.rangees} rangées à deux nombres, la vraie saison au bandeau`);
       }
       await sansDebordement('un club de ma ligue');
-      await sansCote('un club de ma ligue');
     }
     await aller('match');
     await page.waitForTimeout(400);
@@ -2318,7 +2292,6 @@ if (expSigned < 6) errors.push(`l'Express n'a comblé que ${expSigned} cases sur
 if (expRemplies < 23) errors.push(`le renfort de l'Express ne remplit que ${expRemplies} cases sur 23`);
 if (!expPret) errors.push('l\'Express ne débloque pas le bouton de simulation');
 await sansDebordement('express');
-await sansCote('express');
 
 /*
  * LES CHOIX FORCÉS CROISÉS (S66). Le proprio s'ouvre au jour 0 et le premier
@@ -2340,6 +2313,7 @@ console.log(`   périodes de duel jouées : ${mainsVues.length} (${mainsVues.sli
 console.log(`   choix forcés croisés : ${[...choixVus].map(([k, v]) => `${k} ×${v.length} (${v.slice(0, 2).join(' · ')})`).join(' ; ') || 'aucun'}`);
 if (actionsLNH) errors.push(`la version Web a demandé ${actionsLNH} photo(s) d'action à la LNH (elles viennent de img/actions)`);
 
+console.log(`   la glace du direct : ${glaceDuDirect} point(s) posé(s) au dernier match regardé`);
 console.log(`7. erreurs console : ${errors.length} (ressources externes non chargées : ${netErrors})`);
 for (const e of errors) console.log('   ', e);
 await browser.close();

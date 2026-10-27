@@ -162,6 +162,10 @@ jobs:
       - name: Le décor calme
         run: node scripts/check_lisibilite.mjs
 
+      # La glace où les tirs apparaissent : la position d'un tir (illustrative) lue de la vraie feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire. Deux secondes.
+      - name: La glace des tirs
+        run: node scripts/check_glace.mjs
+
       # Les coachs (v2) : la couleur de chaque carte, la confiance à 3, 6 et 9
       # cartes, le scaling, le pack du coach, le moteur et la reprise. Sans
       # l'équilibre en paires (dix minutes, à la main). Cinq secondes.
