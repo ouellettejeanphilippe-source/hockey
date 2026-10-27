@@ -16,7 +16,7 @@
  * mesure la même fonction en Node.
  */
 import { getPlayerKey, getPersonKey, SLOTS, fits } from './sim.js';
-import { niveauDe, joueursParNiveau, groupeDuJoueur, mesureDuNiveau } from './niveaux.js';
+import { niveauDe, seuilDuNiveau, groupeDuJoueur, mesureDuNiveau } from './niveaux.js';
 import { estD as isD } from './util.js';
 
 export const groupeDe = p => (p.p === 'G' ? 'G' : isD(p) ? 'D' : 'F');
@@ -61,26 +61,15 @@ const productionRelative = (p, shards) => {
 export const NIVEAU_MAX_BALLOTTAGE = 1;   // Régulier (js/niveaux.js) : jamais un Pilier, une Étoile ou un Phénomène
 
 /*
- * Le seuil du niveau au-dessus de `niveauMax`, par groupe, dans une saison :
- * la mesure du plus faible joueur de ce niveau. Un joueur trop court pour
- * être rangé (moins de 40 matchs, niveau −1 — la recrue de 32 matchs à un
- * point par match) se juge sur cette même barre.
+ * Le seuil du niveau au-dessus de `niveauMax`, par groupe, dans une saison : la barre aux points (ou aux buts
+ * évités) de ce niveau (`seuilDuNiveau`, js/niveaux.js — pas le plus faible joueur du niveau : un Pilier à la
+ * défense a peu de points). Un joueur trop court pour être rangé (moins de 40 matchs, niveau −1 — la recrue de
+ * 32 matchs à un point par match) se juge sur cette même barre.
  */
-const SEUILS = new WeakMap();
-function seuilDe(players, niveauMax) {
-  let s = SEUILS.get(players);
-  if (!s) {
-    s = {};
-    const au = joueursParNiveau(players)[niveauMax + 1] || [];
-    for (const g of ['F', 'D', 'G']) { const m = au.filter(x => groupeDuJoueur(x) === g).map(x => mesureDuNiveau(x, players)); s[g] = m.length ? Math.min(...m) : Infinity; }
-    SEUILS.set(players, s);
-  }
-  return s;
-}
 const tropFort = (p, players, niveauMax) => {
   const k = niveauDe(p, players);
   if (k > niveauMax) return true;
-  return k < 0 && mesureDuNiveau(p, players) >= seuilDe(players, niveauMax)[groupeDuJoueur(p)];
+  return k < 0 && mesureDuNiveau(p, players) >= seuilDuNiveau(players, groupeDuJoueur(p), niveauMax + 1);
 };
 
 /*
