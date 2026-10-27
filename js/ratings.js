@@ -454,20 +454,20 @@ export function getEraFactor(season) {
 
 export const ARCHETYPES = {
   // Attaquants
-  OFF_PLAYMAKER: { label: "Fabricant de jeu d'élite", short: 'Fabricant élite', icon: '🪄', desc: 'Vision du jeu et passes magistrales' },
+  OFF_PLAYMAKER: { label: "Fabricant de jeu d'élite", short: 'Fabricant élite', icon: '🅰', desc: 'Vision du jeu et passes magistrales' },
   SNIPER:        { label: 'Franc-tireur / Marqueur',   short: 'Franc-tireur',    icon: '🎯', desc: 'Lancer foudroyant et finition d\'élite' },
-  PLAYMAKER:     { label: 'Fabricant de jeu',          short: 'Fabricant',       icon: '🎨', desc: 'Distribue la rondelle avec précision' },
-  POWER_FWD:     { label: 'Attaquant de puissance',    short: 'Puissance',       icon: '💥', desc: 'Marque dans le trafic et frappe fort' },
-  TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '⚖', desc: 'Responsable dans les deux sens de la patinoire' },
-  ENERGY:        { label: 'Plombier',                  short: 'Plombier',        icon: '🔋', desc: 'Intensité, échec avant et mises en échec' },
+  PLAYMAKER:     { label: 'Fabricant de jeu',          short: 'Fabricant',       icon: '🅰', desc: 'Distribue la rondelle avec précision' },
+  POWER_FWD:     { label: 'Attaquant de puissance',    short: 'Puissance',       icon: '🦍', desc: 'Marque dans le trafic et frappe fort' },
+  TWO_WAY_FWD:   { label: 'Attaquant complet',         short: 'Complet',         icon: '☯', desc: 'Responsable dans les deux sens de la patinoire' },
+  ENERGY:        { label: 'Plombier',                  short: 'Plombier',        icon: '🪠', desc: 'Intensité, échec avant et mises en échec' },
   SKILLED_FWD:   { label: 'Attaquant offensif',        short: 'Offensif',        icon: '✨', desc: 'Aisance offensive naturelle' },
-  CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🏃', desc: 'Profondeur et ardeur au travail' },
+  CHECKER:       { label: 'Attaquant de profondeur',   short: 'Profondeur',      icon: '🔧', desc: 'Profondeur et ardeur au travail' },
   // Défenseurs
   OFF_D:         { label: 'Défenseur offensif',        short: 'Offensif',        icon: '🚀', desc: 'Première passe, tir frappé et avantage numérique' },
-  DEF_D:         { label: 'Défenseur physique',        short: 'Physique',        icon: '🛡', desc: 'Jeu physique et protection du territoire' },
-  STAY_D:        { label: 'Défenseur défensif',        short: 'Défensif',        icon: '🔒', desc: 'Sécurité et désavantage numérique' },
-  TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '🔄', desc: 'Efficace dans toutes les situations' },
-  CHECKER_D:     { label: 'Défenseur de profondeur',   short: 'Profondeur',      icon: '🧱', desc: 'Fiabilité et minutes tranquilles' },
+  DEF_D:         { label: 'Défenseur physique',        short: 'Physique',        icon: '💪', desc: 'Jeu physique et protection du territoire' },
+  STAY_D:        { label: 'Défenseur défensif',        short: 'Défensif',        icon: '🛑', desc: 'Sécurité et désavantage numérique' },
+  TWO_WAY_D:     { label: 'Défenseur polyvalent',      short: 'Polyvalent',      icon: '☯', desc: 'Efficace dans toutes les situations' },
+  CHECKER_D:     { label: 'Défenseur de profondeur',   short: 'Profondeur',      icon: '🛑', desc: 'Fiabilité et minutes tranquilles' },
   // Gardiens
   // 1.0 (C1) : un gardien se lit par ce seul mot ; ni l'icône d'un trophée (🧱 Norris, 🥅 Vezina, ⚡ Vitesse), ni un mot de niveau (« Régulier »).
   WALL:          { label: 'Gardien mur',               short: 'Mur',             icon: '🏔', desc: '% d\'arrêts et moyenne d\'élite' },

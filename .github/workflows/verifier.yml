@@ -154,6 +154,10 @@ jobs:
       - name: La clarté
         run: node scripts/check_clarte.mjs
 
+      # Le lexique : un mot = un sens, une icône = un sens (js/lexique.js). Une seconde.
+      - name: Le lexique
+        run: node scripts/check_lexique.mjs
+
       # Les coachs (v2) : la couleur de chaque carte, la confiance à 3, 6 et 9
       # cartes, le scaling, le pack du coach, le moteur et la reprise. Sans
       # l'équilibre en paires (dix minutes, à la main). Cinq secondes.

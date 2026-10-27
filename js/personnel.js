@@ -29,7 +29,7 @@ export const PERSONNEL = {
   // ---- 🐝 le Frelon ----
   per_crieurDuBanc: { role: 'attaque', nom: 'Le crieur du banc', ico: '📢', rarete: 'commune', si: 'domicile', effet: { volume: 1.12, finition: 0.92 },
     texte: 'Chez nous, on l\'entend crier « Lance ! » de la passerelle de presse.' },
-  per_coachDeSprint: { role: 'physique', nom: 'Le coach de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, finition: 0.97, energie: 1.06 },
+  per_coachDeSprint: { role: 'physique', nom: 'L\'adjoint de sprint', ico: '🏁', rarete: 'peu', si: 'jambesFraiches', effet: { volume: 1.14, finition: 0.97, energie: 1.06 },
     texte: 'Des départs arrêtés, encore et encore. Les jambes fraîches, ça fonce au filet.' },
 
   // ---- 🦅 l'Aigle ----

@@ -1384,7 +1384,7 @@ export function renderDash() {
       : `Prochaine case libre de l'alignement : ${slotShort(need)}. Touche une autre case dans l'alignement pour la viser à la place.`)
     : `Les ${totalCases()} cases sont comblées.`;
   const budgetTitle = left === 0
-    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}, sous le plafond de ${money(MODE().cap)}.` : `Tu dépasses le plafond de ${money(-rem)} : retire un joueur.`)
+    ? (rem >= 0 ? `Masse salariale : ${money(capUsed())}, sous le plafond de ${money(plafondDeJauge())}.` : `Tu dépasses le plafond de ${money(-rem)} : retire un joueur.`)
     : `Le maximum que tu peux mettre sur ce joueur-ci en gardant de quoi combler les ${left - 1} case${left - 1 > 1 ? 's' : ''} suivantes au salaire plancher de ${money(MIN_SAL)}. Il te reste ${money(rem)} pour ${left} cases.`;
   const poolTitle = `${safe} joueur${safe > 1 ? 's' : ''} de ${MODE().loto ? 'cette main' : 'ce vestiaire'} tiennent dans le budget du prochain choix, ${affordable} sous le plafond restant, ${pool.length} au total.`
     + (MODE().loto ? ` Relances : ${G.relances}.` : ` Relances : ${G.left.season} année${G.left.season > 1 ? 's' : ''}, ${G.left.team} équipe${G.left.team > 1 ? 's' : ''}, ${G.left.pass} passe${G.left.pass > 1 ? 's' : ''}.`);

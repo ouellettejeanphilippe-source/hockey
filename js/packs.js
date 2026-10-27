@@ -546,8 +546,8 @@ export function sortDUnPack(id) {
 export const coachDuPack = (graine, n, params = {}) => (COACHS[params.coach] ? params.coach : ORDRE_COACHS[Math.floor(hache(graine, 'pack-coach', n) * ORDRE_COACHS.length)]);
 /*
  * LA GARANTIE (Rogue) : combien de packs de joueurs d'affilée sans holo ni or
- * — lu dans les décisions d'achat (\`achat.meilleure\`). Au bout de PITIE − 1,
- * le prochain en garantit une.
+ * — lu dans les décisions d'achat (\`achat.meilleure\`). Au bout de PITIE packs
+ * sans, le prochain (le PITIE + 1e) en garantit une — \`check_verite\`.
  */
 export function packsSansHolo(decisions = []) {
   let n = 0;

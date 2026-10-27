@@ -227,7 +227,7 @@ const vignette = (ctx, p) => (ctx.mug
 const RECIT_RECENTS = 8;
 const MAISONS = {
   proprio: { ico: '🏢', titre: 'Le bureau du proprio', vide: 'Son mandat arrive avec la saison.' },
-  entraineur: { ico: '🧑‍🏫', titre: 'L\'entraîneur', vide: 'Ton coach arrive avec la saison.' },
+  entraineur: { ico: '🧑‍🏫', titre: 'Le coach', vide: 'Ton coach arrive avec la saison.' },
   presse: { ico: '🎤', titre: 'La presse' },
   vestiaire: { ico: '🚪', titre: 'Le vestiaire', vide: 'Ton histoire s\'écrit match après match.' },
   infirmerie: { ico: '🚑', titre: 'L\'infirmerie' },
@@ -1456,11 +1456,11 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     attaque: { ico: '⚔', nom: 'Attaque', val: t => parMatch(t, 'GF'), mot: x => `${virgule(x, 2)} buts par match` },
     // LA DÉFENSE, CE SONT LES BUTS ACCORDÉS (1.0, oct.). JP : *c'est ma défense qui torche mais les stats disent l'inverse* —
     // elle se lisait aux TIRS accordés (31e), alors que son gardien en arrêtait ,969. Les mots de la puce « Buts contre ».
-    defense: { ico: '🛡', nom: 'Défense', bas: true, val: t => parMatch(t, 'GA'), mot: x => `${virgule(x, 2)} buts accordés par match` },
-    vitesse: { ico: '⚡', nom: 'Vitesse', val: t => parMatch(t, 'SF'), mot: x => `${virgule(x)} tirs par match` },
-    gardiens: { ico: '🥅', nom: 'Devant le filet', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.SA ? 1 - g.GA / g.SA : NaN; }, mot: x => `${svMot(x)} d'arrêts` },
-    an: { ico: '🎯', nom: 'Avantage numérique', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PPO >= 5 ? g.PPG / g.PPO : NaN; }, mot: x => `${pctMot(x)} en avantage` },
-    inf: { ico: '🧱', nom: 'Infériorité', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PKO >= 5 ? 1 - g.PKGA / g.PKO : NaN; }, mot: x => `${pctMot(x)} des punitions tuées` },
+    defense: { ico: '🚫', nom: 'Défense', bas: true, val: t => parMatch(t, 'GA'), mot: x => `${virgule(x, 2)} buts accordés par match` },
+    vitesse: { ico: '⏩', nom: 'Vitesse', val: t => parMatch(t, 'SF'), mot: x => `${virgule(x)} tirs par match` },
+    gardiens: { ico: '✋', nom: 'Devant le filet', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.SA ? 1 - g.GA / g.SA : NaN; }, mot: x => `${svMot(x)} d'arrêts` },
+    an: { ico: '➕', nom: 'Avantage numérique', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PPO >= 5 ? g.PPG / g.PPO : NaN; }, mot: x => `${pctMot(x)} en avantage` },
+    inf: { ico: '➖', nom: 'Infériorité', val: t => { const g = fiche.get(t); return gpDe(t) >= 3 && g.PKO >= 5 ? 1 - g.PKGA / g.PKO : NaN; }, mot: x => `${pctMot(x)} des punitions tuées` },
     discipline: { ico: '🟨', nom: 'Discipline', bas: true, val: t => parMatch(t, 'PKO'), mot: x => `${virgule(x)} punitions par match` },
   };
   const mesureDe = (t, k) => { const M = MESURES[k], v = M.val(t); return Number.isFinite(v) ? { v, ...(rangSur(t, M.val, M.bas) || {}) } : null; };
@@ -1540,12 +1540,12 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return [
       saison ? ligne('⚔', 'Attaque', cote(A, 'attaque'), cote(B, 'attaque'))
         : ligne('⚔', 'Attaque', avantSaison(A, t => (t.strength ? t.strength.att : NaN)), avantSaison(B, t => (t.strength ? t.strength.att : NaN))),
-      saison ? ligne('🛡', 'Défense', cote(A, 'defense'), cote(B, 'defense'))
-        : ligne('🛡', 'Défense', avantSaison(A, t => (t.strength ? t.strength.def : NaN)), avantSaison(B, t => (t.strength ? t.strength.def : NaN))),
-      ligne('🥅', 'Gardien ce soir', gardien(A, gardiens.A), gardien(B, gardiens.B)),
+      saison ? ligne('🚫', 'Défense', cote(A, 'defense'), cote(B, 'defense'))
+        : ligne('🚫', 'Défense', avantSaison(A, t => (t.strength ? t.strength.def : NaN)), avantSaison(B, t => (t.strength ? t.strength.def : NaN))),
+      ligne('✋', 'Gardien ce soir', gardien(A, gardiens.A), gardien(B, gardiens.B)),
       ligne('💪', 'Robustesse', avantSaison(A, t => (t.strength ? t.strength.rob : NaN)), avantSaison(B, t => (t.strength ? t.strength.rob : NaN))),
-      saison ? ligne('⚡', 'Vitesse · volume de tirs', cote(A, 'vitesse'), cote(B, 'vitesse'))
-        : ligne('⚡', 'Vitesse · volume de tirs', avantSaison(A, lancersEquipe), avantSaison(B, lancersEquipe)),
+      saison ? ligne('⏩', 'Vitesse · volume de tirs', cote(A, 'vitesse'), cote(B, 'vitesse'))
+        : ligne('⏩', 'Vitesse · volume de tirs', avantSaison(A, lancersEquipe), avantSaison(B, lancersEquipe)),
     ];
   }
   /* L'avantage sur une ligne des forces : un écart qui compte, un huitième de la ligue et trois rangs au moins. */
@@ -2384,7 +2384,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const pastilles = (d, n) => motsDeStats(d, n).map(x => `<span class="st-p ${x.bon ? 'bon' : 'mauvais'}">${ctx.esc(x.txt)}</span>`).join('') || '<span class="st-p">rien</span>';
     const rangee = x => `<li class="ej-r${x.mots.length ? ' a-detail' : ''}"${x.mots.length ? ' tabindex="0" role="button" aria-expanded="false"' : ''}><span class="ej-nom">${x.ico ? `${x.ico} ` : ''}${ctx.esc(x.nom)}${x.reste != null ? `<small>${x.reste} match${x.reste > 1 ? 's' : ''}</small>` : ''}</span><span class="ej-stats">${pastilles(x.d, 2)}</span>${x.mots.length ? `<div class="ej-detail"><span class="choix-puces">${puces(x.mots)}</span></div>` : ''}</li>`;
     return `<details class="ej-soir ej-plie"><summary class="ej-k"><span>En jeu · ${jeu.length}${p ? ' <small>au prochain</small>' : ''}</span><span class="ej-stats">${jeu.total ? pastilles(jeu.total, 4) : ''}</span></summary>
-      ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach, tes patrons et tes cartes jouées viennent ici.</p>'}</details>`;
+      ${jeu.length ? `<ul class="ej-liste">${jeu.map(rangee).join('')}</ul>` : '<p class="ej-vide">Rien encore : ton coach et tes adjoints viennent ici.</p>'}</details>`;
   };
   /*
    * LA ROUTE (V8, à la Slay the Spire) : tes deux prochaines semaines, ce qui est connu d'avance et rien d'autre — tes
@@ -3171,7 +3171,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const mR = calendrier[rc.jour][indexMien(rc.jour)], chezR = mR && mR.A === you;
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), graine: `${graine}|${rc.jour}` }) : null;
       specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
-        recit: 'Un adjoint parmi trois : il rejoint ton personnel, et s\'engage chez l\'entraîneur.',
+        recit: 'Un adjoint parmi trois : il rejoint ton personnel, et s\'engage chez le coach.',
         options: cartesDuPalier(graine, `r${rc.jour}`).map(id => optionDeBanque(id)),
         onChoix: id => prendre({ place: id }),
         onFerme: () => prendre({}) });
@@ -3512,7 +3512,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const f = fiche.get(you), run = ctx.rogue.mandat ? ctx.rogue.mandat() : null;
       const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
       out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : un adjoint parmi trois`,
-        choix: { scene, recit: 'Il rejoint ton personnel, et s\'engage chez l\'entraîneur.',
+        choix: { scene, recit: 'Il rejoint ton personnel, et s\'engage chez le coach.',
           options: cartesDuPalier(graine, pp).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `pp:${pp}`, place: id }) } });
     }

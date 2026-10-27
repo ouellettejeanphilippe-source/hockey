@@ -65,7 +65,7 @@ export function cartesDeLaPartie({ decisions = [], rogue = false } = {}) {
   // Jalon Q : les cartes de la saison d'avant, reportées au jour 0 (leurs cartes gardent leur rang : `r<i>`).
   for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
   // S80 : une amélioration ou une retouche de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
-  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main de la journée ${d.palier}` });
+  for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main du ${d.palier}e match` });
   // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`) ;
   // V13-2 : ou au butin d'un gros match gagné (`r:<jour>`).
   const sourceDe = k => (k.startsWith('v:') ? 'Le proprio' : k.startsWith('trou:') ? 'La case vide' : k.startsWith('r:') ? 'Un gros match gagné' : `Le ${k.slice(3)}e match`);
@@ -139,7 +139,7 @@ export function ouvrirInventaire(ctx) {
     if (etat.onglet === 'permanent') {
       const conso = ctx.meta.filter(x => garde(x.id));
       // V12-2 ; V16, tranche 6 : chaque carte rare se joue chez ce qu'elle monte ; ici, elle se lit.
-      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle monte : le stage et la formation chez l'entraîneur, les soins à l'infirmerie, les cartes de joueur à l'effectif.</p>
+      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle monte : le stage et la formation chez le coach, les soins à l'infirmerie, les cartes de joueur à l'effectif.</p>
         ${filtres(['consommable'])}
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,

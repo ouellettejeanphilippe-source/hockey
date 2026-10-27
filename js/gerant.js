@@ -1334,7 +1334,7 @@ export function specDuDuel(P, { k = 0, mise = null, propositions = [], enForce =
   const w = I.pourquoi || {};
   const pourquoi = {
     vedette: `${c} est ta vedette.`, sansDur: `Personne ne protège ${c}.`, brigadier: `${c} lance l'attaque de ta brigade.`,
-    planTir: 'Ton coach paie le Tir.', planDefense: 'Ton coach paie la Défense : ils veulent la tester.', indiscipline: 'Ton club écope plus que le leur.',
+    planTir: 'Ton coach mise sur le Tir.', planDefense: 'Ton coach mise sur la Défense : ils veulent la tester.', indiscipline: 'Ton club écope plus que le leur.',
     garde: 'Ça a marché la période d\'avant.', mene: 'Tu mènes : ils n\'ont plus rien à perdre.', traine: 'Ils mènent : ils protègent l\'avance.',
     punitions: `Tu as pris ${w.n} punitions.`, trio: `Ton ${w.u + 1}e trio a marqué ${w.n} fois.`, marqueur: `${c} a marqué ${w.n} fois.`,
   }[w.cle] || '';

@@ -725,7 +725,7 @@ export const EXIGENCES = [
   { cle: 'ceinture', nom: 'La ceinture', texte: '2 M$ d\'espace de moins sous le plafond', espace: -2_000_000 },
   { cle: 'agents', nom: 'Les agents', texte: 'les packs coûtent 25 % de plus', prixPacks: 0.25 },
   { cle: 'classeur', nom: 'Le classeur fermé', texte: 'une case de moins au classeur, et un loto de moins', classeur: -1 },
-  { cle: 'vestiaire', nom: 'Le vestiaire mince', texte: '3 cartes Soutien de plus au départ de chaque saison', soutiens: 3 },
+  { cle: 'vestiaire', nom: 'L\'effectif mince', texte: '3 cartes Soutien de plus au départ de chaque saison', soutiens: 3 },
   { cle: 'commanditaires', nom: 'Les commanditaires boudent', texte: '2 jetons de moins par victoire', victoire: -2 },
   { cle: 'impatient', nom: 'Le proprio impatient', texte: 'chaque mandat arrive une saison plus tôt', mandat: 1 },
   { cle: 'partants', nom: 'Ceux qui partent', texte: 'une case de moins chez ceux qui restent', gardes: -1 },
