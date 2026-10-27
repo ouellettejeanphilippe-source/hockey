@@ -60,7 +60,7 @@ Ce que les trois ont en commun et que le Rogue n'a pas : **un écran ne renvoie 
 | Sous-onglet | Repère | Verdict | Ce qui change |
 |---|---|---|---|
 | Boîte | EHM : l'accueil et la boîte ; NSS : l'accueil | Reste | Les choix se règlent dans la Boîte, ouverts sur place, comme un message d'EHM ; un matin sans choix, elle n'est pas vide : Hier soir, le prochain match, ton rang. |
-| Proprio | EHM : la direction et l'argent ; NSS : la jauge du patron | Reste | Ses dossiers (la masse salariale, la tête de l'entraîneur) se rangeaient au Vestiaire : ils sont chez lui, et « L'infirmerie déborde » à l'infirmerie (fait, `maison` d'un dossier). Les rivaux disaient « 1 gros matchs » (fait). |
+| Proprio | EHM : la direction et l'argent ; NSS : la jauge du patron | Reste | Ses dossiers (la masse salariale, la tête du coach) se rangeaient au Vestiaire : ils sont chez lui, et « L'infirmerie déborde » à l'infirmerie (fait, `maison` d'un dossier). Les rivaux disaient « 1 gros matchs » (fait). |
 | Entraîneur | EHM : le personnel | Reste, allégé | « D'où tu viens » part (Hier soir et le calendrier disent les résultats) ; la route de la saison va au calendrier ; l'adjoint d'un palier y arrive (voir le Butin). |
 | Presse | EHM : les conférences de presse arrivent dans la boîte | Part | Vide presque tous les jours (« Rien à régler ici ») ; ses micros et ses courriels sont des messages de la Boîte, et la une est déjà dans Hier soir. |
 | Vestiaire | NSS : la jauge des coéquipiers ; EHM : la dynamique du vestiaire | Reste, allégé | Ce qu'il montre toujours (les fils suivis, ton histoire) ; ses choix s'ouvrent de la Boîte. « Ce qui court » et « Ton histoire » affichaient « Un match à la galerie de presse pour {nom} » (fait). |

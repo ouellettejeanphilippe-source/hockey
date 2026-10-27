@@ -40,7 +40,7 @@ export const ORDRE_CATEGORIES = ['patron', 'joueur', 'consommable'];
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
 
 export const ROLES = {
-  chef: { nom: 'Entraîneur-chef', ico: '🧑‍💼' },
+  chef: { nom: 'Adjoint en chef', ico: '🧑‍💼' },
   attaque: { nom: 'Adjoint à l\'attaque', ico: '🎯' },
   defense: { nom: 'Adjoint à la défensive', ico: '❄' },
   gardiens: { nom: 'Entraîneur des gardiens', ico: '🥅' },

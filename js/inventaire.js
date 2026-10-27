@@ -139,7 +139,7 @@ export function ouvrirInventaire(ctx) {
     if (etat.onglet === 'permanent') {
       const conso = ctx.meta.filter(x => garde(x.id));
       // V12-2 ; V16, tranche 6 : chaque carte rare se joue chez ce qu'elle monte ; ici, elle se lit.
-      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle monte : le stage et la formation chez l'entraîneur, les soins à l'infirmerie, les cartes de joueur à l'effectif.</p>
+      corps = `<p class="inv-mot">${VIES.permanent.mot} Chaque carte se joue chez ce qu'elle monte : le stage et la formation chez le coach, les soins à l'infirmerie, les cartes de joueur à l'effectif.</p>
         ${filtres(['consommable'])}
         <h3 class="inv-sec">🧴 Tes cartes permanentes · ${ctx.meta.reduce((a, x) => a + x.n, 0)}</h3>
         <div class="inv-grille">${conso.map(x => carteBanqueHtml(x.id, { compte: x.n,

@@ -76,7 +76,7 @@ export const CARTES_MATCH = {
   // ---- le deck de départ ----
   lancer: { nom: 'Lancer de la pointe', ico: '🏒', cout: 1, rarete: 'commune', genre: 'attaque',
     texte: 'Les défenseurs décochent à la moindre ouverture.', effet: { volume: 1.06 } },
-  bloquer: { nom: 'Bloquer des tirs', ico: '🛡', cout: 1, rarete: 'commune', genre: 'defense',
+  bloquer: { nom: 'Bloquer des tirs', ico: '🧲', cout: 1, rarete: 'commune', genre: 'defense',
     texte: 'Tout le monde se jette devant la rondelle.', effet: { defense: 0.95 } },
   // LE DÉPISTAGE (S76) : la vidéo n'abat plus leur plan, elle ÉCARTE une piste
   // du rapport — c'est à toi de viser juste avec ce qui reste.

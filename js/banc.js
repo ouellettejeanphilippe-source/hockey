@@ -212,7 +212,7 @@ async function deciderMaintenant(ds, depuis) {
     const { liste, d } = ajouterDecision(decisions, d0);
     decisions = liste;
     prises.push(d);
-    // Un coach neuf (la tête de l'entraîneur, V16) devient celui de la run, comme au départ.
+    // Un coach neuf (la tête du coach, V16) devient celui de la run, comme au départ.
     if (d && d.coachNeuf && d.coach && G.rogue) G.rogue.coach = d.coach.cle;
   }
   // Un entracte de gros match ne « reprend » pas la saison : la période suivante commence (on vit le match).
@@ -641,7 +641,7 @@ export async function runSeason(opts = {}) {
     : [{ jour: 0, cases: photoAlignement(G.roster), fermeture: 'auto' },
       // LA SAISON SUIVANTE D'UNE RUN (S80) : les modifs jouées continuent, en décisions du jour 0.
       ...(G.bonus === 'ROGUE' && G.rogue && Array.isArray(G.rogue.report) ? G.rogue.report.map(d => ({ ...d })) : []),
-      // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois cartes au compteur, sa confiance I allumée — à la première saison d'une run.
+      // LE COACH CHOISI AU DÉPART (v2, js/coachs.js) : trois points au compteur (SEUILS[0]), sa confiance I allumée — à la première saison d'une run.
       ...(G.bonus === 'ROGUE' && G.rogue && COACHS[G.rogue.coach] && !(G.rogue.saison > 1)
         ? [{ jour: 0, coachsDeBase: { [G.rogue.coach]: SEUILS[0] }, coach: effetDePalier(G.rogue.coach, 1), rogue: { depart: true } }] : []),
       // SES DEUX PATRONS IMPOSÉS (V2.3, js/banque.js `patronsDeDepart`) : en poste dès le premier soir, et pour la run (le report les garde).
@@ -795,7 +795,7 @@ function ouvrirEcranSaison(depuis = 0) {
             bareme: (G.rogue && G.rogue.bareme) || JETONS }),
           // V5 : la caisse à une journée, pour que le sommaire dise ce que la semaine a rapporté.
           jetons: j => jetonsRogue(j),
-          // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête de l'entraîneur.
+          // V16 (tranche 6) : ce que le proprio lit le lundi, pour la masse salariale et la tête du coach.
           masse: j => masseDuLundi(j), coachs: j => coachsDuLundi(j) } : null,
         // LA BOUTIQUE ET L'INVENTAIRE (S79), dans les deux modes.
         // Chacune s'ouvre dans une page du Marché (js/game.js) : `page` = { dans, fermer }.

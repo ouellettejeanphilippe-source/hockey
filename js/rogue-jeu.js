@@ -1186,7 +1186,7 @@ export async function ouvrirRogue() {
  * TON COACH (v2, js/coachs.js) — le personnage de Slay the Spire. Les coachs
  * que le prestige du club a ouverts (V2.3 : trois au Club de garage, les huit
  * à la Dynastie, js/rogue.js `coachsOuverts`), un à prendre : sa philosophie
- * part avec trois cartes au compteur, sa confiance I allumée dès le premier
+ * part avec trois points au compteur, sa confiance I allumée dès le premier
  * soir. Les autres coachs restent à prendre en jouant. Et les deux patrons
  * imposés de la run, tirés de la même graine (`patronsDeLaRun`).
  */
@@ -1817,7 +1817,7 @@ async function lotoDuCartable(gardes = [], saison = 2) {
     textes: ({ i, n, k, niveau, vus, dernier }) => ({
       ico: '🎰', titre: `Le loto du cartable · ${nomDeCase(k)}`, irl: `Saison ${saison} de la run · ${i + 1} de ${n}`,
       recit: `${motDeLaDescente(k, niveau, 'carte')}Le loto tire ${vus} carte${vus > 1 ? 's' : ''} ${nomDeCase(niveau)} de ton cartable : signes-en une, ou passe. Ton cartable comble le reste.`,
-      budget: '🎰 Budget du classeur', plein: 'Tu as ta carte de ce loto',
+      budget: '🎰 Budget des lotos', plein: 'Tu as ta carte de ce loto',
       partir: k2 => (k2 ? (dernier ? 'À la saison' : 'Loto suivant') : 'Passer ce loto'),
     }),
   });

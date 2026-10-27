@@ -61,11 +61,11 @@ const FICHIERS = [
   'fonts/BarlowCondensed-700-latin.woff2', 'fonts/BarlowCondensed-700-latin-ext.woff2',
   'fonts/BarlowCondensed-800-latin.woff2', 'fonts/BarlowCondensed-800-latin-ext.woff2',
   'fonts/Manrope-latin.woff2', 'fonts/Manrope-latin-ext.woff2',
+  // Les polices des séries de cartes (style.css, une voix par année).
+  'fonts/AbrilFatface-400-latin.woff2', 'fonts/AlfaSlabOne-400-latin.woff2', 'fonts/Anton-400-latin.woff2', 'fonts/ArchivoBlack-400-latin.woff2', 'fonts/BebasNeue-400-latin.woff2', 'fonts/BigShouldersDisplay-700-latin.woff2', 'fonts/Bungee-400-latin.woff2', 'fonts/Exo2-800i-latin.woff2', 'fonts/Graduate-400-latin.woff2', 'fonts/Kanit-900i-latin.woff2', 'fonts/Michroma-400-latin.woff2', 'fonts/Monoton-400-latin.woff2', 'fonts/Orbitron-700-latin.woff2', 'fonts/Oswald-500-latin.woff2', 'fonts/PlayfairDisplay-700-latin.woff2', 'fonts/PlayfairDisplay-700i-latin.woff2', 'fonts/Rajdhani-700-latin.woff2', 'fonts/Righteous-400-latin.woff2', 'fonts/RussoOne-400-latin.woff2', 'fonts/Teko-500-latin.woff2', 'fonts/Ultra-400-latin.woff2',
   'fonts/NotoEmoji-1.woff2', 'fonts/NotoEmoji-2.woff2', 'fonts/NotoEmoji-3.woff2', 'fonts/NotoEmoji-4.woff2',
   'fonts/NotoEmoji-5.woff2', 'fonts/NotoEmoji-6.woff2', 'fonts/NotoEmoji-7.woff2', 'fonts/NotoEmoji-8.woff2',
   'fonts/NotoEmoji-9.woff2',
-  // Les polices des séries de cartes (style.css, une voix par année).
-  'fonts/AbrilFatface-400-latin.woff2', 'fonts/AlfaSlabOne-400-latin.woff2', 'fonts/Anton-400-latin.woff2', 'fonts/ArchivoBlack-400-latin.woff2', 'fonts/BebasNeue-400-latin.woff2', 'fonts/BigShouldersDisplay-700-latin.woff2', 'fonts/Bungee-400-latin.woff2', 'fonts/Exo2-800i-latin.woff2', 'fonts/Graduate-400-latin.woff2', 'fonts/Kanit-900i-latin.woff2', 'fonts/Michroma-400-latin.woff2', 'fonts/Monoton-400-latin.woff2', 'fonts/Orbitron-700-latin.woff2', 'fonts/Oswald-500-latin.woff2', 'fonts/PlayfairDisplay-700-latin.woff2', 'fonts/PlayfairDisplay-700i-latin.woff2', 'fonts/Rajdhani-700-latin.woff2', 'fonts/Righteous-400-latin.woff2', 'fonts/RussoOne-400-latin.woff2', 'fonts/Teko-500-latin.woff2', 'fonts/Ultra-400-latin.woff2',
 ];
 
 self.addEventListener('install', ev => {

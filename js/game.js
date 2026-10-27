@@ -1688,7 +1688,7 @@ const PAGE = {
   match: ['i-club', 'Match'], saison: ['i-saison', 'Calendrier'], alignement: ['i-list', 'Lignes'], joueurs: ['i-jersey', 'Joueurs'], repechage: ['i-dice', 'Vestiaire'], marche: ['i-marche', 'Boutique'],
   classement: ['i-chart', 'Classement'], calendrier: ['i-cal', 'Calendrier'], meneurs: ['i-star', 'Meneurs'], equipes: ['i-jersey', 'Équipes'],
   historique: ['i-trophy', 'Palmarès'], cartable: ['i-cartes', 'Album'],
-  proprio: ['i-club', 'Proprio'], entraineur: ['i-cal', 'Entraîneur'], vestiaire: ['i-jersey', 'Vestiaire'],
+  proprio: ['i-club', 'Proprio'], entraineur: ['i-cal', 'Coach'], vestiaire: ['i-jersey', 'Vestiaire'],
 };
 /* En Rogue, le Bureau s'ouvre sur la boîte (V12) : ses sous-onglets en sont les maisons. */
 const motDePage = p => (p === 'match' && G.bonus === 'ROGUE' ? 'Boîte' : PAGE[p][1]);

@@ -31,7 +31,7 @@ import { hache } from './util.js';
 
 /* Les faits d'un joueur se lisent sur ses FENETRE_JOUEUR derniers matchs ; la chicane, à PUNITIONS_CHICANE punitions. */
 export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
-/* La masse salariale s'ouvre sous `ESPACE_MINCE` d'espace ; la tête de l'entraîneur, à `DEFAITES_TETE` défaites de suite. */
+/* La masse salariale s'ouvre sous `ESPACE_MINCE` d'espace ; la tête du coach, à `DEFAITES_TETE` défaites de suite. */
 const ESPACE_MINCE = 1_500_000, DEFAITES_TETE = 4;
 
 export const DOSSIERS = {
@@ -203,10 +203,10 @@ export const DOSSIERS = {
    * personne ne part.
    */
   laTete: {
-    de: 'pr', ico: '📋', titre: 'La tête de l\'entraîneur', maison: 'proprio',
+    de: 'pr', ico: '📋', titre: 'La tête du coach', maison: 'proprio',
     quand: f => f.defaites >= DEFAITES_TETE && !!f.coach && (f.coachs || []).length >= 2,
     fait: f => `${f.defaites} défaites de suite · ${f.coach} en poste`,
-    mots: ['Je ne paie pas un entraîneur pour perdre. Dis-moi si on change, et pour qui.',
+    mots: ['Je ne paie pas un coach pour perdre. Dis-moi si on change, et pour qui.',
       'La patience a des limites. La mienne est atteinte, la tienne, je ne sais pas.'],
     options: [
       { cle: 'premier', nom: 'Congédier : place à {coach0}', bon: 'Un coach neuf, à la confiance I', prix: 'Le coach en poste part avec sa confiance', coachNeuf: 0 },

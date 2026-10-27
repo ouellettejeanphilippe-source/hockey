@@ -4,10 +4,9 @@
  * trop simple, complexe mais clair*. La profondeur reste ; ce qui se vérifie
  * ici, c'est qu'elle se lit :
  *
- *   1. UNE ICÔNE = UN SENS dans les familles d'étiquettes qu'on voit en
- *      jouant (rôles, traits, bonus de carte, styles de gardien, carrure,
- *      agressivité). « Two-way » en attaque et en défense,
- *      c'est le même sens ; 🎯 sniper et 🎯 précision, deux.
+ *   1. UNE ICÔNE = UN SENS et UN MOT = UN SENS : déménagés dans
+ *      scripts/check_lexique.mjs (js/lexique.js), tranche 1 de la refonte
+ *      coachs-cartes-incidents (oct. 2026).
  *   2. « ÉNERGIE » N'EST PLUS UN MOT DE L'ÉCRAN : la fatigue s'appelle les
  *      jambes, la mana des cartes l'élan, le rôle le plombier. On lit les
  *      chaînes de js/ (commentaires enlevés) et le texte d'index.html.
@@ -59,35 +58,6 @@ const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const nombre = x => String(Math.round(x * 1000) / 1000).replace('.', ',');
 const pct = x => nombre(Math.abs(x - 1) * 100);
 
-/* ---------- 1. une icône = un sens ---------- */
-{
-  const sens = new Map();   // icône → Set de sens
-  const noter = (ico, quoi, famille) => {
-    if (!ico) return;
-    const k = ico.replace(/️/g, '');
-    if (!sens.has(k)) sens.set(k, new Map());
-    sens.get(k).set(quoi.toLowerCase(), famille);
-  };
-  for (const g of ['F', 'D']) for (const R of Object.values(PROFILS[g])) noter(R.ico, `rôle ${R.nom}`, 'rôle');
-  for (const T of Object.values(TRAITS)) noter(T.icon, `trophée ${T.label}`, 'trait');
-  for (const k of ['WALL', 'ACROBAT', 'WORKHORSE', 'HYBRID_G']) noter(ARCHETYPES[k].icon, `gardien ${ARCHETYPES[k].label}`, 'style de gardien');
-  for (const A of AGRESSIVITES) noter(A.ico, `agressivité ${A.nom}`, 'agressivité');
-  // La carrure vit dans js/gerant.js (`carrureDe`) : ses deux icônes, lues dans la source.
-  const gerant = lire('js/gerant.js');
-  const carrure = gerant.match(/^(?:export )?const carrureDe = [^\n]+/m);
-  exiger('la carrure a ses deux icônes, 🪨 costaud et 🪶 léger', !!carrure && /🪨', mot: 'Costaud'/.test(carrure[0]) && /🪶', mot: 'Léger'/.test(carrure[0]), carrure ? '' : 'carrureDe introuvable');
-  noter('🪨', 'carrure costaud', 'carrure'); noter('🪶', 'carrure léger', 'carrure');
-  // v2 : les coachs (js/coachs.js) — un totem chacun, qu'aucune autre étiquette ne porte.
-  for (const C of Object.values(COACHS)) noter(C.ico, `coach ${C.nom}`, 'coach');
-  // « Two-way » en attaque et en défense : un seul sens.
-  const doublons = [...sens].filter(([, m]) => m.size > 1).map(([ico, m]) => `${ico} = ${[...m.keys()].join(' / ')}`);
-  informer('icônes lues', `${sens.size} icônes dans 10 familles`);
-  exiger('une icône = un sens', doublons.length === 0, doublons.join(' · ') || 'aucun doublon');
-  exiger('« Défensif » ne nomme qu\'un rôle', ARCHETYPES.WALL.label !== TRAITS.VEZINA.label,
-    'le gardien-mur ne s\'appelle plus « Gardien d\'élite » (le trophée Vézina) ; la variante d\'une carte monte un palier (V2.4), elle n\'a plus de bonus à nommer');
-  exiger('« Régulier » ne nomme qu\'un niveau', ARCHETYPES.HYBRID_G.label.indexOf('régulier') < 0 && ARCHETYPES.HYBRID_G.short !== 'Régulier', ARCHETYPES.HYBRID_G.label);
-}
-
 /* ---------- 2. « énergie » n'est plus un mot de l'écran ---------- */
 /* Les chaînes d'un module, sans ses commentaires : scripts/lib/chaines.mjs (partagé avec le gel des chaînes). */
 {
@@ -119,47 +89,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
   exiger('l\'écran dit « bureau » et « main de la journée », pas « hub » ni « palier »', code.length === 0, code.slice(0, 5).join(' · ') || 'aucune');
 }
 
-/*
- * ---------- 2c. LES MOTS RÉSERVÉS (V2.1, une langue) ----------
- * Un mot par idée : chaque mot réservé garde UN sens, et ses anciens sens ne
- * reviennent plus à l'écran (CLAUDE.md, « Le vocabulaire »). Chaque entrée :
- * le mot, la tournure qui le réemploierait, un témoin fautif et un témoin juste
- * (la contre-épreuve : le motif attrape ce qu'il vise, rien de plus).
- */
-const MOTS_RESERVES = [
-  ['vestiaire', 'la pièce et l\'équipe ; pas les déblocages ni l\'effectif d\'une run', /vestiaire des déblocages|\bTon vestiaire\b|vestiaire croit (à|au)|dépense-les au vestiaire|onglet Vestiaire/i,
-    'Le vestiaire des déblocages', 'Le vestiaire est galvanisé'],
-  ['classeur', 'le tirage du cartable au départ d\'une run ; pas la banque des cartes de jeu', /^Le classeur$|vont à ton classeur|vestiaire tiré de ton classeur/,
-    'Le classeur', 'Le départ du classeur'],
-  ['plombier', 'le rôle 🪠 ; les faibles du départ sont des bouche-trous', /(équipe|bande|rassemble tes|place pour tes) (de )?plombiers|plombiers? (de la ligue|de départ|sont là|moins pires)|rejoin(t|dent) tes plombiers|avec des plombiers/i,
-    'Une équipe de plombiers, 🪙 40', 'Tirs +2 % par plombier 🪠 habillé'],
-  ['relance', 'le dé qu\'on relance ; pas la sortie de zone ni la passe du gardien', /Paire de relance|Relance rapide|Moins de relance|relance (la rondelle|en contre|du gardien|à un coéquipier)|qui relancent|gardien relance|la relance ou la gèle|pour la relance/i,
-    '💨 Relance rapide', 'Tu peux relancer (2 relances)'],
-  ['rejouer', 'les mêmes clubs, d\'autres dés ; pas l\'historique ni la reprise d\'une décision', /On rejoue (la saison|les séries)|mêmes 31 clubs|^Rejouer$/,
-    'On rejoue la saison avec ton choix…', 'Rejouer la saison'],
-  ['coach', 'la philosophie ; la personne est l\'entraîneur', /\b(le|un|du|sans le|invite le) coach (des gardiens|élève|pète|sort|dans leur|paie|a parlé|laisse|qui promet|concentré)|cris du coach|selon le coach/i,
-    'Le coach des gardiens', 'Le coach de sa couleur'],
-  ['rivalité', 'le club le plus croisé en gros match ; celui qui t\'a battu deux fois est ta bête noire', /^Rivalité$|ta némésis|ta rivale\b/i,
-    'La défaite contre ta rivale', 'Ta rivalité : MTL'],
-  ['trophée', 'ce que le bilan décerne ; ce que le joueur porte est un trait', /Un trophée<\/strong>, rarement/i,
-    '<strong>Un trophée</strong>, rarement', 'Les trophées de la saison'],
-  ['Basse', 'l\'agressivité dit Prudente', /agressivité (🕊️ )?basse|🕊️ basse/i,
-    '(🕊️ basse, ⚖️ moyenne)', 'une agressivité 🕊️ Prudente'],
-  ['médailles', 'la monnaie des déblocages ; l\'écusson est un logo', /\d+ écussons|écussons (à dépenser|pour ta saison|pour tes séries|de découverte|gagnés)|Tes écussons/i,
-    '🏅 +12 écussons pour ta saison', 'Le nom, les couleurs et l\'écusson'],
-  // LE JARGON (Jalon M, B10) : le % d'arrêts et les matchs se disent en mots ; la route dit « chez », pas « @ » ni « DP ».
-  ['arrêts', 'le % d\'arrêts se dit en mots, pas « arr. » ni « (ligue ,904) »', /\d arr\.|\} arr\.|\(ligue (,\d|\$\{)/,
-    'Badges +,005 arr.', '+,005 au % d\'arrêts'],
-  ['matchs', 'un match se dit en entier, pas « m. »', /\d m\.($|<)|\} m\.($|<)/,
-    '${x.reste} m.</small>', '5 matchs'],
-  ['la route', 'chez eux se dit « chez », une défaite en prolongation en mots', /^@ $|\bDP \d/,
-    '@ ', 'chez PHI \'13'],
-  ['contrat', 'une carte de masse salariale ; la modif de joueur est une clause', /Un style, un contrat|une modif de contrat/i,
-    'Un style, un contrat, une amélioration', 'Pack Contrats'],
-];
+/* ---------- 2c. ce qui est parti ne se promet plus ---------- */
 {
-  const temoinsFaux = MOTS_RESERVES.filter(([, , re, faux, bon]) => !re.test(faux) || re.test(bon)).map(([m]) => m);
-  exiger('les motifs des mots réservés attrapent ce qu\'ils visent', temoinsFaux.length === 0, temoinsFaux.join(' · ') || `${MOTS_RESERVES.length} mots, chacun son témoin`);
   const prose = [];
   for (const f of fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js'))) {
     for (const { s, ligne } of chainesDe(lire(`js/${f}`), { lignes: true })) prose.push({ ou: `js/${f}:${ligne}`, t: s.trim() });
@@ -169,10 +100,6 @@ const MOTS_RESERVES = [
   // Ce qui est parti ne se promet plus : les factions de S72 (partisans, médias) et la garantie « qui vaut double ».
   const partis = prose.filter(x => /partisans montent|médias s'acharnent|vaudra double/i.test(x.t)).map(x => `${x.ou} « ${x.t.slice(0, 50)} »`);
   exiger('l\'écran ne promet plus ce qui est parti (les factions, la victoire qui vaut double)', partis.length === 0, partis.slice(0, 3).join(' · ') || 'rien de parti');
-  for (const [mot, sens, re] of MOTS_RESERVES) {
-    const vus = prose.filter(x => re.test(x.t)).map(x => `${x.ou} « ${x.t.slice(0, 50)} »`);
-    exiger(`« ${mot} » n'a qu'un sens : ${sens}`, vus.length === 0, vus.slice(0, 3).join(' · ') || 'aucun réemploi');
-  }
 }
 
 /*
