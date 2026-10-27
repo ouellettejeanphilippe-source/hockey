@@ -232,41 +232,39 @@ Les dossiers ont déjà `joueur(f)` (cinq sur la table) ; les autres l'ont à ga
 
 Les façons 1, 2 et 5 comme socle (la fenêtre visible, l'année de contrat, l'épisode daté), parce qu'elles existent presque déjà dans le code et que l'écran n'a qu'à les montrer ; 4 en option de choix risqué ; 3 et 6 là où le fait se lit sans effort ; 7 plus tard, avec la refonte de la direction (tranche 4). Le tout dans le format de la tranche 5 : `{ joueur, fait, debut, fin, options }`, une date de début et une de fin pour chaque incident.
 
-## Tranché (JP, 27 oct.) : *un visuel plus facile à lire, en général — les cartes, le texte des choix, moins d'effets visuels d'interface*
+## Tranché (JP, 27 oct.) : *les cartes sont belles ; c'est le reste de l'interface qui doit être drabe, à côté de cartes qui ne le sont pas*
 
-**Le constat, mesuré dans style.css (6 757 lignes).**
+Une première lecture de ce paragraphe voulait simplifier les cartes aussi : c'était à côté. **Les cartes ne changent pas.** Leurs séries, leurs cadres, leurs finitions et leurs éclats (le prisme et le scintillement du rare et du légendaire, le paquet qui flotte, les rayons d'un walkout) sont ce que le jeu a de plus beau, et c'est ce qu'on vient collectionner.
 
-| Ce qu'on compte | Combien |
+**La règle : les cartes sont les étoiles, l'interface est la scène.** Plus le décor est calme, plus une carte ressort. Le noir est déjà le décor (CLAUDE.md : *la couleur vient des équipes*) ; on y ajoute le calme.
+
+**Ce que l'interface a aujourd'hui, mesuré dans style.css.** Sur 62 animations, 21 sont des cartes et des paquets (`ed-`, `cj-`, `tc-`, `wo-`, `paquet-`, `fc-`) : elles restent. Les 41 autres sont du décor. Parmi les boucles, seules celles-ci ne sont pas des cartes :
+
+| Boucle de décor | Où |
 |---|---|
-| `@keyframes` | 62, dont 16 animations en boucle (`infinite`) |
-| `animation` / `transition` | 97 / 71 |
-| `box-shadow` / `text-shadow` / `filter` | 337 / 56 / 81 |
-| `linear-gradient` / `radial-gradient` / `conic-gradient` | 374 / 215 / 24 |
-| `transform` / `clip-path` / `mix-blend-mode` | 502 / 59 / 19 |
-| lignes de style des cartes (`cs-`) | 932 |
+| `go-respire`, `go-reflet` | le bouton « Go » respire et reflète en continu |
+| `slot-cible` | la case qui attend une signature clignote |
+| `t-vise`, `t-sifflet-point` | le plateau Sur table |
+| `spin`, `voile-glisse` | le chargement (légitime : il attend) |
 
-Beaucoup d'effets disent tous « regarde-moi » en même temps, donc aucun ne dit rien. Les boucles de l'édition (`ed-scintille`, `ed-prisme`, `ed-balaie`), les paquets qui flottent, pulsent et reflètent (`paquet-*`), le bouton qui respire (`go-respire`, `go-reflet`) tournent même quand on lit.
+Le reste du décor joue UNE fois (entrées d'écran, de feuille, de rangée, pop d'un choix, bannière), mais en 41 façons différentes : `ecran-entre`, `panneau-monte`, `feuille-entre`, `rangee-entre`, `ligneIn`, `hier-neuf`, `logo-entre`, `fade`… qui disent toutes « j'arrive ». Et 337 ombres, plus de 600 dégradés, 502 transformations, 56 ombres de texte, 81 filtres, ce que les cartes en prennent une bonne part, mais pas tout.
 
-**La règle : un seul mouvement à la fois, et il veut dire quelque chose.**
-- Une animation sert une seule chose : montrer qu'un état a changé (un but, un choix pris, une carte reçue) ou qu'une action attend. Elle joue UNE fois, dure au plus 300 ms, et ne boucle jamais. Une boucle (`infinite`) est permise pour un seul cas à l'écran : ce qui attend ton geste.
-- Le décor ne bouge pas : plus de scintillement, de prisme ni de reflet qui défile sur une carte ou un paquet au repos. La finition d'une édition (Or, Holo) se voit à sa couleur et à son cadre, fixes ; l'éclat joue une fois à l'ouverture du pack.
-- Un effet de profondeur par surface, pas trois : une ombre OU un dégradé OU un reflet. Les dégradés servent à lire (un fond d'équipe, une barre qui diverge), pas à décorer.
-- `prefers-reduced-motion` coupe tout ce qui reste (trois blocs aujourd'hui sur 62 animations).
+**Ce qu'on fait au décor (jamais à une carte).**
+- **Une seule entrée** pour tout écran, feuille, panneau et rangée : un fondu de 150 ms. Les 14 animations d'entrée se réduisent à une (`fade`).
+- **Plus de boucle dans le décor**, sauf ce qui attend et ce qui charge. Le bouton « Go » ne respire plus ni ne reflète : il est plein et c'est son rang (le seul bouton plein de l'écran) qui dit qu'il est le suivant. La case qui attend une signature garde son cadre fixe, un peu plus clair.
+- **Des surfaces plates** : un aplat, un filet d'une ligne, pas de dégradé ni d'ombre en profondeur sur les panneaux, les onglets, les tuiles de choix et les barres. Une surface se distingue d'une autre par un cran de gris, pas par un effet.
+- **Peu de couleur dans le décor** : le texte et les filets en gris, le blanc pour ce qui se lit d'abord ; la couleur est réservée à ce qui porte une information (le vert qui aide, le rouge qui coûte, la couleur d'une équipe) et aux cartes. Un écran sans carte est presque monochrome ; une carte posée dessus est la seule chose en couleur.
+- **Un seul rang de texte** : un titre, un corps, un petit, une seule échelle pour toute l'interface (les cartes gardent leurs polices de série).
+- **Le texte d'un choix en une passe** : un verbe, au plus deux lignes de stats vertes ou rouges, trois options au plus, la recommandée marquée par sa place. Rien de plus que ce qu'on y lit.
+- Le mouvement coupé par `prefers-reduced-motion` : tout le décor (la règle couvre aujourd'hui trois blocs sur 62).
 
-**Les cartes.**
-- Le recto garde ce qu'on lit d'un coup d'œil : le nom, le portrait ou la photo, le niveau, trois stats en barres, ses badges en icônes. Tout le reste est au verso (déjà la règle : *mettre les stats derrière la carte*).
-- Un texte sur une photo a toujours un fond plein ou un voile assez dense pour 4,5 : 1 de contraste au moins, jamais une ombre portée pour le sauver.
-- Une taille de police minimale (12 px sur téléphone) et une seule échelle de tailles (corps, petit, titre) pour toute l'interface, au lieu de tailles en `cqw` qui varient d'une série à l'autre.
-- Les 56 séries gardent chacune leur couleur et leur cadre (JP : *chaque année devra être différente*) ; la différence est dans la couleur, la bande du nom et le cadre, pas dans des effets.
+**Comment on le tient.** `scripts/check_lisibilite.mjs`, dans la CI avec `check_css.mjs`, qui sépare le décor des cartes par leurs préfixes de classe et de `@keyframes` :
+- aucune animation `infinite` hors d'une liste blanche (le chargement, ce qui attend un geste) ;
+- une seule animation d'entrée pour le décor ;
+- aucun dégradé ni ombre portée sur les sélecteurs du décor (les panneaux, onglets, tuiles, barres) ;
+- une police minimale de 12 px et une échelle de tailles pour le décor ;
+- un choix de plus de trois options, ou de plus de deux lignes de stats, est refusé ;
+- le smoke existant (`sansDebordement`, `cibles44`) reste, avec « au repos, rien ne bouge hors des cartes ».
+Les cartes (`.cs-`, `.carton`, `.paquet`, `.walkout`) sont exclues de la règle par construction : on ne juge pas leur éclat.
 
-**Le texte des choix.**
-- Une option : un verbe (ce que tu fais), au plus deux lignes de stats vertes ou rouges (`bon`, `prix`), jamais de phrase d'ambiance. La scène dit qui demande et le fait ; l'option ne le redit pas.
-- Les stats d'un choix sont des barres ou des chiffres alignés, dans le même ordre à chaque fois (tirs, précision, tirs contre, arrêts, punitions, jambes). On compare en une passe, sans lire.
-- Trois options au plus. Le choix recommandé est marqué par sa place (le premier) et non par une couleur de plus.
-- Un seul rendu d'un pari : le dé et ses faces (tranche 6).
-
-**Comment on le tient.**
-- `scripts/check_lisibilite.mjs`, dans la CI avec `check_css.mjs` : aucune animation `infinite` hors d'une liste blanche (ce qui attend un geste) ; aucune `animation` sur `.cs-jeu` au repos ; aucune police sous le minimum ; le contraste de chaque texte de carte sur son fond, lu sur les 56 séries rendues par Playwright ; aucun choix de plus de trois options ni de plus de deux lignes de stats.
-- Le smoke existant (`sansDebordement`, `cibles44`) reste ; il s'y ajoute « rien ne bouge au repos » : deux captures espacées d'une seconde, identiques, hors de ce qui attend un geste.
-
-**Ce que ça retire de la refonte.** Les directions « moins, mais gros » et « le build qui se voit » ont besoin de cet espace : trois options, une seule stat signature en grand, un seul chiffre « ×1,4 ce soir ». Si l'écran crie partout, rien de ça ne se verra. La tranche 6 (la décision unifiée) est donc aussi celle où l'on enlève les effets des fenêtres de choix, et la tranche 4 (le staff) celle où la carte d'un adjoint perd ses reflets.
+**Où ça entre dans la refonte.** La tranche 6 (la décision unifiée) est celle où la fenêtre de choix, les tuiles d'option et le bouton « Go » deviennent sobres ; la tranche 4 n'y touche plus (la carte d'un adjoint garde ses finitions). Le nettoyage des entrées et des boucles du décor peut aussi partir seul, avant, parce qu'il ne touche ni au moteur ni aux sauvegardes.
