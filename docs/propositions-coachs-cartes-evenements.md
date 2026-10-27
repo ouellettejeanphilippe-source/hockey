@@ -154,3 +154,17 @@ La structure **C + le duel de B** (le code), et le jeu **1 + 2 + 3** dessus, dan
 | 7. Anciennes parties | check_sauvegardes | ce que la banque ne connaît plus s'ignore |
 
 Ce qui se jette avec 1 : les 40 réponses de dossiers récrites le 26 octobre fondent dans un lundi plus court (une vingtaine d'incidents, deux options chacun), les courriels et la presse (js/vie-gm.js, 1 000 lignes) partent, trois postes et deux échelons partent, et les règles du Rogue raccourcissent d'autant.
+
+## Tranché (JP, 27 oct.) : *je veux que le club se construise autour du coach*
+
+Le coach est LA décision de la run ; tout le reste en découle et se lit depuis lui :
+
+- **Le choix du coach ouvre la run** : sa stat signature, sa couleur, son combo, affichés avant de choisir ; le choisir, c'est choisir comment le club jouera.
+- **Le recrutement est le sien** : le dépisteur, les packs de joueurs, le classeur et les lotos tirent sa couleur d'abord (deux sur trois) ; un pack dit combien de joueurs de sa couleur il contient.
+- **Le staff est le sien** : les adjoints offerts (paliers, butin, packs) sont de sa couleur deux fois sur trois ; un adjoint de sa couleur compte double, un mal assorti coûte (déjà `MAL_ASSORTI`) ; son combo, trois adjoints de sa couleur, se voit sur chaque carte.
+- **La confiance, c'est sa stat tenue** : I au départ, II et III quand sa stat signature bat la ligue assez de matchs ; l'écran Coach la montre en grand, chaque matin.
+- **L'alignement se lit à sa couleur** : chaque joueur habillé de sa couleur monte le multiplicateur affiché (« ×1,4 ce soir »), le même que le moteur joue.
+- **Les incidents lui parlent** : le lundi, l'incident tiré est de sa couleur une fois sur deux (lu sur les canaux de ses options), et son adjoint en chef propose les plans du duel.
+- **Le congédier, c'est rebâtir** : un dossier du proprio, un prix lourd, et le recrutement, le staff et la confiance repartent de I.
+
+Le code : le modèle C avec le duel de B. Le jeu : les directions 1, 2 et 3, le coach au centre. Les tranches 1 et 2 partent maintenant.
