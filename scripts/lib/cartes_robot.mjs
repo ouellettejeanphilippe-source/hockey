@@ -128,7 +128,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
   const pp = f && PALIERS_PACK.find(x => f.n >= x && !etat.paliers.has(x));
   if (pp !== undefined && pp !== null && f) {
     etat.paliers.add(pp);
-    const ids = cartesDuPalier(graine, pp);
+    const ids = cartesDuPalier(graine, pp, (coachsActifs(decisions, j + 1)[0] || {}).cle);
     const eng = engagerDuRobot({ ids, decisions: [...decisions, ...out], politique, clic, jour: j, joues: (de, a) => matchsJoues(L.calendrier, you, de, a) });
     const pris = eng.length ? `patron:${eng[0].patron.cle}` : ids[0];
     if (pris) out.push({ jour: j, palier: `pp:${pp}`, place: pris }, ...eng);

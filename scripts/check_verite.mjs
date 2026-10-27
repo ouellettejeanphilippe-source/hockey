@@ -29,8 +29,10 @@ import { entierDeGraine, momentDuJour, objectifsOfferts, ajustementsOfferts, sit
   autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, faitsDuClub, jourEvenement } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
+import { reglesDePalier } from '../js/banque.js';
+import { poserClubLu } from '../js/impact.js';
 import { PITIE, packsSansHolo } from '../js/packs.js';
-import { PALIERS_PACK } from '../js/inventaire.js';
+import { PALIERS_PACK, DE_SA_COULEUR } from '../js/inventaire.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
@@ -103,6 +105,19 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
     if (!(COACHS[coach].recrute || '').toLowerCase().includes(MOT[role])) mal.push(`${coach} ne dit pas « ${MOT[role]} » (${g2} ${role}) : « ${COACHS[coach].recrute} »`);
   }
   exiger('« Son dépisteur recrute… » nomme les rôles de sa couleur', mal.length === 0, mal.join(' · ') || `${Object.values(COACH_DU_ROLE).reduce((n, r) => n + Object.keys(r).length, 0)} rôles nommés`);
+  // Une confiance se lit en lignes vraies : « à peine perceptible » une fois au plus, jamais à côté d'un vrai chiffre.
+  // Le bogue ne se voyait qu'avec un club lu (l'écran en lit un ; sans lui, l'impact retombe sur d'autres mots).
+  const doubles = [], [club] = ligue(9, 1);
+  poserClubLu(() => ({ team: club }));
+  for (const k of Object.keys(COACHS)) for (const p of [1, 2, 3]) {
+    const r = reglesDePalier(k, p), rien = r.filter(m => m.cle === 'rien').length;
+    if (rien > 1 || (rien === 1 && r.length > 1)) doubles.push(`${k} ${p} : ${r.map(m => m.txt).join(' / ')}`);
+  }
+  poserClubLu(null);
+  exiger('une confiance ne dit jamais « à peine perceptible » deux fois', doubles.length === 0, doubles.join(' · ') || `${Object.keys(COACHS).length * 3} confiances lues`);
+  // Les règles disent combien d'adjoints d'un palier sont de la couleur du coach : le chiffre du code.
+  const MOTS = { 1: 'un', 2: 'deux', 3: 'trois' };
+  exiger('les règles disent combien d\'adjoints du palier sont de la couleur du coach', lire('index.html').includes(`dont ${MOTS[DE_SA_COULEUR]} de la couleur de ton coach`), `${DE_SA_COULEUR} sur 3`);
   exiger('les rôles de COACH_DU_ROLE existent', Object.entries(COACH_DU_ROLE).every(([g2, roles]) => Object.keys(roles).every(r => PROFILS[g2][r])));
 }
 

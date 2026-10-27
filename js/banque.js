@@ -529,12 +529,14 @@ export function reglesDePalier(cle, palier) {
   const { cle: _c, palier: _p, nom: _n, ico: _i, econ, plafonds, prix, ...canaux } = P;
   void _c; void _p; void _n; void _i;
   // V11 : le gain, puis le prix de son style (qui ne grandit pas avec ses joueurs).
-  const out = [...motsEnChiffres(canaux), ...motsEnChiffres(prix || null)];
+  const out = [...motsEnChiffres(canaux), ...(prix ? motsEnChiffres(prix) : [])];
   // V2.3 : la III relève le plafond du canal que la voie vise (js/sim.js `plafondsDe`).
   const MOT_PLAFOND = { finition: 'Plafond de précision relevé', pression: 'Plafond des tirs relevé', robustesse: 'Plafond de robustesse relevé', discipline: 'Plancher des punitions abaissé' };
   for (const [k, v] of Object.entries(plafonds || {})) if (v) out.push({ txt: MOT_PLAFOND[k], bon: true });
   if (econ && econ.rabais) out.push({ txt: `Packs ${Math.round((econ.rabais - 1) * 100)} %`, bon: true });
   if (econ && econ.jetonsVictoire) out.push({ txt: `+${econ.jetonsVictoire} 🪙 par victoire`, bon: true });
   if (econ && econ.plafond) out.push({ txt: `Plafond salarial +${Math.round(econ.plafond * 100)} %`, bon: true });
-  return out;
+  // « à peine perceptible » se dit UNE fois, et jamais à côté d'une vraie ligne (tranche 2, la vérité des chiffres).
+  const vrais = out.filter(m => m.cle !== 'rien');
+  return vrais.length ? vrais : out.slice(0, 1);
 }

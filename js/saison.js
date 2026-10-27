@@ -3139,6 +3139,8 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * match ne s'ouvre que seule, comme avant : elle a son écran de combat.
    */
   const choixForce = () => specsForces()[0] || null;
+  /* Le coach en poste aujourd'hui : deux des trois adjoints offerts sont de sa couleur (`cartesDuPalier`, js/inventaire.js). */
+  const couleurDuCoach = () => { const c = ctx.rogue && ctx.rogue.coachs ? ctx.rogue.coachs(jour) : null; return c && c.actuel ? c.actuel.cle : null; };
   function specsForces() {
     // LA RÉCOMPENSE D'ABORD (QA S74b) : elle suit la victoire qu'on vient de voir.
     // V5 : hors du lundi, seule la main d'un gros match se décide ; le reste attend le nœud de la semaine.
@@ -3172,7 +3174,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const scene = mR ? sceneDuButin({ pour: chezR ? mR.gfA : mR.gfB, contre: chezR ? mR.gfB : mR.gfA, adv: ctx.teamShort(rc.adv), graine: `${graine}|${rc.jour}` }) : null;
       specs.push({ de: scene ? scene.de : DE.coach, ico: '🎁', titre: 'Récompense', cartes: true, genre: 'recompense', fermable: true, motFermer: 'Passer', scene,
         recit: 'Un adjoint parmi trois : il rejoint ton personnel, et s\'engage chez le coach.',
-        options: cartesDuPalier(graine, `r${rc.jour}`).map(id => optionDeBanque(id)),
+        options: cartesDuPalier(graine, `r${rc.jour}`, couleurDuCoach()).map(id => optionDeBanque(id)),
         onChoix: id => prendre({ place: id }),
         onFerme: () => prendre({}) });
     }
@@ -3203,7 +3205,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
         ? { de: DE.proprio, ico: '🏢', titre: `Objectif atteint : ${o.court}`,
           // V16 : le proprio paie des jetons et un adjoint parmi trois, qui rejoint ton personnel.
           recit: `Le proprio se frotte les mains (${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs). Il sort son carnet de chèques : +${(((ctx.rogue && ctx.rogue.mandat && ctx.rogue.mandat()) || {}).bareme || JETONS).objectif} 🪙 et un adjoint parmi trois, pour ton personnel.`,
-          options: cartesDuPalier(graine, `v${vo.j0}`).map(id => optionDeBanque(id)),
+          options: cartesDuPalier(graine, `v${vo.j0}`, couleurDuCoach()).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `v:${vo.j0}`, place: id }) }
         : { de: DE.proprio, ico: '🏢', titre: `Objectif raté : ${o.court}`,
           recit: `${o.ico} ${vo.e.meneur ? `${nomCourt(vo.e.meneur.n)} : ` : ''}${vo.e.val} ${o.unite} en ${vo.e.joues} matchs, pour ${o.cible} promis. Le proprio te convoque dans son bureau, porte fermée.`,
@@ -3513,7 +3515,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const scene = sceneDuPalier({ n: miens.length, fiche: { V: f.W, D: f.L, DP: f.OTL }, rang: rangDe(you), equipes: teams.length, mandat: run ? run.mot : '', graine });
       out.push({ id: `pp:${pp}`, genre: 'cartes', bloque: true, de: scene.de, sujet: `Le ${pp}e match : un adjoint parmi trois`,
         choix: { scene, recit: 'Il rejoint ton personnel, et s\'engage chez le coach.',
-          options: cartesDuPalier(graine, pp).map(id => optionDeBanque(id)),
+          options: cartesDuPalier(graine, pp, couleurDuCoach()).map(id => optionDeBanque(id)),
           decision: id => ({ palier: `pp:${pp}`, place: id }) } });
     }
     /*
