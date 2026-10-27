@@ -91,7 +91,7 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
   const rj = prose('rogue-jeu.js'), g = prose('game.js'), sa = prose('saison.js');
   exiger('le choix d\'un coach compte ses adjoints', rj.some(s => /adjoints de sa couleur/.test(s)) && !rj.some(s => /cartes de sa couleur/.test(s)));
   const bulle = lire('js/game.js').split('\n').find(l => /porte la confiance de ce coach/.test(l)) || '';
-  exiger('l\'infobulle du joueur de couleur dit le multiplicateur du moteur', /par palier de son badge/.test(bulle) && /\$\{PALIERS_COACH_MAX\}/.test(bulle) && /\$\{Math.round\(JOUEUR_COACH \* 100\)\}/.test(bulle) && !/fait grandir/.test(bulle),
+  exiger('l\'infobulle du joueur de couleur dit le multiplicateur du moteur', /par métal de son badge/.test(bulle) && /\$\{PALIERS_COACH_MAX\}/.test(bulle) && /\$\{Math.round\(JOUEUR_COACH \* 100\)\}/.test(bulle) && !/fait grandir/.test(bulle),
     `JOUEUR_COACH ${JOUEUR_COACH}, jusqu'à ${PALIERS_COACH_MAX} paliers`);
   exiger('« tes cartes jouées » ne se promet plus', !sa.some(s => /cartes jouées viennent ici/.test(s)) && !g.some(s => /cartes de sa couleur/.test(s)));
   // `recrute` : ce que le dépisteur recrute vraiment, c'est la couleur du coach (`recrue`, js/packs.js), lue sur

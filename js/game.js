@@ -992,7 +992,7 @@ export function agesAvailable() {
 /* SA COULEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé — ses cartes et la confiance de ce coach comptent sur lui. */
 export function coachTag(p) {
   const C = COACHS[coachDuJoueur(p)];
-  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : habillé, il porte la confiance de ce coach, +${Math.round(JOUEUR_COACH * 100)} % par palier de son badge (Bronze 1, Platine 4), jusqu'à ${PALIERS_COACH_MAX} paliers pour tout l'effectif.">${C.ico} ${esc(C.nom)}</span>` : '';
+  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : habillé, il porte la confiance de ce coach, +${Math.round(JOUEUR_COACH * 100)} % par métal de son badge (Bronze 1, Platine 4), jusqu'à ${PALIERS_COACH_MAX} métaux pour tout l'effectif.">${C.ico} ${esc(C.nom)}</span>` : '';
 }
 export function zoneTag(p, mini = false) {
   const v = getHiddenRatings(p).v;
