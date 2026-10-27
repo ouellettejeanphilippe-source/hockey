@@ -29,7 +29,8 @@ import { autoRoster, registerHiddenRatings, createTeam, simulateLeague, effetsDe
 import { POIDS_TRIO } from '../js/ratings.js';
 import { BANQUE, PATRONS, ORDRE_CATEGORIES, buildDe, baseDesCoachs, MATCHS_CONFIANCE, palierAllume, coachsActifs, coachNeuf, coachDeCarte, idsDuCoach, payloadDe, modificateurs, plafondDe, reglesDe } from '../js/banque.js';
 import { patronALEchelon } from '../js/echelons.js';
-import { COACHS, ORDRE_COACHS, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
+import { cartesDuPalier, PALIERS_PACK, DE_SA_COULEUR } from '../js/inventaire.js';
+import { COACHS, ORDRE_COACHS, VOIES, SEUILS, effetDePalier, ROLE_BON, COACH_DU_ROLE, coachDesRoles, porteParSesJoueurs, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
 import { tirerCartesPack, coachDuPack, niveauxDuPack, tirerJoueursDuPack } from '../js/packs.js';
 import { PRESTIGES, rangDePrestige } from '../js/rogue.js';
 import { poserClubLu } from '../js/impact.js';
@@ -211,6 +212,31 @@ const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
   exiger('le pack du coach ne tire que sa couleur, et il est pur', !hors && !impurs, `${hors} hors couleur, ${impurs} impur(s) sur ${300 * ORDRE_COACHS.length}`);
   const auHasard = new Set(Array.from({ length: 200 }, (_, n) => coachDuPack('g', n, {})));
   exiger('au hasard, le pack du coach tire tous les coachs', auHasard.size === ORDRE_COACHS.length, `${auHasard.size} coachs sur 200 packs`);
+}
+
+/* 4b. Le club se construit autour du coach (tranche 3) : deux des trois adjoints d'un palier sont de sa couleur. */
+{
+  let mal = 0, impurs = 0, petits = 0, doublons = 0;
+  for (const k of VOIES) for (let n = 0; n < 120; n++) for (const p of PALIERS_PACK) {
+    const o = cartesDuPalier(`g${n}`, p, k);
+    if (o.length !== 3) petits++;
+    if (new Set(o).size !== o.length) doublons++;
+    if (o.filter(id => BANQUE[id].cat === 'patron' && BANQUE[id].coach === k).length < DE_SA_COULEUR) mal++;
+    if (o.join() !== cartesDuPalier(`g${n}`, p, k).join()) impurs++;
+  }
+  const tot = VOIES.length * 120 * PALIERS_PACK.length;
+  exiger(`au palier, ${DE_SA_COULEUR} adjoints sur 3 sont de la couleur du coach`, !mal && !petits && !doublons, `${mal} sans leur couleur, ${petits} de moins de trois, ${doublons} doublon(s) sur ${tot} offres`);
+  exiger('l\'offre d\'un palier est pure', !impurs, `${impurs} impur(s)`);
+  let change = 0;
+  for (let n = 0; n < 120; n++) for (const p of PALIERS_PACK) {
+    const sans = cartesDuPalier(`g${n}`, p).join();
+    if (sans !== cartesDuPalier(`g${n}`, p, null).join() || sans !== cartesDuPalier(`g${n}`, p, 'inconnu').join()) change++;
+  }
+  exiger('sans coach, l\'offre est celle d\'avant', !change, `${change} offres changées sans coach`);
+  // Un coach en poste fait monter sa confiance plus vite : plus de cartes de sa couleur offertes que sans lui.
+  const part = k => { let n = 0, de = 0; for (let g = 0; g < 200; g++) for (const p of PALIERS_PACK) for (const id of cartesDuPalier(`h${g}`, p, k)) { n++; if (BANQUE[id].coach === 'rapaces') de++; } return de / n; };
+  const sans = part(null), avec = part('rapaces');
+  exiger('le coach en poste fait venir sa couleur : plus de son personnel au palier', avec > sans + 0.15, `${Math.round(sans * 100)} % sans coach → ${Math.round(avec * 100)} % avec l'Aigle`);
 }
 
 /* 5. Le moteur. */

@@ -516,6 +516,20 @@ export function tirerCartesDuPack(cle, graine, n, params = {}) {
     ? tirerCartes({ n: 1, cats: CATS_RARES, cotes: COTES_CARTES }, `${cle}:outils`, graine, n, params) : [];
   return [...adjoint, ...rare];
 }
+/*
+ * DES ADJOINTS À LA COULEUR DU COACH (refonte coachs-cartes-incidents, tranche 3 ; JP : *je veux que le club se
+ * construise autour du coach*) : `nb` adjoints de sa couleur, tirés comme au Pack Personnel (mêmes cotes, mêmes
+ * raretés). Pur : la graine, la clé du tirage et le coach. Sans coach connu, rien.
+ */
+export function adjointsDeCouleur(graine, cle, coach, nb) {
+  if (!COACHS[coach]) return [];
+  // Deux tirages peuvent tomber sur la même carte (un coach n'en a que cinq) : on tire large, on garde les distinctes, et
+  // on complète par les cartes de sa couleur dans un ordre fixé par la graine.
+  const out = [...new Set(tirerCartes({ ...PACKS_CARTES.patrons, n: nb * 4, choix: 'coach' }, `couleur:${cle}`, graine, 0, { coach }))].slice(0, nb);
+  const reste = idsDuCoach(coach).filter(id => BANQUE[id].cat === 'patron' && !out.includes(id)).sort((x, y) => hache(graine, 'couleur-reste', cle, x) - hache(graine, 'couleur-reste', cle, y));
+  while (out.length < nb && reste.length) out.push(reste.shift());
+  return out;
+}
 function tirerCartes(P, cleCourte, graine, n, params) {
   const out = [];
   // v2 : le pack d'un coach ne tire que sa couleur (le coach choisi, ou tiré de la graine), dans les familles qui en ont.

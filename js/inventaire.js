@@ -22,7 +22,7 @@
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, reglesDe, carteBanque, idsDe, etiquetteBanque } from './banque.js';
 import { COACHS } from './coachs.js';
-import { tirerCartesPack, sortDUnPack } from './packs.js';
+import { tirerCartesPack, sortDUnPack, adjointsDeCouleur } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
 import { esc, money as M, jaugePlafond } from './util.js';
@@ -37,8 +37,11 @@ export const SEMAINE = 7;
  */
 export const PALIERS_PACK = [9, 18, 26];
 const CARTES_DU_PALIER = 3;
-export function cartesDuPalier(graine, p) {
+/* Sur les trois adjoints offerts, celui-là est de la couleur du coach en poste : le club se construit autour de lui. Deux sur trois avançait la première Coupe de l'attentif à la run 2,5 (check_profondeur : 3 à 8) ; un seul la garde à sa place. */
+export const DE_SA_COULEUR = 1;
+export function cartesDuPalier(graine, p, coach = null) {
   const out = [];
+  for (const id of adjointsDeCouleur(graine, `palier${p}`, coach, DE_SA_COULEUR)) if (BANQUE[id] && !out.includes(id)) out.push(id);
   for (let k = 0; out.length < CARTES_DU_PALIER && k < 12; k++) {
     for (const id of tirerCartesPack('patrons', graine, `palier${p}${k ? `:${k}` : ''}`)) {
       if (out.length < CARTES_DU_PALIER && BANQUE[id] && !out.includes(id)) out.push(id);
