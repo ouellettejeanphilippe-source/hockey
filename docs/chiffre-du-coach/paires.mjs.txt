@@ -1,0 +1,16 @@
+import fs from 'node:fs'; import path from 'node:path';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '/home/user/hockey/js/sim.js';
+import { equipeReelle } from '/home/user/hockey/scripts/lib/vestiaires.mjs';
+import { matchsJoues, chiffresDuMatch } from '/home/user/hockey/js/profil-style.js';
+import { effetDePalier, VOIES } from '/home/user/hockey/js/coachs.js';
+const DIR='/home/user/hockey/data/seasons'; const S=fs.readdirSync(DIR).filter(f=>f.endsWith('.json')).sort();
+function ligue(seed){const out=[],vus=new Set();let k=seed*7919;while(out.length<32){k=(k*1103515245+12345)&0x7fffffff;const sh=JSON.parse(fs.readFileSync(path.join(DIR,S[k%S.length]),'utf8'));const tags=[...new Set(sh.players.map(p=>p.t))],tag=tags[(k>>8)%tags.length];if(vus.has(sh.season+tag))continue;let un;try{un=equipeReelle(sh.season,tag);}catch{continue;}if(un[0].length<12||un[1].length<6||un[2].length<2)continue;vus.add(sh.season+tag);const p=un.flat().map(y=>({...y}));p.forEach(registerHiddenRatings);out.push(createTeam(`${tag} ${sh.season}`,tag,autoRoster(p),{season:sh.season}));}return out;}
+function mesures(seed,coach){const t=ligue(seed);t[0].isPlayer=true;const L=creerLigue(t,82,{graine:'c'+seed,courbe:true,decisions:coach?[{jour:0,coach:effetDePalier(coach,3)}]:[]});jouerJusqua(L,190);
+ const ms=matchsJoues(L.calendrier).filter(m=>m.A===t[0]||m.B===t[0]);const n=ms.length;const acc={};const add=(k,v)=>acc[k]=(acc[k]||0)+v/n;
+ for(const m of ms){const c=m.A===t[0]?'A':'B';const f=m.f;const x=chiffresDuMatch(f,c);add('tirs',x.tirsPour);add('contre',x.tirsContre);add('pct',x.butsPour/Math.max(1,x.tirsPour));add('coups',x.coups||0);add('pun',x.punitions);
+  add('bless',(f.blessures||[]).filter(b=>b.cote===c).length);const g=f.buts.filter(b=>b.cote===c);add('L1',g.length?g.filter(b=>b.ligne===1).length/g.length:0);add('L1n',g.filter(b=>b.ligne===1).length);add('L12n',g.filter(b=>b.ligne<=2).length);add('blessAdv',(f.blessures||[]).filter(b=>b.cote!==c).length);const lz=(f.lancers||[]).filter(l=>l.cote===c);add('L1tirs',lz.filter(l=>l.ligne===1).length);add('L12tirs',lz.filter(l=>l.ligne>=1&&l.ligne<=2).length);add('L1part',lz.length?lz.filter(l=>l.ligne===1).length/lz.length:0);add('L34',g.length?g.filter(b=>b.ligne>=3).length/g.length:0);
+  const ph=(f.physique||[]);add('physN',ph.filter(p=>p.cote===c).length);add('bag',ph.filter(p=>p.cote===c&&p.type==='bagarre').length);add('melee',ph.filter(p=>p.cote===c&&p.type==='melee').length);add('gf',c==='A'?f.gfA:f.gfB);add('ga',c==='A'?f.gfB:f.gfA);}
+ return acc;}
+const seeds=[1,2,3,4,5,6];const base=seeds.map(s=>mesures(s,null));
+for(const cle of ['etoiles','rhinos']){const m=seeds.map(s=>mesures(s,cle));const out={};for(const k of Object.keys(base[0]))out[k]=(m.reduce((s,x,i)=>s+x[k]-base[i][k],0)/seeds.length).toFixed(3);console.log(cle,JSON.stringify(out));}
+console.log('base',JSON.stringify(Object.fromEntries(Object.entries(base[0]).map(([k,v])=>[k,+v.toFixed(3)]))));
