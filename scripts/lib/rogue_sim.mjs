@@ -57,6 +57,7 @@ import {
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, engagerDuRobot } from './cartes_robot.mjs';
 import { matchsJoues, etatDuPersonnel, reportDuPersonnel, protegeALEchelon, lignesDuFeu } from '../../js/echelons.js';
+import { tenusDe } from '../../js/chiffre.js';
 import { patronsDeDepart, payloadDe, baseDesCoachs, coachsActifs, patronsActifs, buildDe, BANQUE } from '../../js/banque.js';
 import { PROTEGES } from '../../js/personnel.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
@@ -455,7 +456,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
 function pointsDuCoach(r) {
   const [C] = coachsActifs(r.decisions);
   if (!C) return { points: 0, adjoints: 0 };
-  const n = buildDe(r.decisions, Infinity, { joues: (de, a) => matchsJoues(r.L.calendrier, r.you, de, a) });
+  const n = buildDe(r.decisions, Infinity, { joues: (de, a) => matchsJoues(r.L.calendrier, r.you, de, a), tenus: tenusDe(r.L.calendrier, r.you) });
   return { points: n[C.cle], adjoints: patronsActifs(r.decisions).filter(p => (BANQUE[`patron:${p.cle}`] || {}).coach === C.cle).length };
 }
 /*

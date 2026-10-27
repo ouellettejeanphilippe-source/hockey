@@ -10,6 +10,7 @@ import { nomDuClub } from './club.js';
 import { chargerTable } from './charge-table.js';
 import { BANQUE, palierAllume, payloadDe } from './banque.js';
 import { matchsJoues } from './echelons.js';
+import { tenusDe } from './chiffre.js';
 import { COACHS, SEUILS, ROMAINS, effetDePalier } from './coachs.js';
 import { groupeDe as groupeDuBallottage, candidatsBallottage as candidatsPurs, rappelDuClubEcole } from './ballottage.js';
 import { money, esc } from './util.js';
@@ -249,7 +250,7 @@ function ajouterDecision(avant, d) {
   // S80 : ni une modif gardée au palier (`garde`) : elle attend dans l'inventaire, le moteur ne la lit qu'une fois posée.
   // LA CONFIANCE D'UN COACH (v2) : une carte jouée qui fait franchir un seuil à son coach porte la confiance atteinte.
   // V16 : chaque décision recompte la confiance, matchs à ton service compris — ils montent seuls, entre deux engagements.
-  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) }) : null;
+  const allume = !d.coach && G.ligue ? palierAllume(avant, d, { joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a), tenus: tenusDe(G.ligue.calendrier, G.ligue.you) }) : null;
   if (allume) d = { ...d, ...allume };
   // 1.0, oct. : garder l'alignement au retour d'un blessé est un choix sans effet sur le moteur (js/saison.js, `retour: 'garde'`).
   // V9 : ni la carte prise à un palier (`place` : V16, un adjoint, qui rejoint ton personnel), ni « Attendre » le physio (`attend`).
@@ -770,7 +771,7 @@ function ouvrirEcranSaison(depuis = 0) {
          */
         confianceDuMatin: j => {
           if (G.bonus !== 'ROGUE' || !G.ligue) return null;
-          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { joues: (de, x) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, x) });
+          const a = palierAllume(G.ligue.decisions || [], { jour: j }, { joues: (de, x) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, x), tenus: tenusDe(G.ligue.calendrier, G.ligue.you) });
           return a ? { jour: j, ...a } : null;
         },
         motRecrue: () => MOTS_RECRUE[niveauxRecrue().join()],

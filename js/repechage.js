@@ -10,7 +10,7 @@ import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerK
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
-import { niveauDe, niveauParDefense, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
+import { niveauDe, niveauParDefense, cote20, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, photoCouchee, cadrePhotoCouchee, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -136,6 +136,8 @@ const VARIANTE_SUIVANTE = { commune: 'peu', peu: 'hors', hors: 'rare', rare: 'le
  * matchs) abaisse le seuil de « régulier ».
  */
 const niveauJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? niveauDe(p, e.players) : -1; };
+/* Sa cote sur 20, dans sa saison (docs/cotes-sur-20.md) : un appui à côté du niveau, ou null (peu joué). */
+export const coteJoueur = p => { const e = p && p.s && G.shards.get(p.s); return e ? cote20(p, e.players) : null; };
 /*
  * LA PASTILLE DE NIVEAU (1.0, les lignes) : ce qui se lit à la place d'une cote
  * générale — son rang dans sa vraie saison, à son poste, lu dans ses stats.
@@ -498,7 +500,9 @@ function comparatifHtml(p, q, place, masse) {
     : '<div class="cmp-qui vide"><b>Touche qui sort</b><small>dans ton alignement</small></div>');
   const ligne = (mot, a, b, mieux = 0) => `<div class="cmp-l"><span class="cmp-v${mieux > 0 ? ' mieux' : ''}">${a}</span><span class="cmp-k">${esc(mot)}</span><span class="cmp-v${mieux < 0 ? ' mieux' : ''}">${b}</span></div>`;
   const cmp = (x, y, plusEstMieux = true) => (y == null || x === y ? 0 : (x > y) === plusEstMieux ? 1 : -1);
+  const laCote = x => { const c = coteJoueur(x); return c == null ? '—' : `<b class="cote20" title="Sa cote sur 20, dans sa saison : un appui, le niveau et les rôles se lisent d'abord">${c}</b>`; };
   const out = [ligne('Niveau', pastilleNiveau(p), q ? pastilleNiveau(q) : '', q ? cmp(niveauDe(p, saisonDe(p)), niveauDe(q, saisonDe(q))) : 0),
+    ligne('Cote sur 20', laCote(p), q ? laCote(q) : '', q ? cmp(coteJoueur(p) ?? 0, coteJoueur(q) ?? 0) : 0),
     ligne('Rôle', iconesDeRole(p), q ? iconesDeRole(q) : ''),
     ligne('Salaire', esc(money(capHitDuJour(p))), q ? esc(money(capHitDuJour(q))) : '', q ? cmp(capHitDuJour(p), capHitDuJour(q), false) : 0)];
   for (const [mot, f, fmt = x => String(Math.round(x))] of STATS_ECHANGE[gardien ? 'gardien' : 'patineur']) {

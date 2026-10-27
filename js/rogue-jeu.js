@@ -13,6 +13,7 @@ import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
 import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
+import { tenusDe } from './chiffre.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -730,7 +731,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (C.cible === 'coach') {
       // LE STAGE DU COACH (V16, tranche 6) : le coach en poste reçoit les points qui lui manquent pour son cran suivant.
       const [actif] = coachsActifs(decs, j + 1);
-      const n = actif ? buildDe(decs, j + 1, { joues: (de, a) => matchsJoues(Lg.calendrier, Lg.you, de, a) })[actif.cle] : 0;
+      const n = actif ? buildDe(decs, j + 1, { joues: (de, a) => matchsJoues(Lg.calendrier, Lg.you, de, a), tenus: tenusDe(Lg.calendrier, Lg.you) })[actif.cle] : 0;
       const seuil = actif ? SEUILS.find(x => x > n) : null;
       if (!actif || seuil == null) { toast(actif ? 'Ton coach est déjà à sa confiance III.' : 'Aucun coach en poste.', 'bad'); retour(); return; }
       ecrire(payloadDe(item.id, { coach: actif.cle, points: seuil - n }));
@@ -740,7 +741,7 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       // LA FORMATION (V16, tranche 6) : un adjoint de ta collection, une copie de plus — un échelon de plus ouvert.
       const meta = lireMeta();
       const liste = (meta.personnel || []).filter(k => PATRONS[k] && copiesDe(meta, k) < COPIES_MAX);
-      if (!liste.length) { toast('Tous tes adjoints ont leurs cinq échelons ouverts.', 'bad'); retour(); return; }
+      if (!liste.length) { toast('Tous tes adjoints ont leurs trois échelons ouverts.', 'bad'); retour(); return; }
       ouvrirChoix({ ico: c.ico, titre: `${c.nom} : pour qui ?`, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
         options: liste.map(k => ({ cle: k, ico: PATRONS[k].ico, nom: PATRONS[k].nom, sous: `${ROLES[PATRONS[k].role].nom} · échelons ouverts ${ouvertsDe(copiesDe(meta, k))} → ${ouvertsDe(copiesDe(meta, k) + 1)}` })),
         onChoix: k => { recevoirPermanents([`patron:${k}`], `formation:${Lg.graine}:${j}:${item.ref || item.id}`); ecrire(payloadDe(item.id, { adjoint: k })); }, onFerme: retour });

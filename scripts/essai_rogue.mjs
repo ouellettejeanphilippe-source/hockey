@@ -701,7 +701,7 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
   console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
   if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
-  if (gens.length < p0.length || gens.some(g => !g.nom.trim() || g.ech !== 5)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses cinq échelons (${JSON.stringify(gens)})`);
+  if (gens.length < p0.length || gens.some(g => !g.nom.trim() || g.ech !== 3)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses trois échelons (${JSON.stringify(gens)})`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
 if (!/puis :/.test(run || '')) erreurs.push('le mandat au hub ne dit pas sa suite (« puis : … »)');

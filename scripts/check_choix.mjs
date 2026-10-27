@@ -116,7 +116,7 @@ exiger('sur mille sels, la part gagnante tombe sur ses faces', ecartMax < 0.05, 
   for (let k = 0; k < 1000; k++) { const h = (k + 0.5) / 1000; if (deDeMise(h, 0.5).gagne === (h < 0.5) && deDeMise(h, 2 / 6).gagne === (h < 2 / 6)) accord++; }
   exiger('la face du dé tombe comme la mise : rien ne bouge pour une chance de k/6', accord === 1000, `${accord}/1000`);
   const g = fs.readFileSync(new URL('../js/gerant.js', import.meta.url), 'utf8');
-  exiger('l\'écran dit tout pari en faces, jamais en « 🎲 50 % » ni en « 🎲 Pari » muet', !/🎲 \$\{Math\.round\(C\.pari\.chance \* 100\)\} %/.test(g) && !/'🎲 Pari'/.test(g) && (g.match(/facesMot\(facesDuPari\(/g) || []).length >= 4);
+  exiger('l\'écran dit tout pari en faces, d\'une seule façon (`motsDuPari`), jamais en « 🎲 50 % » ni en « 🎲 Pari » muet', !/🎲 \$\{Math\.round\(C\.pari\.chance \* 100\)\} %/.test(g) && !/'🎲 Pari'/.test(g) && (g.match(/facesMot\(facesDuPari\(/g) || []).length >= 3 && (g.match(/motsDuPari\(/g) || []).length >= 3);
 }
 
 verdict();

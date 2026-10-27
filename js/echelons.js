@@ -17,19 +17,21 @@ import { PATRONS, BANQUE, patronsActifs, coachsActifs, canalBon } from './banque
 import { PROTEGES, LIGNES_DU_FEU } from './personnel.js';
 import { CANAUX_MUT, estMalus } from './sim.js';
 
-export const ECHELON_MAX = 5;
-/* Les matchs à ton service pour atteindre un échelon (l'indice) : le 2e à 10, le 5e à 70. */
-export const MATCHS_ECHELON = [0, 0, 10, 25, 45, 70];
+export const ECHELON_MAX = 3;
+/* Les matchs à ton service pour atteindre un échelon (l'indice) : le 2e à 10, le 3e à 30 (V19 : trois échelons, plus cinq). */
+export const MATCHS_ECHELON = [0, 0, 10, 30];
 /*
  * LE PRIX D'UN ÉCHELON, en jetons (V14b). JP : *au lieu de salaire, les cartes de base influencent le style de l'équipe
  * sans la rendre vraiment plus forte, et c'est cher upgrader*. Au premier échelon, une carte change la forme du match ;
  * la force, elle, s'achète, échelon par échelon, et chaque échelon coûte plus que le précédent.
  */
-export const PRIX_ECHELON = [0, 0, 30, 50, 80, 120];
+export const PRIX_ECHELON = [0, 0, 40, 80];
 /* Pousser sa force grandit l'écart de ses bons canaux d'un quart ; corriger son défaut ramène ses mauvais de 40 %. */
 export const POUSSEE = 0.25;
 export const CORRECTION = 0.6;
-/* Les échelons ouverts : deux avec la première copie, un de plus par doublon, cinq au plus. */
+/* V19 : un adjoint sert dès son premier échelon (JP : *l'adjoint utile dès le niveau 1*) — son défaut y est déjà à demi corrigé. */
+export const CORRECTION_DE_DEPART = Math.sqrt(CORRECTION);
+/* Les échelons ouverts : deux avec la première copie, un de plus par doublon, trois au plus. */
 export const ouvertsDe = copies => Math.min(ECHELON_MAX, 1 + Math.max(1, copies || 1));
 
 const grandir = (x, f) => 1 + (x - 1) * f;
@@ -46,7 +48,7 @@ export function effetALEchelon(cle, choix = []) {
   const P = PATRONS[cle];
   if (!P) return null;
   const nF = choix.filter(c => c === 'force').length, nD = choix.filter(c => c === 'defaut').length;
-  const fF = 1 + POUSSEE * nF, fD = CORRECTION ** nD;
+  const fF = 1 + POUSSEE * nF, fD = CORRECTION_DE_DEPART * CORRECTION ** nD;
   const out = {};
   for (const [k, v] of Object.entries(P.effet || {})) {
     if (Array.isArray(v)) out[k] = v.map(x => rond(grandir(x, fF)));

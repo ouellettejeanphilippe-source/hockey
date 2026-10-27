@@ -7,7 +7,7 @@ import { TRAITS } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD, glyphe, money, pct3, ord, pmMatch, virgule } from './util.js';
 import { seasonLancers, passesRelatives, ageAtSeason } from './ratings.js';
-import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS, AFFINITES, PROFILS } from './sim.js';
+import { famillesDe, FAMILLES, compterFeuilles, getPlayerKey, getPositionPenalty, SLOTS, badgesDe, EFFET_ROLE, COUP_JAMBES, coutDuCoup, maitrise, fragiliteDe, FRAGILE_DES, matchsDeSaSaison, axes20, netBadgeGardien, suiteLibreDe, plafondGardien, GAIN_GARDIEN_MAX, blessureDuPhysique, paliersGagnes, EFFET_PALIER, CANAL_DU_BADGE, PALIERS, AFFINITES, PROFILS } from './sim.js';
 import { teamLabel, cleDeSommaire, ficheReelleDe } from './bilan.js';
 import { TEAM_COLORS, nhlPlayerUrl, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
 import { barresProfils, motDuBadge, raisonDuBadge, carrureDe, courbeJambes, courbeJambesHtml, motDeFamille } from './gerant.js';
@@ -18,7 +18,7 @@ import { motDeClub } from './equipes.js';
 import { axesDe, surTable, tableStats, tagsTableHtml } from './alignement.js';
 import { LEGENDES, legendesDe, histoireChezToi } from './cartable.js';
 import { GALONS, ICO_GALON, texteDuGalon } from './galons.js';
-import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsAEdition, varsEquipe } from './repechage.js';
+import { cartonDe, choisirCarteAPoser, destinationFor, identiteTag, mesure, ouvrirVersoPourPoser, rareteJoueur, sectionMods, signPlayer, slotShort, traitsAEdition, varsEquipe, coteJoueur } from './repechage.js';
 import { $, G, capLeft, chiffreCle, closeModal, displayStats, formatName, ico, isPicked, maxForPick, openModal, ouvrirModale, positionLabel, realTag, slotsLeft, traitTags, zoneEcart, zoneTag, coachTag } from './game.js';
 
 /* =====================================================================
@@ -405,7 +405,9 @@ export function showPlayerModal(p, opts = {}) {
   // Le reste de sa vraie saison (1.0, C2 : le MJ % ne joue pas dans la saison ; il est parti), au verso avec ses saisons.
   const reste = p.p === 'G' ? [] : [['PTS/M', st.ppgStr], ['TG/M', p.toi ? Number(p.toi).toFixed(1) : '—'], ...(p.ht != null ? [['MÉ/M', p.ht]] : [])];
   // 1.0 (J2-5) : au bureau, la colonne de droite était vide sous deux lignes ; le détail s'y ouvre de lui-même.
-  const plusDeDetails = `<div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
+  const cote = coteJoueur(p), axes = axes20(p);
+  const coteHtml = cote == null ? '' : `<div class="section-label">Cote sur 20, dans sa saison</div><p class="fiche-cote"><b>${cote}</b> · ${axes ? Object.entries(FAMILLES).map(([k, F]) => `${esc(F.nom)} ${axes[k]}`).join(' · ') : 'son rang parmi les gardiens'}</p>`;
+  const plusDeDetails = `${coteHtml}<div class="section-label">Profil mesuré, en écart au régulier moyen de sa saison</div>
        ${ratings}`;
 
   const risky = !already && !over && !!slot && p.$ > maxForPick();

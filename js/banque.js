@@ -39,13 +39,14 @@ export const ORDRE_CATEGORIES = ['patron', 'joueur', 'consommable'];
 
 /* ---------- LES PATRONS : le personnel, des reliques ---------- */
 
+/* V19 : cinq postes, pas huit. Un adjoint d'avant garde le poste de son nom d'alors (`gardiens`, `soins`) ; on le lit au poste d'aujourd'hui. */
+const POSTE_D_AVANT = { gardiens: 'defense', soins: 'physique' };
+const posteDe = role => POSTE_D_AVANT[role] || role;
 export const ROLES = {
   chef: { nom: 'Adjoint en chef', ico: '🧑‍💼' },
   attaque: { nom: 'Adjoint à l\'attaque', ico: '🎯' },
-  defense: { nom: 'Adjoint à la défensive', ico: '❄' },
-  gardiens: { nom: 'Entraîneur des gardiens', ico: '🥅' },
-  physique: { nom: 'Préparateur physique', ico: '🏋' },
-  soins: { nom: 'Soins', ico: '🩺' },
+  defense: { nom: 'Adjoint à la défensive et aux gardiens', ico: '❄' },
+  physique: { nom: 'Préparateur physique et soins', ico: '🏋' },
   depistage: { nom: 'Dépistage', ico: '🔭' },
   direction: { nom: 'Direction', ico: '🏢' },
 };
@@ -355,7 +356,7 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
   const par = new Map();
   for (const d of [...decisions].filter(x => x && x.patron && x.patron.cle).sort((a, b) => (a.jour || 0) - (b.jour || 0))) {
     if ((d.jour || 0) >= jusqua) continue;
-    const role = d.patron.role || (PATRONS[d.patron.cle] || {}).role;
+    const role = posteDe(d.patron.role || (PATRONS[d.patron.cle] || {}).role);
     for (const r of d.patron.remplace || []) for (const [k, v] of par) if (v.cle === r) par.delete(k);
     par.set(role, { ...d.patron, role, jour: d.jour });
   }
@@ -392,7 +393,7 @@ function revenusDuPersonnel(decisions = [], jusqua = Infinity) {
   for (const d of [...decisions].filter(x => x && x.patron && x.patron.cle).sort((a, b) => (a.jour || 0) - (b.jour || 0))) {
     const jour = d.jour || 0;
     if (jour >= jusqua) continue;
-    const role = d.patron.role || (PATRONS[d.patron.cle] || {}).role;
+    const role = posteDe(d.patron.role || (PATRONS[d.patron.cle] || {}).role);
     for (const r of d.patron.remplace || []) for (const [k, o] of [...ouverts]) if (o.cle === r) fermer(k, jour);
     fermer(role, jour);
     const e = d.patron.econ || {};
@@ -483,7 +484,7 @@ export function baseDesCoachs(decisions = [], jusqua = Infinity) {
  * LE COMPTE DE CHAQUE COACH à une journée, pur : sa base, puis son personnel en poste. `joues(de, a)` : les matchs de
  * ton club joués entre deux journées (js/echelons.js `matchsJoues`) ; sans lui, les matchs à ton service ne comptent pas.
  */
-export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0 } = {}) {
+export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0, tenus = () => 0 } = {}) {
   const n = baseDesCoachs(decisions, jusqua), service = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
   const [C] = coachsActifs(decisions, jusqua);
   for (const p of patronsActifs(decisions, jusqua)) {
@@ -493,6 +494,8 @@ export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0 } =
     service[k] += (p.avant || 0) + joues(p.depuis ?? p.jour ?? 0, jusqua) * (C && C.cle === k ? 2 : 1);
   }
   for (const k of ORDRE_COACHS) n[k] += Math.floor(service[k] / MATCHS_CONFIANCE);
+  // V19 : le chiffre du coach en poste, tenu dix matchs de suite (js/chiffre.js) — un point par bloc, trois au plus.
+  if (C && C.cle in n) n[C.cle] += tenus(C.cle, jusqua);
   return n;
 }
 /*
@@ -514,8 +517,8 @@ export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true
  * seuil, avec elle et les matchs à ton service jusqu'ici ? Rend `{ coach }` à ajouter à la décision (les chiffres de la
  * confiance atteinte), ou null. Pur : les décisions d'avant, celle-ci, et les matchs joués (`joues`).
  */
-export function palierAllume(decisions = [], d, { joues = () => 0 } = {}) {
-  const avant = buildDe(decisions, Infinity, { joues }), apres = buildDe([...decisions, d], Infinity, { joues });
+export function palierAllume(decisions = [], d, { joues = () => 0, tenus = () => 0 } = {}) {
+  const avant = buildDe(decisions, Infinity, { joues, tenus }), apres = buildDe([...decisions, d], Infinity, { joues, tenus });
   // Seul le coach en poste monte (V5) : un adjoint d'une autre couleur joue son effet, sans changer de coach.
   const [actif] = coachsActifs(decisions);
   const e = actif ? (palierDe(apres[actif.cle]) > actif.palier ? actif.cle : null)

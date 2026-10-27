@@ -18,6 +18,7 @@ import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
 import { BANQUE, PATRONS, payloadDe, palierAllume, patronsActifs, coachsActifs } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
+import { tenusDe } from '../../js/chiffre.js';
 
 /*
  * CE QU'UN EFFET RAPPORTE, grossièrement, en victoires par soir où il joue : les poids mesurés de js/banque.js (1 % de
@@ -115,13 +116,13 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       const d = { jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) };
       caisse += d.gain || 0;
       // V16 : un échelon recompte la confiance de son coach, matchs à ton service compris (js/banque.js `palierAllume`).
-      const a = palierAllume([...decisions, ...out], d, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x) });
+      const a = palierAllume([...decisions, ...out], d, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x), tenus: tenusDe(L.calendrier, you) });
       out.push({ ...d, ...(a || {}) });
     }
   }
   // V16 : le lundi recompte aussi la confiance — les matchs à ton service la montent entre deux engagements.
   if (lundi && politique !== 'defaut') {
-    const a = palierAllume([...decisions, ...out], { jour: j }, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x) });
+    const a = palierAllume([...decisions, ...out], { jour: j }, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x), tenus: tenusDe(L.calendrier, you) });
     if (a) out.push({ jour: j, ...a });
   }
   // L'ADJOINT D'UN PALIER (9e, 18e, 26e matchs, V16) : un parmi trois ; celui qu'il engage, sinon le premier.

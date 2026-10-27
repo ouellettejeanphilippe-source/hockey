@@ -25,7 +25,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { exiger, informer, verdict } from './verdict.mjs';
 import { chainesDe } from './lib/chaines.mjs';
-import { entierDeGraine, momentDuJour, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_MOMENTS, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
+import { entierDeGraine, matchDuMoment, momentDuJour, objectifsOfferts, ajustementsOfferts, situationsDuJour, JOURS_MOMENTS, JOURS_SITUATIONS, PALIERS_CARTES, PROFILS,
   autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua, faitsDuClub, jourEvenement } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { COACHS, COACH_DU_ROLE, JOUEUR_COACH, PALIERS_COACH_MAX } from '../js/coachs.js';
@@ -148,6 +148,16 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
     src.split('\n').forEach((l, k) => { if (/money\(MODE\(\)\.cap\)/.test(l) && !/de base, tordu/.test(l)) fautes.push(`${f}:${k + 1}`); });
   }
   exiger('la jauge, le budget et le bilan lisent plafondDeJauge, pas MODE().cap', fautes.length === 0 && /capMax: \(\) => plafondDeJauge\(\)/.test(g), fautes.join(' · ') || 'plafondDeJauge partout');
+}
+
+/* ---------- 6. les dilemmes tombent quand la graine le dit (V19, JP : *plus « randoms »*) ---------- */
+{
+  const graines = ['a1', 'b2', 'c3', 'd4', 'e5', 'f6', 'g7', 'h8'];
+  const hors = [], jours = new Set();
+  for (const g of graines) for (const k of JOURS_MOMENTS) { const m = matchDuMoment(g, k); jours.add(`${k}:${m}`); if (m < k - 2 || m > k + 2) hors.push(`${g}/${k}→${m}`); }
+  exiger('un dilemme tombe à deux matchs près de sa grille', hors.length === 0, hors.join(' · ') || `${jours.size} dates tirées`);
+  exiger('la même graine tire le même match, une autre en tire un autre', JOURS_MOMENTS.every(k => matchDuMoment('a1', k) === matchDuMoment('a1', k)) && JOURS_MOMENTS.some(k => matchDuMoment('a1', k) !== matchDuMoment('b2', k)));
+  exiger('toutes les dates d\'écart se tirent (−2 à +2), rien n\'est fixé', new Set(graines.flatMap(g => JOURS_MOMENTS.map(k => matchDuMoment(g, k) - k))).size === 5);
 }
 
 verdict('La vérité des chiffres');

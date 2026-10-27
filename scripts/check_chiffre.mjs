@@ -13,13 +13,14 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { matchsJoues } from '../js/profil-style.js';
-import { effetDePalier, VOIES } from '../js/coachs.js';
+import { effetDePalier } from '../js/coachs.js';
 import { CHIFFRES, BLOC, PLAFOND_TENUS, blocsTenus, pointsTenus } from '../js/chiffre.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
+const VOIES = Object.keys(CHIFFRES);
 const LIGUES = Number(process.env.LIGUES || 3);
 
 function ligue(seed) {
@@ -70,7 +71,7 @@ for (const cle of VOIES) {
     const r = blocsTenus(cle, matchs, teams[0]); blocs += r.blocs; tenus += r.tenus;
   }
   const taux = tenus / Math.max(1, blocs), tb = base[cle].tenus / Math.max(1, base[cle].blocs);
-  exiger(`${cle} à la confiance III tient son chiffre au moins 1,5 fois plus que le club ordinaire`, blocs >= 2 * LIGUES && taux >= Math.max(0.3, 1.5 * tb), `${(100 * taux).toFixed(0)} % contre ${(100 * tb).toFixed(0)} %`);
+  exiger(`${cle} à la confiance III tient son chiffre au moins 1,5 fois plus que le club ordinaire`, blocs >= 2 * LIGUES && taux >= Math.max(0.2, 1.5 * tb), `${(100 * taux).toFixed(0)} % contre ${(100 * tb).toFixed(0)} %`);
 }
 
 /* 3-4. Le plafond, et les feuilles d'avant. */

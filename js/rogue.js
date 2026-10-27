@@ -566,8 +566,8 @@ export function acheterDeblocage(cle) {
  * vont au méta, UNE fois par achat (`recus[cle]`) — une ouverture ne paie pas
  * deux fois. Et un consommable permanent qu'on joue le quitte.
  */
-/* Les copies d'une personne au méta (V14) : la première, puis ses doublons ; quatre au plus ouvrent ses cinq échelons. */
-export const COPIES_MAX = 4;
+/* Les copies d'une personne au méta (V14) : la première, puis ses doublons ; deux copies ouvrent ses trois échelons. */
+export const COPIES_MAX = 2;
 export const copiesDe = (m, cle) => ((m.personnel || []).includes(cle) ? Math.min(COPIES_MAX, (m.copiesPerso || {})[cle] || 1) : 0);
 export function recevoirPermanents(ids = [], cleRecu = '') {
   const m = lireMeta();

@@ -12,12 +12,13 @@ import { alignementAuMieux, unitesDuSoir, specialesEnStats, clubLu } from './imp
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
 import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
 import { matchsJoues } from './echelons.js';
+import { tenusDe, chiffreDit, BLOC, PLAFOND_TENUS } from './chiffre.js';
 import { jambesHtml, motDuBadge, ouvrirChoix, puces } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
-import { ajusterCartes, choisirSpeciale, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
+import { ajusterCartes, choisirSpeciale, coteJoueur, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
@@ -219,7 +220,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag }) {
   })() : '';
   // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
   return `<div class="cell-l1">${role}</div>
-        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
+        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${(c => (c == null ? '' : `<small class="cell-cote" title="Sa cote sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord">${c}</small>`))(coteJoueur(p))}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
         <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(chiffreCle(p).v)}</b> <span>${esc(chiffreCle(p).u)}</span></span>`}</span>${!G.banc && p.p !== 'G' && chiffreCle(p).u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : ''}</div>
         ${jambes}`;
 }
@@ -768,13 +769,14 @@ export function coachHtml(decs, j, injured = new Set()) {
   const [actif] = coachsActifs(decs, j + 1);
   const k = actif ? actif.cle : G.rogue.coach, C = COACHS[k];
   if (!C) return '';
-  const n = buildDe(decs, j + 1, { joues: (de, a) => (G.ligue ? matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) : 0) })[k] || 0, pal = actif ? actif.palier : palierDe(n), manque = avantProchain(n);
+  const n = buildDe(decs, j + 1, { joues: (de, a) => (G.ligue ? matchsJoues(G.ligue.calendrier, G.ligue.you, de, a) : 0), tenus: G.ligue ? tenusDe(G.ligue.calendrier, G.ligue.you) : () => 0 })[k] || 0, pal = actif ? actif.palier : palierDe(n), manque = avantProchain(n);
   const J = joueursDesCoachs({ roster: G.roster, injured })[k] || { joueurs: 0, paliers: 0 };
   const fin = SEUILS[SEUILS.length - 1];
   return `<div class="ej-coach">
     <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b>${pal ? `<span class="ej-rang">${ROMAINS[pal]}</span>` : ''}<small>${esc(C.mot)}</small></div>
     <div class="ej-jauge" role="img" aria-label="${n} point${n > 1 ? 's' : ''} de confiance"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
     <div class="ej-coach-l">${n} point${n > 1 ? 's' : ''} de confiance${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
+    ${(c => (c ? `<div class="ej-coach-l"><span class="ej-k">À tenir</span> ${esc(c.nom)} : ${esc(c.but)}, dix matchs de suite · ${c.enCours}/${BLOC} · ${c.tenus} bloc${c.tenus > 1 ? 's' : ''} tenu${c.tenus > 1 ? 's' : ''} (+1 point chacun, ${PLAFOND_TENUS} au plus)</div>` : ''))(G.ligue ? chiffreDit(k, G.ligue.calendrier, G.ligue.you, j + 1) : null)}
     ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
     ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
   </div>`;

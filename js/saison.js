@@ -24,8 +24,7 @@
  */
 
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
-  JOURS_SITUATIONS,
-  MOMENTS, JOURS_MOMENTS, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
+  MOMENTS, JOURS_MOMENTS, matchDuMoment, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   cibleMutation, dureeOption, MUTATIONS,
@@ -55,7 +54,7 @@ import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomC
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
-import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
+import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, chiffresDuMatch } from './profil-style.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money, hache } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
@@ -948,9 +947,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // PAS LE SOIR D'UN GROS MATCH (S79, JP : *un jour de match important… ça devrait pas être
     // synchro*) : le dilemme attend le lendemain — il reste ouvert tant qu'il n'est pas pris.
     if (grosDuJour(jour)) return null;
-    const J = JOURS_MOMENTS.find(j => jour >= jEv(j) && !pris.has(`m:${j}`));
+    const J = JOURS_MOMENTS.find(j => jour >= jEv(matchDuMoment(graine, j)) && !pris.has(`m:${j}`));
     if (J === undefined) return null;
-    const faits = faitsAvant(jEv(J));
+    const faits = faitsAvant(jEv(matchDuMoment(graine, J)));
     const cle = momentDuJour(graine, J, momentsAvant(J), faits);
     if (!cle) return null;
     return { J, cle, faits: MOMENTS[cle].faits ? MOMENTS[cle].faits(faits) : null };
@@ -1901,6 +1900,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     for (const b of (you.injuriesLog || []).filter(b => b.at > avant.joues && b.at <= miens.length)) blocs.push(`<div class="som-l prix">🚑 ${ctx.esc(b.player.n)}, ${ctx.esc(motDeBlessure(b.genre))} : ${b.games} match${b.games > 1 ? 's' : ''}</div>`);
     for (const x of mv) blocs.push(`<div class="som-l">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`);
     for (const [, { genre, x }] of infos) blocs.push(corpsDInfo(genre, x));
+    if (semaine) blocs.push(...verdictsDeLaSemaine(avant.jour));
     for (const mb of (you.minisBoss || []).filter(mb => mb.jour >= avant.jour && mb.jour < jour)) {
       const primeGros = mb.gagne && ctx.rogue && ctx.rogue.mandat ? ctx.rogue.mandat().bareme.grosMatch : 0;
       blocs.push(`<div class="som-l ${mb.gagne ? 'bon' : 'prix'}">${MINI_BOSS[mb.raison] ? MINI_BOSS[mb.raison].ico : '⭐'} Gros match ${mb.gagne ? 'gagné' : 'perdu'} : ${mb.gagne ? `${ELAN.ico} ${ELAN.nom}` : `${SONNE.ico} ${SONNE.nom}`} pour ${mb.duree || (mb.gagne ? ELAN.duree : SONNE.duree)} matchs${primeGros ? ` · +${primeGros} 🪙` : ''}</div>`);
@@ -2573,10 +2573,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     JOURS_OBJECTIFS.forEach(k => { const j = jEv(k + MATCHS_OBJECTIF); if (futur(j) && !decs.some(d => d.palier === `v:${k}`)) m(j, '🏢', 'le verdict du proprio', 'haut'); });
     // Les événements : pris, au jour de la décision ; à venir, possibles.
     for (const d of decs) if (d.moment && d.moment.famille === 'moment' && typeof d.palier === 'string' && d.palier.startsWith('m:')) m(d.jour, '❓', `un événement : ${(MOMENTS[d.moment.cle] || {}).titre || 'tranché'}`, 'bas');
-    JOURS_MOMENTS.forEach(k => { const j = jEv(k); if (futur(j) && !decs.some(d => d.palier === `m:${k}`)) m(j, '❓', 'un événement possible, si ses faits sont vrais', 'bas', true); });
+    // Les événements et les situations à venir ne s'annoncent pas : leur jour est tiré de la graine (`matchDuMoment`), rien ne le dit d'avance.
     // Le vestiaire : les situations vécues ; à venir, possibles (une situation peut être reportée).
     for (const x of you.situations || []) if (x.jour < jour) m(x.jour, '💬', 'le vestiaire a vécu quelque chose', 'bas');
-    JOURS_SITUATIONS.forEach(k => { const j = jEv(k); if (futur(j)) m(j, '💬', 'le vestiaire vivra peut-être quelque chose', 'bas', true); });
     // Les accidents : ils ne se prévoient pas ; joués, ils se marquent.
     for (const x of you.mutations || []) if (x && x.jour < jour && MUTATIONS[x.cle] && MUTATIONS[x.cle].source === 'accident') m(x.jour, MUTATIONS[x.cle].ico, `un accident : ${MUTATIONS[x.cle].nom}`, 'bas');
     const combats = new Map();
@@ -3791,6 +3790,27 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     return n.length ? `<div class="hub-nouvelles"><span class="hub-une-t">Nouvelles</span>${n.map(x => x.html).join('')}</div>` : '';
   };
   const archiverNouvelles = () => { for (const { id } of nouvellesDuJour()) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); } };
+  /*
+   * TA SEMAINE (V19, tranche 6 ; JP : *une seule lecture des choix*) : chaque choix de la semaine passée dit son verdict le lundi
+   * d'après, en vraies stats de match recomptées dans tes feuilles — ce que ton club a fait depuis, contre ses dix matchs d'avant.
+   * Ni victoires ni note : le bruit d'une semaine s'avoue (« ≈ »), et un choix sans effet durable (« rien ») ne dit rien.
+   */
+  function verdictsDeLaSemaine(depuisJ) {
+    const out = [];
+    const virg = x => x.toFixed(1).replace('.', ',');
+    const moy = (liste, k) => liste.reduce((a, { m }) => a + chiffresDuMatch(m.feuille, m.A === you ? 'A' : 'B')[k], 0) / liste.length;
+    for (const d of decs) {
+      if (!d.moment || !['moment', 'sequence', 'dossier', 'vie', 'fil'].includes(d.moment.famille) || !(d.jour >= depuisJ && d.jour < jour)) continue;
+      const F = familleDeMoment(d.moment);
+      const o = F && (F.options || []).find(x => x.cle === d.moment.choix);
+      if (!o || o.rien) continue;
+      const depuis = miens.filter(x => x.j >= d.jour && x.m.feuille), avantD = miens.filter(x => x.j < d.jour && x.m.feuille).slice(-10);
+      if (depuis.length < 3 || avantD.length < 5) continue;
+      const ligne = (mot, k) => `${mot} ${virg(moy(depuis, k))} (${virg(moy(avantD, k))} avant)`;
+      out.push(`<div class="som-l">🧾 <b>${ctx.esc(F.titre || '')}</b> · ${ctx.esc(o.nom || '')} : depuis ${depuis.length} matchs, ≈ ${ligne('tirs', 'tirsPour')} · ${ligne('tirs contre', 'tirsContre')} · ${ligne('buts', 'butsPour')} · ${ligne('buts contre', 'butsContre')}</div>`);
+    }
+    return out;
+  }
   /* La semaine passée (V5), pliée en tête d'Hier soir le lundi — elle tenait dans l'écran de la semaine, parti avec la V9. */
   const semainePasseeHtml = () => {
     const x = boite.semainePassee;

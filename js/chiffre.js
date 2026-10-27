@@ -5,11 +5,12 @@
  * ligue. Dix matchs de suite où ton club la tient, c'est un bloc tenu : un point de confiance de plus, au plus
  * `PLAFOND_TENUS` pour la run en cours. Une philosophie qu'on vit vaut plus qu'une philosophie qu'on achète.
  *
- * Aucune mécanique neuve : une stat que le moteur joue déjà, un compte de plus dans `buildDe` (js/banque.js). Les
+ * Le Rhino et le Showman n'ont pas encore le leur : le club de l'IA et le tien ne s'alignent pas pareil (agressivité, minutes), et
+ * leur écart à la ligue dépasse leur effet (docs/chiffre-du-coach.md). Aucune mécanique neuve : une stat que le moteur joue déjà, un compte de plus dans `buildDe` (js/banque.js). Les
  * blocs se recomptent des feuilles, comme les matchs à ton service ; une partie d'avant n'en a pas, et ça se tait.
  * Pur (navigateur + Node) ; `scripts/check_chiffre.mjs` le mesure.
  */
-import { chiffresDuMatch } from './profil-style.js';
+import { chiffresDuMatch, matchsJoues as feuillesJouees } from './profil-style.js';
 
 /** Un bloc, en matchs de ton club. */
 export const BLOC = 10;
@@ -21,9 +22,8 @@ export const PLAFOND_TENUS = 3;
  * ligue sur les mêmes journées, du bon côté (`sens` +1 : plus haut que la ligue, −1 : plus bas) ; `mot` le dit à l'écran.
  */
 const moy = (xs) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
-const butsDe = (f, cote) => f.buts.filter(b => b.cote === cote);
 const partDeLigne = (test) => (fs, cote) => {
-  const b = fs.flatMap(f => butsDe(f, cote));
+  const b = fs.flatMap(f => f.buts.filter(x => x.cote === cote));
   return b.length ? b.filter(x => test(x.ligne)).length / b.length : 0;
 };
 export const CHIFFRES = {
@@ -34,11 +34,9 @@ export const CHIFFRES = {
     mot: () => 'presque deux points de précision de plus que la ligue',
   },
   tortue: { nom: 'Tirs contre', sens: -1, seuil: 3, valeur: (fs, c) => moy(fs.map(f => chiffresDuMatch(f, c).tirsContre)), mot: n => `${n} tirs contre de moins que la ligue par match` },
-  rhinos: { nom: 'Buts contre', sens: -1, seuil: 0.4, valeur: (fs, c) => moy(fs.map(f => chiffresDuMatch(f, c).butsContre)), mot: () => 'presque un demi-but de moins accordé que la ligue par match' },
   souffle: { nom: 'Blessures', sens: -1, seuil: 0.14, valeur: (fs, c) => moy(fs.map(f => (f.blessures || []).filter(b => b.cote === c).length)), mot: () => 'deux fois moins de blessures que la ligue' },
   choeur: { nom: 'Punitions', sens: -1, seuil: 1, valeur: (fs, c) => moy(fs.map(f => chiffresDuMatch(f, c).punitions)), mot: n => `${n} punition de moins que la ligue par match` },
   profondeur: { nom: 'Buts des 3e et 4e trios', sens: 1, seuil: 0.08, valeur: partDeLigne(l => l >= 3), mot: () => 'plus de buts du bas de l\'alignement que la ligue' },
-  etoiles: { nom: 'Buts des deux premiers trios', sens: 1, seuil: 0.4, valeur: (fs, c) => moy(fs.map(f => butsDe(f, c).filter(x => x.ligne >= 1 && x.ligne <= 2).length)), mot: () => 'presque un demi-but de plus par match de tes deux premiers trios' },
 };
 
 /* Un bloc de `BLOC` feuilles de ton club : la ligue sur les mêmes journées est la moyenne de tous les autres côtés. */
@@ -72,3 +70,14 @@ export function blocsTenus(cle, matchs, club, avant = Infinity) {
 
 /** Les points que le chiffre ajoute à la confiance : les blocs tenus, plafonnés. */
 export const pointsTenus = (cle, matchs, club, avant = Infinity) => Math.min(PLAFOND_TENUS, blocsTenus(cle, matchs, club, avant).tenus);
+
+/* Le `tenus` de `buildDe` / `palierAllume` pour un calendrier et ton club : (coach, journée) → points. */
+export const tenusDe = (calendrier, you) => (cle, jusqua) => (CHIFFRES[cle] ? pointsTenus(cle, feuillesJouees(calendrier), you, jusqua) : 0);
+
+/* Ce que l'écran du coach dit de son chiffre : `{ nom, but, tenus, enCours }`, ou null (pas de chiffre, pas de ligue). */
+export function chiffreDit(cle, calendrier, you, avant = Infinity) {
+  const C = CHIFFRES[cle];
+  if (!C || !calendrier) return null;
+  const r = blocsTenus(cle, feuillesJouees(calendrier), you, avant);
+  return { nom: C.nom, but: C.mot(C.seuil), tenus: Math.min(PLAFOND_TENUS, r.tenus), enCours: r.enCours };
+}
