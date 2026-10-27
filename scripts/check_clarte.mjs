@@ -278,7 +278,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`son personnel le monte à II (${SEUILS[1]} points) et III (${SEUILS[2]})`, 'les seuils de la confiance'],
     [`par ${MATCHS_CONFIANCE} matchs à ton service`, 'les matchs à ton service'],
     // V14 : les échelons du personnel (js/echelons.js) — les matchs à ton service, ce que vaut chaque choix.
-    [`(le 2e à ${MATCHS_ECHELON[2]} matchs, le 5e à ${MATCHS_ECHELON[5]}), deux fois plus vite à la couleur de ton coach ; monter coûte ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[5]} jetons. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
+    [`(le 2e à ${MATCHS_ECHELON[2]} matchs, le 3e à ${MATCHS_ECHELON[3]}), deux fois plus vite à la couleur de ton coach ; monter coûte ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[3]} jetons. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).

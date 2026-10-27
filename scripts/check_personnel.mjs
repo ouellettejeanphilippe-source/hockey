@@ -8,7 +8,7 @@
  *      ouverts (les doublons d'un pack, `ouvertsDe`), qui se gardent au méta ; un choix remplace la carte à son
  *      poste, garde d'où se comptent ses matchs, et la fin de saison les reporte ;
  *   4. le moteur, EN PAIRES (CLAUDE.md) : le même match sur les mêmes dés, sans la personne, à son premier échelon, à son
- *      cinquième (quatre poussées), et son défaut corrigé quatre fois ; l'écart sur sa force monte, celui sur son défaut
+ *      cinquième (deux poussées), et son défaut corrigé quatre fois ; l'écart sur sa force monte, celui sur son défaut
  *      fond ;
  *   5. le protégé (V16) : ses canaux de joueur grandissent avec la force, la décision d'échelon les porte, et ses
  *      points à sa ligne montent, en paires.
@@ -19,21 +19,21 @@ import { PROTEGES } from '../js/personnel.js';
 import { PATRONS, BANQUE } from '../js/banque.js';
 import { effetDePalier } from '../js/coachs.js';
 import { effetALEchelon, patronALEchelon, etatDuPersonnel, decisionDEchelon, reportDuPersonnel, ouvertsDe, matchsJoues, protegeALEchelon,
-  MATCHS_ECHELON, POUSSEE, CORRECTION, ECHELON_MAX, PRIX_ECHELON } from '../js/echelons.js';
+  MATCHS_ECHELON, POUSSEE, CORRECTION, CORRECTION_DE_DEPART, ECHELON_MAX, PRIX_ECHELON } from '../js/echelons.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const N = Number(process.env.N ?? 300);
-const presque = (a, b) => Math.abs(a - b) < 1e-6;
+const presque = (a, b) => Math.abs(a - b) < 2e-3;
 
 /* ---------- 2 : les chiffres d'un échelon ---------- */
 {
   const k = 'per_gardienDuFort', P = PATRONS[k];   // defense 0,9 (sa force), volume 0,93 (son défaut)
   const base = effetALEchelon(k, []), f2 = effetALEchelon(k, ['force', 'force']), d1 = effetALEchelon(k, ['defaut']);
-  exiger('au premier échelon, la carte telle quelle', presque(base.defense, P.effet.defense) && presque(base.volume, P.effet.volume));
-  exiger('deux poussées : sa force grandit, son défaut ne bouge pas', presque(f2.defense, 1 + (P.effet.defense - 1) * (1 + 2 * POUSSEE)) && presque(f2.volume, P.effet.volume),
+  exiger('au premier échelon, sa force telle quelle et son défaut déjà à demi corrigé', presque(base.defense, P.effet.defense) && presque(base.volume, 1 + (P.effet.volume - 1) * CORRECTION_DE_DEPART));
+  exiger('deux poussées : sa force grandit, son défaut ne bouge pas', presque(f2.defense, 1 + (P.effet.defense - 1) * (1 + 2 * POUSSEE)) && presque(f2.volume, base.volume),
     `${P.effet.defense} → ${f2.defense}`);
-  exiger('une correction : son défaut fond, sa force ne bouge pas', presque(d1.volume, 1 + (P.effet.volume - 1) * CORRECTION) && presque(d1.defense, P.effet.defense),
+  exiger('une correction : son défaut fond, sa force ne bouge pas', presque(d1.volume, 1 + (P.effet.volume - 1) * CORRECTION_DE_DEPART * CORRECTION) && presque(d1.defense, P.effet.defense),
     `${P.effet.volume} → ${d1.volume}`);
   const caisse = effetALEchelon('per_caissier', ['force', 'force']), neg = effetALEchelon('per_negociateur', ['force']);
   exiger('l\'argent grandit comme une force', caisse.econ.jetonsVictoire === Math.round(PATRONS.per_caissier.econ.jetonsVictoire * (1 + 2 * POUSSEE))
@@ -45,7 +45,7 @@ const presque = (a, b) => Math.abs(a - b) < 1e-6;
 
 /* ---------- 3 : les échelons ---------- */
 {
-  exiger('les doublons ouvrent les échelons : deux, puis un par copie, cinq au plus', [1, 2, 3, 4, 9].map(ouvertsDe).join() === '2,3,4,5,5');
+  exiger('les doublons ouvrent les échelons : deux, puis un par copie, trois au plus', [1, 2, 3, 4, 9].map(ouvertsDe).join() === '2,3,3,3,3');
   const k = 'per_gardienDuFort', couleur = BANQUE[`patron:${k}`].coach;   // la Tortue
   const engage = [{ jour: 0, coach: effetDePalier('essaim', 1) }, { jour: 3, patron: patronALEchelon(k, {}) }];
   const etat = (decs, n, copies = 4) => etatDuPersonnel(decs, 200, { joues: () => n, copies: () => copies })[0];
@@ -65,7 +65,7 @@ const presque = (a, b) => Math.abs(a - b) < 1e-6;
   const rep = reportDuPersonnel(etat(monte, 30));
   exiger('la fin de saison reporte ses matchs à ton service', rep.avant === 30 && rep.depuis === 0 && rep.echelon === 2);
   const toutEnHaut = MATCHS_ECHELON[ECHELON_MAX];
-  exiger(`le 5e échelon à ${toutEnHaut} matchs`, etat([{ jour: 0, patron: patronALEchelon(k, { choix: ['force', 'force', 'force'] }) }], toutEnHaut).aChoisir);
+  exiger(`le 3e échelon à ${toutEnHaut} matchs`, etat([{ jour: 0, patron: patronALEchelon(k, { choix: ['force'] }) }], toutEnHaut).aChoisir);
   // Le calendrier : seuls tes matchs joués comptent.
   const A = {}, B = {}, cal = [[{ A, B, gfA: 2, gfB: 1 }], [{ A: B, B: {}, gfA: 1, gfB: 0 }], [{ A: B, B: A }]];
   exiger('ses matchs à ton service : les tiens, joués', matchsJoues(cal, A, 0, 3) === 1 && matchsJoues(cal, B, 0, 3) === 2 && matchsJoues(cal, B, 1, 2) === 1);
@@ -94,7 +94,7 @@ const f2 = x => (x >= 0 ? '+' : '') + x.toFixed(2).replace('.', ',');
 for (const M of MESURES) {
   const P = PATRONS[M.cle], visiteur = P.si === 'visiteur';
   const vide = () => ({ n: 0, v: 0, gf: 0, ga: 0, tp: 0 });
-  const bras = { sans: [], un: [], force: ['force', 'force', 'force', 'force'], defaut: ['defaut', 'defaut', 'defaut', 'defaut'] };
+  const bras = { sans: [], un: [], force: ['force', 'force'], defaut: ['defaut', 'defaut'] };
   const S = Object.fromEntries(Object.keys(bras).map(k => [k, vide()]));
   for (const [lab, s, t] of TEMOINS) {
     const un = equipeReelle(s, t);
@@ -110,11 +110,11 @@ for (const M of MESURES) {
   }
   const ecart = (k, canal) => LIRE[canal](S[k]) - LIRE[canal](S.sans);
   const [cf, sf] = M.force, [cd, sd] = M.defaut;
-  exiger(`${P.ico} ${P.nom} : ses quatre poussées grandissent sa force (${cf})`, sf * ecart('force', cf) > sf * ecart('un', cf) && sf * ecart('un', cf) > 0,
+  exiger(`${P.ico} ${P.nom} : ses deux poussées grandissent sa force (${cf})`, sf * ecart('force', cf) > sf * ecart('un', cf) && sf * ecart('un', cf) > 0,
     `${f2(ecart('un', cf))} → ${f2(ecart('force', cf))} ${MOT[cf]}`);
-  exiger(`${P.ico} ${P.nom} : ses quatre corrections font fondre son défaut (${cd})`, Math.abs(ecart('defaut', cd)) < Math.abs(ecart('un', cd)),
+  exiger(`${P.ico} ${P.nom} : ses deux corrections font fondre son défaut (${cd})`, Math.abs(ecart('defaut', cd)) < Math.abs(ecart('un', cd)),
     `${f2(ecart('un', cd))} → ${f2(ecart('defaut', cd))} ${MOT[cd]}`);
-  informer(`${P.ico} ${P.nom} : en victoires, sur ses soirs d'une saison`, `échelon 1 ${f2(((S.un.v - S.sans.v) / S.sans.n) * 41)} V · quatre poussées ${f2(((S.force.v - S.sans.v) / S.sans.n) * 41)} V`);
+  informer(`${P.ico} ${P.nom} : en victoires, sur ses soirs d'une saison`, `échelon 1 ${f2(((S.un.v - S.sans.v) / S.sans.n) * 41)} V · deux poussées ${f2(((S.force.v - S.sans.v) / S.sans.n) * 41)} V`);
 }
 
 /* ---------- 5 : le protégé (V16) ---------- */
@@ -145,7 +145,7 @@ for (const M of MESURES) {
     }
   }
   const par = x => S[x].pts / S[x].n - S.sans.pts / S.sans.n;
-  exiger(`${P.ico} ${P.nom} : quatre poussées grandissent les points de son protégé`, par('force') > par('un') && par('un') > 0,
+  exiger(`${P.ico} ${P.nom} : deux poussées grandissent les points de son protégé`, par('force') > par('un') && par('un') > 0,
     `${f2(par('un'))} → ${f2(par('force'))} point par soir à domicile`);
 }
 

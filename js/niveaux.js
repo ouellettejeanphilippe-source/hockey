@@ -127,7 +127,26 @@ function saisonDe(joueurs) {
   // joueur échangé. Les packs les donnent comme des Soutien, à petit poids (`PART_HORS_NIVEAU`, js/packs.js).
   const classes = new Set(parNiveau.flat());
   const horsNiveau = joueurs.filter(p => !classes.has(p));
-  s = { niveau, parDefense, seuils, parNiveau, horsNiveau };
+  // LA COTE SUR 20 (docs/cotes-sur-20.md) : la même mesure que le niveau, déroulée entre ses seuils — le bas de Soutien est
+  // à 1, le haut de Soutien à 8, Régulier 9 à 12, Pilier 13 à 16, Étoile 17 à 19, Phénomène 20. Le meilleur des points et de la défense.
+  const ECHELLE = [1, 9, 13, 17, 20];
+  const surVingt = (t, m) => {
+    if (m == null || !t || !Number.isFinite(t[0])) return null;
+    if (m >= t[4]) return 20;
+    for (let k = 3; k >= 0; k--) {
+      if (m < t[k]) continue;
+      const a = ECHELLE[k], b = ECHELLE[k + 1], f = t[k + 1] > t[k] ? (m - t[k]) / (t[k + 1] - t[k]) : 0;
+      return Math.min(b - 1, Math.floor(a + (b - a) * f));
+    }
+    return 1;
+  };
+  const cote = (p, aux_points = false) => {
+    if (!regulier(p)) return null;
+    const g = groupeDuJoueur(p);
+    const a = surVingt(seuils[g], mesureDuNiveau(p, joueurs)), d = seuilsDef[g] && !aux_points ? surVingt(seuilsDef[g], defDe(p)) : null;
+    return Math.max(a ?? 1, d ?? 1);
+  };
+  s = { niveau, parDefense, seuils, parNiveau, horsNiveau, cote };
   SAISONS.set(joueurs, s);
   return s;
 }
@@ -140,3 +159,5 @@ export const seuilDuNiveau = (joueurs, g, k) => saisonDe(joueurs).seuils[g][k];
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
 export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;
+/* La cote sur 20 d'un joueur dans SA saison (1 à 20), ou null s'il n'est pas un régulier. Un appui à lire après le niveau, jamais un tri. */
+export const cote20 = (p, joueurs, auxPointsSeulement = false) => (p && joueurs ? saisonDe(joueurs).cote(p, auxPointsSeulement) : null);

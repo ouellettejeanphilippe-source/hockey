@@ -97,7 +97,7 @@ export const DOSSIERS = {
     mots: ['Ils nous ont battus deux fois. Le vestiaire ne veut pas d\'une troisième.',
       'Je n\'ai pas oublié, et les gars non plus. Dis-moi comment on les règle.'],
     options: [
-      { cle: 'comptes', nom: 'Régler nos comptes', bon: 'Plus de tirs : on rentre dedans', prix: 'Plus de punitions : l\'arbitre le voit', si: 'beteNoire', duree: 30, volume: 1.12, robustesse: 1.6, discipline: 1.3 },
+      { cle: 'comptes', nom: 'Régler nos comptes', bon: 'Plus de tirs et de mises en échec : on rentre dedans', prix: 'Plus de punitions : l\'arbitre le voit', si: 'beteNoire', duree: 30, volume: 1.12, robustesse: 1.6, discipline: 1.3 },
       { cle: 'tableau', nom: 'Les battre au tableau', bon: 'Plus de précision : leur gardien, on l\'a étudié', si: 'beteNoire', duree: 30, finition: 1.48 },
     ],
   },
@@ -151,7 +151,7 @@ export const DOSSIERS = {
       'Ça a brassé dans le vestiaire après le match. Il faut que quelqu\'un tranche, et ce n\'est pas moi.'],
     options: [
       { cle: 'calmer', nom: 'Lui mettre la laisse', bon: 'Moins de punitions : les bâtons restent en bas', prix: 'Il joue sur des œufs', duree: 8, discipline: 0.85, lui: { lancers: 0.85, defense: 1.06 } },
-      { cle: 'laisser', nom: 'Le laisser jouer à sa façon', bon: 'Il fait peur à leurs gars', prix: 'Plus de punitions : il retourne au cachot', duree: 8, robustesse: 0.7, discipline: 1.15, lui: { lancers: 1.15 } },
+      { cle: 'laisser', nom: 'Le laisser jouer à sa façon', bon: 'Plus de mises en échec : il fait peur à leurs gars', prix: 'Plus de punitions : il retourne au cachot', duree: 8, robustesse: 0.7, discipline: 1.15, lui: { lancers: 1.15 } },
     ],
   },
   lAgent: {

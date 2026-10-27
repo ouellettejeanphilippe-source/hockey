@@ -1251,6 +1251,12 @@ export function famillesBrutes(p) {
   for (const [k, F] of Object.entries(FAMILLES)) out[k] = Math.max(...F.roles[g].map(r => b[r] + (DECALAGE_ROLES[g][r] || 0)));
   return out;
 }
+/* Les quatre axes d'un patineur sur 20 (docs/cotes-sur-20.md) : le meilleur de ses rôles de chaque famille, 55 (« bon », `ROLE_BON`) à 11. Null pour un gardien. */
+export function axes20(p) {
+  const b = famillesBrutes(p);
+  if (!b) return null;
+  return Object.fromEntries(Object.keys(FAMILLES).map(k => [k, Math.max(1, Math.min(20, Math.round(b[k] / 5)))]));
+}
 /*
  * CE QUE LES POINTS EXPLIQUENT DE CHAQUE FAMILLE (scripts/check_familles.mjs, les réguliers de 40 matchs et plus,
  * toutes saisons) : [ordonnée, pente sur l'écart réduit des points, dispersion de ce qui reste]. La famille d'un joueur
@@ -1670,6 +1676,8 @@ function encaisserCoups(frappeur, frappe) {
  * pas, l'élan est symétrique), tout dans le match — un club qui pilonne use
  * l'autre, un bagarreur gagné vaut dix minutes de finition.
  */
+/* Chaque point de robustesse de carte monte les mises en échec de 15 % (le Rhino III, +1,3 : ≈ +20 %). */
+const COUPS_PAR_ROB = 0.15;
 const BAGARRE_PAR_PIM = 0.55, MELEE_BASE = 0.5, COUP_MARQUANT_PART = 0.12;
 /* Ce qu'une bagarre coûte aux jambes de chaque combattant : le fil du direct et les règles le disent. */
 export const BAGARRE_JAMBES = 8;
@@ -1684,7 +1692,8 @@ export function coupsAttendus(profil) {
     const A = AGRESSIVITES[u.agr ?? 1] || AGRESSIVITES[1];
     total += u.joueurs.reduce((a, p) => a + coupsDe(p), 0) * (u.presence || 0) / (PART_UNITE[g][u.rang] || u.presence || 1) * (0.6 + A.physique);
   }
-  return total;
+  // Le Rhino, et toute carte de robustesse : un club qui cogne plus (V19 ; la feuille et les jambes de l'autre le disent).
+  return total * Math.exp(COUPS_PAR_ROB * (profil.robCartes || 0));
 }
 const scoreBagarreur = p => ((profilsDe(p) || {}).bagarreur || 0) / 100;
 /* Est-il au cachot à cet instant ? (les cinq minutes d'une bagarre) */
@@ -2439,6 +2448,12 @@ export const familleDeMoment = m => (m.famille === 'sequence' ? SEQUENCES[m.cle]
   : m.famille === 'dossier' ? DOSSIERS[m.cle] : MOMENTS[m.cle]);
 
 export const JOURS_MOMENTS = [8, 14, 25, 33, 42, 51, 60, 70];
+/*
+ * LE MATCH OÙ UN DILEMME TOMBE (V19 ; JP : *les événements, plus « randoms » du point de vue du joueur*). La grille
+ * `JOURS_MOMENTS` garde les clés des décisions (« m:14 ») ; le jour, lui, se décale de −2 à +2 matchs, tiré de la graine :
+ * la même graine rejoue le même jour, une autre en tombe un autre, et rien ne l'annonce d'avance.
+ */
+export const matchDuMoment = (graine, k) => k + (entierDeGraine(`${graine}|m${k}`) % 5) - 2;
 /* Le dilemme d'une journée : PUR, graine et jour, jamais deux fois le même. */
 /*
  * `faits` (S80, oct. 2026) : ce qui est VRAIMENT arrivé avant la journée du dilemme (`faitsDuClub`).
@@ -3973,6 +3988,7 @@ export function profilMatch(team, lineup, adv = null) {
     zDef: borne((coteDef - MOY_DEF_EQUIPE) / ECART_DEF_EQUIPE, -5, 3),
     traitDef: facteurDefensifEquipe(habilles) * cartes.defense,
     traitRob: bonusRobustesseEquipe(habilles) + cartes.robustesse + robAgr,
+    robCartes: cartes.robustesse,
     traitAtt: facteurAttaqueEquipe(habilles),
     traitSeries: facteurSeriesEquipe(habilles),
     meneur: bonusMeneurEquipe(habilles),

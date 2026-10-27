@@ -24,8 +24,7 @@
  */
 
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
-  JOURS_SITUATIONS,
-  MOMENTS, JOURS_MOMENTS, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
+  MOMENTS, JOURS_MOMENTS, matchDuMoment, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   cibleMutation, dureeOption, MUTATIONS,
@@ -948,9 +947,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     // PAS LE SOIR D'UN GROS MATCH (S79, JP : *un jour de match important… ça devrait pas être
     // synchro*) : le dilemme attend le lendemain — il reste ouvert tant qu'il n'est pas pris.
     if (grosDuJour(jour)) return null;
-    const J = JOURS_MOMENTS.find(j => jour >= jEv(j) && !pris.has(`m:${j}`));
+    const J = JOURS_MOMENTS.find(j => jour >= jEv(matchDuMoment(graine, j)) && !pris.has(`m:${j}`));
     if (J === undefined) return null;
-    const faits = faitsAvant(jEv(J));
+    const faits = faitsAvant(jEv(matchDuMoment(graine, J)));
     const cle = momentDuJour(graine, J, momentsAvant(J), faits);
     if (!cle) return null;
     return { J, cle, faits: MOMENTS[cle].faits ? MOMENTS[cle].faits(faits) : null };
@@ -2573,10 +2572,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     JOURS_OBJECTIFS.forEach(k => { const j = jEv(k + MATCHS_OBJECTIF); if (futur(j) && !decs.some(d => d.palier === `v:${k}`)) m(j, '🏢', 'le verdict du proprio', 'haut'); });
     // Les événements : pris, au jour de la décision ; à venir, possibles.
     for (const d of decs) if (d.moment && d.moment.famille === 'moment' && typeof d.palier === 'string' && d.palier.startsWith('m:')) m(d.jour, '❓', `un événement : ${(MOMENTS[d.moment.cle] || {}).titre || 'tranché'}`, 'bas');
-    JOURS_MOMENTS.forEach(k => { const j = jEv(k); if (futur(j) && !decs.some(d => d.palier === `m:${k}`)) m(j, '❓', 'un événement possible, si ses faits sont vrais', 'bas', true); });
+    // Les événements et les situations à venir ne s'annoncent pas : leur jour est tiré de la graine (`matchDuMoment`), rien ne le dit d'avance.
     // Le vestiaire : les situations vécues ; à venir, possibles (une situation peut être reportée).
     for (const x of you.situations || []) if (x.jour < jour) m(x.jour, '💬', 'le vestiaire a vécu quelque chose', 'bas');
-    JOURS_SITUATIONS.forEach(k => { const j = jEv(k); if (futur(j)) m(j, '💬', 'le vestiaire vivra peut-être quelque chose', 'bas', true); });
     // Les accidents : ils ne se prévoient pas ; joués, ils se marquent.
     for (const x of you.mutations || []) if (x && x.jour < jour && MUTATIONS[x.cle] && MUTATIONS[x.cle].source === 'accident') m(x.jour, MUTATIONS[x.cle].ico, `un accident : ${MUTATIONS[x.cle].nom}`, 'bas');
     const combats = new Map();

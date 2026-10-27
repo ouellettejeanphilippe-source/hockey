@@ -95,14 +95,14 @@ exiger('le soir éreintant est un dos-à-dos d\'un des deux clubs', ecartesSoir 
 
 /*
  * LE CALENDRIER NE PROMET QUE CE QUI ARRIVE (V2.2). La route et le calendrier lisent une seule liste
- * (`marquesDeSaison`, js/saison.js) : un événement et une situation à venir sont « possibles » (en sourdine),
- * jamais promis ; le passé ne marque que ce qui est arrivé ; le verdict du proprio et les accidents y sont.
+ * (`marquesDeSaison`, js/saison.js) : un événement et une situation à venir ne s'annoncent pas (V19 : leur jour est tiré de
+ * la graine, JP : *plus « randoms »*) ; le passé ne marque que ce qui est arrivé ; le verdict du proprio et les accidents y sont.
  */
 {
   const src = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'js', 'saison.js'), 'utf8');
   const bloc = (src.match(/const marquesDeSaison = \(\) => \{[\s\S]*?\n  \};/) || [''])[0];
   exiger('la route et le calendrier lisent la même liste', !!bloc && /routeHtml\(jour, N, marquesDeSaison\(\)\)/.test(src) && /for \(const x of marquesDeSaison\(\)\)/.test(src));
-  exiger('un événement et une situation à venir sont « possibles », jamais promis', /un événement possible[^']*', 'bas', true\)/.test(bloc) && /peut-être quelque chose', 'bas', true\)/.test(bloc));
+  exiger('un événement et une situation à venir ne s\'annoncent pas : rien n\'est promis d\'avance', !/un événement possible/.test(bloc) && !/vivra peut-être quelque chose/.test(bloc));
   exiger('le passé ne marque que ce qui est arrivé (les décisions prises, les situations vécues)', /d\.moment\.famille === 'moment'/.test(bloc) && /you\.situations/.test(bloc));
   exiger('le verdict du proprio et les accidents sont sur la route', /le verdict du proprio/.test(bloc) && /source === 'accident'/.test(bloc));
 }

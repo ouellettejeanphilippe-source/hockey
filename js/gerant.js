@@ -247,6 +247,15 @@ function motsDAction(a, noms = '') {
   if (a.gardienAux) out.push({ txt: `🧤 L'auxiliaire garde le filet ${plur(a.gardienAux, 'match')}`, bon: null });
   return out;
 }
+/*
+ * UN PARI SE DIT D'UNE SEULE FAÇON (V19, tranche 6 ; JP : *une seule lecture des choix*) : le dé et sa chance, ce qu'il donne
+ * s'il tombe, ce qu'il donne sinon — en vraies stats, une puce verte et une puce rouge. Les options, les cartes de route et les
+ * dossiers passent tous par ici.
+ */
+function motsDuPari(pari, noms = '') {
+  const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
+  return [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(pari.chance)))} : ${issue(pari.gagne)}`, bon: true }, { txt: `🎲 sinon : ${issue(pari.perd)}`, bon: false }];
+}
 function motsDeCarte(o, noms = '') {
   const out = [];
   if (o.action) out.push(...motsDAction(o.action, noms));
@@ -254,11 +263,7 @@ function motsDeCarte(o, noms = '') {
   if (o.changeGardien) out.push({ txt: '🧤 L\'auxiliaire prend le filet', bon: null });
   if (o.gardienAux === true) out.push({ txt: '🧤 L\'auxiliaire au filet ce match-là', bon: null });
   if (o.enjeu) out.push({ txt: '⚖ Après le match, l\'élan ou le contrecoup dure deux fois plus', bon: null });
-  if (o.pari) {
-    const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
-    out.push({ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${issue(o.pari.gagne)}`, bon: true });
-    out.push({ txt: `🎲 sinon : ${issue(o.pari.perd)}`, bon: false });
-  }
+  if (o.pari) out.push(...motsDuPari(o.pari, noms));
   if (o.ensuite) {
     const { apres, duree, ...c } = o.ensuite;
     out.push({ txt: `⏳ Dans ${plur(apres || 0, 'match')} : ${motsEnChiffres(c, duree).map(x => x.txt).join(', ')}`, bon: true });
@@ -1262,7 +1267,7 @@ export function ouvrirDuel(spec) {
         ${vestiaire}
         ${spec.ajustements ? `<div class="main-ajuste">${etape('aj', 'Ton ajustement pour ce match')}<div class="main-ajuste-rang">${spec.ajustements.map(o => {
           const { cle: _c, ico: _i, nom: _n, bon: _b, prix: _p, si: _s, pari: _pa, gardienAux: _g, ...canaux } = o;
-          const mots = [...motsEnChiffres(canaux), ...(o.pari ? [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(o.pari.chance)))} : ${motsEnChiffres(o.pari.gagne).map(x => x.txt).join(', ') || 'rien'}`, bon: true }, { txt: `🎲 sinon : ${motsEnChiffres(o.pari.perd).map(x => x.txt).join(', ') || 'rien'}`, bon: false }] : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
+          const mots = [...motsEnChiffres(canaux), ...(o.pari ? motsDuPari(o.pari) : []), ...(o.gardienAux ? [{ txt: '🧤 L\'auxiliaire au filet', bon: null }] : [])];
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         ${propositionsHtml()}
