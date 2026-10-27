@@ -186,9 +186,13 @@ export const prixDe = (cle, rabais = 1) => Math.max(1, Math.round((PACKS_TOUS[cl
  * relance de Balatro : le premier garde son prix, le cinquième de la saison coûte le double, et la saison suivante
  * repart au prix de base. L'argent garde un usage ; il cesse de tout acheter (docs/refonte-v5.md, phase 4 : les packs
  * ramenés à ~8 par saison). V9, tranche 8 : à 10 %, le gérant attentif en ouvrait encore 20 à 24 par saison, et sa
- * première Coupe tombait à la run 2 ; à 25 %, une dizaine. Un achat de ton club (un nom, un écusson) ne compte pas.
+ * première Coupe tombait à la run 2 ; à 25 %, une dizaine. Le 27 oct. (JP, sa run 1 : onze packs Bronze dans la
+ * saison 1, deux Piliers signés, 12e de 32 ; *on a été vraiment plus fort qu'on aurait dû*) : à 25 %, la première
+ * Coupe de l'attentif retombait aux runs 1 et 4 ; à 40 %, aux runs 6 et 3, et il la regagne 27 % des runs (35 % :
+ * 13 %, trop dur ; 50 % : runs 2 et 3, le bruit) — `check_profondeur`, 2 campagnes de 12 runs. Un achat de ton club
+ * (un nom, un écusson) ne compte pas.
  */
-const HAUSSE_PACK = 0.25;
+const HAUSSE_PACK = 0.40;
 export const achatsDePacks = (decisions = []) => decisions.filter(d => d && d.achat && d.achat.prix > 0 && (d.achat.sorte === 'joueurs' || d.achat.sorte === 'cartes')).length;
 export const hausseDesPacks = n => 1 + HAUSSE_PACK * (n || 0);
 
