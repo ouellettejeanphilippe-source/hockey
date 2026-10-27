@@ -509,6 +509,8 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       majBoard();
       // La sirène pour ton but (ou pour tous, entre deux clubs qui ne sont pas le tien) ; leur but tombe à plat.
       son(equipe(e.cote).isPlayer || !(A.isPlayer || B.isPlayer) ? 'but' : 'rate');
+      // La reprise après l'entracte rejoue les buts d'avant en muet : ni éclair ni bannière, ils sont déjà vécus.
+      if (muet) return 0;
       const cell = board.querySelector(`[data-cote="${e.cote}"]`);
       cell.classList.remove('flash'); void cell.offsetWidth; cell.classList.add('flash');
       // La bannière de but, aux couleurs du marqueur, le temps de la pause.
