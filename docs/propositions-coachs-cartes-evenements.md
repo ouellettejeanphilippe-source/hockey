@@ -268,3 +268,41 @@ Le reste du décor joue UNE fois (entrées d'écran, de feuille, de rangée, pop
 Les cartes (`.cs-`, `.carton`, `.paquet`, `.walkout`) sont exclues de la règle par construction : on ne juge pas leur éclat.
 
 **Où ça entre dans la refonte.** La tranche 6 (la décision unifiée) est celle où la fenêtre de choix, les tuiles d'option et le bouton « Go » deviennent sobres ; la tranche 4 n'y touche plus (la carte d'un adjoint garde ses finitions). Le nettoyage des entrées et des boucles du décor peut aussi partir seul, avant, parce qu'il ne touche ni au moteur ni aux sauvegardes.
+
+## Tranché (JP, 27 oct.) : *pour l'interface, penser comme GM Connected* (gmconnected.com)
+
+JP a envoyé sept captures de l'écran de jeu (le Bureau, les tactiques, un match : résumé, feuille de match, jeu par jeu, vue de la patinoire). Ce qu'elles montrent, et ce qu'on en prend. Rien d'emprunté : ni logo, ni texte, ni dessin ; seulement la façon de poser une interface.
+
+| GM Connected | Chez nous |
+|---|---|
+| Fond presque noir, **toute la page teintée de la couleur de l'équipe** (le rouge de Montréal qui tombe d'en haut, un coin violet sombre en bas) | Déjà là en partie (`--ambiance`, la couleur du club). La photo de match floue derrière le Bureau n'y est pas : à trancher, voir plus bas |
+| **Une seule barre de navigation** : des mots en majuscules condensées, un filet de couleur sous l'actif | Les cinq sections du bas et les sous-onglets du Bureau : même principe, filet sous l'actif, rien d'autre |
+| **Le titre de la page en grand**, italique condensé, avec un mot géant en contour presque invisible derrière | Barlow Condensed, déjà dans le jeu ; un titre par écran |
+| **Quatre chiffres en tête** : une petite étiquette en majuscules, un gros chiffre, une ligne de détail (« FICHE 25-15-6 · 56 pts · 3e », « ESPACE 11,7 M$ », « BLESSÉS 0 ») | L'en-tête du Bureau a déjà fiche, rang et jetons : même rythme étiquette-chiffre-détail pour tout ce qui se lit en chiffres |
+| **Ce qui est actif est un bloc blanc plein, texte noir** (le trio sélectionné, le filtre allumé, l'onglet d'un match) ; ce qui ne l'est pas, un contour sombre | Une règle simple pour tout le jeu : le sélectionné est plein et clair, le reste est creux |
+| **Des panneaux plats** : un fond un cran plus clair, un filet fin, un titre en italique condensé ; pas d'ombre, pas de dégradé de décoration | `--panneau` et `--relief` (un dégradé et une ombre portée par surface) : à aplatir |
+| **Des tableaux** : une rangée d'en-tête claire, des rangées séparées par un filet, les zéros en gris, le positif en vert et le négatif en rouge | Les tableaux de Joueurs, du classement et de la feuille de match |
+| **Des fiches de choix en petites tuiles** (L1 à D3, « équilibré 31 / rapide 32 » avec une barre et un mot : *pauvre*, *bon*) | La fenêtre de choix (tranche 6) : une tuile par option, un chiffre, une barre |
+| **Un bandeau de score en aplat de la couleur de chaque équipe**, le pointage énorme, un bloc blanc « FINAL » entre les deux | Le sommaire d'un match et l'affiche du soir |
+| **Un fil d'actualité qui défile** (« Around the league ») | Hier soir ; pas de défilement |
+| Aucune photo, aucune animation à l'écran ; l'œil va aux chiffres | Le décor calme (check_lisibilite) |
+
+**Décision d'ordre** : les captures confirment le plan du décor calme. La première tranche (faite) retire les boucles et unifie les entrées en un fondu. Les suivantes, à ta signature : (1) un seul modèle d'onglet, avec un bloc blanc plein pour l'actif ; (2) des panneaux plats ; (3) l'en-tête étiquette-chiffre-détail partout ; (4) la photo de fond du Bureau.
+
+**La photo de fond, à trancher** : ta demande du 25 octobre était *des images en action dans le background avec un noir à 0,7 pour que ça reste lisible*. GM Connected n'en a pas : il teinte la page de la couleur de l'équipe et laisse les chiffres respirer. Garder la photo, la remplacer par la seule teinte du club, ou ne la garder qu'à l'écran titre : c'est ton choix, je ne la touche pas avant.
+
+## Tranché (JP, 27 oct.) : *les événements devraient être plus « randoms », du point de vue du joueur*
+
+Aujourd'hui un événement arrive à des dates qu'un joueur apprend vite : un dilemme aux journées 8, 14, 25, 33, 42, 51, 60 et 70 ; un dossier un lundi sur deux ; une route les autres lundis ; un courriel tous les huit matchs ; une situation aux matchs 10, 28, 46, 64. Et, jusqu'à la tranche 2, ces tirages ignoraient la graine : tous les parcours voyaient les mêmes événements aux mêmes jours.
+
+**« Random » pour le joueur ne veut pas dire « non rejouable »** : le moteur reste déterministe (la même graine rejoue la même saison, `check_graine`). Ce qui change, c'est ce que le joueur peut prévoir.
+
+- **Plus de calendrier fixe** : chaque jour de la saison a une petite chance de sortir un incident (un tirage de la graine et du jour, `hache`), avec un espacement minimal (au moins trois jours entre deux) et un maximum par semaine. Le nombre par saison reste dans la même fourchette qu'aujourd'hui, pour ne pas bouger l'équilibre (`check_moments_si` : chaque moment revient assez, sans être vrai plus des trois quarts des soirs).
+- **Le fait décide, le dé choisit le jour** : un incident sort quand son fait est vrai (`FAITS`) ET que le dé du jour tombe. Un jour sans fait vrai, rien ne sort : jamais un événement bidon pour remplir.
+- **Rien d'annoncé** : le Calendrier ne montre pas les incidents à venir, ni une « semaine d'événement » (la route de la semaine, les dossiers : plus de lundi réservé). Seul ce qui est déjà arrivé s'y lit.
+- **Le type est tiré aussi** : un jour qui sort, on tire parmi ce qui est vrai (un blessé, un rival, un fil, un marqueur chaud), pondéré par ce qu'on n'a pas vu depuis longtemps, pour que ça ne se répète pas.
+- **Toujours lié à un joueur** (la décision précédente) : l'incident nomme celui qu'il touche, ce qui le rend vivant d'une partie à l'autre.
+
+**Comment on le mesure** : `check_incidents` (tranche 5) vérifie, sur douze graines, que les jours d'incidents diffèrent d'une graine à l'autre, que le nombre par saison reste dans la fourchette d'avant, que deux incidents ne se touchent jamais, et que la même graine rejoue les mêmes jours. Ce changement touche le tirage, donc les sauvegardes d'avant : leurs décisions déjà prises se relisent telles quelles, mais les incidents à venir d'une saison en cours changent.
+
+**Ce qui ne se fait pas encore** : cette décision s'implémente avec la tranche 5 (les incidents unifiés), pas avant. Rien n'est changé dans le moteur aujourd'hui.
