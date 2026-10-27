@@ -102,3 +102,55 @@ Chaque ligne : ce que l'écran dit, ce que le moteur joue, le test.
 - Le plafond effectif : ce que la barre du plafond montre = `plafondDe(G)` avec les exigences et le prestige ; un test par cran d'exigence.
 - La zone et le badge net contre brut : à revérifier sur le code du jour (« −3 par cran » n'existe plus dans js/game.js ni js/fiche.js), le test garde ce que la fiche affiche égal à ce que `check_fiches` recompte.
 - `COACHS[].recrute` = la couleur que `recrue` recrute vraiment.
+
+## Plus simple, plus impactant, plus le fun à jouer (JP, 27 oct.)
+
+Les quatre modèles ci-dessus rangent le code. JP ajoute la vraie contrainte : *faut que ça soit plus simple, plus impactant et plus le fun à jouer*. Ce que ça veut dire, mesuré dans le jeu d'aujourd'hui :
+
+- **Trop de compteurs.** Une confiance en points par trois chemins (adjoints, échelons, 60 matchs), cinq échelons à chaque adjoint, huit postes, onze sources d'incidents sur trois horloges, deux monnaies, le prestige, les exigences. Le joueur ne peut pas tenir ça dans sa tête ; il clique.
+- **Trop peu d'effet.** Un adjoint au premier échelon est un échange à zéro par construction (V14b) : il change le style, pas la force. Un dossier vaut au plus ±1 V. Le coach à la I vaut +2 V. Rien de ce qu'on touche ne se sent dans la fiche de la semaine.
+- **Pas de tension.** Un choix a souvent trois options qui se valent (« Cadeau », « Échange », « Moindre mal »), le pari se dit en petites lignes, le verdict arrive sans qu'on l'attende.
+
+Trois directions de jeu, cumulables ; chacune se mesure avec les scripts qui existent.
+
+### 1. Moins, mais gros
+
+- **Quatre sources, pas onze** : le lundi (un seul incident, toujours avec un choix), la blessure, le fil (une histoire qui naît des feuilles), le gros match. Les situations et les accidents partent (ou deviennent le lundi) ; les courriels, la presse et les séquences fondent dans le lundi ; l'objectif du proprio est le mandat, rien d'autre ; les arcs restent des défis de joueur (un but, sa stat, sa récompense gravée), sans message.
+- **Deux options par choix, trois au plus** : une sûre, une risquée avec son dé. Jamais trois « échanges ».
+- **Quatre ou cinq postes, pas huit** : le chef (il propose les plans du duel), l'attaque, la défense, les gardiens, la santé. Le dépistage et la direction deviennent des dossiers du proprio, pas des cartes.
+- **Trois échelons, pas cinq**, aux mots des badges (Bronze, Argent, Or), achetés en jetons ; les « matchs à ton service » partent (un compteur qu'on attend, pas qu'on joue).
+- **Un adjoint rapporte, dès le premier échelon** : net positif, sous la borne de sa rareté (commune +0,5 V, rare +1,5 V, Or ×2), un défaut qui se voit mais ne l'annule pas. C'est la décision ouverte que le journal du 26 octobre note (*chaque carte de personnel reste un échange à zéro*). Mesure : `check_places`, `check_personnel`, `check_effets` avec les bornes montées.
+- **La main plafonnée** : cinq cartes en attente, le reste se vend. Une décision par carte de trop, pas un inventaire.
+
+### 2. Le build qui se voit
+
+Le plaisir d'un roguelike, c'est un build qui s'emboîte et qu'on voit grandir.
+
+- **Chaque coach a UNE stat signature** : le Frelon les tirs, la Tortue les tirs contre, l'Aigle la précision, le Rhino les mises en échec, le Doc les jambes, l'Abbé les punitions, le Contremaître la 3e et la 4e ligne, le Showman la 1re. L'écran Coach montre cette stat en grand, ta moyenne contre la ligue, jour après jour. Pas de « confiance I/II/III » en points : **la confiance monte quand sa stat signature est tenue** (dix matchs au-dessus de la ligue → II ; vingt → III). On comprend quoi faire, et chaque match y contribue.
+- **La couleur s'additionne et se lit** : joueurs de sa couleur habillés + adjoints de sa couleur = un multiplicateur affiché en une ligne (« ×1,4 ce soir »), le même que le moteur joue (`porteParSesJoueurs`). Le dépisteur, le Pack du coach, les adjoints offerts aux paliers tirent sa couleur deux fois sur trois.
+- **Des combos nommés** : le feu existe déjà (quatre adjoints, `check_combo`). Un combo par coach, trois adjoints qui ensemble ouvrent un effet qui casse (le droit du Rogue, principe 5), annoncé sur la carte : « Avec le géomètre et l'aiguiseur : la lancée vive ». Trois adjoints de sa couleur en poste = la III d'office.
+- **Ton adjoint en chef propose les plans du duel**, à sa couleur, à son échelon : un Or propose trois plans, un Bronze deux.
+- Mesure : `check_coachs`, `check_voies` (+6 à +8 V à la III, inchangé), `check_duel`, `check_combo`.
+
+### 3. Chaque lundi, une histoire
+
+- **Un seul incident par lundi**, avec sa scène (la voix, le fait en vrais chiffres, sa réplique), deux options, et **son verdict le lundi d'après**, en vrais chiffres de tes feuilles (« Tu as misé sur le quatrième trio : 3 buts en 4 matchs, le pari a payé »). Le suivi existe (`check_suivis`) ; il devient la règle, pas l'exception.
+- **Le pari se voit toujours pareil** : un dé qu'on lance à l'écran, ses faces gagnantes, le gain et le prix en deux lignes, à chaque pari (dossier, duel, fil), jamais en « une chance sur deux » à la main.
+- **Hier soir nomme ce que TES choix ont fait** : l'adjoint, le coach, le choix du lundi dans les causes d'un but (`check_causes` le fait déjà pour les cartes) ; une ligne « Ta semaine » le lundi : ce que ton build a rapporté en tirs, en buts, en victoires.
+- Mesure : `check_incidents` (le format unique), `check_suivis`, `check_causes`.
+
+### Ce que je propose de faire
+
+La structure **C + le duel de B** (le code), et le jeu **1 + 2 + 3** dessus, dans les tranches déjà prévues :
+
+| Tranche | Le code (C + B) | Le jeu (1, 2, 3) |
+|---|---|---|
+| 1. Lexique | js/lexique.js, check_lexique | les mots d'un seul sens |
+| 2. Vérité des chiffres | chaque écran lit le moteur ; la graine compte | — |
+| 3. Coach | la couleur lue partout | la stat signature, la confiance par cette stat, le multiplicateur affiché |
+| 4. Staff | un modèle de poste | cinq postes, trois échelons, net positif, un combo par coach, le chef au duel, la main à cinq |
+| 5. Incidents | une table, un tirage du matin | quatre sources, un lundi, deux options |
+| 6. Décision | un composant, une fenêtre | le dé toujours, le verdict le lundi d'après, « Ta semaine » |
+| 7. Anciennes parties | check_sauvegardes | ce que la banque ne connaît plus s'ignore |
+
+Ce qui se jette avec 1 : les 40 réponses de dossiers récrites le 26 octobre fondent dans un lundi plus court (une vingtaine d'incidents, deux options chacun), les courriels et la presse (js/vie-gm.js, 1 000 lignes) partent, trois postes et deux échelons partent, et les règles du Rogue raccourcissent d'autant.
