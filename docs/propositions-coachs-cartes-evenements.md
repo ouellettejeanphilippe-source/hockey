@@ -186,3 +186,48 @@ Le code : le modèle C avec le duel de B. Le jeu : les directions 1, 2 et 3, le 
 - Le budget d'un joueur nommé monte pour un incident (la règle de CLAUDE.md, ±0,3 point, ±0,15 but ou ±1 tir à sa ligne, vaut pour une CARTE, qui joue tous ses soirs) : un incident qui dure huit matchs a droit à ±1 point, ±0,5 but ou ±3 tirs à sa ligne. À confirmer par la mesure avant de toucher CLAUDE.md.
 - Le staff répond au joueur : le coach dit comment il le prend (sa couleur colore l'option), l'adjoint de son poste peut le protéger (`PROTEGES`). C'est ce qui lie les trois niveaux sans les additionner.
 - Les incidents d'équipe pure (la raclée, le calendrier chargé) restent petits et ne sont jamais seuls : ils viennent avec un joueur qui les porte.
+
+## Précisé (JP, 27 oct.) : *les incidents, toujours liés à des joueurs ; le staff, le style de jeu et les perks du DG ; des dates pour que ça joue plus*
+
+Ceci remplace le tableau « trois cibles » de la section précédente : l'incident n'a plus qu'une cible, un joueur.
+
+### La règle : trois canaux séparés, trois budgets séparés
+
+| Ce qui bouge | Qui le bouge | Quels canaux | Budget |
+|---|---|---|---|
+| **Un joueur** | un **incident**, toujours | ses canaux seulement (`CANAUX_MUT` : lancers, finition, création, défense, blessure, arrêts), plus sa lancée, ses jambes, un galon | **fort** sur lui, borné par la durée et par le net d'équipe (`check_arcs`, `check_parts`) |
+| **Le style de l'équipe** | le **coach** et les **adjoints** | les canaux d'équipe (volume, défense, discipline, jambes, blessures) | petit et permanent : `AMPLEUR_STYLE`, ±0,5 V au premier échelon (`check_places`) |
+| **L'économie du club** | la **direction** (les perks du DG) | les jetons par victoire, les rabais, le plafond (`econ`) | ne touche jamais le match |
+
+Un incident n'écrit **jamais** dans les canaux d'équipe, et le staff n'écrit **jamais** dans les canaux d'un joueur (sauf son protégé, qui est un joueur désigné). Les budgets ne se marchent pas dessus par construction : on peut mettre un gros effet sur un joueur sans toucher à l'équilibre du style, ni à celui de l'argent. `check_incidents` le vérifie sur le format : chaque incident a un `joueur`, ses effets sont dans `CANAUX_MUT`.
+
+### Un incident d'équipe trouve son joueur
+
+Un fait d'équipe se lit toujours dans les feuilles par quelqu'un. L'incident s'accroche à lui :
+
+| Fait d'équipe | Le joueur qui le porte |
+|---|---|
+| Une raclée, une série de défaites | le gardien partant (ses buts accordés), ou le capitaine |
+| Une disette | le meneur du club, ou le marqueur en panne (le doute) |
+| Trois soirs sur la route, un dos-à-dos | le plus bas en jambes |
+| L'infirmerie qui déborde | le blessé de plus long terme, ou celui qui revient |
+| Un rival dans la semaine | le meilleur marqueur contre ce rival, ou sa bête noire |
+| La caisse à sec, la masse salariale | le plus gros contrat |
+| Une recrue qui fait jaser | la recrue |
+| Le point de presse, le courriel | celui dont on parle (le fil le plus lourd) |
+
+Les dossiers ont déjà `joueur(f)` (cinq sur la table) ; les autres l'ont à gagner. Le staff y répond ailleurs : le coach colore l'option, l'adjoint du poste devient candidat au protégé.
+
+### Des dates, pour que ça joue plus : sept façons, cumulables
+
+1. **La fenêtre.** Un effet a un début et une fin, écrits en matchs : « dès lundi prochain, huit matchs ». Il existe déjà (`duree`, `ensuite: { apres, duree }`, comme le congé du gardien) ; ce qui manque, c'est de le montrer : une ligne « du 24e au 32e match » à la maison du joueur.
+2. **L'année de contrat.** Un joueur à son dernier contrat a une date : la fin de saison, ou la date limite des échanges (`DATE_LIMITE_MATCH`, 62). L'incident s'ouvre quand la date approche (« il joue pour son prochain contrat », déjà un incident de l'agent) et son effet est plus fort, sa blessure plus probable, jusqu'à la date. Après, il part ou il signe. Une échéance qu'on voit venir fait jouer.
+3. **Le compte à rebours.** Le retour d'un blessé, la fin d'une suspension, le jour où une recrue passe en deuxième année : l'incident porte la date, l'écran dit « dans 6 matchs », et ton choix de maintenant (le jouer amoché ou l'attendre) se paie à cette date.
+4. **Le prêt sur la lancée.** On emprunte à l'avenir : l'effet fort tout de suite, le prix à une date écrite d'avance (« +30 % en finition pendant six matchs, puis trois matchs à −20 % »). Le net sur toute la fenêtre reste sous la borne, mais le joueur a un vrai choix : prendre l'argent d'abord ou plus tard.
+5. **L'épisode daté.** Un arc de joueur en trois temps, à des lundis écrits : le lundi 1 son fait (il explose), le lundi 3 sa suite (la ligue s'ajuste, il doute), le lundi 5 son verdict (il tient ou il s'éteint). Les arcs (`ARCS`, `ESPACE_ARCS`) en ont déjà la forme ; ça fait d'un incident une histoire qu'on suit au lieu d'un clic.
+6. **Le moment.** L'effet n'attend pas une date mais un soir : seulement en séries, contre sa bête noire, au deuxième match d'un dos-à-dos (`MOMENTS_SI`). Le joueur « se garde » pour les séries : on y joue, on y arrive.
+7. **L'échéance de la direction.** Le DG a une date à lui : la date limite, la fin du mandat (le verdict du proprio aux 41 matchs). Un perk de la direction (un rabais, un plafond de plus) ne vaut que jusqu'à cette date, et un incident peut le prolonger : « le GM veut son joueur avant la date limite ».
+
+### Ce que je propose de retenir
+
+Les façons 1, 2 et 5 comme socle (la fenêtre visible, l'année de contrat, l'épisode daté), parce qu'elles existent presque déjà dans le code et que l'écran n'a qu'à les montrer ; 4 en option de choix risqué ; 3 et 6 là où le fait se lit sans effort ; 7 plus tard, avec la refonte de la direction (tranche 4). Le tout dans le format de la tranche 5 : `{ joueur, fait, debut, fin, options }`, une date de début et une de fin pour chaque incident.
