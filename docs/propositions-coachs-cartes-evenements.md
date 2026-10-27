@@ -231,3 +231,42 @@ Les dossiers ont déjà `joueur(f)` (cinq sur la table) ; les autres l'ont à ga
 ### Ce que je propose de retenir
 
 Les façons 1, 2 et 5 comme socle (la fenêtre visible, l'année de contrat, l'épisode daté), parce qu'elles existent presque déjà dans le code et que l'écran n'a qu'à les montrer ; 4 en option de choix risqué ; 3 et 6 là où le fait se lit sans effort ; 7 plus tard, avec la refonte de la direction (tranche 4). Le tout dans le format de la tranche 5 : `{ joueur, fait, debut, fin, options }`, une date de début et une de fin pour chaque incident.
+
+## Tranché (JP, 27 oct.) : *un visuel plus facile à lire, en général — les cartes, le texte des choix, moins d'effets visuels d'interface*
+
+**Le constat, mesuré dans style.css (6 757 lignes).**
+
+| Ce qu'on compte | Combien |
+|---|---|
+| `@keyframes` | 62, dont 16 animations en boucle (`infinite`) |
+| `animation` / `transition` | 97 / 71 |
+| `box-shadow` / `text-shadow` / `filter` | 337 / 56 / 81 |
+| `linear-gradient` / `radial-gradient` / `conic-gradient` | 374 / 215 / 24 |
+| `transform` / `clip-path` / `mix-blend-mode` | 502 / 59 / 19 |
+| lignes de style des cartes (`cs-`) | 932 |
+
+Beaucoup d'effets disent tous « regarde-moi » en même temps, donc aucun ne dit rien. Les boucles de l'édition (`ed-scintille`, `ed-prisme`, `ed-balaie`), les paquets qui flottent, pulsent et reflètent (`paquet-*`), le bouton qui respire (`go-respire`, `go-reflet`) tournent même quand on lit.
+
+**La règle : un seul mouvement à la fois, et il veut dire quelque chose.**
+- Une animation sert une seule chose : montrer qu'un état a changé (un but, un choix pris, une carte reçue) ou qu'une action attend. Elle joue UNE fois, dure au plus 300 ms, et ne boucle jamais. Une boucle (`infinite`) est permise pour un seul cas à l'écran : ce qui attend ton geste.
+- Le décor ne bouge pas : plus de scintillement, de prisme ni de reflet qui défile sur une carte ou un paquet au repos. La finition d'une édition (Or, Holo) se voit à sa couleur et à son cadre, fixes ; l'éclat joue une fois à l'ouverture du pack.
+- Un effet de profondeur par surface, pas trois : une ombre OU un dégradé OU un reflet. Les dégradés servent à lire (un fond d'équipe, une barre qui diverge), pas à décorer.
+- `prefers-reduced-motion` coupe tout ce qui reste (trois blocs aujourd'hui sur 62 animations).
+
+**Les cartes.**
+- Le recto garde ce qu'on lit d'un coup d'œil : le nom, le portrait ou la photo, le niveau, trois stats en barres, ses badges en icônes. Tout le reste est au verso (déjà la règle : *mettre les stats derrière la carte*).
+- Un texte sur une photo a toujours un fond plein ou un voile assez dense pour 4,5 : 1 de contraste au moins, jamais une ombre portée pour le sauver.
+- Une taille de police minimale (12 px sur téléphone) et une seule échelle de tailles (corps, petit, titre) pour toute l'interface, au lieu de tailles en `cqw` qui varient d'une série à l'autre.
+- Les 56 séries gardent chacune leur couleur et leur cadre (JP : *chaque année devra être différente*) ; la différence est dans la couleur, la bande du nom et le cadre, pas dans des effets.
+
+**Le texte des choix.**
+- Une option : un verbe (ce que tu fais), au plus deux lignes de stats vertes ou rouges (`bon`, `prix`), jamais de phrase d'ambiance. La scène dit qui demande et le fait ; l'option ne le redit pas.
+- Les stats d'un choix sont des barres ou des chiffres alignés, dans le même ordre à chaque fois (tirs, précision, tirs contre, arrêts, punitions, jambes). On compare en une passe, sans lire.
+- Trois options au plus. Le choix recommandé est marqué par sa place (le premier) et non par une couleur de plus.
+- Un seul rendu d'un pari : le dé et ses faces (tranche 6).
+
+**Comment on le tient.**
+- `scripts/check_lisibilite.mjs`, dans la CI avec `check_css.mjs` : aucune animation `infinite` hors d'une liste blanche (ce qui attend un geste) ; aucune `animation` sur `.cs-jeu` au repos ; aucune police sous le minimum ; le contraste de chaque texte de carte sur son fond, lu sur les 56 séries rendues par Playwright ; aucun choix de plus de trois options ni de plus de deux lignes de stats.
+- Le smoke existant (`sansDebordement`, `cibles44`) reste ; il s'y ajoute « rien ne bouge au repos » : deux captures espacées d'une seconde, identiques, hors de ce qui attend un geste.
+
+**Ce que ça retire de la refonte.** Les directions « moins, mais gros » et « le build qui se voit » ont besoin de cet espace : trois options, une seule stat signature en grand, un seul chiffre « ×1,4 ce soir ». Si l'écran crie partout, rien de ça ne se verra. La tranche 6 (la décision unifiée) est donc aussi celle où l'on enlève les effets des fenêtres de choix, et la tranche 4 (le staff) celle où la carte d'un adjoint perd ses reflets.
