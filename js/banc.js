@@ -16,7 +16,7 @@ import { money, esc } from './util.js';
 import { ouvrirEcranSeries, teamLabel, runPlayoffs, nombreEnSeries, renderResult, teamShort, tagCourt, sommaireDuSoir } from './bilan.js';
 import { getTeamLogoHtml, getTeamBand } from './logos.js';
 import { ouvrirSaison } from './saison.js';
-import { mandatDe, MANDATS, JETONS, ligueDe, niveauDeLigue, habillerLaLigue, recevoirPermanents, niveauxDeLaRecrue } from './rogue.js';
+import { mandatDe, MANDATS, JETONS, niveauDeLigue, habillerLaLigue, recevoirPermanents, niveauxDeLaRecrue } from './rogue.js';
 import { $, G, MODE, montrerPage, alignementAuCartable, applyTeamColors, buildOpponents, capLeft, estRenfort, headshotHtml, isPicked, majEntete, quiEst, render, saveGame, setOption, setView, slotsLeft, toast } from './game.js';
 import { apercuJoueur, carteAuCartable, carteMiniHtml, getShard, ligneDuChoix, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, poserCartesArrivees, quiSortOuCaseLibre, rareteJoueur, renderCap, slotShort } from './repechage.js';
 import { renderMain, coachHtml } from './alignement.js';
@@ -621,7 +621,7 @@ export async function runSeason(opts = {}) {
   if (opts.adversaires) {
     opponents = opts.adversaires.map(a => createTeam(a.name, a.tag, a.roster, { season: a.season, ecole: a.ecole || [] }));
   } else {
-    try { opponents = await buildOpponents(31, G.bonus === 'ROGUE' ? { part: ligueDe(niveau).part } : {}); } catch { opponents = []; }
+    try { opponents = await buildOpponents(31); } catch { opponents = []; }
   }
   // Leurs cartes : les éditions de la ligue en Rogue, aucune ailleurs (une ligue d'avant n'en laisse pas).
   habillerLaLigue(opponents, niveau, p => getHiddenRatings(p).v);

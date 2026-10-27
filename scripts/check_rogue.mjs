@@ -289,11 +289,11 @@ if (!isMainThread) {
       if (r.some((x, i) => i > 0 && x > r[i - 1])) fautes.push(`étape ${e} : un moins bon joueur a une meilleure carte`);
       if (e > 0 && somme(e) <= somme(e - 1) && somme(e - 1) < (ordre.length - 1) * n) fautes.push(`étape ${e} : rien ne monte`);
     }
-    const parts = [0, 1, 2, 3].map(L => ligueDe(L));
-    exiger('la ligue : les plus faibles d\'un tirage plus large au début, puis toute l\'histoire, et chaque niveau monte d\'une édition un tiers de chaque club',
-      !fautes.length && parts[0].part < parts[1].part && parts[1].part < 1 && parts[2].part === 1 && parts[2].etape === 0 && parts[3].etape === 1
+    const etapes = [0, 1, 2, 3].map(L => ligueDe(L).etape);
+    exiger('la ligue : toute l\'histoire sans édition aux premiers niveaux, puis chaque niveau monte d\'une édition un tiers de chaque club',
+      !fautes.length && etapes[0] === 0 && etapes[1] === 0 && etapes[2] === 0 && etapes[3] === 1
       && somme(0) === 0 && rangs(30).every(x => x === ordre.length - 1) && Math.abs(somme(3) - n) <= 1,
-      fautes.join(' · ') || `parts ${parts.map(x => x.part).join(' · ')} · éditions à l'étape 3 : ${somme(3)} crans pour ${n} joueurs`);
+      fautes.join(' · ') || `étapes ${etapes.join(' · ')} · éditions à l'étape 3 : ${somme(3)} crans pour ${n} joueurs`);
     exiger('un cran d\'exigence monte la ligue de ETAPES_PAR_CRAN niveaux, le prestige d\'un', niveauDeLigue(2, 0) === 2 && niveauDeLigue(4, 3) === 4 + 3 * ETAPES_PAR_CRAN && niveauDeLigue(0, 0) === 0,
       `Dynastie, cran 3 : niveau ${niveauDeLigue(4, 3)}`);
     const club = { roster: Object.fromEntries(Array.from({ length: n }, (_, i) => [i, { n: `j${i}`, v: n - i, _carte: { rar: 'rare' } }])) };
