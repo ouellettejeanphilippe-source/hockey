@@ -46,7 +46,7 @@ const FICHIERS = [
   // seul qui manque casse le premier `import` et la page ne démarre pas.
   // `scripts/check_coquille.mjs` le vérifie, il ne se relit pas.
   'js/game.js', 'js/sim.js', 'js/ratings.js', 'js/data.js', 'js/logos.js',
-  'js/traits.js', 'js/recit.js', 'js/causes.js', 'js/direct.js', 'js/bilan.js',
+  'js/traits.js', 'js/recit.js', 'js/causes.js', 'js/direct.js', 'js/glace.js', 'js/bilan.js',
   'js/entracte.js',
   'js/profil-style.js', 'js/impact.js',
   'js/equipes.js', 'js/saison.js', 'js/noeuds.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',

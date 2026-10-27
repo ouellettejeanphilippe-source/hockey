@@ -43,7 +43,7 @@ js/rogue-jeu.js       le Rogue à l'écran : jetons, boutique, packs, inventaire
 js/modes-table.js     le tournoi Sur table, ses règles, son bilan, le match d'exhibition au plateau
 js/charge-table.js    charge le mode Sur table à la demande (table, tournoi, plateau) : MT.nom, chargerTable()
 js/sim.js             l'alignement, le moteur de match, la ligue au jour le jour, les séries ; tout son hasard passe par hasard()
-js/ratings.js         les cotes cachées (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
+js/ratings.js         les cotes (partagé navigateur + build) : sous-cotes, valeur, salaire, rôles, zones
 js/data.js            le chargeur trois niveaux (shard, API, seed) et le cache IndexedDB
 js/saison.js          l'écran de saison et des séries : le Bureau (À faire, où les choix se règlent ; hier soir ; ton plan ; le journal), Ligue › Classement (un club s'y ouvre) et Calendrier
 js/gerant.js          les choix, le dépistage, l'écran du duel (`ouvrirDuel`, ce que ton adjoint propose)
@@ -52,6 +52,7 @@ js/coquille.js        la coquille fixe : l'écran de saison inscrit ses volets a
 js/pile.js            le retour, un niveau à la fois : Échap, bouton B, retour Android, « ‹ Retour »
 js/manette.js         la manette et le clavier : le focus au voisin, l'anneau lumineux, les invites
 js/direct.js          un match en direct, rejoué depuis sa feuille
+js/glace.js           la patinoire où les tirs apparaissent : la position d'un tir (illustrative) lue de la feuille — le danger, les icônes du tireur, l'accord de son trio, le texte du sommaire — `check_glace`
 js/commentaire.js     le commentateur du direct
 js/recit.js           les mots du sommaire d'un match
 js/scenes.js          les scènes des choix du Rogue : qui demande, le fait déjà joué, sa réplique sans chiffre — `check_clarte` § 5
@@ -114,7 +115,7 @@ La version longue, fichier par fichier, est dans `docs/structure-detaillee.md`.
 Chaque règle est une ligne ; le script qui la prouve est nommé quand il existe. Le pourquoi de chacune est dans `docs/decisions.md`.
 
 **Les cotes et les données**
-- Aucune cote dans le DOM, jamais ; ce qui s'affiche est un rang (le niveau) ou une vraie stat, jamais une cote — smoke `sansCote`.
+- Une cote peut s'afficher (JP, 27 oct. 2026 : *enlever la règle « aucune cote à l'écran »* ; la règle d'avant était « aucune cote dans le DOM, jamais » et son smoke `sansCote`, partis). Mais une cote affichée est une cote que le moteur JOUE, jamais un chiffre qu'il ignore : *une OV, c'est « telle carte est meilleure dans l'absolu », et en afficher une que le moteur ne joue pas serait mentir* (docs/refonte-v9.md). Le plan, des cotes sur 20, lues de `js/ratings.js` comme le niveau l'est déjà : docs/cotes-sur-20.md. Sans jouer le jeu aux cotes (JP : *on veut éviter quelque chose de trop basé sur les cotes*) : le niveau, les icônes, les vraies stats se lisent d'abord, la cote est un appui.
 - Une seule implémentation des cotes (`js/ratings.js`, partagée par le build et le navigateur) ; toucher une formule, c'est incrémenter `RATINGS_VERSION`.
 - La valeur est relative à la saison par construction ; la force d'équipe suit le vrai classement — `check_ratings` (corrélation autour de 0,8).
 - Un joueur-saison ne peut habiller qu'une équipe.
@@ -295,4 +296,4 @@ Depuis la 1.0 : `node scripts/check_robot.mjs` (le robot « premier Signer », 4
 - Ne scrape pas hockey-reference ni hockeydb. Leurs conditions l'interdisent. L'API de la LNH est publique et couvre 1917 à aujourd'hui.
 - N'ajoute pas de dépendance npm sans une bonne raison écrite dans `PLAN.md`.
 - Ne commite pas `data/seasons/*.json` à la main — c'est le job du script et de l'Action.
-- Ne mets pas les cotes cachées dans le DOM avant la simulation. Un joueur curieux qui ouvre l'inspecteur ne devrait pas pouvoir les lire. Elles vivent dans le coffre privé `RATINGS_VAULT` (js/sim.js), hors de `window.cap82.G`, et ne sortent que pour la simulation.
+- Ne montre pas une valeur brute du coffre privé `RATINGS_VAULT` (js/sim.js : `o d r c v sp`) : une cote qui s'affiche vient d'une fonction de `js/ratings.js` qui la dérive (la cote sur 20), la même que le moteur lit, jamais d'un champ interne copié dans un gabarit. (L'ancienne règle « aucune cote dans le DOM » est partie le 27 octobre 2026.)

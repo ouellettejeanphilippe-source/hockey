@@ -1,0 +1,84 @@
+/*
+ * LE CHIFFRE À TENIR DU COACH (js/chiffre.js ; tranche 3). Ce qui se prouve, sur de vraies saisons de 82 matchs :
+ *   1. un club ordinaire tient rarement le chiffre d'un coach (le hasard seul ne remplit pas les blocs) ;
+ *   2. un club qui joue ce coach à la confiance III le tient bien plus souvent (le chiffre dit la philosophie) ;
+ *   3. le plafond tient : au plus PLAFOND_TENUS points ;
+ *   4. une feuille sans les champs (partie d'avant) ne donne rien, et ne casse rien.
+ *
+ *   node scripts/check_chiffre.mjs     (LIGUES=4 pour le nombre de saisons par coach)
+ */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { autoRoster, registerHiddenRatings, createTeam, creerLigue, jouerJusqua } from '../js/sim.js';
+import { equipeReelle } from './lib/vestiaires.mjs';
+import { matchsJoues } from '../js/profil-style.js';
+import { effetDePalier, VOIES } from '../js/coachs.js';
+import { CHIFFRES, BLOC, PLAFOND_TENUS, blocsTenus, pointsTenus } from '../js/chiffre.js';
+import { exiger, informer, verdict } from './verdict.mjs';
+
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
+const DIR = path.join(ROOT, 'data', 'seasons');
+const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
+const LIGUES = Number(process.env.LIGUES || 3);
+
+function ligue(seed) {
+  const out = [], vus = new Set();
+  let k = seed * 7919;
+  while (out.length < 32) {
+    k = (k * 1103515245 + 12345) & 0x7fffffff;
+    const sh = JSON.parse(fs.readFileSync(path.join(DIR, SAISONS[k % SAISONS.length]), 'utf8'));
+    const tags = [...new Set(sh.players.map(p => p.t))], tag = tags[(k >> 8) % tags.length];
+    if (vus.has(`${sh.season}|${tag}`)) continue;
+    let un; try { un = equipeReelle(sh.season, tag); } catch { continue; }
+    if (un[0].length < 12 || un[1].length < 6 || un[2].length < 2) continue;
+    vus.add(`${sh.season}|${tag}`);
+    const p = un.flat().map(y => ({ ...y })); p.forEach(registerHiddenRatings);
+    out.push(createTeam(`${tag} ${sh.season}`, tag, autoRoster(p), { season: sh.season }));
+  }
+  return out;
+}
+function jouer(seed, coach) {
+  const teams = ligue(seed);
+  teams[0].isPlayer = true;
+  const decisions = coach ? [{ jour: 0, coach: effetDePalier(coach, 3) }] : [];
+  const L = creerLigue(teams, 82, { graine: `chiffre-${seed}`, courbe: true, decisions });
+  jouerJusqua(L, 190);
+  return { L, matchs: matchsJoues(L.calendrier), teams };
+}
+
+/* 1. Les clubs ordinaires : la part des blocs tenus, par coach. */
+const base = {};
+for (let s = 1; s <= LIGUES; s++) {
+  const { matchs, teams } = jouer(s, null);
+  for (const cle of VOIES) for (const t of teams.slice(1)) {
+    const r = blocsTenus(cle, matchs, t);
+    base[cle] = base[cle] || { blocs: 0, tenus: 0 };
+    base[cle].blocs += r.blocs; base[cle].tenus += r.tenus;
+  }
+}
+for (const cle of VOIES) {
+  const b = base[cle], taux = b.tenus / Math.max(1, b.blocs);
+  exiger(`${cle} : un club ordinaire tient « ${CHIFFRES[cle].nom} » dans moins du quart des blocs`, b.blocs >= 60 && taux < 0.25, `${(100 * taux).toFixed(0)} % de ${b.blocs} blocs`);
+}
+
+/* 2. Le coach à la confiance III tient son chiffre bien plus souvent. */
+for (const cle of VOIES) {
+  let blocs = 0, tenus = 0;
+  for (let s = 1; s <= LIGUES; s++) {
+    const { matchs, teams } = jouer(s, cle);
+    const r = blocsTenus(cle, matchs, teams[0]); blocs += r.blocs; tenus += r.tenus;
+  }
+  const taux = tenus / Math.max(1, blocs), tb = base[cle].tenus / Math.max(1, base[cle].blocs);
+  exiger(`${cle} à la confiance III tient son chiffre au moins 1,5 fois plus que le club ordinaire`, blocs >= 2 * LIGUES && taux >= Math.max(0.3, 1.5 * tb), `${(100 * taux).toFixed(0)} % contre ${(100 * tb).toFixed(0)} %`);
+}
+
+/* 3-4. Le plafond, et les feuilles d'avant. */
+{
+  const { matchs, teams } = jouer(1, 'essaim');
+  exiger('au plus PLAFOND_TENUS points', pointsTenus('essaim', matchs, teams[0]) <= PLAFOND_TENUS, `${pointsTenus('essaim', matchs, teams[0])}`);
+  exiger('un bloc compte BLOC matchs de ton club', blocsTenus('essaim', matchs, teams[0]).blocs === Math.floor(matchs.filter(m => m.A === teams[0] || m.B === teams[0]).length / BLOC), `${BLOC} matchs`);
+  informer('le Comptable n\'a pas de chiffre', `${blocsTenus('banque', matchs, teams[0]).blocs} bloc`);
+  exiger('sans feuilles, rien ne compte', pointsTenus('essaim', [], teams[0]) === 0);
+}
+verdict('Le chiffre à tenir du coach');
