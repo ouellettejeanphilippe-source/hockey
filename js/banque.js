@@ -468,7 +468,7 @@ export const idsDuCoach = coach => Object.values(BANQUE).filter(c => c.coach ===
  * ton service de ses adjoints (doublés à la couleur du coach en poste, comme les échelons). Les cartes jouées ne
  * comptent plus : le personnel est la seule carte bonus.
  */
-export const MATCHS_CONFIANCE = 60;
+export const MATCHS_CONFIANCE = 90;
 /* La base de chaque coach à une journée (`jusqua` exclue) : ce que le report et le départ lui donnent. Rend { cle: n }. */
 export function baseDesCoachs(decisions = [], jusqua = Infinity) {
   const n = Object.fromEntries(ORDRE_COACHS.map(k => [k, 0]));
@@ -494,7 +494,7 @@ export function buildDe(decisions = [], jusqua = Infinity, { joues = () => 0, te
     service[k] += (p.avant || 0) + joues(p.depuis ?? p.jour ?? 0, jusqua) * (C && C.cle === k ? 2 : 1);
   }
   for (const k of ORDRE_COACHS) n[k] += Math.floor(service[k] / MATCHS_CONFIANCE);
-  // V19 : le chiffre du coach en poste, tenu dix matchs de suite (js/chiffre.js) — un point par bloc, trois au plus.
+  // V19 : le chiffre du coach en poste, tenu dix matchs de suite (js/chiffre.js) — un point si un bloc est tenu, un au plus (la Coupe arrivait trop tôt avec trois : docs/chiffre-du-coach.md).
   if (C && C.cle in n) n[C.cle] += tenus(C.cle, jusqua);
   return n;
 }

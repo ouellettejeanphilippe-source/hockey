@@ -25,3 +25,18 @@
 
 - Régler la promesse du Rhino (les mises en échec) et trouver au Showman une stat de minutes ou de tirs de son 1er trio assez forte.
 - Brancher ensuite `pointsTenus` dans `buildDe` (`tenus` à côté de `joues`, js/banque.js ; banc.js et scripts/lib/cartes_robot.mjs le passent), l'afficher à la maison du coach, puis mesurer `check_coachs`, `check_voies` et `check_profondeur` (la première Coupe doit rester entre la run 3 et la run 8).
+
+## Branché (28 oct.) : un point, et le service plus lent
+
+Mesure `check_profondeur` (trois campagnes de quatre runs, l'attentif ; cible : la première Coupe entre la run 3 et la run 8) :
+
+| Variante | Médiane de la première Coupe |
+|---|---|
+| avant la V19 | 4 |
+| V19 avec le chiffre à trois points | 2,5 (trop tôt) |
+| V19 sans le chiffre | 5 |
+| chiffre à un point | 2 (encore trop tôt) |
+| chiffre à deux points, un point de service par 120 matchs | 2 |
+| **chiffre à un point, un point de service par 90 matchs** | **4** (l'attentif bat le robot d'avant de 5,0 V) |
+
+Branché ainsi : `PLAFOND_TENUS = 1`, `MATCHS_CONFIANCE = 90`. Un point de plus venu du chiffre se paie en retardant les points de service.
