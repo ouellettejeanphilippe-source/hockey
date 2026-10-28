@@ -1182,13 +1182,26 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte:not([open]) > summary');
     if (ligne) {
       await ligne.click(); await page.waitForTimeout(250);
-      const b = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte .gens-choix .maison-jouer:not([disabled])');
+      const b = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte .gens-choix [data-src="echelon"]:not([disabled])');
       const n0 = (await decisionsDuCombat()).length;
       if (b) { await b.click(); await page.waitForTimeout(600); await attendreDecisions(n0); }
       const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
       console.log(`10p. un échelon prêt, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
       if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
     } else console.log('10p. un échelon prêt, chez l\'entraîneur : aucun encore');
+  }
+  // V19 : un contrat se prolonge dans la fiche de sa carte, en jetons (« ct:<clé>:<n> »).
+  {
+    await versLOnglet('bureau', 'entraineur');
+    const bp = await page.$('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])');
+    if (bp) {
+      await page.$eval('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])', e => { const d = e.closest('details'); if (d) d.open = true; });
+      const n0 = (await decisionsDuCombat()).length;
+      await (await page.$('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])')).click(); await page.waitForTimeout(600); await attendreDecisions(n0);
+      const ct = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ct:'));
+      console.log(`10q. un contrat prolongé, chez l'entraîneur : ${ct.length} décision(s) de contrat${ct[0] ? `, ${ct[0].gain} 🪙` : ''}`);
+      if (!ct.length || !(ct[0].gain < 0)) erreurs.push('prolonger un contrat n\'écrit pas sa décision payée en jetons');
+    } else console.log('10q. un contrat à prolonger, chez l\'entraîneur : aucun (ou pas les jetons)');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste
