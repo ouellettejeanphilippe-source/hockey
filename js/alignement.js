@@ -7,10 +7,12 @@
 import { TRAITS, getTraits } from './traits.js';
 import { MT } from './charge-table.js';
 import { esc, estD as isD, glyphe, money, pct3 } from './util.js';
-import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, joueursDesCoachs, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne } from './sim.js';
+import { badgesDe, getPlayerKey, penaliteAffichee, SLOTS, fits, getUnitSynergy, identiteUnite, origineUnite, getPositionPenalty, ADAPT_MATCHS, partDesDeparts, activeLineup, lienDePaire, joueursDesCoachs, specialesDuSoir, accordsDeLigne, PALIERS, AGRESSIVITES, agressiviteDeLigne, MOMENTS_SI } from './sim.js';
 import { alignementAuMieux, unitesDuSoir, specialesEnStats, clubLu } from './impact.js';
 import { COACHS, SEUILS, ROMAINS, JOUEUR_COACH, palierDe, avantProchain } from './coachs.js';
-import { buildDe, coachsActifs, reglesDePalier } from './banque.js';
+import { buildDe, coachsActifs, patronsActifs, PATRONS, reglesDePalier } from './banque.js';
+import { COMBOS } from './personnel.js';
+import { motsEnChiffres } from './impact.js';
 import { matchsJoues } from './echelons.js';
 import { tenusDe, chiffreDit, BLOC, PLAFOND_TENUS } from './chiffre.js';
 import { jambesHtml, motDuBadge, ouvrirChoix, puces } from './gerant.js';
@@ -777,6 +779,12 @@ export function coachHtml(decs, j, injured = new Set()) {
     <div class="ej-jauge" role="img" aria-label="${n} point${n > 1 ? 's' : ''} de confiance"><i style="width:${Math.min(100, Math.round((n / fin) * 100))}%"></i>${SEUILS.map(x => `<em style="left:${Math.round((x / fin) * 100)}%"${n >= x ? ' class="fait"' : ''}><b>${ROMAINS[SEUILS.indexOf(x) + 1]}</b></em>`).join('')}</div>
     <div class="ej-coach-l">${n} point${n > 1 ? 's' : ''} de confiance${manque ? ` · ${ROMAINS[pal + 1]} dans ${manque}` : ''} · ${J.joueurs} joueur${J.joueurs > 1 ? 's' : ''} de sa couleur${pal && J.paliers ? ` · ×${(1 + JOUEUR_COACH * J.paliers).toFixed(1).replace('.', ',')}` : ''}</div>
     ${(c => (c ? `<div class="ej-coach-l"><span class="ej-k">À tenir</span> ${esc(c.nom)} : ${esc(c.but)}, dix matchs de suite · ${c.enCours}/${BLOC} · ${c.tenus} bloc${c.tenus > 1 ? 's' : ''} tenu${c.tenus > 1 ? 's' : ''} (+1 point chacun, ${PLAFOND_TENUS} au plus)</div>` : ''))(G.ligue ? chiffreDit(k, G.ligue.calendrier, G.ligue.you, j + 1) : null)}
+    ${(C => {
+      if (!C) return '';
+      const en = new Set(patronsActifs(decs, j + 1).map(p => p.cle));
+      const manque = C.cles.filter(c => !en.has(c)).map(c => PATRONS[c].nom);
+      return `<div class="ej-coach-l"><span class="ej-k">Combo</span> ${C.ico} ${esc(C.nom)} · ${esc(MOMENTS_SI[C.si].mot)} · ${puces(motsEnChiffres(C.effet))} · ${manque.length ? `il manque : ${esc(manque.join(', '))}` : 'en poste'}</div>`;
+    })(COMBOS[k])}
     ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
     ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}
   </div>`;

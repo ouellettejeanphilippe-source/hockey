@@ -18,7 +18,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
-import { PERSONNEL, PROTEGES } from './personnel.js';
+import { PERSONNEL, PROTEGES, COMBOS } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -998,7 +998,16 @@ export function assortiPour(coach, p) {
 }
 const assortir = (team, p) => assortiPour((((team && team.coachs) || [])[0] || {}).cle, p);
 /* Le personnel qui joue ce soir, chacun tel que son coach le reçoit (`assortir`). */
-const patronsDuSoir = team => ((team && team.patrons) || []).filter(c => joueCeSoir(team, c)).map(p => assortir(team, p));
+/* Le combo du coach en poste (js/personnel.js `COMBOS`) : ses deux adjoints en poste, un effet de plus ses soirs. `T._sansCombo` : la mesure en paires (`check_combos`). */
+function combosDuSoir(team) {
+  const coach = (((team && team.coachs) || [])[0] || {}).cle, C = coach && COMBOS[coach];
+  if (!C || team._sansCombo) return [];
+  const cles = new Set(((team && team.patrons) || []).map(p => p.cle));
+  if (!C.cles.every(c => cles.has(c))) return [];
+  const e = { cle: `combo:${coach}`, nom: C.nom, ico: C.ico, si: C.si, ...C.effet };
+  return joueCeSoir(team, e) ? [e] : [];
+}
+const patronsDuSoir = team => [...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)).map(p => assortir(team, p)), ...combosDuSoir(team)];
 function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;
