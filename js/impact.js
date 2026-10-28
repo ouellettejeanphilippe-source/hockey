@@ -376,9 +376,10 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
    */
   const sens = !eux && sensDeLaGlace(e);
   if (sens) {
-    const ecarts = ['F', 'D'].flatMap(g => (Array.isArray(e[g]) ? (d[g === 'F' ? 'glaceF' : 'glaceD'] || []).map((x, i) => ({ x, nom: RANGS_DE_GLACE[g][i] })) : []));
-    const plus = ecarts.reduce((a, b) => (b.x > a.x ? b : a), { x: 0 }), moins = ecarts.reduce((a, b) => (b.x < a.x ? b : a), { x: 0 });
-    const bouts = [plus, moins].filter(b => Math.abs(b.x) >= SEUILS.minutes).map(b => `${b.nom} ≈ ${signeDe(b.x)}${nb(b.x, 1)} min`);
+    // Chaque trio ou paire touché, d'où il part à où il arrive (« 4e trio 6,1 → 11,3 min »).
+    const ecarts = ['F', 'D'].flatMap(g => (Array.isArray(e[g]) ? (d[g === 'F' ? 'glaceF' : 'glaceD'] || []).map((x, i) => ({ x, nom: RANGS_DE_GLACE[g][i], de: (sans[g === 'F' ? 'glaceF' : 'glaceD'] || [])[i] || 0 })) : []));
+    const bouts = ecarts.filter(b => Math.abs(b.x) >= SEUILS.minutes).sort((a, b) => Math.abs(b.x) - Math.abs(a.x))
+      .map(b => `${b.nom} ${signeDe(b.x)}${nb(b.x, 1)} min (${un(b.de)} → ${un(b.de + b.x)})`);
     out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} ${par}` : `${sens}, à peine`, bon: null, cle: 'glace' });
   }
   return out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
