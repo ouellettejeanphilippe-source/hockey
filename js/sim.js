@@ -1017,7 +1017,8 @@ function fondDuStyle(p) {
   for (const g of ['F', 'D']) if (Array.isArray(p[g])) out[g] = p[g].map(m => m ** FOND_DU_STYLE);
   return out;
 }
-const patronsDuSoir = team => [...((team && team.patrons) || []).map(p => assortir(team, joueCeSoir(team, p) ? p : fondDuStyle(p))), ...combosDuSoir(team)];
+const enFond = p => String(p.cle).startsWith('per_');   // seuls les adjoints jouent en fond ; une réponse ou une route attend son moment
+const patronsDuSoir = team => [...((team && team.patrons) || []).filter(p => joueCeSoir(team, p) || enFond(p)).map(p => assortir(team, joueCeSoir(team, p) ? p : fondDuStyle(p))), ...combosDuSoir(team)];
 function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;

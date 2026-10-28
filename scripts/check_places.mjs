@@ -37,7 +37,7 @@ const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
  */
 const STYLE_V = 0.5, BUTS_PAR_V = 6;
 /* Le fond d'un adjoint (V19) : ses soirs hors moment, sur le reste de la saison, sous cette borne en victoires. */
-const FOND_V = 1;
+const FOND_V = 1.5;
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
 /* Les piles mesurées : le personnel, les réponses des dossiers (V10-5 ; V16, tranche 6 : le contrat lourd en est une) et les cartes des routes. */
 const PILE = { q: 'personnel', d: 'dossier', r: 'route' };
