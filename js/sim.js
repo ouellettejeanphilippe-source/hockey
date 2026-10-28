@@ -1684,7 +1684,7 @@ export const BAGARRE_JAMBES = 8;
 export const ELAN_BAGARRE = 1.06, ELAN_BAGARRE_PERDU = 0.94, ELAN_DUREE = 10, BAGARRE_MINUTES = 5, MELEE_MINUTES = 2;
 export const COUP_MARQUANT_JAMBES = 2, BLESSURE_SONNE = 1.5, BLESSURE_BAGARRE_PERDUE = 3;
 /* Les coups qu'un alignement donne par match, attendus (la même formule qu'`encaisserCoups`). */
-export function coupsAttendus(profil) {
+export function coupsAttendus(profil, sansCartes = false) {
   let total = 0;
   if (!profil || !profil.unites) return 0;
   for (const g of ['F', 'D']) for (const u of profil.unites[g]) {
@@ -1693,7 +1693,7 @@ export function coupsAttendus(profil) {
     total += u.joueurs.reduce((a, p) => a + coupsDe(p), 0) * (u.presence || 0) / (PART_UNITE[g][u.rang] || u.presence || 1) * (0.6 + A.physique);
   }
   // Le Rhino, et toute carte de robustesse : un club qui cogne plus (V19 ; la feuille et les jambes de l'autre le disent).
-  return total * Math.exp(COUPS_PAR_ROB * (profil.robCartes || 0));
+  return sansCartes ? total : total * Math.exp(COUPS_PAR_ROB * (profil.robCartes || 0));
 }
 const scoreBagarreur = p => ((profilsDe(p) || {}).bagarreur || 0) / 100;
 /* Est-il au cachot à cet instant ? (les cinq minutes d'une bagarre) */
@@ -1776,7 +1776,15 @@ function tirerPhysique(pA, pB, T0, T1, journal, track) {
     if (track) { a.simPIM = (a.simPIM || 0) + MELEE_MINUTES; b.simPIM = (b.simPIM || 0) + MELEE_MINUTES; }
     noter({ type: 'melee', cote: hasard() < 0.5 ? 'A' : 'B', instant: t, joueur: a, cible: b, minutes: MELEE_MINUTES });
   }
-  if (journal) { journal.coups.A += Math.round(coupsAttendus(pA) * frac); journal.coups.B += Math.round(coupsAttendus(pB) * frac); }
+  if (journal) {
+    journal.coups.A += Math.round(coupsAttendus(pA) * frac); journal.coups.B += Math.round(coupsAttendus(pB) * frac);
+    // V19 : ce que l'alignement donnerait sans carte de robustesse, et la part de glace du premier trio — le chiffre du Rhino et du Showman (js/chiffre.js) les lit.
+    for (const [c, p] of [['A', pA], ['B', pB]]) {
+      journal.coupsBase[c] += coupsAttendus(p, true) * frac;
+      const F = (p.unites && p.unites.F) || [], tot = F.reduce((a, x) => a + (x.presence || 0), 0);
+      if (F[0] && tot > 0) journal.glacePremier[c] += (F[0].presence / tot) * frac;
+    }
+  }
 }
 
 
@@ -5339,15 +5347,33 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
     const h2 = jouerSoixanteMinutes(qA, qB, gA, gB, chanceA, chanceB, heavy, track, series, journal, LA, LB, ronde, [40, 60]);
     gfA = h1.gfA + h2.gfA; gfB = h1.gfB + h2.gfB;
   }
-  let ot = false;
+  let ot = false, tb = null;
 
   if (gfA === gfB) {
     ot = true;
     if (journal) journal.prolongation = true;
     const p = 1 / (1 + Math.exp(-((sA.clu + pA.meneur) - (sB.clu + pB.meneur)) / 9));
-    // Le but gagnant appartient à un joueur, comme tous les autres.
-    if (hasard() < p) { gfA++; butProlongation(pA, pB, gB, track, journal, 'A'); }
-    else { gfB++; butProlongation(pB, pA, gA, track, journal, 'B'); }
+    if (series) {
+      // EN SÉRIES, LA MORT SUBITE : des périodes de vingt minutes jusqu'au premier but (V19 ; JP : *tout se finit toujours en
+      // première prolongation*). Le but gagnant appartient à un joueur, comme tous les autres.
+      let k = 0;
+      while (k < PROLONGATIONS_MAX - 1 && hasard() < P_PERIODE_SANS_BUT) k++;
+      if (journal) { journal.otLongue = true; journal.periodesOT = k + 1; }
+      const instant = 60 + k * 20 + hasard() * 20;
+      if (hasard() < p) { gfA++; butProlongation(pA, pB, gB, track, journal, 'A', instant); }
+      else { gfB++; butProlongation(pB, pA, gA, track, journal, 'B', instant); }
+    } else if (hasard() < P_BUT_EN_PROLONGATION) {
+      // Cinq minutes à trois contre trois : un but, et le match finit.
+      if (hasard() < p) { gfA++; butProlongation(pA, pB, gB, track, journal, 'A'); }
+      else { gfB++; butProlongation(pB, pA, gA, track, journal, 'B'); }
+    } else {
+      // Sinon, les tirs de barrage : le gagnant ajoute un but au pointage, sans marqueur (comme à la LNH, aucun joueur n'en est crédité).
+      const gagneA = hasard() < 0.5 + (p - 0.5) * FUSILLADE_FORCE;
+      const w = 1 + Math.floor(hasard() * 3), l = Math.floor(hasard() * w);
+      if (gagneA) gfA++; else gfB++;
+      tb = gagneA ? 'A' : 'B';
+      if (journal) journal.fusillade = { gagnant: gagneA ? 'A' : 'B', A: gagneA ? w : l, B: gagneA ? l : w };
+    }
   }
   if (journal) {
     Object.assign(journal, {
@@ -5371,12 +5397,14 @@ export function playGame(A, B, gameIdx, track = true, series = false, journal = 
   const winA = gfA > gfB;
 
   if (track) {
-    A.GF += gfA; A.GA += gfB; B.GF += gfB; B.GA += gfA;
+    // Le but des tirs de barrage fait gagner le match, mais ne compte ni aux buts de l'équipe ni à ceux contre son gardien : aucun joueur ne l'a marqué.
+    const sansTB = (g, c) => g - (tb === c ? 1 : 0);
+    A.GF += sansTB(gfA, 'A'); A.GA += sansTB(gfB, 'B'); B.GF += sansTB(gfB, 'B'); B.GA += sansTB(gfA, 'A');
     if (winA) { A.W++; if (ot) B.OTL++; else B.L++; }
     else { B.W++; if (ot) A.OTL++; else A.L++; }
     A.PTS = A.W * 2 + A.OTL; B.PTS = B.W * 2 + B.OTL;
-    crediterMatch(LA, gA, gfB, winA, !winA && ot);
-    crediterMatch(LB, gB, gfA, !winA, winA && ot);
+    crediterMatch(LA, gA, sansTB(gfB, 'B'), winA, !winA && ot);
+    crediterMatch(LB, gB, sansTB(gfA, 'A'), !winA, winA && ot);
     updateTogether(A, LA); updateTogether(B, LB);
     // LA CHIMIE ET L'ÉNERGIE (S68), après le match : la chimie des lignes qui
     // ont joué, et l'usure de ceux qui étaient sur la glace.
@@ -5782,7 +5810,9 @@ const CAUSES_PREUVE = Number(ENV_MESURE.CAUSES_PREUVE ?? 0);
 /* La molette `CAUSES=0` ne lit aucune cause : la preuve que les lire ne touche à aucun dé (`check_causes`). */
 const CAUSES_MESURE = Number(ENV_MESURE.CAUSES ?? 1);
 
-function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A') {
+/* V19 : en saison, un match nul après soixante minutes va en prolongation de cinq minutes ; un sur deux s'y règle, l'autre aux tirs de barrage. En séries : des périodes de vingt minutes. */
+const P_BUT_EN_PROLONGATION = 0.55, FUSILLADE_FORCE = 0.3, P_PERIODE_SANS_BUT = 0.17, PROLONGATIONS_MAX = 8;
+function butProlongation(off, def, gardien, track = true, journal = null, cote = 'A', instantOT = null) {
   if (track && gardien) gardien.simSA = (gardien.simSA || 0) + 1;
   let glaceContre = [];
   if (track && def && def.unites) {
@@ -5814,7 +5844,7 @@ function butProlongation(off, def, gardien, track = true, journal = null, cote =
     for (const x of glace) { x.simPM++; x.simPlus = (x.simPlus || 0) + 1; }
   }
   if (journal) {
-    const instant = 60 + hasard() * 5;
+    const instant = instantOT ?? 60 + hasard() * 5;
     journal.tirs[cote][4]++;
     journal.lancers.push({ cote, instant, tireur, gardien, but: true });
     journal.buts.push({ cote, instant, marqueur: tireur, passeurs, gardien, gagnant: true, pour: glace, contre: glaceContre });
@@ -6798,6 +6828,8 @@ export function feuilleVierge() {
     blessures: [],                                        // { cote, joueur, matchs, instant } : racontées au direct (S80)
     physique: [],                                         // { type: coup | bagarre | melee, cote, instant, joueur, cible, gagnant, minutes } (1.0)
     coups: { A: 0, B: 0 },                                // les mises en échec de chaque club, attendues (1.0)
+    coupsBase: { A: 0, B: 0 },                            // les mêmes, sans carte de robustesse (V19)
+    glacePremier: { A: 0, B: 0 },                         // la part de glace du premier trio de chaque club (V19)
     tirs: { A: [0, 0, 0, 0, 0], B: [0, 0, 0, 0, 0] },   // index 1-4 : périodes
     arrets: { A: 0, B: 0 },
     prolongation: false,

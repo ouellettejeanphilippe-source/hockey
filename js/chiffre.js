@@ -4,8 +4,8 @@
  * la sienne (les tirs du Frelon, les tirs contre de la Tortue…), lue dans les feuilles jouées et comparée à la
  * ligue. Dix matchs de suite où ton club la tient, c'est un bloc tenu : un point de confiance de plus (`PLAFOND_TENUS`, un seul : mesuré, plus fait venir la première Coupe trop tôt). Une philosophie qu'on vit vaut plus qu'une philosophie qu'on achète.
  *
- * Le Rhino et le Showman n'ont pas encore le leur : le club de l'IA et le tien ne s'alignent pas pareil (agressivité, minutes), et
- * leur écart à la ligue dépasse leur effet (docs/chiffre-du-coach.md). Aucune mécanique neuve : une stat que le moteur joue déjà, un compte de plus dans `buildDe` (js/banque.js). Les
+ * Le Rhino et le Showman lisent le leur dans la feuille même (`coupsBase`, `glacePremier`), pas contre la ligue : l'époque d'un
+ * club dépasse l'effet d'un coach (docs/chiffre-du-coach.md). Aucune mécanique neuve : une stat que le moteur joue déjà, un compte de plus dans `buildDe` (js/banque.js). Les
  * blocs se recomptent des feuilles, comme les matchs à ton service ; une partie d'avant n'en a pas, et ça se tait.
  * Pur (navigateur + Node) ; `scripts/check_chiffre.mjs` le mesure.
  */
@@ -33,6 +33,18 @@ export const CHIFFRES = {
     mot: () => 'presque deux points de précision de plus que la ligue',
   },
   tortue: { nom: 'Tirs contre', sens: -1, seuil: 3, valeur: (fs, c) => moy(fs.map(f => chiffresDuMatch(f, c).tirsContre)), mot: n => `${n} tirs contre de moins que la ligue par match` },
+  // Les mises en échec que ton alignement donne, contre ce qu'il donnerait sans carte de robustesse : l'époque et le gabarit des clubs s'annulent.
+  rhinos: {
+    nom: 'Mises en échec', sens: 1, seuil: 0.08,
+    valeur: (fs, c) => { const b = fs.reduce((t, f) => t + ((f.coupsBase && f.coupsBase[c]) || 0), 0); return b > 0 ? fs.reduce((t, f) => t + (f.coups[c] || 0), 0) / b : 1; },
+    mot: () => 'huit pour cent de mises en échec de plus que ton alignement n\'en donne seul',
+  },
+  // La part de glace de ton premier trio, lue de la feuille (les minutes que le moteur lui donne).
+  etoiles: {
+    nom: 'Glace du premier trio', sens: 1, seuil: 0.04,
+    valeur: (fs, c) => moy(fs.map(f => (f.glacePremier && f.glacePremier[c]) || 0)),
+    mot: () => 'quatre pour cent de la glace de plus pour ton premier trio que la ligue',
+  },
   souffle: { nom: 'Blessures', sens: -1, seuil: 0.14, valeur: (fs, c) => moy(fs.map(f => (f.blessures || []).filter(b => b.cote === c).length)), mot: () => 'deux fois moins de blessures que la ligue' },
   choeur: { nom: 'Punitions', sens: -1, seuil: 1, valeur: (fs, c) => moy(fs.map(f => chiffresDuMatch(f, c).punitions)), mot: n => `${n} punition de moins que la ligue par match` },
   profondeur: { nom: 'Buts des 3e et 4e trios', sens: 1, seuil: 0.08, valeur: partDeLigne(l => l >= 3), mot: () => 'plus de buts du bas de l\'alignement que la ligue' },

@@ -1420,7 +1420,7 @@ function sommaireDeMatch({ f, A, B, mode = 'series', avant = new Map(), titre = 
      donnent, avec les écusson et les tirs. Trois lignes de titre sur un
      téléphone repoussaient le sommaire sous le pli pour rien. */
   const enTete = `${esc(titre)} · ${esc(teamShort(A))} — ${esc(teamShort(B))}`
-    + (f.ot ? ' <span class="som-ot">prolongation</span>' : '');
+    + (f.fusillade ? ' <span class="som-ot">tirs de barrage</span>' : f.ot ? ` <span class="som-ot">${f.periodesOT > 1 ? `${f.periodesOT}e ` : ''}prolongation</span>` : '');
   // LES CARTONS D'ABORD, PAS UNE PHRASE. Le sommaire s'ouvrait sur un résumé
   // écrit ; les trois étoiles et le tableau du match disent la même chose en
   // chiffres, et ne se répètent pas d'un match à l'autre.

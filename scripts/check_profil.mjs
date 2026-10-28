@@ -103,7 +103,7 @@ const Lg = profilDeLigue(tout, toi);
 let sT = 0, sB = 0, sP = 0, k = 0;
 for (const m of tout) for (const c of ['A', 'B']) {
   if ((c === 'A' ? m.A : m.B) === toi) continue;
-  sT += m.f.lancers.filter(l => l.cote === c).length; sB += c === 'A' ? m.f.gfA : m.f.gfB; sP += m.f.punitions.filter(p => p.cote === c).length; k++;
+  sT += m.f.lancers.filter(l => l.cote === c).length; sB += m.f.buts.filter(b => b.cote === c).length; sP += m.f.punitions.filter(p => p.cote === c).length; k++;
 }
 exiger('la ligue : les tirs, les buts et les punitions des autres clubs, recomptés', Lg && pres(Lg.tirsPour, sT / k) && pres(Lg.butsPour, sB / k) && pres(Lg.punitions, sP / k),
   `${Lg.tirsPour.toFixed(2)} tirs · ${Lg.butsPour.toFixed(2)} buts · ${Lg.punitions.toFixed(2)} punitions sur ${k} côtés`);

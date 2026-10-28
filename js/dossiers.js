@@ -38,11 +38,12 @@ export const DOSSIERS = {
   laRoute: {
     de: 'ph', ico: '🧳', titre: 'La semaine sur la route',
     quand: f => f.visiteur >= 3,
-    fait: f => `${f.visiteur} matchs à l'étranger cette semaine · jambes ${f.jambes}`,
+    joueur: f => f.pire,
+    fait: f => `${f.visiteur} matchs à l'étranger cette semaine · jambes ${f.jambes}${f.pire ? ` · ${f.pire.n} : ${f.pire.j}` : ''}`,
     mots: ['Les valises sont faites, les jambes, pas encore. Je veux des bas de compression dans chaque sac.',
       'L\'autobus, l\'avion, l\'hôtel. Si on ne fait rien, on va arriver au troisième soir sur les genoux.'],
     options: [
-      { cle: 'compression', nom: 'Les bas de compression', bon: 'Les jambes tiennent sur la route', si: 'visiteur', duree: 6, energie: 0.52 },
+      { cle: 'compression', nom: 'Les bas de compression', bon: 'Les jambes tiennent sur la route', si: 'visiteur', duree: 6, energie: 0.52, action: { energie: 12 } },
       { cle: 'pratique', nom: 'Pratiquer à chaque arrêt', bon: 'Plus de précision : les mains restent chaudes', prix: 'Les jambes paient', si: 'visiteur', duree: 6, finition: 1.4, energie: 1.31 },
     ],
   },
@@ -60,11 +61,12 @@ export const DOSSIERS = {
   leDosADos: {
     de: 'en', ico: '🔁', titre: 'Deux soirs de suite',
     quand: f => f.dos >= 1,
-    fait: f => `${f.dos} dos-à-dos cette semaine · jambes ${f.jambes}`,
+    joueur: f => f.pire,
+    fait: f => `${f.dos} dos-à-dos cette semaine · jambes ${f.jambes}${f.pire ? ` · ${f.pire.n} : ${f.pire.j}` : ''}`,
     mots: ['Le deuxième soir, c\'est là qu\'on perd des matchs. Je veux savoir qui joue avant de monter dans l\'autobus.',
       'Deux soirs de suite. Moi, je partagerais la glace ; les vedettes vont chialer.'],
     options: [
-      { cle: 'partager', nom: 'Partager la glace', bon: 'Le quatrième trio porte le deuxième soir, les jambes tiennent', prix: 'Tes vedettes jouent moins', si: 'dosADos', duree: 10, F: [0.88, 0.97, 1.08, 1.25], energie: 0.51 },
+      { cle: 'partager', nom: 'Partager la glace', bon: 'Le quatrième trio porte le deuxième soir, les jambes tiennent', prix: 'Tes vedettes jouent moins', si: 'dosADos', duree: 10, F: [0.88, 0.97, 1.08, 1.25], energie: 0.51, action: { energie: 15 } },
       { cle: 'vedettes', nom: 'Les vedettes, les deux soirs', bon: 'Le premier trio ne sort pas', prix: 'Les jambes lâchent le deuxième soir', si: 'dosADos', duree: 10, F: [1.2, 1.05, 0.9, 0.8], energie: 1.3 },
     ],
   },
