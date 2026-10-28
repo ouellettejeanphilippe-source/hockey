@@ -162,7 +162,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
 export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour, joues = () => 0 }) {
   if (politique === 'defaut') return [];
   const adjoints = ids.filter(id => BANQUE[id] && BANQUE[id].cat === 'patron');
-  const enPoste = patronsActifs(decisions);
+  const enPoste = patronsActifs(decisions, jour + 1);
   const [coach] = coachsActifs(decisions);
   const couleur = cle => BANQUE[`patron:${cle}`] && BANQUE[`patron:${cle}`].coach;
   const tenu = role => enPoste.find(x => x.role === role) || null;

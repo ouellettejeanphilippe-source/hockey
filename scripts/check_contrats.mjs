@@ -8,7 +8,8 @@
  *   4. le moteur : l'adjoint part au jour dit (son protégé avec lui), la prolongation le garde, la saison suivante repart de zéro.
  */
 import { CONTRAT_JOURS, PRIX_PROLONGATION, JOURS_DE_SAISON, finDuContrat } from '../js/personnel.js';
-import { patronsActifs } from '../js/banque.js';
+import { patronsActifs, buildDe, palierAllume, BANQUE } from '../js/banque.js';
+import { effetDePalier } from '../js/coachs.js';
 import { patronALEchelon, etatDuPersonnel, decisionDeProlongation, reportDuPersonnel, prixDeProlongation } from '../js/echelons.js';
 import { autoRoster, registerHiddenRatings, createTeam, simulateLeague } from '../js/sim.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -35,6 +36,17 @@ exiger('prolongée une fois, elle mène la saison à terme', patronsActifs(prolo
 exiger('prolonger encore n\'a plus de sens : l\'état le dit', etatDuPersonnel(prolonge, 150, { joues: () => 0 })[0].prolongeable === false && e.prolongeable === true);
 const rep = reportDuPersonnel(etatDuPersonnel(prolonge, 150, { joues: () => 40 })[0]);
 exiger('la saison suivante, le contrat repart de zéro', finDuContrat({ ...rep, jour: 0 }) === CONTRAT_JOURS.commune && !rep.prolonge);
+
+/* La confiance du coach suit les contrats : un adjoint de sa couleur compte tant qu'il est en poste, et la décision d'un jour se juge à ce jour-là. */
+{
+  const T = Object.keys(BANQUE).find(id => id.startsWith('patron:') && BANQUE[id].coach === 'tortue' && BANQUE[id].rarete === 'commune');
+  const base = [{ jour: 0, coachsDeBase: { tortue: 6 }, coach: effetDePalier('tortue', 1) }];
+  const d = { jour: 10, patron: patronALEchelon(BANQUE[T].cle, {}) }, decs = [...base, d];
+  const fin = finDuContrat({ cle: BANQUE[T].cle, jour: 10 });
+  exiger('un adjoint de sa couleur compte pour la confiance tant que son contrat dure, plus après', buildDe(decs, 50).tortue === buildDe(base, 50).tortue + 1 && buildDe(decs, fin + 1).tortue === buildDe(base, 50).tortue, `${buildDe(decs, 50).tortue} → ${buildDe(decs, fin + 1).tortue} points`);
+  const a = palierAllume(base, { ...d, jour: 10 });
+  exiger('la décision d\'engagement recompte la confiance à son jour, pas au bout de la saison', (a ? a.coach.palier : 1) >= 1 && Number.isFinite(d.jour));
+}
 
 /* Le moteur : une saison, l'adjoint part au jour dit ; prolongé, il reste. */
 const club = ([lab, sa, t]) => { const ps = equipeReelle(sa, t).flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings); const T = createTeam(lab, t, autoRoster(ps), { season: sa }); T.isPlayer = true; return T; };

@@ -519,7 +519,9 @@ export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true
  * confiance atteinte), ou null. Pur : les décisions d'avant, celle-ci, et les matchs joués (`joues`).
  */
 export function palierAllume(decisions = [], d, { joues = () => 0, tenus = () => 0 } = {}) {
-  const avant = buildDe(decisions, Infinity, { joues, tenus }), apres = buildDe([...decisions, d], Infinity, { joues, tenus });
+  // À la journée de la décision (V19) : un contrat fini n'est plus en poste, et « jusqu'au bout de la saison » ne compterait que ceux qu'on a prolongés.
+  const jusqua = Number.isFinite(d.jour) ? d.jour + 1 : Infinity;
+  const avant = buildDe(decisions, jusqua, { joues, tenus }), apres = buildDe([...decisions, d], jusqua, { joues, tenus });
   // Seul le coach en poste monte (V5) : un adjoint d'une autre couleur joue son effet, sans changer de coach.
   const [actif] = coachsActifs(decisions);
   const e = actif ? (palierDe(apres[actif.cle]) > actif.palier ? actif.cle : null)
