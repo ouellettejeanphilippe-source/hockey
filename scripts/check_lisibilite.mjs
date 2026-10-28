@@ -11,6 +11,9 @@
  *   3. LES CARTES GARDENT LEURS FINITIONS : le scintillement, le prisme, le reflet, le paquet et leur entrée
  *      (`carte-entre`) existent et servent. Les nettoyer par erreur est le seul échec qu'on ne veut pas.
  *   4. LE MOUVEMENT S'ÉTEINT POUR QUI LE DEMANDE (`prefers-reduced-motion`).
+ *   5. DES SURFACES PLATES (JP : *penser comme GM Connected*) : la surface de base (`--panneau`, `--relief`) est un aplat sans
+ *      ombre, et ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé ; l'onglet ouvert est un bloc
+ *      plein et clair, texte noir, le même partout.
  *
  *   node scripts/check_lisibilite.mjs
  */
@@ -76,5 +79,19 @@ informer('feuille lue', `${keyframes.size} @keyframes, ${regles.length} règles`
 
 /* 4. Le mouvement s'éteint. */
 exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-motion: reduce\)\s*\{[^{}]*\*[^{}]*\{[^{}]*animation-duration/.test(css), 'une règle générale');
+
+/* 5. Des surfaces plates. */
+{
+  const racine = css.match(/:root\s*\{[^}]*\}/g).join(' ');
+  const decl = nom => (racine.match(new RegExp(`${nom}:\\s*([^;]+);`)) || [])[1] || '';
+  exiger('la surface de base est un aplat : --panneau sans dégradé', !/gradient\(/.test(decl('--panneau')) && decl('--panneau') !== '', decl('--panneau'));
+  exiger('la surface de base est sans ombre : --relief ne porte ni flou ni décalage', /^0 0 0 0 /.test(decl('--relief').trim()), decl('--relief'));
+  const DECOR = [/^\.navtab/, /^\.navbar/, /^\.btn\.(go|gold)\b/, /^\.choix-option(\.on)?$/, /^\.hub-hier/, /^:is\(\.soustab/];
+  const fautes = regles.filter(r => DECOR.some(d => d.test(r.sel)) && /gradient\(/.test(r.corps)).map(r => r.sel);
+  exiger('ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé', !fautes.length, fautes.join(' · ') || 'aucun');
+  const actif = regles.find(r => /^:is\(\.soustab[^)]*\)\.on$/.test(r.sel));
+  const barre = regles.find(r => r.sel === '.navtab.on');
+  exiger('l\'onglet ouvert est un bloc plein et clair, texte noir — en haut comme dans la barre', !!actif && !!barre && /background:\s*var\(--encre\)/.test(actif.corps) && /color:\s*var\(--noir\)/.test(actif.corps) && /background:\s*var\(--encre\)/.test(barre.corps) && /color:\s*var\(--noir\)/.test(barre.corps));
+}
 
 verdict('Le décor calme, les cartes belles');

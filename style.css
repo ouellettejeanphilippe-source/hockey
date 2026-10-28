@@ -174,8 +174,9 @@
   --scene: var(--ambiance), var(--voile-photo), linear-gradient(90deg, var(--noir) calc(100% - 71.5vh), transparent calc(100% - 45vh)), var(--photo) 100% 0 / auto 100% no-repeat;
   /* Le chiffre qui compte (un pointage, une fiche) : blanc en haut, la couleur du club en bas. */
   --chiffre-or: linear-gradient(180deg, #ffffff 20%, color-mix(in srgb, var(--club-vif) 55%, var(--encre)) 100%);
-  --panneau: linear-gradient(180deg, color-mix(in srgb, var(--fond-2) 92%, var(--club-vif)), var(--fond-1) 70%);
-  --relief: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 28px -14px rgba(0, 0, 0, 0.95);
+  /* Des surfaces plates (JP : *penser comme GM Connected*) : un aplat et un filet, un cran de gris entre deux surfaces ; ni dégradé ni ombre. */
+  --panneau: var(--fond-2);
+  --relief: 0 0 0 0 transparent;
   --reflet: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   --or-pale: #fff6dc;
   /* LES MÉTAUX DES CARTES (V3) : le chrome de la peu commune, le prisme de la rare, la feuille d'or de la légendaire. */
@@ -332,7 +333,7 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
   margin-left: var(--rail-w);
   padding: var(--esp-2) var(--esp-3) 0;
   border-top: var(--safe-top) solid var(--noir);
-  background: linear-gradient(100deg, color-mix(in srgb, var(--club-vif) 24%, var(--fond-1)), var(--fond-1) 46%);
+  background: var(--fond-1);
   border-bottom: 1px solid var(--filet);
   box-shadow: inset 0 3px 0 var(--club-vif);
 }
@@ -358,6 +359,8 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .bulle-def { position: fixed; z-index: 900; max-width: min(320px, calc(100vw - 16px)); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 600 var(--t-1)/1.4 var(--corps); box-shadow: var(--relief); pointer-events: none; }
 /* V8 : la cellule « Cartes » de l'en-tête est un bouton (le Rogue) : elle ouvre tes cartes d'où qu'on soit. */
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
+.tete-ch-d { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tete-ch-d:empty { display: none; }
 .tete-ch-v { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #menuBtn { grid-area: menu; }
 /* La jauge du plafond : le montant en gros, la barre dessous. */
@@ -422,21 +425,20 @@ body:not(.au-repechage) #capGauge { display: none; }
 .retour-btn:hover .ico { transform: translateX(-3px); }
 .retour-btn:active { transform: scale(0.96); }
 
-/* ---- LES ONGLETS (Jalon U : un seul dessin) : une rangée de mots, l'ouvert souligné d'or. Les sous-pages d'une section,
+/* ---- LES ONGLETS (Jalon U : un seul dessin ; JP : *penser comme GM Connected*) : une rangée de mots, l'ouvert est un bloc plein et clair, texte noir ; les autres sont creux. Les sous-pages d'une section,
         les onglets d'une fenêtre (inventaire, boutique, bilan, statistiques) et les vues du cartable. ---- */
 .sousnav { display: flex; gap: var(--esp-1); max-width: 1720px; margin: var(--esp-2) auto 0; overflow-x: auto; scrollbar-width: none; }
 .sousnav::-webkit-scrollbar { display: none; }
 .soustab, .stat-tab, .inv-onglet, .ct-vue {
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-3);
-  border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--encre-3);
+  border: 1px solid transparent; border-radius: var(--r-1); background: none; color: var(--encre-3);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
-  transition: color var(--t-vite), border-color var(--t-vite), transform var(--t-lent) var(--e-ressort);
+  transition: color var(--t-vite), background var(--t-vite), border-color var(--t-vite);
 }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue) span { font-size: var(--t-1); color: var(--encre-3); font-variant-numeric: tabular-nums; }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue):hover { color: var(--encre); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue):active { transform: scale(0.94); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on { color: var(--encre); border-bottom-color: var(--or); text-shadow: 0 0 14px color-mix(in srgb, var(--or) 45%, transparent); animation: filet-or var(--t-lent) var(--e-sortie); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on span { color: var(--or); }
+:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on { color: var(--noir); background: var(--encre); border-color: var(--encre); }
+:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on span { color: var(--noir); }
 
 /* ---- Les cinq portes : la barre au bas du téléphone, le rail à gauche dès 1000 px ---- */
 .navbar {
@@ -453,7 +455,7 @@ body:not(.au-repechage) #capGauge { display: none; }
   font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
   transition: color var(--t-vite), background var(--t-vite);
 }
-.navtab .ico { width: 24px; height: 24px; transition: transform var(--t-lent) var(--e-sortie); }
+.navtab .ico { width: 24px; height: 24px; }
 .navtab-lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navtab-badge {
   position: absolute; top: 6px; left: calc(50% + 8px);
@@ -463,12 +465,8 @@ body:not(.au-repechage) #capGauge { display: none; }
 .navtab.mort:not(.on) { opacity: 0.45; }
 /* V7 : le Bureau dit qu'il a quelque chose à régler, d'où qu'on soit (js/saison.js pose `data-a-traiter`). */
 body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::after { content: ""; position: absolute; top: 8px; left: calc(50% + 10px); width: 8px; height: 8px; border-radius: 50%; background: var(--mauvais); }
-.navtab.on { color: var(--encre); background: radial-gradient(60% 70% at 50% 0, color-mix(in srgb, var(--or) 22%, transparent), transparent 75%); }
-.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); }
-.navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); }
-.navtab.on .navtab-badge { color: var(--encre-sur-or); background: var(--or); }
-.navtab:active .ico { transform: scale(0.8); }
-.navtab:not(.on):hover .ico { transform: translateY(-2px); }
+.navtab.on { color: var(--noir); background: var(--encre); }
+.navtab.on .navtab-badge { color: var(--encre); background: var(--noir); }
 @media (min-width: 600px) and (max-width: 1199.98px) { .navtab { flex: 1 1 0; min-width: 0; } }
 @media (orientation: landscape) and (min-width: 680px) and (max-width: 999.98px) {
   :root { --rail-w: 72px; --bas-coquille: 0px; }
@@ -482,9 +480,6 @@ body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::a
   .navtab { flex: 0 0 auto; min-height: 52px; border-radius: var(--r-1); gap: 3px; }
   .navtab-lbl { display: none; }
   .navtab:not(.on):hover { color: var(--encre); background: var(--fond-2); }
-  .navtab.on { background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); }
-  .navtab.on::before { top: 8px; bottom: 8px; left: 0; right: auto; width: 3px; height: auto; background: var(--club-vif); }
-  .navtab.on .ico { transform: none; }
   .navtab-badge { top: 4px; left: calc(50% + 4px); }
   .page { height: calc(100svh - var(--topbar-h)); }
 }
@@ -500,9 +495,6 @@ body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::a
   .rail-logo b { display: block; color: var(--or); font-size: var(--t-4); }
   .navtab { flex: 0 0 auto; min-height: 68px; border-radius: var(--r-1); gap: 6px; }
   .navtab:not(.on):hover { color: var(--encre); background: var(--fond-2); }
-  .navtab.on { background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); }
-  .navtab.on::before { top: 12px; bottom: 12px; left: 0; right: auto; width: 3px; height: auto; background: var(--club-vif); }
-  .navtab.on .ico { transform: none; }
   .navtab-badge { top: 6px; left: calc(50% + 6px); }
   .page { height: calc(100svh - var(--topbar-h)); }
 }
@@ -723,12 +715,12 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
 .btn:is(.go, .gold) { min-height: 48px; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
-.btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, var(--blanc)), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); box-shadow: var(--lueur-bon); }
-@media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
-.btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(2px) scale(0.96); box-shadow: inset 0 2px 6px color-mix(in srgb, var(--noir-pur) 35%, transparent); animation: none; }
+.btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: var(--bon); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); }
+@media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); } }
+.btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(1px); animation: none; }
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
-.btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, var(--blanc)), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--blanc) 35%, transparent); }
-@media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
+.btn.gold { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
+@media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); } }
 .btn.danger { border-color: color-mix(in srgb, var(--mauvais) 60%, var(--fond-3)); color: var(--mauvais); }
 @media (hover: hover) { .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); } }
 .btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-3); }
@@ -788,7 +780,6 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 :is(.chip, .inv-filtre):active { transform: scale(0.94); }
 :is(.chip, .inv-filtre).on { background: var(--choisi); border-color: var(--choisi); color: var(--sur-choisi); }
 /* Le filet d'or de l'onglet ouvert se déploie depuis le centre (un onglet, une étape du soir). */
-@keyframes filet-or { from { border-bottom-color: transparent; transform: translateY(2px); } }
 .chip-need { font: 800 var(--t-1)/1 var(--display); color: inherit; font-variant-numeric: tabular-nums; opacity: 0.8; }
 .chip .chip-need.full { color: var(--bon); opacity: 1; }
 
@@ -1056,11 +1047,11 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-option:nth-child(3) { animation-delay: 120ms; }
 .choix-option:nth-child(4) { animation-delay: 180ms; }
 .choix-option:nth-child(n+5) { animation-delay: 240ms; }
-.choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); outline: none; transform: translateY(-4px); box-shadow: var(--reflet), 0 0 0 1px color-mix(in srgb, var(--or) 50%, transparent), 0 18px 36px -14px color-mix(in srgb, var(--or) 50%, transparent); }
-.choix-option:active:not([disabled]) { transform: translateY(0) scale(0.97); transition-duration: 60ms; }
+.choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); outline: none; }
+.choix-option:active:not([disabled]) { background: var(--fond-3); transition-duration: 60ms; }
 .choix-option[disabled] { opacity: 0.45; cursor: not-allowed; }
 /* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : l'or, et son crochet. */
-.choix-option.on { border-color: var(--or); background: linear-gradient(color-mix(in srgb, var(--or) 14%, transparent), transparent 70%), var(--panneau); box-shadow: var(--relief), 0 0 0 1px var(--or); }
+.choix-option.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 10%, var(--fond-2)); box-shadow: 0 0 0 1px var(--or); }
 .choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
 /* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
 :is(.main-vest, .af-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
@@ -4331,8 +4322,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); }
 .hub-titre:first-child { margin-top: 0; }
 .hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: border-color var(--t-vite); }
-.hub-hier.v { border-left-color: var(--bon); background: linear-gradient(90deg, color-mix(in srgb, var(--bon) 16%, transparent), transparent 55%), var(--panneau); box-shadow: var(--relief), -6px 0 22px -10px var(--bon); }
-.hub-hier.d { border-left-color: var(--mauvais); background: linear-gradient(90deg, color-mix(in srgb, var(--mauvais) 14%, transparent), transparent 55%), var(--panneau); }
+.hub-hier.v { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, var(--fond-2)); }
+.hub-hier.d { border-left-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 9%, var(--fond-2)); }
 .hub-hier.v.neuf .hub-hier-score { animation: score-pop 600ms var(--e-ressort) 150ms backwards; }
 .hub-hier[data-sommaire] { cursor: pointer; }
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--encre-3); }

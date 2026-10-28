@@ -1939,7 +1939,7 @@ function ficheEtRang() {
       || String(`${x.tag}${x.season || ''}`).localeCompare(String(`${y.tag}${y.season || ''}`));
   }).indexOf(L.you) + 1;
   const y = f.get(L.you);
-  const r = y ? { fiche: `${y.W}-${y.L}-${y.OTL}`, rang } : null;
+  const r = y ? { fiche: `${y.W}-${y.L}-${y.OTL}`, rang, pts: y.PTS, diff: y.GF - y.GA, sur: L.teams.length } : null;
   ficheEnCache = { L, jour, r };
   return r;
 }
@@ -1968,16 +1968,17 @@ export function majEntete() {
   const ecu = $('teteEcu');
   if (ecu && !ecu.firstElementChild) ecu.innerHTML = getTeamLogoHtml('YOU', 34);
   const fr = enRepechage() ? null : ficheEtRang();
-  const poser = (id, v) => {
+  // Une étiquette, un chiffre, une ligne de détail (JP : *penser comme GM Connected*).
+  const poser = (id, v, detail = '') => {
     const el = $(id);
     if (!el) return;
     el.hidden = !v;
-    if (v) el.querySelector('.tete-ch-v').textContent = v;
+    if (v) { el.querySelector('.tete-ch-v').textContent = v; const d = el.querySelector('.tete-ch-d'); if (d) d.textContent = detail; }
   };
-  poser('teteFiche', fr && fr.fiche);
-  poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`);
+  poser('teteFiche', fr && fr.fiche, fr ? `${fr.pts} pts · ${fr.diff > 0 ? '+' : ''}${fr.diff} buts` : '');
+  poser('teteRang', fr && `${fr.rang}${fr.rang === 1 ? 'er' : 'e'}`, fr ? `sur ${fr.sur} clubs` : '');
   // V5 : la caisse du Rogue se lit en saison, au téléphone aussi (la jauge du repêchage, qui la portait, y est cachée).
-  poser('teteJetons', G.bonus === 'ROGUE' && fr ? `🪙 ${jetonsRogue()}` : null);
+  poser('teteJetons', G.bonus === 'ROGUE' && fr ? `🪙 ${jetonsRogue()}` : null, 'à dépenser');
   // Les compteurs de la jauge (les signés, le budget par case, les jetons) : au repêchage et au Rogue.
   document.body.classList.toggle('au-repechage', enRepechage());
   document.body.classList.toggle('mode-rogue', G.bonus === 'ROGUE');
