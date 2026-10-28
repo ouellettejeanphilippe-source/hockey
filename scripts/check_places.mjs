@@ -129,7 +129,7 @@ if (process.env.PART) {
 }
 
 const t0 = Date.now();
-const toutes = [...Object.keys(PERSONNEL).map(k => `q:${k}`), 
+const toutes = [...Object.keys(PERSONNEL).filter(k => (PERSONNEL[k].effet && Object.keys(PERSONNEL[k].effet).length) || (PROTEGES[k] && !PROTEGES[k].feu)).map(k => `q:${k}`), 
   ...Object.keys(ROUTE).filter(k => ROUTE[k].effet).map(k => `r:${k}`),
   ...Object.entries(DOSSIERS).flatMap(([d, D]) => D.options.filter(o => o.lui || CANAUX.some(k => k in o)).map(o => `d:${d}.${o.cle}`))]
   .filter(id => !process.env.CARTES || process.env.CARTES.split(',').some(c => id.slice(2) === c || id.slice(2).startsWith(`${c}.`)));
