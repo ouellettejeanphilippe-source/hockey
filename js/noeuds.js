@@ -15,6 +15,8 @@
  * Le gros match reste annoncé par le moteur au fil de la saison (`annoncerGros`, JP : *décidés au fur et à mesure*).
  */
 import { hache } from './util.js';
+import { MOMENTS_SI } from './sim.js';
+import { motsEnChiffres } from './impact.js';
 
 export const ROUTES = {
   repos: { ico: '🛌', nom: 'Le repos' },
@@ -65,6 +67,9 @@ export const CARTES_DE_ROUTE = {
 };
 /* La carte d'une route tirée : `{ route, id }`. */
 export const carteDeRoute = n => CARTES_DE_ROUTE[n.route][n.id];
+/* La règle d'une carte de route, telle que sa tuile la lit : son moment et ses matchs, puis ses chiffres ; ou son gain. */
+export const motsDeRoute = C => (C.gain ? [{ txt: `+${C.gain} 🪙`, bon: true }]
+  : [{ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, les ${C.duree} prochains matchs`, bon: null, duree: true }, ...motsEnChiffres(C.effet)]);
 /* Sa charge, celle qu'une carte jouée portait : un effet de ses `duree` matchs, à son moment, ou un gain. */
 export function chargeDeRoute(n) {
   const C = carteDeRoute(n);

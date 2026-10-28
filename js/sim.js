@@ -2522,6 +2522,14 @@ export const SEQUENCES = {
   },
 };
 const DUREE_SEQUENCE = 8;
+/*
+ * TROIS OPTIONS AU PLUS (V19, tranche 6 ; JP : *trois options au plus*). Une séquence en avait quatre : deux sont retirées de l'écran
+ * (la pratique à huis clos, le trio en feu doublé), mais restent ici — une partie d'avant qui les a choisies rejoue le même effet
+ * (`effetDeMoment` les lit par leur clé, les clés de sauvegarde ne bougent jamais).
+ */
+const OPTIONS_RETIREES = new Set(['defaites.huis', 'victoires.doubler']);
+/** Les options qu'une séquence offre aujourd'hui, à l'écran. */
+export const optionsDeSequence = cle => SEQUENCES[cle].options.filter(o => !OPTIONS_RETIREES.has(`${cle}.${o.cle}`));
 /* Pas deux séquences l'une sur l'autre : le vestiaire a une mémoire. */
 export const RECUL_SEQUENCE = 10;
 

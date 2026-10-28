@@ -1039,29 +1039,25 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-options.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--esp-2); }
 .choix-options.compact .choix-option { min-height: 0; padding: var(--esp-2) var(--esp-3); gap: 2px; }
 .choix-options.compact .choix-option-nom { font-size: var(--t-3); }
+/* UNE TUILE DE CHOIX, SOBRE (V19, tranche 6 ; JP : *penser comme GM Connected*) : un aplat, un filet, un verbe, deux lignes de stats au plus
+   (`LIGNES_MAX`, js/gerant.js) ; ni dégradé, ni ombre, ni saut au toucher. Le survol et l'option choisie ne changent que le filet. */
 .choix-option {
   display: flex; flex-direction: column; gap: var(--esp-2); text-align: left; cursor: pointer;
   padding: var(--esp-4); min-height: 120px; color: var(--encre);
-  background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2);
-  transition: border-color var(--t-vite), transform var(--t-lent) var(--e-ressort), background var(--t-vite), box-shadow var(--t-lent) var(--e-sortie);
+  background: var(--fond-2); border: 1px solid var(--filet); border-radius: var(--r-2);
+  transition: border-color var(--t-vite), background var(--t-vite);
   animation: panneau-monte 200ms var(--e-sortie) backwards;
 }
-.choix-option:nth-child(2) { animation-delay: 60ms; }
-.choix-option:nth-child(3) { animation-delay: 120ms; }
-.choix-option:nth-child(4) { animation-delay: 180ms; }
-.choix-option:nth-child(n+5) { animation-delay: 240ms; }
 .choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); outline: none; }
-.choix-option:active:not([disabled]) { background: var(--fond-3); transition-duration: 60ms; }
 .choix-option[disabled] { opacity: 0.45; cursor: not-allowed; }
-/* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : l'or, et son crochet. */
-.choix-option.on { border-color: var(--or); background: color-mix(in srgb, var(--or) 10%, var(--fond-2)); box-shadow: 0 0 0 1px var(--or); }
+/* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : le filet d'or, et son crochet. */
+.choix-option.on { border-color: var(--or); }
 .choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
 /* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
 :is(.main-vest, .af-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
 /* Les options d'À faire : des tuiles à coins vifs, sans halo ni saut (JP : *j'aime pas les arrondis*) ; un toucher les envoie. */
-.af-option.choix-option { border-radius: 0; box-shadow: none; animation: none; }
-.af-option.choix-option:is(:hover, :focus-visible):not([disabled]) { transform: none; box-shadow: inset 3px 0 0 var(--or); }
-.af-option.choix-option.on { background: var(--panneau); box-shadow: inset 3px 0 0 var(--or); }
+.af-option.choix-option { border-radius: 0; animation: none; }
+.af-option.choix-option:is(:hover, :focus-visible):not([disabled]), .af-option.choix-option.on { box-shadow: inset 3px 0 0 var(--or); }
 .choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .choix-forme { align-self: flex-start; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
 .choix-option-sous { font-size: var(--t-2); color: var(--encre-2); line-height: 1.4; }
@@ -1100,7 +1096,6 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
   .choix-modal.feuille { align-items: center; }
   .choix-modal.feuille .choix-sheet { border-radius: var(--r-2); max-width: 560px; }
   .choix-sheet { height: auto; max-height: calc(100dvh - 48px); border-radius: var(--r-2); background: var(--fond-1); border: 1px solid var(--filet); box-shadow: var(--ombre); overflow: hidden; }
-  .choix-option { background: var(--fond-2); }
 }
 /* =====================================================================
    3. L'ÉCRAN TITRE ET LE MENU, « NOUVELLE PARTIE », LES OPTIONS,

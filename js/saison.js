@@ -24,7 +24,7 @@
  */
 
 import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuilles, tirsTotal, soirEreintant, dosADos, BLESSURE_EREINTANT, ENERGIE_RECUP, ENERGIE_RECUP_JOUR, PALIERS_CARTES, SITUATIONS, jouerJusqua, jouerMatchSeries,
-  MOMENTS, JOURS_MOMENTS, matchDuMoment, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, RECUL_SEQUENCE,
+  MOMENTS, JOURS_MOMENTS, matchDuMoment, momentDuJour, faitsDuClub, texteDuFait, SEQUENCES, optionsDeSequence, RECUL_SEQUENCE,
   OBJECTIFS, JOURS_OBJECTIFS, objectifsOfferts, etatObjectif, suivisEnCours, MATCHS_OBJECTIF, joueurDeLObjectif, motsDeLObjectif,
   getPlayerKey, ciblesDe, effetsEnCours, OBJECTIF_RATE, periodeDe,
   cibleMutation, dureeOption, MUTATIONS,
@@ -49,12 +49,13 @@ import { sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLa
 import { DOSSIERS, dossierDeLaSemaine, FENETRE_JOUEUR, PUNITIONS_CHICANE } from './dossiers.js';
 import { BANQUE, coachNeuf } from './banque.js';
 import { DEFIS, avanceDuDefi, motDuDefi } from './arcs.js';
-import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud, carteDeRoute, chargeDeRoute } from './noeuds.js';
+import { ROUTES, noeudsDeLaSemaine, decisionDeNoeud, carteDeRoute, chargeDeRoute, motsDeRoute } from './noeuds.js';
 import { tempsRestant, NOM_PERIODE, recitDeBut, filsDeSaison, FIL_MARQUANT, nomCourt } from './recit.js';
 import { jouerSon } from './sons.js';
 import { animerComptes } from './mouvement.js';
 import { deck as deckDeCartons, cartesDeStyle, brancherEntractes } from './entracte.js';
-import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle, chiffresDuMatch } from './profil-style.js';
+import { matchsJoues, profilDuClub, profilDeLigue, motDeStyle } from './profil-style.js';
+import { verdictsDeLaSemaine as verdictsDesChoix } from './verdicts.js';
 import { ord, ordF, cap, nom, pct3, pmMatch, varsEquipe, pageDuClub, money, hache } from './util.js';
 import { panelDe } from './panel-tv.js';
 import { momentDeSaison, courrielsDe, echangeDe, REPONSES_VIE, EXPEDITEURS, messageDuFil, CHOIX_DES_FILS, motDuSuivi, motDuSuiviEnCours, avecNoms, joueurDuFait } from './vie-gm.js';
@@ -1710,7 +1711,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const mots = k === 'match' ? [] : motsDeStats(planEnChiffres(you, null, adv, k).stats, 2);
       const sous = k === 'match' ? P.bon : P.vedette && vedette && colle ? `${nomCourt(colle.n)} suit ${nomCourt(vedette.n)}` : '';
       const vise = P.vedette && vedette ? ` data-vise="${ctx.esc(getPlayerKey(vedette))}"` : '';
-      return optionHtml({ cle: k, ico: P.ico, nom: P.nom, sous }, {}, { mots, classe: 'af-option dep-plan', attr: `data-plan="${k}" data-j="${p.j}"${vise}`, on: k === enForce });
+      return optionHtml({ cle: k, ico: P.ico, nom: P.nom, sous }, {}, { mots, plein: true, classe: 'af-option dep-plan', attr: `data-plan="${k}" data-j="${p.j}"${vise}`, on: k === enForce });
     });
     return `<div class="dep-plans"><div class="af-options">${tuiles.join('')}</div></div>`;
   }
@@ -3236,7 +3237,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
       const dSq = cle => ({ jour, palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } });
       specs.push({ de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(), ...plusTard,
-        options: s.options.map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
+        options: optionsDeSequence(sq.cle).map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
         lancer: cle => auDe({ ...dSq(cle), sel: nouvelleGraine() }, decider),
         decision: dSq });
     }
@@ -3393,9 +3394,6 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
    * nécessaires ?* L'état du club au lundi — ses jambes, son infirmerie, sa semaine, sa caisse — et, pour la
    * commandite, ce qu'elle fait à CE club-là : « Caisse 46 → 58 🪙 ». De vraies mesures du jour, jamais une cote.
    */
-  /* La règle d'une carte de route (js/noeuds.js) : son moment et ses matchs, puis ses chiffres ; ou son gain. */
-  const motsDeRoute = C => (C.gain ? [{ txt: `+${C.gain} 🪙`, bon: true }]
-    : [{ txt: `${MOMENTS_SI[C.si].mot} : ses soirs, les ${C.duree} prochains matchs`, bon: null, duree: true }, ...motsEnChiffres(C.effet)]);
   function etatDuNoeud() {
     const patineurs = SLOTS.filter(sl => !sl.scratch && sl.group !== 'G').map(sl => you.roster[sl.i]).filter(Boolean);
     const matin = ((you.jourLignes || [])[jour] || {}).energie || {};
@@ -3798,25 +3796,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
   };
   const archiverNouvelles = () => { for (const { id } of nouvellesDuJour()) { boite.archives.add(id); boite.lus.add(id); boite.infos.delete(id); } };
   /*
-   * TA SEMAINE (V19, tranche 6 ; JP : *une seule lecture des choix*) : chaque choix de la semaine passée dit son verdict le lundi
-   * d'après, en vraies stats de match recomptées dans tes feuilles — ce que ton club a fait depuis, contre ses dix matchs d'avant.
-   * Ni victoires ni note : le bruit d'une semaine s'avoue (« ≈ »), et un choix sans effet durable (« rien ») ne dit rien.
+   * TA SEMAINE (V19, tranche 6 ; JP : *une seule lecture des choix*) : chaque choix daté — un dilemme, un dossier, une réponse, un
+   * fil suivi, une route — dit son verdict le lundi d'après, en une ligne de vraies stats de match, recomptées dans tes feuilles
+   * (js/verdicts.js, `check_verdicts`). Ni victoires ni note ; le bruit de quelques matchs s'avoue, et « Rien ne change » se tait.
    */
   function verdictsDeLaSemaine(depuisJ) {
-    const out = [];
-    const virg = x => x.toFixed(1).replace('.', ',');
-    const moy = (liste, k) => liste.reduce((a, { m }) => a + chiffresDuMatch(m.feuille, m.A === you ? 'A' : 'B')[k], 0) / liste.length;
-    for (const d of decs) {
-      if (!d.moment || !['moment', 'sequence', 'dossier', 'vie', 'fil'].includes(d.moment.famille) || !(d.jour >= depuisJ && d.jour < jour)) continue;
-      const F = familleDeMoment(d.moment);
-      const o = F && (F.options || []).find(x => x.cle === d.moment.choix);
-      if (!o || o.rien) continue;
-      const depuis = miens.filter(x => x.j >= d.jour && x.m.feuille), avantD = miens.filter(x => x.j < d.jour && x.m.feuille).slice(-10);
-      if (depuis.length < 3 || avantD.length < 5) continue;
-      const ligne = (mot, k) => `${mot} ${virg(moy(depuis, k))} (${virg(moy(avantD, k))} avant)`;
-      out.push(`<div class="som-l">🧾 <b>${ctx.esc(F.titre || '')}</b> · ${ctx.esc(o.nom || '')} : depuis ${depuis.length} matchs, ≈ ${ligne('tirs', 'tirsPour')} · ${ligne('tirs contre', 'tirsContre')} · ${ligne('buts', 'butsPour')} · ${ligne('buts contre', 'butsContre')}</div>`);
-    }
-    return out;
+    return verdictsDesChoix({ decisions: decs, matchs: miens, jour, depuisJ, you, graine }).map(v => {
+      const stats = v.mots.length ? v.mots.map(m => `<span class="${m.bon ? 'bon' : 'prix'}">${ctx.esc(m.txt)}</span>`).join(' · ') : 'rien de net';
+      return `<div class="som-l">🧾 <b>${ctx.esc(v.titre)}</b> · ${ctx.esc(v.nom)} : ${v.de ? `🎲 ${v.de} · ` : ''}depuis ${v.n} match${v.n > 1 ? 's' : ''}, ${stats} <small>(contre tes ${v.nAvant} d'avant)</small></div>`;
+    });
   }
   /* La semaine passée (V5), pliée en tête d'Hier soir le lundi — elle tenait dans l'écran de la semaine, parti avec la V9. */
   const semainePasseeHtml = () => {
