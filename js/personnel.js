@@ -23,6 +23,12 @@ export const LIGNES_DU_FEU = { poussees: 2 };
  * `MOMENTS_SI`, js/sim.js), sur les canaux qui existent — jamais une mécanique neuve. L'Aigle a déjà le sien, le feu
  * (`check_combo`). Pur : le moteur le lit des patrons du soir (`combosDuSoir`), l'écran du coach le dit (`coachHtml`).
  */
+/*
+ * UN ADJOINT JOUE CHAQUE MATCH (V19 ; JP : *un adjoint, ça devrait avoir un impact tous les matchs*). Hors de son moment (`si`), sa
+ * carte joue `FOND_DU_STYLE` de son effet (chaque canal ramené vers 1 : ×1,19 devient ×1,07 à 0,4) ; à son moment, le plein effet,
+ * comme avant. Le style d'une équipe se sent donc tous les soirs, et ses soirs de moment le pointent.
+ */
+export const FOND_DU_STYLE = 0.1;
 export const COMBOS = {
   essaim: { cles: ['per_crieurDuBanc', 'per_maniaqueVolume'], si: 'domicile', nom: 'La foule se lève', ico: '📣', effet: { volume: 1.1, finition: 0.9 } },
   tortue: { cles: ['per_gardiensDeRoute', 'per_professeurBlocage'], si: 'visiteur', nom: 'Le fort tient sur la route', ico: '🏯', effet: { defense: 0.94, volume: 0.9 } },

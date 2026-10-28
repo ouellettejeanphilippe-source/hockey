@@ -5,7 +5,7 @@
  * dés, avec puis sans l'adjoint engagé au jour 0 (les places de la V3.4, le gardien du château, le joueur de route et
  * l'homme des séries, sont parties à la V16 ; ces trois adjoints les reprennent).
  *   1. ses soirs, l'effet se voit dans la feuille (au moins un dixième de but par match, pour ou contre) ;
- *   2. hors de ses soirs, rien : l'adjoint des séries ne change pas un seul but de la saison ;
+ *   2. hors de ses soirs, son fond seulement (V19, `FOND_DU_STYLE`) : l'adjoint des séries joue sa saison en fond, `check_places` en borne les victoires ;
  *   3. sur une saison (41 soirs à domicile ou à l'étranger), le net en victoires reste sous la borne de sa rareté
  *      (commune 1 V, rare 2,5 V — CLAUDE.md, check_cartes).
  */
@@ -114,11 +114,11 @@ const seVoit = o => Math.abs(o.gf) + Math.abs(o.ga);
   borne('à l\'étranger, il change le pointage (buts pour et contre, par match)', seVoit(d.ext), 0.1, 1);
   borne(`sur une saison, le net en victoires reste sous la borne d'une ${rar}`, Math.abs(victoires(d)), 0, BORNE[rar]);
 }
-// Le directeur de l'usine (il reprend l'homme des séries) : en saison, pas un but ne change ; en séries, il se voit.
+// Le directeur de l'usine (il reprend l'homme des séries) : en saison, son fond seulement ; en séries, il se voit.
 {
   const cle = 'per_directeurUsine', d = mesurer(cle), rar = BANQUE[`patron:${cle}`].rarete;
   informer(`${nom(cle)}, en séries`, `buts ${f(d.series.gf)} / ${f(d.series.ga)}, victoires ${f(d.series.v)} par match`);
-  exiger('en saison, l\'adjoint des séries ne change pas un seul but de la ligue', d.saisonIdentique, d.saisonIdentique ? 'les 32 fiches identiques' : 'une fiche a bougé');
+  informer('en saison, l\'adjoint des séries ne joue que son fond', d.saisonIdentique ? 'les 32 fiches identiques' : 'le fond a bougé des fiches (V19)');
   borne('en séries, il change le pointage (buts pour et contre, par match)', seVoit(d.series), 0.1, 1);
   borne(`sur vingt matchs de séries, le net en victoires reste sous la borne d'une ${rar}`, Math.abs(d.series.v * 20), 0, BORNE[rar]);
 }
