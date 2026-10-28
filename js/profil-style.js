@@ -52,8 +52,9 @@ export function chiffresDuMatch(f, cote) {
   const tirsPour = tirsTotal(f, cote), tirsContre = tirsTotal(f, autre);
   return {
     tirsPour, tirsContre,
-    butsPour: cote === 'A' ? f.gfA : f.gfB,
-    butsContre: cote === 'A' ? f.gfB : f.gfA,
+    // Le but des tirs de barrage (V19) fait gagner le match sans être marqué par personne : il n'est ni pour ni contre.
+    butsPour: (cote === 'A' ? f.gfA : f.gfB) - (f.fusillade && f.fusillade.gagnant === cote ? 1 : 0),
+    butsContre: (cote === 'A' ? f.gfB : f.gfA) - (f.fusillade && f.fusillade.gagnant === autre ? 1 : 0),
     punitions: (f.punitions || []).filter(p => p.cote === cote).length,
     coups,
     rythme: tirsPour + tirsContre,

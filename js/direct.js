@@ -39,7 +39,9 @@ import { creerGlace } from './glace.js';
  * sommaire, elle, garde le temps écoulé (js/bilan.js) : les deux conventions
  * existent dans la vraie ligue, chacune à sa place.
  */
-const tempsDeJeu = tempsRestant;
+/* Un seul direct à la fois : la prolongation des séries, de périodes de vingt minutes, change le tableau (`otLongue`, V19). */
+let otLongue = false;
+const tempsDeJeu = instant => tempsRestant(instant, otLongue);
 
 /* Une graine, un générateur : mulberry32, assez pour des instants de tirs. */
 function rng(seed) {
@@ -111,7 +113,7 @@ function ongletsDePause(modal, onglets, rendre) {
 function evenementsDuMatch(f, graine) {
   const alea = rng(graine);
   const ev = [];
-  const finOT = f.ot ? Math.max(...f.buts.filter(b => b.instant >= 60).map(b => b.instant), 60.5) : 0;
+  const finOT = f.ot ? (f.fusillade ? 65 : Math.max(...f.buts.filter(b => b.instant >= 60).map(b => b.instant), 60.5)) : 0;
   // Le journal moderne date chaque lancer et nomme le tireur : on le prend.
   // Une feuille plus ancienne (partie sauvegardée) n'a que les comptes par
   // période, et on date les arrêts nous-mêmes.
@@ -156,7 +158,9 @@ function evenementsDuMatch(f, graine) {
   // LE JEU PHYSIQUE (1.0) : les coups marquants, les bagarres, les mêlées, datés sur la feuille.
   for (const x of (f.physique || [])) ev.push({ type: x.type, cote: x.cote, instant: x.instant, joueur: x.joueur, cible: x.cible, gagnant: x.gagnant, minutes: x.minutes });
   for (let per = 1; per <= 3; per++) ev.push({ type: 'periode', per, instant: per * 20 - 1e-6 });
-  ev.push({ type: 'fin', instant: f.ot ? finOT + 1e-6 : 60 });
+  // Les tirs de barrage (V19) : après cinq minutes sans but, avant la fin.
+  if (f.fusillade) ev.push({ type: 'tb', instant: 65 + 1e-6 });
+  ev.push({ type: 'fin', instant: f.ot ? finOT + (f.fusillade ? 2e-6 : 1e-6) : 60 });
   ev.sort((x, y) => x.instant - y.instant);
   return ev;
 }
@@ -348,6 +352,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
   const com = commentateur(graine);
   const butsCeSoir = new Map();
   const serre = t => t >= 55 && Math.abs(gA - gB) <= 1;
+  otLongue = !!f.otLongue;
   let iEv = 0, t = 0, gA = 0, gB = 0, tA = 0, tB = 0, pause = 0, dernier = performance.now();
   // LE XIÈME BUT. Le compte d'avant ce match, cloné : chaque but l'avance,
   // et le fil dit « (12e but) », « (8e passe) ». L'écran qui nous a appelés
@@ -409,7 +414,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     const per = [1, 2, 3, 4].filter(k => k < 4 || st.tirs.A[4] + st.tirs.B[4] > 0);
     const rangee = (lib, fa, fb) => `<tr><th>${lib}</th><td>${fa}</td><td>${fb}</td></tr>`;
     const gA_ = f.gardienA, gB_ = f.gardienB;
-    return `<div class="live-tableau"><div class="live-tableau-titre">Statistiques du match · ${ctx.esc(tempsDeJeu(Math.min(t, 64.999)))}</div>
+    return `<div class="live-tableau"><div class="live-tableau-titre">Statistiques du match · ${ctx.esc(tempsDeJeu(otLongue ? t : Math.min(t, 64.999)))}</div>
       <table class="live-face"><thead><tr><th></th><th>${ctx.esc(ctx.tagCourt(A))}</th><th>${ctx.esc(ctx.tagCourt(B))}</th></tr></thead><tbody>
         ${rangee('Buts', gA, gB)}
         ${rangee('Tirs', tA, tB)}
@@ -431,7 +436,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     // Le duel (V9) s'arrête aussi au premier entracte (t = 20) : c'est la fin de la 1re.
     const entracte = enArret && t >= arret && t < 60;
     const per = enOT ? 4 : t >= 60 ? 3 : entracte ? arret / 20 : periodeDe(t);
-    const temps = (!enOT && t >= 60) || entracte ? '00:00' : tempsDeJeu(Math.min(t, 64.999));
+    const temps = (!enOT && t >= 60) || entracte ? '00:00' : tempsDeJeu(otLongue ? t : Math.min(t, 64.999));
     // L'avantage en cours : la fenêtre de deux minutes d'une punition, ou
     // moins si un but l'a fermée — c'est le tableau indicateur qui le dit.
     const an = fenetres.find(([a, b]) => t >= a && t < b);
@@ -599,6 +604,14 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       if (du && du.periodes[e.per]) ligne('periode cartes', motPeriode(e.per));
       return PAUSE_PERIODE;
     }
+    if (e.type === 'tb') {
+      // Aucun joueur n'est crédité du but des tirs de barrage : il ne fait que le pointage.
+      if (f.fusillade.gagnant === 'A') gA++; else gB++;
+      const vTB = f.fusillade.gagnant === 'A' ? A : B;
+      ligne('periode', `<b>Tirs de barrage</b> · ${ctx.esc(ctx.teamShort(A))} ${f.fusillade.A} – ${f.fusillade.B} ${ctx.esc(ctx.teamShort(B))} · ${ctx.esc(cap(ctx.teamShort(vTB)))} l'emporte.`);
+      majBoard();
+      return PAUSE_PERIODE;
+    }
     if (e.type === 'fin') {
       fini = true;
       const vainqueur = f.vainqueur === 'A' ? A : B;
@@ -608,7 +621,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
       const F = com.fin({ eq: ctx.esc(ctx.teamShort(vainqueur)), autre: ctx.esc(ctx.teamShort(perdant)),
         g: gVainqueur ? ctx.esc(nomCourt(gVainqueur.n)) : 'le gardien', blanchissage: Math.min(gA, gB) === 0,
         ecart: Math.abs(gA - gB), ot: !!f.ot });
-      ligne('fin', `<b>${ctx.esc(F.tete)}</b> ${ctx.esc(cap(ctx.teamShort(vainqueur)))} l'emporte ${Math.max(gA, gB)}-${Math.min(gA, gB)}${f.ot ? ' en prolongation' : ''}. ${F.couleur}${apres ? ` ${ctx.esc(apres)}` : ''}`);
+      ligne('fin', `<b>${ctx.esc(F.tete)}</b> ${ctx.esc(cap(ctx.teamShort(vainqueur)))} l'emporte ${Math.max(gA, gB)}-${Math.min(gA, gB)}${f.fusillade ? ' aux tirs de barrage' : f.periodesOT > 1 ? ` en ${f.periodesOT}e prolongation` : f.ot ? ' en prolongation' : ''}. ${F.couleur}${apres ? ` ${ctx.esc(apres)}` : ''}`);
       finDeMatch();
       return 0;
     }
@@ -637,7 +650,7 @@ export function diffuserMatch({ feuille: f, A, B, titre = '', sousTitre = '', et
     muet = true;
     while (iEv < ev.length && !fini && !enArret) appliquer(ev[iEv++]);
     muet = false;
-    t = enArret ? arret : f.ot ? 65 : 60;
+    t = enArret ? arret : f.ot ? Math.max(65, ...f.buts.filter(b => b.instant >= 60).map(b => b.instant)) : 60;
     majBoard();
   };
   /* L'ARRÊT AU DEUXIÈME ENTRACTE : la main passe au choix, rien de plus n'est révélé. */

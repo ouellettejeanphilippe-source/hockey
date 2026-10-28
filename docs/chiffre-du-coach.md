@@ -40,3 +40,7 @@ Mesure `check_profondeur` (trois campagnes de quatre runs, l'attentif ; cible : 
 | **chiffre à un point, un point de service par 90 matchs** | **4** (l'attentif bat le robot d'avant de 5,0 V) |
 
 Branché ainsi : `PLAFOND_TENUS = 1`, `MATCHS_CONFIANCE = 90`. Un point de plus venu du chiffre se paie en retardant les points de service.
+
+## Le Rhino et le Showman (28 oct.)
+
+Leur chiffre se lit dans la feuille même, pas contre la ligue : la ligue mélange les époques (les mises en échec d'un club vont de 8 à 43 par match selon l'année de son effectif), ce qui dépasse l'effet d'un coach. La feuille garde maintenant `coupsBase` (les mises en échec que l'alignement donne sans carte de robustesse) et `glacePremier` (la part de glace du premier trio). Rhino : mises en échec sur `coupsBase`, +8 % ; Showman : +4 points de glace pour le premier trio. `check_chiffre` : 78 % et 47 % des blocs tenus à la III contre 0 % pour un club ordinaire. Les huit coachs ont leur chiffre.

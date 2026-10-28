@@ -48,10 +48,11 @@ const mmss = x => {
  * horloge du jeu (S79) : le sommaire du match et l'entracte donnaient le temps
  * écoulé, et JP lisait deux heures différentes pour le même but.
  */
-export function tempsRestant(instant) {
+export function tempsRestant(instant, longue = false) {
   const enProlongation = instant >= 60;
-  const dansPeriode = enProlongation ? instant - 60 : instant % 20;
-  const duree = enProlongation ? 5 : 20;
+  // En séries (`longue`), la prolongation est de périodes de vingt minutes, autant qu'il en faut.
+  const dansPeriode = enProlongation ? (longue ? (instant - 60) % 20 : instant - 60) : instant % 20;
+  const duree = enProlongation && !longue ? 5 : 20;
   return mmss(Math.max(0, duree - dansPeriode));
 }
 
