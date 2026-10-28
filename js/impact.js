@@ -302,22 +302,26 @@ const mot = (x, un, plusieurs) => (Math.abs(x) < 2 ? un : plusieurs);
  */
 const SEUILS = { tirs: 1, pct: 0.005, punitions: 0.3, coups: 1, minutes: 0.3 };
 const pt = x => `${signeDe(x)}${virgule((Math.abs(x) * 100).toFixed(1))} pt`;
-function lignesDe(d, par = 'par match', part = 1, eux = false) {
+/* D'où l'on part et où l'on arrive, en vrais chiffres de feuille : « (27,4 → 28,7) ». `b` : { sans, avec }, deux lectures du même soir, vues de ton côté. */
+const deA = (b, k, fois, f) => (b ? ` (${f((b.sans[k] || 0) * fois)} → ${f((b.avec[k] || 0) * fois)})` : '');
+const un = x => virgule(x.toFixed(1));
+const pc = x => virgule((x * 100).toFixed(1));
+function lignesDe(d, par = 'par match', part = 1, eux = false, b = null) {
   const out = [];
-  const tirs = (x, un, plur, bon, cle = un) => {
+  const tirs = (x, un_, plur, bon, cle = un_, k) => {
     if (Math.abs(x) < SEUILS.tirs * part) return;
-    out.push({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, un, plur)} ${par}`, bon: bon ? x > 0 : x < 0, cle });
+    out.push({ txt: `≈ ${signeDe(x)}${nb(x, 1)} ${mot(x, un_, plur)} ${par}${deA(b, k, part, un)}`, bon: bon ? x > 0 : x < 0, cle });
   };
-  const taux = (x, quoi, cle, buts) => {
+  const taux = (x, quoi, cle, buts, k) => {
     if (!(Math.abs(x) >= SEUILS.pct)) return;
-    out.push({ txt: `≈ ${pt(x)} ${quoi} ${par}`, bon: x > 0, cle, buts });
+    out.push({ txt: `≈ ${pt(x)} ${quoi} ${par}${deA(b, k, 1, pc)}`, bon: x > 0, cle, buts });
   };
-  tirs(d.tirsPour, 'tir', 'tirs', true);
-  tirs(d.tirsContre, 'tir contre', 'tirs contre', false, 'tir accordé');
-  taux(d.pctTir, 'de précision', 'pctTir', d.butsPour);
-  taux(d.pctArr, 'd\'arrêts', 'pctArr', -d.butsContre);
+  tirs(d.tirsPour, 'tir', 'tirs', true, 'tir', 'tirs');
+  tirs(d.tirsContre, 'tir contre', 'tirs contre', false, 'tir accordé', 'contre');
+  taux(d.pctTir, 'de précision', 'pctTir', d.butsPour, 'pctTir');
+  taux(d.pctArr, 'd\'arrêts', 'pctArr', -d.butsContre, 'pctArr');
   // Tes punitions ont un sens (oct.) : en prendre moins t'aide ; lues de leur côté (`eux`), ce sont les leurs, et plus t'aide.
-  if (Math.abs(d.punitions) >= SEUILS.punitions * part) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}`, bon: eux ? d.punitions > 0 : d.punitions < 0, cle: 'punition' });
+  if (Math.abs(d.punitions) >= SEUILS.punitions * part) out.push({ txt: `≈ ${signeDe(d.punitions)}${nb(d.punitions, 1)} ${mot(d.punitions, 'punition', 'punitions')} ${par}${deA(b, 'punitions', part, un)}`, bon: eux ? d.punitions > 0 : d.punitions < 0, cle: 'punition' });
   if (Math.abs(d.coups) >= SEUILS.coups) out.push({ txt: `≈ ${signeDe(d.coups)}${nb(d.coups, 0)} ${mot(Math.round(d.coups), 'mise en échec', 'mises en échec')} ${par}`, bon: null, cle: 'coup' });
   return out;
 }
@@ -352,7 +356,9 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
   // Un effet sur EUX se lit de leur côté : leurs tirs sont ceux qu'on accorde, leurs buts ceux qu'on encaisse.
   if (eux) d = { ...d, tirsPour: d.tirsContre, tirsContre: d.tirsPour, butsPour: d.butsContre, butsContre: d.butsPour, pctTir: -d.pctArr, pctArr: -d.pctTir, punitions: d.punitionsEux, coups: 0 };
   const out = [];
-  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par, part, eux));
+  // Les deux lectures vues de ton côté : de leur côté (`eux`), leurs tirs sont ceux qu'on te donne.
+  const vu = m => { const x = statsDe(m); return eux ? { tirs: x.contre, contre: x.tirs, pctTir: 1 - x.pctArr, pctArr: 1 - x.pctTir, punitions: m.punitionsEux } : { ...x, punitions: m.punitions }; };
+  if (CANAUX_MATCH.some(k => k in e)) out.push(...lignesDe(surLaPart(d, part), par, part, eux, { sans: vu(sans), avec: vu(avec) }));
   // Une blessure ou des jambes trop petites pour se compter ne prennent pas de puce (JP, 17 oct. : *encore beaucoup de
   // « à peine perceptible »*) ; un effet qui ne fait rien de lisible le dit une fois, plus bas.
   if (e.blessure != null && !eux) {
@@ -370,9 +376,10 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
    */
   const sens = !eux && sensDeLaGlace(e);
   if (sens) {
-    const ecarts = ['F', 'D'].flatMap(g => (Array.isArray(e[g]) ? (d[g === 'F' ? 'glaceF' : 'glaceD'] || []).map((x, i) => ({ x, nom: RANGS_DE_GLACE[g][i] })) : []));
-    const plus = ecarts.reduce((a, b) => (b.x > a.x ? b : a), { x: 0 }), moins = ecarts.reduce((a, b) => (b.x < a.x ? b : a), { x: 0 });
-    const bouts = [plus, moins].filter(b => Math.abs(b.x) >= SEUILS.minutes).map(b => `${b.nom} ≈ ${signeDe(b.x)}${nb(b.x, 1)} min`);
+    // Chaque trio ou paire touché, d'où il part à où il arrive (« 4e trio 6,1 → 11,3 min »).
+    const ecarts = ['F', 'D'].flatMap(g => (Array.isArray(e[g]) ? (d[g === 'F' ? 'glaceF' : 'glaceD'] || []).map((x, i) => ({ x, nom: RANGS_DE_GLACE[g][i], de: (sans[g === 'F' ? 'glaceF' : 'glaceD'] || [])[i] || 0 })) : []));
+    const bouts = ecarts.filter(b => Math.abs(b.x) >= SEUILS.minutes).sort((a, b) => Math.abs(b.x) - Math.abs(a.x))
+      .map(b => `${b.nom} ${signeDe(b.x)}${nb(b.x, 1)} min (${un(b.de)} → ${un(b.de + b.x)})`);
     out.push({ txt: bouts.length ? `${sens} : ${bouts.join(', ')} ${par}` : `${sens}, à peine`, bon: null, cle: 'glace' });
   }
   return out.length ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
@@ -386,7 +393,8 @@ export function effetEnChiffres(effet, team, lineup = null, adv = null, { duree 
 export function motsDuSoir(team, lineup = null, adv = null, aVenir = []) {
   if (!team) return [];
   const avec = lire(team, lineup, adv, { aVenir, n: N_EFFET }), sans = lire(team, lineup, adv, { aVenir, nu: true, n: N_EFFET });
-  const d = differences(avec, sans), mots = [...lignesDe(d), ...horsFeuille(d)];
+  const vu = m => ({ ...statsDe(m), punitions: m.punitions });
+  const d = differences(avec, sans), mots = [...lignesDe(d, 'par match', 1, false, { sans: vu(sans), avec: vu(avec) }), ...horsFeuille(d)];
   // Des effets qui jouent, trop petits pour une feuille : on le dit plutôt que de taire.
   return mots.length || ![d.tirsPour, d.tirsContre, d.butsPour, d.butsContre, d.punitions, d.blessures, d.usure].some(x => Math.abs(x) > 1e-9) ? mots : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }];
 }

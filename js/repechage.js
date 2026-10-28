@@ -10,8 +10,7 @@ import { registerHiddenRatings, retenirMatchsDuShard, nouvelleGraine, getPlayerK
 import { mesuresDeSaison, getEraSalary, ageAtSeason } from './ratings.js';
 import { motsDeMutationEnChiffres, clubLu, rosterEnStats, motsDeStats } from './impact.js';
 import { varianteTiree, COTES_PAR_STATURE, statureDe, carteDe, traitsDeCarte, NOM_VARIANTE, EDITIONS, numeroEdition } from './rarete.js';
-import { niveauDe, niveauParDefense, cote20, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
-import { axes20 } from './sim.js';
+import { niveauDe, niveauParDefense, cote20, axes20, ETOILE, NIVEAUX, PHENOMENE } from './niveaux.js';
 import { brancherPastilleNiveau, ouvrirChoix, ouvrirAlignement } from './gerant.js';
 import { anneeDeCarte, brillante, gemmeJoueur, serieDe, cartonHtml, photoAction, cadrePhoto, photoCouchee, cadrePhotoCouchee, numeroDeCarte, tirageLimite, sensRarete } from './cartes.js';
 import { getTeamBand, fondEquipe, couleurVive, getTeamLogoHtml, teamSeasonUrl } from './logos.js';
@@ -144,7 +143,7 @@ export const lesCotes = p => {
   const e = p && p.s && G.shards.get(p.s);
   if (!e) return null;
   if (p.p === 'G') { const v = cote20(p, e.players, true); return v == null ? null : [{ cle: 'arrets', mot: MOT_DE_COTE.arrets, v }]; }
-  const a = axes20(p);
+  const a = axes20(p, e.players);
   return a ? Object.keys(MOT_DE_COTE).filter(k => a[k] != null).map(k => ({ cle: k, mot: MOT_DE_COTE[k], v: a[k] })) : null;
 };
 /*

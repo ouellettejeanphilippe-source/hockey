@@ -1260,12 +1260,6 @@ export function famillesBrutes(p) {
   for (const [k, F] of Object.entries(FAMILLES)) out[k] = Math.max(...F.roles[g].map(r => b[r] + (DECALAGE_ROLES[g][r] || 0)));
   return out;
 }
-/* Les quatre axes d'un patineur sur 20 (docs/cotes-sur-20.md) : le meilleur de ses rôles de chaque famille, 55 (« bon », `ROLE_BON`) à 11. Null pour un gardien. */
-export function axes20(p) {
-  const b = famillesBrutes(p);
-  if (!b) return null;
-  return Object.fromEntries(Object.keys(FAMILLES).map(k => [k, Math.max(1, Math.min(20, Math.round(b[k] / 5)))]));
-}
 /*
  * CE QUE LES POINTS EXPLIQUENT DE CHAQUE FAMILLE (scripts/check_familles.mjs, les réguliers de 40 matchs et plus,
  * toutes saisons) : [ordonnée, pente sur l'écart réduit des points, dispersion de ce qui reste]. La famille d'un joueur
