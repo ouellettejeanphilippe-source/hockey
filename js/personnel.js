@@ -17,6 +17,22 @@
  */
 /* Le feu d'un adjoint (`portee`) prend sa deuxième ligne après deux poussées de sa force : à son troisième échelon. */
 export const LIGNES_DU_FEU = { poussees: 2 };
+/*
+ * LE COMBO DU COACH (V19 ; JP : *le club se construit autour du coach*). Deux adjoints de sa couleur, de deux postes, qui
+ * s'emboîtent : quand les deux sont en poste ET que ce coach est en poste, un effet de plus joue ses soirs (`si`, un des
+ * `MOMENTS_SI`, js/sim.js), sur les canaux qui existent — jamais une mécanique neuve. L'Aigle a déjà le sien, le feu
+ * (`check_combo`). Pur : le moteur le lit des patrons du soir (`combosDuSoir`), l'écran du coach le dit (`coachHtml`).
+ */
+export const COMBOS = {
+  essaim: { cles: ['per_crieurDuBanc', 'per_maniaqueVolume'], si: 'domicile', nom: 'La foule se lève', ico: '📣', effet: { volume: 1.1, finition: 0.9 } },
+  tortue: { cles: ['per_gardiensDeRoute', 'per_professeurBlocage'], si: 'visiteur', nom: 'Le fort tient sur la route', ico: '🏯', effet: { defense: 0.94, volume: 0.9 } },
+  rhinos: { cles: ['per_preparateurCombat', 'per_sergent'], si: 'rival', nom: 'On ne recule pas', ico: '🥊', effet: { robustesse: 0.7 } },
+  souffle: { cles: ['per_physioDeRoute', 'per_infirmiere'], si: 'visiteur', nom: 'Sur la route, rien ne casse', ico: '🩺', effet: { blessure: 0.15 } },
+  choeur: { cles: ['per_pacifiste', 'per_aumonier'], si: 'domicile', nom: 'Chez nous, on se tient bien', ico: '🕊', effet: { discipline: 0.7, finition: 0.97 } },
+  profondeur: { cles: ['per_entraineurDuBas', 'per_chefDAtelier'], si: 'dosADos', nom: 'Les quatre trios roulent', ico: '🪜', effet: { F: [0.78, 0.94, 1.12, 1.45], finition: 0.97 } },
+  etoiles: { cles: ['per_photographe', 'per_metteurEnScene'], si: 'domicile', nom: 'Les vedettes sous les projecteurs', ico: '🎬', effet: { F: [1.3, 1.08, 0.9, 0.7], defense: 1.04 } },
+  rapaces: { cles: ['per_tirsDeRoute', 'per_peintreDesCoins'], si: 'visiteur', nom: 'Les coins, même en voyage', ico: '🎯', effet: { finition: 1.17, volume: 0.88 } },
+};
 export const PERSONNEL = {
   // ---- neutres : le départ en impose deux ----
   per_gerantEquipement: { role: 'physique', nom: 'Le gérant d\'équipement', ico: '🧺', rarete: 'commune', si: 'dosADos', effet: { energie: 0.8, finition: 1.08, volume: 0.92 },
