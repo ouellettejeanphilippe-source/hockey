@@ -21,7 +21,7 @@ import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, masseSalarialeHtml, SEMAINE } from './inventaire.js';
 import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
-import { ouvrirChoix, motsSurLeJoueur, pucesEnBref, ouvrirAlignement, sceneHtml, carteDeBanqueHtml } from './gerant.js';
+import { ouvrirChoix, motsSurLeJoueur, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
 import { artJoueur, photoAction, cadrePhoto, epoqueDe, serieDe, SERIES } from './cartes.js';
@@ -951,13 +951,31 @@ export function cartesDeLaMaison(maison, j) {
   const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + partie.length;
   const masse = maison === 'proprio' ? masseSalarialeHtml(plafondPourInventaire(j)) : '';
   if (!n) return masse;
-  const carte = (id, bouton) => `<div class="bq-carte">${carteDeBanqueHtml(optionDeBanque(id))}<div class="bq-actions">${bouton}</div></div>`;
-  const jouer = (src, id, mot, ref = '') => `<button type="button" class="btn gold maison-jouer" data-src="${src}" data-id="${esc(id)}"${ref ? ` data-ref="${esc(ref)}"` : ''}>${mot}</button>`;
-  // Toujours visibles (JP, 28 oct. : *j'hais les accordéons*) : un titre, et une bande qui se balaie, la carte suivante au bord, comme la main du duel.
-  return `${masse}<section class="cartes-maison"><h3 class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</h3>
-    <div class="cartes-bande">${partie.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
-  </section>`;
+  // Une rangée, une feuille (JP, 28 oct. : *j'hais les accordéons* ; chaque onglet tient en un écran) : les cartes s'ouvrent en feuille.
+  const icones = [...partie.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
+  return `${masse}<button type="button" class="hub-rangee cartes-maison" data-cartes-maison="${esc(maison)}"><span>🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</span><span class="pli-icones" aria-hidden="true">${icones}</span><span aria-hidden="true">›</span></button>`;
 }
+/* La feuille de tes cartes d'une maison : une option par carte, jouée ou vendue par la même porte que les autres (`jouerDeLaMaison`). */
+function ouvrirLesCartes(maison) {
+  const hub = hubActif();
+  if (!hub || !hub.decider || !G.ligue) return;
+  const j = hub.jour ? hub.jour() : (G.journee || 0);
+  const meta = lireMeta();
+  const engages = new Set(maison === 'entraineur' ? patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle) : []);
+  const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k)) : [];
+  const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
+  const partie = cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison);
+  const opt = (cle, id, mot, sous) => ({ cle, ico: (BANQUE[id] || {}).ico || '🃏', nom: `${mot} · ${(BANQUE[id] || {}).nom || id}`, sous, mots: reglesDe(id).slice(0, 3) });
+  const options = [
+    ...partie.flatMap(x => [opt(`partie|${x.id}|${x.ref}`, x.id, 'Jouer', ''), ...(valeurDe(x.id) ? [{ cle: `vendre|${x.id}|${x.ref}`, ico: '🪙', nom: `Vendre · ${(BANQUE[x.id] || {}).nom || x.id}`, sous: `${valeurDe(x.id)} 🪙`, mots: [] }] : [])]),
+    ...perso.map(k => opt(`personnel|patron:${k}|`, `patron:${k}`, 'Engager', '')),
+    ...conso.map(([id, k]) => opt(`meta|${id}|`, id, k > 1 ? `Jouer ×${k}` : 'Jouer', '')),
+  ];
+  const decider = d => { const h = hubActif(); if (h && h.decider) h.decider(d); };
+  ouvrirChoix({ ico: '🃏', titre: MAISONS_DES_CARTES[maison].titre, compact: true, fermable: true, motFermer: 'Retour', vide: 'Aucune carte en main.', options,
+    onChoix: k => { const [src, id, ref] = k.split('|'); jouerDeLaMaison(src === 'vendre' ? { vendre: true, id, ref } : { src, id, ...(ref ? { ref } : {}) }, j, decider); } });
+}
+if (typeof document !== 'undefined') document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('.cartes-maison[data-cartes-maison]'); if (b) ouvrirLesCartes(b.dataset.cartesMaison); });
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
 export function jouerDeLaMaison(item, j, decider) {
   if (item.vendre) { decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }); return; }
