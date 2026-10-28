@@ -1,14 +1,14 @@
 /*
  * LE COMBO DU COACH (js/personnel.js `COMBOS`, V19 ; JP : *le club se construit autour du coach*). Deux adjoints de la couleur
- * du coach en poste, avec lui, ajoutent un effet ses soirs. Ce qu'on exige, en paires (la même soirée, les mêmes dés, le
- * combo allumé contre éteint — `_sansCombo`), le moment du combo posé (`_lireMoment`) :
- *   1. il se VOIT dans la feuille d'un de ses soirs (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3 blessures par saison ou ±3 points de glace d'un trio) ;
- *   2. il reste sous la borne d'une commune sur ses soirs d'une saison (1 V) ;
+ * du coach en poste, avec lui, ajoutent un effet chaque match (JP : *pas de moments pour les adjoints*). Ce qu'on exige, en paires
+ * (la même soirée, les mêmes dés, le combo allumé contre éteint — `_sansCombo`), un soir sur deux à domicile :
+ *   1. il se VOIT dans la feuille d'un soir (±2 tirs, ±0,3 but, ±0,5 punition, ±4 mises en échec, ±3 blessures par saison ou ±3 points de glace d'un trio) ;
+ *   2. il reste sous la borne d'une commune sur une saison (1 V) ;
  *   3. il ne joue ni sans l'un de ses deux adjoints, ni sans son coach ;
  *   4. un coach ne lit que son combo, et ses deux adjoints sont de sa couleur et de deux postes.
  *   N=300 node scripts/check_combos.mjs
  */
-import { SLOTS, autoRoster, registerHiddenRatings, createTeam, playGame, feuilleVierge, grainerHasard, MOMENTS_SI } from '../js/sim.js';
+import { SLOTS, autoRoster, registerHiddenRatings, createTeam, playGame, feuilleVierge, grainerHasard } from '../js/sim.js';
 import { COMBOS } from '../js/personnel.js';
 import { BANQUE } from '../js/banque.js';
 import { effetDePalier } from '../js/coachs.js';
@@ -39,8 +39,8 @@ function paires(coach, cles, sansCoach = false) {
       grainerHasard(`combo:${lab}:eux`); const adv = equipe('Eux', t, un, s);
       toi.patrons = cles.map(c => patronALEchelon(c, {}));
       toi.coachs = sansCoach ? [] : [effetDePalier(coach, 1)];
-      toi._lireMoment = C.si; toi._sansCombo = k === 'sans';
-      const r = soir(toi, adv, `combo:${lab}:${coach}:${i}`, C.si === 'visiteur');
+      toi._sansCombo = k === 'sans';
+      const r = soir(toi, adv, `combo:${lab}:${coach}:${i}`, i % 2 === 1);
       S[k].n++; for (const c of CLES) S[k][c] += r[c];
     }
   }
@@ -49,15 +49,15 @@ function paires(coach, cles, sansCoach = false) {
 const delta = (S, c) => (S.avec[c] - S.sans[c]) / S.avec.n;
 for (const [coach, C] of Object.entries(COMBOS)) {
   const [a, b] = C.cles, ba = BANQUE[`patron:${a}`], bb = BANQUE[`patron:${b}`];
-  exiger(`${C.ico} ${C.nom} : deux adjoints de la couleur du coach, de deux postes`, ba.coach === coach && bb.coach === coach && ba.role !== bb.role && !!MOMENTS_SI[C.si], `${ba.role} + ${bb.role}, ${C.si}`);
+  exiger(`${C.ico} ${C.nom} : deux adjoints de la couleur du coach, de deux postes`, ba.coach === coach && bb.coach === coach && ba.role !== bb.role, `${ba.role} + ${bb.role}`);
   const S = paires(coach, C.cles);
   const d = Object.fromEntries(CLES.map(c => [c, delta(S, c)]));
-  const parSaison = MOMENTS_SI[C.si].parSaison;
+  const parSaison = 82;
   const vSaison = d.v * parSaison;
-  informer(`${C.ico} ${C.nom}`, `${parSaison} soirs · tirs ${d.tp >= 0 ? '+' : ''}${d.tp.toFixed(1)} / contre ${d.tc >= 0 ? '+' : ''}${d.tc.toFixed(1)} · buts ${d.gf >= 0 ? '+' : ''}${d.gf.toFixed(2)} / ${d.ga >= 0 ? '+' : ''}${d.ga.toFixed(2)} · punitions ${d.pun.toFixed(2)} · coups ${d.coups.toFixed(1)} · blessures ${(d.bless * 82).toFixed(1)} par saison · glace ${d.g1.toFixed(1)} / ${d.g4.toFixed(1)} pts · ${vSaison.toFixed(2)} V par saison`);
+  informer(`${C.ico} ${C.nom}`, `tirs ${d.tp >= 0 ? '+' : ''}${d.tp.toFixed(1)} / contre ${d.tc >= 0 ? '+' : ''}${d.tc.toFixed(1)} · buts ${d.gf >= 0 ? '+' : ''}${d.gf.toFixed(2)} / ${d.ga >= 0 ? '+' : ''}${d.ga.toFixed(2)} · punitions ${d.pun.toFixed(2)} · coups ${d.coups.toFixed(1)} · blessures ${(d.bless * 82).toFixed(1)} par saison · glace ${d.g1.toFixed(1)} / ${d.g4.toFixed(1)} pts · ${vSaison.toFixed(2)} V par saison`);
   const visible = Math.abs(d.tp) >= 2 || Math.abs(d.tc) >= 2 || Math.abs(d.gf) >= 0.3 || Math.abs(d.ga) >= 0.3 || Math.abs(d.pun) >= 0.5 || Math.abs(d.coups) >= 4 || Math.abs(d.bless * 82) >= 3 || Math.abs(d.g1) >= 3 || Math.abs(d.g4) >= 3;
   exiger(`${C.ico} ${C.nom} : il se voit dans la feuille d'un soir`, visible);
-  exiger(`${C.ico} ${C.nom} : sous la borne d'une commune sur ses soirs d'une saison (1 V)`, Math.abs(vSaison) <= 1, `${vSaison.toFixed(2)} V`);
+  exiger(`${C.ico} ${C.nom} : sous la borne d'une commune sur une saison (1 V)`, Math.abs(vSaison) <= 1, `${vSaison.toFixed(2)} V`);
   const seul = paires(coach, [a]), sansC = paires(coach, C.cles, true);
   const nul = S2 => CLES.every(c => Math.abs(delta(S2, c)) < 1e-9);
   exiger(`${C.ico} ${C.nom} : rien sans l'un des deux adjoints, rien sans son coach`, nul(seul) && nul(sansC));

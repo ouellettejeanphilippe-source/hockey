@@ -859,6 +859,8 @@ export function personnelDuJour(j) {
     // V19 : le contrat — les matchs qu'il lui reste, et la prolongation qui l'étend (en jetons).
     const restant = matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin), peutPayer = jetonsRogue(j) >= e.prixProlongation;
     const contrat = e.prolongeable ? `Contrat : encore ≈ ${restant} match${restant > 1 ? 's' : ''}, puis il part.` : 'Contrat : jusqu\'à la fin de la saison.';
+    // Son protégé, nommé : le joueur que le moteur lui désigne aujourd'hui (JP : *je comprends pas le protégé*).
+    const prot = PROTEGES[x.cle] && !PROTEGES[x.cle].feu ? joueurDeMutation(G.ligue.you, null, x.cle) : null;
     const faits = (x.choix || []).map((c, i) => `Échelon ${i + 2} : ${c === 'force' ? 'sa force poussée' : 'son défaut corrigé'}`).join(' · ');
     return `<details class="pli gens${aChoisir.has(e.cle) ? ' monte' : ''}"><summary class="gens-l">
         <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
@@ -868,6 +870,7 @@ export function personnelDuJour(j) {
       </summary>
       <div class="gens-fiche">
         ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
+        ${prot ? `<p class="perso-libre">Son protégé : <b>${esc(prot.n)}</b>. Le bonus ci-dessous est pour lui seul, et le suit s'il change de ligne.</p>` : ''}
         ${contre ? `<p class="perso-libre">Pas de la couleur de ${esc(COACHS[coach.cle].nom)} : il joue à contre-courant, ses chiffres le disent.</p>` : ''}
         ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
         ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}

@@ -36,8 +36,6 @@ const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
  * `STYLE_V` victoire sur ses soirs d'une saison.
  */
 const STYLE_V = 0.5, BUTS_PAR_V = 6;
-/* Le fond d'un adjoint (V19) : ses soirs hors moment, sur le reste de la saison, sous cette borne en victoires. */
-const FOND_V = 1.5;
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
 /* Les piles mesurées : le personnel, les réponses des dossiers (V10-5 ; V16, tranche 6 : le contrat lourd en est une) et les cartes des routes. */
 const PILE = { q: 'personnel', d: 'dossier', r: 'route' };
@@ -75,7 +73,7 @@ function mesurer(cles, n) {
   for (const id of cles) {
     const [sorte, cle] = id.split(':');
     const C = carteDe(sorte, cle);
-    const m = out[id] = { n: 0, dpj: 0, dv: 0, dgf: 0, dga: 0, dtp: 0, dtc: 0, dpun: 0, dcoups: 0, dbl: 0, djambes: 0, hors: 0, horsPareil: 0, hv: 0, htp: 0, hgf: 0, hga: 0 };
+    const m = out[id] = { n: 0, dpj: 0, dv: 0, dgf: 0, dga: 0, dtp: 0, dtc: 0, dpun: 0, dcoups: 0, dbl: 0, djambes: 0, hors: 0, horsPareil: 0 };
     for (const [lab, s, t] of TEMOINS) {
       const un = equipeReelle(s, t);
       const moment = C.si && C.si !== 'domicile' && C.si !== 'visiteur' ? C.si : null;
@@ -118,7 +116,7 @@ function mesurer(cles, n) {
           const H = trois(null), ha = match(H.sans, H.adv, `${g}:hors`, hv);
           const H2 = trois(null), hb = match(H2.avec, H2.adv, `${g}:hors`, hv);
           const momentReel = C.si === 'domicile' || C.si === 'visiteur' ? false : (H2.avec._soir || {})[C.si];
-          if (!momentReel) { m.hors++; if (JSON.stringify(ha) === JSON.stringify(hb)) m.horsPareil++; m.hv += hb.v - ha.v; m.htp += hb.tp - ha.tp; m.hgf += hb.gf - ha.gf; m.hga += hb.ga - ha.ga; }
+          if (!momentReel) { m.hors++; if (JSON.stringify(ha) === JSON.stringify(hb)) m.horsPareil++; }
         }
       }
     }
@@ -131,7 +129,7 @@ if (process.env.PART) {
 }
 
 const t0 = Date.now();
-const toutes = [...Object.keys(PERSONNEL).filter(k => PERSONNEL[k].si).map(k => `q:${k}`), 
+const toutes = [...Object.keys(PERSONNEL).map(k => `q:${k}`), 
   ...Object.keys(ROUTE).filter(k => ROUTE[k].effet).map(k => `r:${k}`),
   ...Object.entries(DOSSIERS).flatMap(([d, D]) => D.options.filter(o => o.lui || CANAUX.some(k => k in o)).map(o => `d:${d}.${o.cle}`))]
   .filter(id => !process.env.CARTES || process.env.CARTES.split(',').some(c => id.slice(2) === c || id.slice(2).startsWith(`${c}.`)));
@@ -166,18 +164,11 @@ const res = Object.assign({}, ...(await Promise.all(lots.map(l => lancer(l, N)))
 const f1 = x => (x >= 0 ? '+' : '') + x.toFixed(1).replace('.', ',');
 const f2 = x => (x >= 0 ? '+' : '') + x.toFixed(2).replace('.', ',');
 let hors = 0, horsPareil = 0;
-const fondTropFort = [], fondInvisible = [];
 const tropFortes = [], invisibles = [], pasStyle = [];
 for (const id of toutes) {
   const [sorte, cle] = id.split(':');
   const C = carteDe(sorte, cle), m = res[id], Mo = C.si ? MOMENTS_SI[C.si] : TOUS_LES_SOIRS;
-  // Un adjoint joue chaque match (V19, FOND_DU_STYLE) : hors de son moment il joue son fond, qui ne compte pas dans « rien ».
-  if (sorte !== 'q') { hors += m.hors; horsPareil += m.horsPareil; }
-  else if (m.hors) {
-    const vFond = ((m.hv / m.hors) * (82 - Mo.parSaison)), tFond = m.htp / m.hors;
-    if (Math.abs(vFond) > FOND_V) fondTropFort.push(`${C.nom} ${vFond.toFixed(1).replace('.', ',')} V`);
-    if (Math.abs(tFond) < 0.2 && Math.abs((m.hgf - m.hga) / m.hors) < 0.03) fondInvisible.push(C.nom);
-  }
+  hors += m.hors; horsPareil += m.horsPareil;
   const par = x => x / m.n;
   // Ce qu'elle vaut en tout : une réponse ou une route, ses soirs dans sa fenêtre ; le reste, ses soirs d'une saison.
   const soirs = sorte === 'd' || sorte === 'r' ? (C.duree * Mo.parSaison) / 82 : Mo.parSaison;
@@ -197,8 +188,7 @@ for (const id of toutes) {
   if (sorte === 'q' && Math.abs(vButs) > STYLE_V) pasStyle.push(`${C.nom} ${f1(vButs)} V`);
   if ((C.rarete === 'rare' || C.rarete === 'legendaire') && !vu) invisibles.push(C.nom);
 }
-exiger('hors de son moment, une réponse ou une route ne change rien à la feuille', hors > 0 && horsPareil === hors, `${horsPareil} feuilles identiques sur ${hors}`);
-exiger(`un adjoint joue chaque match : son fond, hors de son moment, reste sous ${String(FOND_V).replace('.', ',')} V sur la saison`, !fondTropFort.length, fondTropFort.join(' · ') || 'tous');
+exiger('hors de son moment, une carte ne change rien à la feuille', hors > 0 && horsPareil === hors, `${horsPareil} feuilles identiques sur ${hors}`);
 exiger('dans son moment, chaque carte reste sous la borne de sa rareté', !tropFortes.length, tropFortes.join(' · ') || 'toutes');
 exiger('une rare ou une légendaire se voit dans la feuille d\'un soir de son moment', !invisibles.length, invisibles.join(' · ') || 'toutes');
 if (toutes.some(id => id.startsWith('q:'))) exiger(`au premier échelon, le personnel change le style, pas la force (±${String(STYLE_V).replace('.', ',')} V en buts, ses soirs)`, !pasStyle.length, pasStyle.join(' · ') || 'toutes');

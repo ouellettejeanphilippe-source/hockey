@@ -46,8 +46,6 @@ name: Vérifier
 #   check_coachs    les coachs (v2) : chaque carte a sa couleur, la confiance
 #                   s'allume à 3, 6 et 9 cartes, le moteur la joue, et la
 #                   saison se rejoue avec elle
-#   check_si        les cartes d'un moment (V3.4) : fortes leurs soirs, rien
-#                   hors d'eux, sous la borne de leur rareté sur une saison
 #   check_lancee    la lancée et le doute du Rogue (V3.6) : absents du 82-0,
 #                   la même graine rejoue, et l'effet se voit dans les buts
 #   check_combo     le feu qui s'entretient (V3.6), en paires : chaque pièce
@@ -79,7 +77,7 @@ jobs:
   verifier:
     runs-on: ubuntu-latest
     # 25 ne suffisait plus (oct. 2026) : main et les PR étaient coupés en plein smoke_table, tout vert jusque-là.
-    # 40 non plus (S111) : check_si passe à douze graines (onze minutes) et coupait smoke_table.
+    # 40 non plus (S111) : check_si (parti avec les moments des adjoints) passait à douze graines et coupait smoke_table.
     timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
@@ -105,9 +103,6 @@ jobs:
 
       - name: La lancée et le doute du Rogue
         run: node scripts/check_lancee.mjs
-
-      - name: Les cartes d'un moment, en paires
-        run: node scripts/check_si.mjs
 
       - name: Les moments se lisent sur le passé, et reviennent
         run: node scripts/check_moments_si.mjs
