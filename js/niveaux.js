@@ -54,6 +54,7 @@
  */
 
 import { mesuresDeSaison } from './ratings.js';
+import { famillesBrutes, FAMILLES } from './sim.js';
 
 export const NIVEAUX = [
   { cle: 'soutien', nom: 'Soutien', haut: 1, rang: 'la moitié du bas' },
@@ -146,7 +147,26 @@ function saisonDe(joueurs) {
     const a = surVingt(seuils[g], mesureDuNiveau(p, joueurs)), d = seuilsDef[g] && !aux_points ? surVingt(seuilsDef[g], defDe(p)) : null;
     return Math.max(a ?? 1, d ?? 1);
   };
-  s = { niveau, parDefense, seuils, parNiveau, horsNiveau, cote };
+  // LES QUATRE COTES D'UN PATINEUR (Tir, Jeu, Défense, Robustesse) : son rang dans sa saison, à son poste, sur ce que le moteur lit de chaque
+  // famille (`famillesBrutes`), déroulé de 1 (le dernier) à 20 (le premier). Le rang d'un régulier, pour lui comme pour qui joue peu.
+  const famille = {};
+  for (const g of ['F', 'D']) {
+    famille[g] = {};
+    for (const k of Object.keys(FAMILLES)) {
+      famille[g][k] = uniques.filter(p => groupeDuJoueur(p) === g && regulier(p)).map(p => { const b = famillesBrutes(p); return b ? b[k] : null; }).filter(x => x != null).sort((a, b) => a - b);
+    }
+  }
+  const axes = p => {
+    const g = groupeDuJoueur(p), b = g === 'G' ? null : famillesBrutes(p);
+    if (!b) return null;
+    return Object.fromEntries(Object.keys(FAMILLES).map(k => {
+      const L = famille[g][k];
+      if (!L.length) return [k, 10];
+      let n = 0; while (n < L.length && L[n] < b[k]) n++;
+      return [k, Math.max(1, Math.min(20, 1 + Math.round((19 * n) / Math.max(1, L.length))))];
+    }));
+  };
+  s = { niveau, parDefense, seuils, parNiveau, horsNiveau, cote, axes };
   SAISONS.set(joueurs, s);
   return s;
 }
@@ -159,5 +179,7 @@ export const seuilDuNiveau = (joueurs, g, k) => saisonDe(joueurs).seuils[g][k];
 /* Les réguliers d'une saison rangés par niveau (une personne une fois). */
 export const joueursParNiveau = joueurs => saisonDe(joueurs).parNiveau;
 export const joueursHorsNiveau = joueurs => saisonDe(joueurs).horsNiveau;
+/* Ses quatre cotes de patineur sur 20 (Tir, Jeu, Défense, Robustesse) dans SA saison, ou null (un gardien, un joueur sans lecture). */
+export const axes20 = (p, joueurs) => (p && joueurs ? saisonDe(joueurs).axes(p) : null);
 /* La cote sur 20 d'un joueur dans SA saison (1 à 20), ou null s'il n'est pas un régulier. Un appui à lire après le niveau, jamais un tri. */
 export const cote20 = (p, joueurs, auxPointsSeulement = false) => (p && joueurs ? saisonDe(joueurs).cote(p, auxPointsSeulement) : null);

@@ -11,7 +11,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { cote20, niveauDe, mesureDuNiveau, groupeDuJoueur, NIVEAUX } from '../js/niveaux.js';
+import { cote20, axes20, niveauDe, mesureDuNiveau, groupeDuJoueur, NIVEAUX } from '../js/niveaux.js';
+import { registerHiddenRatings } from '../js/sim.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const DIR = path.join(path.dirname(path.dirname(fileURLToPath(import.meta.url))), 'data', 'seasons');
@@ -48,5 +49,27 @@ const parts = Object.entries(parEpoque).filter(([, v]) => v.n > 300).map(([e, v]
 const min = Math.min(...parts.map(x => x[1])), max = Math.max(...parts.map(x => x[1]));
 exiger('la part des cotes de 17 et plus est la même d\'une époque à l\'autre (relative à la saison)', parts.length >= 5 && min > 0.03 && max < 0.12, `${(100 * min).toFixed(1)} % à ${(100 * max).toFixed(1)} % sur ${parts.length} époques`);
 exiger('Gretzky 1981-82 est 20', gretzky && gretzky.c === 20, gretzky ? `${gretzky.c}` : 'introuvable');
+/* Les quatre cotes d'un patineur (Tir, Jeu, Défense, Robustesse) : ce que l'écran montre, une par chose qu'il fait. Un bogue les avait toutes mises à 1. */
+{
+  const saisons = fs.readdirSync(DIR).filter(x => x.endsWith('.json')).sort().filter((_, i) => i % 18 === 5).slice(0, 5);
+  const rang = a => { const o = a.map((v, i) => [v, i]).sort((x, y) => x[0] - y[0]); const r = Array(a.length); o.forEach(([, i], k) => { r[i] = k; }); return r; };
+  const corr = (x, y) => { const a = rang(x), b = rang(y), n = a.length, m = (n - 1) / 2; let sxy = 0, sxx = 0, syy = 0; for (let i = 0; i < n; i++) { sxy += (a[i] - m) * (b[i] - m); sxx += (a[i] - m) ** 2; syy += (b[i] - m) ** 2; } return sxy / Math.sqrt(sxx * syy); };
+  let tous1 = 0, total = 0, couverture = 99;
+  const rho = [];
+  for (const f of saisons) {
+    const J = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')).players;
+    J.forEach(registerHiddenRatings);
+    const reg = J.filter(p => p.p !== 'G' && (p.gp || 0) >= 40 && axes20(p, J));
+    for (const p of reg) { const a = axes20(p, J); total++; if (Object.values(a).every(v => v === 1)) tous1++; }
+    for (const k of ['tir', 'jeu', 'defense', 'robustesse']) couverture = Math.min(couverture, new Set(reg.map(p => axes20(p, J)[k])).size);
+    const att = reg.filter(p => groupeDuJoueur(p) === 'F');
+    rho.push(corr(att.map(p => axes20(p, J).tir), att.map(p => (p.g || 0) / p.gp)));
+  }
+  exiger('les quatre cotes se répartissent de 1 à 20 (au moins 15 valeurs chacune, chaque saison)', couverture >= 15, `${couverture} valeurs au moins`);
+  exiger('personne n\'a ses quatre cotes à 1 par défaut (moins de 2 % des patineurs)', total > 500 && tous1 / total < 0.02, `${tous1} sur ${total}`);
+  exiger('la cote de Tir suit les buts par match d\'un attaquant (rang, corrélation ≥ 0,4)', rho.every(r => r >= 0.4), rho.map(r => r.toFixed(2)).join(' · '));
+  const gard = saisons.flatMap(f => { const J = JSON.parse(fs.readFileSync(path.join(DIR, f), 'utf8')).players; return J.filter(p => p.p === 'G' && (p.gp || 0) >= 30).map(p => cote20(p, J, true)); });
+  exiger('un gardien a une cote d\'Arrêts, de 1 à 20', gard.length > 20 && gard.every(v => v >= 1 && v <= 20) && new Set(gard).size >= 12, `${gard.length} gardiens, ${new Set(gard).size} valeurs`);
+}
 informer('niveaux', NIVEAUX.map(N => N.nom).join(' · '));
 verdict('Les cotes sur 20');
