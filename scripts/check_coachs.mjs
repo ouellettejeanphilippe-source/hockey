@@ -98,8 +98,8 @@ exiger('chaque famille a des cartes de coach', ORDRE_CATEGORIES.every(c => tous.
  * ton service (doublés à la couleur du coach en poste). Les cartes jouées ne comptent plus.
  */
 const unParPoste = k => { const vus = new Set(); return idsDuCoach(k).filter(id => BANQUE[id].cat === 'patron' && !vus.has(PATRONS[BANQUE[id].cle].role) && vus.add(PATRONS[BANQUE[id].cle].role)); };
-// Prolongé une fois (V19, `CONTRAT_JOURS`) : la confiance se mesure sur une saison, le contrat la couvre.
-const engager = (id, jour) => { const d = payloadDe(id, { patrons: [] }); return { jour, ...d, patron: { ...d.patron, prolonge: 1 } }; };
+// Prolongé à chaque fenêtre (V19, `CONTRAT_JOURS`) : la confiance se mesure sur une saison, le contrat la couvre.
+const engager = (id, jour) => { const d = payloadDe(id, { patrons: [] }); return { jour, ...d, patron: { ...d.patron, prolonge: 4 } }; };
 const monter = (id, jour, n) => ({ jour, patron: patronALEchelon(BANQUE[id].cle, { choix: Array(n).fill('force'), depuis: 1 }) });
 /* Une journée dans les contrats (V19, `CONTRAT_JOURS`) : les adjoints engagés tôt y sont encore en poste. */
 const J = 60;
@@ -118,7 +118,7 @@ const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
   // Le personnel de la Tortue, engagé puis monté échelon après échelon : la confiance s'allume à ses seuils, une fois chacun.
   const pas = [...T.map((id, i) => engager(id, 1 + i)), ...[1, 2, 3, 4].flatMap(n => T.map((id, i) => monter(id, 10 * n + i, n)))];
   const decs = [...base], allumes = [];
-  for (const d of pas) { const a = palierAllume(decs, d); if (a) allumes.push(`${buildDe([...decs, d], J).tortue}:${a.coach.palier}`); decs.push({ ...d, ...(a || {}) }); }
+  for (const d of pas) { const a = palierAllume(decs, d); if (a) allumes.push(`${buildDe([...decs, d], d.jour + 1).tortue}:${a.coach.palier}`); decs.push({ ...d, ...(a || {}) }); }
   exiger(`ses adjoints allument II à ${SEUILS[1]} points et III à ${SEUILS[2]}, une fois chacune`, allumes.join(' ') === `${SEUILS[1]}:2 ${SEUILS[2]}:3`, allumes.join(' ') || 'rien');
   exiger('les confiances actives gardent la plus haute', coachsActifs(decs).length === 1 && coachsActifs(decs)[0].palier === 3);
   // Ses matchs à ton service montent seuls : la décision qui suit, quelle qu'elle soit, allume la confiance atteinte.
@@ -137,14 +137,14 @@ const jusquA = n => (de, a) => Math.max(0, Math.min(a, n) - de);
   const depart = [{ jour: 0, coachsDeBase: { tortue: SEUILS[0] }, coach: effetDePalier('tortue', 1) }];
   const A = unParPoste('rapaces');
   const decs = [];
-  for (const d of [...A.map((id, i) => engager(id, 1 + i)), ...A.map((id, i) => monter(id, 5 + i, 4))]) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
+  for (const d of [...A.map((id, i) => engager(id, 1 + i)), ...A.map((id, i) => monter(id, 12 + i, 4))]) { const a = palierAllume([...depart, ...decs], d); decs.push({ ...d, ...(a || {}) }); }
   exiger('les adjoints d\'une autre couleur ne changent pas de coach', !decs.some(d => d.coach) && coachsActifs([...depart, ...decs]).map(c => c.cle).join() === 'tortue', coachsActifs([...depart, ...decs]).map(c => `${c.cle} ${c.palier}`).join());
   const cg = coachNeuf('rapaces');
   const apres = [...depart, ...decs, { jour: 20, palier: 'do:3', moment: { famille: 'dossier', cle: 'laTete', choix: 'premier' }, ...cg }];
   const actifs = coachsActifs(apres);
   exiger('le congédiement installe un autre coach à la confiance I, seul', actifs.length === 1 && actifs[0].cle === 'rapaces' && actifs[0].palier === 1 && cg.coachNeuf === true, actifs.map(c => `${c.cle} ${c.palier}`).join());
-  exiger('sa base repart à la confiance I ; ses adjoints en poste, eux, comptent', baseDesCoachs(apres).rapaces === SEUILS[0] && buildDe(apres, J).rapaces === SEUILS[0] + 5 * A.length,
-    `base ${baseDesCoachs(apres).rapaces} · ${buildDe(apres, J).rapaces} points`);
+  exiger('sa base repart à la confiance I ; ses adjoints en poste, eux, comptent', baseDesCoachs(apres).rapaces === SEUILS[0] && buildDe(apres, 21).rapaces === SEUILS[0] + 5 * A.length,
+    `base ${baseDesCoachs(apres).rapaces} · ${buildDe(apres, 21).rapaces} points`);
   const ii = palierAllume(apres, engager(A[0], 21));
   exiger('sa prochaine décision de personnel le monte à son palier', !!ii && ii.coach.cle === 'rapaces' && ii.coach.palier >= 2, ii ? `${ii.coach.cle} ${ii.coach.palier}` : 'rien');
   // LE STAGE DU COACH (V16, tranche 6) : la carte rare donne au coach en poste les points qui manquent à son cran suivant.

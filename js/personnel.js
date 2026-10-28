@@ -31,13 +31,14 @@ export const LIGNES_DU_FEU = { poussees: 2 };
 export const FOND_DU_STYLE = 0.1;
 /*
  * LE CONTRAT D'UN ADJOINT (V19 ; JP : *matchs max avant de devoir payer pour étendre*). Un adjoint est engagé pour
- * `CONTRAT_JOURS` jours de la saison (le moteur compte en jours : 186 pour 82 matchs) ; ensuite il part, à moins qu'on le
- * prolonge en jetons (`PRIX_PROLONGATION`, une durée de plus chaque fois). La saison suivante, son contrat repart à zéro.
+ * `CONTRAT_JOURS` jours de la saison (le moteur compte en jours : 186 pour 82 matchs ; JP : *contrats plus courts, pour plus de
+ * changements de stratégie* — deux à cinq contrats par saison selon la rareté) ; ensuite il part, à moins qu'on le prolonge en
+ * jetons (`PRIX_PROLONGATION`, une durée de plus chaque fois, au prix du jour). La saison suivante, son contrat repart à zéro.
  * Une carte qui le couvre jusqu'au bout des 186 jours joue aussi les séries.
  */
 export const JOURS_DE_SAISON = 186;
-export const CONTRAT_JOURS = { commune: 100, peu: 120, rare: 140 };
-export const PRIX_PROLONGATION = { commune: 15, peu: 25, rare: 40 };
+export const CONTRAT_JOURS = { commune: 46, peu: 62, rare: 78 };
+export const PRIX_PROLONGATION = { commune: 7, peu: 12, rare: 20 };
 /* Le jour où un contrat finit (exclu) : son départ (`depuis`, sinon le jour de la décision), plus une durée par prolongation prise. Sans contrat (l'argent d'un patron), jamais. */
 export function finDuContrat(p, jourDecision = 0) {
   const C = PERSONNEL[p.cle];
