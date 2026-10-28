@@ -4,7 +4,7 @@
  * fils, les réponses de la vie du DG — ont une seule forme : une voix, un titre, des options qui disent leurs lignes.
  * Ce que le script tient :
  *   1. chaque incident a une voix de `EXPEDITEURS`, un titre et au moins deux options (ou une, si c'est un constat) ;
- *   2. la part des incidents qui NOMMENT un joueur (leur fait, ou `joueur`) ne baisse pas : dilemmes ≥ 70 %, dossiers ≥ 20 % —
+ *   2. la part des incidents qui NOMMENT un joueur (leur fait, ou `joueur`) ne baisse pas : dilemmes ≥ 70 %, dossiers ≥ 25 % —
  *      le but est de la monter (le rapport dit lesquels n'en nomment pas) ;
  *   3. les dates : un dilemme tombe à −2…+2 matchs de sa grille (`matchDuMoment`), jamais deux le même jour.
  *   node scripts/check_incidents.mjs
@@ -32,7 +32,7 @@ informer('dilemmes qui nomment un joueur sans rien lui faire', sansEffetSurLui.j
 exiger('au moins 70 % des dilemmes nomment un joueur', part >= 0.7, `${nommeUnJoueur.length} sur ${Object.keys(MOMENTS).length}`);
 const dossiersJoueur = Object.entries(DOSSIERS).filter(([, d]) => d.joueur);
 informer('dossiers qui nomment un joueur', dossiersJoueur.map(([k]) => k).join(', '));
-exiger('au moins 20 % des dossiers nomment un joueur', dossiersJoueur.length / Object.keys(DOSSIERS).length >= 0.2, `${dossiersJoueur.length} sur ${Object.keys(DOSSIERS).length}`);
+exiger('au moins 25 % des dossiers nomment un joueur', dossiersJoueur.length / Object.keys(DOSSIERS).length >= 0.25, `${dossiersJoueur.length} sur ${Object.keys(DOSSIERS).length}`);
 
 const graines = Array.from({ length: 60 }, (_, i) => `g${i}`);
 const mauvais = graines.filter(g => { const m = JOURS_MOMENTS.map(k => matchDuMoment(g, k)); return m.some((x, i) => i && x <= m[i - 1]) || m.some((x, i) => Math.abs(x - JOURS_MOMENTS[i]) > 2); });
