@@ -1195,6 +1195,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
       const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
       console.log(`10p. un échelon prêt, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
       if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
+      // Sans échelon à prendre, la feuille de l'adjoint reste ouverte : on la ferme avant la rangée suivante.
+      if (await page.$('#choixModal:not([hidden])')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
     } else console.log('10p. un échelon prêt, chez l\'entraîneur : aucun encore');
   }
   // V19 : un contrat se prolonge dans la fiche de sa carte, en jetons (« ct:<clé>:<n> »).
