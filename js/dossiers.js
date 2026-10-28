@@ -24,8 +24,15 @@
  *
  *   faits : { n, jambes, pire: { n, cle, j }, blesses: [{ n, m }], soirs, dos, visiteur, domicile, rival, bete,
  *             caisse, masse: { espace, libre, lourd: { n, cle, sal } }, defaites, coach, coachs: [{ cle, nom }], dernier: { pour, contre, adv }, rang, equipes,
- *             boude: { n, cle, zone, ou, pts, m }, puni: { n, cle, pun, m }, muet: { n, cle, sal, pts, m } }
+ *             boude: { n, cle, zone, ou, pts, m }, puni: { n, cle, pun, m }, muet: { n, cle, sal, pts, m },
+ *             vedette: { n, cle, fait }, gardien: { n, cle, fait } }
  *   (un joueur absent des faits : null)
+ *
+ * TOUJOURS UN JOUEUR (V19, tranche 5 ; JP : *les incidents, toujours liés à des joueurs*). Un dossier d'équipe s'accroche
+ * à celui qui le porte dans les feuilles : ton meilleur pointeur des dix derniers matchs (`vedette`), le gardien du dernier
+ * soir (`gardien`), le plus bas en jambes (`pire`), le plus gros contrat. Seuls trois dossiers n'en nomment pas (la liste blanche
+ * de `check_incidents`) : la caisse qui déborde, la tête du coach et la pratique du mardi. Nommer ne change aucune
+ * réponse : l'effet d'un dossier va au joueur que ses réponses visent (`lui`, `action.energie`), et elles ne visent que ceux d'avant.
  */
 import { hache } from './util.js';
 
@@ -34,6 +41,8 @@ export const FENETRE_JOUEUR = 10, PUNITIONS_CHICANE = 4;
 /* La masse salariale s'ouvre sous `ESPACE_MINCE` d'espace ; la tête du coach, à `DEFAITES_TETE` défaites de suite. */
 const ESPACE_MINCE = 1_500_000, DEFAITES_TETE = 4;
 
+/* Le fait d'un joueur, à la suite de la ligne d'un dossier d'équipe (`vedette`, `gardien` : js/saison.js `faitsDuLundi`). */
+const avec = x => (x ? ` · ${x.fait}` : '');
 export const DOSSIERS = {
   laRoute: {
     de: 'ph', ico: '🧳', titre: 'La semaine sur la route',
@@ -50,7 +59,8 @@ export const DOSSIERS = {
   laSemaineChezNous: {
     de: 'co', ico: '🏟', titre: 'La semaine à la maison',
     quand: f => f.domicile >= 3,
-    fait: f => `${f.domicile} matchs à domicile cette semaine`,
+    joueur: f => f.vedette,
+    fait: f => `${f.domicile} matchs à domicile cette semaine${avec(f.vedette)}`,
     mots: ['Toute la semaine chez nous : les commanditaires veulent voir les gars, et la foule veut du spectacle.',
       'On a la glace à nous pour une semaine. Dis-moi si on vend des billets ou si on ferme les portes.'],
     options: [
@@ -73,6 +83,7 @@ export const DOSSIERS = {
   lInfirmerie: {
     de: 'me', ico: '🚑', titre: 'L\'infirmerie déborde', maison: 'infirmerie',
     quand: f => f.blesses.length >= 2,
+    joueur: f => f.blesses[0],
     fait: f => `🚑 ${f.blesses.slice(0, 3).map(b => `${b.n} ${b.m} m.`).join(', ')}${f.blesses.length > 3 ? ` et ${f.blesses.length - 3} autre${f.blesses.length > 4 ? 's' : ''}` : ''}`,
     mots: ['Ma table est pleine. Il y a un spécialiste à Toronto, mais il ne travaille pas gratuitement.',
       'Je manque de lits. Ou on paie le spécialiste, ou on joue plus prudent le temps qu\'ils reviennent.'],
@@ -84,7 +95,8 @@ export const DOSSIERS = {
   leRival: {
     de: 'pt', ico: '⚔', titre: 'Le rival s\'en vient',
     quand: f => !!f.rival,
-    fait: f => `Contre ${f.rival} cette semaine`,
+    joueur: f => f.vedette,
+    fait: f => `Contre ${f.rival} cette semaine${avec(f.vedette)}`,
     mots: ['Contre eux, on veut voir du sang sur la glace. Pas une partie de cartes.',
       'On a nos billets depuis un mois. Faites-leur mal, ou au moins faites-les tirer de loin.'],
     options: [
@@ -95,7 +107,8 @@ export const DOSSIERS = {
   laBeteNoire: {
     de: 'ca', ico: '😤', titre: 'Ta bête noire',
     quand: f => !!f.bete,
-    fait: f => `Contre ${f.bete} cette semaine : ils t'ont battu deux fois`,
+    joueur: f => f.vedette,
+    fait: f => `Contre ${f.bete} cette semaine : ils t'ont battu deux fois${avec(f.vedette)}`,
     mots: ['Ils nous ont battus deux fois. Le vestiaire ne veut pas d\'une troisième.',
       'Je n\'ai pas oublié, et les gars non plus. Dis-moi comment on les règle.'],
     options: [
@@ -119,7 +132,8 @@ export const DOSSIERS = {
   lesJambesFraiches: {
     de: 'en', ico: '🌬', titre: 'Tout le monde est frais',
     quand: f => f.jambes >= 93,
-    fait: f => `Jambes ${f.jambes} · personne sous ${f.pire ? f.pire.j : f.jambes}`,
+    joueur: f => f.pire,
+    fait: f => `Jambes ${f.jambes} · ${f.pire ? `le plus bas : ${f.pire.n}, ${f.pire.j}` : 'personne en bas'}`,
     mots: ['Les gars volent. C\'est le temps de pousser, ou de travailler la structure pendant qu\'ils ont du jus.',
       'Je n\'ai jamais vu le vestiaire aussi frais. On en profite comment ?'],
     options: [
@@ -171,7 +185,8 @@ export const DOSSIERS = {
   laCaisseVide: {
     de: 'fi', ico: '🧾', titre: 'La caisse à sec',
     quand: f => f.caisse !== null && f.caisse < 25,
-    fait: f => `${f.caisse} 🪙 en caisse`,
+    joueur: f => f.masse && f.masse.lourd,
+    fait: f => `${f.caisse} 🪙 en caisse${f.masse && f.masse.lourd ? ` · ${f.masse.lourd.n} : ${f.masse.lourd.sal}` : ''}`,
     mots: ['On roule sur la réserve. Un commanditaire offre de l\'argent pour une soirée avec les gars.',
       'Les comptes ne balancent pas. Je peux vendre une soirée aux commanditaires, mais les gars vont se coucher tard.'],
     options: [
@@ -231,7 +246,8 @@ export const DOSSIERS = {
   leBlanchi: {
     de: 'an', ico: '🥅', titre: 'Blanchis',
     quand: f => !!f.dernier && f.dernier.pour === 0,
-    fait: f => `0–${f.dernier.contre} contre ${f.dernier.adv}`,
+    joueur: f => f.vedette,
+    fait: f => `0–${f.dernier.contre} contre ${f.dernier.adv}${avec(f.vedette)}`,
     mots: ['Pas un but. Moi, je dirais qu\'ils ont oublié où était le filet, mais je ne suis qu\'à la télé.',
       'Un blanchissage, ça laisse des traces. On va voir s\'ils tirent plus, ou s\'ils visent mieux.'],
     options: [
@@ -242,7 +258,8 @@ export const DOSSIERS = {
   laRaclee: {
     de: 'pr', ico: '🧯', titre: 'Une raclée',
     quand: f => !!f.dernier && f.dernier.contre - f.dernier.pour >= 4,
-    fait: f => `${f.dernier.pour}–${f.dernier.contre} contre ${f.dernier.adv}`,
+    joueur: f => f.gardien,
+    fait: f => `${f.dernier.pour}–${f.dernier.contre} contre ${f.dernier.adv}${avec(f.gardien)}`,
     mots: ['Je ne veux plus jamais voir ça. Fermez la porte du vestiaire, ou fermez votre zone.',
       'J\'ai eu honte dans ma loge. Vous allez me dire ce que vous comptez faire.'],
     options: [
@@ -253,7 +270,8 @@ export const DOSSIERS = {
   leFond: {
     de: 'ca', ico: '🪫', titre: 'Le fond du classement',
     quand: f => f.n >= 20 && f.rang > (3 * f.equipes) / 4,
-    fait: f => `${f.rang}e sur ${f.equipes} après ${f.n} matchs`,
+    joueur: f => f.vedette,
+    fait: f => `${f.rang}e sur ${f.equipes} après ${f.n} matchs${avec(f.vedette)}`,
     mots: ['Le vestiaire est à plat. Laisse-moi leur parler, ou parle-leur toi-même.',
       'On joue comme une équipe qui a déjà fait ses valises. Il faut faire quelque chose.'],
     options: [
@@ -264,7 +282,8 @@ export const DOSSIERS = {
   leSommet: {
     de: 'an', ico: '📸', titre: 'En haut du classement',
     quand: f => f.n >= 20 && f.rang <= 3,
-    fait: f => `${f.rang === 1 ? '1er' : `${f.rang}e`} sur ${f.equipes} après ${f.n} matchs`,
+    joueur: f => f.vedette,
+    fait: f => `${f.rang === 1 ? '1er' : `${f.rang}e`} sur ${f.equipes} après ${f.n} matchs${avec(f.vedette)}`,
     mots: ['Tout le monde vous regarde. Je me demande si vos vedettes vont aimer les caméras.',
       'Les projecteurs sont sur vous. On verra si ça monte à la tête.'],
     options: [
@@ -275,7 +294,8 @@ export const DOSSIERS = {
   leMaire: {
     de: 'ma', ico: '🗝', titre: 'La clé de la ville',
     quand: f => f.n >= 20 && f.rang <= f.equipes / 4 && f.domicile >= 2,
-    fait: f => `${f.rang === 1 ? '1er' : `${f.rang}e`} sur ${f.equipes} · ${f.domicile} matchs à domicile cette semaine`,
+    joueur: f => f.vedette,
+    fait: f => `${f.rang === 1 ? '1er' : `${f.rang}e`} sur ${f.equipes} · ${f.domicile} matchs à domicile cette semaine${avec(f.vedette)}`,
     mots: ['La ville est fière de vous. J\'aimerais remettre la clé au capitaine, devant les caméras.',
       'Une cérémonie à l\'hôtel de ville, une photo, un chèque. Ça ne prend qu\'un après-midi.'],
     options: [
@@ -286,7 +306,8 @@ export const DOSSIERS = {
   leCalendrierCharge: {
     de: 'li', ico: '📆', titre: 'Le calendrier chargé',
     quand: f => f.soirs >= 4,
-    fait: f => `${f.soirs} matchs cette semaine${f.dos ? `, dont ${f.dos} dos-à-dos` : ''}`,
+    joueur: f => f.gardien,
+    fait: f => `${f.soirs} matchs cette semaine${f.dos ? `, dont ${f.dos} dos-à-dos` : ''}${avec(f.gardien)}`,
     mots: ['La cédule est ce qu\'elle est. Votre gardien partant ne peut pas tous les jouer.',
       'Une semaine chargée, comme pour tout le monde. On attend votre feuille de match.'],
     options: [
@@ -297,7 +318,8 @@ export const DOSSIERS = {
   laSemaineTranquille: {
     de: 'en', ico: '🛋', titre: 'Une semaine tranquille',
     quand: f => f.soirs <= 2,
-    fait: f => `${f.soirs} match${f.soirs > 1 ? 's' : ''} cette semaine · jambes ${f.jambes}`,
+    joueur: f => f.pire,
+    fait: f => `${f.soirs} match${f.soirs > 1 ? 's' : ''} cette semaine · jambes ${f.jambes}${f.pire ? ` · le plus bas : ${f.pire.n}, ${f.pire.j}` : ''}`,
     mots: ['Une semaine creuse. On peut faire un mini-camp, ou tout le monde au chalet.',
       'Du temps libre, enfin. Moi, je les ferais travailler ; ils te diront le contraire.'],
     options: [
@@ -308,7 +330,8 @@ export const DOSSIERS = {
   lesHuees: {
     de: 'pa', ico: '🧣', titre: 'Les huées',
     quand: f => f.n >= 6 && f.dernier && f.dernier.contre > f.dernier.pour && f.domicile >= 2,
-    fait: f => `${f.dernier.pour}–${f.dernier.contre} contre ${f.dernier.adv} · ${f.domicile} matchs à domicile cette semaine`,
+    joueur: f => f.gardien,
+    fait: f => `${f.dernier.pour}–${f.dernier.contre} contre ${f.dernier.adv} · ${f.domicile} matchs à domicile cette semaine${avec(f.gardien)}`,
     mots: ['Ça fait trente ans que j\'ai mes billets. Ce soir, j\'ai hué. Je n\'en suis pas fier.',
       'On a hué, oui. Montrez-nous qu\'on a eu tort, chez nous.'],
     options: [

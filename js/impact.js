@@ -640,6 +640,17 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
   return [...(ditQuelqueChose ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...badges, ...qui, ...base];
 }
 
+/**
+ * LA FENÊTRE D'UN CHOIX (V19, tranche 5 ; JP : *des dates, pour que ça joue plus*). Les matchs de ton club qu'un effet couvre,
+ * dits en rangs : « Du 31e au 38e match ». `joues` : les matchs déjà joués ; `duree` : sa durée en matchs (`apresMatchs`,
+ * js/sim.js, compte les mêmes). Rien sans durée.
+ */
+export function fenetreDuChoix(joues, duree) {
+  if (!(duree >= 1)) return '';
+  const rang = n => (n === 1 ? '1er' : `${n}e`);
+  return duree === 1 ? `Au ${rang(joues + 1)} match` : `Du ${rang(joues + 1)} au ${rang(joues + duree)} match`;
+}
+
 /* ---- le club qu'on lit ---- */
 
 let CLUB = null;

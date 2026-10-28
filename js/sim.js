@@ -2180,6 +2180,13 @@ const pl = (n, un, des = `${un}s`) => `${n} ${n > 1 ? des : un}`;
 const momentsOuverts = f => [f < 0.3 && 'octobre', f >= 0.15 && f < 0.55 && 'decembre', f >= 0.45 && f < 0.72 && 'echeance', f >= 0.6 && 'mars'].filter(Boolean);
 /* L'autre gardien de ton alignement, celui qui prendrait le filet ({aux}). */
 const auxDe = (c, g) => ((c.gardiens || []).find(x => x !== g) || {}).n || null;
+/*
+ * QUI PORTE UN FAIT D'ÉQUIPE (V19, tranche 5 ; JP : *les incidents, toujours liés à des joueurs*). Un fait d'équipe se lit dans les
+ * feuilles par quelqu'un de ton effectif : le gardien du filet, le patineur qui a le plus tiré, le plus bas en jambes
+ * (`porteurs`, `faitsDuClub`). Il ne change rien au geste du dilemme (`joueur` reste le joueur que ses options touchent) :
+ * `porte` est nommé dans la scène, avec son chiffre `np`.
+ */
+const porteDe = x => (x ? { porte: x.p, np: x.n } : {});
 /* Chaque fait : `lire` le trouve dans le contexte (ou rend null), `dire` l'écrit en vrais chiffres, sous la voix. */
 export const FAITS = {
   gardienBattu: { lire: c => (c.dernier && c.dernier.gardien && c.dernier.contre >= 6 && auxDe(c, c.dernier.gardien) ? { joueur: c.dernier.gardien, n: c.dernier.contre, aux: auxDe(c, c.dernier.gardien) } : null),
@@ -2194,10 +2201,11 @@ export const FAITS = {
     dire: r => `${r.joueur.n} : ${r.n} punitions en ${r.m} matchs` },
   blesses: { lire: c => (c.blesses && c.blesses.length >= 2 ? { joueurs: c.blesses.map(x => x.p), n: c.blesses.length } : null),
     dire: r => `${r.n} blessés : ${r.joueurs.map(p => p.n).join(', ')}` },
-  route: { lire: c => (c.route >= 3 ? { n: c.route } : null), dire: r => `${r.n} matchs de suite sur la route` },
+  route: { lire: c => (c.route >= 3 ? { n: c.route, ...porteDe(c.porteurs.bas) } : null), dire: r => `${r.n} matchs de suite sur la route${r.porte ? ` · ${r.porte.n} : jambes ${r.np}` : ''}` },
   jambes: { lire: c => { const x = (c.jambes || []).filter(y => y.haut && y.j < 82).sort((a, b) => a.j - b.j)[0]; return x ? { joueur: x.p, n: x.j } : null; },
     dire: r => `${r.joueur.n} : jambes ${r.n}` },
-  jambesEquipe: { lire: c => (c.jambes && c.jambes.length && c.moyenneJambes < 90 ? { n: c.moyenneJambes } : null), dire: r => `Jambes ${r.n} en moyenne` },
+  jambesEquipe: { lire: c => (c.jambes && c.jambes.length && c.moyenneJambes < 90 ? { n: c.moyenneJambes, ...porteDe(c.porteurs.bas) } : null),
+    dire: r => `Jambes ${r.n} en moyenne${r.porte ? ` · ${r.porte.n} : jambes ${r.np}` : ''}` },
   chaud: { lire: c => (c.chaud && c.chaud.pts >= 7 ? { joueur: c.chaud.p, n: c.chaud.pts, m: c.chaud.m } : null), dire: r => `${r.joueur.n} : ${r.n} points en ${r.m} matchs` },
   disetteMarqueur: { lire: c => {
     const x = (c.joueurs || []).filter(j => j.marqueur && c.recents >= 10 && j.butsRecents <= 2).sort((a, b) => (b.p.g || 0) - (a.p.g || 0))[0];
@@ -2209,16 +2217,18 @@ export const FAITS = {
     dire: r => `${r.joueur.n} : ${r.n} de tes ${r.m} derniers matchs, plus dans ton effectif` },
   quatrieme: { lire: c => (c.quatrieme && c.quatrieme.joueurs.length >= 2 && c.quatrieme.m >= FENETRE_FAIT && c.quatrieme.pts <= 2 ? { joueurs: c.quatrieme.joueurs, n: c.quatrieme.pts, m: c.quatrieme.m } : null),
     dire: r => `Ton quatrième trio, ${r.joueurs.map(p => p.n).join(', ')} : ${pl(r.n, 'point')} en ${r.m} matchs` },
-  passoire: { lire: c => (c.cinq && c.cinq.contre >= 17 ? { n: c.cinq.contre, m: c.cinq.m } : null), dire: r => `${r.n} buts accordés en ${r.m} matchs` },
+  passoire: { lire: c => (c.cinq && c.cinq.contre >= 17 ? { n: c.cinq.contre, m: c.cinq.m, ...porteDe(c.porteurs.filet5) } : null),
+    dire: r => `${r.n} buts accordés en ${r.m} matchs${r.porte ? ` · ${r.porte.n} au filet ${r.np} de ces ${r.m} matchs` : ''}` },
   passoirePaire: { lire: c => (c.cinq && c.cinq.contre >= 17 && c.paire1.length === 2 ? { n: c.cinq.contre, m: c.cinq.m, joueurs: c.paire1 } : null),
     dire: r => `${r.n} buts accordés en ${r.m} matchs · ta première paire : ${r.joueurs.map(p => p.n).join(' et ')}` },
-  disette: { lire: c => (c.cinq && c.cinq.pour <= 8 ? { n: c.cinq.pour, m: c.cinq.m } : null), dire: r => `${pl(r.n, 'but')} pour toi en ${r.m} matchs` },
+  disette: { lire: c => (c.cinq && c.cinq.pour <= 8 ? { n: c.cinq.pour, m: c.cinq.m, ...porteDe(c.porteurs.tirs5) } : null),
+    dire: r => `${pl(r.n, 'but')} pour toi en ${r.m} matchs${r.porte ? ` · ${r.porte.n} : ${pl(r.np, 'tir')} sur ces ${r.m} matchs` : ''}` },
   tirsContre: { lire: c => (c.trois && c.trois.tirsContre >= 105 && c.trois.gardien ? { joueur: c.trois.gardien, n: c.trois.tirsContre, m: c.trois.m } : null),
     dire: r => `${r.n} tirs contre toi en ${r.m} matchs · ${r.joueur.n} en a reçu le plus` },
-  avantagesRares: { lire: c => (c.quatre && c.quatre.punisEux <= 10 ? { n: c.quatre.punisEux, m: c.quatre.m } : null),
-    dire: r => `${pl(r.n, 'punition')} contre eux en ${r.m} matchs` },
-  defaiteParUn: { lire: c => (c.dernier && c.dernier.contre === c.dernier.pour + 1 ? { n: c.dernier.pour, m: c.dernier.contre } : null),
-    dire: r => `Battus ${r.m}-${r.n} au dernier match` },
+  avantagesRares: { lire: c => (c.quatre && c.quatre.punisEux <= 10 ? { n: c.quatre.punisEux, m: c.quatre.m, ...porteDe(c.porteurs.tirs4) } : null),
+    dire: r => `${pl(r.n, 'punition')} contre eux en ${r.m} matchs${r.porte ? ` · ${r.porte.n} : ${pl(r.np, 'tir')} sur ces ${r.m} matchs` : ''}` },
+  defaiteParUn: { lire: c => (c.dernier && c.dernier.contre === c.dernier.pour + 1 ? { n: c.dernier.pour, m: c.dernier.contre, ...porteDe(c.porteurs.tirsDernier) } : null),
+    dire: r => `Battus ${r.m}-${r.n} au dernier match${r.porte ? ` · ${r.porte.n} : ${pl(r.np, 'tir')} ce soir-là` : ''}` },
   plombier: { lire: c => (c.plombier ? { joueur: c.plombier.p, n: c.plombier.buts, m: c.plombier.m } : null), dire: r => `${r.joueur.n} : ${pl(r.n, 'but')} en ${r.m} matchs` },
   veteranD: { lire: c => (c.veteransD && c.veteransD.length && c.eleve && c.eleve !== c.veteransD[0].p ? { vieux: c.veteransD[0].p.n, n: c.veteransD[0].age, joueur: c.eleve } : null),
     dire: r => `${r.vieux} : ${r.n} ans, le plus vieux de tes défenseurs · ${r.joueur.n}, son élève` },
@@ -2302,6 +2312,11 @@ export function faitsDuClub(team, matchs, J, N) {
   const plusRecu = liste => { const n = new Map(); for (const { m } of liste) for (const l of fe(m).lancers || []) if (l.cote !== coteDe(m) && l.gardien && dans.has(getPlayerKey(l.gardien))) n.set(l.gardien, (n.get(l.gardien) || 0) + 1);
     return [...n].sort((a, b) => b[1] - a[1])[0]?.[0] || null; };
   const f5 = fenetre(5), f3 = fenetre(3), f4 = fenetre(4);
+  // Qui porte un fait d'équipe : le gardien le plus souvent au filet, le patineur qui a le plus tiré, le plus bas en jambes.
+  const classe = n => [...n].sort((a, b) => b[1] - a[1] || (getPlayerKey(a[0]) < getPlayerKey(b[0]) ? -1 : 1)).map(([p, k]) => ({ p, n: k }))[0] || null;
+  const tireurs = liste => { const n = new Map(); for (const { m } of liste) for (const l of fe(m).lancers || []) if (l.cote === coteDe(m) && l.tireur && dans.has(getPlayerKey(l.tireur))) n.set(l.tireur, (n.get(l.tireur) || 0) + 1); return classe(n); };
+  const auFilet = liste => { const n = new Map(); for (const { m } of liste) { const g = gardienDe(m); if (g && dans.has(getPlayerKey(g))) n.set(g, (n.get(g) || 0) + 1); } return classe(n); };
+  const bas = jambes.slice().sort((a, b) => a.j - b.j || (getPlayerKey(a.p) < getPlayerKey(b.p) ? -1 : 1))[0];
   const chaud = f5 ? meilleur(f5, sesPoints, cases('F')) : null;
   const q4 = cases('F', 3);
   const qFen = avant.slice(-FENETRE_FAIT);
@@ -2329,6 +2344,7 @@ export function faitsDuClub(team, matchs, J, N) {
     plombier: plomb ? { p: plomb.p, buts: plomb.buts, m: qFen.length } : null,
     tirsD: tD ? { p: tD.p, n: tD.n, m: qFen.length } : null,
     recrues,
+    porteurs: { filet5: f5 ? auFilet(f5) : null, tirs5: f5 ? tireurs(f5) : null, tirs4: f4 ? tireurs(f4) : null, tirsDernier: d ? tireurs([d]) : null, bas: bas ? { p: bas.p, n: bas.j } : null },
   };
 }
 /* Le texte d'un dilemme rempli de son fait : {n}, {m}, {vieux}… et {n:but} (« 1 but », « 3 buts ») ; {nom} et {noms} restent à `nommer` (js/gerant.js). */
@@ -2344,8 +2360,8 @@ export const MOMENTS = {
   tropdejoueurs: {
     ico: '🧢', titre: 'Pris en fin de match', fait: 'punitionTard', de: 'ad',
     options: [
-      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.788, volume: 0.913 },
-      { cle: 'rythme', nom: 'Garder des changements rapides', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213 },
+      { cle: 'simplifier', nom: 'Simplifier les changements', bon: 'Moins de punitions', prix: 'Moins de tirs', discipline: 0.788, volume: 0.913, duree: 10 },
+      { cle: 'rythme', nom: 'Garder des changements rapides', bon: 'Plus de tirs', prix: 'Plus de punitions', volume: 1.095, discipline: 1.213, duree: 10 },
     ],
   },
   zamboni: {
@@ -2380,7 +2396,7 @@ export const MOMENTS = {
     ico: '🎯', titre: 'Le tir du plombier', fait: 'plombier', de: 'ad',
     options: [
       { cle: 'gun', nom: 'Faire travailler son tir à {nom}', mutation: 'tir_gun', bon: '{nom} : plus de précision, plus de tirs' },
-      { cle: 'repos', nom: 'Du repos pour tout le monde', bon: 'Moins de blessures', blessure: 0.5 },
+      { cle: 'repos', nom: 'Du repos pour tout le monde', bon: 'Moins de blessures', blessure: 0.5, duree: 10 },
     ],
   },
   pointe: {
@@ -2503,21 +2519,21 @@ export const SEQUENCES = {
     ico: '📉', titre: 'Trois défaites de suite', seuil: 3,
     recit: 'Le vestiaire est à plat. Les journalistes demandent si ton poste est menacé.',
     options: [
-      { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.095 },
-      { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.913 },
+      { cle: 'brasser', nom: 'Donner la glace au bas de l\'alignement', bon: 'Le choc : les 2e, 3e et 4e trios jouent plus', prix: 'Ton premier trio joue moins', F: [0.9, 1.05, 1.08, 1.05], volume: 1.095, duree: 8 },
+      { cle: 'cap', nom: 'Garder le cap', bon: 'La structure revient', defense: 0.913, duree: 8 },
       { cle: 'huis', nom: 'Pratique à huis clos', bon: 'Si les jambes suivent, on redevient une équipe physique', prix: 'Sinon, des corps fatigués',
         pari: { chance: 0.5, gagne: { robustesse: 3, duree: 8 }, perd: { blessure: 1.5, duree: 8 } } },
-      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.875, discipline: 1.235, blessure: 1.24, trou: true },
+      { cle: 'briser', nom: 'Briser le règlement', bon: 'On accroche, on retient, on ferme les espaces', prix: 'Les punitions et les blessures suivent', defense: 0.875, discipline: 1.235, blessure: 1.24, trou: true, duree: 8 },
     ],
   },
   victoires: {
     ico: '📈', titre: 'Quatre victoires de suite', seuil: 4,
     recit: 'Tout roule. Ton premier trio ne rate plus rien.',
     options: [
-      { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.48 },
-      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.92 },
-      { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.68 },
-      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.19, blessure: 1.32, trou: true },
+      { cle: 'doubler', nom: 'Doubler le trio en feu', bon: 'Ton premier trio joue encore plus', prix: 'Il s\'use, et le 4e rouille', F: [1.25, 1.02, 0.95, 0.72], blessure: 1.48, duree: 8 },
+      { cle: 'humble', nom: 'Rester humble', bon: 'On ne relâche rien derrière', defense: 0.92, duree: 8 },
+      { cle: 'tous', nom: 'Tout le monde joue', bon: 'Le 4e trio goûte au succès, les corps se reposent', prix: 'Tes vedettes jouent moins', F: [0.9, 0.97, 1.05, 1.2], D: [0.95, 1, 1.08], blessure: 0.68, duree: 8 },
+      { cle: 'forcer', nom: 'La séquence passe avant le repos', bon: 'Le premier trio ne sort plus', prix: 'Les jambes lâchent, et l\'arbitre aussi', F: [1.22, 1, 0.95, 0.8], discipline: 1.19, blessure: 1.32, trou: true, duree: 8 },
     ],
   },
 };

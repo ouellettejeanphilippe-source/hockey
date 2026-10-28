@@ -34,7 +34,7 @@ import { SLOTS, JOUER_BLESSE_MAX, JAMAIS_BLESSE, lanceeDe, LANCEE, compterFeuill
   familleDeMoment, activeLineup, accordsDeLigne, facteurGardienDe, lancersRelDe, filetDuSoir, jambesGardien, pariDeDecision, matchsEntre, jourEvenement, photoAlignement, fits, getPositionPenalty,
   nouvelleGraine, motDeBlessure, rivauxOfferts, rivalChoisi, RIVAUX, apercuDuDuel, MISE_DOUBLEE, INTENTIONS, MOMENTS_SI, PLANS, cibleDuPlan } from './sim.js';
 import { seasonLancers, ageAtSeason, getLineZone } from './ratings.js';
-import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
+import { motsDuSoir, alignementDuSoir, chiffresDuSoir, motsEnChiffres, fenetreDuChoix, motsDeMutationEnChiffres, ceQuiJoue, motsDeStats, planEnChiffres, propositionsDuDuel, intentionEnChiffres } from './impact.js';
 import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessureOuverte as blessureAFaire, retourDuBlesse } from './ballottage.js';
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
@@ -3236,8 +3236,10 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const EN_LETTRES = ['', '', 'Deux', 'Trois', 'Quatre', 'Cinq', 'Six', 'Sept', 'Huit', 'Neuf', 'Dix'];
       const titre = sq.n > s.seuil ? `${EN_LETTRES[sq.n] || sq.n} ${sq.cle === 'defaites' ? 'défaites' : 'victoires'} de suite` : s.titre;
       const dSq = cle => ({ jour, palier: sq.palier, moment: { famille: 'sequence', cle: sq.cle, choix: cle } });
-      specs.push({ de: DE.coach, ico: s.ico, titre, recit: s.recit, genre: 'evenement', contexte: dejaEnJeu(), ...plusTard,
-        options: optionsDeSequence(sq.cle).map(o => ({ ...o, duree: dureeOption(o, 'sequence') })),
+      // Qui porte la séquence (V19, tranche 5) : le gardien du dernier soir d'une glissade, le meilleur pointeur d'une série de victoires.
+      const duFait = joueurDuFait(sq.cle === 'defaites' ? 'gardien' : 'vedette', miens.slice(-sq.n).map(({ m }) => ({ f: m.feuille || {}, cote: m.A === you ? 'A' : 'B' })), new Set(SLOTS.filter(sl => !sl.scratch).map(sl => you.roster[sl.i]).filter(Boolean)));
+      specs.push({ de: DE.coach, ico: s.ico, titre, recit: duFait ? `${s.recit} ${duFait.fait}.` : s.recit, joueur: duFait ? duFait.p : null, genre: 'evenement', contexte: dejaEnJeu(), ...plusTard,
+        options: optionsDeSequence(sq.cle).map(o => ({ ...o, duree: dureeOption(o, 'sequence'), ...(o.duree ? { quand: fenetreDuChoix(miens.length, o.duree) } : {}) })),
         lancer: cle => auDe({ ...dSq(cle), sel: nouvelleGraine() }, decider),
         decision: dSq });
     }
@@ -3253,9 +3255,9 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       // LA SCÈNE : la voix du dilemme, sa réplique, et le fait en vrais chiffres.
       const scene = sceneDuDilemme(dl.cle, f, `${graine}|${dl.J}`);
       const dDl = cle => ({ jour, palier: `m:${dl.J}`, moment: { famille: 'moment', cle: dl.cle, choix: cle, joueur: cible ? getPlayerKey(cible) : null, joueurs: cibles.map(getPlayerKey) } });
-      specs.push({ de: scene.de, scene, ico: m.ico, titre: m.titre, irl: m.irl, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
+      specs.push({ de: scene.de, scene, ico: m.ico, titre: m.titre, irl: m.irl, genre: 'evenement', regle: !!m.regle, joueur: cible || f.joueur || f.porte || null, joueurs: cibles, ouDe: ctx.ouJoue, ...plusTard,
         contexte: dejaEnJeu(cibles.filter(x => x !== (cible || f.joueur))),
-        options: m.options.map(o => ({ ...o, ...Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, texteDuFait(o[k], f)])), duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'),
+        options: m.options.map(o => ({ ...o, ...Object.fromEntries(['nom', 'bon', 'prix'].filter(k => o[k]).map(k => [k, texteDuFait(o[k], f)])), duree: o.mutation || o.rien ? null : dureeOption(o, 'moment'), ...(o.duree && !o.mutation && !o.rien ? { quand: fenetreDuChoix(miens.length, o.duree) } : {}),
           desactive: (o.mutation && !cible) || ((o.action || o.lui) && !cibles.length) ? 'Personne dans ton alignement pour ça' : null })),
         lancer: cle => auDe({ ...dDl(cle), sel: nouvelleGraine() }, decider),
         decision: dDl });
@@ -3334,11 +3336,16 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const soirs = jours.map(j => calendrier[j][indexMien(j)]), advs = soirs.map(m => (m.A === you ? m.B : m.A));
     const bete = advs.find(a => you.beteNoire === a) || null, rival = advs.find(a => a !== bete && rivalChoisi(you, a)) || null;
     const der = miens.length ? miens[miens.length - 1].m : null, chez = der && der.A === you;
+    // QUI PORTE LA SEMAINE (V19, tranche 5) : ton meilleur pointeur de ses dix derniers matchs, le gardien du dernier soir — `joueurDuFait` (js/vie-gm.js) en dit le fait, en vrais chiffres.
+    const feuilles = miens.slice(-FENETRE_JOUEUR).map(({ m }) => ({ f: m.feuille || {}, cote: m.A === you ? 'A' : 'B' }));
+    const habilles = new Set(SLOTS.filter(sl => !sl.scratch).map(sl => you.roster[sl.i]).filter(Boolean));
+    const porte = sorte => { const x = joueurDuFait(sorte, feuilles, habilles); return x ? { n: x.p.n, cle: getPlayerKey(x.p), fait: x.fait } : null; };
     return {
       n: miens.length,
       jambes: pats.length ? Math.round(pats.reduce((a, x) => a + x.j, 0) / pats.length) : 100,
       pire: pats.reduce((b, x) => (!b || x.j < b.j ? x : b), null),
-      blesses: [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]).map(([p, m]) => ({ n: p.n, m })),
+      blesses: [...blessesDe(you, matchsDe(you))].sort((a, b) => b[1] - a[1]).map(([p, m]) => ({ n: p.n, m, cle: getPlayerKey(p) })),
+      vedette: porte('vedette'), gardien: porte('gardien'),
       soirs: soirs.length, dos: jours.filter(j => dosADos(you, j)).length,
       visiteur: soirs.filter(m => m.B === you).length, domicile: soirs.filter(m => m.A === you).length,
       rival: rival ? ctx.teamShort(rival) : null, bete: bete ? ctx.teamShort(bete) : null,
@@ -3530,6 +3537,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
           // UNE RÉPONSE D'UN MOMENT se dit sur ses soirs : « −0,4 pt de précision par soir · Un soir de dos-à-dos : ≈ 15 soirs cette
           // saison », plus « par match · 82 matchs » à côté de « seulement » (oct., JP : *rien de cohérent*).
           options: D.options.map(o => ({ ...o, ...motsDuDossier(o, dossier.faits, lui), duree: o.rien || o.si ? null : o.duree || null,
+            ...(!o.si && o.duree && !o.rien ? { quand: fenetreDuChoix(miens.length, o.duree) } : {}),
             ...(o.si ? { cadre: { part: 1, par: 'par soir' }, quand: `${MOMENTS_SI[o.si].mot} : ≈ ${Math.max(1, Math.round(MOMENTS_SI[o.si].parSaison * Math.min(o.duree || 82, 82 - miens.length) / 82))} soirs${(o.duree || 82) >= 82 ? ' d\'ici la fin de la saison' : ` sur ${o.duree} matchs`}` } : {}),
             mots: [...(o.gain ? [{ txt: `${o.gain > 0 ? '+' : '−'}${Math.abs(o.gain)} 🪙`, bon: o.gain > 0 }] : []), ...(o.lui && lui ? motsSurLeJoueur(o.lui, lui.n) : [])],
             desactive: o.gain < 0 && caisse !== null && caisse < -o.gain ? 'Pas assez de jetons en caisse' : null })),
@@ -3602,7 +3610,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const sub = t => String(t || '').replace(/\{nom\}/g, cible ? cible.n : 'ton joueur');
       out.push({ id: vie.palier, genre: 'courriel', bloque: true, de: vie.de, sujet: vie.sujet, joueur: cible || null,
         choix: { recitHtml: `${vie.corps}${duFait ? `<p class="scene-fait">${ctx.esc(duFait.fait)}</p>` : ''}`, joueur: cible || null,
-          options: fam.options.map(o => ({ cle: o.cle, nom: sub(o.nom), bon: sub(o.bon), prix: sub(o.prix), ...(o.pari ? { etiquette: 'Pari' } : {}),
+          options: fam.options.map(o => ({ cle: o.cle, nom: sub(o.nom), bon: sub(o.bon), prix: sub(o.prix), ...(o.pari ? { etiquette: 'Pari' } : {}), ...(o.duree && !o.rien && !o.mutation ? { quand: fenetreDuChoix(miens.length, o.duree) } : {}),
             mots: motsDeReponse(o, { joueur: cible || null, noms: cible ? cible.n : '' }).map(x => ({ ...x, txt: sub(x.txt) })),
             desactive: fam.cible && !cibles.length && (o.mutation || (o.action && (o.action.absents || o.action.energie))) ? 'Personne dans ton alignement pour ça' : null })),
           decision: cle => {
