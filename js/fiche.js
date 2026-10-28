@@ -436,10 +436,10 @@ export function showPlayerModal(p, opts = {}) {
   const courbe = apres && opts.team ? courbeJambesHtml(courbeJambes(opts.team, p, opts.jambesJusqua ?? Infinity), { large: true }) : '';
   /*
    * LA CARTE SEULEMENT (JP, oct. : *je veux pas de détails si possible […] si nécessaire d'infos en dessous, faire
-   * qqchose qu'on doit « ouvrir »*) : tout ce qui n'est pas sur la carte se range sous « Détails », fermé au téléphone,
-   * ouvert au bureau où la colonne de droite l'attend.
+   * qqchose qu'on doit « ouvrir »*) : tout ce qui n'est pas sur la carte se range sous « Détails », un bloc toujours visible
+   * (JP, 28 oct. : *j'hais les accordéons*), sans pli.
    */
-  const ouvrir = html => `<details class="fiche-plus"${matchMedia('(min-width: 900px)').matches ? ' open' : ''}><summary>Détails</summary>${html}</details>`;
+  const ouvrir = html => `<section class="fiche-plus"><div class="section-label">Détails</div>${html}</section>`;
   const corps = apercu ? ouvrir(profil + plusDeDetails) : apres
     ? ouvrir(`<div class="section-label">${esc(opts.titreSim || (opts.sim === 'series' ? 'Statistiques des séries' : 'Statistiques de la saison simulée'))} ${equipeSim}</div>
        <div class="stat-grid">${grilleSim(p, sim)}</div>

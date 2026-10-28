@@ -20,6 +20,9 @@
  *      dossier, fil, carte de route) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
  *      se plient sous « Les chiffres », sans rien perdre —, et la tuile est un aplat : ni dégradé, ni ombre, ni saut.
  *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
+ *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans les fichiers
+ *      traités (liste explicite, `SANS_PLI` : on y ajoute un fichier quand son pli est parti). Une info courte est un bloc
+ *      toujours visible ; une longue liste défile dans sa feuille, se charge à l'approche, ou s'ouvre en feuille.
  *
  *   node scripts/check_lisibilite.mjs
  */
@@ -171,6 +174,16 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
     ...survol.filter(r => decor.test(r.corps) || /transform/.test(r.corps)).map(r => `${r.sel.split('\n').pop().slice(0, 50)} : ombre ou saut`),
   ];
   exiger('la tuile de choix est un aplat : ni dégradé, ni ombre, ni saut au toucher', base.length === 1 && !fautes.length, fautes.join(' · ') || `${base.length} règle de base, ${survol.length} états`);
+}
+
+/* 7. Aucun accordéon. */
+const SANS_PLI = ['bilan', 'cartable', 'fiche', 'magasin', 'menu', 'rogue-jeu'].map(f => `js/${f}.js`);
+{
+  const restes = SANS_PLI.flatMap(f => {
+    const n = (fs.readFileSync(path.join(ROOT, f), 'utf8').match(/<\/?(details|summary)\b/g) || []).length;
+    return n ? [`${f} (${n})`] : [];
+  });
+  exiger('aucun <details> ni <summary> dans les fichiers traités (j\'hais les accordéons)', restes.length === 0, restes.join(' · ') || `${SANS_PLI.length} fichiers sans pli`);
 }
 
 verdict('Le décor calme, les cartes belles');

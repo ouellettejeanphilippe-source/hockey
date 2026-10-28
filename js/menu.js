@@ -135,7 +135,7 @@ function dessiner(m) {
       <span class="menu-transfert-mot" role="status"></span>
     </div>`;
   const partiesBloc = (ix.parties.length
-    ? `<details class="menu-parties"${ix.parties.length <= 3 && !ctx.enJeu ? ' open' : ''}><summary>Parties · ${ix.parties.length}</summary>${groupes}</details>`
+    ? `<section class="menu-parties"><h2 class="menu-parties-t">Parties · ${ix.parties.length}</h2>${groupes}</section>`
     : '') + transfert;
 
   const pied = `<nav class="menu-pied" aria-label="Réglages">
@@ -202,16 +202,16 @@ function dessiner(m) {
       else if (quoi === 'inventaire' && ctx.rogue && ctx.rogue.inventaire) ctx.rogue.inventaire();
       else if (quoi === 'options') ctx.options();
       else if (quoi === 'regles') ctx.regles();
-      else if (quoi === 'copier') { copier(id); dessiner(m); ouvrirParties(m); }
+      else if (quoi === 'copier') { copier(id); dessiner(m); }
       else if (quoi === 'exporter') { const f = exporter(id); if (f) livrer(f.nom, f.texte).then(mot => dire(m, mot)); }
       else if (quoi === 'importer') { const inp = m.querySelector('.menu-fichier'); if (inp) inp.click(); }
       else if (quoi === 'coller') {
-        navigator.clipboard.readText().then(t => { const mot = recevoir(t); dessiner(m); ouvrirParties(m); dire(m, mot); })
+        navigator.clipboard.readText().then(t => { const mot = recevoir(t); dessiner(m); dire(m, mot); })
           .catch(() => dire(m, 'Le presse-papiers n\'est pas lisible.'));
       }
       else if (quoi === 'supprimer') {
         if (b.dataset.confirme !== '1') { b.dataset.confirme = '1'; b.textContent = 'Supprimer ?'; setTimeout(() => { if (b.isConnected) { b.dataset.confirme = ''; b.textContent = '✕'; } }, 2500); return; }
-        supprimer(id); dessiner(m); ouvrirParties(m);
+        supprimer(id); dessiner(m);
       }
     };
   });
@@ -220,11 +220,10 @@ function dessiner(m) {
     fichier.onchange = () => {
       const f = fichier.files && fichier.files[0];
       if (!f) return;
-      f.text().then(t => { const mot = recevoir(t); dessiner(m); ouvrirParties(m); dire(m, mot); })
+      f.text().then(t => { const mot = recevoir(t); dessiner(m); dire(m, mot); })
         .catch(() => dire(m, 'Ce fichier ne se lit pas.'));
     };
   }
 }
 /* Le mot du transfert, sous les boutons ; vide, rien ne se voit. */
 const dire = (m, mot) => { const s = m.querySelector('.menu-transfert-mot'); if (s) s.textContent = mot || ''; };
-const ouvrirParties = m => { const d = m.querySelector('.menu-parties'); if (d) d.open = true; };

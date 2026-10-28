@@ -10,9 +10,10 @@ import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, assortiPour, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, baseDesCoachs, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
 import { PROTEGES } from './personnel.js';
+import { hubActif } from './coquille.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, decisionDeProlongation, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, decisionDeProlongation, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX } from './echelons.js';
 import { tenusDe } from './chiffre.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -788,7 +789,7 @@ function poserUneModif(item, j, decider, retour) {
  * TON PERSONNEL (V12-2, puis V14 — js/echelons.js). JP : *le personnel, des cartes qui gagnent des niveaux, avec leurs
  * forces et leurs faiblesses, un look de jeu de gestion* ; *ça peut être des cartes selon leur style*. Chaque poste : sa
  * carte (son style), son poste et son moment, sa force en vert et son défaut en rouge (en vraies stats, à son échelon),
- * ses échelons (les ouverts, les fermés) et ses matchs à ton service. Une ligne se déplie : le détail, et le choix d'un
+ * ses échelons (les ouverts, les fermés) et son contrat. Une rangée s'ouvre en feuille : le détail, et le choix d'un
  * échelon atteint.
  */
 const etatPersonnel = j => (G.ligue ? etatDuPersonnel(decisionsDeLaPartie(), j + 1, {
@@ -837,47 +838,83 @@ export function contratsQuiFinissent(j) {
   return etatPersonnel(j).filter(e => e.prolongeable && matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin) <= 6)
     .map(e => ({ cle: e.cle, fin: e.fin, ico: e.patron.ico, nom: e.qui, restant: matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin), prix: e.prixProlongation }));
 }
-export function personnelDuJour(j) {
-  const decs = decisionsDeLaPartie(), pa = patronsActifs(decs, j + 1), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
-  // V16 (tranche 5b) : un adjoint d'une autre couleur que ton coach se lit tel que le moteur le joue (`assortiPour`).
+/* Ce que lisent la rangée d'un adjoint et sa feuille : le coach en poste, les adjoints, leur état à la journée `j`. */
+function lectureDuPersonnel(j) {
+  const decs = decisionsDeLaPartie();
   const [coach] = coachsActifs(decs, j + 1);
-  const etats = new Map(etatPersonnel(j).map(e => [e.cle, e]));
-  const aChoisir = new Set(echelonsAChoisir(j).map(e => e.cle));
+  return { coach, pa: patronsActifs(decs, j + 1), etats: new Map(etatPersonnel(j).map(e => [e.cle, e])), aChoisir: new Set(echelonsAChoisir(j).map(e => e.cle)) };
+}
+/* Son moment, et combien de soirs il revient (JP : *c'est useless, c'est juste contre rivaux* — qu'on le sache avant d'engager). */
+const quandJoue = P => (P.si && MOMENTS_SI[P.si] ? `${MOMENTS_SI[P.si].mot} · ≈ ${MOMENTS_SI[P.si].parSaison} soirs par saison` : 'Toute la saison');
+/* Le contrat (V19) : les matchs qu'il lui reste, et la prolongation qui l'étend (en jetons). */
+const matchsDeContrat = (e, j) => matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin);
+/*
+ * LA FEUILLE D'UN ADJOINT (JP, 28 oct. : *j'hais les accordéons*) : toucher sa rangée l'ouvre, au lieu de la déplier sur
+ * place. Le détail (son texte, sa force en vert et son défaut en rouge, son protégé, son contrat) et ses choix — un échelon
+ * atteint, la prolongation — comme des options ; la décision passe par `jouerDeLaMaison`, le même chemin qu'avant.
+ */
+function ouvrirLAdjoint(cle) {
+  const hub = hubActif();
+  if (!hub || !hub.decider || !G.ligue) return;
+  const j = hub.jour ? hub.jour() : (G.journee || 0);
+  const { coach, pa, etats, aChoisir } = lectureDuPersonnel(j);
+  const x = pa.find(q => q.cle === cle), e = etats.get(cle);
+  if (!x || !e) return;
+  const R = ROLES[x.role] || {}, P = PATRONS[cle] || {};
+  const vu = assortiPour(coach && coach.cle, x), contre = vu !== x;
+  const { force, faiblesse, autres } = motsDeLaPersonne(vu);
+  const suite = aChoisir.has(cle) ? '' : e.prochain === null ? 'Au sommet de son métier.'
+    : e.ferme ? `Prêt pour l'échelon ${e.echelon + 1} : un doublon tiré d'un pack l'ouvre.`
+    : `${e.service} / ${e.prochain} matchs à ton service${e.double ? ' · de la couleur de ton coach : deux fois plus vite' : ''}.`;
+  const restant = matchsDeContrat(e, j), peutPayer = jetonsRogue(j) >= e.prixProlongation;
+  const contrat = e.prolongeable ? `Contrat : encore ≈ ${restant} match${restant > 1 ? 's' : ''}, puis il part.` : 'Contrat : jusqu\'à la fin de la saison.';
+  const faits = (x.choix || []).map((c, i) => `Échelon ${i + 2} : ${c === 'force' ? 'sa force poussée' : 'son défaut corrigé'}`).join(' · ');
+  // Son protégé, nommé : le joueur que ses chiffres visent (le feu vise des lignes, pas un joueur).
+  const M = PROTEGES[cle];
+  const lui = M && !M.portee ? joueurDeMutation(G.ligue.you, null, cle) : null;
+  const lignes = M && M.portee ? lignesDuFeu(cle, x.choix || []) : 0;
+  const protege = lui ? `Son protégé : ${lui.n}.` : lignes ? (lignes > 1 ? 'Il vise tes deux premières lignes.' : 'Il vise ta première ligne.') : '';
+  const options = [
+    ...(aChoisir.has(cle) ? optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => ({ ...o, cle: `echelon:${o.cle}` })) : []),
+    ...(e.prolongeable ? [{ cle: 'contrat', ico: '📝', nom: 'Prolonger', sous: contrat, mots: [{ txt: `−${e.prixProlongation} 🪙`, bon: false }], desactive: peutPayer ? null : 'Pas assez de jetons en caisse' }] : []),
+  ];
+  const decider = d => { const h = hubActif(); if (h && h.decider) h.decider(d); };
+  ouvrirChoix({ ico: x.ico || P.ico || '👔', titre: e.qui, recit: `${R.nom || ''} · ${quandJoue(P)}`, compact: true, fermable: true, motFermer: 'Retour', vide: 'Rien à décider pour lui.',
+    contexte: `<div class="gens-fiche">
+      ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
+      ${contre ? `<p class="perso-libre">Pas de la couleur de ${esc(COACHS[coach.cle].nom)} : il joue à contre-courant, ses chiffres le disent.</p>` : ''}
+      ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
+      ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
+      ${autres.length ? `<div class="choix-puces">${pucesEnBref(autres)}</div>` : ''}
+      ${protege ? `<p class="perso-libre">${esc(protege)}</p>` : ''}
+      ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${e.prolongeable ? '' : `<p class="perso-libre">${esc(contrat)}</p>`}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
+    </div>`,
+    options,
+    onChoix: k => {
+      if (k === 'contrat') jouerDeLaMaison({ src: 'contrat', id: `contrat:${cle}` }, j, decider);
+      else if (k.startsWith('echelon:')) jouerDeLaMaison({ src: 'echelon', id: `echelon:${cle}:${k.slice(8)}` }, j, decider);
+    } });
+}
+// Une rangée du personnel se touche : sa feuille s'ouvre (le volet de l'entraîneur est réécrit à chaque décision, d'où l'écoute au document).
+if (typeof document !== 'undefined') document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('.gens-l[data-gens]'); if (b) ouvrirLAdjoint(b.dataset.gens); });
+export function personnelDuJour(j) {
+  const max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+  // V16 (tranche 5b) : un adjoint d'une autre couleur que ton coach se lit tel que le moteur le joue (`assortiPour`).
+  const { coach, pa, etats, aChoisir } = lectureDuPersonnel(j);
   const libres = Math.max(0, max - pa.length);
   const echelons = e => `<span class="gens-ech" aria-label="Échelon ${e.echelon} sur ${ECHELON_MAX}, ${e.ouverts} ouverts">${Array.from({ length: ECHELON_MAX }, (_, i) => `<i class="${i < e.echelon ? 'on' : i < e.ouverts ? '' : 'ferme'}"></i>`).join('')}</span>`;
+  // UNE RANGÉE PAR ADJOINT, toujours visible : son style, sa force et son défaut, son échelon et son contrat ; la toucher ouvre sa feuille.
   const ligne = x => {
     const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {}, e = etats.get(x.cle);
     if (!e) return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b></span></div>`;
-    const vu = assortiPour(coach && coach.cle, x), contre = vu !== x;
-    const { force, faiblesse, autres } = motsDeLaPersonne(vu);
-    // Son moment, et combien de soirs il revient (JP : *c'est useless, c'est juste contre rivaux* — qu'on le sache avant d'engager).
-    const quand = P.si && MOMENTS_SI[P.si] ? `${MOMENTS_SI[P.si].mot} · ≈ ${MOMENTS_SI[P.si].parSaison} soirs par saison` : 'Toute la saison';
-    const pct = e.prochain === null ? 100 : Math.max(0, Math.min(100, Math.round(100 * (e.service - MATCHS_ECHELON[e.echelon]) / (e.prochain - MATCHS_ECHELON[e.echelon]))));
-    const suite = aChoisir.has(e.cle) ? '' : e.prochain === null ? 'Au sommet de son métier.'
-      : e.ferme ? `Prêt pour l'échelon ${e.echelon + 1} : un doublon tiré d'un pack l'ouvre.`
-      : `${e.service} / ${e.prochain} matchs à ton service${e.double ? ' · de la couleur de ton coach : deux fois plus vite' : ''}.`;
-    // V19 : le contrat — les matchs qu'il lui reste, et la prolongation qui l'étend (en jetons).
-    const restant = matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin), peutPayer = jetonsRogue(j) >= e.prixProlongation;
-    const contrat = e.prolongeable ? `Contrat : encore ≈ ${restant} match${restant > 1 ? 's' : ''}, puis il part.` : 'Contrat : jusqu\'à la fin de la saison.';
-    // Son protégé, nommé : le joueur que le moteur lui désigne aujourd'hui (JP : *je comprends pas le protégé*).
-    const prot = PROTEGES[x.cle] && !PROTEGES[x.cle].feu ? joueurDeMutation(G.ligue.you, null, x.cle) : null;
-    const faits = (x.choix || []).map((c, i) => `Échelon ${i + 2} : ${c === 'force' ? 'sa force poussée' : 'son défaut corrigé'}`).join(' · ');
-    return `<details class="pli gens${aChoisir.has(e.cle) ? ' monte' : ''}"><summary class="gens-l">
+    const { force, faiblesse, autres } = motsDeLaPersonne(assortiPour(coach && coach.cle, x));
+    const restant = matchsDeContrat(e, j);
+    return `<button type="button" class="gens gens-l${aChoisir.has(e.cle) ? ' monte' : ''}" data-gens="${esc(e.cle)}">
         <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
-        <span class="gens-txt"><b>${esc(e.qui)}</b><small>${esc(R.nom || '')} · ${esc(quand)}</small>
+        <span class="gens-txt"><b>${esc(e.qui)}</b><small>${esc(R.nom || '')} · ${esc(quandJoue(P))}</small>
           <span class="gens-ff">${force[0] ? `<span class="bon">${esc(force[0].txt)}</span>` : autres[0] ? `<span>${esc(autres[0].txt)}</span>` : ''}${faiblesse[0] ? `<span class="mal">${esc(faiblesse[0].txt)}</span>` : ''}</span></span>
-        <span class="gens-niv">${aChoisir.has(e.cle) ? `<span class="gens-monte">Prêt · ${e.prix} 🪙</span>` : `<span>Éch. ${e.echelon}</span>`}${echelons(e)}<span class="gens-xp"><i style="width:${pct}%"></i></span></span>
-      </summary>
-      <div class="gens-fiche">
-        ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
-        ${prot ? `<p class="perso-libre">Son protégé : <b>${esc(prot.n)}</b>. Le bonus ci-dessous est pour lui seul, et le suit s'il change de ligne.</p>` : ''}
-        ${contre ? `<p class="perso-libre">Pas de la couleur de ${esc(COACHS[coach.cle].nom)} : il joue à contre-courant, ses chiffres le disent.</p>` : ''}
-        ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
-        ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
-        ${autres.length ? `<div class="choix-puces">${pucesEnBref(autres)}</div>` : ''}
-        ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}<p class="perso-libre">${esc(contrat)}</p>${e.prolongeable ? `<div class="gens-choix"><button type="button" class="btn maison-jouer" data-src="contrat" data-id="contrat:${esc(e.cle)}"${peutPayer ? '' : ' disabled title="Pas assez de jetons"'}>📝 Prolonger · ${e.prixProlongation} 🪙</button></div>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
-        ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}"${o.desactive ? ` disabled title="${esc(o.desactive)}"` : ''}>${o.ico} ${esc(o.nom)}${e.prix ? ` · ${e.prix} 🪙` : ''}</button>`).join('')}</div>` : ''}
-      </div></details>`;
+        <span class="gens-niv">${aChoisir.has(e.cle) ? `<span class="gens-monte">Prêt · ${e.prix} 🪙</span>` : `<span>Éch. ${e.echelon}</span>`}${echelons(e)}<span class="gens-ct">${e.prolongeable ? `≈ ${restant} match${restant > 1 ? 's' : ''}` : 'Saison'}</span></span>
+      </button>`;
   };
   return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
     ${pa.map(ligne).join('')}
@@ -916,11 +953,10 @@ export function cartesDeLaMaison(maison, j) {
   if (!n) return masse;
   const carte = (id, bouton) => `<div class="bq-carte">${carteDeBanqueHtml(optionDeBanque(id))}<div class="bq-actions">${bouton}</div></div>`;
   const jouer = (src, id, mot, ref = '') => `<button type="button" class="btn gold maison-jouer" data-src="${src}" data-id="${esc(id)}"${ref ? ` data-ref="${esc(ref)}"` : ''}>${mot}</button>`;
-  // V12-4 : le sous-onglet tient en un écran — ses cartes se plient en une ligne (leurs icônes) ; ouvertes, une bande qui se balaie.
-  const icones = [...partie.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
-  return `${masse}<details class="pli"><summary class="pli-t"><span class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</span><span class="pli-icones" aria-hidden="true">${icones}</span></summary>
-    <div class="pli-bande">${partie.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
-  </details>`;
+  // Toujours visibles (JP, 28 oct. : *j'hais les accordéons*) : un titre, et une bande qui se balaie, la carte suivante au bord, comme la main du duel.
+  return `${masse}<section class="cartes-maison"><h3 class="perso-t">🃏 ${MAISONS_DES_CARTES[maison].titre} · ${n}</h3>
+    <div class="cartes-bande">${partie.map(x => carte(x.id, `${jouer('partie', x.id, 'Jouer', x.ref)}${valeurDe(x.id) ? `<button type="button" class="btn maison-vendre" data-ref="${esc(x.ref)}" data-id="${esc(x.id)}">Vendre · ${valeurDe(x.id)} 🪙</button>` : ''}`)).join('')}${perso.map(k => carte(`patron:${k}`, jouer('personnel', `patron:${k}`, 'Engager'))).join('')}${conso.map(([id, k]) => carte(id, jouer('meta', id, `Jouer${k > 1 ? ` · ×${k}` : ''}`))).join('')}</div>
+  </section>`;
 }
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
 export function jouerDeLaMaison(item, j, decider) {
