@@ -14,7 +14,7 @@ export const MARGE = 8;
 export async function collesAuBord(page, { marge = MARGE } = {}) {
   return page.evaluate(marge => {
     const W = document.documentElement.clientWidth;
-    const cache = el => !!el.closest('[hidden], [inert], details:not([open]) > :not(summary)')
+    const cache = el => !!el.closest('[hidden], [inert]')
       || !el.checkVisibility({ opacityProperty: true, visibilityProperty: true });
     // Un élément sous une feuille ou un voile ne se lit pas : son centre doit être à lui.
     const devant = (el, r) => {

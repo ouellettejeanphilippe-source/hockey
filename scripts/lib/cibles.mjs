@@ -21,7 +21,7 @@ export const EXCEPTIONS = [
 export async function ciblesTropPetites(page, { min = CIBLE_MIN, exceptions = EXCEPTIONS } = {}) {
   return page.evaluate(({ min, exceptions }) => {
     const vu = el => {
-      if (el.closest('[hidden], [inert], details:not([open]) > :not(summary)')) return false;
+      if (el.closest('[hidden], [inert]')) return false;
       const s = getComputedStyle(el);
       if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0 || s.pointerEvents === 'none') return false;
       const r = el.getBoundingClientRect();
@@ -50,7 +50,7 @@ export async function ciblesTropPetites(page, { min = CIBLE_MIN, exceptions = EX
     const nom = el => el.tagName.toLowerCase() + (el.id ? `#${el.id}` : '')
       + (typeof el.className === 'string' && el.className.trim() ? `.${el.className.trim().split(/\s+/)[0]}` : '');
     const fautes = new Map();
-    for (const el of document.querySelectorAll('button, summary, [role="button"]')) {
+    for (const el of document.querySelectorAll('button, [role="button"]')) {
       if (!vu(el) || exceptions.some(x => el.matches(x) || el.closest(x))) continue;
       const z = zone(el);
       if (z.w + 0.5 >= min && z.h + 0.5 >= min) continue;

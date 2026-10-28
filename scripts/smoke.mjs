@@ -388,7 +388,7 @@ async function repondreAuxChoix() {
      * puis prend sa première idée ; la décision porte le duel et une main vide.
      */
     if (await page.$('#choixModal:not([hidden]) .choix-sheet[data-genre="main"]')) {
-      const reste = await page.$$eval('#choixModal :is(.main-carte, .main-orbe, .main-energie, .main-deck, .main-reprendre, details.main-duel, .dep-piste, .deck-grille)', e => e.length);
+      const reste = await page.$$eval('#choixModal :is(.main-carte, .main-orbe, .main-energie, .main-deck, .main-reprendre, .dep-piste, .deck-grille)', e => e.length);
       if (reste) errors.push(`l'écran du duel montre encore la main (${reste} élément(s) : cartes, élan, deck ou dépistage)`);
       if (!(await page.$('#choixModal .duel-intention'))) errors.push('l\'écran d\'un gros match ne dit pas leur intention');
       if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test((await page.textContent('#choixModal .choix-sheet')) || '')) errors.push('l\'écran du duel parle encore d\'élan ou de deck');
@@ -965,22 +965,7 @@ async function toutEstAtteignable(ou) {
     const st = el => getComputedStyle(el);
     const rogne = el => { const s = st(el); return ['hidden','auto','scroll'].includes(s.overflowY) || ['hidden','auto','scroll'].includes(s.overflowX); };
     const defile = el => { const o = st(el).overflowY; return (o === 'auto' || o === 'scroll') && el.scrollHeight - el.clientHeight > 1; };
-    /*
-     * UN TIROIR FERMÉ NE MONTRE QUE SON RÉSUMÉ. Chrome récent cache le corps
-     * d'un <details> fermé par `::details-content` — son style calculé reste
-     * « display: block » et sa boîte garde des mesures, donc le garde-fou le
-     * comptait visible et le voyait « déborder » du tiroir plié (S78 : « Les
-     * autres matchs », le rapport par ligne). Hors de son <summary>, un
-     * élément d'un tiroir fermé n'est pas à l'écran.
-     */
-    const plie = el => {
-      for (let d = el.closest('details:not([open])'); d; d = d.parentElement && d.parentElement.closest('details:not([open])')) {
-        const s = d.querySelector(':scope > summary');
-        if (!s || !s.contains(el)) return true;
-      }
-      return false;
-    };
-    const vu = el => { const s = st(el); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0 || plie(el)) return false;
+    const vu = el => { const s = st(el); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0) return false;
       const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0; };
     const nom = el => el.tagName.toLowerCase() + (el.id ? '#' + el.id : '')
       + (typeof el.className === 'string' && el.className.trim() ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');

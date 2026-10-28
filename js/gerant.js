@@ -1061,12 +1061,12 @@ export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = fal
   const justeN = [chiffres(PREP_JUSTE), fx && fx.piege ? chiffres(fx.piege) : ''].filter(Boolean).join(' · ');
   const rate = fx && fx.improvise ? `pas de malus, et l'improvisation : ${mots(fx.improvise)}` : mots(PREP_RATEE);
   const rateN = chiffres(fx && fx.improvise ? fx.improvise : PREP_RATEE);
-  // `etape` (l'écran de combat) : le titre devient son étape, et la règle se plie sous les pistes (elle se relit, elle ne se choisit pas).
+  // `etape` (l'écran de combat) : le titre devient son étape ; la règle (vise juste, rate) reste visible sous les pistes.
   const regle = `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span>${justeN ? `<span class="puce bon detail">${esc(justeN)}</span>` : ''}<span class="puce prix">💥 Rate : ${esc(rate)}</span>${rateN ? `<span class="puce prix detail">${esc(rateN)}</span>` : ''}<span class="puce neutre">Sans préparation : rien ne change</span></div>`;
   return `<div class="depistage${choisir ? ' choisir' : ''}">
     ${etape || `<div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>`}
     <div class="dep-pistes">${pistes.map(ligne).join('')}</div>
-    ${choisir ? (etape ? `<details class="main-plie"><summary>🎯 Viser juste ou rater : ce que ça change</summary>${regle}</details>` : regle) : ''}
+    ${choisir ? regle : ''}
   </div>`;
 }
 
@@ -1238,7 +1238,6 @@ export function ouvrirDuel(spec) {
   const dessiner = () => {
     // L'ÉCRAN NE REMONTE PAS quand on règle quelque chose (S80) : on reste où on lisait.
     const hauts = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].map(e => (e ? e.scrollTop : 0));
-    const plies = [...m.querySelectorAll('details.main-plie')].map(d => d.open);
     const etapes = ['duel', V && 'vest', spec.ajustements && 'aj'].filter(Boolean);
     const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
     const pli = (k, txt) => `<button type="button" class="main-pli" data-deplier="${k}"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span><span class="main-pli-ouvrir" aria-hidden="true">›</span></button>`;
@@ -1285,7 +1284,7 @@ export function ouvrirDuel(spec) {
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         ${propositionsHtml()}
-        ${spec.stats ? `<details class="main-plie"><summary>📊 Les deux clubs, par match</summary>${spec.stats}</details>` : ''}
+        ${spec.stats ? `<div class="main-stats"><div class="gl-k">📊 Les deux clubs, par match</div>${spec.stats}</div>` : ''}
         <div class="main-outils">
           <button type="button" class="btn main-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>
           ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il garde ton tableau aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
@@ -1293,7 +1292,6 @@ export function ouvrirDuel(spec) {
       </div>
     </div>`;
     [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].forEach((e, i) => { if (e && hauts[i]) e.scrollTop = hauts[i]; });
-    m.querySelectorAll('details.main-plie').forEach((d, i) => { if (plies[i]) d.open = true; });
     pointsDeBande(m);
     m.querySelectorAll('.duel-prop[data-prop]').forEach(b => { b.onclick = () => {
       if (manque()) return;

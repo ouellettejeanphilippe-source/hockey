@@ -20,9 +20,10 @@
  *      dossier, fil, carte de route) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
  *      se plient sous « Les chiffres », sans rien perdre —, et la tuile est un aplat : ni dégradé, ni ombre, ni saut.
  *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
- *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans les fichiers
- *      traités (liste explicite, `SANS_PLI` : on y ajoute un fichier quand son pli est parti). Une info courte est un bloc
- *      toujours visible ; une longue liste défile dans sa feuille, se charge à l'approche, ou s'ouvre en feuille.
+ *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans AUCUN fichier de js/
+ *      (`SANS_PLI` les lit tous, y compris ceux qu'on écrira) ni dans index.html. Une info courte est un bloc toujours visible ;
+ *      une longue liste défile dans sa feuille, se charge à l'approche, ou s'ouvre en page ou en feuille par une rangée
+ *      (`rangeeHtml`, js/saison.js ; `ouvrirChoix`).
  *
  *   node scripts/check_lisibilite.mjs
  */
@@ -177,13 +178,13 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
 }
 
 /* 7. Aucun accordéon. */
-const SANS_PLI = ['bilan', 'cartable', 'fiche', 'magasin', 'menu', 'rogue-jeu'].map(f => `js/${f}.js`);
+const SANS_PLI = [...fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).sort().map(f => `js/${f}`), 'index.html'];
 {
   const restes = SANS_PLI.flatMap(f => {
     const n = (fs.readFileSync(path.join(ROOT, f), 'utf8').match(/<\/?(details|summary)\b/g) || []).length;
     return n ? [`${f} (${n})`] : [];
   });
-  exiger('aucun <details> ni <summary> dans les fichiers traités (j\'hais les accordéons)', restes.length === 0, restes.join(' · ') || `${SANS_PLI.length} fichiers sans pli`);
+  exiger('aucun <details> ni <summary> nulle part dans js/ ni index.html (j\'hais les accordéons)', restes.length === 0, restes.join(' · ') || `${SANS_PLI.length} fichiers sans pli`);
 }
 
 verdict('Le décor calme, les cartes belles');

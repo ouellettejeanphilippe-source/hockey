@@ -376,7 +376,7 @@ async function regler() {
       /*
        * SANS MAIN (V13-2, docs/refonte-v13.md) : le duel se joue à ton tableau ; ni cartes de match, ni élan, ni « Mon deck ».
        */
-      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, details.main-duel, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
+      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
       if (resteDeMain.length) erreurs.push(`l'écran du duel montre encore la main : ${[...new Set(resteDeMain)].join(', ')}`);
       if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test(((await page.textContent('#choixModal .choix-sheet').catch(() => '')) || ''))) erreurs.push('l\'écran du duel parle encore d\'élan ou de deck');
       /*
@@ -1065,24 +1065,26 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
   if (portes.join() !== 'bureau,joueurs,lignes,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes : ${portes.join(' · ')}`);
-  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?*) : plié sous la ligne du match,
-  // les six tuiles quand il se déplie, celle en force à l'or, 🥷 nomme les deux joueurs ; en toucher une écrit la décision.
+  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
+  // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
+  // écrit la décision.
   {
-    await page.click('#hubModal .bu-plan > summary').catch(() => {});
+    if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
+    await page.click('#hubModal button.bu-plan').catch(() => {});
     await page.waitForTimeout(800);
-    const pl = await page.$$eval('#hubModal .bu-plan .dep-plan[data-plan]', bs => bs.map(b => ({ cle: b.dataset.plan, on: b.classList.contains('on'), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce').length }))).catch(() => []);
+    const pl = await page.$$eval('#choixModal .choix-option[data-choix]', bs => bs.map(b => ({ cle: b.dataset.choix, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree)').length }))).catch(() => []);
     await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
     const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
     const autre = pl.find(x => !x.on && x.cle !== 'match');
     let ecrit = null;
     if (autre) {
       const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#hubModal .bu-plan .dep-plan[data-plan="${autre.cle}"]`).catch(() => {});
+      await page.click(`#choixModal .choix-option[data-choix="${autre.cle}"]`).catch(() => {});
       await page.waitForTimeout(600); await attendreDecisions(n0);
       ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
-    }
+    } else await page.click('#choixModal .choix-fermer').catch(() => {});
     await auBureau();
-    const ligne = await page.$eval('#hubModal .bu-plan > summary', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
+    const ligne = await page.$eval('#hubModal button.bu-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
     console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
     if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
     if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);

@@ -893,7 +893,7 @@ input[type="range"] { accent-color: var(--or); }
 .section-label:first-child { margin-top: 0; }
 /* RIEN ICI (Jalon U : un seul dessin) : une phrase centrée, en gris, dans la liste vide ; la petite dans un volet serré. */
 .empty-msg, .eq-vide, .live-vide, .inv-vide, .ct-vide, .exh-vide { margin: 0; text-align: center; color: var(--encre-3); font-size: var(--t-2); padding: var(--esp-6) var(--esp-4); line-height: 1.6; }
-.empty-msg.small, .ej-vide, .som-vide, .ct-charge { margin: 0; text-align: center; color: var(--encre-3); padding: var(--esp-3) var(--esp-1); font-size: var(--t-1); line-height: 1.5; }
+.empty-msg.small, .som-vide, .ct-charge { margin: 0; text-align: center; color: var(--encre-3); padding: var(--esp-3) var(--esp-1); font-size: var(--t-1); line-height: 1.5; }
 .note { font-size: var(--t-2); color: var(--encre-2); line-height: 1.5; }
 
 /* ---- Les tableaux : des bandes, des chiffres tabulaires, ta rangée en couleur de club ---- */
@@ -3599,25 +3599,16 @@ a.spin-club:hover { background: var(--fond-2); }
 /* Le coach et sa confiance, les effets du soir (V7), en tiroirs et en rangées. */
 .ej-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .ej-soir:empty { display: none; }
-.ej-plie > summary { cursor: pointer; list-style: none; gap: var(--esp-2); }
-.ej-plie > summary::-webkit-details-marker { display: none; }
-.ej-plie > summary > span:first-child::after { content: ' ›'; color: var(--encre-3); }
-.ej-plie[open] > summary > span:first-child::after { content: ' ⌄'; }
-.ej-plie:not([open]) { gap: 0; }
 .ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .ej-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
-.ej-r.a-detail { min-height: 44px; cursor: pointer; }
-.ej-r.a-detail .ej-nom::after { content: ' ›'; color: var(--encre-3); }
-.ej-r.ouvert .ej-nom::after { content: ' ⌄'; }
 .ej-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
 .ej-nom small { margin-left: var(--esp-1); color: var(--encre-3); }
 .ej-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
 .st-p { padding: 2px 6px; border-radius: var(--r-1); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; }
-.ej-soir .bon { color: var(--bon); }
-.ej-soir .mauvais { color: var(--mauvais); }
-.ej-detail { display: none; grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
-.ej-r.ouvert .ej-detail { display: block; }
+:is(.ej-soir, .hub-rangee) .bon { color: var(--bon); }
+:is(.ej-soir, .hub-rangee) .mauvais { color: var(--mauvais); }
+.ej-detail { grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
 .ej-coach { display: flex; flex-direction: column; gap: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
 .ej-coach-tete { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
 .ej-coach-tete small { flex-basis: 100%; font-family: inherit; font-weight: 400; font-size: var(--t-1); line-height: 1.3; text-transform: none; color: var(--encre-2); }
@@ -3955,14 +3946,13 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 /* LE PROCHAIN MATCH EN UNE LIGNE (V8, le Bureau du Rogue) : le toucher ouvre Effectif › Dépistage. */
 .bu-prochain { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); width: 100%; min-height: 56px; margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-2); color: var(--encre); text-align: left; cursor: pointer; }
 
-/* Ton plan d'avant-match, au Bureau (oct.) : une ligne pliée sous le match, les six tuiles quand elle se déplie. */
-.bu-plan { margin-top: var(--esp-2); border: 1px solid var(--filet); background: var(--fond-2); }
-.bu-plan > summary { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); list-style: none; cursor: pointer; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
-.bu-plan > summary::-webkit-details-marker { display: none; }
-.bu-plan-t { letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.bu-plan > summary b { flex: 1; min-width: 0; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bu-plan-aller { color: var(--or); }
-.bu-plan-corps { padding: 0 var(--esp-3) var(--esp-3); }
+/* UNE RANGÉE QUI OUVRE UNE PAGE ou une feuille (js/saison.js `rangeeHtml` ; JP : *j'hais les accordéons*) : le titre, ce qu'elle dit, « › ».
+   Ton plan, au Bureau, en est une (la feuille des six plans). Toujours visible, 44 px au moins, à coins vifs. */
+.hub-rangee { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: 0; background: var(--fond-2); text-align: left; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
+.hub-rangee::after { content: "›"; flex: none; margin-left: auto; font-size: var(--t-4); color: var(--or); }
+.hub-rangee-t { flex: none; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.hub-rangee b { flex: 1; min-width: 0; color: var(--encre); overflow-wrap: anywhere; }
+.bu-plan { margin-top: var(--esp-2); }
 .bu-prochain.gros { border-color: var(--or); }
 .bu-prochain-txt { display: grid; min-width: 0; line-height: 1.25; }
 .bu-prochain-txt b { font: 800 var(--t-4)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -3994,7 +3984,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet :is(.hub-msg, .hub-boite .af-option) { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
-  .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
+  .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes { display: none; }
   body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
   .hub-volet .hub-etat { padding: var(--esp-2) var(--esp-3); }
   .hub-volet .hub-etat-l { font-size: var(--t-1); }
@@ -4151,7 +4141,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-soir > .hub-une, .hub-soir > .hub-miniboss { margin: 0; }
 .hub-autour { display: grid; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--filet); font-size: var(--t-2); line-height: 1.4; color: var(--encre); }
 .hub-autour .hub-une-t { color: var(--encre-3); }
-.hub-autour > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
 .hub-autour p { margin: 0; }
 .hub-nouvelles { display: grid; gap: var(--esp-2); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--encre-3); font-size: var(--t-2); line-height: 1.4; }
 .hub-nouvelles .hub-une-t { color: var(--encre-3); }
@@ -4233,10 +4222,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
 @media (min-width: 700px) { .af-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
 .af-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
-.af-encours > summary { list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); min-height: 44px; display: flex; align-items: center; }
-.af-encours > summary::-webkit-details-marker { display: none; }
-.af-encours > summary::after { content: " ›"; margin-left: var(--esp-1); }
-.af-encours[open] > summary { color: var(--encre); }
 .af-chiffres { align-self: center; }
 /* Une nouvelle d'Hier soir : la carte qui change, le vestiaire, les mouvements de l'alignement. */
 .hub-situ, .hub-mouvements { display: flex; flex-direction: column; gap: var(--esp-2); }
@@ -4338,13 +4323,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .tuile-jauge.fait > span { background: var(--bon); }
 .tuile-jauge.mur > span { background: var(--attention); }
 .tuile-jauge.serre > span, .tuile-jauge.rate > span { background: var(--mauvais); }
-.hub-plie { border-top: 1px solid var(--filet-2); }
-.hub-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 44px; padding: var(--esp-2) 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.hub-plie > summary::-webkit-details-marker { display: none; }
-.hub-plie > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); transition: transform var(--t-vite); }
-.hub-plie[open] > summary { color: var(--encre); }
-.hub-plie[open] > summary::after { transform: rotate(90deg); }
-.hub-autres .cal-grille { margin-top: var(--esp-2); }
 
 /* ---- Le portail : quatre tuiles plates en 2 × 2, au bureau seulement (les onglets les portent au téléphone) ---- */
 .hub-portail { display: none; }
@@ -4488,10 +4466,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 
 /* ---- Ton histoire : trois actes, une ligne par événement, la rivalité en tête ---- */
 .recit { display: flex; flex-direction: column; gap: var(--esp-2); }
-.recit-avant > summary { display: flex; align-items: center; min-height: 44px; list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.recit-avant > summary::-webkit-details-marker { display: none; }
-.recit-avant > summary::after { content: "›"; margin-left: var(--esp-2); font-size: var(--t-4); transition: transform 0.15s; }
-.recit-avant[open] > summary::after { transform: rotate(90deg); }
 .recit-rival { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .recit-acte { display: flex; flex-direction: column; gap: var(--esp-1); }
 .recit-acte-t { margin-top: var(--esp-2); padding-bottom: var(--esp-1); border-bottom: 1px solid var(--filet-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
@@ -4540,12 +4514,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .dep3-table tr:has(td.av) .dep3-av { color: var(--bon); }
 .dep3-surveiller { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* Ton plan (V17) : six tuiles d'À faire, deux par rangée au téléphone, trois dès 700 px ; le nom et deux stats. */
-.dep-plans { display: flex; flex-direction: column; gap: var(--esp-2); }
-.dep-plans .af-options { grid-template-columns: 1fr 1fr; }
-@media (min-width: 700px) { .dep-plans .af-options { grid-template-columns: repeat(3, 1fr); } }
-.dep-plan.choix-option { padding: var(--esp-2); gap: 2px; }
-.dep-plan .choix-option-nom { font-size: var(--t-3); }
-.dep-plan :is(.choix-option-sous, .puce) { font-size: var(--t-1); line-height: 1.25; }
 
 /* ---- Le deuxième entracte : le pointage, les buts, l'incident ---- */
 .ent2 { margin: var(--esp-1) 0 var(--esp-3); }
@@ -4867,14 +4835,6 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-l.bon, .som-l .bon { color: var(--bon); }
 .som-l.prix, .som-l .prix { color: var(--mauvais); }
 .som-rang { color: var(--encre); font-weight: 600; }
-/* La semaine passée (V5), pliée en tête d'Hier soir le lundi (js/saison.js, `semainePasseeHtml`). */
-.sem-passee { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
-.sem-passee > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 44px; padding: var(--esp-2) var(--esp-3); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-.sem-passee > summary::-webkit-details-marker { display: none; }
-.sem-passee > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); color: var(--encre-3); transition: transform var(--t-vite); }
-.sem-passee[open] > summary::after { transform: rotate(90deg); }
-.sem-passee > .som { padding: 0 var(--esp-3) var(--esp-3); }
-.hub-volet .sem-passee { margin-bottom: var(--esp-2); }
 .som-attente { margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); background: color-mix(in srgb, var(--mauvais) 12%, transparent); box-shadow: inset 3px 0 0 var(--mauvais); }
 
 /* ---- Le rapport d'entracte : une rangée de cartons plats qu'on balaie, un par écran au téléphone ---- */
@@ -5276,12 +5236,7 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .main-pli > span:first-of-type { flex: 1; min-width: 0; }
 .main-pli-ouvrir { flex: none; color: var(--encre-3); }
 .duel-mise { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid color-mix(in srgb, var(--or) 40%, var(--filet)); }
-.main-plie { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
-.main-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 40px; padding: var(--esp-1) var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-.main-plie > summary::-webkit-details-marker { display: none; }
-.main-plie > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); transition: transform var(--t-vite); }
-.main-plie[open] > summary::after { transform: rotate(90deg); }
-.main-plie > :not(summary) { margin: 0 var(--esp-3) var(--esp-3); }
+.main-stats { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
