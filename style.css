@@ -359,6 +359,9 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .bulle-def { position: fixed; z-index: 900; max-width: min(320px, calc(100vw - 16px)); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 600 var(--t-1)/1.4 var(--corps); box-shadow: var(--relief); pointer-events: none; }
 /* V8 : la cellule « Cartes » de l'en-tête est un bouton (le Rogue) : elle ouvre tes cartes d'où qu'on soit. */
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
+/* Une info, une maison (JP : *le principe de GM Connected, c'est aussi de pas répéter les infos de page en page, genre le top bar*) : la fiche et le rang se lisent au Bureau, les jetons au Bureau et au Marché ; ailleurs l'en-tête n'est que l'identité du club et le menu. Au repêchage, il porte le plafond. */
+body:not([data-section="bureau"]):not([data-section="marche"]):not(.au-repechage) .tete-chiffres { display: none; }
+body[data-section="marche"]:not(.au-repechage) :is(#teteFiche, #teteRang) { display: none; }
 .tete-ch-d { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .tete-ch-d:empty { display: none; }
 .tete-ch-v { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; }
