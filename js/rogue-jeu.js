@@ -12,7 +12,7 @@ import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepar
 import { PROTEGES } from './personnel.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, decisionDeProlongation, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX, MATCHS_ECHELON } from './echelons.js';
 import { tenusDe } from './chiffre.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -832,6 +832,11 @@ function echelonsAChoisir(j) {
     service: e.service, prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j), coachEnPoste(j)),
     decision: c => ({ palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) }) }));
 }
+/* Les contrats qui finissent bientôt (V19) : ≤ 6 matchs à faire, et de quoi les prolonger ; la nouvelle d'Hier soir les dit une fois. */
+export function contratsQuiFinissent(j) {
+  return etatPersonnel(j).filter(e => e.prolongeable && matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin) <= 6)
+    .map(e => ({ cle: e.cle, fin: e.fin, ico: e.patron.ico, nom: e.qui, restant: matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin), prix: e.prixProlongation }));
+}
 export function personnelDuJour(j) {
   const decs = decisionsDeLaPartie(), pa = patronsActifs(decs, j + 1), max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
   // V16 (tranche 5b) : un adjoint d'une autre couleur que ton coach se lit tel que le moteur le joue (`assortiPour`).
@@ -851,6 +856,9 @@ export function personnelDuJour(j) {
     const suite = aChoisir.has(e.cle) ? '' : e.prochain === null ? 'Au sommet de son métier.'
       : e.ferme ? `Prêt pour l'échelon ${e.echelon + 1} : un doublon tiré d'un pack l'ouvre.`
       : `${e.service} / ${e.prochain} matchs à ton service${e.double ? ' · de la couleur de ton coach : deux fois plus vite' : ''}.`;
+    // V19 : le contrat — les matchs qu'il lui reste, et la prolongation qui l'étend (en jetons).
+    const restant = matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin), peutPayer = jetonsRogue(j) >= e.prixProlongation;
+    const contrat = e.prolongeable ? `Contrat : encore ≈ ${restant} match${restant > 1 ? 's' : ''}, puis il part.` : 'Contrat : jusqu\'à la fin de la saison.';
     const faits = (x.choix || []).map((c, i) => `Échelon ${i + 2} : ${c === 'force' ? 'sa force poussée' : 'son défaut corrigé'}`).join(' · ');
     return `<details class="pli gens${aChoisir.has(e.cle) ? ' monte' : ''}"><summary class="gens-l">
         <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
@@ -864,7 +872,7 @@ export function personnelDuJour(j) {
         ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
         ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
         ${autres.length ? `<div class="choix-puces">${pucesEnBref(autres)}</div>` : ''}
-        ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
+        ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}<p class="perso-libre">${esc(contrat)}</p>${e.prolongeable ? `<div class="gens-choix"><button type="button" class="btn maison-jouer" data-src="contrat" data-id="contrat:${esc(e.cle)}"${peutPayer ? '' : ' disabled title="Pas assez de jetons"'}>📝 Prolonger · ${e.prixProlongation} 🪙</button></div>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
         ${aChoisir.has(e.cle) ? `<div class="gens-choix">${optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => `<button type="button" class="btn${o.cle === 'force' ? ' gold' : ''} maison-jouer" data-src="echelon" data-id="echelon:${esc(e.cle)}:${o.cle}"${o.desactive ? ` disabled title="${esc(o.desactive)}"` : ''}>${o.ico} ${esc(o.nom)}${e.prix ? ` · ${e.prix} 🪙` : ''}</button>`).join('')}</div>` : ''}
       </div></details>`;
   };
@@ -921,6 +929,14 @@ export function jouerDeLaMaison(item, j, decider) {
     if (!e || !e.options.some(o => o.cle === c && !o.desactive)) return;
     toast(`${e.ico} ${e.qui} : échelon ${e.echelon + 1}.`);
     decider({ jour: j, ...e.decision(c) });
+    return;
+  }
+  // V19 : la prolongation d'un contrat (« contrat:<clé> »), payée en jetons.
+  if (item.src === 'contrat') {
+    const e = etatPersonnel(j).find(x => `contrat:${x.cle}` === item.id);
+    if (!e || !e.prolongeable || jetonsRogue(j) < e.prixProlongation) return;
+    toast(`${e.patron.ico} ${e.qui} : contrat prolongé.`);
+    decider({ jour: j, palier: `ct:${e.cle}:${(e.patron.prolonge || 0) + 1}`, ...decisionDeProlongation(e) });
     return;
   }
   jouerCarte(item, j, decider, null, () => {});

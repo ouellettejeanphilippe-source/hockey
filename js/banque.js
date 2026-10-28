@@ -23,7 +23,7 @@
  * `check_cartes`).
  */
 import { MUTATIONS, EDITIONS_REGLEMENT, MOMENTS_SI, LANCEE } from './sim.js';
-import { PERSONNEL, PROTEGES, LIGNES_DU_FEU } from './personnel.js';
+import { PERSONNEL, PROTEGES, LIGNES_DU_FEU, JOURS_DE_SAISON, finDuContrat } from './personnel.js';
 import { motsEnChiffres, motsDeMutationEnChiffres } from './impact.js';
 import { formeDe, motsSurLeJoueur } from './gerant.js';
 import { hache } from './util.js';
@@ -360,7 +360,8 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
     for (const r of d.patron.remplace || []) for (const [k, v] of par) if (v.cle === r) par.delete(k);
     par.set(role, { ...d.patron, role, jour: d.jour });
   }
-  return [...par.values()];
+  // Un contrat fini a quitté le club (`finDuContrat`, js/personnel.js) ; au bout de la saison (jusqua infini), seuls ceux qui l'ont menée à terme restent.
+  return [...par.values()].filter(p => Math.min(jusqua, JOURS_DE_SAISON) <= finDuContrat(p));
 }
 /* Ce que les patrons engagés changent à la boutique (la décision d'engagement porte \`econ\`). */
 export function modificateurs(decisions = [], jusqua = Infinity) {
@@ -518,7 +519,9 @@ export const coachNeuf = cle => ({ coach: effetDePalier(cle, 1), coachNeuf: true
  * confiance atteinte), ou null. Pur : les décisions d'avant, celle-ci, et les matchs joués (`joues`).
  */
 export function palierAllume(decisions = [], d, { joues = () => 0, tenus = () => 0 } = {}) {
-  const avant = buildDe(decisions, Infinity, { joues, tenus }), apres = buildDe([...decisions, d], Infinity, { joues, tenus });
+  // À la journée de la décision (V19) : un contrat fini n'est plus en poste, et « jusqu'au bout de la saison » ne compterait que ceux qu'on a prolongés.
+  const jusqua = Number.isFinite(d.jour) ? d.jour + 1 : Infinity;
+  const avant = buildDe(decisions, jusqua, { joues, tenus }), apres = buildDe([...decisions, d], jusqua, { joues, tenus });
   // Seul le coach en poste monte (V5) : un adjoint d'une autre couleur joue son effet, sans changer de coach.
   const [actif] = coachsActifs(decisions);
   const e = actif ? (palierDe(apres[actif.cle]) > actif.palier ? actif.cle : null)

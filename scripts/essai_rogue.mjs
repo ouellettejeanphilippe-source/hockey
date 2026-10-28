@@ -701,6 +701,9 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   if (rangCoach !== 'I') erreurs.push(`le sous-onglet de l'entraîneur ne dit pas le coach de la run et sa confiance (« ${coachs} », rang « ${rangCoach} »)`);
   console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
   if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
+  // V19 : chaque adjoint dit son contrat (les matchs qu'il lui reste), et la prolongation, en jetons, quand il y en a une à prendre.
+  const contrats = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-fiche', e => e.map(x => ({ dit: /Contrat :/.test(x.textContent), bouton: !!x.querySelector('[data-src="contrat"]') }))).catch(() => []);
+  if (contrats.some(c => !c.dit)) erreurs.push('un adjoint ne dit pas son contrat');
   if (gens.length < p0.length || gens.some(g => !g.nom.trim() || g.ech !== 3)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses trois échelons (${JSON.stringify(gens)})`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
@@ -1179,13 +1182,26 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte:not([open]) > summary');
     if (ligne) {
       await ligne.click(); await page.waitForTimeout(250);
-      const b = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte .gens-choix .maison-jouer:not([disabled])');
+      const b = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte .gens-choix [data-src="echelon"]:not([disabled])');
       const n0 = (await decisionsDuCombat()).length;
       if (b) { await b.click(); await page.waitForTimeout(600); await attendreDecisions(n0); }
       const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
       console.log(`10p. un échelon prêt, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
       if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
     } else console.log('10p. un échelon prêt, chez l\'entraîneur : aucun encore');
+  }
+  // V19 : un contrat se prolonge dans la fiche de sa carte, en jetons (« ct:<clé>:<n> »).
+  {
+    await versLOnglet('bureau', 'entraineur');
+    const bp = await page.$('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])');
+    if (bp) {
+      await page.$eval('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])', e => { const d = e.closest('details'); if (d) d.open = true; });
+      const n0 = (await decisionsDuCombat()).length;
+      await (await page.$('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])')).click(); await page.waitForTimeout(600); await attendreDecisions(n0);
+      const ct = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ct:'));
+      console.log(`10q. un contrat prolongé, chez l'entraîneur : ${ct.length} décision(s) de contrat${ct[0] ? `, ${ct[0].gain} 🪙` : ''}`);
+      if (!ct.length || !(ct[0].gain < 0)) erreurs.push('prolonger un contrat n\'écrit pas sa décision payée en jetons');
+    } else console.log('10q. un contrat à prolonger, chez l\'entraîneur : aucun (ou pas les jetons)');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste

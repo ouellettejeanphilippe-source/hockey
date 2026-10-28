@@ -120,9 +120,9 @@ exiger('le genre se relit dans la partie, le titre vide prend celui du genre', p
   const gardiens = { ...patronALEchelon('per_gardiensDeRoute', { choix: [], depuis: 0 }), role: 'gardiens' };
   const neuf = patronALEchelon('per_nutritionniste', { choix: [], depuis: 12 });
   const vieille = [{ jour: 0, equipe: 0, patron: ancien }, { jour: 0, equipe: 0, patron: gardiens }];
-  const actifs = patronsActifs(vieille, Infinity);
+  const actifs = patronsActifs(vieille, 20);
   exiger('un adjoint d\'avant garde son poste d\'alors dans la partie, lu au poste d\'aujourd\'hui', actifs.length === 2 && actifs.some(x => x.role === 'physique') && actifs.some(x => x.role === 'defense'), actifs.map(x => x.role).join(', '));
-  const apres = patronsActifs([...vieille, { jour: 12, equipe: 0, patron: neuf }], Infinity);
+  const apres = patronsActifs([...vieille, { jour: 12, equipe: 0, patron: neuf }], 20);
   exiger('un adjoint engagé au même poste remplace celui d\'avant (soins → physique)', apres.length === 2 && apres.find(x => x.role === 'physique').cle === 'per_nutritionniste', apres.map(x => x.cle).join(', '));
   exiger('un échelon de trop (le 5e) ne casse rien : la confiance se recompte', Number.isFinite(Object.values(buildDe(vieille, Infinity, { joues: () => 0 })).reduce((a, b) => a + b, 0)) && ECHELON_MAX === 3);
   const fiche = decisions => { const t = TEMOINS.map(club); simulateLeague(t, 82, { graine: 'reprise-v19', decisions: decisions.map(d => ({ ...d })) }); return t.map(x => `${x.W}-${x.L}-${x.OTL} ${x.GF}-${x.GA}`).join(' '); };

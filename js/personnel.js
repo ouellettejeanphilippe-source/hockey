@@ -29,6 +29,21 @@ export const LIGNES_DU_FEU = { poussees: 2 };
  * comme avant. Le style d'une équipe se sent donc tous les soirs, et ses soirs de moment le pointent.
  */
 export const FOND_DU_STYLE = 0.1;
+/*
+ * LE CONTRAT D'UN ADJOINT (V19 ; JP : *matchs max avant de devoir payer pour étendre*). Un adjoint est engagé pour
+ * `CONTRAT_JOURS` jours de la saison (le moteur compte en jours : 186 pour 82 matchs ; JP : *contrats plus courts, pour plus de
+ * changements de stratégie* — deux à cinq contrats par saison selon la rareté) ; ensuite il part, à moins qu'on le prolonge en
+ * jetons (`PRIX_PROLONGATION`, une durée de plus chaque fois, au prix du jour). La saison suivante, son contrat repart à zéro.
+ * Une carte qui le couvre jusqu'au bout des 186 jours joue aussi les séries.
+ */
+export const JOURS_DE_SAISON = 186;
+export const CONTRAT_JOURS = { commune: 46, peu: 62, rare: 78 };
+export const PRIX_PROLONGATION = { commune: 7, peu: 12, rare: 20 };
+/* Le jour où un contrat finit (exclu) : son départ (`depuis`, sinon le jour de la décision), plus une durée par prolongation prise. Sans contrat (l'argent d'un patron), jamais. */
+export function finDuContrat(p, jourDecision = 0) {
+  const C = PERSONNEL[p.cle];
+  return C && CONTRAT_JOURS[C.rarete] ? (p.depuis ?? p.jour ?? jourDecision) + CONTRAT_JOURS[C.rarete] * (1 + (p.prolonge || 0)) : Infinity;
+}
 export const COMBOS = {
   essaim: { cles: ['per_crieurDuBanc', 'per_maniaqueVolume'], si: 'domicile', nom: 'La foule se lève', ico: '📣', effet: { volume: 1.1, finition: 0.9 } },
   tortue: { cles: ['per_gardiensDeRoute', 'per_professeurBlocage'], si: 'visiteur', nom: 'Le fort tient sur la route', ico: '🏯', effet: { defense: 0.94, volume: 0.9 } },

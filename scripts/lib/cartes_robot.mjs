@@ -17,7 +17,7 @@ import { sceneDeLaRoute } from '../../js/scenes.js';
 import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
 import { BANQUE, PATRONS, payloadDe, palierAllume, patronsActifs, coachsActifs } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, decisionDeProlongation, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
 import { tenusDe } from '../../js/chiffre.js';
 
 /*
@@ -120,6 +120,23 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       out.push({ ...d, ...(a || {}) });
     }
   }
+  /*
+   * LES CONTRATS (V19, js/personnel.js `finDuContrat`), le lundi : un adjoint dont le contrat finit d'ici la semaine suivante est
+   * prolongé si ce qu'il rend d'ici la fin vaut son prix et que la caisse y suffit (le distrait, une fois sur deux) ; sinon il part.
+   */
+  if (lundi && politique !== 'defaut') {
+    const reste = Math.max(0, 82 - ((f && f.n) || 0));
+    let caisse = jetons + out.reduce((a, d) => a + (d.gain || 0), 0);
+    for (const e of etatDuPersonnel([...decisions, ...out], j, { joues: (de, a) => matchsJoues(L.calendrier, you, de, a), copies: () => ROBOT_COPIES })) {
+      if (!e.prolongeable || e.fin - j > 7 || e.prixProlongation > caisse) continue;
+      const { econ: _e, ...p } = patronALEchelon(e.cle, { choix: e.patron.choix || [] }); void _e;
+      const garde = clic ? clic() < 0.5 : valeurDEffet(p, reste) > e.prixProlongation * JETON;
+      if (!garde) continue;
+      const d = { jour: j, palier: `ct:${e.cle}:${(e.patron.prolonge || 0) + 1}`, ...decisionDeProlongation(e) };
+      caisse += d.gain || 0;
+      out.push(d);
+    }
+  }
   // V16 : le lundi recompte aussi la confiance — les matchs à ton service la montent entre deux engagements.
   if (lundi && politique !== 'defaut') {
     const a = palierAllume([...decisions, ...out], { jour: j }, { joues: (de, x) => matchsJoues(L.calendrier, you, de, x), tenus: tenusDe(L.calendrier, you) });
@@ -145,7 +162,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
 export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour, joues = () => 0 }) {
   if (politique === 'defaut') return [];
   const adjoints = ids.filter(id => BANQUE[id] && BANQUE[id].cat === 'patron');
-  const enPoste = patronsActifs(decisions);
+  const enPoste = patronsActifs(decisions, jour + 1);
   const [coach] = coachsActifs(decisions);
   const couleur = cle => BANQUE[`patron:${cle}`] && BANQUE[`patron:${cle}`].coach;
   const tenu = role => enPoste.find(x => x.role === role) || null;

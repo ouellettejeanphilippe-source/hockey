@@ -53,7 +53,8 @@ const BORNE = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
 function saison(seed, par, cle) {
   const teams = ligue(seed, 32);
   const traites = cle ? teams.map((_, i) => i).filter(i => i % 2 === par) : [];
-  const decisions = traites.map(e => ({ jour: 0, equipe: e, ...payloadDe(`patron:${cle}`) }));
+  // Prolongé à chaque fenêtre (V19, `CONTRAT_JOURS`) : le contrat couvre la saison et les séries, comme la mesure l'a toujours lue.
+  const decisions = traites.map(e => { const d = payloadDe(`patron:${cle}`); return { jour: 0, equipe: e, ...d, patron: { ...d.patron, prolonge: 4 } }; });
   simulateLeague(teams, 82, { graine: `si${seed}`, decisions });
   const lu = teams.map(() => ({ dom: { gf: 0, ga: 0, v: 0, n: 0 }, ext: { gf: 0, ga: 0, v: 0, n: 0 } }));
   teams.forEach((t, i) => {
