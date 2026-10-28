@@ -3751,6 +3751,13 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
       const corps = boite.archives.has(id) ? '' : corpsDInfo(genre, x);
       if (corps) out.push({ id, html: corps });
     }
+    // V19 : un contrat d'adjoint qui finit dans six matchs au plus se dit une fois ; la prolongation est chez l'entraîneur, au personnel.
+    if (ctx.rogue && ctx.personnel && ctx.personnel.finissants) {
+      for (const c of ctx.personnel.finissants(jour)) {
+        const id = `ct:${c.cle}:${c.fin}`;
+        if (!boite.archives.has(id)) out.push({ id, html: `<div class="hub-mouvements"><div class="hub-mv">📝 ${ctx.esc(c.ico)} <b>${ctx.esc(c.nom)}</b> : son contrat finit dans ${c.restant} match${c.restant > 1 ? 's' : ''}. Le prolonger coûte ${c.prix} 🪙, au Bureau › Coach.</div></div>` });
+      }
+    }
     if (dernierAvance && miens.length > dernierAvance.joues0) {
       const mv = mouvements(dernierAvance.joues0, miens.length), id = `mv:${miens.length}:${mv.length}`;
       if (mv.length && !boite.archives.has(id)) out.push({ id, html: `<div class="hub-mouvements">${mv.map(x => `<div class="hub-mv">🔁 <span class="hub-mv-j">J${x.j + 1}</span> ${ctx.esc(x.txt)}</div>`).join('')}</div>` });

@@ -48,7 +48,7 @@ const presque = (a, b) => Math.abs(a - b) < 2e-3;
   exiger('les doublons ouvrent les échelons : deux, puis un par copie, trois au plus', [1, 2, 3, 4, 9].map(ouvertsDe).join() === '2,3,3,3,3');
   const k = 'per_gardienDuFort', couleur = BANQUE[`patron:${k}`].coach;   // la Tortue
   const engage = [{ jour: 0, coach: effetDePalier('essaim', 1) }, { jour: 3, patron: patronALEchelon(k, {}) }];
-  const etat = (decs, n, copies = 4) => etatDuPersonnel(decs, 200, { joues: () => n, copies: () => copies })[0];
+  const etat = (decs, n, copies = 4) => etatDuPersonnel(decs, 60, { joues: () => n, copies: () => copies })[0];
   const e9 = etat(engage, 9), e10 = etat(engage, 10);
   exiger(`le 2e échelon à ${MATCHS_ECHELON[2]} matchs à ton service`, !e9.aChoisir && e10.aChoisir && e10.qui === PATRONS[k].nom, `${e9.service} → ${e10.service}`);
   const ferme = etat(engage, 30, 1);
@@ -61,7 +61,7 @@ const presque = (a, b) => Math.abs(a - b) < 2e-3;
   const monte = [...engage, { jour: 40, ...achat }];
   const apres = etat(monte, 10);
   exiger('un choix remplace la carte à son poste, et garde d\'où se comptent ses matchs', apres.echelon === 2 && !apres.aChoisir && apres.depuis === 3
-    && etatDuPersonnel(monte, 200, { joues: () => 0 }).length === 1);
+    && etatDuPersonnel(monte, 60, { joues: () => 0 }).length === 1);
   const rep = reportDuPersonnel(etat(monte, 30));
   exiger('la fin de saison reporte ses matchs à ton service', rep.avant === 30 && rep.depuis === 0 && rep.echelon === 2);
   const toutEnHaut = MATCHS_ECHELON[ECHELON_MAX];
@@ -123,7 +123,7 @@ for (const M of MESURES) {
   const deux = protegeALEchelon(k, ['force', 'force']);
   exiger('le protégé : au premier échelon, la carte telle quelle ; deux poussées grandissent ses canaux', presque(protegeALEchelon(k, []).finition, M.finition)
     && presque(deux.finition, 1 + (M.finition - 1) * (1 + 2 * POUSSEE)) && presque(deux.lancers, 1 + (M.lancers - 1) * (1 + 2 * POUSSEE)), `finition ${M.finition} → ${deux.finition}`);
-  const e = etatDuPersonnel([{ jour: 0, patron: patronALEchelon(k, {}) }], 200, { joues: () => 30, copies: () => 4 })[0];
+  const e = etatDuPersonnel([{ jour: 0, patron: patronALEchelon(k, {}) }], 60, { joues: () => 30, copies: () => 4 })[0];
   const d = decisionDEchelon(e, 'force');
   exiger('la décision d\'échelon repose le protégé, ses canaux à l\'échelon', d.mutation && d.mutation.cle === k && presque(d.mutation.canaux.finition, protegeALEchelon(k, ['force']).finition));
   const vide = () => ({ n: 0, pts: 0 });

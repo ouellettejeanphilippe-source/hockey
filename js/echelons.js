@@ -14,7 +14,7 @@
  * d'échelon, c'est une décision de plus, au jour dit, qui la remplace à son poste.
  */
 import { PATRONS, BANQUE, patronsActifs, coachsActifs, canalBon } from './banque.js';
-import { PROTEGES, LIGNES_DU_FEU } from './personnel.js';
+import { PROTEGES, LIGNES_DU_FEU, PRIX_PROLONGATION, JOURS_DE_SAISON, PERSONNEL, finDuContrat } from './personnel.js';
 import { CANAUX_MUT, estMalus } from './sim.js';
 
 export const ECHELON_MAX = 3;
@@ -91,12 +91,12 @@ export const aUnDefaut = cle => Object.keys(forceEtFaiblesse(effetALEchelon(cle)
  * (`depuis` : le jour où elle est arrivée cette saison, son jour d'engagement s'il manque ; `avant` : ses matchs des
  * saisons d'avant de la run).
  */
-export function patronALEchelon(cle, { choix = [], depuis, avant = 0 } = {}) {
+export function patronALEchelon(cle, { choix = [], depuis, avant = 0, prolonge = 0 } = {}) {
   const P = PATRONS[cle];
   if (!P) return null;
   const { econ, ...canaux } = effetALEchelon(cle, choix);
   return { cle, role: P.role, nom: P.nom, ico: P.ico, ...canaux, ...(econ ? { econ } : {}), ...(P.si ? { si: P.si } : {}),
-    echelon: 1 + choix.length, choix: [...choix], ...(depuis !== undefined ? { depuis } : {}), avant };
+    echelon: 1 + choix.length, choix: [...choix], ...(depuis !== undefined ? { depuis } : {}), avant, ...(prolonge ? { prolonge } : {}) };
 }
 
 /* Les matchs que ton club a joués entre deux journées (la première comprise), lus au calendrier. */
@@ -120,15 +120,26 @@ export function etatDuPersonnel(decisions = [], jusqua = Infinity, { joues = () 
     const echelon = p.echelon || 1, ouverts = ouvertsDe(copies(p.cle));
     const atteint = Math.min(ouverts, MATCHS_ECHELON.reduce((e, m, i) => (i >= 1 && service >= m ? i : e), 1));
     const prochain = echelon < ECHELON_MAX ? MATCHS_ECHELON[echelon + 1] : null;
+    const fin = finDuContrat(p);
     return { cle: p.cle, qui: PATRONS[p.cle].nom, patron: p, echelon, ouverts, service, double, prochain, depuis, prix: PRIX_ECHELON[echelon + 1] || 0,
+      fin, prolongeable: fin < JOURS_DE_SAISON, prixProlongation: prixDeProlongation(p.cle),
       aChoisir: atteint > echelon, ferme: prochain !== null && service >= prochain && echelon >= ouverts };
   });
 }
 /* Le choix d'un échelon : la décision qui remplace la carte, un échelon plus haut, et son prix (un gain négatif, que la caisse lit). */
 export function decisionDEchelon(e, choix) {
   const p = e.patron, prix = PRIX_ECHELON[e.echelon + 1] || 0, tous = [...(p.choix || []), choix];
-  return { patron: patronALEchelon(e.cle, { choix: tous, depuis: e.depuis, avant: p.avant || 0 }),
+  return { patron: patronALEchelon(e.cle, { choix: tous, depuis: e.depuis, avant: p.avant || 0, prolonge: p.prolonge }),
     ...(PROTEGES[e.cle] ? { mutation: { cle: e.cle, saison: true, canaux: protegeALEchelon(e.cle, tous), ...(lignesDuFeu(e.cle, tous) ? { lignes: lignesDuFeu(e.cle, tous) } : {}) } } : {}), ...(prix ? { gain: -prix } : {}) };
 }
 /* La fin d'une saison : la carte passe à la suivante avec ses matchs à ton service, qui repartent de là. */
-export const reportDuPersonnel = e => ({ ...e.patron, depuis: 0, avant: e.service });
+export const reportDuPersonnel = e => { const { prolonge: _p, ...p } = e.patron; void _p; return { ...p, depuis: 0, avant: e.service }; };
+/*
+ * LA PROLONGATION (V19, `CONTRAT_JOURS`) : une durée de contrat de plus, payée en jetons. Elle remplace la carte au poste, avec
+ * ses échelons et ses matchs à ton service tels quels ; le protégé qu'elle travaille, lui, ne bouge pas.
+ */
+export const prixDeProlongation = cle => PRIX_PROLONGATION[(PERSONNEL[cle] || {}).rarete] || 0;
+export function decisionDeProlongation(e) {
+  const p = e.patron, prix = prixDeProlongation(e.cle);
+  return { patron: patronALEchelon(e.cle, { choix: p.choix || [], depuis: e.depuis, avant: p.avant || 0, prolonge: (p.prolonge || 0) + 1 }), ...(prix ? { gain: -prix } : {}) };
+}

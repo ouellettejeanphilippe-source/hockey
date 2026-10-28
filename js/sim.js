@@ -18,7 +18,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
-import { PERSONNEL, PROTEGES, COMBOS, FOND_DU_STYLE } from './personnel.js';
+import { PERSONNEL, PROTEGES, COMBOS, FOND_DU_STYLE, finDuContrat } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -6024,6 +6024,7 @@ function appliquerDecision(team, d, graine = 0) {
     for (const x of partent) retirerProtege(team, x.cle);
     team.patrons = (team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role));
     const { remplace: _r, ...pat } = d.patron;
+    pat.fin = finDuContrat(pat, d.jour);
     team.patrons.push(pat);
   }
   // LA CONFIANCE D'UN COACH (v2, js/coachs.js) : la décision porte ses chiffres. Un seul coach en poste (V5) : la nouvelle remplace tout.
@@ -6437,10 +6438,17 @@ function deDuJour(L, quand, r) {
 }
 const graineDuMatin = (L, r) => (L.des ? `${L.graine}:${deDuJour(L, 'matins', r)}` : L.graine);
 
+/* Les contrats qui finissent ce matin (V19, `finDuContrat`) : l'adjoint part, son protégé avec lui ; les séries gardent ceux que la saison a menés au bout. */
+function finirLesContrats(team, r) {
+  const partis = (team.patrons || []).filter(x => x.fin != null && x.fin <= r);
+  if (!partis.length) return;
+  for (const x of partis) retirerProtege(team, x.cle);
+  team.patrons = team.patrons.filter(x => !partis.includes(x));
+}
 function preludeDuJour(L) {
   const r = L.jour, teams = L.teams;
   deDuJour(L, 'matins', r);   // le dé du matin, à son arrivée : la sauvegarde du matin le garde
-  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t, ENERGIE_RECUP_JOUR); }
+  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t, ENERGIE_RECUP_JOUR); finirLesContrats(t, r); }
   /*
    * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
    * chaque joueur AU DÉBUT de la journée.
@@ -7759,6 +7767,7 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
     if (d.patron && d.patron.cle) {
       const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
       const { remplace: _r, ...pat } = d.patron; void _r;
+      pat.fin = finDuContrat(pat, d.jour);
       team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
     }
     if (d.coach && d.coach.cle) team.coachs = [{ ...d.coach }];
