@@ -18,7 +18,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
-import { PERSONNEL, PROTEGES, COMBOS } from './personnel.js';
+import { PERSONNEL, PROTEGES, COMBOS, FOND_DU_STYLE } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -1007,7 +1007,17 @@ function combosDuSoir(team) {
   const e = { cle: `combo:${coach}`, nom: C.nom, ico: C.ico, si: C.si, ...C.effet };
   return joueCeSoir(team, e) ? [e] : [];
 }
-const patronsDuSoir = team => [...((team && team.patrons) || []).filter(c => joueCeSoir(team, c)).map(p => assortir(team, p)), ...combosDuSoir(team)];
+/* Un adjoint hors de son moment : son effet ramené vers 1 (`FOND_DU_STYLE`), canal par canal ; l'argent et les moments gardent leur sens. */
+const CANAUX_EN_PUISSANCE = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie'];
+function fondDuStyle(p) {
+  const out = { ...p };
+  delete out.si;   // il joue ce soir-là aussi, en fond : plus de moment à attendre
+  for (const k of CANAUX_EN_PUISSANCE) if (typeof p[k] === 'number') out[k] = p[k] ** FOND_DU_STYLE;
+  if (typeof p.robustesse === 'number') out.robustesse = p.robustesse * FOND_DU_STYLE;
+  for (const g of ['F', 'D']) if (Array.isArray(p[g])) out[g] = p[g].map(m => m ** FOND_DU_STYLE);
+  return out;
+}
+const patronsDuSoir = team => [...((team && team.patrons) || []).map(p => assortir(team, joueCeSoir(team, p) ? p : fondDuStyle(p))), ...combosDuSoir(team)];
 function coachsJoues(team) {
   const cs = (team && team.coachs) || [];
   if (!cs.length) return cs;
