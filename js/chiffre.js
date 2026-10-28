@@ -2,8 +2,7 @@
  * LE CHIFFRE À TENIR (tranche 3 ; JP, 27 oct. 2026 : *le club se construit autour du coach* ; réponse « oui » à
  * *un coach avec UN chiffre à tenir : sa confiance monte quand tu le tiens*). Chaque coach a UNE vraie stat de match,
  * la sienne (les tirs du Frelon, les tirs contre de la Tortue…), lue dans les feuilles jouées et comparée à la
- * ligue. Dix matchs de suite où ton club la tient, c'est un bloc tenu : un point de confiance de plus, au plus
- * `PLAFOND_TENUS` pour la run en cours. Une philosophie qu'on vit vaut plus qu'une philosophie qu'on achète.
+ * ligue. Dix matchs de suite où ton club la tient, c'est un bloc tenu : un point de confiance de plus (`PLAFOND_TENUS`, un seul : mesuré, plus fait venir la première Coupe trop tôt). Une philosophie qu'on vit vaut plus qu'une philosophie qu'on achète.
  *
  * Le Rhino et le Showman n'ont pas encore le leur : le club de l'IA et le tien ne s'alignent pas pareil (agressivité, minutes), et
  * leur écart à la ligue dépasse leur effet (docs/chiffre-du-coach.md). Aucune mécanique neuve : une stat que le moteur joue déjà, un compte de plus dans `buildDe` (js/banque.js). Les
@@ -15,7 +14,7 @@ import { chiffresDuMatch, matchsJoues as feuillesJouees } from './profil-style.j
 /** Un bloc, en matchs de ton club. */
 export const BLOC = 10;
 /** Au plus ce nombre de blocs tenus comptent : un coach qu'on vit monte, il ne s'achète pas à lui seul. */
-export const PLAFOND_TENUS = 3;
+export const PLAFOND_TENUS = 1;
 
 /*
  * Un chiffre : `valeur(feuilles, cote)` rend la stat d'un bloc (une moyenne ou une part) ; `seuil` est l'écart à la

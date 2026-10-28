@@ -33,3 +33,7 @@ Les cartes de joueur (le recto) ne changent pas : leur pastille de niveau reste.
 
 - `cote20(p)` et `axes20(p)` dans `js/ratings.js` (une seule implémentation, partagée par le build et le navigateur) ; toucher la formule, c'est incrémenter `RATINGS_VERSION`.
 - `check_cotes` : l'OV tombe dans la tranche de son niveau, monte avec le rang, est relative à la saison (Gretzky 20, un Soutien sous 9), la lecture 1 à 6 du jeu de table redonne les axes d'aujourd'hui, la cote ne change ni un tirage ni une feuille (`check_graine`, `check_empreinte`).
+
+## Décision du 28 octobre : pas d'OV, des cotes par chose qu'on fait
+
+JP : *les cotes, pas un OV, mais selon tir, arrêts, défense, passes, etc.* L'écran ne montre plus de cote générale. Un patineur a quatre cotes sur 20 — **Tir, Passes, Défense, Robustesse** (les quatre familles, `axes20`, js/sim.js) ; un gardien, ses **Arrêts** (`cote20` aux buts évités, `lesCotes`, js/repechage.js). Elles s'affichent aux Lignes (T, P, D), à la comparaison de la signature (une rangée chacune) et à la fiche. `cote20` (l'OV) reste le calcul des arrêts d'un gardien et du rang ; il n'est plus dit tel quel.

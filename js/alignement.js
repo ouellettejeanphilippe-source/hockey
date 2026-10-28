@@ -18,7 +18,7 @@ import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.j
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
 import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
-import { ajusterCartes, choisirSpeciale, coteJoueur, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
+import { ajusterCartes, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
 /* La carte d'un joueur de l'alignement : sa fiche de saison (à ce jour) une fois la ligue lancée, sa carte sinon. */
@@ -220,7 +220,7 @@ function celluleJoueur(p, s, { ecart, penTag, blesseTag }) {
   })() : '';
   // Trois rangées : le rôle et son mot ; le niveau et la zone ; le chiffre clé (sa fiche à ce jour derrière le banc).
   return `<div class="cell-l1">${role}</div>
-        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${(c => (c == null ? '' : `<small class="cell-cote" title="Sa cote sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord">${c}</small>`))(coteJoueur(p))}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
+        <div class="slot-tags cell-l2">${pastilleNiveau(p)}${(c => (c ? `<small class="cell-cote" title="${esc(c.map(x => `${x.mot} ${x.v}`).join(' · '))} (cotes sur 20, dans sa saison : un appui, le niveau et le rôle se lisent d'abord)">${c.filter(x => x.cle !== 'robustesse').map(x => `${x.cle === 'arrets' ? 'Arrêts' : x.mot.slice(0, 1)} ${x.v}`).join(' · ')}</small>` : ''))(lesCotes(p))}${blesseTag}${marque}${zone}${penTag}${trophee}${departs}</div>
         <div class="cell-l3"><span class="cell-prod slot-faits" title="${esc(G.banc ? 'Sa fiche à ce jour' : `Son chiffre clé : ${chiffreCle(p).mot}`)}">${G.banc ? esc(ficheDuJour(p)) : `<span class="pcard-big"><b>${esc(chiffreCle(p).v)}</b> <span>${esc(chiffreCle(p).u)}</span></span>`}</span>${!G.banc && p.p !== 'G' && chiffreCle(p).u !== 'PTS' ? `<small class="cell-sec" title="Ses points dans sa vraie saison">${displayStats(p).pt} pts · ${displayStats(p).ppgStr.replace('.', ',')}/m</small>` : ''}</div>
         ${jambes}`;
 }
