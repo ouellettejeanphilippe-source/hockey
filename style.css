@@ -174,8 +174,9 @@
   --scene: var(--ambiance), var(--voile-photo), linear-gradient(90deg, var(--noir) calc(100% - 71.5vh), transparent calc(100% - 45vh)), var(--photo) 100% 0 / auto 100% no-repeat;
   /* Le chiffre qui compte (un pointage, une fiche) : blanc en haut, la couleur du club en bas. */
   --chiffre-or: linear-gradient(180deg, #ffffff 20%, color-mix(in srgb, var(--club-vif) 55%, var(--encre)) 100%);
-  --panneau: linear-gradient(180deg, color-mix(in srgb, var(--fond-2) 92%, var(--club-vif)), var(--fond-1) 70%);
-  --relief: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 10px 28px -14px rgba(0, 0, 0, 0.95);
+  /* Des surfaces plates (JP : *penser comme GM Connected*) : un aplat et un filet, un cran de gris entre deux surfaces ; ni dégradé ni ombre. */
+  --panneau: var(--fond-2);
+  --relief: 0 0 0 0 transparent;
   --reflet: inset 0 1px 0 rgba(255, 255, 255, 0.1);
   --or-pale: #fff6dc;
   /* LES MÉTAUX DES CARTES (V3) : le chrome de la peu commune, le prisme de la rare, la feuille d'or de la légendaire. */
@@ -332,7 +333,7 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
   margin-left: var(--rail-w);
   padding: var(--esp-2) var(--esp-3) 0;
   border-top: var(--safe-top) solid var(--noir);
-  background: linear-gradient(100deg, color-mix(in srgb, var(--club-vif) 24%, var(--fond-1)), var(--fond-1) 46%);
+  background: var(--fond-1);
   border-bottom: 1px solid var(--filet);
   box-shadow: inset 0 3px 0 var(--club-vif);
 }
@@ -358,6 +359,11 @@ body::after { content: ""; position: fixed; bottom: 0; left: 0; right: 0; height
 .bulle-def { position: fixed; z-index: 900; max-width: min(320px, calc(100vw - 16px)); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--or); border-radius: var(--r-1); background: var(--fond-2); color: var(--encre); font: 600 var(--t-1)/1.4 var(--corps); box-shadow: var(--relief); pointer-events: none; }
 /* V8 : la cellule « Cartes » de l'en-tête est un bouton (le Rogue) : elle ouvre tes cartes d'où qu'on soit. */
 .tete-ch-l { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); white-space: nowrap; }
+/* Une info, une maison (JP : *le principe de GM Connected, c'est aussi de pas répéter les infos de page en page, genre le top bar*) : la fiche et le rang se lisent au Bureau, les jetons au Bureau et au Marché ; ailleurs l'en-tête n'est que l'identité du club et le menu. Au repêchage, il porte le plafond. */
+body:not([data-section="bureau"]):not([data-section="marche"]):not(.au-repechage) .tete-chiffres { display: none; }
+body[data-section="marche"]:not(.au-repechage) :is(#teteFiche, #teteRang) { display: none; }
+.tete-ch-d { font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.tete-ch-d:empty { display: none; }
 .tete-ch-v { font: 800 var(--t-5)/1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; background: var(--chiffre-or); -webkit-background-clip: text; background-clip: text; color: transparent; }
 #menuBtn { grid-area: menu; }
 /* La jauge du plafond : le montant en gros, la barre dessous. */
@@ -422,21 +428,20 @@ body:not(.au-repechage) #capGauge { display: none; }
 .retour-btn:hover .ico { transform: translateX(-3px); }
 .retour-btn:active { transform: scale(0.96); }
 
-/* ---- LES ONGLETS (Jalon U : un seul dessin) : une rangée de mots, l'ouvert souligné d'or. Les sous-pages d'une section,
+/* ---- LES ONGLETS (Jalon U : un seul dessin ; JP : *penser comme GM Connected*) : une rangée de mots, l'ouvert est un bloc plein et clair, texte noir ; les autres sont creux. Les sous-pages d'une section,
         les onglets d'une fenêtre (inventaire, boutique, bilan, statistiques) et les vues du cartable. ---- */
 .sousnav { display: flex; gap: var(--esp-1); max-width: 1720px; margin: var(--esp-2) auto 0; overflow-x: auto; scrollbar-width: none; }
 .sousnav::-webkit-scrollbar { display: none; }
 .soustab, .stat-tab, .inv-onglet, .ct-vue {
   flex: none; display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-1); min-height: 44px; padding: 0 var(--esp-3);
-  border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; color: var(--encre-3);
+  border: 1px solid transparent; border-radius: var(--r-1); background: none; color: var(--encre-3);
   font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; white-space: nowrap;
-  transition: color var(--t-vite), border-color var(--t-vite), transform var(--t-lent) var(--e-ressort);
+  transition: color var(--t-vite), background var(--t-vite), border-color var(--t-vite);
 }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue) span { font-size: var(--t-1); color: var(--encre-3); font-variant-numeric: tabular-nums; }
 :is(.soustab, .stat-tab, .inv-onglet, .ct-vue):hover { color: var(--encre); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue):active { transform: scale(0.94); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on { color: var(--encre); border-bottom-color: var(--or); text-shadow: 0 0 14px color-mix(in srgb, var(--or) 45%, transparent); animation: filet-or var(--t-lent) var(--e-sortie); }
-:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on span { color: var(--or); }
+:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on { color: var(--noir); background: var(--encre); border-color: var(--encre); }
+:is(.soustab, .stat-tab, .inv-onglet, .ct-vue).on span { color: var(--noir); }
 
 /* ---- Les cinq portes : la barre au bas du téléphone, le rail à gauche dès 1000 px ---- */
 .navbar {
@@ -453,7 +458,7 @@ body:not(.au-repechage) #capGauge { display: none; }
   font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase;
   transition: color var(--t-vite), background var(--t-vite);
 }
-.navtab .ico { width: 24px; height: 24px; transition: transform var(--t-lent) var(--e-sortie); }
+.navtab .ico { width: 24px; height: 24px; }
 .navtab-lbl { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .navtab-badge {
   position: absolute; top: 6px; left: calc(50% + 8px);
@@ -463,12 +468,8 @@ body:not(.au-repechage) #capGauge { display: none; }
 .navtab.mort:not(.on) { opacity: 0.45; }
 /* V7 : le Bureau dit qu'il a quelque chose à régler, d'où qu'on soit (js/saison.js pose `data-a-traiter`). */
 body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::after { content: ""; position: absolute; top: 8px; left: calc(50% + 10px); width: 8px; height: 8px; border-radius: 50%; background: var(--mauvais); }
-.navtab.on { color: var(--encre); background: radial-gradient(60% 70% at 50% 0, color-mix(in srgb, var(--or) 22%, transparent), transparent 75%); }
-.navtab.on .ico { color: var(--or); transform: translateY(-1px); filter: drop-shadow(0 0 6px color-mix(in srgb, var(--or) 55%, transparent)); }
-.navtab.on::before { content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 3px; background: var(--or); }
-.navtab.on .navtab-badge { color: var(--encre-sur-or); background: var(--or); }
-.navtab:active .ico { transform: scale(0.8); }
-.navtab:not(.on):hover .ico { transform: translateY(-2px); }
+.navtab.on { color: var(--noir); background: var(--encre); }
+.navtab.on .navtab-badge { color: var(--encre); background: var(--noir); }
 @media (min-width: 600px) and (max-width: 1199.98px) { .navtab { flex: 1 1 0; min-width: 0; } }
 @media (orientation: landscape) and (min-width: 680px) and (max-width: 999.98px) {
   :root { --rail-w: 72px; --bas-coquille: 0px; }
@@ -482,9 +483,6 @@ body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::a
   .navtab { flex: 0 0 auto; min-height: 52px; border-radius: var(--r-1); gap: 3px; }
   .navtab-lbl { display: none; }
   .navtab:not(.on):hover { color: var(--encre); background: var(--fond-2); }
-  .navtab.on { background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); }
-  .navtab.on::before { top: 8px; bottom: 8px; left: 0; right: auto; width: 3px; height: auto; background: var(--club-vif); }
-  .navtab.on .ico { transform: none; }
   .navtab-badge { top: 4px; left: calc(50% + 4px); }
   .page { height: calc(100svh - var(--topbar-h)); }
 }
@@ -500,9 +498,6 @@ body[data-a-traiter]:not([data-a-traiter="0"]) .navtab[data-section="bureau"]::a
   .rail-logo b { display: block; color: var(--or); font-size: var(--t-4); }
   .navtab { flex: 0 0 auto; min-height: 68px; border-radius: var(--r-1); gap: 6px; }
   .navtab:not(.on):hover { color: var(--encre); background: var(--fond-2); }
-  .navtab.on { background: linear-gradient(90deg, color-mix(in srgb, var(--club-vif) 22%, var(--fond-2)), var(--fond-2)); }
-  .navtab.on::before { top: 12px; bottom: 12px; left: 0; right: auto; width: 3px; height: auto; background: var(--club-vif); }
-  .navtab.on .ico { transform: none; }
   .navtab-badge { top: 6px; left: calc(50% + 6px); }
   .page { height: calc(100svh - var(--topbar-h)); }
 }
@@ -723,12 +718,12 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 .btn:disabled { opacity: 0.45; }
 /* L'action principale : pleine, en or (ce qui se gagne) ; .go garde le vert du dépôt pour « lancer ». */
 .btn:is(.go, .gold) { min-height: 48px; font: 800 var(--t-3)/1.1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
-.btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: linear-gradient(180deg, color-mix(in srgb, var(--bon) 78%, var(--blanc)), var(--bon) 55%); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); box-shadow: var(--lueur-bon); }
-@media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); box-shadow: 0 14px 34px -10px color-mix(in srgb, var(--bon) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
-.btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(2px) scale(0.96); box-shadow: inset 0 2px 6px color-mix(in srgb, var(--noir-pur) 35%, transparent); animation: none; }
+.btn.go { position: relative; overflow: hidden; flex: 1 1 auto; background: var(--bon); border-color: var(--bon); color: color-mix(in srgb, var(--bon) 18%, var(--noir-pur)); }
+@media (hover: hover) { .btn.go:hover:not(:disabled) { background: color-mix(in srgb, var(--bon) 88%, var(--blanc)); border-color: var(--bon); } }
+.btn.go:active:not(:disabled), .btn.gold:active:not(:disabled) { transform: translateY(1px); animation: none; }
 .btn.go:disabled { background: var(--fond-2); border-color: var(--filet); color: var(--encre-3); }
-.btn.gold { background: linear-gradient(180deg, color-mix(in srgb, var(--or) 78%, var(--blanc)), var(--or) 55%); border-color: var(--or); color: var(--encre-sur-or); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--blanc) 35%, transparent); }
-@media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); box-shadow: 0 12px 30px -10px color-mix(in srgb, var(--or) 85%, transparent), inset 0 1px 0 color-mix(in srgb, var(--blanc) 45%, transparent); } }
+.btn.gold { background: var(--or); border-color: var(--or); color: var(--encre-sur-or); }
+@media (hover: hover) { .btn.gold:hover:not(:disabled) { background: color-mix(in srgb, var(--or) 88%, var(--blanc)); border-color: var(--or); } }
 .btn.danger { border-color: color-mix(in srgb, var(--mauvais) 60%, var(--fond-3)); color: var(--mauvais); }
 @media (hover: hover) { .btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--mauvais) 12%, transparent); border-color: var(--mauvais); box-shadow: 0 6px 18px -8px var(--mauvais); } }
 .btn.small { min-height: 36px; padding: 0 var(--esp-3); font-size: var(--t-3); }
@@ -788,7 +783,6 @@ body:not(.hub-docke) .hub-flottant, body.hub-cache .hub-flottant, body.choix-ouv
 :is(.chip, .inv-filtre):active { transform: scale(0.94); }
 :is(.chip, .inv-filtre).on { background: var(--choisi); border-color: var(--choisi); color: var(--sur-choisi); }
 /* Le filet d'or de l'onglet ouvert se déploie depuis le centre (un onglet, une étape du soir). */
-@keyframes filet-or { from { border-bottom-color: transparent; transform: translateY(2px); } }
 .chip-need { font: 800 var(--t-1)/1 var(--display); color: inherit; font-variant-numeric: tabular-nums; opacity: 0.8; }
 .chip .chip-need.full { color: var(--bon); opacity: 1; }
 
@@ -899,7 +893,7 @@ input[type="range"] { accent-color: var(--or); }
 .section-label:first-child { margin-top: 0; }
 /* RIEN ICI (Jalon U : un seul dessin) : une phrase centrée, en gris, dans la liste vide ; la petite dans un volet serré. */
 .empty-msg, .eq-vide, .live-vide, .inv-vide, .ct-vide, .exh-vide { margin: 0; text-align: center; color: var(--encre-3); font-size: var(--t-2); padding: var(--esp-6) var(--esp-4); line-height: 1.6; }
-.empty-msg.small, .ej-vide, .som-vide, .ct-charge { margin: 0; text-align: center; color: var(--encre-3); padding: var(--esp-3) var(--esp-1); font-size: var(--t-1); line-height: 1.5; }
+.empty-msg.small, .som-vide, .ct-charge { margin: 0; text-align: center; color: var(--encre-3); padding: var(--esp-3) var(--esp-1); font-size: var(--t-1); line-height: 1.5; }
 .note { font-size: var(--t-2); color: var(--encre-2); line-height: 1.5; }
 
 /* ---- Les tableaux : des bandes, des chiffres tabulaires, ta rangée en couleur de club ---- */
@@ -1045,29 +1039,25 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
 .choix-options.compact { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--esp-2); }
 .choix-options.compact .choix-option { min-height: 0; padding: var(--esp-2) var(--esp-3); gap: 2px; }
 .choix-options.compact .choix-option-nom { font-size: var(--t-3); }
+/* UNE TUILE DE CHOIX, SOBRE (V19, tranche 6 ; JP : *penser comme GM Connected*) : un aplat, un filet, un verbe, deux lignes de stats au plus
+   (`LIGNES_MAX`, js/gerant.js) ; ni dégradé, ni ombre, ni saut au toucher. Le survol et l'option choisie ne changent que le filet. */
 .choix-option {
   display: flex; flex-direction: column; gap: var(--esp-2); text-align: left; cursor: pointer;
   padding: var(--esp-4); min-height: 120px; color: var(--encre);
-  background: var(--panneau); box-shadow: var(--relief); border: 1px solid var(--filet); border-radius: var(--r-2);
-  transition: border-color var(--t-vite), transform var(--t-lent) var(--e-ressort), background var(--t-vite), box-shadow var(--t-lent) var(--e-sortie);
+  background: var(--fond-2); border: 1px solid var(--filet); border-radius: var(--r-2);
+  transition: border-color var(--t-vite), background var(--t-vite);
   animation: panneau-monte 200ms var(--e-sortie) backwards;
 }
-.choix-option:nth-child(2) { animation-delay: 60ms; }
-.choix-option:nth-child(3) { animation-delay: 120ms; }
-.choix-option:nth-child(4) { animation-delay: 180ms; }
-.choix-option:nth-child(n+5) { animation-delay: 240ms; }
-.choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); outline: none; transform: translateY(-4px); box-shadow: var(--reflet), 0 0 0 1px color-mix(in srgb, var(--or) 50%, transparent), 0 18px 36px -14px color-mix(in srgb, var(--or) 50%, transparent); }
-.choix-option:active:not([disabled]) { transform: translateY(0) scale(0.97); transition-duration: 60ms; }
+.choix-option:hover:not([disabled]), .choix-option:focus-visible { border-color: var(--or); outline: none; }
 .choix-option[disabled] { opacity: 0.45; cursor: not-allowed; }
-/* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : l'or, et son crochet. */
-.choix-option.on { border-color: var(--or); background: linear-gradient(color-mix(in srgb, var(--or) 14%, transparent), transparent 70%), var(--panneau); box-shadow: var(--relief), 0 0 0 1px var(--or); }
+/* Une option choisie sans fermer l'écran (la carte de vestiaire, les choix de la semaine) : le filet d'or, et son crochet. */
+.choix-option.on { border-color: var(--or); }
 .choix-option.on .choix-option-nom::after { content: " ✓"; color: var(--or); }
 /* Dans un écran qui en porte plusieurs (le gros match, la semaine) : la même option, serrée. */
 :is(.main-vest, .af-option).choix-option { min-height: 0; padding: var(--esp-3); gap: var(--esp-1); }
 /* Les options d'À faire : des tuiles à coins vifs, sans halo ni saut (JP : *j'aime pas les arrondis*) ; un toucher les envoie. */
-.af-option.choix-option { border-radius: 0; box-shadow: none; animation: none; }
-.af-option.choix-option:is(:hover, :focus-visible):not([disabled]) { transform: none; box-shadow: inset 3px 0 0 var(--or); }
-.af-option.choix-option.on { background: var(--panneau); box-shadow: inset 3px 0 0 var(--or); }
+.af-option.choix-option { border-radius: 0; animation: none; }
+.af-option.choix-option:is(:hover, :focus-visible):not([disabled]), .af-option.choix-option.on { box-shadow: inset 3px 0 0 var(--or); }
 .choix-option-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .choix-forme { align-self: flex-start; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--or); }
 .choix-option-sous { font-size: var(--t-2); color: var(--encre-2); line-height: 1.4; }
@@ -1106,7 +1096,6 @@ body.menu-ouvert .choix-modal, body.menu-ouvert #optionsModal { z-index: 450; }
   .choix-modal.feuille { align-items: center; }
   .choix-modal.feuille .choix-sheet { border-radius: var(--r-2); max-width: 560px; }
   .choix-sheet { height: auto; max-height: calc(100dvh - 48px); border-radius: var(--r-2); background: var(--fond-1); border: 1px solid var(--filet); box-shadow: var(--ombre); overflow: hidden; }
-  .choix-option { background: var(--fond-2); }
 }
 /* =====================================================================
    3. L'ÉCRAN TITRE ET LE MENU, « NOUVELLE PARTIE », LES OPTIONS,
@@ -1203,7 +1192,7 @@ body.menu-ouvert { overflow: hidden; }
 
 /* ---- Mes parties : une liste en bandes, rangée par mode ---- */
 .menu-parties { margin-top: var(--esp-4); border-top: 1px solid var(--filet); }
-.menu-parties > summary { min-height: 44px; padding: var(--esp-3) 0; cursor: pointer; font: 800 var(--t-3)/1.4 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
+.menu-parties-t { margin: 0; padding: var(--esp-3) 0 var(--esp-1); font: 800 var(--t-3)/1.4 var(--display); letter-spacing: 0.05em; text-transform: uppercase; }
 .menu-groupe { margin-top: var(--esp-2); }
 .menu-groupe-t { margin: var(--esp-2) 0; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .menu-partie { padding: var(--esp-3) 0 var(--esp-3) var(--esp-3); border-bottom: 1px solid var(--filet-2); border-left: 3px solid transparent; }
@@ -3528,12 +3517,9 @@ a.spin-club:hover { background: var(--fond-2); }
 .glace li.prix { border-left-color: var(--mauvais); }
 .glace li b { color: var(--encre); }
 
-/* ---- Sous la carte : ce qui décide — où il ira, le détail replié ---- */
-details.fiche-plus { margin-top: var(--esp-3); border-top: 1px solid var(--filet); }
-details.fiche-plus > summary { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; cursor: pointer; list-style: none; color: var(--encre-2); font: 700 var(--t-2)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; }
-details.fiche-plus > summary::-webkit-details-marker { display: none; }
-details.fiche-plus > summary::before { content: '▸'; color: var(--or); }
-details.fiche-plus[open] > summary::before { content: '▾'; }
+/* ---- Sous la carte : ce qui décide — où il ira, le détail ---- */
+.fiche-plus { margin-top: var(--esp-3); border-top: 1px solid var(--filet); padding-top: var(--esp-3); }
+.fiche-plus > .section-label:first-child { margin-top: 0; }
 /* Le profil mesuré tient sur une seule rangée, quel que soit le nombre d'axes (cinq, ou trois pour un gardien). */
 .profil-titre { margin-top: var(--esp-2); font: 700 var(--t-1)/1.3 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 .profil-grid { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); margin: var(--esp-2) 0; border-top: 1px solid var(--filet); border-bottom: 1px solid var(--filet); }
@@ -3613,25 +3599,16 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 /* Le coach et sa confiance, les effets du soir (V7), en tiroirs et en rangées. */
 .ej-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .ej-soir:empty { display: none; }
-.ej-plie > summary { cursor: pointer; list-style: none; gap: var(--esp-2); }
-.ej-plie > summary::-webkit-details-marker { display: none; }
-.ej-plie > summary > span:first-child::after { content: ' ›'; color: var(--encre-3); }
-.ej-plie[open] > summary > span:first-child::after { content: ' ⌄'; }
-.ej-plie:not([open]) { gap: 0; }
 .ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .ej-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
-.ej-r.a-detail { min-height: 44px; cursor: pointer; }
-.ej-r.a-detail .ej-nom::after { content: ' ›'; color: var(--encre-3); }
-.ej-r.ouvert .ej-nom::after { content: ' ⌄'; }
 .ej-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
 .ej-nom small { margin-left: var(--esp-1); color: var(--encre-3); }
 .ej-stats { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
 .st-p { padding: 2px 6px; border-radius: var(--r-1); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.02em; color: var(--encre-3); white-space: nowrap; }
-.ej-soir .bon { color: var(--bon); }
-.ej-soir .mauvais { color: var(--mauvais); }
-.ej-detail { display: none; grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
-.ej-r.ouvert .ej-detail { display: block; }
+:is(.ej-soir, .hub-rangee) .bon { color: var(--bon); }
+:is(.ej-soir, .hub-rangee) .mauvais { color: var(--mauvais); }
+.ej-detail { grid-column: 1 / -1; padding: var(--esp-1) 0 var(--esp-2); }
 .ej-coach { display: flex; flex-direction: column; gap: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
 .ej-coach-tete { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-2); font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; }
 .ej-coach-tete small { flex-basis: 100%; font-family: inherit; font-weight: 400; font-size: var(--t-1); line-height: 1.3; text-transform: none; color: var(--encre-2); }
@@ -3653,12 +3630,11 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .perso-txt b { font: 800 var(--t-3)/1.15 var(--display); color: var(--encre); }
 .perso-txt em { font-size: var(--t-1); font-style: italic; line-height: 1.3; color: var(--encre-2); }
 .perso-libre { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
-/* TON PERSONNEL (V14, js/echelons.js) : une ligne de gestion — l'icône de sa carte et de son poste, son style, sa force
-   et son défaut, ses échelons ; elle se déplie sur sa fiche et, à un échelon atteint, sur le choix. */
-.gens { border-top: 0; border-radius: var(--r-1); background: var(--fond-2); }
+/* TON PERSONNEL (V14, js/echelons.js) : une rangée de gestion, toujours visible — l'icône de sa carte et de son poste, son style,
+   sa force et son défaut, son échelon et son contrat ; elle s'ouvre en feuille sur sa fiche et, à un échelon atteint, sur le choix. */
+.gens { width: 100%; border: 0; border-radius: var(--r-1); background: var(--fond-2); text-align: left; }
 .gens.monte { box-shadow: inset 3px 0 0 var(--or); }
-.gens-l { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); min-height: 56px; padding: var(--esp-1) var(--esp-3); list-style: none; cursor: pointer; }
-.gens-l::-webkit-details-marker { display: none; }
+.gens-l { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); min-height: 56px; padding: var(--esp-1) var(--esp-3); }
 .gens-av { position: relative; width: 40px; height: 40px; border-radius: var(--r-1); display: grid; place-items: center; background: var(--fond-3); font-size: var(--t-5); line-height: 1; }
 .gens-av > span { position: absolute; right: -6px; bottom: -6px; font-size: var(--t-1); line-height: 1; }
 .gens-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -3672,24 +3648,10 @@ details.fiche-plus[open] > summary::before { content: '▾'; }
 .gens-ech i { width: 8px; height: 8px; border-radius: var(--r-0); background: var(--fond-3); border: 1px solid var(--filet); }
 .gens-ech i.on { background: var(--or); border-color: var(--or); }
 .gens-ech i.ferme { opacity: 0.35; border-style: dashed; }
-.gens-xp { width: 48px; height: 3px; border-radius: var(--r-0); background: var(--fond-3); overflow: hidden; }
-.gens-xp i { display: block; height: 100%; background: var(--encre-2); }
+.gens-ct { font-weight: 700; letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; }
 .gens-monte { color: var(--noir-pur); background: var(--or); padding: 3px 5px; border-radius: var(--r-0); }
-.gens-fiche { display: flex; flex-direction: column; gap: var(--esp-2); padding: 0 var(--esp-3) var(--esp-3); }
-.gens-choix { display: flex; flex-wrap: wrap; gap: var(--esp-2); }
-.gens-choix .btn { min-height: 44px; }
-/* CE QUI SE PLIE D'UN SOUS-ONGLET (V12-4 : il tient en un écran) : une ligne qui s'ouvre. Les cartes d'une maison (leurs
-   icônes au bout ; ouvertes, une bande de cartons qui se balaie, la suivante au bord, comme la main du duel), la route de la saison. */
-.pli { border-top: 1px solid var(--filet); }
-.pli-t { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; list-style: none; cursor: pointer; }
-.pli-t::-webkit-details-marker { display: none; }
-.pli-t::after { content: "›"; margin-left: auto; font: 800 var(--t-4)/1 var(--display); color: var(--encre-3); transition: transform 0.15s; }
-.pli[open] > .pli-t::after { transform: rotate(90deg); }
-.pli-icones { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-3); }
-.pli-bande { display: flex; gap: var(--esp-3); padding: var(--esp-1) 0 var(--esp-3); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
-.pli-bande::-webkit-scrollbar { display: none; }
-.pli-bande > .bq-carte { flex: 0 0 min(44vw, 200px); scroll-snap-align: start; }
-.pli-bande .tc-texte { display: none; }
+.gens-fiche { display: flex; flex-direction: column; gap: var(--esp-2); }
+/* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }
 /* Ce que le prochain palier jouera (V12-4) : un détail, que « Les chiffres » déplie, comme les chiffres d'un choix. */
 .af-onglet:not(.chiffres) .ej-coach-l.detail { display: none; }
@@ -3979,14 +3941,13 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
 /* LE PROCHAIN MATCH EN UNE LIGNE (V8, le Bureau du Rogue) : le toucher ouvre Effectif › Dépistage. */
 .bu-prochain { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); width: 100%; min-height: 56px; margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border: 1px solid var(--filet); border-radius: var(--r-2); background: var(--fond-2); color: var(--encre); text-align: left; cursor: pointer; }
 
-/* Ton plan d'avant-match, au Bureau (oct.) : une ligne pliée sous le match, les six tuiles quand elle se déplie. */
-.bu-plan { margin-top: var(--esp-2); border: 1px solid var(--filet); background: var(--fond-2); }
-.bu-plan > summary { display: flex; align-items: center; gap: var(--esp-2); min-height: 44px; padding: 0 var(--esp-3); list-style: none; cursor: pointer; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
-.bu-plan > summary::-webkit-details-marker { display: none; }
-.bu-plan-t { letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.bu-plan > summary b { flex: 1; min-width: 0; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.bu-plan-aller { color: var(--or); }
-.bu-plan-corps { padding: 0 var(--esp-3) var(--esp-3); }
+/* UNE RANGÉE QUI OUVRE UNE PAGE ou une feuille (js/saison.js `rangeeHtml` ; JP : *j'hais les accordéons*) : le titre, ce qu'elle dit, « › ».
+   Ton plan, au Bureau, en est une (la feuille des six plans). Toujours visible, 44 px au moins, à coins vifs. */
+.hub-rangee { display: flex; align-items: center; gap: var(--esp-2); width: 100%; min-height: 44px; padding: var(--esp-1) var(--esp-3); border: 1px solid var(--filet); border-radius: 0; background: var(--fond-2); text-align: left; font: 700 var(--t-2)/1.2 var(--display); color: var(--encre-2); }
+.hub-rangee::after { content: "›"; flex: none; margin-left: auto; font-size: var(--t-4); color: var(--or); }
+.hub-rangee-t { flex: none; letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
+.hub-rangee b { flex: 1; min-width: 0; color: var(--encre); overflow-wrap: anywhere; }
+.bu-plan { margin-top: var(--esp-2); }
 .bu-prochain.gros { border-color: var(--or); }
 .bu-prochain-txt { display: grid; min-width: 0; line-height: 1.25; }
 .bu-prochain-txt b { font: 800 var(--t-4)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -4018,7 +3979,7 @@ body.hub-docke:not(.mode-table) .hub-sheet .live-top:has(.hub-close[hidden]) { d
   body.hub-docke .hub-sheet :is(.hub-msg, .hub-boite .af-option) { scroll-margin-top: var(--esp-3); scroll-margin-bottom: 140px; }
   /* Sous 1200 px, l'affiche tient en un écran : le dépistage, la préparation et le sommaire sont des pages (les liens
      du bureau y mènent) ; ce qu'elles portent ne s'empile plus dans l'affiche. */
-  .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes, .hub-volet .hub-plie { display: none; }
+  .hub-carte .hub-match .hub-match-note:not(.hub-ereintant), .hub-carte .hub-match .hub-lignes { display: none; }
   body.hub-docke:not(.mode-table) .hub-sheet .live-top { padding: 2px var(--esp-3); }
   .hub-volet .hub-etat { padding: var(--esp-2) var(--esp-3); }
   .hub-volet .hub-etat-l { font-size: var(--t-1); }
@@ -4175,7 +4136,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-soir > .hub-une, .hub-soir > .hub-miniboss { margin: 0; }
 .hub-autour { display: grid; gap: var(--esp-1); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--filet); font-size: var(--t-2); line-height: 1.4; color: var(--encre); }
 .hub-autour .hub-une-t { color: var(--encre-3); }
-.hub-autour > summary { display: flex; align-items: center; min-height: 44px; cursor: pointer; }
 .hub-autour p { margin: 0; }
 .hub-nouvelles { display: grid; gap: var(--esp-2); margin: 0 0 var(--esp-2); padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--encre-3); font-size: var(--t-2); line-height: 1.4; }
 .hub-nouvelles .hub-une-t { color: var(--encre-3); }
@@ -4257,10 +4217,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .af-options { display: grid; grid-template-columns: 1fr; gap: var(--esp-2); }
 @media (min-width: 700px) { .af-options { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); } }
 .af-option.ouvre .choix-option-nom::after { content: " ›"; color: var(--or); }
-.af-encours > summary { list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); min-height: 44px; display: flex; align-items: center; }
-.af-encours > summary::-webkit-details-marker { display: none; }
-.af-encours > summary::after { content: " ›"; margin-left: var(--esp-1); }
-.af-encours[open] > summary { color: var(--encre); }
 .af-chiffres { align-self: center; }
 /* Une nouvelle d'Hier soir : la carte qui change, le vestiaire, les mouvements de l'alignement. */
 .hub-situ, .hub-mouvements { display: flex; flex-direction: column; gap: var(--esp-2); }
@@ -4331,8 +4287,8 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .hub-titre::after { content: ""; flex: 1; height: 1px; background: var(--filet); }
 .hub-titre:first-child { margin-top: 0; }
 .hub-hier { display: flex; align-items: center; flex-wrap: wrap; gap: var(--esp-1) var(--esp-3); padding: var(--esp-3); border: 1px solid var(--filet); border-left: 3px solid var(--filet); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); transition: border-color var(--t-vite); }
-.hub-hier.v { border-left-color: var(--bon); background: linear-gradient(90deg, color-mix(in srgb, var(--bon) 16%, transparent), transparent 55%), var(--panneau); box-shadow: var(--relief), -6px 0 22px -10px var(--bon); }
-.hub-hier.d { border-left-color: var(--mauvais); background: linear-gradient(90deg, color-mix(in srgb, var(--mauvais) 14%, transparent), transparent 55%), var(--panneau); }
+.hub-hier.v { border-left-color: var(--bon); background: color-mix(in srgb, var(--bon) 10%, var(--fond-2)); }
+.hub-hier.d { border-left-color: var(--mauvais); background: color-mix(in srgb, var(--mauvais) 9%, var(--fond-2)); }
 .hub-hier.v.neuf .hub-hier-score { animation: score-pop 600ms var(--e-ressort) 150ms backwards; }
 .hub-hier[data-sommaire] { cursor: pointer; }
 .hub-hier[data-sommaire]:hover, .hub-hier[data-sommaire]:focus-visible { border-color: var(--encre-3); }
@@ -4362,13 +4318,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .tuile-jauge.fait > span { background: var(--bon); }
 .tuile-jauge.mur > span { background: var(--attention); }
 .tuile-jauge.serre > span, .tuile-jauge.rate > span { background: var(--mauvais); }
-.hub-plie { border-top: 1px solid var(--filet-2); }
-.hub-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 44px; padding: var(--esp-2) 0; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.hub-plie > summary::-webkit-details-marker { display: none; }
-.hub-plie > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); transition: transform var(--t-vite); }
-.hub-plie[open] > summary { color: var(--encre); }
-.hub-plie[open] > summary::after { transform: rotate(90deg); }
-.hub-autres .cal-grille { margin-top: var(--esp-2); }
 
 /* ---- Le portail : quatre tuiles plates en 2 × 2, au bureau seulement (les onglets les portent au téléphone) ---- */
 .hub-portail { display: none; }
@@ -4512,10 +4461,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 
 /* ---- Ton histoire : trois actes, une ligne par événement, la rivalité en tête ---- */
 .recit { display: flex; flex-direction: column; gap: var(--esp-2); }
-.recit-avant > summary { display: flex; align-items: center; min-height: 44px; list-style: none; cursor: pointer; font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
-.recit-avant > summary::-webkit-details-marker { display: none; }
-.recit-avant > summary::after { content: "›"; margin-left: var(--esp-2); font-size: var(--t-4); transition: transform 0.15s; }
-.recit-avant[open] > summary::after { transform: rotate(90deg); }
 .recit-rival { padding: var(--esp-2) var(--esp-3); border-left: 3px solid var(--or); background: color-mix(in srgb, var(--or) 8%, transparent); font-size: var(--t-2); line-height: 1.4; }
 .recit-acte { display: flex; flex-direction: column; gap: var(--esp-1); }
 .recit-acte-t { margin-top: var(--esp-2); padding-bottom: var(--esp-1); border-bottom: 1px solid var(--filet-2); font: 800 var(--t-1)/1 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--or); }
@@ -4564,12 +4509,6 @@ table.hub-duel { display: table; width: 100%; table-layout: fixed; border-collap
 .dep3-table tr:has(td.av) .dep3-av { color: var(--bon); }
 .dep3-surveiller { font-size: var(--t-2); line-height: 1.4; color: var(--encre-2); }
 /* Ton plan (V17) : six tuiles d'À faire, deux par rangée au téléphone, trois dès 700 px ; le nom et deux stats. */
-.dep-plans { display: flex; flex-direction: column; gap: var(--esp-2); }
-.dep-plans .af-options { grid-template-columns: 1fr 1fr; }
-@media (min-width: 700px) { .dep-plans .af-options { grid-template-columns: repeat(3, 1fr); } }
-.dep-plan.choix-option { padding: var(--esp-2); gap: 2px; }
-.dep-plan .choix-option-nom { font-size: var(--t-3); }
-.dep-plan :is(.choix-option-sous, .puce) { font-size: var(--t-1); line-height: 1.25; }
 
 /* ---- Le deuxième entracte : le pointage, les buts, l'incident ---- */
 .ent2 { margin: var(--esp-1) 0 var(--esp-3); }
@@ -4844,7 +4783,6 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-saillants li.bon { color: var(--bon); }
 .som-saillants li.prix { color: var(--live); }
 .som-detail { margin-top: var(--esp-3); }
-.som-detail > summary { font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.03em; text-transform: uppercase; color: var(--encre-2); cursor: pointer; }
 .som-difference :is(p, ul) { margin: var(--esp-2) 0 0; font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
 .som-difference ul { padding-left: var(--esp-4); }
 .som-difference h4 { margin: var(--esp-3) 0 0; font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--encre-3); }
@@ -4892,14 +4830,6 @@ table.live-face td { text-align: center; white-space: normal; font: 700 var(--t-
 .som-l.bon, .som-l .bon { color: var(--bon); }
 .som-l.prix, .som-l .prix { color: var(--mauvais); }
 .som-rang { color: var(--encre); font-weight: 600; }
-/* La semaine passée (V5), pliée en tête d'Hier soir le lundi (js/saison.js, `semainePasseeHtml`). */
-.sem-passee { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
-.sem-passee > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 44px; padding: var(--esp-2) var(--esp-3); font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
-.sem-passee > summary::-webkit-details-marker { display: none; }
-.sem-passee > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); color: var(--encre-3); transition: transform var(--t-vite); }
-.sem-passee[open] > summary::after { transform: rotate(90deg); }
-.sem-passee > .som { padding: 0 var(--esp-3) var(--esp-3); }
-.hub-volet .sem-passee { margin-bottom: var(--esp-2); }
 .som-attente { margin-top: var(--esp-2); padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); font-size: var(--t-2); background: color-mix(in srgb, var(--mauvais) 12%, transparent); box-shadow: inset 3px 0 0 var(--mauvais); }
 
 /* ---- Le rapport d'entracte : une rangée de cartons plats qu'on balaie, un par écran au téléphone ---- */
@@ -5301,12 +5231,7 @@ button.tc-face:focus-visible { outline: 2px solid var(--choisi); outline-offset:
 .main-pli > span:first-of-type { flex: 1; min-width: 0; }
 .main-pli-ouvrir { flex: none; color: var(--encre-3); }
 .duel-mise { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); border-radius: var(--r-2); background: var(--panneau); box-shadow: var(--relief); border: 1px solid color-mix(in srgb, var(--or) 40%, var(--filet)); }
-.main-plie { border: 1px solid var(--filet); border-radius: var(--r-1); background: var(--fond-2); }
-.main-plie > summary { list-style: none; cursor: pointer; display: flex; align-items: center; min-height: 40px; padding: var(--esp-1) var(--esp-3); font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-2); }
-.main-plie > summary::-webkit-details-marker { display: none; }
-.main-plie > summary::after { content: "›"; margin-left: auto; font-size: var(--t-4); transition: transform var(--t-vite); }
-.main-plie[open] > summary::after { transform: rotate(90deg); }
-.main-plie > :not(summary) { margin: 0 var(--esp-3) var(--esp-3); }
+.main-stats { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-enjeu { display: flex; flex-wrap: wrap; gap: var(--esp-1) var(--esp-2); }
 .main-vestiaire { display: flex; flex-direction: column; gap: var(--esp-2); }
 .main-vest-recit { margin: 0; color: var(--encre-2); font-size: var(--t-2); line-height: 1.35; }
@@ -5997,9 +5922,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .ct-double, .ct-num { color: var(--or); }
 /* Un ensemble (une saison, un club) : un onglet de reliure, ses feuilles dedans. */
 .ct-set { border-radius: var(--r-1); background: var(--fond-1); box-shadow: inset 0 0 0 1px var(--filet); }
-.ct-set > summary { display: flex; align-items: center; gap: var(--esp-3); min-height: 48px; padding: var(--esp-2) var(--esp-3); cursor: pointer; list-style: none; }
-.ct-set > summary::-webkit-details-marker { display: none; }
-.ct-set[open] > summary { box-shadow: inset 3px 0 0 var(--or); }
+.ct-set-tete { display: flex; align-items: center; gap: var(--esp-3); min-height: 48px; padding: var(--esp-2) var(--esp-3); box-shadow: inset 3px 0 0 var(--or); }
 .ct-set-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.02em; }
 .ct-set-sous { flex: 1; font: 600 var(--t-1)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-3); }
 .ct-set-n { font: 800 var(--t-4)/1 var(--display); color: var(--or); font-variant-numeric: tabular-nums; }
@@ -6083,7 +6006,7 @@ body[data-zone="marche"] #game, body[data-zone="marche"] .actionbar { display: n
 .pk-fiche-nom { font: 800 var(--t-4)/1.1 var(--display); letter-spacing: 0.03em; text-transform: uppercase; }
 .pk-fiche-sous { margin-top: 2px; font: 700 var(--t-2)/1.2 var(--display); letter-spacing: 0.04em; color: var(--or); }
 .pk-fiche-texte { font-size: var(--t-2); line-height: 1.45; color: var(--encre-2); }
-.pk-detail > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font: 800 var(--t-2)/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
+.pk-detail > h4:first-child { margin-top: var(--esp-2); }
 .pk-fiche-carte h4 { margin: var(--esp-4) 0 var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--encre-3); }
 .pk-chances, .pk-bareme { width: 100%; border-collapse: collapse; font-size: var(--t-2); }
 .pk-chances th, .pk-bareme th { padding: var(--esp-2) 0; text-align: left; font-weight: 600; color: var(--encre-2); }

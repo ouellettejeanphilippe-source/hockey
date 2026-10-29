@@ -1294,7 +1294,7 @@ function buildDuSoirHtml(f, A, B, jour) {
  * LES FAITS SAILLANTS (JP, 23 oct. : *la section résumé, décidé, différences, plus en texte style SportsCenter*). Un
  * segment, comme à la télé : la manchette, le récit, puis la clé — ce qui a décidé (js/recit.js) sans redire le récit,
  * et ce que tes choix ont changé (js/causes.js : le pointage sans chacun de tes groupes, quand il l'aurait changé).
- * Le tir par tir et le fil complet se déplient dessous. Chaque chiffre se recompte dans la feuille.
+ * Le tir par tir et le fil complet suivent dessous, toujours visibles. Chaque chiffre se recompte dans la feuille.
  */
 const MAX_TIRS = 8;
 function saillantsHtml(f, A, B, pm) {
@@ -1318,8 +1318,8 @@ function saillantsHtml(f, A, B, pm) {
   return `<div class="som-saillants"><div class="som-per-head"><span>Les faits saillants</span></div>
     ${pm.resume.length ? `<p class="som-manchette">${esc(pm.resume[0])}</p>${pm.resume.length > 1 ? `<p>${esc(pm.resume.slice(1).join(' '))}</p>` : ''}` : ''}
     ${cle ? `<p class="som-cle">${esc(cle)}</p>` : ''}
-    ${parTir ? `<details class="som-detail"><summary>Tir par tir</summary><ul>${parTir}</ul></details>` : ''}
-    ${pm.sections.length ? `<details class="som-detail"><summary>Le fil complet du match</summary>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</details>` : ''}
+    ${parTir ? `<div class="som-detail"><div class="som-per-head"><span>Tir par tir</span></div><ul>${parTir}</ul></div>` : ''}
+    ${pm.sections.length ? `<div class="som-detail"><div class="som-per-head"><span>Le fil complet du match</span></div>${pm.sections.map(sec => `<div class="som-per-head"><span>${esc(sec.titre)}</span></div>${sec.lignes.map(x => `<p>${esc(x)}</p>`).join('')}`).join('')}</div>` : ''}
   </div>`;
 }
 

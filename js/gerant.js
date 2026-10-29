@@ -36,7 +36,7 @@ const $ = id => document.getElementById(id);
 
 /* Les puces d'un effet : vert s'il aide, rouge s'il coûte, gris s'il ne fait que déplacer. */
 export function puces(mots, detail = () => false) {
-  return (mots || []).map(m => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}${m.enMots ? ' en-mots' : ''}${detail(m) ? ' detail' : ''}">${esc(m.txt)}</span>`).join('');
+  return (mots || []).map((m, i) => `<span class="puce ${m.bon === true ? 'bon' : m.bon === false ? 'prix' : 'neutre'}${m.duree ? ' duree' : ''}${m.enMots ? ' en-mots' : ''}${detail(m, i) ? ' detail' : ''}">${esc(m.txt)}</span>`).join('');
 }
 /*
  * UN CHIFFRE À LA FOIS (V3, JP : *ya trop de stats dans les choix et cartes, trop d'information en même temps à
@@ -48,7 +48,9 @@ export function puces(mots, detail = () => false) {
  */
 // Un chiffre de match, en tête (« ≈ +0,2 but ») ou après son sujet (« Ton club : ≈ +1,5 but marqué »).
 const estChiffre = m => /(^|: )(jusqu'à )?≈ |^Jusqu'à ≈ |, et ≈ /.test(String(m.txt || '')) || (m.cle === 'glace' && /≈ /.test(String(m.txt || '')));
-function detailDe(mots) {
+/** Une tuile de choix montre au plus deux lignes de stats vertes ou rouges ; les autres se plient (« Les chiffres »). */
+export const LIGNES_MAX = 2;
+function detailDe(mots, { sobre = false } = {}) {
   const chiffres = mots.filter(estChiffre);
   const taux = m => m.cle === 'pctTir' || m.cle === 'pctArr';
   const meilleur = sens => chiffres.find(m => m.bon === sens && taux(m)) || chiffres.find(m => m.bon === sens) || null;
@@ -56,7 +58,19 @@ function detailDe(mots) {
   const tete = [meilleur(true), meilleur(false)].filter(Boolean);
   if (!tete.length && chiffres[0]) tete.push(chiffres[0]);
   const garde = new Set(tete.map(m => `${m.cle}|${m.txt}`));
-  return m => estChiffre(m) && !garde.has(`${m.cle}|${m.txt}`);
+  const plie = m => estChiffre(m) && !garde.has(`${m.cle}|${m.txt}`);
+  if (!sobre) return plie;
+  // UNE TUILE SOBRE (V19, tranche 6 ; JP : un verbe, au plus deux lignes de stats) : deux lignes vertes ou rouges au plus, une de
+  // chaque couleur d'abord (ce que l'option rapporte, ce qu'elle coûte). Un changement concret (la carte qui change, un geste, un
+  // pari, un joueur nommé) passe avant un chiffre de club ; le reste se plie avec les chiffres, jamais perdu.
+  const colore = m => m.bon === true || m.bon === false;
+  const lues = mots.map((m, i) => ({ m, i })).filter(({ m }) => colore(m) && !plie(m));
+  if (lues.length <= LIGNES_MAX) return plie;
+  const rang = [...lues].sort((a, b) => estChiffre(a.m) - estChiffre(b.m));
+  const gardees = new Set();
+  for (const sens of [true, false]) { const x = rang.find(({ m }) => m.bon === sens); if (x) gardees.add(x.i); }
+  for (const { i } of rang) if (gardees.size < LIGNES_MAX) gardees.add(i);
+  return (m, i) => plie(m) || (colore(m) && !gardees.has(i));
 }
 /** Des puces au bref : les chiffres de trop pliés, comme dans les options d'un choix. */
 export const pucesEnBref = mots => puces(mots, detailDe(mots || []));
@@ -466,14 +480,14 @@ export function sceneHtml(sc, { voix = false } = {}) {
  * `spec` donne les noms ({nom}, {noms}), le joueur visé et le cadre du match ; `classe`, `attr` et `on` laissent
  * chaque écran brancher son geste (`data-vest`, `data-semaine`) sans redessiner le bouton.
  */
-export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', on = false } = {}) {
+export function optionHtml(o, spec = {}, { mots = null, classe = '', attr = '', on = false, plein = false } = {}) {
   const { nom, noms, sub } = nommer(spec);
   if (!mots) {
     const { duree: _d, ...canaux } = o.effet || o;
     mots = [...(o.rien ? [] : motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, o.cadre || spec.cadre)), ...(o.mutation ? motsDeMutationEnChiffres(o.mutation, spec.joueur || null) : []), ...motsDeCarte(o, noms), ...(o.mots || [])];
   }
   const forme = formeDesMots(o, mots);
-  const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
+  const pucesHtml = `${puces(mots.map(x => ({ ...x, txt: String(x.txt).replace(/\{nom\}/g, nom).replace(/\{noms\}/g, noms) })), detailDe(mots, { sobre: !plein }))}${o.quand ? `<span class="puce neutre duree">${esc(o.quand)}</span>` : ''}`;
   return `<button type="button" class="choix-option${o.visage ? ' avec-visage' : ''}${classe ? ` ${classe}` : ''}${on ? ' on' : ''}" data-choix="${esc(o.cle)}"${attr ? ` ${attr}` : ''}${o.desactive ? ' disabled' : ''}${on ? ' aria-pressed="true"' : ''}>
     ${o.visage ? `<span class="choix-option-visage" aria-hidden="true">${o.visage}</span>` : ''}
     <span class="choix-option-nom">${o.ico ? `${o.ico} ` : ''}${sub(o.nom)}</span>
@@ -1047,12 +1061,12 @@ export function depistageHtml(pistes, { nomAdv = 'Eux', prep = [], choisir = fal
   const justeN = [chiffres(PREP_JUSTE), fx && fx.piege ? chiffres(fx.piege) : ''].filter(Boolean).join(' · ');
   const rate = fx && fx.improvise ? `pas de malus, et l'improvisation : ${mots(fx.improvise)}` : mots(PREP_RATEE);
   const rateN = chiffres(fx && fx.improvise ? fx.improvise : PREP_RATEE);
-  // `etape` (l'écran de combat) : le titre devient son étape, et la règle se plie sous les pistes (elle se relit, elle ne se choisit pas).
+  // `etape` (l'écran de combat) : le titre devient son étape ; la règle (vise juste, rate) reste visible sous les pistes.
   const regle = `<div class="dep-regle"><span class="puce bon">🎯 Vise juste : ${esc(juste)}</span>${justeN ? `<span class="puce bon detail">${esc(justeN)}</span>` : ''}<span class="puce prix">💥 Rate : ${esc(rate)}</span>${rateN ? `<span class="puce prix detail">${esc(rateN)}</span>` : ''}<span class="puce neutre">Sans préparation : rien ne change</span></div>`;
   return `<div class="depistage${choisir ? ' choisir' : ''}">
     ${etape || `<div class="gl-k">🔎 Le dépistage${qui} : leur plan probable</div>`}
     <div class="dep-pistes">${pistes.map(ligne).join('')}</div>
-    ${choisir ? (etape ? `<details class="main-plie"><summary>🎯 Viser juste ou rater : ce que ça change</summary>${regle}</details>` : regle) : ''}
+    ${choisir ? regle : ''}
   </div>`;
 }
 
@@ -1224,7 +1238,6 @@ export function ouvrirDuel(spec) {
   const dessiner = () => {
     // L'ÉCRAN NE REMONTE PAS quand on règle quelque chose (S80) : on reste où on lisait.
     const hauts = [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].map(e => (e ? e.scrollTop : 0));
-    const plies = [...m.querySelectorAll('details.main-plie')].map(d => d.open);
     const etapes = ['duel', V && 'vest', spec.ajustements && 'aj'].filter(Boolean);
     const etape = (k, txt) => `<div class="main-etape"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span></div>`;
     const pli = (k, txt) => `<button type="button" class="main-pli" data-deplier="${k}"><b>${etapes.indexOf(k) + 1}</b><span>${txt}</span><span class="main-pli-ouvrir" aria-hidden="true">›</span></button>`;
@@ -1235,7 +1248,7 @@ export function ouvrirDuel(spec) {
       <div class="main-vest-rang">${V.options.map(o => {
         const { duree: _d, ...canaux } = o;
         const mv = [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? o.duree : null, V.cadre), ...motsDeCarte(o, nV.noms)];
-        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
+        return optionHtml({ ...o, desactive: V.pris && V.pris !== o.cle ? 'L\'autre est gardée' : o.desactive }, V, { mots: mv, classe: 'main-vest', plein: true, attr: `data-vest="${esc(o.cle)}"`, on: vest === o.cle });
       }).join('')}</div>
     </div>` : '';
     /*
@@ -1246,7 +1259,7 @@ export function ouvrirDuel(spec) {
     const bloque = manque();
     const propositionsHtml = () => `<div class="duel-adjoint">
       ${D.scene ? sceneHtml(D.scene, { voix: true }) : ''}
-      <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
+      <div class="af-options duel-props">${[...D.propositions, D.garder].map(o => optionHtml({ ...o, ...(bloque ? { desactive: bloque } : {}) }, {}, { mots: o.mots || [], plein: true, classe: 'af-option duel-prop', attr: `data-prop="${esc(o.cle)}"` })).join('')}</div>
     </div>`;
     m.innerHTML = `<div class="choix-sheet choix-cartes main-sheet${chiffresOuverts() ? ' chiffres' : ''}${auxCouleurs(spec.couleurs)}" data-genre="main" role="dialog" aria-modal="true" aria-label="${esc(spec.titre)}">
       <div class="choix-tete">
@@ -1271,7 +1284,7 @@ export function ouvrirDuel(spec) {
           return `<button type="button" class="main-aj${aj === o.cle ? ' on' : ''}" data-aj="${esc(o.cle)}"><b>${o.ico} ${esc(o.nom)}</b><small>${esc(o.bon || '')}</small><span class="choix-puces">${puces(mots)}</span></button>`;
         }).join('')}</div></div>` : ''}
         ${propositionsHtml()}
-        ${spec.stats ? `<details class="main-plie"><summary>📊 Les deux clubs, par match</summary>${spec.stats}</details>` : ''}
+        ${spec.stats ? `<div class="main-stats"><div class="gl-k">📊 Les deux clubs, par match</div>${spec.stats}</div>` : ''}
         <div class="main-outils">
           <button type="button" class="btn main-chiffres" aria-pressed="${chiffresOuverts()}">Les chiffres</button>
           ${spec.onAdjoint ? '<button type="button" class="btn main-adjoint" title="Il garde ton tableau aux entractes, jusqu\'à la fin de la série">L\'adjoint joue cette série</button>' : ''}
@@ -1279,7 +1292,6 @@ export function ouvrirDuel(spec) {
       </div>
     </div>`;
     [m, m.querySelector('.choix-sheet'), m.querySelector('.choix-corps')].forEach((e, i) => { if (e && hauts[i]) e.scrollTop = hauts[i]; });
-    m.querySelectorAll('details.main-plie').forEach((d, i) => { if (plies[i]) d.open = true; });
     pointsDeBande(m);
     m.querySelectorAll('.duel-prop[data-prop]').forEach(b => { b.onclick = () => {
       if (manque()) return;

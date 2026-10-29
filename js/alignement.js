@@ -783,7 +783,7 @@ export function coachHtml(decs, j, injured = new Set()) {
       if (!C) return '';
       const en = new Set(patronsActifs(decs, j + 1).map(p => p.cle));
       const manque = C.cles.filter(c => !en.has(c)).map(c => PATRONS[c].nom);
-      return `<div class="ej-coach-l"><span class="ej-k">Combo</span> ${C.ico} ${esc(C.nom)} · ${esc(MOMENTS_SI[C.si].mot)} · ${puces(motsEnChiffres(C.effet))} · ${manque.length ? `il manque : ${esc(manque.join(', '))}` : 'en poste'}</div>`;
+      return `<div class="ej-coach-l"><span class="ej-k">Combo</span> ${C.ico} ${esc(C.nom)} · ${C.si && MOMENTS_SI[C.si] ? `${esc(MOMENTS_SI[C.si].mot)} · ` : ''}${puces(motsEnChiffres(C.effet))} · ${manque.length ? `il manque : ${esc(manque.join(', '))}` : 'en poste'}</div>`;
     })(COMBOS[k])}
     ${pal ? `<div class="ej-coach-l"><span class="ej-k">Joue</span> ${puces(reglesDePalier(k, pal))}</div>` : ''}
     ${manque ? `<div class="ej-coach-l suite detail"><span class="ej-k">${ROMAINS[pal + 1]}</span> ${puces(reglesDePalier(k, pal + 1))}</div>` : ''}

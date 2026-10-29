@@ -283,7 +283,7 @@ function missionsHtml(ms, esc) {
 }
 
 /* ---------- la page ---------- */
-const etat = { vue: 'equipe', ouverts: new Set() };
+const etat = { vue: 'equipe' };
 const pochetteVide = () => '<span class="ct-trou" aria-hidden="true"></span>';
 /* Une feuille : les cartes dans leurs pochettes, les cases vides restent des pochettes. */
 function feuilleHtml(cellules, index, total, titre, esc) {
@@ -355,10 +355,10 @@ export function rendreCartable(host, ctx) {
       : [...parClub.entries()].sort((a, b) => (ctx.club(a[0]) || a[0]).localeCompare(ctx.club(b[0]) || b[0], 'fr')).map(([t, m]) => ({ id: `c:${t}`, titre: ctx.club(t) || t, n: [...m.values()].reduce((a, l) => a + l.length, 0), sous: `${m.size} saison${m.size > 1 ? 's' : ''}` }));
     corps = groupes.length
       ? `${etat.vue === 'extensions' ? missionsHtml(missionsDuCartable(c, decennies), esc) : '<p class="ct-mot">Tes joueurs débloqués, club par club.</p>'}
-        ${groupes.map(g => `<details class="ct-set" data-set="${esc(g.id)}"${etat.ouverts.has(g.id) ? ' open' : ''}>
-          <summary><span class="ct-set-nom">${esc(g.titre)}</span><span class="ct-set-sous">${esc(g.sous)}</span><b class="ct-set-n">${g.n}</b></summary>
+        ${groupes.map(g => `<section class="ct-set" data-set="${esc(g.id)}">
+          <div class="ct-set-tete"><span class="ct-set-nom">${esc(g.titre)}</span><span class="ct-set-sous">${esc(g.sous)}</span><b class="ct-set-n">${g.n}</b></div>
           <div class="ct-set-corps"><p class="ct-charge">On ouvre le cartable…</p></div>
-        </details>`).join('')}`
+        </section>`).join('')}`
       : '<p class="ct-vide">Rien de débloqué encore. Joue une saison, ou ouvre un pack : les cartes entrent ici.</p>';
   }
   host.innerHTML = `<div class="ct">${tete}${nav}<div class="ct-corps">${corps}</div></div>`;
@@ -386,7 +386,7 @@ export function rendreCartable(host, ctx) {
     avant.onclick = () => aller(i - 1, true);
     apres.onclick = () => aller(i + 1, true);
   }
-  // UN ENSEMBLE S'OUVRE : ses saisons se chargent, ses cartes se posent dans les pochettes, sa complétion se compte.
+  // UN ENSEMBLE SE REMPLIT en approchant de l'écran (JP, 28 oct. : *j'hais les accordéons*, plus de pli) : ses saisons se chargent, ses cartes se posent dans les pochettes, sa complétion se compte.
   const remplir = async det => {
     const id = det.dataset.set, corpsSet = det.querySelector('.ct-set-corps');
     const [genre, val] = [id.slice(0, 1), id.slice(2)];
@@ -426,10 +426,12 @@ export function rendreCartable(host, ctx) {
       };
     });
   };
-  host.querySelectorAll('details.ct-set').forEach(det => {
-    if (det.open) remplir(det);
-    det.addEventListener('toggle', () => {
-      if (det.open) { etat.ouverts.add(det.dataset.set); remplir(det); } else etat.ouverts.delete(det.dataset.set);
-    });
-  });
+  const ensemblesVus = [...host.querySelectorAll('.ct-set')];
+  const racine = host.querySelector('.ct-corps');
+  if (ensemblesVus.length && racine && typeof IntersectionObserver === 'function') {
+    const veille = new IntersectionObserver(vus => {
+      for (const v of vus) if (v.isIntersecting) { veille.unobserve(v.target); remplir(v.target); }
+    }, { root: racine, rootMargin: '400px 0px' });
+    ensemblesVus.forEach(e => veille.observe(e));
+  } else ensemblesVus.forEach(remplir);
 }

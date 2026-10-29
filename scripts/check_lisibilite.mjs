@@ -11,12 +11,32 @@
  *   3. LES CARTES GARDENT LEURS FINITIONS : le scintillement, le prisme, le reflet, le paquet et leur entrée
  *      (`carte-entre`) existent et servent. Les nettoyer par erreur est le seul échec qu'on ne veut pas.
  *   4. LE MOUVEMENT S'ÉTEINT POUR QUI LE DEMANDE (`prefers-reduced-motion`).
+ *   5. DES SURFACES PLATES (JP : *penser comme GM Connected*) : la surface de base (`--panneau`, `--relief`) est un aplat sans
+ *      ombre, et ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé ; l'onglet ouvert est un bloc
+ *      plein et clair, texte noir, le même partout.
+ *   6. LES TUILES DE CHOIX SONT SOBRES (tranche 6, la décision unifiée ; JP : *un verbe, au plus deux lignes de stats,
+ *      trois options au plus, la recommandée marquée par sa place*). Lu sur le code et les données, sur de vrais clubs :
+ *      aucune fenêtre de choix n'offre plus de trois options, aucune option (dilemme, séquence, avant-match, réponse,
+ *      dossier, fil, carte de route) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
+ *      se plient sous « Les chiffres », sans rien perdre —, et la tuile est un aplat : ni dégradé, ni ombre, ni saut.
+ *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
+ *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans AUCUN fichier de js/
+ *      (`SANS_PLI` les lit tous, y compris ceux qu'on écrira) ni dans index.html. Une info courte est un bloc toujours visible ;
+ *      une longue liste défile dans sa feuille, se charge à l'approche, ou s'ouvre en page ou en feuille par une rangée
+ *      (`rangeeHtml`, js/saison.js ; `ouvrirChoix`).
  *
  *   node scripts/check_lisibilite.mjs
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { autoRoster, registerHiddenRatings, createTeam, MOMENTS, SEQUENCES, optionsDeSequence, AVANT_GROS } from '../js/sim.js';
+import { poserClubLu } from '../js/impact.js';
+import { optionHtml, LIGNES_MAX } from '../js/gerant.js';
+import { DOSSIERS } from '../js/dossiers.js';
+import { REPONSES_VIE, CHOIX_DES_FILS } from '../js/vie-gm.js';
+import { ROUTES, CARTES_DE_ROUTE, motsDeRoute } from '../js/noeuds.js';
+import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -76,5 +96,95 @@ informer('feuille lue', `${keyframes.size} @keyframes, ${regles.length} règles`
 
 /* 4. Le mouvement s'éteint. */
 exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-motion: reduce\)\s*\{[^{}]*\*[^{}]*\{[^{}]*animation-duration/.test(css), 'une règle générale');
+
+/* 5. Des surfaces plates. */
+{
+  const racine = css.match(/:root\s*\{[^}]*\}/g).join(' ');
+  const decl = nom => (racine.match(new RegExp(`${nom}:\\s*([^;]+);`)) || [])[1] || '';
+  exiger('la surface de base est un aplat : --panneau sans dégradé', !/gradient\(/.test(decl('--panneau')) && decl('--panneau') !== '', decl('--panneau'));
+  exiger('la surface de base est sans ombre : --relief ne porte ni flou ni décalage', /^0 0 0 0 /.test(decl('--relief').trim()), decl('--relief'));
+  const DECOR = [/^\.navtab/, /^\.navbar/, /^\.btn\.(go|gold)\b/, /^\.choix-option(\.on)?$/, /^\.hub-hier/, /^:is\(\.soustab/];
+  const fautes = regles.filter(r => DECOR.some(d => d.test(r.sel)) && /gradient\(/.test(r.corps)).map(r => r.sel);
+  exiger('ni les onglets, ni la barre, ni les boutons, ni les choix ne portent de dégradé', !fautes.length, fautes.join(' · ') || 'aucun');
+  const actif = regles.find(r => /^:is\(\.soustab[^)]*\)\.on$/.test(r.sel));
+  const barre = regles.find(r => r.sel === '.navtab.on');
+  exiger('l\'onglet ouvert est un bloc plein et clair, texte noir — en haut comme dans la barre', !!actif && !!barre && /background:\s*var\(--encre\)/.test(actif.corps) && /color:\s*var\(--noir\)/.test(actif.corps) && /background:\s*var\(--encre\)/.test(barre.corps) && /color:\s*var\(--noir\)/.test(barre.corps));
+}
+
+/* 6. Les tuiles de choix, sobres. */
+{
+  const OPTIONS_MAX = 3;
+  const FAMILLES = [
+    ['dilemme', MOMENTS], ['séquence', Object.fromEntries(Object.keys(SEQUENCES).map(k => [k, { options: optionsDeSequence(k) }]))],
+    ['avant-match', AVANT_GROS], ['réponse', REPONSES_VIE], ['dossier', DOSSIERS], ['choix de fil', CHOIX_DES_FILS],
+  ];
+  // Le nombre d'options : les fenêtres de ces familles, et les trois routes de la semaine.
+  const trop = [];
+  let nFenetres = 0;
+  for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) { nFenetres++; if ((ev.options || []).length > OPTIONS_MAX) trop.push(`${cat} ${cle} : ${ev.options.length}`); }
+  if (Object.keys(ROUTES).length > OPTIONS_MAX) trop.push(`routes : ${Object.keys(ROUTES).length}`);
+  exiger(`une fenêtre de choix offre trois options au plus (${nFenetres} fenêtres et les trois routes)`, !trop.length, trop.join(' · ') || `au plus ${Math.max(...FAMILLES.flatMap(([, l]) => Object.values(l).map(e => (e.options || []).length)))}`);
+
+  // Les lignes de stats : la tuile telle que l'écran la dessine (`optionHtml`), sur des clubs de plusieurs époques.
+  const DIR = path.join(ROOT, 'data', 'seasons');
+  const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
+  const clubs = [];
+  for (let i = 0; i < SAISONS.length && clubs.length < 4; i += Math.max(1, Math.floor(SAISONS.length / 4))) {
+    const sh = JSON.parse(fs.readFileSync(path.join(DIR, SAISONS[i]), 'utf8'));
+    for (const tag of new Set(sh.players.map(p => p.t))) {
+      let un; try { un = equipeReelle(sh.season, tag); } catch { continue; }
+      if (un[0].length < 12 || un[1].length < 6 || un[2].length < 2) continue;
+      const ps = un.flat().map(x => ({ ...x })); ps.forEach(registerHiddenRatings);
+      clubs.push(createTeam(`${tag} ${sh.season}`, tag, autoRoster(ps), { season: sh.season }));
+      break;
+    }
+  }
+  const lignes = html => {
+    const puces = [...html.matchAll(/<span class="puce ([^"]*)"/g)].map(m => m[1]);
+    const colorees = puces.filter(c => /\b(bon|prix)\b/.test(c));
+    return { vues: colorees.filter(c => !/\bdetail\b/.test(c)).length, toutes: colorees.length };
+  };
+  const tuiles = [];
+  for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) for (const o of ev.options || []) tuiles.push({ id: `${cat} ${cle}.${o.cle}`, o });
+  const cartes = [];
+  for (const [route, cs] of Object.entries(CARTES_DE_ROUTE)) for (const [id, C] of Object.entries(cs)) cartes.push({ id: `route ${route}.${id}`, o: { cle: id, nom: C.nom }, C });
+  const debordent = [], perdent = [];
+  let maxVues = 0;
+  for (const club of clubs) {
+    poserClubLu(() => ({ team: club }));
+    const lire = (id, o, mots) => {
+      const sobre = lignes(optionHtml(o, {}, mots ? { mots } : {})), plein = lignes(optionHtml(o, {}, { ...(mots ? { mots } : {}), plein: true }));
+      maxVues = Math.max(maxVues, sobre.vues);
+      if (sobre.vues > LIGNES_MAX) debordent.push(`${id} (${club.name}) : ${sobre.vues}`);
+      if (sobre.toutes !== plein.toutes) perdent.push(`${id} (${club.name})`);
+    };
+    for (const { id, o } of tuiles) lire(id, o, null);
+    for (const { id, o, C } of cartes) lire(id, o, motsDeRoute(C));
+  }
+  poserClubLu(null);
+  informer('les clubs lus', clubs.map(c => c.name).join(' · '));
+  exiger(`une option montre ${LIGNES_MAX} lignes de stats vertes ou rouges au plus (${tuiles.length} options et ${cartes.length} cartes de route, sur ${clubs.length} clubs)`, !debordent.length, debordent.slice(0, 6).join(' · ') || `au plus ${maxVues}`);
+  exiger('plier une ligne de trop ne la perd pas : elle reste sous « Les chiffres »', !perdent.length, perdent.slice(0, 6).join(' · ') || 'rien ne disparaît');
+
+  // L'aplat : la tuile de base n'a ni dégradé, ni ombre, ni relief ; son survol ne la déplace pas et ne la zoome pas.
+  const base = regles.filter(r => r.sel === '.choix-option');
+  const survol = regles.filter(r => /^\.choix-option(:hover|:focus-visible|:active|\.on)(?![\w.-])/.test(r.sel.split(',')[0].trim()) && !/\.tc\b/.test(r.sel));
+  const decor = /gradient|shadow|--relief|--reflet|--panneau/;
+  const fautes = [
+    ...base.filter(r => decor.test(r.corps)).map(() => 'la tuile de base a un dégradé ou une ombre'),
+    ...survol.filter(r => decor.test(r.corps) || /transform/.test(r.corps)).map(r => `${r.sel.split('\n').pop().slice(0, 50)} : ombre ou saut`),
+  ];
+  exiger('la tuile de choix est un aplat : ni dégradé, ni ombre, ni saut au toucher', base.length === 1 && !fautes.length, fautes.join(' · ') || `${base.length} règle de base, ${survol.length} états`);
+}
+
+/* 7. Aucun accordéon. */
+const SANS_PLI = [...fs.readdirSync(path.join(ROOT, 'js')).filter(f => f.endsWith('.js')).sort().map(f => `js/${f}`), 'index.html'];
+{
+  const restes = SANS_PLI.flatMap(f => {
+    const n = (fs.readFileSync(path.join(ROOT, f), 'utf8').match(/<\/?(details|summary)\b/g) || []).length;
+    return n ? [`${f} (${n})`] : [];
+  });
+  exiger('aucun <details> ni <summary> nulle part dans js/ ni index.html (j\'hais les accordéons)', restes.length === 0, restes.join(' · ') || `${SANS_PLI.length} fichiers sans pli`);
+}
 
 verdict('Le décor calme, les cartes belles');

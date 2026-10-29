@@ -376,7 +376,7 @@ async function regler() {
       /*
        * SANS MAIN (V13-2, docs/refonte-v13.md) : le duel se joue à ton tableau ; ni cartes de match, ni élan, ni « Mon deck ».
        */
-      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, details.main-duel, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
+      const resteDeMain = await page.$$eval('#choixModal :is(.main-carte, .main-energie, .main-orbe, .main-deck, .main-reprendre, .deck-grille, .duel-cartes)', e => e.map(x => x.className.split(' ').filter(c => /^(main|deck|duel)-/.test(c))[0] || x.tagName));
       if (resteDeMain.length) erreurs.push(`l'écran du duel montre encore la main : ${[...new Set(resteDeMain)].join(', ')}`);
       if (/(^|[^\p{L}])élan([^\p{L}]|$)|Mon deck/iu.test(((await page.textContent('#choixModal .choix-sheet').catch(() => '')) || ''))) erreurs.push('l\'écran du duel parle encore d\'élan ou de deck');
       /*
@@ -659,11 +659,18 @@ await tourDesBords('le premier jour');
 await regler();
 // LE MANDAT DU PROPRIO (S80) : la saison de la run et ce que le proprio veut — au sous-onglet du proprio (V12-2).
 /* V12-2 (docs/refonte-v12.md) : un sous-onglet de sa section, son contenu permanent rendu ; puis le Bureau rend la boîte. */
-/* Les cartes d'une maison sont pliées (V12-4) : on touche leur ligne, comme un joueur, avant de les jouer. */
-const deplierLesCartes = async portee => {
-  for (const s of await page.$$(`${portee} details.pli:not([open]) > summary`)) await s.click().catch(() => {});
-  await page.waitForTimeout(250);
+/* Les cartes d'une maison sont toujours visibles (JP, 28 oct. : plus d'accordéon) : une bande qui se balaie, rien à déplier. */
+const deplierLesCartes = async () => { await page.waitForTimeout(250); };
+/* Les cartes d'une maison (V19 : une rangée qui ouvre une feuille, plus de bande) : leurs clés « src|id|ref » et le geste d'en jouer une. */
+const cartesDeLaMaison = async (portee, maison) => {
+  const rangee = await page.$(`${portee} .cartes-maison[data-cartes-maison="${maison}"]`);
+  if (!rangee) return [];
+  await rangee.click(); await page.waitForSelector('#choixModal:not([hidden]) [data-choix]', { timeout: 8000 }).catch(() => {});
+  const cles = await page.$$eval('#choixModal [data-choix]', e => e.map(b => b.dataset.choix)).catch(() => []);
+  return cles;
 };
+const fermerLaFeuille = async () => { await page.click('#choixModal .choix-fermer, #choixModal [data-retour], #choixModal .btn-fermer').catch(() => page.keyboard.press('Escape')); await page.waitForTimeout(250); };
+const idsDesCartes = cles => cles.map(k => k.split('|')[1]).filter(Boolean);
 const versLOnglet = async (sec, pg) => {
   await page.click(`#navbar .navtab[data-section="${sec}"]`).catch(() => {});
   await page.click(`#sousNav .soustab[data-page="${pg}"]`, { timeout: 3000 }).catch(() => {});
@@ -702,8 +709,16 @@ if (routeBoite) erreurs.push('le Bureau redit la route ou le mandat, qui ont leu
   console.log(`5f. ton personnel, chez l'entraîneur : ${postes.join(' | ') || '(aucun poste)'}`);
   if (postes.length < p0.length) erreurs.push(`le sous-onglet de l'entraîneur montre ${postes.length} poste(s) pour ${p0.length} patrons engagés`);
   // V19 : chaque adjoint dit son contrat (les matchs qu'il lui reste), et la prolongation, en jetons, quand il y en a une à prendre.
-  const contrats = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-fiche', e => e.map(x => ({ dit: /Contrat :/.test(x.textContent), bouton: !!x.querySelector('[data-src="contrat"]') }))).catch(() => []);
-  if (contrats.some(c => !c.dit)) erreurs.push('un adjoint ne dit pas son contrat');
+  // La rangée de chaque adjoint dit son contrat (« ≈ 14 matchs » ou « Saison ») ; sa feuille, quand on la touche, le détaille.
+  const contrats = await page.$$eval('#hubModal .af-onglet[data-maison="entraineur"] .gens-l', e => e.map(x => ({ dit: /≈ \d+ match|Saison/.test(x.querySelector('.gens-ct') ? x.querySelector('.gens-ct').textContent : '') }))).catch(() => []);
+  if (contrats.some(c => !c.dit)) erreurs.push('un adjoint ne dit pas son contrat sur sa rangée');
+  const premiere = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l');
+  if (premiere) {
+    await premiere.click(); await page.waitForTimeout(300);
+    const feuille = ((await page.textContent('#choixModal').catch(() => '')) || '').replace(/\s+/g, ' ');
+    if (!/Contrat :|Prolonger/.test(feuille)) erreurs.push('la feuille d\'un adjoint ne dit pas son contrat');
+    await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+  }
   if (gens.length < p0.length || gens.some(g => !g.nom.trim() || g.ech !== 3)) erreurs.push(`ton personnel ne dit pas chaque carte en poste et ses trois échelons (${JSON.stringify(gens)})`);
 }
 if (!/proprio veut/.test(run || '')) erreurs.push('le hub ne dit pas le mandat du proprio');
@@ -1060,24 +1075,26 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   const portes = await page.$$eval('#navbar .navtab', e => e.filter(b => b.offsetParent).map(b => b.dataset.section)).catch(() => []);
   console.log(`10b. la barre : ${portes.join(' · ')}`);
   if (portes.join() !== 'bureau,joueurs,lignes,marche,ligue') erreurs.push(`la barre du bas n'a pas ses cinq portes : ${portes.join(' · ')}`);
-  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?*) : plié sous la ligne du match,
-  // les six tuiles quand il se déplie, celle en force à l'or, 🥷 nomme les deux joueurs ; en toucher une écrit la décision.
+  // TON PLAN AU BUREAU (oct., JP : *Dépistage, je vais jamais sur cette page* ; *dans bureau ?* ; *j'hais les accordéons*) : une rangée
+  // sous la ligne du match, qui ouvre une feuille des six plans, celui en force le dit, 🥷 nomme les deux joueurs ; en toucher un
+  // écrit la décision.
   {
-    await page.click('#hubModal .bu-plan > summary').catch(() => {});
+    if (await page.$('#hubModal details, #hubModal summary')) erreurs.push('le Bureau garde un accordéon (details / summary)');
+    await page.click('#hubModal button.bu-plan').catch(() => {});
     await page.waitForTimeout(800);
-    const pl = await page.$$eval('#hubModal .bu-plan .dep-plan[data-plan]', bs => bs.map(b => ({ cle: b.dataset.plan, on: b.classList.contains('on'), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce').length }))).catch(() => []);
+    const pl = await page.$$eval('#choixModal .choix-option[data-choix]', bs => bs.map(b => ({ cle: b.dataset.choix, on: !![...b.querySelectorAll('.puce')].find(x => /En force/.test(x.textContent)), sous: ((b.querySelector('.choix-option-sous') || {}).textContent || '').trim(), stats: b.querySelectorAll('.puce:not(.duree)').length }))).catch(() => []);
     await page.screenshot({ path: `${DOSSIER}/rogue-plan.png` });
     const on = pl.filter(x => x.on), ombre = pl.find(x => x.cle === 'ombre');
     const autre = pl.find(x => !x.on && x.cle !== 'match');
     let ecrit = null;
     if (autre) {
       const n0 = (await decisionsDuCombat()).length;
-      await page.click(`#hubModal .bu-plan .dep-plan[data-plan="${autre.cle}"]`).catch(() => {});
+      await page.click(`#choixModal .choix-option[data-choix="${autre.cle}"]`).catch(() => {});
       await page.waitForTimeout(600); await attendreDecisions(n0);
       ecrit = (await decisionsDuCombat()).filter(d => d.plan).pop() || null;
-    }
+    } else await page.click('#choixModal .choix-fermer').catch(() => {});
     await auBureau();
-    const ligne = await page.$eval('#hubModal .bu-plan > summary', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
+    const ligne = await page.$eval('#hubModal button.bu-plan', e => e.textContent.replace(/\s+/g, ' ')).catch(() => '');
     console.log(`10d. ton plan : ${pl.length} tuiles · en force ${on.map(x => x.cle).join(', ') || 'aucune'} · 🥷 « ${ombre ? ombre.sous : ''} » · ${pl.filter(x => x.stats).length} en stats · touché ${autre ? autre.cle : '—'} → ${ecrit ? JSON.stringify(ecrit.plan) : 'rien d\'écrit'} · au Bureau « ${ligne.trim()} »`);
     if (pl.length !== 6) erreurs.push(`le plan du Bureau montre ${pl.length} plans, pas six`);
     if (on.length !== 1) erreurs.push(`le plan du Bureau marque ${on.length} plans en force, pas un`);
@@ -1140,7 +1157,8 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   for (const k of Object.keys(SEC)) {
     await versLOnglet(SEC[k], k);
     await page.waitForSelector(`#hubModal:not([hidden]) .af-onglet[data-maison="${k}"]`, { timeout: 15000 }).catch(() => erreurs.push(`le sous-onglet « ${k} » ne s'ouvre pas`));
-    ici[k] = await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
+    ici[k] = k === 'entraineur' ? idsDesCartes(await cartesDeLaMaison(`#hubModal .af-onglet[data-maison="${k}"]`, k)) : await page.$$eval(`#hubModal .af-onglet[data-maison="${k}"] .maison-jouer`, e => e.map(b => b.dataset.id)).catch(() => []);
+    if (k === 'entraineur') await fermerLaFeuille();
     // Le volet ne garde que le sous-onglet ouvert : la masse salariale se lit chez le proprio, pendant qu'on y est.
     if (k === 'proprio') plafond = await page.textContent('#hubModal .af-onglet[data-maison="proprio"] .inv-plafond', { timeout: 3000 }).catch(() => '');
   }
@@ -1150,10 +1168,10 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     await versLOnglet('joueurs', 'joueurs');
     await page.waitForSelector('#pageJoueurs:not([hidden]) .jr-table', { timeout: 15000 }).catch(() => {});
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
-    ici.joueurs = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+    ici.joueurs = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'joueurs')); await fermerLaFeuille();
     // Les soins, au filtre 🩹 (V18-5).
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="B"]').catch(() => {}); await page.waitForTimeout(200);
-    ici.infirmerie = await page.$$eval('#pageJoueurs .maison-jouer', e => e.map(b => b.dataset.id)).catch(() => []);
+    ici.infirmerie = idsDesCartes(await cartesDeLaMaison('#pageJoueurs', 'infirmerie')); await fermerLaFeuille();
     await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
   }
   if (!(ici.entraineur || []).includes('consommable:stage')) erreurs.push('« Le stage du coach » ne se joue pas chez l\'entraîneur');
@@ -1179,25 +1197,33 @@ for (const pack of ['j:bronze', 'j:epoque']) {
   // V14b : un échelon prêt s'achète dans la fiche de sa carte, chez l'entraîneur (plus dans À faire).
   {
     await versLOnglet('bureau', 'entraineur');
-    const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte:not([open]) > summary');
+    const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .gens.monte');
     if (ligne) {
       await ligne.click(); await page.waitForTimeout(250);
-      const b = await page.$('#hubModal .af-onglet[data-maison="entraineur"] details.gens.monte .gens-choix [data-src="echelon"]:not([disabled])');
+      const b = await page.$('#choixModal [data-choix^="echelon:"]:not([disabled])');
       const n0 = (await decisionsDuCombat()).length;
       if (b) { await b.click(); await page.waitForTimeout(600); await attendreDecisions(n0); }
       const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
       console.log(`10p. un échelon prêt, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
       if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
+      // Sans échelon à prendre, la feuille de l'adjoint reste ouverte : on la ferme avant la rangée suivante.
+      if (await page.$('#choixModal:not([hidden])')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
     } else console.log('10p. un échelon prêt, chez l\'entraîneur : aucun encore');
   }
   // V19 : un contrat se prolonge dans la fiche de sa carte, en jetons (« ct:<clé>:<n> »).
   {
     await versLOnglet('bureau', 'entraineur');
-    const bp = await page.$('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])');
+    // La prolongation est une option de la feuille d'un adjoint : on ouvre la rangée de chaque adjoint jusqu'à en trouver une à prendre.
+    let bp = null;
+    for (const r of await page.$$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l')) {
+      await r.click(); await page.waitForTimeout(250);
+      bp = await page.$('#choixModal [data-choix="contrat"]:not([disabled])');
+      if (bp) break;
+      await page.keyboard.press('Escape'); await page.waitForTimeout(250);
+    }
     if (bp) {
-      await page.$eval('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])', e => { const d = e.closest('details'); if (d) d.open = true; });
       const n0 = (await decisionsDuCombat()).length;
-      await (await page.$('#hubModal .af-onglet[data-maison="entraineur"] [data-src="contrat"]:not([disabled])')).click(); await page.waitForTimeout(600); await attendreDecisions(n0);
+      await bp.click(); await page.waitForTimeout(600); await attendreDecisions(n0);
       const ct = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ct:'));
       console.log(`10q. un contrat prolongé, chez l'entraîneur : ${ct.length} décision(s) de contrat${ct[0] ? `, ${ct[0].gain} 🪙` : ''}`);
       if (!ct.length || !(ct[0].gain < 0)) erreurs.push('prolonger un contrat n\'écrit pas sa décision payée en jetons');
@@ -1266,7 +1292,8 @@ let posee = null, nomModif = '';
 {
   await versLOnglet('bureau', 'entraineur');
   await deplierLesCartes('#hubModal .af-onglet[data-maison="entraineur"]');
-  const jouer = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .maison-jouer[data-id="consommable:stage"]');
+  const clesEntraineur = await cartesDeLaMaison('#hubModal .af-onglet[data-maison="entraineur"]', 'entraineur');
+  const jouer = clesEntraineur.includes('meta|consommable:stage|') ? await page.$('#choixModal [data-choix="meta|consommable:stage|"]') : null;
   if (!jouer) erreurs.push('« Le stage du coach » ne se joue pas depuis le sous-onglet de l\'entraîneur');
   else {
     const n0 = (await decisions()).length;
@@ -1290,7 +1317,9 @@ let posee = null, nomModif = '';
    */
   await versLEffectif();
   await deplierLesCartes('#pageJoueurs');
-  const echange = await page.$('#pageJoueurs .maison-jouer[data-id="consommable:echangeDoublon"]');
+  await page.click('#pageJoueursCorps .inv-filtre[data-groupe="F"]').catch(() => {}); await page.waitForTimeout(200);
+  const clesJoueurs = await cartesDeLaMaison('#pageJoueurs', 'joueurs');
+  const echange = clesJoueurs.includes('meta|consommable:echangeDoublon|') ? await page.$('#choixModal [data-choix="meta|consommable:echangeDoublon|"]') : null;
   if (!echange) erreurs.push('« L\'échange d\'un doublon » ne se joue pas dans l\'effectif (Effectif › Joueurs)');
   else {
     const copies = () => page.evaluate(k => ((JSON.parse(localStorage.getItem('cap82_cartable') || '{}').joueurs || {})[k] || {}).n || 0, CARTES[1]);
@@ -1338,9 +1367,9 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
   await page.click('#pageCartable [data-vue="extensions"]');
   await page.waitForSelector('#pageCartable .ct-missions', { timeout: 10000 });
   const missions = await page.$$eval('#pageCartable .ct-mission', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
-  await page.click('#pageCartable details.ct-set > summary');
-  await page.waitForFunction(() => /\d+ \/ \d+/.test((document.querySelector('#pageCartable details.ct-set[open] .ct-set-n') || {}).textContent || ''), null, { timeout: 30000 }).catch(() => {});
-  const ext = await page.$eval('#pageCartable details.ct-set[open] summary', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
+  // Un ensemble se remplit en approchant de l'écran (plus de pli) : le premier se charge seul et dit sa complétion.
+  await page.waitForFunction(() => /\d+ \/ \d+/.test((document.querySelector('#pageCartable .ct-set .ct-set-n') || {}).textContent || ''), null, { timeout: 30000 }).catch(() => {});
+  const ext = await page.$eval('#pageCartable .ct-set .ct-set-tete', e => e.textContent.replace(/\s+/g, ' ').trim()).catch(() => '');
   await page.screenshot({ path: `${DOSSIER}/rogue-extensions.png` });
   console.log(`12x. les extensions : ${ext} · missions : ${missions.join(' | ')}`);
   if (missions.length !== 6) erreurs.push(`le cartable montre ${missions.length} missions au lieu de six`);

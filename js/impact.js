@@ -27,7 +27,8 @@ export const statsDe = m => ({
   tirs: m.tirsPour, pctTir: m.tirsPour > 0 ? m.butsPour / m.tirsPour : 0,
   contre: m.tirsContre, pctArr: m.tirsContre > 0 ? 1 - m.butsContre / m.tirsContre : 0,
 });
-const statsEntre = (a, b) => { const x = statsDe(a), y = statsDe(b); return { tirs: x.tirs - y.tirs, pctTir: x.pctTir - y.pctTir, contre: x.contre - y.contre, pctArr: x.pctArr - y.pctArr }; };
+/** L'écart de stats de deux lectures du même genre (`a` moins `b`), dans la forme de `motsDeStats`. */
+export const statsEntre = (a, b) => { const x = statsDe(a), y = statsDe(b); return { tirs: x.tirs - y.tirs, pctTir: x.pctTir - y.pctTir, contre: x.contre - y.contre, pctArr: x.pctArr - y.pctArr }; };
 /* Le poids d'un écart, pour dire d'abord ce qui bouge le plus : un demi-tir vaut trois millièmes d'arrêts. */
 const PAS_STAT = { tirs: 0.5, pctTir: 0.002, contre: 0.5, pctArr: 0.003 };
 const SEUIL_STAT = { tirs: 0.1, pctTir: 0.0005, contre: 0.1, pctArr: 0.0005 };
@@ -637,6 +638,17 @@ export function motsDeMutationEnChiffres(cle, joueur = null, { deja = false } = 
   // « À peine perceptible » seulement quand rien d'autre ne se dit : ni chiffre, ni badge, ni geste en mots.
   const ditQuelqueChose = out.length || badges.length || base.some(m => !/^🔗/.test(m.txt || ''));
   return [...(ditQuelqueChose ? out : [{ txt: 'à peine perceptible', bon: null, cle: 'rien' }]), ...badges, ...qui, ...base];
+}
+
+/**
+ * LA FENÊTRE D'UN CHOIX (V19, tranche 5 ; JP : *des dates, pour que ça joue plus*). Les matchs de ton club qu'un effet couvre,
+ * dits en rangs : « Du 31e au 38e match ». `joues` : les matchs déjà joués ; `duree` : sa durée en matchs (`apresMatchs`,
+ * js/sim.js, compte les mêmes). Rien sans durée.
+ */
+export function fenetreDuChoix(joues, duree) {
+  if (!(duree >= 1)) return '';
+  const rang = n => (n === 1 ? '1er' : `${n}e`);
+  return duree === 1 ? `Au ${rang(joues + 1)} match` : `Du ${rang(joues + 1)} au ${rang(joues + duree)} match`;
 }
 
 /* ---- le club qu'on lit ---- */
