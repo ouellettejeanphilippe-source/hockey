@@ -17,7 +17,8 @@ import { sceneDeLaRoute } from '../../js/scenes.js';
 import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
 import { BANQUE, PATRONS, payloadDe, palierAllume, patronsActifs, coachsActifs } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, decisionDeProlongation, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
+import { etatDuPersonnel, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
+import { prixDEmbauche } from '../../js/personnel.js';
 import { tenusDe } from '../../js/chiffre.js';
 
 /*
@@ -100,13 +101,13 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
   /*
    * LES ÉCHELONS DU PERSONNEL (V14, js/echelons.js), le lundi. V14b : un échelon s'achète (`PRIX_ECHELON`). L'attentif
    * le paie quand ce qu'il rend d'ici la fin (sa force poussée, ou son défaut corrigé) vaut son prix, et qu'il a les
-   * jetons ; le distrait, une fois sur deux, s'il les a. Ses doublons : deux copies (trois échelons ouverts).
+   * jetons ; le distrait, une fois sur deux, s'il les a. Ses doublons : deux copies (un échelon payé, V20).
    */
   if (lundi) {
     const reste = Math.max(0, 82 - ((f && f.n) || 0));
     const valeur = (cle, choix) => { const { econ: _e, ...p } = patronALEchelon(cle, { choix }); void _e; return valeurDEffet(p, reste); };
     let caisse = jetons + out.reduce((a, d) => a + (d.gain || 0), 0);
-    for (const e of etatDuPersonnel([...decisions, ...out], j, { joues: (de, a) => matchsJoues(L.calendrier, you, de, a), copies: () => ROBOT_COPIES })) {
+    for (const e of etatDuPersonnel([...decisions, ...out], j, { copies: () => ROBOT_COPIES })) {
       if (!e.aChoisir || e.prix > caisse) continue;
       const avant = e.patron.choix || [];
       const options = ['force', ...(aUnDefaut(e.cle) ? ['defaut'] : [])];
@@ -114,23 +115,6 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
       const c = clic ? (clic() < 0.5 ? auHasard(options) : null) : valeur(e.cle, [...avant, meilleure]) - valeur(e.cle, avant) > e.prix * JETON ? meilleure : null;
       if (!c) continue;
       const d = { jour: j, palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) };
-      caisse += d.gain || 0;
-      out.push(d);
-    }
-  }
-  /*
-   * LES CONTRATS (V19, js/personnel.js `finDuContrat`), le lundi : un adjoint dont le contrat finit d'ici la semaine suivante est
-   * prolongé si ce qu'il rend d'ici la fin vaut son prix et que la caisse y suffit (le distrait, une fois sur deux) ; sinon il part.
-   */
-  if (lundi && politique !== 'defaut') {
-    const reste = Math.max(0, 82 - ((f && f.n) || 0));
-    let caisse = jetons + out.reduce((a, d) => a + (d.gain || 0), 0);
-    for (const e of etatDuPersonnel([...decisions, ...out], j, { joues: (de, a) => matchsJoues(L.calendrier, you, de, a), copies: () => ROBOT_COPIES })) {
-      if (!e.prolongeable || e.fin - j > 7 || e.prixProlongation > caisse) continue;
-      const { econ: _e, ...p } = patronALEchelon(e.cle, { choix: e.patron.choix || [] }); void _e;
-      const garde = clic ? clic() < 0.5 : valeurDEffet(p, reste) > e.prixProlongation * JETON;
-      if (!garde) continue;
-      const d = { jour: j, palier: `ct:${e.cle}:${(e.patron.prolonge || 0) + 1}`, ...decisionDeProlongation(e) };
       caisse += d.gain || 0;
       out.push(d);
     }
@@ -145,7 +129,7 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
   if (pp !== undefined && pp !== null && f) {
     etat.paliers.add(pp);
     const ids = cartesDuPalier(graine, pp, (coachsActifs(decisions, j + 1)[0] || {}).cle);
-    const eng = engagerDuRobot({ ids, decisions: [...decisions, ...out], politique, clic, jour: j });
+    const eng = engagerDuRobot({ ids, decisions: [...decisions, ...out], politique, clic, jour: j, joues: f.n, caisse: jetons + out.reduce((a, d) => a + (d.gain || 0), 0) });
     const pris = eng.length ? `patron:${eng[0].patron.cle}` : ids[0];
     if (pris) out.push({ jour: j, palier: `pp:${pp}`, place: pris }, ...eng);
   }
@@ -154,10 +138,11 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
 
 /*
  * UN ADJOINT TIRÉ (V16, docs/refonte-v16.md § 3 : un palier, un pack) : l'attentif engage le premier de la couleur de
- * son coach à un poste que sa couleur ne tient pas encore — sa confiance compte ses adjoints en poste ; le distrait, une
- * fois sur deux, n'importe lequel ; le robot d'avant n'engage rien. Rend la décision d'engagement, confiance recomptée.
+ * son coach à un poste que sa couleur ne tient pas encore — sa couleur joue un échelon plus haut ; le distrait, une
+ * fois sur deux, n'importe lequel ; le robot d'avant n'engage rien. V20 : en saison (`joues` matchs de son club), engager
+ * coûte `prixDEmbauche`, s'il a les jetons (`caisse`). Rend la décision d'engagement.
  */
-export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour }) {
+export function engagerDuRobot({ ids = [], decisions = [], politique, clic = null, jour, joues = 0, caisse = Infinity }) {
   if (politique === 'defaut') return [];
   const adjoints = ids.filter(id => BANQUE[id] && BANQUE[id].cat === 'patron');
   const enPoste = patronsActifs(decisions, jour + 1);
@@ -167,6 +152,8 @@ export function engagerDuRobot({ ids = [], decisions = [], politique, clic = nul
   const id = clic ? (adjoints.length && clic() < 0.5 ? adjoints[Math.floor(clic() * adjoints.length)] : null)
     : adjoints.find(x => coach && BANQUE[x].coach === coach.cle && !(tenu(BANQUE[x].role) && couleur(tenu(BANQUE[x].role).cle) === coach.cle)) || null;
   if (!id || (tenu(BANQUE[id].role) || {}).cle === BANQUE[id].cle) return [];
-  const d = { jour, ...payloadDe(id, { patrons: enPoste.map(x => ({ cle: x.cle, role: x.role || PATRONS[x.cle].role })) }) };
+  const prix = prixDEmbauche(BANQUE[id].cle, joues);
+  if (prix > caisse) return [];
+  const d = { jour, ...payloadDe(id, { patrons: enPoste.map(x => ({ cle: x.cle, role: x.role || PATRONS[x.cle].role })) }), ...(prix ? { gain: -prix } : {}) };
   return [d];
 }

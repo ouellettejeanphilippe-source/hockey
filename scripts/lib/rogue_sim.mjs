@@ -371,7 +371,7 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
       if (!voulu) break;
       depense += prixAuAchat(voulu.cle, achats, exigence); achats++;
       // V16 : la carte d'un pack de joueurs est un adjoint ; le robot l'engage selon sa politique (`engagerDuRobot`).
-      for (const d of engagerDuRobot({ ids: tirerCartesDuPack(`j:${voulu.cle}`, `rogue80:${graine}:${saison}`, achats), decisions, politique, clic, jour: L.jour })) decisions.push(d);
+      for (const d of engagerDuRobot({ ids: tirerCartesDuPack(`j:${voulu.cle}`, `rogue80:${graine}:${saison}`, achats), decisions, politique, clic, jour: L.jour, joues: matchsJoues(L.calendrier, you, 0, L.jour), caisse: jetons() })) { decisions.push(d); depense -= d.gain || 0; }
       const actuel = you.roster;
       // V9 : l'offre n'est plus filtrée sous le plafond ; ne se signe que ce qu'une sortie fait entrer (plus bas).
       const cartes = tirerPack(rnd, voulu.cle, p => p.$ > 0 && !dansLaLigue.has(getPersonKey(p)), voulu.role, meta);
@@ -461,14 +461,13 @@ function pointsDuCoach(r) {
 }
 /*
  * CE QU'UNE SAISON LAISSE À LA SUIVANTE (V16 ; js/rogue-jeu.js, la saison neuve d'une run) : la base de chaque coach, le
- * coach en poste et sa confiance, et le personnel en poste — son échelon, ses choix, ses matchs à ton service, son protégé.
+ * coach en poste et sa confiance, et le personnel en poste — son échelon, ses choix, son protégé.
  */
 function reportDeSaison(decisions, L, you) {
-  const joues = (de, a) => matchsJoues(L.calendrier, you, de, a);
   const report = [{ jour: 0, coachsDeBase: Object.fromEntries(Object.entries(buildDe(decisions, Infinity, { tenus: tenusDe(L.calendrier, you) })).filter(([, n]) => n > 0)), report: true }];
   const [enPoste] = coachsActifs(decisions);
   if (enPoste) { const { jour: _j, ...coach } = enPoste; void _j; report.push({ jour: 0, coach, report: true }); }
-  const gens = new Map(etatDuPersonnel(decisions, Infinity, { joues, copies: () => 2 }).map(e => [e.cle, e]));
+  const gens = new Map(etatDuPersonnel(decisions, Infinity, { copies: () => 2 }).map(e => [e.cle, e]));
   for (const pa of patronsActifs(decisions)) {
     const { jour: _j, remplace: _r, ...patron } = gens.has(pa.cle) ? reportDuPersonnel(gens.get(pa.cle)) : pa; void _j; void _r;
     const choix = patron.choix || [];

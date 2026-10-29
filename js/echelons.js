@@ -4,40 +4,39 @@
  *
  *   la CARTE       chaque poste a sa carte, nommée par son style (« le gardien du fort ») ;
  *   sa FORCE       les canaux de sa carte qui aident (`canalBon`, js/banque.js) ; sa FAIBLESSE, ceux qui coûtent ;
- *   les ÉCHELONS   1 à 5, gagnés en MATCHS À TON SERVICE (`MATCHS_ECHELON`), deux fois plus vite pour quelqu'un de la
- *                  couleur de ton coach ; à chaque échelon, tu choisis : il pousse sa force (`POUSSEE`), ou il corrige
- *                  son défaut (`CORRECTION`) ;
- *   les DOUBLONS   le gacha : une carte tirée d'un pack de nouveau ouvre un échelon de plus, d'une run à l'autre
- *                  (`ouvertsDe`, js/rogue.js `recevoirPermanents`) ; ses échelons, eux, se regagnent à chaque run.
+ *   les ÉCHELONS   1 à 3, achetés en jetons quand on veut (V20 : plus de matchs à ton service) ; à chaque échelon, tu
+ *                  choisis : il pousse sa force (`POUSSEE`), ou il corrige son défaut (`CORRECTION`) ; un adjoint de la
+ *                  couleur de ton coach joue un échelon plus haut (js/sim.js `assortiPour`) ;
+ *   les DOUBLONS   le gacha : une carte tirée d'un pack de nouveau paie un échelon, d'une run à l'autre
+ *                  (`echelonsGratuits`, js/rogue.js `recevoirPermanents`) ; ses échelons, eux, se regagnent à chaque run.
  *
  * Rien de neuf dans le moteur : une carte du personnel est une décision `patron` qui porte ses chiffres à son échelon ; monter
  * d'échelon, c'est une décision de plus, au jour dit, qui la remplace à son poste.
  */
-import { PATRONS, BANQUE, patronsActifs, coachsActifs, canalBon } from './banque.js';
-import { PROTEGES, LIGNES_DU_FEU, PRIX_PROLONGATION, JOURS_DE_SAISON, PERSONNEL, finDuContrat } from './personnel.js';
+import { PATRONS, patronsActifs, canalBon } from './banque.js';
+import { PROTEGES, LIGNES_DU_FEU } from './personnel.js';
 import { CANAUX_MUT, estMalus } from './sim.js';
 
 export const ECHELON_MAX = 3;
-/* Les matchs à ton service pour atteindre un échelon (l'indice) : le 2e à 10, le 3e à 30 (V19 : trois échelons, plus cinq). */
-export const MATCHS_ECHELON = [0, 0, 10, 30];
 /*
  * LE PRIX D'UN ÉCHELON, en jetons (V14b). JP : *au lieu de salaire, les cartes de base influencent le style de l'équipe
  * sans la rendre vraiment plus forte, et c'est cher upgrader*. Au premier échelon, une carte change la forme du match ;
  * la force, elle, s'achète, échelon par échelon, et chaque échelon coûte plus que le précédent.
  */
-export const PRIX_ECHELON = [0, 0, 40, 80];
+export const PRIX_ECHELON = [0, 0, 50, 100];
 /* Pousser sa force grandit l'écart de ses bons canaux d'un quart ; corriger son défaut ramène ses mauvais de 40 %. */
 export const POUSSEE = 0.25;
 export const CORRECTION = 0.6;
 /* V19 : un adjoint sert dès son premier échelon (JP : *l'adjoint utile dès le niveau 1*) — son défaut y est déjà à demi corrigé. */
 export const CORRECTION_DE_DEPART = Math.sqrt(CORRECTION);
-/* Les échelons ouverts : deux avec la première copie, un de plus par doublon, trois au plus. */
-export const ouvertsDe = copies => Math.min(ECHELON_MAX, 1 + Math.max(1, copies || 1));
+/*
+ * V20 (docs/refonte-v20.md § 2) : plus de matchs à ton service ni d'échelons fermés — un échelon s'achète quand on veut.
+ * Un DOUBLON tiré d'un pack paie un échelon : avec `copies` copies, ses `copies − 1` premiers échelons sont gratuits.
+ */
+export const echelonsGratuits = copies => Math.max(0, Math.min(ECHELON_MAX - 1, (copies || 1) - 1));
 
 const grandir = (x, f) => 1 + (x - 1) * f;
 const rond = v => Math.round(v * 1000) / 1000;
-/* La couleur d'une carte du personnel : le coach de sa carte, ou null (neutre). */
-const couleurDe = cle => (BANQUE[`patron:${cle}`] || {}).coach || null;
 
 /*
  * SES CHIFFRES À SON ÉCHELON : la carte, ses bons canaux grandis par chaque poussée, ses mauvais ramenés par chaque
@@ -86,17 +85,13 @@ function forceEtFaiblesse(effet) {
 /* A-t-elle un défaut à corriger ? Une carte d'argent n'en a pas : elle ne fait que pousser. */
 export const aUnDefaut = cle => Object.keys(forceEtFaiblesse(effetALEchelon(cle)).faiblesse).length > 0;
 
-/*
- * LA DÉCISION D'UNE PERSONNE à un échelon : le patron, ses chiffres, et d'où se comptent ses matchs à ton service
- * (`depuis` : le jour où elle est arrivée cette saison, son jour d'engagement s'il manque ; `avant` : ses matchs des
- * saisons d'avant de la run).
- */
-export function patronALEchelon(cle, { choix = [], depuis, avant = 0, prolonge = 0 } = {}) {
+/* LA DÉCISION D'UNE PERSONNE à un échelon : le patron, ses chiffres, son échelon et ses choix. */
+export function patronALEchelon(cle, { choix = [] } = {}) {
   const P = PATRONS[cle];
   if (!P) return null;
   const { econ, ...canaux } = effetALEchelon(cle, choix);
   return { cle, role: P.role, nom: P.nom, ico: P.ico, ...canaux, ...(econ ? { econ } : {}), ...(P.si ? { si: P.si } : {}),
-    echelon: 1 + choix.length, choix: [...choix], ...(depuis !== undefined ? { depuis } : {}), avant, ...(prolonge ? { prolonge } : {}) };
+    echelon: 1 + choix.length, choix: [...choix] };
 }
 
 /* Les matchs que ton club a joués entre deux journées (la première comprise), lus au calendrier. */
@@ -107,39 +102,21 @@ export function matchsJoues(calendrier = [], you, de = 0, a = Infinity) {
   return n;
 }
 /*
- * TON PERSONNEL À UNE JOURNÉE, pur, pour l'écran, À faire et les robots : chaque carte en poste, ses matchs à ton
- * service (doublés à la couleur du coach en poste), son échelon, l'échelon qu'elle a atteint, et ce qui attend un choix.
- *   decisions, jusqua   la saison ; joues(de, a) : les matchs joués entre deux journées ; copies(cle) : au méta
+ * TON PERSONNEL À UNE JOURNÉE, pur, pour l'écran et les robots : chaque carte en poste, son échelon, le prix du suivant
+ * (rien si un doublon le paie : `gratuit`) et s'il en reste un à prendre (`aChoisir`).
+ *   decisions, jusqua   la saison ; copies(cle) : ses copies au méta
  */
-export function etatDuPersonnel(decisions = [], jusqua = Infinity, { joues = () => 0, copies = () => 1 } = {}) {
-  const [C] = coachsActifs(decisions, jusqua);
+export function etatDuPersonnel(decisions = [], jusqua = Infinity, { copies = () => 1 } = {}) {
   return patronsActifs(decisions, jusqua).filter(p => PATRONS[p.cle]).map(p => {
-    const double = !!(C && couleurDe(p.cle) === C.cle);
-    const depuis = p.depuis ?? p.jour ?? 0;
-    const service = (p.avant || 0) + joues(depuis, jusqua) * (double ? 2 : 1);
-    const echelon = p.echelon || 1, ouverts = ouvertsDe(copies(p.cle));
-    const atteint = Math.min(ouverts, MATCHS_ECHELON.reduce((e, m, i) => (i >= 1 && service >= m ? i : e), 1));
-    const prochain = echelon < ECHELON_MAX ? MATCHS_ECHELON[echelon + 1] : null;
-    const fin = finDuContrat(p);
-    return { cle: p.cle, qui: PATRONS[p.cle].nom, patron: p, echelon, ouverts, service, double, prochain, depuis, prix: PRIX_ECHELON[echelon + 1] || 0,
-      fin, prolongeable: fin < JOURS_DE_SAISON, prixProlongation: prixDeProlongation(p.cle),
-      aChoisir: atteint > echelon, ferme: prochain !== null && service >= prochain && echelon >= ouverts };
+    const echelon = p.echelon || 1, gratuit = echelon - 1 < echelonsGratuits(copies(p.cle));
+    return { cle: p.cle, qui: PATRONS[p.cle].nom, patron: p, echelon, gratuit, prix: gratuit ? 0 : PRIX_ECHELON[echelon + 1] || 0, aChoisir: echelon < ECHELON_MAX };
   });
 }
 /* Le choix d'un échelon : la décision qui remplace la carte, un échelon plus haut, et son prix (un gain négatif, que la caisse lit). */
 export function decisionDEchelon(e, choix) {
-  const p = e.patron, prix = PRIX_ECHELON[e.echelon + 1] || 0, tous = [...(p.choix || []), choix];
-  return { patron: patronALEchelon(e.cle, { choix: tous, depuis: e.depuis, avant: p.avant || 0, prolonge: p.prolonge }),
-    ...(PROTEGES[e.cle] ? { mutation: { cle: e.cle, saison: true, canaux: protegeALEchelon(e.cle, tous), ...(lignesDuFeu(e.cle, tous) ? { lignes: lignesDuFeu(e.cle, tous) } : {}) } } : {}), ...(prix ? { gain: -prix } : {}) };
+  const tous = [...(e.patron.choix || []), choix];
+  return { patron: patronALEchelon(e.cle, { choix: tous }),
+    ...(PROTEGES[e.cle] ? { mutation: { cle: e.cle, saison: true, canaux: protegeALEchelon(e.cle, tous), ...(lignesDuFeu(e.cle, tous) ? { lignes: lignesDuFeu(e.cle, tous) } : {}) } } : {}), ...(e.prix ? { gain: -e.prix } : {}) };
 }
-/* La fin d'une saison : la carte passe à la suivante avec ses matchs à ton service, qui repartent de là. */
-export const reportDuPersonnel = e => { const { prolonge: _p, ...p } = e.patron; void _p; return { ...p, depuis: 0, avant: e.service }; };
-/*
- * LA PROLONGATION (V19, `CONTRAT_JOURS`) : une durée de contrat de plus, payée en jetons. Elle remplace la carte au poste, avec
- * ses échelons et ses matchs à ton service tels quels ; le protégé qu'elle travaille, lui, ne bouge pas.
- */
-export const prixDeProlongation = cle => PRIX_PROLONGATION[(PERSONNEL[cle] || {}).rarete] || 0;
-export function decisionDeProlongation(e) {
-  const p = e.patron, prix = prixDeProlongation(e.cle);
-  return { patron: patronALEchelon(e.cle, { choix: p.choix || [], depuis: e.depuis, avant: p.avant || 0, prolonge: (p.prolonge || 0) + 1 }), ...(prix ? { gain: -prix } : {}) };
-}
+/* La fin d'une saison : la carte passe à la suivante avec son échelon et ses choix. */
+export const reportDuPersonnel = e => patronALEchelon(e.cle, { choix: e.patron.choix || [] });

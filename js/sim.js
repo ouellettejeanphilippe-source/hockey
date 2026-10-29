@@ -18,7 +18,7 @@ import { facteurDefensifEquipe, facteurTraitGardien, facteurSeriesEquipe,
          bonusMeneurEquipe, facteurPresenceUnite, bonusRobustesseEquipe, getTraits } from './traits.js';
 import { estD, borne, hache } from './util.js';
 import { COACHS, coachDesRoles, porteParSesJoueurs, coachDesCanaux } from './coachs.js';
-import { PERSONNEL, PROTEGES, COMBOS, finDuContrat } from './personnel.js';
+import { PERSONNEL, PROTEGES, COMBOS } from './personnel.js';
 import { DOSSIERS } from './dossiers.js';
 import { MOMENTS_VIE, REPONSES_VIE, CHOIX_DES_FILS, texteDuRetour, voixDuFil, PUNITIONS_SERMON } from './vie-gm.js';
 import { nomCourt } from './recit.js';
@@ -970,13 +970,13 @@ function plafondsDe(team) {
   return out;
 }
 /*
- * MAL ASSORTI (V16, tranche 5a ; JP : *un mauvais choix doit coûter*). Un adjoint d'une autre couleur que le coach en
- * poste joue à contre-courant : sa force rend `MAL_ASSORTI.force` de ce qu'elle rend chez son coach (un canal à ×1,1
- * devient ×1,1^0,5), et son défaut mord `MAL_ASSORTI.defaut` fois plus. Ses échelons suivent : ils poussent une force
- * qui ne rend qu'à moitié. Un adjoint neutre, ou un soir sans coach, joue tel quel. Mesuré : un échelon acheté au
- * hasard valait +6 V par saison au gérant distrait, qui ne payait jamais un adjoint mal choisi (check_profondeur).
+ * LA COULEUR DU COACH, UN CRAN DE PLUS (V20, docs/refonte-v20.md § 2 ; JP : *oui à tout*). Un adjoint de la couleur du
+ * coach en poste joue un échelon plus haut que le sien : sa force reçoit une poussée de plus (`POUSSEE_COULEUR`, celle
+ * d'un échelon : js/echelons.js `POUSSEE`, `check_personnel`) ; son défaut ne bouge pas. Un adjoint d'une autre couleur,
+ * neutre, ou un soir sans coach, joue tel quel. La pénalité cachée d'avant (V16, `MAL_ASSORTI` : un adjoint d'une autre
+ * couleur à moitié force) est partie : la carte dit ce qu'elle joue, et la couleur ne se paie qu'en bonus.
  */
-const MAL_ASSORTI = { force: 0.5, defaut: 1.5 };
+export const POUSSEE_COULEUR = 0.25;
 const COULEURS_DU_PERSONNEL = new Map();
 function couleurDuPersonnel(cle) {
   if (!COULEURS_DU_PERSONNEL.has(cle)) COULEURS_DU_PERSONNEL.set(cle, PERSONNEL[cle] ? coachDesCanaux({ effet: PERSONNEL[cle].effet, mutation: PROTEGES[cle] }) : null);
@@ -985,15 +985,19 @@ function couleurDuPersonnel(cle) {
 /* Le côté qui nuit d'un canal d'équipe : moins de tirs, de précision ; plus de buts contre, de punitions, de blessures, d'usure. */
 const NUIT_A_L_EQUIPE = { volume: v => v < 1, finition: v => v < 1, defense: v => v > 1, discipline: v => v > 1, blessure: v => v > 1, energie: v => v > 1 };
 /*
- * Un adjoint tel que le coach `coach` (sa clé) le reçoit : tel quel s'il est de sa couleur, neutre ou sans coach ; à
- * contre-courant sinon. Pur : le moteur (`assortir`) et la fiche de l'entraîneur (js/rogue-jeu.js) lisent les mêmes chiffres.
+ * Un adjoint tel que le coach `coach` (sa clé) le reçoit : un cran de plus s'il est de sa couleur, tel quel sinon. Sa
+ * force à l'échelon n (`1 + POUSSEE × poussées`) passe à celle d'une poussée de plus. Pur : le moteur (`assortir`) et la
+ * fiche de l'adjoint (js/rogue-jeu.js) lisent les mêmes chiffres.
  */
 export function assortiPour(coach, p) {
   const c = p && couleurDuPersonnel(p.cle);
-  if (!coach || !c || c === coach) return p;
+  if (!coach || !c || c !== coach) return p;
+  const n = (p.choix || []).filter(x => x === 'force').length;
+  const k = (1 + POUSSEE_COULEUR * (n + 1)) / (1 + POUSSEE_COULEUR * n);
   const out = { ...p };
-  for (const [k, nuit] of Object.entries(NUIT_A_L_EQUIPE)) if (typeof p[k] === 'number') out[k] = p[k] ** (nuit(p[k]) ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
-  if (typeof p.robustesse === 'number') out.robustesse = p.robustesse * (p.robustesse < 0 ? MAL_ASSORTI.defaut : MAL_ASSORTI.force);
+  for (const [cle, nuit] of Object.entries(NUIT_A_L_EQUIPE)) if (typeof p[cle] === 'number' && !nuit(p[cle])) out[cle] = 1 + (p[cle] - 1) * k;
+  if (typeof p.robustesse === 'number' && p.robustesse > 0) out.robustesse = p.robustesse * k;
+  for (const g of ['F', 'D']) if (Array.isArray(p[g])) out[g] = p[g].map(x => 1 + (x - 1) * k);
   return out;
 }
 const assortir = (team, p) => assortiPour((((team && team.coachs) || [])[0] || {}).cle, p);
@@ -6037,7 +6041,6 @@ function appliquerDecision(team, d, graine = 0) {
     for (const x of partent) retirerProtege(team, x.cle);
     team.patrons = (team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role));
     const { remplace: _r, ...pat } = d.patron;
-    pat.fin = finDuContrat(pat, d.jour);
     team.patrons.push(pat);
   }
   // LA CONFIANCE D'UN COACH (v2, js/coachs.js) : la décision porte ses chiffres. Un seul coach en poste (V5) : la nouvelle remplace tout.
@@ -6451,17 +6454,10 @@ function deDuJour(L, quand, r) {
 }
 const graineDuMatin = (L, r) => (L.des ? `${L.graine}:${deDuJour(L, 'matins', r)}` : L.graine);
 
-/* Les contrats qui finissent ce matin (V19, `finDuContrat`) : l'adjoint part, son protégé avec lui ; les séries gardent ceux que la saison a menés au bout. */
-function finirLesContrats(team, r) {
-  const partis = (team.patrons || []).filter(x => x.fin != null && x.fin <= r);
-  if (!partis.length) return;
-  for (const x of partis) retirerProtege(team, x.cle);
-  team.patrons = team.patrons.filter(x => !partis.includes(x));
-}
 function preludeDuJour(L) {
   const r = L.jour, teams = L.teams;
   deDuJour(L, 'matins', r);   // le dé du matin, à son arrivée : la sauvegarde du matin le garde
-  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t, ENERGIE_RECUP_JOUR); finirLesContrats(t, r); }
+  for (const t of teams) { t.jourCourant = r; if (r > 0) recupererEnergie(t, ENERGIE_RECUP_JOUR); }
   /*
    * L'INSTANTANÉ DU JOUR (S68) : la chimie de chaque ligne et l'énergie de
    * chaque joueur AU DÉBUT de la journée.
@@ -7780,7 +7776,6 @@ export function poserAVenir(team, aVenir, { cases = false } = {}) {
     if (d.patron && d.patron.cle) {
       const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
       const { remplace: _r, ...pat } = d.patron; void _r;
-      pat.fin = finDuContrat(pat, d.jour);
       team.patrons = [...(team.patrons || []).filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), pat];
     }
     if (d.coach && d.coach.cle) team.coachs = [{ ...d.coach }];

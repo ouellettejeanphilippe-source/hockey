@@ -62,8 +62,7 @@ function decisionsDu(team, e, build) {
   const B = BUILDS[build];
   return B.adjoints.map(cle => {
     const d = payloadDe(`patron:${cle}`);
-    // Prolongé à chaque fenêtre (V19, `CONTRAT_JOURS`) : le build se mesure sur toute la saison.
-    return { jour: 0, equipe: e, ...d, patron: { ...d.patron, prolonge: 4 }, mutation: { ...d.mutation, lignes: B.lignes } };
+    return { jour: 0, equipe: e, ...d, mutation: { ...d.mutation, lignes: B.lignes } };
   });
 }
 function saison(seed, par, build, courbe = true) {
