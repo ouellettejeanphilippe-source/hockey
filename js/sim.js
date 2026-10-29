@@ -7125,7 +7125,7 @@ export const MOMENTS_SI = {
   visiteur: { mot: 'À l\'étranger', parSaison: 41 },
   series: { mot: 'En séries', rare: true, parSaison: 10 },
   dosADos: { mot: 'Un soir de dos-à-dos', parSaison: 15 },
-  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 86, parSaison: 18 },
+  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 89, parSaison: 15 },
   jambesFraiches: { mot: 'Les jambes fraîches', seuil: 92, parSaison: 11 },
   rival: { mot: 'Contre un rival', parSaison: 6 },
   beteNoire: { mot: 'Contre ta bête noire', rare: true, parSaison: 3 },
