@@ -22,7 +22,7 @@ const JETON = 0.01;   // une victoire vaut une centaine de jetons, à la louche 
 const VAUT = { adjoint: 0.5, xp: 0.05, jambes: 0.02, absent: 0.15, soin: 0.1 };
 
 /* L'ordre de l'attentif : les échanges qui paient le plus souvent d'abord (check_pouvoirs, la section des adjoints). */
-const PREFERE = ['numeroUn', 'tireur', 'canonnier', 'mur', 'prof', 'vedettiste', 'soigneur', 'cogneur', 'rouleur', 'mitrailleur', 'trappeur', 'numeroDeux'];
+const PREFERE = ['rouleur', 'cogneur', 'trappeur', 'vedettiste', 'soigneur', 'canonnier', 'prof', 'tireur', 'numeroDeux', 'numeroUn', 'mitrailleur', 'mur'];
 const rangDe = k => (PREFERE.includes(k) ? PREFERE.indexOf(k) : PREFERE.length);
 const feuillesDe = (L, you) => L.calendrier.slice(0, L.jour).flatMap(j => j.filter(m => (m.A === you || m.B === you) && m.feuille)).map(m => ({ m, f: m.feuille, cote: m.A === you ? 'A' : 'B' }));
 /* Combien de périodes chaque pouvoir a joué cette saison, lu dans les feuilles (`feuille.pouvoirs`). */

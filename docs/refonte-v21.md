@@ -43,18 +43,18 @@ Un adjoint est donc un **échange** (js/adjoints.js) : ce que ton club gagne et 
 
 | Adjoint | Ce qu'il donne | Ce qu'il coûte |
 |---|---|---|
-| 🏹 Le canonnier | tes tirs +8 % | leurs tirs +8 % |
+| 🏹 Le canonnier | tes tirs +8 % | leurs tirs +10 % |
 | 🚧 Le trappeur | leurs tirs −8 % | tes tirs −8 % |
-| 📐 Le tireur d'élite | ta précision +8 % | tes tirs −8 % |
-| 💨 Le mitrailleur | tes tirs +10 % | ta précision −7 % |
+| 📐 Le tireur d'élite | ta précision +12 % | tes tirs −11 % |
+| 💨 Le mitrailleur | tes tirs +13 % | ta précision −9 % |
 | 🧱 Le bâtisseur de mur | buts contre −8 % | ta précision −8 % |
-| 🧤 L'entraîneur du n° 1 | ton gardien n° 1 : buts accordés −6 % | ton n° 2 : +18 % |
+| 🧤 L'entraîneur du n° 1 | ton gardien n° 1 : buts accordés −10 % | ton n° 2 : +30 % |
 | 🧊 L'entraîneur du n° 2 | ton gardien n° 2 : buts accordés −12 % | ton n° 1 : +4 % |
 | 🏋 Le préparateur physique | plus de mises en échec | tes punitions +20 % |
 | 🧭 Le prof de discipline | tes punitions −25 % | moins de mises en échec |
-| 🧲 Le rouleur | tes 3e et 4e trios jouent plus, leurs tirs −7 % | ton 1er trio joue moins |
+| 🧲 Le rouleur | tes 3e et 4e trios jouent plus, leurs tirs −10 % | ton 1er trio joue moins |
 | 📊 Le vedettiste | ton 1er trio joue plus | le bas joue moins, leurs tirs +6 % |
-| 🧪 Le soigneur | tes blessures −30 % | tes tirs −4 % |
+| 🧪 Le soigneur | tes blessures −30 % | tes tirs −2 % |
 
 Le n° 1 part environ trois soirs sur quatre : un échange de gardiens s'équilibre à trois contre un.
 

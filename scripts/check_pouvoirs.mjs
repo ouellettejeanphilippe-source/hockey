@@ -155,15 +155,16 @@ function mesurerPouvoir(c, idx, n) {
 /* Le personnage complet d'un coach : niveau 5, ses deux talents ; en victoires. */
 /* Un adjoint seul (`cle`), en paires contre le coach muet sans staff, tous les matchs : ce qu'il change, club par club. */
 function mesurerAdjoint(cle, n) {
-  const m = { cle, n: 0, sv: { tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0, bl: 0 }, parClub: [] };
+  // Les soirs du n° 1 et ceux du n° 2, à part : un adjoint des gardiens se lit le soir où son gardien joue.
+  const vide = () => ({ n: 0, tp: 0, tc: 0, gf: 0, ga: 0, pun: 0, punEux: 0, coups: 0, bl: 0 });
+  const m = { cle, soirs: [vide(), vide(), vide()], parClub: [] };
   for (let i = 0; i < VESTIAIRES.length; i++) {
     let d = 0;
     for (let g = 0; g < n; g++) {
       const j = (i + 1 + (g % (VESTIAIRES.length - 1))) % VESTIAIRES.length;
       const o = soirDuMatch(g), graine = `ad${cle}:${i}:${g}`;
       const a = match(i, j, graine, o.visiteur, MUET, o), b = match(i, j, graine, o.visiteur, { ...MUET, adjoints: [cle] }, o);
-      m.n++;
-      for (const k of Object.keys(m.sv)) m.sv[k] += b[k] - a[k];
+      for (const sv of [m.soirs[0], m.soirs[o.aux ? 2 : 1]]) { sv.n++; for (const k of Object.keys(sv)) if (k !== 'n') sv[k] += b[k] - a[k]; }
       d += (b.gf - b.ga) - (a.gf - a.ga);
     }
     m.parClub.push((d / n) * 82 / BUTS_PAR_V);
@@ -223,10 +224,13 @@ if (MESURE) {
   exiger(`le personnage complet aide pour de vrai, sans s'emballer (de 1 à ${COMPLET_MAX_V} V)`, !trop.length, trop.map(x => `${COACHS[x.c].nom} ${x.v.toFixed(1)}`).join(', ') || 'tous');
   /* ---------- 3'. chaque adjoint, un échange ---------- */
   const adj = rendus.filter(x => 'parClub' in x);
+  const parSoir = sv => Object.fromEntries(Object.entries(sv).map(([k, v]) => [k, v / (sv.n || 1)]));
+  const vueDe = x => Math.max(Math.abs(x.tp) / VISIBLE.tirs, Math.abs(x.tc) / VISIBLE.tirs, Math.abs(x.tp + x.tc) / VISIBLE.tirs, (Math.abs(x.gf) + Math.abs(x.ga)) / VISIBLE.buts,
+    Math.abs(x.pun) / VISIBLE.punitions, Math.abs(x.punEux) / VISIBLE.punitions, Math.abs(x.coups) / VISIBLE.coups, Math.abs(x.bl * 82) / VISIBLE.blessures);
   for (const m of adj) {
-    const x = Object.fromEntries(Object.entries(m.sv).map(([k, v]) => [k, v / m.n]));
-    m.vue = Math.max(Math.abs(x.tp) / VISIBLE.tirs, Math.abs(x.tc) / VISIBLE.tirs, Math.abs(x.tp + x.tc) / VISIBLE.tirs, (Math.abs(x.gf) + Math.abs(x.ga)) / VISIBLE.buts,
-      Math.abs(x.pun) / VISIBLE.punitions, Math.abs(x.punEux) / VISIBLE.punitions, Math.abs(x.coups) / VISIBLE.coups, Math.abs(x.bl * 82) / VISIBLE.blessures);
+    const x = parSoir(m.soirs[0]);
+    // Tous les soirs ; un adjoint des gardiens, aussi les soirs de son n° 1 et ceux de son n° 2.
+    m.vue = Math.max(...(ADJOINTS[m.cle].gardiens ? m.soirs : m.soirs.slice(0, 1)).map(sv => vueDe(parSoir(sv))));
     m.v = m.parClub.reduce((a, b) => a + b, 0) / m.parClub.length;
     const A = ADJOINTS[m.cle], f = (v, d = 1) => `${v >= 0 ? '+' : ''}${v.toFixed(d)}`;
     informer(`${A.ico} ${A.nom}`.padEnd(30), `par soir : tirs ${f(x.tp)} / ${f(x.tc)} · buts ${f(x.gf, 2)} / ${f(x.ga, 2)} · pun. ${f(x.pun, 2)} / ${f(x.punEux, 2)} · coups ${f(x.coups)} · blessures ${f(x.bl * 82)}/saison · ${f(m.v)} V (${m.parClub.map(v => f(v)).join(' ')})`);
