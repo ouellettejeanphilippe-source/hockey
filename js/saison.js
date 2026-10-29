@@ -3381,13 +3381,15 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
      * les derniers entrés jouent. Il bloque : le nouveau vient d'arriver, on tranche tout de suite.
      */
     const staff = (perso && perso.adjoints) || [];
-    if (staff.length > ADJOINTS_MAX) {
-      const id = `qp:${staff.join(',')}`;
+    const idStaff = `qp:${staff.join(',')}`;
+    // Une décision prise ce matin ne joue qu'au match du jour : d'ici là, le choix déjà pris ne revient pas (`pris`).
+    if (staff.length > ADJOINTS_MAX && !pris.has(idStaff)) {
+      const id = idStaff;
       out.push({ id, genre: 'adjoint', bloque: true, de: DE.coach, sujet: `Ton staff : ${staff.length} adjoints pour ${ADJOINTS_MAX} chaises`,
         choix: { recit: 'Qui part ?', options: staff.filter(k => ADJOINTS[k]).map(optionDAdjoint), decision: cle => ({ palier: id, perdAdjoint: cle }) } });
     }
     const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
-    if (dus > 0) {
+    if (dus > 0 && !pris.has(`ta:${(perso.talents || []).length}`)) {
       const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
       out.push({ id: `ta:${nTal}`, genre: 'talent', bloque: false, de: DE.coach, sujet: `Niveau ${niveauDuPerso(perso)} : un talent`,
         choix: { recit: `Un de ses pouvoirs grandit de ${Math.round(TALENT * 100)} %, pour la run.`,
