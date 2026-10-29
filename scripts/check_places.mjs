@@ -1,13 +1,13 @@
 /*
  * LE PERSONNEL, CARTE PAR CARTE (V10, tranches 3 à 5 ; V16, seule carte bonus — js/personnel.js,
- * les réponses des dossiers, js/dossiers.js, et les cartes des routes de la semaine, js/noeuds.js). Chaque carte attend son moment ; on la mesure EN PAIRES (CLAUDE.md),
+ * les réponses des dossiers, js/dossiers.js ; V20 : les routes de la semaine sont parties). Chaque carte attend son moment ; on la mesure EN PAIRES (CLAUDE.md),
  * match par match : deux copies d'un même vrai club, le même match sur les mêmes dés, une fois sans la carte, une fois
  * avec, son moment posé (`_lireMoment`, js/sim.js — la lecture d'un moment, qu'une partie ne pose jamais), à domicile
  * et au loin.
  *   1. hors de son moment, rien : la carte posée, son moment absent, la feuille est identique ;
  *   2. dans son moment, la borne de sa rareté (commune ±1, peu ±1,5, rare ±2,5, légendaire ±4 : un maximum) sur
  *      ce qu'elle vaut en tout — un adjoint, ses soirs d'une saison (`parSaison`, js/sim.js `MOMENTS_SI`) ; une réponse
- *      de dossier ou une carte de route, ses soirs dans ses `duree` matchs ;
+ *      de dossier, ses soirs dans ses `duree` matchs ;
  *   3. une rare ou une légendaire se voit dans la feuille d'un soir de son moment (CLAUDE.md : ±2 tirs, ±0,3 but des
  *      deux clubs, ±0,5 punition, ±4 mises en échec, ou ±3 blessures sur une saison ; un adjoint à protégé, V16 :
  *      ±0,3 point à la ligne de son joueur) ; une commune peut être discrète ;
@@ -20,7 +20,6 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, MUTATIONS_ATELIER, appliquerMutation, joueurDeMutation, activeLineup, effetsDesJoueurs, getPlayerKey } from '../js/sim.js';
 import { PERSONNEL, PROTEGES } from '../js/personnel.js';
 import { DOSSIERS } from '../js/dossiers.js';
-import { CARTES_DE_ROUTE } from '../js/noeuds.js';
 import { BANQUE, idsDe } from '../js/banque.js';
 import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -37,16 +36,15 @@ const BORNE_V = { commune: 1, peu: 1.5, rare: 2.5, legendaire: 4 };
  */
 const STYLE_V = 0.5, BUTS_PAR_V = 6;
 const VISIBLE = { tirs: 2, buts: 0.3, punitions: 0.5, coups: 4, blessures: 3 };
-/* Les piles mesurées : le personnel, les réponses des dossiers (V10-5 ; V16, tranche 6 : le contrat lourd en est une) et les cartes des routes. */
-const PILE = { q: 'personnel', d: 'dossier', r: 'route' };
-const ROUTE = Object.assign({}, ...Object.values(CARTES_DE_ROUTE));
+/* Les piles mesurées : le personnel, les réponses des dossiers (V10-5 ; V16, tranche 6 : le contrat lourd en est une) (V20 : les routes de la semaine sont parties). */
+const PILE = { q: 'personnel', d: 'dossier' };
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 /* Une réponse de dossier (« dossier.réponse ») : un effet du soir, sa durée, son moment ; une commune. */
 const reponseDe = id => {
   const [d, o] = id.split('.'), D = DOSSIERS[d], O = D.options.find(x => x.cle === o);
   return { nom: `${D.titre} : ${O.nom}`, ico: D.ico, rarete: 'commune', si: O.si, duree: O.duree, effet: Object.fromEntries(CANAUX.filter(k => k in O).map(k => [k, O[k]])), ...(O.lui ? { joueur: O.lui } : {}) };
 };
-const carteDe = (sorte, cle) => (sorte === 'd' ? reponseDe(cle) : ({ q: PERSONNEL, r: ROUTE })[sorte][cle]);
+const carteDe = (sorte, cle) => (sorte === 'd' ? reponseDe(cle) : PERSONNEL[cle]);
 /* Une réponse de tous les soirs n'a pas de moment : sa durée entière compte. */
 const TOUS_LES_SOIRS = { mot: 'Tous les soirs', parSaison: 82 };
 
@@ -67,7 +65,7 @@ function match(toi, adv, graine, visiteur) {
     pj: toi._nomme ? (f.buts || []).filter(b => b.cote === moi && [b.marqueur, ...(b.passeurs || [])].some(q => q && getPlayerKey(q) === toi._nomme)).length : 0,
     jambes: pats.reduce((a, p) => a + (p.energie ?? 100), 0) / (pats.length || 1) };
 }
-/* UN FILS : chaque carte de `cles` (« q:cle » un adjoint, « d:dossier.réponse », « r:cle » une route), `n` matchs par club. */
+/* UN FILS : chaque carte de `cles` (« q:cle » un adjoint, « d:dossier.réponse »), `n` matchs par club. */
 function mesurer(cles, n) {
   const out = {};
   for (const id of cles) {
@@ -83,8 +81,8 @@ function mesurer(cles, n) {
         // Un club neuf tire sa chance de saison : semée pour chacun, elle est la même pour les deux bras.
         const club = (nom, role) => { grainerHasard(`places:${lab}:${role}`); return equipe(nom, t, un, s); };
         const sans = club('Sans', 'toi'), avec = club('Avec', 'toi'), adv = club('Eux', 'eux');
-        // Une réponse ou une route : un effet du soir ; un poste : un patron engagé (`team.patrons`).
-        if (sorte === 'k' || sorte === 'd' || sorte === 'r') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
+        // Une réponse : un effet du soir ; un poste : un patron engagé (`team.patrons`).
+        if (sorte === 'k' || sorte === 'd') avec.effets = [{ debut: 0, fin: 1e9, source: 'decision', nom: C.nom, ico: C.ico, si: C.si, ...C.effet }];
         // Une réponse sur un joueur (V11) : sur le centre du premier trio, ou le premier défenseur si elle ferme le jeu.
         if (sorte === 'd' && C.joueur) {
           const ferme = (C.joueur.defense ?? 1) < 1, lu = activeLineup(avec);
@@ -130,7 +128,6 @@ if (process.env.PART) {
 
 const t0 = Date.now();
 const toutes = [...Object.keys(PERSONNEL).filter(k => (PERSONNEL[k].effet && Object.keys(PERSONNEL[k].effet).length) || (PROTEGES[k] && !PROTEGES[k].feu)).map(k => `q:${k}`), 
-  ...Object.keys(ROUTE).filter(k => ROUTE[k].effet).map(k => `r:${k}`),
   ...Object.entries(DOSSIERS).flatMap(([d, D]) => D.options.filter(o => o.lui || CANAUX.some(k => k in o)).map(o => `d:${d}.${o.cle}`))]
   .filter(id => !process.env.CARTES || process.env.CARTES.split(',').some(c => id.slice(2) === c || id.slice(2).startsWith(`${c}.`)));
 console.log(`\n  Le personnel (V16) · ${toutes.length} cartes · ${N} matchs par club et par carte, ${TEMOINS.length} clubs, en paires\n`);
@@ -170,8 +167,8 @@ for (const id of toutes) {
   const C = carteDe(sorte, cle), m = res[id], Mo = C.si ? MOMENTS_SI[C.si] : TOUS_LES_SOIRS;
   hors += m.hors; horsPareil += m.horsPareil;
   const par = x => x / m.n;
-  // Ce qu'elle vaut en tout : une réponse ou une route, ses soirs dans sa fenêtre ; le reste, ses soirs d'une saison.
-  const soirs = sorte === 'd' || sorte === 'r' ? (C.duree * Mo.parSaison) / 82 : Mo.parSaison;
+  // Ce qu'elle vaut en tout : une réponse, ses soirs dans sa fenêtre ; le reste, ses soirs d'une saison.
+  const soirs = sorte === 'd' ? (C.duree * Mo.parSaison) / 82 : Mo.parSaison;
   const v = par(m.dv) * soirs;
   const tirs = Math.max(Math.abs(par(m.dtp)), Math.abs(par(m.dtc)), Math.abs(par(m.dtp + m.dtc)));
   const buts = Math.abs(par(m.dgf)) + Math.abs(par(m.dga));

@@ -18,7 +18,6 @@ import fs from 'node:fs';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, MOMENTS_SI, appliquerMutation, joueurDeMutation, activeLineup, effetsDesJoueurs, getPlayerKey, depenserEnergie, MOMENTS, SEQUENCES, AVANT_GROS } from '../js/sim.js';
 import { PERSONNEL, PROTEGES } from '../js/personnel.js';
 import { DOSSIERS } from '../js/dossiers.js';
-import { CARTES_DE_ROUTE } from '../js/noeuds.js';
 import { REPONSES_VIE, CHOIX_DES_FILS } from '../js/vie-gm.js';
 import { ARCS } from '../js/arcs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
@@ -28,12 +27,12 @@ const N = Number(process.env.N ?? 200), FILS = Number(process.env.FILS ?? 4), IC
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const CJ = ['finition', 'lancers', 'creation', 'defense', 'blessure', 'arrets'];
 const prend = (o, ks) => Object.fromEntries(ks.filter(k => o && k in o && typeof o[k] !== 'object' || (o && (k === 'F' || k === 'D') && Array.isArray(o[k]))).map(k => [k, o[k]]));
-const ROUTE = Object.assign({}, ...Object.values(CARTES_DE_ROUTE));
 function items() {
   const out = [];
   for (const [k, C] of Object.entries(PERSONNEL)) if (C.effet || (PROTEGES[k] && !PROTEGES[k].feu)) out.push({ id: `q:${k}`, nom: C.nom, rarete: C.rarete, si: C.si || null, effet: C.effet || {}, protege: !!PROTEGES[k] && !PROTEGES[k].feu, cle: k });
-  for (const [k, C] of Object.entries(ROUTE)) if (C.effet) out.push({ id: `r:${k}`, nom: C.nom, rarete: C.rarete, si: C.si || null, duree: C.duree, effet: C.effet });
-  for (const [d, D] of Object.entries(DOSSIERS)) for (const O of D.options) { const e = prend(O, CANAUX); if (Object.keys(e).length || O.lui) out.push({ id: `d:${d}.${O.cle}`, nom: `${D.titre} : ${O.nom}`, rarete: 'commune', si: O.si || null, duree: O.duree, effet: e, joueur: O.lui || null }); }
+  for (const [d, D] of Object.entries(DOSSIERS)) for (const O of D.options) for (const [suf, x] of [['', O], ...(O.pari ? [['+', O.pari.gagne], ['-', O.pari.perd]] : [])]) {
+    const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `d:${d}.${O.cle}${suf}`, nom: `${D.titre} : ${O.nom}`, rarete: 'commune', si: O.si || null, duree: x.duree, effet: e, joueur: x.lui || null });
+  }
   const fam = (pre, src) => { for (const [k, M] of Object.entries(src)) for (const O of M.options || []) {
     const add = (suf, x, dur) => { const e = prend(x, CANAUX); if (Object.keys(e).length || x.lui) out.push({ id: `${pre}:${k}.${O.cle}${suf}`, nom: `${M.titre || k} : ${O.nom}`, rarete: 'commune', si: null, duree: dur ?? x.duree, effet: e, joueur: x.lui || null }); };
     add('', O); if (O.pari) { add('+', O.pari.gagne); add('-', O.pari.perd); } if (O.ensuite) add('>', O.ensuite);

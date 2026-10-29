@@ -1,7 +1,7 @@
 /*
  * TA SEMAINE : LE VERDICT D'UN CHOIX (V19, tranche 6, la décision unifiée ; JP : *une seule lecture des choix*). Chaque choix
  * à effet daté que tu as fait (un dilemme, une séquence, la réponse d'un courriel ou d'un point de presse, un dossier, un fil
- * suivi, une route de la semaine) dit son verdict le lundi d'après, en une ligne : ce que ton club a fait depuis, en vraies
+ * suivi) dit son verdict le lundi d'après, en une ligne : ce que ton club a fait depuis, en vraies
  * stats de match — les tirs, la précision, les tirs contre, le % d'arrêts (`statsDe`, `motsDeStats`, js/impact.js) —, contre
  * ses dix matchs d'avant le choix.
  *
@@ -16,7 +16,6 @@
 import { familleDeMoment, effetDeMoment, pariDeDecision, getPlayerKey } from './sim.js';
 import { statsEntre, motsDeStats } from './impact.js';
 import { chiffresDuMatch } from './profil-style.js';
-import { ROUTES, CARTES_DE_ROUTE } from './noeuds.js';
 
 /** Les matchs qu'un choix doit compter derrière lui pour dire son verdict ; les matchs d'avant qu'il lui faut, et au plus. */
 export const MATCHS_MIN = 3, AVANT_MIN = 5;
@@ -60,9 +59,6 @@ export function verdictsDeLaSemaine({ decisions, matchs, jour, depuisJ, you, gra
       if (!o) continue;
       aUnEffet = bougeLeMatch(d, o, you);
       titre = F.titre || ''; nom = sansAccolades(o.nom, d, you); duree = o.duree || DUREE_PAR_DEFAUT;
-    } else if (d.noeud && CARTES_DE_ROUTE[d.noeud.route] && CARTES_DE_ROUTE[d.noeud.route][d.noeud.id]) {
-      const C = CARTES_DE_ROUTE[d.noeud.route][d.noeud.id];
-      aUnEffet = !!C.effet; titre = ROUTES[d.noeud.route].nom; nom = C.nom; duree = C.duree || DUREE_PAR_DEFAUT;
     } else continue;
     if (!aUnEffet) continue;
     // Le premier lundi où il compte assez de matchs derrière lui — pas avant, et une seule fois.

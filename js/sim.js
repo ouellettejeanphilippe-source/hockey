@@ -2351,8 +2351,6 @@ export function faitsDuClub(team, matchs, J, N) {
     porteurs: { filet5: f5 ? auFilet(f5) : null, tirs5: f5 ? tireurs(f5) : null, tirs4: f4 ? tireurs(f4) : null, tirsDernier: d ? tireurs([d]) : null, bas: bas ? { p: bas.p, n: bas.j } : null },
   };
 }
-/* Le texte d'un dilemme rempli de son fait : {n}, {m}, {vieux}… et {n:but} (« 1 but », « 3 buts ») ; {nom} et {noms} restent à `nommer` (js/gerant.js). */
-export const texteDuFait = (t, f) => String(t || '').replace(/\{(\w+)(?::([^}]+))?\}/g, (tout, k, mot) => (k === 'nom' || k === 'noms' || !f || f[k] == null ? tout : mot ? pl(f[k], mot) : String(f[k])));
 
 /*
  * RIEN QUE CE QUI EST ARRIVÉ, ET CE QUE L'OPTION FAIT (24 oct. 2026). JP : *tous ces éléments doivent être liés à
@@ -2548,10 +2546,8 @@ const DUREE_SEQUENCE = 8;
  * (`effetDeMoment` les lit par leur clé, les clés de sauvegarde ne bougent jamais).
  */
 const OPTIONS_RETIREES = new Set(['defaites.huis', 'victoires.doubler']);
-/** Les options qu'une séquence offre aujourd'hui, à l'écran. */
+/** Les options qu'une séquence offrait à l'écran (V20 : les séquences ne s'offrent plus ; une partie d'avant les relit). */
 export const optionsDeSequence = cle => SEQUENCES[cle].options.filter(o => !OPTIONS_RETIREES.has(`${cle}.${o.cle}`));
-/* Pas deux séquences l'une sur l'autre : le vestiaire a une mémoire. */
-export const RECUL_SEQUENCE = 10;
 
 /*
  * LES OBJECTIFS DU PROPRIO. Aux journées 0 et 41, trois défis pour tes vingt
@@ -7832,8 +7828,6 @@ export function motsDesTotaux(t) {
   return motsDEffet(e);
 }
 
-/* La durée d'une option de dilemme ou de séquence, en journées. */
-export const dureeOption = (o, famille) => (o && o.duree) || (famille === 'sequence' ? DUREE_SEQUENCE : DUREE_MOMENT);
 
 /* =====================================================================
    LES SÉRIES, LES COMBATS DE BOSS (S69)
@@ -9106,10 +9100,12 @@ function appliquerGestes(team, o, jour, cles, graine, cleTirage, titre = '') {
   };
   const effet = (e, j0, source) => {
     if (!e) return;
-    const { duree, apres, action, ...canaux } = e;
+    const { duree, apres, action, lui, ...canaux } = e;
     void apres;
     gestes(action, j0);
     if (Object.keys(canaux).length) (team.effets = team.effets || []).push({ debut: j0, fin: apresMatchs(team, j0, duree || DUREE_MOMENT), source, nom: titre, ...canaux, ...(o.trou ? { regle: true } : {}) });
+    // L'AUDACE D'UNE HISTOIRE (V20, docs/refonte-v20.md § 3) : le côté du dé qui tombe peut viser le joueur nommé (`lui`).
+    if (lui && cles && cles[0]) poserSurJoueur(team, j0, { joueur: cles[0], nom: titre, duree, ...lui });
   };
   gestes(o.action, jour);
   if (o.ensuite) effet(o.ensuite, apresMatchs(team, jour, o.ensuite.apres || 0), 'ensuite');

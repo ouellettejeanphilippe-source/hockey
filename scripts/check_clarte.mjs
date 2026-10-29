@@ -54,7 +54,7 @@ import { PRIX_EMBAUCHE } from '../js/personnel.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
-import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDuDilemme, sceneDeLaRoute, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons, sceneDeLAdjoint } from '../js/scenes.js';
+import { MOTS_DES_SCENES, sceneDeLaMise, sceneDuPalier, sceneDuDossier, sceneDeLaBlessure, sceneDesRivaux, sceneDuButin, sceneDuMandat, sceneDesGalons, sceneDeLAdjoint } from '../js/scenes.js';
 import { DOSSIERS } from '../js/dossiers.js';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -347,14 +347,8 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     for (const [moi, lui] of [[3, 1], [2, 2], [0, 4]]) { juger('la mise', sceneDeLaMise({ moi, lui, rival: 'Bruins 1995-96', graine: g }), [moi, lui, 'Bruins 1995-96']); n++; }
     for (const rang of [2, 16, 31]) { juger('le palier', sceneDuPalier({ n: 18, fiche: { V: 7, D: 9, DP: 2 }, rang, equipes: 32, mandat: 'faire les séries', graine: g }), [18, '7-9-2', `${rang}e`, 'faire les séries']); n++; }
   }
-  // A3 à A6 (V10, tranche 5) : la route recommandée répond au pire problème (les jambes et l'infirmerie au repos, la caisse à la commandite).
+  // A4 à A6 (V10, tranche 5 ; V20 : les routes sont parties).
   for (let g = 0; g < 40; g++) {
-    for (const [f, route, nombres] of [[{ jambes: 64, blesses: 1, dos: 0, caisse: 50 }, 'repos', [64]], [{ jambes: 88, blesses: 3, dos: 1, caisse: 50 }, 'repos', [3]],
-      [{ jambes: 80, blesses: 0, dos: 2, caisse: 50 }, 'repos', [2, 80]], [{ jambes: 90, blesses: 1, dos: 0, caisse: 12 }, 'commandite', [12]], [{ jambes: 91, blesses: 0, dos: 1, caisse: 60 }, 'entrainement', [91]]]) {
-      const sc = sceneDeLaRoute({ ...f, graine: g });
-      juger('la route', sc, nombres); n++;
-      if (sc.route !== route) fautes.push(`la route : ${JSON.stringify(f)} recommande ${sc.route}, pas ${route}`);
-    }
     for (const [k, t] of [[3, 3], [9, 12]]) { juger('la blessure', sceneDeLaBlessure({ joueur: 'Al Secord', n: k, total: t, ou: 'T2 · ailier gauche', adv: 'Wild 2010-11', graine: g }), ['Al Secord', k, ...(t > k ? [t] : []), 'T2 · ailier gauche', 'Wild 2010-11']); n++; }
     for (const multi of [3, 1]) { juger('les rivaux', sceneDesRivaux({ multi, offerts: 5, graine: g }), [multi, 5]); n++; }
     for (const [pour, contre] of [[4, 2], [6, 1]]) { juger('le butin', sceneDuButin({ pour, contre, adv: 'Bruins 1995-96', graine: g }), [pour, contre, 'Bruins 1995-96']); n++; }
@@ -384,19 +378,6 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     const nombres = sc.fait.match(/\d+/g) || [];
     if (nombres.some(x => !recus.has(x))) fautes.push(`le dossier ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
     if (!nombres.length && !/Bruins|Wild|Kings/.test(sc.fait)) fautes.push(`le dossier ${cle} : « ${sc.fait} » ne dit aucun fait`);
-    n++;
-  }
-  /*
-   * LES DILEMMES (oct. 2026) : sur un fait fabriqué, la voix du dilemme, une réplique de son fait, et un fait qui ne
-   * dit que des nombres reçus et nomme quelqu'un ou dit un nombre. Le vrai fait de chacun : scripts/check_dilemmes.mjs.
-   */
-  const FD = { joueur: { n: 'Al Secord' }, joueurs: [{ n: 'Al Secord' }, { n: 'Tie Domi' }], n: 7, m: 3, vieux: 'Larry Robinson', aux: 'Ron Hextall' };
-  for (let g = 0; g < 40; g++) for (const cle of Object.keys(MOMENTS)) {
-    const sc = sceneDuDilemme(cle, FD, g);
-    juger(`le dilemme ${cle}`, sc, []);
-    const nombres = sc.fait.match(/\d+/g) || [];
-    if (nombres.some(x => !['7', '3'].includes(x))) fautes.push(`le dilemme ${cle} : « ${sc.fait} » dit un nombre qu'il n'a pas reçu`);
-    if (!nombres.length && !/Secord|Domi|Robinson/.test(sc.fait)) fautes.push(`le dilemme ${cle} : « ${sc.fait} » ne dit aucun fait`);
     n++;
   }
   const repliques = [...Object.entries(MOTS_DES_SCENES).flatMap(([sc, sits]) => Object.entries(sits).flatMap(([sit, mots]) => mots.map(m => [`${sc}/${sit}`, m]))),

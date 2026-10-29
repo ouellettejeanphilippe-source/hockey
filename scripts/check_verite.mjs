@@ -38,7 +38,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const lire = f => fs.readFileSync(path.join(ROOT, f), 'utf8');
 const prose = f => chainesDe(lire(`js/${f}`));
 
-/* Une ligue de vrais clubs, comme check_dilemmes la bâtit. */
+/* Une ligue de vrais clubs, comme les juges du moteur la bâtissent. */
 const DIR = path.join(ROOT, 'data', 'seasons');
 const SAISONS = fs.readdirSync(DIR).filter(f => f.endsWith('.json')).sort();
 const C = new Map();

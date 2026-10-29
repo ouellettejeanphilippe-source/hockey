@@ -12,11 +12,10 @@
  *   5. la porte : une réponse devient un effet qui garde son moment, ses gestes et ses jetons.
  * La valeur de chaque réponse, en paires : `check_places` (sous la borne d'une commune).
  */
-import { DOSSIERS, dossierDeLaSemaine } from '../js/dossiers.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire } from '../js/dossiers.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
 import { BANQUE, ORDRE_CATEGORIES } from '../js/banque.js';
 import { PACKS_CARTES, tirerCartesPack } from '../js/packs.js';
-import { noeudsDeLaSemaine } from '../js/noeuds.js';
 import { MOMENTS_SI, effetDeMoment } from '../js/sim.js';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -27,7 +26,6 @@ import { exiger, informer, verdict } from './verdict.mjs';
     for (const k of Object.keys(PACKS_CARTES)) tirerCartesPack(k, `ev${n}`, n).forEach(id => tires.add(id));
     for (const p of [9, 18, 26]) tirerCartesPack('mixte', `ev${n}`, `palier${p}`, { sans: ['match'] }).forEach(id => tires.add(id));
   }
-  for (let g = 0; g < 40; g++) for (let w = 1; w <= 26; w += 2) noeudsDeLaSemaine(`ev${g}`, w).forEach(x => tires.add(x.id));
   const restes = [...tires, ...Object.keys(BANQUE)].filter(id => id.startsWith('evenement:'));
   exiger('les événements sont partis : ni famille, ni pack, ni palier, ni route', !ORDRE_CATEGORIES.includes('evenement') && !restes.length, restes.slice(0, 4).join(', ') || `${tires.size} cartes tirées, aucun événement`);
 }
@@ -35,10 +33,10 @@ import { exiger, informer, verdict } from './verdict.mjs';
 /* ---------- 2. la forme ---------- */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 // V16 (tranche 6) : la masse salariale (`plafond`, lu par `plafondDe`) et le congédiement (`coachNeuf`), deux décisions qui existent.
-const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', 'lui', 'plafond', 'coachNeuf', ...CANAUX]);
+const CHAMPS = new Set(['cle', 'nom', 'bon', 'prix', 'si', 'duree', 'action', 'gain', 'rien', 'lui', 'plafond', 'coachNeuf', 'pari', ...CANAUX]);
 const ACTIONS = new Set(['energieTous', 'gardienAux', 'energie']);
 /* Ce qu'un joueur nommé porte (V11, tranche 4) : ses canaux à lui (`CANAUX_MUT`, js/sim.js). */
-const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure']);
+const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'blessure', 'arrets']);
 {
   const voix = new Set(Object.keys(EXPEDITEURS));
   const fautes = [];
@@ -54,7 +52,13 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
       if (o.action && Object.keys(o.action).some(k => !ACTIONS.has(k))) fautes.push(`${cle}/${o.cle} : le geste`);
       const canaux = CANAUX.some(k => k in o);
       if (canaux && !o.duree) fautes.push(`${cle}/${o.cle} : un effet sans durée`);
-      if (!o.rien && !canaux && !o.action && !o.gain && !o.lui && !o.plafond && o.coachNeuf == null) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+      if (!o.rien && !canaux && !o.action && !o.gain && !o.lui && !o.pari && !o.plafond && o.coachNeuf == null) fautes.push(`${cle}/${o.cle} : ne fait rien`);
+      // L'AUDACE (V20) : un dé sur le joueur que le dossier nomme — ses deux issues sur ses canaux à lui, chacune une durée, rien à l'équipe.
+      if (o.pari) {
+        const issues = [o.pari.gagne, o.pari.perd];
+        if (!D.joueur || !(o.pari.chance > 0 && o.pari.chance < 1) || issues.some(e => !e || !e.duree || !e.lui || Object.keys(e).some(k => !['duree', 'lui'].includes(k)) || Object.keys(e.lui).some(k => !CANAUX_LUI.has(k))))
+          fautes.push(`${cle}/${o.cle} : l'audace`);
+      }
       // Le gros d'un joueur (V11) : seulement dans un dossier qui le nomme, sur ses canaux à lui, le temps d'une durée.
       if ((o.lui || (o.action && o.action.energie)) && !D.joueur) fautes.push(`${cle}/${o.cle} : un effet sur un joueur que le dossier ne nomme pas`);
       if (o.lui && (!o.duree || Object.keys(o.lui).some(k => !CANAUX_LUI.has(k)))) fautes.push(`${cle}/${o.cle} : ce qui va au joueur`);
@@ -63,6 +67,15 @@ const CANAUX_LUI = new Set(['lancers', 'finition', 'creation', 'defense', 'bless
     }
   }
   exiger('chaque dossier a sa voix, ses répliques et deux ou trois réponses, sur les champs que le moteur lit déjà', !fautes.length, fautes.slice(0, 4).join(' · ') || `${Object.keys(DOSSIERS).length} dossiers`);
+}
+
+/* ---------- 2b. les lundis d'une histoire (V20) : tirés de la graine, une semaine sur deux en moyenne, jamais deux runs pareilles ---------- */
+{
+  const grilles = Array.from({ length: 60 }, (_, g) => Array.from({ length: 26 }, (_, w) => (semaineAHistoire(`h${g}`, w) ? 1 : 0)));
+  const part = grilles.flat().reduce((a, b) => a + b, 0) / (60 * 26);
+  const distinctes = new Set(grilles.map(l => l.join(''))).size;
+  exiger('les lundis d\'une histoire : environ une semaine sur deux, purs, et pas les mêmes d\'une graine à l\'autre', part > 0.45 && part < 0.65 && distinctes === 60
+    && !semaineAHistoire('h0', 0) && semaineAHistoire('h7', 9) === semaineAHistoire('h7', 9), `${(100 * part).toFixed(0)} % des lundis, ${distinctes} grilles distinctes sur 60`);
 }
 
 /* ---------- 3 et 4 : pur, une fois par saison, chacun s'ouvre ---------- */

@@ -248,7 +248,7 @@ const compterFeuilles = async ou => {
   feuilles.vues++; if (vues.length > 1) feuilles.empilees.push(`${ou} : ${vues.join(' + ')}`);
 };
 const captures = { combat: 0, duel: 0, entracte: 0 };   // le premier combat et le premier duel, photographiés une fois
-const afaire = { vu: false, lots: [], route: '', sous: [], genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
+const afaire = { vu: false, lots: [], histoire: '', genres: new Set(), formes: [], ouverts: 0, pages: 0, maisons: new Set(), sansPage: [], horsBoite: new Set() };   // À faire (V9), vu au premier choix
 const butin = { vus: 0, pris: [], fautes: [] };   // V16 : le butin d'une victoire, un adjoint parmi trois pour ton personnel
 const combats = [];   // V5 : les combats confirmés, leur soir et la carte de vestiaire gardée
 const intentionsVues = new Set();   // V17 : les intentions lues au duel, leurs puces jugées
@@ -578,12 +578,10 @@ async function regler() {
         if (!scenes.has(lu.genre)) scenes.set(lu.genre, `${lu.de} ${lu.scene} — ${lu.fait}`);
       }
       if (!afaire.vu) { afaire.vu = true; await page.screenshot({ path: `${DOSSIER}/rogue-afaire.png` }); }
-      if (/ta route/i.test(lu.sujet) && !afaire.route) {
-        afaire.route = lu.etat; afaire.sous = lu.sous;
-        await ouvertA.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${DOSSIER}/rogue-route.png` });
-        if (!/Jambes \d+/.test(lu.etat) || !/en caisse/.test(lu.etat) || !/cette semaine/.test(lu.etat)) erreurs.push(`la route ne dit pas l'état du club (« ${lu.etat} »)`);
-        if (!/^«.+»$/.test(lu.scene) || !lu.fait) erreurs.push(`la route ne cite pas l'entraîneur (« ${lu.scene} »)`);
-        else scenes.set('route', `${lu.de} ${lu.scene} — ${lu.fait}`);
+      // V20 : l'histoire de la semaine (un dossier), la seule source du lundi.
+      if (lu.genre === 'dossier' && !afaire.histoire) {
+        afaire.histoire = lu.sujet;
+        await ouvertA.scrollIntoViewIfNeeded(); await page.screenshot({ path: `${DOSSIER}/rogue-histoire.png` });
       }
       const libres = lu.opts.filter(o => !o.on);
       const pari = libres.find(o => o.pari);
@@ -799,12 +797,13 @@ if (!/Plafond restant/.test(await jauge())) erreurs.push('la barre du Rogue ne m
   if (!bareme) erreurs.push('la boutique n\'écrit pas le barème des jetons de la run');
   else if (attendu && lu.join(',') !== attendu.join(',')) erreurs.push(`le barème à la boutique (${lu.join('/')}) n'est pas celui de la run (${attendu.join('/')})`);
 }
-// V5 : LE NŒUD DE LA SEMAINE (js/noeuds.js) : après huit semaines, le lundi d'une semaine sur deux a offert ses trois routes.
+// V20 : LES HISTOIRES — une seule source le lundi (les dossiers, `semaineAHistoire`) ; plus de route, de dilemme, de séquence ni de courriel.
 {
-  const routes = (((await lireSauvegarde()).partie || {}).decisions || []).filter(d => d && /^n:\d+$/.test(d.palier || ''));
-  console.log(`6n. les routes prises : ${routes.map(d => `${d.palier} ${d.noeud && d.noeud.route}`).join(' · ') || 'aucune'}`);
-  if (!routes.length) erreurs.push('aucune route de la semaine prise en huit semaines (js/noeuds.js)');
-  if (routes.some(d => !d.noeud || !(d.gestes || d.effet || d.gain))) erreurs.push(`une route prise ne porte pas la charge de sa carte : ${JSON.stringify(routes[0])}`);
+  const decs = ((await lireSauvegarde()).partie || {}).decisions || [];
+  const vieilles = decs.filter(d => d && (/^(n|m|s|vie):/.test(d.palier || '')));
+  const histoires = decs.filter(d => d && d.moment && d.moment.famille === 'dossier');
+  console.log(`6n. les histoires prises : ${histoires.map(d => `${d.palier} ${d.moment.cle}`).join(' · ') || 'aucune'} · routes, dilemmes, séquences, courriels : ${vieilles.length}`);
+  if (vieilles.length) erreurs.push(`une source partie a encore écrit une décision : ${vieilles.map(d => d.palier).join(', ')}`);
 }
 /*
  * LA BOUTIQUE (S79, js/magasin.js) : des rayons de packs à la HUT, chacun avec
@@ -1593,15 +1592,17 @@ console.log(`20b. combats (un écran chacun) : ${combats.length ? combats.join('
 if (veilles.length) erreurs.push(`un gros match s'ouvre avant le matin où il se joue : ${veilles.join(' · ')}`);
 console.log(`20d. leurs intentions lues, leurs puces jugées : ${[...intentionsVues].join(' ') || 'aucune'}`);
 console.log(`20d. périodes de duel jouées (période:plan pris) : ${periodes.length ? periodes.join(' · ') : 'aucune cette run'}`);
-console.log(`20e. la route de la semaine : ${afaire.route ? `${afaire.route} · ${afaire.sous.join(' | ')}` : 'jamais offerte'}`);
+console.log(`20e. l'histoire de la semaine : ${afaire.histoire || 'jamais offerte'}`);
 console.log(`20s. ce qui court : ${suivi.pas.size} pas de l'objectif dits dans Hier soir (${[...suivi.pas].slice(0, 3).join(' | ') || 'aucun'}) · verdict : ${suivi.verdict.slice(0, 160) || 'aucun'}`);
-if (suivi.pas.size < 2) erreurs.push(`l'objectif du proprio ne se suit pas dans Hier soir (${suivi.pas.size} pas)`);
+// Un objectif qui n'a bougé qu'une fois (un point en vingt matchs) ne peut se dire qu'une fois : on en demande deux, au plus ce qu'il a bougé.
+const bouge = Number((suivi.verdict.match(/(\d+) [^\d]*? en \d+ matchs/) || [])[1]);
+if (suivi.pas.size < (Number.isFinite(bouge) ? Math.min(2, bouge) : 2)) erreurs.push(`l'objectif du proprio ne se suit pas dans Hier soir (${suivi.pas.size} pas)`);
 if (!/Objectif (atteint|raté|levé)[^]* en \d+ matchs/.test(suivi.verdict)) erreurs.push(`le verdict du proprio ne dit pas ses vrais chiffres : « ${suivi.verdict.slice(0, 160)} »`);
 console.log(`20d. À faire : ${afaire.ouverts} choix réglés, genres ${[...afaire.genres].join(', ') || 'aucun'} · choix envoyés (genre → décisions) ${afaire.lots.join(' · ') || 'aucun'}`);
 if (!afaire.vu) erreurs.push('À faire n\'a jamais porté de choix');
 if (afaire.vu && !afaire.lots.length) erreurs.push('aucun choix touché n\'a été envoyé');
 if (afaire.formes.length) erreurs.push(`des choix d'À faire n'ont pas la forme commune (options \`optionHtml\`) : ${afaire.formes.slice(0, 4).join(' · ')}`);
-if (!afaire.route) erreurs.push('la route de la semaine n\'a jamais été offerte dans À faire');
+if (!afaire.histoire) erreurs.push('aucune histoire (un dossier) n\'a été offerte dans À faire');
 // V12 : chaque chose à régler ouvre sa page ; la boîte n'en règle aucune sur place.
 console.log(`20m. les maisons réglées dans la boîte : ${[...afaire.maisons].join(' · ') || 'aucune'} · ${afaire.pages} retour(s) à la boîte`);
 if (afaire.sansPage.length) erreurs.push(`« À régler » n'ouvre ni le choix ni son écran : ${afaire.sansPage.slice(0, 3).join(' · ')}`);

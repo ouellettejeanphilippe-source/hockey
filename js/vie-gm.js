@@ -73,8 +73,6 @@ function remplir(texte, c = {}) {
   return String(texte).replace(/\{(\w+)\}/g, (_, k) => (c[k] != null ? c[k] : ''));
 }
 
-/** Tirage déterministe : le rang d'une pièce se lit sur la graine, le contexte et son id. */
-const rang = (graineDuJeu, c, id) => graine(`${graineDuJeu}|${c.moment}|${(c.etat || []).join(',')}|${id}`);
 
 /* ======================================================================
    LES COURRIELS
@@ -819,44 +817,6 @@ export const REPONSES_VIE = Object.fromEntries([
   ...ECHANGES.map(e => [e.id, { ico: '🎤', titre: 'Le point de presse', ...(e.cible ? { cible: e.cible } : {}), options: e.options }]),
 ]);
 
-/* ======================================================================
-   LES TIRAGES — purs, sans `hasard()` : même contexte, même graine, même pièce.
-   ====================================================================== */
-const sontLa = (pieceEtat, c) => !pieceEtat.length || pieceEtat.some(e => (c.etat || []).includes(e));
-const dejaVu = (c, id) => !!c.deja && (Array.isArray(c.deja) ? c.deja.includes(id) : c.deja.has(id));
-/* Une pièce qui nomme un état vrai passe devant celles qui n'en disent rien : c'est elle qui est « juste ». */
-const priorite = (piece, c) => (piece.etat.length && sontLa(piece.etat, c) ? -1 : 0);
-
-/**
- * Où en est la saison : le moment qu'une journée de la ligue (`jour` sur `N`) habille.
- * Ce n'est qu'un découpage : le camp, les séries, l'élimination et la Coupe
- * viennent de la phase, pas de la journée — le contrôleur les passe tels quels.
- */
-export function momentDeSaison(jour, N) {
-  const f = N > 0 ? jour / N : 0;
-  return f < 0.15 ? 'octobre' : f < 0.55 ? 'decembre' : f < 0.72 ? 'echeance' : 'mars';
-}
-
-/**
- * Les courriels du jour, du plus juste au moins juste, d'un expéditeur chacun.
- * contexte : { moment, etat: [], eq, autre, deja: [ids] } — `n` au plus.
- * Chaque courriel sort prêt pour la boîte : { id, de: {ico, nom}, sujet, corps }.
- */
-export function courrielsDe(contexte, graineDuJeu, n = 2) {
-  const c = contexte || {};
-  const pool = COURRIELS.filter(x => x.quand.includes(c.moment) && sontLa(x.etat, c) && !dejaVu(c, x.id))
-    .map(x => ({ x, k: rang(graineDuJeu, c, x.id) + priorite(x, c) }))
-    .sort((a, b) => a.k - b.k);
-  const out = [], vus = new Set();
-  for (const { x } of pool) {
-    if (out.length >= n) break;
-    if (vus.has(x.de)) continue;
-    vus.add(x.de);
-    out.push({ id: x.id, de: EXPEDITEURS[x.de], sujet: remplir(x.sujet, c), corps: remplir(x.corps, c) });
-  }
-  return out;
-}
-
 /*
  * LE FAIT QU'UN DILEMME AFFIRME (V3). JP : *faudrait que ça soit vrai qu'il a eu trois pénalités en deux
  * matchs*. Les dilemmes sont des entrées de `MOMENTS` (js/sim.js) : chacun porte son `fait` (`FAITS`, js/sim.js),
@@ -888,20 +848,6 @@ export function joueurDuFait(sorte, feuilles, habilles) {
     return d ? { p: d[0], fait: `${d[0].n} : ${d[1]} punition${d[1] > 1 ? 's' : ''} en ${feuilles.length} matchs` } : null;
   }
   return null;
-}
-
-/**
- * Le point de presse d'après-match : { id, question } (gabarit rempli), ou null ; ses réponses sont `REPONSES_VIE[id]`.
- * contexte : { occasion, eq, autre, deja: [ids] } — `occasion` : raclee, serieDefaites ou blanchissage.
- */
-export function echangeDe(contexte, graineDuJeu) {
-  const c = contexte || {};
-  const pool = ECHANGES.filter(e => e.quand === c.occasion && !dejaVu(c, e.id))
-    .map(e => ({ e, k: graine(`${graineDuJeu}|${c.occasion}|${e.id}`) }))
-    .sort((a, b) => a.k - b.k);
-  if (!pool.length) return null;
-  const e = pool[0].e;
-  return { id: e.id, question: remplir(e.question, c) };
 }
 
 /*
