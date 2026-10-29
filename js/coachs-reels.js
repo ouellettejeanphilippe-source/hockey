@@ -29,18 +29,27 @@ export function carteDuCoach(donnees, saison, tag) {
   return { id: `${saison}_${tag}`, n, saison, tag, cle, rang, maitrise: maitriseDu(rang), fiche: { gp, v, d, n: nulles }, coupe: !!coupe, jack: !!jack };
 }
 /*
- * LE LOTO DE L'ENTRAÎNEUR : trois vraies cartes, de trois philosophies que le prestige ouvre (`ouverts`), tirées
- * de la graine — la même graine, les mêmes trois.
+ * LE LOTO DE L'ENTRAÎNEUR : trois vraies cartes, de trois philosophies que le prestige ouvre (`ouverts`), tirées de la
+ * graine — la même graine, les mêmes trois. Comme le classeur des joueurs, il tire d'abord dans ton cartable
+ * (`cartable` : id → { r }, js/cartable.js `coachsDuCartable`), les moins jouées d'abord, `DU_CARTABLE` au plus ; le
+ * reste, des cartes neuves (`neuf`). Une carte prise entre au cartable.
  */
-export function lotoDesCoachs(donnees, ouverts, graine, n = 3) {
+export const DU_CARTABLE = 2;
+export function lotoDesCoachs(donnees, ouverts, graine, n = 3, cartable = {}) {
   const cartes = [];
   for (const [saison, clubs] of Object.entries(donnees || {})) for (const tag of Object.keys(clubs)) if (ouverts.includes(clubs[tag][1])) cartes.push([saison, tag]);
   const triees = cartes.sort((a, b) => hache(String(graine), 'coach', a.join()) - hache(String(graine), 'coach', b.join()));
+  const id = ([saison, tag]) => `${saison}_${tag}`;
+  const siennes = triees.filter(x => cartable[id(x)]).sort((a, b) => (cartable[id(a)].r || 0) - (cartable[id(b)].r || 0));
   const out = [];
-  for (const [saison, tag] of triees) {
-    const c = carteDuCoach(donnees, saison, tag);
-    if (!out.some(x => x.cle === c.cle)) out.push(c);
-    if (out.length >= n) break;
-  }
+  const prendre = (liste, max, neuf) => {
+    for (const [saison, tag] of liste) {
+      if (out.length >= max) return;
+      const c = carteDuCoach(donnees, saison, tag);
+      if (!out.some(x => x.cle === c.cle)) out.push({ ...c, neuf });
+    }
+  };
+  prendre(siennes, Math.min(DU_CARTABLE, n - 1), false);
+  prendre(triees.filter(x => !cartable[id(x)]), n, true);
   return out;
 }

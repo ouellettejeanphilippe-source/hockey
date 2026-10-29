@@ -19,7 +19,7 @@ import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
 import { state } from './data.js';
 import { VENTE, valeurDe, optionDeBanque, ouvrirInventaire, cartesDeLaPartie, masseSalarialeHtml, SEMAINE } from './inventaire.js';
-import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi } from './cartable.js';
+import { ajouterAuCartable, donnerUnDoublon, lireCartable, meilleureVariante, motDeMontee, missionsDuCartable, decennieDe, decouvrir, cartesJouees, marquerJouees, poserSurLesCartes, modsDe, ajouterLegendesAuCartable, LEGENDES, graverLaSaison, galonsDe, histoireChezToi, coachAuCartable, coachsDuCartable } from './cartable.js';
 import { ouvrirChoix, pucesEnBref, ouvrirAlignement, sceneHtml } from './gerant.js';
 import { traitsDeCarte, carteDe, EDITIONS, NOM_VARIANTE } from './rarete.js';
 import { ETOILE, PHENOMENE, niveauDe, NIVEAUX } from './niveaux.js';
@@ -997,16 +997,18 @@ const nomDuClubSaison = (tag, saison) => `${TEAMFULL[tag] || tag} ${saison}`;
 async function choisirCoach() {
   const meta = lireMeta(), ouverts = coachsOuverts(rangDePrestige(meta));
   const donnees = await sousVoile('On sort les dossiers des coachs…', () => chargerCoachs()).catch(() => null);
-  const loto = lotoDesCoachs(donnees, ouverts, `${graineDuClasseur()}:chef`);
+  const siens = coachsDuCartable();
+  const loto = lotoDesCoachs(donnees, ouverts, `${graineDuClasseur()}:chef`, 3, siens);
   if (!loto.length) return null;
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} philosophies sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   const fiche = c => `${c.fiche.v}-${c.fiche.d}-${c.fiche.n}${c.coupe ? ' · 🏆' : ''}${c.jack ? ' · Jack Adams' : ''}`;
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton entraîneur', fermable: true, motFermer: 'Retour',
-    recit: `Un vrai coach, une saison : il fait toute la run. Sa philosophie vient des vraies stats de son club ; il gagne de l'expérience en gagnant, et ses pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}.${plus}`,
+    recit: `Un vrai coach, une saison : il fait toute la run, et entre à ton cartable. Sa philosophie vient des vraies stats de son club ; il gagne de l'expérience en gagnant, et ses pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}.${plus}`,
     options: loto.map(c => {
       const C = COACHS[c.cle];
-      return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)}`,
+      const runs = (siens[c.id] || {}).r || 0;
+      return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)} · ${c.neuf ? 'nouvelle carte' : `📒 ton cartable, ${runs} run${runs > 1 ? 's' : ''}`}`,
         mots: [{ txt: `${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise > 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: null },
           ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: null }))] };
     }),
@@ -1123,6 +1125,8 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
   const m = lireMeta();
   m.runs = (m.runs || 0) + 1;
   ecrireMeta(m);
+  // V21 : ton entraîneur entre au cartable, et compte une run de plus.
+  coachAuCartable(coach, m.runs);
   G.rogue = {
     depart: jetonsDeDepart(meta), gardes: gardes.map(getPlayerKey), plafond: plafondDeDepart(meta, exigence, { reel: true }),
     // S80 : la run sur plusieurs saisons, ses cases de réserve, et ce que le classeur a donné ; V9 (tranche 8) : son cran d'exigence, fixé.

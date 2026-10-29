@@ -1328,6 +1328,17 @@ console.log(`12. le cartable : ${(await page.textContent('.ct-comptes')).replace
   console.log(`12x. les extensions : ${ext} · missions : ${missions.join(' | ')}`);
   if (missions.length !== 6) erreurs.push(`le cartable montre ${missions.length} missions au lieu de six`);
   if (!/\d+ \/ \d+/.test(ext)) erreurs.push(`une extension ouverte ne dit pas sa complétion (« ${ext} »)`);
+  // TES COACHS (V21 ; JP : *comme les cartes de joueurs*) : ton entraîneur est entré au cartable au départ de la run.
+  const onglet = await page.$('#pageCartable [data-vue="coachs"]');
+  if (!onglet) erreurs.push('ton entraîneur n\'est pas entré au cartable (aucun onglet Coachs)');
+  else {
+    await onglet.click();
+    await page.waitForSelector('#pageCartable .ct-coach', { timeout: 10000 });
+    const coachs = await page.$$eval('#pageCartable .ct-carte', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
+    await page.screenshot({ path: `${DOSSIER}/rogue-cartable-coachs.png` });
+    console.log(`12y. tes coachs au cartable : ${coachs.join(' | ')}`);
+    if (!coachs.some(t => /Chez toi ?[1-9]\d* runs?/.test(t))) erreurs.push(`ton entraîneur n'a pas sa run au cartable : ${coachs.join(' | ')}`);
+  }
   await page.click('#pageCartable [data-vue="equipe"]');
   await page.waitForTimeout(300);
 }
