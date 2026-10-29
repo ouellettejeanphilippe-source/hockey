@@ -355,7 +355,7 @@ function slotEl(s) {
     // LE NOM OUVRE SA CARTE (1.0, JP : *dans alignement, peser sur nom ouvre carte*) ; en Rogue, la carte elle-même. Le
     // reste de la case garde son geste : la toucher la choisit pour déplacer ou permuter. Une case déjà choisie, toucher
     // une carte la déplace là : le geste passe à la case.
-    el.querySelector('.slot-fiche')?.addEventListener('click', ev => { if (G.selectedSlot !== null) return; ev.stopPropagation(); ouvrirCarteDe(p); });
+    el.querySelector('.slot-fiche')?.addEventListener('click', ev => { if (enCarte && G.selectedSlot !== null) return; ev.stopPropagation(); ouvrirCarteDe(p); });
     el.querySelector('.slot-relacher')?.addEventListener('click', ev => { ev.stopPropagation(); relacherReserviste(s); });
     el.querySelector('.slot-remove:not(.slot-relacher)')?.addEventListener('click', ev => {
       ev.stopPropagation();
