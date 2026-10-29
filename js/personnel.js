@@ -141,7 +141,7 @@ export const PERSONNEL = {
 
   // ---- 🦅 l'Aigle ----
   // reprend la vidéo de leur gardien
-  per_monteurVideo: { role: 'depistage', nom: 'Le monteur vidéo', ico: '📹', rarete: 'rare', effet: { volume: 1, finition: 0.82 }, vise: 'franc',
+  per_monteurVideo: { role: 'depistage', nom: 'Le monteur vidéo', ico: '📹', rarete: 'rare', effet: { volume: 1, finition: 0.8 }, vise: 'franc',
     protege: { finition: 2, lancers: 1.4 }, texte: 'Chaque but que leur gardien a accordé, monté en dix minutes pour ta meilleure gâchette.' },
   // reprend le coin du haut, peint
   per_peintreDesCoins: { role: 'chef', nom: 'Le géomètre du tir', ico: '📐', rarete: 'commune', effet: { finition: 1.12, volume: 0.93 },
@@ -228,7 +228,7 @@ export const PERSONNEL = {
   per_animateurMicro: { role: 'chef', nom: 'L\'animateur du micro', ico: '📯', rarete: 'peu', effet: { F: [1.4, 1.1, 0.8, 0.65], finition: 1.05, energie: 1.12, volume: 0.89 },
     texte: 'Contre le rival, il branche un micro sur le banc. Les vedettes jouent pour la télé.' },
   // reprend les plumes du paon et les gants lumineux
-  per_costumier: { role: 'physique', nom: 'Le costumier', ico: '👘', rarete: 'rare', effet: { F: [1.1, 1.02, 0.96, 0.9], finition: 0.9 },
+  per_costumier: { role: 'physique', nom: 'Le costumier', ico: '👘', rarete: 'rare', effet: { F: [1.1, 1.02, 0.96, 0.9], finition: 0.88 },
     protege: { creation: 2.16, finition: 1.29, lancers: 1.14 }, texte: 'En séries, il habille son centre en paon. Et ça marche.' },
 
   // ---- 🏦 le Comptable ----
