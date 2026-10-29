@@ -63,6 +63,7 @@ js/impact.js          l'impact en chiffres de match : ce que le moteur joue, dit
 js/equipes.js         l'écran des équipes et leurs vraies statistiques
 js/combat.js          la main de l'adversaire d'un gros match qui n'est pas un duel (le 82-0) ; ta main est partie (V13-2)
 js/pouvoirs.js        le coach, un personnage (V21) : son niveau, ses trois pouvoirs par période, ses talents — `check_pouvoirs`
+js/coachs-reels.js    l'entraîneur, une vraie carte de coach-saison (V21) : data/coachs.json, sa philosophie lue des vraies stats de son club, sa maîtrise, le loto du départ
 js/adjoints.js        son staff (V21) : les adjoints, des systèmes de jeu, chacun un échange ; trois au plus, un parmi trois aux moments forts — `check_pouvoirs`
 js/dossiers.js        les dossiers de la semaine (V10) : ce qui arrive à ton club, dit par sa voix, un lundi sur deux — `check_dossiers`
 js/cartes.js          le gabarit des cartes (recto, verso, finitions)
@@ -198,6 +199,7 @@ Un mot par idée, le même à l'écran, dans le code neuf et dans les docs.
 - **zone** : où le joueur rend (T1-2, P1…) ; une case porte les zones qui y sont chez elles.
 - **carrure** : 🪨 costaud ou 🪶 léger ; elle fait l'agressivité de sa ligne, qui ne se règle pas (`agressiviteDeLigne`).
 - **coach** : une des huit philosophies de `js/coachs.js` (🐝 le Frelon, 🐢 la Tortue…) et, en Rogue, ton **personnage** (V21) : son **niveau** (1 à 5) et son **expérience** (`XP`, js/pouvoirs.js). Pas « école », pas « build » à l'écran.
+- **ton entraîneur** (V21) : la personne derrière le banc, en Rogue une vraie carte de coach-saison (Scotty Bowman · Canadiens 1976-77, js/coachs-reels.js, data/coachs.json) : sa philosophie vient des vraies stats de son club cette saison-là, sa **maîtrise** (×1,1 ou ×1,2 sur ses pouvoirs) de son rang dans cette lecture ; un loto de trois au départ de la run. Jamais « entraîneur-chef ».
 - **pouvoir** (V21) : un des trois de l'arbre du coach (🐝 la ruée, 🐢 le verrou…), ouvert à son niveau ; il joue une période quand sa condition se lit (`POUVOIRS`, `pouvoirsDeLaPeriode`). L'**ultime** est le troisième. Un **talent** fait grandir un pouvoir de moitié (`TALENT`).
 - **adjoint** (V21) : un membre du staff du coach, un échange — ce qu'il donne, ce qu'il coûte (🏹 le canonnier, 🧤 l'entraîneur du n° 1…, `ADJOINTS`, js/adjoints.js). Le **staff** : les trois en poste.
 - **couleur** : le coach d'un joueur (celui de son meilleur rôle maîtrisé) ; « Joueur du Frelon » ; elle range le pack du coach.

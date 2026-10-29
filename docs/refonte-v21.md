@@ -35,6 +35,16 @@ Deux trous du moteur se sont montrés en mesurant : la précision d'une équipe 
 
 Une soirée en trois plages n'a pas le même tirage qu'une soirée d'un bloc (les punitions et les lancers se répartissent au prorata), d'où le coach muet comme témoin ; sur 8 000 matchs, elle donne ≈ +0,9 tir et +0,13 but par match aux deux clubs ensemble, le même biais que le duel depuis la V9.
 
+## 1b. Ton entraîneur, une vraie carte
+
+JP : *I want the coaches and assistants to be like the team alignment, mais avec des coachs, je serais même ouvert à des cartes de vrais coachs par saison*. Puis, au choix : un **staff en alignement** — la case de l'entraîneur, et trois places d'adjoint libres (n'importe quel adjoint va n'importe où) — et **l'entraîneur, une vraie carte de coach-saison** ; les adjoints restent des échanges inventés.
+
+- **Les données** (`scripts/coachs.mjs` → `data/coachs.json`) : l'API publique des records de la LNH (`coach-franchise-season-records`, une ligne par coach, par club, par saison). Un club qui a changé de coach en cours de saison garde celui qui a dirigé le plus de matchs : 1392 coachs-saisons sur nos 55 saisons, chaque club relié.
+- **Sa philosophie** se lit dans les vraies stats de son club cette saison-là, prises des shards : tirs pour (le Frelon), tirs contre (la Tortue), % de tir (l'Aigle), minutes de pénalité (le Rhino) ou leur absence (l'Abbé), santé du vestiaire (le Doc), points hors du top 6 (le Contremaître), poids des deux vedettes (le Showman) ; la lecture la plus marquée par rapport aux autres clubs décide. Scotty Bowman 1976-77 est l'Aigle (1er au % de tir), Paul Maurice 2023-24 le Rhino.
+- **Sa maîtrise** : premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×1,2 ; dans les cinq premiers, ×1,1 (`MAITRISE`, js/coachs-reels.js).
+- **Le loto** : au départ de la run, trois vraies cartes, de trois philosophies que le prestige ouvre, tirées de la graine ; tu en prends une, qui fait la run. Sa carte dit son club, sa saison, sa fiche, sa Coupe et son Jack Adams.
+- Le vocabulaire ne bouge pas : **l'entraîneur** est la personne (la carte), **le coach** sa philosophie ; jamais « entraîneur-chef » (`check_lexique`).
+
 ## 2. Les adjoints, des systèmes de jeu
 
 JP, sur le premier jet (des bienfaits qui modifiaient un pouvoir, à la Hades) : *les assistants sont des ajustements, des systèmes de jeu* ; *genre deux tirs de plus, mais en alloue deux de plus, ou tu buffs légèrement le gardien numéro un mais un nerf le numéro deux ou l'inverse*.
@@ -81,4 +91,5 @@ Le sous-onglet **Coach** : le portrait du coach, son niveau et la barre d'expér
 | 2 | l'écran du coach, le talent et l'adjoint dans À faire ; le personnel, les échelons, la confiance, le chiffre, les ententes et le pack Personnel partent, avec leurs vérifications |
 | 3 | les histoires à conséquences concrètes |
 | 4b | les adjoints deviennent des systèmes de jeu, des échanges (js/adjoints.js) ; les bienfaits partent |
+| 4c | l'entraîneur, une vraie carte de coach-saison (js/coachs-reels.js, data/coachs.json) ; le staff en alignement |
 | 4 | les robots (`rogue_sim`) choisissent talents et adjoints ; `check_pouvoirs`, `check_profondeur`, `essai_rogue` ; la page des règles et CLAUDE.md |
