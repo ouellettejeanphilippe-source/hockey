@@ -49,7 +49,7 @@ const FICHIERS = [
   'js/traits.js', 'js/recit.js', 'js/causes.js', 'js/direct.js', 'js/glace.js', 'js/bilan.js',
   'js/entracte.js',
   'js/profil-style.js', 'js/impact.js',
-  'js/equipes.js', 'js/saison.js', 'js/noeuds.js', 'js/verdicts.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
+  'js/equipes.js', 'js/saison.js', 'js/verdicts.js', 'js/pronostic.js', 'js/coquille.js', 'js/gerant.js', 'js/commentaire.js',
   'js/cartes.js', 'js/franchises.js', 'js/galons.js', 'js/identites.js', 'js/combat.js', 'js/table.js', 'js/plateau.js', 'js/tournoi.js', 'js/sons.js',
   'js/sauvegardes.js', 'js/menu.js', 'js/pile.js', 'js/glisser.js', 'js/manette.js', 'js/rogue.js', 'js/mouvement.js', 'js/rarete.js', 'js/banque.js', 'js/cartes-vie.js', 'js/personnel.js', 'js/echelons.js', 'js/dossiers.js', 'js/apres-match.js', 'js/panel-tv.js', 'js/vie-gm.js', 'js/scenes.js', 'js/coachs.js', 'js/club.js', 'js/packs.js', 'js/inventaire.js', 'js/magasin.js',
   'js/cartable.js', 'js/chiffre.js', 'js/logos_locaux.js', 'js/exhibition.js', 'js/roles_ref.js', 'js/niveaux.js', 'js/depart.js', 'js/visages.js', 'js/recadrage.js', 'js/ballottage.js', 'js/arcs.js', 'js/util.js',

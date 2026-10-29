@@ -17,7 +17,7 @@
  *   6. LES TUILES DE CHOIX SONT SOBRES (tranche 6, la décision unifiée ; JP : *un verbe, au plus deux lignes de stats,
  *      trois options au plus, la recommandée marquée par sa place*). Lu sur le code et les données, sur de vrais clubs :
  *      aucune fenêtre de choix n'offre plus de trois options, aucune option (dilemme, séquence, avant-match, réponse,
- *      dossier, fil, carte de route) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
+ *      dossier, fil) ne montre plus de deux lignes de stats vertes ou rouges (`LIGNES_MAX`) — les autres
  *      se plient sous « Les chiffres », sans rien perdre —, et la tuile est un aplat : ni dégradé, ni ombre, ni saut.
  *      La recommandée n'a pas de macaron : elle est la PREMIÈRE de la liste (le rang dit la recommandation).
  *   7. AUCUN ACCORDÉON (JP, 28 oct. : *j'hais les accordéons*). Aucun `<details>` ni `<summary>` dans AUCUN fichier de js/
@@ -35,7 +35,6 @@ import { poserClubLu } from '../js/impact.js';
 import { optionHtml, LIGNES_MAX } from '../js/gerant.js';
 import { DOSSIERS } from '../js/dossiers.js';
 import { REPONSES_VIE, CHOIX_DES_FILS } from '../js/vie-gm.js';
-import { ROUTES, CARTES_DE_ROUTE, motsDeRoute } from '../js/noeuds.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -118,12 +117,11 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
     ['dilemme', MOMENTS], ['séquence', Object.fromEntries(Object.keys(SEQUENCES).map(k => [k, { options: optionsDeSequence(k) }]))],
     ['avant-match', AVANT_GROS], ['réponse', REPONSES_VIE], ['dossier', DOSSIERS], ['choix de fil', CHOIX_DES_FILS],
   ];
-  // Le nombre d'options : les fenêtres de ces familles, et les trois routes de la semaine.
+  // Le nombre d'options : les fenêtres de ces familles.
   const trop = [];
   let nFenetres = 0;
   for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) { nFenetres++; if ((ev.options || []).length > OPTIONS_MAX) trop.push(`${cat} ${cle} : ${ev.options.length}`); }
-  if (Object.keys(ROUTES).length > OPTIONS_MAX) trop.push(`routes : ${Object.keys(ROUTES).length}`);
-  exiger(`une fenêtre de choix offre trois options au plus (${nFenetres} fenêtres et les trois routes)`, !trop.length, trop.join(' · ') || `au plus ${Math.max(...FAMILLES.flatMap(([, l]) => Object.values(l).map(e => (e.options || []).length)))}`);
+  exiger(`une fenêtre de choix offre trois options au plus (${nFenetres} fenêtres)`, !trop.length, trop.join(' · ') || `au plus ${Math.max(...FAMILLES.flatMap(([, l]) => Object.values(l).map(e => (e.options || []).length)))}`);
 
   // Les lignes de stats : la tuile telle que l'écran la dessine (`optionHtml`), sur des clubs de plusieurs époques.
   const DIR = path.join(ROOT, 'data', 'seasons');
@@ -146,8 +144,6 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
   };
   const tuiles = [];
   for (const [cat, liste] of FAMILLES) for (const [cle, ev] of Object.entries(liste)) for (const o of ev.options || []) tuiles.push({ id: `${cat} ${cle}.${o.cle}`, o });
-  const cartes = [];
-  for (const [route, cs] of Object.entries(CARTES_DE_ROUTE)) for (const [id, C] of Object.entries(cs)) cartes.push({ id: `route ${route}.${id}`, o: { cle: id, nom: C.nom }, C });
   const debordent = [], perdent = [];
   let maxVues = 0;
   for (const club of clubs) {
@@ -159,11 +155,10 @@ exiger('prefers-reduced-motion coupe le mouvement', /@media \(prefers-reduced-mo
       if (sobre.toutes !== plein.toutes) perdent.push(`${id} (${club.name})`);
     };
     for (const { id, o } of tuiles) lire(id, o, null);
-    for (const { id, o, C } of cartes) lire(id, o, motsDeRoute(C));
   }
   poserClubLu(null);
   informer('les clubs lus', clubs.map(c => c.name).join(' · '));
-  exiger(`une option montre ${LIGNES_MAX} lignes de stats vertes ou rouges au plus (${tuiles.length} options et ${cartes.length} cartes de route, sur ${clubs.length} clubs)`, !debordent.length, debordent.slice(0, 6).join(' · ') || `au plus ${maxVues}`);
+  exiger(`une option montre ${LIGNES_MAX} lignes de stats vertes ou rouges au plus (${tuiles.length} options, sur ${clubs.length} clubs)`, !debordent.length, debordent.slice(0, 6).join(' · ') || `au plus ${maxVues}`);
   exiger('plier une ligne de trop ne la perd pas : elle reste sous « Les chiffres »', !perdent.length, perdent.slice(0, 6).join(' · ') || 'rien ne disparaît');
 
   // L'aplat : la tuile de base n'a ni dégradé, ni ombre, ni relief ; son survol ne la déplace pas et ne la zoome pas.

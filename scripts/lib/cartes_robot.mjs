@@ -12,9 +12,7 @@
  * Le robot ne voit que ce que l'écran montre : la cédule de la semaine, ses jambes, son infirmerie, sa caisse.
  */
 import { MOMENTS_SI, dosADos, energieDe, SLOTS, rivalChoisi } from '../../js/sim.js';
-import { DOSSIERS, dossierDeLaSemaine } from '../../js/dossiers.js';
-import { sceneDeLaRoute } from '../../js/scenes.js';
-import { noeudsDeLaSemaine, decisionDeNoeud } from '../../js/noeuds.js';
+import { DOSSIERS, dossierDeLaSemaine, semaineAHistoire } from '../../js/dossiers.js';
 import { BANQUE, PATRONS, payloadDe, palierAllume, patronsActifs, coachsActifs } from '../../js/banque.js';
 import { cartesDuPalier, PALIERS_PACK, SEMAINE } from '../../js/inventaire.js';
 import { etatDuPersonnel, decisionDEchelon, patronALEchelon, aUnDefaut } from '../../js/echelons.js';
@@ -68,7 +66,7 @@ function faitsDuRobot(L, you, jetons) {
 }
 
 /*
- * LE LUNDI DU ROBOT : la route (les semaines impaires), le dossier (les paires, dès la deuxième), la carte d'un palier
+ * LE LUNDI DU ROBOT : le dossier (l'histoire d'un lundi tiré de la graine, V20), la carte d'un palier
  * (quand le compte de matchs le franchit). Rend les décisions à pousser au jour de la ligue. `etat` : ce que la saison
  * retient (les dossiers déjà ouverts, les paliers pris).
  */
@@ -80,12 +78,8 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat, de
   const w = j / SEMAINE;
   const lundi = j % SEMAINE === 0 && j < L.calendrier.length;
   const f = lundi || etat.paliers.size < PALIERS_PACK.length ? faitsDuRobot(L, you, jetons) : null;
-  if (lundi && w % 2 === 1) {
-    const routes = noeudsDeLaSemaine(graine, w);
-    const prise = clic ? auHasard(routes) : routes.find(n => n.route === sceneDeLaRoute({ jambes: f.jambes, blesses: f.blesses.length, dos: f.dos, caisse: f.caisse }).route) || routes[0];
-    out.push({ jour: j, ...decisionDeNoeud(w, prise) });
-  }
-  if (lundi && w >= 2 && w % 2 === 0) {
+  // V20 : l'histoire de la semaine, un lundi tiré de la graine (`semaineAHistoire`) ; les routes sont parties.
+  if (lundi && semaineAHistoire(graine, w)) {
     const cle = dossierDeLaSemaine(graine, w, f, etat.dossiers);
     if (cle) {
       etat.dossiers.push(cle);

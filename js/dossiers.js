@@ -1,8 +1,8 @@
 /*
  * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — docs/refonte-v10.md § 4). Les événements quittent la banque : ce
  * ne sont plus des cartes qu'on tire, ce sont des choix d'À faire, dits par une voix (les scènes du Jalon M,
- * js/scenes.js). Au bureau du lundi, la semaine où le nœud ne s'ouvre pas (js/noeuds.js), un dossier s'ouvre s'il
- * est VRAI : trois soirs sur la route, l'infirmerie qui déborde, un rival dans la semaine, la caisse à sec.
+ * js/scenes.js). Au bureau d'un lundi tiré de la graine (`semaineAHistoire`, V20), un dossier s'ouvre s'il est VRAI : trois
+ * soirs sur la route, l'infirmerie qui déborde, un rival dans la semaine, la caisse à sec. V20 : c'est la seule source.
  *
  * Chaque dossier :
  *   de       la voix qui la demande (`EXPEDITEURS`, js/vie-gm.js)
@@ -155,7 +155,9 @@ export const DOSSIERS = {
       'Il boude dans son coin du vestiaire. Moi, je lui parlerais ; ou on le laisse mijoter, et il comprendra.'],
     options: [
       { cle: 'parler', nom: 'Lui parler', bon: 'Il se remet au travail', prix: 'Un souper au restaurant, sur le bras du club', gain: -6, duree: 8, lui: { lancers: 1.43, finition: 1.17 } },
-      { cle: 'mijoter', nom: 'Le laisser mijoter', bon: 'Moins de punitions : le vestiaire voit qui décide', prix: 'Il boude sur la patinoire aussi', duree: 8, discipline: 0.87, lui: { finition: 0.69, lancers: 0.76 } },
+      // L'AUDACE (V20) : un dé, le joueur nommé gagne ou perd gros ; l'équipe n'en reçoit rien.
+      { cle: 'premier', nom: 'Lui donner le premier trio', bon: 'Si ça passe : il tire plus, et plus juste', prix: 'Sinon : il s\'écrase, moins de tirs et de précision',
+        pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.45, finition: 1.3 } }, perd: { duree: 8, lui: { lancers: 0.6, finition: 0.75 } } } },
     ],
   },
   laChicane: {
@@ -179,7 +181,8 @@ export const DOSSIERS = {
       'Je reçois des appels d\'autres clubs à son sujet. Vous voulez le garder heureux, oui ou non ?'],
     options: [
       { cle: 'defendre', nom: 'Le défendre en public', bon: 'Il retrouve sa confiance', prix: 'Un souper avec l\'agent, sur le bras du club', gain: -10, duree: 8, lui: { finition: 1.58, lancers: 1.19 } },
-      { cle: 'defi', nom: 'Le mettre au défi', bon: 'Il tire de partout pour répondre', prix: 'Il force ses tirs', duree: 8, lui: { lancers: 1.77, finition: 0.74 } },
+      { cle: 'defi', nom: 'Le mettre au défi devant les journalistes', bon: 'Si ça passe : il répond, plus de tirs et de précision', prix: 'Sinon : il force ses tirs, moins de précision',
+        pari: { chance: 3 / 6, gagne: { duree: 8, lui: { lancers: 1.5, finition: 1.3 } }, perd: { duree: 8, lui: { lancers: 1.5, finition: 0.5 } } } },
     ],
   },
   laCaisseVide: {
@@ -264,7 +267,8 @@ export const DOSSIERS = {
       'J\'ai eu honte dans ma loge. Vous allez me dire ce que vous comptez faire.'],
     options: [
       { cle: 'porte', nom: 'La porte fermée', bon: 'Moins de tirs contre, plus d\'arrêts : on ferme le jeu', prix: 'Moins de tirs, nous aussi', si: 'apresDefaite', duree: 10, defense: 0.88 },
-      { cle: 'tourner', nom: 'Tourner la page', bon: 'Plus de tirs, plus de précision : on repart à zéro', prix: 'Le proprio retient son chèque', gain: -5, duree: 4, finition: 1.15, volume: 1.1 },
+      { cle: 'renvoyer', nom: 'Le renvoyer devant le filet', bon: 'Si ça passe : il se venge, moins de buts accordés', prix: 'Sinon : il coule encore, plus de buts accordés',
+        pari: { chance: 3 / 6, gagne: { duree: 6, lui: { arrets: 0.85 } }, perd: { duree: 6, lui: { arrets: 1.15 } } } },
     ],
   },
   leFond: {
@@ -351,6 +355,14 @@ export const DOSSIERS = {
     ],
   },
 };
+/*
+ * LA SEMAINE D'UNE HISTOIRE (V20, docs/refonte-v20.md § 3 ; JP : *oui à tout* ; le 27 oct. : *les événements devraient
+ * être plus « randoms »*). Le dossier était la semaine paire, la route l'impaire, un dilemme aux journées fixes, un courriel
+ * aux huit matchs : cinq horloges qu'un joueur apprenait vite. Il reste une source, le dossier, un lundi tiré de la graine
+ * et de la semaine (`hache`), `CHANCE_HISTOIRE` en moyenne, dès la première ; la même graine rejoue les mêmes lundis.
+ */
+const CHANCE_HISTOIRE = 0.55;
+export const semaineAHistoire = (graine, w) => w >= 1 && hache(String(graine), 'histoire', String(w)) < CHANCE_HISTOIRE;
 /* La pratique du mardi ne s'ouvre que si rien d'autre n'est vrai : elle ne prend jamais la place d'un vrai dossier. */
 const DE_RESERVE = 'laPratique';
 const tirer = (graine, w, cle) => hache(String(graine), 'dossier', String(w), cle);

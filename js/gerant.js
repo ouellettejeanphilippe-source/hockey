@@ -267,7 +267,8 @@ function motsDAction(a, noms = '') {
  * dossiers passent tous par ici.
  */
 function motsDuPari(pari, noms = '') {
-  const issue = e => { const { duree, action, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms)]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
+  // V20 : l'audace d'une histoire vise son joueur (`lui`) — ce qui lui arrive se dit à son nom.
+  const issue = e => { const { duree, action, lui, ...c } = e || {}; const m = [...motsEnChiffres(c, duree), ...motsDAction(action, noms), ...(lui ? motsSurLeJoueur(lui, noms || 'Ton joueur') : [])]; return m.length ? m.map(x => x.txt).join(', ') : 'rien'; };
   return [{ txt: `🎲 ${majuscule(facesMot(facesDuPari(pari.chance)))} : ${issue(pari.gagne)}`, bon: true }, { txt: `🎲 sinon : ${issue(pari.perd)}`, bon: false }];
 }
 function motsDeCarte(o, noms = '') {
@@ -331,15 +332,6 @@ const listeNoms = ns => (ns.length <= 1 ? ns[0] || '' : `${ns.slice(0, -1).join(
 /* Les canaux d'effet d'un objet : ce que motsEnChiffres sait dire. */
 const CANAUX = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 const canauxDe = o => Object.fromEntries(Object.entries(o || {}).filter(([k]) => CANAUX.includes(k)));
-/*
- * CE QU'UNE RÉPONSE FAIT, EN MOTS DE MATCH (courriels et points de presse, js/vie-gm.js) : les chiffres de ses
- * canaux sur la durée, le changement de carte d'un joueur nommé, ses gestes, son pari. Les mêmes mots que les
- * options d'un dilemme (`ouvrirChoix`).
- */
-export function motsDeReponse(o, { joueur = null, noms = '' } = {}) {
-  const { duree, mutation, ...canaux } = o;
-  return [...motsEnChiffres(canaux, Object.keys(canauxDe(canaux)).length ? duree : null), ...(mutation ? motsDeMutationEnChiffres(mutation, joueur) : []), ...motsDeCarte(o, noms)];
-}
 /* Une forme, un mot : ce qu'on lit avant les chiffres. Un cadeau n'est pas un échange. */
 const CANAUX_FORME = ['finition', 'volume', 'defense', 'discipline', 'blessure', 'energie', 'robustesse'];
 const CARTES_REGLEMENT = new Set(['sixGlace', 'courbeIllegale', 'paragraphe', 'filetDesert', 'retardement']);
@@ -643,8 +635,8 @@ function sceneDuDe(m, spec, o, sub, fermer, autre = () => ouvrirChoix(spec)) {
   const montrer = () => {
     const de = table.querySelector('.de');
     de.classList.add('pose', v.gagne ? 'gagne' : 'perd');
-    const { duree, action, ...canaux } = v.effet || {};
-    const mots = [...motsEnChiffres(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action)];
+    const { duree, action, lui, ...canaux } = v.effet || {};
+    const mots = [...motsEnChiffres(canaux, Object.keys(canaux).length ? duree : null), ...motsDAction(action), ...(lui ? motsSurLeJoueur(lui, spec.joueur ? spec.joueur.n : 'Ton joueur') : [])];
     verdict.innerHTML = `<b>${v.face}</b> — ${v.gagne ? 'ça passe !' : 'raté.'}`;
     verdict.classList.add(v.gagne ? 'gagne' : 'perd');
     corps.querySelector('.de-issue').innerHTML = puces(mots.length ? mots : [{ txt: 'Rien ne change', bon: null }]);

@@ -12,7 +12,6 @@
  */
 import { EXPEDITEURS } from './vie-gm.js';
 import { DOSSIERS } from './dossiers.js';
-import { MOMENTS, FAITS } from './sim.js';
 import { hache } from './util.js';
 
 /** La réplique d'une scène, pigée sur la graine du jeu et son moment : la même partie redit la même phrase. */
@@ -64,19 +63,6 @@ export const MOTS_DES_SCENES = {
       'Ça va bien, et je veux que ça dure. Choisissez celle qui nous garde en avant.',
     ],
   },
-  // LES ROUTES DE LA SEMAINE (A3) : l'entraîneur, qui recommande la route qui répond au pire problème du lundi.
-  route: {
-    jambes: ['Les gars sont brûlés. Moi, je prendrais le repos ; c\'est toi qui décides.',
-      'Les jambes ne suivent plus. Une semaine tranquille, et je te les rends.'],
-    infirmerie: ['L\'infirmerie déborde. Moi, je prendrais le repos, pour les ramener plus vite.',
-      'Trop de gars sur la table du physio. Le repos d\'abord, le reste après.'],
-    dos: ['Deux soirs de suite s\'en viennent, et les jambes sont justes. Le repos, si tu m\'écoutes.',
-      'Le dos-à-dos va faire mal. Moi, je ménagerais les gars cette semaine.'],
-    caisse: ['La caisse est vide. La commandite, et on respire.',
-      'On roule sur la réserve. Moi, je prendrais l\'argent cette semaine.'],
-    rien: ['Tout le monde tient debout. C\'est la semaine pour travailler : l\'entraînement.',
-      'Rien ne brûle. Moi, je les ferais travailler.'],
-  },
   // LA BLESSURE (A4) : le médecin, selon la longueur de l'absence.
   blessure: {
     court: ['Rien de grave. Il sera de retour avant que tu t\'ennuies de lui.',
@@ -113,32 +99,6 @@ export const MOTS_DES_SCENES = {
       'Ça s\'est joué à rien. Un adjoint de plus, et le prochain sera moins serré.'],
     large: ['On les a déclassés. Prends celui qui garde la machine en marche.',
       'Une soirée de même, ça se récompense. Choisis qui vient m\'aider derrière le banc.'],
-  },
-  // LES DILEMMES (oct. 2026) : la voix du dilemme, sur ce que son fait vient de dire. Une opinion, jamais un événement : le fait est sous elle.
-  dilemme: {
-    punitionTard: ['Une punition en fin de match, ça se paie cher. Moi, je ne la laisserais pas passer.', 'Ça ne doit pas se répéter. À toi de voir comment.'],
-    gardienCharge: ['Il joue tout. Un jour, ça va se voir.', 'Je lui donnerais un soir, mais c\'est ton gardien.'],
-    gardienBattu: ['On ne peut pas en rester là. Repos ou revanche, il faut choisir.', 'Ce genre de soirée, ça se règle tout de suite.'],
-    panneGardien: ['Un gardien qui glisse avec l\'équipe, il faut décider si on y croit.', 'Moi, je le sortirais un peu. Mais c\'est toi qui signes.'],
-    punitions: ['On ne peut plus le défendre devant l\'arbitre.', 'Il joue sur la ligne, et la ligne recule.'],
-    blesses: ['Mes tables sont pleines. Il faut alléger ou serrer les dents.', 'Je manque de chaises, et de patience.'],
-    route: ['Les valises ne se défont plus. Ça use un homme.', 'Il faut trouver comment souffler.'],
-    jambes: ['Je l\'aurais assis un soir.', 'Ses jambes parlent plus fort que lui.'],
-    jambesEquipe: ['Toute la bande est fatiguée. Ça se voit en troisième.', 'Il faut du repos, ou du courage.'],
-    chaud: ['Il est en feu. La question, c\'est comment s\'en servir.', 'Un joueur comme ça, on lui donne la rondelle ou on lui donne des ailiers.'],
-    disetteMarqueur: ['Un marqueur qui ne marque plus, ça finit par lui peser.', 'Il faut lui donner une consigne, n\'importe laquelle.'],
-    recrue: ['Il est jeune. Il faut lui dire quelle place est la sienne.', 'Moi, je lui donnerais du temps de glace.'],
-    parti: ['Un casier vide, ça fait toujours un vide dans le vestiaire.', 'Il faut dire quelque chose au groupe, ou rien du tout.'],
-    quatrieme: ['Ils regardent le match du banc. Ça commence à paraître.', 'Ils méritent plus de glace, ou une explication.'],
-    passoire: ['Ça rentre de partout. Il faut fermer quelque chose.', 'On donne trop. Il faut décider comment arrêter le sang.'],
-    passoirePaire: ['Ta première paire peut en prendre plus, pas pour toujours.', 'Je laisserais mes deux meilleurs sur la glace.'],
-    disette: ['Ça ne rentre plus. Il faut trouver un truc.', 'On tire et ça ne rentre pas.'],
-    tirsContre: ['Il reçoit tout. On le laisse seul là-bas.', 'Il fait le travail de cinq.'],
-    avantagesRares: ['L\'arbitre ne nous voit plus. Il faut le lui rappeler, ou pas.', 'Ils accrochent et personne ne siffle.'],
-    defaiteParUn: ['Un but. Il nous a manqué un seul but.', 'Le banc veut prendre plus de risques.'],
-    plombier: ['Il travaille fort, mais ça ne rentre pas.', 'Un tir, ça s\'apprend.'],
-    veteranD: ['Il a des choses à transmettre.', 'Le vétéran pourrait laisser quelque chose derrière lui.'],
-    tirsD: ['Il lance de partout. La ligne bleue de l\'avantage lui irait.', 'Moi, je lui donnerais la pointe.'],
   },
 };
 
@@ -185,37 +145,13 @@ export function sceneDuPalier({ n, fiche, rang, equipes = 32, mandat = '', grain
 }
 
 /*
- * LES DILEMMES (oct. 2026). La voix du dilemme (`de`), une réplique sur la sorte de son fait, et le fait en vrais
- * chiffres (`FAITS[...].dire`, js/sim.js).
- *   cle   la clé du dilemme dans `MOMENTS` ; faits : ce que son fait a lu ; graine : la partie et la journée
- */
-export function sceneDuDilemme(cle, faits, graine = '') {
-  const M = MOMENTS[cle];
-  return { de: EXPEDITEURS[M.de], mot: piger(MOTS_DES_SCENES.dilemme[M.fait], graine, 'dilemme', cle), fait: FAITS[M.fait].dire(faits) };
-}
-
-/*
- * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js). La voix du dossier, une de ses répliques, et le fait
- * lu dans les faits du lundi.
+ * LES DOSSIERS DE LA SEMAINE (V10, tranche 5 — js/dossiers.js ; V20 : l'histoire de la semaine, la seule source du
+ * lundi). La voix du dossier, une de ses répliques, et le fait lu dans les faits du lundi.
  *   cle   le dossier ; faits : ceux du lundi (js/saison.js `faitsDuLundi`) ; graine : la partie et la semaine
  */
 export function sceneDuDossier(cle, faits, graine = '') {
   const D = DOSSIERS[cle];
   return { de: EXPEDITEURS[D.de], mot: piger(D.mots, graine, 'dossier', cle), fait: D.fait(faits) };
-}
-
-/*
- * A3 · LES ROUTES DE LA SEMAINE. L'entraîneur nomme le pire problème du lundi et la route qui y répond : les jambes
- * sous 70, l'infirmerie (deux blessés ou plus), un dos-à-dos sur des jambes justes, la caisse sous 20 jetons.
- *   jambes   la moyenne du matin ; blesses : combien ; dos : les dos-à-dos de la semaine ; caisse : les jetons, ou null
- * Rend aussi `route`, celle qu'il recommande.
- */
-const ROUTE_DU_PIRE = { jambes: 'repos', infirmerie: 'repos', dos: 'repos', caisse: 'commandite', rien: 'entrainement' };
-export function sceneDeLaRoute({ jambes, blesses = 0, dos = 0, caisse = null, graine = '' }) {
-  const pire = jambes < 70 ? 'jambes' : blesses >= 2 ? 'infirmerie' : dos && jambes < 85 ? 'dos' : caisse !== null && caisse < 20 ? 'caisse' : 'rien';
-  const fait = { jambes: `Jambes ${jambes}`, infirmerie: `${blesses} blessés à l'infirmerie`, dos: `${dos} dos-à-dos cette semaine · jambes ${jambes}`,
-    caisse: `${caisse} 🪙 en caisse`, rien: `Jambes ${jambes} · ${blesses ? `${blesses} blessé` : 'personne à l\'infirmerie'}` }[pire];
-  return { de: EXPEDITEURS.en, mot: piger(MOTS_DES_SCENES.route[pire], graine, 'route', pire), fait, route: ROUTE_DU_PIRE[pire] };
 }
 
 /*

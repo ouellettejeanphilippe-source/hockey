@@ -64,14 +64,11 @@ const choix = [
   { id: 'dossier', J: 47, moment: mom('dossier', 'laRoute', 'compression'), duree: DOSSIERS.laRoute.options.find(o => o.cle === 'compression').duree, doit: true },
   { id: 'fil (un geste)', J: 61, moment: mom('fil', 'disette', 'reposer'), duree: 8, doit: true },
   { id: 'pari', J: 75, moment: mom('moment', unPari.cle, unPari.o.cle), duree: unPari.o.duree || 8, doit: true },
-  { id: 'route', J: 54, noeud: { route: 'entrainement', id: 'semaineChargee' }, duree: 8, doit: true },
+  { id: 'dossier (le blanchi)', J: 54, moment: mom('dossier', 'leBlanchi', 'devant'), duree: DOSSIERS.leBlanchi.options.find(o => o.cle === 'devant').duree, doit: true },
   { id: 'rien ne change', J: 33, moment: mom('moment', 'ecole', 'non'), duree: 8, doit: false },
   { id: 'des jetons seuls', J: 68, moment: mom('dossier', 'laMasse', 'rachat'), duree: 8, doit: false },
-  { id: 'la commandite', J: 82, noeud: { route: 'commandite', id: 'ristourne' }, duree: 8, doit: false },
   { id: 'trop tard', J: N - 8, moment: mom('moment', dilemme.cle, dilemme.o.cle), duree: 8, doit: false },
-].map((c, i) => ({ ...c, d: { jour: c.J, palier: `v:${i}`, sel: `verdict-${i}`, ...(c.moment ? { moment: { ...c.moment, joueur: null, joueurs: [] } } : { noeud: c.noeud }) } }));
-// Une décision de route porte sa charge, comme `decisionDeNoeud` (js/noeuds.js).
-for (const c of choix) if (c.noeud) { const { CARTES_DE_ROUTE } = await import('../js/noeuds.js'); const C = CARTES_DE_ROUTE[c.noeud.route][c.noeud.id]; Object.assign(c.d, C.gain ? { gain: C.gain } : { effet: { nom: C.nom, ico: C.ico, duree: C.duree, ...C.effet, si: C.si } }); }
+].map((c, i) => ({ ...c, d: { jour: c.J, palier: `v:${i}`, sel: `verdict-${i}`, moment: { ...c.moment, joueur: null, joueurs: [] } } }));
 
 /* Ce que dit le code, lundi après lundi, avec les seuls matchs déjà joués. */
 const lire = (jour, tous = false) => verdictsDeLaSemaine({ decisions: choix.map(c => c.d), matchs: tous ? miens : miens.filter(x => x.j < jour), jour, depuisJ: jour - SEMAINE, you, graine: GRAINE });
@@ -123,11 +120,11 @@ const dits = c => [...parLundi].flatMap(([M, vs]) => vs.filter(v => v.palier ===
   exiger(`chaque verdict se recompte dans les feuilles : les ${lus} lus (tirs, précision, tirs contre, % d'arrêts ; matchs d'après contre dix d'avant)`, !fautes.length && lus >= 6, fautes.join(' · ') || `${avecMots} disent des stats, ${rien} avouent « rien de net »`);
 }
 
-/* 3. Un choix sans effet de match, ou une route de jetons, ne dit rien (déjà jugé au point 1) ; ici les cas limites. */
+/* 3. Un choix sans effet de match ne dit rien (déjà jugé au point 1) ; ici les cas limites. */
 {
   const rienVu = choix.filter(c => !c.doit).every(c => dits(c).length === 0);
   const sansMatch = lundis.filter(M => M > 80).length > 0;
-  exiger('« Rien ne change », une option de jetons seuls, la commandite et un choix de la fin de saison ne disent rien', rienVu && sansMatch, choix.filter(c => !c.doit).map(c => c.id).join(' · '));
+  exiger('« Rien ne change », une option de jetons seuls et un choix de la fin de saison ne disent rien', rienVu && sansMatch, choix.filter(c => !c.doit).map(c => c.id).join(' · '));
 }
 
 /* 4. Que des stats de match. */

@@ -7,7 +7,7 @@
  *      ligne sans couleur (la glace des trios) par l'un ou l'autre ;
  *   2. chaque mot de stat du bon ou du prix a sa ligne, de sa couleur, sur la plupart des clubs ;
  *   3. une réponse qui a des canaux se voit : jamais « à peine perceptible » seule ;
- * et pour chaque carte de route (js/noeuds.js), le point 3. Les dilemmes ont le leur (`check_dilemmes`, au canal) ; le
+ * Les dilemmes et les routes de la semaine sont partis (V20, docs/refonte-v20.md § 3) ; restent les dossiers. Le
  * personnel écrit ses mots à partir de ses lignes (js/rogue-jeu.js `motsDeLaPersonne`), il ne peut pas les contredire.
  *
  *   node scripts/check_mots.mjs            (une dizaine de secondes ; CLUBS=6 en lit plus)
@@ -18,7 +18,6 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam } from '../js/sim.js';
 import { effetEnChiffres } from '../js/impact.js';
 import { DOSSIERS } from '../js/dossiers.js';
-import { CARTES_DE_ROUTE } from '../js/noeuds.js';
 import { equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -74,7 +73,7 @@ function lignesTenues(effet, duree) {
 }
 const MAX_FAUTES = Number(process.env.FAUTES || 12), DETAIL = !!process.env.DETAIL;
 const fautes = [], faute = t => { if (fautes.length < MAX_FAUTES) fautes.push(t); };
-let nOptions = 0, nRoutes = 0;
+let nOptions = 0;
 for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
   if (o.rien) continue;
   const e = canauxDe(o);
@@ -104,12 +103,6 @@ for (const [k, D] of Object.entries(DOSSIERS)) for (const o of D.options) {
     else if (ditPrix && b === true) faute(`${id} : le prix dit ${cle}, la ligne est verte`);
   }
 }
-for (const [r, cs] of Object.entries(CARTES_DE_ROUTE)) for (const [id, C] of Object.entries(cs)) {
-  if (!C.effet) continue;
-  nRoutes++;
-  const lignes = lignesTenues(C.effet, C.duree);
-  if (lignes.size === 1 && lignes.has('rien')) faute(`route ${r}.${id} : ne se voit sur aucun club`);
-}
 informer('les clubs lus', TEAMS.map(t => t.name).join(' · '));
-exiger('chaque réponse d\'un dossier dit ses lignes : le vert au bon, le rouge au prix, rien de promis sans ligne ; chaque carte de route se voit', !fautes.length, fautes.join(' · ') || `${nOptions} réponses, ${nRoutes} cartes de route`);
+exiger('chaque réponse d\'un dossier dit ses lignes : le vert au bon, le rouge au prix, rien de promis sans ligne', !fautes.length, fautes.join(' · ') || `${nOptions} réponses`);
 verdict('Les mots d\'un choix disent ses lignes');
