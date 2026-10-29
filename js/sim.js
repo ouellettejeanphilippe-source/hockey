@@ -6999,7 +6999,8 @@ export function echangesProposes(roster, n = 12) {
  * saisons de run du robot attentif (`check_moments_si`) : un moment `rare` (les séries, la bête noire, le duel) arrive
  * quelques fois par saison et vaut plus par soir ; un moment `choix` dépend d'un geste du joueur (jouer un blessé).
  * Les jambes se lisent sur le patineur le plus fatigué de l'alignement : la moyenne du club ne bouge presque pas (90 à
- * 96), le plus fatigué va de 81 à 93 — ses seuils sont les quartiles du bas et du haut.
+ * 96), le plus fatigué beaucoup plus — ses seuils sont les quartiles du bas et du haut d'une saison de run. V21 : le
+ * personnel, qui gardait les jambes, est parti ; le plus fatigué descend plus bas, et les seuils avec lui (89 et 92 → 78 et 88).
  * `parSaison` (V10, tranche 3) : combien de soirs d'une saison de run le moment est vrai, la médiane de cette mesure
  * (docs/refonte-v10.md § 3) — ce qu'une carte de saison dit de ses chiffres, et la borne de sa rareté (check_places).
  */
@@ -7008,8 +7009,8 @@ export const MOMENTS_SI = {
   visiteur: { mot: 'À l\'étranger', parSaison: 41 },
   series: { mot: 'En séries', rare: true, parSaison: 10 },
   dosADos: { mot: 'Un soir de dos-à-dos', parSaison: 15 },
-  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 89, parSaison: 15 },
-  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 92, parSaison: 11 },
+  jambesLourdes: { mot: 'Les jambes lourdes', seuil: 78, parSaison: 16 },
+  jambesFraiches: { mot: 'Les jambes fraîches', seuil: 88, parSaison: 23 },
   rival: { mot: 'Contre un rival', parSaison: 6 },
   beteNoire: { mot: 'Contre ta bête noire', rare: true, parSaison: 3 },
   apresDefaite: { mot: 'Après une défaite', parSaison: 28 },
