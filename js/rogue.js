@@ -140,7 +140,6 @@ export const DEBLOCAGES = {
   // S79 : la masse salariale se débloque aussi.
   plafond1: { ico: '💵', nom: 'Une masse salariale indexée', prix: 45, texte: '+3\u00a0M$ de plafond au début de chaque run.' },
   plafond2: { ico: '💰', nom: 'Le proprio dépense', prix: 110, requis: 'plafond1', texte: '+4\u00a0M$ de plus au début de chaque run (+7\u00a0M$ en tout).' },
-  dgFlexible: { ico: '🧮', nom: 'Le DG du plafond flexible', prix: 70, personnel: 'dir_flexible', texte: 'Il rejoint ton personnel pour de bon : engagé, il donne 5 % de plafond de plus.' },
   /*
    * S80 : LE DÉPART DU CLASSEUR. JP : *le classeur, on peut piger x cartes aux
    * départ, ou random, selon upgrades*. Puis, le 24 oct. : *garder des joueurs
@@ -356,21 +355,19 @@ export function vedettesDeConcession(candidats, { piger, personne }) {
  * sert la run suivante, et une run reprise retrouve les mêmes packs.
  */
 /*
- * V2.3 — LE COACH ET SES PATRONS, AU PRESTIGE. JP : *au début, t'as genre 3 coachs seulement, et 2 adjoints
- * possibles, pis ça augmente selon les runs*. Chaque rang ouvre `coachs` coachs au choix du départ (les huit
- * voies, dans l'ordre de `VOIES`), `postes` postes de patron, et les raretés (`raretes`) d'où se tirent les
- * deux patrons imposés au départ — des passifs neutres, utiles à tous (js/banque.js `patronsDeDepart`).
+ * V2.3 — LES COACHS AU PRESTIGE. JP : *au début, t'as genre 3 coachs seulement, pis ça augmente selon les runs*.
+ * Chaque rang ouvre `coachs` coachs au choix du départ (les huit voies, dans l'ordre de `VOIES`). V21 : les postes de
+ * patron et les patrons imposés sont partis avec le personnel.
  */
 export const PRESTIGES = [
-  { nom: 'Club de garage', min: 0, etoile: 1, phenomene: 1, classeur: 0, coachs: 3, postes: 2, raretes: ['commune'], texte: 'Personne ne te connaît encore.' },
-  { nom: 'Club de quartier', min: 120, etoile: 1, phenomene: 1, classeur: 3_000_000, coachs: 4, postes: 2, raretes: ['commune', 'peu'], texte: 'On commence à parler de toi au dépanneur.' },
-  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1.1, phenomene: 1.15, classeur: 6_000_000, coachs: 5, postes: 3, raretes: ['commune', 'peu'], texte: 'Les agents rappellent.' },
-  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.2, phenomene: 1.3, classeur: 10_000_000, coachs: 6, postes: 3, raretes: ['commune', 'peu', 'rare'], texte: 'Les joueurs autonomes regardent ton club en premier.' },
-  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.5, classeur: 15_000_000, coachs: 8, postes: 4, raretes: ['commune', 'peu', 'rare'], texte: 'Tout le monde veut jouer pour toi.' },
+  { nom: 'Club de garage', min: 0, etoile: 1, phenomene: 1, classeur: 0, coachs: 3, texte: 'Personne ne te connaît encore.' },
+  { nom: 'Club de quartier', min: 120, etoile: 1, phenomene: 1, classeur: 3_000_000, coachs: 4, texte: 'On commence à parler de toi au dépanneur.' },
+  { nom: 'Club respecté', min: 350, jalon: 'series', etoile: 1.1, phenomene: 1.15, classeur: 6_000_000, coachs: 5, texte: 'Les agents rappellent.' },
+  { nom: 'Puissance de la ligue', min: 700, jalon: 'ronde', etoile: 1.2, phenomene: 1.3, classeur: 10_000_000, coachs: 6, texte: 'Les joueurs autonomes regardent ton club en premier.' },
+  { nom: 'Dynastie', min: 1200, jalon: 'finale', etoile: 1.3, phenomene: 1.5, classeur: 15_000_000, coachs: 8, texte: 'Tout le monde veut jouer pour toi.' },
 ];
-/* Les coachs qu'une run de ce rang peut choisir, et ses postes de patron. */
+/* Les coachs qu'une run de ce rang peut choisir. */
 export const coachsOuverts = rang => VOIES.slice(0, (PRESTIGES[rang] || PRESTIGES[0]).coachs);
-export const postesDePatron = rang => (PRESTIGES[rang] || PRESTIGES[0]).postes;
 /* Les écussons gagnés à vie : le compte, ou — pour un méta d'avant la v2 — ce qu'on a, plus ce qu'on a dépensé au vestiaire. */
 export const ecussonsAVie = m => (m.ecussonsAVie != null ? m.ecussonsAVie
   : (m.ecussons || 0) + (m.deblocages || []).reduce((a, k) => a + ((DEBLOCAGES[k] && DEBLOCAGES[k].prix) || 0), 0));
@@ -459,9 +456,8 @@ export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infini
 
 /* ---------- le méta ---------- */
 /*
- * S79 : l'INVENTAIRE PERMANENT — `personnel` (les patrons qu'on possède, qu'on
- * engage à chaque run), `inventaire` (id → nombre de consommables permanents),
- * et `recus` (les achats déjà versés au méta : une ouverture ne paie qu'une fois).
+ * S79 : l'INVENTAIRE PERMANENT — `inventaire` (id → nombre de cartes rares permanentes), et `recus` (les achats déjà
+ * versés au méta : une ouverture ne paie qu'une fois). V21 : le personnel est parti.
  */
 /*
  * S80 : `runs` compte les runs COMMENCÉES (une run dure maintenant plusieurs
@@ -476,15 +472,21 @@ export function tirageDuDepart({ fixes = [], cartes = [], quota, budget = Infini
  * cartes du méta se vide (l'inventaire, le personnel, les cartes). Le cartable des joueurs, les médailles, les
  * déblocages et le panthéon restent. Rend le méta converti, ou null s'il l'était déjà.
  */
-const JEU_DE_CARTES = 'v10';
-export const convertirAuJeuNeuf = m => (m.jeu === JEU_DE_CARTES ? null : { ...m, inventaire: {}, personnel: [], cartes: [], jeu: JEU_DE_CARTES });
-const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, personnel: [], inventaire: {}, recus: {}, jalons: {}, sel: null });
+/* V21 (docs/refonte-v21.md ; JP : *on s'en fout de briser les saves*) : le coach-personnage remplace le personnel ; les runs en cours repartent, une fois. */
+const JEU_DE_CARTES = 'v21';
+export const convertirAuJeuNeuf = m => {
+  if (m.jeu === JEU_DE_CARTES) return null;
+  const { personnel: _p, copiesPerso: _c, ...reste } = m;
+  void _p; void _c;
+  return { ...reste, inventaire: {}, cartes: [], jeu: JEU_DE_CARTES };
+};
+const META_VIDE = () => ({ ecussons: 0, deblocages: [], collection: [], cartes: [], runs: 0, saisons: 0, coupes: 0, meilleur: null, derniereEquipe: [], recompenses: {}, inventaire: {}, recus: {}, jalons: {}, sel: null });
 /*
  * Les déblocages partis : leurs médailles reviennent (une fois : écrit, le méta ne l'a plus). V13-2 : « Un deck
  * aiguisé », avec le deck de match. 24 oct. : « Le classeur ouvert », avec le choix dans tout le classeur ; acheté
  * ou offert par la Coupe (le méta ne le dit pas), il rend son prix.
  */
-const PARTIS = { deckPlus: 50, classeurChoix: 280 };
+const PARTIS = { deckPlus: 50, classeurChoix: 280, dgFlexible: 70 };
 /*
  * Les cartes parties de la banque (V16, tranche 6 : la masse salariale, les soins de trop, le congédiement, les
  * rappels) : chacune qu'un inventaire gardait rend `REMBOURSEMENT_CARTE` médailles, une fois.
@@ -556,34 +558,20 @@ export function acheterDeblocage(cle) {
   if (!peutAcheter(m, cle)) return false;
   m.ecussons -= DEBLOCAGES[cle].prix;
   m.deblocages = [...(m.deblocages || []), cle];
-  // Un déblocage de personnel : le patron rejoint le personnel permanent.
-  if (DEBLOCAGES[cle].personnel) m.personnel = [...new Set([...(m.personnel || []), DEBLOCAGES[cle].personnel])];
   ecrireMeta(m);
   return true;
 }
 /*
- * LES PERMANENTS D'UN PACK (S79) : le personnel et les consommables permanents
- * vont au méta, UNE fois par achat (`recus[cle]`) — une ouverture ne paie pas
- * deux fois. Et un consommable permanent qu'on joue le quitte.
+ * LES PERMANENTS D'UN PACK (S79) : les cartes rares permanentes vont au méta, UNE fois par achat (`recus[cle]`) — une
+ * ouverture ne paie pas deux fois. Et une carte permanente qu'on joue le quitte.
  */
-/* Les copies d'une personne au méta (V14) : la première, puis ses doublons ; deux copies ouvrent ses trois échelons. */
-export const COPIES_MAX = 2;
-export const copiesDe = (m, cle) => ((m.personnel || []).includes(cle) ? Math.min(COPIES_MAX, (m.copiesPerso || {})[cle] || 1) : 0);
 export function recevoirPermanents(ids = [], cleRecu = '') {
   const m = lireMeta();
   m.recus = m.recus || {};
   if (cleRecu && m.recus[cleRecu]) return false;
   if (cleRecu) m.recus[cleRecu] = true;
-  const perso = new Set(m.personnel || []);
   m.inventaire = m.inventaire || {};
-  // V14 : une personne déjà à toi revient en doublon — une copie de plus, qui paie un échelon (V20, js/echelons.js `echelonsGratuits`).
-  m.copiesPerso = m.copiesPerso || {};
-  for (const id of ids) {
-    const [cat, cle] = String(id).split(':');
-    if (cat === 'patron') { if (perso.has(cle)) m.copiesPerso[cle] = Math.min(COPIES_MAX, (m.copiesPerso[cle] || 1) + 1); perso.add(cle); }
-    else m.inventaire[id] = (m.inventaire[id] || 0) + 1;
-  }
-  m.personnel = [...perso];
+  for (const id of ids) m.inventaire[id] = (m.inventaire[id] || 0) + 1;
   const cles = Object.keys(m.recus);
   if (cles.length > 400) for (const x of cles.slice(0, cles.length - 400)) delete m.recus[x];
   ecrireMeta(m);
@@ -809,7 +797,7 @@ export const JALONS = [
   // 1.0 : le goût d'essayer — des cartes différentes, et tous les niveaux dans la même équipe.
   { cle: 'essais', ico: '🧪', nom: 'Cinquante essais', texte: 'Fais jouer 50 cartes différentes en Rogue.', si: f => (f.joues || 0) >= 50, recompense: { ecussons: 40 } },
   // V10 : le Pack du coach s'ouvre quand un coach a toute ta confiance.
-  { cle: 'coachIII', ico: '📋', nom: 'La confiance III', texte: 'Monte un coach à sa confiance III.', si: f => !!f.coachIII, recompense: { ecussons: 40 }, pack: 'j:coach' },
+  { cle: 'coachIII', ico: '📋', nom: 'Le coach au sommet', texte: 'Mène ton coach à son dernier niveau.', si: f => !!f.coachAuSommet, recompense: { ecussons: 40 }, pack: 'j:coach' },
   { cle: 'tousNiveaux', ico: '🌈', nom: 'Tous les niveaux', texte: 'Finis une saison avec un joueur de chaque niveau, de Soutien à Phénomène.', si: f => (f.niveaux || 0) >= 5, recompense: { ecussons: 50 } },
 ];
 /*
@@ -849,7 +837,6 @@ export function payerJalons(faits) {
     m.jalons[J.cle] = true;
     if (r.deblocage) {
       m.deblocages = [...(m.deblocages || []), r.deblocage];
-      if (DEBLOCAGES[r.deblocage].personnel) m.personnel = [...new Set([...(m.personnel || []), DEBLOCAGES[r.deblocage].personnel])];
     } else { m.ecussonsAVie = ecussonsAVie(m) + r.ecussons; m.ecussons = (m.ecussons || 0) + r.ecussons; }
     payes.push({ ...J, mot: r.mot });
   }

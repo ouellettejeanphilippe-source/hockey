@@ -137,7 +137,7 @@ function cle(team, lu, adv, opts) {
   const J = x => JSON.stringify(x, (k, v) => (v === Infinity ? 'inf' : v === -Infinity ? '-inf' : v));
   const joueurs = Object.values(lu || activeLineup(team)).map(p => (p ? `${getPlayerKey(p)}:${Math.round(energieDe(p))}:${p._mutCles || ''}:${p._cran || ''}:${p._amel ? 1 : 0}:${p._partout ? 1 : 0}:${p._enBas ? 1 : 0}:${p._ombre || ''}:${p._abri || ''}:${p._palier || ''}:${p._mentor ? 1 : 0}:${(p._carte && p._carte.rar) || ''}` : '-'));
   try {
-    return J([team.name, team.jourCourant, team.games, joueurs, (team.patrons || []).map(x => x.cle), (team.coachs || []).map(x => [x.cle, x.palier]),
+    return J([team.name, team.jourCourant, team.games, joueurs,
       team.effets, team.effetsSerie, team._effetMatch, team.speciales, team.fermeture, !!team.isPlayer, team._filetForce, team._filetMatch, team.gardienAux, adv && [adv.name, adv.games, !!adv.isPlayer],
       opts.aVenir, opts.effets, opts.effetsAdv, opts.mutation && [opts.mutation.cle, opts.mutation.retirer, opts.mutation.rien, opts.mutation.joueur ? getPlayerKey(opts.mutation.joueur) : null],
       opts.nu, opts.neutre, opts.n, opts.series, opts.plan, opts.duel,
@@ -233,14 +233,13 @@ function echangesDePoste(R) {
 }
 /* Ce qu'un alignement coûte en postes : la somme des pénalités de ses habillés. */
 export const penaliteDePoste = R => ['F', 'D'].reduce((t, g) => t + casesDuGroupe(g).reduce((a, s) => a + (R[s.i] ? getPositionPenalty(R[s.i], s) : 0), 0), 0);
-export function alignementAuMieux(joueurs, { plan = false, coachs = [] } = {}) {
+export function alignementAuMieux(joueurs, { plan = false } = {}) {
   const saison = (joueurs.find(p => p && p.s) || {}).s;
   // Sous un hasard à part : le club lu tire sa chance de saison, et la saison en cours ne doit pas bouger d'un dé.
   const lu = R => avecHasardIsole('au mieux', () => {
     const T = createTeam('Au mieux', 'MOI', R, { season: saison });
     // En Rogue, la lecture joue le moteur du Rogue.
     T.courbe = plan;
-    T.coachs = coachs;
     const m = moyennes(lectureDuMatch(T, R, null, { n: N_BASE }));
     return m.butsPour - m.butsContre;
   });
@@ -445,8 +444,6 @@ export function ceQuiJoue(team, lineup = null, adv = null, aVenir = []) {
     const tel = lire(team, lineup, adv, { n: N_EFFET });
     const j = team.jourCourant || 0;
     const sources = [
-      ...(team.coachs || []).map((c, i) => ({ champ: 'coachs', i, genre: 'coach', ico: c.ico, nom: c.nom })),
-      ...(team.patrons || []).map((x, i) => ({ champ: 'patrons', i, genre: 'patron', ico: x.ico, nom: x.nom })),
       ...(team.effets || []).map((e, i) => ({ champ: 'effets', i, e })).filter(({ e }) => j >= e.debut && j < e.fin && e.source !== 'match')
         .map(({ champ, i, e }) => ({ champ, i, genre: 'effet', ico: e.ico, nom: e.nom, reste: matchsEntre(team, j, e.fin) })),
     ].filter(s => s.nom);

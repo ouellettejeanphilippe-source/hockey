@@ -118,28 +118,18 @@ export function motDeStyle(p, l) {
 export const dire = (x, d = 1) => (x == null ? '—' : virgule(x.toFixed(d)));
 
 /**
- * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les
- * patrons, les effets en cours (événements, dilemmes, séquences, paris), les
- * cartes de match jouées. Tout se relit des décisions et des effets datés de l'équipe : rien
- * n'est stocké, rien n'est deviné. `decisions` : celles de ta formation.
+ * CE QUI JOUAIT TA FORMATION CE SOIR-LÀ, en noms : les pouvoirs du coach qui ont joué (V21, la feuille les garde), les
+ * effets en cours (événements, dilemmes, séquences, paris), les cartes de match jouées. Tout se relit des décisions, de
+ * la feuille et des effets datés de l'équipe : rien n'est stocké, rien n'est deviné.
  */
-export function buildDuSoir(team, decisions, jour, feuille = null) {
-  const ds = (decisions || []).filter(d => d && (d.equipe || 0) === 0 && Number.isFinite(d.jour) && d.jour <= jour).sort((a, b) => a.jour - b.jour);
+export function buildDuSoir(team, jour, feuille = null) {
   const nomIco = x => `${x.ico ? `${x.ico} ` : ''}${x.nom}`;
-  let patrons = [];
-  for (const d of ds) {
-    if (!d.patron || !d.patron.cle) continue;
-    // La décision porte son patron (son nom, son rôle) : on le lit là, comme le moteur.
-    const rempl = new Set([d.patron.cle, ...(d.patron.remplace || [])]);
-    patrons = [...patrons.filter(x => !rempl.has(x.cle) && !(d.patron.role && x.role === d.patron.role)), d.patron];
-  }
+  const cote = feuille && feuille.B === team ? 'B' : 'A';
+  const pouvoirs = ((feuille && feuille.pouvoirs) || []).filter(x => x.cote === cote).map(x => `${nomIco(x)} (${x.k + 1}${x.k ? 'e' : 're'})`);
   const effets = ((team && team.effets) || []).filter(e => e.nom && e.source !== 'match' && jour >= e.debut && jour < e.fin).map(nomIco);
   const unique = xs => [...new Set(xs)];
   const jouees = ((feuille && feuille.cartes && feuille.cartes.jouees) || []).filter(c => CARTES_MATCH[c]).map(c => nomIco(CARTES_MATCH[c]));
-  return {
-    patrons: patrons.filter(x => x.nom).map(nomIco), effets: unique(effets),
-    jouees,
-  };
+  return { pouvoirs, effets: unique(effets), jouees };
 }
 
 /** Le build du soir est-il vide ? */

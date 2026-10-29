@@ -22,7 +22,7 @@
  */
 
 import { REROLLS, MODES, AFFICHAGE_COURBE, batirLesClubs, echelleTardive, joueurEquivalent, getPersonKey, casesDuMode, SLOTS, getPlayerKey, getPositionPenalty, positionsAvant, unitesIdeales, joueEnBas, getHiddenRatings, fits, badgesDe, MUTATIONS, autoRoster, createTeam, CASES_DE_BASE as CASES_ALIGNEMENT_DE_BASE, nouvelleGraine, simulate, coachDuJoueur, ZONE_PEN_DESSUS, ZONE_PUISSANCE, fragiliteDe, FRAGILE_DES, matchsDeSaSaison } from './sim.js';
-import { COACHS, JOUEUR_COACH, PALIERS_COACH_MAX } from './coachs.js';
+import { COACHS } from './coachs.js';
 import { PLAFOND_ROGUE, lireMeta, ecrireMeta, mandatDe, convertirAuJeuNeuf } from './rogue.js';
 import { FRANCHISES, saisonsDeFranchise, codeDeFranchise } from './franchises.js';
 import { IDENTITES, scoreIdentite } from './identites.js';
@@ -993,7 +993,7 @@ export function agesAvailable() {
 /* SA COULEUR (v2, js/coachs.js) : le coach de son meilleur rôle maîtrisé — ses cartes et la confiance de ce coach comptent sur lui. */
 export function coachTag(p) {
   const C = COACHS[coachDuJoueur(p)];
-  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : habillé, il porte la confiance de ce coach, +${Math.round(JOUEUR_COACH * 100)} % par métal de son badge (Bronze 1, Platine 4), jusqu'à ${PALIERS_COACH_MAX} métaux pour tout l'effectif.">${C.ico} ${esc(C.nom)}</span>` : '';
+  return C ? `<span class="tag" title="Joueur ${esc(C.de)} : son meilleur rôle est celui de ce coach ; le Pack du coach et son dépisteur le cherchent.">${C.ico} ${esc(C.nom)}</span>` : '';
 }
 export function zoneTag(p, mini = false) {
   const v = getHiddenRatings(p).v;
@@ -1191,12 +1191,12 @@ async function boot() {
   });
   // S77 : l'ancienne sauvegarde unique devient la première partie de l'index.
   migrer();
-  // V10 : le jeu de cartes neuf, une fois — les runs en cours repartent de zéro, l'inventaire de cartes se vide.
+  // V10, puis V21 : le jeu neuf, une fois — les runs en cours repartent de zéro, l'inventaire de cartes se vide.
   const meta = lireMeta(), converti = convertirAuJeuNeuf(meta);
   if (converti) {
     const runs = retirerLesRuns();
     ecrireMeta(converti);
-    if (runs || Object.keys(meta.inventaire || {}).length || (meta.personnel || []).length) {
+    if (runs || Object.keys(meta.inventaire || {}).length) {
       setTimeout(() => toast('Le Rogue a un jeu de cartes neuf : ta run repart de zéro, et tes cartes d\'avant sont parties. Ton cartable, tes médailles et tes déblocages restent.'), 1500);
     }
   }

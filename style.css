@@ -3599,7 +3599,6 @@ a.spin-club:hover { background: var(--fond-2); }
 /* Le coach et sa confiance, les effets du soir (V7), en tiroirs et en rangées. */
 .ej-soir { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }
 .ej-soir:empty { display: none; }
-.ej-k { display: flex; justify-content: space-between; align-items: baseline; font: 800 var(--t-3)/1.1 var(--display); text-transform: uppercase; letter-spacing: 0.04em; }
 .ej-liste { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
 .ej-r { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--esp-2); min-height: 32px; padding: 0 var(--esp-2); background: var(--fond-2); border-radius: var(--r-1); }
 .ej-nom { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: var(--t-2); }
@@ -3620,41 +3619,22 @@ a.spin-club:hover { background: var(--fond-2); }
 .ej-jauge em b { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); font: 700 var(--t-1)/1 var(--display); color: var(--encre-3); }
 .ej-jauge em.fait { background: var(--encre); }
 .ej-coach-l { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); font: 600 var(--t-1)/1.3 var(--display); letter-spacing: 0.04em; color: var(--encre-2); }
-/* TON PERSONNEL (V12-2, au sous-onglet de l'entraîneur) : chaque poste et qui l'occupe, ce qu'il fait ; les postes libres. */
-.perso { display: flex; flex-direction: column; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--filet); }
-.perso-t { margin: 0; font: 800 var(--t-2)/1.2 var(--display); letter-spacing: 0.06em; text-transform: uppercase; color: var(--encre-2); }
-.perso-l { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: var(--esp-3); padding: var(--esp-1) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); }
-.perso-ico { font-size: var(--t-5); line-height: 1; }
-.perso-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.perso-txt small { font: 700 var(--t-1)/1.2 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
-.perso-txt b { font: 800 var(--t-3)/1.15 var(--display); color: var(--encre); }
-.perso-txt em { font-size: var(--t-1); font-style: italic; line-height: 1.3; color: var(--encre-2); }
-.perso-libre { margin: 0; font-size: var(--t-1); color: var(--encre-2); }
-/* TON PERSONNEL (V14, js/echelons.js) : une rangée de gestion, toujours visible — l'icône de sa carte et de son poste, son style,
-   sa force et son défaut, son échelon et son contrat ; elle s'ouvre en feuille sur sa fiche et, à un échelon atteint, sur le choix. */
-.gens { width: 100%; border: 0; border-radius: var(--r-1); background: var(--fond-2); text-align: left; }
-.gens.monte { box-shadow: inset 3px 0 0 var(--or); }
-.gens-l { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; align-items: center; gap: var(--esp-3); min-height: 56px; padding: var(--esp-1) var(--esp-3); }
-.gens-av { position: relative; width: 40px; height: 40px; border-radius: var(--r-1); display: grid; place-items: center; background: var(--fond-3); font-size: var(--t-5); line-height: 1; }
-.gens-av > span { position: absolute; right: -6px; bottom: -6px; font-size: var(--t-1); line-height: 1; }
-.gens-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.gens-txt b { font: 800 var(--t-3)/1.15 var(--display); text-transform: uppercase; color: var(--encre); }
-.gens-txt small { font-size: var(--t-1); line-height: 1.25; color: var(--encre-2); }
-.gens-ff { display: flex; flex-wrap: wrap; gap: 0 var(--esp-2); font: 700 var(--t-1)/1.25 var(--display); }
-.gens-ff .bon { color: var(--bon); }
-.gens-ff .mal { color: var(--mauvais); }
-.gens-niv { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font: 800 var(--t-1)/1 var(--display); text-transform: uppercase; letter-spacing: 0.06em; }
-.gens-ech { display: flex; gap: 2px; }
-.gens-ech i { width: 8px; height: 8px; border-radius: var(--r-0); background: var(--fond-3); border: 1px solid var(--filet); }
-.gens-ech i.on { background: var(--or); border-color: var(--or); }
-.gens-ct { font-weight: 700; letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; }
-.gens-monte { color: var(--noir-pur); background: var(--or); padding: 3px 5px; border-radius: var(--r-0); }
-.gens-fiche { display: flex; flex-direction: column; gap: var(--esp-2); }
+/* LES POUVOIRS DU COACH (V21, js/alignement.js `coachHtml`) : une carte par pouvoir de son arbre — ouvert ou verrouillé (le niveau qui
+   l'ouvre), ce qu'il fait, sa force, ses adjoints accrochés dessous, et combien de fois il a joué cette saison. */
+.pv { display: flex; flex-direction: column; gap: 2px; padding: var(--esp-2) var(--esp-3); border-radius: var(--r-1); background: var(--fond-2); box-shadow: inset 3px 0 0 var(--or); }
+.pv.ferme { box-shadow: none; opacity: 0.55; }
+.pv-tete { display: flex; align-items: center; gap: var(--esp-2); font: 800 var(--t-3)/1.15 var(--display); text-transform: uppercase; color: var(--encre); }
+.pv-tete small { font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; color: var(--or); }
+.pv-ico { font-size: var(--t-4); line-height: 1; }
+.pv-etat { margin-left: auto; font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.06em; color: var(--encre-3); white-space: nowrap; }
+.pv-dit { margin: 0; font-size: var(--t-1); line-height: 1.35; color: var(--encre-2); }
+.pv-dit .bon { color: var(--bon); }
+.pv-bf { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin: 0; }
+.pv-bf span { padding: 2px 6px; border-radius: var(--r-0); background: var(--fond-3); font: 700 var(--t-1)/1.2 var(--display); color: var(--encre); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }
 /* Ce que le prochain palier jouera (V12-4) : un détail, que « Les chiffres » déplie, comme les chiffres d'un choix. */
 .af-onglet:not(.chiffres) .ej-coach-l.detail { display: none; }
-.ej-coach-l .ej-k { font-size: var(--t-1); color: var(--encre-3); }
 .ej-coach-l .bon { color: var(--bon); }
 .ej-coach-l .mal { color: var(--mauvais); }
 .plan-match { display: flex; flex-direction: column; gap: var(--esp-2); padding: var(--esp-3); margin-bottom: var(--esp-3); background: var(--fond-1); border: 1px solid var(--filet); border-radius: var(--r-2); }

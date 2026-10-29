@@ -12,8 +12,7 @@
  *                 cartes jouées, les ventes) : une partie reprise les retrouve.
  *                 V16 : plus de places ni de limite ; chacune se joue chez ce
  *                 qu'elle touche.
- *   PERMANENT     (mode Rogue) le personnel qu'on possède — on l'engage à
- *                 chaque run — et les consommables permanents, gardés d'une
+ *   PERMANENT     (mode Rogue) les cartes rares permanentes, gardées d'une
  *                 run à l'autre dans le méta (\`cap82_rogue\`, js/rogue.js).
  * Et le CLASSEUR : toute la banque, possédée ou non, par famille et rareté.
  *
@@ -21,8 +20,7 @@
  * (js/game.js) choisit la cible, écrit la décision, et la saison continue.
  */
 import { BANQUE, CATEGORIES, ORDRE_CATEGORIES, VIES, reglesDe, carteBanque, idsDe, etiquetteBanque } from './banque.js';
-import { COACHS } from './coachs.js';
-import { tirerCartesPack, sortDUnPack, adjointsDeCouleur } from './packs.js';
+import { sortDUnPack } from './packs.js';
 import { RARETES } from './cartes.js';
 import { puces, chiffresOuverts, basculerChiffres, carteDeBanqueHtml } from './gerant.js';
 import { esc, money as M, jaugePlafond } from './util.js';
@@ -32,23 +30,9 @@ const $ = id => document.getElementById(id);
 export const SEMAINE = 7;
 /*
  * LES PALIERS DE LA SAISON (S79 ; V9, tranche 5b) : aux matchs 9, 18 et 26, au verdict du proprio et au butin d'un gros
- * match gagné. V16 (docs/refonte-v16.md § 3) : un adjoint parmi trois, tiré comme au Pack Personnel ; pris, il rejoint
- * ton personnel, d'une run à l'autre (un doublon ouvre un échelon). Pur : la graine et le palier.
+ * match gagné. V21 : un bienfait parmi trois pour le coach (js/pouvoirs.js `bienfaitsOfferts`, js/saison.js).
  */
 export const PALIERS_PACK = [9, 18, 26];
-const CARTES_DU_PALIER = 3;
-/* Sur les trois adjoints offerts, celui-là est de la couleur du coach en poste : le club se construit autour de lui. Deux sur trois avançait la première Coupe de l'attentif à la run 2,5 (check_profondeur : 3 à 8) ; un seul la garde à sa place. */
-export const DE_SA_COULEUR = 1;
-export function cartesDuPalier(graine, p, coach = null) {
-  const out = [];
-  for (const id of adjointsDeCouleur(graine, `palier${p}`, coach, DE_SA_COULEUR)) if (BANQUE[id] && !out.includes(id)) out.push(id);
-  for (let k = 0; out.length < CARTES_DU_PALIER && k < 12; k++) {
-    for (const id of tirerCartesPack('patrons', graine, `palier${p}${k ? `:${k}` : ''}`)) {
-      if (out.length < CARTES_DU_PALIER && BANQUE[id] && !out.includes(id)) out.push(id);
-    }
-  }
-  return out;
-}
 
 /*
  * LES CARTES DE LA PARTIE, pures : les cartes des packs achetés (`achat.cartes`), du report de la saison d'avant (`poche`), d'un
@@ -62,18 +46,13 @@ export function cartesDeLaPartie({ decisions = [], rogue = false } = {}) {
   for (const d of achats) d.achat.cartes.forEach((id, t) => {
     if (!BANQUE[id]) return;
     if (rogue && BANQUE[id].vie === 'permanent') return;
-    if (((d.achat.sorte === 'cartes' ? d.achat.vendus : d.achat.cartesVendues) || []).includes(t)) return;
+    if ((d.achat.cartesVendues || []).includes(t)) return;
     items.push({ ref: `${d.achat.n}:${t}`, id, source: `Pack · journée ${(d.jour || 0) + 1}` });
   });
   // Jalon Q : les cartes de la saison d'avant, reportées au jour 0 (leurs cartes gardent leur rang : `r<i>`).
   for (const d of decisions) if (d && Array.isArray(d.poche)) d.poche.forEach((id, i) => { if (BANQUE[id]) items.push({ ref: `r${i}`, id, source: 'La saison d\'avant' }); });
   // S80 : une amélioration ou une retouche de l'atelier prise à un palier du deck SE GARDE (`garde`), comme une carte de pack.
   for (const d of decisions) if (d && d.garde && BANQUE[d.garde]) items.push({ ref: `deck:${d.palier}`, id: d.garde, source: `Main du ${d.palier}e match` });
-  // V9, tranche 5b : la carte prise à un palier de la saison (`pp:<match>`) ; V10 : ou au verdict du proprio (`v:<jour>`) ;
-  // V13-2 : ou au butin d'un gros match gagné (`r:<jour>`).
-  const sourceDe = k => (k.startsWith('v:') ? 'Le proprio' : k.startsWith('trou:') ? 'La case vide' : k.startsWith('r:') ? 'Un gros match gagné' : `Le ${k.slice(3)}e match`);
-  // V16 : un adjoint pris là rejoint ton personnel (js/banc.js `ajouterDecision`), pas une place.
-  for (const d of decisions) if (d && d.place && BANQUE[d.place] && typeof d.palier === 'string' && !(rogue && BANQUE[d.place].vie === 'permanent')) items.push({ ref: d.palier, id: d.place, source: sourceDe(d.palier) });
   const parties = new Set();
   for (const d of decisions) {
     if (d && d.joue && d.joue.src === 'partie') parties.add(d.joue.ref);
@@ -93,12 +72,12 @@ export function cartesDeLaPartie({ decisions = [], rogue = false } = {}) {
 export const VENTE = { commune: 1, peu: 1, hors: 1, rare: 2, legendaire: 5, maudite: 0 };
 export const valeurDe = id => { const c = BANQUE[id] || {}; return c.cat === 'consommable' ? 0 : (VENTE[c.rarete] ?? 1); };
 
-/* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa couleur, sa règle. */
+/* Une carte de la banque en option de carte (`ouvrirChoix`, `carteDeBanqueHtml`) : sa famille, sa vie, sa règle. */
 export function optionDeBanque(id, vie = null) {
   const c = BANQUE[id];
   const etiquette = etiquetteBanque(id);
   return { cle: id, rarete: c.rarete === 'maudite' ? 'commune' : c.rarete, ico: c.ico, nom: c.nom,
-    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}${COACHS[c.coach] ? ` · ${COACHS[c.coach].ico} ${COACHS[c.coach].nom}` : ' · Neutre'}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
+    type: c.rarete === 'maudite' ? `Malédiction · ${CATEGORIES[c.cat].un}` : `${CATEGORIES[c.cat].un} · ${(VIES[vie || c.vie] || VIES.saison).nom}`, texte: c.texte, mots: reglesDe(id), famille: c.cat, ...(etiquette ? { etiquette } : {}) };
 }
 
 /* ---------- la carte de la banque : la face d'un pack (Jalon U), son compte, ses boutons ---------- */
