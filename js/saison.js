@@ -38,7 +38,7 @@ import { BLESSURE_MOMENT, RETOUR_FENETRE, caseHabillee, etatDeBlessure, blessure
 import { pronostic, prevision, chancesDesObjectifs, motDeChance } from './pronostic.js';
 import { artJoueur, photoAction, cadrePhoto } from './cartes.js';
 import { PALIERS_PACK, SEMAINE } from './inventaire.js';
-import { niveauDuPerso, talentsDus, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
+import { niveauDuPerso, talentsDus, NIVEAUX_TALENT, pouvoirsOuverts, POUVOIRS, TALENT } from './pouvoirs.js';
 import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, lignesDeLAdjoint } from './adjoints.js';
 import { PACKS_TOUS, packDeSerie } from './packs.js';
 import { motsSurLeJoueur, ouvrirChoix, choixOuvert, resumeLignes, puces, optionHtml, sceneHtml, enteteJoueur, chiffresOuverts, basculerChiffres, planAdverseHtml, ouvrirDuel, mainAdverseHtml, depistageHtml, pistesDuRapport, specDuDuel } from './gerant.js';
@@ -3391,7 +3391,7 @@ export function ouvrirSaison({ calendrier, ligue = null, teams, you, enSeries = 
     const dus = perso ? talentsDus(niveauDuPerso(perso), perso.talents || []) : 0;
     if (dus > 0 && !pris.has(`ta:${(perso.talents || []).length}`)) {
       const ouverts = pouvoirsOuverts(niveauDuPerso(perso)), nTal = (perso.talents || []).length;
-      out.push({ id: `ta:${nTal}`, genre: 'talent', bloque: false, de: DE.coach, sujet: `Niveau ${niveauDuPerso(perso)} : un talent`,
+      out.push({ id: `ta:${nTal}`, genre: 'talent', bloque: false, de: DE.coach, sujet: `Niveau ${NIVEAUX_TALENT[nTal]} : un talent`,
         choix: { recit: `Un de ses pouvoirs grandit de ${Math.round(TALENT * 100)} %, pour la run.`,
           options: ouverts.map(p => { const P = POUVOIRS[perso.cle][p]; return { cle: String(p), ico: P.ico, nom: P.nom, sous: P.dit }; }),
           decision: cle => ({ palier: `ta:${nTal}`, talent: { p: Number(cle) } }) } });

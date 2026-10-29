@@ -20,7 +20,7 @@ export const niveauDe = xp => SEUILS_NIVEAU.filter(s => (xp || 0) >= s).length;
 /* Ce qu'il manque pour le niveau suivant (null au dernier). */
 export const xpAvantProchain = xp => { const s = SEUILS_NIVEAU.find(x => (xp || 0) < x); return s == null ? null : s - (xp || 0); };
 export const NIVEAU_DES_POUVOIRS = [1, 3, 5];
-const NIVEAUX_TALENT = [2, 4];
+export const NIVEAUX_TALENT = [2, 4];
 export const TALENT = 0.5;
 /* Les pouvoirs ouverts à un niveau : leurs index (0, 1, 2). */
 export const pouvoirsOuverts = niveau => NIVEAU_DES_POUVOIRS.map((n, i) => (niveau >= n ? i : -1)).filter(i => i >= 0);
@@ -66,7 +66,7 @@ export const POUVOIRS = {
     { cle: 'charge', ico: '🐂', nom: 'La charge', dit: 'Derrière au pointage : +25 % de tirs, leur précision −12 %.', quand: derriere, effet: { volume: 1.25, robustesse: 1 }, adv: { finition: 0.88 } },
   ],
   souffle: [
-    { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période, un soir de dos-à-dos ou de jambes lourdes : +20 % de tirs, −22 % de buts contre.', quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), effet: { volume: 1.2, defense: 0.78 } },
+    { cle: 'souffle', ico: '🫁', nom: 'Le second souffle', dit: 'En 3e période, un soir de dos-à-dos ou de jambes lourdes : +20 % de tirs, −26 % de buts contre.', quand: e => k3(e) && soirDe(e, 'dosADos', 'jambesLourdes'), effet: { volume: 1.2, defense: 0.74 } },
     { cle: 'rotation', ico: '🩺', nom: 'La rotation', dit: 'Toute la soirée : −40 % de blessures.', quand: () => true, effet: { blessure: 0.6 } },
     { cle: 'resurrection', ico: '⚡', nom: 'La résurrection', dit: 'Derrière en 3e période : +40 % de tirs, +25 % de précision.', quand: e => k3(e) && derriere(e), effet: { volume: 1.4, finition: 1.25 } },
   ],

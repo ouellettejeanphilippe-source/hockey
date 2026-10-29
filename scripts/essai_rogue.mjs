@@ -1405,7 +1405,6 @@ await page.click('#navbar .navtab[data-section="bureau"]');
 await unVisible(BUREAU, 20000);
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
-  if (process.env.TRACE) console.log('TRACE', i, new Date().toISOString().slice(11, 19), JSON.stringify(await page.evaluate(() => ({ jour: (document.querySelector('#hubModal .hub-jour') || {}).textContent, msgs: [...document.querySelectorAll('#hubModal .hub-msg')].filter(x => x.checkVisibility()).map(x => `${x.dataset.msg}:${x.className.includes('bloque') ? 'B' : ''}:${(x.querySelector('.hub-msg-sujet') || {}).textContent}`).slice(0, 6), choix: (document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent }))));
   await regler();
   // Deux « Voir le bilan » peuvent exister (le bureau et sa page) : c'est le visible qui compte.
   if (await page.locator('#hubModal .hub-suite:visible').count()) break;
