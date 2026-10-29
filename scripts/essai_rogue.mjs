@@ -1194,40 +1194,35 @@ for (const pack of ['j:bronze', 'j:epoque']) {
     // Trop long : ses blocs, du plus haut au plus bas, pour savoir quoi plier.
     if (ecrans[k] > 1.3) console.log(`    ▸ ${k} : ${await page.$eval(`#hubModal .af-onglet[data-maison="${k}"]`, o => [...o.querySelectorAll(':scope > *, :scope > * > *')].filter(e => e.offsetHeight > 30).map(e => `${e.tagName.toLowerCase()}.${[...e.classList].join('.')} ${e.offsetHeight}`).join(' · ')).catch(() => '?')}`);
   }
-  // V14b : un échelon prêt s'achète dans la fiche de sa carte, chez l'entraîneur (plus dans À faire).
+  // V14b : un échelon s'achète dans la fiche de sa carte, chez l'entraîneur (plus dans À faire) ; V20 : quand on veut.
   {
     await versLOnglet('bureau', 'entraineur');
-    const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .gens.monte');
+    const ligne = await page.$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l');
     if (ligne) {
       await ligne.click(); await page.waitForTimeout(250);
       const b = await page.$('#choixModal [data-choix^="echelon:"]:not([disabled])');
       const n0 = (await decisionsDuCombat()).length;
       if (b) { await b.click(); await page.waitForTimeout(600); await attendreDecisions(n0); }
       const ech = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ech:'));
-      console.log(`10p. un échelon prêt, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
+      console.log(`10p. un échelon, chez l'entraîneur : ${b ? `acheté (${ech.length} décision(s) d'échelon)` : 'pas les jetons'}`);
       if (b && !ech.length) erreurs.push('acheter un échelon dans la fiche n\'écrit aucune décision');
       // Sans échelon à prendre, la feuille de l'adjoint reste ouverte : on la ferme avant la rangée suivante.
       if (await page.$('#choixModal:not([hidden])')) { await page.keyboard.press('Escape'); await page.waitForTimeout(250); }
-    } else console.log('10p. un échelon prêt, chez l\'entraîneur : aucun encore');
+    } else console.log('10p. un échelon, chez l\'entraîneur : aucun adjoint en poste');
   }
-  // V19 : un contrat se prolonge dans la fiche de sa carte, en jetons (« ct:<clé>:<n> »).
+  // V20 : le banc ouvert — plus de contrat ; aucune feuille d'adjoint n'offre de prolongation.
   {
     await versLOnglet('bureau', 'entraineur');
-    // La prolongation est une option de la feuille d'un adjoint : on ouvre la rangée de chaque adjoint jusqu'à en trouver une à prendre.
-    let bp = null;
+    let vues = 0, contrats = 0;
     for (const r of await page.$$('#hubModal .af-onglet[data-maison="entraineur"] .gens-l')) {
       await r.click(); await page.waitForTimeout(250);
-      bp = await page.$('#choixModal [data-choix="contrat"]:not([disabled])');
-      if (bp) break;
+      vues++;
+      if (await page.$('#choixModal [data-choix="contrat"]')) contrats++;
       await page.keyboard.press('Escape'); await page.waitForTimeout(250);
     }
-    if (bp) {
-      const n0 = (await decisionsDuCombat()).length;
-      await bp.click(); await page.waitForTimeout(600); await attendreDecisions(n0);
-      const ct = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ct:'));
-      console.log(`10q. un contrat prolongé, chez l'entraîneur : ${ct.length} décision(s) de contrat${ct[0] ? `, ${ct[0].gain} 🪙` : ''}`);
-      if (!ct.length || !(ct[0].gain < 0)) erreurs.push('prolonger un contrat n\'écrit pas sa décision payée en jetons');
-    } else console.log('10q. un contrat à prolonger, chez l\'entraîneur : aucun (ou pas les jetons)');
+    const ct = (await decisionsDuCombat()).filter(d => String(d.palier || '').startsWith('ct:'));
+    console.log(`10q. le banc ouvert : ${vues} feuille(s) d'adjoint, ${contrats} prolongation(s) offerte(s), ${ct.length} décision(s) de contrat`);
+    if (contrats || ct.length) erreurs.push('une feuille d\'adjoint offre encore une prolongation de contrat');
   }
   console.log(`10h. les sous-onglets, en écrans : ${Object.entries(ecrans).map(([k, v]) => `${k} ${v.toFixed(2).replace('.', ',')}${avecChoix.has(k) ? ' (avec un choix)' : ''}`).join(' · ')}`);
   // V12-4a : un sous-onglet de la boîte, sans choix qui attend, tient sous la borne du duel (20j), 1,3 écran ; le but reste

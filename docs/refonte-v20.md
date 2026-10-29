@@ -91,7 +91,7 @@ Une saison demande alors une trentaine de décisions au lieu de 70 à 85 : une d
 
 **Le banc ouvert** (tranché par JP, 29 oct. : *au lieu de trois fenêtres, possibilité en tout temps de remplacer, mais prix pour embauche sauf début de saison*). Plus de contrat, plus de fenêtre : un adjoint reste à sa chaise tant que tu ne le remplaces pas. Tu peux changer ton banc **n'importe quand**, depuis la maison du coach :
 1. **au camp** (avant le premier match de la saison), engager est gratuit — on bâtit son banc pour sa stratégie ;
-2. **en saison**, engager coûte des jetons (`PRIX_EMBAUCHE` par rareté), et l'adjoint remplacé part ; changer de stratégie en cours de route se paie, mais reste possible à tout moment.
+2. **en saison**, engager coûte des jetons (`PRIX_EMBAUCHE` : 10, 16, 25 🪙 selon la rareté), et l'adjoint remplacé part ; changer de stratégie en cours de route se paie, mais reste possible à tout moment.
 
 Les adjoints arrivent comme aujourd'hui (les packs, les paliers des 9e, 18e et 26e matchs, le butin d'un gros match, le verdict du proprio) et attendent à ta collection ; les engager est un geste du joueur, jamais une interruption. Partent : `CONTRAT_JOURS`, `PRIX_PROLONGATION`, la prolongation, les avis « à six matchs de la fin » d'Hier soir.
 
@@ -152,8 +152,8 @@ Chacune se fusionne seule, au vert, et laisse le jeu jouable.
 | Tranche | Ce qu'elle fait | Le juge |
 |---|---|---|
 | **1. Le coach, un chiffre** (faite) | `POINTS_PAR_BLOC` ; `buildDe` ne compte plus que la base et les blocs tenus depuis l'entrée en poste ; le report d'une saison garde ses blocs ; le chiffre en une ligne chez le coach (ta stat du bloc contre la ligue) | `check_chiffre` (huit sur huit), `check_coachs`, `check_profondeur`, `check_rogue`, `essai_rogue` |
-| **2. La couleur, un cran** | `MAL_ASSORTI` part ; un adjoint de la couleur joue un échelon plus haut ; la carte le dit ; le combo « 1 sur 2 » | `check_places`, `check_personnel`, `check_combos`, `check_voies` |
-| **3. Le banc ouvert** | le Comptable neutre ; `recrute` part ; plus de contrat ; engager gratuit au camp, payant en saison ; échelons en jetons sans service ; doublon = un échelon ; la direction part (ententes du proprio) | `check_contrats` (récrit), `check_personnel`, `check_packs`, `check_dossiers`, `essai_rogue` |
+| **2. La couleur, un cran** (faite) | `MAL_ASSORTI` part ; un adjoint de la couleur joue un échelon plus haut (`assortiPour`) ; la rangée et la feuille le disent (« 🐝 +1 ») | `check_places`, `check_personnel`, `check_combos`, `check_voies` |
+| **3. Le banc ouvert** (faite, sauf l'argent) | plus de contrat ; engager gratuit au camp, payant en saison (`PRIX_EMBAUCHE`) ; échelons en jetons sans service ; doublon = un échelon. Reste (3b) : le Comptable neutre, `recrute`, la direction (ententes du proprio) | `check_banc` (neuf, remplace `check_contrats`), `check_personnel`, `check_packs`, `check_dossiers`, `essai_rogue` |
 | **4. Les histoires** | js/histoires.js ; le tirage du soir ; le joueur ; la sûre et l'audacieuse ; le verdict ; les dix sources partent | `check_histoires` (neuf : chaque histoire a un fait vrai, un joueur, deux options ; ses effets dans `CANAUX_MUT` ; une douzaine par saison sur douze graines ; la même graine, les mêmes soirs), `check_effets`, `check_mots`, `check_verdicts`, `check_suivis`, `check_graine` |
 | **5. L'écran et les règles** | À faire : l'histoire en cours, la blessure, le gros match, le pack ; la page des règles récrite ; CLAUDE.md et `docs/decisions.md` | `essai_rogue`, `check_clarte`, `check_lexique`, `check_mort` |
 | **6. Les anciennes parties** | les clés `do:`, `n:`, `vie:`, `m:`, `fil:` se relisent pour les décisions prises ; rien de neuf n'est tiré pour elles ; un contrat en jours s'ignore : l'adjoint reste | `check_sauvegardes` |

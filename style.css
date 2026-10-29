@@ -3647,7 +3647,6 @@ a.spin-club:hover { background: var(--fond-2); }
 .gens-ech { display: flex; gap: 2px; }
 .gens-ech i { width: 8px; height: 8px; border-radius: var(--r-0); background: var(--fond-3); border: 1px solid var(--filet); }
 .gens-ech i.on { background: var(--or); border-color: var(--or); }
-.gens-ech i.ferme { opacity: 0.35; border-style: dashed; }
 .gens-ct { font-weight: 700; letter-spacing: 0.04em; color: var(--encre-3); white-space: nowrap; }
 .gens-monte { color: var(--noir-pur); background: var(--or); padding: 3px 5px; border-radius: var(--r-0); }
 .gens-fiche { display: flex; flex-direction: column; gap: var(--esp-2); }

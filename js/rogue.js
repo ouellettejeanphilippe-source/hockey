@@ -576,7 +576,7 @@ export function recevoirPermanents(ids = [], cleRecu = '') {
   if (cleRecu) m.recus[cleRecu] = true;
   const perso = new Set(m.personnel || []);
   m.inventaire = m.inventaire || {};
-  // V14 : une personne déjà à toi revient en doublon — une copie de plus, qui ouvre un échelon (js/echelons.js `ouvertsDe`).
+  // V14 : une personne déjà à toi revient en doublon — une copie de plus, qui paie un échelon (V20, js/echelons.js `echelonsGratuits`).
   m.copiesPerso = m.copiesPerso || {};
   for (const id of ids) {
     const [cat, cle] = String(id).split(':');

@@ -9,11 +9,11 @@ import { lireMeta, bouchesTrousDuDepart, vedettesDeConcession, COMPOSITION_DEPAR
 import { money, esc, hache } from './util.js';
 import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, assortiPour, joueurDeMutation, autoRoster, fits, getHiddenRatings, getPositionPenalty, nouvelleGraine, REROLLS, joueursDesCoachs, coachDuJoueur, JOURS_PAR_MATCH, matchsEntre, MOMENTS_SI } from './sim.js';
 import { modificateurs, BANQUE, reglesDe, PATRONS, patronsActifs, patronsDeDepart, ROLES, payloadDe, CONSOMMABLES, etiquetteBanque, buildDe, coachsActifs, coachNeuf, reglesDePalier, idsDuCoach, motsDeLEcon } from './banque.js';
-import { PROTEGES } from './personnel.js';
+import { PROTEGES, prixDEmbauche } from './personnel.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
-import { etatDuPersonnel, matchsJoues, decisionDEchelon, decisionDeProlongation, patronALEchelon, aUnDefaut, ouvertsDe, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX } from './echelons.js';
+import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut, echelonsGratuits, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX } from './echelons.js';
 import { tenusDe } from './chiffre.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
@@ -531,10 +531,10 @@ function cartesTirees(cle, n, params) {
   ids.forEach((id, t) => {
     const c = BANQUE[id];
     if (c.cat !== 'patron' || G.bonus !== 'ROGUE') return;
-    // V14 : une carte du personnel déjà à toi ouvre un échelon de plus (`COPIES_MAX` copies) ; au-delà, elle se revend.
+    // V20 : une carte du personnel déjà à toi paie un échelon (`COPIES_MAX` copies) ; au-delà, elle se revend.
     copies[c.cle] = (copies[c.cle] ?? copiesDe(meta, c.cle)) + 1;
     if (copies[c.cle] === 1) return;
-    if (copies[c.cle] <= COPIES_MAX) doublons.push({ t, ouverts: ouvertsDe(copies[c.cle]) });
+    if (copies[c.cle] <= COPIES_MAX) doublons.push({ t, gratuits: echelonsGratuits(copies[c.cle]) });
     else { vendus.push(t); vente += valeurDe(id); }
   });
   return { ids, vendus, vente, doublons };
@@ -547,7 +547,7 @@ function rangerCartes({ ids, vendus }, n) {
 /* Les cartes d'un pack en options d'`ouvrirChoix` : ce qui se revend. */
 const optionsDeCartes = ({ ids, vendus, doublons = [] }, pre = '') => [
   ...ids.map((id, t) => { const d = doublons.find(x => x.t === t);
-    return { ...optionDeBanque(id), cle: `${pre}${t}`, prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : d ? `Doublon : il ouvre son échelon ${d.ouverts}` : '' }; })];
+    return { ...optionDeBanque(id), cle: `${pre}${t}`, prix: vendus.includes(t) ? `Doublon : revendu ${valeurDe(id)} 🪙` : d ? `Doublon : ${d.gratuits > 1 ? `${d.gratuits} échelons payés` : 'un échelon payé'}` : '' }; })];
 function ouvrirPackCartes(cle, prix, j, n, decider, params = {}, de = null) {
   const P = PACKS_TOUS[cle], Lg = G.ligue;
   const tc = cartesTirees(cle, n, params);
@@ -663,11 +663,16 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
   });
   if (c.cat === 'patron') {
     const actifs = patronsActifs(decs, j + 1), postes = postesDePatron((G.rogue && G.rogue.prestige) || 0);
+    // LE BANC OUVERT (V20) : engager est gratuit au camp, avant le premier match de ton club ; ensuite, il coûte `PRIX_EMBAUCHE`.
+    const prix = prixDEmbauche(c.cle, matchsJoues(Lg.calendrier, you, 0, j));
+    if (prix > jetonsRogue(j)) { toast(`Engager ${c.nom} coûte ${prix} 🪙 en saison : pas assez en caisse.`, 'bad'); retour(); return; }
+    const payer = p => (prix ? { ...p, gain: (p.gain || 0) - prix } : p);
+    const motPrix = prix ? ` · −${prix} 🪙` : '';
     if (!actifs.some(x => x.role === c.role) && actifs.length >= postes) {
       ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
-        recit: `${postes} postes au plus (le prestige en ouvre d'autres). ${c.nom} prend la place de qui ?`,
+        recit: `${postes} postes au plus (le prestige en ouvre d'autres). ${c.nom} prend la place de qui ?${prix ? ` L'engager en saison coûte ${prix} 🪙.` : ''}`,
         options: actifs.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
-        onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build, joueurs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(p); },
+        onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build, joueurs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(payer(p)); },
         onFerme: retour });
       return;
     }
@@ -680,8 +685,16 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       const ech = occupe.echelon || 1;
       ouvrirChoix({ ico: '👔', titre: `${c.nom} : à la place de ${occupe.nom} ?`, compact: true, fermable: true, motFermer: 'Retour',
         recit: `Un seul ${ROLES[c.role] ? ROLES[c.role].nom.toLowerCase() : 'adjoint'} à la fois. ${occupe.nom} part${ech > 1 ? `, et ses ${ech - 1} échelon${ech > 2 ? 's' : ''} pris avec lui` : ''}.`,
-        options: [{ cle: 'oui', ico: c.ico, nom: `Engager ${c.nom}`, sous: `${occupe.nom} part` }],
-        onChoix: () => ecrire(payloadDe(item.id, { patrons: actifs, build, joueurs })),
+        options: [{ cle: 'oui', ico: c.ico, nom: `Engager ${c.nom}`, sous: `${occupe.nom} part${motPrix}` }],
+        onChoix: () => ecrire(payer(payloadDe(item.id, { patrons: actifs, build, joueurs }))),
+        onFerme: retour });
+      return;
+    }
+    if (prix) {
+      ouvrirChoix({ ico: '👔', titre: `Engager ${c.nom} ?`, compact: true, fermable: true, motFermer: 'Retour',
+        recit: `En saison, engager coûte ${prix} 🪙 ; au camp, c'était gratuit.`,
+        options: [{ cle: 'oui', ico: c.ico, nom: `Engager ${c.nom}`, sous: `${ROLES[c.role] ? ROLES[c.role].nom : 'Adjoint'}${motPrix}` }],
+        onChoix: () => ecrire(payer(payloadDe(item.id, { patrons: actifs, build, joueurs }))),
         onFerme: retour });
       return;
     }
@@ -739,12 +752,12 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
       return;
     }
     if (C.cible === 'adjoint') {
-      // LA FORMATION (V16, tranche 6) : un adjoint de ta collection, une copie de plus — un échelon de plus ouvert.
+      // LA FORMATION (V16, tranche 6) : un adjoint de ta collection, une copie de plus — un échelon de plus payé (V20).
       const meta = lireMeta();
       const liste = (meta.personnel || []).filter(k => PATRONS[k] && copiesDe(meta, k) < COPIES_MAX);
-      if (!liste.length) { toast('Tous tes adjoints ont leurs trois échelons ouverts.', 'bad'); retour(); return; }
+      if (!liste.length) { toast('Tous tes adjoints ont déjà leurs échelons payés.', 'bad'); retour(); return; }
       ouvrirChoix({ ico: c.ico, titre: `${c.nom} : pour qui ?`, compact: true, fermable: true, motFermer: 'Retour', recit: c.texte,
-        options: liste.map(k => ({ cle: k, ico: PATRONS[k].ico, nom: PATRONS[k].nom, sous: `${ROLES[PATRONS[k].role].nom} · échelons ouverts ${ouvertsDe(copiesDe(meta, k))} → ${ouvertsDe(copiesDe(meta, k) + 1)}` })),
+        options: liste.map(k => ({ cle: k, ico: PATRONS[k].ico, nom: PATRONS[k].nom, sous: `${ROLES[PATRONS[k].role].nom} · échelons payés ${echelonsGratuits(copiesDe(meta, k))} → ${echelonsGratuits(copiesDe(meta, k) + 1)}` })),
         onChoix: k => { recevoirPermanents([`patron:${k}`], `formation:${Lg.graine}:${j}:${item.ref || item.id}`); ecrire(payloadDe(item.id, { adjoint: k })); }, onFerme: retour });
       return;
     }
@@ -789,11 +802,10 @@ function poserUneModif(item, j, decider, retour) {
  * TON PERSONNEL (V12-2, puis V14 — js/echelons.js). JP : *le personnel, des cartes qui gagnent des niveaux, avec leurs
  * forces et leurs faiblesses, un look de jeu de gestion* ; *ça peut être des cartes selon leur style*. Chaque poste : sa
  * carte (son style), son poste et son moment, sa force en vert et son défaut en rouge (en vraies stats, à son échelon),
- * ses échelons (les ouverts, les fermés) et son contrat. Une rangée s'ouvre en feuille : le détail, et le choix d'un
- * échelon atteint.
+ * ses échelons (V20 : achetés quand on veut, payés par un doublon). Une rangée s'ouvre en feuille : le détail, et le choix
+ * de son échelon suivant.
  */
-const etatPersonnel = j => (G.ligue ? etatDuPersonnel(decisionsDeLaPartie(), j + 1, {
-  joues: (de, a) => matchsJoues(G.ligue.calendrier, G.ligue.you, de, a), copies: k => copiesDe(lireMeta(), k) }) : []);
+const etatPersonnel = j => (G.ligue ? etatDuPersonnel(decisionsDeLaPartie(), j + 1, { copies: k => copiesDe(lireMeta(), k) }) : []);
 const CANAUX_PERSONNEL = ['finition', 'volume', 'lancers', 'defense', 'discipline', 'blessure', 'energie', 'robustesse', 'F', 'D'];
 /*
  * Sa force et son défaut en mots, à son échelon. UN ADJOINT À PROTÉGÉ (oct.) : ce qu'il donne à son joueur est sa force
@@ -811,11 +823,11 @@ function motsDeLaPersonne(p) {
     faiblesse: [...lui.filter(m => !m.bon), ...lus.filter(m => m.bon === false)], autres: lus.filter(m => m.bon == null) };
 }
 /*
- * Les options d'un échelon atteint : pousser sa force, corriger son défaut (s'il en a un). V14b : chacune coûte le prix
- * de l'échelon (`PRIX_ECHELON`), et se grise sans les jetons en caisse.
+ * Les options de l'échelon suivant : pousser sa force, corriger son défaut (s'il en a un). V14b : chacune coûte le prix
+ * de l'échelon (`PRIX_ECHELON`, rien si un doublon le paie), et se grise sans les jetons en caisse.
  */
 function optionsDEchelon(e, caisse, coach = null) {
-  // Un adjoint d'une autre couleur que ton coach promet ce que le moteur jouera (`assortiPour`), pas ses chiffres pleins.
+  // Un adjoint de la couleur de ton coach promet ce que le moteur jouera (`assortiPour` : un cran de plus).
   const apres = c => motsDeLaPersonne(assortiPour(coach, patronALEchelon(e.cle, { choix: [...(e.patron.choix || []), c] })));
   const prix = e.prix ? [{ txt: `−${e.prix} 🪙`, bon: false }] : [];
   const non = e.prix > caisse ? 'Pas assez de jetons en caisse' : null;
@@ -827,16 +839,11 @@ function optionsDEchelon(e, caisse, coach = null) {
 /* Ce qui attend un choix d'échelon, dans la fiche de sa carte : ses options, et la décision. */
 const coachEnPoste = j => { const [c] = coachsActifs(decisionsDeLaPartie(), j + 1); return c ? c.cle : null; };
 function echelonsAChoisir(j) {
-  // La saison jouée ne prend plus de décision : l'échelon attend la saison suivante, où ses matchs à ton service le suivent.
+  // La saison jouée ne prend plus de décision : l'échelon attend la saison suivante.
   if (!G.ligue || G.ligue.fini) return [];
   return etatPersonnel(j).filter(e => e.aChoisir).map(e => ({ cle: e.cle, qui: e.qui, ico: e.patron.ico, style: e.patron.nom, echelon: e.echelon,
-    service: e.service, prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j), coachEnPoste(j)),
+    prix: e.prix, defaut: aUnDefaut(e.cle), options: optionsDEchelon(e, jetonsRogue(j), coachEnPoste(j)),
     decision: c => ({ palier: `ech:${e.cle}:${e.echelon + 1}`, ...decisionDEchelon(e, c) }) }));
-}
-/* Les contrats qui finissent bientôt (V19) : ≤ 6 matchs à faire, et de quoi les prolonger ; la nouvelle d'Hier soir les dit une fois. */
-export function contratsQuiFinissent(j) {
-  return etatPersonnel(j).filter(e => e.prolongeable && matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin) <= 6)
-    .map(e => ({ cle: e.cle, fin: e.fin, ico: e.patron.ico, nom: e.qui, restant: matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin), prix: e.prixProlongation }));
 }
 /* Ce que lisent la rangée d'un adjoint et sa feuille : le coach en poste, les adjoints, leur état à la journée `j`. */
 function lectureDuPersonnel(j) {
@@ -846,12 +853,10 @@ function lectureDuPersonnel(j) {
 }
 /* Son moment, et combien de soirs il revient (JP : *c'est useless, c'est juste contre rivaux* — qu'on le sache avant d'engager). */
 const quandJoue = P => (P.si && MOMENTS_SI[P.si] ? `${MOMENTS_SI[P.si].mot} · ≈ ${MOMENTS_SI[P.si].parSaison} soirs par saison` : 'Toute la saison');
-/* Le contrat (V19) : les matchs qu'il lui reste, et la prolongation qui l'étend (en jetons). */
-const matchsDeContrat = (e, j) => matchsJoues(G.ligue.calendrier, G.ligue.you, j + 1, e.fin);
 /*
  * LA FEUILLE D'UN ADJOINT (JP, 28 oct. : *j'hais les accordéons*) : toucher sa rangée l'ouvre, au lieu de la déplier sur
- * place. Le détail (son texte, sa force en vert et son défaut en rouge, son protégé, son contrat) et ses choix — un échelon
- * atteint, la prolongation — comme des options ; la décision passe par `jouerDeLaMaison`, le même chemin qu'avant.
+ * place. Le détail (son texte, sa force en vert et son défaut en rouge, son protégé) et son échelon suivant comme des
+ * options ; la décision passe par `jouerDeLaMaison`, le même chemin qu'avant. V20 : plus de contrat.
  */
 function ouvrirLAdjoint(cle) {
   const hub = hubActif();
@@ -861,13 +866,9 @@ function ouvrirLAdjoint(cle) {
   const x = pa.find(q => q.cle === cle), e = etats.get(cle);
   if (!x || !e) return;
   const R = ROLES[x.role] || {}, P = PATRONS[cle] || {};
-  const vu = assortiPour(coach && coach.cle, x), contre = vu !== x;
+  const vu = assortiPour(coach && coach.cle, x), couleur = vu !== x;
   const { force, faiblesse, autres } = motsDeLaPersonne(vu);
-  const suite = aChoisir.has(cle) ? '' : e.prochain === null ? 'Au sommet de son métier.'
-    : e.ferme ? `Prêt pour l'échelon ${e.echelon + 1} : un doublon tiré d'un pack l'ouvre.`
-    : `${e.service} / ${e.prochain} matchs à ton service${e.double ? ' · de la couleur de ton coach : deux fois plus vite' : ''}.`;
-  const restant = matchsDeContrat(e, j), peutPayer = jetonsRogue(j) >= e.prixProlongation;
-  const contrat = e.prolongeable ? `Contrat : encore ≈ ${restant} match${restant > 1 ? 's' : ''}, puis il part.` : 'Contrat : jusqu\'à la fin de la saison.';
+  const suite = aChoisir.has(cle) ? (e.gratuit ? `L'échelon ${e.echelon + 1} est payé : un doublon.` : '') : 'Au sommet de son métier.';
   const faits = (x.choix || []).map((c, i) => `Échelon ${i + 2} : ${c === 'force' ? 'sa force poussée' : 'son défaut corrigé'}`).join(' · ');
   // Son protégé, nommé : le joueur que ses chiffres visent (le feu vise des lignes, pas un joueur).
   const M = PROTEGES[cle];
@@ -876,44 +877,40 @@ function ouvrirLAdjoint(cle) {
   const protege = lui ? `Son protégé : ${lui.n}.` : lignes ? (lignes > 1 ? 'Il vise tes deux premières lignes.' : 'Il vise ta première ligne.') : '';
   const options = [
     ...(aChoisir.has(cle) ? optionsDEchelon(e, jetonsRogue(j), coach && coach.cle).map(o => ({ ...o, cle: `echelon:${o.cle}` })) : []),
-    ...(e.prolongeable ? [{ cle: 'contrat', ico: '📝', nom: 'Prolonger', sous: contrat, mots: [{ txt: `−${e.prixProlongation} 🪙`, bon: false }], desactive: peutPayer ? null : 'Pas assez de jetons en caisse' }] : []),
   ];
   const decider = d => { const h = hubActif(); if (h && h.decider) h.decider(d); };
   ouvrirChoix({ ico: x.ico || P.ico || '👔', titre: e.qui, recit: `${R.nom || ''} · ${quandJoue(P)}`, compact: true, fermable: true, motFermer: 'Retour', vide: 'Rien à décider pour lui.',
     contexte: `<div class="gens-fiche">
       ${P.texte ? `<p class="perso-libre"><em>${esc(P.texte)}</em></p>` : ''}
-      ${contre ? `<p class="perso-libre">Pas de la couleur de ${esc(COACHS[coach.cle].nom)} : il joue à contre-courant, ses chiffres le disent.</p>` : ''}
+      ${couleur ? `<p class="perso-libre">${COACHS[coach.cle].ico} De la couleur ${esc(COACHS[coach.cle].de)} : il joue un échelon plus haut, ses chiffres le disent.</p>` : ''}
       ${force.length ? `<div class="choix-puces">${pucesEnBref(force)}</div>` : ''}
       ${faiblesse.length ? `<div class="choix-puces">${pucesEnBref(faiblesse)}</div>` : ''}
       ${autres.length ? `<div class="choix-puces">${pucesEnBref(autres)}</div>` : ''}
       ${protege ? `<p class="perso-libre">${esc(protege)}</p>` : ''}
-      ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${e.prolongeable ? '' : `<p class="perso-libre">${esc(contrat)}</p>`}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
+      ${suite ? `<p class="perso-libre">${esc(suite)}</p>` : ''}${faits ? `<p class="perso-libre">${esc(faits)}</p>` : ''}
     </div>`,
     options,
-    onChoix: k => {
-      if (k === 'contrat') jouerDeLaMaison({ src: 'contrat', id: `contrat:${cle}` }, j, decider);
-      else if (k.startsWith('echelon:')) jouerDeLaMaison({ src: 'echelon', id: `echelon:${cle}:${k.slice(8)}` }, j, decider);
-    } });
+    onChoix: k => { if (k.startsWith('echelon:')) jouerDeLaMaison({ src: 'echelon', id: `echelon:${cle}:${k.slice(8)}` }, j, decider); } });
 }
 // Une rangée du personnel se touche : sa feuille s'ouvre (le volet de l'entraîneur est réécrit à chaque décision, d'où l'écoute au document).
 if (typeof document !== 'undefined') document.addEventListener('click', ev => { const b = ev.target.closest && ev.target.closest('.gens-l[data-gens]'); if (b) ouvrirLAdjoint(b.dataset.gens); });
 export function personnelDuJour(j) {
   const max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
-  // V16 (tranche 5b) : un adjoint d'une autre couleur que ton coach se lit tel que le moteur le joue (`assortiPour`).
+  // V20 : un adjoint de la couleur de ton coach se lit tel que le moteur le joue (`assortiPour` : un cran de plus).
   const { coach, pa, etats, aChoisir } = lectureDuPersonnel(j);
   const libres = Math.max(0, max - pa.length);
-  const echelons = e => `<span class="gens-ech" aria-label="Échelon ${e.echelon} sur ${ECHELON_MAX}, ${e.ouverts} ouverts">${Array.from({ length: ECHELON_MAX }, (_, i) => `<i class="${i < e.echelon ? 'on' : i < e.ouverts ? '' : 'ferme'}"></i>`).join('')}</span>`;
-  // UNE RANGÉE PAR ADJOINT, toujours visible : son style, sa force et son défaut, son échelon et son contrat ; la toucher ouvre sa feuille.
+  const echelons = e => `<span class="gens-ech" aria-label="Échelon ${e.echelon} sur ${ECHELON_MAX}">${Array.from({ length: ECHELON_MAX }, (_, i) => `<i class="${i < e.echelon ? 'on' : ''}"></i>`).join('')}</span>`;
+  // UNE RANGÉE PAR ADJOINT, toujours visible : son style, sa force et son défaut, son échelon et le prix du suivant ; la toucher ouvre sa feuille.
   const ligne = x => {
     const R = ROLES[x.role] || {}, P = PATRONS[x.cle] || {}, e = etats.get(x.cle);
     if (!e) return `<div class="perso-l"><span class="perso-ico" aria-hidden="true">${x.ico || P.ico || ''}</span><span class="perso-txt"><small>${esc(R.nom || '')}</small><b>${esc(x.nom || P.nom || '')}</b></span></div>`;
-    const { force, faiblesse, autres } = motsDeLaPersonne(assortiPour(coach && coach.cle, x));
-    const restant = matchsDeContrat(e, j);
-    return `<button type="button" class="gens gens-l${aChoisir.has(e.cle) ? ' monte' : ''}" data-gens="${esc(e.cle)}">
+    const vu = assortiPour(coach && coach.cle, x), couleur = vu !== x;
+    const { force, faiblesse, autres } = motsDeLaPersonne(vu);
+    return `<button type="button" class="gens gens-l${aChoisir.has(e.cle) && e.gratuit ? ' monte' : ''}" data-gens="${esc(e.cle)}">
         <span class="gens-av" aria-hidden="true">${x.ico || P.ico || ''}<span>${R.ico || ''}</span></span>
         <span class="gens-txt"><b>${esc(e.qui)}</b><small>${esc(R.nom || '')} · ${esc(quandJoue(P))}</small>
           <span class="gens-ff">${force[0] ? `<span class="bon">${esc(force[0].txt)}</span>` : autres[0] ? `<span>${esc(autres[0].txt)}</span>` : ''}${faiblesse[0] ? `<span class="mal">${esc(faiblesse[0].txt)}</span>` : ''}</span></span>
-        <span class="gens-niv">${aChoisir.has(e.cle) ? `<span class="gens-monte">Prêt · ${e.prix} 🪙</span>` : `<span>Éch. ${e.echelon}</span>`}${echelons(e)}<span class="gens-ct">${e.prolongeable ? `≈ ${restant} match${restant > 1 ? 's' : ''}` : 'Saison'}</span></span>
+        <span class="gens-niv"><span>Éch. ${e.echelon}${couleur ? ` · ${COACHS[coach.cle].ico} +1` : ''}</span>${echelons(e)}${aChoisir.has(e.cle) ? (e.gratuit ? '<span class="gens-monte">↑ payé</span>' : `<span class="gens-ct">↑ ${e.prix} 🪙</span>`) : ''}</span>
       </button>`;
   };
   return `<section class="perso" aria-label="Ton personnel"><h3 class="perso-t">👔 Ton personnel · ${pa.length}/${max} poste${max > 1 ? 's' : ''}</h3>
@@ -979,21 +976,13 @@ if (typeof document !== 'undefined') document.addEventListener('click', ev => { 
 /* Jouer une carte depuis sa maison : le même chemin que Tes cartes ; la vendre, la même décision. */
 export function jouerDeLaMaison(item, j, decider) {
   if (item.vendre) { decider({ jour: j, vend: { refs: [item.ref], jetons: valeurDe(item.id) } }); return; }
-  // V14 : le choix d'un échelon atteint, dans la fiche de la carte (« echelon:<clé>:force|defaut »).
+  // V14 : le choix de l'échelon suivant, dans la fiche de la carte (« echelon:<clé>:force|defaut »).
   if (item.src === 'echelon') {
     const [, cle, c] = String(item.id).split(':');
     const e = echelonsAChoisir(j).find(x => x.cle === cle);
     if (!e || !e.options.some(o => o.cle === c && !o.desactive)) return;
     toast(`${e.ico} ${e.qui} : échelon ${e.echelon + 1}.`);
     decider({ jour: j, ...e.decision(c) });
-    return;
-  }
-  // V19 : la prolongation d'un contrat (« contrat:<clé> »), payée en jetons.
-  if (item.src === 'contrat') {
-    const e = etatPersonnel(j).find(x => `contrat:${x.cle}` === item.id);
-    if (!e || !e.prolongeable || jetonsRogue(j) < e.prixProlongation) return;
-    toast(`${e.patron.ico} ${e.qui} : contrat prolongé.`);
-    decider({ jour: j, palier: `ct:${e.cle}:${(e.patron.prolonge || 0) + 1}`, ...decisionDeProlongation(e) });
     return;
   }
   jouerCarte(item, j, decider, null, () => {});
@@ -1930,7 +1919,7 @@ async function continuerRun(gardes = [], lotos = [], coachSaison = null) {
   // Un autre coach choisi pour la saison neuve (V5) : il repart à la confiance I.
   else if (coachSaison && COACHS[coachSaison]) { report.push({ jour: 0, ...coachNeuf(coachSaison), report: true }); G.rogue.coach = coachSaison; }
   // 1.0 : un patron engagé l'est pour la RUN — il reste en poste à la saison suivante, avec ses chiffres.
-  // V14 : avec son échelon, ses choix et ses matchs à ton service, qui repartent de là (js/echelons.js `reportDuPersonnel`).
+  // V14 : avec son échelon et ses choix (js/echelons.js `reportDuPersonnel`).
   const gens = new Map(etatPersonnel(Infinity).map(e => [e.cle, e]));
   // V16 : un adjoint à protégé le garde (le même joueur s'il est encore là, à l'échelon de l'adjoint), sinon le moteur en désigne un.
   const protegeDe = (cle, choix = []) => {

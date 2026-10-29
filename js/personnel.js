@@ -24,20 +24,14 @@ export const LIGNES_DU_FEU = { poussees: 2 };
  * (`check_combo`). Pur : le moteur le lit des patrons du soir (`combosDuSoir`), l'écran du coach le dit (`coachHtml`).
  */
 /*
- * LE CONTRAT D'UN ADJOINT (V19 ; JP : *matchs max avant de devoir payer pour étendre*). Un adjoint est engagé pour
- * `CONTRAT_JOURS` jours de la saison (le moteur compte en jours : 186 pour 82 matchs ; JP : *contrats plus courts, pour plus de
- * changements de stratégie* — deux à cinq contrats par saison selon la rareté) ; ensuite il part, à moins qu'on le prolonge en
- * jetons (`PRIX_PROLONGATION`, une durée de plus chaque fois, au prix du jour). La saison suivante, son contrat repart à zéro.
- * Une carte qui le couvre jusqu'au bout des 186 jours joue aussi les séries.
+ * LE BANC OUVERT (V20, docs/refonte-v20.md § 2 ; JP : *au lieu de trois fenêtres, possibilité en tout temps de remplacer,
+ * mais prix pour embauche sauf début de saison*). Plus de contrat (V19, `CONTRAT_JOURS`, parti) : un adjoint reste à sa
+ * chaise tant que tu ne le remplaces pas. L'engager est gratuit au camp, avant le premier match de ton club ; ensuite,
+ * il coûte `PRIX_EMBAUCHE` jetons selon sa rareté (un peu plus que l'ancienne prolongation, qui revenait plusieurs fois par saison).
  */
-export const JOURS_DE_SAISON = 186;
-export const CONTRAT_JOURS = { commune: 46, peu: 62, rare: 78 };
-export const PRIX_PROLONGATION = { commune: 7, peu: 12, rare: 20 };
-/* Le jour où un contrat finit (exclu) : son départ (`depuis`, sinon le jour de la décision), plus une durée par prolongation prise. Sans contrat (l'argent d'un patron), jamais. */
-export function finDuContrat(p, jourDecision = 0) {
-  const C = PERSONNEL[p.cle];
-  return C && CONTRAT_JOURS[C.rarete] ? (p.depuis ?? p.jour ?? jourDecision) + CONTRAT_JOURS[C.rarete] * (1 + (p.prolonge || 0)) : Infinity;
-}
+export const PRIX_EMBAUCHE = { commune: 10, peu: 16, rare: 25 };
+/* Le prix d'engager cet adjoint, `joues` matchs de ton club déjà joués cette saison : rien au camp. */
+export const prixDEmbauche = (cle, joues) => (joues > 0 ? PRIX_EMBAUCHE[(PERSONNEL[cle] || {}).rarete] || 0 : 0);
 export const COMBOS = {
   essaim: { cles: ['per_crieurDuBanc', 'per_maniaqueVolume'], nom: 'La foule se lève', ico: '📣', effet: { volume: 1.1, finition: 0.92 } },
   tortue: { cles: ['per_gardiensDeRoute', 'per_professeurBlocage'], nom: 'Le fort tient sur la route', ico: '🏯', effet: { defense: 0.94, volume: 0.92 } },

@@ -49,7 +49,8 @@ import { PALIERS_PACK } from '../js/inventaire.js';
 import { GALONS, GALONS_MAX } from '../js/galons.js';
 import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTIENS_MOINS_RANG, SOUTIENS_MOINS_SAISON, EXIGENCES, PRIME_EXIGENCE, ICO_EXIGENCE, NIVEAUX_PLEINS, ETAPES_PAR_CRAN } from '../js/rogue.js';
 import { COACHS, SEUILS } from '../js/coachs.js';
-import { MATCHS_ECHELON, POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelons.js';
+import { POUSSEE, CORRECTION, PRIX_ECHELON } from '../js/echelons.js';
+import { PRIX_EMBAUCHE } from '../js/personnel.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -280,8 +281,9 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     [`trois cartes : ${Object.keys(SORTES_DECK).length === 3 ? 'un vrai joueur, un nouveau rôle, l\'atelier' : '(les sortes ont changé)'}`, 'les sortes de la main'],
     // V20 : la confiance par le seul chiffre tenu (js/chiffre.js).
     [`chaque bloc de ${BLOC === 10 ? 'dix' : BLOC} matchs où son chiffre est tenu vaut ${POINTS_PAR_BLOC} point${POINTS_PAR_BLOC > 1 ? 's' : ''} : II à ${SEUILS[1]} (${blocsDe(SEUILS[1])} blocs), III à ${SEUILS[2]} (${blocsDe(SEUILS[2])} blocs)`, 'les seuils de la confiance'],
-    // V14 : les échelons du personnel (js/echelons.js) — les matchs à ton service, ce que vaut chaque choix.
-    [`(le 2e à ${MATCHS_ECHELON[2]} matchs, le 3e à ${MATCHS_ECHELON[3]}), deux fois plus vite à la couleur de ton coach ; monter coûte ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[3]} jetons. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
+    // V14 : les échelons du personnel (js/echelons.js) ; V20 : achetés quand on veut, la couleur, l'embauche (js/personnel.js).
+    [`Un échelon s'achète quand tu veux : ${PRIX_ECHELON.slice(2, -1).join(', ')} puis ${PRIX_ECHELON[3]} jetons ; un doublon tiré d'un pack en paie un. À chaque échelon, tu choisis : sa force grandit de ${nombre(POUSSEE * 100)} %, ou son défaut fond de ${nombre((1 - CORRECTION) * 100)} %.`, 'les échelons du personnel'],
+    [`Engager est gratuit au camp, puis coûte ${Object.values(PRIX_EMBAUCHE).slice(0, -1).join(', ')} ou ${Object.values(PRIX_EMBAUCHE).at(-1)} jetons selon sa rareté`, 'le prix d\'embauche'],
     // V7 : tes unités spéciales (js/sim.js `unitesSpeciales`), leurs parts du temps.
     [`${nombre(POIDS_AN[0] * 100)} et ${nombre(POIDS_AN[1] * 100)} % du temps, deux en désavantage à ${nombre(POIDS_DN[0] * 100)} et ${nombre(POIDS_DN[1] * 100)} %`, 'les unités spéciales'],
     // V3.6 : la lancée, le doute et le feu qui s'entretient (`LANCEE`, js/sim.js ; le vendeur de chandails, js/banque.js).

@@ -3,10 +3,9 @@
  * niveaux, avec leurs forces et leurs faiblesses, un look de jeu de gestion* ; *adapter à nos besoins de gestion et de gacha*.
  *   2. les chiffres d'un échelon : la carte telle quelle au premier ; pousser sa force grandit ses bons canaux de
  *      `POUSSEE`, corriger son défaut ramène ses mauvais de `CORRECTION` ; l'argent grandit comme une force ;
- *   3. les échelons : les matchs à ton service (`MATCHS_ECHELON`), doublés à la couleur du coach, payés en jetons
- *      (`PRIX_ECHELON`, V14b : la force s'achète), bornés par les échelons
- *      ouverts (les doublons d'un pack, `ouvertsDe`), qui se gardent au méta ; un choix remplace la carte à son
- *      poste, garde d'où se comptent ses matchs, et la fin de saison les reporte ;
+ *   2b. la couleur du coach, un échelon de plus (V20, `assortiPour`) ;
+ *   3. les échelons : payés en jetons (`PRIX_ECHELON`, V14b : la force s'achète), quand on veut (V20) ; un choix
+ *      remplace la carte à son poste (le reste du banc : check_banc) ;
  *   4. le moteur, EN PAIRES (CLAUDE.md) : le même match sur les mêmes dés, sans la personne, à son premier échelon, à son
  *      cinquième (deux poussées), et son défaut corrigé quatre fois ; l'écart sur sa force monte, celui sur son défaut
  *      fond ;
@@ -14,12 +13,11 @@
  *      points à sa ligne montent, en paires.
  * `N` : matchs par club (300).
  */
-import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, appliquerMutation, joueurDeMutation, getPlayerKey } from '../js/sim.js';
+import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, SLOTS, appliquerMutation, joueurDeMutation, getPlayerKey, assortiPour, POUSSEE_COULEUR } from '../js/sim.js';
 import { PROTEGES } from '../js/personnel.js';
-import { PATRONS, BANQUE } from '../js/banque.js';
-import { effetDePalier } from '../js/coachs.js';
-import { effetALEchelon, patronALEchelon, etatDuPersonnel, decisionDEchelon, reportDuPersonnel, ouvertsDe, matchsJoues, protegeALEchelon,
-  MATCHS_ECHELON, POUSSEE, CORRECTION, CORRECTION_DE_DEPART, ECHELON_MAX, PRIX_ECHELON } from '../js/echelons.js';
+import { PATRONS } from '../js/banque.js';
+import { effetALEchelon, patronALEchelon, etatDuPersonnel, decisionDEchelon, matchsJoues, protegeALEchelon,
+  POUSSEE, CORRECTION, CORRECTION_DE_DEPART, PRIX_ECHELON } from '../js/echelons.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
 
@@ -43,32 +41,35 @@ const presque = (a, b) => Math.abs(a - b) < 2e-3;
   exiger('la décision porte son échelon, ses choix, son moment', p.echelon === 3 && p.choix.join() === 'force,defaut' && p.si === P.si && p.role === P.role);
 }
 
-/* ---------- 3 : les échelons ---------- */
+/*
+ * ---------- 2b : la couleur du coach, un cran de plus (V20, docs/refonte-v20.md § 2) ----------
+ * Chez la Tortue, le gardien du fort à son échelon 1 joue comme à une poussée de plus ; son défaut ne bouge pas. Chez
+ * un autre coach, il joue tel quel : la pénalité cachée d'avant (`MAL_ASSORTI`) est partie.
+ */
 {
-  exiger('les doublons ouvrent les échelons : deux, puis un par copie, trois au plus', [1, 2, 3, 4, 9].map(ouvertsDe).join() === '2,3,3,3,3');
-  const k = 'per_gardienDuFort', couleur = BANQUE[`patron:${k}`].coach;   // la Tortue
-  const engage = [{ jour: 0, coach: effetDePalier('essaim', 1) }, { jour: 3, patron: patronALEchelon(k, {}) }];
-  const etat = (decs, n, copies = 4) => etatDuPersonnel(decs, 60, { joues: () => n, copies: () => copies })[0];
-  const e9 = etat(engage, 9), e10 = etat(engage, 10);
-  exiger(`le 2e échelon à ${MATCHS_ECHELON[2]} matchs à ton service`, !e9.aChoisir && e10.aChoisir && e10.qui === PATRONS[k].nom, `${e9.service} → ${e10.service}`);
-  const ferme = etat(engage, 30, 1);
-  exiger('un échelon fermé attend son doublon', ferme.aChoisir && ferme.echelon === 1 && etat([...engage, { jour: 50, ...decisionDEchelon(ferme, 'force') }], 30, 1).ferme);
-  const tortue = [{ jour: 0, coach: effetDePalier(couleur, 1) }, engage[1]];
-  exiger('à la couleur du coach, deux fois plus vite', etat(tortue, 5).service === 10 && etat(tortue, 5).double && !etat(engage, 5).double);
-  const achat = decisionDEchelon(e10, 'force');
+  const k = 'per_gardienDuFort';
+  const un = patronALEchelon(k), deux = patronALEchelon(k, { choix: ['force'] });
+  const chez = assortiPour('tortue', un), ailleurs = assortiPour('essaim', un), chez2 = assortiPour('tortue', deux);
+  exiger('la poussée de la couleur est celle d\'un échelon', POUSSEE_COULEUR === POUSSEE, `${POUSSEE_COULEUR} et ${POUSSEE}`);
+  exiger('chez son coach, un échelon de plus : sa force poussée une fois, son défaut tel quel', presque(chez.defense, deux.defense) && presque(chez.volume, un.volume), `défense ${un.defense} → ${chez.defense}`);
+  exiger('à son échelon 2, la couleur en ajoute un : il joue comme deux poussées', presque(chez2.defense, patronALEchelon(k, { choix: ['force', 'force'] }).defense), `${chez2.defense}`);
+  exiger('chez un autre coach, ou sans coach, il joue tel quel', ailleurs === un && assortiPour(null, un) === un);
+}
+
+/* ---------- 3 : les échelons (V20 : achetés quand on veut ; le détail du banc est à check_banc) ---------- */
+{
+  const k = 'per_gardienDuFort';
+  const engage = [{ jour: 3, patron: patronALEchelon(k, {}) }];
+  const e = etatDuPersonnel(engage, 60)[0];
+  const achat = decisionDEchelon(e, 'force');
   exiger('monter coûte cher : chaque échelon, plus que le précédent, en jetons', achat.gain === -PRIX_ECHELON[2] && PRIX_ECHELON.slice(2).every((p, i, l) => !i || p > l[i - 1]),
     PRIX_ECHELON.slice(2).map(p => `${p} 🪙`).join(' · '));
   const monte = [...engage, { jour: 40, ...achat }];
-  const apres = etat(monte, 10);
-  exiger('un choix remplace la carte à son poste, et garde d\'où se comptent ses matchs', apres.echelon === 2 && !apres.aChoisir && apres.depuis === 3
-    && etatDuPersonnel(monte, 60, { joues: () => 0 }).length === 1);
-  const rep = reportDuPersonnel(etat(monte, 30));
-  exiger('la fin de saison reporte ses matchs à ton service', rep.avant === 30 && rep.depuis === 0 && rep.echelon === 2);
-  const toutEnHaut = MATCHS_ECHELON[ECHELON_MAX];
-  exiger(`le 3e échelon à ${toutEnHaut} matchs`, etat([{ jour: 0, patron: patronALEchelon(k, { choix: ['force'] }) }], toutEnHaut).aChoisir);
-  // Le calendrier : seuls tes matchs joués comptent.
+  const apres = etatDuPersonnel(monte, 60)[0];
+  exiger('un choix remplace la carte à son poste', apres.echelon === 2 && apres.qui === PATRONS[k].nom && etatDuPersonnel(monte, 60).length === 1);
+  // Le calendrier : seuls tes matchs joués comptent (le prix d'embauche les lit).
   const A = {}, B = {}, cal = [[{ A, B, gfA: 2, gfB: 1 }], [{ A: B, B: {}, gfA: 1, gfB: 0 }], [{ A: B, B: A }]];
-  exiger('ses matchs à ton service : les tiens, joués', matchsJoues(cal, A, 0, 3) === 1 && matchsJoues(cal, B, 0, 3) === 2 && matchsJoues(cal, B, 1, 2) === 1);
+  exiger('les matchs de ton club : les tiens, joués', matchsJoues(cal, A, 0, 3) === 1 && matchsJoues(cal, B, 0, 3) === 2 && matchsJoues(cal, B, 1, 2) === 1);
 }
 
 /* ---------- 4 : le moteur, en paires ---------- */
@@ -123,7 +124,7 @@ for (const M of MESURES) {
   const deux = protegeALEchelon(k, ['force', 'force']);
   exiger('le protégé : au premier échelon, la carte telle quelle ; deux poussées grandissent ses canaux', presque(protegeALEchelon(k, []).finition, M.finition)
     && presque(deux.finition, 1 + (M.finition - 1) * (1 + 2 * POUSSEE)) && presque(deux.lancers, 1 + (M.lancers - 1) * (1 + 2 * POUSSEE)), `finition ${M.finition} → ${deux.finition}`);
-  const e = etatDuPersonnel([{ jour: 0, patron: patronALEchelon(k, {}) }], 60, { joues: () => 30, copies: () => 4 })[0];
+  const e = etatDuPersonnel([{ jour: 0, patron: patronALEchelon(k, {}) }], 60)[0];
   const d = decisionDEchelon(e, 'force');
   exiger('la décision d\'échelon repose le protégé, ses canaux à l\'échelon', d.mutation && d.mutation.cle === k && presque(d.mutation.canaux.finition, protegeALEchelon(k, ['force']).finition));
   const vide = () => ({ n: 0, pts: 0 });
