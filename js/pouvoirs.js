@@ -88,15 +88,15 @@ export const POUVOIRS = {
 };
 
 /*
- * LE PERSONNAGE D'UNE ÉQUIPE : `{ cle, xp, talents: [p…], adjoints: [cle…] }`, porté par la décision `coach` du jour 0
+ * LE PERSONNAGE D'UNE ÉQUIPE : `{ cle, xp, talents: [p…], adjoints: [cle…], chef: { id, n, saison, tag }, maitrise }`, porté par la décision `coach` du jour 0
  * de chaque saison (l'expérience et les choix d'avant), puis par les décisions `talent`, `adjoint` et `perdAdjoint`.
  * Le moteur y ajoute l'expérience de la saison (`xpSaison`).
  */
 export function niveauDuPerso(perso) {
   return perso ? niveauDe((perso.xp || 0) + (perso.xpSaison || 0)) : 0;
 }
-/* La force d'un pouvoir : 1, plus ses talents. */
-export const forceDuPouvoir = (perso, p) => 1 + TALENT * (perso.talents || []).filter(x => x === p).length;
+/* La force d'un pouvoir : 1, plus ses talents, fois la maîtrise de l'entraîneur (sa vraie carte, js/coachs-reels.js). */
+export const forceDuPouvoir = (perso, p) => (1 + TALENT * (perso.talents || []).filter(x => x === p).length) * (perso.maitrise || 1);
 /* Un effet grandi : chaque canal s'écarte de 1 (ou de 0, la robustesse) `f` fois plus. */
 export function grandir(effet, f) {
   if (!effet) return null;

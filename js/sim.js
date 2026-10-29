@@ -5857,7 +5857,9 @@ function gagnerXp(T, bonus = 0) {
  */
 function appliquerPerso(team, d) {
   if (d.coach && d.coach.cle && POUVOIRS[d.coach.cle]) {
-    team.perso = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], adjoints: (d.coach.adjoints || []).filter(k => ADJOINTS[k]) };
+    // L'entraîneur (une vraie carte de coach, js/coachs-reels.js) : son nom, sa saison, sa maîtrise (de 1 à 1,2).
+    team.perso = { cle: d.coach.cle, xp: Number(d.coach.xp) || 0, talents: [...(d.coach.talents || [])], adjoints: (d.coach.adjoints || []).filter(k => ADJOINTS[k]),
+      ...(d.coach.chef ? { chef: { ...d.coach.chef } } : {}), maitrise: Math.min(1.2, Math.max(1, Number(d.coach.maitrise) || 1)) };
   }
   if (!team.perso) return;
   if (d.talent && Number.isInteger(d.talent.p)) team.perso = { ...team.perso, talents: [...team.perso.talents, d.talent.p] };

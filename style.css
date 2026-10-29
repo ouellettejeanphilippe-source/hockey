@@ -3631,6 +3631,8 @@ a.spin-club:hover { background: var(--fond-2); }
 .pv-dit .bon { color: var(--bon); }
 .pv-dit .mal { color: var(--mauvais); }
 .pv.adj { box-shadow: inset 3px 0 0 var(--encre-3); }
+.pv.adj.vide { box-shadow: none; border: 1px dashed var(--filet); background: none; }
+.ej-case-l { margin-top: var(--esp-2); font: 700 var(--t-1)/1 var(--display); letter-spacing: 0.08em; text-transform: uppercase; color: var(--encre-3); }
 /* LES CARTES D'UNE MAISON (V12-4), toujours visibles : un titre, et une bande de cartons qui se balaie, la suivante au bord, comme la main du duel. */
 .ej-coach-l.suite { opacity: 0.6; }
 /* Ce que le prochain palier jouera (V12-4) : un détail, que « Les chiffres » déplie, comme les chiffres d'un choix. */

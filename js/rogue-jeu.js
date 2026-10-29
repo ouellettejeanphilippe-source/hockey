@@ -11,6 +11,7 @@ import { getPlayerKey, getPersonKey, SLOTS, MUTATIONS, joueurDeMutation, autoRos
 import { BANQUE, reglesDe, payloadDe, CONSOMMABLES, etiquetteBanque } from './banque.js';
 import { hubActif } from './coquille.js';
 import { COACHS, VOIES } from './coachs.js';
+import { chargerCoachs, lotoDesCoachs, motDuRang } from './coachs-reels.js';
 import { POUVOIRS, NIVEAU_DES_POUVOIRS, NIVEAU_MAX, niveauDuPerso } from './pouvoirs.js';
 import { motsDeMutationEnChiffres } from './impact.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
@@ -29,7 +30,7 @@ import { jouerSon } from './sons.js';
 import { nombreEnSeries, leagueStats, gagnantsDesTrophees } from './bilan.js';
 import { galonsDeLaSaison, grosGagnesDe, texteDuGalon, GALONS_MAX, ICO_GALON, GALONS } from './galons.js';
 import { sceneDuMandat, sceneDesGalons } from './scenes.js';
-import { $, G, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
+import { $, G, TEAMFULL, applyTeamColors, candidats, capHit, capLeft, capUsed, clearSave, contexteDuMenu, enRepechage, headshotHtml, isPicked, majEntete, plafondEffectif, poserLeClub, quiEst, render, saveGame, setView, signes, toast, totalCases } from './game.js';
 import { RAYONS_CLUB, choixDuClub, possede, porter, ecussonDe, nomDuClub, offresDuClub, prendre } from './club.js';
 import { apercuJoueur, carteMiniHtml, etatPourPoser, getShard, ligneDe, ligneDuChoix, niveauHorsRuban, ouJoue, ouvrirListeJoueurs, ouvrirListeSignature, poserCartes, rangeesAlignement, rareteJoueur } from './repechage.js';
 import { POSTE_GROUPE, ballottageVu, groupeDe, sousVoile } from './banc.js';
@@ -986,22 +987,30 @@ export async function ouvrirRogue() {
   await sousVoile('On rassemble tes bouche-trous…', () => demarrerRogue(avecVedette, tires, coach, premiere, exigence));
 }
 /*
- * TON COACH, TON PERSONNAGE (V21, docs/refonte-v21.md ; JP : *coach-personnage à la Hades*). Les coachs que le prestige
- * du club a ouverts (trois au Club de garage, les huit à la Dynastie, js/rogue.js `coachsOuverts`), un à prendre pour
- * toute la run : son niveau monte en jouant, ses trois pouvoirs s'ouvrent aux niveaux 1, 3 et 5.
+ * TON ENTRAÎNEUR (V21, docs/refonte-v21.md ; JP : *des cartes de vrais coachs par saison*). Un loto de trois vraies
+ * cartes de coach-saison (js/coachs-reels.js), de trois philosophies que le prestige du club a ouvertes (trois au Club
+ * de garage, les huit à la Dynastie, js/rogue.js `coachsOuverts`) ; tu en prends une pour toute la run : sa philosophie
+ * fait ses trois pouvoirs, son rang dans la ligue sa maîtrise. Le loto suit la graine du classeur : recharger redonne
+ * les mêmes trois. Rend la carte prise, ou null.
  */
-function choisirCoach() {
-  const meta = lireMeta(), rang = rangDePrestige(meta), ouverts = coachsOuverts(rang);
-  const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
+const nomDuClubSaison = (tag, saison) => `${TEAMFULL[tag] || tag} ${saison}`;
+async function choisirCoach() {
+  const meta = lireMeta(), ouverts = coachsOuverts(rangDePrestige(meta));
+  const donnees = await sousVoile('On sort les dossiers des coachs…', () => chargerCoachs()).catch(() => null);
+  const loto = lotoDesCoachs(donnees, ouverts, `${graineDuClasseur()}:chef`);
+  if (!loto.length) return null;
+  const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} philosophies sur ${VOIES.length} : le prestige ouvre les autres.` : '';
+  const fiche = c => `${c.fiche.v}-${c.fiche.d}-${c.fiche.n}${c.coupe ? ' · 🏆' : ''}${c.jack ? ' · Jack Adams' : ''}`;
   return new Promise(resolve => ouvrirChoix({
-    ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: `Il fait toute la run. Il gagne de l'expérience en gagnant ; ses pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}.${plus}`,
-    options: ouverts.map(k => {
-      const C = COACHS[k];
-      return { cle: k, ico: C.ico, nom: C.nom, sous: C.mot,
-        mots: POUVOIRS[k].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: p ? null : true })) };
+    ico: '📋', titre: 'Ton entraîneur', fermable: true, motFermer: 'Retour',
+    recit: `Un vrai coach, une saison : il fait toute la run. Sa philosophie vient des vraies stats de son club ; il gagne de l'expérience en gagnant, et ses pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.join(', ')}.${plus}`,
+    options: loto.map(c => {
+      const C = COACHS[c.cle];
+      return { cle: c.id, ico: C.ico, nom: c.n, sous: `${nomDuClubSaison(c.tag, c.saison)} · ${fiche(c)}`,
+        mots: [{ txt: `${C.ico} ${C.nom} : ${motDuRang(c.cle, c.rang)}${c.maitrise > 1 ? ` · ses pouvoirs ×${String(c.maitrise).replace('.', ',')}` : ''}`, bon: true },
+          ...POUVOIRS[c.cle].map((P, p) => ({ txt: `${P.ico} ${P.nom}${p ? ` (niveau ${NIVEAU_DES_POUVOIRS[p]})` : ''} : ${P.dit}`, bon: p ? null : true }))] };
     }),
-    onChoix: k => resolve(k),
+    onChoix: id => resolve(loto.find(c => c.id === id) || null),
     onFerme: () => resolve(null),
   }));
 }
@@ -1121,7 +1130,7 @@ async function demarrerRogue(gardes = [], tires = [], coach = null, premiere = n
     // V21 : le coach de la run, un personnage (js/pouvoirs.js) — son expérience et ses choix passent d'une saison à
     // l'autre (`perso`, la décision du jour 0, js/banc.js) — et le prestige du club, FIXÉ pour la run (js/rogue.js
     // `PRESTIGES`) : un rang gagné en route sert la suivante.
-    ...(COACHS[coach] ? { coach, perso: { cle: coach, xp: 0, talents: [], adjoints: [] } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
+    ...(coach && COACHS[coach.cle] ? { coach: coach.cle, perso: { cle: coach.cle, xp: 0, talents: [], adjoints: [], chef: { id: coach.id, n: coach.n, saison: coach.saison, tag: coach.tag }, maitrise: coach.maitrise } } : {}), prestige: rangDePrestige(meta), montee: monteeDesPacks(meta), recrue: cranDeLaRecrue(meta),
     classeur: { cases: D.cases, pris: tires.map(x => x.cle) },
     // 1.0 (R7) : ce que l'écran « Ta run » comparera à la fin — le cartable au départ, les écussons et les jalons de la run.
     cartableDepart: Object.keys(lireCartable().joueurs).length, ecussonsRun: 0, jalonsRun: [],
@@ -1493,7 +1502,7 @@ function montrerLaCoupe(d, n, meta, vedettes, ligne, entrees, nCartable) {
       ${vedettes.length ? `<div class="dp-grille coupe-vedettes">${vedettes.map(p => `<div class="dp-carte">${carteMiniHtml(p)}<span class="dp-qui">${esc(quiEst(p))}</span></div>`).join('')}</div>` : ''}
       <div class="run-bilan">
       ${ligne('Saisons jouées', n)}
-      ${C ? ligne('Ton coach', `${C.ico} ${esc(C.nom)}`) : ''}
+      ${C ? ligne('Ton coach', `${C.ico} ${esc(C.nom)}${G.rogue.perso && G.rogue.perso.chef ? ` · ${esc(G.rogue.perso.chef.n)}, ${esc(nomDuClubSaison(G.rogue.perso.chef.tag, G.rogue.perso.chef.saison))}` : ''}`) : ''}
       ${ligne('Médailles gagnées par la run', `🏅 +${d.ecussons}`)}
       ${ligne('Jalons débloqués', d.jalons.length ? esc(d.jalons.join(' · ')) : 'aucun')}
       ${entrees != null ? ligne('Cartes entrées au cartable', `📒 +${entrees}`) : ''}
@@ -1623,7 +1632,7 @@ async function continuerRun(gardes = [], lotos = []) {
   for (const p of gardes) G.variantes.cartes[getPlayerKey(p)] = meilleureVariante(lireCartable().joueurs[getPlayerKey(p)]) || G.variantes.cartes[getPlayerKey(p)];
   const decsSaison = decisionsDeLaPartie();
   // V21 : le coach de la run continue — son expérience de la saison (séries comprises) rejoint celle d'avant.
-  if (L.you && L.you.perso) G.rogue.perso = { cle: L.you.perso.cle, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])] };
+  if (L.you && L.you.perso) G.rogue.perso = { ...L.you.perso, xp: (L.you.perso.xp || 0) + (L.you.xpSaison || 0), talents: [...(L.you.perso.talents || [])], adjoints: [...(L.you.perso.adjoints || [])] };
   // Jalon Q : les cartes de la partie te suivent — celles pas jouées passent à la saison suivante (la clé `poche` reste, pour les sauvegardes).
   const poche = cartesDeLaPartie({ decisions: decsSaison, rogue: true }).map(x => x.id);
   if (poche.length) report.push({ jour: 0, poche, report: true });

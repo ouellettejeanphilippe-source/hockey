@@ -57,6 +57,7 @@ import {
 import { robotDuel } from './duel.mjs';
 import { lundiDuRobot, coachDuRobot } from './cartes_robot.mjs';
 import { niveauDuPerso } from '../../js/pouvoirs.js';
+import { lotoDesCoachs } from '../../js/coachs-reels.js';
 import { galonsDeLaSaison, GALONS_MAX } from '../../js/galons.js';
 import { alignementAuMieux, chiffresDuSoir, planEnChiffres } from '../../js/impact.js';
 import { carteDe, varianteTiree, COTES_VARIANTES, EDITIONS } from '../../js/rarete.js';
@@ -75,6 +76,8 @@ const ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.ur
 const DIR = path.join(ROOT, 'data', 'seasons');
 // Les saisons du jeu sont celles de l'index (scripts/build_shards.py `saison_jouable`) : la saison en cours n'y entre qu'à la mi-saison.
 export const SAISONS = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'index.json'), 'utf8')).seasons;
+/* Les vrais entraîneurs (data/coachs.json, scripts/coachs.mjs) : le loto du départ d'une run. */
+const COACHS_REELS = JSON.parse(fs.readFileSync(path.join(ROOT, 'data', 'coachs.json'), 'utf8'));
 const CACHE = new Map();
 export function shard(s) {
   if (!CACHE.has(s)) {
@@ -310,7 +313,8 @@ export function jouerSaison(meta, etat, { graine, saison, mains = true, politiqu
     const couleurs = {};
     for (const p of Object.values(etat.roster)) { const c = p && coachDuJoueur(p); if (c) couleurs[c] = (couleurs[c] || 0) + v(p); }
     const couleur = Object.entries(couleurs).sort((a, b) => b[1] - a[1])[0];
-    etat.perso = { cle: coachDuRobot(ouverts, { politique, clic, couleur: couleur && couleur[0] }), xp: 0, talents: [], adjoints: [] };
+    const c = coachDuRobot(lotoDesCoachs(COACHS_REELS, ouverts, `rogue80:${graine}:chef`), { politique, clic, couleur: couleur && couleur[0] });
+    etat.perso = { cle: c.cle, xp: 0, talents: [], adjoints: [], chef: { id: c.id, n: c.n, saison: c.saison, tag: c.tag }, maitrise: c.maitrise };
   }
   // L'attentif range ses cartes posées : la variante d'un joueur compte dans ce qu'il rend.
   const roster = attentif ? ranger(Object.values(etat.roster).filter(Boolean), nRes, auMieux) : etat.roster;

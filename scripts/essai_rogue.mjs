@@ -145,15 +145,16 @@ console.log(`0. les exigences : ${crans.length} cran(s) offert(s) · ${crans.map
 if (crans.length !== 1 || !/Exigence 1/.test(crans[0]) || !/médailles/.test(crans[0])) erreurs.push(`le départ d'une run offre ${crans.length} cran(s) d'exigence après une Coupe (attendu : 1, avec sa prime de médailles)`);
 await choix('.choix-option[data-choix="go"]');
 /*
- * TON COACH (V21, js/pouvoirs.js) : les coachs que le prestige ouvre (V2.3 : ce méta est un Club de quartier,
- * donc quatre), un à prendre ; chacun dit ses trois pouvoirs et le niveau qui ouvre chacun.
+ * TON ENTRAÎNEUR (V21, js/coachs-reels.js) : un loto de trois vraies cartes de coach-saison, de trois philosophies que
+ * le prestige ouvre (ce méta est un Club de quartier, donc quatre) ; chacune dit son club et sa saison, et ses trois
+ * pouvoirs avec le niveau qui ouvre chacun.
  */
 const COACHS_ATTENDUS = PRESTIGES[rangDePrestige({ ecussons: 400, deblocages: ['banc1', 'caisse1', 'classeur1'], jalons: {} })].coachs;
-await page.waitForFunction(() => /Ton coach/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
+await page.waitForFunction(() => /Ton entraîneur/.test((document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent || ''), null, { timeout: 60000 });
 const offerts = await page.$$eval('#choixModal .choix-option', e => e.map(x => x.textContent.replace(/\s+/g, ' ').trim()));
 await page.screenshot({ path: `${DOSSIER}/rogue-coach.png` });
-console.log(`0. ton coach : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 40)).join(' | ')}`);
-if (offerts.length !== COACHS_ATTENDUS || !offerts.every(t => /niveau 3/.test(t) && /niveau 5/.test(t))) erreurs.push(`le choix du coach offre ${offerts.length} coach(s) (le prestige en ouvre ${COACHS_ATTENDUS}), ou ne dit pas ses trois pouvoirs`);
+console.log(`0. ton entraîneur : ${offerts.length} offerts · ${offerts.map(t => t.slice(0, 60)).join(' | ')}`);
+if (offerts.length !== Math.min(3, COACHS_ATTENDUS) || !offerts.every(t => /niveau 3/.test(t) && /niveau 5/.test(t) && /\d{4}-\d{2}/.test(t))) erreurs.push(`le loto de l'entraîneur offre ${offerts.length} carte(s) (attendu : 3), ou une carte ne dit pas sa saison et ses trois pouvoirs`);
 await choix();
 /*
  * TON JOUEUR DE CONCESSION (JP, 18 oct. : *avoir un gros joueur dès la première run, mais difficile d'en avoir
@@ -1404,6 +1405,7 @@ await page.click('#navbar .navtab[data-section="bureau"]');
 await unVisible(BUREAU, 20000);
 // La fin de saison se JOUE (S79 : plus de « Fin de saison ») : décision après décision, jusqu'au bilan.
 for (let i = 0; i < 200; i++) {
+  if (process.env.TRACE) console.log('TRACE', i, new Date().toISOString().slice(11, 19), JSON.stringify(await page.evaluate(() => ({ jour: (document.querySelector('#hubModal .hub-jour') || {}).textContent, msgs: [...document.querySelectorAll('#hubModal .hub-msg')].filter(x => x.checkVisibility()).map(x => `${x.dataset.msg}:${x.className.includes('bloque') ? 'B' : ''}:${(x.querySelector('.hub-msg-sujet') || {}).textContent}`).slice(0, 6), choix: (document.querySelector('#choixModal:not([hidden]) .choix-titre') || {}).textContent }))));
   await regler();
   // Deux « Voir le bilan » peuvent exister (le bureau et sa page) : c'est le visible qui compte.
   if (await page.locator('#hubModal .hub-suite:visible').count()) break;

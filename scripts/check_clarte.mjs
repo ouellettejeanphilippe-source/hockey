@@ -47,6 +47,7 @@ import { JETONS, baremeRogue, ESPACE_DE_DEPART, MANDATS, GARDES_DE_SAISON, SOUTI
 import { COACHS } from '../js/coachs.js';
 import { XP, SEUILS_NIVEAU, NIVEAU_DES_POUVOIRS, TALENT } from '../js/pouvoirs.js';
 import { ADJOINTS_MAX } from '../js/adjoints.js';
+import { MAITRISE } from '../js/coachs-reels.js';
 import { RAPPEL_MATCHS } from '../js/ballottage.js';
 import { DATE_LIMITE_MATCH } from '../js/packs.js';
 import { EXPEDITEURS } from '../js/vie-gm.js';
@@ -274,6 +275,7 @@ const pct = x => nombre(Math.abs(x - 1) * 100);
     // V21 : le coach, un personnage (js/pouvoirs.js) — son expérience, ses niveaux, ses pouvoirs, ses talents, ses adjoints.
     [`<strong>Les coachs</strong> : ${Object.keys(COACHS).length} philosophies`, 'le nombre de coachs'],
     [`une victoire ${XP.victoire} point, un gros match gagné ${XP.gros} de plus, une série gagnée ${XP.serie} ; ${SEUILS_NIVEAU.slice(1).map((x, i) => `${i ? '' : 'niveau '}${i + 2} à ${x}`).join(', ').replace(/, ([^,]*)$/, ', $1')} points`, 'l\'expérience du coach'],
+    [`premier ou deuxième de la ligue dans sa lecture, ses pouvoirs jouent ×${nombre(MAITRISE[0][1])} (×${nombre(MAITRISE[1][1])} dans les cinq premiers)`, 'la maîtrise de l\'entraîneur'],
     [`Ses trois pouvoirs s'ouvrent aux niveaux ${NIVEAU_DES_POUVOIRS.slice(0, -1).join(', ')} et ${NIVEAU_DES_POUVOIRS.at(-1)}`, 'les pouvoirs'],
     [`fait grandir un pouvoir de ${nombre(TALENT * 100)} %`, 'le talent'],
     [`${ADJOINTS_MAX === 3 ? 'Trois' : ADJOINTS_MAX} adjoints au plus ; un ${ADJOINTS_MAX === 3 ? 'quatrième' : 'de plus'}, et tu choisis qui part`, 'le staff'],

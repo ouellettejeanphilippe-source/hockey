@@ -16,7 +16,7 @@ import { jambesHtml, motDuBadge, ouvrirChoix } from './gerant.js';
 import { couleurVive, fondEquipe, getTeamBand, getTeamLogoHtml } from './logos.js';
 import { teamShort } from './bilan.js';
 import { nomCourt } from './recit.js';
-import { $, G, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
+import { $, G, TEAMFULL, MODE, ZONE_DESSUS_TITLE, ZONE_SOUS_TITLE, capLeft, capUsed, caseOuverte, chiffreCle, displayStats, estRenfort, formatName, headshotHtml, ico, positionClass, positionLabel, render, roleTag, saveGame, saveOpts, setView, slotsLeft, toast, totalCases, zoneEcart, zoneTag } from './game.js';
 import { ajusterCartes, choisirSpeciale, lesCotes, pastilleNiveau, rareteJoueur, relacherReserviste, slotShort } from './repechage.js';
 import { ouvrirFiche, porteeRevele, showPlayerModal } from './fiche.js';
 
@@ -790,16 +790,20 @@ export function coachHtml() {
       <p class="pv-dit">${esc(P.dit)}${f > 1 ? ` <b class="bon">×${String(Math.round(f * 100) / 100).replace('.', ',')}</b>` : ''}</p>
     </div>`;
   };
+  // L'ALIGNEMENT DU STAFF (V21 ; JP : *les coachs et assistants comme l'alignement*) : la case de l'entraîneur, sa vraie
+  // carte de coach-saison, puis ses pouvoirs, puis les places d'adjoint, libres.
+  const chef = perso.chef;
   return `<div class="ej-coach">
-    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${esc(C.mot)}</small></div>
+    <div class="ej-case-l">L'entraîneur</div>
+    <div class="ej-coach-tete"><span class="ej-coach-ico" aria-hidden="true">${C.ico}</span><b>${esc(chef ? chef.n : C.nom)}</b><span class="ej-rang">Niveau ${niveau}</span><small>${chef ? `${esc(`${TEAMFULL[chef.tag] || chef.tag} ${chef.saison}`)} · ${esc(C.nom)}${(perso.maitrise || 1) > 1 ? ` · pouvoirs ×${String(perso.maitrise).replace('.', ',')}` : ''}` : esc(C.mot)}</small></div>
     <div class="ej-jauge" role="img" aria-label="Expérience ${xp}"><i style="width:${part}%"></i></div>
     <div class="ej-coach-l">${xp} d'expérience${manque == null ? ` · niveau ${NIVEAU_MAX}, le sommet` : ` · niveau ${niveau + 1} dans ${manque}`}</div>
     ${POUVOIRS[perso.cle].map(carte).join('')}
-    <div class="ej-coach-l">Ton staff : ${(perso.adjoints || []).length} adjoint${(perso.adjoints || []).length > 1 ? 's' : ''} sur ${ADJOINTS_MAX}</div>
-    ${(perso.adjoints || []).filter(k => ADJOINTS[k]).map(k => `<div class="pv adj">
+    <div class="ej-case-l">Adjoints · ${ADJOINTS_MAX} places</div>
+    ${Array.from({ length: ADJOINTS_MAX }, (_, i) => (perso.adjoints || []).filter(k => ADJOINTS[k])[i]).map(k => (k ? `<div class="pv adj">
       <div class="pv-tete"><span class="pv-ico" aria-hidden="true">${ADJOINTS[k].ico}</span><b>${esc(ADJOINTS[k].nom)}</b></div>
       <p class="pv-dit">${lignesDeLAdjoint(k).map(x => `<span class="${x.bon ? 'bon' : 'mal'}">${esc(x.txt)}</span>`).join(' · ')}</p>
-    </div>`).join('')}
+    </div>` : '<div class="pv adj vide"><p class="pv-dit">Place libre : un adjoint arrive aux 9e, 18e et 26e matchs et après un gros match gagné.</p></div>')).join('')}
   </div>`;
 }
 /* Le filet du soir : chaque gardien, son % d'arrêts et ses jambes. Il joue au « Retour au match ». */

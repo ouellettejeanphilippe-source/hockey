@@ -140,11 +140,12 @@ export function lundiDuRobot({ L, you, graine, politique, clic, jetons, etat }) 
 }
 
 /*
- * LE COACH DU DÉPART D'UNE RUN, parmi ceux que le prestige ouvre : l'attentif prend celui des rôles de son effectif
- * (`coachDesRoles`, la couleur de ses meilleurs), le distrait n'importe lequel, le robot d'avant le premier.
+ * L'ENTRAÎNEUR DU DÉPART D'UNE RUN : le même loto de trois vraies cartes que le jeu (js/coachs-reels.js) ; l'attentif
+ * prend celle de la couleur de son effectif, sinon la plus grande maîtrise ; le distrait n'importe laquelle ; le robot
+ * d'avant la première. Rend la carte.
  */
-export function coachDuRobot(ouverts, { politique, clic, couleur }) {
-  if (clic) return ouverts[Math.floor(clic() * ouverts.length)];
-  if (politique === 'attentif' && couleur && ouverts.includes(couleur)) return couleur;
-  return ouverts.find(k => POUVOIRS[k]) || ouverts[0];
+export function coachDuRobot(loto, { politique, clic, couleur }) {
+  if (clic) return loto[Math.floor(clic() * loto.length)];
+  if (politique === 'attentif') return loto.find(c => c.cle === couleur) || loto.reduce((a, b) => (b.maitrise > a.maitrise ? b : a));
+  return loto[0];
 }

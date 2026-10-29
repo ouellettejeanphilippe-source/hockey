@@ -5,7 +5,8 @@
  *   1. les tables : huit coachs, trois pouvoirs chacun ; douze adjoints, chacun un gain ET un prix ; tous sur des
  *      canaux que le moteur connaît ;
  *   2. le niveau : les seuils, les pouvoirs ouverts, les talents dus ; les adjoints offerts sont purs, distincts,
- *      jamais un déjà en poste ; un staff qui déborde garde ses derniers entrés ;
+ *      jamais un déjà en poste ; un staff qui déborde garde ses derniers entrés ; les vraies cartes d'entraîneur
+ *      (data/coachs.json) : un coach par club-saison, une philosophie connue, un loto pur de trois philosophies ouvertes ;
  *   3. EN PAIRES, match par match (CLAUDE.md) : deux copies d'un même vrai club, le même match sur les mêmes dés,
  *      une fois avec un coach muet (trois périodes, aucun pouvoir : la soirée en périodes a son propre tirage), une
  *      fois avec le pouvoir seul. Chaque pouvoir :
@@ -28,6 +29,8 @@ import { fileURLToPath } from 'node:url';
 import { autoRoster, registerHiddenRatings, createTeam, playGame, grainerHasard, feuilleVierge, simulateLeague } from '../js/sim.js';
 import { POUVOIRS, XP, SEUILS_NIVEAU, NIVEAU_MAX, niveauDe, pouvoirsOuverts, talentsDus, forceDuPouvoir } from '../js/pouvoirs.js';
 import { ADJOINTS, ADJOINTS_MAX, adjointsOfferts, avecAdjoint, adjointsQuiJouent, lignesDeLAdjoint } from '../js/adjoints.js';
+import { MAITRISE, maitriseDu, carteDuCoach, lotoDesCoachs } from '../js/coachs-reels.js';
+import fs from 'node:fs';
 import { COACHS } from '../js/coachs.js';
 import { TEMOINS, equipeReelle } from './lib/vestiaires.mjs';
 import { exiger, informer, verdict } from './verdict.mjs';
@@ -84,6 +87,23 @@ const somme = a => (a || []).reduce((x, y) => x + y, 0);
   const plein = avecAdjoint(['canonnier', 'tireur', 'mur'], 'soigneur');
   exiger(`un staff de plus de ${ADJOINTS_MAX} garde ses derniers entrés, en attendant qui part`, plein.length === 4 && adjointsQuiJouent(plein).join() === 'tireur,mur,soigneur' && avecAdjoint(plein, 'tireur').at(-1) === 'tireur',
     adjointsQuiJouent(plein).join(', '));
+}
+
+/* ---------- 2b. les vrais entraîneurs (js/coachs-reels.js, data/coachs.json) ---------- */
+{
+  const donnees = JSON.parse(fs.readFileSync(new URL('../data/coachs.json', import.meta.url), 'utf8'));
+  const index = JSON.parse(fs.readFileSync(new URL('../data/index.json', import.meta.url), 'utf8')).seasons;
+  const cartes = Object.entries(donnees).flatMap(([saison, clubs]) => Object.keys(clubs).map(tag => carteDuCoach(donnees, saison, tag)));
+  const fautes = cartes.filter(c => !c || !c.n || !POUVOIRS[c.cle] || !(c.rang >= 1) || c.maitrise < 1 || c.maitrise > MAITRISE[0][1] || !(c.fiche.gp > 0));
+  exiger('un vrai entraîneur pour chaque club de chaque saison, une philosophie connue', !fautes.length && index.every(s => donnees[s]) && cartes.length > 1000,
+    `${cartes.length} cartes · ${Object.keys(POUVOIRS).map(k => `${k} ${cartes.filter(c => c.cle === k).length}`).join(' · ')}`);
+  const bowman = carteDuCoach(donnees, '1976-77', 'MTL');
+  exiger('Scotty Bowman, Canadiens 1976-77 : sa fiche, sa Coupe, son Jack Adams', bowman && bowman.n === 'Scotty Bowman' && bowman.fiche.v === 60 && bowman.coupe && bowman.jack, bowman ? `${bowman.n} · ${bowman.cle} · ${bowman.rang}e · ×${bowman.maitrise}` : 'absent');
+  exiger('la maîtrise : ×1,2 aux deux premiers rangs, ×1,1 aux cinq premiers, ×1 ensuite', maitriseDu(1) === 1.2 && maitriseDu(2) === 1.2 && maitriseDu(3) === 1.1 && maitriseDu(6) === 1);
+  const ouverts = ['tortue', 'essaim', 'rhinos'];
+  const a = lotoDesCoachs(donnees, ouverts, 'g'), b = lotoDesCoachs(donnees, ouverts, 'g'), c = lotoDesCoachs(donnees, ouverts, 'h');
+  exiger('le loto de l\'entraîneur : trois cartes, trois philosophies ouvertes, pur', a.length === 3 && new Set(a.map(x => x.cle)).size === 3 && a.every(x => ouverts.includes(x.cle))
+    && JSON.stringify(a) === JSON.stringify(b) && JSON.stringify(a) !== JSON.stringify(c), a.map(x => `${x.n} ${x.saison} ${x.tag}`).join(' · '));
 }
 
 /* ---------- 3. chaque pouvoir, en paires ---------- */
