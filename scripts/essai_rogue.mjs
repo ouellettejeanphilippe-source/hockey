@@ -912,9 +912,9 @@ if (!fiche3.titres.includes('Le joueur d\'une carte') || fiche3.niveaux.length !
 await page.click('#pageMarche .hub-page[data-genre="boutique"] .pk-retour');
 await acheter('j:epoque', 'rogue-pack-fiche');
 await page.waitForSelector('#choixModal:not([hidden]) .choix-option.tc', { timeout: 60000 });
-// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (joueurs et cartes de jeu, rien à signer).
+// Jalon Q : un pack mixte se déchire une fois sur tout son contenu (ses joueurs, et sa carte rare s'il en tire une ; rien à signer).
 const revele = await page.$$eval('#choixModal .choix-option.tc', e => ({ joueurs: e.filter(x => x.querySelector('.cj-mini-carte')).length, jeu: e.filter(x => !x.querySelector('.cj-mini-carte')).length, signer: e.filter(x => x.querySelector('.tcj-signer')).length }));
-if (!revele.joueurs || !revele.jeu || revele.signer) erreurs.push(`le pack Époque ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
+if (!revele.joueurs || revele.signer) erreurs.push(`le pack Époque ne se montre pas en entier avant la signature : ${JSON.stringify(revele)}`);
 await page.screenshot({ path: `${DOSSIER}/rogue-pack.png` });
 // S80 : chaque carte dit son niveau UNE fois — sur son ruban (★ Étoile, ★ Phénomène) ou en un mot sous la carte, jamais les deux.
 const niveaux = await page.$$eval('#choixModal .choix-option.tc', (e, noms) => e.filter(x => x.querySelector('.cj-mini-carte')).map(x => {

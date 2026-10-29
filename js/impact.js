@@ -555,7 +555,9 @@ export function propositionsDuDuel(team, adv, { intention, plan = null, pointage
     ajouter(cle, intention.cle);
   }
   ajouter('ombre', 'vedette');
-  const lu = p => lire(team, null, adv, { plan: p, intention, duel: true, n });
+  // Toujours deux idées au moins : le plan en force ou les jambes lourdes ont pu en écarter (des plans qui n'usent pas).
+  for (const cle of ['centre', 'discipline']) if (idees.length < 2) ajouter(cle, intention.cle);
+  const lu =p => lire(team, null, adv, { plan: p, intention, duel: true, n });
   const sans = lu(enForce);
   const { vedette, colle } = cibleDuPlan(activeLineup(team), adv ? activeLineup(adv) : null);
   return idees.slice(0, IDEES_MAX).map(x => {
