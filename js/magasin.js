@@ -44,7 +44,7 @@ function niveauxHtml(cle, mods = {}) {
   return `<h4>Le joueur d'une carte</h4>
       <table class="pk-bareme pk-niveaux">${lignes.map(({ N, k, v }) => `<tr><th>${k >= ETOILE ? '★ ' : ''}${esc(N.nom)}</th><td class="pk-rang">${esc(N.rang)}</td><td>${pct(v)}</td></tr>`).join('')}</table>
       <p class="pk-num">Son rang dans sa vraie saison, à son poste. Sans ce niveau ${manque} : le plus proche.</p>
-      ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ajoute des Étoiles et des Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} recrute ${esc(COACHS[mods.coach].recrute)}.` : ''}</p>` : ''}`;
+      ${mods.prestige ? `<p class="pk-num">📈 ${esc(mods.prestige.nom)} : ton prestige ajoute des Étoiles et des Phénomènes, run après run.${mods.coach && COACHS[mods.coach] ? ` ${COACHS[mods.coach].ico} Le dépisteur ${esc(COACHS[mods.coach].de)} penche pour les joueurs de sa couleur.` : ''}</p>` : ''}`;
 }
 export function ouvrirMagasin(ctx) {
   // Dans une page du Marché (`ctx.dans`, `ctx.fermer`, js/game.js) ou dans sa fenêtre.

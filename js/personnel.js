@@ -5,8 +5,9 @@
  * saison d'avant (`CARTES`, un bonus payé par un malus) s'y fondent : un poste dit son prix par son moment, plutôt
  * que par un malus.
  *
- * Deux postes par coach, sur son canal (`coachDesCanaux`, js/coachs.js) ; le Comptable, lui, travaille l'argent toute
- * l'année. Trois postes neutres, des communes de trois rôles différents : ce sont eux que le départ d'une run impose
+ * Deux postes par coach, sur son canal (`coachDesCanaux`, js/coachs.js). L'argent n'est plus au banc (V20) : ses cartes
+ * sont les ententes du proprio (`role: 'entente'`), neutres, une à la fois, hors des chaises. Trois postes neutres,
+ * des communes de trois rôles différents : ce sont eux que le départ d'une run impose
  * (`patronsDeDepart`). Les contrats lourds sont partis (V16, tranche 6) : le contrat de télé est une réponse du dossier
  * de la masse salariale (js/dossiers.js `laMasse`).
  */
@@ -84,7 +85,7 @@ export const PERSONNEL = {
   // ---- 😇 l'Abbé ----
   per_aumonier: { role: 'chef', nom: 'L\'aumônier', ico: '🕍', rarete: 'peu', effet: { discipline: 0.75, finition: 0.94, robustesse: -0.25 },
     texte: 'Après une défaite, il parle de patience. Les bâtons restent en bas.' },
-  per_ancienArbitre: { role: 'direction', nom: 'L\'ancien arbitre', ico: '🦓', rarete: 'rare', effet: { discipline: 0.75, robustesse: -1.29, finition: 0.97 },
+  per_ancienArbitre: { role: 'chef', nom: 'L\'ancien arbitre', ico: '🦓', rarete: 'rare', effet: { discipline: 0.75, robustesse: -1.29, finition: 0.97 },
     texte: 'Il connaît chaque arbitre de la ligue, et ce qui les fait siffler.' },
 
   // ---- 🪜 le Contremaître ----
@@ -94,15 +95,15 @@ export const PERSONNEL = {
     texte: 'Il découpe le deuxième soir en quatre parts égales.' },
 
   // ---- 🌠 le Showman ----
-  per_agentDesVedettes: { role: 'direction', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', effet: { F: [1.2, 1.06, 0.92, 0.8], defense: 1.02, energie: 1.09, finition: 0.97 },
+  per_agentDesVedettes: { role: 'attaque', nom: 'L\'agent des vedettes', ico: '💼', rarete: 'peu', effet: { F: [1.2, 1.06, 0.92, 0.8], defense: 1.02, energie: 1.09, finition: 0.97 },
     texte: 'Chez nous, ses clients jouent. Les caméras sont là.' },
   per_metteurEnScene: { role: 'chef', nom: 'Le metteur en scène', ico: '🎬', rarete: 'rare', effet: { F: [1.45, 1.05, 0.8, 0.6], defense: 1.09, energie: 1.12, finition: 0.98 },
     texte: 'En séries, il écrit le match pour ses vedettes.' },
 
-  // ---- 🏦 le Comptable : l'argent, toute l'année ----
-  per_caissier: { role: 'direction', nom: 'Le gestionnaire de la caisse', ico: '🗄', rarete: 'commune', econ: { jetonsVictoire: 2 },
+  // ---- 🤝 les ententes du proprio (V20) : l'argent, toute l'année, hors du banc ----
+  per_caissier: { role: 'entente', nom: 'Le gestionnaire de la caisse', ico: '🗄', rarete: 'commune', econ: { jetonsVictoire: 2 },
     texte: 'Chaque victoire remplit l\'aréna. Il compte les billets.' },
-  per_negociateur: { role: 'depistage', nom: 'Le négociateur', ico: '🤝', rarete: 'peu', econ: { rabais: 0.9 },
+  per_negociateur: { role: 'entente', nom: 'Le négociateur', ico: '🤝', rarete: 'peu', econ: { rabais: 0.9 },
     texte: 'Il obtient un prix de groupe sur tout ce qui se vend.' },
 
   /*
@@ -130,7 +131,7 @@ export const PERSONNEL = {
   per_maniaqueVolume: { role: 'chef', nom: 'Le maniaque du volume', ico: '🔊', rarete: 'rare', effet: { volume: 1.2, finition: 0.9, energie: 1.04 },
     texte: 'Trois victoires de suite ? Il veut quarante tirs. Pas un de moins.' },
   // reprend le retour devant la foule
-  per_animateurFoule: { role: 'direction', nom: 'L\'animateur de foule', ico: '🥁', rarete: 'peu', effet: { volume: 1.1, discipline: 1.05, finition: 0.96 },
+  per_animateurFoule: { role: 'attaque', nom: 'L\'animateur de foule', ico: '🥁', rarete: 'peu', effet: { volume: 1.1, discipline: 1.05, finition: 0.96 },
     texte: 'Le tambour dans la section 300. Chez nous, on lance de partout, et on s\'énerve un peu.' },
 
   // ---- 🦅 l'Aigle ----
@@ -189,7 +190,7 @@ export const PERSONNEL = {
   per_infirmiere: { role: 'chef', nom: 'L\'infirmière de garde', ico: '💊', rarete: 'peu', effet: { blessure: 0.72, energie: 0.92, robustesse: 0 },
     texte: 'Quand l\'infirmerie déborde, elle dort à l\'aréna. Personne ne se blesse bêtement.' },
   // reprend les rideaux opaques
-  per_hotelier: { role: 'direction', nom: 'Le réservateur d\'hôtels', ico: '🏨', rarete: 'rare', effet: { energie: 0.81, volume: 1.06, finition: 0.97 },
+  per_hotelier: { role: 'depistage', nom: 'Le réservateur d\'hôtels', ico: '🏨', rarete: 'rare', effet: { energie: 0.81, volume: 1.06, finition: 0.97 },
     texte: 'Les rideaux opaques, le dernier étage, pas de réveil. Les jambes lourdes repartent.' },
 
   // ---- 😇 l'Abbé ----
@@ -211,7 +212,7 @@ export const PERSONNEL = {
   per_chefDeChantier: { role: 'physique', nom: 'Le chef de chantier', ico: '🦺', rarete: 'peu', effet: { F: [0.93, 0.97, 1.05, 1.18], blessure: 0.75, finition: 1.02, volume: 1 },
     texte: 'Quand l\'infirmerie déborde, il bâtit avec ce qui reste. Et ceux qui restent jouent.' },
   // reprend l'usine
-  per_directeurUsine: { role: 'direction', nom: 'Le directeur de l\'usine', ico: '⚙', rarete: 'rare', effet: { F: [0.75, 0.88, 1.12, 1.55], energie: 0.88, volume: 1.16, finition: 0.98 },
+  per_directeurUsine: { role: 'chef', nom: 'Le directeur de l\'usine', ico: '⚙', rarete: 'rare', effet: { F: [0.75, 0.88, 1.12, 1.55], energie: 0.88, volume: 1.16, finition: 0.98 },
     texte: 'En séries, quatre trios, quatre quarts de travail. L\'usine ne s\'arrête jamais.' },
 
   // ---- 🌠 le Showman ----
@@ -225,15 +226,15 @@ export const PERSONNEL = {
   per_costumier: { role: 'physique', nom: 'Le costumier', ico: '👘', rarete: 'rare', effet: { F: [1.1, 1.02, 0.96, 0.9], finition: 0.87 },
     protege: { creation: 2.16, finition: 1.29, lancers: 1.14 }, texte: 'En séries, il habille son centre en paon. Et ça marche.' },
 
-  // ---- 🏦 le Comptable ----
+  // ---- 🤝 les ententes du proprio ----
   // reprend les clauses de contrat
-  per_fiscaliste: { role: 'direction', nom: 'Le fiscaliste', ico: '📑', rarete: 'peu', econ: { plafond: 0.03 },
+  per_fiscaliste: { role: 'entente', nom: 'Le fiscaliste', ico: '📑', rarete: 'peu', econ: { plafond: 0.03 },
     texte: 'Il relit chaque contrat à la loupe, et il trouve toujours un peu d\'espace.' },
   // reprend les billets de saison
-  per_boutiqueSouvenirs: { role: 'physique', nom: 'Le gérant de la boutique', ico: '🧸', rarete: 'commune', econ: { jetonsVictoire: 1 },
+  per_boutiqueSouvenirs: { role: 'entente', nom: 'Le gérant de la boutique', ico: '🧸', rarete: 'commune', econ: { jetonsVictoire: 1 },
     texte: 'Une victoire, et les tuques partent. Il tient la caisse de la boutique.' },
   // reprend la ristourne
-  per_chasseurAubaines: { role: 'depistage', nom: 'Le chasseur d\'aubaines', ico: '💳', rarete: 'commune', econ: { rabais: 0.95 },
+  per_chasseurAubaines: { role: 'entente', nom: 'Le chasseur d\'aubaines', ico: '💳', rarete: 'commune', econ: { rabais: 0.95 },
     texte: 'Il connaît le fournisseur de bâtons, et le cousin du fournisseur.' },
 };
 

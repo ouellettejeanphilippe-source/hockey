@@ -124,10 +124,10 @@ for (const [cle, adj] of Object.entries(FEU)) {
   borne(`${c.nom} seul : le net en victoires reste sous la borne d'une rare`, Math.abs(M[cle].v), 0, BORNE_RARE);
   borne(`${c.nom} seul : plus de soirs de lancée que le témoin`, M[cle].lancees - M[cle].lanceesTemoin, 0.5, 40);
 }
-exiger('les trois adjoints du feu tiennent trois postes différents, hors de la direction du vendeur', new Set(Object.values(FEU).map(k => PATRONS[k].role).concat('direction')).size === 4, Object.values(FEU).map(k => PATRONS[k].role).join(', '));
+exiger('les trois adjoints du feu tiennent trois postes différents ; le vendeur est une entente du proprio, hors du banc', new Set(Object.values(FEU).map(k => PATRONS[k].role).concat('entente')).size === 4, Object.values(FEU).map(k => PATRONS[k].role).join(', '));
 exiger('le feu gagne sa deuxième ligne au troisième échelon', LIGNES_DU_FEU.poussees === 2, `${LIGNES_DU_FEU.poussees} poussées`);
-exiger('🛍️ Le vendeur de chandails est une rare de la direction', PATRONS.dir_chandails.rarete === 'rare' && PATRONS.dir_chandails.role === 'direction', `${PATRONS.dir_chandails.rarete} · ${PATRONS.dir_chandails.role}`);
-// Le vendeur seul paie les lancées du témoin : pas plus que l'autre rare de la direction, le proprio généreux (+2 🪙 par victoire, ≈ 80 🪙).
+exiger('🛍️ Le vendeur de chandails est une rare, une entente du proprio', PATRONS.dir_chandails.rarete === 'rare' && PATRONS.dir_chandails.role === 'entente', `${PATRONS.dir_chandails.rarete} · ${PATRONS.dir_chandails.role}`);
+// Le vendeur seul paie les lancées du témoin : pas plus que l'autre entente rare, le proprio généreux (+2 🪙 par victoire, ≈ 80 🪙).
 borne('🛍️ seul, sans autre pièce : 🪙 par saison (les lancées d\'un club ordinaire)', M.combo.lanceesTemoin * PATRONS.dir_chandails.econ.jetonsLancee, 2, 80);
 
 // 2. Le combo s'emboîte : plus de soirs de lancée que les trois pièces seules additionnées.

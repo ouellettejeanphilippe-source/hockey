@@ -14,7 +14,7 @@ import { hubActif } from './coquille.js';
 import { COACHS, VOIES, SEUILS, ROMAINS } from './coachs.js';
 import { motsDeMutationEnChiffres, motsEnChiffres } from './impact.js';
 import { etatDuPersonnel, matchsJoues, decisionDEchelon, patronALEchelon, aUnDefaut, echelonsGratuits, reportDuPersonnel, protegeALEchelon, lignesDuFeu, ECHELON_MAX } from './echelons.js';
-import { tenusDe } from './chiffre.js';
+import { tenusDe, CHIFFRES, BLOC } from './chiffre.js';
 import { PACKS_TOUS, packsSansHolo, packDuJour, tirerJoueursDuPack, PITIE, tirerCartesDuPack, coachDuPack, DATE_LIMITE_MATCH, achatsDePacks, PACKS_DE_SERIE, DECENNIES, NOMS_SKILLS, BOUTIQUE } from './packs.js';
 import { ouvrirMagasin } from './magasin.js';
 import { FRANCHISES } from './franchises.js';
@@ -668,10 +668,12 @@ function jouerCarte(item, j, decider, page = null, auRetour = null) {
     if (prix > jetonsRogue(j)) { toast(`Engager ${c.nom} coûte ${prix} 🪙 en saison : pas assez en caisse.`, 'bad'); retour(); return; }
     const payer = p => (prix ? { ...p, gain: (p.gain || 0) - prix } : p);
     const motPrix = prix ? ` · −${prix} 🪙` : '';
-    if (!actifs.some(x => x.role === c.role) && actifs.length >= postes) {
+    // V20 : une entente du proprio ne prend pas de chaise (une à la fois, elle remplace la précédente).
+    const assis = actifs.filter(x => x.role !== 'entente');
+    if (c.role !== 'entente' && !assis.some(x => x.role === c.role) && assis.length >= postes) {
       ouvrirChoix({ ico: '👔', titre: `${c.nom} : qui part ?`, compact: true, fermable: true, motFermer: 'Retour',
         recit: `${postes} postes au plus (le prestige en ouvre d'autres). ${c.nom} prend la place de qui ?${prix ? ` L'engager en saison coûte ${prix} 🪙.` : ''}`,
-        options: actifs.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
+        options: assis.map(x => ({ cle: x.cle, ico: x.ico, nom: x.nom, sous: ROLES[x.role] ? ROLES[x.role].nom : '' })),
         onChoix: k => { const p = payloadDe(item.id, { patrons: actifs, build, joueurs }); p.patron.remplace = [...(p.patron.remplace || []), k]; ecrire(payer(p)); },
         onFerme: retour });
       return;
@@ -897,7 +899,9 @@ if (typeof document !== 'undefined') document.addEventListener('click', ev => { 
 export function personnelDuJour(j) {
   const max = postesDePatron((G.rogue && G.rogue.prestige) || 0);
   // V20 : un adjoint de la couleur de ton coach se lit tel que le moteur le joue (`assortiPour` : un cran de plus).
-  const { coach, pa, etats, aChoisir } = lectureDuPersonnel(j);
+  const { coach, pa: tous, etats, aChoisir } = lectureDuPersonnel(j);
+  // V20 : l'entente du proprio n'est pas au banc ; elle vit chez lui (`cartesDeLaMaison('proprio')`).
+  const pa = tous.filter(x => x.role !== 'entente');
   const libres = Math.max(0, max - pa.length);
   const echelons = e => `<span class="gens-ech" aria-label="Échelon ${e.echelon} sur ${ECHELON_MAX}">${Array.from({ length: ECHELON_MAX }, (_, i) => `<i class="${i < e.echelon ? 'on' : ''}"></i>`).join('')}</span>`;
   // UNE RANGÉE PAR ADJOINT, toujours visible : son style, sa force et son défaut, son échelon et le prix du suivant ; la toucher ouvre sa feuille.
@@ -927,6 +931,7 @@ export function personnelDuJour(j) {
  */
 const MAISONS_DES_CARTES = {
   entraineur: { titre: 'Tes cartes du personnel' },
+  proprio: { titre: 'Tes ententes' },
   infirmerie: { titre: 'Tes cartes de soin' },
   joueurs: { titre: 'Tes cartes de joueur' },
 };
@@ -939,14 +944,25 @@ function maisonDeLaCarte(id) {
   const C = CONSOMMABLES[c.cle] || {};
   return C.cible === 'coach' || C.cible === 'adjoint' ? 'entraineur' : C.cible === 'blesse' || (C.gestes && C.gestes.energie) ? 'infirmerie' : C.cible === 'cartable' ? 'joueurs' : null;
 }
+/* Le personnel de ta collection qu'une maison engage : les adjoints chez l'entraîneur, les ententes chez le proprio (V20). */
+const personnelDeLaMaison = (maison, meta) => (maison === 'entraineur' || maison === 'proprio'
+  ? (meta.personnel || []).filter(k => PATRONS[k] && (PATRONS[k].role === 'entente') === (maison === 'proprio')) : []);
+/* L'ENTENTE DU PROPRIO EN COURS (V20) : une à la fois, ce qu'elle rapporte en mots ; la toucher ouvre sa feuille, comme un adjoint. */
+function ententeHtml(j) {
+  const x = lectureDuPersonnel(j).pa.find(q => q.role === 'entente');
+  if (!x) return '';
+  return `<button type="button" class="gens gens-l" data-gens="${esc(x.cle)}"><span class="gens-av" aria-hidden="true">${x.ico || ''}<span>${ROLES.entente.ico}</span></span>
+    <span class="gens-txt"><b>${esc(x.nom || '')}</b><small>${esc(ROLES.entente.nom)}</small>
+      <span class="gens-ff">${motsDeLEcon(x.econ).slice(0, 2).map(m => `<span class="bon">${esc(m.txt)}</span>`).join('')}</span></span></button>`;
+}
 export function cartesDeLaMaison(maison, j) {
   const meta = lireMeta();
-  const engages = new Set(maison === 'entraineur' ? patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle) : []);
-  const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k)) : [];
+  const engages = new Set(patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle));
+  const perso = personnelDeLaMaison(maison, meta).filter(k => !engages.has(k));
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
   const partie = G.ligue ? cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison) : [];
   const n = perso.length + conso.reduce((a, [, k]) => a + k, 0) + partie.length;
-  const masse = maison === 'proprio' ? masseSalarialeHtml(plafondPourInventaire(j)) : '';
+  const masse = maison === 'proprio' ? `${masseSalarialeHtml(plafondPourInventaire(j))}${ententeHtml(j)}` : '';
   if (!n) return masse;
   // Une rangée, une feuille (JP, 28 oct. : *j'hais les accordéons* ; chaque onglet tient en un écran) : les cartes s'ouvrent en feuille.
   const icones = [...partie.map(x => x.id), ...perso.map(k => `patron:${k}`), ...conso.map(([id]) => id)].map(id => (BANQUE[id] || {}).ico || '').join(' ');
@@ -958,8 +974,8 @@ function ouvrirLesCartes(maison) {
   if (!hub || !hub.decider || !G.ligue) return;
   const j = hub.jour ? hub.jour() : (G.journee || 0);
   const meta = lireMeta();
-  const engages = new Set(maison === 'entraineur' ? patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle) : []);
-  const perso = maison === 'entraineur' ? (meta.personnel || []).filter(k => PATRONS[k] && !engages.has(k)) : [];
+  const engages = new Set(patronsActifs(decisionsDeLaPartie(), j + 1).map(x => x.cle));
+  const perso = personnelDeLaMaison(maison, meta).filter(k => !engages.has(k));
   const conso = Object.entries(meta.inventaire || {}).filter(([id, n]) => n > 0 && maisonDeLaCarte(id) === maison);
   const partie = cartesDeLaPartie({ decisions: decisionsDeLaPartie(), rogue: true }).filter(x => maisonDeLaCarte(x.id) === maison);
   const opt = (cle, id, mot, sous) => ({ cle, ico: (BANQUE[id] || {}).ico || '🃏', nom: `${mot} · ${(BANQUE[id] || {}).nom || id}`, sous, mots: reglesDe(id).slice(0, 3) });
@@ -1260,8 +1276,8 @@ function choisirCoach() {
   const plus = ouverts.length < VOIES.length ? ` ${ouverts.length} coachs sur ${VOIES.length} : le prestige ouvre les autres.` : '';
   return new Promise(resolve => ouvrirChoix({
     ico: '📋', titre: 'Ton coach', fermable: true, motFermer: 'Retour',
-    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : ses adjoints en poste, leurs échelons, leurs matchs à ton service.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
-      : `Sa philosophie joue dès le premier soir ; plus ses adjoints travaillent chez toi, plus l'équipe y croit.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
+    recit: meta.runs ? `Confiance I au départ, II à ${SEUILS[1]} points, III à ${SEUILS[2]} : un point par bloc de ${BLOC} matchs où son chiffre est tenu.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`
+      : `Sa philosophie joue dès le premier soir ; tiens son chiffre, et l'équipe y croit.${plus} Ton personnel : ${pats.map(c => `${c.ico} ${c.nom}`).join(' et ')}.`,
     options: optionsDeCoach(ouverts, { cartes: !!meta.runs }),
     onChoix: k => resolve(k),
     onFerme: () => resolve(null),
@@ -1271,7 +1287,7 @@ function choisirCoach() {
 function optionsDeCoach(cles, { cartes = true, garde = null } = {}) {
   return cles.map(k => {
     const C = COACHS[k], g = garde && garde.cle === k;
-    return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son dépisteur recrute ${C.recrute}.`,
+    return { cle: k, ico: C.ico, nom: C.nom, sous: `${C.mot} Son chiffre : ${CHIFFRES[k].mot(CHIFFRES[k].seuil)}.`,
       mots: [{ txt: g ? `On le garde · confiance ${ROMAINS[garde.palier]}` : 'Confiance I', bon: g ? true : null, duree: true },
         ...reglesDePalier(k, g ? garde.palier : 1)],
       quand: cartes ? `${idsDuCoach(k).filter(id => id.startsWith('patron:')).length} adjoints de sa couleur` : '' };

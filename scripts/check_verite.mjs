@@ -9,8 +9,7 @@
  *   2. LE COACH : le choix d'un coach compte ses ADJOINTS (plus « N cartes
  *      de sa couleur ») ; l'infobulle d'un joueur de couleur dit le vrai
  *      multiplicateur (`JOUEUR_COACH`, `PALIERS_COACH_MAX`) ; « Tes cartes
- *      jouées » ne se promet plus ; `COACHS[].recrute` nomme les rôles que
- *      `COACH_DU_ROLE` lui donne vraiment.
+ *      jouées » ne se promet plus.
  *   3. LA PITIÉ : « au plus tard au N+1e pack » et le moteur garantit le
  *      N+1e, pas le Ne.
  *   4. LES MATCHS, PAS LES JOURNÉES : les paliers du personnel et la main du
@@ -96,15 +95,6 @@ const tes = (L, you) => L.calendrier.flatMap((jour, j) => jour.filter(m => m.jou
   exiger('l\'infobulle du joueur de couleur dit le multiplicateur du moteur', /par métal de son badge/.test(bulle) && /\$\{PALIERS_COACH_MAX\}/.test(bulle) && /\$\{Math.round\(JOUEUR_COACH \* 100\)\}/.test(bulle) && !/fait grandir/.test(bulle),
     `JOUEUR_COACH ${JOUEUR_COACH}, jusqu'à ${PALIERS_COACH_MAX} paliers`);
   exiger('« tes cartes jouées » ne se promet plus', !sa.some(s => /cartes jouées viennent ici/.test(s)) && !g.some(s => /cartes de sa couleur/.test(s)));
-  // `recrute` : ce que le dépisteur recrute vraiment, c'est la couleur du coach (`recrue`, js/packs.js), lue sur
-  // COACH_DU_ROLE. Le texte nomme chacun de ces rôles.
-  const MOT = { sniper: 'sniper', passeur: 'passeur', deuxsens: 'two-way', power: 'power forward', checker: 'checker', energie: 'plombier', bagarreur: 'bagarreur',
-    defensif: 'défenseurs défensifs', offensif: 'défenseurs offensifs', manieur: 'manieur', physique: 'défenseurs physiques' };
-  const mal = [];
-  for (const [g2, roles] of Object.entries(COACH_DU_ROLE)) for (const [role, coach] of Object.entries(roles)) {
-    if (!(COACHS[coach].recrute || '').toLowerCase().includes(MOT[role])) mal.push(`${coach} ne dit pas « ${MOT[role]} » (${g2} ${role}) : « ${COACHS[coach].recrute} »`);
-  }
-  exiger('« Son dépisteur recrute… » nomme les rôles de sa couleur', mal.length === 0, mal.join(' · ') || `${Object.values(COACH_DU_ROLE).reduce((n, r) => n + Object.keys(r).length, 0)} rôles nommés`);
   // Une confiance se lit en lignes vraies : « à peine perceptible » une fois au plus, jamais à côté d'un vrai chiffre.
   // Le bogue ne se voyait qu'avec un club lu (l'écran en lit un ; sans lui, l'impact retombe sur d'autres mots).
   const doubles = [], [club] = ligue(9, 1);

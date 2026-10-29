@@ -48,7 +48,8 @@ export const ROLES = {
   defense: { nom: 'Adjoint à la défensive et aux gardiens', ico: '❄' },
   physique: { nom: 'Préparateur physique et soins', ico: '🏋' },
   depistage: { nom: 'Dépistage', ico: '🔭' },
-  direction: { nom: 'Direction', ico: '🏢' },
+  // V20 : l'argent quitte le banc. Une entente du proprio ne prend pas de chaise ; une à la fois, rangée chez lui.
+  entente: { nom: 'Entente du proprio', ico: '🤝' },
 };
 /*
  * \`effet\` : les canaux de l'équipe, pour la saison. \`econ\` : ce que le
@@ -60,9 +61,9 @@ export const ROLES = {
 export const PATRONS = {
   // V10 (tranche 6) : le personnel d'avant est parti. Restent le DG du plafond flexible (un déblocage le donne) et le
   // vendeur de chandails (une pièce du premier combo, la lancée : `check_combo`).
-  dir_chandails: { role: 'direction', nom: 'Le vendeur de chandails', ico: '🛍', rarete: 'rare', texte: 'Un joueur en feu, et les chandails partent par boîtes.',
+  dir_chandails: { role: 'entente', nom: 'Le vendeur de chandails', ico: '🛍', rarete: 'rare', texte: 'Un joueur en feu, et les chandails partent par boîtes.',
     econ: { jetonsLancee: 1 } },
-  dir_flexible: { role: 'direction', nom: 'Le DG du plafond flexible', ico: '🧮', rarete: 'rare', texte: 'Il connaît chaque clause de la convention collective.',
+  dir_flexible: { role: 'entente', nom: 'Le DG du plafond flexible', ico: '🧮', rarete: 'rare', texte: 'Il connaît chaque clause de la convention collective.',
     econ: { plafond: 0.05 } },
   /*
    * v2 — LES ADJOINTS DES COACHS (js/coachs.js). Un patron par coach qui
@@ -97,8 +98,8 @@ export function plafondDe(decisions = [], jusqua = Infinity, { base = 0 } = {}) 
       if (p.joueur && p.ltir) ltir.add(p.joueur);
     }
   }
-  // Le pourcentage du DG, et celui de la banque au palier III (v2) : chacun sa ligne, nommée.
-  for (const x of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+  // Le pourcentage d'une entente du proprio (le fiscaliste, le DG du plafond flexible) : sa ligne, nommée.
+  for (const x of patronsActifs(decisions, jusqua)) {
     const pct = (x.econ && x.econ.plafond) || 0;
     if (pct) { const m = Math.round(base * pct); cap += m; lignes.push({ nom: x.nom, montant: m }); }
   }
@@ -205,14 +206,14 @@ function construire() {
 export const BANQUE = construire();
 export const carteBanque = id => BANQUE[id] || null;
 /*
- * LES DEUX PATRONS IMPOSÉS AU DÉPART D'UNE RUN (V2.3) : des passifs neutres, utiles à tous — un patron sans couleur
- * de coach, ou de celle du Comptable (l'argent) —, tirés de la graine de la run parmi les raretés que le prestige
+ * LES DEUX PATRONS IMPOSÉS AU DÉPART D'UNE RUN (V2.3) : des passifs neutres, utiles à tous — un adjoint sans couleur
+ * de coach, ou une entente du proprio (l'argent, V20) —, tirés de la graine de la run parmi les raretés que le prestige
  * ouvre (js/rogue.js `PRESTIGES`), deux rôles différents. Rend leurs id de banque.
  */
 export const PATRONS_IMPOSES = 2;
 export function patronsDeDepart(graine, raretes) {
   const out = [];
-  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && (!c.coach || c.coach === 'banque') && raretes.includes(c.rarete))
+  const pool = Object.values(BANQUE).filter(c => c.cat === 'patron' && !c.coach && raretes.includes(c.rarete))
     .sort((a, b) => hache(graine, 'patron', a.id) - hache(graine, 'patron', b.id));
   for (const c of pool) if (out.length < PATRONS_IMPOSES && !out.some(x => BANQUE[x].role === c.role)) out.push(c.id);
   return out;
@@ -366,17 +367,13 @@ export function patronsActifs(decisions = [], jusqua = Infinity) {
 /* Ce que les patrons engagés changent à la boutique (la décision d'engagement porte \`econ\`). */
 export function modificateurs(decisions = [], jusqua = Infinity) {
   const m = { rabais: 1, holo: 1, carteExtra: 0, sansBase: false, jetonsVictoire: [], jetonsLancee: [] };
-  // v2 : un coach qui a la confiance du vestiaire change la boutique comme un patron (le Comptable).
-  for (const p of [...patronsActifs(decisions, jusqua), ...coachsActifs(decisions, jusqua)]) {
+  // V20 : le Comptable est parti ; seules les ententes du proprio (et le vendeur de chandails) touchent la boutique.
+  for (const p of patronsActifs(decisions, jusqua)) {
     const e = p.econ || {};
     if (e.rabais) m.rabais *= e.rabais;
     if (e.holo) m.holo *= e.holo;
     if (e.carteExtra) m.carteExtra += e.carteExtra;
     if (e.sansBase) m.sansBase = true;
-  }
-  for (const c of coachsActifs(decisions, jusqua)) {
-    const e = c.econ || {};
-    if (e.jetonsVictoire) m.jetonsVictoire.push({ depuis: c.jour || 0, n: e.jetonsVictoire, cle: c.cle });
   }
   for (const x of revenusDuPersonnel(decisions, jusqua)) m[x.sorte].push(x);
   return m;
@@ -503,6 +500,8 @@ export function coachsActifs(decisions = [], jusqua = Infinity) {
   let dernier = null;
   for (const d of decisions) {
     if (!d || !d.coach || !d.coach.cle || (d.jour || 0) >= jusqua) continue;
+    // V20 : le Comptable (`banque`) est parti ; une vieille partie qui l'avait en poste n'a plus de coach.
+    if (!COACHS[d.coach.cle]) continue;
     if (!dernier || (d.jour || 0) >= dernier.jour) dernier = { ...d.coach, jour: d.jour || 0 };
   }
   return dernier ? [dernier] : [];

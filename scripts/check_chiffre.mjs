@@ -99,7 +99,6 @@ for (const cle of VOIES) {
   exiger('un coach entré en poste en cours de saison ne compte que ses blocs à lui', blocsTenus('essaim', matchs, teams[0], Infinity, mi).blocs === Math.floor(matchs.filter(m => (m.A === teams[0] || m.B === teams[0]) && m.jour >= mi).length / BLOC),
     `${blocsTenus('essaim', matchs, teams[0], Infinity, mi).blocs} blocs depuis le 42e match`);
   exiger('un bloc compte BLOC matchs de ton club', blocsTenus('essaim', matchs, teams[0]).blocs === Math.floor(matchs.filter(m => m.A === teams[0] || m.B === teams[0]).length / BLOC), `${BLOC} matchs`);
-  informer('le Comptable n\'a pas de chiffre', `${blocsTenus('banque', matchs, teams[0]).blocs} bloc`);
   exiger('sans feuilles, rien ne compte', pointsTenus('essaim', [], teams[0]) === 0);
 }
 verdict('Le chiffre à tenir du coach');

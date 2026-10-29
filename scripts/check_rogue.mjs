@@ -211,8 +211,8 @@ if (!isMainThread) {
   }
   /*
    * V2.3 — LE COACH ET SES PATRONS, AU PRESTIGE : trois coachs au Club de garage, un de plus par rang, les huit à la
-   * Dynastie (le Comptable n'en est plus un : c'est un patron) ; deux postes de patron au départ, plus au prestige ;
-   * deux patrons imposés, neutres (sans couleur de coach, ou celle de l'argent), deux rôles, des raretés ouvertes.
+   * Dynastie ; deux postes de patron au départ, plus au prestige ;
+   * deux patrons imposés, neutres (sans couleur de coach), deux rôles, des raretés ouvertes.
    */
   {
     const n = PRESTIGES.map((_, r) => coachsOuverts(r).length), postes = PRESTIGES.map((_, r) => postesDePatron(r));
@@ -221,12 +221,12 @@ if (!isMainThread) {
     const tirages = [];
     for (let r = 0; r < PRESTIGES.length; r++) for (let k = 0; k < 40; k++) tirages.push([r, patronsDeDepart(`essai:${k}`, PRESTIGES[r].raretes)]);
     const faux = tirages.filter(([r, ids]) => ids.length !== PATRONS_IMPOSES || new Set(ids.map(id => BANQUE[id].role)).size !== ids.length
-      || ids.some(id => (BANQUE[id].coach && BANQUE[id].coach !== 'banque') || !PRESTIGES[r].raretes.includes(BANQUE[id].rarete)));
+      || ids.some(id => BANQUE[id].coach || !PRESTIGES[r].raretes.includes(BANQUE[id].rarete)));
     exiger('deux patrons imposés, neutres, de deux rôles, aux raretés que le rang ouvre', !faux.length, faux.length ? faux[0][1].join(' ') : `${tirages.length} tirages`);
     exiger('le même départ tire les mêmes patrons', patronsDeDepart('essai:7', PRESTIGES[0].raretes).join() === patronsDeDepart('essai:7', PRESTIGES[0].raretes).join());
-    // V10-4 : le Comptable d'avant s'est retiré ; son poste neuf (le gestionnaire de la caisse) prend sa place au départ.
-    const comptable = ids => ids.some(id => BANQUE[id].coach === 'banque');
-    exiger('le Comptable a un patron qu\'un départ peut imposer', tirages.some(([, ids]) => comptable(ids)), `${tirages.filter(([, ids]) => comptable(ids)).length} tirages sur ${tirages.length}`);
+    // V20 : une entente du proprio (l'argent) peut être imposée au départ, à côté d'un adjoint neutre.
+    const entente = ids => ids.some(id => BANQUE[id].role === 'entente');
+    exiger('une entente du proprio, un départ peut l\'imposer', tirages.some(([, ids]) => entente(ids)), `${tirages.filter(([, ids]) => entente(ids)).length} tirages sur ${tirages.length}`);
   }
   // V5 : le mandat se lit au classement (un rang qui monte), plus une série gagnée.
   const seuils = MANDATS.map(m => rangDuMandat(m, 32));

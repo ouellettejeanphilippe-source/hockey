@@ -33,8 +33,7 @@
  *
  * AUCUNE MÉCANIQUE NEUVE (CLAUDE.md) : une confiance est une décision `coach`
  * faite des canaux que `effetsDeSaison` lit déjà (finition, volume, défense,
- * robustesse, discipline, blessures, jambes, minutes des trios) et de ce que
- * les patrons changent à la boutique (`econ`). La décision porte ses
+ * robustesse, discipline, blessures, jambes, minutes des trios). La décision porte ses
  * CHIFFRES : une partie reprise rejoue ce qui a été joué, même si ce fichier
  * change entre-temps.
  *
@@ -55,8 +54,7 @@ export const ROMAINS = ['', 'I', 'II', 'III'];
  * la couleur du coach de son MEILLEUR RÔLE, s'il le maîtrise (« bon » et plus,
  * `ROLE_BON`, les mots de la fiche) : lu dans ses vraies stats, jamais dans une
  * cote. Un style posé qui déplace ses rôles déplace aussi sa couleur. Un
- * gardien, ou un joueur sans rôle maîtrisé, n'en a pas. Le Comptable n'a pas
- * de joueurs : il paie.
+ * gardien, ou un joueur sans rôle maîtrisé, n'en a pas.
  */
 export const ROLE_BON = 55;
 export const COACH_DU_ROLE = {
@@ -103,42 +101,38 @@ export function porteParSesJoueurs(c, n) {
 /*
  * Un coach : son visage (`ico`, un totem : une icône, un coach), son surnom,
  * `de` pour les phrases (« une carte du Frelon »), sa philosophie en une
- * ligne, et ce que chaque confiance joue pour la saison. `recrute`, le style de joueur que son
- * dépisteur fait pencher dans les packs de joueurs de la run (js/packs.js). (V9 : son système préféré, qu'il jouait
- * un palier plus haut, est parti : ses familles le remplacent.) `econ` : comme un
- * patron (js/banque.js `modificateurs`, `plafondDe`).
+ * ligne, et ce que chaque confiance joue pour la saison. Son dépisteur fait pencher les packs de joueurs de la run
+ * vers sa couleur (js/packs.js `recrue`) ; le texte qui le disait à la main (`recrute`) est parti à la V20.
  *
  * `familles` (V9, tranche 3 ; docs/refonte-v9.md § 6.1) : ce que le coach paie et ce qu'il coûte, parmi les quatre
  * familles du profil (`FAMILLES`, js/sim.js). Le plan qui les faisait compter est parti à la V15 ; reste ce que
  * l'adversaire en lit pour choisir son intention au duel (`coachPaie`, js/sim.js).
  */
 export const COACHS = {
-  essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', familles: { paie: ['tir', 'robustesse'], coute: 'jeu' }, recrute: 'des power forwards et des défenseurs offensifs',
+  essaim: { ico: '🐝', nom: 'Le Frelon', de: 'du Frelon', mot: 'Tirer de partout, tout le temps.', familles: { paie: ['tir', 'robustesse'], coute: 'jeu' },
     paliers: [{ volume: 1.034, prix: { finition: 0.99 } }, { volume: 1.066, prix: { finition: 0.98 } }, { volume: 1.11, plafonds: { pression: 0.15 }, prix: { finition: 0.97 } }] },
-  rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', familles: { paie: ['tir', 'jeu'], coute: 'defense' }, recrute: 'des snipers',
+  rapaces: { ico: '🦅', nom: 'L\'Aigle', de: 'de l\'Aigle', mot: 'Chaque lancer doit rentrer.', familles: { paie: ['tir', 'jeu'], coute: 'defense' },
     paliers: [{ finition: 1.034, prix: { volume: 0.99 } }, { finition: 1.068, prix: { volume: 0.98 } }, { finition: 1.112, plafonds: { finition: 0.22 }, prix: { volume: 0.97 } }] },
-  tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', familles: { paie: ['defense'], coute: 'tir' }, recrute: 'des two-way et des défenseurs défensifs',
+  tortue: { ico: '🐢', nom: 'La Tortue', de: 'de la Tortue', mot: 'Fermer la porte, gagner 2-1.', familles: { paie: ['defense'], coute: 'tir' },
     paliers: [{ defense: 0.965, prix: { volume: 0.99 } }, { defense: 0.94, prix: { volume: 0.98 } }, { defense: 0.906, prix: { volume: 0.97 } }] },
-  rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', familles: { paie: ['robustesse'], coute: 'jeu' }, recrute: 'des bagarreurs et des défenseurs physiques',
+  rhinos: { ico: '🦏', nom: 'Le Rhino', de: 'du Rhino', mot: 'Cogner et tenir, jusqu\'en avril.', familles: { paie: ['robustesse'], coute: 'jeu' },
     paliers: [{ robustesse: 0.4, prix: { discipline: 1.04 } }, { robustesse: 0.8, prix: { discipline: 1.08 } }, { robustesse: 1.3, blessure: 0.80, plafonds: { robustesse: 2.8 }, prix: { discipline: 1.12 } }] },
-  souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', familles: { paie: ['robustesse'], coute: 'tir' }, recrute: 'des plombiers',
+  souffle: { ico: '🫁', nom: 'Le Doc', de: 'du Doc', mot: 'Des jambes fraîches et personne à l\'infirmerie.', familles: { paie: ['robustesse'], coute: 'tir' },
     paliers: [{ energie: 0.79, blessure: 0.564, prix: { robustesse: -0.25 } }, { energie: 0.694, blessure: 0.409, volume: 1.03, prix: { robustesse: -0.5 } }, { energie: 0.607, blessure: 0.26, volume: 1.06, prix: { robustesse: -0.75 } }] },
-  choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', familles: { paie: ['jeu'], coute: 'robustesse' }, recrute: 'des manieurs de rondelle',
+  choeur: { ico: '😇', nom: 'L\'Abbé', de: 'de l\'Abbé', mot: 'Jamais au cachot ; eux, souvent.', familles: { paie: ['jeu'], coute: 'robustesse' },
     paliers: [{ discipline: 0.88, prix: { robustesse: -0.1 } }, { discipline: 0.79, prix: { robustesse: -0.2 } }, { discipline: 0.64, finition: 1.04, plafonds: { discipline: 0.15 }, prix: { robustesse: -0.3 } }] },
-  profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', familles: { paie: ['defense'], coute: 'jeu' }, recrute: 'des checkers',
+  profondeur: { ico: '🪜', nom: 'Le Contremaître', de: 'du Contremaître', mot: 'Quatre trios qui jouent, pas trois.', familles: { paie: ['defense'], coute: 'jeu' },
     paliers: [{ F: [0.9, 1, 1.11, 1.27], energie: 0.853, blessure: 0.784 }, { F: [0.79, 1, 1.23, 1.57], energie: 0.751, blessure: 0.594, robustesse: 0.95 },
       { F: [0.68, 1, 1.34, 1.95], energie: 0.654, blessure: 0.428, robustesse: 1.71, volume: 1.085 }] },
-  etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', familles: { paie: ['jeu'], coute: 'defense' }, recrute: 'des passeurs',
+  etoiles: { ico: '🌠', nom: 'Le Showman', de: 'du Showman', mot: 'Les vedettes sur la glace, toute la soirée.', familles: { paie: ['jeu'], coute: 'defense' },
     paliers: [{ F: [1.08, 1.02, 0.95, 0.92], finition: 1.025, prix: { energie: 1.02 } }, { F: [1.17, 1.06, 0.92, 0.83], finition: 1.05, prix: { energie: 1.04 } },
       { F: [1.28, 1.1, 0.86, 0.74], finition: 1.085, prix: { energie: 1.06 } }] },
-  banque: { ico: '🏦', nom: 'Le Comptable', de: 'du Comptable', mot: 'Chaque jeton, chaque dollar du plafond.', recrute: 'des aubaines pour leur salaire',
-    paliers: [{ econ: { rabais: 0.92 } }, { econ: { rabais: 0.86, jetonsVictoire: 2 } }, { econ: { rabais: 0.80, jetonsVictoire: 3, plafond: 0.05 } }] },
 };
 export const ORDRE_COACHS = Object.keys(COACHS);
 /*
- * LES HUIT VOIES D'UNE RUN (V2.3, docs/refonte-systeme.md § 10). Le Comptable n'est plus un coach qu'on choisit
- * au départ : il est un patron (js/banque.js, `dir_comptable`), à côté de n'importe quel coach ; sa couleur reste
- * celle des cartes d'argent. Les huit autres, dans l'ordre où le prestige les ouvre (js/rogue.js `coachsOuverts`).
+ * LES HUIT VOIES D'UNE RUN (V2.3, docs/refonte-systeme.md § 10), dans l'ordre où le prestige les ouvre (js/rogue.js
+ * `coachsOuverts`). Le Comptable est parti à la V20 : l'argent n'est plus une couleur, ses cartes sont les ententes du
+ * proprio, neutres.
  */
 export const VOIES = ['tortue', 'essaim', 'rhinos', 'rapaces', 'souffle', 'choeur', 'profondeur', 'etoiles'];
 
@@ -151,7 +145,7 @@ export const avantProchain = n => { const s = SEUILS.find(x => (n || 0) < x); re
  * LE COACH D'UNE CARTE, LU SUR CE QU'ELLE FAIT. `c` : tout ce qu'une carte
  * peut porter, quelle que soit sa famille — `effet` (les canaux, dont les
  * minutes F et D), `adv` (l'adversaire), `gestes` (soins, jambes, le filet),
- * `econ`, `gain`, `pari`, `plafond`, et les champs d'une MUTATION de joueur
+ * et les champs d'une MUTATION de joueur
  * (`lancers`, `creation`, `arrets`, `profils`, l'atelier). Chaque BON côté
  * marque des points pour son coach, rapporté à l'AMPLEUR ordinaire de son
  * canal (`AMPLEUR` : ce qu'une carte y met d'habitude) — sinon la défense,
@@ -196,7 +190,6 @@ export function coachDesCanaux(c = {}) {
   lire(c.adv, -1);
   const g = c.gestes || {};
   plus('souffle', (g.soin || 0) * 0.8 + Math.max(0, g.energie || 0) / 15 + Math.max(0, g.energieTous || 0) / 6 + (g.gardienAux ? 1.5 : 0));
-  if (c.econ || c.gain || c.pari || c.plafond) plus('banque', 3);
   // Une MUTATION de joueur : ses canaux à elle, et ce que l'atelier lui apprend.
   if (c.mutation) {
     const M = c.mutation;
@@ -209,8 +202,6 @@ export function coachDesCanaux(c = {}) {
     plus('souffle', M.physio ? 2 : 0);
     const pr = M.profils || {};
     plus('rhinos', (Math.max(0, pr.power || 0) + Math.max(0, pr.physique || 0)) / 12);
-    // Un contrat : ce qu'il coûte au plafond, c'est la banque.
-    if (M.source === 'contrat') plus('banque', 1);
   }
   // NEUTRE (v2, JP : *faudrait quand même des cartes qui sont pas liées à un coach*) : un signal faible — une carte
   // d'appoint, moins de `SIGNAL_MIN` fois l'ampleur ordinaire de son canal — ou partagé presque à égalité entre deux coachs.
@@ -219,10 +210,9 @@ export function coachDesCanaux(c = {}) {
   return top[0];
 }
 
-/* L'effet d'une confiance, tel qu'une décision le porte : `{ cle, palier, nom, ico, ...canaux, econ? }`. */
+/* L'effet d'une confiance, tel qu'une décision le porte : `{ cle, palier, nom, ico, ...canaux }`. */
 export function effetDePalier(cle, palier) {
   const E = COACHS[cle];
   if (!E || palier < 1) return null;
-  const { econ, ...canaux } = E.paliers[palier - 1];
-  return { cle, palier, nom: `${E.nom} ${ROMAINS[palier]}`, ico: E.ico, ...canaux, ...(econ ? { econ: { ...econ } } : {}) };
+  return { cle, palier, nom: `${E.nom} ${ROMAINS[palier]}`, ico: E.ico, ...E.paliers[palier - 1] };
 }
